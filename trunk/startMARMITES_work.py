@@ -207,7 +207,7 @@ print'\n##############'
 print 'MARMITES initialization'
 
 # MARMITES INITIALIZATION
-MARMproc = MARMunsat.process(MARM_ws                  = MARM_ws,
+MARM_PROCESS = MARMunsat.process(MARM_ws                  = MARM_ws,
                         MF_ws                    = MF_ws,
                         nrow                     = nrow,
                         ncol                     = ncol,
@@ -217,23 +217,23 @@ MARMproc = MARMunsat.process(MARM_ws                  = MARM_ws,
                         perlen                   = perlen,
                         hnoflo                   = hnoflo
                         )
-MARMunsat = MARMunsat.UNSAT(hnoflo = hnoflo)
-MARMlinres = MARMunsat.LINRES()
-MARMsatflow = MARMunsat.SATFLOW()
+MARM_UNSAT = MARMunsat.UNSAT(hnoflo = hnoflo)
+MARM_LINRES = MARMunsat.LINRES()
+MARM_SATFLOW = MARMunsat.SATFLOW()
 
 # READ input ESRI ASCII rasters # missing gridIRR_fn
-gridMETEO = MARMproc.inputEsriAscii(grid_fn = gridMETEO_fn, datatype = int)
+gridMETEO = MARM_PROCESS.inputEsriAscii(grid_fn = gridMETEO_fn, datatype = int)
 
-gridSOIL = MARMproc.inputEsriAscii(grid_fn = gridSOIL_fn, datatype = int)
+gridSOIL = MARM_PROCESS.inputEsriAscii(grid_fn = gridSOIL_fn, datatype = int)
 
-gridSOILthick = MARMproc.inputEsriAscii(grid_fn = gridSOILthick_fn,
+gridSOILthick = MARM_PROCESS.inputEsriAscii(grid_fn = gridSOILthick_fn,
  datatype = float)
 
 
-##gridIRR = MARMproc.inputEsriAscii(grid_fn                  = gridIRR_fn)
+##gridIRR = MARM_PROCESS.inputEsriAscii(grid_fn                  = gridIRR_fn)
 
 # READ input time series and parameters   # missing IRR_fn
-_Sm, _Sr, _Sfc, _Si, _Ks, _SUSTm, _n, _f, gridVEGarea, RFzonesTS, E0zonesTS, PETvegzonesTS, RFevegzonesTS, PEsoilzonesTS, inputDate = MARMproc.inputTS(
+_Sm, _Sr, _Sfc, _Si, _Ks, _SUSTm, _n, _f, gridVEGarea, RFzonesTS, E0zonesTS, PETvegzonesTS, RFevegzonesTS, PEsoilzonesTS, inputDate = MARM_PROCESS.inputTS(
             outputFILE_fn            = outputFILE_fn,
             SOILparam_fn             = SOILparam_fn,
             NMETEO                   = NMETEO,
@@ -251,7 +251,7 @@ _Sm, _Sr, _Sfc, _Si, _Ks, _SUSTm, _n, _f, gridVEGarea, RFzonesTS, E0zonesTS, PET
 obsCHECK = 1  # 0: no obs, 1: obs
 if obsCHECK==1:
     print "\nReading observations time series (hydraulic heads and soil moisture), please wait..."
-    obs, outpathname, obs_h, obs_sm = MARMproc.inputObs(
+    obs, outpathname, obs_h, obs_sm = MARM_PROCESS.inputObs(
                             inputObs_fn = inputObs_fn,
                             inputDate   = inputDate
                             )
@@ -270,36 +270,36 @@ else:
 # ######################
 #   ### main loop: calculation of soil water balance in each cell-grid for each time step inside each stress period
 # ######################
-outFileRF_PERall, gridoutDUMMY = MARMproc.outputEAgrd(outFile_fn         = 'outRF.asc')
-outFilePET_PERall, gridoutDUMMY = MARMproc.outputEAgrd(
+outFileRF_PERall, gridoutDUMMY = MARM_PROCESS.outputEAgrd(outFile_fn         = 'outRF.asc')
+outFilePET_PERall, gridoutDUMMY = MARM_PROCESS.outputEAgrd(
                         outFile_fn         = 'outPET.asc')
-outFileRFe_PERall, gridoutDUMMY = MARMproc.outputEAgrd(
+outFileRFe_PERall, gridoutDUMMY = MARM_PROCESS.outputEAgrd(
                         outFile_fn         = 'outRFe.asc')
-outFileSUST_PERall, gridoutDUMMY = MARMproc.outputEAgrd(
+outFileSUST_PERall, gridoutDUMMY = MARM_PROCESS.outputEAgrd(
                         outFile_fn         = 'outSUST.asc')
-outFileQs_PERall, gridoutDUMMY = MARMproc.outputEAgrd(
+outFileQs_PERall, gridoutDUMMY = MARM_PROCESS.outputEAgrd(
                         outFile_fn         = 'outQs.asc')
-outFileETu_PERall, gridoutDUMMY = MARMproc.outputEAgrd(
+outFileETu_PERall, gridoutDUMMY = MARM_PROCESS.outputEAgrd(
                         outFile_fn         = 'outETu.asc')
-outFileETs_PERall, gridoutDUMMY = MARMproc.outputEAgrd(
+outFileETs_PERall, gridoutDUMMY = MARM_PROCESS.outputEAgrd(
                         outFile_fn         = 'outETs.asc')
-outFileS_PERall, gridoutDUMMY = MARMproc.outputEAgrd(
+outFileS_PERall, gridoutDUMMY = MARM_PROCESS.outputEAgrd(
                         outFile_fn         = 'outS.asc')
-outFileRp_PERall, gridoutDUMMY = MARMproc.outputEAgrd(
+outFileRp_PERall, gridoutDUMMY = MARM_PROCESS.outputEAgrd(
                         outFile_fn         = 'outRp.asc')
-outFileR_PERall, gridoutDUMMY = MARMproc.outputEAgrd(
+outFileR_PERall, gridoutDUMMY = MARM_PROCESS.outputEAgrd(
                         outFile_fn         = 'outR.asc')
-outFileFLOOD_PERall, gridoutDUMMY = MARMproc.outputEAgrd(
+outFileFLOOD_PERall, gridoutDUMMY = MARM_PROCESS.outputEAgrd(
                         outFile_fn         = 'outFLOOD.asc')
-outFileSATpart_PERall, gridoutDUMMY = MARMproc.outputEAgrd(
+outFileSATpart_PERall, gridoutDUMMY = MARM_PROCESS.outputEAgrd(
                         outFile_fn         = 'outSATpart.asc')
-outFileMB_PERall, gridoutDUMMY = MARMproc.outputEAgrd(
+outFileMB_PERall, gridoutDUMMY = MARM_PROCESS.outputEAgrd(
                         outFile_fn         = 'outMB.asc')
-outFileINTER_PERall, gridoutDUMMY = MARMproc.outputEAgrd(
+outFileINTER_PERall, gridoutDUMMY = MARM_PROCESS.outputEAgrd(
                         outFile_fn         = 'outINTER.asc')
-outFilePOND_PERall, gridoutDUMMY = MARMproc.outputEAgrd(
+outFilePOND_PERall, gridoutDUMMY = MARM_PROCESS.outputEAgrd(
                         outFile_fn         = 'outPOND.asc')
-outFileRunoff_PERall, gridoutDUMMY = MARMproc.outputEAgrd(
+outFileRunoff_PERall, gridoutDUMMY = MARM_PROCESS.outputEAgrd(
                         outFile_fn         = 'outRunoff.asc')
 del gridoutDUMMY
 
@@ -312,45 +312,46 @@ print'\n##############'
 print 'MARMITES computing...'
 # computing fluxes fopr each stress period in the whole grid
 Si_tmp_array = np.zeros([nrow,ncol], dtype=float)
+Rp_tmp_array = np.zeros([nrow,ncol], dtype=float)
 for n in range(nper):
     # ######################
     # ###  create output files #####
     # ######################
-    outFileRF, gridoutRF = MARMproc.outputEAgrd(
+    outFileRF, gridoutRF = MARM_PROCESS.outputEAgrd(
                             outFile_fn         = 'outRF_PER' + str(n+1) + '.asc')
-    outFilePET, gridoutPET = MARMproc.outputEAgrd(
+    outFilePET, gridoutPET = MARM_PROCESS.outputEAgrd(
                             outFile_fn         = 'outPET_PER' + str(n+1) + '.asc')
-    outFileRFe, gridoutRFe = MARMproc.outputEAgrd(
+    outFileRFe, gridoutRFe = MARM_PROCESS.outputEAgrd(
                             outFile_fn         = 'outRFe_PER' + str(n+1) + '.asc')
-    outFileSUST, gridoutSUST = MARMproc.outputEAgrd(
+    outFileSUST, gridoutSUST = MARM_PROCESS.outputEAgrd(
                             outFile_fn         = 'outSUST_PER' + str(n+1) + '.asc')
-    outFileQs, gridoutQs = MARMproc.outputEAgrd(
+    outFileQs, gridoutQs = MARM_PROCESS.outputEAgrd(
                             outFile_fn         = 'outQs_PER' + str(n+1) + '.asc')
-    outFileETu, gridoutETu = MARMproc.outputEAgrd(
+    outFileETu, gridoutETu = MARM_PROCESS.outputEAgrd(
                             outFile_fn         = 'outETu_PER' + str(n+1) + '.asc')
-    outFileETs, gridoutETs = MARMproc.outputEAgrd(
+    outFileETs, gridoutETs = MARM_PROCESS.outputEAgrd(
                             outFile_fn         = 'outETs_PER' + str(n+1) + '.asc')
-    outFileS, gridoutS = MARMproc.outputEAgrd(
+    outFileS, gridoutS = MARM_PROCESS.outputEAgrd(
                             outFile_fn         = 'outS_PER' + str(n+1) + '.asc')
-    outFileRp, gridoutRp = MARMproc.outputEAgrd(
+    outFileRp, gridoutRp = MARM_PROCESS.outputEAgrd(
                             outFile_fn         = 'outRp_PER' + str(n+1) + '.asc')
-    outFileR, gridoutR = MARMproc.outputEAgrd(
+    outFileR, gridoutR = MARM_PROCESS.outputEAgrd(
                             outFile_fn         = 'outR_PER' + str(n+1) + '.asc')
-    outFileRPER, gridoutDUMMY = MARMproc.outputEAgrd(
+    outFileRPER, gridoutDUMMY = MARM_PROCESS.outputEAgrd(
                         outFile_fn               = rch_fn[n],
-                        outFolder                = MARMproc.MF_ws)
+                        outFolder                = MARM_PROCESS.MF_ws)
     del gridoutDUMMY
-    outFileFLOOD, gridoutFLOOD = MARMproc.outputEAgrd(
+    outFileFLOOD, gridoutFLOOD = MARM_PROCESS.outputEAgrd(
                             outFile_fn         = 'outFLOOD_PER' + str(n+1) + '.asc')
-    outFileSATpart, gridoutSATpart = MARMproc.outputEAgrd(
+    outFileSATpart, gridoutSATpart = MARM_PROCESS.outputEAgrd(
                             outFile_fn         = 'outSATpart_PER' + str(n+1) + '.asc')
-    outFileMB, gridoutMB = MARMproc.outputEAgrd(
+    outFileMB, gridoutMB = MARM_PROCESS.outputEAgrd(
                             outFile_fn         = 'outMB_PER' + str(n+1) + '.asc')
-    outFileINTER, gridoutINTER = MARMproc.outputEAgrd(
+    outFileINTER, gridoutINTER = MARM_PROCESS.outputEAgrd(
                             outFile_fn         = 'outINTER_PER' + str(n+1) + '.asc')
-    outFilePOND, gridoutPOND = MARMproc.outputEAgrd(
+    outFilePOND, gridoutPOND = MARM_PROCESS.outputEAgrd(
                             outFile_fn         = 'outPOND_PER' + str(n+1) + '.asc')
-    outFileRunoff, gridoutRunoff = MARMproc.outputEAgrd(
+    outFileRunoff, gridoutRunoff = MARM_PROCESS.outputEAgrd(
                             outFile_fn         = 'outRunoff_PER' + str(n+1) + '.asc')
     tstart = 0
     for t in range(n):
@@ -389,7 +390,7 @@ for n in range(nper):
                     VEGarea_tmp[v]=gridVEGarea[v,i,j]
                 # cal functions for reservoirs calculations
                 # order of output is 0-RF, 1-PET, 2-RFe, 3-SUST, 4-Qs, 5-ETu, 6-S, 7-Rp, 8-countFLOOD, 9-ETs, 10-countSATpart, 11-MB, 12-R
-                results_temp = MARMunsat.run(i, j,
+                results_temp = MARM_UNSAT.run(i, j,
                                              Sm    = Sm_tmp,
                                              Sfc   = Sfc_tmp,
                                              Sr    = Sr_tmp,
@@ -429,7 +430,10 @@ for n in range(nper):
                 iR=16
                 for k in range(iR):
                     results[i,j,k,:]=results_temp[k]
-                results[i,j,iR,:]=MARMlinres.run(results[i,j,iRp,:], n_tmp, f_tmp)
+                Rp_tmp = results[i,j,iRp,:]*1.0
+                Rp_tmp[0] = Rp_tmp[0] + Rp_tmp_array[i,j]
+                results[i,j,iR,:] = MARM_LINRES.run(Rp_tmp, n_tmp, f_tmp)
+
                  # output cumulative (1) or averaged by time (sum(perlen))
                 divfact=float(perlen[n])
                 gridoutRF[i,j]      = results[i,j,iRF,:].sum()/divfact
@@ -466,6 +470,10 @@ for n in range(nper):
                 results_PERall[i,j,iRunoff] = results_PERall[i,j,iRunoff] + gridoutRunoff[i,j]
                 rech[n,i,j] = results[i,j,iR,:].sum()/(divfact*1000)
 
+                # setting initial conditions for the next SP
+                Si_tmp_array[i,j] = results[i,j,iS,perlen[n]-1]
+                Rp_tmp_array[i,j] = Rp_tmp.sum() - results[i,j,iR,:].sum()
+
                 outFileRF.write('%.6f'%(gridoutRF[i,j]) + ' ')
                 outFilePET.write('%.6f'%(gridoutPET[i,j]) + ' ')
                 outFileRFe.write('%.6f'%(gridoutRFe[i,j]) + ' ')
@@ -486,7 +494,6 @@ for n in range(nper):
                     outFileRPER.write(str(rech[n,i,j])+' ')
                 else:
                     outFileRPER.write(str(0.0)+' ')
-                Si_tmp_array[i,j] = results[i,j,iS,perlen[n]-1]
             else:
                 results[i,j,:,:]    = hnoflo
                 results_PERall[i,j,:] = hnoflo
@@ -529,11 +536,11 @@ for n in range(nper):
                 for o in range(len(obs.keys())):
                     if obs.get(obs.keys()[o])['i'] == i and obs.get(obs.keys()[o])['j'] == j:
                      # order of output is 0-RF, 1-PET, 2-RFe, 3-SUST, 4-Qs, 5-ETu, 6-S, 7-Rp, 8-countFLOOD, 9-ETs, 10-countSATpart, 11-MB, 12-R, 13-INTER, 14-countPOND, 15-countRunoff
-                        h_satflow=MARMsatflow.run(results[i,j,iR,:], float(obs.get(obs.keys()[o])['hi']),float(obs.get(obs.keys()[o])['h0']),float(obs.get(obs.keys()[o])['RC']),float(obs.get(obs.keys()[o])['STO']))
+                        h_satflow=MARM_SATFLOW.run(results[i,j,iR,:], float(obs.get(obs.keys()[o])['hi']),float(obs.get(obs.keys()[o])['h0']),float(obs.get(obs.keys()[o])['RC']),float(obs.get(obs.keys()[o])['STO']))
                         # reinitialize hi for the next time period
                         obs.get(obs.keys()[o])['hi']=h_satflow[perlen[n]-1]-float(obs.get(obs.keys()[o])['h0'])
                         TS = [results[i,j,iRF,:], results[i,j,iPET,:], results[i,j,iRFe,:],results[i,j,iINTER,:], results[i,j,iETu,:], results[i,j,iETs,:],results[i,j,iS,:], results[i,j,iSUST,:],results[i,j,iPOND,:],results[i,j,iQs,:],results[i,j,iRunoff,:],results[i,j,iFLOOD,:],results[i,j,iRp,:], results[i,j,iR,:], h_satflow, heads[tstart:tend,i,j,0], results[i,j,iSATpart,:],results[i,j,iMB,:], results[i,j,iE0,:]]
-                        MARMproc.ExportResults(inputDate[tstart:tend], TS, obs_h[o][tstart:tend], obs_sm[o][tstart:tend], outFileExport[o], outPESTheads, outPESTsm, obs.keys()[o])
+                        MARM_PROCESS.ExportResults(inputDate[tstart:tend], TS, obs_h[o][tstart:tend], obs_sm[o][tstart:tend], outFileExport[o], outPESTheads, outPESTsm, obs.keys()[o])
                 ##    DLPgraphs.calibGRAPH(inputDate, results[i,j,0,:], results[i,j,1,:],
                 ##                          results[i,j,2,:], results[i,j,5,:], results[i,j,6,:],
                 ##                          results[i,j,9,:], h, obsh[o], obssm[o], Sm[gridSOIL[i,j]-1], Sr[gridSOIL[i,j]-1])
@@ -666,3 +673,4 @@ del gridoutRF, gridoutRFe, gridoutR, gridoutRp, gridoutETu, gridoutETs, gridoutS
 ##    print e
 ##    raise e
 #    os.system('pause')
+

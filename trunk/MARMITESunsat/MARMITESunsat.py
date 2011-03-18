@@ -292,6 +292,8 @@ class UNSAT:
         return RF, PET_tot, RFe_tot, SUST, Qs, ETu, S, Rp, countFLOOD, ETs, countSATpart, MB, INTER, countPOND, countRunoff, E0
         del RF, PET_tot, RFe_tot, SUST, Qs, ETu, S, Rp, countFLOOD, ETs, countSATpart, MB, R, countPOND, countRunoff, Spercent, INTER
 
+#######################################################
+
 class LINRES:
     """
     LINRES: LINear REServoirs
@@ -317,6 +319,7 @@ class LINRES:
 #        self.f = f
 
     def run(self, Rp, n, f):
+
         Y=np.zeros((len(Rp), n+1), float)
 
         # Initialization of the first line of the array
@@ -336,6 +339,8 @@ class LINRES:
         return R
 
         del R, Y
+
+#######################################################
 
 class SATFLOW:
     """
@@ -732,18 +737,18 @@ class process:
             day='%02d'%pylab.num2date(inputDate[t]).day
             date=(day+"/"+month+"/"+year)
             if hmeas[t]!=self.hnoflo:
-                hmeas_tmp = '%14.9G' %(hmeas[t])
-                outPESTheads.write(obsname.ljust(10,' ')+ date.ljust(14,' ')+ '00:00:00        '+ '%14.9G' %TS[15][t]+ '    \n')
+                hmeas_tmp = str(hmeas[t])
+                outPESTheads.write(obsname.ljust(10,' ')+ date.ljust(14,' ')+ '00:00:00        '+ str(TS[15][t])+ '    \n')
             else:
-                hmeas_tmp = '%14.9G' %self.hnoflo
+                hmeas_tmp = str(self.hnoflo)
             if Smeas[t]!=self.hnoflo:
-                Smeas_tmp = '%14.9G' %(Smeas[t])
-                outPESTsm.write((obsname+'SM').ljust(10,' ')+ date.ljust(14,' ')+ '00:00:00        '+ '%14.9G' %TS[6][t]+ '    \n')
+                Smeas_tmp = str(Smeas[t])
+                outPESTsm.write((obsname+'SM').ljust(10,' ')+ date.ljust(14,' ')+ '00:00:00        '+ str(TS[6][t]) + '    \n')
             else:
-                Smeas_tmp = '%14.9G' %self.hnoflo
+                Smeas_tmp = str(self.hnoflo)
             # 'Date,RF,PET,RFe,Inter,ETu,ETs,S,SUST,SUSTcount,Qs, Qscount,   Rp,R,hSATFLOW,hMF, hmeas,Smeas,SSATpart,FLOODcount, MB\n'
             # 0[results[i,j,iRF,:], 1results[i,j,iPET,:], 2results[i,j,iRFe,:],3results[i,j,iINTER,:], 4results[i,j,iETu,:], 5results[i,j,iETs,:],6results[i,j,iS,:], 7results[i,j,iSUST,:],8results[i,j,iPOND,:],9results[i,j,iQs,:],10results[i,j,iRunoff,:],11results[i,j,iFLOOD,:],12results[i,j,iRp,:], 13results[i,j,iR,:], 14h_satflow, 15heads[:,i,j,0], 16results[i,j,iSATpart,:],17results[i,j,iMB,:], 18results[i,j,iE0,:]]
-            out_line =  pylab.num2date(inputDate[t]).isoformat()[:10], ',', '%14.9G' %TS[0][t], ',', '%14.9G' %TS[18][t], ',', '%14.9G' %TS[1][t], ',', '%14.9G' %TS[2][t], ',' ,'%14.9G' %TS[3][t], ',','%14.9G' %TS[4][t], ',','%14.9G' %TS[5][t], ',','%14.9G' %TS[6][t], ',','%14.9G' %TS[7][t], ',', '%14.9G' %TS[8][t], ',', '%14.9G' %TS[9][t],  ',', '%14.9G' %TS[10][t],  ',', '%14.9G' %TS[12][t], ',', '%14.9G' %TS[13][t], ',', '%14.9G' %TS[14][t], ',', '%14.9G' %TS[15][t], ',', hmeas_tmp,',', Smeas_tmp,',', '%14.9G' %TS[16][t], ',', '%14.9G' %TS[11][t],',', '%14.9G' %TS[17][t],'\n'
+            out_line =  pylab.num2date(inputDate[t]).isoformat()[:10], ',', str(TS[0][t]), ',', str(TS[18][t]), ',', str(TS[1][t]), ',', str(TS[2][t]), ',' ,str(TS[3][t]), ',',str(TS[4][t]), ',',str(TS[5][t]), ',',str(TS[6][t]), ',',str(TS[7][t]), ',', str(TS[8][t]), ',', str(TS[9][t]),  ',', str(TS[10][t]),  ',', str(TS[12][t]), ',', str(TS[13][t]), ',', str(TS[14][t]), ',', str(TS[15][t]), ',', hmeas_tmp,',', Smeas_tmp,',', str(TS[16][t]), ',', str(TS[11][t]),',', str(TS[17][t]),'\n'
             for l in out_line:
                 outFileExport.write(l)
 

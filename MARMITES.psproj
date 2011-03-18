@@ -143,14 +143,22 @@ Name=pyEARTH1D
 
 [Project\ChildNodes\Node0\ChildNodes\Node4\ChildNodes\Node0]
 ClassName=TProjectFileNode
-FileName=E:\00code\pyEARTH1D\ReSo.py
+FileName=E:\00code\pyEARTH1D\appReSoGUI.py
 
 [Project\ChildNodes\Node0\ChildNodes\Node4\ChildNodes\Node1]
+ClassName=TProjectFileNode
+FileName=E:\00code\pyEARTH1D\clsReSo_GUI_frame.py
+
+[Project\ChildNodes\Node0\ChildNodes\Node4\ChildNodes\Node2]
+ClassName=TProjectFileNode
+FileName=E:\00code\pyEARTH1D\ReSo.py
+
+[Project\ChildNodes\Node0\ChildNodes\Node4\ChildNodes\Node3]
 ClassName=TProjectFileNode
 FileName=E:\00code\pyEARTH1D\ReSoGraph.py
 
 [Project\ChildNodes\Node0\ChildNodes\Node4\ChildNodes]
-Count=2
+Count=4
 
 [Project\ChildNodes\Node0\ChildNodes\Node5]
 ClassName=TProjectFileNode
