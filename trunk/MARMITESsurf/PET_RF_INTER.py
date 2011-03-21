@@ -467,14 +467,14 @@ def process(datenum = np.array([]), datenum_d = np.array([])
                     C_leaf = C_leaf_star[v]
                 else:
                     C_leaf = C_leaf_star[v] * f_k[j] * f_rho[j] * f_T[j]
-                if J[j]<J_vd[v] or J[j]>J_vw[v]:   #dry
-                    f_temp = f_s_d[v]*LAI_d[v]*C_leaf
+                if J[j]<J_vd[v] or J[j]>J_vw[v]:   #wet period
+                    f_temp = f_s_w[v]*LAI_w[v]*C_leaf
                     if f_temp == 0.0:
                         r_s_VEG[v].append(1.0E6)
                     else:
                         r_s_VEG[v].append(1.0/f_temp)
-                else:                              #wet
-                    f_temp = f_s_w[v]*LAI_w[v]*C_leaf
+                else:                              #dry period
+                    f_temp = f_s_d[v]*LAI_d[v]*C_leaf
                     if f_temp == 0.0:
                         r_s_VEG[v].append(1.0E6)
                     else:
@@ -616,18 +616,66 @@ def process(datenum = np.array([]), datenum_d = np.array([])
     print "\nE0 for open water computed!"
 
 
+    # #### DAILY SUM ##############################################
+    J_d = []
+    PET_PM_VEG_d = np.zeros([NVEG,len(datenum_d)], dtype=float)
+    PE_PM_SOIL_d = np.zeros([NSOIL,len(datenum_d)], dtype=float)
+    E0_d =  np.zeros([len(datenum_d)], dtype=float)
+    RF_d =  np.zeros([len(datenum_d)], dtype=float)
+    RFint = np.zeros([len(datenum_d)], dtype=float)
+    RF_duration =  np.zeros([len(datenum_d)], dtype=float)
+    t_d = 0
+    n1 = 0
+    n1_d = []
+    actual_day = pylab.num2date(datenum[0]).isoformat()[:10]
+    J_d.append(J[0])
+    for t in range(len(datenum)):
+        if actual_day == pylab.num2date(datenum[t]).isoformat()[:10]:
+            n1 = n1 + 1
+            for v in range(NVEG):
+                PET_PM_VEG_d[v][t_d] = PET_PM_VEG_d[v][t_d] + PET_PM_VEG[v][t]
+            for s in range(NSOIL):
+                PE_PM_SOIL_d[s][t_d] = PE_PM_SOIL_d[s][t_d]  + PE_PM_SOIL[s][t]
+            E0_d[t_d] = (E0_d[t_d] + E0[t])
+            if RF[t]>0:
+                RF_d[t_d] = RF_d[t_d] + RF[t]
+                RF_duration[t_d] = RF_duration[t_d] + 1.0
+        else:
+            if RF_duration[t_d]>0:
+                RFint[t_d] = RF_d[t_d]/RF_duration[t_d]
+            n1_d.append(n1+1)
+            n1 = 0
+            t_d = t_d + 1
+            actual_day = pylab.num2date(datenum[t]).isoformat()[:10]
+            J_d.append(J[t])
+            for v in range(NVEG):
+                PET_PM_VEG_d[v][t_d] = PET_PM_VEG[v][t]
+            for s in range(NSOIL):
+                PE_PM_SOIL_d[s][t_d] = PE_PM_SOIL[s][t]
+            E0_d[t_d] = E0[t]
+            if RF[t]>0:
+                RF_d[t_d] = RF_d[t_d] + RF[t]
+                RF_duration[t_d] = RF_duration[t_d] + 1.0
+    if n1<>0:
+        if RF_duration[t_d]>0:
+            RFint[t_d] = RF_d[t_d]/RF_duration[t_d]
+        n1_d.append(n1+1)
+
+
     #  #####  COMPUTING RF/INTERCEPTION ##############################################
     print '\n##############'
     print "Computing INTERCEPTION..."
 
     """Gash sparse model
+        Gash 1979
         Gash, Lloyd and Lachaud 1995
         Valente et al 1997
+        Finch 2001
     """
 
     c=1   # I is computed for each landcover assuming that evaporation is 1D vertical with no horizontal interaction or advection, see Gash 1995 chapter 2.3 pag 82
-    I = []
-    RFe = []
+    I_d = []
+    RFe_d = []
     Pgl = []
 
     # select hourly RF average (and corresponding evaporation) above treshold necessary to saturate the canopy, following method of Gash 1979 pag 49
@@ -635,8 +683,8 @@ def process(datenum = np.array([]), datenum_d = np.array([])
     Erf_sat = []
     for v in range(NVEG):
         Erf_sat.append([])
-        I.append([])
-        RFe.append([])
+        I_d.append([])
+        RFe_d.append([])
         Pgl.append([])
     datenum_RF_sat = []
     RFtreshold = 0.4 # INDICATE HERE A RF TRESHOLD LIKE INDICATED IN PEREIRA 2009 or GASH 1979
@@ -648,30 +696,32 @@ def process(datenum = np.array([]), datenum_d = np.array([])
                 Erf_sat[v].append(Erf[v][t])
     if len(RF_sat)>0:
         avRF_sat = sum(RF_sat)/len(RF_sat)
-        print '\nHourly RF average is: ' + '%.4f' %avRF_sat
+        print '\nRF average = ' + '%.4f' %avRF_sat + ' mm/h'
         avErf_sat=[]
         for v in range(NVEG):
             avErf_sat.append(sum(Erf_sat[v])/len(Erf_sat[v]))
             Pgl[v] = -avRF_sat*(S[v]/c)*pylab.log(1-avErf_sat[v]/avRF_sat)/avErf_sat[v]
-            print '\nHourly Erf average during rainfall for vegetation type ' + str(v)  + ' (' + VegType[v] + ') is: ' + '%.4f' %avErf_sat[v] + ' (' + str(len(Erf_sat[v]))   + ' values)'  #, standard deviation ' +
-            print 'Rainfall treshold to saturate the canopy (Pgl) for vegetation type ' + str(v) + ' (' + VegType[v] + ') is ' + '%.2f' %Pgl[v]
-        print '\nValues computed for ' + str(len(RF_sat)) + ' events of hourly rainfall higher than ' + str(RFtreshold) + ' mm'
+            print '\nVegetation type ' + str(v)  + ' (' + VegType[v] + ')'
+            print 'Erf average during RF = ' + '%.4f' %avErf_sat[v] + ' mm/h (' + str(len(Erf_sat[v]))   + ' values)'
+            print 'RF treshold to saturate the canopy (Pgl) = ' + '%.2f' %Pgl[v]
+        print '\nValues computed for ' + str(len(RF_sat)) + ' events of hourly RF higher than ' + str(RFtreshold) + ' mm'
     else:
-        print '\nWARNING!!! There is no rainfall during the input period!'
+        print '\nWARNING!!! There is no RF during the input period!'
         avErf_sat = 0
 
     # INTERCEPTION
-    for t in range(len(RF)):
+    for t in range(len(RF_d)):
         for v in range(NVEG):
-            if RF[t]>Pgl[v]:
-                I[v].append(c*Pgl[v] + (c*avErf_sat[v]/avRF_sat)*(RF[t]-Pgl[v]))  #
-                RFe[v].append(RF[t]-I[v][t])
+            if RF_d[t]>Pgl[v]:
+                I_d[v].append(c*Pgl[v] + (c*avErf_sat[v]/avRF_sat)*(RF_d[t]-Pgl[v]))  #- c*S[v]
+                RFe_d[v].append(RF_d[t]-I_d[v][t])
             else:
-                RFe[v].append(0)
-                I[v].append(c*RF[t])
+                RFe_d[v].append(0)
+                I_d[v].append(c*RF_d[t])
 
     # RETURN ARRAY VALUES TO MAIN PROGRAM
-    return J, outputVAR, PET_PM_VEG, PE_PM_SOIL, Erf, E0, RFe, I
+    return J, J_d, outputVAR, PET_PM_VEG, Erf, PE_PM_SOIL, E0, PET_PM_VEG_d, PE_PM_SOIL_d, E0_d, RF_d, RFint, RF_duration, n1_d, RFe_d, I_d
+
 
 ####################################################
 # EOF #

@@ -400,69 +400,13 @@ def MMsurf(inputFOLDER_fn="", inputFile_TS_fn="", inputFile_PAR_fn="", outputFIL
         for n in range(NMETEO):
             print "\n###############"
             print "Processing data of ZONE" + str(n+1) + "/%s" % str(NMETEO)
-            J, outputVAR, PET_PM_VEG, PE_PM_SOIL, Erf, E0, RFe, I = PET_RF_INTER.process(datenum, datenum_d, RF[n], Ta[n], RHa[n], Pa[n], u_z_m[n], Rs[n], \
-                                            phi[n], Lm[n], Z[n], Lz[n], FC[n], z_m[n], z_h[n], \
-                                            NVEG, VegType, h, S, C_leaf_star, LAI_d, LAI_w,\
-                                            f_s_d, f_s_w, alfa_vd, alfa_vw, J_vd, J_vw,\
-                                            NSOIL, SoilType, Sy, alfa_sd, alfa_sw, J_sd, J_sw, \
-                                            alfa_w)
-
-
-            # #### DAILY SUM ##############################################
-            J_d = []
-            PET_PM_VEG_d = np.zeros([NVEG,len(datenum_d)], dtype=float)
-            PE_PM_SOIL_d = np.zeros([NSOIL,len(datenum_d)], dtype=float)
-            E0_d =  np.zeros([len(datenum_d)], dtype=float)
-            RF_d =  np.zeros([len(datenum_d)], dtype=float)
-            RFint = np.zeros([len(datenum_d)], dtype=float)
-            RF_duration =  np.zeros([len(datenum_d)], dtype=float)
-            I_d = []
-            RFe_d = []
-            for v in range(NVEG):
-                I_d.append(np.zeros([len(datenum_d)], dtype=float))
-                RFe_d.append(np.zeros([len(datenum_d)], dtype=float))
-            t_d = 0
-            n1 = 0
-            n1_d = []
-            actual_day = pylab.num2date(datenum[0]).isoformat()[:10]
-            J_d.append(J[0])
-            for t in range(len(datenum)):
-                if actual_day == pylab.num2date(datenum[t]).isoformat()[:10]:
-                    n1 = n1 + 1
-                    for v in range(NVEG):
-                        PET_PM_VEG_d[v][t_d] = PET_PM_VEG_d[v][t_d] + PET_PM_VEG[v][t]
-                    for s in range(NSOIL):
-                        PE_PM_SOIL_d[s][t_d] = PE_PM_SOIL_d[s][t_d]  + PE_PM_SOIL[s][t]
-                    E0_d[t_d] = (E0_d[t_d] + E0[t])
-                    if RF[n][t]>0:
-                        RF_d[t_d] = RF_d[t_d] + RF[n][t]
-                        RF_duration[t_d] = RF_duration[t_d] + 1.0
-                    for v in range(NVEG):
-                        I_d[v][t_d] = I_d[v][t_d] + I[v][t]
-                        RFe_d[v][t_d] = RFe_d[v][t_d] + RFe[v][t]
-                else:
-                    if RF_duration[t_d]>0:
-                        RFint[t_d] = RF_d[t_d]/RF_duration[t_d]
-                    n1_d.append(n1+1)
-                    n1 = 0
-                    t_d = t_d + 1
-                    actual_day = pylab.num2date(datenum[t]).isoformat()[:10]
-                    J_d.append(J[t])
-                    for v in range(NVEG):
-                        PET_PM_VEG_d[v][t_d] = PET_PM_VEG[v][t]
-                    for s in range(NSOIL):
-                        PE_PM_SOIL_d[s][t_d] = PE_PM_SOIL[s][t]
-                    E0_d[t_d] = E0[t]
-                    if RF[n][t]>0:
-                        RF_d[t_d] = RF_d[t_d] + RF[n][t]
-                        RF_duration[t_d] = RF_duration[t_d] + 1.0
-                    for v in range(NVEG):
-                        I_d[v][t_d] = I_d[v][t_d] + I[v][t]
-                        RFe_d[v][t_d] = RFe_d[v][t_d] + RFe[v][t]
-            if n1<>0:
-                if RF_duration[t_d]>0:
-                    RFint[t_d] = RF_d[t_d]/RF_duration[t_d]
-                n1_d.append(n+1)
+            J, J_d, outputVAR, PET_PM_VEG, Erf, PE_PM_SOIL, E0, PET_PM_VEG_d, PE_PM_SOIL_d, E0_d, RF_d, RFint, RF_duration, n1_d, RFe_d, I_d = \
+                PET_RF_INTER.process                                                               (datenum, datenum_d, \
+                    RF[n], Ta[n], RHa[n], Pa[n], u_z_m[n], Rs[n], \
+                    phi[n], Lm[n], Z[n], Lz[n], FC[n], z_m[n], z_h[n], \
+                    NVEG, VegType, h, S, C_leaf_star, LAI_d, LAI_w,\
+                    f_s_d, f_s_w, alfa_vd, alfa_vw, J_vd, J_vw,\
+                    NSOIL, SoilType, Sy, alfa_sd, alfa_sw, J_sd, J_sw, alfa_w)
 
             #  #####  PLOTTING ##############################################
             if plot_y_n > 0:
@@ -486,8 +430,8 @@ def MMsurf(inputFOLDER_fn="", inputFile_TS_fn="", inputFile_PAR_fn="", outputFIL
                 # PLOTTING FR and INTERCEPTION
                 plotRF.plot(strTitle = 'Rainfall and interception', x = npdatenum_d \
                         ,y1 = RF_d, y2 = RFint, y3 = I_d, y4 = RFe_d
-                        ,lbl_y1 = 'RF_d (mm)',  lbl_y2 = 'RFint_d (mm/h)' \
-                        ,lbl_y3 = 'I_d (mm)',lbl_y4 = 'RFe (mm)', lbl_veg = VegType\
+                        ,lbl_y1 = 'RF (mm/d)',  lbl_y2 = 'RFint (mm/h/d)' \
+                        ,lbl_y3 = 'I (mm/d)',lbl_y4 = 'RFe (mm/d)', lbl_veg = VegType\
                         )
                 print '\nPlotting done'
 
