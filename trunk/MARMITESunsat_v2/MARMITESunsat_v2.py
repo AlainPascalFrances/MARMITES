@@ -73,18 +73,17 @@ class UNSAT:
         self.hnoflo = hnoflo
 
 
-    def _partition(self, SUSTprev,PET,E0,Sprev,
-                        D, RFe,Sm,Sfc,Sr,Ks,SUSTm):
+    def partition(self, PET, PE, Sini, Zr_botavg, Dltop, Dlbot, Dl,
+                        Sm, Sfc, Sr, Ks, SUSTm):
 
-        '''
-        Ponding and surface runoff function
-        '''
-
-        def pond(s_tmp,D,Sm,SUSTm):
+        def pond(s_tmp,Dl,Sm,SUSTm):
+            '''
+            Ponding and surface runoff function
+            '''
             countPOND_tmp = 0
             countRunoff_tmp = 0
             if (s_tmp-Sm)>0.000001:
-                sust_tmp =D*(s_tmp-Sm)
+                sust_tmp =Dl*(s_tmp-Sm)
                 if SUSTm>0.0:
                     countPOND_tmp = 1
                 if sust_tmp-SUSTm >= 0.000001:
@@ -97,31 +96,41 @@ class UNSAT:
                 sust_tmp =(0.0)
                 qs_tmp =(0.0)
             return sust_tmp, qs_tmp, countPOND_tmp, countRunoff_tmp
-            del sust_tmp, qs_tmp, s_tmp, countPOND_tmp, countRunoff_tmp
 
-        def perc(s_tmp,D,Sm,Sfc,Ks):
+        def perc(s_tmp,Dl,Sm,Sfc,Ks, s_lp1, Dl_sp1, Sm_sp1):
             '''
             Percolation function
-            #TODO see also SWAT PERCOLATION pag 150 chap 2:3.2
             '''
             # Percent. of gravitational water
             Sg=(s_tmp-Sfc)/(Sm-Sfc)
             if s_tmp-Sfc<=0.000001:
                 rp_tmp= (0.0)
             elif (s_tmp-Sfc)>0.000001 and (s_tmp-Sm)<=0.000001:
-                if (Ks*Sg-D*(s_tmp-Sfc))> 0.000001:
-                    rp_tmp= D*(s_tmp-Sfc)
+                if (Ks*Sg-Dl*(s_tmp-Sfc))> 0.000001:
+                    rp_tmp= Dl*(s_tmp-Sfc)
                 else:
                     rp_tmp= Ks*Sg
             elif (s_tmp-Sm)>0.000001:
-                if Ks-D*(Sm-Sfc)>0.000001:
-                    rp_tmp= D*(Sm-Sfc)
+                if Ks-Dl*(Sm-Sfc)>0.000001:
+                    rp_tmp= Dl*(Sm-Sfc)
                 else:
                     rp_tmp = Ks
+            if rp_tmp-(Sm_sp1-s_lp1)*Dl_sp1>0.000001:
+                rp_tmp = (Sm_sp1-s_lp1)*Dl_sp1
             return rp_tmp
-            del Sg, s_tmp, rp_tmp
+##            '''
+##            Percolation function
+##            # SWAT PERCOLATION pag 150 chap 2:3.2
+##            '''
+##            SWe = (s_tmp-Sfc)*Dl
+##            TTperc = (Sm-Sfc)*Dl/Ks
+##            if (s_tmp-Sfc)<=0.000001:
+##                rp_tmp = 0.0
+##            elif (s_tmp-Sfc)>0.000001:
+##                rp_tmp = SWe*(1-(pylab.exp(-1/TTperc)))
+##            return rp_tmp
 
-        def evp(s_tmp,pet,D,Sm,Sr):
+        def evp(s_tmp,pet,Dl,Sm,Sr):
             '''
             Actual evapotranspiration function
             '''
@@ -130,58 +139,68 @@ class UNSAT:
             if s_tmp-Sr<=0.000001:
                 evp_tmp= 0.0
             elif s_tmp-Sr>0.000001 and s_tmp-Sm<=0.000001:
-                if (pet*Se-(D*(s_tmp-Sr)))> 0.000001:
-                    evp_tmp= D*(s_tmp-Sr)
+                if (pet*Se-(Dl*(s_tmp-Sr)))> 0.000001:
+                    evp_tmp= Dl*(s_tmp-Sr)
                 else:
                     evp_tmp= pet*Se
             elif (s_tmp-Sm)>0.000001:
-                if pet-D*(Sm-Sr)>0.000001:
-                    evp_tmp= D*(Sm-Sr)
+                if pet-Dl*(Sm-Sr)>0.000001:
+                    evp_tmp= Dl*(Sm-Sr)
                 else:
                     evp_tmp= pet
             return evp_tmp
-            del s_tmp, pet
 
         # MAIN
-        # soil reservoir water content initialisation
-        # test if SUST can infiltrate in soil
-        # compute Es from SUST and PET
-        if E0-SUSTprev>=0.000001:
-            S_tmp = Sprev*D + RFe
-            ETs_tmp = SUSTprev
-        else:
-            S_tmp = Sprev*D + RFe + SUSTprev-E0
-            ETs_tmp = E0
 
         # SUST and Qs
-        PONDtmp = pond(S_tmp/D,D,Sm,SUSTm)
-        SUST_tmp=PONDtmp[0]
-        Qs_tmp=PONDtmp[1]
-        countPOND_tmp=PONDtmp[2]
-        countRunoff_tmp=PONDtmp[3]
-        S_tmp=S_tmp-(SUST_tmp+Qs_tmp)
+        PONDtmp = pond(Sini[0]/Dl[0],Dl[0],Sm[0],SUSTm)
+        SUST_tmp = PONDtmp[0]
+        Qs_tmp = PONDtmp[1]
+        countPOND_tmp = PONDtmp[2]
+        countRunoff_tmp = PONDtmp[3]
+        Sini[0] = Sini[0]-(SUST_tmp+Qs_tmp)
 
         # Rp
-        Rp_tmp=perc(S_tmp/D,D,Sm,Sfc,Ks)
-        S_tmp=S_tmp-Rp_tmp
+        Rp_tmp = []
+        for l in range(len(Dl)):
+            if l==len(Dl)-1:
+                Rp_tmp.append(perc(Sini[l]/Dl[l],Dl[l],Sm[l],Sfc[l],Ks[l],0,1,1))
+            else:
+                Rp_tmp.append(perc(Sini[l]/Dl[l],Dl[l],Sm[l],Sfc[l],Ks[l], Sini[l+1]/Dl[l+1],Dl[l+1], Sm[l+1]))
+            Sini[l] = Sini[l]-Rp_tmp[l]
 
-        # ETu
-        ETu_tmp=evp(S_tmp/D,PET,D,Sm,Sr)
-        S_tmp=S_tmp-ETu_tmp
+        # Tu
+        Tu_tmp=[]
+        for l in range(len(Dl)):
+            if Zr_botavg < Dlbot[l]:
+                Tu_tmp.append(evp(Sini[l]/Dl[l],PET,Dl[l],Sm[l],Sr[l]))
+            elif Zr_botavg < Dltop[l]:
+                PETc = PET*(Dltop[l]-Zr_botavg)/Dl[l]
+                Tu_tmp.append(evp(Sini[l]/Dl[l],PETc,Dl[l],Sm[l],Sr[l]))
+            else:
+                Tu_tmp.append(0.0)
+            Sini[l]=(Sini[l]-Tu_tmp[l])
 
-        return (SUST_tmp, Qs_tmp, countPOND_tmp, countRunoff_tmp, Rp_tmp, ETu_tmp, S_tmp, ETs_tmp)
-        del SUST_tmp, Qs_tmp, Rp_temp, ETu_tmp, S_tmp
+        # Eu
+        Eu_tmp=[]
+        for l in range(len(Dl)):
+            Eu_tmp.append(evp(Sini[l]/Dl[l],PE,Dl[l],Sm[l],Sr[l]))
+            Sini[l]=(Sini[l]-Eu_tmp[l])/Dl[l]
+
+        return (SUST_tmp, Qs_tmp, countPOND_tmp, countRunoff_tmp, Rp_tmp, Eu_tmp, Tu_tmp, Sini)
 
     def run(self, i, j,
-                  Sm, Sfc, Sr, Si, D, Ks, SUSTm,
+                  nsl, slprop, Sm, Sfc, Sr, Si, Rpi, D, Ks, SUSTm,
                   ELEV, HEADS,
-                  RF, E0, PETveg, RFeveg, PEsoil, VEGarea,
+                  RF, E0, PETveg, RFeveg, PEsoil, VEGarea, Zr,
                   perlen, AqType, hdry):
 
         # Output initialisation
         Ttotal=len(RF)
         # PET for the vegetation patchwork
         PET_tot=np.zeros([len(PETveg[0])], dtype=float)
+        # PE for the remaining bare soil
+        PE_tot=np.zeros([Ttotal], dtype=float)
         # RFe for the vegetation patchwork
         RFe_tot=np.zeros([len(RFeveg[0])], dtype=float)
         # Surface storage initialisation
@@ -189,54 +208,65 @@ class UNSAT:
         # Surface runoff initialisation
         Qs=np.zeros([Ttotal], dtype=np.float)
         #Deep percolation initialisation
-        Rp=np.zeros([Ttotal], dtype=np.float)                             #Soil moisture storage initialisation
-        S=np.zeros([Ttotal], dtype=np.float)                              #Actual evapotranspiration from unsaturated zone initialisation
-        ETu=np.zeros([Ttotal], dtype=np.float)
+        Rp=np.zeros([nsl,Ttotal], dtype=np.float)                             #Soil moisture storage initialisation
+        S=np.zeros([nsl,Ttotal], dtype=np.float)                              #Actual evaporation from unsaturated zone initialisation
+        Eu=np.zeros([nsl,Ttotal], dtype=np.float)
+        #Actual transpiration from unsaturated zone initialisation
+        Tu=np.zeros([nsl,Ttotal], dtype=np.float)
         #Actual evapotranspiration from surface initialisation
         Es=np.zeros([Ttotal], dtype=np.float)
         #Flood frequency (saturated overland flow)
-        countFLOOD=np.zeros(Ttotal, dtype=int)
+        countFLOOD=np.zeros([Ttotal], dtype=int)
         #soil partial saturation by GW frequency
-        countSATpart=np.zeros(Ttotal, dtype=int)
+        countSATpart=np.zeros([Ttotal], dtype=int)
         #MASS BALANCE
         MB=np.zeros(Ttotal, dtype=float)
         # hortonian overland flow
-        countPOND=np.zeros(Ttotal, dtype=int)
-        countRunoff=np.zeros(Ttotal, dtype=int)
+        countPOND=np.zeros([Ttotal], dtype=int)
+        countRunoff=np.zeros([Ttotal], dtype=int)
         INTER=np.zeros([Ttotal], dtype=np.float)
+        Eg=np.zeros([Ttotal], dtype=np.float)
+        Tg=np.zeros([Ttotal], dtype=np.float)
 
-        if D < 0.005: #correct soil thickness less than 5cm
-            D=0.005
-        Dbot= (ELEV-D)*1000        # compute elevation of the bottom soil layer
+        if D < 0.05: #correct soil thickness less than 5cm
+            D=0.05
         D = D*1000
+        ELEV = ELEV*1000
+        Dbot = ELEV-D        # compute elevation of the bottom soil layer
+        Dl = np.zeros([nsl], dtype=float)
+        for l in range(nsl-1):
+            Dl[l] = D*slprop[l]
+
+        Dltop = np.zeros([nsl], dtype=float)
+        Dlbot = np.zeros([nsl], dtype=float)
+        for l in range(nsl-1):
+            if l==0:
+                Dltop[l] = ELEV
+                Dlbot[l] = ELEV-Dl[l]
+            else:
+                Dltop[l] = Dlbot[l-1]
+                Dlbot[l] = Dltop[l]-Dl[l]
+        Dltop[nsl-1] = Dlbot[nsl-2]
+
+        Zr_tmp = 0.0
+        for z in range(len(Zr)):
+            Zr_tmp = Zr_tmp + Zr[z]*VEGarea[z]/100
+        Zr_botavg = 1000*Zr_tmp/len(Zr)
 
         # PROCESSING THE WHOLE DATA SET
         for t in range(int(perlen)):    # t: current time step
 
             # Preprocessing of PET/PE/INTER and RFe for different vegetation
             SOILarea = 100
+
             for v in range(len(PETveg)):
                 if VEGarea[v]<>self.hnoflo:
-                    PET_tot[t]=PET_tot[t]+PETveg[v,t]*VEGarea[v]/100
+                    PET_tot[t] = PET_tot[t]+PETveg[v,t]*VEGarea[v]/100
+                    RFe_tot[t] = RFe_tot[t]+RFeveg[v,t]*VEGarea[v]/100
                     SOILarea = SOILarea - VEGarea[v]
-            PET_tot[t] = PET_tot[t] + PEsoil[t]*SOILarea/100
-
-            SOILarea = 100
-            for v in range(len(RFeveg)):
-                if VEGarea[v]<>self.hnoflo:
-                    RFe_tot[t]=RFe_tot[t]+RFeveg[v,t]*VEGarea[v]/100
-                    SOILarea = SOILarea - VEGarea[v]
+            PE_tot[t] = PEsoil[t]*SOILarea/100
             RFe_tot[t] = RFe_tot[t] + RF[t]*SOILarea/100
-
             INTER[t] = RF[t] - RFe_tot[t]
-
-            # test if first time step, if yes use Si
-            if t>0:
-                Sprev=S[t-1]
-                SUSTprev=SUST[t-1]
-            else:
-                Sprev=Si
-                SUSTprev=0
 
             # handle drycell
             if HEADS[t]==hdry:
@@ -244,110 +274,130 @@ class UNSAT:
             else:
                 HEADStmp=HEADS[t]*1000
 
+            if HEADStmp-Dbot<=0.000001:
+                Dlbot[nsl-1] = HEADStmp
+                Dl[nsl-1] = Dltop[nsl-1] - HEADStmp
+            elif HEADStmp-Dbot>0.000001 and ELEV-HEADStmp>0.000001:
+                Dlbot[nsl-1] = 0.0
+                Dl[nsl-1] = 0.0
+            else:
+                print 'BUG... situation still not properly programmed'
+
+
+            Sini = np.zeros([nsl], dtype=float)
+            SUSTprev = []
+            if t == 0:
+                # if first time step use Si and Rpi
+                Sini[0] = Si[0]*Dl[0] + RFe_tot[t]
+                if nsl>1:
+                    for l in range(1,nsl):
+                        Sini[l] = Si[l]*Dl[l] + Rpi[l-1]
+                SUSTprev = 0.0
+                Es_tmp = 0.0
+            else:
+                SUSTprev = SUST[t-1]
+                # soil reservoir water content initialisation
+                # test if SUST can infiltrate in soil
+                # compute Es from SUST and E0
+                if E0[t]-SUSTprev>=0.000001:
+                    Sini[0] = S[0,t-1]*Dl[0] + RFe_tot[t]
+                    Es_tmp = SUSTprev
+                else:
+                    Sini[0] = S[0,t-1]*Dl[0] + RFe_tot[t] + SUSTprev-E0[t]
+                    Es_tmp = E0[t]
+                if nsl>1:
+                    for l in range(1,nsl):
+                        Sini[l] = S[l,t-1]*Dl[l] + Rp[l-1,t-1]
+
             if AqType==1:
                 # AQUIFER UNCONFINED, water table can rise in the soil and above surface
                 # heads below soil bottom
                 if HEADStmp-Dbot<=0.000001:
                     if countFLOOD[t]-countFLOOD[t-1]==-1:
-                        Sprev=Sm
-                    SUSTtmp, Qstmp, countPONDtmp, countRunofftmp, Rptmp, ETutmp, Stmp, ETstmp=self._partition(SUSTprev,PET_tot[t],E0[t],Sprev, D, RFe_tot[t],Sm,Sfc,Sr,Ks,SUSTm)
+                        Sini=Sm
+                    SUSTtmp, Qstmp, countPONDtmp, countRunofftmp, Rptmp, Eutmp, Tutmp, Stmp = self.partition(PET_tot[t], PE_tot[t], Sini, Zr_botavg, Dltop, Dlbot, Dl, Sm,Sfc,Sr,Ks,SUSTm)
+                # heads above soil bottom and below surface
+                elif HEADStmp-Dbot>0.000001 and ELEV-HEADStmp>0.000001:
+                    countSATpart[t] = 1
+                    for l in range(nsl-1):
+                        if (HEADStmp-Dlbot[l])>0.000001:
+                            if (HEADStmp-Dltop[l])>0.000001:
+                                Dl[l]=0.0
+                                if countFLOOD[t]-countFLOOD[t-1]==-1:
+                                    Sini[l]=Sm[l]
+                            else:
+                                Dl[l]=Dltop[l]-HEADStmp
+                    SUSTtmp, Qstmp, countPONDtmp, countRunofftmp, Rptmp, Eutmp, Tutmp, Stmp = self.partition(PET_tot[t], PE_tot[t], Sini, Zr_botavg, Dltop, Dlbot, Dl, Sm,Sfc,Sr,Ks,SUSTm)
+                # heads above surface
                 else:
-                    # heads above soil bottom and below surface
-                    if (HEADStmp-Dbot>0.000001 and ELEV-HEADStmp>0.000001):
-                        if countFLOOD[t]-countFLOOD[t-1]==-1:
-                            Sprev=Sm
-                        countSATpart[t] = 1
-                        D=ELEV-HEADStmp
-                        SUSTtmp, Qstmp, Rptmp, ETutmp, Stmp, ETstmp=self._partition(SUSTprev,PET_tot[t],E0[t],Sprev,D, RFe_tot[t],Sm,Sfc,Sr,Ks,SUSTm)
-                    # heads above surface
+                    countFLOOD[t] = 1
+                    SUSTtmp=HEADStmp-ELEV+SUSTprev
+                    if SUSTtmp > SUSTm:
+                        Qstmp =(SUSTtmp-SUSTm)
+                        SUSTtmp = SUSTm
                     else:
-                        countFLOOD[t]=1
-                        SUSTtmp=HEADStmp-ELEV+SUSTprev
-                        if SUSTtmp > SUSTm:
-                            Qstmp =(SUSTtmp-SUSTm)
-                            SUSTtmp = SUSTm
-                        else:
-                            Qstmp =(0.0)
-                        ETutmp=0.0
-                        Rptmp=0.0
-                        Stmp=Sm*D
+                        Qstmp =0.0
+                        Eutmp=[]
+                        Tutmp=[]
+                        Rptmp=[]
+                        Stmp=[]
+                    for l in range(nsl):
+                        Eutmp.append(0.0)
+                        Tutmp.append(0.0)
+                        Rptmp.append(0.0)
+                        Stmp.append(Sm*Dl[l])
             else:
             # AQUIFER CONFINED, water table cannot rise in the soil or above topography
-                SUSTtmp, Qstmp, countPONDtmp, countRunofftmp, Rptmp, ETutmp, Stmp, ETstmp=self._partition(SUSTprev,PET_tot[t],E0[t],Sprev, D, RFe_tot[t],Sm,Sfc,Sr,Ks,SUSTm)
-
+                SUSTtmp, Qstmp, countPONDtmp, countRunofftmp, Rptmp, Eutmp, Tutmp, Stmp = self.partition(PET_tot[t], PE_tot[t], Sini, Zr_botavg, Dltop, Dlbot, Dl, Sm,Sfc,Sr,Ks,SUSTm)
             # fill the table and compute water balance
             SUST[t]=SUSTtmp
             Qs[t]=Qstmp
-            Rp[t]=Rptmp
-            ETu[t]=ETutmp
-            Es[t]=ETstmp
+            Es[t]=Es_tmp
             countPOND[t]=countPONDtmp
             countRunoff[t]=countRunofftmp
-            S[t]=Stmp/D
+            for l in range(nsl):
+                S[l,t]=Stmp[l]
+                Rp[l,t]=Rptmp[l]
+                Eu[l,t]=Eutmp[l]
+                Tu[l,t]=Tutmp[l]
             if countFLOOD[t]==0:
-                MB[t]=RF[t]+SUSTprev-INTER[t]-Rp[t]-Qs[t]-SUST[t]-ETu[t]-Es[t]-((S[t]-Sprev)*D)
+                RpMB=0.0
+                EuMB=0.0
+                TuMB=0.0
+                SMB=0.0
+                for l in range(len(Dl)):
+                    EuMB = EuMB + Eu[l,t]
+                    TuMB = TuMB + Tu[l,t]
+                    if t==0:
+                        SMB=SMB+(S[l,t]-Si[l])*Dl[l]
+                        if l == 0:
+                            RpMB  = RpMB + Rp[l,t]
+                        else:
+                            RpMB  = RpMB + Rp[l,t] - Rpi[l-1]
+                    else:
+                        SMB=SMB+(S[l,t]-S[l,t-1])*Dl[l]
+                        if l == 0:
+                            RpMB  = RpMB + Rp[l,t]
+                        else:
+                            RpMB  = RpMB + Rp[l,t] - Rp[l-1,t-1]
+                MB[t]=RF[t]+SUSTprev-INTER[t]-Qs[t]-SUST[t]-Es[t]-RpMB-EuMB-TuMB-SMB
             else:
                 MB[t]=HEADStmp-ELEV-SUST[t]-Qs[t]+SUSTprev
 
-        return RF, PET_tot, RFe_tot, SUST, Qs, ETu, S, Rp, countFLOOD, Es, countSATpart, MB, INTER, countPOND, countRunoff, E0
-        del RF, PET_tot, RFe_tot, SUST, Qs, ETu, S, Rp, countFLOOD, Es, countSATpart, MB, R, countPOND, countRunoff, Spercent, INTER
+#index = {'iRF':0, 'iPET':1, 'iPE':2, 'iRFe':3, 'iSUST':4, 'iQs':5, 'iFLOOD':6, 'iEs':7, 'iSATpart':8, 'iMB':9, 'iINTER':10, 'iPOND':11, 'iRunoff':12, 'iE0':13, 'iEg':14, 'iTg':15, 'iR':16, 'iRn':17}
+        results1 = [RF, PET_tot, PE_tot, RFe_tot, SUST, Qs, countFLOOD, Es, countSATpart, MB, INTER, countPOND, countRunoff, E0, Eg, Tg]
+        results2 = [Eu, Tu, S, Rp]
 
-#######################################################
+        results1 = np.asarray(results1)
+        results2 = np.asarray(results2)
 
-class LINRES:
-    """
-    LINRES: LINear REServoirs
-    Calculate recharge R in function o percolation (Rp processed in SOMOS)
-    _______________________________________________________________________________
-
-    INPUTS
-            PARAMETERS
-                n           Number of reservoirs
-                f           Unsaturated recession constant
-            STATE VARIABLES
-                Rp          Daily percolation
-    OUTPUTS
-            R               Daily recharge
-
-    Provide daily reharge for the SATFLOW module
-    ______________________________________________________________________________
-    ______________________________________________________________________________
-    """
-
-#    def __init__(self):
-#        self.n = n
-#        self.f = f
-
-    def run(self, Rp, n, f):
-
-        Y=np.zeros((len(Rp), n+1), float)
-
-        # Initialization of the first line of the array
-        Y[0,0] = (1+f)*Rp[0]/f
-
-        #  loop
-        for t in range(1,len(Rp)):
-            for i in range(n+1):
-                if i==0:
-                    Y[t,i] = (1+f)*Rp[t]/f
-                else:
-                    for j in range(0,i+1):
-                        Y[t,i] = Y[t,i]+((1+f)**(-j))*Y[t-1,i-j]
-                    Y[t,i] = Y[t,i] * f/(1+f)
-        R = Y[:,n]
-
-        return R
-
-        del R, Y
-
-#######################################################
+        return results1, results2
 
 class SATFLOW:
     """
     SATFLOW: SATurated FLOW
-    Calculate water level fluctuations in function of recharge (R processed in LINRES)
-    _______________________________________________________________________________
-
+    Calculate water level fluctuations in function of recharge
+    _________________________
     INPUTS
             PARAMETERS
                 hi
@@ -358,15 +408,8 @@ class SATFLOW:
                 R           Daily recharge
     OUTPUTS
             h               Daily water level
-    ______________________________________________________________________________
-    ______________________________________________________________________________
+     _________________________
     """
-
-##    def __init__(self):
-##        self.hi = hi
-##        self.h0 = h0
-##        self.RC = RC
-##        self.STO = STO
 
     def run(self, R, hi, h0, RC, STO):
         h1=np.zeros([len(R)], dtype=np.float)
@@ -383,8 +426,6 @@ class SATFLOW:
 
         return h
 
-        del h1, h
-
 #######################################################
 
 class process:
@@ -398,7 +439,6 @@ class process:
         self.cellsizeMF=cellsizeMF
         self.perlen=perlen
         self.hnoflo=hnoflo
-
 
     def inputEsriAscii(self, grid_fn, datatype):
 
@@ -456,13 +496,11 @@ class process:
         if arrayOUT.shape[0] != self.nrow or arrayOUT.shape[1] != self.ncol or self.cellsizeMF != cellsizeEsriAscii:
             raise BaseException, '\nError in consistency between the MODFLOW grid and the input gridof the file %s.\nCheck the cell size and the number of rows, columns and cellsize' % filenameIN
 
-        return arrayOUT
-
         fin.close()
 
-    def inputTS(self,
-                outputFILE_fn,
-                SOILparam_fn, NMETEO, NVEG, NSOIL,
+        return arrayOUT
+
+    def inputTS(self, NMETEO, NVEG, NSOIL,
                 inputDate_fn, inputZON_TS_RF_fn,
                 inputZON_TS_PET_fn, inputZON_TS_RFe_fn,
                 inputZON_TS_PE_fn, inputZON_TS_E0_fn
@@ -484,37 +522,6 @@ class process:
             raise ValueError, "\nThe file %s doesn't exist!!!" % inputDate_fn
         if len(inputDate)<>sum(self.perlen):
             raise ValueError, 'The number of time steps in MF (%i) is not the same as the number of days (%i) of the input data (RF and PET).\n' % (int(sum(self.perlen)), int(len(inputDate)))
-
-        # soil parameters
-        SOILparam_fn=os.path.join(self.MF_ws,SOILparam_fn)   #in MF folder for PEST
-        if os.path.exists(SOILparam_fn):
-            SOILparam = np.loadtxt(SOILparam_fn, dtype=float)
-        else:
-            raise ValueError, "\nThe file %s doesn't exist!!!" % SOILparam_fn
-        SOILzones=int(SOILparam[0])
-        if SOILzones>NSOIL:
-            print 'WARNING:\n' + str(SOILzones) + ' soil parameters groups in file [' + SOILparam_fn + ']\n Only ' + str(NSOIL) + ' PE time serie(s) found.'
-
-        # Soils parameter initialisation
-        Sm=np.zeros([SOILzones], dtype=np.float)
-        Sfc=np.zeros([SOILzones], dtype=np.float)
-        Sr=np.zeros([SOILzones], dtype=np.float)
-        Si=np.zeros([SOILzones], dtype=np.float)
-        Ks=np.zeros([SOILzones], dtype=np.float)
-        SUSTm=np.zeros([SOILzones], dtype=np.float)
-        n=np.zeros([SOILzones], dtype=np.int)
-        f=np.zeros([SOILzones], dtype=np.float)
-
-        # soil parameter definition for each soil zone
-        for z in range(SOILzones):
-            Sm[z]=SOILparam[2+9*z]
-            Sfc[z]=SOILparam[3+9*z]
-            Sr[z]=SOILparam[4+9*z]
-            Si[z]=SOILparam[5+9*z]
-            Ks[z]=SOILparam[6+9*z]
-            SUSTm[z]=SOILparam[7+9*z]
-            n[z]=SOILparam[8+9*z]
-            f[z]=SOILparam[9+9*z]
 
         # READ input ESRI ASCII rasters vegetation
         gridVEGarea_fn=[]
@@ -602,7 +609,60 @@ class process:
                     #structure is [number of zones, number of vegetation type, time]
         PEsoilzonesTS=np.asarray(PEsoilzonesTS)
 
-        return Sm, Sr, Sfc, Si, Ks, SUSTm, n, f, gridVEGarea, RFzonesTS, E0zonesTS, PETvegzonesTS, RFevegzonesTS, PEsoilzonesTS, inputDate
+        return gridVEGarea, RFzonesTS, E0zonesTS, PETvegzonesTS, RFevegzonesTS, PEsoilzonesTS, inputDate
+
+
+    def inputSoilParam(self, SOILparam_fn, NSOIL):
+
+        # Soils parameter initialisation
+        nam_soil=[]
+        nsl=[]
+        n=[]
+        f=[]
+        slprop=[]
+        Sm=[]
+        Sfc=[]
+        Sr=[]
+        Si=[]
+        Ks=[]
+
+        # soil parameters file
+        SOILparam_fn=os.path.join(self.MARM_ws,SOILparam_fn)   #in MF folder for PEST
+        if os.path.exists(SOILparam_fn):
+            SOILparam = np.loadtxt(SOILparam_fn, dtype=str)
+        else:
+            raise ValueError, "\nThe file %s doesn't exist!!!" % SOILparam_fn
+        SOILzones=int(int(SOILparam[0]))
+        if SOILzones>NSOIL:
+            print 'WARNING:\n' + str(SOILzones) + ' soil parameters groups in file [' + SOILparam_fn + ']\n Only ' + str(NSOIL) + ' PE time serie(s) found.'
+        # trick to initialise the reading position in the next loop
+        nsl.append(0)
+        for i in range(SOILzones):
+            nsl.append(int(SOILparam[i+1]))
+
+        # soil parameter definition for each soil type
+        pz = 1   # number of parameters for each soil type
+        pns = 6  # number of parameters for each soil layer in each soil type
+        nslst = 0
+        for z in range(SOILzones):
+            nam_soil.append(SOILparam[3+z*(pz+pns*nsl[z])])
+            slprop.append([])
+            Sm.append([])
+            Sfc.append([])
+            Sr.append([])
+            Si.append([])
+            Ks.append([])
+            nslst = pz*z + z*pns*nsl[z]
+            for ns in range(nsl[z+1]):
+                slprop[z].append(float(SOILparam[4+nslst]))
+                Sm[z].append(float(SOILparam[5+nslst]))
+                Sfc[z].append(float(SOILparam[6+nslst]))
+                Sr[z].append(float(SOILparam[7+nslst]))
+                Si[z].append(float(SOILparam[8+nslst]))
+                Ks[z].append(float(SOILparam[9+nslst]))
+                nslst = nslst + pns
+
+        return nsl[1:len(nsl)], nam_soil, slprop, Sm, Sfc, Sr, Si, Ks
 
 
     def inputObs(self, inputObs_fn, inputDate):
@@ -696,9 +756,6 @@ class process:
 
         return obsOutput
 
-        del obsOutput, obsData, obsDate, obsValue
-
-
     def outputEAgrd(self, outFile_fn, outFolder = []):
 
         if outFolder == []:
@@ -724,31 +781,44 @@ class process:
                         'NODATA_value  '+ str(self.hnoflo)+'\n')
         return file_asc
 
-    def ExportResults(self, inputDate, TS, hmeas, Smeas, outFileExport, outPESTheads, outPESTsm, obsname):
+    def ExportResults(self, i, j, inputDate, _nslmax, results, index, results_S, index_S, h_satflow, heads_MF, obs_h, obs_S, outFileExport, outPESTheads, outPESTsm, obsname):
         """
         Export the processed data in a txt file
         INPUTS:      output fluxes time series and date
         OUTPUT:      output.txt
         """
-        # Write the rest#
         for t in range(len(inputDate)):
             year='%4d'%pylab.num2date(inputDate[t]).year
             month='%02d'%pylab.num2date(inputDate[t]).month
             day='%02d'%pylab.num2date(inputDate[t]).day
             date=(day+"/"+month+"/"+year)
-            if hmeas[t]!=self.hnoflo:
-                hmeas_tmp = str(hmeas[t])
-                outPESTheads.write(obsname.ljust(10,' ')+ date.ljust(14,' ')+ '00:00:00        '+ str(TS[15][t])+ '    \n')
+            if obs_h[t]!=self.hnoflo:
+                obs_h_tmp = str(obs_h[t])
+                outPESTheads.write(obsname.ljust(10,' ')+ date.ljust(14,' ')+ '00:00:00        '+ str(heads_MF[t])+ '    \n')
             else:
-                hmeas_tmp = str(self.hnoflo)
-            if Smeas[t]!=self.hnoflo:
-                Smeas_tmp = str(Smeas[t])
-                outPESTsm.write((obsname+'SM').ljust(10,' ')+ date.ljust(14,' ')+ '00:00:00        '+ str(TS[6][t]) + '    \n')
+                obs_h_tmp = str(self.hnoflo)
+            # TODO export for all soil layers (currently only the SM computed for the first layer is exported)
+            if obs_S[t]!=self.hnoflo:
+                obs_S_tmp = str(obs_S[t])
+                outPESTsm.write((obsname+'SM').ljust(10,' ')+ date.ljust(14,' ')+ '00:00:00        '+ str(results_S[i,j,index_S.get('iS'),0,t]) + '    \n')
             else:
-                Smeas_tmp = str(self.hnoflo)
-            # 'Date,RF,PET,RFe,Inter,ETu,Es,S,SUST,SUSTcount,Qs, Qscount,   Rp,R,hSATFLOW,hMF, hmeas,Smeas,SSATpart,FLOODcount, MB\n'
-            # 0[results[i,j,iRF,:], 1results[i,j,iPET,:], 2results[i,j,iRFe,:],3results[i,j,iINTER,:], 4results[i,j,iETu,:], 5results[i,j,iETs,:],6results[i,j,iS,:], 7results[i,j,iSUST,:],8results[i,j,iPOND,:],9results[i,j,iQs,:],10results[i,j,iRunoff,:],11results[i,j,iFLOOD,:],12results[i,j,iRp,:], 13results[i,j,iR,:], 14h_satflow, 15heads[:,i,j,0], 16results[i,j,iSATpart,:],17results[i,j,iMB,:], 18results[i,j,iE0,:]]
-            out_line =  pylab.num2date(inputDate[t]).isoformat()[:10], ',', str(TS[0][t]), ',', str(TS[18][t]), ',', str(TS[1][t]), ',', str(TS[2][t]), ',' ,str(TS[3][t]), ',',str(TS[4][t]), ',',str(TS[5][t]), ',',str(TS[6][t]), ',',str(TS[7][t]), ',', str(TS[8][t]), ',', str(TS[9][t]),  ',', str(TS[10][t]),  ',', str(TS[12][t]), ',', str(TS[13][t]), ',', str(TS[14][t]), ',', str(TS[15][t]), ',', hmeas_tmp,',', Smeas_tmp,',', str(TS[16][t]), ',', str(TS[11][t]),',', str(TS[17][t]),'\n'
+                obs_S_tmp = str(self.hnoflo)
+            # header='Date,RF,E0,PET,PE,RFe,Inter,'+Eu_str+Tu_str+',Es,'+S_str+',SUST,SUSTcount,Qs, Qscount,'+Rp_str+',R,hSATFLOW,hMF,hmeas,Smeas,SSATpart, FLOODcount,MB\n'
+            Sout = ''
+            Rpout=''
+            Euout=''
+            Tuout=''
+            for l in range(_nslmax):
+                Sout = Sout + str(results_S[i,j,index_S.get('iS'),l,t]) + ','
+                Rpout = Rpout + str(results_S[i,j,index_S.get('iRp'),l,t]) + ','
+                Euout = Euout + str(results_S[i,j,index_S.get('iEu'),l,t]) + ','
+                Tuout = Tuout + str(results_S[i,j,index_S.get('iTu'),l,t]) + ','
+            out_date = pylab.num2date(inputDate[t]).isoformat()[:10]
+            out1 = '%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,' % (results[i,j,index.get('iRF'),t], results[i,j,index.get('iE0'),t],results[i,j,index.get('iPET'),t],results[i,j,index.get('iPE'),t],results[i,j,index.get('iRFe'),t],results[i,j,index.get('iINTER'),t])
+            out2 = '%.6f,' % (results[i,j,index.get('iEs'),t])
+            out3 = '%.6f,%4d,%.6f,%4d,' % (results[i,j,index.get('iSUST'),t],results[i,j,index.get('iPOND'),t],results[i,j,index.get('iQs'),t],results[i,j,index.get('iRunoff'),t])
+            out4 = '%.6f,%.6f,%.6f,%.6f,%.6f,%4d,%4d,%6f' % (results[i,j,index.get('iR'),t], h_satflow[t],heads_MF[t],obs_h[t], obs_S[t],results[i,j,index.get('iSATpart'),t],results[i,j,index.get('iFLOOD'),t],results[i,j,index.get('iMB'),t])
+            out_line =  out_date, ',', out1, Euout, Tuout, out2, Sout, out3, Rpout, out4, '\n'
             for l in out_line:
                 outFileExport.write(l)
 

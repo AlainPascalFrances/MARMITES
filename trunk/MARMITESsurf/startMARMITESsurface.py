@@ -88,14 +88,19 @@ import PET_RF_INTER, plotPET, plotRF
     # 9 - alfa_vw: vegetation albedo in wet season
     # 10 - J_vd: starting julian day of the dry season [int 1-365]
     # 11 - J_vw: starting julian day of the wet season [int 1-365]
+    # 12 - TRANS_vdw: transition period between dry and wet season [days]
+    # 13 - Zr: maximum root depth [m]
+    # 14 - k_Tu_d: dry season transpiration sourcing factor [], 1>=k_Tu>0
+    # 15 - k_Tu_w: wet season transpiration sourcing factor [], 1>=k_Tu>0
     # BY DEFAULT THE PROGRAM WILL COMPUTE ETref USING GRASS FAO56 PARAMETERS
-    # grassFAO56 0.12 0.1 0.01 2.88 2.88 0.5 0.5 0.23 0.23 180 250
+    # grassFAO56 0.12 0.1 0.01 2.88 2.88 0.5 0.5 0.23 0.23 150 270 20 0.25 1.0 1.0
     # VEG1 (grass muelledes)
-    grassMU 0.5 0.15 0.01 1.2 2.88 0.5 0.55 0.30 0.20 180 250
+    grassMU 0.5 0.15 0.01 1.2 2.88 0.5 0.55 0.30 0.20 150 270 20 0.40 1.0 1.0
     # VEG2 (Q.ilex Sardon)
-    Qilex 6.0 1.16 0.004 6.0 6.0 0.75 0.70 0.25 0.15 180 250
-    # VEG3 (Landes Forest, Gash et al, 1995, JH 170)
-    Pine 20.3 0.25 0.004 6.0 6.0 0.6 0.6 0.25 0.15 180 250
+    Qilex 6.0 1.16 0.004 6.0 6.0 0.75 0.70 0.25 0.10 150 270 20 6.0 0.2 0.9
+    # VEG3 (Q.pyr sardon)
+    Qpyr 8.0 1.75 0.004 6.0 1.0 0.80 0.3 0.25 0.15 150 270 20 4.0 0.5 0.9
+
 
     # SOIL PARAMETERS
     # NSOIL: number of soil types
@@ -107,10 +112,11 @@ import PET_RF_INTER, plotPET, plotRF
     # 3 - alfa_sw: soil albedo in wet season
     # 4 - J_sd: starting julian day of the dry season [int 1-365]
     # 5 - J_sw: starting julian day of the wet season [int 1-365]
+    # 6 - TRANS_sdw: transition period between dry and wet season [days]
     # SOIL1 (alluvium)
-    alluvium 0.05 0.20 0.15 180 250
+    alluvium 0.05 0.20 0.15 150 270 20
     # SOIL2 (regolith)
-    regolith 0.15 0.25 0.20 180 250
+    regolith 0.15 0.25 0.20 150 270 20
 
     # BY DEFAULT E0 (evaporation from open water using the Penman equation) WILL BE COMPUTED
     # OPEN WATER PARAMETERS
@@ -243,6 +249,10 @@ def MMsurf(inputFOLDER_fn="", inputFile_TS_fn="", inputFile_PAR_fn="", outputFIL
         alfa_vw = [] # vegetation albedo in wet season
         J_vd = [] # starting julian day of the dry season [int 1-365]
         J_vw = [] # starting julian day of the wet season [int 1-365]
+        TRANS_vdw = [] # transition period between dry and wet season [days]
+        Zr = [] # maximum root depth [m]
+        k_Tu_d = [] # dry season transpiration sourcing factor [], 1>=k_Tu>0
+        k_Tu_w = [] # wet season transpiration sourcing factor [], 1>=k_Tu>0
         # input FAO56 grass parameters
         VegType.append("grassFAO56")
         h.append(0.12)
@@ -254,8 +264,12 @@ def MMsurf(inputFOLDER_fn="", inputFile_TS_fn="", inputFile_PAR_fn="", outputFIL
         f_s_w.append(0.5)
         alfa_vd.append(0.23)
         alfa_vw.append(0.23)
-        J_vd.append(180)
-        J_vw.append(181)
+        J_vd.append(150)
+        J_vw.append(270)
+        TRANS_vdw.append(20)
+        Zr.append(0.25)
+        k_Tu_d.append(1.0)
+        k_Tu_w.append(1.0)
         if NVEG>0:
             for i in range(NVEG):
                 l = l + 1
@@ -272,6 +286,10 @@ def MMsurf(inputFOLDER_fn="", inputFile_TS_fn="", inputFile_PAR_fn="", outputFIL
                 alfa_vw.append(float(line[9]))
                 J_vd.append(int(line[10]))
                 J_vw.append(int(line[11]))
+                TRANS_vdw.append(int(line[12]))
+                Zr.append(float(line[13]))
+                k_Tu_d.append(float(line[14]))
+                k_Tu_w.append(float(line[15]))
         NVEG = NVEG + 1 # number of vegetation types + FAO56 GRASS (default)
         # SOIL PARAMETERS
         l = l + 1
@@ -283,6 +301,7 @@ def MMsurf(inputFOLDER_fn="", inputFile_TS_fn="", inputFile_PAR_fn="", outputFIL
         alfa_sw = [] # soil albedo in wet season
         J_sd = [] # starting julian day of the dry season [int 1-365]
         J_sw = [] # starting julian day of the wet season [int 1-365]
+        TRANS_sdw = [] # transition period between dry and wet season [days]
         if NSOIL>0:
             for i in range(NSOIL):
                 l = l + 1
@@ -293,6 +312,7 @@ def MMsurf(inputFOLDER_fn="", inputFile_TS_fn="", inputFile_PAR_fn="", outputFIL
                 alfa_sw.append(float(line[3]))
                 J_sd.append(int(line[4]))
                 J_sw.append(int(line[5]))
+                TRANS_sdw.append(int(line[6]))
         # WATER PARAMETERS
         alfa_w = 0.06 # water albedo
         # plotting
@@ -405,8 +425,8 @@ def MMsurf(inputFOLDER_fn="", inputFile_TS_fn="", inputFile_PAR_fn="", outputFIL
                     RF[n], Ta[n], RHa[n], Pa[n], u_z_m[n], Rs[n], \
                     phi[n], Lm[n], Z[n], Lz[n], FC[n], z_m[n], z_h[n], \
                     NVEG, VegType, h, S, C_leaf_star, LAI_d, LAI_w,\
-                    f_s_d, f_s_w, alfa_vd, alfa_vw, J_vd, J_vw,\
-                    NSOIL, SoilType, Sy, alfa_sd, alfa_sw, J_sd, J_sw, alfa_w)
+                    f_s_d, f_s_w, alfa_vd, alfa_vw, J_vd, J_vw, TRANS_vdw,\
+                    NSOIL, SoilType, Sy, alfa_sd, alfa_sw, J_sd, J_sw, TRANS_sdw, alfa_w)
 
             #  #####  PLOTTING ##############################################
             if plot_y_n > 0:
@@ -556,6 +576,21 @@ def MMsurf(inputFOLDER_fn="", inputFile_TS_fn="", inputFile_PAR_fn="", outputFIL
     outFileExport.write(inputZON_TS_PE_fn)
     outFileExport.write('\n# inputZON_TS_E0_fn: RF zones\n')
     outFileExport.write(inputZON_TS_E0_fn)
+    outFileExport.write('\n# TRANS_vdw\n')
+    for v in range(len(TRANS_vdw)):
+        outFileExport.write(str(TRANS_vdw[v])+' ')
+    outFileExport.write('\n# Zr\n')
+    for v in range(len(Zr)):
+        outFileExport.write(str(Zr[v])+' ')
+    outFileExport.write('\n# k_Tu_d\n')
+    for v in range(len(k_Tu_d)):
+        outFileExport.write(str(k_Tu_d[v])+' ')
+    outFileExport.write('\n# k_Tu_w\n')
+    for v in range(len(k_Tu_w)):
+        outFileExport.write(str(k_Tu_w[v])+' ')
+    outFileExport.write('\n# TRANS_sdw\n')
+    for v in range(len(TRANS_sdw)):
+        outFileExport.write(str(TRANS_sdw[v])+' ')
 
     # EXPORTING DATE
     outpathname = os.path.join(pathMARM, date_fn)

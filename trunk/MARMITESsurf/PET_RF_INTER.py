@@ -84,9 +84,9 @@ def process(datenum = np.array([]), datenum_d = np.array([])
               ,S = np.array([]), C_leaf_star = np.array([]) \
               ,LAI_d = np.array([]), LAI_w = np.array([])  \
               ,f_s_d = np.array([]), f_s_w = np.array([])  \
-              ,alfa_vd = np.array([]), alfa_vw = np.array([]), J_vd = 91, J_vw = 305\
+              ,alfa_vd = np.array([]), alfa_vw = np.array([]), J_vd = 91, J_vw= 305, TRANS_vdw = 20\
               ,NSOIL = 1, SoilType = [], Sy = np.array([])\
-              ,alfa_sd = np.array([]), alfa_sw = np.array([]), J_sd = 166, J_sw = 274
+              ,alfa_sd = np.array([]), alfa_sw = np.array([]), J_sd = 166, J_sw = 274, TRANS_sdw = 20
               ,alfa_w = 0.06):
     '''
     Function to calculate hourly Penman-Monteith evapo(transpi)ration (mm/day).
@@ -111,6 +111,7 @@ def process(datenum = np.array([]), datenum_d = np.array([])
         z_m: heigth of u_z_m measurement [m]
         z_h: heigth of humidity measurement [m]
 
+# TO BE UPDATED, see startMARMITESsurface.py
         VEGETATION PARAMETERS
         VegType: name of the vegetation type [string, 1 word, no space allowed]
         h: heigth of plant [m]
@@ -126,6 +127,7 @@ def process(datenum = np.array([]), datenum_d = np.array([])
         J_vd: starting julian day of the dry season [int 1-365]
         J_vw: starting julian day of the wet season [int 1-365]
 
+# TO BE UPDATED, see startMARMITESsurface.py
         SOIL PARAMETERS
         NSOIL: number of soil types
         to repeat NSOIL times in a same line
@@ -288,24 +290,38 @@ def process(datenum = np.array([]), datenum_d = np.array([])
     if NVEG > 0:
         for v in range(NVEG):
             Rns_v = []
+            alfa = []
             for j in range(len(J)):
-                if J[j]<J_vd[v] or J[j]>J_vw[v]:
-                    alfa = alfa_vw[v]
+                if J[j] < J_vd[v] or J[j] > J_vw[v]: # wet period
+                    alfa.append(alfa_vw[v])
                 else:
-                    alfa = alfa_vd[v]
-                Rns_v.append((1-alfa)*Rs_corr[j])
+                    if J[j] < J_vd[v] + TRANS_vdw[v]: # transition wet to dry
+                        alfa.append(alfa[j-1]-(alfa_vw[v]-alfa_vd[v])/(24*TRANS_vdw[v]+24))
+                    elif J[j] > J_vw[v] - TRANS_vdw[v]: # transition dry to wet
+                        alfa.append(alfa[j-1]+(alfa_vw[v]-alfa_vd[v])/(24*TRANS_vdw[v]+24))
+                    else:                              # dry period
+                        alfa.append(alfa_vd[v])
+                Rns_v.append((1-alfa[j])*Rs_corr[j])
             Rns_VEG.append(Rns_v)
+            del Rns_v, alfa
     Rns_SOIL = []
-    if NSOIL >0:
+    if NSOIL > 0:
         for s in range(NSOIL):
             Rns_s = []
+            alfa = []
             for j in range(len(J)):
-                if J[j]<J_sd[s] or J[j]>J_sw[s]:
-                    alfa = alfa_sw[s]
+                if J[j] < J_sd[s] or J[j] > J_sw[s]:
+                    alfa.append(alfa_sw[s])
                 else:
-                    alfa = alfa_sd[s]
-                Rns_s.append((1-alfa)*Rs_corr[j])
+                    if J[j] < J_sd[s] + TRANS_sdw[s]:
+                        alfa.append(alfa[j-1]-(alfa_sw[s]-alfa_sd[s])/(24*TRANS_sdw[s]+24))
+                    elif J[j] > J_sw[s] - TRANS_sdw[s]:
+                        alfa.append(alfa[j-1]+(alfa_sw[s]-alfa_sd[s])/(24*TRANS_sdw[s]+24))
+                    else:
+                        alfa.append(alfa_sd[s])
+                Rns_s.append((1-alfa[j])*Rs_corr[j])
             Rns_SOIL.append(Rns_s)
+            del Rns_s, alfa
     Rns_WATER = []
     for j in range(len(J)):
         Rns_WATER.append((1-alfa_w)*Rs_corr[j])
@@ -441,44 +457,52 @@ def process(datenum = np.array([]), datenum_d = np.array([])
     for v in range(NVEG):
         r_s_VEG.append([])
     if NVEG>0:
-        for j in range(len(J)):
-            if Rs_corr[j]<0:
-                Rs_tmp = 0
-            elif Rs_corr[j]>86.5/24:
-                Rs_tmp = 86.5
-            else:
-                Rs_tmp = Rs[j]*24
-            f_k.append(12.78*Rs_tmp/(11.57*Rs_tmp+104.4))
-            DELTArho_v.append(2.17*(e0_Ta[j]-e_a[j])/(Ta[j]+273.16))
-            if DELTArho_v[j]<0:
-                f_rho.append(1)
-            elif DELTArho_v[j]>0.01152:
-                f_rho.append(0.233)
-            else:
-                f_rho.append(1 - 66.6*DELTArho_v[j])
-            if Ta[j]<0:
-                f_T.append(0.0)
-            elif Ta[j]>40.0:
-                f_T.append(0.0)
-            else:
-                f_T.append(Ta[j]*pow(40-Ta[j],1.18)/691)
-            for v in range(NVEG):
+        for v in range(NVEG):
+            f_s_tmp = []
+            LAI_tmp =[]
+            for j in range(len(J)):
+                if Rs_corr[j]<0:
+                    Rs_tmp = 0
+                elif Rs_corr[j]>86.5/24:
+                    Rs_tmp = 86.5
+                else:
+                    Rs_tmp = Rs[j]*24
+                f_k.append(12.78*Rs_tmp/(11.57*Rs_tmp+104.4))
+                DELTArho_v.append(2.17*(e0_Ta[j]-e_a[j])/(Ta[j]+273.16))
+                if DELTArho_v[j]<0:
+                    f_rho.append(1)
+                elif DELTArho_v[j]>0.01152:
+                    f_rho.append(0.233)
+                else:
+                    f_rho.append(1 - 66.6*DELTArho_v[j])
+                if Ta[j]<0:
+                    f_T.append(0.0)
+                elif Ta[j]>40.0:
+                    f_T.append(0.0)
+                else:
+                    f_T.append(Ta[j]*pow(40-Ta[j],1.18)/691)
                 if v == 0:
                     C_leaf = C_leaf_star[v]
                 else:
                     C_leaf = C_leaf_star[v] * f_k[j] * f_rho[j] * f_T[j]
-                if J[j]<J_vd[v] or J[j]>J_vw[v]:   #wet period
-                    f_temp = f_s_w[v]*LAI_w[v]*C_leaf
-                    if f_temp == 0.0:
-                        r_s_VEG[v].append(1.0E6)
-                    else:
-                        r_s_VEG[v].append(1.0/f_temp)
-                else:                              #dry period
-                    f_temp = f_s_d[v]*LAI_d[v]*C_leaf
-                    if f_temp == 0.0:
-                        r_s_VEG[v].append(1.0E6)
-                    else:
-                        r_s_VEG[v].append(1.0/f_temp)
+                if J[j] < J_vd[v] or J[j] > J_vw[v]:    #wet period
+                    f_s_tmp.append(f_s_w[v])
+                    LAI_tmp.append(LAI_w[v])
+                else:
+                    if J[j] < J_vd[v] + TRANS_vdw[v]:# transition wet to dry
+                        f_s_tmp.append(f_s_tmp[j-1]-(f_s_w[v]-f_s_d[v])/(24*TRANS_vdw[v]+24))
+                        LAI_tmp.append(LAI_tmp[j-1]-(LAI_w[v]-LAI_d[v])/(24*TRANS_vdw[v]+24))
+                    elif J[j] > J_vw[v] - TRANS_vdw[v]:  # transition dry to wet
+                        f_s_tmp.append(f_s_tmp[j-1]+(f_s_w[v]-f_s_d[v])/(24*TRANS_vdw[v]+24))
+                        LAI_tmp.append(LAI_tmp[j-1]+(LAI_w[v]-LAI_d[v])/(24*TRANS_vdw[v]+24))
+                    else:                               #dry period
+                        f_s_tmp.append(f_s_d[v])
+                        LAI_tmp.append(LAI_d[v])
+                f_temp = f_s_tmp[j]*LAI_tmp[j]*C_leaf
+                if f_temp == 0.0:
+                    r_s_VEG[v].append(1.0E6)
+                else:
+                    r_s_VEG[v].append(1.0/f_temp)
      # SOIL: van de Griend and Owe, 1994
     r_s_SOIL = []
     if NSOIL>0:

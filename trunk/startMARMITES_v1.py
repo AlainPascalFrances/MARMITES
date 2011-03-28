@@ -95,7 +95,7 @@ try:
     MFpp_yn = int(inputFile[l].strip())
     l = l+1
     # Define MODFLOW ws folders
-    model_ws = inputFile[l]
+    MF_ws = inputFile[l]
     l = l+1
     #GRID (ll means lower left)
     xllcorner = float(inputFile[l].strip())
@@ -119,7 +119,7 @@ except:
     print '\nType error in the input\n%s' % (messagemanual)
     sys.exit()
 fin.close()
-print ('\nMARMITES workspace:\n%s\n\nMARMITESsurface workspace:\n%s\n\nMODFLOW workspace:\n%s' % (MARM_ws, inputFOLDER_fn, model_ws))
+print ('\nMARMITES workspace:\n%s\n\nMARMITESsurface workspace:\n%s\n\nMODFLOW workspace:\n%s' % (MARM_ws, inputFOLDER_fn, MF_ws))
 
 # #############################
 # ###  MARMITES SURFACES  #####
@@ -187,7 +187,7 @@ fin.close()
 if MFpp_yn>0:
     print'\n##############'
     print 'MODFLOW pre-processing'
-    MF_ws, nrow, ncol, delr, delc, perlen, nper, top, hnoflo, hdry, ibound, AqType, heads, rch_fn = ppMF.ppMF(model_ws)
+    nrow, ncol, delr, delc, perlen, nper, top, hnoflo, hdry, ibound, AqType, heads, rch_fn = ppMF.ppMF(MF_ws)
 
 # ####   SUMMARY OF MODFLOW READINGS   ####
 # active cells in layer 1_____________________ibound[0]
@@ -305,7 +305,6 @@ del gridoutDUMMY
 
 # order of output is 0-RF, 1-PET, 2-RFe, 3-SUST, 4-Qs, 5-ETu, 6-S, 7-Rp, 8-countFLOOD, 9-Es, 10-countSATpart, 11-MB, 12-R, 13-INTER, 14-countPOND, 15-countRunoff, 16-E0
 results_PERall=np.zeros([nrow,ncol,17], dtype=float)
-
 rech=np.zeros([nper,nrow,ncol], dtype=float)
 t0=0
 print'\n##############'

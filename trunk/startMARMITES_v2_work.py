@@ -20,10 +20,6 @@ __date__ = "November 2010"
 import pylab
 import sys
 import os
-#import time
-#import wx
-#import struct
-#import types
 import numpy as np
 sys.path.append(r'E:\00code\MARMITES\trunk\MARMITESsurf')
 import startMARMITESsurface as startMMsurf
@@ -31,6 +27,10 @@ sys.path.append(r'E:\00code\MARMITES\trunk\MARMITESunsat_v2')
 import MARMITESunsat_v2 as MARMunsat
 sys.path.append(r'E:\00code\MARMITES\trunk\ppMF_FloPy')
 import ppMODFLOW_flopy as ppMF
+sys.path.append(r'E:\00code\MARMITES\trunk\MARMITESplot')
+import MARMITESplot as MMplot
+sys.path.append(r'E:\00code\MARMITES\trunk\MARMITESsurf')
+import CreateColors
 #####################################
 
 #try:
@@ -44,7 +44,7 @@ messagemanual="Please read the manual!\n(that by the way still doesn't exist...)
 # read input file (called _input.ini in the MARMITES workspace
 # the first character on the first line has to be the character used to comment
 # the file can contain any comments as the user wish, but the sequence of the input has to be respected
-inputFile_fn = r'E:\00code\00ws\zz_TESTS\MARMITES_r13c6l2\_input.ini'
+inputFile_fn = r'E:\00code\00ws\zz_TESTS\MARMITESv2_r13c6l2\_input.ini'
 inputFile = []
 if os.path.exists(inputFile_fn):
     fin = open(inputFile_fn, 'r')
@@ -91,11 +91,8 @@ try:
     # ZONEVEGSOILfile
     MARMsurf_fn = inputFile[l].strip()
     l = l+1
-    #run MODFLOWpreprocessing  1 is YES, 0 is NO
-    MFpp_yn = int(inputFile[l].strip())
-    l = l+1
     # Define MODFLOW ws folders
-    model_ws = inputFile[l]
+    MF_ws = inputFile[l]
     l = l+1
     #GRID (ll means lower left)
     xllcorner = float(inputFile[l].strip())
@@ -110,6 +107,8 @@ try:
     l = l+1
     gridIRR_fn = inputFile[l].strip()
     l = l+1
+    gridSUSTm_fn =  inputFile[l].strip()
+    l = l+1
     SOILparam_fn = inputFile[l].strip()
     l = l+1
     IRR_fn = inputFile[l].strip()
@@ -119,7 +118,7 @@ except:
     print '\nType error in the input\n%s' % (messagemanual)
     sys.exit()
 fin.close()
-print ('\nMARMITES workspace:\n%s\n\nMARMITESsurface workspace:\n%s\n\nMODFLOW workspace:\n%s' % (MARM_ws, inputFOLDER_fn, model_ws))
+print ('\nMARMITES workspace:\n%s\n\nMARMITESsurface workspace:\n%s\n\nMODFLOW workspace:\n%s' % (MARM_ws, inputFOLDER_fn, MF_ws))
 
 # #############################
 # ###  MARMITES SURFACES  #####
@@ -156,6 +155,11 @@ except e:
     print messagemanual
     sys.exit()
 l=0
+TRANS_vdw = []
+Zr = []
+k_Tu_d = []
+k_Tu_w = []
+TRANS_sdw = []
 try:
     NMETEO = int(inputFile[l].strip())
     l = l+1
@@ -174,6 +178,26 @@ try:
     inputZON_TS_PE_fn = str(inputFile[l].strip())
     l = l +1
     inputZON_TS_E0_fn = str(inputFile[l].strip())
+    l = l +1
+    line = inputFile[l].split()
+    for v in range(NVEG):
+        TRANS_vdw.append(int(line[v]))
+    l = l +1
+    line = inputFile[l].split()
+    for v in range(NVEG):
+        Zr.append(float(line[v]))
+    l = l +1
+    line = inputFile[l].split()
+    for v in range(NVEG):
+        k_Tu_d.append(float(line[v]))
+    l = l +1
+    line = inputFile[l].split()
+    for v in range(NVEG):
+        k_Tu_w.append(float(line[v]))
+    l = l +1
+    line = inputFile[l].split()
+    for v in range(NSOIL):
+        k_Tu_w.append(int(line[v]))
 except:
     print 'Type error in file [' + inputFile_fn + ']%s' % (messagemanual)
     sys.exit()
@@ -184,10 +208,11 @@ fin.close()
 # ###  MODFLOW FILES   #####
 # ##########################
 
-if MFpp_yn>0:
-    print'\n##############'
-    print 'MODFLOW pre-processing'
-    MF_ws, nrow, ncol, delr, delc, perlen, nper, top, hnoflo, hdry, ibound, AqType, heads, rch_fn = ppMF.ppMF(model_ws)
+print'\n##############'
+print 'MODFLOW pre-processing'
+nrow, ncol, delr, delc, perlen, nper, top, hnoflo, hdry, ibound, AqType, heads_MF, rch_fn = ppMF.ppMF(MF_ws)
+
+
 
 # ####   SUMMARY OF MODFLOW READINGS   ####
 # active cells in layer 1_____________________ibound[0]
@@ -218,7 +243,6 @@ MARM_PROCESS = MARMunsat.process(MARM_ws                  = MARM_ws,
                         hnoflo                   = hnoflo
                         )
 MARM_UNSAT = MARMunsat.UNSAT(hnoflo = hnoflo)
-MARM_LINRES = MARMunsat.LINRES()
 MARM_SATFLOW = MARMunsat.SATFLOW()
 
 # READ input ESRI ASCII rasters # missing gridIRR_fn
@@ -229,29 +253,34 @@ gridSOIL = MARM_PROCESS.inputEsriAscii(grid_fn = gridSOIL_fn, datatype = int)
 gridSOILthick = MARM_PROCESS.inputEsriAscii(grid_fn = gridSOILthick_fn,
  datatype = float)
 
+gridSUSTm = MARM_PROCESS.inputEsriAscii(grid_fn = gridSUSTm_fn,
+ datatype = float)
 
 ##gridIRR = MARM_PROCESS.inputEsriAscii(grid_fn                  = gridIRR_fn)
 
 # READ input time series and parameters   # missing IRR_fn
-_Sm, _Sr, _Sfc, _Si, _Ks, _SUSTm, _n, _f, gridVEGarea, RFzonesTS, E0zonesTS, PETvegzonesTS, RFevegzonesTS, PEsoilzonesTS, inputDate = MARM_PROCESS.inputTS(
-            outputFILE_fn            = outputFILE_fn,
-            SOILparam_fn             = SOILparam_fn,
-            NMETEO                   = NMETEO,
-            NVEG                     = NVEG,
-            NSOIL                    = NSOIL,
-            inputDate_fn             = inputDate_fn,
-            inputZON_TS_RF_fn        = inputZON_TS_RF_fn,
-            inputZON_TS_PET_fn       = inputZON_TS_PET_fn,
-            inputZON_TS_RFe_fn       = inputZON_TS_RFe_fn,
-            inputZON_TS_PE_fn        = inputZON_TS_PE_fn,
-            inputZON_TS_E0_fn        = inputZON_TS_E0_fn
+gridVEGarea, RFzonesTS, E0zonesTS, PETvegzonesTS, RFevegzonesTS, PEsoilzonesTS, inputDate = MARM_PROCESS.inputTS(NMETEO = NMETEO,
+                                NVEG                     = NVEG,
+                                NSOIL                    = NSOIL,
+                                inputDate_fn             = inputDate_fn,
+                                inputZON_TS_RF_fn        = inputZON_TS_RF_fn,
+                                inputZON_TS_PET_fn       = inputZON_TS_PET_fn,
+                                inputZON_TS_RFe_fn       = inputZON_TS_RFe_fn,
+                                inputZON_TS_PE_fn        = inputZON_TS_PE_fn,
+                                inputZON_TS_E0_fn        = inputZON_TS_E0_fn
  ) # IRR_fn
+
+_nsl, _nam_soil, _slprop, _Sm, _Sfc, _Sr, _Si, _Ks = MARM_PROCESS.inputSoilParam(
+            SOILparam_fn             = SOILparam_fn,
+            NSOIL                    = NSOIL
+            )
+_nslmax = max(_nsl)
 
 # READ observations time series (heads and soil moisture)
 obsCHECK = 1  # 0: no obs, 1: obs
 if obsCHECK==1:
     print "\nReading observations time series (hydraulic heads and soil moisture), please wait..."
-    obs, outpathname, obs_h, obs_sm = MARM_PROCESS.inputObs(
+    obs, outpathname, obs_h, obs_S = MARM_PROCESS.inputObs(
                             inputObs_fn = inputObs_fn,
                             inputDate   = inputDate
                             )
@@ -259,7 +288,17 @@ if obsCHECK==1:
     outFileExport = []
     for o in range(len(obs.keys())):
         outFileExport.append(open(outpathname[o], 'w'))
-        outFileExport[o].write('Date,RF,E0,PET,RFe,Inter,ETu,Es,S,SUST,SUSTcount,Qs, Qscount,Rp,R,hSATFLOW,hMF,hmeas,Smeas,SSATpart, FLOODcount,MB\n')
+        S_str=''
+        Rp_str=''
+        Eu_str=''
+        Tu_str=''
+        for l in range(_nslmax):
+            S_str = S_str + 'S_l' + str(l+1) + ','
+            Eu_str = Eu_str + 'Eu_l' + str(l+1) + ','
+            Tu_str = Tu_str + 'Tu_l' + str(l+1) + ','
+            Rp_str = Rp_str + 'Rp_l' + str(l+1) + ','
+            header='Date,RF,E0,PET,PE,RFe,Inter,'+Eu_str+Tu_str+'Es,'+S_str+'SUST,SUSTcount,Qs, Qscount,'+Rp_str+'R,hSATFLOW,hMF,hmeas,Smeas,SSATpart, FLOODcount,MB\n'
+        outFileExport[o].write(header)
     outPESTheads_fn      = 'PESTheads.dat'
     outPESTsm_fn         = 'PESTsm.dat'
     outPESTheads=open(os.path.join(MARM_ws,outPESTheads_fn), 'w')
@@ -270,25 +309,47 @@ else:
 # ######################
 #   ### main loop: calculation of soil water balance in each cell-grid for each time step inside each stress period
 # ######################
+
 outFileRF_PERall, gridoutDUMMY = MARM_PROCESS.outputEAgrd(outFile_fn         = 'outRF.asc')
 outFilePET_PERall, gridoutDUMMY = MARM_PROCESS.outputEAgrd(
                         outFile_fn         = 'outPET.asc')
+outFilePE_PERall, gridoutDUMMY = MARM_PROCESS.outputEAgrd(
+                        outFile_fn         = 'outPE.asc')
 outFileRFe_PERall, gridoutDUMMY = MARM_PROCESS.outputEAgrd(
                         outFile_fn         = 'outRFe.asc')
 outFileSUST_PERall, gridoutDUMMY = MARM_PROCESS.outputEAgrd(
                         outFile_fn         = 'outSUST.asc')
 outFileQs_PERall, gridoutDUMMY = MARM_PROCESS.outputEAgrd(
                         outFile_fn         = 'outQs.asc')
-outFileETu_PERall, gridoutDUMMY = MARM_PROCESS.outputEAgrd(
-                        outFile_fn         = 'outETu.asc')
 outFileEs_PERall, gridoutDUMMY = MARM_PROCESS.outputEAgrd(
                         outFile_fn         = 'outEs.asc')
-outFileS_PERall, gridoutDUMMY = MARM_PROCESS.outputEAgrd(
-                        outFile_fn         = 'outS.asc')
-outFileRp_PERall, gridoutDUMMY = MARM_PROCESS.outputEAgrd(
-                        outFile_fn         = 'outRp.asc')
+outFileEu_PERall = []
+outFileTu_PERall = []
+outFileS_PERall = []
+outFileRp_PERall = []
+for l in range(_nslmax):
+    x, gridoutDUMMY = MARM_PROCESS.outputEAgrd(
+                    outFile_fn         = 'outEu_l'+str(l+1)+'.asc')
+    outFileEu_PERall.append(x)
+    x, gridoutDUMMY = MARM_PROCESS.outputEAgrd(
+                    outFile_fn         = 'outTu_l'+str(l+1)+'.asc')
+    outFileTu_PERall.append(x)
+
+    x, gridoutDUMMY = MARM_PROCESS.outputEAgrd(
+                    outFile_fn         = 'outS_l'+str(l+1)+'.asc')
+    outFileS_PERall.append(x)
+    x, gridoutDUMMY = MARM_PROCESS.outputEAgrd(
+                    outFile_fn         = 'outRp_l'+str(l+1)+'.asc')
+    outFileRp_PERall.append(x)
+    del x
+outFileEg_PERall, gridoutDUMMY = MARM_PROCESS.outputEAgrd(
+                        outFile_fn         = 'outEg.asc')
+outFileTg_PERall, gridoutDUMMY = MARM_PROCESS.outputEAgrd(
+                        outFile_fn         = 'outTg.asc')
 outFileR_PERall, gridoutDUMMY = MARM_PROCESS.outputEAgrd(
                         outFile_fn         = 'outR.asc')
+outFileRn_PERall, gridoutDUMMY = MARM_PROCESS.outputEAgrd(
+                        outFile_fn         = 'outRn.asc')
 outFileFLOOD_PERall, gridoutDUMMY = MARM_PROCESS.outputEAgrd(
                         outFile_fn         = 'outFLOOD.asc')
 outFileSATpart_PERall, gridoutDUMMY = MARM_PROCESS.outputEAgrd(
@@ -303,16 +364,20 @@ outFileRunoff_PERall, gridoutDUMMY = MARM_PROCESS.outputEAgrd(
                         outFile_fn         = 'outRunoff.asc')
 del gridoutDUMMY
 
-# order of output is 0-RF, 1-PET, 2-RFe, 3-SUST, 4-Qs, 5-ETu, 6-S, 7-Rp, 8-countFLOOD, 9-Es, 10-countSATpart, 11-MB, 12-R, 13-INTER, 14-countPOND, 15-countRunoff, 16-E0
-results_PERall=np.zeros([nrow,ncol,17], dtype=float)
-
-rech=np.zeros([nper,nrow,ncol], dtype=float)
+# WARNING: R has to be the last one
+index = {'iRF':0, 'iPET':1, 'iPE':2, 'iRFe':3, 'iSUST':4, 'iQs':5, 'iFLOOD':6, 'iEs':7, 'iSATpart':8, 'iMB':9, 'iINTER':10, 'iPOND':11, 'iRunoff':12, 'iE0':13, 'iEg':14, 'iTg':15, 'iR':16, 'iRn':17}
+resavg_PERall = np.zeros([nrow,ncol,len(index)], dtype=float)
+res_PERall = np.zeros([nrow,ncol,len(index),sum(perlen)], dtype=float)
+index_S = {'iEu':0, 'iTu':1,'iS':2, 'iRp':3}
+resavg_PERall_S = np.zeros([nrow,ncol,len(index_S),_nslmax], dtype=float)
+res_PERall_S = np.zeros([nrow,ncol,len(index_S),_nslmax,sum(perlen)], dtype=float)
+Rn4MF=np.zeros([nper,nrow,ncol], dtype=float)
 t0=0
 print'\n##############'
 print 'MARMITES computing...'
 # computing fluxes fopr each stress period in the whole grid
-Si_tmp_array = np.zeros([nrow,ncol], dtype=float)
-Rp_tmp_array = np.zeros([nrow,ncol], dtype=float)
+Si_tmp_array = np.zeros([nrow,ncol,_nslmax], dtype=float)
+Rpi_tmp_array = np.zeros([nrow,ncol,_nslmax], dtype=float)
 for n in range(nper):
     # ######################
     # ###  create output files #####
@@ -321,20 +386,48 @@ for n in range(nper):
                             outFile_fn         = 'outRF_PER' + str(n+1) + '.asc')
     outFilePET, gridoutPET = MARM_PROCESS.outputEAgrd(
                             outFile_fn         = 'outPET_PER' + str(n+1) + '.asc')
+    outFilePE, gridoutPE = MARM_PROCESS.outputEAgrd(
+                            outFile_fn         = 'outPE_PER' + str(n+1) + '.asc')
     outFileRFe, gridoutRFe = MARM_PROCESS.outputEAgrd(
                             outFile_fn         = 'outRFe_PER' + str(n+1) + '.asc')
     outFileSUST, gridoutSUST = MARM_PROCESS.outputEAgrd(
                             outFile_fn         = 'outSUST_PER' + str(n+1) + '.asc')
     outFileQs, gridoutQs = MARM_PROCESS.outputEAgrd(
                             outFile_fn         = 'outQs_PER' + str(n+1) + '.asc')
-    outFileETu, gridoutETu = MARM_PROCESS.outputEAgrd(
-                            outFile_fn         = 'outETu_PER' + str(n+1) + '.asc')
+    outFileEu = []
+    outFileTu = []
+    gridoutEu = []
+    gridoutTu = []
+    outFileS = []
+    gridoutS = []
+    outFileRp = []
+    gridoutRp = []
+    for l in range(_nslmax):
+        x, y = MARM_PROCESS.outputEAgrd(
+                        outFile_fn         = 'outEu_l'+str(l+1)+'_PER' + str(n+1) + '.asc')
+        outFileEu.append(x)
+        gridoutEu.append(y)
+        x, y = MARM_PROCESS.outputEAgrd(
+                        outFile_fn         = 'outTu_l'+str(l+1)+'_PER' + str(n+1) + '.asc')
+        outFileTu.append(x)
+        gridoutTu.append(y)
+        x, y = MARM_PROCESS.outputEAgrd(
+                        outFile_fn         = 'outS_l'+str(l+1)+'_PER' + str(n+1) + '.asc')
+        outFileS.append(x)
+        gridoutS.append(y)
+        x, y = MARM_PROCESS.outputEAgrd(
+                        outFile_fn         = 'outRp_l'+str(l+1)+'_PER' + str(n+1) + '.asc')
+        outFileRp.append(x)
+        gridoutRp.append(y)
+        del x,y
     outFileEs, gridoutEs = MARM_PROCESS.outputEAgrd(
                             outFile_fn         = 'outEs_PER' + str(n+1) + '.asc')
-    outFileS, gridoutS = MARM_PROCESS.outputEAgrd(
-                            outFile_fn         = 'outS_PER' + str(n+1) + '.asc')
-    outFileRp, gridoutRp = MARM_PROCESS.outputEAgrd(
-                            outFile_fn         = 'outRp_PER' + str(n+1) + '.asc')
+    outFileEg, gridoutEg = MARM_PROCESS.outputEAgrd(
+                            outFile_fn         = 'outEg_PER' + str(n+1) + '.asc')
+    outFileTg, gridoutTg = MARM_PROCESS.outputEAgrd(
+                            outFile_fn         = 'outTg_PER' + str(n+1) + '.asc')
+    outFileRn, gridoutRn = MARM_PROCESS.outputEAgrd(
+                            outFile_fn         = 'outRn_PER' + str(n+1) + '.asc')
     outFileR, gridoutR = MARM_PROCESS.outputEAgrd(
                             outFile_fn         = 'outR_PER' + str(n+1) + '.asc')
     outFileRPER, gridoutDUMMY = MARM_PROCESS.outputEAgrd(
@@ -357,24 +450,25 @@ for n in range(nper):
     for t in range(n):
         tstart = tstart + perlen[t]
     tend = tstart + perlen[n]
-    # order of output is 0-RF, 1-PET, 2-RFe, 3-SUST, 4-Qs, 5-ETu, 6-S, 7-Rp, 8-countFLOOD, 9-Es, 10-countSATpart, 11-MB, 12-R, 13-INTER, 14-countPOND, 15-countRunoff, 16-E0
-    results=np.zeros([nrow,ncol,17,perlen[n]], dtype=float)
+    results=np.zeros([nrow,ncol,len(index),perlen[n]], dtype=float)
+    results_S=np.zeros([nrow,ncol,len(index_S),_nslmax,perlen[n]], dtype=float)
     for i in range(nrow):
         for j in range(ncol):
             SOILzone_tmp = gridSOIL[i,j]-1
             METEOzone_tmp = gridMETEO[i,j]-1
             if ibound[i,j,0]<>0:
+                nsl_tmp   = _nsl[SOILzone_tmp]
+                slprop_tmp= _slprop[SOILzone_tmp]
                 Sm_tmp    = _Sm[SOILzone_tmp]
                 Sfc_tmp   = _Sfc[SOILzone_tmp]
                 Sr_tmp    = _Sr[SOILzone_tmp]
                 if n==0:
                     Si_tmp    = _Si[SOILzone_tmp]
                 else:
-                    Si_tmp = Si_tmp_array[i,j]
-                n_tmp=_n[SOILzone_tmp]
-                f_tmp=_f[SOILzone_tmp]
+                    Si_tmp = Si_tmp_array[i,j,:]
+                Rpi_tmp = Rpi_tmp_array[i,j,:]
                 Ks_tmp    = _Ks[SOILzone_tmp]
-                SUSTm_tmp = _SUSTm[SOILzone_tmp]
+                SUSTm_tmp = gridSUSTm[i,j]
                 D_tmp = gridSOILthick[i,j]
                 PEsoilzonesTS_tmp = PEsoilzonesTS[METEOzone_tmp,SOILzone_tmp,tstart:tend]
                 PEsoilzonesTS_tmp = np.asarray(PEsoilzonesTS_tmp)
@@ -388,101 +482,117 @@ for n in range(nper):
                 VEGarea_tmp=np.zeros([NVEG], dtype=np.float)
                 for v in range(NVEG):
                     VEGarea_tmp[v]=gridVEGarea[v,i,j]
+                if n==0:
+                    heads_MF_tmp = np.zeros([perlen[n]], dtype = float)
+                    heads_MF_tmp[0] = heads_MF[0,i,j,0]
+                    heads_MF_tmp[1:perlen[n]] = heads_MF[tstart:tend-1,i,j,0]
+                else:
+                    heads_MF_tmp = heads_MF[tstart-1:tend-1,i,j,0]
                 # cal functions for reservoirs calculations
-                # order of output is 0-RF, 1-PET, 2-RFe, 3-SUST, 4-Qs, 5-ETu, 6-S, 7-Rp, 8-countFLOOD, 9-Es, 10-countSATpart, 11-MB, 12-R
-                results_temp = MARM_UNSAT.run(i, j,
+                results1_temp, results2_temp = MARM_UNSAT.run(
+                                             i, j,
+                                             nsl   = nsl_tmp,
+                                             slprop= slprop_tmp,
                                              Sm    = Sm_tmp,
                                              Sfc   = Sfc_tmp,
                                              Sr    = Sr_tmp,
                                              Si    = Si_tmp,
+                                             Rpi   = Rpi_tmp,
                                              D     = D_tmp,
                                              Ks    = Ks_tmp,
                                              SUSTm = SUSTm_tmp,
                                              ELEV    = top[i,j],
-                                             HEADS   = heads[tstart:tend,i,j,0],
+                                             HEADS   = heads_MF_tmp,
                                              RF      = RFzonesTS[METEOzone_tmp][tstart:tend],
                                              E0      = E0zonesTS[METEOzone_tmp][tstart:tend],
                                              PETveg  = PETvegzonesTS_tmp,
                                              RFeveg  = RFevegzonesTS_tmp,
                                              PEsoil  = PEsoilzonesTS_tmp,
                                              VEGarea = VEGarea_tmp,
+                                             Zr      = Zr,
                                              perlen  = perlen[n],
                                              AqType  = AqType,
                                              hdry    = hdry)
-                #RF, PET_tot, RFe_tot, SUST, Qs, ETu, S, Rp, countFLOOD, Es, countSATpart, MB, INTER, countPOND, countRunoff, E0
-                iRF=0
-                iPET=1
-                iRFe=2
-                iSUST=3
-                iQs=4
-                iETu=5
-                iS=6
-                iRp=7
-                iFLOOD=8
-                iEs=9
-                iSATpart=10
-                iMB=11
-                iINTER=12
-                iPOND=13
-                iRunoff=14
-                iE0=15
-                # WARNING: R has to be the last one
-                iR=16
-                for k in range(iR):
-                    results[i,j,k,:]=results_temp[k]
-                Rp_tmp = results[i,j,iRp,:]*1.0
-                Rp_tmp[0] = Rp_tmp[0] + Rp_tmp_array[i,j]
-                results[i,j,iR,:] = MARM_LINRES.run(Rp_tmp, n_tmp, f_tmp)
-
+                for k in range(len(index)-2):
+                    results[i,j,k,:] = results1_temp[k,:]
+                    res_PERall[i,j,k,tstart:tend] = results1_temp[k,:]
+                for k in range(len(index_S)):
+                    for l in range(nsl_tmp):
+                       results_S[i,j,k,l,:] = results2_temp[k,l,:]
+                       res_PERall_S[i,j,k,l,tstart:tend] = results2_temp[k,l,:]
+                results[i,j,index.get('iR'),:] = results_S[i,j,index_S.get('iRp'),nsl_tmp-1,:]*1.0
+                results[i,j,index.get('iRn'),:] = results[i,j,index.get('iR'),:] - results[i,j,index.get('iEg'),:] - results[i,j,index.get('iTg'),:]
+                res_PERall[i,j,index.get('iR'),tstart:tend] = results[i,j,index.get('iR'),:]*1.0
+                res_PERall[i,j,index.get('iRn'),tstart:tend] = results[i,j,index.get('iR'),:] - results[i,j,index.get('iEg'),:] - results[i,j,index.get('iTg'),:]
                  # output cumulative (1) or averaged by time (sum(perlen))
                 divfact=float(perlen[n])
-                gridoutRF[i,j]      = results[i,j,iRF,:].sum()/divfact
-                results_PERall[i,j,iRF] = results_PERall[i,j,iRF] + gridoutRF[i,j]
-                gridoutPET[i,j]     = results[i,j,iPET,:].sum()/divfact
-                results_PERall[i,j,iPET] = results_PERall[i,j,iPET] + gridoutPET[i,j]
-                gridoutRFe[i,j]     = results[i,j,iRFe,:].sum()/divfact
-                results_PERall[i,j,iRFe] = results_PERall[i,j,iRFe] + gridoutRFe[i,j]
-                gridoutSUST[i,j]    = results[i,j,iSUST,:].sum()/divfact
-                results_PERall[i,j,iSUST] = results_PERall[i,j,iSUST] + gridoutSUST[i,j]
-                gridoutQs[i,j]      = results[i,j,iQs,:].sum()/divfact
-                results_PERall[i,j,iQs] = results_PERall[i,j,iQs] + gridoutQs[i,j]
-                gridoutETu[i,j]     = results[i,j,iETu,:].sum()/divfact
-                results_PERall[i,j,iETu] = results_PERall[i,j,iETu] + gridoutETu[i,j]
-                gridoutEs[i,j]     = results[i,j,iEs,:].sum()/divfact
-                results_PERall[i,j,iEs] = results_PERall[i,j,iEs] + gridoutEs[i,j]
-                gridoutS[i,j]       = results[i,j,iS,:].sum()/divfact
-                results_PERall[i,j,iS] = results_PERall[i,j,iS] + gridoutS[i,j]
-                gridoutRp[i,j]      = results[i,j,iRp,:].sum()/divfact
-                results_PERall[i,j,iRp] = results_PERall[i,j,iRp] + gridoutRp[i,j]
-                gridoutR[i,j]       = results[i,j,iR,:].sum()/divfact
-                results_PERall[i,j,iR] = results_PERall[i,j,iR] + gridoutR[i,j]
-                gridoutFLOOD[i,j]   = results[i,j,iFLOOD,:].sum()
-                results_PERall[i,j,iFLOOD] = results_PERall[i,j,iFLOOD] + gridoutFLOOD[i,j]
-                gridoutSATpart[i,j] = results[i,j,iSATpart,:].sum()
-                results_PERall[i,j,iSATpart] = results_PERall[i,j,iSATpart] + gridoutSATpart[i,j]
-                gridoutMB[i,j]      = results[i,j,iMB,:].sum()/divfact
-                results_PERall[i,j,iMB] = results_PERall[i,j,iMB] + gridoutMB[i,j]
-                gridoutINTER[i,j]   = results[i,j,iINTER,:].sum()/divfact
-                results_PERall[i,j,iINTER] = results_PERall[i,j,iINTER] + gridoutINTER[i,j]
-                gridoutPOND[i,j]   = results[i,j,iPOND,:].sum()/divfact
-                results_PERall[i,j,iPOND] = results_PERall[i,j,iPOND] + gridoutPOND[i,j]
-                gridoutRunoff[i,j]   = results[i,j,iRunoff,:].sum()/divfact
-                results_PERall[i,j,iRunoff] = results_PERall[i,j,iRunoff] + gridoutRunoff[i,j]
-                rech[n,i,j] = results[i,j,iR,:].sum()/(divfact*1000)
+                gridoutRF[i,j]      = results[i,j,index.get('iRF'),:].sum()/divfact
+                resavg_PERall[i,j,index.get('iRF')] = resavg_PERall[i,j,index.get('iRF')] + gridoutRF[i,j]
+                gridoutPET[i,j]     = results[i,j,index.get('iPET'),:].sum()/divfact
+                resavg_PERall[i,j,index.get('iPET')] = resavg_PERall[i,j,index.get('iPET')] + gridoutPET[i,j]
+                gridoutPE[i,j]     = results[i,j,index.get('iPE'),:].sum()/divfact
+                resavg_PERall[i,j,index.get('iPE')] = resavg_PERall[i,j,index.get('iPE')] + gridoutPE[i,j]
+                gridoutRFe[i,j]     = results[i,j,index.get('iRFe'),:].sum()/divfact
+                resavg_PERall[i,j,index.get('iRFe')] = resavg_PERall[i,j,index.get('iRFe')] + gridoutRFe[i,j]
+                gridoutSUST[i,j]    = results[i,j,index.get('iSUST'),:].sum()/divfact
+                resavg_PERall[i,j,index.get('iSUST')] = resavg_PERall[i,j,index.get('iSUST')] + gridoutSUST[i,j]
+                gridoutQs[i,j]      = results[i,j,index.get('iQs'),:].sum()/divfact
+                resavg_PERall[i,j,index.get('iQs')] = resavg_PERall[i,j,index.get('iQs')] + gridoutQs[i,j]
+                gridoutEs[i,j]     = results[i,j,index.get('iEs'),:].sum()/divfact
+                resavg_PERall[i,j,index.get('iEs')] = resavg_PERall[i,j,index.get('iEs')] + gridoutEs[i,j]
+                gridoutEg[i,j]       = results[i,j,index.get('iEg'),:].sum()/divfact
+                resavg_PERall[i,j,index.get('iEg')] = resavg_PERall[i,j,index.get('iEg')] + gridoutEg[i,j]
+                gridoutTg[i,j]       = results[i,j,index.get('iTg'),:].sum()/divfact
+                resavg_PERall[i,j,index.get('iTg')] = resavg_PERall[i,j,index.get('iTg')] + gridoutTg[i,j]
+                gridoutRn[i,j]       = results[i,j,index.get('iRn'),:].sum()/divfact
+                resavg_PERall[i,j,index.get('iRn')] = resavg_PERall[i,j,index.get('iRn')] + gridoutRn[i,j]
+                gridoutR[i,j]       = results[i,j,index.get('iR'),:].sum()/divfact
+                resavg_PERall[i,j,index.get('iR')] = resavg_PERall[i,j,index.get('iR')] + gridoutR[i,j]
+                gridoutFLOOD[i,j]   = results[i,j,index.get('iFLOOD'),:].sum()
+                resavg_PERall[i,j,index.get('iFLOOD')] = resavg_PERall[i,j,index.get('iFLOOD')] + gridoutFLOOD[i,j]
+                gridoutSATpart[i,j] = results[i,j,index.get('iSATpart'),:].sum()
+                resavg_PERall[i,j,index.get('iSATpart')] = resavg_PERall[i,j,index.get('iSATpart')] + gridoutSATpart[i,j]
+                gridoutMB[i,j]      = results[i,j,index.get('iMB'),:].sum()/divfact
+                resavg_PERall[i,j,index.get('iMB')] = resavg_PERall[i,j,index.get('iMB')] + gridoutMB[i,j]
+                gridoutINTER[i,j]   = results[i,j,index.get('iINTER'),:].sum()/divfact
+                resavg_PERall[i,j,index.get('iINTER')] = resavg_PERall[i,j,index.get('iINTER')] + gridoutINTER[i,j]
+                gridoutPOND[i,j]   = results[i,j,index.get('iPOND'),:].sum()/divfact
+                resavg_PERall[i,j,index.get('iPOND')] = resavg_PERall[i,j,index.get('iPOND')] + gridoutPOND[i,j]
+                gridoutRunoff[i,j]   = results[i,j,index.get('iRunoff'),:].sum()/divfact
+                resavg_PERall[i,j,index.get('iRunoff')] = resavg_PERall[i,j,index.get('iRunoff')] + gridoutRunoff[i,j]
+
+                for l in range(nsl_tmp):
+                    gridoutEu[l][i,j] = results_S[i,j,index_S.get('iEu'),l,:].sum()/divfact
+                    gridoutTu[l][i,j] = results_S[i,j,index_S.get('iTu'),l,:].sum()/divfact
+                    resavg_PERall_S[i,j,index_S.get('iEu'),l] = resavg_PERall_S[i,j,index_S.get('iEu'),l] + gridoutEu[l][i,j]
+                    resavg_PERall_S[i,j,index_S.get('iTu'),l] = resavg_PERall_S[i,j,index_S.get('iTu'),l] + gridoutTu[l][i,j]
+                    gridoutS[l][i,j] = results_S[i,j,index_S.get('iS'),l,:].sum()/divfact
+                    resavg_PERall_S[i,j,index_S.get('iS'),l] = resavg_PERall_S[i,j,index_S.get('iS'),l] + gridoutS[l][i,j]
+                    gridoutRp[l][i,j] = results_S[i,j,index_S.get('iRp'),l,:].sum()/divfact
+                    resavg_PERall_S[i,j,index_S.get('iRp'),l] = resavg_PERall_S[i,j,index_S.get('iRp'),l] + gridoutRp[l][i,j]
+
+                Rn4MF[n,i,j] = results[i,j,index.get('iRn'),:].sum()/(divfact*1000)
 
                 # setting initial conditions for the next SP
-                Si_tmp_array[i,j] = results[i,j,iS,perlen[n]-1]
-                Rp_tmp_array[i,j] = Rp_tmp.sum() - results[i,j,iR,:].sum()
+                for l in range(nsl_tmp):
+                    Si_tmp_array[i,j,l] = results_S[i,j,index_S.get('iS'),l,perlen[n]-1]
+                    Rpi_tmp_array[i,j,l] = results_S[i,j,index_S.get('iRp'),l,perlen[n]-1]
 
                 outFileRF.write('%.6f'%(gridoutRF[i,j]) + ' ')
                 outFilePET.write('%.6f'%(gridoutPET[i,j]) + ' ')
+                outFilePE.write('%.6f'%(gridoutPE[i,j]) + ' ')
                 outFileRFe.write('%.6f'%(gridoutRFe[i,j]) + ' ')
                 outFileSUST.write('%.6f'%(gridoutSUST[i,j]) + ' ')
                 outFileQs.write('%.6f'%(gridoutQs[i,j]) + ' ')
-                outFileETu.write('%.6f'%(gridoutETu[i,j]) + ' ')
+                for l in range(nsl_tmp):
+                    outFileEu[l].write('%.6f'%(gridoutEu[l][i,j]) + ' ')
+                    outFileTu[l].write('%.6f'%(gridoutTu[l][i,j]) + ' ')
+                    outFileS[l].write('%.6f'%(gridoutS[l][i,j]) + ' ')
+                    outFileRp[l].write('%.6f'%(gridoutRp[l][i,j]) + ' ')
                 outFileEs.write('%.6f'%(gridoutEs[i,j]) + ' ')
-                outFileS.write('%.6f'%(gridoutS[i,j]) + ' ')
-                outFileRp.write('%.6f'%(gridoutRp[i,j]) + ' ')
+                outFileEg.write('%.6f'%(gridoutEg[i,j]) + ' ')
+                outFileTg.write('%.6f'%(gridoutTg[i,j]) + ' ')
+                outFileRn.write('%.6f'%(gridoutRn[i,j]) + ' ')
                 outFileR.write('%.6f'%(gridoutR[i,j]) + ' ')
                 outFileFLOOD.write('%.6f'%(gridoutFLOOD[i,j]) + ' ')
                 outFileSATpart.write('%.6f'%(gridoutSATpart[i,j]) + ' ')
@@ -490,39 +600,53 @@ for n in range(nper):
                 outFileINTER.write('%.6f'%(gridoutINTER[i,j]) + ' ')
                 outFilePOND.write('%.6f'%(gridoutPOND[i,j]) + ' ')
                 outFileRunoff.write('%.6f'%(gridoutRunoff[i,j]) + ' ')
-                if rech[n,i,j]>1e-10:
-                    outFileRPER.write(str(rech[n,i,j])+' ')
+                if Rn4MF[n,i,j]>1e-10:
+                    outFileRPER.write(str(Rn4MF[n,i,j])+' ')
                 else:
                     outFileRPER.write(str(0.0)+' ')
             else:
                 results[i,j,:,:]    = hnoflo
-                results_PERall[i,j,:] = hnoflo
+                results_S[i,j,:,:,:]    = hnoflo
+                resavg_PERall[i,j,:] = hnoflo
+                resavg_PERall_S[i,j,:,:] = hnoflo
                 gridoutRF[i,j]      = hnoflo
                 gridoutPET[i,j]     = hnoflo
+                gridoutPE[i,j]      = hnoflo
                 gridoutRFe[i,j]     = hnoflo
                 gridoutSUST[i,j]    = hnoflo
                 gridoutQs[i,j]      = hnoflo
-                gridoutETu[i,j]     = hnoflo
-                gridoutEs[i,j]     = hnoflo
-                gridoutS[i,j]       = hnoflo
-                gridoutRp[i,j]      = hnoflo
+                for l in range(nsl_tmp):
+                    gridoutEu[l][i,j]     = hnoflo
+                    gridoutTu[l][i,j]     = hnoflo
+                    gridoutS[l][i,j]       = hnoflo
+                    gridoutRp[l][i,j]      = hnoflo
+                gridoutEs[i,j]      = hnoflo
+                gridoutEg[i,j]      = hnoflo
+                gridoutTg[i,j]      = hnoflo
+                gridoutRn[i,j]      = hnoflo
                 gridoutR[i,j]       = hnoflo
                 gridoutFLOOD[i,j]   = hnoflo
                 gridoutSATpart[i,j] = hnoflo
                 gridoutMB[i,j]      = hnoflo
                 gridoutINTER[i,j]   = hnoflo
                 gridoutFLOOD[i,j]   = hnoflo
-                gridoutRunoff[i,j]   = hnoflo
-                rech[n,i,j]         = hnoflo
+                gridoutRunoff[i,j]  = hnoflo
+                Rn4MF[n,i,j]        = hnoflo
                 outFileRF.write('%.6f'%(gridoutRF[i,j]) + ' ')
                 outFilePET.write('%.6f'%(gridoutPET[i,j]) + ' ')
+                outFilePE.write('%.6f'%(gridoutPE[i,j]) + ' ')
                 outFileRFe.write('%.6f'%(gridoutRFe[i,j]) + ' ')
                 outFileSUST.write('%.6f'%(gridoutSUST[i,j]) + ' ')
                 outFileQs.write('%.6f'%(gridoutQs[i,j]) + ' ')
-                outFileETu.write('%.6f'%(gridoutETu[i,j]) + ' ')
+                for l in range(nsl_tmp):
+                    outFileEu[l].write('%.6f'%(gridoutEu[l][i,j]) + ' ')
+                    outFileTu[l].write('%.6f'%(gridoutTu[l][i,j]) + ' ')
+                    outFileS[l].write('%.6f'%(gridoutS[l][i,j]) + ' ')
+                    outFileRp[l].write('%.6f'%(gridoutRp[l][i,j]) + ' ')
                 outFileEs.write('%.6f'%(gridoutEs[i,j]) + ' ')
-                outFileS.write('%.6f'%(gridoutS[i,j]) + ' ')
-                outFileRp.write('%.6f'%(gridoutRp[i,j]) + ' ')
+                outFileEg.write('%.6f'%(gridoutEg[i,j]) + ' ')
+                outFileTg.write('%.6f'%(gridoutTg[i,j]) + ' ')
+                outFileRn.write('%.6f'%(gridoutRn[i,j]) + ' ')
                 outFileR.write('%.6f'%(gridoutR[i,j]) + ' ')
                 outFileFLOOD.write('%.6f'%(gridoutFLOOD[i,j]) + ' ')
                 outFileSATpart.write('%.6f'%(gridoutSATpart[i,j]) + ' ')
@@ -531,29 +655,22 @@ for n in range(nper):
                 outFilePOND.write('%.6f'%(gridoutPOND[i,j]) + ' ')
                 outFileRunoff.write('%.6f'%(gridoutRunoff[i,j]) + ' ')
                 outFileRPER.write(str(hnoflo)+' ')
-            # export data for observation cells and show calib graphs
-            if obsCHECK==1:
-                for o in range(len(obs.keys())):
-                    if obs.get(obs.keys()[o])['i'] == i and obs.get(obs.keys()[o])['j'] == j:
-                     # order of output is 0-RF, 1-PET, 2-RFe, 3-SUST, 4-Qs, 5-ETu, 6-S, 7-Rp, 8-countFLOOD, 9-Es, 10-countSATpart, 11-MB, 12-R, 13-INTER, 14-countPOND, 15-countRunoff
-                        h_satflow=MARM_SATFLOW.run(results[i,j,iR,:], float(obs.get(obs.keys()[o])['hi']),float(obs.get(obs.keys()[o])['h0']),float(obs.get(obs.keys()[o])['RC']),float(obs.get(obs.keys()[o])['STO']))
-                        # reinitialize hi for the next time period
-                        obs.get(obs.keys()[o])['hi']=h_satflow[perlen[n]-1]-float(obs.get(obs.keys()[o])['h0'])
-                        TS = [results[i,j,iRF,:], results[i,j,iPET,:], results[i,j,iRFe,:],results[i,j,iINTER,:], results[i,j,iETu,:], results[i,j,iEs,:],results[i,j,iS,:], results[i,j,iSUST,:],results[i,j,iPOND,:],results[i,j,iQs,:],results[i,j,iRunoff,:],results[i,j,iFLOOD,:],results[i,j,iRp,:], results[i,j,iR,:], h_satflow, heads[tstart:tend,i,j,0], results[i,j,iSATpart,:],results[i,j,iMB,:], results[i,j,iE0,:]]
-                        MARM_PROCESS.ExportResults(inputDate[tstart:tend], TS, obs_h[o][tstart:tend], obs_sm[o][tstart:tend], outFileExport[o], outPESTheads, outPESTsm, obs.keys()[o])
-                ##    DLPgraphs.calibGRAPH(inputDate, results[i,j,0,:], results[i,j,1,:],
-                ##                          results[i,j,2,:], results[i,j,5,:], results[i,j,6,:],
-                ##                          results[i,j,9,:], h, obsh[o], obssm[o], Sm[gridSOIL[i,j]-1], Sr[gridSOIL[i,j]-1])
         outFileRPER.write('\n')
         outFileRF.write('\n')
         outFilePET.write('\n')
+        outFilePE.write('\n')
         outFileRFe.write('\n')
         outFileSUST.write('\n')
         outFileQs.write('\n')
-        outFileETu.write('\n')
+        for l in range(nsl_tmp):
+            outFileEu[l].write('\n')
+            outFileTu[l].write('\n')
+            outFileS[l].write('\n')
+            outFileRp[l].write('\n')
         outFileEs.write('\n')
-        outFileS.write('\n')
-        outFileRp.write('\n')
+        outFileEg.write('\n')
+        outFileTg.write('\n')
+        outFileRn.write('\n')
         outFileR.write('\n')
         outFileFLOOD.write('\n')
         outFileSATpart.write('\n')
@@ -561,17 +678,22 @@ for n in range(nper):
         outFileINTER.write('\n')
         outFilePOND.write('\n')
         outFileRunoff.write('\n')
-#           print ('Row '+str(i+1)+'/'+str(nrow)+' done')
     # close export ASCII files
     outFileRF.close()
     outFilePET.close()
+    outFilePE.close()
     outFileRFe.close()
     outFileSUST.close()
     outFileQs.close()
-    outFileETu.close()
+    for l in range(nsl_tmp):
+        outFileEu[l].close()
+        outFileTu[l].close()
+        outFileS[l].close()
+        outFileRp[l].close()
     outFileEs.close()
-    outFileS.close()
-    outFileRp.close()
+    outFileEg.close()
+    outFileTg.close()
+    outFileRn.close()
     outFileR.close()
     outFileFLOOD.close()
     outFileSATpart.close()
@@ -586,32 +708,44 @@ for n in range(nper):
 for i in range(nrow):
     for j in range(ncol):
         if ibound[i,j,0]<>0:
-            outFileRF_PERall.write('%.6f'%(results_PERall[i,j,iRF]/nper) + ' ')
-            outFilePET_PERall.write('%.6f'%(results_PERall[i,j,iPET]/nper) + ' ')
-            outFileRFe_PERall.write('%.6f'%(results_PERall[i,j,iRFe]/nper) + ' ')
-            outFileSUST_PERall.write('%.6f'%(results_PERall[i,j,iSUST]/nper) + ' ')
-            outFileQs_PERall.write('%.6f'%(results_PERall[i,j,iQs]/nper) + ' ')
-            outFileETu_PERall.write('%.6f'%(results_PERall[i,j,iETu]/nper) + ' ')
-            outFileEs_PERall.write('%.6f'%(results_PERall[i,j,iEs]/nper) + ' ')
-            outFileS_PERall.write('%.6f'%(results_PERall[i,j,iS]/nper) + ' ')
-            outFileRp_PERall.write('%.6f'%(results_PERall[i,j,iRp]/nper) + ' ')
-            outFileR_PERall.write('%.6f'%(results_PERall[i,j,iR]/nper) + ' ')
-            outFileFLOOD_PERall.write('%.6f'%(results_PERall[i,j,iFLOOD]) + ' ')
-            outFileSATpart_PERall.write('%.6f'%(results_PERall[i,j,iSATpart]) + ' ')
-            outFileMB_PERall.write('%.6f'%(results_PERall[i,j,iMB]) + ' ')
-            outFileINTER_PERall.write('%.6f'%(results_PERall[i,j,iINTER]/nper) + ' ')
-            outFilePOND_PERall.write('%.6f'%(results_PERall[i,j,iPOND]) + ' ')
-            outFileRunoff_PERall.write('%.6f'%(results_PERall[i,j,iRunoff]) + ' ')
+            outFileRF_PERall.write('%.6f'%(resavg_PERall[i,j,index.get('iRF')]/nper) + ' ')
+            outFilePET_PERall.write('%.6f'%(resavg_PERall[i,j,index.get('iPET')]/nper) + ' ')
+            outFilePE_PERall.write('%.6f'%(resavg_PERall[i,j,index.get('iPE')]/nper) + ' ')
+            outFileRFe_PERall.write('%.6f'%(resavg_PERall[i,j,index.get('iRFe')]/nper) + ' ')
+            outFileSUST_PERall.write('%.6f'%(resavg_PERall[i,j,index.get('iSUST')]/nper) + ' ')
+            outFileQs_PERall.write('%.6f'%(resavg_PERall[i,j,index.get('iQs')]/nper) + ' ')
+            for l in range(_nslmax):
+                outFileEu_PERall[l].write('%.6f'%(resavg_PERall_S[i,j,index_S.get('iEu'),l]/nper) + ' ')
+                outFileTu_PERall[l].write('%.6f'%(resavg_PERall_S[i,j,index_S.get('iTu'),l]/nper) + ' ')
+                outFileS_PERall[l].write('%.6f'%(resavg_PERall_S[i,j,index_S.get('iS'),l]/nper) + ' ')
+                outFileRp_PERall[l].write('%.6f'%(resavg_PERall_S[i,j,index_S.get('iRp'),l]/nper) + ' ')
+            outFileEs_PERall.write('%.6f'%(resavg_PERall[i,j,index.get('iEs')]/nper) + ' ')
+            outFileEg_PERall.write('%.6f'%(resavg_PERall[i,j,index.get('iEg')]/nper) + ' ')
+            outFileTg_PERall.write('%.6f'%(resavg_PERall[i,j,index.get('iTg')]/nper) + ' ')
+            outFileRn_PERall.write('%.6f'%(resavg_PERall[i,j,index.get('iRn')]/nper) + ' ')
+            outFileR_PERall.write('%.6f'%(resavg_PERall[i,j,index.get('iR')]/nper) + ' ')
+            outFileFLOOD_PERall.write('%.6f'%(resavg_PERall[i,j,index.get('iFLOOD')]) + ' ')
+            outFileSATpart_PERall.write('%.6f'%(resavg_PERall[i,j,index.get('iSATpart')]) + ' ')
+            outFileMB_PERall.write('%.6f'%(resavg_PERall[i,j,index.get('iMB')]) + ' ')
+            outFileINTER_PERall.write('%.6f'%(resavg_PERall[i,j,index.get('iINTER')]/nper) + ' ')
+            outFilePOND_PERall.write('%.6f'%(resavg_PERall[i,j,index.get('iPOND')]) + ' ')
+            outFileRunoff_PERall.write('%.6f'%(resavg_PERall[i,j,index.get('iRunoff')]) + ' ')
         else:
             outFileRF_PERall.write('%.6f'%(hnoflo) + ' ')
             outFilePET_PERall.write('%.6f'%(hnoflo) + ' ')
+            outFilePE_PERall.write('%.6f'%(hnoflo) + ' ')
             outFileRFe_PERall.write('%.6f'%(hnoflo) + ' ')
             outFileSUST_PERall.write('%.6f'%(hnoflo) + ' ')
             outFileQs_PERall.write('%.6f'%(hnoflo) + ' ')
-            outFileETu_PERall.write('%.6f'%(hnoflo) + ' ')
+            for l in range(_nslmax):
+                outFileEu_PERall[l].write('%.6f'%(hnoflo) + ' ')
+                outFileTu_PERall[l].write('%.6f'%(hnoflo) + ' ')
+                outFileS_PERall[l].write('%.6f'%(hnoflo) + ' ')
+                outFileRp_PERall[l].write('%.6f'%(hnoflo) + ' ')
             outFileEs_PERall.write('%.6f'%(hnoflo) + ' ')
-            outFileS_PERall.write('%.6f'%(hnoflo) + ' ')
-            outFileRp_PERall.write('%.6f'%(hnoflo) + ' ')
+            outFileEg_PERall.write('%.6f'%(hnoflo) + ' ')
+            outFileTg_PERall.write('%.6f'%(hnoflo) + ' ')
+            outFileRn_PERall.write('%.6f'%(hnoflo) + ' ')
             outFileR_PERall.write('%.6f'%(hnoflo) + ' ')
             outFileFLOOD_PERall.write('%.6f'%(hnoflo) + ' ')
             outFileSATpart_PERall.write('%.6f'%(hnoflo) + ' ')
@@ -621,13 +755,19 @@ for i in range(nrow):
             outFileRunoff_PERall.write('%.6f'%(hnoflo) + ' ')
     outFileRF_PERall.write('\n')
     outFilePET_PERall.write('\n')
+    outFilePE_PERall.write('\n')
     outFileRFe_PERall.write('\n')
     outFileSUST_PERall.write('\n')
     outFileQs_PERall.write('\n')
-    outFileETu_PERall.write('\n')
+    for l in range(_nslmax):
+        outFileEu_PERall[l].write('\n')
+        outFileTu_PERall[l].write('\n')
+        outFileS_PERall[l].write('\n')
+        outFileRp_PERall[l].write('\n')
     outFileEs_PERall.write('\n')
-    outFileS_PERall.write('\n')
-    outFileRp_PERall.write('\n')
+    outFileEg_PERall.write('\n')
+    outFileTg_PERall.write('\n')
+    outFileRn_PERall.write('\n')
     outFileR_PERall.write('\n')
     outFileFLOOD_PERall.write('\n')
     outFileSATpart_PERall.write('\n')
@@ -637,13 +777,19 @@ for i in range(nrow):
     outFileRunoff_PERall.write('\n')
 outFileRF_PERall.close()
 outFilePET_PERall.close()
+outFilePE_PERall.close()
 outFileRFe_PERall.close()
 outFileSUST_PERall.close()
 outFileQs_PERall.close()
-outFileETu_PERall.close()
+for l in range(_nslmax):
+    outFileEu_PERall[l].close()
+    outFileTu_PERall[l].close()
+    outFileS_PERall[l].close()
+    outFileRp_PERall[l].close()
 outFileEs_PERall.close()
-outFileS_PERall.close()
-outFileRp_PERall.close()
+outFileEg_PERall.close()
+outFileTg_PERall.close()
+outFileRn_PERall.close()
 outFileR_PERall.close()
 outFileFLOOD_PERall.close()
 outFileSATpart_PERall.close()
@@ -652,22 +798,68 @@ outFileINTER_PERall.close()
 outFilePOND_PERall.close()
 outFileRunoff_PERall.close()
 
-if obsCHECK == 1:
-    for o in range(len(obs.keys())):
-        outFileExport[o].close()
-    outPESTheads.close()
-    outPESTsm.close()
-
 # final report of successful run
 timeend = pylab.datestr2num(pylab.datetime.datetime.today().isoformat())
 duration=(timeend-timestart)
-print ('\n############### REPORT ####################\nMARMITES executed successfully!')
+print ('\n##############\nMARMITES executed successfully!')
 print ('%s time steps\n%sx%s cells (rows x cols)') % (int(sum(perlen)),str(nrow),str(ncol))
 print ('Run time: %s minute(s) and %.1f second(s)') % (str(int(duration*24.0*60.0)), (duration*24.0*60.0-int(duration*24.0*60.0))*60)
-print ('Output files written in folder: \n%s\n################# EOF #####################\n') % MARM_ws
-# ReSoGraph.calibGRAPH(DateInput, P, PET, Pe, ETu, S, R, h, hmeas, Smeas, Sm, Sr)
+print ('Output files written in folder: \n%s\n##############\n') % MARM_ws
 
-del gridoutRF, gridoutRFe, gridoutR, gridoutRp, gridoutETu, gridoutEs, gridoutS, results_temp, results
+print 'MARMITES exporting...'
+# export data for observation cells and show calib graphs
+if obsCHECK == 1:
+    colors_nsl = CreateColors.main(hi=30, hf=50, numbcolors = (_nslmax))
+    for o in range(len(obs.keys())):
+        print '\nExporting ' + obs.keys()[o] + ' results...'
+        i = obs.get(obs.keys()[o])['i']
+        j = obs.get(obs.keys()[o])['j']
+        # SATFLOW
+        h_satflow=MARM_SATFLOW.run(res_PERall[i,j,index.get('iR'),:], float(obs.get(obs.keys()[o])['hi']),float(obs.get(obs.keys()[o])['h0']),float(obs.get(obs.keys()[o])['RC']),float(obs.get(obs.keys()[o])['STO']))
+        # correct heads from MF (1 day delay)
+        heads_MF_tmp = np.zeros([sum(perlen)], dtype = float)
+        heads_MF_tmp[0] = heads_MF[0,i,j,0]
+        heads_MF_tmp[1:sum(perlen)] = heads_MF[0:sum(perlen)-1,i,j,0]
+        # export ASCII file at piezometers location
+        MARM_PROCESS.ExportResults(i, j, inputDate, _nslmax, res_PERall, index, res_PERall_S, index_S, h_satflow, heads_MF_tmp, obs_h[o], obs_S[o], outFileExport[o], outPESTheads, outPESTsm, obs.keys()[o])
+        print 'ASCII file:\n' + str(outpathname[o])
+        # plot
+        # DateInput, P, PET, Pe, SUST, Qs, ETa, S, Rp, R, h, hmeas, Smeas, Sm, Sr):
+        plot_export_fn = os.path.join(MARM_ws, obs.keys()[o] + '.png')
+        MMplot.allPLOT(
+        inputDate,
+        res_PERall[i,j,index.get('iRF'),:],
+        res_PERall[i,j,index.get('iPET'),:],
+        res_PERall[i,j,index.get('iPE'),:],
+        res_PERall[i,j,index.get('iRFe'),:],
+        res_PERall[i,j,index.get('iSUST'),:],
+        res_PERall[i,j,index.get('iQs'),:],
+        res_PERall_S[i,j,index_S.get('iEu'),0:_nsl[gridSOIL[i,j]-1],:],
+        res_PERall_S[i,j,index_S.get('iTu'),0:_nsl[gridSOIL[i,j]-1],:],
+        res_PERall_S[i,j,index_S.get('iS'),0:_nsl[gridSOIL[i,j]-1],:],
+        res_PERall_S[i,j,index_S.get('iRp'),0:_nsl[gridSOIL[i,j]-1],:],
+        res_PERall[i,j,index.get('iR'),:],
+        res_PERall[i,j,index.get('iEs'),:],
+        heads_MF_tmp, h_satflow, obs_h[o], obs_S[o],
+        _Sm[gridSOIL[i,j]-1],
+        _Sr[gridSOIL[i,j]-1],
+        hnoflo,
+        plot_export_fn,
+        colors_nsl
+        )
+        plot_exportMB_fn = os.path.join(MARM_ws, obs.keys()[o] + '_MB.png')
+        MMplot.plotMBerror(
+        inputDate,
+        res_PERall[i,j,index.get('iMB'),:],
+        plot_exportMB_fn
+        )
+        print 'Plot:\n' + str(plot_export_fn)
+        outFileExport[o].close()
+    # output for PEST
+    outPESTheads.close()
+    outPESTsm.close()
+
+print ('\nExport done!\n##############\n')
 
 ##except (ValueError, TypeError, KeyboardInterrupt, IOError), e:
 ##    print e

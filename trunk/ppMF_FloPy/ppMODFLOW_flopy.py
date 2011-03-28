@@ -106,8 +106,6 @@ def ppMF(model_ws = ''):
         sys.exit()
     l=0
     try:
-        MFpp_yn = int(inputFile[l].strip())
-        l = l+1
         modelname =  str(inputFile[l].strip())
         l = l + 1
         namefile_ext = str(inputFile[l].strip())
@@ -373,10 +371,8 @@ def ppMF(model_ws = ''):
         nper = nper - 1
         perlen = perlen[1:]
 
+#TODO extract heads at piezo location and not center of cell
 
-#TODO extract heads at piezo location
-    #h = mfrdbin.mfhdsread(mf, 'LF95').read_all(modelname + "." + ext_heads)
-
-    return model_ws, nrow, ncol, delr, delc, perlen, nper, np.asarray(top_array), hnoflo, hdry, np.asarray(ibound_array), laytyp[0], np.asarray(h1), rch_fn
+    return nrow, ncol, delr, delc, perlen, nper, np.asarray(top_array), hnoflo, hdry, np.asarray(ibound_array), laytyp[0], np.asarray(h1), rch_fn
 
     print '\nDone!'
