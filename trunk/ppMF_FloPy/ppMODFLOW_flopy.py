@@ -345,8 +345,12 @@ def ppMF(model_ws = ''):
     lpf = mflpf(model = mf, hdry = hdry, laytyp = laytyp, layavg = layavg, chani = chani, layvka = layvka, laywet = laywet, hk = hk_array, vka = vka_array, ss = ss_array, sy = sy_array, extension=ext_lpf)
     # chd package
 #    chd = mfchd(model = mf)
+    # ghb package
+#    ghb = mfghb(model = mf)
     # rch initialization
     rch = mfrch(mf, nrchop=nrchop, rech=rch_array, extension = ext_rch)
+    # drn package initialization
+#    drn = mfdrn(mf)
     # output control initialization
     oc = mfoc(mf, ihedfm=ihedfm, iddnfm=iddnfm, item2=[[0,1,1,0]], item3=[[0,0,1,0]], extension=[ext_oc,'cbc',ext_heads,'ddn'])
     # preconditionned conjugate-gradient initialization

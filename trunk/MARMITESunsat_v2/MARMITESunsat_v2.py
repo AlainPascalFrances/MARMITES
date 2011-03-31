@@ -33,6 +33,7 @@ __version__ = "1.0"
 __date__ = "November 2010"
 
 import os
+import sys
 import numpy as np
 import pylab
 
@@ -71,10 +72,33 @@ class UNSAT:
 
     def __init__(self, hnoflo):
         self.hnoflo = hnoflo
-
+##        @ARTICLE{Shah2007,
+##          author = {Shah, Nirjhar and Nachabe, Mahmood and Ross, Mark},
+##          title = {Extinction Depth and Evapotranspiration from Ground Water under Selected
+##        	Land Covers},
+##          journal = {Ground Water},
+##          year = {2007},
+##          volume = {45},
+##          pages = {329-338},
+##          number = {3},
+##        }
+        # table 5, values for bare soil
+        self.paramEg = {'sand'           : {'dll':160.0,'y0':0.000,'b':0.0171, 'ext_d':500.0},
+                       'loamy sand'      : {'dll':210.0,'y0':0.002,'b':0.0130, 'ext_d':700.0},
+                       'sandy loam'      : {'dll':300.0,'y0':0.004,'b':0.0065, 'ext_d':1300.0},
+                       'sandy clay loam' : {'dll':300.0,'y0':0.006,'b':0.0046, 'ext_d':2000.0},
+                       'sandy clay'      : {'dll':200.0,'y0':0.005,'b':0.0042, 'ext_d':2100.0},
+                       'loam'            : {'dll':330.0,'y0':0.004,'b':0.0028, 'ext_d':2600.0},
+                       'silty clay'      : {'dll':370.0,'y0':0.007,'b':0.0046, 'ext_d':3300.0},
+                       'clay loam'       : {'dll':330.0,'y0':0.008,'b':0.0027, 'ext_d':4000.0},
+                       'silt loam'       : {'dll':380.0,'y0':0.006,'b':0.0019, 'ext_d':4200.0},
+                       'silt'            : {'dll':310.0,'y0':0.007,'b':0.0021, 'ext_d':4300.0},
+                       'silty clay loam' : {'dll':400.0,'y0':0.007,'b':0.0021, 'ext_d':4500.0},
+                       'clay'            : {'dll':450.0,'y0':0.006,'b':0.0019, 'ext_d':6200.0},
+                       }
 
     def partition(self, PET, PE, Sini, Zr_botavg, Dltop, Dlbot, Dl,
-                        Sm, Sfc, Sr, Ks, SUSTm):
+                        Sm, Sfc, Sr, Ks, SUSTm, st, dtwt):
 
         def pond(s_tmp,Dl,Sm,SUSTm):
             '''
@@ -118,17 +142,19 @@ class UNSAT:
             if rp_tmp-(Sm_sp1-s_lp1)*Dl_sp1>0.000001:
                 rp_tmp = (Sm_sp1-s_lp1)*Dl_sp1
             return rp_tmp
-##            '''
-##            Percolation function
-##            # SWAT PERCOLATION pag 150 chap 2:3.2
-##            '''
-##            SWe = (s_tmp-Sfc)*Dl
-##            TTperc = (Sm-Sfc)*Dl/Ks
-##            if (s_tmp-Sfc)<=0.000001:
-##                rp_tmp = 0.0
-##            elif (s_tmp-Sfc)>0.000001:
-##                rp_tmp = SWe*(1-(pylab.exp(-1/TTperc)))
-##            return rp_tmp
+
+        def perc1(s_tmp,Dl,Sm,Sfc,Ks, s_lp1, Dl_sp1, Sm_sp1):
+            '''
+            Percolation function
+            # SWAT PERCOLATION pag 150 chap 2:3.2
+            '''
+            SWe = (s_tmp-Sfc)*Dl
+            TTperc = (Sm-Sfc)*Dl/Ks
+            if (s_tmp-Sfc)<=0.000001:
+                rp_tmp = 0.0
+            elif (s_tmp-Sfc)>0.000001:
+                rp_tmp = SWe*(1-(pylab.exp(-1/TTperc)))
+            return rp_tmp
 
         def evp(s_tmp,pet,Dl,Sm,Sr):
             '''
@@ -150,6 +176,16 @@ class UNSAT:
                     evp_tmp= pet
             return evp_tmp
 
+        def Eg(PE, y0, b, dtwt, dll):
+            '''
+            Groundwater evaporation, equation 17 of Shah et al 2007, see ref in the __init__
+            '''
+            if dtwt<=dll:
+                Eg_tmp = PE
+            else:
+                Eg_tmp = PE*(y0 + pylab.exp(-b*(dtwt-dll)))
+            return Eg_tmp
+
         # MAIN
 
         # SUST and Qs
@@ -160,18 +196,17 @@ class UNSAT:
         countRunoff_tmp = PONDtmp[3]
         Sini[0] = Sini[0]-(SUST_tmp+Qs_tmp)
 
-        # Rp
         Rp_tmp = []
+        Tu_tmp=[]
+        Eu_tmp=[]
         for l in range(len(Dl)):
+            # Rp
             if l==len(Dl)-1:
-                Rp_tmp.append(perc(Sini[l]/Dl[l],Dl[l],Sm[l],Sfc[l],Ks[l],0,1,1))
+                Rp_tmp.append(perc1(Sini[l]/Dl[l],Dl[l],Sm[l],Sfc[l],Ks[l],0,1,1))
             else:
                 Rp_tmp.append(perc(Sini[l]/Dl[l],Dl[l],Sm[l],Sfc[l],Ks[l], Sini[l+1]/Dl[l+1],Dl[l+1], Sm[l+1]))
             Sini[l] = Sini[l]-Rp_tmp[l]
-
-        # Tu
-        Tu_tmp=[]
-        for l in range(len(Dl)):
+            # Tu
             if Zr_botavg < Dlbot[l]:
                 Tu_tmp.append(evp(Sini[l]/Dl[l],PET,Dl[l],Sm[l],Sr[l]))
             elif Zr_botavg < Dltop[l]:
@@ -180,17 +215,17 @@ class UNSAT:
             else:
                 Tu_tmp.append(0.0)
             Sini[l]=(Sini[l]-Tu_tmp[l])
-
-        # Eu
-        Eu_tmp=[]
-        for l in range(len(Dl)):
+            # Eu
             Eu_tmp.append(evp(Sini[l]/Dl[l],PE,Dl[l],Sm[l],Sr[l]))
             Sini[l]=(Sini[l]-Eu_tmp[l])/Dl[l]
 
-        return (SUST_tmp, Qs_tmp, countPOND_tmp, countRunoff_tmp, Rp_tmp, Eu_tmp, Tu_tmp, Sini)
+        Eg_tmp = Eg(PE, self.paramEg[st]['y0'], self.paramEg[st]['b'], dtwt,self.paramEg[st]['dll'])
+        Tg_tmp = 0.0
+
+        return (SUST_tmp, Qs_tmp, countPOND_tmp, countRunoff_tmp, Rp_tmp, Eu_tmp, Tu_tmp, Sini, Eg_tmp, Tg_tmp)
 
     def run(self, i, j,
-                  nsl, slprop, Sm, Sfc, Sr, Si, Rpi, D, Ks, SUSTm,
+                  nsl, st, slprop, Sm, Sfc, Sr, Si, Rpi, D, Ks, SUSTm,
                   ELEV, HEADS,
                   RF, E0, PETveg, RFeveg, PEsoil, VEGarea, Zr,
                   perlen, AqType, hdry):
@@ -264,9 +299,9 @@ class UNSAT:
                     PET_tot[t] = PET_tot[t]+PETveg[v,t]*VEGarea[v]/100
                     RFe_tot[t] = RFe_tot[t]+RFeveg[v,t]*VEGarea[v]/100
                     SOILarea = SOILarea - VEGarea[v]
-            PE_tot[t] = PEsoil[t]*SOILarea/100
             RFe_tot[t] = RFe_tot[t] + RF[t]*SOILarea/100
             INTER[t] = RF[t] - RFe_tot[t]
+            PE_tot[t] = PEsoil[t]*SOILarea/100
 
             # handle drycell
             if HEADS[t]==hdry:
@@ -277,12 +312,14 @@ class UNSAT:
             if HEADStmp-Dbot<=0.000001:
                 Dlbot[nsl-1] = HEADStmp
                 Dl[nsl-1] = Dltop[nsl-1] - HEADStmp
+                dtwt = ELEV-HEADStmp
             elif HEADStmp-Dbot>0.000001 and ELEV-HEADStmp>0.000001:
                 Dlbot[nsl-1] = 0.0
                 Dl[nsl-1] = 0.0
+                dtwt = ELEV-HEADStmp
             else:
                 print 'BUG... situation still not properly programmed'
-
+                dtwt = 0
 
             Sini = np.zeros([nsl], dtype=float)
             SUSTprev = []
@@ -293,7 +330,7 @@ class UNSAT:
                     for l in range(1,nsl):
                         Sini[l] = Si[l]*Dl[l] + Rpi[l-1]
                 SUSTprev = 0.0
-                Es_tmp = 0.0
+                Estmp = 0.0
             else:
                 SUSTprev = SUST[t-1]
                 # soil reservoir water content initialisation
@@ -301,21 +338,23 @@ class UNSAT:
                 # compute Es from SUST and E0
                 if E0[t]-SUSTprev>=0.000001:
                     Sini[0] = S[0,t-1]*Dl[0] + RFe_tot[t]
-                    Es_tmp = SUSTprev
+                    Estmp = SUSTprev
                 else:
                     Sini[0] = S[0,t-1]*Dl[0] + RFe_tot[t] + SUSTprev-E0[t]
-                    Es_tmp = E0[t]
+                    Estmp = E0[t]
                 if nsl>1:
                     for l in range(1,nsl):
                         Sini[l] = S[l,t-1]*Dl[l] + Rp[l-1,t-1]
 
             if AqType==1:
-                # AQUIFER UNCONFINED, water table can rise in the soil and above surface
+            # AQUIFER UNCONFINED, water table can rise in the soil and above surface
+
                 # heads below soil bottom
                 if HEADStmp-Dbot<=0.000001:
                     if countFLOOD[t]-countFLOOD[t-1]==-1:
                         Sini=Sm
-                    SUSTtmp, Qstmp, countPONDtmp, countRunofftmp, Rptmp, Eutmp, Tutmp, Stmp = self.partition(PET_tot[t], PE_tot[t], Sini, Zr_botavg, Dltop, Dlbot, Dl, Sm,Sfc,Sr,Ks,SUSTm)
+                    SUSTtmp, Qstmp, countPONDtmp, countRunofftmp, Rptmp, Eutmp, Tutmp, Stmp, Egtmp, Tgtmp = self.partition(PET_tot[t], PE_tot[t], Sini, Zr_botavg, Dltop, Dlbot, Dl, Sm,Sfc,Sr,Ks,SUSTm, st, dtwt)
+
                 # heads above soil bottom and below surface
                 elif HEADStmp-Dbot>0.000001 and ELEV-HEADStmp>0.000001:
                     countSATpart[t] = 1
@@ -327,7 +366,8 @@ class UNSAT:
                                     Sini[l]=Sm[l]
                             else:
                                 Dl[l]=Dltop[l]-HEADStmp
-                    SUSTtmp, Qstmp, countPONDtmp, countRunofftmp, Rptmp, Eutmp, Tutmp, Stmp = self.partition(PET_tot[t], PE_tot[t], Sini, Zr_botavg, Dltop, Dlbot, Dl, Sm,Sfc,Sr,Ks,SUSTm)
+                    SUSTtmp, Qstmp, countPONDtmp, countRunofftmp, Rptmp, Eutmp, Tutmp, Stmp, Egtmp, Tgtmp = self.partition(PET_tot[t], PE_tot[t], Sini, Zr_botavg, Dltop, Dlbot, Dl, Sm,Sfc,Sr,Ks,SUSTm, st, dtwt)
+
                 # heads above surface
                 else:
                     countFLOOD[t] = 1
@@ -348,11 +388,14 @@ class UNSAT:
                         Stmp.append(Sm*Dl[l])
             else:
             # AQUIFER CONFINED, water table cannot rise in the soil or above topography
-                SUSTtmp, Qstmp, countPONDtmp, countRunofftmp, Rptmp, Eutmp, Tutmp, Stmp = self.partition(PET_tot[t], PE_tot[t], Sini, Zr_botavg, Dltop, Dlbot, Dl, Sm,Sfc,Sr,Ks,SUSTm)
+                SUSTtmp, Qstmp, countPONDtmp, countRunofftmp, Rptmp, Eutmp, Tutmp, Stmp, Egtmp, Tgtmp = self.partition(PET_tot[t], PE_tot[t], Sini, Zr_botavg, Dltop, Dlbot, Dl, Sm,Sfc,Sr,Ks,SUSTm, st, dtwt)
+
             # fill the table and compute water balance
             SUST[t]=SUSTtmp
             Qs[t]=Qstmp
-            Es[t]=Es_tmp
+            Es[t]=Estmp
+            Eg[t]=Egtmp
+            Tg[t]=Tgtmp
             countPOND[t]=countPONDtmp
             countRunoff[t]=countRunofftmp
             for l in range(nsl):
@@ -360,6 +403,8 @@ class UNSAT:
                 Rp[l,t]=Rptmp[l]
                 Eu[l,t]=Eutmp[l]
                 Tu[l,t]=Tutmp[l]
+
+            # compute the water mass balance (MB) in the unsaturated zone
             if countFLOOD[t]==0:
                 RpMB=0.0
                 EuMB=0.0
@@ -617,8 +662,7 @@ class process:
         # Soils parameter initialisation
         nam_soil=[]
         nsl=[]
-        n=[]
-        f=[]
+        st=[]
         slprop=[]
         Sm=[]
         Sfc=[]
@@ -627,42 +671,76 @@ class process:
         Ks=[]
 
         # soil parameters file
-        SOILparam_fn=os.path.join(self.MARM_ws,SOILparam_fn)   #in MF folder for PEST
+        SOILparam_fn=os.path.join(self.MARM_ws,SOILparam_fn)
         if os.path.exists(SOILparam_fn):
-            SOILparam = np.loadtxt(SOILparam_fn, dtype=str)
+            fin = open(SOILparam_fn, 'r')
         else:
             raise ValueError, "\nThe file %s doesn't exist!!!" % SOILparam_fn
-        SOILzones=int(int(SOILparam[0]))
+            sys.exit()
+        line = fin.readline().split()
+        delimChar = line[0]
+        inputFile = []
+        try:
+            for line in fin:
+                line_tmp = line.split(delimChar)
+                if not line_tmp == []:
+                    if (not line_tmp[0] == '') and (not line_tmp[0] == '\n'):
+                        inputFile.append(line_tmp[0])
+                else:
+                    raise NameError('InputFileFormat')
+        except NameError:
+            print 'Error in the input file, check format!\n'
+            sys.exit()
+        except e:
+            print "Unexpected error in the input file:\n", sys.exc_info()[0]
+            print messagemanual
+            sys.exit()
+
+        SOILzones=int(int(inputFile[0]))
         if SOILzones>NSOIL:
             print 'WARNING:\n' + str(SOILzones) + ' soil parameters groups in file [' + SOILparam_fn + ']\n Only ' + str(NSOIL) + ' PE time serie(s) found.'
         # trick to initialise the reading position in the next loop
         nsl.append(0)
         for i in range(SOILzones):
-            nsl.append(int(SOILparam[i+1]))
+            nsl.append(int(inputFile[i+1]))
 
         # soil parameter definition for each soil type
-        pz = 1   # number of parameters for each soil type
-        pns = 6  # number of parameters for each soil layer in each soil type
-        nslst = 0
+        nslst = SOILzones+1
+        nam_soil=[]
+        st=[]
         for z in range(SOILzones):
-            nam_soil.append(SOILparam[3+z*(pz+pns*nsl[z])])
+            nam_soil.append(inputFile[nslst].strip())
+            nslst = nslst + 1
+            st.append(inputFile[nslst].strip())
+            nslst = nslst + 1
             slprop.append([])
             Sm.append([])
             Sfc.append([])
             Sr.append([])
             Si.append([])
             Ks.append([])
-            nslst = pz*z + z*pns*nsl[z]
             for ns in range(nsl[z+1]):
-                slprop[z].append(float(SOILparam[4+nslst]))
-                Sm[z].append(float(SOILparam[5+nslst]))
-                Sfc[z].append(float(SOILparam[6+nslst]))
-                Sr[z].append(float(SOILparam[7+nslst]))
-                Si[z].append(float(SOILparam[8+nslst]))
-                Ks[z].append(float(SOILparam[9+nslst]))
-                nslst = nslst + pns
+                slprop[z].append(float(inputFile[nslst]))
+                nslst = nslst + 1
+                Sm[z].append(float(inputFile[nslst]))
+                nslst = nslst + 1
+                Sfc[z].append(float(inputFile[nslst]))
+                nslst = nslst + 1
+                Sr[z].append(float(inputFile[nslst]))
+                nslst = nslst + 1
+                Si[z].append(float(inputFile[nslst]))
+                nslst = nslst + 1
+                Ks[z].append(float(inputFile[nslst]))
+                nslst = nslst + 1
+            if sum(slprop[z][0:nsl[z+1]-1])>1:
+                print '\nERROR!\nThe sum of the soil layers proportion of %s is >1!\nCorrect your soil data input!\nEXISTING MARMITES\n' % nam_soil[z]
+                sys.exit()
+            if sum(slprop[z][0:nsl[z+1]-1])<1:
+                print '\nERROR!\nThe sum of the soil layers proportion of %s is <1!\nCorrect your soil data input!\nEXISTING MARMITES\n' % nam_soil[z]
+                sys.exit()
 
-        return nsl[1:len(nsl)], nam_soil, slprop, Sm, Sfc, Sr, Si, Ks
+
+        return nsl[1:len(nsl)], nam_soil, st, slprop, Sm, Sfc, Sr, Si, Ks
 
 
     def inputObs(self, inputObs_fn, inputDate):
@@ -803,7 +881,7 @@ class process:
                 outPESTsm.write((obsname+'SM').ljust(10,' ')+ date.ljust(14,' ')+ '00:00:00        '+ str(results_S[i,j,index_S.get('iS'),0,t]) + '    \n')
             else:
                 obs_S_tmp = str(self.hnoflo)
-            # header='Date,RF,E0,PET,PE,RFe,Inter,'+Eu_str+Tu_str+',Es,'+S_str+',SUST,SUSTcount,Qs, Qscount,'+Rp_str+',R,hSATFLOW,hMF,hmeas,Smeas,SSATpart, FLOODcount,MB\n'
+            # header='Date,RF,E0,PET,PE,RFe,Inter,'+Eu_str+Tu_str+'Eg,Tg,Es,'+S_str+'SUST,SUSTcount,Qs,Qscount,'+Rp_str+'R,hSATFLOW,hMF,hmeas,Smeas,SSATpart,FLOODcount,MB\n'
             Sout = ''
             Rpout=''
             Euout=''
@@ -815,10 +893,11 @@ class process:
                 Tuout = Tuout + str(results_S[i,j,index_S.get('iTu'),l,t]) + ','
             out_date = pylab.num2date(inputDate[t]).isoformat()[:10]
             out1 = '%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,' % (results[i,j,index.get('iRF'),t], results[i,j,index.get('iE0'),t],results[i,j,index.get('iPET'),t],results[i,j,index.get('iPE'),t],results[i,j,index.get('iRFe'),t],results[i,j,index.get('iINTER'),t])
+            out1a = '%.6f,%.6f,' % (results[i,j,index.get('iEg'),t], results[i,j,index.get('iTg'),t])
             out2 = '%.6f,' % (results[i,j,index.get('iEs'),t])
             out3 = '%.6f,%4d,%.6f,%4d,' % (results[i,j,index.get('iSUST'),t],results[i,j,index.get('iPOND'),t],results[i,j,index.get('iQs'),t],results[i,j,index.get('iRunoff'),t])
             out4 = '%.6f,%.6f,%.6f,%.6f,%.6f,%4d,%4d,%6f' % (results[i,j,index.get('iR'),t], h_satflow[t],heads_MF[t],obs_h[t], obs_S[t],results[i,j,index.get('iSATpart'),t],results[i,j,index.get('iFLOOD'),t],results[i,j,index.get('iMB'),t])
-            out_line =  out_date, ',', out1, Euout, Tuout, out2, Sout, out3, Rpout, out4, '\n'
+            out_line =  out_date, ',', out1, Euout, Tuout, out1a, out2, Sout, out3, Rpout, out4, '\n'
             for l in out_line:
                 outFileExport.write(l)
 

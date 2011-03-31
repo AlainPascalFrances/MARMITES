@@ -125,7 +125,7 @@ print ('\nMARMITES workspace:\n%s\n\nMARMITESsurface workspace:\n%s\n\nMODFLOW w
 # #############################
 
 print'\n##############'
-print 'MARMITESsurface running...'
+print 'MARMITESsurf running...'
 
 if MARMsurf_yn>0:
     MARMsurf_fn = startMMsurf.MMsurf(inputFOLDER_fn, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, MARM_ws)
@@ -209,7 +209,7 @@ fin.close()
 # ##########################
 
 print'\n##############'
-print 'MODFLOW pre-processing'
+print 'MODFLOW running'
 nrow, ncol, delr, delc, perlen, nper, top, hnoflo, hdry, ibound, AqType, heads_MF, rch_fn = ppMF.ppMF(MF_ws)
 
 
@@ -229,7 +229,7 @@ nrow, ncol, delr, delc, perlen, nper, top, hnoflo, hdry, ibound, AqType, heads_M
 # ###########################
 
 print'\n##############'
-print 'MARMITES initialization'
+print 'MARMITESunsat initialization...'
 
 # MARMITES INITIALIZATION
 MARM_PROCESS = MARMunsat.process(MARM_ws                  = MARM_ws,
@@ -270,7 +270,7 @@ gridVEGarea, RFzonesTS, E0zonesTS, PETvegzonesTS, RFevegzonesTS, PEsoilzonesTS, 
                                 inputZON_TS_E0_fn        = inputZON_TS_E0_fn
  ) # IRR_fn
 
-_nsl, _nam_soil, _slprop, _Sm, _Sfc, _Sr, _Si, _Ks = MARM_PROCESS.inputSoilParam(
+_nsl, _nam_soil, _st, _slprop, _Sm, _Sfc, _Sr, _Si, _Ks = MARM_PROCESS.inputSoilParam(
             SOILparam_fn             = SOILparam_fn,
             NSOIL                    = NSOIL
             )
@@ -297,7 +297,7 @@ if obsCHECK==1:
             Eu_str = Eu_str + 'Eu_l' + str(l+1) + ','
             Tu_str = Tu_str + 'Tu_l' + str(l+1) + ','
             Rp_str = Rp_str + 'Rp_l' + str(l+1) + ','
-            header='Date,RF,E0,PET,PE,RFe,Inter,'+Eu_str+Tu_str+'Es,'+S_str+'SUST,SUSTcount,Qs, Qscount,'+Rp_str+'R,hSATFLOW,hMF,hmeas,Smeas,SSATpart, FLOODcount,MB\n'
+            header='Date,RF,E0,PET,PE,RFe,Inter,'+Eu_str+Tu_str+'Eg,Tg,Es,'+S_str+'SUST,SUSTcount,Qs,Qscount,'+Rp_str+'R,hSATFLOW,hMF,hmeas,Smeas,SSATpart,FLOODcount,MB\n'
         outFileExport[o].write(header)
     outPESTheads_fn      = 'PESTheads.dat'
     outPESTsm_fn         = 'PESTsm.dat'
@@ -374,7 +374,7 @@ res_PERall_S = np.zeros([nrow,ncol,len(index_S),_nslmax,sum(perlen)], dtype=floa
 Rn4MF=np.zeros([nper,nrow,ncol], dtype=float)
 t0=0
 print'\n##############'
-print 'MARMITES computing...'
+print 'MARMITESunsat computing...'
 # computing fluxes fopr each stress period in the whole grid
 Si_tmp_array = np.zeros([nrow,ncol,_nslmax], dtype=float)
 Rpi_tmp_array = np.zeros([nrow,ncol,_nslmax], dtype=float)
@@ -446,6 +446,9 @@ for n in range(nper):
                             outFile_fn         = 'outPOND_PER' + str(n+1) + '.asc')
     outFileRunoff, gridoutRunoff = MARM_PROCESS.outputEAgrd(
                             outFile_fn         = 'outRunoff_PER' + str(n+1) + '.asc')
+    outFileHEADS_MF, gridoutDummy = MARM_PROCESS.outputEAgrd(
+                            outFile_fn         = 'outHEADS_PER' + str(n+1) + '.asc')
+    del gridoutDummy
     tstart = 0
     for t in range(n):
         tstart = tstart + perlen[t]
@@ -458,6 +461,7 @@ for n in range(nper):
             METEOzone_tmp = gridMETEO[i,j]-1
             if ibound[i,j,0]<>0:
                 nsl_tmp   = _nsl[SOILzone_tmp]
+                st_tmp    = _st[SOILzone_tmp]
                 slprop_tmp= _slprop[SOILzone_tmp]
                 Sm_tmp    = _Sm[SOILzone_tmp]
                 Sfc_tmp   = _Sfc[SOILzone_tmp]
@@ -492,6 +496,7 @@ for n in range(nper):
                 results1_temp, results2_temp = MARM_UNSAT.run(
                                              i, j,
                                              nsl   = nsl_tmp,
+                                             st    = st_tmp,
                                              slprop= slprop_tmp,
                                              Sm    = Sm_tmp,
                                              Sfc   = Sfc_tmp,
@@ -600,6 +605,7 @@ for n in range(nper):
                 outFileINTER.write('%.6f'%(gridoutINTER[i,j]) + ' ')
                 outFilePOND.write('%.6f'%(gridoutPOND[i,j]) + ' ')
                 outFileRunoff.write('%.6f'%(gridoutRunoff[i,j]) + ' ')
+                outFileHEADS_MF.write('%.6f'%(heads_MF[tend-1,i,j,0]) + ' ')
                 if Rn4MF[n,i,j]>1e-10:
                     outFileRPER.write(str(Rn4MF[n,i,j])+' ')
                 else:
@@ -654,6 +660,7 @@ for n in range(nper):
                 outFileINTER.write('%.6f'%(gridoutINTER[i,j]) + ' ')
                 outFilePOND.write('%.6f'%(gridoutPOND[i,j]) + ' ')
                 outFileRunoff.write('%.6f'%(gridoutRunoff[i,j]) + ' ')
+                outFileHEADS_MF.write('%.6f'%(heads_MF[tend-1,i,j,0]) + ' ')
                 outFileRPER.write(str(hnoflo)+' ')
         outFileRPER.write('\n')
         outFileRF.write('\n')
@@ -678,6 +685,7 @@ for n in range(nper):
         outFileINTER.write('\n')
         outFilePOND.write('\n')
         outFileRunoff.write('\n')
+        outFileHEADS_MF.write('\n')
     # close export ASCII files
     outFileRF.close()
     outFilePET.close()
@@ -701,6 +709,7 @@ for n in range(nper):
     outFileINTER.close()
     outFilePOND.close()
     outFileRunoff.close()
+    outFileHEADS_MF.close()
     outFileRPER.close()
     t0=t0+int(perlen[n])
     print '\nSTRESS PERIOD %i/%i DONE!' % (n+1, nper)
@@ -801,17 +810,12 @@ outFileRunoff_PERall.close()
 # final report of successful run
 timeend = pylab.datestr2num(pylab.datetime.datetime.today().isoformat())
 duration=(timeend-timestart)
-print ('\n##############\nMARMITES executed successfully!')
-print ('%s time steps\n%sx%s cells (rows x cols)') % (int(sum(perlen)),str(nrow),str(ncol))
-print ('Run time: %s minute(s) and %.1f second(s)') % (str(int(duration*24.0*60.0)), (duration*24.0*60.0-int(duration*24.0*60.0))*60)
-print ('Output files written in folder: \n%s\n##############\n') % MARM_ws
 
-print 'MARMITES exporting...'
+print '\n##############\nMARMITES exporting...'
 # export data for observation cells and show calib graphs
 if obsCHECK == 1:
-    colors_nsl = CreateColors.main(hi=30, hf=50, numbcolors = (_nslmax))
+    colors_nsl = CreateColors.main(hi=30, hf=50, numbcolors = (_nslmax+1))
     for o in range(len(obs.keys())):
-        print '\nExporting ' + obs.keys()[o] + ' results...'
         i = obs.get(obs.keys()[o])['i']
         j = obs.get(obs.keys()[o])['j']
         # SATFLOW
@@ -822,7 +826,6 @@ if obsCHECK == 1:
         heads_MF_tmp[1:sum(perlen)] = heads_MF[0:sum(perlen)-1,i,j,0]
         # export ASCII file at piezometers location
         MARM_PROCESS.ExportResults(i, j, inputDate, _nslmax, res_PERall, index, res_PERall_S, index_S, h_satflow, heads_MF_tmp, obs_h[o], obs_S[o], outFileExport[o], outPESTheads, outPESTsm, obs.keys()[o])
-        print 'ASCII file:\n' + str(outpathname[o])
         # plot
         # DateInput, P, PET, Pe, SUST, Qs, ETa, S, Rp, R, h, hmeas, Smeas, Sm, Sr):
         plot_export_fn = os.path.join(MARM_ws, obs.keys()[o] + '.png')
@@ -836,6 +839,8 @@ if obsCHECK == 1:
         res_PERall[i,j,index.get('iQs'),:],
         res_PERall_S[i,j,index_S.get('iEu'),0:_nsl[gridSOIL[i,j]-1],:],
         res_PERall_S[i,j,index_S.get('iTu'),0:_nsl[gridSOIL[i,j]-1],:],
+        res_PERall[i,j,index.get('iEg'),:],
+        res_PERall[i,j,index.get('iTg'),:],
         res_PERall_S[i,j,index_S.get('iS'),0:_nsl[gridSOIL[i,j]-1],:],
         res_PERall_S[i,j,index_S.get('iRp'),0:_nsl[gridSOIL[i,j]-1],:],
         res_PERall[i,j,index.get('iR'),:],
@@ -853,13 +858,15 @@ if obsCHECK == 1:
         res_PERall[i,j,index.get('iMB'),:],
         plot_exportMB_fn
         )
-        print 'Plot:\n' + str(plot_export_fn)
         outFileExport[o].close()
     # output for PEST
     outPESTheads.close()
     outPESTsm.close()
 
-print ('\nExport done!\n##############\n')
+print ('\n##############\nMARMITES executed successfully!')
+print ('%s time steps\n%sx%s cells (rows x cols)') % (int(sum(perlen)),str(nrow),str(ncol))
+print ('Run time: %s minute(s) and %.1f second(s)') % (str(int(duration*24.0*60.0)), (duration*24.0*60.0-int(duration*24.0*60.0))*60)
+print ('Output written in folder: \n%s\n##############\n') % MARM_ws
 
 ##except (ValueError, TypeError, KeyboardInterrupt, IOError), e:
 ##    print e

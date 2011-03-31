@@ -18,14 +18,14 @@ import CreateColors
 
 def plot(strTitle = 'Title', x = [], \
         y1 = [], y2 = [] , y3 = [], lbl_y1 = '', lbl_y2 = 'E0', lbl_y3 = ''
-        ):
+        ,plot_exportPET_fn= ''):
 ##    if len(x)>35:
 ##        locX = MonthLocator()
 ##    else:
 ##        locX = HourLocator(byhour=range(24), interval = 24)
     monthsFmt=DateFormatter('%y-%m-%d %H:%M')
 
-    figCalib=figure()
+    fig=figure(figsize=(2*11.7, 2*8.27))
     colors_y1 = CreateColors.main(hi=100, hf=110, numbcolors = (len(y1)-1))
     colors_y3 = CreateColors.main(hi=70, hf=80, numbcolors = (len(y3)))
     lbl_y = []
@@ -61,14 +61,14 @@ def plot(strTitle = 'Title', x = [], \
     grid(True)
 
     subplots_adjust(left=0.05, bottom=0.1, right=0.95, top=0.95, wspace=0.1, hspace=0.05)
-#    draw()
-#    ion()
-    show()
+    #show()
+    plt.savefig(plot_exportPET_fn,dpi=150)
 
 
 def plotVAR(strTitle = 'Title', x = [], \
         y1 = [], y2 = [], y3 =[], y4=[], y5=[], y6=[]\
         ,lbl_y1 = '', lbl_y2 = '', lbl_y3 = '', lbl_y4 = '', lbl_y5 = '', lbl_y6 = ''
+        , plot_exportVAR_fn = ''
         ):
 
 ##    if len(x)>365:
@@ -77,22 +77,21 @@ def plotVAR(strTitle = 'Title', x = [], \
 ##        locX = HourLocator(byhour=range(24), interval = 24)
     DateFmt=DateFormatter('%y-%m-%d %H:%M')
 
-    figCalib=figure()
-    figCalib.Title=strTitle
+    fig = plt.figure(figsize=(2*11.7, 2*8.27))
 
     ax2=subplot(111)
     ax2.set_title(strTitle)
     setp( ax2.get_xticklabels(), fontsize=8)
     setp( ax2.get_yticklabels(), fontsize=8)
-    plot_date(x,y1,'-', color='green')
+    plot_date(x,y1,'-', color='red')
     if y2<>[]:
-        plot_date(x,y2,'-', color='blue')
+        plot_date(x,y2,'-', color='yellow')
     if y3<>[]:
-        plot_date(x,y3,'-.', color='yellow', linewidth = 2)
+        plot_date(x,y3,'-.', color='orange', linewidth = 2)
     if y4<>[]:
-        plot_date(x,y4,'-.', color='orange')
+        plot_date(x,y4,'-.', color='blue')
     if y5<>[]:
-        plot_date(x,y5,'--', color='red')
+        plot_date(x,y5,'--', color='green')
     if y6<>[]:
         plot_date(x,y6,'--', color='black')
     ax2.yaxis.set_major_formatter(FormatStrFormatter('%1.2f'))
@@ -111,8 +110,6 @@ def plotVAR(strTitle = 'Title', x = [], \
     grid(True)
 
     subplots_adjust(left=0.05, bottom=0.1, right=0.95, top=0.95, wspace=0.1, hspace=0.05)
-#    draw()
-#    ion()
-    show()
-
+#    plt.show()
+    plt.savefig(plot_exportVAR_fn,dpi=150)
 ##############################

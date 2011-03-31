@@ -315,10 +315,6 @@ def MMsurf(inputFOLDER_fn="", inputFile_TS_fn="", inputFile_PAR_fn="", outputFIL
                 TRANS_sdw.append(int(line[6]))
         # WATER PARAMETERS
         alfa_w = 0.06 # water albedo
-        # plotting
-        l = l + 1
-        line = inputFile[l].split()
-        plot_y_n = int(line[0])  # plotting: positive integer for plotting, 0 or negative integer for NO plotting
     except:
         print "\nError reading the input file:\n[" + inputFile_PAR_fn +"]"
         sys.exit()
@@ -429,31 +425,37 @@ def MMsurf(inputFOLDER_fn="", inputFile_TS_fn="", inputFile_PAR_fn="", outputFIL
                     NSOIL, SoilType, Sy, alfa_sd, alfa_sw, J_sd, J_sw, TRANS_sdw, alfa_w)
 
             #  #####  PLOTTING ##############################################
-            if plot_y_n > 0:
-                print "\n###############"
-                print "Plotting..."
-                npdatenum = np.array(datenum)
-                plotPET.plotVAR(strTitle = 'Penman-Monteith variables', x = npdatenum \
-                        ,y1 = PET_PM_VEG[0], y2 = E0 \
-                        ,y3 = outputVAR[2], y4=outputVAR[3] \
-                        ,y5 = outputVAR[4], y6 = outputVAR[5]\
-                        ,lbl_y1 = 'ETref', lbl_y2 = 'E0' \
-                        ,lbl_y3 = 'Rs_meas', lbl_y4 = 'Rs_corr' \
-                        ,lbl_y5 = 'Rs0', lbl_y6 = 'Rnl'
-                        )
-                # PLOTTING PE SOIL
-                npdatenum_d = np.array(datenum_d)
-                plotPET.plot(strTitle = 'PET veg&soil', x = npdatenum_d \
-                    ,y1 = PET_PM_VEG_d, y2 = E0_d, y3 = PE_PM_SOIL_d \
-                    ,lbl_y1 = VegType, lbl_y3 = SoilType
+            print "\n###############"
+            print "Exporting plots..."
+            npdatenum = np.array(datenum)
+            # outputVAR = [DELTA,gama, Rs, Rs_corr, Rs0, Rnl, r]
+            plot_exportVAR_fn = os.path.join(inputFOLDER_fn,  outputFILE_fn + "_ZON" + str(n+1)+'_VAR.png')
+            plotPET.plotVAR(strTitle = 'Penman-Monteith variables', x = npdatenum \
+                    ,y5 = PET_PM_VEG[0], y4 = E0 \
+                    ,y2 = outputVAR[2], y3=outputVAR[3] \
+                    ,y1 = outputVAR[4], y6 = outputVAR[5]\
+                    ,lbl_y5 = 'ETref', lbl_y4 = 'E0' \
+                    ,lbl_y2 = 'Rs_meas', lbl_y3 = 'Rs_corr' \
+                    ,lbl_y1 = 'Rs0', lbl_y6 = 'Rnl'
+                    ,plot_exportVAR_fn = plot_exportVAR_fn
                     )
-                # PLOTTING FR and INTERCEPTION
-                plotRF.plot(strTitle = 'Rainfall and interception', x = npdatenum_d \
-                        ,y1 = RF_d, y2 = RFint, y3 = I_d, y4 = RFe_d
-                        ,lbl_y1 = 'RF (mm/d)',  lbl_y2 = 'RFint (mm/h/d)' \
-                        ,lbl_y3 = 'I (mm/d)',lbl_y4 = 'RFe (mm/d)', lbl_veg = VegType\
-                        )
-                print '\nPlotting done'
+            # PLOTTING PET
+            plot_exportPET_fn = os.path.join(inputFOLDER_fn,  outputFILE_fn + "_ZON" + str(n+1)+'_PET.png')
+            npdatenum_d = np.array(datenum_d)
+            plotPET.plot(strTitle = 'PET veg&soil', x = npdatenum_d \
+                ,y1 = PET_PM_VEG_d, y2 = E0_d, y3 = PE_PM_SOIL_d \
+                ,lbl_y1 = VegType, lbl_y3 = SoilType
+                ,plot_exportPET_fn = plot_exportPET_fn
+                )
+            # PLOTTING RF and INTERCEPTION
+            plot_exportRF_fn = os.path.join(inputFOLDER_fn,  outputFILE_fn + "_ZON" + str(n+1)+'_RF.png')
+            plotRF.plot(strTitle = 'Rainfall and interception', x = npdatenum_d \
+                    ,y1 = RF_d, y2 = RFint, y3 = I_d, y4 = RFe_d
+                    ,lbl_y1 = 'RF (mm/d)',  lbl_y2 = 'RFint (mm/h/d)' \
+                    ,lbl_y3 = 'I (mm/d)',lbl_y4 = 'RFe (mm/d)', lbl_veg = VegType\
+                    ,plot_exportRF_fn = plot_exportRF_fn
+                    )
+            print '\nPlotting done'
 
 
             #  #####  EXPORTING ASCII FILES ##############################################
@@ -598,7 +600,6 @@ def MMsurf(inputFOLDER_fn="", inputFile_TS_fn="", inputFile_PAR_fn="", outputFIL
     TStmp = 0
     ExportResults(datenumOUT, J_d, TStmp, outFileExport, TypeFile = "Date")
     outFileExport.close()
-
 
     return MARMsurf_fn
 

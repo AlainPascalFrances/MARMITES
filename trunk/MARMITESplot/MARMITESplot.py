@@ -5,7 +5,7 @@ from matplotlib.ticker import FormatStrFormatter
 from matplotlib.dates import DateFormatter
 import matplotlib.pyplot as plt
 
-def allPLOT(DateInput, P, PET, PE, Pe, SUST, Qs, Eu, Tu, S, Rp, R, Es, h_MF, h_SF, hmeas, Smeas, Sm, Sr, hnoflo, plot_export_fn, colors_nsl):
+def allPLOT(DateInput, P, PET, PE, Pe, SUST, Qs, Eu, Tu, Eg, Tg, S, Rp, R, Es, h_MF, h_SF, hmeas, Smeas, Sm, Sr, hnoflo, plot_export_fn, colors_nsl):
     """
     allGRAPH: GRAPH the computed data
     Use Matplotlib
@@ -48,14 +48,18 @@ def allPLOT(DateInput, P, PET, PE, Pe, SUST, Qs, Eu, Tu, S, Rp, R, Es, h_MF, h_S
     lbl_Tu = []
     lbl_Rp.append('R')
     lbl_Eu.append('PE')
+    lbl_Eu.append('E_tot')
     lbl_Eu.append('Eu_tot')
     lbl_Tu.append('PET')
+    lbl_Tu.append('T_tot')
     lbl_Tu.append('Tu_tot')
     for l in range(nsl):
         lbl_Rp.append('Rp_l'+str(l+1))
         lbl_S.append('Ssim_l'+str(l+1))
         lbl_Eu.append('Eu_l'+str(l+1))
         lbl_Tu.append('Tu_l'+str(l+1))
+    lbl_Tu.append('Tg')
+    lbl_Eu.append('Eg')
 
 # First column of plots
     ax5=fig.add_subplot(4,2,7)
@@ -81,13 +85,16 @@ def allPLOT(DateInput, P, PET, PE, Pe, SUST, Qs, Eu, Tu, S, Rp, R, Es, h_MF, h_S
     Eu_tot = np.zeros([len(Eu[0])], dtype = float)
     for l in range(len(Eu)):
         Eu_tot = Eu_tot + Eu[l]
+    E_tot = Eu_tot + Eg
     ax1=fig.add_subplot(4,2,3, sharex=ax5)
     plt.setp( ax1.get_xticklabels(), visible=False)
     plt.setp( ax1.get_yticklabels(), fontsize=8)
-    plt.plot_date(DateInput,PE,'b--', color='lightblue', linewidth=2)
-    plt.plot_date(DateInput,Eu_tot,'b--', color='blue')
+    plt.plot_date(DateInput,PE,'b-', color='lightblue', linewidth=2)
+    plt.plot_date(DateInput,E_tot,'b-', color='darkblue')
+    plt.plot_date(DateInput,Eu_tot,'b-', color=colors_nsl[len(colors_nsl)-1])
     for l, (y, color, lbl) in enumerate(zip(Eu, colors_nsl, lbl_Eu[2:len(lbl_Eu)])):
-        ax1.plot_date(DateInput, y, '-', color=color, label=lbl)
+        ax1.plot_date(DateInput, y, '--', color=color, label=lbl)
+    plt.plot_date(DateInput,Eg,'b-', color='blue')
     plt.legend(lbl_Eu, loc=0, labelspacing=lblspc, markerscale=mkscale)
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
@@ -98,13 +105,16 @@ def allPLOT(DateInput, P, PET, PE, Pe, SUST, Qs, Eu, Tu, S, Rp, R, Es, h_MF, h_S
     Tu_tot = np.zeros([len(Tu[0])], dtype = float)
     for l in range(len(Tu)):
         Tu_tot = Tu_tot + Tu[l]
+    T_tot = Tu_tot + Tg
     ax3=fig.add_subplot(4,2,5, sharex=ax5)
     plt.setp( ax3.get_xticklabels(), visible=False)
     plt.setp( ax3.get_yticklabels(), fontsize=8)
-    plt.plot_date(DateInput,PET,'b--', color='lightblue', linewidth=2)
-    plt.plot_date(DateInput,Tu_tot,'b--', color='blue')
+    plt.plot_date(DateInput,PET,'b-', color='lightblue', linewidth=2)
+    plt.plot_date(DateInput,T_tot,'b-', color='darkblue')
+    plt.plot_date(DateInput,Tu_tot,'b-', color=colors_nsl[len(colors_nsl)-1])
     for l, (y, color, lbl) in enumerate(zip(Tu, colors_nsl, lbl_Tu[2:len(lbl_Tu)])):
         ax3.plot_date(DateInput, y, '-', color=color, label=lbl)
+    plt.plot_date(DateInput,Tg,'b-', color='blue')
     plt.legend(lbl_Tu, loc=0, labelspacing=lblspc, markerscale=mkscale)
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
