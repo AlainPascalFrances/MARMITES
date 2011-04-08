@@ -33,7 +33,6 @@ __version__ = "1.0"
 __date__ = "November 2010"
 
 import os
-import sys
 import numpy as np
 import pylab
 
@@ -97,8 +96,9 @@ class UNSAT:
                        'clay'            : {'dll':450.0,'y0':0.006,'b':0.0019, 'ext_d':6200.0},
                        }
 
-    def partition(self, PET, PE, Sini, Zr_botavg, Dltop, Dlbot, Dl,
-                        Sm, Sfc, Sr, Ks, SUSTm, st, dtwt):
+#####################
+
+    def unsatflux(self, PET, PE, DRN, Sini, Zr_botavg, Dltop_tmp, Dlbot_tmp, Dl_tmp, Dl, Sm, Sfc, Sr, Ks, SUSTm):
 
         def pond(s_tmp,Dl,Sm,SUSTm):
             '''
@@ -120,6 +120,8 @@ class UNSAT:
                 sust_tmp =(0.0)
                 qs_tmp =(0.0)
             return sust_tmp, qs_tmp, countPOND_tmp, countRunoff_tmp
+
+        ##################
 
         def perc(s_tmp,Dl,Sm,Sfc,Ks, s_lp1, Dl_sp1, Sm_sp1):
             '''
@@ -143,6 +145,8 @@ class UNSAT:
                 rp_tmp = (Sm_sp1-s_lp1)*Dl_sp1
             return rp_tmp
 
+        ##################
+
         def perc1(s_tmp,Dl,Sm,Sfc,Ks, s_lp1, Dl_sp1, Sm_sp1):
             '''
             Percolation function
@@ -155,6 +159,8 @@ class UNSAT:
             elif (s_tmp-Sfc)>0.000001:
                 rp_tmp = SWe*(1-(pylab.exp(-1/TTperc)))
             return rp_tmp
+
+        ##################
 
         def evp(s_tmp,pet,Dl,Sm,Sr):
             '''
@@ -176,57 +182,122 @@ class UNSAT:
                     evp_tmp= pet
             return evp_tmp
 
-        def Eg(PE, y0, b, dtwt, dll):
-            '''
-            Groundwater evaporation, equation 17 of Shah et al 2007, see ref in the __init__
-            '''
-            if dtwt<=dll:
-                Eg_tmp = PE
-            else:
-                Eg_tmp = PE*(y0 + pylab.exp(-b*(dtwt-dll)))
-            return Eg_tmp
-
         # MAIN
 
+        if DRN>0.0:
+            1
+
+
+
         # SUST and Qs
-        PONDtmp = pond(Sini[0]/Dl[0],Dl[0],Sm[0],SUSTm)
-        SUST_tmp = PONDtmp[0]
-        Qs_tmp = PONDtmp[1]
-        countPOND_tmp = PONDtmp[2]
-        countRunoff_tmp = PONDtmp[3]
-        Sini[0] = Sini[0]-(SUST_tmp+Qs_tmp)
+        PONDtmp = pond(Sini[0]/Dl_tmp[0],Dl_tmp[0],Sm[0],SUSTm)
+        SUSTtmp = PONDtmp[0]
+        Qstmp = PONDtmp[1]
+        countPONDtmp = PONDtmp[2]
+        countRunofftmp = PONDtmp[3]
+        Sini[0] = Sini[0]-(SUSTtmp+Qstmp)/Dl_tmp[0]
 
-        Rp_tmp = []
-        Tu_tmp=[]
-        Eu_tmp=[]
-        for l in range(len(Dl)):
-            # Rp
-            if l==len(Dl)-1:
-                Rp_tmp.append(perc1(Sini[l]/Dl[l],Dl[l],Sm[l],Sfc[l],Ks[l],0,1,1))
+        Rptmp = []
+        Tutmp = []
+        Eutmp = []
+        for l in range(len(Dl_tmp)):
+            if Dl_tmp[l] == 0.0: # it means that the soil layer is fully saturated by GW
+                Rptmp.append(0.0)
+                Eutmp.append(0.0)
+                Tutmp.append(0.0)
+                Sini[l]=Sm[l]
             else:
-                Rp_tmp.append(perc(Sini[l]/Dl[l],Dl[l],Sm[l],Sfc[l],Ks[l], Sini[l+1]/Dl[l+1],Dl[l+1], Sm[l+1]))
-            Sini[l] = Sini[l]-Rp_tmp[l]
-            # Tu
-            if Zr_botavg < Dlbot[l]:
-                Tu_tmp.append(evp(Sini[l]/Dl[l],PET,Dl[l],Sm[l],Sr[l]))
-            elif Zr_botavg < Dltop[l]:
-                PETc = PET*(Dltop[l]-Zr_botavg)/Dl[l]
-                Tu_tmp.append(evp(Sini[l]/Dl[l],PETc,Dl[l],Sm[l],Sr[l]))
+                # Rp
+                if l==len(Dl_tmp)-1:
+                    Rptmp.append(perc1(Sini[l],Dl_tmp[l],Sm[l],Sfc[l],Ks[l],0,1,1))
+                else:
+                    Rptmp.append(perc1(Sini[l],Dl_tmp[l],Sm[l],Sfc[l],Ks[l], Sini[l+1]/Dl_tmp[l+1],Dl_tmp[l+1], Sm[l+1]))
+                Sini[l] = Sini[l]-Rptmp[l]/Dl_tmp[l]
+                # Tu
+                if l>0:
+                    PET = PET - Tutmp[l-1]
+                if PET>0.0:
+                    if Dlbot_tmp[l] > Zr_botavg :
+                        Tutmp.append(evp(Sini[l],PET,Dl_tmp[l],Sm[l],Sr[l]))
+                    elif Dltop_tmp[l] > Zr_botavg:
+                        PETc = PET*(Dltop_tmp[l]-Zr_botavg)/Dl_tmp[l]
+                        Tutmp.append(evp(Sini[l],PETc,Dl_tmp[l],Sm[l],Sr[l]))
+                    else:
+                        Tutmp.append(0.0)
+                else:
+                    Tutmp.append(0.0)
+                Sini[l]=Sini[l]-Tutmp[l]/Dl_tmp[l]
+                # Eu
+                if l>0:
+                    PE = PE - Eutmp[l-1]
+                if PE>0.0:
+                    Eutmp.append(evp(Sini[l],PE,Dl_tmp[l],Sm[l],Sr[l]))
+                else:
+                    Eutmp.append(0.0)
+                Sini[l]=Sini[l]-Eutmp[l]/Dl_tmp[l]
+
+        return (SUSTtmp, Qstmp, countPONDtmp, countRunofftmp, Rptmp, Eutmp, Tutmp, Sini)
+
+        ##################
+
+    def satflux(self, PE, dtwt, st):
+        '''
+        Groundwater evaporation, equation 17 of Shah et al 2007, see ref in the __init__
+        '''
+        if PE>0.0:
+            y0  = self.paramEg[st]['y0']
+            b   = self.paramEg[st]['b']
+            dll = self.paramEg[st]['dll']
+            if dtwt<=dll:
+                Egtmp = PE
+            elif dtwt>0.0:
+                Egtmp = PE*(y0 + pylab.exp(-b*(dtwt-dll)))
             else:
-                Tu_tmp.append(0.0)
-            Sini[l]=(Sini[l]-Tu_tmp[l])
-            # Eu
-            Eu_tmp.append(evp(Sini[l]/Dl[l],PE,Dl[l],Sm[l],Sr[l]))
-            Sini[l]=(Sini[l]-Eu_tmp[l])/Dl[l]
+                Egtmp = 0.0
+            if Egtmp/PE < 0.5/100.0:
+                Egtmp = 0.0
+        else:
+            Egtmp =0.0
 
-        Eg_tmp = Eg(PE, self.paramEg[st]['y0'], self.paramEg[st]['b'], dtwt,self.paramEg[st]['dll'])
-        Tg_tmp = 0.0
+        Tgtmp = 0.0
 
-        return (SUST_tmp, Qs_tmp, countPOND_tmp, countRunoff_tmp, Rp_tmp, Eu_tmp, Tu_tmp, Sini, Eg_tmp, Tg_tmp)
+        return (Egtmp, Tgtmp)
+
+        ##################
+
+    def Sini(self, t, Sini, Si, Dl_tmp, RFe_tot, nsl, Rpi, SUST, E0, SUSTprev, S, Rp, Sm):
+        if t == 0:
+            # if first time step, use Si and Rpi
+            Sini[0] = Si[0] + RFe_tot/Dl_tmp[0]
+            if nsl>1:
+                for l in range(1,nsl):
+                    Sini[l] = Si[l] + Rpi[l-1]/Dl_tmp[l]
+            SUSTprev = 0.0
+            Estmp = 0.0
+        else:
+            SUSTprev = SUST
+            # soil reservoir water content initialisation
+            # test if SUST can infiltrate in soil
+            # compute Es from SUST and E0
+            if E0-SUSTprev>=0.000001:
+                Sini[0] = S[0,t-1] + RFe_tot/Dl_tmp[0]
+                Estmp = SUSTprev
+            else:
+                Sini[0] = S[0,t-1] + (RFe_tot + SUSTprev-E0)/Dl_tmp[0]
+                Estmp = E0
+            if nsl>1:
+                for l in range(1,nsl):
+                    if Dl_tmp[l] < 0.000001:
+                        Sini[l] = Sm[l]
+                    else:
+                        Sini[l] = S[l,t-1] + Rp[l-1,t-1]/Dl_tmp[l]
+        return Sini, SUSTprev, Estmp
+
+#####################
 
     def run(self, i, j,
                   nsl, st, slprop, Sm, Sfc, Sr, Si, Rpi, D, Ks, SUSTm,
-                  ELEV, HEADS,
+                  ELEV, HEADS, DRN,
                   RF, E0, PETveg, RFeveg, PEsoil, VEGarea, Zr,
                   perlen, AqType, hdry):
 
@@ -267,17 +338,22 @@ class UNSAT:
             D=0.05
         D = D*1000
         ELEV = ELEV*1000
-        Dbot = ELEV-D        # compute elevation of the bottom soil layer
+        # elevation of bottom of soil reservoir
+        Dbot = ELEV
+        # topography elevation
+        Dtop = ELEV + D
+
+        # thickness of soil layers
         Dl = np.zeros([nsl], dtype=float)
         for l in range(nsl-1):
             Dl[l] = D*slprop[l]
-
+        # elevation of top and bottom of soil layers
         Dltop = np.zeros([nsl], dtype=float)
         Dlbot = np.zeros([nsl], dtype=float)
         for l in range(nsl-1):
             if l==0:
-                Dltop[l] = ELEV
-                Dlbot[l] = ELEV-Dl[l]
+                Dltop[l] = Dtop
+                Dlbot[l] = Dtop-Dl[l]
             else:
                 Dltop[l] = Dlbot[l-1]
                 Dlbot[l] = Dltop[l]-Dl[l]
@@ -291,9 +367,9 @@ class UNSAT:
         # PROCESSING THE WHOLE DATA SET
         for t in range(int(perlen)):    # t: current time step
 
-            # Preprocessing of PET/PE/INTER and RFe for different vegetation
+            # Preprocessing of PET/PE/INTER and RFe
+            # for different vegetation
             SOILarea = 100
-
             for v in range(len(PETveg)):
                 if VEGarea[v]<>self.hnoflo:
                     PET_tot[t] = PET_tot[t]+PETveg[v,t]*VEGarea[v]/100
@@ -304,91 +380,80 @@ class UNSAT:
             PE_tot[t] = PEsoil[t]*SOILarea/100
 
             # handle drycell
-            if HEADS[t]==hdry:
+            if np.abs(HEADS[t]-hdry) > 1E+22:
                 HEADStmp = Dbot - 1000
             else:
                 HEADStmp=HEADS[t]*1000
-
-            if HEADStmp-Dbot<=0.000001:
-                Dlbot[nsl-1] = HEADStmp
-                Dl[nsl-1] = Dltop[nsl-1] - HEADStmp
-                dtwt = ELEV-HEADStmp
-            elif HEADStmp-Dbot>0.000001 and ELEV-HEADStmp>0.000001:
-                Dlbot[nsl-1] = 0.0
-                Dl[nsl-1] = 0.0
-                dtwt = ELEV-HEADStmp
-            else:
-                print 'BUG... situation still not properly programmed'
-                dtwt = 0
+            dtwt = Dtop-HEADStmp
 
             Sini = np.zeros([nsl], dtype=float)
             SUSTprev = []
-            if t == 0:
-                # if first time step use Si and Rpi
-                Sini[0] = Si[0]*Dl[0] + RFe_tot[t]
-                if nsl>1:
-                    for l in range(1,nsl):
-                        Sini[l] = Si[l]*Dl[l] + Rpi[l-1]
-                SUSTprev = 0.0
-                Estmp = 0.0
-            else:
-                SUSTprev = SUST[t-1]
-                # soil reservoir water content initialisation
-                # test if SUST can infiltrate in soil
-                # compute Es from SUST and E0
-                if E0[t]-SUSTprev>=0.000001:
-                    Sini[0] = S[0,t-1]*Dl[0] + RFe_tot[t]
-                    Estmp = SUSTprev
-                else:
-                    Sini[0] = S[0,t-1]*Dl[0] + RFe_tot[t] + SUSTprev-E0[t]
-                    Estmp = E0[t]
-                if nsl>1:
-                    for l in range(1,nsl):
-                        Sini[l] = S[l,t-1]*Dl[l] + Rp[l-1,t-1]
+
+            # reservoir thickness re-initialization
+            Dltop_tmp = Dltop*1.0
+            Dlbot_tmp = Dlbot*1.0
+            Dl_tmp    = Dl*1.0
 
             if AqType==1:
             # AQUIFER UNCONFINED, water table can rise in the soil and above surface
 
                 # heads below soil bottom
                 if HEADStmp-Dbot<=0.000001:
-                    if countFLOOD[t]-countFLOOD[t-1]==-1:
-                        Sini=Sm
-                    SUSTtmp, Qstmp, countPONDtmp, countRunofftmp, Rptmp, Eutmp, Tutmp, Stmp, Egtmp, Tgtmp = self.partition(PET_tot[t], PE_tot[t], Sini, Zr_botavg, Dltop, Dlbot, Dl, Sm,Sfc,Sr,Ks,SUSTm, st, dtwt)
+                    # bottom boundary
+                    Dlbot_tmp[nsl-1] = HEADStmp
+                    Dl_tmp[nsl-1] = Dltop_tmp[nsl-1] - HEADStmp
+
+                    Sini, SUSTprev, Estmp = self.Sini(t, Sini, Si, Dl_tmp, RFe_tot[t], nsl, Rpi, SUST[t-1], E0[t], SUSTprev, S, Rp, Sm)
+
+                    SUSTtmp, Qstmp, countPONDtmp, countRunofftmp, Rptmp, Eutmp, Tutmp, Stmp = self.unsatflux(PET_tot[t], PE_tot[t], DRN[t], Sini, Zr_botavg, Dltop, Dlbot_tmp, Dl_tmp, Dl, Sm,Sfc,Sr,Ks,SUSTm)
+                    Egtmp, Tgtmp = self.satflux(PET_tot[t], dtwt, st)
 
                 # heads above soil bottom and below surface
-                elif HEADStmp-Dbot>0.000001 and ELEV-HEADStmp>0.000001:
+                elif HEADStmp-Dbot>0.000001 and Dtop-HEADStmp>=0.000001:
                     countSATpart[t] = 1
                     for l in range(nsl-1):
-                        if (HEADStmp-Dlbot[l])>0.000001:
-                            if (HEADStmp-Dltop[l])>0.000001:
-                                Dl[l]=0.0
-                                if countFLOOD[t]-countFLOOD[t-1]==-1:
-                                    Sini[l]=Sm[l]
+                        if (HEADStmp-Dlbot_tmp[l]) > 0.000001:
+                            if (HEADStmp-Dltop_tmp[l]) > 0.000001:
+                                Dl_tmp[l] = 0.0
+                                Dlbot_tmp[l] = 0.0
+                                Dltop_tmp[l] = 0.0
                             else:
-                                Dl[l]=Dltop[l]-HEADStmp
-                    SUSTtmp, Qstmp, countPONDtmp, countRunofftmp, Rptmp, Eutmp, Tutmp, Stmp, Egtmp, Tgtmp = self.partition(PET_tot[t], PE_tot[t], Sini, Zr_botavg, Dltop, Dlbot, Dl, Sm,Sfc,Sr,Ks,SUSTm, st, dtwt)
+                                Dl_tmp[l] = Dltop_tmp[l] - HEADStmp
+                                Dlbot_tmp[l] = HEADStmp
+
+                    Sini, SUSTprev, Estmp = self.Sini(t, Sini, Si, Dl_tmp, RFe_tot[t], nsl, Rpi, SUST[t-1], E0[t], SUSTprev, S, Rp, Sm)
+
+                    SUSTtmp, Qstmp, countPONDtmp, countRunofftmp, Rptmp, Eutmp, Tutmp, Stmp = self.unsatflux(PET_tot[t], PE_tot[t], DRN[t], Sini, Zr_botavg, Dltop, Dlbot_tmp, Dl_tmp, Dl, Sm,Sfc,Sr,Ks,SUSTm)
+                    Egtmp, Tgtmp = self.satflux(PET_tot[t], dtwt, st)
 
                 # heads above surface
                 else:
+                    Sini, SUSTprev, Estmp = self.Sini(t, Sini, Si, Dl_tmp, RFe_tot[t], nsl, Rpi, SUST[t-1], E0[t], SUSTprev, S, Rp, Sm)
                     countFLOOD[t] = 1
-                    SUSTtmp=HEADStmp-ELEV+SUSTprev
+                    countPONDtmp = 0
+                    countRunofftmp = 0
+                    # TOBE FIXED, MB problem between atm, unsta and GW
+                    SUSTtmp = HEADStmp-ELEV+SUSTprev-E0[t]
                     if SUSTtmp > SUSTm:
                         Qstmp =(SUSTtmp-SUSTm)
                         SUSTtmp = SUSTm
                     else:
                         Qstmp =0.0
-                        Eutmp=[]
-                        Tutmp=[]
-                        Rptmp=[]
-                        Stmp=[]
+                    Estmp = E0[t]
+                    Eutmp=[]
+                    Tutmp=[]
+                    Rptmp=[]
+                    Stmp=[]
                     for l in range(nsl):
                         Eutmp.append(0.0)
                         Tutmp.append(0.0)
                         Rptmp.append(0.0)
-                        Stmp.append(Sm*Dl[l])
+                        Stmp.append(Sm[l])
+                    Egtmp, Tgtmp = self.satflux(PET_tot[t], dtwt, st)
             else:
+            # TODO to be confirmed, not correct currently
             # AQUIFER CONFINED, water table cannot rise in the soil or above topography
-                SUSTtmp, Qstmp, countPONDtmp, countRunofftmp, Rptmp, Eutmp, Tutmp, Stmp, Egtmp, Tgtmp = self.partition(PET_tot[t], PE_tot[t], Sini, Zr_botavg, Dltop, Dlbot, Dl, Sm,Sfc,Sr,Ks,SUSTm, st, dtwt)
+                SUSTtmp, Qstmp, countPONDtmp, countRunofftmp, Rptmp, Eutmp, Tutmp, Stmp, Egtmp, Tgtmp = self.partition(PET_tot[t], PE_tot[t], DRN[t], Sini, Zr_botavg, Dltop, Dlbot_tmp, Dl_tmp, Sm,Sfc,Sr,Ks,SUSTm, st, dtwt)
 
             # fill the table and compute water balance
             SUST[t]=SUSTtmp
@@ -414,13 +479,13 @@ class UNSAT:
                     EuMB = EuMB + Eu[l,t]
                     TuMB = TuMB + Tu[l,t]
                     if t==0:
-                        SMB=SMB+(S[l,t]-Si[l])*Dl[l]
+                        SMB=SMB+(S[l,t]-Si[l])*Dl_tmp[l]
                         if l == 0:
                             RpMB  = RpMB + Rp[l,t]
                         else:
                             RpMB  = RpMB + Rp[l,t] - Rpi[l-1]
                     else:
-                        SMB=SMB+(S[l,t]-S[l,t-1])*Dl[l]
+                        SMB=SMB+(S[l,t]-S[l,t-1])*Dl_tmp[l]
                         if l == 0:
                             RpMB  = RpMB + Rp[l,t]
                         else:
@@ -473,9 +538,9 @@ class SATFLOW:
 
 #######################################################
 
-class process:
-    def __init__(self, MARM_ws, MF_ws, nrow, ncol, xllcorner, yllcorner, cellsizeMF, perlen, hnoflo):
-        self.MARM_ws = MARM_ws
+class PROCESS:
+    def __init__(self, MM_ws, MF_ws, nrow, ncol, xllcorner, yllcorner, cellsizeMF, perlen, hnoflo):
+        self.MM_ws = MM_ws
         self.MF_ws = MF_ws
         self.nrow= nrow
         self.ncol= ncol
@@ -487,7 +552,7 @@ class process:
 
     def inputEsriAscii(self, grid_fn, datatype):
 
-        grid_fn=os.path.join(self.MARM_ws,grid_fn)
+        grid_fn=os.path.join(self.MM_ws,grid_fn)
 
         grid_out=np.zeros([self.nrow,self.ncol], dtype = datatype)
 
@@ -526,7 +591,7 @@ class process:
         NODATA_value = float(line[1])
 
         # Process the file
-        print "\nConverting %s to np.array..." % (filenameIN)
+#        print "\nConverting %s to np.array..." % (filenameIN)
         for row in range(nrow_tmp):
         #   if (row % 100) == 0: print ".",
             for col in range(ncol_tmp):
@@ -552,7 +617,7 @@ class process:
                 ):   #IRR_fn
 
         # READ date of input files (RF and PET)
-        inputDate_fn=os.path.join(self.MARM_ws, inputDate_fn)
+        inputDate_fn=os.path.join(self.MM_ws, inputDate_fn)
         if os.path.exists(inputDate_fn):
             inputDate=np.loadtxt(inputDate_fn, dtype = str)
             inputDate = inputDate[:,0]
@@ -571,14 +636,14 @@ class process:
         # READ input ESRI ASCII rasters vegetation
         gridVEGarea_fn=[]
         for v in range(NVEG):
-            gridVEGarea_fn.append(os.path.join(self.MARM_ws,'inputVEG' + str(v+1)+'area.asc'))
+            gridVEGarea_fn.append(os.path.join(self.MM_ws,'inputVEG' + str(v+1)+'area.asc'))
         gridVEGarea=np.zeros([NVEG,self.nrow,self.ncol], dtype=float)
         for v in range(NVEG):
             gridtmp=np.zeros([self.nrow,self.ncol], dtype=float)
             gridVEGarea[v,:,:]=self.convASCIIraster2array(gridVEGarea_fn[v],gridtmp)
 
         # READ RF for each zone
-        RF_fn=os.path.join(self.MARM_ws, inputZON_TS_RF_fn)
+        RF_fn=os.path.join(self.MM_ws, inputZON_TS_RF_fn)
         if os.path.exists(RF_fn):
             RF = np.loadtxt(RF_fn)
         else:
@@ -588,7 +653,7 @@ class process:
             for t in range(int(sum(self.perlen))):
                 RFzonesTS[i,t]=RF[i*sum(self.perlen)+t]
 
-        E0_fn=os.path.join(self.MARM_ws, inputZON_TS_E0_fn)
+        E0_fn=os.path.join(self.MM_ws, inputZON_TS_E0_fn)
         if os.path.exists(E0_fn):
             E0 = np.loadtxt(E0_fn)
         else:
@@ -599,7 +664,7 @@ class process:
                 E0zonesTS[i,t]=E0[i*sum(self.perlen)+t]
 
         ### READ IRR for each zone
-        ##IRR_fn=os.path.join(self.MARM_ws,IRR_fn)
+        ##IRR_fn=os.path.join(self.MM_ws,IRR_fn)
         ##if os.path.exists(IRR_fn):
         ##    IRR = np.loadtxt(IRR_fn)
         ##else:
@@ -612,7 +677,7 @@ class process:
 
 
         # READ PET for each zone and each vegetation
-        PET_fn = os.path.join(self.MARM_ws, inputZON_TS_PET_fn)
+        PET_fn = os.path.join(self.MM_ws, inputZON_TS_PET_fn)
         if os.path.exists(PET_fn):
             PETtmp = np.loadtxt(PET_fn)
         else:
@@ -626,7 +691,7 @@ class process:
         PETvegzonesTS=np.asarray(PETvegzonesTS)
 
         # READ RFe for each zone and each vegetation
-        RFe_fn = os.path.join(self.MARM_ws, inputZON_TS_RFe_fn)
+        RFe_fn = os.path.join(self.MM_ws, inputZON_TS_RFe_fn)
         if os.path.exists(RFe_fn):
             RFetmp = np.loadtxt(RFe_fn)
         else:
@@ -641,7 +706,7 @@ class process:
 
 
         # READ PE for each zone and each soil
-        PE_fn = os.path.join(self.MARM_ws, inputZON_TS_PE_fn)
+        PE_fn = os.path.join(self.MM_ws, inputZON_TS_PE_fn)
         if os.path.exists(PE_fn):
             PEtmp = np.loadtxt(PE_fn)
         else:
@@ -671,12 +736,11 @@ class process:
         Ks=[]
 
         # soil parameters file
-        SOILparam_fn=os.path.join(self.MARM_ws,SOILparam_fn)
+        SOILparam_fn=os.path.join(self.MM_ws,SOILparam_fn)
         if os.path.exists(SOILparam_fn):
             fin = open(SOILparam_fn, 'r')
         else:
             raise ValueError, "\nThe file %s doesn't exist!!!" % SOILparam_fn
-            sys.exit()
         line = fin.readline().split()
         delimChar = line[0]
         inputFile = []
@@ -689,16 +753,11 @@ class process:
                 else:
                     raise NameError('InputFileFormat')
         except NameError:
-            print 'Error in the input file, check format!\n'
-            sys.exit()
-        except e:
-            print "Unexpected error in the input file:\n", sys.exc_info()[0]
-            print messagemanual
-            sys.exit()
+            raise ValueError, 'Error in the input file, check format!\n'
 
         SOILzones=int(int(inputFile[0]))
         if SOILzones>NSOIL:
-            print 'WARNING:\n' + str(SOILzones) + ' soil parameters groups in file [' + SOILparam_fn + ']\n Only ' + str(NSOIL) + ' PE time serie(s) found.'
+            print '\nWARNING:\n' + str(SOILzones) + ' soil parameters groups in file [' + SOILparam_fn + ']\n Only ' + str(NSOIL) + ' PE time serie(s) found.'
         # trick to initialise the reading position in the next loop
         nsl.append(0)
         for i in range(SOILzones):
@@ -733,12 +792,9 @@ class process:
                 Ks[z].append(float(inputFile[nslst]))
                 nslst = nslst + 1
             if sum(slprop[z][0:nsl[z+1]-1])>1:
-                print '\nERROR!\nThe sum of the soil layers proportion of %s is >1!\nCorrect your soil data input!\nEXISTING MARMITES\n' % nam_soil[z]
-                sys.exit()
+                raise ValueError, '\nERROR!\nThe sum of the soil layers proportion of %s is >1!\nCorrect your soil data input!\nEXISTING MARMITES\n' % nam_soil[z]
             if sum(slprop[z][0:nsl[z+1]-1])<1:
-                print '\nERROR!\nThe sum of the soil layers proportion of %s is <1!\nCorrect your soil data input!\nEXISTING MARMITES\n' % nam_soil[z]
-                sys.exit()
-
+                raise ValueError, '\nERROR!\nThe sum of the soil layers proportion of %s is <1!\nCorrect your soil data input!\nEXISTING MARMITES\n' % nam_soil[z]
 
         return nsl[1:len(nsl)], nam_soil, st, slprop, Sm, Sfc, Sr, Si, Ks
 
@@ -749,7 +805,7 @@ class process:
         '''
 
         # read coordinates and SATFLOW parameters
-        filenameIN = os.path.join(self.MARM_ws,inputObs_fn)
+        filenameIN = os.path.join(self.MM_ws,inputObs_fn)
         if os.path.exists(filenameIN):
             fin = open(filenameIN, 'r')
             lines = fin.readlines()
@@ -786,12 +842,12 @@ class process:
         outpathname=[]
         #  read obs time series
         for o in range(len(obs.keys())):
-            outpathname.append(os.path.join(self.MARM_ws,'output'+obs.keys()[o]+'.txt'))
+            outpathname.append(os.path.join(self.MM_ws,'output'+obs.keys()[o]+'.txt'))
         obs_h=[]
         obs_sm=[]
         for o in range(len(obs.keys())):
-            obsh_fn=os.path.join(self.MARM_ws,'inputObsHEADS_' + obs.keys()[o] +'.txt')
-            obssm_fn=os.path.join(self.MARM_ws,'inputObsSM_' + obs.keys()[o] + '.txt')
+            obsh_fn=os.path.join(self.MM_ws,'inputObsHEADS_' + obs.keys()[o] +'.txt')
+            obssm_fn=os.path.join(self.MM_ws,'inputObsSM_' + obs.keys()[o] + '.txt')
             obs_h.append(self.verifObs(inputDate, obsh_fn))
             obs_sm.append(self.verifObs(inputDate, obssm_fn))
 
@@ -811,9 +867,9 @@ class process:
                 obsDate = pylab.datestr2num(obsData[:,0])
                 obsValue = obsData[:,1].astype(float)
                 if obsDate[0]<inputDate[0]:
-                    print 'WARNING, Obs data starting before RF and PET,\n these obs data will not be plotted correctly\n'
+                    print '\nWARNING, Obs data starting before RF and PET,\n these obs data will not be plotted correctly'
                 if len(inputDate)<len(obsDate):
-                    print 'WARNING, there is more Obs data than RF and PET data,\n these obs data will not be plotted correctly\n'
+                    print '\nWARNING, there is more Obs data than RF and PET data,\n these obs data will not be plotted correctly'
                 j=0
                 for i in range(len(inputDate)):
                     if j<len(obsDate):
@@ -828,6 +884,8 @@ class process:
                 for i in range(len(inputDate)):
                     obsOutput[i]=self.hnoflo
 
+            obsOutput = np.asarray(obsOutput)
+
         except (ValueError, TypeError, KeyboardInterrupt, IOError), e:
             obsOutput = 0
             print e
@@ -837,15 +895,13 @@ class process:
     def outputEAgrd(self, outFile_fn, outFolder = []):
 
         if outFolder == []:
-            outFolder = self.MARM_ws
+            outFolder = self.MM_ws
 
         outFile=open(os.path.join(outFolder, outFile_fn), 'w')
 
         outFile=self.writeHeaderESRIraster(outFile)
 
-        gridout=np.zeros([self.nrow,self.ncol], dtype=float)
-
-        return outFile, gridout
+        return outFile
 
     def writeHeaderESRIraster(self, file_asc):
         '''

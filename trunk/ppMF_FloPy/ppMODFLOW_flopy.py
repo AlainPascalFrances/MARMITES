@@ -12,15 +12,13 @@
 #!/usr/bin/env python
 
 __author__ = "Alain P. Francés <frances08512@itc.nl>"
-__version__ = "1.0"
+__version__ = "0.1"
 __date__ = "March 2011"
 
 import pylab
+import matplotlib.pyplot as plt
 import sys
 import os
-#import wx
-#import struct
-#import types
 import numpy as np
 from mf import *
 import mfreadbinaries as mfrdbin
@@ -58,7 +56,7 @@ def convASCIIraster2array(filenameIN, arrayOUT, cellsizeMF, nrow, ncol):
     NODATA_value = float(line[1])
 
     # Process the file
-    print "\nConverting %s to np.array..." % (filenameIN)
+#    print "\nConverting %s to np.array..." % (filenameIN)
     for row in range(nrow):
         for col in range(ncol):
             if col == 0: line = fin.readline().split()
@@ -73,20 +71,19 @@ def convASCIIraster2array(filenameIN, arrayOUT, cellsizeMF, nrow, ncol):
     fin.close()
 #####################################
 
-def ppMF(model_ws = ''):
+def ppMF(model_ws = '', MM_ws = ''):
 
     messagemanual="Please read the manual!\n(that by the way still doesn't exist...)"
 
     # read input file (called _input.ini in the MARMITES workspace
     # the first character on the first line has to be the character used to comment
     # the file can contain any comments as the user wish, but the sequence of the input has to be respected
-    inputFile_fn = os.path.join(model_ws, "_inputMF_flopy.ini")
+    inputFileMF_fn = os.path.join(model_ws, "_inputMF_flopy.ini")
     inputFile = []
-    if os.path.exists(inputFile_fn):
-        fin = open(inputFile_fn, 'r')
+    if os.path.exists(inputFileMF_fn):
+        fin = open(inputFileMF_fn, 'r')
     else:
-        print "Input file doesn't exist, verify name and path!"
-        sys.exit()
+        raise ValueError, "Input file doesn't exist, verify name and path!"
     line = fin.readline().split()
     delimChar = line[0]
     try:
@@ -98,7 +95,7 @@ def ppMF(model_ws = ''):
             else:
                 raise NameError('InputFileFormat')
     except NameError:
-        print 'Error in the input file, check format!\n%s' % (messagemanual)
+        raise ValueError, 'Error in the input file, check format!\n%s' % (messagemanual)
         sys.exit()
     except e:
         print "Unexpected error in the input file:\n", sys.exc_info()[0]
@@ -106,6 +103,7 @@ def ppMF(model_ws = ''):
         sys.exit()
     l=0
     try:
+        SP_d = 0 # daily stress period
         modelname =  str(inputFile[l].strip())
         l = l + 1
         namefile_ext = str(inputFile[l].strip())
@@ -123,6 +121,9 @@ def ppMF(model_ws = ''):
         nrow = int(inputFile[l].strip())
         l = l + 1
         nper = int(inputFile[l].strip())
+        if nper <0:
+            nper = abs(nper)
+            SP_d = 1
         l = l + 1
         itmuni = int(inputFile[l].strip())
         l = l + 1
@@ -150,26 +151,38 @@ def ppMF(model_ws = ''):
         for i in range(nlay):
             botm_fn.append(str(botm_tmp[i]))
         l = l + 1
-        perlen = []
-        perlen_tmp =  inputFile[l].split()
-        for i in range(nper):
-            perlen.append(int(perlen_tmp[i]))
-        l = l + 1
-        nstp = []
-        nstp_tmp =  inputFile[l].split()
-        for i in range(nper):
-            nstp.append(int(nstp_tmp[i]))
-        l = l + 1
-        tsmult = []
-        tsmult_tmp =  inputFile[l].split()
-        for i in range(nper):
-            tsmult.append(int(tsmult_tmp[i]))
-        l = l + 1
-        Ss_tr = []
-        Ss_tr_tmp =  inputFile[l].split()
-        for i in range(nper):
-            Ss_tr.append(str(Ss_tr_tmp[i]))
-        l = l + 1
+        if SP_d == 0:
+            perlen = []
+            perlen_tmp =  inputFile[l].split()
+            for i in range(nper):
+                perlen.append(int(perlen_tmp[i]))
+            l = l + 1
+            nstp = []
+            nstp_tmp =  inputFile[l].split()
+            for i in range(nper):
+                nstp.append(int(nstp_tmp[i]))
+            l = l + 1
+            tsmult = []
+            tsmult_tmp =  inputFile[l].split()
+            for i in range(nper):
+                tsmult.append(int(tsmult_tmp[i]))
+            l = l + 1
+            Ss_tr = []
+            Ss_tr_tmp =  inputFile[l].split()
+            for i in range(nper):
+                Ss_tr.append(str(Ss_tr_tmp[i]))
+            l = l + 1
+        else:
+            perlen = []
+            nstp = []
+            tsmult = []
+            Ss_tr = []
+            for t in range(nper):
+                perlen.append(1)
+                nstp.append(1)
+                tsmult.append(1)
+                Ss_tr.append('TR')
+            l = l + 4
         ext_bas = str(inputFile[l].strip())
         l = l + 1
         ibound_fn = []
@@ -243,22 +256,30 @@ def ppMF(model_ws = ''):
         l = l + 1
         iddnfm = int(inputFile[l].strip())
         l = l + 1
+        ext_cbc = str(inputFile[l].strip())
+        l = l + 1
         ext_heads = str(inputFile[l].strip())
+        l = l + 1
+        ext_ddn = str(inputFile[l].strip())
         l = l + 1
         ext_rch = str(inputFile[l].strip())
         l = l + 1
         nrchop = int(inputFile[l].strip())
         l = l + 1
-        rch_fn = []
         rch_tmp =  inputFile[l].split()
-        for i in range(nper):
-            rch_fn.append(str(rch_tmp[i]))
+        try:
+            rch_fn=float(rch_tmp[0])
+        except ValueError:
+            rch_fn = str(rch_tmp[0])
     except:
         print "Unexpected error in the input file:\n", sys.exc_info()[0]
         sys.exit()
     fin.close()
 
     # 1 - reaf asc file and convert in np.array
+
+    print "\nImporting ESRI ASCII files..."
+
     top_path = os.path.join(model_ws, top_fn)
     top_array = np.zeros((nrow,ncol))
     top_array = convASCIIraster2array(top_path, top_array, cellsizeMF = delr[0], nrow = nrow, ncol=ncol)
@@ -306,18 +327,36 @@ def ppMF(model_ws = ''):
         sy_array[:,:,l] = convASCIIraster2array(sy_path, sy_array[:,:,l], cellsizeMF = delr[0], nrow = nrow, ncol=ncol)
     sy_array = list(sy_array)
 
-    rch_array = []
-    for n in range(nper):
-        rch_path = os.path.join(model_ws, rch_fn[n])
-        rch_array.append(convASCIIraster2array(rch_path, arrayOUT = np.zeros((nrow,ncol)), cellsizeMF = delr[0], nrow = nrow, ncol=ncol))
-
-    if dum_sssp1 == 1:
-        rch_array = np.asarray(rch_array)
-        rch_SS = np.zeros((nrow,ncol))
+# RECHARGE
+    if isinstance(rch_fn,float):
+        rch_array = rch_fn
+    else:
+        rch_array = []
         for n in range(nper):
-            rch_SS = rch_SS + rch_array[n,:,:]*perlen[n]/sum(perlen)
-        rch_array = list(rch_array)
-        rch_array.insert(0, rch_SS)
+            rch_path = os.path.join(model_ws, rch_fn + str(n+1) + '.asc')
+            rch_array.append(convASCIIraster2array(rch_path, arrayOUT = np.zeros((nrow,ncol)), cellsizeMF = delr[0], nrow = nrow, ncol=ncol))
+
+# DRAIN
+    layer_row_column_elevation_cond = [[]]
+    ri=0
+    for r in top_array:
+        ri = ri+1
+        ci=0
+        for v in r:
+            ci=ci+1
+            layer_row_column_elevation_cond[0].append([1,ri,ci,v,1e6])
+    # in layer 2, cell outlet, elevation is bottom of layer 2
+    layer_row_column_elevation_cond[0].append([2,13,3,22,1])
+
+# average for 1st SS stress period
+    if dum_sssp1 == 1:
+        if isinstance(rch_fn,str):
+            rch_array = np.asarray(rch_array)
+            rch_SS = np.zeros((nrow,ncol))
+            for n in range(nper):
+                rch_SS = rch_SS + rch_array[n,:,:]*perlen[n]/sum(perlen)
+            rch_array = list(rch_array)
+            rch_array.insert(0, rch_SS)
         nper = nper + 1
         perlen.insert(0,1)
         nstp.insert(0,1)
@@ -343,40 +382,52 @@ def ppMF(model_ws = ''):
     bas = mfbas(model = mf, ibound = ibound_array, strt = strt_array, hnoflo = hnoflo, extension = ext_bas)
     # lpf initialization
     lpf = mflpf(model = mf, hdry = hdry, laytyp = laytyp, layavg = layavg, chani = chani, layvka = layvka, laywet = laywet, hk = hk_array, vka = vka_array, ss = ss_array, sy = sy_array, extension=ext_lpf)
-    # chd package
-#    chd = mfchd(model = mf)
-    # ghb package
-#    ghb = mfghb(model = mf)
     # rch initialization
-    rch = mfrch(mf, nrchop=nrchop, rech=rch_array, extension = ext_rch)
+    rch = mfrch(mf, irchcb=lpf.ilpfcb, nrchop=nrchop, rech=rch_array, extension = ext_rch)
     # drn package initialization
-#    drn = mfdrn(mf)
+    drn = mfdrn(model = mf, idrncb=lpf.ilpfcb, layer_row_column_elevation_cond = layer_row_column_elevation_cond)
+    # ghb package initialization
+#    ghb = mfghb(model=mf, igbhcb = lpf.ilpfcb, layer_row_column_head_cond = [[2,13,3,90,50]])
     # output control initialization
-    oc = mfoc(mf, ihedfm=ihedfm, iddnfm=iddnfm, item2=[[0,1,1,0]], item3=[[0,0,1,0]], extension=[ext_oc,'cbc',ext_heads,'ddn'])
+    oc = mfoc(mf, ihedfm=ihedfm, iddnfm=iddnfm, item2=[[0,1,1,1]], item3=[[0,0,1,0]], extension=[ext_oc,ext_cbc,ext_heads,ext_ddn])
     # preconditionned conjugate-gradient initialization
     pcg = mfpcg(mf)
     # write packages files
     dis.write_file()
     bas.write_file()
     lpf.write_file()
-#    chd.write_file()
     rch.write_file()
+    drn.write_file()
+#    ghb.write_file()
     oc.write_file()
     pcg.write_file()
+    h_fn = os.path.join(model_ws, modelname + "." + ext_heads)
+    if os.path.exists(h_fn):
+        os.remove(h_fn)
+    cbc_fn = os.path.join(model_ws, modelname + "." + ext_cbc)
+    if os.path.exists(cbc_fn):
+        os.remove(cbc_fn)
     # run MODFLOW and read the heads back into Python
+    print "\nMODFLOW run...\n"
     mf.write_name_file()
     mf.run_model(pause = False)
-    print '\n'
-    heads_fn = os.path.join(model_ws, modelname + "." + ext_heads)
-    h = mfrdbin.mfhdsread(mf, 'LF95').read_all(heads_fn)
-    h1 = h[1]
+    # extract heads
+    h = mfrdbin.mfhdsread(mf, 'LF95').read_all(h_fn)
+    h_1 = h[1]
+    if len(h_1)<sum(perlen):
+        raise ValueError, '\nMODFLOW error!\nCheck the MODFLOW list file in folder:\n%s!' % model_ws
+    print ''
+    # extract cell-by-cell budget
+    cbc = mfrdbin.mfcbcread(mf, 'LF95').read_all(cbc_fn)
+    cbc_1 = cbc[1]
+    cbc_nam = cbc[2]
     if dum_sssp1 == 1:
-        h1 = h1[1:]
+        h_1 = h_1[1:]
+        cbc_1 = cbc_1[1:]
         nper = nper - 1
         perlen = perlen[1:]
+    h1 = np.asarray(h_1)
+    cbc1 = np.asarray(cbc_1)
+    top_array = np.asarray(top_array)
 
-#TODO extract heads at piezo location and not center of cell
-
-    return nrow, ncol, delr, delc, perlen, nper, np.asarray(top_array), hnoflo, hdry, np.asarray(ibound_array), laytyp[0], np.asarray(h1), rch_fn
-
-    print '\nDone!'
+    return SP_d, nrow, ncol, delr, delc, nlay, perlen, nper, np.asarray(top_array), hnoflo, hdry, np.asarray(ibound_array), laytyp[0], h1, cbc1, cbc_nam, top_array, inputFileMF_fn

@@ -90,101 +90,184 @@ Count=18
 
 [Project\ChildNodes\Node0\ChildNodes\Node1]
 ClassName=TProjectFolderNode
-Name=MMplot
+Name=FloPy_SVN
 
 [Project\ChildNodes\Node0\ChildNodes\Node1\ChildNodes\Node0]
 ClassName=TProjectFileNode
-FileName=$[Project-Path]trunk\MARMITESplot\MARMITESplot.py
+FileName=E:\00code\flopy\trunk\mbase.py
+
+[Project\ChildNodes\Node0\ChildNodes\Node1\ChildNodes\Node1]
+ClassName=TProjectFileNode
+FileName=E:\00code\flopy\trunk\mf.py
+
+[Project\ChildNodes\Node0\ChildNodes\Node1\ChildNodes\Node2]
+ClassName=TProjectFileNode
+FileName=E:\00code\flopy\trunk\mfbas.py
+
+[Project\ChildNodes\Node0\ChildNodes\Node1\ChildNodes\Node3]
+ClassName=TProjectFileNode
+FileName=E:\00code\flopy\trunk\mfbcf.py
+
+[Project\ChildNodes\Node0\ChildNodes\Node1\ChildNodes\Node4]
+ClassName=TProjectFileNode
+FileName=E:\00code\flopy\trunk\mfchd.py
+
+[Project\ChildNodes\Node0\ChildNodes\Node1\ChildNodes\Node5]
+ClassName=TProjectFileNode
+FileName=E:\00code\flopy\trunk\mfdis.py
+
+[Project\ChildNodes\Node0\ChildNodes\Node1\ChildNodes\Node6]
+ClassName=TProjectFileNode
+FileName=E:\00code\flopy\trunk\mfdrn.py
+
+[Project\ChildNodes\Node0\ChildNodes\Node1\ChildNodes\Node7]
+ClassName=TProjectFileNode
+FileName=E:\00code\flopy\trunk\mfevt.py
+
+[Project\ChildNodes\Node0\ChildNodes\Node1\ChildNodes\Node8]
+ClassName=TProjectFileNode
+FileName=E:\00code\flopy\trunk\mfghb.py
+
+[Project\ChildNodes\Node0\ChildNodes\Node1\ChildNodes\Node9]
+ClassName=TProjectFileNode
+FileName=E:\00code\flopy\trunk\mflpf.py
+
+[Project\ChildNodes\Node0\ChildNodes\Node1\ChildNodes\Node10]
+ClassName=TProjectFileNode
+FileName=E:\00code\flopy\trunk\mfoc.py
+
+[Project\ChildNodes\Node0\ChildNodes\Node1\ChildNodes\Node11]
+ClassName=TProjectFileNode
+FileName=E:\00code\flopy\trunk\mfpbc.py
+
+[Project\ChildNodes\Node0\ChildNodes\Node1\ChildNodes\Node12]
+ClassName=TProjectFileNode
+FileName=E:\00code\flopy\trunk\mfpcg.py
+
+[Project\ChildNodes\Node0\ChildNodes\Node1\ChildNodes\Node13]
+ClassName=TProjectFileNode
+FileName=E:\00code\flopy\trunk\mfrch.py
+
+[Project\ChildNodes\Node0\ChildNodes\Node1\ChildNodes\Node14]
+ClassName=TProjectFileNode
+FileName=E:\00code\flopy\trunk\mfreadbinaries.py
+
+[Project\ChildNodes\Node0\ChildNodes\Node1\ChildNodes\Node15]
+ClassName=TProjectFileNode
+FileName=E:\00code\flopy\trunk\mfriv.py
+
+[Project\ChildNodes\Node0\ChildNodes\Node1\ChildNodes\Node16]
+ClassName=TProjectFileNode
+FileName=E:\00code\flopy\trunk\mfswi.py
+
+[Project\ChildNodes\Node0\ChildNodes\Node1\ChildNodes\Node17]
+ClassName=TProjectFileNode
+FileName=E:\00code\flopy\trunk\mfwel.py
 
 [Project\ChildNodes\Node0\ChildNodes\Node1\ChildNodes]
-Count=1
+Count=18
 
 [Project\ChildNodes\Node0\ChildNodes\Node2]
 ClassName=TProjectFolderNode
-Name=MMsurf
+Name=MMplot
 
 [Project\ChildNodes\Node0\ChildNodes\Node2\ChildNodes\Node0]
 ClassName=TProjectFileNode
-FileName=$[Project-Path]trunk\MARMITESsurf\CreateColors.py
-
-[Project\ChildNodes\Node0\ChildNodes\Node2\ChildNodes\Node1]
-ClassName=TProjectFileNode
-FileName=$[Project-Path]trunk\MARMITESsurf\PET_RF_INTER.py
-
-[Project\ChildNodes\Node0\ChildNodes\Node2\ChildNodes\Node2]
-ClassName=TProjectFileNode
-FileName=$[Project-Path]trunk\MARMITESsurf\plotPET.py
-
-[Project\ChildNodes\Node0\ChildNodes\Node2\ChildNodes\Node3]
-ClassName=TProjectFileNode
-FileName=$[Project-Path]trunk\MARMITESsurf\plotRF.py
-
-[Project\ChildNodes\Node0\ChildNodes\Node2\ChildNodes\Node4]
-ClassName=TProjectFileNode
-FileName=$[Project-Path]trunk\MARMITESsurf\startMARMITESsurface.py
+FileName=$[Project-Path]trunk\MARMITESplot\MARMITESplot.py
 
 [Project\ChildNodes\Node0\ChildNodes\Node2\ChildNodes]
-Count=5
+Count=1
 
 [Project\ChildNodes\Node0\ChildNodes\Node3]
 ClassName=TProjectFolderNode
-Name=MMunsat
+Name=MMsurf
 
 [Project\ChildNodes\Node0\ChildNodes\Node3\ChildNodes\Node0]
 ClassName=TProjectFileNode
-FileName=$[Project-Path]trunk\MARMITESunsat_v1\MARMITESunsat_v1.py
+FileName=$[Project-Path]trunk\MARMITESsurf\CreateColors.py
 
 [Project\ChildNodes\Node0\ChildNodes\Node3\ChildNodes\Node1]
 ClassName=TProjectFileNode
-FileName=$[Project-Path]trunk\MARMITESunsat_v2\MARMITESunsat_v2.py
+FileName=$[Project-Path]trunk\MARMITESsurf\PET_RF_INTER.py
+
+[Project\ChildNodes\Node0\ChildNodes\Node3\ChildNodes\Node2]
+ClassName=TProjectFileNode
+FileName=$[Project-Path]trunk\MARMITESsurf\plotPET.py
+
+[Project\ChildNodes\Node0\ChildNodes\Node3\ChildNodes\Node3]
+ClassName=TProjectFileNode
+FileName=$[Project-Path]trunk\MARMITESsurf\plotRF.py
+
+[Project\ChildNodes\Node0\ChildNodes\Node3\ChildNodes\Node4]
+ClassName=TProjectFileNode
+FileName=$[Project-Path]trunk\MARMITESsurf\startMARMITESsurface.py
 
 [Project\ChildNodes\Node0\ChildNodes\Node3\ChildNodes]
-Count=2
+Count=5
 
 [Project\ChildNodes\Node0\ChildNodes\Node4]
 ClassName=TProjectFolderNode
-Name=ppMF_FloPy
+Name=MMunsat
 
 [Project\ChildNodes\Node0\ChildNodes\Node4\ChildNodes\Node0]
 ClassName=TProjectFileNode
-FileName=$[Project-Path]trunk\ppMF_FloPy\ppMODFLOW_flopy.py
+FileName=$[Project-Path]trunk\MARMITESunsat_v2\Eg.py
+
+[Project\ChildNodes\Node0\ChildNodes\Node4\ChildNodes\Node1]
+ClassName=TProjectFileNode
+FileName=$[Project-Path]trunk\MARMITESunsat_v1\MARMITESunsat_v1.py
+
+[Project\ChildNodes\Node0\ChildNodes\Node4\ChildNodes\Node2]
+ClassName=TProjectFileNode
+FileName=$[Project-Path]trunk\MARMITESunsat_v2\MARMITESunsat_v2.py
 
 [Project\ChildNodes\Node0\ChildNodes\Node4\ChildNodes]
-Count=1
+Count=3
 
 [Project\ChildNodes\Node0\ChildNodes\Node5]
 ClassName=TProjectFolderNode
-Name=pyEARTH1D
+Name=ppMF_FloPy
 
 [Project\ChildNodes\Node0\ChildNodes\Node5\ChildNodes\Node0]
 ClassName=TProjectFileNode
+FileName=$[Project-Path]trunk\ppMF_FloPy\ppMODFLOW_flopy.py
+
+[Project\ChildNodes\Node0\ChildNodes\Node5\ChildNodes]
+Count=1
+
+[Project\ChildNodes\Node0\ChildNodes\Node6]
+ClassName=TProjectFolderNode
+Name=pyEARTH1D
+
+[Project\ChildNodes\Node0\ChildNodes\Node6\ChildNodes\Node0]
+ClassName=TProjectFileNode
 FileName=E:\00code\pyEARTH1D\appReSoGUI.py
 
-[Project\ChildNodes\Node0\ChildNodes\Node5\ChildNodes\Node1]
+[Project\ChildNodes\Node0\ChildNodes\Node6\ChildNodes\Node1]
 ClassName=TProjectFileNode
 FileName=E:\00code\pyEARTH1D\clsReSo_GUI_frame.py
 
-[Project\ChildNodes\Node0\ChildNodes\Node5\ChildNodes\Node2]
+[Project\ChildNodes\Node0\ChildNodes\Node6\ChildNodes\Node2]
 ClassName=TProjectFileNode
 FileName=E:\00code\pyEARTH1D\ReSo.py
 
-[Project\ChildNodes\Node0\ChildNodes\Node5\ChildNodes\Node3]
+[Project\ChildNodes\Node0\ChildNodes\Node6\ChildNodes\Node3]
 ClassName=TProjectFileNode
 FileName=E:\00code\pyEARTH1D\ReSoGraph.py
 
-[Project\ChildNodes\Node0\ChildNodes\Node5\ChildNodes]
+[Project\ChildNodes\Node0\ChildNodes\Node6\ChildNodes]
 Count=4
 
-[Project\ChildNodes\Node0\ChildNodes\Node6]
+[Project\ChildNodes\Node0\ChildNodes\Node7]
 ClassName=TProjectFileNode
 FileName=$[Project-Path]trunk\startMARMITES_v1.py
 
-[Project\ChildNodes\Node0\ChildNodes\Node7]
+[Project\ChildNodes\Node0\ChildNodes\Node8]
 ClassName=TProjectFileNode
 FileName=$[Project-Path]trunk\startMARMITES_v2_work.py
 
 [Project\ChildNodes\Node0\ChildNodes]
-Count=8
+Count=9
 
 [Project\ChildNodes\Node1]
 ClassName=TProjectRunConfiguationsNode

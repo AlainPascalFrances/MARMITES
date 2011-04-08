@@ -1,11 +1,11 @@
 # -*- coding: cp1252 -*-
 
+import datetime
 import numpy as np
-from matplotlib.ticker import FormatStrFormatter
-from matplotlib.dates import DateFormatter
+import matplotlib
 import matplotlib.pyplot as plt
 
-def allPLOT(DateInput, P, PET, PE, Pe, SUST, Qs, Eu, Tu, Eg, Tg, S, Rp, R, Es, h_MF, h_SF, hmeas, Smeas, Sm, Sr, hnoflo, plot_export_fn, colors_nsl):
+def allPLOT(DateInput, P, PET, PE, Pe, SUST, Qs, Eu, Tu, Eg, Tg, S, Rp, R, Es, h_MF, h_SF, hmeas, Smeas, Sm, Sr, hnoflo, plot_export_fn, colors_nsl, hmax, hmin):
     """
     allGRAPH: GRAPH the computed data
     Use Matplotlib
@@ -30,13 +30,9 @@ def allPLOT(DateInput, P, PET, PE, Pe, SUST, Qs, Eu, Tu, Eg, Tg, S, Rp, R, Es, h
     ______________________________________________________________________________
     """
 
-    monthsFmt=DateFormatter('%y-%m-%d')
+    monthsFmt=matplotlib.dates.DateFormatter('%y-%m-%d')
     lblspc = 0.05
     mkscale = 0.5
-
-#__________________Create outputs plots______________________#
-#    ioff()
-
 
     fig = plt.figure(figsize=(2*11.7, 2*8.27))
 
@@ -68,14 +64,18 @@ def allPLOT(DateInput, P, PET, PE, Pe, SUST, Qs, Eu, Tu, Eg, Tg, S, Rp, R, Es, h
     plt.plot_date(DateInput, Smeas, 'mo', markersize=2, c = 'lime', markeredgecolor='lime')
     for l, (y, color, lbl) in enumerate(zip(S, colors_nsl, lbl_S[1:len(lbl_S)])) :
         ax5.plot_date(DateInput, y, '-', color=color, label=lbl)
-    ybuffer=0.1*(max(Sm)-min(Sr))
-    plt.ylim(min(Sr) - ybuffer,max(Sm) + ybuffer)
-    plt.ylabel('%')
-    ax5.yaxis.set_major_formatter(FormatStrFormatter('%1.2f'))
+    # x axis
     ax5.xaxis.set_major_formatter(monthsFmt)
+    plt.xlim(DateInput[0],DateInput[len(P)-1])
     labels=ax5.get_xticklabels()
     plt.setp(labels, 'rotation', 90)
     plt.xlabel('Date', fontsize=10)
+    # y axis
+    ybuffer=0.1*(max(Sm)-min(Sr))
+    plt.ylim(min(Sr) - ybuffer,max(Sm) + ybuffer)
+    plt.ylabel('%', fontsize=10)
+    ax5.yaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%1.2f'))
+    # legend
     plt.legend(lbl_S, loc=0, labelspacing=lblspc, markerscale=mkscale)
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
@@ -90,7 +90,7 @@ def allPLOT(DateInput, P, PET, PE, Pe, SUST, Qs, Eu, Tu, Eg, Tg, S, Rp, R, Es, h
     plt.setp( ax1.get_xticklabels(), visible=False)
     plt.setp( ax1.get_yticklabels(), fontsize=8)
     plt.plot_date(DateInput,PE,'b-', color='lightblue', linewidth=2)
-    plt.plot_date(DateInput,E_tot,'b-', color='darkblue')
+    plt.plot_date(DateInput,E_tot,'b-', color='darkblue', linewidth=1.5)
     plt.plot_date(DateInput,Eu_tot,'b-', color=colors_nsl[len(colors_nsl)-1])
     for l, (y, color, lbl) in enumerate(zip(Eu, colors_nsl, lbl_Eu[2:len(lbl_Eu)])):
         ax1.plot_date(DateInput, y, '--', color=color, label=lbl)
@@ -110,10 +110,10 @@ def allPLOT(DateInput, P, PET, PE, Pe, SUST, Qs, Eu, Tu, Eg, Tg, S, Rp, R, Es, h
     plt.setp( ax3.get_xticklabels(), visible=False)
     plt.setp( ax3.get_yticklabels(), fontsize=8)
     plt.plot_date(DateInput,PET,'b-', color='lightblue', linewidth=2)
-    plt.plot_date(DateInput,T_tot,'b-', color='darkblue')
+    plt.plot_date(DateInput,T_tot,'b-', color='darkblue',  linewidth=1.5)
     plt.plot_date(DateInput,Tu_tot,'b-', color=colors_nsl[len(colors_nsl)-1])
     for l, (y, color, lbl) in enumerate(zip(Tu, colors_nsl, lbl_Tu[2:len(lbl_Tu)])):
-        ax3.plot_date(DateInput, y, '-', color=color, label=lbl)
+        ax3.plot_date(DateInput, y, '--', color=color, label=lbl)
     plt.plot_date(DateInput,Tg,'b-', color='blue')
     plt.legend(lbl_Tu, loc=0, labelspacing=lblspc, markerscale=mkscale)
     leg = plt.gca().get_legend()
@@ -133,9 +133,6 @@ def allPLOT(DateInput, P, PET, PE, Pe, SUST, Qs, Eu, Tu, Eg, Tg, S, Rp, R, Es, h
     plt.setp(ltext, fontsize=8)
     plt.grid(True)
     plt.ylabel('mm', fontsize=10)
-    labels=ax4.get_xticklabels()
-    plt.setp(labels, 'horizontalalignment', 'right')
-
 
 # Second column of plots
     ax2=fig.add_subplot(4,2,2, sharex=ax5)
@@ -149,8 +146,6 @@ def allPLOT(DateInput, P, PET, PE, Pe, SUST, Qs, Eu, Tu, Eg, Tg, S, Rp, R, Es, h
     plt.setp(ltext, fontsize=8)
     plt.grid(True)
     plt.ylabel('mm', fontsize=10)
-    labels=ax2.get_xticklabels()
-    plt.setp(labels, 'horizontalalignment', 'right')
 
     ax7=fig.add_subplot(4,2,4, sharex=ax5)
     plt.setp(ax7.get_xticklabels(), visible=False)
@@ -158,10 +153,9 @@ def allPLOT(DateInput, P, PET, PE, Pe, SUST, Qs, Eu, Tu, Eg, Tg, S, Rp, R, Es, h
     plt.plot_date(DateInput,Qs,'r--', c='lightblue', linewidth=2)
     plt.plot_date(DateInput,Es,'r-', c='darkblue', linewidth=1)
     plt.bar(DateInput, SUST, color='blue', linewidth=0, align = 'edge')
-    ax7.yaxis.set_major_formatter(FormatStrFormatter('%1.1f'))
+    ax7.yaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%1.1f'))
     labels=ax7.get_yticklabels()
     plt.setp(labels, 'rotation', 90)
-    plt.xlim((DateInput[0],DateInput[len(P)-1]))
     plt.ylabel('mm', fontsize=10)
     plt.legend(['Qs','Es','SUST'], loc=0, labelspacing=lblspc, markerscale=mkscale)
     leg = plt.gca().get_legend()
@@ -188,61 +182,17 @@ def allPLOT(DateInput, P, PET, PE, Pe, SUST, Qs, Eu, Tu, Eg, Tg, S, Rp, R, Es, h
     plt.plot_date(DateInput,hmeas,'ro', markersize=2, c='lime', markeredgecolor='lime', )
     plt.plot_date(DateInput,h_MF,'-', color = 'b')
     plt.plot_date(DateInput,h_SF,'-', color = 'r')
-    ax8.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
+    ax8.yaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%.1f'))
     labels=ax8.get_yticklabels()
     plt.setp(labels, 'rotation', 90)
     ax8.xaxis.set_major_formatter(monthsFmt)
-#    ax2.autoscale_view()
     labels=ax8.get_xticklabels()
     plt.setp(labels, 'rotation', 90)
-    plt.xlim((DateInput[0],DateInput[len(P)-1]))
-    hmax=[]
-    hmin=[]
-    if h_MF[0]==hnoflo:
-        hmax0=-999
-        hmin0=9999
-    else:
-        hmax0=hmin0=h_MF[0]
-    if hmeas[0]==hnoflo:
-        hmax1=-999
-        hmin1=9999
-    else:
-        hmax1=hmin1=hmeas[0]
-    if h_SF[0]==hnoflo:
-        hmax2=-999
-        hmin2=9999
-    else:
-        hmax2=hmin2=h_SF[0]
-
-    for i in range(0,len(DateInput)):
-        if h_MF[i]>hmax0:
-            hmax0=h_MF[i]
-        elif h_MF[i]<hmin0:
-            hmin0=h_MF[i]
-        hmax.append(hmax0)
-        hmin.append(hmin0)
-
-        if hmeas[i]>hmax1:
-            hmax1=hmeas[i]
-        elif hmeas[i]<hmin1:
-            hmin1=hmeas[i]
-        hmax.append(hmax1)
-        hmin.append(hmin1)
-
-        if h_SF[i]>hmax2:
-            hmax2=h_SF[i]
-        elif h_MF[i]<hmin2:
-            hmin2=h_SF[i]
-        hmax.append(hmax2)
-        hmin.append(hmin2)
-
-    hmax = max(hmax)
-    hmin = min(hmin)
     ybuffer=0.1*(hmax-hmin)
     if ybuffer == 0.0:
         ybuffer = 1.0
     plt.ylim((hmin - ybuffer, hmax + ybuffer))
-    plt.ylabel('m')
+    plt.ylabel('m', fontsize=10)
     plt.legend((r'hmeas',r'hsim_MF',r'hsim_SF'), loc=0, labelspacing=lblspc, markerscale=mkscale)
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
@@ -253,28 +203,97 @@ def allPLOT(DateInput, P, PET, PE, Pe, SUST, Qs, Eu, Tu, Eg, Tg, S, Rp, R, Es, h
     plt.subplots_adjust(left=0.05, bottom=0.10, right=0.95, top=0.95, wspace=0.1, hspace=0.1)
     plt.savefig(plot_export_fn,dpi=150)
 #    plt.show()
+    plt.close()
+    del fig
 
-
-def plotMBerror(DateInput, MB, plot_export_fn):
+def plotMBerror(DateInput, MB, FLOOD, SATpart, POND, Runoff, plot_export_fn):
     """
     Plot mass balance error
     """
-    monthsFmt=DateFormatter('%y-%m-%d')
+    monthsFmt = matplotlib.dates.DateFormatter('%y-%m-%d')
     lblspc = 0.05
     mkscale = 0.5
+
     fig = plt.figure(figsize=(11.7, 8.27))
 
-    ax1=fig.add_subplot(1,1,1)
+    ax5=fig.add_subplot(5,1,5)
+    plt.setp(ax5.get_xticklabels(), fontsize=8)
+    plt.setp(ax5.get_yticklabels(), fontsize=8)
+    ax5.bar(DateInput,Runoff,color='r', linewidth=0, align = 'edge')
+    plt.xlabel('Date', fontsize=10)
+    ax5.yaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%1d'))
+    ax5.yaxis.set_ticks((0,1))
+    plt.legend(['Runoff'], loc=0, labelspacing=lblspc, markerscale=mkscale)
+    leg = plt.gca().get_legend()
+    ltext  = leg.get_texts()
+    plt.ylim(0,1)
+    plt.ylabel('Occurence', fontsize=10)
+    plt.setp(ltext, fontsize=8 )
+    plt.grid(True)
+
+    ax4=fig.add_subplot(5,1,4, sharex = ax5)
+    plt.setp( ax4.get_xticklabels(), visible=False)
+    plt.setp( ax4.get_yticklabels(), fontsize=8)
+    ax4.bar(DateInput,POND,color='r', linewidth=0, align = 'edge')
+    ax4.yaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%1d'))
+    ax4.yaxis.set_ticks((0,1))
+    plt.legend(['POND'], loc=0, labelspacing=lblspc, markerscale=mkscale)
+    leg = plt.gca().get_legend()
+    ltext  = leg.get_texts()
+    plt.setp(ltext, fontsize=8 )
+    plt.ylim(0,1)
+    plt.ylabel('Occurence', fontsize=10)
+    plt.grid(True)
+
+    ax3=fig.add_subplot(5,1,3, sharex = ax5)
+    plt.setp( ax3.get_xticklabels(), visible=False)
+    plt.setp( ax3.get_yticklabels(), fontsize=8)
+    ax3.bar(DateInput,FLOOD, color='r', linewidth=0, align = 'edge')
+    ax3.yaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%1d'))
+    ax3.yaxis.set_ticks((0,1))
+    plt.legend(['FLOOD'], loc=0, labelspacing=lblspc, markerscale=mkscale)
+    leg = plt.gca().get_legend()
+    ltext  = leg.get_texts()
+    plt.setp(ltext, fontsize=8 )
+    plt.ylim(0,1)
+    plt.ylabel('Occurence', fontsize=10)
+    plt.grid(True)
+
+    ax2=fig.add_subplot(5,1,2, sharex = ax5)
+    plt.setp( ax2.get_xticklabels(), visible=False)
+    plt.setp( ax2.get_yticklabels(), fontsize=8)
+    ax2.bar(DateInput,SATpart,color='r', linewidth=0, align = 'edge')
+    ax2.yaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%1d'))
+    ax2.yaxis.set_ticks((0,1))
+    plt.legend(['SATpart'], loc=0, labelspacing=lblspc, markerscale=mkscale)
+    leg = plt.gca().get_legend()
+    ltext  = leg.get_texts()
+    plt.setp(ltext, fontsize=8 )
+    plt.ylim(0,1)
+    plt.ylabel('Occurence', fontsize=10)
+    plt.grid(True)
+
+    ax1=fig.add_subplot(5,1,1, sharex = ax5)
     plt.setp( ax1.get_xticklabels(), visible=False)
     plt.setp( ax1.get_yticklabels(), fontsize=8)
     plt.plot_date(DateInput,MB,'-', c='r')
+    # y axis
+    plt.ylabel('mm', fontsize=10)
+    # legend
     plt.legend(['MB'], loc=0, labelspacing=lblspc, markerscale=mkscale)
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8 )
-    plt.ylabel('mm', fontsize=10)
     plt.grid(True)
+
+    # x axes
+    ax5.xaxis.set_major_formatter(monthsFmt)
+    plt.xlim(DateInput[0],DateInput[len(MB)-1])
+    labels=ax5.get_xticklabels()
+    plt.setp(labels, 'rotation', 90)
 
     plt.subplots_adjust(left=0.05, bottom=0.10, right=0.95, top=0.95, wspace=0.1, hspace=0.1)
     plt.savefig(plot_export_fn,dpi=150)
 #    plt.show()
+    plt.close()
+    del fig

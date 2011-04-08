@@ -14,7 +14,7 @@
 """ See info in MARMITESunsat.py"""
 
 __author__ = "Alain P. Francés <frances08512@itc.nl>"
-__version__ = "1.0"
+__version__ = "0.1"
 __date__ = "November 2010"
 
 import pylab
