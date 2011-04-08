@@ -276,6 +276,10 @@ def ppMF(model_ws = '', MM_ws = ''):
         sys.exit()
     fin.close()
 
+    if itmuni <> 4:
+        print 'ERROR! Time unit is not in days!'
+        sys.exit()
+
     # 1 - reaf asc file and convert in np.array
 
     print "\nImporting ESRI ASCII files..."
@@ -344,7 +348,7 @@ def ppMF(model_ws = '', MM_ws = ''):
         ci=0
         for v in r:
             ci=ci+1
-            layer_row_column_elevation_cond[0].append([1,ri,ci,v,1e6])
+            layer_row_column_elevation_cond[0].append([1,ri,ci,v,1E6])
     # in layer 2, cell outlet, elevation is bottom of layer 2
     layer_row_column_elevation_cond[0].append([2,13,3,22,1])
 
@@ -430,4 +434,4 @@ def ppMF(model_ws = '', MM_ws = ''):
     cbc1 = np.asarray(cbc_1)
     top_array = np.asarray(top_array)
 
-    return SP_d, nrow, ncol, delr, delc, nlay, perlen, nper, np.asarray(top_array), hnoflo, hdry, np.asarray(ibound_array), laytyp[0], h1, cbc1, cbc_nam, top_array, inputFileMF_fn
+    return SP_d, nrow, ncol, delr, delc, nlay, perlen, nper, np.asarray(top_array), hnoflo, hdry, np.asarray(ibound_array), laytyp[0], h1, cbc1, cbc_nam, top_array, inputFileMF_fn, lenuni

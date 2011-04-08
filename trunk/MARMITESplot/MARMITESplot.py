@@ -1,5 +1,6 @@
 # -*- coding: cp1252 -*-
 
+import os
 import datetime
 import numpy as np
 import matplotlib
@@ -297,3 +298,54 @@ def plotMBerror(DateInput, MB, FLOOD, SATpart, POND, Runoff, plot_export_fn):
 #    plt.show()
     plt.close()
     del fig
+
+def plotLAYER(TS, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plttitle, MM_ws, interval_type = 'arange', interval_diff = 1, interval_num = 1, Vmax = 0, Vmin = 0, fmt = '%.2f'):
+
+    # Store some arrays for plotting
+    x = np.arange(0.5, ncol+1.5, 1)
+    y = np.arange(0.5, nrow+1.5, 1)
+    xg,yg = np.meshgrid(x,y)
+
+    x = np.arange(1, ncol+1, 1)
+    y = np.arange(1, nrow+1, 1)
+    xg1,yg1 = np.meshgrid(x,y)
+
+    ax = []
+    fig = plt.figure()
+    for L in range(nplot):
+        if interval_type == 'arange':
+            ticks = np.arange(Vmin,Vmax,interval_diff)
+        elif interval_type == 'linspace':
+            ticks = np.linspace(Vmin,Vmax,interval_num)
+        ax.append(fig.add_subplot(1,nlay,L+1, axisbg='silver'))
+        plt.setp(ax[L].get_xticklabels(), fontsize=8)
+        plt.setp(ax[L].get_yticklabels(), fontsize=8)
+        plt.ylabel('row i', fontsize=10)
+        plt.grid(True)
+        plt.xlabel('col j', fontsize=10)
+        ax[L].xaxis.set_ticks(np.arange(1,ncol+1))
+        ax[L].yaxis.set_ticks(np.arange(1,nrow+1))
+        if Vmax>Vmin:
+            PC = plt.pcolor(xg, yg, V[L], cmap = cmap, vmin = Vmin, vmax = Vmax)
+            CS = plt.contour(xg1, yg1[::-1], V[L][::-1],ticks, colors = 'gray')
+            plt.clabel(CS, inline=1, fontsize=8, fmt=fmt, colors = 'gray')
+            if L==nplot-1:
+                CB = plt.colorbar(PC, shrink=0.8, extend='both', ticks = ticks, format = fmt)
+                CB.set_label(CBlabel, fontsize = 8)
+                plt.setp(CB.ax.get_yticklabels(), fontsize=8)
+            plt.title('layer ' + str(L+1)+', time step ' + str(TS+1), fontsize = 10)
+        else:
+            plt.title('layer ' + str(L+1)+', time step ' + str(TS+1) + ': ' + msg, fontsize = 10)
+        plt.ylim(plt.ylim()[::-1])
+        plt.axis('scaled')
+    plot_export_fn = os.path.join(MM_ws, plttitle + '_TS'+str(TS+1) + '.png')
+    plt.savefig(plot_export_fn)
+    plt.close()
+    del fig
+    del ax
+
+##    #Make a cross-sectional figure of layers 1, 2, and 10
+##    plt.figure()
+##    plt.plot(xg[0,:],valg[:,50,0],label='Top layer')
+##    plt.plot(xg[0,:],valg[:,50,1],label='Second layer')
+##    plt.legend(loc='best')

@@ -232,7 +232,7 @@ while abs(h_diff[TRY]) > convcrit:
     timestartMF = pylab.datestr2num(pylab.datetime.datetime.today().isoformat())
     print'\n##############'
     print 'MODFLOW initialization'
-    SP_d, nrow, ncol, delr, delc, nlay, perlen, nper, top, hnoflo, hdry, ibound, AqType, h_MF, cbc, cbc_nam_tmp, top_array, inputFileMF_fn = ppMF.ppMF(MF_ws, MM_ws)
+    SP_d, nrow, ncol, delr, delc, nlay, perlen, nper, top, hnoflo, hdry, ibound, AqType, h_MF, cbc, cbc_nam_tmp, top_array, inputFileMF_fn, lenuni = ppMF.ppMF(MF_ws, MM_ws)
 
     h_MF_m = np.ma.masked_values(h_MF, hnoflo, atol = 0.09)
     top_array_m = np.ma.masked_values(top_array, hnoflo, atol = 0.09)
@@ -241,6 +241,16 @@ while abs(h_diff[TRY]) > convcrit:
         cbc_nam.append(c.strip())
     iDRN = cbc_nam.index('DRAINS')
     iSTO = cbc_nam.index('STORAGE')
+    # convert cbc from volume to mm
+    if lenuni == 1:
+        conv_fact = 304.8
+    elif lenuni == 2:
+        conv_fact = 1000.0
+    elif lenuni == 3:
+        conv_fact = 10.0
+    else:
+        print 'ERROR! Define the length unit in the MODFLOW ini file!\n (see USGS Open-File Report 00-92)'
+        sys.exit()
 
     rch_fn = 'rch_per'
     fin = open(inputFileMF_fn, 'r')
@@ -480,6 +490,8 @@ while abs(h_diff[TRY]) > convcrit:
             for j in range(ncol):
                 SOILzone_tmp = gridSOIL[i,j]-1
                 METEOzone_tmp = gridMETEO[i,j]-1
+                if n == 0:
+                    cbc[:,:,i,j,:] = conv_fact*cbc[:,:,i,j,:]/(delr[j]*delc[i])
                 if ibound[i,j,0]<>0:
                     ncell = ncell + 1
                     nsl_tmp   = _nsl[SOILzone_tmp]
@@ -513,11 +525,11 @@ while abs(h_diff[TRY]) > convcrit:
                         h_MF_tmp[0] = h_MF[0,i,j,0]
                         h_MF_tmp[1:perlen[n]] = h_MF[tstart:tend-1,i,j,0]
                         cbc_tmp = np.zeros([perlen[n]], dtype = float)
-                        cbc_tmp[0] = 1000*cbc[0,iDRN,i,j,0]/(delr[j]*delc[i])
-                        cbc_tmp[1:perlen[n]] = 1000*cbc[tstart:tend-1,iDRN,i,j,0]/(delr[j]*delc[i])
+                        cbc_tmp[0] = -cbc[0,iDRN,i,j,0]
+                        cbc_tmp[1:perlen[n]] = -cbc[tstart:tend-1,iDRN,i,j,0]
                     else:
                         h_MF_tmp = h_MF[tstart-1:tend-1,i,j,0]
-                        cbc_tmp = 1000*cbc[tstart-1:tend-1,iDRN,i,j,0]/(delr[j]*delc[i])
+                        cbc_tmp = -cbc[tstart-1:tend-1,iDRN,i,j,0]
                     # cal functions for reservoirs calculations
                     results1_temp, results2_temp = MM_UNSAT.run(
                                                  i, j,
@@ -894,7 +906,7 @@ outFileRunoff_PERall.close()
 # final report of successful run
 
 timeend = pylab.datestr2num(pylab.datetime.datetime.today().isoformat())
-duration = duration + (timeend-timestart)
+duration = duration + (timeend-timestart) -durationMF
 
 timestartExport = pylab.datestr2num(pylab.datetime.datetime.today().isoformat())
 print '\n##############\nMARMITES exporting...'
@@ -902,18 +914,21 @@ print '\n##############\nMARMITES exporting...'
 h_MF_m = np.ma.masked_values(h_MF_m, hdry, atol = 1E+25)
 hmax = []
 hmin = []
+DRNmax = []
+DRNmin = []
 for L in range(nlay):
-    hmax.append([])
-    hmin.append([])
-    hmax[L].append(np.nanmax(h_MF_m[:,:,:,L].flatten()))
-    hmin[L].append(np.nanmin(h_MF_m[:,:,:,L].flatten()))
+    hmax.append(np.nanmax(h_MF_m[:,:,:,:].flatten()))
+    hmin.append(np.nanmin(h_MF_m[:,:,:,:].flatten()))
+    DRNmax.append(np.nanmax(-cbc[:,iDRN,:,:,:]).flatten())
+    DRNmin.append(np.nanmin(-cbc[:,iDRN,:,:,:]).flatten())
 for o in range(len(obs.keys())):
     npa_m_tmp = np.ma.masked_values(obs_h[o], hnoflo, atol = 0.09)
-    hmax[0].append(np.nanmax(npa_m_tmp.flatten()))
-    hmin[0].append(np.nanmin(npa_m_tmp.flatten()))
-for L in range(nlay):
-    hmax[L] = float(np.ceil(np.nanmax(hmax[L])))
-    hmin[L] = float(np.floor(np.nanmin(hmin[L])))
+    hmax.append(np.nanmax(npa_m_tmp.flatten()))
+    hmin.append(np.nanmin(npa_m_tmp.flatten()))
+hmax = float(np.ceil(np.nanmax(hmax)))
+hmin = float(np.floor(np.nanmin(hmin)))
+DRNmax = float(np.ceil(np.nanmax(DRNmax)))
+DRNmin = float(np.floor(np.nanmin(DRNmin)))
 # export data for observation cells and show calib graphs
 if obsCHECK == 1:
     colors_nsl = CreateColors.main(hi=30, hf=50, numbcolors = (_nslmax+1))
@@ -955,8 +970,8 @@ if obsCHECK == 1:
         hnoflo,
         plot_export_fn,
         colors_nsl,
-        hmax[0],
-        hmin[0]
+        hmax,
+        hmin
         )
         plot_exportMB_fn = os.path.join(MM_ws, obs.keys()[o] + '_MB.png')
         MMplot.plotMBerror(
@@ -973,18 +988,7 @@ if obsCHECK == 1:
     outPESTheads.close()
     outPESTsm.close()
 
-    # plotting heads...
-    # Store some arrays for plotting
-    x = np.arange(0.5, ncol+1.5, 1)
-    y = np.arange(0.5, nrow+1.5, 1)
-    xg,yg = np.meshgrid(x,y)
-
-    x = np.arange(1, ncol+1, 1)
-    y = np.arange(1, nrow+1, 1)
-    xg1,yg1 = np.meshgrid(x,y)
-
-    # plot heads (contours)
-    fig = plt.figure()
+    # plot heads (grid + contours), DRN, etc... at specified TS
     TSlst = []
     TS = 0
     while TS < len(h_MF):
@@ -992,73 +996,23 @@ if obsCHECK == 1:
         TS = TS + 30
     TSlst.append(len(h_MF)-1)
     for TS in TSlst:
-        ax = []
-        fig = plt.figure()
+        # plot heads [m]
+        V=[]
         for L in range(nlay):
-            ax.append(fig.add_subplot(1,nlay,L+1, axisbg='silver'))
-            plt.setp(ax[L].get_xticklabels(), fontsize=8)
-            plt.setp(ax[L].get_yticklabels(), fontsize=8)
-            plt.ylabel('row i', fontsize=10)
-            plt.grid(True)
-            plt.xlabel('col j', fontsize=10)
-            ax[L].xaxis.set_ticks(np.arange(1,ncol+1))
-            ax[L].yaxis.set_ticks(np.arange(1,nrow+1))
-            if hmax[L]>hmin[L]:
-                valg = h_MF_m[TS,:,:,L]
-                interval_diff = 0.25
-                PC = plt.pcolor(xg, yg, valg, cmap = plt.cm.Blues, vmin = hmin[L], vmax = hmax[L])
-                CS = plt.contour(xg1, yg1[::-1], valg[::-1],np.arange(hmin[L],hmax[L],interval_diff), colors = 'gray')
-                plt.ylim(plt.ylim()[::-1])
-                plt.clabel(CS, inline=1, fontsize=8, fmt='%.2f', colors = 'gray')
-                plt.title('layer ' + str(L+1)+', time step ' + str(TS+1), fontsize = 10)
-                if L==nlay-1:
-                    CB = plt.colorbar(PC, shrink=0.8, extend='both', ticks = np.arange(hmin[L],hmax[L],interval_diff), format = '%.2f')
-                    CB.set_label('hydraulic heads elevation (m)', fontsize = 8)
-                    plt.setp(CB.ax.get_yticklabels(), fontsize=8)
-                plt.axis('scaled')
-            else:
-                plt.title('layer ' + str(L+1)+', time step ' + str(TS+1) + ': DRY', fontsize = 10)
-        plotHEADS_export_fn = os.path.join(MM_ws, 'HEADS_TS' + str(TS+1) + '.png')
-        plt.savefig(plotHEADS_export_fn)
-        plt.close()
-        del fig
-        del ax
+            V.append(h_MF_m[TS,:,:,L])
+        MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation (m)', msg = 'DRY', plttitle = 'HEADS', MM_ws = MM_ws, interval_type = 'arange', interval_diff = 0.5, Vmax = hmax, Vmin = hmin)
+        # plot diff between drain elevation and heads elevation [m]
         DrnHeadsLtop = top_array_m - h_MF_m[TS,:,:,0]
         DrnHeadsLtop_m = np.ma.masked_greater(DrnHeadsLtop,0.0)
+        V = [DrnHeadsLtop_m]
         diffMin = 0
-        diffMax = DrnHeadsLtop_m.min()
-        fig = plt.figure()
-        ax = fig.add_subplot(1,2,1, axisbg='silver')
-        plt.setp(ax.get_xticklabels(), fontsize=8)
-        plt.setp(ax.get_yticklabels(), fontsize=8)
-        plt.ylabel('row i', fontsize=10)
-        plt.grid(True)
-        plt.xlabel('col j', fontsize=10)
-        ax.xaxis.set_ticks(np.arange(1,ncol+1))
-        ax.yaxis.set_ticks(np.arange(1,nrow+1))
-        interval_num = 5
-        if diffMax<>diffMin:
-            PC = plt.pcolor(xg, yg, DrnHeadsLtop_m, cmap = plt.cm.RdYlGn, vmin = diffMax, vmax = diffMin)
-            CS = plt.contour(xg1, yg1[::-1], DrnHeadsLtop_m[::-1],np.linspace(diffMax,diffMin,interval_num), colors = 'gray')
-            plt.clabel(CS, inline=1, fontsize=8, fmt='%.2G', colors = 'gray')
-            CB = plt.colorbar(PC, shrink=0.8, extend='both', ticks = np.linspace(diffMax,diffMin,interval_num), format = '%.2G')
-            CB.set_label('diff. between DRN elev and hyd. heads elev. (m)', fontsize = 8)
-            plt.setp(CB.ax.get_yticklabels(), fontsize=8)
-            plt.title('layer 1, time step ' + str(TS+1), fontsize = 10)
-        else:
-            plt.title('layer 1, time step ' + str(TS+1) + ' - no drainage', fontsize = 10)
-        plt.ylim(plt.ylim()[::-1])
-        plt.axis('scaled')
-        plotHEADSDRNdiff_export_fn = os.path.join(MM_ws, 'HEADSDRNdiffL0_TS' + str(TS+1) + '.png')
-        plt.savefig(plotHEADSDRNdiff_export_fn)
-        del fig
-        del ax
-
-##    #Make a cross-sectional figure of layers 1, 2, and 10
-##    plt.figure()
-##    plt.plot(xg[0,:],valg[:,50,0],label='Top layer')
-##    plt.plot(xg[0,:],valg[:,50,1],label='Second layer')
-##    plt.legend(loc='best')
+        diffMax = np.nanmin(DrnHeadsLtop_m)
+        MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = 1, V = V,  cmap = plt.cm.RdYlGn, CBlabel = 'diff. between DRN elev and hyd. heads elev. (m)', msg = ' - no drainage', plttitle = 'HEADSDRNdiff', MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, Vmax = diffMin, Vmin = diffMax, fmt='%.2G')
+        # plot GW drainage [mm]
+        V = []
+        for L in range(nlay):
+            V.append(-cbc[TS,iDRN,:,:,L])
+        MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater drainage (mm)', msg = '- no drainage', plttitle = 'DRN', MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, Vmin = DRNmin, Vmax = DRNmax, fmt='%.2G')
 
 timeendExport = pylab.datestr2num(pylab.datetime.datetime.today().isoformat())
 durationExport=(timeendExport-timestartExport)

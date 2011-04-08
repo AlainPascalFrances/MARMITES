@@ -98,7 +98,7 @@ class UNSAT:
 
 #####################
 
-    def unsatflux(self, PET, PE, DRN, Sini, Zr_botavg, Dltop_tmp, Dlbot_tmp, Dl_tmp, Dl, Sm, Sfc, Sr, Ks, SUSTm):
+    def unsatflux(self, PET, PE, Sini, Zr_botavg, Dltop_tmp, Dlbot_tmp, Dl_tmp, Dl, Sm, Sfc, Sr, Ks, SUSTm):
 
         def pond(s_tmp,Dl,Sm,SUSTm):
             '''
@@ -183,12 +183,6 @@ class UNSAT:
             return evp_tmp
 
         # MAIN
-
-        if DRN>0.0:
-            1
-
-
-
         # SUST and Qs
         PONDtmp = pond(Sini[0]/Dl_tmp[0],Dl_tmp[0],Sm[0],SUSTm)
         SUSTtmp = PONDtmp[0]
@@ -265,7 +259,7 @@ class UNSAT:
 
         ##################
 
-    def Sini(self, t, Sini, Si, Dl_tmp, RFe_tot, nsl, Rpi, SUST, E0, SUSTprev, S, Rp, Sm):
+    def Sini(self, t, DRN, Sini, Si, Dl_tmp, RFe_tot, nsl, Rpi, SUST, E0, SUSTprev, S, Rp, Sm):
         if t == 0:
             # if first time step, use Si and Rpi
             Sini[0] = Si[0] + RFe_tot/Dl_tmp[0]
@@ -402,10 +396,9 @@ class UNSAT:
                     # bottom boundary
                     Dlbot_tmp[nsl-1] = HEADStmp
                     Dl_tmp[nsl-1] = Dltop_tmp[nsl-1] - HEADStmp
+                    Sini, SUSTprev, Estmp = self.Sini(t, DRN[t], Sini, Si, Dl_tmp, RFe_tot[t], nsl, Rpi, SUST[t-1], E0[t], SUSTprev, S, Rp, Sm)
 
-                    Sini, SUSTprev, Estmp = self.Sini(t, Sini, Si, Dl_tmp, RFe_tot[t], nsl, Rpi, SUST[t-1], E0[t], SUSTprev, S, Rp, Sm)
-
-                    SUSTtmp, Qstmp, countPONDtmp, countRunofftmp, Rptmp, Eutmp, Tutmp, Stmp = self.unsatflux(PET_tot[t], PE_tot[t], DRN[t], Sini, Zr_botavg, Dltop, Dlbot_tmp, Dl_tmp, Dl, Sm,Sfc,Sr,Ks,SUSTm)
+                    SUSTtmp, Qstmp, countPONDtmp, countRunofftmp, Rptmp, Eutmp, Tutmp, Stmp = self.unsatflux(PET_tot[t], PE_tot[t], Sini, Zr_botavg, Dltop, Dlbot_tmp, Dl_tmp, Dl, Sm,Sfc,Sr,Ks,SUSTm)
                     Egtmp, Tgtmp = self.satflux(PET_tot[t], dtwt, st)
 
                 # heads above soil bottom and below surface
@@ -421,14 +414,14 @@ class UNSAT:
                                 Dl_tmp[l] = Dltop_tmp[l] - HEADStmp
                                 Dlbot_tmp[l] = HEADStmp
 
-                    Sini, SUSTprev, Estmp = self.Sini(t, Sini, Si, Dl_tmp, RFe_tot[t], nsl, Rpi, SUST[t-1], E0[t], SUSTprev, S, Rp, Sm)
+                    Sini, SUSTprev, Estmp = self.Sini(t, DRN[t], Sini, Si, Dl_tmp, RFe_tot[t], nsl, Rpi, SUST[t-1], E0[t], SUSTprev, S, Rp, Sm)
 
-                    SUSTtmp, Qstmp, countPONDtmp, countRunofftmp, Rptmp, Eutmp, Tutmp, Stmp = self.unsatflux(PET_tot[t], PE_tot[t], DRN[t], Sini, Zr_botavg, Dltop, Dlbot_tmp, Dl_tmp, Dl, Sm,Sfc,Sr,Ks,SUSTm)
+                    SUSTtmp, Qstmp, countPONDtmp, countRunofftmp, Rptmp, Eutmp, Tutmp, Stmp = self.unsatflux(PET_tot[t], PE_tot[t], Sini, Zr_botavg, Dltop, Dlbot_tmp, Dl_tmp, Dl, Sm,Sfc,Sr,Ks,SUSTm)
                     Egtmp, Tgtmp = self.satflux(PET_tot[t], dtwt, st)
 
                 # heads above surface
                 else:
-                    Sini, SUSTprev, Estmp = self.Sini(t, Sini, Si, Dl_tmp, RFe_tot[t], nsl, Rpi, SUST[t-1], E0[t], SUSTprev, S, Rp, Sm)
+                    Sini, SUSTprev, Estmp = self.Sini(t, DRN[t], Sini, Si, Dl_tmp, RFe_tot[t], nsl, Rpi, SUST[t-1], E0[t], SUSTprev, S, Rp, Sm)
                     countFLOOD[t] = 1
                     countPONDtmp = 0
                     countRunofftmp = 0
@@ -453,7 +446,7 @@ class UNSAT:
             else:
             # TODO to be confirmed, not correct currently
             # AQUIFER CONFINED, water table cannot rise in the soil or above topography
-                SUSTtmp, Qstmp, countPONDtmp, countRunofftmp, Rptmp, Eutmp, Tutmp, Stmp, Egtmp, Tgtmp = self.partition(PET_tot[t], PE_tot[t], DRN[t], Sini, Zr_botavg, Dltop, Dlbot_tmp, Dl_tmp, Sm,Sfc,Sr,Ks,SUSTm, st, dtwt)
+                SUSTtmp, Qstmp, countPONDtmp, countRunofftmp, Rptmp, Eutmp, Tutmp, Stmp, Egtmp, Tgtmp = self.partition(PET_tot[t], PE_tot[t], Sini, Zr_botavg, Dltop, Dlbot_tmp, Dl_tmp, Sm,Sfc,Sr,Ks,SUSTm, st, dtwt)
 
             # fill the table and compute water balance
             SUST[t]=SUSTtmp

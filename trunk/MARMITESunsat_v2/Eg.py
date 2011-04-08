@@ -25,6 +25,8 @@ def Eg(PE, y0, b, dtwt, dll):
         Eg_tmp = PE
     else:
         Eg_tmp = PE*(y0 + pylab.exp(-b*(dtwt-dll)))
+    if Eg_tmp/PE < 0.5/100:
+        Eg_tmp = 0.0
     return Eg_tmp
 
 paramEg = {'sand'        : {'dll':160.0,'y0':0.000,'b':0.0171, 'ext_d':500.0},
@@ -46,7 +48,7 @@ mkscale = 0.5
 colors_ = CreateColors.main(hi=10, hf=150, numbcolors = (len(paramEg.keys())-1))
 fig = plt.figure(figsize=(11.7, 8.27))
 
-dtwt = range(0,6500,10)
+dtwt = range(-1000,6500,10)
 dtwt_norm = [[]]
 GWET = [[]]
 for s in range(len(paramEg.keys())-1):
@@ -69,8 +71,8 @@ leg = plt.gca().get_legend()
 ltext  = leg.get_texts()
 plt.setp(ltext, fontsize=8 )
 plt.grid(True)
-plt.xlim((0, 1))
-plt.ylim((0,3000))
+plt.xlim((-0.05, 1.05))
+plt.ylim((-100,3000))
 plt.xlabel('Eg/PE')
 plt.ylabel('dtwt (mm)')
 ax1.set_ylim(ax1.get_ylim()[::-1])
@@ -85,11 +87,13 @@ leg = plt.gca().get_legend()
 ltext  = leg.get_texts()
 plt.setp(ltext, fontsize=8 )
 plt.grid(True)
-plt.xlim((0, 1))
-plt.ylim((0, 1))
+plt.xlim((-0.05, 1.05))
+plt.ylim((-0.05, 1.05))
 plt.xlabel('Eg/PE')
 plt.ylabel('dtwt/ext_d')
 ax5.set_ylim(ax5.get_ylim()[::-1])
 
 #plt.show()
-plt.savefig(r'E:\00code\MARMITES\doc\Eg_function',dpi=150)
+img_path = r'E:\00code\MARMITES\doc\images\Eg_function'
+plt.savefig(img_path,dpi=300)
+print 'Plot printed:\n%s' % img_path
