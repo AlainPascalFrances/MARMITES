@@ -259,7 +259,8 @@ class UNSAT:
 
         ##################
 
-    def Sini(self, t, DRN, Sini, Si, Dl_tmp, RFe_tot, nsl, Rpi, SUST, E0, SUSTprev, S, Rp, Sm):
+    def Sini(self, t, Sini, DRN, Si, Dl_tmp, RFe_tot, nsl, Rpi, SUST, E0, SUSTprev, S, Rp, Sm):
+
         if t == 0:
             # if first time step, use Si and Rpi
             Sini[0] = Si[0] + RFe_tot/Dl_tmp[0]
@@ -285,6 +286,23 @@ class UNSAT:
                         Sini[l] = Sm[l]
                     else:
                         Sini[l] = S[l,t-1] + Rp[l-1,t-1]/Dl_tmp[l]
+        if DRN>0.0:
+            SVolAv = []
+            llst = range(nsl-1)
+            llst.reverse()
+            for l in llst:
+                if Sm[l]-Sini[l]>0.000001:
+                    SVolAv.append((Sm[l]-Sini[l])*Dl_tmp[l])
+                else:
+                    SVolAv.append(0.0)
+                if DRN>SVolAv[nsl-l-2]:
+                    Sini[l]=Sm[l]
+                    DRN = DRN-SVolAv[nsl-l-2]
+                else:
+                    Sini[l]=Sini[l]+DRN/Dl_tmp[l]
+                    DRN=0
+            SUSTprev = SUSTprev+DRN
+
         return Sini, SUSTprev, Estmp
 
 #####################
@@ -293,7 +311,7 @@ class UNSAT:
                   nsl, st, slprop, Sm, Sfc, Sr, Si, Rpi, D, Ks, SUSTm,
                   ELEV, HEADS, DRN,
                   RF, E0, PETveg, RFeveg, PEsoil, VEGarea, Zr,
-                  perlen, AqType, hdry):
+                  perlen, hdry):
 
         # Output initialisation
         Ttotal=len(RF)
@@ -388,65 +406,27 @@ class UNSAT:
             Dlbot_tmp = Dlbot*1.0
             Dl_tmp    = Dl*1.0
 
-            if AqType==1:
-            # AQUIFER UNCONFINED, water table can rise in the soil and above surface
+            # heads below soil bottom
+            if DRN[t]==0.0:
+                # bottom boundary
+                Dlbot_tmp[nsl-1] = HEADStmp
+                Dl_tmp[nsl-1] = Dltop_tmp[nsl-1] - HEADStmp
 
-                # heads below soil bottom
-                if HEADStmp-Dbot<=0.000001:
-                    # bottom boundary
-                    Dlbot_tmp[nsl-1] = HEADStmp
-                    Dl_tmp[nsl-1] = Dltop_tmp[nsl-1] - HEADStmp
-                    Sini, SUSTprev, Estmp = self.Sini(t, DRN[t], Sini, Si, Dl_tmp, RFe_tot[t], nsl, Rpi, SUST[t-1], E0[t], SUSTprev, S, Rp, Sm)
+                Sini, SUSTprev, Estmp = self.Sini(t, Sini, DRN[t], Si, Dl_tmp, RFe_tot[t], nsl, Rpi, SUST[t-1], E0[t], SUSTprev, S, Rp, Sm)
 
-                    SUSTtmp, Qstmp, countPONDtmp, countRunofftmp, Rptmp, Eutmp, Tutmp, Stmp = self.unsatflux(PET_tot[t], PE_tot[t], Sini, Zr_botavg, Dltop, Dlbot_tmp, Dl_tmp, Dl, Sm,Sfc,Sr,Ks,SUSTm)
-                    Egtmp, Tgtmp = self.satflux(PET_tot[t], dtwt, st)
-
-                # heads above soil bottom and below surface
-                elif HEADStmp-Dbot>0.000001 and Dtop-HEADStmp>=0.000001:
-                    countSATpart[t] = 1
-                    for l in range(nsl-1):
-                        if (HEADStmp-Dlbot_tmp[l]) > 0.000001:
-                            if (HEADStmp-Dltop_tmp[l]) > 0.000001:
-                                Dl_tmp[l] = 0.0
-                                Dlbot_tmp[l] = 0.0
-                                Dltop_tmp[l] = 0.0
-                            else:
-                                Dl_tmp[l] = Dltop_tmp[l] - HEADStmp
-                                Dlbot_tmp[l] = HEADStmp
-
-                    Sini, SUSTprev, Estmp = self.Sini(t, DRN[t], Sini, Si, Dl_tmp, RFe_tot[t], nsl, Rpi, SUST[t-1], E0[t], SUSTprev, S, Rp, Sm)
-
-                    SUSTtmp, Qstmp, countPONDtmp, countRunofftmp, Rptmp, Eutmp, Tutmp, Stmp = self.unsatflux(PET_tot[t], PE_tot[t], Sini, Zr_botavg, Dltop, Dlbot_tmp, Dl_tmp, Dl, Sm,Sfc,Sr,Ks,SUSTm)
-                    Egtmp, Tgtmp = self.satflux(PET_tot[t], dtwt, st)
-
-                # heads above surface
-                else:
-                    Sini, SUSTprev, Estmp = self.Sini(t, DRN[t], Sini, Si, Dl_tmp, RFe_tot[t], nsl, Rpi, SUST[t-1], E0[t], SUSTprev, S, Rp, Sm)
-                    countFLOOD[t] = 1
-                    countPONDtmp = 0
-                    countRunofftmp = 0
-                    # TOBE FIXED, MB problem between atm, unsta and GW
-                    SUSTtmp = HEADStmp-ELEV+SUSTprev-E0[t]
-                    if SUSTtmp > SUSTm:
-                        Qstmp =(SUSTtmp-SUSTm)
-                        SUSTtmp = SUSTm
-                    else:
-                        Qstmp =0.0
-                    Estmp = E0[t]
-                    Eutmp=[]
-                    Tutmp=[]
-                    Rptmp=[]
-                    Stmp=[]
-                    for l in range(nsl):
-                        Eutmp.append(0.0)
-                        Tutmp.append(0.0)
-                        Rptmp.append(0.0)
-                        Stmp.append(Sm[l])
-                    Egtmp, Tgtmp = self.satflux(PET_tot[t], dtwt, st)
+                SUSTtmp, Qstmp, countPONDtmp, countRunofftmp, Rptmp, Eutmp, Tutmp, Stmp = self.unsatflux(PET_tot[t], PE_tot[t], Sini, Zr_botavg, Dltop, Dlbot_tmp, Dl_tmp, Dl, Sm,Sfc,Sr,Ks,SUSTm)
+                Egtmp, Tgtmp = self.satflux(PET_tot[t], dtwt, st)
+            # heads above soil bottom
             else:
-            # TODO to be confirmed, not correct currently
-            # AQUIFER CONFINED, water table cannot rise in the soil or above topography
-                SUSTtmp, Qstmp, countPONDtmp, countRunofftmp, Rptmp, Eutmp, Tutmp, Stmp, Egtmp, Tgtmp = self.partition(PET_tot[t], PE_tot[t], Sini, Zr_botavg, Dltop, Dlbot_tmp, Dl_tmp, Sm,Sfc,Sr,Ks,SUSTm, st, dtwt)
+                countSATpart[t] = 1
+
+                Dlbot_tmp[nsl-1] = ELEV
+                Dl_tmp[nsl-1] = 0.0
+
+                Sini, SUSTprev, Estmp = self.Sini(t, Sini, DRN[t], Si, Dl_tmp, RFe_tot[t], nsl, Rpi, SUST[t-1], E0[t], SUSTprev, S, Rp, Sm)
+
+                SUSTtmp, Qstmp, countPONDtmp, countRunofftmp, Rptmp, Eutmp, Tutmp, Stmp = self.unsatflux(PET_tot[t], PE_tot[t], Sini, Zr_botavg, Dltop, Dlbot_tmp, Dl_tmp, Dl, Sm,Sfc,Sr,Ks,SUSTm)
+                Egtmp, Tgtmp = self.satflux(PET_tot[t], dtwt, st)
 
             # fill the table and compute water balance
             SUST[t]=SUSTtmp

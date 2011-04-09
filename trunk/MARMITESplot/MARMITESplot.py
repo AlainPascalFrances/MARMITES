@@ -325,7 +325,7 @@ def plotLAYER(TS, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plttitle, MM_w
         plt.xlabel('col j', fontsize=10)
         ax[L].xaxis.set_ticks(np.arange(1,ncol+1))
         ax[L].yaxis.set_ticks(np.arange(1,nrow+1))
-        if Vmax>Vmin:
+        if np.nanmax(V[L])>np.nanmin(V[L]):
             PC = plt.pcolor(xg, yg, V[L], cmap = cmap, vmin = Vmin, vmax = Vmax)
             CS = plt.contour(xg1, yg1[::-1], V[L][::-1],ticks, colors = 'gray')
             plt.clabel(CS, inline=1, fontsize=8, fmt=fmt, colors = 'gray')

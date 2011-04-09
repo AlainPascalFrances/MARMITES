@@ -211,7 +211,7 @@ TRY = 0
 TRYlst = [TRY]
 h_diff = [10]
 h_diff_log = [1]
-convcrit = 0.01
+convcrit = 0.1
 ccnum = 5 # convergence cycle number
 
 plotCONVERGENCE_export_fn = os.path.join(MM_ws, '00conv.png')
@@ -232,7 +232,7 @@ while abs(h_diff[TRY]) > convcrit:
     timestartMF = pylab.datestr2num(pylab.datetime.datetime.today().isoformat())
     print'\n##############'
     print 'MODFLOW initialization'
-    SP_d, nrow, ncol, delr, delc, nlay, perlen, nper, top, hnoflo, hdry, ibound, AqType, h_MF, cbc, cbc_nam_tmp, top_array, inputFileMF_fn, lenuni = ppMF.ppMF(MF_ws, MM_ws)
+    SP_d, nrow, ncol, delr, delc, nlay, perlen, nper, top, hnoflo, hdry, ibound, laytyp, h_MF, cbc, cbc_nam_tmp, top_array, inputFileMF_fn, lenuni = ppMF.ppMF(MF_ws, MM_ws)
 
     h_MF_m = np.ma.masked_values(h_MF, hnoflo, atol = 0.09)
     top_array_m = np.ma.masked_values(top_array, hnoflo, atol = 0.09)
@@ -249,7 +249,11 @@ while abs(h_diff[TRY]) > convcrit:
     elif lenuni == 3:
         conv_fact = 10.0
     else:
-        print 'ERROR! Define the length unit in the MODFLOW ini file!\n (see USGS Open-File Report 00-92)'
+        print 'FATAL ERROR!\nDefine the length unit in the MODFLOW ini file!\n (see USGS Open-File Report 00-92)'
+        sys.exit()
+        # TODO if lenuni<>2 apply conversion factor to delr, delc, etc...
+    if laytyp[0]==0:
+        print 'FATAL ERROR!\nThe first layer cannot be confined type!\nChange your parameter laytyp in the MODFLOW lpf package.\n(see USGS Open-File Report 00-92)'
         sys.exit()
 
     rch_fn = 'rch_per'
@@ -274,7 +278,7 @@ while abs(h_diff[TRY]) > convcrit:
     # active cells in layer 1_____________________ibound[0]
     # elevation___________________________________top
     # heads in layer n____________________________heads[timestep, row, col, layer]
-    # aquifer type of layer 1_____________________AqType
+    # aquifer type of layer 1_____________________laytyp[0]
     # numero total de time step___________________sum(perlen)
     # code for dry cell___________________________hdry
     # cell size___________________________________delr[0]
@@ -327,10 +331,8 @@ while abs(h_diff[TRY]) > convcrit:
                                     inputZON_TS_E0_fn        = inputZON_TS_E0_fn
      ) # IRR_fn
 
-    _nsl, _nam_soil, _st, _slprop, _Sm, _Sfc, _Sr, _Si, _Ks = MM_PROCESS.inputSoilParam(
-                SOILparam_fn             = SOILparam_fn,
-                NSOIL                    = NSOIL
-                )
+    # SOIL PARAMETERS
+    _nsl, _nam_soil, _st, _slprop, _Sm, _Sfc, _Sr, _Si, _Ks = MM_PROCESS.inputSoilParam(SOILparam_fn = SOILparam_fn, NSOIL = NSOIL)
     _nslmax = max(_nsl)
 
     # READ observations time series (heads and soil moisture)
@@ -555,7 +557,6 @@ while abs(h_diff[TRY]) > convcrit:
                                                  VEGarea = VEGarea_tmp,
                                                  Zr      = Zr,
                                                  perlen  = perlen[n],
-                                                 AqType  = AqType,
                                                  hdry    = hdry)
                     for k in range(len(index)-2):
                         results[i,j,k,:] = results1_temp[k,:]
@@ -569,7 +570,7 @@ while abs(h_diff[TRY]) > convcrit:
                     res_PERall[i,j,index.get('iR'),tstart:tend] = results[i,j,index.get('iR'),:]*1.0
                     res_PERall[i,j,index.get('iRn'),tstart:tend] = results[i,j,index.get('iR'),:] - results[i,j,index.get('iEg'),:] - results[i,j,index.get('iTg'),:]
                     # for the while loop
-                    h_MFsum= h_MFsum + h_MF_m[:,i,j,0].sum()/nper
+                    h_MFsum= h_MFsum + np.nansum(h_MF_m[:,i,j,0])/nper
                      # output cumulative (1) or averaged by time (sum(perlen))
                     divfact=float(perlen[n])
                     gridoutRF[i,j]      = results[i,j,index.get('iRF'),:].sum()/divfact
@@ -771,7 +772,7 @@ while abs(h_diff[TRY]) > convcrit:
         h_diff_log.append(pylab.log10(pylab.absolute(h_diff[TRY])))
     else:
         h_diff_log.append(pylab.log10(convcrit))
-    if TRY>0:
+    if TRY>1:
         fig = plt.figure()
         ax1=fig.add_subplot(2,1,1)
         plt.setp(ax1.get_xticklabels(), fontsize=8)
@@ -1007,12 +1008,12 @@ if obsCHECK == 1:
         V = [DrnHeadsLtop_m]
         diffMin = 0
         diffMax = np.nanmin(DrnHeadsLtop_m)
-        MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = 1, V = V,  cmap = plt.cm.RdYlGn, CBlabel = 'diff. between DRN elev and hyd. heads elev. (m)', msg = ' - no drainage', plttitle = 'HEADSDRNdiff', MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, Vmax = diffMin, Vmin = diffMax, fmt='%.2G')
+        MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = 1, V = V,  cmap = plt.cm.RdYlGn, CBlabel = 'diff. between DRN elev and hyd. heads elev. (m)', msg = ' - no drainage', plttitle = 'HEADSDRNdiff', MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, Vmax = diffMin, Vmin = diffMax, fmt='%.3G')
         # plot GW drainage [mm]
         V = []
         for L in range(nlay):
             V.append(-cbc[TS,iDRN,:,:,L])
-        MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater drainage (mm)', msg = '- no drainage', plttitle = 'DRN', MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, Vmin = DRNmin, Vmax = DRNmax, fmt='%.2G')
+        MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater drainage (mm/time step)', msg = '- no drainage', plttitle = 'DRN', MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, Vmin = DRNmin, Vmax = DRNmax, fmt='%.3G')
 
 timeendExport = pylab.datestr2num(pylab.datetime.datetime.today().isoformat())
 durationExport=(timeendExport-timestartExport)

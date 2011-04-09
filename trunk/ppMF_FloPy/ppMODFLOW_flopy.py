@@ -348,9 +348,15 @@ def ppMF(model_ws = '', MM_ws = ''):
         ci=0
         for v in r:
             ci=ci+1
-            layer_row_column_elevation_cond[0].append([1,ri,ci,v,1E6])
+            layer_row_column_elevation_cond[0].append([1,ri,ci,v,1E5])
     # in layer 2, cell outlet, elevation is bottom of layer 2
-    layer_row_column_elevation_cond[0].append([2,13,3,22,1])
+    row_drnL2  = 12
+    col_drnL2  = 2
+    nlay_drnL2 = 1
+    cond_drnL2 = 0.5
+    botm_drnL2 = botm_array[row_drnL2][col_drnL2][nlay_drnL2]
+    #botm_array[row_drnL2][col_drnL2][0]-(botm_array[row_drnL2][col_drnL2][0]-botm_array[row_drnL2][col_drnL2][nlay_drnL2])/4
+    layer_row_column_elevation_cond[0].append([nlay_drnL2+1,row_drnL2+1,col_drnL2+1,botm_drnL2,cond_drnL2])
 
 # average for 1st SS stress period
     if dum_sssp1 == 1:
@@ -419,7 +425,7 @@ def ppMF(model_ws = '', MM_ws = ''):
     h = mfrdbin.mfhdsread(mf, 'LF95').read_all(h_fn)
     h_1 = h[1]
     if len(h_1)<sum(perlen):
-        raise ValueError, '\nMODFLOW error!\nCheck the MODFLOW list file in folder:\n%s!' % model_ws
+        raise ValueError, '\nMODFLOW error!\nCheck the MODFLOW list file in folder:\n%s' % model_ws
     print ''
     # extract cell-by-cell budget
     cbc = mfrdbin.mfcbcread(mf, 'LF95').read_all(cbc_fn)
@@ -434,4 +440,4 @@ def ppMF(model_ws = '', MM_ws = ''):
     cbc1 = np.asarray(cbc_1)
     top_array = np.asarray(top_array)
 
-    return SP_d, nrow, ncol, delr, delc, nlay, perlen, nper, np.asarray(top_array), hnoflo, hdry, np.asarray(ibound_array), laytyp[0], h1, cbc1, cbc_nam, top_array, inputFileMF_fn, lenuni
+    return SP_d, nrow, ncol, delr, delc, nlay, perlen, nper, np.asarray(top_array), hnoflo, hdry, np.asarray(ibound_array), laytyp, h1, cbc1, cbc_nam, top_array, inputFileMF_fn, lenuni
