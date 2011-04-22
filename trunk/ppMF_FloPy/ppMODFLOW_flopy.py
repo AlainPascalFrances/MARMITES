@@ -64,14 +64,14 @@ def convASCIIraster2array(filenameIN, arrayOUT, cellsizeMF, nrow, ncol):
 
     # verify grid consistency between MODFLOW and ESRI ASCII
     if arrayOUT.shape[0] != nrow or arrayOUT.shape[1] != ncol or cellsizeMF != cellsizeEsriAscii:
-        raise BaseException, '\nError in consistency between the MODFLOW grid and the input gridof the file %s.\nCheck the cell size and the number of rows, columns and cellsize' % filenameIN
+        raise BaseException, "\nERROR! MODFLOW grid anf the ESRI ASCII grid from file %s don't correspond!.\nCheck the cell size and the number of rows, columns and cellsize." % filenameIN
 
     return arrayOUT
 
     fin.close()
 #####################################
 
-def ppMF(model_ws = '', MM_ws = ''):
+def ppMF(model_ws = '', MM_ws = '', rch_input = 0.00001, rch_dft = 0.00001):
 
     messagemanual="Please read the manual!\n(that by the way still doesn't exist...)"
 
@@ -266,11 +266,6 @@ def ppMF(model_ws = '', MM_ws = ''):
         l = l + 1
         nrchop = int(inputFile[l].strip())
         l = l + 1
-        rch_tmp =  inputFile[l].split()
-        try:
-            rch_fn=float(rch_tmp[0])
-        except ValueError:
-            rch_fn = str(rch_tmp[0])
     except:
         print "Unexpected error in the input file:\n", sys.exc_info()[0]
         sys.exit()
@@ -332,13 +327,26 @@ def ppMF(model_ws = '', MM_ws = ''):
     sy_array = list(sy_array)
 
 # RECHARGE
-    if isinstance(rch_fn,float):
-        rch_array = rch_fn
+    if isinstance(rch_input,float):
+        rch_array = rch_input
+        print '\nRecharge input: %s' % str(rch_input)
     else:
         rch_array = []
-        for n in range(nper):
-            rch_path = os.path.join(model_ws, rch_fn + str(n+1) + '.asc')
-            rch_array.append(convASCIIraster2array(rch_path, arrayOUT = np.zeros((nrow,ncol)), cellsizeMF = delr[0], nrow = nrow, ncol=ncol))
+        print '\nRecharge input: %s' % rch_input
+        try:
+            for n in range(nper):
+                rch_path = os.path.join(model_ws, rch_input + str(n+1) + '.asc')
+                if os.path.exists(rch_path):
+                    rch_array.append(convASCIIraster2array(rch_path, arrayOUT = np.zeros((nrow,ncol)), cellsizeMF = delr[0], nrow = nrow, ncol=ncol))
+                else:
+                    rch_array = rch_dft
+                    print 'WARNING! No valid recharge file(s) provided, running MODFLOW using default recharge value: %.3G' % rch_dft
+                    rch_input = rch_dft
+                    break
+        except:
+            rch_array = rch_dft
+            print 'WARNING! No valid recharge file(s) provided, running MODFLOW using default recharge value: %.3G' % rch_dft
+            rch_input = rch_dft
 
 # DRAIN
     layer_row_column_elevation_cond = [[]]
@@ -348,23 +356,24 @@ def ppMF(model_ws = '', MM_ws = ''):
         ci=0
         for v in r:
             ci=ci+1
-            layer_row_column_elevation_cond[0].append([1,ri,ci,v,1E5])
+            layer_row_column_elevation_cond[0].append([1,ri,ci,v    ,1E5])
     # in layer 2, cell outlet, elevation is bottom of layer 2
     row_drnL2  = 12
     col_drnL2  = 2
     nlay_drnL2 = 1
-    cond_drnL2 = 0.5
+    cond_drnL2 = 0.15
     botm_drnL2 = botm_array[row_drnL2][col_drnL2][nlay_drnL2]
     #botm_array[row_drnL2][col_drnL2][0]-(botm_array[row_drnL2][col_drnL2][0]-botm_array[row_drnL2][col_drnL2][nlay_drnL2])/4
     layer_row_column_elevation_cond[0].append([nlay_drnL2+1,row_drnL2+1,col_drnL2+1,botm_drnL2,cond_drnL2])
 
 # average for 1st SS stress period
     if dum_sssp1 == 1:
-        if isinstance(rch_fn,str):
+        if isinstance(rch_input,str):
             rch_array = np.asarray(rch_array)
             rch_SS = np.zeros((nrow,ncol))
             for n in range(nper):
-                rch_SS = rch_SS + rch_array[n,:,:]*perlen[n]/sum(perlen)
+                rch_SS = rch_SS + rch_array[n,:,:]
+            rch_SS = rch_SS/nper
             rch_array = list(rch_array)
             rch_array.insert(0, rch_SS)
         nper = nper + 1
@@ -401,7 +410,7 @@ def ppMF(model_ws = '', MM_ws = ''):
     # output control initialization
     oc = mfoc(mf, ihedfm=ihedfm, iddnfm=iddnfm, item2=[[0,1,1,1]], item3=[[0,0,1,0]], extension=[ext_oc,ext_cbc,ext_heads,ext_ddn])
     # preconditionned conjugate-gradient initialization
-    pcg = mfpcg(mf)
+    pcg = mfpcg(mf, mxiter = 100, iter1=50, hclose=1e-2, rclose=1e-2, npcond = 1, relax = 1)
     # write packages files
     dis.write_file()
     bas.write_file()
@@ -418,10 +427,10 @@ def ppMF(model_ws = '', MM_ws = ''):
     if os.path.exists(cbc_fn):
         os.remove(cbc_fn)
     # run MODFLOW and read the heads back into Python
-    print "\nMODFLOW run...\n"
     mf.write_name_file()
     mf.run_model(pause = False)
     # extract heads
+    print ''
     h = mfrdbin.mfhdsread(mf, 'LF95').read_all(h_fn)
     h_1 = h[1]
     if len(h_1)<sum(perlen):

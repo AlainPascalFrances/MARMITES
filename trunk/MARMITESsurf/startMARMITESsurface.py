@@ -579,16 +579,16 @@ def MMsurf(inputFOLDER_fn="", inputFile_TS_fn="", inputFile_PAR_fn="", outputFIL
     outFileExport.write('\n# inputZON_TS_E0_fn: RF zones\n')
     outFileExport.write(inputZON_TS_E0_fn)
     outFileExport.write('\n# TRANS_vdw\n')
-    for v in range(len(TRANS_vdw)):
+    for v in range(1,len(TRANS_vdw)):
         outFileExport.write(str(TRANS_vdw[v])+' ')
     outFileExport.write('\n# Zr\n')
-    for v in range(len(Zr)):
+    for v in range(1,len(Zr)):
         outFileExport.write(str(Zr[v])+' ')
-    outFileExport.write('\n# k_Tu_d\n')
-    for v in range(len(k_Tu_d)):
+    outFileExport.write('\n# k_Tu_slp\n')
+    for v in range(1,len(k_Tu_d)):
         outFileExport.write(str(k_Tu_d[v])+' ')
-    outFileExport.write('\n# k_Tu_w\n')
-    for v in range(len(k_Tu_w)):
+    outFileExport.write('\n# k_Tu_inter\n')
+    for v in range(1,len(k_Tu_w)):
         outFileExport.write(str(k_Tu_w[v])+' ')
     outFileExport.write('\n# TRANS_sdw\n')
     for v in range(len(TRANS_sdw)):
@@ -602,7 +602,5 @@ def MMsurf(inputFOLDER_fn="", inputFile_TS_fn="", inputFile_PAR_fn="", outputFIL
     outFileExport.close()
 
     return MARMsurf_fn
-
-    print '\nMARMITESsurface DONE!\n##############'
     ###############################################
      #   EOF   #

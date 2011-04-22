@@ -52,7 +52,7 @@ class UNSAT:
                 Sr          Residual Soil moiture storage
                 Si          Inicial soil moisture
                 Ks          Saturated hydraulic condutivity
-                SUSTm     Max. surface storage
+                PONDm       Max. ponding capacity
             STATE VARIABLES
                 RF           Daily rainfall
                 PET         Daily evapotranspiration
@@ -61,8 +61,8 @@ class UNSAT:
             ETu             Daily evapotranspiration
             S               Daily soil moisture
             Rp              Daily percolation
-            SUST            Daily ponding
-            Qs              Daily runoff
+            POND            Daily ponding
+            Ro              Daily runoff
 
     Provide daily values for the LINRES module
     ______________________________________________________________________________
@@ -71,6 +71,7 @@ class UNSAT:
 
     def __init__(self, hnoflo):
         self.hnoflo = hnoflo
+
 ##        @ARTICLE{Shah2007,
 ##          author = {Shah, Nirjhar and Nachabe, Mahmood and Ross, Mark},
 ##          title = {Extinction Depth and Evapotranspiration from Ground Water under Selected
@@ -93,151 +94,175 @@ class UNSAT:
                        'silt loam'       : {'dll':380.0,'y0':0.006,'b':0.0019, 'ext_d':4200.0},
                        'silt'            : {'dll':310.0,'y0':0.007,'b':0.0021, 'ext_d':4300.0},
                        'silty clay loam' : {'dll':400.0,'y0':0.007,'b':0.0021, 'ext_d':4500.0},
-                       'clay'            : {'dll':450.0,'y0':0.006,'b':0.0019, 'ext_d':6200.0},
-                       }
+                       'clay'            : {'dll':450.0,'y0':0.006,'b':0.0019, 'ext_d':6200.0}
+}
 
 #####################
 
-    def unsatflux(self, PET, PE, Sini, Zr_botavg, Dltop_tmp, Dlbot_tmp, Dl_tmp, Dl, Sm, Sfc, Sr, Ks, SUSTm):
+    def flux(self, RFe, PET, PE, S, Sini, Rp, Zr_elev, VEGarea, HEADStmp, Dltop, Dlbot, Dl, nsl, Sm, Sfc, Sr, Ks, PONDm, t, Si, Rpi, DRN, DRNi, PONDi, E0, dtwt, st, i, j, n, k_Tu_slp, k_Tu_inter):
 
-        def pond(s_tmp,Dl,Sm,SUSTm):
+        def surfwater(s_tmp,Vm,PONDm, E0, i, j, n):
             '''
             Ponding and surface runoff function
             '''
-            countPOND_tmp = 0
-            countRunoff_tmp = 0
-            if (s_tmp-Sm)>0.000001:
-                sust_tmp =Dl*(s_tmp-Sm)
-                if SUSTm>0.0:
-                    countPOND_tmp = 1
-                if sust_tmp-SUSTm >= 0.000001:
-                    qs_tmp =(sust_tmp-SUSTm)
-                    sust_tmp = SUSTm
-                    countRunoff_tmp = 1
+            if (s_tmp-Vm) > 1E-6:
+                sust_tmp = s_tmp-Vm
+                if sust_tmp-PONDm >= 1E-6:
+                    Ro_tmp = sust_tmp-PONDm
+                    sust_tmp = PONDm
                 else:
-                    qs_tmp =(0.0)
+                    Ro_tmp = 0.0
+                if sust_tmp - E0 >= 1E-6:
+                    Estmp = E0
+                    sust_tmp = sust_tmp - E0
+                else:
+                    Estmp = sust_tmp
+                    sust_tmp = 0.0
             else:
-                sust_tmp =(0.0)
-                qs_tmp =(0.0)
-            return sust_tmp, qs_tmp, countPOND_tmp, countRunoff_tmp
+                sust_tmp = 0.0
+                Ro_tmp = 0.0
+                Estmp = 0.0
+            return sust_tmp, Ro_tmp, Estmp
 
         ##################
 
-        def perc(s_tmp,Dl,Sm,Sfc,Ks, s_lp1, Dl_sp1, Sm_sp1):
-            '''
-            Percolation function
-            '''
-            # Percent. of gravitational water
-            Sg=(s_tmp-Sfc)/(Sm-Sfc)
-            if s_tmp-Sfc<=0.000001:
-                rp_tmp= (0.0)
-            elif (s_tmp-Sfc)>0.000001 and (s_tmp-Sm)<=0.000001:
-                if (Ks*Sg-Dl*(s_tmp-Sfc))> 0.000001:
-                    rp_tmp= Dl*(s_tmp-Sfc)
-                else:
-                    rp_tmp= Ks*Sg
-            elif (s_tmp-Sm)>0.000001:
-                if Ks-Dl*(Sm-Sfc)>0.000001:
-                    rp_tmp= Dl*(Sm-Sfc)
-                else:
-                    rp_tmp = Ks
-            if rp_tmp-(Sm_sp1-s_lp1)*Dl_sp1>0.000001:
-                rp_tmp = (Sm_sp1-s_lp1)*Dl_sp1
-            return rp_tmp
-
-        ##################
-
-        def perc1(s_tmp,Dl,Sm,Sfc,Ks, s_lp1, Dl_sp1, Sm_sp1):
+        def perc(s_tmp,Sm,Sfc,Ks, s_lp1, Sm_sp1, i, j, n):
             '''
             Percolation function
             # SWAT PERCOLATION pag 150 chap 2:3.2
             '''
-            SWe = (s_tmp-Sfc)*Dl
-            TTperc = (Sm-Sfc)*Dl/Ks
-            if (s_tmp-Sfc)<=0.000001:
+            SWe = s_tmp-Sfc
+            TTperc = (Sm-Sfc)/Ks
+            if (s_tmp-Sfc)<=1E-6:
                 rp_tmp = 0.0
-            elif (s_tmp-Sfc)>0.000001:
+            elif (s_tmp-Sfc)>1E-6:
                 rp_tmp = SWe*(1-(pylab.exp(-1/TTperc)))
+                # verify the vol. available in deeper soil layer
+                if rp_tmp-(Sm_sp1 - s_lp1)>1E-6:
+                    rp_tmp = Sm_sp1 - s_lp1
             return rp_tmp
 
         ##################
 
-        def evp(s_tmp,pet,Dl,Sm,Sr):
+        def evp(s_tmp,pet,Sm,Sr, i, j, n):
             '''
             Actual evapotranspiration function
             '''
             # Percent. of soil saturation
-            Se=(s_tmp-Sr)/(Sm-Sr)
-            if s_tmp-Sr<=0.000001:
+            Se=(s_tmp - Sr)/(Sm - Sr)
+            if s_tmp - Sr <= 1E-6:
                 evp_tmp= 0.0
-            elif s_tmp-Sr>0.000001 and s_tmp-Sm<=0.000001:
-                if (pet*Se-(Dl*(s_tmp-Sr)))> 0.000001:
-                    evp_tmp= Dl*(s_tmp-Sr)
+            elif s_tmp - Sr > 1E-6 and s_tmp - Sm <= 1E-6:
+                if (pet*Se - (s_tmp - Sr))> 1E-6:
+                    evp_tmp= s_tmp - Sr
                 else:
                     evp_tmp= pet*Se
-            elif (s_tmp-Sm)>0.000001:
-                if pet-Dl*(Sm-Sr)>0.000001:
-                    evp_tmp= Dl*(Sm-Sr)
+            elif (s_tmp - Sm) > 1E-6:
+                if pet-(Sm - Sr) > 1E-6:
+                    evp_tmp= Sm - Sr
                 else:
                     evp_tmp= pet
             return evp_tmp
 
-        # MAIN
-        # SUST and Qs
-        PONDtmp = pond(Sini[0]/Dl_tmp[0],Dl_tmp[0],Sm[0],SUSTm)
-        SUSTtmp = PONDtmp[0]
-        Qstmp = PONDtmp[1]
-        countPONDtmp = PONDtmp[2]
-        countRunofftmp = PONDtmp[3]
-        Sini[0] = Sini[0]-(SUSTtmp+Qstmp)/Dl_tmp[0]
-
-        Rptmp = []
-        Tutmp = []
-        Eutmp = []
-        for l in range(len(Dl_tmp)):
-            if Dl_tmp[l] == 0.0: # it means that the soil layer is fully saturated by GW
-                Rptmp.append(0.0)
-                Eutmp.append(0.0)
-                Tutmp.append(0.0)
-                Sini[l]=Sm[l]
-            else:
-                # Rp
-                if l==len(Dl_tmp)-1:
-                    Rptmp.append(perc1(Sini[l],Dl_tmp[l],Sm[l],Sfc[l],Ks[l],0,1,1))
-                else:
-                    Rptmp.append(perc1(Sini[l],Dl_tmp[l],Sm[l],Sfc[l],Ks[l], Sini[l+1]/Dl_tmp[l+1],Dl_tmp[l+1], Sm[l+1]))
-                Sini[l] = Sini[l]-Rptmp[l]/Dl_tmp[l]
-                # Tu
-                if l>0:
-                    PET = PET - Tutmp[l-1]
-                if PET>0.0:
-                    if Dlbot_tmp[l] > Zr_botavg :
-                        Tutmp.append(evp(Sini[l],PET,Dl_tmp[l],Sm[l],Sr[l]))
-                    elif Dltop_tmp[l] > Zr_botavg:
-                        PETc = PET*(Dltop_tmp[l]-Zr_botavg)/Dl_tmp[l]
-                        Tutmp.append(evp(Sini[l],PETc,Dl_tmp[l],Sm[l],Sr[l]))
-                    else:
-                        Tutmp.append(0.0)
-                else:
-                    Tutmp.append(0.0)
-                Sini[l]=Sini[l]-Tutmp[l]/Dl_tmp[l]
-                # Eu
-                if l>0:
-                    PE = PE - Eutmp[l-1]
-                if PE>0.0:
-                    Eutmp.append(evp(Sini[l],PE,Dl_tmp[l],Sm[l],Sr[l]))
-                else:
-                    Eutmp.append(0.0)
-                Sini[l]=Sini[l]-Eutmp[l]/Dl_tmp[l]
-
-        return (SUSTtmp, Qstmp, countPONDtmp, countRunofftmp, Rptmp, Eutmp, Tutmp, Sini)
-
         ##################
 
-    def satflux(self, PE, dtwt, st):
-        '''
-        Groundwater evaporation, equation 17 of Shah et al 2007, see ref in the __init__
-        '''
+        # S from previous time step
+        # if first time step, use Si
+        for l in range(nsl):
+            if t == 0:
+                Sini[l] = Si[l]
+            else:
+                Sini[l] = S[l,t-1]
+
+        # percolation from previous time step
+        # if first time step, use Rpi
+        for l in range(nsl-1):
+            if t == 0:
+                Rpprev = Rpi[l]
+            else:
+                Rpprev = Rp[l,t-1]
+            if Dl[l+1]>0.0:
+                if Rpprev - (Sm[l+1]*Dl[l+1]-Sini[l+1]) > 1E-6:
+                    Rpprev = Rpprev - (Sm[l+1]*Dl[l+1]-Sini[l+1])
+                    Sini[l+1] = Sm[l+1]*Dl[l+1]
+                    Sini[l] = Sini[l] + Rpprev
+                else:
+                    Sini[l+1] = Sini[l+1] + Rpprev
+            else:
+                Sini[l] = Sini[l] + Rpprev
+
+        DRNcorr = 0.0
+        if DRN == 0.0:
+            if DRNi>0.0:
+                DRNcorr = (Sfc[nsl-1]-Sr[nsl-1])*Dl[nsl-1]
+                Sini[nsl-1] = Sfc[nsl-1]*Dl[nsl-1]
+        else:
+            # GW seepage
+            llst = range(nsl-1)
+            llst.reverse()
+            for l in llst:
+                if DRN - (Sm[l]*Dl[l]-Sini[l]) > 1E-6:
+                    DRN = DRN - (Sm[l]*Dl[l]-Sini[l])
+                    Sini[l] = Sm[l]*Dl[l]
+                else:
+                    Sini[l] = Sini[l] + DRN
+                    DRN = 0.0
+            Sini[nsl-1] = None
+
+        # infiltration
+        Sini[0] = Sini[0] + (RFe + PONDi + DRN)
+
+        # POND and Ro
+        surfwatertmp = surfwater(Sini[0],Sm[0]*Dl[0],PONDm, E0, i, j, n)
+        PONDtmp = surfwatertmp[0]
+        Rotmp = surfwatertmp[1]
+        Estmp = surfwatertmp[2]
+        Sini[0] = Sini[0]-(PONDtmp+Rotmp+Estmp)
+
+        Rptmp = np.zeros([nsl])
+        Rtmp = 0.0
+        TutmpZr = np.zeros([nsl,len(Zr_elev)])
+        Tutmp = np.zeros([nsl])
+        Eutmp = np.zeros([nsl])
+        Spc = np.zeros([nsl])
+        # soil layers and vadose zone layer
+        for l in range(nsl):
+            # Rp
+            if l < (nsl-1):
+                if Dl[l+1]>0.0:
+                    Rptmp[l] = perc(Sini[l],Sm[l]*Dl[l],Sfc[l]*Dl[l],Ks[l], Sini[l+1], Sm[l+1]*Dl[l+1], i, j, n)
+                    Sini[l] = Sini[l]-Rptmp[l]
+            else:
+                if Dl[l]>0.0:
+                    Rptmp[l] = perc(Sini[l],Sm[l]*Dl[l],Sfc[l]*Dl[l],Ks[l],0.0,1.0E6, i, j, n)
+                    Rtmp = Rptmp[l]
+                    Sini[l] = Sini[l]-Rptmp[l]
+            if Dl[l]>0.0:
+                # Eu
+                if PE>0.0:
+                    Eutmp[l] = evp(Sini[l],PE,Sm[l]*Dl[l],Sr[l]*Dl[l], i, j, n)
+                Sini[l] = Sini[l]-Eutmp[l]
+                PE = PE - Eutmp[l]
+                # Tu
+                for z in range(len(Zr_elev)):
+                    if PET[z]>0.0:
+                        if Dlbot[l] > Zr_elev[z]:
+                            TutmpZr[l,z] = evp(Sini[l],PET[z],Sm[l]*Dl[l],Sr[l]*Dl[l], i, j, n)
+                        elif Dltop[l] > Zr_elev[z]:
+                            PETc = PET[z]*(Dltop[l]-Zr_elev[z])/Dl[l]
+                            TutmpZr[l,z] = evp(Sini[l],PETc,Sm[l]*Dl[l],Sr[l]*Dl[l], i, j, n)
+                        PET[z] = PET[z] - TutmpZr[l,z]
+                        Tutmp[l] = Tutmp[l] + TutmpZr[l,z]*VEGarea[z]/100
+                Sini[l] = Sini[l]-Tutmp[l]
+
+        for l in range(nsl):
+            if Dl[l]>0.0:
+                Spc[l] = Sini[l]/Dl[l]
+            else:
+                Spc[l] = Sm[l]
+                Sini[l] = Sm[l]*Dl[l]
+
+        # GW evaporation, equation 17 of Shah et al 2007, see ref in the __init__
         if PE>0.0:
             y0  = self.paramEg[st]['y0']
             b   = self.paramEg[st]['b']
@@ -253,65 +278,28 @@ class UNSAT:
         else:
             Egtmp =0.0
 
+        # Groundwater transpiration
+        TgtmpZr = np.zeros([len(Zr_elev)])
         Tgtmp = 0.0
+        for z in range(len(Zr_elev)):
+            if HEADStmp > Zr_elev[z]:
+                # TODO correct average soil moisture in the case vadose layer is filled with GW
+                k_Tu = k_Tu_slp[z]*sum(Spc[0:nsl-1])/(nsl-1) + k_Tu_inter[z]
+                TgtmpZr[z] = sum(TutmpZr[0:nsl-1,z]/(nsl-1))*(1/k_Tu-1)
+                if TgtmpZr[z]>PET[z]:
+                    TgtmpZr[z] = PET[z]
+                Tgtmp = Tgtmp + TgtmpZr[z]*VEGarea[z]/100
 
-        return (Egtmp, Tgtmp)
-
-        ##################
-
-    def Sini(self, t, Sini, DRN, Si, Dl_tmp, RFe_tot, nsl, Rpi, SUST, E0, SUSTprev, S, Rp, Sm):
-
-        if t == 0:
-            # if first time step, use Si and Rpi
-            Sini[0] = Si[0] + RFe_tot/Dl_tmp[0]
-            if nsl>1:
-                for l in range(1,nsl):
-                    Sini[l] = Si[l] + Rpi[l-1]/Dl_tmp[l]
-            SUSTprev = 0.0
-            Estmp = 0.0
-        else:
-            SUSTprev = SUST
-            # soil reservoir water content initialisation
-            # test if SUST can infiltrate in soil
-            # compute Es from SUST and E0
-            if E0-SUSTprev>=0.000001:
-                Sini[0] = S[0,t-1] + RFe_tot/Dl_tmp[0]
-                Estmp = SUSTprev
-            else:
-                Sini[0] = S[0,t-1] + (RFe_tot + SUSTprev-E0)/Dl_tmp[0]
-                Estmp = E0
-            if nsl>1:
-                for l in range(1,nsl):
-                    if Dl_tmp[l] < 0.000001:
-                        Sini[l] = Sm[l]
-                    else:
-                        Sini[l] = S[l,t-1] + Rp[l-1,t-1]/Dl_tmp[l]
-        if DRN>0.0:
-            SVolAv = []
-            llst = range(nsl-1)
-            llst.reverse()
-            for l in llst:
-                if Sm[l]-Sini[l]>0.000001:
-                    SVolAv.append((Sm[l]-Sini[l])*Dl_tmp[l])
-                else:
-                    SVolAv.append(0.0)
-                if DRN>SVolAv[nsl-l-2]:
-                    Sini[l]=Sm[l]
-                    DRN = DRN-SVolAv[nsl-l-2]
-                else:
-                    Sini[l]=Sini[l]+DRN/Dl_tmp[l]
-                    DRN=0
-            SUSTprev = SUSTprev+DRN
-
-        return Sini, SUSTprev, Estmp
+        return Estmp, PONDtmp, Rotmp, Rptmp, Eutmp, Tutmp, Sini, Spc, Rtmp, Egtmp, Tgtmp, DRNcorr
 
 #####################
 
-    def run(self, i, j,
-                  nsl, st, slprop, Sm, Sfc, Sr, Si, Rpi, D, Ks, SUSTm,
-                  ELEV, HEADS, DRN,
+    def run(self, i, j, n,
+                  nsl, st, slprop, Sm, Sfc, Sr, Si, PONDi, Rpi, D, Ks, PONDm,
+                  ELEV, HEADS, DRN, DRNi,
                   RF, E0, PETveg, RFeveg, PEsoil, VEGarea, Zr,
-                  perlen, hdry):
+                  perlen, hdry,
+                  k_Tu_slp, k_Tu_inter):
 
         # Output initialisation
         Ttotal=len(RF)
@@ -321,30 +309,40 @@ class UNSAT:
         PE_tot=np.zeros([Ttotal], dtype=float)
         # RFe for the vegetation patchwork
         RFe_tot=np.zeros([len(RFeveg[0])], dtype=float)
-        # Surface storage initialisation
-        SUST=np.zeros([Ttotal], dtype=np.float)
-        # Surface runoff initialisation
-        Qs=np.zeros([Ttotal], dtype=np.float)
-        #Deep percolation initialisation
-        Rp=np.zeros([nsl,Ttotal], dtype=np.float)                             #Soil moisture storage initialisation
-        S=np.zeros([nsl,Ttotal], dtype=np.float)                              #Actual evaporation from unsaturated zone initialisation
+        # vegetation interception (weigthed average patchwork)
+        INTER=np.zeros([Ttotal], dtype=np.float)
+        # Ponding storage
+        POND=np.zeros([Ttotal], dtype=np.float)
+        # Ponding storage change
+        dPOND=np.zeros([Ttotal], dtype=np.float)
+        # Surface runoff (hortonian and saturated overland flow)
+        Ro=np.zeros([Ttotal], dtype=np.float)
+        #Deep percolation
+        Rp=np.zeros([nsl,Ttotal], dtype=np.float)
+        #Soil moisture storage
+        S=np.zeros([nsl,Ttotal], dtype=np.float)
+        #Soil moisture storage in volumetric percent of saturation
+        Spc=np.zeros([nsl,Ttotal], dtype=np.float)
+        #Soil moisture storage changes
+        dS=np.zeros([nsl,Ttotal], dtype=np.float)
+        #Actual evaporation from unsaturated zone
         Eu=np.zeros([nsl,Ttotal], dtype=np.float)
-        #Actual transpiration from unsaturated zone initialisation
+        #Actual transpiration from unsaturated zone
         Tu=np.zeros([nsl,Ttotal], dtype=np.float)
-        #Actual evapotranspiration from surface initialisation
+        #Actual evapotranspiration from surface
         Es=np.zeros([Ttotal], dtype=np.float)
-        #Flood frequency (saturated overland flow)
-        countFLOOD=np.zeros([Ttotal], dtype=int)
-        #soil partial saturation by GW frequency
-        countSATpart=np.zeros([Ttotal], dtype=int)
+        # GW seepage into soil zone
+        SEEPAGE=np.zeros([Ttotal], dtype=int)
         #MASS BALANCE
         MB=np.zeros(Ttotal, dtype=float)
-        # hortonian overland flow
-        countPOND=np.zeros([Ttotal], dtype=int)
-        countRunoff=np.zeros([Ttotal], dtype=int)
-        INTER=np.zeros([Ttotal], dtype=np.float)
+        # bare soil GW evaporation
         Eg=np.zeros([Ttotal], dtype=np.float)
+        # GW transpiration
         Tg=np.zeros([Ttotal], dtype=np.float)
+        # GW recharge
+        R=np.zeros([Ttotal], dtype=np.float)
+        # GW net recharge
+        Rn=np.zeros([Ttotal], dtype=np.float)
 
         if D < 0.05: #correct soil thickness less than 5cm
             D=0.05
@@ -371,10 +369,9 @@ class UNSAT:
                 Dlbot[l] = Dltop[l]-Dl[l]
         Dltop[nsl-1] = Dlbot[nsl-2]
 
-        Zr_tmp = 0.0
+        Zr_elev = []
         for z in range(len(Zr)):
-            Zr_tmp = Zr_tmp + Zr[z]*VEGarea[z]/100
-        Zr_botavg = 1000*Zr_tmp/len(Zr)
+            Zr_elev.append(Dtop - Zr[z]*1000)
 
         # PROCESSING THE WHOLE DATA SET
         for t in range(int(perlen)):    # t: current time step
@@ -384,92 +381,80 @@ class UNSAT:
             SOILarea = 100
             for v in range(len(PETveg)):
                 if VEGarea[v]<>self.hnoflo:
-                    PET_tot[t] = PET_tot[t]+PETveg[v,t]*VEGarea[v]/100
                     RFe_tot[t] = RFe_tot[t]+RFeveg[v,t]*VEGarea[v]/100
+                    PET_tot[t] = PET_tot[t]+PETveg[v,t]*VEGarea[v]/100
                     SOILarea = SOILarea - VEGarea[v]
             RFe_tot[t] = RFe_tot[t] + RF[t]*SOILarea/100
             INTER[t] = RF[t] - RFe_tot[t]
             PE_tot[t] = PEsoil[t]*SOILarea/100
 
             # handle drycell
-            if np.abs(HEADS[t]-hdry) > 1E+22:
-                HEADStmp = Dbot - 1000
+            if HEADS[t]>hdry-1E3:
+                HEADStmp = Dbot - 100000
             else:
                 HEADStmp=HEADS[t]*1000
             dtwt = Dtop-HEADStmp
 
             Sini = np.zeros([nsl], dtype=float)
-            SUSTprev = []
-
-            # reservoir thickness re-initialization
-            Dltop_tmp = Dltop*1.0
-            Dlbot_tmp = Dlbot*1.0
-            Dl_tmp    = Dl*1.0
 
             # heads below soil bottom
             if DRN[t]==0.0:
                 # bottom boundary
-                Dlbot_tmp[nsl-1] = HEADStmp
-                Dl_tmp[nsl-1] = Dltop_tmp[nsl-1] - HEADStmp
+                Dlbot[nsl-1] = HEADStmp
+                Dl[nsl-1] = Dltop[nsl-1] - HEADStmp
+                for l in range(nsl):
+                    Si[l] = Si[l]*Dl[l]
+                # fluxes
+                Estmp, PONDtmp, Rotmp, Rptmp, Eutmp, Tutmp, Stmp, Spctmp, Rtmp, Egtmp, Tgtmp, DRNcorr = self.flux(RFe_tot[t], PETveg[:,t], PE_tot[t], S, Sini, Rp, Zr_elev, VEGarea, HEADStmp, Dltop, Dlbot, Dl, nsl, Sm, Sfc, Sr, Ks, PONDm, t, Si, Rpi, DRN[t], DRNi, PONDi, E0[t], dtwt, st, i, j, n, k_Tu_slp, k_Tu_inter)
 
-                Sini, SUSTprev, Estmp = self.Sini(t, Sini, DRN[t], Si, Dl_tmp, RFe_tot[t], nsl, Rpi, SUST[t-1], E0[t], SUSTprev, S, Rp, Sm)
-
-                SUSTtmp, Qstmp, countPONDtmp, countRunofftmp, Rptmp, Eutmp, Tutmp, Stmp = self.unsatflux(PET_tot[t], PE_tot[t], Sini, Zr_botavg, Dltop, Dlbot_tmp, Dl_tmp, Dl, Sm,Sfc,Sr,Ks,SUSTm)
-                Egtmp, Tgtmp = self.satflux(PET_tot[t], dtwt, st)
             # heads above soil bottom
             else:
-                countSATpart[t] = 1
-
-                Dlbot_tmp[nsl-1] = ELEV
-                Dl_tmp[nsl-1] = 0.0
-
-                Sini, SUSTprev, Estmp = self.Sini(t, Sini, DRN[t], Si, Dl_tmp, RFe_tot[t], nsl, Rpi, SUST[t-1], E0[t], SUSTprev, S, Rp, Sm)
-
-                SUSTtmp, Qstmp, countPONDtmp, countRunofftmp, Rptmp, Eutmp, Tutmp, Stmp = self.unsatflux(PET_tot[t], PE_tot[t], Sini, Zr_botavg, Dltop, Dlbot_tmp, Dl_tmp, Dl, Sm,Sfc,Sr,Ks,SUSTm)
-                Egtmp, Tgtmp = self.satflux(PET_tot[t], dtwt, st)
-
-            # fill the table and compute water balance
-            SUST[t]=SUSTtmp
-            Qs[t]=Qstmp
-            Es[t]=Estmp
-            Eg[t]=Egtmp
-            Tg[t]=Tgtmp
-            countPOND[t]=countPONDtmp
-            countRunoff[t]=countRunofftmp
+                # bottom boundary
+                Dlbot[nsl-1] = ELEV
+                Dl[nsl-1] = 0.0
+                for l in range(nsl):
+                    Si[l] = Si[l]*Dl[l]
+                # fluxes
+                Estmp, PONDtmp, Rotmp, Rptmp, Eutmp, Tutmp, Stmp, Spctmp, Rtmp, Egtmp, Tgtmp, DRNcorr = self.flux(RFe_tot[t], PETveg[:,t], PE_tot[t], S, Sini, Rp, Zr_elev, VEGarea, HEADStmp, Dltop, Dlbot, Dl, nsl, Sm, Sfc, Sr, Ks, PONDm, t, Si, Rpi, DRN[t], DRNi, PONDi, E0[t], dtwt, st, i, j, n, k_Tu_slp, k_Tu_inter)
+            # fill the output arrays
+            POND[t]=PONDtmp
+            Ro[t] = Rotmp
+            Es[t] = Estmp
+            Eg[t] = Egtmp
+            Tg[t] = Tgtmp
+            R[t]  = Rtmp
             for l in range(nsl):
                 S[l,t]=Stmp[l]
+                Spc[l,t]=Spctmp[l]
                 Rp[l,t]=Rptmp[l]
                 Eu[l,t]=Eutmp[l]
                 Tu[l,t]=Tutmp[l]
-
+            Rn[t] = R[t] - Eg[t] -Tg[t] - DRNcorr
+            if POND[t]>PONDi:
+                dPOND[t] = POND[t] - PONDi
             # compute the water mass balance (MB) in the unsaturated zone
-            if countFLOOD[t]==0:
-                RpMB=0.0
-                EuMB=0.0
-                TuMB=0.0
-                SMB=0.0
-                for l in range(len(Dl)):
-                    EuMB = EuMB + Eu[l,t]
-                    TuMB = TuMB + Tu[l,t]
-                    if t==0:
-                        SMB=SMB+(S[l,t]-Si[l])*Dl_tmp[l]
-                        if l == 0:
-                            RpMB  = RpMB + Rp[l,t]
-                        else:
-                            RpMB  = RpMB + Rp[l,t] - Rpi[l-1]
-                    else:
-                        SMB=SMB+(S[l,t]-S[l,t-1])*Dl_tmp[l]
-                        if l == 0:
-                            RpMB  = RpMB + Rp[l,t]
-                        else:
-                            RpMB  = RpMB + Rp[l,t] - Rp[l-1,t-1]
-                MB[t]=RF[t]+SUSTprev-INTER[t]-Qs[t]-SUST[t]-Es[t]-RpMB-EuMB-TuMB-SMB
-            else:
-                MB[t]=HEADStmp-ELEV-SUST[t]-Qs[t]+SUSTprev
+            RpinMB=0.0
+            RpoutMB=0.0
+            EuMB=0.0
+            TuMB=0.0
+            for l in range(nsl):
+                EuMB = EuMB + Eu[l,t]
+                TuMB = TuMB + Tu[l,t]
+                RpoutMB = RpoutMB + Rp[l,t]
+                if t==0:
+                    dS[l,t] = S[l,t]-Si[l]
+                    if l<(nsl-1):
+                        RpinMB = RpinMB + Rpi[l]
+                else:
+                    dS[l,t] = (S[l,t]-S[l,t-1])
+                    if l<(nsl-1):
+                        RpinMB = RpinMB + Rp[l, t-1]
+            MB[t]=RF[t]+PONDi+DRN[t]+RpinMB-DRNcorr-INTER[t]-Ro[t]-POND[t]-Es[t]-EuMB-TuMB-RpoutMB-sum(dS[:,t])
 
-#index = {'iRF':0, 'iPET':1, 'iPE':2, 'iRFe':3, 'iSUST':4, 'iQs':5, 'iFLOOD':6, 'iEs':7, 'iSATpart':8, 'iMB':9, 'iINTER':10, 'iPOND':11, 'iRunoff':12, 'iE0':13, 'iEg':14, 'iTg':15, 'iR':16, 'iRn':17}
-        results1 = [RF, PET_tot, PE_tot, RFe_tot, SUST, Qs, countFLOOD, Es, countSATpart, MB, INTER, countPOND, countRunoff, E0, Eg, Tg]
-        results2 = [Eu, Tu, S, Rp]
+        # index = {'iRF':0, 'iPET':1, 'iPE':2, 'iRFe':3, 'iPOND':4, 'iRo':5, 'iSEEPAGE':6, 'iEs':7, 'iMB':8, 'iINTER':9, 'iE0':10, 'iEg':11, 'iTg':12, 'iR':13, 'iRn':14, 'idPOND':15}
+        results1 = [RF, PET_tot, PE_tot, RFe_tot, POND, Ro, DRN, Es, MB, INTER, E0, Eg, Tg, R, Rn, dPOND]
+        # index_S = {'iEu':0, 'iTu':1,'iS':2, 'iRp':3}
+        results2 = [Eu, Tu, Spc, Rp, dS, S]
 
         results1 = np.asarray(results1)
         results2 = np.asarray(results2)
@@ -735,6 +720,8 @@ class PROCESS:
         nsl.append(0)
         for i in range(SOILzones):
             nsl.append(int(inputFile[i+1]))
+            if nsl[i+1]<2:
+                raise InputError, '\nERROR!\nThe model requires at least one soil layer and one layer in the unsaturated zone.\nMARMITEs only found %2d layer in soil %s' % (nsl[i+1],nam_soil[z])
 
         # soil parameter definition for each soil type
         nslst = SOILzones+1
@@ -765,9 +752,9 @@ class PROCESS:
                 Ks[z].append(float(inputFile[nslst]))
                 nslst = nslst + 1
             if sum(slprop[z][0:nsl[z+1]-1])>1:
-                raise ValueError, '\nERROR!\nThe sum of the soil layers proportion of %s is >1!\nCorrect your soil data input!\nEXISTING MARMITES\n' % nam_soil[z]
+                raise ValueError, '\nERROR!\nThe sum of the soil layers proportion of %s is >1!\nCorrect your soil data input!\n' % nam_soil[z]
             if sum(slprop[z][0:nsl[z+1]-1])<1:
-                raise ValueError, '\nERROR!\nThe sum of the soil layers proportion of %s is <1!\nCorrect your soil data input!\nEXISTING MARMITES\n' % nam_soil[z]
+                raise ValueError, '\nERROR!\nThe sum of the soil layers proportion of %s is <1!\nCorrect your soil data input!\n' % nam_soil[z]
 
         return nsl[1:len(nsl)], nam_soil, st, slprop, Sm, Sfc, Sr, Si, Ks
 
@@ -786,7 +773,7 @@ class PROCESS:
         else:
             raise BaseException, "The file %s doesn't exist!!!" % filenameIN
 
-        # define a dictionnary of observatins,  format is: Name (key) x y i j hi h0 RC STO
+        # define a dictionnary of observations,  format is: Name (key) x y i j hi h0 RC STO
         obs = {}
         for i in range(1,len(lines)):
             line = lines[i].split()
@@ -910,23 +897,24 @@ class PROCESS:
                 outPESTsm.write((obsname+'SM').ljust(10,' ')+ date.ljust(14,' ')+ '00:00:00        '+ str(results_S[i,j,index_S.get('iS'),0,t]) + '    \n')
             else:
                 obs_S_tmp = str(self.hnoflo)
-            # header='Date,RF,E0,PET,PE,RFe,Inter,'+Eu_str+Tu_str+'Eg,Tg,Es,'+S_str+'SUST,SUSTcount,Qs,Qscount,'+Rp_str+'R,hSATFLOW,hMF,hmeas,Smeas,SSATpart,FLOODcount,MB\n'
+            # header='Date,RF,E0,PET,PE,RFe,Inter,'+Eu_str+Tu_str+'Eg,Tg,Es,'+S_str+'dPOND,POND,Ro,SEEPAGE,'+Rp_str+'R,hSATFLOW,hMF,hmeas,Smeas,MB\n'
             Sout = ''
+            Spcout = ''
             Rpout=''
             Euout=''
             Tuout=''
             for l in range(_nslmax):
                 Sout = Sout + str(results_S[i,j,index_S.get('iS'),l,t]) + ','
+                Spcout = Spcout + str(results_S[i,j,index_S.get('iSpc'),l,t]) + ','
                 Rpout = Rpout + str(results_S[i,j,index_S.get('iRp'),l,t]) + ','
                 Euout = Euout + str(results_S[i,j,index_S.get('iEu'),l,t]) + ','
                 Tuout = Tuout + str(results_S[i,j,index_S.get('iTu'),l,t]) + ','
             out_date = pylab.num2date(inputDate[t]).isoformat()[:10]
             out1 = '%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,' % (results[i,j,index.get('iRF'),t], results[i,j,index.get('iE0'),t],results[i,j,index.get('iPET'),t],results[i,j,index.get('iPE'),t],results[i,j,index.get('iRFe'),t],results[i,j,index.get('iINTER'),t])
-            out1a = '%.6f,%.6f,' % (results[i,j,index.get('iEg'),t], results[i,j,index.get('iTg'),t])
-            out2 = '%.6f,' % (results[i,j,index.get('iEs'),t])
-            out3 = '%.6f,%4d,%.6f,%4d,' % (results[i,j,index.get('iSUST'),t],results[i,j,index.get('iPOND'),t],results[i,j,index.get('iQs'),t],results[i,j,index.get('iRunoff'),t])
-            out4 = '%.6f,%.6f,%.6f,%.6f,%.6f,%4d,%4d,%6f' % (results[i,j,index.get('iR'),t], h_satflow[t],heads_MF[t],obs_h[t], obs_S[t],results[i,j,index.get('iSATpart'),t],results[i,j,index.get('iFLOOD'),t],results[i,j,index.get('iMB'),t])
-            out_line =  out_date, ',', out1, Euout, Tuout, out1a, out2, Sout, out3, Rpout, out4, '\n'
+            out2 = '%.6f,%.6f,%.6f,' % (results[i,j,index.get('iEg'),t], results[i,j,index.get('iTg'),t],results[i,j,index.get('iEs'),t])
+            out3 = '%.6f,%6f,%.6f,%.6f,' % (results[i,j,index.get('idPOND'),t],results[i,j,index.get('iPOND'),t],results[i,j,index.get('iRo'),t],results[i,j,index.get('iSEEPAGE'),t])
+            out4 = '%.6f,%.6f,%.6f,%.6f,%.6f,%6f' % (results[i,j,index.get('iR'),t], h_satflow[t],heads_MF[t],obs_h[t], obs_S[t],results[i,j,index.get('iMB'),t])
+            out_line =  out_date, ',', out1, Euout, Tuout, out2, Sout, Spcout, out3, Rpout, out4, '\n'
             for l in out_line:
                 outFileExport.write(l)
 
