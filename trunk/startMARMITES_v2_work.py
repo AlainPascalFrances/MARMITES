@@ -64,10 +64,10 @@ try:
         else:
             raise NameError('InputFileFormat')
 except NameError:
-    print 'Error in the input file, check format!\n%s' % (messagemanual)
+    print 'Error in the input file %s, check format!\n%s' % (inputFile_fn, messagemanual)
     sys.exit()
 except e:
-    print "Unexpected error in the input file:\n", sys.exc_info()[0]
+    print "Unexpected error in the input file %s:\n", sys.exc_info()[0] % (inputFile_fn)
     print messagemanual
     sys.exit()
 l=0
@@ -94,7 +94,11 @@ try:
     MMsurf_fn = inputFile[l].strip()
     l = l+1
     # Define MODFLOW ws folders
-    MF_ws = inputFile[l]
+    MF_ws = inputFile[l].strip()
+    l = l+1
+    rch_input = inputFile[l].strip()
+    l = l+1
+    wel_input = inputFile[l].strip()
     l = l+1
     #GRID (ll means lower left)
     xllcorner = float(inputFile[l].strip())
@@ -117,7 +121,7 @@ try:
     l = l+1
     inputObs_fn = inputFile[l].strip()
 except:
-    print '\nType error in the input\n%s' % (messagemanual)
+    print '\nType error in the input file %s\n%s' % (inputFile_fn, messagemanual)
     sys.exit()
 fin.close()
 print ('\nMARMITES workspace:\n%s\n\nMARMITESsurf workspace:\n%s\n\nMODFLOW workspace:\n%s' % (MM_ws, inputFOLDER_fn, MF_ws))
@@ -212,7 +216,7 @@ durationMF = 0.0
 timestartMF = pylab.datestr2num(pylab.datetime.datetime.today().isoformat())
 print'\n##############'
 print 'MODFLOW RUN (initial recharge)'
-SP_d, nrow, ncol, delr, delc, nlay, perlen, nper, top, hnoflo, hdry, ibound, laytyp, h_MF, cbc, cbc_nam_tmp, top_array, inputFileMF_fn, lenuni = ppMF.ppMF(MF_ws, MM_ws, rch_input = 'rch_per', rch_dft = 0.0001)
+SP_d, nrow, ncol, delr, delc, nlay, perlen, nper, top, hnoflo, hdry, ibound, laytyp, h_MF, cbc, cbc_nam_tmp, top_array, inputFileMF_fn, lenuni = ppMF.ppMF(MF_ws, MM_ws, rch_input = rch_input, rch_dft = 0.0001, wel_input = wel_input)
 
 h_MF_m = np.ma.masked_values(h_MF, hnoflo, atol = 0.09)
 
@@ -222,6 +226,7 @@ for c in cbc_nam_tmp:
 iDRN = cbc_nam.index('DRAINS')
 iSTO = cbc_nam.index('STORAGE')
 iRCH = cbc_nam.index('RECHARGE')
+iWEL = cbc_nam.index('WELLS')
 # convert cbc from volume to mm
 # cbc format is: (kstp), kper, textprocess, ncol, nrow, nlay
 if lenuni == 1:
@@ -311,16 +316,18 @@ if obsCHECK==1:
         outFileExport.append(open(outpathname[o], 'w'))
         S_str=''
         Spc_str=''
+        dS_str=''
         Rp_str=''
         Eu_str=''
         Tu_str=''
         for l in range(_nslmax):
             S_str = S_str + 'S_l' + str(l+1) + ','
             Spc_str = Spc_str + 'Spc_l' + str(l+1) + ','
+            dS_str = dS_str + 'dS_l' + str(l+1) + ','
             Eu_str = Eu_str + 'Eu_l' + str(l+1) + ','
             Tu_str = Tu_str + 'Tu_l' + str(l+1) + ','
             Rp_str = Rp_str + 'Rp_l' + str(l+1) + ','
-            header='Date,RF,E0,PET,PE,RFe,Inter,'+Eu_str+Tu_str+'Eg,Tg,Es,'+S_str+Spc_str+'dPOND,POND,Ro,SEEPAGE,'+Rp_str+'R,hSATFLOW,hMF,hmeas,Smeas,MB\n'
+            header='Date,RF,E0,PET,PE,RFe,Inter,'+Eu_str+Tu_str+'Eg,Tg,ETg,WEL_MF,Es,'+S_str+Spc_str+dS_str+'dPOND,POND,Ro,SEEPAGE,DRN_MF,'+Rp_str+'R,Rn,R_MF,hSATFLOW,hMF,hmeas,Smeas,MB\n'
         outFileExport[o].write(header)
     outPESTheads_fn      = 'PESTheads.dat'
     outPESTsm_fn         = 'PESTsm.dat'
@@ -334,12 +341,11 @@ LOOP = 0
 LOOPlst = [LOOP]
 h_diff = [10]
 h_diff_log = [1]
-convcrit = 0.05
-ccnum = 5 # convergence cycle number
+convcrit = 0.005
+ccnum = 10 # convergence cycle number
 
 plotCONVERGENCE_export_fn = os.path.join(MM_ws, '00_ConvLoop.png')
 duration = 0.0
-rch_input = 'rch_per'
 
 # #############################
 # ###  CONVERGENCE LOOP   #####
@@ -382,6 +388,7 @@ while abs(h_diff[LOOP]) > convcrit:
     outFileTg_PERall = MM_PROCESS.outputEAgrd(outFile_fn = 'outTg.asc')
     outFileR_PERall = MM_PROCESS.outputEAgrd(outFile_fn  = 'outR.asc')
     outFileRn_PERall = MM_PROCESS.outputEAgrd(outFile_fn = 'outRn.asc')
+    outFileETg_PERall = MM_PROCESS.outputEAgrd(outFile_fn = 'outETg.asc')
     outFileSEEPAGE_PERall = MM_PROCESS.outputEAgrd(outFile_fn = 'outSEEPAGE.asc')
     outFileMB_PERall = MM_PROCESS.outputEAgrd(outFile_fn = 'outMB.asc')
     outFileINTER_PERall = MM_PROCESS.outputEAgrd(outFile_fn = 'outINTER.asc')
@@ -389,8 +396,7 @@ while abs(h_diff[LOOP]) > convcrit:
     # ###############
     # Create arrays to store output
     # arrays for fluxes independent of the soil layering
-    # WARNING: Rn has to be the last one
-    index = {'iRF':0, 'iPET':1, 'iPE':2, 'iRFe':3, 'iPOND':4, 'iRo':5, 'iSEEPAGE':6, 'iEs':7, 'iMB':8, 'iINTER':9, 'iE0':10, 'iEg':11, 'iTg':12, 'iR':13, 'iRn':14, 'idPOND':15}
+    index = {'iRF':0, 'iPET':1, 'iPE':2, 'iRFe':3, 'iPOND':4, 'iRo':5, 'iSEEPAGE':6, 'iEs':7, 'iMB':8, 'iINTER':9, 'iE0':10, 'iEg':11, 'iTg':12, 'iR':13, 'iRn':14, 'idPOND':15, 'iETg':16}
     # for the whole simulated period
     resavg_PERall = np.zeros([nrow,ncol,len(index)], dtype=float)
     # for each SP
@@ -402,7 +408,8 @@ while abs(h_diff[LOOP]) > convcrit:
     # for each SP
     res_PERall_S = np.zeros([nrow,ncol,len(index_S),_nslmax,sum(perlen)], dtype=float)
     # to compute net recharge to be exported to MF
-    Rn4MF=np.zeros([nper,nrow,ncol], dtype=float)
+    R4MF=np.zeros([nper,nrow,ncol], dtype=float)
+    ETg4MF=np.zeros([nper,nrow,ncol], dtype=float)
 
     # ###############
     # # main loop: calculation of soil water balance in each cell-grid for each time step inside each stress period
@@ -438,11 +445,13 @@ while abs(h_diff[LOOP]) > convcrit:
         gridoutEg = np.zeros([nrow,ncol], dtype=float)
         gridoutTg = np.zeros([nrow,ncol], dtype=float)
         gridoutRn = np.zeros([nrow,ncol], dtype=float)
+        gridoutETg = np.zeros([nrow,ncol], dtype=float)
         gridoutR = np.zeros([nrow,ncol], dtype=float)
         gridoutSEEPAGE = np.zeros([nrow,ncol], dtype=float)
         gridoutMB = np.zeros([nrow,ncol], dtype=float)
         gridoutINTER = np.zeros([nrow,ncol], dtype=float)
         outFileRPER  = MM_PROCESS.outputEAgrd(outFile_fn = rch_input + str(n+1) + '.asc', outFolder  = MM_PROCESS.MF_ws)
+        outFileETgPER  = MM_PROCESS.outputEAgrd(outFile_fn = wel_input + str(n+1) + '.asc', outFolder  = MM_PROCESS.MF_ws)
         if SP_d == 0:
             # average flux for each SP [L/T]
             outFileRF = MM_PROCESS.outputEAgrd(outFile_fn = 'outRF_PER' + str(n+1) + '.asc')
@@ -465,6 +474,7 @@ while abs(h_diff[LOOP]) > convcrit:
             outFileEg = MM_PROCESS.outputEAgrd(outFile_fn = 'outEg_PER' + str(n+1) + '.asc')
             outFileTg = MM_PROCESS.outputEAgrd(outFile_fn = 'outTg_PER' + str(n+1) + '.asc')
             outFileRn = MM_PROCESS.outputEAgrd(outFile_fn = 'outRn_PER' + str(n+1) + '.asc')
+            outFileETg = MM_PROCESS.outputEAgrd(outFile_fn = 'outETg_PER' + str(n+1) + '.asc')
             outFileR = MM_PROCESS.outputEAgrd(outFile_fn = 'outR_PER' + str(n+1) + '.asc')
             outFileSEEPAGE  = MM_PROCESS.outputEAgrd(outFile_fn = 'outSEEPAGE_PER' + str(n+1) + '.asc')
             outFileMB = MM_PROCESS.outputEAgrd(outFile_fn = 'outMB_PER' + str(n+1) + '.asc')
@@ -596,6 +606,8 @@ while abs(h_diff[LOOP]) > convcrit:
                     resavg_PERall[i,j,index.get('iTg')] = resavg_PERall[i,j,index.get('iTg')] + gridoutTg[i,j]
                     gridoutRn[i,j]       = results[i,j,index.get('iRn'),:].sum()/divfact
                     resavg_PERall[i,j,index.get('iRn')] = resavg_PERall[i,j,index.get('iRn')] + gridoutRn[i,j]
+                    gridoutETg[i,j]       = results[i,j,index.get('iETg'),:].sum()/divfact
+                    resavg_PERall[i,j,index.get('iETg')] = resavg_PERall[i,j,index.get('iETg')] + gridoutETg[i,j]
                     gridoutR[i,j]       = results[i,j,index.get('iR'),:].sum()/divfact
                     resavg_PERall[i,j,index.get('iR')] = resavg_PERall[i,j,index.get('iR')] + gridoutR[i,j]
                     gridoutSEEPAGE[i,j]   = results[i,j,index.get('iSEEPAGE'),:].sum()
@@ -615,13 +627,14 @@ while abs(h_diff[LOOP]) > convcrit:
                         gridoutRp[l][i,j] = results_S[i,j,index_S.get('iRp'),l,:].sum()/divfact
                         resavg_PERall_S[i,j,index_S.get('iRp'),l] = resavg_PERall_S[i,j,index_S.get('iRp'),l] + gridoutRp[l][i,j]
 
-                    Rn4MF[n,i,j] = results[i,j,index.get('iRn'),:].sum()/(divfact*1000)
+                    R4MF[n,i,j] = results[i,j,index.get('iR'),:].sum()/(divfact*1000)
+                    ETg4MF[n,i,j] = results[i,j,index.get('iETg'),:].sum()/(divfact*1000/(delr[j]*delc[i]))
                     # setting initial conditions for the next SP
                     for l in range(nsl_tmp):
                         Si_tmp_array[i,j,l] = results_S[i,j,index_S.get('iSpc'),l,perlen[n]-1]
                         Rpi_tmp_array[i,j,l] = results_S[i,j,index_S.get('iRp'),l,perlen[n]-1]
                         PONDi_tmp_array[i,j] = results[i,j,index.get('iPOND'),perlen[n]-1]
-                        DRNi_tmp_array[i,j]  = -cbc[tend-1,iDRN,i,j,0]
+                        DRNi_tmp_array[i,j]  = cbc_tmp[-1]
                     if SP_d==0:
                         outFileRF.write('%.6f'%(gridoutRF[i,j]) + ' ')
                         outFilePET.write('%.6f'%(gridoutPET[i,j]) + ' ')
@@ -639,15 +652,20 @@ while abs(h_diff[LOOP]) > convcrit:
                         outFileEg.write('%.6f'%(gridoutEg[i,j]) + ' ')
                         outFileTg.write('%.6f'%(gridoutTg[i,j]) + ' ')
                         outFileRn.write('%.6f'%(gridoutRn[i,j]) + ' ')
+                        outFileETg.write('%.6f'%(gridoutETg[i,j]) + ' ')
                         outFileR.write('%.6f'%(gridoutR[i,j]) + ' ')
                         outFileSEEPAGE.write('%.6f'%(gridoutSEEPAGE[i,j]) + ' ')
                         outFileMB.write('%.6f'%(gridoutMB[i,j]) + ' ')
                         outFileINTER.write('%.6f'%(gridoutINTER[i,j]) + ' ')
                         outFileHEADS_MF.write('%.6f'%(h_MF[tend-1,i,j,0]) + ' ')
-                    if Rn4MF[n,i,j]>0.0:
-                        outFileRPER.write(str(Rn4MF[n,i,j])+' ')
+                    if R4MF[n,i,j]>0.0:
+                        outFileRPER.write(str(R4MF[n,i,j])+' ')
                     else:
                         outFileRPER.write(str(0.0)+' ')
+                    if ETg4MF[n,i,j]<0.0:
+                        outFileETgPER.write(str(ETg4MF[n,i,j])+' ')
+                    else:
+                        outFileETgPER.write(str(0.0)+' ')
                 else:
                     results[i,j,:,:]    = hnoflo
                     results_S[i,j,:,:,:] = hnoflo
@@ -669,12 +687,15 @@ while abs(h_diff[LOOP]) > convcrit:
                     gridoutEg[i,j]      = hnoflo
                     gridoutTg[i,j]      = hnoflo
                     gridoutRn[i,j]      = hnoflo
+                    gridoutETg[i,j]      = hnoflo
                     gridoutR[i,j]       = hnoflo
                     gridoutSEEPAGE[i,j]   = hnoflo
                     gridoutMB[i,j]      = hnoflo
                     gridoutINTER[i,j]   = hnoflo
-                    Rn4MF[n,i,j]        = hnoflo
+                    R4MF[n,i,j]        = hnoflo
+                    ETg4MF[n,i,j]        = hnoflo
                     outFileRPER.write(str(hnoflo)+' ')
+                    outFileETgPER.write(str(hnoflo)+' ')
                     if SP_d==0:
                         outFileRF.write('%.6f'%(gridoutRF[i,j]) + ' ')
                         outFilePET.write('%.6f'%(gridoutPET[i,j]) + ' ')
@@ -692,6 +713,7 @@ while abs(h_diff[LOOP]) > convcrit:
                         outFileEg.write('%.6f'%(gridoutEg[i,j]) + ' ')
                         outFileTg.write('%.6f'%(gridoutTg[i,j]) + ' ')
                         outFileRn.write('%.6f'%(gridoutRn[i,j]) + ' ')
+                        outFileETg.write('%.6f'%(gridoutETg[i,j]) + ' ')
                         outFileR.write('%.6f'%(gridoutR[i,j]) + ' ')
                         outFileSEEPAGE.write('%.6f'%(gridoutSEEPAGE[i,j]) + ' ')
                         outFileMB.write('%.6f'%(gridoutMB[i,j]) + ' ')
@@ -699,6 +721,7 @@ while abs(h_diff[LOOP]) > convcrit:
                         outFileHEADS_MF.write('%.6f'%(h_MF[tend-1,i,j,0]) + ' ')
 
             outFileRPER.write('\n')
+            outFileETgPER.write('\n')
             if SP_d==0:
                 outFileRF.write('\n')
                 outFilePET.write('\n')
@@ -716,6 +739,7 @@ while abs(h_diff[LOOP]) > convcrit:
                 outFileEg.write('\n')
                 outFileTg.write('\n')
                 outFileRn.write('\n')
+                outFileETg.write('\n')
                 outFileR.write('\n')
                 outFileSEEPAGE.write('\n')
                 outFileMB.write('\n')
@@ -723,6 +747,7 @@ while abs(h_diff[LOOP]) > convcrit:
                 outFileHEADS_MF.write('\n')
         # close export ASCII files
         outFileRPER.close()
+        outFileETgPER.close()
         if SP_d==0:
             outFileRF.close()
             outFilePET.close()
@@ -740,6 +765,7 @@ while abs(h_diff[LOOP]) > convcrit:
             outFileEg.close()
             outFileTg.close()
             outFileRn.close()
+            outFileETg.close()
             outFileR.close()
             outFileSEEPAGE.close()
             outFileMB.close()
@@ -797,9 +823,9 @@ while abs(h_diff[LOOP]) > convcrit:
     plt.close()
     del fig
     if LOOP <2:
-        print "\nInitial average heads:\n%.2f" % h_diff[LOOP]
+        print "\nInitial average heads:\n%.3f m" % h_diff[LOOP]
     else:
-        print "\nHeads diff. from previous conv. loop:\n%.2f" % h_diff[LOOP]
+        print "\nHeads diff. from previous conv. loop:\n%.3f m" % h_diff[LOOP]
     if h_MFsum == 0.0:
         print '\nFirst layer of the model DRY!'
     elif abs(h_diff[LOOP]) < convcrit:
@@ -816,32 +842,10 @@ while abs(h_diff[LOOP]) > convcrit:
     timestartMF = pylab.datestr2num(pylab.datetime.datetime.today().isoformat())
     print'\n##############'
     print 'MODFLOW RUN (MARMITES recharge)'
-    SP_d, nrow, ncol, delr, delc, nlay, perlen, nper, top, hnoflo, hdry, ibound, laytyp, h_MF, cbc, cbc_nam_tmp, top_array, inputFileMF_fn, lenuni = ppMF.ppMF(MF_ws, MM_ws, rch_input = rch_input, rch_dft = 0.0001)
+    SP_d, nrow, ncol, delr, delc, nlay, perlen, nper, top, hnoflo, hdry, ibound, laytyp, h_MF, cbc, cbc_nam_tmp, top_array, inputFileMF_fn, lenuni = ppMF.ppMF(MF_ws, MM_ws, rch_input = rch_input, rch_dft = 0.0001, wel_input = wel_input)
 
     h_MF_m = np.ma.masked_values(h_MF, hnoflo, atol = 0.09)
-
     top_array_m = np.ma.masked_values(top_array, hnoflo, atol = 0.09)
-    cbc_nam = []
-    for c in cbc_nam_tmp:
-        cbc_nam.append(c.strip())
-    iDRN = cbc_nam.index('DRAINS')
-    iSTO = cbc_nam.index('STORAGE')
-    iRCH = cbc_nam.index('RECHARGE')
-    # convert cbc from volume to mm
-    # cbc format is: (kstp), kper, textprocess, ncol, nrow, nlay
-    if lenuni == 1:
-        conv_fact = 304.8
-    elif lenuni == 2:
-        conv_fact = 1000.0
-    elif lenuni == 3:
-        conv_fact = 10.0
-    else:
-        print 'FATAL ERROR!\nDefine the length unit in the MODFLOW ini file!\n (see USGS Open-File Report 00-92)'
-        sys.exit()
-        # TODO if lenuni<>2 apply conversion factor to delr, delc, etc...
-    if laytyp[0]==0:
-        print 'FATAL ERROR!\nThe first layer cannot be confined type!\nChange your parameter laytyp in the MODFLOW lpf package.\n(see USGS Open-File Report 00-92)'
-        sys.exit()
 
     timeendMF = pylab.datestr2num(pylab.datetime.datetime.today().isoformat())
     durationMF = durationMF + (timeendMF-timestartMF)
@@ -861,32 +865,10 @@ durationMF = 0.0
 timestartMF = pylab.datestr2num(pylab.datetime.datetime.today().isoformat())
 print'\n##############'
 print 'MODFLOW RUN (MARMITES recharge after conv. loop)'
-SP_d, nrow, ncol, delr, delc, nlay, perlen, nper, top, hnoflo, hdry, ibound, laytyp, h_MF, cbc, cbc_nam_tmp, top_array, inputFileMF_fn, lenuni = ppMF.ppMF(MF_ws, MM_ws, rch_input = rch_input, rch_dft = 0.0001)
+SP_d, nrow, ncol, delr, delc, nlay, perlen, nper, top, hnoflo, hdry, ibound, laytyp, h_MF, cbc, cbc_nam_tmp, top_array, inputFileMF_fn, lenuni = ppMF.ppMF(MF_ws, MM_ws, rch_input = rch_input, rch_dft = 0.0001, wel_input = wel_input)
 
 h_MF_m = np.ma.masked_values(h_MF, hnoflo, atol = 0.09)
-
 top_array_m = np.ma.masked_values(top_array, hnoflo, atol = 0.09)
-cbc_nam = []
-for c in cbc_nam_tmp:
-    cbc_nam.append(c.strip())
-iDRN = cbc_nam.index('DRAINS')
-iSTO = cbc_nam.index('STORAGE')
-iRCH = cbc_nam.index('RECHARGE')
-# convert cbc from volume to mm
-# cbc format is: (kstp), kper, textprocess, ncol, nrow, nlay
-if lenuni == 1:
-    conv_fact = 304.8
-elif lenuni == 2:
-    conv_fact = 1000.0
-elif lenuni == 3:
-    conv_fact = 10.0
-else:
-    print 'FATAL ERROR!\nDefine the length unit in the MODFLOW ini file!\n (see USGS Open-File Report 00-92)'
-    sys.exit()
-    # TODO if lenuni<>2 apply conversion factor to delr, delc, etc...
-if laytyp[0]==0:
-    print 'FATAL ERROR!\nThe first layer cannot be confined type!\nChange your parameter laytyp in the MODFLOW lpf package.\n(see USGS Open-File Report 00-92)'
-    sys.exit()
 
 for i in range(nrow):
     for j in range(ncol):
@@ -922,6 +904,7 @@ for i in range(nrow):
             outFileEg_PERall.write('%.6f'%(resavg_PERall[i,j,index.get('iEg')]/nper) + ' ')
             outFileTg_PERall.write('%.6f'%(resavg_PERall[i,j,index.get('iTg')]/nper) + ' ')
             outFileRn_PERall.write('%.6f'%(resavg_PERall[i,j,index.get('iRn')]/nper) + ' ')
+            outFileETg_PERall.write('%.6f'%(resavg_PERall[i,j,index.get('iETg')]/nper) + ' ')
             outFileR_PERall.write('%.6f'%(resavg_PERall[i,j,index.get('iR')]/nper) + ' ')
             outFileSEEPAGE_PERall.write('%.6f'%(resavg_PERall[i,j,index.get('iSEEPAGE')]) + ' ')
             outFileMB_PERall.write('%.6f'%(resavg_PERall[i,j,index.get('iMB')]) + ' ')
@@ -943,6 +926,7 @@ for i in range(nrow):
             outFileEg_PERall.write('%.6f'%(hnoflo) + ' ')
             outFileTg_PERall.write('%.6f'%(hnoflo) + ' ')
             outFileRn_PERall.write('%.6f'%(hnoflo) + ' ')
+            outFileETg_PERall.write('%.6f'%(hnoflo) + ' ')
             outFileR_PERall.write('%.6f'%(hnoflo) + ' ')
             outFileSEEPAGE_PERall.write('%.6f'%(hnoflo) + ' ')
             outFileMB_PERall.write('%.6f'%(hnoflo) + ' ')
@@ -963,6 +947,7 @@ for i in range(nrow):
     outFileEg_PERall.write('\n')
     outFileTg_PERall.write('\n')
     outFileRn_PERall.write('\n')
+    outFileETg_PERall.write('\n')
     outFileR_PERall.write('\n')
     outFileSEEPAGE_PERall.write('\n')
     outFileMB_PERall.write('\n')
@@ -983,6 +968,7 @@ outFileEs_PERall.close()
 outFileEg_PERall.close()
 outFileTg_PERall.close()
 outFileRn_PERall.close()
+outFileETg_PERall.close()
 outFileR_PERall.close()
 outFileSEEPAGE_PERall.close()
 outFileMB_PERall.close()
@@ -1016,8 +1002,8 @@ cbcmax = float(np.ceil(np.nanmax(cbcmax)))
 cbcmin = float(np.floor(np.nanmin(cbcmin)))
 # plot water budget
 plot_export_fn = os.path.join(MM_ws, '00_UNSATandGWbudgets.png')
-index_cbc = [iRCH, iSTO, iDRN]
-flxlbl = ['RF', 'INTER', 'SEEPAGE', 'dS', 'dPOND', 'Ro', 'Es', 'Eu', 'Tu', 'R', 'Eg', 'Tg', 'Rn']
+index_cbc = [iRCH, iSTO, iDRN, iWEL]
+flxlbl = ['RF', 'INTER', 'SEEPAGE', 'dS', 'dPOND', 'Ro', 'Es', 'Eu', 'Tu', 'R', 'Rn', 'Eg', 'Tg', 'ETg']
 flxlst =[res_PERall[:,:,index.get('iRF'),:].sum()/sum(perlen)/ncell,
         -res_PERall[:,:,index.get('iINTER'),:].sum()/sum(perlen)/ncell,
         res_PERall[:,:,index.get('iSEEPAGE'),:].sum()/sum(perlen)/ncell,
@@ -1028,9 +1014,10 @@ flxlst =[res_PERall[:,:,index.get('iRF'),:].sum()/sum(perlen)/ncell,
         -res_PERall_S[:,:,index_S.get('iEu'),:,:].sum()/sum(perlen)/ncell,
         -res_PERall_S[:,:,index_S.get('iTu'),:,:].sum()/sum(perlen)/ncell,
         -res_PERall[:,:,index.get('iR'),:].sum()/sum(perlen)/ncell,
+        -res_PERall[:,:,index.get('iRn'),:].sum()/sum(perlen)/ncell,
         -res_PERall[:,:,index.get('iEg'),:].sum()/sum(perlen)/ncell,
         -res_PERall[:,:,index.get('iTg'),:].sum()/sum(perlen)/ncell,
-        res_PERall[:,:,index.get('iRn'),:].sum()/sum(perlen)/ncell]
+        res_PERall[:,:,index.get('iETg'),:].sum()/sum(perlen)/ncell]
 for l in range(nlay):
     for x in range(len(index_cbc)):
         flxlst.append(cbc[:,index_cbc[x],:,:,l].sum()/sum(perlen)/ncell)
@@ -1045,17 +1032,17 @@ if obsCHECK == 1:
         i = obs.get(obs.keys()[o])['i']
         j = obs.get(obs.keys()[o])['j']
         # SATFLOW
-        h_satflow=MM_SATFLOW.run(res_PERall[i,j,index.get('iR'),:], float(obs.get(obs.keys()[o])['hi']),float(obs.get(obs.keys()[o])['h0']),float(obs.get(obs.keys()[o])['RC']),float(obs.get(obs.keys()[o])['STO']))
-        # correct heads from MF (1 day delay)
-        h_MF_tmp = np.zeros([sum(perlen)], dtype = float)
-        h_MF_tmp[0] = h_MF[0,i,j,0]
-        h_MF_tmp[1:sum(perlen)] = h_MF[0:sum(perlen)-1,i,j,0]
+        h_satflow = MM_SATFLOW.run(res_PERall[i,j,index.get('iR'),:], float(obs.get(obs.keys()[o])['hi']),float(obs.get(obs.keys()[o])['h0']),float(obs.get(obs.keys()[o])['RC']),float(obs.get(obs.keys()[o])['STO']))
+##        # correct heads from MF (1 day delay)
+##        h_MF_tmp = np.zeros([sum(perlen)], dtype = float)
+##        h_MF_tmp[0] = h_MF[0,i,j,0]
+##        h_MF_tmp[1:sum(perlen)] = h_MF[0:sum(perlen)-1,i,j,0]
         # export ASCII file at piezometers location
         #TODO extract heads at piezo location and not center of cell
-        MM_PROCESS.ExportResults(i, j, inputDate, _nslmax, res_PERall, index, res_PERall_S, index_S, h_satflow, h_MF_tmp, obs_h[o], obs_S[o], outFileExport[o], outPESTheads, outPESTsm, obs.keys()[o])
+        MM_PROCESS.ExportResults(i, j, inputDate, _nslmax, res_PERall, index, res_PERall_S, index_S, -cbc[:,iDRN,i,j,0], cbc[:,iRCH,i,j,0], -cbc[:,iWEL,i,j,0], h_satflow, h_MF[:,i,j,0], obs_h[o], obs_S[o], outFileExport[o], outPESTheads, outPESTsm, obs.keys()[o])
         # plot
         # DateInput, P, PET, Pe, POND, dPOND, Ro, ETa, S, Rp, R, h, hmeas, Smeas, Sm, Sr):
-        # index = {'iRF':0, 'iPET':1, 'iPE':2, 'iRFe':3, 'iPOND':4, 'iRo':5, 'iSEEPAGE':6, 'iEs':7, 'iMB':8, 'iINTER':9, 'iE0':10, 'iEg':11, 'iTg':12, 'iR':13, 'iRn':14, 'idPOND':15}
+        # index = {'iRF':0, 'iPET':1, 'iPE':2, 'iRFe':3, 'iPOND':4, 'iRo':5, 'iSEEPAGE':6, 'iEs':7, 'iMB':8, 'iINTER':9, 'iE0':10, 'iEg':11, 'iTg':12, 'iR':13, 'iRn':14, 'idPOND':15, 'iETg':16}
         plot_export_fn = os.path.join(MM_ws, '00_'+ obs.keys()[o] + '.png')
         # def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, SEEPAGE, R, Rn, Es, MB, h_MF, h_SF, hmeas, Smeas, Sm, Sr, hnoflo, plot_export_fn, colors_nsl, hmax, hmin):
         MMplot.allPLOT(
@@ -1080,7 +1067,7 @@ if obsCHECK == 1:
         res_PERall[i,j,index.get('iRn'),:],
         res_PERall[i,j,index.get('iEs'),:],
         res_PERall[i,j,index.get('iMB'),:],
-        h_MF_tmp, h_satflow, obs_h[o], obs_S[o],
+        h_MF[:,i,j,0], h_satflow, obs_h[o], obs_S[o],
         _Sm[gridSOIL[i,j]-1],
         _Sr[gridSOIL[i,j]-1],
         hnoflo,
@@ -1101,9 +1088,10 @@ if obsCHECK == 1:
                 -res_PERall_S[i,j,index_S.get('iEu'),:,:].sum()/sum(perlen),
                 -res_PERall_S[i,j,index_S.get('iTu'),:,:].sum()/sum(perlen),
                 -res_PERall[i,j,index.get('iR'),:].sum()/sum(perlen),
+                -res_PERall[i,j,index.get('iRn'),:].sum()/sum(perlen),
                 -res_PERall[i,j,index.get('iEg'),:].sum()/sum(perlen),
                 -res_PERall[i,j,index.get('iTg'),:].sum()/sum(perlen),
-                res_PERall[i,j,index.get('iRn'),:].sum()/sum(perlen)]
+                res_PERall[i,j,index.get('iETg'),:].sum()/sum(perlen)]
         for l in range(nlay):
             for x in range(len(index_cbc)):
                 flxlst.append(cbc[:,index_cbc[x],i,j,l].sum()/sum(perlen))
@@ -1118,7 +1106,7 @@ TSlst = []
 TS = 0
 while TS < len(h_MF):
     TSlst.append(TS)
-    TS = TS + 30
+    TS = TS + 90
 TSlst.append(len(h_MF)-1)
 for TS in TSlst:
     # plot heads [m]

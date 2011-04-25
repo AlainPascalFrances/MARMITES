@@ -343,6 +343,9 @@ class UNSAT:
         R=np.zeros([Ttotal], dtype=np.float)
         # GW net recharge
         Rn=np.zeros([Ttotal], dtype=np.float)
+        # GW evapotranspiration
+        ETg=np.zeros([Ttotal], dtype=np.float)
+
 
         if D < 0.05: #correct soil thickness less than 5cm
             D=0.05
@@ -430,6 +433,7 @@ class UNSAT:
                 Eu[l,t]=Eutmp[l]
                 Tu[l,t]=Tutmp[l]
             Rn[t] = R[t] - Eg[t] -Tg[t] - DRNcorr
+            ETg[t] = - Eg[t] -Tg[t] - DRNcorr
             if POND[t]>PONDi:
                 dPOND[t] = POND[t] - PONDi
             # compute the water mass balance (MB) in the unsaturated zone
@@ -449,10 +453,10 @@ class UNSAT:
                     dS[l,t] = (S[l,t]-S[l,t-1])
                     if l<(nsl-1):
                         RpinMB = RpinMB + Rp[l, t-1]
-            MB[t]=RF[t]+PONDi+DRN[t]+RpinMB-DRNcorr-INTER[t]-Ro[t]-POND[t]-Es[t]-EuMB-TuMB-RpoutMB-sum(dS[:,t])
+            MB[t]=RF[t]+PONDi+DRN[t]+RpinMB+DRNcorr-INTER[t]-Ro[t]-POND[t]-Es[t]-EuMB-TuMB-RpoutMB-sum(dS[:,t])
 
-        # index = {'iRF':0, 'iPET':1, 'iPE':2, 'iRFe':3, 'iPOND':4, 'iRo':5, 'iSEEPAGE':6, 'iEs':7, 'iMB':8, 'iINTER':9, 'iE0':10, 'iEg':11, 'iTg':12, 'iR':13, 'iRn':14, 'idPOND':15}
-        results1 = [RF, PET_tot, PE_tot, RFe_tot, POND, Ro, DRN, Es, MB, INTER, E0, Eg, Tg, R, Rn, dPOND]
+        # index = {'iRF':0, 'iPET':1, 'iPE':2, 'iRFe':3, 'iPOND':4, 'iRo':5, 'iSEEPAGE':6, 'iEs':7, 'iMB':8, 'iINTER':9, 'iE0':10, 'iEg':11, 'iTg':12, 'iR':13, 'iRn':14, 'idPOND':15, 'ETg':16}
+        results1 = [RF, PET_tot, PE_tot, RFe_tot, POND, Ro, DRN, Es, MB, INTER, E0, Eg, Tg, R, Rn, dPOND, ETg]
         # index_S = {'iEu':0, 'iTu':1,'iS':2, 'iRp':3}
         results2 = [Eu, Tu, Spc, Rp, dS, S]
 
@@ -875,7 +879,7 @@ class PROCESS:
                         'NODATA_value  '+ str(self.hnoflo)+'\n')
         return file_asc
 
-    def ExportResults(self, i, j, inputDate, _nslmax, results, index, results_S, index_S, h_satflow, heads_MF, obs_h, obs_S, outFileExport, outPESTheads, outPESTsm, obsname):
+    def ExportResults(self, i, j, inputDate, _nslmax, results, index, results_S, index_S, DRN, RCH, WEL, h_satflow, heads_MF, obs_h, obs_S, outFileExport, outPESTheads, outPESTsm, obsname):
         """
         Export the processed data in a txt file
         INPUTS:      output fluxes time series and date
@@ -897,24 +901,26 @@ class PROCESS:
                 outPESTsm.write((obsname+'SM').ljust(10,' ')+ date.ljust(14,' ')+ '00:00:00        '+ str(results_S[i,j,index_S.get('iS'),0,t]) + '    \n')
             else:
                 obs_S_tmp = str(self.hnoflo)
-            # header='Date,RF,E0,PET,PE,RFe,Inter,'+Eu_str+Tu_str+'Eg,Tg,Es,'+S_str+'dPOND,POND,Ro,SEEPAGE,'+Rp_str+'R,hSATFLOW,hMF,hmeas,Smeas,MB\n'
+            # header='Date,RF,E0,PET,PE,RFe,Inter,'+Eu_str+Tu_str+'Eg,Tg,ETg,WEL_MF,Es,'+S_str+'dPOND,POND,Ro,SEEPAGE,DRN_MF'+Rp_str+'R,Rn,R_MF,hSATFLOW,hMF,hmeas,Smeas,MB\n'
             Sout = ''
             Spcout = ''
+            dSout = ''
             Rpout=''
             Euout=''
             Tuout=''
             for l in range(_nslmax):
                 Sout = Sout + str(results_S[i,j,index_S.get('iS'),l,t]) + ','
                 Spcout = Spcout + str(results_S[i,j,index_S.get('iSpc'),l,t]) + ','
+                dSout = dSout + str(results_S[i,j,index_S.get('idS'),l,t]) + ','
                 Rpout = Rpout + str(results_S[i,j,index_S.get('iRp'),l,t]) + ','
                 Euout = Euout + str(results_S[i,j,index_S.get('iEu'),l,t]) + ','
                 Tuout = Tuout + str(results_S[i,j,index_S.get('iTu'),l,t]) + ','
             out_date = pylab.num2date(inputDate[t]).isoformat()[:10]
-            out1 = '%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,' % (results[i,j,index.get('iRF'),t], results[i,j,index.get('iE0'),t],results[i,j,index.get('iPET'),t],results[i,j,index.get('iPE'),t],results[i,j,index.get('iRFe'),t],results[i,j,index.get('iINTER'),t])
-            out2 = '%.6f,%.6f,%.6f,' % (results[i,j,index.get('iEg'),t], results[i,j,index.get('iTg'),t],results[i,j,index.get('iEs'),t])
-            out3 = '%.6f,%6f,%.6f,%.6f,' % (results[i,j,index.get('idPOND'),t],results[i,j,index.get('iPOND'),t],results[i,j,index.get('iRo'),t],results[i,j,index.get('iSEEPAGE'),t])
-            out4 = '%.6f,%.6f,%.6f,%.6f,%.6f,%6f' % (results[i,j,index.get('iR'),t], h_satflow[t],heads_MF[t],obs_h[t], obs_S[t],results[i,j,index.get('iMB'),t])
-            out_line =  out_date, ',', out1, Euout, Tuout, out2, Sout, Spcout, out3, Rpout, out4, '\n'
+            out1 = '%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[i,j,index.get('iRF'),t], results[i,j,index.get('iE0'),t],results[i,j,index.get('iPET'),t],results[i,j,index.get('iPE'),t],results[i,j,index.get('iRFe'),t],results[i,j,index.get('iINTER'),t])
+            out2 = '%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[i,j,index.get('iEg'),t], results[i,j,index.get('iTg'),t],results[i,j,index.get('iETg'),t], WEL[t], results[i,j,index.get('iEs'),t])
+            out3 = '%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[i,j,index.get('idPOND'),t],results[i,j,index.get('iPOND'),t],results[i,j,index.get('iRo'),t],results[i,j,index.get('iSEEPAGE'),t],DRN[t])
+            out4 = '%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,%.8f' % (results[i,j,index.get('iR'),t], results[i,j,index.get('iRn'),t], RCH[t], h_satflow[t],heads_MF[t],obs_h[t], obs_S[t],results[i,j,index.get('iMB'),t])
+            out_line =  out_date, ',', out1, Euout, Tuout, out2, Sout, Spcout, dSout, out3, Rpout, out4, '\n'
             for l in out_line:
                 outFileExport.write(l)
 

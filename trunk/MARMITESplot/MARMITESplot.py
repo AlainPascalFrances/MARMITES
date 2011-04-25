@@ -226,6 +226,7 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     plt.plot_date(DateInput,hmeas,'ro', markersize=2, c='lime', markeredgecolor='lime', )
     plt.plot_date(DateInput,h_MF,'-', color = 'b')
     plt.plot_date(DateInput,h_SF,'-', color = 'r')
+    ax8.set_xticklabels(DateInput)
     plt.xlim(DateInput[0]-1,DateInput[len(P)-1]+1)
     ax8.yaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%.1f'))
     ax8.xaxis.set_major_formatter(monthsFmt)
@@ -308,7 +309,7 @@ def plotLAYER(TS, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plttitle, MM_w
             plt.title('layer ' + str(L+1)+', time step ' + str(TS+1) + ': ' + msg, fontsize = 10)
         plt.ylim(plt.ylim()[::-1])
         plt.axis('scaled')
-    plot_export_fn = os.path.join(MM_ws, '00_' + plttitle + '_TS'+str(TS+1) + '.png')
+    plot_export_fn = os.path.join(MM_ws, '00_' + plttitle + '_TS%05d' + '.png') % (TS+1)
     plt.savefig(plot_export_fn)
     plt.close()
     del fig

@@ -71,7 +71,7 @@ def convASCIIraster2array(filenameIN, arrayOUT, cellsizeMF, nrow, ncol):
     fin.close()
 #####################################
 
-def ppMF(model_ws = '', MM_ws = '', rch_input = 0.00001, rch_dft = 0.00001):
+def ppMF(model_ws = '', MM_ws = '', rch_input = 0.00001, rch_dft = 0.00001, wel_input = -1E-6, wel_dft = -1E-6):
 
     messagemanual="Please read the manual!\n(that by the way still doesn't exist...)"
 
@@ -266,6 +266,7 @@ def ppMF(model_ws = '', MM_ws = '', rch_input = 0.00001, rch_dft = 0.00001):
         l = l + 1
         nrchop = int(inputFile[l].strip())
         l = l + 1
+        ext_wel = str(inputFile[l].strip())
     except:
         print "Unexpected error in the input file:\n", sys.exc_info()[0]
         sys.exit()
@@ -348,6 +349,38 @@ def ppMF(model_ws = '', MM_ws = '', rch_input = 0.00001, rch_dft = 0.00001):
             print 'WARNING! No valid recharge file(s) provided, running MODFLOW using default recharge value: %.3G' % rch_dft
             rch_input = rch_dft
 
+# WELL
+    if isinstance(wel_input,float):
+        wel_array = wel_input
+        print '\nWell input: %s' % str(wel_input)
+    else:
+        wel_array = []
+        print '\nWell input: %s' % wel_input
+        try:
+            for n in range(nper):
+                wel_path = os.path.join(model_ws, wel_input + str(n+1) + '.asc')
+                if os.path.exists(wel_path):
+                    wel_array.append(convASCIIraster2array(wel_path, arrayOUT = np.zeros((nrow,ncol)), cellsizeMF = delr[0], nrow = nrow, ncol=ncol))
+                else:
+                    wel_array = wel_dft
+                    print 'WARNING! No valid well file(s) provided, running MODFLOW using default well value: %.3G' % wel_dft
+                    wel_input = wel_dft
+                    break
+        except:
+            wel_array = wel_dft
+            print 'WARNING! No valid well file(s) provided, running MODFLOW using default well value: %.3G' % wel_dft
+            wel_input = wel_dft
+
+    layer_row_column_Q = []
+    for n in range(nper):
+        layer_row_column_Q.append([])
+        for r in range(nrow):
+            for c in range(ncol):
+                if isinstance(wel_array, float):
+                    layer_row_column_Q[n].append([1,r+1,c+1,wel_array])
+                else:
+                    layer_row_column_Q[n].append([1,r+1,c+1,wel_array[n][r][c]])
+
 # DRAIN
     layer_row_column_elevation_cond = [[]]
     ri=0
@@ -356,14 +389,13 @@ def ppMF(model_ws = '', MM_ws = '', rch_input = 0.00001, rch_dft = 0.00001):
         ci=0
         for v in r:
             ci=ci+1
-            layer_row_column_elevation_cond[0].append([1,ri,ci,v    ,1E5])
+            layer_row_column_elevation_cond[0].append([1,ri,ci,v,1E5])
     # in layer 2, cell outlet, elevation is bottom of layer 2
     row_drnL2  = 12
     col_drnL2  = 2
     nlay_drnL2 = 1
-    cond_drnL2 = 0.15
+    cond_drnL2 = 1.0
     botm_drnL2 = botm_array[row_drnL2][col_drnL2][nlay_drnL2]
-    #botm_array[row_drnL2][col_drnL2][0]-(botm_array[row_drnL2][col_drnL2][0]-botm_array[row_drnL2][col_drnL2][nlay_drnL2])/4
     layer_row_column_elevation_cond[0].append([nlay_drnL2+1,row_drnL2+1,col_drnL2+1,botm_drnL2,cond_drnL2])
 
 # average for 1st SS stress period
@@ -376,6 +408,14 @@ def ppMF(model_ws = '', MM_ws = '', rch_input = 0.00001, rch_dft = 0.00001):
             rch_SS = rch_SS/nper
             rch_array = list(rch_array)
             rch_array.insert(0, rch_SS)
+        if isinstance(wel_input,str):
+            wel_array = np.asarray(wel_array)
+            wel_SS = np.zeros((nrow,ncol))
+            for n in range(nper):
+                wel_SS = wel_SS + wel_array[n,:,:]
+            wel_SS = wel_SS/nper
+            wel_array = list(wel_array)
+            wel_array.insert(0, wel_SS)
         nper = nper + 1
         perlen.insert(0,1)
         nstp.insert(0,1)
@@ -403,6 +443,8 @@ def ppMF(model_ws = '', MM_ws = '', rch_input = 0.00001, rch_dft = 0.00001):
     lpf = mflpf(model = mf, hdry = hdry, laytyp = laytyp, layavg = layavg, chani = chani, layvka = layvka, laywet = laywet, hk = hk_array, vka = vka_array, ss = ss_array, sy = sy_array, extension=ext_lpf)
     # rch initialization
     rch = mfrch(mf, irchcb=lpf.ilpfcb, nrchop=nrchop, rech=rch_array, extension = ext_rch)
+    # wel initialization
+    wel = mfwel(mf, iwelcb = lpf.ilpfcb, layer_row_column_Q = layer_row_column_Q, extension = ext_wel)
     # drn package initialization
     drn = mfdrn(model = mf, idrncb=lpf.ilpfcb, layer_row_column_elevation_cond = layer_row_column_elevation_cond)
     # ghb package initialization
@@ -410,12 +452,13 @@ def ppMF(model_ws = '', MM_ws = '', rch_input = 0.00001, rch_dft = 0.00001):
     # output control initialization
     oc = mfoc(mf, ihedfm=ihedfm, iddnfm=iddnfm, item2=[[0,1,1,1]], item3=[[0,0,1,0]], extension=[ext_oc,ext_cbc,ext_heads,ext_ddn])
     # preconditionned conjugate-gradient initialization
-    pcg = mfpcg(mf, mxiter = 100, iter1=50, hclose=1e-2, rclose=1e-2, npcond = 1, relax = 1)
+    pcg = mfpcg(mf, mxiter = 150, iter1=75, hclose=1e-3, rclose=1e-3, npcond = 1, relax = 1)
     # write packages files
     dis.write_file()
     bas.write_file()
     lpf.write_file()
     rch.write_file()
+    wel.write_file()
     drn.write_file()
 #    ghb.write_file()
     oc.write_file()

@@ -455,8 +455,6 @@ def MMsurf(inputFOLDER_fn="", inputFile_TS_fn="", inputFile_PAR_fn="", outputFIL
                     ,lbl_y3 = 'I (mm/d)',lbl_y4 = 'RFe (mm/d)', lbl_veg = VegType\
                     ,plot_exportRF_fn = plot_exportRF_fn
                     )
-            print '\nPlotting done'
-
 
             #  #####  EXPORTING ASCII FILES ##############################################
             try:
