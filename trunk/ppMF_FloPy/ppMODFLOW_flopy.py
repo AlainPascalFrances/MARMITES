@@ -96,7 +96,6 @@ def ppMF(model_ws = '', MM_ws = '', rch_input = 0.00001, rch_dft = 0.00001, wel_
                 raise NameError('InputFileFormat')
     except NameError:
         raise ValueError, 'Error in the input file, check format!\n%s' % (messagemanual)
-        sys.exit()
     except e:
         print "Unexpected error in the input file:\n", sys.exc_info()[0]
         print messagemanual
@@ -394,7 +393,7 @@ def ppMF(model_ws = '', MM_ws = '', rch_input = 0.00001, rch_dft = 0.00001, wel_
     row_drnL2  = 12
     col_drnL2  = 2
     nlay_drnL2 = 1
-    cond_drnL2 = 1.0
+    cond_drnL2 = 0.15
     botm_drnL2 = botm_array[row_drnL2][col_drnL2][nlay_drnL2]
     layer_row_column_elevation_cond[0].append([nlay_drnL2+1,row_drnL2+1,col_drnL2+1,botm_drnL2,cond_drnL2])
 
@@ -451,8 +450,13 @@ def ppMF(model_ws = '', MM_ws = '', rch_input = 0.00001, rch_dft = 0.00001, wel_
 #    ghb = mfghb(model=mf, igbhcb = lpf.ilpfcb, layer_row_column_head_cond = [[2,13,3,90,50]])
     # output control initialization
     oc = mfoc(mf, ihedfm=ihedfm, iddnfm=iddnfm, item2=[[0,1,1,1]], item3=[[0,0,1,0]], extension=[ext_oc,ext_cbc,ext_heads,ext_ddn])
+    # select one of the 3 below (i.e. pcg or sip or sor)
     # preconditionned conjugate-gradient initialization
-    pcg = mfpcg(mf, mxiter = 150, iter1=75, hclose=1e-3, rclose=1e-3, npcond = 1, relax = 1)
+    pcg = mfpcg(mf, mxiter = 150, iter1=75, hclose=1e-3, rclose=1e-2, npcond = 1, relax = 1)
+    # sip
+#    sip = mfsip(mf, hclose=1e-3)
+    # sor
+#    sor = mfsor(mf, hclose=1e-3)
     # write packages files
     dis.write_file()
     bas.write_file()
@@ -462,6 +466,8 @@ def ppMF(model_ws = '', MM_ws = '', rch_input = 0.00001, rch_dft = 0.00001, wel_
     drn.write_file()
 #    ghb.write_file()
     oc.write_file()
+#    sip.write_file()
+#    sor.write_file()
     pcg.write_file()
     h_fn = os.path.join(model_ws, modelname + "." + ext_heads)
     if os.path.exists(h_fn):
@@ -474,7 +480,10 @@ def ppMF(model_ws = '', MM_ws = '', rch_input = 0.00001, rch_dft = 0.00001, wel_
     mf.run_model(pause = False)
     # extract heads
     print ''
-    h = mfrdbin.mfhdsread(mf, 'LF95').read_all(h_fn)
+    try:
+        h = mfrdbin.mfhdsread(mf, 'LF95').read_all(h_fn)
+    except:
+        raise ValueError, '\nMODFLOW error!\nCheck the MODFLOW list file in folder:\n%s' % model_ws
     h_1 = h[1]
     if len(h_1)<sum(perlen):
         raise ValueError, '\nMODFLOW error!\nCheck the MODFLOW list file in folder:\n%s' % model_ws

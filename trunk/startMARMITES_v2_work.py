@@ -100,6 +100,8 @@ try:
     l = l+1
     wel_input = inputFile[l].strip()
     l = l+1
+    plot_freq =  int(inputFile[l].strip())
+    l = l+1
     #GRID (ll means lower left)
     xllcorner = float(inputFile[l].strip())
     l = l+1
@@ -215,7 +217,7 @@ fin.close()
 durationMF = 0.0
 timestartMF = pylab.datestr2num(pylab.datetime.datetime.today().isoformat())
 print'\n##############'
-print 'MODFLOW RUN (initial recharge)'
+print 'MODFLOW RUN (initial user-input fluxes)'
 SP_d, nrow, ncol, delr, delc, nlay, perlen, nper, top, hnoflo, hdry, ibound, laytyp, h_MF, cbc, cbc_nam_tmp, top_array, inputFileMF_fn, lenuni = ppMF.ppMF(MF_ws, MM_ws, rch_input = rch_input, rch_dft = 0.0001, wel_input = wel_input)
 
 h_MF_m = np.ma.masked_values(h_MF, hnoflo, atol = 0.09)
@@ -341,7 +343,7 @@ LOOP = 0
 LOOPlst = [LOOP]
 h_diff = [10]
 h_diff_log = [1]
-convcrit = 0.005
+convcrit = 0.001
 ccnum = 10 # convergence cycle number
 
 plotCONVERGENCE_export_fn = os.path.join(MM_ws, '00_ConvLoop.png')
@@ -829,10 +831,10 @@ while abs(h_diff[LOOP]) > convcrit:
     if h_MFsum == 0.0:
         print '\nFirst layer of the model DRY!'
     elif abs(h_diff[LOOP]) < convcrit:
-        print '\nSuccessfull convergence between MARMITES and MODFLOW!'
+        print '\nSuccessfull convergence between MARMITES and MODFLOW!\n(Conv. criterion = %.3G)' % convcrit
         break
     elif LOOP>ccnum:
-        print'\nNo convergence between MARMITES and MODFLOW!'
+        print'\nNo convergence between MARMITES and MODFLOW!\n(Conv. criterion = %.3G)' % convcrit
         break
 
     # #############################
@@ -841,7 +843,7 @@ while abs(h_diff[LOOP]) > convcrit:
     durationMF = 0.0
     timestartMF = pylab.datestr2num(pylab.datetime.datetime.today().isoformat())
     print'\n##############'
-    print 'MODFLOW RUN (MARMITES recharge)'
+    print 'MODFLOW RUN (MARMITES fluxes)'
     SP_d, nrow, ncol, delr, delc, nlay, perlen, nper, top, hnoflo, hdry, ibound, laytyp, h_MF, cbc, cbc_nam_tmp, top_array, inputFileMF_fn, lenuni = ppMF.ppMF(MF_ws, MM_ws, rch_input = rch_input, rch_dft = 0.0001, wel_input = wel_input)
 
     h_MF_m = np.ma.masked_values(h_MF, hnoflo, atol = 0.09)
@@ -864,7 +866,7 @@ duration = duration + (timeend-timestart) -durationMF
 durationMF = 0.0
 timestartMF = pylab.datestr2num(pylab.datetime.datetime.today().isoformat())
 print'\n##############'
-print 'MODFLOW RUN (MARMITES recharge after conv. loop)'
+print 'MODFLOW RUN (MARMITES fluxes after conv. loop)'
 SP_d, nrow, ncol, delr, delc, nlay, perlen, nper, top, hnoflo, hdry, ibound, laytyp, h_MF, cbc, cbc_nam_tmp, top_array, inputFileMF_fn, lenuni = ppMF.ppMF(MF_ws, MM_ws, rch_input = rch_input, rch_dft = 0.0001, wel_input = wel_input)
 
 h_MF_m = np.ma.masked_values(h_MF, hnoflo, atol = 0.09)
@@ -1106,7 +1108,7 @@ TSlst = []
 TS = 0
 while TS < len(h_MF):
     TSlst.append(TS)
-    TS = TS + 90
+    TS = TS + plot_freq
 TSlst.append(len(h_MF)-1)
 for TS in TSlst:
     # plot heads [m]
@@ -1143,4 +1145,3 @@ print ('\nOutput written in folder: \n%s\n##############\n') % MM_ws
 ##    print e
 ##    raise e
 #os.system('pause')
-

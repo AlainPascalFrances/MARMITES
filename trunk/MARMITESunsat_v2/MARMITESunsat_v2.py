@@ -174,6 +174,26 @@ class UNSAT:
             else:
                 Sini[l] = S[l,t-1]
 
+        DRNcorr = 0.0
+        if DRN == 0.0:
+            if DRNi>0.0:
+                DRNcorr = (Sfc[nsl-1]-Sr[nsl-1])*Dl[nsl-1]
+                Sini[nsl-1] = Sfc[nsl-1]*Dl[nsl-1]
+                Si[nsl-1] = Sini[nsl-1]
+        else:
+            # GW seepage
+            llst = range(nsl-1)
+            llst.reverse()
+            DRN = DRN + Sini[nsl-1]-Sr[nsl-1]*Dl[nsl-1]
+            for l in llst:
+                if DRN - (Sm[l]*Dl[l]-Sini[l]) > 1E-6:
+                    DRN = DRN - (Sm[l]*Dl[l]-Sini[l])
+                    Sini[l] = Sm[l]*Dl[l]
+                else:
+                    Sini[l] = Sini[l] + DRN
+                    DRN = 0.0
+            Sini[nsl-1] = None
+
         # percolation from previous time step
         # if first time step, use Rpi
         for l in range(nsl-1):
@@ -190,24 +210,6 @@ class UNSAT:
                     Sini[l+1] = Sini[l+1] + Rpprev
             else:
                 Sini[l] = Sini[l] + Rpprev
-
-        DRNcorr = 0.0
-        if DRN == 0.0:
-            if DRNi>0.0:
-                DRNcorr = (Sfc[nsl-1]-Sr[nsl-1])*Dl[nsl-1]
-                Sini[nsl-1] = Sfc[nsl-1]*Dl[nsl-1]
-        else:
-            # GW seepage
-            llst = range(nsl-1)
-            llst.reverse()
-            for l in llst:
-                if DRN - (Sm[l]*Dl[l]-Sini[l]) > 1E-6:
-                    DRN = DRN - (Sm[l]*Dl[l]-Sini[l])
-                    Sini[l] = Sm[l]*Dl[l]
-                else:
-                    Sini[l] = Sini[l] + DRN
-                    DRN = 0.0
-            Sini[nsl-1] = None
 
         # infiltration
         Sini[0] = Sini[0] + (RFe + PONDi + DRN)
@@ -290,7 +292,7 @@ class UNSAT:
                     TgtmpZr[z] = PET[z]
                 Tgtmp = Tgtmp + TgtmpZr[z]*VEGarea[z]/100
 
-        return Estmp, PONDtmp, Rotmp, Rptmp, Eutmp, Tutmp, Sini, Spc, Rtmp, Egtmp, Tgtmp, DRNcorr
+        return Estmp, PONDtmp, Rotmp, Rptmp, Eutmp, Tutmp, Sini, Spc, Si, Rtmp, Egtmp, Tgtmp, DRNcorr
 
 #####################
 
@@ -408,7 +410,7 @@ class UNSAT:
                 for l in range(nsl):
                     Si[l] = Si[l]*Dl[l]
                 # fluxes
-                Estmp, PONDtmp, Rotmp, Rptmp, Eutmp, Tutmp, Stmp, Spctmp, Rtmp, Egtmp, Tgtmp, DRNcorr = self.flux(RFe_tot[t], PETveg[:,t], PE_tot[t], S, Sini, Rp, Zr_elev, VEGarea, HEADStmp, Dltop, Dlbot, Dl, nsl, Sm, Sfc, Sr, Ks, PONDm, t, Si, Rpi, DRN[t], DRNi, PONDi, E0[t], dtwt, st, i, j, n, k_Tu_slp, k_Tu_inter)
+                Estmp, PONDtmp, Rotmp, Rptmp, Eutmp, Tutmp, Stmp, Spctmp, Si, Rtmp, Egtmp, Tgtmp, DRNcorr = self.flux(RFe_tot[t], PETveg[:,t], PE_tot[t], S, Sini, Rp, Zr_elev, VEGarea, HEADStmp, Dltop, Dlbot, Dl, nsl, Sm, Sfc, Sr, Ks, PONDm, t, Si, Rpi, DRN[t], DRNi, PONDi, E0[t], dtwt, st, i, j, n, k_Tu_slp, k_Tu_inter)
 
             # heads above soil bottom
             else:
@@ -418,7 +420,7 @@ class UNSAT:
                 for l in range(nsl):
                     Si[l] = Si[l]*Dl[l]
                 # fluxes
-                Estmp, PONDtmp, Rotmp, Rptmp, Eutmp, Tutmp, Stmp, Spctmp, Rtmp, Egtmp, Tgtmp, DRNcorr = self.flux(RFe_tot[t], PETveg[:,t], PE_tot[t], S, Sini, Rp, Zr_elev, VEGarea, HEADStmp, Dltop, Dlbot, Dl, nsl, Sm, Sfc, Sr, Ks, PONDm, t, Si, Rpi, DRN[t], DRNi, PONDi, E0[t], dtwt, st, i, j, n, k_Tu_slp, k_Tu_inter)
+                Estmp, PONDtmp, Rotmp, Rptmp, Eutmp, Tutmp, Stmp, Spctmp, Si, Rtmp, Egtmp, Tgtmp, DRNcorr = self.flux(RFe_tot[t], PETveg[:,t], PE_tot[t], S, Sini, Rp, Zr_elev, VEGarea, HEADStmp, Dltop, Dlbot, Dl, nsl, Sm, Sfc, Sr, Ks, PONDm, t, Si, Rpi, DRN[t], DRNi, PONDi, E0[t], dtwt, st, i, j, n, k_Tu_slp, k_Tu_inter)
             # fill the output arrays
             POND[t]=PONDtmp
             Ro[t] = Rotmp
@@ -453,7 +455,7 @@ class UNSAT:
                     dS[l,t] = (S[l,t]-S[l,t-1])
                     if l<(nsl-1):
                         RpinMB = RpinMB + Rp[l, t-1]
-            MB[t]=RF[t]+PONDi+DRN[t]+RpinMB+DRNcorr-INTER[t]-Ro[t]-POND[t]-Es[t]-EuMB-TuMB-RpoutMB-sum(dS[:,t])
+            MB[t]=RF[t]+PONDi+DRN[t]+RpinMB-INTER[t]-Ro[t]-POND[t]-Es[t]-EuMB-TuMB-RpoutMB-sum(dS[:,t])
 
         # index = {'iRF':0, 'iPET':1, 'iPE':2, 'iRFe':3, 'iPOND':4, 'iRo':5, 'iSEEPAGE':6, 'iEs':7, 'iMB':8, 'iINTER':9, 'iE0':10, 'iEg':11, 'iTg':12, 'iR':13, 'iRn':14, 'idPOND':15, 'ETg':16}
         results1 = [RF, PET_tot, PE_tot, RFe_tot, POND, Ro, DRN, Es, MB, INTER, E0, Eg, Tg, R, Rn, dPOND, ETg]
@@ -755,6 +757,8 @@ class PROCESS:
                 nslst = nslst + 1
                 Ks[z].append(float(inputFile[nslst]))
                 nslst = nslst + 1
+                if not(Sm[z]>Sfc[z]>Sr[z] and Sm[z]>=Si[z]>=Sr[z]):
+                    raise ValueError, '\nERROR!\nSoils parameters are not valid!\nThe conditions are Sm>Sfc>Sr and Sm>Si>Sr!'
             if sum(slprop[z][0:nsl[z+1]-1])>1:
                 raise ValueError, '\nERROR!\nThe sum of the soil layers proportion of %s is >1!\nCorrect your soil data input!\n' % nam_soil[z]
             if sum(slprop[z][0:nsl[z+1]-1])<1:

@@ -79,14 +79,22 @@ FileName=C:\Python26\Lib\site-packages\flopy\mfriv.py
 
 [Project\ChildNodes\Node0\ChildNodes\Node0\ChildNodes\Node16]
 ClassName=TProjectFileNode
-FileName=C:\Python26\Lib\site-packages\flopy\mfswi.py
+FileName=C:\Python26\Lib\site-packages\flopy\mfsip.py
 
 [Project\ChildNodes\Node0\ChildNodes\Node0\ChildNodes\Node17]
+ClassName=TProjectFileNode
+FileName=C:\Python26\Lib\site-packages\flopy\mfsor.py
+
+[Project\ChildNodes\Node0\ChildNodes\Node0\ChildNodes\Node18]
+ClassName=TProjectFileNode
+FileName=C:\Python26\Lib\site-packages\flopy\mfswi.py
+
+[Project\ChildNodes\Node0\ChildNodes\Node0\ChildNodes\Node19]
 ClassName=TProjectFileNode
 FileName=C:\Python26\Lib\site-packages\flopy\mfwel.py
 
 [Project\ChildNodes\Node0\ChildNodes\Node0\ChildNodes]
-Count=18
+Count=20
 
 [Project\ChildNodes\Node0\ChildNodes\Node1]
 ClassName=TProjectFolderNode
