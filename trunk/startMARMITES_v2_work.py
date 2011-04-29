@@ -33,10 +33,10 @@ sys.path.append(r'E:\00code\MARMITES\trunk\MARMITESplot')
 import MARMITESplot as MMplot
 sys.path.append(r'E:\00code\MARMITES\trunk\MARMITESsurf')
 import CreateColors
+import StringIO
+
 #####################################
-
 #try:
-
 # workspace (ws) definition
 timestart = pylab.datestr2num(pylab.datetime.datetime.today().isoformat())
 print '\n##############\nMARMITES starteeeeeeeeeeed!!!\n##############'
@@ -46,8 +46,8 @@ messagemanual="Please read the manual!\n(that by the way still doesn't exist...)
 # read input file (called _input.ini in the MARMITES workspace
 # the first character on the first line has to be the character used to comment
 # the file can contain any comments as the user wish, but the sequence of the input has to be respected
-inputFile_fn = r'E:\00code\00ws\zz_TESTS\MARMITESv2_r13c6l2\_inputMM.ini'
 inputFile = []
+inputFile_fn = r'E:\00code\00ws\zz_TESTS\MARMITESv2_r13c6l2\_inputMM.ini'
 if os.path.exists(inputFile_fn):
     fin = open(inputFile_fn, 'r')
 else:
@@ -72,6 +72,9 @@ except e:
     sys.exit()
 l=0
 try:
+    # report file
+    verbose = inputFile[l]
+    l = l + 1
     # Define MARMITES ws folders
     MM_ws = inputFile[l]
     l = l+1
@@ -122,10 +125,29 @@ try:
     IRR_fn = inputFile[l].strip()
     l = l+1
     inputObs_fn = inputFile[l].strip()
+    l = l+1
+    inputObsHEADS_fn = inputFile[l].strip()
+    l = l+1
+    inputObsSM_fn = inputFile[l].strip()
+    l = l+1
+    convcrit = float(inputFile[l].strip())
+    l = l+1
+    ccnum = int(inputFile[l].strip())
+    l = l+1
+    plt_ConvLoop_fn = inputFile[l].strip()
 except:
     print '\nType error in the input file %s\n%s' % (inputFile_fn, messagemanual)
     sys.exit()
 fin.close()
+
+if verbose == 0:
+#capture interpreter output to be written in to a report file
+    s = StringIO.StringIO()
+    sys.stdout = s
+    report_fn = os.path.join(MM_ws,'00_MM_report.txt')
+    report = open(report_fn, 'w')
+    print '\n##############\nMARMITES starteeeeeeeeeeed!!!\n##############'
+
 print ('\nMARMITES workspace:\n%s\n\nMARMITESsurf workspace:\n%s\n\nMODFLOW workspace:\n%s' % (MM_ws, inputFOLDER_fn, MF_ws))
 
 # #############################
@@ -210,6 +232,8 @@ except:
     print 'Type error in file [' + inputFile_fn + ']%s' % (messagemanual)
     sys.exit()
 fin.close()
+
+os.system('pause')
 
 # #############################
 # ### 1st MODFLOW RUN with initial user-input recharge
@@ -310,7 +334,10 @@ if obsCHECK==1:
     print "\nReading observations time series (hydraulic heads and soil moisture)..."
     obs, outpathname, obs_h, obs_S = MM_PROCESS.inputObs(
                             inputObs_fn = inputObs_fn,
-                            inputDate   = inputDate
+                            inputObsHEADS_fn = inputObsHEADS_fn,
+                            inputObsSM_fn = inputObsSM_fn,
+                            inputDate   = inputDate,
+                            _nslmax    = _nslmax
                             )
     # Write first output in a txt file
     outFileExport = []
@@ -322,6 +349,7 @@ if obsCHECK==1:
         Rp_str=''
         Eu_str=''
         Tu_str=''
+        Smeasout = ''
         for l in range(_nslmax):
             S_str = S_str + 'S_l' + str(l+1) + ','
             Spc_str = Spc_str + 'Spc_l' + str(l+1) + ','
@@ -329,7 +357,8 @@ if obsCHECK==1:
             Eu_str = Eu_str + 'Eu_l' + str(l+1) + ','
             Tu_str = Tu_str + 'Tu_l' + str(l+1) + ','
             Rp_str = Rp_str + 'Rp_l' + str(l+1) + ','
-            header='Date,RF,E0,PET,PE,RFe,Inter,'+Eu_str+Tu_str+'Eg,Tg,ETg,WEL_MF,Es,'+S_str+Spc_str+dS_str+'dPOND,POND,Ro,SEEPAGE,DRN_MF,'+Rp_str+'R,Rn,R_MF,hSATFLOW,hMF,hmeas,Smeas,MB\n'
+            Smeasout = Smeasout+ 'Smeas_' + str(l+1) + ','
+        header='Date,RF,E0,PET,PE,RFe,Inter,'+Eu_str+Tu_str+'Eg,Tg,ETg,WEL_MF,Es,'+S_str+Spc_str+dS_str+'dPOND,POND,Ro,SEEPAGE,DRN_MF,'+Rp_str+'R,Rn,R_MF,hSATFLOW,hMF,hmeas,' + Smeasout + 'MB\n'
         outFileExport[o].write(header)
     outPESTheads_fn      = 'PESTheads.dat'
     outPESTsm_fn         = 'PESTsm.dat'
@@ -343,10 +372,8 @@ LOOP = 0
 LOOPlst = [LOOP]
 h_diff = [10]
 h_diff_log = [1]
-convcrit = 0.001
-ccnum = 10 # convergence cycle number
 
-plotCONVERGENCE_export_fn = os.path.join(MM_ws, '00_ConvLoop.png')
+plt_ConvLoop_fn = os.path.join(MM_ws, plt_ConvLoop_fn + '.png')
 duration = 0.0
 
 # #############################
@@ -630,7 +657,7 @@ while abs(h_diff[LOOP]) > convcrit:
                         resavg_PERall_S[i,j,index_S.get('iRp'),l] = resavg_PERall_S[i,j,index_S.get('iRp'),l] + gridoutRp[l][i,j]
 
                     R4MF[n,i,j] = results[i,j,index.get('iR'),:].sum()/(divfact*1000)
-                    ETg4MF[n,i,j] = results[i,j,index.get('iETg'),:].sum()/(divfact*1000/(delr[j]*delc[i]))
+                    ETg4MF[n,i,j] = (results[i,j,index.get('iETg'),:].sum()/(divfact*1000))*(delr[j]*delc[i])
                     # setting initial conditions for the next SP
                     for l in range(nsl_tmp):
                         Si_tmp_array[i,j,l] = results_S[i,j,index_S.get('iSpc'),l,perlen[n]-1]
@@ -821,9 +848,14 @@ while abs(h_diff[LOOP]) > convcrit:
         plt.xlim(1,LOOP)
         ax1.xaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%2d'))
         ax1.xaxis.set_ticks(LOOPlst[1:])
-    plt.savefig(plotCONVERGENCE_export_fn)
+    plt.savefig(plt_ConvLoop_fn)
     plt.close()
     del fig
+    if verbose == 0:
+        report.write(s.getvalue())
+        s.close()
+        s = StringIO.StringIO()
+        sys.stdout = s
     if LOOP <2:
         print "\nInitial average heads:\n%.3f m" % h_diff[LOOP]
     else:
@@ -993,9 +1025,9 @@ for L in range(nlay):
     cbcmax.append(np.nanmax(-cbc[:,:,:,:,:]).flatten())
     cbcmin.append(np.nanmin(-cbc[:,:,:,:,:]).flatten())
 for o in range(len(obs.keys())):
-    npa_m_tmp = np.ma.masked_values(obs_h[o], hnoflo, atol = 0.09)
-    hmax.append(np.nanmax(npa_m_tmp.flatten()))
-    hmin.append(np.nanmin(npa_m_tmp.flatten()))
+        npa_m_tmp = np.ma.masked_values(obs_h[o], hnoflo, atol = 0.09)
+        hmax.append(np.nanmax(npa_m_tmp.flatten()))
+        hmin.append(np.nanmin(npa_m_tmp.flatten()))
 hmax = float(np.ceil(np.nanmax(hmax)))
 hmin = float(np.floor(np.nanmin(hmin)))
 DRNmax = float(np.ceil(np.nanmax(DRNmax)))
@@ -1003,7 +1035,7 @@ DRNmin = float(np.floor(np.nanmin(DRNmin)))
 cbcmax = float(np.ceil(np.nanmax(cbcmax)))
 cbcmin = float(np.floor(np.nanmin(cbcmin)))
 # plot water budget
-plot_export_fn = os.path.join(MM_ws, '00_UNSATandGWbudgets.png')
+plt_export_fn = os.path.join(MM_ws, '00_UNSATandGWbudgets.png')
 index_cbc = [iRCH, iSTO, iDRN, iWEL]
 flxlbl = ['RF', 'INTER', 'SEEPAGE', 'dS', 'dPOND', 'Ro', 'Es', 'Eu', 'Tu', 'R', 'Rn', 'Eg', 'Tg', 'ETg']
 flxlst =[res_PERall[:,:,index.get('iRF'),:].sum()/sum(perlen)/ncell,
@@ -1025,7 +1057,7 @@ for l in range(nlay):
         flxlst.append(cbc[:,index_cbc[x],:,:,l].sum()/sum(perlen)/ncell)
         flxlbl.append('GW_' + cbc_nam[index_cbc[x]] + '_L' + str(l+1))
 colors_flx = CreateColors.main(hi=0, hf=180, numbcolors = len(flxlbl))
-MMplot.plotGWbudget(flxlst = flxlst, flxlbl = flxlbl, colors_flx = colors_flx, plot_export_fn = plot_export_fn, fluxmax = cbcmax, fluxmin = cbcmin)
+MMplot.plotGWbudget(flxlst = flxlst, flxlbl = flxlbl, colors_flx = colors_flx, plt_export_fn = plt_export_fn, plt_title = 'MARMITES and MODFLOW water flux budget for the whole catchment', fluxmax = cbcmax, fluxmin = cbcmin)
 
 # export data for observation cells and show calib graphs
 if obsCHECK == 1:
@@ -1041,12 +1073,13 @@ if obsCHECK == 1:
 ##        h_MF_tmp[1:sum(perlen)] = h_MF[0:sum(perlen)-1,i,j,0]
         # export ASCII file at piezometers location
         #TODO extract heads at piezo location and not center of cell
-        MM_PROCESS.ExportResults(i, j, inputDate, _nslmax, res_PERall, index, res_PERall_S, index_S, -cbc[:,iDRN,i,j,0], cbc[:,iRCH,i,j,0], -cbc[:,iWEL,i,j,0], h_satflow, h_MF[:,i,j,0], obs_h[o], obs_S[o], outFileExport[o], outPESTheads, outPESTsm, obs.keys()[o])
+        MM_PROCESS.ExportResults(i, j, inputDate, _nslmax, res_PERall, index, res_PERall_S, index_S, -cbc[:,iDRN,i,j,0], cbc[:,iRCH,i,j,0], -cbc[:,iWEL,i,j,0], h_satflow, h_MF[:,i,j,0], obs_h[o][0,:], obs_S[o], outFileExport[o], outPESTheads, outPESTsm, obs.keys()[o])
         # plot
         # DateInput, P, PET, Pe, POND, dPOND, Ro, ETa, S, Rp, R, h, hmeas, Smeas, Sm, Sr):
         # index = {'iRF':0, 'iPET':1, 'iPE':2, 'iRFe':3, 'iPOND':4, 'iRo':5, 'iSEEPAGE':6, 'iEs':7, 'iMB':8, 'iINTER':9, 'iE0':10, 'iEg':11, 'iTg':12, 'iR':13, 'iRn':14, 'idPOND':15, 'iETg':16}
-        plot_export_fn = os.path.join(MM_ws, '00_'+ obs.keys()[o] + '.png')
-        # def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, SEEPAGE, R, Rn, Es, MB, h_MF, h_SF, hmeas, Smeas, Sm, Sr, hnoflo, plot_export_fn, colors_nsl, hmax, hmin):
+        plt_export_fn = os.path.join(MM_ws, '00_'+ obs.keys()[o] + '.png')
+        plt_title = obs.keys()[o]
+        # def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, SEEPAGE, R, Rn, Es, MB, h_MF, h_SF, hmeas, Smeas, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin):
         MMplot.allPLOT(
         inputDate,
         res_PERall[i,j,index.get('iRF'),:],
@@ -1069,17 +1102,18 @@ if obsCHECK == 1:
         res_PERall[i,j,index.get('iRn'),:],
         res_PERall[i,j,index.get('iEs'),:],
         res_PERall[i,j,index.get('iMB'),:],
-        h_MF[:,i,j,0], h_satflow, obs_h[o], obs_S[o],
+        h_MF[:,i,j,0], h_satflow, obs_h[o][0,:], obs_S[o],
         _Sm[gridSOIL[i,j]-1],
         _Sr[gridSOIL[i,j]-1],
         hnoflo,
-        plot_export_fn,
+        plt_export_fn,
+        plt_title,
         colors_nsl,
         hmax,
         hmin
         )
         # plot water budget at each obs. cell
-        plot_export_fn = os.path.join(MM_ws, '00_'+ obs.keys()[o] + 'UNSATandGWbudgets.png')
+        plt_export_fn = os.path.join(MM_ws, '00_'+ obs.keys()[o] + 'UNSATandGWbudgets.png')
         flxlst =[res_PERall[i,j,index.get('iRF'),:].sum()/sum(perlen),
                 -res_PERall[i,j,index.get('iINTER'),:].sum()/sum(perlen),
                 res_PERall[i,j,index.get('iSEEPAGE'),:].sum()/sum(perlen),
@@ -1097,7 +1131,7 @@ if obsCHECK == 1:
         for l in range(nlay):
             for x in range(len(index_cbc)):
                 flxlst.append(cbc[:,index_cbc[x],i,j,l].sum()/sum(perlen))
-        MMplot.plotGWbudget(flxlst = flxlst, flxlbl = flxlbl, colors_flx = colors_flx, plot_export_fn = plot_export_fn, fluxmax = cbcmax, fluxmin = cbcmin)
+        MMplot.plotGWbudget(flxlst = flxlst, flxlbl = flxlbl, colors_flx = colors_flx, plt_export_fn = plt_export_fn, plt_title = plt_title, fluxmax = cbcmax, fluxmin = cbcmin)
         outFileExport[o].close()
     # output for PEST
     outPESTheads.close()
@@ -1115,19 +1149,19 @@ for TS in TSlst:
     V=[]
     for L in range(nlay):
         V.append(h_MF_m[TS,:,:,L])
-    MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation (m)', msg = 'DRY', plttitle = 'HEADS', MM_ws = MM_ws, interval_type = 'arange', interval_diff = 0.5, Vmax = hmax, Vmin = hmin)
+    MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation (m)', msg = 'DRY', plt_title = 'HEADS', MM_ws = MM_ws, interval_type = 'arange', interval_diff = 0.5, Vmax = hmax, Vmin = hmin)
     # plot diff between drain elevation and heads elevation [m]
     DrnHeadsLtop = top_array_m - h_MF_m[TS,:,:,0]
     DrnHeadsLtop_m = np.ma.masked_greater(DrnHeadsLtop,0.0)
     V = [DrnHeadsLtop_m]
     diffMin = 0
     diffMax = np.nanmin(DrnHeadsLtop_m)
-    MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = 1, V = V,  cmap = plt.cm.RdYlGn, CBlabel = 'diff. between DRN elev and hyd. heads elev. (m)', msg = ' - no drainage', plttitle = 'HEADSDRNdiff', MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, Vmax = diffMin, Vmin = diffMax, fmt='%.3G')
+    MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = 1, V = V,  cmap = plt.cm.RdYlGn, CBlabel = 'diff. between DRN elev and hyd. heads elev. (m)', msg = ' - no drainage', plt_title = 'HEADSDRNdiff', MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, Vmax = diffMin, Vmin = diffMax, fmt='%.3G')
     # plot GW drainage [mm]
     V = []
     for L in range(nlay):
         V.append(-cbc[TS,iDRN,:,:,L])
-    MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater drainage (mm/time step)', msg = '- no drainage', plttitle = 'DRN', MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, Vmin = DRNmin, Vmax = DRNmax, fmt='%.3G')
+    MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater drainage (mm/time step)', msg = '- no drainage', plt_title = 'DRN', MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, Vmin = DRNmin, Vmax = DRNmax, fmt='%.3G')
 
 timeendExport = pylab.datestr2num(pylab.datetime.datetime.today().isoformat())
 durationExport=(timeendExport-timestartExport)
@@ -1141,7 +1175,13 @@ print ('MODFLOW run time: %s minute(s) and %.1f second(s)') % (str(int(durationM
 print ('Export run time: %s minute(s) and %.1f second(s)') % (str(int(durationExport*24.0*60.0)), (durationExport*24.0*60.0-int(durationExport*24.0*60.0))*60)
 print ('\nOutput written in folder: \n%s\n##############\n') % MM_ws
 
+if verbose == 0:
+    report.write(s.getvalue())
+    s.close()
+    report.close()
+    # print '\nMARMITES succesfully run!\Check report %s' % (report_fn)
 ##except (ValueError, TypeError, KeyboardInterrupt, IOError), e:
 ##    print e
 ##    raise e
+
 #os.system('pause')

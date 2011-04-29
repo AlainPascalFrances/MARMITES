@@ -767,7 +767,7 @@ class PROCESS:
         return nsl[1:len(nsl)], nam_soil, st, slprop, Sm, Sfc, Sr, Si, Ks
 
 
-    def inputObs(self, inputObs_fn, inputDate):
+    def inputObs(self, inputObs_fn, inputObsHEADS_fn, inputObsSM_fn, inputDate, _nslmax):
         '''
         observations cells for soil moisture and heads (will also compute SATFLOW)
         '''
@@ -814,49 +814,54 @@ class PROCESS:
         obs_h=[]
         obs_sm=[]
         for o in range(len(obs.keys())):
-            obsh_fn=os.path.join(self.MM_ws,'inputObsHEADS_' + obs.keys()[o] +'.txt')
-            obssm_fn=os.path.join(self.MM_ws,'inputObsSM_' + obs.keys()[o] + '.txt')
+            obsh_fn=os.path.join(self.MM_ws, inputObsHEADS_fn + '_' + obs.keys()[o] +'.txt')
+            obssm_fn=os.path.join(self.MM_ws, inputObsSM_fn + '_' + obs.keys()[o] + '.txt')
             obs_h.append(self.verifObs(inputDate, obsh_fn))
-            obs_sm.append(self.verifObs(inputDate, obssm_fn))
+            obs_sm.append(self.verifObs(inputDate, obssm_fn, _nslmax))
 
         return obs, outpathname, obs_h, obs_sm
 
 
-    def verifObs(self, inputDate, filename):
+    def verifObs(self, inputDate, filename, _nslmax = 0):
         '''
         Import and process data and parameters
         '''
 
-        try:
-            #_________________Open file___________________________#
-            obsOutput=np.zeros([len(inputDate)], dtype=float)
-            if os.path.exists(filename):
+        if os.path.exists(filename):
+            try:
                 obsData=np.loadtxt(filename, dtype = str)
                 obsDate = pylab.datestr2num(obsData[:,0])
-                obsValue = obsData[:,1].astype(float)
-                if obsDate[0]<inputDate[0]:
-                    print '\nWARNING, Obs data starting before RF and PET,\n these obs data will not be plotted correctly'
-                if len(inputDate)<len(obsDate):
-                    print '\nWARNING, there is more Obs data than RF and PET data,\n these obs data will not be plotted correctly'
-                j=0
-                for i in range(len(inputDate)):
-                    if j<len(obsDate):
-                        if inputDate[i]==obsDate[j]:
-                            obsOutput[i]=obsValue[j]
-                            j=j+1
+                obsValue = []
+                for l in range(1,len(obsData[0])):
+                    obsValue.append(obsData[:,l].astype(float))
+                if len(obsValue)<_nslmax:
+                    for l in range(_nslmax-len(obsValue)):
+                        obsValue.append(self.hnoflo)
+            except:
+                raise ValueError, '\nERROR! Format of observation file uncorrect!\n%s' % filename
+            if obsDate[0]<inputDate[0]:
+                print '\nWARNING, observation data starting before RF and PET,\n these obs data will not be plotted correctly'
+            if len(inputDate)<len(obsDate):
+                print '\nWARNING, there is more observation data than RF and PET data,\n these obs data will not be plotted correctly'
+            obsOutput = np.zeros([len(obsValue),len(inputDate)], dtype=float)
+            for l in range(len(obsValue)):
+                if not isinstance(obsValue[l], float):
+                    j=0
+                    for i in range(len(inputDate)):
+                        if j<len(obsDate):
+                            if inputDate[i]==obsDate[j]:
+                                obsOutput[l,i]=obsValue[l][j]
+                                j=j+1
+                            else:
+                                obsOutput[l,i]=self.hnoflo
                         else:
-                            obsOutput[i]=self.hnoflo
-                    else:
-                        obsOutput[i]=self.hnoflo
-            else:
-                for i in range(len(inputDate)):
-                    obsOutput[i]=self.hnoflo
-
-            obsOutput = np.asarray(obsOutput)
-
-        except (ValueError, TypeError, KeyboardInterrupt, IOError), e:
-            obsOutput = 0
-            print e
+                            obsOutput[l,i]=self.hnoflo
+                else:
+                    obsOutput[l,:] = np.ones([len(inputDate)])*self.hnoflo
+        else:
+            for i in range(len(inputDate)):
+                for l in range(len(obsValue)):
+                    obsOutput[l,i]=self.hnoflo
 
         return obsOutput
 
@@ -897,21 +902,20 @@ class PROCESS:
             if obs_h[t]!=self.hnoflo:
                 obs_h_tmp = str(obs_h[t])
                 outPESTheads.write(obsname.ljust(10,' ')+ date.ljust(14,' ')+ '00:00:00        '+ str(heads_MF[t])+ '    \n')
-            else:
-                obs_h_tmp = str(self.hnoflo)
             # TODO export for all soil layers (currently only the SM computed for the first layer is exported)
-            if obs_S[t]!=self.hnoflo:
-                obs_S_tmp = str(obs_S[t])
-                outPESTsm.write((obsname+'SM').ljust(10,' ')+ date.ljust(14,' ')+ '00:00:00        '+ str(results_S[i,j,index_S.get('iS'),0,t]) + '    \n')
-            else:
-                obs_S_tmp = str(self.hnoflo)
-            # header='Date,RF,E0,PET,PE,RFe,Inter,'+Eu_str+Tu_str+'Eg,Tg,ETg,WEL_MF,Es,'+S_str+'dPOND,POND,Ro,SEEPAGE,DRN_MF'+Rp_str+'R,Rn,R_MF,hSATFLOW,hMF,hmeas,Smeas,MB\n'
+            if obs_S[0,t]!=self.hnoflo:
+                Smeasout = ''
+                for l in range (_nslmax):
+                    Smeasout= Smeasout + '    ' + str(results_S[i,j,index_S.get('iSpc'),l,t])
+                outPESTsm.write((obsname+'SM').ljust(10,' ')+ date.ljust(14,' ')+ '00:00:00        '+ Smeasout + '    \n')
+            # header='Date,RF,E0,PET,PE,RFe,Inter,'+Eu_str+Tu_str+'Eg,Tg,ETg,WEL_MF,Es,'+S_str+Spc_str+dS_str+'dPOND,POND,Ro,SEEPAGE,DRN_MF,'+Rp_str+'R,Rn,R_MF,hSATFLOW,hMF,hmeas,' + Smeasout + 'MB\n'
             Sout = ''
             Spcout = ''
             dSout = ''
             Rpout=''
             Euout=''
             Tuout=''
+            Smeasout = ''
             for l in range(_nslmax):
                 Sout = Sout + str(results_S[i,j,index_S.get('iS'),l,t]) + ','
                 Spcout = Spcout + str(results_S[i,j,index_S.get('iSpc'),l,t]) + ','
@@ -919,12 +923,17 @@ class PROCESS:
                 Rpout = Rpout + str(results_S[i,j,index_S.get('iRp'),l,t]) + ','
                 Euout = Euout + str(results_S[i,j,index_S.get('iEu'),l,t]) + ','
                 Tuout = Tuout + str(results_S[i,j,index_S.get('iTu'),l,t]) + ','
+                try:
+                    Smeasout = Smeasout + str(obs_S[l,t]) + ','
+                except:
+                    Smeasout = Smeasout + str(self.hnoflo) + ','
             out_date = pylab.num2date(inputDate[t]).isoformat()[:10]
             out1 = '%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[i,j,index.get('iRF'),t], results[i,j,index.get('iE0'),t],results[i,j,index.get('iPET'),t],results[i,j,index.get('iPE'),t],results[i,j,index.get('iRFe'),t],results[i,j,index.get('iINTER'),t])
             out2 = '%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[i,j,index.get('iEg'),t], results[i,j,index.get('iTg'),t],results[i,j,index.get('iETg'),t], WEL[t], results[i,j,index.get('iEs'),t])
             out3 = '%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[i,j,index.get('idPOND'),t],results[i,j,index.get('iPOND'),t],results[i,j,index.get('iRo'),t],results[i,j,index.get('iSEEPAGE'),t],DRN[t])
-            out4 = '%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,%.8f' % (results[i,j,index.get('iR'),t], results[i,j,index.get('iRn'),t], RCH[t], h_satflow[t],heads_MF[t],obs_h[t], obs_S[t],results[i,j,index.get('iMB'),t])
-            out_line =  out_date, ',', out1, Euout, Tuout, out2, Sout, Spcout, dSout, out3, Rpout, out4, '\n'
+            out4 = '%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[i,j,index.get('iR'),t], results[i,j,index.get('iRn'),t], RCH[t], h_satflow[t],heads_MF[t],obs_h[t])
+            out5 = '%.8f' % (results[i,j,index.get('iMB'),t])
+            out_line =  out_date, ',', out1, Euout, Tuout, out2, Sout, Spcout, dSout, out3, Rpout, out4, Smeasout, out5, '\n'
             for l in out_line:
                 outFileExport.write(l)
 

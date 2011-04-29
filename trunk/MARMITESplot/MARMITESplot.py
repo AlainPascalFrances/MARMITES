@@ -6,7 +6,7 @@ import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 
-def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, SEEPAGE, R, Rn, Es, MB, h_MF, h_SF, hmeas, Smeas, Sm, Sr, hnoflo, plot_export_fn, colors_nsl, hmax, hmin):
+def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, SEEPAGE, R, Rn, Es, MB, h_MF, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin):
     """
     allGRAPH: GRAPH the computed data
     Use Matplotlib
@@ -26,7 +26,7 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
                 Ro              Daily runoff
                 R               Daily recharge
                 h               Daily water level
-                hmeas           Daily measured water level
+                hobs           Daily obsserved water level
     ______________________________________________________________________________
     ______________________________________________________________________________
     """
@@ -35,15 +35,15 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     lblspc = 0.05
     mkscale = 0.5
 
-    fig = plt.figure(num=None, figsize=(2*8.27, 2*11.7), dpi=30, facecolor='gray', edgecolor='r', linewidth=1.0)
-    #(num=None, figsize=(8, 6), dpi=80, facecolor='w', edgecolor='k')
-    #(figsize=(25, 15), edgecolor = 'black')  #(2*8.27, 2*11.7))
+    fig = plt.figure(num=None, figsize=(2*8.27, 2*11.7), dpi=30)
+
+    fig.suptitle(plt_title)
 
     nsl = len(Tu)
     lbl_Spc = []
-    lbl_Spc.append('Smeas')
     lbl_S = []
     lbl_dS = []
+    lbl_Sobs = []
     lbl_Rp = []
     lbl_Eu = []
     lbl_Tu = []
@@ -55,12 +55,15 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     lbl_Tu.append('PET')
     lbl_Tu.append('T_tot')
     lbl_Tu.append('Tu_tot')
+    Sobs_m = []
     for l in range(nsl):
         lbl_Spc.append('S_l'+str(l+1))
         lbl_S.append('S_l'+str(l+1))
-        lbl_dS.append('dS_l'+str(l+1))
+        lbl_dS.append(r'$\Delta$S_l'+str(l+1))
         lbl_Eu.append('Eu_l'+str(l+1))
         lbl_Tu.append('Tu_l'+str(l+1))
+        lbl_Sobs.append('Sobs_l'+str(l+1))
+        Sobs_m.append(np.ma.masked_values(Sobs[l], hnoflo, atol = 0.09))
     for l in range(nsl-1):
         lbl_Rp.append('Rp_l'+str(l+1))
     lbl_Rp.append('SEEPAGE')
@@ -86,9 +89,9 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     plt.setp(ax2.get_xticklabels(), visible=False)
     plt.setp(ax2.get_yticklabels(), fontsize=8)
     plt.plot_date(DateInput,Ro,'r-', c='darkblue', linewidth=2, label = 'Ro')
-    plt.plot_date(DateInput,Es,'r-', c='darkblue', linewidth=1, label = 'Es')
+    plt.plot_date(DateInput,Es,'r-', c='darkblue', linewidth=0.75, label = 'Es')
     plt.bar(DateInput, POND, color='lightblue', linewidth=0, align = 'center', label = 'POND')
-    plt.bar(DateInput, dPOND, color='blue', width=0.60, linewidth=0, align = 'center', label = 'dPOND')
+    plt.bar(DateInput, dPOND, color='blue', width=0.60, linewidth=0, align = 'center', label = r'$\Delta$POND')
     ax2.yaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%1.1f'))
     plt.xlim(DateInput[0]-1,DateInput[len(P)-1]+1)
     plt.ylabel('mm', fontsize=10)
@@ -107,11 +110,11 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     plt.setp(ax3.get_xticklabels(), visible=False)
     plt.setp(ax3.get_yticklabels(), fontsize=8)
     plt.plot_date(DateInput,PE,'-', color='lightblue', linewidth=3)
-    plt.plot_date(DateInput,E_tot,'-', color='darkblue', linewidth=1)
+    plt.plot_date(DateInput,E_tot,'-', color='darkblue', linewidth=1.5)
     plt.plot_date(DateInput,Eu_tot,'-.', color=colors_nsl[len(colors_nsl)-1])
     for l, (y, color, lbl) in enumerate(zip(Eu, colors_nsl, lbl_Eu[2:len(lbl_Eu)])):
         ax3.plot_date(DateInput, y, '-', color=color, label=lbl)
-    plt.plot_date(DateInput,Eg,'b-', color='blue')
+    plt.plot_date(DateInput,Eg,'-', color='blue')
     plt.xlim(DateInput[0]-1,DateInput[len(P)-1]+1)
     plt.legend(lbl_Eu, loc=0, labelspacing=lblspc, markerscale=mkscale)
     leg = plt.gca().get_legend()
@@ -129,12 +132,12 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     ax4=fig.add_subplot(10,1,4, sharex=ax1)
     plt.setp(ax4.get_xticklabels(), visible=False)
     plt.setp(ax4.get_yticklabels(), fontsize=8)
-    plt.plot_date(DateInput,PET,'b-', color='lightblue', linewidth=3)
-    plt.plot_date(DateInput,T_tot,'b-', color='darkblue',  linewidth=1)
+    plt.plot_date(DateInput,PET,'-', color='lightblue', linewidth=3)
+    plt.plot_date(DateInput,T_tot,'-', color='darkblue',  linewidth=1.5)
     plt.plot_date(DateInput,Tu_tot,'-.', color=colors_nsl[len(colors_nsl)-1])
     for l, (y, color, lbl) in enumerate(zip(Tu, colors_nsl, lbl_Tu[2:len(lbl_Tu)])):
         ax4.plot_date(DateInput, y, '-', color=color, label=lbl)
-    plt.plot_date(DateInput,Tg,'b-', color='blue')
+    plt.plot_date(DateInput,Tg,'-', color='blue')
     plt.xlim(DateInput[0]-1,DateInput[len(P)-1]+1)
     plt.legend(lbl_Tu, loc=0, labelspacing=lblspc, markerscale=mkscale)
     leg = plt.gca().get_legend()
@@ -186,7 +189,7 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     plt.setp(ax6.get_yticklabels(), fontsize=8)
     plt.bar(DateInput,SEEPAGE, color='lightblue', linewidth=0, align = 'center', label='SEEPAGE')
     plt.plot_date(DateInput,R,'-', c='darkblue', linewidth=2)
-    plt.plot_date(DateInput,Rn,'-', c='blue', linewidth=1)
+    plt.plot_date(DateInput,Rn,'-', c='blue', linewidth=1.5)
     for l, (y, color, lbl) in enumerate(zip(Rp, colors_nsl, lbl_Rp[2:len(lbl_Rp)])) :
         ax6.plot_date(DateInput, y, '-', color=color, label=lbl)
     plt.xlim(DateInput[0]-1,DateInput[len(P)-1]+1)
@@ -202,9 +205,10 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     ax7=fig.add_subplot(10,1,7, sharex=ax1)
     plt.setp(ax7.get_xticklabels(), visible=False)
     plt.setp(ax7.get_yticklabels(), fontsize=8)
-    plt.plot_date(DateInput, Smeas, 'mo', markersize=2, c = 'lime', markeredgecolor='lime')
-    for l, (y, color, lbl) in enumerate(zip(Spc, colors_nsl, lbl_Spc[1:len(lbl_Spc)])) :
-        ax7.plot_date(DateInput, y, '-', color=color, label=lbl)
+    for l, (y, color, lbl) in enumerate(zip(Sobs_m, colors_nsl, lbl_Sobs)) :
+        ax7.plot_date(DateInput, y, linestyle='-', linewidth = 0.5, marker='o', markersize=5, color = color, label=lbl)
+    for l, (y, color, lbl) in enumerate(zip(Spc, colors_nsl, lbl_Spc)) :
+        ax7.plot_date(DateInput, y, '-', color = color, label=lbl)
     # x axis
     plt.xlim(DateInput[0]-1,DateInput[len(P)-1]+1)
     # y axis
@@ -213,17 +217,19 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     plt.ylabel('%', fontsize=10)
     ax7.yaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%1.2f'))
     # legend
-    plt.legend(lbl_Spc, loc=0, labelspacing=lblspc, markerscale=mkscale)
+    lbl_Spcobs = lbl_Sobs + lbl_Spc
+    plt.legend(lbl_Spcobs, loc=0, labelspacing=lblspc, markerscale=mkscale)
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8 )
     plt.grid(True)
     ax7.xaxis.set_major_formatter(monthsFmt)
 
+    hobs_m = np.ma.masked_values(hobs, hnoflo, atol = 0.09)
     ax8=fig.add_subplot(10,1,8, sharex=ax1)
     plt.setp(ax8.get_xticklabels(), fontsize=8)
     plt.setp(ax8.get_yticklabels(), fontsize=8)
-    plt.plot_date(DateInput,hmeas,'ro', markersize=2, c='lime', markeredgecolor='lime', )
+    plt.plot_date(DateInput,hobs_m, linestyle='-', color = 'blue', linewidth = 0.5, marker='o', markerfacecolor = 'blue', markersize=5)
     plt.plot_date(DateInput,h_MF,'-', color = 'b')
     plt.plot_date(DateInput,h_SF,'-', color = 'r')
     ax8.set_xticklabels(DateInput)
@@ -237,7 +243,7 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
         ybuffer = 1.0
     plt.ylim((hmin - ybuffer, hmax + ybuffer))
     plt.ylabel('m', fontsize=10)
-    plt.legend((r'hmeas',r'hsim_MF',r'hsim_SF'), loc=0, labelspacing=lblspc, markerscale=mkscale)
+    plt.legend((r'hobs',r'hsim_MF',r'hsim_SF'), loc=0, labelspacing=lblspc, markerscale=mkscale)
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8 )
@@ -263,14 +269,14 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     ax10.yaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%.2g'))
 
     plt.subplots_adjust(left=0.05, bottom=0.10, right=0.95, top=0.95, wspace=0.1, hspace=0.1)
-    plt.savefig(plot_export_fn,dpi=150)
+    plt.savefig(plt_export_fn,dpi=150)
 #    plt.show()
     plt.close()
     del fig
 
 ##################
 
-def plotLAYER(TS, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plttitle, MM_ws, interval_type = 'arange', interval_diff = 1, interval_num = 1, Vmax = 0, Vmin = 0, fmt = '%.2f'):
+def plotLAYER(TS, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_title, MM_ws, interval_type = 'arange', interval_diff = 1, interval_num = 1, Vmax = 0, Vmin = 0, fmt = '%.2f'):
 
     # Store some arrays for plotting
     x = np.arange(0.5, ncol+1.5, 1)
@@ -282,7 +288,8 @@ def plotLAYER(TS, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plttitle, MM_w
     xg1,yg1 = np.meshgrid(x,y)
 
     ax = []
-    fig = plt.figure()
+    fig = plt.figure(num=None, figsize=(11.7, 8.27), dpi=30)
+    fig.suptitle(plt_title)
     for L in range(nplot):
         if interval_type == 'arange':
             ticks = np.arange(Vmin,Vmax,interval_diff)
@@ -309,8 +316,8 @@ def plotLAYER(TS, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plttitle, MM_w
             plt.title('layer ' + str(L+1)+', time step ' + str(TS+1) + ': ' + msg, fontsize = 10)
         plt.ylim(plt.ylim()[::-1])
         plt.axis('scaled')
-    plot_export_fn = os.path.join(MM_ws, '00_' + plttitle + '_TS%05d' + '.png') % (TS+1)
-    plt.savefig(plot_export_fn)
+    plt_export_fn = os.path.join(MM_ws, '00_' + plt_title + '_TS%05d' + '.png') % (TS+1)
+    plt.savefig(plt_export_fn)
     plt.close()
     del fig
     del ax
@@ -323,7 +330,7 @@ def plotLAYER(TS, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plttitle, MM_w
 
 ##################
 
-def plotGWbudget(flxlst, flxlbl, colors_flx, plot_export_fn, fluxmax, fluxmin):
+def plotGWbudget(flxlst, flxlbl, colors_flx, plt_export_fn, plt_title, fluxmax, fluxmin):
     """
     Plot GW budget
     """
@@ -347,7 +354,8 @@ def plotGWbudget(flxlst, flxlbl, colors_flx, plot_export_fn, fluxmax, fluxmin):
     lblspc = 0.05
     mkscale = 0.5
 
-    fig = plt.figure(figsize=(2*11.7, 2*8.27))
+    fig = plt.figure(num=None, figsize=(2*11.7, 2*8.27), dpi=30)
+    fig.suptitle(plt_title)
 
     ax1=fig.add_subplot(2,1,1)
     plt.setp( ax1.get_xticklabels(), fontsize=10)
@@ -370,7 +378,7 @@ def plotGWbudget(flxlst, flxlbl, colors_flx, plot_export_fn, fluxmax, fluxmin):
     ax1.axhline(0, color='black', lw=1)
 
     plt.subplots_adjust(left=0.05, bottom=0.10, right=0.95, top=0.95, wspace=0.1, hspace=0.1)
-    plt.savefig(plot_export_fn,dpi=150)
+    plt.savefig(plt_export_fn,dpi=150)
 #    plt.show()
     plt.close()
     del fig

@@ -85,7 +85,7 @@ def process(datenum = np.array([]), datenum_d = np.array([])
               ,LAI_d = np.array([]), LAI_w = np.array([])  \
               ,f_s_d = np.array([]), f_s_w = np.array([])  \
               ,alfa_vd = np.array([]), alfa_vw = np.array([]), J_vd = 91, J_vw= 305, TRANS_vdw = 20\
-              ,NSOIL = 1, SoilType = [], Sy = np.array([])\
+              ,NSOIL = 1, SoilType = [], por = np.array([]), fc = np.array([])\
               ,alfa_sd = np.array([]), alfa_sw = np.array([]), J_sd = 166, J_sw = 274, TRANS_sdw = 20
               ,alfa_w = 0.06):
     '''
@@ -131,11 +131,13 @@ def process(datenum = np.array([]), datenum_d = np.array([])
         SOIL PARAMETERS
         NSOIL: number of soil types
         to repeat NSOIL times in a same line
-        Sy: surface (1cm) soil specific yield [m3.m-3]
+        por: surface (1cm) soil porosity [m3.m-3]
+        fc: surface (1cm) soil field capacity [m3.m-3]
         alfa_sd: soil albedo in dry season
         alfa_sw: soil albedo in wet season
-        jd_sd: starting julian day of the dry season [int 1-365]
-        jd_sw: starting julian day of the wet season [int 1-365]
+        J_sd: starting julian day of the dry season [int 1-365]
+        J_sw: starting julian day of the wet season [int 1-365]
+        TRANS_sdw: transition period between dry and wet season [days]
 
         WATER PARAMETERS
         alfa_w: water albedo
@@ -426,9 +428,9 @@ def process(datenum = np.array([]), datenum_d = np.array([])
         else:
             G_WATER.append(0.1*Rn)
     print "\nG computed!"
-    G_VEG_Watts = []
-    for j in range(len(J)):
-        G_VEG_Watts.append(G_VEG[0][j]*24/0.08864)
+##    G_VEG_Watts = []
+##    for j in range(len(J)):
+##        G_VEG_Watts.append(G_VEG[0][j]*24/0.08864)
 
     # ro_a - MEAN AIR DENSITY AT CTE PRESSURE
     # [kg.m-3]
@@ -503,11 +505,11 @@ def process(datenum = np.array([]), datenum_d = np.array([])
                     r_s_VEG[v].append(1.0E6)
                 else:
                     r_s_VEG[v].append(1.0/f_temp)
-     # SOIL: van de Griend and Owe, 1994
+     # SOIL: equation 20 of van de Griend and Owe, 1994
     r_s_SOIL = []
     if NSOIL>0:
         for s in range(NSOIL):
-             r_s_SOIL.append(10*np.exp(0.3563*Sy[s]))
+            r_s_SOIL.append(10.0*np.exp(0.3563*100.0*(fc[s]-por[s])))
         print "\nr_s computed!"
 
 
@@ -519,12 +521,14 @@ def process(datenum = np.array([]), datenum_d = np.array([])
     for v in range(NVEG):
         u_hplus2.append([])
     for j in range(len(J)):
-        if u_z_m[j]<0.0:
-            u_z_m[j] = 0.0
+        if u_z_m[j]<=0.0:
+            u_z_m[j] = 1E-9
         if z_m <> 2.0:
             u_2.append(u_z_m[j] * 4.87 / (pylab.log(67.8*z_m-5.42)))
         else:
             u_2.append(u_z_m[j])
+        if u_2[j]<=0.0:
+            u_2[j] = 1E-9
         for v in range(NVEG):
             u_hplus2[v].append(u_2[j] * (pylab.log(67.8*(h[v]+2.0)-5.42)) / 4.87)
 
@@ -535,9 +539,6 @@ def process(datenum = np.array([]), datenum_d = np.array([])
         for v in range(NVEG):
             r_a_j=[]
             for j in range(len(J)):
-                if u_z_m[j] == 0.0:
-                    r_a_j.append(1.0E6)
-                else:
                     if v == 0:      # FAO56 pag20 eq4- (d - zero displacement plane, z_0m - roughness length momentum transfer, z_0h - roughness length heat and vapour transfer, [m], FAO56 pag21 BOX4
                         r_a_j.append(pylab.log((2-(2*h[v]/3))/(0.123*h[v]))*pylab.log((2-(2*h[v]/3))/(0.0123*h[v]))/(pow(k,2)*u_2[j]))
                     else:           # DINGMAN pag 296
@@ -575,26 +576,20 @@ def process(datenum = np.array([]), datenum_d = np.array([])
 ##                            r_a_j.append(pylab.log((z_m-d[v])/z_0m[v])*pylab.log((z_h-d[v])/z_0h[v])/(pow(k,2)*u_z_m[j]))
 ##                    r_a_VEG.append(r_a_j)
     # r_a for SOIL
-    # Liu www.hydrol-earth-syst-sci.net/11/769/2007/
+##    # Liu www.hydrol-earth-syst-sci.net/11/769/2007/
+##    r_a_SOIL = []
+##    # only function of ws, it is assumed that roughness are the same for any type of soil
+##    if NSOIL > 0:
+##        for j in range(len(J)):
+##              r_a_SOIL.append(pylab.log((2.0)/0.0058)*pylab.log(2.0/0.0058)/(pow(k,2)*u_2[j]))
+    # BavelHillel_PotActualEvaporationBareSoilSurface_1976
+    # SOIL ra = ([ln(2.0/Z0)]^2)/(0.16*U2) with Z0 = 0.01
     r_a_SOIL = []
-    # only function of ws, it is assumed that roughness are the same for any type of soil
+    Z0 = 0.01
     if NSOIL > 0:
         for j in range(len(J)):
-            if u_z_m[j] == 0:
-                r_a_SOIL.append(1E6)
-            else:
-                r_a_SOIL.append(pylab.log((z_m)/0.0058)*pylab.log(z_h/0.0058)/(pow(k,2)*u_z_m[j]))
-    ##    # BavelHillel_PotActualEvaporationBareSoilSurface_1976
-    ##    # SOIL ra = ([ln(2.0/Z0)]^2)/(0.16*U2) with Z0 = 0.01
-    ##    r_a_SOIL = []
-    ##    Z0 = 0.01
-    ##    for j in range(NSOIL):
-    ##        r_a_i=[]
-    ##        for i in range(len(J)):
-    ##            r_a_i.append(pow(pylab.log(2.0/Z0),2)/(0.16*u_2[i]))
-    ##        r_a_SOIL.append(r_a_i)
+            r_a_SOIL.append(pow(pylab.log(2.0/Z0),2)/(0.16*u_2[j]))
     print "\nr_a computed!"
-
 
     # equation variables for outputs
     outputVAR = [DELTA,gama, Rs, Rs_corr, Rs0, Rnl, r]
@@ -638,7 +633,6 @@ def process(datenum = np.array([]), datenum_d = np.array([])
                      gama[j]*0.26*(1+0.54*u_2[j])*(e0_Ta[j]-e_a[j])  )/   \
                      (lambdav*(DELTA[j] + gama[j])))
     print "\nE0 for open water computed!"
-
 
     # #### DAILY SUM ##############################################
     J_d = []

@@ -107,16 +107,17 @@ import PET_RF_INTER, plotPET, plotRF
     2
     # to repeat NSOIL times in a same line
     # 0 - SoilType: name of the soil type [string, 1 word, no space allowed]
-    # 1 - Sy: surface (1cm) soil specific yield [m3.m-3]
-    # 2 - alfa_sd: soil albedo in dry season
-    # 3 - alfa_sw: soil albedo in wet season
-    # 4 - J_sd: starting julian day of the dry season [int 1-365]
-    # 5 - J_sw: starting julian day of the wet season [int 1-365]
-    # 6 - TRANS_sdw: transition period between dry and wet season [days]
+    # 1 - por: surface (1cm) soil porosity [m3.m-3]
+    # 2 - fc: surface (1cm) soil field capacity [m3.m-3]
+    # 3 - alfa_sd: soil albedo in dry season
+    # 4 - alfa_sw: soil albedo in wet season
+    # 5 - J_sd: starting julian day of the dry season [int 1-365]
+    # 6 - J_sw: starting julian day of the wet season [int 1-365]
+    # 7 - TRANS_sdw: transition period between dry and wet season [days]
     # SOIL1 (alluvium)
-    alluvium 0.05 0.20 0.15 150 270 20
+    alluvium 0.40 0.25 0.20 0.15 150 270 20
     # SOIL2 (regolith)
-    regolith 0.15 0.25 0.20 150 270 20
+    regolith 0.35 0.15 0.25 0.20 150 270 20
 
     # BY DEFAULT E0 (evaporation from open water using the Penman equation) WILL BE COMPUTED
     # OPEN WATER PARAMETERS
@@ -296,7 +297,8 @@ def MMsurf(inputFOLDER_fn="", inputFile_TS_fn="", inputFile_PAR_fn="", outputFIL
         line = inputFile[l].split()
         NSOIL = int(line[0]) # number of soil types
         SoilType = [] # name of the soil type [string]
-        Sy = [] # surface (1cm) soil specific yield [m3.m-3]
+        por = [] # surface (1cm) soil porosity [m3.m-3]
+        fc = [] # surface (1cm) soil field capacity [m3.m-3]
         alfa_sd = [] # soil albedo in dry season
         alfa_sw = [] # soil albedo in wet season
         J_sd = [] # starting julian day of the dry season [int 1-365]
@@ -307,12 +309,13 @@ def MMsurf(inputFOLDER_fn="", inputFile_TS_fn="", inputFile_PAR_fn="", outputFIL
                 l = l + 1
                 line = inputFile[l].split()
                 SoilType.append(str(line[0]))
-                Sy.append(float(line[1]))
-                alfa_sd.append(float(line[2]))
-                alfa_sw.append(float(line[3]))
-                J_sd.append(int(line[4]))
-                J_sw.append(int(line[5]))
-                TRANS_sdw.append(int(line[6]))
+                por.append(float(line[1]))
+                fc.append(float(line[2]))
+                alfa_sd.append(float(line[3]))
+                alfa_sw.append(float(line[4]))
+                J_sd.append(int(line[5]))
+                J_sw.append(int(line[6]))
+                TRANS_sdw.append(int(line[7]))
         # WATER PARAMETERS
         alfa_w = 0.06 # water albedo
     except:
@@ -422,7 +425,7 @@ def MMsurf(inputFOLDER_fn="", inputFile_TS_fn="", inputFile_PAR_fn="", outputFIL
                     phi[n], Lm[n], Z[n], Lz[n], FC[n], z_m[n], z_h[n], \
                     NVEG, VegType, h, S, C_leaf_star, LAI_d, LAI_w,\
                     f_s_d, f_s_w, alfa_vd, alfa_vw, J_vd, J_vw, TRANS_vdw,\
-                    NSOIL, SoilType, Sy, alfa_sd, alfa_sw, J_sd, J_sw, TRANS_sdw, alfa_w)
+                    NSOIL, SoilType, por, fc, alfa_sd, alfa_sw, J_sd, J_sw, TRANS_sdw, alfa_w)
 
             #  #####  PLOTTING ##############################################
             print "\n###############"
