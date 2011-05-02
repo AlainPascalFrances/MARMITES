@@ -576,24 +576,42 @@ def process(datenum = np.array([]), datenum_d = np.array([])
 ##                            r_a_j.append(pylab.log((z_m-d[v])/z_0m[v])*pylab.log((z_h-d[v])/z_0h[v])/(pow(k,2)*u_z_m[j]))
 ##                    r_a_VEG.append(r_a_j)
     # r_a for SOIL
-##    # Liu www.hydrol-earth-syst-sci.net/11/769/2007/
-##    r_a_SOIL = []
-##    # only function of ws, it is assumed that roughness are the same for any type of soil
-##    if NSOIL > 0:
-##        for j in range(len(J)):
-##              r_a_SOIL.append(pylab.log((2.0)/0.0058)*pylab.log(2.0/0.0058)/(pow(k,2)*u_2[j]))
-    # BavelHillel_PotActualEvaporationBareSoilSurface_1976
-    # SOIL ra = ([ln(2.0/Z0)]^2)/(0.16*U2) with Z0 = 0.01
+    # Liu www.hydrol-earth-syst-sci.net/11/769/2007/
     r_a_SOIL = []
-    Z0 = 0.01
+    # only function of ws, it is assumed that roughness are the same for any type of soil
     if NSOIL > 0:
         for j in range(len(J)):
-            r_a_SOIL.append(pow(pylab.log(2.0/Z0),2)/(0.16*u_2[j]))
+              r_a_SOIL.append(pylab.log((2.0)/0.0058)*pylab.log(2.0/0.0058)/(pow(k,2)*u_2[j]))
+##    # BavelHillel_PotActualEvaporationBareSoilSurface_1976
+##    # SOIL ra = ([ln(2.0/Z0)]^2)/(0.16*U2) with Z0 = 0.01
+##    r_a_SOIL = []
+##    Z0 = 0.01
+##    if NSOIL > 0:
+##        for j in range(len(J)):
+##            r_a_SOIL.append(pow(pylab.log(2.0/Z0),2)/(0.16*u_2[j]))
     print "\nr_a computed!"
 
     # equation variables for outputs
     outputVAR = [DELTA,gama, Rs, Rs_corr, Rs0, Rnl, r]
 
+    # PET, PE and E0 computing
+    # WARNING: note the conditions above of >0.0 and <E0 to correct the values
+    # and avoid instabilities in the further computing of MARMITESunsat
+    # One should analyse the graph of the variables to ensure that PET, PE and E0
+    # are properly computed
+
+    # E0 - open water
+    # computed by Penman equation in Gieske 2003 pag 94 eq63 and 64
+    E0 = []
+    for j in range(len(J)):
+        value = (DELTA[j]*(Rns_WATER[j]-Rnl[j]-G_WATER[j])  +         \
+                     gama[j]*0.26*(1+0.54*u_2[j])*(e0_Ta[j]-e_a[j])  )/   \
+                     (lambdav*(DELTA[j] + gama[j]))
+        if value >=0.0:
+            E0.append(value)
+        else:
+            E0.append(0.0)
+    print "\nE0 for open water computed!"
     # PE(T) - Penman-Montheith
     # mm.hour-1
     # FAO56 pag19 eq3
@@ -605,12 +623,18 @@ def process(datenum = np.array([]), datenum_d = np.array([])
             PET_PM_VEG_v = []
             Erf_v = []
             for j in range(len(J)):
-                PET_PM_VEG_v.append(  (DELTA[j]*(Rns_VEG[v][j]-Rnl[j]-G_VEG[v][j])+3600*ro_a[j]*Cp*(e0_Ta[j]-e_a[j])/r_a_VEG[v][j])/  \
-                            (lambdav*(DELTA[j] + gama[j]*(1+r_s_VEG[v][j]/r_a_VEG[v][j])))                  \
-                            )
-                Erf_v.append(  (DELTA[j]*(Rns_VEG[v][j]-Rnl[j]-G_VEG[v][j])+3600*ro_a[j]*Cp*(e0_Ta[j]-e_a[j])/r_a_VEG[v][j])/  \
-                            (lambdav*(DELTA[j] + gama[j]))                 \
-                            )
+                value = (DELTA[j]*(Rns_VEG[v][j]-Rnl[j]-G_VEG[v][j])+3600*ro_a[j]*Cp*(e0_Ta[j]-e_a[j])/r_a_VEG[v][j])/  \
+                            (lambdav*(DELTA[j] + gama[j]*(1+r_s_VEG[v][j]/r_a_VEG[v][j])))
+                if value >=0.0:
+                    PET_PM_VEG_v.append(value)
+                else:
+                    PET_PM_VEG_v.append(0.0)
+                value = (DELTA[j]*(Rns_VEG[v][j]-Rnl[j]-G_VEG[v][j])+3600*ro_a[j]*Cp*(e0_Ta[j]-e_a[j])/r_a_VEG[v][j])/  \
+                            (lambdav*(DELTA[j] + gama[j]))
+                if value >= 0.0:
+                    Erf_v.append(value)
+                else:
+                    Erf_v.append(0.0)
             PET_PM_VEG.append(PET_PM_VEG_v)
             Erf.append(Erf_v)
         print "\nPET for VEGETATION computed!"
@@ -620,19 +644,17 @@ def process(datenum = np.array([]), datenum_d = np.array([])
         for s in range(NSOIL):
             PE_PM_SOIL_s = []
             for j in range(len(J)):
-                PE_PM_SOIL_s.append(  (DELTA[j]*(Rns_SOIL[s][j]-Rnl[j]-G_SOIL[s][j])+3600*ro_a[j]*Cp*(e0_Ta[j]-e_a[j])/r_a_SOIL[j])/  \
-                            (lambdav*(DELTA[j] + gama[j]*(1+r_s_SOIL[s]/r_a_SOIL[j])))                  \
-                            )
+                value = (DELTA[j]*(Rns_SOIL[s][j]-Rnl[j]-G_SOIL[s][j])+3600*ro_a[j]*Cp*(e0_Ta[j]-e_a[j])/r_a_SOIL[j])/  \
+                            (lambdav*(DELTA[j] + gama[j]*(1+r_s_SOIL[s]/r_a_SOIL[j])))
+                if value >=0.0:
+                    if value <= E0[j]:
+                        PE_PM_SOIL_s.append(value)
+                    else:
+                        PE_PM_SOIL_s.append(E0[j])
+                else:
+                    PE_PM_SOIL_s.append(0.0)
             PE_PM_SOIL.append(PE_PM_SOIL_s)
         print "\nPE for SOIL computed!"
-    # E0 - open water
-    # computed by Penman equation in Gieske 2003 pag 94 eq63 and 64
-    E0 = []
-    for j in range(len(J)):
-        E0.append(  (DELTA[j]*(Rns_WATER[j]-Rnl[j]-G_WATER[j])  +         \
-                     gama[j]*0.26*(1+0.54*u_2[j])*(e0_Ta[j]-e_a[j])  )/   \
-                     (lambdav*(DELTA[j] + gama[j])))
-    print "\nE0 for open water computed!"
 
     # #### DAILY SUM ##############################################
     J_d = []
