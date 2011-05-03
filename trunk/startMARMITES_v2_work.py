@@ -39,7 +39,7 @@ import StringIO
 #try:
 # workspace (ws) definition
 timestart = pylab.datestr2num(pylab.datetime.datetime.today().isoformat())
-print '\n##############\nMARMITES starteeeeeeeeeeed!!!\n##############'
+print '\n##############\nMARMITES started!\n##############'
 
 messagemanual="Please read the manual!\n(that by the way still doesn't exist...)"
 
@@ -47,7 +47,7 @@ messagemanual="Please read the manual!\n(that by the way still doesn't exist...)
 # the first character on the first line has to be the character used to comment
 # the file can contain any comments as the user wish, but the sequence of the input has to be respected
 inputFile = []
-inputFile_fn = r'E:\00code\00ws\zz_TESTS\MARMITESv2_r13c6l2\_inputMM.ini'
+inputFile_fn = r'E:\00code\00ws\zz_TESTS\MARMITESv2_r13c6l2_PEST\_inputMM.ini'
 if os.path.exists(inputFile_fn):
     fin = open(inputFile_fn, 'r')
 else:
@@ -72,17 +72,20 @@ except e:
     sys.exit()
 l=0
 try:
-    # report file
-    verbose = inputFile[l]
+    # report file (0 - report and no interpreter verbose, 1 - no report and interpreter verbose)
+    verbose = int(inputFile[l].strip())
+    l = l + 1
+    # output plot (1 is YES, 0 is NO)
+    plot_out  = int(inputFile[l].strip())
     l = l + 1
     # Define MARMITES ws folders
     MM_ws = inputFile[l]
     l = l+1
-    #run MARMITESsurface  1 is YES, 0 is NO
+    #run MARMITESsurface  (1 is YES, 0 is NO)
     MMsurf_yn = int(inputFile[l].strip())
     l = l+1
     # Define MARMITESsurface folder
-    inputFOLDER_fn = inputFile[l].strip()
+    MMsurf_ws = inputFile[l].strip()
     l = l+1
     # METEO TIME SERIES file name
     inputFile_TS_fn = inputFile[l].strip()
@@ -146,9 +149,19 @@ if verbose == 0:
     sys.stdout = s
     report_fn = os.path.join(MM_ws,'00_MM_report.txt')
     report = open(report_fn, 'w')
-    print '\n##############\nMARMITES starteeeeeeeeeeed!!!\n##############'
-
-print ('\nMARMITES workspace:\n%s\n\nMARMITESsurf workspace:\n%s\n\nMODFLOW workspace:\n%s' % (MM_ws, inputFOLDER_fn, MF_ws))
+    print '\n##############\nMARMITES started!\n##############'
+MMsurf_ws = os.path.join(MM_ws,MMsurf_ws)
+MF_ws = os.path.join(MM_ws,MF_ws)
+if os.path.exists(MM_ws):
+    if os.path.exists(MMsurf_ws):
+        if os.path.exists(MF_ws):
+            print ('\nMARMITES workspace:\n%s\n\nMARMITESsurf workspace:\n%s\n\nMODFLOW workspace:\n%s' % (MM_ws, MMsurf_ws, MF_ws))
+        else:
+            print "The folder %s doesn't exist!\nPlease create it and run the model again." % (MF_ws)
+    else:
+        print "The folder %s doesn't exist!\nPlease create it and run the model again." % (MMsurf_ws)
+else:
+    print "The folder %s doesn't exist!\nPlease create it and run the model again." % (MM_ws)
 
 # #############################
 # ###  MARMITES SURFACES  #####
@@ -158,7 +171,7 @@ print'\n##############'
 print 'MARMITESsurf RUN'
 
 if MMsurf_yn>0:
-    MMsurf_fn = startMMsurf.MMsurf(inputFOLDER_fn, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, MM_ws)
+    MMsurf_fn = startMMsurf.MMsurf(MMsurf_ws, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, MM_ws)
 
 inputFile = []
 inputFile_fn = os.path.join(MM_ws,MMsurf_fn)
@@ -233,8 +246,6 @@ except:
     sys.exit()
 fin.close()
 
-os.system('pause')
-
 # #############################
 # ### 1st MODFLOW RUN with initial user-input recharge
 # #############################
@@ -242,7 +253,7 @@ durationMF = 0.0
 timestartMF = pylab.datestr2num(pylab.datetime.datetime.today().isoformat())
 print'\n##############'
 print 'MODFLOW RUN (initial user-input fluxes)'
-SP_d, nrow, ncol, delr, delc, nlay, perlen, nper, top, hnoflo, hdry, ibound, laytyp, h_MF, cbc, cbc_nam_tmp, top_array, inputFileMF_fn, lenuni = ppMF.ppMF(MF_ws, MM_ws, rch_input = rch_input, rch_dft = 0.0001, wel_input = wel_input)
+SP_d, nrow, ncol, delr, delc, nlay, perlen, nper, top, hnoflo, hdry, ibound, laytyp, h_MF, cbc, cbc_nam_tmp, top_array, inputFileMF_fn, lenuni = ppMF.ppMF(MF_ws, rch_input = rch_input, rch_dft = 0.0001, wel_input = wel_input)
 
 h_MF_m = np.ma.masked_values(h_MF, hnoflo, atol = 0.09)
 
@@ -876,7 +887,7 @@ while abs(h_diff[LOOP]) > convcrit:
     timestartMF = pylab.datestr2num(pylab.datetime.datetime.today().isoformat())
     print'\n##############'
     print 'MODFLOW RUN (MARMITES fluxes)'
-    SP_d, nrow, ncol, delr, delc, nlay, perlen, nper, top, hnoflo, hdry, ibound, laytyp, h_MF, cbc, cbc_nam_tmp, top_array, inputFileMF_fn, lenuni = ppMF.ppMF(MF_ws, MM_ws, rch_input = rch_input, rch_dft = 0.0001, wel_input = wel_input)
+    SP_d, nrow, ncol, delr, delc, nlay, perlen, nper, top, hnoflo, hdry, ibound, laytyp, h_MF, cbc, cbc_nam_tmp, top_array, inputFileMF_fn, lenuni = ppMF.ppMF(MF_ws, rch_input = rch_input, rch_dft = 0.0001, wel_input = wel_input)
 
     h_MF_m = np.ma.masked_values(h_MF, hnoflo, atol = 0.09)
     top_array_m = np.ma.masked_values(top_array, hnoflo, atol = 0.09)
@@ -899,7 +910,7 @@ durationMF = 0.0
 timestartMF = pylab.datestr2num(pylab.datetime.datetime.today().isoformat())
 print'\n##############'
 print 'MODFLOW RUN (MARMITES fluxes after conv. loop)'
-SP_d, nrow, ncol, delr, delc, nlay, perlen, nper, top, hnoflo, hdry, ibound, laytyp, h_MF, cbc, cbc_nam_tmp, top_array, inputFileMF_fn, lenuni = ppMF.ppMF(MF_ws, MM_ws, rch_input = rch_input, rch_dft = 0.0001, wel_input = wel_input)
+SP_d, nrow, ncol, delr, delc, nlay, perlen, nper, top, hnoflo, hdry, ibound, laytyp, h_MF, cbc, cbc_nam_tmp, top_array, inputFileMF_fn, lenuni = ppMF.ppMF(MF_ws, rch_input = rch_input, rch_dft = 0.0001, wel_input = wel_input)
 
 h_MF_m = np.ma.masked_values(h_MF, hnoflo, atol = 0.09)
 top_array_m = np.ma.masked_values(top_array, hnoflo, atol = 0.09)
@@ -1074,94 +1085,96 @@ if obsCHECK == 1:
         # export ASCII file at piezometers location
         #TODO extract heads at piezo location and not center of cell
         MM_PROCESS.ExportResults(i, j, inputDate, _nslmax, res_PERall, index, res_PERall_S, index_S, -cbc[:,iDRN,i,j,0], cbc[:,iRCH,i,j,0], -cbc[:,iWEL,i,j,0], h_satflow, h_MF[:,i,j,0], obs_h[o][0,:], obs_S[o], outFileExport[o], outPESTheads, outPESTsm, obs.keys()[o])
-        # plot
-        # DateInput, P, PET, Pe, POND, dPOND, Ro, ETa, S, Rp, R, h, hmeas, Smeas, Sm, Sr):
-        # index = {'iRF':0, 'iPET':1, 'iPE':2, 'iRFe':3, 'iPOND':4, 'iRo':5, 'iSEEPAGE':6, 'iEs':7, 'iMB':8, 'iINTER':9, 'iE0':10, 'iEg':11, 'iTg':12, 'iR':13, 'iRn':14, 'idPOND':15, 'iETg':16}
-        plt_export_fn = os.path.join(MM_ws, '00_'+ obs.keys()[o] + '.png')
-        plt_title = obs.keys()[o]
-        # def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, SEEPAGE, R, Rn, Es, MB, h_MF, h_SF, hmeas, Smeas, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin):
-        MMplot.allPLOT(
-        inputDate,
-        res_PERall[i,j,index.get('iRF'),:],
-        res_PERall[i,j,index.get('iPET'),:],
-        res_PERall[i,j,index.get('iPE'),:],
-        res_PERall[i,j,index.get('iRFe'),:],
-        res_PERall[i,j,index.get('idPOND'),:],
-        res_PERall[i,j,index.get('iPOND'),:],
-        res_PERall[i,j,index.get('iRo'),:],
-        res_PERall_S[i,j,index_S.get('iEu'),0:_nsl[gridSOIL[i,j]-1],:],
-        res_PERall_S[i,j,index_S.get('iTu'),0:_nsl[gridSOIL[i,j]-1],:],
-        res_PERall[i,j,index.get('iEg'),:],
-        res_PERall[i,j,index.get('iTg'),:],
-        res_PERall_S[i,j,index_S.get('iS'),0:_nsl[gridSOIL[i,j]-1],:],
-        res_PERall_S[i,j,index_S.get('idS'),0:_nsl[gridSOIL[i,j]-1],:],
-        res_PERall_S[i,j,index_S.get('iSpc'),0:_nsl[gridSOIL[i,j]-1],:],
-        res_PERall_S[i,j,index_S.get('iRp'),0:_nsl[gridSOIL[i,j]-1]-1,:],
-        res_PERall[i,j,index.get('iSEEPAGE'),:],
-        res_PERall[i,j,index.get('iR'),:],
-        res_PERall[i,j,index.get('iRn'),:],
-        res_PERall[i,j,index.get('iEs'),:],
-        res_PERall[i,j,index.get('iMB'),:],
-        h_MF[:,i,j,0], h_satflow, obs_h[o][0,:], obs_S[o],
-        _Sm[gridSOIL[i,j]-1],
-        _Sr[gridSOIL[i,j]-1],
-        hnoflo,
-        plt_export_fn,
-        plt_title,
-        colors_nsl,
-        hmax,
-        hmin
-        )
-        # plot water budget at each obs. cell
-        plt_export_fn = os.path.join(MM_ws, '00_'+ obs.keys()[o] + 'UNSATandGWbudgets.png')
-        flxlst =[res_PERall[i,j,index.get('iRF'),:].sum()/sum(perlen),
-                -res_PERall[i,j,index.get('iINTER'),:].sum()/sum(perlen),
-                res_PERall[i,j,index.get('iSEEPAGE'),:].sum()/sum(perlen),
-                res_PERall_S[i,j,index_S.get('idS'),:,:].sum()/sum(perlen),
-                res_PERall[i,j,index.get('idPOND'),:].sum()/sum(perlen),
-                -res_PERall[i,j,index.get('iRo'),:].sum()/sum(perlen),
-                -res_PERall[i,j,index.get('iEs'),:].sum()/sum(perlen),
-                -res_PERall_S[i,j,index_S.get('iEu'),:,:].sum()/sum(perlen),
-                -res_PERall_S[i,j,index_S.get('iTu'),:,:].sum()/sum(perlen),
-                -res_PERall[i,j,index.get('iR'),:].sum()/sum(perlen),
-                -res_PERall[i,j,index.get('iRn'),:].sum()/sum(perlen),
-                -res_PERall[i,j,index.get('iEg'),:].sum()/sum(perlen),
-                -res_PERall[i,j,index.get('iTg'),:].sum()/sum(perlen),
-                res_PERall[i,j,index.get('iETg'),:].sum()/sum(perlen)]
-        for l in range(nlay):
-            for x in range(len(index_cbc)):
-                flxlst.append(cbc[:,index_cbc[x],i,j,l].sum()/sum(perlen))
-        MMplot.plotGWbudget(flxlst = flxlst, flxlbl = flxlbl, colors_flx = colors_flx, plt_export_fn = plt_export_fn, plt_title = plt_title, fluxmax = cbcmax, fluxmin = cbcmin)
         outFileExport[o].close()
+        # plot
+        if plot_out == 1:
+            # DateInput, P, PET, Pe, POND, dPOND, Ro, ETa, S, Rp, R, h, hmeas, Smeas, Sm, Sr):
+            # index = {'iRF':0, 'iPET':1, 'iPE':2, 'iRFe':3, 'iPOND':4, 'iRo':5, 'iSEEPAGE':6, 'iEs':7, 'iMB':8, 'iINTER':9, 'iE0':10, 'iEg':11, 'iTg':12, 'iR':13, 'iRn':14, 'idPOND':15, 'iETg':16}
+            plt_export_fn = os.path.join(MM_ws, '00_'+ obs.keys()[o] + '.png')
+            plt_title = obs.keys()[o]
+            # def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, SEEPAGE, R, Rn, Es, MB, h_MF, h_SF, hmeas, Smeas, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin):
+            MMplot.allPLOT(
+            inputDate,
+            res_PERall[i,j,index.get('iRF'),:],
+            res_PERall[i,j,index.get('iPET'),:],
+            res_PERall[i,j,index.get('iPE'),:],
+            res_PERall[i,j,index.get('iRFe'),:],
+            res_PERall[i,j,index.get('idPOND'),:],
+            res_PERall[i,j,index.get('iPOND'),:],
+            res_PERall[i,j,index.get('iRo'),:],
+            res_PERall_S[i,j,index_S.get('iEu'),0:_nsl[gridSOIL[i,j]-1],:],
+            res_PERall_S[i,j,index_S.get('iTu'),0:_nsl[gridSOIL[i,j]-1],:],
+            res_PERall[i,j,index.get('iEg'),:],
+            res_PERall[i,j,index.get('iTg'),:],
+            res_PERall_S[i,j,index_S.get('iS'),0:_nsl[gridSOIL[i,j]-1],:],
+            res_PERall_S[i,j,index_S.get('idS'),0:_nsl[gridSOIL[i,j]-1],:],
+            res_PERall_S[i,j,index_S.get('iSpc'),0:_nsl[gridSOIL[i,j]-1],:],
+            res_PERall_S[i,j,index_S.get('iRp'),0:_nsl[gridSOIL[i,j]-1]-1,:],
+            res_PERall[i,j,index.get('iSEEPAGE'),:],
+            res_PERall[i,j,index.get('iR'),:],
+            res_PERall[i,j,index.get('iRn'),:],
+            res_PERall[i,j,index.get('iEs'),:],
+            res_PERall[i,j,index.get('iMB'),:],
+            h_MF[:,i,j,0], h_satflow, obs_h[o][0,:], obs_S[o],
+            _Sm[gridSOIL[i,j]-1],
+            _Sr[gridSOIL[i,j]-1],
+            hnoflo,
+            plt_export_fn,
+            plt_title,
+            colors_nsl,
+            hmax,
+            hmin
+            )
+            # plot water budget at each obs. cell
+            plt_export_fn = os.path.join(MM_ws, '00_'+ obs.keys()[o] + 'UNSATandGWbudgets.png')
+            flxlst =[res_PERall[i,j,index.get('iRF'),:].sum()/sum(perlen),
+                    -res_PERall[i,j,index.get('iINTER'),:].sum()/sum(perlen),
+                    res_PERall[i,j,index.get('iSEEPAGE'),:].sum()/sum(perlen),
+                    res_PERall_S[i,j,index_S.get('idS'),:,:].sum()/sum(perlen),
+                    res_PERall[i,j,index.get('idPOND'),:].sum()/sum(perlen),
+                    -res_PERall[i,j,index.get('iRo'),:].sum()/sum(perlen),
+                    -res_PERall[i,j,index.get('iEs'),:].sum()/sum(perlen),
+                    -res_PERall_S[i,j,index_S.get('iEu'),:,:].sum()/sum(perlen),
+                    -res_PERall_S[i,j,index_S.get('iTu'),:,:].sum()/sum(perlen),
+                    -res_PERall[i,j,index.get('iR'),:].sum()/sum(perlen),
+                    -res_PERall[i,j,index.get('iRn'),:].sum()/sum(perlen),
+                    -res_PERall[i,j,index.get('iEg'),:].sum()/sum(perlen),
+                    -res_PERall[i,j,index.get('iTg'),:].sum()/sum(perlen),
+                    res_PERall[i,j,index.get('iETg'),:].sum()/sum(perlen)]
+            for l in range(nlay):
+                for x in range(len(index_cbc)):
+                    flxlst.append(cbc[:,index_cbc[x],i,j,l].sum()/sum(perlen))
+            MMplot.plotGWbudget(flxlst = flxlst, flxlbl = flxlbl, colors_flx = colors_flx, plt_export_fn = plt_export_fn, plt_title = plt_title, fluxmax = cbcmax, fluxmin = cbcmin)
     # output for PEST
     outPESTheads.close()
     outPESTsm.close()
 
-# plot heads (grid + contours), DRN, etc... at specified TS
-TSlst = []
-TS = 0
-while TS < len(h_MF):
-    TSlst.append(TS)
-    TS = TS + plot_freq
-TSlst.append(len(h_MF)-1)
-for TS in TSlst:
-    # plot heads [m]
-    V=[]
-    for L in range(nlay):
-        V.append(h_MF_m[TS,:,:,L])
-    MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation (m)', msg = 'DRY', plt_title = 'HEADS', MM_ws = MM_ws, interval_type = 'arange', interval_diff = 0.5, Vmax = hmax, Vmin = hmin)
-    # plot diff between drain elevation and heads elevation [m]
-    DrnHeadsLtop = top_array_m - h_MF_m[TS,:,:,0]
-    DrnHeadsLtop_m = np.ma.masked_greater(DrnHeadsLtop,0.0)
-    V = [DrnHeadsLtop_m]
-    diffMin = 0
-    diffMax = np.nanmin(DrnHeadsLtop_m)
-    MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = 1, V = V,  cmap = plt.cm.RdYlGn, CBlabel = 'diff. between DRN elev and hyd. heads elev. (m)', msg = ' - no drainage', plt_title = 'HEADSDRNdiff', MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, Vmax = diffMin, Vmin = diffMax, fmt='%.3G')
-    # plot GW drainage [mm]
-    V = []
-    for L in range(nlay):
-        V.append(-cbc[TS,iDRN,:,:,L])
-    MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater drainage (mm/time step)', msg = '- no drainage', plt_title = 'DRN', MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, Vmin = DRNmin, Vmax = DRNmax, fmt='%.3G')
+if plot_out == 1:
+    # plot heads (grid + contours), DRN, etc... at specified TS
+    TSlst = []
+    TS = 0
+    while TS < len(h_MF):
+        TSlst.append(TS)
+        TS = TS + plot_freq
+    TSlst.append(len(h_MF)-1)
+    for TS in TSlst:
+        # plot heads [m]
+        V=[]
+        for L in range(nlay):
+            V.append(h_MF_m[TS,:,:,L])
+        MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation (m)', msg = 'DRY', plt_title = 'HEADS', MM_ws = MM_ws, interval_type = 'arange', interval_diff = 0.5, Vmax = hmax, Vmin = hmin)
+        # plot diff between drain elevation and heads elevation [m]
+        DrnHeadsLtop = top_array_m - h_MF_m[TS,:,:,0]
+        DrnHeadsLtop_m = np.ma.masked_greater(DrnHeadsLtop,0.0)
+        V = [DrnHeadsLtop_m]
+        diffMin = 0
+        diffMax = np.nanmin(DrnHeadsLtop_m)
+        MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = 1, V = V,  cmap = plt.cm.RdYlGn, CBlabel = 'diff. between DRN elev and hyd. heads elev. (m)', msg = ' - no drainage', plt_title = 'HEADSDRNdiff', MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, Vmax = diffMin, Vmin = diffMax, fmt='%.3G')
+        # plot GW drainage [mm]
+        V = []
+        for L in range(nlay):
+            V.append(-cbc[TS,iDRN,:,:,L])
+        MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater drainage (mm/time step)', msg = '- no drainage', plt_title = 'DRN', MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, Vmin = DRNmin, Vmax = DRNmax, fmt='%.3G')
 
 timeendExport = pylab.datestr2num(pylab.datetime.datetime.today().isoformat())
 durationExport=(timeendExport-timestartExport)

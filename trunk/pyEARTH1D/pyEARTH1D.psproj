@@ -1,5 +1,5 @@
 ﻿[PyScripter]
-Version=2.3.4.0
+Version=2.4.1.0
 
 [Project]
 ClassName=TProjectRootNode
@@ -11,23 +11,23 @@ ClassName=TProjectFilesNode
 
 [Project\ChildNodes\Node0\ChildNodes\Node0]
 ClassName=TProjectFileNode
-FileName=$[Project-Path]appReSoGUI.py
+FileName=$[Project-Path]clsAbout.py
 
 [Project\ChildNodes\Node0\ChildNodes\Node1]
 ClassName=TProjectFileNode
-FileName=$[Project-Path]clsAbout.py
+FileName=$[Project-Path]clsReSo_GUI_frame.py
 
 [Project\ChildNodes\Node0\ChildNodes\Node2]
 ClassName=TProjectFileNode
-FileName=$[Project-Path]clsReSo_GUI_frame.py
+FileName=$[Project-Path]ReSo.py
 
 [Project\ChildNodes\Node0\ChildNodes\Node3]
 ClassName=TProjectFileNode
-FileName=$[Project-Path]ReSo.py
+FileName=$[Project-Path]ReSoGraph.py
 
 [Project\ChildNodes\Node0\ChildNodes\Node4]
 ClassName=TProjectFileNode
-FileName=$[Project-Path]ReSoGraph.py
+FileName=$[Project-Path]start_pyEARTH1D.py
 
 [Project\ChildNodes\Node0\ChildNodes]
 Count=5

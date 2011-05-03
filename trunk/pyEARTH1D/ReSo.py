@@ -128,37 +128,6 @@ class ReSo:
 ##=========================================================================================##
 ##________________________________SOMOS FUNCTIONS DEFINITION_______________________________##
 
-    #_________________________Actual evapotranspiration function__________________#
-
-    def evp(self, s,pet,D,Sm,Sr):
-        Se=(s-Sr)/(Sm-Sr)    # Percent. of soil saturation
-        if s<Sr:
-            return 0.0
-        elif pet>((Sm-Sr)*D):
-            return Se*((Sm-Sr)*D)
-        else:
-            return Se*pet
-
-    #______________________________________________________________________________#
-
-    #_________________________Percolation function_________________________________#
-
-    def perc(self,s,D,Sm,Sfc,Ks):
-        Sg=(s-Sfc)/(Sm-Sfc)  # Percent. of gravitational water
-        if s<=Sfc:
-            return (0.0)
-        elif s>Sfc and s<=Sm:
-            if (Ks*Sg) > (D*(s-Sfc)):
-                return (D*(s-Sfc))
-            else:
-                return (Ks*Sg)
-        elif s>Sm:
-            if Ks>(D*(Sm-Sfc)):
-                return (D*(Sm-Sfc))
-            else:
-                return (Ks)
-    #____________________________________________________________________________#
-
     #_________________________Ponding and surface runoff function________________#
 
     def pond(self,s,D,Sm,SUSTm):
@@ -173,10 +142,37 @@ class ReSo:
             sust_tmp =(0.0)
             qs_tmp =(0.0)
         return sust_tmp, qs_tmp
-    #__________________________________________________________________________#
 
-##________________________________END OF FUNCTIONS DEFINITION__________________##
+    #_________________________Actual evapotranspiration function__________________#
 
+    def evp(self, s,pet,D,Sm,Sr):
+        Se=(s-Sr)/(Sm-Sr)    # Percent. of soil saturation
+        if s<Sr:
+            return 0.0
+        elif pet>((Sm-Sr)*D):
+            return Se*((Sm-Sr)*D)
+        else:
+            return Se*pet
+
+    #_________________________Percolation function_________________________________#
+
+    def perc(self,s,D,Sm,Sfc,Ks):
+        Sg=(s-Sfc)/(Sm-Sfc)  # Percent. of gravitational water
+        if s<=Sfc:
+            return (0.0)
+        elif s<=Sm:
+            if (Ks*Sg) > (D*(s-Sfc)):
+                return (D*(s-Sfc))
+            else:
+                return (Ks*Sg)
+        else:
+            if Ks>(D*(Sm-Sfc)):
+                return (D*(Sm-Sfc))
+            else:
+                return (Ks)
+    #____________________________________________________________________________#
+
+#________________________________END OF FUNCTIONS DEFINITION__________________##
 
 ##=========================================================================================##
 ##===========================|-----------------|===========================================##

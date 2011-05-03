@@ -71,7 +71,7 @@ def convASCIIraster2array(filenameIN, arrayOUT, cellsizeMF, nrow, ncol):
     fin.close()
 #####################################
 
-def ppMF(model_ws = '', MM_ws = '', rch_input = 0.00001, rch_dft = 0.00001, wel_input = -1E-6, wel_dft = -1E-6):
+def ppMF(model_ws = '', rch_input = 0.00001, rch_dft = 0.00001, wel_input = -1E-6, wel_dft = -1E-6):
 
     messagemanual="Please read the manual!\n(that by the way still doesn't exist...)"
 
@@ -135,13 +135,21 @@ def ppMF(model_ws = '', MM_ws = '', rch_input = 0.00001, rch_dft = 0.00001, wel_
         l = l + 1
         delr = []
         delr_tmp =  inputFile[l].split()
-        for i in range(ncol):
-            delr.append(int(delr_tmp[i]))
+        if len(delr_tmp)>1:
+            for i in range(ncol):
+                delr.append(int(delr_tmp[i]))
+        else:
+            for i in range(ncol):
+                delr.append(int(delr_tmp[0]))
         l = l + 1
         delc = []
         delc_tmp =  inputFile[l].split()
-        for i in range(nrow):
-            delc.append(int(delc_tmp[i]))
+        if len(delc_tmp)>1:
+            for i in range(nrow):
+                delc.append(int(delc_tmp[i]))
+        else:
+            for i in range(nrow):
+                delc.append(int(delc_tmp[0]))
         l = l + 1
         top_fn = str(inputFile[l].strip())
         l = l + 1

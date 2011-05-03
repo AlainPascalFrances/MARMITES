@@ -28,7 +28,7 @@ class clsReSo_GUI_frame(wx.Frame):
         # Menu Bar
         self.fram_main_menubar = wx.MenuBar()
         self.mnFile = wx.Menu()
-        self.mnLoadAll = wx.MenuItem(self.mnFile, 10, "Load &All (folder)", "For fast load, name your files \"input.txt\", \"param.txt\", \"h.txt\" and \"s.txt\"", wx.ITEM_NORMAL)
+        self.mnLoadAll = wx.MenuItem(self.mnFile, 10, "Load &All (folder)", "For fast upload, name your files \"input.txt\", \"param.txt\", \"h.txt\" and \"s.txt\"", wx.ITEM_NORMAL)
         self.mnFile.AppendItem(self.mnLoadAll)
         self.mnFile.AppendSeparator()
         self.mnLoadInput = wx.MenuItem(self.mnFile, 11, "Load &Input", "", wx.ITEM_NORMAL)
@@ -189,7 +189,8 @@ class clsReSo_GUI_frame(wx.Frame):
 
     def __set_properties(self):
         _icon = wx.EmptyIcon()
-        _icon.CopyFromBitmap(wx.Bitmap(os.getcwd() + '\\aquaflagged.ico', wx.BITMAP_TYPE_ANY))
+        path = os.path.dirname(ReSo.__file__)
+        _icon.CopyFromBitmap(wx.Bitmap(path + '\\aquaflagged.ico', wx.BITMAP_TYPE_ANY))
         self.SetIcon(_icon)
         # begin wxGlade: clsReSo_GUI_frame.__set_properties
         self.SetTitle("pyEARTH1D - Recharge and Soil moisture modelling")
