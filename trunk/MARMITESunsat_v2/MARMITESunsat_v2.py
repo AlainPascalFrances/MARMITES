@@ -99,7 +99,7 @@ class UNSAT:
 
 #####################
 
-    def flux(self, RFe, PET, PE, S, Sini, Rp, Zr_elev, VEGarea, HEADStmp, Dltop, Dlbot, Dl, nsl, Sm, Sfc, Sr, Ks, PONDm, t, Si, Rpi, DRN, DRNi, PONDi, E0, dtwt, st, i, j, n, k_Tu_slp, k_Tu_inter):
+    def flux(self, RFe, PET, PE, S, Sini, Rp, Zr_elev, VEGarea, HEADStmp, Dltop, Dlbot, Dl, nsl, Sm, Sfc, Sr, Ks, PONDm, PONDratio, t, Si, Rpi, DRN, DRNi, PONDi, E0, dtwt, st, i, j, n, k_Tu_slp, k_Tu_inter):
 
         def surfwater(s_tmp,Vm,PONDm, E0, i, j, n):
             '''
@@ -215,7 +215,7 @@ class UNSAT:
         Sini[0] = Sini[0] + (RFe + PONDi + DRN)
 
         # POND and Ro
-        surfwatertmp = surfwater(Sini[0],Sm[0]*Dl[0],PONDm, E0, i, j, n)
+        surfwatertmp = surfwater(Sini[0],Sm[0]*Dl[0],PONDm, E0*PONDratio, i, j, n)
         PONDtmp = surfwatertmp[0]
         Rotmp = surfwatertmp[1]
         Estmp = surfwatertmp[2]
@@ -297,7 +297,7 @@ class UNSAT:
 #####################
 
     def run(self, i, j, n,
-                  nsl, st, slprop, Sm, Sfc, Sr, Si, PONDi, Rpi, D, Ks, PONDm,
+                  nsl, st, slprop, Sm, Sfc, Sr, Si, PONDi, Rpi, D, Ks, PONDm, PONDratio,
                   ELEV, HEADS, DRN, DRNi,
                   RF, E0, PETveg, RFeveg, PEsoil, VEGarea, Zr,
                   perlen, hdry,
@@ -410,7 +410,7 @@ class UNSAT:
                 for l in range(nsl):
                     Si[l] = Si[l]*Dl[l]
                 # fluxes
-                Estmp, PONDtmp, Rotmp, Rptmp, Eutmp, Tutmp, Stmp, Spctmp, Si, Rtmp, Egtmp, Tgtmp, DRNcorr = self.flux(RFe_tot[t], PETveg[:,t], PE_tot[t], S, Sini, Rp, Zr_elev, VEGarea, HEADStmp, Dltop, Dlbot, Dl, nsl, Sm, Sfc, Sr, Ks, PONDm, t, Si, Rpi, DRN[t], DRNi, PONDi, E0[t], dtwt, st, i, j, n, k_Tu_slp, k_Tu_inter)
+                Estmp, PONDtmp, Rotmp, Rptmp, Eutmp, Tutmp, Stmp, Spctmp, Si, Rtmp, Egtmp, Tgtmp, DRNcorr = self.flux(RFe_tot[t], PETveg[:,t], PE_tot[t], S, Sini, Rp, Zr_elev, VEGarea, HEADStmp, Dltop, Dlbot, Dl, nsl, Sm, Sfc, Sr, Ks, PONDm, PONDratio, t, Si, Rpi, DRN[t], DRNi, PONDi, E0[t], dtwt, st, i, j, n, k_Tu_slp, k_Tu_inter)
 
             # heads above soil bottom
             else:
@@ -420,7 +420,7 @@ class UNSAT:
                 for l in range(nsl):
                     Si[l] = Si[l]*Dl[l]
                 # fluxes
-                Estmp, PONDtmp, Rotmp, Rptmp, Eutmp, Tutmp, Stmp, Spctmp, Si, Rtmp, Egtmp, Tgtmp, DRNcorr = self.flux(RFe_tot[t], PETveg[:,t], PE_tot[t], S, Sini, Rp, Zr_elev, VEGarea, HEADStmp, Dltop, Dlbot, Dl, nsl, Sm, Sfc, Sr, Ks, PONDm, t, Si, Rpi, DRN[t], DRNi, PONDi, E0[t], dtwt, st, i, j, n, k_Tu_slp, k_Tu_inter)
+                Estmp, PONDtmp, Rotmp, Rptmp, Eutmp, Tutmp, Stmp, Spctmp, Si, Rtmp, Egtmp, Tgtmp, DRNcorr = self.flux(RFe_tot[t], PETveg[:,t], PE_tot[t], S, Sini, Rp, Zr_elev, VEGarea, HEADStmp, Dltop, Dlbot, Dl, nsl, Sm, Sfc, Sr, Ks, PONDm, PONDratio, t, Si, Rpi, DRN[t], DRNi, PONDi, E0[t], dtwt, st, i, j, n, k_Tu_slp, k_Tu_inter)
             # fill the output arrays
             POND[t]=PONDtmp
             Ro[t] = Rotmp

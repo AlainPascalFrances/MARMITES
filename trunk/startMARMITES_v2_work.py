@@ -121,7 +121,9 @@ try:
     l = l+1
     gridIRR_fn = inputFile[l].strip()
     l = l+1
-    gridPONDm_fn =  inputFile[l].strip()
+    gridPONDhmax_fn =  inputFile[l].strip()
+    l = l+1
+    gridPONDw_fn =  inputFile[l].strip()
     l = l+1
     SOILparam_fn = inputFile[l].strip()
     l = l+1
@@ -318,8 +320,14 @@ gridSOIL = MM_PROCESS.inputEsriAscii(grid_fn = gridSOIL_fn, datatype = int)
 gridSOILthick = MM_PROCESS.inputEsriAscii(grid_fn = gridSOILthick_fn,
  datatype = float)
 
-gridPONDm = MM_PROCESS.inputEsriAscii(grid_fn = gridPONDm_fn,
+gridPONDhmax = MM_PROCESS.inputEsriAscii(grid_fn = gridPONDhmax_fn,
  datatype = float)
+
+gridPONDw = MM_PROCESS.inputEsriAscii(grid_fn = gridPONDw_fn,
+ datatype = float)
+
+# TODO compute correction factor for pionding and convert to mm
+# TODO check unit consistency (input should be m and be converted to mm)
 
 ##gridIRR = MM_PROCESS.inputEsriAscii(grid_fn                  = gridIRR_fn)
 
@@ -554,7 +562,8 @@ while abs(h_diff[LOOP]) > convcrit:
                         DRNi  = DRNi_tmp_array[i,j]
                     Rpi_tmp = Rpi_tmp_array[i,j,:]
                     Ks_tmp    = _Ks[SOILzone_tmp]
-                    PONDm_tmp = gridPONDm[i,j]
+                    PONDm_tmp = 1.12*gridPONDhmax[i,j]*gridPONDw[i,j]/delr[j]
+                    PONDratio = 1.12*gridPONDw[i,j]/delr[j]
                     D_tmp = gridSOILthick[i,j]
                     PEsoilzonesTS_tmp = PEsoilzonesTS[METEOzone_tmp,SOILzone_tmp,tstart:tend]
                     PEsoilzonesTS_tmp = np.asarray(PEsoilzonesTS_tmp)
@@ -600,6 +609,7 @@ while abs(h_diff[LOOP]) > convcrit:
                                                  D       = D_tmp,
                                                  Ks      = Ks_tmp,
                                                  PONDm   = PONDm_tmp,
+                                                 PONDratio = PONDratio,
                                                  ELEV    = top[i,j],
                                                  HEADS   = h_MF_tmp,
                                                  DRN     = cbc_tmp,
