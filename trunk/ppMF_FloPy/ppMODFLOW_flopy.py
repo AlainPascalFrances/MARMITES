@@ -57,10 +57,13 @@ def convASCIIraster2array(filenameIN, arrayOUT, cellsizeMF, nrow, ncol):
 
     # Process the file
 #    print "\nConverting %s to np.array..." % (filenameIN)
-    for row in range(nrow):
-        for col in range(ncol):
-            if col == 0: line = fin.readline().split()
-            arrayOUT[row,col]=line[col]
+    try:
+        for row in range(nrow):
+            for col in range(ncol):
+                if col == 0: line = fin.readline().split()
+                arrayOUT[row,col]=line[col]
+    except:
+        raise BaseException, "\nERROR! MODFLOW grid anf the ESRI ASCII grid from file %s don't correspond!.\nCheck the cell size and the number of rows, columns and cellsize." % filenameIN
 
     # verify grid consistency between MODFLOW and ESRI ASCII
     if arrayOUT.shape[0] != nrow or arrayOUT.shape[1] != ncol or cellsizeMF != cellsizeEsriAscii:
@@ -398,12 +401,14 @@ def ppMF(model_ws = '', rch_input = 0.00001, rch_dft = 0.00001, wel_input = -1E-
             ci=ci+1
             layer_row_column_elevation_cond[0].append([1,ri,ci,v,1E5])
     # in layer 2, cell outlet, elevation is bottom of layer 2
-    row_drnL2  = 12
-    col_drnL2  = 2
+    row_drnL2  = np.arange(120,129,1)
+    col_drnL2  = np.arange(21,29,1)
     nlay_drnL2 = 1
     cond_drnL2 = 0.15
-    botm_drnL2 = botm_array[row_drnL2][col_drnL2][nlay_drnL2]
-    layer_row_column_elevation_cond[0].append([nlay_drnL2+1,row_drnL2+1,col_drnL2+1,botm_drnL2,cond_drnL2])
+    for i in range(len(row_drnL2)):
+        for j in range(len(col_drnL2)):
+            botm_drnL2 = botm_array[row_drnL2[i]][col_drnL2[j]][nlay_drnL2]
+            layer_row_column_elevation_cond[0].append([nlay_drnL2+1,row_drnL2[i]+1,col_drnL2[j]+1,botm_drnL2,cond_drnL2+np.random.normal(0,0.05,1)])
 
 # average for 1st SS stress period
     if dum_sssp1 == 1:
