@@ -240,8 +240,16 @@ Name=ppMF_FloPy
 ClassName=TProjectFileNode
 FileName=$[Project-Path]trunk\ppMF_FloPy\ppMODFLOW_flopy.py
 
+[Project\ChildNodes\Node0\ChildNodes\Node5\ChildNodes\Node1]
+ClassName=TProjectFileNode
+FileName=$[Project-Path]trunk\ppMF_FloPy\ppMODFLOW_flopy_noHDF.py
+
+[Project\ChildNodes\Node0\ChildNodes\Node5\ChildNodes\Node2]
+ClassName=TProjectFileNode
+FileName=E:\00code\00ws\zz_TESTS\MARMITESv2_r13c6l2_REF\MF_ws\runMF.py
+
 [Project\ChildNodes\Node0\ChildNodes\Node5\ChildNodes]
-Count=1
+Count=3
 
 [Project\ChildNodes\Node0\ChildNodes\Node6]
 ClassName=TProjectFolderNode
@@ -293,8 +301,12 @@ FileName=$[Project-Path]trunk\startMARMITES_v1.py
 ClassName=TProjectFileNode
 FileName=$[Project-Path]trunk\startMARMITES_v2_work.py
 
+[Project\ChildNodes\Node0\ChildNodes\Node10]
+ClassName=TProjectFileNode
+FileName=$[Project-Path]trunk\startMARMITES_v2_work_noHDF.py
+
 [Project\ChildNodes\Node0\ChildNodes]
-Count=10
+Count=11
 
 [Project\ChildNodes\Node1]
 ClassName=TProjectRunConfiguationsNode

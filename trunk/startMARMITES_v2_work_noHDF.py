@@ -13,7 +13,7 @@
 
 """ See info in MARMITESunsat.py"""
 
-__author__ = "Alain P. Francés <frances.alain@gmail.com>"
+__author__ = "Alain P. Francés <frances08512@itc.nl>"
 __version__ = "0.2"
 __date__ = "November 2010"
 
@@ -28,13 +28,12 @@ import startMARMITESsurface as startMMsurf
 sys.path.append(r'E:\00code\MARMITES\trunk\MARMITESunsat_v2')
 import MARMITESunsat_v2 as MMunsat
 sys.path.append(r'E:\00code\MARMITES\trunk\ppMF_FloPy')
-import ppMODFLOW_flopy as ppMF
+import ppMODFLOW_flopy_noHDF as ppMF
 sys.path.append(r'E:\00code\MARMITES\trunk\MARMITESplot')
 import MARMITESplot as MMplot
 sys.path.append(r'E:\00code\MARMITES\trunk\MARMITESsurf')
 import CreateColors
 import StringIO
-import h5py
 
 #####################################
 #try:
@@ -75,67 +74,71 @@ l=0
 try:
     # report file (0 - report and no interpreter verbose, 1 - no report and interpreter verbose)
     verbose = int(inputFile[l].strip())
-    l += 1
+    l = l + 1
     # output plot (1 is YES, 0 is NO)
     plot_out  = int(inputFile[l].strip())
-    l += 1
+    l = l + 1
     # Define MARMITES ws folders
     MM_ws = inputFile[l]
-    l += 1
+    l = l+1
     #run MARMITESsurface  (1 is YES, 0 is NO)
     MMsurf_yn = int(inputFile[l].strip())
-    l += 1
+    l = l+1
     # Define MARMITESsurface folder
     MMsurf_ws = inputFile[l].strip()
-    l += 1
+    l = l+1
     # METEO TIME SERIES file name
     inputFile_TS_fn = inputFile[l].strip()
-    l += 1
+    l = l+1
     # METEO/VEGETATION/SOIL/WATER PARAMETERS file name
     inputFile_PAR_fn = inputFile[l].strip()
-    l += 1
+    l = l+1
     # ouputprefix
     outputFILE_fn = inputFile[l].strip()
-    l += 1
+    l = l+1
     # ZONEVEGSOILfile
     MMsurf_fn = inputFile[l].strip()
-    l += 1
+    l = l+1
     # Define MODFLOW ws folders
     MF_ws = inputFile[l].strip()
-    l += 1
+    l = l+1
+    rch_input = inputFile[l].strip()
+    l = l+1
+    wel_input = inputFile[l].strip()
+    l = l+1
     plot_freq =  int(inputFile[l].strip())
-    l += 1
+    l = l+1
     #GRID (ll means lower left)
     xllcorner = float(inputFile[l].strip())
-    l += 1
+    l = l+1
     yllcorner = float(inputFile[l].strip())
-    l += 1
+    l = l+1
     gridMETEO_fn = inputFile[l].strip()
-    l += 1
+    l = l+1
     gridSOIL_fn = inputFile[l].strip()
-    l += 1
+    l = l+1
     gridSOILthick_fn = inputFile[l].strip()
-    l += 1
+    l = l+1
     gridIRR_fn = inputFile[l].strip()
-    l += 1
+    l = l+1
     gridPONDhmax_fn =  inputFile[l].strip()
-    l += 1
+    l = l+1
     gridPONDw_fn =  inputFile[l].strip()
-    l += 1
+    l = l+1
     SOILparam_fn = inputFile[l].strip()
-    l += 1
+    l = l+1
     IRR_fn = inputFile[l].strip()
-    l += 1
+    l = l+1
     inputObs_fn = inputFile[l].strip()
-    l += 1
+    l = l+1
     inputObsHEADS_fn = inputFile[l].strip()
-    l += 1
+    l = l+1
     inputObsSM_fn = inputFile[l].strip()
-    l += 1
+    l = l+1
     convcrit = float(inputFile[l].strip())
-    l += 1
+    l = l+1
     ccnum = int(inputFile[l].strip())
-    l += 1
+    l = l+1
     plt_ConvLoop_fn = inputFile[l].strip()
 except:
     print '\nType error in the input file %s\n%s' % (inputFile_fn, messagemanual)
@@ -204,39 +207,39 @@ k_Tu_inter = []
 TRANS_sdw = []
 try:
     NMETEO = int(inputFile[l].strip())
-    l += 1
+    l = l+1
     NVEG = int(inputFile[l].strip())
-    l += 1
+    l = l+1
     NSOIL = int(inputFile[l].strip())
-    l += 1
+    l = l +1
     inputDate_fn = str(inputFile[l].strip())
-    l += 1
+    l = l +1
     inputZON_TS_RF_fn = str(inputFile[l].strip())
-    l += 1
+    l = l +1
     inputZON_TS_PET_fn = str(inputFile[l].strip())
-    l += 1
+    l = l +1
     inputZON_TS_RFe_fn = str(inputFile[l].strip())
-    l += 1
+    l = l +1
     inputZON_TS_PE_fn = str(inputFile[l].strip())
-    l += 1
+    l = l +1
     inputZON_TS_E0_fn = str(inputFile[l].strip())
-    l += 1
+    l = l +1
     line = inputFile[l].split()
     for v in range(NVEG):
         TRANS_vdw.append(int(line[v]))
-    l += 1
+    l = l +1
     line = inputFile[l].split()
     for v in range(NVEG):
         Zr.append(float(line[v]))
-    l += 1
+    l = l +1
     line = inputFile[l].split()
     for v in range(NVEG):
         k_Tu_slp.append(float(line[v]))
-    l += 1
+    l = l +1
     line = inputFile[l].split()
     for v in range(NVEG):
         k_Tu_inter.append(float(line[v]))
-    l += 1
+    l = l +1
     line = inputFile[l].split()
     for v in range(NSOIL):
         TRANS_sdw.append(int(line[v]))
@@ -252,13 +255,10 @@ durationMF = 0.0
 timestartMF = pylab.datestr2num(pylab.datetime.datetime.today().isoformat())
 print'\n##############'
 print 'MODFLOW RUN (initial user-input fluxes)'
-h5_rch_fn = os.path.join(MF_ws,'rch4MF.h5')
-SP_d, nrow, ncol, delr, delc, nlay, perlen, nper, top, hnoflo, hdry, ibound, laytyp, h5_MF_fn, top_array, inputFileMF_fn, lenuni = ppMF.ppMF(MF_ws, rch_input = (h5_rch_fn, 'r'), wel_input = (h5_rch_fn, 'E'))
-
-h5_MF = h5py.File(h5_MF_fn)
+SP_d, nrow, ncol, delr, delc, nlay, perlen, nper, top, hnoflo, hdry, ibound, laytyp, h_MF, cbc, cbc_nam_tmp, top_array, inputFileMF_fn, lenuni = ppMF.ppMF(MF_ws, rch_input = rch_input, rch_dft = 0.001, wel_input = wel_input)
 
 cbc_nam = []
-for c in h5_MF['cbc_nam']:
+for c in cbc_nam_tmp:
     cbc_nam.append(c.strip())
 iDRN = cbc_nam.index('DRAINS')
 iSTO = cbc_nam.index('STORAGE')
@@ -387,9 +387,8 @@ else:
 h_pSP = 0
 LOOP = 0
 LOOPlst = [LOOP]
-h_diff = [1000]
+h_diff = [10]
 h_diff_log = [1]
-loopdry = 0
 
 plt_ConvLoop_fn = os.path.join(MM_ws, plt_ConvLoop_fn + '.png')
 duration = 0.0
@@ -455,9 +454,8 @@ while abs(h_diff[LOOP]) > convcrit:
     # for each SP
     res_PERall_S = np.zeros([nrow,ncol,len(index_S),_nslmax,sum(perlen)], dtype=float)
     # to compute net recharge to be exported to MF
-    h5_rch = h5py.File(h5_rch_fn, 'w')
-    ds_rch = h5_rch.create_dataset(name = 'r', data = np.zeros([nper,nrow,ncol]), dtype = np.float, chunks = tuple([1,nrow,ncol]),  compression = 'gzip', compression_opts = 5, shuffle = True)
-    ds_ETg = h5_rch.create_dataset(name = 'E', data = np.zeros([nper,nrow,ncol]), dtype = np.float, chunks = tuple([1,nrow,ncol]),  compression = 'gzip', compression_opts = 5, shuffle = True)
+    R4MF=np.zeros([nper,nrow,ncol], dtype=float)
+    ETg4MF=np.zeros([nper,nrow,ncol], dtype=float)
 
     # ###############
     # # main loop: calculation of soil water balance in each cell-grid for each time step inside each stress period
@@ -498,6 +496,8 @@ while abs(h_diff[LOOP]) > convcrit:
         gridoutSEEPAGE = np.zeros([nrow,ncol], dtype=float)
         gridoutMB = np.zeros([nrow,ncol], dtype=float)
         gridoutINTER = np.zeros([nrow,ncol], dtype=float)
+        outFileRPER  = MM_PROCESS.outputEAgrd(outFile_fn = rch_input + str(n+1) + '.asc', outFolder  = MM_PROCESS.MF_ws)
+        outFileETgPER  = MM_PROCESS.outputEAgrd(outFile_fn = wel_input + str(n+1) + '.asc', outFolder  = MM_PROCESS.MF_ws)
         if SP_d == 0:
             # average flux for each SP [L/T]
             outFileRF = MM_PROCESS.outputEAgrd(outFile_fn = 'outRF_PER' + str(n+1) + '.asc')
@@ -538,8 +538,8 @@ while abs(h_diff[LOOP]) > convcrit:
             for j in range(ncol):
                 SOILzone_tmp = gridSOIL[i,j]-1
                 METEOzone_tmp = gridMETEO[i,j]-1
-##                if n == 0:
-##                    h5_MF['c'][:,:,i,j,:] = conv_fact*h5_MF['c'][:,:,i,j,:]/(delr[j]*delc[i])
+                if n == 0:
+                    cbc[:,:,i,j,:] = conv_fact*cbc[:,:,i,j,:]/(delr[j]*delc[i])
                 if ibound[i,j,0]<>0.0:
                     ncell = ncell + 1
                     nsl_tmp   = _nsl[SOILzone_tmp]
@@ -577,16 +577,16 @@ while abs(h_diff[LOOP]) > convcrit:
                         VEGarea_tmp[v]=gridVEGarea[v,i,j]
 ##                    if n==0:
 ##                        h_MF_tmp = np.zeros([perlen[n]], dtype = float)
-##                        h_MF_tmp[0] = h5_MF['h'][0,i,j,0]
-##                        h_MF_tmp[1:perlen[n]] = h5_MF['h'][tstart:tend-1,i,j,0]
+##                        h_MF_tmp[0] = h_MF[0,i,j,0]
+##                        h_MF_tmp[1:perlen[n]] = h_MF[tstart:tend-1,i,j,0]
 ##                        cbc_tmp = np.zeros([perlen[n]], dtype = float)
-##                        cbc_tmp[0] = -h5_MF['c'][0,iDRN,i,j,0]
-##                        cbc_tmp[1:perlen[n]] = -h5_MF['c'][tstart:tend-1,iDRN,i,j,0]
+##                        cbc_tmp[0] = -cbc[0,iDRN,i,j,0]
+##                        cbc_tmp[1:perlen[n]] = -cbc[tstart:tend-1,iDRN,i,j,0]
 ##                    else:
-##                        h_MF_tmp = h5_MF['h'][tstart-1:tend-1,i,j,0]
-##                        cbc_tmp = -h5_MF['c'][tstart-1:tend-1,iDRN,i,j,0]
-                    h_MF_tmp = h5_MF['h'][tstart:tend,i,j,0]
-                    cbc_tmp = -conv_fact*h5_MF['c'][tstart:tend,iDRN,i,j,0]/(delr[j]*delc[i])
+##                        h_MF_tmp = h_MF[tstart-1:tend-1,i,j,0]
+##                        cbc_tmp = -cbc[tstart-1:tend-1,iDRN,i,j,0]
+                    h_MF_tmp = h_MF[tstart:tend,i,j,0]
+                    cbc_tmp = -cbc[tstart:tend,iDRN,i,j,0]
                     # for the while loop
                     h_MF_L0_m = np.ma.masked_values(h_MF_tmp, hdry, atol = 1E+25)
                     h_MF_L0_m_avg = np.nansum(h_MF_L0_m)/perlen[n]
@@ -675,8 +675,8 @@ while abs(h_diff[LOOP]) > convcrit:
                         gridoutRp[l][i,j] = results_S[i,j,index_S.get('iRp'),l,:].sum()/divfact
                         resavg_PERall_S[i,j,index_S.get('iRp'),l] = resavg_PERall_S[i,j,index_S.get('iRp'),l] + gridoutRp[l][i,j]
 
-                    ds_rch[n,i,j] = results[i,j,index.get('iR'),:].sum()/(divfact*1000)
-                    ds_ETg[n,i,j] = (results[i,j,index.get('iETg'),:].sum()/(divfact*1000))*(delr[j]*delc[i])
+                    R4MF[n,i,j] = results[i,j,index.get('iR'),:].sum()/(divfact*1000)
+                    ETg4MF[n,i,j] = (results[i,j,index.get('iETg'),:].sum()/(divfact*1000))*(delr[j]*delc[i])
                     # setting initial conditions for the next SP
                     for l in range(nsl_tmp):
                         Si_tmp_array[i,j,l] = results_S[i,j,index_S.get('iSpc'),l,perlen[n]-1]
@@ -705,7 +705,15 @@ while abs(h_diff[LOOP]) > convcrit:
                         outFileSEEPAGE.write('%.6f'%(gridoutSEEPAGE[i,j]) + ' ')
                         outFileMB.write('%.6f'%(gridoutMB[i,j]) + ' ')
                         outFileINTER.write('%.6f'%(gridoutINTER[i,j]) + ' ')
-                        outFileHEADS_MF.write('%.6f'%(h5_MF['h'][tend-1,i,j,0]) + ' ')
+                        outFileHEADS_MF.write('%.6f'%(h_MF[tend-1,i,j,0]) + ' ')
+                    if R4MF[n,i,j]>0.0:
+                        outFileRPER.write(str(R4MF[n,i,j])+' ')
+                    else:
+                        outFileRPER.write(str(0.0)+' ')
+                    if ETg4MF[n,i,j]<0.0:
+                        outFileETgPER.write(str(ETg4MF[n,i,j])+' ')
+                    else:
+                        outFileETgPER.write(str(0.0)+' ')
                 else:
                     results[i,j,:,:]    = hnoflo
                     results_S[i,j,:,:,:] = hnoflo
@@ -732,8 +740,10 @@ while abs(h_diff[LOOP]) > convcrit:
                     gridoutSEEPAGE[i,j]   = hnoflo
                     gridoutMB[i,j]      = hnoflo
                     gridoutINTER[i,j]   = hnoflo
-                    ds_rch[n,i,j]        = hnoflo
-                    ds_ETg[n,i,j]        = hnoflo
+                    R4MF[n,i,j]        = hnoflo
+                    ETg4MF[n,i,j]        = hnoflo
+                    outFileRPER.write(str(hnoflo)+' ')
+                    outFileETgPER.write(str(hnoflo)+' ')
                     if SP_d==0:
                         outFileRF.write('%.6f'%(gridoutRF[i,j]) + ' ')
                         outFilePET.write('%.6f'%(gridoutPET[i,j]) + ' ')
@@ -756,8 +766,10 @@ while abs(h_diff[LOOP]) > convcrit:
                         outFileSEEPAGE.write('%.6f'%(gridoutSEEPAGE[i,j]) + ' ')
                         outFileMB.write('%.6f'%(gridoutMB[i,j]) + ' ')
                         outFileINTER.write('%.6f'%(gridoutINTER[i,j]) + ' ')
-                        outFileHEADS_MF.write('%.6f'%(h5_MF['h'][tend-1,i,j,0]) + ' ')
+                        outFileHEADS_MF.write('%.6f'%(h_MF[tend-1,i,j,0]) + ' ')
 
+            outFileRPER.write('\n')
+            outFileETgPER.write('\n')
             if SP_d==0:
                 outFileRF.write('\n')
                 outFilePET.write('\n')
@@ -782,6 +794,8 @@ while abs(h_diff[LOOP]) > convcrit:
                 outFileINTER.write('\n')
                 outFileHEADS_MF.write('\n')
         # close export ASCII files
+        outFileRPER.close()
+        outFileETgPER.close()
         if SP_d==0:
             outFileRF.close()
             outFilePET.close()
@@ -808,7 +822,6 @@ while abs(h_diff[LOOP]) > convcrit:
 
         t0=t0+int(perlen[n])
      #   print '\nSTRESS PERIOD %i/%i DONE!' % (n+1, nper)
-    h5_rch.close()
 
     # #############################
     # ###  PRINT CONVERG. PLOT ###
@@ -867,12 +880,7 @@ while abs(h_diff[LOOP]) > convcrit:
     else:
         print "\nHeads diff. from previous conv. loop:\n%.3f m" % h_diff[LOOP]
     if h_MFsum == 0.0:
-        loopdry += 1
-        if loopdry > 1:
-            print '\nWARNING: first layer of the model DRY twice successively!\nLoop break, correct your MARMITES input value.'
-            break
-        else:
-            print '\nWARNING: first layer of the model DRY!'
+        print '\nFirst layer of the model DRY!'
     elif abs(h_diff[LOOP]) < convcrit:
         print '\nSuccessfull convergence between MARMITES and MODFLOW!\n(Conv. criterion = %.3G)' % convcrit
         break
@@ -883,14 +891,11 @@ while abs(h_diff[LOOP]) > convcrit:
     # #############################
     # ### MODFLOW RUN with MM-computed recharge
     # #############################
-    h5_MF.close()
     durationMF = 0.0
     timestartMF = pylab.datestr2num(pylab.datetime.datetime.today().isoformat())
     print'\n##############'
     print 'MODFLOW RUN (MARMITES fluxes)'
-    SP_d, nrow, ncol, delr, delc, nlay, perlen, nper, top, hnoflo, hdry, ibound, laytyp, h5_MF_fn, top_array, inputFileMF_fn, lenuni = ppMF.ppMF(MF_ws, rch_input = (h5_rch_fn, 'r'), rch_dft = 0.0001, wel_input = (h5_rch_fn, 'E'))
-
-    h5_MF = h5py.File(h5_MF_fn)
+    SP_d, nrow, ncol, delr, delc, nlay, perlen, nper, top, hnoflo, hdry, ibound, laytyp, h_MF, cbc, cbc_nam_tmp, top_array, inputFileMF_fn, lenuni = ppMF.ppMF(MF_ws, rch_input = rch_input, rch_dft = 0.0001, wel_input = wel_input)
 
     timeendMF = pylab.datestr2num(pylab.datetime.datetime.today().isoformat())
     durationMF = durationMF + (timeendMF-timestartMF)
@@ -906,21 +911,18 @@ duration = duration + (timeend-timestart) -durationMF
 # #############################
 # ### MODFLOW RUN with MM-computed recharge
 # #############################
-h5_MF.close()
 durationMF = 0.0
 timestartMF = pylab.datestr2num(pylab.datetime.datetime.today().isoformat())
 print'\n##############'
 print 'MODFLOW RUN (MARMITES fluxes after conv. loop)'
-SP_d, nrow, ncol, delr, delc, nlay, perlen, nper, top, hnoflo, hdry, ibound, laytyp, h5_MF_fn, top_array, inputFileMF_fn, lenuni = ppMF.ppMF(MF_ws, rch_input = (h5_rch_fn, 'r'), rch_dft = 0.0001, wel_input = (h5_rch_fn, 'E'))
+SP_d, nrow, ncol, delr, delc, nlay, perlen, nper, top, hnoflo, hdry, ibound, laytyp, h_MF, cbc, cbc_nam_tmp, top_array, inputFileMF_fn, lenuni = ppMF.ppMF(MF_ws, rch_input = rch_input, rch_dft = 0.0001, wel_input = wel_input)
 
-h5_MF = h5py.File(h5_MF_fn)
-h_MF_m = np.ma.masked_values(h5_MF['h'], hnoflo, atol = 0.09)
-
+h_MF_m = np.ma.masked_values(h_MF, hnoflo, atol = 0.09)
 top_array_m = np.ma.masked_values(top_array, hnoflo, atol = 0.09)
 
 for i in range(nrow):
     for j in range(ncol):
-        h5_MF['c'][:,:,i,j,:] = conv_fact*h5_MF['c'][:,:,i,j,:]/(delr[j]*delc[i])
+        cbc[:,:,i,j,:] = conv_fact*cbc[:,:,i,j,:]/(delr[j]*delc[i])
 
 timeendMF = pylab.datestr2num(pylab.datetime.datetime.today().isoformat())
 durationMF = durationMF + (timeendMF-timestartMF)
@@ -1034,10 +1036,10 @@ cbcmin = []
 for L in range(nlay):
     hmax.append(np.nanmax(h_MF_m[:,:,:,:].flatten()))
     hmin.append(np.nanmin(h_MF_m[:,:,:,:].flatten()))
-    DRNmax.append(np.nanmax(-h5_MF['c'][:,iDRN,:,:,:]).flatten())
-    DRNmin.append(np.nanmin(-h5_MF['c'][:,iDRN,:,:,:]).flatten())
-    cbcmax.append(np.nanmax(-h5_MF['c'][:,:,:,:,:]).flatten())
-    cbcmin.append(np.nanmin(-h5_MF['c'][:,:,:,:,:]).flatten())
+    DRNmax.append(np.nanmax(-cbc[:,iDRN,:,:,:]).flatten())
+    DRNmin.append(np.nanmin(-cbc[:,iDRN,:,:,:]).flatten())
+    cbcmax.append(np.nanmax(-cbc[:,:,:,:,:]).flatten())
+    cbcmin.append(np.nanmin(-cbc[:,:,:,:,:]).flatten())
 for o in range(len(obs.keys())):
         npa_m_tmp = np.ma.masked_values(obs_h[o], hnoflo, atol = 0.09)
         hmax.append(np.nanmax(npa_m_tmp.flatten()))
@@ -1068,7 +1070,7 @@ flxlst =[res_PERall[:,:,index.get('iRF'),:].sum()/sum(perlen)/ncell,
         res_PERall[:,:,index.get('iETg'),:].sum()/sum(perlen)/ncell]
 for l in range(nlay):
     for x in range(len(index_cbc)):
-        flxlst.append(h5_MF['c'][:,index_cbc[x],:,:,l].sum()/sum(perlen)/ncell)
+        flxlst.append(cbc[:,index_cbc[x],:,:,l].sum()/sum(perlen)/ncell)
         flxlbl.append('GW_' + cbc_nam[index_cbc[x]] + '_L' + str(l+1))
 colors_flx = CreateColors.main(hi=0, hf=180, numbcolors = len(flxlbl))
 MMplot.plotGWbudget(flxlst = flxlst, flxlbl = flxlbl, colors_flx = colors_flx, plt_export_fn = plt_export_fn, plt_title = 'MARMITES and MODFLOW water flux budget for the whole catchment', fluxmax = cbcmax, fluxmin = cbcmin)
@@ -1083,11 +1085,11 @@ if obsCHECK == 1:
         h_satflow = MM_SATFLOW.run(res_PERall[i,j,index.get('iR'),:], float(obs.get(obs.keys()[o])['hi']),float(obs.get(obs.keys()[o])['h0']),float(obs.get(obs.keys()[o])['RC']),float(obs.get(obs.keys()[o])['STO']))
 ##        # correct heads from MF (1 day delay)
 ##        h_MF_tmp = np.zeros([sum(perlen)], dtype = float)
-##        h_MF_tmp[0] = h5_MF['h'][0,i,j,0]
-##        h_MF_tmp[1:sum(perlen)] = h5_MF['h'][0:sum(perlen)-1,i,j,0]
+##        h_MF_tmp[0] = h_MF[0,i,j,0]
+##        h_MF_tmp[1:sum(perlen)] = h_MF[0:sum(perlen)-1,i,j,0]
         # export ASCII file at piezometers location
         #TODO extract heads at piezo location and not center of cell
-        MM_PROCESS.ExportResults(i, j, inputDate, _nslmax, res_PERall, index, res_PERall_S, index_S, -h5_MF['c'][:,iDRN,i,j,0], h5_MF['c'][:,iRCH,i,j,0], -h5_MF['c'][:,iWEL,i,j,0], h_satflow, h5_MF['h'][:,i,j,0], obs_h[o][0,:], obs_S[o], outFileExport[o], outPESTheads, outPESTsm, obs.keys()[o])
+        MM_PROCESS.ExportResults(i, j, inputDate, _nslmax, res_PERall, index, res_PERall_S, index_S, -cbc[:,iDRN,i,j,0], cbc[:,iRCH,i,j,0], -cbc[:,iWEL,i,j,0], h_satflow, h_MF[:,i,j,0], obs_h[o][0,:], obs_S[o], outFileExport[o], outPESTheads, outPESTsm, obs.keys()[o])
         outFileExport[o].close()
         # plot
         if plot_out == 1:
@@ -1118,7 +1120,7 @@ if obsCHECK == 1:
             res_PERall[i,j,index.get('iRn'),:],
             res_PERall[i,j,index.get('iEs'),:],
             res_PERall[i,j,index.get('iMB'),:],
-            h5_MF['h'][:,i,j,0], h_satflow, obs_h[o][0,:], obs_S[o],
+            h_MF[:,i,j,0], h_satflow, obs_h[o][0,:], obs_S[o],
             _Sm[gridSOIL[i,j]-1],
             _Sr[gridSOIL[i,j]-1],
             hnoflo,
@@ -1146,7 +1148,7 @@ if obsCHECK == 1:
                     res_PERall[i,j,index.get('iETg'),:].sum()/sum(perlen)]
             for l in range(nlay):
                 for x in range(len(index_cbc)):
-                    flxlst.append(h5_MF['c'][:,index_cbc[x],i,j,l].sum()/sum(perlen))
+                    flxlst.append(cbc[:,index_cbc[x],i,j,l].sum()/sum(perlen))
             MMplot.plotGWbudget(flxlst = flxlst, flxlbl = flxlbl, colors_flx = colors_flx, plt_export_fn = plt_export_fn, plt_title = plt_title, fluxmax = cbcmax, fluxmin = cbcmin)
     # output for PEST
     outPESTheads.close()
@@ -1156,10 +1158,10 @@ if plot_out == 1:
     # plot heads (grid + contours), DRN, etc... at specified TS
     TSlst = []
     TS = 0
-    while TS < len(h5_MF['h']):
+    while TS < len(h_MF):
         TSlst.append(TS)
         TS = TS + plot_freq
-    TSlst.append(len(h5_MF['h'])-1)
+    TSlst.append(len(h_MF)-1)
     for TS in TSlst:
         # plot heads [m]
         V=[]
@@ -1176,10 +1178,8 @@ if plot_out == 1:
         # plot GW drainage [mm]
         V = []
         for L in range(nlay):
-            V.append(-h5_MF['c'][TS,iDRN,:,:,L])
+            V.append(-cbc[TS,iDRN,:,:,L])
         MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater drainage (mm/time step)', msg = '- no drainage', plt_title = 'DRN', MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, Vmin = DRNmin, Vmax = DRNmax, fmt='%.3G')
-
-h5_MF.close()
 
 timeendExport = pylab.datestr2num(pylab.datetime.datetime.today().isoformat())
 durationExport=(timeendExport-timestartExport)

@@ -5,4 +5,4 @@ INSTALLATION (WINDOWS):
 - prepare the required input as in the example located in the doc folder.
 - start MARMITES with startMARMITES_v2_work.py
 
-A manual is under construction,a s well as some applications and paper.
+A manual is under construction, as well as some applications and paper.

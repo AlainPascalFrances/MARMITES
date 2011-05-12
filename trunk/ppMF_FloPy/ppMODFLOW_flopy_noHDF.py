@@ -22,7 +22,6 @@ import os
 import numpy as np
 from mf import *
 import mfreadbinaries as mfrdbin
-import h5py
 #####################################
 
 def convASCIIraster2array(filenameIN, arrayOUT, cellsizeMF, nrow, ncol):
@@ -289,7 +288,7 @@ def ppMF(model_ws = '', rch_input = 0.001, rch_dft = 0.001, wel_input = -1E-6, w
 
     # 1 - reaf asc file and convert in np.array
 
-    print "\nImporting ESRI ASCII files to initialize the MODFLOW packages..."
+    print "\nImporting ESRI ASCII files..."
 
     top_path = os.path.join(model_ws, top_fn)
     top_array = np.zeros((nrow,ncol))
@@ -344,15 +343,20 @@ def ppMF(model_ws = '', rch_input = 0.001, rch_dft = 0.001, wel_input = -1E-6, w
         print '\nRecharge input: %s' % str(rch_input)
     else:
         rch_array = []
-        print '\nRecharge input: %s' % rch_input[0]
+        print '\nRecharge input: %s' % rch_input
         try:
-            h5_rch = h5py.File(rch_input[0], 'r')
             for n in range(nper):
-                rch_array.append(h5_rch[rch_input[1]][n])
-            h5_rch.close
+                rch_path = os.path.join(model_ws, rch_input + str(n+1) + '.asc')
+                if os.path.exists(rch_path):
+                    rch_array.append(convASCIIraster2array(rch_path, arrayOUT = np.zeros((nrow,ncol)), cellsizeMF = delr[0], nrow = nrow, ncol=ncol))
+                else:
+                    rch_array = rch_dft
+                    print 'WARNING! No valid recharge file(s) provided, running MODFLOW using default recharge value: %.3G' % rch_dft
+                    rch_input = rch_dft
+                    break
         except:
             rch_array = rch_dft
-            print 'WARNING! No valid recharge package file(s) provided, running MODFLOW using default recharge value: %.3G' % rch_dft
+            print 'WARNING! No valid recharge file(s) provided, running MODFLOW using default recharge value: %.3G' % rch_dft
             rch_input = rch_dft
 
 # WELL
@@ -361,15 +365,20 @@ def ppMF(model_ws = '', rch_input = 0.001, rch_dft = 0.001, wel_input = -1E-6, w
         print '\nWell input: %s' % str(wel_input)
     else:
         wel_array = []
-        print '\nWell input: %s' % wel_input[0]
+        print '\nWell input: %s' % wel_input
         try:
-            h5_wel = h5py.File(wel_input[0], 'r')
             for n in range(nper):
-                wel_array.append(h5_wel[wel_input[1]][n])
-            h5_wel.close
+                wel_path = os.path.join(model_ws, wel_input + str(n+1) + '.asc')
+                if os.path.exists(wel_path):
+                    wel_array.append(convASCIIraster2array(wel_path, arrayOUT = np.zeros((nrow,ncol)), cellsizeMF = delr[0], nrow = nrow, ncol=ncol))
+                else:
+                    wel_array = wel_dft
+                    print 'WARNING! No valid well file(s) provided, running MODFLOW using default well value: %.3G' % wel_dft
+                    wel_input = wel_dft
+                    break
         except:
             wel_array = wel_dft
-            print 'WARNING! No valid well package file(s) provided, running MODFLOW using default well value: %.3G' % wel_dft
+            print 'WARNING! No valid well file(s) provided, running MODFLOW using default well value: %.3G' % wel_dft
             wel_input = wel_dft
 
 # DRAIN
@@ -401,7 +410,7 @@ def ppMF(model_ws = '', rch_input = 0.001, rch_dft = 0.001, wel_input = -1E-6, w
 
 # average for 1st SS stress period
     if dum_sssp1 == 1:
-        if isinstance(rch_input,tuple):
+        if isinstance(rch_input,str):
             rch_array = np.asarray(rch_array)
             rch_SS = np.zeros((nrow,ncol))
             for n in range(nper):
@@ -409,7 +418,7 @@ def ppMF(model_ws = '', rch_input = 0.001, rch_dft = 0.001, wel_input = -1E-6, w
             rch_SS = rch_SS/nper
             rch_array = list(rch_array)
             rch_array.insert(0, rch_SS)
-        if isinstance(wel_input,tuple):
+        if isinstance(wel_input,str):
             wel_array = np.asarray(wel_array)
             wel_SS = np.zeros((nrow,ncol))
             for n in range(nper):
@@ -448,22 +457,16 @@ def ppMF(model_ws = '', rch_input = 0.001, rch_dft = 0.001, wel_input = -1E-6, w
             sys.exit()
     # dis package
     dis = mfdis(model = mf, nrow = nrow, ncol = ncol, nlay = nlay, nper = nper, delr = delr, delc = delc, laycbd = laycbd, top = top_array, botm = botm_array, perlen = perlen, nstp = nstp, tsmult = tsmult, itmuni = itmuni, lenuni = lenuni, steady = Ss_tr, extension = ext_dis)
-    del botm_array
     # bas package
     bas = mfbas(model = mf, ibound = ibound_array, strt = strt_array, hnoflo = hnoflo, extension = ext_bas)
-    del strt_array
     # lpf initialization
     lpf = mflpf(model = mf, hdry = hdry, laytyp = laytyp, layavg = layavg, chani = chani, layvka = layvka, laywet = laywet, hk = hk_array, vka = vka_array, ss = ss_array, sy = sy_array, extension=ext_lpf)
-    del hk_array, vka_array, ss_array, sy_array
     # rch initialization
     rch = mfrch(mf, irchcb=lpf.ilpfcb, nrchop=nrchop, rech=rch_array, extension = ext_rch)
-    del rch_array
     # wel initialization
     wel = mfwel(mf, iwelcb = lpf.ilpfcb, layer_row_column_Q = layer_row_column_Q, extension = ext_wel)
-    del layer_row_column_Q
     # drn package initialization
     drn = mfdrn(model = mf, idrncb=lpf.ilpfcb, layer_row_column_elevation_cond = layer_row_column_elevation_cond)
-    del layer_row_column_elevation_cond
     # ghb package initialization
 #    ghb = mfghb(model=mf, igbhcb = lpf.ilpfcb, layer_row_column_head_cond = [[2,13,3,90,50]])
     # output control initialization
@@ -487,50 +490,40 @@ def ppMF(model_ws = '', rch_input = 0.001, rch_dft = 0.001, wel_input = -1E-6, w
 #    sip.write_file()
 #    sor.write_file()
     pcg.write_file()
-    h_MF_fn = os.path.join(model_ws, modelname + "." + ext_heads)
-    if os.path.exists(h_MF_fn):
-        os.remove(h_MF_fn)
-    cbc_MF_fn = os.path.join(model_ws, modelname + "." + ext_cbc)
-    if os.path.exists(cbc_MF_fn):
-        os.remove(cbc_MF_fn)
-
+    h_fn = os.path.join(model_ws, modelname + "." + ext_heads)
+    if os.path.exists(h_fn):
+        os.remove(h_fn)
+    cbc_fn = os.path.join(model_ws, modelname + "." + ext_cbc)
+    if os.path.exists(cbc_fn):
+        os.remove(cbc_fn)
     # run MODFLOW and read the heads back into Python
     mf.write_name_file()
     mf.run_model(pause = False)
-
-    print ''
-
     # extract heads
-    h5_MF_fn = os.path.join(model_ws, modelname + '_MF.h5')
-    h5_MF = h5py.File(h5_MF_fn, 'w')
+    print ''
     try:
-        h = mfrdbin.mfhdsread(mf, 'LF95').read_all(h_MF_fn)
+        h = mfrdbin.mfhdsread(mf, 'LF95').read_all(h_fn)
     except:
         raise ValueError, '\nMODFLOW error!\nCheck the MODFLOW list file in folder:\n%s' % model_ws
-    if len(h[1])<sum(perlen):
+    h_1 = h[1]
+    del h
+    if len(h_1)<sum(perlen):
         raise ValueError, '\nMODFLOW error!\nCheck the MODFLOW list file in folder:\n%s' % model_ws
     print ''
-
     # extract cell-by-cell budget
-    cbc = mfrdbin.mfcbcread(mf, 'LF95').read_all(cbc_MF_fn)
-    h5_MF.create_dataset('cbc_nam', data = np.asarray(cbc[2]))
-
+    cbc = mfrdbin.mfcbcread(mf, 'LF95').read_all(cbc_fn)
+    cbc_1 = cbc[1]
+    cbc_nam = cbc[2]
+    del cbc
     if dum_sssp1 == 1:
-        h5_MF.create_dataset(name = 'h', data = np.asarray(h[1][1:]), chunks = tuple([1,nrow,ncol,nlay]), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf
-        h5_MF.create_dataset(name = 'c', data = np.asarray(cbc[1][1:]), chunks = tuple([1,1,nrow,ncol,nlay]), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf'
+        h_1 = h_1[1:]
+        cbc_1 = cbc_1[1:]
         nper = nper - 1
         perlen = perlen[1:]
-    else:
-        # Not tested
-        h5_MF.create_dataset(name = 'h', data = np.asarray(h[1]), chunks = tuple([1,nrow,ncol,nlay]), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf'
-        h5_MF.create_dataset(name = 'c', data = np.asarray(cbc[1]), chunks = tuple([1,1,nrow,ncol,nlay]), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf'
-    del h
-    del cbc
-    h5_MF.close()
-    del mf, dis, bas, lpf, rch, wel, drn, oc, pcg
-# TODO uncomment to delete MF bin files and save disk space
-#    os.remove(h_MF_fn)
-#    os.remove(cbc_MF_fn)
+    h1 = np.asarray(h_1)
+    del h_1
+    cbc1 = np.asarray(cbc_1)
+    del cbc_1
+    top_array = np.asarray(top_array)
 
-    return SP_d, nrow, ncol, delr, delc, nlay, perlen, nper, np.asarray(top_array), hnoflo, hdry, np.asarray(ibound_array), laytyp, h5_MF_fn, np.asarray(top_array), inputFileMF_fn, lenuni
-    del SP_d, nrow, ncol, delr, delc, nlay, perlen, nper, top_array, hnoflo, hdry, ibound_array, laytyp, h5_MF_fn, top_array, inputFileMF_fn, lenuni
+    return SP_d, nrow, ncol, delr, delc, nlay, perlen, nper, np.asarray(top_array), hnoflo, hdry, np.asarray(ibound_array), laytyp, h1, cbc1, cbc_nam, top_array, inputFileMF_fn, lenuni

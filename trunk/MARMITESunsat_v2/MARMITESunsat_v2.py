@@ -293,6 +293,7 @@ class UNSAT:
                 Tgtmp = Tgtmp + TgtmpZr[z]*VEGarea[z]/100
 
         return Estmp, PONDtmp, Rotmp, Rptmp, Eutmp, Tutmp, Sini, Spc, Si, Rtmp, Egtmp, Tgtmp, DRNcorr
+        del Estmp, PONDtmp, Rotmp, Rptmp, Eutmp, Tutmp, Sini, Spc, Si, Rtmp, Egtmp, Tgtmp, DRNcorr
 
 #####################
 
@@ -467,6 +468,10 @@ class UNSAT:
 
         return results1, results2
 
+        del RF, PET_tot, PE_tot, RFe_tot, POND, Ro, DRN, Es, MB, INTER, E0, Eg, Tg, R, Rn, dPOND, ETg
+        del Eu, Tu, Spc, Rp, dS, S
+        del results1, results2
+
 class SATFLOW:
     """
     SATFLOW: SATurated FLOW
@@ -499,6 +504,7 @@ class SATFLOW:
             h[t]=h_tmp
 
         return h
+        del R, h1, h_tmp, h
 
 #######################################################
 
@@ -514,6 +520,8 @@ class PROCESS:
         self.perlen=perlen
         self.hnoflo=hnoflo
 
+    ######################
+
     def inputEsriAscii(self, grid_fn, datatype):
 
         grid_fn=os.path.join(self.MM_ws,grid_fn)
@@ -522,6 +530,9 @@ class PROCESS:
 
         grid_out=self.convASCIIraster2array(grid_fn,grid_out)
         return grid_out
+        del grid_out
+
+    ######################
 
     def convASCIIraster2array(self, filenameIN, arrayOUT):
         '''
@@ -571,8 +582,12 @@ class PROCESS:
             raise BaseException, '\nError in consistency between the MODFLOW grid and the input gridof the file %s.\nCheck the cell size and the number of rows, columns and cellsize' % filenameIN
 
         fin.close()
+        del line, fin
 
         return arrayOUT
+        del arrayOUT
+
+    ######################
 
     def inputTS(self, NMETEO, NVEG, NSOIL,
                 inputDate_fn, inputZON_TS_RF_fn,
@@ -684,7 +699,10 @@ class PROCESS:
         PEsoilzonesTS=np.asarray(PEsoilzonesTS)
 
         return gridVEGarea, RFzonesTS, E0zonesTS, PETvegzonesTS, RFevegzonesTS, PEsoilzonesTS, inputDate
+        del NMETEO, NVEG, NSOIL, inputDate_fn, inputZON_TS_RF_fn, inputZON_TS_PET_fn, inputZON_TS_RFe_fn, inputZON_TS_PE_fn,inputZON_TS_E0_fn
+        del gridVEGarea, RFzonesTS, E0zonesTS, PETvegzonesTS, RFevegzonesTS, PEsoilzonesTS, inputDate
 
+    ######################
 
     def inputSoilParam(self, SOILparam_fn, NSOIL):
 
@@ -765,7 +783,9 @@ class PROCESS:
                 raise ValueError, '\nERROR!\nThe sum of the soil layers proportion of %s is <1!\nCorrect your soil data input!\n' % nam_soil[z]
 
         return nsl[1:len(nsl)], nam_soil, st, slprop, Sm, Sfc, Sr, Si, Ks
+        del nsl, nam_soil, st, slprop, Sm, Sfc, Sr, Si, Ks
 
+    ######################
 
     def inputObs(self, inputObs_fn, inputObsHEADS_fn, inputObsSM_fn, inputDate, _nslmax):
         '''
@@ -820,7 +840,10 @@ class PROCESS:
             obs_sm.append(self.verifObs(inputDate, obssm_fn, _nslmax))
 
         return obs, outpathname, obs_h, obs_sm
+        del inputObs_fn, inputObsHEADS_fn, inputObsSM_fn, inputDate, _nslmax
+        del obs, outpathname, obs_h, obs_sm
 
+    ######################
 
     def verifObs(self, inputDate, filename, _nslmax = 0):
         '''
@@ -864,6 +887,9 @@ class PROCESS:
                     obsOutput[l,i]=self.hnoflo
 
         return obsOutput
+        del inputDate, obsOutput
+
+    ######################
 
     def outputEAgrd(self, outFile_fn, outFolder = []):
 
@@ -875,6 +901,9 @@ class PROCESS:
         outFile=self.writeHeaderESRIraster(outFile)
 
         return outFile
+        del outFile
+
+    ######################
 
     def writeHeaderESRIraster(self, file_asc):
         '''
@@ -887,6 +916,9 @@ class PROCESS:
                         'cellsize   '+ str(self.cellsizeMF)+'\n' +
                         'NODATA_value  '+ str(self.hnoflo)+'\n')
         return file_asc
+        del file_asc
+
+    ######################
 
     def ExportResults(self, i, j, inputDate, _nslmax, results, index, results_S, index_S, DRN, RCH, WEL, h_satflow, heads_MF, obs_h, obs_S, outFileExport, outPESTheads, outPESTsm, obsname):
         """
@@ -936,5 +968,8 @@ class PROCESS:
             out_line =  out_date, ',', out1, Euout, Tuout, out2, Sout, Spcout, dSout, out3, Rpout, out4, Smeasout, out5, '\n'
             for l in out_line:
                 outFileExport.write(l)
+
+        del i, j, inputDate, _nslmax, results, index, results_S, index_S, DRN, RCH, WEL, h_satflow, heads_MF, obs_h, obs_S, outFileExport, outPESTheads, outPESTsm, obsname
+
 
 # EOF
