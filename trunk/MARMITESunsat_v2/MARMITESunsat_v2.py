@@ -172,7 +172,7 @@ class UNSAT:
             if t == 0:
                 Sini[l] = Si[l]
             else:
-                Sini[l] = S[l,t-1]
+                Sini[l] = S[t-1,l]
 
         DRNcorr = 0.0
         if DRN == 0.0:
@@ -200,7 +200,7 @@ class UNSAT:
             if t == 0:
                 Rpprev = Rpi[l]
             else:
-                Rpprev = Rp[l,t-1]
+                Rpprev = Rp[t-1,l]
             if Dl[l+1]>0.0:
                 if Rpprev - (Sm[l+1]*Dl[l+1]-Sini[l+1]) > 1E-6:
                     Rpprev = Rpprev - (Sm[l+1]*Dl[l+1]-Sini[l+1])
@@ -321,23 +321,23 @@ class UNSAT:
         # Surface runoff (hortonian and saturated overland flow)
         Ro=np.zeros([Ttotal], dtype=np.float)
         #Deep percolation
-        Rp=np.zeros([nsl,Ttotal], dtype=np.float)
+        Rp=np.zeros([Ttotal,nsl], dtype=np.float)
         #Soil moisture storage
-        S=np.zeros([nsl,Ttotal], dtype=np.float)
+        S=np.zeros([Ttotal,nsl], dtype=np.float)
         #Soil moisture storage in volumetric percent of saturation
-        Spc=np.zeros([nsl,Ttotal], dtype=np.float)
+        Spc=np.zeros([Ttotal,nsl], dtype=np.float)
         #Soil moisture storage changes
-        dS=np.zeros([nsl,Ttotal], dtype=np.float)
+        dS=np.zeros([Ttotal,nsl], dtype=np.float)
         #Actual evaporation from unsaturated zone
-        Eu=np.zeros([nsl,Ttotal], dtype=np.float)
+        Eu=np.zeros([Ttotal,nsl], dtype=np.float)
         #Actual transpiration from unsaturated zone
-        Tu=np.zeros([nsl,Ttotal], dtype=np.float)
+        Tu=np.zeros([Ttotal,nsl], dtype=np.float)
         #Actual evapotranspiration from surface
         Es=np.zeros([Ttotal], dtype=np.float)
         # GW seepage into soil zone
         SEEPAGE=np.zeros([Ttotal], dtype=int)
         #MASS BALANCE
-        MB=np.zeros(Ttotal, dtype=float)
+        MB=np.zeros([Ttotal], dtype=float)
         # bare soil GW evaporation
         Eg=np.zeros([Ttotal], dtype=np.float)
         # GW transpiration
@@ -348,7 +348,11 @@ class UNSAT:
         Rn=np.zeros([Ttotal], dtype=np.float)
         # GW evapotranspiration
         ETg=np.zeros([Ttotal], dtype=np.float)
-
+        # output arrays
+        nflux1 = 17
+        nflux2 = 6
+        results1 = np.zeros([Ttotal,nflux1])
+        results2 = np.zeros([Ttotal,nsl,nflux2])
 
         if D < 0.05: #correct soil thickness less than 5cm
             D=0.05
@@ -430,11 +434,11 @@ class UNSAT:
             Tg[t] = Tgtmp
             R[t]  = Rtmp
             for l in range(nsl):
-                S[l,t]=Stmp[l]
-                Spc[l,t]=Spctmp[l]
-                Rp[l,t]=Rptmp[l]
-                Eu[l,t]=Eutmp[l]
-                Tu[l,t]=Tutmp[l]
+                S[t,l]=Stmp[l]
+                Spc[t,l]=Spctmp[l]
+                Rp[t,l]=Rptmp[l]
+                Eu[t,l]=Eutmp[l]
+                Tu[t,l]=Tutmp[l]
             Rn[t] = R[t] - Eg[t] -Tg[t] - DRNcorr
             ETg[t] = - Eg[t] -Tg[t] - DRNcorr
             if POND[t]>PONDi:
@@ -445,26 +449,23 @@ class UNSAT:
             EuMB=0.0
             TuMB=0.0
             for l in range(nsl):
-                EuMB = EuMB + Eu[l,t]
-                TuMB = TuMB + Tu[l,t]
-                RpoutMB = RpoutMB + Rp[l,t]
+                EuMB = EuMB + Eu[t,l]
+                TuMB = TuMB + Tu[t,l]
+                RpoutMB = RpoutMB + Rp[t,l]
                 if t==0:
-                    dS[l,t] = S[l,t]-Si[l]
+                    dS[t,l] = S[t,l]-Si[l]
                     if l<(nsl-1):
                         RpinMB = RpinMB + Rpi[l]
                 else:
-                    dS[l,t] = (S[l,t]-S[l,t-1])
+                    dS[t,l] = (S[t,l]-S[t-1,l])
                     if l<(nsl-1):
-                        RpinMB = RpinMB + Rp[l, t-1]
-            MB[t]=RF[t]+PONDi+DRN[t]+RpinMB-INTER[t]-Ro[t]-POND[t]-Es[t]-EuMB-TuMB-RpoutMB-sum(dS[:,t])
-
-        # index = {'iRF':0, 'iPET':1, 'iPE':2, 'iRFe':3, 'iPOND':4, 'iRo':5, 'iSEEPAGE':6, 'iEs':7, 'iMB':8, 'iINTER':9, 'iE0':10, 'iEg':11, 'iTg':12, 'iR':13, 'iRn':14, 'idPOND':15, 'ETg':16}
-        results1 = [RF, PET_tot, PE_tot, RFe_tot, POND, Ro, DRN, Es, MB, INTER, E0, Eg, Tg, R, Rn, dPOND, ETg]
-        # index_S = {'iEu':0, 'iTu':1,'iS':2, 'iRp':3}
-        results2 = [Eu, Tu, Spc, Rp, dS, S]
-
-        results1 = np.asarray(results1)
-        results2 = np.asarray(results2)
+                        RpinMB = RpinMB + Rp[t-1,l]
+            MB[t]=RF[t]+PONDi+DRN[t]+RpinMB-INTER[t]-Ro[t]-POND[t]-Es[t]-EuMB-TuMB-RpoutMB-sum(dS[t,:])
+            # index = {'iRF':0, 'iPET':1, 'iPE':2, 'iRFe':3, 'iPOND':4, 'iRo':5, 'iSEEPAGE':6, 'iEs':7, 'iMB':8, 'iINTER':9, 'iE0':10, 'iEg':11, 'iTg':12, 'iR':13, 'iRn':14, 'idPOND':15, 'ETg':16}
+            results1[t,:] = [RF[t], PET_tot[t], PE_tot[t], RFe_tot[t], POND[t], Ro[t], DRN[t], Es[t], MB[t], INTER[t], E0[t], Eg[t], Tg[t], R[t], Rn[t], dPOND[t], ETg[t]]
+            # index_S = {'iEu':0, 'iTu':1,'iS':2, 'iRp':3}
+            for l in range(nsl):
+                results2[t,l,:] = [Eu[t,l], Tu[t,l], Spc[t,l], Rp[t,l], dS[t,l], S[t,l]]
 
         return results1, results2
 
@@ -938,7 +939,7 @@ class PROCESS:
             if obs_S[0,t]!=self.hnoflo:
                 Smeasout = ''
                 for l in range (_nslmax):
-                    Smeasout= Smeasout + '    ' + str(results_S[i,j,index_S.get('iSpc'),l,t])
+                    Smeasout= Smeasout + '    ' + str(results_S[t,i,j,l,index_S.get('iSpc')])
                 outPESTsm.write((obsname+'SM').ljust(10,' ')+ date.ljust(14,' ')+ '00:00:00        '+ Smeasout + '    \n')
             # header='Date,RF,E0,PET,PE,RFe,Inter,'+Eu_str+Tu_str+'Eg,Tg,ETg,WEL_MF,Es,'+S_str+Spc_str+dS_str+'dPOND,POND,Ro,SEEPAGE,DRN_MF,'+Rp_str+'R,Rn,R_MF,hSATFLOW,hMF,hmeas,' + Smeasout + 'MB\n'
             Sout = ''
@@ -949,27 +950,25 @@ class PROCESS:
             Tuout=''
             Smeasout = ''
             for l in range(_nslmax):
-                Sout = Sout + str(results_S[i,j,index_S.get('iS'),l,t]) + ','
-                Spcout = Spcout + str(results_S[i,j,index_S.get('iSpc'),l,t]) + ','
-                dSout = dSout + str(results_S[i,j,index_S.get('idS'),l,t]) + ','
-                Rpout = Rpout + str(results_S[i,j,index_S.get('iRp'),l,t]) + ','
-                Euout = Euout + str(results_S[i,j,index_S.get('iEu'),l,t]) + ','
-                Tuout = Tuout + str(results_S[i,j,index_S.get('iTu'),l,t]) + ','
+                Sout = Sout + str(results_S[t,i,j,l,index_S.get('iS')]) + ','
+                Spcout = Spcout + str(results_S[t,i,j,l,index_S.get('iSpc')]) + ','
+                dSout = dSout + str(results_S[t,i,j,l,index_S.get('idS')]) + ','
+                Rpout = Rpout + str(results_S[t,i,j,l,index_S.get('iRp')]) + ','
+                Euout = Euout + str(results_S[t,i,j,l,index_S.get('iEu')]) + ','
+                Tuout = Tuout + str(results_S[t,i,j,l,index_S.get('iTu')]) + ','
                 try:
-                    Smeasout = Smeasout + str(obs_S[l,t]) + ','
+                    Smeasout = Smeasout + str(obs_S[t,l]) + ','
                 except:
                     Smeasout = Smeasout + str(self.hnoflo) + ','
             out_date = pylab.num2date(inputDate[t]).isoformat()[:10]
-            out1 = '%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[i,j,index.get('iRF'),t], results[i,j,index.get('iE0'),t],results[i,j,index.get('iPET'),t],results[i,j,index.get('iPE'),t],results[i,j,index.get('iRFe'),t],results[i,j,index.get('iINTER'),t])
-            out2 = '%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[i,j,index.get('iEg'),t], results[i,j,index.get('iTg'),t],results[i,j,index.get('iETg'),t], WEL[t], results[i,j,index.get('iEs'),t])
-            out3 = '%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[i,j,index.get('idPOND'),t],results[i,j,index.get('iPOND'),t],results[i,j,index.get('iRo'),t],results[i,j,index.get('iSEEPAGE'),t],DRN[t])
-            out4 = '%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[i,j,index.get('iR'),t], results[i,j,index.get('iRn'),t], RCH[t], h_satflow[t],heads_MF[t],obs_h[t])
-            out5 = '%.8f' % (results[i,j,index.get('iMB'),t])
+            out1 = '%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[t,i,j,index.get('iRF')], results[t,i,j,index.get('iE0')],results[t,i,j,index.get('iPET')],results[t,i,j,index.get('iPE')],results[t,i,j,index.get('iRFe')],results[t,i,j,index.get('iINTER')])
+            out2 = '%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[t,i,j,index.get('iEg')], results[t,i,j,index.get('iTg')],results[t,i,j,index.get('iETg')], WEL[t], results[t,i,j,index.get('iEs')])
+            out3 = '%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[t,i,j,index.get('idPOND')],results[t,i,j,index.get('iPOND')],results[t,i,j,index.get('iRo')],results[t,i,j,index.get('iSEEPAGE')],DRN[t])
+            out4 = '%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[t,i,j,index.get('iR')], results[t,i,j,index.get('iRn')], RCH[t], h_satflow[t],heads_MF[t],obs_h[t])
+            out5 = '%.8f' % (results[t,i,j,index.get('iMB')])
             out_line =  out_date, ',', out1, Euout, Tuout, out2, Sout, Spcout, dSout, out3, Rpout, out4, Smeasout, out5, '\n'
             for l in out_line:
                 outFileExport.write(l)
-
         del i, j, inputDate, _nslmax, results, index, results_S, index_S, DRN, RCH, WEL, h_satflow, heads_MF, obs_h, obs_S, outFileExport, outPESTheads, outPESTsm, obsname
-
 
 # EOF

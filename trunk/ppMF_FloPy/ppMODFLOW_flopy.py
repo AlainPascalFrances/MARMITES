@@ -11,7 +11,7 @@
 #-------------------------------------------------------------------------------
 #!/usr/bin/env python
 
-__author__ = "Alain P. Francés <frances08512@itc.nl>"
+__author__ = "Alain P. Francés <frances.alain@gmail.com>"
 __version__ = "0.1"
 __date__ = "March 2011"
 
@@ -275,9 +275,13 @@ def ppMF(model_ws = '', rch_input = 0.001, rch_dft = 0.001, wel_input = -1E-6, w
         l = l + 1
         ext_rch = str(inputFile[l].strip())
         l = l + 1
+        rch_dft = float(inputFile[l].strip())
+        l = l + 1
         nrchop = int(inputFile[l].strip())
         l = l + 1
         ext_wel = str(inputFile[l].strip())
+        l = l + 1
+        wel_dft = float(inputFile[l].strip())
     except:
         print "Unexpected error in the input file:\n", sys.exc_info()[0]
         sys.exit()
@@ -381,23 +385,26 @@ def ppMF(model_ws = '', rch_input = 0.001, rch_dft = 0.001, wel_input = -1E-6, w
         for v in r:
             ci=ci+1
             layer_row_column_elevation_cond[0].append([1,ri,ci,v,1E5])
+    biggrid = 0
     # in layer 2, cell outlet, elevation is bottom of layer 2
-    #  DRN for big grid
-##    row_drnL2  = np.arange(120,129,1)
-##    col_drnL2  = np.arange(21,29,1)
-##    nlay_drnL2 = 1
-##    cond_drnL2 = 0.15
-##    for i in range(len(row_drnL2)):
-##        for j in range(len(col_drnL2)):
-##            botm_drnL2 = botm_array[row_drnL2[i]][col_drnL2[j]][nlay_drnL2]
-##            layer_row_column_elevation_cond[0].append([nlay_drnL2+1,row_drnL2[i]+1,col_drnL2[j]+1,botm_drnL2,cond_drnL2+np.random.normal(0,0.05,1)])
-#  DRN for small grid
-    row_drnL2  = 12
-    col_drnL2  = 2
-    nlay_drnL2 = 1
-    cond_drnL2 = 0.15
-    botm_drnL2 = botm_array[row_drnL2][col_drnL2][nlay_drnL2]
-    layer_row_column_elevation_cond[0].append([nlay_drnL2+1,row_drnL2+1,col_drnL2+1,botm_drnL2,cond_drnL2])
+    if biggrid == 1:
+        #  DRN for big grid
+        row_drnL2  = np.arange(120,129,1)
+        col_drnL2  = np.arange(21,29,1)
+        nlay_drnL2 = 1
+        cond_drnL2 = 0.15
+        for i in range(len(row_drnL2)):
+            for j in range(len(col_drnL2)):
+                botm_drnL2 = botm_array[row_drnL2[i]][col_drnL2[j]][nlay_drnL2]
+                layer_row_column_elevation_cond[0].append([nlay_drnL2+1,row_drnL2[i]+1,col_drnL2[j]+1,botm_drnL2,cond_drnL2+np.random.normal(0,0.05,1)])
+    elif biggrid == 0:
+    #  DRN for small grid
+        row_drnL2  = 12
+        col_drnL2  = 2
+        nlay_drnL2 = 1
+        cond_drnL2 = 0.15
+        botm_drnL2 = botm_array[row_drnL2][col_drnL2][nlay_drnL2]
+        layer_row_column_elevation_cond[0].append([nlay_drnL2+1,row_drnL2+1,col_drnL2+1,botm_drnL2,cond_drnL2])
 
 # average for 1st SS stress period
     if dum_sssp1 == 1:
@@ -433,8 +440,8 @@ def ppMF(model_ws = '', rch_input = 0.001, rch_dft = 0.001, wel_input = -1E-6, w
                 else:
                     layer_row_column_Q[n].append([1,r+1,c+1,wel_array[n][r][c]])
 
-    # 2 - create the modflow packages files
 
+    # 2 - create the modflow packages files
     # MFfile initialization
     mf = modflow(modelname = modelname, exe_name = exe_name, namefile_ext = namefile_ext, version = 'mf2000', model_ws= model_ws)
     # dis initialization
@@ -501,7 +508,7 @@ def ppMF(model_ws = '', rch_input = 0.001, rch_dft = 0.001, wel_input = -1E-6, w
     print ''
 
     # extract heads
-    h5_MF_fn = os.path.join(model_ws, modelname + '_MF.h5')
+    h5_MF_fn = os.path.join(model_ws, 'h5_MF.h5')
     h5_MF = h5py.File(h5_MF_fn, 'w')
     try:
         h = mfrdbin.mfhdsread(mf, 'LF95').read_all(h_MF_fn)
@@ -516,21 +523,23 @@ def ppMF(model_ws = '', rch_input = 0.001, rch_dft = 0.001, wel_input = -1E-6, w
     h5_MF.create_dataset('cbc_nam', data = np.asarray(cbc[2]))
 
     if dum_sssp1 == 1:
-        h5_MF.create_dataset(name = 'h', data = np.asarray(h[1][1:]), chunks = tuple([1,nrow,ncol,nlay]), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf
-        h5_MF.create_dataset(name = 'c', data = np.asarray(cbc[1][1:]), chunks = tuple([1,1,nrow,ncol,nlay]), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf'
+        h5_MF.create_dataset(name = 'heads', data = np.asarray(h[1][1:]), chunks = (1,nrow,ncol,nlay), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf
+        del h
+        h5_MF.create_dataset(name = 'cbc', data = np.asarray(cbc[1][1:]), chunks = (1,1,nrow,ncol,nlay), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf'
+        del cbc
         nper = nper - 1
         perlen = perlen[1:]
     else:
         # Not tested
-        h5_MF.create_dataset(name = 'h', data = np.asarray(h[1]), chunks = tuple([1,nrow,ncol,nlay]), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf'
-        h5_MF.create_dataset(name = 'c', data = np.asarray(cbc[1]), chunks = tuple([1,1,nrow,ncol,nlay]), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf'
-    del h
-    del cbc
+        h5_MF.create_dataset(name = 'heads', data = np.asarray(h[1]), chunks = (1,nrow,ncol,nlay), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf'
+        del h
+        h5_MF.create_dataset(name = 'cbc', data = np.asarray(cbc[1]), chunks = (1,1,nrow,ncol,nlay), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf'
+        del cbc
     h5_MF.close()
     del mf, dis, bas, lpf, rch, wel, drn, oc, pcg
-# TODO uncomment to delete MF bin files and save disk space
-#    os.remove(h_MF_fn)
-#    os.remove(cbc_MF_fn)
+    # to delete MF bin files and save disk space
+    os.remove(h_MF_fn)
+    os.remove(cbc_MF_fn)
 
     return SP_d, nrow, ncol, delr, delc, nlay, perlen, nper, np.asarray(top_array), hnoflo, hdry, np.asarray(ibound_array), laytyp, h5_MF_fn, np.asarray(top_array), inputFileMF_fn, lenuni
     del SP_d, nrow, ncol, delr, delc, nlay, perlen, nper, top_array, hnoflo, hdry, ibound_array, laytyp, h5_MF_fn, top_array, inputFileMF_fn, lenuni

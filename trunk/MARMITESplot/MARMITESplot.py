@@ -39,7 +39,8 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
 
     fig.suptitle(plt_title)
 
-    nsl = len(Tu)
+    nsl = len(Tu[0])
+    nts = len(DateInput)
     lbl_Spc = []
     lbl_S = []
     lbl_dS = []
@@ -56,6 +57,12 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     lbl_Tu.append('T_tot')
     lbl_Tu.append('Tu_tot')
     Sobs_m = []
+    Eu1 = []
+    Tu1 = []
+    dS1 = []
+    S1 = []
+    Rp1 = []
+    Spc1 = []
     for l in range(nsl):
         lbl_Spc.append('S_l'+str(l+1))
         lbl_S.append('S_l'+str(l+1))
@@ -64,6 +71,19 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
         lbl_Tu.append('Tu_l'+str(l+1))
         lbl_Sobs.append('Sobs_l'+str(l+1))
         Sobs_m.append(np.ma.masked_values(Sobs[l], hnoflo, atol = 0.09))
+        Eu1.append(Eu[:,l])
+        Tu1.append(Tu[:,l])
+        dS1.append(dS[:,l])
+        S1.append(S[:,l])
+        Rp1.append(Rp[:,l])
+        Spc1.append(Spc[:,l])
+    del dS, S, Rp, Spc
+    Eu1 = np.asarray(Eu1)
+    Tu1 = np.asarray(Tu1)
+    dS1 = np.asarray(dS1)
+    S1 = np.asarray(S1)
+    Rp1 = np.asarray(Rp1)
+    Spc1 = np.asarray(Spc1)
     for l in range(nsl-1):
         lbl_Rp.append('Rp_l'+str(l+1))
     lbl_Rp.append('SEEPAGE')
@@ -102,17 +122,19 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     plt.grid(True)
     ax2.xaxis.set_major_formatter(monthsFmt)
 
-    Eu_tot = np.zeros([len(Eu[0])], dtype = float)
-    for l in range(len(Eu)):
-        Eu_tot = Eu_tot + Eu[l]
+    Eu_tot = []
+    for e in Eu:
+        Eu_tot.append(e.sum())
+    Eu_tot = np.asarray(Eu_tot)
     E_tot = Eu_tot + Eg
+    del Eu
     ax3=fig.add_subplot(10,1,3, sharex=ax1)
     plt.setp(ax3.get_xticklabels(), visible=False)
     plt.setp(ax3.get_yticklabels(), fontsize=8)
     plt.plot_date(DateInput,PE,'-', color='lightblue', linewidth=3)
     plt.plot_date(DateInput,E_tot,'-', color='darkblue', linewidth=1.5)
     plt.plot_date(DateInput,Eu_tot,'-.', color=colors_nsl[len(colors_nsl)-1])
-    for l, (y, color, lbl) in enumerate(zip(Eu, colors_nsl, lbl_Eu[2:len(lbl_Eu)])):
+    for l, (y, color, lbl) in enumerate(zip(Eu1, colors_nsl, lbl_Eu[2:len(lbl_Eu)])):
         ax3.plot_date(DateInput, y, '-', color=color, label=lbl)
     plt.plot_date(DateInput,Eg,'-', color='blue')
     plt.xlim(DateInput[0]-1,DateInput[len(P)-1]+1)
@@ -125,17 +147,19 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     ax3.xaxis.set_major_formatter(monthsFmt)
     ax3.yaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%1.1f'))
 
-    Tu_tot = np.zeros([len(Tu[0])], dtype = float)
-    for l in range(len(Tu)):
-        Tu_tot = Tu_tot + Tu[l]
+    Tu_tot = []
+    for t in Tu:
+        Tu_tot.append(t.sum())
+    Tu_tot = np.asarray(Tu_tot)
     T_tot = Tu_tot + Tg
+    del Tu
     ax4=fig.add_subplot(10,1,4, sharex=ax1)
     plt.setp(ax4.get_xticklabels(), visible=False)
     plt.setp(ax4.get_yticklabels(), fontsize=8)
     plt.plot_date(DateInput,PET,'-', color='lightblue', linewidth=3)
     plt.plot_date(DateInput,T_tot,'-', color='darkblue',  linewidth=1.5)
     plt.plot_date(DateInput,Tu_tot,'-.', color=colors_nsl[len(colors_nsl)-1])
-    for l, (y, color, lbl) in enumerate(zip(Tu, colors_nsl, lbl_Tu[2:len(lbl_Tu)])):
+    for l, (y, color, lbl) in enumerate(zip(Tu1, colors_nsl, lbl_Tu[2:len(lbl_Tu)])):
         ax4.plot_date(DateInput, y, '-', color=color, label=lbl)
     plt.plot_date(DateInput,Tg,'-', color='blue')
     plt.xlim(DateInput[0]-1,DateInput[len(P)-1]+1)
@@ -151,7 +175,7 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     ax5a=fig.add_subplot(20,1,9, sharex=ax1)
     plt.setp(ax5a.get_xticklabels(), visible=False)
     plt.setp(ax5a.get_yticklabels(), fontsize=8)
-    for l, (y, color, lbl) in enumerate(zip(dS, colors_nsl, lbl_dS)) :
+    for l, (y, color, lbl) in enumerate(zip(dS1, colors_nsl, lbl_dS)) :
         ax5a.plot_date(DateInput, y, '-', color=color, label=lbl)
     # x axis
     plt.xlim(DateInput[0]-1,DateInput[len(P)-1]+1)
@@ -169,7 +193,7 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     ax5b=fig.add_subplot(20,1,10, sharex=ax1)
     plt.setp(ax5b.get_xticklabels(), visible=False)
     plt.setp(ax5b.get_yticklabels(), fontsize=8)
-    for l, (y, color, lbl) in enumerate(zip(S, colors_nsl, lbl_S)) :
+    for l, (y, color, lbl) in enumerate(zip(S1, colors_nsl, lbl_S)) :
         ax5b.plot_date(DateInput, y, '-', color=color, label=lbl)
     # x axis
     plt.xlim(DateInput[0]-1,DateInput[len(P)-1]+1)
@@ -190,7 +214,7 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     plt.bar(DateInput,SEEPAGE, color='lightblue', linewidth=0, align = 'center', label='SEEPAGE')
     plt.plot_date(DateInput,R,'-', c='darkblue', linewidth=2)
     plt.plot_date(DateInput,Rn,'-', c='blue', linewidth=1.5)
-    for l, (y, color, lbl) in enumerate(zip(Rp, colors_nsl, lbl_Rp[2:len(lbl_Rp)])) :
+    for l, (y, color, lbl) in enumerate(zip(Rp1, colors_nsl, lbl_Rp[2:len(lbl_Rp)])) :
         ax6.plot_date(DateInput, y, '-', color=color, label=lbl)
     plt.xlim(DateInput[0]-1,DateInput[len(P)-1]+1)
     plt.legend(lbl_Rp, loc = 0, labelspacing=lblspc, markerscale=mkscale)
@@ -207,7 +231,7 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     plt.setp(ax7.get_yticklabels(), fontsize=8)
     for l, (y, color, lbl) in enumerate(zip(Sobs_m, colors_nsl, lbl_Sobs)) :
         ax7.plot_date(DateInput, y, linestyle='-', linewidth = 0.5, marker='o', markersize=5, color = color, label=lbl)
-    for l, (y, color, lbl) in enumerate(zip(Spc, colors_nsl, lbl_Spc)) :
+    for l, (y, color, lbl) in enumerate(zip(Spc1, colors_nsl, lbl_Spc)) :
         ax7.plot_date(DateInput, y, '-', color = color, label=lbl)
     # x axis
     plt.xlim(DateInput[0]-1,DateInput[len(P)-1]+1)
@@ -271,8 +295,9 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     plt.subplots_adjust(left=0.05, bottom=0.10, right=0.95, top=0.95, wspace=0.1, hspace=0.1)
     plt.savefig(plt_export_fn,dpi=150)
 #    plt.show()
-    plt.close()
-    del fig
+    plt.clf()
+    plt.close('all')
+    del fig, DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu1, Tu1, Eg, Tg, S1, dS1, Spc1, Rp1, SEEPAGE, R, Rn, Es, MB, h_MF, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin
 
 ##################
 
@@ -318,9 +343,10 @@ def plotLAYER(TS, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_title, MM_
         plt.axis('scaled')
     plt_export_fn = os.path.join(MM_ws, '00_' + plt_title + '_TS%05d' + '.png') % (TS+1)
     plt.savefig(plt_export_fn)
-    plt.close()
-    del fig
-    del ax
+#    plt.show()
+    plt.clf()
+    plt.close('all')
+    del fig, ax, TS, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_title, MM_ws, interval_type, interval_diff, interval_num, Vmax, Vmin, fmt
 
 ##    #Make a cross-sectional figure of layers 1, 2, and 10
 ##    plt.figure()
@@ -380,6 +406,8 @@ def plotGWbudget(flxlst, flxlbl, colors_flx, plt_export_fn, plt_title, fluxmax, 
     plt.subplots_adjust(left=0.05, bottom=0.10, right=0.95, top=0.95, wspace=0.1, hspace=0.1)
     plt.savefig(plt_export_fn,dpi=150)
 #    plt.show()
-    plt.close()
-    del fig
+    plt.clf()
+    plt.close('all')
+    del fig, flxlst, flxlbl, colors_flx, plt_export_fn, plt_title, fluxmax, fluxmin
 
+#EOF#
