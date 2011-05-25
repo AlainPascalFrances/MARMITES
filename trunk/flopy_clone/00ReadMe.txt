@@ -1,2 +1,2 @@
-FloPy was developed by Marl Bakker and Vincent Post. See http://code.google.com/p/flopy/.
-I slightly modified the module to allow the user to define a workspace (folder) where input, output and MODFLOW packages will be stored.
+FloPy was developed by Mark Bakker and Vincent Post. See http://code.google.com/p/flopy/.
+I slightly modified the FloPy modules to allow the user to define a workspace (folder) where input, output and MODFLOW packages are stored.

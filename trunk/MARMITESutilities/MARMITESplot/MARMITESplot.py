@@ -48,8 +48,6 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     lbl_Rp = []
     lbl_Eu = []
     lbl_Tu = []
-    lbl_Rp.append('R')
-    lbl_Rp.append('Rn')
     lbl_Eu.append('PE')
     lbl_Eu.append('E_tot')
     lbl_Eu.append('Eu_tot')
@@ -75,17 +73,20 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
         Tu1.append(Tu[:,l])
         dS1.append(dS[:,l])
         S1.append(S[:,l])
-        Rp1.append(Rp[:,l])
         Spc1.append(Spc[:,l])
-    del dS, S, Rp, Spc
+    del dS, S, Spc
+    for l in range(nsl-1):
+        lbl_Rp.append('Rp_l'+str(l+1))
+        Rp1.append(Rp[:,l])
+    del Rp
     Eu1 = np.asarray(Eu1)
     Tu1 = np.asarray(Tu1)
     dS1 = np.asarray(dS1)
     S1 = np.asarray(S1)
     Rp1 = np.asarray(Rp1)
     Spc1 = np.asarray(Spc1)
-    for l in range(nsl-1):
-        lbl_Rp.append('Rp_l'+str(l+1))
+    lbl_Rp.append('R')
+    lbl_Rp.append('Rn')
     lbl_Rp.append('SEEPAGE')
     lbl_Tu.append('Tg')
     lbl_Eu.append('Eg')
@@ -212,10 +213,10 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     plt.setp(ax6.get_xticklabels(), visible=False)
     plt.setp(ax6.get_yticklabels(), fontsize=8)
     plt.bar(DateInput,SEEPAGE, color='lightblue', linewidth=0, align = 'center', label='SEEPAGE')
-    plt.plot_date(DateInput,R,'-', c='darkblue', linewidth=2)
-    plt.plot_date(DateInput,Rn,'-', c='blue', linewidth=1.5)
     for l, (y, color, lbl) in enumerate(zip(Rp1, colors_nsl, lbl_Rp[2:len(lbl_Rp)])) :
         ax6.plot_date(DateInput, y, '-', color=color, label=lbl)
+    plt.plot_date(DateInput,R,'-', c='darkblue', linewidth=2)
+    plt.plot_date(DateInput,Rn,'-', c='blue', linewidth=1.5)
     plt.xlim(DateInput[0]-1,DateInput[len(P)-1]+1)
     plt.legend(lbl_Rp, loc = 0, labelspacing=lblspc, markerscale=mkscale)
     leg = plt.gca().get_legend()
@@ -341,7 +342,7 @@ def plotLAYER(TS, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_title, MM_
             plt.title('layer ' + str(L+1)+', time step ' + str(TS+1) + ': ' + msg, fontsize = 10)
         plt.ylim(plt.ylim()[::-1])
         plt.axis('scaled')
-    plt_export_fn = os.path.join(MM_ws, '00_' + plt_title + '_TS%05d' + '.png') % (TS+1)
+    plt_export_fn = os.path.join(MM_ws, '_plt_' + plt_title + '_TS%05d' + '.png') % (TS+1)
     plt.savefig(plt_export_fn)
 #    plt.show()
     plt.clf()

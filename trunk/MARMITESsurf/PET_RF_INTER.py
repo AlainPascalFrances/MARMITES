@@ -87,7 +87,9 @@ def process(datenum = np.array([]), datenum_d = np.array([])
               ,alfa_vd = np.array([]), alfa_vw = np.array([]), J_vd = 91, J_vw= 305, TRANS_vdw = 20\
               ,NSOIL = 1, SoilType = [], por = np.array([]), fc = np.array([])\
               ,alfa_sd = np.array([]), alfa_sw = np.array([]), J_sd = 166, J_sw = 274, TRANS_sdw = 20
-              ,alfa_w = 0.06):
+              ,alfa_w = 0.06
+              ,MFnper = 0
+              ):
     '''
     Function to calculate hourly Penman-Monteith evapo(transpi)ration (mm/day).
 
@@ -703,8 +705,7 @@ def process(datenum = np.array([]), datenum_d = np.array([])
 
 
     #  #####  COMPUTING RF/INTERCEPTION ##############################################
-    print '\n##############'
-    print "Computing INTERCEPTION..."
+    print "\nComputing INTERCEPTION..."
 
     """Gash sparse model
         Gash 1979
@@ -762,6 +763,4 @@ def process(datenum = np.array([]), datenum_d = np.array([])
     # RETURN ARRAY VALUES TO MAIN PROGRAM
     return J, J_d, outputVAR, PET_PM_VEG, Erf, PE_PM_SOIL, E0, PET_PM_VEG_d, PE_PM_SOIL_d, E0_d, RF_d, RFint, RF_duration, n1_d, RFe_d, I_d
 
-
-####################################################
 # EOF #

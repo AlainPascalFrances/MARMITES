@@ -17,8 +17,10 @@ import numpy as np
 import pylab
 #USER INPUT: indicate in the line below the path where you copied
 #            PET_PM_FAO56.py and startPET_PM_FAO56.py
-sys.path.append(r'E:\00code\MARMITES\trunk\MARMITESsurf')
+sys.path.append(r'E:\00code\MARMITES\trunk\MARMITESutilities\MARMITESplot')
 import PET_RF_INTER, plotPET, plotRF
+sys.path.append(r'E:\00code\MARMITES\trunk\MARMITESutilities')
+import MARMITESprocess as MMproc
 
 '''
     Reads input files for PET_PM_FAO56 and call this function
@@ -136,8 +138,7 @@ import PET_RF_INTER, plotPET, plotRF
 
 ###########################################
 
-def MMsurf(inputFOLDER_fn="", inputFile_TS_fn="", inputFile_PAR_fn="", outputFILE_fn="", pathMARM=""):
-
+def MMsurf(inputFOLDER_fn, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, pathMMws, outMMsurf_fn):
 
     def ExportResults(Dates, J, TS, outFileExport, ts_output = 0, n_d = [], TypeFile = "PET"):
         """
@@ -182,33 +183,11 @@ def MMsurf(inputFOLDER_fn="", inputFile_TS_fn="", inputFile_PAR_fn="", outputFIL
 
 
     #  ##### READING INPUT ###############################################
-    print '\n##############'
-    print 'Reading MARMITESsurface INPUT FILES...'
+    print '\nReading MARMITESsurface INPUT FILES...'
 
     # METEO/VEGETATION/SOIL/WATER PARAMETERS
-    inputFile = []
-    inputFile_PAR_fn = os.path.join(inputFOLDER_fn, inputFile_PAR_fn)
-    if os.path.exists(inputFile_PAR_fn):
-        fin = open(inputFile_PAR_fn, 'r')
-    else:
-        print "\nThe input file [" + inputFile_PAR_fn + "] doesn't exist, verify name and path!"
-        sys.exit()
-    line = fin.readline().split()
-    delimChar = line[0]
-    try:
-        for line in fin:
-            line_tmp = line.split(delimChar)
-            if not line_tmp == []:
-                if (not line_tmp[0] == '') and (not line_tmp[0] == '\n'):
-                    inputFile.append(line_tmp[0])
-            else:
-                raise NameError('InputFileFormat')
-    except NameError:
-        print "\nError in the input file, check format!\n[" + inputFile_PAR_fn +"]"
-        sys.exit()
-    except:
-        print "\nUnexpected error in the input file\n[" + inputFile_PAR_fn +"]\n" + str(sys.exc_info()[0])
-        sys.exit()
+
+    inputFile = MMproc.readFile(inputFOLDER_fn, inputFile_PAR_fn)
     try:
         # METEO PARAMETERS
         l=0
@@ -321,8 +300,7 @@ def MMsurf(inputFOLDER_fn="", inputFile_TS_fn="", inputFile_PAR_fn="", outputFIL
     except:
         print "\nError reading the input file:\n[" + inputFile_PAR_fn +"]"
         sys.exit()
-    fin.close()
-    del line, line_tmp, inputFile, l
+    del inputFile, l, line
     print "\nMETEO/VEGETATION/SOIL/OPENWATER PARAMETERS file imported!\n[" + inputFile_PAR_fn +"]"
 
     # read INPUT file
@@ -391,36 +369,39 @@ def MMsurf(inputFOLDER_fn="", inputFile_TS_fn="", inputFile_PAR_fn="", outputFIL
 
 
     #  ##### COMPUTING PET and INTERCEPTION ##############################################
-    print "\n###############"
     print "Computing PET..."
 
     if NMETEO>0:
 
-        inputZON_TS_RF_fn = "inputZONRF.txt"
-        inputZONRF_fn = os.path.join(pathMARM, inputZON_TS_RF_fn)
+        inputZON_TS_RF_fn = "inputZONRF_d.txt"
+        inputZONRF_fn = os.path.join(pathMMws, inputZON_TS_RF_fn)
         inputZONRF = open(inputZONRF_fn, 'w')
+        inputZONRF.write('#\n')
 
-        inputZON_TS_PET_fn = "inputZONPET.txt"
-        inputZONPET_fn = os.path.join(pathMARM, inputZON_TS_PET_fn)
+        inputZON_TS_PET_fn = "inputZONPET_d.txt"
+        inputZONPET_fn = os.path.join(pathMMws, inputZON_TS_PET_fn)
         inputZONPET = open(inputZONPET_fn, 'w')
+        inputZONPET.write('#\n')
 
-        inputZON_TS_RFe_fn = "inputZONRFe.txt"
-        inputZONRFe_fn = os.path.join(pathMARM, inputZON_TS_RFe_fn)
+        inputZON_TS_RFe_fn = "inputZONRFe_d.txt"
+        inputZONRFe_fn = os.path.join(pathMMws, inputZON_TS_RFe_fn)
         inputZONRFe = open(inputZONRFe_fn, 'w')
+        inputZONRFe.write('#\n')
 
-        inputZON_TS_PE_fn = "inputZONPE.txt"
-        inputZONPE_fn = os.path.join(pathMARM, inputZON_TS_PE_fn)
+        inputZON_TS_PE_fn = "inputZONPE_d.txt"
+        inputZONPE_fn = os.path.join(pathMMws, inputZON_TS_PE_fn)
         inputZONPE = open(inputZONPE_fn, 'w')
+        inputZONPE.write('#\n')
 
-        inputZON_TS_E0_fn = "inputZONE0.txt"
-        inputZONE0_fn = os.path.join(pathMARM, inputZON_TS_E0_fn)
+        inputZON_TS_E0_fn = "inputZONE0_d.txt"
+        inputZONE0_fn = os.path.join(pathMMws, inputZON_TS_E0_fn)
         inputZONE0 = open(inputZONE0_fn, 'w')
+        inputZONE0.write('#\n')
 
         for n in range(NMETEO):
-            print "\n###############"
+            print '\n--------------'
             print "Processing data of ZONE" + str(n+1) + "/%s" % str(NMETEO)
-            J, J_d, outputVAR, PET_PM_VEG, Erf, PE_PM_SOIL, E0, PET_PM_VEG_d, PE_PM_SOIL_d, E0_d, RF_d, RFint, RF_duration, n1_d, RFe_d, I_d = \
-                PET_RF_INTER.process                                                               (datenum, datenum_d, \
+            J, J_d, outputVAR, PET_PM_VEG, Erf, PE_PM_SOIL, E0, PET_PM_VEG_d, PE_PM_SOIL_d, E0_d, RF_d, RFint, RF_duration, n1_d, RFe_d, I_d = PET_RF_INTER.process(datenum, datenum_d, \
                     RF[n], Ta[n], RHa[n], Pa[n], u_z_m[n], Rs[n], \
                     phi[n], Lm[n], Z[n], Lz[n], FC[n], z_m[n], z_h[n], \
                     NVEG, VegType, h, S, C_leaf_star, LAI_d, LAI_w,\
@@ -428,8 +409,7 @@ def MMsurf(inputFOLDER_fn="", inputFile_TS_fn="", inputFile_PAR_fn="", outputFIL
                     NSOIL, SoilType, por, fc, alfa_sd, alfa_sw, J_sd, J_sw, TRANS_sdw, alfa_w)
 
             #  #####  PLOTTING ##############################################
-            print "\n###############"
-            print "Exporting plots..."
+            print "\nExporting plots..."
             npdatenum = np.array(datenum)
             # outputVAR = [DELTA,gama, Rs, Rs_corr, Rs0, Rnl, r]
             plot_exportVAR_fn = os.path.join(inputFOLDER_fn,  outputFILE_fn + "_ZON" + str(n+1)+'_VAR.png')
@@ -462,11 +442,9 @@ def MMsurf(inputFOLDER_fn="", inputFile_TS_fn="", inputFile_PAR_fn="", outputFIL
             #  #####  EXPORTING ASCII FILES ##############################################
             try:
                 if os.path.exists(inputFOLDER_fn):
-                    print "\n###############"
-                    print "Exporting output to ASCII files..."
+                    print "\nExporting output to ASCII files..."
             # EXPORTING RESULTS PET/ET0/PE/E0/RF/RFe/INTER/
-                    for i in range(2):
-                        ts_output = i
+                    for ts_output in range(2):
                         if ts_output == 0:
                             print "\nHourly output..."                  # hourly output
                             datenumOUT = datenum
@@ -549,7 +527,6 @@ def MMsurf(inputFOLDER_fn="", inputFile_TS_fn="", inputFile_PAR_fn="", outputFIL
             except:
                 print "\nError in output file, some output files were not exported."
 
-
     inputZONRF.close()
     inputZONRFe.close()
     inputZONPET.close()
@@ -557,9 +534,8 @@ def MMsurf(inputFOLDER_fn="", inputFile_TS_fn="", inputFile_PAR_fn="", outputFIL
     inputZONE0.close()
 
     # EXPORTING ZONEVEGSOILfile
-    MARMsurf_fn = "inputMARMsurf.txt"
     date_fn = 'inputDATE.txt'
-    outpathname = os.path.join(pathMARM, MARMsurf_fn)
+    outpathname = os.path.join(pathMMws, outMMsurf_fn)
     outFileExport = open(outpathname, 'w')
     outFileExport.write('#\n# NMETEO: number of meteo zones\n')
     outFileExport.write(str(NMETEO))
@@ -571,13 +547,13 @@ def MMsurf(inputFOLDER_fn="", inputFile_TS_fn="", inputFile_PAR_fn="", outputFIL
     outFileExport.write(date_fn)
     outFileExport.write('\n# inputZON_TS_RF_fn: RF zones\n')
     outFileExport.write(inputZON_TS_RF_fn)
-    outFileExport.write('\n# inputZON_TS_PET_fn: RF zones\n')
+    outFileExport.write('\n# inputZON_TS_PET_fn: PET zones\n')
     outFileExport.write(inputZON_TS_PET_fn)
-    outFileExport.write('\n# inputZON_TS_RFe_fn: RF zones\n')
+    outFileExport.write('\n# inputZON_TS_RFe_fn: RFe zones\n')
     outFileExport.write(inputZON_TS_RFe_fn)
-    outFileExport.write('\n# inputZON_TS_PE_fn: RF zones\n')
+    outFileExport.write('\n# inputZON_TS_PE_fn: PE zones\n')
     outFileExport.write(inputZON_TS_PE_fn)
-    outFileExport.write('\n# inputZON_TS_E0_fn: RF zones\n')
+    outFileExport.write('\n# inputZON_TS_E0_fn: E0 zones\n')
     outFileExport.write(inputZON_TS_E0_fn)
     outFileExport.write('\n# TRANS_vdw\n')
     for v in range(1,len(TRANS_vdw)):
@@ -596,12 +572,13 @@ def MMsurf(inputFOLDER_fn="", inputFile_TS_fn="", inputFile_PAR_fn="", outputFIL
         outFileExport.write(str(TRANS_sdw[v])+' ')
 
     # EXPORTING DATE
-    outpathname = os.path.join(pathMARM, date_fn)
+    outpathname = os.path.join(pathMMws, date_fn)
     outFileExport = open(outpathname, 'w')
+    outFileExport.write('#\n')
     TStmp = 0
     ExportResults(datenumOUT, J_d, TStmp, outFileExport, TypeFile = "Date")
     outFileExport.close()
 
-    return MARMsurf_fn
+    return outMMsurf_fn
     ###############################################
      #   EOF   #

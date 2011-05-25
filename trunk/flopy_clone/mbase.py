@@ -56,7 +56,7 @@ class basemodel(object):
             if (pp.name[0] == name):
                 return pp
         return None
-    def run_model(self, pause = True):
+    def run_model(self, pause = True, report = None):
         batch_file_name = os.path.join(self.model_ws, 'run.bat')
         error_message = ('Model executable %s not found!' % self.exe_name)
         assert os.path.exists(self.exe_name), error_message
@@ -73,7 +73,7 @@ class basemodel(object):
            f.write('@PAUSE\n')
         f.close()
         os.path.abspath = self.model_ws
-        sp.call(batch_file_name, cwd=self.model_ws)
+        sp.call(batch_file_name, cwd=self.model_ws, stdout = report)
         os.remove(batch_file_name)
     def write_array(self, f, a, locat, write_fmtin, npi, npl, description=''):
         '''Writes an array of reals to a file.
