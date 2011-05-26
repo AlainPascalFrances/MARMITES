@@ -221,20 +221,36 @@ def ppMFini(MF_ws, MF_ini_fn, out = 'MF'):
         l += 1
         ext_rch = str(inputFile[l].strip())
         l += 1
-        rch_dft = float(inputFile[l].strip())
-        l += 1
         nrchop = int(inputFile[l].strip())
+        l += 1
+        rch_input = float(inputFile[l].strip())
+        l += 1
+        rch_dft = float(inputFile[l].strip())
         l += 1
         ext_wel = str(inputFile[l].strip())
         l += 1
+        wel_input = float(inputFile[l].strip())
+        l += 1
         wel_dft = float(inputFile[l].strip())
+        l += 1
+        ext_drn = str(inputFile[l].strip())
+        l += 1
+        drn_elev_fn = []
+        drn_elev_tmp =  inputFile[l].split()
+        for i in range(nlay-1):
+            drn_elev_fn.append(str(drn_elev_tmp[i]))
+        l += 1
+        drn_cond_fn = []
+        drn_cond_tmp =  inputFile[l].split()
+        for i in range(nlay-1):
+            drn_cond_fn.append(str(drn_cond_tmp[i]))
     except:
         print "Unexpected error in the input file:\n", sys.exc_info()[0]
         sys.exit()
     del inputFile
 
     if out == 'MF':
-        return modelname, namefile_ext, exe_name, dum_sssp1, ext_dis, nlay, ncol, nrow, nper, itmuni, lenuni,laycbd, delr, delc, top_fn, botm_fn, perlen, nstp, tsmult, Ss_tr, ext_bas, ibound_fn, strt_fn, hnoflo,ext_lpf, ilpfcb, hdry, nplpf, laytyp, layavg, chani, layvka, laywet, hk_fn, vka_fn, ss_fn, sy_fn,ext_oc, ihedfm, iddnfm, ext_cbc, ext_heads, ext_ddn, ext_rch, rch_dft, nrchop, ext_wel, wel_dft
+        return modelname, namefile_ext, exe_name, dum_sssp1, ext_dis, nlay, ncol, nrow, nper, itmuni, lenuni,laycbd, delr, delc, top_fn, botm_fn, perlen, nstp, tsmult, Ss_tr, ext_bas, ibound_fn, strt_fn, hnoflo,ext_lpf, ilpfcb, hdry, nplpf, laytyp, layavg, chani, layvka, laywet, hk_fn, vka_fn, ss_fn, sy_fn,ext_oc, ihedfm, iddnfm, ext_cbc, ext_heads, ext_ddn, ext_rch, rch_input, rch_dft, nrchop, ext_wel, wel_input, wel_dft, ext_drn, drn_elev_fn, drn_cond_fn
     elif out == 'MM':
         return nrow, ncol, delr, delc, nlay, nper, perlen, nstp, hnoflo, hdry, laytyp, lenuni, itmuni
 
@@ -500,14 +516,21 @@ def convASCIIraster2array(filenameIN, arrayOUT, cellsizeMF, nrow, ncol):
 
 #####################################
 
-def ppMF(MF_ws, MF_ini_fn, rch_input = 0.001, rch_dft = 0.001, wel_input = -1E-6, wel_dft = -1E-6, report = None, verbose = 1, chunks = 0):
+def ppMF(MF_ws, MF_ini_fn, rch_input = None, rch_dft = None, wel_input = None, wel_dft = None, report = None, verbose = 1, chunks = 0):
 
     messagemanual="Please read the manual!\n(that by the way still doesn't exist...)"
 
     if verbose == 0:
         print '--------------'
 
-    modelname, namefile_ext, exe_name, dum_sssp1, ext_dis, nlay, ncol, nrow, nper, itmuni, lenuni,laycbd, delr, delc, top_fn, botm_fn, perlen, nstp, tsmult, Ss_tr, ext_bas, ibound_fn, strt_fn, hnoflo,ext_lpf, ilpfcb, hdry, nplpf, laytyp, layavg, chani, layvka, laywet, hk_fn, vka_fn, ss_fn, sy_fn,ext_oc, ihedfm, iddnfm, ext_cbc, ext_heads, ext_ddn, ext_rch, rch_dft, nrchop, ext_wel, wel_dft = ppMFini(MF_ws, MF_ini_fn, out = 'MF')
+    modelname, namefile_ext, exe_name, dum_sssp1, ext_dis, nlay, ncol, nrow, nper, itmuni, lenuni,laycbd, delr, delc, top_fn, botm_fn, perlen, nstp, tsmult, Ss_tr, ext_bas, ibound_fn, strt_fn, hnoflo,ext_lpf, ilpfcb, hdry, nplpf, laytyp, layavg, chani, layvka, laywet, hk_fn, vka_fn, ss_fn, sy_fn,ext_oc, ihedfm, iddnfm, ext_cbc, ext_heads, ext_ddn, ext_rch, rch_input_user, rch_dft, nrchop, ext_wel, wel_input_user, wel_dft, ext_drn, drn_elev_fn, drn_cond_fn = ppMFini(MF_ws, MF_ini_fn, out = 'MF')
+
+    if rch_input == None:
+        if isinstance(rch_input_user, str):
+            pass
+        else:
+            rch_input = rch_input_user
+            wel_input = wel_input_user
 
     if isinstance(nper, str):
         inputFile = MMproc.readFile(MF_ws, nper.split()[0])
@@ -593,7 +616,7 @@ def ppMF(MF_ws, MF_ini_fn, rch_input = 0.001, rch_dft = 0.001, wel_input = -1E-6
             h5_rch.close
         except:
             rch_array = rch_dft
-            print 'WARNING! No valid recharge package file(s) provided, running MODFLOW using default recharge value: %.3G' % rch_dft
+            print 'WARNING!\nNo valid recharge package file(s) provided, running MODFLOW using default recharge value: %.3G' % rch_dft
             rch_input = rch_dft
 
 # WELL
@@ -610,10 +633,11 @@ def ppMF(MF_ws, MF_ini_fn, rch_input = 0.001, rch_dft = 0.001, wel_input = -1E-6
             h5_wel.close
         except:
             wel_array = wel_dft
-            print 'WARNING! No valid well package file(s) provided, running MODFLOW using default well value: %.3G' % wel_dft
+            print 'WARNING!\nNo valid well package file(s) provided, running MODFLOW using default well value: %.3G' % wel_dft
             wel_input = wel_dft
 
 # DRAIN
+    # in layer 1, DRN are attributed to topgraphy level
     layer_row_column_elevation_cond = [[]]
     ri=0
     for r in top_array:
@@ -622,26 +646,25 @@ def ppMF(MF_ws, MF_ini_fn, rch_input = 0.001, rch_dft = 0.001, wel_input = -1E-6
         for v in r:
             ci += 1
             layer_row_column_elevation_cond[0].append([1,ri,ci,v,1E5])
-    biggrid = 0
-    # in layer 2, cell outlet, elevation is bottom of layer 2
-    if biggrid == 1:
-        #  DRN for big grid
-        row_drnL2  = np.arange(125,129,1)
-        col_drnL2  = np.arange(21,29,1)
-        nlay_drnL2 = 1
-        cond_drnL2 = 0.15
-        for i in range(len(row_drnL2)):
-            for j in range(len(col_drnL2)):
-                botm_drnL2 = botm_array[row_drnL2[i]][col_drnL2[j]][nlay_drnL2]
-                layer_row_column_elevation_cond[0].append([nlay_drnL2+1,row_drnL2[i]+1,col_drnL2[j]+1,botm_drnL2,cond_drnL2+np.random.normal(0,0.05,1)])
-    elif biggrid == 0:
-    #  DRN for small grid
-        row_drnL2  = 12
-        col_drnL2  = 2
-        nlay_drnL2 = 1
-        cond_drnL2 = 0.15
-        botm_drnL2 = botm_array[row_drnL2][col_drnL2][nlay_drnL2]
-        layer_row_column_elevation_cond[0].append([nlay_drnL2+1,row_drnL2+1,col_drnL2+1,botm_drnL2,cond_drnL2])
+    # DRN in other layers depend on user inputESRI ASCII files
+    if nlay>1:
+        drn_elev_array = np.zeros((nrow,ncol, nlay-1))
+        for l in range(nlay-1):
+            drn_elev_path = os.path.join(MF_ws, drn_elev_fn[l])
+            drn_elev_array[:,:,l] = convASCIIraster2array(drn_elev_path, drn_elev_array[:,:,l], cellsizeMF = delr[0], nrow = nrow, ncol=ncol)
+        drn_cond_array = np.zeros((nrow,ncol, nlay-1))
+        for l in range(nlay-1):
+            drn_cond_path = os.path.join(MF_ws, drn_cond_fn[l])
+            drn_cond_array[:,:,l] = convASCIIraster2array(drn_cond_path, drn_cond_array[:,:,l], cellsizeMF = delr[0], nrow = nrow, ncol=ncol)
+        for l in range(nlay-1):
+            for i in range(nrow):
+                for j in range(ncol):
+                    if drn_elev_array[i,j,l]<>0:
+                        if drn_elev_array[i,j,l]<0:
+                            drn_elev = botm_array[i][j][l]
+                        else:
+                            drn_elev = drn_elev_array[i,j,l]
+                        layer_row_column_elevation_cond[0].append([l+2, i+1, j+1, drn_elev, drn_cond_array[i,j,l]])   #+np.random.normal(0,0.05,1)])
 
 # average for 1st SS stress period
     if dum_sssp1 == 1:
@@ -705,7 +728,7 @@ def ppMF(MF_ws, MF_ini_fn, rch_input = 0.001, rch_dft = 0.001, wel_input = -1E-6
     wel = mf.mfwel(mfmain, iwelcb = lpf.ilpfcb, layer_row_column_Q = layer_row_column_Q, extension = ext_wel)
     del layer_row_column_Q
     # drn package initialization
-    drn = mf.mfdrn(model = mfmain, idrncb=lpf.ilpfcb, layer_row_column_elevation_cond = layer_row_column_elevation_cond)
+    drn = mf.mfdrn(model = mfmain, idrncb=lpf.ilpfcb, layer_row_column_elevation_cond = layer_row_column_elevation_cond, extension = ext_drn)
     del layer_row_column_elevation_cond
     # ghb package initialization
 #    ghb = mf.mfghb(model=mfmain, igbhcb = lpf.ilpfcb, layer_row_column_head_cond = [[2,13,3,90,50]])
@@ -760,8 +783,7 @@ def ppMF(MF_ws, MF_ini_fn, rch_input = 0.001, rch_dft = 0.001, wel_input = -1E-6
     if dum_sssp1 == 1:
         if chunks == 1:
             h5_MF.create_dataset(name = 'heads', data = np.asarray(h[1][1:]), chunks = (1,nrow,ncol,nlay), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf
-            h5_MF.create_dataset(name = 'cbc', data = np.asarray(cbc[1][1:]), chunks = (1,1,nrow,ncol,nlay), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf'
-
+            h5_MF.create_dataset(name = 'cbc', data = np.asarray(cbc[1][1:]), chunks = (1,len(h5_MF['cbc_nam']),nrow,ncol,nlay), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf'
         else:
             h5_MF.create_dataset(name = 'heads', data = np.asarray(h[1][1:]))
             h5_MF.create_dataset(name = 'cbc', data = np.asarray(cbc[1][1:]))

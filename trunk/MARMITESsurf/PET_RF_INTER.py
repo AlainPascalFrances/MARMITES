@@ -359,7 +359,7 @@ def process(datenum = np.array([]), datenum_d = np.array([])
         if badvalues/len(J)>0.15:
             print '\nCalibrate your sensors!!!'
     if badlowvalues > 0:
-        print "\n" + '%.1f' % (100*badlowvalues/len(J)) + " % (" + str(badlowvalues) + "/" + str(len(J)) + ") relative humidity measurements > 100% were fixed to 100%."
+        print "\n" + '%.1f' % (100*badlowvalues/len(J)) + " % (" + str(badlowvalues) + "/" + str(len(J)) + ") relative humidity measurements < 25% were fixed to 25%."
         if badvalues/len(J)>0.15:
             print '\nCalibrate your sensors!!!'
 

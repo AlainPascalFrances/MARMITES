@@ -323,7 +323,7 @@ class PROCESS:
 
     ######################
 
-    def inputObs(self, inputObs_fn, inputObsHEADS_fn, inputObsSM_fn, inputDate, _nslmax,        MFtime_fn = None):
+    def inputObs(self, inputObs_fn, inputObsHEADS_fn, inputObsSM_fn, inputDate, _nslmax, nlay,       MFtime_fn = None):
         '''
         observations cells for soil moisture and heads (will also compute SATFLOW)
         '''
@@ -344,11 +344,12 @@ class PROCESS:
             name = line[0]
             x = float(line[1])
             y = float(line[2])
+            lay = float(line[3])
             try:
-                hi  = float(line[3])
-                h0  = float(line[4])
-                RC  = float(line[5])
-                STO = float(line[6])
+                hi  = float(line[4])
+                h0  = float(line[5])
+                RC  = float(line[6])
+                STO = float(line[7])
             except:
                 hi = h0 = RC = STO =  self.hnoflo
             # verify if coordinates are inside MODFLOW grid
@@ -357,11 +358,16 @@ class PROCESS:
                y < self.yllcorner or \
                y > (self.yllcorner+self.nrow*self.cellsizeMF):
                    raise BaseException, 'The coordinates of the observation point %s are not inside the MODFLOW grid' % name
+            if lay > nlay or lay < 1:
+                lay = 0
+                print 'WARNING!\nLayer %s of observation point %s is not valid (corrected to layer 1)!\nCheck your file %s (layer number should be between 1 and the number of layer ofthe MODFLOW model, in this case %s).' % (lay, name, inputObs_fn, nlay)
+            else:
+                lay = lay - 1
             # compute the cordinates in the MODFLOW grid
             #TODO use the PEST utilities for space extrapolation
             i = self.nrow - np.ceil((y-self.yllcorner)/self.cellsizeMF)
             j = np.ceil((x-self.xllcorner)/self.cellsizeMF) - 1
-            obs[name] = {'x':x,'y':y,'i': i, 'j': j, 'hi':hi, 'h0':h0, 'RC':RC, 'STO':STO}
+            obs[name] = {'x':x,'y':y,'i': i, 'j': j, 'lay': lay, 'hi':hi, 'h0':h0, 'RC':RC, 'STO':STO}
 
         outpathname=[]
         #  read obs time series
@@ -457,7 +463,7 @@ class PROCESS:
 
     ######################
 
-    def ExportResults(self, i, j, inputDate, _nslmax, results, index, results_S, index_S, DRN, RCH, WEL, h_satflow, heads_MF, obs_h, obs_S, outFileExport, outPESTheads, outPESTsm, obsname):
+    def ExportResultsMM(self, i, j, inputDate, _nslmax, results, index, results_S, index_S, DRN, RCH, WEL, h_satflow, heads_MF, obs_h, obs_S, outFileExport, obsname):
         """
         Export the processed data in a txt file
         INPUTS:      output fluxes time series and date
@@ -468,15 +474,6 @@ class PROCESS:
             month='%02d'%pylab.num2date(inputDate[t]).month
             day='%02d'%pylab.num2date(inputDate[t]).day
             date=(day+"/"+month+"/"+year)
-            if obs_h[t]!=self.hnoflo:
-                obs_h_tmp = str(obs_h[t])
-                outPESTheads.write(obsname.ljust(10,' ')+ date.ljust(14,' ')+ '00:00:00        '+ str(heads_MF[t])+ '    \n')
-            # TODO export for all soil layers (currently only the SM computed for the first layer is exported)
-            if obs_S[0,t]!=self.hnoflo:
-                Smeasout = ''
-                for l in range (_nslmax):
-                    Smeasout= Smeasout + '    ' + str(results_S[t,i,j,l,index_S.get('iSpc')])
-                outPESTsm.write((obsname+'SM').ljust(10,' ')+ date.ljust(14,' ')+ '00:00:00        '+ Smeasout + '    \n')
             # header='Date,RF,E0,PET,PE,RFe,Inter,'+Eu_str+Tu_str+'Eg,Tg,ETg,WEL_MF,Es,'+S_str+Spc_str+dS_str+'dPOND,POND,Ro,SEEPAGE,DRN_MF,'+Rp_str+'R,Rn,R_MF,hSATFLOW,hMF,hmeas,' + Smeasout + 'MB\n'
             Sout = ''
             Spcout = ''
@@ -505,6 +502,27 @@ class PROCESS:
             out_line =  out_date, ',', out1, Euout, Tuout, out2, Sout, Spcout, dSout, out3, Rpout, out4, Smeasout, out5, '\n'
             for l in out_line:
                 outFileExport.write(l)
-        del i, j, inputDate, _nslmax, results, index, results_S, index_S, DRN, RCH, WEL, h_satflow, heads_MF, obs_h, obs_S, outFileExport, outPESTheads, outPESTsm, obsname
+        del i, j, inputDate, _nslmax, results, index, results_S, index_S, DRN, RCH, WEL, h_satflow, heads_MF, obs_h, obs_S, outFileExport, obsname
+
+    def ExportResultsPEST(self, i, j, inputDate, _nslmax, heads_MF, obs_h, obs_S, outPESTheads, outPESTsm, obsname, results_S = None, index_S = None):
+        """
+        Export the processed data in a txt file
+        INPUTS:      output fluxes time series and date
+        OUTPUT:      output.txt
+        """
+        for t in range(len(inputDate)):
+            year='%4d'%pylab.num2date(inputDate[t]).year
+            month='%02d'%pylab.num2date(inputDate[t]).month
+            day='%02d'%pylab.num2date(inputDate[t]).day
+            date=(day+"/"+month+"/"+year)
+            if obs_h[t]!=self.hnoflo:
+                obs_h_tmp = str(obs_h[t])
+                outPESTheads.write(obsname.ljust(10,' ')+ date.ljust(14,' ')+ '00:00:00        '+ str(heads_MF[t])+ '    \n')
+            # TODO export for all soil layers (currently only the SM computed for the first layer is exported)
+            if results_S <> None:
+                if obs_S[0,t]!=self.hnoflo:
+                    Smeasout = ''
+                    for l in range (_nslmax):
+                        outPESTsm.write((obsname+'SM_l'+str(l+1)).ljust(10,' ')+ date.ljust(14,' ')+ '00:00:00        '+ str(results_S[t,i,j,l,index_S.get('iSpc')]) + '    \n')
 
 # EOF
