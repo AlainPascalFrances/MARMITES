@@ -15,11 +15,7 @@ import sys
 import os
 import numpy as np
 import pylab
-#USER INPUT: indicate in the line below the path where you copied
-#            PET_PM_FAO56.py and startPET_PM_FAO56.py
-sys.path.append(r'E:\00code\MARMITES\trunk\MARMITESutilities\MARMITESplot')
 import PET_RF_INTER, plotPET, plotRF
-sys.path.append(r'E:\00code\MARMITES\trunk\MARMITESutilities')
 import MARMITESprocess as MMproc
 
 '''

@@ -75,24 +75,25 @@ class PROCESS:
             raise ValueError, "The file %s doesn't exist!!!" % filenameIN
     #        fout = open(outfile, 'w')
 
-        # Read the header
+        # test if it is ESRI ASCII file or PEST grid
         line = fin.readline().split()
-        ncol_tmp = int(line[1])
-
-        line = fin.readline().split()
-        nrow_tmp = int(line[1])
-
-        line = fin.readline().split()
-        xllcorner_tmp = float(line[1])
-
-        line = fin.readline().split()
-        yllcorner_tmp = float(line[1])
-
-        line = fin.readline().split()
-        cellsizeEsriAscii = float(line[1])
-
-        line = fin.readline().split()
-        NODATA_value = float(line[1])
+        testfile = line[0]
+        if isinstance(testfile, str):
+            # Read the header
+            ncol_tmp = int(line[1])
+            line = fin.readline().split()
+            nrow_tmp = int(line[1])
+            line = fin.readline().split()
+            xllcorner_tmp = float(line[1])
+            line = fin.readline().split()
+            yllcorner_tmp = float(line[1])
+            line = fin.readline().split()
+            cellsizeEsriAscii = float(line[1])
+            line = fin.readline().split()
+            NODATA_value = float(line[1])
+        elif isinstance(testfile, float):
+            ncol_tmp = int(line[0])
+            nrow_tmp = int(line[1])
 
         # Process the file
 #        print "\nConverting %s to np.array..." % (filenameIN)
@@ -108,7 +109,7 @@ class PROCESS:
 
         # verify grid consistency between MODFLOW and ESRI ASCII
         if arrayOUT.shape[0] != self.nrow or arrayOUT.shape[1] != self.ncol or self.cellsizeMF != cellsizeEsriAscii:
-            raise BaseException, '\nError in consistency between the MODFLOW grid and the input gridof the file %s.\nCheck the cell size and the number of rows, columns and cellsize' % filenameIN
+            raise BaseException, "\nERROR! MODFLOW grid anf the ESRI ASCII grid from file %s don't correspond!.\nCheck the cell size and the number of rows, columns and cellsize." % filenameIN
 
         fin.close()
         del line, fin
@@ -517,12 +518,12 @@ class PROCESS:
             date=(day+"/"+month+"/"+year)
             if obs_h[t]!=self.hnoflo:
                 obs_h_tmp = str(obs_h[t])
-                outPESTheads.write(obsname.ljust(10,' ')+ date.ljust(14,' ')+ '00:00:00        '+ str(heads_MF[t])+ '    \n')
+                outPESTheads.write(obsname.ljust(14,' ')+ date.ljust(14,' ')+ '00:00:00        '+ str(heads_MF[t])+ '    \n')
             # TODO export for all soil layers (currently only the SM computed for the first layer is exported)
             if results_S <> None:
                 if obs_S[0,t]!=self.hnoflo:
                     Smeasout = ''
                     for l in range (_nslmax):
-                        outPESTsm.write((obsname+'SM_l'+str(l+1)).ljust(10,' ')+ date.ljust(14,' ')+ '00:00:00        '+ str(results_S[t,i,j,l,index_S.get('iSpc')]) + '    \n')
+                        outPESTsm.write((obsname+'SM_l'+str(l+1)).ljust(14,' ')+ date.ljust(14,' ')+ '00:00:00        '+ str(results_S[t,i,j,l,index_S.get('iSpc')]) + '    \n')
 
 # EOF

@@ -110,7 +110,7 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     plt.setp(ax2.get_xticklabels(), visible=False)
     plt.setp(ax2.get_yticklabels(), fontsize=8)
     plt.plot_date(DateInput,Ro,'r-', c='darkblue', linewidth=2, label = 'Ro')
-    plt.plot_date(DateInput,Es,'r-', c='darkblue', linewidth=0.75, label = 'Es')
+    plt.plot_date(DateInput,Es,'r-', c='deepskyblue', linewidth=0.75, label = 'Es')
     plt.bar(DateInput, POND, color='lightblue', linewidth=0, align = 'center', label = 'POND')
     plt.bar(DateInput, dPOND, color='blue', width=0.60, linewidth=0, align = 'center', label = r'$\Delta$POND')
     ax2.yaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%1.1f'))

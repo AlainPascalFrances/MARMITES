@@ -13,7 +13,6 @@ from matplotlib.dates import MonthLocator, DateFormatter, HourLocator
 from matplotlib.ticker import FormatStrFormatter
 import matplotlib.pyplot as plt
 import sys
-sys.path.append(r'E:\00code\MARMITES\trunk\MARMITESsurf')
 import CreateColors
 
 def plot(strTitle = 'Title', x = [], \

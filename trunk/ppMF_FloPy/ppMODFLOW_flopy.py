@@ -23,7 +23,6 @@ import numpy as np
 import mf
 import mfreadbinaries as mfrdbin
 import h5py
-sys.path.append(r'E:\00code\MARMITES\trunk\MARMITESutilities')
 import MARMITESprocess as MMproc
 
 #####################################
@@ -99,6 +98,8 @@ def ppMFini(MF_ws, MF_ini_fn, out = 'MF'):
         else:
             for i in range(nrow):
                 delc.append(int(delc_tmp[0]))
+        l += 1
+        reggrid = int(inputFile[l].strip())
         l += 1
         top_fn = str(inputFile[l].strip())
         l += 1
@@ -252,7 +253,7 @@ def ppMFini(MF_ws, MF_ini_fn, out = 'MF'):
     if out == 'MF':
         return modelname, namefile_ext, exe_name, dum_sssp1, ext_dis, nlay, ncol, nrow, nper, itmuni, lenuni,laycbd, delr, delc, top_fn, botm_fn, perlen, nstp, tsmult, Ss_tr, ext_bas, ibound_fn, strt_fn, hnoflo,ext_lpf, ilpfcb, hdry, nplpf, laytyp, layavg, chani, layvka, laywet, hk_fn, vka_fn, ss_fn, sy_fn,ext_oc, ihedfm, iddnfm, ext_cbc, ext_heads, ext_ddn, ext_rch, rch_input, rch_dft, nrchop, ext_wel, wel_input, wel_dft, ext_drn, drn_elev_fn, drn_cond_fn
     elif out == 'MM':
-        return nrow, ncol, delr, delc, nlay, nper, perlen, nstp, hnoflo, hdry, laytyp, lenuni, itmuni
+        return nrow, ncol, delr, delc, reggrid, nlay, nper, perlen, nstp, hnoflo, hdry, laytyp, lenuni, itmuni
 
 #####################################
 
@@ -465,58 +466,7 @@ def ppMFtime(MM_ws, MF_ws, MFtime_fn, perlenmax, inputDate_fn, inputZON_TS_RF_fn
 
 #####################################
 
-def convASCIIraster2array(filenameIN, arrayOUT, cellsizeMF, nrow, ncol):
-    '''
-    Read ESRI/MODFLOW ASCII file and convert to numpy array
-    '''
-
-    # Load the grid files
-    if os.path.exists(filenameIN):
-        fin = open(filenameIN, 'r')
-    else:
-        raise ValueError, "The file %s doesn't exist!!!" % filenameIN
-#        fout = open(outfile, 'w')
-
-    # Read the header
-    line = fin.readline().split()
-    ncol = int(line[1])
-
-    line = fin.readline().split()
-    nrow = int(line[1])
-
-    line = fin.readline().split()
-    xllcorner = float(line[1])
-
-    line = fin.readline().split()
-    yllcorner = float(line[1])
-
-    line = fin.readline().split()
-    cellsizeEsriAscii = float(line[1])
-
-    line = fin.readline().split()
-    NODATA_value = float(line[1])
-
-    # Process the file
-#    print "\nConverting %s to np.array..." % (filenameIN)
-    try:
-        for row in range(nrow):
-            for col in range(ncol):
-                if col == 0: line = fin.readline().split()
-                arrayOUT[row,col]=line[col]
-    except:
-        raise BaseException, "\nERROR! MODFLOW grid anf the ESRI ASCII grid from file %s don't correspond!.\nCheck the cell size and the number of rows, columns and cellsize." % filenameIN
-
-    # verify grid consistency between MODFLOW and ESRI ASCII
-    if arrayOUT.shape[0] != nrow or arrayOUT.shape[1] != ncol or cellsizeMF != cellsizeEsriAscii:
-        raise BaseException, "\nERROR! MODFLOW grid anf the ESRI ASCII grid from file %s don't correspond!.\nCheck the cell size and the number of rows, columns and cellsize." % filenameIN
-
-    return arrayOUT
-
-    fin.close()
-
-#####################################
-
-def ppMF(MF_ws, MF_ini_fn, rch_input = None, rch_dft = None, wel_input = None, wel_dft = None, report = None, verbose = 1, chunks = 0):
+def ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_input = None, rch_dft = None, wel_input = None, wel_dft = None, report = None, verbose = 1, chunks = 0):
 
     messagemanual="Please read the manual!\n(that by the way still doesn't exist...)"
 
@@ -551,55 +501,66 @@ def ppMF(MF_ws, MF_ini_fn, rch_input = None, rch_dft = None, wel_input = None, w
             sys.exit()
         del inputFile
 
+    MM_PROCESS = MMproc.PROCESS(MM_ws               = MM_ws,
+                            MF_ws                    = MF_ws,
+                            nrow                     = nrow,
+                            ncol                     = ncol,
+                            xllcorner                = xllcorner,
+                            yllcorner                = yllcorner,
+                            cellsizeMF               = delr[0],
+                            nstp                     = nstp,
+                            hnoflo                   = hnoflo
+                            )
+
     # 1 - reaf asc file and convert in np.array
 
     print "\nImporting ESRI ASCII files to initialize the MODFLOW packages..."
 
     top_path = os.path.join(MF_ws, top_fn)
     top_array = np.zeros((nrow,ncol))
-    top_array = convASCIIraster2array(top_path, top_array, cellsizeMF = delr[0], nrow = nrow, ncol=ncol)
+    top_array = MM_PROCESS.convASCIIraster2array(top_path, top_array)
     top_array = list(top_array)
 
     botm_array = np.zeros((nrow,ncol, nlay))
     for l in range(nlay):
         botm_path = os.path.join(MF_ws, botm_fn[l])
-        botm_array[:,:,l] = convASCIIraster2array(botm_path, botm_array[:,:,l], cellsizeMF = delr[0], nrow = nrow, ncol=ncol)
+        botm_array[:,:,l] = MM_PROCESS.convASCIIraster2array(botm_path, botm_array[:,:,l])
     botm_array = list(botm_array)
 
     ibound_array = np.zeros((nrow,ncol, nlay), dtype = int)
     for l in range(nlay):
         ibound_path = os.path.join(MF_ws, ibound_fn[l])
-        ibound_array[:,:,l] = convASCIIraster2array(ibound_path, ibound_array[:,:,l], cellsizeMF = delr[0], nrow = nrow, ncol=ncol)
+        ibound_array[:,:,l] = MM_PROCESS.convASCIIraster2array(ibound_path, ibound_array[:,:,l])
     ibound_array = list(ibound_array)
 
     strt_array = np.zeros((nrow,ncol, nlay))
     for l in range(nlay):
         strt_path = os.path.join(MF_ws, strt_fn[l])
-        strt_array[:,:,l] = convASCIIraster2array(strt_path, strt_array[:,:,l], cellsizeMF = delr[0], nrow = nrow, ncol=ncol)
+        strt_array[:,:,l] = MM_PROCESS.convASCIIraster2array(strt_path, strt_array[:,:,l])
     strt_array = list(strt_array)
 
     hk_array = np.zeros((nrow,ncol, nlay))
     for l in range(nlay):
         hk_path = os.path.join(MF_ws, hk_fn[l])
-        hk_array[:,:,l] = convASCIIraster2array(hk_path, hk_array[:,:,l], cellsizeMF = delr[0], nrow = nrow, ncol=ncol)
+        hk_array[:,:,l] = MM_PROCESS.convASCIIraster2array(hk_path, hk_array[:,:,l])
     hk_array = list(hk_array)
 
     vka_array = np.zeros((nrow,ncol, nlay))
     for l in range(nlay):
         vka_path = os.path.join(MF_ws, vka_fn[l])
-        vka_array[:,:,l] = convASCIIraster2array(vka_path, vka_array[:,:,l], cellsizeMF = delr[0], nrow = nrow, ncol=ncol)
+        vka_array[:,:,l] = MM_PROCESS.convASCIIraster2array(vka_path, vka_array[:,:,l])
     vka_array = list(vka_array)
 
     ss_array = np.zeros((nrow,ncol, nlay))
     for l in range(nlay):
         ss_path = os.path.join(MF_ws, ss_fn[l])
-        ss_array[:,:,l] = convASCIIraster2array(ss_path, ss_array[:,:,l], cellsizeMF = delr[0], nrow = nrow, ncol=ncol)
+        ss_array[:,:,l] = MM_PROCESS.convASCIIraster2array(ss_path, ss_array[:,:,l])
     ss_array = list(ss_array)
 
     sy_array = np.zeros((nrow,ncol, nlay))
     for l in range(nlay):
         sy_path = os.path.join(MF_ws, sy_fn[l])
-        sy_array[:,:,l] = convASCIIraster2array(sy_path, sy_array[:,:,l], cellsizeMF = delr[0], nrow = nrow, ncol=ncol)
+        sy_array[:,:,l] = MM_PROCESS.convASCIIraster2array(sy_path, sy_array[:,:,l])
     sy_array = list(sy_array)
 
 # RECHARGE
@@ -651,11 +612,11 @@ def ppMF(MF_ws, MF_ini_fn, rch_input = None, rch_dft = None, wel_input = None, w
         drn_elev_array = np.zeros((nrow,ncol, nlay-1))
         for l in range(nlay-1):
             drn_elev_path = os.path.join(MF_ws, drn_elev_fn[l])
-            drn_elev_array[:,:,l] = convASCIIraster2array(drn_elev_path, drn_elev_array[:,:,l], cellsizeMF = delr[0], nrow = nrow, ncol=ncol)
+            drn_elev_array[:,:,l] = MM_PROCESS.convASCIIraster2array(drn_elev_path, drn_elev_array[:,:,l])
         drn_cond_array = np.zeros((nrow,ncol, nlay-1))
         for l in range(nlay-1):
             drn_cond_path = os.path.join(MF_ws, drn_cond_fn[l])
-            drn_cond_array[:,:,l] = convASCIIraster2array(drn_cond_path, drn_cond_array[:,:,l], cellsizeMF = delr[0], nrow = nrow, ncol=ncol)
+            drn_cond_array[:,:,l] = MM_PROCESS.convASCIIraster2array(drn_cond_path, drn_cond_array[:,:,l])
         for l in range(nlay-1):
             for i in range(nrow):
                 for j in range(ncol):
@@ -780,6 +741,8 @@ def ppMF(MF_ws, MF_ini_fn, rch_input = None, rch_dft = None, wel_input = None, w
     cbc = mfrdbin.mfcbcread(mfmain, 'LF95').read_all(cbc_MF_fn)
     h5_MF.create_dataset('cbc_nam', data = np.asarray(cbc[2]))
 
+    print'\nStoring heads and cbc terms into HDF5 file %s' % (h5_MF_fn)
+
     if dum_sssp1 == 1:
         if chunks == 1:
             h5_MF.create_dataset(name = 'heads', data = np.asarray(h[1][1:]), chunks = (1,nrow,ncol,nlay), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf
@@ -795,7 +758,7 @@ def ppMF(MF_ws, MF_ini_fn, rch_input = None, rch_dft = None, wel_input = None, w
         # Not tested
         if chunks == 1:
             h5_MF.create_dataset(name = 'heads', data = np.asarray(h[1]), chunks = (1,nrow,ncol,nlay), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf'
-            h5_MF.create_dataset(name = 'cbc', data = np.asarray(cbc[1]), chunks = (1,1,nrow,ncol,nlay), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf'
+            h5_MF.create_dataset(name = 'cbc', data = np.asarray(cbc[1]), chunks = (1,len(h5_MF['cbc_nam']),nrow,ncol,nlay), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf'
         else:
             h5_MF.create_dataset(name = 'heads', data = np.asarray(h[1]))
             h5_MF.create_dataset(name = 'cbc', data = np.asarray(cbc[1]))

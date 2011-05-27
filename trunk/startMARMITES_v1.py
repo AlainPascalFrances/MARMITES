@@ -25,11 +25,8 @@ import os
 #import struct
 #import types
 import numpy as np
-sys.path.append(r'E:\00code\MARMITES\trunk\MARMITESsurf')
 import startMARMITESsurface as startMMsurf
-sys.path.append(r'E:\00code\MARMITES\trunk\MARMITESunsat_v1')
 import MARMITESunsat_v1 as MARMunsat
-sys.path.append(r'E:\00code\MARMITES\trunk\ppMF_FloPy')
 import ppMODFLOW_flopy as ppMF
 #####################################
 
