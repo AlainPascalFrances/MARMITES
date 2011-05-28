@@ -164,7 +164,7 @@ class PROCESS:
             RF = np.loadtxt(RF_fn)
         else:
             raise ValueError, "\nThe file %s doesn't exist!!!" % RF_fn
-        RFzonesTS=np.zeros([NMETEO,sum(self.nstp)], dtype=float)
+        RFzonesTS=np.zeros([NMETEO,ntotstp], dtype=float)
         for n in range(NMETEO):
             for t in range(ntotstp):
                 RFzonesTS[n,t]=RF[n*ntotstp+t]
@@ -174,7 +174,7 @@ class PROCESS:
             E0 = np.loadtxt(E0_fn)
         else:
             raise ValueError, "\nThe file %s doesn't exist!!!" % E0_fn
-        E0zonesTS=np.zeros([NMETEO,sum(self.nstp)], dtype=float)
+        E0zonesTS=np.zeros([NMETEO,ntotstp], dtype=float)
         for n in range(NMETEO):
             for t in range(ntotstp):
                 E0zonesTS[n,t]=E0[n*ntotstp+t]

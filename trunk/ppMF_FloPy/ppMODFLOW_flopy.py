@@ -394,7 +394,7 @@ def ppMFtime(MM_ws, MF_ws, MFtime_fn, perlenmax, inputDate_fn, inputZON_TS_RF_fn
                         if j < len(d):
                             perlen.append(1)
                     c = 1
-    del PET_d_tmp, PE_d_tmp, E0_d_tmp, c
+    del RF_d, RFe_d, PET_d, PE_d, E0_d, PET_d_tmp, PE_d_tmp, E0_d_tmp, c
     perlen = np.asarray(perlen, dtype = np.int)
     nstp = np.ones(nper, dtype = np.int)
     tsmult = nstp
@@ -608,7 +608,7 @@ def ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_input = None, rch_df
             ci += 1
             layer_row_column_elevation_cond[0].append([1,ri,ci,v,1E5])
     # DRN in other layers depend on user inputESRI ASCII files
-    if nlay>1:
+    if nlay>1 and isinstance(drn_cond_fn[0], str):
         drn_elev_array = np.zeros((nrow,ncol, nlay-1))
         for l in range(nlay-1):
             drn_elev_path = os.path.join(MF_ws, drn_elev_fn[l])
@@ -686,7 +686,11 @@ def ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_input = None, rch_df
     rch = mf.mfrch(mfmain, irchcb=lpf.ilpfcb, nrchop=nrchop, rech=rch_array, extension = ext_rch)
     del rch_array
     # wel initialization
-    wel = mf.mfwel(mfmain, iwelcb = lpf.ilpfcb, layer_row_column_Q = layer_row_column_Q, extension = ext_wel)
+    if isinstance(wel_input,float):
+        if wel_input<>0:
+            wel = mf.mfwel(mfmain, iwelcb = lpf.ilpfcb, layer_row_column_Q = layer_row_column_Q, extension = ext_wel)
+    else:
+        wel = mf.mfwel(mfmain, iwelcb = lpf.ilpfcb, layer_row_column_Q = layer_row_column_Q, extension = ext_wel)
     del layer_row_column_Q
     # drn package initialization
     drn = mf.mfdrn(model = mfmain, idrncb=lpf.ilpfcb, layer_row_column_elevation_cond = layer_row_column_elevation_cond, extension = ext_drn)

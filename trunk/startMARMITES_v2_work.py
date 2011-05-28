@@ -422,7 +422,7 @@ try:
                 MM_S = np.zeros([perlen[n],nrow,ncol,_nslmax,len(index_S)], dtype=float)
                 MM_rch = np.zeros([nstp[n],nrow,ncol], dtype=float)
                 MM_ETg = np.zeros([nstp[n],nrow,ncol], dtype=float)
-                h_MF_per = h5_MF['heads'][tstart_MF:tend_MF,:,:,0]
+                h_MF_per = np.ma.masked_values(h5_MF['heads'][tstart_MF:tend_MF,:,:,0], hdry, atol = 1E+25)
                 drn_MF_per = h5_MF['cbc'][tstart_MF:tend_MF,iDRN,:,:,0]
                 # loop into the grid
                 for i in range(nrow):
@@ -465,9 +465,8 @@ try:
                                 VEGarea_tmp[v]=gridVEGarea[v,i,j]
                             h_MF_tmp = h_MF_per[0:nstp[n],i,j]
                             drn_MF_tmp = -conv_fact*drn_MF_per[0:nstp[n],i,j]/(delr[j]*delc[i])
-                            # for the while loop
-                            h_MF_L0_m = np.ma.masked_values(h_MF_tmp, hdry, atol = 1E+25)
-                            h_MF_L0_m_avg = np.nansum(h_MF_L0_m)/nstp[n]
+                            # for the conv loop
+                            h_MF_L0_m_avg = np.nansum(h_MF_tmp)/nstp[n]
                             if isinstance(h_MF_L0_m_avg, float):
                                 h_MFsum += h_MF_L0_m_avg
                             # cal functions for reservoirs calculations
@@ -520,41 +519,29 @@ try:
                             MM_rch[:,i,j] = MM[:,i,j,index.get('iR')].sum()/(divfact*1000)
                             MM_ETg[:,i,j] = (delr[j]*delc[i])*MM[:,i,j,index.get('iETg')].sum()/(divfact*1000)
                             # setting initial conditions for the next SP
-                            for l in range(nsl_tmp):
-                                Si_tmp_array[i,j,l] = MM_S[nstp[n]-1,i,j,l,index_S.get('iSpc')]
-                                Rpi_tmp_array[i,j,l] = MM_S[nstp[n]-1,i,j,l,index_S.get('iRp')]
-                                PONDi_tmp_array[i,j] = MM[nstp[n]-1,i,j,index.get('iPOND')]
-                                DRNi_tmp_array[i,j]  = drn_MF_tmp[-1]
+#                            for l in range(nsl_tmp):
+                            Si_tmp_array[i,j,:] = MM_S[nstp[n]-1,i,j,:,index_S.get('iSpc')]
+                            Rpi_tmp_array[i,j,:] = MM_S[nstp[n]-1,i,j,:,index_S.get('iRp')]
+                            PONDi_tmp_array[i,j] = MM[nstp[n]-1,i,j,index.get('iPOND')]
+                            DRNi_tmp_array[i,j]  = drn_MF_tmp[-1]
                         else:
                             if perlen[n]>1:
-                                for p in range(perlen[n]):
-                                    for k in range(len(index)):
-                                        MM[p,i,j,k] = hnoflo
-                                    for k in range(len(index_S)):
-                                        for l in range(nsl_tmp):
-                                            MM_S[p,i,j,l,k] = hnoflo
+                                MM[:,i,j,:] = hnoflo
+                                MM_S[:,i,j,:,:] = hnoflo
                             else:
-                                for k in range(len(index)):
-                                        MM[:,i,j,k] = hnoflo
-                                for k in range(len(index_S)):
-                                    for l in range(nsl_tmp):
-                                        MM_S[:,i,j,l,k] = hnoflo
+                                MM[:,i,j,:] = hnoflo
+                                MM_S[:,i,j,:,:] = hnoflo
                             MM_rch[:,i,j] = hnoflo
                             MM_ETg[:,i,j] = hnoflo
-                    h5_MM['MM'][tstart_MM:tend_MM,:,:,:] = MM[:,:,:,:]
-                    h5_MM['MM_S'][tstart_MM:tend_MM,:,:,:,:] = MM_S[:,:,:,:,:]
-                    h5_MM['rch'][tstart_MF:tend_MF,:,:] = MM_rch
-                    h5_MM['ETg'][tstart_MF:tend_MF,:,:] = MM_ETg
-                del h_MF_per, drn_MF_per
-                del MM, MM_S, MM_rch, MM_ETg
-    #            t0 += int(nstp[n])
-
-             #   print '\nSTRESS PERIOD %i/%i DONE!' % (n+1, nper)
+                h5_MM['MM'][tstart_MM:tend_MM,:,:,:] = MM[:,:,:,:]
+                h5_MM['MM_S'][tstart_MM:tend_MM,:,:,:,:] = MM_S[:,:,:,:,:]
+                h5_MM['rch'][tstart_MF:tend_MF,:,:] = MM_rch
+                h5_MM['ETg'][tstart_MF:tend_MF,:,:] = MM_ETg
+            del h_MF_per, drn_MF_per
+            del MM, MM_S, MM_rch, MM_ETg
             h5_MM.close()
 
-            # #############################
-            # ###  PRINT CONVERG. PLOT ###
-            # #############################
+            # CHECK MM amd MF CONVERG.
             ncell = (ibound[:,:,0]<>0).sum()
             h_MFsum = h_MFsum/ncell/nper
             h_diff.append(h_MFsum - h_pSP)
@@ -583,9 +570,7 @@ try:
                 print'\nNo convergence between MARMITES and MODFLOW!\n(Conv. criterion = %.3G)' % convcrit
                 break
 
-            # #############################
-            # ### MODFLOW RUN with MM-computed recharge
-            # #############################
+            # MODFLOW RUN with MM-computed recharge
             h5_MF.close()
             durationMF = 0.0
             timestartMF = pylab.datestr2num(pylab.datetime.datetime.today().isoformat())
