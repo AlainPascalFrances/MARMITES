@@ -249,7 +249,7 @@ def ppMFini(MF_ws, MF_ini_fn, out = 'MF'):
     if out == 'MF':
         return modelname, namefile_ext, exe_name, dum_sssp1, ext_dis, nlay, ncol, nrow, nper, itmuni, lenuni,laycbd, delr, delc, top_fn, botm_fn, perlen, nstp, tsmult, Ss_tr, ext_bas, ibound_fn, strt_fn, hnoflo,ext_lpf, ilpfcb, hdry, nplpf, laytyp, layavg, chani, layvka, laywet, hk_fn, vka_fn, ss_fn, sy_fn,ext_oc, ihedfm, iddnfm, ext_cbc, ext_heads, ext_ddn, ext_rch, rch_user, nrchop, ext_wel, wel_user, ext_drn, drn_elev_fn, drn_cond_fn
     elif out == 'MM':
-        return nrow, ncol, delr, delc, reggrid, nlay, nper, perlen, nstp, hnoflo, hdry, laytyp, lenuni, itmuni
+        return nrow, ncol, delr, delc, reggrid, nlay, nper, perlen, nstp, hnoflo, hdry, laytyp, lenuni, itmuni, ibound_fn
 
 #####################################
 
@@ -769,5 +769,5 @@ def ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_MM = "", rch_user = 
     os.remove(h_MF_fn)
     os.remove(cbc_MF_fn)
 
-    return np.asarray(top_array), np.asarray(ibound_array), h5_MF_fn
+    return np.asarray(top_array), h5_MF_fn
     del nrow, ncol, delr, delc, nlay, perlen, nper, hnoflo, hdry, ibound_array, laytyp, h5_MF_fn, top_array, inputFileMF_fn, lenuni

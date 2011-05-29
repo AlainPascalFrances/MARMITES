@@ -484,28 +484,28 @@ class PROCESS:
             Tuout=''
             Smeasout = ''
             for l in range(_nslmax):
-                Sout = Sout + str(results_S[t,i,j,l,index_S.get('iS')]) + ','
-                Spcout = Spcout + str(results_S[t,i,j,l,index_S.get('iSpc')]) + ','
-                dSout = dSout + str(results_S[t,i,j,l,index_S.get('idS')]) + ','
-                Rpout = Rpout + str(results_S[t,i,j,l,index_S.get('iRp')]) + ','
-                Euout = Euout + str(results_S[t,i,j,l,index_S.get('iEu')]) + ','
-                Tuout = Tuout + str(results_S[t,i,j,l,index_S.get('iTu')]) + ','
+                Sout = Sout + str(results_S[t,l,index_S.get('iS')]) + ','
+                Spcout = Spcout + str(results_S[t,l,index_S.get('iSpc')]) + ','
+                dSout = dSout + str(results_S[t,l,index_S.get('idS')]) + ','
+                Rpout = Rpout + str(results_S[t,l,index_S.get('iRp')]) + ','
+                Euout = Euout + str(results_S[t,l,index_S.get('iEu')]) + ','
+                Tuout = Tuout + str(results_S[t,l,index_S.get('iTu')]) + ','
                 try:
                     Smeasout = Smeasout + str(obs_S[t,l]) + ','
                 except:
                     Smeasout = Smeasout + str(self.hnoflo) + ','
             out_date = pylab.num2date(inputDate[t]).isoformat()[:10]
-            out1 = '%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[t,i,j,index.get('iRF')], results[t,i,j,index.get('iE0')],results[t,i,j,index.get('iPET')],results[t,i,j,index.get('iPE')],results[t,i,j,index.get('iRFe')],results[t,i,j,index.get('iINTER')])
-            out2 = '%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[t,i,j,index.get('iEg')], results[t,i,j,index.get('iTg')],results[t,i,j,index.get('iETg')], WEL[t], results[t,i,j,index.get('iEs')])
-            out3 = '%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[t,i,j,index.get('idPOND')],results[t,i,j,index.get('iPOND')],results[t,i,j,index.get('iRo')],results[t,i,j,index.get('iSEEPAGE')],DRN[t])
-            out4 = '%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[t,i,j,index.get('iR')], results[t,i,j,index.get('iRn')], RCH[t], h_satflow[t],heads_MF[t],obs_h[t])
-            out5 = '%.8f' % (results[t,i,j,index.get('iMB')])
+            out1 = '%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[t,index.get('iRF')], results[t,index.get('iE0')],results[t,index.get('iPET')],results[t,index.get('iPE')],results[t,index.get('iRFe')],results[t,index.get('iINTER')])
+            out2 = '%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[t,index.get('iEg')], results[t,index.get('iTg')],results[t,index.get('iETg')], WEL[t], results[t,index.get('iEs')])
+            out3 = '%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[t,index.get('idPOND')],results[t,index.get('iPOND')],results[t,index.get('iRo')],results[t,index.get('iSEEPAGE')],DRN[t])
+            out4 = '%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[t,index.get('iR')], results[t,index.get('iRn')], RCH[t], h_satflow[t],heads_MF[t],obs_h[t])
+            out5 = '%.8f' % (results[t,index.get('iMB')])
             out_line =  out_date, ',', out1, Euout, Tuout, out2, Sout, Spcout, dSout, out3, Rpout, out4, Smeasout, out5, '\n'
             for l in out_line:
                 outFileExport.write(l)
         del i, j, inputDate, _nslmax, results, index, results_S, index_S, DRN, RCH, WEL, h_satflow, heads_MF, obs_h, obs_S, outFileExport, obsname
 
-    def ExportResultsPEST(self, i, j, inputDate, _nslmax, heads_MF, obs_h, obs_S, outPESTheads, outPESTsm, obsname, results_S = None, index_S = None):
+    def ExportResultsPEST(self, i, j, inputDate, _nslmax, heads_MF, obs_h, obs_S, outPESTheads, outPESTsm, obsname, results_S = None):
         """
         Export the processed data in a txt file
         INPUTS:      output fluxes time series and date
@@ -524,6 +524,6 @@ class PROCESS:
                 if obs_S[0,t]!=self.hnoflo:
                     Smeasout = ''
                     for l in range (_nslmax):
-                        outPESTsm.write((obsname+'SM_l'+str(l+1)).ljust(14,' ')+ date.ljust(14,' ')+ '00:00:00        '+ str(results_S[t,i,j,l,index_S.get('iSpc')]) + '    \n')
+                        outPESTsm.write((obsname+'SM_l'+str(l+1)).ljust(14,' ')+ date.ljust(14,' ')+ '00:00:00        '+ str(results_S[t,l]) + '    \n')
 
 # EOF
