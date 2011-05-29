@@ -144,7 +144,9 @@ if os.path.exists(MM_ws):
 else:
     print "The folder %s doesn't exist!\nPlease create it and run the model again." % (MM_ws)
 
-# MAIN CODE #
+# #############################
+# INITIALIZATION #####
+# #############################
 try:
     # #############################
     # ###  READ MODFLOW CONFIG ####
@@ -261,10 +263,7 @@ try:
         report = open(report_fn, 'a')
         sys.stdout = report
     h5_MM_fn = os.path.join(MM_ws,'_h5_MM.h5')
-    if MMunsat_yn > 0:
-        top_array, ibound, h5_MF_fn = ppMF.ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_input = (h5_MM_fn, 'rch'), wel_input = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks)
-    else:
-        top_array, ibound, h5_MF_fn = ppMF.ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, report = report, verbose = verbose, chunks = chunks)
+    top_array, ibound, h5_MF_fn = ppMF.ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_MM = (h5_MM_fn, 'rch'), wel_MM = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks)
 
     h5_MF = h5py.File(h5_MF_fn)
 
@@ -347,6 +346,16 @@ try:
     index = {'iRF':0, 'iPET':1, 'iPE':2, 'iRFe':3, 'iPOND':4, 'iRo':5, 'iSEEPAGE':6, 'iEs':7, 'iMB':8, 'iINTER':9, 'iE0':10, 'iEg':11, 'iTg':12, 'iR':13, 'iRn':14, 'idPOND':15, 'iETg':16}
     index_S = {'iEu':0, 'iTu':1,'iSpc':2, 'iRp':3, 'idS':4, 'iS':5}
 
+except StandardError, e:  #Exception
+    print '\nERROR! Abnormal MM run interruption in the initialization!\nError description:'
+    traceback.print_exc(file=sys.stdout)
+#    traceback.print_exc(limit=1, file=sys.stdout)
+
+
+# #############################
+# MM/MF loop #####
+# #############################
+try:
     duration = 0.0
     if MMunsat_yn > 0:
 
@@ -583,7 +592,7 @@ try:
                 s = sys.stdout
                 report = open(report_fn, 'a')
                 sys.stdout = report
-            top_array, ibound, h5_MF_fn = ppMF.ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_input = (h5_MM_fn, 'rch'), wel_input = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks)
+            top_array, ibound, h5_MF_fn = ppMF.ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_MM = (h5_MM_fn, 'rch'), wel_MM = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks)
 
             h5_MF = h5py.File(h5_MF_fn)
 
@@ -654,11 +663,19 @@ try:
             report = open(report_fn, 'a')
             sys.stdout = report
 
-        top_array, ibound, h5_MF_fn = ppMF.ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_input = (h5_MM_fn, 'rch'), wel_input = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks)
+        top_array, ibound, h5_MF_fn = ppMF.ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_MM = (h5_MM_fn, 'rch'), wel_MM = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks)
 
         timeendMF = pylab.datestr2num(pylab.datetime.datetime.today().isoformat())
         durationMF += (timeendMF-timestartMF)
 
+except StandardError, e:  #Exception
+    print '\nERROR! Abnormal MM run interruption in the MM/MF loop!\nError description:'
+    traceback.print_exc(file=sys.stdout)
+
+# #############################
+# export results #####
+# #############################
+try:
     del gridVEGarea, RFzonesTS, E0zonesTS, PETvegzonesTS, RFevegzonesTS, PEsoilzonesTS
     del gridMETEO, gridSOILthick, gridPONDhmax, gridPONDw
 
@@ -927,7 +944,7 @@ try:
             V = [DrnHeadsLtop_m]
             diffMin = 0
             diffMax = np.nanmin(DrnHeadsLtop_m)
-            MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = 1, V = V,  cmap = plt.cm.RdYlGn, CBlabel = 'diff. between DRN elev and hyd. heads elev. (m)', msg = ' - no drainage', plt_title = 'HEADSDRNdiff', MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, Vmax = diffMin, Vmin = diffMax, fmt='%.3G')
+            MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = 1, V = V,  cmap = plt.cm.RdYlGn, CBlabel = 'diff. between DRN elev and hyd. heads elev. (m)', msg = ' - no drainage/elevation difference', plt_title = 'HEADSDRNdiff', MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, Vmax = diffMin, Vmin = diffMax, fmt='%.3G')
             # plot GW drainage [mm]
             V = []
             for L in range(nlay):
@@ -956,7 +973,7 @@ try:
     del nrow, ncol, delr, delc, nlay, nstp, nper, hnoflo, hdry, ibound, laytyp, h5_MF_fn, lenuni
 
 except StandardError, e:  #Exception
-    print '\nERROR! Abnormal MM run interruption!\nError description:'
+    print '\nERROR! Abnormal MM run interruption in the export phase!\nError description:'
     traceback.print_exc(file=sys.stdout)
 #    traceback.print_exc(limit=1, file=sys.stdout)
 

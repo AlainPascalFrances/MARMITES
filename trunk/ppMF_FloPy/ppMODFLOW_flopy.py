@@ -224,15 +224,11 @@ def ppMFini(MF_ws, MF_ini_fn, out = 'MF'):
         l += 1
         nrchop = int(inputFile[l].strip())
         l += 1
-        rch_input = float(inputFile[l].strip())
-        l += 1
-        rch_dft = float(inputFile[l].strip())
+        rch_user = float(inputFile[l].strip())
         l += 1
         ext_wel = str(inputFile[l].strip())
         l += 1
-        wel_input = float(inputFile[l].strip())
-        l += 1
-        wel_dft = float(inputFile[l].strip())
+        wel_user = float(inputFile[l].strip())
         l += 1
         ext_drn = str(inputFile[l].strip())
         l += 1
@@ -251,7 +247,7 @@ def ppMFini(MF_ws, MF_ini_fn, out = 'MF'):
     del inputFile
 
     if out == 'MF':
-        return modelname, namefile_ext, exe_name, dum_sssp1, ext_dis, nlay, ncol, nrow, nper, itmuni, lenuni,laycbd, delr, delc, top_fn, botm_fn, perlen, nstp, tsmult, Ss_tr, ext_bas, ibound_fn, strt_fn, hnoflo,ext_lpf, ilpfcb, hdry, nplpf, laytyp, layavg, chani, layvka, laywet, hk_fn, vka_fn, ss_fn, sy_fn,ext_oc, ihedfm, iddnfm, ext_cbc, ext_heads, ext_ddn, ext_rch, rch_input, rch_dft, nrchop, ext_wel, wel_input, wel_dft, ext_drn, drn_elev_fn, drn_cond_fn
+        return modelname, namefile_ext, exe_name, dum_sssp1, ext_dis, nlay, ncol, nrow, nper, itmuni, lenuni,laycbd, delr, delc, top_fn, botm_fn, perlen, nstp, tsmult, Ss_tr, ext_bas, ibound_fn, strt_fn, hnoflo,ext_lpf, ilpfcb, hdry, nplpf, laytyp, layavg, chani, layvka, laywet, hk_fn, vka_fn, ss_fn, sy_fn,ext_oc, ihedfm, iddnfm, ext_cbc, ext_heads, ext_ddn, ext_rch, rch_user, nrchop, ext_wel, wel_user, ext_drn, drn_elev_fn, drn_cond_fn
     elif out == 'MM':
         return nrow, ncol, delr, delc, reggrid, nlay, nper, perlen, nstp, hnoflo, hdry, laytyp, lenuni, itmuni
 
@@ -466,21 +462,21 @@ def ppMFtime(MM_ws, MF_ws, MFtime_fn, perlenmax, inputDate_fn, inputZON_TS_RF_fn
 
 #####################################
 
-def ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_input = None, rch_dft = None, wel_input = None, wel_dft = None, report = None, verbose = 1, chunks = 0):
+def ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_MM = "", rch_user = None, wel_MM = "", wel_user = None, report = None, verbose = 1, chunks = 0):
 
     messagemanual="Please read the manual!\n(that by the way still doesn't exist...)"
 
     if verbose == 0:
         print '--------------'
 
-    modelname, namefile_ext, exe_name, dum_sssp1, ext_dis, nlay, ncol, nrow, nper, itmuni, lenuni,laycbd, delr, delc, top_fn, botm_fn, perlen, nstp, tsmult, Ss_tr, ext_bas, ibound_fn, strt_fn, hnoflo,ext_lpf, ilpfcb, hdry, nplpf, laytyp, layavg, chani, layvka, laywet, hk_fn, vka_fn, ss_fn, sy_fn,ext_oc, ihedfm, iddnfm, ext_cbc, ext_heads, ext_ddn, ext_rch, rch_input_user, rch_dft, nrchop, ext_wel, wel_input_user, wel_dft, ext_drn, drn_elev_fn, drn_cond_fn = ppMFini(MF_ws, MF_ini_fn, out = 'MF')
+    modelname, namefile_ext, exe_name, dum_sssp1, ext_dis, nlay, ncol, nrow, nper, itmuni, lenuni,laycbd, delr, delc, top_fn, botm_fn, perlen, nstp, tsmult, Ss_tr, ext_bas, ibound_fn, strt_fn, hnoflo,ext_lpf, ilpfcb, hdry, nplpf, laytyp, layavg, chani, layvka, laywet, hk_fn, vka_fn, ss_fn, sy_fn,ext_oc, ihedfm, iddnfm, ext_cbc, ext_heads, ext_ddn, ext_rch, rch_user, nrchop, ext_wel, wel_user, ext_drn, drn_elev_fn, drn_cond_fn = ppMFini(MF_ws, MF_ini_fn, out = 'MF')
 
-    if rch_input == None:
-        if isinstance(rch_input_user, str):
-            pass
-        else:
-            rch_input = rch_input_user
-            wel_input = wel_input_user
+    if os.path.exists(rch_MM[0]):
+        rch_input = rch_MM
+        wel_input = wel_MM
+    else:
+        rch_input = rch_user
+        wel_input = wel_user
 
     if isinstance(nper, str):
         inputFile = MMproc.readFile(MF_ws, nper.split()[0])
@@ -622,7 +618,7 @@ def ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_input = None, rch_df
                 for j in range(ncol):
                     if drn_elev_array[i,j,l]<>0:
                         if drn_elev_array[i,j,l]<0:
-                            drn_elev = botm_array[i][j][l]
+                            drn_elev = botm_array[i][j][l] - (botm_array[i][j][l]-botm_array[i][j][l-1])/10
                         else:
                             drn_elev = drn_elev_array[i,j,l]
                         layer_row_column_elevation_cond[0].append([l+2, i+1, j+1, drn_elev, drn_cond_array[i,j,l]])   #+np.random.normal(0,0.05,1)])
@@ -701,7 +697,7 @@ def ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_input = None, rch_df
     oc = mf.mfoc(mfmain, ihedfm=ihedfm, iddnfm=iddnfm, item2=[[0,1,1,1]], item3=[[0,0,1,0]], extension=[ext_oc,ext_cbc,ext_heads,ext_ddn])
     # select one of the 3 below (i.e. pcg or sip or sor)
     # preconditionned conjugate-gradient initialization
-    pcg = mf.mfpcg(mfmain, mxiter = 150, iter1=75, hclose=1e-3, rclose=1e-2, npcond = 1, relax = 1)
+    pcg = mf.mfpcg(mfmain, mxiter = 150, iter1=75, hclose=1e-1, rclose=1e-1, npcond = 1, relax = 1)
     # sip
 #    sip = mf.mfsip(mfmain, hclose=1e-3)
     # sor
