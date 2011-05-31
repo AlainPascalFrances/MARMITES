@@ -18,7 +18,7 @@ import CreateColors
 
 def Eg(PE, y0, b, dtwt, dll):
     '''
-    Groundwater evaporation, equation 17 of Shah et al 2007, see ref in the __init__
+    Groundwater evaporation, equation 17 of Shah et al 2007
     '''
     if dtwt<=dll:
         Eg_tmp = PE
@@ -93,6 +93,6 @@ plt.ylabel('dtwt/ext_d')
 ax5.set_ylim(ax5.get_ylim()[::-1])
 
 #plt.show()
-img_path = r'E:\00code\MARMITES\doc\images\Eg_function'
+img_path = 'Eg_function'
 plt.savefig(img_path,dpi=300)
 print 'Plot printed:\n%s' % img_path

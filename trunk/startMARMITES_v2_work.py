@@ -363,8 +363,8 @@ except StandardError, e:  #Exception
 # #############################
 # 2nd phase : MM/MF loop #####
 # #############################
+duration = 0.0
 try:
-    duration = 0.0
     if MMunsat_yn > 0:
 
         h_pSP = 0
@@ -683,28 +683,38 @@ except StandardError, e:  #Exception
 # #############################
 # 3rd phase : export results #####
 # #############################
-#try:
-del gridVEGarea, RFzonesTS, E0zonesTS, PETvegzonesTS, RFevegzonesTS, PEsoilzonesTS
-del gridMETEO, gridSOILthick, gridPONDhmax, gridPONDw
+try:
+    del gridVEGarea, RFzonesTS, E0zonesTS, PETvegzonesTS, RFevegzonesTS, PEsoilzonesTS
+    del gridMETEO, gridSOILthick, gridPONDhmax, gridPONDw
 
-# #############################
-# ###  OUTPUT EXPORT   ########
-# #############################
+    # #############################
+    # ###  OUTPUT EXPORT   ########
+    # #############################
 
-timestartExport = pylab.datestr2num(pylab.datetime.datetime.today().isoformat())
-print '\n##############\nMARMITES exporting...'
+    timestartExport = pylab.datestr2num(pylab.datetime.datetime.today().isoformat())
+    print '\n##############\nMARMITES exporting...'
 
-# reading MF output
-if isinstance(h5_MF_fn, str):
-    h5_MF = h5py.File(h5_MF_fn)
+    # reading MF output
+    if isinstance(h5_MF_fn, str):
+        h5_MF = h5py.File(h5_MF_fn)
 
-    cbc_MF = np.zeros((sum(perlen), len(cbc_nam), nrow, ncol, nlay))
-    t = 0
-    if MFtime_fn<>None:
-        h_MF = np.zeros((sum(perlen), nrow, ncol, nlay))
-        for n in range(nper):
-            if perlen[n]>1:
-                for x in range(perlen[n]):
+        cbc_MF = np.zeros((sum(perlen), len(cbc_nam), nrow, ncol, nlay))
+        t = 0
+        if MFtime_fn<>None:
+            h_MF = np.zeros((sum(perlen), nrow, ncol, nlay))
+            for n in range(nper):
+                if perlen[n]>1:
+                    for x in range(perlen[n]):
+                        h_MF[t,:,:,:] = h5_MF['heads'][n,:,:,:]
+                        cbc_tmp = h5_MF['cbc'][n,:,:,:,:]
+                        if reggrid == 1:
+                            cbc_MF[t,:,:,:,:] = conv_fact*cbc_tmp/(delr[0]*delc[0])
+                        else:
+                            for i in range(nrow):
+                                for j in range(ncol):
+                                    cbc_MF[t,:,i,j,:] = conv_fact*cbc_tmp[:,i,j,:]/(delr[j]*delc[i])
+                        t += 1
+                else:
                     h_MF[t,:,:,:] = h5_MF['heads'][n,:,:,:]
                     cbc_tmp = h5_MF['cbc'][n,:,:,:,:]
                     if reggrid == 1:
@@ -714,160 +724,165 @@ if isinstance(h5_MF_fn, str):
                             for j in range(ncol):
                                 cbc_MF[t,:,i,j,:] = conv_fact*cbc_tmp[:,i,j,:]/(delr[j]*delc[i])
                     t += 1
-            else:
-                h_MF[t,:,:,:] = h5_MF['heads'][n,:,:,:]
-                cbc_tmp = h5_MF['cbc'][n,:,:,:,:]
-                if reggrid == 1:
-                    cbc_MF[t,:,:,:,:] = conv_fact*cbc_tmp/(delr[0]*delc[0])
-                else:
-                    for i in range(nrow):
-                        for j in range(ncol):
-                            cbc_MF[t,:,i,j,:] = conv_fact*cbc_tmp[:,i,j,:]/(delr[j]*delc[i])
-                t += 1
-    else:
-        h_MF = h5_MF['heads']
-        if reggrid == 1:
-            cbc_MF[:,:,:,:,:] = conv_fact*h5_MF['cbc']/(delr[0]*delc[0])
         else:
-            cbc_tmp = h5_MF['cbc'][:,:,i,j,:]
-            for i in range(nrow):
-                for j in range(ncol):
-                    cbc_MF[:,:,i,j,:] = conv_fact*h5_MF['cbc'][:,:,:]/(delr[j]*delc[i])
-    del cbc_tmp
-    h_MF_m = np.ma.masked_values(h_MF, hnoflo, atol = 0.09)
-    del h_MF
-    h5_MF.close()
-    top_array_m = np.ma.masked_values(top_array, hnoflo, atol = 0.09)
-    del top_array
-    index_cbc = [iRCH, iSTO, iDRN, iWEL]
-else:
-    h_MF_m = np.zeros((sum(perlen), nrow, ncol, nlay))
-    cbc_MF = np.zeros((sum(perlen), 1, nrow, ncol, nlay))
-    iDRN = iSTO = iRCH = iWEL = 0
-    top_array_m = np.zeros((nrow, ncol))
+            h_MF = h5_MF['heads']
+            if reggrid == 1:
+                cbc_MF[:,:,:,:,:] = conv_fact*h5_MF['cbc']/(delr[0]*delc[0])
+            else:
+                cbc_tmp = h5_MF['cbc'][:,:,i,j,:]
+                for i in range(nrow):
+                    for j in range(ncol):
+                        cbc_MF[:,:,i,j,:] = conv_fact*h5_MF['cbc'][:,:,:]/(delr[j]*delc[i])
+        del cbc_tmp
+        h_MF_m = np.ma.masked_values(h_MF, hnoflo, atol = 0.09)
+        del h_MF
+        h5_MF.close()
+        top_array_m = np.ma.masked_values(top_array, hnoflo, atol = 0.09)
+        del top_array
+        index_cbc = [iRCH, iSTO, iDRN, iWEL]
+    else:
+        h_MF_m = np.zeros((sum(perlen), nrow, ncol, nlay))
+        cbc_MF = np.zeros((sum(perlen), 1, nrow, ncol, nlay))
+        iDRN = iSTO = iRCH = iWEL = 0
+        top_array_m = np.zeros((nrow, ncol))
 
-# READ observations time series (heads and soil moisture)
-obsCHECK = 1  # 0: no obs, 1: obs
-if obsCHECK==1:
-    print "\nReading observations time series (hydraulic heads and soil moisture)..."
-    obs, outpathname, obs_h, obs_S = MM_PROCESS.inputObs(
-                            inputObs_fn = inputObs_fn,
-                            inputObsHEADS_fn = inputObsHEADS_fn,
-                            inputObsSM_fn = inputObsSM_fn,
-                            inputDate   = inputDate,
-                            _nslmax     = _nslmax,
-                            nlay        = nlay,
-                            MFtime_fn   = MFtime_fn,
-                            )
-    if os.path.exists(h5_MM_fn):
-        # To write MM output in a txt file
-        outFileExport = []
+    # READ observations time series (heads and soil moisture)
+    obsCHECK = 1  # 0: no obs, 1: obs
+    if obsCHECK==1:
+        print "\nReading observations time series (hydraulic heads and soil moisture)..."
+        obs, outpathname, obs_h, obs_S = MM_PROCESS.inputObs(
+                                inputObs_fn = inputObs_fn,
+                                inputObsHEADS_fn = inputObsHEADS_fn,
+                                inputObsSM_fn = inputObsSM_fn,
+                                inputDate   = inputDate,
+                                _nslmax     = _nslmax,
+                                nlay        = nlay,
+                                MFtime_fn   = MFtime_fn,
+                                )
+        if os.path.exists(h5_MM_fn):
+            # To write MM output in a txt file
+            outFileExport = []
+            for o in range(len(obs.keys())):
+                outFileExport.append(open(outpathname[o], 'w'))
+                S_str=''
+                Spc_str=''
+                dS_str=''
+                Rp_str=''
+                Eu_str=''
+                Tu_str=''
+                Smeasout = ''
+                for l in range(_nslmax):
+                    S_str = S_str + 'S_l' + str(l+1) + ','
+                    Spc_str = Spc_str + 'Spc_l' + str(l+1) + ','
+                    dS_str = dS_str + 'dS_l' + str(l+1) + ','
+                    Eu_str = Eu_str + 'Eu_l' + str(l+1) + ','
+                    Tu_str = Tu_str + 'Tu_l' + str(l+1) + ','
+                    Rp_str = Rp_str + 'Rp_l' + str(l+1) + ','
+                    Smeasout = Smeasout + 'Smeas_' + str(l+1) + ','
+                header='Date,RF,E0,PET,PE,RFe,Inter,'+Eu_str+Tu_str+'Eg,Tg,ETg,WEL_MF,Es,'+S_str+Spc_str+dS_str+'dPOND,POND,Ro,SEEPAGE,DRN_MF,'+Rp_str+'R,Rn,R_MF,hSATFLOW,hMF,hmeas,' + Smeasout + 'MB\n'
+                outFileExport[o].write(header)
+            outPESTheads_fn      = 'PESTheads.dat'
+            outPESTsm_fn         = 'PESTsm.dat'
+            outPESTheads=open(os.path.join(MM_ws,outPESTheads_fn), 'w')
+            outPESTsm=open(os.path.join(MM_ws,outPESTsm_fn), 'w')
+    else:
+        print "\nNo reading of observations time series (hydraulic heads and soil moisture) required."
+        obs = None
+
+    # computing range for plotting
+    h_MF_m = np.ma.masked_values(h_MF_m, hdry, atol = 1E+25)
+    hmax = []
+    hmin = []
+    DRNmax = []
+    DRNmin = []
+    cbcmax = []
+    cbcmin = []
+    if obs <> None:
         for o in range(len(obs.keys())):
-            outFileExport.append(open(outpathname[o], 'w'))
-            S_str=''
-            Spc_str=''
-            dS_str=''
-            Rp_str=''
-            Eu_str=''
-            Tu_str=''
-            Smeasout = ''
-            for l in range(_nslmax):
-                S_str = S_str + 'S_l' + str(l+1) + ','
-                Spc_str = Spc_str + 'Spc_l' + str(l+1) + ','
-                dS_str = dS_str + 'dS_l' + str(l+1) + ','
-                Eu_str = Eu_str + 'Eu_l' + str(l+1) + ','
-                Tu_str = Tu_str + 'Tu_l' + str(l+1) + ','
-                Rp_str = Rp_str + 'Rp_l' + str(l+1) + ','
-                Smeasout = Smeasout + 'Smeas_' + str(l+1) + ','
-            header='Date,RF,E0,PET,PE,RFe,Inter,'+Eu_str+Tu_str+'Eg,Tg,ETg,WEL_MF,Es,'+S_str+Spc_str+dS_str+'dPOND,POND,Ro,SEEPAGE,DRN_MF,'+Rp_str+'R,Rn,R_MF,hSATFLOW,hMF,hmeas,' + Smeasout + 'MB\n'
-            outFileExport[o].write(header)
-        outPESTheads_fn      = 'PESTheads.dat'
-        outPESTsm_fn         = 'PESTsm.dat'
-        outPESTheads=open(os.path.join(MM_ws,outPESTheads_fn), 'w')
-        outPESTsm=open(os.path.join(MM_ws,outPESTsm_fn), 'w')
-else:
-    print "\nNo reading of observations time series (hydraulic heads and soil moisture) required."
-    obs = None
-
-# computing range for plotting
-h_MF_m = np.ma.masked_values(h_MF_m, hdry, atol = 1E+25)
-hmax = []
-hmin = []
-DRNmax = []
-DRNmin = []
-cbcmax = []
-cbcmin = []
-if obs <> None:
-    for o in range(len(obs.keys())):
-        npa_m_tmp = np.ma.masked_values(obs_h[o], hnoflo, atol = 0.09)
-        hmax.append(np.nanmax(npa_m_tmp.flatten()))
-        hmin.append(np.nanmin(npa_m_tmp.flatten()))
-hmax.append(np.nanmax(h_MF_m[:,:,:,:].flatten()))
-hmax = float(np.ceil(np.nanmax(hmax)))
-hmin.append(np.nanmin(h_MF_m[:,:,:,:].flatten()))
-hmin = float(np.floor(np.nanmin(hmin)))
-if isinstance(h5_MF_fn, str):
-    DRNmax.append(np.nanmax(-cbc_MF[:,iDRN,:,:,:]).flatten())
-    DRNmax = float(np.ceil(np.nanmax(DRNmax)))
-    DRNmin.append(np.nanmin(-cbc_MF[:,iDRN,:,:,:]).flatten())
-    DRNmin = float(np.floor(np.nanmin(DRNmin)))
-for i in range(len(cbc_MF[0,:,0,0,0])):
-    cbcmax.append(np.nanmax(-cbc_MF[:,i,:,:,:]).flatten())
-cbcmax = float(np.ceil(np.nanmax(cbcmax)))
-for i in range(len(cbc_MF[0,:,0,0,0])):
-    cbcmin.append(np.nanmin(-cbc_MF[:,i,:,:,:]).flatten())
-cbcmin = float(np.floor(np.nanmin(cbcmin)))
-
-print '\nExporting ASCII files and plots...'
-# reading MM output
-if os.path.exists(h5_MM_fn):
-    h5_MM = h5py.File(h5_MM_fn, 'r')
-    # plot water balance
-    plt_export_fn = os.path.join(MM_ws, '_plt_UNSATbalance.png')
-    plt_title = 'MARMITES water flux balance for the whole catchment'
-    flxlbl = ['RF', 'INTER', 'SEEPAGE', 'dPOND', 'Ro', 'Es']
-    flxlbl1 = ['dS', 'Eu', 'Tu']
-    flxlbl2 = ['R', 'Rn', 'Eg', 'Tg', 'ETg']
-    sign = [1,-1,1,1,-1,-1,1,-1,-1,-1,-1,-1,-1,1]
-    flxlst = []
-    flxmax = []
-    flxmin = []
-    for i in flxlbl:
-        i = 'i'+i
-        tmp = h5_MM['MM'][:,:,:,index.get(i)]
-        tmp = np.ma.masked_values(tmp, hnoflo, atol = 0.09).sum()/sum(perlen)/ncell
-        flxlst.append(tmp)
-    for i in flxlbl1:
-        flxlbl.append(i)
-        i = 'i'+i
-        tmp = h5_MM['MM_S'][:,:,:,:,index_S.get(i)]
-        tmp = np.ma.masked_values(tmp, hnoflo, atol = 0.09).sum()/sum(perlen)/ncell
-        flxlst.append(tmp)
-    for i in flxlbl2:
-        flxlbl.append(i)
-        i = 'i'+i
-        tmp = h5_MM['MM'][:,:,:,index.get(i)]
-        tmp = np.ma.masked_values(tmp, hnoflo, atol = 0.09).sum()/sum(perlen)/ncell
-        flxlst.append(tmp)
-    for l, (x,y) in enumerate(zip(flxlst, sign)):
-        flxlst[l] = x*y
-    del tmp, flxlbl1, flxlbl2
-    flxmax = float(np.ceil(np.nanmax(flxlst)))
-    flxmin = float(np.floor(np.nanmin(flxlst)))
-    flxmax = 1.15*max(cbcmax, flxmax)
-    flxmin = 1.15*min(cbcmin, flxmin)
+            npa_m_tmp = np.ma.masked_values(obs_h[o], hnoflo, atol = 0.09)
+            hmax.append(np.nanmax(npa_m_tmp.flatten()))
+            hmin.append(np.nanmin(npa_m_tmp.flatten()))
+    hmax.append(np.nanmax(h_MF_m[:,:,:,:].flatten()))
+    hmax = float(np.ceil(np.nanmax(hmax)))
+    hmin.append(np.nanmin(h_MF_m[:,:,:,:].flatten()))
+    hmin = float(np.floor(np.nanmin(hmin)))
     if isinstance(h5_MF_fn, str):
-        plt_export_fn = os.path.join(MM_ws, '_plt_UNSATandGWbalances.png')
-        plt_title = 'MARMITES and MODFLOW water flux balance for the whole catchment'
-        for l in range(nlay):
-            for x in range(len(index_cbc)):
-                flxlst.append(cbc_MF[:,index_cbc[x],:,:,l].sum()/sum(perlen)/ncell)
-                flxlbl.append('GW_' + cbc_nam[index_cbc[x]] + '_L' + str(l+1))
-    colors_flx = CreateColors.main(hi=0, hf=180, numbcolors = len(flxlbl))
-    MMplot.plotGWbudget(flxlst = flxlst, flxlbl = flxlbl, colors_flx = colors_flx, plt_export_fn = plt_export_fn, plt_title = plt_title, fluxmax = flxmax, fluxmin = flxmin)
-    del flxlst
-    # exporting ASCII files and plots at observations cells
-    if obsCHECK == 1:
+        DRNmax.append(np.nanmax(-cbc_MF[:,iDRN,:,:,:]).flatten())
+        DRNmax = float(np.ceil(np.nanmax(DRNmax)))
+        DRNmin.append(np.nanmin(-cbc_MF[:,iDRN,:,:,:]).flatten())
+        DRNmin = float(np.floor(np.nanmin(DRNmin)))
+    for i in range(len(cbc_MF[0,:,0,0,0])):
+        cbcmax.append(np.nanmax(-cbc_MF[:,i,:,:,:]).flatten())
+    cbcmax = float(np.ceil(np.nanmax(cbcmax)))
+    for i in range(len(cbc_MF[0,:,0,0,0])):
+        cbcmin.append(np.nanmin(-cbc_MF[:,i,:,:,:]).flatten())
+    cbcmin = float(np.floor(np.nanmin(cbcmin)))
+
+    print '\nExporting ASCII files and plots...'
+    # plot UNSAT/GW balance at the catchment scale
+    if plot_out == 1:
+        if os.path.exists(h5_MM_fn):
+            h5_MM = h5py.File(h5_MM_fn, 'r')
+            plt_export_fn = os.path.join(MM_ws, '_plt_UNSATbalance.png')
+            plt_title = 'MARMITES water flux balance for the whole catchment'
+            flxlbl = ['RF', 'INTER', 'SEEPAGE', 'dPOND', 'Ro', 'Es']
+            flxlbl1 = ['dS', 'Eu', 'Tu']
+            flxlbl2 = ['R', 'Rn', 'Eg', 'Tg', 'ETg']
+            sign = [1,-1,1,1,-1,-1,1,-1,-1,-1,-1,-1,-1,1]
+            flxlst = []
+            flxmax = []
+            flxmin = []
+            for i in flxlbl:
+                i = 'i'+i
+                tmp = h5_MM['MM'][:,:,:,index.get(i)]
+                tmp = np.ma.masked_values(tmp, hnoflo, atol = 0.09).sum()/sum(perlen)/ncell
+                flxlst.append(tmp)
+            for i in flxlbl1:
+                flxlbl.append(i)
+                i = 'i'+i
+                tmp = h5_MM['MM_S'][:,:,:,:,index_S.get(i)]
+                tmp = np.ma.masked_values(tmp, hnoflo, atol = 0.09).sum()/sum(perlen)/ncell
+                flxlst.append(tmp)
+            for i in flxlbl2:
+                flxlbl.append(i)
+                i = 'i'+i
+                tmp = h5_MM['MM'][:,:,:,index.get(i)]
+                tmp = np.ma.masked_values(tmp, hnoflo, atol = 0.09).sum()/sum(perlen)/ncell
+                flxlst.append(tmp)
+            h5_MM.close()
+            for l, (x,y) in enumerate(zip(flxlst, sign)):
+                flxlst[l] = x*y
+            del tmp, flxlbl1, flxlbl2
+            flxmax = float(np.ceil(np.nanmax(flxlst)))
+            flxmin = float(np.floor(np.nanmin(flxlst)))
+            flxmax = 1.15*max(cbcmax, flxmax)
+            flxmin = 1.15*min(cbcmin, flxmin)
+            if isinstance(h5_MF_fn, str):
+                plt_export_fn = os.path.join(MM_ws, '_plt_UNSATandGWbalances.png')
+                plt_title = 'MARMITES and MODFLOW water flux balance for the whole catchment'
+                for l in range(nlay):
+                    for x in range(len(index_cbc)):
+                        flxlst.append(cbc_MF[:,index_cbc[x],:,:,l].sum()/sum(perlen)/ncell)
+                        flxlbl.append('GW_' + cbc_nam[index_cbc[x]] + '_L' + str(l+1))
+            colors_flx = CreateColors.main(hi=0, hf=180, numbcolors = len(flxlbl))
+            MMplot.plotGWbudget(flxlst = flxlst, flxlbl = flxlbl, colors_flx = colors_flx, plt_export_fn = plt_export_fn, plt_title = plt_title, fluxmax = flxmax, fluxmin = flxmin)
+            del flxlst
+        # no MM, plot only MF balance if MF exists
+        elif isinstance(h5_MF_fn, str):
+            plt_export_fn = os.path.join(MM_ws, '_plt_GWbalances.png')
+            plt_title = 'MODFLOW water flux balance for the whole catchment'
+            flxlbl = []
+            flxlst = []
+            for l in range(nlay):
+                for x in range(len(index_cbc)):
+                    flxlst.append(cbc_MF[:,index_cbc[x],:,:,l].sum()/sum(perlen)/ncell)
+                    flxlbl.append('GW_' + cbc_nam[index_cbc[x]] + '_L' + str(l+1))
+            colors_flx = CreateColors.main(hi=0, hf=180, numbcolors = len(flxlbl))
+            MMplot.plotGWbudget(flxlst = flxlst, flxlbl = flxlbl, colors_flx = colors_flx, plt_export_fn = plt_export_fn, plt_title = plt_title, fluxmax = cbcmax, fluxmin = cbcmin)
+            del flxlst
+    # exporting MM to ASCII files and plots at observations cells
+    if obsCHECK == 1 and os.path.exists(h5_MM_fn):
+        h5_MM = h5py.File(h5_MM_fn, 'r')
         colors_nsl = CreateColors.main(hi=00, hf=180, numbcolors = (_nslmax+1))
         for o in range(len(obs.keys())):
             i = obs.get(obs.keys()[o])['i']
@@ -881,7 +896,7 @@ if os.path.exists(h5_MM_fn):
         #TODO extract heads at piezo location and not center of cell
             MM_PROCESS.ExportResultsMM(i, j, inputDate, _nslmax, MM, index, MM_S, index_S, -cbc_MF[:,iDRN,i,j,0], cbc_MF[:,iRCH,i,j,0], -cbc_MF[:,iWEL,i,j,0], h_satflow, h_MF_m[:,i,j,l], obs_h[o][0,:], obs_S[o], outFileExport[o], obs.keys()[o])
             outFileExport[o].close()
-            MM_PROCESS.ExportResultsPEST(i, j, inputDate, _nslmax, h_MF_m[:,i,j,l], obs_h[o][0,:], obs_S[o], outPESTheads, outPESTsm, obs.keys()[o], h5_MM['MM_S'][:,i,j,:,index_S.get('iSpc')])
+            MM_PROCESS.ExportResultsPEST(i, j, inputDate, _nslmax, h_MF_m[:,i,j,l], obs_h[o][0,:], obs_S[o], outPESTheads, outPESTsm, obs.keys()[o], MM_S[:,:,index_S.get('iSpc')])
             # plot
             if plot_out == 1:
                 plt_title = obs.keys()[o]
@@ -950,71 +965,93 @@ if os.path.exists(h5_MM_fn):
         outPESTheads.close()
         outPESTsm.close()
         del obs, obs_h, obs_S
-# no MM, plot only MF balance
-elif isinstance(h5_MF_fn, str):
-    plt_export_fn = os.path.join(MM_ws, '_plt_GWbalances.png')
-    plt_title = 'MODFLOW water flux balance for the whole catchment'
-    flxlbl = []
-    flxlst = []
-    for l in range(nlay):
-        for x in range(len(index_cbc)):
-            flxlst.append(cbc_MF[:,index_cbc[x],:,:,l].sum()/sum(perlen)/ncell)
-            flxlbl.append('GW_' + cbc_nam[index_cbc[x]] + '_L' + str(l+1))
-    colors_flx = CreateColors.main(hi=0, hf=180, numbcolors = len(flxlbl))
-    MMplot.plotGWbudget(flxlst = flxlst, flxlbl = flxlbl, colors_flx = colors_flx, plt_export_fn = plt_export_fn, plt_title = plt_title, fluxmax = cbcmax, fluxmin = cbcmin)
-    del flxlst
+    del MM_PROCESS
 
-del MM_PROCESS
+    # plot MM output
+    if plot_out == 1 and isinstance(h5_MM_fn, str):
+        h5_MM = h5py.File(h5_MM_fn, 'r')
+        flxlbl = ['RF', 'INTER', 'SEEPAGE', 'dPOND', 'Ro', 'Es', 'R', 'Rn', 'Eg', 'Tg', 'ETg']
+        flxlbl1 = ['dS', 'Eu', 'Tu']
+        TSlst = []
+        TS = 0
+        while TS < sum(perlen):
+            TSlst.append(TS)
+            TS += plot_freq
+        TSlst.append(sum(perlen)-1)
+        for TS in TSlst:
+            MM = h5_MM['MM'][TS,:,:,:]
+            MM_S = h5_MM['MM_S'][TS,:,:,:,:]
+            for i in flxlbl:
+                V = []
+                i1 = 'i'+i
+                V.append(MM[:,:,index.get(i1)])
+                V = np.ma.masked_values(V, hnoflo, atol = 0.09)
+                Vmax = float(np.ceil(np.nanmax(V)))
+                Vmin = float(np.floor(np.nanmin(V)))
+                if Vmax<>0.0 or Vmin<>0.0:
+                    MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = 1, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i + ' (mm)'), msg = 'DRY', plt_title = ('MM_'+i), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/10, Vmax = Vmax, Vmin = Vmin)
+##            for i in flxlbl1:
+##                V = []
+##                i1 = 'i'+i
+##                V.append(MM_S[:,:,:,index_S.get(i1)])
+##                V = np.ma.masked_values(V, hnoflo, atol = 0.09)
+##                Vmax = float(np.ceil(np.nanmax(V)))
+##                Vmin = float(np.floor(np.nanmin(V)))
+##                if Vmax<>0.0 and Vmin <>0.0:
+##                    MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = 1, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i + ' (mm)'), msg = 'DRY', plt_title = ('MM_'+i), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/10, Vmax = hmax, Vmin = hmin)
+        del TSlst, MM, MM_S, V, flxlbl, flxlbl1, i, i1
 
-if plot_out == 1 and isinstance(h5_MF_fn, str):
-    # plot heads (grid + contours), DRN, etc... at specified TS
-    TSlst = []
-    TS = 0
-    while TS < len(h_MF_m):
-        TSlst.append(TS)
-        TS += plot_freq
-    TSlst.append(len(h_MF_m)-1)
-    for TS in TSlst:
-        # plot heads [m]
-        V=[]
-        for L in range(nlay):
-            V.append(h_MF_m[TS,:,:,L])
-        MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation (m)', msg = 'DRY', plt_title = 'HEADS', MM_ws = MM_ws, interval_type = 'arange', interval_diff = 0.5, Vmax = hmax, Vmin = hmin)
-        del V
-        # plot diff between drain elevation and heads elevation [m]
-        DrnHeadsLtop = top_array_m - h_MF_m[TS,:,:,0]
-        DrnHeadsLtop_m = np.ma.masked_greater(DrnHeadsLtop,0.0)
-        V = [DrnHeadsLtop_m]
-        diffMin = 0
-        diffMax = np.nanmin(DrnHeadsLtop_m)
-        MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = 1, V = V,  cmap = plt.cm.RdYlGn, CBlabel = 'diff. between DRN elev and hyd. heads elev. (m)', msg = ' - no drainage/elevation difference', plt_title = 'HEADSDRNdiff', MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, Vmax = diffMin, Vmin = diffMax, fmt='%.3G')
-        # plot GW drainage [mm]
-        V = []
-        for L in range(nlay):
-            V.append(-cbc_MF[TS,iDRN,:,:,L])
-        MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater drainage (mm/day)', msg = '- no drainage', plt_title = 'DRN', MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, Vmin = DRNmin, Vmax = DRNmax, fmt='%.3G')
-        del DrnHeadsLtop, DrnHeadsLtop_m, V
+    # plot MF output
+    if plot_out == 1 and isinstance(h5_MF_fn, str):
+        # plot heads (grid + contours), DRN, etc... at specified TS
+        TSlst = []
+        TS = 0
+        while TS < len(h_MF_m):
+            TSlst.append(TS)
+            TS += plot_freq
+        TSlst.append(len(h_MF_m)-1)
+        for TS in TSlst:
+            # plot heads [m]
+            V=[]
+            for L in range(nlay):
+                V.append(h_MF_m[TS,:,:,L])
+            MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation (m)', msg = 'DRY', plt_title = 'HEADS', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/10, Vmax = hmax, Vmin = hmin)
+            del V
+            # plot diff between drain elevation and heads elevation [m]
+            DrnHeadsLtop = top_array_m - h_MF_m[TS,:,:,0]
+            DrnHeadsLtop_m = np.ma.masked_greater(DrnHeadsLtop,0.0)
+            V = [DrnHeadsLtop_m]
+            diffMin = 0
+            diffMax = np.nanmin(DrnHeadsLtop_m)
+            MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = 1, V = V,  cmap = plt.cm.RdYlGn, CBlabel = 'diff. between DRN elev and hyd. heads elev. (m)', msg = ' - no drainage/elevation difference', plt_title = 'HEADSDRNdiff', MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, Vmax = diffMin, Vmin = diffMax, fmt='%.3G')
+            # plot GW drainage [mm]
+            V = []
+            for L in range(nlay):
+                V.append(-cbc_MF[TS,iDRN,:,:,L])
+            MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater drainage (mm/day)', msg = '- no drainage', plt_title = 'DRN', MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, Vmin = DRNmin, Vmax = DRNmax, fmt='%.3G')
+            del DrnHeadsLtop, DrnHeadsLtop_m, V
+        del TSlst
 
-del cbc_MF, h_MF_m
-del top_array_m, gridSOIL, inputDate
-del hmax, hmin, DRNmax, DRNmin, cbcmax, cbcmin
+    del cbc_MF, h_MF_m
+    del top_array_m, gridSOIL, inputDate
+    del hmax, hmin, DRNmax, DRNmin, cbcmax, cbcmin
 
-timeendExport = pylab.datestr2num(pylab.datetime.datetime.today().isoformat())
-durationExport=(timeendExport-timestartExport)
+    timeendExport = pylab.datestr2num(pylab.datetime.datetime.today().isoformat())
+    durationExport=(timeendExport-timestartExport)
 
-# final report of successful run
+    # final report of successful run
+    print ('\n##############\nMARMITES executed successfully!')
+    print ('%s stress periods\n%s days\n%sx%s cells (rows x cols)') % (str(int(nper)),str(int(sum(perlen))),str(nrow),str(ncol))
+    print ('\nMARMITES run time: %s minute(s) and %.1f second(s)') % (str(int(duration*24.0*60.0)), (duration*24.0*60.0-int(duration*24.0*60.0))*60)
+    print ('MODFLOW run time: %s minute(s) and %.1f second(s)') % (str(int(durationMF*24.0*60.0)), (durationMF*24.0*60.0-int(durationMF*24.0*60.0))*60)
+    print ('Export run time: %s minute(s) and %.1f second(s)') % (str(int(durationExport*24.0*60.0)), (durationExport*24.0*60.0-int(durationExport*24.0*60.0))*60)
+    print ('\nOutput written in folder: \n%s\n##############\n') % MM_ws
 
-print ('\n##############\nMARMITES executed successfully!')
-print ('%s stress periods\n%s days\n%sx%s cells (rows x cols)') % (str(int(nper)),str(int(sum(perlen))),str(nrow),str(ncol))
-print ('\nMARMITES run time: %s minute(s) and %.1f second(s)') % (str(int(duration*24.0*60.0)), (duration*24.0*60.0-int(duration*24.0*60.0))*60)
-print ('MODFLOW run time: %s minute(s) and %.1f second(s)') % (str(int(durationMF*24.0*60.0)), (durationMF*24.0*60.0-int(durationMF*24.0*60.0))*60)
-print ('Export run time: %s minute(s) and %.1f second(s)') % (str(int(durationExport*24.0*60.0)), (durationExport*24.0*60.0-int(durationExport*24.0*60.0))*60)
-print ('\nOutput written in folder: \n%s\n##############\n') % MM_ws
-
-##except StandardError, e:  #Exception
-##    print '\nERROR! Abnormal MM run interruption in the export phase!\nError description:'
-##    traceback.print_exc(file=sys.stdout)
-###    traceback.print_exc(limit=1, file=sys.stdout)
+except StandardError, e:  #Exception
+    print ('\n##############\nMARMITES ERROR!')
+    print '\nAbnormal MM run interruption in the export phase!\nError description:'
+    traceback.print_exc(file=sys.stdout)
+#    traceback.print_exc(limit=1, file=sys.stdout)
 
 if verbose == 0:
     sys.stdout = s

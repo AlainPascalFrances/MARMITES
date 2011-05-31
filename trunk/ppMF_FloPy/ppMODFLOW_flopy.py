@@ -672,48 +672,48 @@ def ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_MM = "", rch_user = 
     # dis package
     dis = mf.mfdis(model = mfmain, nrow = nrow, ncol = ncol, nlay = nlay, nper = nper, delr = delr, delc = delc, laycbd = laycbd, top = top_array, botm = botm_array, perlen = perlen, nstp = nstp, tsmult = tsmult, itmuni = itmuni, lenuni = lenuni, steady = Ss_tr, extension = ext_dis)
     del botm_array
+    dis.write_file()
     # bas package
     bas = mf.mfbas(model = mfmain, ibound = ibound_array, strt = strt_array, hnoflo = hnoflo, extension = ext_bas)
     del strt_array
+    bas.write_file()
     # lpf initialization
     lpf = mf.mflpf(model = mfmain, hdry = hdry, laytyp = laytyp, layavg = layavg, chani = chani, layvka = layvka, laywet = laywet, hk = hk_array, vka = vka_array, ss = ss_array, sy = sy_array, extension=ext_lpf)
     del hk_array, vka_array, ss_array, sy_array
+    lpf.write_file()
     # rch initialization
     rch = mf.mfrch(mfmain, irchcb=lpf.ilpfcb, nrchop=nrchop, rech=rch_array, extension = ext_rch)
     del rch_array
+    rch.write_file
     # wel initialization
     if isinstance(wel_input,float):
         if wel_input<>0:
             wel = mf.mfwel(mfmain, iwelcb = lpf.ilpfcb, layer_row_column_Q = layer_row_column_Q, extension = ext_wel)
+            wel.write_file()
     else:
         wel = mf.mfwel(mfmain, iwelcb = lpf.ilpfcb, layer_row_column_Q = layer_row_column_Q, extension = ext_wel)
+        wel.write_file()
     del layer_row_column_Q
     # drn package initialization
     drn = mf.mfdrn(model = mfmain, idrncb=lpf.ilpfcb, layer_row_column_elevation_cond = layer_row_column_elevation_cond, extension = ext_drn)
     del layer_row_column_elevation_cond
+    drn.write_file()
     # ghb package initialization
 #    ghb = mf.mfghb(model=mfmain, igbhcb = lpf.ilpfcb, layer_row_column_head_cond = [[2,13,3,90,50]])
+#   ghb.write_file()
     # output control initialization
     oc = mf.mfoc(mfmain, ihedfm=ihedfm, iddnfm=iddnfm, item2=[[0,1,1,1]], item3=[[0,0,1,0]], extension=[ext_oc,ext_cbc,ext_heads,ext_ddn])
+    oc.write_file()
     # select one of the 3 below (i.e. pcg or sip or sor)
     # preconditionned conjugate-gradient initialization
     pcg = mf.mfpcg(mfmain, mxiter = 150, iter1=75, hclose=1e-1, rclose=1e-1, npcond = 1, relax = 1)
+    pcg.write_file()
     # sip
 #    sip = mf.mfsip(mfmain, hclose=1e-3)
+#    sip.write_file()
     # sor
 #    sor = mf.mfsor(mfmain, hclose=1e-3)
-    # write packages files
-    dis.write_file()
-    bas.write_file()
-    lpf.write_file()
-    rch.write_file()
-    wel.write_file()
-    drn.write_file()
-#    ghb.write_file()
-    oc.write_file()
-#    sip.write_file()
 #    sor.write_file()
-    pcg.write_file()
     h_MF_fn = os.path.join(MF_ws, modelname + "." + ext_heads)
     if os.path.exists(h_MF_fn):
         os.remove(h_MF_fn)
