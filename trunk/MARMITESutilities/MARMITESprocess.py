@@ -241,7 +241,7 @@ class PROCESS:
 
     ######################
 
-    def inputSoilParam(self, SOILparam_fn, NSOIL):
+    def inputSoilParam(self, MM_ws, SOILparam_fn, NSOIL):
 
         # Soils parameter initialisation
         nam_soil=[]
@@ -255,25 +255,7 @@ class PROCESS:
         Ks=[]
 
         # soil parameters file
-        SOILparam_fn=os.path.join(self.MM_ws,SOILparam_fn)
-        if os.path.exists(SOILparam_fn):
-            fin = open(SOILparam_fn, 'r')
-        else:
-            raise ValueError, "\nThe file %s doesn't exist!!!" % SOILparam_fn
-        line = fin.readline().split()
-        delimChar = line[0]
-        inputFile = []
-        try:
-            for line in fin:
-                line_tmp = line.split(delimChar)
-                if not line_tmp == []:
-                    if (not line_tmp[0] == '') and (not line_tmp[0] == '\n'):
-                        inputFile.append(line_tmp[0])
-                else:
-                    raise NameError('InputFileFormat')
-        except NameError:
-            raise ValueError, 'Error in the input file, check format!\n'
-
+        inputFile = readFile(MM_ws,SOILparam_fn)
         SOILzones=int(int(inputFile[0]))
         if SOILzones>NSOIL:
             print '\nWARNING!\n' + str(SOILzones) + ' soil parameters groups in file [' + SOILparam_fn + ']\n Only ' + str(NSOIL) + ' PE time serie(s) found.'
@@ -324,24 +306,18 @@ class PROCESS:
 
     ######################
 
-    def inputObs(self, inputObs_fn, inputObsHEADS_fn, inputObsSM_fn, inputDate, _nslmax, nlay,       MFtime_fn = None):
+    def inputObs(self, MM_ws, inputObs_fn, inputObsHEADS_fn, inputObsSM_fn, inputDate, _nslmax, nlay,       MFtime_fn = None):
         '''
         observations cells for soil moisture and heads (will also compute SATFLOW)
         '''
 
         # read coordinates and SATFLOW parameters
-        filenameIN = os.path.join(self.MM_ws,inputObs_fn)
-        if os.path.exists(filenameIN):
-            fin = open(filenameIN, 'r')
-            lines = fin.readlines()
-            fin.close()
-        else:
-            raise BaseException, "The file %s doesn't exist!!!" % filenameIN
+        inputFile = readFile(MM_ws,inputObs_fn)
 
         # define a dictionnary of observations,  format is: Name (key) x y i j hi h0 RC STO
         obs = {}
-        for i in range(1,len(lines)):
-            line = lines[i].split()
+        for i in range(1,len(inputFile)):
+            line = inputFile[i].split()
             name = line[0]
             x = float(line[1])
             y = float(line[2])
@@ -354,14 +330,14 @@ class PROCESS:
             except:
                 hi = h0 = RC = STO =  self.hnoflo
             # verify if coordinates are inside MODFLOW grid
-            if x < self.xllcorner or \
-               x > (self.xllcorner+self.ncol*self.cellsizeMF) or \
-               y < self.yllcorner or \
-               y > (self.yllcorner+self.nrow*self.cellsizeMF):
+            if (x < self.xllcorner or
+               x > (self.xllcorner+self.ncol*self.cellsizeMF) or
+               y < self.yllcorner or
+               y > (self.yllcorner+self.nrow*self.cellsizeMF)):
                    raise BaseException, 'The coordinates of the observation point %s are not inside the MODFLOW grid' % name
             if lay > nlay or lay < 1:
                 lay = 0
-                print 'WARNING!\nLayer %s of observation point %s is not valid (corrected to layer 1)!\nCheck your file %s (layer number should be between 1 and the number of layer ofthe MODFLOW model, in this case %s).' % (lay, name, inputObs_fn, nlay)
+                print 'WARNING!\nLayer %s of observation point %s is not valid (corrected to layer 1)!\nCheck your file %s (layer number should be between 1 and the number of layer of the MODFLOW model, in this case %s).' % (lay, name, inputObs_fn, nlay)
             else:
                 lay = lay - 1
             # compute the cordinates in the MODFLOW grid
@@ -425,13 +401,12 @@ class PROCESS:
                             obsOutput[l,i]=self.hnoflo
                 else:
                     obsOutput[l,:] = np.ones([len(inputDate)])*self.hnoflo
-        else:
-            for i in range(len(inputDate)):
-                for l in range(len(obsValue)):
-                    obsOutput[l,i]=self.hnoflo
-
-        return obsOutput
-        del inputDate, obsOutput
+            else:
+                for i in range(len(inputDate)):
+                    for l in range(len(obsValue)):
+                        obsOutput[l,i]=self.hnoflo
+            return obsOutput
+            del inputDate, obsOutput
 
     ######################
 

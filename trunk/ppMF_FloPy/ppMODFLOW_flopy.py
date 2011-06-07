@@ -298,7 +298,7 @@ def ppMFtime(MM_ws, MF_ws, MFtime_fn, perlenmax, inputDate_fn, inputZON_TS_RF_fn
         for s in range(NSOIL):
             for t in range(len(d)):
                 PE_d[n,s,t] = float(inputFilePE[t+(n*NSOIL+s)*len(d)].strip())
-    del inputFileRF, inputFilePET, inputFilePE, inputFileRFe, inputFileE0
+    del inputFile, inputFileRF, inputFilePET, inputFilePE, inputFileRFe, inputFileE0
 
     RF_stp = []
     PET_stp = []
@@ -308,8 +308,9 @@ def ppMFtime(MM_ws, MF_ws, MFtime_fn, perlenmax, inputDate_fn, inputZON_TS_RF_fn
     PET_d_tmp = []
     PE_d_tmp=[]
     E0_d_tmp = []
-    nper = 1
-    perlen = [1]
+    nper = 0
+    perlen = []
+    perlen_tmp = 0
     c = 0
     for n in range(NMETEO):
         RF_stp.append([])
@@ -336,14 +337,16 @@ def ppMFtime(MM_ws, MF_ws, MFtime_fn, perlenmax, inputDate_fn, inputZON_TS_RF_fn
                     for n in range(NMETEO):
                         RF_stp[n].append(0.0)
                         for v in range(NVEG):
-                            PET_stp[n][v].append(PET_d_tmp[n][v]/perlen[nper-1])
+                            PET_stp[n][v].append(PET_d_tmp[n][v]/perlen_tmp)
                             RFe_stp[n][v].append(0.0)
                             PET_d_tmp[n][v] = 0.0
                         for s in range(NSOIL):
-                            PE_stp[n][s].append(PE_d_tmp[n][s]/perlen[nper-1])
+                            PE_stp[n][s].append(PE_d_tmp[n][s]/perlen_tmp)
                             PE_d_tmp[n][s] = 0.0
-                        E0_stp[n].append(E0_d_tmp[n]/perlen[nper-1])
+                        E0_stp[n].append(E0_d_tmp[n]/perlen_tmp)
                         E0_d_tmp[n] = 0.0
+                    perlen.append(perlen_tmp)
+                    perlen_tmp = 0
                 for n in range(NMETEO):
                     RF_stp[n].append(RF_d[n,j])
                     for v in range(NVEG):
@@ -352,44 +355,57 @@ def ppMFtime(MM_ws, MF_ws, MFtime_fn, perlenmax, inputDate_fn, inputZON_TS_RF_fn
                     for s in range(NSOIL):
                         PE_stp[n][s].append(PE_d[n,s,j])
                     E0_stp[n].append(E0_d[n,j])
-                if j>0:
-                    nper += 1
-                    if j < len(d):
-                        perlen.append(1)
+                nper += 1
+                perlen.append(1)
                 c = 0
             else:
-                if perlen[nper-1] < perlenmax:
+                if perlen_tmp < perlenmax:
                     for n in range(NMETEO):
                         for v in range(NVEG):
                             PET_d_tmp[n][v] += PET_d[n,v,j]
                         for s in range(NSOIL):
                             PE_d_tmp[n][s]  += PE_d[n,s,j]
                         E0_d_tmp[n]  += E0_d[n,j]
-                    if j>0:
-                        if c == 0:
-                            nper += 1
-                            if j < len(d):
-                                perlen.append(1)
-                        elif c == 1:
-                            perlen[nper-1] += 1
+                    if c == 0:
+                        nper += 1
+                    perlen_tmp += 1
                     c = 1
                 else:
                     for n in range(NMETEO):
                         RF_stp[n].append(0.0)
                         for v in range(NVEG):
-                            PET_stp[n][v].append(PET_d_tmp[n][v]/perlen[nper-1])
+                            PET_stp[n][v].append(PET_d_tmp[n][v]/perlen_tmp)
                             RFe_stp[n][v].append(0.0)
                             PET_d_tmp[n][v] = 0.0
                         for s in range(NSOIL):
-                            PE_stp[n][s].append(PE_d_tmp[n][s]/perlen[nper-1])
+                            PE_stp[n][s].append(PE_d_tmp[n][s]/perlen_tmp)
                             PE_d_tmp[n][s] = 0.0
-                        E0_stp[n].append(E0_d_tmp[n]/perlen[nper-1])
+                        E0_stp[n].append(E0_d_tmp[n]/perlen_tmp)
                         E0_d_tmp[n] = 0.0
-                    if j>0:
-                        nper += 1
-                        if j < len(d):
-                            perlen.append(1)
+                    perlen.append(perlen_tmp)
+                    for n in range(NMETEO):
+                        for v in range(NVEG):
+                            PET_d_tmp[n][v] += PET_d[n,v,j]
+                        for s in range(NSOIL):
+                            PE_d_tmp[n][s]  += PE_d[n,s,j]
+                        E0_d_tmp[n]  += E0_d[n,j]
+                    nper += 1
+                    perlen_tmp = 1
                     c = 1
+    if c == 1:
+        for n in range(NMETEO):
+            RF_stp[n].append(0.0)
+            for v in range(NVEG):
+                PET_stp[n][v].append(PET_d_tmp[n][v]/perlen_tmp)
+                RFe_stp[n][v].append(0.0)
+                PET_d_tmp[n][v] = 0.0
+            for s in range(NSOIL):
+                PE_stp[n][s].append(PE_d_tmp[n][s]/perlen_tmp)
+                PE_d_tmp[n][s] = 0.0
+            E0_stp[n].append(E0_d_tmp[n]/perlen_tmp)
+            E0_d_tmp[n] = 0.0
+        perlen.append(perlen_tmp)
+    del perlen_tmp
     del RF_d, RFe_d, PET_d, PE_d, E0_d, PET_d_tmp, PE_d_tmp, E0_d_tmp, c
     perlen = np.asarray(perlen, dtype = np.int)
     nstp = np.ones(nper, dtype = np.int)
@@ -684,15 +700,10 @@ def ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_MM = "", rch_user = 
     # rch initialization
     rch = mf.mfrch(mfmain, irchcb=lpf.ilpfcb, nrchop=nrchop, rech=rch_array, extension = ext_rch)
     del rch_array
-    rch.write_file
+    rch.write_file()
     # wel initialization
-    if isinstance(wel_input,float):
-        if wel_input<>0:
-            wel = mf.mfwel(mfmain, iwelcb = lpf.ilpfcb, layer_row_column_Q = layer_row_column_Q, extension = ext_wel)
-            wel.write_file()
-    else:
-        wel = mf.mfwel(mfmain, iwelcb = lpf.ilpfcb, layer_row_column_Q = layer_row_column_Q, extension = ext_wel)
-        wel.write_file()
+    wel = mf.mfwel(mfmain, iwelcb = lpf.ilpfcb, layer_row_column_Q = layer_row_column_Q, extension = ext_wel)
+    wel.write_file()
     del layer_row_column_Q
     # drn package initialization
     drn = mf.mfdrn(model = mfmain, idrncb=lpf.ilpfcb, layer_row_column_elevation_cond = layer_row_column_elevation_cond, extension = ext_drn)
@@ -764,7 +775,6 @@ def ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_MM = "", rch_user = 
             h5_MF.create_dataset(name = 'cbc', data = np.asarray(cbc[1]))
         del h, cbc
     h5_MF.close()
-    del mfmain, dis, bas, lpf, rch, wel, drn, oc, pcg
     # to delete MF bin files and save disk space
     os.remove(h_MF_fn)
     os.remove(cbc_MF_fn)
