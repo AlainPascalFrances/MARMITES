@@ -42,9 +42,9 @@ print '\n##############\nMARMITES started!\n%s\n##############' % pylab.num2date
 # read input file (called _input.ini in the MARMITES workspace
 # the first character on the first line has to be the character used to comment
 # the file can contain any comments as the user wish, but the sequence of the input has to be respected
-MM_ws = r'E:\00code_ws\00_TESTS\testguido'
+MM_ws = r'E:\00code_ws\00_TESTS\MARMITESv2_r13c6l2'
 # MARMITESv2_r13c6l2   testguido
-MM_fn = '_inputMMg.ini'    #   _inputMMg.ini
+MM_fn = '_inputMM.ini'    #   _inputMMg.ini
 
 inputFile = MMproc.readFile(MM_ws,MM_fn)
 
@@ -392,7 +392,7 @@ try:
             print 'MARMITESunsat RUN'
 
             # SOIL PARAMETERS
-            _nsl, _nam_soil, _st, _slprop, _Sm, _Sfc, _Sr, _Si, _Ks = MM_PROCESS.inputSoilParam(SOILparam_fn = SOILparam_fn, NSOIL = NSOIL)
+            _nsl, _nam_soil, _st, _slprop, _Sm, _Sfc, _Sr, _Si, _Ks = MM_PROCESS.inputSoilParam(MM_ws = MM_ws, SOILparam_fn = SOILparam_fn, NSOIL = NSOIL)
             _nslmax = max(_nsl)
 
             # ###############
@@ -982,7 +982,7 @@ if plot_out == 1 and os.path.exists(h5_MM_fn):
     TSlst.append(sum(perlen)-1)
     # plot at time interval
     for i in flxlbl:
-        # plot avergae for the whole simulated period
+        # plot average for the whole simulated period
         TS=0
         i1 = 'i'+i
         MM = h5_MM['MM'][:,:,:,index.get(i1)]

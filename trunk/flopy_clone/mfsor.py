@@ -3,7 +3,7 @@ from mbase import package
 class mfsor(package):
     '''Sor package
     '''
-    def __init__(self, model, mxiter=200, \
+    def __init__(self, model, mxiter=200,
                  accl=1, hclose=1e-5, iprsor=0, extension='sor', unitnumber=26):
         package.__init__(self, model, extension, 'sor', unitnumber) # Call ancestor's init to set self.parent, extension, name and unit number
         self.url = 'sor.htm'

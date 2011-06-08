@@ -108,6 +108,6 @@ def plotVAR(strTitle = 'Title', x = [], \
     grid(True)
 
     subplots_adjust(left=0.05, bottom=0.1, right=0.95, top=0.95, wspace=0.1, hspace=0.05)
-    plt.show()
+#    plt.show()
     plt.savefig(plot_exportVAR_fn,dpi=150)
 ##############################
