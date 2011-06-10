@@ -15,8 +15,6 @@ __author__ = "Alain P. Francés <frances.alain@gmail.com>"
 __version__ = "0.1"
 __date__ = "March 2011"
 
-import pylab
-import matplotlib.pyplot as plt
 import sys
 import os
 import numpy as np
@@ -114,20 +112,20 @@ def ppMFini(MF_ws, MF_ini_fn, out = 'MF'):
         Ss_tr = []
         if timedef > 0:
             perlen_tmp =  inputFile[l].split()
-            for i in range(nper):
-                perlen.append(int(perlen_tmp[i]))
             l += 1
             nstp_tmp =  inputFile[l].split()
-            for i in range(nper):
-                nstp.append(int(nstp_tmp[i]))
             l += 1
             tsmult_tmp =  inputFile[l].split()
-            for i in range(nper):
-                tsmult.append(int(tsmult_tmp[i]))
             l += 1
             Ss_tr_tmp =  inputFile[l].split()
             for i in range(nper):
+                perlen.append(int(perlen_tmp[i]))
+                nstp.append(int(nstp_tmp[i]))
+                tsmult.append(int(tsmult_tmp[i]))
                 Ss_tr.append(str(Ss_tr_tmp[i]))
+                if nstp[i]>perlen[i]:
+                    print "ERROR!\nMM doesn't accept nstp < perlen!"
+                    sys.exit()
             l += 1
         elif timedef < 0:
             for t in range(nper):
@@ -249,11 +247,11 @@ def ppMFini(MF_ws, MF_ini_fn, out = 'MF'):
     if out == 'MF':
         return modelname, namefile_ext, exe_name, dum_sssp1, ext_dis, nlay, ncol, nrow, nper, itmuni, lenuni,laycbd, delr, delc, top_fn, botm_fn, perlen, nstp, tsmult, Ss_tr, ext_bas, ibound_fn, strt_fn, hnoflo,ext_lpf, ilpfcb, hdry, nplpf, laytyp, layavg, chani, layvka, laywet, hk_fn, vka_fn, ss_fn, sy_fn,ext_oc, ihedfm, iddnfm, ext_cbc, ext_heads, ext_ddn, ext_rch, rch_user, nrchop, ext_wel, wel_user, ext_drn, drn_elev_fn, drn_cond_fn
     elif out == 'MM':
-        return nrow, ncol, delr, delc, reggrid, nlay, nper, perlen, nstp, hnoflo, hdry, laytyp, lenuni, itmuni, ibound_fn
+        return nrow, ncol, delr, delc, reggrid, nlay, nper, perlen, nstp, timedef, hnoflo, hdry, laytyp, lenuni, itmuni, ibound_fn
 
 #####################################
 
-def ppMFtime(MM_ws, MF_ws, MFtime_fn, perlenmax, inputDate_fn, inputZON_TS_RF_fn, inputZON_TS_PET_fn, inputZON_TS_RFe_fn, inputZON_TS_PE_fn, inputZON_TS_E0_fn, NMETEO, NVEG, NSOIL):
+def ppMFtime(MM_ws, MF_ws, outpathname, nper, perlen, nstp, timedef, inputDate_fn, inputZON_TS_RF_fn, inputZON_TS_PET_fn, inputZON_TS_RFe_fn, inputZON_TS_PE_fn, inputZON_TS_E0_fn, NMETEO, NVEG, NSOIL):
 
     ''' RF analysis to define automatically nper/perlen/nstp
     Daily RF>0 creates a nper
@@ -300,121 +298,151 @@ def ppMFtime(MM_ws, MF_ws, MFtime_fn, perlenmax, inputDate_fn, inputZON_TS_RF_fn
                 PE_d[n,s,t] = float(inputFilePE[t+(n*NSOIL+s)*len(d)].strip())
     del inputFile, inputFileRF, inputFilePET, inputFilePE, inputFileRFe, inputFileE0
 
-    RF_stp = []
-    PET_stp = []
-    RFe_stp = []
-    PE_stp = []
-    E0_stp = []
-    PET_d_tmp = []
-    PE_d_tmp=[]
-    E0_d_tmp = []
-    nper = 0
-    perlen = []
-    perlen_tmp = 0
-    c = 0
-    for n in range(NMETEO):
-        RF_stp.append([])
-        PET_stp.append([])
-        RFe_stp.append([])
-        PET_d_tmp.append([])
-        for v in range(NVEG):
-            PET_stp[n].append([])
-            RFe_stp[n].append([])
-            PET_d_tmp[n].append(0.0)
-        PE_stp.append([])
-        PE_d_tmp.append([])
-        for v in range(NSOIL):
-            PE_stp[n].append([])
-            PE_d_tmp[n].append(0.0)
-        E0_stp.append([])
-        E0_d_tmp.append(0.0)
-    if perlenmax < 2:
-        print '\nperlenmax must be higher than 1!\nCorrect perlenmax in the MODFLOW ini file.'
-        sys.exit()
-    for j in range(len(d)):
-            if RF_d[:,j].sum()>0.0:
-                if c == 1:
-                    for n in range(NMETEO):
-                        RF_stp[n].append(0.0)
-                        for v in range(NVEG):
-                            PET_stp[n][v].append(PET_d_tmp[n][v]/perlen_tmp)
-                            RFe_stp[n][v].append(0.0)
-                            PET_d_tmp[n][v] = 0.0
-                        for s in range(NSOIL):
-                            PE_stp[n][s].append(PE_d_tmp[n][s]/perlen_tmp)
-                            PE_d_tmp[n][s] = 0.0
-                        E0_stp[n].append(E0_d_tmp[n]/perlen_tmp)
-                        E0_d_tmp[n] = 0.0
-                    perlen.append(perlen_tmp)
-                    perlen_tmp = 0
-                for n in range(NMETEO):
-                    RF_stp[n].append(RF_d[n,j])
-                    for v in range(NVEG):
-                        PET_stp[n][v].append(PET_d[n,v,j])
-                        RFe_stp[n][v].append(RFe_d[n,v,j])
-                    for s in range(NSOIL):
-                        PE_stp[n][s].append(PE_d[n,s,j])
-                    E0_stp[n].append(E0_d[n,j])
-                nper += 1
-                perlen.append(1)
-                c = 0
-            else:
-                if perlen_tmp < perlenmax:
-                    for n in range(NMETEO):
-                        for v in range(NVEG):
-                            PET_d_tmp[n][v] += PET_d[n,v,j]
-                        for s in range(NSOIL):
-                            PE_d_tmp[n][s]  += PE_d[n,s,j]
-                        E0_d_tmp[n]  += E0_d[n,j]
-                    if c == 0:
-                        nper += 1
-                    perlen_tmp += 1
-                    c = 1
-                else:
-                    for n in range(NMETEO):
-                        RF_stp[n].append(0.0)
-                        for v in range(NVEG):
-                            PET_stp[n][v].append(PET_d_tmp[n][v]/perlen_tmp)
-                            RFe_stp[n][v].append(0.0)
-                            PET_d_tmp[n][v] = 0.0
-                        for s in range(NSOIL):
-                            PE_stp[n][s].append(PE_d_tmp[n][s]/perlen_tmp)
-                            PE_d_tmp[n][s] = 0.0
-                        E0_stp[n].append(E0_d_tmp[n]/perlen_tmp)
-                        E0_d_tmp[n] = 0.0
-                    perlen.append(perlen_tmp)
-                    for n in range(NMETEO):
-                        for v in range(NVEG):
-                            PET_d_tmp[n][v] += PET_d[n,v,j]
-                        for s in range(NSOIL):
-                            PE_d_tmp[n][s]  += PE_d[n,s,j]
-                        E0_d_tmp[n]  += E0_d[n,j]
-                    nper += 1
-                    perlen_tmp = 1
-                    c = 1
-    if c == 1:
+    if timedef == 0:
+        try:
+            if isinstance(nper, str):
+                perlenmax = int(nper.split()[1].strip())
+        except:
+            print '\nError in nper format of the MODFLOW ini file!\n'
+            sys.exit()
+        RF_stp = []
+        PET_stp = []
+        RFe_stp = []
+        PE_stp = []
+        E0_stp = []
+        PET_d_tmp = []
+        PE_d_tmp=[]
+        E0_d_tmp = []
+        nper = 0
+        perlen = []
+        perlen_tmp = 0
+        c = 0
         for n in range(NMETEO):
-            RF_stp[n].append(0.0)
+            RF_stp.append([])
+            PET_stp.append([])
+            RFe_stp.append([])
+            PET_d_tmp.append([])
             for v in range(NVEG):
-                PET_stp[n][v].append(PET_d_tmp[n][v]/perlen_tmp)
-                RFe_stp[n][v].append(0.0)
-                PET_d_tmp[n][v] = 0.0
-            for s in range(NSOIL):
-                PE_stp[n][s].append(PE_d_tmp[n][s]/perlen_tmp)
-                PE_d_tmp[n][s] = 0.0
-            E0_stp[n].append(E0_d_tmp[n]/perlen_tmp)
-            E0_d_tmp[n] = 0.0
-        perlen.append(perlen_tmp)
-    del perlen_tmp
-    del RF_d, RFe_d, PET_d, PE_d, E0_d, PET_d_tmp, PE_d_tmp, E0_d_tmp, c
-    perlen = np.asarray(perlen, dtype = np.int)
-    nstp = np.ones(nper, dtype = np.int)
-    tsmult = nstp
-    Ss_tr = []
-    for n in range(nper):
-        Ss_tr.append('TR')
+                PET_stp[n].append([])
+                RFe_stp[n].append([])
+                PET_d_tmp[n].append(0.0)
+            PE_stp.append([])
+            PE_d_tmp.append([])
+            for v in range(NSOIL):
+                PE_stp[n].append([])
+                PE_d_tmp[n].append(0.0)
+            E0_stp.append([])
+            E0_d_tmp.append(0.0)
+        if perlenmax < 2:
+            print '\nperlenmax must be higher than 1!\nCorrect perlenmax in the MODFLOW ini fileor select the daily option.'
+            sys.exit()
+        for j in range(len(d)):
+                if RF_d[:,j].sum()>0.0:
+                    if c == 1:
+                        for n in range(NMETEO):
+                            RF_stp[n].append(0.0)
+                            for v in range(NVEG):
+                                PET_stp[n][v].append(PET_d_tmp[n][v]/perlen_tmp)
+                                RFe_stp[n][v].append(0.0)
+                                PET_d_tmp[n][v] = 0.0
+                            for s in range(NSOIL):
+                                PE_stp[n][s].append(PE_d_tmp[n][s]/perlen_tmp)
+                                PE_d_tmp[n][s] = 0.0
+                            E0_stp[n].append(E0_d_tmp[n]/perlen_tmp)
+                            E0_d_tmp[n] = 0.0
+                        perlen.append(perlen_tmp)
+                        perlen_tmp = 0
+                    for n in range(NMETEO):
+                        RF_stp[n].append(RF_d[n,j])
+                        for v in range(NVEG):
+                            PET_stp[n][v].append(PET_d[n,v,j])
+                            RFe_stp[n][v].append(RFe_d[n,v,j])
+                        for s in range(NSOIL):
+                            PE_stp[n][s].append(PE_d[n,s,j])
+                        E0_stp[n].append(E0_d[n,j])
+                    nper += 1
+                    perlen.append(1)
+                    c = 0
+                else:
+                    if perlen_tmp < perlenmax:
+                        for n in range(NMETEO):
+                            for v in range(NVEG):
+                                PET_d_tmp[n][v] += PET_d[n,v,j]
+                            for s in range(NSOIL):
+                                PE_d_tmp[n][s]  += PE_d[n,s,j]
+                            E0_d_tmp[n]  += E0_d[n,j]
+                        if c == 0:
+                            nper += 1
+                        perlen_tmp += 1
+                        c = 1
+                    else:
+                        for n in range(NMETEO):
+                            RF_stp[n].append(0.0)
+                            for v in range(NVEG):
+                                PET_stp[n][v].append(PET_d_tmp[n][v]/perlen_tmp)
+                                RFe_stp[n][v].append(0.0)
+                                PET_d_tmp[n][v] = 0.0
+                            for s in range(NSOIL):
+                                PE_stp[n][s].append(PE_d_tmp[n][s]/perlen_tmp)
+                                PE_d_tmp[n][s] = 0.0
+                            E0_stp[n].append(E0_d_tmp[n]/perlen_tmp)
+                            E0_d_tmp[n] = 0.0
+                        perlen.append(perlen_tmp)
+                        for n in range(NMETEO):
+                            for v in range(NVEG):
+                                PET_d_tmp[n][v] += PET_d[n,v,j]
+                            for s in range(NSOIL):
+                                PE_d_tmp[n][s]  += PE_d[n,s,j]
+                            E0_d_tmp[n]  += E0_d[n,j]
+                        nper += 1
+                        perlen_tmp = 1
+                        c = 1
+        if c == 1:
+            for n in range(NMETEO):
+                RF_stp[n].append(0.0)
+                for v in range(NVEG):
+                    PET_stp[n][v].append(PET_d_tmp[n][v]/perlen_tmp)
+                    RFe_stp[n][v].append(0.0)
+                    PET_d_tmp[n][v] = 0.0
+                for s in range(NSOIL):
+                    PE_stp[n][s].append(PE_d_tmp[n][s]/perlen_tmp)
+                    PE_d_tmp[n][s] = 0.0
+                E0_stp[n].append(E0_d_tmp[n]/perlen_tmp)
+                E0_d_tmp[n] = 0.0
+            perlen.append(perlen_tmp)
+        del perlen_tmp
+        del RF_d, RFe_d, PET_d, PE_d, E0_d, PET_d_tmp, PE_d_tmp, E0_d_tmp, c
+        perlen = np.asarray(perlen, dtype = np.int)
+        nstp = np.ones(nper, dtype = np.int)
+        tsmult = nstp
+        Ss_tr = []
+        for n in range(nper):
+            Ss_tr.append('TR')
+    elif timedef>0:
+        RF_stp = np.zeros([NMETEO,sum(nstp)])
+        PET_stp = np.zeros([NMETEO,NVEG,sum(nstp)])
+        RFe_stp = np.zeros([NMETEO,NVEG,sum(nstp)])
+        PE_stp = np.zeros([NMETEO,NSOIL,sum(nstp)])
+        E0_stp = np.zeros([NMETEO,sum(nstp)])
+        stp = 0
+        for per in range(nper):
+            for stp in range(nstp[per]):
+                tstart = sum(perlen[0:per])+stp*(perlen[per]/nstp[per])
+                tend = sum(perlen[0:per])+(perlen[per]/nstp[per])*(1+stp)
+                for n in range(NMETEO):
+                    RF_stp[n,sum(nstp[0:per])+stp] += RF_d[n,tstart:tend].sum()
+                    for v in range(NVEG):
+                        PET_stp[n,v,sum(nstp[0:per])+stp] += PET_d[n,v,tstart:tend].sum()/(perlen[per]/nstp[per])
+                        RFe_stp[n,v,sum(nstp[0:per])+stp] += RFe_d[n,v,tstart:tend].sum()
+                    for s in range(NSOIL):
+                        PE_stp[n,s,sum(nstp[0:per])+stp] += PE_d[n,s,tstart:tend].sum()/(perlen[per]/nstp[per])
+                    E0_stp[n,sum(nstp[0:per])+stp] += E0_d[n,tstart:tend].sum()/(perlen[per]/nstp[per])
+        tsmult = np.ones(nper, dtype = np.int)
+        Ss_tr = []
+        for n in range(nper):
+            Ss_tr.append('TR')
 
-    outpathname = os.path.join(MF_ws, MFtime_fn)
+    outpathname = os.path.join(MF_ws, outpathname)
     outFileExport = open(outpathname, 'w')
     outFileExport.write('#')
     outFileExport.write('\n# nper\n')
@@ -478,7 +506,7 @@ def ppMFtime(MM_ws, MF_ws, MFtime_fn, perlenmax, inputDate_fn, inputZON_TS_RF_fn
 
 #####################################
 
-def ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_MM = "", rch_user = None, wel_MM = "", wel_user = None, report = None, verbose = 1, chunks = 0):
+def ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_MM = "", rch_user = None, wel_MM = "", wel_user = None, report = None, verbose = 1, chunks = 0, MFtime_fn = None):
 
     messagemanual="Please read the manual!\n(that by the way still doesn't exist...)"
 
@@ -494,8 +522,8 @@ def ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_MM = "", rch_user = 
         rch_input = rch_user
         wel_input = wel_user
 
-    if isinstance(nper, str):
-        inputFile = MMproc.readFile(MF_ws, nper.split()[0])
+    if MFtime_fn <> None:
+        inputFile = MMproc.readFile(MF_ws, MFtime_fn)
         l=0
         try:
             nper =  int(inputFile[l].strip())
@@ -588,9 +616,9 @@ def ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_MM = "", rch_user = 
                 rch_array.append(h5_rch[rch_input[1]][n])
             h5_rch.close
         except:
-            rch_array = rch_dft
-            print 'WARNING!\nNo valid recharge package file(s) provided, running MODFLOW using default recharge value: %.3G' % rch_dft
-            rch_input = rch_dft
+            rch_array = rch_user
+            print 'WARNING!\nNo valid recharge package file(s) provided, running MODFLOW using user-input recharge value: %.3G' % rch_user
+            rch_input = rch_user
 
 # WELL
     if isinstance(wel_input,float):
@@ -605,9 +633,9 @@ def ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_MM = "", rch_user = 
                 wel_array.append(h5_wel[wel_input[1]][n])
             h5_wel.close
         except:
-            wel_array = wel_dft
-            print 'WARNING!\nNo valid well package file(s) provided, running MODFLOW using default well value: %.3G' % wel_dft
-            wel_input = wel_dft
+            wel_array = wel_user
+            print 'WARNING!\nNo valid well package file(s) provided, running MODFLOW using user-input well value: %.3G' % wel_user
+            wel_input = wel_user
 
 # DRAIN
     # in layer 1, DRN are attributed to topgraphy level
@@ -669,9 +697,9 @@ def ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_MM = "", rch_user = 
         for r in range(nrow):
             for c in range(ncol):
                 if isinstance(wel_array, float):
-                    layer_row_column_Q[n].append([1,r+1,c+1,wel_array])
+                    layer_row_column_Q[n].append([1,r+1,c+1,-wel_array*delr[c]*delc[r]])
                 else:
-                    layer_row_column_Q[n].append([1,r+1,c+1,wel_array[n][r][c]])
+                    layer_row_column_Q[n].append([1,r+1,c+1,-(wel_array[n][r][c])*delr[c]*delc[r]])
 
     # 2 - create the modflow packages files
     # MFfile initialization

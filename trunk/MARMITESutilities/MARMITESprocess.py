@@ -122,7 +122,7 @@ class PROCESS:
     def inputTS(self, NMETEO, NVEG, NSOIL,
                 inputDate_fn, inputZON_TS_RF_fn,
                 inputZON_TS_PET_fn, inputZON_TS_RFe_fn,
-                inputZON_TS_PE_fn, inputZON_TS_E0_fn, MFtime_fn = None
+                inputZON_TS_PE_fn, inputZON_TS_E0_fn
                 ):   #IRR_fn
 
         ntotstp = int(sum(self.nstp))
@@ -141,13 +141,13 @@ class PROCESS:
                     raise ValueError, 'The dates of the input data (RF and PET) are not sequencial, check your daily time step!\nError in date %s ' % str(inputDate[i])
         else:
             raise ValueError, "\nThe file %s doesn't exist!!!" % inputDate_fn
-        if MFtime_fn == None:
-                if len(inputDate) <> ntotstp:
-                  raise ValueError, 'The number of time steps in MF (%i) is not the same as the number of days (%i) of the input data (RF and PET).\n' % (ntotstp, int(len(inputDate)))
-        else:
-            if ntotstp > len(inputDate):
-                print 'ERROR!\nThere is more time steps than days in your model, too inneficient!\nChange your parameters in the MODFLOW ini file.'
-                sys.exit()
+##        if MFtime_fn == None:
+##                if len(inputDate) <> ntotstp:
+##                  raise ValueError, 'The number of time steps in MF (%i) is not the same as the number of days (%i) of the input data (RF and PET).\n' % (ntotstp, int(len(inputDate)))
+##        else:
+##            if ntotstp > len(inputDate):
+##                print 'ERROR!\nThere is more time steps than days in your model, too inneficient!\nChange your parameters in the MODFLOW ini file.'
+##                sys.exit()
 
         # READ input ESRI ASCII rasters vegetation
         gridVEGarea_fn=[]
@@ -306,7 +306,7 @@ class PROCESS:
 
     ######################
 
-    def inputObs(self, MM_ws, inputObs_fn, inputObsHEADS_fn, inputObsSM_fn, inputDate, _nslmax, nlay,       MFtime_fn = None):
+    def inputObs(self, MM_ws, inputObs_fn, inputObsHEADS_fn, inputObsSM_fn, inputDate, _nslmax, nlay):
         '''
         observations cells for soil moisture and heads (will also compute SATFLOW)
         '''
@@ -316,7 +316,7 @@ class PROCESS:
 
         # define a dictionnary of observations,  format is: Name (key) x y i j hi h0 RC STO
         obs = {}
-        for i in range(1,len(inputFile)):
+        for i in range(len(inputFile)):
             line = inputFile[i].split()
             name = line[0]
             x = float(line[1])
@@ -355,8 +355,8 @@ class PROCESS:
         for o in range(len(obs.keys())):
             obsh_fn=os.path.join(self.MM_ws, inputObsHEADS_fn + '_' + obs.keys()[o] +'.txt')
             obssm_fn=os.path.join(self.MM_ws, inputObsSM_fn + '_' + obs.keys()[o] + '.txt')
-            obs_h.append(self.verifObs(inputDate, obsh_fn, obsnam = obs.keys()[o], MFtime_fn = MFtime_fn))
-            obs_sm.append(self.verifObs(inputDate, obssm_fn, _nslmax, obsnam = obs.keys()[o], MFtime_fn = MFtime_fn))
+            obs_h.append(self.verifObs(inputDate, obsh_fn, obsnam = obs.keys()[o]))
+            obs_sm.append(self.verifObs(inputDate, obssm_fn, _nslmax, obsnam = obs.keys()[o]))
 
         return obs, outpathname, obs_h, obs_sm
         del inputObs_fn, inputObsHEADS_fn, inputObsSM_fn, inputDate, _nslmax
@@ -364,7 +364,7 @@ class PROCESS:
 
     ######################
 
-    def verifObs(self, inputDate, filename, _nslmax = 0, obsnam = 'unknown location', MFtime_fn = None):
+    def verifObs(self, inputDate, filename, _nslmax = 0, obsnam = 'unknown location'):
         '''
         Import and process data and parameters
         '''
@@ -381,11 +381,11 @@ class PROCESS:
                         obsValue.append(self.hnoflo)
             except:
                 raise ValueError, '\nERROR!\n Format of observation file uncorrect!\n%s' % filename
-            if MFtime_fn == None:
-                if obsDate[0]<inputDate[0]:
-                    print '\nWARNING!\n Observation data starting before RF and PET at %s,\n these obs data will not be plotted correctly'
-                if len(inputDate)<len(obsDate):
-                    print '\nWARNING!\n There is more observation data than RF and PET data at %s,\n these obs data will not be plotted correctly' % 1
+##            if MFtime_fn == None:
+##                if obsDate[0]<inputDate[0]:
+##                    print '\nWARNING!\n Observation data starting before RF and PET at %s,\n these obs data will not be plotted correctly'
+##                if len(inputDate)<len(obsDate):
+##                    print '\nWARNING!\n There is more observation data than RF and PET data at %s,\n these obs data will not be plotted correctly' % 1
             obsOutput = np.zeros([len(obsValue),len(inputDate)], dtype=float)
             for l in range(len(obsValue)):
                 if not isinstance(obsValue[l], float):

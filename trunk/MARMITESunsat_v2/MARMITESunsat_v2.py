@@ -299,7 +299,7 @@ class UNSAT:
 
     def run(self, i, j, n,
                   nsl, st, slprop, Sm, Sfc, Sr, Si, PONDi, Rpi, D, Ks, PONDm, PONDratio,
-                  ELEV, HEADS, DRN, DRNi,
+                  ELEV, HEADS, DRN, cf, DRNi,
                   RF, E0, PETveg, RFeveg, PEsoil, VEGarea, Zr,
                   nstp, hdry,
                   k_Tu_slp, k_Tu_inter):
@@ -415,7 +415,7 @@ class UNSAT:
                 for l in range(nsl):
                     Si[l] = Si[l]*Dl[l]
                 # fluxes
-                Estmp, PONDtmp, Rotmp, Rptmp, Eutmp, Tutmp, Stmp, Spctmp, Si, Rtmp, Egtmp, Tgtmp, DRNcorr = self.flux(RFe_tot[t], PETveg[:,t], PE_tot[t], S, Sini, Rp, Zr_elev, VEGarea, HEADStmp, Dltop, Dlbot, Dl, nsl, Sm, Sfc, Sr, Ks, PONDm, PONDratio, t, Si, Rpi, DRN[t], DRNi, PONDi, E0[t], dtwt, st, i, j, n, k_Tu_slp, k_Tu_inter)
+                Estmp, PONDtmp, Rotmp, Rptmp, Eutmp, Tutmp, Stmp, Spctmp, Si, Rtmp, Egtmp, Tgtmp, DRNcorr = self.flux(RFe_tot[t], PETveg[:,t], PE_tot[t], S, Sini, Rp, Zr_elev, VEGarea, HEADStmp, Dltop, Dlbot, Dl, nsl, Sm, Sfc, Sr, Ks, PONDm, PONDratio, t, Si, Rpi, DRN[t]*cf, DRNi*cf, PONDi, E0[t], dtwt, st, i, j, n, k_Tu_slp, k_Tu_inter)
 
             # heads above soil bottom
             else:
@@ -425,7 +425,7 @@ class UNSAT:
                 for l in range(nsl):
                     Si[l] = Si[l]*Dl[l]
                 # fluxes
-                Estmp, PONDtmp, Rotmp, Rptmp, Eutmp, Tutmp, Stmp, Spctmp, Si, Rtmp, Egtmp, Tgtmp, DRNcorr = self.flux(RFe_tot[t], PETveg[:,t], PE_tot[t], S, Sini, Rp, Zr_elev, VEGarea, HEADStmp, Dltop, Dlbot, Dl, nsl, Sm, Sfc, Sr, Ks, PONDm, PONDratio, t, Si, Rpi, DRN[t], DRNi, PONDi, E0[t], dtwt, st, i, j, n, k_Tu_slp, k_Tu_inter)
+                Estmp, PONDtmp, Rotmp, Rptmp, Eutmp, Tutmp, Stmp, Spctmp, Si, Rtmp, Egtmp, Tgtmp, DRNcorr = self.flux(RFe_tot[t], PETveg[:,t], PE_tot[t], S, Sini, Rp, Zr_elev, VEGarea, HEADStmp, Dltop, Dlbot, Dl, nsl, Sm, Sfc, Sr, Ks, PONDm, PONDratio, t, Si, Rpi, DRN[t]*cf, DRNi, PONDi, E0[t], dtwt, st, i, j, n, k_Tu_slp, k_Tu_inter)
             # fill the output arrays
             POND[t]=PONDtmp
             Ro[t] = Rotmp
@@ -440,7 +440,7 @@ class UNSAT:
                 Eu[t,l]=Eutmp[l]
                 Tu[t,l]=Tutmp[l]
             Rn[t] = R[t] - Eg[t] -Tg[t] - DRNcorr
-            ETg[t] = - Eg[t] -Tg[t] - DRNcorr
+            ETg[t] = Eg[t] + Tg[t] + DRNcorr
             if POND[t]>PONDi:
                 dPOND[t] = POND[t] - PONDi
             # compute the water mass balance (MB) in the unsaturated zone
@@ -460,9 +460,9 @@ class UNSAT:
                     dS[t,l] = (S[t,l]-S[t-1,l])
                     if l<(nsl-1):
                         RpinMB += Rp[t-1,l]
-            MB[t]=RF[t]+PONDi+DRN[t]+RpinMB-INTER[t]-Ro[t]-POND[t]-Es[t]-EuMB-TuMB-RpoutMB-sum(dS[t,:])
+            MB[t]=RF[t]+PONDi+DRN[t]*cf+RpinMB-INTER[t]-Ro[t]-POND[t]-Es[t]-EuMB-TuMB-RpoutMB-sum(dS[t,:])
             # index = {'iRF':0, 'iPET':1, 'iPE':2, 'iRFe':3, 'iPOND':4, 'iRo':5, 'iSEEPAGE':6, 'iEs':7, 'iMB':8, 'iINTER':9, 'iE0':10, 'iEg':11, 'iTg':12, 'iR':13, 'iRn':14, 'idPOND':15, 'ETg':16}
-            results1[t,:] = [RF[t], PET_tot[t], PE_tot[t], RFe_tot[t], POND[t], Ro[t], DRN[t], Es[t], MB[t], INTER[t], E0[t], Eg[t], Tg[t], R[t], Rn[t], dPOND[t], ETg[t]]
+            results1[t,:] = [RF[t], PET_tot[t], PE_tot[t], RFe_tot[t], POND[t], Ro[t], DRN[t]*cf, Es[t], MB[t], INTER[t], E0[t], Eg[t], Tg[t], R[t], Rn[t], dPOND[t], ETg[t]]
             # index_S = {'iEu':0, 'iTu':1,'iS':2, 'iRp':3}
             for l in range(nsl):
                 results2[t,l,:] = [Eu[t,l], Tu[t,l], Spc[t,l], Rp[t,l], dS[t,l], S[t,l]]
