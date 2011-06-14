@@ -401,12 +401,12 @@ class PROCESS:
                             obsOutput[l,i]=self.hnoflo
                 else:
                     obsOutput[l,:] = np.ones([len(inputDate)])*self.hnoflo
-            else:
-                for i in range(len(inputDate)):
-                    for l in range(len(obsValue)):
-                        obsOutput[l,i]=self.hnoflo
-            return obsOutput
-            del inputDate, obsOutput
+        else:
+            for i in range(len(inputDate)):
+                for l in range(len(obsValue)):
+                    obsOutput[l,i]=self.hnoflo
+        return obsOutput
+        del inputDate, obsOutput
 
     ######################
 

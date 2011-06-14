@@ -42,7 +42,7 @@ print '\n##############\nMARMITES started!\n%s\n##############' % pylab.num2date
 # read input file (called _input.ini in the MARMITES workspace
 # the first character on the first line has to be the character used to comment
 # the file can contain any comments as the user wish, but the sequence of the input has to be respected
-MM_ws = r'E:\00code_ws\00_TESTS\MARMITESv2_r13c6l2'
+MM_ws = r'E:\00code_ws\00_TESTS\MARMITESv2_r13c6l2_REF'
 # MARMITESv2_r13c6l2   testguido
 MM_fn = '_inputMM.ini'    #   _inputMMg.ini
 
@@ -700,7 +700,10 @@ try:
     # reading MF output
     if isinstance(h5_MF_fn, str):
         h5_MF = h5py.File(h5_MF_fn)
-        cbc_MF = np.zeros((sum(perlen), len(cbc_nam), nrow, ncol, nlay))
+        cbc_DRN = np.zeros((sum(perlen), nrow, ncol, nlay))
+        cbc_STO = np.zeros((sum(perlen), nrow, ncol, nlay))
+        cbc_RCH = np.zeros((sum(perlen), nrow, ncol, nlay))
+        cbc_WEL = np.zeros((sum(perlen), nrow, ncol, nlay))
         t = 0
         if timedef>=0:
             h_MF = np.zeros((sum(perlen), nrow, ncol, nlay))
@@ -708,35 +711,63 @@ try:
                 if perlen[n]>1:
                     for x in range(perlen[n]):
                         h_MF[t,:,:,:] = h5_MF['heads'][n,:,:,:]
-                        cbc_tmp = h5_MF['cbc'][n,:,:,:,:]
+                        cbc_DRN_tmp = h5_MF['cbc'][n,iDRN,:,:,:]
+                        cbc_STO_tmp = h5_MF['cbc'][n,iSTO,:,:,:]
+                        cbc_RCH_tmp = h5_MF['cbc'][n,iRCH,:,:,:]
+                        cbc_WEL_tmp = h5_MF['cbc'][n,iWEL,:,:,:]
                         if reggrid == 1:
-                            cbc_MF[t,:,:,:,:] = conv_fact*cbc_tmp/(delr[0]*delc[0])
+                            cbc_DRN[t,:,:,:] = conv_fact*cbc_DRN_tmp[:,:,:]/(delr[0]*delc[0])
+                            cbc_STO[t,:,:,:] = conv_fact*cbc_STO_tmp[:,:,:]/(delr[0]*delc[0])
+                            cbc_RCH[t,:,:,:] = conv_fact*cbc_RCH_tmp[:,:,:]/(delr[0]*delc[0])
+                            cbc_WEL[t,:,:,:] = conv_fact*cbc_WEL_tmp[:,:,:]/(delr[0]*delc[0])
                         else:
                             for i in range(nrow):
                                 for j in range(ncol):
-                                    cbc_MF[t,:,i,j,:] = conv_fact*cbc_tmp[:,i,j,:]/(delr[j]*delc[i])
+                                    cbc_DRN[t,i,j,:] = conv_fact*cbc_DRN_tmp[:,i,j,:]/(delr[j]*delc[i])
+                                    cbc_STO[t,i,j,:] = conv_fact*cbc_STO_tmp[:,i,j,:]/(delr[j]*delc[i])
+                                    cbc_RCH[t,i,j,:] = conv_fact*cbc_RCH_tmp[:,i,j,:]/(delr[j]*delc[i])
+                                    cbc_WEL[t,i,j,:] = conv_fact*cbc_WEL_tmp[:,i,j,:]/(delr[j]*delc[i])
                         t += 1
                 else:
                     h_MF[t,:,:,:] = h5_MF['heads'][n,:,:,:]
-                    cbc_tmp = h5_MF['cbc'][n,:,:,:,:]
+                    cbc_DRN_tmp = h5_MF['cbc'][n,iDRN,:,:,:]
+                    cbc_STO_tmp = h5_MF['cbc'][n,iSTO,:,:,:]
+                    cbc_RCH_tmp = h5_MF['cbc'][n,iRCH,:,:,:]
+                    cbc_WEL_tmp = h5_MF['cbc'][n,iWEL,:,:,:]
                     if reggrid == 1:
-                        cbc_MF[t,:,:,:,:] = conv_fact*cbc_tmp/(delr[0]*delc[0])
+                        cbc_DRN[t,:,:,:] = conv_fact*cbc_DRN_tmp[:,:,:]/(delr[0]*delc[0])
+                        cbc_STO[t,:,:,:] = conv_fact*cbc_STO_tmp[:,:,:]/(delr[0]*delc[0])
+                        cbc_RCH[t,:,:,:] = conv_fact*cbc_RCH_tmp[:,:,:]/(delr[0]*delc[0])
+                        cbc_WEL[t,:,:,:] = conv_fact*cbc_WEL_tmp[:,:,:]/(delr[0]*delc[0])
                     else:
                         for i in range(nrow):
                             for j in range(ncol):
-                                cbc_MF[t,:,i,j,:] = conv_fact*cbc_tmp[:,i,j,:]/(delr[j]*delc[i])
+                                cbc_DRN[t,i,j,:] = conv_fact*cbc_DRN_tmp[:,i,j,:]/(delr[j]*delc[i])
+                                cbc_STO[t,i,j,:] = conv_fact*cbc_STO_tmp[:,i,j,:]/(delr[j]*delc[i])
+                                cbc_RCH[t,i,j,:] = conv_fact*cbc_RCH_tmp[:,i,j,:]/(delr[j]*delc[i])
+                                cbc_WEL[t,i,j,:] = conv_fact*cbc_WEL_tmp[:,i,j,:]/(delr[j]*delc[i])
                     t += 1
-            del cbc_tmp
+            del cbc_DRN_tmp, cbc_STO_tmp, cbc_RCH_tmp, cbc_WEL_tmp
         else:
             h_MF = h5_MF['heads']
+            cbc_DRN_tmp = h5_MF['cbc'][:,iDRN,:,:,:]
+            cbc_STO_tmp = h5_MF['cbc'][:,iSTO,:,:,:]
+            cbc_RCH_tmp = h5_MF['cbc'][:,iRCH,:,:,:]
+            cbc_WEL_tmp = h5_MF['cbc'][:,iWEL,:,:,:]
             if reggrid == 1:
-                cbc_MF[:,:,:,:,:] = conv_fact*h5_MF['cbc'][:,:,:,:,:]/(delr[0]*delc[0])
+                cbc_DRN[:,:,:,:] = conv_fact*cbc_DRN_tmp[:,:,:]/(delr[0]*delc[0])
+                cbc_STO[:,:,:,:] = conv_fact*cbc_STO_tmp[:,:,:]/(delr[0]*delc[0])
+                cbc_RCH[:,:,:,:] = conv_fact*cbc_RCH_tmp[:,:,:]/(delr[0]*delc[0])
+                cbc_WEL[:,:,:,:] = conv_fact*cbc_WEL_tmp[:,:,:]/(delr[0]*delc[0])
             else:
                 cbc_tmp = h5_MF['cbc'][:,:,i,j,:]
                 for i in range(nrow):
                     for j in range(ncol):
-                        cbc_MF[:,:,i,j,:] = conv_fact*h5_MF['cbc'][:,:,:]/(delr[j]*delc[i])
-                del cbc_tmp
+                        cbc_DRN[:,i,j,:] = conv_fact*cbc_DRN_tmp[i,j,:]/(delr[0]*delc[0])
+                        cbc_STO[:,i,j,:] = conv_fact*cbc_STO_tmp[i,j,:]/(delr[0]*delc[0])
+                        cbc_RCH[:,i,j,:] = conv_fact*cbc_RCH_tmp[i,j,:]/(delr[0]*delc[0])
+                        cbc_WEL[:,i,j,:] = conv_fact*cbc_WEL_tmp[i,j,:]/(delr[0]*delc[0])
+                del cbc_DRN_tmp, cbc_STO_tmp, cbc_RCH_tmp, cbc_WEL_tmp
         h_MF_m = np.ma.masked_values(h_MF, hnoflo, atol = 0.09)
         del h_MF
         h5_MF.close()
@@ -745,7 +776,7 @@ try:
         index_cbc = [iRCH, iSTO, iDRN, iWEL]
     else:
         h_MF_m = np.zeros((sum(perlen), nrow, ncol, nlay))
-        cbc_MF = np.zeros((sum(perlen), 1, nrow, ncol, nlay))
+        cbc_DRN = cbc_STO = cbc_RCH = cbc_WEL = np.zeros((sum(perlen), nrow, ncol, nlay))
         iDRN = iSTO = iRCH = iWEL = 0
         top_array_m = np.zeros((nrow, ncol))
 
@@ -817,16 +848,20 @@ try:
         hmax = 999.9
         hmin = -999.9
     if isinstance(h5_MF_fn, str):
-        DRNmax.append(np.nanmax(-cbc_MF[:,iDRN,:,:,:]).flatten())
+        DRNmax.append(np.nanmax(-cbc_DRN).flatten())
         DRNmax = float(np.ceil(np.nanmax(DRNmax)))
-        DRNmin.append(np.nanmin(-cbc_MF[:,iDRN,:,:,:]).flatten())
+        DRNmin.append(np.nanmin(-cbc_DRN).flatten())
         DRNmin = float(np.floor(np.nanmin(DRNmin)))
-    for i in range(len(cbc_MF[0,:,0,0,0])):
-        cbcmax.append(np.nanmax(-cbc_MF[:,i,:,:,:]).flatten())
-    cbcmax = float(np.ceil(np.nanmax(cbcmax)))
-    for i in range(len(cbc_MF[0,:,0,0,0])):
-        cbcmin.append(np.nanmin(-cbc_MF[:,i,:,:,:]).flatten())
-    cbcmin = float(np.floor(np.nanmin(cbcmin)))
+        cbcmax.append(np.nanmax(-cbc_DRN).flatten())
+        cbcmax.append(np.nanmax(-cbc_STO).flatten())
+        cbcmax.append(np.nanmax(-cbc_RCH).flatten())
+        cbcmax.append(np.nanmax(-cbc_WEL).flatten())
+        cbcmin.append(np.nanmin(-cbc_DRN).flatten())
+        cbcmin.append(np.nanmin(-cbc_STO).flatten())
+        cbcmin.append(np.nanmin(-cbc_RCH).flatten())
+        cbcmin.append(np.nanmin(-cbc_WEL).flatten())
+        cbcmax = float(np.ceil(np.nanmax(cbcmax)))
+        cbcmin = float(np.floor(np.nanmin(cbcmin)))
 
     print '\nExporting ASCII files and plots...'
     # plot UNSAT/GW balance at the catchment scale
@@ -871,8 +906,11 @@ try:
                 plt_export_fn = os.path.join(MM_ws, '_plt_UNSATandGWbalances.png')
                 plt_title = 'MARMITES and MODFLOW water flux balance for the whole catchment'
                 for l in range(nlay):
+                    flxlst.append(cbc_RCH[:,:,:,l].sum()/sum(perlen)/ncell)
+                    flxlst.append(cbc_STO[:,:,:,l].sum()/sum(perlen)/ncell)
+                    flxlst.append(cbc_DRN[:,:,:,l].sum()/sum(perlen)/ncell)
+                    flxlst.append(cbc_WEL[:,:,:,l].sum()/sum(perlen)/ncell)
                     for x in range(len(index_cbc)):
-                        flxlst.append(cbc_MF[:,index_cbc[x],:,:,l].sum()/sum(perlen)/ncell)
                         flxlbl.append('GW_' + cbc_nam[index_cbc[x]] + '_L' + str(l+1))
             colors_flx = CreateColors.main(hi=0, hf=180, numbcolors = len(flxlbl))
             MMplot.plotGWbudget(flxlst = flxlst, flxlbl = flxlbl, colors_flx = colors_flx, plt_export_fn = plt_export_fn, plt_title = plt_title, fluxmax = flxmax, fluxmin = flxmin)
@@ -884,8 +922,11 @@ try:
             flxlbl = []
             flxlst = []
             for l in range(nlay):
+                flxlst.append(cbc_RCH[:,:,:,l].sum()/sum(perlen)/ncell)
+                flxlst.append(cbc_STO[:,:,:,l].sum()/sum(perlen)/ncell)
+                flxlst.append(cbc_DRN[:,:,:,l].sum()/sum(perlen)/ncell)
+                flxlst.append(cbc_WEL[:,:,:,l].sum()/sum(perlen)/ncell)
                 for x in range(len(index_cbc)):
-                    flxlst.append(cbc_MF[:,index_cbc[x],:,:,l].sum()/sum(perlen)/ncell)
                     flxlbl.append('GW_' + cbc_nam[index_cbc[x]] + '_L' + str(l+1))
             colors_flx = CreateColors.main(hi=0, hf=180, numbcolors = len(flxlbl))
             MMplot.plotGWbudget(flxlst = flxlst, flxlbl = flxlbl, colors_flx = colors_flx, plt_export_fn = plt_export_fn, plt_title = plt_title, fluxmax = cbcmax, fluxmin = cbcmin)
@@ -905,7 +946,7 @@ try:
             h_satflow = MM_SATFLOW.run(MM[:,index.get('iR')], float(obs.get(obs.keys()[o])['hi']),float(obs.get(obs.keys()[o])['h0']),float(obs.get(obs.keys()[o])['RC']),float(obs.get(obs.keys()[o])['STO']))
         # export ASCII file at piezometers location
         #TODO extract heads at piezo location and not center of cell
-            MM_PROCESS.ExportResultsMM(i, j, inputDate, _nslmax, MM, index, MM_S, index_S, -cbc_MF[:,iDRN,i,j,0], cbc_MF[:,iRCH,i,j,0], -cbc_MF[:,iWEL,i,j,0], h_satflow, h_MF_m[:,i,j,l], obs_h[o][0,:], obs_S[o], outFileExport[o], obs.keys()[o])
+            MM_PROCESS.ExportResultsMM(i, j, inputDate, _nslmax, MM, index, MM_S, index_S, -cbc_DRN[:,i,j,0], cbc_RCH[:,i,j,0], -cbc_WEL[:,i,j,0], h_satflow, h_MF_m[:,i,j,l], obs_h[o][0,:], obs_S[o], outFileExport[o], obs.keys()[o])
             outFileExport[o].close()
             MM_PROCESS.ExportResultsPEST(i, j, inputDate, _nslmax, h_MF_m[:,i,j,l], obs_h[o][0,:], obs_S[o], outPESTheads, outPESTsm, obs.keys()[o], MM_S[:,:,index_S.get('iSpc')])
             # plot
@@ -966,8 +1007,10 @@ try:
                 if isinstance(h5_MF_fn, str):
                     plt_export_fn = os.path.join(MM_ws, '_plt_'+ obs.keys()[o] + 'UNSATandGWbalances.png')
                     for l in range(nlay):
-                        for x in range(len(index_cbc)):
-                            flxlst.append(cbc_MF[:,index_cbc[x],i,j,l].sum()/sum(perlen))
+                        flxlst.append(cbc_RCH[:,i,j,l].sum()/sum(perlen))
+                        flxlst.append(cbc_STO[:,i,j,l].sum()/sum(perlen))
+                        flxlst.append(cbc_DRN[:,i,j,l].sum()/sum(perlen))
+                        flxlst.append(cbc_WEL[:,i,j,l].sum()/sum(perlen))
                 MMplot.plotGWbudget(flxlst = flxlst, flxlbl = flxlbl, colors_flx = colors_flx, plt_export_fn = plt_export_fn, plt_title = plt_title, fluxmax = flxmax, fluxmin = flxmin)
                 del flxlst
         del h_satflow
@@ -1036,12 +1079,12 @@ try:
             # plot GW drainage [mm]
             V = []
             for L in range(nlay):
-                V.append(-cbc_MF[TS,iDRN,:,:,L])
+                V.append(-cbc_DRN[TS,:,:,L])
             MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater drainage (mm/day)', msg = '- no drainage', plt_title = 'DRN', MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, Vmin = DRNmin, Vmax = DRNmax, fmt='%.3G')
             del DrnHeadsLtop, DrnHeadsLtop_m, V
         del TSlst
 
-    del cbc_MF, h_MF_m
+    del cbc_DRN, cbc_STO, cbc_RCH, cbc_WEL, h_MF_m
     del top_array_m, gridSOIL, inputDate
     del hmax, hmin, DRNmax, DRNmin, cbcmax, cbcmin
 
