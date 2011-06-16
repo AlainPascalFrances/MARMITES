@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-
 import os
 import datetime
-import numpy as np
-import matplotlib
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
+import numpy as np
 
 def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, SEEPAGE, R, Rn, Es, MB, h_MF, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin):
     """
@@ -31,7 +31,7 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     ______________________________________________________________________________
     """
 
-    monthsFmt=matplotlib.dates.DateFormatter('%y-%m-%d')
+    monthsFmt=mpl.dates.DateFormatter('%y-%m-%d')
     lblspc = 0.05
     mkscale = 0.5
 
@@ -104,7 +104,7 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     plt.grid(True)
     plt.ylabel('mm', fontsize=10)
     ax1.xaxis.set_major_formatter(monthsFmt)
-    ax1.yaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%1.1f'))
+    ax1.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%1.1f'))
 
     ax2=fig.add_subplot(10,1,2, sharex=ax1)
     plt.setp(ax2.get_xticklabels(), visible=False)
@@ -113,7 +113,7 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     plt.plot_date(DateInput,Es,'r-', c='deepskyblue', linewidth=0.75, label = 'Es')
     plt.bar(DateInput, POND, color='lightblue', linewidth=0, align = 'center', label = 'POND')
     plt.bar(DateInput, dPOND, color='blue', width=0.60, linewidth=0, align = 'center', label = r'$\Delta$POND')
-    ax2.yaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%1.1f'))
+    ax2.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%1.1f'))
     plt.xlim(DateInput[0]-1,DateInput[len(P)-1]+1)
     plt.ylabel('mm', fontsize=10)
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale)
@@ -146,7 +146,7 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     plt.grid(True)
     plt.ylabel('mm', fontsize=10)
     ax3.xaxis.set_major_formatter(monthsFmt)
-    ax3.yaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%1.1f'))
+    ax3.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%1.1f'))
 
     Tu_tot = []
     for t in Tu:
@@ -171,7 +171,7 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     plt.grid(True)
     plt.ylabel('mm', fontsize=10)
     ax4.xaxis.set_major_formatter(monthsFmt)
-    ax4.yaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%1.1f'))
+    ax4.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%1.1f'))
 
     ax5a=fig.add_subplot(20,1,9, sharex=ax1)
     plt.setp(ax5a.get_xticklabels(), visible=False)
@@ -182,7 +182,7 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     plt.xlim(DateInput[0]-1,DateInput[len(P)-1]+1)
     # y axis
     plt.ylabel('mm', fontsize=10)
-    ax5a.yaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%1.1f'))
+    ax5a.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%1.1f'))
     # legend
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale)
     leg = plt.gca().get_legend()
@@ -200,7 +200,7 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     plt.xlim(DateInput[0]-1,DateInput[len(P)-1]+1)
     # y axis
     plt.ylabel('mm', fontsize=10)
-    ax5b.yaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%1.1f'))
+    ax5b.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%1.1f'))
     # legend
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale)
     leg = plt.gca().get_legend()
@@ -225,7 +225,7 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     plt.grid(True)
     plt.ylabel('mm', fontsize=10)
     ax6.xaxis.set_major_formatter(monthsFmt)
-    ax6.yaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%1.1f'))
+    ax6.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%1.1f'))
 
     ax7=fig.add_subplot(10,1,7, sharex=ax1)
     plt.setp(ax7.get_xticklabels(), visible=False)
@@ -240,7 +240,7 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     ybuffer=0.1*(max(Sm)-min(Sr))
     plt.ylim(min(Sr) - ybuffer,max(Sm) + ybuffer)
     plt.ylabel('%', fontsize=10)
-    ax7.yaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%1.2f'))
+    ax7.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%1.2f'))
     # legend
     lbl_Spcobs = lbl_Sobs + lbl_Spc
     plt.legend(lbl_Spcobs, loc=0, labelspacing=lblspc, markerscale=mkscale)
@@ -259,7 +259,7 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     plt.plot_date(DateInput,h_SF,'-', color = 'r')
     ax8.set_xticklabels(DateInput)
     plt.xlim(DateInput[0]-1,DateInput[len(P)-1]+1)
-    ax8.yaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%.1f'))
+    ax8.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.1f'))
     ax8.xaxis.set_major_formatter(monthsFmt)
     labels=ax8.get_xticklabels()
     plt.setp(labels, 'rotation', 90)
@@ -291,7 +291,7 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8 )
     ax10.xaxis.set_major_formatter(monthsFmt)
-    ax10.yaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%.2g'))
+    ax10.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2g'))
 
     plt.subplots_adjust(left=0.05, bottom=0.10, right=0.95, top=0.95, wspace=0.1, hspace=0.1)
     plt.savefig(plt_export_fn,dpi=150)
@@ -302,7 +302,7 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
 
 ##################
 
-def plotLAYER(TS, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_title, MM_ws, interval_type = 'arange', interval_diff = 1, interval_num = 1, Vmax = 0, Vmin = 0, fmt = '%.2f'):
+def plotLAYER(TS, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_title, MM_ws, interval_type = 'arange', interval_diff = 1, interval_num = 1, Vmax = 0, Vmin = 0, fmt = '%.2f', contours = True):
 
     # Store some arrays for plotting
     x = np.arange(0.5, ncol+1.5, 1)
@@ -331,8 +331,9 @@ def plotLAYER(TS, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_title, MM_
         ax[L].yaxis.set_ticks(np.arange(1,nrow+1))
         if np.nanmax(V[L])>np.nanmin(V[L]):
             PC = plt.pcolor(xg, yg, V[L], cmap = cmap, vmin = Vmin, vmax = Vmax)
-            CS = plt.contour(xg1, yg1[::-1], V[L][::-1],ticks, colors = 'gray')
-            plt.clabel(CS, inline=1, fontsize=8, fmt=fmt, colors = 'gray')
+            if contours == True:
+                CS = plt.contour(xg1, yg1[::-1], V[L][::-1],ticks, colors = 'gray')
+                plt.clabel(CS, inline=1, fontsize=8, fmt=fmt, colors = 'gray')
             if L==nplot-1:
                 CB = plt.colorbar(PC, shrink=0.8, extend='both', ticks = ticks, format = fmt)
                 CB.set_label(CBlabel, fontsize = 8)
@@ -394,7 +395,7 @@ def plotGWbudget(flxlst, flxlbl, colors_flx, plt_export_fn, plt_title, fluxmax, 
     plt.ylabel('mm/d', fontsize=10)
     plt.grid(True)
     # fmt xaxis
-    ax1.yaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%1.2f'))
+    ax1.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%1.2f'))
     ax1.set_xticks(x+width/2)
     ax1.set_xticklabels(flxlbl)
     labels=ax1.get_xticklabels()

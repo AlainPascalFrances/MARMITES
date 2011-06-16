@@ -9,8 +9,7 @@
 # Licence:     <your licence>
 #-------------------------------------------------------------------------------
 #!/usr/bin/env python
-from matplotlib.dates import MonthLocator, DateFormatter, HourLocator
-from matplotlib.ticker import FormatStrFormatter
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import sys
 import CreateColors
@@ -23,10 +22,10 @@ def plot(strTitle = 'Title', x = [], \
 
 
 ##    if len(x)>365:
-##        locX = MonthLocator()
+##        locX = mpl.dates.MonthLocator()
 ##    else:
-##        locX = HourLocator(byhour=range(24), interval = 24)
-    monthsFmt=DateFormatter('%y-%m-%d %H:%M')
+##        locX = mpl.dates.HourLocator(byhour=range(24), interval = 24)
+    monthsFmt = mpl.dates.DateFormatter('%y-%m-%d %H:%M')
 
     colors_y3 = CreateColors.main(hi=120, hf=130, numbcolors = (len(y3)))
     colors_y4 = CreateColors.main(hi=160, hf=180, numbcolors = (len(y4)))
@@ -121,5 +120,6 @@ def plot(strTitle = 'Title', x = [], \
     plt.subplots_adjust(left=0.05, bottom=0.1, right=0.95, top=0.95, wspace=0.1, hspace=0.15)
     #plt.show()
     plt.savefig(plot_exportRF_fn,dpi=150)
-
-##############################
+    plt.close()
+# EOF
+#############################

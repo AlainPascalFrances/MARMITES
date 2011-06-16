@@ -218,6 +218,10 @@ def ppMFini(MF_ws, MF_ini_fn, out = 'MF'):
         l += 1
         ext_ddn = str(inputFile[l].strip())
         l += 1
+        hclose = float(inputFile[l].strip())
+        l += 1
+        rclose = float(inputFile[l].strip())
+        l += 1
         ext_rch = str(inputFile[l].strip())
         l += 1
         nrchop = int(inputFile[l].strip())
@@ -247,7 +251,7 @@ def ppMFini(MF_ws, MF_ini_fn, out = 'MF'):
     del inputFile
 
     if out == 'MF':
-        return modelname, namefile_ext, exe_name, dum_sssp1, ext_dis, nlay, ncol, nrow, nper, itmuni, lenuni,laycbd, delr, delc, top_fn, botm_fn, perlen, nstp, tsmult, Ss_tr, ext_bas, ibound_fn, strt_fn, hnoflo,ext_lpf, ilpfcb, hdry, nplpf, laytyp, layavg, chani, layvka, laywet, hk_fn, vka_fn, ss_fn, sy_fn,ext_oc, ihedfm, iddnfm, ext_cbc, ext_heads, ext_ddn, ext_rch, rch_user, nrchop, ext_wel, wel_user, ext_drn, drn_l1, drn_elev_fn, drn_cond_fn
+        return modelname, namefile_ext, exe_name, dum_sssp1, ext_dis, nlay, ncol, nrow, nper, itmuni, lenuni,laycbd, delr, delc, top_fn, botm_fn, perlen, nstp, tsmult, Ss_tr, ext_bas, ibound_fn, strt_fn, hnoflo,ext_lpf, ilpfcb, hdry, nplpf, laytyp, layavg, chani, layvka, laywet, hk_fn, vka_fn, ss_fn, sy_fn,ext_oc, ihedfm, iddnfm, ext_cbc, ext_heads, ext_ddn, hclose, rclose, ext_rch, rch_user, nrchop, ext_wel, wel_user, ext_drn, drn_l1, drn_elev_fn, drn_cond_fn
     elif out == 'MM':
         return nrow, ncol, delr, delc, reggrid, nlay, nper, perlen, nstp, timedef, hnoflo, hdry, laytyp, lenuni, itmuni, ibound_fn
 
@@ -522,7 +526,7 @@ def ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_MM = "", rch_user = 
     if verbose == 0:
         print '--------------'
 
-    modelname, namefile_ext, exe_name, dum_sssp1, ext_dis, nlay, ncol, nrow, nper, itmuni, lenuni,laycbd, delr, delc, top_fn, botm_fn, perlen, nstp, tsmult, Ss_tr, ext_bas, ibound_fn, strt_fn, hnoflo,ext_lpf, ilpfcb, hdry, nplpf, laytyp, layavg, chani, layvka, laywet, hk_fn, vka_fn, ss_fn, sy_fn,ext_oc, ihedfm, iddnfm, ext_cbc, ext_heads, ext_ddn, ext_rch, rch_user, nrchop, ext_wel, wel_user, ext_drn, drn_l1, drn_elev_fn, drn_cond_fn = ppMFini(MF_ws, MF_ini_fn, out = 'MF')
+    modelname, namefile_ext, exe_name, dum_sssp1, ext_dis, nlay, ncol, nrow, nper, itmuni, lenuni,laycbd, delr, delc, top_fn, botm_fn, perlen, nstp, tsmult, Ss_tr, ext_bas, ibound_fn, strt_fn, hnoflo,ext_lpf, ilpfcb, hdry, nplpf, laytyp, layavg, chani, layvka, laywet, hk_fn, vka_fn, ss_fn, sy_fn,ext_oc, ihedfm, iddnfm, ext_cbc, ext_heads, ext_ddn, hclose, rclose, ext_rch, rch_user, nrchop, ext_wel, wel_user, ext_drn, drn_l1, drn_elev_fn, drn_cond_fn = ppMFini(MF_ws, MF_ini_fn, out = 'MF')
 
     if os.path.exists(rch_MM[0]):
         rch_input = rch_MM
@@ -755,7 +759,7 @@ def ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_MM = "", rch_user = 
     oc.write_file()
     # select one of the 3 below (i.e. pcg or sip or sor)
     # preconditionned conjugate-gradient initialization
-    pcg = mf.mfpcg(mfmain, mxiter = 150, iter1=75, hclose=1e-3, rclose=1e-3, npcond = 1, relax = 1)
+    pcg = mf.mfpcg(mfmain, mxiter = 150, iter1=75, hclose=hclose, rclose=rclose, npcond = 1, relax = 1)
     pcg.write_file()
     # sip
 #    sip = mf.mfsip(mfmain, hclose=1e-3)

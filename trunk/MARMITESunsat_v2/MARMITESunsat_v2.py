@@ -328,10 +328,14 @@ class UNSAT:
         Spc=np.zeros([Ttotal,nsl], dtype=np.float)
         #Soil moisture storage changes
         dS=np.zeros([Ttotal,nsl], dtype=np.float)
+        #Total soil moisture storage changes
+        dS_tot=np.zeros([Ttotal], dtype=np.float)
         #Actual evaporation from unsaturated zone
         Eu=np.zeros([Ttotal,nsl], dtype=np.float)
         #Actual transpiration from unsaturated zone
         Tu=np.zeros([Ttotal,nsl], dtype=np.float)
+        #Total actual evapotranspiration from unsaturated zone
+        ETu_tot=np.zeros([Ttotal], dtype=np.float)
         #Actual evapotranspiration from surface
         Es=np.zeros([Ttotal], dtype=np.float)
         # GW seepage into soil zone
@@ -349,7 +353,7 @@ class UNSAT:
         # GW evapotranspiration
         ETg=np.zeros([Ttotal], dtype=np.float)
         # output arrays
-        nflux1 = 17
+        nflux1 = 19
         nflux2 = 6
         results1 = np.zeros([Ttotal,nflux1])
         results2 = np.zeros([Ttotal,nsl,nflux2])
@@ -460,16 +464,18 @@ class UNSAT:
                     dS[t,l] = (S[t,l]-S[t-1,l])
                     if l<(nsl-1):
                         RpinMB += Rp[t-1,l]
+                dS_tot[t] += dS_tot[t] + dS[t,l]
+            ETu_tot[t] = EuMB + TuMB
             MB[t]=RF[t]+PONDi+DRN[t]*cf+RpinMB-INTER[t]-Ro[t]-POND[t]-Es[t]-EuMB-TuMB-RpoutMB-sum(dS[t,:])
             # index = {'iRF':0, 'iPET':1, 'iPE':2, 'iRFe':3, 'iPOND':4, 'iRo':5, 'iSEEPAGE':6, 'iEs':7, 'iMB':8, 'iINTER':9, 'iE0':10, 'iEg':11, 'iTg':12, 'iR':13, 'iRn':14, 'idPOND':15, 'ETg':16}
-            results1[t,:] = [RF[t], PET_tot[t], PE_tot[t], RFe_tot[t], POND[t], Ro[t], DRN[t]*cf, Es[t], MB[t], INTER[t], E0[t], Eg[t], Tg[t], R[t], Rn[t], dPOND[t], ETg[t]]
+            results1[t,:] = [RF[t], PET_tot[t], PE_tot[t], RFe_tot[t], POND[t], Ro[t], DRN[t]*cf, Es[t], MB[t], INTER[t], E0[t], Eg[t], Tg[t], R[t], Rn[t], dPOND[t], ETg[t], ETu_tot[t], dS_tot[t]]
             # index_S = {'iEu':0, 'iTu':1,'iS':2, 'iRp':3}
             for l in range(nsl):
                 results2[t,l,:] = [Eu[t,l], Tu[t,l], Spc[t,l], Rp[t,l], dS[t,l], S[t,l]]
 
         return results1, results2
 
-        del RF, PET_tot, PE_tot, RFe_tot, POND, Ro, DRN, Es, MB, INTER, E0, Eg, Tg, R, Rn, dPOND, ETg
+        del RF, PET_tot, PE_tot, RFe_tot, POND, Ro, DRN, Es, MB, INTER, E0, Eg, Tg, R, Rn, dPOND, ETg, ETu_tot, dS_tot
         del Eu, Tu, Spc, Rp, dS, S
         del results1, results2
 

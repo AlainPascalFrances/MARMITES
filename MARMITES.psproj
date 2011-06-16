@@ -264,8 +264,12 @@ FileName=$[Project-Path]trunk\MARMITESutilities\MARMITESprocess.py
 ClassName=TProjectFileNode
 FileName=$[Project-Path]trunk\MARMITESutilities\Season_transition.py
 
+[Project\ChildNodes\Node0\ChildNodes\Node4\ChildNodes\Node5]
+ClassName=TProjectFileNode
+FileName=$[Project-Path]trunk\MARMITESutilities\testplot.py
+
 [Project\ChildNodes\Node0\ChildNodes\Node4\ChildNodes]
-Count=5
+Count=6
 
 [Project\ChildNodes\Node0\ChildNodes\Node5]
 ClassName=TProjectFolderNode

@@ -17,34 +17,30 @@ __author__ = "Alain P. Francés <frances.alain@gmail.com>"
 __version__ = "0.2"
 __date__ = "November 2010"
 
-import pylab
-import sys
-import traceback
-import os
-import numpy as np
-import matplotlib
+import sys, os, traceback, h5py
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
+import numpy as np
 import startMARMITESsurface as startMMsurf
 import MARMITESunsat_v2 as MMunsat
 import MARMITESprocess as MMproc
 import ppMODFLOW_flopy as ppMF
 import MARMITESplot as MMplot
 import CreateColors
-import StringIO
-import h5py
+
 
 #####################################
 
 # workspace (ws) definition
-timestart = pylab.datestr2num(pylab.datetime.datetime.today().isoformat())
-print '\n##############\nMARMITES started!\n%s\n##############' % pylab.num2date(timestart).isoformat()[:19]
+timestart = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
+print '\n##############\nMARMITES started!\n%s\n##############' % mpl.dates.num2date(timestart).isoformat()[:19]
 
 # read input file (called _input.ini in the MARMITES workspace
 # the first character on the first line has to be the character used to comment
 # the file can contain any comments as the user wish, but the sequence of the input has to be respected
-MM_ws = r'E:\00code_ws\00_TESTS\MARMITESv2_r13c6l2_REF'
-# MARMITESv2_r13c6l2   testguido
-MM_fn = '_inputMM.ini'    #   _inputMMg.ini
+MM_ws = r'E:\00code_ws\00_TESTS\MARMITESv2_r13c6l2'
+MM_fn = '_inputMM.ini'
 
 inputFile = MMproc.readFile(MM_ws,MM_fn)
 
@@ -128,7 +124,7 @@ if verbose == 0:
     s = sys.stdout
     report = open(report_fn, 'w')
     sys.stdout = report
-    print '\n##############\nMARMITES started!\n%s\n##############' % pylab.num2date(timestart).isoformat()[:19]
+    print '\n##############\nMARMITES started!\n%s\n##############' % mpl.dates.num2date(timestart).isoformat()[:19]
 else:
     report = None
 
@@ -319,14 +315,14 @@ try:
     _nslmax = max(_nsl)
 
     # indexes of the HDF5 output arrays
-    index = {'iRF':0, 'iPET':1, 'iPE':2, 'iRFe':3, 'iPOND':4, 'iRo':5, 'iSEEPAGE':6, 'iEs':7, 'iMB':8, 'iINTER':9, 'iE0':10, 'iEg':11, 'iTg':12, 'iR':13, 'iRn':14, 'idPOND':15, 'iETg':16}
+    index = {'iRF':0, 'iPET':1, 'iPE':2, 'iRFe':3, 'iPOND':4, 'iRo':5, 'iSEEPAGE':6, 'iEs':7, 'iMB':8, 'iINTER':9, 'iE0':10, 'iEg':11, 'iTg':12, 'iR':13, 'iRn':14, 'idPOND':15, 'iETg':16, 'iETu':17, 'idS':18}
     index_S = {'iEu':0, 'iTu':1,'iSpc':2, 'iRp':3, 'idS':4, 'iS':5}
 
     # #############################
     # ### 1st MODFLOW RUN with initial user-input recharge
     # #############################
     durationMF = 0.0
-    timestartMF = pylab.datestr2num(pylab.datetime.datetime.today().isoformat())
+    timestartMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
     print'\n##############'
     print 'MODFLOW RUN (initial user-input fluxes)'
     if verbose == 0:
@@ -351,7 +347,7 @@ try:
     iRCH = cbc_nam.index('RECHARGE')
     iWEL = cbc_nam.index('WELLS')
 
-    timeendMF = pylab.datestr2num(pylab.datetime.datetime.today().isoformat())
+    timeendMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
     durationMF +=  timeendMF-timestartMF
 
 except StandardError, e:  #Exception
@@ -359,7 +355,6 @@ except StandardError, e:  #Exception
     traceback.print_exc(file=sys.stdout)
     h5_MF_fn = None
 #    traceback.print_exc(limit=1, file=sys.stdout)
-
 
 # #############################
 # 2nd phase : MM/MF loop #####
@@ -567,10 +562,10 @@ try:
             LOOP += 1
             LOOPlst.append(LOOP)
             h_pSP = h_MFsum
-            if pylab.absolute(h_diff[LOOP])>0.0:
-                h_diff_log.append(pylab.log10(pylab.absolute(h_diff[LOOP])))
+            if np.absolute(h_diff[LOOP])>0.0:
+                h_diff_log.append(np.log10(np.absolute(h_diff[LOOP])))
             else:
-                h_diff_log.append(pylab.log10(convcrit))
+                h_diff_log.append(np.log10(convcrit))
             if LOOP <2:
                 print "\nInitial average heads:\n%.3f m" % h_diff[LOOP]
             else:
@@ -592,7 +587,7 @@ try:
             # MODFLOW RUN with MM-computed recharge
             h5_MF.close()
             durationMF = 0.0
-            timestartMF = pylab.datestr2num(pylab.datetime.datetime.today().isoformat())
+            timestartMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
             print'\n##############'
             print 'MODFLOW RUN (MARMITES fluxes)'
             if verbose == 0:
@@ -606,7 +601,7 @@ try:
 
             h5_MF = h5py.File(h5_MF_fn)
 
-            timeendMF = pylab.datestr2num(pylab.datetime.datetime.today().isoformat())
+            timeendMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
             durationMF += (timeendMF-timestartMF)
 
         # #############################
@@ -621,7 +616,7 @@ try:
             ax1=fig.add_subplot(3,1,1)
             plt.setp(ax1.get_xticklabels(), fontsize=8)
             plt.setp(ax1.get_yticklabels(), fontsize=8)
-            ax1.yaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%.3G'))
+            ax1.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
             plt.ylabel('h_diff\n[m]', fontsize=10, horizontalalignment = 'center')
             plt.grid(True)
             plt.plot(LOOPlst[1:], h_diff[1:], linestyle='-', marker='o', markersize=5, c = 'orange', markerfacecolor='orange', markeredgecolor='red')
@@ -629,7 +624,7 @@ try:
             ax2=fig.add_subplot(3,1,3, sharex = ax1)
             plt.setp(ax2.get_xticklabels(), fontsize=8)
             plt.setp(ax2.get_yticklabels(), fontsize=8)
-            ax2.yaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%.3G'))
+            ax2.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
             plt.ylabel('log(abs(h_diff))\n[log(m)]', fontsize=10, horizontalalignment = 'center')
             plt.grid(True)
             plt.xlabel('trial', fontsize=10)
@@ -638,15 +633,15 @@ try:
             plt.setp(ax3.get_xticklabels(), fontsize=8)
             plt.setp(ax3.get_yticklabels(), fontsize=8)
             plt.plot(LOOPlst[2:], h_diff[2:], linestyle='-', marker='o', markersize=5, c = 'orange', markerfacecolor='orange', markeredgecolor='red')
-            ax3.yaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%.3G'))
+            ax3.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
             plt.ylabel('h_diff\n[m]', fontsize=10, horizontalalignment = 'center')
         #        plt.ylabel.Text.position(0.5, -0.5)
             plt.grid(True)
-            ax2.xaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%2d'))
-            ax3.xaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%2d'))
+            ax2.xaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%2d'))
+            ax3.xaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%2d'))
         if LOOP>1:
             plt.xlim(1,LOOP)
-            ax1.xaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%2d'))
+            ax1.xaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%2d'))
             ax1.xaxis.set_ticks(LOOPlst[1:])
         plt.savefig(plt_ConvLoop_fn)
         plt.cla()
@@ -654,7 +649,7 @@ try:
         plt.close('all')
         del fig, LOOPlst, h_diff, h_diff_log
 
-        timeend = pylab.datestr2num(pylab.datetime.datetime.today().isoformat())
+        timeend = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
         duration += (timeend-timestart) -durationMF
 
         # #############################
@@ -662,7 +657,7 @@ try:
         # #############################
         h5_MF.close()
         durationMF = 0.0
-        timestartMF = pylab.datestr2num(pylab.datetime.datetime.today().isoformat())
+        timestartMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
         print'\n##############'
         print 'MODFLOW RUN (MARMITES fluxes after conv. loop)'
         if verbose == 0:
@@ -675,7 +670,7 @@ try:
 
         top_array, h5_MF_fn = ppMF.ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_MM = (h5_MM_fn, 'rch'), wel_MM = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks, MFtime_fn = MFtime_fn)
 
-        timeendMF = pylab.datestr2num(pylab.datetime.datetime.today().isoformat())
+        timeendMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
         durationMF += (timeendMF-timestartMF)
 
 except StandardError, e:  #Exception
@@ -686,6 +681,7 @@ except StandardError, e:  #Exception
 # #############################
 # 3rd phase : export results #####
 # #############################
+
 try:
     del gridVEGarea, RFzonesTS, E0zonesTS, PETvegzonesTS, RFevegzonesTS, PEsoilzonesTS
     del gridMETEO, gridSOILthick, gridPONDhmax, gridPONDw
@@ -694,7 +690,7 @@ try:
     # ###  OUTPUT EXPORT   ########
     # #############################
 
-    timestartExport = pylab.datestr2num(pylab.datetime.datetime.today().isoformat())
+    timestartExport = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
     print '\n##############\nMARMITES exporting...'
 
     # reading MF output
@@ -831,11 +827,14 @@ try:
     DRNmin = []
     cbcmax = []
     cbcmin = []
-    if obs <> None:
-        for o in range(len(obs.keys())):
-            npa_m_tmp = np.ma.masked_values(obs_h[o], hnoflo, atol = 0.09)
-            hmax.append(np.nanmax(npa_m_tmp.flatten()))
-            hmin.append(np.nanmin(npa_m_tmp.flatten()))
+    try:
+        if obs <> None:
+            for o in range(len(obs.keys())):
+                npa_m_tmp = np.ma.masked_values(obs_h[o], hnoflo, atol = 0.09)
+                hmax.append(np.nanmax(npa_m_tmp.flatten()))
+                hmin.append(np.nanmin(npa_m_tmp.flatten()))
+    except:
+        pass
     try:
         hmax.append(np.nanmax(h_MF_m[:,:,:,:].flatten()))
         hmin.append(np.nanmin(h_MF_m[:,:,:,:].flatten()))
@@ -862,6 +861,9 @@ try:
         cbcmin.append(np.nanmin(-cbc_WEL).flatten())
         cbcmax = float(np.ceil(np.nanmax(cbcmax)))
         cbcmin = float(np.floor(np.nanmin(cbcmin)))
+    else:
+        DRNmax = cbcmax = 1
+        DRNmin = cbcmin = -1
 
     print '\nExporting ASCII files and plots...'
     # plot UNSAT/GW balance at the catchment scale
@@ -870,10 +872,10 @@ try:
             h5_MM = h5py.File(h5_MM_fn, 'r')
             plt_export_fn = os.path.join(MM_ws, '_plt_UNSATbalance.png')
             plt_title = 'MARMITES water flux balance for the whole catchment'
-            flxlbl = ['RF', 'INTER', 'SEEPAGE', 'dPOND', 'Ro', 'Es']
-            flxlbl1 = ['dS', 'Eu', 'Tu']
-            flxlbl2 = ['R', 'Rn', 'Eg', 'Tg', 'ETg']
-            sign = [1,-1,1,1,-1,-1,1,-1,-1,-1,-1,-1,-1,-1]
+            flxlbl = ['RF', 'INTER', 'SEEPAGE', 'dPOND', 'Ro', 'Es', 'dS']
+            flxlbl1 = ['Eu', 'Tu']
+            flxlbl2 = ['ETu', 'R', 'Rn', 'Eg', 'Tg', 'ETg']
+            sign = [1,-1,1,1,-1,-1,1,-1,-1,-1,-1,-1,-1,-1,-1]
             flxlst = []
             flxmax = []
             flxmin = []
@@ -996,9 +998,10 @@ try:
                      MM[:,index.get('idPOND')].sum()/sum(perlen),
                     -MM[:,index.get('iRo')].sum()/sum(perlen),
                     -MM[:,index.get('iEs')].sum()/sum(perlen),
-                     MM_S[:,:,index_S.get('idS')].sum()/sum(perlen),
+                     MM[:,index.get('idS')].sum()/sum(perlen),
                     -MM_S[:,:,index_S.get('iEu')].sum()/sum(perlen),
                     -MM_S[:,:,index_S.get('iTu')].sum()/sum(perlen),
+                    -MM[:,index.get('iETu')].sum()/sum(perlen),
                     -MM[:,index.get('iR')].sum()/sum(perlen),
                     -MM[:,index.get('iRn')].sum()/sum(perlen),
                     -MM[:,index.get('iEg')].sum()/sum(perlen),
@@ -1013,19 +1016,18 @@ try:
                         flxlst.append(cbc_WEL[:,i,j,l].sum()/sum(perlen))
                 MMplot.plotGWbudget(flxlst = flxlst, flxlbl = flxlbl, colors_flx = colors_flx, plt_export_fn = plt_export_fn, plt_title = plt_title, fluxmax = flxmax, fluxmin = flxmin)
                 del flxlst
-        del h_satflow
+        del h_satflow, MM, MM_S
         h5_MM.close()
         # output for PEST
         outPESTheads.close()
         outPESTsm.close()
         del obs, obs_h, obs_S
-    del MM_PROCESS
+    del MM_PROCESS, cbc_STO, cbc_RCH, cbc_WEL
 
     # plot MM output
     if plot_out == 1 and os.path.exists(h5_MM_fn):
-        h5_MM = h5py.File(h5_MM_fn, 'r')
-        flxlbl = ['RF', 'INTER', 'SEEPAGE', 'dPOND', 'Ro', 'Es', 'R', 'Rn', 'Eg', 'Tg', 'ETg']
-        flxlbl1 = ['dS', 'Eu', 'Tu']
+        #h5_MM = h5py.File(h5_MM_fn, 'r')
+        flxlbl = ['RF', 'INTER', 'SEEPAGE', 'dPOND', 'Ro', 'Es', 'R', 'Rn', 'Eg', 'Tg', 'ETg', 'ETu', 'dS']
         TSlst = []
         TS = 0
         while TS < sum(perlen):
@@ -1037,21 +1039,46 @@ try:
             # plot average for the whole simulated period
             TS=0
             i1 = 'i'+i
+            h5_MM = h5py.File(h5_MM_fn, 'r')
             MM = h5_MM['MM'][:,:,:,index.get(i1)]
+            h5_MM.close()
+            #print
+            #print i
             V = [np.ma.masked_values(MM, hnoflo, atol = 0.09)]
             V[0] = np.add.accumulate(V[0], axis = 0)[len(perlen)-1,:,:]/sum(perlen)
             Vmax = np.nanmax(V[0]) #float(np.ceil(np.nanmax(V)))
             Vmin = np.nanmin(V[0]) #float(np.floor(np.nanmin(V)))
             if Vmax<>0.0 or Vmin<>0.0:
-                MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i + ' (mm/day)'), msg = 'no flux', plt_title = ('MM_'+i + '_average'), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/10, Vmax = Vmax, Vmin = Vmin)
+                MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i + ' (mm/day)'), msg = 'no flux', plt_title = ('MM_' + 'average_' + i), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/10, Vmax = Vmax, Vmin = Vmin, contours = False)
             del V
             for TS in TSlst:
                 V = [np.ma.masked_values(MM[TS,:,:], hnoflo, atol = 0.09)]
                 if Vmax<>0.0 or Vmin<>0.0:
-                    MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i + ' (mm/day)'), msg = 'no flux', plt_title = ('MM_'+i), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/10, Vmax = Vmax, Vmin = Vmin)
+                    MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i + ' (mm/day)'), msg = 'no flux', plt_title = ('MM_'+i), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/10, Vmax = Vmax, Vmin = Vmin, contours = False)
             del V, MM
-        h5_MM.close()
-        del TSlst, flxlbl, flxlbl1, i, i1
+        flxlbl = ['Eu', 'Tu']
+        for i in flxlbl:
+            # plot average for the whole simulated period
+            TS=0
+            i1 = 'i'+i
+            h5_MM = h5py.File(h5_MM_fn, 'r')
+            MM = h5_MM['MM_S'][:,:,:,:,index_S.get(i1)]
+            h5_MM.close()
+            V = [np.ma.masked_values(MM, hnoflo, atol = 0.09)]
+            V[0] = np.add.accumulate(V[0], axis = 0)[:,:,:,_nslmax-1]
+            V[0] = np.add.accumulate(V[0], axis = 0)[len(perlen)-1,:,:]/sum(perlen)
+            Vmax = np.nanmax(V[0]) #float(np.ceil(np.nanmax(V)))
+            Vmin = np.nanmin(V[0]) #float(np.floor(np.nanmin(V)))
+            if Vmax<>0.0 or Vmin<>0.0:
+                MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i + ' (mm/day)'), msg = 'no flux', plt_title = ('MM_'+i + '_average'), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/10, Vmax = Vmax, Vmin = Vmin, contours = False)
+            del V
+            for TS in TSlst:
+                V = [np.ma.masked_values(MM[TS,:,:], hnoflo, atol = 0.09)]
+                V[0] = np.add.accumulate(V[0], axis = 0)[:,:,_nslmax-1]
+                if Vmax<>0.0 or Vmin<>0.0:
+                    MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i + ' (mm/day)'), msg = 'no flux', plt_title = ('MM_'+i), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/10, Vmax = Vmax, Vmin = Vmin, contours = False)
+            del V, MM
+        del TSlst, flxlbl, i, i1
 
     # plot MF output
     if plot_out == 1 and isinstance(h5_MF_fn, str):
@@ -1084,11 +1111,11 @@ try:
             del DrnHeadsLtop, DrnHeadsLtop_m, V
         del TSlst
 
-    del cbc_DRN, cbc_STO, cbc_RCH, cbc_WEL, h_MF_m
+    del h_MF_m, cbc_DRN
     del top_array_m, gridSOIL, inputDate
     del hmax, hmin, DRNmax, DRNmin, cbcmax, cbcmin
 
-    timeendExport = pylab.datestr2num(pylab.datetime.datetime.today().isoformat())
+    timeendExport = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
     durationExport=(timeendExport-timestartExport)
 
     # final report of successful run
@@ -1113,7 +1140,7 @@ except StandardError, e:  #Exception
 if verbose == 0:
     sys.stdout = s
     report.close()
-    print '\nMARMITES terminated!\n%s\n' % pylab.datetime.datetime.today().isoformat()[:19]
+    print '\nMARMITES terminated!\n%s\n' % mpl.dates.datetime.datetime.today().isoformat()[:19]
     del s
     try:
         h5_MM.close()

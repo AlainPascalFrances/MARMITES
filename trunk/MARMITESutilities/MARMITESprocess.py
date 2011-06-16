@@ -402,9 +402,11 @@ class PROCESS:
                 else:
                     obsOutput[l,:] = np.ones([len(inputDate)])*self.hnoflo
         else:
-            for i in range(len(inputDate)):
-                for l in range(len(obsValue)):
-                    obsOutput[l,i]=self.hnoflo
+            if _nslmax>0:
+                obsOutput = np.zeros([_nslmax,len(inputDate)], dtype=float)
+            else:
+                obsOutput = np.zeros([1,len(inputDate)], dtype=float)
+            obsOutput[:,:] = self.hnoflo
         return obsOutput
         del inputDate, obsOutput
 
