@@ -17,13 +17,8 @@ __author__ = "Alain P. Francés <frances08512@itc.nl>"
 __version__ = "0.1"
 __date__ = "November 2010"
 
-import pylab
-import sys
-import os
-#import time
-#import wx
-#import struct
-#import types
+import sys, os
+import matplotlib as mpl
 import numpy as np
 import startMARMITESsurface as startMMsurf
 import MARMITESunsat_v1 as MARMunsat
@@ -33,7 +28,7 @@ import ppMODFLOW_flopy as ppMF
 #try:
 
 # workspace (ws) definition
-timestart = pylab.datestr2num(pylab.datetime.datetime.today().isoformat())
+timestart = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
 print '\nMARMITES starteeeeeeeeeeed!!!\n##############'
 
 messagemanual="Please read the manual!\n(that by the way still doesn't exist...)"
@@ -655,7 +650,7 @@ if obsCHECK == 1:
     outPESTsm.close()
 
 # final report of successful run
-timeend = pylab.datestr2num(pylab.datetime.datetime.today().isoformat())
+timeend = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
 duration=(timeend-timestart)
 print ('\n############### REPORT ####################\nMARMITES executed successfully!')
 print ('%s time steps\n%sx%s cells (rows x cols)') % (int(sum(perlen)),str(nrow),str(ncol))

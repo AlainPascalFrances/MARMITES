@@ -67,7 +67,7 @@ def PET_PM_FAO56():
     return
 
 import numpy as np
-import pylab
+import matplotlib as mpl
 from sys import path
 
 '''
@@ -176,11 +176,11 @@ def process(datenum = np.array([]), datenum_d = np.array([])
     J = []
     time = []
     for t in range(len(datenum)):
-        YYYY.append(float('%4d'%pylab.num2date(datenum[t]).year))
-        MM.append(float('%02d'%pylab.num2date(datenum[t]).month))
-        DD.append(float('%02d'%pylab.num2date(datenum[t]).day))
-        HH.append('%02d'%pylab.num2date(datenum[t]).hour)
-        MN.append('%02d'%pylab.num2date(datenum[t]).minute)
+        YYYY.append(float('%4d'%mpl.dates.num2date(datenum[t]).year))
+        MM.append(float('%02d'%mpl.dates.num2date(datenum[t]).month))
+        DD.append(float('%02d'%mpl.dates.num2date(datenum[t]).day))
+        HH.append('%02d'%mpl.dates.num2date(datenum[t]).hour)
+        MN.append('%02d'%mpl.dates.num2date(datenum[t]).minute)
         J.append(DD[t] - 32 + int(275*MM[t]/9) + 2 * int(3/(MM[t] + 1)) + int(MM[t]/100-np.mod(YYYY[t],4)/4+0.975) )
         time.append(HH[t]+':' + MN[t])
 
@@ -196,14 +196,14 @@ def process(datenum = np.array([]), datenum_d = np.array([])
     # FAO56 pag47 Eq23
     dr = []
     for j in range(len(J)):
-        dr.append(1+0.033*pylab.cos(2*np.pi*J[j]/365))
+        dr.append(1+0.033*np.cos(2*np.pi*J[j]/365))
 
     # compute delta - solar declination
     # [rad]
     # FAO56 pag47 Eq24
     delta = []
     for j in range(len(J)):
-        delta.append(0.409*pylab.sin(2*np.pi*J[j]/365-1.39))
+        delta.append(0.409*np.sin(2*np.pi*J[j]/365-1.39))
 
     # compute Sc - seasonnal correction for solar time
     # [hour]
@@ -211,7 +211,7 @@ def process(datenum = np.array([]), datenum_d = np.array([])
     Sc = []
     for j in range(len(J)):
         b = 2*np.pi*(J[j]-81)/364    # Eq 34
-        Sc.append(0.1645*pylab.sin(2*b) - 0.1255*pylab.cos(b) - 0.025*pylab.sin(b))
+        Sc.append(0.1645*np.sin(2*b) - 0.1255*np.cos(b) - 0.025*np.sin(b))
 
     # compute w - solar time angle at the midpoint of the period (time)
     # [rad]
@@ -242,7 +242,7 @@ def process(datenum = np.array([]), datenum_d = np.array([])
     # FAO56 pag47 Eq25
     ws = []
     for j in range(len(J)):
-        ws.append(pylab.arccos(-pylab.tan(phi*np.pi/180)*pylab.tan(delta[j])))
+        ws.append(np.arccos(-np.tan(phi*np.pi/180)*np.tan(delta[j])))
 
     # compute Ra - extraterrestrial radiation
     # [MJ.m-2.hour-1]
@@ -257,8 +257,8 @@ def process(datenum = np.array([]), datenum_d = np.array([])
             if w1[j] >  ws[j] : w1[j] =  ws[j]
             if w2[j] >  ws[j] : w2[j] =  ws[j]
         Ra.append((12*60/np.pi)*Gsc*dr[j]* \
-              ((w2[j]-w1[j])*pylab.sin(phi*np.pi/180)*pylab.sin(delta[j]) + \
-               pylab.cos(phi*np.pi/180)*pylab.cos(delta[j])*(pylab.sin(w2[j])-pylab.sin(w1[j]))))
+              ((w2[j]-w1[j])*np.sin(phi*np.pi/180)*np.sin(delta[j]) + \
+               np.cos(phi*np.pi/180)*np.cos(delta[j])*(np.sin(w2[j])-np.sin(w1[j]))))
         Ra_Watts.append(Ra[j]*24/0.08864)
 
     # compute Rs0 - clear-sky solar (shortwave) radiation
@@ -391,10 +391,10 @@ def process(datenum = np.array([]), datenum_d = np.array([])
                 r.append(0.75) #see FAO56 pag75
         else:
             r.append(Rs_corr[j]/Rs0[j])
-        Rnl.append(sigma*pow(Ta[j] + 273.16,4)*(0.34-0.14*pylab.sqrt(e_a[j]))*(1.35*r[j]-0.35))
+        Rnl.append(sigma*pow(Ta[j] + 273.16,4)*(0.34-0.14*np.sqrt(e_a[j]))*(1.35*r[j]-0.35))
 ##        if Rnl[j]<0:
 ##            r=0.8
-##            Rnl[j] = sigma*pow(Ta[j] + 273.16,4)*(0.34-0.14*pylab.sqrt(e_a[j]))*(1.35*r-0.35)
+##            Rnl[j] = sigma*pow(Ta[j] + 273.16,4)*(0.34-0.14*np.sqrt(e_a[j]))*(1.35*r-0.35)
     print "\nRnl computed!"
 
     # compute G - SOIL HEAT FLUX
@@ -526,13 +526,13 @@ def process(datenum = np.array([]), datenum_d = np.array([])
         if u_z_m[j]<=0.0:
             u_z_m[j] = 1E-9
         if z_m <> 2.0:
-            u_2.append(u_z_m[j] * 4.87 / (pylab.log(67.8*z_m-5.42)))
+            u_2.append(u_z_m[j] * 4.87 / (np.log(67.8*z_m-5.42)))
         else:
             u_2.append(u_z_m[j])
         if u_2[j]<=0.0:
             u_2[j] = 1E-9
         for v in range(NVEG):
-            u_hplus2[v].append(u_2[j] * (pylab.log(67.8*(h[v]+2.0)-5.42)) / 4.87)
+            u_hplus2[v].append(u_2[j] * (np.log(67.8*(h[v]+2.0)-5.42)) / 4.87)
 
     # r_a - AERODYNAMIC RESISTANCE
     # [s.m-1]
@@ -542,9 +542,9 @@ def process(datenum = np.array([]), datenum_d = np.array([])
             r_a_j=[]
             for j in range(len(J)):
                     if v == 0:      # FAO56 pag20 eq4- (d - zero displacement plane, z_0m - roughness length momentum transfer, z_0h - roughness length heat and vapour transfer, [m], FAO56 pag21 BOX4
-                        r_a_j.append(pylab.log((2-(2*h[v]/3))/(0.123*h[v]))*pylab.log((2-(2*h[v]/3))/(0.0123*h[v]))/(pow(k,2)*u_2[j]))
+                        r_a_j.append(np.log((2-(2*h[v]/3))/(0.123*h[v]))*np.log((2-(2*h[v]/3))/(0.0123*h[v]))/(pow(k,2)*u_2[j]))
                     else:           # DINGMAN pag 296
-                        r_a_j.append(pow(pylab.log((h[v]+2-(0.7*h[v]))/(0.1*h[v])),2)/(pow(k,2)*u_hplus2[v][j]))
+                        r_a_j.append(pow(np.log((h[v]+2-(0.7*h[v]))/(0.1*h[v])),2)/(pow(k,2)*u_hplus2[v][j]))
             r_a_VEG.append(r_a_j)
 ##    if NVEG>0:
 ##        for v in range(NVEG):
@@ -575,7 +575,7 @@ def process(datenum = np.array([]), datenum_d = np.array([])
 ##                        if u_z_m[j] == 0.0:
 ##                            r_a_j.append(1.0E6)
 ##                        else:
-##                            r_a_j.append(pylab.log((z_m-d[v])/z_0m[v])*pylab.log((z_h-d[v])/z_0h[v])/(pow(k,2)*u_z_m[j]))
+##                            r_a_j.append(np.log((z_m-d[v])/z_0m[v])*np.log((z_h-d[v])/z_0h[v])/(pow(k,2)*u_z_m[j]))
 ##                    r_a_VEG.append(r_a_j)
     # r_a for SOIL
     # Liu www.hydrol-earth-syst-sci.net/11/769/2007/
@@ -583,14 +583,14 @@ def process(datenum = np.array([]), datenum_d = np.array([])
     # only function of ws, it is assumed that roughness are the same for any type of soil
     if NSOIL > 0:
         for j in range(len(J)):
-              r_a_SOIL.append(pylab.log((2.0)/0.0058)*pylab.log(2.0/0.0058)/(pow(k,2)*u_2[j]))
+              r_a_SOIL.append(np.log((2.0)/0.0058)*np.log(2.0/0.0058)/(pow(k,2)*u_2[j]))
 ##    # BavelHillel_PotActualEvaporationBareSoilSurface_1976
 ##    # SOIL ra = ([ln(2.0/Z0)]^2)/(0.16*U2) with Z0 = 0.01
 ##    r_a_SOIL = []
 ##    Z0 = 0.01
 ##    if NSOIL > 0:
 ##        for j in range(len(J)):
-##            r_a_SOIL.append(pow(pylab.log(2.0/Z0),2)/(0.16*u_2[j]))
+##            r_a_SOIL.append(pow(np.log(2.0/Z0),2)/(0.16*u_2[j]))
     print "\nr_a computed!"
 
     # equation variables for outputs
@@ -669,10 +669,10 @@ def process(datenum = np.array([]), datenum_d = np.array([])
     t_d = 0
     n1 = 0
     n1_d = []
-    actual_day = pylab.num2date(datenum[0]).isoformat()[:10]
+    actual_day = mpl.dates.num2date(datenum[0]).isoformat()[:10]
     J_d.append(J[0])
     for t in range(len(datenum)):
-        if actual_day == pylab.num2date(datenum[t]).isoformat()[:10]:
+        if actual_day == mpl.dates.num2date(datenum[t]).isoformat()[:10]:
             n1 = n1 + 1
             for v in range(NVEG):
                 PET_PM_VEG_d[v][t_d] = PET_PM_VEG_d[v][t_d] + PET_PM_VEG[v][t]
@@ -688,7 +688,7 @@ def process(datenum = np.array([]), datenum_d = np.array([])
             n1_d.append(n1+1)
             n1 = 0
             t_d = t_d + 1
-            actual_day = pylab.num2date(datenum[t]).isoformat()[:10]
+            actual_day = mpl.dates.num2date(datenum[t]).isoformat()[:10]
             J_d.append(J[t])
             for v in range(NVEG):
                 PET_PM_VEG_d[v][t_d] = PET_PM_VEG[v][t]
@@ -741,7 +741,7 @@ def process(datenum = np.array([]), datenum_d = np.array([])
         avErf_sat=[]
         for v in range(NVEG):
             avErf_sat.append(sum(Erf_sat[v])/len(Erf_sat[v]))
-            Pgl[v] = -avRF_sat*(S[v]/c)*pylab.log(1-avErf_sat[v]/avRF_sat)/avErf_sat[v]
+            Pgl[v] = -avRF_sat*(S[v]/c)*np.log(1-avErf_sat[v]/avRF_sat)/avErf_sat[v]
             print '\nVegetation type ' + str(v)  + ' (' + VegType[v] + ')'
             print 'Erf average during RF = ' + '%.4f' %avErf_sat[v] + ' mm/h (' + str(len(Erf_sat[v]))   + ' values)'
             print 'RF treshold to saturate the canopy (Pgl) = ' + '%.2f' %Pgl[v]

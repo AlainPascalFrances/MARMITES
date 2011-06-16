@@ -34,7 +34,6 @@ __date__ = "November 2010"
 
 import os
 import numpy as np
-import pylab
 
 class UNSAT:
 
@@ -136,7 +135,7 @@ class UNSAT:
             if (s_tmp-Sfc)<=1E-6:
                 rp_tmp = 0.0
             elif (s_tmp-Sfc)>1E-6:
-                rp_tmp = SWe*(1-(pylab.exp(-1/TTperc)))
+                rp_tmp = SWe*(1-(np.exp(-1/TTperc)))
                 # verify the vol. available in deeper soil layer
                 if rp_tmp-(Sm_sp1 - s_lp1)>1E-6:
                     rp_tmp = Sm_sp1 - s_lp1
@@ -272,7 +271,7 @@ class UNSAT:
             if dtwt<=dll:
                 Egtmp = PE
             elif dtwt>0.0:
-                Egtmp = PE*(y0 + pylab.exp(-b*(dtwt-dll)))
+                Egtmp = PE*(y0 + np.exp(-b*(dtwt-dll)))
             else:
                 Egtmp = 0.0
             if Egtmp/PE < 0.5/100.0:

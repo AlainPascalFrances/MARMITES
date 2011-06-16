@@ -11,7 +11,7 @@
 #!/usr/bin/env python
 
 import matplotlib.pyplot as plt
-import pylab
+import numpy as np
 import sys
 import CreateColors
 
@@ -23,7 +23,7 @@ def Eg(PE, y0, b, dtwt, dll):
     if dtwt<=dll:
         Eg_tmp = PE
     else:
-        Eg_tmp = PE*(y0 + pylab.exp(-b*(dtwt-dll)))
+        Eg_tmp = PE*(y0 + np.exp(-b*(dtwt-dll)))
     if Eg_tmp/PE < 0.5/100:
         Eg_tmp = 0.0
     return Eg_tmp

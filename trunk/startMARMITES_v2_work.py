@@ -11,7 +11,7 @@
 #-------------------------------------------------------------------------------
 #!/usr/bin/env python
 
-""" See info in MARMITESunsat.py"""
+""" See info in MARMITESunsat_v2.py"""
 
 __author__ = "Alain P. Francés <frances.alain@gmail.com>"
 __version__ = "0.2"
@@ -19,7 +19,8 @@ __date__ = "November 2010"
 
 import sys, os, traceback, h5py
 import matplotlib as mpl
-mpl.use('Agg')
+if mpl.get_backend<>'agg':
+    mpl.use('agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import startMARMITESsurface as startMMsurf

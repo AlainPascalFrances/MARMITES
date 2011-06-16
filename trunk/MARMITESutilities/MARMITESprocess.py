@@ -6,7 +6,7 @@ __date__ = "November 2010"
 
 import os
 import numpy as np
-import pylab
+import matplotlib as mpl
 import sys
 
 def readFile(ws, fn):
@@ -132,7 +132,7 @@ class PROCESS:
         if os.path.exists(inputDate_fn):
             inputDate=np.loadtxt(inputDate_fn, dtype = str)
             inputDate = inputDate[:,0]
-            inputDate = pylab.datestr2num(inputDate)
+            inputDate = mpl.dates.datestr2num(inputDate)
             for i in range(1,len(inputDate)):
                 #__________________Check date consistency________________#
                 difDay=inputDate[i]-inputDate[i-1]
@@ -372,7 +372,7 @@ class PROCESS:
         if os.path.exists(filename):
             try:
                 obsData=np.loadtxt(filename, dtype = str)
-                obsDate = pylab.datestr2num(obsData[:,0])
+                obsDate = mpl.dates.datestr2num(obsData[:,0])
                 obsValue = []
                 for l in range(1,len(obsData[0])):
                     obsValue.append(obsData[:,l].astype(float))
@@ -448,9 +448,9 @@ class PROCESS:
         OUTPUT:      output.txt
         """
         for t in range(len(inputDate)):
-            year='%4d'%pylab.num2date(inputDate[t]).year
-            month='%02d'%pylab.num2date(inputDate[t]).month
-            day='%02d'%pylab.num2date(inputDate[t]).day
+            year='%4d'%mpl.dates.num2date(inputDate[t]).year
+            month='%02d'%mpl.dates.num2date(inputDate[t]).month
+            day='%02d'%mpl.dates.num2date(inputDate[t]).day
             date=(day+"/"+month+"/"+year)
             # header='Date,RF,E0,PET,PE,RFe,Inter,'+Eu_str+Tu_str+'Eg,Tg,ETg,WEL_MF,Es,'+S_str+Spc_str+dS_str+'dPOND,POND,Ro,SEEPAGE,DRN_MF,'+Rp_str+'R,Rn,R_MF,hSATFLOW,hMF,hmeas,' + Smeasout + 'MB\n'
             Sout = ''
@@ -471,7 +471,7 @@ class PROCESS:
                     Smeasout = Smeasout + str(obs_S[t,l]) + ','
                 except:
                     Smeasout = Smeasout + str(self.hnoflo) + ','
-            out_date = pylab.num2date(inputDate[t]).isoformat()[:10]
+            out_date = mpl.dates.num2date(inputDate[t]).isoformat()[:10]
             out1 = '%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[t,index.get('iRF')], results[t,index.get('iE0')],results[t,index.get('iPET')],results[t,index.get('iPE')],results[t,index.get('iRFe')],results[t,index.get('iINTER')])
             out2 = '%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[t,index.get('iEg')], results[t,index.get('iTg')],results[t,index.get('iETg')], WEL[t], results[t,index.get('iEs')])
             out3 = '%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[t,index.get('idPOND')],results[t,index.get('iPOND')],results[t,index.get('iRo')],results[t,index.get('iSEEPAGE')],DRN[t])
@@ -489,9 +489,9 @@ class PROCESS:
         OUTPUT:      output.txt
         """
         for t in range(len(inputDate)):
-            year='%4d'%pylab.num2date(inputDate[t]).year
-            month='%02d'%pylab.num2date(inputDate[t]).month
-            day='%02d'%pylab.num2date(inputDate[t]).day
+            year='%4d'%mpl.dates.num2date(inputDate[t]).year
+            month='%02d'%mpl.dates.num2date(inputDate[t]).month
+            day='%02d'%mpl.dates.num2date(inputDate[t]).day
             date=(day+"/"+month+"/"+year)
             if obs_h[t]!=self.hnoflo:
                 obs_h_tmp = str(obs_h[t])

@@ -11,10 +11,9 @@
 #-------------------------------------------------------------------------------
 #!/usr/bin/env python
 
-import sys
-import os
+import sys, os
+import matplotlib as mpl
 import numpy as np
-import pylab
 import PET_RF_INTER, plotPET, plotRF
 import MARMITESprocess as MMproc
 
@@ -142,17 +141,17 @@ def MMsurf(inputFOLDER_fn, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, pat
         INPUT:      output fluxes time series, date, Julian day, etc... and open file
         """
         for t in range(len(Dates)):
-            year='%4d'%pylab.num2date(Dates[t]).year
-            month='%02d'%pylab.num2date(Dates[t]).month
-            day='%02d'%pylab.num2date(Dates[t]).day
-            hour='%02d'%pylab.num2date(Dates[t]).hour
-            minute='%02d'%pylab.num2date(Dates[t]).minute
+            year='%4d'%mpl.dates.num2date(Dates[t]).year
+            month='%02d'%mpl.dates.num2date(Dates[t]).month
+            day='%02d'%mpl.dates.num2date(Dates[t]).day
+            hour='%02d'%mpl.dates.num2date(Dates[t]).hour
+            minute='%02d'%mpl.dates.num2date(Dates[t]).minute
             date_t=(year + "-" + month + "-" + day + " " + hour + ":" + minute)
             if TypeFile == "PET":
                 if ts_output == 0:
-                    out_line =  date_t, ', ', '%3d'% J[t], ",", '%14.9G' %TS[t],'\n'  #pylab.num2date(Dates[t]).isoformat()[:10]
+                    out_line =  date_t, ', ', '%3d'% J[t], ",", '%14.9G' %TS[t],'\n'  #mpl.dates.num2date(Dates[t]).isoformat()[:10]
                 else:
-                    out_line =  date_t, ', ', '%3d'% J[t], ",", '%14.9G' %TS[t], ",",'%2d'% n_d[t],'\n'  #pylab.num2date(Dates[t]).isoformat()[:10]
+                    out_line =  date_t, ', ', '%3d'% J[t], ",", '%14.9G' %TS[t], ",",'%2d'% n_d[t],'\n'  #mpl.dates.num2date(Dates[t]).isoformat()[:10]
             elif TypeFile == "VAR":
                 out_line =  date_t, ', ', '%3d'% J[t], ",", '%14.9G' %TS[0][t], ',', '%14.9G' %TS[1][t], ',', '%14.9G' %TS[2][t], ',', '%14.9G' %TS[3][t],',', '%14.9G' %TS[4][t],',', '%14.9G' %TS[5][t],',', '%14.9G' %TS[6][t],'\n'
             elif TypeFile == "RF":
@@ -312,9 +311,9 @@ def MMsurf(inputFOLDER_fn, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, pat
             datetime = []
             datenum_d = []
             datetime_i = (date[0] + " " + time[0])
-            datenum_i = pylab.datestr2num(datetime_i)-(DTS[0])/24.0
-            actual_day = pylab.num2date(datenum_i).isoformat()[:10]
-            datenum_d.append(pylab.datestr2num(actual_day))
+            datenum_i = mpl.dates.datestr2num(datetime_i)-(DTS[0])/24.0
+            actual_day = mpl.dates.num2date(datenum_i).isoformat()[:10]
+            datenum_d.append(mpl.dates.datestr2num(actual_day))
             RF1 = []
             Ta1 = []
             RHa1 = []
@@ -344,9 +343,9 @@ def MMsurf(inputFOLDER_fn, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, pat
                     for t in range(len(Ta1[n])):
                         if n == 0:
                             datetime.append(date[t] + " " + time[t])
-                            datenum.append(pylab.datestr2num(datetime[t])-(DTS[0])/24.0)
+                            datenum.append(mpl.dates.datestr2num(datetime[t])-(DTS[0])/24.0)
                             if actual_day <> date[t]:
-                                datenum_d.append(pylab.datestr2num(date[t]))
+                                datenum_d.append(mpl.dates.datestr2num(date[t]))
                                 actual_day = date[t]
                         RF[n].append(float(RF1[n][t]))
                         Ta[n].append(float(Ta1[n][t]))
