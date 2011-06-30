@@ -246,13 +246,13 @@ class PROCESS:
         # Soils parameter initialisation
         nam_soil=[]
         nsl=[]
-        st=[]
+        st =[]
         slprop=[]
-        Sm=[]
+        Sm =[]
         Sfc=[]
-        Sr=[]
-        Si=[]
-        Ks=[]
+        Sr =[]
+        Si =[]
+        Ks =[]
 
         # soil parameters file
         inputFile = readFile(MM_ws,SOILparam_fn)
@@ -264,7 +264,7 @@ class PROCESS:
         for i in range(SOILzones):
             nsl.append(int(inputFile[i+1]))
             if nsl[i+1]<2:
-                raise InputError, '\nERROR!\nThe model requires at least one soil layer and one layer in the unsaturated zone.\nMARMITEs only found %2d layer in soil %s' % (nsl[i+1],nam_soil[z])
+                raise ValueError, '\nERROR!\nThe model requires at least one soil layer and one layer in the unsaturated zone.\nMARMITEs only found %2d layer in soil %s' % (nsl[i+1],nam_soil[z])
 
         # soil parameter definition for each soil type
         nslst = SOILzones+1
@@ -461,9 +461,9 @@ class PROCESS:
             Tuout=''
             Smeasout = ''
             for l in range(_nslmax):
-                Sout = Sout + str(results_S[t,l,index_S.get('iS')]) + ','
-                Spcout = Spcout + str(results_S[t,l,index_S.get('iSpc')]) + ','
-                dSout = dSout + str(results_S[t,l,index_S.get('idS')]) + ','
+                Sout = Sout + str(results_S[t,l,index_S.get('iSu')]) + ','
+                Spcout = Spcout + str(results_S[t,l,index_S.get('iSu_pc')]) + ','
+                dSout = dSout + str(results_S[t,l,index_S.get('idSu')]) + ','
                 Rpout = Rpout + str(results_S[t,l,index_S.get('iRp')]) + ','
                 Euout = Euout + str(results_S[t,l,index_S.get('iEu')]) + ','
                 Tuout = Tuout + str(results_S[t,l,index_S.get('iTu')]) + ','
@@ -472,9 +472,9 @@ class PROCESS:
                 except:
                     Smeasout = Smeasout + str(self.hnoflo) + ','
             out_date = mpl.dates.num2date(inputDate[t]).isoformat()[:10]
-            out1 = '%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[t,index.get('iRF')], results[t,index.get('iE0')],results[t,index.get('iPET')],results[t,index.get('iPE')],results[t,index.get('iRFe')],results[t,index.get('iINTER')])
+            out1 = '%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[t,index.get('iRF')], results[t,index.get('iE0')],results[t,index.get('iPET')],results[t,index.get('iPE')],results[t,index.get('iRFe')],results[t,index.get('iI')])
             out2 = '%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[t,index.get('iEg')], results[t,index.get('iTg')],results[t,index.get('iETg')], WEL[t], results[t,index.get('iEs')])
-            out3 = '%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[t,index.get('idPOND')],results[t,index.get('iPOND')],results[t,index.get('iRo')],results[t,index.get('iSEEPAGE')],DRN[t])
+            out3 = '%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[t,index.get('idSs')],results[t,index.get('iSs')],results[t,index.get('iRo')],results[t,index.get('iDRN')],DRN[t])
             out4 = '%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[t,index.get('iR')], results[t,index.get('iRn')], RCH[t], h_satflow[t],heads_MF[t],obs_h[t])
             out5 = '%.8f' % (results[t,index.get('iMB')])
             out_line =  out_date, ',', out1, Euout, Tuout, out2, Sout, Spcout, dSout, out3, Rpout, out4, Smeasout, out5, '\n'

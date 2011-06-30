@@ -312,12 +312,12 @@ try:
      ) # IRR_fn
 
     # SOIL PARAMETERS
-    _nsl, _nam_soil, _st, _slprop, _Sm, _Sfc, _Sr, _Si, _Ks = MM_PROCESS.inputSoilParam(MM_ws = MM_ws, SOILparam_fn = SOILparam_fn, NSOIL = NSOIL)
+    _nsl, _nam_soil, _st, _slprop, _Sm, _Sfc, _Sr, _Sui, _Ks = MM_PROCESS.inputSoilParam(MM_ws = MM_ws, SOILparam_fn = SOILparam_fn, NSOIL = NSOIL)
     _nslmax = max(_nsl)
 
     # indexes of the HDF5 output arrays
-    index = {'iRF':0, 'iPET':1, 'iPE':2, 'iRFe':3, 'iPOND':4, 'iRo':5, 'iSEEPAGE':6, 'iEs':7, 'iMB':8, 'iINTER':9, 'iE0':10, 'iEg':11, 'iTg':12, 'iR':13, 'iRn':14, 'idPOND':15, 'iETg':16, 'iETu':17, 'idS':18}
-    index_S = {'iEu':0, 'iTu':1,'iSpc':2, 'iRp':3, 'idS':4, 'iS':5}
+    index = {'iRF':0, 'iPET':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iDRN':6, 'iEs':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'iR':13, 'iRn':14, 'idSs':15, 'iETg':16, 'iETu':17, 'idSu':18}
+    index_S = {'iEu':0, 'iTu':1,'iSu_pc':2, 'iRp':3, 'idSu':4, 'iSu':5}
 
     # #############################
     # ### 1st MODFLOW RUN with initial user-input recharge
@@ -387,7 +387,7 @@ try:
             print 'MARMITESunsat RUN'
 
             # SOIL PARAMETERS
-            _nsl, _nam_soil, _st, _slprop, _Sm, _Sfc, _Sr, _Si, _Ks = MM_PROCESS.inputSoilParam(MM_ws = MM_ws, SOILparam_fn = SOILparam_fn, NSOIL = NSOIL)
+            _nsl, _nam_soil, _st, _slprop, _Sm, _Sfc, _Sr, _Sui, _Ks = MM_PROCESS.inputSoilParam(MM_ws = MM_ws, SOILparam_fn = SOILparam_fn, NSOIL = NSOIL)
             _nslmax = max(_nsl)
 
             # ###############
@@ -418,10 +418,10 @@ try:
             print '\nComputing...'
 
             # initial values of SP
-            Si_tmp_array = np.zeros([nrow,ncol,_nslmax], dtype=float)
+            Sui_tmp_array = np.zeros([nrow,ncol,_nslmax], dtype=float)
             Rpi_tmp_array = np.zeros([nrow,ncol,_nslmax], dtype=float)
-            PONDi_tmp_array = np.zeros([nrow,ncol], dtype=float)
-            DRNi_tmp_array = np.zeros([nrow,ncol], dtype=float)
+            Ssi_tmp_array = np.zeros([nrow,ncol], dtype=float)
+            #DRNi_tmp_array = np.zeros([nrow,ncol], dtype=float)
             for n in range(nper):
                 tstart_MM = 0
                 for t in range(n):
@@ -449,16 +449,16 @@ try:
                             Sm_tmp    = _Sm[SOILzone_tmp]
                             Sfc_tmp   = _Sfc[SOILzone_tmp]
                             Sr_tmp    = _Sr[SOILzone_tmp]
-                            Si_tmp = []
+                            Sui_tmp = []
                             if n==0:
                                 for l in range(nsl_tmp):
-                                    Si_tmp.append(_Si[SOILzone_tmp][l])
-                                PONDi  = 0.0
-                                DRNi = 0.0
+                                    Sui_tmp.append(_Sui[SOILzone_tmp][l])
+                                Ssi  = 0.0
+                                #DRNi = 0.0
                             else:
-                                Si_tmp = Si_tmp_array[i,j,:]
-                                PONDi  = PONDi_tmp_array[i,j]
-                                DRNi  = DRNi_tmp_array[i,j]
+                                Sui_tmp = Sui_tmp_array[i,j,:]
+                                Ssi  = Ssi_tmp_array[i,j]
+                                #DRNi  = DRNi_tmp_array[i,j]
                             Rpi_tmp = Rpi_tmp_array[i,j,:]
                             Ks_tmp    = _Ks[SOILzone_tmp]
                             PONDm_tmp = 1000*1.12*gridPONDhmax[i,j]*gridPONDw[i,j]/delr[j]
@@ -492,8 +492,8 @@ try:
                                                          Sm      = Sm_tmp,
                                                          Sfc     = Sfc_tmp,
                                                          Sr      = Sr_tmp,
-                                                         Si      = Si_tmp,
-                                                         PONDi   = PONDi,
+                                                         Si     = Sui_tmp,
+                                                         PONDi     = Ssi,
                                                          Rpi     = Rpi_tmp,
                                                          D       = D_tmp,
                                                          Ks      = Ks_tmp,
@@ -503,7 +503,6 @@ try:
                                                          HEADS   = h_MF_tmp,
                                                          DRN     = drn_MF_tmp,
                                                          cf      = conv_fact_tmp,
-                                                         DRNi    = DRNi,
                                                          RF      = RFzonesTS[METEOzone_tmp][tstart_MF:tend_MF],
                                                          E0      = E0zonesTS[METEOzone_tmp][tstart_MF:tend_MF],
                                                          PETveg  = PETvegzonesTS_tmp,
@@ -535,11 +534,10 @@ try:
                             MM_ETg[i,j] = MM_tmp[:,index.get('iETg')].sum()/(nstp[n]*conv_fact)
                             del MM_tmp, MM_S_tmp
                             # setting initial conditions for the next SP
-                            #  for l in range(nsl_tmp):
-                            Si_tmp_array[i,j,:] = MM_S[nstp[n]-1,i,j,:,index_S.get('iSpc')]
+                            Sui_tmp_array[i,j,:] = MM_S[nstp[n]-1,i,j,:,index_S.get('iSu_pc')]
                             Rpi_tmp_array[i,j,:] = MM_S[nstp[n]-1,i,j,:,index_S.get('iRp')]
-                            PONDi_tmp_array[i,j] = MM[nstp[n]-1,i,j,index.get('iPOND')]
-                            DRNi_tmp_array[i,j]  = drn_MF_tmp[-1]
+                            Ssi_tmp_array[i,j] = MM[nstp[n]-1,i,j,index.get('iSs')]
+                            #DRNi_tmp_array[i,j]  = drn_MF_tmp[-1]
                         else:
                             if perlen[n]>1:
                                 MM[:,i,j,:] = hnoflo
@@ -610,8 +608,8 @@ try:
         # #############################
 
         # export loop plot
-        print'\n##############'
-        print 'Exporting plot of the convergence loop...'
+#        print'\n##############'
+#        print 'Exporting plot of the convergence loop...'
         fig = plt.figure()
         if LOOP>0:
             ax1=fig.add_subplot(3,1,1)
@@ -795,22 +793,22 @@ try:
             outFileExport = []
             for o in range(len(obs.keys())):
                 outFileExport.append(open(outpathname[o], 'w'))
-                S_str=''
-                Spc_str=''
-                dS_str=''
+                Su_str=''
+                Supc_str=''
+                dSu_str=''
                 Rp_str=''
                 Eu_str=''
                 Tu_str=''
                 Smeasout = ''
                 for l in range(_nslmax):
-                    S_str = S_str + 'S_l' + str(l+1) + ','
-                    Spc_str = Spc_str + 'Spc_l' + str(l+1) + ','
-                    dS_str = dS_str + 'dS_l' + str(l+1) + ','
+                    Su_str = Su_str + 'Su_l' + str(l+1) + ','
+                    Supc_str = Supc_str + 'Supc_l' + str(l+1) + ','
+                    dSu_str = dSu_str + 'dSu_l' + str(l+1) + ','
                     Eu_str = Eu_str + 'Eu_l' + str(l+1) + ','
                     Tu_str = Tu_str + 'Tu_l' + str(l+1) + ','
                     Rp_str = Rp_str + 'Rp_l' + str(l+1) + ','
                     Smeasout = Smeasout + 'Smeas_' + str(l+1) + ','
-                header='Date,RF,E0,PET,PE,RFe,Inter,'+Eu_str+Tu_str+'Eg,Tg,ETg,WEL_MF,Es,'+S_str+Spc_str+dS_str+'dPOND,POND,Ro,SEEPAGE,DRN_MF,'+Rp_str+'R,Rn,R_MF,hSATFLOW,hMF,hmeas,' + Smeasout + 'MB\n'
+                header='Date,RF,E0,PET,PE,RFe,I,'+Eu_str+Tu_str+'Eg,Tg,ETg,WEL_MF,Es,'+Su_str+Supc_str+dSu_str+'dSs,Ss,Ro,DRN,DRN_MF,'+Rp_str+'R,Rn,R_MF,hSATFLOW,hMF,hmeas,' + Smeasout + 'MB\n'
                 outFileExport[o].write(header)
             outPESTheads_fn      = 'PESTheads.dat'
             outPESTsm_fn         = 'PESTsm.dat'
@@ -873,7 +871,7 @@ try:
             h5_MM = h5py.File(h5_MM_fn, 'r')
             plt_export_fn = os.path.join(MM_ws, '_plt_UNSATbalance.png')
             plt_title = 'MARMITES water flux balance for the whole catchment'
-            flxlbl = ['RF', 'INTER', 'SEEPAGE', 'dPOND', 'Ro', 'Es', 'dS']
+            flxlbl = ['RF', 'I', 'DRN', 'dSs', 'Ro', 'Es', 'dSu']
             flxlbl1 = ['Eu', 'Tu']
             flxlbl2 = ['ETu', 'R', 'Rn', 'Eg', 'Tg', 'ETg']
             sign = [1,-1,1,1,-1,-1,1,-1,-1,-1,-1,-1,-1,-1,-1]
@@ -951,32 +949,32 @@ try:
         #TODO extract heads at piezo location and not center of cell
             MM_PROCESS.ExportResultsMM(i, j, inputDate, _nslmax, MM, index, MM_S, index_S, -cbc_DRN[:,i,j,0], cbc_RCH[:,i,j,0], -cbc_WEL[:,i,j,0], h_satflow, h_MF_m[:,i,j,l], obs_h[o][0,:], obs_S[o], outFileExport[o], obs.keys()[o])
             outFileExport[o].close()
-            MM_PROCESS.ExportResultsPEST(i, j, inputDate, _nslmax, h_MF_m[:,i,j,l], obs_h[o][0,:], obs_S[o], outPESTheads, outPESTsm, obs.keys()[o], MM_S[:,:,index_S.get('iSpc')])
+            MM_PROCESS.ExportResultsPEST(i, j, inputDate, _nslmax, h_MF_m[:,i,j,l], obs_h[o][0,:], obs_S[o], outPESTheads, outPESTsm, obs.keys()[o], MM_S[:,:,index_S.get('iSu_pc')])
             # plot
             if plot_out == 1:
                 plt_title = obs.keys()[o]
-                # DateInput, P, PET, Pe, POND, dPOND, Ro, ETa, S, Rp, R, h, hmeas, Smeas, Sm, Sr):
-                # index = {'iRF':0, 'iPET':1, 'iPE':2, 'iRFe':3, 'iPOND':4, 'iRo':5, 'iSEEPAGE':6, 'iEs':7, 'iMB':8, 'iINTER':9, 'iE0':10, 'iEg':11, 'iTg':12, 'iR':13, 'iRn':14, 'idPOND':15, 'iETg':16}
+                # DateInput, P, PET, Pe, Ss, dSs, Ro, ETa, S, Rp, R, h, hmeas, Smeas, Sm, Sr):
+                # index = {'iRF':0, 'iPET':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iSEEPAGE':6, 'iEs':7, 'iMB':8, 'iINTER':9, 'iE0':10, 'iEg':11, 'iTg':12, 'iR':13, 'iRn':14, 'idSs':15, 'iETg':16}
                 plt_export_fn = os.path.join(MM_ws, '_plt_'+ obs.keys()[o] + '.png')
-                # def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, SEEPAGE, R, Rn, Es, MB, h_MF, h_SF, hmeas, Smeas, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin):
+                # def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, SEEPAGE, R, Rn, Es, MB, h_MF, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin):
                 MMplot.allPLOT(
                 inputDate,
                 MM[:,index.get('iRF')],
                 MM[:,index.get('iPET')],
                 MM[:,index.get('iPE')],
                 MM[:,index.get('iRFe')],
-                MM[:,index.get('idPOND')],
-                MM[:,index.get('iPOND')],
+                MM[:,index.get('idSs')],
+                MM[:,index.get('iSs')],
                 MM[:,index.get('iRo')],
                 MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('iEu')],
                 MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('iTu')],
                 MM[:,index.get('iEg')],
                 MM[:,index.get('iTg')],
-                MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('iS')],
-                MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('idS')],
-                MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('iSpc')],
+                MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('iSu')],
+                MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('idSu')],
+                MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('iSu_pc')],
                 MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('iRp')],
-                MM[:,index.get('iSEEPAGE')],
+                MM[:,index.get('iDRN')],
                 MM[:,index.get('iR')],
                 MM[:,index.get('iRn')],
                 MM[:,index.get('iEs')],
@@ -994,12 +992,12 @@ try:
                 # plot water balance at each obs. cell
                 plt_export_fn = os.path.join(MM_ws, '_plt_'+ obs.keys()[o] + 'UNSATbalance.png')
                 flxlst =[MM[:,index.get('iRF')].sum()/sum(perlen),
-                    -MM[:,index.get('iINTER')].sum()/sum(perlen),
-                     MM[:,index.get('iSEEPAGE')].sum()/sum(perlen),
-                     MM[:,index.get('idPOND')].sum()/sum(perlen),
+                    -MM[:,index.get('iI')].sum()/sum(perlen),
+                     MM[:,index.get('iDRN')].sum()/sum(perlen),
+                     MM[:,index.get('idSs')].sum()/sum(perlen),
                     -MM[:,index.get('iRo')].sum()/sum(perlen),
                     -MM[:,index.get('iEs')].sum()/sum(perlen),
-                     MM[:,index.get('idS')].sum()/sum(perlen),
+                     MM[:,index.get('idSu')].sum()/sum(perlen),
                     -MM_S[:,:,index_S.get('iEu')].sum()/sum(perlen),
                     -MM_S[:,:,index_S.get('iTu')].sum()/sum(perlen),
                     -MM[:,index.get('iETu')].sum()/sum(perlen),
@@ -1028,13 +1026,16 @@ try:
     # plot MM output
     if plot_out == 1 and os.path.exists(h5_MM_fn):
         #h5_MM = h5py.File(h5_MM_fn, 'r')
-        flxlbl = ['RF', 'INTER', 'SEEPAGE', 'dPOND', 'Ro', 'Es', 'R', 'Rn', 'Eg', 'Tg', 'ETg', 'ETu', 'dS']
+        flxlbl = ['RF', 'RFe', 'I', 'DRN', 'dSs', 'Ro', 'Es', 'R', 'Rn', 'Eg', 'Tg', 'ETg', 'ETu', 'dSu']
         TSlst = []
         TS = 0
         while TS < sum(perlen):
             TSlst.append(TS)
             TS += plot_freq
         TSlst.append(sum(perlen)-1)
+        nrange = 5
+        ctrs = True
+        ntick = 5
         # plot at time interval
         for i in flxlbl:
             # plot average for the whole simulated period
@@ -1043,19 +1044,23 @@ try:
             h5_MM = h5py.File(h5_MM_fn, 'r')
             MM = h5_MM['MM'][:,:,:,index.get(i1)]
             h5_MM.close()
-            #print
-            #print i
             V = [np.ma.masked_values(MM, hnoflo, atol = 0.09)]
             V[0] = np.add.accumulate(V[0], axis = 0)[len(perlen)-1,:,:]/sum(perlen)
             Vmax = np.nanmax(V[0]) #float(np.ceil(np.nanmax(V)))
             Vmin = np.nanmin(V[0]) #float(np.floor(np.nanmin(V)))
+            if i == 'dSu':
+                i_lbl = '$\Delta$Su' #'$\Delta$S$_{u}'
+            elif i == 'dSs':
+                i_lbl = '$\Delta$Ss'
+            else:
+                i_lbl = i
             if Vmax<>0.0 or Vmin<>0.0:
-                MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i + ' (mm/day)'), msg = 'no flux', plt_title = ('MM_' + 'average_' + i), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/10, Vmax = Vmax, Vmin = Vmin, contours = False)
+                MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i_lbl + ' (mm/day)'), msg = 'no flux', plt_title = ('MM_' + 'average_' + i), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrange, Vmax = Vmax, Vmin = Vmin, contours = ctrs, ntick = ntick)
             del V
             for TS in TSlst:
                 V = [np.ma.masked_values(MM[TS,:,:], hnoflo, atol = 0.09)]
                 if Vmax<>0.0 or Vmin<>0.0:
-                    MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i + ' (mm/day)'), msg = 'no flux', plt_title = ('MM_'+i), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/10, Vmax = Vmax, Vmin = Vmin, contours = False)
+                    MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i + ' (mm/day)'), msg = 'no flux', plt_title = ('MM_'+i), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrange, Vmax = Vmax, Vmin = Vmin, contours = ctrs, ntick = ntick)
             del V, MM
         flxlbl = ['Eu', 'Tu']
         for i in flxlbl:
@@ -1066,18 +1071,18 @@ try:
             MM = h5_MM['MM_S'][:,:,:,:,index_S.get(i1)]
             h5_MM.close()
             V = [np.ma.masked_values(MM, hnoflo, atol = 0.09)]
-            V[0] = np.add.accumulate(V[0], axis = 0)[:,:,:,_nslmax-1]
+            V[0] = np.add.accumulate(V[0], axis = 3)[:,:,:,_nslmax-1]
             V[0] = np.add.accumulate(V[0], axis = 0)[len(perlen)-1,:,:]/sum(perlen)
             Vmax = np.nanmax(V[0]) #float(np.ceil(np.nanmax(V)))
             Vmin = np.nanmin(V[0]) #float(np.floor(np.nanmin(V)))
             if Vmax<>0.0 or Vmin<>0.0:
-                MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i + ' (mm/day)'), msg = 'no flux', plt_title = ('MM_'+i + '_average'), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/10, Vmax = Vmax, Vmin = Vmin, contours = False)
+                MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i + ' (mm/day)'), msg = 'no flux', plt_title = ('MM_'+ 'average_' + i), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrange, Vmax = Vmax, Vmin = Vmin, contours = ctrs, ntick = ntick)
             del V
             for TS in TSlst:
                 V = [np.ma.masked_values(MM[TS,:,:], hnoflo, atol = 0.09)]
-                V[0] = np.add.accumulate(V[0], axis = 0)[:,:,_nslmax-1]
+                V[0] = np.add.accumulate(V[0], axis = 2)[:,:,_nslmax-1]
                 if Vmax<>0.0 or Vmin<>0.0:
-                    MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i + ' (mm/day)'), msg = 'no flux', plt_title = ('MM_'+i), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/10, Vmax = Vmax, Vmin = Vmin, contours = False)
+                    MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i + ' (mm/day)'), msg = 'no flux', plt_title = ('MM_'+i), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrange, Vmax = Vmax, Vmin = Vmin, contours = ctrs, ntick = ntick)
             del V, MM
         del TSlst, flxlbl, i, i1
 
@@ -1095,7 +1100,7 @@ try:
             V=[]
             for L in range(nlay):
                 V.append(h_MF_m[TS,:,:,L])
-            MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation (m)', msg = 'DRY', plt_title = 'HEADS', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (hmax - hmin)/10, Vmax = hmax, Vmin = hmin)
+            MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation (m)', msg = 'DRY', plt_title = 'HEADS', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (hmax - hmin)/10, Vmax = hmax, Vmin = hmin, ntick = ntick)
             del V
             # plot diff between drain elevation and heads elevation [m]
             DrnHeadsLtop = top_array_m - h_MF_m[TS,:,:,0]
@@ -1103,12 +1108,12 @@ try:
             V = [DrnHeadsLtop_m]
             diffMin = 0
             diffMax = np.nanmin(DrnHeadsLtop_m)
-            MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = 1, V = V,  cmap = plt.cm.RdYlGn, CBlabel = 'diff. between DRN elev and hyd. heads elev. (m)', msg = ' - no drainage/elevation difference', plt_title = 'HEADSDRNdiff', MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, Vmax = diffMin, Vmin = diffMax, fmt='%.3G')
+            MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = 1, V = V,  cmap = plt.cm.RdYlGn, CBlabel = 'diff. between DRN elev and hyd. heads elev. (m)', msg = ' - no drainage/elevation difference', plt_title = 'HEADSDRNdiff', MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, Vmax = diffMin, Vmin = diffMax, fmt='%.3G', ntick = ntick)
             # plot GW drainage [mm]
             V = []
             for L in range(nlay):
                 V.append(-cbc_DRN[TS,:,:,L])
-            MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater drainage (mm/day)', msg = '- no drainage', plt_title = 'DRN', MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, Vmin = DRNmin, Vmax = DRNmax, fmt='%.3G')
+            MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater drainage (mm/day)', msg = '- no drainage', plt_title = 'DRN', MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, Vmin = DRNmin, Vmax = DRNmax, fmt='%.3G', ntick = ntick)
             del DrnHeadsLtop, DrnHeadsLtop_m, V
         del TSlst
 
