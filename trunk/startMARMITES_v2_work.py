@@ -195,8 +195,8 @@ try:
     l=0
     TRANS_vdw = []
     Zr = []
-    k_Tu_slp = []
-    k_Tu_inter = []
+    kTu_min = []
+    kTu_n = []
     TRANS_sdw = []
     try:
         NMETEO = int(inputFile[l].strip())
@@ -227,11 +227,11 @@ try:
         l += 1
         line = inputFile[l].split()
         for v in range(NVEG):
-            k_Tu_slp.append(float(line[v]))
+            kTu_min.append(float(line[v]))
         l += 1
         line = inputFile[l].split()
         for v in range(NVEG):
-            k_Tu_inter.append(float(line[v]))
+            kTu_n.append(float(line[v]))
         l += 1
         line = inputFile[l].split()
         for v in range(NSOIL):
@@ -499,7 +499,7 @@ try:
                                                          Ks      = Ks_tmp,
                                                          PONDm   = PONDm_tmp,
                                                          PONDratio = PONDratio,
-                                                         ELEV    = top_array[i,j],
+                                                         TopAquif = top_array[i,j],
                                                          HEADS   = h_MF_tmp,
                                                          DRN     = drn_MF_tmp,
                                                          cf      = conv_fact_tmp,
@@ -510,10 +510,11 @@ try:
                                                          PEsoil  = PEsoilzonesTS_tmp,
                                                          VEGarea = VEGarea_tmp,
                                                          Zr      = Zr,
-                                                         nstp  = nstp[n],
+                                                         nstp    = nstp[n],
+                                                         perlen  = perlen[n],
                                                          hdry    = hdry,
-                                                         k_Tu_slp = k_Tu_slp,
-                                                         k_Tu_inter = k_Tu_inter)
+                                                         kTu_min = kTu_min,
+                                                         kTu_n = kTu_n)
                             if (perlen[n]/nstp[n])>1:
                                 for stp in range(nstp[n]):
                                     ts = perlen[n]/nstp[n]
@@ -880,25 +881,23 @@ try:
             flxmin = []
             for i in flxlbl:
                 i = 'i'+i
-                tmp = h5_MM['MM'][:,:,:,index.get(i)]
-                tmp = np.ma.masked_values(tmp, hnoflo, atol = 0.09).sum()/sum(perlen)/ncell
-                flxlst.append(tmp)
+                flxlst.append(np.ma.masked_values(h5_MM['MM'][:,:,:,index.get(i)], hnoflo, atol = 0.09).sum()/sum(perlen)/ncell)
             for i in flxlbl1:
+                tmp = 0.0
                 flxlbl.append(i)
                 i = 'i'+i
-                tmp = h5_MM['MM_S'][:,:,:,:,index_S.get(i)]
-                tmp = np.ma.masked_values(tmp, hnoflo, atol = 0.09).sum()/sum(perlen)/ncell
-                flxlst.append(tmp)
+                for l in range(_nslmax):
+                    tmp += np.ma.masked_values(h5_MM['MM_S'][:,:,:,l,index_S.get(i)], hnoflo, atol = 0.09).sum()
+                flxlst.append(tmp/sum(perlen)/ncell)
+                del tmp
             for i in flxlbl2:
                 flxlbl.append(i)
                 i = 'i'+i
-                tmp = h5_MM['MM'][:,:,:,index.get(i)]
-                tmp = np.ma.masked_values(tmp, hnoflo, atol = 0.09).sum()/sum(perlen)/ncell
-                flxlst.append(tmp)
+                flxlst.append(np.ma.masked_values(h5_MM['MM'][:,:,:,index.get(i)], hnoflo, atol = 0.09).sum()/sum(perlen)/ncell)
             h5_MM.close()
             for l, (x,y) in enumerate(zip(flxlst, sign)):
                 flxlst[l] = x*y
-            del tmp, flxlbl1, flxlbl2
+            del flxlbl1, flxlbl2, sign
             flxmax = float(np.ceil(np.nanmax(flxlst)))
             flxmin = float(np.floor(np.nanmin(flxlst)))
             flxmax = 1.15*max(cbcmax, flxmax)
@@ -1024,6 +1023,9 @@ try:
     del MM_PROCESS, cbc_STO, cbc_RCH, cbc_WEL
 
     # plot MM output
+    nrange = 5
+    ctrs = True
+    ntick = 5
     if plot_out == 1 and os.path.exists(h5_MM_fn):
         #h5_MM = h5py.File(h5_MM_fn, 'r')
         flxlbl = ['RF', 'RFe', 'I', 'DRN', 'dSs', 'Ro', 'Es', 'R', 'Rn', 'Eg', 'Tg', 'ETg', 'ETu', 'dSu']
@@ -1033,9 +1035,6 @@ try:
             TSlst.append(TS)
             TS += plot_freq
         TSlst.append(sum(perlen)-1)
-        nrange = 5
-        ctrs = True
-        ntick = 5
         # plot at time interval
         for i in flxlbl:
             # plot average for the whole simulated period
@@ -1067,19 +1066,25 @@ try:
             # plot average for the whole simulated period
             TS=0
             i1 = 'i'+i
-            h5_MM = h5py.File(h5_MM_fn, 'r')
-            MM = h5_MM['MM_S'][:,:,:,:,index_S.get(i1)]
-            h5_MM.close()
-            V = [np.ma.masked_values(MM, hnoflo, atol = 0.09)]
-            V[0] = np.add.accumulate(V[0], axis = 3)[:,:,:,_nslmax-1]
-            V[0] = np.add.accumulate(V[0], axis = 0)[len(perlen)-1,:,:]/sum(perlen)
+            V = [np.zeros([nrow,ncol])]
+            for l in range(_nslmax):
+                h5_MM = h5py.File(h5_MM_fn, 'r')
+                MM = h5_MM['MM_S'][:,:,:,l,index_S.get(i1)]
+                h5_MM.close()
+                V1 = np.ma.masked_values(MM, hnoflo, atol = 0.09)
+                V1 = np.add.accumulate(V1, axis = 0)[len(perlen)-1,:,:]/sum(perlen)
+                V += V1
+            del V1
             Vmax = np.nanmax(V[0]) #float(np.ceil(np.nanmax(V)))
             Vmin = np.nanmin(V[0]) #float(np.floor(np.nanmin(V)))
             if Vmax<>0.0 or Vmin<>0.0:
                 MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i + ' (mm/day)'), msg = 'no flux', plt_title = ('MM_'+ 'average_' + i), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrange, Vmax = Vmax, Vmin = Vmin, contours = ctrs, ntick = ntick)
             del V
             for TS in TSlst:
-                V = [np.ma.masked_values(MM[TS,:,:], hnoflo, atol = 0.09)]
+                h5_MM = h5py.File(h5_MM_fn, 'r')
+                MM = h5_MM['MM_S'][TS,:,:,:,index_S.get(i1)]
+                h5_MM.close()
+                V = [np.ma.masked_values(MM[:,:,:], hnoflo, atol = 0.09)]
                 V[0] = np.add.accumulate(V[0], axis = 2)[:,:,_nslmax-1]
                 if Vmax<>0.0 or Vmin<>0.0:
                     MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i + ' (mm/day)'), msg = 'no flux', plt_title = ('MM_'+i), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrange, Vmax = Vmax, Vmin = Vmin, contours = ctrs, ntick = ntick)
@@ -1087,6 +1092,9 @@ try:
         del TSlst, flxlbl, i, i1
 
     # plot MF output
+    nrange = 25
+    ctrs = True
+    ntick = 10
     if plot_out == 1 and isinstance(h5_MF_fn, str):
         # plot heads (grid + contours), DRN, etc... at specified TS
         TSlst = []
@@ -1100,7 +1108,7 @@ try:
             V=[]
             for L in range(nlay):
                 V.append(h_MF_m[TS,:,:,L])
-            MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation (m)', msg = 'DRY', plt_title = 'HEADS', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (hmax - hmin)/10, Vmax = hmax, Vmin = hmin, ntick = ntick)
+            MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation (m)', msg = 'DRY', plt_title = 'HEADS', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (hmax - hmin)/nrange, Vmax = hmax, Vmin = hmin, ntick = ntick)
             del V
             # plot diff between drain elevation and heads elevation [m]
             DrnHeadsLtop = top_array_m - h_MF_m[TS,:,:,0]

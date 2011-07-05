@@ -87,17 +87,16 @@ import MARMITESprocess as MMproc
     # 11 - J_vw: starting julian day of the wet season [int 1-365]
     # 12 - TRANS_vdw: transition period between dry and wet season [days]
     # 13 - Zr: maximum root depth [m]
-    # 14 - k_Tu_d: dry season transpiration sourcing factor [], 1>=k_Tu>0
-    # 15 - k_Tu_w: wet season transpiration sourcing factor [], 1>=k_Tu>0
+    # 14 - kTu_min: transpiration sourcing factor min [], 1>=k_Tu>0
+    # 15 - kTu_n: transpiration sourcing factor power value [], n>0
     # BY DEFAULT THE PROGRAM WILL COMPUTE ETref USING GRASS FAO56 PARAMETERS
-    # grassFAO56 0.12 0.1 0.01 2.88 2.88 0.5 0.5 0.23 0.23 150 270 20 0.25 1.0 1.0
+    # grassFAO56 0.12 0.1 0.01 2.88 2.88 0.5 0.5 0.23 0.23 150 270 20 0.25 0.0 1.0
     # VEG1 (grass muelledes)
     grassMU 0.5 0.15 0.01 1.2 2.88 0.5 0.55 0.30 0.20 150 270 20 0.40 1.0 1.0
     # VEG2 (Q.ilex Sardon)
-    Qilex 6.0 1.16 0.004 6.0 6.0 0.75 0.70 0.25 0.10 150 270 20 6.0 0.2 0.9
+    Qilex 6.0 1.16 0.004 6.0 6.0 0.75 0.70 0.25 0.10 150 270 20 6.0 0.05 2.0
     # VEG3 (Q.pyr sardon)
-    Qpyr 8.0 1.75 0.004 6.0 1.0 0.80 0.3 0.25 0.15 150 270 20 4.0 0.5 0.9
-
+    Qpyr 8.0 1.75 0.004 6.0 1.0 0.80 0.3 0.25 0.15 150 270 20 4.0 0.05 2.0
 
     # SOIL PARAMETERS
     # NSOIL: number of soil types
@@ -226,8 +225,8 @@ def MMsurf(inputFOLDER_fn, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, pat
         J_vw = [] # starting julian day of the wet season [int 1-365]
         TRANS_vdw = [] # transition period between dry and wet season [days]
         Zr = [] # maximum root depth [m]
-        k_Tu_d = [] # dry season transpiration sourcing factor [], 1>=k_Tu>0
-        k_Tu_w = [] # wet season transpiration sourcing factor [], 1>=k_Tu>0
+        kTu_min = [] #transpiration sourcing factor min [], 1>=k_Tu>0
+        kTu_n = [] # transpiration sourcing factor power value [], n>0
         # input FAO56 grass parameters
         VegType.append("grassFAO56")
         h.append(0.12)
@@ -243,8 +242,8 @@ def MMsurf(inputFOLDER_fn, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, pat
         J_vw.append(270)
         TRANS_vdw.append(20)
         Zr.append(0.25)
-        k_Tu_d.append(1.0)
-        k_Tu_w.append(1.0)
+        kTu_min.append(1.0)
+        kTu_n.append(1.0)
         if NVEG>0:
             for i in range(NVEG):
                 l = l + 1
@@ -263,8 +262,8 @@ def MMsurf(inputFOLDER_fn, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, pat
                 J_vw.append(int(line[11]))
                 TRANS_vdw.append(int(line[12]))
                 Zr.append(float(line[13]))
-                k_Tu_d.append(float(line[14]))
-                k_Tu_w.append(float(line[15]))
+                kTu_min.append(float(line[14]))
+                kTu_n.append(float(line[15]))
         NVEG = NVEG + 1 # number of vegetation types + FAO56 GRASS (default)
         # SOIL PARAMETERS
         l = l + 1
@@ -364,7 +363,7 @@ def MMsurf(inputFOLDER_fn, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, pat
 
 
     #  ##### COMPUTING PET and INTERCEPTION ##############################################
-    print "Computing PET..."
+    print "\nComputing PET..."
 
     if NMETEO>0:
 
@@ -556,12 +555,12 @@ def MMsurf(inputFOLDER_fn, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, pat
     outFileExport.write('\n# Zr\n')
     for v in range(1,len(Zr)):
         outFileExport.write(str(Zr[v])+' ')
-    outFileExport.write('\n# k_Tu_slp\n')
-    for v in range(1,len(k_Tu_d)):
-        outFileExport.write(str(k_Tu_d[v])+' ')
-    outFileExport.write('\n# k_Tu_inter\n')
-    for v in range(1,len(k_Tu_w)):
-        outFileExport.write(str(k_Tu_w[v])+' ')
+    outFileExport.write('\n# kTu_min\n')
+    for v in range(1,len(kTu_min)):
+        outFileExport.write(str(kTu_min[v])+' ')
+    outFileExport.write('\n# kTu_n\n')
+    for v in range(1,len(kTu_n)):
+        outFileExport.write(str(kTu_n[v])+' ')
     outFileExport.write('\n# TRANS_sdw\n')
     for v in range(len(TRANS_sdw)):
         outFileExport.write(str(TRANS_sdw[v])+' ')

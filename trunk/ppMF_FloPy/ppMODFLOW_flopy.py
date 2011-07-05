@@ -627,7 +627,7 @@ def ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_MM = "", rch_user = 
             h5_rch = h5py.File(rch_input[0], 'r')
             for n in range(nper):
                 rch_array.append(h5_rch[rch_input[1]][n])
-            h5_rch.close
+            h5_rch.close()
         except:
             rch_array = rch_user
             print 'WARNING!\nNo valid recharge package file(s) provided, running MODFLOW using user-input recharge value: %.3G' % rch_user
@@ -644,7 +644,7 @@ def ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_MM = "", rch_user = 
             h5_wel = h5py.File(wel_input[0], 'r')
             for n in range(nper):
                 wel_array.append(h5_wel[wel_input[1]][n])
-            h5_wel.close
+            h5_wel.close()
         except:
             wel_array = wel_user
             print 'WARNING!\nNo valid well package file(s) provided, running MODFLOW using user-input well value: %.3G' % wel_user
@@ -785,8 +785,10 @@ def ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_MM = "", rch_user = 
     try:
         h = mfrdbin.mfhdsread(mfmain, 'LF95').read_all(h_MF_fn)
     except:
+        h5_MF.close()
         raise ValueError, '\nMODFLOW error!\nCheck the MODFLOW list file in folder:\n%s' % MF_ws
     if len(h[1])<sum(nstp):
+        h5_MF.close()
         raise ValueError, '\nMODFLOW error!\nCheck the MODFLOW list file in folder:\n%s' % MF_ws
     print ''
 
