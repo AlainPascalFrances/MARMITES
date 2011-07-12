@@ -25,7 +25,7 @@ import MARMITESprocess as MMproc
 
 #####################################
 
-def ppMFini(MF_ws, MF_ini_fn, out = 'MF'):
+def ppMFini(MF_ws, MF_ini_fn, out = 'MF', numDays = -1):
 
     ''' read input file (called _input.ini in the MARMITES workspace
     the first character on the first line has to be the character used to comment
@@ -58,7 +58,7 @@ def ppMFini(MF_ws, MF_ini_fn, out = 'MF'):
         if isinstance(nper, int):
             if nper <0:
             # daily nper, perlen, nstp, tsmult
-                nper = abs(nper)
+                nper = numDays
                 timedef = -1
             else:
                 # read nper, perlen, nstp, tsmult from user-input ini file
@@ -443,10 +443,10 @@ def ppMFtime(MM_ws, MF_ws, outpathname, nper, perlen, nstp, timedef, inputDate_f
                 tstart = sum(perlen[0:per])+stp*(perlen[per]/nstp[per])
                 tend = sum(perlen[0:per])+(perlen[per]/nstp[per])*(1+stp)
                 for n in range(NMETEO):
-                    RF_stp[n,sum(nstp[0:per])+stp] += RF_d[n,tstart:tend].sum()
+                    RF_stp[n,sum(nstp[0:per])+stp] += RF_d[n,tstart:tend].sum()/(perlen[per]/nstp[per])
                     for v in range(NVEG):
                         PET_stp[n,v,sum(nstp[0:per])+stp] += PET_d[n,v,tstart:tend].sum()/(perlen[per]/nstp[per])
-                        RFe_stp[n,v,sum(nstp[0:per])+stp] += RFe_d[n,v,tstart:tend].sum()
+                        RFe_stp[n,v,sum(nstp[0:per])+stp] += RFe_d[n,v,tstart:tend].sum()/(perlen[per]/nstp[per])
                     for s in range(NSOIL):
                         PE_stp[n,s,sum(nstp[0:per])+stp] += PE_d[n,s,tstart:tend].sum()/(perlen[per]/nstp[per])
                     E0_stp[n,sum(nstp[0:per])+stp] += E0_d[n,tstart:tend].sum()/(perlen[per]/nstp[per])
@@ -519,14 +519,14 @@ def ppMFtime(MM_ws, MF_ws, outpathname, nper, perlen, nstp, timedef, inputDate_f
 
 #####################################
 
-def ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_MM = "", rch_user = None, wel_MM = "", wel_user = None, report = None, verbose = 1, chunks = 0, MFtime_fn = None):
+def ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_MM = "", rch_user = None, wel_MM = "", wel_user = None, report = None, verbose = 1, chunks = 0, MFtime_fn = None, numDays = -1):
 
     messagemanual="Please read the manual!\n(that by the way still doesn't exist...)"
 
     if verbose == 0:
         print '--------------'
 
-    modelname, namefile_ext, exe_name, dum_sssp1, ext_dis, nlay, ncol, nrow, nper, itmuni, lenuni,laycbd, delr, delc, top_fn, botm_fn, perlen, nstp, tsmult, Ss_tr, ext_bas, ibound_fn, strt_fn, hnoflo,ext_lpf, ilpfcb, hdry, nplpf, laytyp, layavg, chani, layvka, laywet, hk_fn, vka_fn, ss_fn, sy_fn,ext_oc, ihedfm, iddnfm, ext_cbc, ext_heads, ext_ddn, hclose, rclose, ext_rch, rch_user, nrchop, ext_wel, wel_user, ext_drn, drn_l1, drn_elev_fn, drn_cond_fn = ppMFini(MF_ws, MF_ini_fn, out = 'MF')
+    modelname, namefile_ext, exe_name, dum_sssp1, ext_dis, nlay, ncol, nrow, nper, itmuni, lenuni,laycbd, delr, delc, top_fn, botm_fn, perlen, nstp, tsmult, Ss_tr, ext_bas, ibound_fn, strt_fn, hnoflo,ext_lpf, ilpfcb, hdry, nplpf, laytyp, layavg, chani, layvka, laywet, hk_fn, vka_fn, ss_fn, sy_fn,ext_oc, ihedfm, iddnfm, ext_cbc, ext_heads, ext_ddn, hclose, rclose, ext_rch, rch_user, nrchop, ext_wel, wel_user, ext_drn, drn_l1, drn_elev_fn, drn_cond_fn = ppMFini(MF_ws, MF_ini_fn, out = 'MF', numDays = numDays)
 
     if os.path.exists(rch_MM[0]):
         rch_input = rch_MM
@@ -705,6 +705,9 @@ def ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_MM = "", rch_user = 
         tsmult.insert(0,1)
         Ss_tr.insert(0, 'SS')
 
+##    if isinstance(wel_input,float) and wel_input == 0.0:
+##        layer_row_column_Q = None
+##    else:
     layer_row_column_Q = []
     for n in range(nper):
         layer_row_column_Q.append([])
@@ -744,8 +747,9 @@ def ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_MM = "", rch_user = 
     del rch_array
     rch.write_file()
     # wel initialization
-    wel = mf.mfwel(mfmain, iwelcb = lpf.ilpfcb, layer_row_column_Q = layer_row_column_Q, extension = ext_wel)
-    wel.write_file()
+    if layer_row_column_Q <> None:
+        wel = mf.mfwel(mfmain, iwelcb = lpf.ilpfcb, layer_row_column_Q = layer_row_column_Q, extension = ext_wel)
+        wel.write_file()
     del layer_row_column_Q
     # drn package initialization
     drn = mf.mfdrn(model = mfmain, idrncb=lpf.ilpfcb, layer_row_column_elevation_cond = layer_row_column_elevation_cond, extension = ext_drn)
@@ -796,7 +800,7 @@ def ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_MM = "", rch_user = 
     cbc = mfrdbin.mfcbcread(mfmain, 'LF95').read_all(cbc_MF_fn)
     h5_MF.create_dataset('cbc_nam', data = np.asarray(cbc[2]))
 
-    print'\nStoring heads and cbc terms into HDF5 file %s' % (h5_MF_fn)
+    print'\nStoring heads and cbc terms into HDF5 file\n%s' % (h5_MF_fn)
 
     if dum_sssp1 == 1:
         if chunks == 1:

@@ -18,7 +18,8 @@ Input driving forces are rainfall and potential evapotranspiration daily
 time series.
 Calibration is made against soil moisture (DPLWATFLUX) and hydraulic
 heads (MODFLOW).
-It is link to MODFLOW2000 (mf2k) through PEST (Doherty 2010).
+It is link to MODFLOW2000 (mf2k) and the calibration is done
+through PEST (Doherty 2010).
 DLPWATFLUX imports and exports mf2k packages for spatial and temporal
 discretization, intial heads, recharge, etc.
 Thanks to Toews 2007 and flopy.                                         ## TO BE UPDATED## 20100823
@@ -51,7 +52,7 @@ class UNSAT:
                 Sr          Residual Soil moiture storage
                 Si          Inicial soil moisture
                 Ks          Saturated hydraulic condutivity
-                PONDm       Max. ponding capacity
+                Ssmax       Max. ponding capacity
             STATE VARIABLES
                 RF           Daily rainfall
                 PET         Daily evapotranspiration
@@ -60,7 +61,7 @@ class UNSAT:
             ETu             Daily evapotranspiration
             S               Daily soil moisture
             Rp              Daily percolation
-            POND            Daily ponding
+            Ss            Daily ponding
             Ro              Daily runoff
 
     Provide daily values for the LINRES module
@@ -98,30 +99,30 @@ class UNSAT:
 
 #####################
 
-    def flux(self, RFe, PET, PE, S, Sini, Rp, Zr_elev, VEGarea, HEADStmp, Dltop, Dlbot, Dl, nsl, Sm, Sfc, Sr, Ks, PONDm, PONDratio, t, Si, Rpi, DRN, PONDi, E0, dtwt, st, i, j, n, kTu_min, kTu_n, dt):
+    def flux(self, RFe, PET, PE, S, Sini, Rp, Zr_elev, VEGarea, HEADStmp, Dltop, Dlbot, Dl, nsl, Sm, Sfc, Sr, Ks, Ssmax, Ssratio, t, Si, Rpi, DRN, Ssi, E0, dtwt, st, i, j, n, kTu_min, kTu_n, dt, dti):
 
-        def surfwater(s_tmp,Vm,PONDm, E0, i, j, n):
+        def surfwater(s_tmp,Vm,Ssmax, E0, i, j, n):
             '''
             Ponding and surface runoff function
             '''
             if (s_tmp-Vm) > 1E-9:
-                sust_tmp = s_tmp-Vm
-                if sust_tmp-PONDm >= 1E-9:
-                    Ro_tmp = sust_tmp-PONDm
-                    sust_tmp = PONDm
+                Ss_tmp = s_tmp-Vm
+                if (Ss_tmp-Ssmax) >= 1E-9:
+                    Ro_tmp = Ss_tmp-Ssmax
+                    Ss_tmp = Ssmax
                 else:
                     Ro_tmp = 0.0
-                if sust_tmp - E0 >= 1E-9:
+                if (Ss_tmp - E0) >= 1E-9:
                     Estmp = E0
-                    sust_tmp = sust_tmp - E0
+                    Ss_tmp = Ss_tmp - E0
                 else:
-                    Estmp = sust_tmp
-                    sust_tmp = 0.0
+                    Estmp = Ss_tmp
+                    Ss_tmp = 0.0
             else:
-                sust_tmp = 0.0
+                Ss_tmp = 0.0
                 Ro_tmp = 0.0
                 Estmp = 0.0
-            return sust_tmp, Ro_tmp, Estmp
+            return Ss_tmp, Ro_tmp, Estmp
 
         ##################
 
@@ -132,42 +133,52 @@ class UNSAT:
             if (s_tmp-Sfc)<=1E-9:
                 rp_tmp = 0.0
             elif (s_tmp-Sfc)>1E-9 and (s_tmp-Sm)<=1E-9:
-                Sg=(s_tmp-Sfc)/(Sm-Sfc) # gravitational water
+                Sg = (s_tmp-Sfc)/(Sm-Sfc) # gravitational water
                 if (Ks*Sg-(s_tmp-Sfc))> 1E-9:
-                    rp_tmp= s_tmp-Sfc
+                    rp_tmp = s_tmp-Sfc
                 else:
-                    rp_tmp= Ks*Sg
-            elif (s_tmp-Sm)>1E-9:
-                if Ks-(Sm-Sfc)>1E-9:
-                    rp_tmp= (Sm-Sfc)
+                    rp_tmp = Ks*Sg
+            elif (s_tmp-Sm) > 1E-9:
+                if Ks-(Sm-Sfc) > 1E-9:
+                    rp_tmp = (Sm-Sfc)
                 else:
                     rp_tmp = Ks
             # verify the vol. available in deeper soil layer
-            if rp_tmp-(Sm_sp1 - s_lp1)>1E-9:
+            if rp_tmp - (Sm_sp1 - s_lp1) > 1E-9:
                 rp_tmp = Sm_sp1 - s_lp1
             return rp_tmp
 
         ##################
 
-        def evp(s_tmp,pet,Sfc,Sr, i, j, n):
+        def evp(s_tmp,Sfc,Sr, pet, i, j, n):
             '''
             Actual evapotranspiration function
             '''
             # Percent. of soil saturation
-            Se=(s_tmp - Sr)/(Sfc - Sr)
+            Se = (s_tmp - Sr)/(Sfc - Sr)
             if s_tmp - Sr <= 1E-9:
-                evp_tmp= 0.0
+                evp_tmp = 0.0
             elif s_tmp - Sr > 1E-9 and s_tmp - Sfc <= 1E-9:
                 if (pet*Se - (s_tmp - Sr))> 1E-9:
-                    evp_tmp= s_tmp - Sr
+                    evp_tmp = s_tmp - Sr
                 else:
-                    evp_tmp= pet*Se
+                    evp_tmp = pet*Se
             elif (s_tmp - Sfc) > 1E-9:
                 if pet-(Sfc - Sr) > 1E-9:
-                    evp_tmp= Sfc - Sr
+                    evp_tmp = Sfc - Sr
                 else:
-                    evp_tmp= pet
+                    evp_tmp = pet
             return evp_tmp
+
+        ##################
+
+        def corr(flx, S_i, dt, Sr, Dl):
+            flxdt = flx*dt
+            S_f = S_i - flxdt
+            if S_f <= 0:
+                S_f = Sr*Dl
+                flx = (S_i-S_f)/dt
+            return flx, S_f
 
         ##################
 
@@ -197,9 +208,9 @@ class UNSAT:
         # if first time step, use Rpi
         for l in range(nsl-1):
             if t == 0:
-                Rpprev = Rpi[l]
+                Rpprev = Rpi[l]*dti
             else:
-                Rpprev = Rp[t-1,l]
+                Rpprev = Rp[t-1,l]*dti
             if Dl[l+1]>0.0:
                 if Rpprev - (Sm[l+1]*Dl[l+1]-Sini[l+1]) > 1E-9:
                     Rpprev -= (Sm[l+1]*Dl[l+1]-Sini[l+1])
@@ -211,14 +222,14 @@ class UNSAT:
                 Sini[l] += Rpprev
 
         # infiltration
-        Sini[0] += (RFe + PONDi + DRN)
+        Sini[0] += RFe*dt + DRN + Ssi*dti
 
-        # POND and Ro
-        surfwatertmp = surfwater(Sini[0],Sm[0]*Dl[0],PONDm, E0*PONDratio, i, j, n)
-        PONDtmp = surfwatertmp[0]
+        # Ss and Ro
+        surfwatertmp = surfwater(Sini[0],Sm[0]*Dl[0],Ssmax, E0*Ssratio, i, j, n)
+        Sstmp = surfwatertmp[0]
         Rotmp = surfwatertmp[1]
         Estmp = surfwatertmp[2]
-        Sini[0] -= (PONDtmp+Rotmp+Estmp)
+        Sini[0] -= (Sstmp + Rotmp + Estmp)*dt
 
         Rptmp = np.zeros([nsl])
         Rtmp = 0.0
@@ -230,31 +241,31 @@ class UNSAT:
         for l in range(nsl):
             # Rp
             if l < (nsl-1):
-                if Dl[l+1]>0.0:
+                if Dl[l+1] > 0.0:
                     Rptmp[l] = perc(Sini[l],Sm[l]*Dl[l],Sfc[l]*Dl[l],Ks[l], Sini[l+1], Sm[l+1]*Dl[l+1], i, j, n, dt)
-                    Sini[l] -= Rptmp[l]
+                    Rptmp[l], Sini[l] = corr(Rptmp[l], Sini[l], dt, Sr[l], Dl[l])
             else:
                 if Dl[l]>0.0:
                     Rptmp[l] = perc(Sini[l],Sm[l]*Dl[l],Sfc[l]*Dl[l],Ks[l],0.0,1.0E6, i, j, n, dt)
+                    Rptmp[l], Sini[l] = corr(Rptmp[l], Sini[l], dt, Sr[l], Dl[l])
                     Rtmp = Rptmp[l]
-                    Sini[l] -= Rptmp[l]
-            if Dl[l]>0.0:
+            if Dl[l] > 0.0:
                 # Eu
-                if PE>0.0:
-                    Eutmp[l] = evp(Sini[l],PE,Sfc[l]*Dl[l],Sr[l]*Dl[l], i, j, n)
-                Sini[l] -= Eutmp[l]
+                if PE > 0.0:
+                    Eutmp[l] = evp(Sini[l],Sfc[l]*Dl[l],Sr[l]*Dl[l], PE, i, j, n)
+                Eutmp[l], Sini[l] = corr(Eutmp[l], Sini[l], dt, Sr[l], Dl[l])
                 PE -= Eutmp[l]
                 # Tu
                 for z in range(len(Zr_elev)):
                     if PET[z]>0.0:
                         if Dlbot[l] > Zr_elev[z]:
-                            TutmpZr[l,z] = evp(Sini[l],PET[z],Sfc[l]*Dl[l],Sr[l]*Dl[l], i, j, n)
+                            TutmpZr[l,z] = evp(Sini[l],Sfc[l]*Dl[l],Sr[l]*Dl[l], PET[z], i, j, n)
                         elif Dltop[l] > Zr_elev[z]:
                             PETc = PET[z]*(Dltop[l]-Zr_elev[z])/Dl[l]
-                            TutmpZr[l,z] = evp(Sini[l],PETc,Sfc[l]*Dl[l],Sr[l]*Dl[l], i, j, n)
+                            TutmpZr[l,z] = evp(Sini[l],Sfc[l]*Dl[l],Sr[l]*Dl[l], PETc, i, j, n)
                         PET[z] -= TutmpZr[l,z]
                         Tutmp[l] += TutmpZr[l,z]*VEGarea[z]/100
-                Sini[l] -= Tutmp[l]
+                Tutmp[l], Sini[l] = corr(Tutmp[l], Sini[l], dt, Sr[l], Dl[l])
 
         for l in range(nsl):
             if Dl[l]>0.0:
@@ -298,18 +309,18 @@ class UNSAT:
                     if TgtmpZr[l,z] > PET[z]:
                         TgtmpZr[l,z] = PET[z]
                     PET[z] -= TgtmpZr[l,z]
-                    Tgtmp += TgtmpZr[l,z]*VEGarea[z]/100
+                    Tgtmp += (TgtmpZr[l,z]*VEGarea[z]/100)   # *(Dl[l]/sum(Dl))
 
-        return Estmp, PONDtmp, Rotmp, Rptmp, Eutmp, Tutmp, Sini, Spc, Rtmp, Egtmp, Tgtmp
-        del Estmp, PONDtmp, Rotmp, Rptmp, Eutmp, Tutmp, Sini, Spc, Rtmp, Egtmp, Tgtmp
+        return Estmp, Sstmp, Rotmp, Rptmp, Eutmp, Tutmp, Sini, Spc, Rtmp, Egtmp, Tgtmp
+        del Estmp, Sstmp, Rotmp, Rptmp, Eutmp, Tutmp, Sini, Spc, Rtmp, Egtmp, Tgtmp
 
 #####################
 
     def run(self, i, j, n,
-                  nsl, st, slprop, Sm, Sfc, Sr, Si, PONDi, Rpi, D, Ks, PONDm, PONDratio,
-                  TopAquif, HEADS, DRN, cf,
+                  nsl, st, slprop, Sm, Sfc, Sr, Si, Ssi, Rpi, D, Ks, Ssmax, Ssratio,
+                  TopAquif, HEADS, DRN, DRNi, cf,
                   RF, E0, PETveg, RFeveg, PEsoil, VEGarea, Zr,
-                  nstp, perlen, hdry,
+                  nstp, perlen, dti, hdry,
                   kTu_min, kTu_n):
 
         # Output initialisation
@@ -321,11 +332,11 @@ class UNSAT:
         # RFe for the vegetation patchwork
         RFe_tot=np.zeros([len(RFeveg[0])], dtype=float)
         # vegetation interception (weigthed average patchwork)
-        INTER=np.zeros([Ttotal], dtype=np.float)
+        INTER_tot=np.zeros([Ttotal], dtype=np.float)
         # Ponding storage
-        POND=np.zeros([Ttotal], dtype=np.float)
+        Ss=np.zeros([Ttotal], dtype=np.float)
         # Ponding storage change
-        dPOND=np.zeros([Ttotal], dtype=np.float)
+        dSs=np.zeros([Ttotal], dtype=np.float)
         # Surface runoff (hortonian and saturated overland flow)
         Ro=np.zeros([Ttotal], dtype=np.float)
         #Deep percolation
@@ -396,6 +407,8 @@ class UNSAT:
         for z in range(len(Zr)):
             Zr_elev.append(Dtop - Zr[z]*1000)
 
+        dt = float(perlen)/float(nstp)
+
         # PROCESSING THE WHOLE DATA SET
         for t in range(int(nstp)):    # t: current time step
 
@@ -406,10 +419,10 @@ class UNSAT:
                 if VEGarea[v]<>self.hnoflo:
                     RFe_tot[t] += RFeveg[v,t]*VEGarea[v]/100
                     PET_tot[t] += PETveg[v,t]*VEGarea[v]/100
-                    SOILarea -= VEGarea[v]
-            RFe_tot[t] += RF[t]*SOILarea/100
-            INTER[t] = RF[t] - RFe_tot[t]
-            PE_tot[t] = PEsoil[t]*SOILarea/100
+                    SOILarea   -= VEGarea[v]
+            RFe_tot[t]   += RF[t]*SOILarea/100
+            INTER_tot[t]  = RF[t] - RFe_tot[t]
+            PE_tot[t]     = PEsoil[t]*SOILarea/100
 
             # handle drycell
             if HEADS[t]>hdry-1E3:
@@ -422,39 +435,41 @@ class UNSAT:
 
             # heads below soil bottom
             if DRN[t]==0.0:
+                DRN_tmp = 0
                 # bottom boundary
                 Dlbot[nsl-1] = HEADStmp
                 Dl[nsl-1] = Dltop[nsl-1] - HEADStmp
                 for l in range(nsl):
                     Si[l] = Si[l]*Dl[l]
                 # fluxes
-                Estmp, PONDtmp, Rotmp, Rptmp, Eutmp, Tutmp, Stmp, Spctmp, Rtmp, Egtmp, Tgtmp = self.flux(RFe_tot[t], PETveg[:,t], PE_tot[t], S, Sini, Rp, Zr_elev, VEGarea, HEADStmp, Dltop, Dlbot, Dl, nsl, Sm, Sfc, Sr, Ks, PONDm, PONDratio, t, Si, Rpi, DRN[t]*cf, PONDi, E0[t], dtwt, st, i, j, n, kTu_min, kTu_n, float(perlen)/float(nstp))
+                Estmp, Sstmp, Rotmp, Rptmp, Eutmp, Tutmp, Stmp, Spctmp, Rtmp, Egtmp, Tgtmp = self.flux(RFe_tot[t], PETveg[:,t], PE_tot[t], S, Sini, Rp, Zr_elev, VEGarea, HEADStmp, Dltop, Dlbot, Dl, nsl, Sm, Sfc, Sr, Ks, Ssmax, Ssratio, t, Si, Rpi, DRN_tmp, Ssi, E0[t], dtwt, st, i, j, n, kTu_min, kTu_n, dt, dti)
             # heads above soil bottom
             else:
+                DRN_tmp = DRN[t]*cf*dt  # cbc are expressed in volume/unit time
                 # bottom boundary
                 Dlbot[nsl-1] = TopAquif
                 Dl[nsl-1] = 0.0
                 for l in range(nsl):
                     Si[l] = Si[l]*Dl[l]
                 # fluxes
-                Estmp, PONDtmp, Rotmp, Rptmp, Eutmp, Tutmp, Stmp, Spctmp, Rtmp, Egtmp, Tgtmp = self.flux(RFe_tot[t], PETveg[:,t], PE_tot[t], S, Sini, Rp, Zr_elev, VEGarea, HEADStmp, Dltop, Dlbot, Dl, nsl, Sm, Sfc, Sr, Ks, PONDm, PONDratio, t, Si, Rpi, DRN[t]*cf, PONDi, E0[t], dtwt, st, i, j, n, kTu_min, kTu_n, float(perlen)/float(nstp))
+                Estmp, Sstmp, Rotmp, Rptmp, Eutmp, Tutmp, Stmp, Spctmp, Rtmp, Egtmp, Tgtmp = self.flux(RFe_tot[t], PETveg[:,t], PE_tot[t], S, Sini, Rp, Zr_elev, VEGarea, HEADStmp, Dltop, Dlbot, Dl, nsl, Sm, Sfc, Sr, Ks, Ssmax, Ssratio, t, Si, Rpi, DRN_tmp, Ssi, E0[t], dtwt, st, i, j, n, kTu_min, kTu_n, dt, dti)
             # fill the output arrays
-            POND[t]=PONDtmp
-            Ro[t] = Rotmp
-            Es[t] = Estmp
-            Eg[t] = Egtmp
-            Tg[t] = Tgtmp
-            R[t]  = Rtmp
+            Ss[t] = Sstmp
+            Ro[t]   = Rotmp
+            Es[t]   = Estmp
+            Eg[t]   = Egtmp
+            Tg[t]   = Tgtmp
+            R[t]    = Rtmp
             for l in range(nsl):
-                S[t,l]=Stmp[l]
-                Spc[t,l]=Spctmp[l]
-                Rp[t,l]=Rptmp[l]
-                Eu[t,l]=Eutmp[l]
-                Tu[t,l]=Tutmp[l]
+                S[t,l]   = Stmp[l]
+                Spc[t,l] = Spctmp[l]
+                Rp[t,l]  = Rptmp[l]
+                Eu[t,l]  = Eutmp[l]
+                Tu[t,l]  = Tutmp[l]
             ETg[t] = Eg[t] + Tg[t]
-            Rn[t] = R[t] - ETg[t]
-            if POND[t]>PONDi:
-                dPOND[t] = POND[t] - PONDi
+            Rn[t]  = R[t] - ETg[t]
+            if Ss[t]-Ssi>1E-9:
+                dSs[t] = (Ss[t] - Ssi)/dt
             # compute the water mass balance (MB) in the unsaturated zone
             RpinMB=0.0
             RpoutMB=0.0
@@ -465,25 +480,28 @@ class UNSAT:
                 TuMB += Tu[t,l]
                 RpoutMB += Rp[t,l]
                 if t==0:
-                    dS[t,l] = S[t,l]-Si[l]
+                    dS[t,l] = (S[t,l]-Si[l])/dt
                     if l<(nsl-1):
                         RpinMB += Rpi[l]
                 else:
-                    dS[t,l] = S[t,l]-S[t-1,l]
+                    dS[t,l] = (S[t,l]-S[t-1,l])/dt
                     if l<(nsl-1):
                         RpinMB += Rp[t-1,l]
                 dS_tot[t] += dS[t,l]
             ETu_tot[t] = EuMB + TuMB
-            MB[t]=RF[t]+PONDi+DRN[t]*cf+RpinMB-INTER[t]-Ro[t]-POND[t]-Es[t]-EuMB-TuMB-RpoutMB-sum(dS[t,:])
-            # index = {'iRF':0, 'iPET':1, 'iPE':2, 'iRFe':3, 'iPOND':4, 'iRo':5, 'iSEEPAGE':6, 'iEs':7, 'iMB':8, 'iINTER':9, 'iE0':10, 'iEg':11, 'iTg':12, 'iR':13, 'iRn':14, 'idPOND':15, 'ETg':16}
-            results1[t,:] = [RF[t], PET_tot[t], PE_tot[t], RFe_tot[t], POND[t], Ro[t], DRN[t]*cf, Es[t], MB[t], INTER[t], E0[t], Eg[t], Tg[t], R[t], Rn[t], dPOND[t], ETg[t], ETu_tot[t], dS_tot[t]]
+            #MB[t]=RF[t]+Ssi+DRN_tmp+RpinMB-INTER_tot[t]-Ro[t]-Ss[t]-Es[t]-EuMB-TuMB-RpoutMB-sum(dS[t,:])
+            MB[t] = RFe_tot[t]*dt + dti*(Ssi+RpinMB) + DRN_tmp - dt*(Ro[t] + Ss[t] + Es[t] + EuMB + TuMB + RpoutMB + dS_tot[t])
+            # index = {'iRF':0, 'iPET':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iSEEPAGE':6, 'iEs':7, 'iMB':8, 'iINTER':9, 'iE0':10, 'iEg':11, 'iTg':12, 'iR':13, 'iRn':14, 'idSs':15, 'ETg':16}
+            results1[t,:] = [RF[t], PET_tot[t], PE_tot[t], RFe_tot[t], Ss[t], Ro[t], DRN_tmp/dt, Es[t], MB[t], INTER_tot[t], E0[t], Eg[t], Tg[t], R[t], Rn[t], dSs[t], ETg[t], ETu_tot[t], dS_tot[t]]
             # index_S = {'iEu':0, 'iTu':1,'iS':2, 'iRp':3}
             for l in range(nsl):
                 results2[t,l,:] = [Eu[t,l], Tu[t,l], Spc[t,l], Rp[t,l], dS[t,l], S[t,l]]
-
+            dti = dt
+            Si = Spc
+            Ssi = Ss[t]
         return results1, results2
 
-        del RF, PET_tot, PE_tot, RFe_tot, POND, Ro, DRN, Es, MB, INTER, E0, Eg, Tg, R, Rn, dPOND, ETg, ETu_tot, dS_tot
+        del RF, PET_tot, PE_tot, RFe_tot, Ss, Ro, DRN, Es, MB, INTER_tot, E0, Eg, Tg, R, Rn, dSs, ETg, ETu_tot, dS_tot
         del Eu, Tu, Spc, Rp, dS, S
         del results1, results2
 

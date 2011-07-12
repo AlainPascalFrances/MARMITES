@@ -94,9 +94,9 @@ try:
     l += 1
     gridIRR_fn = inputFile[l].strip()
     l += 1
-    gridPONDhmax_fn =  inputFile[l].strip()
+    gridSshmax_fn =  inputFile[l].strip()
     l += 1
-    gridPONDw_fn =  inputFile[l].strip()
+    gridSsw_fn =  inputFile[l].strip()
     l += 1
     SOILparam_fn = inputFile[l].strip()
     l += 1
@@ -147,41 +147,7 @@ else:
 # #############################
 try:
     # #############################
-    # ###  READ MODFLOW CONFIG ####
-    # #############################
-
-    print'\n##############'
-    print 'Importing MODFLOW configuration file'
-    nrow, ncol, delr, delc, reggrid, nlay, nper, perlen, nstp, timedef, hnoflo, hdry, laytyp, lenuni, itmuni, ibound_fn = ppMF.ppMFini(MF_ws, MF_ini_fn, out = 'MM')
-
-    # ####   SUMMARY OF MODFLOW READINGS   ####
-    # active cells in layer 1_____________________ibound[0]
-    # elevation___________________________________top
-    # aquifer type of layer 1_____________________laytyp[0]
-    # numero total de time step___________________sum(nstp)
-    # code for dry cell___________________________hdry
-    # cell size___________________________________delr[0]
-
-    # compute cbc conversion factor from volume to mm
-    if lenuni == 1:
-        conv_fact = 304.8
-    elif lenuni == 2:
-        conv_fact = 1000.0
-    elif lenuni == 3:
-        conv_fact = 10.0
-    else:
-        print 'FATAL ERROR!\nDefine the length unit in the MODFLOW ini file!\n (see USGS Open-File Report 00-92)'
-        sys.exit()
-        # TODO if lenuni<>2 apply conversion factor to delr, delc, etc...
-    if laytyp[0]==0:
-        print 'FATAL ERROR!\nThe first layer cannot be confined type!\nChange your parameter laytyp in the MODFLOW lpf package.\n(see USGS Open-File Report 00-92)'
-        sys.exit()
-    if itmuni <> 4:
-        print 'FATAL ERROR! Time unit is not in days!'
-        sys.exit()
-
-    # #############################
-    # ###  MARMITES SURFACES  #####
+    # ###  MARMITES surface  ######
     # #############################
 
     print'\n##############'
@@ -241,6 +207,42 @@ try:
         sys.exit()
     del inputFile
 
+    numDays = len(MMproc.readFile(MM_ws, inputDate_fn))
+
+    # #############################
+    # ###  READ MODFLOW CONFIG ####
+    # #############################
+
+    print'\n##############'
+    print 'Importing MODFLOW configuration file'
+    nrow, ncol, delr, delc, reggrid, nlay, nper, perlen, nstp, timedef, hnoflo, hdry, laytyp, lenuni, itmuni, ibound_fn = ppMF.ppMFini(MF_ws, MF_ini_fn, out = 'MM', numDays = numDays)
+
+    # ####   SUMMARY OF MODFLOW READINGS   ####
+    # active cells in layer 1_____________________ibound[0]
+    # elevation___________________________________top
+    # aquifer type of layer 1_____________________laytyp[0]
+    # numero total de time step___________________sum(nstp)
+    # code for dry cell___________________________hdry
+    # cell size___________________________________delr[0]
+
+    # compute cbc conversion factor from volume to mm
+    if lenuni == 1:
+        conv_fact = 304.8
+    elif lenuni == 2:
+        conv_fact = 1000.0
+    elif lenuni == 3:
+        conv_fact = 10.0
+    else:
+        print 'FATAL ERROR!\nDefine the length unit in the MODFLOW ini file!\n (see USGS Open-File Report 00-92)'
+        sys.exit()
+        # TODO if lenuni<>2 apply conversion factor to delr, delc, etc...
+    if laytyp[0]==0:
+        print 'FATAL ERROR!\nThe first layer cannot be confined type!\nChange your parameter laytyp in the MODFLOW lpf package.\n(see USGS Open-File Report 00-92)'
+        sys.exit()
+    if itmuni <> 4:
+        print 'FATAL ERROR! Time unit is not in days!'
+        sys.exit()
+
     # #############################
     # ### MF time processing
     # #############################
@@ -288,10 +290,10 @@ try:
     gridSOILthick = MM_PROCESS.inputEsriAscii(grid_fn = gridSOILthick_fn,
      datatype = float)
 
-    gridPONDhmax = MM_PROCESS.inputEsriAscii(grid_fn = gridPONDhmax_fn,
+    gridSshmax = MM_PROCESS.inputEsriAscii(grid_fn = gridSshmax_fn,
      datatype = float)
 
-    gridPONDw = MM_PROCESS.inputEsriAscii(grid_fn = gridPONDw_fn,
+    gridSsw = MM_PROCESS.inputEsriAscii(grid_fn = gridSsw_fn,
      datatype = float)
 
     # TODO compute correction factor for pionding and convert to mm
@@ -334,7 +336,7 @@ try:
         report = open(report_fn, 'a')
         sys.stdout = report
     h5_MM_fn = os.path.join(MM_ws,'_h5_MM.h5')
-    top_array, h5_MF_fn = ppMF.ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_MM = (h5_MM_fn, 'rch'), wel_MM = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks, MFtime_fn = MFtime_fn)
+    top_array, h5_MF_fn = ppMF.ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_MM = (h5_MM_fn, 'rch'), wel_MM = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks, MFtime_fn = MFtime_fn, numDays = numDays)
 
     h5_MF = h5py.File(h5_MF_fn)
 
@@ -356,6 +358,7 @@ except StandardError, e:  #Exception
     traceback.print_exc(file=sys.stdout)
     h5_MF_fn = None
 #    traceback.print_exc(limit=1, file=sys.stdout)
+    sys.exit()
 
 # #############################
 # 2nd phase : MM/MF loop #####
@@ -421,7 +424,8 @@ try:
             Sui_tmp_array = np.zeros([nrow,ncol,_nslmax], dtype=float)
             Rpi_tmp_array = np.zeros([nrow,ncol,_nslmax], dtype=float)
             Ssi_tmp_array = np.zeros([nrow,ncol], dtype=float)
-            #DRNi_tmp_array = np.zeros([nrow,ncol], dtype=float)
+            dti_tmp_array = np.zeros([nrow,ncol], dtype=float)
+            DRNi_tmp_array = np.zeros([nrow,ncol], dtype=float)
             for n in range(nper):
                 tstart_MM = 0
                 for t in range(n):
@@ -454,15 +458,17 @@ try:
                                 for l in range(nsl_tmp):
                                     Sui_tmp.append(_Sui[SOILzone_tmp][l])
                                 Ssi  = 0.0
-                                #DRNi = 0.0
+                                DRNi = 0.0
+                                dti = 1
                             else:
                                 Sui_tmp = Sui_tmp_array[i,j,:]
                                 Ssi  = Ssi_tmp_array[i,j]
-                                #DRNi  = DRNi_tmp_array[i,j]
+                                DRNi  = DRNi_tmp_array[i,j]
+                                dti = dti_tmp_array[i,j]
                             Rpi_tmp = Rpi_tmp_array[i,j,:]
                             Ks_tmp    = _Ks[SOILzone_tmp]
-                            PONDm_tmp = 1000*1.12*gridPONDhmax[i,j]*gridPONDw[i,j]/delr[j]
-                            PONDratio = 1.12*gridPONDw[i,j]/delr[j]
+                            Ssmax_tmp = 1000*1.12*gridSshmax[i,j]*gridSsw[i,j]/delr[j]
+                            Ssratio = 1.12*gridSsw[i,j]/delr[j]
                             D_tmp = gridSOILthick[i,j]
                             PEsoilzonesTS_tmp = PEsoilzonesTS[METEOzone_tmp,SOILzone_tmp,tstart_MF:tend_MF]
                             PEsoilzonesTS_tmp = np.asarray(PEsoilzonesTS_tmp)
@@ -493,15 +499,16 @@ try:
                                                          Sfc     = Sfc_tmp,
                                                          Sr      = Sr_tmp,
                                                          Si     = Sui_tmp,
-                                                         PONDi     = Ssi,
+                                                         Ssi     = Ssi,
                                                          Rpi     = Rpi_tmp,
                                                          D       = D_tmp,
                                                          Ks      = Ks_tmp,
-                                                         PONDm   = PONDm_tmp,
-                                                         PONDratio = PONDratio,
+                                                         Ssmax   = Ssmax_tmp,
+                                                         Ssratio = Ssratio,
                                                          TopAquif = top_array[i,j],
                                                          HEADS   = h_MF_tmp,
                                                          DRN     = drn_MF_tmp,
+                                                         DRNi    = DRNi,
                                                          cf      = conv_fact_tmp,
                                                          RF      = RFzonesTS[METEOzone_tmp][tstart_MF:tend_MF],
                                                          E0      = E0zonesTS[METEOzone_tmp][tstart_MF:tend_MF],
@@ -512,12 +519,13 @@ try:
                                                          Zr      = Zr,
                                                          nstp    = nstp[n],
                                                          perlen  = perlen[n],
+                                                         dti     = dti,
                                                          hdry    = hdry,
                                                          kTu_min = kTu_min,
                                                          kTu_n = kTu_n)
-                            if (perlen[n]/nstp[n])>1:
+                            if (float(perlen[n])/float(nstp[n]))<>1.0:
                                 for stp in range(nstp[n]):
-                                    ts = perlen[n]/nstp[n]
+                                    ts = float(perlen[n])/float(nstp[n])
                                     tstart =    stp*ts
                                     tend =   (1+stp)*ts
                                     for k in range(len(index)):
@@ -531,14 +539,15 @@ try:
                                 for k in range(len(index_S)):
                                     for l in range(nsl_tmp):
                                         MM_S[:,i,j,l,k] = MM_S_tmp[:,l,k]
-                            MM_rch[i,j] = MM_tmp[:,index.get('iR')].sum()/(nstp[n]*conv_fact)
-                            MM_ETg[i,j] = MM_tmp[:,index.get('iETg')].sum()/(nstp[n]*conv_fact)
+                            MM_rch[i,j] = MM_tmp[:,index.get('iR')].sum()/conv_fact
+                            MM_ETg[i,j] = MM_tmp[:,index.get('iETg')].sum()/conv_fact
                             del MM_tmp, MM_S_tmp
                             # setting initial conditions for the next SP
                             Sui_tmp_array[i,j,:] = MM_S[nstp[n]-1,i,j,:,index_S.get('iSu_pc')]
                             Rpi_tmp_array[i,j,:] = MM_S[nstp[n]-1,i,j,:,index_S.get('iRp')]
                             Ssi_tmp_array[i,j] = MM[nstp[n]-1,i,j,index.get('iSs')]
-                            #DRNi_tmp_array[i,j]  = drn_MF_tmp[-1]
+                            DRNi_tmp_array[i,j]  = drn_MF_tmp[-1]
+                            dti_tmp_array[i,j] = float(perlen[n])/float(nstp[n])
                         else:
                             if perlen[n]>1:
                                 MM[:,i,j,:] = hnoflo
@@ -548,7 +557,7 @@ try:
                                 MM_S[:,i,j,:,:] = hnoflo
                             MM_rch[i,j] = hnoflo
                             MM_ETg[i,j] = hnoflo
-                h5_MM['MM'][tstart_MM:tend_MM,:,:,:] = MM[:,:,:,:]
+                h5_MM['MM'][tstart_MM:tend_MM,:,:,:]     = MM[:,:,:,:]
                 h5_MM['MM_S'][tstart_MM:tend_MM,:,:,:,:] = MM_S[:,:,:,:,:]
                 h5_MM['rch'][n,:,:] = MM_rch
                 h5_MM['ETg'][n,:,:] = MM_ETg
@@ -597,7 +606,7 @@ try:
                 s = sys.stdout
                 report = open(report_fn, 'a')
                 sys.stdout = report
-            top_array, h5_MF_fn = ppMF.ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_MM = (h5_MM_fn, 'rch'), wel_MM = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks, MFtime_fn = MFtime_fn)
+            top_array, h5_MF_fn = ppMF.ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_MM = (h5_MM_fn, 'rch'), wel_MM = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks, MFtime_fn = MFtime_fn, numDays = numDays)
 
             h5_MF = h5py.File(h5_MF_fn)
 
@@ -668,7 +677,7 @@ try:
             report = open(report_fn, 'a')
             sys.stdout = report
 
-        top_array, h5_MF_fn = ppMF.ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_MM = (h5_MM_fn, 'rch'), wel_MM = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks, MFtime_fn = MFtime_fn)
+        top_array, h5_MF_fn = ppMF.ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_MM = (h5_MM_fn, 'rch'), wel_MM = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks, MFtime_fn = MFtime_fn, numDays = numDays)
 
         timeendMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
         durationMF += (timeendMF-timestartMF)
@@ -677,6 +686,7 @@ except StandardError, e:  #Exception
     print '\nERROR! Abnormal MM run interruption in the MM/MF loop!\nError description:'
     h5_MF_fn = None
     traceback.print_exc(file=sys.stdout)
+    #sys.exit()
 
 # #############################
 # 3rd phase : export results #####
@@ -684,7 +694,7 @@ except StandardError, e:  #Exception
 
 try:
     del gridVEGarea, RFzonesTS, E0zonesTS, PETvegzonesTS, RFevegzonesTS, PEsoilzonesTS
-    del gridMETEO, gridSOILthick, gridPONDhmax, gridPONDw
+    del gridMETEO, gridSOILthick, gridSshmax, gridSsw
 
     # #############################
     # ###  OUTPUT EXPORT   ########
@@ -700,11 +710,12 @@ try:
         cbc_STO = np.zeros((sum(perlen), nrow, ncol, nlay))
         cbc_RCH = np.zeros((sum(perlen), nrow, ncol, nlay))
         cbc_WEL = np.zeros((sum(perlen), nrow, ncol, nlay))
+        # cbc format is : (kstp), kper, textprocess, nrow, ncol, nlay
         t = 0
         if timedef>=0:
             h_MF = np.zeros((sum(perlen), nrow, ncol, nlay))
             for n in range(nper):
-                if perlen[n]>1:
+                if perlen[n]<>1.0:
                     for x in range(perlen[n]):
                         h_MF[t,:,:,:] = h5_MF['heads'][n,:,:,:]
                         cbc_DRN_tmp = h5_MF['cbc'][n,iDRN,:,:,:]
@@ -823,6 +834,7 @@ try:
     h_MF_m = np.ma.masked_values(h_MF_m, hdry, atol = 1E+25)
     hmax = []
     hmin = []
+    hdiff = []
     DRNmax = []
     DRNmin = []
     cbcmax = []
@@ -830,22 +842,29 @@ try:
     try:
         if obs <> None:
             for o in range(len(obs.keys())):
+                i = obs.get(obs.keys()[o])['i']
+                j = obs.get(obs.keys()[o])['j']
+                l = obs.get(obs.keys()[o])['lay']
+                hmaxMF = float(np.ceil(np.nanmax(h_MF_m[:,i,j,l].flatten())))
+                hminMF = float(np.floor(np.nanmin(h_MF_m[:,i,j,l].flatten())))
                 npa_m_tmp = np.ma.masked_values(obs_h[o], hnoflo, atol = 0.09)
-                hmax.append(np.nanmax(npa_m_tmp.flatten()))
-                hmin.append(np.nanmin(npa_m_tmp.flatten()))
-    except:
-        pass
-    try:
-        hmax.append(np.nanmax(h_MF_m[:,:,:,:].flatten()))
-        hmin.append(np.nanmin(h_MF_m[:,:,:,:].flatten()))
-    except:
-        pass
-    try:
-        hmax = float(np.ceil(np.nanmax(hmax)))
-        hmin = float(np.floor(np.nanmin(hmin)))
+                hmaxMM = float(np.ceil(np.nanmax(npa_m_tmp.flatten())))
+                hminMM = float(np.floor(np.nanmin(npa_m_tmp.flatten())))
+                hmax.append(np.nanmax((hmaxMF, hmaxMM)))
+                hmin.append(np.nanmin((hminMF, hminMM)))
+                hdiff.append(hmax[o]-hmin[o])
+                del npa_m_tmp
+            hdiff = np.nanmax(hdiff)
     except:
         hmax = 999.9
         hmin = -999.9
+        hdiff = 2000
+    try:
+        hmaxMF = float(np.ceil(np.nanmax(h_MF_m[:,:,:,:].flatten())))
+        hminMF = float(np.floor(np.nanmin(h_MF_m[:,:,:,:].flatten())))
+    except:
+        hmaxMF = 999.9
+        hminMF = -999.9
     if isinstance(h5_MF_fn, str):
         DRNmax.append(np.nanmax(-cbc_DRN).flatten())
         DRNmax = float(np.ceil(np.nanmax(DRNmax)))
@@ -955,7 +974,7 @@ try:
                 # DateInput, P, PET, Pe, Ss, dSs, Ro, ETa, S, Rp, R, h, hmeas, Smeas, Sm, Sr):
                 # index = {'iRF':0, 'iPET':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iSEEPAGE':6, 'iEs':7, 'iMB':8, 'iINTER':9, 'iE0':10, 'iEg':11, 'iTg':12, 'iR':13, 'iRn':14, 'idSs':15, 'iETg':16}
                 plt_export_fn = os.path.join(MM_ws, '_plt_'+ obs.keys()[o] + '.png')
-                # def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, SEEPAGE, R, Rn, Es, MB, h_MF, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin):
+                # def allPLOT(DateInput, P, PET, PE, Pe, dSs, Ss, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, SEEPAGE, R, Rn, Es, MB, h_MF, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin):
                 MMplot.allPLOT(
                 inputDate,
                 MM[:,index.get('iRF')],
@@ -978,15 +997,15 @@ try:
                 MM[:,index.get('iRn')],
                 MM[:,index.get('iEs')],
                 MM[:,index.get('iMB')],
-                h_MF_m[:,i,j,0], h_satflow, obs_h[o][0,:], obs_S[o],
+                h_MF_m[:,i,j,l], h_satflow, obs_h[o][0,:], obs_S[o],
                 _Sm[gridSOIL[i,j]-1],
                 _Sr[gridSOIL[i,j]-1],
                 hnoflo,
                 plt_export_fn,
                 plt_title,
                 colors_nsl,
-                hmax,
-                hmin
+                hmin[o] + hdiff,
+                hmin[o]
                 )
                 # plot water balance at each obs. cell
                 plt_export_fn = os.path.join(MM_ws, '_plt_'+ obs.keys()[o] + 'UNSATbalance.png')
@@ -1044,7 +1063,7 @@ try:
             MM = h5_MM['MM'][:,:,:,index.get(i1)]
             h5_MM.close()
             V = [np.ma.masked_values(MM, hnoflo, atol = 0.09)]
-            V[0] = np.add.accumulate(V[0], axis = 0)[len(perlen)-1,:,:]/sum(perlen)
+            V[0] = np.add.accumulate(V[0], axis = 0)[sum(perlen)-1,:,:]/sum(perlen)
             Vmax = np.nanmax(V[0]) #float(np.ceil(np.nanmax(V)))
             Vmin = np.nanmin(V[0]) #float(np.floor(np.nanmin(V)))
             if i == 'dSu':
@@ -1072,7 +1091,7 @@ try:
                 MM = h5_MM['MM_S'][:,:,:,l,index_S.get(i1)]
                 h5_MM.close()
                 V1 = np.ma.masked_values(MM, hnoflo, atol = 0.09)
-                V1 = np.add.accumulate(V1, axis = 0)[len(perlen)-1,:,:]/sum(perlen)
+                V1 = np.add.accumulate(V1, axis = 0)[sum(perlen)-1,:,:]/sum(perlen)
                 V += V1
             del V1
             Vmax = np.nanmax(V[0]) #float(np.ceil(np.nanmax(V)))
@@ -1108,7 +1127,7 @@ try:
             V=[]
             for L in range(nlay):
                 V.append(h_MF_m[TS,:,:,L])
-            MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation (m)', msg = 'DRY', plt_title = 'HEADS', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (hmax - hmin)/nrange, Vmax = hmax, Vmin = hmin, ntick = ntick)
+            MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation (m)', msg = 'DRY', plt_title = 'HEADS', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (hmaxMF - hminMF)/nrange, Vmax = hmaxMF, Vmin = hminMF, ntick = ntick)
             del V
             # plot diff between drain elevation and heads elevation [m]
             DrnHeadsLtop = top_array_m - h_MF_m[TS,:,:,0]
@@ -1127,7 +1146,7 @@ try:
 
     del h_MF_m, cbc_DRN
     del top_array_m, gridSOIL, inputDate
-    del hmax, hmin, DRNmax, DRNmin, cbcmax, cbcmin
+    del hmaxMF, hminMF, hmax, hmin, hdiff, DRNmax, DRNmin, cbcmax, cbcmin
 
     timeendExport = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
     durationExport=(timeendExport-timestartExport)
