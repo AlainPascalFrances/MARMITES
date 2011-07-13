@@ -99,7 +99,7 @@ class UNSAT:
 
 #####################
 
-    def flux(self, RFe, PET, PE, S, Sini, Rp, Zr_elev, VEGarea, HEADStmp, Dltop, Dlbot, Dl, nsl, Sm, Sfc, Sr, Ks, Ssmax, Ssratio, t, Si, Rpi, DRN, Ssi, E0, dtwt, st, i, j, n, kTu_min, kTu_n, dt, dti):
+    def flux(self, RFe, PET, PE, S, Sini, Rp, Zr_elev, VEGarea, HEADStmp, Dltop, Dlbot, Dl, nsl, Sm, Sfc, Sr, Ks, Ssmax, Ssratio, t, Si, Rpi, DRN, Ssi, E0, dtwt, st, i, j, n, kTu_min, kTu_n, dt, dti, Dl_unsat):
 
         def surfwater(s_tmp,Vm,Ssmax, E0, i, j, n):
             '''
@@ -273,6 +273,8 @@ class UNSAT:
             else:
                 Spc[l] = Sm[l]
                 Sini[l] = Sm[l]*Dl[l]
+                HEADStmp += Dl_unsat[l]
+                dtwt -= Dl_unsat[l]
 
         # GW evaporation, equation 17 of Shah et al 2007, see ref in the __init__
         if PE>0.0:
@@ -296,7 +298,6 @@ class UNSAT:
         kTu_max = 1.0
         for z in range(len(Zr_elev)):
             if HEADStmp > Zr_elev[z]:
-                # TODO correct average soil moisture in the case vadose layer is filled with GW
                 for l in range(nsl):
                     if Spc[l]>=Sr[l]:
                         if Spc[l]<=Sm[l]:
@@ -311,7 +312,7 @@ class UNSAT:
                     PET[z] -= TgtmpZr[l,z]
                     Tgtmp += (TgtmpZr[l,z]*VEGarea[z]/100)   # *(Dl[l]/sum(Dl))
 
-        return Estmp, Sstmp, Rotmp, Rptmp, Eutmp, Tutmp, Sini, Spc, Rtmp, Egtmp, Tgtmp
+        return Estmp, Sstmp, Rotmp, Rptmp, Eutmp, Tutmp, Sini, Spc, Rtmp, Egtmp, Tgtmp, HEADStmp
         del Estmp, Sstmp, Rotmp, Rptmp, Eutmp, Tutmp, Sini, Spc, Rtmp, Egtmp, Tgtmp
 
 #####################
@@ -359,6 +360,8 @@ class UNSAT:
         Es=np.zeros([Ttotal], dtype=np.float)
         # GW seepage into soil zone
         SEEPAGE=np.zeros([Ttotal], dtype=int)
+        # HEADS
+        HEADScorr=np.zeros([Ttotal], dtype=int)
         #MASS BALANCE
         MB=np.zeros([Ttotal], dtype=float)
         # bare soil GW evaporation
@@ -372,7 +375,7 @@ class UNSAT:
         # GW evapotranspiration
         ETg=np.zeros([Ttotal], dtype=np.float)
         # output arrays
-        nflux1 = 19
+        nflux1 = 20
         nflux2 = 6
         results1 = np.zeros([Ttotal,nflux1])
         results2 = np.zeros([Ttotal,nsl,nflux2])
@@ -380,8 +383,8 @@ class UNSAT:
 #        if D < 0.05: #correct soil thickness less than 5cm
 #            D=0.05
         # conversion from m to mm
-        D = D*1000
-        TopAquif = TopAquif*1000
+        D = D*1000.0
+        TopAquif = TopAquif*1000.0
         # elevation of bottom of soil reservoir
         Dbot = TopAquif
         # topography elevation
@@ -391,6 +394,7 @@ class UNSAT:
         Dl = np.zeros([nsl], dtype=float)
         for l in range(nsl-1):
             Dl[l] = D*slprop[l]
+        Dl_unsat = Dl
         # elevation of top and bottom of soil layers
         Dltop = np.zeros([nsl], dtype=float)
         Dlbot = np.zeros([nsl], dtype=float)
@@ -405,7 +409,7 @@ class UNSAT:
 
         Zr_elev = []
         for z in range(len(Zr)):
-            Zr_elev.append(Dtop - Zr[z]*1000)
+            Zr_elev.append(Dtop - Zr[z]*1000.0)
 
         dt = float(perlen)/float(nstp)
 
@@ -426,9 +430,9 @@ class UNSAT:
 
             # handle drycell
             if HEADS[t]>hdry-1E3:
-                HEADStmp = Dbot - 100000
+                HEADStmp = Dbot - 100000.0
             else:
-                HEADStmp=HEADS[t]*1000
+                HEADStmp=HEADS[t]*1000.0
             dtwt = Dtop-HEADStmp
 
             Sini = np.zeros([nsl], dtype=float)
@@ -442,7 +446,7 @@ class UNSAT:
                 for l in range(nsl):
                     Si[l] = Si[l]*Dl[l]
                 # fluxes
-                Estmp, Sstmp, Rotmp, Rptmp, Eutmp, Tutmp, Stmp, Spctmp, Rtmp, Egtmp, Tgtmp = self.flux(RFe_tot[t], PETveg[:,t], PE_tot[t], S, Sini, Rp, Zr_elev, VEGarea, HEADStmp, Dltop, Dlbot, Dl, nsl, Sm, Sfc, Sr, Ks, Ssmax, Ssratio, t, Si, Rpi, DRN_tmp, Ssi, E0[t], dtwt, st, i, j, n, kTu_min, kTu_n, dt, dti)
+                Estmp, Sstmp, Rotmp, Rptmp, Eutmp, Tutmp, Stmp, Spctmp, Rtmp, Egtmp, Tgtmp, HEADStmp = self.flux(RFe_tot[t], PETveg[:,t], PE_tot[t], S, Sini, Rp, Zr_elev, VEGarea, HEADStmp, Dltop, Dlbot, Dl, nsl, Sm, Sfc, Sr, Ks, Ssmax, Ssratio, t, Si, Rpi, DRN_tmp, Ssi, E0[t], dtwt, st, i, j, n, kTu_min, kTu_n, dt, dti, Dl_unsat)
             # heads above soil bottom
             else:
                 DRN_tmp = DRN[t]*cf*dt  # cbc are expressed in volume/unit time
@@ -452,7 +456,7 @@ class UNSAT:
                 for l in range(nsl):
                     Si[l] = Si[l]*Dl[l]
                 # fluxes
-                Estmp, Sstmp, Rotmp, Rptmp, Eutmp, Tutmp, Stmp, Spctmp, Rtmp, Egtmp, Tgtmp = self.flux(RFe_tot[t], PETveg[:,t], PE_tot[t], S, Sini, Rp, Zr_elev, VEGarea, HEADStmp, Dltop, Dlbot, Dl, nsl, Sm, Sfc, Sr, Ks, Ssmax, Ssratio, t, Si, Rpi, DRN_tmp, Ssi, E0[t], dtwt, st, i, j, n, kTu_min, kTu_n, dt, dti)
+                Estmp, Sstmp, Rotmp, Rptmp, Eutmp, Tutmp, Stmp, Spctmp, Rtmp, Egtmp, Tgtmp, HEADStmp = self.flux(RFe_tot[t], PETveg[:,t], PE_tot[t], S, Sini, Rp, Zr_elev, VEGarea, HEADStmp, Dltop, Dlbot, Dl, nsl, Sm, Sfc, Sr, Ks, Ssmax, Ssratio, t, Si, Rpi, DRN_tmp, Ssi, E0[t], dtwt, st, i, j, n, kTu_min, kTu_n, dt, dti, Dl_unsat)
             # fill the output arrays
             Ss[t] = Sstmp
             Ro[t]   = Rotmp
@@ -460,6 +464,7 @@ class UNSAT:
             Eg[t]   = Egtmp
             Tg[t]   = Tgtmp
             R[t]    = Rtmp
+            HEADScorr[t] = HEADStmp
             for l in range(nsl):
                 S[t,l]   = Stmp[l]
                 Spc[t,l] = Spctmp[l]
@@ -492,7 +497,7 @@ class UNSAT:
             #MB[t]=RF[t]+Ssi+DRN_tmp+RpinMB-INTER_tot[t]-Ro[t]-Ss[t]-Es[t]-EuMB-TuMB-RpoutMB-sum(dS[t,:])
             MB[t] = RFe_tot[t]*dt + dti*(Ssi+RpinMB) + DRN_tmp - dt*(Ro[t] + Ss[t] + Es[t] + EuMB + TuMB + RpoutMB + dS_tot[t])
             # index = {'iRF':0, 'iPET':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iSEEPAGE':6, 'iEs':7, 'iMB':8, 'iINTER':9, 'iE0':10, 'iEg':11, 'iTg':12, 'iR':13, 'iRn':14, 'idSs':15, 'ETg':16}
-            results1[t,:] = [RF[t], PET_tot[t], PE_tot[t], RFe_tot[t], Ss[t], Ro[t], DRN_tmp/dt, Es[t], MB[t], INTER_tot[t], E0[t], Eg[t], Tg[t], R[t], Rn[t], dSs[t], ETg[t], ETu_tot[t], dS_tot[t]]
+            results1[t,:] = [RF[t], PET_tot[t], PE_tot[t], RFe_tot[t], Ss[t], Ro[t], DRN_tmp/dt, Es[t], MB[t], INTER_tot[t], E0[t], Eg[t], Tg[t], R[t], Rn[t], dSs[t], ETg[t], ETu_tot[t], dS_tot[t], HEADScorr[t]/1000.0]
             # index_S = {'iEu':0, 'iTu':1,'iS':2, 'iRp':3}
             for l in range(nsl):
                 results2[t,l,:] = [Eu[t,l], Tu[t,l], Spc[t,l], Rp[t,l], dS[t,l], S[t,l]]
@@ -501,7 +506,7 @@ class UNSAT:
             Ssi = Ss[t]
         return results1, results2
 
-        del RF, PET_tot, PE_tot, RFe_tot, Ss, Ro, DRN, Es, MB, INTER_tot, E0, Eg, Tg, R, Rn, dSs, ETg, ETu_tot, dS_tot
+        del RF, PET_tot, PE_tot, RFe_tot, Ss, Ro, DRN, Es, MB, INTER_tot, E0, Eg, Tg, R, Rn, dSs, ETg, ETu_tot, dS_tot, HEADStmp, HEADScorr
         del Eu, Tu, Spc, Rp, dS, S
         del results1, results2
 
@@ -525,7 +530,7 @@ class SATFLOW:
 
     def run(self, R, hi, h0, RC, STO):
         h1=np.zeros([len(R)], dtype=np.float)
-        h_tmp = (hi*1000 + R[0]/STO -hi*1000/RC)
+        h_tmp = (hi*1000.0 + R[0]/STO -hi*1000.0/RC)
         h1[0]=h_tmp
         for t in range(1,len(R)):
             h_tmp = h1[t-1] + R[t]/STO -h1[t-1]/RC
@@ -533,7 +538,7 @@ class SATFLOW:
 
         h=np.zeros([len(R)], dtype=np.float)
         for t in range(0,len(R)):
-            h_tmp= (h1[t] + h0*1000)/1000
+            h_tmp= (h1[t] + h0*1000.0)/1000.0
             h[t]=h_tmp
 
         return h

@@ -7,7 +7,7 @@ if mpl.get_backend()<>'agg':
 import matplotlib.pyplot as plt
 import numpy as np
 
-def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, SEEPAGE, R, Rn, Es, MB, h_MF, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin):
+def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, SEEPAGE, R, Rn, Es, MB, h_MF, h_MF_corr, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin):
     """
     allGRAPH: GRAPH the computed data
     Use Matplotlib
@@ -225,6 +225,7 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     plt.setp(ax7.get_yticklabels(), fontsize=8)
     plt.plot_date(DateInput,hobs_m, '--', color = 'blue', marker='o', markeredgecolor = 'blue', markerfacecolor = 'None', markersize = 2)
     plt.plot_date(DateInput,h_MF,'-', color = 'b')
+    plt.plot_date(DateInput,h_MF_corr,'--', color = 'b')
     plt.plot_date(DateInput,h_SF,'-', color = 'r')
     ax7.set_xticklabels(DateInput)
     plt.xlim(DateInput[0]-1,DateInput[len(P)-1]+1)
@@ -237,7 +238,7 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
         ybuffer = 1.0
     plt.ylim((hmin - ybuffer, hmax + ybuffer))
     plt.ylabel('m', fontsize=10)
-    plt.legend((r'h_obs',r'h_MF',r'h_SF'), loc=0, labelspacing=lblspc, markerscale=mkscale)
+    plt.legend((r'h_obs',r'h_MF',r'h_MF_corr',r'h_SF'), loc=0, labelspacing=lblspc, markerscale=mkscale)
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8 )
