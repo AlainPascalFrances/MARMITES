@@ -349,7 +349,7 @@ class PROCESS:
         outpathname=[]
         #  read obs time series
         for o in range(len(obs.keys())):
-            outpathname.append(os.path.join(self.MM_ws,'output'+obs.keys()[o]+'.txt'))
+            outpathname.append(os.path.join(self.MM_ws,'_MM_0'+obs.keys()[o]+'.txt'))
         obs_h=[]
         obs_sm=[]
         for o in range(len(obs.keys())):
@@ -445,7 +445,7 @@ class PROCESS:
         """
         Export the processed data in a txt file
         INPUTS:      output fluxes time series and date
-        OUTPUT:      output.txt
+        OUTPUT:      ObsName.txt
         """
         for t in range(len(inputDate)):
             year='%4d'%mpl.dates.num2date(inputDate[t]).year
@@ -475,7 +475,7 @@ class PROCESS:
             out1 = '%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[t,index.get('iRF')], results[t,index.get('iE0')],results[t,index.get('iPET')],results[t,index.get('iPE')],results[t,index.get('iRFe')],results[t,index.get('iI')])
             out2 = '%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[t,index.get('iEg')], results[t,index.get('iTg')],results[t,index.get('iETg')], WEL[t], results[t,index.get('iEs')])
             out3 = '%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[t,index.get('idSs')],results[t,index.get('iSs')],results[t,index.get('iRo')],results[t,index.get('iDRN')],DRN[t])
-            out4 = '%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[t,index.get('iR')], results[t,index.get('iRn')], RCH[t], h_satflow[t],heads_MF[t],results[t,index.get('iHEADScorr')],obs_h[t])
+            out4 = '%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[t,index.get('iR')], results[t,index.get('iRn')], RCH[t], h_satflow[t],heads_MF[t],results[t,index.get('iHEADScorr')],obs_h[t],results[t,index.get('idtwt')],results[t,index.get('iDll')])
             out5 = '%.8f' % (results[t,index.get('iMB')])
             out_line =  out_date, ',', out1, Euout, Tuout, out2, Sout, Spcout, dSout, out3, Rpout, out4, Smeasout, out5, '\n'
             for l in out_line:
@@ -486,7 +486,7 @@ class PROCESS:
         """
         Export the processed data in a txt file
         INPUTS:      output fluxes time series and date
-        OUTPUT:      output.txt
+        OUTPUT:      PESTxxx.txt
         """
         for t in range(len(inputDate)):
             year='%4d'%mpl.dates.num2date(inputDate[t]).year

@@ -342,7 +342,7 @@ def ppMFtime(MM_ws, MF_ws, outpathname, nper, perlen, nstp, timedef, inputDate_f
             E0_stp.append([])
             E0_stp_tmp.append(0.0)
         if perlenmax < 2:
-            print '\nperlenmax must be higher than 1!\nCorrect perlenmax in the MODFLOW ini fileor select the daily option.'
+            print '\nperlenmax must be higher than 1!\nCorrect perlenmax in the MODFLOW ini file or select the daily option.'
             sys.exit()
         for j in range(len(d)):
                 if RFe_d[:,:,j].sum()>0.0:
