@@ -40,6 +40,8 @@ def ppMFini(MF_ws, MF_ini_fn, out = 'MF', numDays = -1):
         l += 1
         exe_name = str(inputFile[l].strip())
         l += 1
+        version =  str(inputFile[l].strip())
+        l += 1
         dum_sssp1 = int(inputFile[l].strip())
         l += 1
         ext_dis = str(inputFile[l].strip())
@@ -251,7 +253,7 @@ def ppMFini(MF_ws, MF_ini_fn, out = 'MF', numDays = -1):
     del inputFile
 
     if out == 'MF':
-        return modelname, namefile_ext, exe_name, dum_sssp1, ext_dis, nlay, ncol, nrow, nper, itmuni, lenuni,laycbd, delr, delc, top_fn, botm_fn, perlen, nstp, tsmult, Ss_tr, ext_bas, ibound_fn, strt_fn, hnoflo,ext_lpf, ilpfcb, hdry, nplpf, laytyp, layavg, chani, layvka, laywet, hk_fn, vka_fn, ss_fn, sy_fn,ext_oc, ihedfm, iddnfm, ext_cbc, ext_heads, ext_ddn, hclose, rclose, ext_rch, rch_user, nrchop, ext_wel, wel_user, ext_drn, drn_l1, drn_elev_fn, drn_cond_fn
+        return modelname, namefile_ext, exe_name, version, dum_sssp1, ext_dis, nlay, ncol, nrow, nper, itmuni, lenuni,laycbd, delr, delc, top_fn, botm_fn, perlen, nstp, tsmult, Ss_tr, ext_bas, ibound_fn, strt_fn, hnoflo,ext_lpf, ilpfcb, hdry, nplpf, laytyp, layavg, chani, layvka, laywet, hk_fn, vka_fn, ss_fn, sy_fn,ext_oc, ihedfm, iddnfm, ext_cbc, ext_heads, ext_ddn, hclose, rclose, ext_rch, rch_user, nrchop, ext_wel, wel_user, ext_drn, drn_l1, drn_elev_fn, drn_cond_fn
     elif out == 'MM':
         return nrow, ncol, delr, delc, reggrid, nlay, nper, perlen, nstp, timedef, hnoflo, hdry, laytyp, lenuni, itmuni, ibound_fn
 
@@ -526,7 +528,7 @@ def ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_MM = "", rch_user = 
     if verbose == 0:
         print '--------------'
 
-    modelname, namefile_ext, exe_name, dum_sssp1, ext_dis, nlay, ncol, nrow, nper, itmuni, lenuni,laycbd, delr, delc, top_fn, botm_fn, perlen, nstp, tsmult, Ss_tr, ext_bas, ibound_fn, strt_fn, hnoflo,ext_lpf, ilpfcb, hdry, nplpf, laytyp, layavg, chani, layvka, laywet, hk_fn, vka_fn, ss_fn, sy_fn,ext_oc, ihedfm, iddnfm, ext_cbc, ext_heads, ext_ddn, hclose, rclose, ext_rch, rch_user, nrchop, ext_wel, wel_user, ext_drn, drn_l1, drn_elev_fn, drn_cond_fn = ppMFini(MF_ws, MF_ini_fn, out = 'MF', numDays = numDays)
+    modelname, namefile_ext, exe_name, version, dum_sssp1, ext_dis, nlay, ncol, nrow, nper, itmuni, lenuni,laycbd, delr, delc, top_fn, botm_fn, perlen, nstp, tsmult, Ss_tr, ext_bas, ibound_fn, strt_fn, hnoflo,ext_lpf, ilpfcb, hdry, nplpf, laytyp, layavg, chani, layvka, laywet, hk_fn, vka_fn, ss_fn, sy_fn,ext_oc, ihedfm, iddnfm, ext_cbc, ext_heads, ext_ddn, hclose, rclose, ext_rch, rch_user, nrchop, ext_wel, wel_user, ext_drn, drn_l1, drn_elev_fn, drn_cond_fn = ppMFini(MF_ws, MF_ini_fn, out = 'MF', numDays = numDays)
 
     if os.path.exists(rch_MM[0]):
         rch_input = rch_MM
@@ -651,7 +653,7 @@ def ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_MM = "", rch_user = 
             wel_input = wel_user
 
 # DRAIN
-    # in layer 1, DRN are attributed to topgraphy level
+    # in layer 1, DRN are attributed to the bottom of the soil zone - 10cm (minimum vadose zone thickness)
     layer_row_column_elevation_cond = [[]]
     ri=0
     for r in top_array:
@@ -659,8 +661,8 @@ def ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_MM = "", rch_user = 
         ci=0
         for v in r:
             ci += 1
-            layer_row_column_elevation_cond[0].append([1,ri,ci,v,drn_l1])
-            top_array[ri-1][ci-1] +=0.01
+            layer_row_column_elevation_cond[0].append([1,ri,ci,v-0.1,drn_l1])  # 0.1 is the minimum thickness of the last soil layer
+            #top_array[ri-1][ci-1] +=0.01
     # DRN in other layers depend on user inputESRI ASCII files
     if nlay>1 and isinstance(drn_cond_fn[0], str):
         drn_elev_array = np.zeros((nrow,ncol, nlay-1))
@@ -720,7 +722,7 @@ def ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_MM = "", rch_user = 
 
     # 2 - create the modflow packages files
     # MFfile initialization
-    mfmain = mf.modflow(modelname = modelname, exe_name = exe_name, namefile_ext = namefile_ext, version = 'mf2000', model_ws= MF_ws)
+    mfmain = mf.modflow(modelname = modelname, exe_name = exe_name, namefile_ext = namefile_ext, version = version, model_ws= MF_ws)
     # dis initialization
     for i in range(nper):
         if Ss_tr[i] == 'TR':
@@ -814,7 +816,6 @@ def ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_MM = "", rch_user = 
         perlen = perlen[1:]
         nstp = nstp[1:]
     else:
-        # Not tested
         if chunks == 1:
             h5_MF.create_dataset(name = 'heads', data = np.asarray(h[1]), chunks = (1,nrow,ncol,nlay), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf'
             h5_MF.create_dataset(name = 'cbc', data = np.asarray(cbc[1]), chunks = (1,len(h5_MF['cbc_nam']),nrow,ncol,nlay), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf'

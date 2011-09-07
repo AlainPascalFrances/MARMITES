@@ -264,7 +264,7 @@ class PROCESS:
         for i in range(SOILzones):
             nsl.append(int(inputFile[i+1]))
             if nsl[i+1]<2:
-                raise ValueError, '\nERROR!\nThe model requires at least one soil layer and one layer in the unsaturated zone.\nMARMITEs only found %2d layer in soil %s' % (nsl[i+1],nam_soil[z])
+                raise ValueError, '\nERROR!\nThe model requires at least 2 layers in the unsaturated zone (i.e. 1 soil layer + 1 layer of the vadose zone).\nMARMITEs only found %2d layer in soil %s' % (nsl[i+1],nam_soil[z])
 
         # soil parameter definition for each soil type
         nslst = SOILzones+1
@@ -460,6 +460,7 @@ class PROCESS:
             Euout=''
             Tuout=''
             Smeasout = ''
+            MBout=''
             for l in range(_nslmax):
                 Sout = Sout + str(results_S[t,l,index_S.get('iSu')]) + ','
                 Spcout = Spcout + str(results_S[t,l,index_S.get('iSu_pc')]) + ','
@@ -467,6 +468,7 @@ class PROCESS:
                 Rpout = Rpout + str(results_S[t,l,index_S.get('iRp')]) + ','
                 Euout = Euout + str(results_S[t,l,index_S.get('iEu')]) + ','
                 Tuout = Tuout + str(results_S[t,l,index_S.get('iTu')]) + ','
+                MBout = MBout + str(results_S[t,l,index_S.get('iMB_l')]) + ','
                 try:
                     Smeasout = Smeasout + str(obs_S[t,l]) + ','
                 except:
@@ -475,9 +477,9 @@ class PROCESS:
             out1 = '%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[t,index.get('iRF')], results[t,index.get('iE0')],results[t,index.get('iPET')],results[t,index.get('iPE')],results[t,index.get('iRFe')],results[t,index.get('iI')])
             out2 = '%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[t,index.get('iEg')], results[t,index.get('iTg')],results[t,index.get('iETg')], WEL[t], results[t,index.get('iEs')])
             out3 = '%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[t,index.get('idSs')],results[t,index.get('iSs')],results[t,index.get('iRo')],results[t,index.get('iDRN')],DRN[t])
-            out4 = '%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[t,index.get('iR')], results[t,index.get('iRn')], RCH[t], h_satflow[t],heads_MF[t],results[t,index.get('iHEADScorr')],obs_h[t],results[t,index.get('idtwt')],results[t,index.get('iDll')])
+            out4 = '%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[t,index.get('iR')], results[t,index.get('iRn')], results[t,index.get('iMBerr')], RCH[t], h_satflow[t],heads_MF[t],results[t,index.get('iHEADScorr')],obs_h[t],results[t,index.get('idtwt')],results[t,index.get('iTll')])
             out5 = '%.8f' % (results[t,index.get('iMB')])
-            out_line =  out_date, ',', out1, Euout, Tuout, out2, Sout, Spcout, dSout, out3, Rpout, out4, Smeasout, out5, '\n'
+            out_line =  out_date, ',', out1, Euout, Tuout, out2, Sout, Spcout, dSout, out3, Rpout, out4, Smeasout, MBout, out5, '\n'
             for l in out_line:
                 outFileExport.write(l)
         del i, j, inputDate, _nslmax, results, index, results_S, index_S, DRN, RCH, WEL, h_satflow, heads_MF, obs_h, obs_S, outFileExport, obsname
@@ -496,7 +498,6 @@ class PROCESS:
             if obs_h[t]!=self.hnoflo:
                 obs_h_tmp = str(obs_h[t])
                 outPESTheads.write(obsname.ljust(14,' ')+ date.ljust(14,' ')+ '00:00:00        '+ str(heads_MF[t])+ '    \n')
-            # TODO export for all soil layers (currently only the SM computed for the first layer is exported)
             if results_S <> None:
                 if obs_S[0,t]!=self.hnoflo:
                     Smeasout = ''
