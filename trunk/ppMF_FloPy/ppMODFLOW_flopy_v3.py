@@ -24,7 +24,7 @@ import h5py
 import MARMITESprocess as MMproc
 
 #####################################
-
+# TODO modify the reading of the MF ini file
 def ppMFini(MF_ws, MF_ini_fn, out = 'MF', numDays = -1):
 
     ''' read input file (called _input.ini in the MARMITES workspace
@@ -44,6 +44,7 @@ def ppMFini(MF_ws, MF_ini_fn, out = 'MF', numDays = -1):
         l += 1
         dum_sssp1 = int(inputFile[l].strip())
         l += 1
+        # dis
         ext_dis = str(inputFile[l].strip())
         l += 1
         nlay = int(inputFile[l].strip())
@@ -101,12 +102,11 @@ def ppMFini(MF_ws, MF_ini_fn, out = 'MF', numDays = -1):
         l += 1
         reggrid = int(inputFile[l].strip())
         l += 1
-        top_fn = str(inputFile[l].strip())
+        top = [inputFile[l].strip()]
         l += 1
-        botm_fn = []
-        botm_tmp =  inputFile[l].split()
+        botm = []
         for i in range(nlay):
-            botm_fn.append(str(botm_tmp[i]))
+            botm.append(inputFile[l].split()[i])
         l += 1
         perlen = []
         nstp = []
@@ -141,19 +141,19 @@ def ppMFini(MF_ws, MF_ini_fn, out = 'MF', numDays = -1):
             nstp = 'ToBeDefined'
             tsmult = 'ToBeDefined'
             l += 4
+        # bas
         ext_bas = str(inputFile[l].strip())
         l += 1
-        ibound_fn = []
-        ibound_tmp =  inputFile[l].split()
+        ibound = []
         for i in range(nlay):
-            ibound_fn.append(str(ibound_tmp[i]))
+            ibound.append(inputFile[l].split()[i])
         l += 1
-        strt_fn = []
-        strt_tmp =  inputFile[l].split()
+        strt = []
         for i in range(nlay):
-            strt_fn.append(str(strt_tmp[i]))
+            strt.append(inputFile[l].split()[i])
         l += 1
         hnoflo = float(inputFile[l].strip())
+        # lpf
         l += 1
         ext_lpf = str(inputFile[l].strip())
         l += 1
@@ -169,44 +169,96 @@ def ppMFini(MF_ws, MF_ini_fn, out = 'MF', numDays = -1):
             laytyp.append(int(laytyp_tmp[i]))
         l += 1
         layavg = []
-        layavg_tmp =  inputFile[l].split()
         for i in range(nlay):
-            layavg.append(int(layavg_tmp[i]))
+            layavg.append(int(inputFile[l].split()[i]))
         l += 1
         chani = []
-        chani_tmp =  inputFile[l].split()
         for i in range(nlay):
-            chani.append(int(chani_tmp[i]))
+            chani.append(int(inputFile[l].split()[i]))
         l += 1
         layvka = []
-        layvka_tmp =  inputFile[l].split()
         for i in range(nlay):
-            layvka.append(int(layvka_tmp[i]))
+            layvka.append(int(inputFile[l].split()[i]))
         l += 1
         laywet = []
-        laywet_tmp =  inputFile[l].split()
         for i in range(nlay):
-            laywet.append(int(laywet_tmp[i]))
+            laywet.append(int(inputFile[l].split()[i]))
         l += 1
-        hk_fn = []
-        hk_tmp =  inputFile[l].split()
+        hk = []
         for i in range(nlay):
-            hk_fn.append(str(hk_tmp[i]))
+            hk.append(inputFile[l].split()[i])
         l += 1
-        vka_fn = []
-        vka_tmp =  inputFile[l].split()
+        vka = []
         for i in range(nlay):
-            vka_fn.append(str(vka_tmp[i]))
+            vka.append(inputFile[l].split()[i])
         l += 1
-        ss_fn = []
-        ss_tmp =  inputFile[l].split()
+        ss = []
         for i in range(nlay):
-            ss_fn.append(str(ss_tmp[i]))
+            ss.append(inputFile[l].split()[i])
         l += 1
-        sy_fn = []
-        sy_tmp =  inputFile[l].split()
+        sy = []
         for i in range(nlay):
-            sy_fn.append(str(sy_tmp[i]))
+            sy.append(inputFile[l].split()[i])
+        # uzf
+        l += 1
+        ext_uzf = str(inputFile[l].strip())
+        l += 1
+        nuztop = int(inputFile[l].strip())
+        l += 1
+        iuzfopt = int(inputFile[l].strip())
+        l += 1
+        irunflg = int(inputFile[l].strip())
+        l += 1
+        ietflg = int(inputFile[l].strip())
+        l += 1
+        iuzfcb1 = int(inputFile[l].strip())
+        l += 1
+        iuzfcb2 = int(inputFile[l].strip())
+        l += 1
+        ntrail2 = int(inputFile[l].strip())
+        l += 1
+        nsets = int(inputFile[l].strip())
+        l += 1
+        nuzgag = int(inputFile[l].strip())
+        l += 1
+        surfdep = float(inputFile[l].strip())
+        l += 1
+        eps = float(inputFile[l].strip())
+        l += 1
+        thts = float(inputFile[l].strip())
+        l += 1
+        thti = float(inputFile[l].strip())
+        row_col_iftunit_iuzfopt = []
+        if nuzgag > 0:
+            l += 1
+            iuzrow =  inputFile[l].split()
+            l += 1
+            iuzcol = inputFile[l].split()
+            l += 1
+            iftunit = inputFile[l].split()
+            l += 1
+            iuzopt = inputFile[l].split()
+            l += 1
+            for g in range(nuzgag):
+                row_col_iftunit_iuzfopt.append([[int(iuzrow[g]),int(iuzcol[g]),int(iftunit[g]),int(iuzopt[g])]])
+        finf_user = float(inputFile[l].strip())
+        # wel
+        l += 1
+        ext_wel = str(inputFile[l].strip())
+        l += 1
+        wel_user = float(inputFile[l].strip())
+        l += 1
+        # drn
+        ext_drn = str(inputFile[l].strip())
+        l += 1
+        drn_elev = []
+        for i in range(nlay):
+            drn_elev.append(inputFile[l].split()[i])
+        l += 1
+        drn_cond = []
+        for i in range(nlay):
+            drn_cond.append(inputFile[l].split()[i])
+        # oc
         l += 1
         ext_oc = str(inputFile[l].strip())
         l += 1
@@ -220,42 +272,20 @@ def ppMFini(MF_ws, MF_ini_fn, out = 'MF', numDays = -1):
         l += 1
         ext_ddn = str(inputFile[l].strip())
         l += 1
+        # pcg
         hclose = float(inputFile[l].strip())
         l += 1
         rclose = float(inputFile[l].strip())
         l += 1
-        ext_rch = str(inputFile[l].strip())
-        l += 1
-        nrchop = int(inputFile[l].strip())
-        l += 1
-        rch_user = float(inputFile[l].strip())
-        l += 1
-        ext_wel = str(inputFile[l].strip())
-        l += 1
-        wel_user = float(inputFile[l].strip())
-        l += 1
-        ext_drn = str(inputFile[l].strip())
-        l += 1
-        drn_l1 = float(inputFile[l].strip())
-        l += 1
-        drn_elev_fn = []
-        drn_elev_tmp =  inputFile[l].split()
-        for i in range(nlay-1):
-            drn_elev_fn.append(str(drn_elev_tmp[i]))
-        l += 1
-        drn_cond_fn = []
-        drn_cond_tmp =  inputFile[l].split()
-        for i in range(nlay-1):
-            drn_cond_fn.append(str(drn_cond_tmp[i]))
     except:
         print "Unexpected error in the input file:\n", sys.exc_info()[0]
         sys.exit()
     del inputFile
 
     if out == 'MF':
-        return modelname, namefile_ext, exe_name, version, dum_sssp1, ext_dis, nlay, ncol, nrow, nper, itmuni, lenuni,laycbd, delr, delc, top_fn, botm_fn, perlen, nstp, tsmult, Ss_tr, ext_bas, ibound_fn, strt_fn, hnoflo,ext_lpf, ilpfcb, hdry, nplpf, laytyp, layavg, chani, layvka, laywet, hk_fn, vka_fn, ss_fn, sy_fn,ext_oc, ihedfm, iddnfm, ext_cbc, ext_heads, ext_ddn, hclose, rclose, ext_rch, rch_user, nrchop, ext_wel, wel_user, ext_drn, drn_l1, drn_elev_fn, drn_cond_fn
+        return modelname, namefile_ext, exe_name, version, dum_sssp1, ext_dis, nlay, ncol, nrow, nper, itmuni, lenuni,laycbd, delr, delc, top, botm, perlen, nstp, tsmult, Ss_tr, ext_bas, ibound, strt, hnoflo,ext_lpf, ilpfcb, hdry, nplpf, laytyp, layavg, chani, layvka, laywet, hk, vka, ss, sy,ext_oc, ihedfm, iddnfm, ext_cbc, ext_heads, ext_ddn, hclose, rclose, ext_wel, wel_user, ext_drn, drn_elev, drn_cond, ext_uzf, nuztop, iuzfopt, irunflg, ietflg, iuzfcb1, iuzfcb2, ntrail2, nsets, nuzgag, surfdep, eps, thts, thti, row_col_iftunit_iuzfopt, finf_user
     elif out == 'MM':
-        return nrow, ncol, delr, delc, reggrid, nlay, nper, perlen, nstp, timedef, hnoflo, hdry, laytyp, lenuni, itmuni, ibound_fn
+        return nrow, ncol, delr, delc, top, reggrid, nlay, nper, perlen, nstp, timedef, hnoflo, hdry, laytyp, lenuni, itmuni, ibound
 
 #####################################
 
@@ -521,20 +551,47 @@ def ppMFtime(MM_ws, MF_ws, outpathname, nper, perlen, nstp, timedef, inputDate_f
 
 #####################################
 
-def ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_MM = "", rch_user = None, wel_MM = "", wel_user = None, report = None, verbose = 1, chunks = 0, MFtime_fn = None, numDays = -1):
+def ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, finf_MM = "", finf_user = None, wel_MM = "", wel_user = None, report = None, verbose = 1, chunks = 0, MFtime_fn = None, numDays = -1):
 
-    messagemanual="Please read the manual!\n(that by the way still doesn't exist...)"
+    ##################
+
+    def checkarray(nrow, ncol, nlay, MF_ws, var):
+        try:
+            if len(var)>1:
+                lst_out = []
+                for v in var:
+                    lst_out.append(float(v))
+            else:
+                lst_out = float(var[0])
+        except:
+            array = np.zeros((nrow,ncol,len(var)))
+            l = 0
+            for v in var:
+                if isinstance(v, str):
+                    array_path = os.path.join(MF_ws, v)
+                    array[:,:,l] = MM_PROCESS.convASCIIraster2array(array_path, array[:,:,l])
+                else:
+                    print'\nERROR!\nMODFLOW ini file incorrect, check files or values %s' % var
+                l += 1
+            if len(var)>1:
+                lst_out = list(array)
+            else:
+                lst_out = list(array[:,:,0])
+
+        return lst_out
+
+    ##################
 
     if verbose == 0:
         print '--------------'
 
-    modelname, namefile_ext, exe_name, version, dum_sssp1, ext_dis, nlay, ncol, nrow, nper, itmuni, lenuni,laycbd, delr, delc, top_fn, botm_fn, perlen, nstp, tsmult, Ss_tr, ext_bas, ibound_fn, strt_fn, hnoflo,ext_lpf, ilpfcb, hdry, nplpf, laytyp, layavg, chani, layvka, laywet, hk_fn, vka_fn, ss_fn, sy_fn,ext_oc, ihedfm, iddnfm, ext_cbc, ext_heads, ext_ddn, hclose, rclose, ext_rch, rch_user, nrchop, ext_wel, wel_user, ext_drn, drn_l1, drn_elev_fn, drn_cond_fn = ppMFini(MF_ws, MF_ini_fn, out = 'MF', numDays = numDays)
+    modelname, namefile_ext, exe_name, version, dum_sssp1, ext_dis, nlay, ncol, nrow, nper, itmuni, lenuni,laycbd, delr, delc, top, botm, perlen, nstp, tsmult, Ss_tr, ext_bas, ibound, strt, hnoflo,ext_lpf, ilpfcb, hdry, nplpf, laytyp, layavg, chani, layvka, laywet, hk, vka, ss, sy,ext_oc, ihedfm, iddnfm, ext_cbc, ext_heads, ext_ddn, hclose, rclose, ext_wel, wel_user, ext_drn, drn_elev, drn_cond, ext_uzf, nuztop, iuzfopt, irunflg, ietflg, iuzfcb1, iuzfcb2, ntrail2, nsets, nuzgag, surfdep, eps, thts, thti, row_col_iftunit_iuzfopt, finf_user = ppMFini(MF_ws, MF_ini_fn, out = 'MF', numDays = numDays)
 
-    if os.path.exists(rch_MM[0]):
-        rch_input = rch_MM
+    if os.path.exists(finf_MM[0]):
+        finf_input = finf_MM
         wel_input = wel_MM
     else:
-        rch_input = rch_user
+        finf_input = finf_user
         wel_input = wel_user
 
     if MFtime_fn <> None:
@@ -571,77 +628,42 @@ def ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_MM = "", rch_user = 
 
     print "\nImporting ESRI ASCII files to initialize the MODFLOW packages..."
 
-    top_path = os.path.join(MF_ws, top_fn)
-    top_array = np.zeros((nrow,ncol))
-    top_array = MM_PROCESS.convASCIIraster2array(top_path, top_array)
-    top_array = list(top_array)
+    top = checkarray(nrow, ncol, nlay, MF_ws, top)
+    botm = checkarray(nrow, ncol, nlay, MF_ws, botm)
+    ibound = checkarray(nrow, ncol, nlay, MF_ws, ibound)
+    ibound_tmp = np.asarray(ibound)
+    iuzfbnd = list(np.ones((nrow,ncol))*np.abs(ibound_tmp[:,:,0]))
+    del ibound_tmp
+    strt = checkarray(nrow, ncol, nlay, MF_ws, strt)
+    hk = checkarray(nrow, ncol, nlay, MF_ws, hk)
+    vka = checkarray(nrow, ncol, nlay, MF_ws, vka)
+    ss = checkarray(nrow, ncol, nlay, MF_ws, ss)
+    sy = checkarray(nrow, ncol, nlay, MF_ws, sy)
 
-    botm_array = np.zeros((nrow,ncol, nlay))
-    for l in range(nlay):
-        botm_path = os.path.join(MF_ws, botm_fn[l])
-        botm_array[:,:,l] = MM_PROCESS.convASCIIraster2array(botm_path, botm_array[:,:,l])
-    botm_array = list(botm_array)
-
-    ibound_array = np.zeros((nrow,ncol, nlay), dtype = int)
-    for l in range(nlay):
-        ibound_path = os.path.join(MF_ws, ibound_fn[l])
-        ibound_array[:,:,l] = MM_PROCESS.convASCIIraster2array(ibound_path, ibound_array[:,:,l])
-    ibound_array = list(ibound_array)
-
-    strt_array = np.zeros((nrow,ncol, nlay))
-    for l in range(nlay):
-        strt_path = os.path.join(MF_ws, strt_fn[l])
-        strt_array[:,:,l] = MM_PROCESS.convASCIIraster2array(strt_path, strt_array[:,:,l])
-    strt_array = list(strt_array)
-
-    hk_array = np.zeros((nrow,ncol, nlay))
-    for l in range(nlay):
-        hk_path = os.path.join(MF_ws, hk_fn[l])
-        hk_array[:,:,l] = MM_PROCESS.convASCIIraster2array(hk_path, hk_array[:,:,l])
-    hk_array = list(hk_array)
-
-    vka_array = np.zeros((nrow,ncol, nlay))
-    for l in range(nlay):
-        vka_path = os.path.join(MF_ws, vka_fn[l])
-        vka_array[:,:,l] = MM_PROCESS.convASCIIraster2array(vka_path, vka_array[:,:,l])
-    vka_array = list(vka_array)
-
-    ss_array = np.zeros((nrow,ncol, nlay))
-    for l in range(nlay):
-        ss_path = os.path.join(MF_ws, ss_fn[l])
-        ss_array[:,:,l] = MM_PROCESS.convASCIIraster2array(ss_path, ss_array[:,:,l])
-    ss_array = list(ss_array)
-
-    sy_array = np.zeros((nrow,ncol, nlay))
-    for l in range(nlay):
-        sy_path = os.path.join(MF_ws, sy_fn[l])
-        sy_array[:,:,l] = MM_PROCESS.convASCIIraster2array(sy_path, sy_array[:,:,l])
-    sy_array = list(sy_array)
-
-# RECHARGE
-    if isinstance(rch_input,float):
-        rch_array = rch_input
-        print '\nRecharge input: %s' % str(rch_input)
+# FINF
+    if isinstance(finf_input,float):
+        finf_array = finf_input
+        print '\nInfiltration (UZF1 package) input: %s' % str(finf_input)
     else:
-        rch_array = []
-        print '\nRecharge input: %s' % rch_input[0]
+        finf_array = []
+        print '\nInfiltration (UZF1 package) input: %s' % finf_input[0]
         try:
-            h5_rch = h5py.File(rch_input[0], 'r')
+            h5_finf = h5py.File(finf_input[0], 'r')
             for n in range(nper):
-                rch_array.append(h5_rch[rch_input[1]][n])
-            h5_rch.close()
+                finf_array.append(h5_finf[finf_input[1]][n])
+            h5_finf.close()
         except:
-            rch_array = rch_user
-            print 'WARNING!\nNo valid recharge package file(s) provided, running MODFLOW using user-input recharge value: %.3G' % rch_user
-            rch_input = rch_user
+            finf_array = finf_user
+            print 'WARNING!\nNo valid UZF1 package file(s) provided, running MODFLOW using user-input UZF1infiltration value: %.3G' % finf_user
+            finf_input = finf_user
 
 # WELL
     if isinstance(wel_input,float):
         wel_array = wel_input
-        print '\nWell input: %s' % str(wel_input)
+        print '\nWell (WEL package) input: %s' % str(wel_input)
     else:
         wel_array = []
-        print '\nWell input: %s' % wel_input[0]
+        print '\nWell (WEL package) input: %s' % wel_input[0]
         try:
             h5_wel = h5py.File(wel_input[0], 'r')
             for n in range(nper):
@@ -649,50 +671,47 @@ def ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_MM = "", rch_user = 
             h5_wel.close()
         except:
             wel_array = wel_user
-            print 'WARNING!\nNo valid well package file(s) provided, running MODFLOW using user-input well value: %.3G' % wel_user
+            print 'WARNING!\nNo valid WEL package file(s) provided, running MODFLOW using user-input well value: %.3G' % wel_user
             wel_input = wel_user
 
 # DRAIN
-    # in layer 1, DRN are attributed to the bottom of the soil zone - 10cm (minimum vadose zone thickness)
+    l = 0
     layer_row_column_elevation_cond = [[]]
-    ri=0
-    for r in top_array:
-        ri += 1
-        ci=0
-        for v in r:
-            ci += 1
-            layer_row_column_elevation_cond[0].append([1,ri,ci,v-0.1,drn_l1])  # 0.1 is the minimum thickness of the last soil layer
-            #top_array[ri-1][ci-1] +=0.01
-    # DRN in other layers depend on user inputESRI ASCII files
-    if nlay>1 and isinstance(drn_cond_fn[0], str):
-        drn_elev_array = np.zeros((nrow,ncol, nlay-1))
-        for l in range(nlay-1):
-            drn_elev_path = os.path.join(MF_ws, drn_elev_fn[l])
-            drn_elev_array[:,:,l] = MM_PROCESS.convASCIIraster2array(drn_elev_path, drn_elev_array[:,:,l])
-        drn_cond_array = np.zeros((nrow,ncol, nlay-1))
-        for l in range(nlay-1):
-            drn_cond_path = os.path.join(MF_ws, drn_cond_fn[l])
-            drn_cond_array[:,:,l] = MM_PROCESS.convASCIIraster2array(drn_cond_path, drn_cond_array[:,:,l])
-        for l in range(nlay-1):
-            for i in range(nrow):
-                for j in range(ncol):
-                    if drn_elev_array[i,j,l]<>0:
-                        if drn_elev_array[i,j,l]<0:
-                            drn_elev = botm_array[i][j][l] - (botm_array[i][j][l]-botm_array[i][j][l-1])/10
+    for d in drn_cond:
+        drn_check = 1
+        drn_elev_array = np.zeros((nrow,ncol))
+        drn_cond_array = np.zeros((nrow,ncol))
+        if isinstance(d, str):
+            drn_elev_path = os.path.join(MF_ws, drn_elev[l])
+            drn_elev_array[:,:] = MM_PROCESS.convASCIIraster2array(drn_elev_path, drn_elev_array[:,:])
+            drn_cond_path = os.path.join(MF_ws, drn_cond[l])
+            drn_cond_array[:,:] = MM_PROCESS.convASCIIraster2array(drn_cond_path, drn_cond_array[:,:])
+        else:
+            drn_elev_array[:,:] = drn_elev[l]
+            drn_cond_array[:,:] = drn_cond[l]
+        for i in range(nrow):
+            for j in range(ncol):
+                if drn_elev_array[i,j]<>0:
+                    if drn_elev_array[i,j]<0:
+                        if isinstance(botm[l], float):
+                            drn_elev_tmp = botm[l]
                         else:
-                            drn_elev = drn_elev_array[i,j,l]
-                        layer_row_column_elevation_cond[0].append([l+2, i+1, j+1, drn_elev, drn_cond_array[i,j,l]])   #+np.random.normal(0,0.05,1)])
+                            drn_elev_tmp = botm[i][j][l] #- (botm_array[i][j][l]-botm_array[i][j][l-1])/10
+                    else:
+                        drn_elev_tmp = drn_elev_array[i,j]
+                    layer_row_column_elevation_cond[0].append([l+1, i+1, j+1, drn_elev_tmp, drn_cond_array[i,j]])
+        l += 1
 
 # average for 1st SS stress period
     if dum_sssp1 == 1:
-        if isinstance(rch_input,tuple):
-            rch_array = np.asarray(rch_array)
-            rch_SS = np.zeros((nrow,ncol))
+        if isinstance(finf_input,tuple):
+            finf_array = np.asarray(finf_array)
+            finf_SS = np.zeros((nrow,ncol))
             for n in range(nper):
-                rch_SS += rch_array[n,:,:]
-            rch_SS = rch_SS/nper
-            rch_array = list(rch_array)
-            rch_array.insert(0, rch_SS)
+                finf_SS += finf_array[n,:,:]
+            finf_SS = finf_SS/nper
+            finf_array = list(finf_array)
+            finf_array.insert(0, finf_SS)
         if isinstance(wel_input,tuple):
             wel_array = np.asarray(wel_array)
             wel_SS = np.zeros((nrow,ncol))
@@ -733,35 +752,33 @@ def ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_MM = "", rch_user = 
             print '\nVariable Ss_tr from the DIS package is not correct, check the MODFLOW manual'
             sys.exit()
     # dis package
-    dis = mf.mfdis(model = mfmain, nrow = nrow, ncol = ncol, nlay = nlay, nper = nper, delr = delr, delc = delc, laycbd = laycbd, top = top_array, botm = botm_array, perlen = perlen, nstp = nstp, tsmult = tsmult, itmuni = itmuni, lenuni = lenuni, steady = Ss_tr, extension = ext_dis)
-    del botm_array
+    dis = mf.mfdis(model = mfmain, nrow = nrow, ncol = ncol, nlay = nlay, nper = nper, delr = delr, delc = delc, laycbd = laycbd, top = top, botm = botm, perlen = perlen, nstp = nstp, tsmult = tsmult, itmuni = itmuni, lenuni = lenuni, steady = Ss_tr, extension = ext_dis)
+    del botm
     dis.write_file()
     # bas package
-    bas = mf.mfbas(model = mfmain, ibound = ibound_array, strt = strt_array, hnoflo = hnoflo, extension = ext_bas)
-    del strt_array
+    bas = mf.mfbas(model = mfmain, ibound = ibound, strt = strt, hnoflo = hnoflo, extension = ext_bas)
+    del strt
     bas.write_file()
     # lpf initialization
-    lpf = mf.mflpf(model = mfmain, hdry = hdry, laytyp = laytyp, layavg = layavg, chani = chani, layvka = layvka, laywet = laywet, hk = hk_array, vka = vka_array, ss = ss_array, sy = sy_array, extension=ext_lpf)
-    del hk_array, vka_array, ss_array, sy_array
+    lpf = mf.mflpf(model = mfmain, hdry = hdry, laytyp = laytyp, layavg = layavg, chani = chani, layvka = layvka, laywet = laywet, hk = hk, vka = vka, ss = ss, sy = sy, extension=ext_lpf)
+    del hk, vka, ss, sy
     lpf.write_file()
-    # rch initialization
-    rch = mf.mfrch(mfmain, irchcb=lpf.ilpfcb, nrchop=nrchop, rech=rch_array, extension = ext_rch)
-    del rch_array
-    rch.write_file()
     # wel initialization
     if layer_row_column_Q <> None:
         wel = mf.mfwel(mfmain, iwelcb = lpf.ilpfcb, layer_row_column_Q = layer_row_column_Q, extension = ext_wel)
         wel.write_file()
     del layer_row_column_Q
     # drn package initialization
-    drn = mf.mfdrn(model = mfmain, idrncb=lpf.ilpfcb, layer_row_column_elevation_cond = layer_row_column_elevation_cond, extension = ext_drn)
-    del layer_row_column_elevation_cond
-    drn.write_file()
-    # ghb package initialization
-#    ghb = mf.mfghb(model=mfmain, igbhcb = lpf.ilpfcb, layer_row_column_head_cond = [[2,13,3,90,50]])
-#   ghb.write_file()
+    if drn_check == 1:
+        drn = mf.mfdrn(model = mfmain, idrncb=lpf.ilpfcb, layer_row_column_elevation_cond = layer_row_column_elevation_cond, extension = ext_drn)
+        del layer_row_column_elevation_cond
+        drn.write_file()
+    # uzf initialization
+    uzf = mf.mfuzf1(mfmain, nuztop = nuztop, iuzfopt = iuzfopt, irunflg = irunflg, ietflg = ietflg, iuzfcb1 = iuzfcb1, iuzfcb2 = iuzfcb2, ntrail2 = ntrail2, nsets = nsets, nuzgag = nuzgag, surfdep = surfdep, iuzfbnd = iuzfbnd, eps = eps, thts = thts, thti = thti, row_col_iftunit_iuzfopt = row_col_iftunit_iuzfopt, finf = finf_array, extension = ext_uzf)
+    del finf_array
+    uzf.write_file()
     # output control initialization
-    oc = mf.mfoc(mfmain, ihedfm=ihedfm, iddnfm=iddnfm, item2=[[0,1,1,1]], item3=[[0,0,1,0]], extension=[ext_oc,ext_cbc,ext_heads,ext_ddn])
+    oc = mf.mfoc(mfmain, ihedfm=ihedfm, iddnfm=iddnfm, item2=[[0,1,1,1]], item3=[[0,0,1,0]], extension=[ext_oc,ext_heads,ext_ddn,ext_cbc])
     oc.write_file()
     # select one of the 3 below (i.e. pcg or sip or sor)
     # preconditionned conjugate-gradient initialization
@@ -773,12 +790,10 @@ def ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_MM = "", rch_user = 
     # sor
 #    sor = mf.mfsor(mfmain, hclose=1e-3)
 #    sor.write_file()
+
     h_MF_fn = os.path.join(MF_ws, modelname + "." + ext_heads)
-    if os.path.exists(h_MF_fn):
-        os.remove(h_MF_fn)
     cbc_MF_fn = os.path.join(MF_ws, modelname + "." + ext_cbc)
-    if os.path.exists(cbc_MF_fn):
-        os.remove(cbc_MF_fn)
+    cbc_MFuzf_fn = os.path.join(MF_ws, modelname + ".uzfbt1")
 
     # run MODFLOW and read the heads back into Python
     mfmain.write_name_file()
@@ -800,7 +815,12 @@ def ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_MM = "", rch_user = 
 
     # extract cell-by-cell budget
     cbc = mfrdbin.mfcbcread(mfmain, 'LF95').read_all(cbc_MF_fn)
-    h5_MF.create_dataset('cbc_nam', data = np.asarray(cbc[2]))
+    h5_MF.create_dataset('cbc_nam', data = np.asarray(cbc[2][1]))
+    print ''
+
+    # extract cell-by-cell uzf budget
+    cbc_uzf = mfrdbin.mfcbcread(mfmain, 'LF95').read_all(cbc_MFuzf_fn)
+    h5_MF.create_dataset('cbc_uzf_nam', data = np.asarray(cbc_uzf[2][1]))
 
     print'\nStoring heads and cbc terms into HDF5 file\n%s' % (h5_MF_fn)
 
@@ -808,9 +828,11 @@ def ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_MM = "", rch_user = 
         if chunks == 1:
             h5_MF.create_dataset(name = 'heads', data = np.asarray(h[1][1:]), chunks = (1,nrow,ncol,nlay), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf
             h5_MF.create_dataset(name = 'cbc', data = np.asarray(cbc[1][1:]), chunks = (1,len(h5_MF['cbc_nam']),nrow,ncol,nlay), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf'
+            h5_MF.create_dataset(name = 'cbc_uzf', data = np.asarray(cbc_uzf[1][1:]), chunks = (1,len(h5_MF['cbc_uz_nam']),nrow,ncol,nlay), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf'
         else:
             h5_MF.create_dataset(name = 'heads', data = np.asarray(h[1][1:]))
             h5_MF.create_dataset(name = 'cbc', data = np.asarray(cbc[1][1:]))
+            h5_MF.create_dataset(name = 'cbc_uzf', data = np.asarray(cbc_uzf[1][1:]))
         del h, cbc
         nper = nper - 1
         perlen = perlen[1:]
@@ -819,14 +841,17 @@ def ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, rch_MM = "", rch_user = 
         if chunks == 1:
             h5_MF.create_dataset(name = 'heads', data = np.asarray(h[1]), chunks = (1,nrow,ncol,nlay), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf'
             h5_MF.create_dataset(name = 'cbc', data = np.asarray(cbc[1]), chunks = (1,len(h5_MF['cbc_nam']),nrow,ncol,nlay), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf'
+            h5_MF.create_dataset(name = 'cbc_uzf', data = np.asarray(cbc_uzf[1]), chunks = (1,len(h5_MF['cbc_uzf_nam']),nrow,ncol,nlay), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf'
         else:
             h5_MF.create_dataset(name = 'heads', data = np.asarray(h[1]))
             h5_MF.create_dataset(name = 'cbc', data = np.asarray(cbc[1]))
-        del h, cbc
+            h5_MF.create_dataset(name = 'cbc_uzf', data = np.asarray(cbc_uzf[1]))
+        del h, cbc, cbc_uzf
     h5_MF.close()
     # to delete MF bin files and save disk space
-    os.remove(h_MF_fn)
-    os.remove(cbc_MF_fn)
+#    os.remove(h_MF_fn)
+#    os.remove(cbc_MF_fn)
+#    os.remove(cbc_MFuzf_fn)
 
-    return np.asarray(top_array), h5_MF_fn
+    return h5_MF_fn
     del nrow, ncol, delr, delc, nlay, perlen, nper, hnoflo, hdry, ibound_array, laytyp, h5_MF_fn, top_array, inputFileMF_fn, lenuni
