@@ -89,7 +89,10 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
         MB_l1.append(MB_l[:,l])
         Spc1.append(Spc[:,l])
         Rp1.append(Rp[:,l])
-        Sobs_m.append(np.ma.masked_values(Sobs[l], hnoflo, atol = 0.09))
+        try:
+            Sobs_m.append(np.ma.masked_values(Sobs[l], hnoflo, atol = 0.09))
+        except:
+            pass
     del dS, S, SAT, MB_l
     del Rp, Spc
     Eu1 = np.asarray(Eu1)
@@ -209,8 +212,11 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     ax6=fig.add_subplot(10,1,6, sharex=ax1)
     plt.setp(ax6.get_xticklabels(), visible=False)
     plt.setp(ax6.get_yticklabels(), fontsize=8)
-    for l, (y, color, lbl) in enumerate(zip(Sobs_m, colors_nsl, lbl_Sobs)) :
-        ax6.plot_date(DateInput, y, ls = 'None', color = 'None', marker='o', markersize=2, markeredgecolor = color, markerfacecolor = 'None', label=lbl) #'--', color = color,
+    try:
+        for l, (y, color, lbl) in enumerate(zip(Sobs_m, colors_nsl, lbl_Sobs)) :
+            ax6.plot_date(DateInput, y, ls = 'None', color = 'None', marker='o', markersize=2, markeredgecolor = color, markerfacecolor = 'None', label=lbl) #'--', color = color,
+    except:
+        pass
     for l, (y, color, lbl) in enumerate(zip(Spc1full, colors_nsl, lbl_S)) :
         y = np.ma.masked_where(y < 0.0, y)
         ax6.plot_date(DateInput, y, '-', color = color, label = lbl)
@@ -232,11 +238,14 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     plt.grid(True)
     ax6.xaxis.set_major_formatter(monthsFmt)
 
-    hobs_m = np.ma.masked_values(hobs, hnoflo, atol = 0.09)
     ax7=fig.add_subplot(10,1,7, sharex=ax1)
     plt.setp(ax7.get_xticklabels(), fontsize=8)
     plt.setp(ax7.get_yticklabels(), fontsize=8)
-    plt.plot_date(DateInput,hobs_m, ls = 'None', color = 'None', marker='o', markeredgecolor = 'blue', markerfacecolor = 'None', markersize = 2) # ls='--', color = 'blue'
+    try:
+        hobs_m = np.ma.masked_values(hobs, hnoflo, atol = 0.09)
+        plt.plot_date(DateInput,hobs_m, ls = 'None', color = 'None', marker='o', markeredgecolor = 'blue', markerfacecolor = 'None', markersize = 2) # ls='--', color = 'blue'
+    except:
+        pass
     plt.plot_date(DateInput,h_MF,'-', color = 'b')
     plt.plot_date(DateInput,h_MF_corr,'--', color = 'b')
     plt.plot_date(DateInput,h_SF,'-', color = 'r')
@@ -261,81 +270,9 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     ax8b=fig.add_subplot(20,1,16, sharex=ax1)
     plt.setp(ax8b.get_xticklabels(), visible=False)
     plt.setp(ax8b.get_yticklabels(), fontsize=8)
-    for l, (y, color, lbl) in enumerate(zip(SAT1, colors_nsl, lbl_SAT)) :
-        ax8b.plot_date(DateInput, y, '-', color = color, label = lbl)
-    # x axis
-    plt.xlim(DateInput[0]-1,DateInput[len(P)-1]+1)
-    # y axis
-    plt.ylim(0,1.25)
-    plt.ylabel('', fontsize=10)
-    ax8b.yaxis.set_ticks(np.arange(0,1.25,1))
-    ax8b.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%1d'))
-    # legend
-    plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale)
-    leg = plt.gca().get_legend()
-    ltext  = leg.get_texts()
-    plt.setp(ltext, fontsize=8 )
-    plt.grid(True)
-    ax8b.xaxis.set_major_formatter(monthsFmt)
-
-    ax9a=fig.add_subplot(20,1,17, sharex=ax1)
-    plt.setp(ax9a.get_xticklabels(), visible=False)
-    plt.setp(ax9a.get_yticklabels(), fontsize=8)
-    for l, (y, color, lbl) in enumerate(zip(S1, colors_nsl, lbl_S)) :
-        y = np.ma.masked_where( y < 0.0, y)
-        ax9a.plot_date(DateInput, y, '-', color=color, label=lbl)
-    # x axis
-    plt.xlim(DateInput[0]-1,DateInput[len(P)-1]+1)
-    # y axis
-    plt.ylabel('mm', fontsize=10)
-    ax9a.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%1.1f'))
-    # legend
-    plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale)
-    leg = plt.gca().get_legend()
-    ltext  = leg.get_texts()
-    plt.setp(ltext, fontsize=8 )
-    plt.grid(True)
-    ax9a.xaxis.set_major_formatter(monthsFmt)
-
-##    ax9b=fig.add_subplot(20,1,18, sharex=ax1)
-##    plt.setp(ax9b.get_xticklabels(), visible=False)
-##    plt.setp(ax9b.get_yticklabels(), fontsize=8)
-##    ax9b.plot_date(DateInput, Tll, '-')
-##    # x axis
-##    plt.xlim(DateInput[0]-1,DateInput[len(P)-1]+1)
-##    # y axis
-##    plt.ylabel('mm', fontsize=10)
-##    ax9b.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%1.1f'))
-##    # legend
-##    plt.legend(['Tll'], loc=0, labelspacing=lblspc, markerscale=mkscale)
-##    leg = plt.gca().get_legend()
-##    ltext  = leg.get_texts()
-##    plt.setp(ltext, fontsize=8 )
-##    plt.grid(True)
-##    ax9b.xaxis.set_major_formatter(monthsFmt)
-
-    ax10a=fig.add_subplot(20,1,19, sharex=ax1)
-    plt.setp(ax10a.get_xticklabels(), visible=False)
-    plt.setp(ax10a.get_yticklabels(), fontsize=8)
-    plt.plot_date(DateInput,dtwt,'-', c='b')
-    # y axis
-    plt.ylabel('m', fontsize=10)
-    plt.grid(True)
-    plt.xlim(DateInput[0]-1,DateInput[len(dtwt)-1]+1)
-    # legend
-    plt.legend(['dtwt'], loc=0, labelspacing=lblspc, markerscale=mkscale)
-    leg = plt.gca().get_legend()
-    ltext  = leg.get_texts()
-    plt.setp(ltext, fontsize=8 )
-    ax10a.xaxis.set_major_formatter(monthsFmt)
-    ax10a.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2g'))
-
-    ax10b=fig.add_subplot(20,1,20, sharex=ax1)
-    plt.setp(ax10b.get_xticklabels(), visible=False)
-    plt.setp(ax10b.get_yticklabels(), fontsize=8)
     plt.plot_date(DateInput,MB,'-', c='r')
     for l, (y, color, lbl) in enumerate(zip(MB_l1, colors_nsl, lbl_MB[1:len(lbl_MB)])) :
-        ax10b.plot_date(DateInput, y, '-', color=color, label=lbl)
+        ax8b.plot_date(DateInput, y, '-', color=color, label=lbl)
     # y axis
     plt.ylabel('mm', fontsize=10)
     plt.grid(True)
@@ -349,8 +286,65 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8 )
-    ax10b.xaxis.set_major_formatter(monthsFmt)
-    ax10b.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2g'))
+    ax8b.xaxis.set_major_formatter(monthsFmt)
+    ax8b.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2g'))
+
+    ax9a=fig.add_subplot(20,1,17, sharex=ax1)
+    plt.setp(ax9a.get_xticklabels(), visible=False)
+    plt.setp(ax9a.get_yticklabels(), fontsize=8)
+    for l, (y, color, lbl) in enumerate(zip(SAT1, colors_nsl, lbl_SAT)) :
+        ax9a.plot_date(DateInput, y, '-', color = color, label = lbl)
+    # x axis
+    plt.xlim(DateInput[0]-1,DateInput[len(P)-1]+1)
+    # y axis
+    plt.ylim(-0.1,1.1)
+    plt.ylabel('', fontsize=10)
+    ax9a.yaxis.set_ticks(np.arange(0,1.25,1))
+    ax9a.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%1d'))
+    # legend
+    plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale)
+    leg = plt.gca().get_legend()
+    ltext  = leg.get_texts()
+    plt.setp(ltext, fontsize=8 )
+    plt.grid(True)
+    ax9a.xaxis.set_major_formatter(monthsFmt)
+
+    ax9b=fig.add_subplot(20,1,18, sharex=ax1)
+    plt.setp(ax9b.get_xticklabels(), visible=False)
+    plt.setp(ax9b.get_yticklabels(), fontsize=8)
+    plt.plot_date(DateInput,dtwt,'-', c='b')
+    # y axis
+    plt.ylabel('m', fontsize=10)
+    plt.grid(True)
+    plt.xlim(DateInput[0]-1,DateInput[len(dtwt)-1]+1)
+    plt.ylim(np.min(dtwt)*1.05,0.25)
+    # legend
+    plt.legend(['dtwt'], loc=0, labelspacing=lblspc, markerscale=mkscale)
+    leg = plt.gca().get_legend()
+    ltext  = leg.get_texts()
+    plt.setp(ltext, fontsize=8 )
+    ax9b.xaxis.set_major_formatter(monthsFmt)
+    ax9b.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2g'))
+
+    ax10=fig.add_subplot(10,1,10, sharex=ax1)
+    plt.setp(ax10.get_xticklabels(), visible=False)
+    plt.setp(ax10.get_yticklabels(), fontsize=8)
+    for l, (y, color, lbl) in enumerate(zip(S1, colors_nsl, lbl_S)) :
+        y = np.ma.masked_where( y < 0.0, y)
+        ax10.plot_date(DateInput, y, '-', color=color, label=lbl)
+    # x axis
+    plt.xlim(DateInput[0]-1,DateInput[len(P)-1]+1)
+    # y axis
+    plt.ylim(0,np.max(S1)*1.05)
+    plt.ylabel('mm', fontsize=10)
+    ax10.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%1.1f'))
+    # legend
+    plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale)
+    leg = plt.gca().get_legend()
+    ltext  = leg.get_texts()
+    plt.setp(ltext, fontsize=8 )
+    plt.grid(True)
+    ax10.xaxis.set_major_formatter(monthsFmt)
 
     plt.subplots_adjust(left=0.10, bottom=0.10, right=0.95, top=0.95, wspace=0.1, hspace=0.1)
     plt.savefig(plt_export_fn,dpi=150)

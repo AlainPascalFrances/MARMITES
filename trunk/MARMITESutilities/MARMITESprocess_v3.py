@@ -353,10 +353,16 @@ class PROCESS:
         obs_h=[]
         obs_sm=[]
         for o in range(len(obs.keys())):
-            obsh_fn=os.path.join(self.MM_ws, inputObsHEADS_fn + '_' + obs.keys()[o] +'.txt')
+            obsh_fn = os.path.join(self.MM_ws, inputObsHEADS_fn + '_' + obs.keys()[o] +'.txt')
+            if os.path.exists(obsh_fn):
+                obs_h.append(self.verifObs(inputDate, obsh_fn, obsnam = obs.keys()[o]))
+            else:
+                obs_h.append([])
             obssm_fn=os.path.join(self.MM_ws, inputObsSM_fn + '_' + obs.keys()[o] + '.txt')
-            obs_h.append(self.verifObs(inputDate, obsh_fn, obsnam = obs.keys()[o]))
-            obs_sm.append(self.verifObs(inputDate, obssm_fn, _nslmax, obsnam = obs.keys()[o]))
+            if os.path.exists(obsh_fn):
+                obs_sm.append(self.verifObs(inputDate, obssm_fn, _nslmax, obsnam = obs.keys()[o]))
+            else:
+                obs_sm.append([])
 
         return obs, outpathname, obs_h, obs_sm
         del inputObs_fn, inputObsHEADS_fn, inputObsSM_fn, inputDate, _nslmax
@@ -473,11 +479,15 @@ class PROCESS:
                     Smeasout = Smeasout + str(obs_S[t,l]) + ','
                 except:
                     Smeasout = Smeasout + str(self.hnoflo) + ','
+            try:
+                obs_h_tmp = obs_h[t]
+            except:
+                obs_h_tmp = self.hnoflo
             out_date = mpl.dates.num2date(inputDate[t]).isoformat()[:10]
             out1 = '%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[t,index.get('iRF')], results[t,index.get('iE0')],results[t,index.get('iPET')],results[t,index.get('iPE')],results[t,index.get('iRFe')],results[t,index.get('iI')])
             out2 = '%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[t,index.get('iEg')], results[t,index.get('iTg')],results[t,index.get('iETg')], WEL[t], results[t,index.get('iEs')])
             out3 = '%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[t,index.get('idSs')],results[t,index.get('iSs')],results[t,index.get('iRo')],results[t,index.get('iEXF')],DRN[t])
-            out4 = '%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,' % (RCH[t], h_satflow[t],heads_MF[t],results[t,index.get('iHEADScorr')],obs_h[t],results[t,index.get('idtwt')])
+            out4 = '%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,' % (RCH[t], h_satflow[t],heads_MF[t],results[t,index.get('iHEADScorr')],obs_h_tmp,results[t,index.get('idtwt')])
             out5 = '%.8f' % (results[t,index.get('iMB')])
             out_line =  out_date, ',', out1, Euout, Tuout, out2, Sout, Spcout, dSout, out3, Rpout, out4, Smeasout, MBout, out5, '\n'
             for l in out_line:
@@ -495,13 +505,18 @@ class PROCESS:
             month='%02d'%mpl.dates.num2date(inputDate[t]).month
             day='%02d'%mpl.dates.num2date(inputDate[t]).day
             date=(day+"/"+month+"/"+year)
-            if obs_h[t]!=self.hnoflo:
+            try:
+                obs_h_tmp = obs_h[0,t]
                 obs_h_tmp = str(obs_h[t])
                 outPESTheads.write(obsname.ljust(14,' ')+ date.ljust(14,' ')+ '00:00:00        '+ str(heads_MF[t])+ '    \n')
+            except:
+                pass
             if results_S <> None:
-                if obs_S[0,t]!=self.hnoflo:
+                try:
+                    obs_S_tmp = obs_S[0,t]
                     Smeasout = ''
                     for l in range (_nslmax):
                         outPESTsm.write((obsname+'SM_l'+str(l+1)).ljust(14,' ')+ date.ljust(14,' ')+ '00:00:00        '+ str(results_S[t,l]) + '    \n')
-
+                except:
+                    pass
 # EOF

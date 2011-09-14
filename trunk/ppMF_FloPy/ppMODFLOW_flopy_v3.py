@@ -631,9 +631,7 @@ def ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, finf_MM = "", finf_user 
     top = checkarray(nrow, ncol, nlay, MF_ws, top)
     botm = checkarray(nrow, ncol, nlay, MF_ws, botm)
     ibound = checkarray(nrow, ncol, nlay, MF_ws, ibound)
-    ibound_tmp = np.asarray(ibound)
-    iuzfbnd = list(np.ones((nrow,ncol))*np.abs(ibound_tmp[:,:,0]))
-    del ibound_tmp
+    iuzfbnd = list(np.asarray(np.asarray(ibound)[:,:,0] > 0.0, dtype = np.int))
     strt = checkarray(nrow, ncol, nlay, MF_ws, strt)
     hk = checkarray(nrow, ncol, nlay, MF_ws, hk)
     vka = checkarray(nrow, ncol, nlay, MF_ws, vka)

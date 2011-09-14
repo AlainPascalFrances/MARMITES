@@ -207,7 +207,7 @@ class UNSAT:
         # SAT = True indicates saturation overland flow
         if EXF > 0.0:
             for l in llst:
-                if ((np.abs(Su_tmp[l] - (Sm[l]*Tl[l])) < 1.0E-7)):
+                if Su_tmp[l] >= (Sm[l]*Tl[l]):
                     HEADS += Tl[l]
                     dtwt -= Tl[l]
                     SAT[l] = True
@@ -227,8 +227,9 @@ class UNSAT:
         Tu_tmp = np.zeros([nsl])
         Eu_tmp = np.zeros([nsl])
         Su_pc_tmp = np.zeros([nsl])
-        Tg_soil_tmpZr = np.zeros([nsl, len(Zr_elev)])
-        Tg_soil_tmp = 0.0
+        # Groundwater transpiration
+        Tg_tmp_Zr = np.zeros([nsl, len(Zr_elev)])
+        Tg_tmp = 0.0
         # soil layers
         for l in range(nsl):
             # Rp
@@ -256,13 +257,14 @@ class UNSAT:
                         Tu_tmp[l] += Tu_tmpZr[l,z]*VEGarea[z]/100
                         PET[z] -= Tu_tmpZr[l,z]
                 Su_tmp[l] -= Tu_tmp[l]*dt
-##            elif SAT[l] == True:
-##                for z in range(len(Zr_elev)):
-##                    if PET[z] > 0.0 :
-##                        if HEADS > Zr_elev[z]:
-##                            Tg_soil_tmpZr[l,z] = evp(Sm[l]*Tl[l],Sfc[l]*Tl[l], PET[z], i, j, n, dt)
-##                            Tg_soil_tmp += Tg_soil_tmpZr[l,z]*VEGarea[z]/100
-##                            PET[z] -= Tg_soil_tmpZr[l,z]
+            elif SAT[l] == True:
+                # Tg
+                for z in range(len(Zr_elev)):
+                    if PET[z] > 0.0 :
+                        if HEADS > Zr_elev[z]:
+                            Tg_tmp_Zr[l,z] = evp(Sm[l]*Tl[l],Sfc[l]*Tl[l], Sr[l]*Tl[l], PET[z], i, j, n, dt)
+                            Tg_tmp += Tg_tmp_Zr[l,z]*VEGarea[z]/100
+                            PET[z] -= Tg_tmp_Zr[l,z]
 
         for l in range(nsl):
             Su_pc_tmp[l] = Su_tmp[l]/Tl[l]
@@ -288,8 +290,6 @@ class UNSAT:
             Eg_tmp = 0.0
 
         # Groundwater transpiration
-        Tg_tmpZr = np.zeros([nsl, len(Zr_elev)])
-        Tg_tmp = 0.0
         kTu_max = 1.0
         for z in range(len(Zr_elev)):
             if HEADS > Zr_elev[z]:
@@ -302,11 +302,11 @@ class UNSAT:
                                 kTu = kTu_max
                         else:
                             kTu = kTu_min[z]
-                        Tg_tmpZr[l,z] = Tu_tmpZr[l,z]*(1/kTu-1)
-                        if Tg_tmpZr[l,z] > PET[z]:
-                            Tg_tmpZr[l,z] = PET[z]
-                        PET[z] -= Tg_tmpZr[l,z]
-                        Tg_tmp += (Tg_tmpZr[l,z]*VEGarea[z]/100)
+                        Tg_tmp_Zr[l,z] = Tu_tmpZr[l,z]*(1/kTu-1)
+                        if Tg_tmp_Zr[l,z] > PET[z]:
+                            Tg_tmp_Zr[l,z] = PET[z]
+                        PET[z] -= Tg_tmp_Zr[l,z]
+                        Tg_tmp += (Tg_tmp_Zr[l,z]*VEGarea[z]/100)
 
         return Es_tmp, Ss_tmp, Ro_tmp, Rp_tmp, Eu_tmp, Tu_tmp, Su_tmp, Su_pc_tmp, Eg_tmp, Tg_tmp, HEADS, dtwt, SAT, Rexf_tmp
         del Es_tmp, Ss_tmp, Ro_tmp, Rp_tmp, Eu_tmp, Tu_tmp, Su_tmp, Su_pc_tmp, Su_ini, Eg_tmp, Tg_tmp, dtwt
@@ -401,9 +401,11 @@ class UNSAT:
                 HEADS_tmp = BotSoilLay[nsl-1] - 100000.0
             else:
                 HEADS_tmp = HEADS[t]*1000.0
-            if BotSoilLay[nsl-1] > HEADS_tmp:
+
+            # dtwt
+            if EXF[t] <= 0.0:  #BotSoilLay[nsl-1] > HEADS_tmp:
                 dtwt = TopSoilLay[0] - HEADS_tmp
-            else:
+            elif EXF[t] > 0.0:
                 dtwt = sum(Tl)
                 HEADS_tmp = BotSoilLay[nsl-1]
 

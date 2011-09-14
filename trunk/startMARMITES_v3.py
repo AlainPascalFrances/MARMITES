@@ -11,7 +11,7 @@
 #-------------------------------------------------------------------------------
 #!/usr/bin/env python
 
-""" See info in MARMITESunsat_v2.py"""
+""" See info in MARMITESunsat_v3.py"""
 
 __author__ = "Alain P. Francés <frances.alain@gmail.com>"
 __version__ = "0.2"
@@ -344,7 +344,7 @@ try:
     # compute thickness, top and bottom elevation of each soil layer
     TopAquif = top_array*1000.0 # conversion from m to mm
     # topography elevation
-    TopSoil = TopAquif + gridSOILthick
+    TopSoil = TopAquif + gridSOILthick*1000.0
 
     # indexes of the HDF5 output arrays
     index = {'iRF':0, 'iPET':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iEXF':6, 'iEs':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSs':13, 'iETg':14, 'iETu':15, 'idSu':16, 'iHEADScorr':17, 'idtwt':18}
@@ -866,31 +866,36 @@ try:
     h_MF_m = np.ma.masked_values(h_MF_m, hdry, atol = 1E+25)
     hmax = []
     hmin = []
+    hmaxMM = []
+    hminMM = []
     hdiff = []
     DRNmax = []
     DRNmin = []
     cbcmax = []
     cbcmin = []
-    # TODO check the nan producteur
-    try:
-        if obs != None:
-            for o in range(len(obs.keys())):
-                i = obs.get(obs.keys()[o])['i']
-                j = obs.get(obs.keys()[o])['j']
-                l = obs.get(obs.keys()[o])['lay']
-                hmaxMF = float(np.ceil(np.nanmax(h_MF_m[:,i,j,l].flatten())))
-                hminMF = float(np.floor(np.nanmin(h_MF_m[:,i,j,l].flatten())))
+    if obs != None:
+        for o in range(len(obs.keys())):
+            i = obs.get(obs.keys()[o])['i']
+            j = obs.get(obs.keys()[o])['j']
+            l = obs.get(obs.keys()[o])['lay']
+            hmaxMF = float(np.ceil(np.nanmax(h_MF_m[:,i,j,l].flatten())))
+            hminMF = float(np.floor(np.nanmin(h_MF_m[:,i,j,l].flatten())))
+            if obs_h[o] != []:
                 npa_m_tmp = np.ma.masked_values(obs_h[o], hnoflo, atol = 0.09)
                 hmaxMM = float(np.ceil(np.nanmax(npa_m_tmp.flatten())))
                 hminMM = float(np.floor(np.nanmin(npa_m_tmp.flatten())))
-                hmax.append(np.nanmax((hmaxMF, hmaxMM)))
-                hmin.append(np.nanmin((hminMF, hminMM)))
-                hdiff.append(hmax[o]-hmin[o])
                 del npa_m_tmp
-            hdiff = np.nanmax(hdiff)
-    except:
-        hmax = 999.9
-        hmin = -999.9
+            else:
+                hmaxMM = -999
+                hminMM = 999
+            hmax.append(np.nanmax((hmaxMF, hmaxMM)))
+            hmin.append(np.nanmin((hminMF, hminMM)))
+            hdiff.append(hmax[o]-hmin[o])
+        hdiff = np.nanmax(hdiff)
+    else:
+        for o in range(len(obs.keys())):
+            hmax.append(999.9)
+            hmin.append(-999.9)
         hdiff = 2000
     try:
         hmaxMF = float(np.ceil(np.nanmax(h_MF_m[:,:,:,:].flatten())))
@@ -1017,11 +1022,19 @@ try:
             MM_S = h5_MM['MM_S'][:,i,j,:,:]
             # SATFLOW
             h_satflow = MM_SATFLOW.run(MM_S[:,nsl-1,index_S.get('iRp')], float(obs.get(obs.keys()[o])['hi']),float(obs.get(obs.keys()[o])['h0']),float(obs.get(obs.keys()[o])['RC']),float(obs.get(obs.keys()[o])['STO']))
-        # export ASCII file at piezometers location
-        #TODO extract heads at piezo location and not center of cell
-            MM_PROCESS.ExportResultsMM(i, j, inputDate, _nslmax, MM, index, MM_S, index_S, -cbc_DRN[:,i,j,0], cbc_RCH[:,i,j,0], -cbc_WEL[:,i,j,0], h_satflow, h_MF_m[:,i,j,l], obs_h[o][0,:], obs_S[o], outFileExport[o], obs.keys()[o])
+            # export ASCII file at piezometers location
+            #TODO extract heads at piezo location and not center of cell
+            if obs_h[o] != []:
+                obs_h_tmp = obs_h[o][0,:]
+            else:
+                obs_h_tmp = []
+            if obs_S[o] != []:
+                obs_S_tmp = obs_h[o][0,:]
+            else:
+                obs_S_tmp = []
+            MM_PROCESS.ExportResultsMM(i, j, inputDate, _nslmax, MM, index, MM_S, index_S, -cbc_DRN[:,i,j,0], cbc_RCH[:,i,j,0], -cbc_WEL[:,i,j,0], h_satflow, h_MF_m[:,i,j,l], obs_h_tmp, obs_S_tmp, outFileExport[o], obs.keys()[o])
             outFileExport[o].close()
-            MM_PROCESS.ExportResultsPEST(i, j, inputDate, _nslmax, MM[:,index.get('iHEADScorr')], obs_h[o][0,:], obs_S[o], outPESTheads, outPESTsm, obs.keys()[o], MM_S[:,:,index_S.get('iSu_pc')])
+            MM_PROCESS.ExportResultsPEST(i, j, inputDate, _nslmax, MM[:,index.get('iHEADScorr')], obs_h_tmp, obs_S_tmp, outPESTheads, outPESTsm, obs.keys()[o], MM_S[:,:,index_S.get('iSu_pc')])
             # plot
             if plot_out == 1:
                 plt_title = obs.keys()[o]
@@ -1055,7 +1068,7 @@ try:
                 MM[:,index.get('idtwt')],
                 MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('iSAT')],
                 cbc_RCH[:,i,j,0],
-                h_MF_m[:,i,j,l], MM[:,index.get('iHEADScorr')], h_satflow, obs_h[o][0,:], obs_S[o],
+                h_MF_m[:,i,j,l], MM[:,index.get('iHEADScorr')], h_satflow, obs_h_tmp, obs_S_tmp,
                 _Sm[gridSOIL[i,j]-1],
                 _Sr[gridSOIL[i,j]-1],
                 hnoflo,
