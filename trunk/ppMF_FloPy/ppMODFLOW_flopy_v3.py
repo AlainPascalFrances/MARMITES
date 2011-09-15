@@ -21,11 +21,11 @@ import numpy as np
 import mf
 import mfreadbinaries as mfrdbin
 import h5py
-import MARMITESprocess as MMproc
+import MARMITESprocess_v3 as MMproc
 
 #####################################
 # TODO modify the reading of the MF ini file
-def ppMFini(MF_ws, MF_ini_fn, out = 'MF', numDays = -1):
+def ppMFini(MF_ws, MF_ini_fn, out = 'MF', numDays = -1, obs = None):
 
     ''' read input file (called _input.ini in the MARMITES workspace
     the first character on the first line has to be the character used to comment
@@ -229,6 +229,7 @@ def ppMFini(MF_ws, MF_ini_fn, out = 'MF', numDays = -1):
         l += 1
         thti = float(inputFile[l].strip())
         row_col_iftunit_iuzfopt = []
+        uzfbud_ext = []
         if nuzgag > 0:
             l += 1
             iuzrow =  inputFile[l].split()
@@ -241,6 +242,10 @@ def ppMFini(MF_ws, MF_ini_fn, out = 'MF', numDays = -1):
             l += 1
             for g in range(nuzgag):
                 row_col_iftunit_iuzfopt.append([[int(iuzrow[g]),int(iuzcol[g]),int(iftunit[g]),int(iuzopt[g])]])
+                if iftunit[g]<0.0:
+                    uzfbud_ext.append(ext_uzf + '_tot' + str(abs(int(iftunit[g]))))
+                else:
+                    uzfbud_ext.append(ext_uzf + '_' + str(abs(int(iftunit[g]))))
         finf_user = float(inputFile[l].strip())
         # wel
         l += 1
@@ -282,8 +287,16 @@ def ppMFini(MF_ws, MF_ini_fn, out = 'MF', numDays = -1):
         sys.exit()
     del inputFile
 
+    if obs != None:
+        nuzgag += len(obs)
+        n = 0
+        for o in range(len(obs)):
+                row_col_iftunit_iuzfopt.append([[obs.get( obs.keys()[o])['i'], obs.get(obs.keys()[o])['j'], 200+n, 2]])
+                uzfbud_ext.append(ext_uzf + '_' + obs.keys()[o])
+                n += 1
+
     if out == 'MF':
-        return modelname, namefile_ext, exe_name, version, dum_sssp1, ext_dis, nlay, ncol, nrow, nper, itmuni, lenuni,laycbd, delr, delc, top, botm, perlen, nstp, tsmult, Ss_tr, ext_bas, ibound, strt, hnoflo,ext_lpf, ilpfcb, hdry, nplpf, laytyp, layavg, chani, layvka, laywet, hk, vka, ss, sy,ext_oc, ihedfm, iddnfm, ext_cbc, ext_heads, ext_ddn, hclose, rclose, ext_wel, wel_user, ext_drn, drn_elev, drn_cond, ext_uzf, nuztop, iuzfopt, irunflg, ietflg, iuzfcb1, iuzfcb2, ntrail2, nsets, nuzgag, surfdep, eps, thts, thti, row_col_iftunit_iuzfopt, finf_user
+        return modelname, namefile_ext, exe_name, version, dum_sssp1, ext_dis, nlay, ncol, nrow, nper, itmuni, lenuni,laycbd, delr, delc, top, botm, perlen, nstp, tsmult, Ss_tr, ext_bas, ibound, strt, hnoflo,ext_lpf, ilpfcb, hdry, nplpf, laytyp, layavg, chani, layvka, laywet, hk, vka, ss, sy,ext_oc, ihedfm, iddnfm, ext_cbc, ext_heads, ext_ddn, hclose, rclose, ext_wel, wel_user, ext_drn, drn_elev, drn_cond, ext_uzf, nuztop, iuzfopt, irunflg, ietflg, iuzfcb1, iuzfcb2, ntrail2, nsets, nuzgag, surfdep, eps, thts, thti, row_col_iftunit_iuzfopt, finf_user, uzfbud_ext
     elif out == 'MM':
         return nrow, ncol, delr, delc, top, reggrid, nlay, nper, perlen, nstp, timedef, hnoflo, hdry, laytyp, lenuni, itmuni, ibound
 
@@ -551,7 +564,7 @@ def ppMFtime(MM_ws, MF_ws, outpathname, nper, perlen, nstp, timedef, inputDate_f
 
 #####################################
 
-def ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, finf_MM = "", finf_user = None, wel_MM = "", wel_user = None, report = None, verbose = 1, chunks = 0, MFtime_fn = None, numDays = -1):
+def ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, finf_MM = "", finf_user = None, wel_MM = "", wel_user = None, report = None, verbose = 1, chunks = 0, MFtime_fn = None, numDays = -1, obs = None):
 
     ##################
 
@@ -585,7 +598,7 @@ def ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, finf_MM = "", finf_user 
     if verbose == 0:
         print '--------------'
 
-    modelname, namefile_ext, exe_name, version, dum_sssp1, ext_dis, nlay, ncol, nrow, nper, itmuni, lenuni,laycbd, delr, delc, top, botm, perlen, nstp, tsmult, Ss_tr, ext_bas, ibound, strt, hnoflo,ext_lpf, ilpfcb, hdry, nplpf, laytyp, layavg, chani, layvka, laywet, hk, vka, ss, sy,ext_oc, ihedfm, iddnfm, ext_cbc, ext_heads, ext_ddn, hclose, rclose, ext_wel, wel_user, ext_drn, drn_elev, drn_cond, ext_uzf, nuztop, iuzfopt, irunflg, ietflg, iuzfcb1, iuzfcb2, ntrail2, nsets, nuzgag, surfdep, eps, thts, thti, row_col_iftunit_iuzfopt, finf_user = ppMFini(MF_ws, MF_ini_fn, out = 'MF', numDays = numDays)
+    modelname, namefile_ext, exe_name, version, dum_sssp1, ext_dis, nlay, ncol, nrow, nper, itmuni, lenuni,laycbd, delr, delc, top, botm, perlen, nstp, tsmult, Ss_tr, ext_bas, ibound, strt, hnoflo,ext_lpf, ilpfcb, hdry, nplpf, laytyp, layavg, chani, layvka, laywet, hk, vka, ss, sy,ext_oc, ihedfm, iddnfm, ext_cbc, ext_heads, ext_ddn, hclose, rclose, ext_wel, wel_user, ext_drn, drn_elev, drn_cond, ext_uzf, nuztop, iuzfopt, irunflg, ietflg, iuzfcb1, iuzfcb2, ntrail2, nsets, nuzgag, surfdep, eps, thts, thti, row_col_iftunit_iuzfopt, finf_user, uzfbud_ext = ppMFini(MF_ws, MF_ini_fn, out = 'MF', numDays = numDays, obs = obs)
 
     if os.path.exists(finf_MM[0]):
         finf_input = finf_MM
@@ -772,7 +785,7 @@ def ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, finf_MM = "", finf_user 
         del layer_row_column_elevation_cond
         drn.write_file()
     # uzf initialization
-    uzf = mf.mfuzf1(mfmain, nuztop = nuztop, iuzfopt = iuzfopt, irunflg = irunflg, ietflg = ietflg, iuzfcb1 = iuzfcb1, iuzfcb2 = iuzfcb2, ntrail2 = ntrail2, nsets = nsets, nuzgag = nuzgag, surfdep = surfdep, iuzfbnd = iuzfbnd, eps = eps, thts = thts, thti = thti, row_col_iftunit_iuzfopt = row_col_iftunit_iuzfopt, finf = finf_array, extension = ext_uzf)
+    uzf = mf.mfuzf1(mfmain, nuztop = nuztop, iuzfopt = iuzfopt, irunflg = irunflg, ietflg = ietflg, iuzfcb1 = iuzfcb1, iuzfcb2 = iuzfcb2, ntrail2 = ntrail2, nsets = nsets, nuzgag = nuzgag, surfdep = surfdep, iuzfbnd = iuzfbnd, eps = eps, thts = thts, thti = thti, row_col_iftunit_iuzfopt = row_col_iftunit_iuzfopt, finf = finf_array, extension = ext_uzf, uzfbud_ext = uzfbud_ext)
     del finf_array
     uzf.write_file()
     # output control initialization

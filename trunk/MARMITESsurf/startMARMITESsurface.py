@@ -15,7 +15,7 @@ import sys, os
 import matplotlib as mpl
 import numpy as np
 import PET_RF_INTER, plotPET, plotRF
-import MARMITESprocess as MMproc
+import MARMITESprocess_v3 as MMproc
 
 '''
     Reads input files for PET_PM_FAO56 and call this function

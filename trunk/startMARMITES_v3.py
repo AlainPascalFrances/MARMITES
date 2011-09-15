@@ -72,11 +72,14 @@ try:
         ctrsMF = False
     l += 1
     ntick =  int(inputFile[l].strip())
+    # read observations?
     l += 1
+    obsCHECK = int(inputFile[l].strip())
     #run MARMITESsurface  (1 is YES, 0 is NO)
-    MMsurf_yn = int(inputFile[l].strip())
     l += 1
+    MMsurf_yn = int(inputFile[l].strip())
     #run MARMITESunsat  (1 is YES, 0 is NO)
+    l += 1
     MMunsat_yn = int(inputFile[l].strip())
     l += 1
     # Define MARMITESsurface folder
@@ -341,6 +344,49 @@ try:
             top_array = np.zeros((nrow,ncol))
             top_array = MM_PROCESS.convASCIIraster2array(top_path, top_array)
 
+    # READ observations time series (heads and soil moisture)
+    if obsCHECK==1:
+        print "\nReading observations time series (hydraulic heads and soil moisture)..."
+        obs, outpathname, obs_h, obs_S = MM_PROCESS.inputObs(
+                                MM_ws = MM_ws,
+                                inputObs_fn = inputObs_fn,
+                                inputObsHEADS_fn = inputObsHEADS_fn,
+                                inputObsSM_fn = inputObsSM_fn,
+                                inputDate   = inputDate,
+                                _nslmax     = _nslmax,
+                                nlay        = nlay
+                                )
+        # To write MM output in a txt file
+        outFileExport = []
+        for o in range(len(obs.keys())):
+            outFileExport.append(open(outpathname[o], 'w'))
+            Su_str=''
+            Supc_str=''
+            dSu_str=''
+            Rp_str=''
+            Eu_str=''
+            Tu_str=''
+            Smeasout = ''
+            MB_str = ''
+            for l in range(_nslmax):
+                Su_str = Su_str + 'Su_l' + str(l+1) + ','
+                Supc_str = Supc_str + 'Supc_l' + str(l+1) + ','
+                dSu_str = dSu_str + 'dSu_l' + str(l+1) + ','
+                Eu_str = Eu_str + 'Eu_l' + str(l+1) + ','
+                Tu_str = Tu_str + 'Tu_l' + str(l+1) + ','
+                Rp_str = Rp_str + 'Rp_l' + str(l+1) + ','
+                MB_str = MB_str + 'MB_l' + str(l+1) + ','
+                Smeasout = Smeasout + 'Smeas_' + str(l+1) + ','
+            header='Date,RF,E0,PET,PE,RFe,I,'+Eu_str+Tu_str+'Eg,Tg,ETg,WEL_MF,Es,'+Su_str+Supc_str+dSu_str+'dSs,Ss,Ro,DRN,DRN_MF,'+Rp_str+'R_MF,hSATFLOW,hMF,hMFcorr,hmeas,dtwt,' + Smeasout + MB_str + 'MB\n'
+            outFileExport[o].write(header)
+        outPESTheads_fn      = 'PESTheads.dat'
+        outPESTsm_fn         = 'PESTsm.dat'
+        outPESTheads=open(os.path.join(MM_ws,outPESTheads_fn), 'w')
+        outPESTsm=open(os.path.join(MM_ws,outPESTsm_fn), 'w')
+    else:
+        print "\nNo reading of observations time series (hydraulic heads and soil moisture) required."
+        obs = None
+
     # compute thickness, top and bottom elevation of each soil layer
     TopAquif = top_array*1000.0 # conversion from m to mm
     # topography elevation
@@ -365,7 +411,7 @@ try:
         report = open(report_fn, 'a')
         sys.stdout = report
     h5_MM_fn = os.path.join(MM_ws,'_h5_MM.h5')
-    h5_MF_fn = ppMF.ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, finf_MM = (h5_MM_fn, 'finf'), wel_MM = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks, MFtime_fn = MFtime_fn, numDays = numDays)
+    h5_MF_fn = ppMF.ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, finf_MM = (h5_MM_fn, 'finf'), wel_MM = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks, MFtime_fn = MFtime_fn, numDays = numDays, obs = obs)
 
     h5_MF = h5py.File(h5_MF_fn)
 
@@ -635,7 +681,7 @@ try:
                 s = sys.stdout
                 report = open(report_fn, 'a')
                 sys.stdout = report
-            h5_MF_fn = ppMF.ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, finf_MM = (h5_MM_fn, 'finf'), wel_MM = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks, MFtime_fn = MFtime_fn, numDays = numDays)
+            h5_MF_fn = ppMF.ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, finf_MM = (h5_MM_fn, 'finf'), wel_MM = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks, MFtime_fn = MFtime_fn, numDays = numDays, obs = obs)
 
             h5_MF = h5py.File(h5_MF_fn)
 
@@ -706,7 +752,7 @@ try:
             report = open(report_fn, 'a')
             sys.stdout = report
 
-        h5_MF_fn = ppMF.ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, finf_MM = (h5_MM_fn, 'finf'), wel_MM = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks, MFtime_fn = MFtime_fn, numDays = numDays)
+        h5_MF_fn = ppMF.ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, finf_MM = (h5_MM_fn, 'finf'), wel_MM = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks, MFtime_fn = MFtime_fn, numDays = numDays, obs = obs)
 
         timeendMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
         durationMF += (timeendMF-timestartMF)
@@ -816,51 +862,6 @@ try:
         cbc_DRN = cbc_STO = cbc_RCH = cbc_WEL = np.zeros((sum(perlen), nrow, ncol, nlay))
         imfDRN = imfSTO = imfRCH = imfWEL = 0
         top_array_m = np.zeros((nrow, ncol))
-
-    # READ observations time series (heads and soil moisture)
-    obsCHECK = 1  # 0: no obs, 1: obs
-    if obsCHECK==1:
-        print "\nReading observations time series (hydraulic heads and soil moisture)..."
-        obs, outpathname, obs_h, obs_S = MM_PROCESS.inputObs(
-                                MM_ws = MM_ws,
-                                inputObs_fn = inputObs_fn,
-                                inputObsHEADS_fn = inputObsHEADS_fn,
-                                inputObsSM_fn = inputObsSM_fn,
-                                inputDate   = inputDate,
-                                _nslmax     = _nslmax,
-                                nlay        = nlay
-                                )
-        if os.path.exists(h5_MM_fn):
-            # To write MM output in a txt file
-            outFileExport = []
-            for o in range(len(obs.keys())):
-                outFileExport.append(open(outpathname[o], 'w'))
-                Su_str=''
-                Supc_str=''
-                dSu_str=''
-                Rp_str=''
-                Eu_str=''
-                Tu_str=''
-                Smeasout = ''
-                MB_str = ''
-                for l in range(_nslmax):
-                    Su_str = Su_str + 'Su_l' + str(l+1) + ','
-                    Supc_str = Supc_str + 'Supc_l' + str(l+1) + ','
-                    dSu_str = dSu_str + 'dSu_l' + str(l+1) + ','
-                    Eu_str = Eu_str + 'Eu_l' + str(l+1) + ','
-                    Tu_str = Tu_str + 'Tu_l' + str(l+1) + ','
-                    Rp_str = Rp_str + 'Rp_l' + str(l+1) + ','
-                    MB_str = MB_str + 'MB_l' + str(l+1) + ','
-                    Smeasout = Smeasout + 'Smeas_' + str(l+1) + ','
-                header='Date,RF,E0,PET,PE,RFe,I,'+Eu_str+Tu_str+'Eg,Tg,ETg,WEL_MF,Es,'+Su_str+Supc_str+dSu_str+'dSs,Ss,Ro,DRN,DRN_MF,'+Rp_str+'R_MF,hSATFLOW,hMF,hMFcorr,hmeas,dtwt,' + Smeasout + MB_str + 'MB\n'
-                outFileExport[o].write(header)
-            outPESTheads_fn      = 'PESTheads.dat'
-            outPESTsm_fn         = 'PESTsm.dat'
-            outPESTheads=open(os.path.join(MM_ws,outPESTheads_fn), 'w')
-            outPESTsm=open(os.path.join(MM_ws,outPESTsm_fn), 'w')
-    else:
-        print "\nNo reading of observations time series (hydraulic heads and soil moisture) required."
-        obs = None
 
     # computing range for plotting
     h_MF_m = np.ma.masked_values(h_MF_m, hdry, atol = 1E+25)
