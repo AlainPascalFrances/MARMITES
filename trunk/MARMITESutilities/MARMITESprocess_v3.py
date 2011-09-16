@@ -296,10 +296,13 @@ class PROCESS:
                 nslst += 1
                 if not(Sm[z][ns]>Sfc[z][ns]>Sr[z][ns]) or not(Sm[z][ns]>=Si[z][ns]>=Sr[z][ns]):
                     raise ValueError, '\nERROR!\nSoils parameters are not valid!\nThe conditions are Sm>Sfc>Sr and Sm>Si>Sr!'
+                    sys.exit()
             if sum(slprop[z][0:nsl[z+1]])>1:
                 raise ValueError, '\nERROR!\nThe sum of the soil layers proportion of %s is >1!\nCorrect your soil data input!\n' % nam_soil[z]
+                sys.exit()
             if sum(slprop[z][0:nsl[z+1]])<1:
                 raise ValueError, '\nERROR!\nThe sum of the soil layers proportion of %s is <1!\nCorrect your soil data input!\n' % nam_soil[z]
+                sys.exit()
 
         return nsl[1:len(nsl)], nam_soil, st, slprop, Sm, Sfc, Sr, Si, Ks
         del nsl, nam_soil, st, slprop, Sm, Sfc, Sr, Si, Ks

@@ -359,6 +359,10 @@ class UNSAT:
         Es = np.zeros([Ttotal], dtype = np.float)
         # HEADS
         HEADS_corr = np.zeros([Ttotal], dtype = np.float)
+        # dtwt
+        dtwt = np.zeros([Ttotal], dtype = np.float)
+        # uzthick
+        uzthick = np.zeros([Ttotal], dtype = np.float)
         # MASS BALANCE
         MB = np.zeros([Ttotal], dtype = np.float)
         # MASS BALANCE each soil layer
@@ -370,7 +374,7 @@ class UNSAT:
         # GW evapotranspiration
         ETg = np.zeros([Ttotal], dtype = np.float)
         # output arrays
-        nflux1 = 19
+        nflux1 = 20
         nflux2 = 8
         results1 = np.zeros([Ttotal,nflux1])
         results2 = np.zeros([Ttotal,nsl,nflux2])
@@ -402,11 +406,13 @@ class UNSAT:
             else:
                 HEADS_tmp = HEADS[t]*1000.0
 
-            # dtwt
+
+            # dtwt and uzthick
+            uzthick[t] = BotSoilLay[nsl-1] - HEADS_tmp
             if EXF[t] <= 0.0:  #BotSoilLay[nsl-1] > HEADS_tmp:
-                dtwt = TopSoilLay[0] - HEADS_tmp
+                dtwt[t] = TopSoilLay[0] - HEADS_tmp
             elif EXF[t] > 0.0:
-                dtwt = sum(Tl)
+                dtwt[t] = sum(Tl)
                 HEADS_tmp = BotSoilLay[nsl-1]
 
             # for the first TS, S_ini is expressed in % and has to be converted in mm
@@ -414,7 +420,7 @@ class UNSAT:
                 Su_ini = Su_ini * Tl
 
             # fluxes
-            Es_tmp, Ss_tmp, Ro_tmp, Rp_tmp, Eu_tmp, Tu_tmp, Su_tmp, Su_pc_tmp, Eg_tmp, Tg_tmp, HEADS_tmp, dtwt, SAT_tmp, Rexf_tmp = self.flux(RFe_tot[t], PETveg[:,t], PE_tot[t], E0[t], Zr_elev, VEGarea, HEADS_tmp, TopSoilLay, BotSoilLay, Tl, nsl, Sm, Sfc, Sr, Ks, Ss_max, Ss_ratio, t, Su_ini, Rp_ini, Ss_ini, EXF[t], dtwt, st, i, j, n, kTu_min, kTu_n, dt, dti)
+            Es_tmp, Ss_tmp, Ro_tmp, Rp_tmp, Eu_tmp, Tu_tmp, Su_tmp, Su_pc_tmp, Eg_tmp, Tg_tmp, HEADS_tmp, dtwt_tmp, SAT_tmp, Rexf_tmp = self.flux(RFe_tot[t], PETveg[:,t], PE_tot[t], E0[t], Zr_elev, VEGarea, HEADS_tmp, TopSoilLay, BotSoilLay, Tl, nsl, Sm, Sfc, Sr, Ks, Ss_max, Ss_ratio, t, Su_ini, Rp_ini, Ss_ini, EXF[t], dtwt[t], st, i, j, n, kTu_min, kTu_n, dt, dti)
 
             # fill the output arrays
             Ss[t] = Ss_tmp
@@ -423,6 +429,7 @@ class UNSAT:
             Eg[t]   = Eg_tmp
             Tg[t]   = Tg_tmp
             HEADS_corr[t] = HEADS_tmp
+            dtwt[t] = dtwt_tmp
             Su[t,:]    = Su_tmp[:]
             Su_pc[t,:] = Su_pc_tmp[:]
             Rp[t,:]    = Rp_tmp[:]
@@ -462,7 +469,7 @@ class UNSAT:
             # total mass balance for the unsaturated zone
             MB[t] = RFe_tot[t] + Ss_ini + dti*(dSu_tot[t] + Rp_in_MB) + EXF[t] - dt*(Ss[t] + Ro[t] + Es[t] + Eu_MB + Tu_MB + Rp_out_MB)
             # index = {'iRF':0, 'iPET':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iEXF':6, 'iEs':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSs':15, 'iETg':16, 'iETu':17, 'idSu':18, 'iHEADScorr':19, 'idtwt':20, 'iTll':21, 'iGWcorr':22}
-            results1[t,:] = [RF[t], PET_tot[t], PE_tot[t], RFe_tot[t], Ss[t], Ro[t], EXF[t]/dt, Es[t], MB[t], INTER_tot[t], E0[t], Eg[t], Tg[t], dSs[t], ETg[t], ETu_tot[t], dSu_tot[t], HEADS_corr[t]/1000.0, -dtwt/1000.0]
+            results1[t,:] = [RF[t], PET_tot[t], PE_tot[t], RFe_tot[t], Ss[t], Ro[t], EXF[t]/dt, Es[t], MB[t], INTER_tot[t], E0[t], Eg[t], Tg[t], dSs[t], ETg[t], ETu_tot[t], dSu_tot[t], HEADS_corr[t]/1000.0, -dtwt[t]/1000.0, uzthick[t]/1000.0]
             # index_S = {'iEu':0, 'iTu':1,'iSu_pc':2, 'iRp':3, 'idSu':4, 'iSu':5}
             for l in range(nsl):
                 results2[t,l,:] = [Eu[t,l], Tu[t,l], Su_pc[t,l], Rp[t,l], dSu[t,l], Su[t,l], SAT[t,l], MB_l[t,l]]

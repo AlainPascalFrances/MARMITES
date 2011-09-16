@@ -7,7 +7,7 @@ if mpl.get_backend()<>'agg':
 import matplotlib.pyplot as plt
 import numpy as np
 
-def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, EXF, ETg, Es, MB, MB_l, dtwt, SAT, R, h_MF, h_MF_corr, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin):
+def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, EXF, ETg, Es, MB, MB_l, dtwt, uzthick, SAT, R, h_MF, h_MF_corr, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin):
     """
     allGRAPH: GRAPH the computed data
     Use Matplotlib
@@ -280,7 +280,13 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     if MB.max()<0.001 and MB.min()>-0.001:
         plt.ylim(-0.1,0.1)
     else:
-        plt.ylim(min(np.min(MB), np.min(MB_l1))*1.05,max(np.max(MB),np.max(MB_l1))*1.05)
+        minfact = 0.95
+        maxfact = 1.05
+        if min(np.min(MB), np.min(MB_l1))> 0:
+            minfact = 1.05
+        if max(np.max(MB), np.max(MB_l1))< 0:
+            maxfactor = 0.95
+        plt.ylim(min(np.min(MB), np.min(MB_l1))*minfact,max(np.max(MB),np.max(MB_l1))*maxfactor)
     # legend
     plt.legend(lbl_MB, loc=0, labelspacing=lblspc, markerscale=mkscale)
     leg = plt.gca().get_legend()
@@ -326,25 +332,48 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     ax9b.xaxis.set_major_formatter(monthsFmt)
     ax9b.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2g'))
 
-    ax10=fig.add_subplot(10,1,10, sharex=ax1)
-    plt.setp(ax10.get_xticklabels(), visible=False)
-    plt.setp(ax10.get_yticklabels(), fontsize=8)
+    ax10a=fig.add_subplot(20,1,19, sharex=ax1)
+    plt.setp(ax10a.get_xticklabels(), visible=False)
+    plt.setp(ax10a.get_yticklabels(), fontsize=8)
+    plt.plot_date(DateInput,uzthick,'-', c='brown')
+    # y axis
+    plt.ylabel('m', fontsize=10)
+    plt.grid(True)
+    plt.xlim(DateInput[0]-1,DateInput[len(uzthick)-1]+1)
+    minfact = 0.95
+    maxfact = 1.05
+    if np.min(uzthick) < 0:
+        minfact = 1.05
+    if np.max(uzthick) < 0:
+        maxfactor = 0.95
+    plt.ylim(np.min(uzthick)*minfact, np.max(uzthick)*maxfact)
+    # legend
+    plt.legend(['uzthick'], loc=0, labelspacing=lblspc, markerscale=mkscale)
+    leg = plt.gca().get_legend()
+    ltext  = leg.get_texts()
+    plt.setp(ltext, fontsize=8 )
+    ax10a.xaxis.set_major_formatter(monthsFmt)
+    ax10a.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2g'))
+
+    ax10b=fig.add_subplot(20,1,20, sharex=ax1)
+    plt.setp(ax10b.get_xticklabels(), visible=False)
+    plt.setp(ax10b.get_yticklabels(), fontsize=8)
     for l, (y, color, lbl) in enumerate(zip(S1, colors_nsl, lbl_S)) :
         y = np.ma.masked_where( y < 0.0, y)
-        ax10.plot_date(DateInput, y, '-', color=color, label=lbl)
+        ax10b.plot_date(DateInput, y, '-', color=color, label=lbl)
     # x axis
     plt.xlim(DateInput[0]-1,DateInput[len(P)-1]+1)
     # y axis
     plt.ylim(0,np.max(S1)*1.05)
     plt.ylabel('mm', fontsize=10)
-    ax10.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%1.1f'))
+    ax10b.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%1.1f'))
     # legend
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale)
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8 )
     plt.grid(True)
-    ax10.xaxis.set_major_formatter(monthsFmt)
+    ax10b.xaxis.set_major_formatter(monthsFmt)
 
     plt.subplots_adjust(left=0.10, bottom=0.10, right=0.95, top=0.95, wspace=0.1, hspace=0.1)
     plt.savefig(plt_export_fn,dpi=150)

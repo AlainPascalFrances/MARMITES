@@ -141,7 +141,7 @@ del inputFile
 
 if verbose == 0:
 #capture interpreter output to be written in to a report file
-    report_fn = os.path.join(MM_ws,'_MMrun_report.txt')
+    report_fn = os.path.join(MM_ws,'_MM_00report.txt')
     print '\nECHO OFF (no screen output).\nSee MM run report in file:\n%s\n' % report_fn
     s = sys.stdout
     report = open(report_fn, 'w')
@@ -235,7 +235,7 @@ try:
     # #############################
 
     print'\n##############'
-    print 'Importing MODFLOW configuration file'
+    print 'MODFLOW initialization'
     nrow, ncol, delr, delc, top, reggrid, nlay, nper, perlen, nstp, timedef, hnoflo, hdry, laytyp, lenuni, itmuni, ibound_fn = ppMF.ppMFini(MF_ws, MF_ini_fn, out = 'MM', numDays = numDays)
 
     # ####   SUMMARY OF MODFLOW READINGS   ####
@@ -393,7 +393,7 @@ try:
     TopSoil = TopAquif + gridSOILthick*1000.0
 
     # indexes of the HDF5 output arrays
-    index = {'iRF':0, 'iPET':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iEXF':6, 'iEs':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSs':13, 'iETg':14, 'iETu':15, 'idSu':16, 'iHEADScorr':17, 'idtwt':18}
+    index = {'iRF':0, 'iPET':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iEXF':6, 'iEs':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSs':13, 'iETg':14, 'iETu':15, 'idSu':16, 'iHEADScorr':17, 'idtwt':18, 'iuzthick':19}
     index_S = {'iEu':0, 'iTu':1,'iSu_pc':2, 'iRp':3, 'idSu':4, 'iSu':5, 'iSAT':6, 'iMB_l':7}
 
     # #############################
@@ -437,6 +437,8 @@ except StandardError, e:  #Exception
     traceback.print_exc(file=sys.stdout)
     h5_MF_fn = None
 #    traceback.print_exc(limit=1, file=sys.stdout)
+    timeend = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
+    duration += (timeend-timestart) -durationMF
     sys.exit()
 
 # #############################
@@ -447,12 +449,15 @@ try:
     if MMunsat_yn > 0:
 
         h_pSP = 0
+        h_pSP_all = 0
         LOOP = 0
         LOOPlst = [LOOP]
         h_diff = [1000]
         h_diff_log = [1]
+        h_diff_all = [1000]
+        h_diff_all_log = [1]
         loopdry = 0
-        plt_ConvLoop_fn = os.path.join(MM_ws, '_plt_ConvLoop_MM_MF.png')
+        plt_ConvLoop_fn = os.path.join(MM_ws, '_MM_00plt_MM_MF_ConvLoop.png')
 
         # #############################
         # ###  CONVERGENCE LOOP   #####
@@ -636,24 +641,36 @@ try:
                 h5_MM['MM_S'][tstart_MM:tend_MM,:,:,:,:] = MM_S[:,:,:,:,:]
                 h5_MM['finf'][n,:,:] = MM_finf_MF
                 h5_MM['ETg'][n,:,:] = MM_wel_MF
-            del h_MF_per, exf_MF_per
+            del exf_MF_per
             del MM, MM_S, MM_finf_MF, MM_wel_MF
             h5_MM.close()
 
             # CHECK MM amd MF CONVERG.
             h_MFsum /= (ncell*nper)
             h_diff.append(h_MFsum - h_pSP)
+            h_diff_surf = np.ma.masked_values(h_MF_per, hnoflo, atol = 0.09) - np.ma.masked_values(h_pSP_all, hnoflo, atol = 0.09)
+            h_diff_all_max = np.nanmax(h_diff_surf)
+            h_diff_all_min = np.nanmin(h_diff_surf)
+            if abs(h_diff_all_max)>abs(h_diff_all_min):
+                h_diff_all.append(h_diff_all_max)
+            else:
+                h_diff_all.append(h_diff_all_min)
             LOOP += 1
             LOOPlst.append(LOOP)
             h_pSP = h_MFsum
+            h_pSP_all = h_MF_per
+            del h_MF_per
             if np.absolute(h_diff[LOOP])>0.0:
                 h_diff_log.append(np.log10(np.absolute(h_diff[LOOP])))
+                h_diff_all_log.append(np.log10(np.absolute(h_diff_all[LOOP])))
             else:
                 h_diff_log.append(np.log10(convcrit))
+                h_diff_all_log.append(np.log10(convcrit))
             if LOOP <2:
                 print "\nInitial average heads:\n%.3f m" % h_diff[LOOP]
             else:
-                print "\nHeads diff. from previous conv. loop:\n%.3f m" % h_diff[LOOP]
+                print "\nHeads diff. from previous conv. loop: %.3f m" % h_diff[LOOP]
+                print 'Maximum heads difference:             %.3f m' % h_diff_all[LOOP]
             if h_MFsum == 0.0:
                 loopdry += 1
                 if loopdry > 1:
@@ -696,37 +713,47 @@ try:
     #        print'\n##############'
     #        print 'Exporting plot of the convergence loop...'
         fig = plt.figure()
+        fig.suptitle('Convergence loop plot between MM and MF based on heads differences.\nOrange: average heads for the whole model.\nGreen: maximun heads difference observed in the model (one cell)', fontsize=10)
         if LOOP>0:
+
             ax1=fig.add_subplot(3,1,1)
             plt.setp(ax1.get_xticklabels(), fontsize=8)
             plt.setp(ax1.get_yticklabels(), fontsize=8)
             ax1.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
-            plt.ylabel('h_diff\n[m]', fontsize=10, horizontalalignment = 'center')
+            plt.ylabel('h_diff [m]', fontsize=10, horizontalalignment = 'center')
             plt.grid(True)
             plt.plot(LOOPlst[1:], h_diff[1:], linestyle='-', marker='o', markersize=5, c = 'orange', markerfacecolor='orange', markeredgecolor='red')
+            plt.plot(LOOPlst[1:], h_diff_all[1:], linestyle='-', marker='o', markersize=5, c = 'green', markerfacecolor='green', markeredgecolor='blue')
+
         if LOOP>1:
+
             ax2=fig.add_subplot(3,1,3, sharex = ax1)
             plt.setp(ax2.get_xticklabels(), fontsize=8)
             plt.setp(ax2.get_yticklabels(), fontsize=8)
             ax2.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
-            plt.ylabel('log(abs(h_diff))\n[log(m)]', fontsize=10, horizontalalignment = 'center')
+            plt.ylabel('log(abs(h_diff)) [log(m)]', fontsize=10, horizontalalignment = 'center')
             plt.grid(True)
             plt.xlabel('trial', fontsize=10)
             plt.plot(LOOPlst[2:], h_diff_log[2:], linestyle='-', marker='o', markersize=5, c = 'orange', markerfacecolor='orange', markeredgecolor='red')
+            plt.plot(LOOPlst[2:], h_diff_all_log[2:], linestyle='-', marker='o', markersize=5, c = 'green', markerfacecolor='green', markeredgecolor='blue')
+
             ax3=fig.add_subplot(3,1,2, sharex = ax1)
             plt.setp(ax3.get_xticklabels(), fontsize=8)
             plt.setp(ax3.get_yticklabels(), fontsize=8)
             plt.plot(LOOPlst[2:], h_diff[2:], linestyle='-', marker='o', markersize=5, c = 'orange', markerfacecolor='orange', markeredgecolor='red')
+            plt.plot(LOOPlst[2:], h_diff_all[2:], linestyle='-', marker='o', markersize=5, c = 'green', markerfacecolor='green', markeredgecolor='blue')
             ax3.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
-            plt.ylabel('h_diff\n[m]', fontsize=10, horizontalalignment = 'center')
+            plt.ylabel('h_diff [m]', fontsize=10, horizontalalignment = 'center')
         #        plt.ylabel.Text.position(0.5, -0.5)
             plt.grid(True)
+
             ax2.xaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%2d'))
             ax3.xaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%2d'))
-        if LOOP>1:
+
             plt.xlim(1,LOOP)
             ax1.xaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%2d'))
             ax1.xaxis.set_ticks(LOOPlst[1:])
+
         plt.savefig(plt_ConvLoop_fn)
         plt.cla()
         plt.clf()
@@ -736,31 +763,32 @@ try:
         timeend = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
         duration += (timeend-timestart) -durationMF
 
-        # #############################
-        # ### MODFLOW RUN with MM-computed recharge
-        # #############################
-        h5_MF.close()
-        durationMF = 0.0
-        timestartMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
-        print'\n##############'
-        print 'MODFLOW RUN (MARMITES fluxes after conv. loop)'
-        if verbose == 0:
-            print '\n--------------'
-            sys.stdout = s
-            report.close()
-            s = sys.stdout
-            report = open(report_fn, 'a')
-            sys.stdout = report
-
-        h5_MF_fn = ppMF.ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, finf_MM = (h5_MM_fn, 'finf'), wel_MM = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks, MFtime_fn = MFtime_fn, numDays = numDays, obs = obs)
-
-        timeendMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
-        durationMF += (timeendMF-timestartMF)
+##        # #############################
+##        # ### MODFLOW RUN with MM-computed recharge
+##        # #############################
+##        h5_MF.close()
+##        durationMF = 0.0
+##        timestartMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
+##        print'\n##############'
+##        print 'MODFLOW RUN (MARMITES fluxes after conv. loop)'
+##        if verbose == 0:
+##            print '\n--------------'
+##            sys.stdout = s
+##            report.close()
+##            s = sys.stdout
+##            report = open(report_fn, 'a')
+##            sys.stdout = report
+##        h5_MF_fn = ppMF.ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, finf_MM = (h5_MM_fn, 'finf'), wel_MM = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks, MFtime_fn = MFtime_fn, numDays = numDays, obs = obs)
+##
+##        timeendMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
+##        durationMF += (timeendMF-timestartMF)
 
 except StandardError, e:  #Exception
     print '\nERROR! Abnormal MM run interruption in the MM/MF loop!\nError description:'
     h5_MF_fn = None
     traceback.print_exc(file=sys.stdout)
+    timeend = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
+    duration += (timeend-timestart) -durationMF
     #sys.exit()
 
 # #############################
@@ -1067,6 +1095,7 @@ try:
                 MM[:,index.get('iMB')],
                 MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('iMB_l')],
                 MM[:,index.get('idtwt')],
+                MM[:,index.get('iuzthick')],
                 MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('iSAT')],
                 cbc_RCH[:,i,j,0],
                 h_MF_m[:,i,j,l], MM[:,index.get('iHEADScorr')], h_satflow, obs_h_tmp, obs_S_tmp,
@@ -1110,13 +1139,6 @@ try:
                         flxlst.append(cbc_WEL[:,i,j,l].sum()/sum(perlen))
                     #MB_tmp -= flxlst[16] + flxlst[17] + flxlst[19] + flxlst[20]
                     MB_tmp = -999
-##                print '\n####'
-##                print obs.keys()[o]
-##                print flxlbl
-##                print 'lbl, lst, col'
-##                print len(flxlbl), len(flxlst), len(colors_flx)
-##                for e, lbl in zip(flxlst,flxlbl):
-##                    print lbl, type(e)
                 MMplot.plotGWbudget(flxlst = flxlst, flxlbl = flxlbl, colors_flx = colors_flx, plt_export_fn = plt_export_fn, plt_title = plt_title + '\nsum of fluxes: %.4f' % MB_tmp, fluxmax = flxmax, fluxmin = flxmin)
                 del flxlst
         del h_satflow, MM, MM_S
@@ -1166,7 +1188,6 @@ try:
         flxlbl = ['Eu', 'Tu']
         for i in flxlbl:
             # plot average for the whole simulated period
-            TS=0
             i1 = 'i'+i
             V = [np.zeros([nrow,ncol])]
             for l in range(_nslmax):
@@ -1180,7 +1201,7 @@ try:
             Vmax = np.nanmax(V[0]) #float(np.ceil(np.nanmax(V)))
             Vmin = np.nanmin(V[0]) #float(np.floor(np.nanmin(V)))
             if Vmax!=0.0 or Vmin!=0.0:
-                MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i + ' (mm/day)'), msg = 'no flux', plt_title = ('MM_'+ 'average_' + i), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrangeMM, Vmax = Vmax, Vmin = Vmin, contours = ctrsMM, ntick = ntick)
+                MMplot.plotLAYER(TS = -999, ncol = ncol, nrow = nrow, nlay = nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i + ' (mm/day)'), msg = 'no flux', plt_title = ('MM_'+ 'average_' + i), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrangeMM, Vmax = Vmax, Vmin = Vmin, contours = ctrsMM, ntick = ntick)
             del V
             for TS in TSlst:
                 h5_MM = h5py.File(h5_MM_fn, 'r')
@@ -1191,7 +1212,12 @@ try:
                 if Vmax!=0.0 or Vmin!=0.0:
                     MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i + ' (mm/day)'), msg = 'no flux', plt_title = ('MM_'+i), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrangeMM, Vmax = Vmax, Vmin = Vmin, contours = ctrsMM, ntick = ntick)
             del V, MM
-        del TSlst, flxlbl, i, i1
+        flxlbl = ['h_diff_surf']
+        Vmax = np.nanmax(h_diff_surf) #float(np.ceil(np.nanmax(V)))
+        Vmin = np.nanmin(h_diff_surf) #float(np.floor(np.nanmin(V)))
+        if Vmax!=0.0 or Vmin!=0.0:
+            MMplot.plotLAYER(TS = -999, ncol = ncol, nrow = nrow, nlay = 1, nplot = 1, V = h_diff_surf,  cmap = plt.cm.Blues, CBlabel = ('(m)'), msg = 'no value', plt_title = ('_HEADSmaxdiff_ConvLoop'), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrangeMM, Vmax = Vmax, Vmin = Vmin, contours = ctrsMM, ntick = ntick)
+        del TSlst, flxlbl, i, i1, h_diff_surf
 
     # plot MF output
     if plot_out == 1 and isinstance(h5_MF_fn, str):
@@ -1209,19 +1235,12 @@ try:
                 V.append(h_MF_m[TS,:,:,L])
             MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation (m)', msg = 'DRY', plt_title = 'HEADS', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (hmaxMF - hminMF)/nrangeMF, Vmax = hmaxMF, Vmin = hminMF, ntick = ntick)
             del V
-            # plot diff between drain elevation and heads elevation [m]
-            DrnHeadsLtop = top_array_m - h_MF_m[TS,:,:,0]
-            DrnHeadsLtop_m = np.ma.masked_greater(DrnHeadsLtop,0.0)
-            V = [DrnHeadsLtop_m]
-            diffMin = 0
-            diffMax = np.nanmin(DrnHeadsLtop_m)
-            MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = 1, V = V,  cmap = plt.cm.RdYlGn, CBlabel = 'diff. between DRN elev and hyd. heads elev. (m)', msg = ' - no drainage/elevation difference', plt_title = 'HEADSDRNdiff', MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, Vmax = diffMin, Vmin = diffMax, contours = ctrsMF, fmt='%.3G', ntick = ntick)
             # plot GW drainage [mm]
             V = []
             for L in range(nlay):
                 V.append(-cbc_DRN[TS,:,:,L])
             MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater drainage (mm/day)', msg = '- no drainage', plt_title = 'DRN', MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, Vmin = DRNmin, contours = ctrsMF, Vmax = DRNmax, fmt='%.3G', ntick = ntick)
-            del DrnHeadsLtop, DrnHeadsLtop_m, V
+            del V
         del TSlst
 
     del h_MF_m, cbc_DRN
