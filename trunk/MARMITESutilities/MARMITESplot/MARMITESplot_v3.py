@@ -277,16 +277,16 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     plt.ylabel('mm', fontsize=10)
     plt.grid(True)
     plt.xlim(DateInput[0]-1,DateInput[len(MB)-1]+1)
-    if MB.max()<0.001 and MB.min()>-0.001:
+    if max(np.max(MB),np.max(MB_l1)) < 0.001 and min(np.min(MB), np.min(MB_l1)) > -0.001:
         plt.ylim(-0.1,0.1)
     else:
         minfact = 0.95
         maxfact = 1.05
-        if min(np.min(MB), np.min(MB_l1))> 0:
+        if min(np.min(MB), np.min(MB_l1)) > 0:
             minfact = 1.05
-        if max(np.max(MB), np.max(MB_l1))< 0:
-            maxfactor = 0.95
-        plt.ylim(min(np.min(MB), np.min(MB_l1))*minfact,max(np.max(MB),np.max(MB_l1))*maxfactor)
+        if max(np.max(MB), np.max(MB_l1)) < 0:
+            maxfact = 0.95
+        plt.ylim(min(np.min(MB), np.min(MB_l1))*minfact,max(np.max(MB),np.max(MB_l1))*maxfact)
     # legend
     plt.legend(lbl_MB, loc=0, labelspacing=lblspc, markerscale=mkscale)
     leg = plt.gca().get_legend()
@@ -345,7 +345,7 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     if np.min(uzthick) < 0:
         minfact = 1.05
     if np.max(uzthick) < 0:
-        maxfactor = 0.95
+        maxfact = 0.95
     plt.ylim(np.min(uzthick)*minfact, np.max(uzthick)*maxfact)
     # legend
     plt.legend(['uzthick'], loc=0, labelspacing=lblspc, markerscale=mkscale)

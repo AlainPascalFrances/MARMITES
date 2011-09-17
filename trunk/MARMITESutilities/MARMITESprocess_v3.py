@@ -450,7 +450,7 @@ class PROCESS:
 
     ######################
 
-    def ExportResultsMM(self, i, j, inputDate, _nslmax, results, index, results_S, index_S, DRN, RCH, WEL, h_satflow, heads_MF, obs_h, obs_S, outFileExport, obsname):
+    def ExportResultsMM(self, i, j, inputDate, _nslmax, results, index, results_S, index_S, RCH, WEL, h_satflow, heads_MF, obs_h, obs_S, outFileExport, obsname):
         """
         Export the processed data in a txt file
         INPUTS:      output fluxes time series and date
@@ -461,13 +461,14 @@ class PROCESS:
             month='%02d'%mpl.dates.num2date(inputDate[t]).month
             day='%02d'%mpl.dates.num2date(inputDate[t]).day
             date=(day+"/"+month+"/"+year)
-            # header='Date,RF,E0,PET,PE,RFe,Inter,'+Eu_str+Tu_str+'Eg,Tg,ETg,WEL_MF,Es,'+S_str+Spc_str+dS_str+'dPOND,POND,Ro,SEEPAGE,DRN_MF,'+Rp_str+'R,Rn,R_MF,hSATFLOW,hMF,hmeas,' + Smeasout + 'MB\n'
-            Sout = ''
-            Spcout = ''
-            dSout = ''
-            Rpout=''
-            Euout=''
-            Tuout=''
+            # 'Date,RF,E0,PET,PE,RFe,I,'+Eu_str+Tu_str+'Eg,Tg,ETg,WEL_MF,Es,'+Su_str+Supc_str+dSu_str+'dSs,Ss,Ro,GW_EXF,GW_EXF_MF,'+Rp_str+Rexf_str+'R_MF,hSATFLOW,hMF,hMFcorr,hmeas,dtwt,' + Smeasout + MB_str + 'MB\n'
+            Sout     = ''
+            Spcout   = ''
+            dSout    = ''
+            Rpout    = ''
+            Rexfout     = ''
+            Euout    = ''
+            Tuout    = ''
             Smeasout = ''
             MBout=''
             for l in range(_nslmax):
@@ -475,6 +476,7 @@ class PROCESS:
                 Spcout = Spcout + str(results_S[t,l,index_S.get('iSu_pc')]) + ','
                 dSout = dSout + str(results_S[t,l,index_S.get('idSu')]) + ','
                 Rpout = Rpout + str(results_S[t,l,index_S.get('iRp')]) + ','
+                Rexfout = Rexfout + str(results_S[t,l,index_S.get('iRexf')]) + ','
                 Euout = Euout + str(results_S[t,l,index_S.get('iEu')]) + ','
                 Tuout = Tuout + str(results_S[t,l,index_S.get('iTu')]) + ','
                 MBout = MBout + str(results_S[t,l,index_S.get('iMB_l')]) + ','
@@ -489,13 +491,13 @@ class PROCESS:
             out_date = mpl.dates.num2date(inputDate[t]).isoformat()[:10]
             out1 = '%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[t,index.get('iRF')], results[t,index.get('iE0')],results[t,index.get('iPET')],results[t,index.get('iPE')],results[t,index.get('iRFe')],results[t,index.get('iI')])
             out2 = '%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[t,index.get('iEg')], results[t,index.get('iTg')],results[t,index.get('iETg')], WEL[t], results[t,index.get('iEs')])
-            out3 = '%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[t,index.get('idSs')],results[t,index.get('iSs')],results[t,index.get('iRo')],results[t,index.get('iEXF')],DRN[t])
+            out3 = '%.8f,%.8f,%.8f,%.8f,' % (results[t,index.get('idSs')],results[t,index.get('iSs')],results[t,index.get('iRo')],results[t,index.get('iEXF')])
             out4 = '%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,' % (RCH[t], h_satflow[t],heads_MF[t],results[t,index.get('iHEADScorr')],obs_h_tmp,results[t,index.get('idtwt')])
             out5 = '%.8f' % (results[t,index.get('iMB')])
-            out_line =  out_date, ',', out1, Euout, Tuout, out2, Sout, Spcout, dSout, out3, Rpout, out4, Smeasout, MBout, out5, '\n'
+            out_line =  out_date, ',', out1, Euout, Tuout, out2, Sout, Spcout, dSout, out3, Rpout, Rexfout, out4, Smeasout, MBout, out5, '\n'
             for l in out_line:
                 outFileExport.write(l)
-        del i, j, inputDate, _nslmax, results, index, results_S, index_S, DRN, RCH, WEL, h_satflow, heads_MF, obs_h, obs_S, outFileExport, obsname
+        del i, j, inputDate, _nslmax, results, index, results_S, index_S, RCH, WEL, h_satflow, heads_MF, obs_h, obs_S, outFileExport, obsname
 
     def ExportResultsPEST(self, i, j, inputDate, _nslmax, heads_MF, obs_h, obs_S, outPESTheads, outPESTsm, obsname, results_S = None):
         """

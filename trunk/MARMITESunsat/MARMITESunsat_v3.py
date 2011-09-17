@@ -100,7 +100,7 @@ class UNSAT:
 
 #####################
 
-    def flux(self, RFe, PET, PE, E0, Zr_elev, VEGarea, HEADS, TopSoilLay, BotSoilLay, Tl, nsl, Sm, Sfc, Sr, Ks, Ss_max, Ss_ratio, t, Su_ini, Rp_ini, Ss_ini, EXF, dtwt, st, i, j, n, kTu_min, kTu_n, dt, dti):
+    def flux(self, RFe, PET, PE, E0, Zr_elev, VEGarea, HEADS, TopSoilLay, BotSoilLay, Tl, nsl, Sm, Sfc, Sr, Ks, Ss_max, Ss_ratio, Su_ini, Rp_ini, Ss_ini, EXF, dtwt, st, i, j, n, kTu_min, kTu_n, dt, dti):
 
         def surfwater(s_tmp,Sm,Ss_max, E0, i, j, n, dt):
             '''
@@ -145,8 +145,8 @@ class UNSAT:
                 else:
                     rp_tmp = Ks
             # verify the vol. available in deeper soil layer
-            if (rp_tmp*dt) > (Sm_sp1 - s_lp1):
-                rp_tmp = (Sm_sp1 - s_lp1)/dt
+#            if (rp_tmp*dt) > (Sm_sp1 - s_lp1):
+#                rp_tmp = (Sm_sp1 - s_lp1)/dt
             return rp_tmp
 
         ##################
@@ -184,18 +184,15 @@ class UNSAT:
 
         # INFILTRATION
         # first soil layer
-        Su_tmp[0] += RFe*dt + Ss_ini
+        Su_tmp[0] += RFe + Ss_ini
         # other soil layer, percolation from previous time step
         for l in range(1,nsl):
-            if t == 0:
-                Su_tmp[l] += Rp_ini[l-1]*dti
-            else:
-                Su_tmp[l] += Rp[t-1,l-1]*dti
+            Su_tmp[l] += Rp_ini[l-1]*dti
 
         # GW EXF
-        Su_tmp[nsl-1] += EXF
+        Su_tmp[nsl-1] += EXF*dt
 
-        # EXFILTRATION
+        # SOIL EXF
         llst = range(nsl)
         llst.reverse()
         for l in llst[:-1]:
@@ -219,8 +216,9 @@ class UNSAT:
         Ss_tmp = surfwater_tmp[0]
         Ro_tmp = surfwater_tmp[1]
         Es_tmp = surfwater_tmp[2]
-        Rexf_tmp[0] += sum(surfwater_tmp)
         Su_tmp[0] -= (Ss_tmp + dt*(Ro_tmp + Es_tmp))
+
+        Rexf_tmp /= dt
 
         Rp_tmp = np.zeros([nsl])
         Tu_tmpZr = np.zeros([nsl,len(Zr_elev)])
@@ -375,7 +373,7 @@ class UNSAT:
         ETg = np.zeros([Ttotal], dtype = np.float)
         # output arrays
         nflux1 = 20
-        nflux2 = 8
+        nflux2 = 9
         results1 = np.zeros([Ttotal,nflux1])
         results2 = np.zeros([Ttotal,nsl,nflux2])
 
@@ -420,7 +418,7 @@ class UNSAT:
                 Su_ini = Su_ini * Tl
 
             # fluxes
-            Es_tmp, Ss_tmp, Ro_tmp, Rp_tmp, Eu_tmp, Tu_tmp, Su_tmp, Su_pc_tmp, Eg_tmp, Tg_tmp, HEADS_tmp, dtwt_tmp, SAT_tmp, Rexf_tmp = self.flux(RFe_tot[t], PETveg[:,t], PE_tot[t], E0[t], Zr_elev, VEGarea, HEADS_tmp, TopSoilLay, BotSoilLay, Tl, nsl, Sm, Sfc, Sr, Ks, Ss_max, Ss_ratio, t, Su_ini, Rp_ini, Ss_ini, EXF[t], dtwt[t], st, i, j, n, kTu_min, kTu_n, dt, dti)
+            Es_tmp, Ss_tmp, Ro_tmp, Rp_tmp, Eu_tmp, Tu_tmp, Su_tmp, Su_pc_tmp, Eg_tmp, Tg_tmp, HEADS_tmp, dtwt_tmp, SAT_tmp, Rexf_tmp = self.flux(RFe_tot[t], PETveg[:,t], PE_tot[t], E0[t], Zr_elev, VEGarea, HEADS_tmp, TopSoilLay, BotSoilLay, Tl, nsl, Sm, Sfc, Sr, Ks, Ss_max, Ss_ratio, Su_ini, Rp_ini, Ss_ini, EXF[t], dtwt[t], st, i, j, n, kTu_min, kTu_n, dt, dti)
 
             # fill the output arrays
             Ss[t] = Ss_tmp
@@ -438,6 +436,7 @@ class UNSAT:
             Tu[t,:]    = Tu_tmp[:]
             SAT[t,:]   = SAT_tmp[:]
             ETg[t] = Eg[t] + Tg[t]
+            dSs_MB = (Ss_ini - Ss[t])/dt
             if (Ss[t] > Ss_ini):
                 dSs[t] = (Ss[t] - Ss_ini)/dt
             # compute the water mass balance (MB) in the unsaturated zone
@@ -449,35 +448,39 @@ class UNSAT:
                 Eu_MB     += Eu[t,l]
                 Tu_MB     += Tu[t,l]
                 if l < (nsl-1):
-                    Rp_in_MB  += Rp_ini[l]
-                Rp_out_MB += Rp[t,l]
+                    Rp_in_MB  += Rp_ini[l]*dti
+                Rp_out_MB += Rp[t,l]*dt
                 dSu[t,l] = (Su_ini[l] - Su[t,l])/dt
                 dSu_tot[t] += dSu[t,l]
+            dRp_tot = (Rp_in_MB - Rp_out_MB)/dt
             ETu_tot[t] = Eu_MB + Tu_MB
 
             # MASS BALANCE COMPUTING
             # surficial soil layer
             l = 0
-            MB_l[t,l] = (RFe_tot[t] + Su_ini[l] + Ss_ini + Rexf[t,l+1]) - (Rp[t,l] + Eu[t,l] + Tu[t,l]+ Su[t,l] + Rexf[t,l])
+            MB_l[t,l] = (RFe_tot[t] + dSu[t,l] + dSs_MB + Rexf[t,l+1]) - (Rp[t,l] + Eu[t,l] + Tu[t,l] + Ro_tmp + Es_tmp)
             # intermediate soil layers
             llst = range(1,nsl-1)
             for l in llst:
-                MB_l[t,l] = (Rp_ini[l-1] + Su_ini[l] + Rexf[t,l+1]) - (Rp[t,l] + Eu[t,l] + Tu[t,l] + Su[t,l] + Rexf[t,l])
+                MB_l[t,l] = (Rp_ini[l-1] + dSu[t,l] + Rexf[t,l+1]) - (Rp[t,l] + Eu[t,l] + Tu[t,l] + Rexf[t,l])
             # last soil layer
             l = nsl-1
-            MB_l[t,l] = (Rp_ini[l-1] + Su_ini[l] + EXF[t]) - (Rp[t,l] + Eu[t,l] + Tu[t,l] + Su[t,l] + Rexf[t,l])
+            MB_l[t,l] = (Rp_ini[l-1] + dSu[t,l] + EXF[t]) - (Rp[t,l] + Eu[t,l] + Tu[t,l] + Rexf[t,l])
             # total mass balance for the unsaturated zone
-            MB[t] = RFe_tot[t] + Ss_ini + dti*(dSu_tot[t] + Rp_in_MB) + EXF[t] - dt*(Ss[t] + Ro[t] + Es[t] + Eu_MB + Tu_MB + Rp_out_MB)
+            MB[t] = RFe_tot[t] + dSs_MB + dSu_tot[t] + dRp_tot + EXF[t] - (Ro[t] + Es[t] + Eu_MB + Tu_MB)
+
+            # export list
             # index = {'iRF':0, 'iPET':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iEXF':6, 'iEs':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSs':15, 'iETg':16, 'iETu':17, 'idSu':18, 'iHEADScorr':19, 'idtwt':20, 'iTll':21, 'iGWcorr':22}
-            results1[t,:] = [RF[t], PET_tot[t], PE_tot[t], RFe_tot[t], Ss[t], Ro[t], EXF[t]/dt, Es[t], MB[t], INTER_tot[t], E0[t], Eg[t], Tg[t], dSs[t], ETg[t], ETu_tot[t], dSu_tot[t], HEADS_corr[t]/1000.0, -dtwt[t]/1000.0, uzthick[t]/1000.0]
+            results1[t,:] = [RF[t], PET_tot[t], PE_tot[t], RFe_tot[t], Ss[t], Ro[t], EXF[t], Es[t], MB[t], INTER_tot[t], E0[t], Eg[t], Tg[t], dSs[t], ETg[t], ETu_tot[t], dSu_tot[t], HEADS_corr[t]/1000.0, -dtwt[t]/1000.0, uzthick[t]/1000.0]
             # index_S = {'iEu':0, 'iTu':1,'iSu_pc':2, 'iRp':3, 'idSu':4, 'iSu':5}
             for l in range(nsl):
-                results2[t,l,:] = [Eu[t,l], Tu[t,l], Su_pc[t,l], Rp[t,l], dSu[t,l], Su[t,l], SAT[t,l], MB_l[t,l]]
+                results2[t,l,:] = [Eu[t,l], Tu[t,l], Su_pc[t,l], Rp[t,l], Rexf[t,l], dSu[t,l], Su[t,l], SAT[t,l], MB_l[t,l]]
+
             # initial values for next time step
-            dti = dt
-            Ss_ini = Ss[t]
-            Su_ini = Su[t,:]
-            Rp_ini = Rp[t,:]
+            dti = dt*1.0
+            Ss_ini = Ss[t]*1.0
+            Su_ini = Su[t,:]*1.0
+            Rp_ini = Rp[t,:]*1.0
 
         return results1, results2
 

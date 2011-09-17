@@ -360,14 +360,15 @@ try:
         outFileExport = []
         for o in range(len(obs.keys())):
             outFileExport.append(open(outpathname[o], 'w'))
-            Su_str=''
-            Supc_str=''
-            dSu_str=''
-            Rp_str=''
-            Eu_str=''
-            Tu_str=''
+            Su_str   = ''
+            Supc_str = ''
+            dSu_str  = ''
+            Rp_str   = ''
+            Rexf_str = ''
+            Eu_str   = ''
+            Tu_str   = ''
             Smeasout = ''
-            MB_str = ''
+            MB_str   = ''
             for l in range(_nslmax):
                 Su_str = Su_str + 'Su_l' + str(l+1) + ','
                 Supc_str = Supc_str + 'Supc_l' + str(l+1) + ','
@@ -375,9 +376,10 @@ try:
                 Eu_str = Eu_str + 'Eu_l' + str(l+1) + ','
                 Tu_str = Tu_str + 'Tu_l' + str(l+1) + ','
                 Rp_str = Rp_str + 'Rp_l' + str(l+1) + ','
+                Rexf_str = Rexf_str + 'Rexf_l' + str(l+1) + ','
                 MB_str = MB_str + 'MB_l' + str(l+1) + ','
                 Smeasout = Smeasout + 'Smeas_' + str(l+1) + ','
-            header='Date,RF,E0,PET,PE,RFe,I,'+Eu_str+Tu_str+'Eg,Tg,ETg,WEL_MF,Es,'+Su_str+Supc_str+dSu_str+'dSs,Ss,Ro,DRN,DRN_MF,'+Rp_str+'R_MF,hSATFLOW,hMF,hMFcorr,hmeas,dtwt,' + Smeasout + MB_str + 'MB\n'
+            header='Date,RF,E0,PET,PE,RFe,I,' + Eu_str + Tu_str + 'Eg,Tg,ETg,WEL_MF,Es,' + Su_str + Supc_str + dSu_str + 'dSs,Ss,Ro,GW_EXF,' + Rp_str + Rexf_str + 'R_MF,hSATFLOW,hMF,hMFcorr,hmeas,dtwt,' + Smeasout + MB_str + 'MB\n'
             outFileExport[o].write(header)
         outPESTheads_fn      = 'PESTheads.dat'
         outPESTsm_fn         = 'PESTsm.dat'
@@ -394,7 +396,7 @@ try:
 
     # indexes of the HDF5 output arrays
     index = {'iRF':0, 'iPET':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iEXF':6, 'iEs':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSs':13, 'iETg':14, 'iETu':15, 'idSu':16, 'iHEADScorr':17, 'idtwt':18, 'iuzthick':19}
-    index_S = {'iEu':0, 'iTu':1,'iSu_pc':2, 'iRp':3, 'idSu':4, 'iSu':5, 'iSAT':6, 'iMB_l':7}
+    index_S = {'iEu':0, 'iTu':1,'iSu_pc':2, 'iRp':3, 'iRexf':4, 'idSu':5, 'iSu':6, 'iSAT':7, 'iMB_l':8}
 
     # #############################
     # ### 1st MODFLOW RUN with initial user-input recharge
@@ -445,6 +447,7 @@ except StandardError, e:  #Exception
 # 2nd phase : MM/MF loop #####
 # #############################
 duration = 0.0
+h_diff_surf = None
 try:
     if MMunsat_yn > 0:
 
@@ -465,7 +468,7 @@ try:
 
         while abs(h_diff[LOOP]) > convcrit:
             print '\n##############\nCONVERGENCE LOOP #%s\n##############' % str(LOOP)
-            h_MFsum = 0.0
+            h_MF_average = 0.0
             # ###########################
             # ###  MARMITES INPUT #######
             # ###########################
@@ -549,7 +552,7 @@ try:
                                 for l in range(nsl):
                                     Su_ini_tmp.append(_Su_ini[SOILzone_tmp][l])
                                 Ss_ini_tmp  = 0.0
-                                dti = 1
+                                dti = 1.0
                             else:
                                 Su_ini_tmp    = Su_ini_tmp_array[i,j,:]
                                 Ss_ini_tmp    = Ss_ini_tmp_array[i,j]
@@ -569,9 +572,6 @@ try:
                             exf_MF_tmp = -exf_MF_per[:,i,j]
                             #conv_fact_tmp = -conv_fact/(delr[j]*delc[i])
                             # for the conv loop
-                            h_MF_L0_m_avg = np.nansum(h_MF_tmp)/nstp[n]
-                            if isinstance(h_MF_L0_m_avg, float):
-                                h_MFsum += h_MF_L0_m_avg
                             # cal functions for reservoirs calculations
                             MM_tmp, MM_S_tmp = MM_UNSAT.run(
                                                          i, j, n,
@@ -641,13 +641,12 @@ try:
                 h5_MM['MM_S'][tstart_MM:tend_MM,:,:,:,:] = MM_S[:,:,:,:,:]
                 h5_MM['finf'][n,:,:] = MM_finf_MF
                 h5_MM['ETg'][n,:,:] = MM_wel_MF
-            del exf_MF_per
-            del MM, MM_S, MM_finf_MF, MM_wel_MF
+            del MM, MM_S, MM_finf_MF, MM_wel_MF, exf_MF_per, Su_ini_tmp_array, Rp_ini_tmp_array, Ss_ini_tmp_array, dti
             h5_MM.close()
 
             # CHECK MM amd MF CONVERG.
-            h_MFsum /= (ncell*nper)
-            h_diff.append(h_MFsum - h_pSP)
+            h_MF_average = np.ma.average(np.ma.masked_values(h_MF_per, hnoflo, atol = 0.09))
+            h_diff.append(h_MF_average - h_pSP)
             h_diff_surf = np.ma.masked_values(h_MF_per, hnoflo, atol = 0.09) - np.ma.masked_values(h_pSP_all, hnoflo, atol = 0.09)
             h_diff_all_max = np.nanmax(h_diff_surf)
             h_diff_all_min = np.nanmin(h_diff_surf)
@@ -657,7 +656,7 @@ try:
                 h_diff_all.append(h_diff_all_min)
             LOOP += 1
             LOOPlst.append(LOOP)
-            h_pSP = h_MFsum
+            h_pSP = h_MF_average
             h_pSP_all = h_MF_per
             del h_MF_per
             if np.absolute(h_diff[LOOP])>0.0:
@@ -671,7 +670,7 @@ try:
             else:
                 print "\nHeads diff. from previous conv. loop: %.3f m" % h_diff[LOOP]
                 print 'Maximum heads difference:             %.3f m' % h_diff_all[LOOP]
-            if h_MFsum == 0.0:
+            if h_MF_average == 0.0:
                 loopdry += 1
                 if loopdry > 1:
                     print '\nWARNING: first layer of the model DRY twice successively!\nLoop break, correct your MARMITES input value.'
@@ -684,6 +683,7 @@ try:
             elif LOOP>ccnum:
                 print'\nNo convergence between MARMITES and MODFLOW!\n(Conv. criterion = %.3G)' % convcrit
                 break
+            del h_MF_average
 
             # MODFLOW RUN with MM-computed recharge
             h5_MF.close()
@@ -758,7 +758,7 @@ try:
         plt.cla()
         plt.clf()
         plt.close('all')
-        del fig, LOOPlst, h_diff, h_diff_log
+        del fig, LOOP, LOOPlst, h_diff, h_diff_log, h_pSP_all
 
         timeend = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
         duration += (timeend-timestart) -durationMF
@@ -789,7 +789,7 @@ except StandardError, e:  #Exception
     traceback.print_exc(file=sys.stdout)
     timeend = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
     duration += (timeend-timestart) -durationMF
-    #sys.exit()
+    sys.exit()
 
 # #############################
 # 3rd phase : export results #####
@@ -890,6 +890,7 @@ try:
         cbc_DRN = cbc_STO = cbc_RCH = cbc_WEL = np.zeros((sum(perlen), nrow, ncol, nlay))
         imfDRN = imfSTO = imfRCH = imfWEL = 0
         top_array_m = np.zeros((nrow, ncol))
+        del top_array
 
     # computing range for plotting
     h_MF_m = np.ma.masked_values(h_MF_m, hdry, atol = 1E+25)
@@ -958,10 +959,10 @@ try:
             h5_MM = h5py.File(h5_MM_fn, 'r')
             # indexes of the HDF5 output arrays
             #    index = {'iRF':0, 'iPET':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iEXF':6, 'iEs':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSs':13, 'iETg':14, 'iETu':15, 'idSu':16, 'iHEADScorr':17, 'idtwt':18}
-            #   index_S = {'iEu':0, 'iTu':1,'iSu_pc':2, 'iRp':3, 'idSu':4, 'iSu':5, 'iSAT':6, 'iMB_l':7}
+            #   index_S = {'iEu':0, 'iTu':1,'iSu_pc':2, 'iRp':3, 'iRexf':4, 'idSu':5, 'iSu':6, 'iSAT':7, 'iMB_l':8}
             flxlbl = ['RF', 'I', 'EXF', 'dSs', 'Ro', 'Es', 'dSu']
             flxlbl1 = ['Eu', 'Tu']
-            flxlbl1a = ['Rp']
+            flxlbl1a = ['Rp','Rexf']
             flxlbl2 = ['ETu', 'Eg', 'Tg', 'ETg']
             sign = [1,-1,1,1,-1,-1,1,-1,-1,-1,-1,-1,-1,-1]
             flxlst = []
@@ -1050,7 +1051,7 @@ try:
             MM = h5_MM['MM'][:,i,j,:]
             MM_S = h5_MM['MM_S'][:,i,j,:,:]
             # SATFLOW
-            h_satflow = MM_SATFLOW.run(MM_S[:,nsl-1,index_S.get('iRp')], float(obs.get(obs.keys()[o])['hi']),float(obs.get(obs.keys()[o])['h0']),float(obs.get(obs.keys()[o])['RC']),float(obs.get(obs.keys()[o])['STO']))
+            h_satflow = MM_SATFLOW.run(cbc_RCH[:,i,j,0], float(obs.get(obs.keys()[o])['hi']),float(obs.get(obs.keys()[o])['h0']),float(obs.get(obs.keys()[o])['RC']),float(obs.get(obs.keys()[o])['STO']))
             # export ASCII file at piezometers location
             #TODO extract heads at piezo location and not center of cell
             if obs_h[o] != []:
@@ -1061,15 +1062,14 @@ try:
                 obs_S_tmp = obs_h[o][0,:]
             else:
                 obs_S_tmp = []
-            MM_PROCESS.ExportResultsMM(i, j, inputDate, _nslmax, MM, index, MM_S, index_S, -cbc_DRN[:,i,j,0], cbc_RCH[:,i,j,0], -cbc_WEL[:,i,j,0], h_satflow, h_MF_m[:,i,j,l], obs_h_tmp, obs_S_tmp, outFileExport[o], obs.keys()[o])
+            MM_PROCESS.ExportResultsMM(i, j, inputDate, _nslmax, MM, index, MM_S, index_S, cbc_RCH[:,i,j,0], -cbc_WEL[:,i,j,0], h_satflow, h_MF_m[:,i,j,l], obs_h_tmp, obs_S_tmp, outFileExport[o], obs.keys()[o])
             outFileExport[o].close()
             MM_PROCESS.ExportResultsPEST(i, j, inputDate, _nslmax, MM[:,index.get('iHEADScorr')], obs_h_tmp, obs_S_tmp, outPESTheads, outPESTsm, obs.keys()[o], MM_S[:,:,index_S.get('iSu_pc')])
             # plot
             if plot_out == 1:
                 plt_title = obs.keys()[o]
-                # DateInput, P, PET, Pe, Ss, dSs, Ro, ETa, S, Rp, R, h, hmeas, Smeas, Sm, Sr):
                 # index = {'iRF':0, 'iPET':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iEXF':6, 'iEs':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSs':13, 'iETg':14, 'iETu':15, 'idSu':16, 'iHEADScorr':17, 'idtwt':18}
-                # index_S = {'iEu':0, 'iTu':1,'iSu_pc':2, 'iRp':3, 'idSu':4, 'iSu':5, 'iSAT':6, 'iMB_l':7}
+                # index_S = {'iEu':0, 'iTu':1,'iSu_pc':2, 'iRp':3, 'iRexf':4, 'idSu':5, 'iSu':6, 'iSAT':7, 'iMB_l':8}
                 plt_export_fn = os.path.join(MM_ws, '_plt_0'+ obs.keys()[o] + '.png')
                 # def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, EXF, ETg, Es, MB, MB_l, dtwt, SAT, R, h_MF, h_MF_corr, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin):
                 MMplot.allPLOT(
@@ -1112,7 +1112,7 @@ try:
                 plt_export_fn = os.path.join(MM_ws, '_plt_0'+ obs.keys()[o] + '_UNSATbalance.png')
                 # flxlbl = ['RF', 'I', 'EXF', 'dSs', 'Ro', 'Es', 'dSu']
                 # flxlbl1 = ['Eu', 'Tu']
-                # flxlbl1a = ['Rp']
+                # flxlbl1a = ['Rp','Rexf']
                 # flxlbl2 = ['ETu', 'Eg', 'Tg', 'ETg']
                 flxlst =[MM[:,index.get('iRF')].sum()/sum(perlen),
                     -MM[:,index.get('iI')].sum()/sum(perlen),
@@ -1212,11 +1212,12 @@ try:
                 if Vmax!=0.0 or Vmin!=0.0:
                     MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i + ' (mm/day)'), msg = 'no flux', plt_title = ('MM_'+i), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrangeMM, Vmax = Vmax, Vmin = Vmin, contours = ctrsMM, ntick = ntick)
             del V, MM
-        flxlbl = ['h_diff_surf']
-        Vmax = np.nanmax(h_diff_surf) #float(np.ceil(np.nanmax(V)))
-        Vmin = np.nanmin(h_diff_surf) #float(np.floor(np.nanmin(V)))
-        if Vmax!=0.0 or Vmin!=0.0:
-            MMplot.plotLAYER(TS = -999, ncol = ncol, nrow = nrow, nlay = 1, nplot = 1, V = h_diff_surf,  cmap = plt.cm.Blues, CBlabel = ('(m)'), msg = 'no value', plt_title = ('_HEADSmaxdiff_ConvLoop'), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrangeMM, Vmax = Vmax, Vmin = Vmin, contours = ctrsMM, ntick = ntick)
+        if h_diff_surf != None:
+            flxlbl = ['h_diff_surf']
+            Vmax = np.nanmax(h_diff_surf) #float(np.ceil(np.nanmax(V)))
+            Vmin = np.nanmin(h_diff_surf) #float(np.floor(np.nanmin(V)))
+            if Vmax!=0.0 or Vmin!=0.0:
+                MMplot.plotLAYER(TS = 1000, ncol = ncol, nrow = nrow, nlay = 1, nplot = 1, V = h_diff_surf,  cmap = plt.cm.Blues, CBlabel = ('(m)'), msg = 'no value', plt_title = ('_HEADSmaxdiff_ConvLoop'), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrangeMM, Vmax = Vmax, Vmin = Vmin, contours = ctrsMM, ntick = ntick)
         del TSlst, flxlbl, i, i1, h_diff_surf
 
     # plot MF output
@@ -1251,7 +1252,7 @@ try:
     durationExport=(timeendExport-timestartExport)
 
     # final report of successful run
-    print ('\n##############\nMARMITES executed successfully!')
+    print ('\n##############\nMARMITES executed successfully!\n%s\n') % mpl.dates.num2date(timestart).isoformat()[:19]
     print ('%s stress periods\n%s days\n%sx%s cells (rows x cols)') % (str(int(nper)),str(int(sum(perlen))),str(nrow),str(ncol))
     print ('\nMARMITES run time: %s minute(s) and %.1f second(s)') % (str(int(duration*24.0*60.0)), (duration*24.0*60.0-int(duration*24.0*60.0))*60)
     print ('MODFLOW run time: %s minute(s) and %.1f second(s)') % (str(int(durationMF*24.0*60.0)), (durationMF*24.0*60.0-int(durationMF*24.0*60.0))*60)
@@ -1268,6 +1269,7 @@ except StandardError, e:  #Exception
         h5_MF.close()
     except:
         pass
+    sys.exit()
 
 if verbose == 0:
     sys.stdout = s
