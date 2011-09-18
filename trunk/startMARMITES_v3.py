@@ -40,7 +40,7 @@ print '\n##############\nMARMITES started!\n%s\n##############' % mpl.dates.num2
 # read input file (called _input.ini in the MARMITES workspace
 # the first character on the first line has to be the character used to comment
 # the file can contain any comments as the user wish, but the sequence of the input has to be respected
-MM_ws = r'E:\00code_ws\00_TESTS\MARMITESv3_r13c6l2'
+MM_ws = r'E:\00code_ws\00_TESTS\MARMITESv3_r13c6l2_REF'
 MM_fn = '__inputMM.ini'
 
 inputFile = MMproc.readFile(MM_ws,MM_fn)
@@ -1217,7 +1217,7 @@ try:
             Vmax = np.nanmax(h_diff_surf) #float(np.ceil(np.nanmax(V)))
             Vmin = np.nanmin(h_diff_surf) #float(np.floor(np.nanmin(V)))
             if Vmax!=0.0 or Vmin!=0.0:
-                MMplot.plotLAYER(TS = 1000, ncol = ncol, nrow = nrow, nlay = 1, nplot = 1, V = h_diff_surf,  cmap = plt.cm.Blues, CBlabel = ('(m)'), msg = 'no value', plt_title = ('_HEADSmaxdiff_ConvLoop'), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrangeMM, Vmax = Vmax, Vmin = Vmin, contours = ctrsMM, ntick = ntick)
+                MMplot.plotLAYER(TS = 99998, ncol = ncol, nrow = nrow, nlay = 1, nplot = 1, V = h_diff_surf,  cmap = plt.cm.Blues, CBlabel = ('(m)'), msg = 'no value', plt_title = ('_HEADSmaxdiff_ConvLoop'), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrangeMM, Vmax = Vmax, Vmin = Vmin, contours = ctrsMM, ntick = ntick)
         del TSlst, flxlbl, i, i1, h_diff_surf
 
     # plot MF output

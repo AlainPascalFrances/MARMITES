@@ -462,10 +462,10 @@ class UNSAT:
             # intermediate soil layers
             llst = range(1,nsl-1)
             for l in llst:
-                MB_l[t,l] = (Rp_ini[l-1] + dSu[t,l] + Rexf[t,l+1]) - (Rp[t,l] + Eu[t,l] + Tu[t,l] + Rexf[t,l])
+                MB_l[t,l] = (Rp_ini[l-1]*dti - Rp[t,l]*dt)/dt + dSu[t,l] + Rexf[t,l+1] - (Eu[t,l] + Tu[t,l] + Rexf[t,l])
             # last soil layer
             l = nsl-1
-            MB_l[t,l] = (Rp_ini[l-1] + dSu[t,l] + EXF[t]) - (Rp[t,l] + Eu[t,l] + Tu[t,l] + Rexf[t,l])
+            MB_l[t,l] = (Rp_ini[l-1]*dti - Rp[t,l]*dt)/dt + dSu[t,l] + EXF[t] - (Eu[t,l] + Tu[t,l] + Rexf[t,l])
             # total mass balance for the unsaturated zone
             MB[t] = RFe_tot[t] + dSs_MB + dSu_tot[t] + dRp_tot + EXF[t] - (Ro[t] + Es[t] + Eu_MB + Tu_MB)
 
