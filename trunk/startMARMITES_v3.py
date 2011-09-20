@@ -425,8 +425,8 @@ try:
         cbc_nam.append(c.strip())
     for c in h5_MF['cbc_uzf_nam']:
         cbc_uzf_nam.append(c.strip())
-    imfDRN = cbc_nam.index('DRAINS')
     imfSTO = cbc_nam.index('STORAGE')
+    imfDRN = cbc_nam.index('DRAINS')
     imfWEL = cbc_nam.index('WELLS')
     imfEXF = cbc_uzf_nam.index('SURFACE LEAKAGE')
     imfRCH = cbc_uzf_nam.index('UZF RECHARGE')
@@ -763,25 +763,25 @@ try:
         timeend = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
         duration += (timeend-timestart) -durationMF
 
-##        # #############################
-##        # ### MODFLOW RUN with MM-computed recharge
-##        # #############################
-##        h5_MF.close()
-##        durationMF = 0.0
-##        timestartMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
-##        print'\n##############'
-##        print 'MODFLOW RUN (MARMITES fluxes after conv. loop)'
-##        if verbose == 0:
-##            print '\n--------------'
-##            sys.stdout = s
-##            report.close()
-##            s = sys.stdout
-##            report = open(report_fn, 'a')
-##            sys.stdout = report
-##        h5_MF_fn = ppMF.ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, finf_MM = (h5_MM_fn, 'finf'), wel_MM = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks, MFtime_fn = MFtime_fn, numDays = numDays, obs = obs)
-##
-##        timeendMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
-##        durationMF += (timeendMF-timestartMF)
+        # #############################
+        # ### MODFLOW RUN with MM-computed recharge
+        # #############################
+        h5_MF.close()
+        durationMF = 0.0
+        timestartMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
+        print'\n##############'
+        print 'MODFLOW RUN (MARMITES fluxes after conv. loop)'
+        if verbose == 0:
+            print '\n--------------'
+            sys.stdout = s
+            report.close()
+            s = sys.stdout
+            report = open(report_fn, 'a')
+            sys.stdout = report
+        h5_MF_fn = ppMF.ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, finf_MM = (h5_MM_fn, 'finf'), wel_MM = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks, MFtime_fn = MFtime_fn, numDays = numDays, obs = obs)
+
+        timeendMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
+        durationMF += (timeendMF-timestartMF)
 
 except StandardError, e:  #Exception
     print '\nERROR! Abnormal MM run interruption in the MM/MF loop!\nError description:'
@@ -899,8 +899,6 @@ try:
     hmaxMM = []
     hminMM = []
     hdiff = []
-    DRNmax = []
-    DRNmin = []
     cbcmax = []
     cbcmin = []
     if obs != None:
@@ -934,18 +932,18 @@ try:
         hmaxMF = 999.9
         hminMF = -999.9
     if isinstance(h5_MF_fn, str):
-        DRNmax.append(np.nanmax(-cbc_DRN).flatten())
+        DRNmax = np.nanmax(-cbc_DRN)
+        cbcmax.append(DRNmax)
         DRNmax = float(np.ceil(np.nanmax(DRNmax)))
-        DRNmin.append(np.nanmin(-cbc_DRN).flatten())
+        DRNmin = np.nanmin(-cbc_DRN)
+        cbcmin.append(DRNmin)
         DRNmin = float(np.floor(np.nanmin(DRNmin)))
-        cbcmax.append(np.nanmax(-cbc_DRN).flatten())
-        cbcmax.append(np.nanmax(-cbc_STO).flatten())
-        cbcmax.append(np.nanmax(-cbc_RCH).flatten())
-        cbcmax.append(np.nanmax(-cbc_WEL).flatten())
-        cbcmin.append(np.nanmin(-cbc_DRN).flatten())
-        cbcmin.append(np.nanmin(-cbc_STO).flatten())
-        cbcmin.append(np.nanmin(-cbc_RCH).flatten())
-        cbcmin.append(np.nanmin(-cbc_WEL).flatten())
+        cbcmax.append(np.nanmax(-cbc_STO))
+        cbcmax.append(np.nanmax(-cbc_RCH))
+        cbcmax.append(np.nanmax(-cbc_WEL))
+        cbcmin.append(np.nanmin(-cbc_STO))
+        cbcmin.append(np.nanmin(-cbc_RCH))
+        cbcmin.append(np.nanmin(-cbc_WEL))
         cbcmax = float(np.ceil(np.nanmax(cbcmax)))
         cbcmin = float(np.floor(np.nanmin(cbcmin)))
     else:
@@ -962,9 +960,9 @@ try:
             #   index_S = {'iEu':0, 'iTu':1,'iSu_pc':2, 'iRp':3, 'iRexf':4, 'idSu':5, 'iSu':6, 'iSAT':7, 'iMB_l':8}
             flxlbl = ['RF', 'I', 'EXF', 'dSs', 'Ro', 'Es', 'dSu']
             flxlbl1 = ['Eu', 'Tu']
-            flxlbl1a = ['Rp','Rexf']
+            flxlbl1a = ['Rp']
             flxlbl2 = ['ETu', 'Eg', 'Tg', 'ETg']
-            sign = [1,-1,1,1,-1,-1,1,-1,-1,-1,-1,-1,-1,-1]
+            sign = [1,-1,1,1,-1,-1,1,-1,-1,-1,-1,-1,-1,-1,-1]
             flxlst = []
             flxmax = []
             flxmin = []
@@ -1162,7 +1160,6 @@ try:
         # plot at time interval
         for i in flxlbl:
             # plot average for the whole simulated period
-            TS=0
             i1 = 'i'+i
             h5_MM = h5py.File(h5_MM_fn, 'r')
             MM = h5_MM['MM'][:,:,:,index.get(i1)]
@@ -1178,37 +1175,48 @@ try:
             else:
                 i_lbl = i
             if Vmax!=0.0 or Vmin!=0.0:
-                MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i_lbl + ' (mm/day)'), msg = 'no flux', plt_title = ('MM_' + 'average_' + i), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrangeMM, Vmax = Vmax, Vmin = Vmin, contours = ctrsMM, ntick = ntick)
+                MMplot.plotLAYER(TS = 99998, ncol = ncol, nrow = nrow, nlay = nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i_lbl + ' (mm/day)'), msg = 'no flux', plt_title = ('MM_' + 'average_' + i), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrangeMM, Vmax = Vmax, Vmin = Vmin, contours = ctrsMM, ntick = ntick)
             del V
             for TS in TSlst:
                 V = [np.ma.masked_values(MM[TS,:,:], hnoflo, atol = 0.09)]
                 if Vmax!=0.0 or Vmin!=0.0:
                     MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i + ' (mm/day)'), msg = 'no flux', plt_title = ('MM_'+i), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrangeMM, Vmax = Vmax, Vmin = Vmin, contours = ctrsMM, ntick = ntick)
             del V, MM
-        flxlbl = ['Eu', 'Tu']
+        flxlbl = ['Eu', 'Tu','Rp']
         for i in flxlbl:
             # plot average for the whole simulated period
             i1 = 'i'+i
-            V = [np.zeros([nrow,ncol])]
-            for l in range(_nslmax):
+            if i != 'Rp':
+                V = [np.zeros([nrow,ncol])]
+                for l in range(_nslmax):
+                    h5_MM = h5py.File(h5_MM_fn, 'r')
+                    MM = h5_MM['MM_S'][:,:,:,l,index_S.get(i1)]
+                    h5_MM.close()
+                    V1 = np.ma.masked_values(MM, hnoflo, atol = 0.09)
+                    V1 = np.add.accumulate(V1, axis = 0)[sum(perlen)-1,:,:]/sum(perlen)
+                    V += V1
+                del V1
+            else:
                 h5_MM = h5py.File(h5_MM_fn, 'r')
-                MM = h5_MM['MM_S'][:,:,:,l,index_S.get(i1)]
+                MM = h5_MM['MM_S'][:,:,:,-1,index_S.get(i1)]
                 h5_MM.close()
-                V1 = np.ma.masked_values(MM, hnoflo, atol = 0.09)
-                V1 = np.add.accumulate(V1, axis = 0)[sum(perlen)-1,:,:]/sum(perlen)
-                V += V1
-            del V1
+                V = [np.ma.masked_values(MM, hnoflo, atol = 0.09)]
+                V[0] = np.add.accumulate(V[0], axis = 0)[sum(perlen)-1,:,:]/sum(perlen)
+                i = 'Rp_botlayer'
             Vmax = np.nanmax(V[0]) #float(np.ceil(np.nanmax(V)))
             Vmin = np.nanmin(V[0]) #float(np.floor(np.nanmin(V)))
             if Vmax!=0.0 or Vmin!=0.0:
-                MMplot.plotLAYER(TS = -999, ncol = ncol, nrow = nrow, nlay = nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i + ' (mm/day)'), msg = 'no flux', plt_title = ('MM_'+ 'average_' + i), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrangeMM, Vmax = Vmax, Vmin = Vmin, contours = ctrsMM, ntick = ntick)
+                MMplot.plotLAYER(TS = 99998, ncol = ncol, nrow = nrow, nlay = nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i + ' (mm/day)'), msg = 'no flux', plt_title = ('MM_'+ 'average_' + i), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrangeMM, Vmax = Vmax, Vmin = Vmin, contours = ctrsMM, ntick = ntick)
             del V
             for TS in TSlst:
                 h5_MM = h5py.File(h5_MM_fn, 'r')
                 MM = h5_MM['MM_S'][TS,:,:,:,index_S.get(i1)]
                 h5_MM.close()
-                V = [np.ma.masked_values(MM[:,:,:], hnoflo, atol = 0.09)]
-                V[0] = np.add.accumulate(V[0], axis = 2)[:,:,_nslmax-1]
+                if i1 != 'iRp':
+                    V = [np.ma.masked_values(MM[:,:,:], hnoflo, atol = 0.09)]
+                    V[0] = np.add.accumulate(V[0], axis = 2)[:,:,_nslmax-1]
+                else:
+                    V = [np.ma.masked_values(MM[:,:,-1], hnoflo, atol = 0.09)]
                 if Vmax!=0.0 or Vmin!=0.0:
                     MMplot.plotLAYER(TS, ncol = ncol, nrow = nrow, nlay = nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i + ' (mm/day)'), msg = 'no flux', plt_title = ('MM_'+i), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrangeMM, Vmax = Vmax, Vmin = Vmin, contours = ctrsMM, ntick = ntick)
             del V, MM
