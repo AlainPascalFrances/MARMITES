@@ -180,7 +180,8 @@ class UNSAT:
         # if first time step, use Su_ini
         Su_tmp = np.zeros([nsl])
         Rexf_tmp = np.zeros([nsl])
-        Su_tmp = Su_ini*1.0
+        for l in range(nsl):
+            Su_tmp[l] = Su_ini[l]*1.0
 
         # INFILTRATION
         # first soil layer
@@ -312,7 +313,7 @@ class UNSAT:
 #####################
 
     def run(self, i, j, n,
-                  nsl, st,  Sm, Sfc, Sr, Su_ini, Ss_ini, Rp_ini, TopSoilLay, BotSoilLay, Tl, Ks, Ss_max, Ss_ratio, HEADS, EXF,
+                  nsl, st,  Sm, Sfc, Sr, Su_ini, Ss_ini, Rp_ini, botm_l0, TopSoilLay, BotSoilLay, Tl, Ks, Ss_max, Ss_ratio, HEADS, EXF,
                   RF, E0, PETveg, RFeveg, PEsoil, VEGarea, Zr,
                   nstp, perlen, dti, hdry,
                   kTu_min, kTu_n):
@@ -400,7 +401,7 @@ class UNSAT:
 
             # handle drycell
             if HEADS[t] > (hdry-1E3):
-                HEADS_tmp = BotSoilLay[nsl-1] - 100000.0
+                HEADS_tmp = botm_l0*1000
             else:
                 HEADS_tmp = HEADS[t]*1000.0
 
@@ -456,16 +457,22 @@ class UNSAT:
             ETu_tot[t] = Eu_MB + Tu_MB
 
             # MASS BALANCE COMPUTING
-            # surficial soil layer
-            l = 0
-            MB_l[t,l] = (RFe_tot[t] + dSu[t,l] + dSs_MB + Rexf[t,l+1]) - (Rp[t,l] + Eu[t,l] + Tu[t,l] + Ro_tmp + Es_tmp)
-            # intermediate soil layers
-            llst = range(1,nsl-1)
-            for l in llst:
-                MB_l[t,l] = (Rp_ini[l-1]*dti - Rp[t,l]*dt)/dt + dSu[t,l] + Rexf[t,l+1] - (Eu[t,l] + Tu[t,l] + Rexf[t,l])
-            # last soil layer
-            l = nsl-1
-            MB_l[t,l] = (Rp_ini[l-1]*dti - Rp[t,l]*dt)/dt + dSu[t,l] + EXF[t] - (Eu[t,l] + Tu[t,l] + Rexf[t,l])
+            if nsl > 1:
+                # surficial soil layer
+                l = 0
+                MB_l[t,l] = (RFe_tot[t] + dSu[t,l] + dSs_MB + Rexf[t,l+1]) - (Rp[t,l] + Eu[t,l] + Tu[t,l] + Ro_tmp + Es_tmp)
+                # intermediate soil layers
+                llst = range(1,nsl-1)
+                for l in llst:
+                    MB_l[t,l] = (Rp_ini[l-1]*dti - Rp[t,l]*dt)/dt + dSu[t,l] + Rexf[t,l+1] - (Eu[t,l] + Tu[t,l] + Rexf[t,l])
+                # last soil layer
+                l = nsl-1
+                MB_l[t,l] = (Rp_ini[l-1]*dti - Rp[t,l]*dt)/dt + dSu[t,l] + EXF[t] - (Eu[t,l] + Tu[t,l] + Rexf[t,l])
+            else:
+                # only one soil layer
+                l = 0
+                MB_l[t,l] = (RFe_tot[t] + dSu[t,l] + dSs_MB + EXF[t]) - (Rp[t,l] + Eu[t,l] + Tu[t,l] + Ro_tmp + Es_tmp)
+                # last soil layer
             # total mass balance for the unsaturated zone
             MB[t] = RFe_tot[t] + dSs_MB + dSu_tot[t] + dRp_tot + EXF[t] - (Ro[t] + Es[t] + Eu_MB + Tu_MB)
 

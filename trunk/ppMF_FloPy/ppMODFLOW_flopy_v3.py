@@ -253,6 +253,17 @@ def ppMFini(MF_ws, MF_ini_fn, out = 'MF', numDays = -1, obs = None):
         l += 1
         wel_user = float(inputFile[l].strip())
         l += 1
+        # ghb
+        ext_ghb = str(inputFile[l].strip())
+        l += 1
+        ghb_head = []
+        for i in range(nlay):
+            ghb_head.append(inputFile[l].split()[i])
+        l += 1
+        ghb_cond = []
+        for i in range(nlay):
+            ghb_cond.append(inputFile[l].split()[i])
+        l += 1
         # drn
         ext_drn = str(inputFile[l].strip())
         l += 1
@@ -283,7 +294,7 @@ def ppMFini(MF_ws, MF_ini_fn, out = 'MF', numDays = -1, obs = None):
         rclose = float(inputFile[l].strip())
         l += 1
     except:
-        print "Unexpected error in the input file:\n", sys.exc_info()[0]
+        print "Unexpected error in the MODFLOW input file:\n", sys.exc_info()[0]
         sys.exit()
     del inputFile
 
@@ -296,9 +307,9 @@ def ppMFini(MF_ws, MF_ini_fn, out = 'MF', numDays = -1, obs = None):
                 n += 1
 
     if out == 'MF':
-        return modelname, namefile_ext, exe_name, version, dum_sssp1, ext_dis, nlay, ncol, nrow, nper, itmuni, lenuni,laycbd, delr, delc, top, botm, perlen, nstp, tsmult, Ss_tr, ext_bas, ibound, strt, hnoflo,ext_lpf, ilpfcb, hdry, nplpf, laytyp, layavg, chani, layvka, laywet, hk, vka, ss, sy,ext_oc, ihedfm, iddnfm, ext_cbc, ext_heads, ext_ddn, hclose, rclose, ext_wel, wel_user, ext_drn, drn_elev, drn_cond, ext_uzf, nuztop, iuzfopt, irunflg, ietflg, iuzfcb1, iuzfcb2, ntrail2, nsets, nuzgag, surfdep, eps, thts, thti, row_col_iftunit_iuzfopt, finf_user, uzfbud_ext
+        return modelname, namefile_ext, exe_name, version, dum_sssp1, ext_dis, nlay, ncol, nrow, nper, itmuni, lenuni,laycbd, delr, delc, top, botm, perlen, nstp, tsmult, Ss_tr, ext_bas, ibound, strt, hnoflo,ext_lpf, ilpfcb, hdry, nplpf, laytyp, layavg, chani, layvka, laywet, hk, vka, ss, sy,ext_oc, ihedfm, iddnfm, ext_cbc, ext_heads, ext_ddn, hclose, rclose, ext_wel, wel_user, ext_ghb, ghb_head, ghb_cond, ext_drn, drn_elev, drn_cond, ext_uzf, nuztop, iuzfopt, irunflg, ietflg, iuzfcb1, iuzfcb2, ntrail2, nsets, nuzgag, surfdep, eps, thts, thti, row_col_iftunit_iuzfopt, finf_user, uzfbud_ext
     elif out == 'MM':
-        return nrow, ncol, delr, delc, top, reggrid, nlay, nper, perlen, nstp, timedef, hnoflo, hdry, laytyp, lenuni, itmuni, ibound
+        return nrow, ncol, delr, delc, top, botm, reggrid, nlay, nper, perlen, nstp, timedef, hnoflo, hdry, laytyp, lenuni, itmuni, ibound
 
 #####################################
 
@@ -598,7 +609,7 @@ def ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, finf_MM = "", finf_user 
     if verbose == 0:
         print '--------------'
 
-    modelname, namefile_ext, exe_name, version, dum_sssp1, ext_dis, nlay, ncol, nrow, nper, itmuni, lenuni,laycbd, delr, delc, top, botm, perlen, nstp, tsmult, Ss_tr, ext_bas, ibound, strt, hnoflo,ext_lpf, ilpfcb, hdry, nplpf, laytyp, layavg, chani, layvka, laywet, hk, vka, ss, sy,ext_oc, ihedfm, iddnfm, ext_cbc, ext_heads, ext_ddn, hclose, rclose, ext_wel, wel_user, ext_drn, drn_elev, drn_cond, ext_uzf, nuztop, iuzfopt, irunflg, ietflg, iuzfcb1, iuzfcb2, ntrail2, nsets, nuzgag, surfdep, eps, thts, thti, row_col_iftunit_iuzfopt, finf_user, uzfbud_ext = ppMFini(MF_ws, MF_ini_fn, out = 'MF', numDays = numDays, obs = obs)
+    modelname, namefile_ext, exe_name, version, dum_sssp1, ext_dis, nlay, ncol, nrow, nper, itmuni, lenuni,laycbd, delr, delc, top, botm, perlen, nstp, tsmult, Ss_tr, ext_bas, ibound, strt, hnoflo,ext_lpf, ilpfcb, hdry, nplpf, laytyp, layavg, chani, layvka, laywet, hk, vka, ss, sy,ext_oc, ihedfm, iddnfm, ext_cbc, ext_heads, ext_ddn, hclose, rclose, ext_wel, wel_user, ext_ghb, ghb_head, ghb_cond, ext_drn, drn_elev, drn_cond, ext_uzf, nuztop, iuzfopt, irunflg, ietflg, iuzfcb1, iuzfcb2, ntrail2, nsets, nuzgag, surfdep, eps, thts, thti, row_col_iftunit_iuzfopt, finf_user, uzfbud_ext = ppMFini(MF_ws, MF_ini_fn, out = 'MF', numDays = numDays, obs = obs)
 
     if os.path.exists(finf_MM[0]):
         finf_input = finf_MM
@@ -713,6 +724,28 @@ def ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, finf_MM = "", finf_user 
                     layer_row_column_elevation_cond[0].append([l+1, i+1, j+1, drn_elev_tmp, drn_cond_array[i,j]])
         l += 1
 
+# GHB
+    l = 0
+    layer_row_column_head_cond = [[]]
+    for d in ghb_cond:
+        ghb_check = 1
+        ghb_head_array = np.zeros((nrow,ncol))
+        ghb_cond_array = np.zeros((nrow,ncol))
+        if isinstance(d, str):
+            ghb_head_path = os.path.join(MF_ws, ghb_head[l])
+            ghb_head_array[:,:] = MM_PROCESS.convASCIIraster2array(ghb_head_path, ghb_head_array[:,:])
+            ghb_cond_path = os.path.join(MF_ws, ghb_cond[l])
+            ghb_cond_array[:,:] = MM_PROCESS.convASCIIraster2array(ghb_cond_path, ghb_cond_array[:,:])
+        else:
+            ghb_head_array[:,:] = ghb_head[l]
+            ghb_cond_array[:,:] = ghb_cond[l]
+        for i in range(nrow):
+            for j in range(ncol):
+                if ghb_head_array[i,j]<>0:
+                    ghb_head_tmp = ghb_head_array[i,j]
+                    layer_row_column_head_cond[0].append([l+1, i+1, j+1, ghb_head_tmp, ghb_cond_array[i,j]])
+        l += 1
+
 # average for 1st SS stress period
     if dum_sssp1 == 1:
         if isinstance(finf_input,tuple):
@@ -784,6 +817,9 @@ def ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, finf_MM = "", finf_user 
         drn = mf.mfdrn(model = mfmain, idrncb=lpf.ilpfcb, layer_row_column_elevation_cond = layer_row_column_elevation_cond, extension = ext_drn)
         del layer_row_column_elevation_cond
         drn.write_file()
+    # ghb
+#    ghb = mf.mfghb(model = mfmain, ighbcb = lpf.ilpfcb, layer_row_column_head_cond = layer_row_column_head_cond, extension = ext_ghb)
+#    ghb.write_file()
     # uzf initialization
     uzf = mf.mfuzf1(mfmain, nuztop = nuztop, iuzfopt = iuzfopt, irunflg = irunflg, ietflg = ietflg, iuzfcb1 = iuzfcb1, iuzfcb2 = iuzfcb2, ntrail2 = ntrail2, nsets = nsets, nuzgag = nuzgag, surfdep = surfdep, iuzfbnd = iuzfbnd, eps = eps, thts = thts, thti = thti, row_col_iftunit_iuzfopt = row_col_iftunit_iuzfopt, finf = finf_array, extension = ext_uzf, uzfbud_ext = uzfbud_ext)
     del finf_array

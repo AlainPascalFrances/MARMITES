@@ -30,17 +30,17 @@ import ppMODFLOW_flopy_v3 as ppMF
 import MARMITESplot_v3 as MMplot
 import CreateColors
 
-
 #####################################
 
-# workspace (ws) definition
+duration = 0.0
 timestart = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
 print '\n##############\nMARMITES started!\n%s\n##############' % mpl.dates.num2date(timestart).isoformat()[:19]
 
+# workspace (ws) definition
 # read input file (called _input.ini in the MARMITES workspace
 # the first character on the first line has to be the character used to comment
 # the file can contain any comments as the user wish, but the sequence of the input has to be respected
-MM_ws = r'E:\00code_ws\00_TESTS\MARMITESv3_r13c6l2'
+MM_ws = r'E:\00code_ws\SARDON'
 MM_fn = '__inputMM.ini'
 
 inputFile = MMproc.readFile(MM_ws,MM_fn)
@@ -75,12 +75,15 @@ try:
     # read observations?
     l += 1
     obsCHECK = int(inputFile[l].strip())
+    l += 1
     #run MARMITESsurface  (1 is YES, 0 is NO)
-    l += 1
     MMsurf_yn = int(inputFile[l].strip())
-    #run MARMITESunsat  (1 is YES, 0 is NO)
     l += 1
+    #run MARMITESunsat  (1 is YES, 0 is NO)
     MMunsat_yn = int(inputFile[l].strip())
+    l += 1
+    #run MODFLOW  (1 is YES, 0 is NO)
+    MF_yn = int(inputFile[l].strip())
     l += 1
     # Define MARMITESsurface folder
     MMsurf_ws = inputFile[l].strip()
@@ -236,11 +239,11 @@ try:
 
     print'\n##############'
     print 'MODFLOW initialization'
-    nrow, ncol, delr, delc, top, reggrid, nlay, nper, perlen, nstp, timedef, hnoflo, hdry, laytyp, lenuni, itmuni, ibound_fn = ppMF.ppMFini(MF_ws, MF_ini_fn, out = 'MM', numDays = numDays)
+    nrow, ncol, delr, delc, top_l0, bot_l0, reggrid, nlay, nper, perlen, nstp, timedef, hnoflo, hdry, laytyp, lenuni, itmuni, ibound_fn = ppMF.ppMFini(MF_ws, MF_ini_fn, out = 'MM', numDays = numDays)
 
     # ####   SUMMARY OF MODFLOW READINGS   ####
     # active cells in layer 1_____________________ibound[0]
-    # elevation___________________________________top
+    # elevation___________________________________top_l0
     # aquifer type of layer 1_____________________laytyp[0]
     # numero total de time step___________________sum(nstp)
     # code for dry cell___________________________hdry
@@ -336,13 +339,19 @@ try:
     _nslmax = max(_nsl)
 
     try:
-        top = float(top[0])
-        top_array = np.ones((nrow,ncol))*top
+        top_l0 = float(top_l0[0])
+        top_l0_array = np.ones((nrow,ncol))*top_l0
+        botm_l0 = float(botm_l0[0])
+        botm_l0_array = np.ones((nrow,ncol))*botm_l0
     except:
-        if isinstance(top[0], str):
-            top_path = os.path.join(MF_ws, top[0])
-            top_array = np.zeros((nrow,ncol))
-            top_array = MM_PROCESS.convASCIIraster2array(top_path, top_array)
+        if isinstance(top_l0[0], str):
+            top_l0_path = os.path.join(MF_ws, top_l0[0])
+            top_l0_array = np.zeros((nrow,ncol))
+            top_l0_array = MM_PROCESS.convASCIIraster2array(top_l0_path, top_l0_array)
+        if isinstance(botm_l0[0], str):
+            botm_l0_path = os.path.join(MF_ws, botm_l0[0])
+            botm_l0_array = np.zeros((nrow,ncol))
+            botm_l0_array = MM_PROCESS.convASCIIraster2array(botm_l0_path, botm_l0_array)
 
     # READ observations time series (heads and soil moisture)
     if obsCHECK==1:
@@ -390,7 +399,7 @@ try:
         obs = None
 
     # compute thickness, top and bottom elevation of each soil layer
-    TopAquif = top_array*1000.0 # conversion from m to mm
+    TopAquif = top_l0_array*1000.0 # conversion from m to mm
     # topography elevation
     TopSoil = TopAquif + gridSOILthick*1000.0
 
@@ -398,41 +407,43 @@ try:
     index = {'iRF':0, 'iPET':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iEXF':6, 'iEs':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSs':13, 'iETg':14, 'iETu':15, 'idSu':16, 'iHEADScorr':17, 'idtwt':18, 'iuzthick':19}
     index_S = {'iEu':0, 'iTu':1,'iSu_pc':2, 'iRp':3, 'iRexf':4, 'idSu':5, 'iSu':6, 'iSAT':7, 'iMB_l':8}
 
+    h5_MM_fn = os.path.join(MM_ws,'_h5_MM.h5')
+
     # #############################
     # ### 1st MODFLOW RUN with initial user-input recharge
     # #############################
-    durationMF = 0.0
-    timestartMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
-    print'\n##############'
-    print 'MODFLOW RUN (initial user-input fluxes)'
-    if verbose == 0:
-        print '\n--------------'
-        sys.stdout = s
-        report.close()
-        s = sys.stdout
-        report = open(report_fn, 'a')
-        sys.stdout = report
-    h5_MM_fn = os.path.join(MM_ws,'_h5_MM.h5')
-    h5_MF_fn = ppMF.ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, finf_MM = (h5_MM_fn, 'finf'), wel_MM = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks, MFtime_fn = MFtime_fn, numDays = numDays, obs = obs)
+    if MF_yn ==1 :
+        durationMF = 0.0
+        timestartMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
+        print'\n##############'
+        print 'MODFLOW RUN (initial user-input fluxes)'
+        if verbose == 0:
+            print '\n--------------'
+            sys.stdout = s
+            report.close()
+            s = sys.stdout
+            report = open(report_fn, 'a')
+            sys.stdout = report
+        h5_MF_fn = ppMF.ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, finf_MM = (h5_MM_fn, 'finf'), wel_MM = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks, MFtime_fn = MFtime_fn, numDays = numDays, obs = obs)
 
-    h5_MF = h5py.File(h5_MF_fn)
+        h5_MF = h5py.File(h5_MF_fn)
 
-    # heads format is : timestep, nrow, ncol, nlay
-    # cbc format is: (kstp), kper, textprocess, nrow, ncol, nlay
-    cbc_nam = []
-    cbc_uzf_nam = []
-    for c in h5_MF['cbc_nam']:
-        cbc_nam.append(c.strip())
-    for c in h5_MF['cbc_uzf_nam']:
-        cbc_uzf_nam.append(c.strip())
-    imfSTO = cbc_nam.index('STORAGE')
-    imfDRN = cbc_nam.index('DRAINS')
-    imfWEL = cbc_nam.index('WELLS')
-    imfEXF = cbc_uzf_nam.index('SURFACE LEAKAGE')
-    imfRCH = cbc_uzf_nam.index('UZF RECHARGE')
+        # heads format is : timestep, nrow, ncol, nlay
+        # cbc format is: (kstp), kper, textprocess, nrow, ncol, nlay
+        cbc_nam = []
+        cbc_uzf_nam = []
+        for c in h5_MF['cbc_nam']:
+            cbc_nam.append(c.strip())
+        for c in h5_MF['cbc_uzf_nam']:
+            cbc_uzf_nam.append(c.strip())
+        imfSTO = cbc_nam.index('STORAGE')
+        imfDRN = cbc_nam.index('DRAINS')
+        imfWEL = cbc_nam.index('WELLS')
+        imfEXF = cbc_uzf_nam.index('SURFACE LEAKAGE')
+        imfRCH = cbc_uzf_nam.index('UZF RECHARGE')
 
-    timeendMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
-    durationMF +=  timeendMF-timestartMF
+        timeendMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
+        durationMF +=  timeendMF-timestartMF
 
 except StandardError, e:  #Exception
     print '\nERROR! Abnormal MM run interruption in the initialization!\nError description:'
@@ -440,13 +451,12 @@ except StandardError, e:  #Exception
     h5_MF_fn = None
 #    traceback.print_exc(limit=1, file=sys.stdout)
     timeend = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
-    duration += (timeend-timestart) -durationMF
+    duration += (timeend-timestart)
     sys.exit()
 
 # #############################
 # 2nd phase : MM/MF loop #####
 # #############################
-duration = 0.0
 h_diff_surf = None
 try:
     if MMunsat_yn > 0:
@@ -577,6 +587,7 @@ try:
                                                          i, j, n,
                                                          nsl     = nsl,
                                                          st      = _st[SOILzone_tmp],
+                                                         botm_l0 = botm_l0,
                                                          TopSoilLay   = TopSoilLay,
                                                          BotSoilLay   = BotSoilLay,
                                                          Tl      = Tl,
@@ -603,7 +614,7 @@ try:
                                                          dti     = dti,
                                                          hdry    = hdry,
                                                          kTu_min = kTu_min,
-                                                         kTu_n = kTu_n)
+                                                         kTu_n   = kTu_n)
                             if (float(perlen[n])/float(nstp[n]))!=1.0:
                                 for stp in range(nstp[n]):
                                     ts = float(perlen[n])/float(nstp[n])
@@ -766,22 +777,23 @@ try:
         # #############################
         # ### MODFLOW RUN with MM-computed recharge
         # #############################
-        h5_MF.close()
-        durationMF = 0.0
-        timestartMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
-        print'\n##############'
-        print 'MODFLOW RUN (MARMITES fluxes after conv. loop)'
-        if verbose == 0:
-            print '\n--------------'
-            sys.stdout = s
-            report.close()
-            s = sys.stdout
-            report = open(report_fn, 'a')
-            sys.stdout = report
-        h5_MF_fn = ppMF.ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, finf_MM = (h5_MM_fn, 'finf'), wel_MM = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks, MFtime_fn = MFtime_fn, numDays = numDays, obs = obs)
+        if MF_yn ==1 :
+            h5_MF.close()
+            durationMF = 0.0
+            timestartMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
+            print'\n##############'
+            print 'MODFLOW RUN (MARMITES fluxes after conv. loop)'
+            if verbose == 0:
+                print '\n--------------'
+                sys.stdout = s
+                report.close()
+                s = sys.stdout
+                report = open(report_fn, 'a')
+                sys.stdout = report
+            h5_MF_fn = ppMF.ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, finf_MM = (h5_MM_fn, 'finf'), wel_MM = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks, MFtime_fn = MFtime_fn, numDays = numDays, obs = obs)
 
-        timeendMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
-        durationMF += (timeendMF-timestartMF)
+            timeendMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
+            durationMF += (timeendMF-timestartMF)
 
 except StandardError, e:  #Exception
     print '\nERROR! Abnormal MM run interruption in the MM/MF loop!\nError description:'
@@ -807,7 +819,7 @@ try:
     print '\n##############\nMARMITES exporting...'
 
     # reading MF output
-    if isinstance(h5_MF_fn, str):
+    if MF_yn == 1 and isinstance(h5_MF_fn, str):
         h5_MF = h5py.File(h5_MF_fn)
         cbc_DRN = np.zeros((sum(perlen), nrow, ncol, nlay))
         cbc_STO = np.zeros((sum(perlen), nrow, ncol, nlay))
@@ -881,16 +893,16 @@ try:
         h_MF_m = np.ma.masked_values(h_MF, hnoflo, atol = 0.09)
         del h_MF
         h5_MF.close()
-        top_array_m = np.ma.masked_values(top_array, hnoflo, atol = 0.09)
-        del top_array
+        top_l0_array_m = np.ma.masked_values(top_l0_array, hnoflo, atol = 0.09)
+        del top_l0_array
         index_cbc_uzf = [imfRCH]
         index_cbc = [imfSTO, imfDRN, imfWEL]
     else:
         h_MF_m = np.zeros((sum(perlen), nrow, ncol, nlay))
         cbc_DRN = cbc_STO = cbc_RCH = cbc_WEL = np.zeros((sum(perlen), nrow, ncol, nlay))
         imfDRN = imfSTO = imfRCH = imfWEL = 0
-        top_array_m = np.zeros((nrow, ncol))
-        del top_array
+        top_l0_array_m = np.zeros((nrow, ncol))
+        del top_l0_array
 
     # computing range for plotting
     h_MF_m = np.ma.masked_values(h_MF_m, hdry, atol = 1E+25)
@@ -931,7 +943,7 @@ try:
     except:
         hmaxMF = 999.9
         hminMF = -999.9
-    if isinstance(h5_MF_fn, str):
+    if MF_yn == 1 and isinstance(h5_MF_fn, str):
         DRNmax = np.nanmax(-cbc_DRN)
         cbcmax.append(DRNmax)
         DRNmax = float(np.ceil(np.nanmax(DRNmax)))
@@ -993,7 +1005,7 @@ try:
             flxmin = float(np.floor(np.nanmin(flxlst)))
             flxmax = 1.15*max(cbcmax, flxmax)
             flxmin = 1.15*min(cbcmin, flxmin)
-            if isinstance(h5_MF_fn, str):
+            if plot_out == 1 and MF_yn == 1 and isinstance(h5_MF_fn, str):
                 plt_export_fn = os.path.join(MM_ws, '_plt_0UNSATandGWbalances.png')
                 for l in range(nlay):
                     flxlst.append(cbc_RCH[:,:,:,l].sum()/sum(perlen)/ncell)
@@ -1016,7 +1028,7 @@ try:
             MMplot.plotGWbudget(flxlst = flxlst, flxlbl = flxlbl, colors_flx = colors_flx, plt_export_fn = plt_export_fn, plt_title = plt_title, fluxmax = flxmax, fluxmin = flxmin)
             del flxlst
         # no MM, plot only MF balance if MF exists
-        elif isinstance(h5_MF_fn, str):
+        elif plot_out == 1 and MF_yn == 1 and isinstance(h5_MF_fn, str):
             plt_export_fn = os.path.join(MM_ws, '_plt_GWbalances.png')
             # MB_tmp = sum(flxlst) - (flxlst[11] + flxlst[13] + flxlst[16] + flxlst[17] + flxlst[19] + flxlst[20])
             MB_tmp = -999
@@ -1128,7 +1140,7 @@ try:
                     -MM[:,index.get('iETg')].sum()/sum(perlen)]
                 #MB_tmp = sum(flxlst) - (flxlst[11] + flxlst[13])
                 MB_tmp = -999
-                if isinstance(h5_MF_fn, str):
+                if plot_out == 1 and MF_yn == 1 and isinstance(h5_MF_fn, str):
                     plt_export_fn = os.path.join(MM_ws, '_plt_0'+ obs.keys()[o] + '_UNSATandGWbalances.png')
                     for l in range(nlay):
                         flxlst.append(cbc_RCH[:,i,j,l].sum()/sum(perlen))
@@ -1229,7 +1241,7 @@ try:
         del TSlst, flxlbl, i, i1, h_diff_surf
 
     # plot MF output
-    if plot_out == 1 and isinstance(h5_MF_fn, str):
+    if plot_out == 1 and MF_yn == 1 and isinstance(h5_MF_fn, str):
         # plot heads (grid + contours), DRN, etc... at specified TS
         TSlst = []
         TS = 0
@@ -1253,7 +1265,7 @@ try:
         del TSlst
 
     del h_MF_m, cbc_DRN
-    del top_array_m, gridSOIL, inputDate
+    del top_l0_array_m, gridSOIL, inputDate
     del hmaxMF, hminMF, hmax, hmin, hdiff, DRNmax, DRNmin, cbcmax, cbcmin
 
     timeendExport = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
@@ -1263,7 +1275,8 @@ try:
     print ('\n##############\nMARMITES executed successfully!\n%s\n') % mpl.dates.num2date(timestart).isoformat()[:19]
     print ('%s stress periods\n%s days\n%sx%s cells (rows x cols)') % (str(int(nper)),str(int(sum(perlen))),str(nrow),str(ncol))
     print ('\nMARMITES run time: %s minute(s) and %.1f second(s)') % (str(int(duration*24.0*60.0)), (duration*24.0*60.0-int(duration*24.0*60.0))*60)
-    print ('MODFLOW run time: %s minute(s) and %.1f second(s)') % (str(int(durationMF*24.0*60.0)), (durationMF*24.0*60.0-int(durationMF*24.0*60.0))*60)
+    if MF_yn == 1:
+        print ('MODFLOW run time: %s minute(s) and %.1f second(s)') % (str(int(durationMF*24.0*60.0)), (durationMF*24.0*60.0-int(durationMF*24.0*60.0))*60)
     print ('Export run time: %s minute(s) and %.1f second(s)') % (str(int(durationExport*24.0*60.0)), (durationExport*24.0*60.0-int(durationExport*24.0*60.0))*60)
     print ('\nOutput written in folder: \n%s\n##############\n') % MM_ws
 

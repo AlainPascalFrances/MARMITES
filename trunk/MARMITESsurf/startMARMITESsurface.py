@@ -32,7 +32,7 @@ import MARMITESprocess_v3 as MMproc
     column 1:     date: date [yyyy-mm-dd]
     column 2:     time: time [hh-mm]
     column 3:     RF: rainfall [mm]
-    column 4:     Ta: air temperature measured at 2m [ºC]
+    column 4:     Ta: air temperature measured at heigth z_h [ºC]
     column 5:     RHa: relative air humidity [%] measured at heigth z_h [m]
     column 6:     Pa: air pressure [kPa]
     column 7:     u_z_m: windspeed measured at heigth z_m [m.s-1]
@@ -238,9 +238,9 @@ def MMsurf(inputFOLDER_fn, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, pat
         f_s_w.append(0.5)
         alfa_vd.append(0.23)
         alfa_vw.append(0.23)
-        J_vd.append(150)
-        J_vw.append(270)
-        TRANS_vdw.append(20)
+        J_vd.append(0)
+        J_vw.append(365)
+        TRANS_vdw.append(0)
         Zr.append(0.25)
         kTu_min.append(1.0)
         kTu_n.append(1.0)
