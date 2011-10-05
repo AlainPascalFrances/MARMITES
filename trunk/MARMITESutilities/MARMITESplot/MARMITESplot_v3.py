@@ -304,7 +304,7 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     plt.xlim(DateInput[0]-1,DateInput[len(P)-1]+1)
     # y axis
     plt.ylim(-0.1,1.1)
-    plt.ylabel('', fontsize=10)
+    plt.ylabel('SAT', fontsize=10)
     ax9a.yaxis.set_ticks(np.arange(0,1.25,1))
     ax9a.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%1d'))
     # legend

@@ -313,7 +313,7 @@ class UNSAT:
 #####################
 
     def run(self, i, j, n,
-                  nsl, st,  Sm, Sfc, Sr, Su_ini, Ss_ini, Rp_ini, botm_l0, TopSoilLay, BotSoilLay, Tl, Ks, Ss_max, Ss_ratio, HEADS, EXF,
+                  nsl, st, Sm, Sfc, Sr, Su_ini, Ss_ini, Rp_ini, botm_l0, TopSoilLay, BotSoilLay, Tl, Ks, Ss_max, Ss_ratio, HEADS, EXF,
                   RF, E0, PETveg, RFeveg, PEsoil, VEGarea, Zr,
                   nstp, perlen, dti, hdry,
                   kTu_min, kTu_n):
@@ -477,9 +477,10 @@ class UNSAT:
             MB[t] = RFe_tot[t] + dSs_MB + dSu_tot[t] + dRp_tot + EXF[t] - (Ro[t] + Es[t] + Eu_MB + Tu_MB)
 
             # export list
-            # index = {'iRF':0, 'iPET':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iEXF':6, 'iEs':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSs':15, 'iETg':16, 'iETu':17, 'idSu':18, 'iHEADScorr':19, 'idtwt':20, 'iTll':21, 'iGWcorr':22}
+            # indexes of the HDF5 output arrays
+            # index = {'iRF':0, 'iPET':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iEXF':6, 'iEs':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSs':13, 'iETg':14, 'iETu':15, 'idSu':16, 'iHEADScorr':17, 'idtwt':18, 'iuzthick':19}
             results1[t,:] = [RF[t], PET_tot[t], PE_tot[t], RFe_tot[t], Ss[t], Ro[t], EXF[t], Es[t], MB[t], INTER_tot[t], E0[t], Eg[t], Tg[t], dSs[t], ETg[t], ETu_tot[t], dSu_tot[t], HEADS_corr[t]/1000.0, -dtwt[t]/1000.0, uzthick[t]/1000.0]
-            # index_S = {'iEu':0, 'iTu':1,'iSu_pc':2, 'iRp':3, 'idSu':4, 'iSu':5}
+            # index_S = {'iEu':0, 'iTu':1,'iSu_pc':2, 'iRp':3, 'iRexf':4, 'idSu':5, 'iSu':6, 'iSAT':7, 'iMB_l':8}
             for l in range(nsl):
                 results2[t,l,:] = [Eu[t,l], Tu[t,l], Su_pc[t,l], Rp[t,l], Rexf[t,l], dSu[t,l], Su[t,l], SAT[t,l], MB_l[t,l]]
 
