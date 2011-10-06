@@ -40,7 +40,7 @@ print '\n##############\nMARMITES started!\n%s\n##############' % mpl.dates.num2
 # read input file (called _input.ini in the MARMITES workspace
 # the first character on the first line has to be the character used to comment
 # the file can contain any comments as the user wish, but the sequence of the input has to be respected
-MM_ws = r'E:\00code_ws\SARDON'
+MM_ws = r'E:\00code_ws\00_TESTS\MARMITESv3_r13c6l2'
 MM_fn = '__inputMM.ini'
 
 inputFile = MMproc.readFile(MM_ws,MM_fn)
@@ -443,6 +443,8 @@ try:
         imfDRN = cbc_nam.index('DRAINS')
         if myMF.wel_yn == 1:
             imfWEL = cbc_nam.index('WELLS')
+        else:
+            print 'WARNING!\nThe WEL package should be active to take into account ETg!'
         if myMF.uzf_yn == 1:
             imfEXF = cbc_uzf_nam.index('SURFACE LEAKAGE')
             imfRCH = cbc_uzf_nam.index('UZF RECHARGE')
@@ -844,7 +846,10 @@ try:
                         h_MF[t,:,:,:] = h5_MF['heads'][n,:,:,:]
                         cbc_DRN_tmp = h5_MF['cbc'][n,imfDRN,:,:,:]
                         cbc_STO_tmp = h5_MF['cbc'][n,imfSTO,:,:,:]
-                        cbc_RCH_tmp = h5_MF['cbc_uzf'][n,imfRCH,:,:,:]
+                        if myMF.uzf_yn == 1:
+                            cbc_RCH_tmp = h5_MF['cbc_uzf'][n,imfRCH,:,:,:]
+                        elif myMF.rch_yn == 1:
+                            cbc_RCH_tmp = h5_MF['cbc'][n,imfRCH,:,:,:]
                         if myMF.wel_yn == 1:
                             cbc_WEL_tmp = h5_MF['cbc'][n,imfWEL,:,:,:]
                         if myMF.reggrid == 1:
@@ -866,7 +871,10 @@ try:
                     h_MF[t,:,:,:] = h5_MF['heads'][n,:,:,:]
                     cbc_DRN_tmp = h5_MF['cbc'][n,imfDRN,:,:,:]
                     cbc_STO_tmp = h5_MF['cbc'][n,imfSTO,:,:,:]
-                    cbc_RCH_tmp = h5_MF['cbc_uzf'][n,imfRCH,:,:,:]
+                    if myMF.uzf_yn == 1:
+                        cbc_RCH_tmp = h5_MF['cbc_uzf'][n,imfRCH,:,:,:]
+                    elif myMF.rch_yn == 1:
+                        cbc_RCH_tmp = h5_MF['cbc'][n,imfRCH,:,:,:]
                     if myMF.wel_yn == 1:
                         cbc_WEL_tmp = h5_MF['cbc'][n,imfWEL,:,:,:]
                     if myMF.reggrid == 1:
@@ -891,7 +899,10 @@ try:
             h_MF = h5_MF['heads']
             cbc_DRN_tmp = h5_MF['cbc'][:,imfDRN,:,:,:]
             cbc_STO_tmp = h5_MF['cbc'][:,imfSTO,:,:,:]
-            cbc_RCH_tmp = h5_MF['cbc_uzf'][:,imfRCH,:,:,:]
+            if myMF.uzf_yn == 1:
+                cbc_RCH_tmp = h5_MF['cbc_uzf'][n,imfRCH,:,:,:]
+            elif myMF.rch_yn == 1:
+                cbc_RCH_tmp = h5_MF['cbc'][n,imfRCH,:,:,:]
             if myMF.wel_yn == 1:
                 cbc_WEL_tmp = h5_MF['cbc'][:,imfWEL,:,:,:]
             if myMF.reggrid == 1:
@@ -918,7 +929,10 @@ try:
         top_l0_array_m = np.ma.masked_values(top_l0_array, myMF.hnoflo, atol = 0.09)
         del top_l0_array
         index_cbc_uzf = [imfRCH]
-        index_cbc = [imfSTO, imfDRN, imfWEL]
+        if myMF.wel_yn == 1:
+            index_cbc = [imfSTO, imfDRN, imfWEL]
+        else:
+            index_cbc = [imfSTO, imfDRN]
     else:
         h_MF_m = np.zeros((sum(myMF.perlen), myMF.nrow, myMF.ncol, myMF.nlay))
         cbc_DRN = cbc_STO = cbc_RCH = cbc_WEL = np.zeros((sum(myMF.perlen), myMF.nrow, myMF.ncol, myMF.nlay))

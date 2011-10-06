@@ -409,8 +409,8 @@ def plotLAYER(TS, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_title, MM_
         plt.ylabel('row i', fontsize=10)
         plt.grid(True)
         plt.xlabel('col j', fontsize=10)
-        ax[L].xaxis.set_ticks(np.arange(1,ncol+1,ntick))
-        ax[L].yaxis.set_ticks(np.arange(1,nrow+1,ntick))
+        ax[L].xaxis.set_ticks(np.arange(0,ncol+1,ntick))
+        ax[L].yaxis.set_ticks(np.arange(0,nrow+1,ntick))
         if np.nanmax(V[L])>np.nanmin(V[L]):
             PC = plt.pcolor(xg, yg, V[L], cmap = cmap, vmin = Vmin, vmax = Vmax)
             if contours == True:

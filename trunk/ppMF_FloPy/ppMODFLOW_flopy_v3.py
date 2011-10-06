@@ -324,6 +324,9 @@ class MF():
                 self.nrchop = int(inputFile[l].strip())
                 l += 1
                 self.rch_user = float(inputFile[l].strip())
+            # MF output
+            l += 1
+            self.MFout_yn = int(inputFile[l].strip())
         except:
             print "Unexpected error in the MODFLOW input file:\n", sys.exc_info()[0]
             traceback.print_exc(file=sys.stdout)
@@ -621,11 +624,11 @@ class MF():
             print '--------------'
 
         if os.path.exists(finf_MM[0]):
-            if uzf_yn == 1:
+            if self.uzf_yn == 1:
                 finf_input = finf_MM
-            if wel_yn == 1:
+            if self.wel_yn == 1:
                 wel_input = wel_MM
-            if rch_yn == 1:
+            if self.rch_yn == 1:
                 rch_input = rch_MM
         else:
             if self.uzf_yn == 1:
@@ -669,10 +672,10 @@ class MF():
             print '\nUZF1 package initialization'
             if isinstance(finf_input,float):
                 finf_array = finf_input
-                print '\ninfiltration input: %s' % str(finf_input)
+                print 'infiltration input: %s' % str(finf_input)
             else:
                 finf_array = []
-                print '\ninfiltration input: %s' % finf_input[0]
+                print 'infiltration input: %s' % finf_input[0]
                 try:
                     h5_finf = h5py.File(finf_input[0], 'r')
                     for n in range(self.nper):
@@ -688,10 +691,10 @@ class MF():
             print '\nWEL package initialization'
             if isinstance(wel_input,float):
                 wel_array = wel_input
-                print '\ndischarge input: %s' % str(wel_input)
+                print 'discharge input: %s' % str(wel_input)
             else:
                 wel_array = []
-                print '\ndischarge input: %s' % wel_input[0]
+                print 'discharge input: %s' % wel_input[0]
                 try:
                     h5_wel = h5py.File(wel_input[0], 'r')
                     for n in range(self.nper):
@@ -707,10 +710,10 @@ class MF():
             print '\nRCH package initialization'
             if isinstance(rch_input,float):
                 rch_array = rch_input
-                print '\nrecharge input: %s' % str(rch_input)
+                print 'recharge input: %s' % str(rch_input)
             else:
                 rch_array = []
-                print '\nrecharge input: %s' % rch_input[0]
+                print 'recharge input: %s' % rch_input[0]
                 try:
                     h5_rch = h5py.File(rch_input[0], 'r')
                     for n in range(self.nper):
@@ -942,6 +945,7 @@ class MF():
                 del cbc_uzf
         h5_MF.close()
         # to delete MF bin files and save disk space
-    #    os.remove(h_MF_fn)
-    #    os.remove(cbc_MF_fn)
-    #    os.remove(cbc_MFuzf_fn)
+        if self.MFout_yn == 0:
+            os.remove(h_MF_fn)
+            os.remove(cbc_MF_fn)
+            os.remove(cbc_MFuzf_fn)
