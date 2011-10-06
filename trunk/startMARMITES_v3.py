@@ -392,7 +392,8 @@ try:
         outPESTsm_fn         = 'PESTsm.dat'
         outPESTheads=open(os.path.join(MM_ws,outPESTheads_fn), 'w')
         outPESTsm=open(os.path.join(MM_ws,outPESTsm_fn), 'w')
-        myMF.uzf_obs(obs = obs)
+        if myMF.uzf_yn == 1:
+            myMF.uzf_obs(obs = obs)
     else:
         print "\nNo reading of observations time series (hydraulic heads and soil moisture) required."
         obs = None
@@ -433,13 +434,22 @@ try:
         cbc_uzf_nam = []
         for c in h5_MF['cbc_nam']:
             cbc_nam.append(c.strip())
-        for c in h5_MF['cbc_uzf_nam']:
-            cbc_uzf_nam.append(c.strip())
+        if myMF.uzf_yn == 1:
+            for c in h5_MF['cbc_uzf_nam']:
+                cbc_uzf_nam.append(c.strip())
         imfSTO = cbc_nam.index('STORAGE')
+        if myMF.ghb_yn == 1:
+            imfWEL = cbc_nam.index('HEAD DEP BOUNDS')
         imfDRN = cbc_nam.index('DRAINS')
-        imfWEL = cbc_nam.index('WELLS')
-        imfEXF = cbc_uzf_nam.index('SURFACE LEAKAGE')
-        imfRCH = cbc_uzf_nam.index('UZF RECHARGE')
+        if myMF.wel_yn == 1:
+            imfWEL = cbc_nam.index('WELLS')
+        if myMF.uzf_yn == 1:
+            imfEXF = cbc_uzf_nam.index('SURFACE LEAKAGE')
+            imfRCH = cbc_uzf_nam.index('UZF RECHARGE')
+        if myMF.rch_yn == 1:
+            imfRCH = cbc_nam.index('RECHARGE')
+            print '\nMM has to be run together with the UZF1 package of MODFLOW 2005, thus the RCH package should be desactivacted!\nExisting MM.'
+            sys.exit()
 
         timeendMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
         durationMF +=  timeendMF-timestartMF
@@ -835,51 +845,61 @@ try:
                         cbc_DRN_tmp = h5_MF['cbc'][n,imfDRN,:,:,:]
                         cbc_STO_tmp = h5_MF['cbc'][n,imfSTO,:,:,:]
                         cbc_RCH_tmp = h5_MF['cbc_uzf'][n,imfRCH,:,:,:]
-                        cbc_WEL_tmp = h5_MF['cbc'][n,imfWEL,:,:,:]
+                        if myMF.wel_yn == 1:
+                            cbc_WEL_tmp = h5_MF['cbc'][n,imfWEL,:,:,:]
                         if myMF.reggrid == 1:
                             cbc_DRN[t,:,:,:] = conv_fact*cbc_DRN_tmp[:,:,:]/(myMF.delr[0]*myMF.delc[0])
                             cbc_STO[t,:,:,:] = conv_fact*cbc_STO_tmp[:,:,:]/(myMF.delr[0]*myMF.delc[0])
                             cbc_RCH[t,:,:,:] = conv_fact*cbc_RCH_tmp[:,:,:]/(myMF.delr[0]*myMF.delc[0])
-                            cbc_WEL[t,:,:,:] = conv_fact*cbc_WEL_tmp[:,:,:]/(myMF.delr[0]*myMF.delc[0])
+                            if myMF.wel_yn == 1:
+                                cbc_WEL[t,:,:,:] = conv_fact*cbc_WEL_tmp[:,:,:]/(myMF.delr[0]*myMF.delc[0])
                         else:
                             for i in range(myMF.nrow):
                                 for j in range(myMF.ncol):
                                     cbc_DRN[t,i,j,:] = conv_fact*cbc_DRN_tmp[:,i,j,:]/(myMF.delr[j]*myMF.delc[i])
                                     cbc_STO[t,i,j,:] = conv_fact*cbc_STO_tmp[:,i,j,:]/(myMF.delr[j]*myMF.delc[i])
                                     cbc_RCH[t,i,j,:] = conv_fact*cbc_RCH_tmp[:,i,j,:]/(myMF.delr[j]*myMF.delc[i])
-                                    cbc_WEL[t,i,j,:] = conv_fact*cbc_WEL_tmp[:,i,j,:]/(myMF.delr[j]*myMF.delc[i])
+                                    if myMF.wel_yn == 1:
+                                        cbc_WEL[t,i,j,:] = conv_fact*cbc_WEL_tmp[:,i,j,:]/(myMF.delr[j]*myMF.delc[i])
                         t += 1
                 else:
                     h_MF[t,:,:,:] = h5_MF['heads'][n,:,:,:]
                     cbc_DRN_tmp = h5_MF['cbc'][n,imfDRN,:,:,:]
                     cbc_STO_tmp = h5_MF['cbc'][n,imfSTO,:,:,:]
                     cbc_RCH_tmp = h5_MF['cbc_uzf'][n,imfRCH,:,:,:]
-                    cbc_WEL_tmp = h5_MF['cbc'][n,imfWEL,:,:,:]
+                    if myMF.wel_yn == 1:
+                        cbc_WEL_tmp = h5_MF['cbc'][n,imfWEL,:,:,:]
                     if myMF.reggrid == 1:
                         cbc_DRN[t,:,:,:] = conv_fact*cbc_DRN_tmp[:,:,:]/(myMF.delr[0]*myMF.delc[0])
                         cbc_STO[t,:,:,:] = conv_fact*cbc_STO_tmp[:,:,:]/(myMF.delr[0]*myMF.delc[0])
                         cbc_RCH[t,:,:,:] = conv_fact*cbc_RCH_tmp[:,:,:]/(myMF.delr[0]*myMF.delc[0])
-                        cbc_WEL[t,:,:,:] = conv_fact*cbc_WEL_tmp[:,:,:]/(myMF.delr[0]*myMF.delc[0])
+                        if myMF.wel_yn == 1:
+                            cbc_WEL[t,:,:,:] = conv_fact*cbc_WEL_tmp[:,:,:]/(myMF.delr[0]*myMF.delc[0])
                     else:
                         for i in range(myMF.nrow):
                             for j in range(myMF.ncol):
                                 cbc_DRN[t,i,j,:] = conv_fact*cbc_DRN_tmp[:,i,j,:]/(myMF.delr[j]*myMF.delc[i])
                                 cbc_STO[t,i,j,:] = conv_fact*cbc_STO_tmp[:,i,j,:]/(myMF.delr[j]*myMF.delc[i])
                                 cbc_RCH[t,i,j,:] = conv_fact*cbc_RCH_tmp[:,i,j,:]/(myMF.delr[j]*myMF.delc[i])
-                                cbc_WEL[t,i,j,:] = conv_fact*cbc_WEL_tmp[:,i,j,:]/(myMF.delr[j]*myMF.delc[i])
+                                if myMF.wel_yn == 1:
+                                    cbc_WEL[t,i,j,:] = conv_fact*cbc_WEL_tmp[:,i,j,:]/(myMF.delr[j]*myMF.delc[i])
                     t += 1
-            del cbc_DRN_tmp, cbc_STO_tmp, cbc_RCH_tmp, cbc_WEL_tmp
+            del cbc_DRN_tmp, cbc_STO_tmp, cbc_RCH_tmp
+            if myMF.wel_yn == 1:
+                del cbc_WEL_tmp
         else:
             h_MF = h5_MF['heads']
             cbc_DRN_tmp = h5_MF['cbc'][:,imfDRN,:,:,:]
             cbc_STO_tmp = h5_MF['cbc'][:,imfSTO,:,:,:]
             cbc_RCH_tmp = h5_MF['cbc_uzf'][:,imfRCH,:,:,:]
-            cbc_WEL_tmp = h5_MF['cbc'][:,imfWEL,:,:,:]
+            if myMF.wel_yn == 1:
+                cbc_WEL_tmp = h5_MF['cbc'][:,imfWEL,:,:,:]
             if myMF.reggrid == 1:
                 cbc_DRN[:,:,:,:] = conv_fact*cbc_DRN_tmp[:,:,:]/(myMF.delr[0]*myMF.delc[0])
                 cbc_STO[:,:,:,:] = conv_fact*cbc_STO_tmp[:,:,:]/(myMF.delr[0]*myMF.delc[0])
                 cbc_RCH[:,:,:,:] = conv_fact*cbc_RCH_tmp[:,:,:]/(myMF.delr[0]*myMF.delc[0])
-                cbc_WEL[:,:,:,:] = conv_fact*cbc_WEL_tmp[:,:,:]/(myMF.delr[0]*myMF.delc[0])
+                if myMF.wel_yn == 1:
+                    cbc_WEL[:,:,:,:] = conv_fact*cbc_WEL_tmp[:,:,:]/(myMF.delr[0]*myMF.delc[0])
             else:
                 cbc_tmp = h5_MF['cbc'][:,:,i,j,:]
                 for i in range(myMF.nrow):
@@ -887,8 +907,11 @@ try:
                         cbc_DRN[:,i,j,:] = conv_fact*cbc_DRN_tmp[i,j,:]/(myMF.delr[0]*myMF.delc[0])
                         cbc_STO[:,i,j,:] = conv_fact*cbc_STO_tmp[i,j,:]/(myMF.delr[0]*myMF.delc[0])
                         cbc_RCH[:,i,j,:] = conv_fact*cbc_RCH_tmp[i,j,:]/(myMF.delr[0]*myMF.delc[0])
-                        cbc_WEL[:,i,j,:] = conv_fact*cbc_WEL_tmp[i,j,:]/(myMF.delr[0]*myMF.delc[0])
-                del cbc_DRN_tmp, cbc_STO_tmp, cbc_RCH_tmp, cbc_WEL_tmp
+                        if myMF.wel_yn == 1:
+                            cbc_WEL[:,i,j,:] = conv_fact*cbc_WEL_tmp[i,j,:]/(myMF.delr[0]*myMF.delc[0])
+                del cbc_DRN_tmp, cbc_STO_tmp, cbc_RCH_tmp
+                if myMF.wel_yn == 1:
+                    del cbc_WEL_tmp
         h_MF_m = np.ma.masked_values(h_MF, myMF.hnoflo, atol = 0.09)
         del h_MF
         h5_MF.close()
