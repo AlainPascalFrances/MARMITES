@@ -822,10 +822,11 @@ class MF():
                 layer_row_column_Q.append([])
                 for r in range(self.nrow):
                     for c in range(self.ncol):
-                        if isinstance(wel_array, float):
-                            layer_row_column_Q[n].append([1,r+1,c+1,-wel_array*self.delr[c]*self.delc[r]])
-                        else:
-                            layer_row_column_Q[n].append([1,r+1,c+1,-(wel_array[n][r][c])*self.delr[c]*self.delc[r]])
+                        if np.abs(ibound[r][c][:]).sum() != 0:
+                            if isinstance(wel_array, float):
+                                layer_row_column_Q[n].append([1,r+1,c+1,-wel_array*self.delr[c]*self.delc[r]])
+                            else:
+                                layer_row_column_Q[n].append([1,r+1,c+1,-(wel_array[n][r][c])*self.delr[c]*self.delc[r]])
 
         # 2 - create the modflow packages files
         print '\nMODFLOW files writing'

@@ -40,7 +40,7 @@ print '\n##############\nMARMITES started!\n%s\n##############' % mpl.dates.num2
 # read input file (called _input.ini in the MARMITES workspace
 # the first character on the first line has to be the character used to comment
 # the file can contain any comments as the user wish, but the sequence of the input has to be respected
-MM_ws = r'E:\00code_ws\00_TESTS\MARMITESv3_r13c6l2'
+MM_ws = r'E:\00code_ws\SARDON' # 00_TESTS\MARMITESv3_r13c6l2'
 MM_fn = '__inputMM.ini'
 
 inputFile = MMproc.readFile(MM_ws,MM_fn)
@@ -444,7 +444,7 @@ try:
         if myMF.wel_yn == 1:
             imfWEL = cbc_nam.index('WELLS')
         else:
-            print 'WARNING!\nThe WEL package should be active to take into account ETg!'
+            print '\nWARNING!\nThe WEL package should be active to take into account ETg!'
         if myMF.uzf_yn == 1:
             imfEXF = cbc_uzf_nam.index('SURFACE LEAKAGE')
             imfRCH = cbc_uzf_nam.index('UZF RECHARGE')
@@ -667,9 +667,11 @@ try:
             h5_MM.close()
 
             # CHECK MM amd MF CONVERG.
-            h_MF_average = np.ma.average(np.ma.masked_values(h_MF_per, myMF.hnoflo, atol = 0.09))
+            h_MF_per_m = np.ma.masked_values(np.ma.masked_values(h_MF_per, myMF.hdry, atol = 1E+25), myMF.hnoflo, atol = 0.09)
+            del h_MF_per
+            h_MF_average = np.ma.average(h_MF_per_m)
             h_diff.append(h_MF_average - h_pSP)
-            h_diff_surf = np.ma.masked_values(h_MF_per, myMF.hnoflo, atol = 0.09) - np.ma.masked_values(h_pSP_all, myMF.hnoflo, atol = 0.09)
+            h_diff_surf = h_MF_per_m - h_pSP_all
             h_diff_all_max = np.nanmax(h_diff_surf)
             h_diff_all_min = np.nanmin(h_diff_surf)
             if abs(h_diff_all_max)>abs(h_diff_all_min):
@@ -679,8 +681,8 @@ try:
             LOOP += 1
             LOOPlst.append(LOOP)
             h_pSP = h_MF_average
-            h_pSP_all = h_MF_per
-            del h_MF_per
+            h_pSP_all = h_MF_per_m
+            del h_MF_per_m
             if np.absolute(h_diff[LOOP])>0.0:
                 h_diff_log.append(np.log10(np.absolute(h_diff[LOOP])))
                 h_diff_all_log.append(np.log10(np.absolute(h_diff_all[LOOP])))
