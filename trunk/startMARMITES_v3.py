@@ -40,7 +40,7 @@ print '\n##############\nMARMITES started!\n%s\n##############' % mpl.dates.num2
 # read input file (called _input.ini in the MARMITES workspace
 # the first character on the first line has to be the character used to comment
 # the file can contain any comments as the user wish, but the sequence of the input has to be respected
-MM_ws = r'E:\00code_ws\00_TESTS\MARMITESv3_r13c6l2'
+MM_ws = r'E:\00code_ws\SARDON'
 MM_fn = '__inputMM.ini'
 
 inputFile = MMproc.readFile(MM_ws,MM_fn)
@@ -316,7 +316,6 @@ try:
 
     gridSsw = MM_PROCESS.inputEsriAscii(grid_fn = gridSsw_fn,
      datatype = float)
-
 
     ##gridIRR = MM_PROCESS.inputEsriAscii(grid_fn                  = gridIRR_fn)
 

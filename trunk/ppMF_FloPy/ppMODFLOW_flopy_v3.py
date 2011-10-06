@@ -252,11 +252,13 @@ class MF():
                 l += 1
                 self.surfdep = float(inputFile[l].strip())
                 l += 1
-                self.eps = float(inputFile[l].strip())
+                self.iuzfbnd = [inputFile[l].strip()]
                 l += 1
-                self.thts = float(inputFile[l].strip())
+                self.eps = [inputFile[l].strip()]
                 l += 1
-                self.thti = float(inputFile[l].strip())
+                self.thts = [inputFile[l].strip()]
+                l += 1
+                self.thti = [inputFile[l].strip()]
                 self.row_col_iftunit_iuzfopt = []
                 self.uzfbud_ext = []
                 if self.nuzgag > 0:
@@ -639,15 +641,18 @@ class MF():
 
         print "\nImporting ESRI ASCII files to initialize the MODFLOW packages"
 
-        top = checkarray(self.nrow, self.ncol, self.nlay, MF_ws, self.top)
-        botm = checkarray(self.nrow, self.ncol, self.nlay, MF_ws, self.botm)
-        ibound = checkarray(self.nrow, self.ncol, self.nlay, MF_ws, self.ibound)
-        iuzfbnd = list(np.asarray(np.asarray(ibound)[:,:,0] > 0.0, dtype = np.int))
-        strt = checkarray(self.nrow, self.ncol, self.nlay, MF_ws, self.strt)
-        hk = checkarray(self.nrow, self.ncol, self.nlay, MF_ws, self.hk)
-        vka = checkarray(self.nrow, self.ncol, self.nlay, MF_ws, self.vka)
-        ss = checkarray(self.nrow, self.ncol, self.nlay, MF_ws, self.ss)
-        sy = checkarray(self.nrow, self.ncol, self.nlay, MF_ws, self.sy)
+        top     = checkarray(self.nrow, self.ncol, self.nlay, MF_ws, self.top)
+        botm    = checkarray(self.nrow, self.ncol, self.nlay, MF_ws, self.botm)
+        ibound  = checkarray(self.nrow, self.ncol, self.nlay, MF_ws, self.ibound)
+        strt    = checkarray(self.nrow, self.ncol, self.nlay, MF_ws, self.strt)
+        hk      = checkarray(self.nrow, self.ncol, self.nlay, MF_ws, self.hk)
+        vka     = checkarray(self.nrow, self.ncol, self.nlay, MF_ws, self.vka)
+        ss      = checkarray(self.nrow, self.ncol, self.nlay, MF_ws, self.ss)
+        sy      = checkarray(self.nrow, self.ncol, self.nlay, MF_ws, self.sy)
+        iuzfbnd = checkarray(self.nrow, self.ncol, self.nlay, MF_ws, self.iuzfbnd)
+        eps     = checkarray(self.nrow, self.ncol, self.nlay, MF_ws, self.eps)
+        thts    = checkarray(self.nrow, self.ncol, self.nlay, MF_ws, self.thts)
+        thti    = checkarray(self.nrow, self.ncol, self.nlay, MF_ws, self.thti)
 
         # FINF
         if self.uzf_yn == 1:
@@ -809,7 +814,7 @@ class MF():
             ghb.write_file()
         # uzf initialization
         if self.uzf_yn == 1:
-            uzf = mf.mfuzf1(mfmain, nuztop = self.nuztop, iuzfopt = self.iuzfopt, irunflg = self.irunflg, ietflg = self.ietflg, iuzfcb1 = self.iuzfcb1, iuzfcb2 = self.iuzfcb2, ntrail2 = self.ntrail2, nsets = self.nsets, nuzgag = self.nuzgag, surfdep = self.surfdep, iuzfbnd = iuzfbnd, eps = self.eps, thts = self.thts, thti = self.thti, row_col_iftunit_iuzfopt = self.row_col_iftunit_iuzfopt, finf = finf_array, extension = self.ext_uzf, uzfbud_ext = self.uzfbud_ext)
+            uzf = mf.mfuzf1(mfmain, nuztop = self.nuztop, iuzfopt = self.iuzfopt, irunflg = self.irunflg, ietflg = self.ietflg, iuzfcb1 = self.iuzfcb1, iuzfcb2 = self.iuzfcb2, ntrail2 = self.ntrail2, nsets = self.nsets, nuzgag = self.nuzgag, surfdep = self.surfdep, iuzfbnd = iuzfbnd, eps = eps, thts = thts, thti = thti, row_col_iftunit_iuzfopt = self.row_col_iftunit_iuzfopt, finf = finf_array, extension = self.ext_uzf, uzfbud_ext = self.uzfbud_ext)
             uzf.write_file()
         # output control initialization
         oc = mf.mfoc(mfmain, ihedfm = self.ihedfm, iddnfm = self.iddnfm, item2 = [[0,1,1,1]], item3 = [[0,0,1,0]], extension = [self.ext_oc,self.ext_heads,self.ext_ddn,self.ext_cbc])
