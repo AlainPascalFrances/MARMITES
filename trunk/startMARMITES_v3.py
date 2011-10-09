@@ -40,7 +40,7 @@ print '\n##############\nMARMITES started!\n%s\n##############' % mpl.dates.num2
 # read input file (called _input.ini in the MARMITES workspace
 # the first character on the first line has to be the character used to comment
 # the file can contain any comments as the user wish, but the sequence of the input has to be respected
-MM_ws = r'E:\00code_ws\SARDON' # 00_TESTS\MARMITESv3_r13c6l2'
+MM_ws = r'E:\00code_ws\SARDON'  # 00_TESTS\MARMITESv3_r13c6l2'  SARDON'
 MM_fn = '__inputMM.ini'
 
 inputFile = MMproc.readFile(MM_ws,MM_fn)
@@ -239,7 +239,7 @@ try:
 
     print'\n##############'
     print 'MODFLOW initialization'
-    myMF = ppMF.MF(MF_ws, MF_ini_fn, out = 'MM', numDays = numDays)
+    myMF = ppMF.MF(MM_ws, MF_ws, MF_ini_fn, xllcorner, yllcorner, numDays = numDays)
 
     # ####   SUMMARY OF MODFLOW READINGS   ####
     # active cells in layer 1_____________________ibound[0]
@@ -264,7 +264,7 @@ try:
         print 'FATAL ERROR!\nThe first layer cannot be confined type!\nChange your parameter laytyp in the MODFLOW lpf package.\n(see USGS Open-File Report 00-92)'
         sys.exit()
     if myMF.itmuni != 4:
-        print 'FATAL ERROR! Time unit is not in days!'
+        print 'FATAL ERROR!\nTime unit is not in days!'
         sys.exit()
 
     # #############################
@@ -284,43 +284,30 @@ try:
     print 'MARMITESunsat initialization'
 
     # MARMITES INITIALIZATION
-    MM_PROCESS = MMproc.PROCESS(MM_ws                = MM_ws,
-                            MF_ws                    = MF_ws,
-                            nrow                     = myMF.nrow,
-                            ncol                     = myMF.ncol,
-                            xllcorner                = xllcorner,
-                            yllcorner                = yllcorner,
-                            cellsizeMF               = myMF.delr[0],
-                            nstp                     = myMF.nstp,
-                            hnoflo                   = myMF.hnoflo
-                            )
     MM_UNSAT = MMunsat.UNSAT(hnoflo = myMF.hnoflo)
     MM_SATFLOW = MMunsat.SATFLOW()
 
-    ibound = np.zeros((myMF.nrow,myMF.ncol), dtype = int)
-    ibound_path = os.path.join(MF_ws, myMF.ibound[0])
-    MM_PROCESS.convASCIIraster2array(ibound_path, ibound)
-    ncell = (ibound[:,:]!=0).sum()
+    ncell = (np.asarray(myMF.ibound)[:,:,0] != 0).sum()
 
     # READ input ESRI ASCII rasters # missing gridIRR_fn
     print "\nImporting ESRI ASCII files to initialize MARMITES..."
-    gridMETEO = MM_PROCESS.inputEsriAscii(grid_fn = gridMETEO_fn, datatype = int)
+    gridMETEO = myMF.MM_PROCESS.inputEsriAscii(grid_fn = gridMETEO_fn, datatype = int)
 
-    gridSOIL = MM_PROCESS.inputEsriAscii(grid_fn = gridSOIL_fn, datatype = int)
+    gridSOIL = myMF.MM_PROCESS.inputEsriAscii(grid_fn = gridSOIL_fn, datatype = int)
 
-    gridSOILthick = MM_PROCESS.inputEsriAscii(grid_fn = gridSOILthick_fn,
+    gridSOILthick = myMF.MM_PROCESS.inputEsriAscii(grid_fn = gridSOILthick_fn,
      datatype = float)
 
-    gridSshmax = MM_PROCESS.inputEsriAscii(grid_fn = gridSshmax_fn,
+    gridSshmax = myMF.MM_PROCESS.inputEsriAscii(grid_fn = gridSshmax_fn,
      datatype = float)
 
-    gridSsw = MM_PROCESS.inputEsriAscii(grid_fn = gridSsw_fn,
+    gridSsw = myMF.MM_PROCESS.inputEsriAscii(grid_fn = gridSsw_fn,
      datatype = float)
 
-    ##gridIRR = MM_PROCESS.inputEsriAscii(grid_fn                  = gridIRR_fn)
+    ##gridIRR = myMF.MM_PROCESS.inputEsriAscii(grid_fn                  = gridIRR_fn)
 
     # READ input time series and parameters   # missing IRR_fn
-    gridVEGarea, RFzonesTS, E0zonesTS, PETvegzonesTS, RFevegzonesTS, PEsoilzonesTS, inputDate = MM_PROCESS.inputTS(
+    gridVEGarea, RFzonesTS, E0zonesTS, PETvegzonesTS, RFevegzonesTS, PEsoilzonesTS, inputDate = myMF.MM_PROCESS.inputTS(
                                     NMETEO                   = NMETEO,
                                     NVEG                     = NVEG,
                                     NSOIL                    = NSOIL,
@@ -333,28 +320,13 @@ try:
                                     ) # IRR_fn
 
     # SOIL PARAMETERS
-    _nsl, _nam_soil, _st, _slprop, _Sm, _Sfc, _Sr, _Su_ini, _Ks = MM_PROCESS.inputSoilParam(MM_ws = MM_ws, SOILparam_fn = SOILparam_fn, NSOIL = NSOIL)
+    _nsl, _nam_soil, _st, _slprop, _Sm, _Sfc, _Sr, _Su_ini, _Ks = myMF.MM_PROCESS.inputSoilParam(MM_ws = MM_ws, SOILparam_fn = SOILparam_fn, NSOIL = NSOIL)
     _nslmax = max(_nsl)
-
-    try:
-        top_l0 = float(myMF.top[0])
-        top_l0_array = np.ones((myMF.nrow,myMF.ncol))*top_l0
-        botm_l0 = float(myMF.botm[0])
-        botm_l0_array = np.ones((myMF.nrow,myMF.ncol))*botm_l0
-    except:
-        if isinstance(myMF.top[0], str):
-            top_l0_path = os.path.join(MF_ws, myMF.top[0])
-            top_l0_array = np.zeros((myMF.nrow,myMF.ncol))
-            top_l0_array = MM_PROCESS.convASCIIraster2array(top_l0_path, top_l0_array)
-        if isinstance(myMF.botm[0], str):
-            botm_l0_path = os.path.join(MF_ws, myMF.botm[0])
-            botm_l0_array = np.zeros((myMF.nrow,myMF.ncol))
-            botm_l0_array = MM_PROCESS.convASCIIraster2array(botm_l0_path, botm_l0_array)
 
     # READ observations time series (heads and soil moisture)
     if obsCHECK==1:
         print "\nReading observations time series (hydraulic heads and soil moisture)..."
-        obs, outpathname, obs_h, obs_S = MM_PROCESS.inputObs(
+        obs, outpathname, obs_h, obs_S = myMF.MM_PROCESS.inputObs(
                                          MM_ws            = MM_ws,
                                          inputObs_fn      = inputObs_fn,
                                          inputObsHEADS_fn = inputObsHEADS_fn,
@@ -399,7 +371,7 @@ try:
         obs = None
 
     # compute thickness, top and bottom elevation of each soil layer
-    TopAquif = top_l0_array*1000.0 # conversion from m to mm
+    TopAquif = np.asarray(myMF.top) * 1000.0   # conversion from m to mm
     # topography elevation
     TopSoil = TopAquif + gridSOILthick*1000.0
 
@@ -424,7 +396,7 @@ try:
             s = sys.stdout
             report = open(report_fn, 'a')
             sys.stdout = report
-        myMF.ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, finf_MM = (h5_MM_fn, 'finf'), wel_MM = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks, numDays = numDays)
+        myMF.ppMF(MM_ws, MF_ws, MF_ini_fn, finf_MM = (h5_MM_fn, 'finf'), wel_MM = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks, numDays = numDays)
 
         h5_MF = h5py.File(myMF.h5_MF_fn)
 
@@ -450,16 +422,19 @@ try:
             imfRCH = cbc_uzf_nam.index('UZF RECHARGE')
         if myMF.rch_yn == 1:
             imfRCH = cbc_nam.index('RECHARGE')
-            print '\nMM has to be run together with the UZF1 package of MODFLOW 2005, thus the RCH package should be desactivacted!\nExisting MM.'
+            print '\nFATAL ERROR!\nMM has to be run together with the UZF1 package of MODFLOW 2005, thus the RCH package should be desactivacted!\nExisting MM.'
             sys.exit()
 
         timeendMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
         durationMF +=  timeendMF-timestartMF
 
 except StandardError, e:  #Exception
-    print '\nERROR! Abnormal MM run interruption in the initialization!\nError description:'
+    print '\nFATAL ERROR!\nAbnormal MM run interruption in the initialization!\nError description:'
     traceback.print_exc(file=sys.stdout)
-    myMF.h5_MF_fn = None
+    try:
+        myMF.h5_MF_fn = None
+    except:
+        pass
 #    traceback.print_exc(limit=1, file=sys.stdout)
     timeend = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
     duration += (timeend-timestart)
@@ -498,7 +473,7 @@ try:
             print 'MARMITESunsat RUN'
 
             # SOIL PARAMETERS
-            _nsl, _nam_soil, _st, _slprop, _Sm, _Sfc, _Sr, _Su_ini, _Ks = MM_PROCESS.inputSoilParam(MM_ws = MM_ws, SOILparam_fn = SOILparam_fn, NSOIL = NSOIL)
+            _nsl, _nam_soil, _st, _slprop, _Sm, _Sfc, _Sr, _Su_ini, _Ks = myMF.MM_PROCESS.inputSoilParam(MM_ws = MM_ws, SOILparam_fn = SOILparam_fn, NSOIL = NSOIL)
             _nslmax = max(_nsl)
 
             # ###############
@@ -604,7 +579,7 @@ try:
                                                          Su_ini  = Su_ini_tmp,
                                                          Ss_ini  = Ss_ini_tmp,
                                                          Rp_ini  = Rp_ini_tmp_array[i,j,:],
-                                                         botm_l0 = botm_l0_array[i,j],
+                                                         botm_l0 = myMF.botm[0][i,j],
                                                          TopSoilLay   = TopSoilLay,
                                                          BotSoilLay   = BotSoilLay,
                                                          Tl      = Tl,
@@ -722,7 +697,7 @@ try:
                 s = sys.stdout
                 report = open(report_fn, 'a')
                 sys.stdout = report
-            myMF.ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, finf_MM = (h5_MM_fn, 'finf'), wel_MM = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks, numDays = numDays)
+            myMF.ppMF(MM_ws, MF_ws, MF_ini_fn, finf_MM = (h5_MM_fn, 'finf'), wel_MM = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks, numDays = numDays)
 
             h5_MF = h5py.File(myMF.h5_MF_fn)
 
@@ -803,13 +778,13 @@ try:
                 s = sys.stdout
                 report = open(report_fn, 'a')
                 sys.stdout = report
-            myMF.ppMF(MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, finf_MM = (h5_MM_fn, 'finf'), wel_MM = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks, numDays = numDays)
+            myMF.ppMF(MM_ws, MF_ws, MF_ini_fn, finf_MM = (h5_MM_fn, 'finf'), wel_MM = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks, numDays = numDays)
 
             timeendMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
             durationMF += (timeendMF-timestartMF)
 
 except StandardError, e:  #Exception
-    print '\nERROR! Abnormal MM run interruption in the MM/MF loop!\nError description:'
+    print '\nFATAL ERROR!\nAbnormal MM run interruption in the MM/MF loop!\nError description:'
     myMF.h5_MF_fn = None
     traceback.print_exc(file=sys.stdout)
     timeend = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
@@ -928,8 +903,7 @@ try:
         h_MF_m = np.ma.masked_values(h_MF, myMF.hnoflo, atol = 0.09)
         del h_MF
         h5_MF.close()
-        top_l0_array_m = np.ma.masked_values(top_l0_array, myMF.hnoflo, atol = 0.09)
-        del top_l0_array
+        top_m = np.ma.masked_values(myMF.top, myMF.hnoflo, atol = 0.09)
         index_cbc_uzf = [imfRCH]
         if myMF.wel_yn == 1:
             index_cbc = [imfSTO, imfDRN, imfWEL]
@@ -939,8 +913,7 @@ try:
         h_MF_m = np.zeros((sum(myMF.perlen), myMF.nrow, myMF.ncol, myMF.nlay))
         cbc_DRN = cbc_STO = cbc_RCH = cbc_WEL = np.zeros((sum(myMF.perlen), myMF.nrow, myMF.ncol, myMF.nlay))
         imfDRN = imfSTO = imfRCH = imfWEL = 0
-        top_l0_array_m = np.zeros((myMF.nrow, myMF.ncol))
-        del top_l0_array
+        top_m = np.zeros((myMF.nrow, myMF.ncol))
 
     # computing range for plotting
     h_MF_m = np.ma.masked_values(h_MF_m, myMF.hdry, atol = 1E+25)
@@ -1110,9 +1083,9 @@ try:
                 obs_S_tmp = obs_h[o][0,:]
             else:
                 obs_S_tmp = []
-            MM_PROCESS.ExportResultsMM(i, j, inputDate, _nslmax, MM, index, MM_S, index_S, cbc_RCH[:,i,j,0], -cbc_WEL[:,i,j,0], h_satflow, h_MF_m[:,i,j,l], obs_h_tmp, obs_S_tmp, outFileExport[o], obs.keys()[o])
+            myMF.MM_PROCESS.ExportResultsMM(i, j, inputDate, _nslmax, MM, index, MM_S, index_S, cbc_RCH[:,i,j,0], -cbc_WEL[:,i,j,0], h_satflow, h_MF_m[:,i,j,l], obs_h_tmp, obs_S_tmp, outFileExport[o], obs.keys()[o])
             outFileExport[o].close()
-            MM_PROCESS.ExportResultsPEST(i, j, inputDate, _nslmax, MM[:,index.get('iHEADScorr')], obs_h_tmp, obs_S_tmp, outPESTheads, outPESTsm, obs.keys()[o], MM_S[:,:,index_S.get('iSu_pc')])
+            myMF.MM_PROCESS.ExportResultsPEST(i, j, inputDate, _nslmax, MM[:,index.get('iHEADScorr')], obs_h_tmp, obs_S_tmp, outPESTheads, outPESTsm, obs.keys()[o], MM_S[:,:,index_S.get('iSu_pc')])
             # plot
             if plot_out == 1:
                 plt_title = obs.keys()[o]
@@ -1195,7 +1168,7 @@ try:
         outPESTheads.close()
         outPESTsm.close()
         del obs, obs_h, obs_S
-    del MM_PROCESS, cbc_STO, cbc_RCH, cbc_WEL
+    del cbc_STO, cbc_RCH, cbc_WEL
 
     # plot MM output
     if plot_out == 1 and os.path.exists(h5_MM_fn):
@@ -1303,7 +1276,7 @@ try:
         del TSlst
 
     del h_MF_m, cbc_DRN
-    del top_l0_array_m, gridSOIL, inputDate
+    del gridSOIL, inputDate
     del hmaxMF, hminMF, hmax, hmin, hdiff, DRNmax, DRNmin, cbcmax, cbcmin
 
     timeendExport = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
@@ -1319,8 +1292,7 @@ try:
     print ('\nOutput written in folder: \n%s\n##############\n') % MM_ws
 
 except StandardError, e:  #Exception
-    print ('\n##############\nMARMITES ERROR!')
-    print '\nAbnormal MM run interruption in the export phase!\nError description:'
+    print ('\nFATAL ERROR!\nMM run interruption in the export phase!\nError description:')
     traceback.print_exc(file=sys.stdout)
 #    traceback.print_exc(limit=1, file=sys.stdout)
     try:

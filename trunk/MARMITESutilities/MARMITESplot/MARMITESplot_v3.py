@@ -122,7 +122,7 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     plt.grid(True)
     plt.ylabel('mm', fontsize=10)
     ax1.xaxis.set_major_formatter(monthsFmt)
-    ax1.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%1.1f'))
+    ax1.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2f'))
 
     ax2=fig.add_subplot(10,1,2, sharex=ax1)
     plt.setp(ax2.get_xticklabels(), visible=False)
@@ -131,7 +131,6 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     plt.plot_date(DateInput,Es,'r-', c='deepskyblue', linewidth=0.75, label = 'Es')
     plt.bar(DateInput, POND, color='lightblue', linewidth=0, align = 'center', label = 'Ss')
     plt.bar(DateInput, dPOND, color='blue', width=0.60, linewidth=0, align = 'center', label = r'$\Delta$Ss')
-    ax2.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%1.1f'))
     plt.xlim(DateInput[0]-1,DateInput[len(P)-1]+1)
     plt.ylabel('mm', fontsize=10)
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale)
@@ -140,6 +139,7 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     plt.setp(ltext, fontsize=8)
     plt.grid(True)
     ax2.xaxis.set_major_formatter(monthsFmt)
+    ax2.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2f'))
 
     Eu_tot = []
     for e in Eu:
@@ -164,7 +164,7 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     plt.grid(True)
     plt.ylabel('mm', fontsize=10)
     ax3.xaxis.set_major_formatter(monthsFmt)
-    ax3.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%1.1f'))
+    ax3.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2f'))
 
     Tu_tot = []
     for t in Tu:
@@ -189,7 +189,7 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     plt.grid(True)
     plt.ylabel('mm', fontsize=10)
     ax4.xaxis.set_major_formatter(monthsFmt)
-    ax4.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%1.1f'))
+    ax4.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2f'))
 
     ax5=fig.add_subplot(10,1,5, sharex=ax1)
     plt.setp(ax5.get_xticklabels(), visible=False)
@@ -207,7 +207,7 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     plt.grid(True)
     plt.ylabel('mm', fontsize=10)
     ax5.xaxis.set_major_formatter(monthsFmt)
-    ax5.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%1.1f'))
+    ax5.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2f'))
 
     ax6=fig.add_subplot(10,1,6, sharex=ax1)
     plt.setp(ax6.get_xticklabels(), visible=False)
@@ -228,7 +228,6 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     ybuffer=0.1*(max(Sm)-min(Sr))
     plt.ylim(min(Sr) - ybuffer,max(Sm) + ybuffer)
     plt.ylabel('%', fontsize=10)
-    ax6.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%1.2f'))
     # legend
     lbl_Spcobs = lbl_Sobs + lbl_S
     plt.legend(lbl_Spcobs, loc=0, labelspacing=lblspc, markerscale=mkscale)
@@ -237,6 +236,7 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     plt.setp(ltext, fontsize=8 )
     plt.grid(True)
     ax6.xaxis.set_major_formatter(monthsFmt)
+    ax6.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2f'))
 
     ax7=fig.add_subplot(10,1,7, sharex=ax1)
     plt.setp(ax7.get_xticklabels(), fontsize=8)
@@ -251,8 +251,6 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     plt.plot_date(DateInput,h_SF,'-', color = 'r')
     ax7.set_xticklabels(DateInput)
     plt.xlim(DateInput[0]-1,DateInput[len(P)-1]+1)
-    ax7.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.1f'))
-    ax7.xaxis.set_major_formatter(monthsFmt)
     labels=ax7.get_xticklabels()
     plt.setp(labels, 'rotation', 90)
     ybuffer=0.1*(hmax-hmin)
@@ -266,6 +264,8 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     plt.setp(ltext, fontsize=8 )
     plt.xlabel('Date', fontsize=10)
     plt.grid(True)
+    ax7.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2f'))
+    ax7.xaxis.set_major_formatter(monthsFmt)
 
     ax8b=fig.add_subplot(20,1,16, sharex=ax1)
     plt.setp(ax8b.get_xticklabels(), visible=False)
@@ -293,7 +293,7 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8 )
     ax8b.xaxis.set_major_formatter(monthsFmt)
-    ax8b.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2g'))
+    ax8b.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2f'))
 
     ax9a=fig.add_subplot(20,1,17, sharex=ax1)
     plt.setp(ax9a.get_xticklabels(), visible=False)
@@ -330,7 +330,7 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8 )
     ax9b.xaxis.set_major_formatter(monthsFmt)
-    ax9b.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2g'))
+    ax9b.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2f'))
 
     ax10a=fig.add_subplot(20,1,19, sharex=ax1)
     plt.setp(ax10a.get_xticklabels(), visible=False)
@@ -353,7 +353,7 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8 )
     ax10a.xaxis.set_major_formatter(monthsFmt)
-    ax10a.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2g'))
+    ax10a.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2f'))
 
     ax10b=fig.add_subplot(20,1,20, sharex=ax1)
     plt.setp(ax10b.get_xticklabels(), visible=False)
@@ -366,7 +366,7 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     # y axis
     plt.ylim(0,np.max(S1)*1.05)
     plt.ylabel('mm', fontsize=10)
-    ax10b.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%1.1f'))
+    ax10b.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2f'))
     # legend
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale)
     leg = plt.gca().get_legend()

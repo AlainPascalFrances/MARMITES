@@ -57,11 +57,38 @@ class PROCESS:
 
         grid_out=np.zeros([self.nrow,self.ncol], dtype = datatype)
 
-        grid_out=self.convASCIIraster2array(grid_fn,grid_out)
+        grid_out = self.convASCIIraster2array(grid_fn,grid_out)
         return grid_out
         del grid_out
 
     ######################
+
+    def checkarray(self, var):
+        try:
+            if len(var)>1:
+                lst_out = []
+                for v in var:
+                    lst_out.append(float(v))
+            else:
+                lst_out = float(var[0])
+        except:
+            array = np.zeros((self.nrow,self.ncol,len(var)))
+            l = 0
+            for v in var:
+                if isinstance(v, str):
+                    array_path = os.path.join(self.MF_ws, v)
+                    array[:,:,l] = self.convASCIIraster2array(array_path, array[:,:,l])
+                else:
+                    print'\nFATAL ERROR!\nMODFLOW ini file incorrect, check files or values %s' % var
+                l += 1
+            if len(var)>1:
+                lst_out = list(array)
+            else:
+                lst_out = list(array[:,:,0])
+
+        return lst_out
+
+######################
 
     def convASCIIraster2array(self, filenameIN, arrayOUT):
         '''
@@ -109,7 +136,7 @@ class PROCESS:
 
         # verify grid consistency between MODFLOW and ESRI ASCII
         if arrayOUT.shape[0] != self.nrow or arrayOUT.shape[1] != self.ncol or self.cellsizeMF != cellsizeEsriAscii:
-            raise BaseException, "\nERROR! MODFLOW grid anf the ESRI ASCII grid from file %s don't correspond!.\nCheck the cell size and the number of rows, columns and cellsize." % filenameIN
+            raise BaseException, "\nFATAL ERROR!\nMODFLOW grid anf the ESRI ASCII grid from file %s don't correspond!.\nCheck the cell size and the number of rows, columns and cellsize." % filenameIN
 
         fin.close()
         del line, fin
@@ -146,7 +173,7 @@ class PROCESS:
 ##                  raise ValueError, 'The number of time steps in MF (%i) is not the same as the number of days (%i) of the input data (RF and PET).\n' % (ntotstp, int(len(inputDate)))
 ##        else:
 ##            if ntotstp > len(inputDate):
-##                print 'ERROR!\nThere is more time steps than days in your model, too inneficient!\nChange your parameters in the MODFLOW ini file.'
+##                print 'FATAL ERROR!\nThere is more time steps than days in your model, too inneficient!\nChange your parameters in the MODFLOW ini file.'
 ##                sys.exit()
 
         # READ input ESRI ASCII rasters vegetation
@@ -264,7 +291,7 @@ class PROCESS:
         for i in range(SOILzones):
             nsl.append(int(inputFile[i+1]))
             if nsl[i+1]<1:
-                raise ValueError, '\nERROR!\nThe model requires at least 1 soil layer.\nMARMITEs found %2d layer in soil %s' % (nsl[i+1],nam_soil[z])
+                raise ValueError, '\nFATAL ERROR!\nThe model requires at least 1 soil layer.\nMARMITEs found %2d layer in soil %s' % (nsl[i+1],nam_soil[z])
 
         # soil parameter definition for each soil type
         nslst = SOILzones+1
@@ -295,13 +322,13 @@ class PROCESS:
                 Ks[z].append(float(inputFile[nslst]))
                 nslst += 1
                 if not(Sm[z][ns]>Sfc[z][ns]>Sr[z][ns]) or not(Sm[z][ns]>=Si[z][ns]>=Sr[z][ns]):
-                    raise ValueError, '\nERROR!\nSoils parameters are not valid!\nThe conditions are Sm>Sfc>Sr and Sm>Si>Sr!'
+                    raise ValueError, '\nFATAL ERROR!\nSoils parameters are not valid!\nThe conditions are Sm>Sfc>Sr and Sm>Si>Sr!'
                     sys.exit()
             if sum(slprop[z][0:nsl[z+1]])>1:
-                raise ValueError, '\nERROR!\nThe sum of the soil layers proportion of %s is >1!\nCorrect your soil data input!\n' % nam_soil[z]
+                raise ValueError, '\nFATAL ERROR!\nThe sum of the soil layers proportion of %s is >1!\nCorrect your soil data input!\n' % nam_soil[z]
                 sys.exit()
             if sum(slprop[z][0:nsl[z+1]])<1:
-                raise ValueError, '\nERROR!\nThe sum of the soil layers proportion of %s is <1!\nCorrect your soil data input!\n' % nam_soil[z]
+                raise ValueError, '\nFATAL ERROR!\nThe sum of the soil layers proportion of %s is <1!\nCorrect your soil data input!\n' % nam_soil[z]
                 sys.exit()
 
         return nsl[1:len(nsl)], nam_soil, st, slprop, Sm, Sfc, Sr, Si, Ks
@@ -389,7 +416,7 @@ class PROCESS:
                     for l in range(_nslmax-len(obsValue)):
                         obsValue.append(self.hnoflo)
             except:
-                raise ValueError, '\nERROR!\n Format of observation file uncorrect!\n%s' % filename
+                raise ValueError, '\nFATAL ERROR!\nFormat of observation file uncorrect!\n%s' % filename
 ##            if MFtime_fn == None:
 ##                if obsDate[0]<inputDate[0]:
 ##                    print '\nWARNING!\n Observation data starting before RF and PET at %s,\n these obs data will not be plotted correctly'

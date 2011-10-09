@@ -24,7 +24,7 @@ import MARMITESprocess_v3 as MMproc
 
 #####################################
 class MF():
-    def __init__(self,MF_ws, MF_ini_fn, out = 'MF', numDays = -1):
+    def __init__(self, MM_ws, MF_ws, MF_ini_fn, xllcorner, yllcorner, numDays = -1):
 
         ''' read input file (called _input.ini in the MARMITES workspace
         the first character on the first line has to be the character used to comment
@@ -33,6 +33,8 @@ class MF():
         inputFile = MMproc.readFile(MF_ws, MF_ini_fn)
         l=0
         try:
+            self.xllcorner = xllcorner
+            self.yllcorner = yllcorner
             self.modelname =  str(inputFile[l].strip())
             l += 1
             self.namefile_ext = str(inputFile[l].strip())
@@ -127,7 +129,7 @@ class MF():
                     self.tsmult.append(int(tsmult_tmp[i]))
                     self.Ss_tr.append(str(Ss_tr_tmp[i]))
                     if self.nstp[i]>self.perlen[i]:
-                        print "ERROR!\nMM doesn't accept nstp < perlen!"
+                        print "FATAL ERROR!\nMM doesn't accept nstp < perlen!"
                         sys.exit()
                     if self.Ss_tr[i] == 'TR':
                         self.Ss_tr[i] = False
@@ -219,8 +221,10 @@ class MF():
             self.ext_heads = str(inputFile[l].strip())
             l += 1
             self.ext_ddn = str(inputFile[l].strip())
-            l += 1
             # pcg
+            l += 1
+            self.ext_pcg = str(inputFile[l].strip())
+            l += 1
             self.hclose = float(inputFile[l].strip())
             l += 1
             self.rclose = float(inputFile[l].strip())
@@ -228,7 +232,7 @@ class MF():
             # uzf
             l += 1
             self.uzf_yn = int(inputFile[l].strip())
-            if self.uzf_yn ==1 :
+            if self.uzf_yn == 1 :
                 l += 1
                 self.ext_uzf = str(inputFile[l].strip())
                 l += 1
@@ -259,7 +263,7 @@ class MF():
                 self.thts = [inputFile[l].strip()]
                 l += 1
                 self.thti = [inputFile[l].strip()]
-                self.row_col_iftunit_iuzfopt = []
+                self.row_col_iftunit_iuzopt = []
                 self.uzfbud_ext = []
                 if self.nuzgag > 0:
                     l += 1
@@ -272,24 +276,28 @@ class MF():
                     iuzopt = inputFile[l].split()
                     l += 1
                     for g in range(self.nuzgag):
-                        self.row_col_iftunit_iuzfopt.append([[int(iuzrow[g]),int(iuzcol[g]),int(iftunit[g]),int(iuzopt[g])]])
+                        self.row_col_iftunit_iuzopt.append([[int(iuzrow[g]),int(iuzcol[g]),int(iftunit[g]),int(iuzopt[g])]])
                         if iftunit[g]<0.0:
                             self.uzfbud_ext.append(self.ext_uzf + '_tot' + str(abs(int(iftunit[g]))))
                         else:
                             self.uzfbud_ext.append(self.ext_uzf + '_' + str(abs(int(iftunit[g]))))
                 self.finf_user = float(inputFile[l].strip())
+            else:
+                l += 20
             # wel
             l += 1
             self.wel_yn = int(inputFile[l].strip())
-            if self.wel_yn ==1 :
+            if self.wel_yn == 1 :
                 l += 1
                 self.ext_wel = str(inputFile[l].strip())
                 l += 1
                 self.wel_user = float(inputFile[l].strip())
+            else:
+                l += 2
             # ghb
             l += 1
             self.ghb_yn = int(inputFile[l].strip())
-            if self.ghb_yn ==1 :
+            if self.ghb_yn == 1 :
                 l += 1
                 self.ext_ghb = str(inputFile[l].strip())
                 l += 1
@@ -300,6 +308,8 @@ class MF():
                 self.ghb_cond = []
                 for i in range(self.nlay):
                     self.ghb_cond.append(inputFile[l].split()[i])
+            else:
+                l += 3
             # drn
             l += 1
             self.drn_yn = int(inputFile[l].strip())
@@ -314,6 +324,8 @@ class MF():
                 self.drn_cond = []
                 for i in range(self.nlay):
                         self.drn_cond.append(inputFile[l].split()[i])
+            else:
+                l += 3
             # rch
             l += 1
             self.rch_yn = int(inputFile[l].strip())
@@ -324,6 +336,8 @@ class MF():
                 self.nrchop = int(inputFile[l].strip())
                 l += 1
                 self.rch_user = float(inputFile[l].strip())
+            else:
+                l += 3
             # MF output
             l += 1
             self.MFout_yn = int(inputFile[l].strip())
@@ -333,17 +347,37 @@ class MF():
             sys.exit()
         del inputFile
 
+        self.MM_PROCESS = MMproc.PROCESS(MM_ws                = MM_ws,
+                                MF_ws                    = MF_ws,
+                                nrow                     = self.nrow,
+                                ncol                     = self.ncol,
+                                xllcorner                = self.xllcorner,
+                                yllcorner                = self.yllcorner,
+                                cellsizeMF               = self.delr[0],
+                                nstp                     = self.nstp,
+                                hnoflo                   = self.hnoflo
+                                )
+
+        # 1 - reaf asc file and convert in np.array
+        print "\nImporting ESRI ASCII files to initialize the MODFLOW packages"
+
+        self.top     = self.MM_PROCESS.checkarray(self.top)
+        self.botm    = self.MM_PROCESS.checkarray(self.botm)
+        self.ibound  = self.MM_PROCESS.checkarray(self.ibound)
+        if self.uzf_yn == 1:
+            self.iuzfbnd = self.MM_PROCESS.checkarray(self.iuzfbnd)
+
 #####################################
 
     def uzf_obs(self, obs):
         self.nuzgag += len(obs)
         n = 0
         for o in range(len(obs)):
-                self.row_col_iftunit_iuzfopt.append([[obs.get( obs.keys()[o])['i'], obs.get(obs.keys()[o])['j'], 200+n, 2]])
+                self.row_col_iftunit_iuzopt.append([[obs.get( obs.keys()[o])['i']+1, obs.get(obs.keys()[o])['j']+1, 200+n, 2]])
                 self.uzfbud_ext.append(self.ext_uzf + '_' + obs.keys()[o])
                 n += 1
 
-#####################################
+####################################
 
     def ppMFtime(self,MM_ws, MF_ws, inputDate_fn, inputZON_dTS_RF_fn, inputZON_dTS_PET_fn, inputZON_dTS_RFe_fn, inputZON_dTS_PE_fn, inputZON_dTS_E0_fn, NMETEO, NVEG, NSOIL):
 
@@ -589,36 +623,7 @@ class MF():
 
 #####################################
 
-    def ppMF(self, MM_ws, xllcorner, yllcorner, MF_ws, MF_ini_fn, finf_MM = "", finf_user = None, wel_MM = "", wel_user = None, report = None, verbose = 1, chunks = 0, numDays = -1):
-
-        ##################
-
-        def checkarray(nrow, ncol, nlay, MF_ws, var):
-            try:
-                if len(var)>1:
-                    lst_out = []
-                    for v in var:
-                        lst_out.append(float(v))
-                else:
-                    lst_out = float(var[0])
-            except:
-                array = np.zeros((nrow,ncol,len(var)))
-                l = 0
-                for v in var:
-                    if isinstance(v, str):
-                        array_path = os.path.join(MF_ws, v)
-                        array[:,:,l] = MM_PROCESS.convASCIIraster2array(array_path, array[:,:,l])
-                    else:
-                        print'\nERROR!\nMODFLOW ini file incorrect, check files or values %s' % var
-                    l += 1
-                if len(var)>1:
-                    lst_out = list(array)
-                else:
-                    lst_out = list(array[:,:,0])
-
-            return lst_out
-
-        ##################
+    def ppMF(self, MM_ws, MF_ws, MF_ini_fn, finf_MM = "", finf_user = None, wel_MM = "", wel_user = None, report = None, verbose = 1, chunks = 0, numDays = -1):
 
         if verbose == 0:
             print '--------------'
@@ -638,34 +643,18 @@ class MF():
             if self.rch_yn == 1:
                 rch_input = self.rch_user
 
-        MM_PROCESS = MMproc.PROCESS(MM_ws               = MM_ws,
-                                MF_ws                    = MF_ws,
-                                nrow                     = self.nrow,
-                                ncol                     = self.ncol,
-                                xllcorner                = xllcorner,
-                                yllcorner                = yllcorner,
-                                cellsizeMF               = self.delr[0],
-                                nstp                     = self.nstp,
-                                hnoflo                   = self.hnoflo
-                                )
-
         # 1 - reaf asc file and convert in np.array
-
         print "\nImporting ESRI ASCII files to initialize the MODFLOW packages"
 
-        top     = checkarray(self.nrow, self.ncol, self.nlay, MF_ws, self.top)
-        botm    = checkarray(self.nrow, self.ncol, self.nlay, MF_ws, self.botm)
-        ibound  = checkarray(self.nrow, self.ncol, self.nlay, MF_ws, self.ibound)
-        strt    = checkarray(self.nrow, self.ncol, self.nlay, MF_ws, self.strt)
-        hk      = checkarray(self.nrow, self.ncol, self.nlay, MF_ws, self.hk)
-        vka     = checkarray(self.nrow, self.ncol, self.nlay, MF_ws, self.vka)
-        ss      = checkarray(self.nrow, self.ncol, self.nlay, MF_ws, self.ss)
-        sy      = checkarray(self.nrow, self.ncol, self.nlay, MF_ws, self.sy)
+        strt    = self.MM_PROCESS.checkarray(self.strt)
+        hk      = self.MM_PROCESS.checkarray(self.hk)
+        vka     = self.MM_PROCESS.checkarray(self.vka)
+        ss      = self.MM_PROCESS.checkarray(self.ss)
+        sy      = self.MM_PROCESS.checkarray(self.sy)
         if self.uzf_yn == 1:
-            iuzfbnd = checkarray(self.nrow, self.ncol, self.nlay, MF_ws, self.iuzfbnd)
-            eps     = checkarray(self.nrow, self.ncol, self.nlay, MF_ws, self.eps)
-            thts    = checkarray(self.nrow, self.ncol, self.nlay, MF_ws, self.thts)
-            thti    = checkarray(self.nrow, self.ncol, self.nlay, MF_ws, self.thti)
+            eps     = self.MM_PROCESS.checkarray(self.eps)
+            thts    = self.MM_PROCESS.checkarray(self.thts)
+            thti    = self.MM_PROCESS.checkarray(self.thti)
 
         # FINF
         if self.uzf_yn == 1:
@@ -682,9 +671,9 @@ class MF():
                         finf_array.append(h5_finf[finf_input[1]][n])
                     h5_finf.close()
                 except:
-                    finf_array = finf_user
-                    print 'WARNING!\nNo valid UZF1 package file(s) provided, running MODFLOW using user-input UZF1infiltration value: %.3G' % finf_user
-                    finf_input = finf_user
+                    finf_array = self.finf_user
+                    print 'WARNING!\nNo valid UZF1 package file(s) provided, running MODFLOW using user-input UZF1infiltration value: %.3G' % self.finf_user
+                    finf_input = self.finf_user
 
         # WELL
         if self.wel_yn == 1:
@@ -701,9 +690,9 @@ class MF():
                         wel_array.append(h5_wel[wel_input[1]][n])
                     h5_wel.close()
                 except:
-                    wel_array = wel_user
-                    print 'WARNING!\nNo valid WEL package file(s) provided, running MODFLOW using user-input well value: %.3G' % wel_user
-                    wel_input = wel_user
+                    wel_array = self.wel_user
+                    print 'WARNING!\nNo valid WEL package file(s) provided, running MODFLOW using user-input well value: %.3G' % self.wel_user
+                    wel_input = self.wel_user
 
         # RCH
         if self.rch_yn == 1:
@@ -735,9 +724,9 @@ class MF():
                 drn_cond_array = np.zeros((self.nrow,self.ncol))
                 if isinstance(d, str):
                     drn_elev_path = os.path.join(MF_ws, self.drn_elev[l])
-                    drn_elev_array[:,:] = MM_PROCESS.convASCIIraster2array(drn_elev_path, drn_elev_array[:,:])
+                    drn_elev_array[:,:] = self.MM_PROCESS.convASCIIraster2array(drn_elev_path, drn_elev_array[:,:])
                     drn_cond_path = os.path.join(MF_ws, self.drn_cond[l])
-                    drn_cond_array[:,:] = MM_PROCESS.convASCIIraster2array(drn_cond_path, drn_cond_array[:,:])
+                    drn_cond_array[:,:] = self.MM_PROCESS.convASCIIraster2array(drn_cond_path, drn_cond_array[:,:])
                 else:
                     drn_elev_array[:,:] = self.drn_elev[l]
                     drn_cond_array[:,:] = self.drn_cond[l]
@@ -745,10 +734,10 @@ class MF():
                     for j in range(self.ncol):
                         if drn_elev_array[i,j]<>0:
                             if drn_elev_array[i,j]<0:
-                                if isinstance(botm[l], float):
-                                    drn_elev_tmp = botm[l]
+                                if isinstance(self.botm[l], float):
+                                    drn_elev_tmp = self.botm[l]
                                 else:
-                                    drn_elev_tmp = botm[i][j][l] #- (botm_array[i][j][l]-botm_array[i][j][l-1])/10
+                                    drn_elev_tmp = self.botm[i][j][l] #- (botm_array[i][j][l]-botm_array[i][j][l-1])/10
                             else:
                                 drn_elev_tmp = drn_elev_array[i,j]
                             layer_row_column_elevation_cond[0].append([l+1, i+1, j+1, drn_elev_tmp, drn_cond_array[i,j]])
@@ -765,9 +754,9 @@ class MF():
                 ghb_cond_array = np.zeros((self.nrow,self.ncol))
                 if isinstance(d, str):
                     ghb_head_path = os.path.join(MF_ws, self.ghb_head[l])
-                    ghb_head_array[:,:] = MM_PROCESS.convASCIIraster2array(ghb_head_path, ghb_head_array[:,:])
+                    ghb_head_array[:,:] = self.MM_PROCESS.convASCIIraster2array(ghb_head_path, ghb_head_array[:,:])
                     ghb_cond_path = os.path.join(MF_ws, self.ghb_cond[l])
-                    ghb_cond_array[:,:] = MM_PROCESS.convASCIIraster2array(ghb_cond_path, ghb_cond_array[:,:])
+                    ghb_cond_array[:,:] = self.MM_PROCESS.convASCIIraster2array(ghb_cond_path, ghb_cond_array[:,:])
                 else:
                     ghb_head_array[:,:] = self.ghb_head[l]
                     ghb_cond_array[:,:] = self.ghb_cond[l]
@@ -833,10 +822,10 @@ class MF():
         # MFfile initialization
         mfmain = mf.modflow(modelname = self.modelname, exe_name = self.exe_name, namefile_ext = self.namefile_ext, version = self.version, model_ws = MF_ws)
         # dis package
-        dis = mf.mfdis(model = mfmain, nrow = self.nrow, ncol = self.ncol, nlay = self.nlay, nper = self.nper, delr = self.delr, delc = self.delc, laycbd = self.laycbd, top = top, botm = botm, perlen = self.perlen, nstp = self.nstp, tsmult = self.tsmult, itmuni = self.itmuni, lenuni = self.lenuni, steady = self.Ss_tr, extension = self.ext_dis)
+        dis = mf.mfdis(model = mfmain, nrow = self.nrow, ncol = self.ncol, nlay = self.nlay, nper = self.nper, delr = self.delr, delc = self.delc, laycbd = self.laycbd, top = self.top, botm = self.botm, perlen = self.perlen, nstp = self.nstp, tsmult = self.tsmult, itmuni = self.itmuni, lenuni = self.lenuni, steady = self.Ss_tr, extension = self.ext_dis)
         dis.write_file()
         # bas package
-        bas = mf.mfbas(model = mfmain, ibound = ibound, strt = strt, hnoflo = self.hnoflo, extension = self.ext_bas)
+        bas = mf.mfbas(model = mfmain, ibound = self.ibound, strt = strt, hnoflo = self.hnoflo, extension = self.ext_bas)
         bas.write_file()
         # lpf initialization
         lpf = mf.mflpf(model = mfmain, hdry = self.hdry, laytyp = self.laytyp, layavg = self.layavg, chani = self.chani, layvka = self.layvka, laywet = self.laywet, hk = hk, vka = vka, ss = ss, sy = sy, extension = self.ext_lpf)
@@ -857,7 +846,7 @@ class MF():
             ghb.write_file()
         # uzf initialization
         if self.uzf_yn == 1:
-            uzf = mf.mfuzf1(mfmain, nuztop = self.nuztop, iuzfopt = self.iuzfopt, irunflg = self.irunflg, ietflg = self.ietflg, iuzfcb1 = self.iuzfcb1, iuzfcb2 = self.iuzfcb2, ntrail2 = self.ntrail2, nsets = self.nsets, nuzgag = self.nuzgag, surfdep = self.surfdep, iuzfbnd = iuzfbnd, eps = eps, thts = thts, thti = thti, row_col_iftunit_iuzfopt = self.row_col_iftunit_iuzfopt, finf = finf_array, extension = self.ext_uzf, uzfbud_ext = self.uzfbud_ext)
+            uzf = mf.mfuzf1(mfmain, nuztop = self.nuztop, iuzfopt = self.iuzfopt, irunflg = self.irunflg, ietflg = self.ietflg, iuzfcb1 = self.iuzfcb1, iuzfcb2 = self.iuzfcb2, ntrail2 = self.ntrail2, nsets = self.nsets, nuzgag = self.nuzgag, surfdep = self.surfdep, iuzfbnd = self.iuzfbnd, eps = eps, thts = thts, thti = thti, row_col_iftunit_iuzopt = self.row_col_iftunit_iuzopt, finf = finf_array, extension = self.ext_uzf, uzfbud_ext = self.uzfbud_ext)
             uzf.write_file()
         # rch initialization
         if self.rch_yn == 1:
@@ -868,7 +857,8 @@ class MF():
         oc.write_file()
         # select one of the 3 below (i.e. pcg or sip or sor)
         # preconditionned conjugate-gradient initialization
-        pcg = mf.mfpcg(mfmain, mxiter = 150, iter1=75, hclose = self.hclose, rclose = self.rclose, npcond = 1, relax = 1)
+        pcg = mf.mfpcg(mfmain, mxiter = 150, iter1=75, hclose = self.hclose, rclose = self.rclose, npcond = 1, relax = 0.99, nbpol=0, iprpcg = 0, mutpcg = 1, damp = 0.6, extension = self.ext_pcg)
+
         pcg.write_file()
         # sip
     #    sip = mf.mfsip(mfmain, hclose=1e-3)

@@ -248,22 +248,24 @@ class UNSAT:
                 # Tu
                 for z in range(len(Zr_elev)):
                     if PET[z] > 0.0 :
-                        if BotSoilLay[l] > Zr_elev[z]:
-                            Tu_tmpZr[l,z] = evp(Su_tmp[l],Sfc[l]*Tl[l], Sr[l]*Tl[l], PET[z], i, j, n, dt)
-                        elif TopSoilLay[l] > Zr_elev[z] :
-                            PETc = PET[z]*(TopSoilLay[l]-Zr_elev[z])/Tl[l]
-                            Tu_tmpZr[l,z] = evp(Su_tmp[l],Sfc[l]*Tl[l], Sr[l]*Tl[l], PETc, i, j, n, dt)
-                        Tu_tmp[l] += Tu_tmpZr[l,z]*VEGarea[z]/100
-                        PET[z] -= Tu_tmpZr[l,z]
+                        if VEGarea[z] > 0.0:
+                            if BotSoilLay[l] > Zr_elev[z]:
+                                Tu_tmpZr[l,z] = evp(Su_tmp[l],Sfc[l]*Tl[l], Sr[l]*Tl[l], PET[z], i, j, n, dt)
+                            elif TopSoilLay[l] > Zr_elev[z] :
+                                PETc = PET[z]*(TopSoilLay[l]-Zr_elev[z])/Tl[l]
+                                Tu_tmpZr[l,z] = evp(Su_tmp[l],Sfc[l]*Tl[l], Sr[l]*Tl[l], PETc, i, j, n, dt)
+                            Tu_tmp[l] += Tu_tmpZr[l,z]*VEGarea[z]/100
+                            PET[z] -= Tu_tmpZr[l,z]
                 Su_tmp[l] -= Tu_tmp[l]*dt
             elif SAT[l] == True:
                 # Tg
                 for z in range(len(Zr_elev)):
                     if PET[z] > 0.0 :
-                        if HEADS > Zr_elev[z]:
-                            Tg_tmp_Zr[l,z] = evp(Sm[l]*Tl[l],Sfc[l]*Tl[l], Sr[l]*Tl[l], PET[z], i, j, n, dt)
-                            Tg_tmp += Tg_tmp_Zr[l,z]*VEGarea[z]/100
-                            PET[z] -= Tg_tmp_Zr[l,z]
+                        if VEGarea[z] > 0.0:
+                            if HEADS > Zr_elev[z]:
+                                Tg_tmp_Zr[l,z] = evp(Sm[l]*Tl[l],Sfc[l]*Tl[l], Sr[l]*Tl[l], PET[z], i, j, n, dt)
+                                Tg_tmp += Tg_tmp_Zr[l,z]*VEGarea[z]/100
+                                PET[z] -= Tg_tmp_Zr[l,z]
 
         for l in range(nsl):
             Su_pc_tmp[l] = Su_tmp[l]/Tl[l]
