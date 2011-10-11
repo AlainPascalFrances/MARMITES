@@ -38,7 +38,7 @@ def readFile(ws, fn):
     return inputFile
 
 class PROCESS:
-    def __init__(self, MM_ws, MF_ws, nrow, ncol, xllcorner, yllcorner, cellsizeMF, nstp, hnoflo):
+    def __init__(self, MM_ws, MF_ws, nrow, ncol, xllcorner, yllcorner, cellsizeMF, hnoflo):
         self.MM_ws = MM_ws
         self.MF_ws = MF_ws
         self.nrow= nrow
@@ -46,7 +46,6 @@ class PROCESS:
         self.xllcorner= xllcorner
         self.yllcorner=yllcorner
         self.cellsizeMF=cellsizeMF
-        self.nstp=nstp
         self.hnoflo=hnoflo
 
     ######################
@@ -146,13 +145,13 @@ class PROCESS:
 
     ######################
 
-    def inputTS(self, NMETEO, NVEG, NSOIL,
+    def inputTS(self, NMETEO, NVEG, NSOIL, nstp,
                 inputDate_fn, inputZON_TS_RF_fn,
                 inputZON_TS_PET_fn, inputZON_TS_RFe_fn,
                 inputZON_TS_PE_fn, inputZON_TS_E0_fn
                 ):   #IRR_fn
 
-        ntotstp = int(sum(self.nstp))
+        ntotstp = int(sum(nstp))
 
         # READ date of input files (RF and PET)
         inputDate_fn=os.path.join(self.MM_ws, inputDate_fn)
@@ -173,7 +172,7 @@ class PROCESS:
 ##                  raise ValueError, 'The number of time steps in MF (%i) is not the same as the number of days (%i) of the input data (RF and PET).\n' % (ntotstp, int(len(inputDate)))
 ##        else:
 ##            if ntotstp > len(inputDate):
-##                print 'FATAL ERROR!\nThere is more time steps than days in your model, too inneficient!\nChange your parameters in the MODFLOW ini file.'
+##                print 'FATAL ERROR    !\nThere is more time steps than days in your model, too inneficient!\nChange your parameters in the MODFLOW ini file.'
 ##                sys.exit()
 
         # READ input ESRI ASCII rasters vegetation

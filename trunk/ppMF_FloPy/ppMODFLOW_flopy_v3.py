@@ -33,6 +33,7 @@ class MF():
         inputFile = MMproc.readFile(MF_ws, MF_ini_fn)
         l=0
         try:
+            self.h5_MF_fn = os.path.join(MF_ws, '_h5_MF.h5')
             self.xllcorner = xllcorner
             self.yllcorner = yllcorner
             self.modelname =  str(inputFile[l].strip())
@@ -162,52 +163,135 @@ class MF():
                 self.strt.append(inputFile[l].split()[i])
             l += 1
             self.hnoflo = float(inputFile[l].strip())
-            # lpf
-            l += 1
-            self.ext_lpf = str(inputFile[l].strip())
-            l += 1
-            self.ilpfcb = int(inputFile[l].strip())
-            l += 1
-            self.hdry = eval(inputFile[l].strip())
-            l += 1
-            self.nplpf = int(inputFile[l].strip())
-            l += 1
-            self.laytyp = []
-            laytyp_tmp =  inputFile[l].split()
-            for i in range(self.nlay):
-                self.laytyp.append(int(laytyp_tmp[i]))
-            l += 1
-            self.layavg = []
-            for i in range(self.nlay):
-                self.layavg.append(int(inputFile[l].split()[i]))
-            l += 1
-            self.chani = []
-            for i in range(self.nlay):
-                self.chani.append(int(inputFile[l].split()[i]))
-            l += 1
-            self.layvka = []
-            for i in range(self.nlay):
-                self.layvka.append(int(inputFile[l].split()[i]))
-            l += 1
-            self.laywet = []
-            for i in range(self.nlay):
-                self.laywet.append(int(inputFile[l].split()[i]))
-            l += 1
-            self.hk = []
-            for i in range(self.nlay):
-                self.hk.append(inputFile[l].split()[i])
-            l += 1
-            self.vka = []
-            for i in range(self.nlay):
-                self.vka.append(inputFile[l].split()[i])
-            l += 1
-            self.ss = []
-            for i in range(self.nlay):
-                self.ss.append(inputFile[l].split()[i])
-            l += 1
-            self.sy = []
-            for i in range(self.nlay):
-                self.sy.append(inputFile[l].split()[i])
+            # layer packages (lpf or upw)
+            if self.version != 'mfnwt':
+                # lpf
+                l += 1
+                self.ext_lpf = str(inputFile[l].strip())
+                l += 1
+                self.ilpfcb = int(inputFile[l].strip())
+                l += 1
+                self.hdry = eval(inputFile[l].strip())
+                l += 1
+                self.nplpf = int(inputFile[l].strip())
+                l += 1
+                self.laytyp = []
+                laytyp_tmp =  inputFile[l].split()
+                for i in range(self.nlay):
+                    self.laytyp.append(int(laytyp_tmp[i]))
+                l += 1
+                self.layavg = []
+                for i in range(self.nlay):
+                    self.layavg.append(int(inputFile[l].split()[i]))
+                l += 1
+                self.chani = []
+                for i in range(self.nlay):
+                    self.chani.append(int(inputFile[l].split()[i]))
+                l += 1
+                self.layvka = []
+                for i in range(self.nlay):
+                    self.layvka.append(int(inputFile[l].split()[i]))
+                l += 1
+                self.laywet = []
+                for i in range(self.nlay):
+                    self.laywet.append(int(inputFile[l].split()[i]))
+                l += 1
+                self.hk = []
+                for i in range(self.nlay):
+                    self.hk.append(inputFile[l].split()[i])
+                l += 1
+                self.vka = []
+                for i in range(self.nlay):
+                    self.vka.append(inputFile[l].split()[i])
+                l += 1
+                self.ss = []
+                for i in range(self.nlay):
+                    self.ss.append(inputFile[l].split()[i])
+                l += 1
+                self.sy = []
+                for i in range(self.nlay):
+                    self.sy.append(inputFile[l].split()[i])
+                l += 1
+                if int(inputFile[l].strip()) == 1:
+                    self.storagecoefficient = True
+                else:
+                    self.storagecoefficient = False
+                l += 1
+                if int(inputFile[l].strip()) == 1:
+                    self.constantcv = True
+                    self.nocvcorrection = True
+                else:
+                    self.constantcv = False
+                l += 1
+                if int(inputFile[l].strip()) == 1:
+                    self.thickstrt = True
+                else:
+                    self.thickstrt = False
+                l += 1
+                if int(inputFile[l].strip()) == 1:
+                    self.nocvcorrection = True
+                else:
+                    if self.constantcv != True:
+                        self.nocvcorrection = False
+                l += 1
+                if int(inputFile[l].strip()) == 1:
+                    self.novfc = True
+                else:
+                    self.novfc = False
+                l += 14
+            elif self.version == 'mfnwt':
+                l += 18
+                # upw
+                l += 1
+                self.ext_upw = str(inputFile[l].strip())
+                l += 1
+                self.iupwcb = int(inputFile[l].strip())
+                l += 1
+                self.hdry = eval(inputFile[l].strip())
+                l += 1
+                self.npupw = int(inputFile[l].strip())
+                l += 1
+                self.iphdry = int(inputFile[l].strip())
+                l += 1
+                self.laytyp = []
+                laytyp_tmp =  inputFile[l].split()
+                for i in range(self.nlay):
+                    self.laytyp.append(int(laytyp_tmp[i]))
+                l += 1
+                self.layavg = []
+                for i in range(self.nlay):
+                    self.layavg.append(int(inputFile[l].split()[i]))
+                l += 1
+                self.chani = []
+                for i in range(self.nlay):
+                    self.chani.append(int(inputFile[l].split()[i]))
+                l += 1
+                self.layvka = []
+                for i in range(self.nlay):
+                    self.layvka.append(int(inputFile[l].split()[i]))
+                l += 1
+                self.laywet = []
+                for i in range(self.nlay):
+                    self.laywet.append(int(inputFile[l].split()[i]))
+                l += 1
+                self.hk = []
+                for i in range(self.nlay):
+                    self.hk.append(inputFile[l].split()[i])
+                l += 1
+                self.vka = []
+                for i in range(self.nlay):
+                    self.vka.append(inputFile[l].split()[i])
+                l += 1
+                self.ss = []
+                for i in range(self.nlay):
+                    self.ss.append(inputFile[l].split()[i])
+                l += 1
+                self.sy = []
+                for i in range(self.nlay):
+                    self.sy.append(inputFile[l].split()[i])
+            else:
+                print 'FATAL ERROR!\nMODFLOW version should be mf2k, mf2005 or mfnwt!'
+                print 'Value %s provided in the MF ini file.' % self.versionsys.exit()
             # oc
             l += 1
             self.ext_oc = str(inputFile[l].strip())
@@ -221,13 +305,37 @@ class MF():
             self.ext_heads = str(inputFile[l].strip())
             l += 1
             self.ext_ddn = str(inputFile[l].strip())
-            # pcg
-            l += 1
-            self.ext_pcg = str(inputFile[l].strip())
-            l += 1
-            self.hclose = float(inputFile[l].strip())
-            l += 1
-            self.rclose = float(inputFile[l].strip())
+            # solver
+            if self.version != 'mfnwt':
+                # pcg
+                l += 1
+                self.ext_pcg = str(inputFile[l].strip())
+                self.hclose = float(inputFile[l].strip())
+                l += 1
+                self.rclose = float(inputFile[l].strip())
+                l += 9
+            elif self.version == 'mfnwt':
+                l += 4
+                self.ext_nwt = str(inputFile[l].strip())
+                l += 1
+                self.headtol = float(inputFile[l].strip())
+                l += 1
+                self.fluxtol = float(inputFile[l].strip())
+                l += 1
+                self.maxiterout = int(inputFile[l].strip())
+                l += 1
+                self.thickfact = float(inputFile[l].strip())
+                l += 1
+                self.linmeth = int(inputFile[l].strip())
+                l += 1
+                self.iprnwt = int(inputFile[l].strip())
+                l += 1
+                self.ibotav = int(inputFile[l].strip())
+                l += 1
+                self.options = str(inputFile[l].strip())
+            else:
+                print 'FATAL ERROR!\nMODFLOW version should be mf2k, mf2005 or mfnwt!'
+                print 'Value %s provided in the MF ini file.' % self.versionsys.exit()
             # OPTIONNAL PACKAGES
             # uzf
             l += 1
@@ -258,6 +366,8 @@ class MF():
                 l += 1
                 self.iuzfbnd = [inputFile[l].strip()]
                 l += 1
+                self.vks = [inputFile[l].strip()]
+                l += 1
                 self.eps = [inputFile[l].strip()]
                 l += 1
                 self.thts = [inputFile[l].strip()]
@@ -283,7 +393,7 @@ class MF():
                             self.uzfbud_ext.append(self.ext_uzf + '_' + str(abs(int(iftunit[g]))))
                 self.finf_user = float(inputFile[l].strip())
             else:
-                l += 20
+                l += 21
             # wel
             l += 1
             self.wel_yn = int(inputFile[l].strip())
@@ -354,7 +464,6 @@ class MF():
                                 xllcorner                = self.xllcorner,
                                 yllcorner                = self.yllcorner,
                                 cellsizeMF               = self.delr[0],
-                                nstp                     = self.nstp,
                                 hnoflo                   = self.hnoflo
                                 )
 
@@ -652,6 +761,10 @@ class MF():
         ss      = self.MM_PROCESS.checkarray(self.ss)
         sy      = self.MM_PROCESS.checkarray(self.sy)
         if self.uzf_yn == 1:
+            if self.iuzfopt == 1:
+                vks     = self.MM_PROCESS.checkarray(self.vks)
+            else:
+                vks = 0.0
             eps     = self.MM_PROCESS.checkarray(self.eps)
             thts    = self.MM_PROCESS.checkarray(self.thts)
             thti    = self.MM_PROCESS.checkarray(self.thti)
@@ -672,7 +785,7 @@ class MF():
                     h5_finf.close()
                 except:
                     finf_array = self.finf_user
-                    print 'WARNING!\nNo valid UZF1 package file(s) provided, running MODFLOW using user-input UZF1infiltration value: %.3G' % self.finf_user
+                    print 'WARNING!\nNo valid UZF1 package file(s) provided, running MODFLOW using user-input UZF1 infiltration value: %.3G' % self.finf_user
                     finf_input = self.finf_user
 
         # WELL
@@ -811,7 +924,7 @@ class MF():
                 layer_row_column_Q.append([])
                 for r in range(self.nrow):
                     for c in range(self.ncol):
-                        if np.abs(ibound[r][c][:]).sum() != 0:
+                        if np.abs(self.ibound[r][c][:]).sum() != 0:
                             if isinstance(wel_array, float):
                                 layer_row_column_Q[n].append([1,r+1,c+1,-wel_array*self.delr[c]*self.delc[r]])
                             else:
@@ -827,45 +940,55 @@ class MF():
         # bas package
         bas = mf.mfbas(model = mfmain, ibound = self.ibound, strt = strt, hnoflo = self.hnoflo, extension = self.ext_bas)
         bas.write_file()
-        # lpf initialization
-        lpf = mf.mflpf(model = mfmain, hdry = self.hdry, laytyp = self.laytyp, layavg = self.layavg, chani = self.chani, layvka = self.layvka, laywet = self.laywet, hk = hk, vka = vka, ss = ss, sy = sy, extension = self.ext_lpf)
-        lpf.write_file()
-        # wel initialization
+        # layer package
+        if self.version != 'mfnwt':
+            # lpf package
+            lpf = mf.mflpf(model = mfmain, hdry = self.hdry, laytyp = self.laytyp, layavg = self.layavg, chani = self.chani, layvka = self.layvka, laywet = self.laywet, hk = hk, vka = vka, ss = ss, sy = sy, storagecoefficient = self.storagecoefficient, constantcv = self.constantcv, thickstrt = self.thickstrt, nocvcorrection = self.nocvcorrection, novfc = self.novfc, extension = self.ext_lpf)
+            lpf.write_file()
+            cb = lpf.ilpfcb
+        else:
+            upw = mf.mfupw(model = mfmain, hdry = self.hdry, iphdry = self.iphdry, laytyp = self.laytyp, layavg = self.layavg, chani = self.chani, layvka = self.layvka, laywet = self.laywet, hk = hk, vka = vka, ss = ss, sy = sy, extension = self.ext_upw)
+            upw.write_file()
+            cb = upw.iupwcb
+        # wel package
         if self.wel_yn == 1:
             if layer_row_column_Q <> None:
-                wel = mf.mfwel(mfmain, iwelcb = lpf.ilpfcb, layer_row_column_Q = layer_row_column_Q, extension = self.ext_wel)
+                wel = mf.mfwel(model = mfmain, iwelcb = cb, layer_row_column_Q = layer_row_column_Q, extension = self.ext_wel)
                 wel.write_file()
-        # drn package initialization
+        # drn package
         if self.drn_yn == 1:
             if drn_check == 1:
-                drn = mf.mfdrn(model = mfmain, idrncb=lpf.ilpfcb, layer_row_column_elevation_cond = layer_row_column_elevation_cond, extension = self.ext_drn)
+                drn = mf.mfdrn(model = mfmain, idrncb = cb, layer_row_column_elevation_cond = layer_row_column_elevation_cond, extension = self.ext_drn)
                 drn.write_file()
-        # ghb
+        # ghb package
         if self.ghb_yn == 1:
-            ghb = mf.mfghb(model = mfmain, ighbcb = lpf.ilpfcb, layer_row_column_head_cond = layer_row_column_head_cond, extension = self.ext_ghb)
+            ghb = mf.mfghb(model = mfmain, ighbcb = cb, layer_row_column_head_cond = layer_row_column_head_cond, extension = self.ext_ghb)
             ghb.write_file()
-        # uzf initialization
+        # uzf package
         if self.uzf_yn == 1:
-            uzf = mf.mfuzf1(mfmain, nuztop = self.nuztop, iuzfopt = self.iuzfopt, irunflg = self.irunflg, ietflg = self.ietflg, iuzfcb1 = self.iuzfcb1, iuzfcb2 = self.iuzfcb2, ntrail2 = self.ntrail2, nsets = self.nsets, nuzgag = self.nuzgag, surfdep = self.surfdep, iuzfbnd = self.iuzfbnd, eps = eps, thts = thts, thti = thti, row_col_iftunit_iuzopt = self.row_col_iftunit_iuzopt, finf = finf_array, extension = self.ext_uzf, uzfbud_ext = self.uzfbud_ext)
+            uzf = mf.mfuzf1(model = mfmain, nuztop = self.nuztop, iuzfopt = self.iuzfopt, irunflg = self.irunflg, ietflg = self.ietflg, iuzfcb1 = self.iuzfcb1, iuzfcb2 = self.iuzfcb2, ntrail2 = self.ntrail2, nsets = self.nsets, nuzgag = self.nuzgag, surfdep = self.surfdep, iuzfbnd = self.iuzfbnd, vks = vks, eps = eps, thts = thts, thti = thti, row_col_iftunit_iuzopt = self.row_col_iftunit_iuzopt, finf = finf_array, extension = self.ext_uzf, uzfbud_ext = self.uzfbud_ext)
             uzf.write_file()
-        # rch initialization
+        # rch package
         if self.rch_yn == 1:
-            rch = mf.mfrch(mfmain, irchcb = lpf.ilpfcb, nrchop = self.nrchop, rech = rch_array, extension = self.ext_rch)
+            rch = mf.mfrch(model = mfmain, irchcb = cb, nrchop = self.nrchop, rech = rch_array, extension = self.ext_rch)
             rch.write_file()
-        # output control initialization
-        oc = mf.mfoc(mfmain, ihedfm = self.ihedfm, iddnfm = self.iddnfm, item2 = [[0,1,1,1]], item3 = [[0,0,1,0]], extension = [self.ext_oc,self.ext_heads,self.ext_ddn,self.ext_cbc])
+        # output control package
+        oc = mf.mfoc(model = mfmain, ihedfm = self.ihedfm, iddnfm = self.iddnfm, item2 = [[0,1,1,1]], item3 = [[0,0,1,0]], extension = [self.ext_oc,self.ext_heads,self.ext_ddn,self.ext_cbc])
         oc.write_file()
-        # select one of the 3 below (i.e. pcg or sip or sor)
-        # preconditionned conjugate-gradient initialization
-        pcg = mf.mfpcg(mfmain, mxiter = 150, iter1=75, hclose = self.hclose, rclose = self.rclose, npcond = 1, relax = 0.99, nbpol=0, iprpcg = 0, mutpcg = 1, damp = 0.6, extension = self.ext_pcg)
-
-        pcg.write_file()
-        # sip
-    #    sip = mf.mfsip(mfmain, hclose=1e-3)
-    #    sip.write_file()
-        # sor
-    #    sor = mf.mfsor(mfmain, hclose=1e-3)
-    #    sor.write_file()
+        # solver
+        if self.version != 'mfnwt':
+            # pcg package
+            pcg = mf.mfpcg(model = mfmain, mxiter = 150, iter1=75, hclose = self.hclose, rclose = self.rclose, npcond = 1, relax = 0.99, nbpol=0, iprpcg = 0, mutpcg = 1, damp = 0.6, extension = self.ext_pcg)
+            pcg.write_file()
+            # sip
+        #    sip = mf.mfsip(mfmain, hclose=1e-3)
+        #    sip.write_file()
+            # sor
+        #    sor = mf.mfsor(mfmain, hclose=1e-3)
+        #    sor.write_file()
+        else:
+            nwt = mf.mfnwt(model = mfmain, headtol = self.headtol, fluxtol = self.fluxtol, maxiterout = self.maxiterout, thickfact = self.thickfact, linmeth = self.linmeth, iprnwt = self.iprnwt, ibotav = self.ibotav, options = self.options, extension = self.ext_nwt)
+            nwt.write_file()
 
         self.h_MF_fn = os.path.join(MF_ws, self.modelname + "." + self.ext_heads)
         self.cbc_MF_fn = os.path.join(MF_ws, self.modelname + "." + self.ext_cbc)
@@ -879,7 +1002,6 @@ class MF():
 
         # extract heads
         print''
-        self.h5_MF_fn = os.path.join(MF_ws, '_h5_MF.h5')
         h5_MF = h5py.File(self.h5_MF_fn, 'w')
         try:
             h = mfrdbin.mfhdsread(mfmain, 'LF95').read_all(self.h_MF_fn)

@@ -266,12 +266,16 @@ try:
     if myMF.itmuni != 4:
         print 'FATAL ERROR!\nTime unit is not in days!'
         sys.exit()
+    ibound = np.asarray(myMF.ibound)[:,:,0]
+    for l in range(1,myMF.nlay):
+        ibound += np.asarray(myMF.ibound)[:,:,l]
+    ncell = (ibound[:,:] != 0).sum()
 
     # #############################
     # ### MF time processing
     # #############################
     # if required by user, compute nper, perlen,etc based on RF analysis in the METEO zones
-    if myMF.timedef>=0:
+    if myMF.timedef >= 0:
         if isinstance(myMF.nper, str):
             try:
                 perlenmax = int(myMF.nper.split()[1].strip())
@@ -286,8 +290,6 @@ try:
     # MARMITES INITIALIZATION
     MM_UNSAT = MMunsat.UNSAT(hnoflo = myMF.hnoflo)
     MM_SATFLOW = MMunsat.SATFLOW()
-
-    ncell = (np.asarray(myMF.ibound)[:,:,0] != 0).sum()
 
     # READ input ESRI ASCII rasters # missing gridIRR_fn
     print "\nImporting ESRI ASCII files to initialize MARMITES..."
@@ -311,6 +313,7 @@ try:
                                     NMETEO                   = NMETEO,
                                     NVEG                     = NVEG,
                                     NSOIL                    = NSOIL,
+                                    nstp                     = myMF.nstp,
                                     inputDate_fn             = inputDate_fn,
                                     inputZON_TS_RF_fn        = myMF.inputZON_TS_RF_fn,
                                     inputZON_TS_PET_fn       = myMF.inputZON_TS_PET_fn,
@@ -397,9 +400,11 @@ try:
             report = open(report_fn, 'a')
             sys.stdout = report
         myMF.ppMF(MM_ws, MF_ws, MF_ini_fn, finf_MM = (h5_MM_fn, 'finf'), wel_MM = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks, numDays = numDays)
+        timeendMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
+        durationMF +=  timeendMF-timestartMF
 
+    try:
         h5_MF = h5py.File(myMF.h5_MF_fn)
-
         # heads format is : timestep, nrow, ncol, nlay
         # cbc format is: (kstp), kper, textprocess, nrow, ncol, nlay
         cbc_nam = []
@@ -424,9 +429,9 @@ try:
             imfRCH = cbc_nam.index('RECHARGE')
             print '\nFATAL ERROR!\nMM has to be run together with the UZF1 package of MODFLOW 2005, thus the RCH package should be desactivacted!\nExisting MM.'
             sys.exit()
-
-        timeendMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
-        durationMF +=  timeendMF-timestartMF
+    except:
+        print '\nFATAL ERROR!\nNovalid MOFLOW input provided, run MODFLOW!'
+        sys.exit()
 
 except StandardError, e:  #Exception
     print '\nFATAL ERROR!\nAbnormal MM run interruption in the initialization!\nError description:'
@@ -528,7 +533,7 @@ try:
                     for j in range(myMF.ncol):
                         SOILzone_tmp = gridSOIL[i,j]-1
                         METEOzone_tmp = gridMETEO[i,j]-1
-                        if ibound[i,j]!=0.0:
+                        if ibound[i,j] != 0.0:
                             slprop = _slprop[SOILzone_tmp]
                             nsl = _nsl[SOILzone_tmp]
                             # thickness of soil layers
@@ -579,7 +584,7 @@ try:
                                                          Su_ini  = Su_ini_tmp,
                                                          Ss_ini  = Ss_ini_tmp,
                                                          Rp_ini  = Rp_ini_tmp_array[i,j,:],
-                                                         botm_l0 = myMF.botm[0][i,j],
+                                                         botm_l0 = np.asarray(myMF.botm)[i,j,0],
                                                          TopSoilLay   = TopSoilLay,
                                                          BotSoilLay   = BotSoilLay,
                                                          Tl      = Tl,
@@ -765,7 +770,7 @@ try:
         # #############################
         # ### MODFLOW RUN with MM-computed recharge
         # #############################
-        if MF_yn ==1 :
+        if MF_yn == 1 :
             h5_MF.close()
             durationMF = 0.0
             timestartMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
@@ -785,10 +790,7 @@ try:
 
 except StandardError, e:  #Exception
     print '\nFATAL ERROR!\nAbnormal MM run interruption in the MM/MF loop!\nError description:'
-    myMF.h5_MF_fn = None
     traceback.print_exc(file=sys.stdout)
-    timeend = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
-    duration += (timeend-timestart) -durationMF
     sys.exit()
 
 # #############################
