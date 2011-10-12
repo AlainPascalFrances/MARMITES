@@ -398,6 +398,7 @@ def plotLAYER(TS, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_title, MM_
     ax = []
     fig = plt.figure(num=None, figsize=(11.7, 8.27), dpi=30)
     fig.suptitle(plt_title)
+    CB_test = False
     for L in range(nplot):
         if interval_type == 'arange':
             ticks = np.arange(Vmin,Vmax,interval_diff)
@@ -412,17 +413,24 @@ def plotLAYER(TS, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_title, MM_
         ax[L].xaxis.set_ticks(np.arange(0,ncol+1,ntick))
         ax[L].yaxis.set_ticks(np.arange(0,nrow+1,ntick))
         if np.nanmax(V[L])>np.nanmin(V[L]):
+            CB_test = True
             PC = plt.pcolor(xg, yg, V[L], cmap = cmap, vmin = Vmin, vmax = Vmax)
             if contours == True:
                 CS = plt.contour(xg1, yg1[::-1], V[L][::-1],ticks, colors = 'gray')
                 plt.clabel(CS, inline=1, fontsize=8, fmt=fmt, colors = 'gray')
-            if L==nplot-1:
+            plt.title('layer ' + str(L+1)+', time step ' + str(TS+1), fontsize = 10)
+        else:
+            PC1 = plt.pcolor(xg, yg, V[L], cmap = cmap, vmin = Vmin, vmax = Vmax)
+            plt.title('layer ' + str(L+1)+', time step ' + str(TS+1) + ': ' + msg, fontsize = 10)
+        if L == nplot-1:
+            if CB_test == True:
                 CB = plt.colorbar(PC, shrink=0.8, extend='both', ticks = ticks, format = fmt, orientation = 'vertical')
                 CB.set_label(CBlabel, fontsize = 8)
                 plt.setp(CB.ax.get_yticklabels(), fontsize=8)
-            plt.title('layer ' + str(L+1)+', time step ' + str(TS+1), fontsize = 10)
-        else:
-            plt.title('layer ' + str(L+1)+', time step ' + str(TS+1) + ': ' + msg, fontsize = 10)
+            else:
+                CB = plt.colorbar(PC1, shrink=0.8, extend='both', ticks = ticks, format = fmt, orientation = 'vertical')
+                CB.set_label(CBlabel, fontsize = 8)
+                plt.setp(CB.ax.get_yticklabels(), fontsize=8)
         plt.ylim(plt.ylim()[::-1])
         plt.axis('scaled')
     plt_export_fn = os.path.join(MM_ws, '_plt_' + plt_title + '_TS%05d' + '.png') % (TS+1)

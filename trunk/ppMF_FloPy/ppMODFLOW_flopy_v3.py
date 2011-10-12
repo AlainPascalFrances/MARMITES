@@ -506,8 +506,7 @@ class MF():
 
         #####################################
 
-        print'\nComputing MODFLOW time discretization based on rainfall analysis in the METEO zones.'
-
+        print'\nComputing MODFLOW time discretization based on rainfall analysis in each METEO zone.'
         inputFile = MMproc.readFile(MM_ws, inputDate_fn)
         d = []
         for l in inputFile:
