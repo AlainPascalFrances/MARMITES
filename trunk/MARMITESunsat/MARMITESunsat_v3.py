@@ -254,7 +254,7 @@ class UNSAT:
                             elif TopSoilLay[l] > Zr_elev[z] :
                                 PETc = PET[z]*(TopSoilLay[l]-Zr_elev[z])/Tl[l]
                                 Tu_tmpZr[l,z] = evp(Su_tmp[l],Sfc[l]*Tl[l], Sr[l]*Tl[l], PETc, i, j, n, dt)
-                            Tu_tmp[l] += Tu_tmpZr[l,z]*VEGarea[z]/100
+                            Tu_tmp[l] += Tu_tmpZr[l,z]*VEGarea[z]*0.01
                             PET[z] -= Tu_tmpZr[l,z]
                 Su_tmp[l] -= Tu_tmp[l]*dt
             elif SAT[l] == True:
@@ -264,7 +264,7 @@ class UNSAT:
                         if VEGarea[z] > 0.0:
                             if HEADS > Zr_elev[z]:
                                 Tg_tmp_Zr[l,z] = evp(Sm[l]*Tl[l],Sfc[l]*Tl[l], Sr[l]*Tl[l], PET[z], i, j, n, dt)
-                                Tg_tmp += Tg_tmp_Zr[l,z]*VEGarea[z]/100
+                                Tg_tmp += Tg_tmp_Zr[l,z]*VEGarea[z]*0.01
                                 PET[z] -= Tg_tmp_Zr[l,z]
 
         for l in range(nsl):
@@ -273,7 +273,7 @@ class UNSAT:
         # GW evaporation, equation 17 of Shah et al 2007, see ref in the __init__
         if Ss_tmp == 0.0:
             if PE > 0.0:
-                dtwt /= 10
+                dtwt *= 0.1
                 y0    = self.paramEg[st]['y0']
                 b     = self.paramEg[st]['b']
                 dll   = self.paramEg[st]['dll']
@@ -307,7 +307,7 @@ class UNSAT:
                         if Tg_tmp_Zr[l,z] > PET[z]:
                             Tg_tmp_Zr[l,z] = PET[z]
                         PET[z] -= Tg_tmp_Zr[l,z]
-                        Tg_tmp += (Tg_tmp_Zr[l,z]*VEGarea[z]/100)
+                        Tg_tmp += (Tg_tmp_Zr[l,z]*VEGarea[z]*0.01)
 
         return Es_tmp, Ss_tmp, Ro_tmp, Rp_tmp, Eu_tmp, Tu_tmp, Su_tmp, Su_pc_tmp, Eg_tmp, Tg_tmp, HEADS, dtwt, SAT, Rexf_tmp
         del Es_tmp, Ss_tmp, Ro_tmp, Rp_tmp, Eu_tmp, Tu_tmp, Su_tmp, Su_pc_tmp, Su_ini, Eg_tmp, Tg_tmp, dtwt
@@ -394,12 +394,12 @@ class UNSAT:
             SOILarea = 100
             for v in range(len(PETveg)):
                 if VEGarea[v] != self.hnoflo:
-                    RFe_tot[t] += RFeveg[v,t]*VEGarea[v]/100
-                    PET_tot[t] += PETveg[v,t]*VEGarea[v]/100
+                    RFe_tot[t] += RFeveg[v,t]*VEGarea[v]*0.01
+                    PET_tot[t] += PETveg[v,t]*VEGarea[v]*0.01
                     SOILarea   -= VEGarea[v]
-            RFe_tot[t]   += RF[t]*SOILarea/100
+            RFe_tot[t]   += RF[t]*SOILarea*0.01
             INTER_tot[t]  = RF[t] - RFe_tot[t]
-            PE_tot[t]     = PEsoil[t]*SOILarea/100
+            PE_tot[t]     = PEsoil[t]*SOILarea*0.01
 
             # handle drycell
             if HEADS[t] > (hdry-1E3):
@@ -481,7 +481,7 @@ class UNSAT:
             # export list
             # indexes of the HDF5 output arrays
             # index = {'iRF':0, 'iPET':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iEXF':6, 'iEs':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSs':13, 'iETg':14, 'iETu':15, 'idSu':16, 'iHEADScorr':17, 'idtwt':18, 'iuzthick':19}
-            results1[t,:] = [RF[t], PET_tot[t], PE_tot[t], RFe_tot[t], Ss[t], Ro[t], EXF[t], Es[t], MB[t], INTER_tot[t], E0[t], Eg[t], Tg[t], dSs[t], ETg[t], ETu_tot[t], dSu_tot[t], HEADS_corr[t]/1000.0, -dtwt[t]/1000.0, uzthick[t]/1000.0]
+            results1[t,:] = [RF[t], PET_tot[t], PE_tot[t], RFe_tot[t], Ss[t], Ro[t], EXF[t], Es[t], MB[t], INTER_tot[t], E0[t], Eg[t], Tg[t], dSs[t], ETg[t], ETu_tot[t], dSu_tot[t], HEADS_corr[t]*0.001, -dtwt[t]*0.001, uzthick[t]*0.001]
             # index_S = {'iEu':0, 'iTu':1,'iSu_pc':2, 'iRp':3, 'iRexf':4, 'idSu':5, 'iSu':6, 'iSAT':7, 'iMB_l':8}
             for l in range(nsl):
                 results2[t,l,:] = [Eu[t,l], Tu[t,l], Su_pc[t,l], Rp[t,l], Rexf[t,l], dSu[t,l], Su[t,l], SAT[t,l], MB_l[t,l]]
@@ -526,7 +526,7 @@ class SATFLOW:
 
         h = np.zeros([len(R)], dtype=np.float)
         for t in range(0,len(R)):
-            h_tmp = (h1[t] + h0*1000.0)/1000.0
+            h_tmp = (h1[t] + h0*1000.0)*0.001
             h[t] = h_tmp
 
         return h

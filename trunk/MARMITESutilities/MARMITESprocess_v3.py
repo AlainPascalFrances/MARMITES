@@ -62,7 +62,7 @@ class PROCESS:
 
     ######################
 
-    def checkarray(self, var):
+    def checkarray(self, var, dtype = np.float):
         try:
             if len(var)>1:
                 lst_out = []
@@ -71,7 +71,7 @@ class PROCESS:
             else:
                 lst_out = float(var[0])
         except:
-            array = np.zeros((self.nrow,self.ncol,len(var)))
+            array = np.zeros((self.nrow,self.ncol,len(var)), dtype = dtype)
             l = 0
             for v in var:
                 if isinstance(v, str):
@@ -87,7 +87,57 @@ class PROCESS:
 
         return lst_out
 
-######################
+    ######################
+
+    def procMF(self, myMF, h5_MF, ds_name, ds_name_new, conv_fact, index = 0):
+
+        # cbc format is : (kstp), kper, textprocess, nrow, ncol, nlay
+        t = 0
+        h5_MF.create_dataset(name = ds_name_new, data = np.zeros((sum(myMF.perlen), myMF.nrow, myMF.ncol, myMF.nlay)))
+        if myMF.timedef>=0:
+            for n in range(myMF.nper):
+                if myMF.perlen[n] != 1:
+                    for x in range(myMF.perlen[n]):
+                        if ds_name == 'heads':
+                            h5_MF[ds_name_new][t,:,:,:] = h5_MF['heads'][n,:,:,:]
+                        else:
+                            array_tmp = h5_MF[ds_name][n,index,:,:,:]
+                            if myMF.reggrid == 1 and ds_name != 'heads':
+                                h5_MF[ds_name_new][t,:,:,:] = conv_fact*array_tmp[:,:,:]/(myMF.delr[0]*myMF.delc[0])
+                            else:
+                                for i in range(myMF.nrow):
+                                    for j in range(myMF.ncol):
+                                        h5_MF[ds_name_new][t,i,j,:] = conv_fact*array_tmp[:,i,j,:]/(myMF.delr[j]*myMF.delc[i])
+                            del array_tmp
+                        t += 1
+                else:
+                    if ds_name == 'heads':
+                        h5_MF[ds_name_new][t,:,:,:] = h5_MF['heads'][n,:,:,:]
+                    else:
+                        array_tmp = h5_MF[ds_name][n,index,:,:,:]
+                        if myMF.reggrid == 1:
+                            h5_MF[ds_name_new][t,:,:,:] = conv_fact*array_tmp[:,:,:]/(myMF.delr[0]*myMF.delc[0])
+                        else:
+                            for i in range(myMF.nrow):
+                                for j in range(myMF.ncol):
+                                    h5_MF[ds_name_new][t,i,j,:] = conv_fact*array_tmp[:,i,j,:]/(myMF.delr[j]*myMF.delc[i])
+                        del array_tmp
+                    t += 1
+        else:
+            if ds_name == 'heads':
+                h5_MF[ds_name_new] = h5_MF['heads']
+            else:
+                array_tmp = h5_MF[ds_name][:,index,:,:,:]
+                if myMF.reggrid == 1:
+                    h5_MF[ds_name_new][:,:,:,:] = array_tmp[:,:,:]/(myMF.delr[0]*myMF.delc[0])
+                else:
+                    array_tmp = h5_MF[ds_name][:,:,i,j,:]
+                    for i in range(myMF.nrow):
+                        for j in range(myMF.ncol):
+                            h5_MF[ds_name_new][:,i,j,:] = conv_fact*array_tmp[i,j,:]/(myMF.delr[j]*myMF.delc[i])
+                    del array_tmp
+
+    ######################
 
     def convASCIIraster2array(self, filenameIN, arrayOUT):
         '''

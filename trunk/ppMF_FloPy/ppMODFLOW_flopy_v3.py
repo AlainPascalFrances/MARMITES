@@ -472,9 +472,9 @@ class MF():
 
         self.top     = self.MM_PROCESS.checkarray(self.top)
         self.botm    = self.MM_PROCESS.checkarray(self.botm)
-        self.ibound  = self.MM_PROCESS.checkarray(self.ibound)
+        self.ibound  = self.MM_PROCESS.checkarray(self.ibound, dtype = np.int)
         if self.uzf_yn == 1:
-            self.iuzfbnd = self.MM_PROCESS.checkarray(self.iuzfbnd)
+            self.iuzfbnd = self.MM_PROCESS.checkarray(self.iuzfbnd, dtype = np.int)
 
 #####################################
 
