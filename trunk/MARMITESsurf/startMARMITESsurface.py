@@ -158,7 +158,7 @@ def MMsurf(inputFOLDER_fn, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, pat
             elif TypeFile == "avRF_E0":
                 out_line =  date_t, ', ', '%14.9G' %TS[0][t], ',', '%14.9G' %TS[1][t], ',', '\n'
             elif TypeFile == "Date":
-                out_line =  date_t, '\n'
+                out_line =  date_t, ', ', '%3d'% J[t], '\n'
             for l in out_line:
                 outFileExport.write(l)
 

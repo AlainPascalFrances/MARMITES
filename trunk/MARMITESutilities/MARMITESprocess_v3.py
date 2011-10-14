@@ -206,8 +206,10 @@ class PROCESS:
         # READ date of input files (RF and PET)
         inputDate_fn=os.path.join(self.MM_ws, inputDate_fn)
         if os.path.exists(inputDate_fn):
-            inputDate=np.loadtxt(inputDate_fn, dtype = str)
-            inputDate = inputDate[:,0]
+            inputDate_tmp = np.loadtxt(inputDate_fn, dtype = str)
+            inputDate = inputDate_tmp[:,0]
+            JD = np.asarray(inputDate_tmp[:,2], dtype = np.int)
+            del inputDate_tmp
             inputDate = mpl.dates.datestr2num(inputDate)
             for i in range(1,len(inputDate)):
                 #__________________Check date consistency________________#
@@ -311,7 +313,7 @@ class PROCESS:
                     #structure is [number of zones, number of vegetation type, time]
         PEsoilzonesTS=np.asarray(PEsoilzonesTS)
 
-        return gridVEGarea, RFzonesTS, E0zonesTS, PETvegzonesTS, RFevegzonesTS, PEsoilzonesTS, inputDate
+        return gridVEGarea, RFzonesTS, E0zonesTS, PETvegzonesTS, RFevegzonesTS, PEsoilzonesTS, inputDate, JD
         del NMETEO, NVEG, NSOIL, inputDate_fn, inputZON_TS_RF_fn, inputZON_TS_PET_fn, inputZON_TS_RFe_fn, inputZON_TS_PE_fn,inputZON_TS_E0_fn
         del gridVEGarea, RFzonesTS, E0zonesTS, PETvegzonesTS, RFevegzonesTS, PEsoilzonesTS, inputDate
 

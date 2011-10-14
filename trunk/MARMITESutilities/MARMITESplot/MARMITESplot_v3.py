@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import os
-import datetime
 import matplotlib as mpl
 if mpl.get_backend()<>'agg':
     mpl.use('agg')
@@ -384,7 +383,7 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
 
 ##################
 
-def plotLAYER(TS, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_title, MM_ws, interval_type = 'arange', interval_diff = 1, interval_num = 1, Vmax = 0, Vmin = 0, fmt = '%.2f', contours = True, ntick = 1):
+def plotLAYER(TS, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_title, MM_ws, interval_type = 'arange', interval_diff = 1, interval_num = 1, Vmax = 0, Vmin = 0, fmt = '%.2f', contours = True, ntick = 1):
 
     # Store some arrays for plotting
     x = np.arange(0.5, ncol+1.5, 1)
@@ -397,7 +396,10 @@ def plotLAYER(TS, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_title, MM_
 
     ax = []
     fig = plt.figure(num=None, figsize=(11.7, 8.27), dpi=30)
-    fig.suptitle(plt_title)
+    if isinstance(Date, float):
+        fig.suptitle(plt_title + '\nDay %s, DOY %s, MF TS %s' % (mpl.dates.num2date(Date).isoformat()[:10], JD, TS+1))
+    else:
+        fig.suptitle(plt_title)
     CB_test = False
     for L in range(nplot):
         if interval_type == 'arange':
@@ -418,10 +420,10 @@ def plotLAYER(TS, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_title, MM_
             if contours == True:
                 CS = plt.contour(xg1, yg1[::-1], V[L][::-1],ticks, colors = 'gray')
                 plt.clabel(CS, inline=1, fontsize=8, fmt=fmt, colors = 'gray')
-            plt.title('layer ' + str(L+1)+', time step ' + str(TS+1), fontsize = 10)
+            plt.title('layer ' + str(L+1), fontsize = 10)
         else:
             PC1 = plt.pcolor(xg, yg, V[L], cmap = cmap, vmin = Vmin, vmax = Vmax)
-            plt.title('layer ' + str(L+1)+', time step ' + str(TS+1) + ': ' + msg, fontsize = 10)
+            plt.title('layer ' + str(L+1) + ' ' + msg, fontsize = 10)
         if L == nplot-1:
             if CB_test == True:
                 CB = plt.colorbar(PC, shrink=0.8, extend='both', ticks = ticks, format = fmt, orientation = 'vertical')
@@ -433,7 +435,10 @@ def plotLAYER(TS, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_title, MM_
                 plt.setp(CB.ax.get_yticklabels(), fontsize=8)
         plt.ylim(plt.ylim()[::-1])
         plt.axis('scaled')
-    plt_export_fn = os.path.join(MM_ws, '_plt_' + plt_title + '_TS%05d' + '.png') % (TS+1)
+    if isinstance(Date, float):
+        plt_export_fn = os.path.join(MM_ws, '_plt_' + plt_title + '_TS%05d' + '.png') % (TS+1)
+    else:
+        plt_export_fn = os.path.join(MM_ws, '_plt_' + plt_title + '.png')
     plt.savefig(plt_export_fn)
 #    plt.show()
     plt.clf()

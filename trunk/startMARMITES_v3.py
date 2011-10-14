@@ -314,7 +314,7 @@ try:
     ##gridIRR = myMF.MM_PROCESS.inputEsriAscii(grid_fn                  = gridIRR_fn)
 
     # READ input time series and parameters   # missing IRR_fn
-    gridVEGarea, RFzonesTS, E0zonesTS, PETvegzonesTS, RFevegzonesTS, PEsoilzonesTS, inputDate = myMF.MM_PROCESS.inputTS(
+    gridVEGarea, RFzonesTS, E0zonesTS, PETvegzonesTS, RFevegzonesTS, PEsoilzonesTS, inputDate, JD = myMF.MM_PROCESS.inputTS(
                                     NMETEO                   = NMETEO,
                                     NVEG                     = NVEG,
                                     NSOIL                    = NSOIL,
@@ -363,7 +363,11 @@ try:
         durationMF +=  timeendMF-timestartMF
 
     if isinstance(myMF.h5_MF_fn, str):
-        h5_MF = h5py.File(myMF.h5_MF_fn, 'r')
+        try:
+            h5_MF = h5py.File(myMF.h5_MF_fn, 'r')
+        except:
+            print '\nFATAL ERROR!\nInvalid MODFLOW HDF5 file. Run MARMITES and/or MODFLOW again.'
+            sys.exit()
         # heads format is : timestep, nrow, ncol, nlay
         # cbc format is: (kstp), kper, textprocess, nrow, ncol, nlay
         cbc_nam = []
@@ -395,13 +399,6 @@ try:
 except StandardError, e:  #Exception
     print '\nFATAL ERROR!\nAbnormal MM run interruption in the initialization!\nError description:'
     traceback.print_exc(file=sys.stdout)
-    try:
-        myMF.h5_MF_fn = None
-    except:
-        pass
-#    traceback.print_exc(limit=1, file=sys.stdout)
-    timeend = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
-    duration += (timeend-timestart)
     sys.exit()
 
 # #############################
@@ -662,8 +659,11 @@ try:
                 report = open(report_fn, 'a')
                 sys.stdout = report
             myMF.ppMF(MM_ws, MF_ws, MF_ini_fn, finf_MM = (h5_MM_fn, 'finf'), wel_MM = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks, numDays = numDays)
-
-            h5_MF = h5py.File(myMF.h5_MF_fn, 'r')
+            try:
+                h5_MF = h5py.File(myMF.h5_MF_fn, 'r')
+            except:
+                print '\nFATAL ERROR!\nInvalid MODFLOW HDF5 file. Run MARMITES and/or MODFLOW again.'
+                sys.exit()
 
             timeendMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
             durationMF += (timeendMF-timestartMF)
@@ -823,10 +823,14 @@ try:
         print "\nNo reading of observations time series (hydraulic heads and soil moisture) required."
         obs = None
 
-
     # reorganizing MF output in daily data
     if MF_yn == 1 and isinstance(myMF.h5_MF_fn, str):
-        h5_MF = h5py.File(myMF.h5_MF_fn)
+        print '\nConverting MODFLOW output into daily time step...'
+        try:
+            h5_MF = h5py.File(myMF.h5_MF_fn)
+        except:
+            print '\nFATAL ERROR!\nInvalid MODFLOW HDF5 file. Run MARMITES and/or MODFLOW again.'
+            sys.exit()
         myMF.MM_PROCESS.procMF(myMF = myMF, h5_MF = h5_MF, ds_name = 'cbc', ds_name_new = 'DRN_d', conv_fact = conv_fact, index = imfDRN)
         myMF.MM_PROCESS.procMF(myMF = myMF, h5_MF = h5_MF, ds_name = 'cbc', ds_name_new = 'STO_d', conv_fact = conv_fact, index = imfSTO)
         if myMF.uzf_yn == 1:
@@ -856,9 +860,14 @@ try:
     cbcmax = []
     cbcmin = []
 
+    # computing max and min values for each and for all fluxes
     if isinstance(myMF.h5_MF_fn, str):
         # TODO missing STOuz (however this is not very relevant since these fluxes should not be the bigger in magnitude)
-        h5_MF = h5py.File(myMF.h5_MF_fn, 'r')
+        try:
+            h5_MF = h5py.File(myMF.h5_MF_fn, 'r')
+        except:
+            print '\nFATAL ERROR!\nInvalid MODFLOW HDF5 file. Run MARMITES and/or MODFLOW again.'
+            sys.exit()
         # DRN
         if myMF.drn_yn == 1:
             cbc_DRN = h5_MF['DRN_d']
@@ -903,8 +912,8 @@ try:
     else:
         DRNmax = cbcmax = 1
         DRNmin = cbcmin = -1
-        hmaxMF = 999.9
-        hminMF = -999.9
+        hmaxMF = -9999.9
+        hminMF = 9999.9
 
     if obs != None:
         for o in range(len(obs.keys())):
@@ -919,8 +928,8 @@ try:
                 hminMM = float(np.floor(np.nanmin(npa_m_tmp.flatten())))
                 del npa_m_tmp
             else:
-                hmaxMM = 999.9
-                hminMM = -999.9
+                hmaxMM = -9999.9
+                hminMM = 9999.9
             hmax.append(np.nanmax((hmaxMF_tmp, hmaxMM)))
             hmin.append(np.nanmin((hminMF_tmp, hminMM)))
             hdiff.append(hmax[o]-hmin[o])
@@ -933,7 +942,11 @@ try:
     # plot UNSAT/GW balance at the catchment scale
     if plot_out == 1:
         if os.path.exists(h5_MM_fn):
-            h5_MM = h5py.File(h5_MM_fn, 'r')
+            try:
+                h5_MM = h5py.File(h5_MM_fn, 'r')
+            except:
+                print '\nFATAL ERROR!\nInvalid MARMITES HDF5 file. Run MARMITES and/or MODFLOW again.'
+                sys.exit()
             # indexes of the HDF5 output arrays
             #    index = {'iRF':0, 'iPET':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iEXF':6, 'iEs':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSs':13, 'iETg':14, 'iETu':15, 'idSu':16, 'iHEADScorr':17, 'idtwt':18}
             #   index_S = {'iEu':0, 'iTu':1,'iSu_pc':2, 'iRp':3, 'iRexf':4, 'idSu':5, 'iSu':6, 'iSAT':7, 'iMB_l':8}
@@ -971,8 +984,14 @@ try:
             del flxlbl1, flxlbl1a, flxlbl2, sign
             flxmax = float(np.ceil(np.nanmax(flxlst)))
             flxmin = float(np.floor(np.nanmin(flxlst)))
-            flxmax = 1.15*max(cbcmax, flxmax)
-            flxmin = 1.15*min(cbcmin, flxmin)
+            minfact = 0.95
+            maxfact = 1.05
+            if np.min((cbcmax, flxmax)) < 0:
+                minfact = 1.05
+            if np.max((cbcmax, flxmax)) < 0:
+                maxfact = 0.95
+            flxmax = maxfact*max(cbcmax, flxmax)
+            flxmin = minfact*min(cbcmin, flxmin)
             if plot_out == 1 and isinstance(myMF.h5_MF_fn, str):
                 plt_export_fn = os.path.join(MM_ws, '_plt_0UNSATandGWbalances.png')
                 rch_tmp = 0
@@ -1179,60 +1198,75 @@ try:
     # plot MF output
     if plot_out == 1 and isinstance(myMF.h5_MF_fn, str):
         # plot heads (grid + contours), DRN, etc... at specified TS
-        TSlst = []
+        TS_lst = []
+        Date_lst = []
+        JD_lst = []
         TS = 0
         while TS < len(h_MF_m):
-            TSlst.append(TS)
+            TS_lst.append(TS)
+            Date_lst.append(inputDate[TS])
+            JD_lst.append(JD[TS])
             TS += plot_freq
-        TSlst.append(len(h_MF_m)-1)
+        TS_lst.append(len(h_MF_m)-1)
+        Date_lst.append(inputDate[len(h_MF_m)-1])
+        JD_lst.append(JD[len(h_MF_m)-1])
         h5_MF = h5py.File(myMF.h5_MF_fn, 'r')
         # plot for selected time step
-        for TS in TSlst:
+        t = 0
+        for TS in TS_lst:
             # plot heads [m]
             V=[]
             for L in range(myMF.nlay):
                 V.append(h_MF_m[TS,:,:,L])
-            MMplot.plotLAYER(TS, ncol = myMF.ncol, nrow = myMF.nrow, nlay = myMF.nlay, nplot = myMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation (m)', msg = 'DRY', plt_title = 'MF_HEADS', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (hmaxMF - hminMF)/nrangeMF, Vmax = hmaxMF, Vmin = hminMF, ntick = ntick)
+            MMplot.plotLAYER(TS = TS, Date = Date_lst[t], JD = JD_lst[t], ncol = myMF.ncol, nrow = myMF.nrow, nlay = myMF.nlay, nplot = myMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation (m)', msg = 'DRY', plt_title = 'MF_HEADS', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (hmaxMF - hminMF)/nrangeMF, Vmax = hmaxMF, Vmin = hminMF, ntick = ntick)
             # plot GW drainage [mm]
             V = []
             cbc_DRN = h5_MF['DRN_d']
             for L in range(myMF.nlay):
                 V.append(np.ma.masked_array(cbc_DRN[TS,:,:,L], mask[L])*(-1.0))
-            MMplot.plotLAYER(TS, ncol = myMF.ncol, nrow = myMF.nrow, nlay = myMF.nlay, nplot = myMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater drainage (mm/day)', msg = '- no drainage', plt_title = 'MF_DRN', MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, Vmin = DRNmin, contours = ctrsMF, Vmax = DRNmax, fmt='%.3G', ntick = ntick)
+            MMplot.plotLAYER(TS = TS, Date = Date_lst[t], JD = JD_lst[t], ncol = myMF.ncol, nrow = myMF.nrow, nlay = myMF.nlay, nplot = myMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater drainage (mm/day)', msg = '- no drainage', plt_title = 'MF_DRN', MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, Vmin = DRNmin, contours = ctrsMF, Vmax = DRNmax, fmt='%.3G', ntick = ntick)
             # plot GW RCH [mm]
             V = []
             cbc_RCH = h5_MF['RCH_d']
             for L in range(myMF.nlay):
                 V.append(np.ma.masked_array(cbc_RCH[TS,:,:,L], mask[L]))
-            MMplot.plotLAYER(TS, ncol = myMF.ncol, nrow = myMF.nrow, nlay = myMF.nlay, nplot = myMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater recharge (mm/day)', msg = '- no flux', plt_title = 'MF_RCH', MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, Vmin = RCHmin, contours = ctrsMF, Vmax = RCHmax, fmt='%.3G', ntick = ntick)
+            MMplot.plotLAYER(TS = TS, Date = Date_lst[t], JD = JD_lst[t], ncol = myMF.ncol, nrow = myMF.nrow, nlay = myMF.nlay, nplot = myMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater recharge (mm/day)', msg = '- no flux', plt_title = 'MF_RCH', MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, Vmin = RCHmin, contours = ctrsMF, Vmax = RCHmax, fmt='%.3G', ntick = ntick)
+            t += 1
             del V
+        del t
         # plot average for the whole simulated period
         # plot GW drainage [mm]
         V = []
         for L in range(myMF.nlay):
             V.append(np.ma.masked_array(np.add.accumulate(cbc_DRN[:,:,:,L], axis = 0)[sum(myMF.perlen)-1,:,:]/sum(myMF.perlen)*(-1.0), mask[L]))
         if DRNmax!=0.0 or DRNmin!=0.0:
-            MMplot.plotLAYER(TS = 99998, ncol = myMF.ncol, nrow = myMF.nrow, nlay = myMF.nlay, nplot = myMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater drainage (mm/day)', msg = '- no drainage', plt_title = 'MF_average_DRN', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (DRNmax - DRNmin)/nrangeMM, Vmax = DRNmax, Vmin = DRNmin, contours = ctrsMM, ntick = ntick)
+            MMplot.plotLAYER(TS = 'NA', Date = 'NA', JD = 'NA', ncol = myMF.ncol, nrow = myMF.nrow, nlay = myMF.nlay, nplot = myMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater drainage (mm/day)', msg = '- no drainage', plt_title = 'MF_average_DRN', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (DRNmax - DRNmin)/nrangeMM, Vmax = DRNmax, Vmin = DRNmin, contours = ctrsMM, ntick = ntick)
         # plot GW RCH [mm]
         V = []
         for L in range(myMF.nlay):
             V.append(np.ma.masked_array(np.add.accumulate(cbc_RCH[:,:,:,L], axis = 0)[sum(myMF.perlen)-1,:,:]/sum(myMF.perlen), mask[L]))
         if RCHmax!=0.0 or RCHmin!=0.0:
-            MMplot.plotLAYER(TS = 99998, ncol = myMF.ncol, nrow = myMF.nrow, nlay = myMF.nlay, nplot = myMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater recharge (mm/day)', msg = '- no flux', plt_title = 'MF_average_RCH', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (RCHmax - RCHmin)/nrangeMM, Vmax = RCHmax, Vmin = RCHmin, contours = ctrsMM, ntick = ntick)
+            MMplot.plotLAYER(TS = 'NA', Date = 'NA', JD = 'NA', ncol = myMF.ncol, nrow = myMF.nrow, nlay = myMF.nlay, nplot = myMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater recharge (mm/day)', msg = '- no flux', plt_title = 'MF_average_RCH', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (RCHmax - RCHmin)/nrangeMM, Vmax = RCHmax, Vmin = RCHmin, contours = ctrsMM, ntick = ntick)
         h5_MF.close()
         del V, cbc_RCH, cbc_DRN
-        del TSlst
+        del TS_lst
 
     # plot MM output
     if plot_out == 1 and os.path.exists(h5_MM_fn):
         #h5_MM = h5py.File(h5_MM_fn, 'r')
         flxlbl = ['RF', 'RFe', 'I', 'EXF', 'dSs', 'Ro', 'Es', 'Eg', 'Tg', 'ETg', 'ETu', 'dSu']
-        TSlst = []
+        TS_lst = []
+        Date_lst = []
+        JD_lst = []
         TS = 0
         while TS < sum(myMF.perlen):
-            TSlst.append(TS)
+            TS_lst.append(TS)
+            Date_lst.append(inputDate[TS])
+            JD_lst.append(JD[TS])
             TS += plot_freq
-        TSlst.append(sum(myMF.perlen)-1)
+        TS_lst.append(sum(myMF.perlen)-1)
+        Date_lst.append(inputDate[sum(myMF.perlen)-1])
+        JD_lst.append(JD[sum(myMF.perlen)-1])
         for i in flxlbl:
             # plot average for the whole simulated period
             i1 = 'i'+i
@@ -1250,14 +1284,16 @@ try:
             else:
                 i_lbl = i
             if Vmax!=0.0 or Vmin!=0.0:
-                MMplot.plotLAYER(TS = 99998, ncol = myMF.ncol, nrow = myMF.nrow, nlay = myMF.nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i_lbl + ' (mm/day)'), msg = 'no flux', plt_title = ('MM_average_' + i), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrangeMM, Vmax = Vmax, Vmin = Vmin, contours = ctrsMM, ntick = ntick)
+                MMplot.plotLAYER(TS = 'NA', Date = 'NA', JD = 'NA', ncol = myMF.ncol, nrow = myMF.nrow, nlay = myMF.nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i_lbl + ' (mm/day)'), msg = 'no flux', plt_title = ('MM_average_' + i), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrangeMM, Vmax = Vmax, Vmin = Vmin, contours = ctrsMM, ntick = ntick)
             del V
             # plot for selected time step
-            for TS in TSlst:
+            t = 0
+            for TS in TS_lst:
                 V = [np.ma.masked_values(MM[TS,:,:], myMF.hnoflo, atol = 0.09)]
                 if Vmax!=0.0 or Vmin!=0.0:
-                    MMplot.plotLAYER(TS, ncol = myMF.ncol, nrow = myMF.nrow, nlay = myMF.nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i + ' (mm/day)'), msg = 'no flux', plt_title = ('MM_'+i), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrangeMM, Vmax = Vmax, Vmin = Vmin, contours = ctrsMM, ntick = ntick)
-            del V, MM
+                    MMplot.plotLAYER(TS = TS, Date = Date_lst[t], JD = JD_lst[t], ncol = myMF.ncol, nrow = myMF.nrow, nlay = myMF.nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i + ' (mm/day)'), msg = 'no flux', plt_title = ('MM_'+i), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrangeMM, Vmax = Vmax, Vmin = Vmin, contours = ctrsMM, ntick = ntick)
+                t += 1
+            del V, MM, t
         flxlbl = ['Eu', 'Tu','Rp']
         for i in flxlbl:
             # plot average for the whole simulated period
@@ -1282,10 +1318,11 @@ try:
             Vmax = np.nanmax(V[0]) #float(np.ceil(np.nanmax(V)))
             Vmin = np.nanmin(V[0]) #float(np.floor(np.nanmin(V)))
             if Vmax!=0.0 or Vmin!=0.0:
-                MMplot.plotLAYER(TS = 99998, ncol = myMF.ncol, nrow = myMF.nrow, nlay = myMF.nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i + ' (mm/day)'), msg = 'no flux', plt_title = ('MM_'+ 'average_' + i), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrangeMM, Vmax = Vmax, Vmin = Vmin, contours = ctrsMM, ntick = ntick)
+                MMplot.plotLAYER(TS = 'NA', Date = 'NA', JD = 'NA', ncol = myMF.ncol, nrow = myMF.nrow, nlay = myMF.nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i + ' (mm/day)'), msg = 'no flux', plt_title = ('MM_'+ 'average_' + i), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrangeMM, Vmax = Vmax, Vmin = Vmin, contours = ctrsMM, ntick = ntick)
             del V
             # plot for selected time step
-            for TS in TSlst:
+            t = 0
+            for TS in TS_lst:
                 h5_MM = h5py.File(h5_MM_fn, 'r')
                 MM = h5_MM['MM_S'][TS,:,:,:,index_S.get(i1)]
                 h5_MM.close()
@@ -1295,15 +1332,16 @@ try:
                 else:
                     V = [np.ma.masked_values(MM[:,:,-1], myMF.hnoflo, atol = 0.09)]
                 if Vmax!=0.0 or Vmin!=0.0:
-                    MMplot.plotLAYER(TS, ncol = myMF.ncol, nrow = myMF.nrow, nlay = myMF.nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i + ' (mm/day)'), msg = 'no flux', plt_title = ('MM_'+i), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrangeMM, Vmax = Vmax, Vmin = Vmin, contours = ctrsMM, ntick = ntick)
-            del V, MM
+                    MMplot.plotLAYER(TS = TS, Date = Date_lst[t], JD = JD_lst[t], ncol = myMF.ncol, nrow = myMF.nrow, nlay = myMF.nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i + ' (mm/day)'), msg = 'no flux', plt_title = ('MM_'+i), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrangeMM, Vmax = Vmax, Vmin = Vmin, contours = ctrsMM, ntick = ntick)
+                t += 1
+            del V, MM, t
         if h_diff_surf != None:
             flxlbl = ['h_diff_surf']
             Vmax = np.nanmax(h_diff_surf) #float(np.ceil(np.nanmax(V)))
             Vmin = np.nanmin(h_diff_surf) #float(np.floor(np.nanmin(V)))
             if Vmax!=0.0 or Vmin!=0.0:
-                MMplot.plotLAYER(TS = 99998, ncol = myMF.ncol, nrow = myMF.nrow, nlay = 1, nplot = 1, V = list(h_diff_surf),  cmap = plt.cm.Blues, CBlabel = ('(m)'), msg = 'no value', plt_title = ('_HEADSmaxdiff_ConvLoop'), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrangeMM, Vmax = Vmax, Vmin = Vmin, contours = ctrsMM, ntick = ntick)
-        del TSlst, flxlbl, i, i1, h_diff_surf
+                MMplot.plotLAYER(TS = 'NA', Date = 'NA', JD = 'NA', ncol = myMF.ncol, nrow = myMF.nrow, nlay = 1, nplot = 1, V = list(h_diff_surf),  cmap = plt.cm.Blues, CBlabel = ('(m)'), msg = 'no value', plt_title = ('_HEADSmaxdiff_ConvLoop'), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrangeMM, Vmax = Vmax, Vmin = Vmin, contours = ctrsMM, ntick = ntick)
+        del TS_lst, flxlbl, i, i1, h_diff_surf
 
     del gridSOIL, inputDate
     del hmaxMF, hminMF, hmin, hdiff, DRNmax, DRNmin, cbcmax, cbcmin
