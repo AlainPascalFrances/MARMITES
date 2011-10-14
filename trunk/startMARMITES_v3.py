@@ -362,6 +362,7 @@ try:
         timeendMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
         durationMF +=  timeendMF-timestartMF
 
+    if isinstance(myMF.h5_MF_fn, str):
         h5_MF = h5py.File(myMF.h5_MF_fn, 'r')
         # heads format is : timestep, nrow, ncol, nlay
         # cbc format is: (kstp), kper, textprocess, nrow, ncol, nlay
@@ -824,7 +825,7 @@ try:
 
 
     # reorganizing MF output in daily data
-    if isinstance(myMF.h5_MF_fn, str):
+    if MF_yn == 1 and isinstance(myMF.h5_MF_fn, str):
         h5_MF = h5py.File(myMF.h5_MF_fn)
         myMF.MM_PROCESS.procMF(myMF = myMF, h5_MF = h5_MF, ds_name = 'cbc', ds_name_new = 'DRN_d', conv_fact = conv_fact, index = imfDRN)
         myMF.MM_PROCESS.procMF(myMF = myMF, h5_MF = h5_MF, ds_name = 'cbc', ds_name_new = 'STO_d', conv_fact = conv_fact, index = imfSTO)
@@ -834,6 +835,7 @@ try:
             myMF.MM_PROCESS.procMF(myMF = myMF, h5_MF = h5_MF, ds_name = 'cbc', ds_name_new = 'WEL_d', conv_fact = conv_fact, index = imfWEL)
         myMF.MM_PROCESS.procMF(myMF = myMF, h5_MF = h5_MF, ds_name = 'heads', ds_name_new = 'heads_d', conv_fact = conv_fact)
         h5_MF.close()
+    if isinstance(myMF.h5_MF_fn, str):
         top_m = np.ma.masked_values(myMF.top, myMF.hnoflo, atol = 0.09)
         index_cbc_uzf = [imfRCH]
         if myMF.wel_yn == 1:
