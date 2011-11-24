@@ -10,8 +10,6 @@
 #-------------------------------------------------------------------------------
 #!/usr/bin/env python
 import matplotlib as mpl
-if mpl.get_backend()<>'agg':
-    mpl.use('agg')
 import matplotlib.pyplot as plt
 import sys
 import CreateColors
@@ -20,8 +18,8 @@ def plot(strTitle = 'Title', x = [], \
         y1 = [], y2 = [], y3 =[], y4=[],\
         lbl_y1 = '', lbl_y2 = '', lbl_y3 = '', lbl_y4 = '', lbl_veg = ''
         ,plot_exportRF_fn = ''
+        , MMsurf_plot = 0
         ):
-
 
 ##    if len(x)>365:
 ##        locX = mpl.dates.MonthLocator()
@@ -35,7 +33,6 @@ def plot(strTitle = 'Title', x = [], \
     lbls_y4 = [lbl_y4 + " " +  lbl for lbl in lbl_veg]
 
     fig = plt.figure(figsize=(2*11.7, 2*8.27))
-
     ax1=fig.add_subplot(4,1,4)
     plt.setp( ax1.get_xticklabels(), fontsize=8)
     plt.setp( ax1.get_yticklabels(), fontsize=8)
@@ -120,8 +117,14 @@ def plot(strTitle = 'Title', x = [], \
     plt.grid(True)
 
     plt.subplots_adjust(left=0.05, bottom=0.1, right=0.95, top=0.95, wspace=0.1, hspace=0.15)
-    #plt.show()
-    plt.savefig(plot_exportRF_fn,dpi=150)
+    if MMsurf_plot == 1:
+        plt.show(block = True)
+    elif MMsurf_plot == 0:
+        plt.savefig(plot_exportRF_fn,dpi=150)
+    else:
+        print '\nWARNING!\nMMsurf_plot should be iqual to 0 or to 1! Plot saved anyway at %s' % plot_exportRF_fn
+        plt.savefig(plot_exportRF_fn,dpi=150)
     plt.close()
+    del fig
 # EOF
 #############################

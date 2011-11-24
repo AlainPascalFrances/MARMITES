@@ -33,7 +33,6 @@ __author__ = "Alain Francés <frances08512@itc.nl>"
 __version__ = "1.0"
 __date__ = "November 2010"
 
-import os
 import numpy as np
 
 class UNSAT:

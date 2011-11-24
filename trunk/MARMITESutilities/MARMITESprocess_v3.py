@@ -15,8 +15,7 @@ def readFile(ws, fn):
     if os.path.exists(inputFile_fn):
         fin = open(inputFile_fn, 'r')
     else:
-        print "File [" + inputFile_fn + "] doesn't exist, verify name and path!"
-        sys.exit()
+        raise SystemExit("File [" + inputFile_fn + "] doesn't exist, verify name and path!")
     line = fin.readline().split()
     delimChar = line[0]
     try:
@@ -28,11 +27,9 @@ def readFile(ws, fn):
             else:
                 raise NameError('InputFileFormat')
     except NameError:
-        print 'Error in file [' + inputFile_fn + '], check format!'
-        sys.exit()
-    except e:
-        print "Unexpected error in file [" + inputFile_fn + "]\n", sys.exc_info()[0]
-        sys.exit()
+        raise SystemExit('Error in file [' + inputFile_fn + '], check format!')
+    except:
+        raise SystemExit("Unexpected error in file [" + inputFile_fn + "]\n", sys.exc_info()[0])
     fin.close()
     del fin
     return inputFile
@@ -160,9 +157,7 @@ class PROCESS:
             line = fin.readline().split()
             nrow_tmp = int(line[1])
             line = fin.readline().split()
-            xllcorner_tmp = float(line[1])
             line = fin.readline().split()
-            yllcorner_tmp = float(line[1])
             line = fin.readline().split()
             cellsizeEsriAscii = float(line[1])
             line = fin.readline().split()
@@ -342,7 +337,7 @@ class PROCESS:
         for i in range(SOILzones):
             nsl.append(int(inputFile[i+1]))
             if nsl[i+1]<1:
-                raise ValueError, '\nFATAL ERROR!\nThe model requires at least 1 soil layer.\nMARMITEs found %2d layer in soil %s' % (nsl[i+1],nam_soil[z])
+                raise ValueError, '\nFATAL ERROR!\nThe model requires at least 1 soil layer!'
 
         # soil parameter definition for each soil type
         nslst = SOILzones+1
@@ -373,14 +368,11 @@ class PROCESS:
                 Ks[z].append(float(inputFile[nslst]))
                 nslst += 1
                 if not(Sm[z][ns]>Sfc[z][ns]>Sr[z][ns]) or not(Sm[z][ns]>=Si[z][ns]>=Sr[z][ns]):
-                    raise ValueError, '\nFATAL ERROR!\nSoils parameters are not valid!\nThe conditions are Sm>Sfc>Sr and Sm>Si>Sr!'
-                    sys.exit()
+                    raise SystemExit('\nFATAL ERROR!\nSoils parameters are not valid!\nThe conditions are Sm>Sfc>Sr and Sm>Si>Sr!')
             if sum(slprop[z][0:nsl[z+1]])>1:
-                raise ValueError, '\nFATAL ERROR!\nThe sum of the soil layers proportion of %s is >1!\nCorrect your soil data input!\n' % nam_soil[z]
-                sys.exit()
+                raise SystemExit('\nFATAL ERROR!\nThe sum of the soil layers proportion of %s is >1!\nCorrect your soil data input!\n' % nam_soil[z])
             if sum(slprop[z][0:nsl[z+1]])<1:
-                raise ValueError, '\nFATAL ERROR!\nThe sum of the soil layers proportion of %s is <1!\nCorrect your soil data input!\n' % nam_soil[z]
-                sys.exit()
+                raise SystemExit('\nFATAL ERROR!\nThe sum of the soil layers proportion of %s is <1!\nCorrect your soil data input!\n' % nam_soil[z])
 
         return nsl[1:len(nsl)], nam_soil, st, slprop, Sm, Sfc, Sr, Si, Ks
         del nsl, nam_soil, st, slprop, Sm, Sfc, Sr, Si, Ks
@@ -535,10 +527,6 @@ class PROCESS:
         OUTPUT:      ObsName.txt
         """
         for t in range(len(inputDate)):
-            year='%4d'%mpl.dates.num2date(inputDate[t]).year
-            month='%02d'%mpl.dates.num2date(inputDate[t]).month
-            day='%02d'%mpl.dates.num2date(inputDate[t]).day
-            date=(day+"/"+month+"/"+year)
             # 'Date,RF,E0,PET,PE,RFe,I,'+Eu_str+Tu_str+'Eg,Tg,ETg,WEL_MF,Es,'+Su_str+Supc_str+dSu_str+'dSs,Ss,Ro,GW_EXF,GW_EXF_MF,'+Rp_str+Rexf_str+'R_MF,hSATFLOW,hMF,hMFcorr,hmeas,dtwt,' + Smeasout + MB_str + 'MB\n'
             Sout     = ''
             Spcout   = ''
@@ -568,7 +556,11 @@ class PROCESS:
                 obs_h_tmp = self.hnoflo
             out_date = mpl.dates.num2date(inputDate[t]).isoformat()[:10]
             out1 = '%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[t,index.get('iRF')], results[t,index.get('iE0')],results[t,index.get('iPET')],results[t,index.get('iPE')],results[t,index.get('iRFe')],results[t,index.get('iI')])
-            out2 = '%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[t,index.get('iEg')], results[t,index.get('iTg')],results[t,index.get('iETg')], WEL[t], results[t,index.get('iEs')])
+            if type(WEL) == np.ndarray:
+                WEL_tmp = WEL[t]
+            else:
+                WEL_tmp = 0.0
+            out2 = '%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[t,index.get('iEg')], results[t,index.get('iTg')],results[t,index.get('iETg')], WEL_tmp, results[t,index.get('iEs')])
             out3 = '%.8f,%.8f,%.8f,%.8f,' % (results[t,index.get('idSs')],results[t,index.get('iSs')],results[t,index.get('iRo')],results[t,index.get('iEXF')])
             out4 = '%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,' % (RCH[t], h_satflow[t],heads_MF[t],results[t,index.get('iHEADScorr')],obs_h_tmp,results[t,index.get('idtwt')])
             out5 = '%.8f' % (results[t,index.get('iMB')])
@@ -589,15 +581,14 @@ class PROCESS:
             day='%02d'%mpl.dates.num2date(inputDate[t]).day
             date=(day+"/"+month+"/"+year)
             try:
-                obs_h_tmp = obs_h[0,t]
-                obs_h_tmp = str(obs_h[t])
+                obs_h[0,t]
+                str(obs_h[t])
                 outPESTheads.write(obsname.ljust(14,' ')+ date.ljust(14,' ')+ '00:00:00        '+ str(heads_MF[t])+ '    \n')
             except:
                 pass
             if results_S <> None:
                 try:
-                    obs_S_tmp = obs_S[0,t]
-                    Smeasout = ''
+                    obs_S[0,t]
                     for l in range (_nslmax):
                         outPESTsm.write((obsname+'SM_l'+str(l+1)).ljust(14,' ')+ date.ljust(14,' ')+ '00:00:00        '+ str(results_S[t,l]) + '    \n')
                 except:

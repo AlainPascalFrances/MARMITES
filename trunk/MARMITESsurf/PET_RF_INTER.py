@@ -68,7 +68,6 @@ def PET_PM_FAO56():
 
 import numpy as np
 import matplotlib as mpl
-from sys import path
 
 '''
     ================================================================
@@ -675,9 +674,9 @@ def process(datenum = np.array([]), datenum_d = np.array([])
         if actual_day == mpl.dates.num2date(datenum[t]).isoformat()[:10]:
             n1 = n1 + 1
             for v in range(NVEG):
-                PET_PM_VEG_d[v][t_d] = PET_PM_VEG_d[v][t_d] + PET_PM_VEG[v][t]
+                PET_PM_VEG_d[v,t_d] = PET_PM_VEG_d[v,t_d] + PET_PM_VEG[v][t]
             for s in range(NSOIL):
-                PE_PM_SOIL_d[s][t_d] = PE_PM_SOIL_d[s][t_d]  + PE_PM_SOIL[s][t]
+                PE_PM_SOIL_d[s,t_d] = PE_PM_SOIL_d[s,t_d]  + PE_PM_SOIL[s][t]
             E0_d[t_d] = (E0_d[t_d] + E0[t])
             if RF[t]>0:
                 RF_d[t_d] = RF_d[t_d] + RF[t]
@@ -691,9 +690,9 @@ def process(datenum = np.array([]), datenum_d = np.array([])
             actual_day = mpl.dates.num2date(datenum[t]).isoformat()[:10]
             J_d.append(J[t])
             for v in range(NVEG):
-                PET_PM_VEG_d[v][t_d] = PET_PM_VEG[v][t]
+                PET_PM_VEG_d[v,t_d] = PET_PM_VEG[v][t]
             for s in range(NSOIL):
-                PE_PM_SOIL_d[s][t_d] = PE_PM_SOIL[s][t]
+                PE_PM_SOIL_d[s,t_d] = PE_PM_SOIL[s][t]
             E0_d[t_d] = E0[t]
             if RF[t]>0:
                 RF_d[t_d] = RF_d[t_d] + RF[t]

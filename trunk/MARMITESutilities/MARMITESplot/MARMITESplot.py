@@ -2,8 +2,6 @@
 import os
 import datetime
 import matplotlib as mpl
-if mpl.get_backend()<>'agg':
-    mpl.use('agg')
 import matplotlib.pyplot as plt
 import numpy as np
 

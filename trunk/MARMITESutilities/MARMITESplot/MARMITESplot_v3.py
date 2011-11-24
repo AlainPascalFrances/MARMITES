@@ -1,12 +1,10 @@
 # -*- coding: utf-8 -*-
 import os
 import matplotlib as mpl
-if mpl.get_backend()<>'agg':
-    mpl.use('agg')
 import matplotlib.pyplot as plt
 import numpy as np
 
-def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, EXF, ETg, Es, MB, MB_l, dtwt, uzthick, SAT, R, h_MF, h_MF_corr, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin):
+def allPLOT(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, EXF, ETg, Es, MB, MB_l, dtwt, uzthick, SAT, R, h_MF, h_MF_corr, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin):
     """
     allGRAPH: GRAPH the computed data
     Use Matplotlib
@@ -16,7 +14,8 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
             STATE VARIABLES
                 TS              Time step
                 P               Daily rainfall
-                PET             Daily evapotranspiration
+                PT              Daily potential transpiration
+                PE              Daily potential evaporation
                 Pe              Daily Excess rainfall
                 Eu              Daily evaporation (bare soil)
                 Tu              Daily transpiration
@@ -40,7 +39,6 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     fig.suptitle(plt_title)
 
     nsl = len(Tu[0])
-    nts = len(DateInput)
     lbl_Spc = []
     lbl_Spcfull = []
     lbl_S = []
@@ -54,7 +52,7 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     lbl_Eu.append('PE')
     lbl_Eu.append('E_tot')
     lbl_Eu.append('Eu_tot')
-    lbl_Tu.append('PET')
+    lbl_Tu.append('PT')
     lbl_Tu.append('T_tot')
     lbl_Tu.append('Tu_tot')
     lbl_MB.append('MB')
@@ -174,7 +172,7 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
     ax4=fig.add_subplot(10,1,4, sharex=ax1)
     plt.setp(ax4.get_xticklabels(), visible=False)
     plt.setp(ax4.get_yticklabels(), fontsize=8)
-    plt.plot_date(DateInput,PET,'-', color='lightblue', linewidth=3)
+    plt.plot_date(DateInput,PT,'-', color='lightblue', linewidth=3)
     plt.plot_date(DateInput,T_tot,'-', color='darkblue',  linewidth=1.5)
     plt.plot_date(DateInput,Tu_tot,'-.', color=colors_nsl[len(colors_nsl)-1])
     for l, (y, color, lbl) in enumerate(zip(Tu1, colors_nsl, lbl_Tu[2:len(lbl_Tu)])):
@@ -379,11 +377,11 @@ def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, S
 #    plt.show()
     plt.clf()
     plt.close('all')
-    del fig, DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu1, Tu1, Eg, Tg, S1, dS1, Spc1, Rp1, EXF, R, ETg, Es, MB, h_MF, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin
+    del fig, DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu1, Tu1, Eg, Tg, S1, dS1, Spc1, Rp1, EXF, R, ETg, Es, MB, h_MF, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin
 
 ##################
 
-def plotLAYER(TS, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_title, MM_ws, interval_type = 'arange', interval_diff = 1, interval_num = 1, Vmax = 0, Vmin = 0, fmt = '%.2f', contours = True, ntick = 1):
+def plotLAYER(TS, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_title, MM_ws, interval_type = 'arange', interval_diff = 1, interval_num = 1, Vmax = 0, Vmin = 0, fmt = '%.2f', contours = False, ntick = 1):
 
     # Store some arrays for plotting
     x = np.arange(0.5, ncol+1.5, 1)
@@ -414,7 +412,7 @@ def plotLAYER(TS, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_
         plt.xlabel('col j', fontsize=10)
         ax[L].xaxis.set_ticks(np.arange(0,ncol+1,ntick))
         ax[L].yaxis.set_ticks(np.arange(0,nrow+1,ntick))
-        if np.nanmax(V[L])>np.nanmin(V[L]):
+        if np.ma.max(V[L])>np.ma.min(V[L]):
             CB_test = True
             PC = plt.pcolor(xg, yg, V[L], cmap = cmap, vmin = Vmin, vmax = Vmax)
             if contours == True:
@@ -473,9 +471,6 @@ def plotGWbudget(flxlst, flxlbl, colors_flx, plt_export_fn, plt_title, fluxmax, 
             ax1.text(rect.get_x()+rect.get_width()/2., ytext, '%.2f'%float(height),
                     ha='center', va=va)
     ##################
-
-    lblspc = 0.05
-    mkscale = 0.5
 
     fig = plt.figure(num=None, figsize=(2*11.7, 2*8.27), dpi=30)
     fig.suptitle(plt_title)

@@ -130,15 +130,13 @@ class MF():
                     self.tsmult.append(int(tsmult_tmp[i]))
                     self.Ss_tr.append(str(Ss_tr_tmp[i]))
                     if self.nstp[i]>self.perlen[i]:
-                        print "FATAL ERROR!\nMM doesn't accept nstp < perlen!"
-                        sys.exit()
+                        raise SystemExit("FATAL ERROR!\nMM doesn't accept nstp < perlen!")
                     if self.Ss_tr[i] == 'TR':
                         self.Ss_tr[i] = False
                     elif self.Ss_tr[i] == 'SS':
                         self.Ss_tr[i] = True
                     else:
-                        print '\nVariable Ss_tr from the DIS package is not correct, check the MODFLOW manual'
-                        sys.exit()
+                        raise SystemExit('\nVariable Ss_tr from the DIS package is not correct, check the MODFLOW manual')
                 l += 1
             elif self.timedef < 0:
                 # daily data
@@ -452,9 +450,7 @@ class MF():
             l += 1
             self.MFout_yn = int(inputFile[l].strip())
         except:
-            print "Unexpected error in the MODFLOW input file:\n", sys.exc_info()[0]
-            traceback.print_exc(file=sys.stdout)
-            sys.exit()
+            raise SystemExit("Unexpected error in the MODFLOW input file:\n", sys.exc_info()[0], '\n%s' % traceback.print_exc(file=sys.stdout))
         del inputFile
 
         self.MM_PROCESS = MMproc.PROCESS(MM_ws                = MM_ws,
@@ -473,6 +469,9 @@ class MF():
         self.top     = self.MM_PROCESS.checkarray(self.top)
         self.botm    = self.MM_PROCESS.checkarray(self.botm)
         self.ibound  = self.MM_PROCESS.checkarray(self.ibound, dtype = np.int)
+        if self.nlay < 2:
+            self.ibound = (np.asarray(self.ibound)).reshape((self.nrow, self.ncol, 1))
+            self.botm = (np.asarray(self.botm)).reshape((self.nrow, self.ncol, 1))
         if self.uzf_yn == 1:
             self.iuzfbnd = self.MM_PROCESS.checkarray(self.iuzfbnd, dtype = np.int)
 
@@ -540,8 +539,7 @@ class MF():
                 if isinstance(self.nper, str):
                     perlenmax = int(self.nper.split()[1].strip())
             except:
-                print '\nError in nper format of the MODFLOW ini file!\n'
-                sys.exit()
+                raise SystemExit('\nError in nper format of the MODFLOW ini file!\n')
             RF_stp = []
             PET_stp = []
             RFe_stp = []
@@ -573,8 +571,7 @@ class MF():
                 E0_stp.append([])
                 E0_stp_tmp.append(0.0)
             if perlenmax < 2:
-                print '\nperlenmax must be higher than 1!\nCorrect perlenmax in the MODFLOW ini file or select the daily option.'
-                sys.exit()
+                raise SystemExit('\nperlenmax must be higher than 1!\nCorrect perlenmax in the MODFLOW ini file or select the daily option.')
             for j in range(len(d)):
                     if RFe_d[:,:,j].sum()>0.0:
                         if c == 1:
