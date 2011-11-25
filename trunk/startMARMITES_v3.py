@@ -39,7 +39,7 @@ print '\n##############\nMARMITES started!\n%s\n##############' % mpl.dates.num2
 # read input file (called _input.ini in the MARMITES workspace
 # the first character on the first line has to be the character used to comment
 # the file can contain any comments as the user wish, but the sequence of the input has to be respected
-MM_ws = r'E:\00code_ws\00_TESTS\MARMITESv3_r13c6l2'  # 00_TESTS\MARMITESv3_r13c6l2'  SARDON'  CARRIZAL'
+MM_ws = r'E:\00code_ws\SARDON'  # 00_TESTS\MARMITESv3_r13c6l2'  SARDON'  CARRIZAL'
 MM_fn = '__inputMM.ini'
 
 inputFile = MMproc.readFile(MM_ws,MM_fn)
@@ -172,226 +172,273 @@ else:
 # #############################
 # 1st phase: INITIALIZATION #####
 # #############################
+#try:
+# #############################
+# ###  MARMITES surface  ######
+# #############################
+
+print'\n##############'
+print 'MARMITESsurf RUN'
+
+if MMsurf_yn>0:
+    outMMsurf_fn = startMMsurf.MMsurf(MMsurf_ws, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, MM_ws, outMMsurf_fn, MMsurf_plot)
+
+inputFile = MMproc.readFile(MM_ws,outMMsurf_fn)
+
+l=0
+TRANS_vdw = []
+Zr = []
+kTu_min = []
+kTu_n = []
+TRANS_sdw = []
 try:
-    # #############################
-    # ###  MARMITES surface  ######
-    # #############################
+    NMETEO = int(inputFile[l].strip())
+    l += 1
+    NVEG = int(inputFile[l].strip())
+    l += 1
+    NSOIL = int(inputFile[l].strip())
+    l += 1
+    inputDate_fn = str(inputFile[l].strip())
+    l += 1
+    inputZON_dTS_RF_fn = str(inputFile[l].strip())
+    l += 1
+    inputZON_dTS_PET_fn = str(inputFile[l].strip())
+    l += 1
+    inputZON_dTS_RFe_fn = str(inputFile[l].strip())
+    l += 1
+    inputZON_dTS_PE_fn = str(inputFile[l].strip())
+    l += 1
+    inputZON_dTS_E0_fn = str(inputFile[l].strip())
+    l += 1
+    line = inputFile[l].split()
+    for v in range(NVEG):
+        TRANS_vdw.append(int(line[v]))
+    l += 1
+    line = inputFile[l].split()
+    for v in range(NVEG):
+        Zr.append(float(line[v]))
+    l += 1
+    line = inputFile[l].split()
+    for v in range(NVEG):
+        kTu_min.append(float(line[v]))
+    l += 1
+    line = inputFile[l].split()
+    for v in range(NVEG):
+        kTu_n.append(float(line[v]))
+    l += 1
+    line = inputFile[l].split()
+    for v in range(NSOIL):
+        TRANS_sdw.append(int(line[v]))
+except:
+    raise SystemExit('\nType error in file [' + outMMsurf_fn + ']')
+del inputFile
 
-    print'\n##############'
-    print 'MARMITESsurf RUN'
+numDays = len(MMproc.readFile(MM_ws, inputDate_fn))
 
-    if MMsurf_yn>0:
-        outMMsurf_fn = startMMsurf.MMsurf(MMsurf_ws, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, MM_ws, outMMsurf_fn, MMsurf_plot)
+# #############################
+# ###  READ MODFLOW CONFIG ####
+# #############################
 
-    inputFile = MMproc.readFile(MM_ws,outMMsurf_fn)
+print'\n##############'
+print 'MODFLOW initialization'
+myMF = ppMF.MF(MM_ws, MF_ws, MF_ini_fn, xllcorner, yllcorner, numDays = numDays)
 
-    l=0
-    TRANS_vdw = []
-    Zr = []
-    kTu_min = []
-    kTu_n = []
-    TRANS_sdw = []
-    try:
-        NMETEO = int(inputFile[l].strip())
-        l += 1
-        NVEG = int(inputFile[l].strip())
-        l += 1
-        NSOIL = int(inputFile[l].strip())
-        l += 1
-        inputDate_fn = str(inputFile[l].strip())
-        l += 1
-        inputZON_dTS_RF_fn = str(inputFile[l].strip())
-        l += 1
-        inputZON_dTS_PET_fn = str(inputFile[l].strip())
-        l += 1
-        inputZON_dTS_RFe_fn = str(inputFile[l].strip())
-        l += 1
-        inputZON_dTS_PE_fn = str(inputFile[l].strip())
-        l += 1
-        inputZON_dTS_E0_fn = str(inputFile[l].strip())
-        l += 1
-        line = inputFile[l].split()
-        for v in range(NVEG):
-            TRANS_vdw.append(int(line[v]))
-        l += 1
-        line = inputFile[l].split()
-        for v in range(NVEG):
-            Zr.append(float(line[v]))
-        l += 1
-        line = inputFile[l].split()
-        for v in range(NVEG):
-            kTu_min.append(float(line[v]))
-        l += 1
-        line = inputFile[l].split()
-        for v in range(NVEG):
-            kTu_n.append(float(line[v]))
-        l += 1
-        line = inputFile[l].split()
-        for v in range(NSOIL):
-            TRANS_sdw.append(int(line[v]))
-    except:
-        raise SystemExit('\nType error in file [' + outMMsurf_fn + ']')
-    del inputFile
+# ####   SUMMARY OF MODFLOW READINGS   ####
+# active cells in layer 1_____________________ibound[0]
+# elevation___________________________________top_l0
+# aquifer type of layer 1_____________________laytyp[0]
+# numero total de time step___________________sum(nstp)
+# code for dry cell___________________________hdry
+# cell size___________________________________delr[0]
 
-    numDays = len(MMproc.readFile(MM_ws, inputDate_fn))
+# compute cbc conversion factor from volume to mm
+if myMF.lenuni == 1:
+    conv_fact = 304.8
+elif myMF.lenuni == 2:
+    conv_fact = 1000.0
+elif myMF.lenuni == 3:
+    conv_fact = 10.0
+else:
+    raise SystemExit('FATAL ERROR!\nDefine the length unit in the MODFLOW ini file!\n (see USGS Open-File Report 00-92)')
+    # TODO if lenuni!=2 apply conversion factor to delr, delc, etc...
+if myMF.laytyp[0]==0:
+    raise SystemExit('FATAL ERROR!\nThe first layer cannot be confined type!\nChange your parameter laytyp in the MODFLOW lpf package.\n(see USGS Open-File Report 00-92)')
+if myMF.itmuni != 4:
+    raise SystemExit('FATAL ERROR!\nTime unit is not in days!')
+iboundBOL = np.ones(np.array(myMF.ibound).shape, dtype = bool)
+ncell = []
+mask = []
+for l in range(myMF.nlay):
+    ncell.append((np.asarray(myMF.ibound)[:,:,l] != 0).sum())
+    iboundBOL[:,:,l] = (np.asarray(myMF.ibound)[:,:,l] != 0)
+    mask.append(np.ma.make_mask(iboundBOL[:,:,l]-1))
 
-    # #############################
-    # ###  READ MODFLOW CONFIG ####
-    # #############################
-
-    print'\n##############'
-    print 'MODFLOW initialization'
-    myMF = ppMF.MF(MM_ws, MF_ws, MF_ini_fn, xllcorner, yllcorner, numDays = numDays)
-
-    # ####   SUMMARY OF MODFLOW READINGS   ####
-    # active cells in layer 1_____________________ibound[0]
-    # elevation___________________________________top_l0
-    # aquifer type of layer 1_____________________laytyp[0]
-    # numero total de time step___________________sum(nstp)
-    # code for dry cell___________________________hdry
-    # cell size___________________________________delr[0]
-
-    # compute cbc conversion factor from volume to mm
-    if myMF.lenuni == 1:
-        conv_fact = 304.8
-    elif myMF.lenuni == 2:
-        conv_fact = 1000.0
-    elif myMF.lenuni == 3:
-        conv_fact = 10.0
-    else:
-        raise SystemExit('FATAL ERROR!\nDefine the length unit in the MODFLOW ini file!\n (see USGS Open-File Report 00-92)')
-        # TODO if lenuni!=2 apply conversion factor to delr, delc, etc...
-    if myMF.laytyp[0]==0:
-        raise SystemExit('FATAL ERROR!\nThe first layer cannot be confined type!\nChange your parameter laytyp in the MODFLOW lpf package.\n(see USGS Open-File Report 00-92)')
-    if myMF.itmuni != 4:
-        raise SystemExit('FATAL ERROR!\nTime unit is not in days!')
-    iboundBOL = np.ones(np.array(myMF.ibound).shape, dtype = bool)
-    ncell = []
-    mask = []
-    for l in range(myMF.nlay):
-        ncell.append((np.asarray(myMF.ibound)[:,:,l] != 0).sum())
-        iboundBOL[:,:,l] = (np.asarray(myMF.ibound)[:,:,l] != 0)
-        mask.append(np.ma.make_mask(iboundBOL[:,:,l]-1))
-
-    # #############################
-    # ### MF time processing
-    # #############################
-    # if required by user, compute nper, perlen,etc based on RF analysis in the METEO zones
-    if myMF.timedef >= 0:
-        if isinstance(myMF.nper, str):
-            try:
-                perlenmax = int(myMF.nper.split()[1].strip())
-            except:
-                raise SystemExit('\nError in nper format of the MODFLOW ini file!\n')
-        myMF.ppMFtime(MM_ws, MF_ws, inputDate_fn, inputZON_dTS_RF_fn, inputZON_dTS_PET_fn, inputZON_dTS_RFe_fn, inputZON_dTS_PE_fn, inputZON_dTS_E0_fn, NMETEO, NVEG, NSOIL)
-
-    print'\n##############'
-    print 'MARMITESunsat initialization'
-
-    # MARMITES INITIALIZATION
-    MM_UNSAT = MMunsat.UNSAT(hnoflo = myMF.hnoflo)
-    MM_SATFLOW = MMunsat.SATFLOW()
-
-    # READ input ESRI ASCII rasters # missing gridIRR_fn
-    print "\nImporting ESRI ASCII files to initialize MARMITES..."
-    gridMETEO = myMF.MM_PROCESS.inputEsriAscii(grid_fn = gridMETEO_fn, datatype = int)
-
-    gridSOIL = myMF.MM_PROCESS.inputEsriAscii(grid_fn = gridSOIL_fn, datatype = int)
-
-    gridSOILthick = myMF.MM_PROCESS.inputEsriAscii(grid_fn = gridSOILthick_fn,
-     datatype = float)
-
-    gridSshmax = myMF.MM_PROCESS.inputEsriAscii(grid_fn = gridSshmax_fn,
-     datatype = float)
-
-    gridSsw = myMF.MM_PROCESS.inputEsriAscii(grid_fn = gridSsw_fn,
-     datatype = float)
-
-    ##gridIRR = myMF.MM_PROCESS.inputEsriAscii(grid_fn                  = gridIRR_fn)
-
-    # READ input time series and parameters   # missing IRR_fn
-    gridVEGarea, RFzonesTS, E0zonesTS, PETvegzonesTS, RFevegzonesTS, PEsoilzonesTS, inputDate, JD = myMF.MM_PROCESS.inputTS(
-                                    NMETEO                   = NMETEO,
-                                    NVEG                     = NVEG,
-                                    NSOIL                    = NSOIL,
-                                    nstp                     = myMF.nstp,
-                                    inputDate_fn             = inputDate_fn,
-                                    inputZON_TS_RF_fn        = myMF.inputZON_TS_RF_fn,
-                                    inputZON_TS_PET_fn       = myMF.inputZON_TS_PET_fn,
-                                    inputZON_TS_RFe_fn       = myMF.inputZON_TS_RFe_fn,
-                                    inputZON_TS_PE_fn        = myMF.inputZON_TS_PE_fn,
-                                    inputZON_TS_E0_fn        = myMF.inputZON_TS_E0_fn
-                                    ) # IRR_fn
-
-    # SOIL PARAMETERS
-    _nsl, _nam_soil, _st, _slprop, _Sm, _Sfc, _Sr, _Su_ini, _Ks = myMF.MM_PROCESS.inputSoilParam(MM_ws = MM_ws, SOILparam_fn = SOILparam_fn, NSOIL = NSOIL)
-    _nslmax = max(_nsl)
-
-    # compute thickness, top and bottom elevation of each soil layer
-    TopAquif = np.asarray(myMF.top) * 1000.0   # conversion from m to mm
-    # topography elevation
-    TopSoil = TopAquif + gridSOILthick*1000.0
-    del TopAquif
-
-    # create MM array
-    h5_MM_fn = os.path.join(MM_ws,'_h5_MM.h5')
-    # indexes of the HDF5 output arrays
-    index = {'iRF':0, 'iPET':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iEXF':6, 'iEs':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSs':13, 'iETg':14, 'iETu':15, 'idSu':16, 'iHEADScorr':17, 'idtwt':18, 'iuzthick':19}
-    index_S = {'iEu':0, 'iTu':1,'iSu_pc':2, 'iRp':3, 'iRexf':4, 'idSu':5, 'iSu':6, 'iSAT':7, 'iMB_l':8}
-
-    # #############################
-    # ### 1st MODFLOW RUN with initial user-input recharge
-    # #############################
-    if MF_yn == 1 :
-        durationMF = 0.0
-        timestartMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
-        print'\n##############'
-        print 'MODFLOW RUN (initial user-input fluxes)'
-        if verbose == 0:
-            print '\n--------------'
-            sys.stdout = s
-            report.close()
-            s = sys.stdout
-            report = open(report_fn, 'a')
-            sys.stdout = report
-        myMF.ppMF(MM_ws, MF_ws, MF_ini_fn, finf_MM = (h5_MM_fn, 'finf'), wel_MM = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks, numDays = numDays)
-        timeendMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
-        durationMF +=  timeendMF-timestartMF
-
-    if isinstance(myMF.h5_MF_fn, str):
+# #############################
+# ### MF time processing
+# #############################
+# if required by user, compute nper, perlen,etc based on RF analysis in the METEO zones
+if myMF.timedef >= 0:
+    if isinstance(myMF.nper, str):
         try:
-            h5_MF = h5py.File(myMF.h5_MF_fn, 'r')
+            perlenmax = int(myMF.nper.split()[1].strip())
         except:
-            raise SystemExit('\nFATAL ERROR!\nInvalid MODFLOW HDF5 file. Run MARMITES and/or MODFLOW again.')
-        # heads format is : timestep, nrow, ncol, nlay
-        # cbc format is: (kstp), kper, textprocess, nrow, ncol, nlay
-        cbc_nam = []
-        cbc_uzf_nam = []
-        for c in h5_MF['cbc_nam']:
-            cbc_nam.append(c.strip())
-        if myMF.uzf_yn == 1:
-            for c in h5_MF['cbc_uzf_nam']:
-                cbc_uzf_nam.append(c.strip())
-        elif myMF.rch_yn == 1:
-            imfRCH = cbc_nam.index('RECHARGE')
-            raise SystemExit('\nFATAL ERROR!\nMM has to be run together with the UZF1 package of MODFLOW 2005/ MODFLOW NWT, thus the    package should be desactivacted!\nExisting MM.')
-        imfSTO = cbc_nam.index('STORAGE')
-        if myMF.ghb_yn == 1:
-            imfGHB = cbc_nam.index('HEAD DEP BOUNDS')
-        if myMF.drn_yn == 1:
-            imfDRN = cbc_nam.index('DRAINS')
-        if myMF.wel_yn == 1:
-            imfWEL = cbc_nam.index('WELLS')
-        else:
-            print '\nWARNING!\nThe WEL package should be active to take into account ETg!'
-        if myMF.uzf_yn == 1:
-            imfEXF   = cbc_uzf_nam.index('SURFACE LEAKAGE')
-            imfRCH   = cbc_uzf_nam.index('UZF RECHARGE')
-        if MMunsat_yn == 0:
-            h5_MF.close()
+            raise SystemExit('\nError in nper format of the MODFLOW ini file!\n')
+    myMF.ppMFtime(MM_ws, MF_ws, inputDate_fn, inputZON_dTS_RF_fn, inputZON_dTS_PET_fn, inputZON_dTS_RFe_fn, inputZON_dTS_PE_fn, inputZON_dTS_E0_fn, NMETEO, NVEG, NSOIL)
 
-except StandardError, e:  #Exception
-    raise SystemExit('\nFATAL ERROR!\nAbnormal MM run interruption in the initialization!\nError description:\n%s' % traceback.print_exc(file=sys.stdout))
+print'\n##############'
+print 'MARMITESunsat initialization'
+
+# MARMITES INITIALIZATION
+MM_UNSAT = MMunsat.UNSAT(hnoflo = myMF.hnoflo)
+MM_SATFLOW = MMunsat.SATFLOW()
+
+# READ input ESRI ASCII rasters # missing gridIRR_fn
+print "\nImporting ESRI ASCII files to initialize MARMITES..."
+gridMETEO = myMF.MM_PROCESS.inputEsriAscii(grid_fn = gridMETEO_fn, datatype = int)
+
+gridSOIL = myMF.MM_PROCESS.inputEsriAscii(grid_fn = gridSOIL_fn, datatype = int)
+
+gridSOILthick = myMF.MM_PROCESS.inputEsriAscii(grid_fn = gridSOILthick_fn,
+ datatype = float)
+
+gridSshmax = myMF.MM_PROCESS.inputEsriAscii(grid_fn = gridSshmax_fn,
+ datatype = float)
+
+gridSsw = myMF.MM_PROCESS.inputEsriAscii(grid_fn = gridSsw_fn,
+ datatype = float)
+
+##gridIRR = myMF.MM_PROCESS.inputEsriAscii(grid_fn                  = gridIRR_fn)
+
+# READ input time series and parameters   # missing IRR_fn
+gridVEGarea, RFzonesTS, E0zonesTS, PETvegzonesTS, RFevegzonesTS, PEsoilzonesTS, inputDate, JD = myMF.MM_PROCESS.inputTS(
+                                NMETEO                   = NMETEO,
+                                NVEG                     = NVEG,
+                                NSOIL                    = NSOIL,
+                                nstp                     = myMF.nstp,
+                                inputDate_fn             = inputDate_fn,
+                                inputZON_TS_RF_fn        = myMF.inputZON_TS_RF_fn,
+                                inputZON_TS_PET_fn       = myMF.inputZON_TS_PET_fn,
+                                inputZON_TS_RFe_fn       = myMF.inputZON_TS_RFe_fn,
+                                inputZON_TS_PE_fn        = myMF.inputZON_TS_PE_fn,
+                                inputZON_TS_E0_fn        = myMF.inputZON_TS_E0_fn
+                                ) # IRR_fn
+
+# SOIL PARAMETERS
+_nsl, _nam_soil, _st, _slprop, _Sm, _Sfc, _Sr, _Su_ini, _Ks = myMF.MM_PROCESS.inputSoilParam(MM_ws = MM_ws, SOILparam_fn = SOILparam_fn, NSOIL = NSOIL)
+_nslmax = max(_nsl)
+
+# compute thickness, top and bottom elevation of each soil layer
+TopAquif = np.asarray(myMF.top) * 1000.0   # conversion from m to mm
+# topography elevation
+TopSoil = TopAquif + gridSOILthick*1000.0
+del TopAquif
+
+# create MM array
+h5_MM_fn = os.path.join(MM_ws,'_h5_MM.h5')
+# indexes of the HDF5 output arrays
+index = {'iRF':0, 'iPET':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iEXF':6, 'iEs':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSs':13, 'iETg':14, 'iETu':15, 'idSu':16, 'iHEADScorr':17, 'idtwt':18, 'iuzthick':19}
+index_S = {'iEu':0, 'iTu':1,'iSu_pc':2, 'iRp':3, 'iRexf':4, 'idSu':5, 'iSu':6, 'iSAT':7, 'iMB_l':8}
+
+# READ observations time series (heads and soil moisture)
+if obsCHECK == 1:
+    print "\nReading observations time series (hydraulic heads and soil moisture)..."
+    obs, outpathname, obs_h, obs_S = myMF.MM_PROCESS.inputObs(
+                                     MM_ws            = MM_ws,
+                                     inputObs_fn      = inputObs_fn,
+                                     inputObsHEADS_fn = inputObsHEADS_fn,
+                                     inputObsSM_fn    = inputObsSM_fn,
+                                     inputDate        = inputDate,
+                                     _nslmax          = _nslmax,
+                                     nlay             = myMF.nlay
+                                     )
+    # To write MM output in a txt file
+    outFileExport = []
+    for o in range(len(obs.keys())):
+        outFileExport.append(open(outpathname[o], 'w'))
+        Su_str   = ''
+        Supc_str = ''
+        dSu_str  = ''
+        Rp_str   = ''
+        Rexf_str = ''
+        Eu_str   = ''
+        Tu_str   = ''
+        Smeasout = ''
+        MB_str   = ''
+        for l in range(_nslmax):
+            Su_str = Su_str + 'Su_l' + str(l+1) + ','
+            Supc_str = Supc_str + 'Supc_l' + str(l+1) + ','
+            dSu_str = dSu_str + 'dSu_l' + str(l+1) + ','
+            Eu_str = Eu_str + 'Eu_l' + str(l+1) + ','
+            Tu_str = Tu_str + 'Tu_l' + str(l+1) + ','
+            Rp_str = Rp_str + 'Rp_l' + str(l+1) + ','
+            Rexf_str = Rexf_str + 'Rexf_l' + str(l+1) + ','
+            MB_str = MB_str + 'MB_l' + str(l+1) + ','
+            Smeasout = Smeasout + 'Smeas_' + str(l+1) + ','
+        header='Date,RF,E0,PET,PE,RFe,I,' + Eu_str + Tu_str + 'Eg,Tg,ETg,WEL_MF,Es,' + Su_str + Supc_str + dSu_str + 'dSs,Ss,Ro,GW_EXF,' + Rp_str + Rexf_str + 'R_MF,hSATFLOW,hMF,hMFcorr,hmeas,dtwt,' + Smeasout + MB_str + 'MB\n'
+        outFileExport[o].write(header)
+    outPESTheads_fn      = 'PESTheads.dat'
+    outPESTsm_fn         = 'PESTsm.dat'
+    outPESTheads=open(os.path.join(MM_ws,outPESTheads_fn), 'w')
+    outPESTsm=open(os.path.join(MM_ws,outPESTsm_fn), 'w')
+    if myMF.uzf_yn == 1:
+        myMF.uzf_obs(obs = obs)
+else:
+    print "\nNo reading of observations time series (hydraulic heads and soil moisture) required."
+    obs = None
+
+# #############################
+# ### 1st MODFLOW RUN with initial user-input recharge
+# #############################
+if MF_yn == 1 :
+    durationMF = 0.0
+    timestartMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
+    print'\n##############'
+    print 'MODFLOW RUN (initial user-input fluxes)'
+    if verbose == 0:
+        print '\n--------------'
+        sys.stdout = s
+        report.close()
+        s = sys.stdout
+        report = open(report_fn, 'a')
+        sys.stdout = report
+    myMF.ppMF(MM_ws, MF_ws, MF_ini_fn, finf_MM = (h5_MM_fn, 'finf'), wel_MM = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks, numDays = numDays)
+    timeendMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
+    durationMF +=  timeendMF-timestartMF
+
+if isinstance(myMF.h5_MF_fn, str):
+    try:
+        h5_MF = h5py.File(myMF.h5_MF_fn, 'r')
+    except:
+        raise SystemExit('\nFATAL ERROR!\nInvalid MODFLOW HDF5 file. Run MARMITES and/or MODFLOW again.')
+    # heads format is : timestep, nrow, ncol, nlay
+    # cbc format is: (kstp), kper, textprocess, nrow, ncol, nlay
+    cbc_nam = []
+    cbc_uzf_nam = []
+    for c in h5_MF['cbc_nam']:
+        cbc_nam.append(c.strip())
+    if myMF.uzf_yn == 1:
+        for c in h5_MF['cbc_uzf_nam']:
+            cbc_uzf_nam.append(c.strip())
+    elif myMF.rch_yn == 1:
+        imfRCH = cbc_nam.index('RECHARGE')
+        raise SystemExit('\nFATAL ERROR!\nMM has to be run together with the UZF1 package of MODFLOW 2005/ MODFLOW NWT, thus the    package should be desactivacted!\nExisting MM.')
+    imfSTO = cbc_nam.index('STORAGE')
+    if myMF.ghb_yn == 1:
+        imfGHB = cbc_nam.index('HEAD DEP BOUNDS')
+    if myMF.drn_yn == 1:
+        imfDRN = cbc_nam.index('DRAINS')
+    if myMF.wel_yn == 1:
+        imfWEL = cbc_nam.index('WELLS')
+    else:
+        print '\nWARNING!\nThe WEL package should be active to take into account ETg!'
+    if myMF.uzf_yn == 1:
+        imfEXF   = cbc_uzf_nam.index('SURFACE LEAKAGE')
+        imfRCH   = cbc_uzf_nam.index('UZF RECHARGE')
+    if MMunsat_yn == 0:
+        h5_MF.close()
+
+##except StandardError, e:  #Exception
+##    raise SystemExit('\nFATAL ERROR!\nAbnormal MM run interruption in the initialization!\nError description:\n%s' % traceback.print_exc(file=sys.stdout))
 
 # #############################
 # 2nd phase : MM/MF loop #####
@@ -768,57 +815,6 @@ if plot_out == 1 or obsCHECK == 1:
 
     if mpl.get_backend!='agg':
         plt.switch_backend('agg')
-
-    # READ observations time series (heads and soil moisture)
-    if obsCHECK == 1:
-        if os.path.exists(h5_MM_fn):
-            print "\nReading observations time series (hydraulic heads and soil moisture)..."
-            obs, outpathname, obs_h, obs_S = myMF.MM_PROCESS.inputObs(
-                                             MM_ws            = MM_ws,
-                                             inputObs_fn      = inputObs_fn,
-                                             inputObsHEADS_fn = inputObsHEADS_fn,
-                                             inputObsSM_fn    = inputObsSM_fn,
-                                             inputDate        = inputDate,
-                                             _nslmax          = _nslmax,
-                                             nlay             = myMF.nlay
-                                             )
-            # To write MM output in a txt file
-            outFileExport = []
-            for o in range(len(obs.keys())):
-                outFileExport.append(open(outpathname[o], 'w'))
-                Su_str   = ''
-                Supc_str = ''
-                dSu_str  = ''
-                Rp_str   = ''
-                Rexf_str = ''
-                Eu_str   = ''
-                Tu_str   = ''
-                Smeasout = ''
-                MB_str   = ''
-                for l in range(_nslmax):
-                    Su_str = Su_str + 'Su_l' + str(l+1) + ','
-                    Supc_str = Supc_str + 'Supc_l' + str(l+1) + ','
-                    dSu_str = dSu_str + 'dSu_l' + str(l+1) + ','
-                    Eu_str = Eu_str + 'Eu_l' + str(l+1) + ','
-                    Tu_str = Tu_str + 'Tu_l' + str(l+1) + ','
-                    Rp_str = Rp_str + 'Rp_l' + str(l+1) + ','
-                    Rexf_str = Rexf_str + 'Rexf_l' + str(l+1) + ','
-                    MB_str = MB_str + 'MB_l' + str(l+1) + ','
-                    Smeasout = Smeasout + 'Smeas_' + str(l+1) + ','
-                header='Date,RF,E0,PET,PE,RFe,I,' + Eu_str + Tu_str + 'Eg,Tg,ETg,WEL_MF,Es,' + Su_str + Supc_str + dSu_str + 'dSs,Ss,Ro,GW_EXF,' + Rp_str + Rexf_str + 'R_MF,hSATFLOW,hMF,hMFcorr,hmeas,dtwt,' + Smeasout + MB_str + 'MB\n'
-                outFileExport[o].write(header)
-            outPESTheads_fn      = 'PESTheads.dat'
-            outPESTsm_fn         = 'PESTsm.dat'
-            outPESTheads=open(os.path.join(MM_ws,outPESTheads_fn), 'w')
-            outPESTsm=open(os.path.join(MM_ws,outPESTsm_fn), 'w')
-            if myMF.uzf_yn == 1:
-                myMF.uzf_obs(obs = obs)
-        else:
-            print "\nWARNING!\nRun MARMITESunsat first if you want to export observations time series (hydraulic heads and soil moisture)."
-            obs = None
-    else:
-        print "\nNo reading of observations time series (hydraulic heads and soil moisture) required."
-        obs = None
 
     # reorganizing MF output in daily data
     if MF_yn == 1 and isinstance(myMF.h5_MF_fn, str):
