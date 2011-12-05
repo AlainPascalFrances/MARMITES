@@ -308,6 +308,7 @@ class MF():
                 # pcg
                 l += 1
                 self.ext_pcg = str(inputFile[l].strip())
+                l += 1
                 self.hclose = float(inputFile[l].strip())
                 l += 1
                 self.rclose = float(inputFile[l].strip())
