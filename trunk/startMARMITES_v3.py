@@ -1081,7 +1081,7 @@ if plot_out == 1 or plt_out_obs == 1:
             MMplot.plotGWbudget(flxlst = flxlst, flxlbl = flxlbl, colors_flx = colors_flx, plt_export_fn = plt_export_fn, plt_title = plt_title, fluxmax = cbcmax, fluxmin = cbcmin)
             del flxlst
 
-    # exporting MM to ASCII files and plots at observations cells
+    # exporting MM time series results to ASCII files and plots at observations cells
     if plt_out_obs == 1 and os.path.exists(h5_MM_fn):
         h5_MM = h5py.File(h5_MM_fn, 'r')
         h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
@@ -1111,11 +1111,14 @@ if plot_out == 1 or plt_out_obs == 1:
                 cbc_WEL = -h5_MF['WEL_d'][:,i,j,0]
             else:
                 cbc_WEL = 0
+            # Export time series results at observations points as ASCII file
             cMF.MM_PROCESS.ExportResultsMM(i, j, inputDate, _nslmax, MM, index, MM_S, index_S, cbc_RCH[:,i,j,0], cbc_WEL, h_satflow, h_MF_m[:,i,j,l], obs_h_tmp, obs_S_tmp, outFileExport[o], obs.keys()[o])
             del cbc_WEL
             outFileExport[o].close()
+            # Export time series results at observations points as ASCII file for PEST
+            # TODO reformulate the export format, it should be [date, SM_l1, SM_l2,...], i.e. the same format as the obs_SM and obs_heads files
             cMF.MM_PROCESS.ExportResultsPEST(i, j, inputDate, _nslmax, MM[:,index.get('iHEADScorr')], obs_h_tmp, obs_S_tmp, outPESTheads, outPESTsm, obs.keys()[o], MM_S[:,:,index_S.get('iSu_pc')])
-            # plot
+            # plot time series results as plot
             if plt_out_obs == 1:
                 plt_title = obs.keys()[o]
                 # index = {'iRF':0, 'iPET':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iEXF':6, 'iEs':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSs':13, 'iETg':14, 'iETu':15, 'idSu':16, 'iHEADScorr':17, 'idtwt':18}

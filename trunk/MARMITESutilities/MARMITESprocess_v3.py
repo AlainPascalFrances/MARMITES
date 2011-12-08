@@ -465,7 +465,7 @@ class PROCESS:
 ##                    print '\nWARNING!\n Observation data starting before RF and PET at %s,\n these obs data will not be plotted correctly'
 ##                if len(inputDate)<len(obsDate):
 ##                    print '\nWARNING!\n There is more observation data than RF and PET data at %s,\n these obs data will not be plotted correctly' % 1
-            obsOutput = np.zeros([len(obsValue),len(inputDate)], dtype=float)
+            obsOutput = np.ones([len(obsValue),len(inputDate)], dtype=float)*self.hnoflo
             for l in range(len(obsValue)):
                 if not isinstance(obsValue[l], float):
                     j=0
@@ -538,18 +538,18 @@ class PROCESS:
             Smeasout = ''
             MBout=''
             for l in range(_nslmax):
-                Sout = Sout + str(results_S[t,l,index_S.get('iSu')]) + ','
-                Spcout = Spcout + str(results_S[t,l,index_S.get('iSu_pc')]) + ','
-                dSout = dSout + str(results_S[t,l,index_S.get('idSu')]) + ','
-                Rpout = Rpout + str(results_S[t,l,index_S.get('iRp')]) + ','
-                Rexfout = Rexfout + str(results_S[t,l,index_S.get('iRexf')]) + ','
-                Euout = Euout + str(results_S[t,l,index_S.get('iEu')]) + ','
-                Tuout = Tuout + str(results_S[t,l,index_S.get('iTu')]) + ','
-                MBout = MBout + str(results_S[t,l,index_S.get('iMB_l')]) + ','
+                Sout += str(results_S[t,l,index_S.get('iSu')]) + ','
+                Spcout += str(results_S[t,l,index_S.get('iSu_pc')]) + ','
+                dSout += str(results_S[t,l,index_S.get('idSu')]) + ','
+                Rpout += str(results_S[t,l,index_S.get('iRp')]) + ','
+                Rexfout += str(results_S[t,l,index_S.get('iRexf')]) + ','
+                Euout += str(results_S[t,l,index_S.get('iEu')]) + ','
+                Tuout += str(results_S[t,l,index_S.get('iTu')]) + ','
+                MBout += str(results_S[t,l,index_S.get('iMB_l')]) + ','
                 try:
-                    Smeasout = Smeasout + str(obs_S[t,l]) + ','
+                    Smeasout += str(obs_S[l,t]) + ','
                 except:
-                    Smeasout = Smeasout + str(self.hnoflo) + ','
+                    Smeasout += str(self.hnoflo) + ','
             try:
                 obs_h_tmp = obs_h[t]
             except:
@@ -581,16 +581,15 @@ class PROCESS:
             day='%02d'%mpl.dates.num2date(inputDate[t]).day
             date=(day+"/"+month+"/"+year)
             try:
-                obs_h[0,t]
-                str(obs_h[t])
-                outPESTheads.write(obsname.ljust(14,' ')+ date.ljust(14,' ')+ '00:00:00        '+ str(heads_MF[t])+ '    \n')
+                if obs_h[t] <> self.hnoflo:
+                    outPESTheads.write(obsname.ljust(14,' ')+ date.ljust(14,' ')+ '00:00:00        '+ str(heads_MF[t])+ '    \n')
             except:
                 pass
             if results_S <> None:
                 try:
-                    obs_S[0,t]
                     for l in range (_nslmax):
-                        outPESTsm.write((obsname+'SM_l'+str(l+1)).ljust(14,' ')+ date.ljust(14,' ')+ '00:00:00        '+ str(results_S[t,l]) + '    \n')
+                        if obs_S[l,t] <> self.hnoflo:
+                            outPESTsm.write((obsname+'SM_l'+str(l+1)).ljust(14,' ')+ date.ljust(14,' ')+ '00:00:00        '+ str(results_S[t,l]) + '    \n')
                 except:
                     pass
 # EOF
