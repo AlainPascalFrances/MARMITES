@@ -4,7 +4,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 
-def allPLOT(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, EXF, ETg, Es, MB, MB_l, dtwt, uzthick, SAT, R, h_MF, h_MF_corr, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin):
+def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, EXF, ETg, Es, MB, MB_l, dtwt, uzthick, SAT, R, h_MF, h_MF_corr, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin, obs_name):
     """
     allGRAPH: GRAPH the computed data
     Use Matplotlib
@@ -213,6 +213,7 @@ def allPLOT(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Sp
         for l, (y, color, lbl) in enumerate(zip(Sobs_m, colors_nsl, lbl_Sobs)) :
             ax6.plot_date(DateInput, y, ls = 'None', color = 'None', marker='o', markersize=2, markeredgecolor = color, markerfacecolor = 'None', label=lbl) #'--', color = color,
     except:
+        print '\nWARNING!\nSoil moisture at observations point %s will not be plotted.' % obs_name
         pass
     for l, (y, color, lbl) in enumerate(zip(Spc1full, colors_nsl, lbl_S)) :
         y = np.ma.masked_where(y < 0.0, y)

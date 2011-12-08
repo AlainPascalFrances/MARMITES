@@ -75,7 +75,7 @@ try:
     ntick =  int(inputFile[l].strip())
     # read observations?
     l += 1
-    obsCHECK = int(inputFile[l].strip())
+    plt_out_obs = int(inputFile[l].strip())
     l += 1
     #run MARMITESsurface  (1 is YES, 0 is NO)
     MMsurf_yn = int(inputFile[l].strip())
@@ -145,7 +145,7 @@ try:
         MF_yn == 1
     if MMsurf_plot == 1:
         plot_out = 0
-        obsCHECK = 0
+        plt_out_obs = 0
         print "\nYou required the MMsurf plots to appear on the screen. Due to backends limitation, MM and MF plots were disabled. Run again MM with MMsurf_plot = 0 to obtain the MM and MF plots."
 except:
     raise SystemExit('\nType error in the input file %s' % (MM_fn))
@@ -346,7 +346,7 @@ index = {'iRF':0, 'iPET':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iEXF':6, 'iEs'
 index_S = {'iEu':0, 'iTu':1,'iSu_pc':2, 'iRp':3, 'iRexf':4, 'idSu':5, 'iSu':6, 'iSAT':7, 'iMB_l':8}
 
 # READ observations time series (heads and soil moisture)
-if obsCHECK == 1:
+if plt_out_obs == 1:
     print "\nReading observations time series (hydraulic heads and soil moisture)..."
     obs, outpathname, obs_h, obs_S = cMF.MM_PROCESS.inputObs(
                                      MM_ws            = MM_ws,
@@ -820,7 +820,7 @@ del TopSoil
 # #############################
 
 timestartExport = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
-if plot_out == 1 or obsCHECK == 1:
+if plot_out == 1 or plt_out_obs == 1:
     print '\n##############\nMARMITES exporting...'
     # reorganizing MF output in daily data
     if MF_yn == 1 and isinstance(cMF.h5_MF_fn, str):
@@ -945,7 +945,7 @@ if plot_out == 1 or obsCHECK == 1:
 
     print '\nExporting ASCII files and plots...'
     # plot UNSAT/GW balance at the catchment scale
-    if plot_out == 1:
+    if plt_out_obs == 1:
         if os.path.exists(h5_MM_fn):
             try:
                 h5_MM = h5py.File(h5_MM_fn, 'r')
@@ -1004,7 +1004,7 @@ if plot_out == 1 or obsCHECK == 1:
                 maxfact = 0.95
             flxmax = maxfact*max(cbcmax, flxmax)
             flxmin = minfact*min(cbcmin, flxmin)
-            if plot_out == 1 and isinstance(cMF.h5_MF_fn, str):
+            if plt_out_obs == 1 and isinstance(cMF.h5_MF_fn, str):
                 plt_export_fn = os.path.join(MM_ws, '_plt_0UNSATandGWbalances.png')
                 rch_tmp = 0
                 h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
@@ -1049,7 +1049,7 @@ if plot_out == 1 or obsCHECK == 1:
             MMplot.plotGWbudget(flxlst = flxlst, flxlbl = flxlbl, colors_flx = colors_flx, plt_export_fn = plt_export_fn, plt_title = plt_title, fluxmax = flxmax, fluxmin = flxmin)
             del flxlst
         # no MM, plot only MF balance if MF exists
-        elif plot_out == 1 and isinstance(cMF.h5_MF_fn, str):
+        elif plt_out_obs == 1 and isinstance(cMF.h5_MF_fn, str):
             plt_export_fn = os.path.join(MM_ws, '_plt_GWbalances.png')
             flxlbl = []
             flxlst = []
@@ -1082,7 +1082,7 @@ if plot_out == 1 or obsCHECK == 1:
             del flxlst
 
     # exporting MM to ASCII files and plots at observations cells
-    if obsCHECK == 1 and os.path.exists(h5_MM_fn):
+    if plt_out_obs == 1 and os.path.exists(h5_MM_fn):
         h5_MM = h5py.File(h5_MM_fn, 'r')
         h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
         colors_nsl = CreateColors.main(hi=00, hf=180, numbcolors = (_nslmax+1))
@@ -1104,7 +1104,7 @@ if plot_out == 1 or obsCHECK == 1:
             else:
                 obs_h_tmp = []
             if obs_S[o] != []:
-                obs_S_tmp = obs_h[o][0,:]
+                obs_S_tmp = obs_S[o]
             else:
                 obs_S_tmp = []
             if cMF.wel_yn == 1:
@@ -1116,13 +1116,13 @@ if plot_out == 1 or obsCHECK == 1:
             outFileExport[o].close()
             cMF.MM_PROCESS.ExportResultsPEST(i, j, inputDate, _nslmax, MM[:,index.get('iHEADScorr')], obs_h_tmp, obs_S_tmp, outPESTheads, outPESTsm, obs.keys()[o], MM_S[:,:,index_S.get('iSu_pc')])
             # plot
-            if plot_out == 1:
+            if plt_out_obs == 1:
                 plt_title = obs.keys()[o]
                 # index = {'iRF':0, 'iPET':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iEXF':6, 'iEs':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSs':13, 'iETg':14, 'iETu':15, 'idSu':16, 'iHEADScorr':17, 'idtwt':18}
                 # index_S = {'iEu':0, 'iTu':1,'iSu_pc':2, 'iRp':3, 'iRexf':4, 'idSu':5, 'iSu':6, 'iSAT':7, 'iMB_l':8}
                 plt_export_fn = os.path.join(MM_ws, '_plt_0'+ obs.keys()[o] + '.png')
-                # def allPLOT(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, EXF, ETg, Es, MB, MB_l, dtwt, SAT, R, h_MF, h_MF_corr, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin):
-                MMplot.allPLOT(
+                # def plotTIMESERIES(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, EXF, ETg, Es, MB, MB_l, dtwt, SAT, R, h_MF, h_MF_corr, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin):
+                MMplot.plotTIMESERIES(
                 inputDate,
                 MM[:,index.get('iRF')],
                 MM[:,index.get('iPET')],
@@ -1156,7 +1156,8 @@ if plot_out == 1 or obsCHECK == 1:
                 plt_title,
                 colors_nsl,
                 hmin[o] + hdiff,
-                hmin[o]
+                hmin[o],
+                obs.keys()[o]
                 )
                 # plot water balance at each obs. cell
                 plt_export_fn = os.path.join(MM_ws, '_plt_0'+ obs.keys()[o] + '_UNSATbalance.png')
@@ -1180,7 +1181,7 @@ if plot_out == 1 or obsCHECK == 1:
                     -MM[:,index.get('iETg')].sum()/sum(cMF.perlen)]
                 #MB_tmp = sum(flxlst) - (flxlst[11] + flxlst[13])
                 MB_tmp = cMF.hnoflo
-                if plot_out == 1 and isinstance(cMF.h5_MF_fn, str):
+                if plt_out_obs == 1 and isinstance(cMF.h5_MF_fn, str):
                     plt_export_fn = os.path.join(MM_ws, '_plt_0'+ obs.keys()[o] + '_UNSATandGWbalances.png')
                     rch_tmp = 0
                     for l in range(cMF.nlay):

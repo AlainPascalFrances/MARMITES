@@ -432,7 +432,7 @@ class PROCESS:
             else:
                 obs_h.append([])
             obssm_fn=os.path.join(self.MM_ws, inputObsSM_fn + '_' + obs.keys()[o] + '.txt')
-            if os.path.exists(obsh_fn):
+            if os.path.exists(obssm_fn):
                 obs_sm.append(self.verifObs(inputDate, obssm_fn, _nslmax, obsnam = obs.keys()[o]))
             else:
                 obs_sm.append([])
