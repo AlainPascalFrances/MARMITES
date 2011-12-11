@@ -660,8 +660,8 @@ if MMunsat_yn > 0:
             h_diff_all.append(h_diff_all_max)
         else:
             h_diff_all.append(h_diff_all_min)
-        LOOP += 1
         LOOPlst.append(LOOP)
+        LOOP += 1
         h_pSP = h_MF_average
         h_pSP_all = h_MF_per_m
         del h_MF_per_m
@@ -738,30 +738,30 @@ if MMunsat_yn > 0:
         plt.plot(LOOPlst[1:], h_diff_all[1:], linestyle='-', marker='o', markersize=5, c = 'green', markerfacecolor='green', markeredgecolor='blue')
 
     if LOOP>1:
-        ax2=fig.add_subplot(3,1,3, sharex = ax1)
+        ax2=fig.add_subplot(3,1,2, sharex = ax1)
         plt.setp(ax2.get_xticklabels(), fontsize=8)
         plt.setp(ax2.get_yticklabels(), fontsize=8)
-        ax2.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
-        plt.ylabel('log(abs(h_diff)) [log(m)]', fontsize=10, horizontalalignment = 'center')
-        plt.grid(True)
-        plt.xlabel('trial', fontsize=10)
-        plt.plot(LOOPlst[2:], h_diff_log[2:], linestyle='-', marker='o', markersize=5, c = 'orange', markerfacecolor='orange', markeredgecolor='red')
-        plt.plot(LOOPlst[2:], h_diff_all_log[2:], linestyle='-', marker='o', markersize=5, c = 'green', markerfacecolor='green', markeredgecolor='blue')
-
-        ax3=fig.add_subplot(3,1,2, sharex = ax1)
-        plt.setp(ax3.get_xticklabels(), fontsize=8)
-        plt.setp(ax3.get_yticklabels(), fontsize=8)
         plt.plot(LOOPlst[2:], h_diff[2:], linestyle='-', marker='o', markersize=5, c = 'orange', markerfacecolor='orange', markeredgecolor='red')
         plt.plot(LOOPlst[2:], h_diff_all[2:], linestyle='-', marker='o', markersize=5, c = 'green', markerfacecolor='green', markeredgecolor='blue')
-        ax3.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
+        ax2.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
         plt.ylabel('h_diff [m]', fontsize=10, horizontalalignment = 'center')
     #        plt.ylabel.Text.position(0.5, -0.5)
         plt.grid(True)
 
+        ax3=fig.add_subplot(3,1,3, sharex = ax1)
+        plt.setp(ax3.get_xticklabels(), fontsize=8)
+        plt.setp(ax3.get_yticklabels(), fontsize=8)
+        ax3.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
+        plt.ylabel('log(abs(h_diff)) [log(m)]', fontsize=10, horizontalalignment = 'center')
+        plt.grid(True)
+        plt.xlabel('loop', fontsize=10)
+        plt.plot(LOOPlst[2:], h_diff_log[2:], linestyle='-', marker='o', markersize=5, c = 'orange', markerfacecolor='orange', markeredgecolor='red')
+        plt.plot(LOOPlst[2:], h_diff_all_log[2:], linestyle='-', marker='o', markersize=5, c = 'green', markerfacecolor='green', markeredgecolor='blue')
+
         ax2.xaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%2d'))
         ax3.xaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%2d'))
 
-        plt.xlim(1,LOOP)
+        plt.xlim(0,LOOP-1)
         ax1.xaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%2d'))
         ax1.xaxis.set_ticks(LOOPlst[1:])
 
@@ -956,10 +956,10 @@ if plot_out == 1 or plt_out_obs == 1:
             #   index_S = {'iEu':0, 'iTu':1,'iSu_pc':2, 'iRp':3, 'iRexf':4, 'idSu':5, 'iSu':6, 'iSAT':7, 'iMB_l':8}
             flxlbl = ['RF', 'I', 'EXF', 'dSs', 'Ro', 'Es', 'dSu']
             flxlbl1 = ['Eu', 'Tu']
-            flxlbl1a = ['Rp']
             flxlbl2 = ['ETu', 'Eg']
             flxlbl3 = ['Tg', 'ETg']
-            sign = [1,-1,1,1,-1,-1,1,-1,-1,-1,-1,-1,-1,-1,-1]
+            flxlbl3a = ['Rp']
+            sign = [1,-1,1,-1,-1,-1,1,-1,-1,-1,-1,-1,-1,-1,-1]
             flxlst = []
             flxmax = []
             flxmin = []
@@ -974,11 +974,6 @@ if plot_out == 1 or plt_out_obs == 1:
                     tmp += np.ma.masked_values(h5_MM['MM_S'][:,:,:,l,index_S.get(i)], cMF.hnoflo, atol = 0.09).sum()
                 flxlst.append(tmp/sum(cMF.perlen)/ncell[0])
                 del tmp
-            for i in flxlbl1a:
-                flxlbl.append(i)
-                i = 'i'+i
-                inf = np.ma.masked_values(h5_MM['MM_S'][:,:,:,-1,index_S.get(i)], cMF.hnoflo, atol = 0.09).sum()/sum(cMF.perlen)/ncell[0]
-                flxlst.append(inf)
             for i in flxlbl2:
                 flxlbl.append(i)
                 i = 'i'+i
@@ -990,10 +985,15 @@ if plot_out == 1 or plt_out_obs == 1:
                     flxlst.append(np.ma.masked_values(h5_MM['MM'][:,:,:,index.get(i)], cMF.hnoflo, atol = 0.09).sum()/sum(cMF.perlen)/ncell[0])
                 else:
                     flxlst.append(0.0)
+            for i in flxlbl3a:
+                flxlbl.append(i)
+                i = 'i'+i
+                inf = np.ma.masked_values(h5_MM['MM_S'][:,:,:,-1,index_S.get(i)], cMF.hnoflo, atol = 0.09).sum()/sum(cMF.perlen)/ncell[0]
+                flxlst.append(inf)
             h5_MM.close()
             for l, (x,y) in enumerate(zip(flxlst, sign)):
                 flxlst[l] = x*y
-            del flxlbl1, flxlbl1a, flxlbl2, sign
+            del flxlbl1, flxlbl2, flxlbl3, flxlbl3a, sign
             flxmax = float(np.ceil(np.ma.max(flxlst)))
             flxmin = float(np.floor(np.ma.min(flxlst)))
             minfact = 0.95
@@ -1006,17 +1006,21 @@ if plot_out == 1 or plt_out_obs == 1:
             flxmin = minfact*min(cbcmin, flxmin)
             if plt_out_obs == 1 and isinstance(cMF.h5_MF_fn, str):
                 plt_export_fn = os.path.join(MM_ws, '_plt_0UNSATandGWbalances.png')
+                # compute UZF_STO and store GW_RCH
+                flxlbl.append('UZ_STO')
                 rch_tmp = 0
+                flxlst_tmp = []
                 h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
                 cbc_RCH = h5_MF['RCH_d']
                 for l in range(cMF.nlay):
                     rch_tmp1 = cbc_RCH[:,:,:,l].sum()/sum(cMF.perlen)/ncell[l]
-                    flxlst.append(rch_tmp1)
+                    flxlst_tmp.append(rch_tmp1)
                     rch_tmp += rch_tmp1
-                flxlst.append(rch_tmp - inf)
+                flxlst.append(-rch_tmp + inf)
                 del rch_tmp, rch_tmp1, cbc_RCH
-                flxlbl.append('UZ_STO')
                 for l in range(cMF.nlay):
+                    # GW_RCH
+                    flxlst.append(flxlst_tmp[l])
                     cbc_STO = h5_MF['STO_d']
                     flxlst.append(cbc_STO[:,:,:,l].sum()/sum(cMF.perlen)/ncell[l])
                     del cbc_STO
@@ -1036,6 +1040,7 @@ if plot_out == 1 or plt_out_obs == 1:
                     flxmin = float(np.floor(np.ma.min(flxlst)))
                     flxmax = 1.15*max(cbcmax, flxmax)
                     flxmin = 1.15*min(cbcmin, flxmin)
+                del flxlst_tmp
                 h5_MF.close()
 #                MB_tmp = sum(flxlst) - (flxlst[11] + flxlst[13] + flxlst[16] + flxlst[17] + flxlst[19] + flxlst[20])
                 MB_tmp = cMF.hnoflo
@@ -1177,23 +1182,27 @@ if plot_out == 1 or plt_out_obs == 1:
                      MM[:,index.get('idSu')].sum()/sum(cMF.perlen),
                     -MM_S[:,:,index_S.get('iEu')].sum()/sum(cMF.perlen),
                     -MM_S[:,:,index_S.get('iTu')].sum()/sum(cMF.perlen),
-                    -MM_S[:,-1,index_S.get('iRp')].sum()/sum(cMF.perlen),
                     -MM[:,index.get('iETu')].sum()/sum(cMF.perlen),
                     -MM[:,index.get('iEg')].sum()/sum(cMF.perlen),
                     -MM[:,index.get('iTg')].sum()/sum(cMF.perlen),
-                    -MM[:,index.get('iETg')].sum()/sum(cMF.perlen)]
+                    -MM[:,index.get('iETg')].sum()/sum(cMF.perlen),
+                    -MM_S[:,-1,index_S.get('iRp')].sum()/sum(cMF.perlen)]
                 #MB_tmp = sum(flxlst) - (flxlst[11] + flxlst[13])
                 MB_tmp = cMF.hnoflo
                 if plt_out_obs == 1 and isinstance(cMF.h5_MF_fn, str):
                     plt_export_fn = os.path.join(MM_ws, '_plt_0'+ obs.keys()[o] + '_UNSATandGWbalances.png')
+                    # compute UZF_STO and store GW_RCH
                     rch_tmp = 0
+                    flxlst_tmp = []
                     for l in range(cMF.nlay):
                         rch_tmp1 = cbc_RCH[:,i,j,l].sum()/sum(cMF.perlen)
-                        flxlst.append(rch_tmp1)
+                        flxlst_tmp.append(rch_tmp1)
                         rch_tmp += rch_tmp1
-                    flxlst.append(rch_tmp - MM_S[:,-1,index_S.get('iRp')].sum()/sum(cMF.perlen))
+                    flxlst.append(-rch_tmp + MM_S[:,-1,index_S.get('iRp')].sum()/sum(cMF.perlen))
                     del rch_tmp, rch_tmp1, cbc_RCH
                     for l in range(cMF.nlay):
+                        # GW_RCH
+                        flxlst.append(flxlst_tmp[l])
                         h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
                         cbc_STO = h5_MF['STO_d']
                         flxlst.append(cbc_STO[:,i,j,l].sum()/sum(cMF.perlen))
@@ -1209,7 +1218,7 @@ if plot_out == 1 or plt_out_obs == 1:
                     #MB_tmp -= flxlst[16] + flxlst[17] + flxlst[19] + flxlst[20]
                     MB_tmp = cMF.hnoflo
                 MMplot.plotGWbudget(flxlst = flxlst, flxlbl = flxlbl, colors_flx = colors_flx, plt_export_fn = plt_export_fn, plt_title = plt_title + '\nsum of fluxes: %.4f' % MB_tmp, fluxmax = flxmax, fluxmin = flxmin)
-                del flxlst
+                del flxlst, flxlst_tmp
         del h_satflow, MM, MM_S
         h5_MM.close()
         h5_MF.close()
@@ -1243,8 +1252,8 @@ if plot_out == 1 or plt_out_obs == 1:
                 V.append(h_MF_m[TS,:,:,L])
             if hmaxMF == hminMF:
                 if hmaxMF == 0.0:
-                    hmaxMF = 1
-                    hminMF = -1
+                    hmaxMF = 1.0
+                    hminMF = -1.0
                 else:
                     hmaxMF *= 1.15
                     hminMF *= 0.85
@@ -1260,8 +1269,8 @@ if plot_out == 1 or plt_out_obs == 1:
                     V.append(np.ma.masked_array(cbc_DRN[TS,:,:,L], mask[L])*(-1.0))
                 if DRNmax == DRNmin:
                     if DRNmax == 0.0:
-                        DRNmax = 1
-                        DRNmin = -1
+                        DRNmax = 1.0
+                        DRNmin = -1.0
                     else:
                         DRNmax *= 1.15
                         DRNmin *= 0.85
@@ -1276,8 +1285,8 @@ if plot_out == 1 or plt_out_obs == 1:
                 V.append(np.ma.masked_array(cbc_RCH[TS,:,:,L], mask[L]))
             if RCHmax == RCHmin:
                 if RCHmax == 0.0:
-                    RCHmax = 1
-                    RCHmin = -1
+                    RCHmax = 1.0
+                    RCHmin = -1.0
                 else:
                     RCHmax *= 1.15
                     RCHmin *= 0.85
@@ -1334,8 +1343,8 @@ if plot_out == 1 or plt_out_obs == 1:
             Vmin = np.ma.min(V[0]) #float(np.floor(np.ma.min(V)))
             if Vmax == Vmin:
                 if Vmax == 0.0:
-                    Vmax = 1
-                    Vmin = -1
+                    Vmax = 1.0
+                    Vmin = -1.0
                 else:
                     Vmax *= 1.15
                     Vmin *= 0.85
@@ -1354,16 +1363,6 @@ if plot_out == 1 or plt_out_obs == 1:
             t = 0
             for TS in TS_lst:
                 V = [np.ma.masked_values(MM[TS,:,:], cMF.hnoflo, atol = 0.09)]
-                if Vmax == Vmin:
-                    if Vmax == 0.0:
-                        Vmax = 1
-                        Vmin = -1
-                    else:
-                        Vmax *= 1.15
-                        Vmin *= 0.85
-                    ctrs_tmp = False
-                else:
-                    ctrs_tmp = ctrsMF
                 MMplot.plotLAYER(TS = TS, Date = Date_lst[t], JD = JD_lst[t], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i + ' (mm/day)'), msg = 'no flux', plt_title = ('MM_'+i), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrangeMM, Vmax = Vmax, Vmin = Vmin, contours = ctrs_tmp, ntick = ntick)
                 t += 1
             del V, MM, t
@@ -1392,8 +1391,8 @@ if plot_out == 1 or plt_out_obs == 1:
             Vmin = np.ma.min(V[0]) #float(np.floor(np.ma.min(V)))
             if Vmax == Vmin:
                 if Vmax == 0.0:
-                    Vmax = 1
-                    Vmin = -1
+                    Vmax = 1.0
+                    Vmin = -1.0
                 else:
                     Vmax *= 1.15
                     Vmin *= 0.85
@@ -1422,8 +1421,8 @@ if plot_out == 1 or plt_out_obs == 1:
             Vmin = np.ma.min(h_diff_surf) #float(np.floor(np.ma.min(V)))
             if Vmax == Vmin:
                 if Vmax == 0.0:
-                    Vmax = 1
-                    Vmin = -1
+                    Vmax = 1.0
+                    Vmin = -1.0
                 else:
                     Vmax *= 1.15
                     Vmin *= 0.85

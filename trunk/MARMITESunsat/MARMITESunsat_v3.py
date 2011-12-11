@@ -154,9 +154,9 @@ class UNSAT:
             '''
             Actual evapotranspiration function
             '''
-            if (s_tmp - Sr) <= 1E-9:
+            if (s_tmp - Sr) <= 1.0E-7:
                 evp_tmp = 0.0
-            elif ((s_tmp - Sr) > 1E-9) and ((s_tmp < Sfc) or np.abs(s_tmp -Sfc) < 1.0E-7):
+            elif ((s_tmp - Sr) > 1.0E-7) and ((s_tmp < Sfc) or np.abs(s_tmp -Sfc) < 1.0E-7):
                 Se = (s_tmp - Sr)/(Sfc - Sr)
                 if (pet*Se*dt - (s_tmp - Sr)) > 1.0E-7:
                     evp_tmp = (s_tmp - Sr)/dt
@@ -283,14 +283,14 @@ class UNSAT:
                     Eg_tmp = PE*(y0 + np.exp(-b*(dtwt-dll)))
                 else:
                     Eg_tmp = 0.0
-                dtwt *= 10
+                dtwt *= 10.0
             else:
                 Eg_tmp = 0.0
         else:
             Eg_tmp = 0.0
 
         # Groundwater transpiration
-        kTu_max = 1.0
+        kTu_max = 0.99999
         for z in range(len(Zr_elev)):
             if HEADS > Zr_elev[z]:
                 for l in range(nsl):
@@ -302,7 +302,7 @@ class UNSAT:
                                 kTu = kTu_max
                         else:
                             kTu = kTu_min[z]
-                        Tg_tmp_Zr[l,z] = Tu_tmpZr[l,z]*(1/kTu-1)
+                        Tg_tmp_Zr[l,z] = Tu_tmpZr[l,z]*(1.0/kTu-1.0)
                         if Tg_tmp_Zr[l,z] > PET[z]:
                             Tg_tmp_Zr[l,z] = PET[z]
                         PET[z] -= Tg_tmp_Zr[l,z]
@@ -402,7 +402,7 @@ class UNSAT:
 
             # handle drycell
             if HEADS[t] > (hdry-1E3):
-                HEADS_tmp = botm_l0*1000
+                HEADS_tmp = botm_l0*1000.0
             else:
                 HEADS_tmp = HEADS[t]*1000.0
 
