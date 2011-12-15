@@ -213,7 +213,7 @@ class PROCESS:
                     print 'DifDay = ' + str(difDay)
                     raise ValueError, 'The dates of the input data (RF and PET) are not sequencial, check your daily time step!\nError in date %s ' % str(inputDate[i])
         else:
-            raise ValueError, "\nThe file %s doesn't exist!!!" % inputDate_fn
+            raise ValueError, "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % inputDate_fn
 ##        if MFtime_fn == None:
 ##                if len(inputDate) <> ntotstp:
 ##                  raise ValueError, 'The number of time steps in MF (%i) is not the same as the number of days (%i) of the input data (RF and PET).\n' % (ntotstp, int(len(inputDate)))
@@ -231,12 +231,17 @@ class PROCESS:
             gridtmp=np.zeros([self.nrow,self.ncol], dtype=float)
             gridVEGarea[v,:,:]=self.convASCIIraster2array(gridVEGarea_fn[v],gridtmp)
 
+        gridVEGareatot = np.add.accumulate(gridVEGarea, axis = 0)
+        area100_test = gridVEGareatot > 100.0
+        if area100_test.sum() > 0:
+            raise ValueError, '\nFATAL ERROR!\nThe total area of the vegetation in one cell cannot exceed 100.0%!'
+
         # READ RF for each zone
         RF_fn=os.path.join(self.MM_ws, inputZON_TS_RF_fn)
         if os.path.exists(RF_fn):
             RF = np.loadtxt(RF_fn)
         else:
-            raise ValueError, "\nThe file %s doesn't exist!!!" % RF_fn
+            raise ValueError, "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % RF_fn
         RFzonesTS=np.zeros([NMETEO,ntotstp], dtype=float)
         for n in range(NMETEO):
             for t in range(ntotstp):
@@ -246,7 +251,7 @@ class PROCESS:
         if os.path.exists(E0_fn):
             E0 = np.loadtxt(E0_fn)
         else:
-            raise ValueError, "\nThe file %s doesn't exist!!!" % E0_fn
+            raise ValueError, "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % E0_fn
         E0zonesTS=np.zeros([NMETEO,ntotstp], dtype=float)
         for n in range(NMETEO):
             for t in range(ntotstp):
@@ -257,7 +262,7 @@ class PROCESS:
         ##if os.path.exists(IRR_fn):
         ##    IRR = np.loadtxt(IRR_fn)
         ##else:
-        ##    raise ValueError, "\nThe file %s doesn't exist!!!" % IRR_fn
+        ##    raise ValueError, "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % IRR_fn
         ##IRRzonesnumb=int(IRR[0])
         ##IRRzones=np.zeros([IRRzonesnumb,sum(dis.self.nstp)], dtype=float)
         ##for i in range(IRRzonesnumb):
@@ -270,7 +275,7 @@ class PROCESS:
         if os.path.exists(PET_fn):
             PETtmp = np.loadtxt(PET_fn)
         else:
-            raise ValueError, "\nThe file %s doesn't exist!!!" % PET_fn
+            raise ValueError, "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % PET_fn
         PETvegzonesTS=np.zeros([NMETEO,NVEG,ntotstp], dtype=float)
         for n in range(NMETEO):
             for v in range(NVEG):
@@ -284,7 +289,7 @@ class PROCESS:
         if os.path.exists(RFe_fn):
             RFetmp = np.loadtxt(RFe_fn)
         else:
-            raise ValueError, "\nThe file %s doesn't exist!!!" % RFe_fn
+            raise ValueError, "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % RFe_fn
         RFevegzonesTS=np.zeros([NMETEO,NVEG,ntotstp], dtype=float)
         for n in range(NMETEO):
             for v in range(NVEG):
@@ -299,7 +304,7 @@ class PROCESS:
         if os.path.exists(PE_fn):
             PEtmp = np.loadtxt(PE_fn)
         else:
-            raise ValueError, "\nThe file %s doesn't exist!!!" % PE_fn
+            raise ValueError, "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % PE_fn
         PEsoilzonesTS=np.zeros([NMETEO,NSOIL,ntotstp], dtype=float)
         for n in range(NMETEO):
             for v in range(NSOIL):
