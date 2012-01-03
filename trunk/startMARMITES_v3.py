@@ -41,8 +41,8 @@ print '\n##############\nMARMITES started!\n%s\n##############' % mpl.dates.num2
 # read input file (called _input.ini in the MARMITES workspace
 # the first character on the first line has to be the character used to comment
 # the file can contain any comments as the user wish, but the sequence of the input has to be respected
-MM_ws = r'E:\00code_ws\CARRIZAL'  # 00_TESTS\MARMITESv3_r13c6l2'  SARDON'  CARRIZAL'
-MM_fn = '__inputMM_g.ini'
+MM_ws = r'E:\00code_ws\00_TESTS\MARMITESv3_r13c6l2'  # 00_TESTS\MARMITESv3_r13c6l2'  SARDON'  CARRIZAL'
+MM_fn = '__inputMM.ini'
 
 inputFile = MMproc.readFile(MM_ws,MM_fn)
 
@@ -513,7 +513,6 @@ if MMunsat_yn > 0:
         # # main loop: calculation of soil water balance in each cell-grid for each time step inside each stress period
 #        t0=0
         print '\nComputing...'
-
         # initial values of SP
         Su_ini_tmp_array = np.zeros([cMF.nrow,cMF.ncol,_nslmax])
         Rp_ini_tmp_array = np.zeros([cMF.nrow,cMF.ncol,_nslmax])
@@ -895,16 +894,17 @@ if plot_out == 1 or plt_out_obs == 1:
             cbcmax.append(RCHmax)
             RCHmin = np.ma.min(cbc_RCH)
             print '\nMaximum GW recharge (%.2f mm) observed at:' % RCHmax
-            for l in range(cMF.nlay):
-                for row in range(cMF.nrow):
-                    for t,col in enumerate(cbc_RCH[:,row,:,l]):
-                        try:
-                            if plt_out_obs == 1:
-                                obs['PzRCHmax'] = {'x':999,'y':999, 'i': row, 'j': list(col).index(RCHmax), 'lay': l, 'hi':999, 'h0':999, 'RC':999, 'STO':999}
-                            print 'row %d, col %d and day %d (%s)' % (row, list(col).index(RCHmax), t, mpl.dates.num2date(inputDate[t]).isoformat()[:10])
-                            tRCHmax = t
-                        except:
-                            pass
+            if RCHmax> 0.0:
+                for l in range(cMF.nlay):
+                    for row in range(cMF.nrow):
+                        for t,col in enumerate(cbc_RCH[:,row,:,l]):
+                            try:
+                                if plt_out_obs == 1:
+                                    obs['PzRCHmax'] = {'x':999,'y':999, 'i': row, 'j': list(col).index(RCHmax), 'lay': l, 'hi':999, 'h0':999, 'RC':999, 'STO':999}
+                                print 'row %d, col %d and day %d (%s)' % (row, list(col).index(RCHmax), t, mpl.dates.num2date(inputDate[t]).isoformat()[:10])
+                                tRCHmax = t
+                            except:
+                                pass
             del cbc_RCH
             RCHmax = float(np.ceil(np.ma.max(RCHmax)))
             RCHmin = float(np.floor(np.ma.min(RCHmin)))

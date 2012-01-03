@@ -36,7 +36,7 @@ STEP6
 - prepare the required input as in the example located in the doc folder (if not updated contact me at frances.alain@gmail.com).
 The input are organized as follow: one head folder/workspace MM_ws with the MMunsat input and two sub folders, MF_ws with MODFLOW input and MMsurf_ws with MARMITES surface input. Each one of the 3 folders contains an .ini file that defines all the parameters of the MARMITES and MODFLOW modules.
 Generally you will have to update: (i) the path of the MMsurf_ws and MF_ws in __inputMF.ini, as well as the name of the files with the data; (ii) the MODFLOW path and name in the __inputMF.ini.
-See the example under MARMITES/doc/example. Open the __input*.ini files, they contain instructions and explanation about the meaning of the parameters. For MODLOW the bame of the variables is keep as in the MODFLOW manual.
+See the example under MARMITES/doc/example. Open the __input*.ini files, they contain instructions and explanation about the meaning of the parameters. For MODFLOW the name of the variables is kept as in the MODFLOW manual.
 - edit the file startMARMITES_v3.py (typically in C:\Python27\Lib\site-packages\MARMITES\trunk) and change the lines 42 and 43 with the correct path and name of your main MM ini file.
 - start MARMITES with startMARMITES_v3.py
 
