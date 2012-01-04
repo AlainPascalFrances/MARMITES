@@ -10,6 +10,7 @@ You also need to install the following packages:
 - wxpython                 (www.wxpython.org)
 - h5py                     (code.google.com/p/h5py/)
 Another alternative is to install Python(x,y), see http://code.google.com/p/pythonxy/ and download the installation file at http://ftp.ntua.gr/pub/devel/pythonxy/Python(x,y)-2.7.2.1.exe
+It is also recommended to install a development environment such as PyScripter (http://code.google.com/p/pyscripter/) or Spyder (this last one is already integrated in Python(x,y)).
 
 STEP2
 Install TortoiseHg (download at http://tortoisehg.bitbucket.org/)
@@ -30,7 +31,8 @@ STEP4
 STEP5
 - install MODLOW-NWT, download at http://water.usgs.gov/nrp/gwsoftware/modflow_nwt/MODFLOW-NWT_1.0.2.zip
 - unzip in any folder (typically C:/00MODFLOW)
-Note that you can also use other versions of MODFLOW (versions 2000, 2005 and NWT allowed).
+To link the soil reservoir to the groundwater reservoir, the UZF1 package is used (see http://code.google.com/p/marmites/source/browse/doc/MARMITES_schema_201110.png).
+Documentation of the UZF1 package can be found at http://pubs.usgs.gov/tm/2006/tm6a19.
 
 STEP6
 - prepare the required input as in the example located in the doc folder (if not updated contact me at frances.alain@gmail.com).
@@ -41,7 +43,7 @@ See the example under MARMITES/doc/example. Open the __input*.ini files, they co
 - start MARMITES with startMARMITES_v3.py
 
 A manual is under construction, as well as several applications and papers.
-Images output can be found in MARMITES/doc/imgs. You can run a simple synthetic model using the data stored in MARMITES/doc/example.  
+Images output can be found in MARMITES/doc/imgs. You can run a simple synthetic model using the data stored in MARMITES/doc/example.
 
 REFERENCES:
 Francés, A.P., Berhe, E., Lubczynski, M.W., 2010. Spatio - temporal groundwater recharge assessment using a lumped - parameter distributed model of the unsaturated zone, pyEARTH-2D, In: Geophysical Research Abstracts, 12(2010) EGU2010-6627-2, EGU general assembly 2010. 2 p.
