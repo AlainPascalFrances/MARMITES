@@ -389,7 +389,7 @@ class MF():
                         if iftunit[g]<0.0:
                             self.uzfbud_ext.append(self.ext_uzf + '_tot' + str(abs(int(iftunit[g]))))
                         else:
-                            self.uzfbud_ext.append(self.ext_uzf + '_' + str(abs(int(iftunit[g]))))
+                            self.uzfbud_ext.append(str(abs(int(iftunit[g]))) + '.' + self.ext_uzf)
                 self.finf_user = float(inputFile[l].strip())
             else:
                 l += 21
@@ -483,7 +483,7 @@ class MF():
         n = 0
         for o in range(len(obs)):
                 self.row_col_iftunit_iuzopt.append([[obs.get( obs.keys()[o])['i']+1, obs.get(obs.keys()[o])['j']+1, 200+n, 2]])
-                self.uzfbud_ext.append(self.ext_uzf + '_' + obs.keys()[o])
+                self.uzfbud_ext.append(obs.keys()[o] + '.' + self.ext_uzf)
                 n += 1
 
 ####################################
@@ -1024,13 +1024,13 @@ class MF():
 
         if self.dum_sssp1 == 1:
             if chunks == 1:
-                h5_MF.create_dataset(name = 'heads', data = np.asarray(h[1][1:]), chunks = (1,self.nrow,self.ncol,self.nlay), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf
-                h5_MF.create_dataset(name = 'cbc', data = np.asarray(cbc[1][1:]), chunks = (1,len(h5_MF['cbc_nam']),self.nrow,self.ncol,self.nlay), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf'
+                h5_MF.create_dataset(name = 'heads', data = np.asarray(h[1][1:]),   chunks = (1,self.nrow,self.ncol,self.nlay), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf
+                h5_MF.create_dataset(name = 'cbc',   data = np.asarray(cbc[1][1:]), chunks = (1,len(h5_MF['cbc_nam']),self.nrow,self.ncol,self.nlay),   compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf'
                 if self.uzf_yn == 1:
                     h5_MF.create_dataset(name = 'cbc_uzf', data = np.asarray(cbc_uzf[1][1:]), chunks = (1,len(h5_MF['cbc_uz_nam']),self.nrow,self.ncol,self.nlay), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf'
             else:
                 h5_MF.create_dataset(name = 'heads', data = np.asarray(h[1][1:]))
-                h5_MF.create_dataset(name = 'cbc', data = np.asarray(cbc[1][1:]))
+                h5_MF.create_dataset(name = 'cbc',   data = np.asarray(cbc[1][1:]))
                 if self.uzf_yn == 1:
                     h5_MF.create_dataset(name = 'cbc_uzf', data = np.asarray(cbc_uzf[1][1:]))
             del h, cbc
