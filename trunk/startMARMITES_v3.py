@@ -41,7 +41,7 @@ print '\n##############\nMARMITES started!\n%s\n##############' % mpl.dates.num2
 # read input file (called _input.ini in the MARMITES workspace
 # the first character on the first line has to be the character used to comment
 # the file can contain any comments as the user wish, but the sequence of the input has to be respected
-MM_ws = r'E:\00code_ws\LAMATA_daily'  # 00_TESTS\MARMITESv3_r13c6l2'  SARDON'  CARRIZAL' LAMATA'
+MM_ws = r'E:\00code_ws\LAMATA_daily'  # 00_TESTS\MARMITESv3_r13c6l2'  SARDON'  CARRIZAL' LAMATA' LAMATA_daily'
 MM_fn = '__inputMM.ini'
 
 inputFile = MMproc.readFile(MM_ws,MM_fn)
@@ -351,7 +351,7 @@ index_S = {'iEu':0, 'iTu':1,'iSu_pc':2, 'iRp':3, 'iRexf':4, 'idSu':5, 'iSu':6, '
 # READ observations time series (heads and soil moisture)
 if plt_out_obs == 1:
     print "\nReading observations time series (hydraulic heads and soil moisture)..."
-    obs, outpathname, obs_h, obs_S = cMF.MM_PROCESS.inputObs(
+    obs = cMF.MM_PROCESS.inputObs(
                                      MM_ws            = MM_ws,
                                      inputObs_fn      = inputObs_fn,
                                      inputObsHEADS_fn = inputObsHEADS_fn,
@@ -360,14 +360,10 @@ if plt_out_obs == 1:
                                      _nslmax          = _nslmax,
                                      nlay             = cMF.nlay
                                      )
-    obs['PzRCHmax'] = {'x':999,'y':999,'i': 999, 'j': 999, 'lay': 999, 'hi':999, 'h0':999, 'RC':999, 'STO':999}
-    outpathname.append(os.path.join(MM_ws,'_MM_0PzRCHmax.txt'))
-    obs_h.append([])
-    obs_S.append([])
     # To write MM output in a txt file
     outFileExport = []
     for o in range(len(obs.keys())):
-        outFileExport.append(open(outpathname[o], 'w'))
+        outFileExport.append(open(obs.get(obs.keys()[o])['outpathname'], 'w'))
         Su_str   = ''
         Supc_str = ''
         dSu_str  = ''
@@ -656,12 +652,12 @@ if MMunsat_yn > 0:
         h5_MM.close()
 
         # CHECK MM amd MF CONVERG.
-        h_MF_per_m = np.ma.masked_values(np.ma.masked_values(h_MF_per[:,:,:,0], cMF.hdry, atol = 1E+25), cMF.hnoflo, atol = 0.09)
+        h_MF_per_m = np.ma.masked_values(np.ma.masked_values(h_MF_per[:,:,:,:], cMF.hdry, atol = 1E+25), cMF.hnoflo, atol = 0.09)
         del h_MF_per
         h5_MF.close()
         h_MF_average = np.ma.average(h_MF_per_m)
         h_diff.append(h_MF_average - h_pSP)
-        # fix it, h_diff_surf should be for each MF layers and be compared for each TS, keep the h_diff_surf with higher h_diff (positive or negative)
+        # TODO fix it, h_diff_surf should be for each MF layers and be compared for each TS, keep the h_diff_surf with higher h_diff (positive or negative)
         h_diff_surf = h_MF_per_m - h_pSP_all
         h_diff_all_max = np.ma.max(h_diff_surf)
         h_diff_all_min = np.ma.min(h_diff_surf)
@@ -907,7 +903,12 @@ if plot_out == 1 or plt_out_obs == 1:
                         for t,col in enumerate(cbc_RCH[:,row,:,l]):
                             try:
                                 if plt_out_obs == 1:
-                                    obs['PzRCHmax'] = {'x':999,'y':999, 'i': row, 'j': list(col).index(RCHmax), 'lay': l, 'hi':999, 'h0':999, 'RC':999, 'STO':999}
+                                    obs['PzRCHmax'] = {'x':999,'y':999, 'i': row, 'j': list(col).index(RCHmax), 'lay': l, 'hi':999, 'h0':999, 'RC':999, 'STO':999, 'outpathname':os.path.join(MM_ws,'_MM_0PzRCHmax.txt'), 'obs_h':[], 'obs_S':[]}
+                                    outFileExport.append(open(obs.get(obs.keys()[o])['outpathname'], 'w'))
+                                    try:
+                                        outFileExport[len(outFileExport)-1].write(header)
+                                    except:
+                                        pass
                                 print 'row %d, col %d and day %d (%s)' % (row, list(col).index(RCHmax), t, mpl.dates.num2date(inputDate[t]).isoformat()[:10])
                                 tRCHmax = t
                             except:
@@ -946,10 +947,11 @@ if plot_out == 1 or plt_out_obs == 1:
             i = obs.get(obs.keys()[o])['i']
             j = obs.get(obs.keys()[o])['j']
             l = obs.get(obs.keys()[o])['lay']
+            obs_h = obs.get(obs.keys()[o])['obs_h']
             hmaxMF_tmp = float(np.ceil(np.ma.max(h_MF_m[:,i,j,l].flatten())))
             hminMF_tmp = float(np.floor(np.ma.min(h_MF_m[:,i,j,l].flatten())))
-            if obs_h[o] != []:
-                npa_m_tmp = np.ma.masked_values(obs_h[o], cMF.hnoflo, atol = 0.09)
+            if obs_h != []:
+                npa_m_tmp = np.ma.masked_values(obs_h, cMF.hnoflo, atol = 0.09)
                 hmaxMM = float(np.ceil(np.ma.max(npa_m_tmp.flatten())))
                 hminMM = float(np.floor(np.ma.min(npa_m_tmp.flatten())))
                 del npa_m_tmp
@@ -1026,11 +1028,8 @@ if plot_out == 1 or plt_out_obs == 1:
                                     print 'row %d, col %d and day %d' % (row, list(col).index(Tg_min), t)
                                     tTgmin = t
                                     if plt_out_obs == 1:
-                                        obs['PzTgmin'] = {'x':999,'y':999, 'i': row, 'j': list(col).index(Tg_min), 'lay': 0, 'hi':999, 'h0':999, 'RC':999, 'STO':999}
-                                        outpathname.append(os.path.join(MM_ws,'_MM_0PzTgmin.txt'))
-                                        outFileExport.append(open(outpathname[len(outpathname)-1], 'w'))
-                                        obs_h.append([])
-                                        obs_S.append([])
+                                        obs['PzTgmin'] = {'x':999,'y':999, 'i': row, 'j': list(col).index(Tg_min), 'lay': 0, 'hi':999, 'h0':999, 'RC':999, 'STO':999, 'outpathname':os.path.join(MM_ws,'_MM_0PzTgmin.txt'), 'obs_h':[], 'obs_S':[]}
+                                        outFileExport.append(open(obs.get(obs.keys()[o])['outpathname'], 'w'))
                                         try:
                                             hmin.append(hmin[0])
                                         except:
@@ -1167,6 +1166,8 @@ if plot_out == 1 or plt_out_obs == 1:
             i = obs.get(obs.keys()[o])['i']
             j = obs.get(obs.keys()[o])['j']
             l = obs.get(obs.keys()[o])['lay']
+            obs_h = obs.get(obs.keys()[o])['obs_h']
+            obs_S = obs.get(obs.keys()[o])['obs_S']
             SOILzone_tmp = gridSOIL[i,j]-1
             nsl = _nsl[SOILzone_tmp]
             MM = h5_MM['MM'][:,i,j,:]
@@ -1176,12 +1177,12 @@ if plot_out == 1 or plt_out_obs == 1:
             h_satflow = MM_SATFLOW.run(cbc_RCH[:,i,j,0], float(obs.get(obs.keys()[o])['hi']),float(obs.get(obs.keys()[o])['h0']),float(obs.get(obs.keys()[o])['RC']),float(obs.get(obs.keys()[o])['STO']))
             # export ASCII file at piezometers location
             #TODO extract heads at piezo location and not center of cell
-            if obs_h[o] != []:
-                obs_h_tmp = obs_h[o][0,:]
+            if obs_h != []:
+                obs_h_tmp = obs_h[0,:]
             else:
                 obs_h_tmp = []
-            if obs_S[o] != []:
-                obs_S_tmp = obs_S[o]
+            if obs_S != []:
+                obs_S_tmp = obs_S
             else:
                 obs_S_tmp = []
             if cMF.wel_yn == 1:
@@ -1330,7 +1331,7 @@ if plot_out == 1 or plt_out_obs == 1:
             for L in range(cMF.nlay):
                 V.append(h_MF_m[TS,:,:,L])
             if hmaxMF == hminMF:
-                if hmaxMF == 0.0:
+                if hmaxMF < 10E-9:
                     hmaxMF = 1.0
                     hminMF = -1.0
                 else:
@@ -1349,7 +1350,7 @@ if plot_out == 1 or plt_out_obs == 1:
                 DRNmax_tmp = np.ma.max(V)
                 DRNmin_tmp = np.ma.min(V)
                 if DRNmax_tmp == DRNmin_tmp:
-                    if DRNmax_tmp == 0.0:
+                    if DRNmax_tmp < 10E-9:
                         DRNmax_tmp = 1.0
                         DRNmin_tmp = -1.0
                     else:
@@ -1367,7 +1368,7 @@ if plot_out == 1 or plt_out_obs == 1:
             RCHmax_tmp = np.ma.max(V)
             RCHmin_tmp = np.ma.min(V)
             if RCHmax_tmp == RCHmin_tmp:
-                if RCHmax_tmp == 0.0:
+                if RCHmax_tmp < 10E-9:
                     RCHmax_tmp = 1.0
                     RCHmin_tmp = -1.0
                 else:
@@ -1389,7 +1390,7 @@ if plot_out == 1 or plt_out_obs == 1:
             DRNmax_tmp = np.ma.max(V)
             DRNmin_tmp = np.ma.min(V)
             if DRNmax_tmp == DRNmin_tmp:
-                if DRNmax_tmp == 0.0:
+                if DRNmax_tmp < 10E-9:
                     DRNmax_tmp = 1.0
                     DRNmin_tmp = -1.0
                 else:
@@ -1406,7 +1407,7 @@ if plot_out == 1 or plt_out_obs == 1:
         RCHmax_tmp = np.ma.max(V)
         RCHmin_tmp = np.ma.min(V)
         if RCHmax_tmp == RCHmin_tmp:
-            if RCHmax_tmp == 0.0:
+            if RCHmax_tmp < 10E-9:
                 RCHmax_tmp = 1.0
                 RCHmin_tmp = -1.0
             else:
@@ -1436,7 +1437,7 @@ if plot_out == 1 or plt_out_obs == 1:
             Vmax = np.ma.max(V[0]) #float(np.ceil(np.ma.max(V)))
             Vmin = np.ma.min(V[0]) #float(np.floor(np.ma.min(V)))
             if Vmax == Vmin:
-                if Vmax == 0.0:
+                if Vmax < 10E-9:
                     Vmax = 1.0
                     Vmin = -1.0
                 else:
@@ -1460,7 +1461,7 @@ if plot_out == 1 or plt_out_obs == 1:
                 Vmax = np.ma.max(V[0]) #float(np.ceil(np.ma.max(V)))
                 Vmin = np.ma.min(V[0]) #float(np.floor(np.ma.min(V)))
                 if Vmax == Vmin:
-                    if Vmax == 0.0:
+                    if Vmax < 10E-9:
                         Vmax = 1.0
                         Vmin = -1.0
                     else:
@@ -1494,7 +1495,7 @@ if plot_out == 1 or plt_out_obs == 1:
             Vmax = np.ma.max(V) #float(np.ceil(np.ma.max(V)))
             Vmin = np.ma.min(V) #float(np.floor(np.ma.min(V)))
             if Vmax == Vmin:
-                if Vmax == 0.0:
+                if Vmax < 10E-9:
                     Vmax = 1.0
                     Vmin = -1.0
                 else:
@@ -1521,7 +1522,7 @@ if plot_out == 1 or plt_out_obs == 1:
                 Vmax = np.ma.max(V) #float(np.ceil(np.ma.max(V)))
                 Vmin = np.ma.min(V) #float(np.floor(np.ma.min(V)))
                 if Vmax == Vmin:
-                    if Vmax == 0.0:
+                    if Vmax < 10E-9:
                         Vmax = 1.0
                         Vmin = -1.0
                     else:
@@ -1533,22 +1534,24 @@ if plot_out == 1 or plt_out_obs == 1:
                 MMplot.plotLAYER(TS = TS, Date = Date_lst[t], JD = JD_lst[t], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i + ' (mm/day)'), msg = 'no flux', plt_title = ('MM_'+i), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrangeMM, Vmax = Vmax, Vmin = Vmin, contours = ctrs_tmp, ntick = ntick)
                 t += 1
             del V, MM, t
-##        if h_diff_surf != None:
-##            V = [np.ma.masked_array(h_diff_surf[:,:,L], mask[L])]
-##            Vmax = np.ma.max(h_diff_surf) #float(np.ceil(np.ma.max(V)))
-##            Vmin = np.ma.min(h_diff_surf) #float(np.floor(np.ma.min(V)))
-##            if Vmax == Vmin:
-##                if Vmax == 0.0:
-##                    Vmax = 1.0
-##                    Vmin = -1.0
-##                else:
-##                    Vmax *= 1.15
-##                    Vmin *= 0.85
-##                ctrs_tmp = False
-##            else:
-##                ctrs_tmp = ctrsMM
-##            MMplot.plotLAYER(TS = 'NA', Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = 1, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = ('(m)'), msg = 'no value', plt_title = ('_HEADSmaxdiff_ConvLoop'), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrangeMM, Vmax = Vmax, Vmin = Vmin, contours = ctrs_tmp, ntick = ntick)
-##        del TS_lst, flxlbl, i, i1, h_diff_surf
+        if h_diff_surf != None:
+            V = []
+            for L in range(cMF.nlay):
+                V.append(np.ma.masked_array(h_diff_surf[0,:,:,L], mask[L]))
+            Vmax = np.ma.max(V) #float(np.ceil(np.ma.max(V)))
+            Vmin = np.ma.min(V) #float(np.floor(np.ma.min(V)))
+            if Vmax == Vmin:
+                if Vmax < 10E-9:
+                    Vmax = 1.0
+                    Vmin = -1.0
+                else:
+                    Vmax *= 1.15
+                    Vmin *= 0.85
+                ctrs_tmp = False
+            else:
+                ctrs_tmp = ctrsMM
+            MMplot.plotLAYER(TS = 'NA', Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = ('(m)'), msg = 'no value', plt_title = ('_HEADSmaxdiff_ConvLoop'), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrangeMM, Vmax = Vmax, Vmin = Vmin, contours = ctrs_tmp, ntick = ntick)
+        del TS_lst, flxlbl, i, i1, h_diff_surf
     del gridSOIL, inputDate
     del hmaxMF, hminMF, hmin, hdiff, cbcmax, cbcmin
     if cMF.drn_yn == 1:

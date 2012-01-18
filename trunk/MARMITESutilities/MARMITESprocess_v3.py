@@ -394,8 +394,8 @@ class PROCESS:
 
         # define a dictionnary of observations,  format is: Name (key) x y i j hi h0 RC STO
         obs = {}
-        for i in range(len(inputFile)):
-            line = inputFile[i].split()
+        for o in range(len(inputFile)):
+            line = inputFile[o].split()
             name = line[0]
             x = float(line[1])
             y = float(line[2])
@@ -422,29 +422,22 @@ class PROCESS:
             #TODO use the PEST utilities for space extrapolation
             i = self.nrow - np.ceil((y-self.yllcorner)/self.cellsizeMF)
             j = np.ceil((x-self.xllcorner)/self.cellsizeMF) - 1
-            obs[name] = {'x':x,'y':y,'i': i, 'j': j, 'lay': lay, 'hi':hi, 'h0':h0, 'RC':RC, 'STO':STO}
-
-        outpathname=[]
-        #  read obs time series
-        for o in range(len(obs.keys())):
-            outpathname.append(os.path.join(self.MM_ws,'_MM_0'+obs.keys()[o]+'.txt'))
-        obs_h=[]
-        obs_sm=[]
-        for o in range(len(obs.keys())):
-            obsh_fn = os.path.join(self.MM_ws, inputObsHEADS_fn + '_' + obs.keys()[o] +'.txt')
+            #  read obs time series
+            obsh_fn = os.path.join(self.MM_ws, inputObsHEADS_fn + '_' + name +'.txt')
             if os.path.exists(obsh_fn):
-                obs_h.append(self.verifObs(inputDate, obsh_fn, obsnam = obs.keys()[o]))
+                obs_h = self.verifObs(inputDate, obsh_fn, obsnam = name)
             else:
-                obs_h.append([])
-            obssm_fn=os.path.join(self.MM_ws, inputObsSM_fn + '_' + obs.keys()[o] + '.txt')
+                obs_h = []
+            obssm_fn=os.path.join(self.MM_ws, inputObsSM_fn + '_' + name + '.txt')
             if os.path.exists(obssm_fn):
-                obs_sm.append(self.verifObs(inputDate, obssm_fn, _nslmax, obsnam = obs.keys()[o]))
+                obs_sm = self.verifObs(inputDate, obssm_fn, _nslmax, obsnam = name)
             else:
-                obs_sm.append([])
+                obs_sm = []
+            obs[name] = {'x':x,'y':y,'i': i, 'j': j, 'lay': lay, 'hi':hi, 'h0':h0, 'RC':RC, 'STO':STO, 'outpathname':os.path.join(self.MM_ws,'_MM_0'+name+'.txt'), 'obs_h':obs_h, 'obs_S':obs_sm}
 
-        return obs, outpathname, obs_h, obs_sm
+        return obs
         del inputObs_fn, inputObsHEADS_fn, inputObsSM_fn, inputDate, _nslmax
-        del obs, outpathname, obs_h, obs_sm
+        del obs
 
     ######################
 
