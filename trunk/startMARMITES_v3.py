@@ -1561,7 +1561,7 @@ timeendExport = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isofor
 durationExport=(timeendExport-timestartExport)
 
 # final report of successful run
-print '\n##############\nMARMITES executed successfully!\n%s\n' % mpl.dates.num2date(timestart).isoformat()[:19]
+print '\n##############\nMARMITES executed successfully!\n%s\n' % mpl.dates.datetime.datetime.today().isoformat()[:19]
 print '%d stress periods, %d days' % (cMF.nper,sum(cMF.perlen))
 print '%d rows x %d cols (%d cells) x %d layers' % (cMF.nrow, cMF.ncol, cMF.nrow*cMF.ncol, cMF.nlay)
 l = 1
