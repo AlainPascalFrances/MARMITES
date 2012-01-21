@@ -361,9 +361,7 @@ if plt_out_obs == 1:
                                      nlay             = cMF.nlay
                                      )
     # To write MM output in a txt file
-    outFileExport = []
-    for o in range(len(obs.keys())):
-        outFileExport.append(open(obs.get(obs.keys()[o])['outpathname'], 'w'))
+    for o in obs.keys():
         Su_str   = ''
         Supc_str = ''
         dSu_str  = ''
@@ -384,7 +382,6 @@ if plt_out_obs == 1:
             MB_str = MB_str + 'MB_l' + str(l+1) + ','
             Smeasout = Smeasout + 'Smeas_' + str(l+1) + ','
         header='Date,RF,E0,PET,PE,RFe,I,' + Eu_str + Tu_str + 'Eg,Tg,ETg,WEL_MF,Es,' + Su_str + Supc_str + dSu_str + 'dSs,Ss,Ro,GW_EXF,' + Rp_str + Rexf_str + 'R_MF,hSATFLOW,hMF,hMFcorr,hmeas,dtwt,' + Smeasout + MB_str + 'MB\n'
-        outFileExport[o].write(header)
     outPESTheads_fn      = 'PESTheads.dat'
     outPESTsm_fn         = 'PESTsm.dat'
     outPESTheads=open(os.path.join(MM_ws,outPESTheads_fn), 'w')
@@ -904,11 +901,6 @@ if plot_out == 1 or plt_out_obs == 1:
                             try:
                                 if plt_out_obs == 1:
                                     obs['PzRCHmax'] = {'x':999,'y':999, 'i': row, 'j': list(col).index(RCHmax), 'lay': l, 'hi':999, 'h0':999, 'RC':999, 'STO':999, 'outpathname':os.path.join(MM_ws,'_MM_0PzRCHmax.txt'), 'obs_h':[], 'obs_S':[]}
-                                    outFileExport.append(open(obs.get(obs.keys()[o])['outpathname'], 'w'))
-                                    try:
-                                        outFileExport[len(outFileExport)-1].write(header)
-                                    except:
-                                        pass
                                 print 'row %d, col %d and day %d (%s)' % (row, list(col).index(RCHmax), t, mpl.dates.num2date(inputDate[t]).isoformat()[:10])
                                 tRCHmax = t
                             except:
@@ -943,11 +935,12 @@ if plot_out == 1 or plt_out_obs == 1:
         hminMF = 9999.9
 
     if obs != None:
-        for o in range(len(obs.keys())):
-            i = obs.get(obs.keys()[o])['i']
-            j = obs.get(obs.keys()[o])['j']
-            l = obs.get(obs.keys()[o])['lay']
-            obs_h = obs.get(obs.keys()[o])['obs_h']
+        x = 0
+        for o in obs.keys():
+            i = obs.get(o)['i']
+            j = obs.get(o)['j']
+            l = obs.get(o)['lay']
+            obs_h = obs.get(o)['obs_h']
             hmaxMF_tmp = float(np.ceil(np.ma.max(h_MF_m[:,i,j,l].flatten())))
             hminMF_tmp = float(np.floor(np.ma.min(h_MF_m[:,i,j,l].flatten())))
             if obs_h != []:
@@ -960,9 +953,10 @@ if plot_out == 1 or plt_out_obs == 1:
                 hminMM = 9999.9
             hmax.append(np.ma.max((hmaxMF_tmp, hmaxMM)))
             hmin.append(np.ma.min((hminMF_tmp, hminMM)))
-            hdiff.append(hmax[o]-hmin[o])
+            hdiff.append(hmax[x]-hmin[x])
+            x += 1
         hdiff = np.ma.max(hdiff)
-        del hmaxMF_tmp, hminMF_tmp, hmax
+        del hmaxMF_tmp, hminMF_tmp
     else:
         hdiff = 2000
 
@@ -1029,15 +1023,10 @@ if plot_out == 1 or plt_out_obs == 1:
                                     tTgmin = t
                                     if plt_out_obs == 1:
                                         obs['PzTgmin'] = {'x':999,'y':999, 'i': row, 'j': list(col).index(Tg_min), 'lay': 0, 'hi':999, 'h0':999, 'RC':999, 'STO':999, 'outpathname':os.path.join(MM_ws,'_MM_0PzTgmin.txt'), 'obs_h':[], 'obs_S':[]}
-                                        outFileExport.append(open(obs.get(obs.keys()[o])['outpathname'], 'w'))
                                         try:
                                             hmin.append(hmin[0])
                                         except:
                                             hmin.append(999.9)
-                                        try:
-                                            outFileExport[len(outFileExport)-1].write(header)
-                                        except:
-                                            pass
                                 except:
                                     pass
                 else:
@@ -1162,19 +1151,22 @@ if plot_out == 1 or plt_out_obs == 1:
         h5_MM = h5py.File(h5_MM_fn, 'r')
         h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
         colors_nsl = CreateColors.main(hi=00, hf=180, numbcolors = (_nslmax+1))
-        for o in range(len(obs.keys())):
-            i = obs.get(obs.keys()[o])['i']
-            j = obs.get(obs.keys()[o])['j']
-            l = obs.get(obs.keys()[o])['lay']
-            obs_h = obs.get(obs.keys()[o])['obs_h']
-            obs_S = obs.get(obs.keys()[o])['obs_S']
+        x = 0
+        for o in obs.keys():
+            i = obs.get(o)['i']
+            j = obs.get(o)['j']
+            l = obs.get(o)['lay']
+            obs_h = obs.get(o)['obs_h']
+            obs_S = obs.get(o)['obs_S']
+            outFileExport = open(obs.get(o)['outpathname'], 'w')
+            outFileExport.write(header)
             SOILzone_tmp = gridSOIL[i,j]-1
             nsl = _nsl[SOILzone_tmp]
             MM = h5_MM['MM'][:,i,j,:]
             MM_S = h5_MM['MM_S'][:,i,j,:,:]
             # SATFLOW
             cbc_RCH = h5_MF['RCH_d']
-            h_satflow = MM_SATFLOW.run(cbc_RCH[:,i,j,0], float(obs.get(obs.keys()[o])['hi']),float(obs.get(obs.keys()[o])['h0']),float(obs.get(obs.keys()[o])['RC']),float(obs.get(obs.keys()[o])['STO']))
+            h_satflow = MM_SATFLOW.run(cbc_RCH[:,i,j,0], float(obs.get(o)['hi']),float(obs.get(o)['h0']),float(obs.get(o)['RC']),float(obs.get(o)['STO']))
             # export ASCII file at piezometers location
             #TODO extract heads at piezo location and not center of cell
             if obs_h != []:
@@ -1190,18 +1182,18 @@ if plot_out == 1 or plt_out_obs == 1:
             else:
                 cbc_WEL = 0
             # Export time series results at observations points as ASCII file
-            cMF.MM_PROCESS.ExportResultsMM(i, j, inputDate, _nslmax, MM, index, MM_S, index_S, cbc_RCH[:,i,j,0], cbc_WEL, h_satflow, h_MF_m[:,i,j,l], obs_h_tmp, obs_S_tmp, outFileExport[o], obs.keys()[o])
+            cMF.MM_PROCESS.ExportResultsMM(i, j, inputDate, _nslmax, MM, index, MM_S, index_S, cbc_RCH[:,i,j,0], cbc_WEL, h_satflow, h_MF_m[:,i,j,l], obs_h_tmp, obs_S_tmp, outFileExport, o)
             del cbc_WEL
-            outFileExport[o].close()
+            outFileExport.close()
             # Export time series results at observations points as ASCII file for PEST
             # TODO reformulate the export format, it should be [date, SM_l1, SM_l2,...], i.e. the same format as the obs_SM and obs_heads files
-            cMF.MM_PROCESS.ExportResultsPEST(i, j, inputDate, _nslmax, MM[:,index.get('iHEADScorr')], obs_h_tmp, obs_S_tmp, outPESTheads, outPESTsm, obs.keys()[o], MM_S[:,:,index_S.get('iSu_pc')])
+            cMF.MM_PROCESS.ExportResultsPEST(i, j, inputDate, _nslmax, MM[:,index.get('iHEADScorr')], obs_h_tmp, obs_S_tmp, outPESTheads, outPESTsm, o, MM_S[:,:,index_S.get('iSu_pc')])
             # plot time series results as plot
             if plt_out_obs == 1:
-                plt_title = obs.keys()[o]
+                plt_title = o
                 # index = {'iRF':0, 'iPET':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iEXF':6, 'iEs':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSs':13, 'iETg':14, 'iETu':15, 'idSu':16, 'iHEADScorr':17, 'idtwt':18}
                 # index_S = {'iEu':0, 'iTu':1,'iSu_pc':2, 'iRp':3, 'iRexf':4, 'idSu':5, 'iSu':6, 'iSAT':7, 'iMB_l':8}
-                plt_export_fn = os.path.join(MM_ws, '_plt_0'+ obs.keys()[o] + '.png')
+                plt_export_fn = os.path.join(MM_ws, '_plt_0'+ o + '.png')
                 # def plotTIMESERIES(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, EXF, ETg, Es, MB, MB_l, dtwt, SAT, R, h_MF, h_MF_corr, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin):
                 MMplot.plotTIMESERIES(
                 inputDate,
@@ -1236,12 +1228,13 @@ if plot_out == 1 or plt_out_obs == 1:
                 plt_export_fn,
                 plt_title,
                 colors_nsl,
-                hmin[o] + hdiff,
-                hmin[o],
-                obs.keys()[o]
+                hmax[x] + hdiff/2,
+                hmin[x] - hdiff/2,
+                o
                 )
+                x += 1
                 # plot water balance at each obs. cell
-                plt_export_fn = os.path.join(MM_ws, '_plt_0'+ obs.keys()[o] + '_UNSATbalance.png')
+                plt_export_fn = os.path.join(MM_ws, '_plt_0'+ o + '_UNSATbalance.png')
                 # flxlbl = ['RF', 'I', 'EXF', 'dSs', 'Ro', 'Es', 'dSu']
                 # flxlbl1 = ['Eu', 'Tu']
                 # flxlbl1a = ['Rp','Rexf']
@@ -1263,7 +1256,7 @@ if plot_out == 1 or plt_out_obs == 1:
                 #MB_tmp = sum(flxlst) - (flxlst[11] + flxlst[13])
                 MB_tmp = cMF.hnoflo
                 if plt_out_obs == 1 and isinstance(cMF.h5_MF_fn, str):
-                    plt_export_fn = os.path.join(MM_ws, '_plt_0'+ obs.keys()[o] + '_UNSATandGWbalances.png')
+                    plt_export_fn = os.path.join(MM_ws, '_plt_0'+ o + '_UNSATandGWbalances.png')
                     # compute UZF_STO and store GW_RCH
                     rch_tmp = 0
                     flxlst_tmp = []
