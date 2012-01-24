@@ -471,8 +471,10 @@ class MF():
         self.botm    = self.MM_PROCESS.checkarray(self.botm)
         self.ibound  = self.MM_PROCESS.checkarray(self.ibound, dtype = np.int)
         if self.nlay < 2:
-            self.ibound = (np.asarray(self.ibound)).reshape((self.nrow, self.ncol, 1))
-            self.botm = (np.asarray(self.botm)).reshape((self.nrow, self.ncol, 1))
+            if isinstance(self.ibound, list):
+                self.ibound = (np.asarray(self.ibound)).reshape((self.nrow, self.ncol, 1))
+            if isinstance(self.botm, list):
+                self.botm = (np.asarray(self.botm)).reshape((self.nrow, self.ncol, 1))
         if self.uzf_yn == 1:
             self.iuzfbnd = self.MM_PROCESS.checkarray(self.iuzfbnd, dtype = np.int)
 
@@ -1024,15 +1026,24 @@ class MF():
 
         if self.dum_sssp1 == 1:
             if chunks == 1:
+                # TODO implement swapaxes
                 h5_MF.create_dataset(name = 'heads', data = np.asarray(h[1][1:]),   chunks = (1,self.nrow,self.ncol,self.nlay), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf
                 h5_MF.create_dataset(name = 'cbc',   data = np.asarray(cbc[1][1:]), chunks = (1,len(h5_MF['cbc_nam']),self.nrow,self.ncol,self.nlay),   compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf'
                 if self.uzf_yn == 1:
                     h5_MF.create_dataset(name = 'cbc_uzf', data = np.asarray(cbc_uzf[1][1:]), chunks = (1,len(h5_MF['cbc_uz_nam']),self.nrow,self.ncol,self.nlay), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf'
             else:
                 h5_MF.create_dataset(name = 'heads', data = np.asarray(h[1][1:]))
-                h5_MF.create_dataset(name = 'cbc',   data = np.asarray(cbc[1][1:]))
+                data = np.asarray(cbc[1][1:])
+                data = np.swapaxes(data,1,2)
+                data = np.swapaxes(data,2,3)
+                h5_MF.create_dataset(name = 'cbc',   data = data)
+                del data
                 if self.uzf_yn == 1:
-                    h5_MF.create_dataset(name = 'cbc_uzf', data = np.asarray(cbc_uzf[1][1:]))
+                    data = np.asarray(cbc_uzf[1][1:])
+                    data = np.swapaxes(data,1,2)
+                    data = np.swapaxes(data,2,3)
+                    h5_MF.create_dataset(name = 'cbc_uzf', data = data)
+                    del data
             del h, cbc
             self.nper = self.nper - 1
             self.perlen = self.perlen[1:]
@@ -1041,18 +1052,47 @@ class MF():
             self.Ss_tr = self.Ss_tr[1:]
         else:
             if chunks == 1:
+                # TODO implement swapaxes
                 h5_MF.create_dataset(name = 'heads', data = np.asarray(h[1]), chunks = (1,self.nrow,self.ncol,self.nlay), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf'
                 h5_MF.create_dataset(name = 'cbc', data = np.asarray(cbc[1]), chunks = (1,len(h5_MF['cbc_nam']),self.nrow,self.ncol,self.nlay), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf'
                 if self.uzf_yn == 1:
                     h5_MF.create_dataset(name = 'cbc_uzf', data = np.asarray(cbc_uzf[1]), chunks = (1,len(h5_MF['cbc_uzf_nam']),self.nrow,self.ncol,self.nlay), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf'
             else:
                 h5_MF.create_dataset(name = 'heads', data = np.asarray(h[1]))
-                h5_MF.create_dataset(name = 'cbc', data = np.asarray(cbc[1]))
+                data = np.asarray(cbc[1])
+                data = np.swapaxes(data,1,2)
+                data = np.swapaxes(data,2,3)
+                h5_MF.create_dataset(name = 'cbc', data = data)
+                del data
                 if self.uzf_yn == 1:
-                    h5_MF.create_dataset(name = 'cbc_uzf', data = np.asarray(cbc_uzf[1]))
+                    data = np.asarray(cbc_uzf[1])
+                    data = np.swapaxes(data,1,2)
+                    data = np.swapaxes(data,2,3)
+                    h5_MF.create_dataset(name = 'cbc_uzf', data = data)
+                    del data
             del h, cbc
             if self.uzf_yn == 1:
                 del cbc_uzf
+        h4MM = np.zeros((len(self.perlen),self.nrow,self.ncol), dtype = np.float)
+        h_MF = h5_MF['heads'][:,:,:,:]
+        iuzfbnd = np.asarray(self.iuzfbnd)
+        for l in range(self.nlay):
+            for t in range(len(self.perlen)):
+                mask = np.ma.make_mask(iuzfbnd == l+1)
+                h4MM[t,:,:] += h_MF[t,:,:,l]*mask
+        h5_MF.create_dataset(name = 'heads4MM', data = h4MM)
+        exf4MM = np.zeros((len(self.perlen),self.nrow,self.ncol), dtype = np.float)
+        if self.uzf_yn == 1:
+            cbc_uzf_nam = []
+            for c in h5_MF['cbc_uzf_nam']:
+                cbc_uzf_nam.append(c.strip())
+            imfEXF   = cbc_uzf_nam.index('SURFACE LEAKAGE')
+            exf_MF = h5_MF['cbc_uzf'][:,:,:,imfEXF,:]
+            for l in range(self.nlay):
+                for t in range(len(self.perlen)):
+                    mask = np.ma.make_mask(iuzfbnd == l+1)
+                    exf4MM[t,:,:] += exf_MF[t,:,:,l]*mask
+            h5_MF.create_dataset(name = 'exf4MM', data = exf4MM)
         h5_MF.close()
         # to delete MF bin files and save disk space
         if self.MFout_yn == 0:

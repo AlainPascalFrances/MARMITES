@@ -41,7 +41,9 @@ print '\n##############\nMARMITES started!\n%s\n##############' % mpl.dates.num2
 # read input file (called _input.ini in the MARMITES workspace
 # the first character on the first line has to be the character used to comment
 # the file can contain any comments as the user wish, but the sequence of the input has to be respected
-MM_ws = r'E:\00code_ws\LAMATA_daily'  # 00_TESTS\MARMITESv3_r13c6l2'  SARDON'  CARRIZAL' LAMATA' LAMATA_daily'
+# 00_TESTS\MARMITESv3_r13c6l2'  00_TESTS\r40c20'  00_TESTS\r20c40'
+# SARDON'  CARRIZAL' LAMATA' LAMATA_daily'
+MM_ws = r'E:\00code_ws\00_TESTS\r40c20'
 MM_fn = '__inputMM.ini'
 
 inputFile = MMproc.readFile(MM_ws,MM_fn)
@@ -338,6 +340,7 @@ _nslmax = max(_nsl)
 
 # compute thickness, top and bottom elevation of each soil layer
 TopAquif = np.asarray(cMF.top) * 1000.0   # conversion from m to mm
+botm_l0 = np.asarray(cMF.botm)[:,:,0]
 # topography elevation
 TopSoil = TopAquif + gridSOILthick*1000.0
 del TopAquif
@@ -351,15 +354,14 @@ index_S = {'iEu':0, 'iTu':1,'iSu_pc':2, 'iRp':3, 'iRexf':4, 'idSu':5, 'iSu':6, '
 # READ observations time series (heads and soil moisture)
 if plt_out_obs == 1:
     print "\nReading observations time series (hydraulic heads and soil moisture)..."
-    obs = cMF.MM_PROCESS.inputObs(
-                                     MM_ws            = MM_ws,
-                                     inputObs_fn      = inputObs_fn,
-                                     inputObsHEADS_fn = inputObsHEADS_fn,
-                                     inputObsSM_fn    = inputObsSM_fn,
-                                     inputDate        = inputDate,
-                                     _nslmax          = _nslmax,
-                                     nlay             = cMF.nlay
-                                     )
+    obs = cMF.MM_PROCESS.inputObs(MM_ws            = MM_ws,
+                                  inputObs_fn      = inputObs_fn,
+                                  inputObsHEADS_fn = inputObsHEADS_fn,
+                                  inputObsSM_fn    = inputObsSM_fn,
+                                  inputDate        = inputDate,
+                                  _nslmax          = _nslmax,
+                                  nlay             = cMF.nlay
+                                  )
     # To write MM output in a txt file
     for o in obs.keys():
         Su_str   = ''
@@ -463,6 +465,27 @@ if MMunsat_yn > 0:
     h_diff_all_log = [1]
     loopdry = 0
     plt_ConvLoop_fn = os.path.join(MM_ws, '_MM_00plt_MM_MF_ConvLoop.png')
+    # Create HDF5 arrays to store MARMITES output
+    h5_MM = h5py.File(h5_MM_fn, 'w')
+    # arrays for fluxes independent of the soil layering
+    h5_MM.create_dataset(name = 'iMM', data = np.asarray(index.items()))
+    if chunks == 1:
+        h5_MM.create_dataset(name = 'MM', shape = (sum(cMF.perlen),cMF.nrow,cMF.ncol,len(index)), dtype = np.float, chunks = (1,cMF.nrow,cMF.ncol,len(index)),  compression = 'gzip', compression_opts = 5, shuffle = True)
+    else:
+        h5_MM.create_dataset(name = 'MM', shape = (sum(cMF.perlen),cMF.nrow,cMF.ncol,len(index)), dtype = np.float)
+    # arrays for fluxes in each soil layer
+    h5_MM.create_dataset(name = 'iMM_S', data = np.asarray(index_S.items()))
+    if chunks == 1:
+        h5_MM.create_dataset(name = 'MM_S', shape = (sum(cMF.perlen),cMF.nrow,cMF.ncol,_nslmax,len(index_S)), dtype = np.float, chunks = (1,cMF.nrow,cMF.ncol,_nslmax,len(index_S)),  compression = 'gzip', compression_opts = 5, shuffle = True)
+    else:
+        h5_MM.create_dataset(name = 'MM_S', shape = (sum(cMF.perlen),cMF.nrow,cMF.ncol,_nslmax,len(index_S)), dtype = np.float)
+    # arrays to compute net recharge to be exported to MF
+    if chunks == 1:
+        h5_MM.create_dataset(name = 'finf', shape = (cMF.nper,cMF.nrow,cMF.ncol), dtype = np.float, chunks = (1,cMF.nrow,cMF.ncol),  compression = 'gzip', compression_opts = 5, shuffle = True)
+        h5_MM.create_dataset(name = 'ETg', shape = (cMF.nper,cMF.nrow,cMF.ncol), dtype = np.float, chunks = (1,cMF.nrow,cMF.ncol),  compression = 'gzip', compression_opts = 5, shuffle = True)
+    else:
+        h5_MM.create_dataset(name = 'finf', shape = (cMF.nper,cMF.nrow,cMF.ncol), dtype = np.float)
+        h5_MM.create_dataset(name = 'ETg', shape = (cMF.nper,cMF.nrow,cMF.ncol), dtype = np.float)
 
     # #############################
     # ###  CONVERGENCE LOOP   #####
@@ -475,36 +498,13 @@ if MMunsat_yn > 0:
         # ###########################
         # ###  MARMITES INPUT #######
         # ###########################
-
         print'\n##############'
         print 'MARMITESunsat RUN'
-
         # SOIL PARAMETERS
         _nsl, _nam_soil, _st, _slprop, _Sm, _Sfc, _Sr, _Su_ini, _Ks = cMF.MM_PROCESS.inputSoilParam(MM_ws = MM_ws, SOILparam_fn = SOILparam_fn, NSOIL = NSOIL)
         _nslmax = max(_nsl)
-
-        # ###############
-        # Create HDF5 arrays to store MARMITES output
-        h5_MM = h5py.File(h5_MM_fn, 'w')
-        # arrays for fluxes independent of the soil layering
-        h5_MM.create_dataset(name = 'iMM', data = np.asarray(index.items()))
-        if chunks == 1:
-            h5_MM.create_dataset(name = 'MM', shape = (sum(cMF.perlen),cMF.nrow,cMF.ncol,len(index)), dtype = np.float, chunks = (1,cMF.nrow,cMF.ncol,len(index)),  compression = 'gzip', compression_opts = 5, shuffle = True)
-        else:
-            h5_MM.create_dataset(name = 'MM', shape = (sum(cMF.perlen),cMF.nrow,cMF.ncol,len(index)), dtype = np.float)
-        # arrays for fluxes in each soil layer
-        h5_MM.create_dataset(name = 'iMM_S', data = np.asarray(index_S.items()))
-        if chunks == 1:
-            h5_MM.create_dataset(name = 'MM_S', shape = (sum(cMF.perlen),cMF.nrow,cMF.ncol,_nslmax,len(index_S)), dtype = np.float, chunks = (1,cMF.nrow,cMF.ncol,_nslmax,len(index_S)),  compression = 'gzip', compression_opts = 5, shuffle = True)
-        else:
-            h5_MM.create_dataset(name = 'MM_S', shape = (sum(cMF.perlen),cMF.nrow,cMF.ncol,_nslmax,len(index_S)), dtype = np.float)
-        # arrays to compute net recharge to be exported to MF
-        if chunks == 1:
-            h5_MM.create_dataset(name = 'finf', shape = (cMF.nper,cMF.nrow,cMF.ncol), dtype = np.float, chunks = (1,cMF.nrow,cMF.ncol),  compression = 'gzip', compression_opts = 5, shuffle = True)
-            h5_MM.create_dataset(name = 'ETg', shape = (cMF.nper,cMF.nrow,cMF.ncol), dtype = np.float, chunks = (1,cMF.nrow,cMF.ncol),  compression = 'gzip', compression_opts = 5, shuffle = True)
-        else:
-            h5_MM.create_dataset(name = 'finf', shape = (cMF.nper,cMF.nrow,cMF.ncol), dtype = np.float)
-            h5_MM.create_dataset(name = 'ETg', shape = (cMF.nper,cMF.nrow,cMF.ncol), dtype = np.float)
+        if LOOP > 0:
+            h5_MM = h5py.File(h5_MM_fn)
         # ###############
         # # main loop: calculation of soil water balance in each cell-grid for each time step inside each stress period
 #        t0=0
@@ -514,6 +514,7 @@ if MMunsat_yn > 0:
         Rp_ini_tmp_array = np.zeros([cMF.nrow,cMF.ncol,_nslmax])
         Ss_ini_tmp_array = np.zeros([cMF.nrow,cMF.ncol])
         Ss_ini_tmp_array = np.zeros([cMF.nrow,cMF.ncol])
+        h_MF = None
         for n in range(cMF.nper):
             tstart_MM = 0
             for t in range(n):
@@ -523,12 +524,13 @@ if MMunsat_yn > 0:
             for t in range(n):
                 tstart_MF += cMF.nstp[t]
             tend_MF = tstart_MF + cMF.nstp[n]
-            MM = np.zeros([cMF.perlen[n],cMF.nrow,cMF.ncol,len(index)], dtype=float)
-            MM_S = np.zeros([cMF.perlen[n],cMF.nrow,cMF.ncol,_nslmax,len(index_S)], dtype=float)
+            MM         = np.zeros([cMF.perlen[n],cMF.nrow,cMF.ncol,len(index)], dtype=float)
+            MM_S       = np.zeros([cMF.perlen[n],cMF.nrow,cMF.ncol,_nslmax,len(index_S)], dtype=float)
             MM_finf_MF = np.zeros([cMF.nrow,cMF.ncol], dtype=float)
-            MM_wel_MF = np.zeros([cMF.nrow,cMF.ncol], dtype=float)
-            h_MF_per = h5_MF['heads'][tstart_MF:tend_MF,:,:,:]
-            exf_MF_per = h5_MF['cbc_uzf'][tstart_MF:tend_MF,imfEXF,:,:,:]
+            MM_wel_MF  = np.zeros([cMF.nrow,cMF.ncol], dtype=float)
+            h_MF       = h5_MF['heads4MM'][tstart_MF:tend_MF,:,:]
+            if cMF.uzf_yn == 1:
+                exf_MF = h5_MF['exf4MM'][tstart_MF:tend_MF,:,:]
             # loop into the grid
             for i in range(cMF.nrow):
                 for j in range(cMF.ncol):
@@ -571,43 +573,44 @@ if MMunsat_yn > 0:
                         VEGarea_tmp=np.zeros([NVEG], dtype=np.float)
                         for v in range(NVEG):
                             VEGarea_tmp[v]=gridVEGarea[v,i,j]
-                        h_MF_tmp = h_MF_per[:,i,j,_layer]
-                        exf_MF_tmp = -exf_MF_per[:,i,j,_layer]
-                        #conv_fact_tmp = -conv_fact/(delr[j]*delc[i])
-                        # for the conv loop
-                        # cal functions for reservoirs calculations
-                        MM_tmp, MM_S_tmp = MM_UNSAT.run(
-                                                     i, j, n,
-                                                     nsl     = nsl,
-                                                     st      = _st[SOILzone_tmp],
-                                                     Sm      = _Sm[SOILzone_tmp],
-                                                     Sfc     = _Sfc[SOILzone_tmp],
-                                                     Sr      = _Sr[SOILzone_tmp],
-                                                     Su_ini  = Su_ini_tmp,
-                                                     Ss_ini  = Ss_ini_tmp,
-                                                     Rp_ini  = Rp_ini_tmp_array[i,j,:],
-                                                     botm_l0 = np.asarray(cMF.botm)[i,j,0],
-                                                     TopSoilLay   = TopSoilLay,
-                                                     BotSoilLay   = BotSoilLay,
-                                                     Tl      = Tl,
-                                                     Ks      = _Ks[SOILzone_tmp],
-                                                     Ss_max  = 1000*1.12*gridSshmax[i,j]*gridSsw[i,j]/cMF.delr[j],
-                                                     Ss_ratio= 1.12*gridSsw[i,j]/cMF.delr[j],
-                                                     HEADS   = h_MF_tmp,
-                                                     EXF     = exf_MF_tmp,
-                                                     RF      = RFzonesTS[METEOzone_tmp][tstart_MF:tend_MF],
-                                                     E0      = E0zonesTS[METEOzone_tmp][tstart_MF:tend_MF],
-                                                     PETveg  = PETvegzonesTS_tmp,
-                                                     RFeveg  = RFevegzonesTS_tmp,
-                                                     PEsoil  = PEsoilzonesTS_tmp,
-                                                     VEGarea = VEGarea_tmp,
-                                                     Zr      = Zr,
-                                                     nstp    = cMF.nstp[n],
-                                                     perlen  = cMF.perlen[n],
-                                                     dti     = dti,
-                                                     hdry    = cMF.hdry,
-                                                     kTu_min = kTu_min,
-                                                     kTu_n   = kTu_n)
+                        h_MF_tmp   = h_MF[:,i,j]
+                        if cMF.uzf_yn == 1:
+                            exf_MF_tmp = exf_MF[:,i,j]
+                        else:
+                            exf_MF_tmp = 0.0
+                        MM_tmp, MM_S_tmp = MM_UNSAT.run(i          = i,
+                                                        j          = j,
+                                                        n          = n,
+                                                        nsl        = nsl,
+                                                        st         = _st[SOILzone_tmp],
+                                                        Sm         = _Sm[SOILzone_tmp],
+                                                        Sfc        = _Sfc[SOILzone_tmp],
+                                                        Sr         = _Sr[SOILzone_tmp],
+                                                        Su_ini     = Su_ini_tmp,
+                                                        Ss_ini     = Ss_ini_tmp,
+                                                        Rp_ini     = Rp_ini_tmp_array[i,j,:],
+                                                        botm_l0    = botm_l0[i,j],
+                                                        TopSoilLay = TopSoilLay,
+                                                        BotSoilLay = BotSoilLay,
+                                                        Tl         = Tl,
+                                                        Ks         = _Ks[SOILzone_tmp],
+                                                        Ss_max     = 1000*1.12*gridSshmax[i,j]*gridSsw[i,j]/cMF.delr[j],
+                                                        Ss_ratio   = 1.12*gridSsw[i,j]/cMF.delr[j],
+                                                        HEADS      = h_MF_tmp,
+                                                        EXF        = -exf_MF_tmp,
+                                                        RF         = RFzonesTS[METEOzone_tmp][tstart_MF:tend_MF],
+                                                        E0         = E0zonesTS[METEOzone_tmp][tstart_MF:tend_MF],
+                                                        PETveg     = PETvegzonesTS_tmp,
+                                                        RFeveg     = RFevegzonesTS_tmp,
+                                                        PEsoil     = PEsoilzonesTS_tmp,
+                                                        VEGarea    = VEGarea_tmp,
+                                                        Zr         = Zr,
+                                                        nstp       = cMF.nstp[n],
+                                                        perlen     = cMF.perlen[n],
+                                                        dti        = dti,
+                                                        hdry       = cMF.hdry,
+                                                        kTu_min    = kTu_min,
+                                                        kTu_n      = kTu_n)
                         if (float(cMF.perlen[n])/float(cMF.nstp[n])) != 1.0:
                             for stp in range(cMF.nstp[n]):
                                 ts = float(cMF.perlen[n])/float(cMF.nstp[n])
@@ -645,17 +648,17 @@ if MMunsat_yn > 0:
             h5_MM['MM_S'][tstart_MM:tend_MM,:,:,:,:] = MM_S[:,:,:,:,:]
             h5_MM['finf'][n,:,:] = MM_finf_MF
             h5_MM['ETg'][n,:,:] = MM_wel_MF
-        del MM, MM_S, MM_finf_MF, MM_wel_MF, exf_MF_per, Su_ini_tmp_array, Rp_ini_tmp_array, Ss_ini_tmp_array, dti
+        del MM, MM_S, MM_finf_MF, MM_wel_MF, Su_ini_tmp_array, Rp_ini_tmp_array, Ss_ini_tmp_array, dti
+        del h_MF, exf_MF, h_MF_tmp, exf_MF_tmp
         h5_MM.close()
 
         # CHECK MM amd MF CONVERG.
-        h_MF_per_m = np.ma.masked_values(np.ma.masked_values(h_MF_per[:,:,:,:], cMF.hdry, atol = 1E+25), cMF.hnoflo, atol = 0.09)
-        del h_MF_per
+        h_MF_m = np.ma.masked_values(np.ma.masked_values(h5_MF['heads'], cMF.hdry, atol = 1E+25), cMF.hnoflo, atol = 0.09)
         h5_MF.close()
-        h_MF_average = np.ma.average(h_MF_per_m)
+        h_MF_average = np.ma.average(h_MF_m)
         h_diff.append(h_MF_average - h_pSP)
         # TODO fix it, h_diff_surf should be for each MF layers and be compared for each TS, keep the h_diff_surf with higher h_diff (positive or negative)
-        h_diff_surf = h_MF_per_m - h_pSP_all
+        h_diff_surf = h_MF_m - h_pSP_all
         h_diff_all_max = np.ma.max(h_diff_surf)
         h_diff_all_min = np.ma.min(h_diff_surf)
         if abs(h_diff_all_max)>abs(h_diff_all_min):
@@ -666,8 +669,8 @@ if MMunsat_yn > 0:
         LOOPlst.append(LOOP)
         LOOP += 1
         h_pSP = h_MF_average
-        h_pSP_all = h_MF_per_m
-        del h_MF_per_m
+        h_pSP_all = h_MF_m
+        del h_MF_m
         if np.absolute(h_diff[LOOP])>0.0:
             h_diff_log.append(np.log10(np.absolute(h_diff[LOOP])))
             h_diff_all_log.append(np.log10(np.absolute(h_diff_all[LOOP])))
@@ -833,6 +836,8 @@ if MF_yn == 1 and isinstance(cMF.h5_MF_fn, str):
     cMF.MM_PROCESS.procMF(cMF = cMF, h5_MF = h5_MF, ds_name = 'cbc', ds_name_new = 'STO_d', conv_fact = conv_fact, index = imfSTO)
     if cMF.drn_yn == 1:
         cMF.MM_PROCESS.procMF(cMF = cMF, h5_MF = h5_MF, ds_name = 'cbc', ds_name_new = 'DRN_d', conv_fact = conv_fact, index = imfDRN)
+    if cMF.ghb_yn == 1:
+        cMF.MM_PROCESS.procMF(cMF = cMF, h5_MF = h5_MF, ds_name = 'cbc', ds_name_new = 'GHB_d', conv_fact = conv_fact, index = imfGHB)
     if cMF.uzf_yn == 1:
         cMF.MM_PROCESS.procMF(cMF = cMF, h5_MF = h5_MF, ds_name = 'cbc_uzf', ds_name_new = 'RCH_d', conv_fact = conv_fact, index = imfRCH)
     if cMF.wel_yn == 1:
@@ -845,14 +850,26 @@ if isinstance(cMF.h5_MF_fn, str):
     # TODO confirm the code below if wel_yn = 1 and drn_yn = 0
     if cMF.wel_yn == 1:
         if cMF.drn_yn == 1:
-            index_cbc = [imfSTO, imfDRN, imfWEL]
+            if cMF.ghb_yn == 1:
+                index_cbc = [imfSTO, imfDRN, imfWEL, imfGHB]
+            else:
+                index_cbc = [imfSTO, imfDRN, imfWEL]
         else:
-            index_cbc = [imfSTO, imfWEL]
+            if cMF.ghb_yn == 1:
+                index_cbc = [imfSTO, imfWEL, imfGHB]
+            else:
+                index_cbc = [imfSTO, imfWEL]
     else:
         if cMF.drn_yn == 1:
-            index_cbc = [imfSTO, imfDRN]
+            if cMF.ghb_yn == 1:
+                index_cbc = [imfSTO, imfDRN,  imfGHB]
+            else:
+                index_cbc = [imfSTO, imfDRN]
         else:
-            index_cbc = [imfSTO]
+            if cMF.ghb_yn == 1:
+                index_cbc = [imfSTO,  imfGHB]
+            else:
+                index_cbc = [imfSTO]
 else:
     cbc_DRN = cbc_STO = cbc_RCH = cbc_WEL = np.zeros((sum(cMF.perlen), cMF.nrow, cMF.ncol, cMF.nlay))
     imfDRN = imfSTO = imfRCH = imfWEL = 0
@@ -901,7 +918,7 @@ if plot_out == 1 or plt_out_obs == 1:
                             try:
                                 if plt_out_obs == 1:
                                     obs['PzRCHmax'] = {'x':999,'y':999, 'i': row, 'j': list(col).index(RCHmax), 'lay': l, 'hi':999, 'h0':999, 'RC':999, 'STO':999, 'outpathname':os.path.join(MM_ws,'_MM_0PzRCHmax.txt'), 'obs_h':[], 'obs_S':[]}
-                                print 'row %d, col %d and day %d (%s)' % (row, list(col).index(RCHmax), t, mpl.dates.num2date(inputDate[t]).isoformat()[:10])
+                                print 'row %d, col %d and day %d (%s)' % (row + 1, list(col).index(RCHmax) + 1, t, mpl.dates.num2date(inputDate[t] + 1.0).isoformat()[:10])
                                 tRCHmax = t
                             except:
                                 pass
@@ -1019,7 +1036,7 @@ if plot_out == 1 or plt_out_obs == 1:
                         for row in range(cMF.nrow):
                             for t,col in enumerate(flx_tmp[:,row,:]):
                                 try:
-                                    print 'row %d, col %d and day %d' % (row, list(col).index(Tg_min), t)
+                                    print 'row %d, col %d and day %d' % (row + 1, list(col).index(Tg_min) + 1, t + 1)
                                     tTgmin = t
                                     if plt_out_obs == 1:
                                         obs['PzTgmin'] = {'x':999,'y':999, 'i': row, 'j': list(col).index(Tg_min), 'lay': 0, 'hi':999, 'h0':999, 'RC':999, 'STO':999, 'outpathname':os.path.join(MM_ws,'_MM_0PzTgmin.txt'), 'obs_h':[], 'obs_S':[]}
@@ -1552,6 +1569,7 @@ if plot_out == 1 or plt_out_obs == 1:
 
 timeendExport = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
 durationExport=(timeendExport-timestartExport)
+durationTotal=(timeendExport-timestart)
 
 # final report of successful run
 print '\n##############\nMARMITES executed successfully!\n%s\n' % mpl.dates.datetime.datetime.today().isoformat()[:19]
@@ -1564,10 +1582,11 @@ for n in ncell:
     print '%d MM active cells' % (ncell_MM[l-1])
     l += 1
 print '\n%d MM active cells in total' % (sum(ncell_MM))
-print ('\nMARMITES run time: %s minute(s) and %.1f second(s)') % (str(int(duration*24.0*60.0)), (duration*24.0*60.0-int(duration*24.0*60.0))*60)
+print ('\nApproximate run times:\nMARMITES: %s minute(s) and %.1f second(s)') % (str(int(duration*24.0*60.0)), (duration*24.0*60.0-int(duration*24.0*60.0))*60)
 if MF_yn == 1:
-    print ('MODFLOW run time: %s minute(s) and %.1f second(s)') % (str(int(durationMF*24.0*60.0)), (durationMF*24.0*60.0-int(durationMF*24.0*60.0))*60)
-print ('Export run time: %s minute(s) and %.1f second(s)') % (str(int(durationExport*24.0*60.0)), (durationExport*24.0*60.0-int(durationExport*24.0*60.0))*60)
+    print ('MODFLOW: %s minute(s) and %.1f second(s)') % (str(int(durationMF*24.0*60.0)), (durationMF*24.0*60.0-int(durationMF*24.0*60.0))*60)
+print ('Export: %s minute(s) and %.1f second(s)') % (str(int(durationExport*24.0*60.0)), (durationExport*24.0*60.0-int(durationExport*24.0*60.0))*60)
+print ('Total: %s minute(s) and %.1f second(s)') % (str(int(durationTotal*24.0*60.0)), (durationTotal*24.0*60.0-int(durationTotal*24.0*60.0))*60)
 print ('\nOutput written in folder: \n%s\n##############\n') % MM_ws
 
 ##except StandardError, e:  #Exception

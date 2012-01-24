@@ -48,12 +48,16 @@ class PROCESS:
     ######################
 
     def inputEsriAscii(self, grid_fn, datatype):
-
-        grid_fn=os.path.join(self.MM_ws,grid_fn)
-
-        grid_out=np.zeros([self.nrow,self.ncol], dtype = datatype)
-
-        grid_out = self.convASCIIraster2array(grid_fn,grid_out)
+        try:
+            if datatype == np.int or datatype == int:
+                grid_fn = int(grid_fn)
+            else:
+                grid_fn = float(grid_fn)
+            grid_out = np.ones((self.nrow,self.ncol), dtype = datatype)*grid_fn
+        except:
+            grid_fn=os.path.join(self.MM_ws,grid_fn)
+            grid_out=np.zeros([self.nrow,self.ncol], dtype = datatype)
+            grid_out = self.convASCIIraster2array(grid_fn,grid_out)
         return grid_out
         del grid_out
 
@@ -64,9 +68,15 @@ class PROCESS:
             if len(var)>1:
                 lst_out = []
                 for v in var:
-                    lst_out.append(float(v))
+                    if dtype == np.int or dtype == int:
+                        lst_out.append(int(v))
+                    else:
+                        lst_out.append(float(v))
             else:
-                lst_out = float(var[0])
+                if dtype == np.int or dtype == int:
+                    lst_out = int(var[0])
+                else:
+                    lst_out = float(var[0])
         except:
             array = np.zeros((self.nrow,self.ncol,len(var)), dtype = dtype)
             l = 0
@@ -83,56 +93,6 @@ class PROCESS:
                 lst_out = list(array[:,:,0])
 
         return lst_out
-
-    ######################
-
-    def procMF(self, cMF, h5_MF, ds_name, ds_name_new, conv_fact, index = 0):
-
-        # cbc format is : (kstp), kper, textprocess, nrow, ncol, nlay
-        t = 0
-        h5_MF.create_dataset(name = ds_name_new, data = np.zeros((sum(cMF.perlen), cMF.nrow, cMF.ncol, cMF.nlay)))
-        if cMF.timedef>=0:
-            for n in range(cMF.nper):
-                if cMF.perlen[n] != 1:
-                    for x in range(cMF.perlen[n]):
-                        if ds_name == 'heads':
-                            h5_MF[ds_name_new][t,:,:,:] = h5_MF['heads'][n,:,:,:]
-                        else:
-                            array_tmp = h5_MF[ds_name][n,index,:,:,:]
-                            if cMF.reggrid == 1 and ds_name != 'heads':
-                                h5_MF[ds_name_new][t,:,:,:] = conv_fact*array_tmp[:,:,:]/(cMF.delr[0]*cMF.delc[0])
-                            else:
-                                for i in range(cMF.nrow):
-                                    for j in range(cMF.ncol):
-                                        h5_MF[ds_name_new][t,i,j,:] = conv_fact*array_tmp[:,i,j,:]/(cMF.delr[j]*cMF.delc[i])
-                            del array_tmp
-                        t += 1
-                else:
-                    if ds_name == 'heads':
-                        h5_MF[ds_name_new][t,:,:,:] = h5_MF['heads'][n,:,:,:]
-                    else:
-                        array_tmp = h5_MF[ds_name][n,index,:,:,:]
-                        if cMF.reggrid == 1:
-                            h5_MF[ds_name_new][t,:,:,:] = conv_fact*array_tmp[:,:,:]/(cMF.delr[0]*cMF.delc[0])
-                        else:
-                            for i in range(cMF.nrow):
-                                for j in range(cMF.ncol):
-                                    h5_MF[ds_name_new][t,i,j,:] = conv_fact*array_tmp[:,i,j,:]/(cMF.delr[j]*cMF.delc[i])
-                        del array_tmp
-                    t += 1
-        else:
-            if ds_name == 'heads':
-                h5_MF[ds_name_new] = h5_MF['heads']
-            else:
-                array_tmp = h5_MF[ds_name][:,index,:,:,:]
-                if cMF.reggrid == 1:
-                    h5_MF[ds_name_new][:,:,:,:] = array_tmp[:,:,:]/(cMF.delr[0]*cMF.delc[0])
-                else:
-                    array_tmp = h5_MF[ds_name][:,:,i,j,:]
-                    for i in range(cMF.nrow):
-                        for j in range(cMF.ncol):
-                            h5_MF[ds_name_new][:,i,j,:] = conv_fact*array_tmp[i,j,:]/(cMF.delr[j]*cMF.delc[i])
-                    del array_tmp
 
     ######################
 
@@ -187,6 +147,55 @@ class PROCESS:
 
         return arrayOUT
         del arrayOUT
+
+    ######################
+
+    def procMF(self, cMF, h5_MF, ds_name, ds_name_new, conv_fact, index = 0):
+
+        # cbc format is : (kstp), kper, textprocess, nrow, ncol, nlay
+        t = 0
+        h5_MF.create_dataset(name = ds_name_new, data = np.zeros((sum(cMF.perlen), cMF.nrow, cMF.ncol, cMF.nlay)))
+        if cMF.timedef>=0:
+            for n in range(cMF.nper):
+                if cMF.perlen[n] != 1:
+                    for x in range(cMF.perlen[n]):
+                        if ds_name == 'heads':
+                            h5_MF[ds_name_new][t,:,:,:] = h5_MF['heads'][n,:,:,:]
+                        else:
+                            array_tmp = h5_MF[ds_name][n,:,:,index,:]
+                            if cMF.reggrid == 1 and ds_name != 'heads':
+                                h5_MF[ds_name_new][t,:,:,:] = conv_fact*array_tmp[:,:,:]/(cMF.delr[0]*cMF.delc[0])
+                            else:
+                                for i in range(cMF.nrow):
+                                    for j in range(cMF.ncol):
+                                        h5_MF[ds_name_new][t,i,j,:] = conv_fact*array_tmp[i,j,:]/(cMF.delr[j]*cMF.delc[i])
+                            del array_tmp
+                        t += 1
+                else:
+                    if ds_name == 'heads':
+                        h5_MF[ds_name_new][t,:,:,:] = h5_MF['heads'][n,:,:,:]
+                    else:
+                        array_tmp = h5_MF[ds_name][n,:,:,index,:]
+                        if cMF.reggrid == 1:
+                            h5_MF[ds_name_new][t,:,:,:] = conv_fact*array_tmp[:,:,:]/(cMF.delr[0]*cMF.delc[0])
+                        else:
+                            for i in range(cMF.nrow):
+                                for j in range(cMF.ncol):
+                                    h5_MF[ds_name_new][t,i,j,:] = conv_fact*array_tmp[i,j,:]/(cMF.delr[j]*cMF.delc[i])
+                        del array_tmp
+                    t += 1
+        else:
+            if ds_name == 'heads':
+                h5_MF[ds_name_new] = h5_MF['heads']
+            else:
+                array_tmp = h5_MF[ds_name][:,:,:,index,:]
+                if cMF.reggrid == 1:
+                    h5_MF[ds_name_new][:,:,:,:] = array_tmp[:,:,:]/(cMF.delr[0]*cMF.delc[0])
+                else:
+                    for i in range(cMF.nrow):
+                        for j in range(cMF.ncol):
+                            h5_MF[ds_name_new][:,i,j,:] = conv_fact*array_tmp[i,j,:]/(cMF.delr[j]*cMF.delc[i])
+                    del array_tmp
 
     ######################
 
