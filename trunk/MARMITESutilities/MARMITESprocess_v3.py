@@ -291,7 +291,7 @@ class PROCESS:
                 for t in range(ntotstp):
                     PETvegzonesTS[n,v,t]=PETtmp[t+(n*NVEG+v)*ntotstp]
                     #structure is [number of zones, number of vegetation type, time]
-        PETvegzonesTS=np.asarray(PETvegzonesTS)
+#        PETvegzonesTS=np.asarray(PETvegzonesTS)
 
         # READ RFe for each zone and each vegetation
         RFe_fn = os.path.join(self.MM_ws, inputZON_TS_RFe_fn)
@@ -305,7 +305,7 @@ class PROCESS:
                 for t in range(ntotstp):
                     RFevegzonesTS[n,v,t]=RFetmp[t+(n*NVEG+v)*ntotstp]
                     #structure is [number of zones, number of vegetation type, time]
-        RFevegzonesTS=np.asarray(RFevegzonesTS)
+#        RFevegzonesTS=np.asarray(RFevegzonesTS)
 
 
         # READ PE for each zone and each soil
@@ -320,7 +320,7 @@ class PROCESS:
                 for t in range(ntotstp):
                     PEsoilzonesTS[n,v,t]=PEtmp[t+(n*NSOIL+v)*ntotstp]
                     #structure is [number of zones, number of vegetation type, time]
-        PEsoilzonesTS=np.asarray(PEsoilzonesTS)
+#        PEsoilzonesTS=np.asarray(PEsoilzonesTS)
 
         return gridVEGarea, RFzonesTS, E0zonesTS, PETvegzonesTS, RFevegzonesTS, PEsoilzonesTS, inputDate, JD
         del NMETEO, NVEG, NSOIL, inputDate_fn, inputZON_TS_RF_fn, inputZON_TS_PET_fn, inputZON_TS_RFe_fn, inputZON_TS_PE_fn,inputZON_TS_E0_fn

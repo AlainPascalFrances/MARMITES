@@ -43,7 +43,7 @@ print '\n##############\nMARMITES started!\n%s\n##############' % mpl.dates.num2
 # the file can contain any comments as the user wish, but the sequence of the input has to be respected
 # 00_TESTS\MARMITESv3_r13c6l2'  00_TESTS\r40c20'  00_TESTS\r20c40'
 # SARDON'  CARRIZAL' LAMATA' LAMATA_daily'
-MM_ws = r'E:\00code_ws\00_TESTS\r40c20'
+MM_ws = r'E:\00code_ws\LAMATA'
 MM_fn = '__inputMM.ini'
 
 inputFile = MMproc.readFile(MM_ws,MM_fn)
@@ -503,6 +503,8 @@ if MMunsat_yn > 0:
         # SOIL PARAMETERS
         _nsl, _nam_soil, _st, _slprop, _Sm, _Sfc, _Sr, _Su_ini, _Ks = cMF.MM_PROCESS.inputSoilParam(MM_ws = MM_ws, SOILparam_fn = SOILparam_fn, NSOIL = NSOIL)
         _nslmax = max(_nsl)
+        for l in range(NSOIL):
+            _slprop[l] = np.asarray(_slprop[l])
         if LOOP > 0:
             h5_MM = h5py.File(h5_MM_fn)
         # ###############
@@ -514,7 +516,23 @@ if MMunsat_yn > 0:
         Rp_ini_tmp_array = np.zeros([cMF.nrow,cMF.ncol,_nslmax])
         Ss_ini_tmp_array = np.zeros([cMF.nrow,cMF.ncol])
         Ss_ini_tmp_array = np.zeros([cMF.nrow,cMF.ncol])
+        MM_finf_MF = np.zeros([cMF.nrow,cMF.ncol], dtype=float)
+        MM_wel_MF  = np.zeros([cMF.nrow,cMF.ncol], dtype=float)
         h_MF = None
+        h_MF_mem = 'slow'
+        try:
+            h_MF = h5_MF['heads4MM'][:,:,:]
+            h_MF_mem = 'fast'
+        except:
+            print '\nRAM memory not sufficient for heads array -> slow computing.'
+        if cMF.uzf_yn == 1:
+            exf_MF = None
+            exf_MF_mem = 'slow'
+            try:
+                exf_MF = h5_MF['exf4MM'][:,:,:]
+                exf_MF_mem = 'fast'
+            except:
+                print '\nRAM memory not sufficient for exfiltration array -> slow computing.'
         for n in range(cMF.nper):
             tstart_MM = 0
             for t in range(n):
@@ -526,11 +544,11 @@ if MMunsat_yn > 0:
             tend_MF = tstart_MF + cMF.nstp[n]
             MM         = np.zeros([cMF.perlen[n],cMF.nrow,cMF.ncol,len(index)], dtype=float)
             MM_S       = np.zeros([cMF.perlen[n],cMF.nrow,cMF.ncol,_nslmax,len(index_S)], dtype=float)
-            MM_finf_MF = np.zeros([cMF.nrow,cMF.ncol], dtype=float)
-            MM_wel_MF  = np.zeros([cMF.nrow,cMF.ncol], dtype=float)
-            h_MF       = h5_MF['heads4MM'][tstart_MF:tend_MF,:,:]
+            if h_MF == None:
+                h_MF       = h5_MF['heads4MM'][tstart_MF:tend_MF,:,:]
             if cMF.uzf_yn == 1:
-                exf_MF = h5_MF['exf4MM'][tstart_MF:tend_MF,:,:]
+                if exf_MF == None:
+                    exf_MF = h5_MF['exf4MM'][tstart_MF:tend_MF,:,:]
             # loop into the grid
             for i in range(cMF.nrow):
                 for j in range(cMF.ncol):
@@ -541,7 +559,7 @@ if MMunsat_yn > 0:
                         slprop = _slprop[SOILzone_tmp]
                         nsl = _nsl[SOILzone_tmp]
                         # thickness of soil layers
-                        Tl = gridSOILthick[i,j]*np.asarray(slprop)*1000.0
+                        Tl = gridSOILthick[i,j]*slprop*1000.0
                         # elevation of top and bottom of soil layers
                         TopSoilLay = np.zeros([nsl], dtype=float)
                         BotSoilLay = np.zeros([nsl], dtype=float)
@@ -562,20 +580,23 @@ if MMunsat_yn > 0:
                             Su_ini_tmp    = Su_ini_tmp_array[i,j,:]
                             Ss_ini_tmp    = Ss_ini_tmp_array[i,j]
                         PEsoilzonesTS_tmp = PEsoilzonesTS[METEOzone_tmp,SOILzone_tmp,tstart_MF:tend_MF]
-                        PEsoilzonesTS_tmp = np.asarray(PEsoilzonesTS_tmp)
-                        PETvegzonesTS_tmp = []
-                        RFevegzonesTS_tmp = []
+                        PETvegzonesTS_tmp = np.zeros((NVEG,tend_MF-tstart_MF), dtype = np.float)
+                        RFevegzonesTS_tmp = np.zeros((NVEG,tend_MF-tstart_MF), dtype = np.float)
                         for z in range(NVEG):
-                            PETvegzonesTS_tmp.append(PETvegzonesTS[METEOzone_tmp,z,tstart_MF:tend_MF])
-                            RFevegzonesTS_tmp.append(RFevegzonesTS[METEOzone_tmp,z,tstart_MF:tend_MF])
-                        PETvegzonesTS_tmp = np.asarray(PETvegzonesTS_tmp)
-                        RFevegzonesTS_tmp = np.asarray(RFevegzonesTS_tmp)
+                            PETvegzonesTS_tmp[z,:] = PETvegzonesTS[METEOzone_tmp,z,tstart_MF:tend_MF]
+                            RFevegzonesTS_tmp[z,:] = RFevegzonesTS[METEOzone_tmp,z,tstart_MF:tend_MF]
                         VEGarea_tmp=np.zeros([NVEG], dtype=np.float)
                         for v in range(NVEG):
-                            VEGarea_tmp[v]=gridVEGarea[v,i,j]
-                        h_MF_tmp   = h_MF[:,i,j]
+                            VEGarea_tmp[v] = gridVEGarea[v,i,j]
+                        if h_MF_mem == 'slow':
+                            h_MF_tmp   = h_MF[:,i,j]
+                        elif h_MF_mem == 'fast':
+                            h_MF_tmp   = h_MF[tstart_MF:tend_MF,i,j]
                         if cMF.uzf_yn == 1:
-                            exf_MF_tmp = exf_MF[:,i,j]
+                            if exf_MF_mem == 'slow':
+                                exf_MF_tmp = exf_MF[:,i,j]
+                            elif exf_MF_mem == 'fast':
+                                exf_MF_tmp = exf_MF[tstart_MF:tend_MF,i,j]
                         else:
                             exf_MF_tmp = 0.0
                         MM_tmp, MM_S_tmp = MM_UNSAT.run(i          = i,
