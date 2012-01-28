@@ -467,32 +467,27 @@ class PROCESS:
                         obsValue.append(self.hnoflo)
             except:
                 raise ValueError, '\nFATAL ERROR!\nFormat of observation file uncorrect!\n%s' % filename
-##            if MFtime_fn == None:
-##                if obsDate[0]<inputDate[0]:
-##                    print '\nWARNING!\n Observation data starting before RF and PET at %s,\n these obs data will not be plotted correctly'
-##                if len(inputDate)<len(obsDate):
-##                    print '\nWARNING!\n There is more observation data than RF and PET data at %s,\n these obs data will not be plotted correctly' % 1
             obsOutput = np.ones([len(obsValue),len(inputDate)], dtype=float)*self.hnoflo
-            for l in range(len(obsValue)):
-                if not isinstance(obsValue[l], float):
-                    j=0
-                    for i in range(len(inputDate)):
-                        if j<len(obsDate):
-                            if inputDate[i]==obsDate[j]:
-                                obsOutput[l,i]=obsValue[l][j]
-                                j += 1
+            if (obsDate[len(obsDate)-1] < inputDate[0]) or (obsDate[0] > inputDate[len(inputDate)-1]):
+                obsOutput = []
+                print '\nObservations of file %s out of modelling period!' % filename
+            else:
+                for l in range(len(obsValue)):
+                    if not isinstance(obsValue[l], float):
+                        j=0
+                        for i in range(len(inputDate)):
+                            if j<len(obsDate):
+                                if inputDate[i]==obsDate[j]:
+                                    obsOutput[l,i]=obsValue[l][j]
+                                    j += 1
+                                else:
+                                    obsOutput[l,i]=self.hnoflo
                             else:
                                 obsOutput[l,i]=self.hnoflo
-                        else:
-                            obsOutput[l,i]=self.hnoflo
-                else:
-                    obsOutput[l,:] = np.ones([len(inputDate)])*self.hnoflo
+                    else:
+                        obsOutput[l,:] = np.ones([len(inputDate)])*self.hnoflo
         else:
-            if _nslmax>0:
-                obsOutput = np.zeros([_nslmax,len(inputDate)], dtype=float)
-            else:
-                obsOutput = np.zeros([1,len(inputDate)], dtype=float)
-            obsOutput[:,:] = self.hnoflo
+            obsOutput = []
         return obsOutput
         del inputDate, obsOutput
 

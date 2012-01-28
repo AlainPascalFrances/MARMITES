@@ -130,16 +130,16 @@ class UNSAT:
             '''
             Percolation function
             '''
-            if Sfc > s_tmp or np.abs(s_tmp-Sfc) < 1.0E-7:
+            if (s_tmp - Sfc) <=  1.0E-7:
                 rp_tmp = 0.0
-            elif s_tmp > Sfc and ( Sm > Sfc or np.abs(s_tmp-Sm) < 1.0E-7):
+            elif (s_tmp - Sfc) > 1.0E-7 and (s_tmp - Sm) < 1.0E-7:
                 Sg = (s_tmp-Sfc)/(Sm-Sfc) # gravitational water
-                if (Ks*Sg*dt) > (s_tmp-Sfc):
+                if (Ks*Sg*dt) - (s_tmp-Sfc) > 1.0E-7:
                     rp_tmp = (s_tmp-Sfc)/dt
                 else:
                     rp_tmp = Ks*Sg
-            elif s_tmp > Sm:
-                if (Ks*dt) > (Sm-Sfc):
+            elif (s_tmp - Sm) > 1.0E-7:
+                if (Ks*dt) - (Sm-Sfc) > 1.0E-7:
                     rp_tmp = (Sm-Sfc)/dt
                 else:
                     rp_tmp = Ks
@@ -150,21 +150,21 @@ class UNSAT:
 
         ##################
 
-        def evp(s_tmp,Sfc,Sr, pet, i, j, n, dt):
+        def evp(s_tmp,Sm,Sr, pet, i, j, n, dt):
             '''
             Actual evapotranspiration function
             '''
             if (s_tmp - Sr) <= 1.0E-7:
                 evp_tmp = 0.0
-            elif ((s_tmp - Sr) > 1.0E-7) and ((s_tmp < Sfc) or np.abs(s_tmp -Sfc) < 1.0E-7):
-                Se = (s_tmp - Sr)/(Sfc - Sr)
+            elif ((s_tmp - Sr) > 1.0E-7) and (s_tmp - Sm) < 1.0E-7:
+                Se = (s_tmp - Sr)/(Sm - Sr)
                 if (pet*Se*dt - (s_tmp - Sr)) > 1.0E-7:
                     evp_tmp = (s_tmp - Sr)/dt
                 else:
                     evp_tmp = pet*Se
             elif (s_tmp - Sfc) > 1.0E-7:
-                if (pet*dt-(Sfc - Sr)) > 1.0E-7:
-                    evp_tmp = (Sfc - Sr)/dt
+                if (pet*dt-(Sm - Sr)) > 1.0E-7:
+                    evp_tmp = (Sm - Sr)/dt
                 else:
                     evp_tmp = pet
             return evp_tmp
@@ -241,7 +241,7 @@ class UNSAT:
                 # Eu
                 if Ss_tmp == 0.0:
                     if PE > 0.0:
-                        Eu_tmp[l] = evp(Su_tmp[l],Sfc[l]*Tl[l], Sr[l]*Tl[l], PE, i, j, n, dt)
+                        Eu_tmp[l] = evp(Su_tmp[l],Sm[l]*Tl[l], Sr[l]*Tl[l], PE, i, j, n, dt)
                         Su_tmp[l] -= Eu_tmp[l]*dt
                         PE -= Eu_tmp[l]
                 # Tu
@@ -249,10 +249,10 @@ class UNSAT:
                     if PET[z] > 0.0 :
                         if VEGarea[z] > 0.0:
                             if BotSoilLay[l] > Zr_elev[z]:
-                                Tu_tmpZr[l,z] = evp(Su_tmp[l],Sfc[l]*Tl[l], Sr[l]*Tl[l], PET[z], i, j, n, dt)
+                                Tu_tmpZr[l,z] = evp(Su_tmp[l],Sm[l]*Tl[l], Sr[l]*Tl[l], PET[z], i, j, n, dt)
                             elif TopSoilLay[l] > Zr_elev[z] :
                                 PETc = PET[z]*(TopSoilLay[l]-Zr_elev[z])/Tl[l]
-                                Tu_tmpZr[l,z] = evp(Su_tmp[l],Sfc[l]*Tl[l], Sr[l]*Tl[l], PETc, i, j, n, dt)
+                                Tu_tmpZr[l,z] = evp(Su_tmp[l],Sm[l]*Tl[l], Sr[l]*Tl[l], PETc, i, j, n, dt)
                             Tu_tmp[l] += Tu_tmpZr[l,z]*VEGarea[z]*0.01
                             PET[z] -= Tu_tmpZr[l,z]
                 Su_tmp[l] -= Tu_tmp[l]*dt
@@ -262,7 +262,7 @@ class UNSAT:
                     if PET[z] > 0.0 :
                         if VEGarea[z] > 0.0:
                             if HEADS > Zr_elev[z]:
-                                Tg_tmp_Zr[l,z] = evp(Sm[l]*Tl[l],Sfc[l]*Tl[l], Sr[l]*Tl[l], PET[z], i, j, n, dt)
+                                Tg_tmp_Zr[l,z] = evp(Sm[l]*Tl[l],Sm[l]*Tl[l], Sr[l]*Tl[l], PET[z], i, j, n, dt)
                                 Tg_tmp += Tg_tmp_Zr[l,z]*VEGarea[z]*0.01
                                 PET[z] -= Tg_tmp_Zr[l,z]
 

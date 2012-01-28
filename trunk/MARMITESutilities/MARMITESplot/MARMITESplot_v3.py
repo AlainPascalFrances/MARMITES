@@ -76,7 +76,6 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S,
         lbl_MB.append('MB_l'+str(l+1))
         lbl_Spc.append('Su_l'+str(l+1))
         lbl_Rp.append('Rp_l'+str(l+1))
-        lbl_Sobs.append('Su_l'+str(l+1)+'_obs')
         Spc1full.append(Spc[:,l])
         Eu1.append(Eu[:,l])
         Tu1.append(Tu[:,l])
@@ -88,8 +87,9 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S,
         Rp1.append(Rp[:,l])
         try:
             Sobs_m.append(np.ma.masked_values(Sobs[l], hnoflo, atol = 0.09))
+            lbl_Sobs.append('Su_l'+str(l+1)+'_obs')
         except:
-            pass
+            Sobs_m.append([])
     del dS, S, SAT, MB_l
     del Rp, Spc
     Eu1 = np.asarray(Eu1)
@@ -210,10 +210,11 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S,
     plt.setp(ax6.get_xticklabels(), visible=False)
     plt.setp(ax6.get_yticklabels(), fontsize=8)
     try:
-        for l, (y, color, lbl) in enumerate(zip(Sobs_m, colors_nsl, lbl_Sobs)) :
-            ax6.plot_date(DateInput, y, ls = 'None', color = 'None', marker='o', markersize=2, markeredgecolor = color, markerfacecolor = 'None', label=lbl) #'--', color = color,
+        for l, (y, color, lbl) in enumerate(zip(Sobs_m, colors_nsl, lbl_Sobs)):
+            if y != []:
+                ax6.plot_date(DateInput, y, ls = 'None', color = 'None', marker='o', markersize=2, markeredgecolor = color, markerfacecolor = 'None', label=lbl) #'--', color = color,
     except:
-        print '\nWARNING!\nSoil moisture at observations point %s will not be plotted.' % obs_name
+        #print '\nWARNING!\nSoil moisture at observations point %s will not be plotted.' % obs_name
         pass
     for l, (y, color, lbl) in enumerate(zip(Spc1full, colors_nsl, lbl_S)) :
         y = np.ma.masked_where(y < 0.0, y)
@@ -227,8 +228,9 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S,
     plt.ylim(min(Sr) - ybuffer,max(Sm) + ybuffer)
     plt.ylabel('%', fontsize=10)
     # legend
-    lbl_Spcobs = lbl_Sobs + lbl_S
-    plt.legend(lbl_Spcobs, loc=0, labelspacing=lblspc, markerscale=mkscale)
+    #lbl_Spcobs = lbl_Sobs + lbl_S
+    #plt.legend(lbl_Spcobs, loc=0, labelspacing=lblspc, markerscale=mkscale)
+    plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale)
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8 )
@@ -239,9 +241,11 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S,
     ax7=fig.add_subplot(10,1,7, sharex=ax1)
     plt.setp(ax7.get_xticklabels(), fontsize=8)
     plt.setp(ax7.get_yticklabels(), fontsize=8)
+    obs_leg = None
     try:
         hobs_m = np.ma.masked_values(hobs, hnoflo, atol = 0.09)
         plt.plot_date(DateInput,hobs_m, ls = 'None', color = 'None', marker='o', markeredgecolor = 'blue', markerfacecolor = 'None', markersize = 2) # ls='--', color = 'blue'
+        obs_leg = 1
     except:
         pass
     plt.plot_date(DateInput,h_MF,'-', color = 'b')
@@ -256,7 +260,10 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S,
         ybuffer = 1.0
     plt.ylim((hmin - ybuffer, hmax + ybuffer))
     plt.ylabel('m', fontsize=10)
-    plt.legend((r'h_obs',r'h_MF',r'h_MF_corr',r'h_SF'), loc=0, labelspacing=lblspc, markerscale=mkscale)
+    if obs_leg == None:
+        plt.legend((r'h_MF',r'h_MF_corr',r'h_SF'), loc=0, labelspacing=lblspc, markerscale=mkscale)
+    elif obs_leg == 1:
+        plt.legend((r'h_obs',r'h_MF',r'h_MF_corr',r'h_SF'), loc=0, labelspacing=lblspc, markerscale=mkscale)
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8 )
