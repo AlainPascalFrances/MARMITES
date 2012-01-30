@@ -470,7 +470,7 @@ class PROCESS:
             obsOutput = np.ones([len(obsValue),len(inputDate)], dtype=float)*self.hnoflo
             if (obsDate[len(obsDate)-1] < inputDate[0]) or (obsDate[0] > inputDate[len(inputDate)-1]):
                 obsOutput = []
-                print '\nObservations of file %s out of modelling period!' % filename
+                print '\nObservations of file %s outside the modeling period!' % filename
             else:
                 for l in range(len(obsValue)):
                     if not isinstance(obsValue[l], float):

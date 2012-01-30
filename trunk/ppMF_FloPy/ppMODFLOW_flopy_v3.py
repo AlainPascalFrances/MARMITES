@@ -76,41 +76,6 @@ class MF():
                 self.timedef = 0
                 self.nper = inputFile[l].strip()
             l += 1
-            self.itmuni = int(inputFile[l].strip())
-            l += 1
-            self.lenuni = int(inputFile[l].strip())
-            l += 1
-            self.laycbd = []
-            laycbd_tmp =  inputFile[l].split()
-            for i in range(self.nlay):
-                self.laycbd.append(int(laycbd_tmp[i]))
-            l += 1
-            self.delr = []
-            delr_tmp =  inputFile[l].split()
-            if len(delr_tmp)>1:
-                for i in range(self.ncol):
-                    self.delr.append(int(delr_tmp[i]))
-            else:
-                for i in range(self.ncol):
-                    self.delr.append(int(delr_tmp[0]))
-            l += 1
-            self.delc = []
-            delc_tmp =  inputFile[l].split()
-            if len(delc_tmp)>1:
-                for i in range(self.nrow):
-                    self.delc.append(int(delc_tmp[i]))
-            else:
-                for i in range(self.nrow):
-                    self.delc.append(int(delc_tmp[0]))
-            l += 1
-            self.reggrid = int(inputFile[l].strip())
-            l += 1
-            self.top = [inputFile[l].strip()]
-            l += 1
-            self.botm = []
-            for i in range(self.nlay):
-                self.botm.append(inputFile[l].split()[i])
-            l += 1
             self.perlen = []
             self.nstp = []
             self.tsmult = []
@@ -149,6 +114,41 @@ class MF():
             elif self.timedef == 0:
                 # will be defined later in def MF.ppMFtime
                 l += 4
+            self.itmuni = int(inputFile[l].strip())
+            l += 1
+            self.lenuni = int(inputFile[l].strip())
+            l += 1
+            self.laycbd = []
+            laycbd_tmp =  inputFile[l].split()
+            for i in range(self.nlay):
+                self.laycbd.append(int(laycbd_tmp[i]))
+            l += 1
+            self.delr = []
+            delr_tmp =  inputFile[l].split()
+            if len(delr_tmp)>1:
+                for i in range(self.ncol):
+                    self.delr.append(int(delr_tmp[i]))
+            else:
+                for i in range(self.ncol):
+                    self.delr.append(int(delr_tmp[0]))
+            l += 1
+            self.delc = []
+            delc_tmp =  inputFile[l].split()
+            if len(delc_tmp)>1:
+                for i in range(self.nrow):
+                    self.delc.append(int(delc_tmp[i]))
+            else:
+                for i in range(self.nrow):
+                    self.delc.append(int(delc_tmp[0]))
+            l += 1
+            self.reggrid = int(inputFile[l].strip())
+            l += 1
+            self.top = [inputFile[l].strip()]
+            l += 1
+            self.botm = []
+            for i in range(self.nlay):
+                self.botm.append(inputFile[l].split()[i])
+            l += 1
             # bas
             self.ext_bas = str(inputFile[l].strip())
             l += 1

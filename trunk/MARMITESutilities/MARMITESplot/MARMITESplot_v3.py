@@ -423,24 +423,24 @@ def plotLAYER(TS, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_
         if np.ma.max(V[L])>np.ma.min(V[L]):
             CB_test = True
             PC = plt.pcolor(xg, yg, V[L], cmap = cmap, vmin = Vmin, vmax = Vmax)
-            if contours == True:
-                CS = plt.contour(xg1, yg1[::-1], V[L][::-1],ticks, colors = 'gray')
-                plt.clabel(CS, inline=1, fontsize=8, fmt=fmt, colors = 'gray')
             plt.title('layer ' + str(L+1), fontsize = 10)
         else:
             PC1 = plt.pcolor(xg, yg, V[L], cmap = cmap, vmin = Vmin, vmax = Vmax)
             plt.title('layer ' + str(L+1) + ' ' + msg, fontsize = 10)
-        if L == nplot-1:
-            if CB_test == True:
-                CB = plt.colorbar(PC, shrink=0.8, extend='both', ticks = ticks, format = fmt, orientation = 'vertical')
-                CB.set_label(CBlabel, fontsize = 8)
-                plt.setp(CB.ax.get_yticklabels(), fontsize=8)
-            else:
-                CB = plt.colorbar(PC1, shrink=0.8, extend='both', ticks = ticks, format = fmt, orientation = 'vertical')
-                CB.set_label(CBlabel, fontsize = 8)
-                plt.setp(CB.ax.get_yticklabels(), fontsize=8)
+        if contours == True:
+            CS = plt.contour(xg1, yg1[::-1], V[L][::-1], ticks, colors = 'gray')
+            plt.clabel(CS, inline=1, fontsize = 6, fmt=fmt, colors = 'gray')
         plt.ylim(plt.ylim()[::-1])
         plt.axis('scaled')
+    if CB_test == True:
+        val = PC
+    else:
+        val = PC1
+    #cax = fig.add_axes([0.2, 0.08, 0.6, 0.04])
+    CB = fig.colorbar(val, shrink=0.6, extend='both', ticks = ticks, format = fmt, orientation = 'vertical')
+    CB.set_label(CBlabel, fontsize = 7)
+    plt.setp(CB.ax.get_yticklabels(), fontsize = 7)
+    del val
     if isinstance(Date, float):
         plt_export_fn = os.path.join(MM_ws, '_plt_' + plt_title + '_TS%05d' + '.png') % (TS+1)
     else:

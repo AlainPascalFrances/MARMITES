@@ -90,6 +90,10 @@ try:
     #run MODFLOW  (1 is YES, 0 is NO)
     MF_yn = int(inputFile[l].strip())
     l += 1
+    convcrit = float(inputFile[l].strip())
+    l += 1
+    ccnum = int(inputFile[l].strip())
+    l += 1
     # Define MARMITESsurface folder
     MMsurf_ws = inputFile[l].strip()
     l += 1
@@ -136,10 +140,6 @@ try:
     inputObsHEADS_fn = inputFile[l].strip()
     l += 1
     inputObsSM_fn = inputFile[l].strip()
-    l += 1
-    convcrit = float(inputFile[l].strip())
-    l += 1
-    ccnum = int(inputFile[l].strip())
     l += 1
     chunks = int(inputFile[l].strip())
     if MMunsat_yn == 1 and MF_yn != 1:
@@ -1571,8 +1571,8 @@ try:
                         Vmin *= 0.85
                     ctrs_tmp = False
                 else:
-                    ctrs_tmp = ctrsMM
-                MMplot.plotLAYER(TS = 'NA', Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = ('(m)'), msg = 'no value', plt_title = ('_HEADSmaxdiff_ConvLoop'), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrangeMM, Vmax = Vmax, Vmin = Vmin, contours = ctrs_tmp, ntick = ntick)
+                    ctrs_tmp = ctrsMF
+                MMplot.plotLAYER(TS = 'NA', Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = ('(m)'), msg = 'no value', plt_title = ('_HEADSmaxdiff_ConvLoop'), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrangeMF, Vmax = Vmax, Vmin = Vmin, contours = ctrs_tmp, ntick = ntick)
             del TS_lst, flxlbl, i, i1, h_diff_surf
         del gridSOIL, inputDate
         del hmaxMF, hminMF, hmin, hdiff, cbcmax, cbcmin
@@ -1614,7 +1614,6 @@ except StandardError, e:  #Exception
         pass
     raise SystemExit('\nFATAL ERROR!\nMM run interruption in the export phase!\nError description:\n%s' % traceback.print_exc(file=sys.stdout))
 #    traceback.print_exc(limit=1, file=sys.stdout)
-
 if verbose == 0:
     sys.stdout = s
     report.close()

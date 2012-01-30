@@ -7,9 +7,11 @@ Install first Python version 2.7.2 (download at http://www.python.org/download/r
 You also need to install the following packages:
 - pylab (i.e. numpy+scipy) (www.scipy.org)
 - matplotlib               (matplotlib.sourceforge.net)
-- wxpython                 (www.wxpython.org)
+- wxPython                 (www.wxpython.org)
 - h5py                     (code.google.com/p/h5py/)
-Another alternative is to install Python(x,y), see http://code.google.com/p/pythonxy/ and download the installation file at http://ftp.ntua.gr/pub/devel/pythonxy/Python(x,y)-2.7.2.1.exe
+- pywin32                  (sourceforge.net/projects/pywin32/)
+Another alternative is to install Python(x,y), see http://code.google.com/p/pythonxy/ and download the installation file at http://ftp.ntua.gr/pub/devel/pythonxy/Python(x,y)-2.7.2.1.exe.
+Note that you may have to update some packages to the version used by MARMITES.
 It is also recommended to install a development environment such as PyScripter (http://code.google.com/p/pyscripter/) or Spyder (this last one is already integrated in Python(x,y)).
 
 STEP2
