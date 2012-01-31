@@ -13,6 +13,7 @@ You also need to install the following packages:
 Another alternative is to install Python(x,y), see http://code.google.com/p/pythonxy/ and download the installation file at http://ftp.ntua.gr/pub/devel/pythonxy/Python(x,y)-2.7.2.1.exe.
 Note that you may have to update some packages to the version used by MARMITES.
 It is also recommended to install a development environment such as PyScripter (http://code.google.com/p/pyscripter/) or Spyder (this last one is already integrated in Python(x,y)).
+As the MARMITES and MODFLOW data are stored in HDF5 format, you may also want to install HDFView (http://www.hdfgroup.org/hdf-java-html/hdfview/) to visualize and export these data.
 
 STEP2
 Install TortoiseHg (download at http://tortoisehg.bitbucket.org/)

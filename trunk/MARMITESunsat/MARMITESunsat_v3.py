@@ -162,7 +162,7 @@ class UNSAT:
                     evp_tmp = (s_tmp - Sr)/dt
                 else:
                     evp_tmp = pet*Se
-            elif (s_tmp - Sfc) > 1.0E-7:
+            elif (s_tmp - Sr) > 1.0E-7:
                 if (pet*dt-(Sm - Sr)) > 1.0E-7:
                     evp_tmp = (Sm - Sr)/dt
                 else:
