@@ -692,14 +692,15 @@ try:
 
             timeendMMloop = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
             durationMMloop = timeendMMloop-timestartMMloop
-            print '\nMM loop run time: %02.fmn%02.fs' % (int(durationMMloop*24.0*60.0), (durationMMloop*24.0*60.0-int(durationMMloop*24.0*60.0))*60)
+            print '\nMM loop run time: %02.fmn%02.fs\n' % (int(durationMMloop*24.0*60.0), (durationMMloop*24.0*60.0-int(durationMMloop*24.0*60.0))*60)
             durationMMunsat += durationMMloop
 
+            msg_end_loop = []
             if LOOP <2:
-                print "\nInitial average heads:\n%.3f m" % h_diff[LOOP]
+                msg_end_loop.append('Initial average heads:\n%.3f m' % h_diff[LOOP])
             else:
-                print "\nHeads diff. from previous conv. loop: %.3f m" % h_diff[LOOP]
-                print 'Maximum heads difference:             %.3f m' % h_diff_all[LOOP]
+                msg_end_loop.append('Heads diff. from previous conv. loop: %.3f m' % h_diff[LOOP])
+                msg_end_loop.append('Maximum heads difference:             %.3f m' % h_diff_all[LOOP])
             if h_MF_average == 0.0:
                 loopdry += 1
                 if loopdry > 1:
@@ -708,12 +709,18 @@ try:
                 else:
                     print '\nWARNING: first layer of the model DRY!'
             elif abs(h_diff[LOOP]) < convcrit:
-                print '\nSuccessfull convergence between MARMITES and MODFLOW!\n(Conv. criterion = %.3G)' % convcrit
+                msg_end_loop.append('Successfull convergence between MARMITES and MODFLOW!\n(Conv. criterion = %.3G)' % convcrit)
+                for txt in msg_end_loop:
+                    print txt
                 break
             elif LOOP>ccnum:
-                print'\nNo convergence between MARMITES and MODFLOW!\n(Conv. criterion = %.3G)' % convcrit
+                msg_end_loop.append('No convergence between MARMITES and MODFLOW!\n(Conv. criterion = %.3G)' % convcrit)
+                for txt in msg_end_loop:
+                    print txt
                 break
             del h_MF_average
+            for txt in msg_end_loop:
+                print txt
 
             # MODFLOW RUN with MM-computed recharge
             timestartMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
@@ -1584,21 +1591,24 @@ try:
     durationTotal = (timeendExport-timestart)
 
     # final report of successful run
-    print '\n##############\nMARMITES executed successfully!\n%s\n' % mpl.dates.datetime.datetime.today().isoformat()[:19]
-    print '%d stress periods, %d days' % (cMF.nper,sum(cMF.perlen))
+    print '\n##############\nMARMITES executed successfully!\n%s' % mpl.dates.datetime.datetime.today().isoformat()[:19]
+    if MMunsat_yn > 0:
+        for txt in msg_end_loop:
+            print txt
+    print '\n%d stress periods, %d days' % (cMF.nper,sum(cMF.perlen))
     print '%d rows x %d cols (%d cells) x %d layers' % (cMF.nrow, cMF.ncol, cMF.nrow*cMF.ncol, cMF.nlay)
+    print '%d MM active cells in total' % (sum(ncell_MM))
     l = 1
     for n in ncell:
         print  'LAYER %d' % l
         print '%d MF active cells' % (n)
         print '%d MM active cells' % (ncell_MM[l-1])
         l += 1
-    print '\n%d MM active cells in total' % (sum(ncell_MM))
     print ('\nApproximate run times:')
     if MMsurf_yn > 0:
-        print ('\nMARMITES surface: %s minute(s) and %.1f second(s)') % (str(int(durationMMsurf*24.0*60.0)), (durationMMsurf*24.0*60.0-int(durationMMsurf*24.0*60.0))*60)
+        print ('MARMITES surface: %s minute(s) and %.1f second(s)') % (str(int(durationMMsurf*24.0*60.0)), (durationMMsurf*24.0*60.0-int(durationMMsurf*24.0*60.0))*60)
     if MMunsat_yn > 0:
-        print ('\nMARMITES unsaturated zone: %s minute(s) and %.1f second(s)') % (str(int(durationMMunsat*24.0*60.0)), (durationMMunsat*24.0*60.0-int(durationMMunsat*24.0*60.0))*60)
+        print ('MARMITES unsaturated zone: %s minute(s) and %.1f second(s)') % (str(int(durationMMunsat*24.0*60.0)), (durationMMunsat*24.0*60.0-int(durationMMunsat*24.0*60.0))*60)
     if MF_yn == 1:
         print ('MODFLOW: %s minute(s) and %.1f second(s)') % (str(int(durationMF*24.0*60.0)), (durationMF*24.0*60.0-int(durationMF*24.0*60.0))*60)
     if plt_out > 0 or plt_out_obs > 0:

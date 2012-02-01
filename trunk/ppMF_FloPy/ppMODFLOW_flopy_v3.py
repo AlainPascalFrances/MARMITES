@@ -723,6 +723,8 @@ class MF():
             except:
                 print "\nError in output file, some output files were not exported."
 
+        print 'Found %d days converted into %d stress periods.' % (sum(self.perlen), self.nper)
+
         inputZONRF.close()
         inputZONRFe.close()
         inputZONPET.close()
@@ -999,52 +1001,74 @@ class MF():
         mfmain.write_name_file()
         mfmain.run_model(pause = False, report = report)
 
-        # extract heads
+        def readh():
+            """
+            Extract heads
+            """
+            try:
+                h = mfrdbin.mfhdsread(mfmain, 'LF95').read_all(self.h_MF_fn)
+            except:
+                h5_MF.close()
+                raise ValueError, '\nMODFLOW error!\nCheck the MODFLOW list file in folder:\n%s' % MF_ws
+            if len(h[1])<sum(self.nstp):
+                h5_MF.close()
+                raise ValueError, '\nMODFLOW error!\nCheck the MODFLOW list file in folder:\n%s' % MF_ws
+            print ''
+            return h
+
+        def readcbc():
+            """
+            Extract cell-by-cell budget
+            """
+            cbc = mfrdbin.mfcbcread(mfmain, 'LF95').read_all(self.cbc_MF_fn)
+            h5_MF.create_dataset('cbc_nam', data = np.asarray(cbc[2][1]))
+            print ''
+            return cbc
+
+        def readcbcuzf():
+            """
+            Extract cell-by-cell uzf budget
+            """
+            if self.uzf_yn == 1:
+                cbc_uzf = mfrdbin.mfcbcread(mfmain, 'LF95').read_all(self.cbc_MFuzf_fn)
+                h5_MF.create_dataset('cbc_uzf_nam', data = np.asarray(cbc_uzf[2][1]))
+                return cbc_uzf
+
         print''
         h5_MF = h5py.File(self.h5_MF_fn, 'w')
-        try:
-            h = mfrdbin.mfhdsread(mfmain, 'LF95').read_all(self.h_MF_fn)
-        except:
-            h5_MF.close()
-            raise ValueError, '\nMODFLOW error!\nCheck the MODFLOW list file in folder:\n%s' % MF_ws
-        if len(h[1])<sum(self.nstp):
-            h5_MF.close()
-            raise ValueError, '\nMODFLOW error!\nCheck the MODFLOW list file in folder:\n%s' % MF_ws
-        print ''
-
-        # extract cell-by-cell budget
-        cbc = mfrdbin.mfcbcread(mfmain, 'LF95').read_all(self.cbc_MF_fn)
-        h5_MF.create_dataset('cbc_nam', data = np.asarray(cbc[2][1]))
-        print ''
-
-        # extract cell-by-cell uzf budget
-        if self.uzf_yn == 1:
-            cbc_uzf = mfrdbin.mfcbcread(mfmain, 'LF95').read_all(self.cbc_MFuzf_fn)
-            h5_MF.create_dataset('cbc_uzf_nam', data = np.asarray(cbc_uzf[2][1]))
-
         print '\nPlease wait. Storing heads and cbc terms into HDF5 file\n%s' % (self.h5_MF_fn)
-
         if self.dum_sssp1 == 1:
             if chunks == 1:
                 # TODO implement swapaxes
+                h = readh()
                 h5_MF.create_dataset(name = 'heads', data = np.asarray(h[1][1:]),   chunks = (1,self.nrow,self.ncol,self.nlay), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf
+                del h
+                cbc = readcbc()
                 h5_MF.create_dataset(name = 'cbc',   data = np.asarray(cbc[1][1:]), chunks = (1,len(h5_MF['cbc_nam']),self.nrow,self.ncol,self.nlay),   compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf'
+                del cbc
                 if self.uzf_yn == 1:
+                    cbc_uzf = readcbcuzf()
                     h5_MF.create_dataset(name = 'cbc_uzf', data = np.asarray(cbc_uzf[1][1:]), chunks = (1,len(h5_MF['cbc_uz_nam']),self.nrow,self.ncol,self.nlay), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf'
+                    del cbc_uzf
             else:
+                h = readh()
                 h5_MF.create_dataset(name = 'heads', data = np.asarray(h[1][1:]))
+                del h
+                cbc = readcbc()
                 data = np.asarray(cbc[1][1:])
+                del cbc
                 data = np.swapaxes(data,1,2)
                 data = np.swapaxes(data,2,3)
                 h5_MF.create_dataset(name = 'cbc',   data = data)
                 del data
                 if self.uzf_yn == 1:
+                    cbc_uzf = readcbcuzf()
                     data = np.asarray(cbc_uzf[1][1:])
+                    del cbc_uzf
                     data = np.swapaxes(data,1,2)
                     data = np.swapaxes(data,2,3)
                     h5_MF.create_dataset(name = 'cbc_uzf', data = data)
                     del data
-            del h, cbc
             self.nper = self.nper - 1
             self.perlen = self.perlen[1:]
             self.tsmult = self.tsmult[1:]
@@ -1053,26 +1077,35 @@ class MF():
         else:
             if chunks == 1:
                 # TODO implement swapaxes
+                h = readh()
                 h5_MF.create_dataset(name = 'heads', data = np.asarray(h[1]), chunks = (1,self.nrow,self.ncol,self.nlay), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf'
+                del h
+                cbc = readcbc()
                 h5_MF.create_dataset(name = 'cbc', data = np.asarray(cbc[1]), chunks = (1,len(h5_MF['cbc_nam']),self.nrow,self.ncol,self.nlay), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf'
+                del cbc
                 if self.uzf_yn == 1:
+                    cbc_uzf = readcbcuzf()
                     h5_MF.create_dataset(name = 'cbc_uzf', data = np.asarray(cbc_uzf[1]), chunks = (1,len(h5_MF['cbc_uzf_nam']),self.nrow,self.ncol,self.nlay), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf'
+                    del cbc_uzf
             else:
+                h = readh()
                 h5_MF.create_dataset(name = 'heads', data = np.asarray(h[1]))
+                del h
+                cbc = readcbc()
                 data = np.asarray(cbc[1])
+                del cbc
                 data = np.swapaxes(data,1,2)
                 data = np.swapaxes(data,2,3)
                 h5_MF.create_dataset(name = 'cbc', data = data)
                 del data
                 if self.uzf_yn == 1:
+                    cbc_uzf = readcbcuzf()
                     data = np.asarray(cbc_uzf[1])
+                    del cbc_uzf
                     data = np.swapaxes(data,1,2)
                     data = np.swapaxes(data,2,3)
                     h5_MF.create_dataset(name = 'cbc_uzf', data = data)
                     del data
-            del h, cbc
-            if self.uzf_yn == 1:
-                del cbc_uzf
         h4MM = np.zeros((len(self.perlen),self.nrow,self.ncol), dtype = np.float)
         h_MF = h5_MF['heads'][:,:,:,:]
         iuzfbnd = np.asarray(self.iuzfbnd)
