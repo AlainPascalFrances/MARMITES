@@ -479,19 +479,21 @@ class MF():
             self.iuzfbnd = self.MM_PROCESS.checkarray(self.iuzfbnd, dtype = np.int)
         if self.ghb_yn == 1:
             ghb = np.asarray(self.MM_PROCESS.checkarray(self.ghb_cond, dtype = np.float))
-            self.ghbcells = np.zeros((self.nlay), dtype = np.int)
-            self.ghbcells[0] = (np.asarray(ghb[:,:,0]) != self.hnoflo).sum()
-            if self.nlay > 0:
-                for l in range(1,self.nlay):
+            if self.nlay > 1:
+                self.ghbcells = np.zeros((self.nlay), dtype = np.int)
+                for l in range(self.nlay):
                     self.ghbcells[l] = (np.asarray(ghb[:,:,l]) != self.hnoflo).sum()
+            else:
+                self.ghbcells = (np.asarray(ghb[:,:]) != self.hnoflo).sum()
             del ghb
         if self.drn_yn == 1:
             drn = np.asarray(self.MM_PROCESS.checkarray(self.drn_cond, dtype = np.float))
-            self.drncells = np.zeros((self.nlay), dtype = np.int)
-            self.drncells[0] = (np.asarray(drn[:,:,0]) != self.hnoflo).sum()
-            if self.nlay > 0:
-                for l in range(1,self.nlay):
+            if self.nlay > 1:
+                self.drncells = np.zeros((self.nlay), dtype = np.int)
+                for l in range(self.nlay):
                     self.drncells[l] = (np.asarray(drn[:,:,l]) != self.hnoflo).sum()
+            else:
+                self.drncells = [(np.asarray(drn[:,:]) != self.hnoflo).sum()]
             del drn
         # TODO confirm wel and add well by user to simulate extraction by borehole
         if self.wel_yn == 1:

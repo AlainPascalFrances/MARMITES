@@ -42,7 +42,7 @@ print '\n##############\nMARMITES started!\n%s\n##############' % mpl.dates.num2
 # the file can contain any comments as the user wish, but the sequence of the input has to be respected
 # 00_TESTS\MARMITESv3_r13c6l2'  00_TESTS\r40c20'  00_TESTS\r20c40'
 # SARDON'  CARRIZAL' LAMATA'
-MM_ws = r'E:\00code_ws\LAMATA'
+MM_ws = r'E:\00code_ws\00_TESTS\MARMITESv3_r13c6l2'
 MM_fn = '__inputMM.ini'
 
 inputFile = MMproc.readFile(MM_ws,MM_fn)
@@ -379,8 +379,8 @@ if plt_out_obs == 1:
     header='Date,RF,E0,PT,PE,RFe,I,' + Eu_str + Tu_str + 'Eg,Tg,ETg,WEL_MF,Es,' + Su_str + Supc_str + dSu_str + 'dSs,Ss,Ro,GW_EXF,' + Rp_str + Rexf_str + 'R_MF,hSATFLOW,hMF,hMFcorr,hmeas,dtwt,' + Smeasout + MB_str + 'MB\n'
     outPESTheads_fn      = 'PESTheads.dat'
     outPESTsm_fn         = 'PESTsm.dat'
-    outPESTheads=open(os.path.join(MM_ws,outPESTheads_fn), 'w')
-    outPESTsm=open(os.path.join(MM_ws,outPESTsm_fn), 'w')
+    outPESTheads = open(os.path.join(MM_ws,outPESTheads_fn), 'w')
+    outPESTsm = open(os.path.join(MM_ws,outPESTsm_fn), 'w')
     if cMF.uzf_yn == 1:
         cMF.uzf_obs(obs = obs)
 else:
