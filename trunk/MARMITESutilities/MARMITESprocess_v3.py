@@ -201,13 +201,13 @@ class PROCESS:
 
     def inputTS(self, NMETEO, NVEG, NSOIL, nstp,
                 inputDate_fn, inputZON_TS_RF_fn,
-                inputZON_TS_PET_fn, inputZON_TS_RFe_fn,
+                inputZON_TS_PT_fn, inputZON_TS_RFe_fn,
                 inputZON_TS_PE_fn, inputZON_TS_E0_fn
                 ):   #IRR_fn
 
         ntotstp = int(sum(nstp))
 
-        # READ date of input files (RF and PET)
+        # READ date of input files (RF and PT)
         inputDate_fn=os.path.join(self.MM_ws, inputDate_fn)
         if os.path.exists(inputDate_fn):
             inputDate_tmp = np.loadtxt(inputDate_fn, dtype = str)
@@ -220,12 +220,12 @@ class PROCESS:
                 difDay=inputDate[i]-inputDate[i-1]
                 if (difDay !=1.0):
                     print 'DifDay = ' + str(difDay)
-                    raise ValueError, 'The dates of the input data (RF and PET) are not sequencial, check your daily time step!\nError in date %s ' % str(inputDate[i])
+                    raise ValueError, 'The dates of the input data (RF and PT) are not sequencial, check your daily time step!\nError in date %s ' % str(inputDate[i])
         else:
             raise ValueError, "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % inputDate_fn
 ##        if MFtime_fn == None:
 ##                if len(inputDate) <> ntotstp:
-##                  raise ValueError, 'The number of time steps in MF (%i) is not the same as the number of days (%i) of the input data (RF and PET).\n' % (ntotstp, int(len(inputDate)))
+##                  raise ValueError, 'The number of time steps in MF (%i) is not the same as the number of days (%i) of the input data (RF and PT).\n' % (ntotstp, int(len(inputDate)))
 ##        else:
 ##            if ntotstp > len(inputDate):
 ##                print 'FATAL ERROR    !\nThere is more time steps than days in your model, too inneficient!\nChange your parameters in the MODFLOW ini file.'
@@ -279,19 +279,19 @@ class PROCESS:
         ##        IRRzones[i,j]=IRR[i*sum(dis.self.nstp)+j+1]
 
 
-        # READ PET for each zone and each vegetation
-        PET_fn = os.path.join(self.MM_ws, inputZON_TS_PET_fn)
-        if os.path.exists(PET_fn):
-            PETtmp = np.loadtxt(PET_fn)
+        # READ PT for each zone and each vegetation
+        PT_fn = os.path.join(self.MM_ws, inputZON_TS_PT_fn)
+        if os.path.exists(PT_fn):
+            PTtmp = np.loadtxt(PT_fn)
         else:
-            raise ValueError, "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % PET_fn
-        PETvegzonesTS=np.zeros([NMETEO,NVEG,ntotstp], dtype=float)
+            raise ValueError, "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % PT_fn
+        PTvegzonesTS=np.zeros([NMETEO,NVEG,ntotstp], dtype=float)
         for n in range(NMETEO):
             for v in range(NVEG):
                 for t in range(ntotstp):
-                    PETvegzonesTS[n,v,t]=PETtmp[t+(n*NVEG+v)*ntotstp]
+                    PTvegzonesTS[n,v,t]=PTtmp[t+(n*NVEG+v)*ntotstp]
                     #structure is [number of zones, number of vegetation type, time]
-#        PETvegzonesTS=np.asarray(PETvegzonesTS)
+#        PTvegzonesTS=np.asarray(PTvegzonesTS)
 
         # READ RFe for each zone and each vegetation
         RFe_fn = os.path.join(self.MM_ws, inputZON_TS_RFe_fn)
@@ -322,9 +322,9 @@ class PROCESS:
                     #structure is [number of zones, number of vegetation type, time]
 #        PEsoilzonesTS=np.asarray(PEsoilzonesTS)
 
-        return gridVEGarea, RFzonesTS, E0zonesTS, PETvegzonesTS, RFevegzonesTS, PEsoilzonesTS, inputDate, JD
-        del NMETEO, NVEG, NSOIL, inputDate_fn, inputZON_TS_RF_fn, inputZON_TS_PET_fn, inputZON_TS_RFe_fn, inputZON_TS_PE_fn,inputZON_TS_E0_fn
-        del gridVEGarea, RFzonesTS, E0zonesTS, PETvegzonesTS, RFevegzonesTS, PEsoilzonesTS, inputDate
+        return gridVEGarea, RFzonesTS, E0zonesTS, PTvegzonesTS, RFevegzonesTS, PEsoilzonesTS, inputDate, JD
+        del NMETEO, NVEG, NSOIL, inputDate_fn, inputZON_TS_RF_fn, inputZON_TS_PT_fn, inputZON_TS_RFe_fn, inputZON_TS_PE_fn,inputZON_TS_E0_fn
+        del gridVEGarea, RFzonesTS, E0zonesTS, PTvegzonesTS, RFevegzonesTS, PEsoilzonesTS, inputDate
 
     ######################
 
@@ -475,6 +475,9 @@ class PROCESS:
                 for l in range(len(obsValue)):
                     if not isinstance(obsValue[l], float):
                         j=0
+                        if inputDate[0] > obsDate[0]:
+                           while obsDate[j]<inputDate[0]:
+                                j += 1
                         for i in range(len(inputDate)):
                             if j<len(obsDate):
                                 if inputDate[i]==obsDate[j]:
@@ -529,7 +532,7 @@ class PROCESS:
         OUTPUT:      ObsName.txt
         """
         for t in range(len(inputDate)):
-            # 'Date,RF,E0,PET,PE,RFe,I,'+Eu_str+Tu_str+'Eg,Tg,ETg,WEL_MF,Es,'+Su_str+Supc_str+dSu_str+'dSs,Ss,Ro,GW_EXF,GW_EXF_MF,'+Rp_str+Rexf_str+'R_MF,hSATFLOW,hMF,hMFcorr,hmeas,dtwt,' + Smeasout + MB_str + 'MB\n'
+            # 'Date,RF,E0,PT,PE,RFe,I,'+Eu_str+Tu_str+'Eg,Tg,ETg,WEL_MF,Es,'+Su_str+Supc_str+dSu_str+'dSs,Ss,Ro,GW_EXF,GW_EXF_MF,'+Rp_str+Rexf_str+'R_MF,hSATFLOW,hMF,hMFcorr,hmeas,dtwt,' + Smeasout + MB_str + 'MB\n'
             Sout     = ''
             Spcout   = ''
             dSout    = ''
@@ -557,7 +560,7 @@ class PROCESS:
             except:
                 obs_h_tmp = self.hnoflo
             out_date = mpl.dates.num2date(inputDate[t]).isoformat()[:10]
-            out1 = '%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[t,index.get('iRF')], results[t,index.get('iE0')],results[t,index.get('iPET')],results[t,index.get('iPE')],results[t,index.get('iRFe')],results[t,index.get('iI')])
+            out1 = '%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[t,index.get('iRF')], results[t,index.get('iE0')],results[t,index.get('iPT')],results[t,index.get('iPE')],results[t,index.get('iRFe')],results[t,index.get('iI')])
             if type(WEL) == np.ndarray:
                 WEL_tmp = WEL[t]
             else:

@@ -477,27 +477,28 @@ class MF():
                 self.botm = (np.asarray(self.botm)).reshape((self.nrow, self.ncol, 1))
         if self.uzf_yn == 1:
             self.iuzfbnd = self.MM_PROCESS.checkarray(self.iuzfbnd, dtype = np.int)
-
         if self.ghb_yn == 1:
             ghb = np.asarray(self.MM_PROCESS.checkarray(self.ghb_cond, dtype = np.float))
             self.ghbcells = np.zeros((self.nlay), dtype = np.int)
-            l = 0
-            for l in range(self.nlay):
-                self.ghbcells[l] = (np.asarray(ghb[:,:,l]) != self.hnoflo).sum()
-                l += 1
+            self.ghbcells[0] = (np.asarray(ghb[:,:,0]) != self.hnoflo).sum()
+            if self.nlay > 0:
+                for l in range(1,self.nlay):
+                    self.ghbcells[l] = (np.asarray(ghb[:,:,l]) != self.hnoflo).sum()
             del ghb
+        if self.drn_yn == 1:
+            drn = np.asarray(self.MM_PROCESS.checkarray(self.drn_cond, dtype = np.float))
+            self.drncells = np.zeros((self.nlay), dtype = np.int)
+            self.drncells[0] = (np.asarray(drn[:,:,0]) != self.hnoflo).sum()
+            if self.nlay > 0:
+                for l in range(1,self.nlay):
+                    self.drncells[l] = (np.asarray(drn[:,:,l]) != self.hnoflo).sum()
+            del drn
         # TODO confirm wel and add well by user to simulate extraction by borehole
         if self.wel_yn == 1:
             self.welcells = np.zeros((self.nlay), dtype = np.int)
             self.welcells[0] = (np.asarray(self.ibound)[:,:,0] != 0).sum()
             for l in range(1,self.nlay):
                 self.welcells[l] = 0
-        if self.drn_yn == 1:
-            drn = np.asarray(self.MM_PROCESS.checkarray(self.drn_cond, dtype = np.float))
-            self.drncells = np.zeros((self.nlay), dtype = np.int)
-            for l in range(self.nlay):
-                self.drncells[l] = (np.asarray(drn[:,:,l]) != self.hnoflo).sum()
-            del drn
 
 #####################################
 
@@ -511,11 +512,11 @@ class MF():
 
 ####################################
 
-    def ppMFtime(self,MM_ws, MF_ws, inputDate_fn, inputZON_dTS_RF_fn, inputZON_dTS_PET_fn, inputZON_dTS_RFe_fn, inputZON_dTS_PE_fn, inputZON_dTS_E0_fn, NMETEO, NVEG, NSOIL):
+    def ppMFtime(self,MM_ws, MF_ws, inputDate_fn, inputZON_dTS_RF_fn, inputZON_dTS_PT_fn, inputZON_dTS_RFe_fn, inputZON_dTS_PE_fn, inputZON_dTS_E0_fn, NMETEO, NVEG, NSOIL):
 
         ''' RF analysis to define automatically nper/perlen/nstp
         Daily RF>0 creates a nper
-        Succesive days with RF=0 are averaged (PET, PE, E0) to a user-input maximum # of days'''
+        Succesive days with RF=0 are averaged (PT, PE, E0) to a user-input maximum # of days'''
 
         def ExportResults1(TS, outFileExport):
             """
@@ -536,9 +537,9 @@ class MF():
             d.append(l)
         inputFileRF = MMproc.readFile(MM_ws, inputZON_dTS_RF_fn)
         RF_d = np.zeros([NMETEO, len(d)])
-        inputFilePET = MMproc.readFile(MM_ws, inputZON_dTS_PET_fn)
+        inputFilePT = MMproc.readFile(MM_ws, inputZON_dTS_PT_fn)
         inputFileRFe = MMproc.readFile(MM_ws, inputZON_dTS_RFe_fn)
-        PET_d = np.zeros([NMETEO, NVEG, len(d)])
+        PT_d = np.zeros([NMETEO, NVEG, len(d)])
         RFe_d = np.zeros([NMETEO, NVEG, len(d)])
         inputFilePE = MMproc.readFile(MM_ws, inputZON_dTS_PE_fn)
         PE_d = np.zeros([NMETEO, NSOIL, len(d)])
@@ -550,12 +551,12 @@ class MF():
                 E0_d[n,t] = float(inputFileE0[t+len(d)*n].strip())
             for v in range(NVEG):
                 for t in range(len(d)):
-                        PET_d[n,v,t] = float(inputFilePET[t+(n*NVEG+v)*len(d)].strip())
+                        PT_d[n,v,t] = float(inputFilePT[t+(n*NVEG+v)*len(d)].strip())
                         RFe_d[n,v,t] = float(inputFileRFe[t+(n*NVEG+v)*len(d)].strip())
             for s in range(NSOIL):
                 for t in range(len(d)):
                     PE_d[n,s,t] = float(inputFilePE[t+(n*NSOIL+s)*len(d)].strip())
-        del inputFile, inputFileRF, inputFilePET, inputFilePE, inputFileRFe, inputFileE0
+        del inputFile, inputFileRF, inputFilePT, inputFilePE, inputFileRFe, inputFileE0
 
         if self.timedef == 0:
             # summing RF and avering other flux when RF = 0
@@ -565,12 +566,12 @@ class MF():
             except:
                 raise SystemExit('\nError in nper format of the MODFLOW ini file!\n')
             RF_stp = []
-            PET_stp = []
+            PT_stp = []
             RFe_stp = []
             PE_stp = []
             E0_stp = []
             RF_stp_tmp = []
-            PET_stp_tmp = []
+            PT_stp_tmp = []
             PE_stp_tmp=[]
             E0_stp_tmp = []
             self.nper = 0
@@ -580,13 +581,13 @@ class MF():
             for n in range(NMETEO):
                 RF_stp.append([])
                 RF_stp_tmp.append(0.0)
-                PET_stp.append([])
+                PT_stp.append([])
                 RFe_stp.append([])
-                PET_stp_tmp.append([])
+                PT_stp_tmp.append([])
                 for v in range(NVEG):
-                    PET_stp[n].append([])
+                    PT_stp[n].append([])
                     RFe_stp[n].append([])
-                    PET_stp_tmp[n].append(0.0)
+                    PT_stp_tmp[n].append(0.0)
                 PE_stp.append([])
                 PE_stp_tmp.append([])
                 for v in range(NSOIL):
@@ -603,9 +604,9 @@ class MF():
                                 RF_stp[n].append(RF_stp_tmp[n]/perlen_tmp)
                                 RF_stp_tmp[n] = 0.0
                                 for v in range(NVEG):
-                                    PET_stp[n][v].append(PET_stp_tmp[n][v]/perlen_tmp)
+                                    PT_stp[n][v].append(PT_stp_tmp[n][v]/perlen_tmp)
                                     RFe_stp[n][v].append(0.0)
-                                    PET_stp_tmp[n][v] = 0.0
+                                    PT_stp_tmp[n][v] = 0.0
                                 for s in range(NSOIL):
                                     PE_stp[n][s].append(PE_stp_tmp[n][s]/perlen_tmp)
                                     PE_stp_tmp[n][s] = 0.0
@@ -616,7 +617,7 @@ class MF():
                         for n in range(NMETEO):
                             RF_stp[n].append(RF_d[n,j])
                             for v in range(NVEG):
-                                PET_stp[n][v].append(PET_d[n,v,j])
+                                PT_stp[n][v].append(PT_d[n,v,j])
                                 RFe_stp[n][v].append(RFe_d[n,v,j])
                             for s in range(NSOIL):
                                 PE_stp[n][s].append(PE_d[n,s,j])
@@ -629,7 +630,7 @@ class MF():
                             for n in range(NMETEO):
                                 RF_stp_tmp[n]  += RF_d[n,j]
                                 for v in range(NVEG):
-                                    PET_stp_tmp[n][v] += PET_d[n,v,j]
+                                    PT_stp_tmp[n][v] += PT_d[n,v,j]
                                 for s in range(NSOIL):
                                     PE_stp_tmp[n][s]  += PE_d[n,s,j]
                                 E0_stp_tmp[n]  += E0_d[n,j]
@@ -642,9 +643,9 @@ class MF():
                                 RF_stp[n].append(RF_stp_tmp[n]/perlen_tmp)
                                 RF_stp_tmp[n] = 0.0
                                 for v in range(NVEG):
-                                    PET_stp[n][v].append(PET_stp_tmp[n][v]/perlen_tmp)
+                                    PT_stp[n][v].append(PT_stp_tmp[n][v]/perlen_tmp)
                                     RFe_stp[n][v].append(0.0)
-                                    PET_stp_tmp[n][v] = 0.0
+                                    PT_stp_tmp[n][v] = 0.0
                                 for s in range(NSOIL):
                                     PE_stp[n][s].append(PE_stp_tmp[n][s]/perlen_tmp)
                                     PE_stp_tmp[n][s] = 0.0
@@ -654,7 +655,7 @@ class MF():
                             for n in range(NMETEO):
                                 RF_stp_tmp[n]  += RF_d[n,j]
                                 for v in range(NVEG):
-                                    PET_stp_tmp[n][v] += PET_d[n,v,j]
+                                    PT_stp_tmp[n][v] += PT_d[n,v,j]
                                 for s in range(NSOIL):
                                     PE_stp_tmp[n][s]  += PE_d[n,s,j]
                                 E0_stp_tmp[n]  += E0_d[n,j]
@@ -666,9 +667,9 @@ class MF():
                     RF_stp[n].append(RF_stp_tmp[n]/perlen_tmp)
                     RF_stp_tmp[n] = 0.0
                     for v in range(NVEG):
-                        PET_stp[n][v].append(PET_stp_tmp[n][v]/perlen_tmp)
+                        PT_stp[n][v].append(PT_stp_tmp[n][v]/perlen_tmp)
                         RFe_stp[n][v].append(0.0)
-                        PET_stp_tmp[n][v] = 0.0
+                        PT_stp_tmp[n][v] = 0.0
                     for s in range(NSOIL):
                         PE_stp[n][s].append(PE_stp_tmp[n][s]/perlen_tmp)
                         PE_stp_tmp[n][s] = 0.0
@@ -676,7 +677,7 @@ class MF():
                     E0_stp_tmp[n] = 0.0
                 self.perlen.append(perlen_tmp)
             del perlen_tmp
-            del RF_d, RFe_d, PET_d, PE_d, E0_d, RF_stp_tmp, PET_stp_tmp, PE_stp_tmp, E0_stp_tmp, c
+            del RF_d, RFe_d, PT_d, PE_d, E0_d, RF_stp_tmp, PT_stp_tmp, PE_stp_tmp, E0_stp_tmp, c
             self.perlen = np.asarray(self.perlen, dtype = np.int)
             self.nstp = np.ones(self.nper, dtype = np.int)
             self.tsmult = self.nstp
@@ -685,7 +686,7 @@ class MF():
                 self.Ss_tr.append(False)
         elif self.timedef>0:
             RF_stp = np.zeros([NMETEO,sum(self.nstp)])
-            PET_stp = np.zeros([NMETEO,NVEG,sum(self.nstp)])
+            PT_stp = np.zeros([NMETEO,NVEG,sum(self.nstp)])
             RFe_stp = np.zeros([NMETEO,NVEG,sum(self.nstp)])
             PE_stp = np.zeros([NMETEO,NSOIL,sum(self.nstp)])
             E0_stp = np.zeros([NMETEO,sum(self.nstp)])
@@ -697,7 +698,7 @@ class MF():
                     for n in range(NMETEO):
                         RF_stp[n,sum(self.nstp[0:per])+stp] += RF_d[n,tstart:tend].sum()/(self.perlen[per]/self.nstp[per])
                         for v in range(NVEG):
-                            PET_stp[n,v,sum(nstp[0:per])+stp] += PET_d[n,v,tstart:tend].sum()/(self.perlen[per]/self.nstp[per])
+                            PT_stp[n,v,sum(nstp[0:per])+stp] += PT_d[n,v,tstart:tend].sum()/(self.perlen[per]/self.nstp[per])
                             RFe_stp[n,v,sum(nstp[0:per])+stp] += RFe_d[n,v,tstart:tend].sum()/(self.perlen[per]/self.nstp[per])
                         for s in range(NSOIL):
                             PE_stp[n,s,sum(nstp[0:per])+stp] += PE_d[n,s,tstart:tend].sum()/(self.perlen[per]/self.nstp[per])
@@ -708,10 +709,10 @@ class MF():
         inputZONRF = open(self.inputZONRF_fn, 'w')
         inputZONRF.write('#\n')
 
-        self.inputZON_TS_PET_fn = "inputZONPET_stp.txt"
-        self.inputZONPET_fn = os.path.join(MM_ws, self.inputZON_TS_PET_fn)
-        inputZONPET = open(self.inputZONPET_fn, 'w')
-        inputZONPET.write('#\n')
+        self.inputZON_TS_PT_fn = "inputZONPT_stp.txt"
+        self.inputZONPT_fn = os.path.join(MM_ws, self.inputZON_TS_PT_fn)
+        inputZONPT = open(self.inputZONPT_fn, 'w')
+        inputZONPT.write('#\n')
 
         self.inputZON_TS_RFe_fn = "inputZONRFe_stp.txt"
         self.inputZONRFe_fn = os.path.join(MM_ws, self.inputZON_TS_RFe_fn)
@@ -735,7 +736,7 @@ class MF():
                 #VEG
                 if NVEG>0:
                     for v in range(NVEG):
-                        ExportResults1(PET_stp[n][v], inputZONPET)
+                        ExportResults1(PT_stp[n][v], inputZONPT)
                         ExportResults1(RFe_stp[n][v], inputZONRFe)
                 # SOIL
                 if NSOIL>0:
@@ -748,7 +749,7 @@ class MF():
 
         inputZONRF.close()
         inputZONRFe.close()
-        inputZONPET.close()
+        inputZONPT.close()
         inputZONPE.close()
         inputZONE0.close()
 

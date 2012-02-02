@@ -54,7 +54,8 @@ class UNSAT:
                 Ss_max       Max. ponding capacity
             STATE VARIABLES
                 RF           Daily rainfall
-                PET         Daily evapotranspiration
+                PT           Daily transpiration
+                PE           Daily evaporation
     OUTPUTS
             RFe              Daily Excess rainfall
             ETu             Daily evapotranspiration
@@ -99,7 +100,7 @@ class UNSAT:
 
 #####################
 
-    def flux(self, RFe, PET, PE, E0, Zr_elev, VEGarea, HEADS, TopSoilLay, BotSoilLay, Tl, nsl, Sm, Sfc, Sr, Ks, Ss_max, Ss_ratio, Su_ini, Rp_ini, Ss_ini, EXF, dtwt, st, i, j, n, kTu_min, kTu_n, dt, dti):
+    def flux(self, RFe, PT, PE, E0, Zr_elev, VEGarea, HEADS, TopSoilLay, BotSoilLay, Tl, nsl, Sm, Sfc, Sr, Ks, Ss_max, Ss_ratio, Su_ini, Rp_ini, Ss_ini, EXF, dtwt, st, i, j, n, kTu_min, kTu_n, dt, dti):
 
         def surfwater(s_tmp,Sm,Ss_max, E0, i, j, n, dt):
             '''
@@ -246,25 +247,25 @@ class UNSAT:
                         PE -= Eu_tmp[l]
                 # Tu
                 for z in range(len(Zr_elev)):
-                    if PET[z] > 0.0 :
+                    if PT[z] > 0.0 :
                         if VEGarea[z] > 0.0:
                             if BotSoilLay[l] > Zr_elev[z]:
-                                Tu_tmpZr[l,z] = evp(Su_tmp[l],Sm[l]*Tl[l], Sr[l]*Tl[l], PET[z], i, j, n, dt)
+                                Tu_tmpZr[l,z] = evp(Su_tmp[l],Sm[l]*Tl[l], Sr[l]*Tl[l], PT[z], i, j, n, dt)
                             elif TopSoilLay[l] > Zr_elev[z] :
-                                PETc = PET[z]*(TopSoilLay[l]-Zr_elev[z])/Tl[l]
-                                Tu_tmpZr[l,z] = evp(Su_tmp[l],Sm[l]*Tl[l], Sr[l]*Tl[l], PETc, i, j, n, dt)
+                                PTc = PT[z]*(TopSoilLay[l]-Zr_elev[z])/Tl[l]
+                                Tu_tmpZr[l,z] = evp(Su_tmp[l],Sm[l]*Tl[l], Sr[l]*Tl[l], PTc, i, j, n, dt)
                             Tu_tmp[l] += Tu_tmpZr[l,z]*VEGarea[z]*0.01
-                            PET[z] -= Tu_tmpZr[l,z]
+                            PT[z] -= Tu_tmpZr[l,z]
                 Su_tmp[l] -= Tu_tmp[l]*dt
             elif SAT[l] == True:
                 # Tg
                 for z in range(len(Zr_elev)):
-                    if PET[z] > 0.0 :
+                    if PT[z] > 0.0 :
                         if VEGarea[z] > 0.0:
                             if HEADS > Zr_elev[z]:
-                                Tg_tmp_Zr[l,z] = evp(Sm[l]*Tl[l],Sm[l]*Tl[l], Sr[l]*Tl[l], PET[z], i, j, n, dt)
+                                Tg_tmp_Zr[l,z] = evp(Sm[l]*Tl[l],Sm[l]*Tl[l], Sr[l]*Tl[l], PT[z], i, j, n, dt)
                                 Tg_tmp += Tg_tmp_Zr[l,z]*VEGarea[z]*0.01
-                                PET[z] -= Tg_tmp_Zr[l,z]
+                                PT[z] -= Tg_tmp_Zr[l,z]
 
         for l in range(nsl):
             Su_pc_tmp[l] = Su_tmp[l]/Tl[l]
@@ -303,9 +304,9 @@ class UNSAT:
                         else:
                             kTu = kTu_min[z]
                         Tg_tmp_Zr[l,z] = Tu_tmpZr[l,z]*(1.0/kTu-1.0)
-                        if Tg_tmp_Zr[l,z] > PET[z]:
-                            Tg_tmp_Zr[l,z] = PET[z]
-                        PET[z] -= Tg_tmp_Zr[l,z]
+                        if Tg_tmp_Zr[l,z] > PT[z]:
+                            Tg_tmp_Zr[l,z] = PT[z]
+                        PT[z] -= Tg_tmp_Zr[l,z]
                         Tg_tmp += (Tg_tmp_Zr[l,z]*VEGarea[z]*0.01)
 
         return Es_tmp, Ss_tmp, Ro_tmp, Rp_tmp, Eu_tmp, Tu_tmp, Su_tmp, Su_pc_tmp, Eg_tmp, Tg_tmp, HEADS, dtwt, SAT, Rexf_tmp
@@ -315,14 +316,14 @@ class UNSAT:
 
     def run(self, i, j, n,
                   nsl, st, Sm, Sfc, Sr, Su_ini, Ss_ini, Rp_ini, botm_l0, TopSoilLay, BotSoilLay, Tl, Ks, Ss_max, Ss_ratio, HEADS, EXF,
-                  RF, E0, PETveg, RFeveg, PEsoil, VEGarea, Zr,
+                  RF, E0, PTveg, RFeveg, PEsoil, VEGarea, Zr,
                   nstp, perlen, dti, hdry,
                   kTu_min, kTu_n):
 
         # Output initialisation
         Ttotal = len(RF)
-        # PET for the vegetation patchwork
-        PET_tot = np.zeros([len(PETveg[0])], dtype = float)
+        # PT for the vegetation patchwork
+        PT_tot = np.zeros([len(PTveg[0])], dtype = float)
         # PE for the remaining bare soil
         PE_tot = np.zeros([Ttotal], dtype = float)
         # RFe for the vegetation patchwork
@@ -388,13 +389,13 @@ class UNSAT:
         # PROCESSING THE WHOLE DATA SET
         for t in range(int(nstp)):    # t: current time step
 
-            # Preprocessing of PET/PE/INTER and RFe
+            # Preprocessing of PT/PE/INTER and RFe
             # for different vegetation
             SOILarea = 100
-            for v in range(len(PETveg)):
+            for v in range(len(PTveg)):
                 if VEGarea[v] != self.hnoflo:
                     RFe_tot[t] += RFeveg[v,t]*VEGarea[v]*0.01
-                    PET_tot[t] += PETveg[v,t]*VEGarea[v]*0.01
+                    PT_tot[t] += PTveg[v,t]*VEGarea[v]*0.01
                     SOILarea   -= VEGarea[v]
             RFe_tot[t]   += RF[t]*SOILarea*0.01
             INTER_tot[t]  = RF[t] - RFe_tot[t]
@@ -420,7 +421,7 @@ class UNSAT:
                 Su_ini = Su_ini * Tl
 
             # fluxes
-            Es_tmp, Ss_tmp, Ro_tmp, Rp_tmp, Eu_tmp, Tu_tmp, Su_tmp, Su_pc_tmp, Eg_tmp, Tg_tmp, HEADS_tmp, dtwt_tmp, SAT_tmp, Rexf_tmp = self.flux(RFe_tot[t], PETveg[:,t], PE_tot[t], E0[t], Zr_elev, VEGarea, HEADS_tmp, TopSoilLay, BotSoilLay, Tl, nsl, Sm, Sfc, Sr, Ks, Ss_max, Ss_ratio, Su_ini, Rp_ini, Ss_ini, EXF[t], dtwt[t], st, i, j, n, kTu_min, kTu_n, dt, dti)
+            Es_tmp, Ss_tmp, Ro_tmp, Rp_tmp, Eu_tmp, Tu_tmp, Su_tmp, Su_pc_tmp, Eg_tmp, Tg_tmp, HEADS_tmp, dtwt_tmp, SAT_tmp, Rexf_tmp = self.flux(RFe_tot[t], PTveg[:,t], PE_tot[t], E0[t], Zr_elev, VEGarea, HEADS_tmp, TopSoilLay, BotSoilLay, Tl, nsl, Sm, Sfc, Sr, Ks, Ss_max, Ss_ratio, Su_ini, Rp_ini, Ss_ini, EXF[t], dtwt[t], st, i, j, n, kTu_min, kTu_n, dt, dti)
 
             # fill the output arrays
             Ss[t] = Ss_tmp
@@ -479,8 +480,8 @@ class UNSAT:
 
             # export list
             # indexes of the HDF5 output arrays
-            # index = {'iRF':0, 'iPET':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iEXF':6, 'iEs':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSs':13, 'iETg':14, 'iETu':15, 'idSu':16, 'iHEADScorr':17, 'idtwt':18, 'iuzthick':19}
-            results1[t,:] = [RF[t], PET_tot[t], PE_tot[t], RFe_tot[t], Ss[t], Ro[t], EXF[t], Es[t], MB[t], INTER_tot[t], E0[t], Eg[t], Tg[t], dSs[t], ETg[t], ETu_tot[t], dSu_tot[t], HEADS_corr[t]*0.001, -dtwt[t]*0.001, uzthick[t]*0.001]
+            # index = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iEXF':6, 'iEs':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSs':13, 'iETg':14, 'iETu':15, 'idSu':16, 'iHEADScorr':17, 'idtwt':18, 'iuzthick':19}
+            results1[t,:] = [RF[t], PT_tot[t], PE_tot[t], RFe_tot[t], Ss[t], Ro[t], EXF[t], Es[t], MB[t], INTER_tot[t], E0[t], Eg[t], Tg[t], dSs[t], ETg[t], ETu_tot[t], dSu_tot[t], HEADS_corr[t]*0.001, -dtwt[t]*0.001, uzthick[t]*0.001]
             # index_S = {'iEu':0, 'iTu':1,'iSu_pc':2, 'iRp':3, 'iRexf':4, 'idSu':5, 'iSu':6, 'iSAT':7, 'iMB_l':8}
             for l in range(nsl):
                 results2[t,l,:] = [Eu[t,l], Tu[t,l], Su_pc[t,l], Rp[t,l], Rexf[t,l], dSu[t,l], Su[t,l], SAT[t,l], MB_l[t,l]]
@@ -493,7 +494,7 @@ class UNSAT:
 
         return results1, results2
 
-        del RF, PET_tot, PE_tot, RFe_tot, Ss, Ro, EXF, Es, MB, INTER_tot, E0, Eg, Tg, dSs, ETg, ETu_tot, dSu_tot, HEADS, HEADS_corr, dtwt
+        del RF, PT_tot, PE_tot, RFe_tot, Ss, Ro, EXF, Es, MB, INTER_tot, E0, Eg, Tg, dSs, ETg, ETu_tot, dSu_tot, HEADS, HEADS_corr, dtwt
         del Eu, Tu, Su_pc, Rp, dSu, Su
         del results1, results2
 

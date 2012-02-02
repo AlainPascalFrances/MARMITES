@@ -391,6 +391,8 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S,
 
 def plotLAYER(TS, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_title, MM_ws, interval_type = 'arange', interval_diff = 1, interval_num = 1, Vmax = 0, Vmin = 0, fmt = '%.2f', contours = False, ntick = 1):
 
+
+    # TODO put option to select axes tick as row/col index from MODFLOW or real coordinates (in this last case create it)
     # Store some arrays for plotting
     x = np.arange(0.5, ncol+1.5, 1)
     y = np.arange(0.5, nrow+1.5, 1)

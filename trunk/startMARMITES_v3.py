@@ -210,7 +210,7 @@ try:
     l += 1
     inputZON_dTS_RF_fn = str(inputFile[l].strip())
     l += 1
-    inputZON_dTS_PET_fn = str(inputFile[l].strip())
+    inputZON_dTS_PT_fn = str(inputFile[l].strip())
     l += 1
     inputZON_dTS_RFe_fn = str(inputFile[l].strip())
     l += 1
@@ -288,7 +288,7 @@ if cMF.timedef >= 0:
             perlenmax = int(cMF.nper.split()[1].strip())
         except:
             raise SystemExit('\nError in nper format of the MODFLOW ini file!\n')
-    cMF.ppMFtime(MM_ws, MF_ws, inputDate_fn, inputZON_dTS_RF_fn, inputZON_dTS_PET_fn, inputZON_dTS_RFe_fn, inputZON_dTS_PE_fn, inputZON_dTS_E0_fn, NMETEO, NVEG, NSOIL)
+    cMF.ppMFtime(MM_ws, MF_ws, inputDate_fn, inputZON_dTS_RF_fn, inputZON_dTS_PT_fn, inputZON_dTS_RFe_fn, inputZON_dTS_PE_fn, inputZON_dTS_E0_fn, NMETEO, NVEG, NSOIL)
 
 print'\n##############'
 print 'MARMITESunsat initialization'
@@ -315,14 +315,14 @@ gridSsw = cMF.MM_PROCESS.inputEsriAscii(grid_fn = gridSsw_fn,
 ##gridIRR = cMF.MM_PROCESS.inputEsriAscii(grid_fn                  = gridIRR_fn)
 
 # READ input time series and parameters   # missing IRR_fn
-gridVEGarea, RFzonesTS, E0zonesTS, PETvegzonesTS, RFevegzonesTS, PEsoilzonesTS, inputDate, JD = cMF.MM_PROCESS.inputTS(
+gridVEGarea, RFzonesTS, E0zonesTS, PTvegzonesTS, RFevegzonesTS, PEsoilzonesTS, inputDate, JD = cMF.MM_PROCESS.inputTS(
                                 NMETEO                   = NMETEO,
                                 NVEG                     = NVEG,
                                 NSOIL                    = NSOIL,
                                 nstp                     = cMF.nstp,
                                 inputDate_fn             = inputDate_fn,
                                 inputZON_TS_RF_fn        = cMF.inputZON_TS_RF_fn,
-                                inputZON_TS_PET_fn       = cMF.inputZON_TS_PET_fn,
+                                inputZON_TS_PT_fn       = cMF.inputZON_TS_PT_fn,
                                 inputZON_TS_RFe_fn       = cMF.inputZON_TS_RFe_fn,
                                 inputZON_TS_PE_fn        = cMF.inputZON_TS_PE_fn,
                                 inputZON_TS_E0_fn        = cMF.inputZON_TS_E0_fn
@@ -342,7 +342,7 @@ del TopAquif
 # create MM array
 h5_MM_fn = os.path.join(MM_ws,'_h5_MM.h5')
 # indexes of the HDF5 output arrays
-index = {'iRF':0, 'iPET':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iEXF':6, 'iEs':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSs':13, 'iETg':14, 'iETu':15, 'idSu':16, 'iHEADScorr':17, 'idtwt':18, 'iuzthick':19}
+index = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iEXF':6, 'iEs':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSs':13, 'iETg':14, 'iETu':15, 'idSu':16, 'iHEADScorr':17, 'idtwt':18, 'iuzthick':19}
 index_S = {'iEu':0, 'iTu':1,'iSu_pc':2, 'iRp':3, 'iRexf':4, 'idSu':5, 'iSu':6, 'iSAT':7, 'iMB_l':8}
 
 # READ observations time series (heads and soil moisture)
@@ -376,7 +376,7 @@ if plt_out_obs == 1:
         Rexf_str = Rexf_str + 'Rexf_l' + str(l+1) + ','
         MB_str = MB_str + 'MB_l' + str(l+1) + ','
         Smeasout = Smeasout + 'Smeas_' + str(l+1) + ','
-    header='Date,RF,E0,PET,PE,RFe,I,' + Eu_str + Tu_str + 'Eg,Tg,ETg,WEL_MF,Es,' + Su_str + Supc_str + dSu_str + 'dSs,Ss,Ro,GW_EXF,' + Rp_str + Rexf_str + 'R_MF,hSATFLOW,hMF,hMFcorr,hmeas,dtwt,' + Smeasout + MB_str + 'MB\n'
+    header='Date,RF,E0,PT,PE,RFe,I,' + Eu_str + Tu_str + 'Eg,Tg,ETg,WEL_MF,Es,' + Su_str + Supc_str + dSu_str + 'dSs,Ss,Ro,GW_EXF,' + Rp_str + Rexf_str + 'R_MF,hSATFLOW,hMF,hMFcorr,hmeas,dtwt,' + Smeasout + MB_str + 'MB\n'
     outPESTheads_fn      = 'PESTheads.dat'
     outPESTsm_fn         = 'PESTsm.dat'
     outPESTheads=open(os.path.join(MM_ws,outPESTheads_fn), 'w')
@@ -573,10 +573,10 @@ try:
                                 Su_ini_tmp    = Su_ini_tmp_array[i,j,:]
                                 Ss_ini_tmp    = Ss_ini_tmp_array[i,j]
                             PEsoilzonesTS_tmp = PEsoilzonesTS[METEOzone_tmp,SOILzone_tmp,tstart_MF:tend_MF]
-                            PETvegzonesTS_tmp = np.zeros((NVEG,tend_MF-tstart_MF), dtype = np.float)
+                            PTvegzonesTS_tmp = np.zeros((NVEG,tend_MF-tstart_MF), dtype = np.float)
                             RFevegzonesTS_tmp = np.zeros((NVEG,tend_MF-tstart_MF), dtype = np.float)
                             for z in range(NVEG):
-                                PETvegzonesTS_tmp[z,:] = PETvegzonesTS[METEOzone_tmp,z,tstart_MF:tend_MF]
+                                PTvegzonesTS_tmp[z,:] = PTvegzonesTS[METEOzone_tmp,z,tstart_MF:tend_MF]
                                 RFevegzonesTS_tmp[z,:] = RFevegzonesTS[METEOzone_tmp,z,tstart_MF:tend_MF]
                             VEGarea_tmp=np.zeros([NVEG], dtype=np.float)
                             for v in range(NVEG):
@@ -614,7 +614,7 @@ try:
                                                             EXF        = -exf_MF_tmp,
                                                             RF         = RFzonesTS[METEOzone_tmp][tstart_MF:tend_MF],
                                                             E0         = E0zonesTS[METEOzone_tmp][tstart_MF:tend_MF],
-                                                            PETveg     = PETvegzonesTS_tmp,
+                                                            PTveg      = PTvegzonesTS_tmp,
                                                             RFeveg     = RFevegzonesTS_tmp,
                                                             PEsoil     = PEsoilzonesTS_tmp,
                                                             VEGarea    = VEGarea_tmp,
@@ -830,7 +830,7 @@ except StandardError, e:  #Exception
 del gridVEGarea
 del RFzonesTS
 del E0zonesTS
-del PETvegzonesTS
+del PTvegzonesTS
 del RFevegzonesTS
 del PEsoilzonesTS
 del gridMETEO
@@ -994,7 +994,7 @@ if plt_out == 1 or plt_out_obs == 1:
             except:
                 raise SystemExit('\nFATAL ERROR!\nInvalid MARMITES HDF5 file. Run MARMITES and/or MODFLOW again.')
             # indexes of the HDF5 output arrays
-            #    index = {'iRF':0, 'iPET':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iEXF':6, 'iEs':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSs':13, 'iETg':14, 'iETu':15, 'idSu':16, 'iHEADScorr':17, 'idtwt':18}
+            #    index = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iEXF':6, 'iEs':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSs':13, 'iETg':14, 'iETu':15, 'idSu':16, 'iHEADScorr':17, 'idtwt':18}
             #   index_S = {'iEu':0, 'iTu':1,'iSu_pc':2, 'iRp':3, 'iRexf':4, 'idSu':5, 'iSu':6, 'iSAT':7, 'iMB_l':8}
             flxlbl   = ['RF', 'I', 'EXF', 'dSs', 'Ro', 'Es', 'dSu']
             flxlbl1  = ['Eu', 'Tu']
@@ -1242,14 +1242,14 @@ if plt_out == 1 or plt_out_obs == 1:
             # plot time series results as plot
             if plt_out_obs == 1:
                 plt_title = o
-                # index = {'iRF':0, 'iPET':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iEXF':6, 'iEs':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSs':13, 'iETg':14, 'iETu':15, 'idSu':16, 'iHEADScorr':17, 'idtwt':18}
+                # index = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iEXF':6, 'iEs':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSs':13, 'iETg':14, 'iETu':15, 'idSu':16, 'iHEADScorr':17, 'idtwt':18}
                 # index_S = {'iEu':0, 'iTu':1,'iSu_pc':2, 'iRp':3, 'iRexf':4, 'idSu':5, 'iSu':6, 'iSAT':7, 'iMB_l':8}
                 plt_export_fn = os.path.join(MM_ws, '_plt_0'+ o + '.png')
-                # def plotTIMESERIES(DateInput, P, PET, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, EXF, ETg, Es, MB, MB_l, dtwt, SAT, R, h_MF, h_MF_corr, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin):
+                # def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, EXF, ETg, Es, MB, MB_l, dtwt, SAT, R, h_MF, h_MF_corr, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin):
                 MMplot.plotTIMESERIES(
                 inputDate,
                 MM[:,index.get('iRF')],
-                MM[:,index.get('iPET')],
+                MM[:,index.get('iPT')],
                 MM[:,index.get('iPE')],
                 MM[:,index.get('iRFe')],
                 MM[:,index.get('idSs')],
