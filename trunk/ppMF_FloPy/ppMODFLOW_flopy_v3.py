@@ -478,6 +478,27 @@ class MF():
         if self.uzf_yn == 1:
             self.iuzfbnd = self.MM_PROCESS.checkarray(self.iuzfbnd, dtype = np.int)
 
+        if self.ghb_yn == 1:
+            ghb = np.asarray(self.MM_PROCESS.checkarray(self.ghb_cond, dtype = np.float))
+            self.ghbcells = np.zeros((self.nlay), dtype = np.int)
+            l = 0
+            for l in range(self.nlay):
+                self.ghbcells[l] = (np.asarray(ghb[:,:,l]) != self.hnoflo).sum()
+                l += 1
+            del ghb
+        # TODO confirm wel and add well by user to simulate extraction by borehole
+        if self.wel_yn == 1:
+            self.welcells = np.zeros((self.nlay), dtype = np.int)
+            self.welcells[0] = (np.asarray(self.ibound)[:,:,0] != 0).sum()
+            for l in range(1,self.nlay):
+                self.welcells[l] = 0
+        if self.drn_yn == 1:
+            drn = np.asarray(self.MM_PROCESS.checkarray(self.drn_cond, dtype = np.float))
+            self.drncells = np.zeros((self.nlay), dtype = np.int)
+            for l in range(self.nlay):
+                self.drncells[l] = (np.asarray(drn[:,:,l]) != self.hnoflo).sum()
+            del drn
+
 #####################################
 
     def uzf_obs(self, obs):
@@ -790,6 +811,7 @@ class MF():
                     finf_input = self.finf_user
 
         # WELL
+        # TODO confirm wel and add well by user to simulate extraction by borehole
         if self.wel_yn == 1:
             print '\nWEL package initialization'
             if isinstance(wel_input,float):
@@ -933,6 +955,7 @@ class MF():
 
         # 2 - create the modflow packages files
         print '\nMODFLOW files writing'
+        ncells_package = []
         # MFfile initialization
         mfmain = mf.modflow(modelname = self.modelname, exe_name = self.exe_name, namefile_ext = self.namefile_ext, version = self.version, model_ws = MF_ws)
         # dis package
@@ -1034,9 +1057,8 @@ class MF():
                 h5_MF.create_dataset('cbc_uzf_nam', data = np.asarray(cbc_uzf[2][1]))
                 return cbc_uzf
 
-        print''
         h5_MF = h5py.File(self.h5_MF_fn, 'w')
-        print '\nPlease wait. Storing heads and cbc terms into HDF5 file\n%s' % (self.h5_MF_fn)
+        print '\nPlease wait. Storing heads and cbc terms into HDF5 file\n%s\n' % (self.h5_MF_fn)
         if self.dum_sssp1 == 1:
             if chunks == 1:
                 # TODO implement swapaxes
@@ -1127,7 +1149,7 @@ class MF():
                     exf4MM[t,:,:] += exf_MF[t,:,:,l]*mask
             h5_MF.create_dataset(name = 'exf4MM', data = exf4MM)
         h5_MF.close()
-        # to delete MF bin files and save disk space
+        # to delete MF binary files and save disk space
         if self.MFout_yn == 0:
             os.remove(h_MF_fn)
             os.remove(cbc_MF_fn)
