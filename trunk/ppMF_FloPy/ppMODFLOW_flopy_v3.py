@@ -482,23 +482,23 @@ class MF():
             if self.nlay > 1:
                 self.ghbcells = np.zeros((self.nlay), dtype = np.int)
                 for l in range(self.nlay):
-                    self.ghbcells[l] = (np.asarray(ghb[:,:,l]) != self.hnoflo).sum()
+                    self.ghbcells[l] = (np.asarray(ghb[:,:,l]) > 0.0).sum()
             else:
-                self.ghbcells = (np.asarray(ghb[:,:]) != self.hnoflo).sum()
+                self.ghbcells = (np.asarray(ghb[:,:]) > 0.0).sum()
             del ghb
         if self.drn_yn == 1:
             drn = np.asarray(self.MM_PROCESS.checkarray(self.drn_cond, dtype = np.float))
             if self.nlay > 1:
                 self.drncells = np.zeros((self.nlay), dtype = np.int)
                 for l in range(self.nlay):
-                    self.drncells[l] = (np.asarray(drn[:,:,l]) != self.hnoflo).sum()
+                    self.drncells[l] = (np.asarray(drn[:,:,l]) > 0.0).sum()
             else:
-                self.drncells = [(np.asarray(drn[:,:]) != self.hnoflo).sum()]
+                self.drncells = [(np.asarray(drn[:,:]) > 0.0).sum()]
             del drn
         # TODO confirm wel and add well by user to simulate extraction by borehole
         if self.wel_yn == 1:
             self.welcells = np.zeros((self.nlay), dtype = np.int)
-            self.welcells[0] = (np.asarray(self.ibound)[:,:,0] != 0).sum()
+            self.welcells[0] = (np.asarray(self.ibound)[:,:,0] != 0.0).sum()
             for l in range(1,self.nlay):
                 self.welcells[l] = 0
 
