@@ -42,7 +42,7 @@ print '\n##############\nMARMITES started!\n%s\n##############' % mpl.dates.num2
 # the file can contain any comments as the user wish, but the sequence of the input has to be respected
 # 00_TESTS\MARMITESv3_r13c6l2'  00_TESTS\r40c20'  00_TESTS\r20c40'
 # SARDON'  CARRIZAL' LAMATA'
-MM_ws = r'E:\00code_ws\LAMATA'
+MM_ws = r'E:\00code_ws\00_TESTS\MARMITESv3_r13c6l2'
 MM_fn = '__inputMM.ini'
 
 inputFile = MMproc.readFile(MM_ws,MM_fn)
@@ -329,7 +329,7 @@ gridVEGarea, RFzonesTS, E0zonesTS, PTvegzonesTS, RFevegzonesTS, PEsoilzonesTS, i
                                 ) # IRR_fn
 
 # SOIL PARAMETERS
-_nsl, _nam_soil, _st, _slprop, _Sm, _Sfc, _Sr, _Su_ini, _Ks = cMF.MM_PROCESS.inputSoilParam(MM_ws = MM_ws, SOILparam_fn = SOILparam_fn, NSOIL = NSOIL)
+_nsl, _nam_soil, _st, _facETg, _slprop, _Sm, _Sfc, _Sr, _Su_ini, _Ks = cMF.MM_PROCESS.inputSoilParam(MM_ws = MM_ws, SOILparam_fn = SOILparam_fn, NSOIL = NSOIL)
 _nslmax = max(_nsl)
 
 # compute thickness, top and bottom elevation of each soil layer
@@ -494,7 +494,7 @@ try:
             print'\n##############'
             print 'MARMITESunsat RUN'
             # SOIL PARAMETERS
-            _nsl, _nam_soil, _st, _slprop, _Sm, _Sfc, _Sr, _Su_ini, _Ks = cMF.MM_PROCESS.inputSoilParam(MM_ws = MM_ws, SOILparam_fn = SOILparam_fn, NSOIL = NSOIL)
+            _nsl, _nam_soil, _st, _facETg, _slprop, _Sm, _Sfc, _Sr, _Su_ini, _Ks = cMF.MM_PROCESS.inputSoilParam(MM_ws = MM_ws, SOILparam_fn = SOILparam_fn, NSOIL = NSOIL)
             _nslmax = max(_nsl)
             for l in range(NSOIL):
                 _slprop[l] = np.asarray(_slprop[l])
@@ -549,6 +549,7 @@ try:
                         METEOzone_tmp = gridMETEO[i,j]-1
                         if cMF.iuzfbnd[i][j] != 0.0:
                             _layer = cMF.iuzfbnd[i][j] - 1
+                            facETg = _facETg[SOILzone_tmp]
                             slprop = _slprop[SOILzone_tmp]
                             nsl = _nsl[SOILzone_tmp]
                             # thickness of soil layers
@@ -642,7 +643,7 @@ try:
                                     for l in range(nsl):
                                         MM_S[:,i,j,l,k] = MM_S_tmp[:,l,k]
                             MM_finf_MF[i,j] = MM_S_tmp[:,nsl-1,index_S.get('iRp')].sum()/conv_fact
-                            MM_wel_MF[i,j] = MM_tmp[:,index.get('iETg')].sum()/conv_fact
+                            MM_wel_MF[i,j] = MM_tmp[:,index.get('iETg')].sum()/(conv_fact*facETg)
                             del MM_tmp, MM_S_tmp
                             # setting initial conditions for the next SP
                             Su_ini_tmp_array[i,j,:]  = MM_S[cMF.nstp[n]-1,i,j,:,index_S.get('iSu')]
@@ -793,7 +794,7 @@ try:
         plt.cla()
         plt.clf()
         plt.close('all')
-        del fig, LOOP, LOOPlst, h_diff, h_diff_log, h_pSP_all
+        del fig, LOOPlst, h_diff, h_diff_log, h_pSP_all
 
         # #############################
         # ### MODFLOW RUN with MM-computed recharge
@@ -843,6 +844,8 @@ del TopSoil
 # ###  OUTPUT EXPORT   ########
 # #############################
 
+print '\n##############\nMARMITES exporting...'
+
 timestartExport = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
 # reorganizing MF output in daily data
 if MF_yn == 1 and isinstance(cMF.h5_MF_fn, str):
@@ -883,8 +886,40 @@ else:
     imfDRN = imfSTO = imfRCH = imfWEL = 0
     top_m = np.zeros((cMF.nrow, cMF.ncol))
 
+# TODO fix below
+##if h_diff_surf != None:
+##    h_diff_max_n = 0
+##    for l in range(cMF.nlay):
+##        for t in enumerate(h_diff_surf[:,:,:,l]):
+##            try:
+##                h_diff_max_n = list(t).index(h_diff_all[LOOP])
+##            except:
+##                pass
+##    print h_diff_max_n, h_diff_all[LOOP]
+##    V = []
+##    Vmax = []
+##    Vmin = []
+##    for L in range(cMF.nlay):
+##        V.append(np.ma.masked_array(h_diff_surf[h_diff_max_n,:,:,L], mask[L]))
+##        Vmax.append(np.ma.max(V[L]))
+##        Vmin.append(np.ma.min(V[L]))
+##    print Vmax, Vmin
+##    Vmax = max(Vmax) #float(np.ceil(np.ma.max(V)))
+##    Vmin = min(Vmin) #float(np.floor(np.ma.min(V)))
+##    print h_diff_max_n, h_diff_all[LOOP], Vmax, Vmin
+##    if Vmax == Vmin:
+##        if Vmax < 10E-9:
+##            Vmax = 1.0
+##            Vmin = -1.0
+##        else:
+##            Vmax *= 1.15
+##            Vmin *= 0.85
+##        ctrs_tmp = False
+##    else:
+##        ctrs_tmp = ctrsMF
+##    MMplot.plotLAYER(TS = h_diff_max_n, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = ('(m)'), msg = 'no value', plt_title = ('_HEADSmaxdiff_ConvLoop'), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrangeMF, Vmax = Vmax, Vmin = Vmin, contours = ctrs_tmp, ntick = ntick)
+
 if plt_out == 1 or plt_out_obs == 1:
-    print '\n##############\nMARMITES exporting...'
     print '\nExporting ASCII files and plots...'
     # computing max and min values in MF fluxes for plotting
     hmax = []
@@ -1066,10 +1101,11 @@ if plt_out == 1 or plt_out_obs == 1:
             for i in flxlbl4:
                 flxlbl.append(i)
                 i = 'i'+i
-                flx_tmp = np.ma.masked_values(h5_MM['MM_S'][:,:,:,-1,index_S.get(i)], cMF.hnoflo, atol = 0.09)
+                #flx_tmp = np.ma.masked_values(h5_MM['MM_S'][:,:,:,-1,index_S.get(i)], cMF.hnoflo, atol = 0.09)
+                flx_tmp = np.ma.masked_values(h5_MM['finf'][:,:,:], cMF.hnoflo, atol = 0.09)
                 flxmax.append(np.ma.max(flx_tmp))
                 flxmin.append(np.ma.min(flx_tmp))
-                inf = flx_tmp.sum()/sum(cMF.perlen)/sum(ncell_MM)
+                inf = conv_fact*flx_tmp.sum()/sum(cMF.perlen)/sum(ncell_MM)
                 flxlst.append(inf)
             del flx_tmp
             h5_MM.close()
@@ -1102,7 +1138,7 @@ if plt_out == 1 or plt_out_obs == 1:
                     flxlst_tmp.append(rch_tmp1)
                     rch_tmp += rch_tmp1
                 flxlst.append(-rch_tmp + inf)
-                del rch_tmp, rch_tmp1, cbc_RCH
+                del rch_tmp, rch_tmp1, cbc_RCH, inf
                 for l in range(cMF.nlay):
                     # GW_RCH
                     flxlst.append(flxlst_tmp[l])
@@ -1118,8 +1154,8 @@ if plt_out == 1 or plt_out_obs == 1:
                         del cbc_DRN
                     if cMF.wel_yn == 1:
                         cbc_WEL = h5_MF['WEL_d']
-                        if cMF.welcells[l]>0:
-                            flxlst.append(cbc_WEL[:,:,:,l].sum()/sum(cMF.perlen)/cMF.welcells[l])
+                        if ncell_MM[l]>0:
+                            flxlst.append(cbc_WEL[:,:,:,l].sum()/sum(cMF.perlen)/ncell_MM[l])
                         else:
                             flxlst.append(0.0)
                         del cbc_WEL
@@ -1173,8 +1209,8 @@ if plt_out == 1 or plt_out_obs == 1:
                     del cbc_DRN
                 if cMF.wel_yn == 1:
                     cbc_WEL = h5_MF['WEL_d']
-                    if cMF.welcells[l]>0:
-                        flxlst.append(cbc_WEL[:,:,:,l].sum()/sum(cMF.perlen)/cMF.welcells[l])
+                    if ncell_MM[l]>0:
+                        flxlst.append(cbc_WEL[:,:,:,l].sum()/sum(cMF.perlen)/ncell_MM[l])
                     else:
                         flxlst.append(0.0)
                     del cbc_WEL
@@ -1303,7 +1339,7 @@ if plt_out == 1 or plt_out_obs == 1:
                     -MM[:,index.get('iEg')].sum()/sum(cMF.perlen),
                     -MM[:,index.get('iTg')].sum()/sum(cMF.perlen),
                     -MM[:,index.get('iETg')].sum()/sum(cMF.perlen),
-                    -MM_S[:,-1,index_S.get('iRp')].sum()/sum(cMF.perlen)]
+                    -conv_fact*(cMF.perlen*h5_MM['finf'][:,i,j]).sum()/sum(cMF.perlen)]
                 #MB_tmp = sum(flxlst) - (flxlst[11] + flxlst[13])
                 MB_tmp = cMF.hnoflo
                 if plt_out_obs == 1 and isinstance(cMF.h5_MF_fn, str):
@@ -1315,7 +1351,7 @@ if plt_out == 1 or plt_out_obs == 1:
                         rch_tmp1 = cbc_RCH[:,i,j,l].sum()/sum(cMF.perlen)
                         flxlst_tmp.append(rch_tmp1)
                         rch_tmp += rch_tmp1
-                    flxlst.append(-rch_tmp + MM_S[:,-1,index_S.get('iRp')].sum()/sum(cMF.perlen))
+                    flxlst.append(-rch_tmp + conv_fact*(cMF.perlen*h5_MM['finf'][:,i,j]).sum()/sum(cMF.perlen))
                     del rch_tmp, rch_tmp1, cbc_RCH
                     for l in range(cMF.nlay):
                         # GW_RCH
@@ -1582,23 +1618,6 @@ if plt_out == 1 or plt_out_obs == 1:
                 MMplot.plotLAYER(TS = TS, Date = Date_lst[t], JD = JD_lst[t], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i + ' (mm/day)'), msg = 'no flux', plt_title = ('MM_'+i), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrangeMM, Vmax = Vmax, Vmin = Vmin, contours = ctrs_tmp, ntick = ntick)
                 t += 1
             del V, MM, t
-        if h_diff_surf != None:
-            V = []
-            for L in range(cMF.nlay):
-                V.append(np.ma.masked_array(h_diff_surf[0,:,:,L], mask[L]))
-            Vmax = np.ma.max(V) #float(np.ceil(np.ma.max(V)))
-            Vmin = np.ma.min(V) #float(np.floor(np.ma.min(V)))
-            if Vmax == Vmin:
-                if Vmax < 10E-9:
-                    Vmax = 1.0
-                    Vmin = -1.0
-                else:
-                    Vmax *= 1.15
-                    Vmin *= 0.85
-                ctrs_tmp = False
-            else:
-                ctrs_tmp = ctrsMF
-            MMplot.plotLAYER(TS = 'NA', Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = ('(m)'), msg = 'no value', plt_title = ('_HEADSmaxdiff_ConvLoop'), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrangeMF, Vmax = Vmax, Vmin = Vmin, contours = ctrs_tmp, ntick = ntick)
         del TS_lst, flxlbl, i, i1, h_diff_surf
     del gridSOIL, inputDate
     del hmaxMF, hminMF, hmin, hdiff, cbcmax, cbcmin

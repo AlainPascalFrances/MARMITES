@@ -355,12 +355,15 @@ class PROCESS:
 
         # soil parameter definition for each soil type
         nslst = SOILzones+1
-        nam_soil=[]
-        st=[]
+        nam_soil = []
+        st = []
+        facETg = []
         for z in range(SOILzones):
             nam_soil.append(inputFile[nslst].strip())
             nslst += 1
             st.append(inputFile[nslst].strip())
+            nslst += 1
+            facETg.append(float(inputFile[nslst].strip()))
             nslst += 1
             slprop.append([])
             Sm.append([])
@@ -388,8 +391,8 @@ class PROCESS:
             if sum(slprop[z][0:nsl[z+1]])<1:
                 raise SystemExit('\nFATAL ERROR!\nThe sum of the soil layers proportion of %s is <1!\nCorrect your soil data input!\n' % nam_soil[z])
 
-        return nsl[1:len(nsl)], nam_soil, st, slprop, Sm, Sfc, Sr, Si, Ks
-        del nsl, nam_soil, st, slprop, Sm, Sfc, Sr, Si, Ks
+        return nsl[1:len(nsl)], nam_soil, st, facETg, slprop, Sm, Sfc, Sr, Si, Ks
+        del nsl, nam_soil, st, facETg, slprop, Sm, Sfc, Sr, Si, Ks
 
     ######################
 

@@ -495,12 +495,6 @@ class MF():
             else:
                 self.drncells = [(np.asarray(drn[:,:]) > 0.0).sum()]
             del drn
-        # TODO confirm wel and add well by user to simulate extraction by borehole
-        if self.wel_yn == 1:
-            self.welcells = np.zeros((self.nlay), dtype = np.int)
-            self.welcells[0] = (np.asarray(self.ibound)[:,:,0] != 0.0).sum()
-            for l in range(1,self.nlay):
-                self.welcells[l] = 0
 
 #####################################
 
@@ -814,7 +808,7 @@ class MF():
                     finf_input = self.finf_user
 
         # WELL
-        # TODO confirm wel and add well by user to simulate extraction by borehole
+        # TODO add well by user to simulate extraction by borehole
         if self.wel_yn == 1:
             print '\nWEL package initialization'
             if isinstance(wel_input,float):
@@ -946,15 +940,17 @@ class MF():
         # WEL
         if self.wel_yn == 1:
             layer_row_column_Q = []
+            iuzfbnd = np.asarray(self.iuzfbnd)
             for n in range(self.nper):
                 layer_row_column_Q.append([])
                 for r in range(self.nrow):
                     for c in range(self.ncol):
                         if np.abs(self.ibound[r][c][:]).sum() != 0:
                             if isinstance(wel_array, float):
-                                layer_row_column_Q[n].append([1,r+1,c+1,-wel_array*self.delr[c]*self.delc[r]])
+                                layer_row_column_Q[n].append([iuzfbnd[r,c],r+1,c+1,-wel_array*self.delr[c]*self.delc[r]])
                             else:
-                                layer_row_column_Q[n].append([1,r+1,c+1,-(wel_array[n][r][c])*self.delr[c]*self.delc[r]])
+                                layer_row_column_Q[n].append([iuzfbnd[r,c],r+1,c+1,-(wel_array[n][r][c])*self.delr[c]*self.delc[r]])
+            del iuzfbnd
 
         # 2 - create the modflow packages files
         print '\nMODFLOW files writing'
