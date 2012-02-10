@@ -1032,40 +1032,40 @@ try:
                 flxlbl4  = ['Rp']
                 sign = [1,-1,1,-1,-1,-1,1,-1,-1,-1,-1,-1,-1,-1,-1]
                 flxlst = []
-                flxmax = []
-                flxmin = []
+                flxmax_d = []
+                flxmin_d = []
                 for i in flxlbl:
                     i = 'i'+i
                     flx_tmp = np.ma.masked_values(h5_MM['MM'][:,:,:,index.get(i)], cMF.hnoflo, atol = 0.09)
-                    flxmax.append(np.ma.max(flx_tmp))
-                    flxmin.append(np.ma.min(flx_tmp))
+                    flxmax_d.append(np.ma.max(flx_tmp))
+                    flxmin_d.append(np.ma.min(flx_tmp))
                     flxlst.append(flx_tmp.sum()/sum(cMF.perlen)/sum(ncell_MM))
                 for i in flxlbl1:
                     tmp = 0.0
                     flxlbl.append(i)
                     i = 'i'+i
                     for l in range(_nslmax):
-                        flx_tmp = np.ma.masked_values(h5_MM['MM_S'][:,:,:,l,index_S.get(i)], cMF.hnoflo, atol = 0.09).sum()
-                        flxmax.append(np.ma.max(flx_tmp))
-                        flxmin.append(np.ma.min(flx_tmp))
-                        tmp += flx_tmp
+                        flx_tmp = np.ma.masked_values(h5_MM['MM_S'][:,:,:,l,index_S.get(i)], cMF.hnoflo, atol = 0.09)
+                        flxmax_d.append(np.ma.max(flx_tmp))
+                        flxmin_d.append(np.ma.min(flx_tmp))
+                        tmp += flx_tmp.sum()
                     flxlst.append(tmp/sum(cMF.perlen)/sum(ncell_MM))
                     del tmp
                 for i in flxlbl2:
                     flxlbl.append(i)
                     i = 'i'+i
                     flx_tmp = np.ma.masked_values(h5_MM['MM'][:,:,:,index.get(i)], cMF.hnoflo, atol = 0.09)
-                    flxmax.append(np.ma.max(flx_tmp))
-                    flxmin.append(np.ma.min(flx_tmp))
+                    flxmax_d.append(np.ma.max(flx_tmp))
+                    flxmin_d.append(np.ma.min(flx_tmp))
                     flxlst.append(flx_tmp.sum()/sum(cMF.perlen)/sum(ncell_MM))
                 for i in flxlbl3:
                     flxlbl.append(i)
                     i = 'i'+i
                     if cMF.wel_yn == 1:
                         flx_tmp = np.ma.masked_values(h5_MM['MM'][:,:,:,index.get(i)], cMF.hnoflo, atol = 0.09)
-                        flxmax.append(np.ma.max(flx_tmp))
+                        flxmax_d.append(np.ma.max(flx_tmp))
                         Tg_min = np.ma.min(flx_tmp)
-                        flxmin.append(Tg_min)
+                        flxmin_d.append(Tg_min)
                         flxlst.append(flx_tmp.sum()/sum(cMF.perlen)/sum(ncell_MM))
                         if Tg_min < 0.0:
                             print '\nTg negative (%.2f) observed at:' % Tg_min
@@ -1088,36 +1088,29 @@ try:
                     flxlbl.append(i)
                     i = 'i'+i
                     flx_tmp = np.ma.masked_values(h5_MM['MM'][:,:,:,index.get(i)], cMF.hnoflo, atol = 0.09)
-                    flxmax.append(np.ma.max(flx_tmp))
-                    flxmin.append(np.ma.min(flx_tmp))
+                    flxmax_d.append(np.ma.max(flx_tmp))
+                    flxmin_d.append(np.ma.min(flx_tmp))
                     flxlst.append(flx_tmp.sum()/sum(cMF.perlen)/sum(ncell_MM))
                 for i in flxlbl4:
                     flxlbl.append(i)
                     i = 'i'+i
-                    #flx_tmp = np.ma.masked_values(h5_MM['MM_S'][:,:,:,-1,index_S.get(i)], cMF.hnoflo, atol = 0.09)
                     flx_tmp = np.ma.masked_values(h5_MM['finf'][:,:,:], cMF.hnoflo, atol = 0.09)
-                    flxmax.append(np.ma.max(flx_tmp))
-                    flxmin.append(np.ma.min(flx_tmp))
+                    flxmax_d.append(np.ma.max(flx_tmp))
+                    flxmin_d.append(np.ma.min(flx_tmp))
                     inf = conv_fact*flx_tmp.sum()/sum(cMF.perlen)/sum(ncell_MM)
                     flxlst.append(inf)
                 del flx_tmp
                 h5_MM.close()
+                flxmax_d = float(np.ceil(np.ma.max(flxmax_d)))
+                flxmin_d = float(np.floor(np.ma.min(flxmin_d)))
+                axefact = 1.05
+                flxmax = float(np.ceil(max(flxlst)))
+                flxmin = float(np.floor(min(flxlst)))
+                flxmax = axefact*max(cbcmax, flxmax)
+                flxmin = axefact*min(cbcmin, flxmin)
                 for l,(x,y) in enumerate(zip(flxlst, sign)):
                     flxlst[l] = x*y
                 del flxlbl1, flxlbl2, flxlbl3, flxlbl3a, sign
-                flxmax = float(np.ceil(np.ma.max(flxmax)))
-                flxmin = float(np.floor(np.ma.min(flxmin)))
-                #flxmax_avg = float(np.ceil(flxlst))
-                #flxmin_avg = float(np.floor(flxlst))
-                # TODO check where it is pertinent to show flxmax, cbcmax, flxmax_avg... and same for min
-                minfact = 0.95
-                maxfact = 1.05
-                if np.min((cbcmax, flxmax)) < 0:
-                    minfact = 1.05
-                if np.max((cbcmax, flxmax)) < 0:
-                    maxfact = 0.95
-                flxmax = maxfact*max(cbcmax, flxmax)
-                flxmin = minfact*min(cbcmin, flxmin)
                 if plt_out_obs == 1 and isinstance(cMF.h5_MF_fn, str):
                     plt_export_fn = os.path.join(MM_ws, '_plt_0UNSATandGWbalances.png')
                     # compute UZF_STO and store GW_RCH
@@ -1163,11 +1156,11 @@ try:
                             flxlbl.append('GW_' + cbc_uzf_nam[index_cbc_uzf[x]] + '_L' + str(l+1))
                         for x in range(len(index_cbc)):
                             flxlbl.append('GW_' + cbc_nam[index_cbc[x]] + '_L' + str(l+1))
-                        flxmax = float(np.ceil(np.ma.max(flxlst)))
-                        flxmin = float(np.floor(np.ma.min(flxlst)))
-                        flxmax = 1.15*max(cbcmax, flxmax)
-                        flxmin = 1.15*min(cbcmin, flxmin)
-                    del flxlst_tmp
+                    flxmax1 = float(np.ceil(max(flxlst)))
+                    flxmin1 = float(np.floor(min(flxlst)))
+                    flxmax = axefact*max(cbcmax, flxmax, flxmax1)
+                    flxmin = axefact*min(cbcmin, flxmin, flxmin1)
+                    del flxlst_tmp, flxmax1, flxmin1
                     h5_MF.close()
     #                MB_tmp = sum(flxlst) - (flxlst[11] + flxlst[13] + flxlst[16] + flxlst[17] + flxlst[19] + flxlst[20])
                     MB_tmp = cMF.hnoflo
