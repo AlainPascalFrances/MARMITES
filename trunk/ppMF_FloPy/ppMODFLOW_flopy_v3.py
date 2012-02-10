@@ -901,6 +901,7 @@ class MF():
                 l += 1
 
         # average for 1st SS stress period
+        # TODO verify the if the avregae of wells is done correctly
         self.nper        = self.nper
         self.perlen      = list(self.perlen)
         self.nstp        = list(self.nstp)

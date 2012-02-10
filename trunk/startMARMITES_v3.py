@@ -320,7 +320,7 @@ try:
                                     ) # IRR_fn
 
     # SOIL PARAMETERS
-    _nsl, _nam_soil, _st, _facETg, _slprop, _Sm, _Sfc, _Sr, _Su_ini, _Ks = cMF.MM_PROCESS.inputSoilParam(MM_ws = MM_ws, SOILparam_fn = SOILparam_fn, NSOIL = NSOIL)
+    _nsl, _nam_soil, _st, _facEg, _slprop, _Sm, _Sfc, _Sr, _Su_ini, _Ks = cMF.MM_PROCESS.inputSoilParam(MM_ws = MM_ws, SOILparam_fn = SOILparam_fn, NSOIL = NSOIL)
     _nslmax = max(_nsl)
 
     # compute thickness, top and bottom elevation of each soil layer
@@ -476,7 +476,10 @@ try:
         # #############################
 
         while abs(h_diff[LOOP]) > convcrit:
-            print '\n##############\nCONVERGENCE LOOP #%s\n##############' % str(LOOP)
+            if LOOP == 0:
+                print '\n##############\nCONVERGENCE LOOP %d (initialization)\n##############' % (LOOP)
+            else:
+                print '\n##############\nCONVERGENCE LOOP %d/%d\n##############' % (LOOP, ccnum)
             h_MF_average = 0.0
             timestartMMloop = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
             # ###########################
@@ -485,7 +488,7 @@ try:
             print'\n##############'
             print 'MARMITESunsat RUN'
             # SOIL PARAMETERS
-            _nsl, _nam_soil, _st, _facETg, _slprop, _Sm, _Sfc, _Sr, _Su_ini, _Ks = cMF.MM_PROCESS.inputSoilParam(MM_ws = MM_ws, SOILparam_fn = SOILparam_fn, NSOIL = NSOIL)
+            _nsl, _nam_soil, _st, _facEg, _slprop, _Sm, _Sfc, _Sr, _Su_ini, _Ks = cMF.MM_PROCESS.inputSoilParam(MM_ws = MM_ws, SOILparam_fn = SOILparam_fn, NSOIL = NSOIL)
             _nslmax = max(_nsl)
             for l in range(NSOIL):
                 _slprop[l] = np.asarray(_slprop[l])
@@ -540,7 +543,7 @@ try:
                         METEOzone_tmp = gridMETEO[i,j]-1
                         if cMF.iuzfbnd[i][j] != 0.0:
                             _layer = cMF.iuzfbnd[i][j] - 1
-                            facETg = _facETg[SOILzone_tmp]
+                            facEg = _facEg[SOILzone_tmp]
                             slprop = _slprop[SOILzone_tmp]
                             nsl = _nsl[SOILzone_tmp]
                             # thickness of soil layers
@@ -616,7 +619,8 @@ try:
                                                             dti        = dti,
                                                             hdry       = cMF.hdry,
                                                             kTu_min    = kTu_min,
-                                                            kTu_n      = kTu_n)
+                                                            kTu_n      = kTu_n,
+                                                            facEg      = facEg)
                             if (float(cMF.perlen[n])/float(cMF.nstp[n])) != 1.0:
                                 for stp in range(cMF.nstp[n]):
                                     ts = float(cMF.perlen[n])/float(cMF.nstp[n])
@@ -634,7 +638,7 @@ try:
                                     for l in range(nsl):
                                         MM_S[:,i,j,l,k] = MM_S_tmp[:,l,k]
                             MM_finf_MF[i,j] = MM_S_tmp[:,nsl-1,index_S.get('iRp')].sum()/conv_fact
-                            MM_wel_MF[i,j] = MM_tmp[:,index.get('iETg')].sum()/(conv_fact*facETg)
+                            MM_wel_MF[i,j] = MM_tmp[:,index.get('iETg')].sum()/(conv_fact)
                             del MM_tmp, MM_S_tmp
                             # setting initial conditions for the next SP
                             Su_ini_tmp_array[i,j,:]  = MM_S[cMF.nstp[n]-1,i,j,:,index_S.get('iSu')]
@@ -1235,6 +1239,7 @@ try:
                 outFileExport.write(header)
                 SOILzone_tmp = gridSOIL[i,j]-1
                 nsl = _nsl[SOILzone_tmp]
+                soilnam = _nam_soil[SOILzone_tmp]
                 MM = h5_MM['MM'][:,i,j,:]
                 MM_S = h5_MM['MM_S'][:,i,j,:,:]
                 # SATFLOW
@@ -1263,7 +1268,7 @@ try:
                 cMF.MM_PROCESS.ExportResultsPEST(i, j, inputDate, _nslmax, MM[:,index.get('iHEADScorr')], obs_h_tmp, obs_S_tmp, outPESTheads, outPESTsm, o, MM_S[:,:,index_S.get('iSu_pc')])
                 # plot time series results as plot
                 if plt_out_obs == 1:
-                    plt_title = o + '\ni = %d, j = %d, l = %d, x = %d, y = %d' % (i+1, j+1, l+1, obs.get(o)['x'], obs.get(o)['y'])
+                    plt_title = o + '\ni = %d, j = %d, l = %d, x = %d, y = %d, %s' % (i+1, j+1, l+1, obs.get(o)['x'], obs.get(o)['y'], soilnam)
                     # index = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iEXF':6, 'iEs':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSs':13, 'iETg':14, 'iETu':15, 'idSu':16, 'iHEADScorr':17, 'idtwt':18}
                     # index_S = {'iEu':0, 'iTu':1,'iSu_pc':2, 'iRp':3, 'iRexf':4, 'idSu':5, 'iSu':6, 'iSAT':7, 'iMB_l':8}
                     plt_export_fn = os.path.join(MM_ws, '_plt_0'+ o + '.png')
