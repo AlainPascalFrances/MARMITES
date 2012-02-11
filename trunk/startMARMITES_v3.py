@@ -320,7 +320,7 @@ try:
                                     ) # IRR_fn
 
     # SOIL PARAMETERS
-    _nsl, _nam_soil, _st, _facETg, _slprop, _Sm, _Sfc, _Sr, _Su_ini, _Ks = cMF.MM_PROCESS.inputSoilParam(MM_ws = MM_ws, SOILparam_fn = SOILparam_fn, NSOIL = NSOIL)
+    _nsl, _nam_soil, _st, _facEg, _slprop, _Sm, _Sfc, _Sr, _Su_ini, _Ks = cMF.MM_PROCESS.inputSoilParam(MM_ws = MM_ws, SOILparam_fn = SOILparam_fn, NSOIL = NSOIL)
     _nslmax = max(_nsl)
 
     # compute thickness, top and bottom elevation of each soil layer
@@ -488,7 +488,7 @@ try:
             print'\n##############'
             print 'MARMITESunsat RUN'
             # SOIL PARAMETERS
-            _nsl, _nam_soil, _st, _facETg, _slprop, _Sm, _Sfc, _Sr, _Su_ini, _Ks = cMF.MM_PROCESS.inputSoilParam(MM_ws = MM_ws, SOILparam_fn = SOILparam_fn, NSOIL = NSOIL)
+            _nsl, _nam_soil, _st, _facEg, _slprop, _Sm, _Sfc, _Sr, _Su_ini, _Ks = cMF.MM_PROCESS.inputSoilParam(MM_ws = MM_ws, SOILparam_fn = SOILparam_fn, NSOIL = NSOIL)
             _nslmax = max(_nsl)
             for l in range(NSOIL):
                 _slprop[l] = np.asarray(_slprop[l])
@@ -543,7 +543,7 @@ try:
                         METEOzone_tmp = gridMETEO[i,j]-1
                         if cMF.iuzfbnd[i][j] != 0.0:
                             _layer = cMF.iuzfbnd[i][j] - 1
-                            facETg = _facETg[SOILzone_tmp]
+                            facEg = _facEg[SOILzone_tmp]
                             slprop = _slprop[SOILzone_tmp]
                             nsl = _nsl[SOILzone_tmp]
                             # thickness of soil layers
@@ -620,7 +620,7 @@ try:
                                                             hdry       = cMF.hdry,
                                                             kTu_min    = kTu_min,
                                                             kTu_n      = kTu_n,
-                                                            facETg      = facETg)
+                                                            facEg      = facEg)
                             if (float(cMF.perlen[n])/float(cMF.nstp[n])) != 1.0:
                                 for stp in range(cMF.nstp[n]):
                                     ts = float(cMF.perlen[n])/float(cMF.nstp[n])
