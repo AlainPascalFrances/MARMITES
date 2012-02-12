@@ -1124,7 +1124,7 @@ try:
                     h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
                     cbc_RCH = h5_MF['RCH_d']
                     for l in range(cMF.nlay):
-                        rch_tmp1 = cbc_RCH[:,:,:,l].sum()/sum(cMF.perlen)/ncell_MM[l]
+                        rch_tmp1 = cbc_RCH[:,:,:,l].sum()/sum(cMF.perlen)/ncell[l]
                         flxlst_tmp.append(rch_tmp1)
                         rch_tmp += rch_tmp1
                     flxlst.append(-rch_tmp + inf)
@@ -1138,21 +1138,21 @@ try:
                         if cMF.drn_yn == 1:
                             cbc_DRN = h5_MF['DRN_d']
                             if cMF.drncells[l]>0:
-                                flxlst.append(cbc_DRN[:,:,:,l].sum()/sum(cMF.perlen)/cMF.drncells[l])
+                                flxlst.append(cbc_DRN[:,:,:,l].sum()/sum(cMF.perlen)/ncell[l])
                             else:
                                 flxlst.append(0.0)
                             del cbc_DRN
                         if cMF.wel_yn == 1:
                             cbc_WEL = h5_MF['WEL_d']
                             if ncell_MM[l]>0:
-                                flxlst.append(cbc_WEL[:,:,:,l].sum()/sum(cMF.perlen)/ncell_MM[l])
+                                flxlst.append(cbc_WEL[:,:,:,l].sum()/sum(cMF.perlen)/ncell[l])
                             else:
                                 flxlst.append(0.0)
                             del cbc_WEL
                         if cMF.ghb_yn == 1:
                             cbc_GHB = h5_MF['GHB_d']
                             if cMF.ghbcells > 0:
-                                flxlst.append(cbc_GHB[:,:,:,l].sum()/sum(cMF.perlen)/cMF.ghbcells[l])
+                                flxlst.append(cbc_GHB[:,:,:,l].sum()/sum(cMF.perlen)/ncell[l])
                             else:
                                 flxlst.append(0.0)
                             del cbc_GHB
@@ -1185,7 +1185,7 @@ try:
                 for l in range(cMF.nlay):
                     h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
                     cbc_RCH = h5_MF['RCH_d']
-                    flxlst.append(cbc_RCH[:,:,:,l].sum()/sum(cMF.perlen)/ncell_MM[l])
+                    flxlst.append(cbc_RCH[:,:,:,l].sum()/sum(cMF.perlen)/ncell[l])
                     del cbc_RCH
                     cbc_STO = h5_MF['STO_d']
                     flxlst.append(cbc_STO[:,:,:,l].sum()/sum(cMF.perlen)/ncell[l])
@@ -1193,21 +1193,21 @@ try:
                     if cMF.drn_yn == 1:
                         cbc_DRN = h5_MF['DRN_d']
                         if cMF.drncells[l]>0:
-                            flxlst.append(cbc_DRN[:,:,:,l].sum()/sum(cMF.perlen)/cMF.drncells[l])
+                            flxlst.append(cbc_DRN[:,:,:,l].sum()/sum(cMF.perlen)/ncell[l])
                         else:
                             flxlst.append(0.0)
                         del cbc_DRN
                     if cMF.wel_yn == 1:
                         cbc_WEL = h5_MF['WEL_d']
                         if ncell_MM[l]>0:
-                            flxlst.append(cbc_WEL[:,:,:,l].sum()/sum(cMF.perlen)/ncell_MM[l])
+                            flxlst.append(cbc_WEL[:,:,:,l].sum()/sum(cMF.perlen)/ncell[l])
                         else:
                             flxlst.append(0.0)
                         del cbc_WEL
                     if cMF.ghb_yn == 1:
                         cbc_GHB = h5_MF['GHB_d']
                         if cMF.ghbcells > 0:
-                            flxlst.append(cbc_GHB[:,:,:,l].sum()/sum(cMF.perlen)/cMF.ghbcells[l])
+                            flxlst.append(cbc_GHB[:,:,:,l].sum()/sum(cMF.perlen)/ncell[l])
                         else:
                             flxlst.append(0.0)
                         del cbc_GHB
