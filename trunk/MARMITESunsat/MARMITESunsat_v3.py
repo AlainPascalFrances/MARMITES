@@ -100,7 +100,7 @@ class UNSAT:
 
 #####################
 
-    def flux(self, RFe, PT, PE, E0, Zr_elev, VEGarea, HEADS, TopSoilLay, BotSoilLay, Tl, nsl, Sm, Sfc, Sr, Ks, Ss_max, Ss_ratio, Su_ini, Rp_ini, Ss_ini, EXF, dtwt, st, i, j, n, kTu_min, kTu_n, dt, dti):
+    def flux(self, RFe, PT, PE, E0, Zr_elev, VEGarea, HEADS, TopSoilLay, BotSoilLay, Tl, nsl, Sm, Sfc, Sr, Ks, Ss_max, Ss_ratio, Su_ini, Rp_ini, Ss_ini, EXF, dtwt, st, i, j, n, kTu_min, kTu_n, facETg, dt, dti):
 
         def surfwater(s_tmp,Sm,Ss_max, E0, i, j, n, dt):
             '''
@@ -318,7 +318,7 @@ class UNSAT:
                   nsl, st, Sm, Sfc, Sr, Su_ini, Ss_ini, Rp_ini, botm_l0, TopSoilLay, BotSoilLay, Tl, Ks, Ss_max, Ss_ratio, HEADS, EXF,
                   RF, E0, PTveg, RFeveg, PEsoil, VEGarea, Zr,
                   nstp, perlen, dti, hdry,
-                  kTu_min, kTu_n, facEg):
+                  kTu_min, kTu_n, facETg):
 
         # Output initialisation
         Ttotal = len(RF)
@@ -421,14 +421,14 @@ class UNSAT:
                 Su_ini = Su_ini * Tl
 
             # fluxes
-            Es_tmp, Ss_tmp, Ro_tmp, Rp_tmp, Eu_tmp, Tu_tmp, Su_tmp, Su_pc_tmp, Eg_tmp, Tg_tmp, HEADS_tmp, dtwt_tmp, SAT_tmp, Rexf_tmp = self.flux(RFe_tot[t], PTveg[:,t], PE_tot[t], E0[t], Zr_elev, VEGarea, HEADS_tmp, TopSoilLay, BotSoilLay, Tl, nsl, Sm, Sfc, Sr, Ks, Ss_max, Ss_ratio, Su_ini, Rp_ini, Ss_ini, EXF[t], dtwt[t], st, i, j, n, kTu_min, kTu_n, dt, dti)
+            Es_tmp, Ss_tmp, Ro_tmp, Rp_tmp, Eu_tmp, Tu_tmp, Su_tmp, Su_pc_tmp, Eg_tmp, Tg_tmp, HEADS_tmp, dtwt_tmp, SAT_tmp, Rexf_tmp = self.flux(RFe_tot[t], PTveg[:,t], PE_tot[t], E0[t], Zr_elev, VEGarea, HEADS_tmp, TopSoilLay, BotSoilLay, Tl, nsl, Sm, Sfc, Sr, Ks, Ss_max, Ss_ratio, Su_ini, Rp_ini, Ss_ini, EXF[t], dtwt[t], st, i, j, n, kTu_min, kTu_n, facETg, dt, dti)
 
             # fill the output arrays
             Ss[t] = Ss_tmp
             Ro[t]   = Ro_tmp
             Es[t]   = Es_tmp
-            Eg[t]   = Eg_tmp*facEg
-            Tg[t]   = Tg_tmp
+            Eg[t]   = Eg_tmp/facETg
+            Tg[t]   = Tg_tmp/facETg
             HEADS_corr[t] = HEADS_tmp
             dtwt[t] = dtwt_tmp
             Su[t,:]    = Su_tmp[:]
