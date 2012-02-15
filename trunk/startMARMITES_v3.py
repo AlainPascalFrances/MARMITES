@@ -927,6 +927,8 @@ try:
         cbcmax_d = []
         cbcmin_d = []
         axefact = 1.05
+        facTim = 365
+        unit = 'year'  # 'day'
         if isinstance(cMF.h5_MF_fn, str):
             # TODO missing STOuz (however this is not very relevant since these fluxes should not be the bigger in magnitude)
             try:
@@ -943,8 +945,8 @@ try:
                     DRNmin = 0.0
                 # STO
                 cbc_STO = h5_MF['STO_d']
-                cbcmax_d.append(np.ma.max(cbc_STO))
-                cbcmin_d.append(np.ma.min(cbc_STO))
+                cbcmax_d.append(-1*np.ma.max(cbc_STO))
+                cbcmin_d.append(-1*np.ma.min(cbc_STO))
                 del cbc_STO
                 # RCH
                 cbc_RCH = h5_MF['RCH_d']
@@ -1044,7 +1046,7 @@ try:
                     flx_tmp = np.ma.masked_values(h5_MM['MM'][:,:,:,index.get(i)], cMF.hnoflo, atol = 0.09)
                     flxmax_d.append(np.ma.max(flx_tmp))
                     flxmin_d.append(np.ma.min(flx_tmp))
-                    flxlst.append(flx_tmp.sum()/sum(cMF.perlen)/sum(ncell_MM))
+                    flxlst.append(facTim*flx_tmp.sum()/sum(cMF.perlen)/sum(ncell_MM))
                 for i in flxlbl1:
                     tmp = 0.0
                     flxlbl.append(i)
@@ -1054,7 +1056,7 @@ try:
                         flxmax_d.append(np.ma.max(flx_tmp))
                         flxmin_d.append(np.ma.min(flx_tmp))
                         tmp += flx_tmp.sum()
-                    flxlst.append(tmp/sum(cMF.perlen)/sum(ncell_MM))
+                    flxlst.append(facTim*tmp/sum(cMF.perlen)/sum(ncell_MM))
                     del tmp
                 for i in flxlbl2:
                     flxlbl.append(i)
@@ -1062,7 +1064,7 @@ try:
                     flx_tmp = np.ma.masked_values(h5_MM['MM'][:,:,:,index.get(i)], cMF.hnoflo, atol = 0.09)
                     flxmax_d.append(np.ma.max(flx_tmp))
                     flxmin_d.append(np.ma.min(flx_tmp))
-                    flxlst.append(flx_tmp.sum()/sum(cMF.perlen)/sum(ncell_MM))
+                    flxlst.append(facTim*flx_tmp.sum()/sum(cMF.perlen)/sum(ncell_MM))
                 for i in flxlbl3:
                     flxlbl.append(i)
                     i = 'i'+i
@@ -1071,7 +1073,7 @@ try:
                         flxmax_d.append(np.ma.max(flx_tmp))
                         Tg_min = np.ma.min(flx_tmp)
                         flxmin_d.append(Tg_min)
-                        flxlst.append(flx_tmp.sum()/sum(cMF.perlen)/sum(ncell_MM))
+                        flxlst.append(facTim*flx_tmp.sum()/sum(cMF.perlen)/sum(ncell_MM))
                         if Tg_min < 0.0:
                             print '\nTg negative (%.2f) observed at:' % Tg_min
                             for row in range(cMF.nrow):
@@ -1095,7 +1097,7 @@ try:
                     flx_tmp = np.ma.masked_values(h5_MM['MM'][:,:,:,index.get(i)], cMF.hnoflo, atol = 0.09)
                     flxmax_d.append(np.ma.max(flx_tmp))
                     flxmin_d.append(np.ma.min(flx_tmp))
-                    flxlst.append(flx_tmp.sum()/sum(cMF.perlen)/sum(ncell_MM))
+                    flxlst.append(facTim*flx_tmp.sum()/sum(cMF.perlen)/sum(ncell_MM))
                 for i in flxlbl4:
                     flxlbl.append(i)
                     i = 'i'+i
@@ -1103,7 +1105,7 @@ try:
                     flxmax_d.append(np.ma.max(flx_tmp))
                     flxmin_d.append(np.ma.min(flx_tmp))
                     inf = conv_fact*flx_tmp.sum()/sum(cMF.perlen)/sum(ncell_MM)
-                    flxlst.append(inf)
+                    flxlst.append(facTim*inf)
                 del flx_tmp
                 h5_MM.close()
                 flxmax_d = float(np.ceil(np.ma.max(flxmax_d)))
@@ -1123,7 +1125,7 @@ try:
                     cbc_RCH = h5_MF['RCH_d']
                     for l in range(cMF.nlay):
                         rch_tmp1 = cbc_RCH[:,:,:,l].sum()/sum(cMF.perlen)/sum(ncell_MM)
-                        flxlst_tmp.append(rch_tmp1)
+                        flxlst_tmp.append(facTim*rch_tmp1)
                         rch_tmp += rch_tmp1
                     flxlst.append(-rch_tmp + inf)
                     del rch_tmp, rch_tmp1, cbc_RCH, inf
@@ -1131,26 +1133,26 @@ try:
                         # GW_RCH
                         flxlst.append(flxlst_tmp[l])
                         cbc_STO = h5_MF['STO_d']
-                        flxlst.append(cbc_STO[:,:,:,l].sum()/sum(cMF.perlen)/sum(ncell_MM))
+                        flxlst.append(-1*facTim*(cbc_STO[:,:,:,l].sum()/sum(cMF.perlen)/sum(ncell_MM)))
                         del cbc_STO
                         if cMF.drn_yn == 1:
                             cbc_DRN = h5_MF['DRN_d']
                             if cMF.drncells[l]>0:
-                                flxlst.append(cbc_DRN[:,:,:,l].sum()/sum(cMF.perlen)/sum(ncell_MM))
+                                flxlst.append(facTim*(cbc_DRN[:,:,:,l].sum()/sum(cMF.perlen)/sum(ncell_MM)))
                             else:
                                 flxlst.append(0.0)
                             del cbc_DRN
                         if cMF.wel_yn == 1:
                             cbc_WEL = h5_MF['WEL_d']
                             if ncell_MM[l]>0:
-                                flxlst.append(cbc_WEL[:,:,:,l].sum()/sum(cMF.perlen)/sum(ncell_MM))
+                                flxlst.append(facTim*(cbc_WEL[:,:,:,l].sum()/sum(cMF.perlen)/sum(ncell_MM)))
                             else:
                                 flxlst.append(0.0)
                             del cbc_WEL
                         if cMF.ghb_yn == 1:
                             cbc_GHB = h5_MF['GHB_d']
                             if cMF.ghbcells[l] > 0:
-                                flxlst.append(cbc_GHB[:,:,:,l].sum()/sum(cMF.perlen)/sum(ncell_MM))
+                                flxlst.append(facTim*(cbc_GHB[:,:,:,l].sum()/sum(cMF.perlen)/sum(ncell_MM)))
                             else:
                                 flxlst.append(0.0)
                             del cbc_GHB
@@ -1173,7 +1175,7 @@ try:
                     MB_tmp = cMF.hnoflo
                     plt_title = 'MARMITES water flux balance for the whole catchment' #\nsum of fluxes: %.4f' % MB_tmp
                 colors_flx = CreateColors.main(hi=0, hf=180, numbcolors = len(flxlbl))
-                MMplot.plotGWbudget(flxlst = flxlst, flxlbl = flxlbl, colors_flx = colors_flx, plt_export_fn = plt_export_fn, plt_title = plt_title, fluxmax = flxmax, fluxmin = flxmin)
+                MMplot.plotGWbudget(flxlst = flxlst, flxlbl = flxlbl, colors_flx = colors_flx, plt_export_fn = plt_export_fn, plt_title = plt_title, fluxmax = flxmax, fluxmin = flxmin, unit = unit)
                 del flxlst
             # no MM, plot only MF balance if MF exists
             elif plt_out_obs == 1 and isinstance(cMF.h5_MF_fn, str):
@@ -1183,29 +1185,29 @@ try:
                 for l in range(cMF.nlay):
                     h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
                     cbc_RCH = h5_MF['RCH_d']
-                    flxlst.append(cbc_RCH[:,:,:,l].sum()/sum(cMF.perlen)/sum(ncell_MM))
+                    flxlst.append(facTim*(cbc_RCH[:,:,:,l].sum()/sum(cMF.perlen)/sum(ncell_MM)))
                     del cbc_RCH
                     cbc_STO = h5_MF['STO_d']
-                    flxlst.append(cbc_STO[:,:,:,l].sum()/sum(cMF.perlen)/sum(ncell_MM))
+                    flxlst.append(-1*facTim*(cbc_STO[:,:,:,l].sum()/sum(cMF.perlen)/sum(ncell_MM)))
                     del cbc_STO
                     if cMF.drn_yn == 1:
                         cbc_DRN = h5_MF['DRN_d']
                         if cMF.drncells[l]>0:
-                            flxlst.append(cbc_DRN[:,:,:,l].sum()/sum(cMF.perlen)/sum(ncell_MM))
+                            flxlst.append(facTim*(cbc_DRN[:,:,:,l].sum()/sum(cMF.perlen)/sum(ncell_MM)))
                         else:
                             flxlst.append(0.0)
                         del cbc_DRN
                     if cMF.wel_yn == 1:
                         cbc_WEL = h5_MF['WEL_d']
                         if ncell_MM[l]>0:
-                            flxlst.append(cbc_WEL[:,:,:,l].sum()/sum(cMF.perlen)/sum(ncell_MM))
+                            flxlst.append(facTim*(cbc_WEL[:,:,:,l].sum()/sum(cMF.perlen)/sum(ncell_MM)))
                         else:
                             flxlst.append(0.0)
                         del cbc_WEL
                     if cMF.ghb_yn == 1:
                         cbc_GHB = h5_MF['GHB_d']
                         if cMF.ghbcells > 0:
-                            flxlst.append(cbc_GHB[:,:,:,l].sum()/sum(cMF.perlen)/sum(ncell_MM))
+                            flxlst.append(facTim*(cbc_GHB[:,:,:,l].sum()/sum(cMF.perlen)/sum(ncell_MM)))
                         else:
                             flxlst.append(0.0)
                         del cbc_GHB
@@ -1219,7 +1221,7 @@ try:
                 MB_tmp = cMF.hnoflo
                 # TODO cbcmax and cbcmin represent the max and min of the whole MF fluxes time series, not the max and min of the fluxes average
                 plt_title = 'MODFLOW water flux balance for the whole catchment'#\nsum of fluxes: %.4f' % MB_tmp
-                MMplot.plotGWbudget(flxlst = flxlst, flxlbl = flxlbl, colors_flx = colors_flx, plt_export_fn = plt_export_fn, plt_title = plt_title, fluxmax = cbcmax_d, fluxmin = cbcmin_d)
+                MMplot.plotGWbudget(flxlst = flxlst, flxlbl = flxlbl, colors_flx = colors_flx, plt_export_fn = plt_export_fn, plt_title = plt_title, fluxmax = cbcmax_d, fluxmin = cbcmin_d, unit = unit)
                 del flxlst
 
         # exporting MM time series results to ASCII files and plots at observations cells
@@ -1319,20 +1321,22 @@ try:
                     # flxlbl1 = ['Eu', 'Tu']
                     # flxlbl1a = ['Rp','Rexf']
                     # flxlbl2 = ['ETu', 'Eg', 'Tg', 'ETg']
-                    flxlst.append([MM[:,index.get('iRF')].sum()/sum(cMF.perlen),
-                        -MM[:,index.get('iI')].sum()/sum(cMF.perlen),
-                         MM[:,index.get('iEXF')].sum()/sum(cMF.perlen),
-                         MM[:,index.get('idSs')].sum()/sum(cMF.perlen),
-                        -MM[:,index.get('iRo')].sum()/sum(cMF.perlen),
-                        -MM[:,index.get('iEs')].sum()/sum(cMF.perlen),
-                         MM[:,index.get('idSu')].sum()/sum(cMF.perlen),
-                        -MM_S[:,:,index_S.get('iEu')].sum()/sum(cMF.perlen),
-                        -MM_S[:,:,index_S.get('iTu')].sum()/sum(cMF.perlen),
-                        -MM[:,index.get('iETu')].sum()/sum(cMF.perlen),
-                        -MM[:,index.get('iEg')].sum()/sum(cMF.perlen),
-                        -MM[:,index.get('iTg')].sum()/sum(cMF.perlen),
-                        -MM[:,index.get('iETg')].sum()/sum(cMF.perlen),
-                        -conv_fact*(cMF.perlen*h5_MM['finf'][:,i,j]).sum()/sum(cMF.perlen)])
+                    flxlst.append([
+                         facTim*(MM[:,index.get('iRF')].sum()/sum(cMF.perlen)),
+                        -1*facTim*(MM[:,index.get('iI')].sum()/sum(cMF.perlen)),
+                         facTim*(MM[:,index.get('iEXF')].sum()/sum(cMF.perlen)),
+                         facTim*(MM[:,index.get('idSs')].sum()/sum(cMF.perlen)),
+                         -1*facTim*(MM[:,index.get('iRo')].sum()/sum(cMF.perlen)),
+                        -1*facTim*(MM[:,index.get('iEs')].sum()/sum(cMF.perlen)),
+                         facTim*(MM[:,index.get('idSu')].sum()/sum(cMF.perlen)),
+                        -1*facTim*(MM_S[:,:,index_S.get('iEu')].sum()/sum(cMF.perlen)),
+                        -1*facTim*(MM_S[:,:,index_S.get('iTu')].sum()/sum(cMF.perlen)),
+                        -1*facTim*(MM[:,index.get('iETu')].sum()/sum(cMF.perlen)),
+                        -1*facTim*(MM[:,index.get('iEg')].sum()/sum(cMF.perlen)),
+                        -1*facTim*(MM[:,index.get('iTg')].sum()/sum(cMF.perlen)),
+                        -1*facTim*(MM[:,index.get('iETg')].sum()/sum(cMF.perlen)),
+                        -1*facTim*conv_fact*((cMF.perlen*h5_MM['finf'][:,i,j]).sum()/sum(cMF.perlen))
+                        ])
                     #MB_tmp = sum(flxlst) - (flxlst[11] + flxlst[13])
                     MB_tmp = cMF.hnoflo
                     if plt_out_obs == 1 and isinstance(cMF.h5_MF_fn, str):
@@ -1343,27 +1347,27 @@ try:
                         for l in range(cMF.nlay):
                             rch_tmp1 = cbc_RCH[:,i,j,l].sum()/sum(cMF.perlen)
                             flxlst_tmp.append(rch_tmp1)
-                            rch_tmp += rch_tmp1
-                        flxlst[-1].append(-rch_tmp + conv_fact*(cMF.perlen*h5_MM['finf'][:,i,j]).sum()/sum(cMF.perlen))
+                            rch_tmp += facTim*rch_tmp1
+                        flxlst[-1].append(-rch_tmp + facTim*conv_fact*((cMF.perlen*h5_MM['finf'][:,i,j]).sum()/sum(cMF.perlen)))
                         del rch_tmp, rch_tmp1, cbc_RCH
                         for l in range(cMF.nlay):
                             # GW_RCH
                             flxlst[-1].append(flxlst_tmp[l])
                             h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
                             cbc_STO = h5_MF['STO_d']
-                            flxlst[-1].append(cbc_STO[:,i,j,l].sum()/sum(cMF.perlen))
+                            flxlst[-1].append(-1*facTim*(cbc_STO[:,i,j,l].sum()/sum(cMF.perlen)))
                             del cbc_STO
                             if cMF.drn_yn == 1:
                                 cbc_DRN = h5_MF['DRN_d']
-                                flxlst[-1].append(cbc_DRN[:,i,j,l].sum()/sum(cMF.perlen))
+                                flxlst[-1].append(facTim*(cbc_DRN[:,i,j,l].sum()/sum(cMF.perlen)))
                                 del cbc_DRN
                             if cMF.wel_yn == 1:
                                 cbc_WEL = h5_MF['WEL_d']
-                                flxlst[-1].append(cbc_WEL[:,i,j,l].sum()/sum(cMF.perlen))
+                                flxlst[-1].append(facTim*(cbc_WEL[:,i,j,l].sum()/sum(cMF.perlen)))
                                 del cbc_WEL
                             if cMF.ghb_yn == 1:
                                 cbc_GHB = h5_MF['GHB_d']
-                                flxlst[-1].append(cbc_GHB[:,i,j,l].sum()/sum(cMF.perlen))
+                                flxlst[-1].append(facTim*(cbc_GHB[:,i,j,l].sum()/sum(cMF.perlen)))
                                 del cbc_GHB
                         #MB_tmp -= flxlst[16] + flxlst[17] + flxlst[19] + flxlst[20]
                         MB_tmp = cMF.hnoflo
@@ -1373,7 +1377,7 @@ try:
             flxmax = axefact*float(np.ceil(np.asarray(flxlst).max()))
             flxmin = axefact*float(np.floor(np.asarray(flxlst).min()))
             for l, (lst, fn, title) in enumerate(zip(flxlst,plt_exportBAL_fn, plt_titleBAL)):
-                MMplot.plotGWbudget(flxlst = lst, flxlbl = flxlbl, colors_flx = colors_flx, plt_export_fn = fn, plt_title = title, fluxmax = flxmax, fluxmin = flxmin) # + '\nsum of fluxes: %.4f' % MB_tmp
+                MMplot.plotGWbudget(flxlst = lst, flxlbl = flxlbl, colors_flx = colors_flx, plt_export_fn = fn, plt_title = title, fluxmax = flxmax, fluxmin = flxmin, unit = unit) # + '\nsum of fluxes: %.4f' % MB_tmp
             del flxlst
             del h_satflow, MM, MM_S
             h5_MM.close()

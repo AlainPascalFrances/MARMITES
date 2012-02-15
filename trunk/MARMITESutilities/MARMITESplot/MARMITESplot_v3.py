@@ -461,12 +461,12 @@ def plotLAYER(SP, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_
 
 ##################
 
-def plotGWbudget(flxlst, flxlbl, colors_flx, plt_export_fn, plt_title, fluxmax, fluxmin):
+def plotGWbudget(flxlst, flxlbl, colors_flx, plt_export_fn, plt_title, fluxmax, fluxmin, unit = 'na'):
     """
     Plot GW budget
     """
 
-    def autolabel(rects):
+    def autolabel(rects, unit):
     # attach some text labels
         for rect in rects:
             y = rect.get_y()
@@ -478,8 +478,12 @@ def plotGWbudget(flxlst, flxlbl, colors_flx, plt_export_fn, plt_title, fluxmax, 
                 ytext = -height - 0.1
                 height = - height
                 va = 'top'
-            ax1.text(rect.get_x()+rect.get_width()/2., ytext, '%.2f'%float(height),
-                    ha='center', va=va)
+            if unit == 'year':
+                ax1.text(rect.get_x()+rect.get_width()/2., ytext, '%.1f'% float(height), ha='center', va=va)
+            elif unit == 'day':
+                ax1.text(rect.get_x()+rect.get_width()/2., ytext, '%G' %float(height), ha='center', va=va)
+            else:
+                ax1.text(rect.get_x()+rect.get_width()/2., ytext, '%G'%float(height), ha='center', va=va)
     ##################
 
     fig = plt.figure(num=None, figsize=(2*11.7, 2*8.27), dpi=30)
@@ -492,15 +496,20 @@ def plotGWbudget(flxlst, flxlbl, colors_flx, plt_export_fn, plt_title, fluxmax, 
     width = 0.8
     rects = plt.bar(x , flxlst, color=colors_flx, linewidth=0.5, width=width, align = 'edge', label=flxlbl)
     # y axis
-    plt.ylabel('mm/d', fontsize=10)
+    if unit == 'day':
+        plt.ylabel('mm/d', fontsize=10)
+    elif unit == 'year':
+        plt.ylabel('mm/y', fontsize=10)
+    else:
+        plt.ylabel('mm/?', fontsize=10)
     plt.grid(True)
     # fmt xaxis
-    ax1.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%1.2f'))
+    ax1.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%1.4f'))
     ax1.set_xticks(x+width/2)
     ax1.set_xticklabels(flxlbl)
     labels=ax1.get_xticklabels()
     plt.setp(labels, 'rotation', 90)
-    autolabel(rects)
+    autolabel(rects, unit)
     plt.xlim(0,len(flxlst))
     plt.ylim(fluxmin, fluxmax)
     ax1.axhline(0, color='black', lw=1)
