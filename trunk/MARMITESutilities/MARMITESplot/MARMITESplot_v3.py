@@ -498,13 +498,15 @@ def plotGWbudget(flxlst, flxlbl, colors_flx, plt_export_fn, plt_title, fluxmax, 
     # y axis
     if unit == 'day':
         plt.ylabel('mm/d', fontsize=10)
+        UnitFmt = '%1.4f'
     elif unit == 'year':
         plt.ylabel('mm/y', fontsize=10)
+        UnitFmt = '%1.1f'
     else:
         plt.ylabel('mm/?', fontsize=10)
     plt.grid(True)
     # fmt xaxis
-    ax1.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%1.4f'))
+    ax1.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter(UnitFmt))
     ax1.set_xticks(x+width/2)
     ax1.set_xticklabels(flxlbl)
     labels=ax1.get_xticklabels()

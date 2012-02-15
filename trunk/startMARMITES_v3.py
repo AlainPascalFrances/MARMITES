@@ -42,7 +42,7 @@ print '\n##############\nMARMITES started!\n%s\n##############' % mpl.dates.num2
 # the file can contain any comments as the user wish, but the sequence of the input has to be respected
 # 00_TESTS\MARMITESv3_r13c6l2'  00_TESTS\r40c20'  00_TESTS\r20c40'
 # SARDON'  CARRIZAL' LAMATA'
-MM_ws = r'E:\00code_ws\00_TESTS\r40c20'
+MM_ws = r'E:\00code_ws\00_TESTS\MARMITESv3_r13c6l2'
 MM_fn = '__inputMM.ini'
 
 inputFile = MMproc.readFile(MM_ws,MM_fn)
@@ -77,6 +77,8 @@ try:
     # read observations?
     l += 1
     plt_out_obs = int(inputFile[l].strip())
+    l += 1
+    plt_WB_unit = inputFile[l].strip()
     l += 1
     #run MARMITESsurface  (1 is YES, 0 is NO)
     MMsurf_yn = int(inputFile[l].strip())
@@ -511,15 +513,16 @@ try:
                 h_MF = h5_MF['heads4MM'][:,:,:]
                 h_MF_mem = 'fast'
             except:
-                print '\nRAM memory not sufficient for heads array -> slow computing.'
+                print '\nRAM memory too small compared to the size of the heads array -> slow computing.'
             if cMF.uzf_yn == 1:
                 exf_MF = None
                 exf_MF_mem = 'slow'
                 try:
-                    exf_MF = h5_MF['exf4MM'][:,:,:]/conv_fact
+                    # TODO this below assume that there is no grid refinement
+                    exf_MF = h5_MF['exf4MM'][:,:,:]*conv_fact/(cMF.delr[0]*cMF.delc[0])
                     exf_MF_mem = 'fast'
                 except:
-                    print '\nRAM memory not sufficient for exfiltration array -> slow computing.'
+                    print '\nRAM memory too small compared to the size of the exfiltration array -> slow computing.'
             for n in range(cMF.nper):
                 tstart_MM = 0
                 for t in range(n):
@@ -535,7 +538,7 @@ try:
                     h_MF       = h5_MF['heads4MM'][tstart_MF:tend_MF,:,:]
                 if cMF.uzf_yn == 1:
                     if exf_MF == None:
-                        exf_MF = h5_MF['exf4MM'][tstart_MF:tend_MF,:,:]/conv_fact
+                        exf_MF = h5_MF['exf4MM'][tstart_MF:tend_MF,:,:]*conv_fact/(cMF.delr[j]*cMF.delc[i])
                 # loop into the grid
                 for i in range(cMF.nrow):
                     for j in range(cMF.ncol):
@@ -928,7 +931,6 @@ try:
         cbcmin_d = []
         axefact = 1.05
         facTim = 365
-        unit = 'year'  # 'day'
         if isinstance(cMF.h5_MF_fn, str):
             # TODO missing STOuz (however this is not very relevant since these fluxes should not be the bigger in magnitude)
             try:
@@ -1046,7 +1048,7 @@ try:
                     flx_tmp = np.ma.masked_values(h5_MM['MM'][:,:,:,index.get(i)], cMF.hnoflo, atol = 0.09)
                     flxmax_d.append(np.ma.max(flx_tmp))
                     flxmin_d.append(np.ma.min(flx_tmp))
-                    flxlst.append(facTim*flx_tmp.sum()/sum(cMF.perlen)/sum(ncell_MM))
+                    flxlst.append(facTim*(flx_tmp.sum())/sum(cMF.perlen)/sum(ncell_MM))
                 for i in flxlbl1:
                     tmp = 0.0
                     flxlbl.append(i)
@@ -1064,7 +1066,7 @@ try:
                     flx_tmp = np.ma.masked_values(h5_MM['MM'][:,:,:,index.get(i)], cMF.hnoflo, atol = 0.09)
                     flxmax_d.append(np.ma.max(flx_tmp))
                     flxmin_d.append(np.ma.min(flx_tmp))
-                    flxlst.append(facTim*flx_tmp.sum()/sum(cMF.perlen)/sum(ncell_MM))
+                    flxlst.append(facTim*(flx_tmp.sum())/sum(cMF.perlen)/sum(ncell_MM))
                 for i in flxlbl3:
                     flxlbl.append(i)
                     i = 'i'+i
@@ -1073,7 +1075,7 @@ try:
                         flxmax_d.append(np.ma.max(flx_tmp))
                         Tg_min = np.ma.min(flx_tmp)
                         flxmin_d.append(Tg_min)
-                        flxlst.append(facTim*flx_tmp.sum()/sum(cMF.perlen)/sum(ncell_MM))
+                        flxlst.append(facTim*(flx_tmp.sum())/sum(cMF.perlen)/sum(ncell_MM))
                         if Tg_min < 0.0:
                             print '\nTg negative (%.2f) observed at:' % Tg_min
                             for row in range(cMF.nrow):
@@ -1102,10 +1104,10 @@ try:
                     flxlbl.append(i)
                     i = 'i'+i
                     flx_tmp = np.ma.masked_values(h5_MM['finf'][:,:,:], cMF.hnoflo, atol = 0.09)
-                    flxmax_d.append(np.ma.max(flx_tmp))
-                    flxmin_d.append(np.ma.min(flx_tmp))
-                    inf = conv_fact*flx_tmp.sum()/sum(cMF.perlen)/sum(ncell_MM)
-                    flxlst.append(facTim*inf)
+                    flxmax_d.append(conv_fact*np.ma.max(flx_tmp))
+                    flxmin_d.append(conv_fact*np.ma.min(flx_tmp))
+                    inf = facTim*conv_fact*(flx_tmp.sum())/sum(cMF.perlen)/sum(ncell_MM)
+                    flxlst.append(inf)
                 del flx_tmp
                 h5_MM.close()
                 flxmax_d = float(np.ceil(np.ma.max(flxmax_d)))
@@ -1124,8 +1126,8 @@ try:
                     h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
                     cbc_RCH = h5_MF['RCH_d']
                     for l in range(cMF.nlay):
-                        rch_tmp1 = cbc_RCH[:,:,:,l].sum()/sum(cMF.perlen)/sum(ncell_MM)
-                        flxlst_tmp.append(facTim*rch_tmp1)
+                        rch_tmp1 = facTim*(cbc_RCH[:,:,:,l].sum())/sum(cMF.perlen)/sum(ncell_MM)
+                        flxlst_tmp.append(rch_tmp1)
                         rch_tmp += rch_tmp1
                     flxlst.append(-rch_tmp + inf)
                     del rch_tmp, rch_tmp1, cbc_RCH, inf
@@ -1175,7 +1177,7 @@ try:
                     MB_tmp = cMF.hnoflo
                     plt_title = 'MARMITES water flux balance for the whole catchment' #\nsum of fluxes: %.4f' % MB_tmp
                 colors_flx = CreateColors.main(hi=0, hf=180, numbcolors = len(flxlbl))
-                MMplot.plotGWbudget(flxlst = flxlst, flxlbl = flxlbl, colors_flx = colors_flx, plt_export_fn = plt_export_fn, plt_title = plt_title, fluxmax = flxmax, fluxmin = flxmin, unit = unit)
+                MMplot.plotGWbudget(flxlst = flxlst, flxlbl = flxlbl, colors_flx = colors_flx, plt_export_fn = plt_export_fn, plt_title = plt_title, fluxmax = flxmax, fluxmin = flxmin, unit = plt_WB_unit)
                 del flxlst
             # no MM, plot only MF balance if MF exists
             elif plt_out_obs == 1 and isinstance(cMF.h5_MF_fn, str):
@@ -1221,7 +1223,7 @@ try:
                 MB_tmp = cMF.hnoflo
                 # TODO cbcmax and cbcmin represent the max and min of the whole MF fluxes time series, not the max and min of the fluxes average
                 plt_title = 'MODFLOW water flux balance for the whole catchment'#\nsum of fluxes: %.4f' % MB_tmp
-                MMplot.plotGWbudget(flxlst = flxlst, flxlbl = flxlbl, colors_flx = colors_flx, plt_export_fn = plt_export_fn, plt_title = plt_title, fluxmax = cbcmax_d, fluxmin = cbcmin_d, unit = unit)
+                MMplot.plotGWbudget(flxlst = flxlst, flxlbl = flxlbl, colors_flx = colors_flx, plt_export_fn = plt_export_fn, plt_title = plt_title, fluxmax = cbcmax_d, fluxmin = cbcmin_d, unit = plt_WB_unit)
                 del flxlst
 
         # exporting MM time series results to ASCII files and plots at observations cells
@@ -1345,9 +1347,9 @@ try:
                         rch_tmp = 0
                         flxlst_tmp = []
                         for l in range(cMF.nlay):
-                            rch_tmp1 = cbc_RCH[:,i,j,l].sum()/sum(cMF.perlen)
+                            rch_tmp1 = facTim*(cbc_RCH[:,i,j,l].sum()/sum(cMF.perlen))
                             flxlst_tmp.append(rch_tmp1)
-                            rch_tmp += facTim*rch_tmp1
+                            rch_tmp += rch_tmp1
                         flxlst[-1].append(-rch_tmp + facTim*conv_fact*((cMF.perlen*h5_MM['finf'][:,i,j]).sum()/sum(cMF.perlen)))
                         del rch_tmp, rch_tmp1, cbc_RCH
                         for l in range(cMF.nlay):
@@ -1377,7 +1379,7 @@ try:
             flxmax = axefact*float(np.ceil(np.asarray(flxlst).max()))
             flxmin = axefact*float(np.floor(np.asarray(flxlst).min()))
             for l, (lst, fn, title) in enumerate(zip(flxlst,plt_exportBAL_fn, plt_titleBAL)):
-                MMplot.plotGWbudget(flxlst = lst, flxlbl = flxlbl, colors_flx = colors_flx, plt_export_fn = fn, plt_title = title, fluxmax = flxmax, fluxmin = flxmin, unit = unit) # + '\nsum of fluxes: %.4f' % MB_tmp
+                MMplot.plotGWbudget(flxlst = lst, flxlbl = flxlbl, colors_flx = colors_flx, plt_export_fn = fn, plt_title = title, fluxmax = flxmax, fluxmin = flxmin, unit = plt_WB_unit) # + '\nsum of fluxes: %.4f' % MB_tmp
             del flxlst
             del h_satflow, MM, MM_S
             h5_MM.close()
