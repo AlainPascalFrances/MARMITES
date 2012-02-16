@@ -30,7 +30,7 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S,
     ______________________________________________________________________________
     """
 
-    monthsFmt=mpl.dates.DateFormatter('%yyyy-%m-%d')
+    monthsFmt=mpl.dates.DateFormatter('%Y-%m-%d')
     lblspc = 0.05
     mkscale = 0.5
 
