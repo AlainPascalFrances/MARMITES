@@ -1132,7 +1132,7 @@ try:
                         rch_tmp1 = facTim*(cbc_RCH[:,:,:,l].sum())/sum(cMF.perlen)/sum(ncell_MM)
                         flxlst_tmp.append(rch_tmp1)
                         rch_tmp += rch_tmp1
-                    flxlst.append(-rch_tmp + inf)
+                    flxlst.append(rch_tmp - inf)
                     del rch_tmp, rch_tmp1, cbc_RCH, inf
                     InUZF = -flxlst[13] + flxlst[14]
                     OutUZF = 0
