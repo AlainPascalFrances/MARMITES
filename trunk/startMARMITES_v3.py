@@ -1110,7 +1110,7 @@ try:
                     flxlst.append(inf)
                 InMM = flxlst[0] + flxlst[2] + flxlst[3] + flxlst[6]
                 OutMM = flxlst[1] + flxlst[4] + flxlst[5] + flxlst[9] + flxlst[13]
-                MB_MM = 100*(InMM - OutMM)/(InMM+OutMM)/2
+                MB_MM = 100*(InMM - OutMM)/((InMM+OutMM)/2)
                 del flx_tmp
                 h5_MM.close()
                 flxmax_d = float(np.ceil(np.ma.max(flxmax_d)))
@@ -1141,8 +1141,8 @@ try:
                     for l in range(cMF.nlay):
                         # GW_RCH
                         flxlst.append(flxlst_tmp[l])
-                        OutUZF += flxlst[-1]
-                        InMF += flxlst[-1]
+                        OutUZF += flxlst_tmp[l]
+                        InMF += flxlst_tmp[l]
                         # GW_STO
                         cbc_STO = h5_MF['STO_d']
                         flxlst.append(facTim*(cbc_STO[:,:,:,l].sum()/sum(cMF.perlen)/sum(ncell_MM)))  # -1*
@@ -1182,8 +1182,8 @@ try:
                     flxmin = axefact*min(flxmin, flxmin1)
                     del flxlst_tmp, flxmax1, flxmin1
                     h5_MF.close()
-                    MB_UZF = 100.0*(InUZF - OutUZF)/(InUZF+OutUZF)/2.0
-                    MB_MF = 100.0*(InMF - OutMF)/(InMF+OutMF)/2.0
+                    MB_UZF = 100.0*(InUZF - OutUZF)/((InUZF+OutUZF)/2.0)
+                    MB_MF = 100.0*(InMF - OutMF)/((InMF+OutMF)/2.0)
                     plt_title = 'MARMITES and MODFLOW water flux balance for the whole catchment\nMass balance error: MM = %1.2f%%, UZF = %1.2f%%, MF = %1.2f%%' % (MB_MM, MB_UZF, MB_MF)
                 else:
                     plt_export_fn = os.path.join(MM_ws, '_plt_0UNSATbalance.png')
