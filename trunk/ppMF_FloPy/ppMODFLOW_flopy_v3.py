@@ -465,7 +465,7 @@ class MF():
                                 )
 
         # 1 - reaf asc file and convert in np.array
-        print "\nImporting ESRI ASCII files to initialize the MODFLOW packages"
+        print "\nImporting ESRI ASCII files to initialize the MODFLOW packages..."
 
         self.top     = self.MM_PROCESS.checkarray(self.top)
         self.botm    = self.MM_PROCESS.checkarray(self.botm)
@@ -526,7 +526,7 @@ class MF():
 
         #####################################
 
-        print'\nComputing MODFLOW time discretization based on rainfall analysis in each METEO zone.'
+        print'\nComputing MODFLOW time discretization based on rainfall analysis in each METEO zone...'
         inputFile = MMproc.readFile(MM_ws, inputDate_fn)
         d = []
         for l in inputFile:
@@ -772,7 +772,6 @@ class MF():
                 rch_input = self.rch_user
 
         # 1 - reaf asc file and convert in np.array
-        print "\nImporting ESRI ASCII files to initialize the MODFLOW packages"
 
         strt    = self.MM_PROCESS.checkarray(self.strt)
         hk      = self.MM_PROCESS.checkarray(self.hk)

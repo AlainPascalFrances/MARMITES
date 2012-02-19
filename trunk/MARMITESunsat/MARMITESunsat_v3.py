@@ -388,7 +388,6 @@ class UNSAT:
 
         # PROCESSING THE WHOLE DATA SET
         for t in range(int(nstp)):    # t: current time step
-
             # Preprocessing of PT/PE/INTER and RFe
             # for different vegetation
             SOILarea = 100
@@ -400,14 +399,11 @@ class UNSAT:
             RFe_tot[t]   += RF[t]*SOILarea*0.01
             INTER_tot[t]  = RF[t] - RFe_tot[t]
             PE_tot[t]     = PEsoil[t]*SOILarea*0.01
-
             # handle drycell
             if HEADS[t] > (hdry-1E3):
                 HEADS_tmp = botm_l0*1000.0
             else:
                 HEADS_tmp = HEADS[t]*1000.0
-
-
             # dtwt and uzthick
             uzthick[t] = BotSoilLay[nsl-1] - HEADS_tmp
             if EXF[t] <= 0.0:  #BotSoilLay[nsl-1] > HEADS_tmp:
@@ -415,14 +411,11 @@ class UNSAT:
             elif EXF[t] > 0.0:
                 dtwt[t] = sum(Tl)
                 HEADS_tmp = BotSoilLay[nsl-1]
-
             # for the first SP, S_ini is expressed in % and has to be converted in mm
             if n == 0 and t == 0:
                 Su_ini = Su_ini * Tl
-
             # fluxes
             Es_tmp, Ss_tmp, Ro_tmp, Rp_tmp, Eu_tmp, Tu_tmp, Su_tmp, Su_pc_tmp, Eg_tmp, Tg_tmp, HEADS_tmp, dtwt_tmp, SAT_tmp, Rexf_tmp = self.flux(RFe_tot[t], PTveg[:,t], PE_tot[t], E0[t], Zr_elev, VEGarea, HEADS_tmp, TopSoilLay, BotSoilLay, Tl, nsl, Sm, Sfc, Sr, Ks, Ss_max, Ss_ratio, Su_ini, Rp_ini, Ss_ini, EXF[t], dtwt[t], st, i, j, n, kTu_min, kTu_n, dt, dti)
-
             # fill the output arrays
             Ss[t] = Ss_tmp
             Ro[t]   = Ro_tmp
@@ -457,7 +450,6 @@ class UNSAT:
                 dSu_tot[t] += dSu[t,l]
             dRp_tot = (Rp_in_MB - Rp_out_MB)/dt
             ETu_tot[t] = Eu_MB + Tu_MB
-
             # MASS BALANCE COMPUTING
             if nsl > 1:
                 # surficial soil layer
@@ -477,7 +469,6 @@ class UNSAT:
                 # last soil layer
             # total mass balance for the unsaturated zone
             MB[t] = RFe_tot[t] + dSs_MB + dSu_tot[t] + dRp_tot + EXF[t] - (Ro[t] + Es[t] + Eu_MB + Tu_MB)
-
             # export list
             # indexes of the HDF5 output arrays
             # index = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iEXF':6, 'iEs':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSs':13, 'iETg':14, 'iETu':15, 'idSu':16, 'iHEADScorr':17, 'idtwt':18, 'iuzthick':19}
@@ -485,15 +476,12 @@ class UNSAT:
             # index_S = {'iEu':0, 'iTu':1,'iSu_pc':2, 'iRp':3, 'iRexf':4, 'idSu':5, 'iSu':6, 'iSAT':7, 'iMB_l':8}
             for l in range(nsl):
                 results2[t,l,:] = [Eu[t,l], Tu[t,l], Su_pc[t,l], Rp[t,l], Rexf[t,l], dSu[t,l], Su[t,l], SAT[t,l], MB_l[t,l]]
-
             # initial values for next time step
             dti = dt*1.0
             Ss_ini = Ss[t]*1.0
             Su_ini = Su[t,:]*1.0
             Rp_ini = Rp[t,:]*1.0
-
         return results1, results2
-
         del RF, PT_tot, PE_tot, RFe_tot, Ss, Ro, EXF, Es, MB, INTER_tot, E0, Eg, Tg, dSs, ETg, ETu_tot, dSu_tot, HEADS, HEADS_corr, dtwt
         del Eu, Tu, Su_pc, Rp, dSu, Su
         del results1, results2

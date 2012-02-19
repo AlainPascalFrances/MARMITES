@@ -127,7 +127,7 @@ class PROCESS:
             nrow_tmp = int(line[1])
 
         # Process the file
-#        print "\nConverting %s to np.array..." % (filenameIN)
+#        print "\nConverting %s to np.array" % (filenameIN)
         for row in range(nrow_tmp):
         #   if (row % 100) == 0: print ".",
             for col in range(ncol_tmp):
