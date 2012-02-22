@@ -102,18 +102,18 @@ class UNSAT:
 
     def flux(self, RFe, PT, PE, E0, Zr_elev, VEGarea, HEADS, TopSoilLay, BotSoilLay, Tl, nsl, Sm, Sfc, Sr, Ks, Ss_max, Ss_ratio, Su_ini, Rp_ini, Ss_ini, EXF, dtwt, st, i, j, n, kTu_min, kTu_n, dt, dti):
 
-        def surfwater(s_tmp,Sm,Ss_max, E0, i, j, n, dt):
+        def surfwater(s_tmp, Sm, Ss_max, E0, i, j, n, dt):
             '''
             Ponding and surface runoff function
             '''
             if s_tmp > Sm:
                 Ss_tmp = s_tmp-Sm
-                if Ss_tmp > Ss_max or np.abs(Ss_tmp - Ss_max) < 1.0E-7:
-                    Ro_tmp = (Ss_tmp-Ss_max)/dt
+                if (Ss_tmp - Ss_max) > 1.0E-7:
+                    Ro_tmp = (Ss_tmp - Ss_max)/dt
                     Ss_tmp = Ss_max
                 else:
                     Ro_tmp = 0.0
-                if Ss_tmp > E0 or np.abs(Ss_tmp - E0) < 1.0E-7:
+                if (Ss_tmp - E0) > 1.0E-7:
                     Es_tmp = E0
                     Ss_tmp = Ss_tmp - E0*dt
                 else:
@@ -144,9 +144,6 @@ class UNSAT:
                     rp_tmp = (Sm-Sfc)/dt
                 else:
                     rp_tmp = Ks
-            # verify the vol. available in deeper soil layer
-#            if (rp_tmp*dt) > (Sm_sp1 - s_lp1):
-#                rp_tmp = (Sm_sp1 - s_lp1)/dt
             return rp_tmp
 
         ##################
@@ -338,6 +335,8 @@ class UNSAT:
         Ro = np.zeros([Ttotal], dtype = np.float)
         # Percolation
         Rp = np.zeros([Ttotal,nsl], dtype = np.float)
+        # Percolation into UZF
+        inf = np.zeros([Ttotal], dtype = np.float)
         # Exfiltration
         Rexf = np.zeros([Ttotal,nsl], dtype = np.float)
         #Soil moisture storage
@@ -375,7 +374,7 @@ class UNSAT:
         # GW evapotranspiration
         ETg = np.zeros([Ttotal], dtype = np.float)
         # output arrays
-        nflux1 = 20
+        nflux1 = 21
         nflux2 = 9
         results1 = np.zeros([Ttotal,nflux1])
         results2 = np.zeros([Ttotal,nsl,nflux2])
@@ -417,7 +416,7 @@ class UNSAT:
             # fluxes
             Es_tmp, Ss_tmp, Ro_tmp, Rp_tmp, Eu_tmp, Tu_tmp, Su_tmp, Su_pc_tmp, Eg_tmp, Tg_tmp, HEADS_tmp, dtwt_tmp, SAT_tmp, Rexf_tmp = self.flux(RFe_tot[t], PTveg[:,t], PE_tot[t], E0[t], Zr_elev, VEGarea, HEADS_tmp, TopSoilLay, BotSoilLay, Tl, nsl, Sm, Sfc, Sr, Ks, Ss_max, Ss_ratio, Su_ini, Rp_ini, Ss_ini, EXF[t], dtwt[t], st, i, j, n, kTu_min, kTu_n, dt, dti)
             # fill the output arrays
-            Ss[t] = Ss_tmp
+            Ss[t]   = Ss_tmp
             Ro[t]   = Ro_tmp
             Es[t]   = Es_tmp
             Eg[t]   = Eg_tmp*facEg
@@ -427,14 +426,14 @@ class UNSAT:
             Su[t,:]    = Su_tmp[:]
             Su_pc[t,:] = Su_pc_tmp[:]
             Rp[t,:]    = Rp_tmp[:]
+            inf[t]     = Rp_tmp[-1]
             Rexf[t,:]  = Rexf_tmp[:]
             Eu[t,:]    = Eu_tmp[:]
             Tu[t,:]    = Tu_tmp[:]
             SAT[t,:]   = SAT_tmp[:]
             ETg[t] = Eg[t] + Tg[t]
             dSs_MB = (Ss_ini - Ss[t])/dt
-            if (Ss[t] > Ss_ini):
-                dSs[t] = (Ss[t] - Ss_ini)/dt
+            dSs[t] = (Ss[t] - Ss_ini)/dt
             # compute the water mass balance (MB) in the unsaturated zone
             Rp_in_MB  = 0.0
             Rp_out_MB = 0.0
@@ -471,8 +470,8 @@ class UNSAT:
             MB[t] = RFe_tot[t] + dSs_MB + dSu_tot[t] + dRp_tot + EXF[t] - (Ro[t] + Es[t] + Eu_MB + Tu_MB)
             # export list
             # indexes of the HDF5 output arrays
-            # index = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iEXF':6, 'iEs':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSs':13, 'iETg':14, 'iETu':15, 'idSu':16, 'iHEADScorr':17, 'idtwt':18, 'iuzthick':19}
-            results1[t,:] = [RF[t], PT_tot[t], PE_tot[t], RFe_tot[t], Ss[t], Ro[t], EXF[t], Es[t], MB[t], INTER_tot[t], E0[t], Eg[t], Tg[t], dSs[t], ETg[t], ETu_tot[t], dSu_tot[t], HEADS_corr[t]*0.001, -dtwt[t]*0.001, uzthick[t]*0.001]
+            # index = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iEXF':6, 'iEs':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSs':13, 'iETg':14, 'iETu':15, 'idSu':16, 'iinf':17, 'iHEADScorr':18, 'idtwt':19, 'iuzthick':20}
+            results1[t,:] = [RF[t], PT_tot[t], PE_tot[t], RFe_tot[t], Ss[t], Ro[t], EXF[t], Es[t], MB[t], INTER_tot[t], E0[t], Eg[t], Tg[t], dSs[t], ETg[t], ETu_tot[t], dSu_tot[t], inf[t], HEADS_corr[t]*0.001, -dtwt[t]*0.001, uzthick[t]*0.001]
             # index_S = {'iEu':0, 'iTu':1,'iSu_pc':2, 'iRp':3, 'iRexf':4, 'idSu':5, 'iSu':6, 'iSAT':7, 'iMB_l':8}
             for l in range(nsl):
                 results2[t,l,:] = [Eu[t,l], Tu[t,l], Su_pc[t,l], Rp[t,l], Rexf[t,l], dSu[t,l], Su[t,l], SAT[t,l], MB_l[t,l]]
