@@ -1032,17 +1032,17 @@ if plt_out == 1 or plt_out_obs == 1:
             # indexes of the HDF5 output arrays
             #    index = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iEXF':6, 'iEs':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSs':13, 'iETg':14, 'iETu':15, 'idSu':16, 'iHEADScorr':17, 'idtwt':18}
             #   index_S = {'iEu':0, 'iTu':1,'iSu_pc':2, 'iRp':3, 'iRexf':4, 'idSu':5, 'iSu':6, 'iSAT':7, 'iMB_l':8}
-            flxlbl   = ['RF', 'I', 'RFe', 'dSs', 'Ro', 'Es', 'dSu', 'EXF']
-            flxlbl1  = ['Eu', 'Tu']
-            flxlbl2  = ['ETu', 'Eg']
-            flxlbl3  = ['Tg']
-            flxlbl3a = ['ETg']
-            flxlbl4  = ['Rp']
-            sign =     [   1,  -1,     1,     1,   -1,   -1,    1,     1, -1, -1, -1, -1, -1, -1, -1]
-            flxlst = []
+            flxlbl     = ['RF', 'I', 'RFe', 'dSs', 'Ro', 'Es', 'dSu', 'EXF']
+            flxlbl1    = ['Eu', 'Tu']
+            flxlbl2    = ['ETu', 'Eg']
+            flxlbl3    = ['Tg']
+            flxlbl3a   = ['ETg']
+            flxlbl4    = ['Rp']
+            sign       = [   1,  -1,     1,     1,   -1,   -1,    1,     1, -1, -1, -1, -1, -1, -1, -1]
+            flxlst     = []
             flx_Cat_TS = []
-            flxmax_d = []
-            flxmin_d = []
+            flxmax_d   = []
+            flxmin_d   = []
             for i in flxlbl:
                 i = 'i'+i
                 array_tmp = h5_MM['MM'][:,:,:,index.get(i)]
@@ -1051,10 +1051,7 @@ if plt_out == 1 or plt_out_obs == 1:
                 flxmin_d.append(np.ma.min(flx_tmp))
                 flxlst.append(facTim*(flx_tmp.sum())/sum(cMF.perlen)/sum(ncell_MM))
                 array_tmp1 = np.sum(np.ma.masked_values(array_tmp, cMF.hnoflo, atol = 0.09), axis = 1)
-##                if i != 'iRo':
                 flx_Cat_TS.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
-##                else:
-##                flx_Cat_TS.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1))
                 del flx_tmp, array_tmp, array_tmp1
             for i in flxlbl1:
                 flxlbl.append(i)
@@ -1142,9 +1139,18 @@ if plt_out == 1 or plt_out_obs == 1:
                 del array_tmp, array_tmp1
             plt_exportCATCH_fn = os.path.join(MM_ws, '_plt_0CATCHMENT.png')
             plt_titleCATCH = 'Time serie of fluxes averaged over the whole catchment'
-            InMM = flxlst[0] + flxlst[3] + flxlst[6] + flxlst[7]
+            InMM  = flxlst[0] + flxlst[3] + flxlst[6] + flxlst[7]
             OutMM = flxlst[1] + flxlst[4] + flxlst[5] + flxlst[10] + flxlst[14]
-            MB_MM = 100*(InMM - OutMM)/((InMM+OutMM)/2)
+
+
+
+            MB_MM = 100*(InMM - OutMM)/((InMM + OutMM)/2)
+            # TODO delete next line after resolving MB_MM error and uncomment the previous one
+            #MB_MM = InMM - OutMM
+
+
+
+
             h5_MM.close()
             flxmax_d = float(np.ceil(np.ma.max(flxmax_d)))
             flxmin_d = float(np.floor(np.ma.min(flxmin_d)))
@@ -1171,7 +1177,13 @@ if plt_out == 1 or plt_out_obs == 1:
                 del array_tmp, array_tmp1, rch_tmp1, cbc_RCH
                 flxlst.append(rch_tmp - inf)
                 del rch_tmp, inf
+
+
+                # TODO add plot of averaged SM and HEADS, GW_STO, DRN, GHB(?)
                 MMplot.plotTIMESERIES_CATCH(inputDate, flx_Cat_TS, plt_exportCATCH_fn, plt_titleCATCH, MF = 'y')
+
+
+
                 InUZF = -flxlst[14] + flxlst[15]
                 OutUZF = 0
                 InMF = 0
@@ -1228,14 +1240,29 @@ if plt_out == 1 or plt_out_obs == 1:
                 h5_MF.close()
                 MB_UZF = 100.0*(InUZF - OutUZF)/((InUZF+OutUZF)/2.0)
                 MB_MF = 100.0*(InMF - OutMF)/((InMF+OutMF)/2.0)
-                plt_title = 'MARMITES and MODFLOW water flux balance for the whole catchment\nMass balance error: MM = %1.2f%%, UZF = %1.2f%%, MF = %1.2f%%' % (MB_MM, MB_UZF, MB_MF)
+                plt_title = 'MARMITES and MODFLOW water balance for the whole catchment\nMass balance error: MM = %1.2f%%, UZF = %1.2f%%, MF = %1.2f%%' % (MB_MM, MB_UZF, MB_MF)
+                header_tmp = ['MM_MB','UZF_MB','MF_MB']
+                MB_tmp = [MB_MM, MB_UZF,MB_MF]
             else:
                 MMplot.plotTIMESERIES_CATCH(inputDate, flx_Cat_TS, plt_exportCATCH_fn, plt_titleCATCH, MF = 'n')
                 plt_export_fn = os.path.join(MM_ws, '_plt_0CATCHMENT_UNSATbalance.png')
-                plt_title = 'MARMITES water flux balance for the whole catchment\nMass balance error: MM = %1.2f%%' % (MB_MM)
+                plt_title = 'MARMITES water balance for the whole catchment\nMass balance error: MM = %1.2f%%' % (MB_MM)
+                header_tmp = ['MM_MB']
+                MB_tmp = [MB_MM]
             colors_flx = CreateColors.main(hi=0, hf=180, numbcolors = len(flxlbl))
             MMplot.plotGWbudget(flxlst = flxlst, flxlbl = flxlbl, colors_flx = colors_flx, plt_export_fn = plt_export_fn, plt_title = plt_title, fluxmax = flxmax, fluxmin = flxmin, unit = plt_WB_unit)
-            del flxlst
+            plt_export_txt = open(os.path.join(MM_ws, '_plt_0CATCHMENT_UNSATandGWbalances.txt'), 'w')
+            flxlbl_str = flxlbl[0]
+            for e in (flxlbl[1:] + header_tmp):
+                flxlbl_str += ',' + e
+            flxlst_str = str(flxlst[0])
+            for e in (flxlst[1:] + MB_tmp):
+                flxlst_str += ',' + str(e)
+            plt_export_txt.write(flxlbl_str)
+            plt_export_txt.write('\n')
+            plt_export_txt.write(flxlst_str)
+            plt_export_txt.close()
+            del flxlst, header_tmp, MB_tmp, flxlst_str
         # no MM, plot only MF balance if MF exists
         elif plt_out_obs == 1 and isinstance(cMF.h5_MF_fn, str):
             plt_export_fn = os.path.join(MM_ws, '_plt_0CATCHMENT_GWbalances.png')
@@ -1245,11 +1272,12 @@ if plt_out == 1 or plt_out_obs == 1:
             OutMF = 0
             for l in range(cMF.nlay):
                 h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
-                # GW STO
+                # GW_STO
                 cbc_STO = h5_MF['STO_d']
                 flxlst.append(facTim*(cbc_STO[:,:,:,l].sum()/sum(cMF.perlen)/sum(ncell_MM)))  # *-1
                 InMF += flxlst[-1]
                 del cbc_STO
+                # GW_RCH
                 cbc_RCH = h5_MF['RCH_d']
                 flxlst.append(facTim*(cbc_RCH[:,:,:,l].sum()/sum(cMF.perlen)/sum(ncell_MM)))
                 InMF += flxlst[-1]
@@ -1292,7 +1320,7 @@ if plt_out == 1 or plt_out_obs == 1:
             colors_flx = CreateColors.main(hi=0, hf=180, numbcolors = len(flxlbl))
             MB_MF = 100.0*(InMF - OutMF)/((InMF+OutMF)/2.0)
             # TODO cbcmax and cbcmin represent the max and min of the whole MF fluxes time series, not the max and min of the fluxes average
-            plt_title = 'MODFLOW water flux balance for the whole catchment\nMass balance error: MF = %1.2f%%' % (MB_MF)
+            plt_title = 'MODFLOW water balance for the whole catchment\nMass balance error: MF = %1.2f%%' % (MB_MF)
             MMplot.plotGWbudget(flxlst = flxlst, flxlbl = flxlbl, colors_flx = colors_flx, plt_export_fn = plt_export_fn, plt_title = plt_title, fluxmax = cbcmax_d, fluxmin = cbcmin_d, unit = plt_WB_unit)
             del flxlst
 
@@ -1303,8 +1331,10 @@ if plt_out == 1 or plt_out_obs == 1:
         colors_nsl = CreateColors.main(hi=00, hf=180, numbcolors = (_nslmax+1))
         x = 0
         flxlst = []
-        plt_exportBAL_fn = []
-        plt_titleBAL = []
+        plt_exportBAL_fn  = []
+        plt_export_txt_fn = []
+        plt_titleBAL      = []
+        InOut_tmp             = []
         for o in obs.keys():
             i = obs.get(o)['i']
             j = obs.get(o)['j']
@@ -1344,8 +1374,7 @@ if plt_out == 1 or plt_out_obs == 1:
             cMF.MM_PROCESS.ExportResultsPEST(i, j, inputDate, _nslmax, MM[:,index.get('iHEADScorr')], obs_h_tmp, obs_S_tmp, outPESTheads, outPESTsm, o, MM_S[:,:,index_S.get('iSu_pc')])
             # plot time series results as plot
             if plt_out_obs == 1:
-                plt_title = o + '\ni = %d, j = %d, l = %d, x = %d, y = %d, %s' % (i+1, j+1, l+1, obs.get(o)['x'], obs.get(o)['y'], soilnam)
-                plt_titleBAL.append(plt_title)
+                plt_title = 'Time serie of fluxes at observation point %s\ni = %d, j = %d, l = %d, x = %d, y = %d, %s\n' % (o, i+1, j+1, l+1, obs.get(o)['x'], obs.get(o)['y'], soilnam)
                 # index = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iEXF':6, 'iEs':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSs':13, 'iETg':14, 'iETu':15, 'idSu':16, 'iHEADScorr':17, 'idtwt':18}
                 # index_S = {'iEu':0, 'iTu':1,'iSu_pc':2, 'iRp':3, 'iRexf':4, 'idSu':5, 'iSu':6, 'iSAT':7, 'iMB_l':8}
                 plt_export_fn = os.path.join(MM_ws, '_plt_0'+ o + '.png')
@@ -1399,7 +1428,7 @@ if plt_out == 1 or plt_out_obs == 1:
                      facTim*(MM[:,index.get('iRF')].sum()/sum(cMF.perlen)),
                     -1*facTim*(MM[:,index.get('iI')].sum()/sum(cMF.perlen)),
                      facTim*(MM[:,index.get('iRFe')].sum()/sum(cMF.perlen)),
-                     facTim*(MM[:,index.get('idSs')].sum()/sum(cMF.perlen)),
+                    -1*facTim*(MM[:,index.get('idSs')].sum()/sum(cMF.perlen)),
                      -1*facTim*(MM[:,index.get('iRo')].sum()/sum(cMF.perlen)),
                     -1*facTim*(MM[:,index.get('iEs')].sum()/sum(cMF.perlen)),
                      facTim*(MM[:,index.get('idSu')].sum()/sum(cMF.perlen)),
@@ -1412,8 +1441,13 @@ if plt_out == 1 or plt_out_obs == 1:
                     -1*facTim*(MM[:,index.get('iETg')].sum()/sum(cMF.perlen)),
                     -1*facTim*conv_fact*((cMF.perlen*h5_MM['finf'][:,i,j]).sum()/sum(cMF.perlen))
                     ])
+                InMM = flxlst[-1][0] + flxlst[-1][3] + flxlst[-1][6] + flxlst[-1][7]
+                OutMM = -(flxlst[-1][1] + flxlst[-1][4] + flxlst[-1][5] + flxlst[-1][10] + flxlst[-1][14])
+                InOut_MM = InMM - OutMM
+                InOut_tmp.append([InOut_MM])
                 if plt_out_obs == 1 and isinstance(cMF.h5_MF_fn, str):
                     plt_exportBAL_fn.append(os.path.join(MM_ws, '_plt_0'+ o + '_UNSATandGWbalances.png'))
+                    plt_export_txt_fn.append(os.path.join(MM_ws, '_plt_0'+ o + '_UNSATandGWbalances.txt'))
                     # compute UZF_STO and store GW_RCH
                     rch_tmp = 0
                     flxlst_tmp = []
@@ -1423,38 +1457,67 @@ if plt_out == 1 or plt_out_obs == 1:
                         rch_tmp += rch_tmp1
                     flxlst[-1].append(-rch_tmp + facTim*conv_fact*((cMF.perlen*h5_MM['finf'][:,i,j]).sum()/sum(cMF.perlen)))
                     del rch_tmp, rch_tmp1, cbc_RCH
+                    InUZF = -flxlst[-1][14] - flxlst[-1][15]
+                    OutUZF = 0
+                    InMF = 0
+                    OutMF = 0
                     for l in range(cMF.nlay):
                         # GW STO
                         cbc_STO = h5_MF['STO_d']
                         flxlst[-1].append(facTim*(cbc_STO[:,i,j,l].sum()/sum(cMF.perlen)))    # -1*
+                        InMF += flxlst[-1][-1]
                         del cbc_STO
                         # GW_RCH
                         flxlst[-1].append(flxlst_tmp[l])
-                        h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
+                        OutUZF += flxlst_tmp[l]
+                        InMF += flxlst_tmp[l]
                         # EXF
+                        h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
                         cbc_EXF = h5_MF['EXF_d']
                         flxlst[-1].append(facTim*(cbc_EXF[:,i,j,l].sum()/sum(cMF.perlen)))
+                        OutMF += -flxlst[-1][-1]
                         del cbc_EXF
                         if cMF.drn_yn == 1:
                             cbc_DRN = h5_MF['DRN_d']
                             flxlst[-1].append(facTim*(cbc_DRN[:,i,j,l].sum()/sum(cMF.perlen)))
+                            OutMF += -flxlst[-1][-1]
                             del cbc_DRN
                         if cMF.wel_yn == 1:
                             cbc_WEL = h5_MF['WEL_d']
                             flxlst[-1].append(facTim*(cbc_WEL[:,i,j,l].sum()/sum(cMF.perlen)))
+                            OutMF += -flxlst[-1][-1]
                             del cbc_WEL
                         if cMF.ghb_yn == 1:
                             cbc_GHB = h5_MF['GHB_d']
                             flxlst[-1].append(facTim*(cbc_GHB[:,i,j,l].sum()/sum(cMF.perlen)))
+                            OutMF += -flxlst[-1][-1]
                             del cbc_GHB
-                    del flxlst_tmp
+                    InOut_UZF = InUZF - OutUZF
+                    InOut_tmp[-1].append(InOut_UZF)
+                    InOut_MF = InMF - OutMF
+                    InOut_tmp[-1].append(InOut_MF)
+                    plt_title = 'MARMITES and MODFLOW water flux balance at observation point %s\ni = %d, j = %d, l = %d, x = %d, y = %d, %s\n\nMass balance (In - Out,  [mm]): MM = %1.2f, UZF = %1.2f, MF = %1.2f' % (o, i+1, j+1, l+1, obs.get(o)['x'], obs.get(o)['y'], soilnam, InOut_MM, InOut_UZF, InOut_MF)
+                    plt_titleBAL.append(plt_title)
+                    del flxlst_tmp, plt_title
                 else:
                     plt_exportBAL_fn.append(os.path.join(MM_ws, '_plt_0'+ o + '_UNSATbalance.png'))
+                    plt_export_txt_fn.append(os.path.join(MM_ws, '_plt_0CATCHMENT_UNSATbalances.txt'), 'w')
+                    plt_title = 'MARMITES water flux balance at observation point %s\ni = %d, j = %d, l = %d, x = %d, y = %d, %s\n\nMass balance (In - Out,  [mm]): MM = %1.2f' % (o, i+1, j+1, l+1, obs.get(o)['x'], obs.get(o)['y'], soilnam, InOut_MM)
+                    plt_titleBAL.append(plt_title)
+                    del plt_title
         flxmax = axefact*float(np.ceil(np.asarray(flxlst).max()))
         flxmin = axefact*float(np.floor(np.asarray(flxlst).min()))
-        for l, (lst, fn, title) in enumerate(zip(flxlst,plt_exportBAL_fn, plt_titleBAL)):
+        for l, (lst, fn, title, fn_txt, InOut) in enumerate(zip(flxlst, plt_exportBAL_fn, plt_titleBAL, plt_export_txt_fn, InOut_tmp)):
             MMplot.plotGWbudget(flxlst = lst, flxlbl = flxlbl, colors_flx = colors_flx, plt_export_fn = fn, plt_title = title, fluxmax = flxmax, fluxmin = flxmin, unit = plt_WB_unit)
-        del flxlst
+            plt_export_txt = open(fn_txt, 'w')
+            flxlst_str = str(lst[0])
+            for e in (lst[1:]  + InOut):
+                flxlst_str += ',' + str(e)
+            plt_export_txt.write(flxlbl_str)
+            plt_export_txt.write('\n')
+            plt_export_txt.write(flxlst_str)
+            plt_export_txt.close()
+        del flxlst, flxlbl, flxlbl_str, InOut_tmp
         del h_satflow, MM, MM_S
         h5_MM.close()
         h5_MF.close()
@@ -1462,7 +1525,6 @@ if plt_out == 1 or plt_out_obs == 1:
         outPESTheads.close()
         outPESTsm.close()
         del obs, obs_h, obs_S
-
     if plt_out == 1:
         SP_lst = []
         Date_lst = []

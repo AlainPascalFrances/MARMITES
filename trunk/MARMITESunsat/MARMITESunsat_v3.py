@@ -432,8 +432,7 @@ class UNSAT:
             Tu[t,:]    = Tu_tmp[:]
             SAT[t,:]   = SAT_tmp[:]
             ETg[t] = Eg[t] + Tg[t]
-            dSs_MB = (Ss_ini - Ss[t])/dt
-            dSs[t] = (Ss[t] - Ss_ini)/dt
+            dSs[t] = (Ss_ini - Ss[t])/dt
             # compute the water mass balance (MB) in the unsaturated zone
             Rp_in_MB  = 0.0
             Rp_out_MB = 0.0
@@ -453,7 +452,7 @@ class UNSAT:
             if nsl > 1:
                 # surficial soil layer
                 l = 0
-                MB_l[t,l] = (RFe_tot[t] + dSu[t,l] + dSs_MB + Rexf[t,l+1]) - (Rp[t,l] + Eu[t,l] + Tu[t,l] + Ro_tmp + Es_tmp)
+                MB_l[t,l] = (RFe_tot[t] + dSu[t,l] + dSs[t] + Rexf[t,l+1]) - (Rp[t,l] + Eu[t,l] + Tu[t,l] + Ro_tmp + Es_tmp)
                 # intermediate soil layers
                 llst = range(1,nsl-1)
                 for l in llst:
@@ -464,10 +463,10 @@ class UNSAT:
             else:
                 # only one soil layer
                 l = 0
-                MB_l[t,l] = (RFe_tot[t] + dSu[t,l] + dSs_MB + EXF[t]) - (Rp[t,l] + Eu[t,l] + Tu[t,l] + Ro_tmp + Es_tmp)
+                MB_l[t,l] = (RFe_tot[t] + dSu[t,l] + dSs[t] + EXF[t]) - (Rp[t,l] + Eu[t,l] + Tu[t,l] + Ro_tmp + Es_tmp)
                 # last soil layer
             # total mass balance for the unsaturated zone
-            MB[t] = RFe_tot[t] + dSs_MB + dSu_tot[t] + dRp_tot + EXF[t] - (Ro[t] + Es[t] + Eu_MB + Tu_MB)
+            MB[t] = RFe_tot[t] + dSs[t] + dSu_tot[t] + dRp_tot + EXF[t] - (Ro[t] + Es[t] + Eu_MB + Tu_MB)
             # export list
             # indexes of the HDF5 output arrays
             # index = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iEXF':6, 'iEs':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSs':13, 'iETg':14, 'iETu':15, 'idSu':16, 'iinf':17, 'iHEADScorr':18, 'idtwt':19, 'iuzthick':20}
