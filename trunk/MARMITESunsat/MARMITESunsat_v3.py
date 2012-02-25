@@ -343,6 +343,8 @@ class UNSAT:
         Su = np.zeros([Ttotal,nsl], dtype = np.float)
         #Soil moisture storage in volumetric percent of saturation
         Su_pc = np.zeros([Ttotal,nsl], dtype = np.float)
+        #Total soil moisture storage changes
+        Su_pc_tot = np.zeros([Ttotal], dtype = np.float)
         #Soil moisture storage changes
         dSu = np.zeros([Ttotal,nsl], dtype = np.float)
         #Total soil moisture storage changes
@@ -374,7 +376,7 @@ class UNSAT:
         # GW evapotranspiration
         ETg = np.zeros([Ttotal], dtype = np.float)
         # output arrays
-        nflux1 = 21
+        nflux1 = 22
         nflux2 = 9
         results1 = np.zeros([Ttotal,nflux1])
         results2 = np.zeros([Ttotal,nsl,nflux2])
@@ -425,6 +427,7 @@ class UNSAT:
             dtwt[t] = dtwt_tmp
             Su[t,:]    = Su_tmp[:]
             Su_pc[t,:] = Su_pc_tmp[:]
+            Su_pc_tot[t] = sum(Su_pc_tmp[:])/nsl
             Rp[t,:]    = Rp_tmp[:]
             inf[t]     = Rp_tmp[-1]
             Rexf[t,:]  = Rexf_tmp[:]
@@ -469,8 +472,8 @@ class UNSAT:
             MB[t] = RFe_tot[t] + dSs[t] + dSu_tot[t] + dRp_tot + EXF[t] - (Ro[t] + Es[t] + Eu_MB + Tu_MB)
             # export list
             # indexes of the HDF5 output arrays
-            # index = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iEXF':6, 'iEs':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSs':13, 'iETg':14, 'iETu':15, 'idSu':16, 'iinf':17, 'iHEADScorr':18, 'idtwt':19, 'iuzthick':20}
-            results1[t,:] = [RF[t], PT_tot[t], PE_tot[t], RFe_tot[t], Ss[t], Ro[t], EXF[t], Es[t], MB[t], INTER_tot[t], E0[t], Eg[t], Tg[t], dSs[t], ETg[t], ETu_tot[t], dSu_tot[t], inf[t], HEADS_corr[t]*0.001, -dtwt[t]*0.001, uzthick[t]*0.001]
+            # index = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iEXF':6, 'iEs':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSs':13, 'iETg':14, 'iETu':15, 'iSu_pc':16, 'idSu':17, 'iinf':18, 'iHEADScorr':19, 'idtwt':20, 'iuzthick':21}
+            results1[t,:] = [RF[t], PT_tot[t], PE_tot[t], RFe_tot[t], Ss[t], Ro[t], EXF[t], Es[t], MB[t], INTER_tot[t], E0[t], Eg[t], Tg[t], dSs[t], ETg[t], ETu_tot[t], Su_pc_tot[t], dSu_tot[t], inf[t], HEADS_corr[t]*0.001, -dtwt[t]*0.001, uzthick[t]*0.001]
             # index_S = {'iEu':0, 'iTu':1,'iSu_pc':2, 'iRp':3, 'iRexf':4, 'idSu':5, 'iSu':6, 'iSAT':7, 'iMB_l':8}
             for l in range(nsl):
                 results2[t,l,:] = [Eu[t,l], Tu[t,l], Su_pc[t,l], Rp[t,l], Rexf[t,l], dSu[t,l], Su[t,l], SAT[t,l], MB_l[t,l]]
