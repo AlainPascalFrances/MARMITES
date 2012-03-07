@@ -1157,6 +1157,7 @@ if plt_out == 1 or plt_out_obs == 1:
             #MB_MM = InMM - OutMM
 
 
+
             # ADD SM averaged
             flxlbl_CATCH.append('Su')
             array_tmp = h5_MM['MM'][:,:,:,index.get('iSu_pc')]
@@ -1201,7 +1202,7 @@ if plt_out == 1 or plt_out_obs == 1:
                     flxlbl_CATCH.append('h_MF_L%d' % (l+1))
                     array_tmp = h_MF_m[:,:,:,l]
                     array_tmp1 = np.sum(array_tmp, axis = 1)
-                    flx_Cat_TS.append(np.sum(array_tmp1, axis = 1)/sum(ncell_MM))
+                    flx_Cat_TS.append(np.sum(array_tmp1, axis = 1)/ncell[l])
                     del array_tmp, array_tmp1
                 for l in range(cMF.nlay):
                     # GW_STO
@@ -1650,6 +1651,21 @@ if plt_out == 1 or plt_out_obs == 1:
             del V
         del t
         # plot average for the whole simulated period
+        # plot heads [m]
+        V = []
+        for L in range(cMF.nlay):
+            V.append(np.ma.masked_array(np.sum(h_MF_m[:,:,:,L], axis = 0)/sum(cMF.perlen), mask[L]))
+        if hmaxMF == hminMF:
+            if hmaxMF < 10E-9:
+                hmaxMF = 1.0
+                hminMF = -1.0
+            else:
+                hmaxMF *= 1.15
+                hminMF *= 0.85
+            ctrs_tmp = False
+        else:
+            ctrs_tmp = ctrsMF
+        MMplot.plotLAYER(SP = SP, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation (m)', msg = 'DRY', plt_title = 'MF_average_HEADS', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (hmaxMF - hminMF)/nrangeMF, contours = ctrs_tmp, Vmax = hmaxMF, Vmin = hminMF, ntick = ntick)
         # plot GW drainage [mm]
         if cMF.drn_yn == 1:
             V = []

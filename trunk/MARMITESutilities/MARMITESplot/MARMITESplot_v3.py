@@ -3,6 +3,7 @@ import os
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
+import itertools
 
 def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, EXF, ETg, Es, MB, MB_l, dtwt, uzthick, SAT, R, h_MF, h_MF_corr, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin, obs_name):
     """
@@ -512,12 +513,14 @@ def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, cMF 
     ax6.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2f'))
 
     if cMF != None:
+        # plot heads
+        lines = itertools.cycle(['-','--','-.',':','.',',','o','v','^','<','>','1','2','3','4','s','p','*','h','H','+','x','D','d','|','_'])
         ax7=fig.add_subplot(10,1,7, sharex=ax1)
         plt.setp(ax7.get_xticklabels(), visible=False)
         plt.setp(ax7.get_yticklabels(), fontsize=8)
         for l in range(cMF.nlay):
             i = 20 + l
-            plt.plot_date(DateInput,flx[i],'-', color = 'b', label = flx_lbl[i])
+            plt.plot_date(DateInput,flx[i],lines.next(), color = 'b', label = flx_lbl[i])
         plt.xlim(DateInput[0]-1,DateInput[len(DateInput)-1]+1)
         plt.ylabel('m', fontsize=10)
         plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale)
@@ -527,7 +530,7 @@ def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, cMF 
         plt.grid(True)
         ax7.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2f'))
         ax7.xaxis.set_major_formatter(monthsFmt)
-
+        # plot GW
         ax8=fig.add_subplot(10,1,8, sharex=ax1)
         plt.setp(ax8.get_xticklabels(), fontsize=8)
         plt.setp(ax8.get_yticklabels(), fontsize=8)
