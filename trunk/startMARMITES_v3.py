@@ -1206,6 +1206,9 @@ if plt_out == 1 or plt_out_obs == 1:
                 array_tmp1 = np.sum(array_tmp, axis = 1)
                 flx_Cat_TS.append(np.sum(array_tmp1, axis = 1)/ncell[l])
                 del array_tmp, array_tmp1
+                # ADD depth GWT
+                flxlbl_CATCH.append('PiezLev_L%d' % (l+1))
+                flx_Cat_TS.append(-1.0*(TopSoil.sum()/1000.0/sum(ncell_MM) - flx_Cat_TS[-1]))
             for l in range(cMF.nlay):
                 # GW_STO
                 cbc_STO = h5_MF['STO_d'][:,:,:,l]
