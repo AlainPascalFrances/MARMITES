@@ -594,7 +594,7 @@ class MF():
             if perlenmax < 2:
                 raise SystemExit('\nperlenmax must be higher than 1!\nCorrect perlenmax in the MODFLOW ini file or select the daily option.')
             for j in range(len(d)):
-                    if RFe_d[:,:,j].sum()>0.0:
+                    if RF_d[:,j].sum()>0.0:
                         if c == 1:
                             for n in range(NMETEO):
                                 RF_stp[n].append(RF_stp_tmp[n]/perlen_tmp)

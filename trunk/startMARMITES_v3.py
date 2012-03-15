@@ -842,6 +842,19 @@ del gridSsw
 
 print '\n##############\nMARMITES exporting...'
 
+def minmax(min_, max_, ctrs_):
+    if max_ == min_:
+        if max_ < 10E-9:
+            max_ = 1.0
+            min_ = -1.0
+        else:
+            max_ *= 1.15
+            min_ *= 0.85
+        ctrs_ = False
+    else:
+        ctrs_ = ctrs_
+    return min_, max_, ctrs_
+
 timestartExport = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
 # reorganizing MF output in daily data
 if MF_yn == 1 and isinstance(cMF.h5_MF_fn, str):
@@ -1578,18 +1591,6 @@ if plt_out == 1 or plt_out_obs == 1:
             JD_lst.append(JD[e])
 
     # plot MF output
-    def minmax(min_, max_, ctrs_):
-        if max_ == min_:
-            if max_ < 10E-9:
-                max_ = 1.0
-                min_ = -1.0
-            else:
-                max_ *= 1.15
-                min_ *= 0.85
-            ctrs_ = False
-        else:
-            ctrs_ = ctrs_
-        return min_, max_, ctrs_
     TopSoil*= 0.001
     if plt_out == 1 and isinstance(cMF.h5_MF_fn, str):
         # plot heads (grid + contours), DRN, etc... at specified SP
