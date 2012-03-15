@@ -268,13 +268,16 @@ try:
     ncell = []
     ncell_MM = []
     iboundBOL = np.ones(np.array(cMF.ibound).shape, dtype = bool)
+    mask_tmp = np.zeros((cMF.nrow, cMF.ncol), dtype = int)
     mask = []
     for l in range(cMF.nlay):
         ncell.append((np.asarray(cMF.ibound)[:,:,l] != 0).sum())
         ncell_MM.append((np.asarray(cMF.iuzfbnd) == l+1).sum())
         iboundBOL[:,:,l] = (np.asarray(cMF.ibound)[:,:,l] != 0)
         mask.append(np.ma.make_mask(iboundBOL[:,:,l]-1))
-    del iboundBOL
+        mask_tmp += (np.asarray(cMF.ibound)[:,:,l] <> 0)
+    maskAllL = (mask_tmp == 0)
+    del iboundBOL, mask_tmp
     timeendMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
     durationMF +=  timeendMF-timestartMF
 
@@ -1046,6 +1049,7 @@ if plt_out == 1 or plt_out_obs == 1:
         flxmax_d     = []
         flxmin_d     = []
         flxlbl_CATCH = []
+        TopSoilAverage = np.ma.masked_array(TopSoil, maskAllL).sum()*.001/sum(ncell_MM)
         for i in flxlbl:
             flxlbl_CATCH.append(i)
             i = 'i'+i
@@ -1207,8 +1211,8 @@ if plt_out == 1 or plt_out_obs == 1:
                 flx_Cat_TS.append(np.sum(array_tmp1, axis = 1)/ncell[l])
                 del array_tmp, array_tmp1
                 # ADD depth GWT
-                flxlbl_CATCH.append('PiezLev_L%d' % (l+1))
-                flx_Cat_TS.append(-1.0*(TopSoil.sum()/1000.0/sum(ncell_MM) - flx_Cat_TS[-1]))
+                flxlbl_CATCH.append('PiezDepth_L%d' % (l+1))
+                flx_Cat_TS.append(flx_Cat_TS[-1] - TopSoilAverage)
             for l in range(cMF.nlay):
                 # GW_STO
                 cbc_STO = h5_MF['STO_d'][:,:,:,l]

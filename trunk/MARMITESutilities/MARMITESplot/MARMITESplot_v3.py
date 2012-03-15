@@ -531,17 +531,18 @@ def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, cMF 
         plt.grid(True)
         ax7.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2f'))
         ax7.xaxis.set_major_formatter(monthsFmt)
-        # plot GWT
+        # plot GW fluxes
         ax8=fig.add_subplot(10,1,8, sharex=ax1)
-        plt.setp(ax8.get_xticklabels(), visible=False)
+        plt.setp(ax8.get_xticklabels(), fontsize=8)
         plt.setp(ax8.get_yticklabels(), fontsize=8)
-        i = 21
-        for l in range(cMF.nlay):
-            plt.plot_date(DateInput,flx[i],lines.next(), color = 'b', label = flx_lbl[i])
-            i += l + 2
-        i -= l + 2
+        for l, (e, lbl) in enumerate(zip(flx[i+1:], flx_lbl[i+1:])):
+            plt.plot_date(DateInput,e,'-', color = mpl.colors.rgb2hex(np.random.rand(1,3)[0]), label = lbl)
         plt.xlim(DateInput[0]-1,DateInput[len(DateInput)-1]+1)
-        plt.ylabel('m', fontsize=10)
+        labels=ax8.get_xticklabels()
+        plt.setp(labels, 'rotation', 90)
+        del labels
+        plt.xlabel('Date', fontsize=10)
+        plt.ylabel('mm', fontsize=10)
         plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale)
         leg = plt.gca().get_legend()
         ltext  = leg.get_texts()
@@ -549,26 +550,25 @@ def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, cMF 
         plt.grid(True)
         ax8.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2f'))
         ax8.xaxis.set_major_formatter(monthsFmt)
-        # plot GW fluxes
-        ax9=fig.add_subplot(10,1,9, sharex=ax1)
-        plt.setp(ax9.get_xticklabels(), fontsize=8)
-        plt.setp(ax9.get_yticklabels(), fontsize=8)
-        for l, (e, lbl) in enumerate(zip(flx[i+1:], flx_lbl[i+1:])):
-            plt.plot_date(DateInput,e,'-', color = mpl.colors.rgb2hex(np.random.rand(1,3)[0]), label = lbl)
+        # plot GWT
+        lines = itertools.cycle(['-','--','-.',':','.',',','o','v','^','<','>','1','2','3','4','s','p','*','h','H','+','x','D','d','|','_'])
+        ax10=fig.add_subplot(10,1,10, sharex=ax1)
+        plt.setp(ax10.get_xticklabels(), visible=False)
+        plt.setp(ax10.get_yticklabels(), fontsize=8)
+        i = 21
+        for l in range(cMF.nlay):
+            plt.plot_date(DateInput,flx[i],lines.next(), color = 'b', label = flx_lbl[i])
+            i += l + 2
         plt.xlim(DateInput[0]-1,DateInput[len(DateInput)-1]+1)
-        labels=ax9.get_xticklabels()
-        plt.setp(labels, 'rotation', 90)
-        del labels
-        plt.xlabel('Date', fontsize=10)
-        plt.ylabel('mm', fontsize=10)
+        plt.ylabel('m', fontsize=10)
         plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale)
-        del i
         leg = plt.gca().get_legend()
         ltext  = leg.get_texts()
         plt.setp(ltext, fontsize=8 )
         plt.grid(True)
-        ax9.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2f'))
-        ax9.xaxis.set_major_formatter(monthsFmt)
+        ax10.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2f'))
+        ax10.xaxis.set_major_formatter(monthsFmt)
+
 
     plt.subplots_adjust(left=0.10, bottom=0.10, right=0.95, top=0.95, wspace=0.1, hspace=0.1)
     plt.savefig(plt_export_fn,dpi=150)
