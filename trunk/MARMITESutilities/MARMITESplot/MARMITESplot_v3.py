@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import itertools
 
-def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, EXF, ETg, Es, MB, MB_l, dtwt, uzthick, SAT, R, h_MF, h_MF_corr, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin, obs_name):
+def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, EXF, ETg, Es, MB, MB_l, dtwt, uzthick, SAT, R, h_MF, h_MF_corr, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin, obs_name, elev):
     """
     Plot the time serie of the fluxes observed at one point of the catchment
     Use Matplotlib
@@ -324,6 +324,13 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S,
     ax9b=fig.add_subplot(20,1,18, sharex=ax1)
     plt.setp(ax9b.get_xticklabels(), visible=False)
     plt.setp(ax9b.get_yticklabels(), fontsize=8)
+    obs_leg = None
+    try:
+        hobs_m = np.ma.masked_values(hobs, hnoflo, atol = 0.09) - elev
+        plt.plot_date(DateInput,hobs_m, ls = 'None', color = 'None', marker='o', markeredgecolor = 'blue', markerfacecolor = 'None', markersize = 2) # ls='--', color = 'blue'
+        obs_leg = 1
+    except:
+        pass
     plt.plot_date(DateInput,dtwt,'-', c='b')
     # y axis
     plt.ylabel('m', fontsize=10)
@@ -331,7 +338,10 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S,
     plt.xlim(DateInput[0]-1,DateInput[len(dtwt)-1]+1)
     plt.ylim(np.min(dtwt)*1.05,0.25)
     # legend
-    plt.legend(['dtwt'], loc=0, labelspacing=lblspc, markerscale=mkscale)
+    if obs_leg == None:
+        plt.legend(['dtwt'], loc=0, labelspacing=lblspc, markerscale=mkscale)
+    elif obs_leg == 1:
+        plt.legend((r'h_obs','dtwt'), loc=0, labelspacing=lblspc, markerscale=mkscale)
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8 )
