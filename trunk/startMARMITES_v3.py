@@ -1277,9 +1277,9 @@ if plt_out == 1 or plt_out_obs == 1:
             plt_title = 'MARMITES and MODFLOW water balance for the whole catchment\nMass balance error: MM = %1.2f%%, UZF = %1.2f%%, MF = %1.2f%%' % (MB_MM, MB_UZF, MB_MF)
             header_tmp = ['MM_MB','UZF_MB','MF_MB']
             MB_tmp = [MB_MM, MB_UZF,MB_MF]
-            MMplot.plotTIMESERIES_CATCH(inputDate, flx_Cat_TS, flxlbl_CATCH, plt_exportCATCH_fn, plt_titleCATCH, cMF = cMF)
+            MMplot.plotTIMESERIES_CATCH(inputDate, flx_Cat_TS, flxlbl_CATCH, plt_exportCATCH_fn, plt_titleCATCH, hmax = hmaxMF, hmin = hminMF, cMF = cMF)
         else:
-            MMplot.plotTIMESERIES_CATCH(inputDate, flx_Cat_TS, flxlbl_CATCH, plt_exportCATCH_fn, plt_titleCATCH)
+            MMplot.plotTIMESERIES_CATCH(inputDate, flx_Cat_TS, flxlbl_CATCH, plt_exportCATCH_fn, plt_titleCATCH, hmax = hmaxMF, hmin = hminMF)
             plt_export_fn = os.path.join(MM_ws, '_plt_0CATCHMENT_UNSATbalance.png')
             plt_title = 'MARMITES water balance for the whole catchment\nMass balance error: MM = %1.2f%%' % (MB_MM)
             header_tmp = ['MM_MB']

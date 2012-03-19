@@ -336,7 +336,7 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S,
     plt.ylabel('m', fontsize=10)
     plt.grid(True)
     plt.xlim(DateInput[0]-1,DateInput[len(dtwt)-1]+1)
-    plt.ylim(np.min(dtwt)*1.05,0.25)
+    #plt.ylim(np.min(dtwt)*1.05,0.25)
     # legend
     if obs_leg == None:
         plt.legend(['dtwt'], loc=0, labelspacing=lblspc, markerscale=mkscale)
@@ -400,7 +400,7 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S,
 
 ##################
 
-def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, cMF = None):
+def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin, cMF = None):
     """
     Plot the time serie of the fluxes observed from the whole catchment
     Use Matplotlib
@@ -533,6 +533,7 @@ def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, cMF 
             plt.plot_date(DateInput,flx[i],lines.next(), color = 'b', label = flx_lbl[i])
             i += l + 2
         plt.xlim(DateInput[0]-1,DateInput[len(DateInput)-1]+1)
+        plt.ylim(hmin,hmax)
         plt.ylabel('m', fontsize=10)
         plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale)
         leg = plt.gca().get_legend()
