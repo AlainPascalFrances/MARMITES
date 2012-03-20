@@ -579,9 +579,9 @@ class PROCESS:
 
     def ExportResultsPEST(self, i, j, inputDate, _nslmax, heads_MF, obs_h, obs_S, outPESTheads, outPESTsm, obsname, results_S = None):
         """
-        Export the processed data in a txt file
+        Export the obs data in a txt file in PEST format
         INPUTS:      output fluxes time series and date
-        OUTPUT:      PESTxxx.txt
+        OUTPUT:      PESTxxx.smp
         """
         for t in range(len(inputDate)):
             year='%4d'%mpl.dates.num2date(inputDate[t]).year
@@ -590,14 +590,14 @@ class PROCESS:
             date=(day+"/"+month+"/"+year)
             try:
                 if obs_h[t] <> self.hnoflo:
-                    outPESTheads.write(obsname.ljust(14,' ')+ date.ljust(14,' ')+ '00:00:00        '+ str(heads_MF[t])+ '    \n')
+                    outPESTheads.write(obsname.ljust(10,' ')+ date.ljust(10,' ')+ ' 00:00:00 ' + str(obs_h[t]).ljust(10,' ') + '\n')
             except:
                 pass
             if results_S <> None:
                 try:
                     for l in range (_nslmax):
                         if obs_S[l,t] <> self.hnoflo:
-                            outPESTsm.write((obsname+'SM_l'+str(l+1)).ljust(14,' ')+ date.ljust(14,' ')+ '00:00:00        '+ str(results_S[t,l]) + '    \n')
+                            outPESTsm.write((obsname+'SM_l'+str(l+1)).ljust(10,' ')+ date.ljust(10,' ')+ ' 00:00:00 ' + str(obs_S[t,l]).ljust(10,' ') + '\n')
                 except:
                     pass
 # EOF

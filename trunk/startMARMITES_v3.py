@@ -42,7 +42,7 @@ print '\n##############\nMARMITES started!\n%s\n##############' % mpl.dates.num2
 # the file can contain any comments as the user wish, but the sequence of the input has to be respected
 # 00_TESTS\MARMITESv3_r13c6l2'  00_TESTS\r40c20'  00_TESTS\r20c40'
 # SARDON'  CARRIZAL' LAMATA'
-MM_ws = r'E:\00code_ws\00_TESTS\MARMITESv3_r13c6l2'
+MM_ws = r'E:\00code_ws\LaMata_new'
 MM_fn = '__inputMM.ini'
 
 inputFile = MMproc.readFile(MM_ws,MM_fn)
@@ -373,9 +373,9 @@ try:
             MB_str = MB_str + 'MB_l' + str(l+1) + ','
             Smeasout = Smeasout + 'Smeas_' + str(l+1) + ','
         header='Date,RF,E0,PT,PE,RFe,I,' + Eu_str + Tu_str + 'Eg,Tg,ETg,WEL_MF,Es,' + Su_str + Supc_str + dSu_str + 'dSs,Ss,Ro,GW_EXF,' + Rp_str + Rexf_str + 'R_MF,hSATFLOW,hMF,hMFcorr,hmeas,dtwt,' + Smeasout + MB_str + 'MB\n'
-        outPESTheads_fn      = 'PESTheads.dat'
-        outPESTsm_fn         = 'PESTsm.dat'
-        outPESTheads = open(os.path.join(MM_ws,outPESTheads_fn), 'w')
+        outPESTheads_fn      = 'h_obs4PEST.smp'
+        outPESTsm_fn         = 'sm_obs4PEST.smp'
+        outPESTheads = open(os.path.join(MF_ws,outPESTheads_fn), 'w')
         outPESTsm = open(os.path.join(MM_ws,outPESTsm_fn), 'w')
         if cMF.uzf_yn == 1:
             cMF.uzf_obs(obs = obs)
@@ -805,7 +805,6 @@ try:
                 h5_MF.close()
             except:
                 pass
-            durationMF = 0.0
             timestartMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
             print'\n##############'
             print 'MODFLOW RUN (MARMITES fluxes after conv. loop)'
@@ -1574,10 +1573,11 @@ if plt_out == 1 or plt_out_obs == 1:
         del h_satflow, MM, MM_S
         h5_MM.close()
         h5_MF.close()
-        # output for PEST
-        outPESTheads.close()
-        outPESTsm.close()
-        del obs, obs_h, obs_S
+    # output for PEST
+    outPESTheads.close()
+    outPESTsm.close()
+    del obs, obs_h, obs_S
+
     if plt_out == 1:
         SP_lst = []
         Date_lst = []
