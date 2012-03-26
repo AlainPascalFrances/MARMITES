@@ -1,4 +1,6 @@
-﻿import numpy as np
+﻿# -*- coding: utf-8 -*-
+
+import numpy as np
 import os
 
 nrow = 65
@@ -8,10 +10,10 @@ yllcorner = 4553050
 cellsizeMF = 50
 k = '5.0'
 
-pp_in_fn = r'E:\00code_ws\LaMata_new\GIS\pp.txt'
+pp_in_fn = r'E:\00code_ws\LaMata_new\GIS\PilotsPoints.txt'
 if os.path.exists(pp_in_fn):
     fin = open(pp_in_fn, 'r')
-pp_out_fn = r'E:\00code_ws\LaMata_new\MF_ws\PEST\hk.pts'
+pp_out_fn = r'E:\00code_ws\LaMata_new\MF_ws\hk.pts'
 if os.path.exists(pp_in_fn):
     fout = open(pp_out_fn, 'w')
 

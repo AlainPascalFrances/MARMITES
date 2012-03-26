@@ -41,8 +41,8 @@ print '\n##############\nMARMITES started!\n%s\n##############' % mpl.dates.num2
 # the first character on the first line has to be the character used to comment
 # the file can contain any comments as the user wish, but the sequence of the input has to be respected
 # 00_TESTS\MARMITESv3_r13c6l2'  00_TESTS\r40c20'  00_TESTS\r20c40'
-# SARDON'  CARRIZAL' LAMATA'
-MM_ws = r'E:\00code_ws\LaMata_new'
+# SARDON'  CARRIZAL' LAMATA'  LaMata_new'
+MM_ws = r'E:\00code_ws\00_TESTS\MARMITESv3_r13c6l2'
 MM_fn = '__inputMM.ini'
 
 inputFile = MMproc.readFile(MM_ws,MM_fn)
@@ -1456,7 +1456,7 @@ if plt_out == 1 or plt_out_obs == 1:
             MM[:,index.get('iuzthick')],
             MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('iSAT')],
             cbc_RCH[:,i,j,0],
-            h_MF_m[:,i,j,l], MM[:,index.get('iHEADScorr')], h_satflow, obs_h_tmp, obs_S_tmp,
+            h_MF_m[:,i,j,:], MM[:,index.get('iHEADScorr')], h_satflow, obs_h_tmp, obs_S_tmp,
             _Sm[gridSOIL[i,j]-1],
             _Sr[gridSOIL[i,j]-1],
             cMF.hnoflo,
@@ -1466,7 +1466,8 @@ if plt_out == 1 or plt_out_obs == 1:
             max(hmax), #hmax[x] + hdiff/2
             min(hmin), #hmin[x] - hdiff/2
             o,
-            TopSoil[i,j]*0.001
+            TopSoil[i,j]*0.001,
+            cMF.nlay
             )
             x += 1
             # plot water balance at each obs. cell
@@ -1557,6 +1558,7 @@ if plt_out == 1 or plt_out_obs == 1:
                 plt_title = 'MARMITES water flux balance at observation point %s\ni = %d, j = %d, l = %d, x = %d, y = %d, %s\n\nMass balance (In - Out,  [mm]): MM = %1.2f' % (o, i+1, j+1, l+1, obs.get(o)['x'], obs.get(o)['y'], soilnam, InOut_MM)
                 plt_titleBAL.append(plt_title)
                 del plt_title
+            del obs_h, obs_S
         flxmax = axefact*float(np.ceil(np.asarray(flxlst).max()))
         flxmin = axefact*float(np.floor(np.asarray(flxlst).min()))
         for l, (lst, fn, title, fn_txt, InOut) in enumerate(zip(flxlst, plt_exportBAL_fn, plt_titleBAL, plt_export_txt_fn, InOut_tmp)):
@@ -1573,10 +1575,10 @@ if plt_out == 1 or plt_out_obs == 1:
         del h_satflow, MM, MM_S
         h5_MM.close()
         h5_MF.close()
+        del obs
     # output for PEST
     outPESTheads.close()
     outPESTsm.close()
-    del obs, obs_h, obs_S
 
     if plt_out == 1:
         SP_lst = []
