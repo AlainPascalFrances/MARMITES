@@ -265,13 +265,13 @@ try:
         raise SystemExit('FATAL ERROR!\nThe first layer cannot be confined type!\nChange your parameter laytyp in the MODFLOW lpf package.\n(see USGS Open-File Report 00-92)')
     if cMF.itmuni != 4:
         raise SystemExit('FATAL ERROR!\nTime unit is not in days!')
-    ncell = []
+    ncell_MF = []
     ncell_MM = []
     iboundBOL = np.ones(np.array(cMF.ibound).shape, dtype = bool)
     mask_tmp = np.zeros((cMF.nrow, cMF.ncol), dtype = int)
     mask = []
     for l in range(cMF.nlay):
-        ncell.append((np.asarray(cMF.ibound)[:,:,l] != 0).sum())
+        ncell_MF.append((np.asarray(cMF.ibound)[:,:,l] != 0).sum())
         ncell_MM.append((np.asarray(cMF.iuzfbnd) == l+1).sum())
         iboundBOL[:,:,l] = (np.asarray(cMF.ibound)[:,:,l] != 0)
         mask.append(np.ma.make_mask(iboundBOL[:,:,l]-1))
@@ -1207,7 +1207,7 @@ if plt_out == 1 or plt_out_obs == 1:
                 flxlbl_CATCH.append('h_MF_L%d' % (l+1))
                 array_tmp = h_MF_m[:,:,:,l]
                 array_tmp1 = np.sum(array_tmp, axis = 1)
-                flx_Cat_TS.append(np.sum(array_tmp1, axis = 1)/ncell[l])
+                flx_Cat_TS.append(np.sum(array_tmp1, axis = 1)/ncell_MF[l])
                 del array_tmp, array_tmp1
                 # ADD depth GWT
                 flxlbl_CATCH.append('PiezDepth_L%d' % (l+1))
@@ -1774,7 +1774,7 @@ print '\n%d stress periods, %d days' % (cMF.nper,sum(cMF.perlen))
 print '%d rows x %d cols (%d cells) x %d layers' % (cMF.nrow, cMF.ncol, cMF.nrow*cMF.ncol, cMF.nlay)
 print '%d MM active cells in total' % (sum(ncell_MM))
 l = 1
-for n in ncell:
+for n in ncell_MF:
     print  'LAYER %d' % l
     print '%d MF active cells' % (n)
     print '%d MM active cells' % (ncell_MM[l-1])
