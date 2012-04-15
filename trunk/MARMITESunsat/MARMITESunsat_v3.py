@@ -30,8 +30,8 @@ Frances et al 2010                                                      ## TO BE
 """
 
 __author__ = "Alain Francés <frances08512@itc.nl>"
-__version__ = "1.0"
-__date__ = "November 2010"
+__version__ = "3.0"
+__date__ = "2012"
 
 import numpy as np
 
@@ -89,13 +89,14 @@ class UNSAT:
                        'sandy loam'      : {'dll':30.0,'y0':0.004,'b':0.065, 'ext_d':130.0},
                        'sandy clay loam' : {'dll':30.0,'y0':0.006,'b':0.046, 'ext_d':200.0},
                        'sandy clay'      : {'dll':20.0,'y0':0.005,'b':0.042, 'ext_d':210.0},
-                       'loam'            : {'dll':33.0,'y0':0.004,'b':0.028, 'ext_d':260.0},
-                       'silty clay'      : {'dll':37.0,'y0':0.007,'b':0.046, 'ext_d':330.0},
-                       'clay loam'       : {'dll':33.0,'y0':0.008,'b':0.027, 'ext_d':400.0},
+                       'loam'            : {'dll':33.0,'y0':0.004,'b':0.028, 'ext_d':265.0},
+                       'silty clay'      : {'dll':37.0,'y0':0.007,'b':0.046, 'ext_d':335.0},
+                       'clay loam'       : {'dll':33.0,'y0':0.008,'b':0.027, 'ext_d':405.0},
                        'silt loam'       : {'dll':38.0,'y0':0.006,'b':0.019, 'ext_d':420.0},
                        'silt'            : {'dll':31.0,'y0':0.007,'b':0.021, 'ext_d':430.0},
                        'silty clay loam' : {'dll':40.0,'y0':0.007,'b':0.021, 'ext_d':450.0},
-                       'clay'            : {'dll':45.0,'y0':0.006,'b':0.019, 'ext_d':620.0}
+                       'clay'            : {'dll':45.0,'y0':0.006,'b':0.019, 'ext_d':620.0},
+                       'custom'          : {'dll':100.0,'y0':0.00,'b':0.013, 'ext_d':330.0}
 }
 
 #####################

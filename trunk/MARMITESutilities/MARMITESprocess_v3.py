@@ -1,8 +1,8 @@
 ﻿# -*- coding: utf-8 -*-
 
 __author__ = "Alain Francés <frances08512@itc.nl>"
-__version__ = "1.0"
-__date__ = "November 2010"
+__version__ = "3.0"
+__date__ = "2012"
 
 import os
 import numpy as np

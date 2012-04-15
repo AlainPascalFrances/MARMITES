@@ -14,8 +14,8 @@
 """ See info in MARMITESunsat_v3.py"""
 
 __author__ = "Alain P. Francés <frances.alain@gmail.com>"
-__version__ = "0.2"
-__date__ = "November 2010"
+__version__ = "3.0"
+__date__ = "2012"
 
 import sys, os, traceback, h5py
 import matplotlib as mpl
@@ -127,15 +127,19 @@ try:
     l += 1
     gridSOILthick_fn = inputFile[l].strip()
     l += 1
-    gridIRR_fn = inputFile[l].strip()
-    l += 1
     gridSshmax_fn =  inputFile[l].strip()
     l += 1
     gridSsw_fn =  inputFile[l].strip()
     l += 1
     SOILparam_fn = inputFile[l].strip()
     l += 1
-    IRR_fn = inputFile[l].strip()
+    # OPTIONNAL IRRIGATION FILES
+    irr_yn = int(inputFile[l].strip())
+    if irr_yn == 1 :
+        l += 1
+        gridIRR_fn = inputFile[l].strip()
+        l += 1
+        IRR_fn = inputFile[l].strip()
     l += 1
     inputObs_fn = inputFile[l].strip()
     l += 1
@@ -1357,7 +1361,7 @@ if plt_out == 1 or plt_out_obs == 1:
                 del cbc_WEL
             if cMF.ghb_yn == 1:
                 cbc_GHB = h5_MF['GHB_d']
-                if cMF.ghbcells > 0:
+                if cMF.ghbcells[l] > 0:
                     flxlst.append(facTim*(cbc_GHB[:,:,:,l].sum()/sum(cMF.perlen)/sum(ncell_MM)))
                     OutMF += flxlst[-1]
                 else:

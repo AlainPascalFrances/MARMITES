@@ -12,8 +12,8 @@
 #!/usr/bin/env python
 
 __author__ = "Alain P. Francés <frances.alain@gmail.com>"
-__version__ = "0.1"
-__date__ = "March 2011"
+__version__ = "3.0"
+__date__ = "2012"
 
 import sys, os, traceback
 import numpy as np

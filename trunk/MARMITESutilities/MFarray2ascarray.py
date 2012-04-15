@@ -1,7 +1,7 @@
 ﻿import os
 
 header_fn = r'E:\00code_ws\LAMATA_new\MF_ws\00header_asc.txt'
-hk_PEST_fn = [r'E:\00code_ws\LAMATA_new\MF_ws\00hk_l1.ref', r'E:\00code_ws\LAMATA_new\MF_ws\PEST\00hk_l2.ref']
+hk_PEST_fn = [r'E:\00code_ws\LAMATA_new\MF_ws\00hk_l1.ref', r'E:\00code_ws\LAMATA_new\MF_ws\00hk_l2.ref']
 hk_MM_fn = [r'E:\00code_ws\LAMATA_new\MF_ws\00hk_l1.asc', r'E:\00code_ws\LAMATA_new\MF_ws\00hk_l2.asc']
 ncol = 60
 
