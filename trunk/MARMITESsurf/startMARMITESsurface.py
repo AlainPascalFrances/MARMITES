@@ -71,33 +71,43 @@ import MARMITESprocess_v3 as MMproc
     16.22 16.25 8.0 15.0 0.0 0.0 2.0 2.0
 
     #VEGETATION PARAMETERS
-    #NVEG: number of vegetation types
+    #NVEG: number of vegetation types (NO IRRIGATION)
     3
+    #NCRP: number of crops (WITH IRRIGATION)
+    2
+    #NFIELD: number of fields and related irrigation time serie
+    4
+    # INDICATE FIRST THE PARAMETERS OF THE VEGETATION AND AFTER OF THE CROPS
     # to repeat NVEG times in a same line
     # 0 - VegType: name of the vegetation type [string, 1 word, no space allowed]
-    # 1 - h: heigth of plant [m]
-    # 2 - S_w: canopy capacity [mm]
-    # 3 - C_leaf_star: maximum leaf conductance [m.s-1]
-    # 4 - LAI_d: leaf area index dry season [m2.m-2]
-    # 5 - LAI_w: leaf area index wet season [m2.m-2]
-    # 6 - f_s_d: shelter factor dry season []
-    # 7 - f_s_w: shelter factor wet season []
-    # 8 - alfa_vd: vegetation albedo in dry season
-    # 9 - alfa_vw: vegetation albedo in wet season
-    # 10 - J_vd: starting julian day of the dry season [int 1-365]
-    # 11 - J_vw: starting julian day of the wet season [int 1-365]
-    # 12 - TRANS_vdw: transition period between dry and wet season [days]
-    # 13 - Zr: maximum root depth [m]
-    # 14 - kTu_min: transpiration sourcing factor min [], 1>=k_Tu>0
-    # 15 - kTu_n: transpiration sourcing factor power value [], n>0
+    # 1 - h_d: heigth of plant dry season[m]
+    # 2 - h_w: heigth of plant wet season[m]
+    # 3 - S_w: canopy capacity [mm]
+    # 4 - C_leaf_star: maximum leaf conductance [m.s-1]
+    # 5 - LAI_d: leaf area index dry season [m2.m-2]
+    # 6 - LAI_w: leaf area index wet season [m2.m-2]
+    # 7 - f_s_d: shelter factor dry season []
+    # 8 - f_s_w: shelter factor wet season []
+    # 9 - alfa_vd: vegetation albedo in dry season
+    # 10 - alfa_vw: vegetation albedo in wet season
+    # 11 - J_vd: starting julian day of the dry season [int 1-365]
+    # 12 - J_vw: starting julian day of the wet season [int 1-365]
+    # 13 - TRANS_vdw: transition period between dry and wet season [days]
+    # 14 - Zr: maximum root depth [m]
+    # 15 - kTu_min: transpiration sourcing factor min [], 1>=k_Tu>0
+    # 16 - kTu_n: transpiration sourcing factor power value [], n>0
     # BY DEFAULT THE PROGRAM WILL COMPUTE ETref USING GRASS FAO56 PARAMETERS
-    # grassFAO56 0.12 0.1 0.01 2.88 2.88 0.5 0.5 0.23 0.23 150 270 20 0.25 0.0 1.0
+    # grassFAO56 0.12 0.12 0.1 0.01 2.88 2.88 0.5 0.5 0.23 0.23 150 270 20 0.25 0.0 1.0
     # VEG1 (grass muelledes)
-    grassMU 0.5 0.15 0.01 1.2 2.88 0.5 0.55 0.30 0.20 150 270 20 0.40 1.0 1.0
+    grassMU 0.0 0.5 0.15 0.010 0.00 2.88 0.5 0.55 0.30 0.20 150 270 20 0.40 1.0 1.0
     # VEG2 (Q.ilex Sardon)
-    Qilex 6.0 1.16 0.004 6.0 6.0 0.75 0.70 0.25 0.10 150 270 20 6.0 0.05 2.0
+    Qilex   6.0 6.0 1.16 0.004 6.0 6.0 0.75 0.70 0.25 0.10 150 270 20 15.0 0.05 1.0
     # VEG3 (Q.pyr sardon)
-    Qpyr 8.0 1.75 0.004 6.0 1.0 0.80 0.3 0.25 0.15 150 270 20 4.0 0.05 2.0
+    Qpyr    8.0 8.0 1.75 0.004 6.0 1.0 0.80 0.3 0.25 0.15 150 270 20 10.0 0.05 1.0
+    # CROP1 (alfafa) # CHANGE PARAMETERS WITH FAO56
+    alfafa 0.0 0.5 0.15 0.010 0.00 2.88 0.5 0.55 0.30 0.20 150 270 20 0.40 1.0 1.0
+    # CROP2 (wheat)  # CHANGE PARAMETERS WITH FAO56
+    wheat 0.0 0.5 0.15 0.010 0.00 2.88 0.5 0.55 0.30 0.20 150 270 20 0.40 1.0 1.0
 
     # SOIL PARAMETERS
     # NSOIL: number of soil types
@@ -128,12 +138,12 @@ import MARMITESprocess_v3 as MMproc
     Output:
     -------------------------------
     ASCII files (comma separated) with datetime, julian day,
-    E0/ETref/PETveg/PETsoil and number of data/per day if daily data
+    E0/ETref/PTveg/PEsoil and number of data/per day if daily data
 '''
 
 ###########################################
 
-def MMsurf(pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, pathMMws, outMMsurf_fn, MMsurf_plot = 0):
+def MMsurf(pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, pathMMws, outMMsurf_fn, MMsurf_plot = 0, inputFile_TSirr_fn = None):
 
     def ExportResults(Dates, J, TS, outFileExport, ts_output = 0, n_d = [], TypeFile = "PET"):
         """
@@ -188,6 +198,8 @@ def MMsurf(pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, pathMMw
         l=0
         line = inputFile[l].split()
         NMETEO = int(line[0])
+        if NMETEO < 1:
+            raise SystemExit('\nFATAL ERROR!\nNMETEO must be higher than 1!\n')
         phi = []
         Lm = []
         Z = []
@@ -196,24 +208,30 @@ def MMsurf(pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, pathMMw
         DTS = []
         z_m = []
         z_h = []
-        if NMETEO>0:
-            for i in range(NMETEO):
-                l = l+1
-                line = inputFile[l].split()
-                phi.append(float(line[0])) # latitude of the meteo station [degres]
-                Lm.append(float(line[1])) #  longitude of the meteo station [degres]
-                Z.append(float(line[2]))
-                Lz.append(float(line[3])) #  longitude of the center of the local time zone [degres] (west of Greenwich)
-                FC.append(float(line[4]))
-                DTS.append(float(line[5])) # data time shift, for data NOT acquired at standart clock time [h]
-                z_m.append(float(line[6])) # heigth of u_z_m measurement [m]
-                z_h.append(float(line[7])) # heigth of humidity measurement [m]
+        for i in range(NMETEO):
+            l = l+1
+            line = inputFile[l].split()
+            phi.append(float(line[0])) # latitude of the meteo station [degres]
+            Lm.append(float(line[1])) #  longitude of the meteo station [degres]
+            Z.append(float(line[2]))
+            Lz.append(float(line[3])) #  longitude of the center of the local time zone [degres] (west of Greenwich)
+            FC.append(float(line[4]))
+            DTS.append(float(line[5])) # data time shift, for data NOT acquired at standart clock time [h]
+            z_m.append(float(line[6])) # heigth of u_z_m measurement [m]
+            z_h.append(float(line[7])) # heigth of humidity measurement [m]
         #VEGETATION PARAMETERS
         l = l + 1
         line = inputFile[l].split()
-        NVEG = int(line[0]) # number of vegetation types
+        NVEG = int(line[0]) # number of vegetation types (NO IRRIGATION)
+        l = l + 1
+        line = inputFile[l].split()
+        NCROP = int(line[0]) # number of crop types (WITH IRRIGATION)
+        l = l + 1
+        line = inputFile[l].split()
+        NFIELD = int(line[0]) # number of fields and related irrigation time serie
         VegType = [] # name of the vegetation type [string]
-        h = [] # heigth of plant [m]
+        h_d = [] # heigth of plant dry season [m]
+        h_w = [] # heigth of plant wet season [m]
         S = [] # canopy capacity [mm]
         C_leaf_star = [] # bulk stomatal resistance [s.m-1]
         LAI_d = [] # leaf area index dry season [m2.m-2]
@@ -230,7 +248,8 @@ def MMsurf(pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, pathMMw
         kTu_n = [] # transpiration sourcing factor power value [], n>0
         # input FAO56 grass parameters
         VegType.append("grassFAO56")
-        h.append(0.12)
+        h_d.append(0.12)
+        h_w.append(0.12)
         S.append(0.1)
         C_leaf_star.append(0.01)
         LAI_d.append(2.88)
@@ -246,25 +265,26 @@ def MMsurf(pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, pathMMw
         kTu_min.append(1.0)
         kTu_n.append(1.0)
         if NVEG>0:
-            for i in range(NVEG):
+            for i in range(NVEG+NCROP):
                 l = l + 1
                 line = inputFile[l].split()
                 VegType.append(str(line[0]))
-                h.append(float(line[1]))
-                S.append(float(line[2]))
-                C_leaf_star.append(float(line[3]))
-                LAI_d.append(float(line[4]))
-                LAI_w.append(float(line[5]))
-                f_s_d.append(float(line[6]))
-                f_s_w.append(float(line[7]))
-                alfa_vd.append(float(line[8]))
-                alfa_vw.append(float(line[9]))
-                J_vd.append(int(line[10]))
-                J_vw.append(int(line[11]))
-                TRANS_vdw.append(int(line[12]))
-                Zr.append(float(line[13]))
-                kTu_min.append(float(line[14]))
-                kTu_n.append(float(line[15]))
+                h_d.append(float(line[1]))
+                h_w.append(float(line[2]))
+                S.append(float(line[3]))
+                C_leaf_star.append(float(line[4]))
+                LAI_d.append(float(line[5]))
+                LAI_w.append(float(line[6]))
+                f_s_d.append(float(line[7]))
+                f_s_w.append(float(line[8]))
+                alfa_vd.append(float(line[9]))
+                alfa_vw.append(float(line[10]))
+                J_vd.append(int(line[11]))
+                J_vw.append(int(line[12]))
+                TRANS_vdw.append(int(line[13]))
+                Zr.append(float(line[14]))
+                kTu_min.append(float(line[15]))
+                kTu_n.append(float(line[16]))
         NVEG = NVEG + 1 # number of vegetation types + FAO56 GRASS (default)
         # SOIL PARAMETERS
         l = l + 1
@@ -293,242 +313,306 @@ def MMsurf(pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, pathMMw
         # WATER PARAMETERS
         alfa_w = 0.06 # water albedo
     except:
-        raise SystemExit("\nError reading the input file:\n[" + inputFile_PAR_fn +"]")
+        raise SystemExit("\nFATAL ERROR!\nError reading the input file:\n[" + inputFile_PAR_fn +"]")
     del inputFile, l, line
-    print "\nMETEO/VEGETATION/SOIL/OPENWATER PARAMETERS file imported!\n[" + inputFile_PAR_fn +"]"
+    print "\nMETEO/VEGETATION/SOIL PARAMETERS file imported!\n[" + inputFile_PAR_fn +"]"
 
     # read INPUT file
     # METEO TIME SERIES
+    inputFile_TS_fn = os.path.join(pathMMsurf, inputFile_TS_fn)
+    if os.path.exists(inputFile_TS_fn):
+        dataMETEOTS = np.loadtxt(inputFile_TS_fn, skiprows = 1, dtype = str)
+    else:
+        raise SystemExit("\nFATAL ERROR!\nThe input file [" + inputFile_TS_fn + "] doesn't exist, verify name and path!")
     try:
-        inputFile_TS_fn = os.path.join(pathMMsurf, inputFile_TS_fn)
-        if os.path.exists(inputFile_TS_fn):
-            dataMETEOTS = np.loadtxt(inputFile_TS_fn, skiprows = 1, dtype = str)
-            date = dataMETEOTS[:,0]
-            time = dataMETEOTS[:,1]
-            datenum = []
-            datetime = []
-            datenum_d = []
-            datetime_i = (date[0] + " " + time[0])
-            datenum_i = mpl.dates.datestr2num(datetime_i)-(DTS[0])/24.0
-            actual_day = mpl.dates.num2date(datenum_i).isoformat()[:10]
-            datenum_d.append(mpl.dates.datestr2num(actual_day))
-            RF1 = []
-            Ta1 = []
-            RHa1 = []
-            Pa1 = []
-            u_z_m1 = []
-            Rs1 = []
-            RF = []
-            Ta = []
-            RHa = []
-            Pa = []
-            u_z_m = []
-            Rs = []
-            if NMETEO>0:
-                for n in range(NMETEO):
-                    RF1.append(dataMETEOTS[:,2+n*6])
-                    Ta1.append(dataMETEOTS[:,3+n*6])
-                    RHa1.append(dataMETEOTS[:,4+n*6])
-                    Pa1.append(dataMETEOTS[:,5+n*6])
-                    u_z_m1.append(dataMETEOTS[:,6+n*6])
-                    Rs1.append(dataMETEOTS[:,7+n*6])
-                    RF.append([])
-                    Ta.append([])
-                    RHa.append([])
-                    Pa.append([])
-                    u_z_m.append([])
-                    Rs.append([])
-                    for t in range(len(Ta1[n])):
-                        if n == 0:
-                            datetime.append(date[t] + " " + time[t])
-                            datenum.append(mpl.dates.datestr2num(datetime[t])-(DTS[0])/24.0)
-                            if actual_day <> date[t]:
-                                datenum_d.append(mpl.dates.datestr2num(date[t]))
-                                actual_day = date[t]
-                        RF[n].append(float(RF1[n][t]))
-                        Ta[n].append(float(Ta1[n][t]))
-                        RHa[n].append(float(RHa1[n][t]))
-                        Pa[n].append(float(Pa1[n][t]))
-                        u_z_m[n].append(float(u_z_m1[n][t]))
-                        Rs[n].append(float(Rs1[n][t]))
-        else:
-            raise SystemExit("\nThe input file [" + inputFile_TS_fn + "] doesn't exist, verify name and path!")
+        date = dataMETEOTS[:,0]
+        time = dataMETEOTS[:,1]
+        datenum = []
+        datetime = []
+        datenum_d = []
+        datetime_i = (date[0] + " " + time[0])
+        datenum_i = mpl.dates.datestr2num(datetime_i)-(DTS[0])/24.0
+        actual_day = mpl.dates.num2date(datenum_i).isoformat()[:10]
+        datenum_d.append(mpl.dates.datestr2num(actual_day))
+        RF1 = []
+        Ta1 = []
+        RHa1 = []
+        Pa1 = []
+        u_z_m1 = []
+        Rs1 = []
+        RF = []
+        Ta = []
+        RHa = []
+        Pa = []
+        u_z_m = []
+        Rs = []
+        for n in range(NMETEO):
+            RF1.append(dataMETEOTS[:,2+n*6])
+            Ta1.append(dataMETEOTS[:,3+n*6])
+            RHa1.append(dataMETEOTS[:,4+n*6])
+            Pa1.append(dataMETEOTS[:,5+n*6])
+            u_z_m1.append(dataMETEOTS[:,6+n*6])
+            Rs1.append(dataMETEOTS[:,7+n*6])
+            RF.append([])
+            Ta.append([])
+            RHa.append([])
+            Pa.append([])
+            u_z_m.append([])
+            Rs.append([])
+            for t in range(len(Ta1[n])):
+                if n == 0:
+                    datetime.append(date[t] + " " + time[t])
+                    datenum.append(mpl.dates.datestr2num(datetime[t])-(DTS[0])/24.0)
+                    if actual_day <> date[t]:
+                        datenum_d.append(mpl.dates.datestr2num(date[t]))
+                        actual_day = date[t]
+                RF[n].append(float(RF1[n][t]))
+                Ta[n].append(float(Ta1[n][t]))
+                RHa[n].append(float(RHa1[n][t]))
+                Pa[n].append(float(Pa1[n][t]))
+                u_z_m[n].append(float(u_z_m1[n][t]))
+                Rs[n].append(float(Rs1[n][t]))
     except:
-            raise SystemExit("\nUnexpected error in the input file\n[" + inputFile_TS_fn +"]\n" + str(sys.exc_info()[1]))
+        raise SystemExit("\nFATAL ERROR!\nUnexpected error in the input file\n[" + inputFile_TS_fn +"]\n" + str(sys.exc_info()[1]))
     del dataMETEOTS, date, time, datetime, datetime_i, actual_day, RF1, Ta1, RHa1, Pa1, u_z_m1,Rs1
     print "\nMETEO TIME SERIES file imported!\n[" + inputFile_TS_fn +"]"
+    # IRRIGATION TIME SERIES
+    if inputFile_TSirr_fn <> None:
+        inputFile_TSirr_fn = os.path.join(pathMMsurf, inputFile_TSirr_fn)
+        if os.path.exists(inputFile_TSirr_fn):
+            dataIRRTS = np.loadtxt(inputFile_TSirr_fn, skiprows = 1, dtype = str)
+        else:
+            raise SystemExit("\nFATAL ERROR!\nThe input file [" + inputFile_TSirr_fn + "] doesn't exist, verify name and path!")
+        try:
+            IRR = []
+            for n in range(NFIELD):
+                IRR.append(dataIRRTS[:,2+n].astype(float))
+        except:
+            raise SystemExit("\nFATAL ERROR!\nUnexpected error in the input file\n[" + inputFile_TSirr_fn +"]\n" + str(sys.exc_info()[1]))
+        print "\nIRRIGATION TIME SERIES file imported!\n[" + inputFile_TSirr_fn +"]"
+    else:
+        IRR = None
 
+    #  ##### COMPUTING PT, PE and INTERCEPTION ##############################################
+    print "\nComputing PT, PE, RFe, etc..."
 
-    #  ##### COMPUTING PET and INTERCEPTION ##############################################
-    print "\nComputing PET..."
+    inputZON_TS_RFveg_fn = "inputZONRFveg_d.txt"
+    inputZONRFveg_fn = os.path.join(pathMMws, inputZON_TS_RFveg_fn)
+    inputZONRFveg = open(inputZONRFveg_fn, 'w')
+    inputZONRFveg.write('#\n')
 
-    if NMETEO>0:
+    inputZON_TS_RFirr_fn = "inputZONRFirr_d.txt"
+    inputZONRFirr_fn = os.path.join(pathMMws, inputZON_TS_RFirr_fn)
+    inputZONRFirr = open(inputZONRFirr_fn, 'w')
+    inputZONRFirr.write('#\n')
 
-        inputZON_TS_RF_fn = "inputZONRF_d.txt"
-        inputZONRF_fn = os.path.join(pathMMws, inputZON_TS_RF_fn)
-        inputZONRF = open(inputZONRF_fn, 'w')
-        inputZONRF.write('#\n')
+    inputZON_TS_RFeveg_fn = "inputZONRFeveg_d.txt"
+    inputZONRFeveg_fn = os.path.join(pathMMws, inputZON_TS_RFeveg_fn)
+    inputZONRFeveg = open(inputZONRFeveg_fn, 'w')
+    inputZONRFeveg.write('#\n')
 
-        inputZON_TS_PET_fn = "inputZONPET_d.txt"
-        inputZONPET_fn = os.path.join(pathMMws, inputZON_TS_PET_fn)
-        inputZONPET = open(inputZONPET_fn, 'w')
-        inputZONPET.write('#\n')
+    inputZON_TS_RFeirr_fn = "inputZONRFeirr_d.txt"
+    inputZONRFeirr_fn = os.path.join(pathMMws, inputZON_TS_RFeirr_fn)
+    inputZONRFeirr = open(inputZONRFeirr_fn, 'w')
+    inputZONRFeirr.write('#\n')
 
-        inputZON_TS_RFe_fn = "inputZONRFe_d.txt"
-        inputZONRFe_fn = os.path.join(pathMMws, inputZON_TS_RFe_fn)
-        inputZONRFe = open(inputZONRFe_fn, 'w')
-        inputZONRFe.write('#\n')
+    inputZON_TS_PT_fn = "inputZONPT_d.txt"
+    inputZONPT_fn = os.path.join(pathMMws, inputZON_TS_PT_fn)
+    inputZONPT = open(inputZONPT_fn, 'w')
+    inputZONPT.write('#\n')
 
-        inputZON_TS_PE_fn = "inputZONPE_d.txt"
-        inputZONPE_fn = os.path.join(pathMMws, inputZON_TS_PE_fn)
-        inputZONPE = open(inputZONPE_fn, 'w')
-        inputZONPE.write('#\n')
+    inputZON_TS_PE_fn = "inputZONPE_d.txt"
+    inputZONPE_fn = os.path.join(pathMMws, inputZON_TS_PE_fn)
+    inputZONPE = open(inputZONPE_fn, 'w')
+    inputZONPE.write('#\n')
 
-        inputZON_TS_E0_fn = "inputZONE0_d.txt"
-        inputZONE0_fn = os.path.join(pathMMws, inputZON_TS_E0_fn)
-        inputZONE0 = open(inputZONE0_fn, 'w')
-        inputZONE0.write('#\n')
+    inputZON_TS_E0_fn = "inputZONE0_d.txt"
+    inputZONE0_fn = os.path.join(pathMMws, inputZON_TS_E0_fn)
+    inputZONE0 = open(inputZONE0_fn, 'w')
+    inputZONE0.write('#\n')
 
-        for n in range(NMETEO):
-            print '\n--------------'
-            print "Processing data of ZONE" + str(n+1) + "/%s" % str(NMETEO)
-            J, J_d, outputVAR, PET_PM_VEG, Erf, PE_PM_SOIL, E0, PET_PM_VEG_d, PE_PM_SOIL_d, E0_d, RF_d, RFint, RF_duration, n1_d, RFe_d, I_d = PET_RF_INTER.process(datenum, datenum_d, \
-                    RF[n], Ta[n], RHa[n], Pa[n], u_z_m[n], Rs[n], \
-                    phi[n], Lm[n], Z[n], Lz[n], FC[n], z_m[n], z_h[n], \
-                    NVEG, VegType, h, S, C_leaf_star, LAI_d, LAI_w,\
-                    f_s_d, f_s_w, alfa_vd, alfa_vw, J_vd, J_vw, TRANS_vdw,\
-                    NSOIL, SoilType, por, fc, alfa_sd, alfa_sw, J_sd, J_sw, TRANS_sdw, alfa_w)
+    for n in range(NMETEO):
+        print "\n--------------\nProcessing data of ZONE %s/%s\n--------------" % (str(n+1), str(NMETEO))
+        if IRR == None:
+            J, J_d, outputVAR, PT_PM_VEG, Erf, PE_PM_SOIL, E0, PT_PM_VEG_d, PE_PM_SOIL_d, E0_d, RFveg_d, RFvegint,                      RFveg_duration, n1_d, RFeveg_d, Iveg_d = PET_RF_INTER.process(
+                datenum, datenum_d, \
+                RF[n], IRR, Ta[n], RHa[n], Pa[n], u_z_m[n], Rs[n], \
+                phi[n], Lm[n], Z[n], Lz[n], FC[n], z_m[n], z_h[n], \
+                NVEG, VegType, h_d, h_w, S, C_leaf_star, LAI_d, LAI_w,\
+                f_s_d, f_s_w, alfa_vd, alfa_vw, J_vd, J_vw, TRANS_vdw,\
+                NSOIL, SoilType, por, fc, alfa_sd, alfa_sw, J_sd, J_sw, TRANS_sdw, alfa_w,
+                NCROP, NFIELD)
+        else:
+            J, J_d, outputVAR, PT_PM_VEG, Erf, PE_PM_SOIL, E0, PT_PM_VEG_d, PE_PM_SOIL_d, E0_d, RFveg_d, RFvegint,                      RFveg_duration, n1_d, RFeveg_d, Iveg_d, RFirr_d, RFirrint, RFirr_duration, n1_d, RFeirr_d, Iirr_d =                         PET_RF_INTER.process(
+                datenum, datenum_d, \
+                RF[n], IRR, Ta[n], RHa[n], Pa[n], u_z_m[n], Rs[n], \
+                phi[n], Lm[n], Z[n], Lz[n], FC[n], z_m[n], z_h[n], \
+                NVEG, VegType, h_d, h_w, S, C_leaf_star, LAI_d, LAI_w,\
+                f_s_d, f_s_w, alfa_vd, alfa_vw, J_vd, J_vw, TRANS_vdw,\
+                NSOIL, SoilType, por, fc, alfa_sd, alfa_sw, J_sd, J_sw, TRANS_sdw, alfa_w,
+                NCROP, NFIELD)
 
-            #  #####  PLOTTING ##############################################
-            print "\nExporting plots..."
-            npdatenum = np.array(datenum)
-            if MMsurf_plot == 1:
-                plt.switch_backend('WXagg')
-            # outputVAR = [DELTA,gama, Rs, Rs_corr, Rs0, Rnl, r]
-            plot_exportVAR_fn = os.path.join(pathMMsurf,  outputFILE_fn + "_ZON" + str(n+1)+'_VAR.png')
-            plotPET.plotVAR(strTitle = 'Penman-Monteith variables', x = npdatenum \
-                    ,y5 = PET_PM_VEG[0], y4 = E0 \
-                    ,y2 = outputVAR[2], y3=outputVAR[3] \
-                    ,y1 = outputVAR[4], y6 = outputVAR[5]\
-                    ,lbl_y5 = 'ETref', lbl_y4 = 'E0' \
-                    ,lbl_y2 = 'Rs_meas', lbl_y3 = 'Rs_corr' \
-                    ,lbl_y1 = 'Rs0', lbl_y6 = 'Rnl'
-                    ,plot_exportVAR_fn = plot_exportVAR_fn
-                    , MMsurf_plot = MMsurf_plot
-                    )
-            # PLOTTING PET
-            plot_exportPET_fn = os.path.join(pathMMsurf,  outputFILE_fn + "_ZON" + str(n+1)+'_PET.png')
-            npdatenum_d = np.array(datenum_d)
-            plotPET.plot(strTitle = 'PET veg&soil', x = npdatenum_d \
-                ,y1 = PET_PM_VEG_d, y2 = E0_d, y3 = PE_PM_SOIL_d \
-                ,lbl_y1 = VegType, lbl_y3 = SoilType
-                ,plot_exportPET_fn = plot_exportPET_fn
-                , MMsurf_plot = MMsurf_plot
-                )
-            # PLOTTING RF and INTERCEPTION
-            plot_exportRF_fn = os.path.join(pathMMsurf,  outputFILE_fn + "_ZON" + str(n+1)+'_RF.png')
-            plotRF.plot(strTitle = 'Rainfall and interception', x = npdatenum_d \
-                    ,y1 = RF_d, y2 = RFint, y3 = I_d, y4 = RFe_d
-                    ,lbl_y1 = 'RF (mm/d)',  lbl_y2 = 'RFint (mm/h/d)' \
-                    ,lbl_y3 = 'I (mm/d)',lbl_y4 = 'RFe (mm/d)', lbl_veg = VegType\
-                    ,plot_exportRF_fn = plot_exportRF_fn
-                    , MMsurf_plot = MMsurf_plot
-                    )
+        #  #####  PLOTTING ##############################################
+##        print "\nExporting plots..."
+##        npdatenum = np.array(datenum)
+##        if MMsurf_plot == 1:
+##            plt.switch_backend('WXagg')
+##        # outputVAR = [DELTA,gama, Rs, Rs_corr, Rs0, Rnl, r]
+##        plot_exportVAR_fn = os.path.join(pathMMsurf,  outputFILE_fn + "_ZON" + str(n+1)+'_VAR.png')
+##        plotPT.plotVAR(strTitle = 'Penman-Monteith variables', x = npdatenum \
+##                ,y5 = PT_PM_VEG[0], y4 = E0 \
+##                ,y2 = outputVAR[2], y3=outputVAR[3] \
+##                ,y1 = outputVAR[4], y6 = outputVAR[5]\
+##                ,lbl_y5 = 'ETref', lbl_y4 = 'E0' \
+##                ,lbl_y2 = 'Rs_meas', lbl_y3 = 'Rs_corr' \
+##                ,lbl_y1 = 'Rs0', lbl_y6 = 'Rnl'
+##                ,plot_exportVAR_fn = plot_exportVAR_fn
+##                , MMsurf_plot = MMsurf_plot
+##                )
+##        # PLOTTING PT, PE, E0
+##        plot_exportPET_fn = os.path.join(pathMMsurf,  outputFILE_fn + "_ZON" + str(n+1)+'_PET.png')
+##        npdatenum_d = np.array(datenum_d)
+##        plotPET.plot(strTitle = 'PT/PE', x = npdatenum_d \
+##            ,y1 = PT_PM_VEG_d, y2 = E0_d, y3 = PE_PM_SOIL_d \
+##            ,lbl_y1 = VegType, lbl_y3 = SoilType
+##            ,plot_exportPET_fn = plot_exportPET_fn
+##            , MMsurf_plot = MMsurf_plot
+##            )
+##        # PLOTTING RF and INTERCEPTION
+##        plot_exportRF_fn = os.path.join(pathMMsurf,  outputFILE_fn + "_ZON" + str(n+1)+'_RF.png')
+##        plotRF.plot(strTitle = 'Rainfall and interception', x = npdatenum_d \
+##                ,y1 = RFveg_d, y2 = RFint, y3 = I_d, y4 = RFe_d
+##                ,lbl_y1 = 'RF (mm/d)',  lbl_y2 = 'RFint (mm/h/d)' \
+##                ,lbl_y3 = 'I (mm/d)',lbl_y4 = 'RFe (mm/d)', lbl_veg = VegType\
+##                ,plot_exportRF_fn = plot_exportRF_fn
+##                , MMsurf_plot = MMsurf_plot
+##                )
+##
+##        if MMsurf_plot == 1:
+##            plt.switch_backend('agg')
 
-            if MMsurf_plot == 1:
-                plt.switch_backend('agg')
-
-            #  #####  EXPORTING ASCII FILES ##############################################
-            try:
-                if os.path.exists(pathMMsurf):
-                    print "\nExporting output to ASCII files..."
-            # EXPORTING RESULTS PET/ET0/PE/E0/RF/RFe/INTER/
-                    for ts_output in range(2):
-                        if ts_output == 0:
-                            print "\nHourly values..."                  # hourly output
-                            datenumOUT = datenum
-                            dORh_suffix = "_h"  # for file naming in export
-                        else:                                # daily output
-                            print "\nDaily values..."
-                            datenumOUT = datenum_d
-                            dORh_suffix = "_d"  # for file naming in export
-                            ExportResults1(RF_d, inputZONRF)
-                            ExportResults1(E0_d, inputZONE0)
-                        outputfile_fn = outputFILE_fn + "_ZON" + str(n+1) + dORh_suffix
-                        if ts_output <> 1:
-                            # OUPUT VARIABLES FOR PM EQUATION
-                            outpathname = os.path.join(pathMMsurf, outputfile_fn + "_VAR.int")
+        #  #####  EXPORTING ASCII FILES ##############################################
+        try:
+            if os.path.exists(pathMMsurf):
+                print "\n-----------\nExporting output to ASCII files..."
+        # EXPORTING RESULTS PT/ET0/PE/E0/RF/RFe/INTER/
+                for ts_output in range(2):
+                    if ts_output == 0:
+                        print "\nHourly values..."                  # hourly output
+                        datenumOUT = datenum
+                        dORh_suffix = "_h"  # for file naming in export
+                    else:                                # daily output
+                        print "\nDaily values..."
+                        datenumOUT = datenum_d
+                        dORh_suffix = "_d"  # for file naming in export
+                        ExportResults1(RFveg_d, inputZONRFveg)
+                        ExportResults1(E0_d, inputZONE0)
+                    outputfile_fn = outputFILE_fn + "_ZON" + str(n+1) + dORh_suffix
+                    if ts_output <> 1:
+                        # OUPUT VARIABLES FOR PM EQUATION
+                        outpathname = os.path.join(pathMMsurf, outputfile_fn + "_VAR.int")
+                        outFileExport = open(outpathname, 'w')
+                        outFileExport.write('Date,J,DELTA,gama,Rs_meas,Rs_corr,Rs0,Rnl,r\n')
+                        ExportResults(datenumOUT, J, outputVAR, outFileExport, TypeFile = "VAR")
+                        outFileExport.close()
+                    # VEG+NCROP (PT, Erf)
+                    for v in range(NVEG+NCROP):
+                        if v < NVEG:
+                            nam_tmp = 'VEG'+ str(v)
+                        else:
+                            nam_tmp = 'CROP'+ str(v-NVEG+1)
+                        if ts_output == 1:
+                        # DAILY
+                            # PT
+                            outpathname = os.path.join(pathMMsurf, outputfile_fn + "_PT_" + nam_tmp + "_" + VegType[v] + ".out")
                             outFileExport = open(outpathname, 'w')
-                            outFileExport.write('Date,J,DELTA,gama,Rs_meas,Rs_corr,Rs0,Rnl,r\n')
-                            ExportResults(datenumOUT, J, outputVAR, outFileExport, TypeFile = "VAR")
+                            outFileExport.write('Date,J,PT,n_d\n')
+                            ExportResults(datenumOUT, J_d, PT_PM_VEG_d[v],outFileExport, ts_output, n1_d)
+                            print "\n[" + outpathname + "] exported!"
                             outFileExport.close()
-                        #VEG
-                        for v in range(NVEG):
-                            if ts_output == 1:
-                                # PET
-                                outpathname = os.path.join(pathMMsurf, outputfile_fn + "_PET_VEG" + str(v) + "_" + VegType[v] + ".out")
-                                outFileExport = open(outpathname, 'w')
-                                outFileExport.write('Date,J,PET,n_d\n')
-                                ExportResults(datenumOUT, J_d, PET_PM_VEG_d[v],outFileExport, ts_output, n1_d)
-                                # RF, RFe, etc
-                                outpathname = os.path.join(pathMMsurf, outputfile_fn + "_RF_VEG" + str(v) + "_" + VegType[v] + ".out")
-                                outFileExport = open(outpathname, 'w')
-                                outFileExport.write('Date,J,RF_mm,duration_day,RFint_mm_h,RFe_mm,Interception_mm\n')
-                                TStmp = [RF_d, RF_duration, RFint, RFe_d[v], I_d[v]]
-                                ExportResults(datenumOUT, J_d, TStmp, outFileExport, TypeFile = "RF")
-                                outFileExport.close()
-                                # PET and Rfe for MARMITES
-                                if v>0: #to skip ETref (NVEG=0)
-                                    ExportResults1(PET_PM_VEG_d[v], inputZONPET)
-                                    ExportResults1(RFe_d[v], inputZONRFe)
-                                print "\n[" + outpathname + "] exported!"
-                            else:
-                                outpathname = os.path.join(pathMMsurf, outputfile_fn + "_PET_VEG" + str(v) + "_" + VegType[v] + ".out")
-                                outFileExport = open(outpathname, 'w')
-                                outFileExport.write('Date,J,PET\n')
-                                ExportResults(datenumOUT, J, PET_PM_VEG[v],outFileExport, ts_output)
-                                outpathname1 = os.path.join(pathMMsurf, outputfile_fn + "_Erf_VEG" + str(v) + "_" + VegType[v] + ".int")
-                                outFileExport1 = open(outpathname1, 'w')
-                                outFileExport1.write('Date,J,Erf\n')
-                                ExportResults(datenumOUT, J, Erf[v],outFileExport1, ts_output)
-                                outFileExport1.close()
+                            # PT for MARMITES
+                            if v>0: #to skip ETref (NVEG=0)
+                                ExportResults1(PT_PM_VEG_d[v], inputZONPT)
+                        else:
+                        # HOURLY
+                            # PT
+                            outpathname = os.path.join(pathMMsurf, outputfile_fn + "_PT_" + nam_tmp + "_" + VegType[v] + ".out")
+                            outFileExport = open(outpathname, 'w')
+                            outFileExport.write('Date,J,PT\n')
+                            ExportResults(datenumOUT, J, PT_PM_VEG[v],outFileExport, ts_output)
                             outFileExport.close()
                             print "\n[" + outpathname + "] exported!"
-                        # SOIL
-                        if NSOIL>0:
-                            for s in range(NSOIL):
-                                outpathname = os.path.join(pathMMsurf, outputfile_fn + "_PE_SOIL" + str(s+1) + "_" + SoilType[s] + ".out")
+                            # Erf
+                            outpathname1 = os.path.join(pathMMsurf, outputfile_fn + "_Erf_" + nam_tmp + "_" + VegType[v] + ".int")
+                            outFileExport1 = open(outpathname1, 'w')
+                            outFileExport1.write('Date,J,Erf\n')
+                            ExportResults(datenumOUT, J, Erf[v],outFileExport1, ts_output)
+                            outFileExport1.close()
+                            print "\n[" + outpathname1 + "] exported!"
+                    if ts_output == 1:
+                    # DAILY
+                        # NVEG (RF, RFe, etc)
+                        for v in range(NVEG):
+                            outpathname = os.path.join(pathMMsurf, outputfile_fn + "_RF_VEG" + str(v) + "_" + VegType[v] + ".out")
+                            outFileExport = open(outpathname, 'w')
+                            outFileExport.write('Date,J,RF_mm,duration_day,RFint_mm_h,RFe_mm,Interception_mm\n')
+                            TStmp = [RFveg_d, RFveg_duration, RFvegint, RFeveg_d[v], Iveg_d[v]]
+                            ExportResults(datenumOUT, J_d, TStmp, outFileExport, TypeFile = "RF")
+                            print "\n[" + outpathname + "] exported!"
+                            outFileExport.close()
+                            # RFe for MARMITES
+                            if v > 0: #to skip ETref (NVEG=0)
+                                ExportResults1(RFeveg_d[v], inputZONRFeveg)
+                        # NFIELD/NCROP (RF, RFe, etc)
+                        for f in range(NFIELD):
+                            for c in range(NCROP):
+                                outpathname = os.path.join(pathMMsurf, outputfile_fn + "_RF_FIELD" + str(f+1) + "_CROP" + str(c+1) + "_" + VegType[c+NVEG] + ".out")
                                 outFileExport = open(outpathname, 'w')
-                                if ts_output == 1:
-                                    # PE
-                                    outFileExport.write('Date,J,PE,n_d\n')
-                                    ExportResults(datenumOUT, J_d, PE_PM_SOIL_d[s],outFileExport, ts_output,n1_d)
-                                    # PE for MARMITES
-                                    ExportResults1(PE_PM_SOIL_d[s], inputZONPE)
-                                else:
-                                    outFileExport.write('Date,J,PE\n')
-                                    ExportResults(datenumOUT, J, PE_PM_SOIL[s],outFileExport, ts_output)
-                                outFileExport.close()
+                                outFileExport.write('Date,J,RF_mm,duration_day,RFint_mm_h,RFe_mm,Interception_mm\n')
+                                TStmp = [RFirr_d[f], RFirr_duration[f], RFirrint[f], RFeirr_d[f][c], Iirr_d[f][c]]
+                                ExportResults(datenumOUT, J_d, TStmp, outFileExport, TypeFile = "RF")
                                 print "\n[" + outpathname + "] exported!"
-                        # WATER
-                        outpathname = os.path.join(pathMMsurf, outputfile_fn + "_E0.out")
-                        outFileExport = open(outpathname, 'w')
-                        if ts_output == 1:
-                            outFileExport.write('Date,J,E0,n_d\n')
-                            ExportResults(datenumOUT, J_d, E0_d,outFileExport, ts_output,n1_d)
-                        else:
-                            outFileExport.write('Date,J,E0\n')
-                            ExportResults(datenumOUT, J, E0,outFileExport, ts_output)
-                        outFileExport.close()
-                        print "\n[" + outpathname + "] exported!"
-                else:
-                    print "\nNo ASCII file export required."
-            except:
-                print "\nError in output file, some output files were not exported."
+                                outFileExport.close()
+                                # Rfe for MARMITES
+                                if v>0: #to skip ETref (NVEG=0)
+                                    ExportResults1(RFeirr_d[f][c], inputZONRFeirr)
+                    # SOIL
+                    if NSOIL>0:
+                        for s in range(NSOIL):
+                            outpathname = os.path.join(pathMMsurf, outputfile_fn + "_PE_SOIL" + str(s+1) + "_" + SoilType[s] + ".out")
+                            outFileExport = open(outpathname, 'w')
+                            if ts_output == 1:
+                                # PE
+                                outFileExport.write('Date,J,PE,n_d\n')
+                                ExportResults(datenumOUT, J_d, PE_PM_SOIL_d[s],outFileExport, ts_output,n1_d)
+                                # PE for MARMITES
+                                ExportResults1(PE_PM_SOIL_d[s], inputZONPE)
+                            else:
+                                outFileExport.write('Date,J,PE\n')
+                                ExportResults(datenumOUT, J, PE_PM_SOIL[s],outFileExport, ts_output)
+                            outFileExport.close()
+                            print "\n[" + outpathname + "] exported!"
+                    # WATER
+                    outpathname = os.path.join(pathMMsurf, outputfile_fn + "_E0.out")
+                    outFileExport = open(outpathname, 'w')
+                    if ts_output == 1:
+                        outFileExport.write('Date,J,E0,n_d\n')
+                        ExportResults(datenumOUT, J_d, E0_d,outFileExport, ts_output,n1_d)
+                    else:
+                        outFileExport.write('Date,J,E0\n')
+                        ExportResults(datenumOUT, J, E0,outFileExport, ts_output)
+                    outFileExport.close()
+                    print "\n[" + outpathname + "] exported!"
+            else:
+                print "\nNo ASCII file export required."
+        except:
+            print "\nWARNING!\nError in output file, some output files were not exported."
 
-    inputZONRF.close()
-    inputZONRFe.close()
-    inputZONPET.close()
+    inputZONRFveg.close()
+    inputZONRFirr.close()
+    inputZONRFeveg.close()
+    inputZONRFeirr.close()
+    inputZONPT.close()
     inputZONPE.close()
     inputZONE0.close()
 
@@ -540,16 +624,24 @@ def MMsurf(pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, pathMMw
     outFileExport.write(str(NMETEO))
     outFileExport.write('\n# NVEG: number of vegetation types\n')
     outFileExport.write(str(NVEG-1))
+    outFileExport.write('\n# NCROP: number of crop types\n')
+    outFileExport.write(str(NCROP))
+    outFileExport.write('\n# NFIELD: number of irrigation fields\n')
+    outFileExport.write(str(NFIELD))
     outFileExport.write('\n# NSOIL: number of soil types\n')
     outFileExport.write(str(NSOIL))
     outFileExport.write('\n# inputDate_fn: file with the dates\n')
     outFileExport.write(date_fn)
-    outFileExport.write('\n# inputZON_TS_RF_fn: RF zones\n')
-    outFileExport.write(inputZON_TS_RF_fn)
-    outFileExport.write('\n# inputZON_TS_PET_fn: PET zones\n')
-    outFileExport.write(inputZON_TS_PET_fn)
-    outFileExport.write('\n# inputZON_TS_RFe_fn: RFe zones\n')
-    outFileExport.write(inputZON_TS_RFe_fn)
+    outFileExport.write('\n# inputZON_TS_RFveg_fn: RF zones\n')
+    outFileExport.write(inputZON_TS_RFveg_fn)
+    outFileExport.write('\n# inputZON_TS_RFirr_fn: RF zones\n')
+    outFileExport.write(inputZON_TS_RFirr_fn)
+    outFileExport.write('\n# inputZON_TS_RFeveg_fn: RFe zones\n')
+    outFileExport.write(inputZON_TS_RFeveg_fn)
+    outFileExport.write('\n# inputZON_TS_RFeirr_fn: RFe zones\n')
+    outFileExport.write(inputZON_TS_RFeirr_fn)
+    outFileExport.write('\n# inputZON_TS_PT_fn: PT zones\n')
+    outFileExport.write(inputZON_TS_PT_fn)
     outFileExport.write('\n# inputZON_TS_PE_fn: PE zones\n')
     outFileExport.write(inputZON_TS_PE_fn)
     outFileExport.write('\n# inputZON_TS_E0_fn: E0 zones\n')

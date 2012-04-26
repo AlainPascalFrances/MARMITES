@@ -100,7 +100,7 @@ try:
     MMsurf_ws = inputFile[l].strip()
     l += 1
     # METEO TIME SERIES file name
-    inputFile_SP_fn = inputFile[l].strip()
+    inputFile_TS_fn = inputFile[l].strip()
     l += 1
     # METEO/VEGETATION/SOIL/WATER PARAMETERS file name
     inputFile_PAR_fn = inputFile[l].strip()
@@ -110,6 +110,14 @@ try:
     l += 1
     # ZONEVEGSOILfile
     outMMsurf_fn = inputFile[l].strip()
+    l += 1
+    # OPTIONNAL IRRIGATION FILES
+    irr_yn = int(inputFile[l].strip())
+    if irr_yn == 1 :
+        l += 1
+        inputFile_TSirr_fn = inputFile[l].strip()
+        l += 1
+        gridIRR_fn = inputFile[l].strip()
     l += 1
     # Define MODFLOW ws folders
     MF_ws = inputFile[l].strip()
@@ -132,14 +140,6 @@ try:
     gridSsw_fn =  inputFile[l].strip()
     l += 1
     SOILparam_fn = inputFile[l].strip()
-    l += 1
-    # OPTIONNAL IRRIGATION FILES
-    irr_yn = int(inputFile[l].strip())
-    if irr_yn == 1 :
-        l += 1
-        gridIRR_fn = inputFile[l].strip()
-        l += 1
-        IRR_fn = inputFile[l].strip()
     l += 1
     inputObs_fn = inputFile[l].strip()
     l += 1
@@ -194,7 +194,10 @@ try:
     if MMsurf_yn>0:
         durationMMsurf = 0.0
         timestartMMsurf = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
-        outMMsurf_fn = startMMsurf.MMsurf(MMsurf_ws, inputFile_SP_fn, inputFile_PAR_fn, outputFILE_fn, MM_ws, outMMsurf_fn, MMsurf_plot)
+        if irr_yn == 1 :
+            outMMsurf_fn = startMMsurf.MMsurf(MMsurf_ws, inputFile_TS_fn,                   inputFile_PAR_fn, outputFILE_fn, MM_ws, outMMsurf_fn, MMsurf_plot, inputFile_TSirr_fn)
+        else:
+            outMMsurf_fn = startMMsurf.MMsurf(MMsurf_ws, inputFile_TS_fn,                   inputFile_PAR_fn, outputFILE_fn, MM_ws, outMMsurf_fn, MMsurf_plot)
         timeendMMsurf = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
         durationMMsurf=(timeendMMsurf-timestartMMsurf)
     inputFile = MMproc.readFile(MM_ws,outMMsurf_fn)
@@ -209,15 +212,23 @@ try:
         l += 1
         NVEG = int(inputFile[l].strip())
         l += 1
+        NCROP = int(inputFile[l].strip())
+        l += 1
+        NFIELD = int(inputFile[l].strip())
+        l += 1
         NSOIL = int(inputFile[l].strip())
         l += 1
         inputDate_fn = str(inputFile[l].strip())
         l += 1
-        inputZON_dSP_RF_fn = str(inputFile[l].strip())
+        inputZON_dSP_RFveg_fn = str(inputFile[l].strip())
+        l += 1
+        inputZON_dSP_RFirr_fn = str(inputFile[l].strip())
+        l += 1
+        inputZON_dSP_RFeveg_fn = str(inputFile[l].strip())
+        l += 1
+        inputZON_dSP_RFeirr_fn = str(inputFile[l].strip())
         l += 1
         inputZON_dSP_PT_fn = str(inputFile[l].strip())
-        l += 1
-        inputZON_dSP_RFe_fn = str(inputFile[l].strip())
         l += 1
         inputZON_dSP_PE_fn = str(inputFile[l].strip())
         l += 1
@@ -295,26 +306,23 @@ try:
                 perlenmax = int(cMF.nper.split()[1].strip())
             except:
                 raise SystemExit('\nError in nper format of the MODFLOW ini file!\n')
-        cMF.ppMFtime(MM_ws, MF_ws, inputDate_fn, inputZON_dSP_RF_fn, inputZON_dSP_PT_fn, inputZON_dSP_RFe_fn, inputZON_dSP_PE_fn, inputZON_dSP_E0_fn, NMETEO, NVEG, NSOIL)
+        cMF.ppMFtime(MM_ws, MF_ws, inputDate_fn, inputZON_dSP_RFveg_fn, inputZON_dSP_PT_fn, inputZON_dSP_RFeveg_fn, inputZON_dSP_PE_fn, inputZON_dSP_E0_fn, NMETEO, NVEG, NSOIL)
 
     print'\n##############'
     print 'MARMITESunsat initialization'
     MM_UNSAT = MMunsat.UNSAT(hnoflo = cMF.hnoflo)
     MM_SATFLOW = MMunsat.SATFLOW()
 
-    # READ input ESRI ASCII rasters # missing gridIRR_fn
+    # READ input ESRI ASCII rasters
     print "\nImporting ESRI ASCII files to initialize MARMITES..."
     gridMETEO = cMF.MM_PROCESS.inputEsriAscii(grid_fn = gridMETEO_fn, datatype = int)
     gridSOIL = cMF.MM_PROCESS.inputEsriAscii(grid_fn = gridSOIL_fn, datatype = int)
-    gridSOILthick = cMF.MM_PROCESS.inputEsriAscii(grid_fn = gridSOILthick_fn,
-     datatype = float)
-    gridSshmax = cMF.MM_PROCESS.inputEsriAscii(grid_fn = gridSshmax_fn,
-     datatype = float)
-    gridSsw = cMF.MM_PROCESS.inputEsriAscii(grid_fn = gridSsw_fn,
-     datatype = float)
-    ##gridIRR = cMF.MM_PROCESS.inputEsriAscii(grid_fn                  = gridIRR_fn)
+    gridSOILthick = cMF.MM_PROCESS.inputEsriAscii(grid_fn = gridSOILthick_fn, datatype = float)
+    gridSshmax = cMF.MM_PROCESS.inputEsriAscii(grid_fn = gridSshmax_fn, datatype = float)
+    gridSsw = cMF.MM_PROCESS.inputEsriAscii(grid_fn = gridSsw_fn, datatype = float)
+    gridIRR = cMF.MM_PROCESS.inputEsriAscii(grid_fn = gridIRR_fn, datatype = float)
 
-    # READ input time series and parameters   # missing IRR_fn
+    # READ input time series and parameters
     gridVEGarea, RFzonesSP, E0zonesSP, PTvegzonesSP, RFevegzonesSP, PEsoilzonesSP, inputDate, JD = cMF.MM_PROCESS.inputSP(
                                     NMETEO                   = NMETEO,
                                     NVEG                     = NVEG,
@@ -326,7 +334,7 @@ try:
                                     inputZON_SP_RFe_fn       = cMF.inputZON_SP_RFe_fn,
                                     inputZON_SP_PE_fn        = cMF.inputZON_SP_PE_fn,
                                     inputZON_SP_E0_fn        = cMF.inputZON_SP_E0_fn
-                                    ) # IRR_fn
+                                    )
 
     # SOIL PARAMETERS
     _nsl, _nam_soil, _st, _facEg, _slprop, _Sm, _Sfc, _Sr, _Su_ini, _Ks = cMF.MM_PROCESS.inputSoilParam(MM_ws = MM_ws, SOILparam_fn = SOILparam_fn, NSOIL = NSOIL)
@@ -441,7 +449,7 @@ try:
 except StandardError, e:  #Exception
     raise SystemExit('\nFATAL ERROR!\nAbnormal MM run interruption in the initialization!\nError description:\n%s' % traceback.print_exc(file=sys.stdout))
 
-# #############################
+#fFATAL #############################
 # 2nd phase : MM/MF loop #####
 # #############################
 h_diff_surf = None
