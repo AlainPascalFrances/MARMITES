@@ -99,17 +99,11 @@ try:
     # Define MARMITESsurface folder
     MMsurf_ws = inputFile[l].strip()
     l += 1
-    # METEO TIME SERIES file name
-    inputFile_TS_fn = inputFile[l].strip()
-    l += 1
     # METEO/VEGETATION/SOIL/WATER PARAMETERS file name
     inputFile_PAR_fn = inputFile[l].strip()
     l += 1
-    # ouputprefix
-    outputFILE_fn = inputFile[l].strip()
-    l += 1
-    # ZONEVEGSOILfile
-    outMMsurf_fn = inputFile[l].strip()
+    # METEO TIME SERIES file name
+    inputFile_TS_fn = inputFile[l].strip()
     l += 1
     # OPTIONNAL IRRIGATION FILES
     irr_yn = int(inputFile[l].strip())
@@ -118,6 +112,14 @@ try:
         inputFile_TSirr_fn = inputFile[l].strip()
         l += 1
         gridIRR_fn = inputFile[l].strip()
+        l += 1
+    else:
+        l += 3
+    # ouputprefix
+    outputFILE_fn = inputFile[l].strip()
+    l += 1
+    # ZONEVEGSOILfile
+    outMMsurf_fn = inputFile[l].strip()
     l += 1
     # Define MODFLOW ws folders
     MF_ws = inputFile[l].strip()
@@ -155,7 +157,7 @@ try:
         plt_out_obs = 0
         print "\nYou required the MMsurf plots to appear on the screen. Due to backends limitation, MM and MF plots were disabled. Run again MM with MMsurf_plot = 0 to obtain the MM and MF plots."
 except:
-    raise SystemExit('\nType error in the input file %s' % (MM_fn))
+    raise SystemExit('\nFATAL ERROR!\nType error in the input file %s' % (MM_fn))
 del inputFile
 
 if verbose == 0:
@@ -185,271 +187,309 @@ else:
 # #############################
 # 1st phase: INITIALIZATION #####
 # #############################
-try:
+#try:
 # #############################
 # ###  MARMITES surface  ######
 # #############################
-    print'\n##############'
-    print 'MARMITESsurf RUN'
-    if MMsurf_yn>0:
-        durationMMsurf = 0.0
-        timestartMMsurf = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
-        if irr_yn == 1 :
-            outMMsurf_fn = startMMsurf.MMsurf(MMsurf_ws, inputFile_TS_fn,                   inputFile_PAR_fn, outputFILE_fn, MM_ws, outMMsurf_fn, MMsurf_plot, inputFile_TSirr_fn)
-        else:
-            outMMsurf_fn = startMMsurf.MMsurf(MMsurf_ws, inputFile_TS_fn,                   inputFile_PAR_fn, outputFILE_fn, MM_ws, outMMsurf_fn, MMsurf_plot)
-        timeendMMsurf = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
-        durationMMsurf=(timeendMMsurf-timestartMMsurf)
-    inputFile = MMproc.readFile(MM_ws,outMMsurf_fn)
-    l=0
-    TRANS_vdw = []
-    Zr = []
-    kTu_min = []
-    kTu_n = []
-    TRANS_sdw = []
-    try:
-        NMETEO = int(inputFile[l].strip())
-        l += 1
-        NVEG = int(inputFile[l].strip())
+print'\n##############'
+print 'MARMITESsurf RUN'
+if MMsurf_yn>0:
+    durationMMsurf = 0.0
+    timestartMMsurf = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
+    if irr_yn == 1 :
+        outMMsurf_fn = startMMsurf.MMsurf(MMsurf_ws, inputFile_TS_fn,                   inputFile_PAR_fn, outputFILE_fn, MM_ws, outMMsurf_fn, MMsurf_plot, inputFile_TSirr_fn)
+    else:
+        outMMsurf_fn = startMMsurf.MMsurf(MMsurf_ws, inputFile_TS_fn,                   inputFile_PAR_fn, outputFILE_fn, MM_ws, outMMsurf_fn, MMsurf_plot)
+    timeendMMsurf = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
+    durationMMsurf=(timeendMMsurf-timestartMMsurf)
+inputFile = MMproc.readFile(MM_ws,outMMsurf_fn)
+l=0
+Zr = []
+kTu_min = []
+kTu_n = []
+try:
+    NMETEO = int(inputFile[l].strip())
+    l += 1
+    NVEG = int(inputFile[l].strip())
+    l += 1
+    NSOIL = int(inputFile[l].strip())
+    l += 1
+    inputDate_fn = str(inputFile[l].strip())
+    l += 1
+    inputZON_dSP_RF_veg_fn = str(inputFile[l].strip())
+    l += 1
+    inputZON_dSP_RFe_veg_fn = str(inputFile[l].strip())
+    l += 1
+    inputZON_dSP_PT_fn = str(inputFile[l].strip())
+    l += 1
+    input_dSP_LAI_veg_fn = str(inputFile[l].strip())
+    l += 1
+    inputZON_dSP_PE_fn = str(inputFile[l].strip())
+    l += 1
+    inputZON_dSP_E0_fn = str(inputFile[l].strip())
+    l += 1
+    line = inputFile[l].split()
+    for v in range(NVEG):
+        Zr.append(float(line[v]))
+    l += 1
+    line = inputFile[l].split()
+    for v in range(NVEG):
+        kTu_min.append(float(line[v]))
+    l += 1
+    line = inputFile[l].split()
+    for v in range(NVEG):
+        kTu_n.append(float(line[v]))
+    if irr_yn == 1:
         l += 1
         NCROP = int(inputFile[l].strip())
         l += 1
         NFIELD = int(inputFile[l].strip())
         l += 1
-        NSOIL = int(inputFile[l].strip())
+        inputZON_dSP_RF_irr_fn = str(inputFile[l].strip())
         l += 1
-        inputDate_fn = str(inputFile[l].strip())
+        inputZON_dSP_RFe_irr_fn = str(inputFile[l].strip())
         l += 1
-        inputZON_dSP_RFveg_fn = str(inputFile[l].strip())
+        inputZON_dSP_PT_irr_fn = str(inputFile[l].strip())
         l += 1
-        inputZON_dSP_RFirr_fn = str(inputFile[l].strip())
-        l += 1
-        inputZON_dSP_RFeveg_fn = str(inputFile[l].strip())
-        l += 1
-        inputZON_dSP_RFeirr_fn = str(inputFile[l].strip())
-        l += 1
-        inputZON_dSP_PT_fn = str(inputFile[l].strip())
-        l += 1
-        inputZON_dSP_PE_fn = str(inputFile[l].strip())
-        l += 1
-        inputZON_dSP_E0_fn = str(inputFile[l].strip())
+        Zr_c = []
+        kTu_min_c = []
+        kTu_n_c = []
+        line = inputFile[l].split()
+        for c in range(NCROP):
+            Zr_c.append(float(line[c]))
+        Zr_c = np.asarray(Zr_c)
         l += 1
         line = inputFile[l].split()
-        for v in range(NVEG):
-            TRANS_vdw.append(int(line[v]))
+        for c in range(NCROP):
+            kTu_min_c.append(float(line[c]))
+        kTu_min_c = np.asarray(kTu_min_c)
         l += 1
         line = inputFile[l].split()
-        for v in range(NVEG):
-            Zr.append(float(line[v]))
+        for c in range(NCROP):
+            kTu_n_c.append(float(line[c]))
+        kTu_n_c = np.asarray(kTu_n_c)
         l += 1
-        line = inputFile[l].split()
-        for v in range(NVEG):
-            kTu_min.append(float(line[v]))
-        l += 1
-        line = inputFile[l].split()
-        for v in range(NVEG):
-            kTu_n.append(float(line[v]))
-        l += 1
-        line = inputFile[l].split()
-        for v in range(NSOIL):
-            TRANS_sdw.append(int(line[v]))
-    except:
-        raise SystemExit('\nType error in file [' + outMMsurf_fn + ']')
-    del inputFile
-    numDays = len(MMproc.readFile(MM_ws, inputDate_fn))
+        input_dSP_crop_irr_fn = str(inputFile[l].strip())
+except:
+    raise SystemExit('\nFATAL ERROR!\Error in reading file [' + outMMsurf_fn + ']')
+del inputFile
+numDays = len(MMproc.readFile(MM_ws, inputDate_fn))
 
-    # #############################
-    # ###  READ MODFLOW CONFIG ####
-    # #############################
-    print'\n##############'
-    print 'MODFLOW initialization'
-    durationMF = 0.0
-    timestartMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
-    cMF = ppMF.MF(MM_ws, MF_ws, MF_ini_fn, xllcorner, yllcorner, numDays = numDays)
-    # compute cbc conversion factor from volume to mm
-    if cMF.lenuni == 1:
-        conv_fact = 304.8
-    elif cMF.lenuni == 2:
-        conv_fact = 1000.0
-    elif cMF.lenuni == 3:
-        conv_fact = 10.0
+# #############################
+# ###  READ MODFLOW CONFIG ####
+# #############################
+print'\n##############'
+print 'MODFLOW initialization'
+durationMF = 0.0
+timestartMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
+cMF = ppMF.MF(MM_ws, MF_ws, MF_ini_fn, xllcorner, yllcorner, numDays = numDays)
+# compute cbc conversion factor from volume to mm
+if cMF.lenuni == 1:
+    conv_fact = 304.8
+elif cMF.lenuni == 2:
+    conv_fact = 1000.0
+elif cMF.lenuni == 3:
+    conv_fact = 10.0
+else:
+    raise SystemExit('FATAL ERROR!\nDefine the length unit in the MODFLOW ini file!\n (see USGS Open-File Report 00-92)')
+    # TODO if lenuni!=2 apply conversion factor to delr, delc, etc...
+if cMF.laytyp[0]==0:
+    raise SystemExit('FATAL ERROR!\nThe first layer cannot be confined type!\nChange your parameter laytyp in the MODFLOW lpf package.\n(see USGS Open-File Report 00-92)')
+if cMF.itmuni != 4:
+    raise SystemExit('FATAL ERROR!\nTime unit is not in days!')
+ncell_MF = []
+ncell_MM = []
+iboundBOL = np.ones(np.array(cMF.ibound).shape, dtype = bool)
+mask_tmp = np.zeros((cMF.nrow, cMF.ncol), dtype = int)
+mask = []
+for l in range(cMF.nlay):
+    ncell_MF.append((np.asarray(cMF.ibound)[:,:,l] != 0).sum())
+    ncell_MM.append((np.asarray(cMF.iuzfbnd) == l+1).sum())
+    iboundBOL[:,:,l] = (np.asarray(cMF.ibound)[:,:,l] != 0)
+    mask.append(np.ma.make_mask(iboundBOL[:,:,l]-1))
+    mask_tmp += (np.asarray(cMF.ibound)[:,:,l] <> 0)
+maskAllL = (mask_tmp == 0)
+del iboundBOL, mask_tmp
+timeendMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
+durationMF +=  timeendMF-timestartMF
+
+# #############################
+# ### MF time processing
+# #############################
+# if required by user, compute nper, perlen,etc based on RF analysis in the METEO zones
+if cMF.timedef >= 0:
+    if isinstance(cMF.nper, str):
+        try:
+            perlenmax = int(cMF.nper.split()[1].strip())
+        except:
+            raise SystemExit('\nFATAL ERROR!\nError in nper format of the MODFLOW ini file!\n')
+    if irr_yn == 0:
+        cMF.ppMFtime(MM_ws, MF_ws, inputDate_fn, inputZON_dSP_RF_veg_fn, inputZON_dSP_RFe_veg_fn, inputZON_dSP_PT_fn,input_dSP_LAI_veg_fn, inputZON_dSP_PE_fn, inputZON_dSP_E0_fn, NMETEO, NVEG, NSOIL)
     else:
-        raise SystemExit('FATAL ERROR!\nDefine the length unit in the MODFLOW ini file!\n (see USGS Open-File Report 00-92)')
-        # TODO if lenuni!=2 apply conversion factor to delr, delc, etc...
-    if cMF.laytyp[0]==0:
-        raise SystemExit('FATAL ERROR!\nThe first layer cannot be confined type!\nChange your parameter laytyp in the MODFLOW lpf package.\n(see USGS Open-File Report 00-92)')
-    if cMF.itmuni != 4:
-        raise SystemExit('FATAL ERROR!\nTime unit is not in days!')
-    ncell_MF = []
-    ncell_MM = []
-    iboundBOL = np.ones(np.array(cMF.ibound).shape, dtype = bool)
-    mask_tmp = np.zeros((cMF.nrow, cMF.ncol), dtype = int)
-    mask = []
-    for l in range(cMF.nlay):
-        ncell_MF.append((np.asarray(cMF.ibound)[:,:,l] != 0).sum())
-        ncell_MM.append((np.asarray(cMF.iuzfbnd) == l+1).sum())
-        iboundBOL[:,:,l] = (np.asarray(cMF.ibound)[:,:,l] != 0)
-        mask.append(np.ma.make_mask(iboundBOL[:,:,l]-1))
-        mask_tmp += (np.asarray(cMF.ibound)[:,:,l] <> 0)
-    maskAllL = (mask_tmp == 0)
-    del iboundBOL, mask_tmp
+        cMF.ppMFtime(MM_ws, MF_ws, inputDate_fn, inputZON_dSP_RF_veg_fn, inputZON_dSP_RFe_veg_fn, inputZON_dSP_PT_fn, input_dSP_LAI_veg_fn, inputZON_dSP_PE_fn, inputZON_dSP_E0_fn, NMETEO, NVEG, NSOIL, inputZON_dSP_RF_irr_fn, inputZON_dSP_RFe_irr_fn, inputZON_dSP_PT_irr_fn, input_dSP_crop_irr_fn, NFIELD)
+
+print'\n##############'
+print 'MARMITESunsat initialization'
+MM_UNSAT = MMunsat.UNSAT(hnoflo = cMF.hnoflo)
+MM_SATFLOW = MMunsat.SATFLOW()
+
+# READ input ESRI ASCII rasters
+print "\nImporting ESRI ASCII files to initialize MARMITES..."
+gridMETEO = cMF.MM_PROCESS.inputEsriAscii(grid_fn = gridMETEO_fn, datatype = int)
+gridSOIL = cMF.MM_PROCESS.inputEsriAscii(grid_fn = gridSOIL_fn, datatype = int)
+gridSOILthick = cMF.MM_PROCESS.inputEsriAscii(grid_fn = gridSOILthick_fn, datatype = float)
+gridSshmax = cMF.MM_PROCESS.inputEsriAscii(grid_fn = gridSshmax_fn, datatype = float)
+gridSsw = cMF.MM_PROCESS.inputEsriAscii(grid_fn = gridSsw_fn, datatype = float)
+if irr_yn == 1:
+    gridIRR = cMF.MM_PROCESS.inputEsriAscii(grid_fn = gridIRR_fn, datatype = int)
+    if gridIRR.max() > NFIELD:
+        raise SystemExit('\nFATAL ERROR!\nThere is more fields in the asc file than in the MMsurf file!')
+
+# READ input time series and parameters
+if irr_yn == 0:
+    gridVEGarea, RF_veg_zoneSP, E0_zonesSP, PT_veg_zonesSP, RFe_veg_zonesSP, LAI_veg_zonesSP, PE_zonesSP = cMF.MM_PROCESS.inputSP(                           NMETEO                   = NMETEO,
+                                NVEG                     = NVEG,
+                                NSOIL                    = NSOIL,
+                                nper                     = cMF.nper,
+                                inputZON_SP_RF_veg_fn    = cMF.inputZON_SP_RF_veg_fn,
+                                inputZON_SP_RFe_veg_fn   = cMF.inputZON_SP_RFe_veg_fn,
+                                inputZON_SP_LAI_veg_fn   = cMF.inputZON_SP_LAI_veg_fn,
+                                inputZON_SP_PT_fn        = cMF.inputZON_SP_PT_fn,
+                                inputZON_SP_PE_fn        = cMF.inputZON_SP_PE_fn,
+                                inputZON_SP_E0_fn        = cMF.inputZON_SP_E0_fn
+                                )
+else:
+    gridVEGarea, RF_veg_zoneSP, E0_zonesSP, PT_veg_zonesSP, RFe_veg_zonesSP, LAI_veg_zonesSP, PE_zonesSP, RF_irr_zoneSP, RFe_irr_zoneSP, PT_irr_zonesSP, crop_irr_SP = cMF.MM_PROCESS.inputSP(
+                                NMETEO                   = NMETEO,
+                                NVEG                     = NVEG,
+                                NSOIL                    = NSOIL,
+                                nper                     = cMF.nper,
+                                inputZON_SP_RF_veg_fn    = cMF.inputZON_SP_RF_veg_fn,
+                                inputZON_SP_RFe_veg_fn   = cMF.inputZON_SP_RFe_veg_fn,
+                                inputZON_SP_LAI_veg_fn   = cMF.inputZON_SP_LAI_veg_fn,
+                                inputZON_SP_PT_fn        = cMF.inputZON_SP_PT_fn,
+                                inputZON_SP_PE_fn        = cMF.inputZON_SP_PE_fn,
+                                inputZON_SP_E0_fn        = cMF.inputZON_SP_E0_fn,
+                                NFIELD                   = NFIELD,
+                                inputZON_SP_RF_irr_fn    = cMF.inputZON_SP_RF_irr_fn,
+                                inputZON_SP_RFe_irr_fn   = cMF.inputZON_SP_RFe_irr_fn,
+                                inputZON_SP_PT_irr_fn    = cMF.inputZON_SP_PT_irr_fn,
+                                input_SP_crop_irr_fn    = cMF.input_SP_crop_irr_fn
+                                )
+
+# SOIL PARAMETERS
+_nsl, _nam_soil, _st, _slprop, _Sm, _Sfc, _Sr, _Su_ini, _Ks = cMF.MM_PROCESS.inputSoilParam(MM_ws = MM_ws, SOILparam_fn = SOILparam_fn, NSOIL = NSOIL)
+_nslmax = max(_nsl)
+
+# compute thickness, top and bottom elevation of each soil layer
+TopAquif = np.asarray(cMF.top) * 1000.0   # conversion from m to mm
+botm_l0 = np.asarray(cMF.botm)[:,:,0]
+# topography elevation
+TopSoil = TopAquif + gridSOILthick*1000.0
+del TopAquif
+
+# create MM array
+h5_MM_fn = os.path.join(MM_ws,'_h5_MM.h5')
+# indexes of the HDF5 output arrays
+index = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iEXF':6, 'iEs':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSs':13, 'iETg':14, 'iETu':15, 'iSu_pc':16, 'idSu':17, 'iinf':18, 'iHEADScorr':19, 'idtwt':20, 'iuzthick':21}
+index_S = {'iEu':0, 'iTu':1,'iSu_pc':2, 'iRp':3, 'iRexf':4, 'idSu':5, 'iSu':6, 'iSAT':7, 'iMB_l':8}
+
+# READ observations time series (heads and soil moisture)
+if plt_out_obs == 1:
+    print "\nReading observations time series (hydraulic heads and soil moisture)..."
+    obs = cMF.MM_PROCESS.inputObs(MM_ws            = MM_ws,
+                                  inputObs_fn      = inputObs_fn,
+                                  inputObsHEADS_fn = inputObsHEADS_fn,
+                                  inputObsSM_fn    = inputObsSM_fn,
+                                  inputDate        = cMF.inputDate,
+                                  _nslmax          = _nslmax,
+                                  nlay             = cMF.nlay
+                                  )
+    # To write MM output in a txt file
+    Su_str   = ''
+    Supc_str = ''
+    dSu_str  = ''
+    Rp_str   = ''
+    Rexf_str = ''
+    Eu_str   = ''
+    Tu_str   = ''
+    Smeasout = ''
+    MB_str   = ''
+    for l in range(_nslmax):
+        Su_str = Su_str + 'Su_l' + str(l+1) + ','
+        Supc_str = Supc_str + 'Supc_l' + str(l+1) + ','
+        dSu_str = dSu_str + 'dSu_l' + str(l+1) + ','
+        Eu_str = Eu_str + 'Eu_l' + str(l+1) + ','
+        Tu_str = Tu_str + 'Tu_l' + str(l+1) + ','
+        Rp_str = Rp_str + 'Rp_l' + str(l+1) + ','
+        Rexf_str = Rexf_str + 'Rexf_l' + str(l+1) + ','
+        MB_str = MB_str + 'MB_l' + str(l+1) + ','
+        Smeasout = Smeasout + 'Smeas_' + str(l+1) + ','
+    header='Date,MF_SP,veg_crop,RF,E0,PT,PE,RFe,I,' + Eu_str + Tu_str + 'Eg,Tg,ETg,WEL_MF,Es,' + Su_str + Supc_str + dSu_str + 'dSs,Ss,Ro,GW_EXF,' + Rp_str + Rexf_str + 'R_MF,hSATFLOW,hMF,hMFcorr,hmeas,dtwt,' + Smeasout + MB_str + 'MB\n'
+    outPESTheads_fn      = 'h_obs4PEST.smp'
+    outPESTsm_fn         = 'sm_obs4PEST.smp'
+    outPESTheads = open(os.path.join(MF_ws,outPESTheads_fn), 'w')
+    outPESTsm = open(os.path.join(MM_ws,outPESTsm_fn), 'w')
+    if cMF.uzf_yn == 1:
+        cMF.uzf_obs(obs = obs)
+else:
+    print "\nNo reading of observations time series (hydraulic heads and soil moisture) required."
+    obs = None
+
+# #############################
+# ### 1st MODFLOW RUN with initial user-input recharge
+# #############################
+if MF_yn == 1 :
+    timestartMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
+    print'\n##############'
+    print 'MODFLOW RUN (initial user-input fluxes)'
+    if verbose == 0:
+        print '\n--------------'
+        sys.stdout = s
+        report.close()
+        s = sys.stdout
+        report = open(report_fn, 'a')
+        sys.stdout = report
+    cMF.ppMF(MM_ws, MF_ws, MF_ini_fn, finf_MM = (h5_MM_fn, 'finf'), wel_MM = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks, numDays = numDays)
     timeendMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
     durationMF +=  timeendMF-timestartMF
 
-    # #############################
-    # ### MF time processing
-    # #############################
-    # if required by user, compute nper, perlen,etc based on RF analysis in the METEO zones
-    if cMF.timedef >= 0:
-        if isinstance(cMF.nper, str):
-            try:
-                perlenmax = int(cMF.nper.split()[1].strip())
-            except:
-                raise SystemExit('\nError in nper format of the MODFLOW ini file!\n')
-        cMF.ppMFtime(MM_ws, MF_ws, inputDate_fn, inputZON_dSP_RFveg_fn, inputZON_dSP_PT_fn, inputZON_dSP_RFeveg_fn, inputZON_dSP_PE_fn, inputZON_dSP_E0_fn, NMETEO, NVEG, NSOIL)
-
-    print'\n##############'
-    print 'MARMITESunsat initialization'
-    MM_UNSAT = MMunsat.UNSAT(hnoflo = cMF.hnoflo)
-    MM_SATFLOW = MMunsat.SATFLOW()
-
-    # READ input ESRI ASCII rasters
-    print "\nImporting ESRI ASCII files to initialize MARMITES..."
-    gridMETEO = cMF.MM_PROCESS.inputEsriAscii(grid_fn = gridMETEO_fn, datatype = int)
-    gridSOIL = cMF.MM_PROCESS.inputEsriAscii(grid_fn = gridSOIL_fn, datatype = int)
-    gridSOILthick = cMF.MM_PROCESS.inputEsriAscii(grid_fn = gridSOILthick_fn, datatype = float)
-    gridSshmax = cMF.MM_PROCESS.inputEsriAscii(grid_fn = gridSshmax_fn, datatype = float)
-    gridSsw = cMF.MM_PROCESS.inputEsriAscii(grid_fn = gridSsw_fn, datatype = float)
-    gridIRR = cMF.MM_PROCESS.inputEsriAscii(grid_fn = gridIRR_fn, datatype = float)
-
-    # READ input time series and parameters
-    gridVEGarea, RFzonesSP, E0zonesSP, PTvegzonesSP, RFevegzonesSP, PEsoilzonesSP, inputDate, JD = cMF.MM_PROCESS.inputSP(
-                                    NMETEO                   = NMETEO,
-                                    NVEG                     = NVEG,
-                                    NSOIL                    = NSOIL,
-                                    nstp                     = cMF.nstp,
-                                    inputDate_fn             = inputDate_fn,
-                                    inputZON_SP_RF_fn        = cMF.inputZON_SP_RF_fn,
-                                    inputZON_SP_PT_fn       = cMF.inputZON_SP_PT_fn,
-                                    inputZON_SP_RFe_fn       = cMF.inputZON_SP_RFe_fn,
-                                    inputZON_SP_PE_fn        = cMF.inputZON_SP_PE_fn,
-                                    inputZON_SP_E0_fn        = cMF.inputZON_SP_E0_fn
-                                    )
-
-    # SOIL PARAMETERS
-    _nsl, _nam_soil, _st, _facEg, _slprop, _Sm, _Sfc, _Sr, _Su_ini, _Ks = cMF.MM_PROCESS.inputSoilParam(MM_ws = MM_ws, SOILparam_fn = SOILparam_fn, NSOIL = NSOIL)
-    _nslmax = max(_nsl)
-
-    # compute thickness, top and bottom elevation of each soil layer
-    TopAquif = np.asarray(cMF.top) * 1000.0   # conversion from m to mm
-    botm_l0 = np.asarray(cMF.botm)[:,:,0]
-    # topography elevation
-    TopSoil = TopAquif + gridSOILthick*1000.0
-    del TopAquif
-
-    # create MM array
-    h5_MM_fn = os.path.join(MM_ws,'_h5_MM.h5')
-    # indexes of the HDF5 output arrays
-    index = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iEXF':6, 'iEs':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSs':13, 'iETg':14, 'iETu':15, 'iSu_pc':16, 'idSu':17, 'iinf':18, 'iHEADScorr':19, 'idtwt':20, 'iuzthick':21}
-    index_S = {'iEu':0, 'iTu':1,'iSu_pc':2, 'iRp':3, 'iRexf':4, 'idSu':5, 'iSu':6, 'iSAT':7, 'iMB_l':8}
-
-    # READ observations time series (heads and soil moisture)
-    if plt_out_obs == 1:
-        print "\nReading observations time series (hydraulic heads and soil moisture)..."
-        obs = cMF.MM_PROCESS.inputObs(MM_ws            = MM_ws,
-                                      inputObs_fn      = inputObs_fn,
-                                      inputObsHEADS_fn = inputObsHEADS_fn,
-                                      inputObsSM_fn    = inputObsSM_fn,
-                                      inputDate        = inputDate,
-                                      _nslmax          = _nslmax,
-                                      nlay             = cMF.nlay
-                                      )
-        # To write MM output in a txt file
-        Su_str   = ''
-        Supc_str = ''
-        dSu_str  = ''
-        Rp_str   = ''
-        Rexf_str = ''
-        Eu_str   = ''
-        Tu_str   = ''
-        Smeasout = ''
-        MB_str   = ''
-        for l in range(_nslmax):
-            Su_str = Su_str + 'Su_l' + str(l+1) + ','
-            Supc_str = Supc_str + 'Supc_l' + str(l+1) + ','
-            dSu_str = dSu_str + 'dSu_l' + str(l+1) + ','
-            Eu_str = Eu_str + 'Eu_l' + str(l+1) + ','
-            Tu_str = Tu_str + 'Tu_l' + str(l+1) + ','
-            Rp_str = Rp_str + 'Rp_l' + str(l+1) + ','
-            Rexf_str = Rexf_str + 'Rexf_l' + str(l+1) + ','
-            MB_str = MB_str + 'MB_l' + str(l+1) + ','
-            Smeasout = Smeasout + 'Smeas_' + str(l+1) + ','
-        header='Date,RF,E0,PT,PE,RFe,I,' + Eu_str + Tu_str + 'Eg,Tg,ETg,WEL_MF,Es,' + Su_str + Supc_str + dSu_str + 'dSs,Ss,Ro,GW_EXF,' + Rp_str + Rexf_str + 'R_MF,hSATFLOW,hMF,hMFcorr,hmeas,dtwt,' + Smeasout + MB_str + 'MB\n'
-        outPESTheads_fn      = 'h_obs4PEST.smp'
-        outPESTsm_fn         = 'sm_obs4PEST.smp'
-        outPESTheads = open(os.path.join(MF_ws,outPESTheads_fn), 'w')
-        outPESTsm = open(os.path.join(MM_ws,outPESTsm_fn), 'w')
-        if cMF.uzf_yn == 1:
-            cMF.uzf_obs(obs = obs)
+if isinstance(cMF.h5_MF_fn, str):
+    try:
+        h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
+    except:
+        raise SystemExit('\nFATAL ERROR!\nInvalid MODFLOW HDF5 file. Run MARMITES and/or MODFLOW again.')
+    # heads format is : timestep, nrow, ncol, nlay
+    # cbc format is: (kstp), kper, textprocess, nrow, ncol, nlay
+    cbc_nam = []
+    cbc_uzf_nam = []
+    ncells_package = []
+    for c in h5_MF['cbc_nam']:
+        cbc_nam.append(c.strip())
+    if cMF.uzf_yn == 1:
+        for c in h5_MF['cbc_uzf_nam']:
+            cbc_uzf_nam.append(c.strip())
+    elif cMF.rch_yn == 1:
+        imfRCH = cbc_nam.index('RECHARGE')
+        raise SystemExit('\nFATAL ERROR!\nMM has to be run together with the UZF1 package of MODFLOW 2005/ MODFLOW NWT, thus the RCH package should be desactivacted!\nExisting MM.')
+    imfSTO = cbc_nam.index('STORAGE')
+    if cMF.ghb_yn == 1:
+        imfGHB = cbc_nam.index('HEAD DEP BOUNDS')
+    if cMF.drn_yn == 1:
+        imfDRN = cbc_nam.index('DRAINS')
+    if cMF.wel_yn == 1:
+        imfWEL = cbc_nam.index('WELLS')
     else:
-        print "\nNo reading of observations time series (hydraulic heads and soil moisture) required."
-        obs = None
+        print '\nWARNING!\nThe WEL package should be active to take into account ETg!'
+    if cMF.uzf_yn == 1:
+        imfEXF   = cbc_uzf_nam.index('SURFACE LEAKAGE')
+        imfRCH   = cbc_uzf_nam.index('UZF RECHARGE')
+    if MMunsat_yn == 0:
+        h5_MF.close()
+##except StandardError, e:  #Exception
+##    raise SystemExit('\nFATAL ERROR!\nAbnormal MM run interruption in the initialization!\nError description:\n%s' % traceback.print_exc(file=sys.stdout))
 
-    # #############################
-    # ### 1st MODFLOW RUN with initial user-input recharge
-    # #############################
-    if MF_yn == 1 :
-        timestartMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
-        print'\n##############'
-        print 'MODFLOW RUN (initial user-input fluxes)'
-        if verbose == 0:
-            print '\n--------------'
-            sys.stdout = s
-            report.close()
-            s = sys.stdout
-            report = open(report_fn, 'a')
-            sys.stdout = report
-        cMF.ppMF(MM_ws, MF_ws, MF_ini_fn, finf_MM = (h5_MM_fn, 'finf'), wel_MM = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks, numDays = numDays)
-        timeendMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
-        durationMF +=  timeendMF-timestartMF
-
-    if isinstance(cMF.h5_MF_fn, str):
-        try:
-            h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
-        except:
-            raise SystemExit('\nFATAL ERROR!\nInvalid MODFLOW HDF5 file. Run MARMITES and/or MODFLOW again.')
-        # heads format is : timestep, nrow, ncol, nlay
-        # cbc format is: (kstp), kper, textprocess, nrow, ncol, nlay
-        cbc_nam = []
-        cbc_uzf_nam = []
-        ncells_package = []
-        for c in h5_MF['cbc_nam']:
-            cbc_nam.append(c.strip())
-        if cMF.uzf_yn == 1:
-            for c in h5_MF['cbc_uzf_nam']:
-                cbc_uzf_nam.append(c.strip())
-        elif cMF.rch_yn == 1:
-            imfRCH = cbc_nam.index('RECHARGE')
-            raise SystemExit('\nFATAL ERROR!\nMM has to be run together with the UZF1 package of MODFLOW 2005/ MODFLOW NWT, thus the RCH package should be desactivacted!\nExisting MM.')
-        imfSTO = cbc_nam.index('STORAGE')
-        if cMF.ghb_yn == 1:
-            imfGHB = cbc_nam.index('HEAD DEP BOUNDS')
-        if cMF.drn_yn == 1:
-            imfDRN = cbc_nam.index('DRAINS')
-        if cMF.wel_yn == 1:
-            imfWEL = cbc_nam.index('WELLS')
-        else:
-            print '\nWARNING!\nThe WEL package should be active to take into account ETg!'
-        if cMF.uzf_yn == 1:
-            imfEXF   = cbc_uzf_nam.index('SURFACE LEAKAGE')
-            imfRCH   = cbc_uzf_nam.index('UZF RECHARGE')
-        if MMunsat_yn == 0:
-            h5_MF.close()
-
-except StandardError, e:  #Exception
-    raise SystemExit('\nFATAL ERROR!\nAbnormal MM run interruption in the initialization!\nError description:\n%s' % traceback.print_exc(file=sys.stdout))
-
-#fFATAL #############################
+# #############################
 # 2nd phase : MM/MF loop #####
 # #############################
 h_diff_surf = None
@@ -505,7 +545,7 @@ try:
             print'\n##############'
             print 'MARMITESunsat RUN'
             # SOIL PARAMETERS
-            _nsl, _nam_soil, _st, _facEg, _slprop, _Sm, _Sfc, _Sr, _Su_ini, _Ks = cMF.MM_PROCESS.inputSoilParam(MM_ws = MM_ws, SOILparam_fn = SOILparam_fn, NSOIL = NSOIL)
+            _nsl, _nam_soil, _st, _slprop, _Sm, _Sfc, _Sr, _Su_ini, _Ks = cMF.MM_PROCESS.inputSoilParam(MM_ws = MM_ws, SOILparam_fn = SOILparam_fn, NSOIL = NSOIL)
             _nslmax = max(_nsl)
             for l in range(NSOIL):
                 _slprop[l] = np.asarray(_slprop[l])
@@ -538,7 +578,12 @@ try:
                     exf_MF_mem = 'fast'
                 except:
                     print '\nRAM memory too small compared to the size of the exfiltration array -> slow computing.'
+            JD_nper = []
             for n in range(cMF.nper):
+                if n == 0:
+                    JD_nper.append(cMF.JD[0])
+                else:
+                    JD_nper.append(JD_nper[n-1] + cMF.perlen[n])
                 tstart_MM = 0
                 for t in range(n):
                     tstart_MM += cMF.perlen[t]
@@ -557,11 +602,10 @@ try:
                 # loop into the grid
                 for i in range(cMF.nrow):
                     for j in range(cMF.ncol):
-                        SOILzone_tmp = gridSOIL[i,j]-1
-                        METEOzone_tmp = gridMETEO[i,j]-1
                         if cMF.iuzfbnd[i][j] != 0.0:
+                            SOILzone_tmp = gridSOIL[i,j]-1
+                            METEOzone_tmp = gridMETEO[i,j]-1
                             _layer = cMF.iuzfbnd[i][j] - 1
-                            facEg = _facEg[SOILzone_tmp]
                             slprop = _slprop[SOILzone_tmp]
                             nsl = _nsl[SOILzone_tmp]
                             # thickness of soil layers
@@ -585,15 +629,40 @@ try:
                             else:
                                 Su_ini_tmp    = Su_ini_tmp_array[i,j,:]
                                 Ss_ini_tmp    = Ss_ini_tmp_array[i,j]
-                            PEsoilzonesSP_tmp = PEsoilzonesSP[METEOzone_tmp,SOILzone_tmp,tstart_MF:tend_MF]
-                            PTvegzonesSP_tmp = np.zeros((NVEG,tend_MF-tstart_MF), dtype = np.float)
-                            RFevegzonesSP_tmp = np.zeros((NVEG,tend_MF-tstart_MF), dtype = np.float)
-                            for z in range(NVEG):
-                                PTvegzonesSP_tmp[z,:] = PTvegzonesSP[METEOzone_tmp,z,tstart_MF:tend_MF]
-                                RFevegzonesSP_tmp[z,:] = RFevegzonesSP[METEOzone_tmp,z,tstart_MF:tend_MF]
-                            VEGarea_tmp=np.zeros([NVEG], dtype=np.float)
-                            for v in range(NVEG):
-                                VEGarea_tmp[v] = gridVEGarea[v,i,j]
+                            if irr_yn == 1:
+                                IRRfield = gridIRR[i,j]
+                            if  irr_yn == 1 and IRRfield > 0:
+                                NVEG_tmp = 1
+                                IRRfield -= 1
+                                VEGarea_tmp = None
+                                LAIveg_tmp = np.ones((NVEG_tmp,tend_MF-tstart_MF), dtype = np.float)
+                                crop_tmp = crop_irr_SP[IRRfield,tstart_MF:tend_MF]
+                                RF_tmp = RF_irr_zoneSP[METEOzone_tmp,IRRfield,tstart_MF:tend_MF]
+                                RFe_zonesSP_tmp = np.asarray([RFe_irr_zoneSP[METEOzone_tmp,IRRfield,tstart_MF:tend_MF]])
+                                PT_zonesSP_tmp = np.asarray([PT_irr_zonesSP[METEOzone_tmp,IRRfield,tstart_MF:tend_MF]])
+                                Zr_tmp = Zr_c
+                                kTu_min_tmp = kTu_min_c
+                                kTu_n_tmp = kTu_n_c
+                            else:
+                                NVEG_tmp = NVEG
+                                crop_tmp = None
+                                RF_tmp = RF_veg_zoneSP[METEOzone_tmp][tstart_MF:tend_MF]
+                                PT_zonesSP_tmp = np.zeros((NVEG,tend_MF-tstart_MF), dtype = np.float)
+                                RFe_zonesSP_tmp = np.zeros((NVEG,tend_MF-tstart_MF), dtype = np.float)
+                                LAIveg_tmp = np.zeros((NVEG,tend_MF - tstart_MF), dtype = np.float)
+                                VEGarea_tmp=np.zeros([NVEG], dtype = np.float)
+                                Zr_tmp = np.ones((NVEG,tend_MF - tstart_MF), dtype = np.float)
+                                kTu_min_tmp = np.ones((NVEG,tend_MF - tstart_MF), dtype = np.float)
+                                kTu_n_tmp = np.ones((NVEG,tend_MF - tstart_MF), dtype = np.float)
+                                for v in range(NVEG):
+                                    PT_zonesSP_tmp[v,:] = PT_veg_zonesSP[METEOzone_tmp,v,tstart_MF:tend_MF]
+                                    RFe_zonesSP_tmp[v,:] = RFe_veg_zonesSP[METEOzone_tmp,v,tstart_MF:tend_MF]
+                                    LAIveg_tmp[v,:] = LAI_veg_zonesSP[v,tstart_MF:tend_MF]
+                                    VEGarea_tmp[v] = gridVEGarea[v,i,j]
+                                    Zr_tmp[v] = Zr[v]
+                                    kTu_min_tmp[v] = kTu_min[v]
+                                    kTu_n_tmp[v] = kTu_n[v]
+                            PE_zonesSP_tmp = PE_zonesSP[METEOzone_tmp,SOILzone_tmp,tstart_MF:tend_MF]
                             if h_MF_mem == 'slow':
                                 h_MF_tmp   = h_MF[:,i,j]
                             elif h_MF_mem == 'fast':
@@ -625,20 +694,23 @@ try:
                                                             Ss_ratio   = 1.12*gridSsw[i,j]/cMF.delr[j],
                                                             HEADS      = h_MF_tmp,
                                                             EXF        = -exf_MF_tmp,
-                                                            RF         = RFzonesSP[METEOzone_tmp][tstart_MF:tend_MF],
-                                                            E0         = E0zonesSP[METEOzone_tmp][tstart_MF:tend_MF],
-                                                            PTveg      = PTvegzonesSP_tmp,
-                                                            RFeveg     = RFevegzonesSP_tmp,
-                                                            PEsoil     = PEsoilzonesSP_tmp,
+                                                            RF         = RF_tmp,
+                                                            E0         = E0_zonesSP[METEOzone_tmp][tstart_MF:tend_MF],
+                                                            PT         = PT_zonesSP_tmp,
+                                                            RFe        = RFe_zonesSP_tmp,
+                                                            PE         = PE_zonesSP_tmp,
                                                             VEGarea    = VEGarea_tmp,
-                                                            Zr         = Zr,
+                                                            LAIveg     = LAIveg_tmp,
+                                                            Zr         = Zr_tmp,
                                                             nstp       = cMF.nstp[n],
                                                             perlen     = cMF.perlen[n],
                                                             dti        = dti,
                                                             hdry       = cMF.hdry,
-                                                            kTu_min    = kTu_min,
-                                                            kTu_n      = kTu_n,
-                                                            facEg      = facEg)
+                                                            kTu_min    = kTu_min_tmp,
+                                                            kTu_n      = kTu_n_tmp,
+                                                            NVEG       = NVEG_tmp,
+                                                            crop       = crop_tmp
+                                                            )
                             if (float(cMF.perlen[n])/float(cMF.nstp[n])) != 1.0:
                                 for stp in range(cMF.nstp[n]):
                                     ts = float(cMF.perlen[n])/float(cMF.nstp[n])
@@ -812,7 +884,7 @@ try:
         # #############################
         # ### MODFLOW RUN with MM-computed recharge
         # #############################
-        if MF_yn == 1 :
+        if MF_yn == 1:
             try:
                 h5_MF.close()
             except:
@@ -839,13 +911,11 @@ except StandardError, e:  #Exception
 # #############################
 
 ##try:
-del gridVEGarea
-del RFzonesSP
-del E0zonesSP
-del PTvegzonesSP
-del RFevegzonesSP
-del PEsoilzonesSP
-del gridMETEO
+del RF_veg_zoneSP
+del E0_zonesSP
+del PT_veg_zonesSP
+del RFe_veg_zonesSP
+del PE_zonesSP
 del gridSOILthick
 del gridSshmax
 del gridSsw
@@ -891,6 +961,14 @@ if MF_yn == 1 and isinstance(cMF.h5_MF_fn, str):
         cMF.MM_PROCESS.procMF(cMF = cMF, h5_MF = h5_MF, ds_name = 'cbc_uzf', ds_name_new = 'RCH_d', conv_fact = conv_fact, index = imfRCH)
         cMF.MM_PROCESS.procMF(cMF = cMF, h5_MF = h5_MF, ds_name = 'cbc_uzf', ds_name_new = 'EXF_d', conv_fact = conv_fact, index = imfEXF)
     h5_MF.close()
+
+SP_d = np.ones(sum(cMF.perlen), dtype = int)
+t = 0
+for n in range(cMF.nper):
+    for x in range(cMF.perlen[n]):
+        SP_d[t] = n + 1
+        t += 1
+
 if isinstance(cMF.h5_MF_fn, str):
     top_m = np.ma.masked_values(cMF.top, cMF.hnoflo, atol = 0.09)
     index_cbc = [imfSTO]
@@ -932,7 +1010,7 @@ if h_diff_surf != None:
     Vmin = min(Vmin) #float(np.floor(np.ma.min(V)))
     Vmin, Vmax, ctrs_tmp = minmax(Vmin, Vmax, ctrsMF)
     # TODO JD and Date are not correct since h_diff_n is # stress periods and not # of days (same in the plots of MF and MM)
-    MMplot.plotLAYER(SP = h_diff_n, Date = inputDate[h_diff_n], JD = JD[h_diff_n], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = ('(m)'), msg = 'no value', plt_title = ('_HEADSmaxdiff_ConvLoop'), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrangeMF, Vmax = Vmax, Vmin = Vmin, contours = ctrs_tmp, ntick = ntick)
+    MMplot.plotLAYER(SP = h_diff_n, Date = cMF.inputDate[h_diff_n], JD = cMF.JD[h_diff_n], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = ('(m)'), msg = 'no value', plt_title = ('_HEADSmaxdiff_ConvLoop'), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrangeMF, Vmax = Vmax, Vmin = Vmin, contours = ctrs_tmp, ntick = ntick)
     del h_diff_n
 
 if plt_out == 1 or plt_out_obs == 1:
@@ -979,7 +1057,7 @@ if plt_out == 1 or plt_out_obs == 1:
                             try:
                                 if plt_out_obs == 1:
                                     obs['PzRCHmax'] = {'x':999,'y':999, 'i': row, 'j': list(col).index(RCHmax), 'lay': l, 'hi':999, 'h0':999, 'RC':999, 'STO':999, 'outpathname':os.path.join(MM_ws,'_MM_0PzRCHmax.txt'), 'obs_h':[], 'obs_S':[]}
-                                print 'row %d, col %d and day %d (%s)' % (row + 1, list(col).index(RCHmax) + 1, t, mpl.dates.num2date(inputDate[t] + 1.0).isoformat()[:10])
+                                print 'row %d, col %d and day %d (%s)' % (row + 1, list(col).index(RCHmax) + 1, t, mpl.dates.num2date(cMF.inputDate[t] + 1.0).isoformat()[:10])
                                 tRCHmax = t
                             except:
                                 pass
@@ -1288,9 +1366,9 @@ if plt_out == 1 or plt_out_obs == 1:
             plt_title = 'MARMITES and MODFLOW water balance for the whole catchment\nMass balance error: MM = %1.2f%%, UZF = %1.2f%%, MF = %1.2f%%' % (MB_MM, MB_UZF, MB_MF)
             header_tmp = ['MM_MB','UZF_MB','MF_MB']
             MB_tmp = [MB_MM, MB_UZF,MB_MF]
-            MMplot.plotTIMESERIES_CATCH(inputDate, flx_Cat_TS, flxlbl_CATCH, plt_exportCATCH_fn, plt_titleCATCH, hmax = hmaxMF, hmin = hminMF, cMF = cMF)
+            MMplot.plotTIMESERIES_CATCH(cMF.inputDate, flx_Cat_TS, flxlbl_CATCH, plt_exportCATCH_fn, plt_titleCATCH, hmax = hmaxMF, hmin = hminMF, cMF = cMF)
         else:
-            MMplot.plotTIMESERIES_CATCH(inputDate, flx_Cat_TS, flxlbl_CATCH, plt_exportCATCH_fn, plt_titleCATCH, hmax = hmaxMF, hmin = hminMF)
+            MMplot.plotTIMESERIES_CATCH(cMF.inputDate, flx_Cat_TS, flxlbl_CATCH, plt_exportCATCH_fn, plt_titleCATCH, hmax = hmaxMF, hmin = hminMF)
             plt_export_fn = os.path.join(MM_ws, '_plt_0CATCHMENT_UNSATbalance.png')
             plt_title = 'MARMITES water balance for the whole catchment\nMass balance error: MM = %1.2f%%' % (MB_MM)
             header_tmp = ['MM_MB']
@@ -1303,11 +1381,11 @@ if plt_out == 1 or plt_out_obs == 1:
             flxlbl_CATCH_str += ',' + e
         plt_exportCATCH_txt.write(flxlbl_CATCH_str)
         plt_exportCATCH_txt.write('\n')
-        for t in range(len(inputDate)):
+        for t in range(len(cMF.inputDate)):
             flx_Cat_TS_str = str(flx_Cat_TS[0][t])
             for e in (flx_Cat_TS[1:]):
                 flx_Cat_TS_str += ',' + str(e[t])
-            out_line = mpl.dates.num2date(inputDate[t]).isoformat()[:10] + ',' + flx_Cat_TS_str
+            out_line = mpl.dates.num2date(cMF.inputDate[t]).isoformat()[:10] + ',' + flx_Cat_TS_str
             for l in out_line:
                 plt_exportCATCH_txt.write(l)
             plt_exportCATCH_txt.write('\n')
@@ -1429,13 +1507,27 @@ if plt_out == 1 or plt_out_obs == 1:
                 cbc_WEL = -h5_MF['WEL_d'][:,i,j,0]
             else:
                 cbc_WEL = 0
+            if irr_yn == 0:
+                index_veg = np.ones((NVEG, sum(cMF.perlen)), dtype = float)
+                for v in range(NVEG):
+                    index_veg[v] = cMF.LAI_veg_d[gridMETEO[i,j]-1,v,:]*gridVEGarea[v,i,j]
+                index_veg = (np.sum(index_veg, axis = 0) > 0.0)*(-1)
+            else:
+                IRRfield = gridIRR[i,j]
+                if IRRfield == 0:
+                    index_veg = np.ones((NVEG, sum(cMF.perlen)), dtype = float)
+                    for v in range(NVEG):
+                        index_veg[v] = cMF.LAI_veg_d[gridMETEO[i,j]-1,v,:]*gridVEGarea[v,i,j]
+                    index_veg = (np.sum(index_veg, axis = 0) > 0.0)*(-1)
+                else:
+                    index_veg = cMF.crop_irr_d[gridMETEO[i,j]-1, IRRfield-1,:]
             # Export time series results at observations points as ASCII file
-            cMF.MM_PROCESS.ExportResultsMM(i, j, inputDate, _nslmax, MM, index, MM_S, index_S, cbc_RCH[:,i,j,0], cbc_WEL, h_satflow, h_MF_m[:,i,j,l], obs_h_tmp, obs_S_tmp, outFileExport, o)
+            cMF.MM_PROCESS.ExportResultsMM(i, j, cMF.inputDate, SP_d, _nslmax, MM, index, MM_S, index_S, cbc_RCH[:,i,j,0], cbc_WEL, h_satflow, h_MF_m[:,i,j,l], obs_h_tmp, obs_S_tmp, index_veg, outFileExport, o)
             del cbc_WEL
             outFileExport.close()
             # Export time series results at observations points as ASCII file for PEST
             # TODO reformulate the export format, it should be [date, SM_l1, SM_l2,...], i.e. the same format as the obs_SM and obs_heads files
-            cMF.MM_PROCESS.ExportResultsPEST(i, j, inputDate, _nslmax, MM[:,index.get('iHEADScorr')], obs_h_tmp, obs_S_tmp, outPESTheads, outPESTsm, o, MM_S[:,:,index_S.get('iSu_pc')])
+            cMF.MM_PROCESS.ExportResultsPEST(i, j, cMF.inputDate, _nslmax, MM[:,index.get('iHEADScorr')], obs_h_tmp, obs_S_tmp, outPESTheads, outPESTsm, o, MM_S[:,:,index_S.get('iSu_pc')])
             # plot time series results as plot
             plt_title = 'Time serie of fluxes at observation point %s\ni = %d, j = %d, l = %d, x = %d, y = %d, %s\n' % (o, i+1, j+1, l+1, obs.get(o)['x'], obs.get(o)['y'], soilnam)
             # index = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iEXF':6, 'iEs':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSs':13, 'iETg':14, 'iETu':15, 'iSu_pc':16, 'idSu':17, 'iinf':18, 'iHEADScorr':19, 'idtwt':20, 'iuzthick':21}
@@ -1443,12 +1535,12 @@ if plt_out == 1 or plt_out_obs == 1:
             plt_export_fn = os.path.join(MM_ws, '_plt_0'+ o + '.png')
             # def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, EXF, ETg, Es, MB, MB_l, dtwt, SAT, R, h_MF, h_MF_corr, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin):
             MMplot.plotTIMESERIES(
-            inputDate,
+            cMF.inputDate,
             MM[:,index.get('iRF')],
             MM[:,index.get('iPT')],
             MM[:,index.get('iPE')],
             MM[:,index.get('iRFe')],
-            MM[:,index.get('idSs')],
+            -MM[:,index.get('idSs')],
             MM[:,index.get('iSs')],
             MM[:,index.get('iRo')],
             MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('iEu')],
@@ -1599,8 +1691,8 @@ if plt_out == 1 or plt_out_obs == 1:
         SP = 0
         while SP < len(h_MF_m):
             SP_lst.append(SP)
-            Date_lst.append(inputDate[SP])
-            JD_lst.append(JD[SP])
+            Date_lst.append(cMF.inputDate[SP])
+            JD_lst.append(cMF.JD[SP])
             SP += plt_freq
         if tTgmin < 0:
             lst = [len(h_MF_m)-1, tRCHmax]
@@ -1608,8 +1700,8 @@ if plt_out == 1 or plt_out_obs == 1:
             lst = [len(h_MF_m)-1, tRCHmax, tTgmin]
         for e in lst:
             SP_lst.append(e)
-            Date_lst.append(inputDate[e])
-            JD_lst.append(JD[e])
+            Date_lst.append(cMF.inputDate[e])
+            JD_lst.append(cMF.JD[e])
 
     # plot MF output
     TopSoil*= 0.001
@@ -1642,6 +1734,16 @@ if plt_out == 1 or plt_out_obs == 1:
                 DRNmin_tmp = np.ma.min(V)
                 DRNmin_tmp, DRNmax_tmp, ctrs_tmp = minmax(DRNmin_tmp, DRNmax_tmp, ctrsMF)
                 MMplot.plotLAYER(SP = SP, Date = Date_lst[t], JD = JD_lst[t], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater drainage (mm/day)', msg = '- no drainage', plt_title = 'MF_DRN', MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, Vmin = DRNmin_tmp, contours = ctrs_tmp, Vmax = DRNmax_tmp, fmt='%.3G', ntick = ntick)
+            # plot GHB [mm]
+            if cMF.ghb_yn == 1:
+                V = []
+                cbc_GHB = h5_MF['GHB_d']
+                for L in range(cMF.nlay):
+                    V.append(np.ma.masked_array(cbc_GHB[SP,:,:,L], mask[L])*(-1.0))
+                GHBmax_tmp = np.ma.max(V)
+                GHBmin_tmp = np.ma.min(V)
+                GHBmin_tmp, GHBmax_tmp, ctrs_tmp = minmax(GHBmin_tmp, GHBmax_tmp, ctrsMF)
+                MMplot.plotLAYER(SP = SP, Date = Date_lst[t], JD = JD_lst[t], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'GHB flux (mm/day)', msg = '- no flux', plt_title = 'MF_GHB', MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, Vmin = GHBmin_tmp, contours = ctrs_tmp, Vmax = GHBmax_tmp, fmt='%.3G', ntick = ntick)
             # plot GW RCH [mm]
             V = []
             cbc_RCH = h5_MF['RCH_d']
@@ -1677,6 +1779,15 @@ if plt_out == 1 or plt_out_obs == 1:
             DRNmin_tmp = np.ma.min(V)
             DRNmin_tmp, DRNmax_tmp, ctrs_tmp = minmax(DRNmin_tmp, DRNmax_tmp, ctrsMF)
             MMplot.plotLAYER(SP = 'NA', Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater drainage (mm/day)', msg = '- no drainage', plt_title = 'MF_average_DRN', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (DRNmax_tmp - DRNmin_tmp)/nrangeMM, Vmax = DRNmax_tmp, Vmin = DRNmin_tmp, contours = ctrs_tmp, ntick = ntick)
+        # plot GHB [mm]
+        if cMF.ghb_yn == 1:
+            V = []
+            for L in range(cMF.nlay):
+                V.append(np.ma.masked_array(np.sum(cbc_GHB[:,:,:,L], axis = 0)/sum(cMF.perlen)*(-1.0), mask[L]))
+            GHBmax_tmp = np.ma.max(V)
+            GHBmin_tmp = np.ma.min(V)
+            GHBmin_tmp, GHBmax_tmp, ctrs_tmp = minmax(GHBmin_tmp, GHBmax_tmp, ctrsMF)
+            MMplot.plotLAYER(SP = 'NA', Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'GHB flux (mm/day)', msg = '- no flux', plt_title = 'MF_average_GHB', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (GHBmax_tmp - GHBmin_tmp)/nrangeMM, Vmax = GHBmax_tmp, Vmin = GHBmin_tmp, contours = ctrs_tmp, ntick = ntick)
         # plot GW RCH [mm]
         V = []
         for L in range(cMF.nlay):
@@ -1767,7 +1878,7 @@ if plt_out == 1 or plt_out_obs == 1:
                 t += 1
             del V, MM, t
         del SP_lst, flxlbl, i, i1, h_diff_surf
-    del gridSOIL, inputDate
+    del gridSOIL, cMF.inputDate
     del hmaxMF, hminMF, hmin, hdiff, cbcmax_d, cbcmin_d
     if cMF.drn_yn == 1:
         del DRNmax, DRNmin

@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+    # -*- coding: utf-8 -*-
 """
 MARMITES is a distributed depth-wise lumped-parameter model for
 spatio-temporal assessment of water fluxes in the unsaturated zone.
@@ -101,7 +101,7 @@ class UNSAT:
 
 #####################
 
-    def flux(self, RFe, PT, PE, E0, Zr_elev, VEGarea, HEADS, TopSoilLay, BotSoilLay, Tl, nsl, Sm, Sfc, Sr, Ks, Ss_max, Ss_ratio, Su_ini, Rp_ini, Ss_ini, EXF, dtwt, st, i, j, n, kTu_min, kTu_n, dt, dti):
+    def flux(self, RFe, PT, PE, E0, Zr_elev, VEGarea, HEADS, TopSoilLay, BotSoilLay, Tl, nsl, Sm, Sfc, Sr, Ks, Ss_max, Ss_ratio, Su_ini, Rp_ini, Ss_ini, EXF, dtwt, st, i, j, n, kTu_min, kTu_n, dt, dti, NVEG, LAIveg):
 
         def surfwater(s_tmp, Sm, Ss_max, E0, i, j, n, dt):
             '''
@@ -244,26 +244,27 @@ class UNSAT:
                         Su_tmp[l] -= Eu_tmp[l]*dt
                         PE -= Eu_tmp[l]
                 # Tu
-                for z in range(len(Zr_elev)):
-                    if PT[z] > 0.0 :
-                        if VEGarea[z] > 0.0:
-                            if BotSoilLay[l] > Zr_elev[z]:
-                                Tu_tmpZr[l,z] = evp(Su_tmp[l],Sm[l]*Tl[l], Sr[l]*Tl[l], PT[z], i, j, n, dt)
-                            elif TopSoilLay[l] > Zr_elev[z] :
-                                PTc = PT[z]*(TopSoilLay[l]-Zr_elev[z])/Tl[l]
-                                Tu_tmpZr[l,z] = evp(Su_tmp[l],Sm[l]*Tl[l], Sr[l]*Tl[l], PTc, i, j, n, dt)
-                            Tu_tmp[l] += Tu_tmpZr[l,z]*VEGarea[z]*0.01
-                            PT[z] -= Tu_tmpZr[l,z]
+                for v in range(NVEG):
+                    if PT[v] > 1E-7:
+                        if LAIveg[v] > 1E-7:
+                            if VEGarea[v] > 1E-7:
+                                if BotSoilLay[l] > Zr_elev[v]:
+                                    Tu_tmpZr[l,v] = evp(Su_tmp[l],Sm[l]*Tl[l], Sr[l]*Tl[l], PT[v], i, j, n, dt)
+                                elif TopSoilLay[l] > Zr_elev[v] :
+                                    PTc = PT[v]*(TopSoilLay[l]-Zr_elev[v])/Tl[l]
+                                    Tu_tmpZr[l,v] = evp(Su_tmp[l],Sm[l]*Tl[l], Sr[l]*Tl[l], PTc, i, j, n, dt)
+                                Tu_tmp[l] += Tu_tmpZr[l,v]*VEGarea[v]*0.01
+                                PT[v] -= Tu_tmpZr[l,v]
                 Su_tmp[l] -= Tu_tmp[l]*dt
             elif SAT[l] == True:
                 # Tg
-                for z in range(len(Zr_elev)):
-                    if PT[z] > 0.0 :
-                        if VEGarea[z] > 0.0:
-                            if HEADS > Zr_elev[z]:
-                                Tg_tmp_Zr[l,z] = evp(Sm[l]*Tl[l],Sm[l]*Tl[l], Sr[l]*Tl[l], PT[z], i, j, n, dt)
-                                Tg_tmp += Tg_tmp_Zr[l,z]*VEGarea[z]*0.01
-                                PT[z] -= Tg_tmp_Zr[l,z]
+                for v in range(NVEG):
+                    if PT[v] > 1E-7 :
+                        if VEGarea[v] > 1E-7:
+                            if HEADS > Zr_elev[v]:
+                                Tg_tmp_Zr[l,v] = evp(Sm[l]*Tl[l],Sm[l]*Tl[l], Sr[l]*Tl[l], PT[v], i, j, n, dt)
+                                Tg_tmp += Tg_tmp_Zr[l,v]*VEGarea[v]*0.01
+                                PT[v] -= Tg_tmp_Zr[l,v]
 
         for l in range(nsl):
             Su_pc_tmp[l] = Su_tmp[l]/Tl[l]
@@ -290,22 +291,22 @@ class UNSAT:
 
         # Groundwater transpiration
         kTu_max = 0.99999
-        for z in range(len(Zr_elev)):
-            if HEADS > Zr_elev[z]:
+        for v in range(NVEG):
+            if HEADS > Zr_elev[v]:
                 for l in range(nsl):
                     if Su_pc_tmp[l] <> self.hnoflo:
                         if Su_pc_tmp[l] >= Sr[l]:
                             if Su_pc_tmp[l] <= Sm[l]:
-                                kTu = kTu_min[z]+(kTu_max-kTu_min[z])*np.power(1-np.power(np.abs(Su_pc_tmp[l]-Sm[l])/(Sm[l]-Sr[l]),kTu_n[z]),1/kTu_n[z])
+                                kTu = kTu_min[v]+(kTu_max-kTu_min[v])*np.power(1-np.power(np.abs(Su_pc_tmp[l]-Sm[l])/(Sm[l]-Sr[l]),kTu_n[v]),1/kTu_n[v])
                             else:
                                 kTu = kTu_max
                         else:
-                            kTu = kTu_min[z]
-                        Tg_tmp_Zr[l,z] = Tu_tmpZr[l,z]*(1.0/kTu-1.0)
-                        if Tg_tmp_Zr[l,z] > PT[z]:
-                            Tg_tmp_Zr[l,z] = PT[z]
-                        PT[z] -= Tg_tmp_Zr[l,z]
-                        Tg_tmp += (Tg_tmp_Zr[l,z]*VEGarea[z]*0.01)
+                            kTu = kTu_min[v]
+                        Tg_tmp_Zr[l,v] = Tu_tmpZr[l,v]*(1.0/kTu-1.0)
+                        if Tg_tmp_Zr[l,v] > PT[v]:
+                            Tg_tmp_Zr[l,v] = PT[v]
+                        PT[v] -= Tg_tmp_Zr[l,v]
+                        Tg_tmp += (Tg_tmp_Zr[l,v]*VEGarea[v]*0.01)
 
         return Es_tmp, Ss_tmp, Ro_tmp, Rp_tmp, Eu_tmp, Tu_tmp, Su_tmp, Su_pc_tmp, Eg_tmp, Tg_tmp, HEADS, dtwt, SAT, Rexf_tmp
         del Es_tmp, Ss_tmp, Ro_tmp, Rp_tmp, Eu_tmp, Tu_tmp, Su_tmp, Su_pc_tmp, Su_ini, Eg_tmp, Tg_tmp, dtwt
@@ -314,18 +315,18 @@ class UNSAT:
 
     def run(self, i, j, n,
                   nsl, st, Sm, Sfc, Sr, Su_ini, Ss_ini, Rp_ini, botm_l0, TopSoilLay, BotSoilLay, Tl, Ks, Ss_max, Ss_ratio, HEADS, EXF,
-                  RF, E0, PTveg, RFeveg, PEsoil, VEGarea, Zr,
+                  RF, E0, PT, RFe, PE, VEGarea, LAIveg, Zr,
                   nstp, perlen, dti, hdry,
-                  kTu_min, kTu_n, facEg):
+                  kTu_min, kTu_n, NVEG, crop):
 
         # Output initialisation
         Ttotal = len(RF)
         # PT for the vegetation patchwork
-        PT_tot = np.zeros([len(PTveg[0])], dtype = float)
+        PT_tot = np.zeros([len(PT[0])], dtype = float)
         # PE for the remaining bare soil
         PE_tot = np.zeros([Ttotal], dtype = float)
         # RFe for the vegetation patchwork
-        RFe_tot = np.zeros([len(RFeveg[0])], dtype = float)
+        RFe_tot = np.zeros([len(RFe[0])], dtype = float)
         # vegetation interception (weigthed average patchwork)
         INTER_tot = np.zeros([Ttotal], dtype = np.float)
         # Ponding storage
@@ -382,25 +383,35 @@ class UNSAT:
         results1 = np.zeros([Ttotal,nflux1])
         results2 = np.zeros([Ttotal,nsl,nflux2])
 
-        Zr_elev = []
-        for z in range(len(Zr)):
-            Zr_elev.append(TopSoilLay[0] - Zr[z]*1000.0)
-
         dt = float(perlen)/float(nstp)
 
         # PROCESSING THE WHOLE DATA SET
         for t in range(int(nstp)):    # t: current time step
             # Preprocessing of PT/PE/INTER and RFe
             # for different vegetation
-            SOILarea = 100
-            for v in range(len(PTveg)):
-                if VEGarea[v] != self.hnoflo:
-                    RFe_tot[t] += RFeveg[v,t]*VEGarea[v]*0.01
-                    PT_tot[t] += PTveg[v,t]*VEGarea[v]*0.01
+            Zr_elev = []
+            SOILarea = 100.0
+            if crop <> None:
+                Zr_elev.append(TopSoilLay[0] - Zr[crop[t]-1]*1000.0)
+                if crop[t] > 0:
+                    VEGarea = [100.0]
+                else:
+                    VEGarea = [0.0]
+                kTu_min_tmp = [kTu_min[crop[t]-1]]
+                kTu_n_tmp = [kTu_n[crop[t]-1]]
+            else:
+                for v in range(NVEG):
+                    Zr_elev.append(TopSoilLay[0] - Zr[v]*1000.0)
+                kTu_min_tmp = kTu_min[:]
+                kTu_n_tmp = kTu_n[:]
+            for v in range(NVEG):
+                if LAIveg[v,t] > 1E-7:
+                    RFe_tot[t] += RFe[v,t]*VEGarea[v]*0.01
+                    PT_tot[t]  += PT[v,t]*VEGarea[v]*0.01
                     SOILarea   -= VEGarea[v]
             RFe_tot[t]   += RF[t]*SOILarea*0.01
             INTER_tot[t]  = RF[t] - RFe_tot[t]
-            PE_tot[t]     = PEsoil[t]*SOILarea*0.01
+            PE_tot[t]     = PE[t]*SOILarea*0.01
             # handle drycell
             if HEADS[t] > (hdry-1E3):
                 HEADS_tmp = botm_l0*1000.0
@@ -417,12 +428,12 @@ class UNSAT:
             if n == 0 and t == 0:
                 Su_ini = Su_ini * Tl
             # fluxes
-            Es_tmp, Ss_tmp, Ro_tmp, Rp_tmp, Eu_tmp, Tu_tmp, Su_tmp, Su_pc_tmp, Eg_tmp, Tg_tmp, HEADS_tmp, dtwt_tmp, SAT_tmp, Rexf_tmp = self.flux(RFe_tot[t], PTveg[:,t], PE_tot[t], E0[t], Zr_elev, VEGarea, HEADS_tmp, TopSoilLay, BotSoilLay, Tl, nsl, Sm, Sfc, Sr, Ks, Ss_max, Ss_ratio, Su_ini, Rp_ini, Ss_ini, EXF[t], dtwt[t], st, i, j, n, kTu_min, kTu_n, dt, dti)
+            Es_tmp, Ss_tmp, Ro_tmp, Rp_tmp, Eu_tmp, Tu_tmp, Su_tmp, Su_pc_tmp, Eg_tmp, Tg_tmp, HEADS_tmp, dtwt_tmp, SAT_tmp, Rexf_tmp = self.flux(RFe_tot[t], PT[:,t], PE_tot[t], E0[t], Zr_elev, VEGarea, HEADS_tmp, TopSoilLay, BotSoilLay, Tl, nsl, Sm, Sfc, Sr, Ks, Ss_max, Ss_ratio, Su_ini, Rp_ini, Ss_ini, EXF[t], dtwt[t], st, i, j, n, kTu_min_tmp, kTu_n_tmp, dt, dti, NVEG, LAIveg[:,t])
             # fill the output arrays
             Ss[t]   = Ss_tmp
             Ro[t]   = Ro_tmp
             Es[t]   = Es_tmp
-            Eg[t]   = Eg_tmp*facEg
+            Eg[t]   = Eg_tmp
             Tg[t]   = Tg_tmp
             HEADS_corr[t] = HEADS_tmp
             dtwt[t] = dtwt_tmp

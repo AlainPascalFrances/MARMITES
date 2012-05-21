@@ -67,7 +67,9 @@ def PET_PM_FAO56():
     return
 
 import numpy as np
+import tempfile, os
 import matplotlib as mpl
+import matplotlib.pyplot as plt
 
 '''
     ================================================================
@@ -75,20 +77,20 @@ import matplotlib as mpl
     ================================================================
 '''
 
-def process(datenum = np.array([]), datenum_d = np.array([])
-              ,RF = np.array([]), IRR = np.array([]), Ta = np.array([]), RHa = np.array([]) \
+def process(datenum = np.array([]), datenum_d = np.array([]), J = np.array([]),  time = np.array([])\
+              ,pathMMsurf = tempfile.gettempdir()\
+              ,RF = np.array([]), IRR = None, Ta = np.array([]), RHa = np.array([]) \
               ,Pa = np.array([]), u_z_m = np.array([]), Rs = np.array([]) \
               ,phi = 0.0, Lm = 0.0 , Z = 0.0, Lz = 0.0, FC = 0.0, z_m=2.0, z_h=2.0 \
-              ,NVEG = 1, VegType =np.array([]), h_d = np.array([]), h_w = np.array([]) \
-              ,S = np.array([]), C_leaf_star = np.array([]) \
-              ,LAI_d = np.array([]), LAI_w = np.array([])  \
-              ,f_s_d = np.array([]), f_s_w = np.array([])  \
-              ,alfa_vd = np.array([]), alfa_vw = np.array([]), J_vd = 91, J_vw= 305, TRANS_vdw = 20\
-              ,NSOIL = 1, SoilType = [], por = np.array([]), fc = np.array([])\
-              ,alfa_sd = np.array([]), alfa_sw = np.array([]), J_sd = 166, J_sw = 274, TRANS_sdw = 20
-              ,alfa_w = 0.06,
-              NCROP = 0, NFIELD = 0
+              ,NVEG = 1, VegType = np.array([]), S_w_v = np.array([]), C_leaf_star_v = np.array([]) \
+              ,alfa_v = np.array([]), f_s_v = np.array([]), LAI_v = np.array([]), h_v = np.array([])\
+              ,NSOIL = 0, SoilType = [], por = np.array([]), fc = np.array([])\
+              ,alfa_s = np.array([])
+              ,alfa_w = 0.06\
+              ,NFIELD = 0, alfa_f = np.array([]), f_s_f = np.array([]), LAI_f = np.array([])\
+              ,C_leaf_star_f = np.array([]), h_f = np.array([]), S_w_f = np.array([])
               ):
+
     '''
     Function to calculate hourly Penman-Monteith evapo(transpi)ration (mm/day).
 
@@ -121,8 +123,8 @@ def process(datenum = np.array([]), datenum_d = np.array([])
         LAI_w: leaf area index wet season [m2.m-2]
         S_d: canopy capacity dry season [mm]
         S_w: canopy capacity wet season [mm]
-        f_s_d: shelter factor dry season []
-        f_s_w: shelter factor wet season []
+        f_s_vd: shelter factor dry season []
+        f_s_vw: shelter factor wet season []
         alfa_vd: vegetation albedo in dry season
         alfa_vw: vegetation albedo in wet season
         J_vd: starting julian day of the dry season [int 1-365]
@@ -139,6 +141,7 @@ def process(datenum = np.array([]), datenum_d = np.array([])
         J_sd: starting julian day of the dry season [int 1-365]
         J_sw: starting julian day of the wet season [int 1-365]
         TRANS_sdw: transition period between dry and wet season [days]
+        TRANS_swd: transition period between wet and dry season [days]
 
         WATER PARAMETERS
         alfa_w: water albedo
@@ -166,51 +169,27 @@ def process(datenum = np.array([]), datenum_d = np.array([])
     Cp = 1.013E-3     # specific heat at cte pressure [MJ.kg-1.ªC-1] FAO56 p26 box6
     k = 0.41          # karman's cte   []  FAO 56 Eq4
 
-    # compute J - julian day
-    YYYY = []
-    MM = []
-    DD = []
-    HH = []
-    MN = []
-    J = []
-    time = []
-    for t in range(len(datenum)):
-        YYYY.append(float('%4d'%mpl.dates.num2date(datenum[t]).year))
-        MM.append(float('%02d'%mpl.dates.num2date(datenum[t]).month))
-        DD.append(float('%02d'%mpl.dates.num2date(datenum[t]).day))
-        HH.append('%02d'%mpl.dates.num2date(datenum[t]).hour)
-        MN.append('%02d'%mpl.dates.num2date(datenum[t]).minute)
-        J.append(DD[t] - 32 + int(275*MM[t]/9) + 2 * int(3/(MM[t] + 1)) + int(MM[t]/100-np.mod(YYYY[t],4)/4+0.975) )
-        time.append(HH[t]+':' + MN[t])
-
     # compute DELTA - SLOPE OF SATURATION VAPOUR PRESSURE CURVE
     # [kPa.ªC-1]
     # FAO56 pag 37 Eq13
-    DELTA = []
-    for j in range(len(J)):
-        DELTA.append(4098*(0.6108*np.exp(17.27*Ta[j]/(Ta[j]+237.3)))/pow(Ta[j]+237.3,2))
+    DELTA = 4098*(0.6108*np.exp(17.27*Ta/(Ta+237.3)))/pow(Ta+237.3,2)
     print "\nDELTA computed!"
 
     # compute dr - inverse distance to the sun
     # FAO56 pag47 Eq23
-    dr = []
-    for j in range(len(J)):
-        dr.append(1+0.033*np.cos(2*np.pi*J[j]/365))
+    dr = 1.0+0.033*np.cos(2.0*np.pi*J/365.0)
 
     # compute delta - solar declination
     # [rad]
     # FAO56 pag47 Eq24
-    delta = []
-    for j in range(len(J)):
-        delta.append(0.409*np.sin(2*np.pi*J[j]/365-1.39))
+    delta = 0.409*np.sin(2*np.pi*J/365.0-1.39)
 
     # compute Sc - seasonnal correction for solar time
     # [hour]
     # FAO56 pag47 Eq32
     Sc = []
-    for j in range(len(J)):
-        b = 2*np.pi*(J[j]-81)/364    # Eq 34
-        Sc.append(0.1645*np.sin(2*b) - 0.1255*np.cos(b) - 0.025*np.sin(b))
+    b = 2.0*np.pi*(J-81.0)/364.0    # Eq 34
+    Sc = 0.1645*np.sin(2*b) - 0.1255*np.cos(b) - 0.025*np.sin(b)
 
     # compute w - solar time angle at the midpoint of the period (time)
     # [rad]
@@ -220,34 +199,29 @@ def process(datenum = np.array([]), datenum_d = np.array([])
         t = -0.5 + FC + float(time[j].split(':')[0]) + \
                   float(time[j].split(':')[1])/60.0
         w.append((np.pi/12)*((t+0.06667*(Lz-Lm)+Sc[j])-12))
+    w = np.asarray(w)
 
     # compute w1 - solar time angle at the beginning of the period (time)
     # [rad]
     # FAO56 pag47 Eq29
-    w1 = []
     tl = 1  # hourly data
-    for j in range(len(J)):
-        w1.append(w[j] - np.pi*tl/24)
+    w1 = (w - np.pi*tl/24.0)
 
     # compute w2 - solar time angle at the end of the period (time + 1h)
     # [rad]
     # FAO56 pag47 Eq30
-    w2 = []
-    for j in range(len(J)):
-        w2.append(w[j] + np.pi*tl/24)
+    w2 = w + np.pi*tl/24.0
 
     # compute ws - sunset hour angle
     # [rad]
     # FAO56 pag47 Eq25
-    ws = []
-    for j in range(len(J)):
-        ws.append(np.arccos(-np.tan(phi*np.pi/180)*np.tan(delta[j])))
+    ws = np.arccos(-np.tan(phi*np.pi/180.0)*np.tan(delta))
 
     # compute Ra - extraterrestrial radiation
     # [MJ.m-2.hour-1]
     # FAO56 pag47 Eq28
     Ra = []
-    Ra_Watts = []
+    #Ra_Watts = []
     for j in range(len(J)):
         if (w1[j] < -ws[j] or w2[j] > -ws[j]):
             if w1[j] < -ws[j] : w1[j] = -ws[j]
@@ -258,16 +232,14 @@ def process(datenum = np.array([]), datenum_d = np.array([])
         Ra.append((12*60/np.pi)*Gsc*dr[j]* \
               ((w2[j]-w1[j])*np.sin(phi*np.pi/180)*np.sin(delta[j]) + \
                np.cos(phi*np.pi/180)*np.cos(delta[j])*(np.sin(w2[j])-np.sin(w1[j]))))
-        Ra_Watts.append(Ra[j]*24/0.08864)
+        #Ra_Watts.append(Ra[j]*24/0.08864)
+    Ra = np.asarray(Ra)
 
     # compute Rs0 - clear-sky solar (shortwave) radiation
     # [MJ.m-2.hour-1]
     # FAO56 pag51 Eq37
-    Rs0 = []
-    Rs0_Watts = []
-    for j in range(len(J)):
-        Rs0.append((0.75+2E-5*Z)*Ra[j])
-        Rs0_Watts.append(Rs0[j]*24/0.08864)
+    Rs0 = (0.75+2E-5*Z)*Ra
+#    Rs0_Watts = Rs0*24.0/0.08864
 
     # correcting Rs measurement values
     badvalues = 0
@@ -281,61 +253,32 @@ def process(datenum = np.array([]), datenum_d = np.array([])
         else:
             Rs_corr.append(Rs[j])
     if badvalues > 0:
-        print "\n" + '%.1f' %(100*badvalues/len(J)) + " % (" + str(badvalues) + '/' + str(len(J)) +') shortwave radiation measurements that were higher than the clear-sky one were corrected.'
+        print "\n" + '%.1f' %(100.0*badvalues/len(J)) + " % (" + str(badvalues) + '/' + str(len(J)) +') shortwave radiation measurements that were higher than the clear-sky one were corrected.'
         if badvalues/len(J)>0.15:
             print '\nCalibrate your sensors!!!'
+    Rs_corr = np.asarray(Rs_corr)
 
     # compute Rns - NET SHORTWAVE RADIATION
     # [MJ.m-2.hour-1]
     # FAO56 pag51 Eq37
-    # for each type of vegetation and soil (albedo dependent)
-    Rns_VEG = []
-    if NVEG > 0:
-        for v in range(NVEG+NCROP):
-            Rns_v = []
-            alfa = []
-            for j in range(len(J)):
-                if J[j] < J_vd[v] or J[j] > J_vw[v]: # wet period
-                    alfa.append(alfa_vw[v])
-                else:
-                    if J[j] < J_vd[v] + TRANS_vdw[v]: # transition wet to dry
-                        alfa.append(alfa[j-1]-(alfa_vw[v]-alfa_vd[v])/(24*TRANS_vdw[v]+24))
-                    elif J[j] > J_vw[v] - TRANS_vdw[v]: # transition dry to wet
-                        alfa.append(alfa[j-1]+(alfa_vw[v]-alfa_vd[v])/(24*TRANS_vdw[v]+24))
-                    else:                              # dry period
-                        alfa.append(alfa_vd[v])
-                Rns_v.append((1-alfa[j])*Rs_corr[j])
-            Rns_VEG.append(Rns_v)
-            del Rns_v, alfa
-    Rns_SOIL = []
-    if NSOIL > 0:
-        for s in range(NSOIL):
-            Rns_s = []
-            alfa = []
-            for j in range(len(J)):
-                if J[j] < J_sd[s] or J[j] > J_sw[s]:
-                    alfa.append(alfa_sw[s])
-                else:
-                    if J[j] < J_sd[s] + TRANS_sdw[s]:
-                        alfa.append(alfa[j-1]-(alfa_sw[s]-alfa_sd[s])/(24*TRANS_sdw[s]+24))
-                    elif J[j] > J_sw[s] - TRANS_sdw[s]:
-                        alfa.append(alfa[j-1]+(alfa_sw[s]-alfa_sd[s])/(24*TRANS_sdw[s]+24))
-                    else:
-                        alfa.append(alfa_sd[s])
-                Rns_s.append((1-alfa[j])*Rs_corr[j])
-            Rns_SOIL.append(Rns_s)
-            del Rns_s, alfa
-    Rns_WATER = []
-    for j in range(len(J)):
-        Rns_WATER.append((1-alfa_w)*Rs_corr[j])
+    # for each type of vegetation, crop and soil (albedo dependent)
+    Rns_VEG = np.zeros((NVEG, len(J)), dtype = float)
+    for v in range(NVEG):
+        Rns_VEG[v] = (1 - alfa_v[v])*Rs_corr
+    if IRR <> None:
+        Rns_FIELD = np.zeros((NFIELD, len(J)), dtype = float)
+        for f in range(NFIELD):
+            Rns_FIELD[f] = (1 - alfa_f[f])*Rs_corr
+    Rns_SOIL = np.zeros((NSOIL, len(J)), dtype = float)
+    for s in range(NSOIL):
+        Rns_SOIL[s] = (1 - alfa_s[s])*Rs_corr
+    Rns_WATER = (1-alfa_w)*Rs_corr
     print "\nRns computed!"
 
     # compute e0_Ta - saturation vapour pressure at actual air temperature
     # [kPa]
     # FAO56 pag36 Eq11
-    e0_Ta = []
-    for i in range(len(J)):
-        e0_Ta.append(0.6108*np.exp(17.27*Ta[i]/(Ta[i]+237.3)))
+    e0_Ta = 0.6108*np.exp(17.27*Ta/(Ta+237.3))
 
     # es - MEAN SATURATION VAPOUR PRESSURE
     # [kPa]
@@ -365,9 +308,7 @@ def process(datenum = np.array([]), datenum_d = np.array([])
     # compute e_a - ACTUAL VAPOUR PRESSURE
     # [kPa]
     # FAO56 pag74 Eq54
-    e_a = []
-    for i in range(len(J)):
-        e_a.append(e0_Ta[i]*RHa[i]/100)
+    e_a = e0_Ta*RHa/100
     print "\ne_a computed!"
 
     # compute Rnl - NET LONGWAVE RADIATION
@@ -380,7 +321,10 @@ def process(datenum = np.array([]), datenum_d = np.array([])
         if (ws[j] - 0.52) <= w[j] <= (ws[j] - 0.10):  # FAO56: (ws[j] - 0.79) <= w[j] <= (ws[j] - 0.52)
             i = 1
             if Rs0[j] > 0:
-                r_sunset = Rs_corr[j]/Rs0[j]
+                if Rs_corr[j]/Rs0[j] > 0.3:
+                    r_sunset = Rs_corr[j]/Rs0[j]
+                else:
+                    r_sunset = 0.3
             else:
                 r_sunset = 0.75  #see FAO56 pag75
         if ((ws[j] - 0.10) < w[j] or w[j] <= (-ws[j]+ 0.10)):
@@ -391,43 +335,61 @@ def process(datenum = np.array([]), datenum_d = np.array([])
         else:
             r.append(Rs_corr[j]/Rs0[j])
         Rnl.append(sigma*pow(Ta[j] + 273.16,4)*(0.34-0.14*np.sqrt(e_a[j]))*(1.35*r[j]-0.35))
+    Rnl = np.asarray(Rnl)
+    r = np.asarray(r)
 ##        if Rnl[j]<0:
 ##            r=0.8
 ##            Rnl[j] = sigma*pow(Ta[j] + 273.16,4)*(0.34-0.14*np.sqrt(e_a[j]))*(1.35*r-0.35)
+
     print "\nRnl computed!"
 
     # compute G - SOIL HEAT FLUX
     # [MJ.m-2.hour-1]
     # FAO56 pag55 Eq45 and 46
-    G_VEG = []
-    if NVEG>0:
-        for v in range(NVEG+NCROP):
-            G_v = []
+    G_VEG = np.zeros((NVEG, len(J)), dtype = float)
+    for v in range(NVEG):
+        G_v = []
+        Rn = Rns_VEG[v] - Rnl
+        for j in range(len(J)):
+            if w[j]<-ws[j] or w[j]>ws[j]:
+                G_v.append(0.5*Rn[j])
+            else:
+                G_v.append(0.1*Rn[j])
+        G_VEG[v] = np.asarray(G_v)
+        del Rn, G_v
+    if IRR <> None:
+        G_FIELD = np.zeros((NFIELD, len(J)), dtype = float)
+        for f in range(NFIELD):
+            G_f = []
+            Rn = Rns_FIELD[f] - Rnl
             for j in range(len(J)):
-                Rn = Rns_VEG[v][j] - Rnl[j]
                 if w[j]<-ws[j] or w[j]>ws[j]:
-                    G_v.append(0.5*Rn)
+                    G_f.append(0.5*Rn[j])
                 else:
-                    G_v.append(0.1*Rn)
-            G_VEG.append(G_v)
-    G_SOIL = []
+                    G_f.append(0.1*Rn[j])
+            G_FIELD[f] = np.asarray(G_f)
+            del Rn, G_f
     if NSOIL>0:
+        G_SOIL = np.zeros((NSOIL, len(J)), dtype = float)
         for s in range(NSOIL):
             G_s = []
+            Rn = Rns_SOIL[s] - Rnl
             for j in range(len(J)):
-                Rn = Rns_SOIL[s][j] - Rnl[j]
                 if w[j]<-ws[j] or w[j]>ws[j]:
-                    G_s.append(0.5*Rn)
+                    G_s.append(0.5*Rn[j])
                 else:
-                    G_s.append(0.1*Rn)
-            G_SOIL.append(G_s)
-    G_WATER = []
+                    G_s.append(0.1*Rn[j])
+            G_SOIL[s] = np.asarray(G_s)
+            del Rn, G_s
+    G_w = []
+    Rn = Rns_WATER - Rnl
     for j in range(len(J)):
-        Rn = Rns_WATER[j] - Rnl[j]
         if w[j]<-ws[j] or w[j]>ws[j]:
-            G_WATER.append(0.5*Rn)
+            G_w.append(0.5*Rn[j])
         else:
-            G_WATER.append(0.1*Rn)
+            G_w.append(0.1*Rn[j])
+    G_WATER = np.asarray(G_w)
+    del Rn, G_w
     print "\nG computed!"
 ##    G_VEG_Watts = []
 ##    for j in range(len(J)):
@@ -436,17 +398,13 @@ def process(datenum = np.array([]), datenum_d = np.array([])
     # ro_a - MEAN AIR DENSITY AT CTE PRESSURE
     # [kg.m-3]
     # FAO56 pag26 box6
-    ro_a = []
-    for j in range(len(J)):
-        ro_a.append(Pa[j]/(R*1.01*(Ta[j]+273.16)))
+    ro_a = Pa/(R*1.01*(Ta+273.16))
     print "\nro_a computed!"
 
     # gama - PSYCHROMETRIC CONSTANT
     # [kPa.ªC-1]
     # FAO56 pag31 eq8
-    gama = []
-    for j in range(len(J)):
-        gama.append(Cp*Pa[j]/(eps*lambdav))
+    gama = Cp*Pa/(eps*lambdav)
     print "\ngama computed!"
 
     # r_s - SURFACE RESISTANCE
@@ -457,14 +415,9 @@ def process(datenum = np.array([]), datenum_d = np.array([])
     DELTArho_v = []
     f_rho = []
     f_T = []
-    for v in range(NVEG+NCROP):
-        r_s_VEG.append([])
     if NVEG>0:
-        h_tmp = []
-        for v in range(NVEG+NCROP):
-            f_s_tmp = []
-            LAI_tmp = []
-            h_tmp.append([])
+        for v in range(NVEG):
+            r_s_VEG.append([])
             for j in range(len(J)):
                 if Rs_corr[j]<0:
                     Rs_tmp = 0
@@ -487,110 +440,95 @@ def process(datenum = np.array([]), datenum_d = np.array([])
                 else:
                     f_T.append(Ta[j]*pow(40-Ta[j],1.18)/691)
                 if v == 0:
-                    C_leaf = C_leaf_star[v]
+                    C_leaf = C_leaf_star_v[v]
                 else:
-                    C_leaf = C_leaf_star[v] * f_k[j] * f_rho[j] * f_T[j]
-                if J[j] < J_vd[v] or J[j] > J_vw[v]:    #wet period
-                    f_s_tmp.append(f_s_w[v])
-                    LAI_tmp.append(LAI_w[v])
-                    h_tmp[v].append(h_w[v])
-                else:
-                    if J[j] < J_vd[v] + TRANS_vdw[v]:# transition wet to dry
-                        f_s_tmp.append(f_s_tmp[j-1]-(f_s_w[v]-f_s_d[v])/(24*TRANS_vdw[v]+24))
-                        LAI_tmp.append(LAI_tmp[j-1]-(LAI_w[v]-LAI_d[v])/(24*TRANS_vdw[v]+24))
-                        h_tmp[v].append(h_tmp[v][j-1]-(h_w[v]-h_d[v])/(24*TRANS_vdw[v]+24))
-                    elif J[j] > J_vw[v] - TRANS_vdw[v]:  # transition dry to wet
-                        f_s_tmp.append(f_s_tmp[j-1]+(f_s_w[v]-f_s_d[v])/(24*TRANS_vdw[v]+24))
-                        LAI_tmp.append(LAI_tmp[j-1]+(LAI_w[v]-LAI_d[v])/(24*TRANS_vdw[v]+24))
-                        h_tmp[v].append(h_tmp[v][j-1]+(h_w[v]-h_d[v])/(24*TRANS_vdw[v]+24))
-                    else:                               #dry period
-                        f_s_tmp.append(f_s_d[v])
-                        LAI_tmp.append(LAI_d[v])
-                        h_tmp[v].append(h_d[v])
-                f_temp = f_s_tmp[j]*LAI_tmp[j]*C_leaf
+                    C_leaf = C_leaf_star_v[v] * f_k[j] * f_rho[j] * f_T[j]
+                f_temp = f_s_v[v][j]*LAI_v[v][j]*C_leaf
                 if f_temp == 0.0:
                     r_s_VEG[v].append(1.0E6)
                 else:
                     r_s_VEG[v].append(1.0/f_temp)
+        r_s_VEG = np.asarray(r_s_VEG)
+    del f_k, DELTArho_v, f_rho, f_T
+    # FIELD/CROP: Dingman pag 208 (canopy conductance) (equivalent to FAO56 pag21 Eq5)
+    if IRR <> None:
+        r_s_FIELD = []
+        f_k = []
+        DELTArho_f = []
+        f_rho = []
+        f_T = []
+        for f in range(NFIELD):
+            r_s_FIELD.append([])
+            for j in range(len(J)):
+                if Rs_corr[j]<0.0:
+                    Rs_tmp = 0.0
+                elif Rs_corr[j]>86.5/24.0:
+                    Rs_tmp = 86.5
+                else:
+                    Rs_tmp = Rs[j]*24.0
+                f_k.append(12.78*Rs_tmp/(11.57*Rs_tmp+104.4))
+                DELTArho_f.append(2.17*(e0_Ta[j]-e_a[j])/(Ta[j]+273.16))
+                if DELTArho_f[j]<0.0:
+                    f_rho.append(1.0)
+                elif DELTArho_f[j]>0.01152:
+                    f_rho.append(0.233)
+                else:
+                    f_rho.append(1.0 - 66.6*DELTArho_f[j])
+                if Ta[j]<0:
+                    f_T.append(0.0)
+                elif Ta[j]>40.0:
+                    f_T.append(0.0)
+                else:
+                    f_T.append(Ta[j]*pow(40-Ta[j],1.18)/691.0)
+                C_leaf = C_leaf_star_f[f][j] * f_k[j] * f_rho[j] * f_T[j]
+                f_temp = f_s_f[f][j]*LAI_f[f][j]*C_leaf
+                if f_temp == 0.0:
+                    r_s_FIELD[f].append(1.0E6)
+                else:
+                    r_s_FIELD[f].append(1.0/f_temp)
+        del f_k, DELTArho_f, f_rho, f_T
+        r_s_FIELD = np.asarray(r_s_FIELD)
      # SOIL: equation 20 of van de Griend and Owe, 1994
     r_s_SOIL = []
     if NSOIL>0:
         for s in range(NSOIL):
             r_s_SOIL.append(10.0*np.exp(0.3563*100.0*(fc[s]-por[s])))
         print "\nr_s computed!"
+    r_s_SOIL = np.asarray(r_s_SOIL)
 
     # correction windspeed measurement and scaling at h+2m
     # [m.s-1]
     # FAO56 pag56 eq47
-    u_2 = []
-    u_hplus2 = []
-    for v in range(NVEG+NCROP):
-        u_hplus2.append([])
-    for j in range(len(J)):
-        if u_z_m[j]<=0.0:
-            u_z_m[j] = 1E-9
-        if z_m <> 2.0:
-            u_2.append(u_z_m[j] * 4.87 / (np.log(67.8*z_m-5.42)))
-        else:
-            u_2.append(u_z_m[j])
-        if u_2[j]<=0.0:
-            u_2[j] = 1E-9
-        for v in range(NVEG+NCROP):
-            u_hplus2[v].append(u_2[j] * (np.log(67.8*(h_tmp[v][j]+2.0)-5.42)) / 4.87)
+#    u_z_m = np.where(u_z_m <= 0.0, 1E-9, u_z_m)
+    u_2 = np.where(z_m <> 2.0,u_z_m*4.87/(np.log(67.8*z_m-5.42)),u_z_m)
+    u_2 = np.where(u_2 <= 0.0, 1E-9, u_2)
+    u_hplus2_v = np.zeros((NVEG, len(J)), dtype = float)
+    u_hplus2_v = u_2 * (np.log(67.8*(h_v+2.0)-5.42)) / 4.87
+    # FIELD/CROP
+    if IRR <> None:
+        u_hplus2_f = np.zeros((NFIELD, len(J)), dtype = float)
+        u_hplus2_f = u_2*(np.log(67.8*(h_f+2.0)-5.42)) / 4.87
 
     # r_a - AERODYNAMIC RESISTANCE
     # [s.m-1]
-    r_a_VEG = []
+    r_a_VEG = np.zeros((NVEG, len(J)), dtype = float)
     if NVEG>0:
-        for v in range(NVEG+NCROP):
-            r_a_j=[]
-            for j in range(len(J)):
-                    if v == 0:      # FAO56 pag20 eq4- (d - zero displacement plane, z_0m - roughness length momentum transfer, z_0h - roughness length heat and vapour transfer, [m], FAO56 pag21 BOX4
-                        r_a_j.append(np.log((2-(2*h_tmp[v][j]/3))/(0.123*h_tmp[v][j]))*np.log((2-(2*h_tmp[v][j]/3))/(0.0123*h_tmp[v][j]))/(pow(k,2)*u_2[j]))
-                    else:           # DINGMAN pag 296
-                        if h_tmp[v][j] > 0.0:
-                            r_a_j.append(pow(np.log((h_tmp[v][j]+2-(0.7*h_tmp[v][j]))/(0.1*h_tmp[v][j])),2)/(pow(k,2)*u_hplus2[v][j]))
-                        else:
-                            r_a_j.append(0.0)
-            r_a_VEG.append(r_a_j)
-##    if NVEG>0:
-##        for v in range(NVEG+NCROP):
-##            if T[v] == 1:
-##                # AWSET manual pag24, r_a=94/u_10 for tree (Thompson et al, 1981)
-##                # From Pereira, Gash, David, Valente - Evaporation of intercepted rainfall from isolated evergreen oak trees:
-##                #                                 Do the crowns behave as wet bulbs?
-##                #                                 Agricultural and forest meteorology 149 - 2009 (667-679)
-##                # 1/(0.16*pow(u_TreeCrown,0.441))
-##                r_a_j_tree=[]
-##                for j in range(len(J)):
-###                    if u_hplus2[v][j] == 0.0:
-##                    if u_TreeCrown[v][j] == 0.0:
-##                        r_a_j_tree.append(1.0E6)
-##                    else:
-###                        r_a_j_tree.append(1/(0.16*pow(u_TreeCrown[v][j],0.441)))
-##                        r_a_j_tree.append(94/u_10[j])
-##                r_a_VEG.append(r_a_j_tree)
-##            else:
-##                if z_m < h[v]:
-##                    print "Wind speed and relative humidity measurements have to be done at a heigth higher than the crop heigth!   \
-##                         \nNot possible to compute aerodynamic parameters for vegetation type #" + str(NVEG[v]) + \
-##                         ", see FAO56 pag 20 Eq4."
-##                    r_a_VEG.append(np.zeros([len(J)]))
-##                else:
-##                    r_a_j=[]
-##                    for j in range(len(J)):
-##                        if u_z_m[j] == 0.0:
-##                            r_a_j.append(1.0E6)
-##                        else:
-##                            r_a_j.append(np.log((z_m-d[v])/z_0m[v])*np.log((z_h-d[v])/z_0h[v])/(pow(k,2)*u_z_m[j]))
-##                    r_a_VEG.append(r_a_j)
+        for v in range(NVEG):
+            if v == 0:
+                # FAO56 pag20 eq4- (d - zero displacement plane, z_0m - roughness length momentum transfer, z_0h - roughness length heat and vapour transfer, [m], FAO56 pag21 BOX4
+                r_a_VEG[0] = np.log((2-(2*h_v[0]/3))/(0.123*h_v[0]))*np.log((2-(2*h_v[0]/3))/(0.0123*h_v[0]))/(pow(k,2)*u_2)
+            else:
+                # DINGMAN pag 296
+                r_a_VEG[v] = pow(np.log((h_v[v]+2-(0.7*h_v[v]))/(0.1*h_v[v])),2)/(pow(k,2)*u_hplus2_v[v])
+    # FIELD/CROP
+    if IRR <> None:
+        # DINGMAN pag 296
+        r_a_FIELD = np.where(LAI_f > 0.0, pow(np.log((h_f+2-(0.7*h_f))/(0.1*h_f)),2)/(pow(k,2)*u_hplus2_f),0.0)
     # r_a for SOIL
     # Liu www.hydrol-earth-syst-sci.net/11/769/2007/
-    r_a_SOIL = []
     # only function of ws, it is assumed that roughness are the same for any type of soil
     if NSOIL > 0:
-        for j in range(len(J)):
-              r_a_SOIL.append(np.log((2.0)/0.0058)*np.log(2.0/0.0058)/(pow(k,2)*u_2[j]))
+        r_a_SOIL = np.log((2.0)/0.0058)*np.log(2.0/0.0058)/(pow(k,2)*u_2)
 ##    # BavelHillel_PotActualEvaporationBareSoilSurface_1976
 ##    # SOIL ra = ([ln(2.0/Z0)]^2)/(0.16*U2) with Z0 = 0.01
 ##    r_a_SOIL = []
@@ -612,23 +550,18 @@ def process(datenum = np.array([]), datenum_d = np.array([])
     # E0 - open water
     # computed by Penman equation in Gieske 2003 pag 94 eq63 and 64
     E0 = []
-    for j in range(len(J)):
-        value = (DELTA[j]*(Rns_WATER[j]-Rnl[j]-G_WATER[j])  +         \
-                     gama[j]*0.26*(1+0.54*u_2[j])*(e0_Ta[j]-e_a[j])  )/   \
-                     (lambdav*(DELTA[j] + gama[j]))
-        if value >=0.0:
-            E0.append(value)
-        else:
-            E0.append(0.0)
+    value = (DELTA*(Rns_WATER-Rnl-G_WATER) + gama*0.26*(1+0.54*u_2)*(e0_Ta-e_a))/(lambdav*(DELTA + gama[j]))
+    E0 = np.where(value >= 0.0, value, 0.0)
+    del value
     print "\nE0 for open water computed!"
     # PT/PE - Penman-Montheith
     # mm.hour-1
     # FAO56 pag19 eq3
-    # for VEG
+    # VEG
     PT_PM_VEG = []
-    Erf = []  # Evaporation during RF
+    Erf_VEG = []  # Evaporation during RF
     if NVEG>0:
-        for v in range(NVEG+NCROP):
+        for v in range(NVEG):
             PT_PM_VEG_v = []
             Erf_v = []
             for j in range(len(J)):
@@ -651,95 +584,132 @@ def process(datenum = np.array([]), datenum_d = np.array([])
                 else:
                     Erf_v.append(0.0)
             PT_PM_VEG.append(PT_PM_VEG_v)
-            Erf.append(Erf_v)
+            Erf_VEG.append(Erf_v)
+        PT_PM_VEG = np.asarray(PT_PM_VEG)
+        Erf_VEG = np.asarray(Erf_VEG)
         print "\nPT for VEGETATION computed!"
+        del PT_PM_VEG_v, Erf_v, value
+    # FIELD
+    if IRR <> None:
+        PT_PM_FIELD = []
+        Erf_FIELD = []  # Evaporation during RF
+        if NFIELD>0:
+            for f in range(NFIELD):
+                PT_PM_FIELD_f = []
+                Erf_f = []
+                for j in range(len(J)):
+                    if r_a_FIELD[f][j] > 0.0:
+                        value = (DELTA[j]*(Rns_FIELD[f][j]-Rnl[j]-G_FIELD[f][j])+3600*ro_a[j]*Cp*(e0_Ta[j]-e_a[j])/r_a_FIELD[f][j])/  \
+                                (lambdav*(DELTA[j] + gama[j]*(1+r_s_FIELD[f][j]/r_a_FIELD[f][j])))
+                    else:
+                        value = 0.0
+                    if value >=0.0:
+                        PT_PM_FIELD_f.append(value)
+                    else:
+                        PT_PM_FIELD_f.append(0.0)
+                    if r_a_FIELD[f][j] > 0.0:
+                        value = (DELTA[j]*(Rns_FIELD[f][j]-Rnl[j]-G_FIELD[f][j])+3600*ro_a[j]*Cp*(e0_Ta[j]-e_a[j])/r_a_FIELD[f][j])/  \
+                                (lambdav*(DELTA[j] + gama[j]))
+                    else:
+                        value = 0.0
+                    if value >= 0.0:
+                        Erf_f.append(value)
+                    else:
+                        Erf_f.append(0.0)
+                PT_PM_FIELD.append(PT_PM_FIELD_f)
+                Erf_FIELD.append(Erf_f)
+            PT_PM_FIELD = np.asarray(PT_PM_FIELD)
+            Erf_FIELD = np.asarray(Erf_FIELD)
+            print "\nPT for FIELDS/CROPS computed!"
+            del PT_PM_FIELD_f, Erf_f, value
     # for SOIL
     PE_PM_SOIL = []
     if NSOIL > 0:
         for s in range(NSOIL):
-            PE_PM_SOIL_s = []
-            for j in range(len(J)):
-                value = (DELTA[j]*(Rns_SOIL[s][j]-Rnl[j]-G_SOIL[s][j])+3600*ro_a[j]*Cp*(e0_Ta[j]-e_a[j])/r_a_SOIL[j])/  \
-                            (lambdav*(DELTA[j] + gama[j]*(1+r_s_SOIL[s]/r_a_SOIL[j])))
-                if value >=0.0:
-                    if value <= E0[j]:
-                        PE_PM_SOIL_s.append(value)
-                    else:
-                        PE_PM_SOIL_s.append(E0[j])
-                else:
-                    PE_PM_SOIL_s.append(0.0)
-            PE_PM_SOIL.append(PE_PM_SOIL_s)
+            value = (DELTA*(Rns_SOIL[s]-Rnl-G_SOIL[s])+3600*ro_a*Cp*(e0_Ta-e_a)/r_a_SOIL)/  \
+                        (lambdav*(DELTA + gama*(1+r_s_SOIL[s]/r_a_SOIL)))
+            PE_PM_SOIL.append(np.where(value >= 0.0, np.where(value <= E0, value, E0), 0.0))
+        PE_PM_SOIL = np.asarray(PE_PM_SOIL)
         print "\nPE for SOIL computed!"
+        del value
 
     # #### DAILY SUM ##############################################
-    if IRR <> []:
-        RFirr = []
+    if IRR <> None:
+        RF_irr = np.zeros([NFIELD, len(RF)], dtype = float)
         for f in range(NFIELD):
             try:
-                RFirr.append(list(np.asarray(RF) + IRR[f]))
+                RF_irr[f] = RF + IRR[f]
             except:
                 raise SystemExit("\nFATAL ERROR!\nIrrigation time serie incompatible with rainfall time serie!")
-            RFirr_d =  np.zeros([NFIELD, len(datenum_d)], dtype=float)
-            RFirrint = np.zeros([NFIELD, len(datenum_d)], dtype=float)
-            RFirr_duration =  np.zeros([NFIELD, len(datenum_d)], dtype=float)
-    J_d = []
-    PT_PM_VEG_d = np.zeros([NVEG+NCROP,len(datenum_d)], dtype=float)
-    PE_PM_SOIL_d = np.zeros([NSOIL,len(datenum_d)], dtype=float)
+            RF_irr_d =  np.zeros([NFIELD, len(datenum_d)], dtype=float)
+            RFint_irr = np.zeros([NFIELD, len(datenum_d)], dtype=float)
+            RF_irr_duration =  np.zeros([NFIELD, len(datenum_d)], dtype=float)
+    J_day = np.zeros([len(datenum_d)], dtype=float)
+    PT_PM_VEG_d = np.zeros([NVEG,len(datenum_d)], dtype=float)
+    LAI_veg_d = np.zeros([NVEG,len(datenum_d)], dtype=float)
+    if IRR <> None:
+        PT_PM_FIELD_d = np.zeros([NFIELD,len(datenum_d)], dtype=float)
+    if NSOIL > 0:
+        PE_PM_SOIL_d = np.zeros([NSOIL,len(datenum_d)], dtype=float)
     E0_d =  np.zeros([len(datenum_d)], dtype=float)
-    RFveg_d =  np.zeros([len(datenum_d)], dtype=float)
-    RFvegint = np.zeros([len(datenum_d)], dtype=float)
-    RFveg_duration =  np.zeros([len(datenum_d)], dtype=float)
+    RF_veg_d =  np.zeros([len(datenum_d)], dtype=float)
+    RFint_veg = np.zeros([len(datenum_d)], dtype=float)
+    RF_veg_duration =  np.zeros([len(datenum_d)], dtype=float)
     t_d = 0
     n1 = 0
     n1_d = []
     actual_day = mpl.dates.num2date(datenum[0]).isoformat()[:10]
-    J_d.append(J[0])
+    J_day[0] = J[0]
     for t in range(len(datenum)):
         if actual_day == mpl.dates.num2date(datenum[t]).isoformat()[:10]:
             n1 = n1 + 1
             for v in range(NVEG):
-                PT_PM_VEG_d[v,t_d] = PT_PM_VEG_d[v,t_d] + PT_PM_VEG[v][t]
+                PT_PM_VEG_d[v,t_d] = PT_PM_VEG_d[v,t_d] + PT_PM_VEG[v,t]
+                LAI_veg_d[v,t_d] = (LAI_veg_d[v,t_d] + LAI_v[v,t])/2.0
             for s in range(NSOIL):
-                PE_PM_SOIL_d[s,t_d] = PE_PM_SOIL_d[s,t_d]  + PE_PM_SOIL[s][t]
+                PE_PM_SOIL_d[s,t_d] = PE_PM_SOIL_d[s,t_d]  + PE_PM_SOIL[s,t]
             E0_d[t_d] = (E0_d[t_d] + E0[t])
             if RF[t]>0:
-                RFveg_d[t_d] = RFveg_d[t_d] + RF[t]
-                RFveg_duration[t_d] = RFveg_duration[t_d] + 1.0
-            if IRR <> []:
+                RF_veg_d[t_d] = RF_veg_d[t_d] + RF[t]
+                RF_veg_duration[t_d] = RF_veg_duration[t_d] + 1.0
+            if IRR <> None:
                 for f in range(NFIELD):
-                    if RFirr[f][t]>0:
-                        RFirr_d[f][t_d] = RFirr_d[f][t_d] + RFirr[f][t]
-                        RFirr_duration[f][t_d] = RFirr_duration[f][t_d] + 1.0
+                    if RF_irr[f][t]>0:
+                        RF_irr_d[f][t_d] = RF_irr_d[f][t_d] + RF_irr[f][t]
+                        RF_irr_duration[f][t_d] = RF_irr_duration[f][t_d] + 1.0
+                    PT_PM_FIELD_d[f,t_d] = PT_PM_FIELD_d[f,t_d] + PT_PM_FIELD[f,t]
         else:
-            if RFveg_duration[t_d]>0:
-                RFvegint[t_d] = RFveg_d[t_d]/RFveg_duration[t_d]
-            if IRR <> []:
+            if RF_veg_duration[t_d]>0:
+                RFint_veg[t_d] = RF_veg_d[t_d]/RF_veg_duration[t_d]
+            if IRR <> None:
                 for f in range(NFIELD):
-                    if RFirr_duration[f][t_d]>0:
-                        RFirrint[f][t_d] = RFirr_d[f][t_d]/RFirr_duration[f][t_d]
+                    if RF_irr_duration[f][t_d]>0:
+                        RFint_irr[f][t_d] = RF_irr_d[f][t_d]/RF_irr_duration[f,t_d]
             n1_d.append(n1+1)
             n1 = 0
             t_d = t_d + 1
             actual_day = mpl.dates.num2date(datenum[t]).isoformat()[:10]
-            J_d.append(J[t])
+            J_day[t_d] = J[t]
             for v in range(NVEG):
-                PT_PM_VEG_d[v,t_d] = PT_PM_VEG[v][t]
+                PT_PM_VEG_d[v,t_d] = PT_PM_VEG[v,t]
+                LAI_veg_d[v,t_d] = LAI_v[v,t]
             for s in range(NSOIL):
-                PE_PM_SOIL_d[s,t_d] = PE_PM_SOIL[s][t]
+                PE_PM_SOIL_d[s,t_d] = PE_PM_SOIL[s,t]
             E0_d[t_d] = E0[t]
             if RF[t]>0:
-                RFveg_d[t_d] = RFveg_d[t_d] + RF[t]
-                RFveg_duration[t_d] = RFveg_duration[t_d] + 1.0
-            if IRR <> []:
+                RF_veg_d[t_d] = RF_veg_d[t_d] + RF[t]
+                RF_veg_duration[t_d] = RF_veg_duration[t_d] + 1.0
+            if IRR <> None:
                 for f in range(NFIELD):
-                    RFirr_d[f][t_d] = RFirr_d[f][t_d] + RFirr[f][t]
-                    RFirr_duration[f][t_d] = RFirr_duration[f][t_d] + 1.0
+                    RF_irr_d[f][t_d] = RF_irr_d[f][t_d] + RF_irr[f][t]
+                    RF_irr_duration[f][t_d] = RF_irr_duration[f][t_d] + 1.0
+                    PT_PM_FIELD_d[f,t_d] = PT_PM_FIELD[f][t]
     if n1<>0:
-        if RFveg_duration[t_d]>0:
-            RFvegint[t_d] = RFveg_d[t_d]/RFveg_duration[t_d]
-        if IRR <> []:
+        if RF_veg_duration[t_d]>0:
+            RFint_veg[t_d] = RF_veg_d[t_d]/RF_veg_duration[t_d]
+        if IRR <> None:
             for f in range(NFIELD):
-                RFirrint[f][t_d] = RFirr_d[f][t_d]/RFirr_duration[f][t_d]
+                RFint_irr[f][t_d] = RF_irr_d[f][t_d]/RF_irr_duration[f][t_d]
         n1_d.append(n1+1)
 
     #  #####  COMPUTING RF/INTERCEPTION ##############################################
@@ -753,9 +723,8 @@ def process(datenum = np.array([]), datenum_d = np.array([])
     c = 1   # I is computed for each landcover assuming that evaporation is 1D vertical with no horizontal interaction or advection, see Gash 1995 chapter 2.3 pag 82
     RFtreshold = 0.4 # INDICATE HERE A RF TRESHOLD LIKE INDICATED IN PEREIRA 2009 or GASH 1979
 
+    # select hourly RF average (and corresponding evaporation) above treshold necessary to saturate the canopy, following method of Gash 1979 pag 49
     def RFsat(datenum_, RF_, RFtreshold_):
-        # select hourly RF average (and corresponding evaporation) above treshold necessary to saturate the canopy, following method of Gash 1979 pag 49
-        #datenum_RF_sat = []
         RF_sat_ = []
         for t in range(len(datenum_)):
             if RF_[t] > RFtreshold_:
@@ -764,75 +733,64 @@ def process(datenum = np.array([]), datenum_d = np.array([])
             avRF_sat_ = sum(RF_sat_)/len(RF_sat_)
         else:
             print '\nWARNING!!! There is no RF during the input period!'
+            avRF_sat_ = 0.0
         return avRF_sat_, len(RF_sat_)
 
     def Erf_sat(datenum_, RF_, Erf_, avRF_sat_, S_, c_, RFtreshold_):
         Erf_sat_ = []
         for t in range(len(datenum_)):
             if RF_[t] > RFtreshold_:
-                #datenum_RF_sat.append(datenum)
                 Erf_sat_.append(Erf_[t])
         if len(Erf_sat_)>0:
             avErf_sat_ = sum(Erf_sat_)/len(Erf_sat_)
             Pgl_ = -avRF_sat_*(S_/c_)*np.log(1-avErf_sat_/avRF_sat_)/avErf_sat_
         else:
             print '\nWARNING!!! There is no RF during the input period!'
-            avErf_sat_ = 0
+            avErf_sat_ = 0.0
+            Pgl_ = 0.0
         return Pgl_, avErf_sat_, len(Erf_sat_)
 
     # INTERCEPTION VEG
     print '\n-----------\nInterception by VEGETATION'
-    Iveg_d = []
-    RFeveg_d = []
-    avRFveg_sat, len_RFveg_sat = RFsat(datenum_ = datenum, RF_ = RF, RFtreshold_ = RFtreshold)
-    print 'RF average = ' + '%.4f' %avRFveg_sat + ' mm/h'
-    print 'Values computed for ' + str(len_RFveg_sat) + ' events of hourly RF higher than ' + str(RFtreshold) + ' mm'
+    I_veg_d = np.zeros([NVEG,len(datenum_d)], dtype=float)
+    RFe_veg_d = np.zeros([NVEG,len(datenum_d)], dtype=float)
+    avRFsat_veg, len_RFsat_veg = RFsat(datenum_ = datenum, RF_ = RF, RFtreshold_ = RFtreshold)
+    print 'RF average = ' + '%.4f' %avRFsat_veg + ' mm/h'
+    print 'Values computed for ' + str(len_RFsat_veg) + ' events of hourly RF higher than ' + str(RFtreshold) + ' mm'
     for v in range(NVEG):
-        Iveg_d.append([])
-        RFeveg_d.append([])
-        Pgl, avErf_sat, len_Erf_sat = Erf_sat(datenum_ = datenum, RF_ = RF, Erf_ = Erf[v], avRF_sat_ = avRFveg_sat, S_ = S[v], c_ = c, RFtreshold_ = RFtreshold)
+        Pgl, avErf_sat, len_Erf_sat = Erf_sat(datenum_ = datenum, RF_ = RF, Erf_ = Erf_VEG[v], avRF_sat_ = avRFsat_veg, S_ = S_w_v[v], c_ = c, RFtreshold_ = RFtreshold)
         print '\nVegetation type ' + str(v)  + ' (' + VegType[v] + ')'
-        print 'Erf average during RF = ' + '%.4f' % (avErf_sat) + ' mm/h (' + str(len_Erf_sat)   + ' values)'
+        print 'Evaporation average during RF = ' + '%.4f' % (avErf_sat) + ' mm/h (' + str(len_Erf_sat)   + ' values)'
         print 'RF treshold to saturate the canopy (Pgl) = ' + '%.2f' %Pgl
-        for t in range(len(RFveg_d)):
-            if RFveg_d[t]>Pgl:
-                Iveg_d[v].append(c*Pgl + (c*avErf_sat/avRFveg_sat)*(RFveg_d[t]-Pgl))  #- c*S[v]
-                RFeveg_d[v].append(RFveg_d[t]-Iveg_d[v][t])
-            else:
-                RFeveg_d[v].append(0)
-                Iveg_d[v].append(c*RFveg_d[t])
+        if avRFsat_veg > 0.0:
+            I_veg_d[v] = np.where(RF_veg_d > Pgl, c*Pgl + (c*avErf_sat/avRFsat_veg)*(RF_veg_d-Pgl), c*RF_veg_d)  #- c*S_w_v[v]
+            RFe_veg_d[v] = np.where(RF_veg_d > Pgl, RF_veg_d-I_veg_d[v], 0.0)
 
     # INTERCEPTION IRR
-    if IRR <> []:
-        print '\n-----------\nInterception by CROP'
-        Iirr_d = []
-        RFeirr_d = []
+    if IRR <> None:
+        print '\n-----------\nInterception by CROP in FIELDS'
+        I_irr_d = np.zeros([NFIELD,len(datenum_d)], dtype=float)
+        RFe_irr_d = np.zeros([NFIELD,len(datenum_d)], dtype=float)
         for f in range(NFIELD):
             print '\nFIELD #%i' % (f+1)
-            avRFirr_sat, len_RFirr_sat = RFsat(datenum_ = datenum, RF_ = RFirr[f], RFtreshold_ = RFtreshold)
-            print 'RF average = ' + '%.4f' %avRFirr_sat + ' mm/h'
-            print 'Values computed for ' + str(len_RFirr_sat) + ' events of hourly RF higher than ' + str(RFtreshold) + ' mm'
-            Iirr_d.append([])
-            RFeirr_d.append([])
-            for cr in range(NCROP):
-                Iirr_d[f].append([])
-                RFeirr_d[f].append([])
-                Pgl, avErf_sat, len_Erf_sat = Erf_sat(datenum_ = datenum, RF_ = RF, Erf_ = Erf[cr], avRF_sat_ = avRFirr_sat, S_ = S[NVEG+cr], c_ = c, RFtreshold_ = RFtreshold)
-                print '\nCrop type ' + str(cr)  + ' (' + VegType[NVEG+cr] + ')'
-                print 'Erf average during RF = ' + '%.4f' % (avErf_sat) + ' mm/h (' + str(len_Erf_sat)   + ' values)'
-                print 'RF treshold to saturate the canopy (Pgl) = ' + '%.2f' %Pgl
-                for t in range(len(RFveg_d)):
-                    if RFirr_d[f][t] > Pgl:
-                        Iirr_d[f][cr].append(c*Pgl + (c*avErf_sat/avRFirr_sat)*(RFirr_d[f][t]-Pgl))  #- c*S[cr]
-                        RFeirr_d[f][cr].append(RFirr_d[f][t]-Iirr_d[f][cr][t])
-                    else:
-                        RFeirr_d[f][cr].append(0)
-                        Iirr_d[f][cr].append(c*RFirr_d[f][t])
+            avRFsat_irr, len_RFsat_irr = RFsat(datenum_ = datenum, RF_ = RF_irr[f], RFtreshold_ = RFtreshold)
+            print 'RF average = ' + '%.4f' %avRFsat_irr + ' mm/h'
+            print 'Values computed for ' + str(len_RFsat_irr) + ' events of hourly RF higher than ' + str(RFtreshold) + ' mm'
+            if S_w_f[f].sum() > 0.0:
+                Pgl, avErf_sat, len_Erf_sat = Erf_sat(datenum_ = datenum, RF_ = RF, Erf_ = Erf_FIELD[f], avRF_sat_ = avRFsat_irr, S_ = S_w_f[f], c_ = c, RFtreshold_ = RFtreshold)
+                print 'Evaporation average during RF = ' + '%.4f' % (avErf_sat) + ' mm/h (' + str(len_Erf_sat)   + ' values)'
+                print 'Averaged RF treshold to saturate the canopy (Pgl) = ' + '%.2f' % (sum(Pgl)/sum(RF_irr[f]>0.0))
+                if avRFsat_irr > 0.0:
+                    I_irr_d[f] = np.where(RF_irr_d[f] > Pgl, c*Pgl + (c*avErf_sat/avRFsat_irr)*(RF_irr_d[f]-Pgl), c*RF_irr_d[f])  #- c*S_w_f[f]
+                    RFe_irr_d[f] = np.where(RF_irr_d[f] > Pgl, RF_irr_d[f]-I_irr_d[f], 0.0)
+            else:
+                print 'No crop'
+                RFe_irr_d[f] = RF_irr_d[f]
+    print '-----------'
 
     # RETURN ARRAY VALUES TO MAIN PROGRAM
-    if IRR == []:
-        return J, J_d, outputVAR, PT_PM_VEG, Erf, PE_PM_SOIL, E0, PT_PM_VEG_d, PE_PM_SOIL_d, E0_d, RFveg_d, RFvegint, RFveg_duration, n1_d, RFeveg_d, Iveg_d
-    else:
-        return J, J_d, outputVAR, PT_PM_VEG, Erf, PE_PM_SOIL, E0, PT_PM_VEG_d, PE_PM_SOIL_d, E0_d, RFveg_d, RFvegint, RFveg_duration, n1_d, RFeveg_d, Iveg_d, RFirr_d, RFirrint, RFirr_duration, n1_d, RFeirr_d, Iirr_d
+    if IRR == None:
+        PT_PM_FIELD = PT_PM_FIELD_d= Erf_FIELD = RF_irr_d = RFint_irr = RF_irr_duration = RFe_irr_d = I_irr_d = []
+    return J, J_day, outputVAR, PT_PM_VEG, Erf_VEG, PE_PM_SOIL, E0, PT_PM_VEG_d, PE_PM_SOIL_d, E0_d, RF_veg_d, RFint_veg, RF_veg_duration, n1_d, RFe_veg_d, I_veg_d, LAI_veg_d, PT_PM_FIELD, PT_PM_FIELD_d, Erf_FIELD, RF_irr_d, RFint_irr, RF_irr_duration, RFe_irr_d, I_irr_d
 
 # EOF #

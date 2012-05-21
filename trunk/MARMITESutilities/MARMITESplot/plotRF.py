@@ -14,18 +14,19 @@ import matplotlib.pyplot as plt
 import sys
 import CreateColors
 
-def plot(strTitle = 'Title', x = [], \
-        y1 = [], y2 = [], y3 =[], y4=[],\
+def plot(x, y1, \
+        y2 = [], y3 = [], y4 = [],\
         lbl_y1 = '', lbl_y2 = '', lbl_y3 = '', lbl_y4 = '', lbl_veg = ''
         ,plot_exportRF_fn = ''
-        , MMsurf_plot = 0
+        , MMsurf_plot = 0,
+        strTitle = 'Title'
         ):
 
 ##    if len(x)>365:
 ##        locX = mpl.dates.MonthLocator()
 ##    else:
 ##        locX = mpl.dates.HourLocator(byhour=range(24), interval = 24)
-    monthsFmt = mpl.dates.DateFormatter('%y-%m-%d %H:%M')
+    monthsFmt = mpl.dates.DateFormatter('%Y-%m-%d %H:%M')
 
     colors_y3 = CreateColors.main(hi=120, hf=130, numbcolors = (len(y3)))
     colors_y4 = CreateColors.main(hi=160, hf=180, numbcolors = (len(y4)))
@@ -34,6 +35,7 @@ def plot(strTitle = 'Title', x = [], \
 
     fig = plt.figure(figsize=(2*11.7, 2*8.27))
     ax1=fig.add_subplot(4,1,4)
+    ax1.xaxis_date()
     plt.setp( ax1.get_xticklabels(), fontsize=8)
     plt.setp( ax1.get_yticklabels(), fontsize=8)
     plt.bar( x, y1, color='b', linewidth = 0, align='edge', width = 0.8, label=lbl_y1)
@@ -55,6 +57,7 @@ def plot(strTitle = 'Title', x = [], \
     plt.grid(True)
 
     ax2=fig.add_subplot(4,1,3, sharex=ax1)
+    ax2.xaxis_date()
     plt.setp( ax2.get_xticklabels(), visible=False)
     plt.setp( ax2.get_yticklabels(), fontsize=8)
     for i, (y, color, lbl) in enumerate(zip(y4, colors_y4, lbls_y4)) :
@@ -75,6 +78,7 @@ def plot(strTitle = 'Title', x = [], \
     plt.grid(True)
 
     ax3=fig.add_subplot(4,1,2, sharex=ax1)
+    ax3.xaxis_date()
     plt.setp( ax3.get_xticklabels(), visible=False)
     plt.setp( ax3.get_yticklabels(), fontsize=8)
     plt.bar(x,y2,color='aqua', linewidth=0, align='edge', width = 0.8, label=lbl_y2)
@@ -95,10 +99,10 @@ def plot(strTitle = 'Title', x = [], \
     plt.grid(True)
 
     ax4=fig.add_subplot(4,1,1, sharex=ax1)
+    ax4.xaxis_date()
     ax4.set_title(strTitle)
     plt.setp( ax4.get_xticklabels(), visible=False)
     plt.setp( ax4.get_yticklabels(), fontsize=8)
-
     for i, (y, color, lbl) in enumerate(zip(y3, colors_y3, lbls_y3)) :
         ax4.bar(x+(0.8*float(i)/len(y3)), y, color=color, label=lbl, linewidth=0, align='edge', width=(0.8/len(y3)))
 #    ax1.yaxis.set_major_formatter(plt.FormatStrFormatter('%1.2f'))
@@ -115,6 +119,7 @@ def plot(strTitle = 'Title', x = [], \
     ltext  = leg.get_texts()  # all the text.Text instance in the legend
     plt.setp(ltext, fontsize='small')    # the legend text fontsize
     plt.grid(True)
+    plt.xlim(x[0]-1.0,x[len(x)-1]+1.0)
 
     plt.subplots_adjust(left=0.05, bottom=0.1, right=0.95, top=0.95, wspace=0.1, hspace=0.15)
     if MMsurf_plot == 1:
