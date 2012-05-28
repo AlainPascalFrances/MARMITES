@@ -11,6 +11,10 @@
 #-------------------------------------------------------------------------------
 #!/usr/bin/env python
 
+__author__ = "Alain P. Francés <frances08512@itc.nl>"
+__version__ = "0.3"
+__date__ = "2012"
+
 import sys, os
 import matplotlib as mpl
 import matplotlib.pyplot as plt

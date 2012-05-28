@@ -12,7 +12,7 @@
 #!/usr/bin/env python
 
 __author__ = "Alain P. Francés <frances.alain@gmail.com>"
-__version__ = "3.0"
+__version__ = "0.3"
 __date__ = "2012"
 
 import sys, os, traceback
@@ -769,8 +769,7 @@ class MF():
                             E0_stp_tmp[n]  += E0_d[n,t]
                             if NFIELD <> None:
                                 for f in range(NFIELD):
-                                    RF_irr_stp[n][f]  += RF_irr_d[n,f,t]
-                                    RFe_irr_stp[n][f]  += RFe_irr_d[n,f,t]
+                                    RF_irr_stp_tmp[n][f]  += RF_irr_d[n,f,t]
                                     PT_irr_stp_tmp[n][f] += PT_irr_d[n,f,t]
                                     crop_irr_stp_tmp[n][f] += self.crop_irr_d[n,f,t]
                         self.nper += 1

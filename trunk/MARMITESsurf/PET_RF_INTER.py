@@ -12,8 +12,8 @@
 #!/usr/bin/env python
 
 __author__ = "Alain P. Francés <frances08512@itc.nl>"
-__version__ = "0.0"
-__date__ = "November 2010"
+__version__ = "0.3"
+__date__ = "2012"
 
 # Make a help entry for this library
 def PET_PM_FAO56():
