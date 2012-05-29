@@ -555,202 +555,25 @@ try:
             # # main loop: calculation of soil water balance in each cell-grid for each time step inside each stress period
     #        t0=0
             print '\nComputing...'
-            # initial values of SP
-            Su_ini_tmp_array = np.zeros([cMF.nrow,cMF.ncol,_nslmax])
-            Rp_ini_tmp_array = np.zeros([cMF.nrow,cMF.ncol,_nslmax])
-            Ss_ini_tmp_array = np.zeros([cMF.nrow,cMF.ncol])
-            Ss_ini_tmp_array = np.zeros([cMF.nrow,cMF.ncol])
-            MM_finf_MF = np.zeros([cMF.nrow,cMF.ncol], dtype=float)
-            MM_wel_MF  = np.zeros([cMF.nrow,cMF.ncol], dtype=float)
-            h_MF = None
-            h_MF_mem = 'slow'
-            try:
-                h_MF = h5_MF['heads4MM'][:,:,:]
-                h_MF_mem = 'fast'
-            except:
-                print '\nRAM memory too small compared to the size of the heads array -> slow computing.'
-            if cMF.uzf_yn == 1:
-                exf_MF = None
-                exf_MF_mem = 'slow'
-                try:
-                    # TODO this below assume that there is no grid refinement
-                    exf_MF = h5_MF['exf4MM'][:,:,:]*conv_fact/(cMF.delr[0]*cMF.delc[0])
-                    exf_MF_mem = 'fast'
-                except:
-                    print '\nRAM memory too small compared to the size of the exfiltration array -> slow computing.'
-            JD_nper = []
-            for n in range(cMF.nper):
-                if n == 0:
-                    JD_nper.append(cMF.JD[0])
-                else:
-                    JD_nper.append(JD_nper[n-1] + cMF.perlen[n])
-                tstart_MM = 0
-                for t in range(n):
-                    tstart_MM += cMF.perlen[t]
-                tend_MM = tstart_MM + cMF.perlen[n]
-                tstart_MF = 0
-                for t in range(n):
-                    tstart_MF += cMF.nstp[t]
-                tend_MF = tstart_MF + cMF.nstp[n]
-                MM         = np.zeros([cMF.perlen[n],cMF.nrow,cMF.ncol,len(index)], dtype=float)
-                MM_S       = np.zeros([cMF.perlen[n],cMF.nrow,cMF.ncol,_nslmax,len(index_S)], dtype=float)
-                if h_MF == None:
-                    h_MF       = h5_MF['heads4MM'][tstart_MF:tend_MF,:,:]
-                if cMF.uzf_yn == 1:
-                    if exf_MF == None:
-                        exf_MF = h5_MF['exf4MM'][tstart_MF:tend_MF,:,:]*conv_fact/(cMF.delr[j]*cMF.delc[i])
-                # loop into the grid
-                for i in range(cMF.nrow):
-                    for j in range(cMF.ncol):
-                        if cMF.iuzfbnd[i][j] != 0.0:
-                            SOILzone_tmp = gridSOIL[i,j]-1
-                            METEOzone_tmp = gridMETEO[i,j]-1
-                            _layer = cMF.iuzfbnd[i][j] - 1
-                            slprop = _slprop[SOILzone_tmp]
-                            nsl = _nsl[SOILzone_tmp]
-                            # thickness of soil layers
-                            Tl = gridSOILthick[i,j]*slprop*1000.0
-                            # elevation of top and bottom of soil layers
-                            TopSoilLay = np.zeros([nsl], dtype=float)
-                            BotSoilLay = np.zeros([nsl], dtype=float)
-                            for l in range(nsl):
-                                if l==0:
-                                    TopSoilLay[l] = TopSoil[i,j]
-                                    BotSoilLay[l] = TopSoil[i,j]-Tl[l]
-                                else:
-                                    TopSoilLay[l] = BotSoilLay[l-1]
-                                    BotSoilLay[l] = TopSoilLay[l]-Tl[l]
-                            Su_ini_tmp = []
-                            if n == 0:
-                                for l in range(nsl):
-                                    Su_ini_tmp.append(_Su_ini[SOILzone_tmp][l])
-                                Ss_ini_tmp  = 0.0
-                                dti = 1.0
-                            else:
-                                Su_ini_tmp    = Su_ini_tmp_array[i,j,:]
-                                Ss_ini_tmp    = Ss_ini_tmp_array[i,j]
-                            if irr_yn == 1:
-                                IRRfield = gridIRR[i,j]
-                            if  irr_yn == 1 and IRRfield > 0:
-                                NVEG_tmp = 1
-                                IRRfield -= 1
-                                VEGarea_tmp = None
-                                LAIveg_tmp = np.ones((NVEG_tmp,tend_MF-tstart_MF), dtype = np.float)
-                                crop_tmp = crop_irr_SP[IRRfield,tstart_MF:tend_MF]
-                                RF_tmp = RF_irr_zoneSP[METEOzone_tmp,IRRfield,tstart_MF:tend_MF]
-                                RFe_zonesSP_tmp = np.asarray([RFe_irr_zoneSP[METEOzone_tmp,IRRfield,tstart_MF:tend_MF]])
-                                PT_zonesSP_tmp = np.asarray([PT_irr_zonesSP[METEOzone_tmp,IRRfield,tstart_MF:tend_MF]])
-                                Zr_tmp = Zr_c
-                                kTu_min_tmp = kTu_min_c
-                                kTu_n_tmp = kTu_n_c
-                            else:
-                                NVEG_tmp = NVEG
-                                crop_tmp = None
-                                RF_tmp = RF_veg_zoneSP[METEOzone_tmp][tstart_MF:tend_MF]
-                                PT_zonesSP_tmp = np.zeros((NVEG,tend_MF-tstart_MF), dtype = np.float)
-                                RFe_zonesSP_tmp = np.zeros((NVEG,tend_MF-tstart_MF), dtype = np.float)
-                                LAIveg_tmp = np.zeros((NVEG,tend_MF - tstart_MF), dtype = np.float)
-                                VEGarea_tmp=np.zeros([NVEG], dtype = np.float)
-                                Zr_tmp = np.ones((NVEG,tend_MF - tstart_MF), dtype = np.float)
-                                kTu_min_tmp = np.ones((NVEG,tend_MF - tstart_MF), dtype = np.float)
-                                kTu_n_tmp = np.ones((NVEG,tend_MF - tstart_MF), dtype = np.float)
-                                for v in range(NVEG):
-                                    PT_zonesSP_tmp[v,:] = PT_veg_zonesSP[METEOzone_tmp,v,tstart_MF:tend_MF]
-                                    RFe_zonesSP_tmp[v,:] = RFe_veg_zonesSP[METEOzone_tmp,v,tstart_MF:tend_MF]
-                                    LAIveg_tmp[v,:] = LAI_veg_zonesSP[v,tstart_MF:tend_MF]
-                                    VEGarea_tmp[v] = gridVEGarea[v,i,j]
-                                    Zr_tmp[v] = Zr[v]
-                                    kTu_min_tmp[v] = kTu_min[v]
-                                    kTu_n_tmp[v] = kTu_n[v]
-                            PE_zonesSP_tmp = PE_zonesSP[METEOzone_tmp,SOILzone_tmp,tstart_MF:tend_MF]
-                            if h_MF_mem == 'slow':
-                                h_MF_tmp   = h_MF[:,i,j]
-                            elif h_MF_mem == 'fast':
-                                h_MF_tmp   = h_MF[tstart_MF:tend_MF,i,j]
-                            if cMF.uzf_yn == 1:
-                                if exf_MF_mem == 'slow':
-                                    exf_MF_tmp = exf_MF[:,i,j]
-                                elif exf_MF_mem == 'fast':
-                                    exf_MF_tmp = exf_MF[tstart_MF:tend_MF,i,j]
-                            else:
-                                exf_MF_tmp = 0.0
-                            MM_tmp, MM_S_tmp = MM_UNSAT.run(i          = i,
-                                                            j          = j,
-                                                            n          = n,
-                                                            nsl        = nsl,
-                                                            st         = _st[SOILzone_tmp],
-                                                            Sm         = _Sm[SOILzone_tmp],
-                                                            Sfc        = _Sfc[SOILzone_tmp],
-                                                            Sr         = _Sr[SOILzone_tmp],
-                                                            Su_ini     = Su_ini_tmp,
-                                                            Ss_ini     = Ss_ini_tmp,
-                                                            Rp_ini     = Rp_ini_tmp_array[i,j,:],
-                                                            botm_l0    = botm_l0[i,j],
-                                                            TopSoilLay = TopSoilLay,
-                                                            BotSoilLay = BotSoilLay,
-                                                            Tl         = Tl,
-                                                            Ks         = _Ks[SOILzone_tmp],
-                                                            Ss_max     = 1000*1.12*gridSshmax[i,j]*gridSsw[i,j]/cMF.delr[j],
-                                                            Ss_ratio   = 1.12*gridSsw[i,j]/cMF.delr[j],
-                                                            HEADS      = h_MF_tmp,
-                                                            EXF        = -exf_MF_tmp,
-                                                            RF         = RF_tmp,
-                                                            E0         = E0_zonesSP[METEOzone_tmp][tstart_MF:tend_MF],
-                                                            PT         = PT_zonesSP_tmp,
-                                                            RFe        = RFe_zonesSP_tmp,
-                                                            PE         = PE_zonesSP_tmp,
-                                                            VEGarea    = VEGarea_tmp,
-                                                            LAIveg     = LAIveg_tmp,
-                                                            Zr         = Zr_tmp,
-                                                            nstp       = cMF.nstp[n],
-                                                            perlen     = cMF.perlen[n],
-                                                            dti        = dti,
-                                                            hdry       = cMF.hdry,
-                                                            kTu_min    = kTu_min_tmp,
-                                                            kTu_n      = kTu_n_tmp,
-                                                            NVEG       = NVEG_tmp,
-                                                            crop       = crop_tmp
-                                                            )
-                            if (float(cMF.perlen[n])/float(cMF.nstp[n])) != 1.0:
-                                for stp in range(cMF.nstp[n]):
-                                    ts = float(cMF.perlen[n])/float(cMF.nstp[n])
-                                    tstart =    stp*ts
-                                    tend   =   (1+stp)*ts
-                                    for k in range(len(index)):
-                                        MM[tstart:tend,i,j,k] = MM_tmp[stp,k]
-                                    for k in range(len(index_S)):
-                                        for l in range(nsl):
-                                            MM_S[tstart:tend,i,j,l,k] = MM_S_tmp[stp,l,k]
-                            else:
-                                for k in range(len(index)):
-                                    MM[:,i,j,k] = MM_tmp[:,k]
-                                for k in range(len(index_S)):
-                                    for l in range(nsl):
-                                        MM_S[:,i,j,l,k] = MM_S_tmp[:,l,k]
-                            MM_finf_MF[i,j] = MM_S_tmp[:,nsl-1,index_S.get('iRp')].sum()/conv_fact
-                            MM_wel_MF[i,j] = MM_tmp[:,index.get('iETg')].sum()/(conv_fact)
-                            del MM_tmp, MM_S_tmp
-                            # setting initial conditions for the next SP
-                            Su_ini_tmp_array[i,j,:]  = MM_S[cMF.nstp[n]-1,i,j,:,index_S.get('iSu')]
-                            Rp_ini_tmp_array[i,j,:]  = MM_S[cMF.nstp[n]-1,i,j,:,index_S.get('iRp')]
-                            Ss_ini_tmp_array[i,j]    = MM[cMF.nstp[n]-1,i,j,index.get('iSs')]
-                        else:
-                            if cMF.perlen[n]>1:
-                                MM[:,i,j,:] = cMF.hnoflo
-                                MM_S[:,i,j,:,:] = cMF.hnoflo
-                            else:
-                                MM[:,i,j,:] = cMF.hnoflo
-                                MM_S[:,i,j,:,:] = cMF.hnoflo
-                            MM_finf_MF[i,j] = cMF.hnoflo
-                            MM_wel_MF[i,j] = cMF.hnoflo
-                dti = float(cMF.perlen[n])/float(cMF.nstp[n])
-                h5_MM['MM'][tstart_MM:tend_MM,:,:,:]     = MM[:,:,:,:]
-                h5_MM['MM_S'][tstart_MM:tend_MM,:,:,:,:] = MM_S[:,:,:,:,:]
-                h5_MM['finf'][n,:,:]                     = MM_finf_MF
-                h5_MM['ETg'][n,:,:]                      = MM_wel_MF
-            del MM, MM_S, MM_finf_MF, MM_wel_MF, Su_ini_tmp_array, Rp_ini_tmp_array, Ss_ini_tmp_array, dti
-            del h_MF, exf_MF, h_MF_tmp, exf_MF_tmp
-            h5_MM.close()
+            if irr_yn == 0:
+                MM_UNSAT.run(_nsl, _nslmax, _st, _Sm, _Sfc, _Sr, _slprop, _Su_ini, botm_l0, _Ks,
+                              gridSOIL, gridSOILthick, TopSoil, gridMETEO,
+                              index, index_S, gridSshmax, gridSsw,
+                              RF_veg_zoneSP, E0_zonesSP, PT_veg_zonesSP, RFe_veg_zonesSP, PE_zonesSP, gridVEGarea,
+                              LAI_veg_zonesSP, Zr, kTu_min, kTu_n, NVEG,
+                              cMF, conv_fact, h5_MF, h5_MM, irr_yn
+                              )
+            else:
+                MM_UNSAT.run(_nsl, _nslmax, _st, _Sm, _Sfc, _Sr, _slprop, _Su_ini, botm_l0, _Ks,
+                              gridSOIL, gridSOILthick, TopSoil, gridMETEO,
+                              index, index_S, gridSshmax, gridSsw,
+                              RF_veg_zoneSP, E0_zonesSP, PT_veg_zonesSP, RFe_veg_zonesSP, PE_zonesSP, gridVEGarea,
+                              LAI_veg_zonesSP, Zr, kTu_min, kTu_n, NVEG,
+                              cMF, conv_fact, h5_MF, h5_MM, irr_yn,
+                              RF_irr_zoneSP, PT_irr_zonesSP, RFe_irr_zoneSP,
+                              crop_irr_SP, gridIRR,
+                              Zr_c, kTu_min_c, kTu_n_c, NCROP
+                              )
 
             # CHECK MM amd MF CONVERG.
             h_MF_m = np.ma.masked_values(np.ma.masked_values(h5_MF['heads'], cMF.hdry, atol = 1E+25), cMF.hnoflo, atol = 0.09)
