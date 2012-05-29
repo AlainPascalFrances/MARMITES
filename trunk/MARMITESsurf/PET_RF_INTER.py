@@ -57,7 +57,7 @@ def PET_PM_FAO56():
         """
 
     print 'A Python script to compute potential evaporation'
-    print 'from hourly meteorological data for different land covers'
+    print 'from hourly meteorological data of different land covers'
     print '(vegetation, open water, bare soil)'
     print 'using Penman-Monteith equation.'
     print 'Type PET.PM() for help'
@@ -148,9 +148,9 @@ def process(datenum = np.array([]), datenum_d = np.array([]), J = np.array([]), 
 
     Output:
     ---------
-        PT_PM_VEG     : hourly PT [mm/day] for NVEG type(s) of vegetation covers
-        PE_PM_SOIL    : hourly PE [mm/day] for NSOIL type(s) of soil types
-        E0            : hourly PE [mm/day] for open water
+        PT_PM_VEG     : hourly PT [mm/day] of NVEG type(s) of vegetation covers
+        PE_PM_SOIL    : hourly PE [mm/day] of NSOIL type(s) of soil types
+        E0            : hourly PE [mm/day] of open water
         NOTE THAT OUTPUTS ARE IN SOLAR TIME
 
     '''
@@ -184,7 +184,7 @@ def process(datenum = np.array([]), datenum_d = np.array([]), J = np.array([]), 
     # FAO56 pag47 Eq24
     delta = 0.409*np.sin(2*np.pi*J/365.0-1.39)
 
-    # compute Sc - seasonnal correction for solar time
+    # compute Sc - seasonnal correction of solar time
     # [hour]
     # FAO56 pag47 Eq32
     Sc = []
@@ -313,7 +313,7 @@ def process(datenum = np.array([]), datenum_d = np.array([]), J = np.array([]), 
 
     # compute Rnl - NET LONGWAVE RADIATION
     # [MJ.m-2.hour-1]
-    # FAO56 pag51 Eq37 and pag74 for hourly computing
+    # FAO56 pag51 Eq37 and pag74 of hourly computing
     Rnl = []
     r = []
     i = 0
@@ -524,7 +524,7 @@ def process(datenum = np.array([]), datenum_d = np.array([]), J = np.array([]), 
     if IRR <> None:
         # DINGMAN pag 296
         r_a_FIELD = np.where(LAI_f > 0.0, pow(np.log((h_f+2-(0.7*h_f))/(0.1*h_f)),2)/(pow(k,2)*u_hplus2_f),0.0)
-    # r_a for SOIL
+    # r_a of SOIL
     # Liu www.hydrol-earth-syst-sci.net/11/769/2007/
     # only function of ws, it is assumed that roughness are the same for any type of soil
     if NSOIL > 0:
@@ -538,7 +538,7 @@ def process(datenum = np.array([]), datenum_d = np.array([]), J = np.array([]), 
 ##            r_a_SOIL.append(pow(np.log(2.0/Z0),2)/(0.16*u_2[j]))
     print "\nr_a computed!"
 
-    # equation variables for outputs
+    # equation variables of outputs
     outputVAR = [DELTA,gama, Rs, Rs_corr, Rs0, Rnl, r]
 
     # PET, PE and E0 computing
@@ -553,7 +553,7 @@ def process(datenum = np.array([]), datenum_d = np.array([]), J = np.array([]), 
     value = (DELTA*(Rns_WATER-Rnl-G_WATER) + gama*0.26*(1+0.54*u_2)*(e0_Ta-e_a))/(lambdav*(DELTA + gama[j]))
     E0 = np.where(value >= 0.0, value, 0.0)
     del value
-    print "\nE0 for open water computed!"
+    print "\nE0 of open water computed!"
     # PT/PE - Penman-Montheith
     # mm.hour-1
     # FAO56 pag19 eq3
@@ -587,7 +587,7 @@ def process(datenum = np.array([]), datenum_d = np.array([]), J = np.array([]), 
             Erf_VEG.append(Erf_v)
         PT_PM_VEG = np.asarray(PT_PM_VEG)
         Erf_VEG = np.asarray(Erf_VEG)
-        print "\nPT for VEGETATION computed!"
+        print "\nPT of VEGETATION computed!"
         del PT_PM_VEG_v, Erf_v, value
     # FIELD
     if IRR <> None:
@@ -620,7 +620,7 @@ def process(datenum = np.array([]), datenum_d = np.array([]), J = np.array([]), 
                 Erf_FIELD.append(Erf_f)
             PT_PM_FIELD = np.asarray(PT_PM_FIELD)
             Erf_FIELD = np.asarray(Erf_FIELD)
-            print "\nPT for FIELDS/CROPS computed!"
+            print "\nPT of FIELDS/CROPS computed!"
             del PT_PM_FIELD_f, Erf_f, value
     # for SOIL
     PE_PM_SOIL = []
@@ -630,7 +630,7 @@ def process(datenum = np.array([]), datenum_d = np.array([]), J = np.array([]), 
                         (lambdav*(DELTA + gama*(1+r_s_SOIL[s]/r_a_SOIL)))
             PE_PM_SOIL.append(np.where(value >= 0.0, np.where(value <= E0, value, E0), 0.0))
         PE_PM_SOIL = np.asarray(PE_PM_SOIL)
-        print "\nPE for SOIL computed!"
+        print "\nPE of SOIL computed!"
         del value
 
     # #### DAILY SUM ##############################################
@@ -768,7 +768,7 @@ def process(datenum = np.array([]), datenum_d = np.array([]), J = np.array([]), 
 
     # INTERCEPTION IRR
     if IRR <> None:
-        print '\n-----------\nInterception by CROP in FIELDS'
+        print '\n-----------\nInterception by CROPS in FIELDS'
         I_irr_d = np.zeros([NFIELD,len(datenum_d)], dtype=float)
         RFe_irr_d = np.zeros([NFIELD,len(datenum_d)], dtype=float)
         for f in range(NFIELD):

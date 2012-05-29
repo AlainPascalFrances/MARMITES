@@ -1050,6 +1050,8 @@ class MF():
                             else:
                                 drn_elev_tmp = drn_elev_array[i,j]
                             layer_row_column_elevation_cond[0].append([l+1, i+1, j+1, drn_elev_tmp, drn_cond_array[i,j]])
+                            del drn_elev_tmp
+                del drn_elev_array, drn_cond_array
                 l += 1
 
         # GHB
@@ -1074,6 +1076,8 @@ class MF():
                         if ghb_head_array[i,j]<>0:
                             ghb_head_tmp = ghb_head_array[i,j]
                             layer_row_column_head_cond[0].append([l+1, i+1, j+1, ghb_head_tmp, ghb_cond_array[i,j]])
+                            del ghb_head_tmp
+                del ghb_head_array, ghb_cond_array
                 l += 1
 
         # average for 1st SS stress period
@@ -1140,6 +1144,7 @@ class MF():
         # bas package
         bas = mf.mfbas(model = mfmain, ibound = self.ibound, strt = strt, hnoflo = self.hnoflo, extension = self.ext_bas)
         bas.write_file()
+        del strt
         # layer package
         if self.version != 'mfnwt':
             # lpf package
@@ -1150,28 +1155,34 @@ class MF():
             upw = mf.mfupw(model = mfmain, hdry = self.hdry, iphdry = self.iphdry, laytyp = self.laytyp, layavg = self.layavg, chani = self.chani, layvka = self.layvka, laywet = self.laywet, hk = hk, vka = vka, ss = ss, sy = sy, extension = self.ext_upw)
             upw.write_file()
             cb = upw.iupwcb
+        del hk, vka, ss, sy
         # wel package
         if self.wel_yn == 1:
             if layer_row_column_Q <> None:
                 wel = mf.mfwel(model = mfmain, iwelcb = cb, layer_row_column_Q = layer_row_column_Q, extension = self.ext_wel)
                 wel.write_file()
+                del layer_row_column_Q
         # drn package
         if self.drn_yn == 1:
             if drn_check == 1:
                 drn = mf.mfdrn(model = mfmain, idrncb = cb, layer_row_column_elevation_cond = layer_row_column_elevation_cond, extension = self.ext_drn)
                 drn.write_file()
+                del layer_row_column_elevation_cond
         # ghb package
         if self.ghb_yn == 1:
             ghb = mf.mfghb(model = mfmain, ighbcb = cb, layer_row_column_head_cond = layer_row_column_head_cond, extension = self.ext_ghb)
             ghb.write_file()
+            del layer_row_column_head_cond
         # uzf package
         if self.uzf_yn == 1:
             uzf = mf.mfuzf1(model = mfmain, nuztop = self.nuztop, iuzfopt = self.iuzfopt, irunflg = self.irunflg, ietflg = self.ietflg, iuzfcb1 = self.iuzfcb1, iuzfcb2 = self.iuzfcb2, ntrail2 = self.ntrail2, nsets = self.nsets, nuzgag = self.nuzgag, surfdep = self.surfdep, iuzfbnd = self.iuzfbnd, vks = vks, eps = eps, thts = thts, thti = thti, row_col_iftunit_iuzopt = self.row_col_iftunit_iuzopt, finf = finf_array, extension = self.ext_uzf, uzfbud_ext = self.uzfbud_ext)
             uzf.write_file()
+            del thti, thts, eps, vks, finf_array
         # rch package
         if self.rch_yn == 1:
             rch = mf.mfrch(model = mfmain, irchcb = cb, nrchop = self.nrchop, rech = rch_array, extension = self.ext_rch)
             rch.write_file()
+            del rch_array
         # output control package
         oc = mf.mfoc(model = mfmain, ihedfm = self.ihedfm, iddnfm = self.iddnfm, item2 = [[0,1,1,1]], item3 = [[0,0,1,0]], extension = [self.ext_oc,self.ext_heads,self.ext_ddn,self.ext_cbc])
         oc.write_file()
@@ -1214,6 +1225,7 @@ class MF():
                 raise ValueError, '\nMODFLOW error!\nCheck the MODFLOW list file in folder:\n%s' % MF_ws
             print ''
             return h
+            del h
 
         def readcbc():
             """
@@ -1223,6 +1235,7 @@ class MF():
             h5_MF.create_dataset('cbc_nam', data = np.asarray(cbc[2][1]))
             print ''
             return cbc
+            del cbc
 
         def readcbcuzf():
             """
@@ -1232,9 +1245,10 @@ class MF():
                 cbc_uzf = mfrdbin.mfcbcread(mfmain, 'LF95').read_all(self.cbc_MFuzf_fn)
                 h5_MF.create_dataset('cbc_uzf_nam', data = np.asarray(cbc_uzf[2][1]))
                 return cbc_uzf
+                del cbc_uzf
 
         h5_MF = h5py.File(self.h5_MF_fn, 'w')
-        print '\nPlease wait. Storing heads and cbc terms into HDF5 file\n%s\n' % (self.h5_MF_fn)
+        print '\nStoring heads and cbc terms into HDF5 file\n%s\n' % (self.h5_MF_fn)
         if self.dum_sssp1 == 1:
             if chunks == 1:
                 # TODO implement swapaxes
@@ -1294,7 +1308,12 @@ class MF():
                 del cbc
                 data = np.swapaxes(data,1,2)
                 data = np.swapaxes(data,2,3)
-                h5_MF.create_dataset(name = 'cbc', data = data)
+                try:
+                    h5_MF.create_dataset(name = 'cbc', data = data)
+                except:
+                    h5_MF.create_dataset(name = 'cbc', shape = (self.nper, self.nrow, self.ncol, h5_MF['cbc_nam'].shape[0], self.nlay), dtype = np.float)
+                    for x in range(h5_MF['cbc_nam'].shape[0]):
+                        h5_MF['cbc'][:,:,:,x,:] = data[:,:,:,x,:]
                 del data
                 if self.uzf_yn == 1:
                     cbc_uzf = readcbcuzf()
@@ -1302,7 +1321,12 @@ class MF():
                     del cbc_uzf
                     data = np.swapaxes(data,1,2)
                     data = np.swapaxes(data,2,3)
-                    h5_MF.create_dataset(name = 'cbc_uzf', data = data)
+                    try:
+                        h5_MF.create_dataset(name = 'cbc_uzf', data = data)
+                    except:
+                        h5_MF.create_dataset(name = 'cbc_uzf', shape = (self.nper, h5_MF['cbc_uzf_nam'].shape[0], self.nrow, self.ncol, self.nlay), dtype = np.float)
+                        for x in range(h5_MF['cbc_uzf_nam'].shape[0]):
+                            h5_MF['cbc_uzf'][:,x,:,:,:] = data[:,x,:,:,:]
                     del data
         h4MM = np.zeros((len(self.perlen),self.nrow,self.ncol), dtype = np.float)
         h_MF = h5_MF['heads'][:,:,:,:]
@@ -1311,6 +1335,7 @@ class MF():
             for t in range(len(self.perlen)):
                 mask = np.ma.make_mask(iuzfbnd == l+1)
                 h4MM[t,:,:] += h_MF[t,:,:,l]*mask
+        del h_MF
         h5_MF.create_dataset(name = 'heads4MM', data = h4MM)
         exf4MM = np.zeros((len(self.perlen),self.nrow,self.ncol), dtype = np.float)
         if self.uzf_yn == 1:
