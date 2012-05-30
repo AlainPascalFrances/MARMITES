@@ -11,7 +11,7 @@
 #-------------------------------------------------------------------------------
 #!/usr/bin/env python
 
-""" See info in MARMITESunsat_v3.py"""
+""" See info in MARMITESsoil_v3.py"""
 
 __author__ = "Alain P. Francés <frances.alain@gmail.com>"
 __version__ = "0.3"
@@ -25,7 +25,7 @@ import matplotlib.pyplot as plt
 plt.ioff()
 import numpy as np
 import startMARMITESsurface as startMMsurf
-import MARMITESunsat_v3 as MMunsat
+import MARMITESsoil_v3 as MMsoil
 import MARMITESprocess_v3 as MMproc
 import ppMODFLOW_flopy_v3 as ppMF
 import MARMITESplot_v3 as MMplot
@@ -86,8 +86,8 @@ try:
     #plot MARMITESsurface  (1 is YES, 0 is NO)
     MMsurf_plot = int(inputFile[l].strip())
     l += 1
-    #run MARMITESunsat  (1 is YES, 0 is NO)
-    MMunsat_yn = int(inputFile[l].strip())
+    #run MARMITESsoil  (1 is YES, 0 is NO)
+    MMsoil_yn = int(inputFile[l].strip())
     l += 1
     #run MODFLOW  (1 is YES, 0 is NO)
     MF_yn = int(inputFile[l].strip())
@@ -150,7 +150,7 @@ try:
     inputObsSM_fn = inputFile[l].strip()
     l += 1
     chunks = int(inputFile[l].strip())
-    if MMunsat_yn == 1 and MF_yn != 1:
+    if MMsoil_yn == 1 and MF_yn != 1:
         MF_yn == 1
     if MMsurf_plot == 1:
         plt_out = 0
@@ -329,9 +329,9 @@ try:
             cMF.ppMFtime(MM_ws, MF_ws, inputDate_fn, inputZON_dSP_RF_veg_fn, inputZON_dSP_RFe_veg_fn, inputZON_dSP_PT_fn, input_dSP_LAI_veg_fn, inputZON_dSP_PE_fn, inputZON_dSP_E0_fn, NMETEO, NVEG, NSOIL, inputZON_dSP_RF_irr_fn, inputZON_dSP_RFe_irr_fn, inputZON_dSP_PT_irr_fn, input_dSP_crop_irr_fn, NFIELD)
 
     print'\n##############'
-    print 'MARMITESunsat initialization'
-    MM_UNSAT = MMunsat.UNSAT(hnoflo = cMF.hnoflo)
-    MM_SATFLOW = MMunsat.SATFLOW()
+    print 'MARMITESsoil initialization'
+    MM_UNSAT = MMsoil.SOIL(hnoflo = cMF.hnoflo)
+    MM_SATFLOW = MMsoil.SATFLOW()
 
     # READ input ESRI ASCII rasters
     print "\nImporting ESRI ASCII files to initialize MARMITES..."
@@ -484,7 +484,7 @@ try:
         if cMF.uzf_yn == 1:
             imfEXF   = cbc_uzf_nam.index('SURFACE LEAKAGE')
             imfRCH   = cbc_uzf_nam.index('UZF RECHARGE')
-        if MMunsat_yn == 0:
+        if MMsoil_yn == 0:
             h5_MF.close()
 except StandardError, e:  #Exception
     raise SystemExit('\nFATAL ERROR!\nAbnormal MM run interruption in the initialization!\nError description:\n%s' % traceback.print_exc(file=sys.stdout))
@@ -494,8 +494,8 @@ except StandardError, e:  #Exception
 # #############################
 h_diff_surf = None
 try:
-    if MMunsat_yn > 0:
-        durationMMunsat = 0.0
+    if MMsoil_yn > 0:
+        durationMMsoil = 0.0
         h_pSP = 0
         h_pSP_all = 0
         LOOP = 0
@@ -543,7 +543,7 @@ try:
             # ###  MARMITES INPUT #######
             # ###########################
             print'\n##############'
-            print 'MARMITESunsat RUN'
+            print 'MARMITESsoil RUN'
             # SOIL PARAMETERS
             _nsl, _nam_soil, _st, _slprop, _Sm, _Sfc, _Sr, _Su_ini, _Ks = cMF.MM_PROCESS.inputSoilParam(MM_ws = MM_ws, SOILparam_fn = SOILparam_fn, NSOIL = NSOIL)
             _nslmax = max(_nsl)
@@ -603,7 +603,7 @@ try:
             timeendMMloop = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
             durationMMloop = timeendMMloop-timestartMMloop
             print '\nMM loop run time: %02.fmn%02.fs\n' % (int(durationMMloop*24.0*60.0), (durationMMloop*24.0*60.0-int(durationMMloop*24.0*60.0))*60)
-            durationMMunsat += durationMMloop
+            durationMMsoil += durationMMloop
 
             msg_end_loop = []
             if LOOP <2:
@@ -1712,7 +1712,7 @@ try:
 
     # final report of successful run
     print '\n##############\nMARMITES executed successfully!\n%s' % mpl.dates.datetime.datetime.today().isoformat()[:19]
-    if MMunsat_yn > 0:
+    if MMsoil_yn > 0:
         print '\nLOOP %d/%d' % (LOOP-1, ccnum)
         for txt in msg_end_loop:
             print txt
@@ -1728,8 +1728,8 @@ try:
     print ('\nApproximate run times:')
     if MMsurf_yn > 0:
         print ('MARMITES surface: %s minute(s) and %.1f second(s)') % (str(int(durationMMsurf*24.0*60.0)), (durationMMsurf*24.0*60.0-int(durationMMsurf*24.0*60.0))*60)
-    if MMunsat_yn > 0:
-        print ('MARMITES unsaturated zone: %s minute(s) and %.1f second(s)') % (str(int(durationMMunsat*24.0*60.0)), (durationMMunsat*24.0*60.0-int(durationMMunsat*24.0*60.0))*60)
+    if MMsoil_yn > 0:
+        print ('MARMITES soil zone: %s minute(s) and %.1f second(s)') % (str(int(durationMMsoil*24.0*60.0)), (durationMMsoil*24.0*60.0-int(durationMMsoil*24.0*60.0))*60)
     if MF_yn == 1:
         print ('MODFLOW: %s minute(s) and %.1f second(s)') % (str(int(durationMF*24.0*60.0)), (durationMF*24.0*60.0-int(durationMF*24.0*60.0))*60)
     print ('Export: %s minute(s) and %.1f second(s)') % (str(int(durationExport*24.0*60.0)), (durationExport*24.0*60.0-int(durationExport*24.0*60.0))*60)

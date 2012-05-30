@@ -35,10 +35,10 @@ __date__ = "2012"
 
 import numpy as np
 
-class UNSAT:
+class SOIL:
 
     """
-    unsat class: compute the water balance in soil (depth-wise, each reservoir
+    SOIL class: compute the water balance in soil (depth-wise, each reservoir
     correspond to a soil horizon (A, B, C and rock)
     ## TO BE UPDATED""
     _______________________________________________________________________________
@@ -495,11 +495,11 @@ class UNSAT:
                         dSu = np.zeros([Ttotal,nsl], dtype = np.float)
                         #Total soil moisture storage changes
                         dSu_tot = np.zeros([Ttotal], dtype = np.float)
-                        #Actual evaporation from unsaturated zone
+                        #Actual evaporation from soil zone
                         Eu = np.zeros([Ttotal,nsl], dtype = np.float)
-                        #Actual transpiration from unsaturated zone
+                        #Actual transpiration from soil zone
                         Tu = np.zeros([Ttotal,nsl], dtype = np.float)
-                        #Total actual evapotranspiration from unsaturated zone
+                        #Total actual evapotranspiration from soil zone
                         ETu_tot = np.zeros([Ttotal], dtype = np.float)
                         #Saturation overland flow
                         SAT = np.zeros([Ttotal, nsl], dtype = np.int)
@@ -592,7 +592,7 @@ class UNSAT:
                             SAT[t,:]   = SAT_tmp[:]
                             ETg[t] = Eg[t] + Tg[t]
                             dSs[t] = (Ss_ini_tmp - Ss[t])/dt
-                            # compute the water mass balance (MB) in the unsaturated zone
+                            # compute the water mass balance (MB) in the soil zone
                             Rp_in_MB  = 0.0
                             Rp_out_MB = 0.0
                             Eu_MB    = 0.0
@@ -624,7 +624,7 @@ class UNSAT:
                                 l = 0
                                 MB_l[t,l] = (RFe_tot[t] + dSu[t,l] + dSs[t] + EXF[t]) - (Rp[t,l] + Eu[t,l] + Tu[t,l] + Ro_tmp + Es_tmp)
                                 # last soil layer
-                            # total mass balance for the unsaturated zone
+                            # total mass balance for the soil
                             MB[t] = RFe_tot[t] + dSs[t] + dSu_tot[t] + dRp_tot + EXF[t] - (Ro[t] + Es[t] + Eu_MB + Tu_MB)
                             # export list
                             # indexes of the HDF5 output arrays
