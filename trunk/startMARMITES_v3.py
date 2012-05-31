@@ -454,7 +454,7 @@ try:
         timeendMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
         durationMF +=  timeendMF-timestartMF
 
-    if isinstance(cMF.h5_MF_fn, str):
+    if os.path.exists(cMF.h5_MF_fn):
         try:
             h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
         except:
@@ -792,7 +792,7 @@ try:
             SP_d[t] = n + 1
             t += 1
 
-    if isinstance(cMF.h5_MF_fn, str):
+    if os.path.exists(cMF.h5_MF_fn):
         top_m = np.ma.masked_values(cMF.top, cMF.hnoflo, atol = 0.09)
         index_cbc = [imfSTO]
         if cMF.rch_yn == 1:
@@ -848,7 +848,7 @@ try:
         cbcmin_d = []
         axefact = 1.05
         facTim = 365
-        if isinstance(cMF.h5_MF_fn, str):
+        if os.path.exists(cMF.h5_MF_fn):
             # TODO missing STOuz (however this is not very relevant since these fluxes should not be the bigger in magnitude)
             try:
                 h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
@@ -920,8 +920,12 @@ try:
                 j = obs.get(o)['j']
                 l = obs.get(o)['lay']
                 obs_h = obs.get(o)['obs_h']
-                hmaxMF_tmp = float(np.ceil(np.ma.max(h_MF_m[:,i,j,l].flatten())))
-                hminMF_tmp = float(np.floor(np.ma.min(h_MF_m[:,i,j,l].flatten())))
+                if os.path.exists(cMF.h5_MF_fn):
+                    hmaxMF_tmp = float(np.ceil(np.ma.max(h_MF_m[:,i,j,l].flatten())))
+                    hminMF_tmp = float(np.floor(np.ma.min(h_MF_m[:,i,j,l].flatten())))
+                else:
+                    hmaxMF_tmp = -9999.9
+                    hminMF_tmp = -9999.9
                 if obs_h != []:
                     npa_m_tmp = np.ma.masked_values(obs_h, cMF.hnoflo, atol = 0.09)
                     hmaxMM = float(np.ceil(np.ma.max(npa_m_tmp.flatten())))
@@ -1090,7 +1094,7 @@ try:
             for l,(x,y) in enumerate(zip(flxlst, sign)):
                 flxlst[l] = x*y
             del flxlbl1, flxlbl2, flxlbl3, flxlbl3a, sign
-            if isinstance(cMF.h5_MF_fn, str):
+            if os.path.exists(cMF.h5_MF_fn):
                 plt_export_fn = os.path.join(MM_ws, '_plt_0CATCHMENT_UNSATandGWbalances.png')
                 # compute UZF_STO and store GW_RCH
                 flxlbl.append('UZ_STO')
@@ -1229,7 +1233,7 @@ try:
             plt_export_txt.close()
             del flxlst, header_tmp, MB_tmp, flxlst_str
         # no MM, plot only MF balance if MF exists
-        elif isinstance(cMF.h5_MF_fn, str):
+        elif os.path.exists(cMF.h5_MF_fn):
             plt_export_fn = os.path.join(MM_ws, '_plt_0CATCHMENT_GWbalances.png')
             flxlbl = []
             flxlst = []
@@ -1290,7 +1294,7 @@ try:
             del flxlst
 
         # exporting MM time series results to ASCII files and plots at observations cells
-        if plt_out_obs == 1 and os.path.exists(h5_MM_fn):
+        if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
             h5_MM = h5py.File(h5_MM_fn, 'r')
             h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
             colors_nsl = CreateColors.main(hi=00, hf=180, numbcolors = (_nslmax+1))
@@ -1512,23 +1516,24 @@ try:
             Date_lst = []
             JD_lst = []
             SP = 0
-            while SP < len(h_MF_m):
+            while SP < sum(cMF.perlen):  #len(h_MF_m):
                 SP_lst.append(SP)
                 Date_lst.append(cMF.inputDate[SP])
                 JD_lst.append(cMF.JD[SP])
                 SP += plt_freq
-            if tTgmin < 0:
-                lst = [len(h_MF_m)-1, tRCHmax]
-            else:
-                lst = [len(h_MF_m)-1, tRCHmax, tTgmin]
-            for e in lst:
-                SP_lst.append(e)
-                Date_lst.append(cMF.inputDate[e])
-                JD_lst.append(cMF.JD[e])
+            if os.path.exists(cMF.h5_MF_fn):
+                if tTgmin < 0:
+                    lst = [sum(cMF.perlen) - 1, tRCHmax] #[len(h_MF_m)-1, tRCHmax]
+                else:
+                    lst = [sum(cMF.perlen) - 1, tRCHmax, tTgmin] # [len(h_MF_m)-1, tRCHmax, tTgmin]
+                for e in lst:
+                    SP_lst.append(e)
+                    Date_lst.append(cMF.inputDate[e])
+                    JD_lst.append(cMF.JD[e])
 
         # plot MF output
         TopSoil*= 0.001
-        if plt_out == 1 and isinstance(cMF.h5_MF_fn, str):
+        if plt_out == 1 and os.path.exists(cMF.h5_MF_fn):
             # plot heads (grid + contours), DRN, etc... at specified SP
             h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
             # plot for selected time step

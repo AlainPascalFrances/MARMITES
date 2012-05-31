@@ -529,7 +529,7 @@ def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, hmax
     if cMF == None:
         plt.setp(ax6.get_xticklabels(), fontsize=8)
         plt.xlabel('Date', fontsize=10)
-        labels=ax7.get_xticklabels()
+        labels=ax6.get_xticklabels()
         plt.setp(labels, 'rotation', 90)
     else:
         plt.setp(ax6.get_xticklabels(), visible=False)
