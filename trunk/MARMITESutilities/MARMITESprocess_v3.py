@@ -44,6 +44,8 @@ class PROCESS:
         self.yllcorner=yllcorner
         self.cellsizeMF=cellsizeMF
         self.hnoflo=hnoflo
+        self.smMM = []
+        self.smMMname = []
 
     ######################
 
@@ -539,8 +541,11 @@ class PROCESS:
         INPUTS:      output fluxes time series and date
         OUTPUT:      ObsName.txt
         """
+        self.smMM.append([])
+        len_smMM = len(self.smMM)
         for t in range(len(inputDate)):
-            # 'Date,RF,E0,PT,PE,RFe,I,'+Eu_str+Tu_str+'Eg,Tg,ETg,WEL_MF,Es,'+Su_str+Supc_str+dSu_str+'dSs,Ss,Ro,GW_EXF,GW_EXF_MF,'+Rp_str+Rexf_str+'R_MF,hSATFLOW,hMF,hMFcorr,hmeas,dtwt,' + Smeasout + MB_str + 'MB\n'
+            # 'Date,RF,E0,PT,PE,RFe,I,'+Eu_str+Tu_str+'Eg,Tg,ETg,WEL_MF,Es,'+Ssoil_str+Ssoilpc_str+dSsoil_str+'dSs,Ss,Ro,GW_EXF,GW_EXF_MF,'+Rp_str+Rexf_str+'R_MF,hSATFLOW,hMF,hMFcorr,hmeas,dtwt,' + Smeasout + MB_str + 'MB\n'
+            out_date = mpl.dates.num2date(inputDate[t]).isoformat()[:10]
             Sout     = ''
             Spcout   = ''
             dSout    = ''
@@ -551,30 +556,31 @@ class PROCESS:
             Smeasout = ''
             MBout=''
             for l in range(_nslmax):
-                Sout += str(results_S[t,l,index_S.get('iSu')]) + ','
-                Spcout += str(results_S[t,l,index_S.get('iSu_pc')]) + ','
-                dSout += str(results_S[t,l,index_S.get('idSu')]) + ','
+                Sout += str(results_S[t,l,index_S.get('iSsoil')]) + ','
+                Spcout += str(results_S[t,l,index_S.get('iSsoil_pc')]) + ','
+                dSout += str(results_S[t,l,index_S.get('idSsoil')]) + ','
                 Rpout += str(results_S[t,l,index_S.get('iRp')]) + ','
                 Rexfout += str(results_S[t,l,index_S.get('iRexf')]) + ','
-                Euout += str(results_S[t,l,index_S.get('iEu')]) + ','
-                Tuout += str(results_S[t,l,index_S.get('iTu')]) + ','
+                Euout += str(results_S[t,l,index_S.get('iEsoil')]) + ','
+                Tuout += str(results_S[t,l,index_S.get('iTsoil')]) + ','
                 MBout += str(results_S[t,l,index_S.get('iMB_l')]) + ','
                 try:
                     Smeasout += str(obs_S[l,t]) + ','
                 except:
                     Smeasout += str(self.hnoflo) + ','
+                if results_S[t,l,index_S.get('iSsoil_pc')] > 0.0:
+                    self.smMM[len_smMM-1].append((obsname+'SM_l'+str(l+1)).ljust(10,' ')+ out_date.ljust(10,' ')+ ' 00:00:00 ' + str(results_S[t,l,index_S.get('iSsoil_pc')]).ljust(10,' ') + '\n')
             try:
                 obs_h_tmp = obs_h[t]
             except:
                 obs_h_tmp = self.hnoflo
-            out_date = mpl.dates.num2date(inputDate[t]).isoformat()[:10]
             out1 = '%d,%d,%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,' % (SP_d[t], index_veg[t], results[t,index.get('iRF')], results[t,index.get('iE0')],results[t,index.get('iPT')],results[t,index.get('iPE')],results[t,index.get('iRFe')],results[t,index.get('iI')])
             if type(WEL) == np.ndarray:
                 WEL_tmp = WEL[t]
             else:
                 WEL_tmp = 0.0
-            out2 = '%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[t,index.get('iEg')], results[t,index.get('iTg')],results[t,index.get('iETg')], WEL_tmp, results[t,index.get('iEs')])
-            out3 = '%.8f,%.8f,%.8f,%.8f,' % (results[t,index.get('idSs')],results[t,index.get('iSs')],results[t,index.get('iRo')],results[t,index.get('iEXF')])
+            out2 = '%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[t,index.get('iEg')], results[t,index.get('iTg')],results[t,index.get('iETg')], WEL_tmp, results[t,index.get('iEsurf')])
+            out3 = '%.8f,%.8f,%.8f,%.8f,' % (results[t,index.get('idSsurf')],results[t,index.get('iSsurf')],results[t,index.get('iRo')],results[t,index.get('iEXF')])
             out4 = '%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,' % (RCH[t], h_satflow[t],heads_MF[t],results[t,index.get('iHEADScorr')],obs_h_tmp,results[t,index.get('idtwt')])
             out5 = '%.8f' % (results[t,index.get('iMB')])
             out_line =  out_date, ',', out1, Euout, Tuout, out2, Sout, Spcout, dSout, out3, Rpout, Rexfout, out4, Smeasout, MBout, out5, '\n'
@@ -582,27 +588,25 @@ class PROCESS:
                 outFileExport.write(l)
         del i, j, inputDate, _nslmax, results, index, results_S, index_S, RCH, WEL, h_satflow, heads_MF, obs_h, obs_S, outFileExport, obsname
 
-    def ExportResultsPEST(self, i, j, inputDate, _nslmax, heads_MF, obs_h, obs_S, outPESTheads, outPESTsm, obsname, results_S = None):
+    def ExportResultsPEST(self, i, j, inputDate, _nslmax, obs_h, obs_S, outPESTheads, outPESTsm, obsname):
         """
         Export the obs data in a txt file in PEST format
         INPUTS:      output fluxes time series and date
         OUTPUT:      PESTxxx.smp
         """
+        self.smMM.append([])
+        len_smMM = len(self.smMM)
         for t in range(len(inputDate)):
-            year='%4d'%mpl.dates.num2date(inputDate[t]).year
-            month='%02d'%mpl.dates.num2date(inputDate[t]).month
-            day='%02d'%mpl.dates.num2date(inputDate[t]).day
-            date=(day+"/"+month+"/"+year)
+            date = mpl.dates.num2date(inputDate[t]).isoformat()[:10]
             try:
                 if obs_h[t] <> self.hnoflo:
                     outPESTheads.write(obsname.ljust(10,' ')+ date.ljust(10,' ')+ ' 00:00:00 ' + str(obs_h[t]).ljust(10,' ') + '\n')
             except:
                 pass
-            if results_S <> None:
-                try:
-                    for l in range (_nslmax):
-                        if obs_S[l,t] <> self.hnoflo:
-                            outPESTsm.write((obsname+'SM_l'+str(l+1)).ljust(10,' ')+ date.ljust(10,' ')+ ' 00:00:00 ' + str(obs_S[t,l]).ljust(10,' ') + '\n')
-                except:
-                    pass
+            try:
+                for l in range (_nslmax):
+                    if obs_S[l,t] <> self.hnoflo:
+                        self.smMM[len_smMM-1].append((obsname+'SM_l'+str(l+1)).ljust(10,' ')+ date.ljust(10,' ')+ ' 00:00:00 ' + str(obs_S[l,t]).ljust(10,' ') + '\n')
+            except:
+                pass
 # EOF

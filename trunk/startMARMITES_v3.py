@@ -137,9 +137,9 @@ try:
     l += 1
     gridSOILthick_fn = inputFile[l].strip()
     l += 1
-    gridSshmax_fn =  inputFile[l].strip()
+    gridSsurfhmax_fn =  inputFile[l].strip()
     l += 1
-    gridSsw_fn =  inputFile[l].strip()
+    gridSsurfw_fn =  inputFile[l].strip()
     l += 1
     SOILparam_fn = inputFile[l].strip()
     l += 1
@@ -338,8 +338,8 @@ try:
     gridMETEO = cMF.MM_PROCESS.inputEsriAscii(grid_fn = gridMETEO_fn, datatype = int)
     gridSOIL = cMF.MM_PROCESS.inputEsriAscii(grid_fn = gridSOIL_fn, datatype = int)
     gridSOILthick = cMF.MM_PROCESS.inputEsriAscii(grid_fn = gridSOILthick_fn, datatype = float)
-    gridSshmax = cMF.MM_PROCESS.inputEsriAscii(grid_fn = gridSshmax_fn, datatype = float)
-    gridSsw = cMF.MM_PROCESS.inputEsriAscii(grid_fn = gridSsw_fn, datatype = float)
+    gridSsurfhmax = cMF.MM_PROCESS.inputEsriAscii(grid_fn = gridSsurfhmax_fn, datatype = float)
+    gridSsurfw = cMF.MM_PROCESS.inputEsriAscii(grid_fn = gridSsurfw_fn, datatype = float)
     if irr_yn == 1:
         gridIRR = cMF.MM_PROCESS.inputEsriAscii(grid_fn = gridIRR_fn, datatype = int)
         if gridIRR.max() > NFIELD:
@@ -374,7 +374,7 @@ try:
                                     inputZON_SP_RF_irr_fn    = cMF.inputZON_SP_RF_irr_fn,
                                     inputZON_SP_RFe_irr_fn   = cMF.inputZON_SP_RFe_irr_fn,
                                     inputZON_SP_PT_irr_fn    = cMF.inputZON_SP_PT_irr_fn,
-                                    input_SP_crop_irr_fn    = cMF.input_SP_crop_irr_fn
+                                    input_SP_crop_irr_fn     = cMF.input_SP_crop_irr_fn
                                     )
 
     # SOIL PARAMETERS
@@ -391,8 +391,8 @@ try:
     # create MM array
     h5_MM_fn = os.path.join(MM_ws,'_h5_MM.h5')
     # indexes of the HDF5 output arrays
-    index = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iEXF':6, 'iEs':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSs':13, 'iETg':14, 'iETu':15, 'iSu_pc':16, 'idSu':17, 'iinf':18, 'iHEADScorr':19, 'idtwt':20, 'iuzthick':21}
-    index_S = {'iEu':0, 'iTu':1,'iSu_pc':2, 'iRp':3, 'iRexf':4, 'idSu':5, 'iSu':6, 'iSAT':7, 'iMB_l':8}
+    index = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSsurf':4, 'iRo':5, 'iEXF':6, 'iEsurf':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSsurf':13, 'iETg':14, 'iETsoil':15, 'iSsoil_pc':16, 'idSsoil':17, 'iinf':18, 'iHEADScorr':19, 'idtwt':20, 'iuzthick':21}
+    index_S = {'iEsoil':0, 'iTsoil':1,'iSsoil_pc':2, 'iRp':3, 'iRexf':4, 'idSsoil':5, 'iSsoil':6, 'iSAT':7, 'iMB_l':8}
 
     # READ observations time series (heads and soil moisture)
     if plt_out_obs == 1:
@@ -406,30 +406,26 @@ try:
                                       nlay             = cMF.nlay
                                       )
         # To write MM output in a txt file
-        Su_str   = ''
-        Supc_str = ''
-        dSu_str  = ''
+        Ssoil_str   = ''
+        Ssoilpc_str = ''
+        dSsoil_str  = ''
         Rp_str   = ''
         Rexf_str = ''
-        Eu_str   = ''
-        Tu_str   = ''
+        Esoil_str   = ''
+        Tsoil_str   = ''
         Smeasout = ''
         MB_str   = ''
         for l in range(_nslmax):
-            Su_str = Su_str + 'Su_l' + str(l+1) + ','
-            Supc_str = Supc_str + 'Supc_l' + str(l+1) + ','
-            dSu_str = dSu_str + 'dSu_l' + str(l+1) + ','
-            Eu_str = Eu_str + 'Eu_l' + str(l+1) + ','
-            Tu_str = Tu_str + 'Tu_l' + str(l+1) + ','
+            Ssoil_str = Ssoil_str + 'Ssoil_l' + str(l+1) + ','
+            Ssoilpc_str = Ssoilpc_str + 'Ssoilpc_l' + str(l+1) + ','
+            dSsoil_str = dSsoil_str + 'dSsoil_l' + str(l+1) + ','
+            Esoil_str = Esoil_str + 'Esoil_l' + str(l+1) + ','
+            Tsoil_str = Tsoil_str + 'Tsoil_l' + str(l+1) + ','
             Rp_str = Rp_str + 'Rp_l' + str(l+1) + ','
             Rexf_str = Rexf_str + 'Rexf_l' + str(l+1) + ','
             MB_str = MB_str + 'MB_l' + str(l+1) + ','
             Smeasout = Smeasout + 'Smeas_' + str(l+1) + ','
-        header='Date,MF_SP,veg_crop,RF,E0,PT,PE,RFe,I,' + Eu_str + Tu_str + 'Eg,Tg,ETg,WEL_MF,Es,' + Su_str + Supc_str + dSu_str + 'dSs,Ss,Ro,GW_EXF,' + Rp_str + Rexf_str + 'R_MF,hSATFLOW,hMF,hMFcorr,hmeas,dtwt,' + Smeasout + MB_str + 'MB\n'
-        outPESTheads_fn      = 'h_obs4PEST.smp'
-        outPESTsm_fn         = 'sm_obs4PEST.smp'
-        outPESTheads = open(os.path.join(MF_ws,outPESTheads_fn), 'w')
-        outPESTsm = open(os.path.join(MM_ws,outPESTsm_fn), 'w')
+        header='Date,MF_SP,veg_crop,RF,E0,PT,PE,RFe,I,' + Esoil_str + Tsoil_str + 'Eg,Tg,ETg,WEL_MF,Esurf,' + Ssoil_str + Ssoilpc_str + dSsoil_str + 'dSsurf,Ssurf,Ro,GW_EXF,' + Rp_str + Rexf_str + 'R_MF,hSATFLOW,hMF,hMFcorr,hmeas,dtwt,' + Smeasout + MB_str + 'MB\n'
         if cMF.uzf_yn == 1:
             cMF.uzf_obs(obs = obs)
     else:
@@ -558,7 +554,7 @@ try:
             if irr_yn == 0:
                 MM_UNSAT.run(_nsl, _nslmax, _st, _Sm, _Sfc, _Sr, _slprop, _Su_ini, botm_l0, _Ks,
                               gridSOIL, gridSOILthick, TopSoil, gridMETEO,
-                              index, index_S, gridSshmax, gridSsw,
+                              index, index_S, gridSsurfhmax, gridSsurfw,
                               RF_veg_zoneSP, E0_zonesSP, PT_veg_zonesSP, RFe_veg_zonesSP, PE_zonesSP, gridVEGarea,
                               LAI_veg_zonesSP, Zr, kTu_min, kTu_n, NVEG,
                               cMF, conv_fact, h5_MF, h5_MM, irr_yn
@@ -566,7 +562,7 @@ try:
             else:
                 MM_UNSAT.run(_nsl, _nslmax, _st, _Sm, _Sfc, _Sr, _slprop, _Su_ini, botm_l0, _Ks,
                               gridSOIL, gridSOILthick, TopSoil, gridMETEO,
-                              index, index_S, gridSshmax, gridSsw,
+                              index, index_S, gridSsurfhmax, gridSsurfw,
                               RF_veg_zoneSP, E0_zonesSP, PT_veg_zonesSP, RFe_veg_zonesSP, PE_zonesSP, gridVEGarea,
                               LAI_veg_zonesSP, Zr, kTu_min, kTu_n, NVEG,
                               cMF, conv_fact, h5_MF, h5_MM, irr_yn,
@@ -740,8 +736,8 @@ try:
     del RFe_veg_zonesSP
     del PE_zonesSP
     del gridSOILthick
-    del gridSshmax
-    del gridSsw
+    del gridSsurfhmax
+    del gridSsurfw
 
     # #############################
     # ###  OUTPUT EXPORT   ########
@@ -953,9 +949,9 @@ try:
             # indexes of the HDF5 output arrays
             #  index = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iEXF':6, 'iEs':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSs':13, 'iETg':14, 'iETu':15, 'iSu_pc':16, 'idSu':17, 'iinf':18, 'iHEADScorr':19, 'idtwt':20, 'iuzthick':21}
             # index_S = {'iEu':0, 'iTu':1,'iSu_pc':2, 'iRp':3, 'iRexf':4, 'idSu':5, 'iSu':6, 'iSAT':7, 'iMB_l':8}
-            flxlbl       = ['RF', 'I', 'RFe', 'dSs', 'Ro', 'Es', 'dSu', 'EXF']
-            flxlbl1      = ['Eu', 'Tu']
-            flxlbl2      = ['ETu', 'Eg']
+            flxlbl       = ['RF', 'I', 'RFe', 'dSsurf', 'Ro', 'Esurf', 'dSsoil', 'EXF']
+            flxlbl1      = ['Esoil', 'Tsoil']
+            flxlbl2      = ['ETsoil', 'Eg']
             flxlbl3      = ['Tg']
             flxlbl3a     = ['ETg']
             flxlbl4      = ['Rp']
@@ -1059,7 +1055,7 @@ try:
                 inf = facTim*conv_fact*(flx_tmp.sum())/sum(cMF.perlen)/sum(ncell_MM)
                 flxlst.append(inf)
                 del flx_tmp, array_tmp
-            for i in ['Ss', 'PE', 'PT', 'inf']:
+            for i in ['Ssurf', 'PE', 'PT', 'inf']:
                 flxlbl_CATCH.append(i)
                 i = 'i'+i
                 array_tmp = h5_MM['MM'][:,:,:,index.get(i)]
@@ -1082,7 +1078,7 @@ try:
 
             # ADD SM averaged
             flxlbl_CATCH.append('Su')
-            array_tmp = h5_MM['MM'][:,:,:,index.get('iSu_pc')]
+            array_tmp = h5_MM['MM'][:,:,:,index.get('iSsoil_pc')]
             array_tmp1 = np.sum(np.ma.masked_values(array_tmp, cMF.hnoflo, atol = 0.09), axis = 1)
             flx_Cat_TS.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
             del array_tmp, array_tmp1
@@ -1298,6 +1294,7 @@ try:
             h5_MM = h5py.File(h5_MM_fn, 'r')
             h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
             colors_nsl = CreateColors.main(hi=00, hf=180, numbcolors = (_nslmax+1))
+            outPESTsmMM = open(os.path.join(MF_ws,'sm_MM4PEST.smp'), 'w')
             x = 0
             flxlst = []
             plt_exportBAL_fn  = []
@@ -1310,6 +1307,7 @@ try:
                 l = obs.get(o)['lay']
                 obs_h = obs.get(o)['obs_h']
                 obs_S = obs.get(o)['obs_S']
+                cMF.MM_PROCESS.smMMname.append(o)
                 outFileExport = open(obs.get(o)['outpathname'], 'w')
                 outFileExport.write(header)
                 SOILzone_tmp = gridSOIL[i,j]-1
@@ -1352,9 +1350,6 @@ try:
                 cMF.MM_PROCESS.ExportResultsMM(i, j, cMF.inputDate, SP_d, _nslmax, MM, index, MM_S, index_S, cbc_RCH[:,i,j,0], cbc_WEL, h_satflow, h_MF_m[:,i,j,l], obs_h_tmp, obs_S_tmp, index_veg, outFileExport, o)
                 del cbc_WEL
                 outFileExport.close()
-                # Export time series results at observations points as ASCII file for PEST
-                # TODO reformulate the export format, it should be [date, SM_l1, SM_l2,...], i.e. the same format as the obs_SM and obs_heads files
-                cMF.MM_PROCESS.ExportResultsPEST(i, j, cMF.inputDate, _nslmax, MM[:,index.get('iHEADScorr')], obs_h_tmp, obs_S_tmp, outPESTheads, outPESTsm, o, MM_S[:,:,index_S.get('iSu_pc')])
                 # plot time series results as plot
                 plt_title = 'Time serie of fluxes at observation point %s\ni = %d, j = %d, l = %d, x = %d, y = %d, %s\n' % (o, i+1, j+1, l+1, obs.get(o)['x'], obs.get(o)['y'], soilnam)
                 # index = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iEXF':6, 'iEs':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSs':13, 'iETg':14, 'iETu':15, 'iSu_pc':16, 'idSu':17, 'iinf':18, 'iHEADScorr':19, 'idtwt':20, 'iuzthick':21}
@@ -1367,20 +1362,20 @@ try:
                 MM[:,index.get('iPT')],
                 MM[:,index.get('iPE')],
                 MM[:,index.get('iRFe')],
-                -MM[:,index.get('idSs')],
-                MM[:,index.get('iSs')],
+                -MM[:,index.get('idSsurf')],
+                MM[:,index.get('iSsurf')],
                 MM[:,index.get('iRo')],
-                MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('iEu')],
-                MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('iTu')],
+                MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('iEsoil')],
+                MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('iTsoil')],
                 MM[:,index.get('iEg')],
                 MM[:,index.get('iTg')],
-                MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('iSu')],
-                MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('idSu')],
-                MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('iSu_pc')],
+                MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('iSsoil')],
+                MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('idSsoil')],
+                MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('iSsoil_pc')],
                 MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('iRp')],
                 MM[:,index.get('iEXF')],
                 -MM[:,index.get('iETg')],
-                MM[:,index.get('iEs')],
+                MM[:,index.get('iEsurf')],
                 MM[:,index.get('iMB')],
                 MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('iMB_l')],
                 MM[:,index.get('idtwt')],
@@ -1412,14 +1407,14 @@ try:
                      facTim*(MM[:,index.get('iRF')].sum()/sum(cMF.perlen)),
                     -1*facTim*(MM[:,index.get('iI')].sum()/sum(cMF.perlen)),
                      facTim*(MM[:,index.get('iRFe')].sum()/sum(cMF.perlen)),
-                    -1*facTim*(MM[:,index.get('idSs')].sum()/sum(cMF.perlen)),
+                    -1*facTim*(MM[:,index.get('idSsurf')].sum()/sum(cMF.perlen)),
                      -1*facTim*(MM[:,index.get('iRo')].sum()/sum(cMF.perlen)),
-                    -1*facTim*(MM[:,index.get('iEs')].sum()/sum(cMF.perlen)),
-                     facTim*(MM[:,index.get('idSu')].sum()/sum(cMF.perlen)),
+                    -1*facTim*(MM[:,index.get('iEsurf')].sum()/sum(cMF.perlen)),
+                     facTim*(MM[:,index.get('idSsoil')].sum()/sum(cMF.perlen)),
                      facTim*(MM[:,index.get('iEXF')].sum()/sum(cMF.perlen)),
-                    -1*facTim*(MM_S[:,:,index_S.get('iEu')].sum()/sum(cMF.perlen)),
-                    -1*facTim*(MM_S[:,:,index_S.get('iTu')].sum()/sum(cMF.perlen)),
-                    -1*facTim*(MM[:,index.get('iETu')].sum()/sum(cMF.perlen)),
+                    -1*facTim*(MM_S[:,:,index_S.get('iEsoil')].sum()/sum(cMF.perlen)),
+                    -1*facTim*(MM_S[:,:,index_S.get('iTsoil')].sum()/sum(cMF.perlen)),
+                    -1*facTim*(MM[:,index.get('iETsoil')].sum()/sum(cMF.perlen)),
                     -1*facTim*(MM[:,index.get('iEg')].sum()/sum(cMF.perlen)),
                     -1*facTim*(MM[:,index.get('iTg')].sum()/sum(cMF.perlen)),
                     -1*facTim*(MM[:,index.get('iETg')].sum()/sum(cMF.perlen)),
@@ -1490,6 +1485,17 @@ try:
                     plt_titleBAL.append(plt_title)
                     del plt_title
                 del obs_h, obs_S
+            # write PEST smp file with MM output
+            inputFile = MMproc.readFile(MM_ws,inputObs_fn)
+            for i in range(len(inputFile)):
+                line = inputFile[i].split()
+                name = line[0]
+                for j in cMF.MM_PROCESS.smMMname:
+                    if j == name:
+                        ind = cMF.MM_PROCESS.smMMname.index(name)
+                        for l in cMF.MM_PROCESS.smMM[ind]:
+                            outPESTsmMM.write(l)
+            outPESTsmMM.close()
             flxmax = axefact*float(np.ceil(np.asarray(flxlst).max()))
             flxmin = axefact*float(np.floor(np.asarray(flxlst).min()))
             for l, (lst, fn, title, fn_txt, InOut) in enumerate(zip(flxlst, plt_exportBAL_fn, plt_titleBAL, plt_export_txt_fn, InOut_tmp)):
@@ -1507,9 +1513,6 @@ try:
             h5_MM.close()
             h5_MF.close()
             del obs
-        # output for PEST
-        outPESTheads.close()
-        outPESTsm.close()
 
         if plt_out == 1:
             SP_lst = []
@@ -1551,7 +1554,7 @@ try:
                 Vmax = np.ma.max(V[0]) #float(np.ceil(np.ma.max(V)))
                 Vmin = np.ma.min(V[0]) #float(np.floor(np.ma.min(V)))
                 Vmin, Vmax, ctrs_tmp = minmax(Vmin, Vmax, ctrsMF)
-                MMplot.plotLAYER(SP = SP, Date = Date_lst[t], JD = JD_lst[t], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'piezometric head (m)', msg = 'DRY', plt_title = 'MF_GWTD', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrangeMF, contours = ctrs_tmp, Vmax = Vmax, Vmin = Vmin, ntick = ntick)
+                MMplot.plotLAYER(SP = SP, Date = Date_lst[t], JD = JD_lst[t], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'depth to groundwater table (m)', msg = 'DRY', plt_title = 'MF_GWTD', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrangeMF, contours = ctrs_tmp, Vmax = Vmax, Vmin = Vmin, ntick = ntick)
                 # plot GW drainage [mm]
                 if cMF.drn_yn == 1:
                     V = []
@@ -1597,7 +1600,7 @@ try:
             Vmax = np.ma.max(V[0]) #float(np.ceil(np.ma.max(V)))
             Vmin = np.ma.min(V[0]) #float(np.floor(np.ma.min(V)))
             Vmin, Vmax, ctrs_tmp = minmax(Vmin, Vmax, ctrsMF)
-            MMplot.plotLAYER(SP = SP, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'piezometric head (m)', msg = 'DRY', plt_title = 'MF_average_GWTD', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrangeMF, contours = ctrs_tmp, Vmax = Vmax, Vmin = Vmin, ntick = ntick)
+            MMplot.plotLAYER(SP = SP, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'depth to groundwater table (m)', msg = 'DRY', plt_title = 'MF_average_GWTD', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrangeMF, contours = ctrs_tmp, Vmax = Vmax, Vmin = Vmin, ntick = ntick)
             # plot GW drainage [mm]
             if cMF.drn_yn == 1:
                 V = []
@@ -1632,7 +1635,7 @@ try:
 
         # plot MM output
         if plt_out == 1 and os.path.exists(h5_MM_fn):
-            flxlbl = ['RF', 'RFe', 'I', 'EXF', 'dSs', 'Ro', 'Es', 'Eg', 'Tg', 'ETg', 'ETu', 'dSu']
+            flxlbl = ['RF', 'RFe', 'I', 'EXF', 'dSsurf', 'Ro', 'Esurf', 'Eg', 'Tg', 'ETg', 'ETsoil', 'dSsoil']
             for i in flxlbl:
                 # plot average for the whole simulated period
                 i1 = 'i'+i
@@ -1644,10 +1647,10 @@ try:
                 Vmax = np.ma.max(V[0]) #float(np.ceil(np.ma.max(V)))
                 Vmin = np.ma.min(V[0]) #float(np.floor(np.ma.min(V)))
                 Vmin, Vmax, ctrs_tmp = minmax(Vmin, Vmax, ctrsMM)
-                if i == 'dSu':
-                    i_lbl = '$\Delta$Su' #'$\Delta$S$_{u}'
-                elif i == 'dSs':
-                    i_lbl = '$\Delta$Ss'
+                if i == 'dSsoil':
+                    i_lbl = '$\Delta$Ssoil' #'$\Delta$S$_{u}'
+                elif i == 'dSsurf':
+                    i_lbl = '$\Delta$Ssurf'
                 else:
                     i_lbl = i
                 MMplot.plotLAYER(SP = 'NA', Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i_lbl + ' (mm/day)'), msg = 'no flux', plt_title = ('MM_average_' + i), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrangeMM, Vmax = Vmax, Vmin = Vmin, contours = ctrs_tmp, ntick = ntick)
@@ -1662,7 +1665,7 @@ try:
                     MMplot.plotLAYER(SP = SP, Date = Date_lst[t], JD = JD_lst[t], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i + ' (mm/day)'), msg = 'no flux', plt_title = ('MM_'+i), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrangeMM, Vmax = Vmax, Vmin = Vmin, contours = ctrs_tmp, ntick = ntick)
                     t += 1
                 del V, MM, t
-            flxlbl = ['Eu', 'Tu','Rp']
+            flxlbl = ['Esoil', 'Tsoil','Rp']
             for i in flxlbl:
                 # plot average for the whole simulated period
                 i1 = 'i'+i

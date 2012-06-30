@@ -1,11 +1,13 @@
-﻿import os
+import os
 
 header_fn = r'E:\00code_ws\LAMATA_new\MF_ws\00header_asc.txt'
-hk_PEST_fn = [r'E:\00code_ws\LAMATA_new\MF_ws\00hk_l1.ref', r'E:\00code_ws\LAMATA_new\MF_ws\00hk_l2.ref']
-hk_MM_fn = [r'E:\00code_ws\LAMATA_new\MF_ws\00hk_l1.asc', r'E:\00code_ws\LAMATA_new\MF_ws\00hk_l2.asc']
+arrays_PEST_fn = [r'E:\00code_ws\LAMATA_new\MF_ws\00Sy_l1.ref', r'E:\00code_ws\LAMATA_new\MF_ws\00Ss_l2.ref', r'E:\00code_ws\LAMATA_new\MF_ws\00hk_l1.ref', r'E:\00code_ws\LAMATA_new\MF_ws\00hk_l2.ref']
+arrays_MM_fn = [r'E:\00code_ws\LAMATA_new\MF_ws\00Sy_l1.asc', r'E:\00code_ws\LAMATA_new\MF_ws\00Ss_l2.asc', r'E:\00code_ws\LAMATA_new\MF_ws\00hk_l1.asc', r'E:\00code_ws\LAMATA_new\MF_ws\00hk_l2.asc']
 ncol = 60
 
-for l, (fin_fn, fout_fn) in enumerate(zip(hk_PEST_fn, hk_MM_fn)):
+print ''
+
+for l, (fin_fn, fout_fn) in enumerate(zip(arrays_PEST_fn, arrays_MM_fn)):
 
     if os.path.exists(fin_fn):
         fin = open(fin_fn, 'r')
@@ -32,7 +34,7 @@ for l, (fin_fn, fout_fn) in enumerate(zip(hk_PEST_fn, hk_MM_fn)):
 
     fin.close()
     fout.close()
-
+    print 'File %s done!' % fin_fn
 header.close()
 
-print 'Done!'
+print '\nDone!\n'

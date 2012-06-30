@@ -191,26 +191,30 @@ FileName=$[Project-Path]trunk\MARMITESutilities\GaussianNoise.py
 
 [Project\ChildNodes\Node0\ChildNodes\Node3\ChildNodes\Node5]
 ClassName=TProjectFileNode
-FileName=$[Project-Path]trunk\MARMITESutilities\MARMITESprocess_v2.py
+FileName=$[Project-Path]trunk\MARMITESutilities\MARMITESprocess_v3.py
 
 [Project\ChildNodes\Node0\ChildNodes\Node3\ChildNodes\Node6]
 ClassName=TProjectFileNode
-FileName=$[Project-Path]trunk\MARMITESutilities\MARMITESprocess_v3.py
+FileName=$[Project-Path]trunk\MARMITESutilities\MFarray2ascarray.py
 
 [Project\ChildNodes\Node0\ChildNodes\Node3\ChildNodes\Node7]
 ClassName=TProjectFileNode
-FileName=$[Project-Path]trunk\MARMITESutilities\RFprocessingINST2HOUR.py
+FileName=$[Project-Path]trunk\MARMITESutilities\Obs2PESTformat.py
 
 [Project\ChildNodes\Node0\ChildNodes\Node3\ChildNodes\Node8]
 ClassName=TProjectFileNode
-FileName=$[Project-Path]trunk\MARMITESutilities\Season_transition.py
+FileName=$[Project-Path]trunk\MARMITESutilities\RFprocessingINST2HOUR.py
 
 [Project\ChildNodes\Node0\ChildNodes\Node3\ChildNodes\Node9]
+ClassName=TProjectFileNode
+FileName=$[Project-Path]trunk\MARMITESutilities\Season_transition.py
+
+[Project\ChildNodes\Node0\ChildNodes\Node3\ChildNodes\Node10]
 ClassName=TProjectFileNode
 FileName=$[Project-Path]trunk\MARMITESutilities\testplot.py
 
 [Project\ChildNodes\Node0\ChildNodes\Node3\ChildNodes]
-Count=10
+Count=11
 
 [Project\ChildNodes\Node0\ChildNodes\Node4]
 ClassName=TProjectFolderNode

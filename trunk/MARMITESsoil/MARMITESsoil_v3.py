@@ -49,19 +49,19 @@ class SOIL:
                 Sm          Max. Soil moiture storage
                 Sfc         Soil moiture storage at field capacity
                 Sr          Residual Soil moiture storage
-                Su_ini          Inicial soil moisture
+                Ssoil_ini          Inicial soil moisture
                 Ks          Saturated hydraulic condutivity
-                Ss_max       Max. ponding capacity
+                Ssurf_max       Max. ponding capacity
             STATE VARIABLES
                 RF           Daily rainfall
                 PT           Daily transpiration
                 PE           Daily evaporation
     OUTPUTS
             RFe              Daily Excess rainfall
-            ETu             Daily evapotranspiration
-            Su               Daily soil moisture
+            ETsoil             Daily evapotranspiration
+            Ssoil               Daily soil moisture
             Rp              Daily percolation
-            Ss            Daily ponding
+            Ssurf            Daily ponding
             Ro              Daily runoff
 
     Provide daily values for the LINRES module
@@ -103,30 +103,30 @@ class SOIL:
 
 #####################
 
-    def flux(self, RFe, PT, PE, E0, Zr_elev, VEGarea, HEADS, TopSoilLay, BotSoilLay, Tl, nsl, Sm, Sfc, Sr, Ks, Ss_max, Ss_ratio, Su_ini, Rp_ini, Ss_ini, EXF, dtwt, st, i, j, n, kTu_min, kTu_n, dt, dti, NVEG, LAIveg):
+    def flux(self, RFe, PT, PE, E0, Zr_elev, VEGarea, HEADS, TopSoilLay, BotSoilLay, Tl, nsl, Sm, Sfc, Sr, Ks, Ssurf_max, Ssurf_ratio, Ssoil_ini, Rp_ini, Ssurf_ini, EXF, dtwt, st, i, j, n, kTu_min, kTu_n, dt, dti, NVEG, LAIveg):
 
-        def surfwater(s_tmp, Sm, Ss_max, E0, i, j, n, dt):
+        def surfwater(s_tmp, Sm, Ssurf_max, E0, i, j, n, dt):
             '''
             Ponding and surface runoff function
             '''
             if s_tmp > Sm:
-                Ss_tmp = s_tmp-Sm
-                if (Ss_tmp - Ss_max) > 1.0E-7:
-                    Ro_tmp = (Ss_tmp - Ss_max)/dt
-                    Ss_tmp = Ss_max
+                Ssurf_tmp = s_tmp-Sm
+                if (Ssurf_tmp - Ssurf_max) > 1.0E-7:
+                    Ro_tmp = (Ssurf_tmp - Ssurf_max)/dt
+                    Ssurf_tmp = Ssurf_max
                 else:
                     Ro_tmp = 0.0
-                if (Ss_tmp - E0) > 1.0E-7:
-                    Es_tmp = E0
-                    Ss_tmp = Ss_tmp - E0*dt
+                if (Ssurf_tmp - E0) > 1.0E-7:
+                    Esurf_tmp = E0
+                    Ssurf_tmp = Ssurf_tmp - E0*dt
                 else:
-                    Es_tmp = Ss_tmp/dt
-                    Ss_tmp = 0.0
+                    Esurf_tmp = Ssurf_tmp/dt
+                    Ssurf_tmp = 0.0
             else:
-                Ss_tmp = 0.0
+                Ssurf_tmp = 0.0
                 Ro_tmp = 0.0
-                Es_tmp = 0.0
-            return Ss_tmp, Ro_tmp, Es_tmp
+                Esurf_tmp = 0.0
+            return Ssurf_tmp, Ro_tmp, Esurf_tmp
 
         ##################
 
@@ -176,56 +176,56 @@ class SOIL:
             EXF = 0.0
         SAT = np.zeros([nsl], dtype = bool)
 
-         # Su_tmp from previous time step
-        # if first time step, use Su_ini
-        Su_tmp = np.zeros([nsl])
+         # Ssoil_tmp from previous time step
+        # if first time step, use Ssoil_ini
+        Ssoil_tmp = np.zeros([nsl])
         Rexf_tmp = np.zeros([nsl])
         for l in range(nsl):
-            Su_tmp[l] = Su_ini[l]*1.0
+            Ssoil_tmp[l] = Ssoil_ini[l]*1.0
 
         # INFILTRATION
         # first soil layer
-        Su_tmp[0] += RFe + Ss_ini
+        Ssoil_tmp[0] += RFe + Ssurf_ini
         # other soil layer, percolation from previous time step
         for l in range(1,nsl):
-            Su_tmp[l] += Rp_ini[l-1]*dti
+            Ssoil_tmp[l] += Rp_ini[l-1]*dti
 
         # GW EXF
-        Su_tmp[nsl-1] += EXF*dt
+        Ssoil_tmp[nsl-1] += EXF*dt
 
         # SOIL EXF
         llst = range(nsl)
         llst.reverse()
         for l in llst[:-1]:
-            if Su_tmp[l] > Sm[l]*Tl[l]:
-                Rexf_tmp[l] += Su_tmp[l] - Sm[l]*Tl[l]
-                Su_tmp[l-1] += Rexf_tmp[l]
-                Su_tmp[l] = Sm[l]*Tl[l]
+            if Ssoil_tmp[l] > Sm[l]*Tl[l]:
+                Rexf_tmp[l] += Ssoil_tmp[l] - Sm[l]*Tl[l]
+                Ssoil_tmp[l-1] += Rexf_tmp[l]
+                Ssoil_tmp[l] = Sm[l]*Tl[l]
 
         # SAT = True indicates saturation overland flow
         if EXF > 0.0:
             for l in llst:
-                if Su_tmp[l] >= (Sm[l]*Tl[l]):
+                if Ssoil_tmp[l] >= (Sm[l]*Tl[l]):
                     HEADS += Tl[l]
                     dtwt -= Tl[l]
                     SAT[l] = True
                 else:
                     break
 
-        # Ss and Ro
-        surfwater_tmp = surfwater(Su_tmp[0],Sm[0]*Tl[0],Ss_max, E0*Ss_ratio, i, j, n, dt)
-        Ss_tmp = surfwater_tmp[0]
+        # Ssurf and Ro
+        surfwater_tmp = surfwater(Ssoil_tmp[0],Sm[0]*Tl[0],Ssurf_max, E0*Ssurf_ratio, i, j, n, dt)
+        Ssurf_tmp = surfwater_tmp[0]
         Ro_tmp = surfwater_tmp[1]
-        Es_tmp = surfwater_tmp[2]
-        Su_tmp[0] -= (Ss_tmp + dt*(Ro_tmp + Es_tmp))
+        Esurf_tmp = surfwater_tmp[2]
+        Ssoil_tmp[0] -= (Ssurf_tmp + dt*(Ro_tmp + Esurf_tmp))
 
         Rexf_tmp /= dt
 
         Rp_tmp = np.zeros([nsl])
-        Tu_tmpZr = np.zeros([nsl,len(Zr_elev)])
-        Tu_tmp = np.zeros([nsl])
-        Eu_tmp = np.zeros([nsl])
-        Su_pc_tmp = np.zeros([nsl])
+        Tsoil_tmpZr = np.zeros([nsl,len(Zr_elev)])
+        Tsoil_tmp = np.zeros([nsl])
+        Esoil_tmp = np.zeros([nsl])
+        Ssoil_pc_tmp = np.zeros([nsl])
         # Groundwater transpiration
         Tg_tmp_Zr = np.zeros([nsl, len(Zr_elev)])
         Tg_tmp = 0.0
@@ -234,30 +234,30 @@ class SOIL:
             # Rp
             if l < (nsl-1):
                 if SAT[l+1] == False:
-                    Rp_tmp[l] = perc(Su_tmp[l],Sm[l]*Tl[l],Sfc[l]*Tl[l],Ks[l], Su_tmp[l+1], Sm[l+1]*Tl[l+1], i, j, n, dt)
+                    Rp_tmp[l] = perc(Ssoil_tmp[l],Sm[l]*Tl[l],Sfc[l]*Tl[l],Ks[l], Ssoil_tmp[l+1], Sm[l+1]*Tl[l+1], i, j, n, dt)
             elif EXF == 0.0:
-                Rp_tmp[l] = perc(Su_tmp[l],Sm[l]*Tl[l],Sfc[l]*Tl[l], Ks[l],0.0,1.0E6, i, j, n, dt)
-            Su_tmp[l] -= Rp_tmp[l]*dt
+                Rp_tmp[l] = perc(Ssoil_tmp[l],Sm[l]*Tl[l],Sfc[l]*Tl[l], Ks[l],0.0,1.0E6, i, j, n, dt)
+            Ssoil_tmp[l] -= Rp_tmp[l]*dt
             if SAT[l] == False:
-                # Eu
-                if Ss_tmp == 0.0:
+                # Esoil
+                if Ssurf_tmp == 0.0:
                     if PE > 0.0:
-                        Eu_tmp[l] = evp(Su_tmp[l],Sm[l]*Tl[l], Sr[l]*Tl[l], PE, i, j, n, dt)
-                        Su_tmp[l] -= Eu_tmp[l]*dt
-                        PE -= Eu_tmp[l]
-                # Tu
+                        Esoil_tmp[l] = evp(Ssoil_tmp[l],Sm[l]*Tl[l], Sr[l]*Tl[l], PE, i, j, n, dt)
+                        Ssoil_tmp[l] -= Esoil_tmp[l]*dt
+                        PE -= Esoil_tmp[l]
+                # Tsoil
                 for v in range(NVEG):
                     if PT[v] > 1E-7:
                         if LAIveg[v] > 1E-7:
                             if VEGarea[v] > 1E-7:
                                 if BotSoilLay[l] > Zr_elev[v]:
-                                    Tu_tmpZr[l,v] = evp(Su_tmp[l],Sm[l]*Tl[l], Sr[l]*Tl[l], PT[v], i, j, n, dt)
+                                    Tsoil_tmpZr[l,v] = evp(Ssoil_tmp[l],Sm[l]*Tl[l], Sr[l]*Tl[l], PT[v], i, j, n, dt)
                                 elif TopSoilLay[l] > Zr_elev[v] :
                                     PTc = PT[v]*(TopSoilLay[l]-Zr_elev[v])/Tl[l]
-                                    Tu_tmpZr[l,v] = evp(Su_tmp[l],Sm[l]*Tl[l], Sr[l]*Tl[l], PTc, i, j, n, dt)
-                                Tu_tmp[l] += Tu_tmpZr[l,v]*VEGarea[v]*0.01
-                                PT[v] -= Tu_tmpZr[l,v]
-                Su_tmp[l] -= Tu_tmp[l]*dt
+                                    Tsoil_tmpZr[l,v] = evp(Ssoil_tmp[l],Sm[l]*Tl[l], Sr[l]*Tl[l], PTc, i, j, n, dt)
+                                Tsoil_tmp[l] += Tsoil_tmpZr[l,v]*VEGarea[v]*0.01
+                                PT[v] -= Tsoil_tmpZr[l,v]
+                Ssoil_tmp[l] -= Tsoil_tmp[l]*dt
             elif SAT[l] == True:
                 # Tg
                 for v in range(NVEG):
@@ -269,10 +269,10 @@ class SOIL:
                                 PT[v] -= Tg_tmp_Zr[l,v]
 
         for l in range(nsl):
-            Su_pc_tmp[l] = Su_tmp[l]/Tl[l]
+            Ssoil_pc_tmp[l] = Ssoil_tmp[l]/Tl[l]
 
         # GW evaporation, equation 17 of Shah et al 2007, see ref in the __init__
-        if Ss_tmp == 0.0:
+        if Ssurf_tmp == 0.0:
             if PE > 0.0:
                 dtwt *= 0.1
                 y0    = self.paramEg[st]['y0']
@@ -296,28 +296,28 @@ class SOIL:
         for v in range(NVEG):
             if HEADS > Zr_elev[v]:
                 for l in range(nsl):
-                    if Su_pc_tmp[l] <> self.hnoflo:
-                        if Su_pc_tmp[l] >= Sr[l]:
-                            if Su_pc_tmp[l] <= Sm[l]:
-                                kTu = kTu_min[v]+(kTu_max-kTu_min[v])*np.power(1-np.power(np.abs(Su_pc_tmp[l]-Sm[l])/(Sm[l]-Sr[l]),kTu_n[v]),1/kTu_n[v])
+                    if Ssoil_pc_tmp[l] <> self.hnoflo:
+                        if Ssoil_pc_tmp[l] >= Sr[l]:
+                            if Ssoil_pc_tmp[l] <= Sm[l]:
+                                kTu = kTu_min[v]+(kTu_max-kTu_min[v])*np.power(1-np.power(np.abs(Ssoil_pc_tmp[l]-Sm[l])/(Sm[l]-Sr[l]),kTu_n[v]),1/kTu_n[v])
                             else:
                                 kTu = kTu_max
                         else:
                             kTu = kTu_min[v]
-                        Tg_tmp_Zr[l,v] = Tu_tmpZr[l,v]*(1.0/kTu-1.0)
+                        Tg_tmp_Zr[l,v] = Tsoil_tmpZr[l,v]*(1.0/kTu-1.0)
                         if Tg_tmp_Zr[l,v] > PT[v]:
                             Tg_tmp_Zr[l,v] = PT[v]
                         PT[v] -= Tg_tmp_Zr[l,v]
                         Tg_tmp += (Tg_tmp_Zr[l,v]*VEGarea[v]*0.01)
 
-        return Es_tmp, Ss_tmp, Ro_tmp, Rp_tmp, Eu_tmp, Tu_tmp, Su_tmp, Su_pc_tmp, Eg_tmp, Tg_tmp, HEADS, dtwt, SAT, Rexf_tmp
-        del Es_tmp, Ss_tmp, Ro_tmp, Rp_tmp, Eu_tmp, Tu_tmp, Su_tmp, Su_pc_tmp, Su_ini, Eg_tmp, Tg_tmp, dtwt
+        return Esurf_tmp, Ssurf_tmp, Ro_tmp, Rp_tmp, Esoil_tmp, Tsoil_tmp, Ssoil_tmp, Ssoil_pc_tmp, Eg_tmp, Tg_tmp, HEADS, dtwt, SAT, Rexf_tmp
+        del Esurf_tmp, Ssurf_tmp, Ro_tmp, Rp_tmp, Esoil_tmp, Tsoil_tmp, Ssoil_tmp, Ssoil_pc_tmp, Ssoil_ini, Eg_tmp, Tg_tmp, dtwt
 
 #####################
 
-    def run(self, _nsl, _nslmax, _st, _Sm, _Sfc, _Sr, _slprop, _Su_ini, botm_l0, _Ks,
+    def run(self, _nsl, _nslmax, _st, _Sm, _Sfc, _Sr, _slprop, _Ssoil_ini, botm_l0, _Ks,
             gridSOIL, gridSOILthick, TopSoil, gridMETEO,
-            index, index_S, gridSshmax, gridSsw,
+            index, index_S, gridSsurfhmax, gridSsurfw,
             RF_veg_zoneSP, E0_zonesSP, PT_veg_zonesSP, RFe_veg_zonesSP, PE_zonesSP, gridVEGarea,
             LAI_veg_zonesSP, Zr, kTu_min, kTu_n, NVEG,
             cMF, conv_fact, h5_MF, h5_MM, irr_yn,
@@ -343,10 +343,10 @@ class SOIL:
                 print '\nRAM memory too small compared to the size of the exfiltration array -> slow computing.'
         JD_nper = []
         # initial values of SP
-        Su_ini_tmp_array = np.zeros([cMF.nrow,cMF.ncol,_nslmax])
+        Ssoil_ini_tmp_array = np.zeros([cMF.nrow,cMF.ncol,_nslmax])
         Rp_ini_tmp_array = np.zeros([cMF.nrow,cMF.ncol,_nslmax])
-        Ss_ini_tmp_array = np.zeros([cMF.nrow,cMF.ncol])
-        Ss_ini_tmp_array = np.zeros([cMF.nrow,cMF.ncol])
+        Ssurf_ini_tmp_array = np.zeros([cMF.nrow,cMF.ncol])
+        Ssurf_ini_tmp_array = np.zeros([cMF.nrow,cMF.ncol])
         MM_finf_MF = np.zeros([cMF.nrow,cMF.ncol], dtype=float)
         MM_wel_MF  = np.zeros([cMF.nrow,cMF.ncol], dtype=float)
         for n in range(cMF.nper):
@@ -390,15 +390,15 @@ class SOIL:
                             else:
                                 TopSoilLay[l] = BotSoilLay[l-1]
                                 BotSoilLay[l] = TopSoilLay[l]-Tl[l]
-                        Su_ini_tmp = []
+                        Ssoil_ini_tmp = []
                         if n == 0:
                             for l in range(nsl):
-                                Su_ini_tmp.append(_Su_ini[SOILzone_tmp][l])
-                            Ss_ini_tmp  = 0.0
+                                Ssoil_ini_tmp.append(_Ssoil_ini[SOILzone_tmp][l])
+                            Ssurf_ini_tmp  = 0.0
                             dti = 1.0
                         else:
-                            Su_ini_tmp    = Su_ini_tmp_array[i,j,:]
-                            Ss_ini_tmp    = Ss_ini_tmp_array[i,j]
+                            Ssoil_ini_tmp    = Ssoil_ini_tmp_array[i,j,:]
+                            Ssurf_ini_tmp    = Ssurf_ini_tmp_array[i,j]
                         if irr_yn == 1:
                             IRRfield = gridIRR[i,j]
                         if  irr_yn == 1 and IRRfield > 0:
@@ -452,8 +452,8 @@ class SOIL:
                         Sfc        = _Sfc[SOILzone_tmp]
                         Sr         = _Sr[SOILzone_tmp]
                         Ks         = _Ks[SOILzone_tmp]
-                        Ss_max     = 1000*1.12*gridSshmax[i,j]*gridSsw[i,j]/cMF.delr[j]
-                        Ss_ratio   = 1.12*gridSsw[i,j]/cMF.delr[j]
+                        Ssurf_max     = 1000*1.12*gridSsurfhmax[i,j]*gridSsurfw[i,j]/cMF.delr[j]
+                        Ssurf_ratio   = 1.12*gridSsurfw[i,j]/cMF.delr[j]
                         HEADS      = h_MF_tmp
                         EXF        = -exf_MF_tmp
                         RF         = RF_tmp
@@ -474,9 +474,9 @@ class SOIL:
                         # vegetation interception (weigthed average patchwork)
                         INTER_tot = np.zeros([Ttotal], dtype = np.float)
                         # Ponding storage
-                        Ss = np.zeros([Ttotal], dtype = np.float)
+                        Ssurf = np.zeros([Ttotal], dtype = np.float)
                         # Ponding storage change
-                        dSs = np.zeros([Ttotal], dtype = np.float)
+                        dSsurf = np.zeros([Ttotal], dtype = np.float)
                         # Surface runoff (hortonian and saturated overland flow)
                         Ro = np.zeros([Ttotal], dtype = np.float)
                         # Percolation
@@ -486,25 +486,25 @@ class SOIL:
                         # Exfiltration
                         Rexf = np.zeros([Ttotal,nsl], dtype = np.float)
                         #Soil moisture storage
-                        Su = np.zeros([Ttotal,nsl], dtype = np.float)
+                        Ssoil = np.zeros([Ttotal,nsl], dtype = np.float)
                         #Soil moisture storage in volumetric percent of saturation
-                        Su_pc = np.zeros([Ttotal,nsl], dtype = np.float)
+                        Ssoil_pc = np.zeros([Ttotal,nsl], dtype = np.float)
                         #Total soil moisture storage changes
-                        Su_pc_tot = np.zeros([Ttotal], dtype = np.float)
+                        Ssoil_pc_tot = np.zeros([Ttotal], dtype = np.float)
                         #Soil moisture storage changes
-                        dSu = np.zeros([Ttotal,nsl], dtype = np.float)
+                        dSsoil = np.zeros([Ttotal,nsl], dtype = np.float)
                         #Total soil moisture storage changes
-                        dSu_tot = np.zeros([Ttotal], dtype = np.float)
+                        dSsoil_tot = np.zeros([Ttotal], dtype = np.float)
                         #Actual evaporation from soil zone
-                        Eu = np.zeros([Ttotal,nsl], dtype = np.float)
+                        Esoil = np.zeros([Ttotal,nsl], dtype = np.float)
                         #Actual transpiration from soil zone
-                        Tu = np.zeros([Ttotal,nsl], dtype = np.float)
+                        Tsoil = np.zeros([Ttotal,nsl], dtype = np.float)
                         #Total actual evapotranspiration from soil zone
-                        ETu_tot = np.zeros([Ttotal], dtype = np.float)
+                        ETsoil_tot = np.zeros([Ttotal], dtype = np.float)
                         #Saturation overland flow
                         SAT = np.zeros([Ttotal, nsl], dtype = np.int)
                         #Actual evapotranspiration from surface
-                        Es = np.zeros([Ttotal], dtype = np.float)
+                        Esurf = np.zeros([Ttotal], dtype = np.float)
                         # HEADS
                         HEADS_corr = np.zeros([Ttotal], dtype = np.float)
                         # dtwt
@@ -570,69 +570,69 @@ class SOIL:
                                 HEADS_tmp = BotSoilLay[nsl-1]
                             # for the first SP, S_ini is expressed in % and has to be converted in mm
                             if n == 0 and t == 0:
-                                Su_ini_tmp = Su_ini_tmp * Tl
+                                Ssoil_ini_tmp = Ssoil_ini_tmp * Tl
                             # fluxes
-                            Es_tmp, Ss_tmp, Ro_tmp, Rp_tmp, Eu_tmp, Tu_tmp, Su_tmp, Su_pc_tmp, Eg_tmp, Tg_tmp, HEADS_tmp, dtwt_tmp, SAT_tmp, Rexf_tmp = self.flux(RFe_tot[t], PT[:,t], PE_tot[t], E0[t], Zr_elev, VEGarea_tmp, HEADS_tmp, TopSoilLay, BotSoilLay, Tl, nsl, Sm, Sfc, Sr, Ks, Ss_max, Ss_ratio, Su_ini_tmp, Rp_ini_tmp_array[i,j,:], Ss_ini_tmp, EXF[t], dtwt[t], st, i, j, n, kTu_min_tmp, kTu_n_tmp, dt, dti, NVEG_tmp, LAIveg_tmp[:,t])
+                            Esurf_tmp, Ssurf_tmp, Ro_tmp, Rp_tmp, Esoil_tmp, Tsoil_tmp, Ssoil_tmp, Ssoil_pc_tmp, Eg_tmp, Tg_tmp, HEADS_tmp, dtwt_tmp, SAT_tmp, Rexf_tmp = self.flux(RFe_tot[t], PT[:,t], PE_tot[t], E0[t], Zr_elev, VEGarea_tmp, HEADS_tmp, TopSoilLay, BotSoilLay, Tl, nsl, Sm, Sfc, Sr, Ks, Ssurf_max, Ssurf_ratio, Ssoil_ini_tmp, Rp_ini_tmp_array[i,j,:], Ssurf_ini_tmp, EXF[t], dtwt[t], st, i, j, n, kTu_min_tmp, kTu_n_tmp, dt, dti, NVEG_tmp, LAIveg_tmp[:,t])
                             # fill the output arrays
-                            Ss[t]   = Ss_tmp
+                            Ssurf[t]   = Ssurf_tmp
                             Ro[t]   = Ro_tmp
-                            Es[t]   = Es_tmp
+                            Esurf[t]   = Esurf_tmp
                             Eg[t]   = Eg_tmp
                             Tg[t]   = Tg_tmp
                             HEADS_corr[t] = HEADS_tmp
                             dtwt[t] = dtwt_tmp
-                            Su[t,:]    = Su_tmp[:]
-                            Su_pc[t,:] = Su_pc_tmp[:]
-                            Su_pc_tot[t] = sum(Su_pc_tmp[:])/nsl
+                            Ssoil[t,:]    = Ssoil_tmp[:]
+                            Ssoil_pc[t,:] = Ssoil_pc_tmp[:]
+                            Ssoil_pc_tot[t] = sum(Ssoil_pc_tmp[:])/nsl
                             Rp[t,:]    = Rp_tmp[:]
                             inf[t]     = Rp_tmp[-1]
                             Rexf[t,:]  = Rexf_tmp[:]
-                            Eu[t,:]    = Eu_tmp[:]
-                            Tu[t,:]    = Tu_tmp[:]
+                            Esoil[t,:]    = Esoil_tmp[:]
+                            Tsoil[t,:]    = Tsoil_tmp[:]
                             SAT[t,:]   = SAT_tmp[:]
                             ETg[t] = Eg[t] + Tg[t]
-                            dSs[t] = (Ss_ini_tmp - Ss[t])/dt
+                            dSsurf[t] = (Ssurf_ini_tmp - Ssurf[t])/dt
                             # compute the water mass balance (MB) in the soil zone
                             Rp_in_MB  = 0.0
                             Rp_out_MB = 0.0
-                            Eu_MB    = 0.0
-                            Tu_MB    = 0.0
+                            Esoil_MB    = 0.0
+                            Tsoil_MB    = 0.0
                             for l in range(nsl):
-                                Eu_MB     += Eu[t,l]
-                                Tu_MB     += Tu[t,l]
+                                Esoil_MB     += Esoil[t,l]
+                                Tsoil_MB     += Tsoil[t,l]
                                 if l < (nsl-1):
                                     Rp_in_MB  += Rp_ini_tmp_array[i,j,l]*dti
                                 Rp_out_MB += Rp[t,l]*dt
-                                dSu[t,l] = (Su_ini_tmp[l] - Su[t,l])/dt
-                                dSu_tot[t] += dSu[t,l]
+                                dSsoil[t,l] = (Ssoil_ini_tmp[l] - Ssoil[t,l])/dt
+                                dSsoil_tot[t] += dSsoil[t,l]
                             dRp_tot = (Rp_in_MB - Rp_out_MB)/dt
-                            ETu_tot[t] = Eu_MB + Tu_MB
+                            ETsoil_tot[t] = Esoil_MB + Tsoil_MB
                             # MASS BALANCE COMPUTING
                             if nsl > 1:
                                 # surficial soil layer
                                 l = 0
-                                MB_l[t,l] = (RFe_tot[t] + dSu[t,l] + dSs[t] + Rexf[t,l+1]) - (Rp[t,l] + Eu[t,l] + Tu[t,l] + Ro_tmp + Es_tmp)
+                                MB_l[t,l] = (RFe_tot[t] + dSsoil[t,l] + dSsurf[t] + Rexf[t,l+1]) - (Rp[t,l] + Esoil[t,l] + Tsoil[t,l] + Ro_tmp + Esurf_tmp)
                                 # intermediate soil layers
                                 llst = range(1,nsl-1)
                                 for l in llst:
-                                    MB_l[t,l] = (Rp_ini_tmp_array[i,j,l-1]*dti - Rp[t,l]*dt)/dt + dSu[t,l] + Rexf[t,l+1] - (Eu[t,l] + Tu[t,l] + Rexf[t,l])
+                                    MB_l[t,l] = (Rp_ini_tmp_array[i,j,l-1]*dti - Rp[t,l]*dt)/dt + dSsoil[t,l] + Rexf[t,l+1] - (Esoil[t,l] + Tsoil[t,l] + Rexf[t,l])
                                 # last soil layer
                                 l = nsl-1
-                                MB_l[t,l] = (Rp_ini_tmp_array[i,j,l-1]*dti - Rp[t,l]*dt)/dt + dSu[t,l] + EXF[t] - (Eu[t,l] + Tu[t,l] + Rexf[t,l])
+                                MB_l[t,l] = (Rp_ini_tmp_array[i,j,l-1]*dti - Rp[t,l]*dt)/dt + dSsoil[t,l] + EXF[t] - (Esoil[t,l] + Tsoil[t,l] + Rexf[t,l])
                             else:
                                 # only one soil layer
                                 l = 0
-                                MB_l[t,l] = (RFe_tot[t] + dSu[t,l] + dSs[t] + EXF[t]) - (Rp[t,l] + Eu[t,l] + Tu[t,l] + Ro_tmp + Es_tmp)
+                                MB_l[t,l] = (RFe_tot[t] + dSsoil[t,l] + dSsurf[t] + EXF[t]) - (Rp[t,l] + Esoil[t,l] + Tsoil[t,l] + Ro_tmp + Esurf_tmp)
                                 # last soil layer
                             # total mass balance for the soil
-                            MB[t] = RFe_tot[t] + dSs[t] + dSu_tot[t] + dRp_tot + EXF[t] - (Ro[t] + Es[t] + Eu_MB + Tu_MB)
+                            MB[t] = RFe_tot[t] + dSsurf[t] + dSsoil_tot[t] + dRp_tot + EXF[t] - (Ro[t] + Esurf[t] + Esoil_MB + Tsoil_MB)
                             # export list
                             # indexes of the HDF5 output arrays
-                            # index = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iEXF':6, 'iEs':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSs':13, 'iETg':14, 'iETu':15, 'iSu_pc':16, 'idSu':17, 'iinf':18, 'iHEADScorr':19, 'idtwt':20, 'iuzthick':21}
-                            MM_tmp[t,:] = [RF[t], PT_tot[t], PE_tot[t], RFe_tot[t], Ss[t], Ro[t], EXF[t], Es[t], MB[t], INTER_tot[t], E0[t], Eg[t], Tg[t], dSs[t], ETg[t], ETu_tot[t], Su_pc_tot[t], dSu_tot[t], inf[t], HEADS_corr[t]*0.001, -dtwt[t]*0.001, uzthick[t]*0.001]
-                            # index_S = {'iEu':0, 'iTu':1,'iSu_pc':2, 'iRp':3, 'iRexf':4, 'idSu':5, 'iSu':6, 'iSAT':7, 'iMB_l':8}
+                            # index = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSsurf':4, 'iRo':5, 'iEXF':6, 'iEsurf':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSsurf':13, 'iETg':14, 'iETsoil':15, 'iSsoil_pc':16, 'idSsoil':17, 'iinf':18, 'iHEADScorr':19, 'idtwt':20, 'iuzthick':21}
+                            MM_tmp[t,:] = [RF[t], PT_tot[t], PE_tot[t], RFe_tot[t], Ssurf[t], Ro[t], EXF[t], Esurf[t], MB[t], INTER_tot[t], E0[t], Eg[t], Tg[t], dSsurf[t], ETg[t], ETsoil_tot[t], Ssoil_pc_tot[t], dSsoil_tot[t], inf[t], HEADS_corr[t]*0.001, -dtwt[t]*0.001, uzthick[t]*0.001]
+                            # index_S = {'iEsoil':0, 'iTsoil':1,'iSsoil_pc':2, 'iRp':3, 'iRexf':4, 'idSsoil':5, 'iSsoil':6, 'iSAT':7, 'iMB_l':8}
                             for l in range(nsl):
-                                MM_S_tmp[t,l,:] = [Eu[t,l], Tu[t,l], Su_pc[t,l], Rp[t,l], Rexf[t,l], dSu[t,l], Su[t,l], SAT[t,l], MB_l[t,l]]
+                                MM_S_tmp[t,l,:] = [Esoil[t,l], Tsoil[t,l], Ssoil_pc[t,l], Rp[t,l], Rexf[t,l], dSsoil[t,l], Ssoil[t,l], SAT[t,l], MB_l[t,l]]
                         if (float(cMF.perlen[n])/float(cMF.nstp[n])) != 1.0:
                             for stp in range(cMF.nstp[n]):
                                 ts = float(cMF.perlen[n])/float(cMF.nstp[n])
@@ -653,9 +653,9 @@ class SOIL:
                         MM_wel_MF[i,j] = MM_tmp[:,index.get('iETg')].sum()/(conv_fact)
                         del MM_tmp, MM_S_tmp
                         # setting initial conditions for the next SP
-                        Su_ini_tmp_array[i,j,:]  = MM_S[cMF.nstp[n]-1,i,j,:,index_S.get('iSu')]
+                        Ssoil_ini_tmp_array[i,j,:]  = MM_S[cMF.nstp[n]-1,i,j,:,index_S.get('iSsoil')]
                         Rp_ini_tmp_array[i,j,:]  = MM_S[cMF.nstp[n]-1,i,j,:,index_S.get('iRp')]
-                        Ss_ini_tmp_array[i,j]    = MM[cMF.nstp[n]-1,i,j,index.get('iSs')]
+                        Ssurf_ini_tmp_array[i,j]    = MM[cMF.nstp[n]-1,i,j,index.get('iSsurf')]
                     else:
                         if cMF.perlen[n]>1:
                             MM[:,i,j,:] = cMF.hnoflo
@@ -670,7 +670,7 @@ class SOIL:
             h5_MM['MM_S'][tstart_MM:tend_MM,:,:,:,:] = MM_S[:,:,:,:,:]
             h5_MM['finf'][n,:,:]                     = MM_finf_MF
             h5_MM['ETg'][n,:,:]                      = MM_wel_MF
-        del MM, MM_S, MM_finf_MF, MM_wel_MF, Su_ini_tmp_array, Rp_ini_tmp_array, Ss_ini_tmp_array, dti
+        del MM, MM_S, MM_finf_MF, MM_wel_MF, Ssoil_ini_tmp_array, Rp_ini_tmp_array, Ssurf_ini_tmp_array, dti
         del h_MF, exf_MF, h_MF_tmp, exf_MF_tmp
         h5_MM.close()
 

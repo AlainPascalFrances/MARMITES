@@ -1044,11 +1044,11 @@ class MF():
                         if drn_elev_array[i,j]<>0:
                             if drn_elev_array[i,j]<0:
                                 if isinstance(self.botm[l], float):
-                                    drn_elev_tmp = self.botm[l]
+                                    drn_elev_tmp = self.botm[l] + 0.01
                                 else:
-                                    drn_elev_tmp = self.botm[i][j][l] #- (botm_array[i][j][l]-botm_array[i][j][l-1])/10
+                                    drn_elev_tmp = self.botm[i][j][l] + 0.01 #- (botm_array[i][j][l]-botm_array[i][j][l-1])/10
                             else:
-                                drn_elev_tmp = drn_elev_array[i,j]
+                                drn_elev_tmp = drn_elev_array[i,j] + 0.01
                             layer_row_column_elevation_cond[0].append([l+1, i+1, j+1, drn_elev_tmp, drn_cond_array[i,j]])
                             del drn_elev_tmp
                 del drn_elev_array, drn_cond_array

@@ -472,9 +472,9 @@ def MMsurf(pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, pathMMw
     J = []
     time = []
     for i, d in enumerate(datenum):
-        YYYY.append(mpl.dates.num2date(d).year)
-        MM.append(mpl.dates.num2date(d).month)
-        DD.append(mpl.dates.num2date(d).day)
+        YYYY.append(float(mpl.dates.num2date(d).year))
+        MM.append(float(mpl.dates.num2date(d).month))
+        DD.append(float(mpl.dates.num2date(d).day))
         HH.append('%02d'%mpl.dates.num2date(d).hour)
         MN.append('%02d'%mpl.dates.num2date(d).minute)
         J.append(DD[i] - 32 + int(275*MM[i]/9) + 2 * int(3/(MM[i] + 1)) + int(MM[i]/100-np.mod(YYYY[i],4)/4+0.975) )
@@ -507,7 +507,7 @@ def MMsurf(pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, pathMMw
         FIELD_crop_schedule_fn = []
         FIELD_crop_schedule = []
         for f in range(NFIELD):
-            FIELD_crop_schedule_fn.append(os.path.join(pathMMsurf, '_inputFIELD%d_crop_schedule.txt' % (f+1)))
+            FIELD_crop_schedule_fn.append(os.path.join(pathMMsurf, '__inputFIELD%d_crop_schedule.txt' % (f+1)))
             if os.path.exists(FIELD_crop_schedule_fn[f]):
                 FIELD_crop_schedule.append(np.loadtxt(FIELD_crop_schedule_fn[f], skiprows = 1, dtype = str))
             else:
@@ -526,12 +526,12 @@ def MMsurf(pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, pathMMw
                         FIELD_startdate[f][i] = mpl.dates.datestr2num(d)
                         FIELD_enddate[f][i] = mpl.dates.datestr2num(FIELD_enddate[f][i])
                         if FIELD_startdate[f][i] > FIELD_enddate[f][i]:
-                            raise SystemExit('\nFATAL ERROR!\nDates in the field/crop schedule files of filed #%d are not correct!'%(i+1))
+                            raise SystemExit('\nFATAL ERROR!\nDates in the field/crop schedule files of field #%d are not correct!'%(i+1))
                         if i > 0:
                             if FIELD_enddate[f][i-1] > FIELD_startdate[f][i]:
-                                raise SystemExit('\nFATAL ERROR!\nDates in the field/crop schedule files of filed #%d are not correct!'%(i+1))
+                                raise SystemExit('\nFATAL ERROR!\nDates in the field/crop schedule files of field #%d are not correct!'%(i+1))
                     except:
-                        raise SystemExit('\nFATAL ERROR!\nDates in the field/crop schedule files of filed #%d are not correct!'%(i+1))
+                        raise SystemExit('\nFATAL ERROR!\nDates in the field/crop schedule files of field #%d are not correct!'%(i+1))
                     FIELD_growdur[f][i] = int(FIELD_growdur[f][i])
                     FIELD_wiltdur[f][i] = int(FIELD_wiltdur[f][i])
                 FIELD_startdate[f] = FIELD_startdate[f].astype(float)
