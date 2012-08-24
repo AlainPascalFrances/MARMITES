@@ -982,6 +982,7 @@ class MF():
                     finf_array = self.finf_user
                     print 'WARNING!\nNo valid UZF1 package file(s) provided, running MODFLOW using user-input UZF1 infiltration value: %.3G' % self.finf_user
                     finf_input = self.finf_user
+            print "Done!"
 
         # WELL
         # TODO add well by user to simulate extraction by borehole
@@ -1002,6 +1003,20 @@ class MF():
                     wel_array = self.wel_user
                     print 'WARNING!\nNo valid WEL package file(s) provided, running MODFLOW using user-input well value: %.3G' % self.wel_user
                     wel_input = self.wel_user
+            # implement a well in every active cell
+            layer_row_column_Q = []
+            iuzfbnd = np.asarray(self.iuzfbnd)
+            for n in range(self.nper):
+                layer_row_column_Q.append([])
+                for r in range(self.nrow):
+                    for c in range(self.ncol):
+                        if np.abs(self.ibound[r][c][:]).sum() != 0:
+                            if isinstance(wel_array, float):
+                                layer_row_column_Q[n].append([iuzfbnd[r,c],r+1,c+1,-wel_array*self.delr[c]*self.delc[r]])
+                            else:
+                                layer_row_column_Q[n].append([iuzfbnd[r,c],r+1,c+1,-(wel_array[n][r][c])*self.delr[c]*self.delc[r]])
+            del iuzfbnd
+            print "Done!"
 
         # RCH
         if self.rch_yn == 1:
@@ -1021,6 +1036,7 @@ class MF():
                     rch_array = rch_user
                     print 'WARNING!\nNo valid RCH package file(s) provided, running MODFLOW using user-input recharge value: %.3G' % rch_user
                     rch_input = rch_user
+            print "Done!"
 
         # DRAIN
         if self.drn_yn == 1:
@@ -1053,6 +1069,7 @@ class MF():
                             del drn_elev_tmp
                 del drn_elev_array, drn_cond_array
                 l += 1
+            print "Done!"
 
         # GHB
         if self.ghb_yn == 1:
@@ -1079,6 +1096,7 @@ class MF():
                             del ghb_head_tmp
                 del ghb_head_array, ghb_cond_array
                 l += 1
+            print "Done!"
 
         # average for 1st SS stress period
         # TODO verify the if the avregae of wells is done correctly
@@ -1117,21 +1135,6 @@ class MF():
             self.nstp.insert(0,1)
             self.tsmult.insert(0,1)
             self.Ss_tr.insert(0, True)
-
-        # WEL
-        if self.wel_yn == 1:
-            layer_row_column_Q = []
-            iuzfbnd = np.asarray(self.iuzfbnd)
-            for n in range(self.nper):
-                layer_row_column_Q.append([])
-                for r in range(self.nrow):
-                    for c in range(self.ncol):
-                        if np.abs(self.ibound[r][c][:]).sum() != 0:
-                            if isinstance(wel_array, float):
-                                layer_row_column_Q[n].append([iuzfbnd[r,c],r+1,c+1,-wel_array*self.delr[c]*self.delc[r]])
-                            else:
-                                layer_row_column_Q[n].append([iuzfbnd[r,c],r+1,c+1,-(wel_array[n][r][c])*self.delr[c]*self.delc[r]])
-            del iuzfbnd
 
         # 2 - create the modflow packages files
         print '\nMODFLOW files writing'
@@ -1210,6 +1213,7 @@ class MF():
         print '\nMODFLOW run'
         mfmain.write_name_file()
         mfmain.run_model(pause = False, report = report)
+        print "Done!"
 
         def readh():
             """

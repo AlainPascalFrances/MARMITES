@@ -448,7 +448,10 @@ try:
             sys.stdout = report
         cMF.ppMF(MM_ws, MF_ws, MF_ini_fn, finf_MM = (h5_MM_fn, 'finf'), wel_MM = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks, numDays = numDays)
         timeendMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
-        durationMF +=  timeendMF-timestartMF
+        durationMFtmp =  timeendMF-timestartMF
+        durationMF +=  durationMFtmp
+        print '\nMF run time: %02.fmn%02.fs' % (int(durationMFtmp*24.0*60.0), (durationMFtmp*24.0*60.0-int(durationMFtmp*24.0*60.0))*60)
+        del durationMFtmp
 
     if os.path.exists(cMF.h5_MF_fn):
         try:
@@ -503,7 +506,12 @@ try:
         loopdry = 0
         plt_ConvLoop_fn = os.path.join(MM_ws, '_MM_00plt_MM_MF_ConvLoop.png')
         # Create HDF5 arrays to store MARMITES output
-        h5_MM = h5py.File(h5_MM_fn, 'w')
+        try:
+            h5_MM = h5py.File(h5_MM_fn, 'w')
+        except:
+            os.remove(h5_MM_fn)
+            h5_MM = h5py.File(h5_MM_fn, 'w')
+            print "WARNING! Previous h5_MM file corrupted!\nIt was deleted and a new one was created."
         # arrays for fluxes independent of the soil layering
         h5_MM.create_dataset(name = 'iMM', data = np.asarray(index.items()))
         if chunks == 1:
@@ -598,7 +606,7 @@ try:
 
             timeendMMloop = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
             durationMMloop = timeendMMloop-timestartMMloop
-            print '\nMM loop run time: %02.fmn%02.fs\n' % (int(durationMMloop*24.0*60.0), (durationMMloop*24.0*60.0-int(durationMMloop*24.0*60.0))*60)
+            print '\nMM run time: %02.fmn%02.fs\n' % (int(durationMMloop*24.0*60.0), (durationMMloop*24.0*60.0-int(durationMMloop*24.0*60.0))*60)
             durationMMsoil += durationMMloop
 
             msg_end_loop = []
@@ -644,8 +652,12 @@ try:
                 h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
             except:
                 raise SystemExit('\nFATAL ERROR!\nInvalid MODFLOW HDF5 file. Run MARMITES and/or MODFLOW again.')
+
             timeendMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
-            durationMF += (timeendMF-timestartMF)
+            durationMFtmp =  timeendMF-timestartMF
+            durationMF +=  durationMFtmp
+            print '\nMF run time: %02.fmn%02.fs' % (int(durationMFtmp*24.0*60.0), (durationMFtmp*24.0*60.0-int(durationMFtmp*24.0*60.0))*60)
+            del durationMFtmp
 
         # #############################
         # ###  END CONVERGENCE LOOP ###
@@ -720,7 +732,10 @@ try:
                 sys.stdout = report
             cMF.ppMF(MM_ws, MF_ws, MF_ini_fn, finf_MM = (h5_MM_fn, 'finf'), wel_MM = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks, numDays = numDays)
             timeendMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
-            durationMF += (timeendMF-timestartMF)
+            durationMFtmp =  timeendMF-timestartMF
+            durationMF +=  durationMFtmp
+            print '\nMF run time: %02.fmn%02.fs' % (int(durationMFtmp*24.0*60.0), (durationMFtmp*24.0*60.0-int(durationMFtmp*24.0*60.0))*60)
+            del durationMFtmp
 
 except StandardError, e:  #Exception
     raise SystemExit('\nFATAL ERROR!\nAbnormal MM run interruption in the MM/MF loop!\nError description:\n%s' % traceback.print_exc(file=sys.stdout))
