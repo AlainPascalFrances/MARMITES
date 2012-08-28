@@ -397,7 +397,7 @@ try:
     # READ observations time series (heads and soil moisture)
     if plt_out_obs == 1:
         print "\nReading observations time series (hydraulic heads and soil moisture)..."
-        obs = cMF.MM_PROCESS.inputObs(MM_ws            = MM_ws,
+        obs, obs_list = cMF.MM_PROCESS.inputObs(MM_ws            = MM_ws,
                                       inputObs_fn      = inputObs_fn,
                                       inputObsHEADS_fn = inputObsHEADS_fn,
                                       inputObsSM_fn    = inputObsSM_fn,
@@ -1316,201 +1316,204 @@ try:
             plt_export_txt_fn = []
             plt_titleBAL      = []
             InOut_tmp             = []
-            for o in obs.keys():
-                i = obs.get(o)['i']
-                j = obs.get(o)['j']
-                l = obs.get(o)['lay']
-                obs_h = obs.get(o)['obs_h']
-                obs_S = obs.get(o)['obs_S']
-                if obs.get(o)['obs_sm_yn'] == 1:
-                    cMF.MM_PROCESS.smMMname.append(o)
-                outFileExport = open(obs.get(o)['outpathname'], 'w')
-                outFileExport.write(header)
-                SOILzone_tmp = gridSOIL[i,j]-1
-                nsl = _nsl[SOILzone_tmp]
-                soilnam = _nam_soil[SOILzone_tmp]
-                MM = h5_MM['MM'][:,i,j,:]
-                MM_S = h5_MM['MM_S'][:,i,j,:,:]
-                # SATFLOW
-                cbc_RCH = h5_MF['RCH_d']
-                h_satflow = MM_SATFLOW.run(cbc_RCH[:,i,j,0], float(obs.get(o)['hi']),float(obs.get(o)['h0']),float(obs.get(o)['RC']),float(obs.get(o)['STO']))
-                # export ASCII file at piezometers location
-                #TODO extract heads at piezo location and not center of cell
-                if obs_h != []:
-                    obs_h_tmp = obs_h[0,:]
-                else:
-                    obs_h_tmp = []
-                if obs_S != []:
-                    obs_S_tmp = obs_S
-                else:
-                    obs_S_tmp = []
-                if cMF.wel_yn == 1:
-                    cbc_WEL = -h5_MF['WEL_d'][:,i,j,0]
-                else:
-                    cbc_WEL = 0
-                if irr_yn == 0:
-                    index_veg = np.ones((NVEG, sum(cMF.perlen)), dtype = float)
-                    for v in range(NVEG):
-                        index_veg[v] = cMF.LAI_veg_d[gridMETEO[i,j]-1,v,:]*gridVEGarea[v,i,j]
-                    index_veg = (np.sum(index_veg, axis = 0) > 0.0)*(-1)
-                else:
-                    IRRfield = gridIRR[i,j]
-                    if IRRfield == 0:
-                        index_veg = np.ones((NVEG, sum(cMF.perlen)), dtype = float)
-                        for v in range(NVEG):
-                            index_veg[v] = cMF.LAI_veg_d[gridMETEO[i,j]-1,v,:]*gridVEGarea[v,i,j]
-                        index_veg = (np.sum(index_veg, axis = 0) > 0.0)*(-1)
-                    else:
-                        index_veg = cMF.crop_irr_d[gridMETEO[i,j]-1, IRRfield-1,:]
-                # Export time series results at observations points as ASCII file
-                cMF.MM_PROCESS.ExportResultsMM(i, j, cMF.inputDate, SP_d, _nslmax, MM, index, MM_S, index_S, cbc_RCH[:,i,j,0], cbc_WEL, h_satflow, h_MF_m[:,i,j,l], obs_h_tmp, obs_S_tmp, index_veg, outFileExport, o)
-                del cbc_WEL
-                outFileExport.close()
-                # plot time series results as plot
-                plt_title = 'Time serie of fluxes at observation point %s\ni = %d, j = %d, l = %d, x = %d, y = %d, %s\n' % (o, i+1, j+1, l+1, obs.get(o)['x'], obs.get(o)['y'], soilnam)
-                # index = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iEXF':6, 'iEs':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSs':13, 'iETg':14, 'iETu':15, 'iSu_pc':16, 'idSu':17, 'iinf':18, 'iHEADScorr':19, 'idtwt':20, 'iuzthick':21}
-                # index_S = {'iEu':0, 'iTu':1,'iSu_pc':2, 'iRp':3, 'iRexf':4, 'idSu':5, 'iSu':6, 'iSAT':7, 'iMB_l':8}
-                plt_export_fn = os.path.join(MM_ws, '_plt_0'+ o + '.png')
-                # def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, EXF, ETg, Es, MB, MB_l, dtwt, SAT, R, h_MF, h_MF_corr, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin):
-                MMplot.plotTIMESERIES(
-                cMF.inputDate,
-                MM[:,index.get('iRF')],
-                MM[:,index.get('iPT')],
-                MM[:,index.get('iPE')],
-                MM[:,index.get('iRFe')],
-                -MM[:,index.get('idSsurf')],
-                MM[:,index.get('iSsurf')],
-                MM[:,index.get('iRo')],
-                MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('iEsoil')],
-                MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('iTsoil')],
-                MM[:,index.get('iEg')],
-                MM[:,index.get('iTg')],
-                MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('iSsoil')],
-                MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('idSsoil')],
-                MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('iSsoil_pc')],
-                MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('iRp')],
-                MM[:,index.get('iEXF')],
-                -MM[:,index.get('iETg')],
-                MM[:,index.get('iEsurf')],
-                MM[:,index.get('iMB')],
-                MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('iMB_l')],
-                MM[:,index.get('idtwt')],
-                MM[:,index.get('iuzthick')],
-                MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('iSAT')],
-                cbc_RCH[:,i,j,0],
-                h_MF_m[:,i,j,:], MM[:,index.get('iHEADScorr')], h_satflow, obs_h_tmp, obs_S_tmp,
-                _Sm[gridSOIL[i,j]-1],
-                _Sr[gridSOIL[i,j]-1],
-                cMF.hnoflo,
-                plt_export_fn,
-                plt_title,
-                colors_nsl,
-                max(hmax), #hmax[x] + hdiff/2
-                min(hmin), #hmin[x] - hdiff/2
-                o,
-                TopSoil[i,j]*0.001,
-                cMF.nlay
-                )
-                x += 1
-                # plot water balance at each obs. cell
-                #flxlbl   = ['RF', 'I', 'dSs', 'Ro', 'Es', 'dSu', 'EXF']
-                #flxlbl1  = ['Eu', 'Tu']
-                #flxlbl2  = ['ETu', 'Eg']
-                #flxlbl3  = ['Tg']
-                #flxlbl3a = ['ETg']
-                #flxlbl4  = ['Rp']
-                flxlst.append([
-                     facTim*(MM[:,index.get('iRF')].sum()/sum(cMF.perlen)),
-                    -1*facTim*(MM[:,index.get('iI')].sum()/sum(cMF.perlen)),
-                     facTim*(MM[:,index.get('iRFe')].sum()/sum(cMF.perlen)),
-                    -1*facTim*(MM[:,index.get('idSsurf')].sum()/sum(cMF.perlen)),
-                     -1*facTim*(MM[:,index.get('iRo')].sum()/sum(cMF.perlen)),
-                    -1*facTim*(MM[:,index.get('iEsurf')].sum()/sum(cMF.perlen)),
-                     facTim*(MM[:,index.get('idSsoil')].sum()/sum(cMF.perlen)),
-                     facTim*(MM[:,index.get('iEXF')].sum()/sum(cMF.perlen)),
-                    -1*facTim*(MM_S[:,:,index_S.get('iEsoil')].sum()/sum(cMF.perlen)),
-                    -1*facTim*(MM_S[:,:,index_S.get('iTsoil')].sum()/sum(cMF.perlen)),
-                    -1*facTim*(MM[:,index.get('iETsoil')].sum()/sum(cMF.perlen)),
-                    -1*facTim*(MM[:,index.get('iEg')].sum()/sum(cMF.perlen)),
-                    -1*facTim*(MM[:,index.get('iTg')].sum()/sum(cMF.perlen)),
-                    -1*facTim*(MM[:,index.get('iETg')].sum()/sum(cMF.perlen)),
-                    -1*facTim*conv_fact*((cMF.perlen*h5_MM['finf'][:,i,j]).sum()/sum(cMF.perlen))
-                    ])
-                InMM = flxlst[-1][0] + flxlst[-1][3] + flxlst[-1][6] + flxlst[-1][7]
-                OutMM = -(flxlst[-1][1] + flxlst[-1][4] + flxlst[-1][5] + flxlst[-1][10] + flxlst[-1][14])
-                InOut_MM = InMM - OutMM
-                InOut_tmp.append([InOut_MM])
-                if plt_out_obs == 1 and isinstance(cMF.h5_MF_fn, str):
-                    plt_exportBAL_fn.append(os.path.join(MM_ws, '_plt_0'+ o + '_UNSATandGWbalances.png'))
-                    plt_export_txt_fn.append(os.path.join(MM_ws, '_plt_0'+ o + '_UNSATandGWbalances.txt'))
-                    # compute UZF_STO and store GW_RCH
-                    rch_tmp = 0
-                    flxlst_tmp = []
-                    for l in range(cMF.nlay):
-                        rch_tmp1 = facTim*(cbc_RCH[:,i,j,l].sum()/sum(cMF.perlen))
-                        flxlst_tmp.append(rch_tmp1)
-                        rch_tmp += rch_tmp1
-                    flxlst[-1].append(-rch_tmp + facTim*conv_fact*((cMF.perlen*h5_MM['finf'][:,i,j]).sum()/sum(cMF.perlen)))
-                    del rch_tmp, rch_tmp1, cbc_RCH
-                    InUZF = -flxlst[-1][14] - flxlst[-1][15]
-                    OutUZF = 0
-                    InMF = 0
-                    OutMF = 0
-                    for l in range(cMF.nlay):
-                        # GW STO
-                        cbc_STO = h5_MF['STO_d']
-                        flxlst[-1].append(facTim*(cbc_STO[:,i,j,l].sum()/sum(cMF.perlen)))    # -1*
-                        InMF += flxlst[-1][-1]
-                        del cbc_STO
-                        # GW_RCH
-                        flxlst[-1].append(flxlst_tmp[l])
-                        OutUZF += flxlst_tmp[l]
-                        InMF += flxlst_tmp[l]
-                        # EXF
-                        h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
-                        cbc_EXF = h5_MF['EXF_d']
-                        flxlst[-1].append(facTim*(cbc_EXF[:,i,j,l].sum()/sum(cMF.perlen)))
-                        OutMF += -flxlst[-1][-1]
-                        del cbc_EXF
-                        if cMF.drn_yn == 1:
-                            cbc_DRN = h5_MF['DRN_d']
-                            flxlst[-1].append(facTim*(cbc_DRN[:,i,j,l].sum()/sum(cMF.perlen)))
-                            OutMF += -flxlst[-1][-1]
-                            del cbc_DRN
+            for o_ref in obs_list:
+                for o in obs.keys():
+                    if o == o_ref:
+                        i = obs.get(o)['i']
+                        j = obs.get(o)['j']
+                        l = obs.get(o)['lay']
+                        obs_h = obs.get(o)['obs_h']
+                        obs_S = obs.get(o)['obs_S']
+                        if obs.get(o)['obs_sm_yn'] == 1:
+                            cMF.MM_PROCESS.smMMname.append(o)
+                        outFileExport = open(obs.get(o)['outpathname'], 'w')
+                        outFileExport.write(header)
+                        SOILzone_tmp = gridSOIL[i,j]-1
+                        nsl = _nsl[SOILzone_tmp]
+                        soilnam = _nam_soil[SOILzone_tmp]
+                        MM = h5_MM['MM'][:,i,j,:]
+                        MM_S = h5_MM['MM_S'][:,i,j,:,:]
+                        # SATFLOW
+                        cbc_RCH = h5_MF['RCH_d']
+                        h_satflow = MM_SATFLOW.run(cbc_RCH[:,i,j,0], float(obs.get(o)['hi']),float(obs.get(o)['h0']),float(obs.get(o)['RC']),float(obs.get(o)['STO']))
+                        # export ASCII file at piezometers location
+                        #TODO extract heads at piezo location and not center of cell
+                        if obs_h != []:
+                            obs_h_tmp = obs_h[0,:]
+                        else:
+                            obs_h_tmp = []
+                        if obs_S != []:
+                            obs_S_tmp = obs_S
+                        else:
+                            obs_S_tmp = []
                         if cMF.wel_yn == 1:
-                            cbc_WEL = h5_MF['WEL_d']
-                            flxlst[-1].append(facTim*(cbc_WEL[:,i,j,l].sum()/sum(cMF.perlen)))
-                            OutMF += -flxlst[-1][-1]
-                            del cbc_WEL
-                        if cMF.ghb_yn == 1:
-                            cbc_GHB = h5_MF['GHB_d']
-                            flxlst[-1].append(facTim*(cbc_GHB[:,i,j,l].sum()/sum(cMF.perlen)))
-                            OutMF += -flxlst[-1][-1]
-                            del cbc_GHB
-                    InOut_UZF = InUZF - OutUZF
-                    InOut_tmp[-1].append(InOut_UZF)
-                    InOut_MF = InMF - OutMF
-                    InOut_tmp[-1].append(InOut_MF)
-                    plt_title = 'MARMITES and MODFLOW water flux balance at observation point %s\ni = %d, j = %d, l = %d, x = %d, y = %d, %s\n\nMass balance (In - Out,  [mm]): MM = %1.2f, UZF = %1.2f, MF = %1.2f' % (o, i+1, j+1, l+1, obs.get(o)['x'], obs.get(o)['y'], soilnam, InOut_MM, InOut_UZF, InOut_MF)
-                    plt_titleBAL.append(plt_title)
-                    del flxlst_tmp, plt_title
-                else:
-                    plt_exportBAL_fn.append(os.path.join(MM_ws, '_plt_0'+ o + '_UNSATbalance.png'))
-                    plt_export_txt_fn.append(os.path.join(MM_ws, '_plt_0' + o + '_UNSATbalances.txt'), 'w')
-                    plt_title = 'MARMITES water flux balance at observation point %s\ni = %d, j = %d, l = %d, x = %d, y = %d, %s\n\nMass balance (In - Out,  [mm]): MM = %1.2f' % (o, i+1, j+1, l+1, obs.get(o)['x'], obs.get(o)['y'], soilnam, InOut_MM)
-                    plt_titleBAL.append(plt_title)
-                    del plt_title
-                del obs_h, obs_S
+                            cbc_WEL = -h5_MF['WEL_d'][:,i,j,0]
+                        else:
+                            cbc_WEL = 0
+                        if irr_yn == 0:
+                            index_veg = np.ones((NVEG, sum(cMF.perlen)), dtype = float)
+                            for v in range(NVEG):
+                                index_veg[v] = cMF.LAI_veg_d[gridMETEO[i,j]-1,v,:]*gridVEGarea[v,i,j]
+                            index_veg = (np.sum(index_veg, axis = 0) > 0.0)*(-1)
+                        else:
+                            IRRfield = gridIRR[i,j]
+                            if IRRfield == 0:
+                                index_veg = np.ones((NVEG, sum(cMF.perlen)), dtype = float)
+                                for v in range(NVEG):
+                                    index_veg[v] = cMF.LAI_veg_d[gridMETEO[i,j]-1,v,:]*gridVEGarea[v,i,j]
+                                index_veg = (np.sum(index_veg, axis = 0) > 0.0)*(-1)
+                            else:
+                                index_veg = cMF.crop_irr_d[gridMETEO[i,j]-1, IRRfield-1,:]
+                        # Export time series results at observations points as ASCII file
+                        cMF.MM_PROCESS.ExportResultsMM(i, j, cMF.inputDate, SP_d, _nslmax, MM, index, MM_S, index_S, cbc_RCH[:,i,j,0], cbc_WEL, h_satflow, h_MF_m[:,i,j,l], obs_h_tmp, obs_S_tmp, index_veg, outFileExport, o)
+                        del cbc_WEL
+                        outFileExport.close()
+                        # plot time series results as plot
+                        plt_title = 'Time serie of fluxes at observation point %s\ni = %d, j = %d, l = %d, x = %d, y = %d, %s\n' % (o, i+1, j+1, l+1, obs.get(o)['x'], obs.get(o)['y'], soilnam)
+                        # index = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iEXF':6, 'iEs':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSs':13, 'iETg':14, 'iETu':15, 'iSu_pc':16, 'idSu':17, 'iinf':18, 'iHEADScorr':19, 'idtwt':20, 'iuzthick':21}
+                        # index_S = {'iEu':0, 'iTu':1,'iSu_pc':2, 'iRp':3, 'iRexf':4, 'idSu':5, 'iSu':6, 'iSAT':7, 'iMB_l':8}
+                        plt_export_fn = os.path.join(MM_ws, '_plt_0'+ o + '.png')
+                        # def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, EXF, ETg, Es, MB, MB_l, dtwt, SAT, R, h_MF, h_MF_corr, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin):
+                        MMplot.plotTIMESERIES(
+                        cMF.inputDate,
+                        MM[:,index.get('iRF')],
+                        MM[:,index.get('iPT')],
+                        MM[:,index.get('iPE')],
+                        MM[:,index.get('iRFe')],
+                        -MM[:,index.get('idSsurf')],
+                        MM[:,index.get('iSsurf')],
+                        MM[:,index.get('iRo')],
+                        MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('iEsoil')],
+                        MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('iTsoil')],
+                        MM[:,index.get('iEg')],
+                        MM[:,index.get('iTg')],
+                        MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('iSsoil')],
+                        MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('idSsoil')],
+                        MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('iSsoil_pc')],
+                        MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('iRp')],
+                        MM[:,index.get('iEXF')],
+                        -MM[:,index.get('iETg')],
+                        MM[:,index.get('iEsurf')],
+                        MM[:,index.get('iMB')],
+                        MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('iMB_l')],
+                        MM[:,index.get('idtwt')],
+                        MM[:,index.get('iuzthick')],
+                        MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('iSAT')],
+                        cbc_RCH[:,i,j,0],
+                        h_MF_m[:,i,j,:], MM[:,index.get('iHEADScorr')], h_satflow, obs_h_tmp, obs_S_tmp,
+                        _Sm[gridSOIL[i,j]-1],
+                        _Sr[gridSOIL[i,j]-1],
+                        cMF.hnoflo,
+                        plt_export_fn,
+                        plt_title,
+                        colors_nsl,
+                        max(hmax), #hmax[x] + hdiff/2
+                        min(hmin), #hmin[x] - hdiff/2
+                        o,
+                        TopSoil[i,j]*0.001,
+                        cMF.nlay
+                        )
+                        x += 1
+                        # plot water balance at each obs. cell
+                        #flxlbl   = ['RF', 'I', 'dSs', 'Ro', 'Es', 'dSu', 'EXF']
+                        #flxlbl1  = ['Eu', 'Tu']
+                        #flxlbl2  = ['ETu', 'Eg']
+                        #flxlbl3  = ['Tg']
+                        #flxlbl3a = ['ETg']
+                        #flxlbl4  = ['Rp']
+                        flxlst.append([
+                             facTim*(MM[:,index.get('iRF')].sum()/sum(cMF.perlen)),
+                            -1*facTim*(MM[:,index.get('iI')].sum()/sum(cMF.perlen)),
+                             facTim*(MM[:,index.get('iRFe')].sum()/sum(cMF.perlen)),
+                            -1*facTim*(MM[:,index.get('idSsurf')].sum()/sum(cMF.perlen)),
+                             -1*facTim*(MM[:,index.get('iRo')].sum()/sum(cMF.perlen)),
+                            -1*facTim*(MM[:,index.get('iEsurf')].sum()/sum(cMF.perlen)),
+                             facTim*(MM[:,index.get('idSsoil')].sum()/sum(cMF.perlen)),
+                             facTim*(MM[:,index.get('iEXF')].sum()/sum(cMF.perlen)),
+                            -1*facTim*(MM_S[:,:,index_S.get('iEsoil')].sum()/sum(cMF.perlen)),
+                            -1*facTim*(MM_S[:,:,index_S.get('iTsoil')].sum()/sum(cMF.perlen)),
+                            -1*facTim*(MM[:,index.get('iETsoil')].sum()/sum(cMF.perlen)),
+                            -1*facTim*(MM[:,index.get('iEg')].sum()/sum(cMF.perlen)),
+                            -1*facTim*(MM[:,index.get('iTg')].sum()/sum(cMF.perlen)),
+                            -1*facTim*(MM[:,index.get('iETg')].sum()/sum(cMF.perlen)),
+                            -1*facTim*conv_fact*((cMF.perlen*h5_MM['finf'][:,i,j]).sum()/sum(cMF.perlen))
+                            ])
+                        InMM = flxlst[-1][0] + flxlst[-1][3] + flxlst[-1][6] + flxlst[-1][7]
+                        OutMM = -(flxlst[-1][1] + flxlst[-1][4] + flxlst[-1][5] + flxlst[-1][10] + flxlst[-1][14])
+                        InOut_MM = InMM - OutMM
+                        InOut_tmp.append([InOut_MM])
+                        if plt_out_obs == 1 and isinstance(cMF.h5_MF_fn, str):
+                            plt_exportBAL_fn.append(os.path.join(MM_ws, '_plt_0'+ o + '_UNSATandGWbalances.png'))
+                            plt_export_txt_fn.append(os.path.join(MM_ws, '_plt_0'+ o + '_UNSATandGWbalances.txt'))
+                            # compute UZF_STO and store GW_RCH
+                            rch_tmp = 0
+                            flxlst_tmp = []
+                            for l in range(cMF.nlay):
+                                rch_tmp1 = facTim*(cbc_RCH[:,i,j,l].sum()/sum(cMF.perlen))
+                                flxlst_tmp.append(rch_tmp1)
+                                rch_tmp += rch_tmp1
+                            flxlst[-1].append(-rch_tmp + facTim*conv_fact*((cMF.perlen*h5_MM['finf'][:,i,j]).sum()/sum(cMF.perlen)))
+                            del rch_tmp, rch_tmp1, cbc_RCH
+                            InUZF = -flxlst[-1][14] - flxlst[-1][15]
+                            OutUZF = 0
+                            InMF = 0
+                            OutMF = 0
+                            for l in range(cMF.nlay):
+                                # GW STO
+                                cbc_STO = h5_MF['STO_d']
+                                flxlst[-1].append(facTim*(cbc_STO[:,i,j,l].sum()/sum(cMF.perlen)))    # -1*
+                                InMF += flxlst[-1][-1]
+                                del cbc_STO
+                                # GW_RCH
+                                flxlst[-1].append(flxlst_tmp[l])
+                                OutUZF += flxlst_tmp[l]
+                                InMF += flxlst_tmp[l]
+                                # EXF
+                                h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
+                                cbc_EXF = h5_MF['EXF_d']
+                                flxlst[-1].append(facTim*(cbc_EXF[:,i,j,l].sum()/sum(cMF.perlen)))
+                                OutMF += -flxlst[-1][-1]
+                                del cbc_EXF
+                                if cMF.drn_yn == 1:
+                                    cbc_DRN = h5_MF['DRN_d']
+                                    flxlst[-1].append(facTim*(cbc_DRN[:,i,j,l].sum()/sum(cMF.perlen)))
+                                    OutMF += -flxlst[-1][-1]
+                                    del cbc_DRN
+                                if cMF.wel_yn == 1:
+                                    cbc_WEL = h5_MF['WEL_d']
+                                    flxlst[-1].append(facTim*(cbc_WEL[:,i,j,l].sum()/sum(cMF.perlen)))
+                                    OutMF += -flxlst[-1][-1]
+                                    del cbc_WEL
+                                if cMF.ghb_yn == 1:
+                                    cbc_GHB = h5_MF['GHB_d']
+                                    flxlst[-1].append(facTim*(cbc_GHB[:,i,j,l].sum()/sum(cMF.perlen)))
+                                    OutMF += -flxlst[-1][-1]
+                                    del cbc_GHB
+                            InOut_UZF = InUZF - OutUZF
+                            InOut_tmp[-1].append(InOut_UZF)
+                            InOut_MF = InMF - OutMF
+                            InOut_tmp[-1].append(InOut_MF)
+                            plt_title = 'MARMITES and MODFLOW water flux balance at observation point %s\ni = %d, j = %d, l = %d, x = %d, y = %d, %s\n\nMass balance (In - Out,  [mm]): MM = %1.2f, UZF = %1.2f, MF = %1.2f' % (o, i+1, j+1, l+1, obs.get(o)['x'], obs.get(o)['y'], soilnam, InOut_MM, InOut_UZF, InOut_MF)
+                            plt_titleBAL.append(plt_title)
+                            del flxlst_tmp, plt_title
+                        else:
+                            plt_exportBAL_fn.append(os.path.join(MM_ws, '_plt_0'+ o + '_UNSATbalance.png'))
+                            plt_export_txt_fn.append(os.path.join(MM_ws, '_plt_0' + o + '_UNSATbalances.txt'), 'w')
+                            plt_title = 'MARMITES water flux balance at observation point %s\ni = %d, j = %d, l = %d, x = %d, y = %d, %s\n\nMass balance (In - Out,  [mm]): MM = %1.2f' % (o, i+1, j+1, l+1, obs.get(o)['x'], obs.get(o)['y'], soilnam, InOut_MM)
+                            plt_titleBAL.append(plt_title)
+                            del plt_title
+                        del obs_h, obs_S
             # write PEST smp file with MM output
             inputFile = MMproc.readFile(MM_ws,inputObs_fn)
+            ind = 0
             for i in range(len(inputFile)):
                 line = inputFile[i].split()
                 name = line[0]
                 for j in cMF.MM_PROCESS.smMMname:
                     if j == name:
-                        ind = cMF.MM_PROCESS.smMMname.index(name)
                         for l in cMF.MM_PROCESS.smMM[ind]:
                             outPESTsmMM.write(l)
+                ind += 1
             outPESTsmMM.close()
             flxmax = axefact*float(np.ceil(np.asarray(flxlst).max()))
             flxmin = axefact*float(np.floor(np.asarray(flxlst).min()))

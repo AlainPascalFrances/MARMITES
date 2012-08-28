@@ -291,7 +291,7 @@ try:
 
     # READ observations time series (heads and soil moisture)
     print "\nReading observations time series (hydraulic heads and soil moisture)..."
-    obs = cMF.MM_PROCESS.inputObs(MM_ws            = MM_ws,
+    obs, obs_list = cMF.MM_PROCESS.inputObs(MM_ws            = MM_ws,
                                   inputObs_fn      = inputObs_fn,
                                   inputObsHEADS_fn = inputObsHEADS_fn,
                                   inputObsSM_fn    = inputObsSM_fn,
@@ -306,37 +306,40 @@ try:
 
     # exporting MM time series results to ASCII files and plots at observations cells
     print "\nExporting observations time series (hydraulic heads and soil moisture) in PEST format (smp file)..."
-    for o in obs.keys():
-        i = obs.get(o)['i']
-        j = obs.get(o)['j']
-        cMF.MM_PROCESS.smMMname.append(o)
-        obs_h = obs.get(o)['obs_h']
-        obs_S = obs.get(o)['obs_S']
-        # export ASCII file at piezometers location
-        #TODO extract heads at piezo location and not center of cell
-        if obs_h != []:
-            obs_h_tmp = obs_h[0,:]
-        else:
-            obs_h_tmp = []
-        if obs_S != []:
-            obs_S_tmp = obs_S
-        else:
-            obs_S_tmp = []
-        # Export time series observations as ASCII file for PEST
-        cMF.MM_PROCESS.ExportResultsPEST(i, j, cMF.inputDate, _nslmax, obs_h_tmp, obs_S_tmp, outPESTheads, outPESTsm, o)
-        del obs_h, obs_S
+    for o_ref in obs_list:
+        for o in obs.keys():
+            if o == o_ref:
+                i = obs.get(o)['i']
+                j = obs.get(o)['j']
+                cMF.MM_PROCESS.smMMname.append(o)
+                obs_h = obs.get(o)['obs_h']
+                obs_S = obs.get(o)['obs_S']
+                # export ASCII file at piezometers location
+                #TODO extract heads at piezo location and not center of cell
+                if obs_h != []:
+                    obs_h_tmp = obs_h[0,:]
+                else:
+                    obs_h_tmp = []
+                if obs_S != []:
+                    obs_S_tmp = obs_S
+                else:
+                    obs_S_tmp = []
+                # Export time series observations as ASCII file for PEST
+                cMF.MM_PROCESS.ExportResultsPEST(i, j, cMF.inputDate, _nslmax, obs_h_tmp, obs_S_tmp, outPESTheads, outPESTsm, o)
+                del obs_h, obs_S
     del obs
     outPESTheads.close()
     # write PEST obs smp file
     inputFile = MMproc.readFile(MM_ws,inputObs_fn)
+    ind = 0
     for i in range(len(inputFile)):
         line = inputFile[i].split()
         name = line[0]
         for j in cMF.MM_PROCESS.smMMname:
             if j == name:
-                ind = cMF.MM_PROCESS.smMMname.index(name)
                 for l in cMF.MM_PROCESS.smMM[ind]:
                     outPESTsm.write(l)
+        ind += 1
     outPESTsm.close()
     print "\nDONE!\nFiles exported:\n%s\n%s" % (os.path.join(MF_ws,outPESTheads_fn),os.path.join(MF_ws,outPESTsm_fn))
     print ''

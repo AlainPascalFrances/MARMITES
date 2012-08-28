@@ -413,9 +413,11 @@ class PROCESS:
 
         # define a dictionnary of observations,  format is: Name (key) x y i j hi h0 RC STO
         obs = {}
+        obs_list = []
         for o in range(len(inputFile)):
             line = inputFile[o].split()
             name = line[0]
+            obs_list.append(name)
             x = float(line[1])
             y = float(line[2])
             lay = float(line[3])
@@ -456,7 +458,7 @@ class PROCESS:
                 obs_sm_yn = 0
             obs[name] = {'x':x,'y':y,'i': i, 'j': j, 'lay': lay, 'hi':hi, 'h0':h0, 'RC':RC, 'STO':STO, 'outpathname':os.path.join(self.MM_ws,'_MM_0'+name+'.txt'), 'obs_h':obs_h, 'obs_h_yn':obs_h_yn, 'obs_S':obs_sm, 'obs_sm_yn':obs_sm_yn}
 
-        return obs
+        return obs, obs_list
         del inputObs_fn, inputObsHEADS_fn, inputObsSM_fn, inputDate, _nslmax
         del obs
 
