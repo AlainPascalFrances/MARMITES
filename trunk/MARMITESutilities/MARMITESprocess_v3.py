@@ -547,8 +547,6 @@ class PROCESS:
         INPUTS:      output fluxes time series and date
         OUTPUT:      ObsName.txt
         """
-        self.smMM.append([])
-        len_smMM = len(self.smMM)
         for t in range(len(inputDate)):
             # 'Date,RF,E0,PT,PE,RFe,I,'+Eu_str+Tu_str+'Eg,Tg,ETg,WEL_MF,Es,'+Ssoil_str+Ssoilpc_str+dSsoil_str+'dSs,Ss,Ro,GW_EXF,GW_EXF_MF,'+Rp_str+Rexf_str+'R_MF,hSATFLOW,hMF,hMFcorr,hmeas,dtwt,' + Smeasout + MB_str + 'MB\n'
             out_date = mpl.dates.num2date(inputDate[t]).isoformat()[:10]
@@ -572,12 +570,8 @@ class PROCESS:
                 MBout += str(results_S[t,l,index_S.get('iMB_l')]) + ','
                 try:
                     Smeasout += str(obs_S[l,t]) + ','
-                    obs_S_tmp = obs_S[l,t]
                 except:
                     Smeasout += str(self.hnoflo) + ','
-                    obs_S_tmp = -1.0
-                if results_S[t,l,index_S.get('iSsoil_pc')] > 0.0 and obs_S_tmp > 0.0:
-                    self.smMM[len_smMM-1].append((obsname+'SM_l'+str(l+1)).ljust(10,' ')+ out_date.ljust(10,' ')+ ' 00:00:00 ' + str(results_S[t,l,index_S.get('iSsoil_pc')]).ljust(10,' ') + '\n')
             try:
                 obs_h_tmp = obs_h[t]
             except:
@@ -595,6 +589,25 @@ class PROCESS:
             for l in out_line:
                 outFileExport.write(l)
         del i, j, inputDate, _nslmax, results, index, results_S, index_S, RCH, WEL, h_satflow, heads_MF, obs_h, obs_S, outFileExport, obsname
+
+    def ExportResultsMM4PEST(self, i, j, inputDate, _nslmax, results_S, index_S, obs_S, obsname):
+        """
+        Export the processed data in a txt file
+        INPUTS:      output fluxes time series and date
+        OUTPUT:      ObsName.txt
+        """
+        self.smMM.append([])
+        len_smMM = len(self.smMM)
+        for t in range(len(inputDate)):
+            out_date = mpl.dates.num2date(inputDate[t]).isoformat()[:10]
+            for l in range(_nslmax):
+                try:
+                    obs_S_tmp = obs_S[l,t]
+                except:
+                    obs_S_tmp = -1.0
+                if results_S[t,l,index_S.get('iSsoil_pc')] > 0.0 and obs_S_tmp > 0.0:
+                    self.smMM[len_smMM-1].append((obsname+'SM_l'+str(l+1)).ljust(10,' ')+ out_date.ljust(10,' ')+ ' 00:00:00 ' + str(results_S[t,l,index_S.get('iSsoil_pc')]).ljust(10,' ') + '\n')
+        del i, j, _nslmax, results_S, index_S, obs_S, obsname
 
     def ExportResultsPEST(self, i, j, inputDate, _nslmax, obs_h, obs_S, outPESTheads, outPESTsm, obsname):
         """

@@ -395,42 +395,38 @@ try:
     index_S = {'iEsoil':0, 'iTsoil':1,'iSsoil_pc':2, 'iRp':3, 'iRexf':4, 'idSsoil':5, 'iSsoil':6, 'iSAT':7, 'iMB_l':8}
 
     # READ observations time series (heads and soil moisture)
-    if plt_out_obs == 1:
-        print "\nReading observations time series (hydraulic heads and soil moisture)..."
-        obs, obs_list = cMF.MM_PROCESS.inputObs(MM_ws            = MM_ws,
-                                      inputObs_fn      = inputObs_fn,
-                                      inputObsHEADS_fn = inputObsHEADS_fn,
-                                      inputObsSM_fn    = inputObsSM_fn,
-                                      inputDate        = cMF.inputDate,
-                                      _nslmax          = _nslmax,
-                                      nlay             = cMF.nlay
-                                      )
-        # To write MM output in a txt file
-        Ssoil_str   = ''
-        Ssoilpc_str = ''
-        dSsoil_str  = ''
-        Rp_str   = ''
-        Rexf_str = ''
-        Esoil_str   = ''
-        Tsoil_str   = ''
-        Smeasout = ''
-        MB_str   = ''
-        for l in range(_nslmax):
-            Ssoil_str = Ssoil_str + 'Ssoil_l' + str(l+1) + ','
-            Ssoilpc_str = Ssoilpc_str + 'Ssoilpc_l' + str(l+1) + ','
-            dSsoil_str = dSsoil_str + 'dSsoil_l' + str(l+1) + ','
-            Esoil_str = Esoil_str + 'Esoil_l' + str(l+1) + ','
-            Tsoil_str = Tsoil_str + 'Tsoil_l' + str(l+1) + ','
-            Rp_str = Rp_str + 'Rp_l' + str(l+1) + ','
-            Rexf_str = Rexf_str + 'Rexf_l' + str(l+1) + ','
-            MB_str = MB_str + 'MB_l' + str(l+1) + ','
-            Smeasout = Smeasout + 'Smeas_' + str(l+1) + ','
-        header='Date,MF_SP,veg_crop,RF,E0,PT,PE,RFe,I,' + Esoil_str + Tsoil_str + 'Eg,Tg,ETg,WEL_MF,Esurf,' + Ssoil_str + Ssoilpc_str + dSsoil_str + 'dSsurf,Ssurf,Ro,GW_EXF,' + Rp_str + Rexf_str + 'R_MF,hSATFLOW,hMF,hMFcorr,hmeas,dtwt,' + Smeasout + MB_str + 'MB\n'
-        if cMF.uzf_yn == 1:
-            cMF.uzf_obs(obs = obs)
-    else:
-        print "\nNo reading of observations time series (hydraulic heads and soil moisture) required."
-        obs = None
+    print "\nReading observations time series (hydraulic heads and soil moisture)..."
+    obs, obs_list = cMF.MM_PROCESS.inputObs(MM_ws            = MM_ws,
+                                  inputObs_fn      = inputObs_fn,
+                                  inputObsHEADS_fn = inputObsHEADS_fn,
+                                  inputObsSM_fn    = inputObsSM_fn,
+                                  inputDate        = cMF.inputDate,
+                                  _nslmax          = _nslmax,
+                                  nlay             = cMF.nlay
+                                  )
+    # To write MM output in a txt file
+    Ssoil_str   = ''
+    Ssoilpc_str = ''
+    dSsoil_str  = ''
+    Rp_str   = ''
+    Rexf_str = ''
+    Esoil_str   = ''
+    Tsoil_str   = ''
+    Smeasout = ''
+    MB_str   = ''
+    for l in range(_nslmax):
+        Ssoil_str = Ssoil_str + 'Ssoil_l' + str(l+1) + ','
+        Ssoilpc_str = Ssoilpc_str + 'Ssoilpc_l' + str(l+1) + ','
+        dSsoil_str = dSsoil_str + 'dSsoil_l' + str(l+1) + ','
+        Esoil_str = Esoil_str + 'Esoil_l' + str(l+1) + ','
+        Tsoil_str = Tsoil_str + 'Tsoil_l' + str(l+1) + ','
+        Rp_str = Rp_str + 'Rp_l' + str(l+1) + ','
+        Rexf_str = Rexf_str + 'Rexf_l' + str(l+1) + ','
+        MB_str = MB_str + 'MB_l' + str(l+1) + ','
+        Smeasout = Smeasout + 'Smeas_' + str(l+1) + ','
+    header='Date,MF_SP,veg_crop,RF,E0,PT,PE,RFe,I,' + Esoil_str + Tsoil_str + 'Eg,Tg,ETg,WEL_MF,Esurf,' + Ssoil_str + Ssoilpc_str + dSsoil_str + 'dSsurf,Ssurf,Ro,GW_EXF,' + Rp_str + Rexf_str + 'R_MF,hSATFLOW,hMF,hMFcorr,hmeas,dtwt,' + Smeasout + MB_str + 'MB\n'
+    if cMF.uzf_yn == 1:
+        cMF.uzf_obs(obs = obs)
 
     # #############################
     # ### 1st MODFLOW RUN with initial user-input recharge
@@ -846,6 +842,34 @@ try:
         # TODO JD and Date are not correct since h_diff_n is # stress periods and not # of days (same in the plots of MF and MM)
         MMplot.plotLAYER(SP = h_diff_n, Date = cMF.inputDate[h_diff_n], JD = cMF.JD[h_diff_n], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = ('(m)'), msg = 'no value', plt_title = ('_HEADSmaxdiff_ConvLoop'), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrangeMF, Vmax = Vmax, Vmin = Vmin, contours = ctrs_tmp, ntick = ntick)
         del h_diff_n
+
+    # exporting sm computed by MM for PEST (smp format)
+    if os.path.exists(h5_MM_fn):
+        h5_MM = h5py.File(h5_MM_fn, 'r')
+        outPESTsmMM = open(os.path.join(MF_ws,'sm_MM4PEST.smp'), 'w')
+        for o_ref in obs_list:
+            for o in obs.keys():
+                if o == o_ref:
+                    i = obs.get(o)['i']
+                    j = obs.get(o)['j']
+                    l = obs.get(o)['lay']
+                    obs_S = obs.get(o)['obs_S']
+                    if obs.get(o)['obs_sm_yn'] == 1:
+                        cMF.MM_PROCESS.smMMname.append(o)
+                    MM_S = h5_MM['MM_S'][:,i,j,:,:]
+                    cMF.MM_PROCESS.ExportResultsMM4PEST(i, j, cMF.inputDate, _nslmax, MM_S, index_S, obs_S, o)
+        # write PEST smp file with MM output
+        inputFile = MMproc.readFile(MM_ws,inputObs_fn)
+        ind = 0
+        for i in range(len(inputFile)):
+            line = inputFile[i].split()
+            name = line[0]
+            for j in cMF.MM_PROCESS.smMMname:
+                if j == name:
+                    for l in cMF.MM_PROCESS.smMM[ind]:
+                        outPESTsmMM.write(l)
+            ind += 1
+        outPESTsmMM.close()
 
     if plt_out == 1 or plt_out_obs == 1:
         print '\nExporting ASCII files and plots...'
@@ -1311,7 +1335,6 @@ try:
             h5_MM = h5py.File(h5_MM_fn, 'r')
             h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
             colors_nsl = CreateColors.main(hi=00, hf=180, numbcolors = (_nslmax+1))
-            outPESTsmMM = open(os.path.join(MF_ws,'sm_MM4PEST.smp'), 'w')
             x = 0
             flxlst = []
             plt_exportBAL_fn  = []
@@ -1326,8 +1349,6 @@ try:
                         l = obs.get(o)['lay']
                         obs_h = obs.get(o)['obs_h']
                         obs_S = obs.get(o)['obs_S']
-                        if obs.get(o)['obs_sm_yn'] == 1:
-                            cMF.MM_PROCESS.smMMname.append(o)
                         outFileExport = open(obs.get(o)['outpathname'], 'w')
                         outFileExport.write(header)
                         SOILzone_tmp = gridSOIL[i,j]-1
@@ -1344,10 +1365,6 @@ try:
                             obs_h_tmp = obs_h[0,:]
                         else:
                             obs_h_tmp = []
-                        if obs_S != []:
-                            obs_S_tmp = obs_S
-                        else:
-                            obs_S_tmp = []
                         if cMF.wel_yn == 1:
                             cbc_WEL = -np.sum(np.ma.masked_values(h5_MF['WEL_d'][:,i,j,:], cMF.hnoflo, atol = 0.09), axis = 1)
                         else:
@@ -1367,7 +1384,7 @@ try:
                             else:
                                 index_veg = cMF.crop_irr_d[gridMETEO[i,j]-1, IRRfield-1,:]
                         # Export time series results at observations points as ASCII file
-                        cMF.MM_PROCESS.ExportResultsMM(i, j, cMF.inputDate, SP_d, _nslmax, MM, index, MM_S, index_S, cbc_RCH[:,i,j,0], cbc_WEL, h_satflow, h_MF_m[:,i,j,l], obs_h_tmp, obs_S_tmp, index_veg, outFileExport, o)
+                        cMF.MM_PROCESS.ExportResultsMM(i, j, cMF.inputDate, SP_d, _nslmax, MM, index, MM_S, index_S, cbc_RCH[:,i,j,0], cbc_WEL, h_satflow, h_MF_m[:,i,j,l], obs_h_tmp, obs_S, index_veg, outFileExport, o)
                         del cbc_WEL
                         outFileExport.close()
                         # plot time series results as plot
@@ -1402,7 +1419,7 @@ try:
                         MM[:,index.get('iuzthick')],
                         MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('iSAT')],
                         cbc_RCH[:,i,j,0],
-                        h_MF_m[:,i,j,:], MM[:,index.get('iHEADScorr')], h_satflow, obs_h_tmp, obs_S_tmp,
+                        h_MF_m[:,i,j,:], MM[:,index.get('iHEADScorr')], h_satflow, obs_h_tmp, obs_S,
                         _Sm[gridSOIL[i,j]-1],
                         _Sr[gridSOIL[i,j]-1],
                         cMF.hnoflo,
@@ -1505,18 +1522,6 @@ try:
                             plt_titleBAL.append(plt_title)
                             del plt_title
                         del obs_h, obs_S
-            # write PEST smp file with MM output
-            inputFile = MMproc.readFile(MM_ws,inputObs_fn)
-            ind = 0
-            for i in range(len(inputFile)):
-                line = inputFile[i].split()
-                name = line[0]
-                for j in cMF.MM_PROCESS.smMMname:
-                    if j == name:
-                        for l in cMF.MM_PROCESS.smMM[ind]:
-                            outPESTsmMM.write(l)
-                ind += 1
-            outPESTsmMM.close()
             flxmax = axefact*float(np.ceil(np.asarray(flxlst).max()))
             flxmin = axefact*float(np.floor(np.asarray(flxlst).min()))
             for l, (lst, fn, title, fn_txt, InOut) in enumerate(zip(flxlst, plt_exportBAL_fn, plt_titleBAL, plt_export_txt_fn, InOut_tmp)):
@@ -1748,17 +1753,6 @@ except StandardError, e:  #Exception
     raise SystemExit('\nFATAL ERROR!\nMM run interruption in the export phase!\nError description:\n%s' % traceback.print_exc(file=sys.stdout))
 #    traceback.print_exc(limit=1, file=sys.stdout)
 
-if verbose == 0:
-    sys.stdout = s
-    report.close()
-    print '\nMARMITES terminated!\n%s\n' % mpl.dates.datetime.datetime.today().isoformat()[:19]
-    del s
-    try:
-        h5_MM.close()
-        h5_MF.close()
-    except:
-        pass
-
 # final report of successful run
 print '\n##############\nMARMITES executed successfully!\n%s' % mpl.dates.datetime.datetime.today().isoformat()[:19]
 if MMsoil_yn > 0:
@@ -1784,3 +1778,14 @@ if MF_yn == 1:
 print ('Export: %s minute(s) and %.1f second(s)') % (str(int(durationExport*24.0*60.0)), (durationExport*24.0*60.0-int(durationExport*24.0*60.0))*60)
 print ('Total: %s minute(s) and %.1f second(s)') % (str(int(durationTotal*24.0*60.0)), (durationTotal*24.0*60.0-int(durationTotal*24.0*60.0))*60)
 print ('\nOutput written in folder: \n%s\n##############\n') % MM_ws
+
+if verbose == 0:
+    sys.stdout = s
+    report.close()
+    print '\nMARMITES terminated!\n%s\n' % mpl.dates.datetime.datetime.today().isoformat()[:19]
+    del s
+    try:
+        h5_MM.close()
+        h5_MF.close()
+    except:
+        pass
