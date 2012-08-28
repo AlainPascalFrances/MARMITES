@@ -599,7 +599,7 @@ class PROCESS:
         self.smMM.append([])
         len_smMM = len(self.smMM)
         for t in range(len(inputDate)):
-            out_date = mpl.dates.num2date(inputDate[t]).isoformat()[:10]
+            out_date = mpl.dates.num2date(inputDate[t]).strftime("%d/%m/%Y")
             for l in range(_nslmax):
                 try:
                     obs_S_tmp = obs_S[l,t]
@@ -618,7 +618,7 @@ class PROCESS:
         self.smMM.append([])
         len_smMM = len(self.smMM)
         for t in range(len(inputDate)):
-            date = mpl.dates.num2date(inputDate[t]).isoformat()[:10]
+            date = mpl.dates.num2date(inputDate[t]).strftime("%d/%m/%Y")
             try:
                 if obs_h[t] <> self.hnoflo:
                     outPESTheads.write(obsname.ljust(10,' ')+ date.ljust(10,' ')+ ' 00:00:00 ' + str(obs_h[t]).ljust(10,' ') + '\n')

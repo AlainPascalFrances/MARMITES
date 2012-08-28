@@ -320,12 +320,8 @@ try:
                     obs_h_tmp = obs_h[0,:]
                 else:
                     obs_h_tmp = []
-                if obs_S != []:
-                    obs_S_tmp = obs_S
-                else:
-                    obs_S_tmp = []
                 # Export time series observations as ASCII file for PEST
-                cMF.MM_PROCESS.ExportResultsPEST(i, j, cMF.inputDate, _nslmax, obs_h_tmp, obs_S_tmp, outPESTheads, outPESTsm, o)
+                cMF.MM_PROCESS.ExportResultsPEST(i, j, cMF.inputDate, _nslmax, obs_h_tmp, obs_S, outPESTheads, outPESTsm, o)
                 del obs_h, obs_S
     del obs
     outPESTheads.close()
