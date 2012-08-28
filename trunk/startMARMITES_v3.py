@@ -993,6 +993,7 @@ try:
                 flxlbl.append(i)
                 i = 'i'+i
                 flx_tmp1 = 0.0
+                array_tmp2 = np.zeros((sum(cMF.perlen)), dtype = np.float)
                 for l in range(_nslmax):
                     array_tmp = h5_MM['MM_S'][:,:,:,l,index_S.get(i)]
                     flx_tmp = np.ma.masked_values(array_tmp, cMF.hnoflo, atol = 0.09)
@@ -1000,10 +1001,11 @@ try:
                     flxmin_d.append(np.ma.min(flx_tmp))
                     flx_tmp1 += flx_tmp.sum()
                     array_tmp1 = np.sum(np.ma.masked_values(array_tmp, cMF.hnoflo, atol = 0.09), axis = 1)
-                    array_tmp1 = np.sum(np.ma.masked_values(array_tmp, cMF.hnoflo, atol = 0.09), axis = 1)
+                    array_tmp2 += np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)
+                del flx_tmp, array_tmp, array_tmp1
                 flxlst.append(facTim*flx_tmp1/sum(cMF.perlen)/sum(ncell_MM))
-                flx_Cat_TS.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
-                del flx_tmp, flx_tmp1, array_tmp, array_tmp1
+                flx_Cat_TS.append(array_tmp2/sum(ncell_MM))
+                del flx_tmp1, array_tmp2
             for i in flxlbl2:
                 flxlbl_CATCH.append(i)
                 flxlbl.append(i)
@@ -1347,7 +1349,7 @@ try:
                         else:
                             obs_S_tmp = []
                         if cMF.wel_yn == 1:
-                            cbc_WEL = -h5_MF['WEL_d'][:,i,j,0]
+                            cbc_WEL = -np.sum(np.ma.masked_values(h5_MF['WEL_d'][:,i,j,:], cMF.hnoflo, atol = 0.09), axis = 1)
                         else:
                             cbc_WEL = 0
                         if irr_yn == 0:
@@ -1737,32 +1739,6 @@ try:
     durationExport=(timeendExport-timestartExport)
     durationTotal = (timeendExport-timestart)
 
-    # final report of successful run
-    print '\n##############\nMARMITES executed successfully!\n%s' % mpl.dates.datetime.datetime.today().isoformat()[:19]
-    if MMsoil_yn > 0:
-        print '\nLOOP %d/%d' % (LOOP-1, ccnum)
-        for txt in msg_end_loop:
-            print txt
-    print '\n%d stress periods, %d days' % (cMF.nper,sum(cMF.perlen))
-    print '%d rows x %d cols (%d cells) x %d layers' % (cMF.nrow, cMF.ncol, cMF.nrow*cMF.ncol, cMF.nlay)
-    print '%d MM active cells in total' % (sum(ncell_MM))
-    l = 1
-    for n in ncell_MF:
-        print  'LAYER %d' % l
-        print '%d MF active cells' % (n)
-        print '%d MM active cells' % (ncell_MM[l-1])
-        l += 1
-    print ('\nApproximate run times:')
-    if MMsurf_yn > 0:
-        print ('MARMITES surface: %s minute(s) and %.1f second(s)') % (str(int(durationMMsurf*24.0*60.0)), (durationMMsurf*24.0*60.0-int(durationMMsurf*24.0*60.0))*60)
-    if MMsoil_yn > 0:
-        print ('MARMITES soil zone: %s minute(s) and %.1f second(s)') % (str(int(durationMMsoil*24.0*60.0)), (durationMMsoil*24.0*60.0-int(durationMMsoil*24.0*60.0))*60)
-    if MF_yn == 1:
-        print ('MODFLOW: %s minute(s) and %.1f second(s)') % (str(int(durationMF*24.0*60.0)), (durationMF*24.0*60.0-int(durationMF*24.0*60.0))*60)
-    print ('Export: %s minute(s) and %.1f second(s)') % (str(int(durationExport*24.0*60.0)), (durationExport*24.0*60.0-int(durationExport*24.0*60.0))*60)
-    print ('Total: %s minute(s) and %.1f second(s)') % (str(int(durationTotal*24.0*60.0)), (durationTotal*24.0*60.0-int(durationTotal*24.0*60.0))*60)
-    print ('\nOutput written in folder: \n%s\n##############\n') % MM_ws
-
 except StandardError, e:  #Exception
     try:
         h5_MM.close()
@@ -1782,3 +1758,29 @@ if verbose == 0:
         h5_MF.close()
     except:
         pass
+
+# final report of successful run
+print '\n##############\nMARMITES executed successfully!\n%s' % mpl.dates.datetime.datetime.today().isoformat()[:19]
+if MMsoil_yn > 0:
+    print '\nLOOP %d/%d' % (LOOP-1, ccnum)
+    for txt in msg_end_loop:
+        print txt
+print '\n%d stress periods, %d days' % (cMF.nper,sum(cMF.perlen))
+print '%d rows x %d cols (%d cells) x %d layers' % (cMF.nrow, cMF.ncol, cMF.nrow*cMF.ncol, cMF.nlay)
+print '%d MM active cells in total' % (sum(ncell_MM))
+l = 1
+for n in ncell_MF:
+    print  'LAYER %d' % l
+    print '%d MF active cells' % (n)
+    print '%d MM active cells' % (ncell_MM[l-1])
+    l += 1
+print ('\nApproximate run times:')
+if MMsurf_yn > 0:
+    print ('MARMITES surface: %s minute(s) and %.1f second(s)') % (str(int(durationMMsurf*24.0*60.0)), (durationMMsurf*24.0*60.0-int(durationMMsurf*24.0*60.0))*60)
+if MMsoil_yn > 0:
+    print ('MARMITES soil zone: %s minute(s) and %.1f second(s)') % (str(int(durationMMsoil*24.0*60.0)), (durationMMsoil*24.0*60.0-int(durationMMsoil*24.0*60.0))*60)
+if MF_yn == 1:
+    print ('MODFLOW: %s minute(s) and %.1f second(s)') % (str(int(durationMF*24.0*60.0)), (durationMF*24.0*60.0-int(durationMF*24.0*60.0))*60)
+print ('Export: %s minute(s) and %.1f second(s)') % (str(int(durationExport*24.0*60.0)), (durationExport*24.0*60.0-int(durationExport*24.0*60.0))*60)
+print ('Total: %s minute(s) and %.1f second(s)') % (str(int(durationTotal*24.0*60.0)), (durationTotal*24.0*60.0-int(durationTotal*24.0*60.0))*60)
+print ('\nOutput written in folder: \n%s\n##############\n') % MM_ws
