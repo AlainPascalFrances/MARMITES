@@ -399,7 +399,7 @@ class PROCESS:
                 raise SystemExit('\nFATAL ERROR!\nThe sum of the soil layers proportion of %s is <1!\nCorrect your soil data input!\n' % nam_soil[z])
 
         return nsl[1:len(nsl)], nam_soil, st, slprop, Sm, Sfc, Sr, Si, Ks
-        del nsl, nam_soil, st, facETg, slprop, Sm, Sfc, Sr, Si, Ks
+        del nsl, nam_soil, st, slprop, Sm, Sfc, Sr, Si, Ks
 
     ######################
 
@@ -444,15 +444,17 @@ class PROCESS:
             #  read obs time series
             obsh_fn = os.path.join(self.MM_ws, inputObsHEADS_fn + '_' + name +'.txt')
             if os.path.exists(obsh_fn):
-                obs_h = self.verifObs(inputDate, obsh_fn, obsnam = name)
+                obs_h, obs_h_yn = self.verifObs(inputDate, obsh_fn, obsnam = name)
             else:
                 obs_h = []
+                obs_h_yn = 0
             obssm_fn=os.path.join(self.MM_ws, inputObsSM_fn + '_' + name + '.txt')
             if os.path.exists(obssm_fn):
-                obs_sm = self.verifObs(inputDate, obssm_fn, _nslmax, obsnam = name)
+                obs_sm, obs_sm_yn = self.verifObs(inputDate, obssm_fn, _nslmax, obsnam = name)
             else:
                 obs_sm = []
-            obs[name] = {'x':x,'y':y,'i': i, 'j': j, 'lay': lay, 'hi':hi, 'h0':h0, 'RC':RC, 'STO':STO, 'outpathname':os.path.join(self.MM_ws,'_MM_0'+name+'.txt'), 'obs_h':obs_h, 'obs_S':obs_sm}
+                obs_sm_yn = 0
+            obs[name] = {'x':x,'y':y,'i': i, 'j': j, 'lay': lay, 'hi':hi, 'h0':h0, 'RC':RC, 'STO':STO, 'outpathname':os.path.join(self.MM_ws,'_MM_0'+name+'.txt'), 'obs_h':obs_h, 'obs_h_yn':obs_h_yn, 'obs_S':obs_sm, 'obs_sm_yn':obs_sm_yn}
 
         return obs
         del inputObs_fn, inputObsHEADS_fn, inputObsSM_fn, inputDate, _nslmax
@@ -478,6 +480,7 @@ class PROCESS:
             except:
                 raise ValueError, '\nFATAL ERROR!\nFormat of observation file uncorrect!\n%s' % filename
             obsOutput = np.ones([len(obsValue),len(inputDate)], dtype=float)*self.hnoflo
+            obs_yn = 0
             if (obsDate[len(obsDate)-1] < inputDate[0]) or (obsDate[0] > inputDate[len(inputDate)-1]):
                 obsOutput = []
                 print '\nObservations of file %s outside the modeling period!' % filename
@@ -493,6 +496,7 @@ class PROCESS:
                                 if inputDate[i]==obsDate[j]:
                                     obsOutput[l,i]=obsValue[l][j]
                                     j += 1
+                                    obs_yn = 1
                                 else:
                                     obsOutput[l,i]=self.hnoflo
                             else:
@@ -501,7 +505,7 @@ class PROCESS:
                         obsOutput[l,:] = np.ones([len(inputDate)])*self.hnoflo
         else:
             obsOutput = []
-        return obsOutput
+        return obsOutput, obs_yn
         del inputDate, obsOutput
 
     ######################
@@ -566,9 +570,11 @@ class PROCESS:
                 MBout += str(results_S[t,l,index_S.get('iMB_l')]) + ','
                 try:
                     Smeasout += str(obs_S[l,t]) + ','
+                    obs_S_tmp = obs_S[l,t]
                 except:
                     Smeasout += str(self.hnoflo) + ','
-                if results_S[t,l,index_S.get('iSsoil_pc')] > 0.0:
+                    obs_S_tmp = -1.0
+                if results_S[t,l,index_S.get('iSsoil_pc')] > 0.0 and obs_S_tmp > 0.0:
                     self.smMM[len_smMM-1].append((obsname+'SM_l'+str(l+1)).ljust(10,' ')+ out_date.ljust(10,' ')+ ' 00:00:00 ' + str(results_S[t,l,index_S.get('iSsoil_pc')]).ljust(10,' ') + '\n')
             try:
                 obs_h_tmp = obs_h[t]

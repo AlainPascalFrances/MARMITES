@@ -890,7 +890,7 @@ try:
                             for t,col in enumerate(cbc_RCH[:,row,:,l]):
                                 try:
                                     if plt_out_obs == 1:
-                                        obs['PzRCHmax'] = {'x':999,'y':999, 'i': row, 'j': list(col).index(RCHmax), 'lay': l, 'hi':999, 'h0':999, 'RC':999, 'STO':999, 'outpathname':os.path.join(MM_ws,'_MM_0PzRCHmax.txt'), 'obs_h':[], 'obs_S':[]}
+                                        obs['PzRCHmax'] = {'x':999,'y':999, 'i': row, 'j': list(col).index(RCHmax), 'lay': l, 'hi':999, 'h0':999, 'RC':999, 'STO':999, 'outpathname':os.path.join(MM_ws,'_MM_0PzRCHmax.txt'), 'obs_h':[], 'obs_h_yn':0, 'obs_S':[], 'obs_sm_yn':0}
                                     print 'row %d, col %d and day %d (%s)' % (row + 1, list(col).index(RCHmax) + 1, t, mpl.dates.num2date(cMF.inputDate[t] + 1.0).isoformat()[:10])
                                     tRCHmax = t
                                 except:
@@ -1035,7 +1035,7 @@ try:
                                     print 'row %d, col %d and day %d' % (row + 1, list(col).index(Tg_min) + 1, t + 1)
                                     tTgmin = t
                                     if plt_out_obs == 1:
-                                        obs['PzTgmin'] = {'x':999,'y':999, 'i': row, 'j': list(col).index(Tg_min), 'lay': 0, 'hi':999, 'h0':999, 'RC':999, 'STO':999, 'outpathname':os.path.join(MM_ws,'_MM_0PzTgmin.txt'), 'obs_h':[], 'obs_S':[]}
+                                        obs['PzTgmin'] = {'x':999,'y':999, 'i': row, 'j': list(col).index(Tg_min), 'lay': 0, 'hi':999, 'h0':999, 'RC':999, 'STO':999, 'outpathname':os.path.join(MM_ws,'_MM_0PzTgmin.txt'), 'obs_h':[], 'obs_h_yn':0, 'obs_S':[], 'obs_sm_yn':0}
                                         try:
                                             hmin.append(hmin[0])
                                         except:
@@ -1322,7 +1322,8 @@ try:
                 l = obs.get(o)['lay']
                 obs_h = obs.get(o)['obs_h']
                 obs_S = obs.get(o)['obs_S']
-                cMF.MM_PROCESS.smMMname.append(o)
+                if obs.get(o)['obs_sm_yn'] == 1:
+                    cMF.MM_PROCESS.smMMname.append(o)
                 outFileExport = open(obs.get(o)['outpathname'], 'w')
                 outFileExport.write(header)
                 SOILzone_tmp = gridSOIL[i,j]-1
