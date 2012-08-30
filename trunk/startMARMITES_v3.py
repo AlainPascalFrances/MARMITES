@@ -1330,7 +1330,10 @@ try:
             MMplot.plotGWbudget(flxlst = flxlst, flxlbl = flxlbl, colors_flx = colors_flx, plt_export_fn = plt_export_fn, plt_title = plt_title, fluxmax = cbcmax_d, fluxmin = cbcmin_d, unit = plt_WB_unit)
             del flxlst
 
+        # #################################################
+        # EXPORT AT OBSERVATION POINTS
         # exporting MM time series results to ASCII files and plots at observations cells
+        # #################################################
         if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
             h5_MM = h5py.File(h5_MM_fn, 'r')
             h5_MF = h5py.File(cMF.h5_MF_fn, 'r')

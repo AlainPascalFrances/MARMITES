@@ -577,7 +577,7 @@ class PROCESS:
             except:
                 obs_h_tmp = self.hnoflo
             out1 = '%d,%d,%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,' % (SP_d[t], index_veg[t], results[t,index.get('iRF')], results[t,index.get('iE0')],results[t,index.get('iPT')],results[t,index.get('iPE')],results[t,index.get('iRFe')],results[t,index.get('iI')])
-            if type(WEL) == np.ndarray:
+            if type(WEL) == np.ndarray or type(WEL) == np.ma.core.MaskedArray:
                 WEL_tmp = WEL[t]
             else:
                 WEL_tmp = 0.0
