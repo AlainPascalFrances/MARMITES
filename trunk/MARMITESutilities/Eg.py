@@ -92,7 +92,7 @@ plt.xlabel('Eg/PE')
 plt.ylabel('dtwt/ext_d')
 ax5.set_ylim(ax5.get_ylim()[::-1])
 
-#plt.show()
+plt.show()
 img_path = 'Eg_function'
 plt.savefig(img_path,dpi=300)
 print 'Plot printed:\n%s' % img_path

@@ -231,13 +231,6 @@ class SOIL:
         Tg_tmp = 0.0
         # soil layers
         for l in range(nsl):
-            # Rp
-            if l < (nsl-1):
-                if SAT[l+1] == False:
-                    Rp_tmp[l] = perc(Ssoil_tmp[l],Sm[l]*Tl[l],Sfc[l]*Tl[l],Ks[l], Ssoil_tmp[l+1], Sm[l+1]*Tl[l+1], i, j, n, dt)
-            elif EXF == 0.0:
-                Rp_tmp[l] = perc(Ssoil_tmp[l],Sm[l]*Tl[l],Sfc[l]*Tl[l], Ks[l],0.0,1.0E6, i, j, n, dt)
-            Ssoil_tmp[l] -= Rp_tmp[l]*dt
             if SAT[l] == False:
                 # Esoil
                 if Ssurf_tmp == 0.0:
@@ -267,6 +260,13 @@ class SOIL:
                                 Tg_tmp_Zr[l,v] = evp(Sm[l]*Tl[l],Sm[l]*Tl[l], Sr[l]*Tl[l], PT[v], i, j, n, dt)
                                 Tg_tmp += Tg_tmp_Zr[l,v]*VEGarea[v]*0.01
                                 PT[v] -= Tg_tmp_Zr[l,v]
+            # Rp
+            if l < (nsl-1):
+                if SAT[l+1] == False:
+                    Rp_tmp[l] = perc(Ssoil_tmp[l],Sm[l]*Tl[l],Sfc[l]*Tl[l],Ks[l], Ssoil_tmp[l+1], Sm[l+1]*Tl[l+1], i, j, n, dt)
+            elif EXF == 0.0:
+                Rp_tmp[l] = perc(Ssoil_tmp[l],Sm[l]*Tl[l],Sfc[l]*Tl[l], Ks[l],0.0,1.0E6, i, j, n, dt)
+            Ssoil_tmp[l] -= Rp_tmp[l]*dt
 
         for l in range(nsl):
             Ssoil_pc_tmp[l] = Ssoil_tmp[l]/Tl[l]
