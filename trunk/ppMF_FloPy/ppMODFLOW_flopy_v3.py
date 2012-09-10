@@ -1335,10 +1335,8 @@ class MF():
         h4MM = np.zeros((len(self.perlen),self.nrow,self.ncol), dtype = np.float)
         h_MF = h5_MF['heads'][:,:,:,:]
         iuzfbnd = np.asarray(self.iuzfbnd)
-        for l in range(self.nlay):
-            for t in range(len(self.perlen)):
-                mask = np.ma.make_mask(iuzfbnd == l+1)
-                h4MM[t,:,:] += h_MF[t,:,:,l]*mask
+        for t in range(len(self.perlen)):
+            h4MM[t,:,:] = h_MF[t,:,:,0]
         del h_MF
         h5_MF.create_dataset(name = 'heads4MM', data = h4MM)
         exf4MM = np.zeros((len(self.perlen),self.nrow,self.ncol), dtype = np.float)

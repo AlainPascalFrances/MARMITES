@@ -838,10 +838,10 @@ try:
             Vmin.append(np.ma.min(V[L]))
         Vmax = max(Vmax) #float(np.ceil(np.ma.max(V)))
         Vmin = min(Vmin) #float(np.floor(np.ma.min(V)))
-        Vmin, Vmax, ctrs_tmp = minmax(Vmin, Vmax, ctrsMF)
+        Vmin_tmp, Vmax_tmp, ctrs_tmp = minmax(Vmin, Vmax, ctrsMF)
         # TODO JD and Date are not correct since h_diff_n is # stress periods and not # of days (same in the plots of MF and MM)
-        MMplot.plotLAYER(SP = h_diff_n, Date = cMF.inputDate[h_diff_n], JD = cMF.JD[h_diff_n], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = ('(m)'), msg = 'no value', plt_title = ('_HEADSmaxdiff_ConvLoop'), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrangeMF, Vmax = Vmax, Vmin = Vmin, contours = ctrs_tmp, ntick = ntick)
-        del h_diff_n
+        MMplot.plotLAYER(SP = h_diff_n, Date = cMF.inputDate[h_diff_n], JD = cMF.JD[h_diff_n], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = ('(m)'), msg = 'no value', plt_title = ('_HEADSmaxdiff_ConvLoop'), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax_tmp - Vmin_tmp)/nrangeMF, Vmax = Vmax_tmp, Vmin = Vmin_tmp, contours = ctrs_tmp, ntick = ntick)
+        del h_diff_n, Vmin, Vmax, Vmin_tmp, Vmax_tmp
 
     # exporting sm computed by MM for PEST (smp format)
     if os.path.exists(h5_MM_fn):
@@ -947,6 +947,21 @@ try:
             DRNmin = cbcmin_d = -1
             hmaxMF = -9999.9
             hminMF = 9999.9
+
+        if os.path.exists(h5_MM_fn):
+            try:
+                h5_MM = h5py.File(h5_MM_fn, 'r')
+                # h
+                headscorr_m = np.ma.masked_values(np.ma.masked_values(h5_MM['MM'][:,:,:,19], cMF.hnoflo, atol = 0.09), cMF.hdry, atol = 1E+25)
+                hcorrmax = float(np.ceil(np.ma.max(headscorr_m.flatten())))
+                hcorrmin = float(np.floor(np.ma.min(headscorr_m.flatten())))
+                h5_MM.close()
+                del headscorr_m
+            except:
+                raise SystemExit('\nFATAL ERROR!\nInvalid MARMITES HDF5 file. Run MARMITES and/or MODFLOW again.')
+        else:
+            hcorrmax = -9999.9
+            hcorrmin = 9999.9
 
         if obs != None:
             x = 0
@@ -1568,6 +1583,7 @@ try:
         if plt_out == 1 and os.path.exists(cMF.h5_MF_fn):
             # plot heads (grid + contours), DRN, etc... at specified SP
             h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
+            h5_MM = h5py.File(h5_MM_fn, 'r')
             # plot for selected time step
             t = 0
             for SP in SP_lst:
@@ -1575,15 +1591,31 @@ try:
                 V = []
                 for L in range(cMF.nlay):
                     V.append(h_MF_m[SP,:,:,L])
-                hminMF, hmaxMF, ctrs_tmp = minmax(hminMF, hmaxMF, ctrsMF)
-                MMplot.plotLAYER(SP = SP, Date = Date_lst[t], JD = JD_lst[t], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation (m)', msg = 'DRY', plt_title = 'MF_HEADS', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (hmaxMF - hminMF)/nrangeMF, contours = ctrs_tmp, Vmax = hmaxMF, Vmin = hminMF, ntick = ntick)
+                hmin_tmp, hmax_tmp, ctrs_tmp = minmax(hminMF, hmaxMF, ctrsMF)
+                MMplot.plotLAYER(SP = SP, Date = Date_lst[t], JD = JD_lst[t], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation (m)', msg = 'DRY', plt_title = 'MF_HEADS', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (hmax_tmp - hmin_tmp)/nrangeMF, contours = ctrs_tmp, Vmax = hmax_tmp, Vmin = hmin_tmp, ntick = ntick)
+                del hmin_tmp, hmax_tmp, ctrs_tmp
                 # plot GWTD [m]
                 for L in range(cMF.nlay):
                     V[L] = TopSoil-V[L]
                 Vmax = np.ma.max(V[0]) #float(np.ceil(np.ma.max(V)))
                 Vmin = np.ma.min(V[0]) #float(np.floor(np.ma.min(V)))
-                Vmin, Vmax, ctrs_tmp = minmax(Vmin, Vmax, ctrsMF)
-                MMplot.plotLAYER(SP = SP, Date = Date_lst[t], JD = JD_lst[t], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'depth to groundwater table (m)', msg = 'DRY', plt_title = 'MF_GWTD', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrangeMF, contours = ctrs_tmp, Vmax = Vmax, Vmin = Vmin, ntick = ntick)
+                Vmin_tmp, Vmax_tmp, ctrs_tmp = minmax(Vmin, Vmax, ctrsMF)
+                MMplot.plotLAYER(SP = SP, Date = Date_lst[t], JD = JD_lst[t], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'depth to groundwater table (m)', msg = 'DRY', plt_title = 'MF_GWTD', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax_tmp - Vmin_tmp)/nrangeMF, contours = ctrs_tmp, Vmax = Vmax_tmp, Vmin = Vmin_tmp, ntick = ntick)
+                del Vmin, Vmax, Vmin_tmp, Vmax_tmp, ctrs_tmp
+                # plot heads corrigidas [m]
+                headscorr_m = []
+                headscorr_m.append(np.ma.masked_array(h5_MM['MM'][SP,:,:,19], mask[0]))
+                hcorrmin_tmp, hcorrmax_tmp, ctrs_tmp = minmax(hcorrmin, hcorrmax, ctrsMF)
+                MMplot.plotLAYER(SP = SP, Date = Date_lst[t], JD = JD_lst[t], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = headscorr_m,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation (m)', msg = 'DRY', plt_title = 'MF_HEADScorr', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (hcorrmax_tmp - hcorrmin_tmp)/nrangeMF, contours = ctrs_tmp, Vmax = hcorrmax_tmp, Vmin = hcorrmin_tmp, ntick = ntick)
+                del hcorrmin_tmp, hcorrmax_tmp, ctrs_tmp
+                # plot GWTD correct [m]
+                GWTDcorr = []
+                GWTDcorr.append(TopSoil-headscorr_m[0])
+                Vmax = np.ma.max(GWTDcorr) #float(np.ceil(np.ma.max(V)))
+                Vmin = np.ma.min(GWTDcorr) #float(np.floor(np.ma.min(V)))
+                Vmin_tmp, Vmax_tmp, ctrs_tmp = minmax(Vmin, Vmax, ctrsMF)
+                MMplot.plotLAYER(SP = SP, Date = Date_lst[t], JD = JD_lst[t], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = GWTDcorr,  cmap = plt.cm.Blues, CBlabel = 'depth to groundwater table (m)', msg = 'DRY', plt_title = 'MF_GWTDcorr', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax_tmp - Vmin_tmp)/nrangeMF, contours = ctrs_tmp, Vmax = Vmax_tmp, Vmin = Vmin_tmp, ntick = ntick)
+                del Vmax, Vmin, Vmax_tmp, Vmin_tmp, ctrs_tmp, headscorr_m
                 # plot GW drainage [mm]
                 if cMF.drn_yn == 1:
                     V = []
@@ -1628,8 +1660,24 @@ try:
                 V[L] = TopSoil-V[L]
             Vmax = np.ma.max(V[0]) #float(np.ceil(np.ma.max(V)))
             Vmin = np.ma.min(V[0]) #float(np.floor(np.ma.min(V)))
-            Vmin, Vmax, ctrs_tmp = minmax(Vmin, Vmax, ctrsMF)
-            MMplot.plotLAYER(SP = SP, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'depth to groundwater table (m)', msg = 'DRY', plt_title = 'MF_average_GWTD', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrangeMF, contours = ctrs_tmp, Vmax = Vmax, Vmin = Vmin, ntick = ntick)
+            Vmin_tmp, Vmax_tmp, ctrs_tmp = minmax(Vmin, Vmax, ctrsMF)
+            MMplot.plotLAYER(SP = SP, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'depth to groundwater table (m)', msg = 'DRY', plt_title = 'MF_average_GWTD', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax_tmp - Vmin_tmp)/nrangeMF, contours = ctrs_tmp, Vmax = Vmax_tmp, Vmin = Vmin_tmp, ntick = ntick)
+            del Vmax, Vmin, Vmax_tmp, Vmin_tmp, ctrs_tmp
+
+            # plot heads corrigidas [m]
+            headscorr_m = []
+            headscorr_m.append(np.ma.masked_array(np.sum(h5_MM['MM'][:,:,:,19], axis = 0)/sum(cMF.perlen), mask[0]))
+            hcorrmin_tmp, hcorrmax_tmp, ctrs_tmp = minmax(hcorrmin, hcorrmax, ctrsMF)
+            MMplot.plotLAYER(SP = SP, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = headscorr_m,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation (m)', msg = 'DRY', plt_title = 'MF_average_HEADScorr', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (hcorrmax_tmp - hcorrmin_tmp)/nrangeMF, contours = ctrs_tmp, Vmax = hcorrmax_tmp, Vmin = hcorrmin_tmp, ntick = ntick)
+            del hcorrmin_tmp, hcorrmax_tmp, ctrs_tmp
+            # plot GWTD correct [m]
+            GWTDcorr = []
+            GWTDcorr.append(TopSoil-headscorr_m[0])
+            Vmax = np.ma.max(GWTDcorr) #float(np.ceil(np.ma.max(V)))
+            Vmin = np.ma.min(GWTDcorr) #float(np.floor(np.ma.min(V)))
+            Vmin_tmp, Vmax_tmp, ctrs_tmp = minmax(Vmin, Vmax, ctrsMF)
+            MMplot.plotLAYER(SP = SP, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = GWTDcorr,  cmap = plt.cm.Blues, CBlabel = 'depth to groundwater table (m)', msg = 'DRY', plt_title = 'MF_average_GWTDcorr', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax_tmp - Vmin_tmp)/nrangeMF, contours = ctrs_tmp, Vmax = Vmax_tmp, Vmin = Vmin_tmp, ntick = ntick)
+            del Vmax, Vmin, Vmax_tmp, Vmin_tmp, ctrs_tmp, headscorr_m
             # plot GW drainage [mm]
             if cMF.drn_yn == 1:
                 V = []
@@ -1661,7 +1709,6 @@ try:
             if cMF.drn_yn == 1:
                 del cbc_DRN, DRNmax_tmp, DRNmin_tmp
             del RCHmax_tmp, RCHmin_tmp
-
         # plot MM output
         if plt_out == 1 and os.path.exists(h5_MM_fn):
             flxlbl = ['RF', 'RFe', 'I', 'EXF', 'dSsurf', 'Ro', 'Esurf', 'Eg', 'Tg', 'ETg', 'ETsoil', 'dSsoil']
