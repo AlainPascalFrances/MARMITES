@@ -1603,8 +1603,7 @@ try:
                 MMplot.plotLAYER(SP = SP, Date = Date_lst[t], JD = JD_lst[t], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'depth to groundwater table (m)', msg = 'DRY', plt_title = 'MF_GWTD', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax_tmp - Vmin_tmp)/nrangeMF, contours = ctrs_tmp, Vmax = Vmax_tmp, Vmin = Vmin_tmp, ntick = ntick)
                 del Vmin, Vmax, Vmin_tmp, Vmax_tmp, ctrs_tmp
                 # plot heads corrigidas [m]
-                headscorr_m = []
-                headscorr_m.append(np.ma.masked_array(h5_MM['MM'][SP,:,:,19], mask[0]))
+                headscorr_m = [np.ma.masked_values(np.ma.masked_values(h5_MM['MM'][SP,:,:,19], cMF.hnoflo, atol = 0.09), cMF.hdry, atol = 1E+25)]
                 hcorrmin_tmp, hcorrmax_tmp, ctrs_tmp = minmax(hcorrmin, hcorrmax, ctrsMF)
                 MMplot.plotLAYER(SP = SP, Date = Date_lst[t], JD = JD_lst[t], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = headscorr_m,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation (m)', msg = 'DRY', plt_title = 'MF_HEADScorr', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (hcorrmax_tmp - hcorrmin_tmp)/nrangeMF, contours = ctrs_tmp, Vmax = hcorrmax_tmp, Vmin = hcorrmin_tmp, ntick = ntick)
                 del hcorrmin_tmp, hcorrmax_tmp, ctrs_tmp
@@ -1663,10 +1662,8 @@ try:
             Vmin_tmp, Vmax_tmp, ctrs_tmp = minmax(Vmin, Vmax, ctrsMF)
             MMplot.plotLAYER(SP = SP, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'depth to groundwater table (m)', msg = 'DRY', plt_title = 'MF_average_GWTD', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax_tmp - Vmin_tmp)/nrangeMF, contours = ctrs_tmp, Vmax = Vmax_tmp, Vmin = Vmin_tmp, ntick = ntick)
             del Vmax, Vmin, Vmax_tmp, Vmin_tmp, ctrs_tmp
-
             # plot heads corrigidas [m]
-            headscorr_m = []
-            headscorr_m.append(np.ma.masked_array(np.sum(h5_MM['MM'][:,:,:,19], axis = 0)/sum(cMF.perlen), mask[0]))
+            headscorr_m = [np.ma.masked_values(np.ma.masked_values(h5_MM['MM'][SP,:,:,19], cMF.hnoflo, atol = 0.09), cMF.hdry, atol = 1E+25)]
             hcorrmin_tmp, hcorrmax_tmp, ctrs_tmp = minmax(hcorrmin, hcorrmax, ctrsMF)
             MMplot.plotLAYER(SP = SP, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = headscorr_m,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation (m)', msg = 'DRY', plt_title = 'MF_average_HEADScorr', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (hcorrmax_tmp - hcorrmin_tmp)/nrangeMF, contours = ctrs_tmp, Vmax = hcorrmax_tmp, Vmin = hcorrmin_tmp, ntick = ntick)
             del hcorrmin_tmp, hcorrmax_tmp, ctrs_tmp

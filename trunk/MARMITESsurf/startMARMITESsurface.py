@@ -511,7 +511,7 @@ def MMsurf(pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, pathMMw
             if os.path.exists(FIELD_crop_schedule_fn[f]):
                 FIELD_crop_schedule.append(np.loadtxt(FIELD_crop_schedule_fn[f], skiprows = 1, dtype = str))
             else:
-                raise SystemExit("\nFATAL ERROR!\nThe input file [" + FIELD_crop_schedule_fn + "] doesn't exist, verify name and path!")
+                raise SystemExit("\nFATAL ERROR!\nThe input file [" + FIELD_crop_schedule_fn[f] + "] doesn't exist, verify name and path!")
         print "\nImporting FIELD/CROP schedule files..."
         try:
             for f in range(NFIELD):

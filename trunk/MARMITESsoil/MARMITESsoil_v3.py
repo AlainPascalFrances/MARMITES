@@ -454,7 +454,6 @@ class SOIL:
                         Ks         = _Ks[SOILzone_tmp]
                         Ssurf_max     = 1000*1.12*gridSsurfhmax[i,j]*gridSsurfw[i,j]/cMF.delr[j]
                         Ssurf_ratio   = 1.12*gridSsurfw[i,j]/cMF.delr[j]
-                        HEADS      = h_MF_tmp
                         EXF        = -exf_MF_tmp
                         RF         = RF_tmp
                         E0         = E0_zonesSP_tmp
@@ -506,7 +505,7 @@ class SOIL:
                         #Actual evapotranspiration from surface
                         Esurf = np.zeros([Ttotal], dtype = np.float)
                         # HEADS
-                        HEADS_corr = np.zeros([Ttotal], dtype = np.float)
+                        HEADS_MM = np.zeros([Ttotal], dtype = np.float)
                         # dtwt
                         dtwt = np.zeros([Ttotal], dtype = np.float)
                         # uzthick
@@ -557,29 +556,29 @@ class SOIL:
                             INTER_tot[t]  = RF[t] - RFe_tot[t]
                             PE_tot[t]     = PE[t]*SOILarea*0.01
                             # handle drycell
-                            if HEADS[t] > (cMF.hdry-1E3):
-                                HEADS_tmp = botm_l0[i,j]*1000.0
+                            if h_MF_tmp[t] > (cMF.hdry-1E3):
+                                HEADS_corr = botm_l0[i,j]*1000.0
                             else:
-                                HEADS_tmp = HEADS[t]*1000.0
+                                HEADS_corr = h_MF_tmp[t]*1000.0
                             # dtwt and uzthick
-                            uzthick[t] = BotSoilLay[nsl-1] - HEADS_tmp
-                            if EXF[t] <= 0.0:  #BotSoilLay[nsl-1] > HEADS_tmp:
-                                dtwt[t] = TopSoilLay[0] - HEADS_tmp
+                            uzthick[t] = BotSoilLay[nsl-1] - HEADS_corr
+                            if EXF[t] <= 0.0:  #BotSoilLay[nsl-1] > HEADS_corr:
+                                dtwt[t] = TopSoilLay[0] - HEADS_corr
                             elif EXF[t] > 0.0:
                                 dtwt[t] = sum(Tl)
-                                HEADS_tmp = BotSoilLay[nsl-1]
+                                HEADS_corr = BotSoilLay[nsl-1]
                             # for the first SP, S_ini is expressed in % and has to be converted in mm
                             if n == 0 and t == 0:
                                 Ssoil_ini_tmp = Ssoil_ini_tmp * Tl
                             # fluxes
-                            Esurf_tmp, Ssurf_tmp, Ro_tmp, Rp_tmp, Esoil_tmp, Tsoil_tmp, Ssoil_tmp, Ssoil_pc_tmp, Eg_tmp, Tg_tmp, HEADS_tmp, dtwt_tmp, SAT_tmp, Rexf_tmp = self.flux(RFe_tot[t], PT[:,t], PE_tot[t], E0[t], Zr_elev, VEGarea_tmp, HEADS_tmp, TopSoilLay, BotSoilLay, Tl, nsl, Sm, Sfc, Sr, Ks, Ssurf_max, Ssurf_ratio, Ssoil_ini_tmp, Rp_ini_tmp_array[i,j,:], Ssurf_ini_tmp, EXF[t], dtwt[t], st, i, j, n, kTu_min_tmp, kTu_n_tmp, dt, dti, NVEG_tmp, LAIveg_tmp[:,t])
+                            Esurf_tmp, Ssurf_tmp, Ro_tmp, Rp_tmp, Esoil_tmp, Tsoil_tmp, Ssoil_tmp, Ssoil_pc_tmp, Eg_tmp, Tg_tmp, HEADS_tmp, dtwt_tmp, SAT_tmp, Rexf_tmp = self.flux(RFe_tot[t], PT[:,t], PE_tot[t], E0[t], Zr_elev, VEGarea_tmp, HEADS_corr, TopSoilLay, BotSoilLay, Tl, nsl, Sm, Sfc, Sr, Ks, Ssurf_max, Ssurf_ratio, Ssoil_ini_tmp, Rp_ini_tmp_array[i,j,:], Ssurf_ini_tmp, EXF[t], dtwt[t], st, i, j, n, kTu_min_tmp, kTu_n_tmp, dt, dti, NVEG_tmp, LAIveg_tmp[:,t])
                             # fill the output arrays
                             Ssurf[t]   = Ssurf_tmp
                             Ro[t]   = Ro_tmp
                             Esurf[t]   = Esurf_tmp
                             Eg[t]   = Eg_tmp
                             Tg[t]   = Tg_tmp
-                            HEADS_corr[t] = HEADS_tmp
+                            HEADS_MM[t] = HEADS_tmp
                             dtwt[t] = dtwt_tmp
                             Ssoil[t,:]    = Ssoil_tmp[:]
                             Ssoil_pc[t,:] = Ssoil_pc_tmp[:]
@@ -629,7 +628,7 @@ class SOIL:
                             # export list
                             # indexes of the HDF5 output arrays
                             # index = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSsurf':4, 'iRo':5, 'iEXF':6, 'iEsurf':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSsurf':13, 'iETg':14, 'iETsoil':15, 'iSsoil_pc':16, 'idSsoil':17, 'iinf':18, 'iHEADScorr':19, 'idtwt':20, 'iuzthick':21}
-                            MM_tmp[t,:] = [RF[t], PT_tot[t], PE_tot[t], RFe_tot[t], Ssurf[t], Ro[t], EXF[t], Esurf[t], MB[t], INTER_tot[t], E0[t], Eg[t], Tg[t], dSsurf[t], ETg[t], ETsoil_tot[t], Ssoil_pc_tot[t], dSsoil_tot[t], inf[t], HEADS_corr[t]*0.001, -dtwt[t]*0.001, uzthick[t]*0.001]
+                            MM_tmp[t,:] = [RF[t], PT_tot[t], PE_tot[t], RFe_tot[t], Ssurf[t], Ro[t], EXF[t], Esurf[t], MB[t], INTER_tot[t], E0[t], Eg[t], Tg[t], dSsurf[t], ETg[t], ETsoil_tot[t], Ssoil_pc_tot[t], dSsoil_tot[t], inf[t], HEADS_MM[t]*0.001, -dtwt[t]*0.001, uzthick[t]*0.001]
                             # index_S = {'iEsoil':0, 'iTsoil':1,'iSsoil_pc':2, 'iRp':3, 'iRexf':4, 'idSsoil':5, 'iSsoil':6, 'iSAT':7, 'iMB_l':8}
                             for l in range(nsl):
                                 MM_S_tmp[t,l,:] = [Esoil[t,l], Tsoil[t,l], Ssoil_pc[t,l], Rp[t,l], Rexf[t,l], dSsoil[t,l], Ssoil[t,l], SAT[t,l], MB_l[t,l]]
