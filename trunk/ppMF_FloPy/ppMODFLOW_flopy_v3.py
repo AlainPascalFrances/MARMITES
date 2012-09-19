@@ -1006,6 +1006,7 @@ class MF():
             # implement a well in every active cell
             layer_row_column_Q = []
             iuzfbnd = np.asarray(self.iuzfbnd)
+            wel_dum = 0
             for n in range(self.nper):
                 layer_row_column_Q.append([])
                 for r in range(self.nrow):
@@ -1014,12 +1015,19 @@ class MF():
                             if isinstance(wel_array, float):
                                 if wel_array > 0.0:
                                     layer_row_column_Q[n].append([iuzfbnd[r,c],r+1,c+1,-wel_array*self.delr[c]*self.delc[r]])
-                                elif r == 0 and c == 0:
+                                else:
                                     layer_row_column_Q[n].append([iuzfbnd[r,c],r+1,c+1,0.0])
+                                    wel_dum = 1
                             else:
                                 if wel_array[n][r][c]>0.0:
                                     layer_row_column_Q[n].append([iuzfbnd[r,c],r+1,c+1,-(wel_array[n][r][c])*self.delr[c]*self.delc[r]])
-            del iuzfbnd
+                        if wel_dum == 1:
+                            break
+                    if wel_dum == 1:
+                        break
+                if wel_dum == 1:
+                    break
+            del iuzfbnd, wel_dum
             print "Done!"
 
         # RCH
