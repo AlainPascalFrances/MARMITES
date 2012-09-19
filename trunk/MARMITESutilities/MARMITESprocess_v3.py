@@ -548,7 +548,7 @@ class PROCESS:
         OUTPUT:      ObsName.txt
         """
         for t in range(len(inputDate)):
-            # 'Date,RF,E0,PT,PE,RFe,I,'+Eu_str+Tu_str+'Eg,Tg,ETg,WEL_MF,Es,'+Ssoil_str+Ssoilpc_str+dSsoil_str+'dSs,Ss,Ro,GW_EXF,GW_EXF_MF,'+Rp_str+Rexf_str+'R_MF,hSATFLOW,hMF,hMFcorr,hmeas,dtwt,' + Smeasout + MB_str + 'MB\n'
+            # 'Date,RF,E0,PT,PE,RFe,I,'+Eu_str+Tu_str+'Eg,Tg,ETg,WEL_MF,Es,'+Ssoil_str+Ssoilpc_str+dSsoil_str+'dSs,Ss,Ro,GW_EXF,GW_EXF_MF,'+Rp_str+Rexf_str+'R_MF,hSATFLOW,hMF,hMFcorr,hmeas,dgwt,' + Smeasout + MB_str + 'MB\n'
             out_date = mpl.dates.num2date(inputDate[t]).isoformat()[:10]
             Sout     = ''
             Spcout   = ''
@@ -583,7 +583,7 @@ class PROCESS:
                 WEL_tmp = 0.0
             out2 = '%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[t,index.get('iEg')], results[t,index.get('iTg')],results[t,index.get('iETg')], WEL_tmp, results[t,index.get('iEsurf')])
             out3 = '%.8f,%.8f,%.8f,%.8f,' % (results[t,index.get('idSsurf')],results[t,index.get('iSsurf')],results[t,index.get('iRo')],results[t,index.get('iEXF')])
-            out4 = '%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,' % (RCH[t], h_satflow[t],heads_MF[t],results[t,index.get('iHEADScorr')],obs_h_tmp,results[t,index.get('idtwt')])
+            out4 = '%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,' % (RCH[t], h_satflow[t],heads_MF[t],results[t,index.get('iHEADScorr')],obs_h_tmp,results[t,index.get('idgwt')])
             out5 = '%.8f' % (results[t,index.get('iMB')])
             out_line =  out_date, ',', out1, Euout, Tuout, out2, Sout, Spcout, dSout, out3, Rpout, Rexfout, out4, Smeasout, MBout, out5, '\n'
             for l in out_line:

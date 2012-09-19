@@ -969,10 +969,10 @@ class MF():
             print '\nUZF1 package initialization'
             if isinstance(finf_input,float):
                 finf_array = finf_input
-                print 'infiltration input: %s' % str(finf_input)
+                print 'Infiltration input: %s' % str(finf_input)
             else:
                 finf_array = []
-                print 'infiltration input: %s' % finf_input[0]
+                print 'Infiltration input: %s' % finf_input[0]
                 try:
                     h5_finf = h5py.File(finf_input[0], 'r')
                     for n in range(self.nper):
@@ -990,19 +990,19 @@ class MF():
             print '\nWEL package initialization'
             if isinstance(wel_input,float):
                 wel_array = wel_input
-                print 'discharge input: %s' % str(wel_input)
+                print 'Discharge input: %s' % str(wel_input)
             else:
                 wel_array = []
-                print 'discharge input: %s' % wel_input[0]
+                print 'Discharge input: %s' % wel_input[0]
                 try:
                     h5_wel = h5py.File(wel_input[0], 'r')
                     for n in range(self.nper):
                         wel_array.append(h5_wel[wel_input[1]][n])
                     h5_wel.close()
                 except:
+                    print 'WARNING!\nNo valid WEL package file(s) provided, running MODFLOW using user-input well value'
                     wel_array = self.wel_user
-                    print 'WARNING!\nNo valid WEL package file(s) provided, running MODFLOW using user-input well value: %.3G' % self.wel_user
-                    wel_input = self.wel_user
+                    print 'Discharge input: %s' % str(wel_input)
             # implement a well in every active cell
             layer_row_column_Q = []
             iuzfbnd = np.asarray(self.iuzfbnd)
@@ -1012,9 +1012,13 @@ class MF():
                     for c in range(self.ncol):
                         if np.abs(self.ibound[r][c][:]).sum() != 0:
                             if isinstance(wel_array, float):
-                                layer_row_column_Q[n].append([iuzfbnd[r,c],r+1,c+1,-wel_array*self.delr[c]*self.delc[r]])
+                                if wel_array > 0.0:
+                                    layer_row_column_Q[n].append([iuzfbnd[r,c],r+1,c+1,-wel_array*self.delr[c]*self.delc[r]])
+                                elif r == 0 and c == 0:
+                                    layer_row_column_Q[n].append([iuzfbnd[r,c],r+1,c+1,0.0])
                             else:
-                                layer_row_column_Q[n].append([iuzfbnd[r,c],r+1,c+1,-(wel_array[n][r][c])*self.delr[c]*self.delc[r]])
+                                if wel_array[n][r][c]>0.0:
+                                    layer_row_column_Q[n].append([iuzfbnd[r,c],r+1,c+1,-(wel_array[n][r][c])*self.delr[c]*self.delc[r]])
             del iuzfbnd
             print "Done!"
 
@@ -1231,25 +1235,15 @@ class MF():
             return h
             del h
 
-        def readcbc():
+        def readcbc(cbc_fn, h5_ds_fn):
             """
             Extract cell-by-cell budget
             """
-            cbc = mfrdbin.mfcbcread(mfmain, 'LF95').read_all(self.cbc_MF_fn)
-            h5_MF.create_dataset('cbc_nam', data = np.asarray(cbc[2][1]))
+            cbc = mfrdbin.mfcbcread(mfmain, 'LF95').read_all(cbc_fn)
+            h5_MF.create_dataset(h5_ds_fn, data = np.asarray(cbc[2][1]))
             print ''
             return cbc
             del cbc
-
-        def readcbcuzf():
-            """
-            Extract cell-by-cell uzf budget
-            """
-            if self.uzf_yn == 1:
-                cbc_uzf = mfrdbin.mfcbcread(mfmain, 'LF95').read_all(self.cbc_MFuzf_fn)
-                h5_MF.create_dataset('cbc_uzf_nam', data = np.asarray(cbc_uzf[2][1]))
-                return cbc_uzf
-                del cbc_uzf
 
         h5_MF = h5py.File(self.h5_MF_fn, 'w')
         print '\nStoring heads and cbc terms into HDF5 file\n%s\n' % (self.h5_MF_fn)
@@ -1259,26 +1253,26 @@ class MF():
                 h = readh()
                 h5_MF.create_dataset(name = 'heads', data = np.asarray(h[1][1:]),   chunks = (1,self.nrow,self.ncol,self.nlay), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf
                 del h
-                cbc = readcbc()
+                cbc = readcbc(self.cbc_MF_fn, 'cbc_nam')
                 h5_MF.create_dataset(name = 'cbc',   data = np.asarray(cbc[1][1:]), chunks = (1,len(h5_MF['cbc_nam']),self.nrow,self.ncol,self.nlay),   compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf'
                 del cbc
                 if self.uzf_yn == 1:
-                    cbc_uzf = readcbcuzf()
+                    cbc_uzf = readcbc(self.cbc_MFuzf_fn, 'cbc_uzf_nam')
                     h5_MF.create_dataset(name = 'cbc_uzf', data = np.asarray(cbc_uzf[1][1:]), chunks = (1,len(h5_MF['cbc_uz_nam']),self.nrow,self.ncol,self.nlay), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf'
                     del cbc_uzf
             else:
                 h = readh()
                 h5_MF.create_dataset(name = 'heads', data = np.asarray(h[1][1:]))
                 del h
-                cbc = readcbc()
+                cbc = readcbc(self.cbc_MF_fn, 'cbc_nam')
                 data = np.asarray(cbc[1][1:])
                 del cbc
                 data = np.swapaxes(data,1,2)
                 data = np.swapaxes(data,2,3)
-                h5_MF.create_dataset(name = 'cbc',   data = data)
+                h5_MF.create_dataset(name = 'cbc', data = data)
                 del data
                 if self.uzf_yn == 1:
-                    cbc_uzf = readcbcuzf()
+                    cbc_uzf = readcbc(self.cbc_MFuzf_fn, 'cbc_uzf_nam')
                     data = np.asarray(cbc_uzf[1][1:])
                     del cbc_uzf
                     data = np.swapaxes(data,1,2)
@@ -1296,18 +1290,18 @@ class MF():
                 h = readh()
                 h5_MF.create_dataset(name = 'heads', data = np.asarray(h[1]), chunks = (1,self.nrow,self.ncol,self.nlay), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf'
                 del h
-                cbc = readcbc()
+                cbc = readcbc(self.cbc_MF_fn, 'cbc_nam')
                 h5_MF.create_dataset(name = 'cbc', data = np.asarray(cbc[1]), chunks = (1,len(h5_MF['cbc_nam']),self.nrow,self.ncol,self.nlay), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf'
                 del cbc
                 if self.uzf_yn == 1:
-                    cbc_uzf = readcbcuzf()
+                    cbc_uzf = readcbc(self.cbc_MFuzf_fn, 'cbc_uzf_nam')
                     h5_MF.create_dataset(name = 'cbc_uzf', data = np.asarray(cbc_uzf[1]), chunks = (1,len(h5_MF['cbc_uzf_nam']),self.nrow,self.ncol,self.nlay), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf'
                     del cbc_uzf
             else:
                 h = readh()
                 h5_MF.create_dataset(name = 'heads', data = np.asarray(h[1]))
                 del h
-                cbc = readcbc()
+                cbc = readcbc(self.cbc_MF_fn, 'cbc_nam')
                 data = np.asarray(cbc[1])
                 del cbc
                 data = np.swapaxes(data,1,2)
@@ -1320,7 +1314,7 @@ class MF():
                         h5_MF['cbc'][:,:,:,x,:] = data[:,:,:,x,:]
                 del data
                 if self.uzf_yn == 1:
-                    cbc_uzf = readcbcuzf()
+                    cbc_uzf = readcbc(self.cbc_MFuzf_fn, 'cbc_uzf_nam')
                     data = np.asarray(cbc_uzf[1])
                     del cbc_uzf
                     data = np.swapaxes(data,1,2)
@@ -1328,9 +1322,9 @@ class MF():
                     try:
                         h5_MF.create_dataset(name = 'cbc_uzf', data = data)
                     except:
-                        h5_MF.create_dataset(name = 'cbc_uzf', shape = (self.nper, h5_MF['cbc_uzf_nam'].shape[0], self.nrow, self.ncol, self.nlay), dtype = np.float)
+                        h5_MF.create_dataset(name = 'cbc_uzf', shape = (self.nper, self.nrow, self.ncol, h5_MF['cbc_uzf_nam'].shape[0], self.nlay), dtype = np.float)
                         for x in range(h5_MF['cbc_uzf_nam'].shape[0]):
-                            h5_MF['cbc_uzf'][:,x,:,:,:] = data[:,x,:,:,:]
+                            h5_MF['cbc_uzf'][:,:,:,x,:] = data[:,:,:,x,:]
                     del data
         h4MM = np.zeros((len(self.perlen),self.nrow,self.ncol), dtype = np.float)
         h_MF = h5_MF['heads'][:,:,:,:]

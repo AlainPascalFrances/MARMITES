@@ -41,7 +41,7 @@ print '\n##############\nMARMITES started!\n%s\n##############' % mpl.dates.num2
 # the first character on the first line has to be the character used to comment
 # the file can contain any comments as the user wish, but the sequence of the input has to be respected
 # 00_TESTS\MARMITESv3_r13c6l2'  00_TESTS\r40c20'  00_TESTS\r20c40'
-# SARDON'  CARRIZAL' LAMATA'  LaMata_new'
+# SARDON2012'  CARRIZAL' LAMATA'  LaMata_new'
 MM_ws = r'E:\00code_ws\00_TESTS\MARMITESv3_r13c6l2'
 MM_fn = '__inputMM.ini'
 
@@ -391,7 +391,7 @@ try:
     # create MM array
     h5_MM_fn = os.path.join(MM_ws,'_h5_MM.h5')
     # indexes of the HDF5 output arrays
-    index = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSsurf':4, 'iRo':5, 'iEXF':6, 'iEsurf':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSsurf':13, 'iETg':14, 'iETsoil':15, 'iSsoil_pc':16, 'idSsoil':17, 'iinf':18, 'iHEADScorr':19, 'idtwt':20, 'iuzthick':21}
+    index = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSsurf':4, 'iRo':5, 'iEXF':6, 'iEsurf':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSsurf':13, 'iETg':14, 'iETsoil':15, 'iSsoil_pc':16, 'idSsoil':17, 'iinf':18, 'iHEADScorr':19, 'idgwt':20, 'iuzthick':21}
     index_S = {'iEsoil':0, 'iTsoil':1,'iSsoil_pc':2, 'iRp':3, 'iRexf':4, 'idSsoil':5, 'iSsoil':6, 'iSAT':7, 'iMB_l':8}
 
     # READ observations time series (heads and soil moisture)
@@ -424,7 +424,7 @@ try:
         Rexf_str = Rexf_str + 'Rexf_l' + str(l+1) + ','
         MB_str = MB_str + 'MB_l' + str(l+1) + ','
         Smeasout = Smeasout + 'Smeas_' + str(l+1) + ','
-    header='Date,MF_SP,veg_crop,RF,E0,PT,PE,RFe,I,' + Esoil_str + Tsoil_str + 'Eg,Tg,ETg,WEL_MF,Esurf,' + Ssoil_str + Ssoilpc_str + dSsoil_str + 'dSsurf,Ssurf,Ro,GW_EXF,' + Rp_str + Rexf_str + 'R_MF,hSATFLOW,hMF,hMFcorr,hmeas,dtwt,' + Smeasout + MB_str + 'MB\n'
+    header='Date,MF_SP,veg_crop,RF,E0,PT,PE,RFe,I,' + Esoil_str + Tsoil_str + 'Eg,Tg,ETg,WEL_MF,Esurf,' + Ssoil_str + Ssoilpc_str + dSsoil_str + 'dSsurf,Ssurf,Ro,GW_EXF,' + Rp_str + Rexf_str + 'R_MF,hSATFLOW,hMF,hMFcorr,hmeas,dgwt,' + Smeasout + MB_str + 'MB\n'
     if cMF.uzf_yn == 1:
         cMF.uzf_obs(obs = obs)
 
@@ -446,7 +446,7 @@ try:
         timeendMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
         durationMFtmp =  timeendMF-timestartMF
         durationMF +=  durationMFtmp
-        print '\nMF run time: %02.fmn%02.fs' % (int(durationMFtmp*24.0*60.0), (durationMFtmp*24.0*60.0-int(durationMFtmp*24.0*60.0))*60)
+        print 'MF run time: %02.fmn%02.fs' % (int(durationMFtmp*24.0*60.0), (durationMFtmp*24.0*60.0-int(durationMFtmp*24.0*60.0))*60)
         del durationMFtmp
 
     if os.path.exists(cMF.h5_MF_fn):
@@ -600,11 +600,6 @@ try:
                 h_diff_log.append(np.log10(convcrit))
                 h_diff_all_log.append(np.log10(convcrit))
 
-            timeendMMloop = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
-            durationMMloop = timeendMMloop-timestartMMloop
-            print '\nMM run time: %02.fmn%02.fs\n' % (int(durationMMloop*24.0*60.0), (durationMMloop*24.0*60.0-int(durationMMloop*24.0*60.0))*60)
-            durationMMsoil += durationMMloop
-
             msg_end_loop = []
             if LOOP <2:
                 msg_end_loop.append('Initial average heads:\n%.3f m' % h_diff[LOOP])
@@ -615,6 +610,10 @@ try:
                 loopdry += 1
                 if loopdry > 1:
                     print '\nWARNING: first layer of the model DRY twice successively!\nLoop break, correct your MARMITES input value.'
+                    timeendMMloop = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
+                    durationMMloop = timeendMMloop-timestartMMloop
+                    print '\nMM run time: %02.fmn%02.fs' % (int(durationMMloop*24.0*60.0), (durationMMloop*24.0*60.0-int(durationMMloop*24.0*60.0))*60)
+                    durationMMsoil += durationMMloop
                     break
                 else:
                     print '\nWARNING: first layer of the model DRY!'
@@ -622,15 +621,28 @@ try:
                 msg_end_loop.append('Successfull convergence between MARMITES and MODFLOW!\n(Conv. criterion = %.3G)' % convcrit)
                 for txt in msg_end_loop:
                     print txt
+                timeendMMloop = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
+                durationMMloop = timeendMMloop-timestartMMloop
+                print '\nMM run time: %02.fmn%02.fs' % (int(durationMMloop*24.0*60.0), (durationMMloop*24.0*60.0-int(durationMMloop*24.0*60.0))*60)
+                durationMMsoil += durationMMloop
                 break
             elif LOOP>ccnum:
                 msg_end_loop.append('No convergence between MARMITES and MODFLOW!\n(Conv. criterion = %.3G)' % convcrit)
                 for txt in msg_end_loop:
                     print txt
+                timeendMMloop = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
+                durationMMloop = timeendMMloop-timestartMMloop
+                print '\nMM run time: %02.fmn%02.fs' % (int(durationMMloop*24.0*60.0), (durationMMloop*24.0*60.0-int(durationMMloop*24.0*60.0))*60)
+                durationMMsoil += durationMMloop
                 break
             del h_MF_average
             for txt in msg_end_loop:
                 print txt
+
+            timeendMMloop = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
+            durationMMloop = timeendMMloop-timestartMMloop
+            print '\nMM run time: %02.fmn%02.fs' % (int(durationMMloop*24.0*60.0), (durationMMloop*24.0*60.0-int(durationMMloop*24.0*60.0))*60)
+            durationMMsoil += durationMMloop
 
             # MODFLOW RUN with MM-computed recharge
             timestartMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
@@ -1001,7 +1013,7 @@ try:
             except:
                 raise SystemExit('\nFATAL ERROR!\nInvalid MARMITES HDF5 file. Run MARMITES and/or MODFLOW again.')
             # indexes of the HDF5 output arrays
-            #  index = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iEXF':6, 'iEs':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSs':13, 'iETg':14, 'iETu':15, 'iSu_pc':16, 'idSu':17, 'iinf':18, 'iHEADScorr':19, 'idtwt':20, 'iuzthick':21}
+            #  index = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iEXF':6, 'iEs':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSs':13, 'iETg':14, 'iETu':15, 'iSu_pc':16, 'idSu':17, 'iinf':18, 'iHEADScorr':19, 'idgwt':20, 'iuzthick':21}
             # index_S = {'iEu':0, 'iTu':1,'iSu_pc':2, 'iRp':3, 'iRexf':4, 'idSu':5, 'iSu':6, 'iSAT':7, 'iMB_l':8}
             flxlbl       = ['RF', 'I', 'RFe', 'dSsurf', 'Ro', 'Esurf', 'dSsoil', 'EXF']
             flxlbl1      = ['Esoil', 'Tsoil']
@@ -1407,10 +1419,10 @@ try:
                         outFileExport.close()
                         # plot time series results as plot
                         plt_title = 'Time serie of fluxes at observation point %s\ni = %d, j = %d, l = %d, x = %d, y = %d, %s\n' % (o, i+1, j+1, l+1, obs.get(o)['x'], obs.get(o)['y'], soilnam)
-                        # index = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iEXF':6, 'iEs':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSs':13, 'iETg':14, 'iETu':15, 'iSu_pc':16, 'idSu':17, 'iinf':18, 'iHEADScorr':19, 'idtwt':20, 'iuzthick':21}
+                        # index = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iEXF':6, 'iEs':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSs':13, 'iETg':14, 'iETu':15, 'iSu_pc':16, 'idSu':17, 'iinf':18, 'iHEADScorr':19, 'idgwt':20, 'iuzthick':21}
                         # index_S = {'iEu':0, 'iTu':1,'iSu_pc':2, 'iRp':3, 'iRexf':4, 'idSu':5, 'iSu':6, 'iSAT':7, 'iMB_l':8}
                         plt_export_fn = os.path.join(MM_ws, '_plt_0'+ o + '.png')
-                        # def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, EXF, ETg, Es, MB, MB_l, dtwt, SAT, R, h_MF, h_MF_corr, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin):
+                        # def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, EXF, ETg, Es, MB, MB_l, dgwt, SAT, R, h_MF, h_MF_corr, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin):
                         MMplot.plotTIMESERIES(
                         cMF.inputDate,
                         MM[:,index.get('iRF')],
@@ -1433,7 +1445,7 @@ try:
                         MM[:,index.get('iEsurf')],
                         MM[:,index.get('iMB')],
                         MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('iMB_l')],
-                        MM[:,index.get('idtwt')],
+                        MM[:,index.get('idgwt')],
                         MM[:,index.get('iuzthick')],
                         MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('iSAT')],
                         cbc_RCH[:,i,j,0],

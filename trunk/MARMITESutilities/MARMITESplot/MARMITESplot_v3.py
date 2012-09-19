@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import itertools
 
-def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, EXF, ETg, Es, MB, MB_l, dtwt, uzthick, SAT, R, h_MF, h_MF_corr, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin, obs_name, elev, nlay):
+def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, EXF, ETg, Es, MB, MB_l, dgwt, uzthick, SAT, R, h_MF, h_MF_corr, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin, obs_name, elev, nlay):
     """
     Plot the time serie of the fluxes observed at one point of the catchment
     Use Matplotlib
@@ -346,12 +346,12 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S,
         obs_leg = 1
     except:
         pass
-    plt.plot_date(DateInput,dtwt,'-', c='b')
+    plt.plot_date(DateInput,dgwt,'-', c='b')
     # y axis
     plt.ylabel('m', fontsize=10)
     plt.grid(True)
-    plt.xlim(DateInput[0]-1,DateInput[len(dtwt)-1]+1)
-    #plt.ylim(np.min(dtwt)*1.05,0.25)
+    plt.xlim(DateInput[0]-1,DateInput[len(dgwt)-1]+1)
+    #plt.ylim(np.min(dgwt)*1.05,0.25)
     # legend
     if obs_leg == None:
         plt.legend(['DGWT'], loc=0, labelspacing=lblspc, markerscale=mkscale)
