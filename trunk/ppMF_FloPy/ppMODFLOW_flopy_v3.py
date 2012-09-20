@@ -1007,27 +1007,38 @@ class MF():
             layer_row_column_Q = []
             iuzfbnd = np.asarray(self.iuzfbnd)
             wel_dum = 0
-            for n in range(self.nper):
-                layer_row_column_Q.append([])
-                for r in range(self.nrow):
-                    for c in range(self.ncol):
-                        if np.abs(self.ibound[r][c][:]).sum() != 0:
-                            if isinstance(wel_array, float):
-                                if wel_array > 0.0:
-                                    layer_row_column_Q[n].append([iuzfbnd[r,c],r+1,c+1,-wel_array*self.delr[c]*self.delc[r]])
+            if sum(sum(sum(wel_array))) > 0.0:
+                for n in range(self.nper):
+                    layer_row_column_Q.append([])
+                    for r in range(self.nrow):
+                        for c in range(self.ncol):
+                            if np.abs(self.ibound[r][c][:]).sum() != 0:
+                                if isinstance(wel_array, float):
+                                    if wel_array > 0.0:
+                                        layer_row_column_Q[n].append([iuzfbnd[r,c],r+1,c+1,-wel_array*self.delr[c]*self.delc[r]])
+                                    else:
+                                        layer_row_column_Q[n].append([iuzfbnd[r,c],r+1,c+1,0.0])
+                                        wel_dum = 1
                                 else:
-                                    layer_row_column_Q[n].append([iuzfbnd[r,c],r+1,c+1,0.0])
-                                    wel_dum = 1
-                            else:
-                                if wel_array[n][r][c]>0.0:
-                                    layer_row_column_Q[n].append([iuzfbnd[r,c],r+1,c+1,-(wel_array[n][r][c])*self.delr[c]*self.delc[r]])
+                                    if wel_array[n][r][c]>0.0:
+                                        layer_row_column_Q[n].append([iuzfbnd[r,c],r+1,c+1,-(wel_array[n][r][c])*self.delr[c]*self.delc[r]])
+                            if wel_dum == 1:
+                                break
                         if wel_dum == 1:
                             break
                     if wel_dum == 1:
                         break
-                if wel_dum == 1:
-                    break
-            del iuzfbnd, wel_dum
+            else:
+                for r in range(self.nrow):
+                    for c in range(self.ncol):
+                        if np.abs(self.ibound[r][c][:]).sum() != 0:
+                            layer_row_column_Q = [[iuzfbnd[r,c],r+1,c+1,0.0]]
+                            wel_dum = 1
+                        if wel_dum == 1:
+                            break
+                    if wel_dum == 1:
+                        break
+            del iuzfbnd
             print "Done!"
 
         # RCH
@@ -1126,6 +1137,7 @@ class MF():
                 finf_SS = finf_SS/self.nper
                 finf_array = list(finf_array)
                 finf_array.insert(0, finf_SS)
+                del finf_SS
             if self.rch_yn == 1 and isinstance(rch_input,tuple):
                 rch_array = np.asarray(rch_array)
                 rch_SS = np.zeros((self.nrow,self.ncol))
@@ -1134,14 +1146,18 @@ class MF():
                 rch_SS = rch_SS/self.nper
                 rch_array = list(rch_array)
                 rch_array.insert(0, rch_SS)
+                del rch_SS
             if self.wel_yn == 1 and isinstance(wel_input,tuple):
-                wel_array = np.asarray(wel_array)
-                wel_SS = np.zeros((self.nrow,self.ncol))
-                for n in range(self.nper):
-                    wel_SS += wel_array[n,:,:]
-                wel_SS = wel_SS/self.nper
-                wel_array = list(wel_array)
-                wel_array.insert(0, wel_SS)
+                if wel_dum == 0:
+                    wel_array = np.asarray(wel_array)
+                    wel_SS = np.zeros((self.nrow,self.ncol))
+                    for n in range(self.nper):
+                        wel_SS += wel_array[n,:,:]
+                    wel_SS = wel_SS/self.nper
+                    wel_array = list(wel_array)
+                    wel_array.insert(0, wel_SS)
+                    del wel_SS
+                del wel_dum
             self.nper +=  1
             self.perlen.insert(0,1)
             self.nstp.insert(0,1)

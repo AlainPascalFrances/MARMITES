@@ -354,10 +354,11 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S,
     #plt.ylim(np.min(dgwt)*1.05,0.25)
     # legend
     if obs_leg == None:
-        plt.legend(['DGWT'], loc=0, labelspacing=lblspc, markerscale=mkscale)
+        plt.legend(['DGWT_MF'], loc=0, labelspacing=lblspc, markerscale=mkscale)
     elif obs_leg == 1:
-        plt.legend((r'h_obs','DGWT'), loc=0, labelspacing=lblspc, markerscale=mkscale)
+        plt.legend((r'DGWT_obs','DGWT_MF'), loc=0, labelspacing=lblspc, markerscale=mkscale)
     leg = plt.gca().get_legend()
+    plt.ylim(ymax = 0.0)
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8 )
     ax9b.xaxis.set_major_formatter(monthsFmt)

@@ -266,18 +266,18 @@ class SOIL:
         # GW evaporation, equation 17 of Shah et al 2007, see ref in the __init__
         if Ssurf_tmp == 0.0:
             if PE > 0.0:
-                dgwt *= 0.1
+                dgwt_corr *= 0.1
                 y0    = self.paramEg[st]['y0']
                 b     = self.paramEg[st]['b']
                 dll   = self.paramEg[st]['dll']
                 ext_d = self.paramEg[st]['ext_d']
-                if dgwt <= dll:
+                if dgwt_corr <= dll:
                     Eg_tmp = PE
-                elif dgwt < ext_d:
-                    Eg_tmp = PE*(y0 + np.exp(-b*(dgwt-dll)))
+                elif dgwt_corr < ext_d:
+                    Eg_tmp = PE*(y0 + np.exp(-b*(dgwt_corr-dll)))
                 else:
                     Eg_tmp = 0.0
-                dgwt *= 10.0
+                dgwt_corr *= 10.0
             else:
                 Eg_tmp = 0.0
         else:
@@ -302,8 +302,8 @@ class SOIL:
                         PT[v] -= Tg_tmp_Zr[l,v]
                         Tg_tmp += (Tg_tmp_Zr[l,v]*VEGarea[v]*0.01)
 
-        return Esurf_tmp, Ssurf_tmp, Ro_tmp, Rp_tmp, Esoil_tmp, Tsoil_tmp, Ssoil_tmp, Ssoil_pc_tmp, Eg_tmp, Tg_tmp, HEADS, dgwt, SAT, Rexf_tmp
-        del Esurf_tmp, Ssurf_tmp, Ro_tmp, Rp_tmp, Esoil_tmp, Tsoil_tmp, Ssoil_tmp, Ssoil_pc_tmp, Ssoil_ini, Eg_tmp, Tg_tmp, dgwt
+        return Esurf_tmp, Ssurf_tmp, Ro_tmp, Rp_tmp, Esoil_tmp, Tsoil_tmp, Ssoil_tmp, Ssoil_pc_tmp, Eg_tmp, Tg_tmp, HEADS, dgwt_corr, SAT, Rexf_tmp
+        del Esurf_tmp, Ssurf_tmp, Ro_tmp, Rp_tmp, Esoil_tmp, Tsoil_tmp, Ssoil_tmp, Ssoil_pc_tmp, Ssoil_ini, Eg_tmp, Tg_tmp, dgwt_corr
 
 #####################
 

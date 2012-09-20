@@ -123,7 +123,7 @@ class PROCESS:
             line = fin.readline().split()
             cellsizeEsriAscii = float(line[1])
             line = fin.readline().split()
-            NODATA_value = float(line[1])
+            NODATA_value = line[1]
         elif isinstance(testfile, float):
             ncol_tmp = int(line[0])
             nrow_tmp = int(line[1])

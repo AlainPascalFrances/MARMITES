@@ -1005,7 +1005,10 @@ try:
         else:
             hdiff = 2000
 
+
+        # #################################################
         # plot UNSAT/GW balance at the catchment scale
+        # #################################################
         tTgmin = -1
         if os.path.exists(h5_MM_fn):
             try:
@@ -1135,15 +1138,9 @@ try:
             plt_titleCATCH = 'Time serie of fluxes averaged over the whole catchment'
             InMM  = flxlst[0] + flxlst[3] + flxlst[6] + flxlst[7]
             OutMM = flxlst[1] + flxlst[4] + flxlst[5] + flxlst[10] + flxlst[14]
-
-
-
             MB_MM = 100*(InMM - OutMM)/((InMM + OutMM)/2)
             # TODO delete next line after resolving MB_MM error and uncomment the previous one
             #MB_MM = InMM - OutMM
-
-
-
             # ADD SM averaged
             flxlbl_CATCH.append('Su')
             array_tmp = h5_MM['MM'][:,:,:,index.get('iSsoil_pc')]
@@ -1570,6 +1567,10 @@ try:
             h5_MF.close()
             del obs
 
+
+        # #################################################
+        # PLOT SPATIAL MF and MM OUTPUT
+        # #################################################
         if plt_out == 1:
             SP_lst = []
             Date_lst = []
@@ -1589,8 +1590,6 @@ try:
                     SP_lst.append(e)
                     Date_lst.append(cMF.inputDate[e])
                     JD_lst.append(cMF.JD[e])
-
-        # plot MF output
         TopSoil*= 0.001
         if plt_out == 1 and os.path.exists(cMF.h5_MF_fn):
             # plot heads (grid + contours), DRN, etc... at specified SP
