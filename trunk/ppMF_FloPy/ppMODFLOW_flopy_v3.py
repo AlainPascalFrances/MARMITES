@@ -1028,11 +1028,23 @@ class MF():
                 if sum(sum(sum(wel_array))) > 0.0:
                     for n in range(self.nper):
                         layer_row_column_Q.append([])
-                        for r in range(self.nrow):
-                            for c in range(self.ncol):
-                                if np.abs(self.ibound[r][c][:]).sum() != 0:
-                                    if wel_array[n][r][c]>0.0:
-                                        layer_row_column_Q[n].append([iuzfbnd[r,c],r+1,c+1,-(wel_array[n][r][c])*self.delr[c]*self.delc[r]])
+                        if sum(sum(wel_array[n]))>0.0:
+                            for r in range(self.nrow):
+                                for c in range(self.ncol):
+                                    if np.abs(self.ibound[r][c][:]).sum() != 0:
+                                        if wel_array[n][r][c]>0.0:
+                                            layer_row_column_Q[n].append([iuzfbnd[r,c],r+1,c+1,-(wel_array[n][r][c])*self.delr[c]*self.delc[r]])
+                        else:
+                            for r in range(self.nrow):
+                                for c in range(self.ncol):
+                                    if np.abs(self.ibound[r][c][:]).sum() != 0:
+                                        layer_row_column_Q[n].append([iuzfbnd[r,c],r+1,c+1,0.0])
+                                        wel_dum = 1
+                                    if wel_dum == 1:
+                                        break
+                                if wel_dum == 1:
+                                    break
+                            wel_dum = 0
                 else:
                     for r in range(self.nrow):
                         for c in range(self.ncol):

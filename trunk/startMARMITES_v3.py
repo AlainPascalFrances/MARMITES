@@ -41,9 +41,9 @@ print '\n##############\nMARMITES started!\n%s\n##############' % mpl.dates.num2
 # the first character on the first line has to be the character used to comment
 # the file can contain any comments as the user wish, but the sequence of the input has to be respected
 # 00_TESTS\MARMITESv3_r13c6l2'  00_TESTS\r40c20'  00_TESTS\r20c40'
-# SARDON2012'  CARRIZAL' LAMATA'  LaMata_new'
-MM_ws = r'E:\00code_ws\00_TESTS\MARMITESv3_r13c6l2'
-MM_fn = '__inputMM.ini'
+# SARDON2012'  CARRIZAL3' LAMATA'  LaMata_new'
+MM_ws = r'E:\00code_ws\CARRIZAL3'  #r'E:\00code_ws\CARRIZAL3'
+MM_fn = '__inputMM_g.ini'
 
 inputFile = MMproc.readFile(MM_ws,MM_fn)
 
