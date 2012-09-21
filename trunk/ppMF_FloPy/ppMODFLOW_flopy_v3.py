@@ -1007,21 +1007,17 @@ class MF():
             layer_row_column_Q = []
             iuzfbnd = np.asarray(self.iuzfbnd)
             wel_dum = 0
-            if sum(sum(sum(wel_array))) > 0.0:
+            if isinstance(wel_array, float):
                 for n in range(self.nper):
                     layer_row_column_Q.append([])
                     for r in range(self.nrow):
                         for c in range(self.ncol):
                             if np.abs(self.ibound[r][c][:]).sum() != 0:
-                                if isinstance(wel_array, float):
-                                    if wel_array > 0.0:
-                                        layer_row_column_Q[n].append([iuzfbnd[r,c],r+1,c+1,-wel_array*self.delr[c]*self.delc[r]])
-                                    else:
-                                        layer_row_column_Q[n].append([iuzfbnd[r,c],r+1,c+1,0.0])
-                                        wel_dum = 1
+                                if wel_array > 0.0:
+                                    layer_row_column_Q[n].append([iuzfbnd[r,c],r+1,c+1,-wel_array*self.delr[c]*self.delc[r]])
                                 else:
-                                    if wel_array[n][r][c]>0.0:
-                                        layer_row_column_Q[n].append([iuzfbnd[r,c],r+1,c+1,-(wel_array[n][r][c])*self.delr[c]*self.delc[r]])
+                                    layer_row_column_Q[n].append([iuzfbnd[r,c],r+1,c+1,0.0])
+                                    wel_dum = 1
                             if wel_dum == 1:
                                 break
                         if wel_dum == 1:
@@ -1029,15 +1025,24 @@ class MF():
                     if wel_dum == 1:
                         break
             else:
-                for r in range(self.nrow):
-                    for c in range(self.ncol):
-                        if np.abs(self.ibound[r][c][:]).sum() != 0:
-                            layer_row_column_Q = [[iuzfbnd[r,c],r+1,c+1,0.0]]
-                            wel_dum = 1
+                if sum(sum(sum(wel_array))) > 0.0:
+                    for n in range(self.nper):
+                        layer_row_column_Q.append([])
+                        for r in range(self.nrow):
+                            for c in range(self.ncol):
+                                if np.abs(self.ibound[r][c][:]).sum() != 0:
+                                    if wel_array[n][r][c]>0.0:
+                                        layer_row_column_Q[n].append([iuzfbnd[r,c],r+1,c+1,-(wel_array[n][r][c])*self.delr[c]*self.delc[r]])
+                else:
+                    for r in range(self.nrow):
+                        for c in range(self.ncol):
+                            if np.abs(self.ibound[r][c][:]).sum() != 0:
+                                layer_row_column_Q = [[iuzfbnd[r,c],r+1,c+1,0.0]]
+                                wel_dum = 1
+                            if wel_dum == 1:
+                                break
                         if wel_dum == 1:
                             break
-                    if wel_dum == 1:
-                        break
             del iuzfbnd
             print "Done!"
 
