@@ -42,8 +42,8 @@ print '\n##############\nMARMITES started!\n%s\n##############' % mpl.dates.num2
 # the file can contain any comments as the user wish, but the sequence of the input has to be respected
 # 00_TESTS\MARMITESv3_r13c6l2'  00_TESTS\r40c20'  00_TESTS\r20c40'
 # SARDON2012'  CARRIZAL3' LAMATA'  LaMata_new'
-MM_ws = r'E:\00code_ws\CARRIZAL3'  #r'E:\00code_ws\CARRIZAL3'
-MM_fn = '__inputMM_g.ini'
+MM_ws = r'E:\00code_ws\00_TESTS\MARMITESv3_r13c6l2'  #r'E:\00code_ws\CARRIZAL3'
+MM_fn = '__inputMM.ini'
 
 inputFile = MMproc.readFile(MM_ws,MM_fn)
 
@@ -382,11 +382,11 @@ try:
     _nslmax = max(_nsl)
 
     # compute thickness, top and bottom elevation of each soil layer
-    TopAquif = np.asarray(cMF.top) * 1000.0   # conversion from m to mm
+    cMF.top = np.asarray(cMF.top) - gridSOILthick
     botm_l0 = np.asarray(cMF.botm)[:,:,0]
-    # topography elevation
-    TopSoil = TopAquif + gridSOILthick*1000.0
-    del TopAquif
+    cMF.botm = np.asarray(cMF.botm)
+    for l in range(cMF.nlay):
+        cMF.botm[:,:,l] -= gridSOILthick
 
     # create MM array
     h5_MM_fn = os.path.join(MM_ws,'_h5_MM.h5')
@@ -557,7 +557,7 @@ try:
             print '\nComputing...'
             if irr_yn == 0:
                 MM_UNSAT.run(_nsl, _nslmax, _st, _Sm, _Sfc, _Sr, _slprop, _Su_ini, botm_l0, _Ks,
-                              gridSOIL, gridSOILthick, TopSoil, gridMETEO,
+                              gridSOIL, gridSOILthick, cMF.top*1000.0, gridMETEO,
                               index, index_S, gridSsurfhmax, gridSsurfw,
                               RF_veg_zoneSP, E0_zonesSP, PT_veg_zonesSP, RFe_veg_zonesSP, PE_zonesSP, gridVEGarea,
                               LAI_veg_zonesSP, Zr, kTu_min, kTu_n, NVEG,
@@ -565,7 +565,7 @@ try:
                               )
             else:
                 MM_UNSAT.run(_nsl, _nslmax, _st, _Sm, _Sfc, _Sr, _slprop, _Su_ini, botm_l0, _Ks,
-                              gridSOIL, gridSOILthick, TopSoil, gridMETEO,
+                              gridSOIL, gridSOILthick, cMF.top*1000.0, gridMETEO,
                               index, index_S, gridSsurfhmax, gridSsurfw,
                               RF_veg_zoneSP, E0_zonesSP, PT_veg_zonesSP, RFe_veg_zonesSP, PE_zonesSP, gridVEGarea,
                               LAI_veg_zonesSP, Zr, kTu_min, kTu_n, NVEG,
@@ -812,7 +812,6 @@ try:
             t += 1
 
     if os.path.exists(cMF.h5_MF_fn):
-        top_m = np.ma.masked_values(cMF.top, cMF.hnoflo, atol = 0.09)
         index_cbc = [imfSTO]
         if cMF.rch_yn == 1:
            index_cbc.append(imfRCH)
@@ -827,7 +826,6 @@ try:
     else:
         cbc_DRN = cbc_STO = cbc_RCH = cbc_WEL = np.zeros((sum(cMF.perlen), cMF.nrow, cMF.ncol, cMF.nlay))
         imfDRN = imfSTO = imfRCH = imfWEL = 0
-        top_m = np.zeros((cMF.nrow, cMF.ncol))
 
     if h_diff_surf != None:
         h_diff_n = 0
@@ -1030,7 +1028,7 @@ try:
             flxmax_d     = []
             flxmin_d     = []
             flxlbl_CATCH = []
-            TopSoilAverage = np.ma.masked_array(TopSoil, maskAllL).sum()*.001/sum(ncell_MM)
+            TopSoilAverage = np.ma.masked_array(cMF.top*1000.0, maskAllL).sum()*.001/sum(ncell_MM)
             for i in flxlbl:
                 flxlbl_CATCH.append(i)
                 i = 'i'+i
@@ -1456,7 +1454,7 @@ try:
                         max(hmax), #hmax[x] + hdiff/2
                         min(hmin), #hmin[x] - hdiff/2
                         o,
-                        TopSoil[i,j]*0.001,
+                        cMF.top[i,j],
                         cMF.nlay
                         )
                         x += 1
@@ -1590,7 +1588,6 @@ try:
                     SP_lst.append(e)
                     Date_lst.append(cMF.inputDate[e])
                     JD_lst.append(cMF.JD[e])
-        TopSoil*= 0.001
         if plt_out == 1 and os.path.exists(cMF.h5_MF_fn):
             # plot heads (grid + contours), DRN, etc... at specified SP
             h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
@@ -1607,7 +1604,7 @@ try:
 #                del hmin_tmp, hmax_tmp, ctrs_tmp
                 # plot GWTD [m]
                 for L in range(cMF.nlay):
-                    V[L] = TopSoil-V[L]
+                    V[L] = cMF.top-V[L]
                 GWTDmax = np.ma.max(V[0]) #float(np.ceil(np.ma.max(V)))
                 GWTDmin = np.ma.min(V[0]) #float(np.floor(np.ma.min(V)))
                 GWTDmin_tmp, GWTDmax_tmp, ctrsGWTD_tmp = minmax(GWTDmin, GWTDmax, ctrsMF)
@@ -1619,7 +1616,7 @@ try:
 #                del hcorrmin_tmp, hcorrmax_tmp, ctrs_tmp
                 # plot GWTD correct [m]
                 GWTDcorr = []
-                GWTDcorr.append(TopSoil-headscorr_m[0])
+                GWTDcorr.append(cMF.top-headscorr_m[0])
                 MMplot.plotLAYER(SP = SP, Date = Date_lst[t], JD = JD_lst[t], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = GWTDcorr,  cmap = plt.cm.Blues, CBlabel = 'depth to groundwater table (m)', msg = 'DRY', plt_title = 'MF_GWTDcorr', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (GWTDmax_tmp - GWTDmin_tmp)/nrangeMF, contours = ctrsGWTD_tmp, Vmax = GWTDmax_tmp, Vmin = GWTDmin_tmp, ntick = ntick)
 #                del Vmax, Vmin, Vmax_tmp, Vmin_tmp, ctrs_tmp, headscorr_m
                 # plot GW drainage [mm]
@@ -1663,7 +1660,7 @@ try:
             MMplot.plotLAYER(SP = SP, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation (m)', msg = 'DRY', plt_title = 'MF_average_HEADS', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (hmaxMF - hminMF)/nrangeMF, contours = ctrsMF_tmp, Vmax = hmaxMF, Vmin = hminMF, ntick = ntick)
             # plot GWTD [m]
             for L in range(cMF.nlay):
-                V[L] = TopSoil-V[L]
+                V[L] = cMF.top-V[L]
             GWTDmax = np.ma.max(V[0]) #float(np.ceil(np.ma.max(V)))
             GWTDmin = np.ma.min(V[0]) #float(np.floor(np.ma.min(V)))
             GWTDmin_tmp, GWTDmax_tmp, ctrsGWTD_tmp = minmax(GWTDmin, GWTDmax, ctrsMF)
@@ -1675,7 +1672,7 @@ try:
 #            del hcorrmin_tmp, hcorrmax_tmp, ctrs_tmp
             # plot GWTD correct [m]
             GWTDcorr = []
-            GWTDcorr.append(TopSoil-headscorr_m[0])
+            GWTDcorr.append(cMF.top-headscorr_m[0])
 #            Vmax = np.ma.max(GWTDcorr) #float(np.ceil(np.ma.max(V)))
 #            Vmin = np.ma.min(GWTDcorr) #float(np.floor(np.ma.min(V)))
 #            Vmin_tmp, Vmax_tmp, ctrs_tmp = minmax(Vmin, Vmax, ctrsMF)

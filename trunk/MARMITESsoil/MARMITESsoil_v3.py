@@ -208,7 +208,7 @@ class SOIL:
         if EXF > 0.0:
             for l in llst:
                 if Ssoil_tmp[l] >= (Sm[l]*Tl[l]):
-                    HEADS += Tl[l]
+                    HEADS_corr += Tl[l]
                     dgwt_corr -= Tl[l]
                     SAT[l] = True
                 else:
@@ -302,7 +302,7 @@ class SOIL:
                         PT[v] -= Tg_tmp_Zr[l,v]
                         Tg_tmp += (Tg_tmp_Zr[l,v]*VEGarea[v]*0.01)
 
-        return Esurf_tmp, Ssurf_tmp, Ro_tmp, Rp_tmp, Esoil_tmp, Tsoil_tmp, Ssoil_tmp, Ssoil_pc_tmp, Eg_tmp, Tg_tmp, HEADS, dgwt_corr, SAT, Rexf_tmp
+        return Esurf_tmp, Ssurf_tmp, Ro_tmp, Rp_tmp, Esoil_tmp, Tsoil_tmp, Ssoil_tmp, Ssoil_pc_tmp, Eg_tmp, Tg_tmp, HEADS_corr, dgwt_corr, SAT, Rexf_tmp
         del Esurf_tmp, Ssurf_tmp, Ro_tmp, Rp_tmp, Esoil_tmp, Tsoil_tmp, Ssoil_tmp, Ssoil_pc_tmp, Ssoil_ini, Eg_tmp, Tg_tmp, dgwt_corr
 
 #####################
@@ -558,7 +558,7 @@ class SOIL:
                                 dgwt[t] = TopSoilLay[0] - HEADS_drycell
                             elif EXF[t] > 0.0:
                                 dgwt[t] = sum(Tl)
-                                HEADS_corr = BotSoilLay[nsl-1]
+                                HEADS_drycell = BotSoilLay[nsl-1]
                             # for the first SP, S_ini is expressed in % and has to be converted in mm
                             if n == 0 and t == 0:
                                 Ssoil_ini_tmp = Ssoil_ini_tmp * Tl

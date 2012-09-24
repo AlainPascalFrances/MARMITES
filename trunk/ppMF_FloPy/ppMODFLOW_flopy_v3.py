@@ -146,9 +146,9 @@ class MF():
             l += 1
             self.top = [inputFile[l].strip()]
             l += 1
-            self.botm = []
+            self.thick = []
             for i in range(self.nlay):
-                self.botm.append(inputFile[l].split()[i])
+                self.thick.append(inputFile[l].split()[i])
             l += 1
             # bas
             self.ext_bas = str(inputFile[l].strip())
@@ -455,7 +455,7 @@ class MF():
             raise SystemExit("\nFATAL ERROR!\nUnexpected error in the MODFLOW input file:\n", sys.exc_info()[0], '\n%s' % traceback.print_exc(file=sys.stdout))
         del inputFile
 
-        self.MM_PROCESS = MMproc.PROCESS(MM_ws                = MM_ws,
+        self.MM_PROCESS = MMproc.PROCESS(MM_ws           = MM_ws,
                                 MF_ws                    = MF_ws,
                                 nrow                     = self.nrow,
                                 ncol                     = self.ncol,
@@ -469,7 +469,24 @@ class MF():
         print "\nImporting ESRI ASCII files to initialize the MODFLOW packages..."
 
         self.top     = self.MM_PROCESS.checkarray(self.top)
-        self.botm    = self.MM_PROCESS.checkarray(self.botm)
+        self.thick   = self.MM_PROCESS.checkarray(self.thick)
+        if self.nlay < 2:
+            if isinstance(self.thick, list):
+                self.thick = (np.asarray(self.thick)).reshape((self.nrow, self.ncol, 1))
+        else:
+            self.thick = np.asarray(self.thick)
+        top_tmp = np.asarray(self.top)
+        botm_tmp = []
+        for l in range(self.nlay):
+            if l == 0:
+                thick_tmp = self.thick[:,:,l]
+            else:
+                thick_tmp += self.thick[:,:,l]
+            botm_tmp.append(top_tmp - thick_tmp)
+        del self.thick, top_tmp, thick_tmp
+        self.botm = list(np.swapaxes(botm_tmp,0,1))
+        self.botm = list(np.swapaxes(self.botm,1,2))
+        del botm_tmp
         self.ibound  = self.MM_PROCESS.checkarray(self.ibound, dtype = np.int)
         if self.nlay < 2:
             if isinstance(self.ibound, list):
