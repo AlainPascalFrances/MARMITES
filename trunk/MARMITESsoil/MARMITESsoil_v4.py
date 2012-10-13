@@ -330,19 +330,17 @@ class SOIL:
         MM_wel_MF  = np.zeros([cMF.nrow,cMF.ncol], dtype=float)
         cMF.nper = 1
         iuzfbnd = np.asarray(cMF.iuzfbnd)
+        tstart_MM = 0
+        tend_MM = 0
+        tstart_MF = 0
+        tend_MF = 0
         for n in range(nper):
             cMF.perlen = perlen[n]
             cMF.nstp   = nstp[n]
             cMF.tsmult = tsmult[n]
             cMF.Ss_tr  = Ss_tr[n]
-            tstart_MM = 0
-            for t in range(n):
-                tstart_MM += perlen[t]
-            tend_MM = tstart_MM + perlen[n]
-            tstart_MF = 0
-            for t in range(n):
-                tstart_MF += nstp[t]
-            tend_MF = tstart_MF + nstp[n]
+            tend_MM += perlen[n]
+            tend_MF += nstp[n]
             if n == 0:
                 JD_nper.append(cMF.JD[0])
                 h_MF = np.asarray(strt)[:,:,0]
@@ -654,23 +652,23 @@ class SOIL:
                 except:
                     raise SystemExit('\nFATAL ERROR!\nInvalid MODFLOW HDF5 file. Run MARMITES and/or MODFLOW again.')
             for l in range(cMF.nlay):
-                for t in range(cMF.perlen):
-                    mask = np.ma.make_mask(iuzfbnd == l+1)
-                    h5_MM['h_MF'][tstart+t,:,:] += h5_MF['heads'][0,:,:,l]*mask
+                mask = np.ma.make_mask(iuzfbnd == l+1)
+                h5_MM['h_MF'][tstart_MF,:,:] += h5_MF['heads'][0,:,:,l]*mask
             if cMF.uzf_yn == 1:
                 cbc_uzf_nam = []
                 for c in h5_MF['cbc_uzf_nam']:
                     cbc_uzf_nam.append(c.strip())
                 imfEXF   = cbc_uzf_nam.index('SURFACE LEAKAGE')
                 for l in range(cMF.nlay):
-                    for t in range(cMF.perlen):
-                        mask = np.ma.make_mask(iuzfbnd == l+1)
-                        h5_MM['exf_MF'][tstart+t+1,:,:] += h5_MF['cbc_uzf'][0,:,:,imfEXF,l]*mask
+                    mask = np.ma.make_mask(iuzfbnd == l+1)
+                    h5_MM['exf_MF'][tstart_MF,:,:] += h5_MF['cbc_uzf'][0,:,:,imfEXF,l]*mask
             # initial values for nest stress period
             if n < (nper-1):
-                h_MF = h5_MM['h_MF'][-1,:,:]
-                exf_MF = h5_MM['exf_MF'][-1,:,:]*conv_fact/(cMF.delr[0]*cMF.delc[0])
+                h_MF = h5_MM['h_MF'][tstart_MF,:,:]
+                exf_MF = h5_MM['exf_MF'][tstart_MF,:,:]*conv_fact/(cMF.delr[0]*cMF.delc[0])
             h5_MF.close()
+            tstart_MM = tend_MM*1
+            tstart_MF = tend_MF*1
         del MM, MM_S, MM_finf_MF, MM_wel_MF, Ssoil_ini_tmp_array, Rp_ini_tmp_array, Ssurf_ini_tmp_array, dti
         del h_MF, exf_MF, iuzfbnd
         h5_MM.close()
