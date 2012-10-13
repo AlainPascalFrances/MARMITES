@@ -124,8 +124,12 @@ Name=MMsoil
 ClassName=TProjectFileNode
 FileName=$[Project-Path]trunk\MARMITESsoil\MARMITESsoil_v3.py
 
+[Project\ChildNodes\Node0\ChildNodes\Node1\ChildNodes\Node1]
+ClassName=TProjectFileNode
+FileName=$[Project-Path]trunk\MARMITESsoil\MARMITESsoil_v4.py
+
 [Project\ChildNodes\Node0\ChildNodes\Node1\ChildNodes]
-Count=1
+Count=2
 
 [Project\ChildNodes\Node0\ChildNodes\Node2]
 ClassName=TProjectFolderNode
@@ -164,14 +168,18 @@ FileName=$[Project-Path]trunk\MARMITESutilities\MARMITESplot\MARMITESplot_v3.py
 
 [Project\ChildNodes\Node0\ChildNodes\Node3\ChildNodes\Node0\ChildNodes\Node3]
 ClassName=TProjectFileNode
-FileName=$[Project-Path]trunk\MARMITESutilities\MARMITESplot\plotPET.py
+FileName=$[Project-Path]trunk\MARMITESutilities\MARMITESplot\MARMITESplot_v4.py
 
 [Project\ChildNodes\Node0\ChildNodes\Node3\ChildNodes\Node0\ChildNodes\Node4]
+ClassName=TProjectFileNode
+FileName=$[Project-Path]trunk\MARMITESutilities\MARMITESplot\plotPET.py
+
+[Project\ChildNodes\Node0\ChildNodes\Node3\ChildNodes\Node0\ChildNodes\Node5]
 ClassName=TProjectFileNode
 FileName=$[Project-Path]trunk\MARMITESutilities\MARMITESplot\plotRF.py
 
 [Project\ChildNodes\Node0\ChildNodes\Node3\ChildNodes\Node0\ChildNodes]
-Count=5
+Count=6
 
 [Project\ChildNodes\Node0\ChildNodes\Node3\ChildNodes\Node1]
 ClassName=TProjectFileNode
@@ -195,26 +203,30 @@ FileName=$[Project-Path]trunk\MARMITESutilities\MARMITESprocess_v3.py
 
 [Project\ChildNodes\Node0\ChildNodes\Node3\ChildNodes\Node6]
 ClassName=TProjectFileNode
-FileName=$[Project-Path]trunk\MARMITESutilities\MFarray2ascarray.py
+FileName=$[Project-Path]trunk\MARMITESutilities\MARMITESprocess_v4.py
 
 [Project\ChildNodes\Node0\ChildNodes\Node3\ChildNodes\Node7]
 ClassName=TProjectFileNode
-FileName=$[Project-Path]trunk\MARMITESutilities\Obs2PESTformat.py
+FileName=$[Project-Path]trunk\MARMITESutilities\MFarray2ascarray.py
 
 [Project\ChildNodes\Node0\ChildNodes\Node3\ChildNodes\Node8]
 ClassName=TProjectFileNode
-FileName=$[Project-Path]trunk\MARMITESutilities\RFprocessingINST2HOUR.py
+FileName=$[Project-Path]trunk\MARMITESutilities\Obs2PESTformat.py
 
 [Project\ChildNodes\Node0\ChildNodes\Node3\ChildNodes\Node9]
 ClassName=TProjectFileNode
-FileName=$[Project-Path]trunk\MARMITESutilities\Season_transition.py
+FileName=$[Project-Path]trunk\MARMITESutilities\RFprocessingINST2HOUR.py
 
 [Project\ChildNodes\Node0\ChildNodes\Node3\ChildNodes\Node10]
+ClassName=TProjectFileNode
+FileName=$[Project-Path]trunk\MARMITESutilities\Season_transition.py
+
+[Project\ChildNodes\Node0\ChildNodes\Node3\ChildNodes\Node11]
 ClassName=TProjectFileNode
 FileName=$[Project-Path]trunk\MARMITESutilities\testplot.py
 
 [Project\ChildNodes\Node0\ChildNodes\Node3\ChildNodes]
-Count=11
+Count=12
 
 [Project\ChildNodes\Node0\ChildNodes\Node4]
 ClassName=TProjectFolderNode
@@ -222,11 +234,11 @@ Name=ppMF_FloPy
 
 [Project\ChildNodes\Node0\ChildNodes\Node4\ChildNodes\Node0]
 ClassName=TProjectFileNode
-FileName=$[Project-Path]trunk\ppMF_FloPy\ppMODFLOW_flopy_v2.py
+FileName=$[Project-Path]trunk\ppMF_FloPy\ppMODFLOW_flopy_v3.py
 
 [Project\ChildNodes\Node0\ChildNodes\Node4\ChildNodes\Node1]
 ClassName=TProjectFileNode
-FileName=$[Project-Path]trunk\ppMF_FloPy\ppMODFLOW_flopy_v3.py
+FileName=$[Project-Path]trunk\ppMF_FloPy\ppMODFLOW_flopy_v4.py
 
 [Project\ChildNodes\Node0\ChildNodes\Node4\ChildNodes]
 Count=2
@@ -264,22 +276,14 @@ FileName=$[Project-Path]trunk\profile.py
 
 [Project\ChildNodes\Node0\ChildNodes\Node7]
 ClassName=TProjectFileNode
-FileName=$[Project-Path]trunk\startMARMITES_v1.py
+FileName=$[Project-Path]trunk\startMARMITES_v3.py
 
 [Project\ChildNodes\Node0\ChildNodes\Node8]
 ClassName=TProjectFileNode
-FileName=$[Project-Path]trunk\startMARMITES_v2.py
-
-[Project\ChildNodes\Node0\ChildNodes\Node9]
-ClassName=TProjectFileNode
-FileName=$[Project-Path]trunk\startMARMITES_v2_work_WITHEXPORTESRIASCII.py
-
-[Project\ChildNodes\Node0\ChildNodes\Node10]
-ClassName=TProjectFileNode
-FileName=$[Project-Path]trunk\startMARMITES_v3.py
+FileName=$[Project-Path]trunk\startMARMITES_v4.py
 
 [Project\ChildNodes\Node0\ChildNodes]
-Count=11
+Count=9
 
 [Project\ChildNodes\Node1]
 ClassName=TProjectRunConfiguationsNode

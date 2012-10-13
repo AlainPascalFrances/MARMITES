@@ -12,7 +12,7 @@
 #!/usr/bin/env python
 
 __author__ = "Alain P. Francés <frances.alain@gmail.com>"
-__version__ = "0.3"
+__version__ = "0.4"
 __date__ = "2012"
 
 import sys, os, traceback
@@ -21,7 +21,7 @@ import matplotlib as mpl
 import h5py
 import mf
 import mfreadbinaries as mfrdbin
-import MARMITESprocess_v3 as MMproc
+import MARMITESprocess_v4 as MMproc
 
 #####################################
 class MF():
@@ -44,8 +44,6 @@ class MF():
             self.exe_name = str(inputFile[l].strip())
             l += 1
             self.version =  str(inputFile[l].strip())
-            l += 1
-            self.dum_sssp1 = int(inputFile[l].strip())
             l += 1
             # COMPULSORY PACKAGES
             # dis
@@ -469,6 +467,7 @@ class MF():
         print "\nImporting ESRI ASCII files to initialize the MODFLOW packages..."
 
         self.top     = self.MM_PROCESS.checkarray(self.top)
+        self.strt    = self.MM_PROCESS.checkarray(self.strt)
         self.thick   = self.MM_PROCESS.checkarray(self.thick)
         if self.nlay < 2:
             if isinstance(self.thick, list):
@@ -945,29 +944,32 @@ class MF():
 
 #####################################
 
-    def ppMF(self, MM_ws, MF_ws, MF_ini_fn, finf_MM = "", finf_user = None, wel_MM = "", wel_user = None, report = None, verbose = 1, chunks = 0, numDays = -1):
+    def ppMF(self, MF_ws, MF_ini_fn, finf_MM = "", finf_user = None, wel_MM = "", wel_user = None, report = None, verbose = 1, chunks = 0, numDays = -1, MMsoil = 0, silent = 0):
 
         if verbose == 0:
             print '--------------'
 
-        if os.path.exists(finf_MM[0]):
-            if self.uzf_yn == 1:
-                finf_input = finf_MM
-            if self.wel_yn == 1:
-                wel_input = wel_MM
-            if self.rch_yn == 1:
-                rch_input = rch_MM
+        if type(finf_MM) == np.ndarray:
+            finf_input = finf_MM
+            wel_input = wel_MM
         else:
-            if self.uzf_yn == 1:
-                finf_input = self.finf_user
-            if self.wel_yn == 1:
-                wel_input = self.wel_user
-            if self.rch_yn == 1:
-                rch_input = self.rch_user
+            if os.path.exists(finf_MM[0]):
+                if self.uzf_yn == 1:
+                    finf_input = finf_MM
+                if self.wel_yn == 1:
+                    wel_input = wel_MM
+                if self.rch_yn == 1:
+                    rch_input = rch_MM
+            else:
+                if self.uzf_yn == 1:
+                    finf_input = self.finf_user
+                if self.wel_yn == 1:
+                    wel_input = self.wel_user
+                if self.rch_yn == 1:
+                    rch_input = self.rch_user
 
         # 1 - reaf asc file and convert in np.array
 
-        strt    = self.MM_PROCESS.checkarray(self.strt)
         hk      = self.MM_PROCESS.checkarray(self.hk)
         vka     = self.MM_PROCESS.checkarray(self.vka)
         ss      = self.MM_PROCESS.checkarray(self.ss)
@@ -983,13 +985,13 @@ class MF():
 
         # FINF
         if self.uzf_yn == 1:
-            print '\nUZF1 package initialization'
+            if silent == 0: print '\nUZF1 package initialization'
             if isinstance(finf_input,float):
                 finf_array = finf_input
-                print 'Infiltration input: %s' % str(finf_input)
+                if silent == 0: print 'Infiltration input: %s' % str(finf_input)
             else:
                 finf_array = []
-                print 'Infiltration input: %s' % finf_input[0]
+                if silent == 0: print 'Infiltration input: %s' % finf_input[0]
                 try:
                     h5_finf = h5py.File(finf_input[0], 'r')
                     for n in range(self.nper):
@@ -997,27 +999,27 @@ class MF():
                     h5_finf.close()
                 except:
                     finf_array = self.finf_user
-                    print 'WARNING!\nNo valid UZF1 package file(s) provided, running MODFLOW using user-input UZF1 infiltration value: %.3G' % self.finf_user
+                    if silent == 0: print 'WARNING!\nNo valid UZF1 package file(s) provided, running MODFLOW using user-input UZF1 infiltration value: %.3G' % self.finf_user
                     finf_input = self.finf_user
-            print "Done!"
+            if silent == 0: print "Done!"
 
         # WELL
         # TODO add well by user to simulate extraction by borehole
         if self.wel_yn == 1:
-            print '\nWEL package initialization'
+            if silent == 0: print '\nWEL package initialization'
             if isinstance(wel_input,float):
                 wel_array = wel_input
-                print 'Discharge input: %s' % str(wel_input)
+                if silent == 0: print 'Discharge input: %s' % str(wel_input)
             else:
                 wel_array = []
-                print 'Discharge input: %s' % wel_input[0]
+                if silent == 0: print 'Discharge input: %s' % wel_input[0]
                 try:
                     h5_wel = h5py.File(wel_input[0], 'r')
                     for n in range(self.nper):
                         wel_array.append(h5_wel[wel_input[1]][n])
                     h5_wel.close()
                 except:
-                    print 'WARNING!\nNo valid WEL package file(s) provided, running MODFLOW using user-input well value: %.3G' % self.wel_user
+                    if silent == 0: print 'WARNING!\nNo valid WEL package file(s) provided, running MODFLOW using user-input well value: %.3G' % self.wel_user
                     wel_array = self.wel_user
             # implement a well in every active cell
             layer_row_column_Q = []
@@ -1072,17 +1074,17 @@ class MF():
                         if wel_dum == 1:
                             break
             del iuzfbnd
-            print "Done!"
+            if silent == 0: print "Done!"
 
         # RCH
         if self.rch_yn == 1:
-            print '\nRCH package initialization'
+            if silent == 0: print '\nRCH package initialization'
             if isinstance(rch_input,float):
                 rch_array = rch_input
-                print 'recharge input: %s' % str(rch_input)
+                if silent == 0: print 'recharge input: %s' % str(rch_input)
             else:
                 rch_array = []
-                print 'recharge input: %s' % rch_input[0]
+                if silent == 0: print 'recharge input: %s' % rch_input[0]
                 try:
                     h5_rch = h5py.File(rch_input[0], 'r')
                     for n in range(self.nper):
@@ -1090,13 +1092,13 @@ class MF():
                     h5_rch.close()
                 except:
                     rch_array = rch_user
-                    print 'WARNING!\nNo valid RCH package file(s) provided, running MODFLOW using user-input recharge value: %.3G' % rch_user
+                    if silent == 0: print 'WARNING!\nNo valid RCH package file(s) provided, running MODFLOW using user-input recharge value: %.3G' % rch_user
                     rch_input = rch_user
-            print "Done!"
+            if silent == 0: print "Done!"
 
         # DRAIN
         if self.drn_yn == 1:
-            print '\nDRN package initialization'
+            if silent == 0: print '\nDRN package initialization'
             l = 0
             layer_row_column_elevation_cond = [[]]
             for d in self.drn_cond:
@@ -1125,11 +1127,11 @@ class MF():
                             del drn_elev_tmp
                 del drn_elev_array, drn_cond_array
                 l += 1
-            print "Done!"
+            if silent == 0: print "Done!"
 
         # GHB
         if self.ghb_yn == 1:
-            print '\nGHB package initialization'
+            if silent == 0: print '\nGHB package initialization'
             l = 0
             layer_row_column_head_cond = [[]]
             for d in self.ghb_cond:
@@ -1152,62 +1154,24 @@ class MF():
                             del ghb_head_tmp
                 del ghb_head_array, ghb_cond_array
                 l += 1
-            print "Done!"
+            if silent == 0: print "Done!"
 
-        # average for 1st SS stress period
-        # TODO verify the if the avregae of wells is done correctly
-        self.perlen      = list(self.perlen)
-        self.nstp        = list(self.nstp)
-        self.tsmult      = list(self.tsmult)
-        self.Ss_tr       = list(self.Ss_tr)
-        if self.dum_sssp1 == 1:
-            if self.uzf_yn == 1 and isinstance(finf_input,tuple):
-                finf_array = np.asarray(finf_array)
-                finf_SS = np.zeros((self.nrow,self.ncol))
-                for n in range(self.nper):
-                    finf_SS += finf_array[n,:,:]
-                finf_SS = finf_SS/self.nper
-                finf_array = list(finf_array)
-                finf_array.insert(0, finf_SS)
-                del finf_SS
-            if self.rch_yn == 1 and isinstance(rch_input,tuple):
-                rch_array = np.asarray(rch_array)
-                rch_SS = np.zeros((self.nrow,self.ncol))
-                for n in range(self.nper):
-                    rch_SS += rch_array[n,:,:]
-                rch_SS = rch_SS/self.nper
-                rch_array = list(rch_array)
-                rch_array.insert(0, rch_SS)
-                del rch_SS
-            if self.wel_yn == 1 and isinstance(wel_input,tuple):
-                if wel_dum == 0:
-                    wel_array = np.asarray(wel_array)
-                    wel_SS = np.zeros((self.nrow,self.ncol))
-                    for n in range(self.nper):
-                        wel_SS += wel_array[n,:,:]
-                    wel_SS = wel_SS/self.nper
-                    wel_array = list(wel_array)
-                    wel_array.insert(0, wel_SS)
-                    del wel_SS
-                del wel_dum
-            self.nper +=  1
-            self.perlen.insert(0,1)
-            self.nstp.insert(0,1)
-            self.tsmult.insert(0,1)
-            self.Ss_tr.insert(0, True)
+        if type(self.perlen) == np.ndarray: self.perlen = list(self.perlen)
+        if type(self.nstp)   == np.ndarray: self.nstp   = list(self.nstp)
+        if type(self.tsmult) == np.ndarray: self.tsmult = list(self.tsmult)
+        if type(self.Ss_tr)  == np.ndarray: self.Ss_tr  = list(self.Ss_tr)
 
-        # 2 - create the modflow packages files
-        print '\nMODFLOW files writing'
+        # 1 - create the modflow packages files
+        if silent == 0: print '\nMODFLOW files writing'
         ncells_package = []
         # MFfile initialization
-        mfmain = mf.modflow(modelname = self.modelname, exe_name = self.exe_name, namefile_ext = self.namefile_ext, version = self.version, model_ws = MF_ws)
+        mfmain = mf.modflow(modelname = self.modelname, exe_name = self.exe_name, namefile_ext = self.namefile_ext, version = self.version, model_ws = MF_ws, silent = silent)
         # dis package
         dis = mf.mfdis(model = mfmain, nrow = self.nrow, ncol = self.ncol, nlay = self.nlay, nper = self.nper, delr = self.delr, delc = self.delc, laycbd = self.laycbd, top = self.top, botm = self.botm, perlen = self.perlen, nstp = self.nstp, tsmult = self.tsmult, itmuni = self.itmuni, lenuni = self.lenuni, steady = self.Ss_tr, extension = self.ext_dis)
         dis.write_file()
         # bas package
-        bas = mf.mfbas(model = mfmain, ibound = self.ibound, strt = strt, hnoflo = self.hnoflo, extension = self.ext_bas)
+        bas = mf.mfbas(model = mfmain, ibound = self.ibound, strt = self.strt, hnoflo = self.hnoflo, extension = self.ext_bas)
         bas.write_file()
-        del strt
         # layer package
         if self.version != 'mfnwt':
             # lpf package
@@ -1270,10 +1234,10 @@ class MF():
             self.cbc_MFuzf_fn = os.path.join(MF_ws, self.modelname + ".uzfbt1")
 
         # run MODFLOW and read the heads back into Python
-        print '\nMODFLOW run'
+        if silent == 0: print '\nMODFLOW run'
         mfmain.write_name_file()
         mfmain.run_model(pause = False, report = report)
-        print "Done!"
+        if silent == 0: print "Done!"
 
         def readh():
             """
@@ -1284,10 +1248,14 @@ class MF():
             except:
                 h5_MF.close()
                 raise ValueError, '\nMODFLOW error!\nCheck the MODFLOW list file in folder:\n%s' % MF_ws
-            if len(h[1])<sum(self.nstp):
+            if type(self.nstp) == np.int32:
+                nstp_tmp = self.nstp
+            else:
+                nstp_tmp = sum(self.nstp)
+            if len(h[1]) < nstp_tmp:
                 h5_MF.close()
                 raise ValueError, '\nMODFLOW error!\nCheck the MODFLOW list file in folder:\n%s' % MF_ws
-            print ''
+            if silent == 0: print ''
             return h
             del h
 
@@ -1296,113 +1264,58 @@ class MF():
             Extract cell-by-cell budget
             """
             cbc = mfrdbin.mfcbcread(mfmain, 'LF95').read_all(cbc_fn)
-            h5_MF.create_dataset(h5_ds_fn, data = np.asarray(cbc[2][1]))
-            print ''
+            if MMsoil == 1:
+                h5_MF.create_dataset(h5_ds_fn, data = np.asarray(cbc[2][0]))
+            else:
+                h5_MF.create_dataset(h5_ds_fn, data = np.asarray(cbc[2][1]))
+            if silent == 0: print ''
             return cbc
             del cbc
 
+        # Create HDF5 arrays to store MF output
         h5_MF = h5py.File(self.h5_MF_fn, 'w')
-        print '\nStoring heads and cbc terms into HDF5 file\n%s\n' % (self.h5_MF_fn)
-        if self.dum_sssp1 == 1:
-            if chunks == 1:
-                # TODO implement swapaxes
-                h = readh()
-                h5_MF.create_dataset(name = 'heads', data = np.asarray(h[1][1:]),   chunks = (1,self.nrow,self.ncol,self.nlay), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf
-                del h
-                cbc = readcbc(self.cbc_MF_fn, 'cbc_nam')
-                h5_MF.create_dataset(name = 'cbc',   data = np.asarray(cbc[1][1:]), chunks = (1,len(h5_MF['cbc_nam']),self.nrow,self.ncol,self.nlay),   compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf'
-                del cbc
-                if self.uzf_yn == 1:
-                    cbc_uzf = readcbc(self.cbc_MFuzf_fn, 'cbc_uzf_nam')
-                    h5_MF.create_dataset(name = 'cbc_uzf', data = np.asarray(cbc_uzf[1][1:]), chunks = (1,len(h5_MF['cbc_uz_nam']),self.nrow,self.ncol,self.nlay), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf'
-                    del cbc_uzf
-            else:
-                h = readh()
-                h5_MF.create_dataset(name = 'heads', data = np.asarray(h[1][1:]))
-                del h
-                cbc = readcbc(self.cbc_MF_fn, 'cbc_nam')
-                data = np.asarray(cbc[1][1:])
-                del cbc
-                data = np.swapaxes(data,1,2)
-                data = np.swapaxes(data,2,3)
-                h5_MF.create_dataset(name = 'cbc', data = data)
-                del data
-                if self.uzf_yn == 1:
-                    cbc_uzf = readcbc(self.cbc_MFuzf_fn, 'cbc_uzf_nam')
-                    data = np.asarray(cbc_uzf[1][1:])
-                    del cbc_uzf
-                    data = np.swapaxes(data,1,2)
-                    data = np.swapaxes(data,2,3)
-                    h5_MF.create_dataset(name = 'cbc_uzf', data = data)
-                    del data
-            self.nper = self.nper - 1
-            self.perlen = self.perlen[1:]
-            self.tsmult = self.tsmult[1:]
-            self.nstp = self.nstp[1:]
-            self.Ss_tr = self.Ss_tr[1:]
+        if silent == 0: print '\nStoring heads and cbc terms into HDF5 file\n%s\n' % (self.h5_MF_fn)
+        if chunks == 1:
+            # TODO implement swapaxes
+            h = readh()
+            h5_MF.create_dataset(name = 'heads', data = np.asarray(h[1]), chunks = (1,self.nrow,self.ncol,self.nlay), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf'
+            del h
+            cbc = readcbc(self.cbc_MF_fn, 'cbc_nam')
+            h5_MF.create_dataset(name = 'cbc', data = np.asarray(cbc[1]), chunks = (1,len(h5_MF['cbc_nam']),self.nrow,self.ncol,self.nlay), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf'
+            del cbc
+            if self.uzf_yn == 1:
+                cbc_uzf = readcbc(self.cbc_MFuzf_fn, 'cbc_uzf_nam')
+                h5_MF.create_dataset(name = 'cbc_uzf', data = np.asarray(cbc_uzf[1]), chunks = (1,len(h5_MF['cbc_uzf_nam']),self.nrow,self.ncol,self.nlay), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf'
+                del cbc_uzf
         else:
-            if chunks == 1:
-                # TODO implement swapaxes
-                h = readh()
-                h5_MF.create_dataset(name = 'heads', data = np.asarray(h[1]), chunks = (1,self.nrow,self.ncol,self.nlay), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf'
-                del h
-                cbc = readcbc(self.cbc_MF_fn, 'cbc_nam')
-                h5_MF.create_dataset(name = 'cbc', data = np.asarray(cbc[1]), chunks = (1,len(h5_MF['cbc_nam']),self.nrow,self.ncol,self.nlay), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf'
-                del cbc
-                if self.uzf_yn == 1:
-                    cbc_uzf = readcbc(self.cbc_MFuzf_fn, 'cbc_uzf_nam')
-                    h5_MF.create_dataset(name = 'cbc_uzf', data = np.asarray(cbc_uzf[1]), chunks = (1,len(h5_MF['cbc_uzf_nam']),self.nrow,self.ncol,self.nlay), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf'
-                    del cbc_uzf
-            else:
-                h = readh()
-                h5_MF.create_dataset(name = 'heads', data = np.asarray(h[1]))
-                del h
-                cbc = readcbc(self.cbc_MF_fn, 'cbc_nam')
-                data = np.asarray(cbc[1])
-                del cbc
+            h = readh()
+            h5_MF.create_dataset(name = 'heads', data = np.asarray(h[1]))
+            del h
+            cbc = readcbc(self.cbc_MF_fn, 'cbc_nam')
+            data = np.asarray(cbc[1])
+            del cbc
+            data = np.swapaxes(data,1,2)
+            data = np.swapaxes(data,2,3)
+            try:
+                h5_MF.create_dataset(name = 'cbc', data = data)
+            except:
+                h5_MF.create_dataset(name = 'cbc', shape = (self.nper, self.nrow, self.ncol, h5_MF['cbc_nam'].shape[0], self.nlay), dtype = np.float)
+                for x in range(h5_MF['cbc_nam'].shape[0]):
+                    h5_MF['cbc'][:,:,:,x,:] = data[:,:,:,x,:]
+            del data
+            if self.uzf_yn == 1:
+                cbc_uzf = readcbc(self.cbc_MFuzf_fn, 'cbc_uzf_nam')
+                data = np.asarray(cbc_uzf[1])
+                del cbc_uzf
                 data = np.swapaxes(data,1,2)
                 data = np.swapaxes(data,2,3)
                 try:
-                    h5_MF.create_dataset(name = 'cbc', data = data)
+                    h5_MF.create_dataset(name = 'cbc_uzf', data = data)
                 except:
-                    h5_MF.create_dataset(name = 'cbc', shape = (self.nper, self.nrow, self.ncol, h5_MF['cbc_nam'].shape[0], self.nlay), dtype = np.float)
-                    for x in range(h5_MF['cbc_nam'].shape[0]):
-                        h5_MF['cbc'][:,:,:,x,:] = data[:,:,:,x,:]
+                    h5_MF.create_dataset(name = 'cbc_uzf', shape = (self.nper, self.nrow, self.ncol, h5_MF['cbc_uzf_nam'].shape[0], self.nlay), dtype = np.float)
+                    for x in range(h5_MF['cbc_uzf_nam'].shape[0]):
+                        h5_MF['cbc_uzf'][:,:,:,x,:] = data[:,:,:,x,:]
                 del data
-                if self.uzf_yn == 1:
-                    cbc_uzf = readcbc(self.cbc_MFuzf_fn, 'cbc_uzf_nam')
-                    data = np.asarray(cbc_uzf[1])
-                    del cbc_uzf
-                    data = np.swapaxes(data,1,2)
-                    data = np.swapaxes(data,2,3)
-                    try:
-                        h5_MF.create_dataset(name = 'cbc_uzf', data = data)
-                    except:
-                        h5_MF.create_dataset(name = 'cbc_uzf', shape = (self.nper, self.nrow, self.ncol, h5_MF['cbc_uzf_nam'].shape[0], self.nlay), dtype = np.float)
-                        for x in range(h5_MF['cbc_uzf_nam'].shape[0]):
-                            h5_MF['cbc_uzf'][:,:,:,x,:] = data[:,:,:,x,:]
-                    del data
-        h4MM = np.zeros((len(self.perlen),self.nrow,self.ncol), dtype = np.float)
-        h_MF = h5_MF['heads'][:,:,:,:]
-        iuzfbnd = np.asarray(self.iuzfbnd)
-        for l in range(self.nlay):
-            for t in range(len(self.perlen)):
-                mask = np.ma.make_mask(iuzfbnd == l+1)
-                h4MM[t,:,:] += h_MF[t,:,:,l]*mask
-        del h_MF
-        h5_MF.create_dataset(name = 'heads4MM', data = h4MM)
-        exf4MM = np.zeros((len(self.perlen),self.nrow,self.ncol), dtype = np.float)
-        if self.uzf_yn == 1:
-            cbc_uzf_nam = []
-            for c in h5_MF['cbc_uzf_nam']:
-                cbc_uzf_nam.append(c.strip())
-            imfEXF   = cbc_uzf_nam.index('SURFACE LEAKAGE')
-            exf_MF = h5_MF['cbc_uzf'][:,:,:,imfEXF,:]
-            for l in range(self.nlay):
-                for t in range(len(self.perlen)):
-                    mask = np.ma.make_mask(iuzfbnd == l+1)
-                    exf4MM[t,:,:] += exf_MF[t,:,:,l]*mask
-            h5_MF.create_dataset(name = 'exf4MM', data = exf4MM)
         h5_MF.close()
         # to delete MF binary files and save disk space
         if self.MFout_yn == 0:

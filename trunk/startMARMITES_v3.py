@@ -34,7 +34,7 @@ import CreateColors
 #####################################
 
 timestart = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
-print '\n##############\nMARMITES started!\n%s\n##############' % mpl.dates.num2date(timestart).isoformat()[:19]
+print '\n##############\nMARMITESv0.3 started!\n%s\n##############' % mpl.dates.num2date(timestart).isoformat()[:19]
 
 # workspace (ws) definition
 # read input file (called _input.ini in the MARMITES workspace
@@ -43,7 +43,7 @@ print '\n##############\nMARMITES started!\n%s\n##############' % mpl.dates.num2
 # 00_TESTS\MARMITESv3_r13c6l2'  00_TESTS\r40c20'  00_TESTS\r20c40'
 # SARDON2012'  CARRIZAL3' LAMATA'  LaMata_new'
 MM_ws = r'E:\00code_ws\00_TESTS\MARMITESv3_r13c6l2'  #r'E:\00code_ws\CARRIZAL3'
-MM_fn = '__inputMM.ini'
+MM_fn = '__inputMM_v3.ini'
 
 inputFile = MMproc.readFile(MM_ws,MM_fn)
 
