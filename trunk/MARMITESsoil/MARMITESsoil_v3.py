@@ -286,7 +286,7 @@ class SOIL:
         # Groundwater transpiration
         kTu_max = 0.99999
         for v in range(NVEG):
-            if HEADS > Zr_elev[v]:
+            if HEADS_corr > Zr_elev[v]:
                 for l in range(nsl):
                     if Ssoil_pc_tmp[l] <> self.hnoflo:
                         if Ssoil_pc_tmp[l] >= Sr[l]:
@@ -554,7 +554,7 @@ class SOIL:
                                 HEADS_drycell = h_MF_tmp[t]*1000.0
                             # dgwt and uzthick
                             uzthick[t] = BotSoilLay[nsl-1] - HEADS_drycell
-                            if EXF[t] <= 0.0:  #BotSoilLay[nsl-1] > HEADS_drycell:
+                            if EXF[t] <= 0.0: # or BotSoilLay[nsl-1] > HEADS_drycell:
                                 dgwt[t] = TopSoilLay[0] - HEADS_drycell
                             elif EXF[t] > 0.0:
                                 dgwt[t] = sum(Tl)

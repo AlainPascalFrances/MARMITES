@@ -89,6 +89,11 @@ try:
     #run MARMITESsoil  (1 is YES, 0 is NO)
     MMsoil_yn = int(inputFile[l].strip())
     l += 1
+    #run MODFLOW  (1 is YES, 0 is NO)
+    MF_yn = int(inputFile[l].strip())
+    if MMsoil_yn == 1:
+        MF_yn = 1
+    l += 1
     # Define MARMITESsurface folder
     MMsurf_ws = inputFile[l].strip()
     l += 1
@@ -327,7 +332,7 @@ try:
 
     print'\n##############'
     print 'MARMITESsoil initialization'
-    MM_UNSAT = MMsoil.SOIL(hnoflo = cMF.hnoflo)
+    MM_SOIL = MMsoil.SOIL(hnoflo = cMF.hnoflo)
     MM_SATFLOW = MMsoil.SATFLOW()
 
     # READ input ESRI ASCII rasters
@@ -379,11 +384,12 @@ try:
     _nslmax = max(_nsl)
 
     # compute thickness, top and bottom elevation of each soil layer
-    cMF.top = np.asarray(cMF.top) - gridSOILthick
-    botm_l0 = np.asarray(cMF.botm)[:,:,0]
+    cMF.elev = np.asarray(cMF.elev)
+    cMF.top = cMF.elev - gridSOILthick
     cMF.botm = np.asarray(cMF.botm)
     for l in range(cMF.nlay):
         cMF.botm[:,:,l] -= gridSOILthick
+    botm_l0 = np.asarray(cMF.botm)[:,:,0]
 
     # create MM array
     h5_MM_fn = os.path.join(MM_ws,'_h5_MM.h5')
@@ -457,13 +463,9 @@ try:
         if chunks == 1:
             h5_MM.create_dataset(name = 'finf', shape = (cMF.nper,cMF.nrow,cMF.ncol), dtype = np.float, chunks = (1,cMF.nrow,cMF.ncol),  compression = 'gzip', compression_opts = 5, shuffle = True)
             h5_MM.create_dataset(name = 'ETg', shape = (cMF.nper,cMF.nrow,cMF.ncol), dtype = np.float, chunks = (1,cMF.nrow,cMF.ncol),  compression = 'gzip', compression_opts = 5, shuffle = True)
-            h5_MM.create_dataset(name = 'h_MF', shape = (cMF.nper,cMF.nrow,cMF.ncol), dtype = np.float, chunks = (1,cMF.nrow,cMF.ncol),  compression = 'gzip', compression_opts = 5, shuffle = True)
-            h5_MM.create_dataset(name = 'exf_MF', shape = (cMF.nper,cMF.nrow,cMF.ncol), dtype = np.float, chunks = (1,cMF.nrow,cMF.ncol),  compression = 'gzip', compression_opts = 5, shuffle = True)
         else:
             h5_MM.create_dataset(name = 'finf', shape = (cMF.nper,cMF.nrow,cMF.ncol), dtype = np.float)
             h5_MM.create_dataset(name = 'ETg', shape = (cMF.nper,cMF.nrow,cMF.ncol), dtype = np.float)
-            h5_MM.create_dataset(name = 'h_MF', shape = (cMF.nper,cMF.nrow,cMF.ncol), dtype = np.float)
-            h5_MM.create_dataset(name = 'exf_MF', shape = (cMF.nper,cMF.nrow,cMF.ncol), dtype = np.float)
 
         timestartMMloop = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
         # ###########################
@@ -480,33 +482,33 @@ try:
         # computing of soil water balance in each cell-grid for each time step inside each stress period
         print '\nComputing...'
         if irr_yn == 0:
-            MM_UNSAT.run(_nsl, _nslmax, _st, _Sm, _Sfc, _Sr, _slprop, _Su_ini, botm_l0, _Ks,
-                          gridSOIL, gridSOILthick, cMF.top*1000.0, gridMETEO,
+            MM_SOIL.run(_nsl, _nslmax, _st, _Sm, _Sfc, _Sr, _slprop, _Su_ini, botm_l0, _Ks,
+                          gridSOIL, gridSOILthick, cMF.elev*1000.0, gridMETEO,
                           index, index_S, gridSsurfhmax, gridSsurfw,
                           RF_veg_zoneSP, E0_zonesSP, PT_veg_zonesSP, RFe_veg_zonesSP, PE_zonesSP, gridVEGarea,
                           LAI_veg_zonesSP, Zr, kTu_min, kTu_n, NVEG,
                           cMF, conv_fact, h5_MM, irr_yn,
                           MM_ws, MF_ws, MF_ini_fn,
-                          nper, perlen, nstp, tsmult, Ss_tr, strt
+                          nper, perlen, nstp, tsmult, Ss_tr
                           )
         else:
-            MM_UNSAT.run(_nsl, _nslmax, _st, _Sm, _Sfc, _Sr, _slprop, _Su_ini, botm_l0, _Ks,
-                          gridSOIL, gridSOILthick, cMF.top*1000.0, gridMETEO,
+            MM_SOIL.run(_nsl, _nslmax, _st, _Sm, _Sfc, _Sr, _slprop, _Su_ini, botm_l0, _Ks,
+                          gridSOIL, gridSOILthick, cMF.elev*1000.0, gridMETEO,
                           index, index_S, gridSsurfhmax, gridSsurfw,
                           RF_veg_zoneSP, E0_zonesSP, PT_veg_zonesSP, RFe_veg_zonesSP, PE_zonesSP, gridVEGarea,
                           LAI_veg_zonesSP, Zr, kTu_min, kTu_n, NVEG,
                           cMF, conv_fact, h5_MM, irr_yn,
                           MM_ws, MF_ws, MF_ini_fn,
-                          nper, perlen, nstp, tsmult, Ss_tr, strt,
+                          nper, perlen, nstp, tsmult, Ss_tr,
                           RF_irr_zoneSP, PT_irr_zonesSP, RFe_irr_zoneSP,
                           crop_irr_SP, gridIRR,
                           Zr_c, kTu_min_c, kTu_n_c, NCROP
                           )
 
-            timeendMMloop = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
-            durationMMloop = timeendMMloop-timestartMMloop
-            print '\nMMsoil run time:\n%02.fmn%02.fs' % (int(durationMMloop*24.0*60.0), (durationMMloop*24.0*60.0-int(durationMMloop*24.0*60.0))*60)
-            durationMMsoil += durationMMloop
+        timeendMMloop = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
+        durationMMloop = timeendMMloop-timestartMMloop
+        print '\nMMsoil run time:\n%02.fmn%02.fs' % (int(durationMMloop*24.0*60.0), (durationMMloop*24.0*60.0-int(durationMMloop*24.0*60.0))*60)
+        durationMMsoil += durationMMloop
 
 except StandardError, e:  #Exception
     raise SystemExit('\nFATAL ERROR!\nAbnormal MM run interruption during MMsoil computing!\nError description:\n%s' % traceback.print_exc(file=sys.stdout))
@@ -515,23 +517,29 @@ except StandardError, e:  #Exception
 # ### MODFLOW RUN with MM-computed soil infiltration
 # #############################
 try:
-    timestartMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
-    print'\n##############'
-    print 'MODFLOW RUN (MARMITES fluxes)'
     cMF.nper   = nper
     cMF.perlen = perlen
     cMF.nstp   = nstp
     cMF.tsmult = tsmult
     cMF.Ss_tr  = Ss_tr
     cMF.strt   = strt
-    if verbose == 0:
-        print '\n--------------'
-        sys.stdout = s
-        report.close()
-        s = sys.stdout
-        report = open(report_fn, 'a')
-        sys.stdout = report
-    cMF.ppMF(MF_ws, MF_ini_fn, finf_MM = (h5_MM_fn, 'finf'), wel_MM = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks, numDays = numDays)
+    if MF_yn == 1:
+        timestartMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
+        print'\n##############'
+        print 'MODFLOW RUN (MARMITES fluxes)'
+        if verbose == 0:
+            print '\n--------------'
+            sys.stdout = s
+            report.close()
+            s = sys.stdout
+            report = open(report_fn, 'a')
+            sys.stdout = report
+        cMF.ppMF(MF_ws, MF_ini_fn, finf_MM = (h5_MM_fn, 'finf'), wel_MM = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks, numDays = numDays)
+        timeendMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
+        durationMFtmp =  timeendMF-timestartMF
+        durationMF +=  durationMFtmp
+        print '\nMF run time:\n%02.fmn%02.fs' % (int(durationMFtmp*24.0*60.0), (durationMFtmp*24.0*60.0-int(durationMFtmp*24.0*60.0))*60)
+        del durationMFtmp
 
     if os.path.exists(cMF.h5_MF_fn):
         try:
@@ -564,12 +572,6 @@ try:
             imfEXF   = cbc_uzf_nam.index('SURFACE LEAKAGE')
             imfRCH   = cbc_uzf_nam.index('UZF RECHARGE')
         h5_MF.close()
-
-    timeendMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
-    durationMFtmp =  timeendMF-timestartMF
-    durationMF +=  durationMFtmp
-    print '\nMF run time:\n%02.fmn%02.fs' % (int(durationMFtmp*24.0*60.0), (durationMFtmp*24.0*60.0-int(durationMFtmp*24.0*60.0))*60)
-    del durationMFtmp
 except StandardError, e:  #Exception
     raise SystemExit('\nFATAL ERROR!\nAbnormal MM run interruption during MF computing!\nError description:\n%s' % traceback.print_exc(file=sys.stdout))
 
@@ -608,7 +610,7 @@ def minmax(min_, max_, ctrs_):
 
 timestartExport = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
 # reorganizing MF output in daily data
-if isinstance(cMF.h5_MF_fn, str):
+if MF_yn == 1 and isinstance(cMF.h5_MF_fn, str):
     print '\nConverting MODFLOW output into daily time step...'
     try:
         h5_MF = h5py.File(cMF.h5_MF_fn)
@@ -652,9 +654,21 @@ else:
     cbc_DRN = cbc_STO = cbc_RCH = cbc_WEL = np.zeros((sum(cMF.perlen), cMF.nrow, cMF.ncol, cMF.nlay))
     imfDRN = imfSTO = imfRCH = imfWEL = 0
 
-# exporting sm computed by MM for PEST (smp format)
 if os.path.exists(h5_MM_fn):
-    h5_MM = h5py.File(h5_MM_fn, 'r')
+    try:
+        h5_MM = h5py.File(h5_MM_fn, 'r')
+    except:
+        raise SystemExit('\nFATAL ERROR!\nInvalid MARMITES HDF5 file. Run MARMITES and/or MODFLOW again.')
+    # h
+    headscorr_m = np.ma.masked_values(np.ma.masked_values(h5_MM['MM'][:,:,:,19], cMF.hnoflo, atol = 0.09), cMF.hdry, atol = 1E+25)
+    hcorrmax = float(np.ceil(np.ma.max(headscorr_m.flatten())))
+    hcorrmin = float(np.floor(np.ma.min(headscorr_m.flatten())))
+    h5_MM.close()
+    del headscorr_m
+else:
+    hcorrmax = -9999.9
+    hcorrmin = 9999.9
+# exporting sm computed by MM for PEST (smp format)
     outPESTsmMM = open(os.path.join(MF_ws,'sm_MM4PEST.smp'), 'w')
     for o_ref in obs_list:
         for o in obs.keys():
@@ -679,6 +693,7 @@ if os.path.exists(h5_MM_fn):
                     outPESTsmMM.write(l)
         ind += 1
     outPESTsmMM.close()
+    h5_MM.close()
 
 if plt_out == 1 or plt_out_obs == 1:
     print '\nExporting ASCII files and plots...'
@@ -696,81 +711,66 @@ if plt_out == 1 or plt_out_obs == 1:
         # TODO missing STOuz (however this is not very relevant since these fluxes should not be the bigger in magnitude)
         try:
             h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
-            # DRN
-            if cMF.drn_yn == 1:
-                cbc_DRN = h5_MF['DRN_d']
-                DRNmax = np.ma.max(cbc_DRN)
-                cbcmax_d.append(DRNmax)
-                DRNmin = np.ma.min(cbc_DRN)
-                del cbc_DRN
-                cbcmin_d.append(DRNmin)
-                DRNmax = -float(np.ceil(np.ma.max(DRNmin)))
-                DRNmin = 0.0
-            # STO
-            cbc_STO = h5_MF['STO_d']
-            cbcmax_d.append(-1*np.ma.max(cbc_STO))
-            cbcmin_d.append(-1*np.ma.min(cbc_STO))
-            del cbc_STO
-            # RCH
-            cbc_RCH = h5_MF['RCH_d']
-            RCHmax = np.ma.max(cbc_RCH)
-            cbcmax_d.append(RCHmax)
-            RCHmin = np.ma.min(cbc_RCH)
-            print '\nMaximum GW recharge (%.2f mm/day) observed at:' % RCHmax
-            if RCHmax> 0.0:
-                for l in range(cMF.nlay):
-                    for row in range(cMF.nrow):
-                        for t,col in enumerate(cbc_RCH[:,row,:,l]):
-                            try:
-                                if plt_out_obs == 1:
-                                    obs['PzRCHmax'] = {'x':999,'y':999, 'i': row, 'j': list(col).index(RCHmax), 'lay': l, 'hi':999, 'h0':999, 'RC':999, 'STO':999, 'outpathname':os.path.join(MM_ws,'_MM_0PzRCHmax.txt'), 'obs_h':[], 'obs_h_yn':0, 'obs_S':[], 'obs_sm_yn':0}
-                                print 'row %d, col %d and day %d (%s)' % (row + 1, list(col).index(RCHmax) + 1, t, mpl.dates.num2date(cMF.inputDate[t] + 1.0).isoformat()[:10])
-                                tRCHmax = t
-                            except:
-                                pass
-            del cbc_RCH
-            RCHmax = float(np.ceil(np.ma.max(RCHmax)))
-            RCHmin = float(np.floor(np.ma.min(RCHmin)))
-            # WEL
-            if cMF.wel_yn == 1:
-                cbc_WEL = h5_MF['WEL_d']
-                cbcmax_d.append(np.ma.max(cbc_WEL))
-                cbcmin_d.append(np.ma.min(cbc_WEL))
-            # GHB
-            if cMF.ghb_yn == 1:
-                cbc_GHB = h5_MF['GHB_d']
-                cbcmax_d.append(np.ma.max(cbc_GHB))
-                cbcmin_d.append(np.ma.min(cbc_GHB))
-                del cbc_GHB
-            cbcmax_d = float(np.ceil(np.ma.max(cbcmax_d)))
-            cbcmin_d = float(np.floor(np.ma.min(cbcmin_d)))
-            # h
-            h_MF_m = np.ma.masked_values(np.ma.masked_values(h5_MF['heads_d'], cMF.hnoflo, atol = 0.09), cMF.hdry, atol = 1E+25)
-            hmaxMF = float(np.ceil(np.ma.max(h_MF_m[:,:,:,:].flatten())))
-            hminMF = float(np.floor(np.ma.min(h_MF_m[:,:,:,:].flatten())))
-            h5_MF.close()
         except:
             raise SystemExit('\nFATAL ERROR!\nInvalid MODFLOW HDF5 file. Run MARMITES and/or MODFLOW again.')
+        # DRN
+        if cMF.drn_yn == 1:
+            cbc_DRN = h5_MF['DRN_d']
+            DRNmax = np.ma.max(cbc_DRN)
+            cbcmax_d.append(DRNmax)
+            DRNmin = np.ma.min(cbc_DRN)
+            del cbc_DRN
+            cbcmin_d.append(DRNmin)
+            DRNmax = -float(np.ceil(np.ma.max(DRNmin)))
+            DRNmin = 0.0
+        # STO
+        cbc_STO = h5_MF['STO_d']
+        cbcmax_d.append(-1*np.ma.max(cbc_STO))
+        cbcmin_d.append(-1*np.ma.min(cbc_STO))
+        del cbc_STO
+        # RCH
+        cbc_RCH = h5_MF['RCH_d']
+        RCHmax = np.ma.max(cbc_RCH)
+        cbcmax_d.append(RCHmax)
+        RCHmin = np.ma.min(cbc_RCH)
+        print '\nMaximum GW recharge (%.2f mm/day) observed at:' % RCHmax
+        if RCHmax> 0.0:
+            for l in range(cMF.nlay):
+                for row in range(cMF.nrow):
+                    for t,col in enumerate(cbc_RCH[:,row,:,l]):
+                        try:
+                            if plt_out_obs == 1:
+                                obs['PzRCHmax'] = {'x':999,'y':999, 'i': row, 'j': list(col).index(RCHmax), 'lay': l, 'hi':999, 'h0':999, 'RC':999, 'STO':999, 'outpathname':os.path.join(MM_ws,'_MM_0PzRCHmax.txt'), 'obs_h':[], 'obs_h_yn':0, 'obs_S':[], 'obs_sm_yn':0}
+                            print 'row %d, col %d and day %d (%s)' % (row + 1, list(col).index(RCHmax) + 1, t, mpl.dates.num2date(cMF.inputDate[t] + 1.0).isoformat()[:10])
+                            tRCHmax = t
+                        except:
+                            pass
+        del cbc_RCH
+        RCHmax = float(np.ceil(np.ma.max(RCHmax)))
+        RCHmin = float(np.floor(np.ma.min(RCHmin)))
+        # WEL
+        if cMF.wel_yn == 1:
+            cbc_WEL = h5_MF['WEL_d']
+            cbcmax_d.append(np.ma.max(cbc_WEL))
+            cbcmin_d.append(np.ma.min(cbc_WEL))
+        # GHB
+        if cMF.ghb_yn == 1:
+            cbc_GHB = h5_MF['GHB_d']
+            cbcmax_d.append(np.ma.max(cbc_GHB))
+            cbcmin_d.append(np.ma.min(cbc_GHB))
+            del cbc_GHB
+        cbcmax_d = float(np.ceil(np.ma.max(cbcmax_d)))
+        cbcmin_d = float(np.floor(np.ma.min(cbcmin_d)))
+        # h
+        h_MF_m = np.ma.masked_values(np.ma.masked_values(h5_MF['heads_d'], cMF.hnoflo, atol = 0.09), cMF.hdry, atol = 1E+25)
+        hmaxMF = float(np.ceil(np.ma.max(h_MF_m[:,:,:,:].flatten())))
+        hminMF = float(np.floor(np.ma.min(h_MF_m[:,:,:,:].flatten())))
+        h5_MF.close()
     else:
         DRNmax = cbcmax_d = 1
         DRNmin = cbcmin_d = -1
         hmaxMF = -9999.9
         hminMF = 9999.9
-
-    if os.path.exists(h5_MM_fn):
-        try:
-            h5_MM = h5py.File(h5_MM_fn, 'r')
-            # h
-            headscorr_m = np.ma.masked_values(np.ma.masked_values(h5_MM['MM'][:,:,:,19], cMF.hnoflo, atol = 0.09), cMF.hdry, atol = 1E+25)
-            hcorrmax = float(np.ceil(np.ma.max(headscorr_m.flatten())))
-            hcorrmin = float(np.floor(np.ma.min(headscorr_m.flatten())))
-            h5_MM.close()
-            del headscorr_m
-        except:
-            raise SystemExit('\nFATAL ERROR!\nInvalid MARMITES HDF5 file. Run MARMITES and/or MODFLOW again.')
-    else:
-        hcorrmax = -9999.9
-        hcorrmin = 9999.9
 
     if obs != None:
         x = 0
@@ -803,7 +803,7 @@ if plt_out == 1 or plt_out_obs == 1:
         hdiff = 2000
 
     # #################################################
-    # plot UNSAT/GW balance at the catchment scale
+    # plot SOIL/GW balance at the catchment scale
     # #################################################
     tTgmin = -1
     if os.path.exists(h5_MM_fn):
@@ -952,7 +952,7 @@ if plt_out == 1 or plt_out_obs == 1:
             flxlst[l] = x*y
         del flxlbl1, flxlbl2, flxlbl3, flxlbl3a, sign
         if os.path.exists(cMF.h5_MF_fn):
-            plt_export_fn = os.path.join(MM_ws, '_plt_0CATCHMENT_UNSATandGWbalances.png')
+            plt_export_fn = os.path.join(MM_ws, '_plt_0CATCHMENT_SOILandGWbalances.png')
             # compute UZF_STO and store GW_RCH
             flxlbl.append('UZ_STO')
             rch_tmp = 0
@@ -1053,7 +1053,7 @@ if plt_out == 1 or plt_out_obs == 1:
             MMplot.plotTIMESERIES_CATCH(cMF.inputDate, flx_Cat_TS, flxlbl_CATCH, plt_exportCATCH_fn, plt_titleCATCH, hmax = hmaxMF, hmin = hminMF, cMF = cMF)
         else:
             MMplot.plotTIMESERIES_CATCH(cMF.inputDate, flx_Cat_TS, flxlbl_CATCH, plt_exportCATCH_fn, plt_titleCATCH, hmax = hmaxMF, hmin = hminMF)
-            plt_export_fn = os.path.join(MM_ws, '_plt_0CATCHMENT_UNSATbalance.png')
+            plt_export_fn = os.path.join(MM_ws, '_plt_0CATCHMENT_SOILbalance.png')
             plt_title = 'MARMITES water balance for the whole catchment\nMass balance error: MM = %1.2f%%' % (MB_MM)
             header_tmp = ['MM_MB']
             MB_tmp = [MB_MM]
@@ -1077,7 +1077,7 @@ if plt_out == 1 or plt_out_obs == 1:
         del flx_Cat_TS, flx_Cat_TS_str, out_line
         colors_flx = CreateColors.main(hi=0, hf=180, numbcolors = len(flxlbl))
         MMplot.plotGWbudget(flxlst = flxlst, flxlbl = flxlbl, colors_flx = colors_flx, plt_export_fn = plt_export_fn, plt_title = plt_title, fluxmax = flxmax, fluxmin = flxmin, unit = plt_WB_unit)
-        plt_export_txt = open(os.path.join(MM_ws, '_plt_0CATCHMENT_UNSATandGWbalances.txt'), 'w')
+        plt_export_txt = open(os.path.join(MM_ws, '_plt_0CATCHMENT_SOILandGWbalances.txt'), 'w')
         flxlbl_str = flxlbl[0]
         for e in (flxlbl[1:] + header_tmp):
             flxlbl_str += ',' + e
@@ -1225,8 +1225,8 @@ if plt_out == 1 or plt_out_obs == 1:
                     InOut_MM = InMM - OutMM
                     InOut_tmp.append([InOut_MM])
                     if plt_out_obs == 1 and isinstance(cMF.h5_MF_fn, str):
-                        plt_exportBAL_fn.append(os.path.join(MM_ws, '_plt_0'+ o + '_UNSATandGWbalances.png'))
-                        plt_export_txt_fn.append(os.path.join(MM_ws, '_plt_0'+ o + '_UNSATandGWbalances.txt'))
+                        plt_exportBAL_fn.append(os.path.join(MM_ws, '_plt_0'+ o + '_SOILandGWbalances.png'))
+                        plt_export_txt_fn.append(os.path.join(MM_ws, '_plt_0'+ o + '_SOILandGWbalances.txt'))
                         # compute UZF_STO and store GW_RCH
                         rch_tmp = 0
                         flxlst_tmp = []
@@ -1279,8 +1279,8 @@ if plt_out == 1 or plt_out_obs == 1:
                         plt_titleBAL.append(plt_title)
                         del flxlst_tmp, plt_title
                     else:
-                        plt_exportBAL_fn.append(os.path.join(MM_ws, '_plt_0'+ o + '_UNSATbalance.png'))
-                        plt_export_txt_fn.append(os.path.join(MM_ws, '_plt_0' + o + '_UNSATbalances.txt'), 'w')
+                        plt_exportBAL_fn.append(os.path.join(MM_ws, '_plt_0'+ o + '_SOILbalance.png'))
+                        plt_export_txt_fn.append(os.path.join(MM_ws, '_plt_0' + o + '_SOILbalances.txt'), 'w')
                         plt_title = 'MARMITES water flux balance at observation point %s\ni = %d, j = %d, l = %d, x = %d, y = %d, %s\n\nMass balance (In - Out,  [mm]): MM = %1.2f' % (o, i+1, j+1, l+1, obs.get(o)['x'], obs.get(o)['y'], soilnam, InOut_MM)
                         plt_titleBAL.append(plt_title)
                         del plt_title
@@ -1326,7 +1326,7 @@ if plt_out == 1 or plt_out_obs == 1:
                 SP_lst.append(e)
                 Date_lst.append(cMF.inputDate[e])
                 JD_lst.append(cMF.JD[e])
-    if plt_out == 1 and os.path.exists(cMF.h5_MF_fn):
+    if plt_out == 1 and os.path.exists(cMF.h5_MF_fn) and os.path.exists(h5_MM_fn):
         # plot heads (grid + contours), DRN, etc... at specified SP
         h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
         h5_MM = h5py.File(h5_MM_fn, 'r')
@@ -1446,8 +1446,7 @@ if plt_out == 1 or plt_out_obs == 1:
         if cMF.drn_yn == 1:
             del cbc_DRN, DRNmax_tmp, DRNmin_tmp
         del RCHmax_tmp, RCHmin_tmp
-    # plot MM output
-    if plt_out == 1 and os.path.exists(h5_MM_fn):
+        # plot MM output
         flxlbl = ['RF', 'RFe', 'I', 'EXF', 'dSsurf', 'Ro', 'Esurf', 'Eg', 'Tg', 'ETg', 'ETsoil', 'dSsoil']
         for i in flxlbl:
             # plot average for the whole simulated period
@@ -1531,7 +1530,6 @@ try:
     h5_MM.close()
 except:
     pass
-
 try:
     h5_MF.close()
 except:
@@ -1544,6 +1542,9 @@ durationTotal = (timeendExport-timestart)
 ##except StandardError, e:  #Exception
 ##    try:
 ##        h5_MM.close()
+##    except:
+##        pass
+##    try:
 ##        h5_MF.close()
 ##    except:
 ##        pass

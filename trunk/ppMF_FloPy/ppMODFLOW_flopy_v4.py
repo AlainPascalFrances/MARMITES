@@ -142,7 +142,7 @@ class MF():
             l += 1
             self.reggrid = int(inputFile[l].strip())
             l += 1
-            self.top = [inputFile[l].strip()]
+            self.elev = [inputFile[l].strip()]
             l += 1
             self.thick = []
             for i in range(self.nlay):
@@ -466,7 +466,7 @@ class MF():
         # 1 - reaf asc file and convert in np.array
         print "\nImporting ESRI ASCII files to initialize the MODFLOW packages..."
 
-        self.top     = self.MM_PROCESS.checkarray(self.top)
+        self.elev     = self.MM_PROCESS.checkarray(self.elev)
         self.strt    = self.MM_PROCESS.checkarray(self.strt)
         self.thick   = self.MM_PROCESS.checkarray(self.thick)
         if self.nlay < 2:
@@ -474,15 +474,15 @@ class MF():
                 self.thick = (np.asarray(self.thick)).reshape((self.nrow, self.ncol, 1))
         else:
             self.thick = np.asarray(self.thick)
-        top_tmp = np.asarray(self.top)
+        elev_tmp = np.asarray(self.elev)
         botm_tmp = []
         for l in range(self.nlay):
             if l == 0:
                 thick_tmp = self.thick[:,:,l]
             else:
                 thick_tmp += self.thick[:,:,l]
-            botm_tmp.append(top_tmp - thick_tmp)
-        del self.thick, top_tmp, thick_tmp
+            botm_tmp.append(elev_tmp - thick_tmp)
+        del self.thick, elev_tmp, thick_tmp
         self.botm = list(np.swapaxes(botm_tmp,0,1))
         self.botm = list(np.swapaxes(self.botm,1,2))
         del botm_tmp

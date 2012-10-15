@@ -382,11 +382,12 @@ try:
     _nslmax = max(_nsl)
 
     # compute thickness, top and bottom elevation of each soil layer
-    cMF.top = np.asarray(cMF.top) - gridSOILthick
-    botm_l0 = np.asarray(cMF.botm)[:,:,0]
+    cMF.elev = np.asarray(cMF.elev)
+    cMF.top = cMF.elev - gridSOILthick
     cMF.botm = np.asarray(cMF.botm)
     for l in range(cMF.nlay):
         cMF.botm[:,:,l] -= gridSOILthick
+    botm_l0 = np.asarray(cMF.botm)[:,:,0]
 
     # create MM array
     h5_MM_fn = os.path.join(MM_ws,'_h5_MM.h5')
@@ -557,7 +558,7 @@ try:
             print '\nComputing...'
             if irr_yn == 0:
                 MM_UNSAT.run(_nsl, _nslmax, _st, _Sm, _Sfc, _Sr, _slprop, _Su_ini, botm_l0, _Ks,
-                              gridSOIL, gridSOILthick, cMF.top*1000.0, gridMETEO,
+                              gridSOIL, gridSOILthick, cMF.elev*1000.0, gridMETEO,
                               index, index_S, gridSsurfhmax, gridSsurfw,
                               RF_veg_zoneSP, E0_zonesSP, PT_veg_zonesSP, RFe_veg_zonesSP, PE_zonesSP, gridVEGarea,
                               LAI_veg_zonesSP, Zr, kTu_min, kTu_n, NVEG,
@@ -565,7 +566,7 @@ try:
                               )
             else:
                 MM_UNSAT.run(_nsl, _nslmax, _st, _Sm, _Sfc, _Sr, _slprop, _Su_ini, botm_l0, _Ks,
-                              gridSOIL, gridSOILthick, cMF.top*1000.0, gridMETEO,
+                              gridSOIL, gridSOILthick, cMF.elev*1000.0, gridMETEO,
                               index, index_S, gridSsurfhmax, gridSsurfw,
                               RF_veg_zoneSP, E0_zonesSP, PT_veg_zonesSP, RFe_veg_zonesSP, PE_zonesSP, gridVEGarea,
                               LAI_veg_zonesSP, Zr, kTu_min, kTu_n, NVEG,

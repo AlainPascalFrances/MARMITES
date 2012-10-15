@@ -1,4 +1,4 @@
-    # -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """
 MARMITES is a distributed depth-wise lumped-parameter model for
 spatio-temporal assessment of water fluxes in the unsaturated zone.
@@ -34,7 +34,7 @@ __version__ = "0.4"
 __date__ = "2012"
 
 import numpy as np
-import os, h5py
+import os, sys, h5py, traceback
 
 class SOIL:
 
@@ -287,7 +287,7 @@ class SOIL:
         # Groundwater transpiration
         kTu_max = 0.99999
         for v in range(NVEG):
-            if HEADS > Zr_elev[v]:
+            if HEADS_corr > Zr_elev[v]:
                 for l in range(nsl):
                     if Ssoil_pc_tmp[l] <> self.hnoflo:
                         if Ssoil_pc_tmp[l] >= Sr[l]:
@@ -315,7 +315,7 @@ class SOIL:
             LAI_veg_zonesSP, Zr, kTu_min, kTu_n, NVEG,
             cMF, conv_fact, h5_MM, irr_yn,
             MM_ws, MF_ws, MF_ini_fn,
-            nper, perlen, nstp, tsmult, Ss_tr, strt,
+            nper, perlen, nstp, tsmult, Ss_tr,
             RF_irr_zoneSP = [], PT_irr_zonesSP = [], RFe_irr_zoneSP = [],
             crop_irr_SP = [], gridIRR = [],
             Zr_c = [], kTu_min_c = [], kTu_n_c = [], NCROP = []):
@@ -335,6 +335,7 @@ class SOIL:
         tstart_MF = 0
         tend_MF = 0
         for n in range(nper):
+#            print 'time step: %03d' % n
             cMF.perlen = perlen[n]
             cMF.nstp   = nstp[n]
             cMF.tsmult = tsmult[n]
@@ -343,18 +344,31 @@ class SOIL:
             tend_MF += nstp[n]
             if n == 0:
                 JD_nper.append(cMF.JD[0])
-                h_MF = np.asarray(strt)[:,:,0]
-                cMF.strt   = strt  # h from previous time step
+                h_MF = np.zeros([cMF.nrow, cMF.ncol], dtype = float)
+                for l in range(cMF.nlay):
+                    mask = np.ma.make_mask(iuzfbnd == l+1)
+                    h_MF += np.asarray(cMF.strt)[:,:,l]*mask
                 if cMF.uzf_yn == 1:
                     exf_MF = np.zeros([cMF.nrow,cMF.ncol], dtype = float)
                 else:
                     exf_MF = 0.0
             else:
                 JD_nper.append(JD_nper[n-1] + cMF.perlen)
-                cMF.strt   = h_MF[:,:]
-                exf_MF = exf_MF / cMF.perlen
-            MM         = np.zeros([cMF.perlen,cMF.nrow,cMF.ncol,len(index)], dtype=float)
-            MM_S       = np.zeros([cMF.perlen,cMF.nrow,cMF.ncol,_nslmax,len(index_S)], dtype=float)
+                cMF.strt = []
+                for row in range(cMF.nrow):
+                    cMF.strt.append([])
+                    for col in range(cMF.ncol):
+                        cMF.strt[row].append([])
+                        for l in range(cMF.nlay):
+                            cMF.strt[row][col].append(h_MF[:,row,col,l][0])
+                h_MF_tmp = np.zeros([cMF.nrow, cMF.ncol], dtype = float)
+                for l in range(cMF.nlay):
+                    mask = np.ma.make_mask(iuzfbnd == l+1)
+                    h_MF_tmp += h_MF[0,:,:,l]*mask
+                h_MF = h_MF_tmp * 1.0
+                del h_MF_tmp
+            MM   = np.zeros([cMF.perlen,cMF.nrow,cMF.ncol,len(index)], dtype=float)
+            MM_S = np.zeros([cMF.perlen,cMF.nrow,cMF.ncol,_nslmax,len(index_S)], dtype=float)
             # loop into the grid
             for i in range(cMF.nrow):
                 for j in range(cMF.ncol):
@@ -534,9 +548,10 @@ class SOIL:
                                 HEADS_drycell = h_MF[i,j]*1000.0
                             # dgwt and uzthick
                             uzthick[t] = BotSoilLay[nsl-1] - HEADS_drycell
-                            if exf_MF[i,j] <= 0.0:  #BotSoilLay[nsl-1] > HEADS_drycell:
+                            if exf_MF[i,j] <= 0.0: # or BotSoilLay[nsl-1] > HEADS_drycell:
                                 dgwt[t] = TopSoilLay[0] - HEADS_drycell
                             elif exf_MF[i,j] > 0.0:
+                                print 'Alleluia, exfiltration at i:%02d j:%03d n:%03d' % (i,j,n)
                                 dgwt[t] = sum(Tl)
                                 HEADS_drycell = BotSoilLay[nsl-1]
                             # for the first SP, S_ini is expressed in % and has to be converted in mm
@@ -651,21 +666,19 @@ class SOIL:
                     h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
                 except:
                     raise SystemExit('\nFATAL ERROR!\nInvalid MODFLOW HDF5 file. Run MARMITES and/or MODFLOW again.')
-            for l in range(cMF.nlay):
-                mask = np.ma.make_mask(iuzfbnd == l+1)
-                h5_MM['h_MF'][tstart_MF,:,:] += h5_MF['heads'][0,:,:,l]*mask
+            # initial values for next stress period
+            h_MF = h5_MF['heads'][:,:,:,:]
             if cMF.uzf_yn == 1:
-                cbc_uzf_nam = []
-                for c in h5_MF['cbc_uzf_nam']:
-                    cbc_uzf_nam.append(c.strip())
-                imfEXF   = cbc_uzf_nam.index('SURFACE LEAKAGE')
+                if n == 0:
+                    cbc_uzf_nam = []
+                    for c in h5_MF['cbc_uzf_nam']:
+                        cbc_uzf_nam.append(c.strip())
+                    imfEXF   = cbc_uzf_nam.index('SURFACE LEAKAGE')
+                exf_MF = np.zeros([cMF.nrow, cMF.ncol], dtype = float)
                 for l in range(cMF.nlay):
                     mask = np.ma.make_mask(iuzfbnd == l+1)
-                    h5_MM['exf_MF'][tstart_MF,:,:] += h5_MF['cbc_uzf'][0,:,:,imfEXF,l]*mask
-            # initial values for nest stress period
-            if n < (nper-1):
-                h_MF = h5_MM['h_MF'][tstart_MF,:,:]
-                exf_MF = h5_MM['exf_MF'][tstart_MF,:,:]*conv_fact/(cMF.delr[0]*cMF.delc[0])
+                    exf_MF += h5_MF['cbc_uzf'][0,:,:,imfEXF,l]*mask
+                exf_MF *= -1.0*conv_fact/(cMF.delr[0]*cMF.delc[0])
             h5_MF.close()
             tstart_MM = tend_MM*1
             tstart_MF = tend_MF*1
