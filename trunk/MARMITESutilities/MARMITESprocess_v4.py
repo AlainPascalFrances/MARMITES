@@ -66,34 +66,36 @@ class PROCESS:
     ######################
 
     def checkarray(self, var, dtype = np.float):
-        try:
-            if len(var)>1:
-                lst_out = []
-                for v in var:
+        if type(var) == np.ndarray:
+            lst_out = list(var)
+        else:
+            try:
+                if len(var)>1:
+                    lst_out = []
+                    for v in var:
+                        if dtype == np.int or dtype == int:
+                            lst_out.append(int(v))
+                        else:
+                            lst_out.append(float(v))
+                else:
                     if dtype == np.int or dtype == int:
-                        lst_out.append(int(v))
+                        lst_out = int(var[0])
                     else:
-                        lst_out.append(float(v))
-            else:
-                if dtype == np.int or dtype == int:
-                    lst_out = int(var[0])
+                        lst_out = float(var[0])
+            except:
+                array = np.zeros((self.nrow,self.ncol,len(var)), dtype = dtype)
+                l = 0
+                for v in var:
+                    if isinstance(v, str):
+                        array_path = os.path.join(self.MF_ws, v)
+                        array[:,:,l] = self.convASCIIraster2array(array_path, array[:,:,l])
+                    else:
+                        print'\nFATAL ERROR!\nMODFLOW ini file incorrect, check files or values %s' % var
+                    l += 1
+                if len(var)>1:
+                    lst_out = list(array)
                 else:
-                    lst_out = float(var[0])
-        except:
-            array = np.zeros((self.nrow,self.ncol,len(var)), dtype = dtype)
-            l = 0
-            for v in var:
-                if isinstance(v, str):
-                    array_path = os.path.join(self.MF_ws, v)
-                    array[:,:,l] = self.convASCIIraster2array(array_path, array[:,:,l])
-                else:
-                    print'\nFATAL ERROR!\nMODFLOW ini file incorrect, check files or values %s' % var
-                l += 1
-            if len(var)>1:
-                lst_out = list(array)
-            else:
-                lst_out = list(array[:,:,0])
-
+                    lst_out = list(array[:,:,0])
         return lst_out
 
     ######################

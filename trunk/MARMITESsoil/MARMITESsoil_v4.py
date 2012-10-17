@@ -329,6 +329,7 @@ class SOIL:
         MM_finf_MF = np.zeros([cMF.nrow,cMF.ncol], dtype=float)
         MM_wel_MF  = np.zeros([cMF.nrow,cMF.ncol], dtype=float)
         cMF.nper = 1
+#        cMF.iuzfopt = 0
         iuzfbnd = np.asarray(cMF.iuzfbnd)
         tstart_MM = 0
         tend_MM = 0
@@ -360,13 +361,7 @@ class SOIL:
                     for col in range(cMF.ncol):
                         cMF.strt[row].append([])
                         for l in range(cMF.nlay):
-                            cMF.strt[row][col].append(h_MF[:,row,col,l][0])
-                h_MF_tmp = np.zeros([cMF.nrow, cMF.ncol], dtype = float)
-                for l in range(cMF.nlay):
-                    mask = np.ma.make_mask(iuzfbnd == l+1)
-                    h_MF_tmp += h_MF[0,:,:,l]*mask
-                h_MF = h_MF_tmp * 1.0
-                del h_MF_tmp
+                            cMF.strt[row][col].append(h_MF_l[:,row,col,l][0])
             MM   = np.zeros([cMF.perlen,cMF.nrow,cMF.ncol,len(index)], dtype=float)
             MM_S = np.zeros([cMF.perlen,cMF.nrow,cMF.ncol,_nslmax,len(index_S)], dtype=float)
             # loop into the grid
@@ -551,7 +546,7 @@ class SOIL:
                             if exf_MF[i,j] <= 0.0: # or BotSoilLay[nsl-1] > HEADS_drycell:
                                 dgwt[t] = TopSoilLay[0] - HEADS_drycell
                             elif exf_MF[i,j] > 0.0:
-                                print 'Alleluia, exfiltration at i:%02d j:%03d n:%03d' % (i,j,n)
+#                                print 'Alleluia, EXF at i:%02d j:%03d n:%03d' % (i,j,n)
                                 dgwt[t] = sum(Tl)
                                 HEADS_drycell = BotSoilLay[nsl-1]
                             # for the first SP, S_ini is expressed in % and has to be converted in mm
@@ -667,18 +662,40 @@ class SOIL:
                 except:
                     raise SystemExit('\nFATAL ERROR!\nInvalid MODFLOW HDF5 file. Run MARMITES and/or MODFLOW again.')
             # initial values for next stress period
-            h_MF = h5_MF['heads'][:,:,:,:]
+            h_MF_l = h5_MF['heads'][:,:,:,:]
+            h_MF = np.zeros([cMF.nrow, cMF.ncol], dtype = float)
+            for l in range(cMF.nlay):
+                mask = np.ma.make_mask(iuzfbnd == l+1)
+                h_MF += h_MF_l[0,:,:,l]*mask
             if cMF.uzf_yn == 1:
                 if n == 0:
                     cbc_uzf_nam = []
                     for c in h5_MF['cbc_uzf_nam']:
                         cbc_uzf_nam.append(c.strip())
                     imfEXF   = cbc_uzf_nam.index('SURFACE LEAKAGE')
+                    imfRCH   = cbc_uzf_nam.index('UZF RECHARGE')
                 exf_MF = np.zeros([cMF.nrow, cMF.ncol], dtype = float)
+                rch_MF = np.zeros([cMF.nrow, cMF.ncol], dtype = float)
                 for l in range(cMF.nlay):
                     mask = np.ma.make_mask(iuzfbnd == l+1)
                     exf_MF += h5_MF['cbc_uzf'][0,:,:,imfEXF,l]*mask
+                    rch_MF += h5_MF['cbc_uzf'][0,:,:,imfRCH,l]*mask
                 exf_MF *= -1.0*conv_fact/(cMF.delr[0]*cMF.delc[0])
+                rch_MF *= conv_fact/(cMF.delr[0]*cMF.delc[0])
+            if n == 0:
+                thti = cMF.MM_PROCESS.checkarray(cMF.thti)
+            rch_tmp = rch_MF.sum()
+##            if rch_tmp > 0.0:
+##                print '\nAlleluia, RCH: %06.2f' % (rch_tmp)
+##                print rch_MF
+            dgwt_tmp1 = cMF.top - h_MF
+            thti_tmp = thti + MM_finf_MF/dgwt_tmp1 - rch_MF/dgwt_tmp1
+            cMF.thti = []
+            for row in range(cMF.nrow):
+                cMF.thti.append([])
+                for col in range(cMF.ncol):
+                    cMF.thti[row].append(thti_tmp[row,col])
+            cMF.thti = np.asarray(cMF.thti)
             h5_MF.close()
             tstart_MM = tend_MM*1
             tstart_MF = tend_MF*1

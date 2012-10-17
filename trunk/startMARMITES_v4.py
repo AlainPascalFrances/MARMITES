@@ -323,12 +323,14 @@ try:
             cMF.ppMFtime(MM_ws, MF_ws, inputDate_fn, inputZON_dSP_RF_veg_fn, inputZON_dSP_RFe_veg_fn, inputZON_dSP_PT_fn,input_dSP_LAI_veg_fn, inputZON_dSP_PE_fn, inputZON_dSP_E0_fn, NMETEO, NVEG, NSOIL)
         else:
             cMF.ppMFtime(MM_ws, MF_ws, inputDate_fn, inputZON_dSP_RF_veg_fn, inputZON_dSP_RFe_veg_fn, inputZON_dSP_PT_fn, input_dSP_LAI_veg_fn, inputZON_dSP_PE_fn, inputZON_dSP_E0_fn, NMETEO, NVEG, NSOIL, inputZON_dSP_RF_irr_fn, inputZON_dSP_RFe_irr_fn, inputZON_dSP_PT_irr_fn, input_dSP_crop_irr_fn, NFIELD)
-        nper   = cMF.nper
-        perlen = cMF.perlen
-        nstp   = cMF.nstp
-        tsmult = cMF.tsmult
-        Ss_tr  = cMF.Ss_tr
-        strt   =  cMF.strt
+        nper    = cMF.nper
+        perlen  = cMF.perlen
+        nstp    = cMF.nstp
+        tsmult  = cMF.tsmult
+        Ss_tr   = cMF.Ss_tr
+        strt    = cMF.strt
+        thti    = cMF.thti
+#        iuzfopt = cMF.iuzfopt
 
     print'\n##############'
     print 'MARMITESsoil initialization'
@@ -517,12 +519,15 @@ except StandardError, e:  #Exception
 # ### MODFLOW RUN with MM-computed soil infiltration
 # #############################
 try:
-    cMF.nper   = nper
-    cMF.perlen = perlen
-    cMF.nstp   = nstp
-    cMF.tsmult = tsmult
-    cMF.Ss_tr  = Ss_tr
-    cMF.strt   = strt
+    cMF.nper    = nper
+    cMF.perlen  = perlen
+    cMF.nstp    = nstp
+    cMF.tsmult  = tsmult
+    cMF.Ss_tr   = Ss_tr
+    cMF.strt    = strt
+    cMF.thti    = thti
+#    cMF.iuzfopt = iuzfopt
+
     if MF_yn == 1:
         timestartMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
         print'\n##############'
@@ -556,9 +561,6 @@ try:
         if cMF.uzf_yn == 1:
             for c in h5_MF['cbc_uzf_nam']:
                 cbc_uzf_nam.append(c.strip())
-        elif cMF.rch_yn == 1:
-            imfRCH = cbc_nam.index('RECHARGE')
-            raise SystemExit('\nFATAL ERROR!\nMM has to be run together with the UZF1 package of MODFLOW 2005/ MODFLOW NWT, thus the RCH package should be desactivacted!\nExisting MM.')
         imfSTO = cbc_nam.index('STORAGE')
         if cMF.ghb_yn == 1:
             imfGHB = cbc_nam.index('HEAD DEP BOUNDS')
@@ -618,8 +620,6 @@ if MF_yn == 1 and isinstance(cMF.h5_MF_fn, str):
         raise SystemExit('\nFATAL ERROR!\nInvalid MODFLOW HDF5 file. Run MARMITES and/or MODFLOW again.')
     cMF.MM_PROCESS.procMF(cMF = cMF, h5_MF = h5_MF, ds_name = 'cbc', ds_name_new = 'STO_d', conv_fact = conv_fact, index = imfSTO)
     cMF.MM_PROCESS.procMF(cMF = cMF, h5_MF = h5_MF, ds_name = 'heads', ds_name_new = 'heads_d', conv_fact = conv_fact)
-    if cMF.rch_yn == 1:
-        cMF.MM_PROCESS.procMF(cMF = cMF, h5_MF = h5_MF, ds_name = 'cbc', ds_name_new = 'RCH_d', conv_fact = conv_fact, index = imfRCH)
     if cMF.drn_yn == 1:
         cMF.MM_PROCESS.procMF(cMF = cMF, h5_MF = h5_MF, ds_name = 'cbc', ds_name_new = 'DRN_d', conv_fact = conv_fact, index = imfDRN)
     if cMF.wel_yn == 1:
@@ -640,8 +640,6 @@ for n in range(cMF.nper):
 
 if os.path.exists(cMF.h5_MF_fn):
     index_cbc = [imfSTO]
-    if cMF.rch_yn == 1:
-       index_cbc.append(imfRCH)
     if cMF.drn_yn == 1:
         index_cbc.append(imfDRN)
     if cMF.wel_yn == 1:

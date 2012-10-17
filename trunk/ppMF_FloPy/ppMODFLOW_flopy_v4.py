@@ -434,18 +434,6 @@ class MF():
                         self.drn_cond.append(inputFile[l].split()[i])
             else:
                 l += 3
-            # rch
-            l += 1
-            self.rch_yn = int(inputFile[l].strip())
-            if self.rch_yn ==1 :
-                l += 1
-                self.ext_rch = str(inputFile[l].strip())
-                l += 1
-                self.nrchop = int(inputFile[l].strip())
-                l += 1
-                self.rch_user = float(inputFile[l].strip())
-            else:
-                l += 3
             # MF output
             l += 1
             self.MFout_yn = int(inputFile[l].strip())
@@ -951,22 +939,23 @@ class MF():
 
         if type(finf_MM) == np.ndarray:
             finf_input = finf_MM
-            wel_input = wel_MM
         else:
             if os.path.exists(finf_MM[0]):
                 if self.uzf_yn == 1:
                     finf_input = finf_MM
-                if self.wel_yn == 1:
-                    wel_input = wel_MM
-                if self.rch_yn == 1:
-                    rch_input = rch_MM
             else:
                 if self.uzf_yn == 1:
                     finf_input = self.finf_user
+
+        if type(wel_MM) == np.ndarray:
+            wel_input = wel_MM
+        else:
+            if os.path.exists(wel_MM[0]):
+                if self.wel_yn == 1:
+                    wel_input = wel_MM
+            else:
                 if self.wel_yn == 1:
                     wel_input = self.wel_user
-                if self.rch_yn == 1:
-                    rch_input = self.rch_user
 
         # 1 - reaf asc file and convert in np.array
 
@@ -989,6 +978,14 @@ class MF():
             if isinstance(finf_input,float):
                 finf_array = finf_input
                 if silent == 0: print 'Infiltration input: %s' % str(finf_input)
+            elif type(finf_input) == np.ndarray:
+                finf_array = []
+                for n in range(self.nper):
+                    finf_array.append([])
+                    for row in range(self.nrow):
+                        finf_array[n].append([])
+                        for col in range(self.ncol):
+                            finf_array[n][row].append(finf_input[row,col])
             else:
                 finf_array = []
                 if silent == 0: print 'Infiltration input: %s' % finf_input[0]
@@ -1010,14 +1007,28 @@ class MF():
             if isinstance(wel_input,float):
                 wel_array = wel_input
                 if silent == 0: print 'Discharge input: %s' % str(wel_input)
+            elif type(wel_input) == np.ndarray:
+                wel_array = []
+                wel_array_n = []
+                for n in range(self.nper):
+                    wel_array.append([])
+                    for row in range(self.nrow):
+                        wel_array[n].append([])
+                        for col in range(self.ncol):
+                            wel_array[n][row].append(wel_input[row,col])
+                    wel_array_n.append(np.asarray(wel_array[n]).sum())
+                wel_array_sum = np.asarray(wel_array).sum()
             else:
                 wel_array = []
+                wel_array_n = []
                 if silent == 0: print 'Discharge input: %s' % wel_input[0]
                 try:
                     h5_wel = h5py.File(wel_input[0], 'r')
                     for n in range(self.nper):
                         wel_array.append(h5_wel[wel_input[1]][n])
+                        wel_array_n.append(h5_wel[wel_input[1]][n].sum())
                     h5_wel.close()
+                    wel_array_sum = sum(sum(sum(wel_array)))
                 except:
                     if silent == 0: print 'WARNING!\nNo valid WEL package file(s) provided, running MODFLOW using user-input well value: %.3G' % self.wel_user
                     wel_array = self.wel_user
@@ -1043,10 +1054,10 @@ class MF():
                     if wel_dum == 1:
                         break
             else:
-                if sum(sum(sum(wel_array))) > 0.0:
+                if wel_array_sum > 0.0:
                     for n in range(self.nper):
                         layer_row_column_Q.append([])
-                        if sum(sum(wel_array[n]))>0.0:
+                        if wel_array_n[n] > 0.0:
                             for r in range(self.nrow):
                                 for c in range(self.ncol):
                                     if np.abs(self.ibound[r][c][:]).sum() != 0:
@@ -1074,26 +1085,6 @@ class MF():
                         if wel_dum == 1:
                             break
             del iuzfbnd
-            if silent == 0: print "Done!"
-
-        # RCH
-        if self.rch_yn == 1:
-            if silent == 0: print '\nRCH package initialization'
-            if isinstance(rch_input,float):
-                rch_array = rch_input
-                if silent == 0: print 'recharge input: %s' % str(rch_input)
-            else:
-                rch_array = []
-                if silent == 0: print 'recharge input: %s' % rch_input[0]
-                try:
-                    h5_rch = h5py.File(rch_input[0], 'r')
-                    for n in range(self.nper):
-                        rch_array.append(h5_rch[rch_input[1]][n])
-                    h5_rch.close()
-                except:
-                    rch_array = rch_user
-                    if silent == 0: print 'WARNING!\nNo valid RCH package file(s) provided, running MODFLOW using user-input recharge value: %.3G' % rch_user
-                    rch_input = rch_user
             if silent == 0: print "Done!"
 
         # DRAIN
@@ -1205,11 +1196,6 @@ class MF():
             uzf = mf.mfuzf1(model = mfmain, nuztop = self.nuztop, iuzfopt = self.iuzfopt, irunflg = self.irunflg, ietflg = self.ietflg, iuzfcb1 = self.iuzfcb1, iuzfcb2 = self.iuzfcb2, ntrail2 = self.ntrail2, nsets = self.nsets, nuzgag = self.nuzgag, surfdep = self.surfdep, iuzfbnd = self.iuzfbnd, vks = vks, eps = eps, thts = thts, thti = thti, row_col_iftunit_iuzopt = self.row_col_iftunit_iuzopt, finf = finf_array, extension = self.ext_uzf, uzfbud_ext = self.uzfbud_ext)
             uzf.write_file()
             del thti, thts, eps, vks, finf_array
-        # rch package
-        if self.rch_yn == 1:
-            rch = mf.mfrch(model = mfmain, irchcb = cb, nrchop = self.nrchop, rech = rch_array, extension = self.ext_rch)
-            rch.write_file()
-            del rch_array
         # output control package
         oc = mf.mfoc(model = mfmain, ihedfm = self.ihedfm, iddnfm = self.iddnfm, item2 = [[0,1,1,1]], item3 = [[0,0,1,0]], extension = [self.ext_oc,self.ext_heads,self.ext_ddn,self.ext_cbc])
         oc.write_file()

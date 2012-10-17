@@ -150,8 +150,8 @@ try:
     inputObsSM_fn = inputFile[l].strip()
     l += 1
     chunks = int(inputFile[l].strip())
-    if MMsoil_yn == 1 and MF_yn != 1:
-        MF_yn == 1
+    if MMsoil_yn == 1:
+        MF_yn = 1
     if MMsurf_plot == 1:
         plt_out = 0
         plt_out_obs = 0
