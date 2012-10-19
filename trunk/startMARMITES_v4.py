@@ -663,10 +663,7 @@ if os.path.exists(h5_MM_fn):
     hcorrmin = float(np.floor(np.ma.min(headscorr_m.flatten())))
     h5_MM.close()
     del headscorr_m
-else:
-    hcorrmax = -9999.9
-    hcorrmin = 9999.9
-# exporting sm computed by MM for PEST (smp format)
+    # exporting sm computed by MM for PEST (smp format)
     outPESTsmMM = open(os.path.join(MF_ws,'sm_MM4PEST.smp'), 'w')
     for o_ref in obs_list:
         for o in obs.keys():
@@ -692,6 +689,9 @@ else:
         ind += 1
     outPESTsmMM.close()
     h5_MM.close()
+else:
+    hcorrmax = -9999.9
+    hcorrmin = 9999.9
 
 if plt_out == 1 or plt_out_obs == 1:
     print '\nExporting ASCII files and plots...'
@@ -824,7 +824,7 @@ if plt_out == 1 or plt_out_obs == 1:
         flxmax_d     = []
         flxmin_d     = []
         flxlbl_CATCH = []
-        TopSoilAverage = np.ma.masked_array(cMF.top*1000.0, maskAllL).sum()*.001/sum(ncell_MM)
+        TopSoilAverage = np.ma.masked_array(cMF.elev*1000.0, maskAllL).sum()*.001/sum(ncell_MM)
         for i in flxlbl:
             flxlbl_CATCH.append(i)
             i = 'i'+i
@@ -1016,7 +1016,7 @@ if plt_out == 1 or plt_out_obs == 1:
                 if cMF.wel_yn == 1:
                     cbc_WEL = h5_MF['WEL_d'][:,:,:,l]
                     if ncell_MM[l]>0:
-                        flxlst.append(facTim*(cbc_WEL.sum()/sum(cMF.perlen)/sum(ncell_MM)))
+                        flxlst.append(-1.0*facTim*(cbc_WEL.sum()/sum(cMF.perlen)/sum(ncell_MM)))
                         OutMF += -flxlst[-1]
                     else:
                         flxlst.append(0.0)
@@ -1127,7 +1127,7 @@ if plt_out == 1 or plt_out_obs == 1:
                     else:
                         obs_h_tmp = []
                     if cMF.wel_yn == 1:
-                        cbc_WEL = -np.sum(np.ma.masked_values(h5_MF['WEL_d'][:,i,j,:], cMF.hnoflo, atol = 0.09), axis = 1)
+                        cbc_WEL = -1.0*np.sum(np.ma.masked_values(h5_MF['WEL_d'][:,i,j,:], cMF.hnoflo, atol = 0.09), axis = 1)
                     else:
                         cbc_WEL = 0
                     if irr_yn == 0:
@@ -1190,7 +1190,7 @@ if plt_out == 1 or plt_out_obs == 1:
                     max(hmax), #hmax[x] + hdiff/2
                     min(hmin), #hmin[x] - hdiff/2
                     o,
-                    cMF.top[i,j],
+                    cMF.elev[i,j],
                     cMF.nlay
                     )
                     x += 1
@@ -1340,7 +1340,7 @@ if plt_out == 1 or plt_out_obs == 1:
 #                del hmin_tmp, hmax_tmp, ctrs_tmp
             # plot GWTD [m]
             for L in range(cMF.nlay):
-                V[L] = cMF.top-V[L]
+                V[L] = cMF.elev-V[L]
             GWTDmax = np.ma.max(V[0]) #float(np.ceil(np.ma.max(V)))
             GWTDmin = np.ma.min(V[0]) #float(np.floor(np.ma.min(V)))
             GWTDmin_tmp, GWTDmax_tmp, ctrsGWTD_tmp = minmax(GWTDmin, GWTDmax, ctrsMF)
@@ -1352,7 +1352,7 @@ if plt_out == 1 or plt_out_obs == 1:
 #                del hcorrmin_tmp, hcorrmax_tmp, ctrs_tmp
             # plot GWTD correct [m]
             GWTDcorr = []
-            GWTDcorr.append(cMF.top-headscorr_m[0])
+            GWTDcorr.append(cMF.elev-headscorr_m[0])
             MMplot.plotLAYER(SP = SP, Date = Date_lst[t], JD = JD_lst[t], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = GWTDcorr,  cmap = plt.cm.Blues, CBlabel = 'depth to groundwater table (m)', msg = 'DRY', plt_title = 'MF_GWTDcorr', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (GWTDmax_tmp - GWTDmin_tmp)/nrangeMF, contours = ctrsGWTD_tmp, Vmax = GWTDmax_tmp, Vmin = GWTDmin_tmp, ntick = ntick)
 #                del Vmax, Vmin, Vmax_tmp, Vmin_tmp, ctrs_tmp, headscorr_m
             # plot GW drainage [mm]
@@ -1396,7 +1396,7 @@ if plt_out == 1 or plt_out_obs == 1:
         MMplot.plotLAYER(SP = SP, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation (m)', msg = 'DRY', plt_title = 'MF_average_HEADS', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (hmaxMF - hminMF)/nrangeMF, contours = ctrsMF_tmp, Vmax = hmaxMF, Vmin = hminMF, ntick = ntick)
         # plot GWTD [m]
         for L in range(cMF.nlay):
-            V[L] = cMF.top-V[L]
+            V[L] = cMF.elev-V[L]
         GWTDmax = np.ma.max(V[0]) #float(np.ceil(np.ma.max(V)))
         GWTDmin = np.ma.min(V[0]) #float(np.floor(np.ma.min(V)))
         GWTDmin_tmp, GWTDmax_tmp, ctrsGWTD_tmp = minmax(GWTDmin, GWTDmax, ctrsMF)
@@ -1408,7 +1408,7 @@ if plt_out == 1 or plt_out_obs == 1:
 #            del hcorrmin_tmp, hcorrmax_tmp, ctrs_tmp
         # plot GWTD correct [m]
         GWTDcorr = []
-        GWTDcorr.append(cMF.top-headscorr_m[0])
+        GWTDcorr.append(cMF.elev-headscorr_m[0])
 #            Vmax = np.ma.max(GWTDcorr) #float(np.ceil(np.ma.max(V)))
 #            Vmin = np.ma.min(GWTDcorr) #float(np.floor(np.ma.min(V)))
 #            Vmin_tmp, Vmax_tmp, ctrs_tmp = minmax(Vmin, Vmax, ctrsMF)

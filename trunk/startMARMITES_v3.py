@@ -330,7 +330,7 @@ try:
 
     print'\n##############'
     print 'MARMITESsoil initialization'
-    MM_UNSAT = MMsoil.SOIL(hnoflo = cMF.hnoflo)
+    MM_SOIL = MMsoil.SOIL(hnoflo = cMF.hnoflo)
     MM_SATFLOW = MMsoil.SATFLOW()
 
     # READ input ESRI ASCII rasters
@@ -557,7 +557,7 @@ try:
     #        t0=0
             print '\nComputing...'
             if irr_yn == 0:
-                MM_UNSAT.run(_nsl, _nslmax, _st, _Sm, _Sfc, _Sr, _slprop, _Su_ini, botm_l0, _Ks,
+                MM_SOIL.run(_nsl, _nslmax, _st, _Sm, _Sfc, _Sr, _slprop, _Su_ini, botm_l0, _Ks,
                               gridSOIL, gridSOILthick, cMF.elev*1000.0, gridMETEO,
                               index, index_S, gridSsurfhmax, gridSsurfw,
                               RF_veg_zoneSP, E0_zonesSP, PT_veg_zonesSP, RFe_veg_zonesSP, PE_zonesSP, gridVEGarea,
@@ -565,7 +565,7 @@ try:
                               cMF, conv_fact, h5_MF, h5_MM, irr_yn
                               )
             else:
-                MM_UNSAT.run(_nsl, _nslmax, _st, _Sm, _Sfc, _Sr, _slprop, _Su_ini, botm_l0, _Ks,
+                MM_SOIL.run(_nsl, _nslmax, _st, _Sm, _Sfc, _Sr, _slprop, _Su_ini, botm_l0, _Ks,
                               gridSOIL, gridSOILthick, cMF.elev*1000.0, gridMETEO,
                               index, index_S, gridSsurfhmax, gridSsurfw,
                               RF_veg_zoneSP, E0_zonesSP, PT_veg_zonesSP, RFe_veg_zonesSP, PE_zonesSP, gridVEGarea,
@@ -1006,7 +1006,7 @@ try:
 
 
         # #################################################
-        # plot UNSAT/GW balance at the catchment scale
+        # plot SOIL/GW balance at the catchment scale
         # #################################################
         tTgmin = -1
         if os.path.exists(h5_MM_fn):
@@ -1029,7 +1029,7 @@ try:
             flxmax_d     = []
             flxmin_d     = []
             flxlbl_CATCH = []
-            TopSoilAverage = np.ma.masked_array(cMF.top*1000.0, maskAllL).sum()*.001/sum(ncell_MM)
+            TopSoilAverage = np.ma.masked_array(cMF.elev*1000.0, maskAllL).sum()*.001/sum(ncell_MM)
             for i in flxlbl:
                 flxlbl_CATCH.append(i)
                 i = 'i'+i
@@ -1155,7 +1155,7 @@ try:
                 flxlst[l] = x*y
             del flxlbl1, flxlbl2, flxlbl3, flxlbl3a, sign
             if os.path.exists(cMF.h5_MF_fn):
-                plt_export_fn = os.path.join(MM_ws, '_plt_0CATCHMENT_UNSATandGWbalances.png')
+                plt_export_fn = os.path.join(MM_ws, '_plt_0CATCHMENT_SOILandGWbalances.png')
                 # compute UZF_STO and store GW_RCH
                 flxlbl.append('UZ_STO')
                 rch_tmp = 0
@@ -1256,7 +1256,7 @@ try:
                 MMplot.plotTIMESERIES_CATCH(cMF.inputDate, flx_Cat_TS, flxlbl_CATCH, plt_exportCATCH_fn, plt_titleCATCH, hmax = hmaxMF, hmin = hminMF, cMF = cMF)
             else:
                 MMplot.plotTIMESERIES_CATCH(cMF.inputDate, flx_Cat_TS, flxlbl_CATCH, plt_exportCATCH_fn, plt_titleCATCH, hmax = hmaxMF, hmin = hminMF)
-                plt_export_fn = os.path.join(MM_ws, '_plt_0CATCHMENT_UNSATbalance.png')
+                plt_export_fn = os.path.join(MM_ws, '_plt_0CATCHMENT_SOILbalance.png')
                 plt_title = 'MARMITES water balance for the whole catchment\nMass balance error: MM = %1.2f%%' % (MB_MM)
                 header_tmp = ['MM_MB']
                 MB_tmp = [MB_MM]
@@ -1280,7 +1280,7 @@ try:
             del flx_Cat_TS, flx_Cat_TS_str, out_line
             colors_flx = CreateColors.main(hi=0, hf=180, numbcolors = len(flxlbl))
             MMplot.plotGWbudget(flxlst = flxlst, flxlbl = flxlbl, colors_flx = colors_flx, plt_export_fn = plt_export_fn, plt_title = plt_title, fluxmax = flxmax, fluxmin = flxmin, unit = plt_WB_unit)
-            plt_export_txt = open(os.path.join(MM_ws, '_plt_0CATCHMENT_UNSATandGWbalances.txt'), 'w')
+            plt_export_txt = open(os.path.join(MM_ws, '_plt_0CATCHMENT_SOILandGWbalances.txt'), 'w')
             flxlbl_str = flxlbl[0]
             for e in (flxlbl[1:] + header_tmp):
                 flxlbl_str += ',' + e
@@ -1327,7 +1327,7 @@ try:
                 if cMF.wel_yn == 1:
                     cbc_WEL = h5_MF['WEL_d']
                     if ncell_MM[l]>0:
-                        flxlst.append(facTim*(cbc_WEL[:,:,:,l].sum()/sum(cMF.perlen)/sum(ncell_MM)))
+                        flxlst.append(-1.0*facTim*(cbc_WEL[:,:,:,l].sum()/sum(cMF.perlen)/sum(ncell_MM)))
                         OutMF += flxlst[-1]
                     else:
                         flxlst.append(0.0)
@@ -1455,7 +1455,7 @@ try:
                         max(hmax), #hmax[x] + hdiff/2
                         min(hmin), #hmin[x] - hdiff/2
                         o,
-                        cMF.top[i,j],
+                        cMF.elev[i,j],
                         cMF.nlay
                         )
                         x += 1
@@ -1468,28 +1468,28 @@ try:
                         #flxlbl4  = ['Rp']
                         flxlst.append([
                              facTim*(MM[:,index.get('iRF')].sum()/sum(cMF.perlen)),
-                            -1*facTim*(MM[:,index.get('iI')].sum()/sum(cMF.perlen)),
+                            -1.0*facTim*(MM[:,index.get('iI')].sum()/sum(cMF.perlen)),
                              facTim*(MM[:,index.get('iRFe')].sum()/sum(cMF.perlen)),
-                            -1*facTim*(MM[:,index.get('idSsurf')].sum()/sum(cMF.perlen)),
-                             -1*facTim*(MM[:,index.get('iRo')].sum()/sum(cMF.perlen)),
-                            -1*facTim*(MM[:,index.get('iEsurf')].sum()/sum(cMF.perlen)),
+                            -1.0*facTim*(MM[:,index.get('idSsurf')].sum()/sum(cMF.perlen)),
+                             -1.0*facTim*(MM[:,index.get('iRo')].sum()/sum(cMF.perlen)),
+                            -1.0*facTim*(MM[:,index.get('iEsurf')].sum()/sum(cMF.perlen)),
                              facTim*(MM[:,index.get('idSsoil')].sum()/sum(cMF.perlen)),
                              facTim*(MM[:,index.get('iEXF')].sum()/sum(cMF.perlen)),
-                            -1*facTim*(MM_S[:,:,index_S.get('iEsoil')].sum()/sum(cMF.perlen)),
-                            -1*facTim*(MM_S[:,:,index_S.get('iTsoil')].sum()/sum(cMF.perlen)),
-                            -1*facTim*(MM[:,index.get('iETsoil')].sum()/sum(cMF.perlen)),
-                            -1*facTim*(MM[:,index.get('iEg')].sum()/sum(cMF.perlen)),
-                            -1*facTim*(MM[:,index.get('iTg')].sum()/sum(cMF.perlen)),
-                            -1*facTim*(MM[:,index.get('iETg')].sum()/sum(cMF.perlen)),
-                            -1*facTim*conv_fact*((cMF.perlen*h5_MM['finf'][:,i,j]).sum()/sum(cMF.perlen))
+                            -1.0*facTim*(MM_S[:,:,index_S.get('iEsoil')].sum()/sum(cMF.perlen)),
+                            -1.0*facTim*(MM_S[:,:,index_S.get('iTsoil')].sum()/sum(cMF.perlen)),
+                            -1.0*facTim*(MM[:,index.get('iETsoil')].sum()/sum(cMF.perlen)),
+                            -1.0*facTim*(MM[:,index.get('iEg')].sum()/sum(cMF.perlen)),
+                            -1.0*facTim*(MM[:,index.get('iTg')].sum()/sum(cMF.perlen)),
+                            -1.0*facTim*(MM[:,index.get('iETg')].sum()/sum(cMF.perlen)),
+                            -1.0*facTim*conv_fact*((cMF.perlen*h5_MM['finf'][:,i,j]).sum()/sum(cMF.perlen))
                             ])
                         InMM = flxlst[-1][0] + flxlst[-1][3] + flxlst[-1][6] + flxlst[-1][7]
                         OutMM = -(flxlst[-1][1] + flxlst[-1][4] + flxlst[-1][5] + flxlst[-1][10] + flxlst[-1][14])
                         InOut_MM = InMM - OutMM
                         InOut_tmp.append([InOut_MM])
                         if plt_out_obs == 1 and isinstance(cMF.h5_MF_fn, str):
-                            plt_exportBAL_fn.append(os.path.join(MM_ws, '_plt_0'+ o + '_UNSATandGWbalances.png'))
-                            plt_export_txt_fn.append(os.path.join(MM_ws, '_plt_0'+ o + '_UNSATandGWbalances.txt'))
+                            plt_exportBAL_fn.append(os.path.join(MM_ws, '_plt_0'+ o + '_SOILandGWbalances.png'))
+                            plt_export_txt_fn.append(os.path.join(MM_ws, '_plt_0'+ o + '_SOILandGWbalances.txt'))
                             # compute UZF_STO and store GW_RCH
                             rch_tmp = 0
                             flxlst_tmp = []
@@ -1542,8 +1542,8 @@ try:
                             plt_titleBAL.append(plt_title)
                             del flxlst_tmp, plt_title
                         else:
-                            plt_exportBAL_fn.append(os.path.join(MM_ws, '_plt_0'+ o + '_UNSATbalance.png'))
-                            plt_export_txt_fn.append(os.path.join(MM_ws, '_plt_0' + o + '_UNSATbalances.txt'), 'w')
+                            plt_exportBAL_fn.append(os.path.join(MM_ws, '_plt_0'+ o + '_SOILbalance.png'))
+                            plt_export_txt_fn.append(os.path.join(MM_ws, '_plt_0' + o + '_SOILbalances.txt'), 'w')
                             plt_title = 'MARMITES water flux balance at observation point %s\ni = %d, j = %d, l = %d, x = %d, y = %d, %s\n\nMass balance (In - Out,  [mm]): MM = %1.2f' % (o, i+1, j+1, l+1, obs.get(o)['x'], obs.get(o)['y'], soilnam, InOut_MM)
                             plt_titleBAL.append(plt_title)
                             del plt_title
@@ -1605,7 +1605,7 @@ try:
 #                del hmin_tmp, hmax_tmp, ctrs_tmp
                 # plot GWTD [m]
                 for L in range(cMF.nlay):
-                    V[L] = cMF.top-V[L]
+                    V[L] = cMF.elev-V[L]
                 GWTDmax = np.ma.max(V[0]) #float(np.ceil(np.ma.max(V)))
                 GWTDmin = np.ma.min(V[0]) #float(np.floor(np.ma.min(V)))
                 GWTDmin_tmp, GWTDmax_tmp, ctrsGWTD_tmp = minmax(GWTDmin, GWTDmax, ctrsMF)
@@ -1617,7 +1617,7 @@ try:
 #                del hcorrmin_tmp, hcorrmax_tmp, ctrs_tmp
                 # plot GWTD correct [m]
                 GWTDcorr = []
-                GWTDcorr.append(cMF.top-headscorr_m[0])
+                GWTDcorr.append(cMF.elev-headscorr_m[0])
                 MMplot.plotLAYER(SP = SP, Date = Date_lst[t], JD = JD_lst[t], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = GWTDcorr,  cmap = plt.cm.Blues, CBlabel = 'depth to groundwater table (m)', msg = 'DRY', plt_title = 'MF_GWTDcorr', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (GWTDmax_tmp - GWTDmin_tmp)/nrangeMF, contours = ctrsGWTD_tmp, Vmax = GWTDmax_tmp, Vmin = GWTDmin_tmp, ntick = ntick)
 #                del Vmax, Vmin, Vmax_tmp, Vmin_tmp, ctrs_tmp, headscorr_m
                 # plot GW drainage [mm]
@@ -1661,7 +1661,7 @@ try:
             MMplot.plotLAYER(SP = SP, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation (m)', msg = 'DRY', plt_title = 'MF_average_HEADS', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (hmaxMF - hminMF)/nrangeMF, contours = ctrsMF_tmp, Vmax = hmaxMF, Vmin = hminMF, ntick = ntick)
             # plot GWTD [m]
             for L in range(cMF.nlay):
-                V[L] = cMF.top-V[L]
+                V[L] = cMF.elev-V[L]
             GWTDmax = np.ma.max(V[0]) #float(np.ceil(np.ma.max(V)))
             GWTDmin = np.ma.min(V[0]) #float(np.floor(np.ma.min(V)))
             GWTDmin_tmp, GWTDmax_tmp, ctrsGWTD_tmp = minmax(GWTDmin, GWTDmax, ctrsMF)
@@ -1673,7 +1673,7 @@ try:
 #            del hcorrmin_tmp, hcorrmax_tmp, ctrs_tmp
             # plot GWTD correct [m]
             GWTDcorr = []
-            GWTDcorr.append(cMF.top-headscorr_m[0])
+            GWTDcorr.append(cMF.elev-headscorr_m[0])
 #            Vmax = np.ma.max(GWTDcorr) #float(np.ceil(np.ma.max(V)))
 #            Vmin = np.ma.min(GWTDcorr) #float(np.floor(np.ma.min(V)))
 #            Vmin_tmp, Vmax_tmp, ctrs_tmp = minmax(Vmin, Vmax, ctrsMF)
