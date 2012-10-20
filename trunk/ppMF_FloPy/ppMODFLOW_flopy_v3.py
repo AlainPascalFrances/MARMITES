@@ -344,6 +344,14 @@ class MF():
                 l += 1
                 self.ext_uzf = str(inputFile[l].strip())
                 l += 1
+                specifithtr_tmp =  inputFile[l].split()
+                self.specifythtr = int(specifithtr_tmp[0].strip())
+                self.thtr = [specifithtr_tmp[1].strip()]
+                l += 1
+                self.specifythti = int(inputFile[l].strip())
+                l += 1
+                self.nosurfleak = int(inputFile[l].strip())
+                l += 1
                 self.nuztop = int(inputFile[l].strip())
                 l += 1
                 self.iuzfopt = int(inputFile[l].strip())
@@ -469,7 +477,7 @@ class MF():
         print "\nImporting ESRI ASCII files to initialize the MODFLOW packages..."
 
         self.elev     = self.MM_PROCESS.checkarray(self.elev)
-        self.thick   = self.MM_PROCESS.checkarray(self.thick)
+        self.thick    = self.MM_PROCESS.checkarray(self.thick)
         if self.nlay < 2:
             if isinstance(self.thick, list):
                 self.thick = (np.asarray(self.thick)).reshape((self.nrow, self.ncol, 1))
@@ -980,6 +988,10 @@ class MF():
             eps     = self.MM_PROCESS.checkarray(self.eps)
             thts    = self.MM_PROCESS.checkarray(self.thts)
             thti    = self.MM_PROCESS.checkarray(self.thti)
+            if self.specifythtr > 0:
+                thtr     = self.MM_PROCESS.checkarray(self.thtr)
+            else:
+                thtr = None
 
         # FINF
         if self.uzf_yn == 1:
@@ -1238,7 +1250,7 @@ class MF():
             del layer_row_column_head_cond
         # uzf package
         if self.uzf_yn == 1:
-            uzf = mf.mfuzf1(model = mfmain, nuztop = self.nuztop, iuzfopt = self.iuzfopt, irunflg = self.irunflg, ietflg = self.ietflg, iuzfcb1 = self.iuzfcb1, iuzfcb2 = self.iuzfcb2, ntrail2 = self.ntrail2, nsets = self.nsets, nuzgag = self.nuzgag, surfdep = self.surfdep, iuzfbnd = self.iuzfbnd, vks = vks, eps = eps, thts = thts, thti = thti, row_col_iftunit_iuzopt = self.row_col_iftunit_iuzopt, finf = finf_array, extension = self.ext_uzf, uzfbud_ext = self.uzfbud_ext)
+            uzf = mf.mfuzf1(model = mfmain, nuztop = self.nuztop, specifythtr = self.specifythtr, specifythti = self.specifythti, nosurfleak = self.nosurfleak, iuzfopt = self.iuzfopt, irunflg = self.irunflg, ietflg = self.ietflg, iuzfcb1 = self.iuzfcb1, iuzfcb2 = self.iuzfcb2, ntrail2 = self.ntrail2, nsets = self.nsets, nuzgag = self.nuzgag, surfdep = self.surfdep, iuzfbnd = self.iuzfbnd, vks = vks, eps = eps, thts = thts, thtr = thtr, thti = thti, row_col_iftunit_iuzopt = self.row_col_iftunit_iuzopt, finf = finf_array, extension = self.ext_uzf, uzfbud_ext = self.uzfbud_ext)
             uzf.write_file()
             del thti, thts, eps, vks, finf_array
         # rch package

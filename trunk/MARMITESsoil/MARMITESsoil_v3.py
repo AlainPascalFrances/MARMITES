@@ -232,6 +232,7 @@ class SOIL:
         Tg_tmp_Zr = np.zeros([nsl, len(Zr_elev)])
         Tg_tmp = 0.0
         # soil layers
+
         for l in range(nsl):
             # Esoil
             if Ssurf_tmp == 0.0:
@@ -264,22 +265,19 @@ class SOIL:
             Ssoil_pc_tmp[l] = Ssoil_tmp[l]/Tl[l]
 
         # GW evaporation, equation 17 of Shah et al 2007, see ref in the __init__
-        if Ssurf_tmp == 0.0:
-            if PE > 0.0:
-                dgwt_corr *= 0.1
-                y0    = self.paramEg[st]['y0']
-                b     = self.paramEg[st]['b']
-                dll   = self.paramEg[st]['dll']
-                ext_d = self.paramEg[st]['ext_d']
-                if dgwt_corr <= dll:
-                    Eg_tmp = PE
-                elif dgwt_corr < ext_d:
-                    Eg_tmp = PE*(y0 + np.exp(-b*(dgwt_corr-dll)))
-                else:
-                    Eg_tmp = 0.0
-                dgwt_corr *= 10.0
+        if PE > 0.0:
+            dgwt_corr *= 0.1
+            y0    = self.paramEg[st]['y0']
+            b     = self.paramEg[st]['b']
+            dll   = self.paramEg[st]['dll']
+            ext_d = self.paramEg[st]['ext_d']
+            if dgwt_corr <= dll:
+                Eg_tmp = PE
+            elif dgwt_corr < ext_d:
+                Eg_tmp = PE*(y0 + np.exp(-b*(dgwt_corr-dll)))
             else:
                 Eg_tmp = 0.0
+            dgwt_corr *= 10.0
         else:
             Eg_tmp = 0.0
 

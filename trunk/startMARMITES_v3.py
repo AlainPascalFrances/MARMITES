@@ -42,7 +42,7 @@ print '\n##############\nMARMITESv0.3 started!\n%s\n##############' % mpl.dates.
 # the file can contain any comments as the user wish, but the sequence of the input has to be respected
 # 00_TESTS\MARMITESv3_r13c6l2'  00_TESTS\r40c20'  00_TESTS\r20c40'
 # SARDON2012'  CARRIZAL3' LAMATA'  LaMata_new'
-MM_ws = r'E:\00code_ws\00_TESTS\MARMITESv3_r13c6l2'  #r'E:\00code_ws\CARRIZAL3'
+MM_ws = r'E:\00code_ws\00_TESTS\MARMITESv3_r13c6l2'
 MM_fn = '__inputMM_v3.ini'
 
 inputFile = MMproc.readFile(MM_ws,MM_fn)
@@ -188,9 +188,9 @@ else:
 # 1st phase: INITIALIZATION #####
 # #############################
 try:
-# #############################
-# ###  MARMITES surface  ######
-# #############################
+    # #############################
+    # ###  MARMITES surface  ######
+    # #############################
     print'\n##############'
     print 'MARMITESsurf RUN'
     if MMsurf_yn>0:
@@ -482,7 +482,7 @@ try:
             imfRCH   = cbc_uzf_nam.index('UZF RECHARGE')
         if MMsoil_yn == 0:
             h5_MF.close()
-except StandardError, e:  #Exception
+except StandardError:  #Exception
     raise SystemExit('\nFATAL ERROR!\nAbnormal MM run interruption in the initialization!\nError description:\n%s' % traceback.print_exc(file=sys.stdout))
 
 # #############################
@@ -746,7 +746,7 @@ try:
             print '\nMF run time: %02.fmn%02.fs' % (int(durationMFtmp*24.0*60.0), (durationMFtmp*24.0*60.0-int(durationMFtmp*24.0*60.0))*60)
             del durationMFtmp
 
-except StandardError, e:  #Exception
+except StandardError:  #Exception
     raise SystemExit('\nFATAL ERROR!\nAbnormal MM run interruption in the MM/MF loop!\nError description:\n%s' % traceback.print_exc(file=sys.stdout))
 
 # #############################
@@ -926,10 +926,13 @@ try:
                                 try:
                                     if plt_out_obs == 1:
                                         obs['PzRCHmax'] = {'x':999,'y':999, 'i': row, 'j': list(col).index(RCHmax), 'lay': l, 'hi':999, 'h0':999, 'RC':999, 'STO':999, 'outpathname':os.path.join(MM_ws,'_MM_0PzRCHmax.txt'), 'obs_h':[], 'obs_h_yn':0, 'obs_S':[], 'obs_sm_yn':0}
+                                        obs_list.append('PzRCHmax')
                                     print 'row %d, col %d and day %d (%s)' % (row + 1, list(col).index(RCHmax) + 1, t, mpl.dates.num2date(cMF.inputDate[t] + 1.0).isoformat()[:10])
                                     tRCHmax = t
                                 except:
                                     pass
+                else:
+                    tRCHmax = -1
                 del cbc_RCH
                 RCHmax = float(np.ceil(np.ma.max(RCHmax)))
                 RCHmin = float(np.floor(np.ma.min(RCHmin)))
@@ -1082,7 +1085,7 @@ try:
                     Tg_min = np.ma.min(flx_tmp)
                     flxmin_d.append(Tg_min)
                     flxlst.append(facTim*(flx_tmp.sum())/sum(cMF.perlen)/sum(ncell_MM))
-                    if Tg_min < 0.0:
+                    if abs(Tg_min) > 1E-6:
                         print '\nTg negative (%.2f) observed at:' % Tg_min
                         for row in range(cMF.nrow):
                             for t,col in enumerate(flx_tmp[:,row,:]):
@@ -1091,6 +1094,7 @@ try:
                                     tTgmin = t
                                     if plt_out_obs == 1:
                                         obs['PzTgmin'] = {'x':999,'y':999, 'i': row, 'j': list(col).index(Tg_min), 'lay': 0, 'hi':999, 'h0':999, 'RC':999, 'STO':999, 'outpathname':os.path.join(MM_ws,'_MM_0PzTgmin.txt'), 'obs_h':[], 'obs_h_yn':0, 'obs_S':[], 'obs_sm_yn':0}
+                                        obs_list.append('PzTgmin')
                                         try:
                                             hmin.append(hmin[0])
                                         except:
@@ -1113,7 +1117,7 @@ try:
                 flxmin_d.append(np.ma.min(flx_tmp))
                 flxlst.append(facTim*flx_tmp.sum()/sum(cMF.perlen)/sum(ncell_MM))
                 array_tmp1 = np.sum(np.ma.masked_values(array_tmp, cMF.hnoflo, atol = 0.09), axis = 1)
-                flx_Cat_TS.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
+                flx_Cat_TS.append(-1.0*np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
                 del flx_tmp, array_tmp, array_tmp1
             for i in flxlbl4:
                 flxlbl.append(i)
@@ -1222,7 +1226,7 @@ try:
                         cbc_WEL = h5_MF['WEL_d'][:,:,:,l]
                         if ncell_MM[l]>0:
                             flxlst.append(facTim*(cbc_WEL.sum()/sum(cMF.perlen)/sum(ncell_MM)))
-                            OutMF += -flxlst[-1]
+                            OutMF += -1.0*flxlst[-1]
                         else:
                             flxlst.append(0.0)
                         del cbc_WEL
@@ -1392,7 +1396,7 @@ try:
                         else:
                             obs_h_tmp = []
                         if cMF.wel_yn == 1:
-                            cbc_WEL = -np.sum(np.ma.masked_values(h5_MF['WEL_d'][:,i,j,:], cMF.hnoflo, atol = 0.09), axis = 1)
+                            cbc_WEL = -1.0*np.sum(np.ma.masked_values(h5_MF['WEL_d'][:,i,j,:], cMF.hnoflo, atol = 0.09), axis = 1)
                         else:
                             cbc_WEL = 0
                         if irr_yn == 0:
@@ -1527,7 +1531,7 @@ try:
                                 if cMF.wel_yn == 1:
                                     cbc_WEL = h5_MF['WEL_d']
                                     flxlst[-1].append(facTim*(cbc_WEL[:,i,j,l].sum()/sum(cMF.perlen)))
-                                    OutMF += -flxlst[-1][-1]
+                                    OutMF += -1.0*flxlst[-1][-1]
                                     del cbc_WEL
                                 if cMF.ghb_yn == 1:
                                     cbc_GHB = h5_MF['GHB_d']
@@ -1581,7 +1585,7 @@ try:
                 JD_lst.append(cMF.JD[SP])
                 SP += plt_freq
             if os.path.exists(cMF.h5_MF_fn):
-                if tTgmin < 0:
+                if tTgmin < 0 and tRCHmax > 0:
                     lst = [sum(cMF.perlen) - 1, tRCHmax] #[len(h_MF_m)-1, tRCHmax]
                 else:
                     lst = [sum(cMF.perlen) - 1, tRCHmax, tTgmin] # [len(h_MF_m)-1, tRCHmax, tTgmin]
@@ -1602,7 +1606,7 @@ try:
                     V.append(h_MF_m[SP,:,:,L])
                 hmin_tmp, hmax_tmp, ctrs_tmp = minmax(hminMF, hmaxMF, ctrsMF)
                 MMplot.plotLAYER(SP = SP, Date = Date_lst[t], JD = JD_lst[t], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation (m)', msg = 'DRY', plt_title = 'MF_HEADS', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (hmax_tmp - hmin_tmp)/nrangeMF, contours = ctrs_tmp, Vmax = hmax_tmp, Vmin = hmin_tmp, ntick = ntick)
-#                del hmin_tmp, hmax_tmp, ctrs_tmp
+    #                del hmin_tmp, hmax_tmp, ctrs_tmp
                 # plot GWTD [m]
                 for L in range(cMF.nlay):
                     V[L] = cMF.elev-V[L]
@@ -1612,14 +1616,14 @@ try:
                 MMplot.plotLAYER(SP = SP, Date = Date_lst[t], JD = JD_lst[t], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'depth to groundwater table (m)', msg = 'DRY', plt_title = 'MF_GWTD', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (GWTDmax_tmp - GWTDmin_tmp)/nrangeMF, contours = ctrsGWTD_tmp, Vmax = GWTDmax_tmp, Vmin = GWTDmin_tmp, ntick = ntick)
                 # plot heads corrigidas [m]
                 headscorr_m = [np.ma.masked_values(np.ma.masked_values(h5_MM['MM'][SP,:,:,19], cMF.hnoflo, atol = 0.09), cMF.hdry, atol = 1E+25)]
-#                hcorrmin_tmp, hcorrmax_tmp, ctrs_tmp = minmax(hcorrmin, hcorrmax, ctrsMF)
+    #                hcorrmin_tmp, hcorrmax_tmp, ctrs_tmp = minmax(hcorrmin, hcorrmax, ctrsMF)
                 MMplot.plotLAYER(SP = SP, Date = Date_lst[t], JD = JD_lst[t], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = headscorr_m,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation (m)', msg = 'DRY', plt_title = 'MF_HEADScorr', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (hmax_tmp - hmin_tmp)/nrangeMF, contours = ctrs_tmp, Vmax = hmax_tmp, Vmin = hmin_tmp, ntick = ntick)
-#                del hcorrmin_tmp, hcorrmax_tmp, ctrs_tmp
+    #                del hcorrmin_tmp, hcorrmax_tmp, ctrs_tmp
                 # plot GWTD correct [m]
                 GWTDcorr = []
                 GWTDcorr.append(cMF.elev-headscorr_m[0])
                 MMplot.plotLAYER(SP = SP, Date = Date_lst[t], JD = JD_lst[t], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = GWTDcorr,  cmap = plt.cm.Blues, CBlabel = 'depth to groundwater table (m)', msg = 'DRY', plt_title = 'MF_GWTDcorr', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (GWTDmax_tmp - GWTDmin_tmp)/nrangeMF, contours = ctrsGWTD_tmp, Vmax = GWTDmax_tmp, Vmin = GWTDmin_tmp, ntick = ntick)
-#                del Vmax, Vmin, Vmax_tmp, Vmin_tmp, ctrs_tmp, headscorr_m
+    #                del Vmax, Vmin, Vmax_tmp, Vmin_tmp, ctrs_tmp, headscorr_m
                 # plot GW drainage [mm]
                 if cMF.drn_yn == 1:
                     V = []
@@ -1668,15 +1672,15 @@ try:
             MMplot.plotLAYER(SP = SP, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'depth to groundwater table (m)', msg = 'DRY', plt_title = 'MF_average_GWTD', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (GWTDmax_tmp - GWTDmin_tmp)/nrangeMF, contours = ctrsGWTD_tmp, Vmax = GWTDmax_tmp, Vmin = GWTDmin_tmp, ntick = ntick)
             # plot heads corrigidas [m]
             headscorr_m = [np.ma.masked_values(np.ma.masked_values(h5_MM['MM'][SP,:,:,19], cMF.hnoflo, atol = 0.09), cMF.hdry, atol = 1E+25)]
-#            hcorrmin_tmp, hcorrmax_tmp, ctrs_tmp = minmax(hcorrmin, hcorrmax, ctrsMF)
+    #            hcorrmin_tmp, hcorrmax_tmp, ctrs_tmp = minmax(hcorrmin, hcorrmax, ctrsMF)
             MMplot.plotLAYER(SP = SP, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = headscorr_m,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation (m)', msg = 'DRY', plt_title = 'MF_average_HEADScorr', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (hmaxMF - hminMF)/nrangeMF, contours = ctrsMF_tmp, Vmax = hmaxMF, Vmin = hminMF, ntick = ntick)
-#            del hcorrmin_tmp, hcorrmax_tmp, ctrs_tmp
+    #            del hcorrmin_tmp, hcorrmax_tmp, ctrs_tmp
             # plot GWTD correct [m]
             GWTDcorr = []
             GWTDcorr.append(cMF.elev-headscorr_m[0])
-#            Vmax = np.ma.max(GWTDcorr) #float(np.ceil(np.ma.max(V)))
-#            Vmin = np.ma.min(GWTDcorr) #float(np.floor(np.ma.min(V)))
-#            Vmin_tmp, Vmax_tmp, ctrs_tmp = minmax(Vmin, Vmax, ctrsMF)
+    #            Vmax = np.ma.max(GWTDcorr) #float(np.ceil(np.ma.max(V)))
+    #            Vmin = np.ma.min(GWTDcorr) #float(np.floor(np.ma.min(V)))
+    #            Vmin_tmp, Vmax_tmp, ctrs_tmp = minmax(Vmin, Vmax, ctrsMF)
             MMplot.plotLAYER(SP = SP, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = GWTDcorr, cmap = plt.cm.Blues, CBlabel = 'depth to groundwater table (m)', msg = 'DRY', plt_title = 'MF_average_GWTDcorr', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (GWTDmax_tmp - GWTDmin_tmp)/nrangeMF, contours = ctrsGWTD_tmp, Vmax = GWTDmax_tmp, Vmin = GWTDmin_tmp, ntick = ntick)
             # plot GW drainage [mm]
             if cMF.drn_yn == 1:
@@ -1794,9 +1798,12 @@ try:
     durationExport=(timeendExport-timestartExport)
     durationTotal = (timeendExport-timestart)
 
-except StandardError, e:  #Exception
+except StandardError:  #Exception
     try:
         h5_MM.close()
+    except:
+        pass
+    try:
         h5_MF.close()
     except:
         pass
@@ -1834,8 +1841,3 @@ if verbose == 0:
     report.close()
     print '\nMARMITES terminated!\n%s\n' % mpl.dates.datetime.datetime.today().isoformat()[:19]
     del s
-    try:
-        h5_MM.close()
-        h5_MF.close()
-    except:
-        pass
