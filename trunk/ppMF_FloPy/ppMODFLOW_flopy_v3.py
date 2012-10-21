@@ -986,7 +986,18 @@ class MF():
             else:
                 vks = 0.0
             eps     = self.MM_PROCESS.checkarray(self.eps)
-            thts    = self.MM_PROCESS.checkarray(self.thts)
+            try:
+                if int(self.thts[0]) < 0:
+                    sy_tmp = np.asarray(sy)
+                    ibound_tmp = np.asarray(self.ibound)
+                    for l in range(self.nlay):
+                        if l == 0:
+                            thts = sy_tmp[:,:,l]*ibound_tmp[:,:,l]
+                        else:
+                            thts += sy_tmp[:,:,l]*ibound_tmp[:,:,l]*abs(ibound_tmp[:,:,l-1])
+                    del sy_tmp, ibound_tmp
+            except:
+                thts    = self.MM_PROCESS.checkarray(self.thts)
             thti    = self.MM_PROCESS.checkarray(self.thti)
             if self.specifythtr > 0:
                 thtr     = self.MM_PROCESS.checkarray(self.thtr)
