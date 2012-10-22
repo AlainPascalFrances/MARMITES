@@ -221,6 +221,7 @@ class SOIL:
         Esurf_tmp = surfwater_tmp[2]
         Ssoil_tmp[0] -= (Ssurf_tmp + dt*(Ro_tmp + Esurf_tmp))
 
+
         Rexf_tmp /= dt
 
         Rp_tmp = np.zeros([nsl])
@@ -264,24 +265,27 @@ class SOIL:
         for l in range(nsl):
             Ssoil_pc_tmp[l] = Ssoil_tmp[l]/Tl[l]
 
-        # GW evaporation, equation 17 of Shah et al 2007, see ref in the __init__
-        if PE > 0.0:
-            dgwt_corr *= 0.1
-            y0    = self.paramEg[st]['y0']
-            b     = self.paramEg[st]['b']
-            dll   = self.paramEg[st]['dll']
-            ext_d = self.paramEg[st]['ext_d']
-            if dgwt_corr <= dll:
-                Eg_tmp = PE
-            elif dgwt_corr < ext_d:
-                Eg_tmp = PE*(y0 + np.exp(-b*(dgwt_corr-dll)))
+        # GW evaporation Eg, equation 17 of Shah et al 2007, see ref in the __init__
+        if Ssurf_tmp == 0.0:
+            if PE > 0.0:
+                dgwt_corr *= 0.1
+                y0    = self.paramEg[st]['y0']
+                b     = self.paramEg[st]['b']
+                dll   = self.paramEg[st]['dll']
+                ext_d = self.paramEg[st]['ext_d']
+                if dgwt_corr <= dll:
+                    Eg_tmp = PE
+                elif dgwt_corr < ext_d:
+                    Eg_tmp = PE*(y0 + np.exp(-b*(dgwt_corr-dll)))
+                else:
+                    Eg_tmp = 0.0
+                dgwt_corr *= 10.0
             else:
                 Eg_tmp = 0.0
-            dgwt_corr *= 10.0
         else:
             Eg_tmp = 0.0
 
-        # Groundwater transpiration
+        # GW transpiration Tg
         kTu_max = 0.99999
         for v in range(NVEG):
             if HEADS_corr > Zr_elev[v]:
@@ -551,12 +555,12 @@ class SOIL:
                             else:
                                 HEADS_drycell = h_MF_tmp[t]*1000.0
                             # dgwt and uzthick
-                            uzthick[t] = BotSoilLay[nsl-1] - HEADS_drycell
                             if EXF[t] <= 0.0: # or BotSoilLay[nsl-1] > HEADS_drycell:
                                 dgwt[t] = TopSoilLay[0] - HEADS_drycell
                             elif EXF[t] > 0.0:
                                 dgwt[t] = sum(Tl)
                                 HEADS_drycell = BotSoilLay[nsl-1]
+                            uzthick[t] = BotSoilLay[nsl-1] - HEADS_drycell
                             # for the first SP, S_ini is expressed in % and has to be converted in mm
                             if n == 0 and t == 0:
                                 Ssoil_ini_tmp = Ssoil_ini_tmp * Tl

@@ -986,17 +986,35 @@ class MF():
             else:
                 vks = 0.0
             eps     = self.MM_PROCESS.checkarray(self.eps)
+            thtr = None
+            if self.specifythtr > 0:
+                thtr     = self.MM_PROCESS.checkarray(self.thtr)
+                thtr_tmp  = np.asarray(thtr)
+            else:
+                thtr = 0.0
+                thtr_tmp = 0.0
             try:
-                if int(self.thts[0]) < 0:
-                    sy_tmp = np.asarray(sy)
-                    ibound_tmp = np.asarray(self.ibound)
-                    for l in range(self.nlay):
-                        if l == 0:
-                            thts = sy_tmp[:,:,l]*ibound_tmp[:,:,l]
-                        else:
-                            thts += sy_tmp[:,:,l]*ibound_tmp[:,:,l]*abs(ibound_tmp[:,:,l-1])
-                    del sy_tmp, ibound_tmp
+                thts = float(self.thts[0])
             except:
+                thts = self.thts[0]
+            if type(thts) == float and thts < 0:
+                sy_tmp = np.asarray(sy)
+                ibound_tmp = np.asarray(self.ibound)
+                for l in range(self.nlay):
+                    if l == 0:
+                        if len(sy_tmp) > self.nlay:
+                            thts = sy_tmp[:,:,l]*ibound_tmp[:,:,l] + thtr_tmp
+                        else:
+                            thts = sy_tmp[l]*ibound_tmp[:,:,l] + thtr_tmp
+                    else:
+                        if len(sy_tmp) > self.nlay:
+                            thts += sy_tmp[:,:,l]*ibound_tmp[:,:,l]*abs(ibound_tmp[:,:,l-1]-1)
+                        else:
+                            thts += sy_tmp[l]*ibound_tmp[:,:,l]*abs(ibound_tmp[:,:,l-1]-1)
+                del sy_tmp, ibound_tmp
+                if thtr <> None:
+                    del thtr_tmp
+            else:
                 thts    = self.MM_PROCESS.checkarray(self.thts)
             thti    = self.MM_PROCESS.checkarray(self.thti)
             if self.specifythtr > 0:
