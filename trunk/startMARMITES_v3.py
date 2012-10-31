@@ -80,6 +80,9 @@ try:
     l += 1
     plt_WB_unit = inputFile[l].strip()
     l += 1
+    # map of inputs (1 is YES, 0 is NO)
+    plt_input = int(inputFile[l].strip())
+    l += 1
     #run MARMITESsurface  (1 is YES, 0 is NO)
     MMsurf_yn = int(inputFile[l].strip())
     l += 1
@@ -755,17 +758,6 @@ if MMsoil_yn > 0:
 # #############################
 
 #try:
-del RF_veg_zoneSP
-del E0_zonesSP
-del PT_veg_zonesSP
-del RFe_veg_zonesSP
-del PE_zonesSP
-del gridSsurfhmax
-del gridSsurfw
-
-# #############################
-# ###  OUTPUT EXPORT   ########
-# #############################
 
 print '\n##############\nMARMITES exporting...'
 
@@ -781,6 +773,68 @@ def minmax(min_, max_, ctrs_):
     else:
         ctrs_ = ctrs_
     return min_, max_, ctrs_
+
+if plt_input == 1:
+    # TODO missing vegArea and MF
+    print '\nExporting input maps...'
+    lst = [cMF.elev, cMF.top, cMF.botm, cMF.thick, np.asarray(cMF.strt), gridSOILthick, gridSsurfhmax, gridSsurfw]
+    lst_lbl = ['001_elev', '002_top', '003_botm', '004_thick', '005_strt', '006_gridSOILthick', '007_gridSsurfhmax', '008_gridSsurfw']
+    for i, l in enumerate(lst):
+        #print lst_lbl[i]
+        V = []
+        for L in range(cMF.nlay):
+            try:
+                V.append(l[:,:,L])
+                nplot = cMF.nlay
+            except:
+                V.append(l)
+                nplot = 1
+        Vmax = np.ma.max(V) #float(np.ceil(np.ma.max(V)))
+        Vmin = np.ma.min(V) #float(np.floor(np.ma.min(V)))
+        Vmin_tmp, Vmax_tmp, ctrsV_tmp = minmax(Vmin, Vmax, ctrsMM)
+        MMplot.plotLAYER(SP = 0, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = nplot, V = V,  cmap = plt.cm.spectral, CBlabel = lst_lbl[i], msg = 'DRY', plt_title = 'input%s'%lst_lbl[i], MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax_tmp - Vmin_tmp)/nrangeMM, contours = ctrsV_tmp, Vmax = Vmax_tmp, Vmin = Vmin_tmp, ntick = ntick)
+    lst = [np.asarray(cMF.ibound), gridSOIL, gridIRR, gridMETEO]
+    lst_lbl = ['009_ibound', '010_gridSOIL', '011_gridIRR', '012_gridMETEO']
+    for i, l in enumerate(lst):
+        #print lst_lbl[i]
+        V = []
+        for L in range(cMF.nlay):
+            try:
+                V.append(l[:,:,L])
+                nplot = cMF.nlay
+            except:
+                V.append(l)
+                nplot = 1
+        Vmax = np.ma.max(V) #float(np.ceil(np.ma.max(V)))
+        Vmin = np.ma.min(V) #float(np.floor(np.ma.min(V)))
+        Vmin_tmp, Vmax_tmp, ctrsV_tmp = minmax(Vmin, Vmax, ctrsMM)
+        MMplot.plotLAYER(SP = 0, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = nplot, V = V,  cmap = plt.cm.spectral, CBlabel = lst_lbl[i], msg = 'DRY', plt_title = 'input%s'%lst_lbl[i], MM_ws = MM_ws, interval_type = 'linspace', interval_num = (Vmax_tmp - Vmin_tmp + 1), contours = False, Vmax = Vmax_tmp, Vmin = Vmin_tmp, ntick = ntick)
+##    if cMF.drn_yn == 1:
+##        for L in range(cMF.nlay):
+##            V.append(cMF.drn_cond[:,:,L])
+##            V.append(cMF.drn_elev[:,:,L])
+##    if cMF.uzf_yn == 1:
+##        V.append(cMF.iuzfbnd)
+##        V.append(cMF.eps)
+##        V.append(cMF.thts)
+##        try:
+##            V.append(cMF.thti)
+##        except:
+##            pass
+##        try:
+##            V.append(cMF.thtr)
+##        except:
+##            pass
+##    for v in range(NVEG):
+##        V.append(gridVEGarea[v,:,:])
+
+del RF_veg_zoneSP
+del E0_zonesSP
+del PT_veg_zonesSP
+del RFe_veg_zonesSP
+del PE_zonesSP
+del gridSsurfhmax
+del gridSsurfw
 
 timestartExport = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
 # reorganizing MF output in daily data

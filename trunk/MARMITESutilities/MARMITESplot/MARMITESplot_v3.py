@@ -702,6 +702,7 @@ def plotGWbudget(flxlst, flxlbl, colors_flx, plt_export_fn, plt_title, fluxmax, 
                 ax1.text(rect.get_x()+rect.get_width()/2., ytext, '%G' %float(height), ha='center', va=va)
             else:
                 ax1.text(rect.get_x()+rect.get_width()/2., ytext, '%G'%float(height), ha='center', va=va)
+
     ##################
 
     fig = plt.figure(num=None, figsize=(2*11.7, 2*8.27), dpi=30)
@@ -740,5 +741,7 @@ def plotGWbudget(flxlst, flxlbl, colors_flx, plt_export_fn, plt_title, fluxmax, 
     plt.clf()
     plt.close('all')
     del fig, flxlst, flxlbl, colors_flx, plt_export_fn, plt_title, fluxmax, fluxmin
+
+##################
 
 #EOF#

@@ -477,6 +477,7 @@ class MF():
         print "\nImporting ESRI ASCII files to initialize the MODFLOW packages..."
 
         self.elev     = self.MM_PROCESS.checkarray(self.elev)
+        self.strt     = self.MM_PROCESS.checkarray(self.strt)
         self.thick    = self.MM_PROCESS.checkarray(self.thick)
         if self.nlay < 2:
             if isinstance(self.thick, list):
@@ -487,11 +488,11 @@ class MF():
         botm_tmp = []
         for l in range(self.nlay):
             if l == 0:
-                thick_tmp = self.thick[:,:,l]
+                thick_tmp = self.thick[:,:,l]*1.0
             else:
                 thick_tmp += self.thick[:,:,l]
             botm_tmp.append(elev_tmp - thick_tmp)
-        del self.thick, elev_tmp, thick_tmp
+        del elev_tmp, thick_tmp
         self.botm = list(np.swapaxes(botm_tmp,0,1))
         self.botm = list(np.swapaxes(self.botm,1,2))
         del botm_tmp
@@ -975,7 +976,6 @@ class MF():
 
         # 1 - reaf asc file and convert in np.array
 
-        strt    = self.MM_PROCESS.checkarray(self.strt)
         hk      = self.MM_PROCESS.checkarray(self.hk)
         vka     = self.MM_PROCESS.checkarray(self.vka)
         ss      = self.MM_PROCESS.checkarray(self.ss)
@@ -1000,17 +1000,20 @@ class MF():
             if type(thts) == float and thts < 0:
                 sy_tmp = np.asarray(sy)
                 ibound_tmp = np.asarray(self.ibound)
-                for l in range(self.nlay):
-                    if l == 0:
-                        if len(sy_tmp) > self.nlay:
-                            thts = sy_tmp[:,:,l]*ibound_tmp[:,:,l] + thtr_tmp
+                if self.nlay < 2:
+                    thts = sy_tmp[:,:]*ibound_tmp[:,:,0] + thtr_tmp
+                else:
+                    for l in range(self.nlay):
+                        if l == 0:
+                            if len(sy_tmp) > self.nlay:
+                                thts = sy_tmp[:,:,l]*ibound_tmp[:,:,l] + thtr_tmp
+                            else:
+                                thts = sy_tmp[l]*ibound_tmp[:,:,l] + thtr_tmp
                         else:
-                            thts = sy_tmp[l]*ibound_tmp[:,:,l] + thtr_tmp
-                    else:
-                        if len(sy_tmp) > self.nlay:
-                            thts += sy_tmp[:,:,l]*ibound_tmp[:,:,l]*abs(ibound_tmp[:,:,l-1]-1)
-                        else:
-                            thts += sy_tmp[l]*ibound_tmp[:,:,l]*abs(ibound_tmp[:,:,l-1]-1)
+                            if len(sy_tmp) > self.nlay:
+                                thts += sy_tmp[:,:,l]*ibound_tmp[:,:,l]*abs(ibound_tmp[:,:,l-1]-1)
+                            else:
+                                thts += sy_tmp[l]*ibound_tmp[:,:,l]*abs(ibound_tmp[:,:,l-1]-1)
                 del sy_tmp, ibound_tmp
                 if thtr <> None:
                     del thtr_tmp
@@ -1246,9 +1249,8 @@ class MF():
         dis = mf.mfdis(model = mfmain, nrow = self.nrow, ncol = self.ncol, nlay = self.nlay, nper = self.nper, delr = self.delr, delc = self.delc, laycbd = self.laycbd, top = self.top, botm = self.botm, perlen = self.perlen, nstp = self.nstp, tsmult = self.tsmult, itmuni = self.itmuni, lenuni = self.lenuni, steady = self.Ss_tr, extension = self.ext_dis)
         dis.write_file()
         # bas package
-        bas = mf.mfbas(model = mfmain, ibound = self.ibound, strt = strt, hnoflo = self.hnoflo, extension = self.ext_bas)
+        bas = mf.mfbas(model = mfmain, ibound = self.ibound, strt = self.strt, hnoflo = self.hnoflo, extension = self.ext_bas)
         bas.write_file()
-        del strt
         # layer package
         if self.version != 'mfnwt':
             # lpf package
