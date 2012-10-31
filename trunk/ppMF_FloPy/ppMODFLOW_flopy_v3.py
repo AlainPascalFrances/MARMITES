@@ -523,6 +523,8 @@ class MF():
                 self.drncells = [(np.asarray(drn[:,:]) > 0.0).sum()]
             del drn
 
+        self.array_ini(MF_ws = MF_ws)
+
 #####################################
 
     def uzf_obs(self, obs):
@@ -532,6 +534,114 @@ class MF():
                 self.row_col_iftunit_iuzopt.append([[obs.get( obs.keys()[o])['i']+1, obs.get(obs.keys()[o])['j']+1, 200+n, 2]])
                 self.uzfbud_ext.append(obs.keys()[o] + '.' + self.ext_uzf)
                 n += 1
+
+####################################
+
+    def array_ini(self, MF_ws):
+
+        self.hk_actual      = self.MM_PROCESS.checkarray(self.hk)
+        self.vka_actual     = self.MM_PROCESS.checkarray(self.vka)
+        self.ss_actual      = self.MM_PROCESS.checkarray(self.ss)
+        self.sy_actual      = self.MM_PROCESS.checkarray(self.sy)
+        # uzf
+        if self.uzf_yn == 1:
+            if self.iuzfopt == 1:
+                self.vks_actual     = self.MM_PROCESS.checkarray(self.vks)
+            else:
+                self.vks_actual = 0.0
+            self.eps_actual     = self.MM_PROCESS.checkarray(self.eps)
+            self.thtr_actual = None
+            if self.specifythtr > 0:
+                self.thtr_actual     = self.MM_PROCESS.checkarray(self.thtr)
+                thtr_tmp  = np.asarray(self.thtr_actual)
+            else:
+                self.thtr_actual = 0.0
+                thtr_tmp = 0.0
+            try:
+                self.thts_actual = float(self.thts[0])
+            except:
+                self.thts_actual = self.thts[0]
+            if type(self.thts_actual) == float and self.thts_actual < 0:
+                sy_tmp = np.asarray(self.sy_actual)
+                ibound_tmp = np.asarray(self.ibound)
+                if self.nlay < 2:
+                    self.thts_actual = sy_tmp[:,:]*ibound_tmp[:,:,0] + thtr_tmp
+                else:
+                    for l in range(self.nlay):
+                        if l == 0:
+                            if len(sy_tmp) > self.nlay:
+                                self.thts_actual = sy_tmp[:,:,l]*ibound_tmp[:,:,l] + thtr_tmp
+                            else:
+                                self.thts_actual = sy_tmp[l]*ibound_tmp[:,:,l] + thtr_tmp
+                        else:
+                            if len(sy_tmp) > self.nlay:
+                                self.thts_actual += sy_tmp[:,:,l]*ibound_tmp[:,:,l]*abs(ibound_tmp[:,:,l-1]-1)
+                            else:
+                                self.thts_actual += sy_tmp[l]*ibound_tmp[:,:,l]*abs(ibound_tmp[:,:,l-1]-1)
+                del sy_tmp, ibound_tmp
+                if self.thtr_actual <> None:
+                    del thtr_tmp
+            else:
+                self.thts_actual    = self.MM_PROCESS.checkarray(self.thts)
+            self.thti_actual    = self.MM_PROCESS.checkarray(self.thti)
+
+        # DRAIN
+        if self.drn_yn == 1:
+            print '\nDRN package initialization'
+            l = 0
+            self.layer_row_column_elevation_cond = [[]]
+            for d in self.drn_cond:
+                self.drn_elev_array = np.zeros((self.nrow,self.ncol))
+                self.drn_cond_array = np.zeros((self.nrow,self.ncol))
+                if isinstance(d, str):
+                    drn_elev_path = os.path.join(MF_ws, self.drn_elev[l])
+                    self.drn_elev_array[:,:] = self.MM_PROCESS.convASCIIraster2array(drn_elev_path, self.drn_elev_array[:,:])
+                    drn_cond_path = os.path.join(MF_ws, self.drn_cond[l])
+                    self.drn_cond_array[:,:] = self.MM_PROCESS.convASCIIraster2array(drn_cond_path, self.drn_cond_array[:,:])
+                else:
+                    self.drn_elev_array[:,:] = self.drn_elev[l]
+                    self.drn_cond_array[:,:] = self.drn_cond[l]
+                for i in range(self.nrow):
+                    for j in range(self.ncol):
+                        if self.drn_elev_array[i,j]<>0:
+                            if self.drn_elev_array[i,j]<0:
+                                if isinstance(self.botm[l], float):
+                                    drn_elev_tmp = self.botm[l] + 0.01
+                                else:
+                                    drn_elev_tmp = self.botm[i][j][l] + 0.01 #- (botm_array[i][j][l]-botm_array[i][j][l-1])/10
+                            else:
+                                drn_elev_tmp = self.drn_elev_array[i,j] + 0.01
+                            self.layer_row_column_elevation_cond[0].append([l+1, i+1, j+1, drn_elev_tmp, self.drn_cond_array[i,j]])
+                            self.drn_elev_array[i,j] = drn_elev_tmp
+                            del drn_elev_tmp
+                l += 1
+            print "Done!"
+
+        # GHB
+        if self.ghb_yn == 1:
+            print '\nGHB package initialization'
+            l = 0
+            self.layer_row_column_head_cond = [[]]
+            for d in self.ghb_cond:
+                ghb_check = 1
+                self.ghb_head_array = np.zeros((self.nrow,self.ncol))
+                self.ghb_cond_array = np.zeros((self.nrow,self.ncol))
+                if isinstance(d, str):
+                    ghb_head_path = os.path.join(MF_ws, self.ghb_head[l])
+                    self.ghb_head_array[:,:] = self.MM_PROCESS.convASCIIraster2array(ghb_head_path, self.ghb_head_array[:,:])
+                    ghb_cond_path = os.path.join(MF_ws, self.ghb_cond[l])
+                    self.ghb_cond_array[:,:] = self.MM_PROCESS.convASCIIraster2array(ghb_cond_path, self.ghb_cond_array[:,:])
+                else:
+                    self.ghb_head_array[:,:] = self.ghb_head[l]
+                    self.ghb_cond_array[:,:] = self.ghb_cond[l]
+                for i in range(self.nrow):
+                    for j in range(self.ncol):
+                        if self.ghb_head_array[i,j]<>0:
+                            ghb_head_tmp = self.ghb_head_array[i,j]
+                            self.layer_row_column_head_cond[0].append([l+1, i+1, j+1, ghb_head_tmp, self.ghb_cond_array[i,j]])
+                            del ghb_head_tmp
+                l += 1
+            print "Done!"
 
 ####################################
 
@@ -974,56 +1084,7 @@ class MF():
             if self.rch_yn == 1:
                 rch_input = self.rch_user
 
-        # 1 - reaf asc file and convert in np.array
-
-        hk      = self.MM_PROCESS.checkarray(self.hk)
-        vka     = self.MM_PROCESS.checkarray(self.vka)
-        ss      = self.MM_PROCESS.checkarray(self.ss)
-        sy      = self.MM_PROCESS.checkarray(self.sy)
-        if self.uzf_yn == 1:
-            if self.iuzfopt == 1:
-                vks     = self.MM_PROCESS.checkarray(self.vks)
-            else:
-                vks = 0.0
-            eps     = self.MM_PROCESS.checkarray(self.eps)
-            thtr = None
-            if self.specifythtr > 0:
-                thtr     = self.MM_PROCESS.checkarray(self.thtr)
-                thtr_tmp  = np.asarray(thtr)
-            else:
-                thtr = 0.0
-                thtr_tmp = 0.0
-            try:
-                thts = float(self.thts[0])
-            except:
-                thts = self.thts[0]
-            if type(thts) == float and thts < 0:
-                sy_tmp = np.asarray(sy)
-                ibound_tmp = np.asarray(self.ibound)
-                if self.nlay < 2:
-                    thts = sy_tmp[:,:]*ibound_tmp[:,:,0] + thtr_tmp
-                else:
-                    for l in range(self.nlay):
-                        if l == 0:
-                            if len(sy_tmp) > self.nlay:
-                                thts = sy_tmp[:,:,l]*ibound_tmp[:,:,l] + thtr_tmp
-                            else:
-                                thts = sy_tmp[l]*ibound_tmp[:,:,l] + thtr_tmp
-                        else:
-                            if len(sy_tmp) > self.nlay:
-                                thts += sy_tmp[:,:,l]*ibound_tmp[:,:,l]*abs(ibound_tmp[:,:,l-1]-1)
-                            else:
-                                thts += sy_tmp[l]*ibound_tmp[:,:,l]*abs(ibound_tmp[:,:,l-1]-1)
-                del sy_tmp, ibound_tmp
-                if thtr <> None:
-                    del thtr_tmp
-            else:
-                thts    = self.MM_PROCESS.checkarray(self.thts)
-            thti    = self.MM_PROCESS.checkarray(self.thti)
-            if self.specifythtr > 0:
-                thtr     = self.MM_PROCESS.checkarray(self.thtr)
-            else:
-                thtr = None
+        self.array_ini(MF_ws = MF_ws)
 
         # FINF
         if self.uzf_yn == 1:
@@ -1138,66 +1199,6 @@ class MF():
                     rch_input = rch_user
             print "Done!"
 
-        # DRAIN
-        if self.drn_yn == 1:
-            print '\nDRN package initialization'
-            l = 0
-            layer_row_column_elevation_cond = [[]]
-            for d in self.drn_cond:
-                drn_check = 1
-                drn_elev_array = np.zeros((self.nrow,self.ncol))
-                drn_cond_array = np.zeros((self.nrow,self.ncol))
-                if isinstance(d, str):
-                    drn_elev_path = os.path.join(MF_ws, self.drn_elev[l])
-                    drn_elev_array[:,:] = self.MM_PROCESS.convASCIIraster2array(drn_elev_path, drn_elev_array[:,:])
-                    drn_cond_path = os.path.join(MF_ws, self.drn_cond[l])
-                    drn_cond_array[:,:] = self.MM_PROCESS.convASCIIraster2array(drn_cond_path, drn_cond_array[:,:])
-                else:
-                    drn_elev_array[:,:] = self.drn_elev[l]
-                    drn_cond_array[:,:] = self.drn_cond[l]
-                for i in range(self.nrow):
-                    for j in range(self.ncol):
-                        if drn_elev_array[i,j]<>0:
-                            if drn_elev_array[i,j]<0:
-                                if isinstance(self.botm[l], float):
-                                    drn_elev_tmp = self.botm[l] + 0.01
-                                else:
-                                    drn_elev_tmp = self.botm[i][j][l] + 0.01 #- (botm_array[i][j][l]-botm_array[i][j][l-1])/10
-                            else:
-                                drn_elev_tmp = drn_elev_array[i,j] + 0.01
-                            layer_row_column_elevation_cond[0].append([l+1, i+1, j+1, drn_elev_tmp, drn_cond_array[i,j]])
-                            del drn_elev_tmp
-                del drn_elev_array, drn_cond_array
-                l += 1
-            print "Done!"
-
-        # GHB
-        if self.ghb_yn == 1:
-            print '\nGHB package initialization'
-            l = 0
-            layer_row_column_head_cond = [[]]
-            for d in self.ghb_cond:
-                ghb_check = 1
-                ghb_head_array = np.zeros((self.nrow,self.ncol))
-                ghb_cond_array = np.zeros((self.nrow,self.ncol))
-                if isinstance(d, str):
-                    ghb_head_path = os.path.join(MF_ws, self.ghb_head[l])
-                    ghb_head_array[:,:] = self.MM_PROCESS.convASCIIraster2array(ghb_head_path, ghb_head_array[:,:])
-                    ghb_cond_path = os.path.join(MF_ws, self.ghb_cond[l])
-                    ghb_cond_array[:,:] = self.MM_PROCESS.convASCIIraster2array(ghb_cond_path, ghb_cond_array[:,:])
-                else:
-                    ghb_head_array[:,:] = self.ghb_head[l]
-                    ghb_cond_array[:,:] = self.ghb_cond[l]
-                for i in range(self.nrow):
-                    for j in range(self.ncol):
-                        if ghb_head_array[i,j]<>0:
-                            ghb_head_tmp = ghb_head_array[i,j]
-                            layer_row_column_head_cond[0].append([l+1, i+1, j+1, ghb_head_tmp, ghb_cond_array[i,j]])
-                            del ghb_head_tmp
-                del ghb_head_array, ghb_cond_array
-                l += 1
-            print "Done!"
-
         # average for 1st SS stress period
         # TODO verify the if the avregae of wells is done correctly
         self.perlen      = list(self.perlen)
@@ -1254,14 +1255,13 @@ class MF():
         # layer package
         if self.version != 'mfnwt':
             # lpf package
-            lpf = mf.mflpf(model = mfmain, hdry = self.hdry, laytyp = self.laytyp, layavg = self.layavg, chani = self.chani, layvka = self.layvka, laywet = self.laywet, hk = hk, vka = vka, ss = ss, sy = sy, storagecoefficient = self.storagecoefficient, constantcv = self.constantcv, thickstrt = self.thickstrt, nocvcorrection = self.nocvcorrection, novfc = self.novfc, extension = self.ext_lpf)
+            lpf = mf.mflpf(model = mfmain, hdry = self.hdry, laytyp = self.laytyp, layavg = self.layavg, chani = self.chani, layvka = self.layvka, laywet = self.laywet, hk = self.hk_actual, vka = self.vka_actual, ss = self.ss_actual, sy = self.sy_actual, storagecoefficient = self.storagecoefficient, constantcv = self.constantcv, thickstrt = self.thickstrt, nocvcorrection = self.nocvcorrection, novfc = self.novfc, extension = self.ext_lpf)
             lpf.write_file()
             cb = lpf.ilpfcb
         else:
-            upw = mf.mfupw(model = mfmain, hdry = self.hdry, iphdry = self.iphdry, laytyp = self.laytyp, layavg = self.layavg, chani = self.chani, layvka = self.layvka, laywet = self.laywet, hk = hk, vka = vka, ss = ss, sy = sy, extension = self.ext_upw)
+            upw = mf.mfupw(model = mfmain, hdry = self.hdry, iphdry = self.iphdry, laytyp = self.laytyp, layavg = self.layavg, chani = self.chani, layvka = self.layvka, laywet = self.laywet, hk = self.hk_actual, vka = self.vka_actual, ss = self.ss_actual, sy = self.sy_actual, extension = self.ext_upw)
             upw.write_file()
             cb = upw.iupwcb
-        del hk, vka, ss, sy
         # wel package
         if self.wel_yn == 1:
             if layer_row_column_Q <> None:
@@ -1270,20 +1270,19 @@ class MF():
                 del layer_row_column_Q
         # drn package
         if self.drn_yn == 1:
-            if drn_check == 1:
-                drn = mf.mfdrn(model = mfmain, idrncb = cb, layer_row_column_elevation_cond = layer_row_column_elevation_cond, extension = self.ext_drn)
-                drn.write_file()
-                del layer_row_column_elevation_cond
+            drn = mf.mfdrn(model = mfmain, idrncb = cb, layer_row_column_elevation_cond = self.layer_row_column_elevation_cond, extension = self.ext_drn)
+            drn.write_file()
+            del self.layer_row_column_elevation_cond
         # ghb package
         if self.ghb_yn == 1:
-            ghb = mf.mfghb(model = mfmain, ighbcb = cb, layer_row_column_head_cond = layer_row_column_head_cond, extension = self.ext_ghb)
+            ghb = mf.mfghb(model = mfmain, ighbcb = cb, layer_row_column_head_cond = self.layer_row_column_head_cond, extension = self.ext_ghb)
             ghb.write_file()
-            del layer_row_column_head_cond
+            del self.layer_row_column_head_cond
         # uzf package
         if self.uzf_yn == 1:
-            uzf = mf.mfuzf1(model = mfmain, nuztop = self.nuztop, specifythtr = self.specifythtr, specifythti = self.specifythti, nosurfleak = self.nosurfleak, iuzfopt = self.iuzfopt, irunflg = self.irunflg, ietflg = self.ietflg, iuzfcb1 = self.iuzfcb1, iuzfcb2 = self.iuzfcb2, ntrail2 = self.ntrail2, nsets = self.nsets, nuzgag = self.nuzgag, surfdep = self.surfdep, iuzfbnd = self.iuzfbnd, vks = vks, eps = eps, thts = thts, thtr = thtr, thti = thti, row_col_iftunit_iuzopt = self.row_col_iftunit_iuzopt, finf = finf_array, extension = self.ext_uzf, uzfbud_ext = self.uzfbud_ext)
+            uzf = mf.mfuzf1(model = mfmain, nuztop = self.nuztop, specifythtr = self.specifythtr, specifythti = self.specifythti, nosurfleak = self.nosurfleak, iuzfopt = self.iuzfopt, irunflg = self.irunflg, ietflg = self.ietflg, iuzfcb1 = self.iuzfcb1, iuzfcb2 = self.iuzfcb2, ntrail2 = self.ntrail2, nsets = self.nsets, nuzgag = self.nuzgag, surfdep = self.surfdep, iuzfbnd = self.iuzfbnd, vks = self.vks_actual, eps = self.eps_actual, thts = self.thts_actual, thtr = self.thtr_actual, thti = self.thti_actual, row_col_iftunit_iuzopt = self.row_col_iftunit_iuzopt, finf = finf_array, extension = self.ext_uzf, uzfbud_ext = self.uzfbud_ext)
             uzf.write_file()
-            del thti, thts, eps, vks, finf_array
+            del finf_array
         # rch package
         if self.rch_yn == 1:
             rch = mf.mfrch(model = mfmain, irchcb = cb, nrchop = self.nrchop, rech = rch_array, extension = self.ext_rch)

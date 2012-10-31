@@ -78,7 +78,7 @@ import MARMITESprocess_v3 as MMproc
     #NVEG: number of vegetation types (NO IRRIGATION)
     3
     # to repeat NVEG times in a same line
-    # 0 - VegType: name of the vegetation type [string, 1 word, no space allowed]
+    # 0 - VegName: name of the vegetation type [string, 1 word, no space allowed]
     # 1 - h_vd: heigth of plant dry season[m]
     # 2 - h_vw: heigth of plant wet season[m]
     # 3 - S_w_v: canopy capacity [mm]
@@ -245,7 +245,7 @@ def MMsurf(pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, pathMMw
         l = l + 1
         line = inputFile[l].split()
         NVEG = int(line[0]) # number of vegetation types (NO IRRIGATION)
-        VegType = [] # name of the vegetation type [string]
+        VegName = [] # name of the vegetation type [string]
         h_vd = [] # heigth of plant dry season [m]
         h_vw = [] # heigth of plant wet season [m]
         S_w_v = [] # canopy capacity [mm]
@@ -264,7 +264,7 @@ def MMsurf(pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, pathMMw
         kTu_min = [] #transpiration sourcing factor min [], 1>=k_Tu>0
         kTu_n = [] # transpiration sourcing factor power value [], n>0
         # input FAO56 grass parameters
-        VegType.append("grassFAO56")
+        VegName.append("grassFAO56")
         h_vd.append(0.12)
         h_vw.append(0.12)
         S_w_v.append(0.1)
@@ -287,7 +287,7 @@ def MMsurf(pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, pathMMw
                 l = l + 1
                 e = 0
                 line = inputFile[l].split()
-                VegType.append(str(line[e]))
+                VegName.append(str(line[e]))
                 e += 1
                 h_vd.append(float(line[e]))
                 e += 1
@@ -677,10 +677,10 @@ def MMsurf(pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, pathMMw
     LAI_v = np.zeros((NVEG, len(datenum)), dtype = float)
     h_v = np.zeros((NVEG, len(datenum)), dtype = float)
     for v in range(NVEG):
-        alfa_v[v] = paramTS(J = J, J_d = J_vd[v], J_w = J_vw[v], TRANS_dw = TRANS_vdw[v], TRANS_wd = TRANS_vwd[v], value_d = alfa_vd[v], value_w = alfa_vw[v], min_ = 0.0, max_ = 1.0, name = 'albedo_VEG%d_%s' % (v, VegType[v]))
-        f_s_v[v] = paramTS(J = J, J_d = J_vd[v], J_w = J_vw[v], TRANS_dw = TRANS_vdw[v], TRANS_wd = TRANS_vwd[v], value_d = f_s_vd[v], value_w = f_s_vw[v], min_ = 0.0, max_ = 1.0, name = 'f_s_VEG%d_%s' % (v, VegType[v]))
-        LAI_v[v] = paramTS(J = J, J_d = J_vd[v], J_w = J_vw[v], TRANS_dw = TRANS_vdw[v], TRANS_wd = TRANS_vwd[v], value_d = LAI_vd[v], value_w = LAI_vw[v], min_ = 0.0, max_ = max(max(LAI_vd), max(LAI_vw)), name = 'LAI_VEG%d_%s' % (v, VegType[v]))
-        h_v[v] = paramTS(J = J, J_d = J_vd[v], J_w = J_vw[v], TRANS_dw = TRANS_vdw[v], TRANS_wd = TRANS_vwd[v], value_d = h_vd[v], value_w = h_vw[v], min_ = 0.0, max_ = max(h_vd[v], h_vw[v]), name = 'heigth_VEG%d_%s' % (v, VegType[v]))
+        alfa_v[v] = paramTS(J = J, J_d = J_vd[v], J_w = J_vw[v], TRANS_dw = TRANS_vdw[v], TRANS_wd = TRANS_vwd[v], value_d = alfa_vd[v], value_w = alfa_vw[v], min_ = 0.0, max_ = 1.0, name = 'albedo_VEG%d_%s' % (v, VegName[v]))
+        f_s_v[v] = paramTS(J = J, J_d = J_vd[v], J_w = J_vw[v], TRANS_dw = TRANS_vdw[v], TRANS_wd = TRANS_vwd[v], value_d = f_s_vd[v], value_w = f_s_vw[v], min_ = 0.0, max_ = 1.0, name = 'f_s_VEG%d_%s' % (v, VegName[v]))
+        LAI_v[v] = paramTS(J = J, J_d = J_vd[v], J_w = J_vw[v], TRANS_dw = TRANS_vdw[v], TRANS_wd = TRANS_vwd[v], value_d = LAI_vd[v], value_w = LAI_vw[v], min_ = 0.0, max_ = max(max(LAI_vd), max(LAI_vw)), name = 'LAI_VEG%d_%s' % (v, VegName[v]))
+        h_v[v] = paramTS(J = J, J_d = J_vd[v], J_w = J_vw[v], TRANS_dw = TRANS_vdw[v], TRANS_wd = TRANS_vwd[v], value_d = h_vd[v], value_w = h_vw[v], min_ = 0.0, max_ = max(h_vd[v], h_vw[v]), name = 'heigth_VEG%d_%s' % (v, VegName[v]))
 
     alfa_s = np.zeros((NSOIL, len(datenum)), dtype = float)
     for s in range(NSOIL):
@@ -775,7 +775,7 @@ def MMsurf(pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, pathMMw
                 datenum, datenum_d, J, time, pathMMsurf,\
                 RF[n], IRR_TS, Ta[n], RHa[n], Pa[n], u_z_m[n], Rs[n], \
                 phi[n], Lm[n], Z[n], Lz[n], FC[n], z_m[n], z_h[n], \
-                NVEG, VegType, S_w_v, C_leaf_star_v, alfa_v, f_s_v, LAI_v, h_v,\
+                NVEG, VegName, S_w_v, C_leaf_star_v, alfa_v, f_s_v, LAI_v, h_v,\
                 NSOIL, SoilType, por, fc, alfa_s,\
                 alfa_w,\
                 NFIELD ,alfa_f, f_s_f, LAI_f, C_leaf_star_f, h_f, S_w_f
@@ -802,7 +802,7 @@ def MMsurf(pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, pathMMw
         plot_exportPT_fn = os.path.join(pathMMsurf,  outputFILE_fn + "_ZON" + str(n+1)+'_PT.png')
         plotPET.plot(x = datenum_d \
             ,y1 = PT_PM_VEG_d, y2 = E0_d \
-            ,lbl_y1 = VegType, lbl_y2 = 'E0'
+            ,lbl_y1 = VegName, lbl_y2 = 'E0'
             ,plot_exportPET_fn = plot_exportPT_fn
             , MMsurf_plot = MMsurf_plot\
             ,strTitle = 'PT'
@@ -824,7 +824,7 @@ def MMsurf(pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, pathMMw
         plotRF.plot(x = datenum_d \
                 ,y1 = RF_veg_d, y2 = RFint_veg, y3 = I_veg_d, y4 = RFe_veg_d
                 ,lbl_y1 = 'RF (mm/d)',  lbl_y2 = 'RFint (mm/h/d)' \
-                ,lbl_y3 = 'I (mm/d)',lbl_y4 = 'RFe (mm/d)', lbl_veg = VegType\
+                ,lbl_y3 = 'I (mm/d)',lbl_y4 = 'RFe (mm/d)', lbl_veg = VegName\
                 ,plot_exportRF_fn = plot_exportRF_fn
                 , MMsurf_plot = MMsurf_plot\
                 ,strTitle = 'Rainfall and interception'
@@ -888,11 +888,11 @@ def MMsurf(pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, pathMMw
                         if ts_output == 1:
                         # DAILY
                             # PT
-                            name = outputfile_fn + "_PT_" + nam_tmp + "_" + VegType[v] + ".out"
+                            name = outputfile_fn + "_PT_" + nam_tmp + "_" + VegName[v] + ".out"
                             row1 = 'Date,J,PT,n_d\n'
                             ExportResults(name, ws, row1, datenumOUT, J_d, PT_PM_VEG_d[v],ts_output, n1_d)
                             # RF, RFe, etc...
-                            name = outputfile_fn + "_RF_VEG" + str(v) + "_" + VegType[v] + ".out"
+                            name = outputfile_fn + "_RF_VEG" + str(v) + "_" + VegName[v] + ".out"
                             row1 = 'Date,J,RF_mm,duration_day,RFint_mm_h,RFe_mm,Interception_mm\n'
                             TStmp = [RF_veg_d, RF_veg_duration, RFint_veg, RFe_veg_d[v], I_veg_d[v]]
                             ExportResults(name, ws, row1, datenumOUT, J_d, TStmp, TypeFile = "RF")
@@ -903,11 +903,11 @@ def MMsurf(pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, pathMMw
                         else:
                         # HOURLY
                             # PT
-                            name = outputfile_fn + "_PT_" + nam_tmp + "_" + VegType[v] + ".out"
+                            name = outputfile_fn + "_PT_" + nam_tmp + "_" + VegName[v] + ".out"
                             row1 = 'Date,J,PT\n'
                             ExportResults(name, ws, row1, datenumOUT, J, PT_PM_VEG[v], ts_output)
                             # Erf
-                            name = outputfile_fn + "_Erf_" + nam_tmp + "_" + VegType[v] + ".int"
+                            name = outputfile_fn + "_Erf_" + nam_tmp + "_" + VegName[v] + ".int"
                             row1 = 'Date,J,Erf\n'
                             ExportResults(name, ws, row1, datenumOUT, J, Erf_VEG[v], ts_output)
                     # NFIELD/NCROP
@@ -1005,6 +1005,9 @@ def MMsurf(pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, pathMMw
     outFileExport.write(inputZON_TS_PE_fn)
     outFileExport.write('\n# inputZON_TS_E0_fn: E0 zones\n')
     outFileExport.write(inputZON_TS_E0_fn)
+    outFileExport.write('\n# VegName\n')
+    for v in range(1,NVEG):
+        outFileExport.write(VegName[v]+' ')
     outFileExport.write('\n# Zr\n')
     for v in range(1,NVEG):
         outFileExport.write(str(Zr[v])+' ')

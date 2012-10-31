@@ -207,6 +207,7 @@ if MMsurf_yn>0:
     durationMMsurf=(timeendMMsurf-timestartMMsurf)
 inputFile = MMproc.readFile(MM_ws,outMMsurf_fn)
 l=0
+VegName = []
 Zr = []
 kTu_min = []
 kTu_n = []
@@ -230,6 +231,10 @@ try:
     inputZON_dSP_PE_fn = str(inputFile[l].strip())
     l += 1
     inputZON_dSP_E0_fn = str(inputFile[l].strip())
+    l += 1
+    line = inputFile[l].split()
+    for v in range(NVEG):
+        VegName.append((line[v]))
     l += 1
     line = inputFile[l].split()
     for v in range(NVEG):
@@ -775,12 +780,83 @@ def minmax(min_, max_, ctrs_):
     return min_, max_, ctrs_
 
 if plt_input == 1:
-    # TODO missing vegArea and MF
-    print '\nExporting input maps...'
-    lst = [cMF.elev, cMF.top, cMF.botm, cMF.thick, np.asarray(cMF.strt), gridSOILthick, gridSsurfhmax, gridSsurfw]
-    lst_lbl = ['001_elev', '002_top', '003_botm', '004_thick', '005_strt', '006_gridSOILthick', '007_gridSsurfhmax', '008_gridSsurfw']
+    # TODO missing MF
+    print '\nExporting input parameters maps...'
+    i_lbl = 1
+    lst = [cMF.elev, cMF.top, cMF.botm, cMF.thick, np.asarray(cMF.strt), gridSOILthick, gridSsurfhmax, gridSsurfw, np.asarray(cMF.hk_actual), np.asarray(cMF.ss_actual), np.asarray(cMF.sy_actual), np.asarray(cMF.vka_actual)]
+    lst_lbl = ['elev', 'top', 'botm', 'thick', 'strt', 'gridSOILthick', 'gridSsurfhmax', 'gridSsurfw', 'hk', 'Ss', 'Sy', 'vka']
+    if cMF.drn_yn == 1:
+        lst.append(cMF.drn_cond_array)
+        lst_lbl.append('drn_cond')
+        lst.append(cMF.drn_elev_array)
+        lst_lbl.append('drn_elev')
+    if cMF.ghb_yn == 1:
+        lst.append(cMF.ghb_cond_array)
+        lst_lbl.append('ghb_cond')
+        lst.append(cMF.ghb_head_array)
+        lst_lbl.append('ghb_head')
+    if cMF.uzf_yn == 1:
+        lst.append(np.asarray(cMF.eps_actual))
+        lst_lbl.append('eps')
+        lst.append(cMF.thts_actual)
+        lst_lbl.append('thts')
+        if cMF.vks_actual != 0.0:
+            lst.append(np.asarray(cMF.vks_actual))
+            lst_lbl.append('vks')
+        try:
+            lst.append(np.asarray(cMF.thti_actual))
+            lst_lbl.append('thti')
+        except:
+            pass
+        try:
+            lst.append(np.asarray(cMF.thtr_actual))
+            lst_lbl.append('thtr')
+        except:
+            pass
     for i, l in enumerate(lst):
         #print lst_lbl[i]
+        V = []
+        if l.shape == (cMF.nrow, cMF.ncol, cMF.nlay) or l.shape == (cMF.nrow, cMF.ncol):
+            for L in range(cMF.nlay):
+                try:
+                    V.append(l[:,:,L])
+                    nplot = cMF.nlay
+                except:
+                    V.append(l)
+                    nplot = 1
+        else:
+            if l.shape != ():
+                for L in range(cMF.nlay):
+                    V.append(l[L]*np.asarray(cMF.ibound)[:,:,L])
+            else:
+                V.append(l*np.asarray(cMF.ibound)[:,:,L])
+        Vmax = np.ma.max(V) #float(np.ceil(np.ma.max(V)))
+        Vmin = np.ma.min(V) #float(np.floor(np.ma.min(V)))
+        Vmin_tmp, Vmax_tmp, ctrsV_tmp = minmax(Vmin, Vmax, ctrsMM)
+        MMplot.plotLAYER(SP = 0, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = nplot, V = V,  cmap = plt.cm.spectral, CBlabel = lst_lbl[i], msg = '', plt_title = 'INPUT_%03d_%s' % (i_lbl,lst_lbl[i]), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax_tmp - Vmin_tmp)/nrangeMM, contours = ctrsV_tmp, Vmax = Vmax_tmp, Vmin = Vmin_tmp, ntick = ntick)
+        i_lbl += 1
+    del V, lst, lst_lbl, nplot, Vmax, Vmin, Vmax_tmp, Vmin_tmp, ctrsV_tmp
+
+    Vmax = 100.0
+    Vmin = 0.0
+    for v in range(NVEG):
+        V = [gridVEGarea[v,:,:]]
+        V_lbl = 'veg%02d_%s' %(v, VegName[v])
+        print V_lbl
+        MMplot.plotLAYER(SP = 0, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.spectral, CBlabel = V_lbl, msg = '', plt_title = 'INPUT_%03d_%s'% (i_lbl,V_lbl), MM_ws = MM_ws, interval_type = 'arange', interval_diff = 5.0, contours = False, Vmax = Vmax, Vmin = Vmin, ntick = ntick)
+        i_lbl += 1
+    del V, V_lbl, Vmax, Vmin
+
+    lst = [np.asarray(cMF.ibound), gridSOIL, gridMETEO]
+    lst_lbl = ['ibound', 'gridSOIL', 'gridMETEO']
+    if irr_yn == 1:
+        lst.append(gridIRR)
+        lst_lbl.append('gridIRR')
+    if cMF.uzf_yn == 1:
+        lst.append(np.asarray(cMF.iuzfbnd))
+        lst_lbl.append('iuzfbnd')
+    for i, l in enumerate(lst):
+        print lst_lbl[i]
         V = []
         for L in range(cMF.nlay):
             try:
@@ -792,41 +868,9 @@ if plt_input == 1:
         Vmax = np.ma.max(V) #float(np.ceil(np.ma.max(V)))
         Vmin = np.ma.min(V) #float(np.floor(np.ma.min(V)))
         Vmin_tmp, Vmax_tmp, ctrsV_tmp = minmax(Vmin, Vmax, ctrsMM)
-        MMplot.plotLAYER(SP = 0, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = nplot, V = V,  cmap = plt.cm.spectral, CBlabel = lst_lbl[i], msg = 'DRY', plt_title = 'input%s'%lst_lbl[i], MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax_tmp - Vmin_tmp)/nrangeMM, contours = ctrsV_tmp, Vmax = Vmax_tmp, Vmin = Vmin_tmp, ntick = ntick)
-    lst = [np.asarray(cMF.ibound), gridSOIL, gridIRR, gridMETEO]
-    lst_lbl = ['009_ibound', '010_gridSOIL', '011_gridIRR', '012_gridMETEO']
-    for i, l in enumerate(lst):
-        #print lst_lbl[i]
-        V = []
-        for L in range(cMF.nlay):
-            try:
-                V.append(l[:,:,L])
-                nplot = cMF.nlay
-            except:
-                V.append(l)
-                nplot = 1
-        Vmax = np.ma.max(V) #float(np.ceil(np.ma.max(V)))
-        Vmin = np.ma.min(V) #float(np.floor(np.ma.min(V)))
-        Vmin_tmp, Vmax_tmp, ctrsV_tmp = minmax(Vmin, Vmax, ctrsMM)
-        MMplot.plotLAYER(SP = 0, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = nplot, V = V,  cmap = plt.cm.spectral, CBlabel = lst_lbl[i], msg = 'DRY', plt_title = 'input%s'%lst_lbl[i], MM_ws = MM_ws, interval_type = 'linspace', interval_num = (Vmax_tmp - Vmin_tmp + 1), contours = False, Vmax = Vmax_tmp, Vmin = Vmin_tmp, ntick = ntick)
-##    if cMF.drn_yn == 1:
-##        for L in range(cMF.nlay):
-##            V.append(cMF.drn_cond[:,:,L])
-##            V.append(cMF.drn_elev[:,:,L])
-##    if cMF.uzf_yn == 1:
-##        V.append(cMF.iuzfbnd)
-##        V.append(cMF.eps)
-##        V.append(cMF.thts)
-##        try:
-##            V.append(cMF.thti)
-##        except:
-##            pass
-##        try:
-##            V.append(cMF.thtr)
-##        except:
-##            pass
-##    for v in range(NVEG):
-##        V.append(gridVEGarea[v,:,:])
+        MMplot.plotLAYER(SP = 0, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = nplot, V = V,  cmap = plt.cm.spectral, CBlabel = lst_lbl[i], msg = '', plt_title = 'INPUT_%03d_%s'% (i_lbl,lst_lbl[i]), MM_ws = MM_ws, interval_type = 'linspace', interval_num = (Vmax_tmp - Vmin_tmp + 1), contours = False, Vmax = Vmax_tmp, Vmin = Vmin_tmp, ntick = ntick)
+        i_lbl += 1
+    del V, lst, lst_lbl, nplot, Vmax, Vmin, Vmax_tmp, Vmin_tmp, ctrsV_tmp
 
 del RF_veg_zoneSP
 del E0_zonesSP
@@ -940,7 +984,6 @@ if os.path.exists(h5_MM_fn):
     outPESTsmMM.close()
 
 if plt_out == 1 or plt_out_obs == 1:
-    print '\nExporting ASCII files and plots...'
     # computing max and min values in MF fluxes for plotting
     hmax = []
     hmin = []
@@ -1418,6 +1461,7 @@ if plt_out == 1 or plt_out_obs == 1:
     # exporting MM time series results to ASCII files and plots at observations cells
     # #################################################
     if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
+        print '\nExporting output time series plots and ASCII files at observation points...'
         h5_MM = h5py.File(h5_MM_fn, 'r')
         h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
         colors_nsl = CreateColors.main(hi=00, hf=180, numbcolors = (_nslmax+1))
@@ -1631,6 +1675,7 @@ if plt_out == 1 or plt_out_obs == 1:
     # PLOT SPATIAL MF and MM OUTPUT
     # #################################################
     if plt_out == 1:
+        print '\nExporting output maps...'
         SP_lst = []
         Date_lst = []
         JD_lst = []
@@ -1649,7 +1694,7 @@ if plt_out == 1 or plt_out_obs == 1:
                 SP_lst.append(e)
                 Date_lst.append(cMF.inputDate[e])
                 JD_lst.append(cMF.JD[e])
-    if plt_out == 1 and os.path.exists(cMF.h5_MF_fn):
+    if os.path.exists(cMF.h5_MF_fn):
         # plot heads (grid + contours), DRN, etc... at specified SP
         h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
         h5_MM = h5py.File(h5_MM_fn, 'r')
@@ -1770,7 +1815,7 @@ if plt_out == 1 or plt_out_obs == 1:
             del cbc_DRN, DRNmax_tmp, DRNmin_tmp
         del RCHmax_tmp, RCHmin_tmp
     # plot MM output
-    if plt_out == 1 and os.path.exists(h5_MM_fn):
+    if os.path.exists(h5_MM_fn):
         flxlbl = ['RF', 'RFe', 'I', 'EXF', 'dSsurf', 'Ro', 'Esurf', 'Eg', 'Tg', 'ETg', 'ETsoil', 'dSsoil']
         for i in flxlbl:
             # plot average for the whole simulated period
