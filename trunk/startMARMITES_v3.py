@@ -294,10 +294,13 @@ cMF = ppMF.MF(MM_ws, MF_ws, MF_ini_fn, xllcorner, yllcorner, numDays = numDays)
 # compute cbc conversion factor from volume to mm
 if cMF.lenuni == 1:
     conv_fact = 304.8
+    lenuni_str = 'feet'
 elif cMF.lenuni == 2:
     conv_fact = 1000.0
+    lenuni_str = 'm'
 elif cMF.lenuni == 3:
     conv_fact = 10.0
+    lenuni_str = 'cm'
 else:
     raise SystemExit('FATAL ERROR!\nDefine the length unit in the MODFLOW ini file!\n (see USGS Open-File Report 00-92)')
     # TODO if lenuni!=2 apply conversion factor to delr, delc, etc...
@@ -305,6 +308,8 @@ if cMF.laytyp[0]==0:
     raise SystemExit('FATAL ERROR!\nThe first layer cannot be confined type!\nChange your parameter laytyp in the MODFLOW lpf package.\n(see USGS Open-File Report 00-92)')
 if cMF.itmuni != 4:
     raise SystemExit('FATAL ERROR!\nTime unit is not in days!')
+else:
+    itmuni_str = 'day'
 ncell_MF = []
 ncell_MM = []
 iboundBOL = np.ones(np.array(cMF.ibound).shape, dtype = bool)
@@ -764,6 +769,8 @@ if MMsoil_yn > 0:
 
 #try:
 
+timestartExport = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
+
 print '\n##############\nMARMITES exporting...'
 
 def minmax(min_, max_, ctrs_):
@@ -780,7 +787,7 @@ def minmax(min_, max_, ctrs_):
     return min_, max_, ctrs_
 
 if plt_input == 1:
-    # TODO missing MF
+    ibound = np.asarray(cMF.ibound)
     print '\nExporting input parameters maps...'
     i_lbl = 1
     lst = [cMF.elev, cMF.top, cMF.botm, cMF.thick, np.asarray(cMF.strt), gridSOILthick, gridSsurfhmax, gridSsurfw, np.asarray(cMF.hk_actual), np.asarray(cMF.ss_actual), np.asarray(cMF.sy_actual), np.asarray(cMF.vka_actual)]
@@ -819,35 +826,49 @@ if plt_input == 1:
         if l.shape == (cMF.nrow, cMF.ncol, cMF.nlay) or l.shape == (cMF.nrow, cMF.ncol):
             for L in range(cMF.nlay):
                 try:
-                    V.append(l[:,:,L])
+                    V.append(np.ma.masked_array(l[:,:,L], mask[L]))
                     nplot = cMF.nlay
                 except:
-                    V.append(l)
+                    V.append(np.ma.masked_array(l, maskAllL))
                     nplot = 1
         else:
             if l.shape != ():
                 for L in range(cMF.nlay):
-                    V.append(l[L]*np.asarray(cMF.ibound)[:,:,L])
+                    V.append(np.ma.masked_array(l[L]*ibound[:,:,L], mask[L]))
             else:
-                V.append(l*np.asarray(cMF.ibound)[:,:,L])
+                V.append(np.ma.masked_array(l*np.invert(maskAllL), maskAllL))
+        if lst_lbl[i] == 'Ss' or lst_lbl[i] == 'Sy' or lst_lbl[i] == 'hk' or lst_lbl[i] == 'thts' or lst_lbl[i] == 'thti' or lst_lbl[i] == 'thtr' or lst_lbl[i] == 'drn_cond' or lst_lbl[i] == 'ghb_cond':
+            fmt = '%.3g'
+        else:
+            fmt = '%.2f'
+        if lst_lbl[i] == 'Ss' or lst_lbl[i] == 'eps':
+           CBlabel = lst_lbl[i] + ' ([-])'
+        elif lst_lbl[i] == 'hk' or lst_lbl[i] == 'drn_cond' or lst_lbl[i] == 'ghb_cond':
+            CBlabel = lst_lbl[i] + ' (%s/%s)' % (lenuni_str, itmuni_str)
+        elif lst_lbl[i] == 'Sy' or lst_lbl[i] == 'thts' or lst_lbl[i] == 'thti' or lst_lbl[i] == 'thtr':
+            CBlabel = lst_lbl[i] + ' (vol/vol)'
+        elif lst_lbl[i] == 'vka':
+            CBlabel = lst_lbl[i] + ' ([-] or %s/%s, layvka = %s)' % (lenuni_str, itmuni_str, cMF.layvka)
+        else:
+            CBlabel = lst_lbl[i] + ' (m)'
         Vmax = np.ma.max(V) #float(np.ceil(np.ma.max(V)))
         Vmin = np.ma.min(V) #float(np.floor(np.ma.min(V)))
         Vmin_tmp, Vmax_tmp, ctrsV_tmp = minmax(Vmin, Vmax, ctrsMM)
-        MMplot.plotLAYER(SP = 0, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = nplot, V = V,  cmap = plt.cm.spectral, CBlabel = lst_lbl[i], msg = '', plt_title = 'INPUT_%03d_%s' % (i_lbl,lst_lbl[i]), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax_tmp - Vmin_tmp)/nrangeMM, contours = ctrsV_tmp, Vmax = Vmax_tmp, Vmin = Vmin_tmp, ntick = ntick)
+        MMplot.plotLAYER(SP = 0, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = nplot, V = V,  cmap = plt.cm.spectral, CBlabel = CBlabel, msg = '', plt_title = 'INPUT_%03d_%s' % (i_lbl,lst_lbl[i]), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax_tmp - Vmin_tmp)/nrangeMM, contours = ctrsV_tmp, Vmax = Vmax_tmp, Vmin = Vmin_tmp, ntick = ntick, axisbg = 'white', fmt = fmt)
         i_lbl += 1
     del V, lst, lst_lbl, nplot, Vmax, Vmin, Vmax_tmp, Vmin_tmp, ctrsV_tmp
 
     Vmax = 100.0
     Vmin = 0.0
     for v in range(NVEG):
-        V = [gridVEGarea[v,:,:]]
+        V = [np.ma.masked_array(gridVEGarea[v,:,:], maskAllL)]
         V_lbl = 'veg%02d_%s' %(v, VegName[v])
-        print V_lbl
-        MMplot.plotLAYER(SP = 0, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.spectral, CBlabel = V_lbl, msg = '', plt_title = 'INPUT_%03d_%s'% (i_lbl,V_lbl), MM_ws = MM_ws, interval_type = 'arange', interval_diff = 5.0, contours = False, Vmax = Vmax, Vmin = Vmin, ntick = ntick)
+        #print V_lbl
+        MMplot.plotLAYER(SP = 0, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.spectral, CBlabel = '%s %s' % (V_lbl, '(%)'), msg = '', plt_title = 'INPUT_%03d_%s'% (i_lbl,V_lbl), MM_ws = MM_ws, interval_type = 'arange', interval_diff = 5.0, contours = False, Vmax = Vmax, Vmin = Vmin, ntick = ntick, axisbg = 'white', fmt = '%3.1f')
         i_lbl += 1
     del V, V_lbl, Vmax, Vmin
 
-    lst = [np.asarray(cMF.ibound), gridSOIL, gridMETEO]
+    lst = [ibound, gridSOIL, gridMETEO]
     lst_lbl = ['ibound', 'gridSOIL', 'gridMETEO']
     if irr_yn == 1:
         lst.append(gridIRR)
@@ -856,19 +877,19 @@ if plt_input == 1:
         lst.append(np.asarray(cMF.iuzfbnd))
         lst_lbl.append('iuzfbnd')
     for i, l in enumerate(lst):
-        print lst_lbl[i]
+        #print lst_lbl[i]
         V = []
         for L in range(cMF.nlay):
             try:
-                V.append(l[:,:,L])
+                V.append(np.ma.masked_array(l[:,:,L], mask[L]))
                 nplot = cMF.nlay
             except:
-                V.append(l)
+                V.append(np.ma.masked_array(l, maskAllL))
                 nplot = 1
         Vmax = np.ma.max(V) #float(np.ceil(np.ma.max(V)))
         Vmin = np.ma.min(V) #float(np.floor(np.ma.min(V)))
         Vmin_tmp, Vmax_tmp, ctrsV_tmp = minmax(Vmin, Vmax, ctrsMM)
-        MMplot.plotLAYER(SP = 0, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = nplot, V = V,  cmap = plt.cm.spectral, CBlabel = lst_lbl[i], msg = '', plt_title = 'INPUT_%03d_%s'% (i_lbl,lst_lbl[i]), MM_ws = MM_ws, interval_type = 'linspace', interval_num = (Vmax_tmp - Vmin_tmp + 1), contours = False, Vmax = Vmax_tmp, Vmin = Vmin_tmp, ntick = ntick)
+        MMplot.plotLAYER(SP = 0, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = nplot, V = V,  cmap = plt.cm.spectral, CBlabel = lst_lbl[i], msg = '', plt_title = 'INPUT_%03d_%s'% (i_lbl,lst_lbl[i]), MM_ws = MM_ws, interval_type = 'linspace', interval_num = (Vmax_tmp - Vmin_tmp + 1), contours = False, Vmax = Vmax_tmp, Vmin = Vmin_tmp, ntick = ntick, axisbg = 'white')
         i_lbl += 1
     del V, lst, lst_lbl, nplot, Vmax, Vmin, Vmax_tmp, Vmin_tmp, ctrsV_tmp
 
@@ -880,7 +901,6 @@ del PE_zonesSP
 del gridSsurfhmax
 del gridSsurfw
 
-timestartExport = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
 # reorganizing MF output in daily data
 if MF_yn == 1 and isinstance(cMF.h5_MF_fn, str):
     print '\nConverting MODFLOW output into daily time step...'

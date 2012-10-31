@@ -607,7 +607,7 @@ def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, hmax
 
 ##################
 
-def plotLAYER(SP, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_title, MM_ws, interval_type = 'arange', interval_diff = 1, interval_num = 1, Vmax = 0, Vmin = 0, fmt = '%.2f', contours = False, ntick = 1):
+def plotLAYER(SP, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_title, MM_ws, interval_type = 'arange', interval_diff = 1, interval_num = 1, Vmax = 0, Vmin = 0, fmt = '%.2f', contours = False, ntick = 1, axisbg = 'silver'):
 
 
     # TODO put option to select axes tick as row/col index from MODFLOW or real coordinates (in this last case create it)
@@ -632,7 +632,7 @@ def plotLAYER(SP, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_
             ticks = np.arange(Vmin,Vmax,interval_diff)
         elif interval_type == 'linspace':
             ticks = np.linspace(Vmin,Vmax,interval_num)
-        ax.append(fig.add_subplot(1,nlay,L+1, axisbg='silver'))
+        ax.append(fig.add_subplot(1,nlay,L+1, axisbg = axisbg))
         plt.setp(ax[L].get_xticklabels(), fontsize=8)
         plt.setp(ax[L].get_yticklabels(), fontsize=8)
         plt.ylabel('row i', fontsize=10)
