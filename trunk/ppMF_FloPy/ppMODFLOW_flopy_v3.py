@@ -579,40 +579,41 @@ class MF():
                             else:
                                 self.thts_actual += sy_tmp[l]*ibound_tmp[:,:,l]*abs(ibound_tmp[:,:,l-1]-1)
                 del sy_tmp, ibound_tmp
-                if self.thtr_actual <> None:
+                if self.thtr_actual != None:
                     del thtr_tmp
             else:
-                self.thts_actual    = self.MM_PROCESS.checkarray(self.thts)
-            self.thti_actual    = self.MM_PROCESS.checkarray(self.thti)
+                self.thts_actual = self.MM_PROCESS.checkarray(self.thts)
+            self.thti_actual = self.MM_PROCESS.checkarray(self.thti)
 
         # DRAIN
         if self.drn_yn == 1:
             print '\nDRN package initialization'
             l = 0
+            self.drn_elev_array = np.zeros((self.nrow,self.ncol,self.nlay))
+            self.drn_cond_array = np.zeros((self.nrow,self.ncol,self.nlay))
             self.layer_row_column_elevation_cond = [[]]
             for d in self.drn_cond:
-                self.drn_elev_array = np.zeros((self.nrow,self.ncol))
-                self.drn_cond_array = np.zeros((self.nrow,self.ncol))
                 if isinstance(d, str):
                     drn_elev_path = os.path.join(MF_ws, self.drn_elev[l])
-                    self.drn_elev_array[:,:] = self.MM_PROCESS.convASCIIraster2array(drn_elev_path, self.drn_elev_array[:,:])
+                    self.drn_elev_array[:,:,l] = self.MM_PROCESS.convASCIIraster2array(drn_elev_path, self.drn_elev_array[:,:,l])
                     drn_cond_path = os.path.join(MF_ws, self.drn_cond[l])
-                    self.drn_cond_array[:,:] = self.MM_PROCESS.convASCIIraster2array(drn_cond_path, self.drn_cond_array[:,:])
+                    self.drn_cond_array[:,:,l] = self.MM_PROCESS.convASCIIraster2array(drn_cond_path, self.drn_cond_array[:,:,l])
                 else:
-                    self.drn_elev_array[:,:] = self.drn_elev[l]
-                    self.drn_cond_array[:,:] = self.drn_cond[l]
+                    self.drn_elev_array[:,:,l] = self.drn_elev[l]
+                    self.drn_cond_array[:,:,l] = self.drn_cond[l]
                 for i in range(self.nrow):
                     for j in range(self.ncol):
-                        if self.drn_elev_array[i,j]<>0:
-                            if self.drn_elev_array[i,j]<0:
+                        if self.drn_elev_array[i,j,l]!=0:
+                            if self.drn_elev_array[i,j,l]<0 and self.drn_elev_array[i,j,l] != self.hnoflo:
                                 if isinstance(self.botm[l], float):
                                     drn_elev_tmp = self.botm[l] + 0.01
                                 else:
                                     drn_elev_tmp = self.botm[i][j][l] + 0.01 #- (botm_array[i][j][l]-botm_array[i][j][l-1])/10
                             else:
-                                drn_elev_tmp = self.drn_elev_array[i,j] + 0.01
-                            self.layer_row_column_elevation_cond[0].append([l+1, i+1, j+1, drn_elev_tmp, self.drn_cond_array[i,j]])
-                            self.drn_elev_array[i,j] = drn_elev_tmp
+                                drn_elev_tmp = self.drn_elev_array[i,j,l] + 0.01
+                            if self.drn_cond_array[i,j,l] != self.hnoflo:
+                                self.layer_row_column_elevation_cond[0].append([l+1, i+1, j+1, drn_elev_tmp, self.drn_cond_array[i,j,l]])
+                            self.drn_elev_array[i,j,l] = drn_elev_tmp
                             del drn_elev_tmp
                 l += 1
             print "Done!"
@@ -621,24 +622,25 @@ class MF():
         if self.ghb_yn == 1:
             print '\nGHB package initialization'
             l = 0
+            self.ghb_head_array = np.zeros((self.nrow,self.ncol,self.nlay))
+            self.ghb_cond_array = np.zeros((self.nrow,self.ncol,self.nlay))
             self.layer_row_column_head_cond = [[]]
             for d in self.ghb_cond:
                 ghb_check = 1
-                self.ghb_head_array = np.zeros((self.nrow,self.ncol))
-                self.ghb_cond_array = np.zeros((self.nrow,self.ncol))
                 if isinstance(d, str):
                     ghb_head_path = os.path.join(MF_ws, self.ghb_head[l])
-                    self.ghb_head_array[:,:] = self.MM_PROCESS.convASCIIraster2array(ghb_head_path, self.ghb_head_array[:,:])
+                    self.ghb_head_array[:,:,l] = self.MM_PROCESS.convASCIIraster2array(ghb_head_path, self.ghb_head_array[:,:,l])
                     ghb_cond_path = os.path.join(MF_ws, self.ghb_cond[l])
-                    self.ghb_cond_array[:,:] = self.MM_PROCESS.convASCIIraster2array(ghb_cond_path, self.ghb_cond_array[:,:])
+                    self.ghb_cond_array[:,:,l] = self.MM_PROCESS.convASCIIraster2array(ghb_cond_path, self.ghb_cond_array[:,:,l])
                 else:
-                    self.ghb_head_array[:,:] = self.ghb_head[l]
-                    self.ghb_cond_array[:,:] = self.ghb_cond[l]
+                    self.ghb_head_array[:,:,l] = self.ghb_head[l]
+                    self.ghb_cond_array[:,:,l] = self.ghb_cond[l]
                 for i in range(self.nrow):
                     for j in range(self.ncol):
-                        if self.ghb_head_array[i,j]<>0:
-                            ghb_head_tmp = self.ghb_head_array[i,j]
-                            self.layer_row_column_head_cond[0].append([l+1, i+1, j+1, ghb_head_tmp, self.ghb_cond_array[i,j]])
+                        if self.ghb_head_array[i,j,l] != 0 and self.ghb_head_array[i,j,l] != self.hnoflo:
+                            ghb_head_tmp = self.ghb_head_array[i,j,l]
+                            if self.ghb_cond_array[i,j,l] != cMF.hnoflo:
+                                self.layer_row_column_head_cond[0].append([l+1, i+1, j+1, ghb_head_tmp, self.ghb_cond_array[i,j,l]])
                             del ghb_head_tmp
                 l += 1
             print "Done!"
@@ -693,7 +695,7 @@ class MF():
         PE_d = np.zeros([NMETEO, NSOIL, len(self.JD)])
         inputFileE0 = MMproc.readFile(MM_ws, inputZON_dSP_E0_fn)
         E0_d = np.zeros([NMETEO, len(self.JD)])
-        if NFIELD <> None:
+        if NFIELD != None:
             inputFileRF_irr = MMproc.readFile(MM_ws, inputZON_dSP_RF_irr_fn)
             RF_irr_d = np.zeros([NMETEO, NFIELD, len(self.JD)], dtype = float)
             inputFileRFe_irr = MMproc.readFile(MM_ws, inputZON_dSP_RFe_irr_fn)
@@ -712,14 +714,14 @@ class MF():
                     self.LAI_veg_d[n,v,t] = float(inputFileLAI_veg[t+v*len(self.JD)].strip())
                 for s in range(NSOIL):
                     PE_d[n,s,t] = float(inputFilePE[t+(n*NSOIL+s)*len(self.JD)].strip())
-                if NFIELD <> None:
+                if NFIELD != None:
                     for f in range(NFIELD):
                         RF_irr_d[n,f,t] = float(inputFileRF_irr[t+(n*NFIELD+f)*len(self.JD)].strip())
                         RFe_irr_d[n,f,t] = float(inputFileRFe_irr[t+(n*NFIELD+f)*len(self.JD)].strip())
                         PT_irr_d[n,f,t] = float(inputFilePT_irr[t+(n*NFIELD+f)*len(self.JD)].strip())
                         self.crop_irr_d[n,f,t] = float(inputFilecrop_irr[t+f*len(self.JD)].strip())
         del inputDate_fn, inputFileRF_veg, inputFilePT, inputFilePE, inputFileRFe_veg, inputFileE0
-        if NFIELD <> None:
+        if NFIELD != None:
             del inputZON_dSP_RF_irr_fn, inputZON_dSP_RFe_irr_fn, inputZON_dSP_PT_irr_fn, input_dSP_crop_irr_fn, inputFileRF_irr, inputFileRFe_irr, inputFilePT_irr, inputFilecrop_irr
 
         if self.timedef == 0:
@@ -741,7 +743,7 @@ class MF():
             LAI_veg_stp_tmp = []
             PE_stp_tmp=[]
             E0_stp_tmp = []
-            if NFIELD <> None:
+            if NFIELD != None:
                 RF_irr_stp = []
                 RFe_irr_stp = []
                 PT_irr_stp = []
@@ -777,7 +779,7 @@ class MF():
                     PE_stp_tmp[n].append(0.0)
                 E0_stp.append([])
                 E0_stp_tmp.append(0.0)
-                if NFIELD <> None:
+                if NFIELD != None:
                     RF_irr_stp.append([])
                     RF_irr_stp_tmp.append([])
                     RFe_irr_stp.append([])
@@ -798,7 +800,7 @@ class MF():
             if perlenmax < 2:
                 raise SystemExit('\nFATAL ERROR!\nCorrect perlenmax in the MODFLOW ini file (perlenmax must be higher than 1) or select the daily option.')
             for t in range(len(self.JD)):
-                if NFIELD <> None:
+                if NFIELD != None:
                     val_tmp = (RF_veg_d[:,t].sum()+RF_irr_d[:,:,t].sum()).sum()
                 else:
                     val_tmp = RF_veg_d[:,t].sum()
@@ -819,7 +821,7 @@ class MF():
                                 PE_stp_tmp[n][s] = 0.0
                             E0_stp[n].append(E0_stp_tmp[n]/perlen_tmp)
                             E0_stp_tmp[n] = 0.0
-                            if NFIELD <> None:
+                            if NFIELD != None:
                                 for f in range(NFIELD):
                                     RF_irr_stp[n][f].append(RF_irr_stp_tmp[n][f]/perlen_tmp)
                                     RF_irr_stp_tmp[n][f] = 0.0
@@ -840,7 +842,7 @@ class MF():
                         for s in range(NSOIL):
                             PE_stp[n][s].append(PE_d[n,s,t])
                         E0_stp[n].append(E0_d[n,t])
-                        if NFIELD <> None:
+                        if NFIELD != None:
                             for f in range(NFIELD):
                                 RF_irr_stp[n][f].append(RF_irr_d[n,f,t])
                                 RFe_irr_stp[n][f].append(RFe_irr_d[n,f,t])
@@ -859,7 +861,7 @@ class MF():
                             for s in range(NSOIL):
                                 PE_stp_tmp[n][s]  += PE_d[n,s,t]
                             E0_stp_tmp[n]  += E0_d[n,t]
-                            if NFIELD <> None:
+                            if NFIELD != None:
                                 for f in range(NFIELD):
                                     RF_irr_stp_tmp[n][f] += RF_irr_d[n,f,t]
                                     PT_irr_stp_tmp[n][f] += PT_irr_d[n,f,t]
@@ -884,7 +886,7 @@ class MF():
                                 PE_stp_tmp[n][s] = 0.0
                             E0_stp[n].append(E0_stp_tmp[n]/perlen_tmp)
                             E0_stp_tmp[n] = 0.0
-                            if NFIELD <> None:
+                            if NFIELD != None:
                                 for f in range(NFIELD):
                                     RF_irr_stp[n][f].append(RF_irr_stp_tmp[n][f]/perlen_tmp)
                                     RF_irr_stp_tmp[n][f] = 0.0
@@ -903,7 +905,7 @@ class MF():
                             for s in range(NSOIL):
                                 PE_stp_tmp[n][s]  += PE_d[n,s,t]
                             E0_stp_tmp[n]  += E0_d[n,t]
-                            if NFIELD <> None:
+                            if NFIELD != None:
                                 for f in range(NFIELD):
                                     RF_irr_stp_tmp[n][f]  += RF_irr_d[n,f,t]
                                     PT_irr_stp_tmp[n][f] += PT_irr_d[n,f,t]
@@ -921,7 +923,7 @@ class MF():
                     for s in range(NSOIL):
                         PE_stp[n][s].append(PE_stp_tmp[n][s]/perlen_tmp)
                     E0_stp[n].append(E0_stp_tmp[n]/perlen_tmp)
-                    if NFIELD <> None:
+                    if NFIELD != None:
                         for f in range(NFIELD):
                             RF_irr_stp[n][f].append(RF_irr_stp_tmp[n][f]/perlen_tmp)
                             RFe_irr_stp[n][f].append(RFe_irr_stp_tmp[n][f]/perlen_tmp)
@@ -943,7 +945,7 @@ class MF():
             LAI_veg_stp = np.zeros([NMETEO,NVEG,sum(self.nstp)])
             PE_stp = np.zeros([NMETEO,NSOIL,sum(self.nstp)])
             E0_stp = np.zeros([NMETEO,sum(self.nstp)])
-            if NFIELD <> None:
+            if NFIELD != None:
                 RF_irr_stp = np.zeros([NMETEO,NFIELD,(self.nstp)], dtype = float)
                 RFe_irr_stp = np.zeros([NMETEO,NFIELD,(self.nstp)], dtype = float)
                 PT_irr_stp = np.zeros([NMETEO,NFIELD,(self.nstp)], dtype = float)
@@ -962,7 +964,7 @@ class MF():
                         for s in range(NSOIL):
                             PE_stp[n,s,sum(nstp[0:per])+stp] += PE_d[n,s,tstart:tend].sum()/(self.perlen[per]/self.nstp[per])
                         E0_stp[n,sum(nstp[0:per])+stp] += E0_d[n,tstart:tend].sum()/(self.perlen[per]/self.nstp[per])
-                        if NFIELD <> None:
+                        if NFIELD != None:
                             for f in range(NFIELD):
                                 RF_irr_stp[n,f,sum(self.nstp[0:per])+stp] += RF_irr_d[n,f,tstart:tend].sum()/(self.perlen[per]/self.nstp[per])
                                 RFe_irr_stp[n,f,sum(nstp[0:per])+stp] += RFe_irr_d[n,f,tstart:tend].sum()/(self.perlen[per]/self.nstp[per])
@@ -999,7 +1001,7 @@ class MF():
         inputZONE0 = open(self.inputZONE0_fn, 'w')
         inputZONE0.write('#\n')
 
-        if NFIELD <> None:
+        if NFIELD != None:
             self.inputZON_SP_RF_irr_fn = "inputZONRF_irr_stp.txt"
             self.inputZONRF_irr_fn = os.path.join(MM_ws, self.inputZON_SP_RF_irr_fn)
             inputZONRF_irr = open(self.inputZONRF_irr_fn, 'w')
@@ -1034,7 +1036,7 @@ class MF():
                     for s in range(NSOIL):
                         ExportResults1(PE_stp[n][s], inputZONPE)
                 # CROP
-                if NFIELD <> None:
+                if NFIELD != None:
                     for f in range(NFIELD):
                         ExportResults1(RF_irr_stp[n][f], inputZONRF_irr)
                         ExportResults1(RFe_irr_stp[n][f], inputZONRFe_irr)
@@ -1042,7 +1044,7 @@ class MF():
             if NVEG>0:
                 for v in range(NVEG):
                     ExportResults1(LAI_veg_stp[0][v], inputLAI_veg)
-            if NFIELD <> None:
+            if NFIELD != None:
                 for f in range(NFIELD):
                     ExportResults1(crop_irr_stp[0][f], inputcrop_irr)
         except:
@@ -1056,7 +1058,7 @@ class MF():
         inputZONPT.close()
         inputZONPE.close()
         inputZONE0.close()
-        if NFIELD <> None:
+        if NFIELD != None:
             inputZONRF_irr.close()
             inputZONRFe_irr.close()
             inputZONPT_irr.close()
@@ -1264,7 +1266,7 @@ class MF():
             cb = upw.iupwcb
         # wel package
         if self.wel_yn == 1:
-            if layer_row_column_Q <> None:
+            if layer_row_column_Q != None:
                 wel = mf.mfwel(model = mfmain, iwelcb = cb, layer_row_column_Q = layer_row_column_Q, extension = self.ext_wel)
                 wel.write_file()
                 del layer_row_column_Q

@@ -320,7 +320,7 @@ for l in range(cMF.nlay):
     ncell_MM.append((np.asarray(cMF.iuzfbnd) == l+1).sum())
     iboundBOL[:,:,l] = (np.asarray(cMF.ibound)[:,:,l] != 0)
     mask.append(np.ma.make_mask(iboundBOL[:,:,l]-1))
-    mask_tmp += (np.asarray(cMF.ibound)[:,:,l] <> 0)
+    mask_tmp += (np.asarray(cMF.ibound)[:,:,l] != 0)
 maskAllL = (mask_tmp == 0)
 del iboundBOL, mask_tmp
 timeendMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
@@ -826,17 +826,19 @@ if plt_input == 1:
         if l.shape == (cMF.nrow, cMF.ncol, cMF.nlay) or l.shape == (cMF.nrow, cMF.ncol):
             for L in range(cMF.nlay):
                 try:
-                    V.append(np.ma.masked_array(l[:,:,L], mask[L]))
+                    V.append(np.ma.masked_values(np.ma.masked_array(l[:,:,L], mask[L]), cMF.hnoflo, atol = 0.09))
                     nplot = cMF.nlay
                 except:
-                    V.append(np.ma.masked_array(l, maskAllL))
+                    V.append(np.ma.masked_values(np.ma.masked_array(l, maskAllL), cMF.hnoflo, atol = 0.09))
                     nplot = 1
         else:
             if l.shape != ():
                 for L in range(cMF.nlay):
-                    V.append(np.ma.masked_array(l[L]*ibound[:,:,L], mask[L]))
+                    V.append(np.ma.masked_values(np.ma.masked_array(l[L]*ibound[:,:,L], mask[L]), cMF.hnoflo, atol = 0.09))
+                nplot = cMF.nlay
             else:
-                V.append(np.ma.masked_array(l*np.invert(maskAllL), maskAllL))
+                V.append(np.ma.masked_values(np.ma.masked_array(l*np.invert(maskAllL), maskAllL), cMF.hnoflo, atol = 0.09))
+                nplot = 1
         if lst_lbl[i] == 'Ss' or lst_lbl[i] == 'Sy' or lst_lbl[i] == 'hk' or lst_lbl[i] == 'thts' or lst_lbl[i] == 'thti' or lst_lbl[i] == 'thtr' or lst_lbl[i] == 'drn_cond' or lst_lbl[i] == 'ghb_cond':
             fmt = '%.3g'
         else:
@@ -861,7 +863,7 @@ if plt_input == 1:
     Vmax = 100.0
     Vmin = 0.0
     for v in range(NVEG):
-        V = [np.ma.masked_array(gridVEGarea[v,:,:], maskAllL)]
+        V = [np.ma.masked_values(np.ma.masked_array(gridVEGarea[v,:,:], maskAllL), cMF.hnoflo, atol = 0.09)]
         V_lbl = 'veg%02d_%s' %(v, VegName[v])
         #print V_lbl
         MMplot.plotLAYER(SP = 0, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.spectral, CBlabel = '%s %s' % (V_lbl, '(%)'), msg = '', plt_title = 'INPUT_%03d_%s'% (i_lbl,V_lbl), MM_ws = MM_ws, interval_type = 'arange', interval_diff = 5.0, contours = False, Vmax = Vmax, Vmin = Vmin, ntick = ntick, axisbg = 'white', fmt = '%3.1f')

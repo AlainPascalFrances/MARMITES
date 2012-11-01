@@ -290,7 +290,7 @@ class SOIL:
         for v in range(NVEG):
             if HEADS_corr > Zr_elev[v]:
                 for l in range(nsl):
-                    if Ssoil_pc_tmp[l] <> self.hnoflo:
+                    if Ssoil_pc_tmp[l] != self.hnoflo:
                         if Ssoil_pc_tmp[l] >= Sr[l]:
                             if Ssoil_pc_tmp[l] <= Sm[l]:
                                 kTu = kTu_min[v]+(kTu_max-kTu_min[v])*np.power(1-np.power(np.abs(Ssoil_pc_tmp[l]-Sm[l])/(Sm[l]-Sr[l]),kTu_n[v]),1/kTu_n[v])
@@ -528,7 +528,7 @@ class SOIL:
                             # for different vegetation
                             Zr_elev = []
                             SOILarea = 100.0
-                            if CROP_tmp <> None:
+                            if CROP_tmp != None:
                                 Zr_elev.append(TopSoilLay[0] - Zr_tmp[CROP_tmp[t]-1]*1000.0)
                                 if CROP_tmp[t] > 0:
                                     VEGarea_tmp = [100.0]

@@ -290,7 +290,7 @@ class PROCESS:
                     #structure is [number of zones, number of vegetation type, time]
 
         # read IRRIGATION RF and RFe
-        if NFIELD <> None:
+        if NFIELD != None:
             # RF_irr
             RF_irr_fn = os.path.join(self.MM_ws, inputZON_SP_RF_irr_fn)
             if os.path.exists(RF_irr_fn):
@@ -620,13 +620,13 @@ class PROCESS:
         for t in range(len(inputDate)):
             date = mpl.dates.num2date(inputDate[t]).strftime("%d/%m/%Y")
             try:
-                if obs_h[t] <> self.hnoflo:
+                if obs_h[t] != self.hnoflo:
                     outPESTheads.write(obsname.ljust(10,' ')+ date.ljust(10,' ')+ ' 00:00:00 ' + str(obs_h[t]).ljust(10,' ') + '\n')
             except:
                 pass
             try:
                 for l in range (_nslmax):
-                    if obs_S[l,t] <> self.hnoflo:
+                    if obs_S[l,t] != self.hnoflo:
                         self.smMM[len_smMM-1].append((obsname+'SM_l'+str(l+1)).ljust(10,' ')+ date.ljust(10,' ')+ ' 00:00:00 ' + str(obs_S[l,t]).ljust(10,' ') + '\n')
             except:
                 pass
