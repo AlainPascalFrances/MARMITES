@@ -33,6 +33,21 @@ import CreateColors
 
 #####################################
 
+def minmax(min_, max_, ctrs_):
+    if max_ == min_:
+        if max_ < 10E-9:
+            max_ = 1.0
+            min_ = -1.0
+        else:
+            max_ *= 1.15
+            min_ *= 0.85
+        ctrs_ = False
+    else:
+        ctrs_ = ctrs_
+    return min_, max_, ctrs_
+
+#####################################
+
 timestart = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
 print '\n##############\nMARMITESv0.3 started!\n%s\n##############' % mpl.dates.num2date(timestart).isoformat()[:19]
 
@@ -442,6 +457,118 @@ header='Date,MF_SP,veg_crop,RF,E0,PT,PE,RFe,I,' + Esoil_str + Tsoil_str + 'Eg,Tg
 if cMF.uzf_yn == 1:
     cMF.uzf_obs(obs = obs)
 
+# EXPORT INPUT MAPS
+if plt_input == 1:
+    ibound = np.asarray(cMF.ibound)
+    print'\n##############'
+    print 'Exporting input parameters maps...'
+    i_lbl = 1
+    lst = [cMF.elev, cMF.top, cMF.botm, cMF.thick, np.asarray(cMF.strt), gridSOILthick, gridSsurfhmax, gridSsurfw, np.asarray(cMF.hk_actual), np.asarray(cMF.ss_actual), np.asarray(cMF.sy_actual), np.asarray(cMF.vka_actual)]
+    lst_lbl = ['elev', 'top', 'botm', 'thick', 'strt', 'gridSOILthick', 'gridSsurfhmax', 'gridSsurfw', 'hk', 'Ss', 'Sy', 'vka']
+    if cMF.drn_yn == 1:
+        lst.append(cMF.drn_cond_array)
+        lst_lbl.append('drn_cond')
+        lst.append(cMF.drn_elev_array)
+        lst_lbl.append('drn_elev')
+    if cMF.ghb_yn == 1:
+        lst.append(cMF.ghb_cond_array)
+        lst_lbl.append('ghb_cond')
+        lst.append(cMF.ghb_head_array)
+        lst_lbl.append('ghb_head')
+    if cMF.uzf_yn == 1:
+        lst.append(np.asarray(cMF.eps_actual))
+        lst_lbl.append('eps')
+        lst.append(cMF.thts_actual)
+        lst_lbl.append('thts')
+        if cMF.vks_actual != 0.0:
+            lst.append(np.asarray(cMF.vks_actual))
+            lst_lbl.append('vks')
+        try:
+            lst.append(np.asarray(cMF.thti_actual))
+            lst_lbl.append('thti')
+        except:
+            pass
+        try:
+            lst.append(np.asarray(cMF.thtr_actual))
+            lst_lbl.append('thtr')
+        except:
+            pass
+    for i, l in enumerate(lst):
+        #print lst_lbl[i]
+        V = []
+        if l.shape == (cMF.nrow, cMF.ncol, cMF.nlay) or l.shape == (cMF.nrow, cMF.ncol):
+            for L in range(cMF.nlay):
+                try:
+                    V.append(np.ma.masked_values(np.ma.masked_array(l[:,:,L], mask[L]), cMF.hnoflo, atol = 0.09))
+                    nplot = cMF.nlay
+                except:
+                    V.append(np.ma.masked_values(np.ma.masked_array(l, maskAllL), cMF.hnoflo, atol = 0.09))
+                    nplot = 1
+        else:
+            if l.shape != ():
+                for L in range(cMF.nlay):
+                    V.append(np.ma.masked_values(np.ma.masked_array(l[L]*ibound[:,:,L], mask[L]), cMF.hnoflo, atol = 0.09))
+                nplot = cMF.nlay
+            else:
+                V.append(np.ma.masked_values(np.ma.masked_array(l*np.invert(maskAllL), maskAllL), cMF.hnoflo, atol = 0.09))
+                nplot = 1
+        if lst_lbl[i] == 'Ss' or lst_lbl[i] == 'Sy' or lst_lbl[i] == 'hk' or lst_lbl[i] == 'thts' or lst_lbl[i] == 'thti' or lst_lbl[i] == 'thtr' or lst_lbl[i] == 'drn_cond' or lst_lbl[i] == 'ghb_cond':
+            fmt = '%.3g'
+        else:
+            fmt = '%.2f'
+        if lst_lbl[i] == 'Ss' or lst_lbl[i] == 'eps':
+           CBlabel = lst_lbl[i] + ' ([-])'
+        elif lst_lbl[i] == 'hk' or lst_lbl[i] == 'drn_cond' or lst_lbl[i] == 'ghb_cond':
+            CBlabel = lst_lbl[i] + ' (%s/%s)' % (lenuni_str, itmuni_str)
+        elif lst_lbl[i] == 'Sy' or lst_lbl[i] == 'thts' or lst_lbl[i] == 'thti' or lst_lbl[i] == 'thtr':
+            CBlabel = lst_lbl[i] + ' (vol/vol)'
+        elif lst_lbl[i] == 'vka':
+            CBlabel = lst_lbl[i] + ' ([-] or %s/%s, layvka = %s)' % (lenuni_str, itmuni_str, cMF.layvka)
+        else:
+            CBlabel = lst_lbl[i] + ' (m)'
+        Vmax = np.ma.max(V) #float(np.ceil(np.ma.max(V)))
+        Vmin = np.ma.min(V) #float(np.floor(np.ma.min(V)))
+        Vmin_tmp, Vmax_tmp, ctrsV_tmp = minmax(Vmin, Vmax, ctrsMM)
+        MMplot.plotLAYER(SP = 0, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = nplot, V = V,  cmap = plt.cm.spectral, CBlabel = CBlabel, msg = '', plt_title = 'INPUT_%03d_%s' % (i_lbl,lst_lbl[i]), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax_tmp - Vmin_tmp)/nrangeMM, contours = ctrsV_tmp, Vmax = Vmax_tmp, Vmin = Vmin_tmp, ntick = ntick, axisbg = 'white', fmt = fmt)
+        i_lbl += 1
+    del V, lst, lst_lbl, nplot, Vmax, Vmin, Vmax_tmp, Vmin_tmp, ctrsV_tmp
+
+    Vmax = 100.0
+    Vmin = 0.0
+    for v in range(NVEG):
+        V = [np.ma.masked_values(np.ma.masked_array(gridVEGarea[v,:,:], maskAllL), cMF.hnoflo, atol = 0.09)]
+        V_lbl = 'veg%02d_%s' %(v, VegName[v])
+        #print V_lbl
+        MMplot.plotLAYER(SP = 0, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.spectral, CBlabel = '%s %s' % (V_lbl, '(%)'), msg = '', plt_title = 'INPUT_%03d_%s'% (i_lbl,V_lbl), MM_ws = MM_ws, interval_type = 'arange', interval_diff = 5.0, contours = False, Vmax = Vmax, Vmin = Vmin, ntick = ntick, axisbg = 'white', fmt = '%3.1f')
+        i_lbl += 1
+    del V, V_lbl, Vmax, Vmin
+
+    lst = [ibound, gridSOIL, gridMETEO]
+    lst_lbl = ['ibound', 'gridSOIL', 'gridMETEO']
+    if irr_yn == 1:
+        lst.append(gridIRR)
+        lst_lbl.append('gridIRR')
+    if cMF.uzf_yn == 1:
+        lst.append(np.asarray(cMF.iuzfbnd))
+        lst_lbl.append('iuzfbnd')
+    for i, l in enumerate(lst):
+        #print lst_lbl[i]
+        V = []
+        for L in range(cMF.nlay):
+            try:
+                V.append(np.ma.masked_array(l[:,:,L], mask[L]))
+                nplot = cMF.nlay
+            except:
+                V.append(np.ma.masked_array(l, maskAllL))
+                nplot = 1
+        Vmax = np.ma.max(V) #float(np.ceil(np.ma.max(V)))
+        Vmin = np.ma.min(V) #float(np.floor(np.ma.min(V)))
+        Vmin_tmp, Vmax_tmp, ctrsV_tmp = minmax(Vmin, Vmax, ctrsMM)
+        MMplot.plotLAYER(SP = 0, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = nplot, V = V,  cmap = plt.cm.spectral, CBlabel = lst_lbl[i], msg = '', plt_title = 'INPUT_%03d_%s'% (i_lbl,lst_lbl[i]), MM_ws = MM_ws, interval_type = 'linspace', interval_num = (Vmax_tmp - Vmin_tmp + 1), contours = False, Vmax = Vmax_tmp, Vmin = Vmin_tmp, ntick = ntick, axisbg = 'white')
+        i_lbl += 1
+    del V, lst, lst_lbl, nplot, Vmax, Vmin, Vmax_tmp, Vmin_tmp, ctrsV_tmp
+
+
 # #############################
 # ### 1st MODFLOW RUN with initial user-input recharge
 # #############################
@@ -773,128 +900,6 @@ timestartExport = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isof
 
 print '\n##############\nMARMITES exporting...'
 
-def minmax(min_, max_, ctrs_):
-    if max_ == min_:
-        if max_ < 10E-9:
-            max_ = 1.0
-            min_ = -1.0
-        else:
-            max_ *= 1.15
-            min_ *= 0.85
-        ctrs_ = False
-    else:
-        ctrs_ = ctrs_
-    return min_, max_, ctrs_
-
-if plt_input == 1:
-    ibound = np.asarray(cMF.ibound)
-    print '\nExporting input parameters maps...'
-    i_lbl = 1
-    lst = [cMF.elev, cMF.top, cMF.botm, cMF.thick, np.asarray(cMF.strt), gridSOILthick, gridSsurfhmax, gridSsurfw, np.asarray(cMF.hk_actual), np.asarray(cMF.ss_actual), np.asarray(cMF.sy_actual), np.asarray(cMF.vka_actual)]
-    lst_lbl = ['elev', 'top', 'botm', 'thick', 'strt', 'gridSOILthick', 'gridSsurfhmax', 'gridSsurfw', 'hk', 'Ss', 'Sy', 'vka']
-    if cMF.drn_yn == 1:
-        lst.append(cMF.drn_cond_array)
-        lst_lbl.append('drn_cond')
-        lst.append(cMF.drn_elev_array)
-        lst_lbl.append('drn_elev')
-    if cMF.ghb_yn == 1:
-        lst.append(cMF.ghb_cond_array)
-        lst_lbl.append('ghb_cond')
-        lst.append(cMF.ghb_head_array)
-        lst_lbl.append('ghb_head')
-    if cMF.uzf_yn == 1:
-        lst.append(np.asarray(cMF.eps_actual))
-        lst_lbl.append('eps')
-        lst.append(cMF.thts_actual)
-        lst_lbl.append('thts')
-        if cMF.vks_actual != 0.0:
-            lst.append(np.asarray(cMF.vks_actual))
-            lst_lbl.append('vks')
-        try:
-            lst.append(np.asarray(cMF.thti_actual))
-            lst_lbl.append('thti')
-        except:
-            pass
-        try:
-            lst.append(np.asarray(cMF.thtr_actual))
-            lst_lbl.append('thtr')
-        except:
-            pass
-    for i, l in enumerate(lst):
-        #print lst_lbl[i]
-        V = []
-        if l.shape == (cMF.nrow, cMF.ncol, cMF.nlay) or l.shape == (cMF.nrow, cMF.ncol):
-            for L in range(cMF.nlay):
-                try:
-                    V.append(np.ma.masked_values(np.ma.masked_array(l[:,:,L], mask[L]), cMF.hnoflo, atol = 0.09))
-                    nplot = cMF.nlay
-                except:
-                    V.append(np.ma.masked_values(np.ma.masked_array(l, maskAllL), cMF.hnoflo, atol = 0.09))
-                    nplot = 1
-        else:
-            if l.shape != ():
-                for L in range(cMF.nlay):
-                    V.append(np.ma.masked_values(np.ma.masked_array(l[L]*ibound[:,:,L], mask[L]), cMF.hnoflo, atol = 0.09))
-                nplot = cMF.nlay
-            else:
-                V.append(np.ma.masked_values(np.ma.masked_array(l*np.invert(maskAllL), maskAllL), cMF.hnoflo, atol = 0.09))
-                nplot = 1
-        if lst_lbl[i] == 'Ss' or lst_lbl[i] == 'Sy' or lst_lbl[i] == 'hk' or lst_lbl[i] == 'thts' or lst_lbl[i] == 'thti' or lst_lbl[i] == 'thtr' or lst_lbl[i] == 'drn_cond' or lst_lbl[i] == 'ghb_cond':
-            fmt = '%.3g'
-        else:
-            fmt = '%.2f'
-        if lst_lbl[i] == 'Ss' or lst_lbl[i] == 'eps':
-           CBlabel = lst_lbl[i] + ' ([-])'
-        elif lst_lbl[i] == 'hk' or lst_lbl[i] == 'drn_cond' or lst_lbl[i] == 'ghb_cond':
-            CBlabel = lst_lbl[i] + ' (%s/%s)' % (lenuni_str, itmuni_str)
-        elif lst_lbl[i] == 'Sy' or lst_lbl[i] == 'thts' or lst_lbl[i] == 'thti' or lst_lbl[i] == 'thtr':
-            CBlabel = lst_lbl[i] + ' (vol/vol)'
-        elif lst_lbl[i] == 'vka':
-            CBlabel = lst_lbl[i] + ' ([-] or %s/%s, layvka = %s)' % (lenuni_str, itmuni_str, cMF.layvka)
-        else:
-            CBlabel = lst_lbl[i] + ' (m)'
-        Vmax = np.ma.max(V) #float(np.ceil(np.ma.max(V)))
-        Vmin = np.ma.min(V) #float(np.floor(np.ma.min(V)))
-        Vmin_tmp, Vmax_tmp, ctrsV_tmp = minmax(Vmin, Vmax, ctrsMM)
-        MMplot.plotLAYER(SP = 0, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = nplot, V = V,  cmap = plt.cm.spectral, CBlabel = CBlabel, msg = '', plt_title = 'INPUT_%03d_%s' % (i_lbl,lst_lbl[i]), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax_tmp - Vmin_tmp)/nrangeMM, contours = ctrsV_tmp, Vmax = Vmax_tmp, Vmin = Vmin_tmp, ntick = ntick, axisbg = 'white', fmt = fmt)
-        i_lbl += 1
-    del V, lst, lst_lbl, nplot, Vmax, Vmin, Vmax_tmp, Vmin_tmp, ctrsV_tmp
-
-    Vmax = 100.0
-    Vmin = 0.0
-    for v in range(NVEG):
-        V = [np.ma.masked_values(np.ma.masked_array(gridVEGarea[v,:,:], maskAllL), cMF.hnoflo, atol = 0.09)]
-        V_lbl = 'veg%02d_%s' %(v, VegName[v])
-        #print V_lbl
-        MMplot.plotLAYER(SP = 0, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.spectral, CBlabel = '%s %s' % (V_lbl, '(%)'), msg = '', plt_title = 'INPUT_%03d_%s'% (i_lbl,V_lbl), MM_ws = MM_ws, interval_type = 'arange', interval_diff = 5.0, contours = False, Vmax = Vmax, Vmin = Vmin, ntick = ntick, axisbg = 'white', fmt = '%3.1f')
-        i_lbl += 1
-    del V, V_lbl, Vmax, Vmin
-
-    lst = [ibound, gridSOIL, gridMETEO]
-    lst_lbl = ['ibound', 'gridSOIL', 'gridMETEO']
-    if irr_yn == 1:
-        lst.append(gridIRR)
-        lst_lbl.append('gridIRR')
-    if cMF.uzf_yn == 1:
-        lst.append(np.asarray(cMF.iuzfbnd))
-        lst_lbl.append('iuzfbnd')
-    for i, l in enumerate(lst):
-        #print lst_lbl[i]
-        V = []
-        for L in range(cMF.nlay):
-            try:
-                V.append(np.ma.masked_array(l[:,:,L], mask[L]))
-                nplot = cMF.nlay
-            except:
-                V.append(np.ma.masked_array(l, maskAllL))
-                nplot = 1
-        Vmax = np.ma.max(V) #float(np.ceil(np.ma.max(V)))
-        Vmin = np.ma.min(V) #float(np.floor(np.ma.min(V)))
-        Vmin_tmp, Vmax_tmp, ctrsV_tmp = minmax(Vmin, Vmax, ctrsMM)
-        MMplot.plotLAYER(SP = 0, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = nplot, V = V,  cmap = plt.cm.spectral, CBlabel = lst_lbl[i], msg = '', plt_title = 'INPUT_%03d_%s'% (i_lbl,lst_lbl[i]), MM_ws = MM_ws, interval_type = 'linspace', interval_num = (Vmax_tmp - Vmin_tmp + 1), contours = False, Vmax = Vmax_tmp, Vmin = Vmin_tmp, ntick = ntick, axisbg = 'white')
-        i_lbl += 1
-    del V, lst, lst_lbl, nplot, Vmax, Vmin, Vmax_tmp, Vmin_tmp, ctrsV_tmp
-
 del RF_veg_zoneSP
 del E0_zonesSP
 del PT_veg_zonesSP
@@ -1077,7 +1082,11 @@ if plt_out == 1 or plt_out_obs == 1:
         h_MF_m = np.ma.masked_values(np.ma.masked_values(h5_MF['heads_d'], cMF.hnoflo, atol = 0.09), cMF.hdry, atol = 1E+25)
         hmaxMF = float(np.ceil(np.ma.max(h_MF_m[:,:,:,:].flatten())))
         hminMF = float(np.floor(np.ma.min(h_MF_m[:,:,:,:].flatten())))
+        GWTD = cMF.elev[np.newaxis,:,:,np.newaxis] - h_MF_m
+        GWTDmax = float(np.ceil(np.ma.max(GWTD.flatten())))
+        GWTDmin = float(np.ceil(np.ma.min(GWTD.flatten())))
         h5_MF.close()
+        del GWTD
     else:
         DRNmax = cbcmax_d = 1
         DRNmin = cbcmin_d = -1
@@ -1093,8 +1102,11 @@ if plt_out == 1 or plt_out_obs == 1:
         headscorr_m = np.ma.masked_values(np.ma.masked_values(h5_MM['MM'][:,:,:,19], cMF.hnoflo, atol = 0.09), cMF.hdry, atol = 1E+25)
         hcorrmax = float(np.ceil(np.ma.max(headscorr_m.flatten())))
         hcorrmin = float(np.floor(np.ma.min(headscorr_m.flatten())))
+        GWTDcorr = cMF.elev[np.newaxis,:,:] - headscorr_m
+        GWTDcorrmax = float(np.ceil(np.ma.max(GWTDcorr.flatten())))
+        GWTDcorrmin = float(np.ceil(np.ma.min(GWTDcorr.flatten())))
         h5_MM.close()
-        del headscorr_m
+        del headscorr_m, GWTDcorr
     else:
         hcorrmax = -9999.9
         hcorrmin = 9999.9
@@ -1692,7 +1704,6 @@ if plt_out == 1 or plt_out_obs == 1:
         h5_MF.close()
         del obs
 
-
     # #################################################
     # PLOT SPATIAL MF and MM OUTPUT
     # #################################################
@@ -1716,139 +1727,146 @@ if plt_out == 1 or plt_out_obs == 1:
                 SP_lst.append(e)
                 Date_lst.append(cMF.inputDate[e])
                 JD_lst.append(cMF.JD[e])
+
+    # ##############################
+    # #### MODFLOW OUTPUT ##########
+    # ##############################
     if os.path.exists(cMF.h5_MF_fn):
+        # ############################################
         # plot heads (grid + contours), DRN, etc... at specified SP
+        # ############################################
         h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
         h5_MM = h5py.File(h5_MM_fn, 'r')
+        cbc_RCH = h5_MF['RCH_d']
+        if cMF.drn_yn == 1:
+            cbc_DRN = h5_MF['DRN_d']
+        if cMF.ghb_yn == 1:
+            cbc_GHB = h5_MF['GHB_d']
         # plot for selected time step
         t = 0
         for SP in SP_lst:
+
             # plot heads [m]
             V = []
             for L in range(cMF.nlay):
                 V.append(h_MF_m[SP,:,:,L])
-            hmin_tmp, hmax_tmp, ctrs_tmp = minmax(hminMF, hmaxMF, ctrsMF)
-            MMplot.plotLAYER(SP = SP, Date = Date_lst[t], JD = JD_lst[t], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation (m)', msg = 'DRY', plt_title = 'MF_HEADS', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (hmax_tmp - hmin_tmp)/nrangeMF, contours = ctrs_tmp, Vmax = hmax_tmp, Vmin = hmin_tmp, ntick = ntick)
-#                del hmin_tmp, hmax_tmp, ctrs_tmp
+            hminMF_tmp, hmaxMF_tmp, ctrsMF_tmp = minmax(hminMF, hmaxMF, ctrsMF)
+            MMplot.plotLAYER(SP = SP, Date = Date_lst[t], JD = JD_lst[t], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation (m)', msg = 'DRY', plt_title = 'MF_HEADS', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (hmaxMF_tmp - hminMF_tmp)/nrangeMF, contours = ctrsMF_tmp, Vmax = hmaxMF_tmp, Vmin = hminMF_tmp, ntick = ntick)
+
             # plot GWTD [m]
             for L in range(cMF.nlay):
                 V[L] = cMF.elev-V[L]
-            GWTDmax = np.ma.max(V[0]) #float(np.ceil(np.ma.max(V)))
-            GWTDmin = np.ma.min(V[0]) #float(np.floor(np.ma.min(V)))
             GWTDmin_tmp, GWTDmax_tmp, ctrsGWTD_tmp = minmax(GWTDmin, GWTDmax, ctrsMF)
             MMplot.plotLAYER(SP = SP, Date = Date_lst[t], JD = JD_lst[t], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'depth to groundwater table (m)', msg = 'DRY', plt_title = 'MF_GWTD', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (GWTDmax_tmp - GWTDmin_tmp)/nrangeMF, contours = ctrsGWTD_tmp, Vmax = GWTDmax_tmp, Vmin = GWTDmin_tmp, ntick = ntick)
+
             # plot heads corrigidas [m]
             headscorr_m = [np.ma.masked_values(np.ma.masked_values(h5_MM['MM'][SP,:,:,19], cMF.hnoflo, atol = 0.09), cMF.hdry, atol = 1E+25)]
-#                hcorrmin_tmp, hcorrmax_tmp, ctrs_tmp = minmax(hcorrmin, hcorrmax, ctrsMF)
-            MMplot.plotLAYER(SP = SP, Date = Date_lst[t], JD = JD_lst[t], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = headscorr_m,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation (m)', msg = 'DRY', plt_title = 'MF_HEADScorr', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (hmax_tmp - hmin_tmp)/nrangeMF, contours = ctrs_tmp, Vmax = hmax_tmp, Vmin = hmin_tmp, ntick = ntick)
-#                del hcorrmin_tmp, hcorrmax_tmp, ctrs_tmp
+            hcorrmin_tmp, hcorrmax_tmp, ctrs_tmp = minmax(hcorrmin, hcorrmax, ctrsMF)
+            MMplot.plotLAYER(SP = SP, Date = Date_lst[t], JD = JD_lst[t], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = headscorr_m,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation (m)', msg = 'DRY', plt_title = 'MF_HEADScorr', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (hcorrmax_tmp - hcorrmin_tmp)/nrangeMF, contours = ctrs_tmp, Vmax = hcorrmax_tmp, Vmin = hcorrmin_tmp, ntick = ntick)
+
             # plot GWTD correct [m]
             GWTDcorr = []
             GWTDcorr.append(cMF.elev-headscorr_m[0])
-            MMplot.plotLAYER(SP = SP, Date = Date_lst[t], JD = JD_lst[t], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = GWTDcorr,  cmap = plt.cm.Blues, CBlabel = 'depth to groundwater table (m)', msg = 'DRY', plt_title = 'MF_GWTDcorr', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (GWTDmax_tmp - GWTDmin_tmp)/nrangeMF, contours = ctrsGWTD_tmp, Vmax = GWTDmax_tmp, Vmin = GWTDmin_tmp, ntick = ntick)
+            GWTDcorrmin_tmp, GWTDcorrmax_tmp, ctrsGWTDcorr_tmp = minmax(GWTDcorrmin, GWTDcorrmax, ctrsMF)
+            MMplot.plotLAYER(SP = SP, Date = Date_lst[t], JD = JD_lst[t], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = GWTDcorr,  cmap = plt.cm.Blues, CBlabel = 'depth to groundwater table (m)', msg = 'DRY', plt_title = 'MF_GWTDcorr', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (GWTDcorrmax_tmp - GWTDcorrmin_tmp)/nrangeMF, contours = ctrsGWTDcorr_tmp, Vmax = GWTDcorrmax_tmp, Vmin = GWTDcorrmin_tmp, ntick = ntick)
 #                del Vmax, Vmin, Vmax_tmp, Vmin_tmp, ctrs_tmp, headscorr_m
+
             # plot GW drainage [mm]
             if cMF.drn_yn == 1:
                 V = []
-                cbc_DRN = h5_MF['DRN_d']
                 for L in range(cMF.nlay):
                     V.append(np.ma.masked_array(cbc_DRN[SP,:,:,L], mask[L])*(-1.0))
-                DRNmax_tmp = np.ma.max(V)
-                DRNmin_tmp = np.ma.min(V)
-                DRNmin_tmp, DRNmax_tmp, ctrs_tmp = minmax(DRNmin_tmp, DRNmax_tmp, ctrsMF)
+                DRNmin_tmp, DRNmax_tmp, ctrs_tmp = minmax(DRNmin, DRNmax, ctrsMF)
                 MMplot.plotLAYER(SP = SP, Date = Date_lst[t], JD = JD_lst[t], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater drainage (mm/day)', msg = '- no drainage', plt_title = 'MF_DRN', MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, Vmin = DRNmin_tmp, contours = ctrs_tmp, Vmax = DRNmax_tmp, fmt='%.3G', ntick = ntick)
+
             # plot GHB [mm]
             if cMF.ghb_yn == 1:
                 V = []
-                cbc_GHB = h5_MF['GHB_d']
                 for L in range(cMF.nlay):
                     V.append(np.ma.masked_array(cbc_GHB[SP,:,:,L], mask[L])*(-1.0))
-                GHBmax_tmp = np.ma.max(V)
-                GHBmin_tmp = np.ma.min(V)
-                GHBmin_tmp, GHBmax_tmp, ctrs_tmp = minmax(GHBmin_tmp, GHBmax_tmp, ctrsMF)
+                GHBmin_tmp, GHBmax_tmp, ctrs_tmp = minmax(GHBmin, GHBmax, ctrsMF)
                 MMplot.plotLAYER(SP = SP, Date = Date_lst[t], JD = JD_lst[t], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'GHB flux (mm/day)', msg = '- no flux', plt_title = 'MF_GHB', MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, Vmin = GHBmin_tmp, contours = ctrs_tmp, Vmax = GHBmax_tmp, fmt='%.3G', ntick = ntick)
+
             # plot GW RCH [mm]
             V = []
-            cbc_RCH = h5_MF['RCH_d']
             for L in range(cMF.nlay):
                 V.append(np.ma.masked_array(cbc_RCH[SP,:,:,L], mask[L]))
-            RCHmax_tmp = np.ma.max(V)
-            RCHmin_tmp = np.ma.min(V)
-            RCHmin_tmp, RCHmax_tmp, ctrs_tmp = minmax(RCHmin_tmp, RCHmax_tmp, ctrsMF)
+            RCHmin_tmp, RCHmax_tmp, ctrs_tmp = minmax(RCHmin, RCHmax, ctrsMF)
             MMplot.plotLAYER(SP = SP, Date = Date_lst[t], JD = JD_lst[t], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater recharge (mm/day)', msg = '- no flux', plt_title = 'MF_RCH', MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, Vmin = RCHmin_tmp, contours = ctrs_tmp, Vmax = RCHmax_tmp, fmt='%.3G', ntick = ntick)
             t += 1
             del V
         del t
+
+        # ############################################
         # plot average for the whole simulated period
-        # plot heads [m]
+        # ############################################
+
+        # plot heads average [m]
         V = []
         for L in range(cMF.nlay):
             V.append(np.ma.masked_array(np.sum(h_MF_m[:,:,:,L], axis = 0)/sum(cMF.perlen), mask[L]))
-        hminMF, hmaxMF, ctrsMF_tmp = minmax(hminMF, hmaxMF, ctrsMF)
-        MMplot.plotLAYER(SP = SP, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation (m)', msg = 'DRY', plt_title = 'MF_average_HEADS', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (hmaxMF - hminMF)/nrangeMF, contours = ctrsMF_tmp, Vmax = hmaxMF, Vmin = hminMF, ntick = ntick)
-        # plot GWTD [m]
+        MMplot.plotLAYER(SP = SP, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation (m)', msg = 'DRY', plt_title = 'MF_average_HEADS', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (hmaxMF_tmp - hminMF_tmp)/nrangeMF, contours = ctrsMF_tmp, Vmax = hmaxMF_tmp, Vmin = hminMF_tmp, ntick = ntick)
+        del h_MF_m, hminMF_tmp, hmaxMF_tmp, ctrsMF_tmp
+
+        # plot GWTD average [m]
         for L in range(cMF.nlay):
             V[L] = cMF.elev-V[L]
-        GWTDmax = np.ma.max(V[0]) #float(np.ceil(np.ma.max(V)))
-        GWTDmin = np.ma.min(V[0]) #float(np.floor(np.ma.min(V)))
-        GWTDmin_tmp, GWTDmax_tmp, ctrsGWTD_tmp = minmax(GWTDmin, GWTDmax, ctrsMF)
         MMplot.plotLAYER(SP = SP, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'depth to groundwater table (m)', msg = 'DRY', plt_title = 'MF_average_GWTD', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (GWTDmax_tmp - GWTDmin_tmp)/nrangeMF, contours = ctrsGWTD_tmp, Vmax = GWTDmax_tmp, Vmin = GWTDmin_tmp, ntick = ntick)
-        # plot heads corrigidas [m]
+        del V, GWTDmax_tmp, GWTDmin_tmp
+
+        # plot heads corrigidas average [m]
         headscorr_m = [np.ma.masked_values(np.ma.masked_values(h5_MM['MM'][SP,:,:,19], cMF.hnoflo, atol = 0.09), cMF.hdry, atol = 1E+25)]
-#            hcorrmin_tmp, hcorrmax_tmp, ctrs_tmp = minmax(hcorrmin, hcorrmax, ctrsMF)
-        MMplot.plotLAYER(SP = SP, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = headscorr_m,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation (m)', msg = 'DRY', plt_title = 'MF_average_HEADScorr', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (hmaxMF - hminMF)/nrangeMF, contours = ctrsMF_tmp, Vmax = hmaxMF, Vmin = hminMF, ntick = ntick)
-#            del hcorrmin_tmp, hcorrmax_tmp, ctrs_tmp
-        # plot GWTD correct [m]
+        MMplot.plotLAYER(SP = SP, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = headscorr_m,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation (m)', msg = 'DRY', plt_title = 'MF_average_HEADScorr', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (hcorrmax_tmp - hcorrmin_tmp)/nrangeMF, contours = ctrs_tmp, Vmax = hcorrmax_tmp, Vmin = hcorrmin_tmp, ntick = ntick)
+        del hcorrmin_tmp, hcorrmax_tmp
+
+        # plot GWTD correct average [m]
         GWTDcorr = []
         GWTDcorr.append(cMF.elev-headscorr_m[0])
-#            Vmax = np.ma.max(GWTDcorr) #float(np.ceil(np.ma.max(V)))
-#            Vmin = np.ma.min(GWTDcorr) #float(np.floor(np.ma.min(V)))
-#            Vmin_tmp, Vmax_tmp, ctrs_tmp = minmax(Vmin, Vmax, ctrsMF)
-        MMplot.plotLAYER(SP = SP, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = GWTDcorr, cmap = plt.cm.Blues, CBlabel = 'depth to groundwater table (m)', msg = 'DRY', plt_title = 'MF_average_GWTDcorr', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (GWTDmax_tmp - GWTDmin_tmp)/nrangeMF, contours = ctrsGWTD_tmp, Vmax = GWTDmax_tmp, Vmin = GWTDmin_tmp, ntick = ntick)
-        # plot GW drainage [mm]
+        MMplot.plotLAYER(SP = SP, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = GWTDcorr, cmap = plt.cm.Blues, CBlabel = 'depth to groundwater table (m)', msg = 'DRY', plt_title = 'MF_average_GWTDcorr', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (GWTDcorrmax_tmp - GWTDcorrmin_tmp)/nrangeMF, contours = ctrsGWTDcorr_tmp, Vmax = GWTDcorrmax_tmp, Vmin = GWTDcorrmin_tmp, ntick = ntick)
+        del GWTDcorr, headscorr_m, GWTDcorrmax_tmp, GWTDcorrmin_tmp
+
+        # plot GW drainage average [mm]
         if cMF.drn_yn == 1:
             V = []
             for L in range(cMF.nlay):
                 V.append(np.ma.masked_array(np.sum(cbc_DRN[:,:,:,L], axis = 0)/sum(cMF.perlen)*(-1.0), mask[L]))
-            DRNmax_tmp = np.ma.max(V)
-            DRNmin_tmp = np.ma.min(V)
-            DRNmin_tmp, DRNmax_tmp, ctrs_tmp = minmax(DRNmin_tmp, DRNmax_tmp, ctrsMF)
             MMplot.plotLAYER(SP = 'NA', Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater drainage (mm/day)', msg = '- no drainage', plt_title = 'MF_average_DRN', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (DRNmax_tmp - DRNmin_tmp)/nrangeMM, Vmax = DRNmax_tmp, Vmin = DRNmin_tmp, contours = ctrs_tmp, ntick = ntick)
-        # plot GHB [mm]
+            del cbc_DRN, DRNmax_tmp, DRNmin_tmp
+
+        # plot GHB average [mm]
         if cMF.ghb_yn == 1:
             V = []
             for L in range(cMF.nlay):
                 V.append(np.ma.masked_array(np.sum(cbc_GHB[:,:,:,L], axis = 0)/sum(cMF.perlen)*(-1.0), mask[L]))
-            GHBmax_tmp = np.ma.max(V)
-            GHBmin_tmp = np.ma.min(V)
-            GHBmin_tmp, GHBmax_tmp, ctrs_tmp = minmax(GHBmin_tmp, GHBmax_tmp, ctrsMF)
             MMplot.plotLAYER(SP = 'NA', Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'GHB flux (mm/day)', msg = '- no flux', plt_title = 'MF_average_GHB', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (GHBmax_tmp - GHBmin_tmp)/nrangeMM, Vmax = GHBmax_tmp, Vmin = GHBmin_tmp, contours = ctrs_tmp, ntick = ntick)
-        # plot GW RCH [mm]
+            del cbc_GHB, GHBmax_tmp, GHBmin_tmp
+
+        # plot GW RCH average [mm]
         V = []
         for L in range(cMF.nlay):
             V.append(np.ma.masked_array(np.sum(cbc_RCH[:,:,:,L], axis = 0)/sum(cMF.perlen), mask[L]))
-        RCHmax_tmp = np.ma.max(V)
-        RCHmin_tmp = np.ma.min(V)
-        RCHmin_tmp, RCHmax_tmp, ctrs_tmp = minmax(RCHmin_tmp, RCHmax_tmp, ctrsMF)
         MMplot.plotLAYER(SP = 'NA', Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater recharge (mm/day)', msg = '- no flux', plt_title = 'MF_average_RCH', MM_ws = MM_ws, interval_type = 'arange', interval_diff = (RCHmax_tmp - RCHmin_tmp)/nrangeMM, Vmax = RCHmax_tmp, Vmin = RCHmin_tmp, contours = ctrs_tmp, ntick = ntick)
         h5_MF.close()
-        del V, cbc_RCH
-        if cMF.drn_yn == 1:
-            del cbc_DRN, DRNmax_tmp, DRNmin_tmp
-        del RCHmax_tmp, RCHmin_tmp
-    # plot MM output
+        del V, cbc_RCH, RCHmax_tmp, RCHmin_tmp
+
+    # ##############################
+    # #### MARMITES OUTPUT #########
+    # ##############################
     if os.path.exists(h5_MM_fn):
+
         flxlbl = ['RF', 'RFe', 'I', 'EXF', 'dSsurf', 'Ro', 'Esurf', 'Eg', 'Tg', 'ETg', 'ETsoil', 'dSsoil']
         for i in flxlbl:
+            # ############################################
             # plot average for the whole simulated period
+            # ############################################
             i1 = 'i'+i
             h5_MM = h5py.File(h5_MM_fn, 'r')
             MM = h5_MM['MM'][:,:,:,index.get(i1)]
             h5_MM.close()
             V = [np.sum(np.ma.masked_values(MM, cMF.hnoflo, atol = 0.09), axis = 0)/sum(cMF.perlen)]
             V[0] = np.ma.masked_values(V[0], cMF.hnoflo, atol = 0.09)
-            Vmax = np.ma.max(V[0]) #float(np.ceil(np.ma.max(V)))
-            Vmin = np.ma.min(V[0]) #float(np.floor(np.ma.min(V)))
+            Vmax = np.ma.max(V) #float(np.ceil(np.ma.max(V)))
+            Vmin = np.ma.min(V) #float(np.floor(np.ma.min(V)))
             Vmin, Vmax, ctrs_tmp = minmax(Vmin, Vmax, ctrsMM)
             if i == 'dSsoil':
                 i_lbl = '$\Delta$Ssoil' #'$\Delta$S$_{u}'
@@ -1858,19 +1876,26 @@ if plt_out == 1 or plt_out_obs == 1:
                 i_lbl = i
             MMplot.plotLAYER(SP = 'NA', Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i_lbl + ' (mm/day)'), msg = 'no flux', plt_title = ('MM_average_' + i), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrangeMM, Vmax = Vmax, Vmin = Vmin, contours = ctrs_tmp, ntick = ntick)
             del V
+
+            # ############################################
             # plot for selected time step
+            # ############################################
             t = 0
             for SP in SP_lst:
                 V = [np.ma.masked_values(MM[SP,:,:], cMF.hnoflo, atol = 0.09)]
-                Vmax = np.ma.max(V[0]) #float(np.ceil(np.ma.max(V)))
-                Vmin = np.ma.min(V[0]) #float(np.floor(np.ma.min(V)))
+                Vmax = np.ma.max(V) #float(np.ceil(np.ma.max(V)))
+                Vmin = np.ma.min(V) #float(np.floor(np.ma.min(V)))
                 Vmin, Vmax, ctrs_tmp = minmax(Vmin, Vmax, ctrsMM)
                 MMplot.plotLAYER(SP = SP, Date = Date_lst[t], JD = JD_lst[t], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i + ' (mm/day)'), msg = 'no flux', plt_title = ('MM_'+i), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrangeMM, Vmax = Vmax, Vmin = Vmin, contours = ctrs_tmp, ntick = ntick)
                 t += 1
             del V, MM, t
+
         flxlbl = ['Esoil', 'Tsoil','Rp']
         for i in flxlbl:
+
+            # ############################################
             # plot average for the whole simulated period
+            # ############################################
             i1 = 'i'+i
             h5_MM = h5py.File(h5_MM_fn, 'r')
             if i != 'Rp':
@@ -1892,7 +1917,10 @@ if plt_out == 1 or plt_out_obs == 1:
             Vmin, Vmax, ctrs_tmp = minmax(Vmin, Vmax, ctrsMM)
             MMplot.plotLAYER(SP = 'NA', Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i + ' (mm/day)'), msg = 'no flux', plt_title = ('MM_'+ 'average_' + i), MM_ws = MM_ws, interval_type = 'arange', interval_diff = (Vmax - Vmin)/nrangeMM, Vmax = Vmax, Vmin = Vmin, contours = ctrs_tmp, ntick = ntick)
             del V
+
+            # ############################################
             # plot for selected time step
+            # ############################################
             t = 0
             for SP in SP_lst:
                 h5_MM = h5py.File(h5_MM_fn, 'r')

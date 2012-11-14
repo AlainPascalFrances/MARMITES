@@ -378,7 +378,10 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S,
         minfact = 1.05
     if np.max(uzthick) < 0:
         maxfact = 0.95
-    plt.ylim(np.min(uzthick)*minfact, np.max(uzthick)*maxfact)
+    if np.min(uzthick) == np.max(uzthick) == 0.0:
+        plt.ylim(-0.5, 0.5)
+    else:
+        plt.ylim(np.min(uzthick)*minfact, np.max(uzthick)*maxfact)
     # legend
     plt.legend(['uzthick'], loc=0, labelspacing=lblspc, markerscale=mkscale)
     leg = plt.gca().get_legend()

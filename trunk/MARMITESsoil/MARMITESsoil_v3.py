@@ -207,7 +207,7 @@ class SOIL:
         dgwt_corr = dgwt * 1.0
         if EXF > 0.0:
             for l in llst:
-                if Ssoil_tmp[l] >= (Sm[l]*Tl[l]):
+                if abs(Ssoil_tmp[l] - Sm[l]*Tl[l]) >= 1E-6:
                     HEADS_corr += Tl[l]
                     dgwt_corr -= Tl[l]
                     SAT[l] = True
@@ -379,8 +379,8 @@ class SOIL:
                         BotSoilLay = np.zeros([nsl], dtype=float)
                         for l in range(nsl):
                             if l==0:
-                                TopSoilLay[l] = TopSoil[i,j]
-                                BotSoilLay[l] = TopSoil[i,j]-Tl[l]
+                                TopSoilLay[0] = TopSoil[i,j]
+                                BotSoilLay[0] = TopSoil[i,j]-Tl[0]
                             else:
                                 TopSoilLay[l] = BotSoilLay[l-1]
                                 BotSoilLay[l] = TopSoilLay[l]-Tl[l]
