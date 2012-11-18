@@ -639,7 +639,7 @@ class MF():
                     for j in range(self.ncol):
                         if self.ghb_head_array[i,j,l] != 0 and self.ghb_head_array[i,j,l] != self.hnoflo:
                             ghb_head_tmp = self.ghb_head_array[i,j,l]
-                            if self.ghb_cond_array[i,j,l] != cMF.hnoflo:
+                            if self.ghb_cond_array[i,j,l] != self.hnoflo:
                                 self.layer_row_column_head_cond[0].append([l+1, i+1, j+1, ghb_head_tmp, self.ghb_cond_array[i,j,l]])
                             del ghb_head_tmp
                 l += 1

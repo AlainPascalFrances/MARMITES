@@ -111,12 +111,12 @@ class SOIL:
             '''
             if s_tmp > Sm:
                 Ssurf_tmp = s_tmp-Sm
-                if (Ssurf_tmp - Ssurf_max) > 1.0E-7:
+                if (Ssurf_tmp - Ssurf_max) > -1.0E-7:
                     Ro_tmp = (Ssurf_tmp - Ssurf_max)/dt
                     Ssurf_tmp = Ssurf_max
                 else:
                     Ro_tmp = 0.0
-                if (Ssurf_tmp - E0) > 1.0E-7:
+                if (Ssurf_tmp - E0) > -1.0E-7:
                     Esurf_tmp = E0
                     Ssurf_tmp = Ssurf_tmp - E0*dt
                 else:
@@ -134,16 +134,16 @@ class SOIL:
             '''
             Percolation function
             '''
-            if (s_tmp - Sfc) <=  1.0E-7:
+            if (s_tmp - Sfc) < 1.0E-7:
                 rp_tmp = 0.0
-            elif (s_tmp - Sfc) > 1.0E-7 and (s_tmp - Sm) < 1.0E-7:
+            elif (s_tmp - Sfc) > -1.0E-7 and (s_tmp - Sm) < -1.0E-7:
                 Sg = (s_tmp-Sfc)/(Sm-Sfc) # gravitational water
                 if (Ks*Sg*dt) - (s_tmp-Sfc) > 1.0E-7:
                     rp_tmp = (s_tmp-Sfc)/dt
                 else:
                     rp_tmp = Ks*Sg
-            elif (s_tmp - Sm) > 1.0E-7:
-                if (Ks*dt) - (Sm-Sfc) > 1.0E-7:
+            elif (s_tmp - Sm) > -1.0E-7:
+                if (Ks*dt) - (Sm-Sfc) > -1.0E-7:
                     rp_tmp = (Sm-Sfc)/dt
                 else:
                     rp_tmp = Ks
@@ -155,16 +155,16 @@ class SOIL:
             '''
             Actual evapotranspiration function
             '''
-            if (s_tmp - Sr) <= 1.0E-7:
+            if (s_tmp - Sr) < 1.0E-7:
                 evp_tmp = 0.0
-            elif ((s_tmp - Sr) > 1.0E-7) and (s_tmp - Sm) < 1.0E-7:
+            elif ((s_tmp - Sr) > -1.0E-7) and (s_tmp - Sm) < 1.0E-7:
                 Se = (s_tmp - Sr)/(Sm - Sr)
-                if (pet*Se*dt - (s_tmp - Sr)) > 1.0E-7:
+                if (pet*Se*dt - (s_tmp - Sr)) > -1.0E-7:
                     evp_tmp = (s_tmp - Sr)/dt
                 else:
                     evp_tmp = pet*Se
             elif (s_tmp - Sr) > 1.0E-7:
-                if (pet*dt-(Sm - Sr)) > 1.0E-7:
+                if (pet*dt-(Sm - Sr)) > -1.0E-7:
                     evp_tmp = (Sm - Sr)/dt
                 else:
                     evp_tmp = pet
@@ -197,7 +197,7 @@ class SOIL:
         llst = range(nsl)
         llst.reverse()
         for l in llst[:-1]:
-            if Ssoil_tmp[l] > Sm[l]*Tl[l]:
+            if (Ssoil_tmp[l] - (Sm[l]*Tl[l])) > -1.0E-7:
                 Rexf_tmp[l] += Ssoil_tmp[l] - Sm[l]*Tl[l]
                 Ssoil_tmp[l-1] += Rexf_tmp[l]
                 Ssoil_tmp[l] = Sm[l]*Tl[l]
@@ -207,7 +207,7 @@ class SOIL:
         dgwt_corr = dgwt * 1.0
         if EXF > 0.0:
             for l in llst:
-                if abs(Ssoil_tmp[l] - Sm[l]*Tl[l]) >= 1E-6:
+                if (Ssoil_tmp[l] - (Sm[l]*Tl[l])) > -1.0E-7:
                     HEADS_corr += Tl[l]
                     dgwt_corr -= Tl[l]
                     SAT[l] = True
@@ -243,9 +243,9 @@ class SOIL:
                     PE -= Esoil_tmp[l]
             # Tsoil
             for v in range(NVEG):
-                if PT[v] > 1E-7:
-                    if LAIveg[v] > 1E-7:
-                        if VEGarea[v] > 1E-7:
+                if PT[v] > -1.0E-7:
+                    if LAIveg[v] > -1.0E-7:
+                        if VEGarea[v] > -1.0E-7:
                             if BotSoilLay[l] > Zr_elev[v]:
                                 Tsoil_tmpZr[l,v] = evp(Ssoil_tmp[l],Sm[l]*Tl[l], Sr[l]*Tl[l], PT[v], i, j, n, dt)
                             elif TopSoilLay[l] > Zr_elev[v] :
@@ -542,7 +542,7 @@ class SOIL:
                                 kTu_min_tmp = kTu_min_tmp[:]
                                 kTu_n_tmp = kTu_n_tmp[:]
                             for v in range(NVEG_tmp):
-                                if LAIveg_tmp[v,t] > 1E-7:
+                                if LAIveg_tmp[v,t] > -1.0E-7:
                                     RFe_tot[t] += RFe[v,t]*VEGarea_tmp[v]*0.01
                                     PT_tot[t]  += PT[v,t]*VEGarea_tmp[v]*0.01
                                     SOILarea   -= VEGarea_tmp[v]
@@ -550,7 +550,7 @@ class SOIL:
                             INTER_tot[t]  = RF[t] - RFe_tot[t]
                             PE_tot[t]     = PE[t]*SOILarea*0.01
                             # handle drycell
-                            if h_MF_tmp[t] > (cMF.hdry-1E3):
+                            if h_MF_tmp[t] > (cMF.hdry-1.0E3):
                                 HEADS_drycell = botm_l0[i,j]*1000.0
                             else:
                                 HEADS_drycell = h_MF_tmp[t]*1000.0
