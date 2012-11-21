@@ -31,6 +31,9 @@ import ppMODFLOW_flopy_v3 as ppMF
 import MARMITESplot_v3 as MMplot
 import CreateColors
 
+# TODO verify if thickness of MF layer 1 > thickness of soil
+
+
 #####################################
 
 def minmax(min_, max_, ctrs_):
@@ -1538,8 +1541,8 @@ if plt_out == 1 or plt_out_obs == 1:
                     slprop = _slprop[SOILzone_tmp]
                     # thickness of soil layers
                     Tl = list(gridSOILthick[i,j]*slprop)
-                    for ii, l in enumerate(Tl):
-                        Tl[ii] = float('%.3f' % l)
+                    for ii, l in enumerate(Tll):
+                        Tl[ii] = float('%.3f' % ll)
                     MM = h5_MM['MM'][:,i,j,:]
                     MM_S = h5_MM['MM_S'][:,i,j,:,:]
                     # SATFLOW
