@@ -534,7 +534,7 @@ if plt_input == 1:
         Vmax = np.ma.max(V) #float(np.ceil(np.ma.max(V)))  #
         Vmin = np.ma.min(V) #float(np.floor(np.ma.min(V))) #
         Vmin_tmp, Vmax_tmp, ctrsV_tmp = minmax(Vmin, Vmax, ctrsMM)
-        MMplot.plotLAYER(SP = 0, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = nplot, V = V,  cmap = plt.cm.spectral, CBlabel = CBlabel, msg = '', plt_title = 'INPUT_%03d_%s' % (i_lbl,lst_lbl[i]), MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, contours = ctrsV_tmp, Vmax = Vmax_tmp, Vmin = Vmin_tmp, ntick = ntick, axisbg = 'white', fmt = fmt)
+        MMplot.plotLAYER(SP = 0, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = nplot, V = V,  cmap = plt.cm.gist_rainbow_r, CBlabel = CBlabel, msg = '', plt_title = 'INPUT_%03d_%s' % (i_lbl,lst_lbl[i]), MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, contours = ctrsV_tmp, Vmax = Vmax_tmp, Vmin = Vmin_tmp, ntick = ntick, axisbg = 'white', fmt = fmt)
         i_lbl += 1
     del V, lst, lst_lbl, nplot, Vmax, Vmin, Vmax_tmp, Vmin_tmp, ctrsV_tmp
 
@@ -1541,7 +1541,7 @@ if plt_out == 1 or plt_out_obs == 1:
                     slprop = _slprop[SOILzone_tmp]
                     # thickness of soil layers
                     Tl = list(gridSOILthick[i,j]*slprop)
-                    for ii, l in enumerate(Tll):
+                    for ii, ll in enumerate(Tl):
                         Tl[ii] = float('%.3f' % ll)
                     MM = h5_MM['MM'][:,i,j,:]
                     MM_S = h5_MM['MM_S'][:,i,j,:,:]

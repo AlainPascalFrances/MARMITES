@@ -645,10 +645,10 @@ def plotLAYER(SP, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_
         ax[L].yaxis.set_ticks(np.arange(0,nrow+1,ntick))
         if np.ma.max(V[L])>np.ma.min(V[L]):
             CB_test = True
-            PC = plt.pcolor(xg, yg, V[L], cmap = cmap, vmin = Vmin, vmax = Vmax)
+            PC = plt.pcolormesh(xg, yg, V[L], cmap = cmap, vmin = Vmin, vmax = Vmax)
             plt.title('layer ' + str(L+1), fontsize = 10)
         else:
-            PC1 = plt.pcolor(xg, yg, V[L], cmap = cmap, vmin = Vmin, vmax = Vmax)
+            PC1 = plt.pcolormesh(xg, yg, V[L], cmap = cmap, vmin = Vmin, vmax = Vmax)
             plt.title('layer ' + str(L+1) + ' ' + msg, fontsize = 10)
         if contours == True:
             CS = plt.contour(xg1, yg1[::-1], V[L][::-1], ticks, colors = 'gray')
