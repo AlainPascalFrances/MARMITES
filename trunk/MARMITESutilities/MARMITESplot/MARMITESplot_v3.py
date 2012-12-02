@@ -565,8 +565,8 @@ def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, hmax
         ax8=fig.add_subplot(10,1,8, sharex=ax1)
         plt.setp(ax8.get_xticklabels(), fontsize=8)
         plt.setp(ax8.get_yticklabels(), fontsize=8)
-        i = 21 + cMF.nlay
-        for l, (e, lbl) in enumerate(zip(flx[i+1:], flx_lbl[i+1:])):
+        i = 20 + 2*cMF.nlay
+        for l, (e, lbl) in enumerate(zip(flx[i:], flx_lbl[i:])):
             plt.plot_date(DateInput,e,'-', color = mpl.colors.rgb2hex(np.random.rand(1,3)[0]), label = lbl)
             i += l + 2
         plt.xlim(DateInput[0]-1,DateInput[len(DateInput)-1]+1)
