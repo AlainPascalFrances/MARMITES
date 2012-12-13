@@ -401,7 +401,7 @@ class MF():
                             self.uzfbud_ext.append(str(abs(int(iftunit[g]))) + '.' + self.ext_uzf)
                 self.finf_user = float(inputFile[l].strip())
             else:
-                l += 21
+                l += 24
             # wel
             l += 1
             self.wel_yn = int(inputFile[l].strip())
@@ -484,6 +484,11 @@ class MF():
                 self.thick = (np.asarray(self.thick)).reshape((self.nrow, self.ncol, 1))
         else:
             self.thick = np.asarray(self.thick)
+        if self.thick.shape[0] == self.nlay and len(self.thick.shape) == 1:
+            thick_tmp = np.ones([self.nrow, self.ncol, self.nlay], dtype = np.float)
+            for l, e in enumerate (self.thick):
+                thick_tmp[:,:,l] *= e
+            self.thick = thick_tmp
         elev_tmp = np.asarray(self.elev)
         botm_tmp = []
         for l in range(self.nlay):
