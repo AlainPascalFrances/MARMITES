@@ -33,7 +33,6 @@ import CreateColors
 
 # TODO verify if thickness of MF layer 1 > thickness of soil
 
-
 #####################################
 
 def minmax(min_, max_, ctrs_):
@@ -1821,6 +1820,10 @@ if plt_out == 1 or plt_out_obs == 1:
                     V.append(np.ma.masked_array(cbc_RCH[SP,:,:,L], mask[L]))
                 RCHmin_tmp, RCHmax_tmp, ctrs_tmp = minmax(RCHmin, RCHmax, ctrsMF)
                 MMplot.plotLAYER(SP = SP, Date = Date_lst[t], JD = JD_lst[t], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater recharge (mm/day)', msg = '- no flux', plt_title = 'MF_RCH', MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, Vmin = RCHmin_tmp, contours = ctrs_tmp, Vmax = RCHmax_tmp, ntick = ntick)
+                RCHmin_tmp1 = np.min(np.asarray(V))
+                RCHmax_tmp1 = np.max(np.asarray(V))
+                RCHmin_tmp1, RCHmax_tmp1, ctrs_tmp = minmax(RCHmin_tmp1, RCHmax_tmp1, ctrsMF)
+                MMplot.plotLAYER(SP = SP, Date = Date_lst[t], JD = JD_lst[t], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater recharge (mm/day)', msg = '- no flux', plt_title = 'MF_RCH1', MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, Vmin = RCHmin_tmp1, contours = ctrs_tmp, Vmax = RCHmax_tmp1, ntick = ntick)
                 t += 1
                 del V
             del t

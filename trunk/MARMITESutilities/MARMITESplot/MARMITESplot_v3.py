@@ -659,17 +659,26 @@ def plotLAYER(SP, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_
         val = PC
     else:
         val = PC1
-    #cax = fig.add_axes([0.2, 0.08, 0.6, 0.04])
-    CB = fig.colorbar(val, shrink=0.6, extend='both', ticks = ticks, format = fmt, orientation = 'vertical')
-    CB.set_label(CBlabel, fontsize = 7)
-    plt.setp(CB.ax.get_yticklabels(), fontsize = 7)
+    if max(x) > max(y):
+        cax = fig.add_axes([.125, 0.025, 0.75, 0.025])
+        CBorient = 'horizontal'
+    else:
+        cax = fig.add_axes([0.025, 0.125, 0.025, 0.75])
+        CBorient = 'vertical'
+    CB = fig.colorbar(val, extend='both', ticks = ticks, format = fmt, cax = cax,  orientation = CBorient)
+    CB.set_label(CBlabel, fontsize = 12)
+    if max(x) > max(y):
+        cax.xaxis.set_label_position('top')
+        plt.setp(CB.ax.get_xticklabels(), fontsize = 7)
+    else:
+        cax.yaxis.set_label_position('left')
+        plt.setp(CB.ax.get_yticklabels(), fontsize = 7)
     del val
     if isinstance(Date, float):
         plt_export_fn = os.path.join(MM_ws, '_plt_' + plt_title + '_SP%05d' + '.png') % (SP+1)
     else:
         plt_export_fn = os.path.join(MM_ws, '_plt_' + plt_title + '.png')
     plt.savefig(plt_export_fn)
-#    plt.show()
     plt.clf()
     plt.close('all')
     del fig, ax, SP, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_title, MM_ws, interval_type, interval_diff, interval_num, Vmax, Vmin, fmt
