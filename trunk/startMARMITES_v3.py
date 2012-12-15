@@ -59,7 +59,7 @@ print '\n##############\nMARMITESv0.3 started!\n%s\n##############' % mpl.dates.
 # the file can contain any comments as the user wish, but the sequence of the input has to be respected
 # 00_TESTS\MARMITESv3_r13c6l2  00_TESTS\r40c20  00_TESTS\r20c40  r130c60l2   r130c60l2new
 # SARDON2012  CARRIZAL3 CARRIZAL3newera LAMATA LaMata_new
-MM_ws = r'E:\00code_ws\ELdificil'
+MM_ws = r'E:\00code_ws\00_TESTS\MARMITESv3_r13c6l2'
 MM_fn = '__inputMM_v3.ini'
 
 inputFile = MMproc.readFile(MM_ws,MM_fn)
@@ -469,32 +469,42 @@ if plt_input == 1:
     i_lbl = 1
     lst = [cMF.elev, cMF.top, cMF.botm, cMF.thick, np.asarray(cMF.strt), gridSOILthick, gridSsurfhmax, gridSsurfw, np.asarray(cMF.hk_actual), np.asarray(cMF.ss_actual), np.asarray(cMF.sy_actual), np.asarray(cMF.vka_actual)]
     lst_lbl = ['elev', 'top', 'botm', 'thick', 'strt', 'gridSOILthick', 'gridSsurfhmax', 'gridSsurfw', 'hk', 'Ss', 'Sy', 'vka']
+    lst_lblCB = ['Elev.', 'Aq. top - top', 'Aq. bot. - botm', 'Aq. thick.', 'Init. heads - strt', 'Soil thick.', 'Stream max. heigth', 'Stream width', 'Horizontal hydraulic cond. - hk', 'Specific storage - Ss', 'Specific yield - Sy', 'Vertical hydraulic cond. - vka']
     if cMF.drn_yn == 1:
         lst.append(cMF.drn_cond_array)
         lst_lbl.append('drn_cond')
+        lst_lblCB.append('Drain cond.')
         lst.append(cMF.drn_elev_array)
         lst_lbl.append('drn_elev')
+        lst_lblCB.append('Drain elev.')
     if cMF.ghb_yn == 1:
         lst.append(cMF.ghb_cond_array)
         lst_lbl.append('ghb_cond')
+        lst_lblCB.append('GHB cond.')
         lst.append(cMF.ghb_head_array)
         lst_lbl.append('ghb_head')
+        lst_lblCB.append('GHB head')
     if cMF.uzf_yn == 1:
         lst.append(np.asarray(cMF.eps_actual))
         lst_lbl.append('eps')
+        lst_lblCB.append('Epsilon - eps')
         lst.append(cMF.thts_actual)
         lst_lbl.append('thts')
+        lst_lblCB.append('Sat. water content - thts')
         if cMF.vks_actual != 0.0:
             lst.append(np.asarray(cMF.vks_actual))
             lst_lbl.append('vks')
+            lst_lblCB.append('Sat. vert. hydraulic conductivity - vks')
         try:
             lst.append(np.asarray(cMF.thti_actual))
             lst_lbl.append('thti')
+            lst_lblCB.append('Initial water content - thti')
         except:
             pass
         try:
             lst.append(np.asarray(cMF.thtr_actual))
             lst_lbl.append('thtr')
+            lst_lblCB.append('Residual water content - thtr')
         except:
             pass
     for i, l in enumerate(lst):
@@ -521,15 +531,15 @@ if plt_input == 1:
         else:
             fmt = '%.2f'
         if lst_lbl[i] == 'Ss' or lst_lbl[i] == 'eps':
-           CBlabel = lst_lbl[i] + ' ([-])'
+           CBlabel = lst_lblCB[i] + ' ([-])'
         elif lst_lbl[i] == 'hk' or lst_lbl[i] == 'drn_cond' or lst_lbl[i] == 'ghb_cond':
-            CBlabel = lst_lbl[i] + ' (%s/%s)' % (lenuni_str, itmuni_str)
+            CBlabel = lst_lblCB[i] + ' (%s/%s)' % (lenuni_str, itmuni_str)
         elif lst_lbl[i] == 'Sy' or lst_lbl[i] == 'thts' or lst_lbl[i] == 'thti' or lst_lbl[i] == 'thtr':
-            CBlabel = lst_lbl[i] + ' (vol/vol)'
+            CBlabel = lst_lblCB[i] + ' ($L^3$/$L^{-3}$)'
         elif lst_lbl[i] == 'vka':
-            CBlabel = lst_lbl[i] + ' ([-] or %s/%s, layvka = %s)' % (lenuni_str, itmuni_str, cMF.layvka)
+            CBlabel = lst_lblCB[i] + ' ([-] or %s/%s, layvka = %s)' % (lenuni_str, itmuni_str, cMF.layvka)
         else:
-            CBlabel = lst_lbl[i] + ' (m)'
+            CBlabel = lst_lblCB[i] + ' (m)'
         Vmax = np.ma.max(V) #float(np.ceil(np.ma.max(V)))  #
         Vmin = np.ma.min(V) #float(np.floor(np.ma.min(V))) #
         Vmin_tmp, Vmax_tmp, ctrsV_tmp = minmax(Vmin, Vmax, ctrsMM)
@@ -542,19 +552,23 @@ if plt_input == 1:
     for v in range(NVEG):
         V = [np.ma.masked_values(np.ma.masked_array(gridVEGarea[v,:,:], maskAllL), cMF.hnoflo, atol = 0.09)]
         V_lbl = 'veg%02d_%s' %(v, VegName[v])
+        V_lblCV = 'Fractionnal area of vegetation type %%02d (%s)' %(v, VegName[v])
         #print V_lbl
-        MMplot.plotLAYER(SP = 0, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.gist_rainbow_r, CBlabel = '%s %s' % (V_lbl, '(%)'), msg = '', plt_title = 'INPUT_%03d_%s'% (i_lbl,V_lbl), MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, contours = False, Vmax = Vmax, Vmin = Vmin, ntick = ntick, axisbg = 'white', fmt = '%3.1f')
+        MMplot.plotLAYER(SP = 0, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.gist_rainbow_r, CBlabel = '%s %s' % (V_lblCB, ' (%)'), msg = '', plt_title = 'INPUT_%03d_%s'% (i_lbl,V_lbl), MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, contours = False, Vmax = Vmax, Vmin = Vmin, ntick = ntick, axisbg = 'white', fmt = '%3.1f')
         i_lbl += 1
     del V, V_lbl, Vmax, Vmin
 
     lst = [ibound, gridSOIL, gridMETEO]
     lst_lbl = ['ibound', 'gridSOIL', 'gridMETEO']
+    lst_lblCB = ['MF cell type - ibound', 'Soil type', 'Meteo. zone']
     if irr_yn == 1:
         lst.append(gridIRR)
         lst_lbl.append('gridIRR')
+        lst_lblCB.append('Irrigation plots')
     if cMF.uzf_yn == 1:
         lst.append(np.asarray(cMF.iuzfbnd))
         lst_lbl.append('iuzfbnd')
+        lst_lblCB.append('Recharge layer - iuzfbnd')
     for i, l in enumerate(lst):
         #print lst_lbl[i]
         V = []
@@ -571,7 +585,6 @@ if plt_input == 1:
         MMplot.plotLAYER(SP = 0, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = nplot, V = V,  cmap = plt.cm.gist_rainbow_r, CBlabel = lst_lbl[i], msg = '', plt_title = 'INPUT_%03d_%s'% (i_lbl,lst_lbl[i]), MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, contours = False, Vmax = Vmax_tmp, Vmin = Vmin_tmp, ntick = ntick, axisbg = 'white')
         i_lbl += 1
     del V, lst, lst_lbl, nplot, Vmax, Vmin, Vmax_tmp, Vmin_tmp, ctrsV_tmp
-
 
 # #############################
 # ### 1st MODFLOW RUN with initial user-input recharge
@@ -1877,6 +1890,10 @@ if plt_out == 1 or plt_out_obs == 1:
             for L in range(cMF.nlay):
                 V.append(np.ma.masked_array(np.sum(cbc_RCH[:,:,:,L], axis = 0)/sum(cMF.perlen), mask[L]))
             MMplot.plotLAYER(SP = 'NA', Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater recharge (mm/day)', msg = '- no flux', plt_title = 'MF_average_RCH', MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, Vmax = RCHmax_tmp, Vmin = RCHmin_tmp, contours = ctrs_tmp, ntick = ntick)
+            RCHmin_tmp1 = np.min(np.asarray(V))
+            RCHmax_tmp1 = np.max(np.asarray(V))
+            RCHmin_tmp1, RCHmax_tmp1, ctrs_tmp = minmax(RCHmin_tmp1, RCHmax_tmp1, ctrsMF)
+            MMplot.plotLAYER(SP = 'NA', Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater recharge (mm/day)', msg = '- no flux', plt_title = 'MF_average_RCH1', MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, Vmax = RCHmax_tmp1, Vmin = RCHmin_tmp1, contours = ctrs_tmp, ntick = ntick)
             h5_MF.close()
             del V, cbc_RCH, RCHmax_tmp, RCHmin_tmp
 
