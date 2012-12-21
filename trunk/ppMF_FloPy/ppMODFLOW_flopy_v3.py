@@ -479,6 +479,10 @@ class MF():
         self.elev     = self.MM_PROCESS.checkarray(self.elev)
         self.strt     = self.MM_PROCESS.checkarray(self.strt)
         self.thick    = self.MM_PROCESS.checkarray(self.thick)
+        self.ibound  = self.MM_PROCESS.checkarray(self.ibound, dtype = np.int)
+        if self.nlay < 2:
+            if isinstance(self.ibound, list):
+                self.ibound = (np.asarray(self.ibound)).reshape((self.nrow, self.ncol, 1))
         if self.nlay < 2:
             if isinstance(self.thick, list):
                 self.thick = (np.asarray(self.thick)).reshape((self.nrow, self.ncol, 1))
@@ -487,7 +491,7 @@ class MF():
         if self.thick.shape[0] == self.nlay and len(self.thick.shape) == 1:
             thick_tmp = np.ones([self.nrow, self.ncol, self.nlay], dtype = np.float)
             for l, e in enumerate (self.thick):
-                thick_tmp[:,:,l] *= e
+                thick_tmp[:,:,l] *= e  #*ibound[:,:,l]
             self.thick = thick_tmp
         elev_tmp = np.asarray(self.elev)
         botm_tmp = []
@@ -501,10 +505,7 @@ class MF():
         self.botm = list(np.swapaxes(botm_tmp,0,1))
         self.botm = list(np.swapaxes(self.botm,1,2))
         del botm_tmp
-        self.ibound  = self.MM_PROCESS.checkarray(self.ibound, dtype = np.int)
         if self.nlay < 2:
-            if isinstance(self.ibound, list):
-                self.ibound = (np.asarray(self.ibound)).reshape((self.nrow, self.ncol, 1))
             if isinstance(self.botm, list):
                 self.botm = (np.asarray(self.botm)).reshape((self.nrow, self.ncol, 1))
         if self.uzf_yn == 1:

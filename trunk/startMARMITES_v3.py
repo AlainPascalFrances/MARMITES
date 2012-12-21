@@ -114,6 +114,8 @@ try:
     l += 1
     convcrit = float(inputFile[l].strip())
     l += 1
+    convcritmax = float(inputFile[l].strip())
+    l += 1
     ccnum = int(inputFile[l].strip())
     l += 1
     # Define MARMITESsurface folder
@@ -467,7 +469,11 @@ if plt_input == 1:
     print'\n##############'
     print 'Exporting input parameters maps...'
     i_lbl = 1
-    lst = [cMF.elev, cMF.top, cMF.botm, cMF.thick, np.asarray(cMF.strt), gridSOILthick, gridSsurfhmax, gridSsurfw, np.asarray(cMF.hk_actual), np.asarray(cMF.ss_actual), np.asarray(cMF.sy_actual), np.asarray(cMF.vka_actual)]
+    top_tmp = np.zeros((cMF.nrow, cMF.ncol, cMF.nlay), dtype = np.float)
+    top_tmp[:,:,0] = cMF.top
+    for l in range(1,cMF.nlay):
+        top_tmp[:,:,l] = cMF.botm[:,:,l-1]
+    lst = [cMF.elev, top_tmp, cMF.botm, cMF.thick, np.asarray(cMF.strt), gridSOILthick, gridSsurfhmax, gridSsurfw, np.asarray(cMF.hk_actual), np.asarray(cMF.ss_actual), np.asarray(cMF.sy_actual), np.asarray(cMF.vka_actual)]
     lst_lbl = ['elev', 'top', 'botm', 'thick', 'strt', 'gridSOILthick', 'gridSsurfhmax', 'gridSsurfw', 'hk', 'Ss', 'Sy', 'vka']
     lst_lblCB = ['Elev.', 'Aq. top - top', 'Aq. bot. - botm', 'Aq. thick.', 'Init. heads - strt', 'Soil thick.', 'Stream max. heigth', 'Stream width', 'Horizontal hydraulic cond. - hk', 'Specific storage - Ss', 'Specific yield - Sy', 'Vertical hydraulic cond. - vka']
     if cMF.drn_yn == 1:
@@ -507,6 +513,13 @@ if plt_input == 1:
             lst_lblCB.append('Residual water content - thtr')
         except:
             pass
+    elev_max = []
+    elev_min = []
+    for e in [cMF.elev, cMF.top, cMF.botm]:
+        elev_max.append(np.max(e))
+        elev_min.append(np.min(e))
+    elev_max = max(elev_max)
+    elev_min = min(elev_min)
     for i, l in enumerate(lst):
         #print lst_lbl[i]
         V = []
@@ -540,10 +553,14 @@ if plt_input == 1:
             CBlabel = lst_lblCB[i] + ' ([-] or %s/%s, layvka = %s)' % (lenuni_str, itmuni_str, cMF.layvka)
         else:
             CBlabel = lst_lblCB[i] + ' (m)'
-        Vmax = np.ma.max(V) #float(np.ceil(np.ma.max(V)))  #
-        Vmin = np.ma.min(V) #float(np.floor(np.ma.min(V))) #
+        if lst_lbl[i] == 'elev' or lst_lbl[i] == 'top' or lst_lbl[i] == 'botm':
+            Vmax = elev_max
+            Vmin = elev_min
+        else:
+            Vmax = np.ma.max(V) #float(np.ceil(np.ma.max(V)))  #
+            Vmin = np.ma.min(V) #float(np.floor(np.ma.min(V))) #
         Vmin_tmp, Vmax_tmp, ctrsV_tmp = minmax(Vmin, Vmax, ctrsMM)
-        MMplot.plotLAYER(SP = 0, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = nplot, V = V,  cmap = plt.cm.gist_rainbow_r, CBlabel = CBlabel, msg = '', plt_title = 'INPUT_%03d_%s' % (i_lbl,lst_lbl[i]), MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, contours = ctrsV_tmp, Vmax = Vmax_tmp, Vmin = Vmin_tmp, ntick = ntick, axisbg = 'white', fmt = fmt)
+        MMplot.plotLAYER(SP = 0, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = nplot, V = V,  cmap = plt.cm.gist_rainbow_r, CBlabel = CBlabel, msg = '', plt_title = '_INPUT_%03d_%s' % (i_lbl,lst_lbl[i]), MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, contours = ctrsV_tmp, Vmax = Vmax_tmp, Vmin = Vmin_tmp, ntick = ntick, axisbg = 'white', fmt = fmt)
         i_lbl += 1
     del V, lst, lst_lbl, nplot, Vmax, Vmin, Vmax_tmp, Vmin_tmp, ctrsV_tmp
 
@@ -551,10 +568,10 @@ if plt_input == 1:
     Vmin = 0.0
     for v in range(NVEG):
         V = [np.ma.masked_values(np.ma.masked_array(gridVEGarea[v,:,:], maskAllL), cMF.hnoflo, atol = 0.09)]
-        V_lbl = 'veg%02d_%s' %(v, VegName[v])
-        V_lblCB = 'Frac. area of veg #%02d (%s)' %(v, VegName[v])
+        V_lbl = 'veg%02d_%s' %(v+1, VegName[v])
+        V_lblCB = 'Frac. area of veg #%02d (%s)' %(v+1, VegName[v])
         #print V_lbl
-        MMplot.plotLAYER(SP = 0, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.gist_rainbow_r, CBlabel = '%s %s' % (V_lblCB, ' (%)'), msg = '', plt_title = 'INPUT_%03d_%s'% (i_lbl,V_lbl), MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, contours = False, Vmax = Vmax, Vmin = Vmin, ntick = ntick, axisbg = 'white', fmt = '%3.1f')
+        MMplot.plotLAYER(SP = 0, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.gist_rainbow_r, CBlabel = '%s %s' % (V_lblCB, ' (%)'), msg = '', plt_title = '_INPUT_%03d_%s'% (i_lbl,V_lbl), MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, contours = False, Vmax = Vmax, Vmin = Vmin, ntick = ntick, axisbg = 'white', fmt = '%3.1f')
         i_lbl += 1
     del V, V_lbl, Vmax, Vmin
 
@@ -582,7 +599,7 @@ if plt_input == 1:
         Vmax = np.ma.max(V) #float(np.ceil(np.ma.max(V)))  #
         Vmin = np.ma.min(V) #float(np.floor(np.ma.min(V))) #
         Vmin_tmp, Vmax_tmp, ctrsV_tmp = minmax(Vmin, Vmax, ctrsMM)
-        MMplot.plotLAYER(SP = 0, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = nplot, V = V,  cmap = plt.cm.gist_rainbow_r, CBlabel = lst_lblCB[i], msg = '', plt_title = 'INPUT_%03d_%s'% (i_lbl,lst_lbl[i]), MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, contours = False, Vmax = Vmax_tmp, Vmin = Vmin_tmp, ntick = ntick, axisbg = 'white')
+        MMplot.plotLAYER(SP = 0, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = nplot, V = V,  cmap = plt.cm.gist_rainbow_r, CBlabel = lst_lblCB[i], msg = '', plt_title = '_INPUT_%03d_%s'% (i_lbl,lst_lbl[i]), MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, contours = False, Vmax = Vmax_tmp, Vmin = Vmin_tmp, ntick = ntick, axisbg = 'white')
         i_lbl += 1
     del V, lst, lst_lbl, lst_lblCB, nplot, Vmax, Vmin, Vmax_tmp, Vmin_tmp, ctrsV_tmp
 
@@ -691,7 +708,7 @@ if MMsoil_yn > 0:
     # ###  CONVERGENCE LOOP   #####
     # #############################
 
-    while abs(h_diff[LOOP]) > convcrit:
+    while abs(h_diff[LOOP]) > convcrit and abs(h_diff_all[LOOP]) > convcritmax:
         if LOOP == 0:
             print '\n##############\nCONVERGENCE LOOP %d (initialization)\n##############' % (LOOP)
         else:
@@ -757,7 +774,7 @@ if MMsoil_yn > 0:
             h_diff_all_log.append(np.log10(np.absolute(h_diff_all[LOOP])))
         else:
             h_diff_log.append(np.log10(convcrit))
-            h_diff_all_log.append(np.log10(convcrit))
+            h_diff_all_log.append(np.log10(convcritmax))
 
         msg_end_loop = []
         if LOOP <2:
@@ -776,8 +793,8 @@ if MMsoil_yn > 0:
                 break
             else:
                 print '\nWARNING: first layer of the model DRY!'
-        elif abs(h_diff[LOOP]) < convcrit:
-            msg_end_loop.append('Successfull convergence between MARMITES and MODFLOW!\n(Conv. criterion = %.3G)' % convcrit)
+        elif abs(h_diff[LOOP]) < convcrit and abs(h_diff_all[LOOP]) < convcritmax:
+            msg_end_loop.append('Successfull convergence between MARMITES and MODFLOW!\n(Conv. criterion = %.4f and conv. crit. max. = %.4f)' % (convcrit, convcritmax))
             for txt in msg_end_loop:
                 print txt
             timeendMMloop = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
@@ -786,7 +803,7 @@ if MMsoil_yn > 0:
             durationMMsoil += durationMMloop
             break
         elif LOOP>ccnum:
-            msg_end_loop.append('No convergence between MARMITES and MODFLOW!\n(Conv. criterion = %.3G)' % convcrit)
+            msg_end_loop.append('No convergence between MARMITES and MODFLOW!\n(Conv. criterion = %.4 and conv. crit. max. = %.4g)' % (convcrit, convcritmax))
             for txt in msg_end_loop:
                 print txt
             timeendMMloop = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
@@ -993,7 +1010,7 @@ if h_diff_surf != None:
     Vmin = min(Vmin) #float(np.floor(min(Vmin)))
     Vmin_tmp, Vmax_tmp, ctrs_tmp = minmax(Vmin, Vmax, ctrsMF)
     # TODO JD and Date are not correct since h_diff_n is # stress periods and not # of days (same in the plots of MF and MM)
-    MMplot.plotLAYER(SP = h_diff_n, Date = cMF.inputDate[h_diff_n], JD = cMF.JD[h_diff_n], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = ('(m)'), msg = 'no value', plt_title = ('_HEADSmaxdiff_ConvLoop'), MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, Vmax = Vmax_tmp, Vmin = Vmin_tmp, contours = ctrs_tmp, ntick = ntick)
+    MMplot.plotLAYER(SP = h_diff_n, Date = cMF.inputDate[h_diff_n], JD = cMF.JD[h_diff_n], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = ('(m)'), msg = 'no value', plt_title = '_HEADSmaxdiff_ConvLoop', MM_ws = MM_ws, interval_type = 'linspace', interval_num = 5, Vmax = Vmax_tmp, Vmin = Vmin_tmp, contours = ctrs_tmp, ntick = ntick)
     del h_diff_n, Vmin, Vmax, Vmin_tmp, Vmax_tmp
 
 # exporting sm computed by MM for PEST (smp format)
