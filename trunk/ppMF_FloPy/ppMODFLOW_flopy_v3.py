@@ -567,18 +567,20 @@ class MF():
                 self.thts_actual = float(self.thts[0])
             except:
                 self.thts_actual = self.thts[0]
+            # TODO if thtr < 0, THTR = Sy + abs(THTR)
             if type(self.thts_actual) == float and self.thts_actual < 0:
+                self.thts_actual = np.abs(self.thts_actual)
                 sy_tmp = np.asarray(self.sy_actual)
                 ibound_tmp = np.asarray(self.ibound)
                 if self.nlay < 2:
-                    self.thts_actual = sy_tmp[:,:]*ibound_tmp[:,:,0] + thtr_tmp
+                    self.thts_actual += sy_tmp[:,:]*ibound_tmp[:,:,0] + thtr_tmp
                 else:
                     for l in range(self.nlay):
                         if l == 0:
                             if len(sy_tmp) > self.nlay:
-                                self.thts_actual = sy_tmp[:,:,l]*ibound_tmp[:,:,l] + thtr_tmp
+                                self.thts_actual += sy_tmp[:,:,l]*ibound_tmp[:,:,l] + thtr_tmp
                             else:
-                                self.thts_actual = sy_tmp[l]*ibound_tmp[:,:,l] + thtr_tmp
+                                self.thts_actual += sy_tmp[l]*ibound_tmp[:,:,l] + thtr_tmp
                         else:
                             if len(sy_tmp) > self.nlay:
                                 self.thts_actual += sy_tmp[:,:,l]*ibound_tmp[:,:,l]*abs(ibound_tmp[:,:,l-1]-1)
@@ -588,7 +590,7 @@ class MF():
                 if self.thtr_actual != None:
                     del thtr_tmp
             else:
-                self.thts_actual = self.MM_PROCESS.checkarray(self.thts_actual)
+                self.thts_actual = self.MM_PROCESS.checkarray(self.thts)
             try:
                 self.thti_actual = float(self.thti[0])
             except:
@@ -596,7 +598,7 @@ class MF():
             if type(self.thti_actual) == float and self.thti_actual < 0:
                 self.thti_actual = self.thts_actual/(np.abs(self.thti_actual))
             else:
-                self.thti_actual = self.MM_PROCESS.checkarray(self.thti_actual)
+                self.thti_actual = self.MM_PROCESS.checkarray(self.thti)
 
         # DRAIN
         if self.drn_yn == 1:

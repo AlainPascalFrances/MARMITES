@@ -59,7 +59,7 @@ print '\n##############\nMARMITESv0.3 started!\n%s\n##############' % mpl.dates.
 # the first character on the first line has to be the character used to comment
 # the file can contain any comments as the user wish, but the sequence of the input has to be respected
 # 00_TESTS\MARMITESv3_r13c6l2  00_TESTS\r40c20  00_TESTS\r20c40  r130c60l2   r130c60l2new
-# SARDON2012  CARRIZAL3 CARRIZAL3newera LAMATA LaMata_new
+# SARDON2013  CARRIZAL3 CARRIZAL3newera LAMATA LaMata_new
 MM_ws = r'E:\00code_ws\00_TESTS\MARMITESv3_r13c6l2'
 MM_fn = '__inputMM_v3.ini'
 
@@ -508,7 +508,7 @@ if plt_input == 1:
         lst.append(np.asarray(cMF.eps_actual))
         lst_lbl.append('eps')
         lst_lblCB.append('Epsilon - eps')
-        lst.append(cMF.thts_actual)
+        lst.append(np.asarray(cMF.thts_actual))
         lst_lbl.append('thts')
         lst_lblCB.append('Sat. water content - thts')
         if cMF.vks_actual != 0.0:
