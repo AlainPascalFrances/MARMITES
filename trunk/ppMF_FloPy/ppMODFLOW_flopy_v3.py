@@ -588,8 +588,15 @@ class MF():
                 if self.thtr_actual != None:
                     del thtr_tmp
             else:
-                self.thts_actual = self.MM_PROCESS.checkarray(self.thts)
-            self.thti_actual = self.MM_PROCESS.checkarray(self.thti)
+                self.thts_actual = self.MM_PROCESS.checkarray(self.thts_actual)
+            try:
+                self.thti_actual = float(self.thti[0])
+            except:
+                self.thti_actual = self.thti[0]
+            if type(self.thti_actual) == float and self.thti_actual < 0:
+                self.thti_actual = self.thts_actual/(np.abs(self.thti_actual))
+            else:
+                self.thti_actual = self.MM_PROCESS.checkarray(self.thti_actual)
 
         # DRAIN
         if self.drn_yn == 1:
