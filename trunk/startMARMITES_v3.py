@@ -17,7 +17,7 @@ __author__ = "Alain P. Francés <frances.alain@gmail.com>"
 __version__ = "0.3"
 __date__ = "2012"
 
-import sys, os, traceback, h5py
+import sys, os, traceback, h5py, shutil
 import matplotlib as mpl
 if mpl.get_backend!='agg':
     mpl.use('agg')
@@ -61,9 +61,9 @@ print '\n##############\nMARMITESv0.3 started!\n%s\n##############' % mpl.dates.
 # 00_TESTS\MARMITESv3_r13c6l2  00_TESTS\r40c20  00_TESTS\r20c40  r130c60l2   r130c60l2new
 # SARDON2013  CARRIZAL3 CARRIZAL3newera LAMATA LaMata_new
 MM_ws = r'E:\00code_ws\00_TESTS\MARMITESv3_r13c6l2'
-MM_fn = '__inputMM_v3.ini'
+MM_ini_fn = '__inputMM_v3.ini'
 
-inputFile = MMproc.readFile(MM_ws,MM_fn)
+inputFile = MMproc.readFile(MM_ws,MM_ini_fn)
 
 fmt = mpl.dates.DateFormatter('%Y%m%d%H%M')
 MM_ws_out = os.path.join(MM_ws,'out_%s'%mpl.dates.DateFormatter.format_data(fmt, timestart))
@@ -192,12 +192,15 @@ try:
         plt_out_obs = 0
         print "\nYou required the MMsurf plots to appear on the screen. Due to backends limitation, MM and MF plots were disabled. Run again MM with MMsurf_plot = 0 to obtain the MM and MF plots."
 except:
-    raise SystemExit('\nFATAL ERROR!\nType error in the input file %s\nError description:\n%s' % (MM_fn, traceback.print_exc(file=sys.stdout)))
+    raise SystemExit('\nFATAL ERROR!\nType error in the input file %s\nError description:\n%s' % (MM_ini_fn, traceback.print_exc(file=sys.stdout)))
 del inputFile
+
+shutil.copy2(os.path.join(MM_ws,MM_ini_fn), os.path.join(MM_ws_out,'_%s%s'% (mpl.dates.DateFormatter.format_data(fmt, timestart), MM_ini_fn)))
+shutil.copy2(os.path.join(MM_ws, MF_ws,MF_ini_fn), os.path.join(MM_ws_out,'_%s%s'% (mpl.dates.DateFormatter.format_data(fmt, timestart), MF_ini_fn)))
 
 if verbose == 0:
 #capture interpreter output to be written in to a report file
-    report_fn = os.path.join(MM_ws,'_MM_00report_%s.txt' % (mpl.dates.DateFormatter.format_data(fmt, timestart)))
+    report_fn = os.path.join(MM_ws_out,'_MM_00report_%s.txt' % (mpl.dates.DateFormatter.format_data(fmt, timestart)))
     del fmt
     print '\nECHO OFF (no screen output).\nSee the report of the MM-MF run in file:\n%s\n' % report_fn
     s = sys.stdout
@@ -481,7 +484,7 @@ if cMF.uzf_yn == 1:
 if plt_input == 1:
     ibound = np.asarray(cMF.ibound)
     print'\n##############'
-    print 'Exporting input parameters maps...'
+    print 'Exporting input maps...'
     i_lbl = 1
     top_tmp = np.zeros((cMF.nrow, cMF.ncol, cMF.nlay), dtype = np.float)
     top_tmp[:,:,0] = cMF.top
