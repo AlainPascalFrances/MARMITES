@@ -25,7 +25,7 @@ import MARMITESprocess_v3 as MMproc
 
 #####################################
 class MF():
-    def __init__(self, MM_ws, MF_ws, MF_ini_fn, xllcorner, yllcorner, numDays = -1):
+    def __init__(self, MM_ws, MM_ws_out, MF_ws, MF_ini_fn, xllcorner, yllcorner, numDays = -1):
 
         ''' read input file (called _input.ini in the MARMITES workspace
         the first character on the first line has to be the character used to comment
@@ -464,6 +464,7 @@ class MF():
         del inputFile
 
         self.MM_PROCESS = MMproc.PROCESS(MM_ws           = MM_ws,
+                                MM_ws_out                = MM_ws_out,
                                 MF_ws                    = MF_ws,
                                 nrow                     = self.nrow,
                                 ncol                     = self.ncol,

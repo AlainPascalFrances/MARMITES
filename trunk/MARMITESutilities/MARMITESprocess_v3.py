@@ -35,8 +35,9 @@ def readFile(ws, fn):
     return inputFile
 
 class PROCESS:
-    def __init__(self, MM_ws, MF_ws, nrow, ncol, xllcorner, yllcorner, cellsizeMF, hnoflo):
+    def __init__(self, MM_ws, MM_ws_out, MF_ws, nrow, ncol, xllcorner, yllcorner, cellsizeMF, hnoflo):
         self.MM_ws = MM_ws
+        self.MM_ws_out = MM_ws_out
         self.MF_ws = MF_ws
         self.nrow= nrow
         self.ncol= ncol
@@ -338,7 +339,7 @@ class PROCESS:
 
     ######################
 
-    def inputSoilParam(self, MM_ws, SOILparam_fn, NSOIL):
+    def inputSoilParam(self, SOILparam_fn, NSOIL):
 
         # Soils parameter initialisation
         nam_soil=[]
@@ -352,7 +353,7 @@ class PROCESS:
         Ks =[]
 
         # soil parameters file
-        inputFile = readFile(MM_ws,SOILparam_fn)
+        inputFile = readFile(self.MM_ws,SOILparam_fn)
         SOILzones=int(int(inputFile[0]))
         if SOILzones>NSOIL:
             print '\nWARNING!\n' + str(SOILzones) + ' soil parameters groups in file [' + SOILparam_fn + ']\n Only ' + str(NSOIL) + ' PE time serie(s) found.'
@@ -403,13 +404,13 @@ class PROCESS:
 
     ######################
 
-    def inputObs(self, MM_ws, inputObs_fn, inputObsHEADS_fn, inputObsSM_fn, inputDate, _nslmax, nlay):
+    def inputObs(self, inputObs_fn, inputObsHEADS_fn, inputObsSM_fn, inputDate, _nslmax, nlay):
         '''
         observations cells for soil moisture and heads (will also compute SATFLOW)
         '''
 
         # read coordinates and SATFLOW parameters
-        inputFile = readFile(MM_ws,inputObs_fn)
+        inputFile = readFile(self.MM_ws,inputObs_fn)
 
         # define a dictionnary of observations,  format is: Name (key) x y i j hi h0 RC STO
         obs = {}
@@ -456,7 +457,7 @@ class PROCESS:
             else:
                 obs_sm = []
                 obs_sm_yn = 0
-            obs[name] = {'x':x,'y':y,'i': i, 'j': j, 'lay': lay, 'hi':hi, 'h0':h0, 'RC':RC, 'STO':STO, 'outpathname':os.path.join(self.MM_ws,'_MM_0'+name+'.txt'), 'obs_h':obs_h, 'obs_h_yn':obs_h_yn, 'obs_S':obs_sm, 'obs_sm_yn':obs_sm_yn}
+            obs[name] = {'x':x,'y':y,'i': i, 'j': j, 'lay': lay, 'hi':hi, 'h0':h0, 'RC':RC, 'STO':STO, 'outpathname':os.path.join(self.MM_ws_out,'_MM_0'+name+'.txt'), 'obs_h':obs_h, 'obs_h_yn':obs_h_yn, 'obs_S':obs_sm, 'obs_sm_yn':obs_sm_yn}
 
         return obs, obs_list
         del inputObs_fn, inputObsHEADS_fn, inputObsSM_fn, inputDate, _nslmax

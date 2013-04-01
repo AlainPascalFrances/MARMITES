@@ -60,22 +60,30 @@ print '\n##############\nMARMITESv0.3 started!\n%s\n##############' % mpl.dates.
 # the file can contain any comments as the user wish, but the sequence of the input has to be respected
 # 00_TESTS\MARMITESv3_r13c6l2  00_TESTS\r40c20  00_TESTS\r20c40  r130c60l2   r130c60l2new
 # SARDON2013  CARRIZAL3 CARRIZAL3newera LAMATA LaMata_new
-MM_ws = r'E:\00code_ws\00_TESTS\MARMITESv3_r13c6l2'
-MM_ini_fn = '__inputMM_v3.ini'
+startMM_fn = os.path.join(os.path.expanduser('~'), 'Desktop')
+inputFile = MMproc.readFile(startMM_fn, 'startMM_fn.txt')
+
+try:
+    MM_ws = str(inputFile[0].strip())
+    MM_ini_fn = str(inputFile[1].strip())
+except:
+    raise SystemExit('\nFATAL ERROR!\nInput file %s is not correct.\nError description:\n%s' % (inputFile, traceback.print_exc(file=sys.stdout)))
 
 inputFile = MMproc.readFile(MM_ws,MM_ini_fn)
 
 fmt = mpl.dates.DateFormatter('%Y%m%d%H%M')
 MM_ws_out = os.path.join(MM_ws,'out_%s'%mpl.dates.DateFormatter.format_data(fmt, timestart))
-f = 0
-while not os.path.exists(MM_ws_out):
-    if f>0:
-        MM_ws_out1 = os.path.join(MM_ws,'out_%s_%s' % (MM_ws_out,mpl.dates.DateFormatter.format_data(fmt, timestart),f))
-    else:
-        MM_ws_out1 = MM_ws_out
+f = 1
+if os.path.exists(MM_ws_out):
+    MM_ws_out1 = MM_ws_out
+    while os.path.exists(MM_ws_out1):
+        MM_ws_out1 = os.path.join(MM_ws,'out_%s_%s' % (mpl.dates.DateFormatter.format_data(fmt, timestart),f))
+        f +=1
     os.makedirs(MM_ws_out1)
+    del MM_ws_out1
+else:
+    os.makedirs(MM_ws_out)
     f += 1
-del MM_ws_out1
 
 l=0
 try:
@@ -326,7 +334,7 @@ print'\n##############'
 print 'MODFLOW initialization'
 durationMF = 0.0
 timestartMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
-cMF = ppMF.MF(MM_ws, MF_ws, MF_ini_fn, xllcorner, yllcorner, numDays = numDays)
+cMF = ppMF.MF(MM_ws, MM_ws_out, MF_ws, MF_ini_fn, xllcorner, yllcorner, numDays = numDays)
 # compute cbc conversion factor from volume to mm
 if cMF.lenuni == 1:
     conv_fact = 304.8
@@ -427,7 +435,7 @@ else:
                                 )
 
 # SOIL PARAMETERS
-_nsl, _nam_soil, _st, _slprop, _Sm, _Sfc, _Sr, _Su_ini, _Ks = cMF.MM_PROCESS.inputSoilParam(MM_ws = MM_ws, SOILparam_fn = SOILparam_fn, NSOIL = NSOIL)
+_nsl, _nam_soil, _st, _slprop, _Sm, _Sfc, _Sr, _Su_ini, _Ks = cMF.MM_PROCESS.inputSoilParam(SOILparam_fn = SOILparam_fn, NSOIL = NSOIL)
 _nslmax = max(_nsl)
 for l in range(NSOIL):
     _slprop[l] = np.asarray(_slprop[l])
@@ -448,7 +456,7 @@ index_S = {'iEsoil':0, 'iTsoil':1,'iSsoil_pc':2, 'iRp':3, 'iRexf':4, 'idSsoil':5
 
 # READ observations time series (heads and soil moisture)
 print "\nReading observations time series (hydraulic heads and soil moisture)..."
-obs, obs_list = cMF.MM_PROCESS.inputObs(MM_ws  = MM_ws,
+obs, obs_list = cMF.MM_PROCESS.inputObs(
                               inputObs_fn      = inputObs_fn,
                               inputObsHEADS_fn = inputObsHEADS_fn,
                               inputObsSM_fn    = inputObsSM_fn,
@@ -738,7 +746,7 @@ if MMsoil_yn > 0:
         print'\n##############'
         print 'MARMITESsoil RUN'
         # SOIL PARAMETERS
-        _nsl, _nam_soil, _st, _slprop, _Sm, _Sfc, _Sr, _Su_ini, _Ks = cMF.MM_PROCESS.inputSoilParam(MM_ws = MM_ws, SOILparam_fn = SOILparam_fn, NSOIL = NSOIL)
+        _nsl, _nam_soil, _st, _slprop, _Sm, _Sfc, _Sr, _Su_ini, _Ks = cMF.MM_PROCESS.inputSoilParam(SOILparam_fn = SOILparam_fn, NSOIL = NSOIL)
         _nslmax = max(_nsl)
         for l in range(NSOIL):
             _slprop[l] = np.asarray(_slprop[l])
@@ -1099,7 +1107,7 @@ if plt_out == 1 or plt_out_obs == 1:
                                 j = list(col).index(RCHmax)
                                 x = cMF.delc[row]*row + xllcorner
                                 y = cMF.delr[j]*j + yllcorner
-                                obs['PzRCHmax'] = {'x':x,'y':y, 'i': row, 'j': j, 'lay': l, 'hi':999, 'h0':999, 'RC':999, 'STO':999, 'outpathname':os.path.join(MM_ws,'_MM_0PzRCHmax.txt'), 'obs_h':[], 'obs_h_yn':0, 'obs_S':[], 'obs_sm_yn':0}
+                                obs['PzRCHmax'] = {'x':x,'y':y, 'i': row, 'j': j, 'lay': l, 'hi':999, 'h0':999, 'RC':999, 'STO':999, 'outpathname':os.path.join(MM_ws_out,'_MM_0PzRCHmax.txt'), 'obs_h':[], 'obs_h_yn':0, 'obs_S':[], 'obs_sm_yn':0}
                                 obs_list.append('PzRCHmax')
                                 del x, y
                             print 'row %d, col %d, layer %d and day %d (%s)' % (row + 1, list(col).index(RCHmax) + 1, l+1, t, mpl.dates.num2date(cMF.inputDate[t] + 1.0).isoformat()[:10])
@@ -1288,7 +1296,7 @@ if plt_out == 1 or plt_out_obs == 1:
                                 print 'row %d, col %d and day %d' % (row + 1, list(col).index(Tg_min) + 1, t + 1)
                                 tTgmin = t
                                 if plt_out_obs == 1:
-                                    obs['PzTgmin'] = {'x':999,'y':999, 'i': row, 'j': list(col).index(Tg_min), 'lay': 0, 'hi':999, 'h0':999, 'RC':999, 'STO':999, 'outpathname':os.path.join(MM_ws,'_MM_0PzTgmin.txt'), 'obs_h':[], 'obs_h_yn':0, 'obs_S':[], 'obs_sm_yn':0}
+                                    obs['PzTgmin'] = {'x':999,'y':999, 'i': row, 'j': list(col).index(Tg_min), 'lay': 0, 'hi':999, 'h0':999, 'RC':999, 'STO':999, 'outpathname':os.path.join(MM_ws_out,'_MM_0PzTgmin.txt'), 'obs_h':[], 'obs_h_yn':0, 'obs_S':[], 'obs_sm_yn':0}
                                     obs_list.append('PzTgmin')
                                     try:
                                         hmin.append(hmin[0])
