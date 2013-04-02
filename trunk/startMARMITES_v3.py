@@ -494,13 +494,14 @@ if plt_input == 1:
     print'\n##############'
     print 'Exporting input maps...'
     i_lbl = 1
+    TRANS = np.asarray(cMF.hk_actual) * cMF.thick
     top_tmp = np.zeros((cMF.nrow, cMF.ncol, cMF.nlay), dtype = np.float)
     top_tmp[:,:,0] = cMF.top
     for l in range(1,cMF.nlay):
         top_tmp[:,:,l] = cMF.botm[:,:,l-1]
-    lst = [cMF.elev, top_tmp, cMF.botm, cMF.thick, np.asarray(cMF.strt), gridSOILthick, gridSsurfhmax, gridSsurfw, np.asarray(cMF.hk_actual), np.asarray(cMF.ss_actual), np.asarray(cMF.sy_actual), np.asarray(cMF.vka_actual)]
-    lst_lbl = ['elev', 'top', 'botm', 'thick', 'strt', 'gridSOILthick', 'gridSsurfhmax', 'gridSsurfw', 'hk', 'Ss', 'Sy', 'vka']
-    lst_lblCB = ['Elev.', 'Aq. top - top', 'Aq. bot. - botm', 'Aq. thick.', 'Init. heads - strt', 'Soil thick.', 'Stream max. heigth', 'Stream width', 'Horizontal hydraulic cond. - hk', 'Specific storage - Ss', 'Specific yield - Sy', 'Vertical hydraulic cond. - vka']
+    lst = [cMF.elev, top_tmp, cMF.botm, cMF.thick, np.asarray(cMF.strt), gridSOILthick, gridSsurfhmax, gridSsurfw, np.asarray(cMF.hk_actual), TRANS, np.asarray(cMF.ss_actual), np.asarray(cMF.sy_actual), np.asarray(cMF.vka_actual)]
+    lst_lbl = ['elev', 'top', 'botm', 'thick', 'strt', 'gridSOILthick', 'gridSsurfhmax', 'gridSsurfw', 'hk', 'T', 'Ss', 'Sy', 'vka']
+    lst_lblCB = ['Elev.', 'Aq. top - top', 'Aq. bot. - botm', 'Aq. thick.', 'Init. heads - strt', 'Soil thick.', 'Stream max. heigth', 'Stream width', 'Horizontal hydraulic cond. - hk', 'Transmissivitty - T','Specific storage - Ss', 'Specific yield - Sy', 'Vertical hydraulic cond. - vka']
     if cMF.drn_yn == 1:
         lst.append(cMF.drn_cond_array)
         lst_lbl.append('drn_cond')
@@ -569,15 +570,17 @@ if plt_input == 1:
         else:
             fmt = '%.2f'
         if lst_lbl[i] == 'Ss' or lst_lbl[i] == 'eps':
-           CBlabel = lst_lblCB[i] + ' ([-])'
+           CBlabel = lst_lblCB[i] + ' ($[-]$)'
         elif lst_lbl[i] == 'hk' or lst_lbl[i] == 'drn_cond' or lst_lbl[i] == 'ghb_cond':
-            CBlabel = lst_lblCB[i] + ' (%s/%s)' % (lenuni_str, itmuni_str)
+            CBlabel = lst_lblCB[i] + ' ($%s/%s$)' % (lenuni_str, itmuni_str)
+        elif lst_lbl[i] == 'T':
+            CBlabel = lst_lblCB[i] + ' ($%s^{2}/%s$)' % (lenuni_str, itmuni_str)
         elif lst_lbl[i] == 'Sy' or lst_lbl[i] == 'thts' or lst_lbl[i] == 'thti' or lst_lbl[i] == 'thtr':
-            CBlabel = lst_lblCB[i] + ' ($L^3$/$L^{-3}$)'
+            CBlabel = lst_lblCB[i] + ' ($L^3/L^{-3}$)'
         elif lst_lbl[i] == 'vka':
-            CBlabel = lst_lblCB[i] + ' ([-] or %s/%s, layvka = %s)' % (lenuni_str, itmuni_str, cMF.layvka)
+            CBlabel = lst_lblCB[i] + ' ($[-]$ or $%s/%s$, layvka = %s)' % (lenuni_str, itmuni_str, cMF.layvka)
         else:
-            CBlabel = lst_lblCB[i] + ' (m)'
+            CBlabel = lst_lblCB[i] + ' $(m)$'
         if lst_lbl[i] == 'elev' or lst_lbl[i] == 'top' or lst_lbl[i] == 'botm':
             Vmax = elev_max
             Vmin = elev_min
@@ -594,9 +597,9 @@ if plt_input == 1:
     for v in range(NVEG):
         V = [np.ma.masked_values(np.ma.masked_array(gridVEGarea[v,:,:], maskAllL), cMF.hnoflo, atol = 0.09)]
         V_lbl = 'veg%02d_%s' %(v+1, VegName[v])
-        V_lblCB = 'Frac. area of veg #%02d (%s)' %(v+1, VegName[v])
+        V_lblCB = 'Frac. area of veg #%02d (%s) ($\%%$)' %(v+1, VegName[v])
         #print V_lbl
-        MMplot.plotLAYER(SP = 0, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.gist_rainbow_r, CBlabel = '%s %s' % (V_lblCB, ' (%)'), msg = '', plt_title = '_INPUT_%03d_%s'% (i_lbl,V_lbl), MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, contours = False, Vmax = Vmax, Vmin = Vmin, ntick = ntick, axisbg = 'white', fmt = '%3.1f')
+        MMplot.plotLAYER(SP = 0, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.gist_rainbow_r, CBlabel = V_lblCB, msg = '', plt_title = '_INPUT_%03d_%s'% (i_lbl,V_lbl), MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, contours = False, Vmax = Vmax, Vmin = Vmin, ntick = ntick, axisbg = 'white', fmt = '%3.1f')
         i_lbl += 1
     del V, V_lbl, Vmax, Vmin
 
