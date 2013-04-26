@@ -536,11 +536,13 @@ class MF():
 
     def uzf_obs(self, obs):
         self.nuzgag += len(obs)
-        n = 0
+        n = 200
         for o in range(len(obs)):
-                self.row_col_iftunit_iuzopt.append([[obs.get( obs.keys()[o])['i']+1, obs.get(obs.keys()[o])['j']+1, 200+n, 2]])
+                self.row_col_iftunit_iuzopt.append([[obs.get( obs.keys()[o])['i']+1, obs.get(obs.keys()[o])['j']+1, n, 2]])
                 self.uzfbud_ext.append(obs.keys()[o] + '.' + self.ext_uzf)
                 n += 1
+        self.iunitramp = n
+        del n
 
 ####################################
 
@@ -1283,7 +1285,7 @@ class MF():
         # wel package
         if self.wel_yn == 1:
             if layer_row_column_Q != None:
-                wel = mf.mfwel(model = mfmain, iwelcb = cb, layer_row_column_Q = layer_row_column_Q, extension = self.ext_wel)
+                wel = mf.mfwel(model = mfmain, iwelcb = cb, layer_row_column_Q = layer_row_column_Q, extension = self.ext_wel, iunitramp = self.iunitramp)
                 wel.write_file()
                 del layer_row_column_Q
         # drn package
@@ -1327,7 +1329,9 @@ class MF():
         self.h_MF_fn = os.path.join(MF_ws, self.modelname + "." + self.ext_heads)
         self.cbc_MF_fn = os.path.join(MF_ws, self.modelname + "." + self.ext_cbc)
         if self.uzf_yn == 1:
-            self.cbc_MFuzf_fn = os.path.join(MF_ws, self.modelname + ".uzfbt1")
+            if uzf.iuzfcb1 == 0:
+                raise SystemExit('\nFATAL ERROR!\nPlease fix the UZF parameters iuzfcb1 equal to 57!')
+            self.cbc_MFuzf_fn = os.path.join(MF_ws, self.modelname + '.uzfbt1')
 
         # run MODFLOW and read the heads back into Python
         print '\nMODFLOW run'

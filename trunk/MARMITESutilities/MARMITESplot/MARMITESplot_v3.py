@@ -610,7 +610,7 @@ def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, hmax
 
 ##################
 
-def plotLAYER(SP, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_title, MM_ws, interval_type = 'arange', interval_diff = 1, interval_num = 1, Vmax = 0, Vmin = 0, fmt = '%.2f', contours = False, ntick = 1, axisbg = 'silver'):
+def plotLAYER(timestep, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_title, MM_ws, interval_type = 'arange', interval_diff = 1, interval_num = 1, Vmax = 0, Vmin = 0, fmt = '%.2f', contours = False, ntick = 1, axisbg = 'silver', points  = None):
 
 
     # TODO put option to select axes tick as row/col index from MODFLOW or real coordinates (in this last case create it)
@@ -626,7 +626,7 @@ def plotLAYER(SP, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_
     ax = []
     fig = plt.figure(num=None, figsize=(11.7, 8.27), dpi=30)
     if isinstance(Date, float):
-        fig.suptitle(plt_title + '\nDay %s, DOY %s, MF SP %s' % (mpl.dates.num2date(Date).isoformat()[:10], JD, SP+1))
+        fig.suptitle(plt_title + '\nDay %s, DOY %s, time step %s days' % (mpl.dates.num2date(Date).isoformat()[:10], JD, timestep+1))
     else:
         fig.suptitle(plt_title)
     CB_test = False
@@ -655,15 +655,20 @@ def plotLAYER(SP, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_
             plt.clabel(CS, inline=1, fontsize = 6, fmt=fmt, colors = 'gray')
         plt.ylim(plt.ylim()[::-1])
         plt.axis('scaled')
+        if points <> None:
+            for k, (xj,yi,lay, label) in enumerate(zip(points[2],points[1],points[3],points[0])):
+                if lay == L:
+                    plt.plot(xj, yi, 'o', linewidth=1, markersize = 6, color = 'grey')
+                    plt.annotate(label, xy = (xj, yi))
     if CB_test == True:
         val = PC
     else:
         val = PC1
     if max(x) > max(y):
-        cax = fig.add_axes([.125, 0.025, 0.75, 0.025])
+        cax = fig.add_axes([.125, 0.035, 0.75, 0.025])
         CBorient = 'horizontal'
     else:
-        cax = fig.add_axes([0.025, 0.125, 0.025, 0.75])
+        cax = fig.add_axes([0.035, 0.125, 0.025, 0.75])
         CBorient = 'vertical'
     CB = fig.colorbar(val, extend='both', ticks = ticks, format = fmt, cax = cax,  orientation = CBorient)
     CB.set_label(CBlabel, fontsize = 12)
@@ -675,13 +680,13 @@ def plotLAYER(SP, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_
         plt.setp(CB.ax.get_yticklabels(), fontsize = 7)
     del val
     if isinstance(Date, float):
-        plt_export_fn = os.path.join(MM_ws, '_plt_' + plt_title + '_SP%05d' + '.png') % (SP+1)
+        plt_export_fn = os.path.join(MM_ws, '_plt_' + plt_title + '_timestep%05d' + '.png') % (timestep+1)
     else:
         plt_export_fn = os.path.join(MM_ws, '_plt_' + plt_title + '.png')
     plt.savefig(plt_export_fn)
     plt.clf()
     plt.close('all')
-    del fig, ax, SP, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_title, MM_ws, interval_type, interval_diff, interval_num, Vmax, Vmin, fmt
+    del fig, ax, timestep, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_title, MM_ws, interval_type, interval_diff, interval_num, Vmax, Vmin, fmt
 
 ##    #Make a cross-sectional figure of layers 1, 2, and 10
 ##    plt.figure()
@@ -725,7 +730,9 @@ def plotGWbudget(flxlst, flxlbl, colors_flx, plt_export_fn, plt_title, fluxmax, 
     plt.setp( ax1.get_yticklabels(), fontsize=10)
     x = np.arange(len(flxlst))
     width = 0.8
-    rects = plt.bar(x , flxlst, color=colors_flx, linewidth=0.5, width=width, align = 'edge', label=flxlbl)
+    flxlst1 = np.asarray(flxlst)
+    flxlst1 = np.ma.masked_invalid(flxlst1)
+    rects = plt.bar(x , flxlst1, color=colors_flx, linewidth=0.5, width=width, align = 'edge', label=flxlbl)
     # y axis
     if unit == 'day':
         plt.ylabel('mm/d', fontsize=10)
@@ -752,7 +759,7 @@ def plotGWbudget(flxlst, flxlbl, colors_flx, plt_export_fn, plt_title, fluxmax, 
 #    plt.show()
     plt.clf()
     plt.close('all')
-    del fig, flxlst, flxlbl, colors_flx, plt_export_fn, plt_title, fluxmax, fluxmin
+    del fig, flxlst, flxlst1, flxlbl, colors_flx, plt_export_fn, plt_title, fluxmax, fluxmin
 
 ##################
 
