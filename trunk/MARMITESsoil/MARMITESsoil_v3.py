@@ -35,7 +35,7 @@ __date__ = "2012"
 
 import numpy as np
 
-class SOIL:
+class clsSOIL:
 
     """
     SOIL class: compute the water balance in soil (depth-wise, each reservoir

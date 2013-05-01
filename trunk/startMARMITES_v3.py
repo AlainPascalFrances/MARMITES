@@ -17,7 +17,7 @@ __author__ = "Alain P. Francés <frances.alain@gmail.com>"
 __version__ = "0.3"
 __date__ = "2012"
 
-import sys, os, traceback, h5py, shutil
+import sys, os, h5py, shutil
 import matplotlib as mpl
 if mpl.get_backend!='agg':
     mpl.use('agg')
@@ -29,13 +29,13 @@ import MARMITESsoil_v3 as MMsoil
 import MARMITESprocess_v3 as MMproc
 import ppMODFLOW_flopy_v3 as ppMF
 import MARMITESplot_v3 as MMplot
-import CreateColors
+import CreateColors, Utilities
 
 # TODO verify if thickness of MF layer 1 > thickness of soil
 
 #####################################
 
-def minmax(min_, max_, ctrs_):
+def MinMax(min_, max_, ctrs_):
     if max_ == min_:
         if max_ < 10E-9:
             max_ = 1.0
@@ -51,8 +51,10 @@ def minmax(min_, max_, ctrs_):
 #####################################
 
 timestart = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
-fmt = mpl.dates.DateFormatter('%Y-%m-%d %H:%M')
-print '\n##############\nMARMITESv0.3 started!\n%s\n##############' % mpl.dates.DateFormatter.format_data(fmt, timestart)
+fmt_DH = mpl.dates.DateFormatter('%Y-%m-%d %H:%M')
+print '\n##############\nMARMITES v0.3 started!\n%s\n##############' % mpl.dates.DateFormatter.format_data(fmt_DH, timestart)
+
+cUTIL = Utilities.clsUTILITIES(fmt = fmt_DH)
 
 # workspace (ws) definition
 # read input file (called _input.ini in the MARMITES workspace
@@ -61,25 +63,26 @@ print '\n##############\nMARMITESv0.3 started!\n%s\n##############' % mpl.dates.
 # 00_TESTS\MARMITESv3_r13c6l2  00_TESTS\r40c20  00_TESTS\r20c40  r130c60l2   r130c60l2new
 # SARDON2013  CARRIZAL3 CARRIZAL3newera LAMATA LaMata_new
 startMM_fn = os.path.join(os.path.expanduser('~'), 'Desktop')
-inputFile = MMproc.readFile(startMM_fn, 'startMM_fn.txt')
+inputFile = cUTIL.readFile(startMM_fn, 'startMM_fn.txt')
 
 try:
     MM_ws = str(inputFile[0].strip())
     MM_ini_fn = str(inputFile[1].strip())
 except:
-    raise SystemExit('\nFATAL ERROR!\nInput file %s is not correct.\nError description:\n%s' % (inputFile, traceback.print_exc(file=sys.stdout)))
+    cUTIL.ErrorExit(msg = '\nFATAL ERROR!\nInput ini MM file [%s] is not correct.' % inputFile)
 
-inputFile = MMproc.readFile(MM_ws,MM_ini_fn)
+inputFile = cUTIL.readFile(MM_ws,MM_ini_fn)
 
-fmt = mpl.dates.DateFormatter('%Y%m%d%H%M')
-MM_ws_out = os.path.join(MM_ws,'out_%s'%mpl.dates.DateFormatter.format_data(fmt, timestart))
+fmt_DHshort = mpl.dates.DateFormatter('%Y%m%d%H%M')
+MM_ws_out = os.path.join(MM_ws,'out_%s'%mpl.dates.DateFormatter.format_data(fmt_DHshort, timestart))
 f = 1
 if os.path.exists(MM_ws_out):
     MM_ws_out1 = MM_ws_out
     while os.path.exists(MM_ws_out1):
-        MM_ws_out1 = os.path.join(MM_ws,'out_%s_%s' % (mpl.dates.DateFormatter.format_data(fmt, timestart),f))
+        MM_ws_out1 = os.path.join(MM_ws,'out_%s_%s' % (mpl.dates.DateFormatter.format_data(fmt_DHshort, timestart),f))
         f +=1
     os.makedirs(MM_ws_out1)
+    MM_ws_out = MM_ws_out1
     del MM_ws_out1
 else:
     os.makedirs(MM_ws_out)
@@ -200,21 +203,22 @@ try:
         plt_out_obs = 0
         print "\nYou required the MMsurf plots to appear on the screen. Due to backends limitation, MM and MF plots were disabled. Run again MM with MMsurf_plot = 0 to obtain the MM and MF plots."
 except:
-    raise SystemExit('\nFATAL ERROR!\nType error in the input file %s\nError description:\n%s' % (MM_ini_fn, traceback.print_exc(file=sys.stdout)))
+    cUTIL.ErrorExit(msg = '\nFATAL ERROR!\nType error in the input file %s' % MM_ini_fn)
+
 del inputFile
 
-shutil.copy2(os.path.join(MM_ws,MM_ini_fn), os.path.join(MM_ws_out,'_%s%s'% (mpl.dates.DateFormatter.format_data(fmt, timestart), MM_ini_fn)))
-shutil.copy2(os.path.join(MM_ws, MF_ws,MF_ini_fn), os.path.join(MM_ws_out,'_%s%s'% (mpl.dates.DateFormatter.format_data(fmt, timestart), MF_ini_fn)))
+shutil.copy2(os.path.join(MM_ws,MM_ini_fn), os.path.join(MM_ws_out,'_%s%s'% (mpl.dates.DateFormatter.format_data(fmt_DHshort, timestart), MM_ini_fn)))
+shutil.copy2(os.path.join(MM_ws, MF_ws,MF_ini_fn), os.path.join(MM_ws_out,'_%s%s'% (mpl.dates.DateFormatter.format_data(fmt_DHshort, timestart), MF_ini_fn)))
 
 if verbose == 0:
 #capture interpreter output to be written in to a report file
-    report_fn = os.path.join(MM_ws_out,'_MM_00report_%s.txt' % (mpl.dates.DateFormatter.format_data(fmt, timestart)))
-    del fmt
+    report_fn = os.path.join(MM_ws_out,'_MM_00report_%s.txt' % (mpl.dates.DateFormatter.format_data(fmt_DHshort, timestart)))
     print '\nECHO OFF (no screen output).\nSee the report of the MM-MF run in file:\n%s\n' % report_fn
     s = sys.stdout
     report = open(report_fn, 'w')
     sys.stdout = report
     print '\n##############\nMARMITES started!\n%s\n##############' % mpl.dates.num2date(timestart).isoformat()[:19]
+    cUTIL = Utilities.clsUTILITIES(fmt = fmt_DH, verbose = verbose, s = s, report = report, report_fn = report_fn)
 else:
     report = None
 
@@ -244,12 +248,12 @@ if MMsurf_yn>0:
     durationMMsurf = 0.0
     timestartMMsurf = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
     if irr_yn == 1 :
-        outMMsurf_fn = startMMsurf.MMsurf(MMsurf_ws, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, MM_ws, outMMsurf_fn, MMsurf_plot, inputFile_TSirr_fn)
+        outMMsurf_fn = startMMsurf.MMsurf(cUTIL, MMsurf_ws, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, MM_ws, outMMsurf_fn, MMsurf_plot, inputFile_TSirr_fn)
     else:
-        outMMsurf_fn = startMMsurf.MMsurf(MMsurf_ws, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, MM_ws, outMMsurf_fn, MMsurf_plot)
+        outMMsurf_fn = startMMsurf.MMsurf(cUTIL, MMsurf_ws, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, MM_ws, outMMsurf_fn, MMsurf_plot)
     timeendMMsurf = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
     durationMMsurf=(timeendMMsurf-timestartMMsurf)
-inputFile = MMproc.readFile(MM_ws,outMMsurf_fn)
+inputFile = cUTIL.readFile(MM_ws,outMMsurf_fn)
 l=0
 VegName = []
 Zr = []
@@ -323,9 +327,10 @@ try:
         l += 1
         input_dSP_crop_irr_fn = str(inputFile[l].strip())
 except:
-    raise SystemExit('\nFATAL ERROR!\Error in reading file [%s].\nError description:\n%s' % (outMMsurf_fn, traceback.print_exc(file=sys.stdout)))
+    cUTIL.ErrorExit('\nFATAL ERROR!\Error in reading file [%s].' % outMMsurf_fn)
+
 del inputFile
-numDays = len(MMproc.readFile(MM_ws, inputDate_fn))
+numDays = len(cUTIL.readFile(MM_ws, inputDate_fn))
 
 # #############################
 # ###  READ MODFLOW CONFIG ####
@@ -334,7 +339,7 @@ print'\n##############'
 print 'MODFLOW initialization'
 durationMF = 0.0
 timestartMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
-cMF = ppMF.MF(MM_ws, MM_ws_out, MF_ws, MF_ini_fn, xllcorner, yllcorner, numDays = numDays)
+cMF = ppMF.clsMF(cUTIL, MM_ws, MM_ws_out, MF_ws, MF_ini_fn, xllcorner, yllcorner, numDays = numDays)
 # compute cbc conversion factor from volume to mm
 if cMF.lenuni == 1:
     conv_fact = 304.8
@@ -346,12 +351,12 @@ elif cMF.lenuni == 3:
     conv_fact = 10.0
     lenuni_str = 'cm'
 else:
-    raise SystemExit('FATAL ERROR!\nDefine the length unit in the MODFLOW ini file!\n (see USGS Open-File Report 00-92)')
+    cUTIL.ErrorExit('\nFATAL ERROR!\nDefine the length unit in the MODFLOW ini file!\n (see USGS Open-File Report 00-92)')
     # TODO if lenuni!=2 apply conversion factor to delr, delc, etc...
 if cMF.laytyp[0]==0:
-    raise SystemExit('FATAL ERROR!\nThe first layer cannot be confined type!\nChange your parameter laytyp in the MODFLOW lpf package.\n(see USGS Open-File Report 00-92)')
+    cUTIL.ErrorExit('\nFATAL ERROR!\nThe first layer cannot be confined type!\nChange your parameter laytyp in the MODFLOW lpf package.\n(see USGS Open-File Report 00-92)')
 if cMF.itmuni != 4:
-    raise SystemExit('FATAL ERROR!\nTime unit is not in days!')
+    cUTIL.ErrorExit('\nFATAL ERROR!\nTime unit is not in days!')
 else:
     itmuni_str = 'day'
 ncell_MF = []
@@ -379,15 +384,15 @@ if cMF.timedef >= 0:
         try:
             perlenmax = int(cMF.nper.split()[1].strip())
         except:
-            raise SystemExit('\nFATAL ERROR!\nError in nper format of the MODFLOW ini file!\nError description:\n%s' % traceback.print_exc(file=sys.stdout))
+            cUTIL.ErrorExit('\nFATAL ERROR!\nError in nper format of the MODFLOW ini file!')
     if irr_yn == 0:
-        cMF.ppMFtime(MM_ws, MF_ws, inputDate_fn, inputZON_dSP_RF_veg_fn, inputZON_dSP_RFe_veg_fn, inputZON_dSP_PT_fn,input_dSP_LAI_veg_fn, inputZON_dSP_PE_fn, inputZON_dSP_E0_fn, NMETEO, NVEG, NSOIL)
+        cMF.ppMFtime(inputDate_fn, inputZON_dSP_RF_veg_fn, inputZON_dSP_RFe_veg_fn, inputZON_dSP_PT_fn,input_dSP_LAI_veg_fn, inputZON_dSP_PE_fn, inputZON_dSP_E0_fn, NMETEO, NVEG, NSOIL)
     else:
-        cMF.ppMFtime(MM_ws, MF_ws, inputDate_fn, inputZON_dSP_RF_veg_fn, inputZON_dSP_RFe_veg_fn, inputZON_dSP_PT_fn, input_dSP_LAI_veg_fn, inputZON_dSP_PE_fn, inputZON_dSP_E0_fn, NMETEO, NVEG, NSOIL, inputZON_dSP_RF_irr_fn, inputZON_dSP_RFe_irr_fn, inputZON_dSP_PT_irr_fn, input_dSP_crop_irr_fn, NFIELD)
+        cMF.ppMFtime(inputDate_fn, inputZON_dSP_RF_veg_fn, inputZON_dSP_RFe_veg_fn, inputZON_dSP_PT_fn, input_dSP_LAI_veg_fn, inputZON_dSP_PE_fn, inputZON_dSP_E0_fn, NMETEO, NVEG, NSOIL, inputZON_dSP_RF_irr_fn, inputZON_dSP_RFe_irr_fn, inputZON_dSP_PT_irr_fn, input_dSP_crop_irr_fn, NFIELD)
 
 print'\n##############'
 print 'MARMITESsoil initialization'
-MM_SOIL = MMsoil.SOIL(hnoflo = cMF.hnoflo)
+MM_SOIL = MMsoil.clsSOIL(hnoflo = cMF.hnoflo)
 MM_SATFLOW = MMsoil.SATFLOW()
 
 # READ input ESRI ASCII rasters
@@ -400,7 +405,7 @@ gridSsurfw = cMF.MM_PROCESS.inputEsriAscii(grid_fn = gridSsurfw_fn, datatype = f
 if irr_yn == 1:
     gridIRR = cMF.MM_PROCESS.inputEsriAscii(grid_fn = gridIRR_fn, datatype = int)
     if gridIRR.max() > NFIELD:
-        raise SystemExit('\nFATAL ERROR!\nThere is more fields in the asc file than in the MMsurf file!')
+        cUTIL.ErrorExit('\nFATAL ERROR!\nThere is more fields in the asc file than in the MMsurf file!')
 
 # READ input time series and parameters
 if irr_yn == 0:
@@ -599,7 +604,7 @@ if plt_input == 1:
         else:
             Vmax = np.ma.max(V) #float(np.ceil(np.ma.max(V)))  #
             Vmin = np.ma.min(V) #float(np.floor(np.ma.min(V))) #
-        Vmin_tmp, Vmax_tmp, ctrsV_tmp = minmax(Vmin, Vmax, ctrsMM)
+        Vmin_tmp, Vmax_tmp, ctrsV_tmp = MinMax(Vmin, Vmax, ctrsMM)
         MMplot.plotLAYER(timestep = 0, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = nplot, V = V,  cmap = plt.cm.gist_rainbow_r, CBlabel = CBlabel, msg = '', plt_title = '_INPUT_%03d_%s' % (i_lbl,lst_lbl[i]), MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, contours = ctrsV_tmp, Vmax = Vmax_tmp, Vmin = Vmin_tmp, ntick = ntick, axisbg = 'white', fmt = fmt, points = obs4map)
         i_lbl += 1
     del V, lst, lst_lbl, nplot, Vmax, Vmin, Vmax_tmp, Vmin_tmp, ctrsV_tmp
@@ -638,7 +643,7 @@ if plt_input == 1:
                 nplot = 1
         Vmax = np.ma.max(V) #float(np.ceil(np.ma.max(V)))  #
         Vmin = np.ma.min(V) #float(np.floor(np.ma.min(V))) #
-        Vmin_tmp, Vmax_tmp, ctrsV_tmp = minmax(Vmin, Vmax, ctrsMM)
+        Vmin_tmp, Vmax_tmp, ctrsV_tmp = MinMax(Vmin, Vmax, ctrsMM)
         MMplot.plotLAYER(timestep = 0, Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = nplot, V = V,  cmap = plt.cm.gist_rainbow_r, CBlabel = lst_lblCB[i], msg = '', plt_title = '_INPUT_%03d_%s'% (i_lbl,lst_lbl[i]), MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, contours = False, Vmax = Vmax_tmp, Vmin = Vmin_tmp, ntick = ntick, axisbg = 'white', fmt = '%2.2f', points = obs4map)
         i_lbl += 1
     del V, lst, lst_lbl, lst_lblCB, nplot, Vmax, Vmin, Vmax_tmp, Vmin_tmp, ctrsV_tmp
@@ -646,10 +651,10 @@ if plt_input == 1:
 # #############################
 # ### 1st MODFLOW RUN with initial user-input recharge
 # #############################
+print'\n##############'
 if MF_yn == 1 :
     timestartMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
-    print'\n##############'
-    print 'MODFLOW RUN (initial user-input fluxes)'
+    print 'MODFLOW RUN (initial user-input fluxes)/n'
     if verbose == 0:
         print '\n--------------'
         sys.stdout = s
@@ -657,7 +662,7 @@ if MF_yn == 1 :
         s = sys.stdout
         report = open(report_fn, 'a')
         sys.stdout = report
-    cMF.ppMF(MM_ws, MF_ws, MF_ini_fn, finf_MM = (h5_MM_fn, 'finf'), wel_MM = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks, numDays = numDays)
+    cMF.runMF(finf_MM = (h5_MM_fn, 'finf'), wel_MM = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks, numDays = numDays)
     timeendMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
     durationMFtmp =  timeendMF-timestartMF
     durationMF +=  durationMFtmp
@@ -665,40 +670,41 @@ if MF_yn == 1 :
     del durationMFtmp
 
 if os.path.exists(cMF.h5_MF_fn):
+    print 'Reading MF fluxes...'
     try:
         h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
+        # heads format is : timestep, nrow, ncol, nlay
+        # cbc format is: (kstp), kper, textprocess, nrow, ncol, nlay
+        cbc_nam = []
+        cbc_uzf_nam = []
+        ncells_package = []
+        for c in h5_MF['cbc_nam']:
+            cbc_nam.append(c.strip())
+        if cMF.uzf_yn == 1:
+            for c in h5_MF['cbc_uzf_nam']:
+                cbc_uzf_nam.append(c.strip())
+        elif cMF.rch_yn == 1:
+            #imfRCH = cbc_nam.index('RECHARGE')
+            cUTIL.ErrorExit('\nFATAL ERROR!\nMM has to be run together with the UZF1 package of MODFLOW 2005/ MODFLOW NWT, thus the RCH package should be desactivacted!\nExisting MM.')
+        imfSTO = cbc_nam.index('STORAGE')
+        if cMF.ghb_yn == 1:
+            imfGHB = cbc_nam.index('HEAD DEP BOUNDS')
+        if cMF.drn_yn == 1:
+            imfDRN = cbc_nam.index('DRAINS')
+        if cMF.wel_yn == 1:
+            imfWEL = cbc_nam.index('WELLS')
+        else:
+            print '\nWARNING!\nThe WEL package should be active to take into account ETg!'
+        if cMF.uzf_yn == 1:
+            imfEXF   = cbc_uzf_nam.index('SURFACE LEAKAGE')
+            imfRCH   = cbc_uzf_nam.index('UZF RECHARGE')
+        if MMsoil_yn == 0:
+            h5_MF.close()
     except:
-        raise SystemExit('\nFATAL ERROR!\nInvalid MODFLOW HDF5 file. Run MARMITES and/or MODFLOW again.\nError description:\n%s' % traceback.print_exc(file=sys.stdout))
-    # heads format is : timestep, nrow, ncol, nlay
-    # cbc format is: (kstp), kper, textprocess, nrow, ncol, nlay
-    cbc_nam = []
-    cbc_uzf_nam = []
-    ncells_package = []
-    for c in h5_MF['cbc_nam']:
-        cbc_nam.append(c.strip())
-    if cMF.uzf_yn == 1:
-        for c in h5_MF['cbc_uzf_nam']:
-            cbc_uzf_nam.append(c.strip())
-    elif cMF.rch_yn == 1:
-        imfRCH = cbc_nam.index('RECHARGE')
-        raise SystemExit('\nFATAL ERROR!\nMM has to be run together with the UZF1 package of MODFLOW 2005/ MODFLOW NWT, thus the RCH package should be desactivacted!\nExisting MM.')
-    imfSTO = cbc_nam.index('STORAGE')
-    if cMF.ghb_yn == 1:
-        imfGHB = cbc_nam.index('HEAD DEP BOUNDS')
-    if cMF.drn_yn == 1:
-        imfDRN = cbc_nam.index('DRAINS')
-    if cMF.wel_yn == 1:
-        imfWEL = cbc_nam.index('WELLS')
-    else:
-        print '\nWARNING!\nThe WEL package should be active to take into account ETg!'
-    if cMF.uzf_yn == 1:
-        imfEXF   = cbc_uzf_nam.index('SURFACE LEAKAGE')
-        imfRCH   = cbc_uzf_nam.index('UZF RECHARGE')
-    if MMsoil_yn == 0:
-        h5_MF.close()
+        cUTIL.ErrorExit('\nFATAL ERROR!\nInvalid MODFLOW HDF5 file. Run MARMITES and/or MODFLOW again.')
 
 ##except StandardError:  #Exception
-##    raise SystemExit('\nFATAL ERROR!\nAbnormal MM run interruption in the initialization!\nError description:\n%s' % traceback.print_exc(file=sys.stdout))
+##    cUTIL.ErrorExit('\nFATAL ERROR!\nAbnormal MM run interruption in the initialization!')
 
 # #############################
 # 2nd phase : MM/MF loop #####
@@ -871,12 +877,11 @@ if MMsoil_yn > 0:
             s = sys.stdout
             report = open(report_fn, 'a')
             sys.stdout = report
-        cMF.ppMF(MM_ws, MF_ws, MF_ini_fn, finf_MM = (h5_MM_fn, 'finf'), wel_MM = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks, numDays = numDays)
+        cMF.runMF(finf_MM = (h5_MM_fn, 'finf'), wel_MM = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks, numDays = numDays)
         try:
             h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
         except:
-            raise SystemExit('\nFATAL ERROR!\nInvalid MODFLOW HDF5 file. Run MARMITES and/or MODFLOW again.\nError description:\n%s' % traceback.print_exc(file=sys.stdout))
-
+            cUTIL.ErrorExit('\nFATAL ERROR!\nInvalid MODFLOW HDF5 file. Run MARMITES and/or MODFLOW again.')
         timeendMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
         durationMFtmp =  timeendMF-timestartMF
         durationMF +=  durationMFtmp
@@ -954,7 +959,7 @@ if MMsoil_yn > 0:
             s = sys.stdout
             report = open(report_fn, 'a')
             sys.stdout = report
-        cMF.ppMF(MM_ws, MF_ws, MF_ini_fn, finf_MM = (h5_MM_fn, 'finf'), wel_MM = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks, numDays = numDays)
+        cMF.runMF(finf_MM = (h5_MM_fn, 'finf'), wel_MM = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks, numDays = numDays)
         timeendMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
         durationMFtmp =  timeendMF-timestartMF
         durationMF +=  durationMFtmp
@@ -962,7 +967,7 @@ if MMsoil_yn > 0:
         del durationMFtmp
 
 ##except StandardError:  #Exception
-##    raise SystemExit('\nFATAL ERROR!\nAbnormal MM run interruption in the MM/MF loop!\nError description:\n%s' % traceback.print_exc(file=sys.stdout))
+##    cUTIL.ErrorExit('\nFATAL ERROR!\nAbnormal MM run interruption in the MM/MF loop!')
 
 # #############################
 # 3rd phase : export results #####
@@ -988,7 +993,7 @@ if MF_yn == 1 and isinstance(cMF.h5_MF_fn, str):
     try:
         h5_MF = h5py.File(cMF.h5_MF_fn)
     except:
-        raise SystemExit('\nFATAL ERROR!\nInvalid MODFLOW HDF5 file. Run MARMITES and/or MODFLOW again.\nError description:\n%s' % traceback.print_exc(file=sys.stdout))
+        cUTIL.ErrorExit('\nFATAL ERROR!\nInvalid MODFLOW HDF5 file. Run MARMITES and/or MODFLOW again.')
     if cMF.rch_yn == 1:
         cMF.MM_PROCESS.procMF(cMF = cMF, h5_MF = h5_MF, ds_name = 'cbc', ds_name_new = 'RCH_d', conv_fact = conv_fact, index = imfRCH)
     cMF.MM_PROCESS.procMF(cMF = cMF, h5_MF = h5_MF, ds_name = 'cbc', ds_name_new = 'STO_d', conv_fact = conv_fact, index = imfSTO)
@@ -1048,9 +1053,9 @@ if h_diff_surf != None:
         Vmin.append(np.ma.min(V[L]))
     Vmax = max(Vmax) #float(np.ceil(max(Vmax)))
     Vmin = min(Vmin) #float(np.floor(min(Vmin)))
-    Vmin_tmp, Vmax_tmp, ctrs_tmp = minmax(Vmin, Vmax, ctrsMF)
+    Vmin_tmp, Vmax_tmp, ctrs_tmp = MinMax(Vmin, Vmax, ctrsMF)
     # TODO JD and Date are not correct since h_diff_n is # stress periods and not # of days (same in the plots of MF and MM)
-    MMplot.plotLAYER(SP = h_diff_n, Date = cMF.inputDate[h_diff_n], JD = cMF.JD[h_diff_n], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = ('(m)'), msg = 'no value', plt_title = '_HEADSmaxdiff_ConvLoop', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = Vmax_tmp, Vmin = Vmin_tmp, contours = ctrs_tmp, ntick = ntick, points = obs4map)
+    MMplot.plotLAYER(timestep = h_diff_n, Date = cMF.inputDate[h_diff_n], JD = cMF.JD[h_diff_n], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = ('(m)'), msg = 'no value', plt_title = '_HEADSmaxdiff_ConvLoop', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = Vmax_tmp, Vmin = Vmin_tmp, contours = ctrs_tmp, ntick = ntick, points = obs4map)
     del h_diff_n, Vmin, Vmax, Vmin_tmp, Vmax_tmp
 
 # exporting sm computed by MM for PEST (smp format)
@@ -1058,7 +1063,7 @@ if os.path.exists(h5_MM_fn):
     try:
         h5_MM = h5py.File(h5_MM_fn, 'r')
     except:
-        raise SystemExit('\nFATAL ERROR!\nInvalid MARMITES HDF5 file. Run MARMITES and/or MODFLOW again.\nError description:\n%s' % traceback.print_exc(file=sys.stdout))
+        cUTIL.ErrorExit('\nFATAL ERROR!\nInvalid MARMITES HDF5 file. Run MARMITES and/or MODFLOW again.')
     outPESTsmMM = open(os.path.join(MF_ws,'sm_MM4PEST.smp'), 'w')
     for o_ref in obs_list:
         for o in obs.keys():
@@ -1072,7 +1077,7 @@ if os.path.exists(h5_MM_fn):
                 MM_S = h5_MM['MM_S'][:,i,j,:,:]
                 cMF.MM_PROCESS.ExportResultsMM4PEST(i, j, cMF.inputDate, _nslmax, MM_S, index_S, obs_S, o)
     # write PEST smp file with MM output
-    inputFile = MMproc.readFile(MM_ws,inputObs_fn)
+    inputFile = cUTIL.readFile(MM_ws,inputObs_fn)
     ind = 0
     for i in range(len(inputFile)):
         line = inputFile[i].split()
@@ -1100,7 +1105,7 @@ if plt_out == 1 or plt_out_obs == 1:
         try:
             h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
         except:
-            raise SystemExit('\nFATAL ERROR!\nInvalid MODFLOW HDF5 file. Run MARMITES and/or MODFLOW again.\nError description:\n%s' % traceback.print_exc(file=sys.stdout))
+            cUTIL.ErrorExit('\nFATAL ERROR!\nInvalid MODFLOW HDF5 file. Run MARMITES and/or MODFLOW again.')
         # STO
         cbc_STO = h5_MF['STO_d']
         cbcmax_d.append(-1*np.ma.max(cbc_STO))
@@ -1122,8 +1127,12 @@ if plt_out == 1 or plt_out_obs == 1:
                                 j = list(col).index(RCHmax)
                                 x = cMF.delc[row]*row + xllcorner
                                 y = cMF.delr[j]*j + yllcorner
-                                obs['PzRCHmax'] = {'x':x,'y':y, 'i': row, 'j': j, 'lay': l, 'hi':999, 'h0':999, 'RC':999, 'STO':999, 'outpathname':os.path.join(MM_ws_out,'_MM_0PzRCHmax.txt'), 'obs_h':[], 'obs_h_yn':0, 'obs_S':[], 'obs_sm_yn':0}
+                                obs['PzRCHmax'] = {'x':x,'y':y, 'i': row, 'j': j, 'lay': l, 'hi':999, 'h0':999, 'RC':999, 'STO':999, 'outpathname':os.path.join(MM_ws_out,'_ts_0PzRCHmax.txt'), 'obs_h':[], 'obs_h_yn':0, 'obs_S':[], 'obs_sm_yn':0}
                                 obs_list.append('PzRCHmax')
+                                obs4map[0].append('PzRCHmax')
+                                obs4map[1].append(row)
+                                obs4map[2].append(j)
+                                obs4map[3].append(l)
                                 del x, y
                             print 'row %d, col %d, layer %d and day %d (%s)' % (row + 1, list(col).index(RCHmax) + 1, l+1, t+1, mpl.dates.num2date(cMF.inputDate[t] + 1.0).isoformat()[:10])
                             tRCHmax = t
@@ -1180,7 +1189,7 @@ if plt_out == 1 or plt_out_obs == 1:
         try:
             h5_MM = h5py.File(h5_MM_fn, 'r')
         except:
-            raise SystemExit('\nFATAL ERROR!\nInvalid MARMITES HDF5 file. Run MARMITES and/or MODFLOW again.\nError description:\n%s' % traceback.print_exc(file=sys.stdout))
+            cUTIL.ErrorExit('\nFATAL ERROR!\nInvalid MARMITES HDF5 file. Run MARMITES and/or MODFLOW again.')
         # h
         headscorr_m = np.ma.masked_values(np.ma.masked_values(h5_MM['MM'][:,:,:,19], cMF.hnoflo, atol = 0.09), cMF.hdry, atol = 1E+25)
         hcorrmax = np.ma.max(headscorr_m.flatten())
@@ -1234,7 +1243,7 @@ if plt_out == 1 or plt_out_obs == 1:
         try:
             h5_MM = h5py.File(h5_MM_fn, 'r')
         except:
-            raise SystemExit('\nFATAL ERROR!\nInvalid MARMITES HDF5 file. Run MARMITES and/or MODFLOW again.\nError description:\n%s' % traceback.print_exc(file=sys.stdout))
+            cUTIL.ErrorExit('\nFATAL ERROR!\nInvalid MARMITES HDF5 file. Run MARMITES and/or MODFLOW again.')
         # indexes of the HDF5 output arrays
         #  index = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iEXF':6, 'iEs':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSs':13, 'iETg':14, 'iETu':15, 'iSu_pc':16, 'idSu':17, 'iinf':18, 'iHEADScorr':19, 'idgwt':20, 'iuzthick':21}
         # index_S = {'iEu':0, 'iTu':1,'iSu_pc':2, 'iRp':3, 'iRexf':4, 'idSu':5, 'iSu':6, 'iSAT':7, 'iMB_l':8}
@@ -1311,8 +1320,12 @@ if plt_out == 1 or plt_out_obs == 1:
                                 print 'row %d, col %d and day %d' % (row + 1, list(col).index(Tg_min) + 1, t + 1)
                                 tTgmin = t
                                 if plt_out_obs == 1:
-                                    obs['PzTgmin'] = {'x':999,'y':999, 'i': row, 'j': list(col).index(Tg_min), 'lay': 0, 'hi':999, 'h0':999, 'RC':999, 'STO':999, 'outpathname':os.path.join(MM_ws_out,'_MM_0PzTgmin.txt'), 'obs_h':[], 'obs_h_yn':0, 'obs_S':[], 'obs_sm_yn':0}
+                                    obs['PzTgmin'] = {'x':999,'y':999, 'i': row, 'j': list(col).index(Tg_min), 'lay': 0, 'hi':999, 'h0':999, 'RC':999, 'STO':999, 'outpathname':os.path.join(MM_ws_out,'_ts_0PzTgmin.txt'), 'obs_h':[], 'obs_h_yn':0, 'obs_S':[], 'obs_sm_yn':0}
                                     obs_list.append('PzTgmin')
+                                    obs4map[0].append('PzTgmin')
+                                    obs4map[1].append(row)
+                                    obs4map[2].append(list(col).index(Tg_min))
+                                    obs4map[3].append(0)
                                     try:
                                         hmin.append(hmin[0])
                                     except:
@@ -1854,24 +1867,24 @@ if plt_out == 1 or plt_out_obs == 1:
                 V = []
                 for L in range(cMF.nlay):
                     V.append(h_MF_m[day,:,:,L])
-                hminMF_tmp, hmaxMF_tmp, ctrsMF_tmp = minmax(hminMF, hmaxMF, ctrsMF)
+                hminMF_tmp, hmaxMF_tmp, ctrsMF_tmp = MinMax(hminMF, hmaxMF, ctrsMF)
                 MMplot.plotLAYER(timestep = day, Date = Date_lst[t], JD = JD_lst[t], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation (m)', msg = 'DRY', plt_title = 'MF_HEADS', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, contours = ctrsMF_tmp, Vmax = hmaxMF_tmp, Vmin = hminMF_tmp, ntick = ntick, points = obs4map)
 
                 # plot GWTD [m]
                 for L in range(cMF.nlay):
                     V[L] = cMF.elev-V[L]
-                GWTDmin_tmp, GWTDmax_tmp, ctrsGWTD_tmp = minmax(GWTDmin, GWTDmax, ctrsMF)
+                GWTDmin_tmp, GWTDmax_tmp, ctrsGWTD_tmp = MinMax(GWTDmin, GWTDmax, ctrsMF)
                 MMplot.plotLAYER(timestep = day, Date = Date_lst[t], JD = JD_lst[t], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'depth to groundwater table (m)', msg = 'DRY', plt_title = 'MF_GWTD', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, contours = ctrsGWTD_tmp, Vmax = GWTDmax_tmp, Vmin = GWTDmin_tmp, ntick = ntick, points = obs4map)
 
                 # plot heads corrigidas [m]
                 headscorr_m = [np.ma.masked_values(np.ma.masked_values(h5_MM['MM'][day,:,:,19], cMF.hnoflo, atol = 0.09), cMF.hdry, atol = 1E+25)]
-                hcorrmin_tmp, hcorrmax_tmp, ctrs_tmp = minmax(hcorrmin, hcorrmax, ctrsMF)
+                hcorrmin_tmp, hcorrmax_tmp, ctrs_tmp = MinMax(hcorrmin, hcorrmax, ctrsMF)
                 MMplot.plotLAYER(timestep = day, Date = Date_lst[t], JD = JD_lst[t], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = headscorr_m,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation (m)', msg = 'DRY', plt_title = 'MF_HEADScorr', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, contours = ctrs_tmp, Vmax = hcorrmax_tmp, Vmin = hcorrmin_tmp, ntick = ntick, points = obs4map)
 
                 # plot GWTD correct [m]
                 GWTDcorr = []
                 GWTDcorr.append(cMF.elev-headscorr_m[0])
-                GWTDcorrmin_tmp, GWTDcorrmax_tmp, ctrsGWTDcorr_tmp = minmax(GWTDcorrmin, GWTDcorrmax, ctrsMF)
+                GWTDcorrmin_tmp, GWTDcorrmax_tmp, ctrsGWTDcorr_tmp = MinMax(GWTDcorrmin, GWTDcorrmax, ctrsMF)
                 MMplot.plotLAYER(timestep = day, Date = Date_lst[t], JD = JD_lst[t], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = GWTDcorr,  cmap = plt.cm.Blues, CBlabel = 'depth to groundwater table (m)', msg = 'DRY', plt_title = 'MF_GWTDcorr', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, contours = ctrsGWTDcorr_tmp, Vmax = GWTDcorrmax_tmp, Vmin = GWTDcorrmin_tmp, ntick = ntick, points = obs4map)
 
                 # plot GW drainage [mm]
@@ -1879,11 +1892,11 @@ if plt_out == 1 or plt_out_obs == 1:
                     V = []
                     for L in range(cMF.nlay):
                         V.append(np.ma.masked_array(cbc_DRN[day,:,:,L], mask[L])*(-1.0))
-                    DRNmin_tmp, DRNmax_tmp, ctrs_tmp = minmax(DRNmin, DRNmax, ctrsMF)
+                    DRNmin_tmp, DRNmax_tmp, ctrs_tmp = MinMax(DRNmin, DRNmax, ctrsMF)
                     MMplot.plotLAYER(timestep = day, Date = Date_lst[t], JD = JD_lst[t], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater drainage (mm/day)', msg = '- no drainage', plt_title = 'MF_DRN', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmin = DRNmin_tmp, contours = ctrs_tmp, Vmax = DRNmax_tmp, ntick = ntick, points = obs4map)
                     Vmin_tmp1 = np.min(np.asarray(V))
                     Vmax_tmp1 = np.max(np.asarray(V))
-                    Vmin_tmp1, Vmax_tmp1, ctrs_tmp = minmax(Vmin_tmp1, Vmax_tmp1, ctrsMF)
+                    Vmin_tmp1, Vmax_tmp1, ctrs_tmp = MinMax(Vmin_tmp1, Vmax_tmp1, ctrsMF)
                     MMplot.plotLAYER(timestep = day, Date = Date_lst[t], JD = JD_lst[t], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater drainage (mm/day)', msg = '- no drainage', plt_title = 'MF_DRN1', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmin = Vmin_tmp1, contours = ctrs_tmp, Vmax = Vmax_tmp1, ntick = ntick, points = obs4map)
 
                 # plot GHB [mm]
@@ -1891,22 +1904,22 @@ if plt_out == 1 or plt_out_obs == 1:
                     V = []
                     for L in range(cMF.nlay):
                         V.append(np.ma.masked_array(cbc_GHB[day,:,:,L], mask[L])*(-1.0))
-                    GHBmin_tmp, GHBmax_tmp, ctrs_tmp = minmax(GHBmin, GHBmax, ctrsMF)
+                    GHBmin_tmp, GHBmax_tmp, ctrs_tmp = MinMax(GHBmin, GHBmax, ctrsMF)
                     MMplot.plotLAYER(timestep = day, Date = Date_lst[t], JD = JD_lst[t], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'GHB flux (mm/day)', msg = '- no flux', plt_title = 'MF_GHB', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmin = GHBmin_tmp, contours = ctrs_tmp, Vmax = GHBmax_tmp, ntick = ntick, points = obs4map)
                     Vmin_tmp1 = np.min(np.asarray(V))
                     Vmax_tmp1 = np.max(np.asarray(V))
-                    Vmin_tmp1, Vmax_tmp1, ctrs_tmp = minmax(Vmin_tmp1, Vmax_tmp1, ctrsMF)
+                    Vmin_tmp1, Vmax_tmp1, ctrs_tmp = MinMax(Vmin_tmp1, Vmax_tmp1, ctrsMF)
                     MMplot.plotLAYER(timestep = day, Date = Date_lst[t], JD = JD_lst[t], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'GHB flux (mm/day)', msg = '- no flux', plt_title = 'MF_GHB1', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmin = Vmin_tmp1, contours = ctrs_tmp, Vmax = Vmax_tmp1, ntick = ntick, points = obs4map)
 
                 # plot GW RCH [mm]
                 V = []
                 for L in range(cMF.nlay):
                     V.append(np.ma.masked_array(cbc_RCH[day,:,:,L], mask[L]))
-                RCHmin_tmp, RCHmax_tmp, ctrs_tmp = minmax(RCHmin, RCHmax, ctrsMF)
+                RCHmin_tmp, RCHmax_tmp, ctrs_tmp = MinMax(RCHmin, RCHmax, ctrsMF)
                 MMplot.plotLAYER(timestep = day, Date = Date_lst[t], JD = JD_lst[t], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater recharge (mm/day)', msg = '- no flux', plt_title = 'MF_RCH', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmin = RCHmin_tmp, contours = ctrs_tmp, Vmax = RCHmax_tmp, ntick = ntick, points = obs4map)
                 Vmin_tmp1 = np.min(np.asarray(V))
                 Vmax_tmp1 = np.max(np.asarray(V))
-                Vmin_tmp1, Vmax_tmp1, ctrs_tmp = minmax(Vmin_tmp1, Vmax_tmp1, ctrsMF)
+                Vmin_tmp1, Vmax_tmp1, ctrs_tmp = MinMax(Vmin_tmp1, Vmax_tmp1, ctrsMF)
                 MMplot.plotLAYER(timestep = day, Date = Date_lst[t], JD = JD_lst[t], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater recharge (mm/day)', msg = '- no flux', plt_title = 'MF_RCH1', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmin = Vmin_tmp1, contours = ctrs_tmp, Vmax = Vmax_tmp1, ntick = ntick, points = obs4map)
                 t += 1
                 del V
@@ -1949,7 +1962,7 @@ if plt_out == 1 or plt_out_obs == 1:
                 del cbc_DRN, DRNmax_tmp, DRNmin_tmp, DRNmax, DRNmin
                 Vmin_tmp1 = np.min(np.asarray(V))
                 Vmax_tmp1 = np.max(np.asarray(V))
-                Vmin_tmp1, Vmax_tmp1, ctrs_tmp = minmax(Vmin_tmp1, Vmax_tmp1, ctrsMF)
+                Vmin_tmp1, Vmax_tmp1, ctrs_tmp = MinMax(Vmin_tmp1, Vmax_tmp1, ctrsMF)
                 MMplot.plotLAYER(timestep = 'NA', Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater drainage (mm/day)', msg = '- no drainage', plt_title = 'MF_average_DRN1', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = Vmax_tmp1, Vmin = Vmin_tmp1, contours = ctrs_tmp, ntick = ntick, points = obs4map)
 
             # plot GHB average [mm]
@@ -1961,7 +1974,7 @@ if plt_out == 1 or plt_out_obs == 1:
                 del cbc_GHB, GHBmax_tmp, GHBmin_tmp, GHBmax, GHBmin
                 Vmin_tmp1 = np.min(np.asarray(V))
                 Vmax_tmp1 = np.max(np.asarray(V))
-                Vmin_tmp1, Vmax_tmp1, ctrs_tmp = minmax(Vmin_tmp1, Vmax_tmp1, ctrsMF)
+                Vmin_tmp1, Vmax_tmp1, ctrs_tmp = MinMax(Vmin_tmp1, Vmax_tmp1, ctrsMF)
                 MMplot.plotLAYER(timestep = 'NA', Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'GHB flux (mm/day)', msg = '- no flux', plt_title = 'MF_average_GHB1', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = Vmax_tmp1, Vmin = Vmin_tmp1, contours = ctrs_tmp, ntick = ntick, points = obs4map)
 
             # plot GW RCH average [mm]
@@ -1971,7 +1984,7 @@ if plt_out == 1 or plt_out_obs == 1:
             MMplot.plotLAYER(timestep = 'NA', Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater recharge (mm/day)', msg = '- no flux', plt_title = 'MF_average_RCH', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = RCHmax_tmp, Vmin = RCHmin_tmp, contours = ctrs_tmp, ntick = ntick, points = obs4map)
             Vmin_tmp1 = np.min(np.asarray(V))
             Vmax_tmp1 = np.max(np.asarray(V))
-            Vmin_tmp1, Vmax_tmp1, ctrs_tmp = minmax(Vmin_tmp1, Vmax_tmp1, ctrsMF)
+            Vmin_tmp1, Vmax_tmp1, ctrs_tmp = MinMax(Vmin_tmp1, Vmax_tmp1, ctrsMF)
             MMplot.plotLAYER(timestep = 'NA', Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater recharge (mm/day)', msg = '- no flux', plt_title = 'MF_average_RCH1', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = Vmax_tmp1, Vmin = Vmin_tmp1, contours = ctrs_tmp, ntick = ntick, points = obs4map)
             h5_MF.close()
             del V, cbc_RCH, RCHmax_tmp, RCHmin_tmp, Vmax_tmp1, Vmin_tmp1
@@ -1994,7 +2007,7 @@ if plt_out == 1 or plt_out_obs == 1:
                 V[0] = np.ma.masked_values(V[0], cMF.hnoflo, atol = 0.09)
                 Vmax = np.ma.max(V) #float(np.ceil(np.ma.max(V)))  #
                 Vmin = np.ma.min(V) #float(np.floor(np.ma.min(V))) #
-                Vmin, Vmax, ctrs_tmp = minmax(Vmin, Vmax, ctrsMM)
+                Vmin, Vmax, ctrs_tmp = MinMax(Vmin, Vmax, ctrsMM)
                 if i == 'dSsoil':
                     i_lbl = '$\Delta$Ssoil' #'$\Delta$S$_{u}'
                 elif i == 'dSsurf':
@@ -2011,13 +2024,13 @@ if plt_out == 1 or plt_out_obs == 1:
                 V[0] = np.ma.masked_values(V[0], cMF.hnoflo, atol = 0.09)
                 Vmax = np.ma.max(V) #float(np.ceil(np.ma.max(V)))  #
                 Vmin = np.ma.min(V) #float(np.floor(np.ma.min(V))) #
-                Vmin, Vmax, ctrs_tmp = minmax(Vmin, Vmax, ctrsMM)
+                Vmin, Vmax, ctrs_tmp = MinMax(Vmin, Vmax, ctrsMM)
                 for day in day_lst:
                     V = [np.ma.masked_values(MM[day,:,:], cMF.hnoflo, atol = 0.09)]
                     MMplot.plotLAYER(timestep = day, Date = Date_lst[t], JD = JD_lst[t], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i + ' (mm/day)'), msg = 'no flux', plt_title = ('MM_'+i), MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = Vmax, Vmin = Vmin, contours = ctrs_tmp, ntick = ntick, points = obs4map)
                     Vmin_tmp1 = np.ma.min(V)
                     Vmax_tmp1 = np.ma.max(V)
-                    Vmin_tmp1, Vmax_tmp1, ctrs_tmp = minmax(Vmin_tmp1, Vmax_tmp1, ctrsMF)
+                    Vmin_tmp1, Vmax_tmp1, ctrs_tmp = MinMax(Vmin_tmp1, Vmax_tmp1, ctrsMF)
                     MMplot.plotLAYER(timestep = day, Date = Date_lst[t], JD = JD_lst[t], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i + ' (mm/day)'), msg = 'no flux', plt_title = ('MM_%s1'%i), MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = Vmax_tmp1, Vmin = Vmin_tmp1, contours = ctrs_tmp, ntick = ntick, points = obs4map)
                     t += 1
                 del V, MM, t, Vmax, Vmin, ctrs_tmp
@@ -2045,7 +2058,7 @@ if plt_out == 1 or plt_out_obs == 1:
                 h5_MM.close()
                 Vmax = np.ma.max(V) #float(np.ceil(np.ma.max(V)))  #
                 Vmin = np.ma.min(V) #float(np.floor(np.ma.min(V))) #
-                Vmin, Vmax, ctrs_tmp = minmax(Vmin, Vmax, ctrsMM)
+                Vmin, Vmax, ctrs_tmp = MinMax(Vmin, Vmax, ctrsMM)
                 MMplot.plotLAYER(timestep = 'NA', Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i + ' (mm/day)'), msg = 'no flux', plt_title = ('MM_'+ 'average_' + i), MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = Vmax, Vmin = Vmin, contours = ctrs_tmp, ntick = ntick, points = obs4map)
                 del V
 
@@ -2057,7 +2070,7 @@ if plt_out == 1 or plt_out_obs == 1:
                 V[0] = np.ma.masked_values(V[0], cMF.hnoflo, atol = 0.09)
                 Vmax = np.ma.max(V) #float(np.ceil(np.ma.max(V)))  #
                 Vmin = np.ma.min(V) #float(np.floor(np.ma.min(V))) #
-                Vmin, Vmax, ctrs_tmp = minmax(Vmin, Vmax, ctrsMM)
+                Vmin, Vmax, ctrs_tmp = MinMax(Vmin, Vmax, ctrsMM)
                 for day in day_lst:
                     h5_MM = h5py.File(h5_MM_fn, 'r')
                     if i1 != 'iRp':
@@ -2072,7 +2085,7 @@ if plt_out == 1 or plt_out_obs == 1:
                     MMplot.plotLAYER(timestep = day, Date = Date_lst[t], JD = JD_lst[t], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i + ' (mm/day)'), msg = 'no flux', plt_title = ('MM_'+i), MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = Vmax, Vmin = Vmin, contours = ctrs_tmp, ntick = ntick, points = obs4map)
                     Vmin_tmp1 = np.ma.min(V)
                     Vmax_tmp1 = np.ma.max(V)
-                    Vmin_tmp1, Vmax_tmp1, ctrs_tmp = minmax(Vmin_tmp1, Vmax_tmp1, ctrsMF)
+                    Vmin_tmp1, Vmax_tmp1, ctrs_tmp = MinMax(Vmin_tmp1, Vmax_tmp1, ctrsMF)
                     MMplot.plotLAYER(timestep = day, Date = Date_lst[t], JD = JD_lst[t], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i + ' (mm/day)'), msg = 'no flux', plt_title = ('MM_%s1'%i), MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = Vmax_tmp1, Vmin = Vmin_tmp1, contours = ctrs_tmp, ntick = ntick, points = obs4map)
                     t += 1
                 del V, MM, t, Vmax, Vmin, ctrs_tmp
@@ -2093,11 +2106,10 @@ durationTotal = (timeendExport-timestart)
 ##        h5_MF.close()
 ##    except:
 ##        pass
-##    raise SystemExit('\nFATAL ERROR!\nMM run interruption in the export phase!\nError description:\n%s' % traceback.print_exc(file=sys.stdout))
-###    traceback.print_exc(limit=1, file=sys.stdout)
+##    cUTIL.ErrorExit('\nFATAL ERROR!\nMM run interruption in the export phase!')
 
 # final report of successful run
-print '\n##############\nMARMITES executed successfully!\n%s' % mpl.dates.datetime.datetime.today().isoformat()[:19]
+print '\n##############\nMARMITES executed successfully!\n%s' % mpl.dates.DateFormatter.format_data(fmt_DH, mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat()))
 if MMsoil_yn > 0:
     print '\nLOOP %d/%d' % (LOOP-1, ccnum)
     for txt in msg_end_loop:
@@ -2125,5 +2137,5 @@ print ('\nOutput written in folder: \n%s\n##############\n') % MM_ws_out
 if verbose == 0:
     sys.stdout = s
     report.close()
-    print '\nMARMITES terminated!\n%s\n' % mpl.dates.datetime.datetime.today().isoformat()[:19]
+    print '##############\nMARMITES terminated normally!\n%s\n##############' % mpl.dates.DateFormatter.format_data(fmt_DH, mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat()))
     del s

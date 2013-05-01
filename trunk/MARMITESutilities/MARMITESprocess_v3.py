@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+﻿    # -*- coding: utf-8 -*-
 
 __author__ = "Alain Francés <frances08512@itc.nl>"
 __version__ = "0.3"
@@ -8,34 +8,11 @@ import os
 import numpy as np
 import matplotlib as mpl
 import sys
+import Utilities
 
-def readFile(ws, fn):
-    inputFile = []
-    inputFile_fn = os.path.join(ws, fn)
-    if os.path.exists(inputFile_fn):
-        fin = open(inputFile_fn, 'r')
-    else:
-        raise SystemExit("File [" + inputFile_fn + "] doesn't exist, verify name and path!")
-    line = fin.readline().split()
-    delimChar = line[0]
-    try:
-        for line in fin:
-            line_tmp = line.split(delimChar)
-            if not line_tmp == []:
-                if (not line_tmp[0] == '') and (not line_tmp[0] == '\n'):
-                    inputFile.append(line_tmp[0])
-            else:
-                raise NameError('InputFileFormat')
-    except NameError:
-        raise SystemExit('Error in file [' + inputFile_fn + '], check format!')
-    except:
-        raise SystemExit("Unexpected error in file [" + inputFile_fn + "]\n", sys.exc_info()[0])
-    fin.close()
-    del fin
-    return inputFile
-
-class PROCESS:
-    def __init__(self, MM_ws, MM_ws_out, MF_ws, nrow, ncol, xllcorner, yllcorner, cellsizeMF, hnoflo):
+class clsPROCESS:
+    def __init__(self, cUTIL, MM_ws, MM_ws_out, MF_ws, nrow, ncol, xllcorner, yllcorner, cellsizeMF, hnoflo):
+        self.cUTIL = cUTIL
         self.MM_ws = MM_ws
         self.MM_ws_out = MM_ws_out
         self.MF_ws = MF_ws
@@ -108,8 +85,7 @@ class PROCESS:
         if os.path.exists(filenameIN):
             fin = open(filenameIN, 'r')
         else:
-            raise ValueError, "The file %s doesn't exist!!!" % filenameIN
-    #        fout = open(outfile, 'w')
+            self.cUTIL.ErrorExit("The file %s doesn't exist!!!" % filenameIN)
 
         # test if it is ESRI ASCII file or PEST grid
         line = fin.readline().split()
@@ -143,7 +119,7 @@ class PROCESS:
 
         # verify grid consistency between MODFLOW and ESRI ASCII
         if arrayOUT.shape[0] != self.nrow or arrayOUT.shape[1] != self.ncol or self.cellsizeMF != cellsizeEsriAscii:
-            raise BaseException, "\nFATAL ERROR!\nMODFLOW grid anf the ESRI ASCII grid from file %s don't correspond!.\nCheck the cell size and the number of rows, columns and cellsize." % filenameIN
+            self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nMODFLOW grid anf the ESRI ASCII grid from file %s don't correspond!.\nCheck the cell size and the number of rows, columns and cellsize." % filenameIN)
 
         fin.close()
         del line, fin
@@ -222,7 +198,7 @@ class PROCESS:
         gridVEGareatot = np.add.accumulate(gridVEGarea, axis = 0)
         area100_test = gridVEGareatot > 100.0
         if area100_test.sum() > 0:
-            raise ValueError, '\nFATAL ERROR!\nThe total area of the vegetation in one cell cannot exceed 100.0%!'
+            self.cUTIL.ErrorExit(msg = '\nFATAL ERROR!\nThe total area of the vegetation in one cell cannot exceed 100.0%!')
 
         # READ RF and E0 for each zone
         # RF
@@ -230,14 +206,14 @@ class PROCESS:
         if os.path.exists(RF_veg_fn):
             RF_veg = np.loadtxt(RF_veg_fn)
         else:
-            raise ValueError, "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % RF_veg_fn
+            self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % RF_veg_fn)
         RF_veg_zonesSP = np.zeros([NMETEO,nper], dtype=float)
         # E0
         E0_fn=os.path.join(self.MM_ws, inputZON_SP_E0_fn)
         if os.path.exists(E0_fn):
             E0 = np.loadtxt(E0_fn)
         else:
-            raise ValueError, "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % E0_fn
+            self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % E0_fn)
         E0_zonesSP = np.zeros([NMETEO,nper], dtype=float)
         for n in range(NMETEO):
             for t in range(nper):
@@ -250,21 +226,21 @@ class PROCESS:
         if os.path.exists(RFe_veg_fn):
             RFe_veg_tmp = np.loadtxt(RFe_veg_fn)
         else:
-            raise ValueError, "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % RFe_veg_fn
+            self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % RFe_veg_fn)
         RFe_veg_zonesSP = np.zeros([NMETEO,NVEG,nper], dtype=float)
         # LAI
         LAI_veg_fn = os.path.join(self.MM_ws, inputZON_SP_LAI_veg_fn)
         if os.path.exists(LAI_veg_fn):
             LAI_veg_tmp = np.loadtxt(LAI_veg_fn)
         else:
-            raise ValueError, "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % LAI_veg_fn
+            self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % LAI_veg_fn)
         LAI_veg_zonesSP = np.zeros([NVEG,nper], dtype=float)
         # PT
         PT_veg_fn = os.path.join(self.MM_ws, inputZON_SP_PT_fn)
         if os.path.exists(PT_veg_fn):
             PT_veg_tmp = np.loadtxt(PT_veg_fn)
         else:
-            raise ValueError, "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % PT_veg_fn
+            self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % PT_veg_fn)
         PT_veg_zonesSP = np.zeros([NMETEO,NVEG,nper], dtype=float)
         for n in range(NMETEO):
             for v in range(NVEG):
@@ -282,7 +258,7 @@ class PROCESS:
         if os.path.exists(PE_fn):
             PE_tmp = np.loadtxt(PE_fn)
         else:
-            raise ValueError, "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % PE_fn
+            self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % PE_fn)
         PE_zonesSP=np.zeros([NMETEO,NSOIL,nper], dtype=float)
         for n in range(NMETEO):
             for v in range(NSOIL):
@@ -297,28 +273,28 @@ class PROCESS:
             if os.path.exists(RF_irr_fn):
                 RF_irr_tmp = np.loadtxt(RF_irr_fn)
             else:
-                raise ValueError, "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % RF_irr_fn
+                self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % RF_irr_fn)
             RF_irr_zonesSP = np.zeros([NMETEO,NFIELD,nper], dtype=float)
             # RFe irr
             RFe_irr_fn = os.path.join(self.MM_ws, inputZON_SP_RFe_irr_fn)
             if os.path.exists(RFe_irr_fn):
                 RFe_irr_tmp = np.loadtxt(RFe_irr_fn)
             else:
-                raise ValueError, "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % RFe_irr_fn
+                self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % RFe_irr_fn)
             RFe_irr_zonesSP = np.zeros([NMETEO,NFIELD,nper], dtype=float)
             # PT irr
             PT_irr_fn = os.path.join(self.MM_ws, inputZON_SP_PT_irr_fn)
             if os.path.exists(PT_irr_fn):
                 PT_irr_tmp = np.loadtxt(PT_irr_fn)
             else:
-                raise ValueError, "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % PT_irr_fn
+                self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % PT_irr_fn)
             PT_irr_zonesSP = np.zeros([NMETEO,NFIELD,nper], dtype=float)
             # crop irr
             crop_irr_fn = os.path.join(self.MM_ws, input_SP_crop_irr_fn)
             if os.path.exists(crop_irr_fn):
                 crop_irr_tmp = np.loadtxt(crop_irr_fn)
             else:
-                raise ValueError, "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % crop_irr_fn
+                self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % crop_irr_fn)
             crop_irr_SP = np.zeros([NFIELD,nper], dtype=int)
             for n in range(NMETEO):
                 for f in range(NFIELD):
@@ -353,7 +329,7 @@ class PROCESS:
         Ks =[]
 
         # soil parameters file
-        inputFile = readFile(self.MM_ws,SOILparam_fn)
+        inputFile = self.cUTIL.readFile(self.MM_ws,SOILparam_fn)
         SOILzones=int(int(inputFile[0]))
         if SOILzones>NSOIL:
             print '\nWARNING!\n' + str(SOILzones) + ' soil parameters groups in file [' + SOILparam_fn + ']\n Only ' + str(NSOIL) + ' PE time serie(s) found.'
@@ -362,7 +338,7 @@ class PROCESS:
         for i in range(SOILzones):
             nsl.append(int(inputFile[i+1]))
             if nsl[i+1]<1:
-                raise ValueError, '\nFATAL ERROR!\nThe model requires at least 1 soil layer!'
+                self.cUTIL.ErrorExit(msg = '\nFATAL ERROR!\nThe model requires at least 1 soil layer!')
 
         # soil parameter definition for each soil type
         nslst = SOILzones+1
@@ -393,11 +369,11 @@ class PROCESS:
                 Ks[z].append(float(inputFile[nslst]))
                 nslst += 1
                 if not(Sm[z][ns]>Sfc[z][ns]>Sr[z][ns]) or not(Sm[z][ns]>=Si[z][ns]>=Sr[z][ns]):
-                    raise SystemExit('\nFATAL ERROR!\nSoils parameters are not valid!\nThe conditions are Sm>Sfc>Sr and Sm>Si>Sr!')
+                    ErrorExit.main('\nFATAL ERROR!\nSoils parameters are not valid!\nThe conditions are Sm>Sfc>Sr and Sm>Si>Sr!')
             if sum(slprop[z][0:nsl[z+1]])>1:
-                raise SystemExit('\nFATAL ERROR!\nThe sum of the soil layers proportion of %s is >1!\nCorrect your soil data input!\n' % nam_soil[z])
+                ErrorExit.main('\nFATAL ERROR!\nThe sum of the soil layers proportion of %s is >1!\nCorrect your soil data input!\n' % nam_soil[z])
             if sum(slprop[z][0:nsl[z+1]])<1:
-                raise SystemExit('\nFATAL ERROR!\nThe sum of the soil layers proportion of %s is <1!\nCorrect your soil data input!\n' % nam_soil[z])
+                ErrorExit.main('\nFATAL ERROR!\nThe sum of the soil layers proportion of %s is <1!\nCorrect your soil data input!\n' % nam_soil[z])
 
         return nsl[1:len(nsl)], nam_soil, st, slprop, Sm, Sfc, Sr, Si, Ks
         del nsl, nam_soil, st, slprop, Sm, Sfc, Sr, Si, Ks
@@ -410,7 +386,7 @@ class PROCESS:
         '''
 
         # read coordinates and SATFLOW parameters
-        inputFile = readFile(self.MM_ws,inputObs_fn)
+        inputFile = self.cUTIL.readFile(self.MM_ws,inputObs_fn)
 
         # define a dictionnary of observations,  format is: Name (key) x y i j hi h0 RC STO
         obs = {}
@@ -434,7 +410,7 @@ class PROCESS:
                x > (self.xllcorner+self.ncol*self.cellsizeMF) or
                y < self.yllcorner or
                y > (self.yllcorner+self.nrow*self.cellsizeMF)):
-                   raise BaseException, 'The coordinates of the observation point %s are not inside the MODFLOW grid' % name
+                   self.cUTIL.ErrorExit(msg = 'The coordinates of the observation point %s are not inside the MODFLOW grid' % name)
             if lay > nlay or lay < 1:
                 lay = 0
                 print 'WARNING!\nLayer %s of observation point %s is not valid (corrected to layer 1)!\nCheck your file %s (layer number should be between 1 and the number of layer of the MODFLOW model, in this case %s).' % (lay, name, inputObs_fn, nlay)
@@ -457,7 +433,7 @@ class PROCESS:
             else:
                 obs_sm = []
                 obs_sm_yn = 0
-            obs[name] = {'x':x,'y':y,'i': i, 'j': j, 'lay': lay, 'hi':hi, 'h0':h0, 'RC':RC, 'STO':STO, 'outpathname':os.path.join(self.MM_ws_out,'_MM_0'+name+'.txt'), 'obs_h':obs_h, 'obs_h_yn':obs_h_yn, 'obs_S':obs_sm, 'obs_sm_yn':obs_sm_yn}
+            obs[name] = {'x':x,'y':y,'i': i, 'j': j, 'lay': lay, 'hi':hi, 'h0':h0, 'RC':RC, 'STO':STO, 'outpathname':os.path.join(self.MM_ws_out,'_ts_0'+name+'.txt'), 'obs_h':obs_h, 'obs_h_yn':obs_h_yn, 'obs_S':obs_sm, 'obs_sm_yn':obs_sm_yn}
 
         return obs, obs_list
         del inputObs_fn, inputObsHEADS_fn, inputObsSM_fn, inputDate, _nslmax
@@ -481,7 +457,7 @@ class PROCESS:
                     for l in range(_nslmax-len(obsValue)):
                         obsValue.append(self.hnoflo)
             except:
-                raise ValueError, '\nFATAL ERROR!\nFormat of observation file uncorrect!\n%s' % filename
+                self.cUTIL.ErrorExit(msg = '\nFATAL ERROR!\nFormat of observation file uncorrect!\n%s' % filename)
             obsOutput = np.ones([len(obsValue),len(inputDate)], dtype=float)*self.hnoflo
             obs_yn = 0
             if (obsDate[len(obsDate)-1] < inputDate[0]) or (obsDate[0] > inputDate[len(inputDate)-1]):

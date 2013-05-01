@@ -77,7 +77,7 @@ import matplotlib.pyplot as plt
     ================================================================
 '''
 
-def process(datenum = np.array([]), datenum_d = np.array([]), J = np.array([]),  time = np.array([])\
+def process(cUTIL, datenum = np.array([]), datenum_d = np.array([]), J = np.array([]),  time = np.array([])\
               ,pathMMsurf = tempfile.gettempdir()\
               ,RF = np.array([]), IRR = None, Ta = np.array([]), RHa = np.array([]) \
               ,Pa = np.array([]), u_z_m = np.array([]), Rs = np.array([]) \
@@ -640,7 +640,7 @@ def process(datenum = np.array([]), datenum_d = np.array([]), J = np.array([]), 
             try:
                 RF_irr[f] = RF + IRR[f]
             except:
-                raise SystemExit("\nFATAL ERROR!\nIrrigation time serie incompatible with rainfall time serie!")
+                cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nIrrigation time serie incompatible with rainfall time serie!")
             RF_irr_d =  np.zeros([NFIELD, len(datenum_d)], dtype=float)
             RFint_irr = np.zeros([NFIELD, len(datenum_d)], dtype=float)
             RF_irr_duration =  np.zeros([NFIELD, len(datenum_d)], dtype=float)

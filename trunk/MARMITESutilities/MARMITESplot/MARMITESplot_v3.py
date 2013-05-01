@@ -9,6 +9,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import itertools
+import Utilities
 
 def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, EXF, ETg, Es, MB, MB_l, dgwt, uzthick, SAT, R, h_MF, h_MF_corr, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin, obs_name, elev, nlay):
     """
@@ -658,8 +659,11 @@ def plotLAYER(timestep, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg
         if points <> None:
             for k, (xj,yi,lay, label) in enumerate(zip(points[2],points[1],points[3],points[0])):
                 if lay == L:
-                    plt.plot(xj, yi, 'o', linewidth=1, markersize = 6, color = 'grey')
-                    plt.annotate(label, xy = (xj, yi))
+                    color = 'dimgrey'
+                else:
+                    color = 'lightgrey'
+                plt.plot(xj, yi, 'o', linewidth=1, markersize = 6, color = color)
+                plt.annotate(label, xy = (xj, yi))
     if CB_test == True:
         val = PC
     else:

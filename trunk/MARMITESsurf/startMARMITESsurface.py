@@ -20,7 +20,6 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import PET_RF_INTER, plotPET, plotRF
-import MARMITESprocess_v3 as MMproc
 
 '''
     Reads input files for PET_PM_FAO56 and call this function
@@ -161,7 +160,7 @@ import MARMITESprocess_v3 as MMproc
 
 ###########################################
 
-def MMsurf(pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, pathMMws, outMMsurf_fn, MMsurf_plot = 0, inputFile_IRR_TS_fn = None):
+def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, pathMMws, outMMsurf_fn, MMsurf_plot = 0, inputFile_IRR_TS_fn = None):
 
     def ExportResults(name, ws, row1, Dates, J, TS, ts_output = 0, n_d = [], TypeFile = "PET"):
         """
@@ -214,14 +213,14 @@ def MMsurf(pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, pathMMw
 
     # METEO/VEGETATION/SOIL/WATER PARAMETERS
 
-    inputFile = MMproc.readFile(pathMMsurf, inputFile_PAR_fn)
+    inputFile = cUTIL.readFile(pathMMsurf, inputFile_PAR_fn)
     try:
         # METEO PARAMETERS
         l=0
         line = inputFile[l].split()
         NMETEO = int(line[0])
         if NMETEO < 1:
-            raise SystemExit('\nFATAL ERROR!\nNMETEO must be higher than 1!\n')
+            cUTIL.ExitError(msg = '\nFATAL ERROR!\nNMETEO must be higher than 1!\n')
         phi = []
         Lm = []
         Z = []
@@ -393,7 +392,7 @@ def MMsurf(pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, pathMMw
         # WATER PARAMETERS
         alfa_w = 0.06 # water albedo
     except:
-        raise SystemExit("\nFATAL ERROR!\nError reading the input file:\n[" + inputFile_PAR_fn +"]")
+        cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nError reading the input file:\n[" + inputFile_PAR_fn +"]")
     del inputFile, l, line
     print "\nMETEO/VEGETATION/CROP/SOIL PARAMETERS file imported!\n[" + inputFile_PAR_fn +"]"
 
@@ -403,7 +402,7 @@ def MMsurf(pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, pathMMw
     if os.path.exists(inputFile_TS_fn):
         dataMETEOTS = np.loadtxt(inputFile_TS_fn, skiprows = 1, dtype = str)
     else:
-        raise SystemExit("\nFATAL ERROR!\nThe input file [" + inputFile_TS_fn + "] doesn't exist, verify name and path!")
+        cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nThe input file [" + inputFile_TS_fn + "] doesn't exist, verify name and path!")
     try:
         date = dataMETEOTS[:,0]
         time = dataMETEOTS[:,1]
@@ -460,7 +459,7 @@ def MMsurf(pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, pathMMw
         u_z_m = np.asarray(u_z_m)
         Rs = np.asarray(Rs)
     except:
-        raise SystemExit("\nFATAL ERROR!\nUnexpected error in the input file\n[" + inputFile_TS_fn +"]\n" + str(sys.exc_info()[1]))
+        cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nUnexpected error in the input file\n[%s]\n" % inputFile_TS_fn)
     del dataMETEOTS, date, time, datetime, datetime_i, actual_day, RF1, Ta1, RHa1, Pa1, u_z_m1,Rs1
     print "\nMETEO TIME SERIES file imported!\n[" + inputFile_TS_fn +"]"
     # compute J - julian day
@@ -494,14 +493,14 @@ def MMsurf(pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, pathMMw
         if os.path.exists(inputFile_IRR_TS_fn):
             data_IRR_TS = np.loadtxt(inputFile_IRR_TS_fn, skiprows = 1, dtype = str)
         else:
-            raise SystemExit("\nFATAL ERROR!\nThe input file [" + inputFile_IRR_TS_fn + "] doesn't exist, verify name and path!")
+            cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nThe input file [%s] doesn't exist, verify name and path!"%inputFile_IRR_TS_fn)
         try:
             IRR_TS = []
             StartDate_f = []
             for n in range(NFIELD):
                 IRR_TS.append(data_IRR_TS[:,2+n].astype(float))
         except:
-            raise SystemExit("\nFATAL ERROR!\nUnexpected error in the input file\n[" + inputFile_IRR_TS_fn +"]\n" + str(sys.exc_info()[1]))
+            cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nUnexpected error in the input file\n[%s]\n" % inputFile_IRR_TS_fn)
         print "\nIRRIGATION TIME SERIES file imported!\n[" + inputFile_IRR_TS_fn +"]"
         # FIELD/CROP schedule
         FIELD_crop_schedule_fn = []
@@ -511,7 +510,7 @@ def MMsurf(pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, pathMMw
             if os.path.exists(FIELD_crop_schedule_fn[f]):
                 FIELD_crop_schedule.append(np.loadtxt(FIELD_crop_schedule_fn[f], skiprows = 1, dtype = str))
             else:
-                raise SystemExit("\nFATAL ERROR!\nThe input file [" + FIELD_crop_schedule_fn[f] + "] doesn't exist, verify name and path!")
+                cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nThe input file [%s] doesn't exist, verify name and path!"%FIELD_crop_schedule_fn[f])
         print "\nImporting FIELD/CROP schedule files..."
         try:
             for f in range(NFIELD):
@@ -526,12 +525,12 @@ def MMsurf(pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, pathMMw
                         FIELD_startdate[f][i] = mpl.dates.datestr2num(d)
                         FIELD_enddate[f][i] = mpl.dates.datestr2num(FIELD_enddate[f][i])
                         if FIELD_startdate[f][i] > FIELD_enddate[f][i]:
-                            raise SystemExit('\nFATAL ERROR!\nDates in the field/crop schedule files of field #%d are not correct!'%(i+1))
+                            cUTIL.ErrorExit(msg = '\nFATAL ERROR!\nDates in the field/crop schedule files of field #%d are not correct!'%(i+1))
                         if i > 0:
                             if FIELD_enddate[f][i-1] > FIELD_startdate[f][i]:
-                                raise SystemExit('\nFATAL ERROR!\nDates in the field/crop schedule files of field #%d are not correct!'%(i+1))
+                                cUTIL.ErrorExit(msg = '\nFATAL ERROR!\nDates in the field/crop schedule files of field #%d are not correct!'%(i+1))
                     except:
-                        raise SystemExit('\nFATAL ERROR!\nDates in the field/crop schedule files of field #%d are not correct!'%(i+1))
+                        cUTIL.ErrorExit(msg = '\nFATAL ERROR!\nDates in the field/crop schedule files of field #%d are not correct!'%(i+1))
                     FIELD_growdur[f][i] = int(FIELD_growdur[f][i])
                     FIELD_wiltdur[f][i] = int(FIELD_wiltdur[f][i])
                 FIELD_startdate[f] = FIELD_startdate[f].astype(float)
@@ -540,7 +539,7 @@ def MMsurf(pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, pathMMw
                 FIELD_wiltdur[f] = FIELD_wiltdur[f].astype(float)
                 FIELD_crop[f] = FIELD_crop[f].astype(int)
         except:
-            raise SystemExit("\nFATAL ERROR!\nUnexpected error in the input file\n[" + FIELD_crop_schedule_fn[f] +"]\n" + str(sys.exc_info()[1]))
+            cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nUnexpected error in the input file\n[%s]\n"%FIELD_crop_schedule_fn[f])
         print 'Done!'
     else:
         IRR_TS = None
@@ -772,6 +771,7 @@ def MMsurf(pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, pathMMw
     for n in range(NMETEO):
         print "\n--------------\nProcessing data of ZONE %d/%d\n--------------" % (n+1, NMETEO)
         J, J_d, outputVAR, PT_PM_VEG, Erf_VEG, PE_PM_SOIL, E0, PT_PM_VEG_d, PE_PM_SOIL_d, E0_d, RF_veg_d, RFint_veg,                      RF_veg_duration, n1_d, RFe_veg_d, I_veg_d, LAI_veg_d, PT_PM_FIELD, PT_PM_FIELD_d, Erf_FIELD, RF_irr_d, RFint_irr, RF_irr_duration, RFe_irr_d, I_irr_d = PET_RF_INTER.process(
+                cUTIL,
                 datenum, datenum_d, J, time, pathMMsurf,\
                 RF[n], IRR_TS, Ta[n], RHa[n], Pa[n], u_z_m[n], Rs[n], \
                 phi[n], Lm[n], Z[n], Lz[n], FC[n], z_m[n], z_h[n], \
@@ -966,7 +966,7 @@ def MMsurf(pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, pathMMw
             else:
                 print "\nNo ASCII file export required."
         except:
-            raise SystemExit("\nFATAL ERROR!\nError in exporting output files of MMsurf.")
+            cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nError in exporting output files of MMsurf.")
 
     for v in range(1,NVEG):
         ExportResults1(LAI_veg_d[v], inputLAI_veg)

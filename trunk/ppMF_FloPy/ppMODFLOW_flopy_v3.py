@@ -24,19 +24,26 @@ import mfreadbinaries as mfrdbin
 import MARMITESprocess_v3 as MMproc
 
 #####################################
-class MF():
-    def __init__(self, MM_ws, MM_ws_out, MF_ws, MF_ini_fn, xllcorner, yllcorner, numDays = -1):
+class clsMF():
+    def __init__(self, cUTIL, MM_ws, MM_ws_out, MF_ws, MF_ini_fn, xllcorner, yllcorner, numDays = -1):
 
         ''' read input file (called _input.ini in the MARMITES workspace
         the first character on the first line has to be the character used to comment
         the file can contain any comments as the user wish, but the sequence of the input has to be respected'''
 
-        inputFile = MMproc.readFile(MF_ws, MF_ini_fn)
+        self.cUTIL = cUTIL
+        self.MM_ws = MM_ws
+        self.MM_ws_out = MM_ws_out
+        self.MF_ws = MF_ws
+        self.MF_ini_fn = MF_ini_fn
+        self.xllcorner = xllcorner
+        self.yllcorner = yllcorner
+        self.numDays = numDays
+
+        inputFile = self.cUTIL.readFile(self.MF_ws, self.MF_ini_fn)
         l=0
         try:
-            self.h5_MF_fn = os.path.join(MF_ws, '_h5_MF.h5')
-            self.xllcorner = xllcorner
-            self.yllcorner = yllcorner
+            self.h5_MF_fn = os.path.join(self.MF_ws, '_h5_MF.h5')
             self.modelname =  str(inputFile[l].strip())
             l += 1
             self.namefile_ext = str(inputFile[l].strip())
@@ -96,13 +103,13 @@ class MF():
                     self.tsmult.append(int(tsmult_tmp[i]))
                     self.Ss_tr.append(str(Ss_tr_tmp[i]))
                     if self.nstp[i]>self.perlen[i]:
-                        raise SystemExit("\nFATAL ERROR!\nMM doesn't accept nstp < perlen!")
+                        self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nMM doesn't accept nstp < perlen!")
                     if self.Ss_tr[i] == 'TR':
                         self.Ss_tr[i] = False
                     elif self.Ss_tr[i] == 'SS':
                         self.Ss_tr[i] = True
                     else:
-                        raise SystemExit('\nFATAL ERROR!\nVariable Ss_tr from the DIS package is not correct, check the MODFLOW manual')
+                        self.cUTIL.ErrorExit(msg = '\nFATAL ERROR!\nVariable Ss_tr from the DIS package is not correct, check the MODFLOW manual')
                 l += 1
             elif self.timedef < 0:
                 # daily data
@@ -460,18 +467,20 @@ class MF():
             l += 1
             self.MFout_yn = int(inputFile[l].strip())
         except:
-            raise SystemExit("\nFATAL ERROR!\nUnexpected error in the MODFLOW input file:\n", sys.exc_info()[0], '\n%s' % traceback.print_exc(file=sys.stdout))
+            self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nUnexpected error in the MODFLOW input file:\n")
         del inputFile
 
-        self.MM_PROCESS = MMproc.PROCESS(MM_ws           = MM_ws,
-                                MM_ws_out                = MM_ws_out,
-                                MF_ws                    = MF_ws,
-                                nrow                     = self.nrow,
-                                ncol                     = self.ncol,
-                                xllcorner                = self.xllcorner,
-                                yllcorner                = self.yllcorner,
-                                cellsizeMF               = self.delr[0],
-                                hnoflo                   = self.hnoflo
+        self.MM_PROCESS = MMproc.clsPROCESS(
+                                cUTIL           = self.cUTIL,
+                                MM_ws           = self.MM_ws,
+                                MM_ws_out       = self.MM_ws_out,
+                                MF_ws           = self.MF_ws,
+                                nrow            = self.nrow,
+                                ncol            = self.ncol,
+                                xllcorner       = self.xllcorner,
+                                yllcorner       = self.yllcorner,
+                                cellsizeMF      = self.delr[0],
+                                hnoflo          = self.hnoflo
                                 )
 
         # 1 - reaf asc file and convert in np.array
@@ -530,7 +539,7 @@ class MF():
                 self.drncells = [(np.asarray(drn[:,:]) > 0.0).sum()]
             del drn
 
-        self.array_ini(MF_ws = MF_ws)
+        self.array_ini(MF_ws = self.MF_ws)
 
 #####################################
 
@@ -612,9 +621,9 @@ class MF():
             self.layer_row_column_elevation_cond = [[]]
             for d in self.drn_cond:
                 if isinstance(d, str):
-                    drn_elev_path = os.path.join(MF_ws, self.drn_elev[l])
+                    drn_elev_path = os.path.join(self.MF_ws, self.drn_elev[l])
                     self.drn_elev_array[:,:,l] = self.MM_PROCESS.convASCIIraster2array(drn_elev_path, self.drn_elev_array[:,:,l])
-                    drn_cond_path = os.path.join(MF_ws, self.drn_cond[l])
+                    drn_cond_path = os.path.join(self.MF_ws, self.drn_cond[l])
                     self.drn_cond_array[:,:,l] = self.MM_PROCESS.convASCIIraster2array(drn_cond_path, self.drn_cond_array[:,:,l])
                 else:
                     self.drn_elev_array[:,:,l] = self.drn_elev[l]
@@ -646,9 +655,9 @@ class MF():
             for d in self.ghb_cond:
                 ghb_check = 1
                 if isinstance(d, str):
-                    ghb_head_path = os.path.join(MF_ws, self.ghb_head[l])
-                    self.ghb_head_array[:,:,l] = self.MM_PROCESS.convASCIIraster2array(ghb_head_path, self.ghb_head_array[:,:,l])
-                    ghb_cond_path = os.path.join(MF_ws, self.ghb_cond[l])
+                    ghb_head_path = os.path.join(self.MF_ws, self.ghb_head[l])
+                    self.ghb_head_array[:,:,l] = self.MM_PROCESS.convASCIIraster2array(ghb_head_path, self  .ghb_head_array[:,:,l])
+                    ghb_cond_path = os.path.join(self.MF_ws, self.ghb_cond[l])
                     self.ghb_cond_array[:,:,l] = self.MM_PROCESS.convASCIIraster2array(ghb_cond_path, self.ghb_cond_array[:,:,l])
                 else:
                     self.ghb_head_array[:,:,l] = self.ghb_head[l]
@@ -665,7 +674,7 @@ class MF():
 
 ####################################
 
-    def ppMFtime(self, MM_ws, MF_ws, inputDate_fn, inputZON_dSP_RF_veg_fn, inputZON_dSP_RFe_veg_fn, inputZON_dSP_PT_fn, input_dSP_LAI_veg_fn, inputZON_dSP_PE_fn, inputZON_dSP_E0_fn, NMETEO, NVEG, NSOIL, inputZON_dSP_RF_irr_fn = None, inputZON_dSP_RFe_irr_fn = None, inputZON_dSP_PT_irr_fn = None, input_dSP_crop_irr_fn = None, NFIELD = None):
+    def ppMFtime(self, inputDate_fn, inputZON_dSP_RF_veg_fn, inputZON_dSP_RFe_veg_fn, inputZON_dSP_PT_fn, input_dSP_LAI_veg_fn, inputZON_dSP_PE_fn, inputZON_dSP_E0_fn, NMETEO, NVEG, NSOIL, inputZON_dSP_RF_irr_fn = None, inputZON_dSP_RFe_irr_fn = None, inputZON_dSP_PT_irr_fn = None, input_dSP_crop_irr_fn = None, NFIELD = None):
 
         ''' RF analysis to define automatically nper/perlen/nstp
         Daily RF>0 creates a nper
@@ -685,7 +694,7 @@ class MF():
 
         print'\nComputing MODFLOW time discretization based on rainfall analysis in each METEO zone...'
         # READ date of input files (RF and PT)
-        inputDate_fn=os.path.join(MM_ws, inputDate_fn)
+        inputDate_fn=os.path.join(self.MM_ws, inputDate_fn)
         if os.path.exists(inputDate_fn):
             inputDate_tmp = np.loadtxt(inputDate_fn, dtype = str)
             self.inputDate = inputDate_tmp[:,0]
@@ -697,30 +706,30 @@ class MF():
                 difDay=self.inputDate[i]-self.inputDate[i-1]
                 if (difDay !=1.0):
                     print 'DifDay = ' + str(difDay)
-                    raise SystemExit, '\nFATAL ERROR!\nDates of the input data are not sequencial, check your daily time step!\nError at date %s ' % str(self.inputDate[i])
+                    self.cUTIL.ErrorExit(msg = '\nFATAL ERROR!\nDates of the input data are not sequencial, check your daily time step!\nError at date %s ' % str(self.inputDate[i]))
         else:
-            raise ValueError, "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % inputDate_fn
+            self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % inputDate_fn)
 
-        inputFileRF_veg = MMproc.readFile(MM_ws, inputZON_dSP_RF_veg_fn)
+        inputFileRF_veg = self.cUTIL.readFile(self.MM_ws, inputZON_dSP_RF_veg_fn)
         RF_veg_d = np.zeros([NMETEO, len(self.JD)])
-        inputFileRFe_veg = MMproc.readFile(MM_ws, inputZON_dSP_RFe_veg_fn)
+        inputFileRFe_veg = self.cUTIL.readFile(self.MM_ws, inputZON_dSP_RFe_veg_fn)
         RFe_veg_d = np.zeros([NMETEO, NVEG, len(self.JD)])
-        inputFilePT = MMproc.readFile(MM_ws, inputZON_dSP_PT_fn)
+        inputFilePT = self.cUTIL.readFile(self.MM_ws, inputZON_dSP_PT_fn)
         PT_veg_d = np.zeros([NMETEO, NVEG, len(self.JD)])
-        inputFileLAI_veg = MMproc.readFile(MM_ws, input_dSP_LAI_veg_fn)
+        inputFileLAI_veg = self.cUTIL.readFile(self.MM_ws, input_dSP_LAI_veg_fn)
         self.LAI_veg_d = np.zeros([NMETEO, NVEG, len(self.JD)], dtype = float)
-        inputFilePE = MMproc.readFile(MM_ws, inputZON_dSP_PE_fn)
+        inputFilePE = self.cUTIL.readFile(self.MM_ws, inputZON_dSP_PE_fn)
         PE_d = np.zeros([NMETEO, NSOIL, len(self.JD)])
-        inputFileE0 = MMproc.readFile(MM_ws, inputZON_dSP_E0_fn)
+        inputFileE0 = self.cUTIL.readFile(self.MM_ws, inputZON_dSP_E0_fn)
         E0_d = np.zeros([NMETEO, len(self.JD)])
         if NFIELD != None:
-            inputFileRF_irr = MMproc.readFile(MM_ws, inputZON_dSP_RF_irr_fn)
+            inputFileRF_irr = self.cUTIL.readFile(self.MM_ws, inputZON_dSP_RF_irr_fn)
             RF_irr_d = np.zeros([NMETEO, NFIELD, len(self.JD)], dtype = float)
-            inputFileRFe_irr = MMproc.readFile(MM_ws, inputZON_dSP_RFe_irr_fn)
+            inputFileRFe_irr = self.cUTIL.readFile(self.MM_ws, inputZON_dSP_RFe_irr_fn)
             RFe_irr_d = np.zeros([NMETEO, NFIELD, len(self.JD)], dtype = float)
-            inputFilePT_irr = MMproc.readFile(MM_ws, inputZON_dSP_PT_irr_fn)
+            inputFilePT_irr = self.cUTIL.readFile(self.MM_ws, inputZON_dSP_PT_irr_fn)
             PT_irr_d = np.zeros([NMETEO, NFIELD, len(self.JD)], dtype = float)
-            inputFilecrop_irr = MMproc.readFile(MM_ws, input_dSP_crop_irr_fn)
+            inputFilecrop_irr = self.cUTIL.readFile(self.MM_ws, input_dSP_crop_irr_fn)
             self.crop_irr_d = np.zeros([NMETEO, NFIELD, len(self.JD)], dtype = float)
         for n in range(NMETEO):
             for t in range(len(self.JD)):
@@ -748,7 +757,7 @@ class MF():
                 if isinstance(self.nper, str):
                     perlenmax = int(self.nper.split()[1].strip())
             except:
-                raise SystemExit('\nFATAL ERROR!\nError in nper format of the MODFLOW ini file!\n')
+                self.cUTIL.ErrorExit(msg = '\nFATAL ERROR!\nError in nper format of the MODFLOW ini file!\n')
             RF_veg_stp = []
             RFe_veg_stp = []
             PT_veg_stp = []
@@ -816,7 +825,7 @@ class MF():
                         crop_irr_stp[n].append([])
                         crop_irr_stp_tmp[n].append(0.0)
             if perlenmax < 2:
-                raise SystemExit('\nFATAL ERROR!\nCorrect perlenmax in the MODFLOW ini file (perlenmax must be higher than 1) or select the daily option.')
+                self.cUTIL.ErrorExit(msg = '\nFATAL ERROR!\nCorrect perlenmax in the MODFLOW ini file (perlenmax must be higher than 1) or select the daily option.')
             for t in range(len(self.JD)):
                 if NFIELD != None:
                     val_tmp = (RF_veg_d[:,t].sum()+RF_irr_d[:,:,t].sum()).sum()
@@ -990,53 +999,53 @@ class MF():
                                 crop_irr_stp[n,f,sum(nstp[0:per])+stp] += np.ceil(self.crop_irr_d[n,f,tstart:tend].sum()/(self.perlen[per]/self.nstp[per]))
 
         self.inputZON_SP_RF_veg_fn = "inputZONRF_veg_stp.txt"
-        self.inputZONRF_veg_fn = os.path.join(MM_ws, self.inputZON_SP_RF_veg_fn)
+        self.inputZONRF_veg_fn = os.path.join(self.MM_ws, self.inputZON_SP_RF_veg_fn)
         inputZONRF_veg = open(self.inputZONRF_veg_fn, 'w')
         inputZONRF_veg.write('#\n')
 
         self.inputZON_SP_PT_fn = "inputZONPT_veg_stp.txt"
-        self.inputZONPT_fn = os.path.join(MM_ws, self.inputZON_SP_PT_fn)
+        self.inputZONPT_fn = os.path.join(self.MM_ws, self.inputZON_SP_PT_fn)
         inputZONPT = open(self.inputZONPT_fn, 'w')
         inputZONPT.write('#\n')
 
         self.inputZON_SP_RFe_veg_fn = "inputZONRFe_veg_stp.txt"
-        self.inputZONRFe_veg_fn = os.path.join(MM_ws, self.inputZON_SP_RFe_veg_fn)
+        self.inputZONRFe_veg_fn = os.path.join(self.MM_ws, self.inputZON_SP_RFe_veg_fn)
         inputZONRFe_veg = open(self.inputZONRFe_veg_fn, 'w')
         inputZONRFe_veg.write('#\n')
 
         self.inputZON_SP_LAI_veg_fn = "inputZONLAI_veg_stp.txt"
-        self.inputLAI_veg_fn = os.path.join(MM_ws, self.inputZON_SP_LAI_veg_fn)
+        self.inputLAI_veg_fn = os.path.join(self.MM_ws, self.inputZON_SP_LAI_veg_fn)
         inputLAI_veg = open(self.inputLAI_veg_fn, 'w')
         inputLAI_veg.write('#\n')
 
         self.inputZON_SP_PE_fn = "inputZONPE_stp.txt"
-        self.inputZONPE_fn = os.path.join(MM_ws, self.inputZON_SP_PE_fn)
+        self.inputZONPE_fn = os.path.join(self.MM_ws, self.inputZON_SP_PE_fn)
         inputZONPE = open(self.inputZONPE_fn, 'w')
         inputZONPE.write('#\n')
 
         self.inputZON_SP_E0_fn = "inputZONE0_stp.txt"
-        self.inputZONE0_fn = os.path.join(MM_ws, self.inputZON_SP_E0_fn)
+        self.inputZONE0_fn = os.path.join(self.MM_ws, self.inputZON_SP_E0_fn)
         inputZONE0 = open(self.inputZONE0_fn, 'w')
         inputZONE0.write('#\n')
 
         if NFIELD != None:
             self.inputZON_SP_RF_irr_fn = "inputZONRF_irr_stp.txt"
-            self.inputZONRF_irr_fn = os.path.join(MM_ws, self.inputZON_SP_RF_irr_fn)
+            self.inputZONRF_irr_fn = os.path.join(self.MM_ws, self.inputZON_SP_RF_irr_fn)
             inputZONRF_irr = open(self.inputZONRF_irr_fn, 'w')
             inputZONRF_irr.write('#\n')
 
             self.inputZON_SP_RFe_irr_fn = "inputZONRFe_irr_stp.txt"
-            self.inputZONRFe_irr_fn = os.path.join(MM_ws, self.inputZON_SP_RFe_irr_fn)
+            self.inputZONRFe_irr_fn = os.path.join(self.MM_ws, self.inputZON_SP_RFe_irr_fn)
             inputZONRFe_irr = open(self.inputZONRFe_irr_fn, 'w')
             inputZONRFe_irr.write('#\n')
 
             self.inputZON_SP_PT_irr_fn = "inputZONPT_irr_stp.txt"
-            self.inputZONPT_irr_fn = os.path.join(MM_ws, self.inputZON_SP_PT_irr_fn)
+            self.inputZONPT_irr_fn = os.path.join(self.MM_ws, self.inputZON_SP_PT_irr_fn)
             inputZONPT_irr = open(self.inputZONPT_irr_fn, 'w')
             inputZONPT_irr.write('#\n')
 
             self.input_SP_crop_irr_fn = "inputZONcrop_irr_stp.txt"
-            self.inputcrop_irr_fn = os.path.join(MM_ws, self.input_SP_crop_irr_fn)
+            self.inputcrop_irr_fn = os.path.join(self.MM_ws, self.input_SP_crop_irr_fn)
             inputcrop_irr = open(self.inputcrop_irr_fn, 'w')
             inputcrop_irr.write('#\n')
 
@@ -1066,7 +1075,7 @@ class MF():
                 for f in range(NFIELD):
                     ExportResults1(crop_irr_stp[0][f], inputcrop_irr)
         except:
-            raise SystemExit("\nFATAL ERROR!\nError in exporting output files in MF time processing.")
+            self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nError in exporting output files in MF time processing.")
 
         print 'Found %d days converted into %d stress periods.' % (sum(self.perlen), self.nper)
 
@@ -1084,7 +1093,7 @@ class MF():
 
 #####################################
 
-    def ppMF(self, MM_ws, MF_ws, MF_ini_fn, finf_MM = "", finf_user = None, wel_MM = "", wel_user = None, report = None, verbose = 1, chunks = 0, numDays = -1):
+    def runMF(self, finf_MM = "", finf_user = None, wel_MM = "", wel_user = None, report = None, verbose = 1, s = '', chunks = 0, numDays = -1):
 
         if verbose == 0:
             print '--------------'
@@ -1104,7 +1113,7 @@ class MF():
             if self.rch_yn == 1:
                 rch_input = self.rch_user
 
-        self.array_ini(MF_ws = MF_ws)
+        self.array_ini(MF_ws = self.MF_ws)
 
         # FINF
         if self.uzf_yn == 1:
@@ -1265,7 +1274,7 @@ class MF():
         print '\nMODFLOW files writing'
         ncells_package = []
         # MFfile initialization
-        mfmain = mf.modflow(modelname = self.modelname, exe_name = self.exe_name, namefile_ext = self.namefile_ext, version = self.version, model_ws = MF_ws)
+        mfmain = mf.modflow(modelname = self.modelname, exe_name = self.exe_name, namefile_ext = self.namefile_ext, version = self.version, model_ws = self.MF_ws)
         # dis package
         dis = mf.mfdis(model = mfmain, nrow = self.nrow, ncol = self.ncol, nlay = self.nlay, nper = self.nper, delr = self.delr, delc = self.delc, laycbd = self.laycbd, top = self.top, botm = self.botm, perlen = self.perlen, nstp = self.nstp, tsmult = self.tsmult, itmuni = self.itmuni, lenuni = self.lenuni, steady = self.Ss_tr, extension = self.ext_dis)
         dis.write_file()
@@ -1326,12 +1335,12 @@ class MF():
             nwt = mf.mfnwt(model = mfmain, headtol = self.headtol, fluxtol = self.fluxtol, maxiterout = self.maxiterout, thickfact = self.thickfact, linmeth = self.linmeth, iprnwt = self.iprnwt, ibotav = self.ibotav, options = self.options, extension = self.ext_nwt)
             nwt.write_file()
 
-        self.h_MF_fn = os.path.join(MF_ws, self.modelname + "." + self.ext_heads)
-        self.cbc_MF_fn = os.path.join(MF_ws, self.modelname + "." + self.ext_cbc)
+        self.h_MF_fn = os.path.join(self.MF_ws, self.modelname + "." + self.ext_heads)
+        self.cbc_MF_fn = os.path.join(self.MF_ws, self.modelname + "." + self.ext_cbc)
         if self.uzf_yn == 1:
             if uzf.iuzfcb1 == 0:
-                raise SystemExit('\nFATAL ERROR!\nPlease fix the UZF parameters iuzfcb1 equal to 57!')
-            self.cbc_MFuzf_fn = os.path.join(MF_ws, self.modelname + '.uzfbt1')
+                self.cUTIL.ErrorExit(msg = '\nFATAL ERROR!\nPlease fix the UZF parameters iuzfcb1 equal to 57!')
+            self.cbc_MFuzf_fn = os.path.join(self.MF_ws, self.modelname + '.uzfbt1')
 
         # run MODFLOW and read the heads back into Python
         print '\nMODFLOW run'
@@ -1347,10 +1356,10 @@ class MF():
                 h = mfrdbin.mfhdsread(mfmain, 'LF95').read_all(self.h_MF_fn)
             except:
                 h5_MF.close()
-                raise ValueError, '\nMODFLOW error!\nCheck the MODFLOW list file in folder:\n%s' % MF_ws
+                self.cUTIL.ErrorExit(msg= '\nMODFLOW error!\nCheck the MODFLOW list file in folder:\n%s' % self.MF_ws)
             if len(h[1])<sum(self.nstp):
                 h5_MF.close()
-                raise ValueError, '\nMODFLOW error!\nCheck the MODFLOW list file in folder:\n%s' % MF_ws
+                self.cUTIL.ErrorExit(msg = '\nMODFLOW error!\nCheck the MODFLOW list file in folder:\n%s' % self.MF_ws)
             print ''
             return h
             del h
