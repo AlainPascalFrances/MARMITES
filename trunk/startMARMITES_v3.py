@@ -29,7 +29,8 @@ import MARMITESsoil_v3 as MMsoil
 import MARMITESprocess_v3 as MMproc
 import ppMODFLOW_flopy_v3 as ppMF
 import MARMITESplot_v3 as MMplot
-import CreateColors, Utilities
+import MARMITESutilities as MMutils
+import CreateColors
 
 # TODO verify if thickness of MF layer 1 > thickness of soil
 
@@ -54,7 +55,7 @@ timestart = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat(
 fmt_DH = mpl.dates.DateFormatter('%Y-%m-%d %H:%M')
 print '\n##############\nMARMITES v0.3 started!\n%s\n##############' % mpl.dates.DateFormatter.format_data(fmt_DH, timestart)
 
-cUTIL = Utilities.clsUTILITIES(fmt = fmt_DH)
+cUTIL = MMutils.clsUTILITIES(fmt = fmt_DH)
 
 # workspace (ws) definition
 # read input file (called _input.ini in the MARMITES workspace
@@ -218,7 +219,7 @@ if verbose == 0:
     report = open(report_fn, 'w')
     sys.stdout = report
     print '\n##############\nMARMITES started!\n%s\n##############' % mpl.dates.num2date(timestart).isoformat()[:19]
-    cUTIL = Utilities.clsUTILITIES(fmt = fmt_DH, verbose = verbose, s = s, report = report, report_fn = report_fn)
+    cUTIL = MMutils.clsUTILITIES(fmt = fmt_DH, verbose = verbose, s = s, report = report, report_fn = report_fn)
 else:
     report = None
 
@@ -509,12 +510,16 @@ if plt_input == 1:
     print'\n##############'
     print 'Exporting input maps...'
     i_lbl = 1
-    TRANS = np.asarray(cMF.hk_actual) * cMF.thick
+    T = np.zeros((cMF.nrow, cMF.ncol, cMF.nlay), dtype = np.float)
+    if cMF.nlay > 1:
+        T = np.asarray(cMF.hk_actual) * np.asarray(cMF.thick)
+    else:
+        T[:,:,0] = np.asarray(cMF.hk_actual) * np.asarray(cMF.thick[:,:,0])
     top_tmp = np.zeros((cMF.nrow, cMF.ncol, cMF.nlay), dtype = np.float)
     top_tmp[:,:,0] = cMF.top
     for l in range(1,cMF.nlay):
         top_tmp[:,:,l] = cMF.botm[:,:,l-1]
-    lst = [cMF.elev, top_tmp, cMF.botm, cMF.thick, np.asarray(cMF.strt), gridSOILthick, gridSsurfhmax, gridSsurfw, np.asarray(cMF.hk_actual), TRANS, np.asarray(cMF.ss_actual), np.asarray(cMF.sy_actual), np.asarray(cMF.vka_actual)]
+    lst = [cMF.elev, top_tmp, cMF.botm, cMF.thick, np.asarray(cMF.strt), gridSOILthick, gridSsurfhmax, gridSsurfw, np.asarray(cMF.hk_actual), T, np.asarray(cMF.ss_actual), np.asarray(cMF.sy_actual), np.asarray(cMF.vka_actual)]
     lst_lbl = ['elev', 'top', 'botm', 'thick', 'strt', 'gridSOILthick', 'gridSsurfhmax', 'gridSsurfw', 'hk', 'T', 'Ss', 'Sy', 'vka']
     lst_lblCB = ['Elev.', 'Aq. top - top', 'Aq. bot. - botm', 'Aq. thick.', 'Init. heads - strt', 'Soil thick.', 'Stream max. heigth', 'Stream width', 'Horizontal hydraulic cond. - hk', 'Transmissivitty - T','Specific storage - Ss', 'Specific yield - Sy', 'Vertical hydraulic cond. - vka']
     if cMF.drn_yn == 1:
@@ -654,7 +659,7 @@ if plt_input == 1:
 print'\n##############'
 if MF_yn == 1 :
     timestartMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
-    print 'MODFLOW RUN (initial user-input fluxes)/n'
+    print 'MODFLOW RUN (initial user-input fluxes)\n'
     if verbose == 0:
         print '\n--------------'
         sys.stdout = s

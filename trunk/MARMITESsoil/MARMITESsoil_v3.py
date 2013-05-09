@@ -105,7 +105,7 @@ class clsSOIL:
 
     def flux(self, RFe, PT, PE, E0, Zr_elev, VEGarea, HEADS, TopSoilLay, BotSoilLay, Tl, nsl, Sm, Sfc, Sr, Ks, Ssurf_max, Ssurf_ratio, Ssoil_ini, Rp_ini, Ssurf_ini, EXF, dgwt, st, i, j, n, kTu_min, kTu_n, dt, dti, NVEG, LAIveg):
 
-        def surfwater(s_tmp, Sm, Ssurf_max, E0, i, j, n, dt):
+        def surfwater(s_tmp, Sm, Ssurf_max, E0, dt):
             '''
             Ponding and surface runoff function
             '''
@@ -130,7 +130,7 @@ class clsSOIL:
 
         ##################
 
-        def perc(s_tmp, Sm, Sfc, Ks, s_lp1, Sm_sp1, i, j, n, dt):
+        def perc(s_tmp, Sm, Sfc, Ks, dt):
             '''
             Percolation function
             '''
@@ -151,7 +151,7 @@ class clsSOIL:
 
         ##################
 
-        def evp(s_tmp,Sm,Sr, pet, i, j, n, dt):
+        def evp(s_tmp,Sm,Sr, pet, dt):
             '''
             Actual evapotranspiration function
             '''
@@ -215,7 +215,7 @@ class clsSOIL:
                     break
 
         # Ssurf and Ro
-        surfwater_tmp = surfwater(Ssoil_tmp[0],Sm[0]*Tl[0],Ssurf_max, E0*Ssurf_ratio, i, j, n, dt)
+        surfwater_tmp = surfwater(Ssoil_tmp[0],Sm[0]*Tl[0],Ssurf_max, E0*Ssurf_ratio, dt)
         Ssurf_tmp = surfwater_tmp[0]
         Ro_tmp = surfwater_tmp[1]
         Esurf_tmp = surfwater_tmp[2]
@@ -235,10 +235,13 @@ class clsSOIL:
         # soil layers
 
         for l in range(nsl):
+            # Rp
+            Rp_tmp[l] = perc(Ssoil_tmp[l],Sm[l]*Tl[l],Sfc[l]*Tl[l], Ks[l], dt)
+            Ssoil_tmp[l] -= Rp_tmp[l]*dt
             # Esoil
             if Ssurf_tmp == 0.0:
                 if PE > 0.0:
-                    Esoil_tmp[l] = evp(Ssoil_tmp[l],Sm[l]*Tl[l], Sr[l]*Tl[l], PE, i, j, n, dt)
+                    Esoil_tmp[l] = evp(Ssoil_tmp[l],Sm[l]*Tl[l], Sr[l]*Tl[l], PE, dt)
                     Ssoil_tmp[l] -= Esoil_tmp[l]*dt
                     PE -= Esoil_tmp[l]
             # Tsoil
@@ -247,20 +250,13 @@ class clsSOIL:
                     if LAIveg[v] > -1.0E-7:
                         if VEGarea[v] > -1.0E-7:
                             if BotSoilLay[l] > Zr_elev[v]:
-                                Tsoil_tmpZr[l,v] = evp(Ssoil_tmp[l],Sm[l]*Tl[l], Sr[l]*Tl[l], PT[v], i, j, n, dt)
+                                Tsoil_tmpZr[l,v] = evp(Ssoil_tmp[l],Sm[l]*Tl[l], Sr[l]*Tl[l], PT[v], dt)
                             elif TopSoilLay[l] > Zr_elev[v] :
                                 PTc = PT[v]*(TopSoilLay[l]-Zr_elev[v])/Tl[l]
-                                Tsoil_tmpZr[l,v] = evp(Ssoil_tmp[l],Sm[l]*Tl[l], Sr[l]*Tl[l], PTc, i, j, n, dt)
+                                Tsoil_tmpZr[l,v] = evp(Ssoil_tmp[l],Sm[l]*Tl[l], Sr[l]*Tl[l], PTc, dt)
                             Tsoil_tmp[l] += Tsoil_tmpZr[l,v]*VEGarea[v]*0.01
                             PT[v] -= Tsoil_tmpZr[l,v]
             Ssoil_tmp[l] -= Tsoil_tmp[l]*dt
-            # Rp
-            if l < (nsl-1):
-                if SAT[l+1] == False:
-                    Rp_tmp[l] = perc(Ssoil_tmp[l],Sm[l]*Tl[l],Sfc[l]*Tl[l],Ks[l], Ssoil_tmp[l+1], Sm[l+1]*Tl[l+1], i, j, n, dt)
-            elif EXF == 0.0:
-                Rp_tmp[l] = perc(Ssoil_tmp[l],Sm[l]*Tl[l],Sfc[l]*Tl[l], Ks[l],0.0,1.0E6, i, j, n, dt)
-            Ssoil_tmp[l] -= Rp_tmp[l]*dt
 
         for l in range(nsl):
             Ssoil_pc_tmp[l] = Ssoil_tmp[l]/Tl[l]

@@ -8,7 +8,7 @@ import os
 import numpy as np
 import matplotlib as mpl
 import sys
-import Utilities
+import MARMITESutilities as MMutil
 
 class clsPROCESS:
     def __init__(self, cUTIL, MM_ws, MM_ws_out, MF_ws, nrow, ncol, xllcorner, yllcorner, cellsizeMF, hnoflo):
@@ -65,7 +65,7 @@ class clsPROCESS:
                     array_path = os.path.join(self.MF_ws, v)
                     array[:,:,l] = self.convASCIIraster2array(array_path, array[:,:,l])
                 else:
-                    print'\nFATAL ERROR!\nMODFLOW ini file incorrect, check files or values %s' % var
+                    self.cUTIL.ErrorExit('\nFATAL ERROR!\nMODFLOW ini file incorrect, check files or values %s' % var)
                 l += 1
             if len(var)>1:
                 lst_out = list(array)
@@ -85,7 +85,7 @@ class clsPROCESS:
         if os.path.exists(filenameIN):
             fin = open(filenameIN, 'r')
         else:
-            self.cUTIL.ErrorExit("The file %s doesn't exist!!!" % filenameIN)
+            self.cUTIL.ErrorExit("\nFATAL ERROR!\nThe file %s doesn't exist!!!" % filenameIN)
 
         # test if it is ESRI ASCII file or PEST grid
         line = fin.readline().split()
@@ -105,21 +105,24 @@ class clsPROCESS:
             ncol_tmp = int(line[0])
             nrow_tmp = int(line[1])
 
+        # verify grid consistency between MODFLOW and ESRI ASCII
+        if arrayOUT.shape[0] != self.nrow or arrayOUT.shape[1] != self.ncol or self.cellsizeMF != cellsizeEsriAscii:
+            self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nMODFLOW grid anf the ESRI ASCII grid from file %s don't correspond!.\nCheck the cell size and the number of rows, columns and cellsize." % filenameIN)
+
         # Process the file
 #        print "\nConverting %s to np.array" % (filenameIN)
         for row in range(nrow_tmp):
         #   if (row % 100) == 0: print ".",
             for col in range(ncol_tmp):
                 # Get new data if necessary
-                if col == 0: line = fin.readline().split()
-                if line[col] == NODATA_value:
+                if col == 0 or linecol == len(line):
+                    line = fin.readline().split()
+                    linecol = 0
+                if line[linecol] == NODATA_value:
                     arrayOUT[row,col] = self.hnoflo
                 else:
-                    arrayOUT[row,col] = line[col]
-
-        # verify grid consistency between MODFLOW and ESRI ASCII
-        if arrayOUT.shape[0] != self.nrow or arrayOUT.shape[1] != self.ncol or self.cellsizeMF != cellsizeEsriAscii:
-            self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nMODFLOW grid anf the ESRI ASCII grid from file %s don't correspond!.\nCheck the cell size and the number of rows, columns and cellsize." % filenameIN)
+                    arrayOUT[row,col] = line[linecol]
+                linecol += 1
 
         fin.close()
         del line, fin
