@@ -236,8 +236,15 @@ class clsSOIL:
         # soil layers
 
         for l in range(nsl):
+##            # Rp
+##            Rp_tmp[l] = perc(Ssoil_tmp[l],Sm[l]*Tl[l],Sfc[l]*Tl[l], Ks[l], dt)
+##            Ssoil_tmp[l] -= Rp_tmp[l]*dt
             # Rp
-            Rp_tmp[l] = perc(Ssoil_tmp[l],Sm[l]*Tl[l],Sfc[l]*Tl[l], Ks[l], dt)
+            if l < (nsl-1):
+                if SAT[l+1] == False:
+                    Rp_tmp[l] = perc(Ssoil_tmp[l],Sm[l]*Tl[l],Sfc[l]*Tl[l],Ks[l], dt)
+            elif EXF == 0.0:
+                Rp_tmp[l] = perc(Ssoil_tmp[l],Sm[l]*Tl[l],Sfc[l]*Tl[l], Ks[l], dt)
             Ssoil_tmp[l] -= Rp_tmp[l]*dt
             # Esoil
             if Ssurf_tmp == 0.0:
