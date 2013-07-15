@@ -15,7 +15,7 @@ __author__ = "Alain P. Francés <frances08512@itc.nl>"
 __version__ = "0.3"
 __date__ = "2012"
 
-import sys, os
+import os
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
@@ -496,7 +496,6 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
             cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nThe input file [%s] doesn't exist, verify name and path!"%inputFile_IRR_TS_fn)
         try:
             IRR_TS = []
-            StartDate_f = []
             for n in range(NFIELD):
                 IRR_TS.append(data_IRR_TS[:,2+n].astype(float))
         except:

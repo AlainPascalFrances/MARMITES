@@ -15,7 +15,7 @@ __author__ = "Alain P. Francés <frances.alain@gmail.com>"
 __version__ = "0.3"
 __date__ = "2012"
 
-import sys, os, traceback
+import os
 import numpy as np
 import matplotlib as mpl
 import h5py
@@ -653,7 +653,6 @@ class clsMF():
             self.ghb_cond_array = np.zeros((self.nrow,self.ncol,self.nlay))
             self.layer_row_column_head_cond = [[]]
             for d in self.ghb_cond:
-                ghb_check = 1
                 if isinstance(d, str):
                     ghb_head_path = os.path.join(self.MF_ws, self.ghb_head[l])
                     self.ghb_head_array[:,:,l] = self.MM_PROCESS.convASCIIraster2array(ghb_head_path, self  .ghb_head_array[:,:,l])
@@ -1104,7 +1103,7 @@ class clsMF():
             if self.wel_yn == 1:
                 wel_input = wel_MM
             if self.rch_yn == 1:
-                rch_input = rch_MM
+                rch_input = finf_MM
         else:
             if self.uzf_yn == 1:
                 finf_input = self.finf_user
@@ -1223,9 +1222,9 @@ class clsMF():
                         rch_array.append(h5_rch[rch_input[1]][n])
                     h5_rch.close()
                 except:
-                    rch_array = rch_user
-                    print 'WARNING!\nNo valid RCH package file(s) provided, running MODFLOW using user-input recharge value: %.3G' % rch_user
-                    rch_input = rch_user
+                    rch_array = self.rch_user
+                    print 'WARNING!\nNo valid RCH package file(s) provided, running MODFLOW using user-input recharge value: %.3G' % self.rch_user
+                    rch_input = self.rch_user
             print "Done!"
 
         # average for 1st SS stress period
@@ -1272,7 +1271,6 @@ class clsMF():
 
         # 2 - create the modflow packages files
         print '\nMODFLOW files writing'
-        ncells_package = []
         # MFfile initialization
         mfmain = mf.modflow(modelname = self.modelname, exe_name = self.exe_name, namefile_ext = self.namefile_ext, version = self.version, model_ws = self.MF_ws)
         # dis package
@@ -1459,9 +1457,8 @@ class clsMF():
         h_MF = h5_MF['heads'][:,:,:,:]
         iuzfbnd = np.asarray(self.iuzfbnd)
         for l in range(self.nlay):
-            for t in range(len(self.perlen)):
-                mask = np.ma.make_mask(iuzfbnd == l+1)
-                h4MM[t,:,:] += h_MF[t,:,:,l]*mask
+            mask = np.ma.make_mask(iuzfbnd == l+1)
+            h4MM[:,:,:] += h_MF[:,:,:,l]*mask
         del h_MF
         h5_MF.create_dataset(name = 'heads4MM', data = h4MM)
         exf4MM = np.zeros((len(self.perlen),self.nrow,self.ncol), dtype = np.float)
@@ -1479,6 +1476,6 @@ class clsMF():
         h5_MF.close()
         # to delete MF binary files and save disk space
         if self.MFout_yn == 0:
-            os.remove(h_MF_fn)
-            os.remove(cbc_MF_fn)
-            os.remove(cbc_MFuzf_fn)
+            os.remove(self.h_MF_fn)
+            os.remove(self.cbc_MF_fn)
+            os.remove(self.cbc_MFuzf_fn)

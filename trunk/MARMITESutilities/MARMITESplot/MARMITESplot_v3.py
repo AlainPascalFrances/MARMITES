@@ -7,8 +7,9 @@ __date__ = "2012"
 import os
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import subprocess as sp
 import numpy as np
-import itertools
+import itertools, shutil
 
 def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, EXF, ETg, Es, MB, MB_l, dgwt, uzthick, SAT, R, h_MF, h_MF_corr, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin, obs_name, elev, nlay):
     """
@@ -270,7 +271,6 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S,
         ybuffer = 1.0
     plt.ylim((hmin - ybuffer, hmax + ybuffer))
     plt.ylabel('m', fontsize=10)
-    leg_lbl = ''
     if obs_leg == None:
         lbl_h.append(r'h_MF_corr')
         lbl_h.append(r'h_SF')
@@ -601,7 +601,6 @@ def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, hmax
         ax10.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2G'))
         ax10.xaxis.set_major_formatter(monthsFmt)
 
-
     plt.subplots_adjust(left=0.10, bottom=0.10, right=0.95, top=0.95, wspace=0.1, hspace=0.1)
     plt.savefig(plt_export_fn,dpi=150)
 #    plt.show()
@@ -610,10 +609,23 @@ def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, hmax
 
 ##################
 
-def plotLAYER(timestep, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_title, MM_ws, interval_type = 'arange', interval_diff = 1, interval_num = 1, Vmax = 0, Vmin = 0, fmt = '%.2f', contours = False, ntick = 1, axisbg = 'silver', points  = None):
-
+def plotLAYER(timesteps, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_title, MM_ws, interval_type = 'arange', interval_diff = 1, interval_num = 1, Vmax = 0, Vmin = 0, fmt = '%.2f', contours = False, ntick = 1, axisbg = 'silver', points  = None, mask = None, hnoflo = -999.9, animation = 0):
 
     # TODO put option to select axes tick as row/col index from MODFLOW or real coordinates (in this last case create it)
+
+    def MinMax(min_, max_, ctrs_):
+        if max_ == min_:
+            if max_ < 10E-9:
+                max_ = 1.0
+                min_ = -1.0
+            else:
+                max_ *= 1.15
+                min_ *= 0.85
+            ctrs_ = False
+        else:
+            ctrs_ = ctrs_
+        return min_, max_, ctrs_
+
     # Store some arrays for plotting
     x = np.arange(0.5, ncol+1.5, 1)
     y = np.arange(0.5, nrow+1.5, 1)
@@ -623,79 +635,95 @@ def plotLAYER(timestep, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg
     y = np.arange(1, nrow+1, 1)
     xg1,yg1 = np.meshgrid(x,y)
 
-    ax = []
-    fig = plt.figure(num=None, figsize=(11.7, 8.27), dpi=30)
-    if isinstance(Date, float):
-        fig.suptitle(plt_title + '\nDay %s, DOY %s, time step %s days' % (mpl.dates.num2date(Date).isoformat()[:10], JD, timestep+1))
-    else:
-        fig.suptitle(plt_title)
-    CB_test = False
-    for L in range(nplot):
-        if interval_type == 'arange':
-            ticks = np.arange(Vmin,Vmax,interval_diff)
-        elif interval_type == 'linspace':
-            ticks = np.linspace(Vmin,Vmax,interval_num)
-        ax.append(fig.add_subplot(1,nlay,L+1, axisbg = axisbg))
-        plt.setp(ax[L].get_xticklabels(), fontsize=8)
-        plt.setp(ax[L].get_yticklabels(), fontsize=8)
-        plt.ylabel('row i', fontsize=10)
-        plt.grid(True)
-        plt.xlabel('col j', fontsize=10)
-        ax[L].xaxis.set_ticks(np.arange(0,ncol+1,ntick))
-        ax[L].yaxis.set_ticks(np.arange(0,nrow+1,ntick))
-        if np.ma.max(V[L])>np.ma.min(V[L]):
-            CB_test = True
-            PC = plt.pcolormesh(xg, yg, V[L], cmap = cmap, vmin = Vmin, vmax = Vmax)
-            plt.title('layer ' + str(L+1), fontsize = 10)
+    ims = []
+    files_tmp = []
+    for i, day in enumerate(timesteps):
+        ax= []
+        fig = plt.figure(num=None, figsize=(11.7, 8.27), dpi=30)
+        figtitle = fig.suptitle('')
+        ims.append([])
+        if isinstance(Date[i], float):
+            figtitle.set_text(plt_title + '\nDay %s, DOY %s, time step %s' % (mpl.dates.num2date(Date[i]).isoformat()[:10], JD[i], day+1))
         else:
-            PC1 = plt.pcolormesh(xg, yg, V[L], cmap = cmap, vmin = Vmin, vmax = Vmax)
-            plt.title('layer ' + str(L+1) + ' ' + msg, fontsize = 10)
-        if contours == True:
-            CS = plt.contour(xg1, yg1[::-1], V[L][::-1], ticks, colors = 'gray')
-            plt.clabel(CS, inline=1, fontsize = 6, fmt=fmt, colors = 'gray')
-        plt.ylim(plt.ylim()[::-1])
-        plt.axis('scaled')
-        if points <> None:
-            for k, (xj,yi,lay, label) in enumerate(zip(points[2],points[1],points[3],points[0])):
-                if lay == L:
-                    color = 'dimgrey'
-                else:
-                    color = 'lightgrey'
-                plt.plot(xj, yi, 'o', linewidth=1, markersize = 6, color = color)
-                plt.annotate(label, xy = (xj, yi))
-    if CB_test == True:
-        val = PC
-    else:
-        val = PC1
-    if max(x) > max(y):
-        cax = fig.add_axes([.125, 0.035, 0.75, 0.025])
-        CBorient = 'horizontal'
-    else:
-        cax = fig.add_axes([0.035, 0.125, 0.025, 0.75])
-        CBorient = 'vertical'
-    CB = fig.colorbar(val, extend='both', ticks = ticks, format = fmt, cax = cax,  orientation = CBorient)
-    CB.set_label(CBlabel, fontsize = 12)
-    if max(x) > max(y):
-        cax.xaxis.set_label_position('top')
-        plt.setp(CB.ax.get_xticklabels(), fontsize = 7)
-    else:
-        cax.yaxis.set_label_position('left')
-        plt.setp(CB.ax.get_yticklabels(), fontsize = 7)
-    del val
-    if isinstance(Date, float):
-        plt_export_fn = os.path.join(MM_ws, '_plt_' + plt_title + '_timestep%05d' + '.png') % (timestep+1)
-    else:
-        plt_export_fn = os.path.join(MM_ws, '_plt_' + plt_title + '.png')
-    plt.savefig(plt_export_fn)
-    plt.clf()
-    plt.close('all')
-    del fig, ax, timestep, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_title, MM_ws, interval_type, interval_diff, interval_num, Vmax, Vmin, fmt
+            figtitle.set_text(plt_title)
+        plt.draw()
+        for L in range(nplot):
+            if mask == None:
+                Vtmp = V[i,:,:,L]
+            else:
+                Vtmp = np.ma.masked_array(V[i,:,:,L], mask[:,:,L])
+            Vtmp = np.ma.masked_values(Vtmp, hnoflo, atol = 0.09)
+            Vmin_tmp, Vmax_tmp, ctrs_tmp = MinMax(Vmin[i], Vmax[i], contours)
+            if interval_type == 'arange':
+                ticks = np.arange(Vmin_tmp,Vmax_tmp,interval_diff)
+            elif interval_type == 'linspace':
+                ticks = np.linspace(Vmin_tmp,Vmax_tmp,interval_num)
+            ax.append(fig.add_subplot(1,nlay,L+1, axisbg = axisbg))
+            ax[L].xaxis.set_ticks(np.arange(0,ncol+1,ntick))
+            ax[L].yaxis.set_ticks(np.arange(0,nrow+1,ntick))
+            plt.setp(ax[L].get_xticklabels(), fontsize=8)
+            plt.setp(ax[L].get_yticklabels(), fontsize=8)
+            plt.ylabel('row i', fontsize=10)
+            plt.xlabel('col j', fontsize=10)
+            if points <> None:
+                for k, (xj,yi,lay, label) in enumerate(zip(points[2],points[1],points[3],points[0])):
+                    if lay == L:
+                        color = 'dimgrey'
+                    else:
+                        color = 'lightgrey'
+                    ax[L].plot(xj, yi, 'o', linewidth=1, markersize = 6, color = color)
+                    ax[L].annotate(label, xy = (xj, yi))
+            ims[i].append(ax[L].pcolormesh(xg, yg, Vtmp, cmap = cmap, vmin = Vmin_tmp, vmax = Vmax_tmp))
+            if ctrs_tmp == True:
+                CS = ax[L].contour(xg1, yg1[::-1], Vtmp[::-1], ticks, colors = 'gray')
+                plt.draw()
+                ax[L].clabel(CS, inline=1, fontsize = 6, fmt=fmt, colors = 'gray')
+            if np.ma.max(Vtmp)>np.ma.min(Vtmp):
+                ax[L].set_title('layer ' + str(L+1), fontsize = 10)
+            else:
+                ax[L].set_title('layer ' + str(L+1) + ' ' + msg, fontsize = 10)
+            ax[L].set_ylim(bottom = np.max(yg1), top = np.min(yg1))
+            ax[L].axis('scaled')
+        if max(x) > max(y):
+            cax = fig.add_axes([.125, 0.035, 0.75, 0.025])
+            CBorient = 'horizontal'
+        else:
+            cax = fig.add_axes([0.035, 0.125, 0.025, 0.75])
+            CBorient = 'vertical'
+        CB = fig.colorbar(ims[i][0], extend='both', ticks = ticks, format = fmt, cax = cax,  orientation = CBorient)
+        CB.set_label(CBlabel, fontsize = 12)
+        if max(x) > max(y):
+            cax.xaxis.set_label_position('top')
+            plt.setp(CB.ax.get_xticklabels(), fontsize = 7)
+        else:
+            cax.yaxis.set_label_position('left')
+            plt.setp(CB.ax.get_yticklabels(), fontsize = 7)
+        if isinstance(Date[i], float):
+            plt_export_fn = os.path.join(MM_ws, '_plt_%s_timestep%05d.png' % (plt_title, day+1))
+        else:
+            plt_export_fn = os.path.join(MM_ws, '_plt_%s.png' % plt_title)
+        plt.savefig(plt_export_fn)
+        if len(timesteps)>1 and animation == 1:
+            files_tmp.append(os.path.join(MM_ws,'%05d.png'%(i+1)))
+            shutil.copyfile(plt_export_fn, files_tmp[i])
+        for L in range(nplot):
+            ax[L].cla()
 
-##    #Make a cross-sectional figure of layers 1, 2, and 10
-##    plt.figure()
-##    plt.plot(xg[0,:],valg[:,50,0],label='Top layer')
-##    plt.plot(xg[0,:],valg[:,50,1],label='Second layer')
-##    plt.legend(loc='best')
+    if len(timesteps)>1 and animation == 1:
+        batch_fn = os.path.join(MM_ws, 'run.bat')
+        f = open(batch_fn, 'w')
+        f.write('ffmpeg -r 1 -i %s -s:v 1280x720 -c:v libx264 -profile:v high -crf 23 -pix_fmt yuv420p -r 30 %s_mov.mp4' % ('%s\%%%%05d.png' % (MM_ws),'%s\_plt_%s' % (MM_ws,plt_title)))
+        f.close()
+        run_report_fn = os.path.join(MM_ws, '_RunReport.txt')
+        run_report = open(run_report_fn, 'w')
+        sp.Popen(batch_fn, shell=False, stdout = run_report, stderr = run_report).wait()
+        run_report.close()
+        os.remove(batch_fn)
+        for f in files_tmp:
+            os.remove(f)
+    plt.close('all')
+
+    del fig, ax, timesteps, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_title, MM_ws, interval_type, interval_diff, interval_num, Vmax, Vmin, Vmax_tmp, Vmin_tmp, fmt
 
 ##################
 

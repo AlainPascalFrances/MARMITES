@@ -7,8 +7,6 @@ __date__ = "2012"
 import os
 import numpy as np
 import matplotlib as mpl
-import sys
-import MARMITESutilities as MMutil
 
 class clsPROCESS:
     def __init__(self, cUTIL, MM_ws, MM_ws_out, MF_ws, nrow, ncol, xllcorner, yllcorner, cellsizeMF, hnoflo):
@@ -111,6 +109,7 @@ class clsPROCESS:
 
         # Process the file
 #        print "\nConverting %s to np.array" % (filenameIN)
+        linecol = 0
         for row in range(nrow_tmp):
         #   if (row % 100) == 0: print ".",
             for col in range(ncol_tmp):
@@ -132,7 +131,7 @@ class clsPROCESS:
 
     ######################
 
-    def procMF(self, cMF, h5_MF, ds_name, ds_name_new, conv_fact, index = 0):
+    def procMF(self, cMF, h5_MF, ds_name, ds_name_new, conv_fact = 1.0, index = 0):
 
         # cbc format is : (kstp), kper, textprocess, nrow, ncol, nlay
         t = 0
@@ -146,7 +145,7 @@ class clsPROCESS:
                         else:
                             array_tmp = h5_MF[ds_name][n,:,:,index,:]
                             if cMF.reggrid == 1 and ds_name != 'heads':
-                                h5_MF[ds_name_new][t,:,:,:] = conv_fact*array_tmp[:,:,:]/(cMF.delr[0]*cMF.delc[0])
+                                h5_MF[ds_name_new][t,:,:,:] = conv_fact*array_tmp/(cMF.delr[0]*cMF.delc[0])
                             else:
                                 for i in range(cMF.nrow):
                                     for j in range(cMF.ncol):
@@ -159,7 +158,7 @@ class clsPROCESS:
                     else:
                         array_tmp = h5_MF[ds_name][n,:,:,index,:]
                         if cMF.reggrid == 1:
-                            h5_MF[ds_name_new][t,:,:,:] = conv_fact*array_tmp[:,:,:]/(cMF.delr[0]*cMF.delc[0])
+                            h5_MF[ds_name_new][t,:,:,:] = conv_fact*array_tmp/(cMF.delr[0]*cMF.delc[0])
                         else:
                             for i in range(cMF.nrow):
                                 for j in range(cMF.ncol):
@@ -172,12 +171,33 @@ class clsPROCESS:
             else:
                 array_tmp = h5_MF[ds_name][:,:,:,index,:]
                 if cMF.reggrid == 1:
-                    h5_MF[ds_name_new][:,:,:,:] = array_tmp[:,:,:]/(cMF.delr[0]*cMF.delc[0])
+                    h5_MF[ds_name_new] = conv_fact*array_tmp/(cMF.delr[0]*cMF.delc[0])
                 else:
                     for i in range(cMF.nrow):
                         for j in range(cMF.ncol):
                             h5_MF[ds_name_new][:,i,j,:] = conv_fact*array_tmp[i,j,:]/(cMF.delr[j]*cMF.delc[i])
                     del array_tmp
+
+    ######################
+
+    def procMM(self, cMF, h5_MM, ds_name, ds_name_new, conv_fact = 1.0):
+
+        t = 0
+        h5_MM.create_dataset(name = ds_name_new, data = np.zeros((sum(cMF.perlen), cMF.nrow, cMF.ncol)))
+        if cMF.timedef>=0:
+            for n in range(cMF.nper):
+                array_tmp = h5_MM[ds_name][n,:,:]
+                if cMF.perlen[n] != 1:
+                    for x in range(cMF.perlen[n]):
+                        h5_MM[ds_name_new][t,:,:] = conv_fact*array_tmp
+                        t += 1
+                else:
+                    h5_MM[ds_name_new][t,:,:] = conv_fact*array_tmp
+                    t += 1
+        else:
+            array_tmp = h5_MM[ds_name]
+            h5_MM[ds_name_new] = conv_fact*array_tmp
+        del array_tmp
 
     ######################
 
@@ -372,11 +392,11 @@ class clsPROCESS:
                 Ks[z].append(float(inputFile[nslst]))
                 nslst += 1
                 if not(Sm[z][ns]>Sfc[z][ns]>Sr[z][ns]) or not(Sm[z][ns]>=Si[z][ns]>=Sr[z][ns]):
-                    ErrorExit.main('\nFATAL ERROR!\nSoils parameters are not valid!\nThe conditions are Sm>Sfc>Sr and Sm>Si>Sr!')
+                    self.cUTIL.ErrorExit.main('\nFATAL ERROR!\nSoils parameters are not valid!\nThe conditions are Sm>Sfc>Sr and Sm>Si>Sr!')
             if sum(slprop[z][0:nsl[z+1]])>1:
-                ErrorExit.main('\nFATAL ERROR!\nThe sum of the soil layers proportion of %s is >1!\nCorrect your soil data input!\n' % nam_soil[z])
+                self.cUTIL.ErrorExit.main('\nFATAL ERROR!\nThe sum of the soil layers proportion of %s is >1!\nCorrect your soil data input!\n' % nam_soil[z])
             if sum(slprop[z][0:nsl[z+1]])<1:
-                ErrorExit.main('\nFATAL ERROR!\nThe sum of the soil layers proportion of %s is <1!\nCorrect your soil data input!\n' % nam_soil[z])
+                self.cUTIL.ErrorExit.main('\nFATAL ERROR!\nThe sum of the soil layers proportion of %s is <1!\nCorrect your soil data input!\n' % nam_soil[z])
 
         return nsl[1:len(nsl)], nam_soil, st, slprop, Sm, Sfc, Sr, Si, Ks
         del nsl, nam_soil, st, slprop, Sm, Sfc, Sr, Si, Ks

@@ -111,12 +111,12 @@ class clsSOIL:
             '''
             if s_tmp > Sm:
                 Ssurf_tmp = s_tmp-Sm
-                if (Ssurf_tmp - Ssurf_max) > -1.0E-7:
+                if (Ssurf_tmp - Ssurf_max) > 1.0E-7:
                     Ro_tmp = (Ssurf_tmp - Ssurf_max)/dt
                     Ssurf_tmp = Ssurf_max
                 else:
                     Ro_tmp = 0.0
-                if (Ssurf_tmp - E0) > -1.0E-7:
+                if (Ssurf_tmp - E0) > 1.0E-7:
                     Esurf_tmp = E0
                     Ssurf_tmp = Ssurf_tmp - E0*dt
                 else:
@@ -136,14 +136,14 @@ class clsSOIL:
             '''
             if (s_tmp - Sfc) < 1.0E-7:
                 rp_tmp = 0.0
-            elif (s_tmp - Sfc) > -1.0E-7 and (s_tmp - Sm) < -1.0E-7:
+            elif (s_tmp - Sfc) > 1.0E-7 and (s_tmp - Sm) < 1.0E-7:
                 Sg = (s_tmp-Sfc)/(Sm-Sfc) # gravitational water
                 if (Ks*Sg*dt) - (s_tmp-Sfc) > 1.0E-7:
                     rp_tmp = (s_tmp-Sfc)/dt
                 else:
                     rp_tmp = Ks*Sg
-            elif (s_tmp - Sm) > -1.0E-7:
-                if (Ks*dt) - (Sm-Sfc) > -1.0E-7:
+            elif (s_tmp - Sm) > 1.0E-7:
+                if (Ks*dt) - (Sm-Sfc) > 1.0E-7:
                     rp_tmp = (Sm-Sfc)/dt
                 else:
                     rp_tmp = Ks
@@ -157,14 +157,14 @@ class clsSOIL:
             '''
             if (s_tmp - Sr) < 1.0E-7:
                 evp_tmp = 0.0
-            elif ((s_tmp - Sr) > -1.0E-7) and (s_tmp - Sm) < 1.0E-7:
+            elif ((s_tmp - Sr) > 1.0E-7) and (s_tmp - Sm) < 1.0E-7:
                 Se = (s_tmp - Sr)/(Sm - Sr)
-                if (pet*Se*dt - (s_tmp - Sr)) > -1.0E-7:
+                if (pet*Se*dt - (s_tmp - Sr)) > 1.0E-7:
                     evp_tmp = (s_tmp - Sr)/dt
                 else:
                     evp_tmp = pet*Se
             elif (s_tmp - Sr) > 1.0E-7:
-                if (pet*dt-(Sm - Sr)) > -1.0E-7:
+                if (pet*dt-(Sm - Sr)) > 1.0E-7:
                     evp_tmp = (Sm - Sr)/dt
                 else:
                     evp_tmp = pet
@@ -192,12 +192,13 @@ class clsSOIL:
 
         # GW EXF
         Ssoil_tmp[nsl-1] += EXF*dt
+        # TODO verify if the *dt above dt is correct
 
         # SOIL EXF
         llst = range(nsl)
         llst.reverse()
         for l in llst[:-1]:
-            if (Ssoil_tmp[l] - (Sm[l]*Tl[l])) > -1.0E-7:
+            if (Ssoil_tmp[l] - (Sm[l]*Tl[l])) > 1.0E-7:
                 Rexf_tmp[l] += Ssoil_tmp[l] - Sm[l]*Tl[l]
                 Ssoil_tmp[l-1] += Rexf_tmp[l]
                 Ssoil_tmp[l] = Sm[l]*Tl[l]
@@ -207,7 +208,7 @@ class clsSOIL:
         dgwt_corr = dgwt * 1.0
         if EXF > 0.0:
             for l in llst:
-                if (Ssoil_tmp[l] - (Sm[l]*Tl[l])) > -1.0E-7:
+                if (Ssoil_tmp[l] - (Sm[l]*Tl[l])) > 1.0E-7:
                     HEADS_corr += Tl[l]
                     dgwt_corr -= Tl[l]
                     SAT[l] = True
@@ -246,9 +247,9 @@ class clsSOIL:
                     PE -= Esoil_tmp[l]
             # Tsoil
             for v in range(NVEG):
-                if PT[v] > -1.0E-7:
-                    if LAIveg[v] > -1.0E-7:
-                        if VEGarea[v] > -1.0E-7:
+                if PT[v] > 1.0E-7:
+                    if LAIveg[v] > 1.0E-7:
+                        if VEGarea[v] > 1.0E-7:
                             if BotSoilLay[l] > Zr_elev[v]:
                                 Tsoil_tmpZr[l,v] = evp(Ssoil_tmp[l],Sm[l]*Tl[l], Sr[l]*Tl[l], PT[v], dt)
                             elif TopSoilLay[l] > Zr_elev[v] :
@@ -358,14 +359,13 @@ class clsSOIL:
                 h_MF       = h5_MF['heads4MM'][tstart_MF:tend_MF,:,:]
             if cMF.uzf_yn == 1:
                 if exf_MF == None:
-                    exf_MF = h5_MF['exf4MM'][tstart_MF:tend_MF,:,:]*conv_fact/(cMF.delr[j]*cMF.delc[i])
+                    exf_MF = h5_MF['exf4MM'][tstart_MF:tend_MF,:,:]*conv_fact/(cMF.delr[0]*cMF.delc[0])
             # loop into the grid
             for i in range(cMF.nrow):
                 for j in range(cMF.ncol):
                     if cMF.iuzfbnd[i][j] != 0.0:
                         SOILzone_tmp = gridSOIL[i,j]-1
                         METEOzone_tmp = gridMETEO[i,j]-1
-                        _layer = cMF.iuzfbnd[i][j] - 1
                         slprop = _slprop[SOILzone_tmp]
                         nsl = _nsl[SOILzone_tmp]
                         # thickness of soil layers
@@ -538,7 +538,7 @@ class clsSOIL:
                                 kTu_min_tmp = kTu_min_tmp[:]
                                 kTu_n_tmp = kTu_n_tmp[:]
                             for v in range(NVEG_tmp):
-                                if LAIveg_tmp[v,t] > -1.0E-7:
+                                if LAIveg_tmp[v,t] > 1.0E-7:
                                     RFe_tot[t] += RFe[v,t]*VEGarea_tmp[v]*0.01
                                     PT_tot[t]  += PT[v,t]*VEGarea_tmp[v]*0.01
                                     SOILarea   -= VEGarea_tmp[v]

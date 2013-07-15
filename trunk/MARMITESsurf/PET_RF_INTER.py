@@ -67,9 +67,8 @@ def PET_PM_FAO56():
     return
 
 import numpy as np
-import tempfile, os
+import tempfile
 import matplotlib as mpl
-import matplotlib.pyplot as plt
 
 '''
     ================================================================

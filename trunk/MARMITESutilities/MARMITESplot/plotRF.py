@@ -11,7 +11,6 @@
 #!/usr/bin/env python
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-import sys
 import CreateColors
 
 def plot(x, y1, \
