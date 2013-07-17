@@ -11,7 +11,7 @@ import subprocess as sp
 import numpy as np
 import itertools, shutil
 
-def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, EXF, ETg, Es, MB, MB_l, dgwt, uzthick, SAT, R, h_MF, h_MF_corr, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin, obs_name, elev, nlay):
+def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S, dS, Spc, Rp, EXF, ETg, Es, MB, MB_l, dgwt, uzthick, SAT, R, h_MF, h_MF_corr, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin, obs_name, elev, nlay):
     """
     Plot the time serie of the fluxes observed at one point of the catchment
     Use Matplotlib
@@ -24,8 +24,8 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S,
                 PT              Daily potential transpiration
                 PE              Daily potential evaporation
                 Pe              Daily Excess rainfall
-                Eu              Daily evaporation (bare soil)
-                Tu              Daily transpiration
+                Esoil           Daily evaporation (bare soil)
+                Tsoil           Daily transpiration
                 S               Daily soil moisture
                 Rp              Daily percolation
                 POND            Daily ponding
@@ -45,27 +45,27 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S,
 
     fig.suptitle(plt_title)
 
-    nsl = len(Tu[0])
+    nsl = len(Tsoil[0])
     lbl_Spc = []
     lbl_Spcfull = []
     lbl_S = []
     lbl_dS = []
     lbl_Sobs = []
     lbl_Rp = []
-    lbl_Eu = []
-    lbl_Tu = []
+    lbl_Esoil = []
+    lbl_Tsoil = []
     lbl_SAT = []
     lbl_MB =[]
-    lbl_Eu.append('PE')
-    lbl_Eu.append('E_tot')
-    lbl_Eu.append('Eu_tot')
-    lbl_Tu.append('PT')
-    lbl_Tu.append('T_tot')
-    lbl_Tu.append('Tu_tot')
-    lbl_MB.append('MB')
+    lbl_Esoil.append('$PE$')
+    lbl_Esoil.append('$E_{tot}$')
+    lbl_Esoil.append('$(E_{soil})_{tot}$')
+    lbl_Tsoil.append('$PT$')
+    lbl_Tsoil.append('$T_{tot}$')
+    lbl_Tsoil.append('$(T_{soil})_{tot}$')
+    lbl_MB.append('$MB$')
     Sobs_m = []
-    Eu1 = []
-    Tu1 = []
+    Esoil1 = []
+    Tsoil1 = []
     dS1 = []
     S1 = []
     Rp1 = []
@@ -74,18 +74,18 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S,
     SAT1 = []
     MB_l1 = []
     for l in range(nsl):
-        lbl_Spcfull.append('Su_l'+str(l+1))
-        lbl_S.append('Su_l'+str(l+1))
-        lbl_dS.append(r'$\Delta$Su_l'+str(l+1))
-        lbl_Eu.append('Eu_l'+str(l+1))
-        lbl_Tu.append('Tu_l'+str(l+1))
+        lbl_Spcfull.append(r'$Ssoil_{l%d}$'%(l+1))
+        lbl_S.append(r'$Ssoil_{l%d}$'%(l+1))
+        lbl_dS.append(r'$\{Delta}Ssoil_{l%d}$'%(l+1))
+        lbl_Esoil.append('Esoil_l'+str(l+1))
+        lbl_Tsoil.append('Tsoil_l'+str(l+1))
         lbl_SAT.append('l'+str(l+1))
         lbl_MB.append('MB_l'+str(l+1))
         lbl_Spc.append('Su_l'+str(l+1))
         lbl_Rp.append('Rp_l'+str(l+1))
         Spc1full.append(Spc[:,l])
-        Eu1.append(Eu[:,l])
-        Tu1.append(Tu[:,l])
+        Esoil1.append(Esoil[:,l])
+        Tsoil1.append(Tsoil[:,l])
         dS1.append(dS[:,l])
         S1.append(S[:,l])
         SAT1.append(SAT[:,l])
@@ -94,13 +94,13 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S,
         Rp1.append(Rp[:,l])
         try:
             Sobs_m.append(np.ma.masked_values(Sobs[l], hnoflo, atol = 0.09))
-            lbl_Sobs.append('Su_l'+str(l+1)+'_obs')
+            lbl_Sobs.append('$\Theta_l'+str(l+1)+'_obs')
         except:
             Sobs_m.append([])
     del dS, S, SAT, MB_l
     del Rp, Spc
-    Eu1 = np.asarray(Eu1)
-    Tu1 = np.asarray(Tu1)
+    Esoil1 = np.asarray(Esoil1)
+    Tsoil1 = np.asarray(Tsoil1)
     dS1 = np.asarray(dS1)
     S1 = np.asarray(S1)
     Rp1 = np.asarray(Rp1)
@@ -110,8 +110,8 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S,
     lbl_Rp.append('R')
     lbl_Rp.append('ETg')
     lbl_Rp.append('EXF')
-    lbl_Tu.append('Tg')
-    lbl_Eu.append('Eg')
+    lbl_Tsoil.append('Tg')
+    lbl_Esoil.append('Eg')
 
     ax1=fig.add_subplot(10,1,1)
     plt.setp(ax1.get_xticklabels(), visible=False)
@@ -145,23 +145,23 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S,
     ax2.xaxis.set_major_formatter(monthsFmt)
     ax2.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2G'))
 
-    Eu_tot = []
-    for e in Eu:
-        Eu_tot.append(e.sum())
-    Eu_tot = np.asarray(Eu_tot)
-    E_tot = Eu_tot + Eg
-    del Eu
+    Esoil_tot = []
+    for e in Esoil:
+        Esoil_tot.append(e.sum())
+    Esoil_tot = np.asarray(Esoil_tot)
+    E_tot = Esoil_tot + Eg
+    del Esoil
     ax3=fig.add_subplot(10,1,3, sharex=ax1)
     plt.setp(ax3.get_xticklabels(), visible=False)
     plt.setp(ax3.get_yticklabels(), fontsize=8)
     plt.plot_date(DateInput,PE,'-', color='lightblue', linewidth=3)
     plt.plot_date(DateInput,E_tot,'-', color='darkblue', linewidth=1.5)
-    plt.plot_date(DateInput,Eu_tot,'-.', color=colors_nsl[len(colors_nsl)-1])
-    for l, (y, color, lbl) in enumerate(zip(Eu1, colors_nsl, lbl_Eu[2:len(lbl_Eu)])):
+    plt.plot_date(DateInput,Esoil_tot,'-.', color=colors_nsl[len(colors_nsl)-1])
+    for l, (y, color, lbl) in enumerate(zip(Esoil1, colors_nsl, lbl_Esoil[2:len(lbl_Esoil)])):
         ax3.plot_date(DateInput, y, '-', color=color, label=lbl)
     plt.plot_date(DateInput,Eg,'-', color='blue')
     plt.xlim(DateInput[0]-1,DateInput[len(DateInput)-1]+1)
-    plt.legend(lbl_Eu, loc=0, labelspacing=lblspc, markerscale=mkscale)
+    plt.legend(lbl_Esoil, loc=0, labelspacing=lblspc, markerscale=mkscale)
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8)
@@ -170,23 +170,23 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S,
     ax3.xaxis.set_major_formatter(monthsFmt)
     ax3.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2G'))
 
-    Tu_tot = []
-    for t in Tu:
-        Tu_tot.append(t.sum())
-    Tu_tot = np.asarray(Tu_tot)
-    T_tot = Tu_tot + Tg
-    del Tu
+    Tsoil_tot = []
+    for t in Tsoil:
+        Tsoil_tot.append(t.sum())
+    Tsoil_tot = np.asarray(Tsoil_tot)
+    T_tot = Tsoil_tot + Tg
+    del Tsoil
     ax4=fig.add_subplot(10,1,4, sharex=ax1)
     plt.setp(ax4.get_xticklabels(), visible=False)
     plt.setp(ax4.get_yticklabels(), fontsize=8)
     plt.plot_date(DateInput,PT,'-', color='lightblue', linewidth=3)
     plt.plot_date(DateInput,T_tot,'-', color='darkblue',  linewidth=1.5)
-    plt.plot_date(DateInput,Tu_tot,'-.', color=colors_nsl[len(colors_nsl)-1])
-    for l, (y, color, lbl) in enumerate(zip(Tu1, colors_nsl, lbl_Tu[2:len(lbl_Tu)])):
+    plt.plot_date(DateInput,Tsoil_tot,'-.', color=colors_nsl[len(colors_nsl)-1])
+    for l, (y, color, lbl) in enumerate(zip(Tsoil1, colors_nsl, lbl_Tsoil[2:len(lbl_Tsoil)])):
         ax4.plot_date(DateInput, y, '-', color=color, label=lbl)
     plt.plot_date(DateInput,Tg,'-', color='blue')
     plt.xlim(DateInput[0]-1,DateInput[len(DateInput)-1]+1)
-    plt.legend(lbl_Tu, loc=0, labelspacing=lblspc, markerscale=mkscale)
+    plt.legend(lbl_Tsoil, loc=0, labelspacing=lblspc, markerscale=mkscale)
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8 )
@@ -415,7 +415,7 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S,
 #    plt.show()
     plt.clf()
     plt.close('all')
-    del fig, DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu1, Tu1, Eg, Tg, S1, dS1, Spc1, Rp1, EXF, R, ETg, Es, MB, h_MF, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin
+    del fig, DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil1, Tsoil1, Eg, Tg, S1, dS1, Spc1, Rp1, EXF, R, ETg, Es, MB, h_MF, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin
 
 ##################
 

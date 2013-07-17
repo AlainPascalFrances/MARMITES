@@ -427,7 +427,7 @@ else:
                                 )
 
 # SOIL PARAMETERS
-_nsl, _nam_soil, _st, _slprop, _Sm, _Sfc, _Sr, _Su_ini, _Ks = cMF.MM_PROCESS.inputSoilParam(SOILparam_fn = SOILparam_fn, NSOIL = NSOIL)
+_nsl, _nam_soil, _st, _slprop, _Sm, _Sfc, _Sr, _S_ini, _Ks = cMF.MM_PROCESS.inputSoilParam(SOILparam_fn = SOILparam_fn, NSOIL = NSOIL)
 _nslmax = max(_nsl)
 for l in range(NSOIL):
     _slprop[l] = np.asarray(_slprop[l])
@@ -774,7 +774,7 @@ if MMsoil_yn > 0:
         print'\n##############'
         print 'MARMITESsoil RUN'
         # SOIL PARAMETERS
-        _nsl, _nam_soil, _st, _slprop, _Sm, _Sfc, _Sr, _Su_ini, _Ks = cMF.MM_PROCESS.inputSoilParam(SOILparam_fn = SOILparam_fn, NSOIL = NSOIL)
+        _nsl, _nam_soil, _st, _slprop, _Sm, _Sfc, _Sr, _S_ini, _Ks = cMF.MM_PROCESS.inputSoilParam(SOILparam_fn = SOILparam_fn, NSOIL = NSOIL)
         _nslmax = max(_nsl)
         for l in range(NSOIL):
             _slprop[l] = np.asarray(_slprop[l])
@@ -785,7 +785,7 @@ if MMsoil_yn > 0:
 #        t0=0
         print '\nComputing...'
         if irr_yn == 0:
-            MM_SOIL.run(_nsl, _nslmax, _st, _Sm, _Sfc, _Sr, _slprop, _Su_ini, botm_l0, _Ks,
+            MM_SOIL.run(_nsl, _nslmax, _st, _Sm, _Sfc, _Sr, _slprop, _S_ini, botm_l0, _Ks,
                           gridSOIL, gridSOILthick, cMF.elev*1000.0, gridMETEO,
                           index, index_S, gridSsurfhmax, gridSsurfw,
                           RF_veg_zoneSP, E0_zonesSP, PT_veg_zonesSP, RFe_veg_zonesSP, PE_zonesSP, gridVEGarea,
@@ -793,7 +793,7 @@ if MMsoil_yn > 0:
                           cMF, conv_fact, h5_MF, h5_MM, irr_yn
                           )
         else:
-            MM_SOIL.run(_nsl, _nslmax, _st, _Sm, _Sfc, _Sr, _slprop, _Su_ini, botm_l0, _Ks,
+            MM_SOIL.run(_nsl, _nslmax, _st, _Sm, _Sfc, _Sr, _slprop, _S_ini, botm_l0, _Ks,
                           gridSOIL, gridSOILthick, cMF.elev*1000.0, gridMETEO,
                           index, index_S, gridSsurfhmax, gridSsurfw,
                           RF_veg_zoneSP, E0_zonesSP, PT_veg_zonesSP, RFe_veg_zonesSP, PE_zonesSP, gridVEGarea,
@@ -1258,8 +1258,8 @@ if plt_out == 1 or plt_out_obs == 1:
         except:
             cUTIL.ErrorExit('\nFATAL ERROR!\nInvalid MARMITES HDF5 file. Run MARMITES and/or MODFLOW again.')
         # indexes of the HDF5 output arrays
-        #  index = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iEXF':6, 'iEs':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSs':13, 'iETg':14, 'iETu':15, 'iSu_pc':16, 'idSu':17, 'iinf':18, 'iHEADScorr':19, 'idgwt':20, 'iuzthick':21}
-        # index_S = {'iEu':0, 'iTu':1,'iSu_pc':2, 'iRp':3, 'iRexf':4, 'idSu':5, 'iSu':6, 'iSAT':7, 'iMB_l':8}
+        #  index = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSsurf':4, 'iRo':5, 'iEXF':6, 'iEsurf':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSsurf':13, 'iETg':14, 'iETsoil':15, 'iSsoil_pc':16, 'idSsoil':17, 'iinf':18, 'iHEADScorr':19, 'idgwt':20, 'iuzthick':21}
+        # index_S = {'iEsoil':0, 'iTsoil':1,'iSsoil_pc':2, 'iRp':3, 'iRexf':4, 'idSsoil':5, 'iSsoil':6, 'iSAT':7, 'iMB_l':8}
         flxlbl       = ['RF', 'I', 'RFe', 'dSsurf', 'Ro', 'Esurf', 'dSsoil', 'EXF']
         flxlbl1      = ['Esoil', 'Tsoil']
         flxlbl2      = ['ETsoil', 'Eg']
@@ -1389,7 +1389,7 @@ if plt_out == 1 or plt_out_obs == 1:
         # TODO delete next line after resolving MB_MM error and uncomment the previous one
         #MB_MM = InMM - OutMM
         # ADD SM averaged
-        flxlbl_CATCH.append('Su')
+        flxlbl_CATCH.append('$S_{soil}$')
         array_tmp = h5_MM['MM'][:,:,:,index.get('iSsoil_pc')]
         array_tmp1 = np.sum(np.ma.masked_values(array_tmp, cMF.hnoflo, atol = 0.09), axis = 1)
         flx_Cat_TS.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
@@ -1679,8 +1679,8 @@ if plt_out == 1 or plt_out_obs == 1:
                     outFileExport.close()
                     # plot time series results as plot
                     plt_title = 'Time serie of fluxes at observation point %s\ni = %d, j = %d, l = %d, x = %.2f, y = %.2f, elev. = %.2f, %s\nSm = %s, Sfc = %s, Sr = %s, Ks = %s, thick. = %.3f %s' % (o, i+1, j+1, l+1, obs.get(o)['x'], obs.get(o)['y'], cMF.elev[i,j], soilnam, _Sm[gridSOIL[i,j]-1], _Sfc[gridSOIL[i,j]-1], _Sr[gridSOIL[i,j]-1], _Ks[gridSOIL[i,j]-1], gridSOILthick[i,j], Tl)
-                    # index = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSs':4, 'iRo':5, 'iEXF':6, 'iEs':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSs':13, 'iETg':14, 'iETu':15, 'iSu_pc':16, 'idSu':17, 'iinf':18, 'iHEADScorr':19, 'idgwt':20, 'iuzthick':21}
-                    # index_S = {'iEu':0, 'iTu':1,'iSu_pc':2, 'iRp':3, 'iRexf':4, 'idSu':5, 'iSu':6, 'iSAT':7, 'iMB_l':8}
+                    # index = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSsurf':4, 'iRo':5, 'iEXF':6, 'iEsurf':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSsurf':13, 'iETg':14, 'iETsoil':15, 'iSsoil_pc':16, 'idSsoil':17, 'iinf':18, 'iHEADScorr':19, 'idgwt':20, 'iuzthick':21}
+                    # index_S = {'iEsoil':0, 'iTsoil':1,'iSsoil_pc':2, 'iRp':3, 'iRexf':4, 'idSsoil':5, 'iSsoil':6, 'iSAT':7, 'iMB_l':8}
                     plt_export_fn = os.path.join(MM_ws_out, '_0'+ o + '_ts.png')
                     # def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, EXF, ETg, Es, MB, MB_l, dgwt, SAT, R, h_MF, h_MF_corr, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin):
                     MMplot.plotTIMESERIES(
@@ -1724,7 +1724,7 @@ if plt_out == 1 or plt_out_obs == 1:
                     )
                     x += 1
                     # plot water balance at each obs. cell
-                    #flxlbl   = ['RF', 'I', 'dSs', 'Ro', 'Es', 'dSu', 'EXF']
+                    #flxlbl   = ['RF', 'I', 'dSs', 'Ro', 'Es', 'dS', 'EXF']
                     #flxlbl1  = ['Eu', 'Tu']
                     #flxlbl2  = ['ETu', 'Eg']
                     #flxlbl3  = ['Tg']

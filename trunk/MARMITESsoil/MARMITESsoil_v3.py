@@ -109,7 +109,7 @@ class clsSOIL:
             '''
             Ponding and surface runoff function
             '''
-            if s_tmp > Sm:
+            if (Sm - s_tmp) < 1.0E-7:
                 Ssurf_tmp = s_tmp-Sm
                 if (Ssurf_tmp - Ssurf_max) > 1.0E-7:
                     Ro_tmp = (Ssurf_tmp - Ssurf_max)/dt
@@ -198,7 +198,7 @@ class clsSOIL:
         llst = range(nsl)
         llst.reverse()
         for l in llst[:-1]:
-            if (Ssoil_tmp[l] - (Sm[l]*Tl[l])) > 1.0E-7:
+            if Ssoil_tmp[l] >= (Sm[l]*Tl[l]):
                 Rexf_tmp[l] += Ssoil_tmp[l] - Sm[l]*Tl[l]
                 Ssoil_tmp[l-1] += Rexf_tmp[l]
                 Ssoil_tmp[l] = Sm[l]*Tl[l]
@@ -208,7 +208,7 @@ class clsSOIL:
         dgwt_corr = dgwt * 1.0
         if EXF > 0.0:
             for l in llst:
-                if (Ssoil_tmp[l] - (Sm[l]*Tl[l])) > 1.0E-7:
+                if Ssoil_tmp[l] >= (Sm[l]*Tl[l]):
                     HEADS_corr += Tl[l]
                     dgwt_corr -= Tl[l]
                     SAT[l] = True
@@ -236,16 +236,11 @@ class clsSOIL:
 
         for l in range(nsl):
             # Rp
-##OPTION1 - WRONG
-##            Rp_tmp[l] = perc(Ssoil_tmp[l],Sm[l]*Tl[l],Sfc[l]*Tl[l], Ks[l], dt)
-##ENDOP1
-##OPTION2
             if l < (nsl-1):
                 if SAT[l+1] == False:
                     Rp_tmp[l] = perc(Ssoil_tmp[l],Sm[l]*Tl[l],Sfc[l]*Tl[l],Ks[l], dt)
             elif EXF == 0.0:
                 Rp_tmp[l] = perc(Ssoil_tmp[l],Sm[l]*Tl[l],Sfc[l]*Tl[l], Ks[l], dt)
-##ENDOP2
             Ssoil_tmp[l] -= Rp_tmp[l]*dt
             # Esoil
             if Ssurf_tmp == 0.0:
