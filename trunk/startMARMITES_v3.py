@@ -1266,6 +1266,12 @@ if plt_out == 1 or plt_out_obs == 1:
         flxlbl3      = ['Tg']
         flxlbl3a     = ['ETg']
         flxlbl4      = ['Rp']
+        flxlbl_tex       = [r'$RF$', r'$I$', r'$RFe$', r'$\Delta S_{surf}$', r'$Ro$', r'$E_{surf}$', r'$\theta$', r'$EXF$']
+        flxlbl1_tex      = [r'$E_{soil}$', r'$T_{soil}$']
+        flxlbl2_tex      = [r'$ET_{soil}$', r'$E_g$']
+        flxlbl3_tex      = [r'$T_g$']
+        flxlbl3a_tex     = [r'$ET_g$']
+        flxlbl4_tex      = [r'$Rp$']
         sign         = [   1,  -1,     1,     1,   -1,   -1,    1,     1, -1, -1, -1, -1, -1, -1, -1]
         flxlst       = []
         flx_Cat_TS   = []
@@ -1273,8 +1279,8 @@ if plt_out == 1 or plt_out_obs == 1:
         flxmin_d     = []
         flxlbl_CATCH = []
         TopSoilAverage = np.ma.masked_array(cMF.elev*1000.0, maskAllL).sum()*.001/sum(ncell_MM)
-        for i in flxlbl:
-            flxlbl_CATCH.append(i)
+        for z, (i, i_tex) in enumerate(zip(flxlbl, flxlbl_tex)):
+            flxlbl_CATCH.append(i_tex)
             i = 'i'+i
             array_tmp = h5_MM['MM'][:,:,:,index.get(i)]
             flx_tmp = np.ma.masked_values(array_tmp, cMF.hnoflo, atol = 0.09)
@@ -1284,8 +1290,8 @@ if plt_out == 1 or plt_out_obs == 1:
             array_tmp1 = np.sum(np.ma.masked_values(array_tmp, cMF.hnoflo, atol = 0.09), axis = 1)
             flx_Cat_TS.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
             del flx_tmp, array_tmp, array_tmp1
-        for i in flxlbl1:
-            flxlbl_CATCH.append(i)
+        for z, (i, i_tex) in enumerate(zip(flxlbl1, flxlbl1_tex)):
+            flxlbl_CATCH.append(i_tex)
             flxlbl.append(i)
             i = 'i'+i
             flx_tmp1 = 0.0
@@ -1302,8 +1308,8 @@ if plt_out == 1 or plt_out_obs == 1:
             flxlst.append(facTim*flx_tmp1/sum(cMF.perlen)/sum(ncell_MM))
             flx_Cat_TS.append(array_tmp2/sum(ncell_MM))
             del flx_tmp1, array_tmp2
-        for i in flxlbl2:
-            flxlbl_CATCH.append(i)
+        for z, (i, i_tex) in enumerate(zip(flxlbl2, flxlbl2_tex)):
+            flxlbl_CATCH.append(i_tex)
             flxlbl.append(i)
             i = 'i'+i
             array_tmp = h5_MM['MM'][:,:,:,index.get(i)]
@@ -1314,8 +1320,8 @@ if plt_out == 1 or plt_out_obs == 1:
             array_tmp1 = np.sum(np.ma.masked_values(array_tmp, cMF.hnoflo, atol = 0.09), axis = 1)
             flx_Cat_TS.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
             del flx_tmp, array_tmp, array_tmp1
-        for i in flxlbl3:
-            flxlbl_CATCH.append(i)
+        for z, (i, i_tex) in enumerate(zip(flxlbl3, flxlbl3_tex)):
+            flxlbl_CATCH.append(i_tex)
             flxlbl.append(i)
             i = 'i'+i
             if cMF.wel_yn == 1:
@@ -1351,8 +1357,8 @@ if plt_out == 1 or plt_out_obs == 1:
             else:
                 flxlst.append(0.0)
                 flx_Cat_TS.append(0.0)
-        for i in flxlbl3a:
-            flxlbl_CATCH.append(i)
+        for z, (i, i_tex) in enumerate(zip(flxlbl3a, flxlbl3a_tex)):
+            flxlbl_CATCH.append(i_tex)
             flxlbl.append(i)
             i = 'i'+i
             array_tmp = h5_MM['MM'][:,:,:,index.get(i)]
@@ -1363,8 +1369,8 @@ if plt_out == 1 or plt_out_obs == 1:
             array_tmp1 = np.sum(np.ma.masked_values(array_tmp, cMF.hnoflo, atol = 0.09), axis = 1)
             flx_Cat_TS.append(-1.0*np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
             del flx_tmp, array_tmp, array_tmp1
-        for i in flxlbl4:
-            flxlbl.append(i)
+        for z, (i, i_tex) in enumerate(zip(flxlbl4, flxlbl4_tex)):
+            flxlbl.append(i_tex)
             i = 'i'+i
             array_tmp = h5_MM['finf']
             flx_tmp = np.ma.masked_values(array_tmp, cMF.hnoflo, atol = 0.09)
@@ -1373,8 +1379,8 @@ if plt_out == 1 or plt_out_obs == 1:
             inf = facTim*conv_fact*(flx_tmp.sum())/sum(cMF.perlen)/sum(ncell_MM)
             flxlst.append(inf)
             del flx_tmp, array_tmp
-        for i in ['Ssurf', 'PE', 'PT', 'inf']:
-            flxlbl_CATCH.append(i)
+        for z, (i, i_tex) in enumerate(zip(['Ssurf', 'PE', 'PT', 'inf'], [r'$S_{surf}$', r'$PE$', r'$PT$', r'$inf$'])):
+            flxlbl_CATCH.append(i_tex)
             i = 'i'+i
             array_tmp = h5_MM['MM'][:,:,:,index.get(i)]
             array_tmp1 = np.sum(np.ma.masked_values(array_tmp, cMF.hnoflo, atol = 0.09), axis = 1)
@@ -1389,7 +1395,7 @@ if plt_out == 1 or plt_out_obs == 1:
         # TODO delete next line after resolving MB_MM error and uncomment the previous one
         #MB_MM = InMM - OutMM
         # ADD SM averaged
-        flxlbl_CATCH.append('$S_{soil}$')
+        flxlbl_CATCH.append(r'$\theta$')
         array_tmp = h5_MM['MM'][:,:,:,index.get('iSsoil_pc')]
         array_tmp1 = np.sum(np.ma.masked_values(array_tmp, cMF.hnoflo, atol = 0.09), axis = 1)
         flx_Cat_TS.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
@@ -1418,7 +1424,7 @@ if plt_out == 1 or plt_out_obs == 1:
                 rch_tmp1 = facTim*(array_tmp.sum())/sum(cMF.perlen)/sum(ncell_MM)
                 flxlst_tmp.append(rch_tmp1)
                 rch_tmp += rch_tmp1
-            flxlbl_CATCH.append('R')
+            flxlbl_CATCH.append(r'$R$')
             flx_Cat_TS.append(array_tmp2/sum(ncell_MM))
             del array_tmp, array_tmp1, array_tmp2, rch_tmp1, cbc_RCH
             flxlst.append(inf - rch_tmp)
@@ -1429,20 +1435,20 @@ if plt_out == 1 or plt_out_obs == 1:
             OutMF = 0
             for l in range(cMF.nlay):
                 # ADD heads averaged
-                flxlbl_CATCH.append('h_MF_L%d' % (l+1))
+                flxlbl_CATCH.append(r'$hMF_{%d}$' % (l+1))
                 array_tmp = h_MF_m[:,:,:,l]
                 array_tmp1 = np.sum(array_tmp, axis = 1)
                 flx_Cat_TS.append(np.sum(array_tmp1, axis = 1)/ncell_MF[l])
                 del array_tmp, array_tmp1
                 # ADD depth GWT
-                flxlbl_CATCH.append('DGWT_L%d' % (l+1))
+                flxlbl_CATCH.append(r'$DGWT_{%d}$' % (l+1))
                 flx_Cat_TS.append(flx_Cat_TS[-1] - TopSoilAverage)
             for l in range(cMF.nlay):
                 # GW_STO
                 cbc_STO = h5_MF['STO_d'][:,:,:,l]
                 flxlst.append(facTim*(cbc_STO.sum()/sum(cMF.perlen)/sum(ncell_MM)))  # -1*
                 InMF += flxlst[-1]
-                flxlbl_CATCH.append('$\Delta$Sg_L%d' % (l+1))
+                flxlbl_CATCH.append(r'$\Delta S_{g%d}$' % (l+1))
                 array_tmp1 = np.sum(np.ma.masked_values(cbc_STO, cMF.hnoflo, atol = 0.09), axis = 1)
                 flx_Cat_TS.append(-1.0*np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
                 del cbc_STO, array_tmp1
@@ -1460,7 +1466,7 @@ if plt_out == 1 or plt_out_obs == 1:
                     if cMF.drncells[l]>0:
                         flxlst.append(facTim*(cbc_DRN.sum()/sum(cMF.perlen)/sum(ncell_MM)))
                         OutMF += -flxlst[-1]
-                        flxlbl_CATCH.append('DRN_L%d' % (l+1))
+                        flxlbl_CATCH.append(r'$DRN_{%d}$' % (l+1))
                         array_tmp1 = np.sum(np.ma.masked_values(cbc_DRN, cMF.hnoflo, atol = 0.09), axis = 1)
                         flx_Cat_TS.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
                         del array_tmp1
@@ -1480,7 +1486,7 @@ if plt_out == 1 or plt_out_obs == 1:
                     if cMF.ghbcells[l] > 0:
                         flxlst.append(facTim*(cbc_GHB.sum()/sum(cMF.perlen)/sum(ncell_MM)))
                         OutMF += -flxlst[-1]
-                        flxlbl_CATCH.append('GHB_L%d' % (l+1))
+                        flxlbl_CATCH.append(r'$GHB_{%d}$' % (l+1))
                         array_tmp1 = np.sum(np.ma.masked_values(cbc_GHB, cMF.hnoflo, atol = 0.09), axis = 1)
                         flx_Cat_TS.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
                         del array_tmp1
@@ -2023,24 +2029,18 @@ if plt_out == 1 or plt_out_obs == 1:
         if os.path.exists(h5_MM_fn):
             h5_MM = h5py.File(h5_MM_fn, 'r')
             flxlbl = ['RF', 'RFe', 'I', 'EXF', 'dSsurf', 'Ro', 'Esurf', 'Eg', 'Tg', 'ETg', 'ETsoil', 'dSsoil']
-            for i in flxlbl:
+            flxlbl_tex = [r'$RF$', r'$RFe$', r'$I$', r'$EXF$', r'$\Delta S_{surf}$', r'$Ro$', r'$E_{surf}$', r'$E_g$', r'$T_g$', r'$ET_g$', r'$ET_{soil}$', r'$\Delta S_{soil}$']
+            for z, (i, i_lbl) in enumerate(zip(flxlbl, flxlbl_tex)):
                 # ############################################
                 # plot average for the whole simulated period
                 # ############################################
                 i1 = 'i'+i
-
                 MM = h5_MM['MM'][:,:,:,index.get(i1)]
                 V = np.zeros((1, cMF.nrow, cMF.ncol, 1), dtype = np.float)
                 V[0,:,:,0] = np.sum(np.ma.masked_values(MM, cMF.hnoflo, atol = 0.09), axis = 0)/sum(cMF.perlen)
                 V[0,:,:,0] = np.ma.masked_values(V[0,:,:,0], cMF.hnoflo, atol = 0.09)
                 Vmax = [np.ma.max(V)]
                 Vmin = [np.ma.min(V)]
-                if i == 'dSsoil':
-                    i_lbl = '$\Delta$Ssoil'
-                elif i == 'dSsurf':
-                    i_lbl = '$\Delta$Ssurf'
-                else:
-                    i_lbl = i
                 MMplot.plotLAYER(timesteps = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i_lbl + ' (mm/day)'), msg = 'no flux', plt_title = ('OUT_average_MM_' + i), MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = Vmax, Vmin = Vmin, contours = ctrsMM, ntick = ntick, points = obs4map, mask = maskAllL_tmp, hnoflo = cMF.hnoflo)
                 del V
                 # ############################################
@@ -2064,7 +2064,8 @@ if plt_out == 1 or plt_out_obs == 1:
                 del V, MM, Vmax, Vmin
 
             flxlbl = ['Esoil', 'Tsoil']
-            for i in flxlbl:
+            flxlbl = [r'$E_{soil}$', r'$T_{soil}$']
+            for z, (i, i_lbl) in enumerate(zip(flxlbl, flxlbl_tex)):
                 # ############################################
                 # plot average for the whole simulated period
                 # ############################################
@@ -2076,7 +2077,7 @@ if plt_out == 1 or plt_out_obs == 1:
                     V[0,:,:,0] = np.ma.masked_values(V[0,:,:,0], cMF.hnoflo, atol = 0.09)
                 Vmax = [np.ma.max(V)]
                 Vmin = [np.ma.min(V)]
-                MMplot.plotLAYER(timesteps = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i + ' (mm/day)'), msg = 'no flux', plt_title = ('OUT_average_MM_%s' % i), MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = Vmax, Vmin = Vmin, contours = ctrsMM, ntick = ntick, points = obs4map, mask = maskAllL_tmp, hnoflo = cMF.hnoflo)
+                MMplot.plotLAYER(timesteps = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i_lbl + ' (mm/day)'), msg = 'no flux', plt_title = ('OUT_average_MM_%s' % i), MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = Vmax, Vmin = Vmin, contours = ctrsMM, ntick = ntick, points = obs4map, mask = maskAllL_tmp, hnoflo = cMF.hnoflo)
                 del V
 
                 # ############################################
@@ -2095,13 +2096,13 @@ if plt_out == 1 or plt_out_obs == 1:
                 for ii, t in enumerate(day_lst):
                     Vmax[ii] = np.ma.max(Vmax1)
                     Vmin[ii] = np.ma.min(Vmin1)
-                MMplot.plotLAYER(timesteps = day_lst, Date = Date_lst, JD = JD_lst, ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i + ' (mm/day)'), msg = 'no flux', plt_title = ('OUT_MM_'+i), MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = Vmax, Vmin = Vmin, contours = ctrsMM, ntick = ntick, points = obs4map, hnoflo = cMF.hnoflo, mask = maskAllL_tmp, animation = animation)
-                MMplot.plotLAYER(timesteps = day_lst, Date = Date_lst, JD = JD_lst, ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i + ' (mm/day)'), msg = 'no flux', plt_title = ('OUT_MM_%s1'%i), MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = Vmax1, Vmin = Vmin1, contours = ctrsMM, ntick = ntick, points = obs4map, hnoflo = cMF.hnoflo, mask = maskAllL_tmp)
+                MMplot.plotLAYER(timesteps = day_lst, Date = Date_lst, JD = JD_lst, ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i_lbl + ' (mm/day)'), msg = 'no flux', plt_title = ('OUT_MM_'+i), MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = Vmax, Vmin = Vmin, contours = ctrsMM, ntick = ntick, points = obs4map, hnoflo = cMF.hnoflo, mask = maskAllL_tmp, animation = animation)
+                MMplot.plotLAYER(timesteps = day_lst, Date = Date_lst, JD = JD_lst, ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i_lbl + ' (mm/day)'), msg = 'no flux', plt_title = ('OUT_MM_%s1'%i), MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = Vmax1, Vmin = Vmin1, contours = ctrsMM, ntick = ntick, points = obs4map, hnoflo = cMF.hnoflo, mask = maskAllL_tmp)
 
             # ##############################
             # ####   PERCOLATION   #########
             # ##############################
-            i = 'Rp_botlayer'
+            i_lbl = r'$Rp_{soil}$'
             # ############################################
             # plot average for the whole simulated period
             # ############################################
@@ -2110,7 +2111,7 @@ if plt_out == 1 or plt_out_obs == 1:
             V[0,:,:,0] = np.sum(np.ma.masked_values(MM, cMF.hnoflo, atol = 0.09), axis = 0)/sum(cMF.perlen)
             Vmax = [np.ma.max(V)]
             Vmin = [np.ma.min(V)]
-            MMplot.plotLAYER(timesteps = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i + ' (mm/day)'), msg = 'no flux', plt_title = ('OUT_average_MM_%s'% i), MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = Vmax, Vmin = Vmin, contours = ctrsMM, ntick = ntick, points = obs4map, mask = maskAllL_tmp, hnoflo = cMF.hnoflo)
+            MMplot.plotLAYER(timesteps = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i_lbl + ' (mm/day)'), msg = 'no flux', plt_title = ('OUT_average_MM_%s'% i), MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = Vmax, Vmin = Vmin, contours = ctrsMM, ntick = ntick, points = obs4map, mask = maskAllL_tmp, hnoflo = cMF.hnoflo)
 
             # ############################################
             # plot for selected time step
@@ -2128,14 +2129,14 @@ if plt_out == 1 or plt_out_obs == 1:
             for ii, t in enumerate(day_lst):
                 Vmax[ii] = np.ma.max(Vmax1)
                 Vmin[ii] = np.ma.min(Vmin1)
-            MMplot.plotLAYER(timesteps = day_lst, Date = Date_lst, JD = JD_lst, ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i + ' (mm/day)'), msg = 'no flux', plt_title = ('OUT_MM_'+i), MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = Vmax, Vmin = Vmin, contours = ctrsMM, ntick = ntick, points = obs4map, hnoflo = cMF.hnoflo, mask = maskAllL_tmp, animation = animation)
+            MMplot.plotLAYER(timesteps = day_lst, Date = Date_lst, JD = JD_lst, ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i_lbl + ' (mm/day)'), msg = 'no flux', plt_title = ('OUT_MM_'+i), MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = Vmax, Vmin = Vmin, contours = ctrsMM, ntick = ntick, points = obs4map, hnoflo = cMF.hnoflo, mask = maskAllL_tmp, animation = animation)
             MMplot.plotLAYER(timesteps = day_lst, Date = Date_lst, JD = JD_lst, ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i + ' (mm/day)'), msg = 'no flux', plt_title = ('OUT_MM_%s1'%i), MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = Vmax1, Vmin = Vmin1, contours = ctrsMM, ntick = ntick, points = obs4map, hnoflo = cMF.hnoflo, mask = maskAllL_tmp)
 
             h5_MM.close()
-##            del V, MM, t, Vmax, Vmin
-##            del day_lst, flxlbl, i, i1, h_diff_surf
-##        del gridSOIL, cMF.inputDate
-##        del hmaxMF, hminMF, hmin, hdiff, cbcmax_d, cbcmin_d
+            del V, MM, t, Vmax, Vmin
+            del day_lst, flxlbl, i, i1, h_diff_surf
+        del gridSOIL, cMF.inputDate
+        del hmaxMF, hminMF, hmin, hdiff, cbcmax_d, cbcmin_d
 
 timeendExport = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
 durationExport=(timeendExport-timestartExport)
