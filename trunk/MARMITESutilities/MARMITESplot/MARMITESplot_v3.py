@@ -609,7 +609,7 @@ def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, hmax
 
 ##################
 
-def plotLAYER(timesteps, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_title, MM_ws, interval_type = 'arange', interval_diff = 1, interval_num = 1, Vmax = 0, Vmin = 0, fmt = '%.2f', contours = False, ntick = 1, axisbg = 'silver', points  = None, mask = None, hnoflo = -999.9, animation = 0):
+def plotLAYER(timesteps, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_title, MM_ws, interval_type = 'arange', interval_diff = 1, interval_num = 1, Vmax = 0, Vmin = 0, fmt = None, contours = False, ntick = 1, axisbg = 'silver', points  = None, mask = None, hnoflo = -999.9, animation = 0):
 
     # TODO put option to select axes tick as row/col index from MODFLOW or real coordinates (in this last case create it)
 
@@ -654,6 +654,11 @@ def plotLAYER(timesteps, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, ms
                 Vtmp = np.ma.masked_array(V[i,:,:,L], mask[:,:,L])
             Vtmp = np.ma.masked_values(Vtmp, hnoflo, atol = 0.09)
             Vmin_tmp, Vmax_tmp, ctrs_tmp = MinMax(Vmin[i], Vmax[i], contours)
+            if fmt == None:
+                if Vmax_tmp > 0.0999 or abs(Vmin_tmp)> 0.0999:
+                    fmt = '%5.2f'
+                else:
+                    fmt = '%5.e'
             if interval_type == 'arange':
                 ticks = np.arange(Vmin_tmp,Vmax_tmp,interval_diff)
             elif interval_type == 'linspace':
@@ -699,9 +704,9 @@ def plotLAYER(timesteps, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, ms
             cax.yaxis.set_label_position('left')
             plt.setp(CB.ax.get_yticklabels(), fontsize = 7)
         if isinstance(Date[i], float):
-            plt_export_fn = os.path.join(MM_ws, '_plt_%s_timestep%05d.png' % (plt_title, day+1))
+            plt_export_fn = os.path.join(MM_ws, '_sp_plt_%s_timestep%05d.png' % (plt_title, day+1))
         else:
-            plt_export_fn = os.path.join(MM_ws, '_plt_%s.png' % plt_title)
+            plt_export_fn = os.path.join(MM_ws, '_sp_plt_%s.png' % plt_title)
         plt.savefig(plt_export_fn)
         if len(timesteps)>1 and animation == 1:
             files_tmp.append(os.path.join(MM_ws,'%05d.png'%(i+1)))

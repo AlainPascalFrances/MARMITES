@@ -222,7 +222,6 @@ class clsSOIL:
         Esurf_tmp = surfwater_tmp[2]
         Ssoil_tmp[0] -= (Ssurf_tmp + dt*(Ro_tmp + Esurf_tmp))
 
-
         Rexf_tmp /= dt
 
         Rp_tmp = np.zeros([nsl])
@@ -236,15 +235,17 @@ class clsSOIL:
         # soil layers
 
         for l in range(nsl):
-##            # Rp
-##            Rp_tmp[l] = perc(Ssoil_tmp[l],Sm[l]*Tl[l],Sfc[l]*Tl[l], Ks[l], dt)
-##            Ssoil_tmp[l] -= Rp_tmp[l]*dt
             # Rp
+##OPTION1 - WRONG
+##            Rp_tmp[l] = perc(Ssoil_tmp[l],Sm[l]*Tl[l],Sfc[l]*Tl[l], Ks[l], dt)
+##ENDOP1
+##OPTION2
             if l < (nsl-1):
                 if SAT[l+1] == False:
                     Rp_tmp[l] = perc(Ssoil_tmp[l],Sm[l]*Tl[l],Sfc[l]*Tl[l],Ks[l], dt)
             elif EXF == 0.0:
                 Rp_tmp[l] = perc(Ssoil_tmp[l],Sm[l]*Tl[l],Sfc[l]*Tl[l], Ks[l], dt)
+##ENDOP2
             Ssoil_tmp[l] -= Rp_tmp[l]*dt
             # Esoil
             if Ssurf_tmp == 0.0:

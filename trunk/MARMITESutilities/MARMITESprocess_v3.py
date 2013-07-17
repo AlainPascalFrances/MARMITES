@@ -456,7 +456,7 @@ class clsPROCESS:
             else:
                 obs_sm = []
                 obs_sm_yn = 0
-            obs[name] = {'x':x,'y':y,'i': i, 'j': j, 'lay': lay, 'hi':hi, 'h0':h0, 'RC':RC, 'STO':STO, 'outpathname':os.path.join(self.MM_ws_out,'_ts_0'+name+'.txt'), 'obs_h':obs_h, 'obs_h_yn':obs_h_yn, 'obs_S':obs_sm, 'obs_sm_yn':obs_sm_yn}
+            obs[name] = {'x':x,'y':y,'i': i, 'j': j, 'lay': lay, 'hi':hi, 'h0':h0, 'RC':RC, 'STO':STO, 'outpathname':os.path.join(self.MM_ws_out,'_0'+name+'_ts.txt'), 'obs_h':obs_h, 'obs_h_yn':obs_h_yn, 'obs_S':obs_sm, 'obs_sm_yn':obs_sm_yn}
 
         return obs, obs_list
         del inputObs_fn, inputObsHEADS_fn, inputObsSM_fn, inputDate, _nslmax
