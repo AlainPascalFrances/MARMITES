@@ -730,7 +730,7 @@ def plotLAYER(timesteps, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, ms
 
 ##################
 
-def plotGWbudget(flxlst, flxlbl, colors_flx, plt_export_fn, plt_title, fluxmax, fluxmin, unit = 'na'):
+def plotWB(flxlst, flxlbl, colors_flx, plt_export_fn, plt_title, fluxmax, fluxmin, unit = 'na'):
     """
     Plot GW budget
     """
