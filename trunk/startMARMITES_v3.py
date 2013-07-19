@@ -2102,6 +2102,7 @@ if plt_out == 1 or plt_out_obs == 1:
             # ##############################
             # ####   PERCOLATION   #########
             # ##############################
+            i = 'Rp'
             i_lbl = r'$Rp_{soil}$'
             # ############################################
             # plot average for the whole simulated period

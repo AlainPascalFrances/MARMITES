@@ -707,17 +707,23 @@ def plotLAYER(timesteps, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, ms
             plt_export_fn = os.path.join(MM_ws, '_sp_plt_%s.png' % plt_title)
         plt.savefig(plt_export_fn)
         if len(timesteps)>1 and animation == 1:
-            files_tmp.append(os.path.join(MM_ws,'%05d.png'%(i+1)))
-            shutil.copyfile(plt_export_fn, files_tmp[i])
+            if i == 0:
+                files_tmp.append(os.path.join(MM_ws,'%05d.png'%(0)))
+                shutil.copyfile(plt_export_fn, files_tmp[0])
+                files_tmp.append(os.path.join(MM_ws,'%05d.png'%(1)))
+                shutil.copyfile(plt_export_fn, files_tmp[1])
+            else:
+                files_tmp.append(os.path.join(MM_ws,'%05d.png'%(i+1)))
+                shutil.copyfile(plt_export_fn, files_tmp[i+1])
         for L in range(nplot):
             ax[L].cla()
 
     if len(timesteps)>1 and animation == 1:
         batch_fn = os.path.join(MM_ws, 'run.bat')
         f = open(batch_fn, 'w')
-        f.write('ffmpeg -r 1 -i %s -s:v 1280x720 -c:v libx264 -profile:v high -crf 23 -pix_fmt yuv420p -r 30 %s_mov.mp4' % ('%s\%%%%05d.png' % (MM_ws),'%s\_plt_%s' % (MM_ws,plt_title)))
+        f.write('ffmpeg -r 1 -i %s -s:v 1280x720 -c:v libx264 -profile:v high -crf 23 -pix_fmt yuv420p -r 30 -y %s_mov.mp4' % ('%s\%%%%05d.png' % (MM_ws),'%s\_sp_plt_%s' % (MM_ws,plt_title)))
         f.close()
-        run_report_fn = os.path.join(MM_ws, '_RunReport.txt')
+        run_report_fn = os.path.join(MM_ws, '_FFmpegRunReport.txt')
         run_report = open(run_report_fn, 'w')
         sp.Popen(batch_fn, shell=False, stdout = run_report, stderr = run_report).wait()
         run_report.close()
