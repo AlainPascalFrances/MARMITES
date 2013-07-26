@@ -188,6 +188,12 @@ try:
         plt_out = 0
         plt_out_obs = 0
         print "\nYou required the MMsurf plots to appear on the screen. Due to backends limitation, MM and MF plots were disabled. Run again MM with MMsurf_plot = 0 to obtain the MM and MF plots."
+    if animation == 1:
+        test_ffmpeg = cUTIL.which(program = 'ffmpeg.exe')
+        if test_ffmpeg == None:
+            print '\nWARNING!\nFFmpeg was not found on your computer!\nSpatial animations will not be produced.\nYou can solve this problem downloading FFmpeg at www.ffmpeg.org and install it.'
+            animation = 0
+        del test_ffmpeg
 except:
     cUTIL.ErrorExit(msg = '\nFATAL ERROR!\nType error in the input file %s' % MM_ini_fn)
 

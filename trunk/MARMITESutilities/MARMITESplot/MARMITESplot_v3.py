@@ -723,7 +723,7 @@ def plotLAYER(timesteps, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, ms
         f = open(batch_fn, 'w')
         f.write('ffmpeg -r 1 -i %s -s:v 1280x720 -c:v libx264 -profile:v high -crf 23 -pix_fmt yuv420p -r 30 -y %s_mov.mp4' % ('%s\%%%%05d.png' % (MM_ws),'%s\_sp_plt_%s' % (MM_ws,plt_title)))
         f.close()
-        run_report_fn = os.path.join(MM_ws, '_FFmpegRunReport.txt')
+        run_report_fn = os.path.join(MM_ws, '__FFmpegRunReport.txt')
         run_report = open(run_report_fn, 'w')
         sp.Popen(batch_fn, shell=False, stdout = run_report, stderr = run_report).wait()
         run_report.close()
