@@ -607,7 +607,7 @@ def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, hmax
 
 ##################
 
-def plotLAYER(timesteps, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_title, MM_ws, interval_type = 'arange', interval_diff = 1, interval_num = 1, Vmax = 0, Vmin = 0, fmt = None, contours = False, ntick = 1, axisbg = 'silver', points  = None, mask = None, hnoflo = -999.9, animation = 0):
+def plotLAYER(timesteps, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_title, MM_ws, interval_type = 'arange', interval_diff = 1, interval_num = 1, Vmax = 0, Vmin = 0, fmt = None, contours = False, ntick = 1, axisbg = 'silver', points  = None, mask = None, hnoflo = -999.9, animation = 0, pref_plt_title = '_sp_plt'):
 
     # TODO put option to select axes tick as row/col index from MODFLOW or real coordinates (in this last case create it)
 
@@ -702,34 +702,40 @@ def plotLAYER(timesteps, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, ms
             cax.yaxis.set_label_position('left')
             plt.setp(CB.ax.get_yticklabels(), fontsize = 7)
         if isinstance(Date[i], float):
-            plt_export_fn = os.path.join(MM_ws, '_sp_plt_%s_timestep%05d.png' % (plt_title, day+1))
+            plt_export_fn = os.path.join(MM_ws, '%s_%s_timestep%05d.png' % (pref_plt_title, plt_title, day+1))
         else:
-            plt_export_fn = os.path.join(MM_ws, '_sp_plt_%s.png' % plt_title)
+            plt_export_fn = os.path.join(MM_ws, '%s_%s.png' % (pref_plt_title, plt_title))
         plt.savefig(plt_export_fn)
         if len(timesteps)>1 and animation == 1:
-            if i == 0:
-                files_tmp.append(os.path.join(MM_ws,'%05d.png'%(0)))
-                shutil.copyfile(plt_export_fn, files_tmp[0])
-                files_tmp.append(os.path.join(MM_ws,'%05d.png'%(1)))
-                shutil.copyfile(plt_export_fn, files_tmp[1])
-            else:
-                files_tmp.append(os.path.join(MM_ws,'%05d.png'%(i+1)))
-                shutil.copyfile(plt_export_fn, files_tmp[i+1])
+            try:
+                if i == 0:
+                    files_tmp.append(os.path.join(MM_ws,'%05d.png'%(0)))
+                    shutil.copyfile(plt_export_fn, files_tmp[0])
+                    files_tmp.append(os.path.join(MM_ws,'%05d.png'%(1)))
+                    shutil.copyfile(plt_export_fn, files_tmp[1])
+                else:
+                    files_tmp.append(os.path.join(MM_ws,'%05d.png'%(i+1)))
+                    shutil.copyfile(plt_export_fn, files_tmp[i+1])
+            except:
+                pass
         for L in range(nplot):
             ax[L].cla()
 
     if len(timesteps)>1 and animation == 1:
         batch_fn = os.path.join(MM_ws, 'run.bat')
         f = open(batch_fn, 'w')
-        f.write('ffmpeg -r 1 -i %s -s:v 1280x720 -c:v libx264 -profile:v high -crf 23 -pix_fmt yuv420p -r 30 -y %s_mov.mp4' % ('%s\%%%%05d.png' % (MM_ws),'%s\_sp_plt_%s' % (MM_ws,plt_title)))
+        f.write('ffmpeg -r 1 -i %s -s:v 1280x720 -c:v libx264 -profile:v high -crf 23 -pix_fmt yuv420p -r 30 -y %s_mov.mp4' % ('%s\%%%%05d.png' % (MM_ws),'%s\%s_%s' % (MM_ws, pref_plt_title, plt_title)))
         f.close()
         run_report_fn = os.path.join(MM_ws, '__FFmpegRunReport.txt')
         run_report = open(run_report_fn, 'w')
         sp.Popen(batch_fn, shell=False, stdout = run_report, stderr = run_report).wait()
         run_report.close()
         os.remove(batch_fn)
-        for f in files_tmp:
-            os.remove(f)
+        try:
+            for f in files_tmp:
+                os.remove(f)
+        except:
+            pass
     plt.close('all')
 
     del fig, ax, timesteps, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_title, MM_ws, interval_type, interval_diff, interval_num, Vmax, Vmin, Vmax_tmp, Vmin_tmp, fmt
