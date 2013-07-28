@@ -1267,13 +1267,14 @@ if plt_out == 1 or plt_out_obs == 1:
         # indexes of the HDF5 output arrays
         #  index = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSsurf':4, 'iRo':5, 'iEXF':6, 'iEsurf':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSsurf':13, 'iETg':14, 'iETsoil':15, 'iSsoil_pc':16, 'idSsoil':17, 'iinf':18, 'iHEADScorr':19, 'idgwt':20, 'iuzthick':21}
         # index_S = {'iEsoil':0, 'iTsoil':1,'iSsoil_pc':2, 'iRp':3, 'iRexf':4, 'idSsoil':5, 'iSsoil':6, 'iSAT':7, 'iMB_l':8}
+        # TODO Ro sould not be averaged by ncell_MM, as well as EXF
         flxlbl       = ['RF', 'I', 'RFe', 'dSsurf', 'Ro', 'Esurf', 'dSsoil', 'EXF']
         flxlbl1      = ['Esoil', 'Tsoil']
         flxlbl2      = ['ETsoil', 'Eg']
         flxlbl3      = ['Tg']
         flxlbl3a     = ['ETg']
         flxlbl4      = ['Rp']
-        flxlbl_tex   = [r'$RF$', r'$I$', r'$RFe$', r'$\Delta S_{surf}$', r'$Ro$', r'$E_{surf}$', r'$\theta$', r'$EXF$']
+        flxlbl_tex   = [r'$RF$', r'$I$', r'$RFe$', r'$\Delta S_{surf}$', r'$Ro$', r'$E_{surf}$', r'$\Delta S_{soil}$', r'$EXF$']
         flxlbl1_tex  = [r'$E_{soil}$', r'$T_{soil}$']
         flxlbl2_tex  = [r'$ET_{soil}$', r'$E_g$']
         flxlbl3_tex  = [r'$T_g$']
@@ -1418,7 +1419,7 @@ if plt_out == 1 or plt_out_obs == 1:
         if os.path.exists(cMF.h5_MF_fn):
             plt_export_fn = os.path.join(MM_ws_out, '_0CATCHMENT_WBsg.png')
             # compute UZF_STO and store GW_RCH
-            flxlbl_tex.append(r'$S_{u}$')
+            flxlbl_tex.append(r'$\Delta S_{u}$')
             rch_tmp = 0
             flxlst_tmp = []
             h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
