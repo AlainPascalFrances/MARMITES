@@ -1391,21 +1391,27 @@ class clsMF():
                 h = readh()
                 h5_MF.create_dataset(name = 'heads', data = np.asarray(h[1][1:]))
                 del h
-                cbc = readcbc(self.cbc_MF_fn, 'cbc_nam')
-                data = np.asarray(cbc[1][1:])
+                cbc = readcbc(self.cbc_MF_fn, 'cbc_nam')[1][1:]
+                cbc = np.swapaxes(cbc,1,2)
+                cbc = np.swapaxes(cbc,2,3)
+                try:
+                    h5_MF.create_dataset(name = 'cbc', data = cbc)
+                except:
+                    h5_MF.create_dataset(name = 'cbc', shape = (self.nper-1, self.nrow, self.ncol, h5_MF['cbc_nam'].shape[0], self.nlay), dtype = np.float)
+                    for x in range(h5_MF['cbc_nam'].shape[0]):
+                        h5_MF['cbc'][:,:,:,x,:] = cbc[:,:,:,x,:]
                 del cbc
-                data = np.swapaxes(data,1,2)
-                data = np.swapaxes(data,2,3)
-                h5_MF.create_dataset(name = 'cbc', data = data)
-                del data
                 if self.uzf_yn == 1:
-                    cbc_uzf = readcbc(self.cbc_MFuzf_fn, 'cbc_uzf_nam')
-                    data = np.asarray(cbc_uzf[1][1:])
+                    cbc_uzf = readcbc(self.cbc_MFuzf_fn, 'cbc_uzf_nam')[1][1:]
+                    cbc_uzf = np.swapaxes(cbc_uzf,1,2)
+                    cbc_uzf = np.swapaxes(cbc_uzf,2,3)
+                    try:
+                        h5_MF.create_dataset(name = 'cbc_uzf', data = cbc_uzf)
+                    except:
+                        h5_MF.create_dataset(name = 'cbc_uzf', shape = (self.nper-1, self.nrow, self.ncol, h5_MF['cbc_uzf_nam'].shape[0], self.nlay), dtype = np.float)
+                        for x in range(h5_MF['cbc_uzf_nam'].shape[0]):
+                            h5_MF['cbc_uzf'][:,:,:,x,:] = cbc_uzf[:,:,:,x,:]
                     del cbc_uzf
-                    data = np.swapaxes(data,1,2)
-                    data = np.swapaxes(data,2,3)
-                    h5_MF.create_dataset(name = 'cbc_uzf', data = data)
-                    del data
             self.nper = self.nper - 1
             self.perlen = self.perlen[1:]
             self.tsmult = self.tsmult[1:]
@@ -1428,31 +1434,27 @@ class clsMF():
                 h = readh()
                 h5_MF.create_dataset(name = 'heads', data = np.asarray(h[1]))
                 del h
-                cbc = readcbc(self.cbc_MF_fn, 'cbc_nam')
-                data = np.asarray(cbc[1])
-                del cbc
-                data = np.swapaxes(data,1,2)
-                data = np.swapaxes(data,2,3)
+                cbc = readcbc(self.cbc_MF_fn, 'cbc_nam')[1]
+                cbc = np.swapaxes(cbc,1,2)
+                cbc = np.swapaxes(cbc,2,3)
                 try:
-                    h5_MF.create_dataset(name = 'cbc', data = data)
+                    h5_MF.create_dataset(name = 'cbc', data = cbc)
                 except:
                     h5_MF.create_dataset(name = 'cbc', shape = (self.nper, self.nrow, self.ncol, h5_MF['cbc_nam'].shape[0], self.nlay), dtype = np.float)
                     for x in range(h5_MF['cbc_nam'].shape[0]):
-                        h5_MF['cbc'][:,:,:,x,:] = data[:,:,:,x,:]
-                del data
+                        h5_MF['cbc'][:,:,:,x,:] = cbc[:,:,:,x,:]
+                del cbc
                 if self.uzf_yn == 1:
-                    cbc_uzf = readcbc(self.cbc_MFuzf_fn, 'cbc_uzf_nam')
-                    data = np.asarray(cbc_uzf[1])
-                    del cbc_uzf
-                    data = np.swapaxes(data,1,2)
-                    data = np.swapaxes(data,2,3)
+                    cbc_uzf = readcbc(self.cbc_MFuzf_fn, 'cbc_uzf_nam')[1]
+                    cbc_uzf = np.swapaxes(cbc_uzf,1,2)
+                    cbc_uzf = np.swapaxes(cbc_uzf,2,3)
                     try:
-                        h5_MF.create_dataset(name = 'cbc_uzf', data = data)
+                        h5_MF.create_dataset(name = 'cbc_uzf', data = cbc_uzf)
                     except:
                         h5_MF.create_dataset(name = 'cbc_uzf', shape = (self.nper, self.nrow, self.ncol, h5_MF['cbc_uzf_nam'].shape[0], self.nlay), dtype = np.float)
                         for x in range(h5_MF['cbc_uzf_nam'].shape[0]):
-                            h5_MF['cbc_uzf'][:,:,:,x,:] = data[:,:,:,x,:]
-                    del data
+                            h5_MF['cbc_uzf'][:,:,:,x,:] = cbc_uzf[:,:,:,x,:]
+                    del cbc_uzf
         h4MM = np.zeros((len(self.perlen),self.nrow,self.ncol), dtype = np.float)
         h_MF = h5_MF['heads'][:,:,:,:]
         iuzfbnd = np.asarray(self.iuzfbnd)
