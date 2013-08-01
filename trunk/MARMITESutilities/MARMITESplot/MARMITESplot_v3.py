@@ -196,36 +196,18 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, 
     ax5=fig.add_subplot(10,1,5, sharex=ax1)
     plt.setp(ax5.get_xticklabels(), visible=False)
     plt.setp(ax5.get_yticklabels(), fontsize=8)
-    plt.bar(DateInput,EXF, color='lightblue', linewidth=0, align = 'center', label=r'$EXF_g$')
-    for l, (y, color, lbl) in enumerate(zip(Rp1, colors_nsl, lbl_Rp[2:len(lbl_Rp)])) :
-        ax5.plot_date(DateInput, y, '-', color=color, label=lbl)
-    plt.plot_date(DateInput,R,'-', c='darkblue', linewidth=2)
-    plt.plot_date(DateInput,ETg,'-', c='blue', linewidth=1.5)
-    plt.xlim(DateInput[0]-1,DateInput[len(DateInput)-1]+1)
-    plt.legend(lbl_Rp, loc = 0, labelspacing=lblspc, markerscale=mkscale)
-    leg = plt.gca().get_legend()
-    ltext  = leg.get_texts()
-    plt.setp(ltext, fontsize=8 )
-    plt.grid(True)
-    plt.ylabel('mm', fontsize=10)
-    ax5.xaxis.set_major_formatter(monthsFmt)
-    ax5.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2G'))
-
-    ax6=fig.add_subplot(10,1,6, sharex=ax1)
-    plt.setp(ax6.get_xticklabels(), visible=False)
-    plt.setp(ax6.get_yticklabels(), fontsize=8)
     try:
         for l, (y, color, lbl) in enumerate(zip(Sobs_m, colors_nsl, lbl_Sobs)):
             if y != []:
-                ax6.plot_date(DateInput, y, ls = 'None', color = 'None', marker='o', markersize=2, markeredgecolor = color, markerfacecolor = 'None', label=lbl) #'--', color = color,
+                ax5.plot_date(DateInput, y, ls = 'None', color = 'None', marker='o', markersize=2, markeredgecolor = color, markerfacecolor = 'None', label=lbl) #'--', color = color,
     except:
         #print '\nWARNING!\nSoil moisture at observations point %s will not be plotted.' % obs_name
         pass
     for l, (y, color, lbl) in enumerate(zip(Spc1full, colors_nsl, lbl_Spc)) :
         y = np.ma.masked_where(y < 0.0, y)
-        ax6.plot_date(DateInput, y, '-', color = color, label = lbl)
+        ax5.plot_date(DateInput, y, '-', color = color, label = lbl)
 ##    for l, (y, color, lbl) in enumerate(zip(Spc1, colors_nsl, lbl_Spc)) :
-##        ax6.plot_date(DateInput, y, '-', color = color, label=lbl)
+##        ax5.plot_date(DateInput, y, '-', color = color, label=lbl)
     # x axis
     plt.xlim(DateInput[0]-1,DateInput[len(DateInput)-1]+1)
     # y axis
@@ -240,6 +222,24 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, 
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8 )
     plt.grid(True)
+    ax5.xaxis.set_major_formatter(monthsFmt)
+    ax5.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2G'))
+
+    ax6=fig.add_subplot(10,1,6, sharex=ax1)
+    plt.setp(ax6.get_xticklabels(), visible=False)
+    plt.setp(ax6.get_yticklabels(), fontsize=8)
+    plt.bar(DateInput,EXF, color='lightblue', linewidth=0, align = 'center', label=r'$EXF_g$')
+    for l, (y, color, lbl) in enumerate(zip(Rp1, colors_nsl, lbl_Rp[2:len(lbl_Rp)])) :
+        ax6.plot_date(DateInput, y, '-', color=color, label=lbl)
+    plt.plot_date(DateInput,R,'-', c='darkblue', linewidth=2)
+    plt.plot_date(DateInput,ETg,'-', c='blue', linewidth=1.5)
+    plt.xlim(DateInput[0]-1,DateInput[len(DateInput)-1]+1)
+    plt.legend(lbl_Rp, loc = 0, labelspacing=lblspc, markerscale=mkscale)
+    leg = plt.gca().get_legend()
+    ltext  = leg.get_texts()
+    plt.setp(ltext, fontsize=8 )
+    plt.grid(True)
+    plt.ylabel('mm', fontsize=10)
     ax6.xaxis.set_major_formatter(monthsFmt)
     ax6.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2G'))
 

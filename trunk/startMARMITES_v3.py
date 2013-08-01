@@ -1119,7 +1119,10 @@ if plt_out == 1 or plt_out_obs == 1:
     cbcmax_d = []
     cbcmin_d = []
     axefact = 1.05
-    facTim = 365
+    if plt_WB_unit == 'year':
+        facTim = 365.0
+    else:
+        facTim = 1.0
     if os.path.exists(cMF.h5_MF_fn):
         # TODO missing STOuz (however this is not very relevant since these fluxes should not be the bigger in magnitude)
         try:
@@ -1469,6 +1472,7 @@ if plt_out == 1 or plt_out_obs == 1:
                 flxlst.append(facTim*(cbc_EXF.sum()/sum(cMF.perlen)/sum(ncell_MM)))
                 OutMF += -flxlst[-1]
                 del cbc_EXF
+                # DRN
                 if cMF.drn_yn == 1:
                     cbc_DRN = h5_MF['DRN_d'][:,:,:,l]
                     if cMF.drncells[l]>0:
@@ -1481,6 +1485,7 @@ if plt_out == 1 or plt_out_obs == 1:
                     else:
                         flxlst.append(0.0)
                     del cbc_DRN
+                # WEL
                 if cMF.wel_yn == 1:
                     cbc_WEL = h5_MF['WEL_d'][:,:,:,l]
                     if ncell_MM[l]>0:
@@ -1489,6 +1494,7 @@ if plt_out == 1 or plt_out_obs == 1:
                     else:
                         flxlst.append(0.0)
                     del cbc_WEL
+                # GHB
                 if cMF.ghb_yn == 1:
                     cbc_GHB = h5_MF['GHB_d'][:,:,:,l]
                     if cMF.ghbcells[l] > 0:
@@ -1645,7 +1651,7 @@ if plt_out == 1 or plt_out_obs == 1:
                 if o == o_ref:
                     i = obs.get(o)['i']
                     j = obs.get(o)['j']
-                    l = obs.get(o)['lay']
+                    l_obs = obs.get(o)['lay']
                     obs_h = obs.get(o)['obs_h']
                     obs_S = obs.get(o)['obs_S']
                     outFileExport = open(obs.get(o)['outpathname'], 'w')
@@ -1688,11 +1694,11 @@ if plt_out == 1 or plt_out_obs == 1:
                         else:
                             index_veg = cMF.crop_irr_d[gridMETEO[i,j]-1, IRRfield-1,:]
                     # Export time series results at observations points as ASCII file
-                    cMF.MM_PROCESS.ExportResultsMM(i, j, cMF.inputDate, SP_d, _nslmax, MM, index, MM_S, index_S, cbc_RCH[:,i,j,0], cbc_WEL, h_satflow, h_MF_m[:,i,j,l], obs_h_tmp, obs_S, index_veg, outFileExport, o)
+                    cMF.MM_PROCESS.ExportResultsMM(i, j, cMF.inputDate, SP_d, _nslmax, MM, index, MM_S, index_S, cbc_RCH[:,i,j,0], cbc_WEL, h_satflow, h_MF_m[:,i,j,l_obs], obs_h_tmp, obs_S, index_veg, outFileExport, o)
                     del cbc_WEL
                     outFileExport.close()
                     # plot time series results as plot
-                    plt_title = 'Time serie of fluxes at observation point %s\ni = %d, j = %d, l = %d, x = %.2f, y = %.2f, elev. = %.2f, %s\nSm = %s, Sfc = %s, Sr = %s, Ks = %s, thick. = %.3f %s' % (o, i+1, j+1, l+1, obs.get(o)['x'], obs.get(o)['y'], cMF.elev[i,j], soilnam, _Sm[gridSOIL[i,j]-1], _Sfc[gridSOIL[i,j]-1], _Sr[gridSOIL[i,j]-1], _Ks[gridSOIL[i,j]-1], gridSOILthick[i,j], Tl)
+                    plt_title = 'Time serie of fluxes at observation point %s\ni = %d, j = %d, l = %d, x = %.2f, y = %.2f, elev. = %.2f, %s\nSm = %s, Sfc = %s, Sr = %s, Ks = %s, thick. = %.3f %s' % (o, i+1, j+1, l_obs+1, obs.get(o)['x'], obs.get(o)['y'], cMF.elev[i,j], soilnam, _Sm[gridSOIL[i,j]-1], _Sfc[gridSOIL[i,j]-1], _Sr[gridSOIL[i,j]-1], _Ks[gridSOIL[i,j]-1], gridSOILthick[i,j], Tl)
                     # index = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSsurf':4, 'iRo':5, 'iEXF':6, 'iEsurf':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSsurf':13, 'iETg':14, 'iETsoil':15, 'iSsoil_pc':16, 'idSsoil':17, 'iinf':18, 'iHEADScorr':19, 'idgwt':20, 'iuzthick':21}
                     # index_S = {'iEsoil':0, 'iTsoil':1,'iSsoil_pc':2, 'iRp':3, 'iRexf':4, 'idSsoil':5, 'iSsoil':6, 'iSAT':7, 'iMB_l':8}
                     plt_export_fn = os.path.join(MM_ws_out, '_0'+ o + '_ts.png')
@@ -1722,7 +1728,7 @@ if plt_out == 1 or plt_out_obs == 1:
                     MM[:,index.get('idgwt')],
                     MM[:,index.get('iuzthick')],
                     MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('iSAT')],
-                    cbc_RCH[:,i,j,0],
+                    cbc_RCH[:,i,j,l_obs],
                     h_MF_m[:,i,j,:], MM[:,index.get('iHEADScorr')], h_satflow, obs_h_tmp, obs_S,
                     _Sm[gridSOIL[i,j]-1],
                     _Sr[gridSOIL[i,j]-1],
@@ -1816,13 +1822,13 @@ if plt_out == 1 or plt_out_obs == 1:
                         InOut_tmp[-1].append(InOut_UZF)
                         InOut_MF = InMF - OutMF
                         InOut_tmp[-1].append(InOut_MF)
-                        plt_title = 'MARMITES and MODFLOW water flux balance at observation point %s\ni = %d, j = %d, l = %d, x = %d, y = %d, %s\n\nMass balance (In - Out,  [mm]): MM = %1.2f, UZF = %1.2f, MF = %1.2f' % (o, i+1, j+1, l+1, obs.get(o)['x'], obs.get(o)['y'], soilnam, InOut_MM, InOut_UZF, InOut_MF)
+                        plt_title = 'MARMITES and MODFLOW water flux balance at observation point %s\ni = %d, j = %d, l = %d, x = %d, y = %d, %s\n\nMass balance (In - Out,  [mm]): MM = %1.2f, UZF = %1.2f, MF = %1.2f' % (o, i+1, j+1, l_obs+1, obs.get(o)['x'], obs.get(o)['y'], soilnam, InOut_MM, InOut_UZF, InOut_MF)
                         plt_titleBAL.append(plt_title)
                         del flxlst_tmp, plt_title
                     else:
                         plt_exportBAL_fn.append(os.path.join(MM_ws_out, '_0'+ o + '_WBs.png'))
                         plt_export_txt_fn.append(os.path.join(MM_ws_out, '_0' + o + '_WBs.txt'), 'w')
-                        plt_title = 'MARMITES water flux balance at observation point %s\ni = %d, j = %d, l = %d, x = %d, y = %d, %s\n\nMass balance (In - Out,  [mm]): MM = %1.2f' % (o, i+1, j+1, l+1, obs.get(o)['x'], obs.get(o)['y'], soilnam, InOut_MM)
+                        plt_title = 'MARMITES water flux balance at observation point %s\ni = %d, j = %d, l = %d, x = %d, y = %d, %s\n\nMass balance (In - Out,  [mm]): MM = %1.2f' % (o, i+1, j+1, l_obs+1, obs.get(o)['x'], obs.get(o)['y'], soilnam, InOut_MM)
                         plt_titleBAL.append(plt_title)
                         del plt_title
                     del obs_h, obs_S
@@ -1843,7 +1849,7 @@ if plt_out == 1 or plt_out_obs == 1:
             plt_export_txt.close()
         del flxlst, flxlbl_tex, flxlbl_str, InOut_tmp
         del h_satflow, MM, MM_S
-        del i, j, l, SOILzone_tmp, outFileExport, nsl, soilnam, slprop, Tl, plt_export_fn, InMM, OutMM, InUZF, OutUZF, plt_titleBAL, plt_exportBAL_fn, colors_flx
+        del i, j, l_obs, SOILzone_tmp, outFileExport, nsl, soilnam, slprop, Tl, plt_export_fn, InMM, OutMM, InUZF, OutUZF, plt_titleBAL, plt_exportBAL_fn, colors_flx
         h5_MM.close()
         h5_MF.close()
         del obs
