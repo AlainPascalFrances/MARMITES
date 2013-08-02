@@ -136,7 +136,7 @@ class clsPROCESS:
         # cbc format is : (kstp), kper, textprocess, nrow, ncol, nlay
         t = 0
         h5_MF.create_dataset(name = ds_name_new, data = np.zeros((sum(cMF.perlen), cMF.nrow, cMF.ncol, cMF.nlay)))
-        if cMF.timedef>=0:
+        if cMF.timedef==0:
             for n in range(cMF.nper):
                 if cMF.perlen[n] != 1:
                     for x in range(cMF.perlen[n]):
@@ -167,11 +167,11 @@ class clsPROCESS:
                     t += 1
         else:
             if ds_name == 'heads':
-                h5_MF[ds_name_new] = h5_MF['heads']
+                h5_MF[ds_name_new][:,:,:,:] = h5_MF['heads']
             else:
                 array_tmp = h5_MF[ds_name][:,:,:,index,:]
                 if cMF.reggrid == 1:
-                    h5_MF[ds_name_new] = conv_fact*array_tmp/(cMF.delr[0]*cMF.delc[0])
+                    h5_MF[ds_name_new][:,:,:,:] = conv_fact*array_tmp/(cMF.delr[0]*cMF.delc[0])
                 else:
                     for i in range(cMF.nrow):
                         for j in range(cMF.ncol):
@@ -184,7 +184,7 @@ class clsPROCESS:
 
         t = 0
         h5_MM.create_dataset(name = ds_name_new, data = np.zeros((sum(cMF.perlen), cMF.nrow, cMF.ncol)))
-        if cMF.timedef>=0:
+        if cMF.timedef==0:
             for n in range(cMF.nper):
                 array_tmp = h5_MM[ds_name][n,:,:]
                 if cMF.perlen[n] != 1:
@@ -195,8 +195,8 @@ class clsPROCESS:
                     h5_MM[ds_name_new][t,:,:] = conv_fact*array_tmp
                     t += 1
         else:
-            array_tmp = h5_MM[ds_name]
-            h5_MM[ds_name_new] = conv_fact*array_tmp
+            array_tmp = h5_MM[ds_name][:,:,:]
+            h5_MM[ds_name_new][:,:,:] = conv_fact*array_tmp
         del array_tmp
 
     ######################

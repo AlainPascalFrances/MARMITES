@@ -206,7 +206,7 @@ shutil.copy2(os.path.join(MM_ws, MF_ws,MF_ini_fn), os.path.join(MM_ws_out,'__%s%
 shutil.copy2(os.path.join(MM_ws, MMsurf_ws,inputFile_PAR_fn), os.path.join(MM_ws_out,'__%s%s'% (mpl.dates.DateFormatter.format_data(fmt_DHshort, timestart), inputFile_PAR_fn)))
 
 if verbose == 0:
-#capture interpreter output to be written in to a report file
+# capture interpreter output to be written in to a report file
     report_fn = os.path.join(MM_ws_out,'__MM_report_%s.txt' % (mpl.dates.DateFormatter.format_data(fmt_DHshort, timestart)))
     print '\nECHO OFF (no screen output).\nSee the report of the MM-MF run in file:\n%s\n' % report_fn
     s = sys.stdout
@@ -374,16 +374,15 @@ durationMF +=  timeendMF-timestartMF
 # ### MF time processing
 # #############################
 # if required by user, compute nper, perlen,etc based on RF analysis in the METEO zones
-if cMF.timedef >= 0:
-    if isinstance(cMF.nper, str):
-        try:
-            perlenmax = int(cMF.nper.split()[1].strip())
-        except:
-            cUTIL.ErrorExit('\nFATAL ERROR!\nError in nper format of the MODFLOW ini file!')
-    if irr_yn == 0:
-        cMF.ppMFtime(inputDate_fn, inputZON_dSP_RF_veg_fn, inputZON_dSP_RFe_veg_fn, inputZON_dSP_PT_fn,input_dSP_LAI_veg_fn, inputZON_dSP_PE_fn, inputZON_dSP_E0_fn, NMETEO, NVEG, NSOIL)
-    else:
-        cMF.ppMFtime(inputDate_fn, inputZON_dSP_RF_veg_fn, inputZON_dSP_RFe_veg_fn, inputZON_dSP_PT_fn, input_dSP_LAI_veg_fn, inputZON_dSP_PE_fn, inputZON_dSP_E0_fn, NMETEO, NVEG, NSOIL, inputZON_dSP_RF_irr_fn, inputZON_dSP_RFe_irr_fn, inputZON_dSP_PT_irr_fn, input_dSP_crop_irr_fn, NFIELD)
+if isinstance(cMF.nper, str):
+    try:
+        perlenmax = int(cMF.nper.split()[1].strip())
+    except:
+        cUTIL.ErrorExit('\nFATAL ERROR!\nError in nper format of the MODFLOW ini file!')
+if irr_yn == 0:
+    cMF.ppMFtime(inputDate_fn, inputZON_dSP_RF_veg_fn, inputZON_dSP_RFe_veg_fn, inputZON_dSP_PT_fn,input_dSP_LAI_veg_fn, inputZON_dSP_PE_fn, inputZON_dSP_E0_fn, NMETEO, NVEG, NSOIL)
+else:
+    cMF.ppMFtime(inputDate_fn, inputZON_dSP_RF_veg_fn, inputZON_dSP_RFe_veg_fn, inputZON_dSP_PT_fn, input_dSP_LAI_veg_fn, inputZON_dSP_PE_fn, inputZON_dSP_E0_fn, NMETEO, NVEG, NSOIL, inputZON_dSP_RF_irr_fn, inputZON_dSP_RFe_irr_fn, inputZON_dSP_PT_irr_fn, input_dSP_crop_irr_fn, NFIELD)
 
 print'\n##############'
 print 'MARMITESsoil initialization'
@@ -404,7 +403,7 @@ if irr_yn == 1:
 
 # READ input time series and parameters
 if irr_yn == 0:
-    gridVEGarea, RF_veg_zoneSP, E0_zonesSP, PT_veg_zonesSP, RFe_veg_zonesSP, LAI_veg_zonesSP, PE_zonesSP = cMF.MM_PROCESS.inputSP(                           NMETEO                   = NMETEO,
+    gridVEGarea, RF_veg_zoneSP, E0_zonesSP, PT_veg_zonesSP, RFe_veg_zonesSP, LAI_veg_zonesSP, PE_zonesSP = cMF.MM_PROCESS.inputSP(                       NMETEO                   = NMETEO,
                                 NVEG                     = NVEG,
                                 NSOIL                    = NSOIL,
                                 nper                     = cMF.nper,
@@ -413,7 +412,7 @@ if irr_yn == 0:
                                 inputZON_SP_LAI_veg_fn   = cMF.inputZON_SP_LAI_veg_fn,
                                 inputZON_SP_PT_fn        = cMF.inputZON_SP_PT_fn,
                                 inputZON_SP_PE_fn        = cMF.inputZON_SP_PE_fn,
-                                inputZON_SP_E0_fn        = cMF.inputZON_SP_E0_fn
+                                inputZON_SP_E0_fn        = cMF.inputZON_SP_E0_fn,
                                 )
 else:
     gridVEGarea, RF_veg_zoneSP, E0_zonesSP, PT_veg_zonesSP, RFe_veg_zonesSP, LAI_veg_zonesSP, PE_zonesSP, RF_irr_zoneSP, RFe_irr_zoneSP, PT_irr_zonesSP, crop_irr_SP = cMF.MM_PROCESS.inputSP(
@@ -1003,8 +1002,6 @@ if MF_yn == 1 and isinstance(cMF.h5_MF_fn, str):
         h5_MF = h5py.File(cMF.h5_MF_fn)
     except:
         cUTIL.ErrorExit('\nFATAL ERROR!\nInvalid MODFLOW HDF5 file. Run MARMITES and/or MODFLOW again.')
-    if cMF.rch_yn == 1:
-        cMF.MM_PROCESS.procMF(cMF = cMF, h5_MF = h5_MF, ds_name = 'cbc', ds_name_new = 'RCH_d', conv_fact = conv_fact, index = imfRCH)
     cMF.MM_PROCESS.procMF(cMF = cMF, h5_MF = h5_MF, ds_name = 'cbc', ds_name_new = 'STO_d', conv_fact = conv_fact, index = imfSTO)
     if cMF.drn_yn == 1:
         cMF.MM_PROCESS.procMF(cMF = cMF, h5_MF = h5_MF, ds_name = 'cbc', ds_name_new = 'DRN_d', conv_fact = conv_fact, index = imfDRN)
@@ -1016,6 +1013,8 @@ if MF_yn == 1 and isinstance(cMF.h5_MF_fn, str):
     if cMF.uzf_yn == 1:
         cMF.MM_PROCESS.procMF(cMF = cMF, h5_MF = h5_MF, ds_name = 'cbc_uzf', ds_name_new = 'RCH_d', conv_fact = conv_fact, index = imfRCH)
         cMF.MM_PROCESS.procMF(cMF = cMF, h5_MF = h5_MF, ds_name = 'cbc_uzf', ds_name_new = 'EXF_d', conv_fact = conv_fact, index = imfEXF)
+    elif cMF.rch_yn == 1:
+        cMF.MM_PROCESS.procMF(cMF = cMF, h5_MF = h5_MF, ds_name = 'cbc', ds_name_new = 'RCH_d', conv_fact = conv_fact, index = imfRCH)
     h5_MF.close()
 
 if MMsoil_yn == 1 and isinstance(h5_MM_fn, str):

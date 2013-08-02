@@ -413,7 +413,6 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, 
 #    plt.show()
     plt.clf()
     plt.close('all')
-    del fig, DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil1, Tsoil1, Eg, Tg, S1, dS1, Spc1, Rp1, EXF, R, ETg, Es, MB, h_MF, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin
 
 ##################
 
@@ -738,8 +737,6 @@ def plotLAYER(timesteps, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, ms
             pass
     plt.close('all')
 
-    del fig, ax, timesteps, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_title, MM_ws, interval_type, interval_diff, interval_num, Vmax, Vmin, Vmax_tmp, Vmin_tmp, fmt
-
 ##################
 
 def plotWB(flxlst, flxlbl, colors_flx, plt_export_fn, plt_title, fluxmax, fluxmin, unit = 'na'):
@@ -805,7 +802,6 @@ def plotWB(flxlst, flxlbl, colors_flx, plt_export_fn, plt_title, fluxmax, fluxmi
 #    plt.show()
     plt.clf()
     plt.close('all')
-    del fig, flxlst, flxlst1, flxlbl, colors_flx, plt_export_fn, plt_title, fluxmax, fluxmin
 
 ##################
 

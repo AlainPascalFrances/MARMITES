@@ -74,10 +74,6 @@ class clsMF():
                 # daily nper, perlen, nstp, tsmult
                     self.nper = numDays
                     self.timedef = -1
-                else:
-                    # read nper, perlen, nstp, tsmult from user-input ini file
-                    self.nper = nper
-                    self.timedef = 1
             elif isinstance(nper, str):
                 # compute nper, perlen, nstp, tsmult based on daily RF analysis
                 nper = nper[0]
@@ -88,30 +84,7 @@ class clsMF():
             self.nstp = []
             self.tsmult = []
             self.Ss_tr = []
-            if self.timedef > 0:
-                #read user-input time discretization
-                perlen_tmp =  inputFile[l].split()
-                l += 1
-                nstp_tmp =  inputFile[l].split()
-                l += 1
-                tsmult_tmp =  inputFile[l].split()
-                l += 1
-                Ss_tr_tmp =  inputFile[l].split()
-                for i in range(self.nper):
-                    self.perlen.append(int(perlen_tmp[i]))
-                    self.nstp.append(int(nstp_tmp[i]))
-                    self.tsmult.append(int(tsmult_tmp[i]))
-                    self.Ss_tr.append(str(Ss_tr_tmp[i]))
-                    if self.nstp[i]>self.perlen[i]:
-                        self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nMM doesn't accept nstp < perlen!")
-                    if self.Ss_tr[i] == 'TR':
-                        self.Ss_tr[i] = False
-                    elif self.Ss_tr[i] == 'SS':
-                        self.Ss_tr[i] = True
-                    else:
-                        self.cUTIL.ErrorExit(msg = '\nFATAL ERROR!\nVariable Ss_tr from the DIS package is not correct, check the MODFLOW manual')
-                l += 1
-            elif self.timedef < 0:
+            if self.timedef < 0:
                 # daily data
                 for t in range(self.nper):
                     self.perlen.append(1)
@@ -673,6 +646,7 @@ class clsMF():
 
 ####################################
 
+
     def ppMFtime(self, inputDate_fn, inputZON_dSP_RF_veg_fn, inputZON_dSP_RFe_veg_fn, inputZON_dSP_PT_fn, input_dSP_LAI_veg_fn, inputZON_dSP_PE_fn, inputZON_dSP_E0_fn, NMETEO, NVEG, NSOIL, inputZON_dSP_RF_irr_fn = None, inputZON_dSP_RFe_irr_fn = None, inputZON_dSP_PT_irr_fn = None, input_dSP_crop_irr_fn = None, NFIELD = None):
 
         ''' RF analysis to define automatically nper/perlen/nstp
@@ -691,7 +665,6 @@ class clsMF():
 
         #####################################
 
-        print'\nComputing MODFLOW time discretization based on rainfall analysis in each METEO zone...'
         # READ date of input files (RF and PT)
         inputDate_fn=os.path.join(self.MM_ws, inputDate_fn)
         if os.path.exists(inputDate_fn):
@@ -746,11 +719,12 @@ class clsMF():
                         RFe_irr_d[n,f,t] = float(inputFileRFe_irr[t+(n*NFIELD+f)*len(self.JD)].strip())
                         PT_irr_d[n,f,t] = float(inputFilePT_irr[t+(n*NFIELD+f)*len(self.JD)].strip())
                         self.crop_irr_d[n,f,t] = float(inputFilecrop_irr[t+f*len(self.JD)].strip())
-        del inputDate_fn, inputFileRF_veg, inputFilePT, inputFilePE, inputFileRFe_veg, inputFileE0
+        del inputFileRF_veg, inputFilePT, inputFilePE, inputFileRFe_veg, inputFileE0
         if NFIELD != None:
             del inputZON_dSP_RF_irr_fn, inputZON_dSP_RFe_irr_fn, inputZON_dSP_PT_irr_fn, input_dSP_crop_irr_fn, inputFileRF_irr, inputFileRFe_irr, inputFilePT_irr, inputFilecrop_irr
 
         if self.timedef == 0:
+            print'\nComputing MODFLOW time discretization based on rainfall analysis in each METEO zone...'
             # summing RF and avering other flux when RF = 0
             try:
                 if isinstance(self.nper, str):
@@ -965,6 +939,7 @@ class clsMF():
             for n in range(self.nper):
                 self.Ss_tr.append(False)
         elif self.timedef>0:
+            print'\nTime discretization based on daily time step'
             RF_veg_stp = np.zeros([NMETEO,sum(self.nstp)])
             PT_veg_stp = np.zeros([NMETEO,NVEG,sum(self.nstp)])
             RFe_veg_stp = np.zeros([NMETEO,NVEG,sum(self.nstp)])
@@ -997,76 +972,76 @@ class clsMF():
                                 PT_irr_stp[n,f,sum(nstp[0:per])+stp] += PT_irr_d[n,f,tstart:tend].sum()/(self.perlen[per]/self.nstp[per])
                                 crop_irr_stp[n,f,sum(nstp[0:per])+stp] += np.ceil(self.crop_irr_d[n,f,tstart:tend].sum()/(self.perlen[per]/self.nstp[per]))
 
-        self.inputZON_SP_RF_veg_fn = "inputZONRF_veg_stp.txt"
-        self.inputZONRF_veg_fn = os.path.join(self.MM_ws, self.inputZON_SP_RF_veg_fn)
-        inputZONRF_veg = open(self.inputZONRF_veg_fn, 'w')
-        inputZONRF_veg.write('#\n')
+        self.inputZON_SP_RF_veg_fn = "inputZON_RF_veg_stp.txt"
+        self.inputZON_RF_veg_fn = os.path.join(self.MM_ws, self.inputZON_SP_RF_veg_fn)
+        inputZON_RF_veg = open(self.inputZON_RF_veg_fn, 'w')
+        inputZON_RF_veg.write('#\n')
 
-        self.inputZON_SP_PT_fn = "inputZONPT_veg_stp.txt"
-        self.inputZONPT_fn = os.path.join(self.MM_ws, self.inputZON_SP_PT_fn)
-        inputZONPT = open(self.inputZONPT_fn, 'w')
-        inputZONPT.write('#\n')
+        self.inputZON_SP_PT_fn = "inputZON_PT_veg_stp.txt"
+        self.inputZON_PT_fn = os.path.join(self.MM_ws, self.inputZON_SP_PT_fn)
+        inputZON_PT = open(self.inputZON_PT_fn, 'w')
+        inputZON_PT.write('#\n')
 
-        self.inputZON_SP_RFe_veg_fn = "inputZONRFe_veg_stp.txt"
-        self.inputZONRFe_veg_fn = os.path.join(self.MM_ws, self.inputZON_SP_RFe_veg_fn)
-        inputZONRFe_veg = open(self.inputZONRFe_veg_fn, 'w')
-        inputZONRFe_veg.write('#\n')
+        self.inputZON_SP_RFe_veg_fn = "inputZON_RFe_veg_stp.txt"
+        self.inputZON_RFe_veg_fn = os.path.join(self.MM_ws, self.inputZON_SP_RFe_veg_fn)
+        inputZON_RFe_veg = open(self.inputZON_RFe_veg_fn, 'w')
+        inputZON_RFe_veg.write('#\n')
 
-        self.inputZON_SP_LAI_veg_fn = "inputZONLAI_veg_stp.txt"
+        self.inputZON_SP_LAI_veg_fn = "inputZON_LAI_veg_stp.txt"
         self.inputLAI_veg_fn = os.path.join(self.MM_ws, self.inputZON_SP_LAI_veg_fn)
         inputLAI_veg = open(self.inputLAI_veg_fn, 'w')
         inputLAI_veg.write('#\n')
 
-        self.inputZON_SP_PE_fn = "inputZONPE_stp.txt"
-        self.inputZONPE_fn = os.path.join(self.MM_ws, self.inputZON_SP_PE_fn)
-        inputZONPE = open(self.inputZONPE_fn, 'w')
-        inputZONPE.write('#\n')
+        self.inputZON_SP_PE_fn = "inputZON_PE_stp.txt"
+        self.inputZON_PE_fn = os.path.join(self.MM_ws, self.inputZON_SP_PE_fn)
+        inputZON_PE = open(self.inputZON_PE_fn, 'w')
+        inputZON_PE.write('#\n')
 
-        self.inputZON_SP_E0_fn = "inputZONE0_stp.txt"
-        self.inputZONE0_fn = os.path.join(self.MM_ws, self.inputZON_SP_E0_fn)
-        inputZONE0 = open(self.inputZONE0_fn, 'w')
-        inputZONE0.write('#\n')
+        self.inputZON_SP_E0_fn = "inputZON_E0_stp.txt"
+        self.inputZON_E0_fn = os.path.join(self.MM_ws, self.inputZON_SP_E0_fn)
+        inputZON_E0 = open(self.inputZON_E0_fn, 'w')
+        inputZON_E0.write('#\n')
 
         if NFIELD != None:
-            self.inputZON_SP_RF_irr_fn = "inputZONRF_irr_stp.txt"
-            self.inputZONRF_irr_fn = os.path.join(self.MM_ws, self.inputZON_SP_RF_irr_fn)
-            inputZONRF_irr = open(self.inputZONRF_irr_fn, 'w')
-            inputZONRF_irr.write('#\n')
+            self.inputZON_SP_RF_irr_fn = "inputZON_RF_irr_stp.txt"
+            self.inputZON_RF_irr_fn = os.path.join(self.MM_ws, self.inputZON_SP_RF_irr_fn)
+            inputZON_RF_irr = open(self.inputZON_RF_irr_fn, 'w')
+            inputZON_RF_irr.write('#\n')
 
-            self.inputZON_SP_RFe_irr_fn = "inputZONRFe_irr_stp.txt"
-            self.inputZONRFe_irr_fn = os.path.join(self.MM_ws, self.inputZON_SP_RFe_irr_fn)
-            inputZONRFe_irr = open(self.inputZONRFe_irr_fn, 'w')
-            inputZONRFe_irr.write('#\n')
+            self.inputZON_SP_RFe_irr_fn = "inputZON_RFe_irr_stp.txt"
+            self.inputZON_RFe_irr_fn = os.path.join(self.MM_ws, self.inputZON_SP_RFe_irr_fn)
+            inputZON_RFe_irr = open(self.inputZON_RFe_irr_fn, 'w')
+            inputZON_RFe_irr.write('#\n')
 
-            self.inputZON_SP_PT_irr_fn = "inputZONPT_irr_stp.txt"
-            self.inputZONPT_irr_fn = os.path.join(self.MM_ws, self.inputZON_SP_PT_irr_fn)
-            inputZONPT_irr = open(self.inputZONPT_irr_fn, 'w')
-            inputZONPT_irr.write('#\n')
+            self.inputZON_SP_PT_irr_fn = "inputZON_PT_irr_stp.txt"
+            self.inputZON_PT_irr_fn = os.path.join(self.MM_ws, self.inputZON_SP_PT_irr_fn)
+            inputZON_PT_irr = open(self.inputZON_PT_irr_fn, 'w')
+            inputZON_PT_irr.write('#\n')
 
-            self.input_SP_crop_irr_fn = "inputZONcrop_irr_stp.txt"
+            self.input_SP_crop_irr_fn = "inputZON_crop_irr_stp.txt"
             self.inputcrop_irr_fn = os.path.join(self.MM_ws, self.input_SP_crop_irr_fn)
             inputcrop_irr = open(self.inputcrop_irr_fn, 'w')
             inputcrop_irr.write('#\n')
 
         try:
             for n in range(NMETEO):
-                ExportResults1(RF_veg_stp[n], inputZONRF_veg)
-                ExportResults1(E0_stp[n], inputZONE0)
+                ExportResults1(RF_veg_stp[n], inputZON_RF_veg)
+                ExportResults1(E0_stp[n], inputZON_E0)
                 #VEG
                 if NVEG>0:
                     for v in range(NVEG):
-                        ExportResults1(PT_veg_stp[n][v], inputZONPT)
-                        ExportResults1(RFe_veg_stp[n][v], inputZONRFe_veg)
+                        ExportResults1(PT_veg_stp[n][v], inputZON_PT)
+                        ExportResults1(RFe_veg_stp[n][v], inputZON_RFe_veg)
                 # SOIL
                 if NSOIL>0:
                     for s in range(NSOIL):
-                        ExportResults1(PE_stp[n][s], inputZONPE)
+                        ExportResults1(PE_stp[n][s], inputZON_PE)
                 # CROP
                 if NFIELD != None:
                     for f in range(NFIELD):
-                        ExportResults1(RF_irr_stp[n][f], inputZONRF_irr)
-                        ExportResults1(RFe_irr_stp[n][f], inputZONRFe_irr)
-                        ExportResults1(PT_irr_stp[n][f], inputZONPT_irr)
+                        ExportResults1(RF_irr_stp[n][f], inputZON_RF_irr)
+                        ExportResults1(RFe_irr_stp[n][f], inputZON_RFe_irr)
+                        ExportResults1(PT_irr_stp[n][f], inputZON_PT_irr)
             if NVEG>0:
                 for v in range(NVEG):
                     ExportResults1(LAI_veg_stp[0][v], inputLAI_veg)
@@ -1078,16 +1053,16 @@ class clsMF():
 
         print 'Found %d days converted into %d stress periods.' % (sum(self.perlen), self.nper)
 
-        inputZONRF_veg.close()
-        inputZONRFe_veg.close()
+        inputZON_RF_veg.close()
+        inputZON_RFe_veg.close()
         inputLAI_veg.close()
-        inputZONPT.close()
-        inputZONPE.close()
-        inputZONE0.close()
+        inputZON_PT.close()
+        inputZON_PE.close()
+        inputZON_E0.close()
         if NFIELD != None:
-            inputZONRF_irr.close()
-            inputZONRFe_irr.close()
-            inputZONPT_irr.close()
+            inputZON_RF_irr.close()
+            inputZON_RFe_irr.close()
+            inputZON_PT_irr.close()
             inputcrop_irr.close()
 
 #####################################
