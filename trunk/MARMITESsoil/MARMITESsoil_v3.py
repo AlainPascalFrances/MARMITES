@@ -303,7 +303,6 @@ class clsSOIL:
                         Tg_tmp += (Tg_tmp_Zr[l,v]*VEGarea[v]*0.01)
 
         return Esurf_tmp, Ssurf_tmp, Ro_tmp, Rp_tmp, Esoil_tmp, Tsoil_tmp, Ssoil_tmp, Ssoil_pc_tmp, Eg_tmp, Tg_tmp, HEADS_corr, dgwt_corr, SAT, Rexf_tmp
-        del Esurf_tmp, Ssurf_tmp, Ro_tmp, Rp_tmp, Esoil_tmp, Tsoil_tmp, Ssoil_tmp, Ssoil_pc_tmp, Ssoil_ini, Eg_tmp, Tg_tmp, dgwt_corr
 
 #####################
 
@@ -496,7 +495,7 @@ class clsSOIL:
                         if n == 0:
                             Ssoil_ini_tmp = Ssoil_ini_tmp * Tl
                         # fluxes
-                        Esurf_tmp, Ssurf_tmp, Ro_tmp, Rp_tmp, Esoil_tmp, Tsoil_tmp, Ssoil_tmp, Ssoil_pc_tmp, Eg_tmp, Tg_tmp, HEADS_MM, dgwt_tmp, SAT_tmp, Rexf_tmp = self.flux(cMF.perlen[n], perleni, RFe_tot, PT_zonesSP_tmp[:], PE_tot, E0_zonesSP_tmp, Zr_elev, VEGarea_tmp, HEADS_drycell, TopSoilLay, BotSoilLay, Tl, nsl, Sm, Sfc, Sr, Ks, Ssurf_max, Ssurf_ratio, Ssoil_ini_tmp, Rp_ini_tmp_array[i,j,:], Ssurf_ini_tmp, exf_MF_tmp, dgwt, st, i, j, n, kTu_min_tmp, kTu_n_tmp, NVEG_tmp, LAIveg_tmp[:])
+                        Esurf_tmp, Ssurf_tmp, Ro_tmp, Rp_tmp, Esoil_tmp, Tsoil_tmp, Ssoil_tmp, Ssoil_pc_tmp, Eg_tmp, Tg_tmp, HEADS_MM, dgwt_tmp, SAT_tmp, Rexf_tmp = self.flux(cMF.perlen[n], perleni, RFe_tot, PT_zonesSP_tmp[:], PE_zonesSP_tmp*SOILarea*0.01, E0_zonesSP_tmp, Zr_elev, VEGarea_tmp, HEADS_drycell, TopSoilLay, BotSoilLay, Tl, nsl, Sm, Sfc, Sr, Ks, Ssurf_max, Ssurf_ratio, Ssoil_ini_tmp, Rp_ini_tmp_array[i,j,:], Ssurf_ini_tmp, exf_MF_tmp, dgwt, st, i, j, n, kTu_min_tmp, kTu_n_tmp, NVEG_tmp, LAIveg_tmp[:])
                         Ssoil_pc_tot = sum(Ssoil_pc_tmp[:])/nsl
                         inf     = Rp_tmp[-1]
                         ETg = Eg_tmp + Tg_tmp
@@ -528,7 +527,7 @@ class clsSOIL:
                                 MB_l[l] = (Rp_ini_tmp_array[i,j,l-1]*perleni - Rp_tmp[l]*cMF.perlen[n])/cMF.perlen[n] + dSsoil[l] + Rexf_tmp[l+1] - (Esoil_tmp[l] + Tsoil_tmp[l] + Rexf_tmp[l])
                             # last soil layer
                             l = nsl-1
-                            MB_l[l] = (Rp_ini_tmp_array[i,j,l-1]*perleni - Rp_tmp[l]/cMF.perlen[n] + dSsoil[l] + exf_MF_tmp - (Esoil_tmp[l] + Tsoil_tmp[l] + Rexf_tmp[l]))
+                            MB_l[l] = (Rp_ini_tmp_array[i,j,l-1]*perleni - Rp_tmp[l]*cMF.perlen[n])/cMF.perlen[n] + dSsoil[l] + exf_MF_tmp - (Esoil_tmp[l] + Tsoil_tmp[l] + Rexf_tmp[l])
                         else:
                             # only one soil layer
                             l = 0

@@ -1764,7 +1764,7 @@ if plt_out == 1 or plt_out_obs == 1:
                         -1.0*facTim*(MM[:,index.get('iEg')].sum()/sum(cMF.perlen)),
                         -1.0*facTim*(MM[:,index.get('iTg')].sum()/sum(cMF.perlen)),
                         -1.0*facTim*(MM[:,index.get('iETg')].sum()/sum(cMF.perlen)),
-                        -1.0*facTim*conv_fact*((cMF.perlen*h5_MM['finf_d'][:,i,j]).sum()/sum(cMF.perlen))
+                        -1.0*facTim*conv_fact*((h5_MM['finf_d'][:,i,j]).sum()/sum(cMF.perlen))
                         ])
                     InMM = flxlst[-1][0] + flxlst[-1][3] + flxlst[-1][6] + flxlst[-1][7]
                     OutMM = -(flxlst[-1][1] + flxlst[-1][4] + flxlst[-1][5] + flxlst[-1][10] + flxlst[-1][14])
@@ -1780,7 +1780,7 @@ if plt_out == 1 or plt_out_obs == 1:
                             rch_tmp1 = facTim*(cbc_RCH[:,i,j,l].sum()/sum(cMF.perlen))
                             flxlst_tmp.append(rch_tmp1)
                             rch_tmp += rch_tmp1
-                        flxlst[-1].append(-rch_tmp + facTim*conv_fact*((cMF.perlen*h5_MM['finf_d'][:,i,j]).sum()/sum(cMF.perlen)))
+                        flxlst[-1].append(-rch_tmp + facTim*conv_fact*((h5_MM['finf_d'][:,i,j]).sum()/sum(cMF.perlen)))
                         del rch_tmp, rch_tmp1, cbc_RCH
                         InUZF = -flxlst[-1][14] - flxlst[-1][15]
                         OutUZF = 0
