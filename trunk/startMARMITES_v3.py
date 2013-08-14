@@ -212,7 +212,8 @@ if verbose == 0:
     s = sys.stdout
     report = open(report_fn, 'w')
     sys.stdout = report
-    print '\n##############\nMARMITES started!\n%s\n##############' % mpl.dates.num2date(timestart).isoformat()[:19]
+    print '\n##############\nMARMITES v0.3 started!\n%s\n##############' % mpl.dates.DateFormatter.format_data(fmt_DH, timestart)
+
     cUTIL = MMutils.clsUTILITIES(fmt = fmt_DH, verbose = verbose, s = s, report = report, report_fn = report_fn)
 else:
     report = None
@@ -849,6 +850,7 @@ if MMsoil_yn > 0:
                 durationMMloop = timeendMMloop-timestartMMloop
                 print '\nMM run time: %02.fmn%02.fs' % (int(durationMMloop*24.0*60.0), (durationMMloop*24.0*60.0-int(durationMMloop*24.0*60.0))*60)
                 durationMMsoil += durationMMloop
+                print '%s'% mpl.dates.DateFormatter.format_data(fmt_DH, mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat()))
                 break
             else:
                 print '\nWARNING: first layer of the model DRY!'
@@ -860,6 +862,7 @@ if MMsoil_yn > 0:
             durationMMloop = timeendMMloop-timestartMMloop
             print '\nMM run time: %02.fmn%02.fs' % (int(durationMMloop*24.0*60.0), (durationMMloop*24.0*60.0-int(durationMMloop*24.0*60.0))*60)
             durationMMsoil += durationMMloop
+            print '%s'% mpl.dates.DateFormatter.format_data(fmt_DH, mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat()))
             break
         elif LOOP>ccnum:
             msg_end_loop.append('No convergence between MARMITES and MODFLOW!\n(Conv. criterion = %.4f and conv. crit. max. = %.4f)' % (convcrit, convcritmax))
@@ -869,6 +872,7 @@ if MMsoil_yn > 0:
             durationMMloop = timeendMMloop-timestartMMloop
             print '\nMM run time: %02.fmn%02.fs' % (int(durationMMloop*24.0*60.0), (durationMMloop*24.0*60.0-int(durationMMloop*24.0*60.0))*60)
             durationMMsoil += durationMMloop
+            print '%s'% mpl.dates.DateFormatter.format_data(fmt_DH, mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat()))
             break
         del h_MF_average
         for txt in msg_end_loop:
@@ -878,6 +882,7 @@ if MMsoil_yn > 0:
         durationMMloop = timeendMMloop-timestartMMloop
         print '\nMM run time: %02.fmn%02.fs' % (int(durationMMloop*24.0*60.0), (durationMMloop*24.0*60.0-int(durationMMloop*24.0*60.0))*60)
         durationMMsoil += durationMMloop
+        print '%s'% mpl.dates.DateFormatter.format_data(fmt_DH, mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat()))
 
         # MODFLOW RUN with MM-computed recharge
         timestartMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
