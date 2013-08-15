@@ -103,7 +103,7 @@ class clsSOIL:
 
 #####################
 
-    def flux(self, perlen, perleni, RFe, PT, PE, E0, Zr_elev, VEGarea, HEADS, TopSoilLay, BotSoilLay, Tl, nsl, Sm, Sfc, Sr, Ks, Ssurf_max, Ssurf_ratio, Ssoil_ini, Rp_ini, Ssurf_ini, EXF, dgwt, st, i, j, n, kTu_min, kTu_n, NVEG, LAIveg):
+    def flux(self, perlen, perleni, RFe, PT, PE, E0surf_max, Zr_elev, VEGarea, HEADS, TopSoilLay, BotSoilLay, Tl, nsl, Sm, Sfc, Sr, Ks, Ssurf_max, Ssoil_ini, Rp_ini, Ssurf_ini, EXF, dgwt, st, i, j, n, kTu_min, kTu_n, NVEG, LAIveg):
 
         def surfwater(s_tmp, Sm, Ssurf_max, E0, perlen):
             '''
@@ -216,7 +216,7 @@ class clsSOIL:
                     break
 
         # Ssurf and Ro
-        surfwater_tmp = surfwater(Ssoil_tmp[0], Sm[0]*Tl[0], Ssurf_max, E0*Ssurf_ratio, perlen)
+        surfwater_tmp = surfwater(Ssoil_tmp[0], Sm[0]*Tl[0], Ssurf_max, E0surf_max, perlen)
         Ssurf_tmp = surfwater_tmp[0]
         Ro_tmp = surfwater_tmp[1]
         Esurf_tmp = surfwater_tmp[2]
@@ -436,8 +436,8 @@ class clsSOIL:
                         Sfc        = _Sfc[SOILzone_tmp]
                         Sr         = _Sr[SOILzone_tmp]
                         Ks         = _Ks[SOILzone_tmp]
-                        Ssurf_max     = 1000*1.12*gridSsurfhmax[i,j]*gridSsurfw[i,j]/cMF.delr[j]
-                        Ssurf_ratio   = 1.12*gridSsurfw[i,j]/cMF.delr[j]
+                        Ssurf_max  = np.power(cMF.delr[j],3)*gridSsurfhmax[i,j]*gridSsurfw[i,j]*1.126847784/np.power(100.0,2)/10.0   #1000*1.12*gridSsurfhmax[i,j]*gridSsurfw[i,j]/cMF.delr[j]
+                        E0surf_max = cMF.delr[j]*gridSsurfw[i,j]*1.126847784*E0_zonesSP_tmp/np.power(100.0,2)  #1.12*gridSsurfw[i,j]/cMF.delr[j]
                         # Output initialisation
                         # PT for the vegetation patchwork
                         PT_tot = np.zeros([len(PT_zonesSP_tmp[0])], dtype = float)
@@ -495,7 +495,7 @@ class clsSOIL:
                         if n == 0:
                             Ssoil_ini_tmp = Ssoil_ini_tmp * Tl
                         # fluxes
-                        Esurf_tmp, Ssurf_tmp, Ro_tmp, Rp_tmp, Esoil_tmp, Tsoil_tmp, Ssoil_tmp, Ssoil_pc_tmp, Eg_tmp, Tg_tmp, HEADS_MM, dgwt_tmp, SAT_tmp, Rexf_tmp = self.flux(cMF.perlen[n], perleni, RFe_tot, PT_zonesSP_tmp[:], PE_zonesSP_tmp*SOILarea*0.01, E0_zonesSP_tmp, Zr_elev, VEGarea_tmp, HEADS_drycell, TopSoilLay, BotSoilLay, Tl, nsl, Sm, Sfc, Sr, Ks, Ssurf_max, Ssurf_ratio, Ssoil_ini_tmp, Rp_ini_tmp_array[i,j,:], Ssurf_ini_tmp, exf_MF_tmp, dgwt, st, i, j, n, kTu_min_tmp, kTu_n_tmp, NVEG_tmp, LAIveg_tmp[:])
+                        Esurf_tmp, Ssurf_tmp, Ro_tmp, Rp_tmp, Esoil_tmp, Tsoil_tmp, Ssoil_tmp, Ssoil_pc_tmp, Eg_tmp, Tg_tmp, HEADS_MM, dgwt_tmp, SAT_tmp, Rexf_tmp = self.flux(cMF.perlen[n], perleni, RFe_tot, PT_zonesSP_tmp[:], PE_zonesSP_tmp*SOILarea*0.01, E0surf_max, Zr_elev, VEGarea_tmp, HEADS_drycell, TopSoilLay, BotSoilLay, Tl, nsl, Sm, Sfc, Sr, Ks, Ssurf_max, Ssoil_ini_tmp, Rp_ini_tmp_array[i,j,:], Ssurf_ini_tmp, exf_MF_tmp, dgwt, st, i, j, n, kTu_min_tmp, kTu_n_tmp, NVEG_tmp, LAIveg_tmp[:])
                         Ssoil_pc_tot = sum(Ssoil_pc_tmp[:])/nsl
                         inf     = Rp_tmp[-1]
                         ETg = Eg_tmp + Tg_tmp

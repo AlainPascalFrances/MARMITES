@@ -64,37 +64,24 @@ class clsMF():
             l += 1
             self.nrow = int(inputFile[l].strip())
             l += 1
-            nper = inputFile[l].strip()
-            try:
-                nper = int(nper)
-            except:
-                pass
-            if isinstance(nper, int):
-                if nper <0:
-                # daily nper, perlen, nstp, tsmult
-                    self.nper = numDays
-                    self.timedef = -1
-            elif isinstance(nper, str):
-                # compute nper, perlen, nstp, tsmult based on daily RF analysis
-                nper = nper[0]
-                self.timedef = 0
-                self.nper = inputFile[l].strip()
-            l += 1
+            nper = int(inputFile[l].strip())
             self.perlen = []
             self.nstp = []
             self.tsmult = []
             self.Ss_tr = []
-            if self.timedef < 0:
-                # daily data
-                for t in range(self.nper):
-                    self.perlen.append(1)
-                    self.nstp.append(1)
-                    self.tsmult.append(1)
-                    self.Ss_tr.append(False)
-                l += 4
-            elif self.timedef == 0:
-                # will be defined later in def MF.ppMFtime
-                l += 4
+            if nper <0:
+                # daily nper, perlen, nstp, tsmult
+                self.nper = numDays
+                self.timedef = -1
+                self.perlen = list(np.ones([numDays], dtype = np.int))
+                self.nstp = list(np.ones([numDays], dtype = np.int))
+                self.tsmult = list(np.ones([numDays], dtype = np.int))
+                self.Ss_tr = list(np.zeros([numDays], dtype = np.int))
+            elif nper > 0:
+                # compute nper, perlen, nstp, tsmult based on daily RF analysis
+                self.nper = nper
+                self.timedef = 1
+            l += 1
             self.itmuni = int(inputFile[l].strip())
             l += 1
             self.lenuni = int(inputFile[l].strip())
@@ -683,17 +670,17 @@ class clsMF():
             self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % inputDate_fn)
 
         inputFileRF_veg = self.cUTIL.readFile(self.MM_ws, inputZON_dSP_RF_veg_fn)
-        RF_veg_d = np.zeros([NMETEO, len(self.JD)])
+        RF_veg_d = np.zeros([NMETEO, len(self.JD)], dtype = np.float)
         inputFileRFe_veg = self.cUTIL.readFile(self.MM_ws, inputZON_dSP_RFe_veg_fn)
-        RFe_veg_d = np.zeros([NMETEO, NVEG, len(self.JD)])
+        RFe_veg_d = np.zeros([NMETEO, NVEG, len(self.JD)], dtype = np.float)
         inputFilePT = self.cUTIL.readFile(self.MM_ws, inputZON_dSP_PT_fn)
-        PT_veg_d = np.zeros([NMETEO, NVEG, len(self.JD)])
+        PT_veg_d = np.zeros([NMETEO, NVEG, len(self.JD)], dtype = np.float)
         inputFileLAI_veg = self.cUTIL.readFile(self.MM_ws, input_dSP_LAI_veg_fn)
         self.LAI_veg_d = np.zeros([NMETEO, NVEG, len(self.JD)], dtype = float)
         inputFilePE = self.cUTIL.readFile(self.MM_ws, inputZON_dSP_PE_fn)
-        PE_d = np.zeros([NMETEO, NSOIL, len(self.JD)])
+        PE_d = np.zeros([NMETEO, NSOIL, len(self.JD)], dtype = np.float)
         inputFileE0 = self.cUTIL.readFile(self.MM_ws, inputZON_dSP_E0_fn)
-        E0_d = np.zeros([NMETEO, len(self.JD)])
+        E0_d = np.zeros([NMETEO, len(self.JD)], dtype = np.float)
         if NFIELD != None:
             inputFileRF_irr = self.cUTIL.readFile(self.MM_ws, inputZON_dSP_RF_irr_fn)
             RF_irr_d = np.zeros([NMETEO, NFIELD, len(self.JD)], dtype = float)
@@ -723,14 +710,10 @@ class clsMF():
         if NFIELD != None:
             del inputZON_dSP_RF_irr_fn, inputZON_dSP_RFe_irr_fn, inputZON_dSP_PT_irr_fn, input_dSP_crop_irr_fn, inputFileRF_irr, inputFileRFe_irr, inputFilePT_irr, inputFilecrop_irr
 
-        if self.timedef == 0:
+        if self.timedef > 0:
             print'\nComputing MODFLOW time discretization based on rainfall analysis in each METEO zone...'
             # summing RF and avering other flux when RF = 0
-            try:
-                if isinstance(self.nper, str):
-                    perlenmax = int(self.nper.split()[1].strip())
-            except:
-                self.cUTIL.ErrorExit(msg = '\nFATAL ERROR!\nError in nper format of the MODFLOW ini file!\n')
+            perlenmax = self.nper
             RF_veg_stp = []
             RFe_veg_stp = []
             PT_veg_stp = []
@@ -938,7 +921,7 @@ class clsMF():
             self.Ss_tr = []
             for n in range(self.nper):
                 self.Ss_tr.append(False)
-        elif self.timedef>0:
+        elif self.timedef < 0:
             print'\nTime discretization based on daily time step'
             RF_veg_stp = np.zeros([NMETEO,sum(self.nstp)])
             PT_veg_stp = np.zeros([NMETEO,NVEG,sum(self.nstp)])
@@ -959,18 +942,18 @@ class clsMF():
                     for n in range(NMETEO):
                         RF_veg_stp[n,sum(self.nstp[0:per])+stp] += RF_veg_d[n,tstart:tend].sum()/(self.perlen[per]/self.nstp[per])
                         for v in range(NVEG):
-                            PT_veg_stp[n,v,sum(nstp[0:per])+stp] += PT_veg_d[n,v,tstart:tend].sum()/(self.perlen[per]/self.nstp[per])
-                            RFe_veg_stp[n,v,sum(nstp[0:per])+stp] += RFe_veg_d[n,v,tstart:tend].sum()/(self.perlen[per]/self.nstp[per])
-                            LAI_veg_stp[n,v,sum(nstp[0:per])+stp] += self.LAI_veg_d[n,v,tstart:tend].sum()/(self.perlen[per]/self.nstp[per])
+                            PT_veg_stp[n,v,sum(self.nstp[0:per])+stp] += PT_veg_d[n,v,tstart:tend].sum()/(self.perlen[per]/self.nstp[per])
+                            RFe_veg_stp[n,v,sum(self.nstp[0:per])+stp] += RFe_veg_d[n,v,tstart:tend].sum()/(self.perlen[per]/self.nstp[per])
+                            LAI_veg_stp[n,v,sum(self.nstp[0:per])+stp] += self.LAI_veg_d[n,v,tstart:tend].sum()/(self.perlen[per]/self.nstp[per])
                         for s in range(NSOIL):
-                            PE_stp[n,s,sum(nstp[0:per])+stp] += PE_d[n,s,tstart:tend].sum()/(self.perlen[per]/self.nstp[per])
-                        E0_stp[n,sum(nstp[0:per])+stp] += E0_d[n,tstart:tend].sum()/(self.perlen[per]/self.nstp[per])
+                            PE_stp[n,s,sum(self.nstp[0:per])+stp] += PE_d[n,s,tstart:tend].sum()/(self.perlen[per]/self.nstp[per])
+                        E0_stp[n,sum(self.nstp[0:per])+stp] += E0_d[n,tstart:tend].sum()/(self.perlen[per]/self.nstp[per])
                         if NFIELD != None:
                             for f in range(NFIELD):
                                 RF_irr_stp[n,f,sum(self.nstp[0:per])+stp] += RF_irr_d[n,f,tstart:tend].sum()/(self.perlen[per]/self.nstp[per])
-                                RFe_irr_stp[n,f,sum(nstp[0:per])+stp] += RFe_irr_d[n,f,tstart:tend].sum()/(self.perlen[per]/self.nstp[per])
-                                PT_irr_stp[n,f,sum(nstp[0:per])+stp] += PT_irr_d[n,f,tstart:tend].sum()/(self.perlen[per]/self.nstp[per])
-                                crop_irr_stp[n,f,sum(nstp[0:per])+stp] += np.ceil(self.crop_irr_d[n,f,tstart:tend].sum()/(self.perlen[per]/self.nstp[per]))
+                                RFe_irr_stp[n,f,sum(self.nstp[0:per])+stp] += RFe_irr_d[n,f,tstart:tend].sum()/(self.perlen[per]/self.nstp[per])
+                                PT_irr_stp[n,f,sum(self.nstp[0:per])+stp] += PT_irr_d[n,f,tstart:tend].sum()/(self.perlen[per]/self.nstp[per])
+                                crop_irr_stp[n,f,sum(self.nstp[0:per])+stp] += np.ceil(self.crop_irr_d[n,f,tstart:tend].sum()/(self.perlen[per]/self.nstp[per]))
 
         self.inputZON_SP_RF_veg_fn = "inputZON_RF_veg_stp.txt"
         self.inputZON_RF_veg_fn = os.path.join(self.MM_ws, self.inputZON_SP_RF_veg_fn)
@@ -1203,7 +1186,7 @@ class clsMF():
             print "Done!"
 
         # average for 1st SS stress period
-        # TODO verify the if the avregae of wells is done correctly
+        # TODO verify the if the average of wells is done correctly
         self.perlen      = list(self.perlen)
         self.nstp        = list(self.nstp)
         self.tsmult      = list(self.tsmult)

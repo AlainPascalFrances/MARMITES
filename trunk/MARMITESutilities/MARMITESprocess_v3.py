@@ -136,7 +136,7 @@ class clsPROCESS:
         # cbc format is : (kstp), kper, textprocess, nrow, ncol, nlay
         t = 0
         h5_MF.create_dataset(name = ds_name_new, data = np.zeros((sum(cMF.perlen), cMF.nrow, cMF.ncol, cMF.nlay)))
-        if cMF.timedef==0:
+        if cMF.timedef > 0:
             for n in range(cMF.nper):
                 if cMF.perlen[n] != 1:
                     for x in range(cMF.perlen[n]):
@@ -184,7 +184,7 @@ class clsPROCESS:
 
         t = 0
         h5_MM.create_dataset(name = ds_name_new, data = np.zeros((sum(cMF.perlen), cMF.nrow, cMF.ncol)))
-        if cMF.timedef==0:
+        if cMF.timedef > 0:
             for n in range(cMF.nper):
                 array_tmp = h5_MM[ds_name][n,:,:]
                 if cMF.perlen[n] != 1:
@@ -270,7 +270,7 @@ class clsPROCESS:
                 for t in range(nper):
                     #structure is [number of zones, number of vegetation type, time]
                     RFe_veg_zonesSP[n,v,t] = RFe_veg_tmp[t+(n*NVEG+v)*nper]
-                    PT_veg_zonesSP[n,v,t]      = PT_veg_tmp[t+(n*NVEG+v)*nper]
+                    PT_veg_zonesSP[n,v,t]  = PT_veg_tmp[t+(n*NVEG+v)*nper]
         for v in range(NVEG):
             for t in range(nper):
             #structure is [number of zones, number of vegetation type, time]
@@ -284,10 +284,10 @@ class clsPROCESS:
             self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % PE_fn)
         PE_zonesSP=np.zeros([NMETEO,NSOIL,nper], dtype=float)
         for n in range(NMETEO):
-            for v in range(NSOIL):
+            for s in range(NSOIL):
                 for t in range(nper):
-                    PE_zonesSP[n,v,t] = PE_tmp[t+(n*NSOIL+v)*nper]
-                    #structure is [number of zones, number of vegetation type, time]
+                    PE_zonesSP[n,s,t] = PE_tmp[t+(n*NSOIL+s)*nper]
+                    #structure is [number of zones, number of soil type, time]
 
         # read IRRIGATION RF and RFe
         if NFIELD != None:

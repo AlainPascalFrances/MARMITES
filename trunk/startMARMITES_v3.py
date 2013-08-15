@@ -683,7 +683,7 @@ if MF_yn == 1 :
         sys.stdout = report
     cMF.runMF(finf_MM = (h5_MM_fn, 'finf'), wel_MM = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks, numDays = numDays)
     timeendMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
-    durationMFtmp =  timeendMF-timestartMF
+    durationMFtmp =  timeendMF - timestartMF
     durationMF +=  durationMFtmp
     print 'MF run time: %02.fmn%02.fs' % (int(durationMFtmp*24.0*60.0), (durationMFtmp*24.0*60.0-int(durationMFtmp*24.0*60.0))*60)
     del durationMFtmp
@@ -855,7 +855,7 @@ if MMsoil_yn > 0:
             else:
                 print '\nWARNING: first layer of the model DRY!'
         elif abs(h_diff[LOOP]) < convcrit and abs(h_diff_all[LOOP]) < convcritmax:
-            msg_end_loop.append('Successfull convergence between MARMITES and MODFLOW!\n(Conv. criterion = %.4f and conv. crit. max. = %.4f)' % (convcrit, convcritmax))
+            msg_end_loop.append('Successful convergence between MARMITES and MODFLOW!\n(Conv. criterion = %.4f and conv. crit. max. = %.4f)' % (convcrit, convcritmax))
             for txt in msg_end_loop:
                 print txt
             timeendMMloop = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
