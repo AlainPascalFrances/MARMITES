@@ -456,8 +456,8 @@ class clsMF():
         if self.nlay < 2:
             if isinstance(self.thick, list):
                 self.thick = (np.asarray(self.thick)).reshape((self.nrow, self.ncol, 1))
-        else:
-            self.thick = np.asarray(self.thick)
+            else:
+                self.thick = np.asarray([self.thick])
         if self.thick.shape[0] == self.nlay and len(self.thick.shape) == 1:
             thick_tmp = np.ones([self.nrow, self.ncol, self.nlay], dtype = np.float)
             for l, e in enumerate (self.thick):

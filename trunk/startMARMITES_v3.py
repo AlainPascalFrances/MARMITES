@@ -207,7 +207,7 @@ shutil.copy2(os.path.join(MM_ws, MMsurf_ws,inputFile_PAR_fn), os.path.join(MM_ws
 
 if verbose == 0:
 # capture interpreter output to be written in to a report file
-    report_fn = os.path.join(MM_ws_out,'__MM_report_%s.txt' % (mpl.dates.DateFormatter.format_data(fmt_DHshort, timestart)))
+    report_fn = os.path.join(MM_ws_out,'__%s_MMMFrun_report.txt' % (mpl.dates.DateFormatter.format_data(fmt_DHshort, timestart)))
     print '\nECHO OFF (no screen output).\nSee the report of the MM-MF run in file:\n%s\n' % report_fn
     s = sys.stdout
     report = open(report_fn, 'w')

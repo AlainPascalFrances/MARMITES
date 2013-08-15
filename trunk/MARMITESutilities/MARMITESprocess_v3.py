@@ -429,9 +429,9 @@ class clsPROCESS:
             except:
                 hi = h0 = RC = STO =  self.hnoflo
             # verify if coordinates are inside MODFLOW grid
-            if (x < self.xllcorner or
+            if (x <= self.xllcorner or
                x > (self.xllcorner+self.ncol*self.cellsizeMF) or
-               y < self.yllcorner or
+               y <= self.yllcorner or
                y > (self.yllcorner+self.nrow*self.cellsizeMF)):
                    self.cUTIL.ErrorExit(msg = 'The coordinates of the observation point %s are not inside the MODFLOW grid' % name)
             if lay > nlay or lay < 1:
