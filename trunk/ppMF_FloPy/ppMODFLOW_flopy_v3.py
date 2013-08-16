@@ -458,26 +458,28 @@ class clsMF():
                 self.thick = (np.asarray(self.thick)).reshape((self.nrow, self.ncol, 1))
             else:
                 self.thick = np.asarray([self.thick])
-        if self.thick.shape[0] == self.nlay and len(self.thick.shape) == 1:
+        else:
+            self.thick = np.asarray(self.thick)
+        if np.asarray(self.thick).shape[0] == self.nlay and len(self.thick.shape) == 1:
             thick_tmp = np.ones([self.nrow, self.ncol, self.nlay], dtype = np.float)
             for l, e in enumerate (self.thick):
                 thick_tmp[:,:,l] *= e  #*ibound[:,:,l]
             self.thick = thick_tmp
-        elev_tmp = np.asarray(self.elev)
+        elev_tmp = np.ma.masked_values(np.asarray(self.elev), self.hnoflo, atol = 0.09)
         botm_tmp = []
         for l in range(self.nlay):
             if l == 0:
                 thick_tmp = self.thick[:,:,l]*1.0
             else:
                 thick_tmp += self.thick[:,:,l]
-            botm_tmp.append(elev_tmp - thick_tmp)
+            botm_tmp.append(np.ma.masked_values(elev_tmp - thick_tmp, self.hnoflo, atol = 0.09))
         del elev_tmp, thick_tmp
         self.botm = list(np.swapaxes(botm_tmp,0,1))
         self.botm = list(np.swapaxes(self.botm,1,2))
         del botm_tmp
         if self.nlay < 2:
             if isinstance(self.botm, list):
-                self.botm = (np.asarray(self.botm)).reshape((self.nrow, self.ncol, 1))
+                self.botm = np.ma.masked_values((np.asarray(self.botm)).reshape((self.nrow, self.ncol, 1)), self.hnoflo, atol = 0.09)
         if self.uzf_yn == 1:
             self.iuzfbnd = self.MM_PROCESS.checkarray(self.iuzfbnd, dtype = np.int)
         if self.ghb_yn == 1:

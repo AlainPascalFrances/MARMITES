@@ -441,11 +441,12 @@ for l in range(NSOIL):
     _slprop[l] = np.asarray(_slprop[l])
 
 # compute thickness, top and bottom elevation of each soil layer
-cMF.elev = np.asarray(cMF.elev)
-cMF.top = cMF.elev - gridSOILthick
+cMF.elev = np.ma.masked_values(np.asarray(cMF.elev), cMF.hnoflo, atol = 0.09)
+cMF.top = np.ma.masked_values(cMF.elev, cMF.hnoflo, atol = 0.09) - gridSOILthick
 cMF.botm = np.asarray(cMF.botm)
 for l in range(cMF.nlay):
-    cMF.botm[:,:,l] -= gridSOILthick
+    cMF.botm[:,:,l] = np.ma.masked_values(cMF.botm[:,:,l], cMF.hnoflo, atol = 0.09) - gridSOILthick
+cMF.botm = np.ma.masked_values(cMF.botm, cMF.hnoflo, atol = 0.09)
 botm_l0 = np.asarray(cMF.botm)[:,:,0]
 
 # create MM array
