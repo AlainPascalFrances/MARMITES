@@ -496,7 +496,10 @@ class clsPROCESS:
                         for i in range(len(inputDate)):
                             if j<len(obsDate):
                                 if inputDate[i]==obsDate[j]:
-                                    obsOutput[l,i]=obsValue[l][j]
+                                    if obsValue[l][j] > 0.0:
+                                        obsOutput[l,i]=obsValue[l][j]
+                                    else:
+                                        obsOutput[l,i]=self.hnoflo
                                     j += 1
                                     obs_yn = 1
                                 else:

@@ -516,7 +516,7 @@ if plt_input == 1:
         top_tmp[:,:,l] = cMF.botm[:,:,l-1]
     lst = [cMF.elev, top_tmp, cMF.botm, cMF.thick, np.asarray(cMF.strt), gridSOILthick, gridSsurfhmax, gridSsurfw, np.asarray(cMF.hk_actual), T, np.asarray(cMF.ss_actual), np.asarray(cMF.sy_actual), np.asarray(cMF.vka_actual)]
     lst_lbl = ['elev', 'top', 'botm', 'thick', 'strt', 'gridSOILthick', 'gridSsurfhmax', 'gridSsurfw', 'hk', 'T', 'Ss', 'Sy', 'vka']
-    lst_lblCB = ['Elev.', 'Aq. top - $top$', 'Aq. bot. - $botm$', 'Aq. thick.', 'Init. heads - $strt$', 'Soil thick.', 'Max. stream heigth', 'Stream width', 'Horizontal hydraulic cond. - $hk$', 'Transmissivitty - $T$','Specific storage - $S_s$', 'Specific yield - $S_y$', 'Vertical hydraulic cond. - $vka$']
+    lst_lblCB = ['Elev.', 'Aq. top - $top$', 'Aq. bot. - $botm$', 'Aq. thick.', 'Init. heads - $strt$', 'Soil thick.', 'Max. stream heigth', 'Stream width', 'Horizontal hydraulic cond. - $hk$', 'Transmissivity - $T$','Specific storage - $S_s$', 'Specific yield - $S_y$', 'Vertical hydraulic cond. - $vka$']
     if cMF.drn_yn == 1:
         lst.append(cMF.drn_cond_array)
         lst_lbl.append('drn_cond')

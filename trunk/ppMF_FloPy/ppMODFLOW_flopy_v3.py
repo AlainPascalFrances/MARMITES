@@ -256,7 +256,7 @@ class clsMF():
                 for i in range(self.nlay):
                     self.sy.append(inputFile[l].split()[i])
             else:
-                print 'FATAL ERROR!\nMODFLOW version should be mf2k, mf2005 or mfnwt!'
+                print 'FATAL ERROR!\nMODFLOW version should be mf2005 or mfnwt!'
                 print 'Value %s provided in the MF ini file.' % self.versionsys.exit()
             # oc
             l += 1
@@ -523,6 +523,11 @@ class clsMF():
         self.vka_actual     = self.MM_PROCESS.checkarray(self.vka)
         self.ss_actual      = self.MM_PROCESS.checkarray(self.ss)
         self.sy_actual      = self.MM_PROCESS.checkarray(self.sy)
+
+# if np.sum(self.sy_actual>1.0)>0.0:
+#    ERROR, sys.exit
+
+
         # uzf
         if self.uzf_yn == 1:
             if self.iuzfopt == 1:
