@@ -523,11 +523,8 @@ class clsMF():
         self.vka_actual     = self.MM_PROCESS.checkarray(self.vka)
         self.ss_actual      = self.MM_PROCESS.checkarray(self.ss)
         self.sy_actual      = self.MM_PROCESS.checkarray(self.sy)
-
-# if np.sum(self.sy_actual>1.0)>0.0:
-#    ERROR, sys.exit
-
-
+        if np.sum(np.asarray(self.sy_actual)>1.0)>0.0:
+            self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nSy value > 1.0!!!\nCorrect it (it should be expressed in [L^3/L^3]), and verify also thts, thtr and thti.")
         # uzf
         if self.uzf_yn == 1:
             if self.iuzfopt == 1:
