@@ -204,6 +204,7 @@ del inputFile
 shutil.copy2(os.path.join(MM_ws,MM_ini_fn), os.path.join(MM_ws_out,'__%s%s'% (mpl.dates.DateFormatter.format_data(fmt_DHshort, timestart), MM_ini_fn)))
 shutil.copy2(os.path.join(MM_ws, MF_ws,MF_ini_fn), os.path.join(MM_ws_out,'__%s%s'% (mpl.dates.DateFormatter.format_data(fmt_DHshort, timestart), MF_ini_fn)))
 shutil.copy2(os.path.join(MM_ws, MMsurf_ws,inputFile_PAR_fn), os.path.join(MM_ws_out,'__%s%s'% (mpl.dates.DateFormatter.format_data(fmt_DHshort, timestart), inputFile_PAR_fn)))
+shutil.copy2(os.path.join(MM_ws, SOILparam_fn), os.path.join(MM_ws_out,'__%s__%s'% (mpl.dates.DateFormatter.format_data(fmt_DHshort, timestart), SOILparam_fn.split('\\')[-1])))
 
 if verbose == 0:
 # capture interpreter output to be written in to a report file
