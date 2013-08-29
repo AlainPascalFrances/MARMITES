@@ -698,7 +698,6 @@ if os.path.exists(cMF.h5_MF_fn):
         # cbc format is: (kstp), kper, textprocess, nrow, ncol, nlay
         cbc_nam = []
         cbc_uzf_nam = []
-        ncells_package = []
         for c in h5_MF['cbc_nam']:
             cbc_nam.append(c.strip())
         if cMF.uzf_yn == 1:
@@ -707,18 +706,26 @@ if os.path.exists(cMF.h5_MF_fn):
         elif cMF.rch_yn == 1:
             #imfRCH = cbc_nam.index('RECHARGE')
             cUTIL.ErrorExit('\nFATAL ERROR!\nMM has to be run together with the UZF1 package of MODFLOW 2005/ MODFLOW NWT, thus the RCH package should be desactivacted!\nExisting MM.')
+        cbc_nam_tex = [0]*len(cbc_nam)
+        cbc_uzf_nam_tex = [0]*len(cbc_uzf_nam)
         imfSTO = cbc_nam.index('STORAGE')
+        cbc_nam_tex[imfSTO] = '\\Delta S^{MF}'
         if cMF.ghb_yn == 1:
             imfGHB = cbc_nam.index('HEAD DEP BOUNDS')
+            cbc_nam_tex[imfGHB] = 'Qo^{GHB-MF}'
         if cMF.drn_yn == 1:
             imfDRN = cbc_nam.index('DRAINS')
+            cbc_nam_tex[imfDRN] = 'Qo^{DRN-MF}'
         if cMF.wel_yn == 1:
             imfWEL = cbc_nam.index('WELLS')
+            cbc_nam_tex[imfWEL] = 'ET^{WEL-MF}'
         else:
             print '\nWARNING!\nThe WEL package should be active to take into account ETg!'
         if cMF.uzf_yn == 1:
             imfEXF   = cbc_uzf_nam.index('SURFACE LEAKAGE')
+            cbc_uzf_nam_tex[imfEXF] = 'EXF^{UZF-MF}'
             imfRCH   = cbc_uzf_nam.index('UZF RECHARGE')
+            cbc_uzf_nam_tex[imfRCH] = 'R^{UZF-MF}'
         if MMsoil_yn == 0:
             h5_MF.close()
     except:
@@ -1283,7 +1290,7 @@ if plt_out == 1 or plt_out_obs == 1:
         flxlbl3      = ['Tg']
         flxlbl3a     = ['ETg']
         flxlbl4      = ['Rp']
-        flxlbl_tex   = [r'$RF$', r'$I$', r'$RFe$', r'$\Delta S_{surf}$', r'$Ro$', r'$E_{surf}$', r'$\Delta S_{soil}$', r'$EXF$']
+        flxlbl_tex   = [r'$RF$', r'$I$', r'$RFe$', r'$\Delta S_{surf}$', r'$Ro$', r'$E_{surf}$', r'$\Delta S_{soil}$', r'$EXF_g$']
         flxlbl1_tex  = [r'$E_{soil}$', r'$T_{soil}$']
         flxlbl2_tex  = [r'$ET_{soil}$', r'$E_g$']
         flxlbl3_tex  = [r'$T_g$']
@@ -1465,7 +1472,7 @@ if plt_out == 1 or plt_out_obs == 1:
                 cbc_STO = h5_MF['STO_d'][:,:,:,l]
                 flxlst.append(facTim*(cbc_STO.sum()/sum(cMF.perlen)/sum(ncell_MM)))  # -1*
                 InMF += flxlst[-1]
-                flxlbl_CATCH.append(r'$\Delta S_{g,%d}$' % (l+1))
+                flxlbl_CATCH.append(r'$\Delta S_{g,%d}^{MF}$' % (l+1))
                 array_tmp1 = np.sum(np.ma.masked_values(cbc_STO, cMF.hnoflo, atol = 0.09), axis = 1)
                 flx_Cat_TS.append(-1.0*np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
                 del cbc_STO, array_tmp1
@@ -1484,7 +1491,7 @@ if plt_out == 1 or plt_out_obs == 1:
                     if cMF.drncells[l]>0:
                         flxlst.append(facTim*(cbc_DRN.sum()/sum(cMF.perlen)/sum(ncell_MM)))
                         OutMF += -flxlst[-1]
-                        flxlbl_CATCH.append(r'$DRN_{%d}$' % (l+1))
+                        flxlbl_CATCH.append(r'$DRN_{%d}^{MF}$' % (l+1))
                         array_tmp1 = np.sum(np.ma.masked_values(cbc_DRN, cMF.hnoflo, atol = 0.09), axis = 1)
                         flx_Cat_TS.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
                         del array_tmp1
@@ -1506,18 +1513,18 @@ if plt_out == 1 or plt_out_obs == 1:
                     if cMF.ghbcells[l] > 0:
                         flxlst.append(facTim*(cbc_GHB.sum()/sum(cMF.perlen)/sum(ncell_MM)))
                         OutMF += -flxlst[-1]
-                        flxlbl_CATCH.append(r'$GHB_{%d}$' % (l+1))
+                        flxlbl_CATCH.append(r'$GHB_{%d}^{MF}$' % (l+1))
                         array_tmp1 = np.sum(np.ma.masked_values(cbc_GHB, cMF.hnoflo, atol = 0.09), axis = 1)
                         flx_Cat_TS.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
                         del array_tmp1
                     else:
                         flxlst.append(0.0)
                     del cbc_GHB
-                flxlbl_tex.append(r'$%s_{g,%d}$' %(cbc_nam[index_cbc[0]], l+1))
+                flxlbl_tex.append(r'$%s_{g,%d}$' %(cbc_nam_tex[index_cbc[0]], l+1))
                 for x in range(len(index_cbc_uzf)):
-                    flxlbl_tex.append(r'$%s_{g,%d}$' % (cbc_uzf_nam[index_cbc_uzf[x]], l+1))
+                    flxlbl_tex.append(r'$%s_{g,%d}$' % (cbc_uzf_nam_tex[index_cbc_uzf[x]], l+1))
                 for x in range(1,len(index_cbc)):
-                    flxlbl_tex.append(r'$%s_{g,%d}$' % (cbc_nam[index_cbc[x]], l+1))
+                    flxlbl_tex.append(r'$%s_{g,%d}$' % (cbc_nam_tex[index_cbc[x]], l+1))
             flxmax1 = float(np.ceil(max(flxlst)))
             flxmin1 = float(np.floor(min(flxlst)))
             flxmax = axefact*max(flxmax, flxmax1)
@@ -1622,11 +1629,11 @@ if plt_out == 1 or plt_out_obs == 1:
                     flxlst.append(0.0)
                 del cbc_GHB
             h5_MF.close()
-            flxlbl_tex.append('$%s_{g,%d}$' % (cbc_nam[index_cbc[0]], l+1))
+            flxlbl_tex.append('$%s_{g,%d}$' % (cbc_nam_tex[index_cbc[0]], l+1))
             for x in range(len(index_cbc_uzf)):
-                flxlbl_tex.append('$%s_{g,%d}$' % (cbc_uzf_nam[index_cbc_uzf[x]], l+1))
+                flxlbl_tex.append('$%s_{g,%d}$' % (cbc_uzf_nam_tex[index_cbc_uzf[x]], l+1))
             for x in range(1,len(index_cbc)):
-                flxlbl_tex.append('$%s_{g,%d}$' % (cbc_nam[index_cbc[x]], l+1))
+                flxlbl_tex.append('$%s_{g,%d}$' % (cbc_nam_tex[index_cbc[x]], l+1))
         colors_flx = CreateColors.main(hi=0, hf=180, numbcolors = len(flxlbl_tex))
         MB_MF = 100.0*(InMF - OutMF)/((InMF+OutMF)/2.0)
         # TODO cbcmax and cbcmin represent the max and min of the whole MF fluxes time series, not the max and min of the fluxes average
@@ -2049,7 +2056,7 @@ if plt_out == 1 or plt_out_obs == 1:
         if os.path.exists(h5_MM_fn):
             h5_MM = h5py.File(h5_MM_fn, 'r')
             flxlbl = ['RF', 'RFe', 'I', 'EXF', 'dSsurf', 'Ro', 'Esurf', 'Eg', 'Tg', 'ETg', 'ETsoil', 'dSsoil']
-            flxlbl_tex = [r'$RF$', r'$RFe$', r'$I$', r'$EXF$', r'$\Delta S_{surf}$', r'$Ro$', r'$E_{surf}$', r'$E_g$', r'$T_g$', r'$ET_g$', r'$ET_{soil}$', r'$\Delta S_{soil}$']
+            flxlbl_tex = [r'$RF$', r'$RFe$', r'$I$', r'$EXF_g$', r'$\Delta S_{surf}$', r'$Ro$', r'$E_{surf}$', r'$E_g$', r'$T_g$', r'$ET_g$', r'$ET_{soil}$', r'$\Delta S_{soil}$']
             for z, (i, i_lbl) in enumerate(zip(flxlbl, flxlbl_tex)):
                 # ############################################
                 # plot average for the whole simulated period
