@@ -458,7 +458,7 @@ index_S = {'iEsoil':0, 'iTsoil':1,'iSsoil_pc':2, 'iRp':3, 'iRexf':4, 'idSsoil':5
 
 # READ observations time series (heads and soil moisture)
 print "\nReading observations time series (hydraulic heads and soil moisture)..."
-obs, obs_list = cMF.MM_PROCESS.inputObs(
+obs, obs_list, obs_catch = cMF.MM_PROCESS.inputObs(
                               inputObs_fn      = inputObs_fn,
                               inputObsHEADS_fn = inputObsHEADS_fn,
                               inputObsSM_fn    = inputObsSM_fn,
@@ -1104,11 +1104,11 @@ if os.path.exists(h5_MM_fn):
                 i = obs.get(o)['i']
                 j = obs.get(o)['j']
                 l = obs.get(o)['lay']
-                obs_S = obs.get(o)['obs_S']
+                obs_SM = obs.get(o)['obs_SM']
                 if obs.get(o)['obs_sm_yn'] == 1:
                     cMF.MM_PROCESS.smMMname.append(o)
                 MM_S = h5_MM['MM_S'][:,i,j,:,:]
-                cMF.MM_PROCESS.ExportResultsMM4PEST(i, j, cMF.inputDate, _nslmax, MM_S, index_S, obs_S, o)
+                cMF.MM_PROCESS.ExportResultsMM4PEST(i, j, cMF.inputDate, _nslmax, MM_S, index_S, obs_SM, o)
     # write PEST smp file with MM output
     inputFile = cUTIL.readFile(MM_ws,inputObs_fn)
     ind = 0
@@ -1163,7 +1163,7 @@ if plt_out == 1 or plt_out_obs == 1:
                                 j = list(col).index(RCHmax)
                                 x = cMF.delc[row]*row + xllcorner
                                 y = cMF.delr[j]*j + yllcorner
-                                obs['PzRCHmax'] = {'x':x,'y':y, 'i': row, 'j': j, 'lay': l, 'hi':999, 'h0':999, 'RC':999, 'STO':999, 'outpathname':os.path.join(MM_ws_out,'_0PzRCHmax_ts.txt'), 'obs_h':[], 'obs_h_yn':0, 'obs_S':[], 'obs_sm_yn':0}
+                                obs['PzRCHmax'] = {'x':x,'y':y, 'i': row, 'j': j, 'lay': l, 'hi':999, 'h0':999, 'RC':999, 'STO':999, 'outpathname':os.path.join(MM_ws_out,'_0PzRCHmax_ts.txt'), 'obs_h':[], 'obs_h_yn':0, 'obs_SM':[], 'obs_sm_yn':0}
                                 obs_list.append('PzRCHmax')
                                 obs4map[0].append('PzRCHmax')
                                 obs4map[1].append(row)
@@ -1363,7 +1363,7 @@ if plt_out == 1 or plt_out_obs == 1:
                                 print 'row %d, col %d and day %d' % (row + 1, list(col).index(Tg_min) + 1, t + 1)
                                 tTgmin = t
                                 if plt_out_obs == 1:
-                                    obs['PzTgmin'] = {'x':999,'y':999, 'i': row, 'j': list(col).index(Tg_min), 'lay': 0, 'hi':999, 'h0':999, 'RC':999, 'STO':999, 'outpathname':os.path.join(MM_ws_out,'_0PzTgmin_ts.txt'), 'obs_h':[], 'obs_h_yn':0, 'obs_S':[], 'obs_sm_yn':0}
+                                    obs['PzTgmin'] = {'x':999,'y':999, 'i': row, 'j': list(col).index(Tg_min), 'lay': 0, 'hi':999, 'h0':999, 'RC':999, 'STO':999, 'outpathname':os.path.join(MM_ws_out,'_0PzTgmin_ts.txt'), 'obs_h':[], 'obs_h_yn':0, 'obs_SM':[], 'obs_sm_yn':0}
                                     obs_list.append('PzTgmin')
                                     obs4map[0].append('PzTgmin')
                                     obs4map[1].append(row)
@@ -1536,7 +1536,7 @@ if plt_out == 1 or plt_out_obs == 1:
             plt_title = 'MARMITES and MODFLOW water balance for the whole catchment\nMass balance error: MM = %1.2f%%, UZF = %1.2f%%, MF = %1.2f%%' % (MB_MM, MB_UZF, MB_MF)
             header_tmp = ['MM_MB','UZF_MB','MF_MB']
             MB_tmp = [MB_MM, MB_UZF,MB_MF]
-            MMplot.plotTIMESERIES_CATCH(cMF.inputDate, flx_Cat_TS, flxlbl_CATCH, plt_exportCATCH_fn, plt_titleCATCH, hmax = hmaxMF, hmin = hminMF, cMF = cMF)
+            MMplot.plotTIMESERIES_CATCH(cMF.inputDate, flx_Cat_TS, flxlbl_CATCH, plt_exportCATCH_fn, plt_titleCATCH, hmax = hmaxMF, hmin = hminMF, cMF = cMF, obs_catch = obs_catch)
         else:
             MMplot.plotTIMESERIES_CATCH(cMF.inputDate, flx_Cat_TS, flxlbl_CATCH, plt_exportCATCH_fn, plt_titleCATCH, hmax = hmaxMF, hmin = hminMF)
             plt_export_fn = os.path.join(MM_ws_out, '_0CATCHMENT_WBs.png')
@@ -1666,7 +1666,7 @@ if plt_out == 1 or plt_out_obs == 1:
                     j = obs.get(o)['j']
                     l_obs = obs.get(o)['lay']
                     obs_h = obs.get(o)['obs_h']
-                    obs_S = obs.get(o)['obs_S']
+                    obs_SM = obs.get(o)['obs_SM']
                     outFileExport = open(obs.get(o)['outpathname'], 'w')
                     outFileExport.write(header)
                     SOILzone_tmp = gridSOIL[i,j]-1
@@ -1707,7 +1707,7 @@ if plt_out == 1 or plt_out_obs == 1:
                         else:
                             index_veg = cMF.crop_irr_d[gridMETEO[i,j]-1, IRRfield-1,:]
                     # Export time series results at observations points as ASCII file
-                    cMF.MM_PROCESS.ExportResultsMM(i, j, cMF.inputDate, SP_d, _nslmax, MM, index, MM_S, index_S, cbc_RCH[:,i,j,0], cbc_WEL, h_satflow, h_MF_m[:,i,j,l_obs], obs_h_tmp, obs_S, index_veg, outFileExport, o)
+                    cMF.MM_PROCESS.ExportResultsMM(i, j, cMF.inputDate, SP_d, _nslmax, MM, index, MM_S, index_S, cbc_RCH[:,i,j,0], cbc_WEL, h_satflow, h_MF_m[:,i,j,l_obs], obs_h_tmp, obs_SM, index_veg, outFileExport, o)
                     del cbc_WEL
                     outFileExport.close()
                     # plot time series results as plot
@@ -1742,7 +1742,7 @@ if plt_out == 1 or plt_out_obs == 1:
                     MM[:,index.get('iuzthick')],
                     MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('iSAT')],
                     cbc_RCH[:,i,j,l_obs],
-                    h_MF_m[:,i,j,:], MM[:,index.get('iHEADScorr')], h_satflow, obs_h_tmp, obs_S,
+                    h_MF_m[:,i,j,:], MM[:,index.get('iHEADScorr')], h_satflow, obs_h_tmp, obs_SM,
                     _Sm[gridSOIL[i,j]-1],
                     _Sr[gridSOIL[i,j]-1],
                     cMF.hnoflo,
@@ -1844,7 +1844,7 @@ if plt_out == 1 or plt_out_obs == 1:
                         plt_title = 'MARMITES water flux balance at observation point %s\ni = %d, j = %d, l = %d, x = %d, y = %d, %s\n\nMass balance (In - Out,  [mm]): MM = %1.2f' % (o, i+1, j+1, l_obs+1, obs.get(o)['x'], obs.get(o)['y'], soilnam, InOut_MM)
                         plt_titleBAL.append(plt_title)
                         del plt_title
-                    del obs_h, obs_S
+                    del obs_h, obs_SM
         flxmax = axefact*float(np.ceil(np.asarray(flxlst).max()))
         flxmin = axefact*float(np.floor(np.asarray(flxlst).min()))
         for l, (lst, fn, title, fn_txt, InOut) in enumerate(zip(flxlst, plt_exportBAL_fn, plt_titleBAL, plt_export_txt_fn, InOut_tmp)):

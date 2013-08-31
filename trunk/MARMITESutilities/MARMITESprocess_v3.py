@@ -444,21 +444,37 @@ class clsPROCESS:
             i = self.nrow - np.ceil((y-self.yllcorner)/self.cellsizeMF)
             j = np.ceil((x-self.xllcorner)/self.cellsizeMF) - 1
             #  read obs time series
-            obsh_fn = os.path.join(self.MM_ws, inputObsHEADS_fn + '_' + name +'.txt')
+            obsh_fn = os.path.join(self.MM_ws, '%s_%s.txt' % (inputObsHEADS_fn, name))
             if os.path.exists(obsh_fn):
                 obs_h, obs_h_yn = self.verifObs(inputDate, obsh_fn, obsnam = name)
             else:
                 obs_h = []
                 obs_h_yn = 0
-            obssm_fn=os.path.join(self.MM_ws, inputObsSM_fn + '_' + name + '.txt')
+            obssm_fn=os.path.join(self.MM_ws, '%s_%s.txt' % (inputObsSM_fn, name))
             if os.path.exists(obssm_fn):
                 obs_sm, obs_sm_yn = self.verifObs(inputDate, obssm_fn, _nslmax, obsnam = name)
             else:
                 obs_sm = []
                 obs_sm_yn = 0
-            obs[name] = {'x':x,'y':y,'i': i, 'j': j, 'lay': lay, 'hi':hi, 'h0':h0, 'RC':RC, 'STO':STO, 'outpathname':os.path.join(self.MM_ws_out,'_0'+name+'_ts.txt'), 'obs_h':obs_h, 'obs_h_yn':obs_h_yn, 'obs_S':obs_sm, 'obs_sm_yn':obs_sm_yn}
+            obs[name] = {'x':x,'y':y,'i': i, 'j': j, 'lay': lay, 'hi':hi, 'h0':h0, 'RC':RC, 'STO':STO, 'outpathname':os.path.join(self.MM_ws_out,'_0%s_ts.txt' % name), 'obs_h':obs_h, 'obs_h_yn':obs_h_yn, 'obs_SM':obs_sm, 'obs_sm_yn':obs_sm_yn}
 
-        return obs, obs_list
+        #  read catchment obs time series
+        obsh_fn = os.path.join(self.MM_ws, '%s_catchment.txt' % inputObsHEADS_fn)
+        if os.path.exists(obsh_fn):
+            obs_h, obs_h_yn = self.verifObs(inputDate, obsh_fn, obsnam = name)
+        else:
+            obs_h = []
+            obs_h_yn = 0
+        obssm_fn = os.path.join(self.MM_ws, '%s_catchment.txt' % inputObsSM_fn)
+        if os.path.exists(obssm_fn):
+            obs_sm, obs_sm_yn = self.verifObs(inputDate, obssm_fn, _nslmax, obsnam = name)
+        else:
+            obs_sm = []
+            obs_sm_yn = 0
+        obs_catch = {}
+        obs_catch['catch'] = {'obs_h':obs_h, 'obs_h_yn':obs_h_yn, 'obs_SM':obs_sm, 'obs_sm_yn':obs_sm_yn}
+
+        return obs, obs_list, obs_catch
         del inputObs_fn, inputObsHEADS_fn, inputObsSM_fn, inputDate, _nslmax
         del obs
 
