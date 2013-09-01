@@ -388,7 +388,7 @@ else:
 
 print'\n##############'
 print 'MARMITESsoil initialization'
-MM_SOIL = MMsoil.clsSOIL(hnoflo = cMF.hnoflo)
+MM_SOIL = MMsoil.clsMMsoil(hnoflo = cMF.hnoflo)
 MM_SATFLOW = MMsoil.SATFLOW()
 
 # READ input ESRI ASCII rasters
@@ -458,7 +458,7 @@ index_S = {'iEsoil':0, 'iTsoil':1,'iSsoil_pc':2, 'iRp':3, 'iRexf':4, 'idSsoil':5
 
 # READ observations time series (heads and soil moisture)
 print "\nReading observations time series (hydraulic heads and soil moisture)..."
-obs, obs_list, obs_catch = cMF.MM_PROCESS.inputObs(
+obs, obs_list, obs_catch, obs_catch_list = cMF.MM_PROCESS.inputObs(
                               inputObs_fn      = inputObs_fn,
                               inputObsHEADS_fn = inputObsHEADS_fn,
                               inputObsSM_fn    = inputObsSM_fn,
@@ -1284,6 +1284,7 @@ if plt_out == 1 or plt_out_obs == 1:
         #  index = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSsurf':4, 'iRo':5, 'iEXF':6, 'iEsurf':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSsurf':13, 'iETg':14, 'iETsoil':15, 'iSsoil_pc':16, 'idSsoil':17, 'iinf':18, 'iHEADScorr':19, 'idgwt':20, 'iuzthick':21}
         # index_S = {'iEsoil':0, 'iTsoil':1,'iSsoil_pc':2, 'iRp':3, 'iRexf':4, 'idSsoil':5, 'iSsoil':6, 'iSAT':7, 'iMB_l':8}
         # TODO Ro sould not be averaged by ncell_MM, as well as EXF
+        print '\nExporting output time series plots and ASCII files at catchment scale...'
         flxlbl       = ['RF', 'I', 'RFe', 'dSsurf', 'Ro', 'Esurf', 'dSsoil', 'EXF']
         flxlbl1      = ['Esoil', 'Tsoil']
         flxlbl2      = ['ETsoil', 'Eg']
@@ -1416,8 +1417,6 @@ if plt_out == 1 or plt_out_obs == 1:
         InMM  = flxlst[0] + flxlst[3] + flxlst[6] + flxlst[7]
         OutMM = flxlst[1] + flxlst[4] + flxlst[5] + flxlst[10] + flxlst[14]
         MB_MM = 100*(InMM - OutMM)/((InMM + OutMM)/2)
-        # TODO delete next line after resolving MB_MM error and uncomment the previous one
-        #MB_MM = InMM - OutMM
         # ADD SM averaged
         flxlbl_CATCH.append(r'$\theta$')
         array_tmp = h5_MM['MM'][:,:,:,index.get('iSsoil_pc')]
@@ -1536,7 +1535,7 @@ if plt_out == 1 or plt_out_obs == 1:
             plt_title = 'MARMITES and MODFLOW water balance for the whole catchment\nMass balance error: MM = %1.2f%%, UZF = %1.2f%%, MF = %1.2f%%' % (MB_MM, MB_UZF, MB_MF)
             header_tmp = ['MM_MB','UZF_MB','MF_MB']
             MB_tmp = [MB_MM, MB_UZF,MB_MF]
-            MMplot.plotTIMESERIES_CATCH(cMF.inputDate, flx_Cat_TS, flxlbl_CATCH, plt_exportCATCH_fn, plt_titleCATCH, hmax = hmaxMF, hmin = hminMF, cMF = cMF, obs_catch = obs_catch, TopSoilAverage = TopSoilAverage)
+            MMplot.plotTIMESERIES_CATCH(cMF.inputDate, flx_Cat_TS, flxlbl_CATCH, plt_exportCATCH_fn, plt_titleCATCH, hmax = hmaxMF, hmin = hminMF, cMF = cMF, obs_catch = obs_catch, obs_catch_list = obs_catch_list, TopSoilAverage = TopSoilAverage)
         else:
             MMplot.plotTIMESERIES_CATCH(cMF.inputDate, flx_Cat_TS, flxlbl_CATCH, plt_exportCATCH_fn, plt_titleCATCH, hmax = hmaxMF, hmin = hminMF)
             plt_export_fn = os.path.join(MM_ws_out, '_0CATCHMENT_WBs.png')
@@ -1545,16 +1544,25 @@ if plt_out == 1 or plt_out_obs == 1:
             MB_tmp = [MB_MM]
         # export average time serie of fluxes in txt
         plt_exportCATCH_txt = open(os.path.join(plt_exportCATCH_txt_fn), 'w')
-        flxlbl_CATCH_str = 'Date,'
-        flxlbl_CATCH_str += flxlbl_CATCH[0]
-        for e in (flxlbl_CATCH[1:]):
+        flxlbl_CATCH_str = 'Date'
+        for e in flxlbl_CATCH:
             flxlbl_CATCH_str += ',' + e
+        flxlbl_CATCH_str += ',' + '$hobs$'
+        flxlbl_CATCH_str += ',' + '$\\thetaobs$'
         plt_exportCATCH_txt.write(flxlbl_CATCH_str)
         plt_exportCATCH_txt.write('\n')
         for t in range(len(cMF.inputDate)):
             flx_Cat_TS_str = str(flx_Cat_TS[0][t])
             for e in (flx_Cat_TS[1:]):
                 flx_Cat_TS_str += ',' + str(e[t])
+            if obs_catch_list[0] == 1:
+                flx_Cat_TS_str += ',' + str(obs_catch.get('catch')['obs_h'][0][t])
+            else:
+                flx_Cat_TS_str += ',' + cMF.hnoflo
+            if obs_catch_list[1] == 1:
+                flx_Cat_TS_str += ',' + str(obs_catch.get('catch')['obs_SM'][0][t])
+            else:
+                flx_Cat_TS_str += ',' + cMF.hnoflo
             out_line = mpl.dates.num2date(cMF.inputDate[t]).isoformat()[:10] + ',' + flx_Cat_TS_str
             for l in out_line:
                 plt_exportCATCH_txt.write(l)
@@ -1711,7 +1719,7 @@ if plt_out == 1 or plt_out_obs == 1:
                     del cbc_WEL
                     outFileExport.close()
                     # plot time series results as plot
-                    plt_title = 'Time serie of fluxes at observation point %s\ni = %d, j = %d, l = %d, x = %.2f, y = %.2f, elev. = %.2f, %s\nSm = %s, Sfc = %s, Sr = %s, Ks = %s, thick. = %.3f %s' % (o, i+1, j+1, l_obs+1, obs.get(o)['x'], obs.get(o)['y'], cMF.elev[i,j], soilnam, _Sm[gridSOIL[i,j]-1], _Sfc[gridSOIL[i,j]-1], _Sr[gridSOIL[i,j]-1], _Ks[gridSOIL[i,j]-1], gridSOILthick[i,j], Tl)
+                    plt_title = 'Time serie of fluxes at observation point %s\ni = %d, j = %d, l = %d, x = %.2f, y = %.2f, elev. = %.2f, %s\nSm = %s, Sfc = %s, Sr = %s, Ks = %s, thick. = %.3f %s' % (o, i+1, j+1, l_obs+1, obs.get(o)['x'], obs.get(o)['y'], cMF.elev[i,j], soilnam, _Sm[SOILzone_tmp], _Sfc[SOILzone_tmp], _Sr[SOILzone_tmp], _Ks[SOILzone_tmp], gridSOILthick[i,j], Tl)
                     # index = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSsurf':4, 'iRo':5, 'iEXF':6, 'iEsurf':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSsurf':13, 'iETg':14, 'iETsoil':15, 'iSsoil_pc':16, 'idSsoil':17, 'iinf':18, 'iHEADScorr':19, 'idgwt':20, 'iuzthick':21}
                     # index_S = {'iEsoil':0, 'iTsoil':1,'iSsoil_pc':2, 'iRp':3, 'iRexf':4, 'idSsoil':5, 'iSsoil':6, 'iSAT':7, 'iMB_l':8}
                     plt_export_fn = os.path.join(MM_ws_out, '_0'+ o + '_ts.png')
@@ -1725,22 +1733,22 @@ if plt_out == 1 or plt_out_obs == 1:
                     -MM[:,index.get('idSsurf')],
                     MM[:,index.get('iSsurf')],
                     MM[:,index.get('iRo')],
-                    MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('iEsoil')],
-                    MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('iTsoil')],
+                    MM_S[:,0:nsl,index_S.get('iEsoil')],
+                    MM_S[:,0:nsl,index_S.get('iTsoil')],
                     MM[:,index.get('iEg')],
                     MM[:,index.get('iTg')],
-                    MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('iSsoil')],
-                    MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('idSsoil')],
-                    MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('iSsoil_pc')],
-                    MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('iRp')],
+                    MM_S[:,0:nsl,index_S.get('iSsoil')],
+                    MM_S[:,0:nsl,index_S.get('idSsoil')],
+                    MM_S[:,0:nsl,index_S.get('iSsoil_pc')],
+                    MM_S[:,0:nsl,index_S.get('iRp')],
                     MM[:,index.get('iEXF')],
                     -MM[:,index.get('iETg')],
                     MM[:,index.get('iEsurf')],
                     MM[:,index.get('iMB')],
-                    MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('iMB_l')],
+                    MM_S[:,0:nsl,index_S.get('iMB_l')],
                     MM[:,index.get('idgwt')],
                     MM[:,index.get('iuzthick')],
-                    MM_S[:,0:_nsl[gridSOIL[i,j]-1],index_S.get('iSAT')],
+                    MM_S[:,0:nsl,index_S.get('iSAT')],
                     cbc_RCH[:,i,j,l_obs],
                     h_MF_m[:,i,j,:], MM[:,index.get('iHEADScorr')], h_satflow, obs_h_tmp, obs_SM,
                     _Sm[gridSOIL[i,j]-1],
@@ -1753,7 +1761,9 @@ if plt_out == 1 or plt_out_obs == 1:
                     min(hmin), #hmin[x] - hdiff/2
                     o,
                     cMF.elev[i,j],
-                    cMF.nlay
+                    cMF.nlay,
+                    l_obs,
+                    nsl
                     )
                     x += 1
                     # plot water balance at each obs. cell

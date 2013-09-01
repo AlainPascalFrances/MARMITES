@@ -11,7 +11,18 @@ import subprocess as sp
 import numpy as np
 import itertools, shutil
 
-def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S, dS, Spc, Rp, EXF, ETg, Es, MB, MB_l, dgwt, uzthick, SAT, R, h_MF, h_MF_corr, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin, obs_name, elev, nlay):
+#####################################
+
+def rmse (x, y) :
+    def sqre_diff (v, w) :
+        return (v - w) ** 2
+    s = len(x)
+    v = sum(map(sqre_diff, x, y), 0.0)
+    return np.sqrt(v / s)
+
+#####################################
+
+def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S, dS, Spc, Rp, EXF, ETg, Es, MB, MB_l, dgwt, uzthick, SAT, R, h_MF, h_MF_corr, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin, obs_name, elev, nlay, l_obs, nsl):
     """
     Plot the time serie of the fluxes observed at one point of the catchment
     Use Matplotlib
@@ -45,7 +56,6 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, 
 
     fig.suptitle(plt_title)
 
-    nsl = len(Tsoil[0])
     lbl_Spc = []
     lbl_S = []
     lbl_dS = []
@@ -196,18 +206,22 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, 
     ax5=fig.add_subplot(10,1,5, sharex=ax1)
     plt.setp(ax5.get_xticklabels(), visible=False)
     plt.setp(ax5.get_yticklabels(), fontsize=8)
+    obs_tmp = []
+    test = 0
     try:
         for l, (y, color, lbl) in enumerate(zip(Sobs_m, colors_nsl, lbl_Sobs)):
+            obs_tmp.append(y)
             if y != []:
                 ax5.plot_date(DateInput, y, ls = 'None', color = 'None', marker='o', markersize=2, markeredgecolor = color, markerfacecolor = 'None', label=lbl) #'--', color = color,
+                test += 1
     except:
-        #print '\nWARNING!\nSoil moisture at observations point %s will not be plotted.' % obs_name
+        print'WARNING! Error in plotting SM observations at %s' % obs_name
         pass
-    for l, (y, color, lbl) in enumerate(zip(Spc1full, colors_nsl, lbl_Spc)) :
+    sim_tmp = []
+    for l, (y, color, lbl) in enumerate(zip(Spc1full, colors_nsl, lbl_Spc)):
+        sim_tmp.append(y)
         y = np.ma.masked_where(y < 0.0, y)
         ax5.plot_date(DateInput, y, '-', color = color, label = lbl)
-##    for l, (y, color, lbl) in enumerate(zip(Spc1, colors_nsl, lbl_Spc)) :
-##        ax5.plot_date(DateInput, y, '-', color = color, label=lbl)
     # x axis
     plt.xlim(DateInput[0]-1,DateInput[len(DateInput)-1]+1)
     # y axis
@@ -285,6 +299,29 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, 
     plt.grid(True)
     ax7.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2G'))
     ax7.xaxis.set_major_formatter(monthsFmt)
+
+    # RMSE
+    if test > 0 or obs_leg == 1:
+        print '-------\nRMSE %s' % obs_name
+        if test > 0:
+            try:
+                for l, (y, y_obs) in enumerate(zip(sim_tmp, obs_tmp)):
+                    a = np.array([y,y_obs])
+                    a = np.transpose(a)
+                    b = a[~(a < hnoflo +1000.0).any(1)]
+                    if b[:,0] <> []:
+                        print 'SM layer %d: %.1f %%' % (l, 100.0*rmse(b[:,0], b[:,1]))
+            except:
+                print 'SM layer %d: error' % l
+        if obs_leg == 1:
+            try:
+                a = np.array([hobs,h_MF_corr])
+                a = np.transpose(a)
+                b = a[~(a < hnoflo +1000.0).any(1)]
+                if b[:,0] <> []:
+                    print 'h: %.2f m' % rmse(b[:,0], b[:,1])
+            except:
+                print 'h: error'
 
     ax8b=fig.add_subplot(20,1,16, sharex=ax1)
     plt.setp(ax8b.get_xticklabels(), visible=False)
@@ -416,7 +453,7 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, 
 
 ##################
 
-def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin, cMF = None, obs_catch = None, TopSoilAverage = None):
+def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin, cMF = None, obs_catch = None, obs_catch_list = [0, 0], TopSoilAverage = None):
     """
     Plot the time serie of the fluxes observed from the whole catchment
     Use Matplotlib
@@ -519,10 +556,16 @@ def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, hmax
     ax6=fig.add_subplot(10,1,6, sharex=ax1)
     plt.setp(ax6.get_yticklabels(), fontsize=8)
     ax6.plot_date(DateInput, flx[18], '-', color = 'brown', label = flx_lbl[18])
-    if obs_catch <> None:
+    if sum(obs_catch_list) > 0:
+            print '-------\nRMSE'
+    if obs_catch_list[1] == 1:
         obs_SM = obs_catch.get('catch')['obs_SM']
         Sobs_m = np.ma.masked_values(obs_SM[0], cMF.hnoflo, atol = 0.09)
         ax6.plot_date(DateInput, Sobs_m, 'o', color = 'brown', markersize=2, label = r'$\theta obs$')
+        a = np.array([obs_SM[0],flx[18].data])
+        a = np.transpose(a)
+        b = a[~(a < cMF.hnoflo +1000.0).any(1)]
+        print 'SM: %.1f %%' % (100.0*rmse(b[:,0], b[:,1]))
     # x axis
     plt.xlim(DateInput[0]-1,DateInput[len(DateInput)-1]+1)
     # y axis
@@ -552,10 +595,14 @@ def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, hmax
         for l in range(cMF.nlay):
             plt.plot_date(DateInput,flx[i],lines.next(), color = 'b', label = flx_lbl[i])
             i += l + 2
-        if obs_catch <> None:
+        if obs_catch_list[0] == 1:
             obs_h = obs_catch.get('catch')['obs_h']
             hobs_m = np.ma.masked_values(obs_h[0], cMF.hnoflo, atol = 0.09)
             ax7.plot_date(DateInput, hobs_m, 'o', color = 'blue', markersize=2, label = r'$hobs$')
+            a = np.array([obs_h[0],flx[20].data])
+            a = np.transpose(a)
+            b = a[~(a < cMF.hnoflo +1000.0).any(1)]
+            print 'h: %.2G m' % rmse(b[:,0], b[:,1])
         plt.xlim(DateInput[0]-1,DateInput[len(DateInput)-1]+1)
         plt.ylim(hmin,hmax)
         plt.ylabel('m', fontsize=10)

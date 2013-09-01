@@ -473,8 +473,9 @@ class clsPROCESS:
             obs_sm_yn = 0
         obs_catch = {}
         obs_catch['catch'] = {'obs_h':obs_h, 'obs_h_yn':obs_h_yn, 'obs_SM':obs_sm, 'obs_sm_yn':obs_sm_yn}
+        obs_catch_list = [obs_h_yn, obs_sm_yn]
 
-        return obs, obs_list, obs_catch
+        return obs, obs_list, obs_catch, obs_catch_list
         del inputObs_fn, inputObsHEADS_fn, inputObsSM_fn, inputDate, _nslmax
         del obs
 
