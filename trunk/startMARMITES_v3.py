@@ -1272,7 +1272,7 @@ if plt_out == 1 or plt_out_obs == 1:
         hdiff = 2000
 
     # #################################################
-    # plot SOIL/GW balance at the catchment scale
+    # plot SOIL/GW ts and balance at the catchment scale
     # #################################################
     tTgmin = -1
     if os.path.exists(h5_MM_fn):
@@ -1536,7 +1536,7 @@ if plt_out == 1 or plt_out_obs == 1:
             plt_title = 'MARMITES and MODFLOW water balance for the whole catchment\nMass balance error: MM = %1.2f%%, UZF = %1.2f%%, MF = %1.2f%%' % (MB_MM, MB_UZF, MB_MF)
             header_tmp = ['MM_MB','UZF_MB','MF_MB']
             MB_tmp = [MB_MM, MB_UZF,MB_MF]
-            MMplot.plotTIMESERIES_CATCH(cMF.inputDate, flx_Cat_TS, flxlbl_CATCH, plt_exportCATCH_fn, plt_titleCATCH, hmax = hmaxMF, hmin = hminMF, cMF = cMF, obs_catch = obs_catch)
+            MMplot.plotTIMESERIES_CATCH(cMF.inputDate, flx_Cat_TS, flxlbl_CATCH, plt_exportCATCH_fn, plt_titleCATCH, hmax = hmaxMF, hmin = hminMF, cMF = cMF, obs_catch = obs_catch, TopSoilAverage = TopSoilAverage)
         else:
             MMplot.plotTIMESERIES_CATCH(cMF.inputDate, flx_Cat_TS, flxlbl_CATCH, plt_exportCATCH_fn, plt_titleCATCH, hmax = hmaxMF, hmin = hminMF)
             plt_export_fn = os.path.join(MM_ws_out, '_0CATCHMENT_WBs.png')

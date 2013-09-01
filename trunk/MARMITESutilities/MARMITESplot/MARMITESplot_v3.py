@@ -416,7 +416,7 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, 
 
 ##################
 
-def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin, cMF = None, obs_catch = None):
+def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin, cMF = None, obs_catch = None, TopSoilAverage = None):
     """
     Plot the time serie of the fluxes observed from the whole catchment
     Use Matplotlib
@@ -519,9 +519,10 @@ def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, hmax
     ax6=fig.add_subplot(10,1,6, sharex=ax1)
     plt.setp(ax6.get_yticklabels(), fontsize=8)
     ax6.plot_date(DateInput, flx[18], '-', color = 'brown', label = flx_lbl[18])
-    obs_SM = obs_catch.get('catch')['obs_SM']
-    Sobs_m = np.ma.masked_values(obs_SM[0], cMF.hnoflo, atol = 0.09)
-    ax6.plot_date(DateInput, Sobs_m, 'o', color = 'brown', markersize=2, label = r'$\theta obs$')
+    if obs_catch <> None:
+        obs_SM = obs_catch.get('catch')['obs_SM']
+        Sobs_m = np.ma.masked_values(obs_SM[0], cMF.hnoflo, atol = 0.09)
+        ax6.plot_date(DateInput, Sobs_m, 'o', color = 'brown', markersize=2, label = r'$\theta obs$')
     # x axis
     plt.xlim(DateInput[0]-1,DateInput[len(DateInput)-1]+1)
     # y axis
@@ -551,6 +552,10 @@ def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, hmax
         for l in range(cMF.nlay):
             plt.plot_date(DateInput,flx[i],lines.next(), color = 'b', label = flx_lbl[i])
             i += l + 2
+        if obs_catch <> None:
+            obs_h = obs_catch.get('catch')['obs_h']
+            hobs_m = np.ma.masked_values(obs_h[0], cMF.hnoflo, atol = 0.09)
+            ax7.plot_date(DateInput, hobs_m, 'o', color = 'blue', markersize=2, label = r'$hobs$')
         plt.xlim(DateInput[0]-1,DateInput[len(DateInput)-1]+1)
         plt.ylim(hmin,hmax)
         plt.ylabel('m', fontsize=10)
@@ -591,6 +596,9 @@ def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, hmax
         for l in range(cMF.nlay):
             plt.plot_date(DateInput,flx[i],lines.next(), color = 'b', label = flx_lbl[i])
             i += l + 2
+        if obs_catch <> None:
+            hobs_m = hobs_m - TopSoilAverage
+            ax10.plot_date(DateInput, hobs_m, 'o', color = 'blue', markersize=2, label = r'$hobs$')
         plt.xlim(DateInput[0]-1,DateInput[len(DateInput)-1]+1)
         plt.ylabel('m', fontsize=10)
         plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale)
