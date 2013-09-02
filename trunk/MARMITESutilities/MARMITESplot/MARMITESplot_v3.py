@@ -13,12 +13,36 @@ import itertools, shutil
 
 #####################################
 
-def rmse (x, y) :
+def compRMSE (x, y) :
     def sqre_diff (v, w) :
         return (v - w) ** 2
     s = len(x)
     v = sum(map(sqre_diff, x, y), 0.0)
     return np.sqrt(v / s)
+
+#####################################
+
+def compDATE_INI(date):
+    year = mpl.dates.num2date(date).year
+    month = mpl.dates.num2date(date).month
+    day = mpl.dates.num2date(date).day
+    if month >= 10:
+        date_ini = mpl.dates.date2num(mpl.dates.datetime.datetime(year,10,1))
+    else:
+        date_ini = mpl.dates.date2num(mpl.dates.datetime.datetime(year-1,10,1))
+    return date_ini, year
+
+#####################################
+
+def compDATE_END(date):
+    year = mpl.dates.num2date(date).year
+    month = mpl.dates.num2date(date).month
+    day = mpl.dates.num2date(date).day
+    if month >= 10:
+        date_end = mpl.dates.date2num(mpl.dates.datetime.datetime(year+1,10,1))
+    else:
+        date_end = mpl.dates.date2num(mpl.dates.datetime.datetime(year,10,1))
+    return date_end, year
 
 #####################################
 
@@ -48,13 +72,17 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, 
     ______________________________________________________________________________
     """
 
-    monthsFmt=mpl.dates.DateFormatter('%Y-%m-%d')
+    dateFmt=mpl.dates.DateFormatter('%Y-%m-%d')
+#    dateminorFmt=mpl.dates.DateFormatter('%b')
     lblspc = 0.05
     mkscale = 0.5
 
     fig = plt.figure(num=None, figsize=(2*8.27, 2*11.7), dpi = 30)    #(8.5,15), dpi=30)
 
     fig.suptitle(plt_title)
+
+    date_ini, year_ini = compDATE_INI(DateInput[0])
+    date_end, year_end = compDATE_END(DateInput[-1])
 
     lbl_Spc = []
     lbl_S = []
@@ -126,14 +154,16 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, 
     plt.setp(ax1.get_yticklabels(), fontsize=8)
     ax1.bar(DateInput,P,color='darkblue', linewidth=0, align = 'center', label=r'$RF$')
     ax1.bar(DateInput,Pe,color='deepskyblue', linewidth=0, align = 'center', label=r'$RFe$')
-    plt.xlim(DateInput[0]-1,DateInput[len(DateInput)-1]+1)
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale)
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8)
-    plt.grid(True)
+    ax1.xaxis.grid(b=True, which='major')
+    ax1.xaxis.grid(b=True, which='minor', color='0.65')
     plt.ylabel('mm', fontsize=10)
-    ax1.xaxis.set_major_formatter(monthsFmt)
+    ax1.xaxis.set_major_formatter(dateFmt)
+    ax1.xaxis.set_major_locator(mpl.dates.YearLocator(1, month = 10, day = 1))
+    ax1.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth = [1, 4, 7]))
     ax1.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2G'))
 
     ax2=fig.add_subplot(10,1,2, sharex=ax1)
@@ -143,14 +173,13 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, 
     plt.plot_date(DateInput,Es,'r-', c='deepskyblue', linewidth=0.75, label = r'$E_{surf}$')
     plt.bar(DateInput, POND, color='lightblue', linewidth=0, align = 'center', label = r'$S_{surf}$')
     plt.bar(DateInput, dPOND, color='blue', width=0.60, linewidth=0, align = 'center', label = r'$\Delta S_{surf}$')
-    plt.xlim(DateInput[0]-1,DateInput[len(DateInput)-1]+1)
     plt.ylabel('mm', fontsize=10)
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale)
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8)
-    plt.grid(True)
-    ax2.xaxis.set_major_formatter(monthsFmt)
+    ax2.xaxis.grid(b=True, which='major')
+    ax2.xaxis.grid(b=True, which='minor', color='0.65')
     ax2.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2G'))
 
     Esoil_tot = []
@@ -168,14 +197,13 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, 
     for l, (y, color, lbl) in enumerate(zip(Esoil1, colors_nsl, lbl_Esoil[2:len(lbl_Esoil)])):
         ax3.plot_date(DateInput, y, '-', color=color, label=lbl)
     plt.plot_date(DateInput,Eg,'-', color='blue')
-    plt.xlim(DateInput[0]-1,DateInput[len(DateInput)-1]+1)
     plt.legend(lbl_Esoil, loc=0, labelspacing=lblspc, markerscale=mkscale)
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8)
-    plt.grid(True)
+    ax3.xaxis.grid(b=True, which='major')
+    ax3.xaxis.grid(b=True, which='minor', color='0.65')
     plt.ylabel('mm', fontsize=10)
-    ax3.xaxis.set_major_formatter(monthsFmt)
     ax3.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2G'))
 
     Tsoil_tot = []
@@ -193,14 +221,13 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, 
     for l, (y, color, lbl) in enumerate(zip(Tsoil1, colors_nsl, lbl_Tsoil[2:len(lbl_Tsoil)])):
         ax4.plot_date(DateInput, y, '-', color=color, label=lbl)
     plt.plot_date(DateInput,Tg,'-', color='blue')
-    plt.xlim(DateInput[0]-1,DateInput[len(DateInput)-1]+1)
     plt.legend(lbl_Tsoil, loc=0, labelspacing=lblspc, markerscale=mkscale)
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8 )
-    plt.grid(True)
+    ax4.xaxis.grid(b=True, which='major')
+    ax4.xaxis.grid(b=True, which='minor', color='0.65')
     plt.ylabel('mm', fontsize=10)
-    ax4.xaxis.set_major_formatter(monthsFmt)
     ax4.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2G'))
 
     ax5=fig.add_subplot(10,1,5, sharex=ax1)
@@ -222,8 +249,6 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, 
         sim_tmp.append(y)
         y = np.ma.masked_where(y < 0.0, y)
         ax5.plot_date(DateInput, y, '-', color = color, label = lbl)
-    # x axis
-    plt.xlim(DateInput[0]-1,DateInput[len(DateInput)-1]+1)
     # y axis
     ybuffer=0.1*(max(Sm)-min(Sr))
     plt.ylim(min(Sr) - ybuffer,max(Sm) + ybuffer)
@@ -235,8 +260,8 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, 
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8 )
-    plt.grid(True)
-    ax5.xaxis.set_major_formatter(monthsFmt)
+    ax5.xaxis.grid(b=True, which='major')
+    ax5.xaxis.grid(b=True, which='minor', color='0.65')
     ax5.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2G'))
 
     ax6=fig.add_subplot(10,1,6, sharex=ax1)
@@ -247,14 +272,13 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, 
         ax6.plot_date(DateInput, y, '-', color=color, label=lbl)
     plt.plot_date(DateInput,R,'-', c='darkblue', linewidth=2)
     plt.plot_date(DateInput,ETg,'-', c='blue', linewidth=1.5)
-    plt.xlim(DateInput[0]-1,DateInput[len(DateInput)-1]+1)
     plt.legend(lbl_Rp, loc = 0, labelspacing=lblspc, markerscale=mkscale)
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8 )
-    plt.grid(True)
+    ax6.xaxis.grid(b=True, which='major')
+    ax6.xaxis.grid(b=True, which='minor', color='0.65')
     plt.ylabel('mm', fontsize=10)
-    ax6.xaxis.set_major_formatter(monthsFmt)
     ax6.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2G'))
 
     ax7=fig.add_subplot(10,1,7, sharex=ax1)
@@ -274,10 +298,6 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, 
         lbl_h.append(r'$hMF_{%d}$' % (l+1))
     plt.plot_date(DateInput,h_MF_corr,'-', color = 'g')
     plt.plot_date(DateInput,h_SF,'-', color = 'r')
-    ax7.set_xticklabels(DateInput)
-    plt.xlim(DateInput[0]-1,DateInput[len(DateInput)-1]+1)
-    labels=ax7.get_xticklabels()
-    plt.setp(labels, 'rotation', 90)
     ybuffer=0.1*(hmax-hmin)
     if ybuffer == 0.0:
         ybuffer = 1.0
@@ -295,10 +315,17 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, 
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8 )
-    plt.xlabel('Date', fontsize=10)
-    plt.grid(True)
+    ax7.xaxis.grid(b=True, which='major')
+    ax7.xaxis.grid(b=True, which='minor', color='0.65')
     ax7.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2G'))
-    ax7.xaxis.set_major_formatter(monthsFmt)
+    plt.xlabel('Date', fontsize=10)
+    labels=ax7.get_xticklabels()
+    plt.setp(labels, 'rotation', 90)
+##    ax7.xaxis.set_minor_formatter(dateminorFmt)
+##    labels=ax7.get_xminorticklabels()
+##    plt.setp(labels, fontsize=8)
+##    plt.setp(labels, 'rotation', 90)
+    del labels
 
     # RMSE
     if test > 0 or obs_leg == 1:
@@ -310,16 +337,16 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, 
                     a = np.transpose(a)
                     b = a[~(a < hnoflo +1000.0).any(1)]
                     if b[:,0] <> []:
-                        print 'SM layer %d: %.1f %%' % (l, 100.0*rmse(b[:,0], b[:,1]))
+                        print 'SM layer %d: %.1f %%' % (l+1, 100.0*compRMSE(b[:,0], b[:,1]))
             except:
-                print 'SM layer %d: error' % l
+                print 'SM layer %d: error' % (l+1)
         if obs_leg == 1:
             try:
                 a = np.array([hobs,h_MF_corr])
                 a = np.transpose(a)
                 b = a[~(a < hnoflo +1000.0).any(1)]
                 if b[:,0] <> []:
-                    print 'h: %.2f m' % rmse(b[:,0], b[:,1])
+                    print 'h: %.2f m' % compRMSE(b[:,0], b[:,1])
             except:
                 print 'h: error'
 
@@ -331,8 +358,8 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, 
         ax8b.plot_date(DateInput, y, '-', color=color, label=lbl)
     # y axis
     plt.ylabel('mm', fontsize=10)
-    plt.grid(True)
-    plt.xlim(DateInput[0]-1,DateInput[len(MB)-1]+1)
+    ax8b.xaxis.grid(b=True, which='major')
+    ax8b.xaxis.grid(b=True, which='minor', color='0.65')
     if max(np.max(MB),np.max(MB_l1)) < 0.001 and min(np.min(MB), np.min(MB_l1)) > -0.001:
         plt.ylim(-0.1,0.1)
     else:
@@ -348,7 +375,6 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, 
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8 )
-    ax8b.xaxis.set_major_formatter(monthsFmt)
     ax8b.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2G'))
 
     ax9a=fig.add_subplot(20,1,17, sharex=ax1)
@@ -356,8 +382,6 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, 
     plt.setp(ax9a.get_yticklabels(), fontsize=8)
     for l, (y, color, lbl) in enumerate(zip(SAT1, colors_nsl, lbl_SAT)) :
         ax9a.plot_date(DateInput, y, '-', color = color, label = lbl)
-    # x axis
-    plt.xlim(DateInput[0]-1,DateInput[len(DateInput)-1]+1)
     # y axis
     plt.ylim(-0.1,1.1)
     plt.ylabel('SAT', fontsize=10)
@@ -368,8 +392,8 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, 
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8 )
-    plt.grid(True)
-    ax9a.xaxis.set_major_formatter(monthsFmt)
+    ax9a.xaxis.grid(b=True, which='major')
+    ax9a.xaxis.grid(b=True, which='minor', color='0.65')
 
     ax9b=fig.add_subplot(20,1,18, sharex=ax1)
     plt.setp(ax9b.get_xticklabels(), visible=False)
@@ -384,8 +408,8 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, 
     plt.plot_date(DateInput,dgwt,'-', c='b')
     # y axis
     plt.ylabel('m', fontsize=10)
-    plt.grid(True)
-    plt.xlim(DateInput[0]-1,DateInput[len(dgwt)-1]+1)
+    ax9b.xaxis.grid(b=True, which='major')
+    ax9b.xaxis.grid(b=True, which='minor', color='0.65')
     #plt.ylim(np.min(dgwt)*1.05,0.25)
     # legend
     if obs_leg == None:
@@ -396,7 +420,6 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, 
     plt.ylim(ymax = 0.0)
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8 )
-    ax9b.xaxis.set_major_formatter(monthsFmt)
     ax9b.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2G'))
 
     ax10a=fig.add_subplot(20,1,19, sharex=ax1)
@@ -405,8 +428,8 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, 
     plt.plot_date(DateInput,uzthick,'-', c='brown')
     # y axis
     plt.ylabel('m', fontsize=10)
-    plt.grid(True)
-    plt.xlim(DateInput[0]-1,DateInput[len(uzthick)-1]+1)
+    ax10a.xaxis.grid(b=True, which='major')
+    ax10a.xaxis.grid(b=True, which='minor', color='0.65')
     minfact = 0.95
     maxfact = 1.05
     if np.min(uzthick) < 0:
@@ -422,7 +445,6 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, 
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8 )
-    ax10a.xaxis.set_major_formatter(monthsFmt)
     ax10a.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2G'))
 
     ax10b=fig.add_subplot(20,1,20, sharex=ax1)
@@ -431,8 +453,6 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, 
     for l, (y, color, lbl) in enumerate(zip(S1, colors_nsl, lbl_S)) :
         y = np.ma.masked_where( y < 0.0, y)
         ax10b.plot_date(DateInput, y, '-', color=color, label=lbl)
-    # x axis
-    plt.xlim(DateInput[0]-1,DateInput[len(DateInput)-1]+1)
     # y axis
     plt.ylim(0,np.max(S1)*1.05)
     plt.ylabel('mm', fontsize=10)
@@ -442,10 +462,12 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, 
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8 )
-    plt.grid(True)
-    ax10b.xaxis.set_major_formatter(monthsFmt)
+    ax10b.xaxis.grid(b=True, which='major')
+    ax10b.xaxis.grid(b=True, which='minor', color='0.65')
 
     plt.subplots_adjust(left=0.10, bottom=0.10, right=0.95, top=0.95, wspace=0.1, hspace=0.1)
+    ax1.set_xlim(date_ini,date_end)
+
     plt.savefig(plt_export_fn,dpi=150)
 #    plt.show()
     plt.clf()
@@ -459,83 +481,91 @@ def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, hmax
     Use Matplotlib
     """
 
-    monthsFmt=mpl.dates.DateFormatter('%Y-%m-%d')
+    dateFmt=mpl.dates.DateFormatter('%Y-%m-%d')
+#    dateminorFmt=mpl.dates.DateFormatter('%b')
     lblspc = 0.05
     mkscale = 0.5
 
-    fig = plt.figure(num=None, figsize=(2*8.27, 2*11.7), dpi = 30)    #(8.5,15), dpi=30)
+    date_ini, year_ini = compDATE_INI(DateInput[0])
+    date_end, year_end = compDATE_END(DateInput[-1])
 
+    fig = plt.figure(num=None, figsize=(2*8.27, 2*11.7), dpi = 30)    #(8.5,15), dpi=30)
     fig.suptitle(plt_title)
 
     ax1=fig.add_subplot(10,1,1)
+    ax1.set_autoscalex_on(False)
     plt.setp(ax1.get_xticklabels(), visible=False)
     plt.setp(ax1.get_yticklabels(), fontsize=8)
     ax1.bar(DateInput,flx[0],color='darkblue', linewidth=0, align = 'center', label = flx_lbl[0])
     ax1.bar(DateInput,flx[2],color='deepskyblue', linewidth=0, align = 'center', label = flx_lbl[2])
-    plt.xlim(DateInput[0]-1,DateInput[len(DateInput)-1]+1)
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale)
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8)
-    plt.grid(True)
+    ax1.xaxis.grid(b=True, which='major')
+    ax1.xaxis.grid(b=True, which='minor', color='0.65')
     plt.ylabel('mm', fontsize=10)
-    ax1.xaxis.set_major_formatter(monthsFmt)
+    ax1.set_xlim(date_ini,date_end)
+    ax1.xaxis.set_major_formatter(dateFmt)
+    ax1.xaxis.set_major_locator(mpl.dates.YearLocator(1, month = 10, day = 1))
+    ax1.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth = [1, 4, 7]))
     ax1.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2G'))
 
     ax2=fig.add_subplot(10,1,2, sharex=ax1)
+    ax2.set_autoscalex_on(False)
     plt.setp(ax2.get_xticklabels(), visible=False)
     plt.setp(ax2.get_yticklabels(), fontsize=8)
     plt.plot_date(DateInput,flx[4],'r-', c='darkblue', linewidth=2, label = flx_lbl[4])
     plt.plot_date(DateInput,flx[5],'r-', c='deepskyblue', linewidth=0.75, label = flx_lbl[5])
     plt.bar(DateInput, flx[14], color='lightblue', linewidth=0, align = 'center', label = flx_lbl[14])
     plt.bar(DateInput, flx[3], color='blue', width=0.60, linewidth=0, align = 'center', label = flx_lbl[3])
-    plt.xlim(DateInput[0]-1,DateInput[len(DateInput)-1]+1)
     plt.ylabel('mm', fontsize=10)
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale)
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8)
-    plt.grid(True)
-    ax2.xaxis.set_major_formatter(monthsFmt)
+    ax2.xaxis.grid(b=True, which='minor', color='0.65')
+    ax2.xaxis.grid(b=True, which='major')
     ax2.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2G'))
 
     E_tot = flx[8] + flx[11]
     ax3=fig.add_subplot(10,1,3, sharex=ax1)
+    ax3.set_autoscalex_on(False)
     plt.setp(ax3.get_xticklabels(), visible=False)
     plt.setp(ax3.get_yticklabels(), fontsize=8)
     plt.plot_date(DateInput,flx[15],'-', color='lightblue', linewidth=3, label = flx_lbl[15])
     plt.plot_date(DateInput,E_tot,'-', color='darkblue', linewidth=1.5, label = r'$Etot$')
     plt.plot_date(DateInput,flx[8],'-.', color='brown', label = flx_lbl[8])
     plt.plot_date(DateInput,flx[11],'-', color='blue', label = flx_lbl[11])
-    plt.xlim(DateInput[0]-1,DateInput[len(DateInput)-1]+1)
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale)
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8)
-    plt.grid(True)
+    ax3.xaxis.grid(b=True, which='major')
+    ax3.xaxis.grid(b=True, which='minor', color='0.65')
     plt.ylabel('mm', fontsize=10)
-    ax3.xaxis.set_major_formatter(monthsFmt)
     ax3.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2G'))
 
     T_tot = flx[9] + flx[12]
     ax4=fig.add_subplot(10,1,4, sharex=ax1)
+    ax4.set_autoscalex_on(False)
     plt.setp(ax4.get_xticklabels(), visible=False)
     plt.setp(ax4.get_yticklabels(), fontsize=8)
     plt.plot_date(DateInput,flx[16],'-', color='lightblue', linewidth=3, label = flx_lbl[16])
     plt.plot_date(DateInput,T_tot,'-', color='darkblue',  linewidth=1.5, label = r'$Ttot$')
     plt.plot_date(DateInput,flx[9],'-.', color='brown', label = flx_lbl[9])
     plt.plot_date(DateInput,flx[12],'-', color='blue', label = flx_lbl[12])
-    plt.xlim(DateInput[0]-1,DateInput[len(DateInput)-1]+1)
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale)
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8 )
-    plt.grid(True)
+    ax4.xaxis.grid(b=True, which='major')
+    ax4.xaxis.grid(b=True, which='minor', color='0.65')
     plt.ylabel('mm', fontsize=10)
-    ax4.xaxis.set_major_formatter(monthsFmt)
     ax4.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2G'))
 
     ax5=fig.add_subplot(10,1,5, sharex=ax1)
+    ax5.set_autoscalex_on(False)
     plt.setp(ax5.get_xticklabels(), visible=False)
     plt.setp(ax5.get_yticklabels(), fontsize=8)
     plt.bar(DateInput,flx[7], color='lightblue', linewidth=0, align = 'center', label = flx_lbl[7])
@@ -543,17 +573,17 @@ def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, hmax
     if cMF != None:
         plt.plot_date(DateInput,flx[19],'-', c='darkblue', linewidth=2, label = flx_lbl[19])
     plt.plot_date(DateInput,flx[13],'-', c='blue', linewidth=1.5, label = flx_lbl[13])
-    plt.xlim(DateInput[0]-1,DateInput[len(DateInput)-1]+1)
     plt.legend(loc = 0, labelspacing=lblspc, markerscale=mkscale)
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8 )
-    plt.grid(True)
+    ax5.xaxis.grid(b=True, which='major')
+    ax5.xaxis.grid(b=True, which='minor', color='0.65')
     plt.ylabel('mm', fontsize=10)
-    ax5.xaxis.set_major_formatter(monthsFmt)
     ax5.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2G'))
 
     ax6=fig.add_subplot(10,1,6, sharex=ax1)
+    ax6.set_autoscalex_on(False)
     plt.setp(ax6.get_yticklabels(), fontsize=8)
     ax6.plot_date(DateInput, flx[18], '-', color = 'brown', label = flx_lbl[18])
     if sum(obs_catch_list) > 0:
@@ -565,9 +595,7 @@ def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, hmax
         a = np.array([obs_SM[0],flx[18].data])
         a = np.transpose(a)
         b = a[~(a < cMF.hnoflo +1000.0).any(1)]
-        print 'SM: %.1f %%' % (100.0*rmse(b[:,0], b[:,1]))
-    # x axis
-    plt.xlim(DateInput[0]-1,DateInput[len(DateInput)-1]+1)
+        print 'SM: %.1f %%' % (100.0*compRMSE(b[:,0], b[:,1]))
     # y axis
     plt.ylabel('%', fontsize=10)
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale)
@@ -575,20 +603,26 @@ def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, hmax
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8 )
     if cMF == None:
-        plt.setp(ax6.get_xticklabels(), fontsize=8)
         plt.xlabel('Date', fontsize=10)
         labels=ax6.get_xticklabels()
+        plt.setp(labels, fontsize=8)
         plt.setp(labels, 'rotation', 90)
+##        ax6.xaxis.set_minor_formatter(dateminorFmt)
+##        labels=ax6.get_xminorticklabels()
+##        plt.setp(labels, fontsize=8)
+##        plt.setp(labels, 'rotation', 90)
+        del labels
     else:
         plt.setp(ax6.get_xticklabels(), visible=False)
-    plt.grid(True)
-    ax6.xaxis.set_major_formatter(monthsFmt)
+    ax6.xaxis.grid(b=True, which='major')
+    ax6.xaxis.grid(b=True, which='minor', color='0.65')
     ax6.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2G'))
 
     if cMF != None:
         # plot heads
         lines = itertools.cycle(['-','--','-.',':','.',',','o','v','^','<','>','1','2','3','4','s','p','*','h','H','+','x','D','d','|','_'])
         ax7=fig.add_subplot(10,1,7, sharex=ax1)
+        ax7.set_autoscalex_on(False)
         plt.setp(ax7.get_xticklabels(), visible=False)
         plt.setp(ax7.get_yticklabels(), fontsize=8)
         i = 20
@@ -602,41 +636,45 @@ def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, hmax
             a = np.array([obs_h[0],flx[20].data])
             a = np.transpose(a)
             b = a[~(a < cMF.hnoflo +1000.0).any(1)]
-            print 'h: %.2G m' % rmse(b[:,0], b[:,1])
-        plt.xlim(DateInput[0]-1,DateInput[len(DateInput)-1]+1)
+            print 'h: %.2G m' % compRMSE(b[:,0], b[:,1])
         plt.ylim(hmin,hmax)
         plt.ylabel('m', fontsize=10)
         plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale)
         leg = plt.gca().get_legend()
         ltext  = leg.get_texts()
         plt.setp(ltext, fontsize=8 )
-        plt.grid(True)
+        ax7.xaxis.grid(b=True, which='major')
+        ax7.xaxis.grid(b=True, which='minor', color='0.65')
         ax7.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2G'))
-        ax7.xaxis.set_major_formatter(monthsFmt)
         # plot GW fluxes
         ax8=fig.add_subplot(10,1,8, sharex=ax1)
+        ax8.set_autoscalex_on(False)
         plt.setp(ax8.get_xticklabels(), fontsize=8)
         plt.setp(ax8.get_yticklabels(), fontsize=8)
         i = 20 + 2*cMF.nlay
         for l, (e, lbl) in enumerate(zip(flx[i:], flx_lbl[i:])):
             plt.plot_date(DateInput,e,'-', color = mpl.colors.rgb2hex(np.random.rand(1,3)[0]), label = lbl)
             i += l + 2
-        plt.xlim(DateInput[0]-1,DateInput[len(DateInput)-1]+1)
+        plt.xlabel('Date', fontsize=10)
         labels=ax8.get_xticklabels()
         plt.setp(labels, 'rotation', 90)
+##        ax8.xaxis.set_minor_formatter(dateminorFmt)
+##        labels=ax8.get_xminorticklabels()
+##        plt.setp(labels, fontsize=8)
+##        plt.setp(labels, 'rotation', 90)
         del labels
-        plt.xlabel('Date', fontsize=10)
         plt.ylabel('mm', fontsize=10)
         plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale)
         leg = plt.gca().get_legend()
         ltext  = leg.get_texts()
         plt.setp(ltext, fontsize=8 )
-        plt.grid(True)
+        ax8.xaxis.grid(b=True, which='major')
+        ax8.xaxis.grid(b=True, which='minor', color='0.65')
         ax8.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2G'))
-        ax8.xaxis.set_major_formatter(monthsFmt)
         # plot GWT
         lines = itertools.cycle(['-','--','-.',':','.',',','o','v','^','<','>','1','2','3','4','s','p','*','h','H','+','x','D','d','|','_'])
         ax10=fig.add_subplot(10,1,10, sharex=ax1)
+        ax10.set_autoscalex_on(False)
         plt.setp(ax10.get_xticklabels(), visible=False)
         plt.setp(ax10.get_yticklabels(), fontsize=8)
         i = 21
@@ -646,15 +684,14 @@ def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, hmax
         if obs_catch <> None:
             hobs_m = hobs_m - TopSoilAverage
             ax10.plot_date(DateInput, hobs_m, 'o', color = 'blue', markersize=2, label = r'$hobs$')
-        plt.xlim(DateInput[0]-1,DateInput[len(DateInput)-1]+1)
         plt.ylabel('m', fontsize=10)
         plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale)
         leg = plt.gca().get_legend()
         ltext  = leg.get_texts()
         plt.setp(ltext, fontsize=8 )
-        plt.grid(True)
+        ax10.xaxis.grid(b=True, which='major')
+        ax10.xaxis.grid(b=True, which='minor', color='0.65')
         ax10.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2G'))
-        ax10.xaxis.set_major_formatter(monthsFmt)
 
     plt.subplots_adjust(left=0.10, bottom=0.10, right=0.95, top=0.95, wspace=0.1, hspace=0.1)
     plt.savefig(plt_export_fn,dpi=150)
@@ -739,9 +776,9 @@ def plotLAYER(timesteps, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, ms
                 plt.draw()
                 ax[L].clabel(CS, inline=1, fontsize = 6, fmt=fmt, colors = 'gray')
             if np.ma.max(Vtmp)>np.ma.min(Vtmp):
-                ax[L].set_title('layer ' + str(L+1), fontsize = 10)
+                ax[L].set_title('layer %d' % (L+1), fontsize = 10)
             else:
-                ax[L].set_title('layer ' + str(L+1) + ' ' + msg, fontsize = 10)
+                ax[L].set_title('layer %d %s' % (L+1, msg), fontsize = 10)
             ax[L].set_ylim(bottom = np.max(yg1), top = np.min(yg1))
             ax[L].axis('scaled')
         if max(x) > max(y):
