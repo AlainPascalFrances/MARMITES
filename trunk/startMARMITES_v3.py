@@ -188,9 +188,9 @@ try:
     l += 1
     inputObsSM_fn = inputFile[l].strip()
     l += 1
-    maxRMSEHEADS  = float(inputFile[l].strip())
+    rmseHEADSmax  = float(inputFile[l].strip())
     l += 1
-    maxRMSESM  = float(inputFile[l].strip())
+    rmseSMmax  = float(inputFile[l].strip())
     l += 1
     chunks = int(inputFile[l].strip())
     if MMsoil_yn == 1:
@@ -1284,10 +1284,12 @@ if plt_out == 1 or plt_out_obs == 1:
     # plot SOIL/GW ts and balance at the catchment scale
     # #################################################
     # RMSE list to plot
-    RMSESM = []
-    RMSESMobslst = []
-    RMSEHEADS = []
-    RMSEHEADSobslst = []
+    rmseSM = []
+    rmseSMobslst = []
+    corrSM = []
+    rmseHEADS = []
+    rmseHEADSobslst = []
+    corrHEADS = []
     tTgmin = -1
     if os.path.exists(h5_MM_fn):
         try:
@@ -1549,27 +1551,22 @@ if plt_out == 1 or plt_out_obs == 1:
             plt_title = 'MARMITES and MODFLOW water balance for the whole catchment\nMass balance error: MM = %1.2f%%, UZF = %1.2f%%, MF = %1.2f%%' % (MB_MM, MB_UZF, MB_MF)
             header_tmp = ['MM_MB','UZF_MB','MF_MB']
             MB_tmp = [MB_MM, MB_UZF,MB_MF]
-            RMSEHEADS_tmp, RMSESM_tmp = MMplot.plotTIMESERIES_CATCH(cMF.inputDate, flx_Cat_TS, flxlbl_CATCH, plt_exportCATCH_fn, plt_titleCATCH, hmax = hmaxMF, hmin = hminMF, iniMonthHydroYear = iniMonthHydroYear, cMF = cMF, obs_catch = obs_catch, obs_catch_list = obs_catch_list, TopSoilAverage = TopSoilAverage)
-            if RMSEHEADS_tmp <> None:
-                RMSEHEADS.append(RMSEHEADS_tmp)
-                RMSEHEADSobslst.append('catch.')
-            if RMSESM_tmp <> None:
-                RMSESM.append(RMSESM_tmp)
-                RMSESMobslst.append('catch.')
-            del RMSEHEADS_tmp, RMSESM_tmp
+            rmseHEADS_tmp, rmseSM_tmp, corrHEADS_tmp, corrSM_tmp = MMplot.plotTIMESERIES_CATCH(cMF.inputDate, flx_Cat_TS, flxlbl_CATCH, plt_exportCATCH_fn, plt_titleCATCH, hmax = hmaxMF, hmin = hminMF, iniMonthHydroYear = iniMonthHydroYear, cMF = cMF, obs_catch = obs_catch, obs_catch_list = obs_catch_list, TopSoilAverage = TopSoilAverage)
         else:
-            RMSEHEADS_tmp, RMSESM_tmp = MMplot.plotTIMESERIES_CATCH(cMF.inputDate, flx_Cat_TS, flxlbl_CATCH, plt_exportCATCH_fn, plt_titleCATCH, hmax = hmaxMF, hmin = hminMF, iniMonthHydroYear = iniMonthHydroYear)
-            if RMSEHEADS_tmp <> None:
-                RMSEHEADS.append(RMSEHEADS_tmp)
-                RMSEHEADSobslst.append('catch.')
-            if RMSESM_tmp <> None:
-                RMSESM.append(RMSESM_tmp)
-                RMSESMobslst.append('catch.')
-            del RMSEHEADS_tmp, RMSESM_tmp
+            rmseHEADS_tmp, rmseSM_tmp, corrHEADS_tmp, corrSM_tmp = MMplot.plotTIMESERIES_CATCH(cMF.inputDate, flx_Cat_TS, flxlbl_CATCH, plt_exportCATCH_fn, plt_titleCATCH, hmax = hmaxMF, hmin = hminMF, iniMonthHydroYear = iniMonthHydroYear)
             plt_export_fn = os.path.join(MM_ws_out, '_0CATCHMENT_WBs.png')
             plt_title = 'MARMITES water balance for the whole catchment\nMass balance error: MM = %1.2f%%' % (MB_MM)
             header_tmp = ['MM_MB']
             MB_tmp = [MB_MM]
+        if rmseHEADS_tmp <> None:
+            rmseHEADS.append(rmseHEADS_tmp)
+            corrHEADS.append(corrHEADS_tmp)
+            rmseHEADSobslst.append('catch.')
+        if rmseSM_tmp <> None:
+            rmseSM.append(rmseSM_tmp)
+            corrSM.append(corrSM_tmp)
+            rmseSMobslst.append('catch.')
+        del rmseHEADS_tmp, rmseSM_tmp, corrHEADS_tmp, corrSM_tmp
         # export average time serie of fluxes in txt
         plt_exportCATCH_txt = open(os.path.join(plt_exportCATCH_txt_fn), 'w')
         flxlbl_CATCH_str = 'Date'
@@ -1752,7 +1749,7 @@ if plt_out == 1 or plt_out_obs == 1:
                     # index_S = {'iEsoil':0, 'iTsoil':1,'iSsoil_pc':2, 'iRp':3, 'iRexf':4, 'idSsoil':5, 'iSsoil':6, 'iSAT':7, 'iMB_l':8}
                     plt_export_fn = os.path.join(MM_ws_out, '_0'+ o + '_ts.png')
                     # def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, EXF, ETg, Es, MB, MB_l, dgwt, SAT, R, h_MF, h_MF_corr, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin):
-                    RMSEHEADS_tmp, RMSESM_tmp = MMplot.plotTIMESERIES(
+                    rmseHEADS_tmp, rmseSM_tmp, corrHEADS_tmp, corrSM_tmp = MMplot.plotTIMESERIES(
                     cMF.inputDate,
                     MM[:,index.get('iRF')],
                     MM[:,index.get('iPT')],
@@ -1794,12 +1791,15 @@ if plt_out == 1 or plt_out_obs == 1:
                     nsl,
                     iniMonthHydroYear
                     )
-                    if RMSEHEADS_tmp <> None:
-                        RMSEHEADS.append(RMSEHEADS_tmp)
-                        RMSEHEADSobslst.append(o)
-                    if RMSESM_tmp <> None:
-                        RMSESM.append(RMSESM_tmp)
-                        RMSESMobslst.append(o)
+                    if rmseHEADS_tmp <> None:
+                        rmseHEADS.append(rmseHEADS_tmp)
+                        corrHEADS.append(corrHEADS_tmp)
+                        rmseHEADSobslst.append(o)
+                    if rmseSM_tmp <> None:
+                        rmseSM.append(rmseSM_tmp)
+                        corrSM.append(corrSM_tmp)
+                        rmseSMobslst.append(o)
+                    del rmseHEADS_tmp, rmseSM_tmp, corrHEADS_tmp, corrSM_tmp
                     x += 1
                     # plot water balance at each obs. cell
                     #flxlbl   = ['RF', 'I', 'dSs', 'Ro', 'Es', 'dS', 'EXF']
@@ -1911,85 +1911,10 @@ if plt_out == 1 or plt_out_obs == 1:
         h5_MM.close()
         h5_MF.close()
         del obs
-
-        # plot RMSE
-        fig = plt.figure()
-        fig.suptitle('Root-mean-square error', fontsize=10)
-        ax1=fig.add_subplot(2,1,1)
-        plt.setp(ax1.get_xticklabels(), fontsize=8)
-        plt.setp(ax1.get_yticklabels(), fontsize=8)
-        ax1.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.1f'))
-        plt.ylabel('RMSE soil moisture ($\%%$)', fontsize=10, horizontalalignment = 'center')
-        plt.grid(True)
-        xserie = []
-        yserie = []
-        labels = []
-        n = 0
-        for e in RMSESM:
-            if isinstance(e, list):
-                numtick = len(e)
-                if n == 0:
-                    newx = 1.0
-                else:
-                    newx = 1.0 + xserie[-1]
-                ee = 0
-                lst = range(1,numtick/2+1)
-                lst.reverse()
-                for i in lst:
-                    xserie.append(newx-i/10.0)
-                    yserie.append(e[ee])
-                    ee += 1
-                    labels.append('')
-                xserie.append(newx)
-                labels.append('%s' % RMSESMobslst[n])
-                if numtick %2 <> 0:
-                    yserie.append(e[ee])
-                    ee += 1
-                else:
-                    yserie.append(maxRMSESM + 1.0)
-                lst = range(1,numtick/2+1)
-                for i in lst:
-                    xserie.append(newx+i/10.0)
-                    yserie.append(e[ee])
-                    ee += 1
-                    labels.append('')
-            else:
-                if n == 0:
-                    xserie.append(1.0)
-                    yserie.append(e)
-                    labels.append('%s' % RMSESMobslst[n])
-                else:
-                    xserie.append(1+xserie[-1])
-                    yserie.append(e)
-                    labels.append('%s' % RMSESMobslst[n])
-            n += 1
-        offset = maxRMSESM/20.0
-        for i in range(len(xserie)):
-            plt.scatter(xserie[i], yserie[i], marker='o', c = 'orange', s = 30)
-            if yserie[i] < maxRMSESM:
-                plt.text(xserie[i], yserie[i]+offset, '%.1f' % yserie[i], fontsize=8, ha = 'center', va = 'center')
-        plt.xticks(xserie, labels)
-        ax1.set_ylim(0, maxRMSESM)
-        ax1.set_xlim(0, int(max(xserie))+1.0)
-
-        ax2=fig.add_subplot(2,1,2)
-        plt.setp(ax2.get_xticklabels(), fontsize=8)
-        plt.setp(ax2.get_yticklabels(), fontsize=8)
-        ax2.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.1f'))
-        plt.ylabel('RMSE hydraulic heads ($m$)', fontsize=10, horizontalalignment = 'center')
-        plt.grid(True)
-        xserie = range(1,len(RMSEHEADSobslst)+1)
-        offset = maxRMSEHEADS/20.0
-        for i in range(len(xserie)):
-            plt.scatter(xserie[i], RMSEHEADS[i], marker='o', c = 'orange', s = 30)
-            if RMSEHEADS[i] < maxRMSEHEADS:
-                plt.text(xserie[i], RMSEHEADS[i]+offset, '%.1f' % RMSEHEADS[i], fontsize=8, ha = 'center', va = 'center')
-        plt.xticks(xserie, RMSEHEADSobslst)
-        ax2.set_ylim(0, maxRMSEHEADS)
-        ax2.set_xlim(0, len(RMSEHEADS)+1)
-
-        plt_RMSE_fn = os.path.join(MM_ws_out, '__plt_RMSE.png')
-        plt.savefig(plt_RMSE_fn)
+    # RMSE
+    MMplot.plotFITTINGindex(indexSM = rmseSM, indexSMobslst = rmseSMobslst, indexSMmax = rmseSMmax, indexHEADS = rmseHEADS, indexHEADSobslst = rmseHEADSobslst, indexHEADSmax = rmseHEADSmax, plt_export_fn = os.path.join(MM_ws_out, '__plt_RMSE.png'), plt_title = 'Root-mean-square error', index = 'RMSE')
+    # http://docs.scipy.org/doc/numpy/reference/generated/numpy.corrcoef.html
+    MMplot.plotFITTINGindex(indexSM = corrSM, indexSMobslst = rmseSMobslst, indexSMmax = 1.0, indexHEADS = corrHEADS, indexHEADSobslst = rmseHEADSobslst, indexHEADSmax = 1.0, plt_export_fn = os.path.join(MM_ws_out, '__plt_corr.png'), plt_title = 'Correlation coefficient', index = 'Corr.')
 
     # #################################################
     # PLOT SPATIAL MF and MM OUTPUT
