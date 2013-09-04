@@ -109,6 +109,11 @@ try:
     l += 1
     plt_WB_unit = inputFile[l].strip()
     l += 1
+    iniMonthHydroYear = int(inputFile[l].strip())
+    if iniMonthHydroYear < 1 or iniMonthHydroYear > 12:
+        print '\nWARNING!\nInvalid starting month of the hydrologic year. Please correct your input (currently %d) to a value between 1 and 12 inclusive. The starting month was now defined as October (10).' % iniMonthHydroYear
+        iniMonthHydroYear = 10
+    l += 1
     # map of inputs (1 is YES, 0 is NO)
     plt_input = int(inputFile[l].strip())
     l += 1
@@ -182,6 +187,10 @@ try:
     inputObsHEADS_fn = inputFile[l].strip()
     l += 1
     inputObsSM_fn = inputFile[l].strip()
+    l += 1
+    maxRMSEHEADS  = float(inputFile[l].strip())
+    l += 1
+    maxRMSESM  = float(inputFile[l].strip())
     l += 1
     chunks = int(inputFile[l].strip())
     if MMsoil_yn == 1:
@@ -1280,6 +1289,11 @@ if plt_out == 1 or plt_out_obs == 1:
             h5_MM = h5py.File(h5_MM_fn, 'r')
         except:
             cUTIL.ErrorExit('\nFATAL ERROR!\nInvalid MARMITES HDF5 file. Run MARMITES and/or MODFLOW again.')
+        # RMSE list to plot
+        RMSESM = [0]
+        RMSESMobslst = ['catch.']
+        RMSEHEADS = [0]
+        RMSEHEADSobslst = ['catch.']
         # indexes of the HDF5 output arrays
         #  index = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSsurf':4, 'iRo':5, 'iEXF':6, 'iEsurf':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSsurf':13, 'iETg':14, 'iETsoil':15, 'iSsoil_pc':16, 'idSsoil':17, 'iinf':18, 'iHEADScorr':19, 'idgwt':20, 'iuzthick':21}
         # index_S = {'iEsoil':0, 'iTsoil':1,'iSsoil_pc':2, 'iRp':3, 'iRexf':4, 'idSsoil':5, 'iSsoil':6, 'iSAT':7, 'iMB_l':8}
@@ -1535,9 +1549,9 @@ if plt_out == 1 or plt_out_obs == 1:
             plt_title = 'MARMITES and MODFLOW water balance for the whole catchment\nMass balance error: MM = %1.2f%%, UZF = %1.2f%%, MF = %1.2f%%' % (MB_MM, MB_UZF, MB_MF)
             header_tmp = ['MM_MB','UZF_MB','MF_MB']
             MB_tmp = [MB_MM, MB_UZF,MB_MF]
-            MMplot.plotTIMESERIES_CATCH(cMF.inputDate, flx_Cat_TS, flxlbl_CATCH, plt_exportCATCH_fn, plt_titleCATCH, hmax = hmaxMF, hmin = hminMF, cMF = cMF, obs_catch = obs_catch, obs_catch_list = obs_catch_list, TopSoilAverage = TopSoilAverage)
+            RMSEHEADS[0], RMSESM[0] = MMplot.plotTIMESERIES_CATCH(cMF.inputDate, flx_Cat_TS, flxlbl_CATCH, plt_exportCATCH_fn, plt_titleCATCH, hmax = hmaxMF, hmin = hminMF, iniMonthHydroYear = iniMonthHydroYear, cMF = cMF, obs_catch = obs_catch, obs_catch_list = obs_catch_list, TopSoilAverage = TopSoilAverage)
         else:
-            MMplot.plotTIMESERIES_CATCH(cMF.inputDate, flx_Cat_TS, flxlbl_CATCH, plt_exportCATCH_fn, plt_titleCATCH, hmax = hmaxMF, hmin = hminMF)
+            RMSEHEADS[0], RMSESM[0] = MMplot.plotTIMESERIES_CATCH(cMF.inputDate, flx_Cat_TS, flxlbl_CATCH, plt_exportCATCH_fn, plt_titleCATCH, hmax = hmaxMF, hmin = hminMF, iniMonthHydroYear = iniMonthHydroYear)
             plt_export_fn = os.path.join(MM_ws_out, '_0CATCHMENT_WBs.png')
             plt_title = 'MARMITES water balance for the whole catchment\nMass balance error: MM = %1.2f%%' % (MB_MM)
             header_tmp = ['MM_MB']
@@ -1573,7 +1587,7 @@ if plt_out == 1 or plt_out_obs == 1:
         try:
             MMplot.plotWB(flxlst = flxlst, flxlbl = flxlbl_tex, colors_flx = colors_flx, plt_export_fn = plt_export_fn, plt_title = plt_title, fluxmax = flxmax, fluxmin = flxmin, unit = plt_WB_unit)
         except:
-            print "\nError in the budget plotting!"
+            print "\nError in plotting the water balance!"
         plt_export_txt = open(os.path.join(MM_ws_out, '_0CATCHMENT_WBsg.txt'), 'w')
         flxlbl_str = flxlbl_tex[0]
         for e in (flxlbl_tex[1:] + header_tmp):
@@ -1649,7 +1663,7 @@ if plt_out == 1 or plt_out_obs == 1:
         try:
             MMplot.plotGW(flxlst = flxlst, flxlbl = flxlbl_tex, colors_flx = colors_flx, plt_export_fn = plt_export_fn, plt_title = plt_title, fluxmax = cbcmax_d, fluxmin = cbcmin_d, unit = plt_WB_unit)
         except:
-            print "\nError in the budget plotting!"
+            print "\nError in plotting the water balance!"
         del flxlst, MB_MF, InMF, OutMF
 
     # #################################################
@@ -1724,7 +1738,7 @@ if plt_out == 1 or plt_out_obs == 1:
                     # index_S = {'iEsoil':0, 'iTsoil':1,'iSsoil_pc':2, 'iRp':3, 'iRexf':4, 'idSsoil':5, 'iSsoil':6, 'iSAT':7, 'iMB_l':8}
                     plt_export_fn = os.path.join(MM_ws_out, '_0'+ o + '_ts.png')
                     # def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, EXF, ETg, Es, MB, MB_l, dgwt, SAT, R, h_MF, h_MF_corr, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin):
-                    MMplot.plotTIMESERIES(
+                    RMSEHEADS_tmp, RMSESM_tmp = MMplot.plotTIMESERIES(
                     cMF.inputDate,
                     MM[:,index.get('iRF')],
                     MM[:,index.get('iPT')],
@@ -1763,8 +1777,15 @@ if plt_out == 1 or plt_out_obs == 1:
                     cMF.elev[i,j],
                     cMF.nlay,
                     l_obs,
-                    nsl
+                    nsl,
+                    iniMonthHydroYear
                     )
+                    if RMSEHEADS_tmp <> None:
+                        RMSEHEADS.append(RMSEHEADS_tmp)
+                        RMSEHEADSobslst.append(o)
+                    if RMSESM_tmp <> None:
+                        RMSESM.append(RMSESM_tmp)
+                        RMSESMobslst.append(o)
                     x += 1
                     # plot water balance at each obs. cell
                     #flxlbl   = ['RF', 'I', 'dSs', 'Ro', 'Es', 'dS', 'EXF']
@@ -1861,7 +1882,7 @@ if plt_out == 1 or plt_out_obs == 1:
             try:
                 MMplot.plotWB(flxlst = lst, flxlbl = flxlbl_tex, colors_flx = colors_flx, plt_export_fn = fn, plt_title = title, fluxmax = flxmax, fluxmin = flxmin, unit = plt_WB_unit)
             except:
-                print "\nError in the budget plotting!"
+                print "\nError in plotting the water balance!"
             plt_export_txt = open(fn_txt, 'w')
             flxlst_str = str(lst[0])
             for e in (lst[1:]  + InOut):
@@ -1876,6 +1897,82 @@ if plt_out == 1 or plt_out_obs == 1:
         h5_MM.close()
         h5_MF.close()
         del obs
+
+        # plot RMSE
+        fig = plt.figure()
+        fig.suptitle('Root-mean-square error', fontsize=10)
+        ax1=fig.add_subplot(2,1,1)
+        plt.setp(ax1.get_xticklabels(), fontsize=8)
+        plt.setp(ax1.get_yticklabels(), fontsize=8)
+        ax1.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.1f'))
+        plt.ylabel('RMSE soil moisture ($\%%$)', fontsize=10, horizontalalignment = 'center')
+        plt.grid(True)
+        xserie = []
+        yserie = []
+        labels = []
+        n = 0
+        for e in RMSESM:
+            if isinstance(e, list):
+                numtick = len(e)
+                newx = 1.0+xserie[-1]
+                ee = 0
+                lst = range(1,numtick/2+1)
+                lst.reverse()
+                for i in lst:
+                    xserie.append(newx-i/10.0)
+                    yserie.append(e[ee])
+                    ee += 1
+                    labels.append('')
+                xserie.append(newx)
+                labels.append('%s' % RMSESMobslst[n])
+                if numtick %2 <> 0:
+                    yserie.append(e[ee])
+                    ee += 1
+                else:
+                    yserie.append(maxRMSESM + 1.0)
+                lst = range(1,numtick/2+1)
+                for i in lst:
+                    xserie.append(newx+i/10.0)
+                    yserie.append(e[ee])
+                    ee += 1
+                    labels.append('')
+            else:
+                if n == 0:
+                    xserie.append(1.0)
+                    yserie.append(e)
+                    labels.append('%s' % RMSESMobslst[n])
+                else:
+                    xserie.append(1+xserie[-1])
+                    yserie.append(e)
+                    labels.append('%s' % RMSESMobslst[n])
+            n += 1
+        offset = maxRMSESM/20.0
+        for i in range(len(xserie)):
+            plt.scatter(xserie[i], yserie[i], marker='o', c = 'orange', s = 30)
+            if yserie[i] < maxRMSESM:
+                plt.text(xserie[i], yserie[i]+offset, '%.1f' % yserie[i], fontsize=8, ha = 'center', va = 'center')
+        plt.xticks(xserie, labels)
+        ax1.set_ylim(0, maxRMSESM)
+        ax1.set_xlim(0, int(max(xserie))+1.0)
+
+        ax2=fig.add_subplot(2,1,2)
+        plt.setp(ax2.get_xticklabels(), fontsize=8)
+        plt.setp(ax2.get_yticklabels(), fontsize=8)
+        ax2.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.1f'))
+        plt.ylabel('RMSE hydraulic heads ($m$)', fontsize=10, horizontalalignment = 'center')
+        plt.grid(True)
+        xserie = range(1,len(RMSEHEADSobslst)+1)
+        offset = maxRMSEHEADS/20.0
+        for i in range(len(xserie)):
+            plt.scatter(xserie[i], RMSEHEADS[i], marker='o', c = 'orange', s = 30)
+            if RMSEHEADS[i] < maxRMSEHEADS:
+                plt.text(xserie[i], RMSEHEADS[i]+offset, '%.1f' % RMSEHEADS[i], fontsize=8, ha = 'center', va = 'center')
+        plt.xticks(xserie, RMSEHEADSobslst)
+        ax2.set_ylim(0, maxRMSEHEADS)
+        ax2.set_xlim(0, len(RMSEHEADS)+1)
+
+        plt_RMSE_fn = os.path.join(MM_ws_out, '__plt_RMSE.png')
+        plt.savefig(plt_RMSE_fn)
 
     # #################################################
     # PLOT SPATIAL MF and MM OUTPUT

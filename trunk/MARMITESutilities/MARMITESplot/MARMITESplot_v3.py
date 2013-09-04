@@ -22,31 +22,31 @@ def compRMSE (x, y) :
 
 #####################################
 
-def compDATE_INI(date):
+def compDATE_INI(date, iniMonthHydroYear):
     year = mpl.dates.num2date(date).year
     month = mpl.dates.num2date(date).month
     day = mpl.dates.num2date(date).day
-    if month >= 10:
-        date_ini = mpl.dates.date2num(mpl.dates.datetime.datetime(year,10,1))
+    if month >= iniMonthHydroYear:
+        date_ini = mpl.dates.date2num(mpl.dates.datetime.datetime(year,iniMonthHydroYear,1))
     else:
-        date_ini = mpl.dates.date2num(mpl.dates.datetime.datetime(year-1,10,1))
+        date_ini = mpl.dates.date2num(mpl.dates.datetime.datetime(year-1,iniMonthHydroYear,1))
     return date_ini, year
 
 #####################################
 
-def compDATE_END(date):
+def compDATE_END(date, iniMonthHydroYear):
     year = mpl.dates.num2date(date).year
     month = mpl.dates.num2date(date).month
     day = mpl.dates.num2date(date).day
-    if month >= 10:
-        date_end = mpl.dates.date2num(mpl.dates.datetime.datetime(year+1,10,1))
+    if month >= iniMonthHydroYear:
+        date_end = mpl.dates.date2num(mpl.dates.datetime.datetime(year+1,iniMonthHydroYear,1))
     else:
-        date_end = mpl.dates.date2num(mpl.dates.datetime.datetime(year,10,1))
+        date_end = mpl.dates.date2num(mpl.dates.datetime.datetime(year,iniMonthHydroYear,1))
     return date_end, year
 
 #####################################
 
-def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S, dS, Spc, Rp, EXF, ETg, Es, MB, MB_l, dgwt, uzthick, SAT, R, h_MF, h_MF_corr, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin, obs_name, elev, nlay, l_obs, nsl):
+def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S, dS, Spc, Rp, EXF, ETg, Es, MB, MB_l, dgwt, uzthick, SAT, R, h_MF, h_MF_corr, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin, obs_name, elev, nlay, l_obs, nsl, iniMonthHydroYear):
     """
     Plot the time serie of the fluxes observed at one point of the catchment
     Use Matplotlib
@@ -81,8 +81,8 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, 
 
     fig.suptitle(plt_title)
 
-    date_ini, year_ini = compDATE_INI(DateInput[0])
-    date_end, year_end = compDATE_END(DateInput[-1])
+    date_ini, year_ini = compDATE_INI(DateInput[0], iniMonthHydroYear)
+    date_end, year_end = compDATE_END(DateInput[-1], iniMonthHydroYear)
 
     lbl_Spc = []
     lbl_S = []
@@ -162,8 +162,17 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, 
     ax1.xaxis.grid(b=True, which='minor', color='0.65')
     plt.ylabel('mm', fontsize=10)
     ax1.xaxis.set_major_formatter(dateFmt)
-    ax1.xaxis.set_major_locator(mpl.dates.YearLocator(1, month = 10, day = 1))
-    ax1.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth = [1, 4, 7]))
+    ax1.xaxis.set_major_locator(mpl.dates.YearLocator(1, month = iniMonthHydroYear, day = 1))
+    bymonth = []
+    month_tmp = 3
+    while len(bymonth)<3:
+        if (iniMonthHydroYear+month_tmp) <13:
+            bymonth.append(iniMonthHydroYear+month_tmp)
+        else:
+            bymonth.append(iniMonthHydroYear+month_tmp - 12)
+        month_tmp += 3
+    del month_tmp
+    ax1.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth = bymonth))
     ax1.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2G'))
     plt.setp(ax1.get_xticklabels(minor=True), visible=False)
 
@@ -334,16 +343,20 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, 
     del labels
 
     # RMSE
+    RMSESM = None
+    RMSEHEADS = None
     if test > 0 or obs_leg == 1:
         print '-------\nRMSE %s' % obs_name
         if test > 0:
+            RMSESM = []
             try:
                 for l, (y, y_obs) in enumerate(zip(sim_tmp, obs_tmp)):
                     a = np.array([y,y_obs])
                     a = np.transpose(a)
                     b = a[~(a < hnoflo +1000.0).any(1)]
                     if b[:,0] <> []:
-                        print 'SM layer %d: %.1f %%' % (l+1, 100.0*compRMSE(b[:,0], b[:,1]))
+                        RMSESM.append(100.0*compRMSE(b[:,0], b[:,1]))
+                        print 'SM layer %d: %.1f %%' % (l+1, RMSESM[l])
             except:
                 print 'SM layer %d: error' % (l+1)
         if obs_leg == 1:
@@ -352,7 +365,8 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, 
                 a = np.transpose(a)
                 b = a[~(a < hnoflo +1000.0).any(1)]
                 if b[:,0] <> []:
-                    print 'h: %.2f m' % compRMSE(b[:,0], b[:,1])
+                    RMSEHEADS = compRMSE(b[:,0], b[:,1])
+                    print 'h: %.2f m' % RMSEHEADS
             except:
                 print 'h: error'
 
@@ -483,10 +497,11 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, 
 #    plt.show()
     plt.clf()
     plt.close('all')
+    return RMSEHEADS, RMSESM
 
 ##################
 
-def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin, cMF = None, obs_catch = None, obs_catch_list = [0, 0], TopSoilAverage = None):
+def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin, iniMonthHydroYear, cMF = None, obs_catch = None, obs_catch_list = [0, 0], TopSoilAverage = None):
     """
     Plot the time serie of the fluxes observed from the whole catchment
     Use Matplotlib
@@ -497,8 +512,8 @@ def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, hmax
     lblspc = 0.05
     mkscale = 0.5
 
-    date_ini, year_ini = compDATE_INI(DateInput[0])
-    date_end, year_end = compDATE_END(DateInput[-1])
+    date_ini, year_ini = compDATE_INI(DateInput[0], iniMonthHydroYear)
+    date_end, year_end = compDATE_END(DateInput[-1], iniMonthHydroYear)
 
     fig = plt.figure(num=None, figsize=(2*8.27, 2*11.7), dpi = 30)    #(8.5,15), dpi=30)
     fig.suptitle(plt_title)
@@ -518,8 +533,17 @@ def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, hmax
     plt.ylabel('mm', fontsize=10)
     ax1.set_xlim(date_ini,date_end)
     ax1.xaxis.set_major_formatter(dateFmt)
-    ax1.xaxis.set_major_locator(mpl.dates.YearLocator(1, month = 10, day = 1))
-    ax1.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth = [1, 4, 7]))
+    ax1.xaxis.set_major_locator(mpl.dates.YearLocator(1, month = iniMonthHydroYear, day = 1))
+    bymonth = []
+    month_tmp = 3
+    while len(bymonth)<3:
+        if (iniMonthHydroYear+month_tmp) <13:
+            bymonth.append(iniMonthHydroYear+month_tmp)
+        else:
+            bymonth.append(iniMonthHydroYear+month_tmp - 12)
+        month_tmp += 3
+    del month_tmp
+    ax1.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth = bymonth))
     plt.setp(ax1.get_xticklabels(minor=True), visible=False)
     ax1.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2G'))
 
@@ -611,7 +635,10 @@ def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, hmax
         a = np.array([obs_SM[0],flx[18].data])
         a = np.transpose(a)
         b = a[~(a < cMF.hnoflo +1000.0).any(1)]
-        print 'SM: %.1f %%' % (100.0*compRMSE(b[:,0], b[:,1]))
+        RMSESM = 100.0*compRMSE(b[:,0], b[:,1])
+        print 'SM: %.1f %%' % RMSESM
+    else:
+        RMSESM = None
     # y axis
     plt.ylabel('%', fontsize=10)
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale)
@@ -653,7 +680,10 @@ def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, hmax
             a = np.array([obs_h[0],flx[20].data])
             a = np.transpose(a)
             b = a[~(a < cMF.hnoflo +1000.0).any(1)]
-            print 'h: %.2G m' % compRMSE(b[:,0], b[:,1])
+            RMSEHEADS = compRMSE(b[:,0], b[:,1])
+            print 'h: %.2G m' % RMSEHEADS
+        else:
+            RMSEHEADS = None
         plt.ylim(hmin,hmax)
         plt.ylabel('m', fontsize=10)
         plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale)
@@ -717,6 +747,7 @@ def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, hmax
 #    plt.show()
     plt.clf()
     plt.close('all')
+    return RMSEHEADS, RMSESM
 
 ##################
 
