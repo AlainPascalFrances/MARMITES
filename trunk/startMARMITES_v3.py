@@ -1168,7 +1168,7 @@ if plt_out == 1 or plt_out_obs == 1:
                 for row in range(cMF.nrow):
                     for t,col in enumerate(cbc_RCH[:,row,:,l]):
                         try:
-                            if plt_out_obs == 1:
+                            if plt_out_obs == 1 and obs_list[-1] <> 'PzRCHmax':
                                 j = list(col).index(RCHmax)
                                 x = cMF.delc[row]*row + xllcorner
                                 y = cMF.delr[j]*j + yllcorner
@@ -1283,17 +1283,17 @@ if plt_out == 1 or plt_out_obs == 1:
     # #################################################
     # plot SOIL/GW ts and balance at the catchment scale
     # #################################################
+    # RMSE list to plot
+    RMSESM = []
+    RMSESMobslst = []
+    RMSEHEADS = []
+    RMSEHEADSobslst = []
     tTgmin = -1
     if os.path.exists(h5_MM_fn):
         try:
             h5_MM = h5py.File(h5_MM_fn, 'r')
         except:
             cUTIL.ErrorExit('\nFATAL ERROR!\nInvalid MARMITES HDF5 file. Run MARMITES and/or MODFLOW again.')
-        # RMSE list to plot
-        RMSESM = [0]
-        RMSESMobslst = ['catch.']
-        RMSEHEADS = [0]
-        RMSEHEADSobslst = ['catch.']
         # indexes of the HDF5 output arrays
         #  index = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSsurf':4, 'iRo':5, 'iEXF':6, 'iEsurf':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSsurf':13, 'iETg':14, 'iETsoil':15, 'iSsoil_pc':16, 'idSsoil':17, 'iinf':18, 'iHEADScorr':19, 'idgwt':20, 'iuzthick':21}
         # index_S = {'iEsoil':0, 'iTsoil':1,'iSsoil_pc':2, 'iRp':3, 'iRexf':4, 'idSsoil':5, 'iSsoil':6, 'iSAT':7, 'iMB_l':8}
@@ -1549,9 +1549,23 @@ if plt_out == 1 or plt_out_obs == 1:
             plt_title = 'MARMITES and MODFLOW water balance for the whole catchment\nMass balance error: MM = %1.2f%%, UZF = %1.2f%%, MF = %1.2f%%' % (MB_MM, MB_UZF, MB_MF)
             header_tmp = ['MM_MB','UZF_MB','MF_MB']
             MB_tmp = [MB_MM, MB_UZF,MB_MF]
-            RMSEHEADS[0], RMSESM[0] = MMplot.plotTIMESERIES_CATCH(cMF.inputDate, flx_Cat_TS, flxlbl_CATCH, plt_exportCATCH_fn, plt_titleCATCH, hmax = hmaxMF, hmin = hminMF, iniMonthHydroYear = iniMonthHydroYear, cMF = cMF, obs_catch = obs_catch, obs_catch_list = obs_catch_list, TopSoilAverage = TopSoilAverage)
+            RMSEHEADS_tmp, RMSESM_tmp = MMplot.plotTIMESERIES_CATCH(cMF.inputDate, flx_Cat_TS, flxlbl_CATCH, plt_exportCATCH_fn, plt_titleCATCH, hmax = hmaxMF, hmin = hminMF, iniMonthHydroYear = iniMonthHydroYear, cMF = cMF, obs_catch = obs_catch, obs_catch_list = obs_catch_list, TopSoilAverage = TopSoilAverage)
+            if RMSEHEADS_tmp <> None:
+                RMSEHEADS.append(RMSEHEADS_tmp)
+                RMSEHEADSobslst.append('catch.')
+            if RMSESM_tmp <> None:
+                RMSESM.append(RMSESM_tmp)
+                RMSESMobslst.append('catch.')
+            del RMSEHEADS_tmp, RMSESM_tmp
         else:
-            RMSEHEADS[0], RMSESM[0] = MMplot.plotTIMESERIES_CATCH(cMF.inputDate, flx_Cat_TS, flxlbl_CATCH, plt_exportCATCH_fn, plt_titleCATCH, hmax = hmaxMF, hmin = hminMF, iniMonthHydroYear = iniMonthHydroYear)
+            RMSEHEADS_tmp, RMSESM_tmp = MMplot.plotTIMESERIES_CATCH(cMF.inputDate, flx_Cat_TS, flxlbl_CATCH, plt_exportCATCH_fn, plt_titleCATCH, hmax = hmaxMF, hmin = hminMF, iniMonthHydroYear = iniMonthHydroYear)
+            if RMSEHEADS_tmp <> None:
+                RMSEHEADS.append(RMSEHEADS_tmp)
+                RMSEHEADSobslst.append('catch.')
+            if RMSESM_tmp <> None:
+                RMSESM.append(RMSESM_tmp)
+                RMSESMobslst.append('catch.')
+            del RMSEHEADS_tmp, RMSESM_tmp
             plt_export_fn = os.path.join(MM_ws_out, '_0CATCHMENT_WBs.png')
             plt_title = 'MARMITES water balance for the whole catchment\nMass balance error: MM = %1.2f%%' % (MB_MM)
             header_tmp = ['MM_MB']
@@ -1561,23 +1575,23 @@ if plt_out == 1 or plt_out_obs == 1:
         flxlbl_CATCH_str = 'Date'
         for e in flxlbl_CATCH:
             flxlbl_CATCH_str += ',' + e
-        flxlbl_CATCH_str += ',' + '$hobs$'
-        flxlbl_CATCH_str += ',' + '$\\thetaobs$'
+        flxlbl_CATCH_str += ',%s' % '$hobs$'
+        flxlbl_CATCH_str += ',%s' % '$\\thetaobs$'
         plt_exportCATCH_txt.write(flxlbl_CATCH_str)
         plt_exportCATCH_txt.write('\n')
         for t in range(len(cMF.inputDate)):
             flx_Cat_TS_str = str(flx_Cat_TS[0][t])
             for e in (flx_Cat_TS[1:]):
-                flx_Cat_TS_str += ',' + str(e[t])
+                flx_Cat_TS_str += ',%s' % str(e[t])
             if obs_catch_list[0] == 1:
-                flx_Cat_TS_str += ',' + str(obs_catch.get('catch')['obs_h'][0][t])
+                flx_Cat_TS_str += ',%s' % (obs_catch.get('catch')['obs_h'][0][t])
             else:
-                flx_Cat_TS_str += ',' + cMF.hnoflo
+                flx_Cat_TS_str += ',%s' % cMF.hnoflo
             if obs_catch_list[1] == 1:
-                flx_Cat_TS_str += ',' + str(obs_catch.get('catch')['obs_SM'][0][t])
+                flx_Cat_TS_str += ',%s' % (obs_catch.get('catch')['obs_SM'][0][t])
             else:
-                flx_Cat_TS_str += ',' + cMF.hnoflo
-            out_line = mpl.dates.num2date(cMF.inputDate[t]).isoformat()[:10] + ',' + flx_Cat_TS_str
+                flx_Cat_TS_str += ',%s' % cMF.hnoflo
+            out_line = '%s,%s' % (mpl.dates.num2date(cMF.inputDate[t]).isoformat()[:10], flx_Cat_TS_str)
             for l in out_line:
                 plt_exportCATCH_txt.write(l)
             plt_exportCATCH_txt.write('\n')
@@ -1591,10 +1605,10 @@ if plt_out == 1 or plt_out_obs == 1:
         plt_export_txt = open(os.path.join(MM_ws_out, '_0CATCHMENT_WBsg.txt'), 'w')
         flxlbl_str = flxlbl_tex[0]
         for e in (flxlbl_tex[1:] + header_tmp):
-            flxlbl_str += ',' + e
+            flxlbl_str += ',%s' % e
         flxlst_str = str(flxlst[0])
         for e in (flxlst[1:] + MB_tmp):
-            flxlst_str += ',' + str(e)
+            flxlst_str += ',%s' % e
         plt_export_txt.write(flxlbl_str)
         plt_export_txt.write('\n')
         plt_export_txt.write(flxlst_str)
@@ -1914,7 +1928,10 @@ if plt_out == 1 or plt_out_obs == 1:
         for e in RMSESM:
             if isinstance(e, list):
                 numtick = len(e)
-                newx = 1.0+xserie[-1]
+                if n == 0:
+                    newx = 1.0
+                else:
+                    newx = 1.0 + xserie[-1]
                 ee = 0
                 lst = range(1,numtick/2+1)
                 lst.reverse()

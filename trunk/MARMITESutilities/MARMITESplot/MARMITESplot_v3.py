@@ -729,7 +729,7 @@ def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, hmax
         for l in range(cMF.nlay):
             plt.plot_date(DateInput,flx[i],lines.next(), color = 'b', label = flx_lbl[i])
             i += l + 2
-        if obs_catch <> None:
+        if obs_catch_list[0] == 1:
             hobs_m = hobs_m - TopSoilAverage
             ax10.plot_date(DateInput, hobs_m, 'o', color = 'blue', markersize=2, label = r'$hobs$')
         plt.ylabel('m', fontsize=10)
