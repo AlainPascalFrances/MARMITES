@@ -365,7 +365,7 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, 
                 print 'SM layer %d: error' % (l+1)
         if obs_leg == 1:
             try:
-                a = np.array([hobs,h_MF_corr])
+                a = np.array([hobs,h_MF])
                 a = np.transpose(a)
                 b = a[~(a < hnoflo +1000.0).any(1)]
                 if b[:,0] <> []:

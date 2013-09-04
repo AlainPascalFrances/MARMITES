@@ -1912,9 +1912,9 @@ if plt_out == 1 or plt_out_obs == 1:
         h5_MF.close()
         del obs
     # RMSE
-    MMplot.plotFITTINGindex(indexSM = rmseSM, indexSMobslst = rmseSMobslst, indexSMmax = rmseSMmax, indexHEADS = rmseHEADS, indexHEADSobslst = rmseHEADSobslst, indexHEADSmax = rmseHEADSmax, plt_export_fn = os.path.join(MM_ws_out, '__plt_RMSE.png'), plt_title = 'Root-mean-square error', index = 'RMSE')
+    MMplot.plotFITTINGindex(indexSM = rmseSM, indexSMobslst = rmseSMobslst, indexSMmax = rmseSMmax, indexHEADS = rmseHEADS, indexHEADSobslst = rmseHEADSobslst, indexHEADSmax = rmseHEADSmax, plt_export_fn = os.path.join(MM_ws_out, '__plt_calibcritRMSE.png'), plt_title = 'Calibration criteria between simulated and observed state variables\nRoot-mean-square error', index = 'RMSE')
     # http://docs.scipy.org/doc/numpy/reference/generated/numpy.corrcoef.html
-    MMplot.plotFITTINGindex(indexSM = corrSM, indexSMobslst = rmseSMobslst, indexSMmax = 1.0, indexHEADS = corrHEADS, indexHEADSobslst = rmseHEADSobslst, indexHEADSmax = 1.0, plt_export_fn = os.path.join(MM_ws_out, '__plt_corr.png'), plt_title = 'Correlation coefficient', index = 'Corr.')
+    MMplot.plotFITTINGindex(indexSM = corrSM, indexSMobslst = rmseSMobslst, indexSMmax = 1.0, indexHEADS = corrHEADS, indexHEADSobslst = rmseHEADSobslst, indexHEADSmax = 1.0, plt_export_fn = os.path.join(MM_ws_out, '__plt_calibcritCORR.png'), plt_title = 'Calibration criteria between simulated and observed state variables\nCorrelation coefficient', index = 'C.c.')
 
     # #################################################
     # PLOT SPATIAL MF and MM OUTPUT
