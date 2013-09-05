@@ -860,10 +860,10 @@ if MMsoil_yn > 0:
         if LOOP > 1:
             msg_end_loop.append('Heads diff. from previous conv. loop: %.3f m' % h_diff[LOOP])
             msg_end_loop.append('Maximum heads difference:             %.3f m' % h_diff_all[LOOP])
-        if h_MF_average == 0.0:
+        if h_MF_average == 0.0 or str(h_diff[LOOP]) == 'nan':
             loopdry += 1
             if loopdry > 1:
-                print '\nWARNING: first layer of the model DRY twice successively!\nLoop break, correct your MARMITES input value.'
+                print '\nWARNING!/nModel with DRY cells or NaN values again!\nLoop break, correct your MARMITES input value.'
                 timeendMMloop = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
                 durationMMloop = timeendMMloop-timestartMMloop
                 print '\nMM run time: %02.fmn%02.fs' % (int(durationMMloop*24.0*60.0), (durationMMloop*24.0*60.0-int(durationMMloop*24.0*60.0))*60)
@@ -871,7 +871,7 @@ if MMsoil_yn > 0:
                 print '%s'% mpl.dates.DateFormatter.format_data(fmt_DH, mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat()))
                 break
             else:
-                print '\nWARNING: first layer of the model DRY!'
+                print '\nWARNING/nModel with DRY cells or NaN values!'
         elif abs(h_diff[LOOP]) < convcrit and abs(h_diff_all[LOOP]) < convcritmax:
             msg_end_loop.append('Successful convergence between MARMITES and MODFLOW!\n(Conv. criterion = %.4f and conv. crit. max. = %.4f)' % (convcrit, convcritmax))
             for txt in msg_end_loop:

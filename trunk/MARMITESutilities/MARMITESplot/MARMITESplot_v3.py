@@ -365,7 +365,7 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, 
                 print 'SM layer %d: error' % (l+1)
         if obs_leg == 1:
             try:
-                a = np.array([hobs,h_MF])
+                a = np.array([hobs,h_MF[:,0]])
                 a = np.transpose(a)
                 b = a[~(a < hnoflo +1000.0).any(1)]
                 if b[:,0] <> []:
@@ -432,7 +432,13 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, 
         obs_leg = 1
     except:
         pass
-    plt.plot_date(DateInput,dgwt,'-', c='b')
+    lines = itertools.cycle(['-','--','-.',':','.',',','o','v','^','<','>','1','2','3','4','s','p','*','h','H','+','x','D','d','|','_'])
+    lbl_dgwt = []
+    for l in range(nlay):
+        dgwtMF = h_MF[:,l] - elev
+        plt.plot_date(DateInput, dgwtMF, lines.next(), color = 'b')
+        lbl_dgwt.append(r'$DGWTMF_{%d}$' % (l+1))
+    plt.plot_date(DateInput,dgwt,'-', c='g')
     # y axis
     plt.ylabel('m', fontsize=10)
     ax9b.grid(b=True, which='major', axis = 'both')
@@ -440,11 +446,14 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, 
     #plt.ylim(np.min(dgwt)*1.05,0.25)
     # legend
     if obs_leg == None:
-        plt.legend([r'$DGWTMF$'], loc=0, labelspacing=lblspc, markerscale=mkscale)
+        lbl_dgwt.append(r'$DGWTMFcorr$')
+        plt.legend(tuple(lbl_dgwt), loc=0, labelspacing=lblspc, markerscale=mkscale)
     elif obs_leg == 1:
-        plt.legend((r'$DGWT obs$',r'$DGWT MF$'), loc=0, labelspacing=lblspc, markerscale=mkscale)
+        lbl_dgwt.insert(0,r'$DGWTobs$')
+        lbl_dgwt.append(r'$DGWTMFcorr$')
+        plt.legend(tuple(lbl_dgwt), loc=0, labelspacing=lblspc, markerscale=mkscale)
     leg = plt.gca().get_legend()
-    plt.ylim(ymax = 0.0)
+#    plt.ylim(ymax = 0.0)
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8 )
     ax9b.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2G'))
@@ -453,7 +462,7 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, 
     ax10a=fig.add_subplot(20,1,19, sharex=ax1)
     plt.setp(ax10a.get_xticklabels(), visible=False)
     plt.setp(ax10a.get_yticklabels(), fontsize=8)
-    plt.plot_date(DateInput,uzthick,'-', c='brown')
+    plt.plot_date(DateInput,-uzthick,'-', c='brown')
     # y axis
     plt.ylabel('m', fontsize=10)
     ax10a.grid(b=True, which='major', axis = 'both')
@@ -467,7 +476,7 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, 
     if np.min(uzthick) == np.max(uzthick) == 0.0:
         plt.ylim(-0.5, 0.5)
     else:
-        plt.ylim(np.min(uzthick)*minfact, np.max(uzthick)*maxfact)
+        plt.ylim(np.min(-uzthick)*minfact, np.max(-uzthick)*maxfact)
     # legend
     plt.legend([r'$uzthick$'], loc=0, labelspacing=lblspc, markerscale=mkscale)
     leg = plt.gca().get_legend()
