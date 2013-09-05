@@ -427,15 +427,18 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, 
     plt.setp(ax9b.get_yticklabels(), fontsize=8)
     obs_leg = None
     try:
-        hobs_m = np.ma.masked_values(hobs, hnoflo, atol = 0.09) - elev
-        plt.plot_date(DateInput,hobs_m, ls = 'None', color = 'None', marker='o', markeredgecolor = 'blue', markerfacecolor = 'None', markersize = 2) # ls='--', color = 'blue'
+        dgwtobs_m = np.ma.masked_values(hobs, hnoflo, atol = 0.09) - elev
+#        dgwtobsmin = np.ma.min(dgwtobs_m)
+        plt.plot_date(DateInput,dgwtobs_m, ls = 'None', color = 'None', marker='o', markeredgecolor = 'blue', markerfacecolor = 'None', markersize = 2) # ls='--', color = 'blue'
         obs_leg = 1
     except:
         pass
     lines = itertools.cycle(['-','--','-.',':','.',',','o','v','^','<','>','1','2','3','4','s','p','*','h','H','+','x','D','d','|','_'])
     lbl_dgwt = []
+    dgwtMFmax = []
     for l in range(nlay):
         dgwtMF = h_MF[:,l] - elev
+        dgwtMFmax.append(np.max(dgwtMF))
         plt.plot_date(DateInput, dgwtMF, lines.next(), color = 'b')
         lbl_dgwt.append(r'$DGWTMF_{%d}$' % (l+1))
     plt.plot_date(DateInput,dgwt,'-', c='g')
@@ -443,7 +446,6 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, 
     plt.ylabel('m', fontsize=10)
     ax9b.grid(b=True, which='major', axis = 'both')
     ax9b.xaxis.grid(b=True, which='minor', color='0.65')
-    #plt.ylim(np.min(dgwt)*1.05,0.25)
     # legend
     if obs_leg == None:
         lbl_dgwt.append(r'$DGWTMFcorr$')
@@ -453,7 +455,19 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, 
         lbl_dgwt.append(r'$DGWTMFcorr$')
         plt.legend(tuple(lbl_dgwt), loc=0, labelspacing=lblspc, markerscale=mkscale)
     leg = plt.gca().get_legend()
-#    plt.ylim(ymax = 0.0)
+    dgwtMFmax = np.max(dgwtMFmax)
+    if dgwtMFmax > 0:
+        ymax = dgwtMFmax * 1.05
+    else:
+        ymax = 0.25
+#    if obs_leg <> None:
+#        if dgwtobsmin < 0.0:
+#            plt.ylim(ymax = ymax, ymin = dgwtobsmin * 1.05)
+#        else:
+#            plt.ylim(ymax = ymax)
+#    else:
+#        plt.ylim(ymax = ymax)
+    plt.ylim(ymax = ymax)
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8 )
     ax9b.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2G'))
