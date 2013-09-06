@@ -369,9 +369,9 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, 
                 a = np.transpose(a)
                 b = a[~(a < hnoflo +1000.0).any(1)]
                 if b[:,0] <> []:
-                    rmseHEADS = compRMSE(b[:,0], b[:,1])
-                    corrHEADS = np.corrcoef(b[:,0], b[:,1])[0][1]
-                    print 'h: %.2f m / %.2f' % (rmseHEADS, corrHEADS)
+                    rmseHEADS = [compRMSE(b[:,0], b[:,1])]
+                    corrHEADS = [np.corrcoef(b[:,0], b[:,1])[0][1]]
+                    print 'h: %.2f m / %.2f' % (rmseHEADS[0], corrHEADS[0])
             except:
                 print 'h: error'
 
@@ -665,9 +665,9 @@ def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, hmax
         a = np.array([obs_SM[0],flx[18].data])
         a = np.transpose(a)
         b = a[~(a < cMF.hnoflo +1000.0).any(1)]
-        rmseSM = 100.0*compRMSE(b[:,0], b[:,1])
-        corrSM = np.corrcoef(b[:,0], b[:,1])[0][1]
-        print 'SM: %.1f %% / %.2f' % (rmseSM, corrSM)
+        rmseSM = [100.0*compRMSE(b[:,0], b[:,1])]
+        corrSM = [np.corrcoef(b[:,0], b[:,1])[0][1]]
+        print 'SM: %.1f %% / %.2f' % (rmseSM[0], corrSM[0])
     # y axis
     plt.ylabel('%', fontsize=10)
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale)
@@ -712,9 +712,9 @@ def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, hmax
             a = np.array([obs_h[0],flx[20].data])
             a = np.transpose(a)
             b = a[~(a < cMF.hnoflo +1000.0).any(1)]
-            rmseHEADS = compRMSE(b[:,0], b[:,1])
-            corrHEADS = np.corrcoef(b[:,0], b[:,1])[0][1]
-            print 'h: %.2f m / %.2f' % (rmseHEADS, corrHEADS)
+            rmseHEADS = [compRMSE(b[:,0], b[:,1])]
+            corrHEADS = [np.corrcoef(b[:,0], b[:,1])[0][1]]
+            print 'h: %.2f m / %.2f' % (rmseHEADS[0], corrHEADS[0])
         plt.ylim(hmin,hmax)
         plt.ylabel('m', fontsize=10)
         plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale)
@@ -996,7 +996,7 @@ def plotFITTINGindex(indexSM, indexSMobslst, indexSMmax, indexHEADS, indexHEADSo
     labels = []
     n = 0
     for e in indexSM:
-        if isinstance(e, list):
+        if len(e) > 1:
             numtick = len(e)
             if n == 0:
                 newx = 1.0
@@ -1026,11 +1026,11 @@ def plotFITTINGindex(indexSM, indexSMobslst, indexSMmax, indexHEADS, indexHEADSo
         else:
             if n == 0:
                 xserie.append(1.0)
-                yserie.append(e)
+                yserie.append(e[0])
                 labels.append('%s' % indexSMobslst[n])
             else:
                 xserie.append(1+xserie[-1])
-                yserie.append(e)
+                yserie.append(e[0])
                 labels.append('%s' % indexSMobslst[n])
         n += 1
     offset = indexSMmax/20.0
@@ -1049,11 +1049,12 @@ def plotFITTINGindex(indexSM, indexSMobslst, indexSMmax, indexHEADS, indexHEADSo
     plt.ylabel('%s hydraulic heads ($m$)' % index, fontsize=10, horizontalalignment = 'center')
     plt.grid(True)
     xserie = range(1,len(indexHEADSobslst)+1)
+    yserie_txt = list(itertools.chain.from_iterable(indexHEADS))
     offset = indexHEADSmax/20.0
     for i in range(len(xserie)):
         plt.scatter(xserie[i], indexHEADS[i], marker='o', c = 'orange', s = 30)
-        if indexHEADS[i] < indexHEADSmax:
-            plt.text(xserie[i], indexHEADS[i]+offset, '%.1f' % indexHEADS[i], fontsize=8, ha = 'center', va = 'center')
+        if yserie_txt[i] < indexHEADSmax:
+            plt.text(xserie[i], yserie_txt[i]+offset, '%.1f' % yserie_txt[i], fontsize=8, ha = 'center', va = 'center')
     plt.xticks(xserie, indexHEADSobslst)
     ax2.set_ylim(0, indexHEADSmax)
     ax2.set_xlim(0, len(indexHEADS)+1)

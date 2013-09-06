@@ -17,7 +17,7 @@ __author__ = "Alain P. Francés <frances.alain@gmail.com>"
 __version__ = "0.3"
 __date__ = "2012"
 
-import sys, os, h5py, shutil
+import sys, os, h5py, shutil, itertools
 import matplotlib as mpl
 if mpl.get_backend!='agg':
     mpl.use('agg')
@@ -1911,10 +1911,35 @@ if plt_out == 1 or plt_out_obs == 1:
         h5_MM.close()
         h5_MF.close()
         del obs
-    # RMSE
-    MMplot.plotFITTINGindex(indexSM = rmseSM, indexSMobslst = rmseSMobslst, indexSMmax = rmseSMmax, indexHEADS = rmseHEADS, indexHEADSobslst = rmseHEADSobslst, indexHEADSmax = rmseHEADSmax, plt_export_fn = os.path.join(MM_ws_out, '__plt_calibcritRMSE.png'), plt_title = 'Calibration criteria between simulated and observed state variables\nRoot-mean-square error', index = 'RMSE')
-    # http://docs.scipy.org/doc/numpy/reference/generated/numpy.corrcoef.html
-    MMplot.plotFITTINGindex(indexSM = corrSM, indexSMobslst = rmseSMobslst, indexSMmax = 1.0, indexHEADS = corrHEADS, indexHEADSobslst = rmseHEADSobslst, indexHEADSmax = 1.0, plt_export_fn = os.path.join(MM_ws_out, '__plt_calibcritCORR.png'), plt_title = 'Calibration criteria between simulated and observed state variables\nCorrelation coefficient', index = 'C.c.')
+        # RMSE
+        MMplot.plotFITTINGindex(indexSM = rmseSM, indexSMobslst = rmseSMobslst, indexSMmax = rmseSMmax, indexHEADS = rmseHEADS, indexHEADSobslst = rmseHEADSobslst, indexHEADSmax = rmseHEADSmax, plt_export_fn = os.path.join(MM_ws_out, '__plt_calibcritRMSE.png'), plt_title = 'Calibration criteria between simulated and observed state variables\nRoot-mean-square error', index = 'RMSE')
+        # http://docs.scipy.org/doc/numpy/reference/generated/numpy.corrcoef.html
+        MMplot.plotFITTINGindex(indexSM = corrSM, indexSMobslst = rmseSMobslst, indexSMmax = 1.0, indexHEADS = corrHEADS, indexHEADSobslst = rmseHEADSobslst, indexHEADSmax = 1.0, plt_export_fn = os.path.join(MM_ws_out, '__plt_calibcritCORR.png'), plt_title = 'Calibration criteria between simulated and observed state variables\nCorrelation coefficient', index = 'C.c.')
+        print '-------\nRMSE/correlation averages'
+        # SM
+        if rmseSMobslst[0] == 'catch.':
+            rmseSMaverage = list(itertools.chain.from_iterable(rmseSM[1:]))
+            corrSMaverage = list(itertools.chain.from_iterable(corrSM[1:]))
+            numobs = len(rmseSMobslst[1:])
+        else:
+            rmseSMaverage = list(itertools.chain.from_iterable(rmseSM))
+            corrSMaverage = list(itertools.chain.from_iterable(corrSM))
+            numobs = len(rmseSMobslst[1:])
+        rmseSMaverage = sum(rmseSMaverage)/float(len(rmseSMaverage))
+        corrSMaverage = sum(corrSMaverage)/float(len(corrSMaverage))
+        print 'SM (all layers): %.1f %% / %.2f (%d obs. points)' % (rmseSMaverage, corrSMaverage, numobs)
+        # heads
+        if rmseHEADSobslst[0] == 'catch.':
+            rmseHEADSaverage = list(itertools.chain.from_iterable(rmseHEADS[1:]))
+            corrHEADSaverage = list(itertools.chain.from_iterable(corrHEADS[1:]))
+            numobs = len(rmseHEADSobslst[1:])
+        else:
+            rmseHEADSaverage = list(itertools.chain.from_iterable(rmseHEADS))
+            corrHEADSaverage = list(itertools.chain.from_iterable(corrHEADS))
+            numobs = len(rmseHEADSobslst[1:])
+        rmseHEADSaverage = sum(rmseHEADSaverage)/float(len(rmseHEADSaverage))
+        corrHEADSaverage = sum(corrHEADSaverage)/float(len(corrHEADSaverage))
+        print 'h: %.2f m / %.2f (%d obs. points)' % (rmseHEADSaverage, corrHEADSaverage, numobs)
 
     # #################################################
     # PLOT SPATIAL MF and MM OUTPUT
