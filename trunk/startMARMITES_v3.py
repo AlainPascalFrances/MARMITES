@@ -1915,9 +1915,9 @@ if plt_out == 1 or plt_out_obs == 1:
         MMplot.plotFITTINGindex(indexSM = rmseSM, indexSMobslst = rmseSMobslst, indexSMmax = rmseSMmax, indexHEADS = rmseHEADS, indexHEADSobslst = rmseHEADSobslst, indexHEADSmax = rmseHEADSmax, plt_export_fn = os.path.join(MM_ws_out, '__plt_calibcritRMSE.png'), plt_title = 'Calibration criteria between simulated and observed state variables\nRoot-mean-square error', index = 'RMSE')
         # http://docs.scipy.org/doc/numpy/reference/generated/numpy.corrcoef.html
         MMplot.plotFITTINGindex(indexSM = corrSM, indexSMobslst = rmseSMobslst, indexSMmax = 1.0, indexHEADS = corrHEADS, indexHEADSobslst = rmseHEADSobslst, indexHEADSmax = 1.0, plt_export_fn = os.path.join(MM_ws_out, '__plt_calibcritCORR.png'), plt_title = 'Calibration criteria between simulated and observed state variables\nCorrelation coefficient', index = 'C.c.')
-        print '-------\nRMSE/correlation averages'
+        print '-------\nRMSE/correlation averages (except catch.)'
         # SM
-        if rmseSMobslst[0] == 'catch.':
+        if rmseSMobslst[0] == 'catch.' and len(rmseSM)> 1:
             rmseSMaverage = list(itertools.chain.from_iterable(rmseSM[1:]))
             corrSMaverage = list(itertools.chain.from_iterable(corrSM[1:]))
             numobs = len(rmseSMobslst[1:])
@@ -1925,11 +1925,12 @@ if plt_out == 1 or plt_out_obs == 1:
             rmseSMaverage = list(itertools.chain.from_iterable(rmseSM))
             corrSMaverage = list(itertools.chain.from_iterable(corrSM))
             numobs = len(rmseSMobslst[1:])
-        rmseSMaverage = sum(rmseSMaverage)/float(len(rmseSMaverage))
-        corrSMaverage = sum(corrSMaverage)/float(len(corrSMaverage))
-        print 'SM (all layers): %.1f %% / %.2f (%d obs. points)' % (rmseSMaverage, corrSMaverage, numobs)
+        if len(rmseSM)> 1:
+            rmseSMaverage = sum(rmseSMaverage)/float(len(rmseSMaverage))
+            corrSMaverage = sum(corrSMaverage)/float(len(corrSMaverage))
+            print 'SM (all layers): %.1f %% / %.2f (%d obs. points)' % (rmseSMaverage, corrSMaverage, numobs)
         # heads
-        if rmseHEADSobslst[0] == 'catch.':
+        if rmseHEADSobslst[0] == 'catch.'  and len(rmseHEADS)> 1:
             rmseHEADSaverage = list(itertools.chain.from_iterable(rmseHEADS[1:]))
             corrHEADSaverage = list(itertools.chain.from_iterable(corrHEADS[1:]))
             numobs = len(rmseHEADSobslst[1:])
@@ -1937,9 +1938,10 @@ if plt_out == 1 or plt_out_obs == 1:
             rmseHEADSaverage = list(itertools.chain.from_iterable(rmseHEADS))
             corrHEADSaverage = list(itertools.chain.from_iterable(corrHEADS))
             numobs = len(rmseHEADSobslst[1:])
-        rmseHEADSaverage = sum(rmseHEADSaverage)/float(len(rmseHEADSaverage))
-        corrHEADSaverage = sum(corrHEADSaverage)/float(len(corrHEADSaverage))
-        print 'h: %.2f m / %.2f (%d obs. points)' % (rmseHEADSaverage, corrHEADSaverage, numobs)
+        if len(rmseHEADS)> 1:
+            rmseHEADSaverage = sum(rmseHEADSaverage)/float(len(rmseHEADSaverage))
+            corrHEADSaverage = sum(corrHEADSaverage)/float(len(corrHEADSaverage))
+            print 'h: %.2f m / %.2f (%d obs. points)' % (rmseHEADSaverage, corrHEADSaverage, numobs)
 
     # #################################################
     # PLOT SPATIAL MF and MM OUTPUT
