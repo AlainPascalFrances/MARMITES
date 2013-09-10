@@ -1924,7 +1924,7 @@ if plt_out == 1 or plt_out_obs == 1:
         else:
             rmseSMaverage = list(itertools.chain.from_iterable(rmseSM))
             corrSMaverage = list(itertools.chain.from_iterable(corrSM))
-            numobs = len(rmseSMobslst[1:])
+            numobs = len(rmseSMobslst)
         if len(rmseSM)> 1:
             rmseSMaverage = sum(rmseSMaverage)/float(len(rmseSMaverage))
             corrSMaverage = sum(corrSMaverage)/float(len(corrSMaverage))
@@ -1937,7 +1937,7 @@ if plt_out == 1 or plt_out_obs == 1:
         else:
             rmseHEADSaverage = list(itertools.chain.from_iterable(rmseHEADS))
             corrHEADSaverage = list(itertools.chain.from_iterable(corrHEADS))
-            numobs = len(rmseHEADSobslst[1:])
+            numobs = len(rmseHEADSobslst)
         if len(rmseHEADS)> 1:
             rmseHEADSaverage = sum(rmseHEADSaverage)/float(len(rmseHEADSaverage))
             corrHEADSaverage = sum(corrHEADSaverage)/float(len(corrHEADSaverage))
