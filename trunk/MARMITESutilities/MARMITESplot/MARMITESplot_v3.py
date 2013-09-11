@@ -345,12 +345,17 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, 
     # RMSE
     rmseSM = None
     rmseHEADS = None
+    nrmseSM = None
+    nrmseHEADS = None
     corrSM = None
     corrHEADS = None
+    obsdiffSM = None
+    obsdiffHEADS = None
     if test > 0 or obs_leg == 1:
-        print '-------\nRMSE/correlation %s' % obs_name
+        print '-------\nRMSE/NRMSE/corr.coef. [%s]' % obs_name
         if test > 0:
             rmseSM = []
+            nrmseSM = []
             corrSM = []
             try:
                 for l, (y, y_obs) in enumerate(zip(sim_tmp, obs_tmp)):
@@ -359,19 +364,23 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, 
                     b = a[~(a < hnoflo +1000.0).any(1)]
                     if b[:,0] <> []:
                         rmseSM.append(100.0*compRMSE(b[:,0], b[:,1]))
+                        obsdiffSM = 100.0*np.max(b[:,1])-np.min(b[:,1])
+                        nrmseSM.append(rmseSM[l]/obsdiffSM)
                         corrSM.append(np.corrcoef(b[:,0], b[:,1])[0][1])
-                        print 'SM layer %d: %.1f %% / %.2f' % (l+1, rmseSM[l], corrSM[l])
+                        print 'SM layer %d: %.1f %% / %.2f / %.2f' % (l+1, rmseSM[l], nrmseSM[l], corrSM[l])
             except:
                 print 'SM layer %d: error' % (l+1)
         if obs_leg == 1:
             try:
-                a = np.array([hobs,h_MF[:,0]])
+                a = np.array([h_MF[:,0],hobs])
                 a = np.transpose(a)
                 b = a[~(a < hnoflo +1000.0).any(1)]
                 if b[:,0] <> []:
                     rmseHEADS = [compRMSE(b[:,0], b[:,1])]
+                    obsdiffHEADS = np.max(b[:,1])-np.min(b[:,1])
+                    nrmseHEADS = [rmseHEADS/obsdiffHEADS]
                     corrHEADS = [np.corrcoef(b[:,0], b[:,1])[0][1]]
-                    print 'h: %.2f m / %.2f' % (rmseHEADS[0], corrHEADS[0])
+                    print 'h: %.2f m / %.2f / %.2f' % (rmseHEADS[0], nrmseHEADS[0], corrHEADS[0])
             except:
                 print 'h: error'
 
@@ -525,7 +534,7 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, 
 #    plt.show()
     plt.clf()
     plt.close('all')
-    return rmseHEADS, rmseSM, corrHEADS, corrSM
+    return rmseHEADS, rmseSM, nrmseHEADS, nrmseSM, corrHEADS, corrSM, obsdiffHEADS, obsdiffSM
 
 ##################
 
@@ -655,19 +664,23 @@ def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, hmax
     plt.setp(ax6.get_yticklabels(), fontsize=8)
     ax6.plot_date(DateInput, flx[18], '-', color = 'brown', label = flx_lbl[18])
     if sum(obs_catch_list) > 0:
-            print '-------\nRMSE / correlation'
+            print '-------\nRMSE/NRMSE/corr.coef.'
     rmseSM = None
+    nrmseSM = None
     corrSM = None
+    obsdiffSM = None
     if obs_catch_list[1] == 1:
         obs_SM = obs_catch.get('catch')['obs_SM']
         Sobs_m = np.ma.masked_values(obs_SM[0], cMF.hnoflo, atol = 0.09)
         ax6.plot_date(DateInput, Sobs_m, 'o', color = 'brown', markersize=2, label = r'$\theta obs$')
-        a = np.array([obs_SM[0],flx[18].data])
+        a = np.array([flx[18].data,obs_SM[0]])
         a = np.transpose(a)
         b = a[~(a < cMF.hnoflo +1000.0).any(1)]
         rmseSM = [100.0*compRMSE(b[:,0], b[:,1])]
+        obsdiffSM = 100.0*(np.max(b[:,1])-np.min(b[:,1]))
+        nrmseSM = [rmseSM/obsdiffSM]
         corrSM = [np.corrcoef(b[:,0], b[:,1])[0][1]]
-        print 'SM: %.1f %% / %.2f' % (rmseSM[0], corrSM[0])
+        print 'SM: %.1f %% / %.2f / %.2f' % (rmseSM[0], nrmseSM[0], corrSM[0])
     # y axis
     plt.ylabel('%', fontsize=10)
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale)
@@ -691,6 +704,10 @@ def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, hmax
     ax6.xaxis.grid(b=True, which='minor', color='0.65')
     ax6.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2G'))
 
+    rmseHEADS = None
+    nrmseHEADS = None
+    corrHEADS = None
+    obsdiffHEADS= None
     if cMF != None:
         # plot heads
         lines = itertools.cycle(['-','--','-.',':','.',',','o','v','^','<','>','1','2','3','4','s','p','*','h','H','+','x','D','d','|','_'])
@@ -703,18 +720,18 @@ def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, hmax
             plt.plot_date(DateInput,flx[i],lines.next(), color = 'b', label = flx_lbl[i])
             i += l + 2
         # RMSE
-        rmseHEADS = None
-        corrHEADS = None
         if obs_catch_list[0] == 1:
             obs_h = obs_catch.get('catch')['obs_h']
             hobs_m = np.ma.masked_values(obs_h[0], cMF.hnoflo, atol = 0.09)
             ax7.plot_date(DateInput, hobs_m, 'o', color = 'blue', markersize=2, label = r'$hobs$')
-            a = np.array([obs_h[0],flx[20].data])
+            a = np.array([flx[20].data,obs_h[0]])
             a = np.transpose(a)
             b = a[~(a < cMF.hnoflo +1000.0).any(1)]
             rmseHEADS = [compRMSE(b[:,0], b[:,1])]
+            obsdiffHEADS = np.max(b[:,1])-np.min(b[:,1])
+            nrmseHEADS = [rmseHEADS[0]/obsdiffHEADS]
             corrHEADS = [np.corrcoef(b[:,0], b[:,1])[0][1]]
-            print 'h: %.2f m / %.2f' % (rmseHEADS[0], corrHEADS[0])
+            print 'h: %.2f m / %.2f / %.2f' % (rmseHEADS[0], nrmseHEADS[0], corrHEADS[0])
         plt.ylim(hmin,hmax)
         plt.ylabel('m', fontsize=10)
         plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale)
@@ -778,7 +795,7 @@ def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, hmax
 #    plt.show()
     plt.clf()
     plt.close('all')
-    return rmseHEADS, rmseSM, corrHEADS, corrSM
+    return rmseHEADS, rmseSM, nrmseHEADS, nrmseSM, corrHEADS, corrSM, obsdiffHEADS, obsdiffSM
 
 ##################
 
@@ -981,7 +998,7 @@ def plotWB(flxlst, flxlbl, colors_flx, plt_export_fn, plt_title, fluxmax, fluxmi
 
 ##################
 
-def plotFITTINGindex(indexSM, indexSMobslst, indexSMmax, indexHEADS, indexHEADSobslst, indexHEADSmax, plt_export_fn, plt_title, index):
+def plotFITTINGindex(indexSM, indexSMobslst, indexHEADS, indexHEADSobslst, plt_export_fn, plt_title, index, indexSMmax = None, indexHEADSmax = None):
     # plot RMSE
     fig = plt.figure()
     fig.suptitle(plt_title, fontsize=10)
@@ -994,6 +1011,10 @@ def plotFITTINGindex(indexSM, indexSMobslst, indexSMmax, indexHEADS, indexHEADSo
     xserie = []
     yserie = []
     labels = []
+    if indexSMmax == None:
+        max_tmp = np.max(list(itertools.chain.from_iterable(indexSM)))*1.2
+    else:
+        max_tmp = indexSMmax
     n = 0
     for e in indexSM:
         if len(e) > 1:
@@ -1016,7 +1037,7 @@ def plotFITTINGindex(indexSM, indexSMobslst, indexSMmax, indexHEADS, indexHEADSo
                 yserie.append(e[ee])
                 ee += 1
             else:
-                yserie.append(indexSMmax + 1.0)
+                yserie.append(max_tmp*2.0)
             lst = range(1,numtick/2+1)
             for i in lst:
                 xserie.append(newx+i/10.0)
@@ -1033,13 +1054,13 @@ def plotFITTINGindex(indexSM, indexSMobslst, indexSMmax, indexHEADS, indexHEADSo
                 yserie.append(e[0])
                 labels.append('%s' % indexSMobslst[n])
         n += 1
-    offset = indexSMmax/20.0
+    offset = max_tmp*0.05
     for i in range(len(xserie)):
         plt.scatter(xserie[i], yserie[i], marker='o', c = 'orange', s = 30)
-        if yserie[i] < indexSMmax:
+        if yserie[i] < max_tmp:
             plt.text(xserie[i], yserie[i]+offset, '%.1f' % yserie[i], fontsize=8, ha = 'center', va = 'center')
     plt.xticks(xserie, labels)
-    ax1.set_ylim(0, indexSMmax)
+    ax1.set_ylim(0, max_tmp)
     ax1.set_xlim(0, int(max(xserie))+1.0)
 
     ax2=fig.add_subplot(2,1,2)
@@ -1050,13 +1071,18 @@ def plotFITTINGindex(indexSM, indexSMobslst, indexSMmax, indexHEADS, indexHEADSo
     plt.grid(True)
     xserie = range(1,len(indexHEADSobslst)+1)
     yserie_txt = list(itertools.chain.from_iterable(indexHEADS))
-    offset = indexHEADSmax/20.0
+
+    if indexHEADSmax == None:
+        max_tmp = np.max(list(itertools.chain.from_iterable(indexHEADS)))*1.2
+    else:
+        max_tmp = indexHEADSmax
+    offset = max_tmp*0.05
     for i in range(len(xserie)):
         plt.scatter(xserie[i], indexHEADS[i], marker='o', c = 'orange', s = 30)
-        if yserie_txt[i] < indexHEADSmax:
+        if yserie_txt[i] < max_tmp:
             plt.text(xserie[i], yserie_txt[i]+offset, '%.1f' % yserie_txt[i], fontsize=8, ha = 'center', va = 'center')
     plt.xticks(xserie, indexHEADSobslst)
-    ax2.set_ylim(0, indexHEADSmax)
+    ax2.set_ylim(0, max_tmp)
     ax2.set_xlim(0, len(indexHEADS)+1)
 
     plt.savefig(plt_export_fn)
