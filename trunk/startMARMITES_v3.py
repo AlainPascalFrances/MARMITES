@@ -754,7 +754,6 @@ if MMsoil_yn > 0:
     h_diff_log = [1]
     h_diff_all = [1000]
     h_diff_all_log = [1]
-    loopdry = 0
     plt_ConvLoop_fn = os.path.join(MM_ws_out, '__plt_MM_MF_ConvLoop.png')
     # Create HDF5 arrays to store MARMITES output
     try:
@@ -861,40 +860,14 @@ if MMsoil_yn > 0:
             msg_end_loop.append('Heads diff. from previous conv. loop: %.3f m' % h_diff[LOOP])
             msg_end_loop.append('Maximum heads difference:             %.3f m' % h_diff_all[LOOP])
         if h_MF_average == 0.0 or str(h_diff[LOOP]) == 'nan':
-            loopdry += 1
-            if loopdry > 1:
-                print '\nWARNING!/nModel with DRY cells or NaN values again!\nLoop break, correct your MARMITES input value.'
-                timeendMMloop = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
-                durationMMloop = timeendMMloop-timestartMMloop
-                print '\nMM run time: %02.fmn%02.fs' % (int(durationMMloop*24.0*60.0), (durationMMloop*24.0*60.0-int(durationMMloop*24.0*60.0))*60)
-                durationMMsoil += durationMMloop
-                print '%s'% mpl.dates.DateFormatter.format_data(fmt_DH, mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat()))
-                break
-            else:
-                print '\nWARNING/nModel with DRY cells or NaN values!'
+                print '\ERROR!\nModel with DRY cells or NaN values!\nLoop break, correct your MARMITES input value.'
         elif abs(h_diff[LOOP]) < convcrit and abs(h_diff_all[LOOP]) < convcritmax:
             msg_end_loop.append('Successful convergence between MARMITES and MODFLOW!\n(Conv. criterion = %.4f and conv. crit. max. = %.4f)' % (convcrit, convcritmax))
-            for txt in msg_end_loop:
-                print txt
-            timeendMMloop = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
-            durationMMloop = timeendMMloop-timestartMMloop
-            print '\nMM run time: %02.fmn%02.fs' % (int(durationMMloop*24.0*60.0), (durationMMloop*24.0*60.0-int(durationMMloop*24.0*60.0))*60)
-            durationMMsoil += durationMMloop
-            print '%s'% mpl.dates.DateFormatter.format_data(fmt_DH, mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat()))
-            break
         elif LOOP>ccnum:
             msg_end_loop.append('No convergence between MARMITES and MODFLOW!\n(Conv. criterion = %.4f and conv. crit. max. = %.4f)' % (convcrit, convcritmax))
-            for txt in msg_end_loop:
-                print txt
-            timeendMMloop = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
-            durationMMloop = timeendMMloop-timestartMMloop
-            print '\nMM run time: %02.fmn%02.fs' % (int(durationMMloop*24.0*60.0), (durationMMloop*24.0*60.0-int(durationMMloop*24.0*60.0))*60)
-            durationMMsoil += durationMMloop
-            print '%s'% mpl.dates.DateFormatter.format_data(fmt_DH, mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat()))
-            break
-        del h_MF_average
         for txt in msg_end_loop:
             print txt
+        del h_MF_average
 
         timeendMMloop = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
         durationMMloop = timeendMMloop-timestartMMloop
@@ -929,8 +902,8 @@ if MMsoil_yn > 0:
     # #############################
 
     # export loop plot
-#        print'\n##############'
-#        print 'Exporting plot of the convergence loop...'
+    print'\n##############'
+    print 'Exporting plot of the convergence loop...'
     fig = plt.figure()
     fig.suptitle('Convergence loop plot between MM and MF based on heads differences.\nOrange: average heads for the whole model.\nGreen: maximun heads difference observed in the model (one cell)', fontsize=10)
     if LOOP>0:
@@ -1285,15 +1258,15 @@ if plt_out == 1 or plt_out_obs == 1:
     # #################################################
     # RMSE list to plot
     rmseSM = []
-    nrmseSM = []
-    corrSM = []
+    rsrSM = []
+    rSM = []
     obslstSM = []
-    obsdiffSM = []
     rmseHEADS = []
-    nrmseHEADS = []
-    corrHEADS = []
+    rsrHEADS = []
+    nseHEADS = []
+    nseSM = []
+    rHEADS = []
     obslstHEADS = []
-    obsdiffHEADS = []
     tTgmin = -1
     if os.path.exists(h5_MM_fn):
         try:
@@ -1555,26 +1528,26 @@ if plt_out == 1 or plt_out_obs == 1:
             plt_title = 'MARMITES and MODFLOW water balance for the whole catchment\nMass balance error: MM = %1.2f%%, UZF = %1.2f%%, MF = %1.2f%%' % (MB_MM, MB_UZF, MB_MF)
             header_tmp = ['MM_MB','UZF_MB','MF_MB']
             MB_tmp = [MB_MM, MB_UZF,MB_MF]
-            rmseHEADS_tmp, rmseSM_tmp, nrmseHEADS_tmp, nrmseSM_tmp, corrHEADS_tmp, corrSM_tmp, obsdiffHEADS_tmp, obsdiffSM_tmp = MMplot.plotTIMESERIES_CATCH(cMF.inputDate, flx_Cat_TS, flxlbl_CATCH, plt_exportCATCH_fn, plt_titleCATCH, hmax = hmaxMF, hmin = hminMF, iniMonthHydroYear = iniMonthHydroYear, cMF = cMF, obs_catch = obs_catch, obs_catch_list = obs_catch_list, TopSoilAverage = TopSoilAverage)
+            rmseHEADS_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrSM_tmp, nseHEADS_tmp, nseSM_tmp, rHEADS_tmp, rSM_tmp = MMplot.plotTIMESERIES_CATCH(cMF.inputDate, flx_Cat_TS, flxlbl_CATCH, plt_exportCATCH_fn, plt_titleCATCH, hmax = hmaxMF, hmin = hminMF, iniMonthHydroYear = iniMonthHydroYear, cMF = cMF, obs_catch = obs_catch, obs_catch_list = obs_catch_list, TopSoilAverage = TopSoilAverage)
         else:
-            rmseHEADS_tmp, rmseSM_tmp, nrmseHEADS_tmp, nrmseSM_tmp, corrHEADS_tmp, corrSM_tmp, obsdiffHEADS_tmp, obsdiffSM_tmp = MMplot.plotTIMESERIES_CATCH(cMF.inputDate, flx_Cat_TS, flxlbl_CATCH, plt_exportCATCH_fn, plt_titleCATCH, hmax = hmaxMF, hmin = hminMF, iniMonthHydroYear = iniMonthHydroYear)
+            rmseHEADS_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrSM_tmp, nseHEADS_tmp, nseSM_tmp, rHEADS_tmp, rSM_tmp = MMplot.plotTIMESERIES_CATCH(cMF.inputDate, flx_Cat_TS, flxlbl_CATCH, plt_exportCATCH_fn, plt_titleCATCH, hmax = hmaxMF, hmin = hminMF, iniMonthHydroYear = iniMonthHydroYear)
             plt_export_fn = os.path.join(MM_ws_out, '_0CATCHMENT_WBs.png')
             plt_title = 'MARMITES water balance for the whole catchment\nMass balance error: MM = %1.2f%%' % (MB_MM)
             header_tmp = ['MM_MB']
             MB_tmp = [MB_MM]
         if rmseHEADS_tmp <> None:
             rmseHEADS.append(rmseHEADS_tmp)
-            nrmseHEADS.append(nrmseHEADS_tmp)
-            corrHEADS.append(corrHEADS_tmp)
-            obsdiffHEADS.append(obsdiffHEADS_tmp)
+            rsrHEADS.append(rsrHEADS_tmp)
+            nseHEADS.append(nseHEADS_tmp)
+            rHEADS.append(rHEADS_tmp)
             obslstHEADS.append('catch.')
         if rmseSM_tmp <> None:
             rmseSM.append(rmseSM_tmp)
-            nrmseSM.append(nrmseSM_tmp)
-            corrSM.append(corrSM_tmp)
-            obsdiffSM.append(obsdiffSM_tmp)
+            rsrSM.append(rsrSM_tmp)
+            nseSM.append(nseSM_tmp)
+            rSM.append(rSM_tmp)
             obslstSM.append('catch.')
-        del rmseHEADS_tmp, rmseSM_tmp, nrmseHEADS_tmp, nrmseSM_tmp, corrHEADS_tmp, corrSM_tmp
+        del rmseHEADS_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrSM_tmp, nseHEADS_tmp, nseSM_tmp, rHEADS_tmp, rSM_tmp
         # export average time serie of fluxes in txt
         plt_exportCATCH_txt = open(os.path.join(plt_exportCATCH_txt_fn), 'w')
         flxlbl_CATCH_str = 'Date'
@@ -1757,7 +1730,7 @@ if plt_out == 1 or plt_out_obs == 1:
                     # index_S = {'iEsoil':0, 'iTsoil':1,'iSsoil_pc':2, 'iRp':3, 'iRexf':4, 'idSsoil':5, 'iSsoil':6, 'iSAT':7, 'iMB_l':8}
                     plt_export_fn = os.path.join(MM_ws_out, '_0'+ o + '_ts.png')
                     # def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, EXF, ETg, Es, MB, MB_l, dgwt, SAT, R, h_MF, h_MF_corr, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin):
-                    rmseHEADS_tmp, rmseSM_tmp, nrmseHEADS_tmp, nrmseSM_tmp, corrHEADS_tmp, corrSM_tmp, obsdiffHEADS_tmp, obsdiffSM_tmp = MMplot.plotTIMESERIES(
+                    rmseHEADS_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrSM_tmp, nseHEADS_tmp, nseSM_tmp, rHEADS_tmp, rSM_tmp = MMplot.plotTIMESERIES(
                     cMF.inputDate,
                     MM[:,index.get('iRF')],
                     MM[:,index.get('iPT')],
@@ -1801,17 +1774,17 @@ if plt_out == 1 or plt_out_obs == 1:
                     )
                     if rmseHEADS_tmp <> None:
                         rmseHEADS.append(rmseHEADS_tmp)
-                        nrmseHEADS.append(nrmseHEADS_tmp)
-                        corrHEADS.append(corrHEADS_tmp)
-                        obsdiffHEADS.append(obsdiffHEADS_tmp)
+                        rsrHEADS.append(rsrHEADS_tmp)
+                        nseHEADS.append(nseHEADS_tmp)
+                        rHEADS.append(rHEADS_tmp)
                         obslstHEADS.append(o)
                     if rmseSM_tmp <> None:
                         rmseSM.append(rmseSM_tmp)
-                        nrmseSM.append(nrmseSM_tmp)
-                        corrSM.append(corrSM_tmp)
-                        obsdiffSM.append(obsdiffSM_tmp)
+                        rsrSM.append(rsrSM_tmp)
+                        nseSM.append(nseSM_tmp)
+                        rSM.append(rSM_tmp)
                         obslstSM.append(o)
-                    del rmseHEADS_tmp, rmseSM_tmp, nrmseHEADS_tmp, nrmseSM_tmp, corrHEADS_tmp, corrSM_tmp
+                    del rmseHEADS_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrSM_tmp, nseHEADS_tmp, nseSM_tmp, rHEADS_tmp, rSM_tmp
                     x += 1
                     # plot water balance at each obs. cell
                     #flxlbl   = ['RF', 'I', 'dSs', 'Ro', 'Es', 'dS', 'EXF']
@@ -1923,46 +1896,31 @@ if plt_out == 1 or plt_out_obs == 1:
         h5_MM.close()
         h5_MF.close()
         del obs
-        # RMSE
-        MMplot.plotFITTINGindex(indexSM = rmseSM, indexSMobslst = obslstSM, indexHEADS = rmseHEADS, indexHEADSobslst = obslstHEADS, plt_export_fn = os.path.join(MM_ws_out, '__plt_calibcritRMSE.png'), plt_title = 'Calibration criteria between simulated and observed state variables\nRoot-mean-square error', index = 'RMSE', indexSMmax = rmseSMmax, indexHEADSmax = rmseHEADSmax)
-        # NRMSE
-        MMplot.plotFITTINGindex(indexSM = nrmseSM, indexSMobslst = obslstSM, indexHEADS = nrmseHEADS, indexHEADSobslst = obslstHEADS, plt_export_fn = os.path.join(MM_ws_out, '__plt_calibcritNRMSE.png'), plt_title = 'Calibration criteria between simulated and observed state variables\nNormalized root-mean-square error', index = 'NRMSE') # indexHEADSmax = rmseHEADSmax/np.max(obsdiffHEADS), indexSMmax = rmseSMmax/np.max(obsdiffSM),
-        # Coefficient correlation
-        # http://docs.scipy.org/doc/numpy/reference/generated/numpy.corrcoef.html
-        MMplot.plotFITTINGindex(indexSM = corrSM, indexSMobslst = obslstSM, indexSMmax = 1.0, indexHEADS = corrHEADS, indexHEADSobslst = obslstHEADS, indexHEADSmax = 1.0, plt_export_fn = os.path.join(MM_ws_out, '__plt_calibcritCORR.png'), plt_title = 'Calibration criteria between simulated and observed state variables\nCorrelation coefficient', index = 'C.c.')
-        print '-------\nRMSE/NRMSE/correlation averages (except catch.)'
-        # SM
-        if obslstSM[0] == 'catch.' and len(rmseSM)> 1:
-            rmseSMaverage = list(itertools.chain.from_iterable(rmseSM[1:]))
-            nrmseSMaverage = list(itertools.chain.from_iterable(nrmseSM[1:]))
-            corrSMaverage = list(itertools.chain.from_iterable(corrSM[1:]))
-            numobs = len(obslstSM[1:])
-        else:
-            rmseSMaverage = list(itertools.chain.from_iterable(rmseSM))
-            nrmseSMaverage = list(itertools.chain.from_iterable(nrmseSM))
-            corrSMaverage = list(itertools.chain.from_iterable(corrSM))
-            numobs = len(obslstSM)
-        if len(rmseSM)> 1:
-            rmseSMaverage = sum(rmseSMaverage)/float(len(rmseSMaverage))
-            nrmseSMaverage = sum(nrmseSMaverage)/float(len(nrmseSMaverage))
-            corrSMaverage = sum(corrSMaverage)/float(len(corrSMaverage))
-            print 'SM (all layers): %.1f %% / %.2f / %.2f (%d obs. points)' % (rmseSMaverage, nrmseSMaverage, corrSMaverage, numobs)
-        # heads
-        if obslstHEADS[0] == 'catch.'  and len(rmseHEADS)> 1:
-            rmseHEADSaverage = list(itertools.chain.from_iterable(rmseHEADS[1:]))
-            nrmseHEADSaverage = list(itertools.chain.from_iterable(nrmseHEADS[1:]))
-            corrHEADSaverage = list(itertools.chain.from_iterable(corrHEADS[1:]))
-            numobs = len(obslstHEADS[1:])
-        else:
-            rmseHEADSaverage = list(itertools.chain.from_iterable(rmseHEADS))
-            nrmseHEADSaverage = list(itertools.chain.from_iterable(nrmseHEADS))
-            corrHEADSaverage = list(itertools.chain.from_iterable(corrHEADS))
-            numobs = len(obslstHEADS)
-        if len(rmseHEADS)> 1:
-            rmseHEADSaverage = sum(rmseHEADSaverage)/float(len(rmseHEADSaverage))
-            nrmseHEADSaverage = sum(nrmseHEADSaverage)/float(len(nrmseHEADSaverage))
-            corrHEADSaverage = sum(corrHEADSaverage)/float(len(corrHEADSaverage))
-            print 'h: %.2f m / %.2f / %.2f (%d obs. points)' % (rmseHEADSaverage, nrmseHEADSaverage, corrHEADSaverage, numobs)
+        # calibration criteria plotting
+        # RMSE, RSR, Nash-Sutcliffe efficiency NSE, Pearson's correlation coefficient r
+        # Moriasi et al, 2007, ASABE 50(3):885-900
+        for cc, (indexSM, indexHEADS, index, title, indexSMmax, indexHEADSmax, ymin, units) in enumerate(zip([rmseSM, rsrSM, nseSM, rSM], [rmseHEADS, rsrHEADS, nseHEADS, rHEADS], ['RMSE', 'RSR', 'NSE', 'r'], ['Root mean square error', 'Root mean square error - observations standard deviation ratio', 'Nash-Sutcliffe efficiency', "Pearson's correlation coefficient"], [rmseSMmax, None, 1.0, 1.0], [rmseHEADSmax, None, 1.0, 1.0], [0, 0, None, -1.0], [['($m$)', '($\%%wc$)'], ['',''], ['',''], ['','']])):
+            MMplot.plotFITTINGindex(indexSM = indexSM, indexSMobslst = obslstSM, indexHEADS = indexHEADS, indexHEADSobslst = obslstHEADS, plt_export_fn = os.path.join(MM_ws_out, '__plt_calibcrit%s.png'% index), plt_title = 'Calibration criteria between simulated and observed state variables\n%s'%title, index = index, indexSMmax = indexSMmax, indexHEADSmax = indexHEADSmax, ymin = ymin, units = units)
+        print '-------\nRMSE/RSR/NSE/r averaged of the obs. pts. (except catch.)'
+        for cc, (rmse, rsr, nse, r, obslst, msg) in enumerate(zip([rmseSM,rmseHEADS],[rsrSM,rsrHEADS],[nseSM,nseHEADS],[rSM,rHEADS],[obslstSM,obslstHEADS],['SM (all layers):','h:'])):
+            if obslst[0] == 'catch.' and len(rmse)> 1:
+                rmseaverage = list(itertools.chain.from_iterable(rmse[1:]))
+                rsraverage = list(itertools.chain.from_iterable(rsr[1:]))
+                nseaverage = list(itertools.chain.from_iterable(nse[1:]))
+                raverage = list(itertools.chain.from_iterable(r[1:]))
+                numobs = len(obslst[1:])
+            else:
+                rmseaverage = list(itertools.chain.from_iterable(rmse))
+                rsraverage = list(itertools.chain.from_iterable(rsr))
+                nseaverage = list(itertools.chain.from_iterable(nse))
+                raverage = list(itertools.chain.from_iterable(r))
+                numobs = len(obslst)
+            if len(rmse)> 1:
+                rmseaverage = sum(rmseaverage)/float(len(rmseaverage))
+                rsraverage = sum(rsraverage)/float(len(rsraverage))
+                nseaverage = sum(nseaverage)/float(len(nseaverage))
+                raverage = sum(raverage)/float(len(raverage))
+                print '%s %.1f %% / %.2f / %.2f / %.2f (%d obs. points)' % (msg, rmseaverage, rsraverage, nseaverage, raverage, numobs)
 
     # #################################################
     # PLOT SPATIAL MF and MM OUTPUT
