@@ -29,6 +29,7 @@ import MARMITESsoil_v3 as MMsoil
 import ppMODFLOW_flopy_v3 as ppMF
 import MARMITESplot_v3 as MMplot
 import MARMITESutilities as MMutils
+import MARMITESprocess_v3 as MMproc
 import CreateColors
 
 # TODO verify if thickness of MF layer 1 > thickness of soil
@@ -402,19 +403,19 @@ MM_SATFLOW = MMsoil.SATFLOW()
 
 # READ input ESRI ASCII rasters
 print "\nImporting ESRI ASCII files to initialize MARMITES..."
-gridMETEO = cMF.MM_PROCESS.inputEsriAscii(grid_fn = gridMETEO_fn, datatype = int)
-gridSOIL = cMF.MM_PROCESS.inputEsriAscii(grid_fn = gridSOIL_fn, datatype = int)
-gridSOILthick = cMF.MM_PROCESS.inputEsriAscii(grid_fn = gridSOILthick_fn, datatype = float)
-gridSsurfhmax = cMF.MM_PROCESS.inputEsriAscii(grid_fn = gridSsurfhmax_fn, datatype = float)
-gridSsurfw = cMF.MM_PROCESS.inputEsriAscii(grid_fn = gridSsurfw_fn, datatype = float)
+gridMETEO = cMF.cPROCESS.inputEsriAscii(grid_fn = gridMETEO_fn, datatype = int)
+gridSOIL = cMF.cPROCESS.inputEsriAscii(grid_fn = gridSOIL_fn, datatype = int)
+gridSOILthick = cMF.cPROCESS.inputEsriAscii(grid_fn = gridSOILthick_fn, datatype = float)
+gridSsurfhmax = cMF.cPROCESS.inputEsriAscii(grid_fn = gridSsurfhmax_fn, datatype = float)
+gridSsurfw = cMF.cPROCESS.inputEsriAscii(grid_fn = gridSsurfw_fn, datatype = float)
 if irr_yn == 1:
-    gridIRR = cMF.MM_PROCESS.inputEsriAscii(grid_fn = gridIRR_fn, datatype = int)
+    gridIRR = cMF.cPROCESS.inputEsriAscii(grid_fn = gridIRR_fn, datatype = int)
     if gridIRR.max() > NFIELD:
         cUTIL.ErrorExit('\nFATAL ERROR!\nThere is more fields in the asc file than in the MMsurf file!')
 
 # READ input time series and parameters
 if irr_yn == 0:
-    gridVEGarea, RF_veg_zoneSP, E0_zonesSP, PT_veg_zonesSP, RFe_veg_zonesSP, LAI_veg_zonesSP, PE_zonesSP = cMF.MM_PROCESS.inputSP(                       NMETEO                   = NMETEO,
+    gridVEGarea, RF_veg_zoneSP, E0_zonesSP, PT_veg_zonesSP, RFe_veg_zonesSP, LAI_veg_zonesSP, PE_zonesSP = cMF.cPROCESS.inputSP(                       NMETEO                   = NMETEO,
                                 NVEG                     = NVEG,
                                 NSOIL                    = NSOIL,
                                 nper                     = cMF.nper,
@@ -426,7 +427,7 @@ if irr_yn == 0:
                                 inputZON_SP_E0_fn        = cMF.inputZON_SP_E0_fn,
                                 )
 else:
-    gridVEGarea, RF_veg_zoneSP, E0_zonesSP, PT_veg_zonesSP, RFe_veg_zonesSP, LAI_veg_zonesSP, PE_zonesSP, RF_irr_zoneSP, RFe_irr_zoneSP, PT_irr_zonesSP, crop_irr_SP = cMF.MM_PROCESS.inputSP(
+    gridVEGarea, RF_veg_zoneSP, E0_zonesSP, PT_veg_zonesSP, RFe_veg_zonesSP, LAI_veg_zonesSP, PE_zonesSP, RF_irr_zoneSP, RFe_irr_zoneSP, PT_irr_zonesSP, crop_irr_SP = cMF.cPROCESS.inputSP(
                                 NMETEO                   = NMETEO,
                                 NVEG                     = NVEG,
                                 NSOIL                    = NSOIL,
@@ -445,7 +446,7 @@ else:
                                 )
 
 # SOIL PARAMETERS
-_nsl, _nam_soil, _st, _slprop, _Sm, _Sfc, _Sr, _S_ini, _Ks = cMF.MM_PROCESS.inputSoilParam(SOILparam_fn = SOILparam_fn, NSOIL = NSOIL)
+_nsl, _nam_soil, _st, _slprop, _Sm, _Sfc, _Sr, _S_ini, _Ks = cMF.cPROCESS.inputSoilParam(SOILparam_fn = SOILparam_fn, NSOIL = NSOIL)
 _nslmax = max(_nsl)
 for l in range(NSOIL):
     _slprop[l] = np.asarray(_slprop[l])
@@ -467,7 +468,7 @@ index_S = {'iEsoil':0, 'iTsoil':1,'iSsoil_pc':2, 'iRp':3, 'iRexf':4, 'idSsoil':5
 
 # READ observations time series (heads and soil moisture)
 print "\nReading observations time series (hydraulic heads and soil moisture)..."
-obs, obs_list, obs_catch, obs_catch_list = cMF.MM_PROCESS.inputObs(
+obs, obs_list, obs_catch, obs_catch_list = cMF.cPROCESS.inputObs(
                               inputObs_fn      = inputObs_fn,
                               inputObsHEADS_fn = inputObsHEADS_fn,
                               inputObsSM_fn    = inputObsSM_fn,
@@ -799,7 +800,7 @@ if MMsoil_yn > 0:
         print'\n##############'
         print 'MARMITESsoil RUN'
         # SOIL PARAMETERS
-        _nsl, _nam_soil, _st, _slprop, _Sm, _Sfc, _Sr, _S_ini, _Ks = cMF.MM_PROCESS.inputSoilParam(SOILparam_fn = SOILparam_fn, NSOIL = NSOIL)
+        _nsl, _nam_soil, _st, _slprop, _Sm, _Sfc, _Sr, _S_ini, _Ks = cMF.cPROCESS.inputSoilParam(SOILparam_fn = SOILparam_fn, NSOIL = NSOIL)
         _nslmax = max(_nsl)
         for l in range(NSOIL):
             _slprop[l] = np.asarray(_slprop[l])
@@ -998,19 +999,19 @@ if MF_yn == 1 and isinstance(cMF.h5_MF_fn, str):
         h5_MF = h5py.File(cMF.h5_MF_fn)
     except:
         cUTIL.ErrorExit('\nFATAL ERROR!\nInvalid MODFLOW HDF5 file. Run MARMITES and/or MODFLOW again.')
-    cMF.MM_PROCESS.procMF(cMF = cMF, h5_MF = h5_MF, ds_name = 'cbc', ds_name_new = 'STO_d', conv_fact = conv_fact, index = imfSTO)
+    cMF.cPROCESS.procMF(cMF = cMF, h5_MF = h5_MF, ds_name = 'cbc', ds_name_new = 'STO_d', conv_fact = conv_fact, index = imfSTO)
     if cMF.drn_yn == 1:
-        cMF.MM_PROCESS.procMF(cMF = cMF, h5_MF = h5_MF, ds_name = 'cbc', ds_name_new = 'DRN_d', conv_fact = conv_fact, index = imfDRN)
+        cMF.cPROCESS.procMF(cMF = cMF, h5_MF = h5_MF, ds_name = 'cbc', ds_name_new = 'DRN_d', conv_fact = conv_fact, index = imfDRN)
     if cMF.wel_yn == 1:
-        cMF.MM_PROCESS.procMF(cMF = cMF, h5_MF = h5_MF, ds_name = 'cbc', ds_name_new = 'WEL_d', conv_fact = conv_fact, index = imfWEL)
+        cMF.cPROCESS.procMF(cMF = cMF, h5_MF = h5_MF, ds_name = 'cbc', ds_name_new = 'WEL_d', conv_fact = conv_fact, index = imfWEL)
     if cMF.ghb_yn == 1:
-        cMF.MM_PROCESS.procMF(cMF = cMF, h5_MF = h5_MF, ds_name = 'cbc', ds_name_new = 'GHB_d', conv_fact = conv_fact, index = imfGHB)
-    cMF.MM_PROCESS.procMF(cMF = cMF, h5_MF = h5_MF, ds_name = 'heads', ds_name_new = 'heads_d', conv_fact = conv_fact)
+        cMF.cPROCESS.procMF(cMF = cMF, h5_MF = h5_MF, ds_name = 'cbc', ds_name_new = 'GHB_d', conv_fact = conv_fact, index = imfGHB)
+    cMF.cPROCESS.procMF(cMF = cMF, h5_MF = h5_MF, ds_name = 'heads', ds_name_new = 'heads_d', conv_fact = conv_fact)
     if cMF.uzf_yn == 1:
-        cMF.MM_PROCESS.procMF(cMF = cMF, h5_MF = h5_MF, ds_name = 'cbc_uzf', ds_name_new = 'RCH_d', conv_fact = conv_fact, index = imfRCH)
-        cMF.MM_PROCESS.procMF(cMF = cMF, h5_MF = h5_MF, ds_name = 'cbc_uzf', ds_name_new = 'EXF_d', conv_fact = conv_fact, index = imfEXF)
+        cMF.cPROCESS.procMF(cMF = cMF, h5_MF = h5_MF, ds_name = 'cbc_uzf', ds_name_new = 'RCH_d', conv_fact = conv_fact, index = imfRCH)
+        cMF.cPROCESS.procMF(cMF = cMF, h5_MF = h5_MF, ds_name = 'cbc_uzf', ds_name_new = 'EXF_d', conv_fact = conv_fact, index = imfEXF)
     elif cMF.rch_yn == 1:
-        cMF.MM_PROCESS.procMF(cMF = cMF, h5_MF = h5_MF, ds_name = 'cbc', ds_name_new = 'RCH_d', conv_fact = conv_fact, index = imfRCH)
+        cMF.cPROCESS.procMF(cMF = cMF, h5_MF = h5_MF, ds_name = 'cbc', ds_name_new = 'RCH_d', conv_fact = conv_fact, index = imfRCH)
     h5_MF.close()
 
 if MMsoil_yn == 1 and isinstance(h5_MM_fn, str):
@@ -1018,8 +1019,8 @@ if MMsoil_yn == 1 and isinstance(h5_MM_fn, str):
         h5_MM = h5py.File(h5_MM_fn)
     except:
         cUTIL.ErrorExit('\nFATAL ERROR!\nInvalid MARMITES HDF5 file. Run MARMITES and/or MODFLOW again.')
-    cMF.MM_PROCESS.procMM(cMF = cMF, h5_MM = h5_MM, ds_name = 'finf', ds_name_new = 'finf_d')
-    cMF.MM_PROCESS.procMM(cMF = cMF, h5_MM = h5_MM, ds_name = 'ETg', ds_name_new = 'ETg_d')
+    cMF.cPROCESS.procMM(cMF = cMF, h5_MM = h5_MM, ds_name = 'finf', ds_name_new = 'finf_d')
+    cMF.cPROCESS.procMM(cMF = cMF, h5_MM = h5_MM, ds_name = 'ETg', ds_name_new = 'ETg_d')
     h5_MM.close()
 
 SP_d = np.ones(sum(cMF.perlen), dtype = int)
@@ -1088,854 +1089,869 @@ if os.path.exists(h5_MM_fn):
                 l = obs.get(o)['lay']
                 obs_SM = obs.get(o)['obs_SM']
                 if obs.get(o)['obs_sm_yn'] == 1:
-                    cMF.MM_PROCESS.smMMname.append(o)
+                    cMF.cPROCESS.smMMname.append(o)
                 MM_S = h5_MM['MM_S'][:,i,j,:,:]
-                cMF.MM_PROCESS.ExportResultsMM4PEST(i, j, cMF.inputDate, _nslmax, MM_S, index_S, obs_SM, o)
+                cMF.cPROCESS.ExportResultsMM4PEST(i, j, cMF.inputDate, _nslmax, MM_S, index_S, obs_SM, o)
     # write PEST smp file with MM output
     inputFile = cUTIL.readFile(MM_ws,inputObs_fn)
     ind = 0
     for i in range(len(inputFile)):
         line = inputFile[i].split()
         name = line[0]
-        for j in cMF.MM_PROCESS.smMMname:
+        for j in cMF.cPROCESS.smMMname:
             if j == name:
-                for l in cMF.MM_PROCESS.smMM[ind]:
+                for l in cMF.cPROCESS.smMM[ind]:
                     outPESTsmMM.write(l)
         ind += 1
     outPESTsmMM.close()
 
-if plt_out == 1 or plt_out_obs == 1:
-    # computing max and min values in MF fluxes for plotting
-    hmax = []
-    hmin = []
-    hmaxMM = []
-    hminMM = []
-    hdiff = []
-    cbcmax_d = []
-    cbcmin_d = []
-    axefact = 1.05
-    if plt_WB_unit == 'year':
-        facTim = 365.0
-    else:
-        facTim = 1.0
-    if os.path.exists(cMF.h5_MF_fn):
-        # TODO missing STOuz (however this is not very relevant since these fluxes should not be the bigger in magnitude)
-        try:
-            h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
-        except:
-            cUTIL.ErrorExit('\nFATAL ERROR!\nInvalid MODFLOW HDF5 file. Run MARMITES and/or MODFLOW again.')
-        # STO
-        cbc_STO = h5_MF['STO_d']
-        cbcmax_d.append(-1*np.ma.max(cbc_STO))
-        cbcmin_d.append(-1*np.ma.min(cbc_STO))
-        del cbc_STO
-        # RCH
-        cbc_RCH = h5_MF['RCH_d']
-        RCHmax = np.ma.max(cbc_RCH)
-        cbcmax_d.append(RCHmax)
-        RCHmin = np.ma.min(cbc_RCH)
-        print '\nMaximum GW recharge (%.2f mm/day) observed at:' % RCHmax
-        tRCHmax = -1
-        if RCHmax> 0.0:
-            for l in range(cMF.nlay):
+# computing max and min values in MF fluxes for plotting
+hmax = []
+hmin = []
+hmaxMM = []
+hminMM = []
+hdiff = []
+cbcmax_d = []
+cbcmin_d = []
+axefact = 1.05
+if plt_WB_unit == 'year':
+    facTim = 365.0
+else:
+    facTim = 1.0
+if os.path.exists(cMF.h5_MF_fn):
+    # TODO missing STOuz (however this is not very relevant since these fluxes should not be the bigger in magnitude)
+    try:
+        h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
+    except:
+        cUTIL.ErrorExit('\nFATAL ERROR!\nInvalid MODFLOW HDF5 file. Run MARMITES and/or MODFLOW again.')
+    # STO
+    cbc_STO = h5_MF['STO_d']
+    cbcmax_d.append(-1*np.ma.max(cbc_STO))
+    cbcmin_d.append(-1*np.ma.min(cbc_STO))
+    del cbc_STO
+    # RCH
+    cbc_RCH = h5_MF['RCH_d']
+    RCHmax = np.ma.max(cbc_RCH)
+    cbcmax_d.append(RCHmax)
+    RCHmin = np.ma.min(cbc_RCH)
+    print '\nMaximum GW recharge (%.2f mm/day) observed at:' % RCHmax
+    tRCHmax = -1
+    if RCHmax> 0.0:
+        for l in range(cMF.nlay):
+            for row in range(cMF.nrow):
+                for t,col in enumerate(cbc_RCH[:,row,:,l]):
+                    try:
+                        if plt_out_obs == 1 and obs_list[-1] <> 'PzRCHmax':
+                            j = list(col).index(RCHmax)
+                            x = cMF.delc[row]*row + xllcorner
+                            y = cMF.delr[j]*j + yllcorner
+                            obs['PzRCHmax'] = {'x':x,'y':y, 'i': row, 'j': j, 'lay': l, 'hi':999, 'h0':999, 'RC':999, 'STO':999, 'outpathname':os.path.join(MM_ws_out,'_0PzRCHmax_ts.txt'), 'obs_h':[], 'obs_h_yn':0, 'obs_SM':[], 'obs_sm_yn':0}
+                            obs_list.append('PzRCHmax')
+                            obs4map[0].append('PzRCHmax')
+                            obs4map[1].append(row)
+                            obs4map[2].append(j)
+                            obs4map[3].append(l)
+                            del x, y
+                        print 'row %d, col %d, layer %d and day %d (%s)' % (row + 1, list(col).index(RCHmax) + 1, l+1, t+1, mpl.dates.num2date(cMF.inputDate[t] + 1.0).isoformat()[:10])
+                        tRCHmax = t
+                    except:
+                        pass
+    if tRCHmax < 0:
+        print 'WARNING!\nNo recharge max found!'
+    del cbc_RCH
+    RCHmax = np.ma.max(RCHmax) #float(np.ceil(np.ma.max(RCHmax)))  #
+    RCHmin = np.ma.min(RCHmin) #float(np.floor(np.ma.min(RCHmin))) #
+    # WEL
+    if cMF.wel_yn == 1:
+        cbc_WEL = h5_MF['WEL_d']
+        cbcmax_d.append(np.ma.max(cbc_WEL))
+        cbcmin_d.append(np.ma.min(cbc_WEL))
+    # DRN
+    if cMF.drn_yn == 1:
+        cbc_DRN = h5_MF['DRN_d']
+        DRNmax = np.ma.max(cbc_DRN)
+        cbcmax_d.append(DRNmax)
+        DRNmin = np.ma.min(cbc_DRN)
+        cbcmin_d.append(DRNmin)
+        del cbc_DRN
+        DRNmax = -1.0*DRNmin
+        DRNmin = 0.0
+    # GHB
+    if cMF.ghb_yn == 1:
+        cbc_GHB = h5_MF['GHB_d']
+        GHBmax = np.ma.max(cbc_GHB)
+        cbcmax_d.append(GHBmax)
+        GHBmin = np.ma.min(cbc_GHB)
+        cbcmin_d.append(GHBmin)
+        del cbc_GHB
+        GHBmax = -1.0*GHBmin
+        GHBmin = 0.0
+    cbcmax_d = np.ma.max(cbcmax_d) #float(np.ceil(np.ma.max(cbcmax_d)))
+    cbcmin_d = np.ma.min(cbcmin_d) #float(np.floor(np.ma.min(cbcmin_d)))
+    # h
+    h_MF_m = np.ma.masked_values(np.ma.masked_values(h5_MF['heads_d'], cMF.hnoflo, atol = 0.09), cMF.hdry, atol = 1E+25)
+    hmaxMF = np.ma.max(h_MF_m[:,:,:,:].flatten())
+    hminMF = np.ma.min(h_MF_m[:,:,:,:].flatten())
+    GWTD = cMF.elev[np.newaxis,:,:,np.newaxis] - h_MF_m
+    GWTDmax = np.ma.max(GWTD.flatten())
+    GWTDmin = np.ma.min(GWTD.flatten())
+    h5_MF.close()
+    del GWTD
+else:
+    DRNmax = GHBmax = cbcmax_d = 1.0
+    DRNmin = GHBmin = cbcmin_d = -1.0
+    hmaxMF = -9999.9
+    hminMF = 9999.9
+
+if os.path.exists(h5_MM_fn):
+    try:
+        h5_MM = h5py.File(h5_MM_fn, 'r')
+    except:
+        cUTIL.ErrorExit('\nFATAL ERROR!\nInvalid MARMITES HDF5 file. Run MARMITES and/or MODFLOW again.')
+    # h
+    headscorr_m = np.ma.masked_values(np.ma.masked_values(h5_MM['MM'][:,:,:,19], cMF.hnoflo, atol = 0.09), cMF.hdry, atol = 1E+25)
+    hcorrmax = np.ma.max(headscorr_m.flatten())
+    hcorrmin = np.ma.min(headscorr_m.flatten())
+    GWTDcorr = cMF.elev[np.newaxis,:,:] - headscorr_m
+    GWTDcorrmax = np.ma.max(GWTDcorr.flatten())
+    GWTDcorrmin = np.ma.min(GWTDcorr.flatten())
+    if GWTDcorrmin < 0.0:
+        GWTDcorrmin = 0.0
+    h5_MM.close()
+    del headscorr_m, GWTDcorr
+else:
+    hcorrmax = -9999.9
+    hcorrmin = 9999.9
+
+if obs != None:
+    x = 0
+    for o in obs.keys():
+        i = obs.get(o)['i']
+        j = obs.get(o)['j']
+        l = obs.get(o)['lay']
+        obs_h = obs.get(o)['obs_h']
+        if os.path.exists(cMF.h5_MF_fn):
+            hmaxMF_tmp = np.ma.max(h_MF_m[:,i,j,l].flatten())
+            hminMF_tmp = np.ma.min(h_MF_m[:,i,j,l].flatten())
+        else:
+            hmaxMF_tmp = -9999.9
+            hminMF_tmp = -9999.9
+        if obs_h != []:
+            npa_m_tmp = np.ma.masked_values(obs_h, cMF.hnoflo, atol = 0.09)
+            hmaxMM = np.ma.max(npa_m_tmp.flatten())
+            hminMM = np.ma.min(npa_m_tmp.flatten())
+            del npa_m_tmp
+        else:
+            hmaxMM = -9999.9
+            hminMM = 9999.9
+        hmax.append(np.ma.max((hmaxMF_tmp, hmaxMM)))
+        hmin.append(np.ma.min((hminMF_tmp, hminMM)))
+        hdiff.append(hmax[x]-hmin[x])
+        x += 1
+    hdiff = np.ma.max(hdiff)
+    del hmaxMF_tmp, hminMF_tmp
+else:
+    hdiff = 2000
+
+# #################################################
+# plot SOIL/GW ts and balance at the catchment scale
+# #################################################
+# RMSE list to plot
+rmseSM = []
+rsrSM = []
+rSM = []
+obslstSM = []
+rmseHEADS = []
+rsrHEADS = []
+nseHEADS = []
+nseSM = []
+rHEADS = []
+obslstHEADS = []
+tTgmin = -1
+if os.path.exists(h5_MM_fn):
+    try:
+        h5_MM = h5py.File(h5_MM_fn, 'r')
+    except:
+        cUTIL.ErrorExit('\nFATAL ERROR!\nInvalid MARMITES HDF5 file. Run MARMITES and/or MODFLOW again.')
+    # indexes of the HDF5 output arrays
+    #  index = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSsurf':4, 'iRo':5, 'iEXF':6, 'iEsurf':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSsurf':13, 'iETg':14, 'iETsoil':15, 'iSsoil_pc':16, 'idSsoil':17, 'iinf':18, 'iHEADScorr':19, 'idgwt':20, 'iuzthick':21}
+    # index_S = {'iEsoil':0, 'iTsoil':1,'iSsoil_pc':2, 'iRp':3, 'iRexf':4, 'idSsoil':5, 'iSsoil':6, 'iSAT':7, 'iMB_l':8}
+    # TODO Ro sould not be averaged by ncell_MM, as well as EXF
+    print '\nExporting output time series plots and ASCII files at catchment scale...'
+    flxlbl       = ['RF', 'I', 'RFe', 'dSsurf', 'Ro', 'Esurf', 'dSsoil', 'EXF']
+    flxlbl1      = ['Esoil', 'Tsoil']
+    flxlbl2      = ['ETsoil', 'Eg']
+    flxlbl3      = ['Tg']
+    flxlbl3a     = ['ETg']
+    flxlbl4      = ['Rp']
+    flxlbl_tex   = [r'$RF$', r'$I$', r'$RFe$', r'$\Delta S_{surf}$', r'$Ro$', r'$E_{surf}$', r'$\Delta S_{soil}$', r'$EXF_g$']
+    flxlbl1_tex  = [r'$E_{soil}$', r'$T_{soil}$']
+    flxlbl2_tex  = [r'$ET_{soil}$', r'$E_g$']
+    flxlbl3_tex  = [r'$T_g$']
+    flxlbl3a_tex = [r'$ET_g$']
+    flxlbl4_tex  = [r'$Rp$']
+    sign         = [   1,  -1,     1,     1,   -1,   -1,    1,     1, -1, -1, -1, -1, -1, -1, -1]
+    flxlst       = []
+    flx_Cat_TS   = []
+    flxmax_d     = []
+    flxmin_d     = []
+    flxlbl_CATCH = []
+    TopSoilAverage = np.ma.masked_array(cMF.elev*1000.0, maskAllL).sum()*.001/sum(ncell_MM)
+    for z, (i, i_tex) in enumerate(zip(flxlbl, flxlbl_tex)):
+        flxlbl_CATCH.append(i_tex)
+        i = 'i'+i
+        array_tmp = h5_MM['MM'][:,:,:,index.get(i)]
+        flx_tmp = np.ma.masked_values(array_tmp, cMF.hnoflo, atol = 0.09)
+        flxmax_d.append(np.ma.max(flx_tmp))
+        flxmin_d.append(np.ma.min(flx_tmp))
+        flxlst.append(facTim*(flx_tmp.sum())/sum(cMF.perlen)/sum(ncell_MM))
+        array_tmp1 = np.sum(np.ma.masked_values(array_tmp, cMF.hnoflo, atol = 0.09), axis = 1)
+        flx_Cat_TS.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
+        del flx_tmp, array_tmp, array_tmp1
+    for z, (i, i_tex) in enumerate(zip(flxlbl1, flxlbl1_tex)):
+        flxlbl_CATCH.append(i_tex)
+        flxlbl_tex.append(i_tex)
+        i = 'i'+i
+        flx_tmp1 = 0.0
+        array_tmp2 = np.zeros((sum(cMF.perlen)), dtype = np.float)
+        for l in range(_nslmax):
+            array_tmp = h5_MM['MM_S'][:,:,:,l,index_S.get(i)]
+            flx_tmp = np.ma.masked_values(array_tmp, cMF.hnoflo, atol = 0.09)
+            flxmax_d.append(np.ma.max(flx_tmp))
+            flxmin_d.append(np.ma.min(flx_tmp))
+            flx_tmp1 += flx_tmp.sum()
+            array_tmp1 = np.sum(np.ma.masked_values(array_tmp, cMF.hnoflo, atol = 0.09), axis = 1)
+            array_tmp2 += np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)
+        del flx_tmp, array_tmp, array_tmp1
+        flxlst.append(facTim*flx_tmp1/sum(cMF.perlen)/sum(ncell_MM))
+        flx_Cat_TS.append(array_tmp2/sum(ncell_MM))
+        del flx_tmp1, array_tmp2
+    for z, (i, i_tex) in enumerate(zip(flxlbl2, flxlbl2_tex)):
+        flxlbl_CATCH.append(i_tex)
+        flxlbl_tex.append(i_tex)
+        i = 'i'+i
+        array_tmp = h5_MM['MM'][:,:,:,index.get(i)]
+        flx_tmp = np.ma.masked_values(array_tmp, cMF.hnoflo, atol = 0.09)
+        flxmax_d.append(np.ma.max(flx_tmp))
+        flxmin_d.append(np.ma.min(flx_tmp))
+        flxlst.append(facTim*(flx_tmp.sum())/sum(cMF.perlen)/sum(ncell_MM))
+        array_tmp1 = np.sum(np.ma.masked_values(array_tmp, cMF.hnoflo, atol = 0.09), axis = 1)
+        flx_Cat_TS.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
+        del flx_tmp, array_tmp, array_tmp1
+    for z, (i, i_tex) in enumerate(zip(flxlbl3, flxlbl3_tex)):
+        flxlbl_CATCH.append(i_tex)
+        flxlbl_tex.append(i_tex)
+        i = 'i'+i
+        if cMF.wel_yn == 1:
+            array_tmp = h5_MM['MM'][:,:,:,index.get(i)]
+            flx_tmp = np.ma.masked_values(array_tmp, cMF.hnoflo, atol = 0.09)
+            flxmax_d.append(np.ma.max(flx_tmp))
+            Tg_min = np.ma.min(flx_tmp)
+            flxmin_d.append(Tg_min)
+            flxlst.append(facTim*(flx_tmp.sum())/sum(cMF.perlen)/sum(ncell_MM))
+            if abs(Tg_min) > 1E-6:
+                print '\nTg negative (%.2f) observed at:' % Tg_min
                 for row in range(cMF.nrow):
-                    for t,col in enumerate(cbc_RCH[:,row,:,l]):
+                    for t,col in enumerate(flx_tmp[:,row,:]):
                         try:
-                            if plt_out_obs == 1 and obs_list[-1] <> 'PzRCHmax':
-                                j = list(col).index(RCHmax)
-                                x = cMF.delc[row]*row + xllcorner
-                                y = cMF.delr[j]*j + yllcorner
-                                obs['PzRCHmax'] = {'x':x,'y':y, 'i': row, 'j': j, 'lay': l, 'hi':999, 'h0':999, 'RC':999, 'STO':999, 'outpathname':os.path.join(MM_ws_out,'_0PzRCHmax_ts.txt'), 'obs_h':[], 'obs_h_yn':0, 'obs_SM':[], 'obs_sm_yn':0}
-                                obs_list.append('PzRCHmax')
-                                obs4map[0].append('PzRCHmax')
+                            print 'row %d, col %d and day %d' % (row + 1, list(col).index(Tg_min) + 1, t + 1)
+                            tTgmin = t
+                            if plt_out_obs == 1:
+                                obs['PzTgmin'] = {'x':999,'y':999, 'i': row, 'j': list(col).index(Tg_min), 'lay': 0, 'hi':999, 'h0':999, 'RC':999, 'STO':999, 'outpathname':os.path.join(MM_ws_out,'_0PzTgmin_ts.txt'), 'obs_h':[], 'obs_h_yn':0, 'obs_SM':[], 'obs_sm_yn':0}
+                                obs_list.append('PzTgmin')
+                                obs4map[0].append('PzTgmin')
                                 obs4map[1].append(row)
-                                obs4map[2].append(j)
-                                obs4map[3].append(l)
-                                del x, y
-                            print 'row %d, col %d, layer %d and day %d (%s)' % (row + 1, list(col).index(RCHmax) + 1, l+1, t+1, mpl.dates.num2date(cMF.inputDate[t] + 1.0).isoformat()[:10])
-                            tRCHmax = t
+                                obs4map[2].append(list(col).index(Tg_min))
+                                obs4map[3].append(0)
+                                try:
+                                    hmin.append(hmin[0])
+                                except:
+                                    hmin.append(999.9)
                         except:
                             pass
-        if tRCHmax < 0:
-            print 'WARNING!\nNo recharge max found!'
-        del cbc_RCH
-        RCHmax = np.ma.max(RCHmax) #float(np.ceil(np.ma.max(RCHmax)))  #
-        RCHmin = np.ma.min(RCHmin) #float(np.floor(np.ma.min(RCHmin))) #
-        # WEL
-        if cMF.wel_yn == 1:
-            cbc_WEL = h5_MF['WEL_d']
-            cbcmax_d.append(np.ma.max(cbc_WEL))
-            cbcmin_d.append(np.ma.min(cbc_WEL))
-        # DRN
-        if cMF.drn_yn == 1:
-            cbc_DRN = h5_MF['DRN_d']
-            DRNmax = np.ma.max(cbc_DRN)
-            cbcmax_d.append(DRNmax)
-            DRNmin = np.ma.min(cbc_DRN)
-            cbcmin_d.append(DRNmin)
-            del cbc_DRN
-            DRNmax = -1.0*DRNmin
-            DRNmin = 0.0
-        # GHB
-        if cMF.ghb_yn == 1:
-            cbc_GHB = h5_MF['GHB_d']
-            GHBmax = np.ma.max(cbc_GHB)
-            cbcmax_d.append(GHBmax)
-            GHBmin = np.ma.min(cbc_GHB)
-            cbcmin_d.append(GHBmin)
-            del cbc_GHB
-            GHBmax = -1.0*GHBmin
-            GHBmin = 0.0
-        cbcmax_d = np.ma.max(cbcmax_d) #float(np.ceil(np.ma.max(cbcmax_d)))
-        cbcmin_d = np.ma.min(cbcmin_d) #float(np.floor(np.ma.min(cbcmin_d)))
-        # h
-        h_MF_m = np.ma.masked_values(np.ma.masked_values(h5_MF['heads_d'], cMF.hnoflo, atol = 0.09), cMF.hdry, atol = 1E+25)
-        hmaxMF = np.ma.max(h_MF_m[:,:,:,:].flatten())
-        hminMF = np.ma.min(h_MF_m[:,:,:,:].flatten())
-        GWTD = cMF.elev[np.newaxis,:,:,np.newaxis] - h_MF_m
-        GWTDmax = np.ma.max(GWTD.flatten())
-        GWTDmin = np.ma.min(GWTD.flatten())
-        h5_MF.close()
-        del GWTD
-    else:
-        DRNmax = GHBmax = cbcmax_d = 1.0
-        DRNmin = GHBmin = cbcmin_d = -1.0
-        hmaxMF = -9999.9
-        hminMF = 9999.9
-
-    if os.path.exists(h5_MM_fn):
-        try:
-            h5_MM = h5py.File(h5_MM_fn, 'r')
-        except:
-            cUTIL.ErrorExit('\nFATAL ERROR!\nInvalid MARMITES HDF5 file. Run MARMITES and/or MODFLOW again.')
-        # h
-        headscorr_m = np.ma.masked_values(np.ma.masked_values(h5_MM['MM'][:,:,:,19], cMF.hnoflo, atol = 0.09), cMF.hdry, atol = 1E+25)
-        hcorrmax = np.ma.max(headscorr_m.flatten())
-        hcorrmin = np.ma.min(headscorr_m.flatten())
-        GWTDcorr = cMF.elev[np.newaxis,:,:] - headscorr_m
-        GWTDcorrmax = np.ma.max(GWTDcorr.flatten())
-        GWTDcorrmin = np.ma.min(GWTDcorr.flatten())
-        if GWTDcorrmin < 0.0:
-            GWTDcorrmin = 0.0
-        h5_MM.close()
-        del headscorr_m, GWTDcorr
-    else:
-        hcorrmax = -9999.9
-        hcorrmin = 9999.9
-
-    if obs != None:
-        x = 0
-        for o in obs.keys():
-            i = obs.get(o)['i']
-            j = obs.get(o)['j']
-            l = obs.get(o)['lay']
-            obs_h = obs.get(o)['obs_h']
-            if os.path.exists(cMF.h5_MF_fn):
-                hmaxMF_tmp = np.ma.max(h_MF_m[:,i,j,l].flatten())
-                hminMF_tmp = np.ma.min(h_MF_m[:,i,j,l].flatten())
-            else:
-                hmaxMF_tmp = -9999.9
-                hminMF_tmp = -9999.9
-            if obs_h != []:
-                npa_m_tmp = np.ma.masked_values(obs_h, cMF.hnoflo, atol = 0.09)
-                hmaxMM = np.ma.max(npa_m_tmp.flatten())
-                hminMM = np.ma.min(npa_m_tmp.flatten())
-                del npa_m_tmp
-            else:
-                hmaxMM = -9999.9
-                hminMM = 9999.9
-            hmax.append(np.ma.max((hmaxMF_tmp, hmaxMM)))
-            hmin.append(np.ma.min((hminMF_tmp, hminMM)))
-            hdiff.append(hmax[x]-hmin[x])
-            x += 1
-        hdiff = np.ma.max(hdiff)
-        del hmaxMF_tmp, hminMF_tmp
-    else:
-        hdiff = 2000
-
-    # #################################################
-    # plot SOIL/GW ts and balance at the catchment scale
-    # #################################################
-    # RMSE list to plot
-    rmseSM = []
-    rsrSM = []
-    rSM = []
-    obslstSM = []
-    rmseHEADS = []
-    rsrHEADS = []
-    nseHEADS = []
-    nseSM = []
-    rHEADS = []
-    obslstHEADS = []
-    tTgmin = -1
-    if os.path.exists(h5_MM_fn):
-        try:
-            h5_MM = h5py.File(h5_MM_fn, 'r')
-        except:
-            cUTIL.ErrorExit('\nFATAL ERROR!\nInvalid MARMITES HDF5 file. Run MARMITES and/or MODFLOW again.')
-        # indexes of the HDF5 output arrays
-        #  index = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSsurf':4, 'iRo':5, 'iEXF':6, 'iEsurf':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSsurf':13, 'iETg':14, 'iETsoil':15, 'iSsoil_pc':16, 'idSsoil':17, 'iinf':18, 'iHEADScorr':19, 'idgwt':20, 'iuzthick':21}
-        # index_S = {'iEsoil':0, 'iTsoil':1,'iSsoil_pc':2, 'iRp':3, 'iRexf':4, 'idSsoil':5, 'iSsoil':6, 'iSAT':7, 'iMB_l':8}
-        # TODO Ro sould not be averaged by ncell_MM, as well as EXF
-        print '\nExporting output time series plots and ASCII files at catchment scale...'
-        flxlbl       = ['RF', 'I', 'RFe', 'dSsurf', 'Ro', 'Esurf', 'dSsoil', 'EXF']
-        flxlbl1      = ['Esoil', 'Tsoil']
-        flxlbl2      = ['ETsoil', 'Eg']
-        flxlbl3      = ['Tg']
-        flxlbl3a     = ['ETg']
-        flxlbl4      = ['Rp']
-        flxlbl_tex   = [r'$RF$', r'$I$', r'$RFe$', r'$\Delta S_{surf}$', r'$Ro$', r'$E_{surf}$', r'$\Delta S_{soil}$', r'$EXF_g$']
-        flxlbl1_tex  = [r'$E_{soil}$', r'$T_{soil}$']
-        flxlbl2_tex  = [r'$ET_{soil}$', r'$E_g$']
-        flxlbl3_tex  = [r'$T_g$']
-        flxlbl3a_tex = [r'$ET_g$']
-        flxlbl4_tex  = [r'$Rp$']
-        sign         = [   1,  -1,     1,     1,   -1,   -1,    1,     1, -1, -1, -1, -1, -1, -1, -1]
-        flxlst       = []
-        flx_Cat_TS   = []
-        flxmax_d     = []
-        flxmin_d     = []
-        flxlbl_CATCH = []
-        TopSoilAverage = np.ma.masked_array(cMF.elev*1000.0, maskAllL).sum()*.001/sum(ncell_MM)
-        for z, (i, i_tex) in enumerate(zip(flxlbl, flxlbl_tex)):
-            flxlbl_CATCH.append(i_tex)
-            i = 'i'+i
-            array_tmp = h5_MM['MM'][:,:,:,index.get(i)]
-            flx_tmp = np.ma.masked_values(array_tmp, cMF.hnoflo, atol = 0.09)
-            flxmax_d.append(np.ma.max(flx_tmp))
-            flxmin_d.append(np.ma.min(flx_tmp))
-            flxlst.append(facTim*(flx_tmp.sum())/sum(cMF.perlen)/sum(ncell_MM))
             array_tmp1 = np.sum(np.ma.masked_values(array_tmp, cMF.hnoflo, atol = 0.09), axis = 1)
             flx_Cat_TS.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
             del flx_tmp, array_tmp, array_tmp1
-        for z, (i, i_tex) in enumerate(zip(flxlbl1, flxlbl1_tex)):
-            flxlbl_CATCH.append(i_tex)
-            flxlbl_tex.append(i_tex)
-            i = 'i'+i
-            flx_tmp1 = 0.0
-            array_tmp2 = np.zeros((sum(cMF.perlen)), dtype = np.float)
-            for l in range(_nslmax):
-                array_tmp = h5_MM['MM_S'][:,:,:,l,index_S.get(i)]
-                flx_tmp = np.ma.masked_values(array_tmp, cMF.hnoflo, atol = 0.09)
-                flxmax_d.append(np.ma.max(flx_tmp))
-                flxmin_d.append(np.ma.min(flx_tmp))
-                flx_tmp1 += flx_tmp.sum()
-                array_tmp1 = np.sum(np.ma.masked_values(array_tmp, cMF.hnoflo, atol = 0.09), axis = 1)
-                array_tmp2 += np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)
-            del flx_tmp, array_tmp, array_tmp1
-            flxlst.append(facTim*flx_tmp1/sum(cMF.perlen)/sum(ncell_MM))
-            flx_Cat_TS.append(array_tmp2/sum(ncell_MM))
-            del flx_tmp1, array_tmp2
-        for z, (i, i_tex) in enumerate(zip(flxlbl2, flxlbl2_tex)):
-            flxlbl_CATCH.append(i_tex)
-            flxlbl_tex.append(i_tex)
-            i = 'i'+i
-            array_tmp = h5_MM['MM'][:,:,:,index.get(i)]
-            flx_tmp = np.ma.masked_values(array_tmp, cMF.hnoflo, atol = 0.09)
-            flxmax_d.append(np.ma.max(flx_tmp))
-            flxmin_d.append(np.ma.min(flx_tmp))
-            flxlst.append(facTim*(flx_tmp.sum())/sum(cMF.perlen)/sum(ncell_MM))
-            array_tmp1 = np.sum(np.ma.masked_values(array_tmp, cMF.hnoflo, atol = 0.09), axis = 1)
-            flx_Cat_TS.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
-            del flx_tmp, array_tmp, array_tmp1
-        for z, (i, i_tex) in enumerate(zip(flxlbl3, flxlbl3_tex)):
-            flxlbl_CATCH.append(i_tex)
-            flxlbl_tex.append(i_tex)
-            i = 'i'+i
-            if cMF.wel_yn == 1:
-                array_tmp = h5_MM['MM'][:,:,:,index.get(i)]
-                flx_tmp = np.ma.masked_values(array_tmp, cMF.hnoflo, atol = 0.09)
-                flxmax_d.append(np.ma.max(flx_tmp))
-                Tg_min = np.ma.min(flx_tmp)
-                flxmin_d.append(Tg_min)
-                flxlst.append(facTim*(flx_tmp.sum())/sum(cMF.perlen)/sum(ncell_MM))
-                if abs(Tg_min) > 1E-6:
-                    print '\nTg negative (%.2f) observed at:' % Tg_min
-                    for row in range(cMF.nrow):
-                        for t,col in enumerate(flx_tmp[:,row,:]):
-                            try:
-                                print 'row %d, col %d and day %d' % (row + 1, list(col).index(Tg_min) + 1, t + 1)
-                                tTgmin = t
-                                if plt_out_obs == 1:
-                                    obs['PzTgmin'] = {'x':999,'y':999, 'i': row, 'j': list(col).index(Tg_min), 'lay': 0, 'hi':999, 'h0':999, 'RC':999, 'STO':999, 'outpathname':os.path.join(MM_ws_out,'_0PzTgmin_ts.txt'), 'obs_h':[], 'obs_h_yn':0, 'obs_SM':[], 'obs_sm_yn':0}
-                                    obs_list.append('PzTgmin')
-                                    obs4map[0].append('PzTgmin')
-                                    obs4map[1].append(row)
-                                    obs4map[2].append(list(col).index(Tg_min))
-                                    obs4map[3].append(0)
-                                    try:
-                                        hmin.append(hmin[0])
-                                    except:
-                                        hmin.append(999.9)
-                            except:
-                                pass
-                array_tmp1 = np.sum(np.ma.masked_values(array_tmp, cMF.hnoflo, atol = 0.09), axis = 1)
-                flx_Cat_TS.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
-                del flx_tmp, array_tmp, array_tmp1
-            else:
-                flxlst.append(0.0)
-                flx_Cat_TS.append(0.0)
-        for z, (i, i_tex) in enumerate(zip(flxlbl3a, flxlbl3a_tex)):
-            flxlbl_CATCH.append(i_tex)
-            flxlbl_tex.append(i_tex)
-            i = 'i'+i
-            array_tmp = h5_MM['MM'][:,:,:,index.get(i)]
-            flx_tmp = np.ma.masked_values(array_tmp, cMF.hnoflo, atol = 0.09)
-            flxmax_d.append(np.ma.max(flx_tmp))
-            flxmin_d.append(np.ma.min(flx_tmp))
-            flxlst.append(facTim*flx_tmp.sum()/sum(cMF.perlen)/sum(ncell_MM))
-            array_tmp1 = np.sum(np.ma.masked_values(array_tmp, cMF.hnoflo, atol = 0.09), axis = 1)
-            flx_Cat_TS.append(-1.0*np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
-            del flx_tmp, array_tmp, array_tmp1
-        for z, (i, i_tex) in enumerate(zip(flxlbl4, flxlbl4_tex)):
-            flxlbl_tex.append(i_tex)
-            i = 'i'+i
-            array_tmp = h5_MM['finf_d']
-            flx_tmp = np.ma.masked_values(array_tmp, cMF.hnoflo, atol = 0.09)
-            flxmax_d.append(conv_fact*np.ma.max(flx_tmp))
-            flxmin_d.append(conv_fact*np.ma.min(flx_tmp))
-            inf = facTim*conv_fact*(flx_tmp.sum())/sum(cMF.perlen)/sum(ncell_MM)
-            flxlst.append(inf)
-            del flx_tmp, array_tmp
-        for z, (i, i_tex) in enumerate(zip(['Ssurf', 'PE', 'PT', 'inf'], [r'$S_{surf}$', r'$PE$', r'$PT$', r'$inf$'])):
-            flxlbl_CATCH.append(i_tex)
-            i = 'i'+i
-            array_tmp = h5_MM['MM'][:,:,:,index.get(i)]
-            array_tmp1 = np.sum(np.ma.masked_values(array_tmp, cMF.hnoflo, atol = 0.09), axis = 1)
-            flx_Cat_TS.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
-            del array_tmp, array_tmp1
-        plt_exportCATCH_fn = os.path.join(MM_ws_out, '_0CATCHMENT_ts.png')
-        plt_exportCATCH_txt_fn = os.path.join(MM_ws_out, '_0CATCHMENT_ts.txt')
-        plt_titleCATCH = 'Time serie of fluxes averaged over the whole catchment'
-        InMM  = flxlst[0] + flxlst[3] + flxlst[6] + flxlst[7]
-        OutMM = flxlst[1] + flxlst[4] + flxlst[5] + flxlst[10] + flxlst[14]
-        MB_MM = 100*(InMM - OutMM)/((InMM + OutMM)/2)
-        # ADD SM averaged
-        flxlbl_CATCH.append(r'$\theta$')
-        array_tmp = h5_MM['MM'][:,:,:,index.get('iSsoil_pc')]
+        else:
+            flxlst.append(0.0)
+            flx_Cat_TS.append(0.0)
+    for z, (i, i_tex) in enumerate(zip(flxlbl3a, flxlbl3a_tex)):
+        flxlbl_CATCH.append(i_tex)
+        flxlbl_tex.append(i_tex)
+        i = 'i'+i
+        array_tmp = h5_MM['MM'][:,:,:,index.get(i)]
+        flx_tmp = np.ma.masked_values(array_tmp, cMF.hnoflo, atol = 0.09)
+        flxmax_d.append(np.ma.max(flx_tmp))
+        flxmin_d.append(np.ma.min(flx_tmp))
+        flxlst.append(facTim*flx_tmp.sum()/sum(cMF.perlen)/sum(ncell_MM))
+        array_tmp1 = np.sum(np.ma.masked_values(array_tmp, cMF.hnoflo, atol = 0.09), axis = 1)
+        flx_Cat_TS.append(-1.0*np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
+        del flx_tmp, array_tmp, array_tmp1
+    for z, (i, i_tex) in enumerate(zip(flxlbl4, flxlbl4_tex)):
+        flxlbl_tex.append(i_tex)
+        i = 'i'+i
+        array_tmp = h5_MM['finf_d']
+        flx_tmp = np.ma.masked_values(array_tmp, cMF.hnoflo, atol = 0.09)
+        flxmax_d.append(conv_fact*np.ma.max(flx_tmp))
+        flxmin_d.append(conv_fact*np.ma.min(flx_tmp))
+        inf = facTim*conv_fact*(flx_tmp.sum())/sum(cMF.perlen)/sum(ncell_MM)
+        flxlst.append(inf)
+        del flx_tmp, array_tmp
+    for z, (i, i_tex) in enumerate(zip(['Ssurf', 'PE', 'PT', 'inf'], [r'$S_{surf}$', r'$PE$', r'$PT$', r'$inf$'])):
+        flxlbl_CATCH.append(i_tex)
+        i = 'i'+i
+        array_tmp = h5_MM['MM'][:,:,:,index.get(i)]
         array_tmp1 = np.sum(np.ma.masked_values(array_tmp, cMF.hnoflo, atol = 0.09), axis = 1)
         flx_Cat_TS.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
         del array_tmp, array_tmp1
-        h5_MM.close()
-        flxmax_d = float(np.ceil(np.ma.max(flxmax_d)))
-        flxmin_d = float(np.floor(np.ma.min(flxmin_d)))
-        flxmax = axefact*float(np.ceil(max(flxlst)))
-        flxmin = axefact*float(np.floor(min(flxlst)))
-        for l,(x,y) in enumerate(zip(flxlst, sign)):
-            flxlst[l] = x*y
-        del flxlbl1, flxlbl2, flxlbl3, flxlbl3a, sign
-        if os.path.exists(cMF.h5_MF_fn):
-            plt_export_fn = os.path.join(MM_ws_out, '_0CATCHMENT_WBsg.png')
-            # compute UZF_STO and store GW_RCH
-            flxlbl_tex.append(r'$\Delta S_{u}$')
-            rch_tmp = 0
-            flxlst_tmp = []
-            h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
-            cbc_RCH = h5_MF['RCH_d']
-            array_tmp2 = np.zeros((sum(cMF.perlen)), dtype = np.float)
-            for l in range(cMF.nlay):
-                array_tmp = cbc_RCH[:,:,:,l]
-                array_tmp1 = np.sum(np.ma.masked_values(array_tmp, cMF.hnoflo, atol = 0.09), axis = 1)
-                array_tmp2 += np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)
-                rch_tmp1 = facTim*(array_tmp.sum())/sum(cMF.perlen)/sum(ncell_MM)
-                flxlst_tmp.append(rch_tmp1)
-                rch_tmp += rch_tmp1
-            flxlbl_CATCH.append(r'$R$')
-            flx_Cat_TS.append(array_tmp2/sum(ncell_MM))
-            del array_tmp, array_tmp1, array_tmp2, rch_tmp1, cbc_RCH
-            flxlst.append(inf - rch_tmp)
-            del rch_tmp, inf
-            InUZF = -flxlst[14] - flxlst[15]
-            OutUZF = 0
-            InMF = 0
-            OutMF = 0
-            for l in range(cMF.nlay):
-                # ADD heads averaged
-                flxlbl_CATCH.append(r'$hMF_{%d}$' % (l+1))
-                array_tmp = h_MF_m[:,:,:,l]
-                array_tmp1 = np.sum(array_tmp, axis = 1)
-                flx_Cat_TS.append(np.sum(array_tmp1, axis = 1)/ncell_MF[l])
-                del array_tmp, array_tmp1
-                # ADD depth GWT
-                flxlbl_CATCH.append(r'$DGWT_{%d}$' % (l+1))
-                flx_Cat_TS.append(flx_Cat_TS[-1] - TopSoilAverage)
-            for l in range(cMF.nlay):
-                # GW_STO
-                cbc_STO = h5_MF['STO_d'][:,:,:,l]
-                flxlst.append(facTim*(cbc_STO.sum()/sum(cMF.perlen)/sum(ncell_MM)))  # -1*
-                InMF += flxlst[-1]
-                flxlbl_CATCH.append(r'$\Delta S_{g,%d}^{MF}$' % (l+1))
-                array_tmp1 = np.sum(np.ma.masked_values(cbc_STO, cMF.hnoflo, atol = 0.09), axis = 1)
-                flx_Cat_TS.append(-1.0*np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
-                del cbc_STO, array_tmp1
-                # GW_RCH
-                flxlst.append(flxlst_tmp[l])
-                OutUZF += flxlst_tmp[l]
-                InMF += flxlst_tmp[l]
-                # EXF
-                cbc_EXF = h5_MF['EXF_d'][:,:,:,l]
-                flxlst.append(facTim*(cbc_EXF.sum()/sum(cMF.perlen)/sum(ncell_MM)))
-                OutMF += -flxlst[-1]
-                del cbc_EXF
-                # DRN
-                if cMF.drn_yn == 1:
-                    cbc_DRN = h5_MF['DRN_d'][:,:,:,l]
-                    if cMF.drncells[l]>0:
-                        flxlst.append(facTim*(cbc_DRN.sum()/sum(cMF.perlen)/sum(ncell_MM)))
-                        OutMF += -flxlst[-1]
-                        flxlbl_CATCH.append(r'$DRN_{%d}^{MF}$' % (l+1))
-                        array_tmp1 = np.sum(np.ma.masked_values(cbc_DRN, cMF.hnoflo, atol = 0.09), axis = 1)
-                        flx_Cat_TS.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
-                        del array_tmp1
-                    else:
-                        flxlst.append(0.0)
-                    del cbc_DRN
-                # WEL
-                if cMF.wel_yn == 1:
-                    cbc_WEL = h5_MF['WEL_d'][:,:,:,l]
-                    if ncell_MM[l]>0:
-                        flxlst.append(facTim*(cbc_WEL.sum()/sum(cMF.perlen)/sum(ncell_MM)))
-                        OutMF += -1.0*flxlst[-1]
-                    else:
-                        flxlst.append(0.0)
-                    del cbc_WEL
-                # GHB
-                if cMF.ghb_yn == 1:
-                    cbc_GHB = h5_MF['GHB_d'][:,:,:,l]
-                    if cMF.ghbcells[l] > 0:
-                        flxlst.append(facTim*(cbc_GHB.sum()/sum(cMF.perlen)/sum(ncell_MM)))
-                        OutMF += -flxlst[-1]
-                        flxlbl_CATCH.append(r'$GHB_{%d}^{MF}$' % (l+1))
-                        array_tmp1 = np.sum(np.ma.masked_values(cbc_GHB, cMF.hnoflo, atol = 0.09), axis = 1)
-                        flx_Cat_TS.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
-                        del array_tmp1
-                    else:
-                        flxlst.append(0.0)
-                    del cbc_GHB
-                flxlbl_tex.append(r'$%s_{g,%d}$' %(cbc_nam_tex[index_cbc[0]], l+1))
-                for x in range(len(index_cbc_uzf)):
-                    flxlbl_tex.append(r'$%s_{g,%d}$' % (cbc_uzf_nam_tex[index_cbc_uzf[x]], l+1))
-                for x in range(1,len(index_cbc)):
-                    flxlbl_tex.append(r'$%s_{g,%d}$' % (cbc_nam_tex[index_cbc[x]], l+1))
-            flxmax1 = float(np.ceil(max(flxlst)))
-            flxmin1 = float(np.floor(min(flxlst)))
-            flxmax = axefact*max(flxmax, flxmax1)
-            flxmin = axefact*min(flxmin, flxmin1)
-            del flxlst_tmp, flxmax1, flxmin1
-            h5_MF.close()
-            MB_UZF = 100.0*(InUZF - OutUZF)/((InUZF+OutUZF)/2.0)
-            MB_MF = 100.0*(InMF - OutMF)/((InMF+OutMF)/2.0)
-            plt_title = 'MARMITES and MODFLOW water balance for the whole catchment\nMass balance error: MM = %1.2f%%, UZF = %1.2f%%, MF = %1.2f%%' % (MB_MM, MB_UZF, MB_MF)
-            header_tmp = ['MM_MB','UZF_MB','MF_MB']
-            MB_tmp = [MB_MM, MB_UZF,MB_MF]
-            rmseHEADS_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrSM_tmp, nseHEADS_tmp, nseSM_tmp, rHEADS_tmp, rSM_tmp = MMplot.plotTIMESERIES_CATCH(cMF.inputDate, flx_Cat_TS, flxlbl_CATCH, plt_exportCATCH_fn, plt_titleCATCH, hmax = hmaxMF, hmin = hminMF, iniMonthHydroYear = iniMonthHydroYear, cMF = cMF, obs_catch = obs_catch, obs_catch_list = obs_catch_list, TopSoilAverage = TopSoilAverage)
-        else:
-            rmseHEADS_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrSM_tmp, nseHEADS_tmp, nseSM_tmp, rHEADS_tmp, rSM_tmp = MMplot.plotTIMESERIES_CATCH(cMF.inputDate, flx_Cat_TS, flxlbl_CATCH, plt_exportCATCH_fn, plt_titleCATCH, hmax = hmaxMF, hmin = hminMF, iniMonthHydroYear = iniMonthHydroYear)
-            plt_export_fn = os.path.join(MM_ws_out, '_0CATCHMENT_WBs.png')
-            plt_title = 'MARMITES water balance for the whole catchment\nMass balance error: MM = %1.2f%%' % (MB_MM)
-            header_tmp = ['MM_MB']
-            MB_tmp = [MB_MM]
-        if rmseHEADS_tmp <> None:
-            rmseHEADS.append(rmseHEADS_tmp)
-            rsrHEADS.append(rsrHEADS_tmp)
-            nseHEADS.append(nseHEADS_tmp)
-            rHEADS.append(rHEADS_tmp)
-            obslstHEADS.append('catch.')
-        if rmseSM_tmp <> None:
-            rmseSM.append(rmseSM_tmp)
-            rsrSM.append(rsrSM_tmp)
-            nseSM.append(nseSM_tmp)
-            rSM.append(rSM_tmp)
-            obslstSM.append('catch.')
-        del rmseHEADS_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrSM_tmp, nseHEADS_tmp, nseSM_tmp, rHEADS_tmp, rSM_tmp
-        # export average time serie of fluxes in txt
-        plt_exportCATCH_txt = open(os.path.join(plt_exportCATCH_txt_fn), 'w')
-        flxlbl_CATCH_str = 'Date'
-        for e in flxlbl_CATCH:
-            flxlbl_CATCH_str += ',' + e
-        flxlbl_CATCH_str += ',%s' % '$hobs$'
-        flxlbl_CATCH_str += ',%s' % '$\\thetaobs$'
-        plt_exportCATCH_txt.write(flxlbl_CATCH_str)
-        plt_exportCATCH_txt.write('\n')
-        for t in range(len(cMF.inputDate)):
-            flx_Cat_TS_str = str(flx_Cat_TS[0][t])
-            for e in (flx_Cat_TS[1:]):
-                flx_Cat_TS_str += ',%s' % str(e[t])
-            if obs_catch_list[0] == 1:
-                flx_Cat_TS_str += ',%s' % (obs_catch.get('catch')['obs_h'][0][t])
-            else:
-                flx_Cat_TS_str += ',%s' % cMF.hnoflo
-            if obs_catch_list[1] == 1:
-                flx_Cat_TS_str += ',%s' % (obs_catch.get('catch')['obs_SM'][0][t])
-            else:
-                flx_Cat_TS_str += ',%s' % cMF.hnoflo
-            out_line = '%s,%s' % (mpl.dates.num2date(cMF.inputDate[t]).isoformat()[:10], flx_Cat_TS_str)
-            for l in out_line:
-                plt_exportCATCH_txt.write(l)
-            plt_exportCATCH_txt.write('\n')
-        plt_exportCATCH_txt.close()
-        del flx_Cat_TS, flx_Cat_TS_str, out_line
-        colors_flx = CreateColors.main(hi=0, hf=180, numbcolors = len(flxlbl_tex))
-        try:
-            MMplot.plotWB(flxlst = flxlst, flxlbl = flxlbl_tex, colors_flx = colors_flx, plt_export_fn = plt_export_fn, plt_title = plt_title, fluxmax = flxmax, fluxmin = flxmin, unit = plt_WB_unit)
-        except:
-            print "\nError in plotting the water balance!"
-        plt_export_txt = open(os.path.join(MM_ws_out, '_0CATCHMENT_WBsg.txt'), 'w')
-        flxlbl_str = flxlbl_tex[0]
-        for e in (flxlbl_tex[1:] + header_tmp):
-            flxlbl_str += ',%s' % e
-        flxlst_str = str(flxlst[0])
-        for e in (flxlst[1:] + MB_tmp):
-            flxlst_str += ',%s' % e
-        plt_export_txt.write(flxlbl_str)
-        plt_export_txt.write('\n')
-        plt_export_txt.write(flxlst_str)
-        plt_export_txt.close()
-        del flxlst, header_tmp, MB_tmp, flxlst_str
-        del flxmax_d, flxmin_d, flxmax, flxmin, flxlbl_CATCH, TopSoilAverage, i
-        del plt_exportCATCH_fn, plt_exportCATCH_txt_fn, plt_titleCATCH, InMM, OutMM, InMF, OutMF, MB_MM, MB_UZF, plt_export_fn, plt_title
-    # no MM, plot only MF balance if MF exists
-    elif os.path.exists(cMF.h5_MF_fn):
-        plt_export_fn = os.path.join(MM_ws_out, '_0CATCHMENT_WBg.png')
-        flxlbl_tex = []
-        flxlst = []
+    plt_exportCATCH_fn = os.path.join(MM_ws_out, '_0CATCHMENT_ts.png')
+    plt_exportCATCH_txt_fn = os.path.join(MM_ws_out, '_0CATCHMENT_ts.txt')
+    plt_titleCATCH = 'Time serie of fluxes averaged over the whole catchment'
+    InMM  = flxlst[0] + flxlst[3] + flxlst[6] + flxlst[7]
+    OutMM = flxlst[1] + flxlst[4] + flxlst[5] + flxlst[10] + flxlst[14]
+    MB_MM = 100*(InMM - OutMM)/((InMM + OutMM)/2)
+    # ADD SM averaged
+    flxlbl_CATCH.append(r'$\theta$')
+    array_tmp = h5_MM['MM'][:,:,:,index.get('iSsoil_pc')]
+    array_tmp1 = np.sum(np.ma.masked_values(array_tmp, cMF.hnoflo, atol = 0.09), axis = 1)
+    flx_Cat_TS.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
+    del array_tmp, array_tmp1
+    h5_MM.close()
+    flxmax_d = float(np.ceil(np.ma.max(flxmax_d)))
+    flxmin_d = float(np.floor(np.ma.min(flxmin_d)))
+    flxmax = axefact*float(np.ceil(max(flxlst)))
+    flxmin = axefact*float(np.floor(min(flxlst)))
+    for l,(x,y) in enumerate(zip(flxlst, sign)):
+        flxlst[l] = x*y
+    del flxlbl1, flxlbl2, flxlbl3, flxlbl3a, sign
+    if os.path.exists(cMF.h5_MF_fn):
+        plt_export_fn = os.path.join(MM_ws_out, '_0CATCHMENT_WBsg.png')
+        # compute UZF_STO and store GW_RCH
+        flxlbl_tex.append(r'$\Delta S_{u}$')
+        rch_tmp = 0
+        flxlst_tmp = []
+        h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
+        cbc_RCH = h5_MF['RCH_d']
+        array_tmp2 = np.zeros((sum(cMF.perlen)), dtype = np.float)
+        for l in range(cMF.nlay):
+            array_tmp = cbc_RCH[:,:,:,l]
+            array_tmp1 = np.sum(np.ma.masked_values(array_tmp, cMF.hnoflo, atol = 0.09), axis = 1)
+            array_tmp2 += np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)
+            rch_tmp1 = facTim*(array_tmp.sum())/sum(cMF.perlen)/sum(ncell_MM)
+            flxlst_tmp.append(rch_tmp1)
+            rch_tmp += rch_tmp1
+        flxlbl_CATCH.append(r'$R$')
+        flx_Cat_TS.append(array_tmp2/sum(ncell_MM))
+        del array_tmp, array_tmp1, array_tmp2, rch_tmp1, cbc_RCH
+        flxlst.append(inf - rch_tmp)
+        del rch_tmp, inf
+        InUZF = -flxlst[14] - flxlst[15]
+        OutUZF = 0
         InMF = 0
         OutMF = 0
         for l in range(cMF.nlay):
-            h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
+            # ADD heads averaged
+            flxlbl_CATCH.append(r'$hMF_{%d}$' % (l+1))
+            array_tmp = h_MF_m[:,:,:,l]
+            array_tmp1 = np.sum(array_tmp, axis = 1)
+            flx_Cat_TS.append(np.sum(array_tmp1, axis = 1)/ncell_MF[l])
+            del array_tmp, array_tmp1
+            # ADD depth GWT
+            flxlbl_CATCH.append(r'$DGWT_{%d}$' % (l+1))
+            flx_Cat_TS.append(flx_Cat_TS[-1] - TopSoilAverage)
+        for l in range(cMF.nlay):
             # GW_STO
-            cbc_STO = h5_MF['STO_d']
-            flxlst.append(facTim*(cbc_STO[:,:,:,l].sum()/sum(cMF.perlen)/sum(ncell_MM)))  # *-1
+            cbc_STO = h5_MF['STO_d'][:,:,:,l]
+            flxlst.append(facTim*(cbc_STO.sum()/sum(cMF.perlen)/sum(ncell_MM)))  # -1*
             InMF += flxlst[-1]
-            del cbc_STO
+            flxlbl_CATCH.append(r'$\Delta S_{g,%d}^{MF}$' % (l+1))
+            array_tmp1 = np.sum(np.ma.masked_values(cbc_STO, cMF.hnoflo, atol = 0.09), axis = 1)
+            flx_Cat_TS.append(-1.0*np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
+            del cbc_STO, array_tmp1
             # GW_RCH
-            cbc_RCH = h5_MF['RCH_d']
-            flxlst.append(facTim*(cbc_RCH[:,:,:,l].sum()/sum(cMF.perlen)/sum(ncell_MM)))
-            InMF += flxlst[-1]
-            del cbc_RCH
+            flxlst.append(flxlst_tmp[l])
+            OutUZF += flxlst_tmp[l]
+            InMF += flxlst_tmp[l]
             # EXF
-            cbc_EXF = h5_MF['EXF_d']
-            flxlst.append(facTim*(cbc_EXF[:,:,:,l].sum()/sum(cMF.perlen)/sum(ncell_MM)))
-            OutMF += flxlst[-1]
+            cbc_EXF = h5_MF['EXF_d'][:,:,:,l]
+            flxlst.append(facTim*(cbc_EXF.sum()/sum(cMF.perlen)/sum(ncell_MM)))
+            OutMF += -flxlst[-1]
             del cbc_EXF
+            # DRN
             if cMF.drn_yn == 1:
-                cbc_DRN = h5_MF['DRN_d']
+                cbc_DRN = h5_MF['DRN_d'][:,:,:,l]
                 if cMF.drncells[l]>0:
-                    flxlst.append(facTim*(cbc_DRN[:,:,:,l].sum()/sum(cMF.perlen)/sum(ncell_MM)))
-                    OutMF += flxlst[-1]
+                    flxlst.append(facTim*(cbc_DRN.sum()/sum(cMF.perlen)/sum(ncell_MM)))
+                    OutMF += -flxlst[-1]
+                    flxlbl_CATCH.append(r'$DRN_{%d}^{MF}$' % (l+1))
+                    array_tmp1 = np.sum(np.ma.masked_values(cbc_DRN, cMF.hnoflo, atol = 0.09), axis = 1)
+                    flx_Cat_TS.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
+                    del array_tmp1
                 else:
                     flxlst.append(0.0)
                 del cbc_DRN
+            # WEL
             if cMF.wel_yn == 1:
-                cbc_WEL = h5_MF['WEL_d']
+                cbc_WEL = h5_MF['WEL_d'][:,:,:,l]
                 if ncell_MM[l]>0:
-                    flxlst.append(-1.0*facTim*(cbc_WEL[:,:,:,l].sum()/sum(cMF.perlen)/sum(ncell_MM)))
-                    OutMF += flxlst[-1]
+                    flxlst.append(facTim*(cbc_WEL.sum()/sum(cMF.perlen)/sum(ncell_MM)))
+                    OutMF += -1.0*flxlst[-1]
                 else:
                     flxlst.append(0.0)
                 del cbc_WEL
+            # GHB
             if cMF.ghb_yn == 1:
-                cbc_GHB = h5_MF['GHB_d']
+                cbc_GHB = h5_MF['GHB_d'][:,:,:,l]
                 if cMF.ghbcells[l] > 0:
-                    flxlst.append(facTim*(cbc_GHB[:,:,:,l].sum()/sum(cMF.perlen)/sum(ncell_MM)))
-                    OutMF += flxlst[-1]
+                    flxlst.append(facTim*(cbc_GHB.sum()/sum(cMF.perlen)/sum(ncell_MM)))
+                    OutMF += -flxlst[-1]
+                    flxlbl_CATCH.append(r'$GHB_{%d}^{MF}$' % (l+1))
+                    array_tmp1 = np.sum(np.ma.masked_values(cbc_GHB, cMF.hnoflo, atol = 0.09), axis = 1)
+                    flx_Cat_TS.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
+                    del array_tmp1
                 else:
                     flxlst.append(0.0)
                 del cbc_GHB
-            h5_MF.close()
-            flxlbl_tex.append('$%s_{g,%d}$' % (cbc_nam_tex[index_cbc[0]], l+1))
+            flxlbl_tex.append(r'$%s_{g,%d}$' %(cbc_nam_tex[index_cbc[0]], l+1))
             for x in range(len(index_cbc_uzf)):
-                flxlbl_tex.append('$%s_{g,%d}$' % (cbc_uzf_nam_tex[index_cbc_uzf[x]], l+1))
+                flxlbl_tex.append(r'$%s_{g,%d}$' % (cbc_uzf_nam_tex[index_cbc_uzf[x]], l+1))
             for x in range(1,len(index_cbc)):
-                flxlbl_tex.append('$%s_{g,%d}$' % (cbc_nam_tex[index_cbc[x]], l+1))
-        colors_flx = CreateColors.main(hi=0, hf=180, numbcolors = len(flxlbl_tex))
+                flxlbl_tex.append(r'$%s_{g,%d}$' % (cbc_nam_tex[index_cbc[x]], l+1))
+        flxmax1 = float(np.ceil(max(flxlst)))
+        flxmin1 = float(np.floor(min(flxlst)))
+        flxmax = axefact*max(flxmax, flxmax1)
+        flxmin = axefact*min(flxmin, flxmin1)
+        del flxlst_tmp, flxmax1, flxmin1
+        h5_MF.close()
+        MB_UZF = 100.0*(InUZF - OutUZF)/((InUZF+OutUZF)/2.0)
         MB_MF = 100.0*(InMF - OutMF)/((InMF+OutMF)/2.0)
-        # TODO cbcmax and cbcmin represent the max and min of the whole MF fluxes time series, not the max and min of the fluxes average
-        plt_title = 'MODFLOW water balance for the whole catchment\nMass balance error: MF = %1.2f%%' % (MB_MF)
-        try:
-            MMplot.plotGW(flxlst = flxlst, flxlbl = flxlbl_tex, colors_flx = colors_flx, plt_export_fn = plt_export_fn, plt_title = plt_title, fluxmax = cbcmax_d, fluxmin = cbcmin_d, unit = plt_WB_unit)
-        except:
-            print "\nError in plotting the water balance!"
-        del flxlst, MB_MF, InMF, OutMF
-
-    # #################################################
-    # EXPORT AT OBSERVATION POINTS
-    # exporting MM time series results to ASCII files and plots at observations cells
-    # #################################################
-    if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
-        print '\nExporting output time series plots and ASCII files at observation points...'
-        h5_MM = h5py.File(h5_MM_fn, 'r')
+        plt_title = 'MARMITES and MODFLOW water balance for the whole catchment\nMass balance error: MM = %1.2f%%, UZF = %1.2f%%, MF = %1.2f%%' % (MB_MM, MB_UZF, MB_MF)
+        header_tmp = ['MM_MB','UZF_MB','MF_MB']
+        MB_tmp = [MB_MM, MB_UZF,MB_MF]
+        rmseHEADS_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrSM_tmp, nseHEADS_tmp, nseSM_tmp, rHEADS_tmp, rSM_tmp = MMplot.plotTIMESERIES_CATCH(cMF, flx_Cat_TS, flxlbl_CATCH, plt_exportCATCH_fn, plt_titleCATCH, hmax = hmaxMF, hmin = hminMF, iniMonthHydroYear = iniMonthHydroYear, obs_catch = obs_catch, obs_catch_list = obs_catch_list, TopSoilAverage = TopSoilAverage, MF = 1)
+    else:
+        rmseHEADS_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrSM_tmp, nseHEADS_tmp, nseSM_tmp, rHEADS_tmp, rSM_tmp = MMplot.plotTIMESERIES_CATCH(cMF, flx_Cat_TS, flxlbl_CATCH, plt_exportCATCH_fn, plt_titleCATCH, hmax = hmaxMF, hmin = hminMF, iniMonthHydroYear = iniMonthHydroYear)
+        plt_export_fn = os.path.join(MM_ws_out, '_0CATCHMENT_WBs.png')
+        plt_title = 'MARMITES water balance for the whole catchment\nMass balance error: MM = %1.2f%%' % (MB_MM)
+        header_tmp = ['MM_MB']
+        MB_tmp = [MB_MM]
+    if rmseHEADS_tmp <> None:
+        rmseHEADS.append(rmseHEADS_tmp)
+        rsrHEADS.append(rsrHEADS_tmp)
+        nseHEADS.append(nseHEADS_tmp)
+        rHEADS.append(rHEADS_tmp)
+        obslstHEADS.append('catch.')
+    if rmseSM_tmp <> None:
+        rmseSM.append(rmseSM_tmp)
+        rsrSM.append(rsrSM_tmp)
+        nseSM.append(nseSM_tmp)
+        rSM.append(rSM_tmp)
+        obslstSM.append('catch.')
+    del rmseHEADS_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrSM_tmp, nseHEADS_tmp, nseSM_tmp, rHEADS_tmp, rSM_tmp
+    # export average time serie of fluxes in txt
+    plt_exportCATCH_txt = open(os.path.join(plt_exportCATCH_txt_fn), 'w')
+    flxlbl_CATCH_str = 'Date'
+    for e in flxlbl_CATCH:
+        flxlbl_CATCH_str += ',' + e
+    flxlbl_CATCH_str += ',%s' % '$hobs$'
+    flxlbl_CATCH_str += ',%s' % '$\\thetaobs$'
+    plt_exportCATCH_txt.write(flxlbl_CATCH_str)
+    plt_exportCATCH_txt.write('\n')
+    for t in range(len(cMF.inputDate)):
+        flx_Cat_TS_str = str(flx_Cat_TS[0][t])
+        for e in (flx_Cat_TS[1:]):
+            flx_Cat_TS_str += ',%s' % str(e[t])
+        if obs_catch_list[0] == 1:
+            flx_Cat_TS_str += ',%s' % (obs_catch.get('catch')['obs_h'][0][t])
+        else:
+            flx_Cat_TS_str += ',%s' % cMF.hnoflo
+        if obs_catch_list[1] == 1:
+            flx_Cat_TS_str += ',%s' % (obs_catch.get('catch')['obs_SM'][0][t])
+        else:
+            flx_Cat_TS_str += ',%s' % cMF.hnoflo
+        out_line = '%s,%s' % (mpl.dates.num2date(cMF.inputDate[t]).isoformat()[:10], flx_Cat_TS_str)
+        for l in out_line:
+            plt_exportCATCH_txt.write(l)
+        plt_exportCATCH_txt.write('\n')
+    plt_exportCATCH_txt.close()
+    del flx_Cat_TS, flx_Cat_TS_str, out_line
+    colors_flx = CreateColors.main(hi=0, hf=180, numbcolors = len(flxlbl_tex))
+    try:
+        MMplot.plotWB(flxlst = flxlst, flxlbl = flxlbl_tex, colors_flx = colors_flx, plt_export_fn = plt_export_fn, plt_title = plt_title, fluxmax = flxmax, fluxmin = flxmin, unit = plt_WB_unit)
+    except:
+        print "\nError in plotting the water balance!"
+    plt_export_txt = open(os.path.join(MM_ws_out, '_0CATCHMENT_WBsg.txt'), 'w')
+    flxlbl_str = flxlbl_tex[0]
+    for e in (flxlbl_tex[1:] + header_tmp):
+        flxlbl_str += ',%s' % e
+    flxlst_str = str(flxlst[0])
+    for e in (flxlst[1:] + MB_tmp):
+        flxlst_str += ',%s' % e
+    plt_export_txt.write(flxlbl_str)
+    plt_export_txt.write('\n')
+    plt_export_txt.write(flxlst_str)
+    plt_export_txt.close()
+    del flxlst, header_tmp, MB_tmp, flxlst_str
+    del flxmax_d, flxmin_d, flxmax, flxmin, flxlbl_CATCH, TopSoilAverage, i
+    del plt_exportCATCH_fn, plt_exportCATCH_txt_fn, plt_titleCATCH, InMM, OutMM, InMF, OutMF, MB_MM, MB_UZF, plt_export_fn, plt_title
+# no MM, plot only MF balance if MF exists
+elif os.path.exists(cMF.h5_MF_fn):
+    plt_export_fn = os.path.join(MM_ws_out, '_0CATCHMENT_WBg.png')
+    flxlbl_tex = []
+    flxlst = []
+    InMF = 0
+    OutMF = 0
+    for l in range(cMF.nlay):
         h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
-        colors_nsl = CreateColors.main(hi=00, hf=180, numbcolors = (_nslmax+1))
-        x = 0
-        flxlst = []
-        plt_exportBAL_fn  = []
-        plt_export_txt_fn = []
-        plt_titleBAL      = []
-        InOut_tmp             = []
-        for o_ref in obs_list:
-            for o in obs.keys():
-                if o == o_ref:
-                    i = obs.get(o)['i']
-                    j = obs.get(o)['j']
-                    l_obs = obs.get(o)['lay']
-                    obs_h = obs.get(o)['obs_h']
-                    obs_SM = obs.get(o)['obs_SM']
-                    outFileExport = open(obs.get(o)['outpathname'], 'w')
-                    outFileExport.write(header)
-                    SOILzone_tmp = gridSOIL[i,j]-1
-                    nsl = _nsl[SOILzone_tmp]
-                    soilnam = _nam_soil[SOILzone_tmp]
-                    slprop = _slprop[SOILzone_tmp]
-                    # thickness of soil layers
-                    Tl = list(gridSOILthick[i,j]*slprop)
-                    for ii, ll in enumerate(Tl):
-                        Tl[ii] = float('%.3f' % ll)
-                    MM = h5_MM['MM'][:,i,j,:]
-                    MM_S = h5_MM['MM_S'][:,i,j,:,:]
-                    # SATFLOW
-                    cbc_RCH = h5_MF['RCH_d']
-                    h_satflow = MM_SATFLOW.run(cbc_RCH[:,i,j,0], float(obs.get(o)['hi']),float(obs.get(o)['h0']),float(obs.get(o)['RC']),float(obs.get(o)['STO']))
-                    # export ASCII file at piezometers location
-                    #TODO extract heads at piezo location and not center of cell
-                    if obs_h != []:
-                        obs_h_tmp = obs_h[0,:]
-                    else:
-                        obs_h_tmp = []
-                    if cMF.wel_yn == 1:
-                        cbc_WEL = -1.0*np.sum(np.ma.masked_values(h5_MF['WEL_d'][:,i,j,:], cMF.hnoflo, atol = 0.09), axis = 1)
-                    else:
-                        cbc_WEL = 0
-                    if irr_yn == 0:
+        # GW_STO
+        cbc_STO = h5_MF['STO_d']
+        flxlst.append(facTim*(cbc_STO[:,:,:,l].sum()/sum(cMF.perlen)/sum(ncell_MM)))  # *-1
+        InMF += flxlst[-1]
+        del cbc_STO
+        # GW_RCH
+        cbc_RCH = h5_MF['RCH_d']
+        flxlst.append(facTim*(cbc_RCH[:,:,:,l].sum()/sum(cMF.perlen)/sum(ncell_MM)))
+        InMF += flxlst[-1]
+        del cbc_RCH
+        # EXF
+        cbc_EXF = h5_MF['EXF_d']
+        flxlst.append(facTim*(cbc_EXF[:,:,:,l].sum()/sum(cMF.perlen)/sum(ncell_MM)))
+        OutMF += flxlst[-1]
+        del cbc_EXF
+        if cMF.drn_yn == 1:
+            cbc_DRN = h5_MF['DRN_d']
+            if cMF.drncells[l]>0:
+                flxlst.append(facTim*(cbc_DRN[:,:,:,l].sum()/sum(cMF.perlen)/sum(ncell_MM)))
+                OutMF += flxlst[-1]
+            else:
+                flxlst.append(0.0)
+            del cbc_DRN
+        if cMF.wel_yn == 1:
+            cbc_WEL = h5_MF['WEL_d']
+            if ncell_MM[l]>0:
+                flxlst.append(-1.0*facTim*(cbc_WEL[:,:,:,l].sum()/sum(cMF.perlen)/sum(ncell_MM)))
+                OutMF += flxlst[-1]
+            else:
+                flxlst.append(0.0)
+            del cbc_WEL
+        if cMF.ghb_yn == 1:
+            cbc_GHB = h5_MF['GHB_d']
+            if cMF.ghbcells[l] > 0:
+                flxlst.append(facTim*(cbc_GHB[:,:,:,l].sum()/sum(cMF.perlen)/sum(ncell_MM)))
+                OutMF += flxlst[-1]
+            else:
+                flxlst.append(0.0)
+            del cbc_GHB
+        h5_MF.close()
+        flxlbl_tex.append('$%s_{g,%d}$' % (cbc_nam_tex[index_cbc[0]], l+1))
+        for x in range(len(index_cbc_uzf)):
+            flxlbl_tex.append('$%s_{g,%d}$' % (cbc_uzf_nam_tex[index_cbc_uzf[x]], l+1))
+        for x in range(1,len(index_cbc)):
+            flxlbl_tex.append('$%s_{g,%d}$' % (cbc_nam_tex[index_cbc[x]], l+1))
+    colors_flx = CreateColors.main(hi=0, hf=180, numbcolors = len(flxlbl_tex))
+    MB_MF = 100.0*(InMF - OutMF)/((InMF+OutMF)/2.0)
+    # TODO cbcmax and cbcmin represent the max and min of the whole MF fluxes time series, not the max and min of the fluxes average
+    plt_title = 'MODFLOW water balance for the whole catchment\nMass balance error: MF = %1.2f%%' % (MB_MF)
+    try:
+        MMplot.plotGW(flxlst = flxlst, flxlbl = flxlbl_tex, colors_flx = colors_flx, plt_export_fn = plt_export_fn, plt_title = plt_title, fluxmax = cbcmax_d, fluxmin = cbcmin_d, unit = plt_WB_unit)
+    except:
+        print "\nError in plotting the water balance!"
+    del flxlst, MB_MF, InMF, OutMF
+
+# #################################################
+# EXPORT AT OBSERVATION POINTS
+# exporting MM time series results to ASCII files and plots at observations cells
+# #################################################
+if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
+    print '\nExporting output time series plots and ASCII files at observation points...'
+    h5_MM = h5py.File(h5_MM_fn, 'r')
+    h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
+    colors_nsl = CreateColors.main(hi=00, hf=180, numbcolors = (_nslmax+1))
+    x = 0
+    flxlst = []
+    plt_exportBAL_fn  = []
+    plt_export_txt_fn = []
+    plt_titleBAL      = []
+    InOut_tmp             = []
+    for o_ref in obs_list:
+        for o in obs.keys():
+            if o == o_ref:
+                i = obs.get(o)['i']
+                j = obs.get(o)['j']
+                l_obs = obs.get(o)['lay']
+                obs_h = obs.get(o)['obs_h']
+                obs_SM = obs.get(o)['obs_SM']
+                outFileExport = open(obs.get(o)['outpathname'], 'w')
+                outFileExport.write(header)
+                SOILzone_tmp = gridSOIL[i,j]-1
+                nsl = _nsl[SOILzone_tmp]
+                soilnam = _nam_soil[SOILzone_tmp]
+                slprop = _slprop[SOILzone_tmp]
+                # thickness of soil layers
+                Tl = list(gridSOILthick[i,j]*slprop)
+                for ii, ll in enumerate(Tl):
+                    Tl[ii] = float('%.3f' % ll)
+                MM = h5_MM['MM'][:,i,j,:]
+                MM_S = h5_MM['MM_S'][:,i,j,:,:]
+                # SATFLOW
+                cbc_RCH = h5_MF['RCH_d']
+                h_satflow = MM_SATFLOW.run(cbc_RCH[:,i,j,0], float(obs.get(o)['hi']),float(obs.get(o)['h0']),float(obs.get(o)['RC']),float(obs.get(o)['STO']))
+                # export ASCII file at piezometers location
+                #TODO extract heads at piezo location and not center of cell
+                if obs_h != []:
+                    obs_h_tmp = obs_h[0,:]
+                else:
+                    obs_h_tmp = []
+                if cMF.wel_yn == 1:
+                    cbc_WEL = -1.0*np.sum(np.ma.masked_values(h5_MF['WEL_d'][:,i,j,:], cMF.hnoflo, atol = 0.09), axis = 1)
+                else:
+                    cbc_WEL = 0
+                if irr_yn == 0:
+                    index_veg = np.ones((NVEG, sum(cMF.perlen)), dtype = float)
+                    for v in range(NVEG):
+                        index_veg[v] = cMF.LAI_veg_d[gridMETEO[i,j]-1,v,:]*gridVEGarea[v,i,j]
+                    index_veg = (np.sum(index_veg, axis = 0) > 0.0)*(-1)
+                else:
+                    IRRfield = gridIRR[i,j]
+                    if IRRfield == 0:
                         index_veg = np.ones((NVEG, sum(cMF.perlen)), dtype = float)
                         for v in range(NVEG):
                             index_veg[v] = cMF.LAI_veg_d[gridMETEO[i,j]-1,v,:]*gridVEGarea[v,i,j]
                         index_veg = (np.sum(index_veg, axis = 0) > 0.0)*(-1)
                     else:
-                        IRRfield = gridIRR[i,j]
-                        if IRRfield == 0:
-                            index_veg = np.ones((NVEG, sum(cMF.perlen)), dtype = float)
-                            for v in range(NVEG):
-                                index_veg[v] = cMF.LAI_veg_d[gridMETEO[i,j]-1,v,:]*gridVEGarea[v,i,j]
-                            index_veg = (np.sum(index_veg, axis = 0) > 0.0)*(-1)
-                        else:
-                            index_veg = cMF.crop_irr_d[gridMETEO[i,j]-1, IRRfield-1,:]
-                    # Export time series results at observations points as ASCII file
-                    cMF.MM_PROCESS.ExportResultsMM(i, j, cMF.inputDate, SP_d, _nslmax, MM, index, MM_S, index_S, cbc_RCH[:,i,j,0], cbc_WEL, h_satflow, h_MF_m[:,i,j,l_obs], obs_h_tmp, obs_SM, index_veg, outFileExport, o)
-                    del cbc_WEL
-                    outFileExport.close()
-                    # plot time series results as plot
-                    plt_title = 'Time serie of fluxes at observation point %s\ni = %d, j = %d, l = %d, x = %.2f, y = %.2f, elev. = %.2f, %s\nSm = %s, Sfc = %s, Sr = %s, Ks = %s, thick. = %.3f %s' % (o, i+1, j+1, l_obs+1, obs.get(o)['x'], obs.get(o)['y'], cMF.elev[i,j], soilnam, _Sm[SOILzone_tmp], _Sfc[SOILzone_tmp], _Sr[SOILzone_tmp], _Ks[SOILzone_tmp], gridSOILthick[i,j], Tl)
-                    # index = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSsurf':4, 'iRo':5, 'iEXF':6, 'iEsurf':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSsurf':13, 'iETg':14, 'iETsoil':15, 'iSsoil_pc':16, 'idSsoil':17, 'iinf':18, 'iHEADScorr':19, 'idgwt':20, 'iuzthick':21}
-                    # index_S = {'iEsoil':0, 'iTsoil':1,'iSsoil_pc':2, 'iRp':3, 'iRexf':4, 'idSsoil':5, 'iSsoil':6, 'iSAT':7, 'iMB_l':8}
-                    plt_export_fn = os.path.join(MM_ws_out, '_0'+ o + '_ts.png')
-                    # def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, EXF, ETg, Es, MB, MB_l, dgwt, SAT, R, h_MF, h_MF_corr, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin):
-                    rmseHEADS_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrSM_tmp, nseHEADS_tmp, nseSM_tmp, rHEADS_tmp, rSM_tmp = MMplot.plotTIMESERIES(
-                    cMF.inputDate,
-                    MM[:,index.get('iRF')],
-                    MM[:,index.get('iPT')],
-                    MM[:,index.get('iPE')],
-                    MM[:,index.get('iRFe')],
-                    -MM[:,index.get('idSsurf')],
-                    MM[:,index.get('iSsurf')],
-                    MM[:,index.get('iRo')],
-                    MM_S[:,0:nsl,index_S.get('iEsoil')],
-                    MM_S[:,0:nsl,index_S.get('iTsoil')],
-                    MM[:,index.get('iEg')],
-                    MM[:,index.get('iTg')],
-                    MM_S[:,0:nsl,index_S.get('iSsoil')],
-                    MM_S[:,0:nsl,index_S.get('idSsoil')],
-                    MM_S[:,0:nsl,index_S.get('iSsoil_pc')],
-                    MM_S[:,0:nsl,index_S.get('iRp')],
-                    MM[:,index.get('iEXF')],
-                    -MM[:,index.get('iETg')],
-                    MM[:,index.get('iEsurf')],
-                    MM[:,index.get('iMB')],
-                    MM_S[:,0:nsl,index_S.get('iMB_l')],
-                    MM[:,index.get('idgwt')],
-                    MM[:,index.get('iuzthick')],
-                    MM_S[:,0:nsl,index_S.get('iSAT')],
-                    cbc_RCH[:,i,j,l_obs],
-                    h_MF_m[:,i,j,:], MM[:,index.get('iHEADScorr')], h_satflow, obs_h_tmp, obs_SM,
-                    _Sm[gridSOIL[i,j]-1],
-                    _Sr[gridSOIL[i,j]-1],
-                    cMF.hnoflo,
-                    plt_export_fn,
-                    plt_title,
-                    colors_nsl,
-                    max(hmax), #hmax[x] + hdiff/2
-                    min(hmin), #hmin[x] - hdiff/2
-                    o,
-                    cMF.elev[i,j],
-                    cMF.nlay,
-                    l_obs,
-                    nsl,
-                    iniMonthHydroYear
-                    )
-                    if rmseHEADS_tmp <> None:
-                        rmseHEADS.append(rmseHEADS_tmp)
-                        rsrHEADS.append(rsrHEADS_tmp)
-                        nseHEADS.append(nseHEADS_tmp)
-                        rHEADS.append(rHEADS_tmp)
-                        obslstHEADS.append(o)
-                    if rmseSM_tmp <> None:
-                        rmseSM.append(rmseSM_tmp)
-                        rsrSM.append(rsrSM_tmp)
-                        nseSM.append(nseSM_tmp)
-                        rSM.append(rSM_tmp)
-                        obslstSM.append(o)
-                    del rmseHEADS_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrSM_tmp, nseHEADS_tmp, nseSM_tmp, rHEADS_tmp, rSM_tmp
-                    x += 1
-                    # plot water balance at each obs. cell
-                    #flxlbl   = ['RF', 'I', 'dSs', 'Ro', 'Es', 'dS', 'EXF']
-                    #flxlbl1  = ['Eu', 'Tu']
-                    #flxlbl2  = ['ETu', 'Eg']
-                    #flxlbl3  = ['Tg']
-                    #flxlbl3a = ['ETg']
-                    #flxlbl4  = ['Rp']
-                    flxlst.append([
-                         facTim*(MM[:,index.get('iRF')].sum()/sum(cMF.perlen)),
-                        -1.0*facTim*(MM[:,index.get('iI')].sum()/sum(cMF.perlen)),
-                         facTim*(MM[:,index.get('iRFe')].sum()/sum(cMF.perlen)),
-                        -1.0*facTim*(MM[:,index.get('idSsurf')].sum()/sum(cMF.perlen)),
-                         -1.0*facTim*(MM[:,index.get('iRo')].sum()/sum(cMF.perlen)),
-                        -1.0*facTim*(MM[:,index.get('iEsurf')].sum()/sum(cMF.perlen)),
-                         facTim*(MM[:,index.get('idSsoil')].sum()/sum(cMF.perlen)),
-                         facTim*(MM[:,index.get('iEXF')].sum()/sum(cMF.perlen)),
-                        -1.0*facTim*(MM_S[:,:,index_S.get('iEsoil')].sum()/sum(cMF.perlen)),
-                        -1.0*facTim*(MM_S[:,:,index_S.get('iTsoil')].sum()/sum(cMF.perlen)),
-                        -1.0*facTim*(MM[:,index.get('iETsoil')].sum()/sum(cMF.perlen)),
-                        -1.0*facTim*(MM[:,index.get('iEg')].sum()/sum(cMF.perlen)),
-                        -1.0*facTim*(MM[:,index.get('iTg')].sum()/sum(cMF.perlen)),
-                        -1.0*facTim*(MM[:,index.get('iETg')].sum()/sum(cMF.perlen)),
-                        -1.0*facTim*conv_fact*((h5_MM['finf_d'][:,i,j]).sum()/sum(cMF.perlen))
-                        ])
-                    InMM = flxlst[-1][0] + flxlst[-1][3] + flxlst[-1][6] + flxlst[-1][7]
-                    OutMM = -(flxlst[-1][1] + flxlst[-1][4] + flxlst[-1][5] + flxlst[-1][10] + flxlst[-1][14])
-                    InOut_MM = InMM - OutMM
-                    InOut_tmp.append([InOut_MM])
-                    if isinstance(cMF.h5_MF_fn, str):
-                        plt_exportBAL_fn.append(os.path.join(MM_ws_out, '_0'+ o + '_WBsg.png'))
-                        plt_export_txt_fn.append(os.path.join(MM_ws_out, '_0'+ o + '_WBsg.txt'))
-                        # compute UZF_STO and store GW_RCH
-                        rch_tmp = 0
-                        flxlst_tmp = []
-                        for l in range(cMF.nlay):
-                            rch_tmp1 = facTim*(cbc_RCH[:,i,j,l].sum()/sum(cMF.perlen))
-                            flxlst_tmp.append(rch_tmp1)
-                            rch_tmp += rch_tmp1
-                        flxlst[-1].append(-rch_tmp + facTim*conv_fact*((h5_MM['finf_d'][:,i,j]).sum()/sum(cMF.perlen)))
-                        del rch_tmp, rch_tmp1, cbc_RCH
-                        InUZF = -flxlst[-1][14] - flxlst[-1][15]
-                        OutUZF = 0
-                        InMF = 0
-                        OutMF = 0
-                        for l in range(cMF.nlay):
-                            # GW STO
-                            cbc_STO = h5_MF['STO_d']
-                            flxlst[-1].append(facTim*(cbc_STO[:,i,j,l].sum()/sum(cMF.perlen)))    # -1*
-                            InMF += flxlst[-1][-1]
-                            del cbc_STO
-                            # GW_RCH
-                            flxlst[-1].append(flxlst_tmp[l])
-                            OutUZF += flxlst_tmp[l]
-                            InMF += flxlst_tmp[l]
-                            # EXF
-                            h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
-                            cbc_EXF = h5_MF['EXF_d']
-                            flxlst[-1].append(facTim*(cbc_EXF[:,i,j,l].sum()/sum(cMF.perlen)))
+                        index_veg = cMF.crop_irr_d[gridMETEO[i,j]-1, IRRfield-1,:]
+                # Export time series results at observations points as ASCII file
+                cMF.cPROCESS.ExportResultsMM(i, j, cMF.inputDate, SP_d, _nslmax, MM, index, MM_S, index_S, cbc_RCH[:,i,j,0], cbc_WEL, h_satflow, h_MF_m[:,i,j,l_obs], obs_h_tmp, obs_SM, index_veg, outFileExport, o)
+                del cbc_WEL
+                outFileExport.close()
+                # plot time series results as plot
+                plt_title = 'Time serie of fluxes at observation point %s\ni = %d, j = %d, l = %d, x = %.2f, y = %.2f, elev. = %.2f, %s\nSm = %s, Sfc = %s, Sr = %s, Ks = %s, thick. = %.3f %s' % (o, i+1, j+1, l_obs+1, obs.get(o)['x'], obs.get(o)['y'], cMF.elev[i,j], soilnam, _Sm[SOILzone_tmp], _Sfc[SOILzone_tmp], _Sr[SOILzone_tmp], _Ks[SOILzone_tmp], gridSOILthick[i,j], Tl)
+                # index = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSsurf':4, 'iRo':5, 'iEXF':6, 'iEsurf':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSsurf':13, 'iETg':14, 'iETsoil':15, 'iSsoil_pc':16, 'idSsoil':17, 'iinf':18, 'iHEADScorr':19, 'idgwt':20, 'iuzthick':21}
+                # index_S = {'iEsoil':0, 'iTsoil':1,'iSsoil_pc':2, 'iRp':3, 'iRexf':4, 'idSsoil':5, 'iSsoil':6, 'iSAT':7, 'iMB_l':8}
+                plt_export_fn = os.path.join(MM_ws_out, '_0'+ o + '_ts.png')
+                # def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, EXF, ETg, Es, MB, MB_l, dgwt, SAT, R, h_MF, h_MF_corr, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin):
+                MMplot.plotTIMESERIES(
+                cMF,
+                MM[:,index.get('iRF')],
+                MM[:,index.get('iPT')],
+                MM[:,index.get('iPE')],
+                MM[:,index.get('iRFe')],
+                -MM[:,index.get('idSsurf')],
+                MM[:,index.get('iSsurf')],
+                MM[:,index.get('iRo')],
+                MM_S[:,0:nsl,index_S.get('iEsoil')],
+                MM_S[:,0:nsl,index_S.get('iTsoil')],
+                MM[:,index.get('iEg')],
+                MM[:,index.get('iTg')],
+                MM_S[:,0:nsl,index_S.get('iSsoil')],
+                MM_S[:,0:nsl,index_S.get('idSsoil')],
+                MM_S[:,0:nsl,index_S.get('iSsoil_pc')],
+                MM_S[:,0:nsl,index_S.get('iRp')],
+                MM[:,index.get('iEXF')],
+                -MM[:,index.get('iETg')],
+                MM[:,index.get('iEsurf')],
+                MM[:,index.get('iMB')],
+                MM_S[:,0:nsl,index_S.get('iMB_l')],
+                MM[:,index.get('idgwt')],
+                MM[:,index.get('iuzthick')],
+                MM_S[:,0:nsl,index_S.get('iSAT')],
+                cbc_RCH[:,i,j,l_obs],
+                h_MF_m[:,i,j,:], MM[:,index.get('iHEADScorr')], h_satflow, obs_h_tmp, obs_SM,
+                _Sm[gridSOIL[i,j]-1],
+                _Sr[gridSOIL[i,j]-1],
+                cMF.hnoflo,
+                plt_export_fn,
+                plt_title,
+                colors_nsl,
+                max(hmax), #hmax[x] + hdiff/2
+                min(hmin), #hmin[x] - hdiff/2
+                o,
+                cMF.elev[i,j],
+                cMF.nlay,
+                l_obs,
+                nsl,
+                iniMonthHydroYear
+                )
+                x += 1
+                # plot water balance at each obs. cell
+                #flxlbl   = ['RF', 'I', 'dSs', 'Ro', 'Es', 'dS', 'EXF']
+                #flxlbl1  = ['Eu', 'Tu']
+                #flxlbl2  = ['ETu', 'Eg']
+                #flxlbl3  = ['Tg']
+                #flxlbl3a = ['ETg']
+                #flxlbl4  = ['Rp']
+                flxlst.append([
+                     facTim*(MM[:,index.get('iRF')].sum()/sum(cMF.perlen)),
+                    -1.0*facTim*(MM[:,index.get('iI')].sum()/sum(cMF.perlen)),
+                     facTim*(MM[:,index.get('iRFe')].sum()/sum(cMF.perlen)),
+                    -1.0*facTim*(MM[:,index.get('idSsurf')].sum()/sum(cMF.perlen)),
+                     -1.0*facTim*(MM[:,index.get('iRo')].sum()/sum(cMF.perlen)),
+                    -1.0*facTim*(MM[:,index.get('iEsurf')].sum()/sum(cMF.perlen)),
+                     facTim*(MM[:,index.get('idSsoil')].sum()/sum(cMF.perlen)),
+                     facTim*(MM[:,index.get('iEXF')].sum()/sum(cMF.perlen)),
+                    -1.0*facTim*(MM_S[:,:,index_S.get('iEsoil')].sum()/sum(cMF.perlen)),
+                    -1.0*facTim*(MM_S[:,:,index_S.get('iTsoil')].sum()/sum(cMF.perlen)),
+                    -1.0*facTim*(MM[:,index.get('iETsoil')].sum()/sum(cMF.perlen)),
+                    -1.0*facTim*(MM[:,index.get('iEg')].sum()/sum(cMF.perlen)),
+                    -1.0*facTim*(MM[:,index.get('iTg')].sum()/sum(cMF.perlen)),
+                    -1.0*facTim*(MM[:,index.get('iETg')].sum()/sum(cMF.perlen)),
+                    -1.0*facTim*conv_fact*((h5_MM['finf_d'][:,i,j]).sum()/sum(cMF.perlen))
+                    ])
+                InMM = flxlst[-1][0] + flxlst[-1][3] + flxlst[-1][6] + flxlst[-1][7]
+                OutMM = -(flxlst[-1][1] + flxlst[-1][4] + flxlst[-1][5] + flxlst[-1][10] + flxlst[-1][14])
+                InOut_MM = InMM - OutMM
+                InOut_tmp.append([InOut_MM])
+                if isinstance(cMF.h5_MF_fn, str):
+                    plt_exportBAL_fn.append(os.path.join(MM_ws_out, '_0'+ o + '_WBsg.png'))
+                    plt_export_txt_fn.append(os.path.join(MM_ws_out, '_0'+ o + '_WBsg.txt'))
+                    # compute UZF_STO and store GW_RCH
+                    rch_tmp = 0
+                    flxlst_tmp = []
+                    for l in range(cMF.nlay):
+                        rch_tmp1 = facTim*(cbc_RCH[:,i,j,l].sum()/sum(cMF.perlen))
+                        flxlst_tmp.append(rch_tmp1)
+                        rch_tmp += rch_tmp1
+                    flxlst[-1].append(-rch_tmp + facTim*conv_fact*((h5_MM['finf_d'][:,i,j]).sum()/sum(cMF.perlen)))
+                    del rch_tmp, rch_tmp1, cbc_RCH
+                    InUZF = -flxlst[-1][14] - flxlst[-1][15]
+                    OutUZF = 0
+                    InMF = 0
+                    OutMF = 0
+                    for l in range(cMF.nlay):
+                        # GW STO
+                        cbc_STO = h5_MF['STO_d']
+                        flxlst[-1].append(facTim*(cbc_STO[:,i,j,l].sum()/sum(cMF.perlen)))    # -1*
+                        InMF += flxlst[-1][-1]
+                        del cbc_STO
+                        # GW_RCH
+                        flxlst[-1].append(flxlst_tmp[l])
+                        OutUZF += flxlst_tmp[l]
+                        InMF += flxlst_tmp[l]
+                        # EXF
+                        h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
+                        cbc_EXF = h5_MF['EXF_d']
+                        flxlst[-1].append(facTim*(cbc_EXF[:,i,j,l].sum()/sum(cMF.perlen)))
+                        OutMF += -flxlst[-1][-1]
+                        del cbc_EXF
+                        if cMF.drn_yn == 1:
+                            cbc_DRN = h5_MF['DRN_d']
+                            flxlst[-1].append(facTim*(cbc_DRN[:,i,j,l].sum()/sum(cMF.perlen)))
                             OutMF += -flxlst[-1][-1]
-                            del cbc_EXF
-                            if cMF.drn_yn == 1:
-                                cbc_DRN = h5_MF['DRN_d']
-                                flxlst[-1].append(facTim*(cbc_DRN[:,i,j,l].sum()/sum(cMF.perlen)))
-                                OutMF += -flxlst[-1][-1]
-                                del cbc_DRN
-                            if cMF.wel_yn == 1:
-                                cbc_WEL = h5_MF['WEL_d']
-                                flxlst[-1].append(facTim*(cbc_WEL[:,i,j,l].sum()/sum(cMF.perlen)))
-                                OutMF += -1.0*flxlst[-1][-1]
-                                del cbc_WEL
-                            if cMF.ghb_yn == 1:
-                                cbc_GHB = h5_MF['GHB_d']
-                                flxlst[-1].append(facTim*(cbc_GHB[:,i,j,l].sum()/sum(cMF.perlen)))
-                                OutMF += -flxlst[-1][-1]
-                                del cbc_GHB
-                        InOut_UZF = InUZF - OutUZF
-                        InOut_tmp[-1].append(InOut_UZF)
-                        InOut_MF = InMF - OutMF
-                        InOut_tmp[-1].append(InOut_MF)
-                        plt_title = 'MARMITES and MODFLOW water flux balance at observation point %s\ni = %d, j = %d, l = %d, x = %d, y = %d, %s\n\nMass balance (In - Out,  [mm]): MM = %1.2f, UZF = %1.2f, MF = %1.2f' % (o, i+1, j+1, l_obs+1, obs.get(o)['x'], obs.get(o)['y'], soilnam, InOut_MM, InOut_UZF, InOut_MF)
-                        plt_titleBAL.append(plt_title)
-                        del flxlst_tmp, plt_title
-                    else:
-                        plt_exportBAL_fn.append(os.path.join(MM_ws_out, '_0'+ o + '_WBs.png'))
-                        plt_export_txt_fn.append(os.path.join(MM_ws_out, '_0' + o + '_WBs.txt'), 'w')
-                        plt_title = 'MARMITES water flux balance at observation point %s\ni = %d, j = %d, l = %d, x = %d, y = %d, %s\n\nMass balance (In - Out,  [mm]): MM = %1.2f' % (o, i+1, j+1, l_obs+1, obs.get(o)['x'], obs.get(o)['y'], soilnam, InOut_MM)
-                        plt_titleBAL.append(plt_title)
-                        del plt_title
-                    del obs_h, obs_SM
-        flxmax = axefact*float(np.ceil(np.asarray(flxlst).max()))
-        flxmin = axefact*float(np.floor(np.asarray(flxlst).min()))
-        for l, (lst, fn, title, fn_txt, InOut) in enumerate(zip(flxlst, plt_exportBAL_fn, plt_titleBAL, plt_export_txt_fn, InOut_tmp)):
-            try:
-                MMplot.plotWB(flxlst = lst, flxlbl = flxlbl_tex, colors_flx = colors_flx, plt_export_fn = fn, plt_title = title, fluxmax = flxmax, fluxmin = flxmin, unit = plt_WB_unit)
-            except:
-                print "\nError in plotting the water balance!"
-            plt_export_txt = open(fn_txt, 'w')
-            flxlst_str = str(lst[0])
-            for e in (lst[1:]  + InOut):
-                flxlst_str += ',' + str(e)
-            plt_export_txt.write(flxlbl_str)
-            plt_export_txt.write('\n')
-            plt_export_txt.write(flxlst_str)
-            plt_export_txt.close()
-        del flxlst, flxlbl_tex, flxlbl_str, InOut_tmp
-        del h_satflow, MM, MM_S
-        del i, j, l_obs, SOILzone_tmp, outFileExport, nsl, soilnam, slprop, Tl, plt_export_fn, InMM, OutMM, InUZF, OutUZF, plt_titleBAL, plt_exportBAL_fn, colors_flx
-        h5_MM.close()
-        h5_MF.close()
-        del obs
-        # calibration criteria plotting
-        # RMSE, RSR, Nash-Sutcliffe efficiency NSE, Pearson's correlation coefficient r
-        # Moriasi et al, 2007, ASABE 50(3):885-900
-        for cc, (indexSM, indexHEADS, index, title, indexSMmax, indexHEADSmax, ymin, units) in enumerate(zip([rmseSM, rsrSM, nseSM, rSM], [rmseHEADS, rsrHEADS, nseHEADS, rHEADS], ['RMSE', 'RSR', 'NSE', 'r'], ['Root mean square error', 'Root mean square error - observations standard deviation ratio', 'Nash-Sutcliffe efficiency', "Pearson's correlation coefficient"], [rmseSMmax, None, 1.0, 1.0], [rmseHEADSmax, None, 1.0, 1.0], [0, 0, None, -1.0], [['($m$)', '($\%%wc$)'], ['',''], ['',''], ['','']])):
-            MMplot.plotFITTINGindex(indexSM = indexSM, indexSMobslst = obslstSM, indexHEADS = indexHEADS, indexHEADSobslst = obslstHEADS, plt_export_fn = os.path.join(MM_ws_out, '__plt_calibcrit%s.png'% index), plt_title = 'Calibration criteria between simulated and observed state variables\n%s'%title, index = index, indexSMmax = indexSMmax, indexHEADSmax = indexHEADSmax, ymin = ymin, units = units)
-        print '-------\nRMSE/RSR/NSE/r averaged of the obs. pts. (except catch.)'
-        for cc, (rmse, rsr, nse, r, obslst, msg) in enumerate(zip([rmseSM,rmseHEADS],[rsrSM,rsrHEADS],[nseSM,nseHEADS],[rSM,rHEADS],[obslstSM,obslstHEADS],['SM (all layers):','h:'])):
-            if obslst[0] == 'catch.' and len(rmse)> 1:
-                rmseaverage = list(itertools.chain.from_iterable(rmse[1:]))
-                rsraverage = list(itertools.chain.from_iterable(rsr[1:]))
-                nseaverage = list(itertools.chain.from_iterable(nse[1:]))
-                raverage = list(itertools.chain.from_iterable(r[1:]))
-                numobs = len(obslst[1:])
+                            del cbc_DRN
+                        if cMF.wel_yn == 1:
+                            cbc_WEL = h5_MF['WEL_d']
+                            flxlst[-1].append(facTim*(cbc_WEL[:,i,j,l].sum()/sum(cMF.perlen)))
+                            OutMF += -1.0*flxlst[-1][-1]
+                            del cbc_WEL
+                        if cMF.ghb_yn == 1:
+                            cbc_GHB = h5_MF['GHB_d']
+                            flxlst[-1].append(facTim*(cbc_GHB[:,i,j,l].sum()/sum(cMF.perlen)))
+                            OutMF += -flxlst[-1][-1]
+                            del cbc_GHB
+                    InOut_UZF = InUZF - OutUZF
+                    InOut_tmp[-1].append(InOut_UZF)
+                    InOut_MF = InMF - OutMF
+                    InOut_tmp[-1].append(InOut_MF)
+                    plt_title = 'MARMITES and MODFLOW water flux balance at observation point %s\ni = %d, j = %d, l = %d, x = %d, y = %d, %s\n\nMass balance (In - Out,  [mm]): MM = %1.2f, UZF = %1.2f, MF = %1.2f' % (o, i+1, j+1, l_obs+1, obs.get(o)['x'], obs.get(o)['y'], soilnam, InOut_MM, InOut_UZF, InOut_MF)
+                    plt_titleBAL.append(plt_title)
+                    del flxlst_tmp, plt_title
+                else:
+                    plt_exportBAL_fn.append(os.path.join(MM_ws_out, '_0'+ o + '_WBs.png'))
+                    plt_export_txt_fn.append(os.path.join(MM_ws_out, '_0' + o + '_WBs.txt'), 'w')
+                    plt_title = 'MARMITES water flux balance at observation point %s\ni = %d, j = %d, l = %d, x = %d, y = %d, %s\n\nMass balance (In - Out,  [mm]): MM = %1.2f' % (o, i+1, j+1, l_obs+1, obs.get(o)['x'], obs.get(o)['y'], soilnam, InOut_MM)
+                    plt_titleBAL.append(plt_title)
+                    del plt_title
+                del obs_h, obs_SM
+    flxmax = axefact*float(np.ceil(np.asarray(flxlst).max()))
+    flxmin = axefact*float(np.floor(np.asarray(flxlst).min()))
+    for l, (lst, fn, title, fn_txt, InOut) in enumerate(zip(flxlst, plt_exportBAL_fn, plt_titleBAL, plt_export_txt_fn, InOut_tmp)):
+        try:
+            MMplot.plotWB(flxlst = lst, flxlbl = flxlbl_tex, colors_flx = colors_flx, plt_export_fn = fn, plt_title = title, fluxmax = flxmax, fluxmin = flxmin, unit = plt_WB_unit)
+        except:
+            print "\nError in plotting the water balance!"
+        plt_export_txt = open(fn_txt, 'w')
+        flxlst_str = str(lst[0])
+        for e in (lst[1:]  + InOut):
+            flxlst_str += ',' + str(e)
+        plt_export_txt.write(flxlbl_str)
+        plt_export_txt.write('\n')
+        plt_export_txt.write(flxlst_str)
+        plt_export_txt.close()
+    del flxlst, flxlbl_tex, flxlbl_str, InOut_tmp
+    del h_satflow, MM, MM_S
+    del i, j, l_obs, SOILzone_tmp, outFileExport, nsl, soilnam, slprop, Tl, plt_export_fn, InMM, OutMM, InUZF, OutUZF, plt_titleBAL, plt_exportBAL_fn, colors_flx
+    h5_MM.close()
+    h5_MF.close()
+    del obs
+# calibration criteria
+# RMSE, RSR, Nash-Sutcliffe efficiency NSE, Pearson's correlation coefficient r
+# Moriasi et al, 2007, ASABE 50(3):885-900
+h5_MM = h5py.File(h5_MM_fn, 'r')
+for o_ref in obs_list:
+    for o in obs.keys():
+        if o == o_ref:
+            i = obs.get(o)['i']
+            j = obs.get(o)['j']
+            obs_h = obs.get(o)['obs_h']
+            obs_SM = obs.get(o)['obs_SM']
+            SOILzone_tmp = gridSOIL[i,j]-1
+            nsl = _nsl[SOILzone_tmp]
+            MM_S = h5_MM['MM_S'][:,i,j,:,:]
+            if obs_h != []:
+                obs_h_tmp = obs_h[0,:]
             else:
-                rmseaverage = list(itertools.chain.from_iterable(rmse))
-                rsraverage = list(itertools.chain.from_iterable(rsr))
-                nseaverage = list(itertools.chain.from_iterable(nse))
-                raverage = list(itertools.chain.from_iterable(r))
-                numobs = len(obslst)
-            if len(rmse)> 1:
-                rmseaverage = sum(rmseaverage)/float(len(rmseaverage))
-                rsraverage = sum(rsraverage)/float(len(rsraverage))
-                nseaverage = sum(nseaverage)/float(len(nseaverage))
-                raverage = sum(raverage)/float(len(raverage))
-                print '%s %.1f %% / %.2f / %.2f / %.2f (%d obs. points)' % (msg, rmseaverage, rsraverage, nseaverage, raverage, numobs)
+                obs_h_tmp = []
+            rmseHEADS_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrSM_tmp, nseHEADS_tmp, nseSM_tmp, rHEADS_tmp, rSM_tmp = cMF.cPROCESS.compCalibCrit(MM_S[:,0:nsl,index_S.get('iSsoil_pc')], h_MF_m[:,i,j,:], obs_SM, obs_h_tmp, cMF.hnoflo, o, nsl)
+            if rmseHEADS_tmp <> None:
+                rmseHEADS.append(rmseHEADS_tmp)
+                rsrHEADS.append(rsrHEADS_tmp)
+                nseHEADS.append(nseHEADS_tmp)
+                rHEADS.append(rHEADS_tmp)
+                obslstHEADS.append(o)
+            if rmseSM_tmp <> None:
+                rmseSM.append(rmseSM_tmp)
+                rsrSM.append(rsrSM_tmp)
+                nseSM.append(nseSM_tmp)
+                rSM.append(rSM_tmp)
+                obslstSM.append(o)
+            del rmseHEADS_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrSM_tmp, nseHEADS_tmp, nseSM_tmp, rHEADS_tmp, rSM_tmp
+for cc, (indexSM, indexHEADS, index, title, indexSMmax, indexHEADSmax, ymin, units) in enumerate(zip([rmseSM, rsrSM, nseSM, rSM], [rmseHEADS, rsrHEADS, nseHEADS, rHEADS], ['RMSE', 'RSR', 'NSE', 'r'], ['Root mean square error', 'Root mean square error - observations standard deviation ratio', 'Nash-Sutcliffe efficiency', "Pearson's correlation coefficient"], [rmseSMmax, None, 1.0, 1.0], [rmseHEADSmax, None, 1.0, 1.0], [0, 0, None, -1.0], [['($m$)', '($\%%wc$)'], ['',''], ['',''], ['','']])):
+    MMplot.plotFITTINGindex(indexSM = indexSM, indexSMobslst = obslstSM, indexHEADS = indexHEADS, indexHEADSobslst = obslstHEADS, plt_export_fn = os.path.join(MM_ws_out, '__plt_calibcrit%s.png'% index), plt_title = 'Calibration criteria between simulated and observed state variables\n%s'%title, index = index, indexSMmax = indexSMmax, indexHEADSmax = indexHEADSmax, ymin = ymin, units = units)
+print '-------\nRMSE/RSR/NSE/r averaged of the obs. pts. (except catch.)'
+for cc, (rmse, rsr, nse, r, obslst, msg) in enumerate(zip([rmseSM,rmseHEADS],[rsrSM,rsrHEADS],[nseSM,nseHEADS],[rSM,rHEADS],[obslstSM,obslstHEADS],['SM (all layers):','h:'])):
+    if obslst[0] == 'catch.' and len(rmse)> 1:
+        rmseaverage = list(itertools.chain.from_iterable(rmse[1:]))
+        rsraverage = list(itertools.chain.from_iterable(rsr[1:]))
+        nseaverage = list(itertools.chain.from_iterable(nse[1:]))
+        raverage = list(itertools.chain.from_iterable(r[1:]))
+        numobs = len(obslst[1:])
+    else:
+        rmseaverage = list(itertools.chain.from_iterable(rmse))
+        rsraverage = list(itertools.chain.from_iterable(rsr))
+        nseaverage = list(itertools.chain.from_iterable(nse))
+        raverage = list(itertools.chain.from_iterable(r))
+        numobs = len(obslst)
+    if len(rmse)> 1:
+        rmseaverage = sum(rmseaverage)/float(len(rmseaverage))
+        rsraverage = sum(rsraverage)/float(len(rsraverage))
+        nseaverage = sum(nseaverage)/float(len(nseaverage))
+        raverage = sum(raverage)/float(len(raverage))
+        print '%s %.1f %% / %.2f / %.2f / %.2f (%d obs. points)' % (msg, rmseaverage, rsraverage, nseaverage, raverage, numobs)
 
-    # #################################################
-    # PLOT SPATIAL MF and MM OUTPUT
-    # #################################################
-    if plt_out == 1:
-        print '\nExporting output maps...'
-        day_lst = []
-        Date_lst = []
-        JD_lst = []
-        day = 0
-        while day < sum(cMF.perlen):  #len(h_MF_m):
-            day_lst.append(day)
-            Date_lst.append(cMF.inputDate[day])
-            JD_lst.append(cMF.JD[day])
-            day += plt_freq
+# #################################################
+# PLOT SPATIAL MF and MM OUTPUT
+# #################################################
+if plt_out == 1:
+    print '\nExporting output maps...'
+    day_lst = []
+    Date_lst = []
+    JD_lst = []
+    day = 0
+    while day < sum(cMF.perlen):  #len(h_MF_m):
+        day_lst.append(day)
+        Date_lst.append(cMF.inputDate[day])
+        JD_lst.append(cMF.JD[day])
+        day += plt_freq
 ##        if os.path.exists(cMF.h5_MF_fn):
 ##            if tTgmin < 0 and tRCHmax > 0:
 ##                lst = [sum(cMF.perlen) - 1, tRCHmax] #[len(h_MF_m)-1, tRCHmax]
@@ -1945,256 +1961,222 @@ if plt_out == 1 or plt_out_obs == 1:
 ##                day_lst.append(e)
 ##                Date_lst.append(cMF.inputDate[e])
 ##                JD_lst.append(cMF.JD[e])
-        del day
+    del day
 
-        # ##############################
-        # #### MODFLOW OUTPUT ##########
-        # ##############################
-        if os.path.exists(cMF.h5_MF_fn):
-            h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
-            h5_MM = h5py.File(h5_MM_fn, 'r')
-            cbc_RCH = h5_MF['RCH_d']
-            if cMF.drn_yn == 1:
-                cbc_DRN = h5_MF['DRN_d']
-            if cMF.ghb_yn == 1:
-                cbc_GHB = h5_MF['GHB_d']
-            # ############################################
-            # plot at specified day
-            # ############################################
+    # ##############################
+    # #### MODFLOW OUTPUT ##########
+    # ##############################
+    if os.path.exists(cMF.h5_MF_fn):
+        h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
+        h5_MM = h5py.File(h5_MM_fn, 'r')
+        cbc_RCH = h5_MF['RCH_d']
+        if cMF.drn_yn == 1:
+            cbc_DRN = h5_MF['DRN_d']
+        if cMF.ghb_yn == 1:
+            cbc_GHB = h5_MF['GHB_d']
+        # ############################################
+        # plot at specified day
+        # ############################################
 
-            # plot heads [m]
+        # plot heads [m]
+        V = np.zeros((len(day_lst), cMF.nrow, cMF.ncol, cMF.nlay), dtype = np.float)
+        mask_tmp = np.zeros((cMF.nrow, cMF.ncol, cMF.nlay), dtype = np.float)
+        maskAllL_tmp  = np.zeros((cMF.nrow, cMF.ncol, cMF.nlay), dtype = np.float)
+        Vmax = np.zeros((len(day_lst)), dtype = np.float)
+        Vmin = np.zeros((len(day_lst)), dtype = np.float)
+        Vmax1 = np.zeros((len(day_lst)), dtype = np.float)
+        Vmin1 = np.zeros((len(day_lst)), dtype = np.float)
+        for i, t in enumerate(day_lst):
+            for L in range(cMF.nlay):
+                V[i,:,:,L] = h_MF_m[t,:,:,L]
+                mask_tmp[:,:,L] = mask[L]
+                maskAllL_tmp[:,:,L] = maskAllL
+            Vmax[i] = hmaxMF
+            Vmin[i] = hminMF
+        MMplot.plotLAYER(timesteps = day_lst, Date = Date_lst, JD = JD_lst, ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation - $h$ $(m)$', msg = 'DRY', plt_title = 'OUT_MF_HEADS', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, contours = ctrsMF, Vmax = Vmax, Vmin = Vmin, ntick = ntick, points = obs4map, mask = mask_tmp, hnoflo = cMF.hnoflo, animation = animation)
+
+        # plot GWTD [m]
+        for i in range(len(day_lst)):
+           for L in range(cMF.nlay):
+            V[i,:,:,L] = cMF.elev - V[i,:,:,L]
+            Vmin[i] = GWTDmin
+            Vmax[i] = GWTDmax
+        MMplot.plotLAYER(timesteps = day_lst, Date = Date_lst, JD = JD_lst, ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'depth to groundwater table - $DGWT$ $(m)$', msg = 'DRY', plt_title = 'OUT_MF_GWTD', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, contours = ctrsMF, Vmax = Vmax, Vmin = Vmin, ntick = ntick, points = obs4map, mask = mask_tmp, hnoflo = cMF.hnoflo, animation = animation)
+
+        # plot heads corrigidas [m]
+        headscorr_m = np.zeros((len(day_lst), cMF.nrow, cMF.ncol, cMF.nlay), dtype = np.float)
+        for i, t in enumerate(day_lst):
+            headscorr_m[i,:,:,0] = np.ma.masked_values(np.ma.masked_values(h5_MM['MM'][t,:,:,19], cMF.hnoflo, atol = 0.09), cMF.hdry, atol = 1E+25)
+            Vmin[i] = hcorrmin
+            Vmax[i] = hcorrmax
+        MMplot.plotLAYER(timesteps = day_lst, Date = Date_lst, JD = JD_lst, ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = headscorr_m,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation - $h$ $(m)$', msg = 'DRY', plt_title = 'OUT_MF_HEADScorr', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, contours = ctrsMF, Vmax = Vmax, Vmin = Vmin, ntick = ntick, points = obs4map, mask = mask_tmp, hnoflo = cMF.hnoflo, animation = animation)
+
+        # plot GWTD correct [m]
+        GWTDcorr = np.zeros((len(day_lst), cMF.nrow, cMF.ncol, cMF.nlay), dtype = np.float)
+        for i, t in enumerate(day_lst):
+            GWTDcorr[i,:,:,0] = cMF.elev-headscorr_m[i,:,:,0]
+            Vmin[i] = GWTDcorrmin
+            Vmax[i] = GWTDcorrmax
+        MMplot.plotLAYER(timesteps = day_lst, Date = Date_lst, JD = JD_lst, ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = GWTDcorr,  cmap = plt.cm.Blues, CBlabel = 'depth to groundwater table - $DGWT$ $(m)$', msg = 'DRY', plt_title = 'OUT_MF_GWTDcorr', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, contours = ctrsMF, Vmax = Vmax, Vmin = Vmin, ntick = ntick, points = obs4map, mask = mask_tmp, hnoflo = cMF.hnoflo, animation = animation)
+
+        # plot GW RCH [mm]
+        V = np.zeros((len(day_lst), cMF.nrow, cMF.ncol, cMF.nlay), dtype = np.float)
+        for i, t in enumerate(day_lst):
+            for L in range(cMF.nlay):
+                V[i,:,:,L] = np.ma.masked_array(cbc_RCH[t,:,:,L], mask[L])
+            Vmin[i] = RCHmin
+            Vmax[i] = RCHmax
+            Vmin1[i] = np.ma.min(V[i,:,:,:])
+            Vmax1[i] = np.ma.max(V[i,:,:,:])
+        MMplot.plotLAYER(timesteps = day_lst, Date = Date_lst, JD = JD_lst, ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater recharge - $R$ $(mm/day)$', msg = '- no flux', plt_title = 'OUT_MF_RCH', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmin = Vmin, contours = ctrsMF, Vmax = Vmax, ntick = ntick, points = obs4map, hnoflo = cMF.hnoflo, mask = mask_tmp, animation = animation)
+        MMplot.plotLAYER(timesteps = day_lst, Date = Date_lst, JD = JD_lst, ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater recharge - $R$ $(mm/day)$', msg = '- no flux', plt_title = 'OUT_MF_RCH1', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmin = Vmin1, contours = ctrsMF, Vmax = Vmax1, ntick = ntick, points = obs4map, hnoflo = cMF.hnoflo, mask = mask_tmp, animation = animation)
+
+        # plot GW drainage [mm]
+        if cMF.drn_yn == 1:
             V = np.zeros((len(day_lst), cMF.nrow, cMF.ncol, cMF.nlay), dtype = np.float)
-            mask_tmp = np.zeros((cMF.nrow, cMF.ncol, cMF.nlay), dtype = np.float)
-            maskAllL_tmp  = np.zeros((cMF.nrow, cMF.ncol, cMF.nlay), dtype = np.float)
+            for i, t in enumerate(day_lst):
+                for L in range(cMF.nlay):
+                    V[i,:,:,L] = np.ma.masked_array(cbc_DRN[t,:,:,L], mask[L])*(-1.0)
+                Vmin[i] = DRNmin
+                Vmax[i] = DRNmax
+                Vmin1[i] = np.ma.min(V[i,:,:,:])
+                Vmax1[i] = np.ma.max(V[i,:,:,:])
+            MMplot.plotLAYER(timesteps = day_lst, Date = Date_lst, JD = JD_lst, ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater drainage - $DRN$ $(mm/day)$', msg = '- no drainage', plt_title = 'OUT_MF_DRN', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmin = Vmin, contours = ctrsMF, Vmax = Vmax, ntick = ntick, points = obs4map, mask = mask_tmp, hnoflo = cMF.hnoflo, animation = animation)
+            MMplot.plotLAYER(timesteps = day_lst, Date = Date_lst, JD = JD_lst, ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater drainage - $DRN$ $(mm/day)$', msg = '- no drainage', plt_title = 'OUT_MF_DRN1', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmin = Vmin1, contours = ctrsMF, Vmax = Vmax1, ntick = ntick, points = obs4map, mask = mask_tmp, hnoflo = cMF.hnoflo, animation = animation)
+
+        # plot GHB [mm]
+        if cMF.ghb_yn == 1:
+            V = np.zeros((len(day_lst), cMF.nrow, cMF.ncol, cMF.nlay), dtype = np.float)
+            for i, t in enumerate(day_lst):
+                for L in range(cMF.nlay):
+                    V[i,:,:,L] = np.ma.masked_array(cbc_GHB[t,:,:,L], mask[L])*(-1.0)
+                Vmin[i] = GHBmin
+                Vmax[i] = GHBmax
+                Vmin1[i] = np.ma.min(V[i,:,:,:])
+                Vmax1[i] = np.ma.max(V[i,:,:,:])
+            MMplot.plotLAYER(timesteps = day_lst, Date = Date_lst, JD = JD_lst, ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'general head bdry - $GHB$ $(mm/day)$', msg = '- no flux', plt_title = 'OUT_MF_GHB', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmin = Vmin, contours = ctrsMF, Vmax = Vmax, ntick = ntick, points = obs4map, hnoflo = cMF.hnoflo, mask = mask_tmp, animation = animation)
+            MMplot.plotLAYER(timesteps = day_lst, Date = Date_lst, JD = JD_lst, ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'general head bdry - $GHB$ $(mm/day)$', msg = '- no flux', plt_title = 'OUT_MF_GHB1', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmin = Vmin1, contours = ctrsMF, Vmax = Vmax1, ntick = ntick, points = obs4map, hnoflo = cMF.hnoflo,mask = mask_tmp, animation = animation)
+
+        del V
+        del Vmin1, Vmax1, Vmin, Vmax
+
+    # ############################################
+    # plot average for the whole simulated period
+    # ############################################
+
+    # plot heads average [m]
+    V = np.zeros((1, cMF.nrow, cMF.ncol, cMF.nlay), dtype = np.float)
+    for L in range(cMF.nlay):
+        V[0,:,:,L] = np.ma.masked_array(np.sum(h_MF_m[:,:,:,L], axis = 0)/sum(cMF.perlen), mask[L])
+    MMplot.plotLAYER(timesteps = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation - $h$ $(m)$', msg = 'DRY', plt_title = 'OUT_average_MF_HEADS', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, contours = ctrsMF, Vmax = [hmaxMF], Vmin = [hminMF], ntick = ntick, points = obs4map, mask = mask_tmp, hnoflo = cMF.hnoflo)
+    del h_MF_m
+
+    # plot GWTD average [m]
+    for L in range(cMF.nlay):
+        V[0,:,:,L] = cMF.elev-V[0,:,:,L]
+    MMplot.plotLAYER(timesteps = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'depth to groundwater table - $DGWT$ $(m)$', msg = 'DRY', plt_title = 'OUT_average_MF_GWTD', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, contours = ctrsMF, Vmax = [GWTDmax], Vmin = [GWTDmin], ntick = ntick, points = obs4map, mask = mask_tmp, hnoflo = cMF.hnoflo)
+
+    # plot heads corrigidas average [m]
+    headscorr_m = np.zeros((1, cMF.nrow, cMF.ncol, cMF.nlay), dtype = np.float)
+    headscorr_m[0,:,:,0] = np.ma.masked_values(np.ma.masked_values(np.sum(h5_MM['MM'][:,:,:,19], axis = 0)/sum(cMF.perlen), cMF.hnoflo, atol = 0.09), cMF.hdry, atol = 1E+25)
+    MMplot.plotLAYER(timesteps = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = headscorr_m,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation - $h$ $(m)$', msg = 'DRY', plt_title = 'OUT_average_MF_HEADScorr', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, contours = ctrsMF, Vmax = [hcorrmax], Vmin = [hcorrmin], ntick = ntick, points = obs4map, mask = maskAllL_tmp, hnoflo = cMF.hnoflo)
+
+    # plot GWTD correct average [m]
+    GWTDcorr = np.zeros((1, cMF.nrow, cMF.ncol, cMF.nlay), dtype = np.float)
+    GWTDcorr[0,:,:,0] = cMF.elev-headscorr_m[0,:,:,0]
+    MMplot.plotLAYER(timesteps = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = GWTDcorr, cmap = plt.cm.Blues, CBlabel = 'depth to groundwater table - $DGWT$ $(m)$', msg = 'DRY', plt_title = 'OUT_average_MF_GWTDcorr', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, contours = ctrsMF, Vmax = [GWTDcorrmax], Vmin = [GWTDcorrmin], ntick = ntick, points = obs4map, mask = maskAllL_tmp, hnoflo = cMF.hnoflo)
+
+    # plot GW RCH average [mm]
+    V = np.zeros((1, cMF.nrow, cMF.ncol, cMF.nlay), dtype = np.float)
+    for L in range(cMF.nlay):
+        V[0,:,:,L] = np.ma.masked_array(np.sum(cbc_RCH[:,:,:,L], axis = 0)/sum(cMF.perlen), mask[L])
+    MMplot.plotLAYER(timesteps = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater recharge - $R$ $(mm/day)$', msg = '- no flux', plt_title = 'OUT_average_MF_RCH', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = [RCHmax], Vmin = [RCHmin], contours = ctrsMF, ntick = ntick, points = obs4map, mask = mask_tmp, hnoflo = cMF.hnoflo)
+    Vmin_tmp1 = np.min(V)
+    Vmax_tmp1 = np.max(V)
+    MMplot.plotLAYER(timesteps = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater recharge - $R$ $(mm/day)$', msg = '- no flux', plt_title = 'OUT_average_MF_RCH1', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = [Vmax_tmp1], Vmin = [Vmin_tmp1], contours = ctrsMF, ntick = ntick, points = obs4map, mask = mask_tmp, hnoflo = cMF.hnoflo)
+
+    # plot GW drainage average [mm]
+    if cMF.drn_yn == 1:
+        V = np.zeros((1, cMF.nrow, cMF.ncol, cMF.nlay), dtype = np.float)
+        for L in range(cMF.nlay):
+            V[0,:,:,L] = np.ma.masked_array(np.sum(cbc_DRN[:,:,:,L], axis = 0)/sum(cMF.perlen)*(-1.0), mask[L])
+        MMplot.plotLAYER(timesteps = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater drainage - $DRN$ $(mm/day)$', msg = '- no drainage', plt_title = 'OUT_average_MF_DRN', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = [DRNmax], Vmin = [DRNmin], contours = ctrsMF, ntick = ntick, points = obs4map, mask = mask_tmp, hnoflo = cMF.hnoflo)
+        del cbc_DRN, DRNmax, DRNmin
+        Vmin_tmp1 = np.min(V)
+        Vmax_tmp1 = np.max(V)
+        MMplot.plotLAYER(timesteps = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater drainage - $DRN$ $(mm/day)$', msg = '- no drainage', plt_title = 'OUT_average_MF_DRN1', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = [Vmax_tmp1], Vmin = [Vmin_tmp1], contours = ctrsMF, ntick = ntick, points = obs4map, mask = mask_tmp, hnoflo = cMF.hnoflo)
+
+    # plot GHB average [mm]
+    if cMF.ghb_yn == 1:
+        V = np.zeros((1, cMF.nrow, cMF.ncol, cMF.nlay), dtype = np.float)
+        for L in range(cMF.nlay):
+            V[0,:,:,L] = np.ma.masked_array(np.sum(cbc_GHB[:,:,:,L], axis = 0)/sum(cMF.perlen)*(-1.0), mask[L])
+        MMplot.plotLAYER(timesteps = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'general head bdry - $GHB$ $(mm/day)$', msg = '- no flux', plt_title = 'OUT_average_MF_GHB', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = [GHBmax], Vmin = [GHBmin], contours = ctrsMF, ntick = ntick, points = obs4map, mask = mask_tmp, hnoflo = cMF.hnoflo)
+        del cbc_GHB, GHBmax, GHBmin
+        Vmin_tmp1 = np.min(V)
+        Vmax_tmp1 = np.max(V)
+        MMplot.plotLAYER(timesteps = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'general head bdry - $GHB$ $(mm/day)$', msg = '- no flux', plt_title = 'OUT_average_MF_GHB1', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = [Vmax_tmp1], Vmin = [Vmin_tmp1], contours = ctrsMF, ntick = ntick, points = obs4map, mask = mask_tmp, hnoflo = cMF.hnoflo)
+
+    h5_MF.close()
+    h5_MM.close()
+    del V, cbc_RCH, Vmax_tmp1, Vmin_tmp1
+##
+    # ##############################
+    # #### MARMITES OUTPUT #########
+    # ##############################
+    if os.path.exists(h5_MM_fn):
+        h5_MM = h5py.File(h5_MM_fn, 'r')
+        flxlbl = ['RF', 'RFe', 'I', 'EXF', 'dSsurf', 'Ro', 'Esurf', 'Eg', 'Tg', 'ETg', 'ETsoil', 'dSsoil']
+        flxlbl_tex = [r'$RF$', r'$RFe$', r'$I$', r'$EXF_g$', r'$\Delta S_{surf}$', r'$Ro$', r'$E_{surf}$', r'$E_g$', r'$T_g$', r'$ET_g$', r'$ET_{soil}$', r'$\Delta S_{soil}$']
+        for z, (i, i_lbl) in enumerate(zip(flxlbl, flxlbl_tex)):
+            # ############################################
+            # plot average for the whole simulated period
+            # ############################################
+            i1 = 'i'+i
+            MM = h5_MM['MM'][:,:,:,index.get(i1)]
+            V = np.zeros((1, cMF.nrow, cMF.ncol, 1), dtype = np.float)
+            V[0,:,:,0] = np.sum(np.ma.masked_values(MM, cMF.hnoflo, atol = 0.09), axis = 0)/sum(cMF.perlen)
+            V[0,:,:,0] = np.ma.masked_values(V[0,:,:,0], cMF.hnoflo, atol = 0.09)
+            Vmax = [np.ma.max(V)]
+            Vmin = [np.ma.min(V)]
+            MMplot.plotLAYER(timesteps = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i_lbl + ' $(mm/day)$'), msg = 'no flux', plt_title = ('OUT_average_MM_' + i), MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = Vmax, Vmin = Vmin, contours = ctrsMM, ntick = ntick, points = obs4map, mask = maskAllL_tmp, hnoflo = cMF.hnoflo)
+            del V
+            # ############################################
+            # plot for selected time step
+            # ############################################
+            V = np.zeros((len(day_lst), cMF.nrow, cMF.ncol, 1), dtype = np.float)
             Vmax = np.zeros((len(day_lst)), dtype = np.float)
             Vmin = np.zeros((len(day_lst)), dtype = np.float)
             Vmax1 = np.zeros((len(day_lst)), dtype = np.float)
             Vmin1 = np.zeros((len(day_lst)), dtype = np.float)
-            for i, t in enumerate(day_lst):
-                for L in range(cMF.nlay):
-                    V[i,:,:,L] = h_MF_m[t,:,:,L]
-                    mask_tmp[:,:,L] = mask[L]
-                    maskAllL_tmp[:,:,L] = maskAllL
-                Vmax[i] = hmaxMF
-                Vmin[i] = hminMF
-            MMplot.plotLAYER(timesteps = day_lst, Date = Date_lst, JD = JD_lst, ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation - $h$ $(m)$', msg = 'DRY', plt_title = 'OUT_MF_HEADS', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, contours = ctrsMF, Vmax = Vmax, Vmin = Vmin, ntick = ntick, points = obs4map, mask = mask_tmp, hnoflo = cMF.hnoflo, animation = animation)
+            for ii, t in enumerate(day_lst):
+                V[ii,:,:,0] = np.ma.masked_values(MM[t,:,:], cMF.hnoflo, atol = 0.09)
+                V[ii,:,:,0] = np.ma.masked_values(V[ii,:,:,0], cMF.hnoflo, atol = 0.09)
+                Vmin1[ii] = np.ma.min(np.ma.masked_values(V[ii,:,:,0], cMF.hnoflo, atol = 0.09))
+                Vmax1[ii] = np.ma.max(np.ma.masked_values(V[ii,:,:,0], cMF.hnoflo, atol = 0.09))
+            for ii, t in enumerate(day_lst):
+                Vmax[ii] = np.ma.max(Vmax1)
+                Vmin[ii] = np.ma.min(Vmin1)
+            MMplot.plotLAYER(timesteps = day_lst, Date = Date_lst, JD = JD_lst, ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i_lbl + ' $(mm/day)$'), msg = 'no flux', plt_title = ('OUT_MM_'+i), MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = Vmax, Vmin = Vmin, contours = ctrsMM, ntick = ntick, points = obs4map, hnoflo = cMF.hnoflo, mask = maskAllL_tmp, animation = animation)
+            MMplot.plotLAYER(timesteps = day_lst, Date = Date_lst, JD = JD_lst, ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i_lbl + ' $(mm/day)$'), msg = 'no flux', plt_title = ('OUT_MM_%s1'%i), MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = Vmax1, Vmin = Vmin1, contours = ctrsMM, ntick = ntick, points = obs4map, hnoflo = cMF.hnoflo, mask = maskAllL_tmp, animation = animation)
+            del V, MM, Vmax, Vmin
 
-            # plot GWTD [m]
-            for i in range(len(day_lst)):
-               for L in range(cMF.nlay):
-                V[i,:,:,L] = cMF.elev - V[i,:,:,L]
-                Vmin[i] = GWTDmin
-                Vmax[i] = GWTDmax
-            MMplot.plotLAYER(timesteps = day_lst, Date = Date_lst, JD = JD_lst, ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'depth to groundwater table - $DGWT$ $(m)$', msg = 'DRY', plt_title = 'OUT_MF_GWTD', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, contours = ctrsMF, Vmax = Vmax, Vmin = Vmin, ntick = ntick, points = obs4map, mask = mask_tmp, hnoflo = cMF.hnoflo, animation = animation)
-
-            # plot heads corrigidas [m]
-            headscorr_m = np.zeros((len(day_lst), cMF.nrow, cMF.ncol, cMF.nlay), dtype = np.float)
-            for i, t in enumerate(day_lst):
-                headscorr_m[i,:,:,0] = np.ma.masked_values(np.ma.masked_values(h5_MM['MM'][t,:,:,19], cMF.hnoflo, atol = 0.09), cMF.hdry, atol = 1E+25)
-                Vmin[i] = hcorrmin
-                Vmax[i] = hcorrmax
-            MMplot.plotLAYER(timesteps = day_lst, Date = Date_lst, JD = JD_lst, ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = headscorr_m,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation - $h$ $(m)$', msg = 'DRY', plt_title = 'OUT_MF_HEADScorr', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, contours = ctrsMF, Vmax = Vmax, Vmin = Vmin, ntick = ntick, points = obs4map, mask = mask_tmp, hnoflo = cMF.hnoflo, animation = animation)
-
-            # plot GWTD correct [m]
-            GWTDcorr = np.zeros((len(day_lst), cMF.nrow, cMF.ncol, cMF.nlay), dtype = np.float)
-            for i, t in enumerate(day_lst):
-                GWTDcorr[i,:,:,0] = cMF.elev-headscorr_m[i,:,:,0]
-                Vmin[i] = GWTDcorrmin
-                Vmax[i] = GWTDcorrmax
-            MMplot.plotLAYER(timesteps = day_lst, Date = Date_lst, JD = JD_lst, ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = GWTDcorr,  cmap = plt.cm.Blues, CBlabel = 'depth to groundwater table - $DGWT$ $(m)$', msg = 'DRY', plt_title = 'OUT_MF_GWTDcorr', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, contours = ctrsMF, Vmax = Vmax, Vmin = Vmin, ntick = ntick, points = obs4map, mask = mask_tmp, hnoflo = cMF.hnoflo, animation = animation)
-
-            # plot GW RCH [mm]
-            V = np.zeros((len(day_lst), cMF.nrow, cMF.ncol, cMF.nlay), dtype = np.float)
-            for i, t in enumerate(day_lst):
-                for L in range(cMF.nlay):
-                    V[i,:,:,L] = np.ma.masked_array(cbc_RCH[t,:,:,L], mask[L])
-                Vmin[i] = RCHmin
-                Vmax[i] = RCHmax
-                Vmin1[i] = np.ma.min(V[i,:,:,:])
-                Vmax1[i] = np.ma.max(V[i,:,:,:])
-            MMplot.plotLAYER(timesteps = day_lst, Date = Date_lst, JD = JD_lst, ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater recharge - $R$ $(mm/day)$', msg = '- no flux', plt_title = 'OUT_MF_RCH', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmin = Vmin, contours = ctrsMF, Vmax = Vmax, ntick = ntick, points = obs4map, hnoflo = cMF.hnoflo, mask = mask_tmp, animation = animation)
-            MMplot.plotLAYER(timesteps = day_lst, Date = Date_lst, JD = JD_lst, ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater recharge - $R$ $(mm/day)$', msg = '- no flux', plt_title = 'OUT_MF_RCH1', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmin = Vmin1, contours = ctrsMF, Vmax = Vmax1, ntick = ntick, points = obs4map, hnoflo = cMF.hnoflo, mask = mask_tmp, animation = animation)
-
-            # plot GW drainage [mm]
-            if cMF.drn_yn == 1:
-                V = np.zeros((len(day_lst), cMF.nrow, cMF.ncol, cMF.nlay), dtype = np.float)
-                for i, t in enumerate(day_lst):
-                    for L in range(cMF.nlay):
-                        V[i,:,:,L] = np.ma.masked_array(cbc_DRN[t,:,:,L], mask[L])*(-1.0)
-                    Vmin[i] = DRNmin
-                    Vmax[i] = DRNmax
-                    Vmin1[i] = np.ma.min(V[i,:,:,:])
-                    Vmax1[i] = np.ma.max(V[i,:,:,:])
-                MMplot.plotLAYER(timesteps = day_lst, Date = Date_lst, JD = JD_lst, ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater drainage - $DRN$ $(mm/day)$', msg = '- no drainage', plt_title = 'OUT_MF_DRN', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmin = Vmin, contours = ctrsMF, Vmax = Vmax, ntick = ntick, points = obs4map, mask = mask_tmp, hnoflo = cMF.hnoflo, animation = animation)
-                MMplot.plotLAYER(timesteps = day_lst, Date = Date_lst, JD = JD_lst, ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater drainage - $DRN$ $(mm/day)$', msg = '- no drainage', plt_title = 'OUT_MF_DRN1', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmin = Vmin1, contours = ctrsMF, Vmax = Vmax1, ntick = ntick, points = obs4map, mask = mask_tmp, hnoflo = cMF.hnoflo, animation = animation)
-
-            # plot GHB [mm]
-            if cMF.ghb_yn == 1:
-                V = np.zeros((len(day_lst), cMF.nrow, cMF.ncol, cMF.nlay), dtype = np.float)
-                for i, t in enumerate(day_lst):
-                    for L in range(cMF.nlay):
-                        V[i,:,:,L] = np.ma.masked_array(cbc_GHB[t,:,:,L], mask[L])*(-1.0)
-                    Vmin[i] = GHBmin
-                    Vmax[i] = GHBmax
-                    Vmin1[i] = np.ma.min(V[i,:,:,:])
-                    Vmax1[i] = np.ma.max(V[i,:,:,:])
-                MMplot.plotLAYER(timesteps = day_lst, Date = Date_lst, JD = JD_lst, ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'general head bdry - $GHB$ $(mm/day)$', msg = '- no flux', plt_title = 'OUT_MF_GHB', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmin = Vmin, contours = ctrsMF, Vmax = Vmax, ntick = ntick, points = obs4map, hnoflo = cMF.hnoflo, mask = mask_tmp, animation = animation)
-                MMplot.plotLAYER(timesteps = day_lst, Date = Date_lst, JD = JD_lst, ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'general head bdry - $GHB$ $(mm/day)$', msg = '- no flux', plt_title = 'OUT_MF_GHB1', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmin = Vmin1, contours = ctrsMF, Vmax = Vmax1, ntick = ntick, points = obs4map, hnoflo = cMF.hnoflo,mask = mask_tmp, animation = animation)
-
-            del V
-            del Vmin1, Vmax1, Vmin, Vmax
-
-        # ############################################
-        # plot average for the whole simulated period
-        # ############################################
-
-        # plot heads average [m]
-        V = np.zeros((1, cMF.nrow, cMF.ncol, cMF.nlay), dtype = np.float)
-        for L in range(cMF.nlay):
-            V[0,:,:,L] = np.ma.masked_array(np.sum(h_MF_m[:,:,:,L], axis = 0)/sum(cMF.perlen), mask[L])
-        MMplot.plotLAYER(timesteps = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation - $h$ $(m)$', msg = 'DRY', plt_title = 'OUT_average_MF_HEADS', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, contours = ctrsMF, Vmax = [hmaxMF], Vmin = [hminMF], ntick = ntick, points = obs4map, mask = mask_tmp, hnoflo = cMF.hnoflo)
-        del h_MF_m
-
-        # plot GWTD average [m]
-        for L in range(cMF.nlay):
-            V[0,:,:,L] = cMF.elev-V[0,:,:,L]
-        MMplot.plotLAYER(timesteps = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'depth to groundwater table - $DGWT$ $(m)$', msg = 'DRY', plt_title = 'OUT_average_MF_GWTD', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, contours = ctrsMF, Vmax = [GWTDmax], Vmin = [GWTDmin], ntick = ntick, points = obs4map, mask = mask_tmp, hnoflo = cMF.hnoflo)
-
-        # plot heads corrigidas average [m]
-        headscorr_m = np.zeros((1, cMF.nrow, cMF.ncol, cMF.nlay), dtype = np.float)
-        headscorr_m[0,:,:,0] = np.ma.masked_values(np.ma.masked_values(np.sum(h5_MM['MM'][:,:,:,19], axis = 0)/sum(cMF.perlen), cMF.hnoflo, atol = 0.09), cMF.hdry, atol = 1E+25)
-        MMplot.plotLAYER(timesteps = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = headscorr_m,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation - $h$ $(m)$', msg = 'DRY', plt_title = 'OUT_average_MF_HEADScorr', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, contours = ctrsMF, Vmax = [hcorrmax], Vmin = [hcorrmin], ntick = ntick, points = obs4map, mask = maskAllL_tmp, hnoflo = cMF.hnoflo)
-
-        # plot GWTD correct average [m]
-        GWTDcorr = np.zeros((1, cMF.nrow, cMF.ncol, cMF.nlay), dtype = np.float)
-        GWTDcorr[0,:,:,0] = cMF.elev-headscorr_m[0,:,:,0]
-        MMplot.plotLAYER(timesteps = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = GWTDcorr, cmap = plt.cm.Blues, CBlabel = 'depth to groundwater table - $DGWT$ $(m)$', msg = 'DRY', plt_title = 'OUT_average_MF_GWTDcorr', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, contours = ctrsMF, Vmax = [GWTDcorrmax], Vmin = [GWTDcorrmin], ntick = ntick, points = obs4map, mask = maskAllL_tmp, hnoflo = cMF.hnoflo)
-
-        # plot GW RCH average [mm]
-        V = np.zeros((1, cMF.nrow, cMF.ncol, cMF.nlay), dtype = np.float)
-        for L in range(cMF.nlay):
-            V[0,:,:,L] = np.ma.masked_array(np.sum(cbc_RCH[:,:,:,L], axis = 0)/sum(cMF.perlen), mask[L])
-        MMplot.plotLAYER(timesteps = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater recharge - $R$ $(mm/day)$', msg = '- no flux', plt_title = 'OUT_average_MF_RCH', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = [RCHmax], Vmin = [RCHmin], contours = ctrsMF, ntick = ntick, points = obs4map, mask = mask_tmp, hnoflo = cMF.hnoflo)
-        Vmin_tmp1 = np.min(V)
-        Vmax_tmp1 = np.max(V)
-        MMplot.plotLAYER(timesteps = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater recharge - $R$ $(mm/day)$', msg = '- no flux', plt_title = 'OUT_average_MF_RCH1', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = [Vmax_tmp1], Vmin = [Vmin_tmp1], contours = ctrsMF, ntick = ntick, points = obs4map, mask = mask_tmp, hnoflo = cMF.hnoflo)
-
-        # plot GW drainage average [mm]
-        if cMF.drn_yn == 1:
-            V = np.zeros((1, cMF.nrow, cMF.ncol, cMF.nlay), dtype = np.float)
-            for L in range(cMF.nlay):
-                V[0,:,:,L] = np.ma.masked_array(np.sum(cbc_DRN[:,:,:,L], axis = 0)/sum(cMF.perlen)*(-1.0), mask[L])
-            MMplot.plotLAYER(timesteps = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater drainage - $DRN$ $(mm/day)$', msg = '- no drainage', plt_title = 'OUT_average_MF_DRN', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = [DRNmax], Vmin = [DRNmin], contours = ctrsMF, ntick = ntick, points = obs4map, mask = mask_tmp, hnoflo = cMF.hnoflo)
-            del cbc_DRN, DRNmax, DRNmin
-            Vmin_tmp1 = np.min(V)
-            Vmax_tmp1 = np.max(V)
-            MMplot.plotLAYER(timesteps = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater drainage - $DRN$ $(mm/day)$', msg = '- no drainage', plt_title = 'OUT_average_MF_DRN1', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = [Vmax_tmp1], Vmin = [Vmin_tmp1], contours = ctrsMF, ntick = ntick, points = obs4map, mask = mask_tmp, hnoflo = cMF.hnoflo)
-
-        # plot GHB average [mm]
-        if cMF.ghb_yn == 1:
-            V = np.zeros((1, cMF.nrow, cMF.ncol, cMF.nlay), dtype = np.float)
-            for L in range(cMF.nlay):
-                V[0,:,:,L] = np.ma.masked_array(np.sum(cbc_GHB[:,:,:,L], axis = 0)/sum(cMF.perlen)*(-1.0), mask[L])
-            MMplot.plotLAYER(timesteps = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'general head bdry - $GHB$ $(mm/day)$', msg = '- no flux', plt_title = 'OUT_average_MF_GHB', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = [GHBmax], Vmin = [GHBmin], contours = ctrsMF, ntick = ntick, points = obs4map, mask = mask_tmp, hnoflo = cMF.hnoflo)
-            del cbc_GHB, GHBmax, GHBmin
-            Vmin_tmp1 = np.min(V)
-            Vmax_tmp1 = np.max(V)
-            MMplot.plotLAYER(timesteps = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'general head bdry - $GHB$ $(mm/day)$', msg = '- no flux', plt_title = 'OUT_average_MF_GHB1', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = [Vmax_tmp1], Vmin = [Vmin_tmp1], contours = ctrsMF, ntick = ntick, points = obs4map, mask = mask_tmp, hnoflo = cMF.hnoflo)
-
-        h5_MF.close()
-        h5_MM.close()
-        del V, cbc_RCH, Vmax_tmp1, Vmin_tmp1
-##
-        # ##############################
-        # #### MARMITES OUTPUT #########
-        # ##############################
-        if os.path.exists(h5_MM_fn):
-            h5_MM = h5py.File(h5_MM_fn, 'r')
-            flxlbl = ['RF', 'RFe', 'I', 'EXF', 'dSsurf', 'Ro', 'Esurf', 'Eg', 'Tg', 'ETg', 'ETsoil', 'dSsoil']
-            flxlbl_tex = [r'$RF$', r'$RFe$', r'$I$', r'$EXF_g$', r'$\Delta S_{surf}$', r'$Ro$', r'$E_{surf}$', r'$E_g$', r'$T_g$', r'$ET_g$', r'$ET_{soil}$', r'$\Delta S_{soil}$']
-            for z, (i, i_lbl) in enumerate(zip(flxlbl, flxlbl_tex)):
-                # ############################################
-                # plot average for the whole simulated period
-                # ############################################
-                i1 = 'i'+i
-                MM = h5_MM['MM'][:,:,:,index.get(i1)]
-                V = np.zeros((1, cMF.nrow, cMF.ncol, 1), dtype = np.float)
-                V[0,:,:,0] = np.sum(np.ma.masked_values(MM, cMF.hnoflo, atol = 0.09), axis = 0)/sum(cMF.perlen)
-                V[0,:,:,0] = np.ma.masked_values(V[0,:,:,0], cMF.hnoflo, atol = 0.09)
-                Vmax = [np.ma.max(V)]
-                Vmin = [np.ma.min(V)]
-                MMplot.plotLAYER(timesteps = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i_lbl + ' $(mm/day)$'), msg = 'no flux', plt_title = ('OUT_average_MM_' + i), MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = Vmax, Vmin = Vmin, contours = ctrsMM, ntick = ntick, points = obs4map, mask = maskAllL_tmp, hnoflo = cMF.hnoflo)
-                del V
-                # ############################################
-                # plot for selected time step
-                # ############################################
-                V = np.zeros((len(day_lst), cMF.nrow, cMF.ncol, 1), dtype = np.float)
-                Vmax = np.zeros((len(day_lst)), dtype = np.float)
-                Vmin = np.zeros((len(day_lst)), dtype = np.float)
-                Vmax1 = np.zeros((len(day_lst)), dtype = np.float)
-                Vmin1 = np.zeros((len(day_lst)), dtype = np.float)
-                for ii, t in enumerate(day_lst):
-                    V[ii,:,:,0] = np.ma.masked_values(MM[t,:,:], cMF.hnoflo, atol = 0.09)
-                    V[ii,:,:,0] = np.ma.masked_values(V[ii,:,:,0], cMF.hnoflo, atol = 0.09)
-                    Vmin1[ii] = np.ma.min(np.ma.masked_values(V[ii,:,:,0], cMF.hnoflo, atol = 0.09))
-                    Vmax1[ii] = np.ma.max(np.ma.masked_values(V[ii,:,:,0], cMF.hnoflo, atol = 0.09))
-                for ii, t in enumerate(day_lst):
-                    Vmax[ii] = np.ma.max(Vmax1)
-                    Vmin[ii] = np.ma.min(Vmin1)
-                MMplot.plotLAYER(timesteps = day_lst, Date = Date_lst, JD = JD_lst, ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i_lbl + ' $(mm/day)$'), msg = 'no flux', plt_title = ('OUT_MM_'+i), MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = Vmax, Vmin = Vmin, contours = ctrsMM, ntick = ntick, points = obs4map, hnoflo = cMF.hnoflo, mask = maskAllL_tmp, animation = animation)
-                MMplot.plotLAYER(timesteps = day_lst, Date = Date_lst, JD = JD_lst, ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i_lbl + ' $(mm/day)$'), msg = 'no flux', plt_title = ('OUT_MM_%s1'%i), MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = Vmax1, Vmin = Vmin1, contours = ctrsMM, ntick = ntick, points = obs4map, hnoflo = cMF.hnoflo, mask = maskAllL_tmp, animation = animation)
-                del V, MM, Vmax, Vmin
-
-            flxlbl = ['Esoil', 'Tsoil']
-            flxlbl_tex = [r'$E_{soil}$', r'$T_{soil}$']
-            for z, (i, i_lbl) in enumerate(zip(flxlbl, flxlbl_tex)):
-                # ############################################
-                # plot average for the whole simulated period
-                # ############################################
-                i1 = 'i'+i
-                V = np.zeros((1, cMF.nrow, cMF.ncol, 1), dtype = np.float)
-                for l in range(_nslmax):
-                    MM = h5_MM['MM_S'][:,:,:,l,index_S.get(i1)]
-                    V[0,:,:,0] += np.sum(np.ma.masked_values(MM, cMF.hnoflo, atol = 0.09), axis = 0)/sum(cMF.perlen)
-                    V[0,:,:,0] = np.ma.masked_values(V[0,:,:,0], cMF.hnoflo, atol = 0.09)
-                Vmax = [np.ma.max(V)]
-                Vmin = [np.ma.min(V)]
-                MMplot.plotLAYER(timesteps = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i_lbl + ' $(mm/day)$'), msg = 'no flux', plt_title = ('OUT_average_MM_%s' % i), MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = Vmax, Vmin = Vmin, contours = ctrsMM, ntick = ntick, points = obs4map, mask = maskAllL_tmp, hnoflo = cMF.hnoflo)
-                del V
-
-                # ############################################
-                # plot for selected time step
-                # ############################################
-                Vmax = np.zeros((len(day_lst)), dtype = np.float)
-                Vmin = np.zeros((len(day_lst)), dtype = np.float)
-                Vmax1 = np.zeros((len(day_lst)), dtype = np.float)
-                Vmin1 = np.zeros((len(day_lst)), dtype = np.float)
-                V = np.zeros((len(day_lst), cMF.nrow, cMF.ncol, 1), dtype = np.float)
-                for ii, t in enumerate(day_lst):
-                    for l in range(_nslmax):
-                        V[ii,:,:,0] += h5_MM['MM_S'][t,:,:,l,index_S.get(i1)]
-                    Vmin1[ii] = np.ma.min(np.ma.masked_values(np.ma.masked_array(V[ii,:,:,0], maskAllL), cMF.hnoflo, atol = 0.09))
-                    Vmax1[ii] = np.ma.max(np.ma.masked_values(np.ma.masked_array(V[ii,:,:,0], maskAllL), cMF.hnoflo, atol = 0.09))
-                for ii, t in enumerate(day_lst):
-                    Vmax[ii] = np.ma.max(Vmax1)
-                    Vmin[ii] = np.ma.min(Vmin1)
-                MMplot.plotLAYER(timesteps = day_lst, Date = Date_lst, JD = JD_lst, ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i_lbl + ' $(mm/day)$'), msg = 'no flux', plt_title = ('OUT_MM_'+i), MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = Vmax, Vmin = Vmin, contours = ctrsMM, ntick = ntick, points = obs4map, hnoflo = cMF.hnoflo, mask = maskAllL_tmp, animation = animation)
-                MMplot.plotLAYER(timesteps = day_lst, Date = Date_lst, JD = JD_lst, ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i_lbl + ' $(mm/day)$'), msg = 'no flux', plt_title = ('OUT_MM_%s1'%i), MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = Vmax1, Vmin = Vmin1, contours = ctrsMM, ntick = ntick, points = obs4map, hnoflo = cMF.hnoflo, mask = maskAllL_tmp, animation = animation)
-
-            # ##############################
-            # ####   PERCOLATION   #########
-            # ##############################
-            i = 'Rp'
-            i_lbl = r'$Rp_{soil}$'
+        flxlbl = ['Esoil', 'Tsoil']
+        flxlbl_tex = [r'$E_{soil}$', r'$T_{soil}$']
+        for z, (i, i_lbl) in enumerate(zip(flxlbl, flxlbl_tex)):
             # ############################################
             # plot average for the whole simulated period
             # ############################################
+            i1 = 'i'+i
             V = np.zeros((1, cMF.nrow, cMF.ncol, 1), dtype = np.float)
-            MM = h5_MM['finf_d']
-            V[0,:,:,0] = np.sum(np.ma.masked_values(MM, cMF.hnoflo, atol = 0.09), axis = 0)/sum(cMF.perlen)
+            for l in range(_nslmax):
+                MM = h5_MM['MM_S'][:,:,:,l,index_S.get(i1)]
+                V[0,:,:,0] += np.sum(np.ma.masked_values(MM, cMF.hnoflo, atol = 0.09), axis = 0)/sum(cMF.perlen)
+                V[0,:,:,0] = np.ma.masked_values(V[0,:,:,0], cMF.hnoflo, atol = 0.09)
             Vmax = [np.ma.max(V)]
             Vmin = [np.ma.min(V)]
-            MMplot.plotLAYER(timesteps = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i_lbl + ' $(mm/day)$'), msg = 'no flux', plt_title = ('OUT_average_MM_%s'% i), MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = Vmax, Vmin = Vmin, contours = ctrsMM, ntick = ntick, points = obs4map, mask = maskAllL_tmp, hnoflo = cMF.hnoflo)
+            MMplot.plotLAYER(timesteps = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i_lbl + ' $(mm/day)$'), msg = 'no flux', plt_title = ('OUT_average_MM_%s' % i), MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = Vmax, Vmin = Vmin, contours = ctrsMM, ntick = ntick, points = obs4map, mask = maskAllL_tmp, hnoflo = cMF.hnoflo)
+            del V
 
             # ############################################
             # plot for selected time step
@@ -2205,21 +2187,55 @@ if plt_out == 1 or plt_out_obs == 1:
             Vmin1 = np.zeros((len(day_lst)), dtype = np.float)
             V = np.zeros((len(day_lst), cMF.nrow, cMF.ncol, 1), dtype = np.float)
             for ii, t in enumerate(day_lst):
-                MM = h5_MM['finf_d'][t,:,:]
-                V[ii,:,:,0] = np.ma.masked_values(MM, cMF.hnoflo, atol = 0.09)
-                Vmin1[ii] = np.ma.min(np.ma.masked_values(V[ii,:,:,0], cMF.hnoflo, atol = 0.09))
-                Vmax1[ii] = np.ma.max(np.ma.masked_values(V[ii,:,:,0], cMF.hnoflo, atol = 0.09))
+                for l in range(_nslmax):
+                    V[ii,:,:,0] += h5_MM['MM_S'][t,:,:,l,index_S.get(i1)]
+                Vmin1[ii] = np.ma.min(np.ma.masked_values(np.ma.masked_array(V[ii,:,:,0], maskAllL), cMF.hnoflo, atol = 0.09))
+                Vmax1[ii] = np.ma.max(np.ma.masked_values(np.ma.masked_array(V[ii,:,:,0], maskAllL), cMF.hnoflo, atol = 0.09))
             for ii, t in enumerate(day_lst):
                 Vmax[ii] = np.ma.max(Vmax1)
                 Vmin[ii] = np.ma.min(Vmin1)
             MMplot.plotLAYER(timesteps = day_lst, Date = Date_lst, JD = JD_lst, ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i_lbl + ' $(mm/day)$'), msg = 'no flux', plt_title = ('OUT_MM_'+i), MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = Vmax, Vmin = Vmin, contours = ctrsMM, ntick = ntick, points = obs4map, hnoflo = cMF.hnoflo, mask = maskAllL_tmp, animation = animation)
             MMplot.plotLAYER(timesteps = day_lst, Date = Date_lst, JD = JD_lst, ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i_lbl + ' $(mm/day)$'), msg = 'no flux', plt_title = ('OUT_MM_%s1'%i), MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = Vmax1, Vmin = Vmin1, contours = ctrsMM, ntick = ntick, points = obs4map, hnoflo = cMF.hnoflo, mask = maskAllL_tmp, animation = animation)
 
-            h5_MM.close()
-            del V, MM, t, Vmax, Vmin
-            del day_lst, flxlbl, i, i1, h_diff_surf
-        del gridSOIL, cMF.inputDate
-        del hmaxMF, hminMF, hmin, hdiff, cbcmax_d, cbcmin_d
+        # ##############################
+        # ####   PERCOLATION   #########
+        # ##############################
+        i = 'Rp'
+        i_lbl = r'$Rp_{soil}$'
+        # ############################################
+        # plot average for the whole simulated period
+        # ############################################
+        V = np.zeros((1, cMF.nrow, cMF.ncol, 1), dtype = np.float)
+        MM = h5_MM['finf_d']
+        V[0,:,:,0] = np.sum(np.ma.masked_values(MM, cMF.hnoflo, atol = 0.09), axis = 0)/sum(cMF.perlen)
+        Vmax = [np.ma.max(V)]
+        Vmin = [np.ma.min(V)]
+        MMplot.plotLAYER(timesteps = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i_lbl + ' $(mm/day)$'), msg = 'no flux', plt_title = ('OUT_average_MM_%s'% i), MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = Vmax, Vmin = Vmin, contours = ctrsMM, ntick = ntick, points = obs4map, mask = maskAllL_tmp, hnoflo = cMF.hnoflo)
+
+        # ############################################
+        # plot for selected time step
+        # ############################################
+        Vmax = np.zeros((len(day_lst)), dtype = np.float)
+        Vmin = np.zeros((len(day_lst)), dtype = np.float)
+        Vmax1 = np.zeros((len(day_lst)), dtype = np.float)
+        Vmin1 = np.zeros((len(day_lst)), dtype = np.float)
+        V = np.zeros((len(day_lst), cMF.nrow, cMF.ncol, 1), dtype = np.float)
+        for ii, t in enumerate(day_lst):
+            MM = h5_MM['finf_d'][t,:,:]
+            V[ii,:,:,0] = np.ma.masked_values(MM, cMF.hnoflo, atol = 0.09)
+            Vmin1[ii] = np.ma.min(np.ma.masked_values(V[ii,:,:,0], cMF.hnoflo, atol = 0.09))
+            Vmax1[ii] = np.ma.max(np.ma.masked_values(V[ii,:,:,0], cMF.hnoflo, atol = 0.09))
+        for ii, t in enumerate(day_lst):
+            Vmax[ii] = np.ma.max(Vmax1)
+            Vmin[ii] = np.ma.min(Vmin1)
+        MMplot.plotLAYER(timesteps = day_lst, Date = Date_lst, JD = JD_lst, ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i_lbl + ' $(mm/day)$'), msg = 'no flux', plt_title = ('OUT_MM_'+i), MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = Vmax, Vmin = Vmin, contours = ctrsMM, ntick = ntick, points = obs4map, hnoflo = cMF.hnoflo, mask = maskAllL_tmp, animation = animation)
+        MMplot.plotLAYER(timesteps = day_lst, Date = Date_lst, JD = JD_lst, ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i_lbl + ' $(mm/day)$'), msg = 'no flux', plt_title = ('OUT_MM_%s1'%i), MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = Vmax1, Vmin = Vmin1, contours = ctrsMM, ntick = ntick, points = obs4map, hnoflo = cMF.hnoflo, mask = maskAllL_tmp, animation = animation)
+
+        h5_MM.close()
+        del V, MM, t, Vmax, Vmin
+        del day_lst, flxlbl, i, i1, h_diff_surf
+    del gridSOIL, cMF.inputDate
+    del hmaxMF, hminMF, hmin, hdiff, cbcmax_d, cbcmin_d
 
 timeendExport = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
 durationExport=(timeendExport-timestartExport)

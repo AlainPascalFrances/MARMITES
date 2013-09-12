@@ -610,6 +610,8 @@ class clsPROCESS:
                 outFileExport.write(l)
         del i, j, inputDate, _nslmax, results, index, results_S, index_S, RCH, WEL, h_satflow, heads_MF, obs_h, obs_S, outFileExport, obsname
 
+    #####################################
+
     def ExportResultsMM4PEST(self, i, j, inputDate, _nslmax, results_S, index_S, obs_S, obsname):
         """
         Export the processed data in a txt file
@@ -628,6 +630,8 @@ class clsPROCESS:
                 if results_S[t,l,index_S.get('iSsoil_pc')] > 0.0 and obs_S_tmp > 0.0:
                     self.smMM[len_smMM-1].append((obsname+'SM_l'+str(l+1)).ljust(10,' ')+ out_date.ljust(10,' ')+ ' 00:00:00 ' + str(results_S[t,l,index_S.get('iSsoil_pc')]).ljust(10,' ') + '\n')
         del i, j, _nslmax, results_S, index_S, obs_S, obsname
+
+    #####################################
 
     def ExportResultsPEST(self, i, j, inputDate, _nslmax, obs_h, obs_S, outPESTheads, outPESTsm, obsname):
         """
@@ -650,4 +654,111 @@ class clsPROCESS:
                         self.smMM[len_smMM-1].append((obsname+'SM_l'+str(l+1)).ljust(10,' ')+ date.ljust(10,' ')+ ' 00:00:00 ' + str(obs_S[l,t]).ljust(10,' ') + '\n')
             except:
                 pass
+    #####################################
+
+    def compRMSE (self, sim, obs) :
+        def sqre_diff (v, w) :
+            return (v - w) ** 2
+        s = len(sim)
+        v = sum(map(sqre_diff, sim, obs))
+        return np.sqrt(v / s)
+
+    #####################################
+
+    def compE (self, sim, obs) :
+        def sqre_diff (v, w) :
+            return (v - w) ** 2
+        s = len(sim)
+        v = 1 - sum(map(sqre_diff, sim, obs))/sum(sqre_diff(obs, self.compAVGE(obs)))
+        return v
+
+    #####################################
+
+    def compAVGE(self, x):
+        assert len(x) > 0
+        return float(sum(x)) / len(x)
+
+    #####################################
+
+    def compR(self, x, y):
+        # pearson correlation coefficient r
+        assert len(x) == len(y)
+        n = len(x)
+        assert n > 0
+        avg_x = self.compAVGE(x)
+        avg_y = self.compAVGE(y)
+        diffprod = 0
+        xdiff2 = 0
+        ydiff2 = 0
+        for idx in range(n):
+            xdiff = x[idx] - avg_x
+            ydiff = y[idx] - avg_y
+            diffprod += xdiff * ydiff
+            xdiff2 += xdiff * xdiff
+            ydiff2 += ydiff * ydiff
+
+        return diffprod / np.sqrt(xdiff2 * ydiff2)
+
+    #####################################
+
+    def compCalibCrit(self, Spc, h_MF, Sobs, hobs, hnoflo, obs_name, nsl):
+
+        rmseSM = None
+        rmseHEADS = None
+        rsrSM = None
+        rsrHEADS = None
+        nseSM = None
+        nseHEADS = None
+        rSM = None
+        rHEADS = None
+
+        testSM = 0
+        Sobs_m = []
+        Spc1full = []
+        for l in range(nsl):
+            Spc1full.append(Spc[:,l])
+            try:
+                Sobs_m.append(np.ma.masked_values(Sobs[l], hnoflo, atol = 0.09))
+                testSM += 1
+            except:
+                Sobs_m.append([])
+        if testSM > 0 or hobs <> []:
+            print '-------\nRMSE/RSR/NSE/r [%s]' % obs_name
+            if testSM > 0:
+                rmseSM = []
+                rsrSM = []
+                nseSM = []
+                rSM = []
+                try:
+                    for l, (y, y_obs) in enumerate(zip(Spc1full, Sobs_m)):
+                        if y_obs <> []:
+                            a = np.array([y,y_obs])
+                            a = np.transpose(a)
+                            b = a[~(a < hnoflo +1000.0).any(1)]
+                            if b[:,0] <> []:
+                                rmseSM.append(100.0*self.compRMSE(b[:,0], b[:,1]))
+                                rsrSM.append(rmseSM[l]/(100.0*np.std(b[:,1])))
+                                nseSM.append(self.compE(b[:,0], b[:,1]))
+                                rSM.append(self.compR(b[:,0], b[:,1]))
+                                print 'SM layer %d: %.1f %% / %.2f / %.2f / %.2f' % (l+1, rmseSM[l], rsrSM[l], nseSM[l], rSM[l])
+                except:
+                    print 'SM layer %d: error' % (l+1)
+            if hobs <> []:
+                try:
+                    a = np.array([h_MF[:,0],hobs])
+                    a = np.transpose(a)
+                    b = a[~(a < hnoflo +1000.0).any(1)]
+                    if b[:,0] <> []:
+                        rmseHEADS = [self.compRMSE(b[:,0], b[:,1])]
+                        rsrHEADS = [rmseHEADS/np.std(b[:,1])]
+                        nseHEADS = [self.compE(b[:,0], b[:,1])]
+                        rHEADS = [self.compR(b[:,0], b[:,1])]
+                        print 'h: %.2f m / %.2f / %.2f / %.2f' % (rmseHEADS[0], rsrHEADS[0], nseHEADS[0], rHEADS[0])
+                except:
+                    print 'h: error'
+
+        return rmseHEADS, rmseSM, rsrHEADS, rsrSM, nseHEADS, nseSM, rHEADS, rSM
+
+    #####################################
+
 # EOF

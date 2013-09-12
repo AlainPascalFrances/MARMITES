@@ -430,7 +430,7 @@ class clsMF():
             self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nUnexpected error in the MODFLOW input file:\n")
         del inputFile
 
-        self.MM_PROCESS = MMproc.clsPROCESS(
+        self.cPROCESS = MMproc.clsPROCESS(
                                 cUTIL           = self.cUTIL,
                                 MM_ws           = self.MM_ws,
                                 MM_ws_out       = self.MM_ws_out,
@@ -446,10 +446,10 @@ class clsMF():
         # 1 - reaf asc file and convert in np.array
         print "\nImporting ESRI ASCII files to initialize the MODFLOW packages..."
 
-        self.elev     = self.MM_PROCESS.checkarray(self.elev)
-        self.strt     = self.MM_PROCESS.checkarray(self.strt)
-        self.thick    = self.MM_PROCESS.checkarray(self.thick)
-        self.ibound  = self.MM_PROCESS.checkarray(self.ibound, dtype = np.int)
+        self.elev     = self.cPROCESS.checkarray(self.elev)
+        self.strt     = self.cPROCESS.checkarray(self.strt)
+        self.thick    = self.cPROCESS.checkarray(self.thick)
+        self.ibound  = self.cPROCESS.checkarray(self.ibound, dtype = np.int)
         if self.nlay < 2:
             if isinstance(self.ibound, list):
                 self.ibound = (np.asarray(self.ibound)).reshape((self.nrow, self.ncol, 1))
@@ -481,9 +481,9 @@ class clsMF():
             if isinstance(self.botm, list):
                 self.botm = np.ma.masked_values((np.asarray(self.botm)).reshape((self.nrow, self.ncol, 1)), self.hnoflo, atol = 0.09)
         if self.uzf_yn == 1:
-            self.iuzfbnd = self.MM_PROCESS.checkarray(self.iuzfbnd, dtype = np.int)
+            self.iuzfbnd = self.cPROCESS.checkarray(self.iuzfbnd, dtype = np.int)
         if self.ghb_yn == 1:
-            ghb = np.asarray(self.MM_PROCESS.checkarray(self.ghb_cond, dtype = np.float))
+            ghb = np.asarray(self.cPROCESS.checkarray(self.ghb_cond, dtype = np.float))
             if self.nlay > 1:
                 self.ghbcells = np.zeros((self.nlay), dtype = np.int)
                 for l in range(self.nlay):
@@ -492,7 +492,7 @@ class clsMF():
                 self.ghbcells = (np.asarray(ghb[:,:]) > 0.0).sum()
             del ghb
         if self.drn_yn == 1:
-            drn = np.asarray(self.MM_PROCESS.checkarray(self.drn_cond, dtype = np.float))
+            drn = np.asarray(self.cPROCESS.checkarray(self.drn_cond, dtype = np.float))
             if self.nlay > 1:
                 self.drncells = np.zeros((self.nlay), dtype = np.int)
                 for l in range(self.nlay):
@@ -519,22 +519,22 @@ class clsMF():
 
     def array_ini(self, MF_ws):
 
-        self.hk_actual      = self.MM_PROCESS.checkarray(self.hk)
-        self.vka_actual     = self.MM_PROCESS.checkarray(self.vka)
-        self.ss_actual      = self.MM_PROCESS.checkarray(self.ss)
-        self.sy_actual      = self.MM_PROCESS.checkarray(self.sy)
+        self.hk_actual      = self.cPROCESS.checkarray(self.hk)
+        self.vka_actual     = self.cPROCESS.checkarray(self.vka)
+        self.ss_actual      = self.cPROCESS.checkarray(self.ss)
+        self.sy_actual      = self.cPROCESS.checkarray(self.sy)
         if np.sum(np.asarray(self.sy_actual)>1.0)>0.0:
             self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nSy value > 1.0!!!\nCorrect it (it should be expressed in [L^3/L^3]), and verify also thts, thtr and thti.")
         # uzf
         if self.uzf_yn == 1:
             if self.iuzfopt == 1:
-                self.vks_actual     = self.MM_PROCESS.checkarray(self.vks)
+                self.vks_actual     = self.cPROCESS.checkarray(self.vks)
             else:
                 self.vks_actual = 0.0
-            self.eps_actual     = self.MM_PROCESS.checkarray(self.eps)
+            self.eps_actual     = self.cPROCESS.checkarray(self.eps)
             self.thtr_actual = None
             if self.specifythtr > 0:
-                self.thtr_actual     = self.MM_PROCESS.checkarray(self.thtr)
+                self.thtr_actual     = self.cPROCESS.checkarray(self.thtr)
                 thtr_tmp  = np.asarray(self.thtr_actual)
             else:
                 self.thtr_actual = 0.0
@@ -566,7 +566,7 @@ class clsMF():
                 if self.thtr_actual != None:
                     del thtr_tmp
             else:
-                self.thts_actual = self.MM_PROCESS.checkarray(self.thts)
+                self.thts_actual = self.cPROCESS.checkarray(self.thts)
             try:
                 self.thti_actual = float(self.thti[0])
             except:
@@ -574,7 +574,7 @@ class clsMF():
             if type(self.thti_actual) == float and self.thti_actual < 0:
                 self.thti_actual = self.thts_actual/(np.abs(self.thti_actual))
             else:
-                self.thti_actual = self.MM_PROCESS.checkarray(self.thti)
+                self.thti_actual = self.cPROCESS.checkarray(self.thti)
 
         # DRAIN
         if self.drn_yn == 1:
@@ -586,9 +586,9 @@ class clsMF():
             for d in self.drn_cond:
                 if isinstance(d, str):
                     drn_elev_path = os.path.join(self.MF_ws, self.drn_elev[l])
-                    self.drn_elev_array[:,:,l] = self.MM_PROCESS.convASCIIraster2array(drn_elev_path, self.drn_elev_array[:,:,l])
+                    self.drn_elev_array[:,:,l] = self.cPROCESS.convASCIIraster2array(drn_elev_path, self.drn_elev_array[:,:,l])
                     drn_cond_path = os.path.join(self.MF_ws, self.drn_cond[l])
-                    self.drn_cond_array[:,:,l] = self.MM_PROCESS.convASCIIraster2array(drn_cond_path, self.drn_cond_array[:,:,l])
+                    self.drn_cond_array[:,:,l] = self.cPROCESS.convASCIIraster2array(drn_cond_path, self.drn_cond_array[:,:,l])
                 else:
                     self.drn_elev_array[:,:,l] = self.drn_elev[l]
                     self.drn_cond_array[:,:,l] = self.drn_cond[l]
@@ -619,9 +619,9 @@ class clsMF():
             for d in self.ghb_cond:
                 if isinstance(d, str):
                     ghb_head_path = os.path.join(self.MF_ws, self.ghb_head[l])
-                    self.ghb_head_array[:,:,l] = self.MM_PROCESS.convASCIIraster2array(ghb_head_path, self  .ghb_head_array[:,:,l])
+                    self.ghb_head_array[:,:,l] = self.cPROCESS.convASCIIraster2array(ghb_head_path, self  .ghb_head_array[:,:,l])
                     ghb_cond_path = os.path.join(self.MF_ws, self.ghb_cond[l])
-                    self.ghb_cond_array[:,:,l] = self.MM_PROCESS.convASCIIraster2array(ghb_cond_path, self.ghb_cond_array[:,:,l])
+                    self.ghb_cond_array[:,:,l] = self.cPROCESS.convASCIIraster2array(ghb_cond_path, self.ghb_cond_array[:,:,l])
                 else:
                     self.ghb_head_array[:,:,l] = self.ghb_head[l]
                     self.ghb_cond_array[:,:,l] = self.ghb_cond[l]
