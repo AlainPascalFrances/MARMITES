@@ -610,7 +610,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin
     plt.setp(ax6.get_yticklabels(), fontsize=8)
     ax6.plot_date(cMF.inputDate, flx[18], '-', color = 'brown', label = flx_lbl[18])
     if sum(obs_catch_list) > 0:
-            print '-------\nRMSE/RSR/NSE/r'
+            print '-------\nRMSE/RSR/NSE/r of obs. at the catch. scale'
     rmseSM = None
     rsrSM = None
     nseSM = None

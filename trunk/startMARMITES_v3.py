@@ -1883,9 +1883,11 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
     h5_MM.close()
     h5_MF.close()
     del obs
-# calibration criteria
+
+# CALIBRATION CRITERIA
 # RMSE, RSR, Nash-Sutcliffe efficiency NSE, Pearson's correlation coefficient r
 # Moriasi et al, 2007, ASABE 50(3):885-900
+print '\nComputing calibration criteria at observation points...'
 h5_MM = h5py.File(h5_MM_fn, 'r')
 for o_ref in obs_list:
     for o in obs.keys():
@@ -1917,8 +1919,8 @@ for o_ref in obs_list:
             del rmseHEADS_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrSM_tmp, nseHEADS_tmp, nseSM_tmp, rHEADS_tmp, rSM_tmp
 for cc, (indexSM, indexHEADS, index, title, indexSMmax, indexHEADSmax, ymin, units) in enumerate(zip([rmseSM, rsrSM, nseSM, rSM], [rmseHEADS, rsrHEADS, nseHEADS, rHEADS], ['RMSE', 'RSR', 'NSE', 'r'], ['Root mean square error', 'Root mean square error - observations standard deviation ratio', 'Nash-Sutcliffe efficiency', "Pearson's correlation coefficient"], [rmseSMmax, None, 1.0, 1.0], [rmseHEADSmax, None, 1.0, 1.0], [0, 0, None, -1.0], [['($m$)', '($\%%wc$)'], ['',''], ['',''], ['','']])):
     MMplot.plotFITTINGindex(indexSM = indexSM, indexSMobslst = obslstSM, indexHEADS = indexHEADS, indexHEADSobslst = obslstHEADS, plt_export_fn = os.path.join(MM_ws_out, '__plt_calibcrit%s.png'% index), plt_title = 'Calibration criteria between simulated and observed state variables\n%s'%title, index = index, indexSMmax = indexSMmax, indexHEADSmax = indexHEADSmax, ymin = ymin, units = units)
-print '-------\nRMSE/RSR/NSE/r averaged of the obs. pts. (except catch.)'
-for cc, (rmse, rsr, nse, r, obslst, msg) in enumerate(zip([rmseSM,rmseHEADS],[rsrSM,rsrHEADS],[nseSM,nseHEADS],[rSM,rHEADS],[obslstSM,obslstHEADS],['SM (all layers):','h:'])):
+print '-------\nRMSE/RSR/NSE/r averages of the obs. pts. (except catch.)'
+for cc, (rmse, rsr, nse, r, obslst, msg) in enumerate(zip([rmseSM,rmseHEADS],[rsrSM,rsrHEADS],[nseSM,nseHEADS],[rSM,rHEADS],[obslstSM,obslstHEADS],['SM (all layers): %.1f %% /','h: %.2f m /'])):
     if obslst[0] == 'catch.' and len(rmse)> 1:
         rmseaverage = list(itertools.chain.from_iterable(rmse[1:]))
         rsraverage = list(itertools.chain.from_iterable(rsr[1:]))
@@ -1936,7 +1938,8 @@ for cc, (rmse, rsr, nse, r, obslst, msg) in enumerate(zip([rmseSM,rmseHEADS],[rs
         rsraverage = sum(rsraverage)/float(len(rsraverage))
         nseaverage = sum(nseaverage)/float(len(nseaverage))
         raverage = sum(raverage)/float(len(raverage))
-        print '%s %.1f %% / %.2f / %.2f / %.2f (%d obs. points)' % (msg, rmseaverage, rsraverage, nseaverage, raverage, numobs)
+        msg = '%s %s' % (msg, '%.2f / %.2f / %.2f (%d obs. points)')
+        print msg % (rmseaverage, rsraverage, nseaverage, raverage, numobs)
 
 # #################################################
 # PLOT SPATIAL MF and MM OUTPUT
