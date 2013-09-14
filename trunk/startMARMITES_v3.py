@@ -750,6 +750,7 @@ if MMsoil_yn > 0:
     h_pSP = 0
     h_pSP_all = 0
     LOOP = 0
+    endloop = 0
     LOOPlst = [LOOP]
     h_diff = [1000]
     h_diff_log = [1]
@@ -787,7 +788,7 @@ if MMsoil_yn > 0:
     # ###  CONVERGENCE LOOP   #####
     # #############################
 
-    while abs(h_diff[LOOP]) > convcrit or abs(h_diff_all[LOOP]) > convcritmax:
+    while abs(h_diff[LOOP]) > convcrit and abs(h_diff_all[LOOP]) > convcritmax and LOOP <= ccnum :
         if LOOP == 0:
             print '\n##############\nCONVERGENCE LOOP %d (initialization)\n##############' % (LOOP)
         else:
@@ -861,11 +862,13 @@ if MMsoil_yn > 0:
             msg_end_loop.append('Heads diff. from previous conv. loop: %.3f m' % h_diff[LOOP])
             msg_end_loop.append('Maximum heads difference:             %.3f m' % h_diff_all[LOOP])
         if h_MF_average == 0.0 or str(h_diff[LOOP]) == 'nan':
-                print '\ERROR!\nModel with DRY cells or NaN values!\nLoop break, correct your MARMITES input value.'
+            print '\Warning!\nModel with DRY cells or NaN values!'
         elif abs(h_diff[LOOP]) < convcrit and abs(h_diff_all[LOOP]) < convcritmax:
             msg_end_loop.append('Successful convergence between MARMITES and MODFLOW!\n(Conv. criterion = %.4f and conv. crit. max. = %.4f)' % (convcrit, convcritmax))
+            endloop += 1
         elif LOOP>ccnum:
             msg_end_loop.append('No convergence between MARMITES and MODFLOW!\n(Conv. criterion = %.4f and conv. crit. max. = %.4f)' % (convcrit, convcritmax))
+            endloop += 1
         for txt in msg_end_loop:
             print txt
         del h_MF_average
@@ -879,7 +882,10 @@ if MMsoil_yn > 0:
         # MODFLOW RUN with MM-computed recharge
         timestartMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
         print'\n##############'
-        print 'MODFLOW RUN (MARMITES fluxes)'
+        if endloop < 1:
+            print 'MODFLOW RUN (MARMITES fluxes)'
+        else:
+            print 'MODFLOW RUN (MARMITES fluxes after conv. loop)'
         if verbose == 0:
             print '\n--------------'
             sys.stdout = s
@@ -897,7 +903,7 @@ if MMsoil_yn > 0:
         durationMF +=  durationMFtmp
         print '\nMF run time: %02.fmn%02.fs' % (int(durationMFtmp*24.0*60.0), (durationMFtmp*24.0*60.0-int(durationMFtmp*24.0*60.0))*60)
         del durationMFtmp
-
+    h5_MF.close()
     # #############################
     # ###  END CONVERGENCE LOOP ###
     # #############################
@@ -950,31 +956,6 @@ if MMsoil_yn > 0:
     plt.clf()
     plt.close('all')
     del fig, LOOPlst, h_diff, h_diff_log, h_pSP_all
-
-    # #############################
-    # ### MODFLOW RUN with MM-computed recharge
-    # #############################
-    if MF_yn == 1:
-        try:
-            h5_MF.close()
-        except:
-            pass
-        timestartMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
-        print'\n##############'
-        print 'MODFLOW RUN (MARMITES fluxes after conv. loop)'
-        if verbose == 0:
-            print '\n--------------'
-            sys.stdout = s
-            report.close()
-            s = sys.stdout
-            report = open(report_fn, 'a')
-            sys.stdout = report
-        cMF.runMF(finf_MM = (h5_MM_fn, 'finf'), wel_MM = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks, numDays = numDays)
-        timeendMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
-        durationMFtmp =  timeendMF-timestartMF
-        durationMF +=  durationMFtmp
-        print '\nMF run time: %02.fmn%02.fs' % (int(durationMFtmp*24.0*60.0), (durationMFtmp*24.0*60.0-int(durationMFtmp*24.0*60.0))*60)
-        del durationMFtmp
 
 # #############################
 # 3rd phase : export results #####
@@ -1882,7 +1863,6 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
     del i, j, l_obs, SOILzone_tmp, outFileExport, nsl, soilnam, slprop, Tl, plt_export_fn, InMM, OutMM, InUZF, OutUZF, plt_titleBAL, plt_exportBAL_fn, colors_flx
     h5_MM.close()
     h5_MF.close()
-    del obs
 
 # CALIBRATION CRITERIA
 # RMSE, RSR, Nash-Sutcliffe efficiency NSE, Pearson's correlation coefficient r
@@ -1917,8 +1897,8 @@ for o_ref in obs_list:
                 rSM.append(rSM_tmp)
                 obslstSM.append(o)
             del rmseHEADS_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrSM_tmp, nseHEADS_tmp, nseSM_tmp, rHEADS_tmp, rSM_tmp
-for cc, (indexSM, indexHEADS, index, title, indexSMmax, indexHEADSmax, ymin, units) in enumerate(zip([rmseSM, rsrSM, nseSM, rSM], [rmseHEADS, rsrHEADS, nseHEADS, rHEADS], ['RMSE', 'RSR', 'NSE', 'r'], ['Root mean square error', 'Root mean square error - observations standard deviation ratio', 'Nash-Sutcliffe efficiency', "Pearson's correlation coefficient"], [rmseSMmax, None, 1.0, 1.0], [rmseHEADSmax, None, 1.0, 1.0], [0, 0, None, -1.0], [['($m$)', '($\%%wc$)'], ['',''], ['',''], ['','']])):
-    MMplot.plotFITTINGindex(indexSM = indexSM, indexSMobslst = obslstSM, indexHEADS = indexHEADS, indexHEADSobslst = obslstHEADS, plt_export_fn = os.path.join(MM_ws_out, '__plt_calibcrit%s.png'% index), plt_title = 'Calibration criteria between simulated and observed state variables\n%s'%title, index = index, indexSMmax = indexSMmax, indexHEADSmax = indexHEADSmax, ymin = ymin, units = units)
+for cc, (calibcritSM, calibcritHEADS, calibcrit, title, calibcritSMmax, calibcritHEADSmax, ymin, units) in enumerate(zip([rmseSM, rsrSM, nseSM, rSM], [rmseHEADS, rsrHEADS, nseHEADS, rHEADS], ['RMSE', 'RSR', 'NSE', 'r'], ['Root mean square error', 'Root mean square error - observations standard deviation ratio', 'Nash-Sutcliffe efficiency', "Pearson's correlation coefficient"], [rmseSMmax, None, 1.0, 1.0], [rmseHEADSmax, None, 1.0, 1.0], [0, 0, None, -1.0], [['($m$)', '($\%%wc$)'], ['',''], ['',''], ['','']])):
+    MMplot.plotCALIBCRIT(calibcritSM = calibcritSM, calibcritSMobslst = obslstSM, calibcritHEADS = calibcritHEADS, calibcritHEADSobslst = obslstHEADS, plt_export_fn = os.path.join(MM_ws_out, '__plt_calibcrit%s.png'% calibcrit), plt_title = 'Calibration criteria between simulated and observed state variables\n%s'%title, calibcrit = calibcrit, calibcritSMmax = calibcritSMmax, calibcritHEADSmax = calibcritHEADSmax, ymin = ymin, units = units)
 print '-------\nRMSE/RSR/NSE/r averages of the obs. pts. (except catch.)'
 for cc, (rmse, rsr, nse, r, obslst, msg) in enumerate(zip([rmseSM,rmseHEADS],[rsrSM,rsrHEADS],[nseSM,nseHEADS],[rSM,rHEADS],[obslstSM,obslstHEADS],['SM (all layers): %.1f %% /','h: %.2f m /'])):
     if obslst[0] == 'catch.' and len(rmse)> 1:
@@ -1955,15 +1935,15 @@ if plt_out == 1:
         Date_lst.append(cMF.inputDate[day])
         JD_lst.append(cMF.JD[day])
         day += plt_freq
-##        if os.path.exists(cMF.h5_MF_fn):
-##            if tTgmin < 0 and tRCHmax > 0:
-##                lst = [sum(cMF.perlen) - 1, tRCHmax] #[len(h_MF_m)-1, tRCHmax]
-##            else:
-##                lst = [sum(cMF.perlen) - 1, tRCHmax, tTgmin] # [len(h_MF_m)-1, tRCHmax, tTgmin]
-##            for e in lst:
-##                day_lst.append(e)
-##                Date_lst.append(cMF.inputDate[e])
-##                JD_lst.append(cMF.JD[e])
+    if animation < 1:
+        if tTgmin < 0 and tRCHmax > 0:
+            lst = [sum(cMF.perlen) - 1, tRCHmax] #[len(h_MF_m)-1, tRCHmax]
+        else:
+            lst = [sum(cMF.perlen) - 1, tRCHmax, tTgmin] # [len(h_MF_m)-1, tRCHmax, tTgmin]
+        for e in lst:
+            day_lst.append(e)
+            Date_lst.append(cMF.inputDate[e])
+            JD_lst.append(cMF.JD[e])
     del day
 
     # ##############################

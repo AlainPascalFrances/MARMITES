@@ -944,7 +944,7 @@ def plotWB(flxlst, flxlbl, colors_flx, plt_export_fn, plt_title, fluxmax, fluxmi
 
 ##################
 
-def plotFITTINGindex(indexSM, indexSMobslst, indexHEADS, indexHEADSobslst, plt_export_fn, plt_title, index, indexSMmax = None, indexHEADSmax = None, ymin = None, units = ''):
+def plotCALIBCRIT(calibcritSM, calibcritSMobslst, calibcritHEADS, calibcritHEADSobslst, plt_export_fn, plt_title, calibcrit, calibcritSMmax = None, calibcritHEADSmax = None, ymin = None, units = ''):
     # plot RMSE
     fig = plt.figure()
     fig.suptitle(plt_title, fontsize=10)
@@ -952,17 +952,17 @@ def plotFITTINGindex(indexSM, indexSMobslst, indexHEADS, indexHEADSobslst, plt_e
     plt.setp(ax1.get_xticklabels(), fontsize=8)
     plt.setp(ax1.get_yticklabels(), fontsize=8)
     ax1.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.1f'))
-    plt.ylabel('%s soil moisture %s' % (index, units[1]), fontsize=10, horizontalalignment = 'center')
+    plt.ylabel('%s soil moisture %s' % (calibcrit, units[1]), fontsize=10, horizontalalignment = 'center')
     plt.grid(True)
     xserie = []
     yserie = []
     labels = []
-    if indexSMmax == None:
-        max_tmp = np.max(list(itertools.chain.from_iterable(indexSM)))*1.2
+    if calibcritSMmax == None:
+        max_tmp = np.max(list(itertools.chain.from_iterable(calibcritSM)))*1.2
     else:
-        max_tmp = indexSMmax
+        max_tmp = calibcritSMmax
     n = 0
-    for e in indexSM:
+    for e in calibcritSM:
         if len(e) > 1:
             numtick = len(e)
             if n == 0:
@@ -978,7 +978,7 @@ def plotFITTINGindex(indexSM, indexSMobslst, indexHEADS, indexHEADSobslst, plt_e
                 ee += 1
                 labels.append('')
             xserie.append(newx)
-            labels.append('%s' % indexSMobslst[n])
+            labels.append('%s' % calibcritSMobslst[n])
             if numtick %2 <> 0:
                 yserie.append(e[ee])
                 ee += 1
@@ -994,11 +994,11 @@ def plotFITTINGindex(indexSM, indexSMobslst, indexHEADS, indexHEADSobslst, plt_e
             if n == 0:
                 xserie.append(1.0)
                 yserie.append(e[0])
-                labels.append('%s' % indexSMobslst[n])
+                labels.append('%s' % calibcritSMobslst[n])
             else:
                 xserie.append(1+xserie[-1])
                 yserie.append(e[0])
-                labels.append('%s' % indexSMobslst[n])
+                labels.append('%s' % calibcritSMobslst[n])
         n += 1
     offset = (max_tmp)*0.05
     for i in range(len(xserie)):
@@ -1016,25 +1016,25 @@ def plotFITTINGindex(indexSM, indexSMobslst, indexHEADS, indexHEADSobslst, plt_e
     plt.setp(ax2.get_xticklabels(), fontsize=8)
     plt.setp(ax2.get_yticklabels(), fontsize=8)
     ax2.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.1f'))
-    plt.ylabel('%s hydraulic heads %s' % (index, units[0]), fontsize=10, horizontalalignment = 'center')
+    plt.ylabel('%s hydraulic heads %s' % (calibcrit, units[0]), fontsize=10, horizontalalignment = 'center')
     plt.grid(True)
-    xserie = range(1,len(indexHEADSobslst)+1)
-    yserie_txt = list(itertools.chain.from_iterable(indexHEADS))
-    if indexHEADSmax == None:
-        max_tmp = np.max(list(itertools.chain.from_iterable(indexHEADS)))*1.2
+    xserie = range(1,len(calibcritHEADSobslst)+1)
+    yserie_txt = list(itertools.chain.from_iterable(calibcritHEADS))
+    if calibcritHEADSmax == None:
+        max_tmp = np.max(list(itertools.chain.from_iterable(calibcritHEADS)))*1.2
     else:
-        max_tmp = indexHEADSmax
+        max_tmp = calibcritHEADSmax
     offset = (max_tmp)*0.05
     for i in range(len(xserie)):
-        plt.scatter(xserie[i], indexHEADS[i], marker='o', c = 'orange', s = 15)
+        plt.scatter(xserie[i], calibcritHEADS[i], marker='o', c = 'orange', s = 15)
         if yserie_txt[i] < max_tmp:
             plt.text(xserie[i], yserie_txt[i]+offset, '%.1f' % yserie_txt[i], fontsize=6, ha = 'center', va = 'center')
-    plt.xticks(xserie, indexHEADSobslst)
+    plt.xticks(xserie, calibcritHEADSobslst)
     if ymin <> None:
         ax2.set_ylim(ymin, max_tmp)
     else:
         plt.ylim(ymax = max_tmp)
-    ax2.set_xlim(0, len(indexHEADS)+1)
+    ax2.set_xlim(0, len(calibcritHEADS)+1)
 
     plt.savefig(plt_export_fn)
 
