@@ -1864,63 +1864,6 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
     h5_MM.close()
     h5_MF.close()
 
-# CALIBRATION CRITERIA
-# RMSE, RSR, Nash-Sutcliffe efficiency NSE, Pearson's correlation coefficient r
-# Moriasi et al, 2007, ASABE 50(3):885-900
-print '\nComputing calibration criteria at observation points...'
-h5_MM = h5py.File(h5_MM_fn, 'r')
-for o_ref in obs_list:
-    for o in obs.keys():
-        if o == o_ref:
-            i = obs.get(o)['i']
-            j = obs.get(o)['j']
-            obs_h = obs.get(o)['obs_h']
-            obs_SM = obs.get(o)['obs_SM']
-            SOILzone_tmp = gridSOIL[i,j]-1
-            nsl = _nsl[SOILzone_tmp]
-            MM_S = h5_MM['MM_S'][:,i,j,:,:]
-            if obs_h != []:
-                obs_h_tmp = obs_h[0,:]
-            else:
-                obs_h_tmp = []
-            rmseHEADS_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrSM_tmp, nseHEADS_tmp, nseSM_tmp, rHEADS_tmp, rSM_tmp = cMF.cPROCESS.compCalibCrit(MM_S[:,0:nsl,index_S.get('iSsoil_pc')], h_MF_m[:,i,j,:], obs_SM, obs_h_tmp, cMF.hnoflo, o, nsl)
-            if rmseHEADS_tmp <> None:
-                rmseHEADS.append(rmseHEADS_tmp)
-                rsrHEADS.append(rsrHEADS_tmp)
-                nseHEADS.append(nseHEADS_tmp)
-                rHEADS.append(rHEADS_tmp)
-                obslstHEADS.append(o)
-            if rmseSM_tmp <> None:
-                rmseSM.append(rmseSM_tmp)
-                rsrSM.append(rsrSM_tmp)
-                nseSM.append(nseSM_tmp)
-                rSM.append(rSM_tmp)
-                obslstSM.append(o)
-            del rmseHEADS_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrSM_tmp, nseHEADS_tmp, nseSM_tmp, rHEADS_tmp, rSM_tmp
-for cc, (calibcritSM, calibcritHEADS, calibcrit, title, calibcritSMmax, calibcritHEADSmax, ymin, units) in enumerate(zip([rmseSM, rsrSM, nseSM, rSM], [rmseHEADS, rsrHEADS, nseHEADS, rHEADS], ['RMSE', 'RSR', 'NSE', 'r'], ['Root mean square error', 'Root mean square error - observations standard deviation ratio', 'Nash-Sutcliffe efficiency', "Pearson's correlation coefficient"], [rmseSMmax, None, 1.0, 1.0], [rmseHEADSmax, None, 1.0, 1.0], [0, 0, None, -1.0], [['($m$)', '($\%%wc$)'], ['',''], ['',''], ['','']])):
-    MMplot.plotCALIBCRIT(calibcritSM = calibcritSM, calibcritSMobslst = obslstSM, calibcritHEADS = calibcritHEADS, calibcritHEADSobslst = obslstHEADS, plt_export_fn = os.path.join(MM_ws_out, '__plt_calibcrit%s.png'% calibcrit), plt_title = 'Calibration criteria between simulated and observed state variables\n%s'%title, calibcrit = calibcrit, calibcritSMmax = calibcritSMmax, calibcritHEADSmax = calibcritHEADSmax, ymin = ymin, units = units)
-print '-------\nRMSE/RSR/NSE/r averages of the obs. pts. (except catch.)'
-for cc, (rmse, rsr, nse, r, obslst, msg) in enumerate(zip([rmseSM,rmseHEADS],[rsrSM,rsrHEADS],[nseSM,nseHEADS],[rSM,rHEADS],[obslstSM,obslstHEADS],['SM (all layers): %.1f %% /','h: %.2f m /'])):
-    if obslst[0] == 'catch.' and len(rmse)> 1:
-        rmseaverage = list(itertools.chain.from_iterable(rmse[1:]))
-        rsraverage = list(itertools.chain.from_iterable(rsr[1:]))
-        nseaverage = list(itertools.chain.from_iterable(nse[1:]))
-        raverage = list(itertools.chain.from_iterable(r[1:]))
-        numobs = len(obslst[1:])
-    else:
-        rmseaverage = list(itertools.chain.from_iterable(rmse))
-        rsraverage = list(itertools.chain.from_iterable(rsr))
-        nseaverage = list(itertools.chain.from_iterable(nse))
-        raverage = list(itertools.chain.from_iterable(r))
-        numobs = len(obslst)
-    if len(rmse)> 1:
-        rmseaverage = sum(rmseaverage)/float(len(rmseaverage))
-        rsraverage = sum(rsraverage)/float(len(rsraverage))
-        nseaverage = sum(nseaverage)/float(len(nseaverage))
-        raverage = sum(raverage)/float(len(raverage))
-        msg = '%s %s' % (msg, '%.2f / %.2f / %.2f (%d obs. points)')
-        print msg % (rmseaverage, rsraverage, nseaverage, raverage, numobs)
-
 # #################################################
 # PLOT SPATIAL MF and MM OUTPUT
 # #################################################
@@ -2052,7 +1995,6 @@ if plt_out == 1:
     for L in range(cMF.nlay):
         V[0,:,:,L] = np.ma.masked_array(np.sum(h_MF_m[:,:,:,L], axis = 0)/sum(cMF.perlen), mask[L])
     MMplot.plotLAYER(timesteps = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation - $h$ $(m)$', msg = 'DRY', plt_title = 'OUT_average_MF_HEADS', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, contours = ctrsMF, Vmax = [hmaxMF], Vmin = [hminMF], ntick = ntick, points = obs4map, mask = mask_tmp, hnoflo = cMF.hnoflo)
-    del h_MF_m
 
     # plot GWTD average [m]
     for L in range(cMF.nlay):
@@ -2217,8 +2159,64 @@ if plt_out == 1:
         h5_MM.close()
         del V, MM, t, Vmax, Vmin
         del day_lst, flxlbl, i, i1, h_diff_surf
-    del gridSOIL, cMF.inputDate
     del hmaxMF, hminMF, hmin, hdiff, cbcmax_d, cbcmin_d
+
+# CALIBRATION CRITERIA
+# RMSE, RSR, Nash-Sutcliffe efficiency NSE, Pearson's correlation coefficient r
+# Moriasi et al, 2007, ASABE 50(3):885-900
+print '\nComputing calibration criteria at observation points...'
+h5_MM = h5py.File(h5_MM_fn, 'r')
+for o_ref in obs_list:
+    for o in obs.keys():
+        if o == o_ref:
+            i = obs.get(o)['i']
+            j = obs.get(o)['j']
+            obs_h = obs.get(o)['obs_h']
+            obs_SM = obs.get(o)['obs_SM']
+            SOILzone_tmp = gridSOIL[i,j]-1
+            nsl = _nsl[SOILzone_tmp]
+            MM_S = h5_MM['MM_S'][:,i,j,:,:]
+            if obs_h != []:
+                obs_h_tmp = obs_h[0,:]
+            else:
+                obs_h_tmp = []
+            rmseHEADS_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrSM_tmp, nseHEADS_tmp, nseSM_tmp, rHEADS_tmp, rSM_tmp = cMF.cPROCESS.compCalibCrit(MM_S[:,0:nsl,index_S.get('iSsoil_pc')], h_MF_m[:,i,j,:], obs_SM, obs_h_tmp, cMF.hnoflo, o, nsl)
+            if rmseHEADS_tmp <> None:
+                rmseHEADS.append(rmseHEADS_tmp)
+                rsrHEADS.append(rsrHEADS_tmp)
+                nseHEADS.append(nseHEADS_tmp)
+                rHEADS.append(rHEADS_tmp)
+                obslstHEADS.append(o)
+            if rmseSM_tmp <> None:
+                rmseSM.append(rmseSM_tmp)
+                rsrSM.append(rsrSM_tmp)
+                nseSM.append(nseSM_tmp)
+                rSM.append(rSM_tmp)
+                obslstSM.append(o)
+            del rmseHEADS_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrSM_tmp, nseHEADS_tmp, nseSM_tmp, rHEADS_tmp, rSM_tmp
+for cc, (calibcritSM, calibcritHEADS, calibcrit, title, calibcritSMmax, calibcritHEADSmax, ymin, units) in enumerate(zip([rmseSM, rsrSM, nseSM, rSM], [rmseHEADS, rsrHEADS, nseHEADS, rHEADS], ['RMSE', 'RSR', 'NSE', 'r'], ['Root mean square error', 'Root mean square error - observations standard deviation ratio', 'Nash-Sutcliffe efficiency', "Pearson's correlation coefficient"], [rmseSMmax, None, 1.0, 1.0], [rmseHEADSmax, None, 1.0, 1.0], [0, 0, None, -1.0], [['($m$)', '($\%%wc$)'], ['',''], ['',''], ['','']])):
+    MMplot.plotCALIBCRIT(calibcritSM = calibcritSM, calibcritSMobslst = obslstSM, calibcritHEADS = calibcritHEADS, calibcritHEADSobslst = obslstHEADS, plt_export_fn = os.path.join(MM_ws_out, '__plt_calibcrit%s.png'% calibcrit), plt_title = 'Calibration criteria between simulated and observed state variables\n%s'%title, calibcrit = calibcrit, calibcritSMmax = calibcritSMmax, calibcritHEADSmax = calibcritHEADSmax, ymin = ymin, units = units)
+print '-------\nRMSE/RSR/NSE/r averages of the obs. pts. (except catch.)'
+for cc, (rmse, rsr, nse, r, obslst, msg) in enumerate(zip([rmseSM,rmseHEADS],[rsrSM,rsrHEADS],[nseSM,nseHEADS],[rSM,rHEADS],[obslstSM,obslstHEADS],['SM (all layers): %.1f %% /','h: %.2f m /'])):
+    if obslst[0] == 'catch.' and len(rmse)> 1:
+        rmseaverage = list(itertools.chain.from_iterable(rmse[1:]))
+        rsraverage = list(itertools.chain.from_iterable(rsr[1:]))
+        nseaverage = list(itertools.chain.from_iterable(nse[1:]))
+        raverage = list(itertools.chain.from_iterable(r[1:]))
+        numobs = len(obslst[1:])
+    else:
+        rmseaverage = list(itertools.chain.from_iterable(rmse))
+        rsraverage = list(itertools.chain.from_iterable(rsr))
+        nseaverage = list(itertools.chain.from_iterable(nse))
+        raverage = list(itertools.chain.from_iterable(r))
+        numobs = len(obslst)
+    if len(rmse)> 1:
+        rmseaverage = sum(rmseaverage)/float(len(rmseaverage))
+        rsraverage = sum(rsraverage)/float(len(rsraverage))
+        nseaverage = sum(nseaverage)/float(len(nseaverage))
+        raverage = sum(raverage)/float(len(raverage))
+        msg = '%s %s' % (msg, '%.2f / %.2f / %.2f (%d obs. points)')
+        print msg % (rmseaverage, rsraverage, nseaverage, raverage, numobs)
 
 timeendExport = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
 durationExport=(timeendExport-timestartExport)
