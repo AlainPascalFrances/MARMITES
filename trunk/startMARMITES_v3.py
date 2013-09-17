@@ -788,7 +788,7 @@ if MMsoil_yn > 0:
     # ###  CONVERGENCE LOOP   #####
     # #############################
 
-    while abs(h_diff[LOOP]) > convcrit and abs(h_diff_all[LOOP]) > convcritmax and LOOP <= ccnum :
+    while (abs(h_diff[LOOP]) > convcrit or abs(h_diff_all[LOOP]) > convcritmax) and LOOP <= ccnum :
         if LOOP == 0:
             print '\n##############\nCONVERGENCE LOOP %d (initialization)\n##############' % (LOOP)
         else:

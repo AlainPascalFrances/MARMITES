@@ -11,14 +11,14 @@ ax = []
 CS = []
 CB = []
 
-rmse = np.arange(49).reshape((7,7)).astype(float)
-rmse = [[3.05,3.81,4.74,np.nan,np.nan,np.nan,12.99],
-[2.87,3.18,3.92,4.62,5.49,7.05,10.49],
-[np.nan,2.98,3.65,4.28,5.02,6.54,9.47],
-[np.nan,2.86,3.38,4.07,4.72,6.10,9.14],
-[np.nan,np.nan,3.17,3.77,4.42,5.67,8.72],
-[np.nan,np.nan,2.94,3.27,3.91,4.84,7.93],
-[3.16,np.nan,2.81,2.86,np.nan,np.nan,6.09]]
+##rmse = np.arange(49).reshape((7,7)).astype(float)
+##rmse = [[3.05,3.81,4.74,np.nan,np.nan,np.nan,12.99],
+##[2.87,3.18,3.92,4.62,5.49,7.05,10.49],
+##[np.nan,2.98,3.65,4.28,5.02,6.54,9.47],
+##[np.nan,2.86,3.38,4.07,4.72,6.10,9.14],
+##[np.nan,np.nan,3.17,3.77,4.42,5.67,8.72],
+##[np.nan,np.nan,2.94,3.27,3.91,4.84,7.93],
+##[3.16,np.nan,2.81,2.86,np.nan,np.nan,6.09]]
 
 rsr = np.arange(49).reshape((7,7)).astype(float)
 rsr = [[4.79,5.52,7.06,np.nan,np.nan,np.nan,22.62],
@@ -29,14 +29,14 @@ rsr = [[4.79,5.52,7.06,np.nan,np.nan,np.nan,22.62],
 [np.nan,np.nan,4.25,4.50,5.45,7.02,12.67],
 [5.47,np.nan,4.39,4.18,np.nan,np.nan,9.38]]
 
-nse = np.arange(49).reshape((7,7)).astype(float)
-nse = [[-29.90,-42.45,-81.93,np.nan,np.nan,np.nan,-857.70],
-[-32.63,-27.77,-44.85,-74.94,-123.46,-227.68,-567.25],
-[np.nan,-25.50,-36.42,-59.06,-97.60,-191.23,-450.87],
-[np.nan,-25.72,-30.69,-49.58,-81.62,-162.72,-415.46],
-[np.nan,np.nan,-27.51,-39.62,-65.92,-136.92,-371.29],
-[np.nan,np.nan,-25.27,-28.94,-43.91,-88.85,-293.52],
-[-40.75,np.nan,-28.08,-24.18,np.nan,np.nan,-157.45]]
+##nse = np.arange(49).reshape((7,7)).astype(float)
+##nse = [[-29.90,-42.45,-81.93,np.nan,np.nan,np.nan,-857.70],
+##[-32.63,-27.77,-44.85,-74.94,-123.46,-227.68,-567.25],
+##[np.nan,-25.50,-36.42,-59.06,-97.60,-191.23,-450.87],
+##[np.nan,-25.72,-30.69,-49.58,-81.62,-162.72,-415.46],
+##[np.nan,np.nan,-27.51,-39.62,-65.92,-136.92,-371.29],
+##[np.nan,np.nan,-25.27,-28.94,-43.91,-88.85,-293.52],
+##[-40.75,np.nan,-28.08,-24.18,np.nan,np.nan,-157.45]]
 
 r = [[0.69,0.71,0.71,np.nan,np.nan,np.nan,0.69],
 [0.75,0.77,0.77,0.77,0.77,0.76,0.77],
@@ -46,7 +46,8 @@ r = [[0.69,0.71,0.71,np.nan,np.nan,np.nan,0.69],
 [np.nan,np.nan,0.45,0.42,0.39,0.39,0.40],
 [0.36,np.nan,0.17,0.10,np.nan,np.nan,0.18]]
 
-for p, (sp, title, array) in enumerate(zip([221,222,223,224],['RMSE','RSR','NSE','r'],[rmse, rsr, nse, r])):
+#for p, (sp, title, array) in enumerate(zip([221,222,223,224],['RMSE','RSR','NSE','r'],[rmse, rsr, nse, r])):
+for p, (sp, title, array) in enumerate(zip([221,223],['RSR','r'],[rsr, r])):
     ax.append(f.add_subplot(sp))
     ax[p].set_title(title)
     masked_array = np.ma.array(array, mask=np.isnan(array))
