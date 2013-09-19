@@ -2131,7 +2131,7 @@ if plt_out == 1:
         # plot average for the whole simulated period
         # ############################################
         V = np.zeros((1, cMF.nrow, cMF.ncol, 1), dtype = np.float)
-        MM = h5_MM['finf_d']
+        MM = conv_fact*h5_MM['finf_d'][:,:,:]
         V[0,:,:,0] = np.sum(np.ma.masked_values(MM, cMF.hnoflo, atol = 0.09), axis = 0)/sum(cMF.perlen)
         Vmax = [np.ma.max(V)]
         Vmin = [np.ma.min(V)]
@@ -2146,7 +2146,7 @@ if plt_out == 1:
         Vmin1 = np.zeros((len(day_lst)), dtype = np.float)
         V = np.zeros((len(day_lst), cMF.nrow, cMF.ncol, 1), dtype = np.float)
         for ii, t in enumerate(day_lst):
-            MM = h5_MM['finf_d'][t,:,:]
+            MM = conv_fact*h5_MM['finf_d'][t,:,:]
             V[ii,:,:,0] = np.ma.masked_values(MM, cMF.hnoflo, atol = 0.09)
             Vmin1[ii] = np.ma.min(np.ma.masked_values(V[ii,:,:,0], cMF.hnoflo, atol = 0.09))
             Vmax1[ii] = np.ma.max(np.ma.masked_values(V[ii,:,:,0], cMF.hnoflo, atol = 0.09))
