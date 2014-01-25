@@ -19,8 +19,7 @@ import os
 import numpy as np
 import matplotlib as mpl
 import h5py
-import mf
-import mfreadbinaries as mfrdbin
+import flopy
 import MARMITESprocess_v3 as MMproc
 
 #####################################
@@ -449,37 +448,40 @@ class clsMF():
         self.elev     = self.cPROCESS.checkarray(self.elev)
         self.strt     = self.cPROCESS.checkarray(self.strt)
         self.thick    = self.cPROCESS.checkarray(self.thick)
-        self.ibound  = self.cPROCESS.checkarray(self.ibound, dtype = np.int)
+        self.ibound   = self.cPROCESS.checkarray(self.ibound, dtype = np.int)
         if self.nlay < 2:
             if isinstance(self.ibound, list):
-                self.ibound = (np.asarray(self.ibound)).reshape((self.nrow, self.ncol, 1))
+                self.ibound = (np.asarray(self.ibound)).reshape((1, self.nrow, self.ncol))
+        else:
+            self.ibound = np.asarray(self.ibound)
         if self.nlay < 2:
             if isinstance(self.thick, list):
-                self.thick = (np.asarray(self.thick)).reshape((self.nrow, self.ncol, 1))
+                self.thick = (np.asarray(self.thick)).reshape((1, self.nrow, self.ncol))
             else:
                 self.thick = np.asarray([self.thick])
         else:
             self.thick = np.asarray(self.thick)
         if np.asarray(self.thick).shape[0] == self.nlay and len(self.thick.shape) == 1:
-            thick_tmp = np.ones([self.nrow, self.ncol, self.nlay], dtype = np.float)
+            thick_tmp = np.ones([self.nlay, self.nrow, self.ncol], dtype = np.float)
             for l, e in enumerate (self.thick):
-                thick_tmp[:,:,l] *= e  #*ibound[:,:,l]
+                thick_tmp[l,:,:] *= e  #*ibound[l,:,:]
             self.thick = thick_tmp
         elev_tmp = np.ma.masked_values(np.asarray(self.elev), self.hnoflo, atol = 0.09)
         botm_tmp = []
         for l in range(self.nlay):
             if l == 0:
-                thick_tmp = self.thick[:,:,l]*1.0
+                thick_tmp = self.thick[l,:,:]*1.0
             else:
-                thick_tmp += self.thick[:,:,l]
+                thick_tmp += self.thick[l,:,:]
             botm_tmp.append(np.ma.masked_values(elev_tmp - thick_tmp, self.hnoflo, atol = 0.09))
         del elev_tmp, thick_tmp
-        self.botm = list(np.swapaxes(botm_tmp,0,1))
-        self.botm = list(np.swapaxes(self.botm,1,2))
+#        self.botm = list(np.swapaxes(botm_tmp,0,1))
+#        self.botm = list(np.swapaxes(self.botm,1,2))
+        self.botm = np.asarray(botm_tmp)
         del botm_tmp
         if self.nlay < 2:
             if isinstance(self.botm, list):
-                self.botm = np.ma.masked_values((np.asarray(self.botm)).reshape((self.nrow, self.ncol, 1)), self.hnoflo, atol = 0.09)
+                self.botm = np.ma.masked_values((np.asarray(self.botm)).reshape((1, self.nrow, self.ncol)), self.hnoflo, atol = 0.09)
         if self.uzf_yn == 1:
             self.iuzfbnd = self.cPROCESS.checkarray(self.iuzfbnd, dtype = np.int)
         if self.ghb_yn == 1:
@@ -487,7 +489,7 @@ class clsMF():
             if self.nlay > 1:
                 self.ghbcells = np.zeros((self.nlay), dtype = np.int)
                 for l in range(self.nlay):
-                    self.ghbcells[l] = (np.asarray(ghb[:,:,l]) > 0.0).sum()
+                    self.ghbcells[l] = (np.asarray(ghb[l,:,:]) > 0.0).sum()
             else:
                 self.ghbcells = (np.asarray(ghb[:,:]) > 0.0).sum()
             del ghb
@@ -496,7 +498,7 @@ class clsMF():
             if self.nlay > 1:
                 self.drncells = np.zeros((self.nlay), dtype = np.int)
                 for l in range(self.nlay):
-                    self.drncells[l] = (np.asarray(drn[:,:,l]) > 0.0).sum()
+                    self.drncells[l] = (np.asarray(drn[l,:,:]) > 0.0).sum()
             else:
                 self.drncells = [(np.asarray(drn[:,:]) > 0.0).sum()]
             del drn
@@ -519,10 +521,10 @@ class clsMF():
 
     def array_ini(self, MF_ws):
 
-        self.hk_actual      = self.cPROCESS.checkarray(self.hk)
-        self.vka_actual     = self.cPROCESS.checkarray(self.vka)
-        self.ss_actual      = self.cPROCESS.checkarray(self.ss)
-        self.sy_actual      = self.cPROCESS.checkarray(self.sy)
+        self.hk_actual      = np.asarray(self.cPROCESS.checkarray(self.hk))
+        self.vka_actual     = np.asarray(self.cPROCESS.checkarray(self.vka))
+        self.ss_actual      = np.asarray(self.cPROCESS.checkarray(self.ss))
+        self.sy_actual      = np.asarray(self.cPROCESS.checkarray(self.sy))
         if np.sum(np.asarray(self.sy_actual)>1.0)>0.0:
             self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nSy value > 1.0!!!\nCorrect it (it should be expressed in [L^3/L^3]), and verify also thts, thtr and thti.")
         # uzf
@@ -546,23 +548,20 @@ class clsMF():
             # TODO if thtr < 0, THTR = Sy + abs(THTR)
             if type(self.thts_actual) == float and self.thts_actual < 0:
                 self.thts_actual = np.abs(self.thts_actual)
-                sy_tmp = np.asarray(self.sy_actual)
-                ibound_tmp = np.asarray(self.ibound)
                 if self.nlay < 2:
-                    self.thts_actual += sy_tmp[:,:]*ibound_tmp[:,:,0] + thtr_tmp
+                    self.thts_actual += self.sy_actual[:,:]*self.ibound[0,:,:] + thtr_tmp
                 else:
                     for l in range(self.nlay):
                         if l == 0:
-                            if len(sy_tmp) > self.nlay:
-                                self.thts_actual += sy_tmp[:,:,l]*ibound_tmp[:,:,l] + thtr_tmp
+                            if len(self.sy_actual) > self.nlay:
+                                self.thts_actual += self.sy_actual[l,:,:]*self.ibound[l,:,:] + thtr_tmp
                             else:
-                                self.thts_actual += sy_tmp[l]*ibound_tmp[:,:,l] + thtr_tmp
+                                self.thts_actual += self.sy_actual[l]*self.ibound[l,:,:] + thtr_tmp
                         else:
-                            if len(sy_tmp) > self.nlay:
-                                self.thts_actual += sy_tmp[:,:,l]*ibound_tmp[:,:,l]*abs(ibound_tmp[:,:,l-1]-1)
+                            if len(self.sy_actual) > self.nlay:
+                                self.thts_actual += self.sy_actual[l,:,:]*self.ibound[l,:,:]*abs(self.ibound[l-1,:,:]-1)
                             else:
-                                self.thts_actual += sy_tmp[l]*ibound_tmp[:,:,l]*abs(ibound_tmp[:,:,l-1]-1)
-                del sy_tmp, ibound_tmp
+                                self.thts_actual += self.sy_actual[l]*self.ibound[l,:,:]*abs(self.ibound[l-1,:,:]-1)
                 if self.thtr_actual != None:
                     del thtr_tmp
             else:
@@ -580,31 +579,31 @@ class clsMF():
         if self.drn_yn == 1:
             print '\nDRN package initialization'
             l = 0
-            self.drn_elev_array = np.zeros((self.nrow,self.ncol,self.nlay))
-            self.drn_cond_array = np.zeros((self.nrow,self.ncol,self.nlay))
+            self.drn_elev_array = np.zeros((self.nlay,self.nrow,self.ncol))
+            self.drn_cond_array = np.zeros((self.nlay,self.nrow,self.ncol))
             self.layer_row_column_elevation_cond = [[]]
             for d in self.drn_cond:
                 if isinstance(d, str):
                     drn_elev_path = os.path.join(self.MF_ws, self.drn_elev[l])
-                    self.drn_elev_array[:,:,l] = self.cPROCESS.convASCIIraster2array(drn_elev_path, self.drn_elev_array[:,:,l])
+                    self.drn_elev_array[l,:,:] = self.cPROCESS.convASCIIraster2array(drn_elev_path, self.drn_elev_array[l,:,:])
                     drn_cond_path = os.path.join(self.MF_ws, self.drn_cond[l])
-                    self.drn_cond_array[:,:,l] = self.cPROCESS.convASCIIraster2array(drn_cond_path, self.drn_cond_array[:,:,l])
+                    self.drn_cond_array[l,:,:] = self.cPROCESS.convASCIIraster2array(drn_cond_path, self.drn_cond_array[l,:,:])
                 else:
-                    self.drn_elev_array[:,:,l] = self.drn_elev[l]
-                    self.drn_cond_array[:,:,l] = self.drn_cond[l]
+                    self.drn_elev_array[l,:,:] = self.drn_elev[l]
+                    self.drn_cond_array[l,:,:] = self.drn_cond[l]
                 for i in range(self.nrow):
                     for j in range(self.ncol):
-                        if self.drn_elev_array[i,j,l]!=0:
-                            if self.drn_elev_array[i,j,l]<0 and self.drn_elev_array[i,j,l] != self.hnoflo:
+                        if self.drn_elev_array[l,i,j]!=0:
+                            if self.drn_elev_array[l,i,j]<0 and self.drn_elev_array[l,i,j] != self.hnoflo:
                                 if isinstance(self.botm[l], float):
                                     drn_elev_tmp = self.botm[l] + 0.01
                                 else:
-                                    drn_elev_tmp = self.botm[i][j][l] + 0.01 #- (botm_array[i][j][l]-botm_array[i][j][l-1])/10
+                                    drn_elev_tmp = self.botm[l,i,j] + 0.01 #- (botm_array[l][i][j]-botm_array[i][j][l-1])/10
                             else:
-                                drn_elev_tmp = self.drn_elev_array[i,j,l] + 0.01
-                            if self.drn_cond_array[i,j,l] != self.hnoflo:
-                                self.layer_row_column_elevation_cond[0].append([l+1, i+1, j+1, drn_elev_tmp, self.drn_cond_array[i,j,l]])
-                            self.drn_elev_array[i,j,l] = drn_elev_tmp
+                                drn_elev_tmp = self.drn_elev_array[l,i,j] + 0.01
+                            if self.drn_cond_array[l,i,j] != self.hnoflo:
+                                self.layer_row_column_elevation_cond[0].append([l+1, i+1, j+1, drn_elev_tmp, self.drn_cond_array[l,i,j]])
+                            self.drn_elev_array[l,i,j] = drn_elev_tmp
                             del drn_elev_tmp
                 l += 1
             print "Done!"
@@ -613,24 +612,24 @@ class clsMF():
         if self.ghb_yn == 1:
             print '\nGHB package initialization'
             l = 0
-            self.ghb_head_array = np.zeros((self.nrow,self.ncol,self.nlay))
-            self.ghb_cond_array = np.zeros((self.nrow,self.ncol,self.nlay))
+            self.ghb_head_array = np.zeros((self.nlay,self.nrow,self.ncol))
+            self.ghb_cond_array = np.zeros((self.nlay,self.nrow,self.ncol))
             self.layer_row_column_head_cond = [[]]
             for d in self.ghb_cond:
                 if isinstance(d, str):
                     ghb_head_path = os.path.join(self.MF_ws, self.ghb_head[l])
-                    self.ghb_head_array[:,:,l] = self.cPROCESS.convASCIIraster2array(ghb_head_path, self  .ghb_head_array[:,:,l])
+                    self.ghb_head_array[l,:,:] = self.cPROCESS.convASCIIraster2array(ghb_head_path, self  .ghb_head_array[l,:,:])
                     ghb_cond_path = os.path.join(self.MF_ws, self.ghb_cond[l])
-                    self.ghb_cond_array[:,:,l] = self.cPROCESS.convASCIIraster2array(ghb_cond_path, self.ghb_cond_array[:,:,l])
+                    self.ghb_cond_array[l,:,:] = self.cPROCESS.convASCIIraster2array(ghb_cond_path, self.ghb_cond_array[l,:,:])
                 else:
-                    self.ghb_head_array[:,:,l] = self.ghb_head[l]
-                    self.ghb_cond_array[:,:,l] = self.ghb_cond[l]
+                    self.ghb_head_array[l,:,:] = self.ghb_head[l]
+                    self.ghb_cond_array[l,:,:] = self.ghb_cond[l]
                 for i in range(self.nrow):
                     for j in range(self.ncol):
-                        if self.ghb_head_array[i,j,l] != 0 and self.ghb_head_array[i,j,l] != self.hnoflo:
-                            ghb_head_tmp = self.ghb_head_array[i,j,l]
-                            if self.ghb_cond_array[i,j,l] != self.hnoflo:
-                                self.layer_row_column_head_cond[0].append([l+1, i+1, j+1, ghb_head_tmp, self.ghb_cond_array[i,j,l]])
+                        if self.ghb_head_array[l,i,j] != 0 and self.ghb_head_array[l,i,j] != self.hnoflo:
+                            ghb_head_tmp = self.ghb_head_array[l,i,j]
+                            if self.ghb_cond_array[l,i,j] != self.hnoflo:
+                                self.layer_row_column_head_cond[0].append([l+1, i+1, j+1, ghb_head_tmp, self.ghb_cond_array[l,i,j]])
                             del ghb_head_tmp
                 l += 1
             print "Done!"
@@ -1123,7 +1122,7 @@ class clsMF():
                     layer_row_column_Q.append([])
                     for r in range(self.nrow):
                         for c in range(self.ncol):
-                            if np.abs(self.ibound[r][c][:]).sum() != 0:
+                            if np.abs(self.ibound[:,r,c]).sum() != 0:
                                 if wel_array > 0.0:
                                     layer_row_column_Q[n].append([iuzfbnd[r,c],r+1,c+1,-wel_array*self.delr[c]*self.delc[r]])
                                 else:
@@ -1141,14 +1140,14 @@ class clsMF():
                         layer_row_column_Q.append([])
                         if sum(sum(wel_array[n]))>0.0:
                             for r in range(self.nrow):
-                                for c in range(self.ncol):
-                                    if np.abs(self.ibound[r][c][:]).sum() != 0:
+                                for c in range(self.ncol):                        
+                                    if np.abs(self.ibound[:,r,c]).sum() != 0:
                                         if wel_array[n][r][c]>0.0:
                                             layer_row_column_Q[n].append([iuzfbnd[r,c],r+1,c+1,-(wel_array[n][r][c])*self.delr[c]*self.delc[r]])
                         else:
                             for r in range(self.nrow):
                                 for c in range(self.ncol):
-                                    if np.abs(self.ibound[r][c][:]).sum() != 0:
+                                    if np.abs(self.ibound[:,r,c]).sum() != 0:
                                         layer_row_column_Q[n].append([iuzfbnd[r,c],r+1,c+1,0.0])
                                         wel_dum = 1
                                     if wel_dum == 1:
@@ -1159,7 +1158,7 @@ class clsMF():
                 else:
                     for r in range(self.nrow):
                         for c in range(self.ncol):
-                            if np.abs(self.ibound[r][c][:]).sum() != 0:
+                            if np.abs(self.ibound[:,r,c]).sum() != 0:
                                 layer_row_column_Q = [[iuzfbnd[r,c],r+1,c+1,0.0]]
                                 wel_dum = 1
                             if wel_dum == 1:
@@ -1234,56 +1233,56 @@ class clsMF():
         # 2 - create the modflow packages files
         print '\nMODFLOW files writing'
         # MFfile initialization
-        mfmain = mf.modflow(modelname = self.modelname, exe_name = self.exe_name, namefile_ext = self.namefile_ext, version = self.version, model_ws = self.MF_ws)
+        mfmain = flopy.modflow.Modflow(modelname = self.modelname, exe_name = self.exe_name, namefile_ext = self.namefile_ext, version = self.version, model_ws = self.MF_ws)
         # dis package
-        dis = mf.mfdis(model = mfmain, nrow = self.nrow, ncol = self.ncol, nlay = self.nlay, nper = self.nper, delr = self.delr, delc = self.delc, laycbd = self.laycbd, top = self.top, botm = self.botm, perlen = self.perlen, nstp = self.nstp, tsmult = self.tsmult, itmuni = self.itmuni, lenuni = self.lenuni, steady = self.Ss_tr, extension = self.ext_dis)
+        dis = flopy.modflow.ModflowDis(model = mfmain, nlay = self.nlay, nrow = self.nrow, ncol = self.ncol, nper = self.nper, delr = self.delr, delc = self.delc, laycbd = self.laycbd, top = self.top.data, botm = self.botm.data, perlen = self.perlen, nstp = self.nstp, tsmult = self.tsmult, itmuni = self.itmuni, lenuni = self.lenuni, steady = self.Ss_tr, extension = self.ext_dis)
         dis.write_file()
         # bas package
-        bas = mf.mfbas(model = mfmain, ibound = self.ibound, strt = self.strt, hnoflo = self.hnoflo, extension = self.ext_bas)
+        bas = flopy.modflow.ModflowBas(model = mfmain, ibound = self.ibound, strt = self.strt, hnoflo = self.hnoflo, extension = self.ext_bas)
         bas.write_file()
         # layer package
         if self.version != 'mfnwt':
             # lpf package
-            lpf = mf.mflpf(model = mfmain, hdry = self.hdry, laytyp = self.laytyp, layavg = self.layavg, chani = self.chani, layvka = self.layvka, laywet = self.laywet, hk = self.hk_actual, vka = self.vka_actual, ss = self.ss_actual, sy = self.sy_actual, storagecoefficient = self.storagecoefficient, constantcv = self.constantcv, thickstrt = self.thickstrt, nocvcorrection = self.nocvcorrection, novfc = self.novfc, extension = self.ext_lpf)
+            lpf = flopy.modflow.ModflowLpf(model = mfmain, hdry = self.hdry, laytyp = self.laytyp, layavg = self.layavg, chani = self.chani, layvka = self.layvka, laywet = self.laywet, hk = self.hk_actual, vka = self.vka_actual, ss = self.ss_actual, sy = self.sy_actual, storagecoefficient = self.storagecoefficient, constantcv = self.constantcv, thickstrt = self.thickstrt, nocvcorrection = self.nocvcorrection, novfc = self.novfc, extension = self.ext_lpf)
             lpf.write_file()
             cb = lpf.ilpfcb
         else:
-            upw = mf.mfupw(model = mfmain, hdry = self.hdry, iphdry = self.iphdry, laytyp = self.laytyp, layavg = self.layavg, chani = self.chani, layvka = self.layvka, laywet = self.laywet, hk = self.hk_actual, vka = self.vka_actual, ss = self.ss_actual, sy = self.sy_actual, extension = self.ext_upw)
+            upw = flopy.modflow.ModflowUpw(model = mfmain, hdry = self.hdry, iphdry = self.iphdry, laytyp = self.laytyp, layavg = self.layavg, chani = self.chani, layvka = self.layvka, laywet = self.laywet, hk = self.hk_actual, vka = self.vka_actual, ss = self.ss_actual, sy = self.sy_actual, extension = self.ext_upw)
             upw.write_file()
             cb = upw.iupwcb
         # wel package
         if self.wel_yn == 1:
             if layer_row_column_Q != None:
-                wel = mf.mfwel(model = mfmain, iwelcb = cb, layer_row_column_Q = layer_row_column_Q, extension = self.ext_wel, iunitramp = self.iunitramp)
+                wel = flopy.modflow.ModflowWel(model = mfmain, iwelcb = cb, layer_row_column_Q = layer_row_column_Q, extension = self.ext_wel, iunitramp = self.iunitramp)
                 wel.write_file()
                 del layer_row_column_Q
         # drn package
         if self.drn_yn == 1:
-            drn = mf.mfdrn(model = mfmain, idrncb = cb, layer_row_column_elevation_cond = self.layer_row_column_elevation_cond, extension = self.ext_drn)
+            drn = flopy.modflow.ModflowDrn(model = mfmain, idrncb = cb, layer_row_column_elevation_cond = self.layer_row_column_elevation_cond, extension = self.ext_drn)
             drn.write_file()
             del self.layer_row_column_elevation_cond
         # ghb package
         if self.ghb_yn == 1:
-            ghb = mf.mfghb(model = mfmain, ighbcb = cb, layer_row_column_head_cond = self.layer_row_column_head_cond, extension = self.ext_ghb)
+            ghb = flopy.modflow.ModflowGhb(model = mfmain, ighbcb = cb, layer_row_column_head_cond = self.layer_row_column_head_cond, extension = self.ext_ghb)
             ghb.write_file()
             del self.layer_row_column_head_cond
         # uzf package
         if self.uzf_yn == 1:
-            uzf = mf.mfuzf1(model = mfmain, nuztop = self.nuztop, specifythtr = self.specifythtr, specifythti = self.specifythti, nosurfleak = self.nosurfleak, iuzfopt = self.iuzfopt, irunflg = self.irunflg, ietflg = self.ietflg, iuzfcb1 = self.iuzfcb1, iuzfcb2 = self.iuzfcb2, ntrail2 = self.ntrail2, nsets = self.nsets, nuzgag = self.nuzgag, surfdep = self.surfdep, iuzfbnd = self.iuzfbnd, vks = self.vks_actual, eps = self.eps_actual, thts = self.thts_actual, thtr = self.thtr_actual, thti = self.thti_actual, row_col_iftunit_iuzopt = self.row_col_iftunit_iuzopt, finf = finf_array, extension = self.ext_uzf, uzfbud_ext = self.uzfbud_ext)
+            uzf = flopy.modflow.ModflowUzf1(model = mfmain, nuztop = self.nuztop, specifythtr = self.specifythtr, specifythti = self.specifythti, nosurfleak = self.nosurfleak, iuzfopt = self.iuzfopt, irunflg = self.irunflg, ietflg = self.ietflg, iuzfcb1 = self.iuzfcb1, iuzfcb2 = self.iuzfcb2, ntrail2 = self.ntrail2, nsets = self.nsets, nuzgag = self.nuzgag, surfdep = self.surfdep, iuzfbnd = self.iuzfbnd, vks = self.vks_actual, eps = self.eps_actual, thts = self.thts_actual, thtr = self.thtr_actual, thti = self.thti_actual, row_col_iftunit_iuzopt = self.row_col_iftunit_iuzopt, finf = finf_array, extension = self.ext_uzf, uzfbud_ext = self.uzfbud_ext)
             uzf.write_file()
             del finf_array
         # rch package
         if self.rch_yn == 1:
-            rch = mf.mfrch(model = mfmain, irchcb = cb, nrchop = self.nrchop, rech = rch_array, extension = self.ext_rch)
+            rch = flopy.modflow.ModflowRch(model = mfmain, irchcb = cb, nrchop = self.nrchop, rech = rch_array, extension = self.ext_rch)
             rch.write_file()
             del rch_array
         # output control package
-        oc = mf.mfoc(model = mfmain, ihedfm = self.ihedfm, iddnfm = self.iddnfm, item2 = [[0,1,1,1]], item3 = [[0,0,1,0]], extension = [self.ext_oc,self.ext_heads,self.ext_ddn,self.ext_cbc])
+        oc = flopy.modflow.ModflowOc(model = mfmain, ihedfm = self.ihedfm, iddnfm = self.iddnfm, item2 = [[0,1,1,1]], item3 = [[0,0,1,0]], extension = [self.ext_oc,self.ext_heads,self.ext_ddn,self.ext_cbc])
         oc.write_file()
         # solver
         if self.version != 'mfnwt':
             # pcg package
-            pcg = mf.mfpcg(model = mfmain, mxiter = 150, iter1=75, hclose = self.hclose, rclose = self.rclose, npcond = 1, relax = 0.99, nbpol=0, iprpcg = 0, mutpcg = 1, damp = 0.6, extension = self.ext_pcg)
+            pcg = flopy.modflow.ModflowPcg(model = mfmain, mxiter = 150, iter1=75, hclose = self.hclose, rclose = self.rclose, npcond = 1, relax = 0.99, nbpol=0, iprpcg = 0, mutpcg = 1, damp = 0.6, extension = self.ext_pcg)
             pcg.write_file()
             # sip
         #    sip = mf.mfsip(mfmain, hclose=1e-3)
@@ -1292,7 +1291,7 @@ class clsMF():
         #    sor = mf.mfsor(mfmain, hclose=1e-3)
         #    sor.write_file()
         else:
-            nwt = mf.mfnwt(model = mfmain, headtol = self.headtol, fluxtol = self.fluxtol, maxiterout = self.maxiterout, thickfact = self.thickfact, linmeth = self.linmeth, iprnwt = self.iprnwt, ibotav = self.ibotav, options = self.options, extension = self.ext_nwt)
+            nwt = flopy.modflow.ModflowNwt(model = mfmain, headtol = self.headtol, fluxtol = self.fluxtol, maxiterout = self.maxiterout, thickfact = self.thickfact, linmeth = self.linmeth, iprnwt = self.iprnwt, ibotav = self.ibotav, options = self.options, extension = self.ext_nwt)
             nwt.write_file()
 
         self.h_MF_fn = os.path.join(self.MF_ws, self.modelname + "." + self.ext_heads)
@@ -1313,116 +1312,81 @@ class clsMF():
             Extract heads
             """
             try:
-                h = mfrdbin.mfhdsread(mfmain, 'LF95').read_all(self.h_MF_fn)
+                hmain = flopy.utils.HeadFile(self.h_MF_fn)
+                h = np.zeros((self.nper, self.nlay, self.nrow, self.ncol), dtype = np.float32)
+                for i, e in enumerate(hmain.get_kstpkper()):
+                    h[i,:,:,:] = hmain.get_data(kstp = e[0], kper = e[1])
             except:
                 h5_MF.close()
                 self.cUTIL.ErrorExit(msg= '\nMODFLOW error!\nCheck the MODFLOW list file in folder:\n%s' % self.MF_ws)
-            if len(h[1])<sum(self.nstp):
+            if hmain.get_times()[-1]<sum(self.nstp):
                 h5_MF.close()
                 self.cUTIL.ErrorExit(msg = '\nMODFLOW error!\nCheck the MODFLOW list file in folder:\n%s' % self.MF_ws)
-            print ''
             return h
-            del h
+            del hmain
 
         def readcbc(cbc_fn, h5_ds_fn):
             """
             Extract cell-by-cell budget
             """
-            cbc = mfrdbin.mfcbcread(mfmain, 'LF95').read_all(cbc_fn)
-            h5_MF.create_dataset(h5_ds_fn, data = np.asarray(cbc[2][1]))
-            print ''
+            cbc = flopy.utils.CellBudgetFile(cbc_fn)
+            h5_MF.create_dataset(h5_ds_fn, data = np.asarray(cbc.unique_record_names()))
             return cbc
-            del cbc
 
         h5_MF = h5py.File(self.h5_MF_fn, 'w')
         print '\nStoring heads and cbc terms into HDF5 file\n%s\n' % (self.h5_MF_fn)
+
         if self.dum_sssp1 == 1:
-            if chunks == 1:
-                # TODO implement swapaxes
-                h = readh()
-                h5_MF.create_dataset(name = 'heads', data = np.asarray(h[1][1:]),   chunks = (1,self.nrow,self.ncol,self.nlay), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf
-                del h
-                cbc = readcbc(self.cbc_MF_fn, 'cbc_nam')
-                h5_MF.create_dataset(name = 'cbc',   data = np.asarray(cbc[1][1:]), chunks = (1,len(h5_MF['cbc_nam']),self.nrow,self.ncol,self.nlay),   compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf'
-                del cbc
-                if self.uzf_yn == 1:
-                    cbc_uzf = readcbc(self.cbc_MFuzf_fn, 'cbc_uzf_nam')
-                    h5_MF.create_dataset(name = 'cbc_uzf', data = np.asarray(cbc_uzf[1][1:]), chunks = (1,len(h5_MF['cbc_uz_nam']),self.nrow,self.ncol,self.nlay), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf'
-                    del cbc_uzf
-            else:
-                h = readh()
-                h5_MF.create_dataset(name = 'heads', data = np.asarray(h[1][1:]))
-                del h
-                cbc = readcbc(self.cbc_MF_fn, 'cbc_nam')[1][1:]
-                cbc = np.swapaxes(cbc,1,2)
-                cbc = np.swapaxes(cbc,2,3)
-                try:
-                    h5_MF.create_dataset(name = 'cbc', data = cbc)
-                except:
-                    h5_MF.create_dataset(name = 'cbc', shape = (self.nper-1, self.nrow, self.ncol, h5_MF['cbc_nam'].shape[0], self.nlay), dtype = np.float)
-                    for x in range(h5_MF['cbc_nam'].shape[0]):
-                        h5_MF['cbc'][:,:,:,x,:] = cbc[:,:,:,x,:]
-                del cbc
-                if self.uzf_yn == 1:
-                    cbc_uzf = readcbc(self.cbc_MFuzf_fn, 'cbc_uzf_nam')[1][1:]
-                    cbc_uzf = np.swapaxes(cbc_uzf,1,2)
-                    cbc_uzf = np.swapaxes(cbc_uzf,2,3)
-                    try:
-                        h5_MF.create_dataset(name = 'cbc_uzf', data = cbc_uzf)
-                    except:
-                        h5_MF.create_dataset(name = 'cbc_uzf', shape = (self.nper-1, self.nrow, self.ncol, h5_MF['cbc_uzf_nam'].shape[0], self.nlay), dtype = np.float)
-                        for x in range(h5_MF['cbc_uzf_nam'].shape[0]):
-                            h5_MF['cbc_uzf'][:,:,:,x,:] = cbc_uzf[:,:,:,x,:]
-                    del cbc_uzf
             self.nper = self.nper - 1
             self.perlen = self.perlen[1:]
             self.tsmult = self.tsmult[1:]
             self.nstp = self.nstp[1:]
             self.Ss_tr = self.Ss_tr[1:]
-        else:
-            if chunks == 1:
-                # TODO implement swapaxes
-                h = readh()
-                h5_MF.create_dataset(name = 'heads', data = np.asarray(h[1]), chunks = (1,self.nrow,self.ncol,self.nlay), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf'
-                del h
-                cbc = readcbc(self.cbc_MF_fn, 'cbc_nam')
-                h5_MF.create_dataset(name = 'cbc', data = np.asarray(cbc[1]), chunks = (1,len(h5_MF['cbc_nam']),self.nrow,self.ncol,self.nlay), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf'
-                del cbc
-                if self.uzf_yn == 1:
-                    cbc_uzf = readcbc(self.cbc_MFuzf_fn, 'cbc_uzf_nam')
-                    h5_MF.create_dataset(name = 'cbc_uzf', data = np.asarray(cbc_uzf[1]), chunks = (1,len(h5_MF['cbc_uzf_nam']),self.nrow,self.ncol,self.nlay), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf'
-                    del cbc_uzf
+        # HEADS            
+        h = readh()
+        if chunks == 1:
+            if self.dum_sssp1 == 1:
+                h5_MF.create_dataset(name = 'heads', data = h[1:], chunks = (1,self.nlay,self.nrow,self.ncol), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf')
             else:
-                h = readh()
-                h5_MF.create_dataset(name = 'heads', data = np.asarray(h[1]))
-                del h
-                cbc = readcbc(self.cbc_MF_fn, 'cbc_nam')[1]
-                cbc = np.swapaxes(cbc,1,2)
-                cbc = np.swapaxes(cbc,2,3)
-                try:
-                    h5_MF.create_dataset(name = 'cbc', data = cbc)
-                except:
-                    h5_MF.create_dataset(name = 'cbc', shape = (self.nper, self.nrow, self.ncol, h5_MF['cbc_nam'].shape[0], self.nlay), dtype = np.float)
-                    for x in range(h5_MF['cbc_nam'].shape[0]):
-                        h5_MF['cbc'][:,:,:,x,:] = cbc[:,:,:,x,:]
-                del cbc
-                if self.uzf_yn == 1:
-                    cbc_uzf = readcbc(self.cbc_MFuzf_fn, 'cbc_uzf_nam')[1]
-                    cbc_uzf = np.swapaxes(cbc_uzf,1,2)
-                    cbc_uzf = np.swapaxes(cbc_uzf,2,3)
-                    try:
-                        h5_MF.create_dataset(name = 'cbc_uzf', data = cbc_uzf)
-                    except:
-                        h5_MF.create_dataset(name = 'cbc_uzf', shape = (self.nper, self.nrow, self.ncol, h5_MF['cbc_uzf_nam'].shape[0], self.nlay), dtype = np.float)
-                        for x in range(h5_MF['cbc_uzf_nam'].shape[0]):
-                            h5_MF['cbc_uzf'][:,:,:,x,:] = cbc_uzf[:,:,:,x,:]
-                    del cbc_uzf
+                h5_MF.create_dataset(name = 'heads', data = h, chunks = (1,self.nlay,self.nrow,self.ncol), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf')
+        else:
+            if self.dum_sssp1 == 1:
+                h5_MF.create_dataset(name = 'heads', data = h[1:])
+            else:
+                h5_MF.create_dataset(name = 'heads', data = h)
+        del h
+        # CBC
+        cbc = readcbc(self.cbc_MF_fn, 'cbc_nam')
+        if chunks == 1:
+            h5_MF.create_dataset(name = 'cbc', shape = (self.nper, self.nlay, self.nrow, self.ncol, h5_MF['cbc_nam'].shape[0]), dtype = np.float, chunks = (1,self.nlay,self.nrow,self.ncol,h5_MF['cbc_nam'].shape[0]), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf')
+        else:
+            h5_MF.create_dataset(name = 'cbc', shape = (self.nper, self.nlay, self.nrow, self.ncol, h5_MF['cbc_nam'].shape[0]), dtype = np.float)
+        for x, txt in enumerate(h5_MF['cbc_nam']):
+            if self.dum_sssp1 == 1:
+                h5_MF['cbc'][:,:,:,:,x] = cbc.get_data_by_text(txt)[1:]
+            else:
+                h5_MF['cbc'][:,:,:,:,x] = cbc.get_data_by_text(txt)
+        del cbc
+        # CBC UZF
+        if self.uzf_yn == 1:
+            cbc_uzf = readcbc(self.cbc_MFuzf_fn, 'cbc_uzf_nam')
+            if chunks == 1:
+                h5_MF.create_dataset(name = 'cbc_uzf', shape = (self.nper, self.nlay, self.nrow, self.ncol, h5_MF['cbc_uzf_nam'].shape[0]), dtype = np.float, chunks = (1, self.nlay, self.nrow,self.ncol, h5_MF['cbc_uzf_nam'].shape[0]), compression = 'gzip', compression_opts = 5, shuffle = True)
+            else:
+                h5_MF.create_dataset(name = 'cbc_uzf', shape = (self.nper, self.nlay, self.nrow, self.ncol, h5_MF['cbc_uzf_nam'].shape[0]), dtype = np.float)
+            for x, txt in enumerate(h5_MF['cbc_uzf_nam']):
+                if self.dum_sssp1 == 1:
+                    h5_MF['cbc_uzf'][:,:,:,:,x] = cbc_uzf.get_data_by_text(txt)[1:]
+                else:
+                    h5_MF['cbc_uzf'][:,:,:,:,x] = cbc_uzf.get_data_by_text(txt)                            
+            del cbc_uzf
+
         h4MM = np.zeros((len(self.perlen),self.nrow,self.ncol), dtype = np.float)
         h_MF = h5_MF['heads'][:,:,:,:]
         iuzfbnd = np.asarray(self.iuzfbnd)
         for l in range(self.nlay):
             mask = np.ma.make_mask(iuzfbnd == l+1)
-            h4MM[:,:,:] += h_MF[:,:,:,l]*mask
+            h4MM[:,:,:] += h_MF[:,l,:,:]*mask
         del h_MF
         h5_MF.create_dataset(name = 'heads4MM', data = h4MM)
         exf4MM = np.zeros((len(self.perlen),self.nrow,self.ncol), dtype = np.float)
@@ -1431,11 +1395,11 @@ class clsMF():
             for c in h5_MF['cbc_uzf_nam']:
                 cbc_uzf_nam.append(c.strip())
             imfEXF   = cbc_uzf_nam.index('SURFACE LEAKAGE')
-            exf_MF = h5_MF['cbc_uzf'][:,:,:,imfEXF,:]
+            exf_MF = h5_MF['cbc_uzf'][:,:,:,:,imfEXF]
             for l in range(self.nlay):
                 for t in range(len(self.perlen)):
                     mask = np.ma.make_mask(iuzfbnd == l+1)
-                    exf4MM[t,:,:] += exf_MF[t,:,:,l]*mask
+                    exf4MM[t,:,:] += exf_MF[t,l,:,:]*mask
             h5_MF.create_dataset(name = 'exf4MM', data = exf4MM)
         h5_MF.close()
         # to delete MF binary files and save disk space

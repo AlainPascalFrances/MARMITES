@@ -7,7 +7,7 @@ from clsReSo_GUI_frame import clsReSo_GUI_frame
 
 class clsReSo_GUI(wx.App):
     def OnInit(self):
-        wx.InitAllImageHandlers()
+        #wx.InitAllImageHandlers()
         fram_main = clsReSo_GUI_frame(None, -1, "")
         self.SetTopWindow(fram_main)
         fram_main.Show()

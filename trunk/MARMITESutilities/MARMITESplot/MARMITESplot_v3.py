@@ -15,7 +15,7 @@ import os, itertools, shutil
 def compDATE_INI(date, iniMonthHydroYear):
     year = mpl.dates.num2date(date).year
     month = mpl.dates.num2date(date).month
-    day = mpl.dates.num2date(date).day
+#    day = mpl.dates.num2date(date).day
     if month >= iniMonthHydroYear:
         date_ini = mpl.dates.date2num(mpl.dates.datetime.datetime(year,iniMonthHydroYear,1))
     else:
@@ -27,7 +27,7 @@ def compDATE_INI(date, iniMonthHydroYear):
 def compDATE_END(date, iniMonthHydroYear):
     year = mpl.dates.num2date(date).year
     month = mpl.dates.num2date(date).month
-    day = mpl.dates.num2date(date).day
+#    day = mpl.dates.num2date(date).day
     if month >= iniMonthHydroYear:
         date_end = mpl.dates.date2num(mpl.dates.datetime.datetime(year+1,iniMonthHydroYear,1))
     else:
@@ -241,7 +241,7 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
         for l, (y, color, lbl) in enumerate(zip(Sobs_m, colors_nsl, lbl_Sobs)):
             obs_tmp.append(y)
             if y != []:
-                ax5.plot_date(cMF.inputDate, y, ls = 'None', color = 'None', marker='o', markersize=2, markeredgecolor = color, markerfacecolor = 'None', label=lbl) #'--', color = color,
+                ax5.plot_date(cMF.inputDate, y, ls = 'None', color = 'gray', marker='o', markersize=2, markeredgecolor = color, markerfacecolor = 'None', label=lbl) #'--', color = color,
     except:
         print'WARNING! Error in plotting SM observations at %s' % obs_name
         pass
@@ -290,7 +290,7 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
     obs_leg = None
     try:
         hobs_m = np.ma.masked_values(hobs, hnoflo, atol = 0.09)
-        plt.plot_date(cMF.inputDate,hobs_m, ls = 'None', color = 'None', marker='o', markeredgecolor = 'blue', markerfacecolor = 'None', markersize = 2) # ls='--', color = 'blue'
+        plt.plot_date(cMF.inputDate,hobs_m, ls = 'None', color = 'gray', marker='o', markeredgecolor = 'blue', markerfacecolor = 'None', markersize = 2) # ls='--', color = 'blue'
         obs_leg = 1
     except:
         pass
@@ -347,7 +347,7 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
         maxfact = 1.05
         if min(np.min(MB), np.min(MB_l1)) > 0:
             minfact = 1.05
-        if max(np.max(MB), np.max(MB_l1)) < 0:
+        if max(np.max(MB), np.max(MB_l1ymax)) < 0:
             maxfact = 0.95
         plt.ylim(min(np.min(MB), np.min(MB_l1))*minfact,max(np.max(MB),np.max(MB_l1))*maxfact)
     # legend
@@ -384,7 +384,7 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
     try:
         dgwtobs_m = np.ma.masked_values(hobs, hnoflo, atol = 0.09) - elev
 #        dgwtobsmin = np.ma.min(dgwtobs_m)
-        plt.plot_date(cMF.inputDate,dgwtobs_m, ls = 'None', color = 'None', marker='o', markeredgecolor = 'blue', markerfacecolor = 'None', markersize = 2) # ls='--', color = 'blue'
+        plt.plot_date(cMF.inputDate,dgwtobs_m, ls = 'None', color = 'gray', marker='o', markeredgecolor = 'blue', markerfacecolor = 'None', markersize = 2) # ls='--', color = 'blue'
         obs_leg = 1
     except:
         pass
@@ -785,9 +785,9 @@ def plotLAYER(timesteps, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, ms
         plt.draw()
         for L in range(nplot):
             if mask == None:
-                Vtmp = V[i,:,:,L]
+                Vtmp = V[i,L,:,:]
             else:
-                Vtmp = np.ma.masked_array(V[i,:,:,L], mask[:,:,L])
+                Vtmp = np.ma.masked_array(V[i,L,:,:], mask[L,:,:])
             Vtmp = np.ma.masked_values(Vtmp, hnoflo, atol = 0.09)
             Vmin_tmp, Vmax_tmp, ctrs_tmp = MinMax(Vmin[i], Vmax[i], contours)
             if fmt == None:

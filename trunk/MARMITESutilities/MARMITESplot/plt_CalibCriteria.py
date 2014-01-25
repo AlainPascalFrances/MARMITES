@@ -2,11 +2,12 @@
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import os
+import win32com
 
 f = plt.figure()
 f.suptitle('Calibration criteria', fontsize = 16)
 lbl = ['','1/4','1/2','3/4','1','4/3','2','4']
-fontsize = 8
+fontsize = 10
 ax = []
 CS = []
 CB = []
@@ -68,7 +69,7 @@ for p, (sp, title, array) in enumerate(zip([221,223],['RSR','r'],[rsr, r])):
         ax[p].set_xlabel('$K_{MRS}$ mult.')
     f.canvas.draw()
 
-img_fn = os.path.join(os.path.expanduser('~'), 'Desktop\calib_criteria.png')
-plt.savefig(img_fn)
+img_fn = os.path.join(win32com.shell.shell.SHGetFolderPath(0, win32com.shell.shellcon.CSIDL_DESKTOP, None, 0), 'calib_criteria_ft10.png') #(os.path.expanduser('~'), 'Desktop\calib_criteria.png')
+plt.savefig(img_fn, dpi = 300)
 
 print '\nDone!\nImage save in:\n%s' % img_fn

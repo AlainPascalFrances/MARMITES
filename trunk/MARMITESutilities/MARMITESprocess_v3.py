@@ -56,19 +56,19 @@ class clsPROCESS:
                 else:
                     lst_out = float(var[0])
         except:
-            array = np.zeros((self.nrow,self.ncol,len(var)), dtype = dtype)
+            array = np.zeros((len(var),self.nrow,self.ncol), dtype = dtype)
             l = 0
             for v in var:
                 if isinstance(v, str):
                     array_path = os.path.join(self.MF_ws, v)
-                    array[:,:,l] = self.convASCIIraster2array(array_path, array[:,:,l])
+                    array[l,:,:] = self.convASCIIraster2array(array_path, array[l,:,:])
                 else:
                     self.cUTIL.ErrorExit('\nFATAL ERROR!\nMODFLOW ini file incorrect, check files or values %s' % var)
                 l += 1
             if len(var)>1:
                 lst_out = list(array)
             else:
-                lst_out = list(array[:,:,0])
+                lst_out = list(array[0,:,:])
 
         return lst_out
 
@@ -135,7 +135,7 @@ class clsPROCESS:
 
         # cbc format is : (kstp), kper, textprocess, nrow, ncol, nlay
         t = 0
-        h5_MF.create_dataset(name = ds_name_new, data = np.zeros((sum(cMF.perlen), cMF.nrow, cMF.ncol, cMF.nlay)))
+        h5_MF.create_dataset(name = ds_name_new, data = np.zeros((sum(cMF.perlen), cMF.nlay, cMF.nrow, cMF.ncol)))
         if cMF.timedef > 0:
             for n in range(cMF.nper):
                 if cMF.perlen[n] != 1:
@@ -143,7 +143,7 @@ class clsPROCESS:
                         if ds_name == 'heads':
                             h5_MF[ds_name_new][t,:,:,:] = h5_MF['heads'][n,:,:,:]
                         else:
-                            array_tmp = h5_MF[ds_name][n,:,:,index,:]
+                            array_tmp = h5_MF[ds_name][n,:,:,:,index]
                             if cMF.reggrid == 1 and ds_name != 'heads':
                                 h5_MF[ds_name_new][t,:,:,:] = conv_fact*array_tmp/(cMF.delr[0]*cMF.delc[0])
                             else:
@@ -156,26 +156,26 @@ class clsPROCESS:
                     if ds_name == 'heads':
                         h5_MF[ds_name_new][t,:,:,:] = h5_MF['heads'][n,:,:,:]
                     else:
-                        array_tmp = h5_MF[ds_name][n,:,:,index,:]
+                        array_tmp = h5_MF[ds_name][n,:,:,:,index]
                         if cMF.reggrid == 1:
                             h5_MF[ds_name_new][t,:,:,:] = conv_fact*array_tmp/(cMF.delr[0]*cMF.delc[0])
                         else:
                             for i in range(cMF.nrow):
                                 for j in range(cMF.ncol):
-                                    h5_MF[ds_name_new][t,i,j,:] = conv_fact*array_tmp[i,j,:]/(cMF.delr[j]*cMF.delc[i])
+                                    h5_MF[ds_name_new][t,:,i,j] = conv_fact*array_tmp[:,i,j]/(cMF.delr[j]*cMF.delc[i])
                         del array_tmp
                     t += 1
         else:
             if ds_name == 'heads':
                 h5_MF[ds_name_new][:,:,:,:] = h5_MF['heads']
             else:
-                array_tmp = h5_MF[ds_name][:,:,:,index,:]
+                array_tmp = h5_MF[ds_name][:,:,:,:,index]
                 if cMF.reggrid == 1:
                     h5_MF[ds_name_new][:,:,:,:] = conv_fact*array_tmp/(cMF.delr[0]*cMF.delc[0])
                 else:
                     for i in range(cMF.nrow):
                         for j in range(cMF.ncol):
-                            h5_MF[ds_name_new][:,i,j,:] = conv_fact*array_tmp[i,j,:]/(cMF.delr[j]*cMF.delc[i])
+                            h5_MF[ds_name_new][:,:,i,j] = conv_fact*array_tmp[:,i,j]/(cMF.delr[j]*cMF.delc[i])
                     del array_tmp
 
     ######################
