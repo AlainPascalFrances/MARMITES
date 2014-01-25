@@ -1316,43 +1316,24 @@ class clsMF():
         mfmain.run_model(pause = False, report = report)
         print "Done!"
 
-        def readh():
-            """
-            Extract heads
-            """
-            try:
-                hmain = flopy.utils.HeadFile(self.h_MF_fn)
-                h = np.zeros((self.nper, self.nlay, self.nrow, self.ncol), dtype = np.float32)
-                for i, e in enumerate(hmain.get_kstpkper()):
-                    h[i,:,:,:] = hmain.get_data(kstp = e[0], kper = e[1])
-            except:
-                h5_MF.close()
-                self.cUTIL.ErrorExit(msg= '\nMODFLOW error!\nCheck the MODFLOW list file in folder:\n%s' % self.MF_ws)
-            if hmain.get_times()[-1]<sum(self.nstp):
-                h5_MF.close()
-                self.cUTIL.ErrorExit(msg = '\nMODFLOW error!\nCheck the MODFLOW list file in folder:\n%s' % self.MF_ws)
-            return h
-            del hmain
-
-        def readcbc(cbc_fn, h5_ds_fn):
-            """
-            Extract cell-by-cell budget
-            """
-            cbc = flopy.utils.CellBudgetFile(cbc_fn)
-            h5_MF.create_dataset(h5_ds_fn, data = np.asarray(cbc.unique_record_names()))
-            return cbc
-
         h5_MF = h5py.File(self.h5_MF_fn, 'w')
         print '\nStoring heads and cbc terms into HDF5 file\n%s\n' % (self.h5_MF_fn)
-
         if self.dum_sssp1 == 1:
-            self.nper = self.nper - 1
-            self.perlen = self.perlen[1:]
-            self.tsmult = self.tsmult[1:]
-            self.nstp = self.nstp[1:]
-            self.Ss_tr = self.Ss_tr[1:]
+            nper_tmp = self.nper - 1
+        else:
+            nper_tmp = self.nper
         # HEADS            
-        h = readh()
+        try:
+            hmain = flopy.utils.HeadFile(self.h_MF_fn)
+        except:
+            h5_MF.close()
+            self.cUTIL.ErrorExit(msg= '\nMODFLOW error!\nCheck the MODFLOW list file in folder:\n%s' % self.MF_ws)
+        h = np.zeros((self.nper, self.nlay, self.nrow, self.ncol), dtype = np.float32)
+        for i, e in enumerate(hmain.get_kstpkper()):
+            h[i,:,:,:] = hmain.get_data(kstp = e[0], kper = e[1])
+        if hmain.get_times()[-1]<sum(self.nstp):
+            h5_MF.close()
+            self.cUTIL.ErrorExit(msg = '\nMODFLOW error!\nCheck the MODFLOW list file in folder:\n%s' % self.MF_ws)        
         if chunks == 1:
             if self.dum_sssp1 == 1:
                 h5_MF.create_dataset(name = 'heads', data = h[1:], chunks = (1,self.nlay,self.nrow,self.ncol), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf')
@@ -1365,30 +1346,38 @@ class clsMF():
                 h5_MF.create_dataset(name = 'heads', data = h)
         del h
         # CBC
-        cbc = readcbc(self.cbc_MF_fn, 'cbc_nam')
+        cbc = flopy.utils.CellBudgetFile(self.cbc_MF_fn)
+        h5_MF.create_dataset('cbc_nam', data = np.asarray(cbc.unique_record_names()))
         if chunks == 1:
-            h5_MF.create_dataset(name = 'cbc', shape = (self.nper, self.nlay, self.nrow, self.ncol, h5_MF['cbc_nam'].shape[0]), dtype = np.float, chunks = (1,self.nlay,self.nrow,self.ncol,h5_MF['cbc_nam'].shape[0]), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf')
+            h5_MF.create_dataset(name = 'cbc', shape = (nper_tmp, self.nlay, self.nrow, self.ncol, h5_MF['cbc_nam'].shape[0]), dtype = np.float, chunks = (1,self.nlay,self.nrow,self.ncol,h5_MF['cbc_nam'].shape[0]), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf')
         else:
-            h5_MF.create_dataset(name = 'cbc', shape = (self.nper, self.nlay, self.nrow, self.ncol, h5_MF['cbc_nam'].shape[0]), dtype = np.float)
+            h5_MF.create_dataset(name = 'cbc', shape = (nper_tmp, self.nlay, self.nrow, self.ncol, h5_MF['cbc_nam'].shape[0]), dtype = np.float)
         for x, txt in enumerate(h5_MF['cbc_nam']):
-            if self.dum_sssp1 == 1:
+            if self.dum_sssp1 == 1 and txt.replace(' ','') != 'STORAGE':
                 h5_MF['cbc'][:,:,:,:,x] = cbc.get_data_by_text(txt)[1:]
             else:
                 h5_MF['cbc'][:,:,:,:,x] = cbc.get_data_by_text(txt)
         del cbc
         # CBC UZF
         if self.uzf_yn == 1:
-            cbc_uzf = readcbc(self.cbc_MFuzf_fn, 'cbc_uzf_nam')
+            cbc_uzf = flopy.utils.CellBudgetFile(self.cbc_MFuzf_fn)
+            h5_MF.create_dataset('cbc_uzf_nam', data = np.asarray(cbc_uzf.unique_record_names()))
             if chunks == 1:
-                h5_MF.create_dataset(name = 'cbc_uzf', shape = (self.nper, self.nlay, self.nrow, self.ncol, h5_MF['cbc_uzf_nam'].shape[0]), dtype = np.float, chunks = (1, self.nlay, self.nrow,self.ncol, h5_MF['cbc_uzf_nam'].shape[0]), compression = 'gzip', compression_opts = 5, shuffle = True)
+                h5_MF.create_dataset(name = 'cbc_uzf', shape = (nper_tmp, self.nlay, self.nrow, self.ncol, h5_MF['cbc_uzf_nam'].shape[0]), dtype = np.float, chunks = (1, self.nlay, self.nrow,self.ncol, h5_MF['cbc_uzf_nam'].shape[0]), compression = 'gzip', compression_opts = 5, shuffle = True)
             else:
-                h5_MF.create_dataset(name = 'cbc_uzf', shape = (self.nper, self.nlay, self.nrow, self.ncol, h5_MF['cbc_uzf_nam'].shape[0]), dtype = np.float)
+                h5_MF.create_dataset(name = 'cbc_uzf', shape = (nper_tmp, self.nlay, self.nrow, self.ncol, h5_MF['cbc_uzf_nam'].shape[0]), dtype = np.float)
             for x, txt in enumerate(h5_MF['cbc_uzf_nam']):
                 if self.dum_sssp1 == 1:
                     h5_MF['cbc_uzf'][:,:,:,:,x] = cbc_uzf.get_data_by_text(txt)[1:]
                 else:
                     h5_MF['cbc_uzf'][:,:,:,:,x] = cbc_uzf.get_data_by_text(txt)                            
-            del cbc_uzf
+            del cbc_uzf  
+        if self.dum_sssp1 == 1:
+            self.nper = self.nper - 1
+            self.perlen = self.perlen[1:]
+            self.tsmult = self.tsmult[1:]
+            self.nstp = self.nstp[1:]
+            self.Ss_tr = self.Ss_tr[1:]    
 
         h4MM = np.zeros((len(self.perlen),self.nrow,self.ncol), dtype = np.float)
         h_MF = h5_MF['heads'][:,:,:,:]
