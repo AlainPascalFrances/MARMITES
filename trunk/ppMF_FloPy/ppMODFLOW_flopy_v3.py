@@ -20,6 +20,7 @@ import numpy as np
 import matplotlib as mpl
 import h5py
 import flopy
+from flopy.mbase import Package
 import MARMITESprocess_v3 as MMproc
 
 #####################################
@@ -1249,13 +1250,21 @@ class clsMF():
         else:
             upw = flopy.modflow.ModflowUpw(model = mfmain, hdry = self.hdry, iphdry = self.iphdry, laytyp = self.laytyp, layavg = self.layavg, chani = self.chani, layvka = self.layvka, laywet = self.laywet, hk = self.hk_actual, vka = self.vka_actual, ss = self.ss_actual, sy = self.sy_actual, extension = self.ext_upw)
             upw.write_file()
-            cb = upw.iupwcb
+            cb = upw.ilpfcb
         # wel package
         if self.wel_yn == 1:
             if layer_row_column_Q != None:
-                wel = flopy.modflow.ModflowWel(model = mfmain, iwelcb = cb, layer_row_column_Q = layer_row_column_Q, extension = self.ext_wel, iunitramp = self.iunitramp)
+                if self.iunitramp <> None:
+                    options = ['\nSPECIFY 0.05 %d\n' % self.iunitramp] 
+                wel = flopy.modflow.ModflowWel(model = mfmain, iwelcb = cb, layer_row_column_Q = layer_row_column_Q, extension = self.ext_wel, options = options)
                 wel.write_file()
                 del layer_row_column_Q
+                if self.iunitramp <> None:
+                    class_nam = ['WEL']
+                    wel.unit_number.append(self.iunitramp)
+                    wel.extension.append('ReducedWells.out')
+                    class_nam += ['DATA']
+                    Package.__init__(wel, parent = mfmain, extension = wel.extension, name = class_nam, unit_number = wel.unit_number)  
         # drn package
         if self.drn_yn == 1:
             drn = flopy.modflow.ModflowDrn(model = mfmain, idrncb = cb, layer_row_column_elevation_cond = self.layer_row_column_elevation_cond, extension = self.ext_drn)
