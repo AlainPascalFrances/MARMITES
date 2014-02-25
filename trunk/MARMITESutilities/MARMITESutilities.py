@@ -83,4 +83,27 @@ class clsUTILITIES():
 
 #####################################
 
+    def compDATE_INI(self, date, iniMonthHydroYear):
+        year = mpl.dates.num2date(date).year
+        month = mpl.dates.num2date(date).month
+    #    day = mpl.dates.num2date(date).day
+        if month >= iniMonthHydroYear:
+            date_ini = mpl.dates.date2num(mpl.dates.datetime.datetime(year,iniMonthHydroYear,1))
+        else:
+            date_ini = mpl.dates.date2num(mpl.dates.datetime.datetime(year-1,iniMonthHydroYear,1))
+        return date_ini, year
+
+#####################################
+
+    def compDATE_END(self, date, iniMonthHydroYear):
+        year = mpl.dates.num2date(date).year
+        month = mpl.dates.num2date(date).month
+    #    day = mpl.dates.num2date(date).day
+        if month >= iniMonthHydroYear:
+            date_end = mpl.dates.date2num(mpl.dates.datetime.datetime(year+1,iniMonthHydroYear,1))
+        else:
+            date_end = mpl.dates.date2num(mpl.dates.datetime.datetime(year,iniMonthHydroYear,1))
+        return date_end, year
+
+#####################################
 #EOF

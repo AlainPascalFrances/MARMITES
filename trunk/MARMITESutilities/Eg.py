@@ -12,9 +12,8 @@
 
 import matplotlib.pyplot as plt
 import numpy as np
-import sys
-import CreateColors
-
+#import CreateColors
+import itertools
 
 def Eg(PE, y0, b, dtwt, dll):
     '''
@@ -44,53 +43,55 @@ paramEg = {'sand'        : {'dll':160.0,'y0':0.000,'b':0.0171, 'ext_d':500.0},
 
 lblspc = 0.05
 mkscale = 0.5
-colors_ = CreateColors.main(hi=10, hf=150, numbcolors = (len(paramEg.keys())-1))
+#colors_ = CreateColors.main(hi=10, hf=150, numbcolors = (len(paramEg.keys())))
+lines = itertools.cycle(['-','--','-.',':','.',',','o','v','^','<','>','1','2','3','4','s','p','*','h','H','+','x','D','d','|','_'])
 fig = plt.figure(figsize=(11.7, 8.27))
 
-dtwt = range(-1000,6500,10)
-dtwt_norm = [[]]
-GWET = [[]]
-for s in range(len(paramEg.keys())-1):
-    y0  = paramEg[paramEg.keys()[s]]['y0']
-    b   = paramEg[paramEg.keys()[s]]['b']
-    dll = paramEg[paramEg.keys()[s]]['dll']
-    for d in range(len(dtwt)):
-        dtwt_norm[s].append(dtwt[d]/paramEg[paramEg.keys()[s]]['ext_d'])
-        GWET[s].append(Eg(1.0, y0, b,dtwt[d],dll))
+dtwt = np.asarray(range(-1000,6500,10))
+#dtwt_norm = []
+GWET = []
+lbls = ['sand', 'loam', 'silt', 'clay']
+for s, lbl in enumerate(lbls):
     GWET.append([])
-    dtwt_norm.append([])
+    #dtwt_norm.append([])
+    y0  = paramEg[lbl]['y0']
+    b   = paramEg[lbl]['b']
+    dll = paramEg[lbl]['dll']
+    for d in range(len(dtwt)):
+        #dtwt_norm[s].append(dtwt[d]/paramEg[paramEg[lbl]]['ext_d'])
+        GWET[s].append(Eg(1.0, y0, b,dtwt[d],dll))
 
-ax1=fig.add_subplot(1,2,1)
+ax1=fig.add_subplot(2,2,1)
 plt.setp(ax1.get_xticklabels(), fontsize=8)
 plt.setp(ax1.get_yticklabels(), fontsize=8)
-for l, (x, color, lbl) in enumerate(zip(GWET, colors_, paramEg.keys())) :
-    ax1.plot(x, dtwt, '-', color=color, label=lbl)
-plt.legend(paramEg.keys(), loc=0, labelspacing=lblspc, markerscale=mkscale)
+for l, (x, lbl) in enumerate(zip(GWET, lbls)) :
+    ax1.plot(x, dtwt/1000.0, lines.next(), color = 'black', label=lbl)
+plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale)
 leg = plt.gca().get_legend()
 ltext  = leg.get_texts()
-plt.setp(ltext, fontsize=8 )
+plt.setp(ltext, fontsize=10)
 plt.grid(True)
-plt.xlim((-0.05, 1.05))
-plt.ylim((-100,3000))
-plt.xlabel('Eg/PE')
-plt.ylabel('dtwt (mm)')
+#plt.xlim((-0.01, 1.01))
+plt.ylim(0.0, 3.0)
+plt.xlabel(r'$E_g/PE$')
+plt.ylabel('$d\ (m)$')
 ax1.set_ylim(ax1.get_ylim()[::-1])
 
-ax5=fig.add_subplot(1,2,2)
-plt.setp(ax5.get_xticklabels(), fontsize=8)
-plt.setp(ax5.get_yticklabels(), fontsize=8)
-for l, (x, y, color, lbl) in enumerate(zip(GWET, dtwt_norm, colors_, paramEg.keys())) :
-    ax5.plot(x, y, '-', color=color, label=lbl)
-plt.legend(paramEg.keys(), loc=0, labelspacing=lblspc, markerscale=mkscale)
-leg = plt.gca().get_legend()
-ltext  = leg.get_texts()
-plt.setp(ltext, fontsize=8 )
-plt.grid(True)
-plt.xlim((-0.05, 1.05))
-plt.ylim((-0.05, 1.05))
-plt.xlabel('Eg/PE')
-plt.ylabel('dtwt/ext_d')
-ax5.set_ylim(ax5.get_ylim()[::-1])
+#ax5=fig.add_subplot(1,2,2)
+#plt.setp(ax5.get_xticklabels(), fontsize=8)
+#plt.setp(ax5.get_yticklabels(), fontsize=8)
+#for l, (x, y, color, lbl) in enumerate(zip(GWET, dtwt_norm, colors_, paramEg.keys())) :
+#    ax5.plot(x, y, '-', color=color, label=lbl)
+#plt.legend(paramEg.keys(), loc=0, labelspacing=lblspc, markerscale=mkscale)
+#leg = plt.gca().get_legend()
+#ltext  = leg.get_texts()
+#plt.setp(ltext, fontsize=8 )
+#plt.grid(True)
+#plt.xlim((-0.05, 1.05))
+#plt.ylim((-0.05, 1.05))
+#plt.xlabel('Eg/PE')
+#plt.ylabel('dtwt/ext_d')
+#ax5.set_ylim(ax5.get_ylim()[::-1])
 
 plt.show()
 img_path = 'Eg_function'
