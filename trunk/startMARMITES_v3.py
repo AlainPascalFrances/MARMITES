@@ -1377,7 +1377,7 @@ if os.path.exists(h5_MM_fn):
         flxmax_d.append(np.ma.max(flx_tmp))
         flxmin_d.append(np.ma.min(flx_tmp))
         array_tmp1 = np.sum(np.ma.masked_values(array_tmp, cMF.hnoflo, atol = 0.09), axis = 1)
-        flx_Cat_TS.append(-1.0*np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
+        flx_Cat_TS.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
         del flx_tmp, array_tmp, array_tmp1
     for z, (i, i_tex) in enumerate(zip(flxlbl4, flxlbl4_tex)):
         flxlbl_tex.append(i_tex)
@@ -1444,19 +1444,19 @@ if os.path.exists(h5_MM_fn):
             # GW_STO
             cbc_STO = h5_MF['STO_d'][:,l,:,:]
             array_tmp1 = np.sum(np.ma.masked_values(cbc_STO, cMF.hnoflo, atol = 0.09), axis = 1)
-            flx_Cat_TS.append(-1.0*np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
+            flx_Cat_TS.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
             del cbc_STO, array_tmp1
             flxlbl_tex.append(r'$\Delta S_{g}^{L%d}$'%(l+1))
             # GW_FLF
             cbc_FLF = h5_MF['FLF_d'][:,l,:,:]
             array_tmp1 = np.sum(np.ma.masked_values(cbc_FLF, cMF.hnoflo, atol = 0.09), axis = 1)
-            flx_Cat_TS.append(-1.0*np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
+            flx_Cat_TS.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
             del cbc_FLF, array_tmp1
             flxlbl_tex.append('$FLF^{L%d}$'%(l+1))
             # EXF
             cbc_EXF = h5_MF['EXF_d'][:,l,:,:]
             array_tmp1 = np.sum(np.ma.masked_values(cbc_EXF, cMF.hnoflo, atol = 0.09), axis = 1)
-            flx_Cat_TS.append(-1.0*np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
+            flx_Cat_TS.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
             del cbc_EXF, array_tmp1            
             flxlbl_tex.append('$EXF^{L%d}$'%(l+1))
             # WEL
@@ -1580,7 +1580,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                 else:
                     obs_h_tmp = []
                 if cMF.wel_yn == 1:
-                    cbc_WEL = -1.0*np.sum(np.ma.masked_values(h5_MF['WEL_d'][:,:,i,j], cMF.hnoflo, atol = 0.09), axis = 1)
+                    cbc_WEL = np.sum(np.ma.masked_values(h5_MF['WEL_d'][:,:,i,j], cMF.hnoflo, atol = 0.09), axis = 1)
                 else:
                     cbc_WEL = 0
                 if irr_yn == 0:

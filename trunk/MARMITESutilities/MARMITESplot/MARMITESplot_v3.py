@@ -1098,32 +1098,39 @@ def plotWBsankey(path, fn, StartMonth, cMF, ncell_MM):
     for k in range(len(RF)):
         print '-------'
         if k == 0:
-            print 'Water balance of the whole modelled period:'
+            print 'Water balance of the whole modelled period'
             title = "La Mata catchment - Water balance (units in $mm.y^{-1}$)\nWhole modelled period"
         else:        
-            print 'Water balance of hydrological year %d/%d:' % (year_lst[k-1], year_lst[k-1] + 1)
+            print 'Water balance of hydrological year %d/%d' % (year_lst[k-1], year_lst[k-1] + 1)
             title = "La Mata catchment - Water balance (units in $mm.y^{-1}$)\nHydrological year %d/%d" % (year_lst[k-1], year_lst[k-1] + 1)
-        print '\nMMsurf: RF %s, I %s, RFe %s, Esurf %s, DSsurf %s\nMMsoil: Esoil %s, Tsoil %s, ETsoil %s, Ro %s, Rp %s, DSsoil  %s\nUZF: R %s, EXF  %s, DSu %s\nMF: Eg %s, Tg %s, ETg %s,  DRN %s, DSg %s' % (RF[k], I[k], RFe[k], Esurf[k], DSsurf[k], Esoil[k], Tsoil[k], ETsoil[k], Ro[k], Rp[k], DSsoil[k], R[k], EXF[k], DSu[k], Eg[k], Tg[k], -ETg[k], DRN[k], DSg[k])
+        lbl_tmp = ''
+        if cMF.wel_yn == 1:
+            lbl_tmp += 'WEL %s' % WEL[k]
+        if cMF.drn_yn == 1:
+            lbl_tmp += 'DRN %s' % DRN[k]
+        if cMF.ghb_yn == 1:
+            lbl_tmp += 'GHB %s' % GHB[k]
+        print '\nMMsurf: RF %s, I %s, RFe %s, Esurf %s, DSsurf %s\nMMsoil: Esoil %s, Tsoil %s, ETsoil %s, Ro %s, Rp %s, DSsoil  %s\nUZF: R %s, DSu %s\nMF: Eg %s, Tg %s, ETg %s, %s, EXF  %s, FLF %s, DSg %s' % (RF[k], I[k], RFe[k], Esurf[k], DSsurf[k], Esoil[k], Tsoil[k], ETsoil[k], Ro[k], Rp[k], DSsoil[k], R[k], DSu[k], Eg[k], Tg[k], ETg[k], lbl_tmp, EXF[k], FLF[k], DSg[k])
         fig.append(plt.figure()) # figsize=(8.27, 11.7), dpi = 72) 
         ax.append(fig[k].add_subplot(1, 1, 1, xticks=[], yticks=[], title=title))
-        pltsankey = Sankey(ax=ax[k], format='%.1F', scale=1.0/(1.5*RF[0]), offset = 0.15, gap = 0.25, shoulder = 0.0, margin = 0.5)
-        pl = 0.15
-        tl = 0.5
+        pltsankey = Sankey(ax=ax[k], format='%.1F', scale=1.0/(1.5*RF[0]), offset = 0.25, gap = 0.5, shoulder = 0.0, margin = 0.5)
+        pl = 0.5
+        tl = 1.0
         # MMsurf
-        pltsankey.add(label='MMsurf', facecolor='lightblue', trunklength =tl,
-                   flows=[RF[k], -I[k], -RFe[k], DSsurf[k], -Esurf[k]],
-                   labels=['$RF$', '$I$', '$RFe$',r'$\Delta S_{surf}$', '$E_{surf}$'],
-                   orientations=[1,1,-1,0,1],
-                   pathlengths = [pl, pl, pl, pl, pl])
+        pltsankey.add(patchlabel = '$\Delta S_{surf}$\n%.1f' % DSsurf[k], label='MMsurf', facecolor='lightblue', trunklength =tl,
+                   flows=[RF[k], -I[k], -RFe[k], -Esurf[k]],
+                   labels=['$RF$', '$I$', '$RFe$','$E_{surf}$'],
+                   orientations=[1,1,-1,1],
+                   pathlengths = [pl, pl, pl, pl])
         In = RF[k] + DSsurf[k]
         Out = I[k]  + RFe[k] + Esurf[k]
         MB_MMsurf = 100*(In - Out)/((In + Out)/2)
         # MMsoil        
-        pltsankey.add(label='MMsoil', facecolor='khaki', trunklength = tl,
-                   flows=[RFe[k], -Rp[k], -Esoil[k], -Tsoil[k], DSsoil[k], EXFtot[k], -Ro[k]],
-                   labels=[None,'$Rp$','$E_{soil}$','$T_{soil}$',r'$\Delta S_{soil}$', '$EXFtot$','$Ro$'],
-                   orientations=[1,-1,1,1,0,-1,0],
-                   pathlengths = [pl, pl, pl, pl, pl, pl, pl],
+        pltsankey.add(patchlabel = '$\Delta S_{soil}$\n%.1f' % DSsoil[k], label='MMsoil', facecolor='khaki', trunklength = tl,
+                   flows=[RFe[k], -Rp[k], -Esoil[k], -Tsoil[k], EXFtot[k], -Ro[k]],
+                   labels=[None,'$Rp$','$E_{soil}$','$T_{soil}$','$EXF$','$Ro$'],
+                   orientations=[1,-1,1,1,-1,1],
+                   pathlengths = [pl, pl, pl, pl, pl, pl],
                    prior=0, connect=(2,0))
         In = RFe[k] + EXFtot[k] + DSsoil[k]
         Out = Rp[k] + Esoil[k] + Tsoil[k] + Ro[k]
@@ -1138,11 +1145,7 @@ def plotWBsankey(path, fn, StartMonth, cMF, ncell_MM):
             labels.append('$R^{L%d}$'%(L+1))
             orientations.append(-1)
             pathlengths.append(pl)
-        flows.append(DSu[k])
-        labels.append('$\Delta S_u$')
-        orientations.append(0)
-        pathlengths.append(pl)
-        pltsankey.add(label='MF_UZF', facecolor='lavender', trunklength = tl,
+        pltsankey.add(patchlabel = '$\Delta S_u$\n%.1f' % DSu[k], label='MF_UZF', facecolor='lavender', trunklength = tl,
                    flows = flows,
                    labels=labels,
                    orientations=orientations,
@@ -1154,61 +1157,55 @@ def plotWBsankey(path, fn, StartMonth, cMF, ncell_MM):
             Out += R[k][L]
         MB_MFuzf = 100*(In - Out)/((In + Out)/2)
         # MF
-        In = 0
-        Out = 0        
+        # about signs, read MF-2005 manual pag 3-10      
         i_lblDRN = []
+        MB_MF = []
         for L in range(cMF.nlay):
-            i_lblDRN.append(0)           
+            i_lblDRN.append(0)
+            In = 0
+            Out = 0  
             if L == 0:
-                flows=[R[k][L], -FLF[k][L], -DSg[k][L]]
-                labels=[None, '$FLF$', '$\Delta S_g$']
-                orientations=[1, -1, 0]
-                pathlengths = [pl, pl, pl]
+                flows=[R[k][L], -FLF[k][L]]
+                labels=[None, '$FLF$']
+                orientations=[1, -1]
+                pathlengths = [pl*4, pl]
                 i_lblDRN[L] += 3
                 tl_mult = 1
-                In += R[k][L] - DSg[k][L]
-                Out += FLF[k][L]
+                In += R[k][L] + DSg[k][L] - FLF[k][L]
             elif L == (cMF.nlay-1):
-                flows=[FLF[k][L-1], R[k][L], -DSg[k][L]]
-                labels=[None, None, '$\Delta S_g$'] #'$R$'
-                orientations=[1, 1, 0]
-                pathlengths = [pl, pl, pl]
+                flows=[FLF[k][L-1], R[k][L]]
+                labels=[None, '$R^{L%d}$'%(L+1)]
+                orientations=[1, 1]
+                pathlengths = [pl*4, pl]
                 i_lblDRN[L] += 3
-                tl_mult = 2
-                In += R[k][L] - DSg[k][L] + FLF[k][L-1]
+                tl_mult = 1
+                In += R[k][L] + DSg[k][L] + FLF[k][L-1]
             else:
-                flows=[FLF[k][L-1], R[k][L], -DSg[k][L], -FLF[k][L]]
+                flows=[FLF[k][L-1], R[k][L], -FLF[k][L]]
                 labels=[None, None, '$\Delta S_g$', '$FLF$'] #'$R$'
-                orientations=[1, 1, 0, -1]
-                pathlengths = [pl, pl, pl, pl]
+                orientations=[1, 1, -1]
+                pathlengths = [pl, pl, pl]
                 i_lblDRN[L] += 4
                 tl_mult = 1
-                In += R[k][L] - DSg[k][L] + FLF[k][L-1]
-                Out += FLF[k][L]
+                In += R[k][L] + DSg[k][L] + FLF[k][L-1] - FLF[k][L]
             if np.abs(EXF[k][L])>1E-3:
-                flows.append(-EXF[k][L])
+                flows.append(EXF[k][L])
                 labels.append('$EXF$')
                 orientations.append(-1)
                 pathlengths.append(pl)
                 i_lblDRN[L] += 1
-                Out += EXF[k][L]
+                Out += -EXF[k][L]
             if np.abs(Eg[k][L])>1E-3:
                 flows.append(-Eg[k][L])
                 labels.append('$E_g$')
-                if L == cMF.nlay:
-                    orientations.append(-1)
-                else:
-                    orientations.append(1)
+                orientations.append(1)
                 pathlengths.append(pl)
                 i_lblDRN[L] += 1
                 Out += Eg[k][L]
             if np.abs(Tg[k][L])>1E-3:
                 flows.append(-Tg[k][L])
                 labels.append('$T_g$')
-                if L == cMF.nlay:
-                    orientations.append(-1)
-                else:
-                    orientations.append(1)
+                orientations.append(1)
                 pathlengths.append(pl)
                 i_lblDRN[L] += 1
                 Out += Tg[k][L]                       
@@ -1216,41 +1213,46 @@ def plotWBsankey(path, fn, StartMonth, cMF, ncell_MM):
                 if np.abs(DRN[k][L])>1E-3:
                     flows.append(DRN[k][L])
                     labels.append('$DRN$')
-                    orientations.append(0)
+                    orientations.append(1)
                     pathlengths.append(pl)
-                    Out += DRN[k][L]
+                    Out += -DRN[k][L]
             if cMF.ghb_yn == 1:
                 if np.abs(GHB[k][L])>1E-3:
                     flows.append(GHB[k][L])
                     labels.append('$GHB$')                
-                    orientations.append(0)
+                    orientations.append(1)
                     pathlengths.append(pl)
-                    Out += GHB[k][L]
-            pltsankey.add(label='MF_L%d'%(L+1), facecolor='LightSteelBlue', trunklength = tl*tl_mult,
+                    Out += -GHB[k][L]
+            pltsankey.add(patchlabel = '$\Delta S_g$\n%.1f' % -DSg[k][L], label='MF_L%d'%(L+1), facecolor='LightSteelBlue', trunklength = tl*tl_mult,
                flows = flows,
                labels = labels,
                orientations = orientations,
                pathlengths = pathlengths,
                prior=2+L, connect=(1, 0))
-            MB_MF = 100*(In - Out)/((In + Out)/2)
-        print MB_MMsurf, MB_MMsoil, MB_MFuzf, MB_MF
+            MB_MF.append(100*(In - Out)/((In + Out)/2))
         # plot all patches
         diagrams = pltsankey.finish()
         diagrams[-1].patch.set_hatch('/')        
-        if cMF.drn_yn == 1:
-            for L in range(cMF.nlay):
-                pos = diagrams[-L-1].texts[i_lblDRN[-1-L]].get_position()
-                diagrams[-L-1].texts[i_lblDRN[-1-L]].set_position((pos[0] + 0.075 ,pos[1] - .2))
         for d in diagrams:
             d.patch.set_edgecolor('gray')
             for t in d.texts:
                 t.set_fontsize(7)
                 t.set_color('navy')
                 t.set_fontweight('bold')
-        plt.legend(loc='best')
+            d.text.set_fontsize(7)
+            d.text.set_color('navy')
+            d.text.set_fontweight('bold')
+        # legend
+        plt.legend(loc='upper right')
         leg = plt.gca().get_legend()
         ltext  = leg.get_texts()
         plt.setp(ltext, fontsize=10)
+        # water balance box
+        msg = 'Water balance closure (%%)\nMMsurf = %2.1f\nMMsoil = %2.1f\nMFuzf = %2.1f' % (MB_MMsurf, MB_MMsoil, MB_MFuzf)
+        for L in range(cMF.nlay):
+            msg += '\nMF_L%d = %2.1f' % (L+1, MB_MF[L])
+        plt.annotate(msg, (0.35, 0.125), horizontalalignment='right', verticalalignment='bottom', fontsize = 8, xycoords='figure fraction')
+        # export png
         plt_export_fn = os.path.join(path, '_0CATCHMENT_WBsanley%d.png' % k)
         plt.savefig(plt_export_fn,dpi=150)
         if k == 0:
