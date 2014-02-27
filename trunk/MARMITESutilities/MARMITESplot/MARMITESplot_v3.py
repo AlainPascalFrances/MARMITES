@@ -1093,16 +1093,14 @@ def plotWBsankey(path, fn, StartMonth, cMF, ncell_MM):
     print "\nWater fluxes imported from file:\n%s" % inputFile_fn    
     
     # Sankey plots    
-    fig = []
-    ax = []
     for k in range(len(RF)):
         print '-------'
         if k == 0:
             print 'Water balance of the whole modelled period'
-            title = "La Mata catchment - Water balance (units in $mm.y^{-1}$)\nWhole modelled period"
+            title = "Whole modelled period"
         else:        
             print 'Water balance of hydrological year %d/%d' % (year_lst[k-1], year_lst[k-1] + 1)
-            title = "La Mata catchment - Water balance (units in $mm.y^{-1}$)\nHydrological year %d/%d" % (year_lst[k-1], year_lst[k-1] + 1)
+            title = "%d/%d" % (year_lst[k-1], year_lst[k-1] + 1)
         lbl_tmp = ''
         if cMF.wel_yn == 1:
             lbl_tmp += 'WEL %s' % WEL[k]
@@ -1111,9 +1109,20 @@ def plotWBsankey(path, fn, StartMonth, cMF, ncell_MM):
         if cMF.ghb_yn == 1:
             lbl_tmp += 'GHB %s' % GHB[k]
         print '\nMMsurf: RF %s, I %s, RFe %s, Esurf %s, DSsurf %s\nMMsoil: Esoil %s, Tsoil %s, ETsoil %s, Ro %s, Rp %s, DSsoil  %s\nUZF: R %s, DSu %s\nMF: Eg %s, Tg %s, ETg %s, %s, EXF  %s, FLF %s, DSg %s' % (RF[k], I[k], RFe[k], Esurf[k], DSsurf[k], Esoil[k], Tsoil[k], ETsoil[k], Ro[k], Rp[k], DSsoil[k], R[k], DSu[k], Eg[k], Tg[k], ETg[k], lbl_tmp, EXF[k], FLF[k], DSg[k])
-        fig.append(plt.figure()) # figsize=(8.27, 11.7), dpi = 72) 
-        ax.append(fig[k].add_subplot(1, 1, 1, xticks=[], yticks=[], title=title))
-        pltsankey = Sankey(ax=ax[k], format='%.1F', scale=1.0/(1.5*RF[0]), offset = 0.25, gap = 0.5, shoulder = 0.0, margin = 0.5)
+        if k == 0 or k%2 != 0:
+            fig = plt.figure() # figsize=(8.27, 11.7), dpi = 72)
+            fig.suptitle('La Mata catchment - Water balance (units in $mm.y^{-1}$)\n', fontsize = 10, y = 0.99)
+            ax = []
+            ax.append(fig.add_subplot(1, 2, 1, xticks=[], yticks=[]))
+            x = 0.25
+            p = 0
+        else:
+            ax.append(fig.add_subplot(1, 2, 2, xticks=[], yticks=[]))
+            x = 0.75
+            p = 1
+        fig.text(x = x, y = 0.05, s = title, horizontalalignment = 'center', verticalalignment = 'bottom')
+        fmt = '%.1f'
+        pltsankey = Sankey(ax=ax[p], format=fmt, scale=1.0/(1.5*RF[0]), offset = 0.25, gap = 0.5, shoulder = 0.0, margin = 0.5)
         pl = 0.5
         tl = 1.0
         # MMsurf
@@ -1278,22 +1287,34 @@ def plotWBsankey(path, fn, StartMonth, cMF, ncell_MM):
             d.text.set_color('navy')
             d.text.set_fontweight('bold')
         # legend
-        plt.legend(loc='upper right')
-        leg = plt.gca().get_legend()
-        ltext  = leg.get_texts()
-        plt.setp(ltext, fontsize=8)
+        if p ==0:
+            lblspc = 0.05
+            mkscl = 0.5
+            handletextpad = 0.25
+            borderaxespad = 0.5
+            colspc = 0.05
+            plt.legend(loc='upper right', labelspacing=lblspc, markerscale=mkscl, handletextpad = handletextpad, borderaxespad = borderaxespad, ncol = 2, columnspacing = colspc)
+            leg = plt.gca().get_legend()
+            ltext  = leg.get_texts()
+            plt.setp(ltext, fontsize=7)
         # water balance box
-        msg = 'Water balance closure (%%)\nMMsurf = %2.1f\nMMsoil = %2.1f\nMFuzf = %2.1f' % (MB_MMsurf, MB_MMsoil, MB_MFuzf)
+        msg = 'Water balance\nclosure (%%)\n-----------------\nMMsurf =%5d\nMMsoil =%5d\nMFuzf =%5d' % (MB_MMsurf, MB_MMsoil, MB_MFuzf) # %2.1f
         for L in range(cMF.nlay):
-            msg += '\nMF_L%d = %2.1f' % (L+1, MB_MF[L])
-        plt.annotate(msg, (0.35, 0.125), horizontalalignment='right', verticalalignment='bottom', fontsize = 8, xycoords='figure fraction')
-        # export png
-        plt_export_fn = os.path.join(path, '_0CATCHMENT_WBsanley%d.png' % k)
-        plt.savefig(plt_export_fn,dpi=150)
+            msg += '\nMF_L%d =%5d' % (L+1, MB_MF[L]) #%2.1f
+        if p == 0:
+            xy = (0.16, 0.11)
+        else:
+            xy = (0.61, 0.11)
+        plt.annotate(msg, xy, horizontalalignment='right', verticalalignment='bottom', fontsize = 8, xycoords='figure fraction')
         if k == 0:
             print '\nPlot of the whole modelled period done!'
         else:
             print '\nPlot of hydrological year %d/%d done!' % (year_lst[k-1], year_lst[k-1] + 1)
+        # export png
+        if k%2 == 0 or k == len(RF)-1:
+            plt.subplots_adjust(left=0.05, bottom=0.10, right=0.95, top=0.95, wspace=0.01, hspace=0.1)
+            plt_export_fn = os.path.join(path, '_0CATCHMENT_WBsanley%d.png' % k)
+            plt.savefig(plt_export_fn,dpi=150)
     print '-------'
 
 ##################
