@@ -1100,7 +1100,7 @@ def plotWBsankey(path, fn, StartMonth, cMF, ncell_MM):
             title = "Whole modelled period"
         else:        
             print 'Water balance of hydrological year %d/%d' % (year_lst[k-1], year_lst[k-1] + 1)
-            title = "%d/%d" % (year_lst[k-1], year_lst[k-1] + 1)
+            title = "Hydrological year %d/%d" % (year_lst[k-1], year_lst[k-1] + 1)
         lbl_tmp = ''
         if cMF.wel_yn == 1:
             lbl_tmp += 'WEL %s' % WEL[k]
@@ -1120,7 +1120,7 @@ def plotWBsankey(path, fn, StartMonth, cMF, ncell_MM):
             ax.append(fig.add_subplot(1, 2, 2, xticks=[], yticks=[]))
             x = 0.75
             p = 1
-        fig.text(x = x, y = 0.05, s = title, horizontalalignment = 'center', verticalalignment = 'bottom')
+        fig.text(x = x, y = 0.05, s = title, horizontalalignment = 'center', verticalalignment = 'bottom', fontsize = 9)
         fmt = '%.1f'
         pltsankey = Sankey(ax=ax[p], format=fmt, scale=1.0/(1.5*RF[0]), offset = 0.25, gap = 0.5, shoulder = 0.0, margin = 0.5)
         pl = 0.5
@@ -1280,10 +1280,10 @@ def plotWBsankey(path, fn, StartMonth, cMF, ncell_MM):
         for d in diagrams:
             d.patch.set_edgecolor('gray')
             for t in d.texts:
-                t.set_fontsize(7)
+                t.set_fontsize(6)
                 t.set_color('navy')
                 t.set_fontweight('bold')
-            d.text.set_fontsize(7)
+            d.text.set_fontsize(6)
             d.text.set_color('navy')
             d.text.set_fontweight('bold')
         # legend
@@ -1298,9 +1298,9 @@ def plotWBsankey(path, fn, StartMonth, cMF, ncell_MM):
             ltext  = leg.get_texts()
             plt.setp(ltext, fontsize=7)
         # water balance box
-        msg = 'Water balance\nclosure (%%)\n-----------------\nMMsurf =%5d\nMMsoil =%5d\nMFuzf =%5d' % (MB_MMsurf, MB_MMsoil, MB_MFuzf) # %2.1f
+        msg = 'Water balance\nclosure (%%)\n-----------------\nMMsurf =%3.1f\nMMsoil =%3.1f\nMFuzf =%3.1f' % (MB_MMsurf, MB_MMsoil, MB_MFuzf) # 
         for L in range(cMF.nlay):
-            msg += '\nMF_L%d =%5d' % (L+1, MB_MF[L]) #%2.1f
+            msg += '\nMF_L%d =%3.1f' % (L+1, MB_MF[L]) #%2.1f
         if p == 0:
             xy = (0.16, 0.11)
         else:
@@ -1308,12 +1308,14 @@ def plotWBsankey(path, fn, StartMonth, cMF, ncell_MM):
         plt.annotate(msg, xy, horizontalalignment='right', verticalalignment='bottom', fontsize = 8, xycoords='figure fraction')
         if k == 0:
             print '\nPlot of the whole modelled period done!'
+            msg = '_0whole'
         else:
             print '\nPlot of hydrological year %d/%d done!' % (year_lst[k-1], year_lst[k-1] + 1)
+            msg = '_%d_%d' % (year_lst[k-1], year_lst[k-1] + 1)
         # export png
         if k%2 == 0 or k == len(RF)-1:
             plt.subplots_adjust(left=0.05, bottom=0.10, right=0.95, top=0.95, wspace=0.01, hspace=0.1)
-            plt_export_fn = os.path.join(path, '_0CATCHMENT_WBsanley%d.png' % k)
+            plt_export_fn = os.path.join(path, '_0CATCHMENT_WBsanley%s.png' % msg)
             plt.savefig(plt_export_fn,dpi=150)
     print '-------'
 
