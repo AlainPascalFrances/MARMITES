@@ -1427,7 +1427,7 @@ if os.path.exists(h5_MM_fn):
         flxlbl_tex.append(r'$R$')
         flx_Cat_TS.append(rch_tot)
         flxlbl_tex.append(r'$\Delta S_{u}$')
-        flx_Cat_TS.append(Rp - rch_tot)
+        flx_Cat_TS.append(rch_tot - Rp)
         del array_tmp, array_tmp1, rch_tmp, rch_tot, cbc_RCH, Rp
         for l in range(cMF.nlay):
             # ADD heads averaged

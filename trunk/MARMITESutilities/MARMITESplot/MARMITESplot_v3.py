@@ -1117,23 +1117,31 @@ def plotWBsankey(path, fn, StartMonth, cMF, ncell_MM):
         pl = 0.5
         tl = 1.0
         # MMsurf
-        pltsankey.add(patchlabel = '$\Delta S_{surf}$\n%.1f' % DSsurf[k], label='MMsurf', facecolor='lightblue', trunklength =tl,
+        pltsankey.add(patchlabel = '$\Delta S_{surf}$\n%.1f' % -DSsurf[k], label='MMsurf', facecolor='lightblue', trunklength =tl,
                    flows=[RF[k], -I[k], -RFe[k], -Esurf[k]],
                    labels=['$RF$', '$I$', '$RFe$','$E_{surf}$'],
                    orientations=[1,1,-1,1],
                    pathlengths = [pl, pl, pl, pl])
-        In = RF[k] + DSsurf[k]
+        In = RF[k]
         Out = I[k]  + RFe[k] + Esurf[k]
+        if  DSsurf[k] < 0.0:
+            Out += -DSsurf[k]
+        else:
+            In += DSsurf[k]
         MB_MMsurf = 100*(In - Out)/((In + Out)/2)
         # MMsoil        
-        pltsankey.add(patchlabel = '$\Delta S_{soil}$\n%.1f' % DSsoil[k], label='MMsoil', facecolor='khaki', trunklength = tl,
+        pltsankey.add(patchlabel = '$\Delta S_{soil}$\n%.1f' % -DSsoil[k], label='MMsoil', facecolor='khaki', trunklength = tl,
                    flows=[RFe[k], -Rp[k], -Esoil[k], -Tsoil[k], EXFtot[k], -Ro[k]],
                    labels=[None,'$Rp$','$E_{soil}$','$T_{soil}$','$EXF$','$Ro$'],
                    orientations=[1,-1,1,1,-1,1],
                    pathlengths = [pl, pl, pl, pl, pl, pl],
                    prior=0, connect=(2,0))
-        In = RFe[k] + EXFtot[k] + DSsoil[k]
-        Out = Rp[k] + Esoil[k] + Tsoil[k] + Ro[k]
+        In = RFe[k] + EXFtot[k]
+        Out = Rp[k] + Esoil[k] + Tsoil[k] + Ro[k]        
+        if  DSsoil[k] < 0.0:
+            Out += -DSsoil[k]
+        else:
+            In += DSsoil[k]
         MB_MMsoil = 100*(In - Out)/((In + Out)/2)
         # MFuzf
         flows=[Rp[k]]
@@ -1145,16 +1153,20 @@ def plotWBsankey(path, fn, StartMonth, cMF, ncell_MM):
             labels.append('$R^{L%d}$'%(L+1))
             orientations.append(-1)
             pathlengths.append(pl)
-        pltsankey.add(patchlabel = '$\Delta S_u$\n%.1f' % DSu[k], label='MF_UZF', facecolor='lavender', trunklength = tl,
+        pltsankey.add(patchlabel = '$\Delta S_u$\n%.1f' % -DSu[k], label='MF_UZF', facecolor='lavender', trunklength = tl,
                    flows = flows,
                    labels=labels,
                    orientations=orientations,
                    pathlengths = pathlengths,
                    prior=1, connect=(1, 0))
-        In = Rp[k] - DSu[k]
+        In = Rp[k]
         Out = 0
         for L in range(cMF.nlay):
             Out += R[k][L]
+        if  DSu[k] < 0.0:
+            Out += -DSu[k]
+        else:
+            In += DSu[k]
         MB_MFuzf = 100*(In - Out)/((In + Out)/2)
         # MF
         # about signs, read MF-2005 manual pag 3-10      
@@ -1171,7 +1183,11 @@ def plotWBsankey(path, fn, StartMonth, cMF, ncell_MM):
                 pathlengths = [pl*4, pl]
                 i_lblDRN[L] += 3
                 tl_mult = 1
-                In += R[k][L] + DSg[k][L] - FLF[k][L]
+                In += R[k][L]
+                if FLF[k][L] > 0.0:
+                    Out += FLF[k][L]
+                else:
+                    In += -FLF[k][L]                
             elif L == (cMF.nlay-1):
                 flows=[FLF[k][L-1], R[k][L]]
                 labels=[None, '$R^{L%d}$'%(L+1)]
@@ -1179,7 +1195,11 @@ def plotWBsankey(path, fn, StartMonth, cMF, ncell_MM):
                 pathlengths = [pl*4, pl]
                 i_lblDRN[L] += 3
                 tl_mult = 1
-                In += R[k][L] + DSg[k][L] + FLF[k][L-1]
+                In += R[k][L]
+                if FLF[k][L-1] < 0.0:
+                    Out += -FLF[k][L-1]
+                else:
+                    In += FLF[k][L-1]   
             else:
                 flows=[FLF[k][L-1], R[k][L], -FLF[k][L]]
                 labels=[None, None, '$\Delta S_g$', '$FLF$'] #'$R$'
@@ -1187,7 +1207,19 @@ def plotWBsankey(path, fn, StartMonth, cMF, ncell_MM):
                 pathlengths = [pl, pl, pl]
                 i_lblDRN[L] += 4
                 tl_mult = 1
-                In += R[k][L] + DSg[k][L] + FLF[k][L-1] - FLF[k][L]
+                In += R[k][L]
+                if FLF[k][L] > 0.0:
+                    Out += FLF[k][L]
+                else:
+                    In += -FLF[k][L]
+                if FLF[k][L-1] < 0.0:
+                    Out += -FLF[k][L-1]
+                else:
+                    In += FLF[k][L-1]   
+            if  DSg[k][L] < 0.0:
+                Out += -DSg[k][L]
+            else:
+                In += DSg[k][L]            
             if np.abs(EXF[k][L])>1E-3:
                 flows.append(EXF[k][L])
                 labels.append('$EXF$')
@@ -1222,14 +1254,17 @@ def plotWBsankey(path, fn, StartMonth, cMF, ncell_MM):
                     labels.append('$GHB$')                
                     orientations.append(1)
                     pathlengths.append(pl)
-                    Out += -GHB[k][L]
+                    if  GHB[k][L] < 0.0:
+                        Out += -GHB[k][L]
+                    else:
+                        In += GHB[k][L] 
             pltsankey.add(patchlabel = '$\Delta S_g$\n%.1f' % -DSg[k][L], label='MF_L%d'%(L+1), facecolor='LightSteelBlue', trunklength = tl*tl_mult,
                flows = flows,
                labels = labels,
                orientations = orientations,
                pathlengths = pathlengths,
-               prior=2+L, connect=(1, 0))
-            MB_MF.append(100*(In - Out)/((In + Out)/2))
+               prior=2+L, connect=(1, 0))            
+            MB_MF.append(100*(In - Out)/((In + Out)/2))            
         # plot all patches
         diagrams = pltsankey.finish()
         diagrams[-1].patch.set_hatch('/')        
@@ -1246,7 +1281,7 @@ def plotWBsankey(path, fn, StartMonth, cMF, ncell_MM):
         plt.legend(loc='upper right')
         leg = plt.gca().get_legend()
         ltext  = leg.get_texts()
-        plt.setp(ltext, fontsize=10)
+        plt.setp(ltext, fontsize=8)
         # water balance box
         msg = 'Water balance closure (%%)\nMMsurf = %2.1f\nMMsoil = %2.1f\nMFuzf = %2.1f' % (MB_MMsurf, MB_MMsoil, MB_MFuzf)
         for L in range(cMF.nlay):
@@ -1259,7 +1294,7 @@ def plotWBsankey(path, fn, StartMonth, cMF, ncell_MM):
             print '\nPlot of the whole modelled period done!'
         else:
             print '\nPlot of hydrological year %d/%d done!' % (year_lst[k-1], year_lst[k-1] + 1)
-    print '\n-------'
+    print '-------'
 
 ##################
 
