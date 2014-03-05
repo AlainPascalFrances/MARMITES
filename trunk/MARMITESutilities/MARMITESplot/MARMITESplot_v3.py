@@ -945,14 +945,11 @@ def plotWBbars(XXXXXXXXXXXX):
 
 ##################
     
-def plotWBsankey(path, fn, StartMonth, cMF, ncell_MM):
+def plotWBsankey(path, fn, index, year_lst, cMF, ncell_MM):
     
     """ Computes the water balance for a certain time span
     input: ASCII file with water fluxes wrtitten by MM
     """
-#    path = r'E:\00code_ws\00_TESTS\WB_plot'
-#    fn = r'_0CATCHMENT_ts_20051001_20070930.txt'   # _0CATCHMENT_ts_20051001_20070930    _0CATCHMENT_ts_20061231_20111103    _0CATCHMENT_ts_20080531_20101108   _0CATCHMENT_ts_20080531_20090531
-#    StartMonth = 10
 
     fmt_DH = mpl.dates.DateFormatter('%Y-%m-%d')
     cUTIL = MMutils.clsUTILITIES(fmt = fmt_DH)
@@ -966,40 +963,6 @@ def plotWBsankey(path, fn, StartMonth, cMF, ncell_MM):
     DATE = np.zeros(len(date), dtype = float)
     for i, d in enumerate(date):
         DATE[i] = mpl.dates.datestr2num(d)
-    
-    year_lst = []
-    index = []
-    if mpl.dates.num2date(DATE[0]).month<StartMonth or (mpl.dates.num2date(DATE[0]).month == StartMonth and mpl.dates.num2date(DATE[0]).day == 1):
-        year_lst.append(mpl.dates.num2date(DATE[0]).year)
-    else:
-        year_lst.append(mpl.dates.num2date(DATE[0]).year + 1)
-    index.append(np.argmax(DATE[:] == mpl.dates.datestr2num('%s-10-01' % year_lst[0])))
-    
-    if sum(DATE[:] == mpl.dates.datestr2num('%s-10-01' % (year_lst[0]+1)))==0:
-        cUTIL.ErrorExit(msg = '\nThe data file does not contain a full hydrological year starting at date 01/%d' % StartMonth)
-    
-    y = 0    
-    while DATE[-1] >= mpl.dates.datestr2num('%d-10-01' % (year_lst[y]+1)):
-        if DATE[-1] >= mpl.dates.datestr2num('%d-09-30' % (year_lst[y]+2)):
-            year_lst.append(year_lst[y]+1)
-            index.append(np.argmax(DATE[:] == mpl.dates.datestr2num('%d-10-01' % (year_lst[y]+1))))
-            indexend = np.argmax(DATE[:] == mpl.dates.datestr2num('%d-09-30' % (year_lst[y]+2)))
-            y += 1
-        else:
-            break
-    index.append(indexend)
-    index.insert(0, 0)
-    del indexend
-            
-#    print year_lst
-#    print index
-    print '-------\nStarting date of time serie:\n%s' % (mpl.dates.DateFormatter.format_data(fmt_DH, DATE[0])), '(PE=%.2f)' % float(DATA[0,17+2*cMF.nlay])
-    print '-------\nStarting date of hydrological year(s):'
-    for j in index[1:-1]:
-        print mpl.dates.DateFormatter.format_data(fmt_DH, DATE[j]), '(PE=%.2f)' % float(DATA[j,17+2*cMF.nlay])
-    print 'End date of last hydrological year:'
-    print mpl.dates.DateFormatter.format_data(fmt_DH, DATE[index[-1]]), '(PE=%.2f)' % float(DATA[index[-1],17+2*cMF.nlay])
-    print '-------End date of time serie:\n%s' % (mpl.dates.DateFormatter.format_data(fmt_DH, DATE[-1])), '(PE=%.2f)' % float(DATA[-1,17+2*cMF.nlay])
     
     # compute fluxes for whole modelled period and hydrological years
     RF=[]
@@ -1333,7 +1296,6 @@ def plotWBsankey(path, fn, StartMonth, cMF, ncell_MM):
                     plt_export_fn = os.path.join(path, '_0CATCHMENT_WBsanley%s_pc.png' % msg)                    
                 plt.savefig(plt_export_fn,dpi=150)
         print '-------'
-    return index
 
 ##################
 

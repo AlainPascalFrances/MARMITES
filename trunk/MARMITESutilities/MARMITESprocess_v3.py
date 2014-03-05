@@ -439,7 +439,7 @@ class clsPROCESS:
                 print 'WARNING!\nLayer %s of observation point %s is not valid (corrected to layer 1)!\nCheck your file %s (layer number should be between 1 and the number of layer of the MODFLOW model, in this case %s).' % (lay, name, inputObs_fn, nlay)
             else:
                 lay = lay - 1
-            # compute the cordinates in the MODFLOW grid
+            # compute the coordinates in the MODFLOW grid
             #TODO use the PEST utilities for space extrapolation
             i = self.nrow - np.ceil((y-self.yllcorner)/self.cellsizeMF)
             j = np.ceil((x-self.xllcorner)/self.cellsizeMF) - 1
@@ -507,7 +507,7 @@ class clsPROCESS:
                 for l in range(len(obsValue)):
                     if not isinstance(obsValue[l], float):
                         j=0
-                        if inputDate[0] > obsDate[0]:
+                        if inputDate[0] >= obsDate[0]:
                            while obsDate[j]<inputDate[0]:
                                 j += 1
                         for i in range(len(inputDate)):
@@ -668,7 +668,7 @@ class clsPROCESS:
     def compE (self, sim, obs) :
         def sqre_diff (v, w) :
             return (v - w) ** 2
-        s = len(sim)
+        #s = len(sim)
         v = 1 - sum(map(sqre_diff, sim, obs))/sum(sqre_diff(obs, self.compAVGE(obs)))
         return v
 
@@ -718,7 +718,7 @@ class clsPROCESS:
         for l in range(nsl):
             Spc1full.append(Spc[:,l])
             try:
-                Sobs_m.append(np.ma.masked_values(Sobs[l], hnoflo, atol = 0.09))
+                Sobs_m.append(np.ma.masked_values(Sobs[l,:], hnoflo, atol = 0.09))
                 testSM += 1
             except:
                 Sobs_m.append([])
@@ -729,20 +729,20 @@ class clsPROCESS:
                 rsrSM = []
                 nseSM = []
                 rSM = []
-                try:
-                    for l, (y, y_obs) in enumerate(zip(Spc1full, Sobs_m)):
-                        if y_obs <> []:
-                            a = np.array([y,y_obs])
-                            a = np.transpose(a)
-                            b = a[~(a < hnoflo +1000.0).any(1)]
-                            if b[:,0] <> []:
-                                rmseSM.append(100.0*self.compRMSE(b[:,0], b[:,1]))
-                                rsrSM.append(rmseSM[l]/(100.0*np.std(b[:,1])))
-                                nseSM.append(self.compE(b[:,0], b[:,1]))
-                                rSM.append(self.compR(b[:,0], b[:,1]))
-                                print 'SM layer %d: %.1f %% / %.2f / %.2f / %.2f' % (l+1, rmseSM[l], rsrSM[l], nseSM[l], rSM[l])
-                except:
-                    print 'SM layer %d: error' % (l+1)
+                #try:
+                for l, (y, y_obs) in enumerate(zip(Spc1full, Sobs_m)):
+                    if y_obs <> []:
+                        a = np.array([y,y_obs])
+                        a = np.transpose(a)
+                        b = a[~(a < hnoflo +1000.0).any(1)]
+                        if b[:,0] <> []:
+                            rmseSM.append(100.0*self.compRMSE(b[:,0], b[:,1]))
+                            rsrSM.append(rmseSM[l]/(100.0*np.std(b[:,1])))
+                            nseSM.append(self.compE(b[:,0], b[:,1]))
+                            rSM.append(self.compR(b[:,0], b[:,1]))
+                            print 'SM layer %d: %.1f %% / %.2f / %.2f / %.2f' % (l+1, rmseSM[l], rsrSM[l], nseSM[l], rSM[l])
+                #except:
+                #    print 'SM layer %d: error' % (l+1)
             if hobs <> []:
                 try:
                     a = np.array([h_MF[:,0],hobs])

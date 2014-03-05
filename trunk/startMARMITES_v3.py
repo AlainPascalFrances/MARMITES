@@ -344,6 +344,58 @@ except:
 del inputFile
 numDays = len(cUTIL.readFile(MM_ws, inputDate_fn))
 
+# Compute hydrologic year statr and end dates
+
+inputFile_fn = os.path.join(MM_ws, inputDate_fn)    
+if os.path.exists(inputFile_fn):
+    date = np.loadtxt(inputFile_fn, skiprows = 1, dtype = str, delimiter = ',')[:,0]
+else:
+    cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nThe input file [" + inputFile_fn + "] doesn't exist, verify name and path!")
+DATE = np.zeros(len(date), dtype = float)
+for i, d in enumerate(date):
+    DATE[i] = mpl.dates.datestr2num(d)
+del date
+
+year_lst = []
+HYindex = []
+if mpl.dates.num2date(DATE[0]).month<iniMonthHydroYear or (mpl.dates.num2date(DATE[0]).month == iniMonthHydroYear and mpl.dates.num2date(DATE[0]).day == 1):
+    year_lst.append(mpl.dates.num2date(DATE[0]).year)
+else:
+    year_lst.append(mpl.dates.num2date(DATE[0]).year + 1)
+HYindex.append(np.argmax(DATE[:] == mpl.dates.datestr2num('%d-%d-01' % (year_lst[0], iniMonthHydroYear))))
+
+if sum(DATE[:] == mpl.dates.datestr2num('%d-%d-01' % (year_lst[0]+1, iniMonthHydroYear)))==0:
+    cUTIL.ErrorExit(msg = '\nThe data file does not contain a full hydrological year starting at date 01/%d' % iniMonthHydroYear)
+
+y = 0    
+while DATE[-1] >= mpl.dates.datestr2num('%d-%d-01' % (year_lst[y]+1, iniMonthHydroYear)):
+    if iniMonthHydroYear == 1:
+        iniMonth_prev = 12
+    else:
+        iniMonth_prev = iniMonthHydroYear - 1
+    if DATE[-1] >= mpl.dates.datestr2num('%d-%d-30' % (year_lst[y]+2, iniMonth_prev)):
+        year_lst.append(year_lst[y]+1)
+        HYindex.append(np.argmax(DATE[:] == mpl.dates.datestr2num('%d-%d-01' % (year_lst[y]+1, iniMonthHydroYear))))
+        indexend = np.argmax(DATE[:] == mpl.dates.datestr2num('%d-%d-30' % (year_lst[y]+2, iniMonth_prev)))
+        y += 1
+    else:
+        break
+HYindex.append(indexend)
+HYindex.insert(0, 0)
+del indexend
+StartDate = mpl.dates.datestr2num('%d-%d-01' % (year_lst[0], iniMonthHydroYear))
+EndDate   = mpl.dates.datestr2num('%d-%d-01' % (year_lst[-1]+1, iniMonthHydroYear))-1.0
+        
+#    print year_lst
+#    print index
+print '-------\nStarting date of time serie:\n%s' % (mpl.dates.DateFormatter.format_data(fmt_DH, DATE[0]))
+print '-------\nStarting date of hydrological year(s):'
+for j in HYindex[1:-1]:
+    print mpl.dates.DateFormatter.format_data(fmt_DH, DATE[j])
+print 'End date of last hydrological year:'
+print mpl.dates.DateFormatter.format_data(fmt_DH, DATE[HYindex[-1]])
+print '-------\nEnd date of time serie:\n%s' % (mpl.dates.DateFormatter.format_data(fmt_DH, DATE[-1]))
+
 # #############################
 # ###  READ MODFLOW CONFIG ####
 # #############################
@@ -1530,7 +1582,7 @@ if os.path.exists(h5_MM_fn):
     plt_exportCATCH_txt.close()
     print '-------\nExporting water balance at the catchment scale...'
     try:
-        HYindex = MMplot.plotWBsankey(path = MM_ws_out, fn = '_0CATCHMENT_ts.txt', StartMonth = iniMonthHydroYear, cMF = cMF, ncell_MM = ncell_MM)
+        MMplot.plotWBsankey(path = MM_ws_out, fn = '_0CATCHMENT_ts.txt', index = HYindex, year_lst = year_lst, cMF = cMF, ncell_MM = ncell_MM)
     except:
         print "\nError in plotting the catchment water balance!"
     del flx_Cat_TS, flx_Cat_TS_str, out_line, plt_exportCATCH_fn, plt_exportCATCH_txt_fn, plt_titleCATCH
@@ -1951,21 +2003,27 @@ if plt_out == 1:
 # Moriasi et al, 2007, ASABE 50(3):885-900
 print '\nComputing calibration criteria at observation points...'
 h5_MM = h5py.File(h5_MM_fn, 'r')
+DateFilt = np.where((DATE<StartDate) & (DATE>EndDate))
 for o_ref in obs_list:
     for o in obs.keys():
         if o == o_ref:
             i = obs.get(o)['i']
             j = obs.get(o)['j']
-            obs_h = obs.get(o)['obs_h']
-            obs_SM = obs.get(o)['obs_SM']
             SOILzone_tmp = gridSOIL[i,j]-1
             nsl = _nsl[SOILzone_tmp]
-            MM_S = h5_MM['MM_S'][:,i,j,:,:]
+            l_obs = obs.get(o)['lay']
+            obs_h = obs.get(o)['obs_h']
+            obs_SM = obs.get(o)['obs_SM']
+            if len(obs_SM)> 0:
+                for l in range(nsl):
+                    obs_SM[l,DateFilt] = cMF.hnoflo
+            MM_S = h5_MM['MM_S'][HYindex[1]:HYindex[-1]+1,i,j,0:nsl,index_S.get('iSsoil_pc')]
             if obs_h != []:
-                obs_h_tmp = obs_h[0,:]
+                obs_h_tmp = obs_h[l_obs,:]
+                obs_h_tmp[DateFilt] = cMF.hnoflo
             else:
                 obs_h_tmp = []
-            rmseHEADS_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrSM_tmp, nseHEADS_tmp, nseSM_tmp, rHEADS_tmp, rSM_tmp = cMF.cPROCESS.compCalibCrit(MM_S[:,0:nsl,index_S.get('iSsoil_pc')], h_MF_m[:,:,i,j], obs_SM, obs_h_tmp, cMF.hnoflo, o, nsl)
+            rmseHEADS_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrSM_tmp, nseHEADS_tmp, nseSM_tmp, rHEADS_tmp, rSM_tmp = cMF.cPROCESS.compCalibCrit(MM_S, h_MF_m[HYindex[1]:HYindex[-1]+1,:,i,j], obs_SM, obs_h_tmp, cMF.hnoflo, o, nsl)
             if rmseHEADS_tmp <> None:
                 rmseHEADS.append(rmseHEADS_tmp)
                 rsrHEADS.append(rsrHEADS_tmp)
@@ -1980,32 +2038,35 @@ for o_ref in obs_list:
                 obslstSM.append(o)
             del rmseHEADS_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrSM_tmp, nseHEADS_tmp, nseSM_tmp, rHEADS_tmp, rSM_tmp
 for cc, (calibcritSM, calibcritHEADS, calibcrit, title, calibcritSMmax, calibcritHEADSmax, ymin, units) in enumerate(zip([rmseSM, rsrSM, nseSM, rSM], [rmseHEADS, rsrHEADS, nseHEADS, rHEADS], ['RMSE', 'RSR', 'NSE', 'r'], ['Root mean square error', 'Root mean square error - observations standard deviation ratio', 'Nash-Sutcliffe efficiency', "Pearson's correlation coefficient"], [rmseSMmax, None, 1.0, 1.0], [rmseHEADSmax, None, 1.0, 1.0], [0, 0, None, -1.0], [['($m$)', '($\%%wc$)'], ['',''], ['',''], ['','']])):
-    try:
-        MMplot.plotCALIBCRIT(calibcritSM = calibcritSM, calibcritSMobslst = obslstSM, calibcritHEADS = calibcritHEADS, calibcritHEADSobslst = obslstHEADS, plt_export_fn = os.path.join(MM_ws_out, '__plt_calibcrit%s.png'% calibcrit), plt_title = 'Calibration criteria between simulated and observed state variables\n%s'%title, calibcrit = calibcrit, calibcritSMmax = calibcritSMmax, calibcritHEADSmax = calibcritHEADSmax, ymin = ymin, units = units)
-    except:
-        print 'Error in exporting %s at obs. pt. %s' % (calibcrit, obs_list[cc])
+    #try:
+    MMplot.plotCALIBCRIT(calibcritSM = calibcritSM, calibcritSMobslst = obslstSM, calibcritHEADS = calibcritHEADS, calibcritHEADSobslst = obslstHEADS, plt_export_fn = os.path.join(MM_ws_out, '__plt_calibcrit%s.png'% calibcrit), plt_title = 'Calibration criteria between simulated and observed state variables\n%s'%title, calibcrit = calibcrit, calibcritSMmax = calibcritSMmax, calibcritHEADSmax = calibcritHEADSmax, ymin = ymin, units = units)
+    #except:
+    #    print 'Error in exporting %s at obs. pt. %s' % (calibcrit, obs_list[cc])
 print '-------\nRMSE/RSR/NSE/r averages of the obs. pts. (except catch.)'
-for cc, (rmse, rsr, nse, r, obslst, msg) in enumerate(zip([rmseSM,rmseHEADS],[rsrSM,rsrHEADS],[nseSM,nseHEADS],[rSM,rHEADS],[obslstSM,obslstHEADS],['SM (all layers): %.1f %% /','h: %.2f m /'])):
-    if obslst[0] == 'catch.' and len(rmse)> 1:
-        rmseaverage = list(itertools.chain.from_iterable(rmse[1:]))
-        rsraverage = list(itertools.chain.from_iterable(rsr[1:]))
-        nseaverage = list(itertools.chain.from_iterable(nse[1:]))
-        raverage = list(itertools.chain.from_iterable(r[1:]))
-        numobs = len(obslst[1:])
-    else:
-        rmseaverage = list(itertools.chain.from_iterable(rmse))
-        rsraverage = list(itertools.chain.from_iterable(rsr))
-        nseaverage = list(itertools.chain.from_iterable(nse))
-        raverage = list(itertools.chain.from_iterable(r))
-        numobs = len(obslst)
-    if len(rmse)> 1:
-        rmseaverage = sum(rmseaverage)/float(len(rmseaverage))
-        rsraverage = sum(rsraverage)/float(len(rsraverage))
-        nseaverage = sum(nseaverage)/float(len(nseaverage))
-        raverage = sum(raverage)/float(len(raverage))
-        msg = '%s %s' % (msg, '%.2f / %.2f / %.2f (%d obs. points)')
-        print msg % (rmseaverage, rsraverage, nseaverage, raverage, numobs)
-
+try:
+    for cc, (rmse, rsr, nse, r, obslst, msg) in enumerate(zip([rmseSM,rmseHEADS],[rsrSM,rsrHEADS],[nseSM,nseHEADS],[rSM,rHEADS],[obslstSM,obslstHEADS],['SM (all layers): %.1f %% /','h: %.2f m /'])):
+        if obslst[0] == 'catch.' and len(rmse)> 1:
+            rmseaverage = list(itertools.chain.from_iterable(rmse[1:]))
+            rsraverage = list(itertools.chain.from_iterable(rsr[1:]))
+            nseaverage = list(itertools.chain.from_iterable(nse[1:]))
+            raverage = list(itertools.chain.from_iterable(r[1:]))
+            numobs = len(obslst[1:])
+        else:
+            rmseaverage = list(itertools.chain.from_iterable(rmse))
+            rsraverage = list(itertools.chain.from_iterable(rsr))
+            nseaverage = list(itertools.chain.from_iterable(nse))
+            raverage = list(itertools.chain.from_iterable(r))
+            numobs = len(obslst)
+        if len(rmse)> 1:
+            rmseaverage = sum(rmseaverage)/float(len(rmseaverage))
+            rsraverage = sum(rsraverage)/float(len(rsraverage))
+            nseaverage = sum(nseaverage)/float(len(nseaverage))
+            raverage = sum(raverage)/float(len(raverage))
+            msg = '%s %s' % (msg, '%.2f / %.2f / %.2f (%d obs. points)')
+            print msg % (rmseaverage, rsraverage, nseaverage, raverage, numobs)
+except:
+    print 'Error! Check observations data.'
+    
 timeendExport = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
 durationExport=(timeendExport-timestartExport)
 durationTotal = (timeendExport-timestart)
