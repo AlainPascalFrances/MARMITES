@@ -32,8 +32,8 @@ STEP4
 - copy the file FloPy.pth (currently under MARMITES folder) into the folder %pythonpath%\Lib\site-packages
 
 STEP5
-- install MODLOW-NWT, download at http://water.usgs.gov/nrp/gwsoftware/modflow_nwt/MODFLOW-NWT_1.0.2.zip
-- unzip in any folder (typically C:/00MODFLOW)
+- install MODFLOW-NWT, download at http://water.usgs.gov/nrp/gwsoftware/modflow_nwt/MODFLOW-NWT_1.0.8.zip
+- unzip in any folder (typically C:/MODFLOW-NWT_1.0.8)
 To link the soil reservoir to the groundwater reservoir, the UZF1 package is used (see http://code.google.com/p/marmites/source/browse/doc/MARMITES_schema_201110.png).
 Documentation of the UZF1 package can be found at http://pubs.usgs.gov/tm/2006/tm6a19.
 
@@ -42,7 +42,7 @@ STEP6
 The input are organized as follow: one head folder/workspace MM_ws with the MMunsat input and two sub folders, MF_ws with MODFLOW input and MMsurf_ws with MARMITES surface input. Each one of the 3 folders contains an .ini file that defines all the parameters of the MARMITES and MODFLOW modules.
 Generally you will have to update: (i) the path of the MMsurf_ws and MF_ws in __inputMF.ini, as well as the name of the files with the data; (ii) the MODFLOW path and name in the __inputMF.ini.
 See the example under MARMITES/doc/example. Open the __input*.ini files, they contain instructions and explanation about the meaning of the parameters. For MODFLOW the name of the variables is kept as in the MODFLOW manual.
-- edit the file startMARMITES_v3.py (typically in C:\Python27\Lib\site-packages\MARMITES\trunk) and change the lines 42 and 43 with the correct path and name of your main MM ini file.
+- edit the file startMM_fn.txt (on desktop) and update it with the correct path and name of your main MM ini file.
 - start MARMITES with startMARMITES_v3.py
 
 A manual is under construction, as well as several applications and papers.

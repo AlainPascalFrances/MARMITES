@@ -993,11 +993,13 @@ def plotWBsankey(path, fn, StartMonth, cMF, ncell_MM):
             
 #    print year_lst
 #    print index
+    print '-------\nStarting date of time serie:\n%s' % (mpl.dates.DateFormatter.format_data(fmt_DH, DATE[0])), '(PE=%.2f)' % float(DATA[0,17+2*cMF.nlay])
     print '-------\nStarting date of hydrological year(s):'
-    for j in index[1:]:
+    for j in index[1:-1]:
         print mpl.dates.DateFormatter.format_data(fmt_DH, DATE[j]), '(PE=%.2f)' % float(DATA[j,17+2*cMF.nlay])
     print 'End date of last hydrological year:'
-    print mpl.dates.DateFormatter.format_data(fmt_DH, DATE[index[-1]-1]), '(PE=%.2f)' % float(DATA[index[-1]-1,17+2*cMF.nlay])
+    print mpl.dates.DateFormatter.format_data(fmt_DH, DATE[index[-1]]), '(PE=%.2f)' % float(DATA[index[-1],17+2*cMF.nlay])
+    print '-------End date of time serie:\n%s' % (mpl.dates.DateFormatter.format_data(fmt_DH, DATE[-1])), '(PE=%.2f)' % float(DATA[-1,17+2*cMF.nlay])
     
     # compute fluxes for whole modelled period and hydrological years
     RF=[]
@@ -1103,11 +1105,11 @@ def plotWBsankey(path, fn, StartMonth, cMF, ncell_MM):
             if f == 0:
                 ff = 1.0
                 fff = (1.5*RF[k])
-                print 'Water balance ($mm.y^{-1}$)'
+                print 'Water balance (mm.y-1)'
             else:
                 ff = RF[k]/100.0
                 fff = (1.5*RF[k])/ff
-                print 'Water balance ($\%$)'
+                print 'Water balance (%)'
             lbl_tmp = ''
             if cMF.wel_yn == 1:
                 lbl_tmp += 'WEL %s' % (np.asarray(WEL[k])/ff)
@@ -1121,7 +1123,7 @@ def plotWBsankey(path, fn, StartMonth, cMF, ncell_MM):
                 if f == 0:
                     fig.suptitle('Water balance ($mm.y^{-1}$)\n', fontsize = 10, y = 0.99)
                 else:
-                    fig.suptitle('Water balance (% of yearly rainfall)\n', fontsize = 10, y = 0.99)
+                    fig.suptitle('Water balance ($\%$ of yearly rainfall)\n', fontsize = 10, y = 0.99)
                 ax = []
                 ax.append(fig.add_subplot(1, 2, 1, xticks=[], yticks=[]))
                 x = 0.25
@@ -1331,6 +1333,7 @@ def plotWBsankey(path, fn, StartMonth, cMF, ncell_MM):
                     plt_export_fn = os.path.join(path, '_0CATCHMENT_WBsanley%s_pc.png' % msg)                    
                 plt.savefig(plt_export_fn,dpi=150)
         print '-------'
+    return index
 
 ##################
 

@@ -1529,10 +1529,10 @@ if os.path.exists(h5_MM_fn):
         plt_exportCATCH_txt.write('\n')
     plt_exportCATCH_txt.close()
     print '-------\nExporting water balance at the catchment scale...'
-#    try:
-    MMplot.plotWBsankey(path = MM_ws_out, fn = '_0CATCHMENT_ts.txt', StartMonth = iniMonthHydroYear, cMF = cMF, ncell_MM = ncell_MM)
-#    except:
-#        print "\nError in plotting the water balance!"
+    try:
+        HYindex = MMplot.plotWBsankey(path = MM_ws_out, fn = '_0CATCHMENT_ts.txt', StartMonth = iniMonthHydroYear, cMF = cMF, ncell_MM = ncell_MM)
+    except:
+        print "\nError in plotting the catchment water balance!"
     del flx_Cat_TS, flx_Cat_TS_str, out_line, plt_exportCATCH_fn, plt_exportCATCH_txt_fn, plt_titleCATCH
 
 # #################################################
@@ -1657,7 +1657,7 @@ if plt_out == 1:
     day_lst = []
     Date_lst = []
     JD_lst = []
-    day = 0
+    day = HYindex[1]
     while day < sum(cMF.perlen):  #len(h_MF_m):
         day_lst.append(day)
         Date_lst.append(cMF.inputDate[day])
@@ -1772,13 +1772,13 @@ if plt_out == 1:
         del Vmin1, Vmax1, Vmin, Vmax
 
     # ############################################
-    # plot average for the whole simulated period
+    # plot average of all hydrologic years
     # ############################################
 
     # plot heads average [m]
     V = np.zeros((1, cMF.nlay, cMF.nrow, cMF.ncol), dtype = np.float)
     for L in range(cMF.nlay):
-        V[0,L,:,:] = np.ma.masked_array(np.sum(h_MF_m[:,L,:,:], axis = 0)/sum(cMF.perlen), mask[L])
+        V[0,L,:,:] = np.ma.masked_array(np.sum(h_MF_m[HYindex[1]:HYindex[-1],L,:,:], axis = 0)/(HYindex[-1]-HYindex[1]+1), mask[L])
     MMplot.plotLAYER(timesteps = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation - $h$ $(m)$', msg = 'DRY', plt_title = 'OUT_average_MF_HEADS', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, contours = ctrsMF, Vmax = [hmaxMF], Vmin = [hminMF], ntick = ntick, points = obs4map, mask = mask_tmp, hnoflo = cMF.hnoflo)
 
     # plot GWTD average [m]
@@ -1788,7 +1788,7 @@ if plt_out == 1:
 
     # plot heads corrigidas average [m]
     headscorr_m = np.zeros((1, cMF.nlay, cMF.nrow, cMF.ncol), dtype = np.float)
-    headscorr_m[0,0,:,:] = np.ma.masked_values(np.ma.masked_values(np.sum(h5_MM['MM'][:,:,:,19], axis = 0)/sum(cMF.perlen), cMF.hnoflo, atol = 0.09), cMF.hdry, atol = 1E+25)
+    headscorr_m[0,0,:,:] = np.ma.masked_values(np.ma.masked_values(np.sum(h5_MM['MM'][HYindex[1]:HYindex[-1],:,:,19], axis = 0)/(HYindex[-1]-HYindex[1]+1), cMF.hnoflo, atol = 0.09), cMF.hdry, atol = 1E+25)
     MMplot.plotLAYER(timesteps = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = headscorr_m,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation - $h$ $(m)$', msg = 'DRY', plt_title = 'OUT_average_MF_HEADScorr', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, contours = ctrsMF, Vmax = [hcorrmax], Vmin = [hcorrmin], ntick = ntick, points = obs4map, mask = maskAllL_tmp, hnoflo = cMF.hnoflo)
 
     # plot GWTD correct average [m]
@@ -1799,7 +1799,7 @@ if plt_out == 1:
     # plot GW RCH average [mm]
     V = np.zeros((1, cMF.nlay, cMF.nrow, cMF.ncol), dtype = np.float)
     for L in range(cMF.nlay):
-        V[0,L,:,:] = np.ma.masked_array(np.sum(cbc_RCH[:,L,:,:], axis = 0)/sum(cMF.perlen), mask[L])
+        V[0,L,:,:] = np.ma.masked_array(np.sum(cbc_RCH[HYindex[1]:HYindex[-1],L,:,:], axis = 0)/(HYindex[-1]-HYindex[1]+1), mask[L])
     MMplot.plotLAYER(timesteps = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater recharge - $R$ $(mm/day)$', msg = '- no flux', plt_title = 'OUT_average_MF_RCH', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = [RCHmax], Vmin = [RCHmin], contours = ctrsMF, ntick = ntick, points = obs4map, mask = mask_tmp, hnoflo = cMF.hnoflo)
     Vmin_tmp1 = np.min(V)
     Vmax_tmp1 = np.max(V)
@@ -1809,7 +1809,7 @@ if plt_out == 1:
     if cMF.drn_yn == 1:
         V = np.zeros((1, cMF.nlay, cMF.nrow, cMF.ncol), dtype = np.float)
         for L in range(cMF.nlay):
-            V[0,L,:,:] = np.ma.masked_array(np.sum(cbc_DRN[:,L,:,:], axis = 0)/sum(cMF.perlen)*(-1.0), mask[L])
+            V[0,L,:,:] = np.ma.masked_array(np.sum(cbc_DRN[HYindex[1]:HYindex[-1],L,:,:], axis = 0)/(HYindex[-1]-HYindex[1]+1)*(-1.0), mask[L])
         MMplot.plotLAYER(timesteps = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater drainage - $DRN$ $(mm/day)$', msg = '- no drainage', plt_title = 'OUT_average_MF_DRN', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = [DRNmax], Vmin = [DRNmin], contours = ctrsMF, ntick = ntick, points = obs4map, mask = mask_tmp, hnoflo = cMF.hnoflo)
         del cbc_DRN, DRNmax, DRNmin
         Vmin_tmp1 = np.min(V)
@@ -1820,7 +1820,7 @@ if plt_out == 1:
     if cMF.ghb_yn == 1:
         V = np.zeros((1, cMF.nlay, cMF.nrow, cMF.ncol), dtype = np.float)
         for L in range(cMF.nlay):
-            V[0,L,:,:] = np.ma.masked_array(np.sum(cbc_GHB[:,L,:,:], axis = 0)/sum(cMF.perlen)*(-1.0), mask[L])
+            V[0,L,:,:] = np.ma.masked_array(np.sum(cbc_GHB[HYindex[1]:HYindex[-1],L,:,:], axis = 0)/(HYindex[-1]-HYindex[1]+1)*(-1.0), mask[L])
         MMplot.plotLAYER(timesteps = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'general head bdry - $GHB$ $(mm/day)$', msg = '- no flux', plt_title = 'OUT_average_MF_GHB', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = [GHBmax], Vmin = [GHBmin], contours = ctrsMF, ntick = ntick, points = obs4map, mask = mask_tmp, hnoflo = cMF.hnoflo)
         del cbc_GHB, GHBmax, GHBmin
         Vmin_tmp1 = np.min(V)
@@ -1840,12 +1840,12 @@ if plt_out == 1:
         flxlbl_tex = [r'$RF$', r'$RFe$', r'$I$', r'$EXF_g$', r'$\Delta S_{surf}$', r'$Ro$', r'$E_{surf}$', r'$E_g$', r'$T_g$', r'$ET_g$', r'$ET_{soil}$', r'$\Delta S_{soil}$']
         for z, (i, i_lbl) in enumerate(zip(flxlbl, flxlbl_tex)):
             # ############################################
-            # plot average for the whole simulated period
+            # plot average of all hydrologic years
             # ############################################
             i1 = 'i'+i
             MM = h5_MM['MM'][:,:,:,index.get(i1)]
             V = np.zeros((1, 1, cMF.nrow, cMF.ncol), dtype = np.float)
-            V[0,0,:,:] = np.sum(np.ma.masked_values(MM, cMF.hnoflo, atol = 0.09), axis = 0)/sum(cMF.perlen)
+            V[0,0,:,:] = np.sum(np.ma.masked_values(MM[HYindex[1]:HYindex[-1],:,:], cMF.hnoflo, atol = 0.09), axis = 0)/(HYindex[-1]-HYindex[1]+1)
             V[0,0,:,:] = np.ma.masked_values(V[0,0,:,:], cMF.hnoflo, atol = 0.09)
             Vmax = [np.ma.max(V)]
             Vmin = [np.ma.min(V)]
@@ -1875,13 +1875,13 @@ if plt_out == 1:
         flxlbl_tex = [r'$E_{soil}$', r'$T_{soil}$']
         for z, (i, i_lbl) in enumerate(zip(flxlbl, flxlbl_tex)):
             # ############################################
-            # plot average for the whole simulated period
+            # plot average of all hydrologic years
             # ############################################
             i1 = 'i'+i
             V = np.zeros((1, 1, cMF.nrow, cMF.ncol), dtype = np.float)
             for l in range(_nslmax):
                 MM = h5_MM['MM_S'][:,:,:,l,index_S.get(i1)]
-                V[0,0,:,:] += np.sum(np.ma.masked_values(MM, cMF.hnoflo, atol = 0.09), axis = 0)/sum(cMF.perlen)
+                V[0,0,:,:] += np.sum(np.ma.masked_values(MM[HYindex[1]:HYindex[-1],:,:], cMF.hnoflo, atol = 0.09), axis = 0)/(HYindex[-1]-HYindex[1]+1)
                 V[0,0,:,:] = np.ma.masked_values(V[0,0,:,:], cMF.hnoflo, atol = 0.09)
             Vmax = [np.ma.max(V)]
             Vmin = [np.ma.min(V)]
@@ -1913,11 +1913,11 @@ if plt_out == 1:
         i = 'Rp'
         i_lbl = r'$Rp_{soil}$'
         # ############################################
-        # plot average for the whole simulated period
+        # plot average of all hydrologic years
         # ############################################
         V = np.zeros((1, 1, cMF.nrow, cMF.ncol), dtype = np.float)
         MM = conv_fact*h5_MM['finf_d'][:,:,:]
-        V[0,0,:,:] = np.sum(np.ma.masked_values(MM, cMF.hnoflo, atol = 0.09), axis = 0)/sum(cMF.perlen)
+        V[0,0,:,:] = np.sum(np.ma.masked_values(MM[HYindex[1]:HYindex[-1],:,:], cMF.hnoflo, atol = 0.09), axis = 0)/(HYindex[-1]-HYindex[1]+1)   
         Vmax = [np.ma.max(V)]
         Vmin = [np.ma.min(V)]
         MMplot.plotLAYER(timesteps = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i_lbl + ' $(mm/day)$'), msg = 'no flux', plt_title = ('OUT_average_MM_%s'% i), MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = Vmax, Vmin = Vmin, contours = ctrsMM, ntick = ntick, points = obs4map, mask = maskAllL_tmp, hnoflo = cMF.hnoflo)
