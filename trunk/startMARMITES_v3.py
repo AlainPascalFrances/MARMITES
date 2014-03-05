@@ -373,6 +373,7 @@ while DATE[-1] >= mpl.dates.datestr2num('%d-%d-01' % (year_lst[y]+1, iniMonthHyd
         iniMonth_prev = 12
     else:
         iniMonth_prev = iniMonthHydroYear - 1
+    indexend = np.argmax(DATE[:] == mpl.dates.datestr2num('%d-%d-30' % (year_lst[y]+1, iniMonth_prev)))
     if DATE[-1] >= mpl.dates.datestr2num('%d-%d-30' % (year_lst[y]+2, iniMonth_prev)):
         year_lst.append(year_lst[y]+1)
         HYindex.append(np.argmax(DATE[:] == mpl.dates.datestr2num('%d-%d-01' % (year_lst[y]+1, iniMonthHydroYear))))
@@ -2003,7 +2004,6 @@ if plt_out == 1:
 # Moriasi et al, 2007, ASABE 50(3):885-900
 print '\nComputing calibration criteria at observation points...'
 h5_MM = h5py.File(h5_MM_fn, 'r')
-DateFilt = np.where((DATE<StartDate) & (DATE>EndDate))
 for o_ref in obs_list:
     for o in obs.keys():
         if o == o_ref:
@@ -2015,15 +2015,13 @@ for o_ref in obs_list:
             obs_h = obs.get(o)['obs_h']
             obs_SM = obs.get(o)['obs_SM']
             if len(obs_SM)> 0:
-                for l in range(nsl):
-                    obs_SM[l,DateFilt] = cMF.hnoflo
+                obs_SM_tmp = obs_SM[:,HYindex[1]:HYindex[-1]+1]
             MM_S = h5_MM['MM_S'][HYindex[1]:HYindex[-1]+1,i,j,0:nsl,index_S.get('iSsoil_pc')]
             if obs_h != []:
-                obs_h_tmp = obs_h[l_obs,:]
-                obs_h_tmp[DateFilt] = cMF.hnoflo
+                obs_h_tmp = obs_h[l_obs,HYindex[1]:HYindex[-1]+1]
             else:
                 obs_h_tmp = []
-            rmseHEADS_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrSM_tmp, nseHEADS_tmp, nseSM_tmp, rHEADS_tmp, rSM_tmp = cMF.cPROCESS.compCalibCrit(MM_S, h_MF_m[HYindex[1]:HYindex[-1]+1,:,i,j], obs_SM, obs_h_tmp, cMF.hnoflo, o, nsl)
+            rmseHEADS_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrSM_tmp, nseHEADS_tmp, nseSM_tmp, rHEADS_tmp, rSM_tmp = cMF.cPROCESS.compCalibCrit(MM_S, h_MF_m[HYindex[1]:HYindex[-1]+1,:,i,j], obs_SM_tmp, obs_h_tmp, cMF.hnoflo, o, nsl)
             if rmseHEADS_tmp <> None:
                 rmseHEADS.append(rmseHEADS_tmp)
                 rsrHEADS.append(rsrHEADS_tmp)
