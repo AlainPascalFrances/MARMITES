@@ -371,9 +371,11 @@ y = 0
 while DATE[-1] >= mpl.dates.datestr2num('%d-%d-01' % (year_lst[y]+1, iniMonthHydroYear)):
     if iniMonthHydroYear == 1:
         iniMonth_prev = 12
+        add = 0
     else:
         iniMonth_prev = iniMonthHydroYear - 1
-    indexend = np.argmax(DATE[:] == mpl.dates.datestr2num('%d-%d-30' % (year_lst[y]+1, iniMonth_prev)))
+        add = 1
+    indexend = np.argmax(DATE[:] == mpl.dates.datestr2num('%d-%d-30' % (year_lst[y]+add, iniMonth_prev)))
     if DATE[-1] >= mpl.dates.datestr2num('%d-%d-30' % (year_lst[y]+2, iniMonth_prev)):
         year_lst.append(year_lst[y]+1)
         HYindex.append(np.argmax(DATE[:] == mpl.dates.datestr2num('%d-%d-01' % (year_lst[y]+1, iniMonthHydroYear))))
@@ -384,8 +386,8 @@ while DATE[-1] >= mpl.dates.datestr2num('%d-%d-01' % (year_lst[y]+1, iniMonthHyd
 HYindex.append(indexend)
 HYindex.insert(0, 0)
 del indexend
-StartDate = mpl.dates.datestr2num('%d-%d-01' % (year_lst[0], iniMonthHydroYear))
-EndDate   = mpl.dates.datestr2num('%d-%d-01' % (year_lst[-1]+1, iniMonthHydroYear))-1.0
+StartDate = DATE[HYindex[1]]
+EndDate   = DATE[HYindex[-1]]
         
 #    print year_lst
 #    print index
@@ -1540,7 +1542,7 @@ if os.path.exists(h5_MM_fn):
         h5_MF.close()
         plt_exportCATCH_fn = os.path.join(MM_ws_out, '_0CATCHMENT_ts.png')
         plt_titleCATCH = 'Time serie of fluxes averaged over the whole catchment'
-        rmseHEADS_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrSM_tmp, nseHEADS_tmp, nseSM_tmp, rHEADS_tmp, rSM_tmp = MMplot.plotTIMESERIES_CATCH(cMF, flx_Cat_TS, flxlbl_tex, plt_exportCATCH_fn, plt_titleCATCH, hmax = hmaxMF, hmin = hminMF, iniMonthHydroYear = iniMonthHydroYear, obs_catch = obs_catch, obs_catch_list = obs_catch_list, TopSoilAverage = TopSoilAverage, MF = 1)
+        rmseHEADS_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrSM_tmp, nseHEADS_tmp, nseSM_tmp, rHEADS_tmp, rSM_tmp = MMplot.plotTIMESERIES_CATCH(cMF, flx_Cat_TS, flxlbl_tex, plt_exportCATCH_fn, plt_titleCATCH, hmax = hmaxMF, hmin = hminMF, iniMonthHydroYear = iniMonthHydroYear, date_ini = StartDate, date_end = EndDate, obs_catch = obs_catch, obs_catch_list = obs_catch_list, TopSoilAverage = TopSoilAverage, MF = 1)
     if rmseHEADS_tmp <> None:
         rmseHEADS.append(rmseHEADS_tmp)
         rsrHEADS.append(rsrHEADS_tmp)
@@ -1650,7 +1652,8 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                 del cbc_WEL
                 outFileExport.close()
                 # plot time series results as plot
-                plt_title = 'Time serie of fluxes at observation point %s\ni = %d, j = %d, l = %d, x = %.2f, y = %.2f, elev. = %.2f, %s\nSm = %s, Sfc = %s, Sr = %s, Ks = %s, thick. = %.3f %s' % (o, i+1, j+1, l_obs+1, obs.get(o)['x'], obs.get(o)['y'], cMF.elev[i,j], soilnam, _Sm[SOILzone_tmp], _Sfc[SOILzone_tmp], _Sr[SOILzone_tmp], _Ks[SOILzone_tmp], gridSOILthick[i,j], Tl)
+                plt_suptitle = 'Time serie of fluxes at observation point %s' % o
+                plt_title = 'i = %d, j = %d, l = %d, x = %.2f, y = %.2f, elev. = %.2f, %s\nSm = %s, Sfc = %s, Sr = %s, Ks = %s, thick. = %.3f %s' % (i+1, j+1, l_obs+1, obs.get(o)['x'], obs.get(o)['y'], cMF.elev[i,j], soilnam, _Sm[SOILzone_tmp], _Sfc[SOILzone_tmp], _Sr[SOILzone_tmp], _Ks[SOILzone_tmp], gridSOILthick[i,j], Tl)
                 # index = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSsurf':4, 'iRo':5, 'iEXF':6, 'iEsurf':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSsurf':13, 'iETg':14, 'iETsoil':15, 'iSsoil_pc':16, 'idSsoil':17, 'iinf':18, 'iHEADScorr':19, 'idgwt':20, 'iuzthick':21}
                 # index_S = {'iEsoil':0, 'iTsoil':1,'iSsoil_pc':2, 'iRp':3, 'iRexf':4, 'idSsoil':5, 'iSsoil':6, 'iSAT':7, 'iMB_l':8}
                 plt_export_fn = os.path.join(MM_ws_out, '_0'+ o + '_ts.png')
@@ -1685,8 +1688,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                 _Sm[gridSOIL[i,j]-1],
                 _Sr[gridSOIL[i,j]-1],
                 cMF.hnoflo,
-                plt_export_fn,
-                plt_title,
+                plt_export_fn, plt_suptitle, plt_title,
                 colors_nsl,
                 max(hmax), #hmax[x] + hdiff/2
                 min(hmin), #hmin[x] - hdiff/2
@@ -1695,7 +1697,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                 cMF.nlay,
                 l_obs,
                 nsl,
-                iniMonthHydroYear
+                iniMonthHydroYear, date_ini = StartDate, date_end = EndDate
                 )
                 x += 1
     del i, j, l_obs, SOILzone_tmp, outFileExport, nsl, soilnam, slprop, Tl, plt_export_fn
@@ -2014,14 +2016,17 @@ for o_ref in obs_list:
             l_obs = obs.get(o)['lay']
             obs_h = obs.get(o)['obs_h']
             obs_SM = obs.get(o)['obs_SM']
-            if len(obs_SM)> 0:
-                obs_SM_tmp = obs_SM[:,HYindex[1]:HYindex[-1]+1]
-            MM_S = h5_MM['MM_S'][HYindex[1]:HYindex[-1]+1,i,j,0:nsl,index_S.get('iSsoil_pc')]
+            if obs_SM != []:
+                obs_SM_tmp = obs_SM[:,HYindex[1]:HYindex[-1]]
+            else:
+                obs_SM_tmp = []
+            MM_S = h5_MM['MM_S'][HYindex[1]:HYindex[-1],i,j,0:nsl,index_S.get('iSsoil_pc')]
             if obs_h != []:
-                obs_h_tmp = obs_h[l_obs,HYindex[1]:HYindex[-1]+1]
+                obs_h_tmp = obs_h[l_obs,HYindex[1]:HYindex[-1]]
             else:
                 obs_h_tmp = []
-            rmseHEADS_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrSM_tmp, nseHEADS_tmp, nseSM_tmp, rHEADS_tmp, rSM_tmp = cMF.cPROCESS.compCalibCrit(MM_S, h_MF_m[HYindex[1]:HYindex[-1]+1,:,i,j], obs_SM_tmp, obs_h_tmp, cMF.hnoflo, o, nsl)
+            h_MF = h_MF_m[HYindex[1]:HYindex[-1],:,i,j]
+            rmseHEADS_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrSM_tmp, nseHEADS_tmp, nseSM_tmp, rHEADS_tmp, rSM_tmp = cMF.cPROCESS.compCalibCrit(MM_S, h_MF, obs_SM_tmp, obs_h_tmp, cMF.hnoflo, o, nsl)
             if rmseHEADS_tmp <> None:
                 rmseHEADS.append(rmseHEADS_tmp)
                 rsrHEADS.append(rsrHEADS_tmp)
@@ -2034,7 +2039,7 @@ for o_ref in obs_list:
                 nseSM.append(nseSM_tmp)
                 rSM.append(rSM_tmp)
                 obslstSM.append(o)
-            del rmseHEADS_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrSM_tmp, nseHEADS_tmp, nseSM_tmp, rHEADS_tmp, rSM_tmp
+            del rmseHEADS_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrSM_tmp, nseHEADS_tmp, nseSM_tmp, rHEADS_tmp, rSM_tmp, h_MF, MM_S
 for cc, (calibcritSM, calibcritHEADS, calibcrit, title, calibcritSMmax, calibcritHEADSmax, ymin, units) in enumerate(zip([rmseSM, rsrSM, nseSM, rSM], [rmseHEADS, rsrHEADS, nseHEADS, rHEADS], ['RMSE', 'RSR', 'NSE', 'r'], ['Root mean square error', 'Root mean square error - observations standard deviation ratio', 'Nash-Sutcliffe efficiency', "Pearson's correlation coefficient"], [rmseSMmax, None, 1.0, 1.0], [rmseHEADSmax, None, 1.0, 1.0], [0, 0, None, -1.0], [['($m$)', '($\%%wc$)'], ['',''], ['',''], ['','']])):
     #try:
     MMplot.plotCALIBCRIT(calibcritSM = calibcritSM, calibcritSMobslst = obslstSM, calibcritHEADS = calibcritHEADS, calibcritHEADSobslst = obslstHEADS, plt_export_fn = os.path.join(MM_ws_out, '__plt_calibcrit%s.png'% calibcrit), plt_title = 'Calibration criteria between simulated and observed state variables\n%s'%title, calibcrit = calibcrit, calibcritSMmax = calibcritSMmax, calibcritHEADSmax = calibcritHEADSmax, ymin = ymin, units = units)

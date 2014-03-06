@@ -87,6 +87,9 @@ class clsUTILITIES():
         year = mpl.dates.num2date(date).year
         month = mpl.dates.num2date(date).month
     #    day = mpl.dates.num2date(date).day
+        if iniMonthHydroYear == 1:
+            iniMonthHydroYear = 12
+            year -= 1            
         if month >= iniMonthHydroYear:
             date_ini = mpl.dates.date2num(mpl.dates.datetime.datetime(year,iniMonthHydroYear,1))
         else:
@@ -99,6 +102,9 @@ class clsUTILITIES():
         year = mpl.dates.num2date(date).year
         month = mpl.dates.num2date(date).month
     #    day = mpl.dates.num2date(date).day
+        if iniMonthHydroYear == 12:
+            iniMonthHydroYear = 1
+            year += 1            
         if month >= iniMonthHydroYear:
             date_end = mpl.dates.date2num(mpl.dates.datetime.datetime(year+1,iniMonthHydroYear,1))
         else:
