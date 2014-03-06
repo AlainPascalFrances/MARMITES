@@ -665,11 +665,14 @@ class clsPROCESS:
 
     #####################################
 
-    def compE (self, sim, obs) :
+    def compE (self, sim, obs, hnoflo) :
         def sqre_diff (v, w) :
             return (v - w) ** 2
         #s = len(sim)
-        v = 1 - sum(map(sqre_diff, sim, obs))/sum(sqre_diff(obs, self.compAVGE(obs)))
+        if sum(sqre_diff(obs, self.compAVGE(obs)))>0.0:
+            v = 1 - sum(map(sqre_diff, sim, obs))/sum(sqre_diff(obs, self.compAVGE(obs)))
+        else:
+            v = hnoflo
         return v
 
     #####################################
@@ -680,7 +683,7 @@ class clsPROCESS:
 
     #####################################
 
-    def compR(self, x, y):
+    def compR(self, x, y, hnoflo):
         # pearson correlation coefficient r
         assert len(x) == len(y)
         n = len(x)
@@ -696,8 +699,10 @@ class clsPROCESS:
             diffprod += xdiff * ydiff
             xdiff2 += xdiff * xdiff
             ydiff2 += ydiff * ydiff
-
-        return diffprod / np.sqrt(xdiff2 * ydiff2)
+        if np.sqrt(xdiff2 * ydiff2)> 0.0 :
+            return diffprod / np.sqrt(xdiff2 * ydiff2)
+        else:
+            return hnoflo
 
     #####################################
 
@@ -729,20 +734,21 @@ class clsPROCESS:
                 rsrSM = []
                 nseSM = []
                 rSM = []
-                #try:
-                for l, (y, y_obs) in enumerate(zip(Spc1full, Sobs_m)):
-                    if y_obs <> []:
-                        a = np.array([y,y_obs])
-                        a = np.transpose(a)
-                        b = a[~(a < hnoflo +1000.0).any(1)]
-                        if b[:,0] <> []:
-                            rmseSM.append(100.0*self.compRMSE(b[:,0], b[:,1]))
-                            rsrSM.append(rmseSM[l]/(100.0*np.std(b[:,1])))
-                            nseSM.append(self.compE(b[:,0], b[:,1]))
-                            rSM.append(self.compR(b[:,0], b[:,1]))
-                            print 'SM layer %d: %.1f %% / %.2f / %.2f / %.2f' % (l+1, rmseSM[l], rsrSM[l], nseSM[l], rSM[l])
-                #except:
-                #    print 'SM layer %d: error' % (l+1)
+                try:
+                    for l, (y, y_obs) in enumerate(zip(Spc1full, Sobs_m)):
+                        if y_obs <> []:
+                            a = np.array([y,y_obs])
+                            a = np.transpose(a)
+                            b = a[~(a < hnoflo +1000.0).any(1)]
+                            if b[:,0] <> []:
+                                rmseSM.append(100.0*self.compRMSE(b[:,0], b[:,1]))
+                                if np.std(b[:,1]) > 0:
+                                    rsrSM.append(rmseSM[l]/(100.0*np.std(b[:,1])))
+                                nseSM.append(self.compE(b[:,0], b[:,1], hnoflo))
+                                rSM.append(self.compR(b[:,0], b[:,1], hnoflo))
+                                print 'SM layer %d: %.1f %% / %.2f / %.2f / %.2f' % (l+1, rmseSM[l], rsrSM[l], nseSM[l], rSM[l])
+                except:
+                    print 'SM layer %d: error' % (l+1)
             if hobs <> []:
                 try:
                     a = np.array([h_MF[:,0],hobs])
@@ -750,9 +756,12 @@ class clsPROCESS:
                     b = a[~(a < hnoflo +1000.0).any(1)]
                     if b[:,0] <> []:
                         rmseHEADS = [self.compRMSE(b[:,0], b[:,1])]
-                        rsrHEADS = [rmseHEADS/np.std(b[:,1])]
-                        nseHEADS = [self.compE(b[:,0], b[:,1])]
-                        rHEADS = [self.compR(b[:,0], b[:,1])]
+                        if np.std(b[:,1]) > 0:
+                            rsrHEADS = [rmseHEADS/np.std(b[:,1])]
+                        else:
+                            rsrHEADS = [hnoflo]
+                        nseHEADS = [self.compE(b[:,0], b[:,1], hnoflo)]
+                        rHEADS = [self.compR(b[:,0], b[:,1], hnoflo)]
                         print 'h: %.2f m / %.2f / %.2f / %.2f' % (rmseHEADS[0], rsrHEADS[0], nseHEADS[0], rHEADS[0])
                 except:
                     print 'h: error'
