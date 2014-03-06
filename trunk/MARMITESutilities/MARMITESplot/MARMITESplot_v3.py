@@ -1369,7 +1369,12 @@ def plotCALIBCRIT(calibcritSM, calibcritSMobslst, calibcritHEADS, calibcritHEADS
     yserie = []
     labels = []
     if calibcritSMmax == None:
-        max_tmp = 1.2*np.max(list(itertools.chain.from_iterable(calibcritSM)))
+        tmp = np.max(list(itertools.chain.from_iterable(calibcritSM)))
+        if tmp > 0:
+            max_tmp = 1.2*tmp
+        else:
+            max_tmp = 1.0
+        del tmp
     else:
         max_tmp = calibcritSMmax
     n = 0
@@ -1418,7 +1423,12 @@ def plotCALIBCRIT(calibcritSM, calibcritSMobslst, calibcritHEADS, calibcritHEADS
             plt.text(xserie[i], yserie[i]+offset, '%.1f' % yserie[i], fontsize=6, ha = 'center', va = 'center')
     plt.xticks(xserie, labels)
     if ymin == None:
-        ymin_tmp = 1.2*np.min(np.ma.masked_where(np.asarray(yserie).flatten() == hnoflo,np.asarray(yserie).flatten()))
+        tmp = np.min(np.ma.masked_where(np.asarray(yserie).flatten() == hnoflo,np.asarray(yserie).flatten()))
+        if tmp > 0:
+            ymin_tmp = 0
+        else:
+            ymin_tmp = 1.2*tmp
+        del tmp
     else:
         ymin_tmp = ymin
     plt.ylim(ymin_tmp, max_tmp)
@@ -1433,7 +1443,12 @@ def plotCALIBCRIT(calibcritSM, calibcritSMobslst, calibcritHEADS, calibcritHEADS
     xserie = range(1,len(calibcritHEADSobslst)+1)
     yserie_txt = list(itertools.chain.from_iterable(calibcritHEADS))
     if calibcritHEADSmax == None:
-        max_tmp = 1.2*np.max(list(itertools.chain.from_iterable(calibcritHEADS)))
+        tmp = np.max(list(itertools.chain.from_iterable(calibcritHEADS)))
+        if tmp > 0:
+            max_tmp = 1.2*tmp
+        else:
+            max_tmp = 1.0
+        del tmp        
     else:
         max_tmp = calibcritHEADSmax
     offset = (max_tmp)*0.05
@@ -1443,7 +1458,12 @@ def plotCALIBCRIT(calibcritSM, calibcritSMobslst, calibcritHEADS, calibcritHEADS
             plt.text(xserie[i], yserie_txt[i]+offset, '%.1f' % yserie_txt[i], fontsize=6, ha = 'center', va = 'center')
     plt.xticks(xserie, calibcritHEADSobslst)
     if ymin == None:
-        ymin_tmp = 1.2*np.min(np.ma.masked_where(np.asarray(calibcritHEADS).flatten() == hnoflo,np.asarray(calibcritHEADS).flatten()))
+        tmp = np.min(np.ma.masked_where(np.asarray(calibcritHEADS).flatten() == hnoflo,np.asarray(calibcritHEADS).flatten()))
+        if tmp< 0:
+            ymin_tmp = 1.2*tmp
+        else:
+            ymin_tmp = 0.8*tmp
+        del tmp
     else:
         ymin_tmp = ymin
     plt.ylim(ymin_tmp, max_tmp)
