@@ -270,6 +270,7 @@ l=0
 VegName = []
 Zr = []
 kT_min = []
+kT_max = []
 kT_n = []
 try:
     NMETEO = int(inputFile[l].strip())
@@ -306,6 +307,10 @@ try:
     l += 1
     line = inputFile[l].split()
     for v in range(NVEG):
+        kT_max.append(float(line[v]))
+    l += 1
+    line = inputFile[l].split()
+    for v in range(NVEG):
         kT_n.append(float(line[v]))
     if irr_yn == 1:
         l += 1
@@ -321,6 +326,7 @@ try:
         l += 1
         Zr_c = []
         kT_min_c = []
+        kT_max_c = []
         kT_n_c = []
         line = inputFile[l].split()
         for c in range(NCROP):
@@ -331,6 +337,10 @@ try:
         for c in range(NCROP):
             kT_min_c.append(float(line[c]))
         kT_min_c = np.asarray(kT_min_c)
+        line = inputFile[l].split()
+        for c in range(NCROP):
+            kT_max_c.append(float(line[c]))
+        kT_max_c = np.asarray(kT_max_c)
         l += 1
         line = inputFile[l].split()
         for c in range(NCROP):
@@ -872,7 +882,7 @@ if MMsoil_yn > 0:
                           gridSOIL, gridSOILthick, cMF.elev*1000.0, gridMETEO,
                           index, index_S, gridSsurfhmax, gridSsurfw,
                           RF_veg_zoneSP, E0_zonesSP, PT_veg_zonesSP, RFe_veg_zonesSP, PE_zonesSP, gridVEGarea,
-                          LAI_veg_zonesSP, Zr, kT_min, kT_n, NVEG,
+                          LAI_veg_zonesSP, Zr, kT_min, kT_max, kT_n, NVEG,
                           cMF, conv_fact, h5_MF, h5_MM, irr_yn
                           )
         else:
@@ -880,11 +890,11 @@ if MMsoil_yn > 0:
                           gridSOIL, gridSOILthick, cMF.elev*1000.0, gridMETEO,
                           index, index_S, gridSsurfhmax, gridSsurfw,
                           RF_veg_zoneSP, E0_zonesSP, PT_veg_zonesSP, RFe_veg_zonesSP, PE_zonesSP, gridVEGarea,
-                          LAI_veg_zonesSP, Zr, kT_min, kT_n, NVEG,
+                          LAI_veg_zonesSP, Zr, kT_min, kT_max, kT_n, NVEG,
                           cMF, conv_fact, h5_MF, h5_MM, irr_yn,
                           RF_irr_zoneSP, PT_irr_zonesSP, RFe_irr_zoneSP,
                           crop_irr_SP, gridIRR,
-                          Zr_c, kT_min_c, kT_n_c, NCROP
+                          Zr_c, kT_min_c, kT_max_c, kT_n_c, NCROP
                           )
 
         # CHECK MM amd MF CONVERG.
