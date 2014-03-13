@@ -31,7 +31,6 @@ import ppMODFLOW_flopy_v3 as ppMF
 import MARMITESplot_v3 as MMplot
 import MARMITESutilities as MMutils
 #import MARMITESprocess_v3 as MMproc
-import CreateColors
 
 # TODO verify if thickness of MF layer 1 > thickness of soil
 
@@ -337,6 +336,7 @@ try:
         for c in range(NCROP):
             kT_min_c.append(float(line[c]))
         kT_min_c = np.asarray(kT_min_c)
+        l += 1
         line = inputFile[l].split()
         for c in range(NCROP):
             kT_max_c.append(float(line[c]))
@@ -551,13 +551,15 @@ obs, obs_list, obs_catch, obs_catch_list = cMF.cPROCESS.inputObs(
 i = []
 j = []
 lay = []
+lbl = []
 for o_ref in obs_list:
     for o in obs.keys():
         if o == o_ref:
             i.append(obs.get(o)['i']+1)
             j.append(obs.get(o)['j']+1)
             lay.append(obs.get(o)['lay'])
-obs4map = [obs_list, i, j, lay]
+            lbl.append(obs.get(o)['lbl'])
+obs4map = [lbl, i, j, lay]
 # To write MM output in a txt file
 Ssoil_str   = ''
 Ssoilpc_str = ''
@@ -1190,9 +1192,9 @@ if os.path.exists(cMF.h5_MF_fn):
                             j = list(col).index(RCHmax)
                             x = cMF.delc[row]*row + xllcorner
                             y = cMF.delr[j]*j + yllcorner
-                            obs['PzRCHmax'] = {'x':x,'y':y, 'i': row, 'j': j, 'lay': l, 'hi':999, 'h0':999, 'RC':999, 'STO':999, 'outpathname':os.path.join(MM_ws_out,'_0PzRCHmax_ts.txt'), 'obs_h':[], 'obs_h_yn':0, 'obs_SM':[], 'obs_sm_yn':0}
-                            obs_list.append('PzRCHmax')
-                            obs4map[0].append('PzRCHmax')
+                            obs['Rm'] = {'x':x,'y':y, 'i': row, 'j': j, 'lay': l, 'hi':999, 'h0':999, 'RC':999, 'STO':999, 'outpathname':os.path.join(MM_ws_out,'_0Rm_ts.txt'), 'obs_h':[], 'obs_h_yn':0, 'obs_SM':[], 'obs_sm_yn':0}
+                            obs_list.append('Rm')
+                            obs4map[0].append('Rm')
                             obs4map[1].append(row)
                             obs4map[2].append(j)
                             obs4map[3].append(l)
@@ -1409,8 +1411,8 @@ if os.path.exists(h5_MM_fn):
                             tTgmin = t
                             if plt_out_obs == 1:
                                 obs['PzTgmin'] = {'x':999,'y':999, 'i': row, 'j': list(col).index(Tg_min), 'lay': 0, 'hi':999, 'h0':999, 'RC':999, 'STO':999, 'outpathname':os.path.join(MM_ws_out,'_0PzTgmin_ts.txt'), 'obs_h':[], 'obs_h_yn':0, 'obs_SM':[], 'obs_sm_yn':0}
-                                obs_list.append('PzTgmin')
-                                obs4map[0].append('PzTgmin')
+                                obs_list.append('Tgm')
+                                obs4map[0].append('Tgm')
                                 obs4map[1].append(row)
                                 obs4map[2].append(list(col).index(Tg_min))
                                 obs4map[3].append(0)
@@ -1608,7 +1610,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
     print '\nExporting output time series plots and ASCII files at observation points...'
     h5_MM = h5py.File(h5_MM_fn, 'r')
     h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
-    colors_nsl = CreateColors.main(hi=00, hf=180, numbcolors = (_nslmax+1))
+    clr_lst = ['firebrick','darkgreen','goldenrod','darkmagenta','tomato', 'green', 'yellow', 'magenta']
     x = 0
     for o_ref in obs_list:
         for o in obs.keys():
@@ -1674,7 +1676,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                 MM[:,index.get('iPT')],
                 MM[:,index.get('iPE')],
                 MM[:,index.get('iRFe')],
-                -MM[:,index.get('idSsurf')],
+                MM[:,index.get('idSsurf')],
                 MM[:,index.get('iSsurf')],
                 MM[:,index.get('iRo')],
                 MM_S[:,0:nsl,index_S.get('iEsoil')],
@@ -1686,7 +1688,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                 MM_S[:,0:nsl,index_S.get('iSsoil_pc')],
                 MM_S[:,0:nsl,index_S.get('iRp')],
                 MM[:,index.get('iEXF')],
-                -MM[:,index.get('iETg')],
+                MM[:,index.get('iETg')],
                 MM[:,index.get('iEsurf')],
                 MM[:,index.get('iMB')],
                 MM_S[:,0:nsl,index_S.get('iMB_l')],
@@ -1699,7 +1701,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                 _Sr[gridSOIL[i,j]-1],
                 cMF.hnoflo,
                 plt_export_fn, plt_suptitle, plt_title,
-                colors_nsl,
+                clr_lst,
                 max(hmax), #hmax[x] + hdiff/2
                 min(hmin), #hmin[x] - hdiff/2
                 o,
@@ -1746,6 +1748,8 @@ if plt_out == 1:
         h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
         h5_MM = h5py.File(h5_MM_fn, 'r')
         cbc_RCH = h5_MF['RCH_d']
+        cbc_EXF = h5_MF['EXF_d']
+        cbc_WEL = h5_MF['WEL_d']
         if cMF.drn_yn == 1:
             cbc_DRN = h5_MF['DRN_d']
         if cMF.ghb_yn == 1:
@@ -1795,17 +1799,43 @@ if plt_out == 1:
             Vmax[i] = GWTDcorrmax
         MMplot.plotLAYER(timesteps = day_lst, Date = Date_lst, JD = JD_lst, ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = GWTDcorr,  cmap = plt.cm.Blues, CBlabel = 'depth to groundwater table - $d$ $(m)$', msg = 'DRY', plt_title = 'OUT_MF_GWTDcorr', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, contours = ctrsMF, Vmax = Vmax, Vmin = Vmin, ntick = ntick, points = obs4map, mask = mask_tmp, hnoflo = cMF.hnoflo, animation = animation)
 
-        # plot GW RCH [mm]
-        V = np.zeros((len(day_lst), cMF.nlay, cMF.nrow, cMF.ncol), dtype = np.float)
+        # plot GW GROSS RCH [mm]
+        R = np.zeros((len(day_lst), cMF.nlay, cMF.nrow, cMF.ncol), dtype = np.float)
         for i, t in enumerate(day_lst):
             for L in range(cMF.nlay):
-                V[i,L,:,:] = np.ma.masked_array(cbc_RCH[t,L,:,:], mask[L])
+                R[i,L,:,:] = np.ma.masked_array(cbc_RCH[t,L,:,:], mask[L])
             Vmin[i] = RCHmin
             Vmax[i] = RCHmax
-            Vmin1[i] = np.ma.min(V[i,:,:,:])
-            Vmax1[i] = np.ma.max(V[i,:,:,:])
-        MMplot.plotLAYER(timesteps = day_lst, Date = Date_lst, JD = JD_lst, ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater recharge - $R$ $(mm/day)$', msg = '- no flux', plt_title = 'OUT_MF_RCH', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmin = Vmin, contours = ctrsMF, Vmax = Vmax, ntick = ntick, points = obs4map, hnoflo = cMF.hnoflo, mask = mask_tmp, animation = animation)
-        MMplot.plotLAYER(timesteps = day_lst, Date = Date_lst, JD = JD_lst, ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater recharge - $R$ $(mm/day)$', msg = '- no flux', plt_title = 'OUT_MF_RCH1', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmin = Vmin1, contours = ctrsMF, Vmax = Vmax1, ntick = ntick, points = obs4map, hnoflo = cMF.hnoflo, mask = mask_tmp, animation = animation)
+            Vmin1[i] = np.ma.min(R[i,:,:,:])
+            Vmax1[i] = np.ma.max(R[i,:,:,:])
+        MMplot.plotLAYER(timesteps = day_lst, Date = Date_lst, JD = JD_lst, ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = R,  cmap = plt.cm.Blues, CBlabel = 'groundwater gross recharge - $R$ $(mm/day)$', msg = '- no flux', plt_title = 'OUT_MF_R', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmin = Vmin, contours = ctrsMF, Vmax = Vmax, ntick = ntick, points = obs4map, hnoflo = cMF.hnoflo, mask = mask_tmp, animation = animation)
+        MMplot.plotLAYER(timesteps = day_lst, Date = Date_lst, JD = JD_lst, ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = R,  cmap = plt.cm.Blues, CBlabel = 'groundwater gross recharge - $R$ $(mm/day)$', msg = '- no flux', plt_title = 'OUT_MF_R1', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmin = Vmin1, contours = ctrsMF, Vmax = Vmax1, ntick = ntick, points = obs4map, hnoflo = cMF.hnoflo, mask = mask_tmp, animation = animation)
+        
+        # plot GW EFFECTIVE RCH [mm]
+        Re = np.zeros((len(day_lst), cMF.nlay, cMF.nrow, cMF.ncol), dtype = np.float)
+        for i, t in enumerate(day_lst):
+            for L in range(cMF.nlay):
+                Re[i,L,:,:] = R[i,L,:,:] + np.ma.masked_array(cbc_EXF[t,L,:,:], mask[L])
+            Vmin[i] = np.ma.min(Re)
+            Vmax[i] = np.ma.max(Re)
+            Vmin1[i] = np.ma.min(Re[i,:,:,:])
+            Vmax1[i] = np.ma.max(Re[i,:,:,:])
+        MMplot.plotLAYER(timesteps = day_lst, Date = Date_lst, JD = JD_lst, ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = Re,  cmap = plt.cm.Blues, CBlabel = 'groundwater effective recharge - $Re$ $(mm/day)$', msg = '- no flux', plt_title = 'OUT_MF_Re', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmin = Vmin, contours = ctrsMF, Vmax = Vmax, ntick = ntick, points = obs4map, hnoflo = cMF.hnoflo, mask = mask_tmp, animation = animation)
+        MMplot.plotLAYER(timesteps = day_lst, Date = Date_lst, JD = JD_lst, ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = Re,  cmap = plt.cm.Blues, CBlabel = 'groundwater effective recharge - $Re$ $(mm/day)$', msg = '- no flux', plt_title = 'OUT_MF_Re1', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmin = Vmin1, contours = ctrsMF, Vmax = Vmax1, ntick = ntick, points = obs4map, hnoflo = cMF.hnoflo, mask = mask_tmp, animation = animation)
+
+        # plot GW EFFECTIVE RCH [mm]
+        Rn = np.zeros((len(day_lst), cMF.nlay, cMF.nrow, cMF.ncol), dtype = np.float)
+        for i, t in enumerate(day_lst):
+            for L in range(cMF.nlay):
+                Rn[i,L,:,:] = Re[i,L,:,:] - np.ma.masked_array(cbc_WEL[t,L,:,:], mask[L])
+            Vmin[i] = np.ma.min(Rn)
+            Vmax[i] = np.ma.max(Rn)
+            Vmin1[i] = np.ma.min(Rn[i,:,:,:])
+            Vmax1[i] = np.ma.max(Rn[i,:,:,:])
+        MMplot.plotLAYER(timesteps = day_lst, Date = Date_lst, JD = JD_lst, ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = Rn,  cmap = plt.cm.Blues, CBlabel = 'groundwater net recharge - $Rn$ $(mm/day)$', msg = '- no flux', plt_title = 'OUT_MF_Rn', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmin = Vmin, contours = ctrsMF, Vmax = Vmax, ntick = ntick, points = obs4map, hnoflo = cMF.hnoflo, mask = mask_tmp, animation = animation)
+        MMplot.plotLAYER(timesteps = day_lst, Date = Date_lst, JD = JD_lst, ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = Rn,  cmap = plt.cm.Blues, CBlabel = 'groundwater net recharge - $Rn$ $(mm/day)$', msg = '- no flux', plt_title = 'OUT_MF_Rn1', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmin = Vmin1, contours = ctrsMF, Vmax = Vmax1, ntick = ntick, points = obs4map, hnoflo = cMF.hnoflo, mask = mask_tmp, animation = animation)  
+    
+        del R, Rn, Re        
 
         # plot GW drainage [mm]
         if cMF.drn_yn == 1:
@@ -1861,14 +1891,34 @@ if plt_out == 1:
     GWTDcorr[0,0,:,:] = cMF.elev-headscorr_m[0,0,:,:]
     MMplot.plotLAYER(timesteps = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = GWTDcorr, cmap = plt.cm.Blues, CBlabel = 'depth to groundwater table - $d$ $(m)$', msg = 'DRY', plt_title = 'OUT_average_MF_GWTDcorr', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, contours = ctrsMF, Vmax = [GWTDcorrmax], Vmin = [GWTDcorrmin], ntick = ntick, points = obs4map, mask = maskAllL_tmp, hnoflo = cMF.hnoflo)
 
-    # plot GW RCH average [mm]
-    V = np.zeros((1, cMF.nlay, cMF.nrow, cMF.ncol), dtype = np.float)
+    # plot GW GROSS RCH average [mm]
+    R = np.zeros((1, cMF.nlay, cMF.nrow, cMF.ncol), dtype = np.float)
     for L in range(cMF.nlay):
-        V[0,L,:,:] = np.ma.masked_array(np.sum(cbc_RCH[HYindex[1]:HYindex[-1],L,:,:], axis = 0)/(HYindex[-1]-HYindex[1]+1), mask[L])
-    MMplot.plotLAYER(timesteps = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater recharge - $R$ $(mm/day)$', msg = '- no flux', plt_title = 'OUT_average_MF_RCH', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = [RCHmax], Vmin = [RCHmin], contours = ctrsMF, ntick = ntick, points = obs4map, mask = mask_tmp, hnoflo = cMF.hnoflo)
-    Vmin_tmp1 = np.min(V)
-    Vmax_tmp1 = np.max(V)
-    MMplot.plotLAYER(timesteps = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater recharge - $R$ $(mm/day)$', msg = '- no flux', plt_title = 'OUT_average_MF_RCH1', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = [Vmax_tmp1], Vmin = [Vmin_tmp1], contours = ctrsMF, ntick = ntick, points = obs4map, mask = mask_tmp, hnoflo = cMF.hnoflo)
+        R[0,L,:,:] = np.ma.masked_array(np.sum(cbc_RCH[HYindex[1]:HYindex[-1],L,:,:], axis = 0)/(HYindex[-1]-HYindex[1]+1), mask[L])
+    MMplot.plotLAYER(timesteps = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = R,  cmap = plt.cm.Blues, CBlabel = 'groundwater gross recharge - $R$ $(mm/day)$', msg = '- no flux', plt_title = 'OUT_average_MF_R', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = [RCHmax], Vmin = [RCHmin], contours = ctrsMF, ntick = ntick, points = obs4map, mask = mask_tmp, hnoflo = cMF.hnoflo)
+    Vmin_tmp1 = np.min(R)
+    Vmax_tmp1 = np.max(R)
+    MMplot.plotLAYER(timesteps = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = R,  cmap = plt.cm.Blues, CBlabel = 'groundwater gross recharge - $R$ $(mm/day)$', msg = '- no flux', plt_title = 'OUT_average_MF_R1', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = [Vmax_tmp1], Vmin = [Vmin_tmp1], contours = ctrsMF, ntick = ntick, points = obs4map, mask = mask_tmp, hnoflo = cMF.hnoflo)
+    
+    # plot GW EFFECTIVE RCH average [mm]
+    Re = np.zeros((1, cMF.nlay, cMF.nrow, cMF.ncol), dtype = np.float)
+    for L in range(cMF.nlay):
+        Re[0,L,:,:] = R[0,L,:,:] + np.ma.masked_array(np.sum(cbc_EXF[HYindex[1]:HYindex[-1],L,:,:], axis = 0)/(HYindex[-1]-HYindex[1]+1), mask[L])
+    MMplot.plotLAYER(timesteps = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = Re,  cmap = plt.cm.Blues, CBlabel = 'groundwater effective recharge - $Re$ $(mm/day)$', msg = '- no flux', plt_title = 'OUT_average_MF_Re', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = [RCHmax], Vmin = [RCHmin], contours = ctrsMF, ntick = ntick, points = obs4map, mask = mask_tmp, hnoflo = cMF.hnoflo)
+    Vmin_tmp1 = np.min(Re)
+    Vmax_tmp1 = np.max(Re)
+    MMplot.plotLAYER(timesteps = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = Re,  cmap = plt.cm.Blues, CBlabel = 'groundwater effective recharge - $Re$ $(mm/day)$', msg = '- no flux', plt_title = 'OUT_average_MF_Re1', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = [Vmax_tmp1], Vmin = [Vmin_tmp1], contours = ctrsMF, ntick = ntick, points = obs4map, mask = mask_tmp, hnoflo = cMF.hnoflo)
+    
+    # plot GW NET RCH average [mm]
+    Rn = np.zeros((1, cMF.nlay, cMF.nrow, cMF.ncol), dtype = np.float)
+    for L in range(cMF.nlay):
+        Rn[0,L,:,:] = Re[0,L,:,:] - np.ma.masked_array(np.sum(cbc_WEL[HYindex[1]:HYindex[-1],L,:,:], axis = 0)/(HYindex[-1]-HYindex[1]+1), mask[L])
+    MMplot.plotLAYER(timesteps = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = Rn,  cmap = plt.cm.Blues, CBlabel = 'groundwater net recharge - $Rn$ $(mm/day)$', msg = '- no flux', plt_title = 'OUT_average_MF_Rn', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = [RCHmax], Vmin = [RCHmin], contours = ctrsMF, ntick = ntick, points = obs4map, mask = mask_tmp, hnoflo = cMF.hnoflo)
+    Vmin_tmp1 = np.min(Rn)
+    Vmax_tmp1 = np.max(Rn)
+    MMplot.plotLAYER(timesteps = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = Rn,  cmap = plt.cm.Blues, CBlabel = 'groundwater net recharge - $Rn$ $(mm/day)$', msg = '- no flux', plt_title = 'OUT_average_MF_Rn1', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = [Vmax_tmp1], Vmin = [Vmin_tmp1], contours = ctrsMF, ntick = ntick, points = obs4map, mask = mask_tmp, hnoflo = cMF.hnoflo)    
+    
+    del cbc_RCH, cbc_EXF, cbc_WEL, R, Rn, Re
 
     # plot GW drainage average [mm]
     if cMF.drn_yn == 1:
@@ -1894,7 +1944,7 @@ if plt_out == 1:
 
     h5_MF.close()
     h5_MM.close()
-    del V, cbc_RCH, Vmax_tmp1, Vmin_tmp1
+    del V, Vmax_tmp1, Vmin_tmp1
 ##
     # ##############################
     # #### MARMITES OUTPUT #########

@@ -14,7 +14,7 @@ from matplotlib.sankey import Sankey
 
 #####################################
 
-def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S, dS, Spc, Rp, EXF, ETg, Es, MB, MB_l, dgwt, uzthick, SAT, R, h_MF, h_MF_corr, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_suptitle, plt_title, colors_nsl, hmax, hmin, obs_name, elev, nlay, l_obs, nsl, iniMonthHydroYear, date_ini, date_end):
+def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S, dS, Spc, Rp, EXF, ETg, Es, MB, MB_l, dgwt, uzthick, SAT, R, h_MF, h_MF_corr, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_suptitle, plt_title, clr_lst, hmax, hmin, obs_name, elev, nlay, l_obs, nsl, iniMonthHydroYear, date_ini, date_end):
     """
     Plot the time serie of the fluxes observed at one point of the catchment
     Use Matplotlib
@@ -123,7 +123,7 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
     lbl_Rp.append(r'$EXF_g$')
     lbl_Tsoil.append(r'$T_g$')
     lbl_Esoil.append(r'$E_g$')
-
+    
     ax1=fig.add_subplot(8,1,1)
     plt.setp(ax1.get_xticklabels(), visible=False)
     plt.setp(ax1.get_yticklabels(), fontsize=8)
@@ -168,6 +168,7 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
     ax2.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
     plt.setp(ax2.get_xticklabels(minor=True), visible=False)
 
+    colors_nsl = itertools.cycle(clr_lst)
     Esoil_tot = []
     for e in Esoil:
         Esoil_tot.append(e.sum())
@@ -179,9 +180,9 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
     plt.setp(ax3.get_yticklabels(), fontsize=8)
     plt.plot_date(cMF.inputDate,PE,'-', color='lightblue', linewidth=3)
     plt.plot_date(cMF.inputDate,E_tot,'-', color='darkblue', linewidth=1.5)
-    plt.plot_date(cMF.inputDate,Esoil_tot,'-.', color=colors_nsl[len(colors_nsl)-1])
-    for l, (y, color, lbl) in enumerate(zip(Esoil1, colors_nsl, lbl_Esoil[2:len(lbl_Esoil)])):
-        ax3.plot_date(cMF.inputDate, y, '-', color=color, label=lbl)
+    plt.plot_date(cMF.inputDate,Esoil_tot,'-.', color='brown')
+    for l, (y, lbl) in enumerate(zip(Esoil1, lbl_Esoil[2:len(lbl_Esoil)])):
+        ax3.plot_date(cMF.inputDate, y, '-', color=colors_nsl.next(), label=lbl)
     plt.plot_date(cMF.inputDate,Eg,'-', color='blue')
     plt.legend(lbl_Esoil, loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc)
     leg = plt.gca().get_legend()
@@ -193,6 +194,7 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
     ax3.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
     plt.setp(ax3.get_xticklabels(minor=True), visible=False)
 
+    colors_nsl = itertools.cycle(clr_lst)
     Tsoil_tot = []
     for t in Tsoil:
         Tsoil_tot.append(t.sum())
@@ -204,9 +206,9 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
     plt.setp(ax4.get_yticklabels(), fontsize=8)
     plt.plot_date(cMF.inputDate,PT,'-', color='lightblue', linewidth=3)
     plt.plot_date(cMF.inputDate,T_tot,'-', color='darkblue',  linewidth=1.5)
-    plt.plot_date(cMF.inputDate,Tsoil_tot,'-.', color=colors_nsl[len(colors_nsl)-1])
-    for l, (y, color, lbl) in enumerate(zip(Tsoil1, colors_nsl, lbl_Tsoil[2:len(lbl_Tsoil)])):
-        ax4.plot_date(cMF.inputDate, y, '-', color=color, label=lbl)
+    plt.plot_date(cMF.inputDate,Tsoil_tot,'-.', color='brown')
+    for l, (y, lbl) in enumerate(zip(Tsoil1, lbl_Tsoil[2:len(lbl_Tsoil)])):
+        ax4.plot_date(cMF.inputDate, y, '-', color=colors_nsl.next(), label=lbl)
     plt.plot_date(cMF.inputDate,Tg,'-', color='blue')
     plt.legend(lbl_Tsoil, loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc)
     leg = plt.gca().get_legend()
@@ -218,23 +220,25 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
     ax4.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
     plt.setp(ax4.get_xticklabels(minor=True), visible=False)
 
+    colors_nsl = itertools.cycle(clr_lst)
     ax5=fig.add_subplot(8,1,5, sharex=ax1)
     plt.setp(ax5.get_xticklabels(), visible=False)
     plt.setp(ax5.get_yticklabels(), fontsize=8)
     obs_tmp = []
     try:
-        for l, (y, color, lbl) in enumerate(zip(Sobs_m, colors_nsl, lbl_Sobs)):
+        for l, (y, lbl) in enumerate(zip(Sobs_m, lbl_Sobs)):
             obs_tmp.append(y)
             if y != []:
-                ax5.plot_date(cMF.inputDate, y, ls = 'None', color = 'gray', marker='o', markersize=2, markeredgecolor = color, markerfacecolor = 'None', label=lbl) #'--', color = color,
+                ax5.plot_date(cMF.inputDate, y, ls = 'None', color = 'gray', marker='o', markersize=2, markeredgecolor = colors_nsl.next(), markerfacecolor = 'None', label=lbl) #'--', color = color,
     except:
         print'WARNING! Error in plotting SM observations at %s' % obs_name
         pass
     sim_tmp = []
-    for l, (y, color, lbl) in enumerate(zip(Spc1full, colors_nsl, lbl_Spc)):
+    colors_nsl = itertools.cycle(clr_lst)
+    for l, (y, lbl) in enumerate(zip(Spc1full, lbl_Spc)):
         sim_tmp.append(y)
         y = np.ma.masked_where(y < 0.0, y)
-        ax5.plot_date(cMF.inputDate, y, '-', color = color, label = lbl)
+        ax5.plot_date(cMF.inputDate, y, '-', color = colors_nsl.next(), label = lbl)
     # y axis
     ybuffer=0.1*(max(Sm)-min(Sr))
     plt.ylim(min(Sr) - ybuffer,max(Sm) + ybuffer)
@@ -251,12 +255,13 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
     ax5.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
     plt.setp(ax5.get_xticklabels(minor=True), visible=False)
 
+    colors_nsl = itertools.cycle(clr_lst)
     ax6=fig.add_subplot(8,1,6, sharex=ax1)
     plt.setp(ax6.get_xticklabels(), visible=False)
     plt.setp(ax6.get_yticklabels(), fontsize=8)
     plt.bar(cMF.inputDate,EXF, color='lightblue', linewidth=0, align = 'center', label=r'$EXF_g$')
-    for l, (y, color, lbl) in enumerate(zip(Rp1, colors_nsl, lbl_Rp[2:len(lbl_Rp)])) :
-        ax6.plot_date(cMF.inputDate, y, '-', color=color, label=lbl)
+    for l, (y, lbl) in enumerate(zip(Rp1, lbl_Rp[2:len(lbl_Rp)])) :
+        ax6.plot_date(cMF.inputDate, y, '-', color=colors_nsl.next(), label=lbl)
     plt.plot_date(cMF.inputDate,R,'-', c='darkblue', linewidth=2)
     plt.plot_date(cMF.inputDate,ETg,'-', c='blue', linewidth=1.5)
     plt.legend(lbl_Rp, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc)
@@ -377,12 +382,13 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
     ax1.xaxis.grid(b=True, which='minor', color='0.65')
     ax1.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
 
+    colors_nsl = itertools.cycle(clr_lst)
     ax8b=fig.add_subplot(8,1,2, sharex=ax1)
     plt.setp(ax8b.get_xticklabels(), visible=False)
     plt.setp(ax8b.get_yticklabels(), fontsize=8)
     plt.plot_date(cMF.inputDate,MB,'-', c='r')
-    for l, (y, color, lbl) in enumerate(zip(MB_l1, colors_nsl, lbl_MB[1:len(lbl_MB)])) :
-        ax8b.plot_date(cMF.inputDate, y, '-', color=color, label=lbl)
+    for l, (y, lbl) in enumerate(zip(MB_l1, lbl_MB[1:len(lbl_MB)])) :
+        ax8b.plot_date(cMF.inputDate, y, '-', color=colors_nsl.next(), label=lbl)
     # y axis
     plt.ylabel('mm', fontsize=10)
     ax8b.grid(b=True, which='major', axis = 'both')
@@ -405,11 +411,12 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
     ax8b.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
     plt.setp(ax8b.get_xticklabels(minor=True), visible=False)
 
+    colors_nsl = itertools.cycle(clr_lst)
     ax9a=fig.add_subplot(8,1,3, sharex=ax1)
     plt.setp(ax9a.get_xticklabels(), visible=False)
     plt.setp(ax9a.get_yticklabels(), fontsize=8)
-    for l, (y, color, lbl) in enumerate(zip(SAT1, colors_nsl, lbl_SAT)) :
-        ax9a.plot_date(cMF.inputDate, y, '-', color = color, label = lbl)
+    for l, (y, lbl) in enumerate(zip(SAT1, lbl_SAT)) :
+        ax9a.plot_date(cMF.inputDate, y, '-', color = colors_nsl.next(), label = lbl)
     # y axis
     plt.ylim(-0.1,1.1)
     plt.ylabel('SAT', fontsize=10)
@@ -450,12 +457,13 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
     ax10a.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
     plt.setp(ax10a.get_xticklabels(minor=True), visible=False)
 
+    colors_nsl = itertools.cycle(clr_lst)
     ax10b=fig.add_subplot(8,1,5, sharex=ax1)
     plt.setp(ax10b.get_xticklabels(), fontsize=8)
     plt.setp(ax10b.get_yticklabels(), fontsize=8)
-    for l, (y, color, lbl) in enumerate(zip(S1, colors_nsl, lbl_S)) :
+    for l, (y, lbl) in enumerate(zip(S1, lbl_S)) :
         y = np.ma.masked_where( y < 0.0, y)
-        ax10b.plot_date(cMF.inputDate, y, '-', color=color, label=lbl)
+        ax10b.plot_date(cMF.inputDate, y, '-', color=colors_nsl.next(), label=lbl)
     # y axis
     plt.ylim(0,np.max(S1)*1.05)
     plt.ylabel('mm', fontsize=10)
