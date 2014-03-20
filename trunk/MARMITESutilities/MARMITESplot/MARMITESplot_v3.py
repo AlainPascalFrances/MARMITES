@@ -14,7 +14,7 @@ from matplotlib.sankey import Sankey
 
 #####################################
 
-def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S, dS, Spc, Rp, EXF, ETg, Es, MB, MB_l, dgwt, uzthick, SAT, R, h_MF, h_MF_corr, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_suptitle, plt_title, clr_lst, hmax, hmin, obs_name, elev, nlay, l_obs, nsl, iniMonthHydroYear, date_ini, date_end):
+def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S, dS, Spc, Rp, EXF, ETg, Es, MB, MB_l, dgwt, uzthick, SAT, R, h_MF, h_MF_corr, h_SF, hobs, Sobs, Roobs, Sm, Sr, hnoflo, plt_export_fn, plt_suptitle, plt_title, clr_lst, hmax, hmin, obs_name, elev, nlay, l_obs, nsl, iniMonthHydroYear, date_ini, date_end):
     """
     Plot the time serie of the fluxes observed at one point of the catchment
     Use Matplotlib
@@ -69,11 +69,11 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
     lbl_SAT = []
     lbl_MB =[]
     lbl_Esoil.append(r'$PE$')
-    lbl_Esoil.append(r'$Etot$')
-    lbl_Esoil.append(r'$Etot_{soil}$')
+    lbl_Esoil.append(r'$E \ tot$')
+    lbl_Esoil.append(r'$E_{soil} \ tot$')
     lbl_Tsoil.append(r'$PT$')
-    lbl_Tsoil.append(r'$Ttot$')
-    lbl_Tsoil.append(r'$Ttot_{soil}$')
+    lbl_Tsoil.append(r'$T \ tot$')
+    lbl_Tsoil.append(r'$T_{soil} \ tot$')
     lbl_MB.append(r'$MB$')
     Sobs_m = []
     Esoil1 = []
@@ -105,7 +105,7 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
         Rp1.append(Rp[:,l])
         try:
             Sobs_m.append(np.ma.masked_values(Sobs[l], hnoflo, atol = 0.09))
-            lbl_Sobs.append(r'$\theta obs^{l%d}$'%(l+1))
+            lbl_Sobs.append(r'$\theta \ obs^{l%d}$'%(l+1))
         except:
             Sobs_m.append([])
     del dS, S, SAT, MB_l
@@ -154,6 +154,13 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
     ax2=fig.add_subplot(8,1,2, sharex=ax1)
     plt.setp(ax2.get_xticklabels(), visible=False)
     plt.setp(ax2.get_yticklabels(), fontsize=8)
+    try:
+        Roobs_m = np.ma.masked_values(Roobs, hnoflo, atol = 0.09)
+    #        dgwtobsmin = np.ma.min(dgwtobs_m)
+        plt.plot_date(cMF.inputDate,Roobs_m, ls = 'None', color = 'gray', marker='o', markeredgecolor = 'darkblue', markerfacecolor = 'None', markersize = 2, label = r'$Ro \ obs$') # ls='--', color = 'blue'
+    except:
+        print 'Error in plotting Ro obs at obs. pt %s' % obs_name
+        pass    
     plt.plot_date(cMF.inputDate,Ro,'r-', c='darkblue', linewidth=2, label = r'$Ro$')
     plt.plot_date(cMF.inputDate,Es,'r-', c='deepskyblue', linewidth=0.75, label = r'$E_{surf}$')
     plt.bar(cMF.inputDate, POND, color='lightblue', linewidth=0, align = 'center', label = r'$S_{surf}$')
@@ -300,11 +307,11 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
     ax7.xaxis.grid(b=True, which='minor', color='0.65')
     # legend
     if obs_leg == None:
-        lbl_dgwt.append(r'$dcorr$')
+        lbl_dgwt.append(r'$d \ corr$')
         plt.legend(tuple(lbl_dgwt), loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc)
     elif obs_leg == 1:
-        lbl_dgwt.insert(0,r'$dobs$')
-        lbl_dgwt.append(r'$dcorr$')
+        lbl_dgwt.insert(0,r'$d \ obs$')
+        lbl_dgwt.append(r'$d \ corr$')
         plt.legend(tuple(lbl_dgwt), loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc)
     leg = plt.gca().get_legend()
     dgwtMFmax = np.max(dgwtMFmax)
@@ -367,12 +374,12 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
     plt.ylim((hmin - ybuffer, hmax + ybuffer))
     plt.ylabel('m', fontsize=10)
     if obs_leg == None:
-        lbl_h.append(r'$hcorr$')
+        lbl_h.append(r'$h \ corr$')
         lbl_h.append(r'$hSF$')
         plt.legend(tuple(lbl_h), loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc)
     elif obs_leg == 1:
-        lbl_h.insert(0,r'$hobs$')
-        lbl_h.append(r'$hcorr$')
+        lbl_h.insert(0,r'$h \ obs$')
+        lbl_h.append(r'$h \ corr$')
         lbl_h.append(r'$hSF$')
         plt.legend(tuple(lbl_h), loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc)
     leg = plt.gca().get_legend()
@@ -496,7 +503,7 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
 
 ##################
 
-def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin, iniMonthHydroYear, date_ini, date_end, obs_catch = None, obs_catch_list = [0, 0], TopSoilAverage = None, MF = None):
+def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, Ro_TOT, plt_export_fn, plt_title, hmax, hmin, iniMonthHydroYear, date_ini, date_end, obs_catch = None, obs_catch_list = [0, 0], TopSoilAverage = None, MF = None):
     """
     Plot the time serie of the fluxes observed from the whole catchment
     Use Matplotlib
@@ -550,8 +557,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin
     del month_tmp
     ax1.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth = bymonth))
     plt.setp(ax1.get_xticklabels(minor=True), visible=False)
-    ax1.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
-    
+    ax1.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G')) 
 
     ax2=fig.add_subplot(8,1,2, sharex=ax1)
     ax2.set_autoscalex_on(False)
@@ -583,7 +589,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin
     # PE
     plt.plot_date(cMF.inputDate,flx[16+2*cMF.nlay],'-', color='lightblue', linewidth=3, label = flx_lbl[16+2*cMF.nlay])
     # Etot
-    plt.plot_date(cMF.inputDate,E_tot,'-', color='darkblue', linewidth=1.5, label = r'$Etot$')
+    plt.plot_date(cMF.inputDate,E_tot,'-', color='darkblue', linewidth=1.5, label = r'$E \ tot$')
     # Esoil
     plt.plot_date(cMF.inputDate,flx[8],'-.', color='brown', label = flx_lbl[8])
     # Eg
@@ -606,7 +612,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin
     # PT
     plt.plot_date(cMF.inputDate,flx[17+2*cMF.nlay],'-', color='lightblue', linewidth=3, label = flx_lbl[17+2*cMF.nlay])
     # Ttot
-    plt.plot_date(cMF.inputDate,T_tot,'-', color='darkblue',  linewidth=1.5, label = r'$Ttot$')
+    plt.plot_date(cMF.inputDate,T_tot,'-', color='darkblue',  linewidth=1.5, label = r'$T \ tot$')
     # Tsoil
     plt.plot_date(cMF.inputDate,flx[9],'-.', color='brown', label = flx_lbl[9])
     # Tg
@@ -658,7 +664,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin
     if obs_catch_list[1] == 1:
         obs_SM = obs_catch.get('catch')['obs_SM']
         Sobs_m = np.ma.masked_values(obs_SM[0], cMF.hnoflo, atol = 0.09)
-        ax6.plot_date(cMF.inputDate, Sobs_m, 'o', color = 'brown', markersize=2, label = r'$\theta obs$')
+        ax6.plot_date(cMF.inputDate, Sobs_m, 'o', color = 'brown', markersize=2, label = r'$\theta \ obs$')
         a = np.array([flx[19+2*cMF.nlay],obs_SM[0]])
         a = np.transpose(a)
         b = a[~(a < cMF.hnoflo +1000.0).any(1)]
@@ -708,7 +714,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin
             i += l + 2
         if obs_catch_list[0] == 1:
             dobs_m = hobs_m - TopSoilAverage
-            ax10.plot_date(cMF.inputDate, dobs_m, 'o', color = 'blue', markersize=2, label = r'$d obs$')
+            ax10.plot_date(cMF.inputDate, dobs_m, 'o', color = 'blue', markersize=2, label = r'$d \ obs$')
         plt.ylabel('m', fontsize=10)
         plt.xlabel('Date', fontsize=10)
         labels=ax10.get_xticklabels()
@@ -730,7 +736,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin
     plt.subplots_adjust(left=0.10, bottom=0.10, right=0.95, top=0.95, wspace=0.1, hspace=0.1)
     plt.savefig(plt_export_fn,dpi=150)
 
-#--------------FIGURE PART2----------
+#--------------FIGURE CATCH PART2----------
 
     fig = plt.figure(num=None, figsize=(8.27, 11.7), dpi = 60)    #(8.5,15), dpi=30)
     fig.suptitle(plt_title + ' - part 2')
@@ -753,7 +759,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin
             i += l + 2
         # RMSE
         if obs_catch_list[0] == 1:
-            ax1.plot_date(cMF.inputDate, hobs_m, 'o', color = 'blue', markersize=2, label = r'$h obs$')
+            ax1.plot_date(cMF.inputDate, hobs_m, 'o', color = 'blue', markersize=2, label = r'$h \ obs$')
             a = np.array([flx[24],obs_h[0]])
             a = np.transpose(a)
             b = a[~(a < cMF.hnoflo +1000.0).any(1)]
@@ -798,6 +804,22 @@ def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin
         plt.setp(labels, fontsize=8)
         plt.setp(labels, 'rotation', 90)
         del labels
+
+    ax2=fig.add_subplot(8,1,3, sharex=ax1)
+    ax2.set_autoscalex_on(False)
+    plt.setp(ax2.get_xticklabels(), visible=False)
+    plt.setp(ax2.get_yticklabels(), fontsize=8)
+    # Ro_TOT
+    plt.plot_date(cMF.inputDate,Ro_TOT,'r-', c='darkblue', linewidth=2, label = r'$Ro \ tot$')    
+    plt.ylabel('mm', fontsize=10)
+    plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc)
+    leg = plt.gca().get_legend()
+    ltext  = leg.get_texts()
+    plt.setp(ltext, fontsize=8)
+    ax2.xaxis.grid(b=True, which='minor', color='0.65')
+    ax2.grid(b=True, which='major', axis = 'both')
+    ax2.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.4G'))
+    plt.setp(ax2.get_xticklabels(minor=True), visible=False)
 
     plt.subplots_adjust(left=0.10, bottom=0.10, right=0.95, top=0.95, wspace=0.1, hspace=0.1)
     txt = plt_export_fn.split('.')

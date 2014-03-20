@@ -193,6 +193,8 @@ try:
     l += 1
     inputObsSM_fn = inputFile[l].strip()
     l += 1
+    inputObsRo_fn = inputFile[l].strip()
+    l += 1
     rmseHEADSmax  = float(inputFile[l].strip())
     l += 1
     rmseSMmax  = float(inputFile[l].strip())
@@ -544,6 +546,7 @@ obs, obs_list, obs_catch, obs_catch_list = cMF.cPROCESS.inputObs(
                               inputObs_fn      = inputObs_fn,
                               inputObsHEADS_fn = inputObsHEADS_fn,
                               inputObsSM_fn    = inputObsSM_fn,
+                              inputObsRo_fn    = inputObsRo_fn,
                               inputDate        = cMF.inputDate,
                               _nslmax          = _nslmax,
                               nlay             = cMF.nlay
@@ -580,7 +583,7 @@ for l in range(_nslmax):
     Rexf_str = Rexf_str + 'Rexf_l' + str(l+1) + ','
     MB_str = MB_str + 'MB_l' + str(l+1) + ','
     Smeasout = Smeasout + 'Smeas_' + str(l+1) + ','
-header='Date,MF_SP,veg_crop,RF,E0,PT,PE,RFe,I,' + Esoil_str + Tsoil_str + 'Eg,Tg,ETg,WEL_MF,Esurf,' + Ssoil_str + Ssoilpc_str + dSsoil_str + 'dSsurf,Ssurf,Ro,GW_EXF,' + Rp_str + Rexf_str + 'R_MF,hSATFLOW,hMF,hMFcorr,hmeas,dgwt,' + Smeasout + MB_str + 'MB\n'
+header='Date,MF_SP,veg_crop,RF,E0,PT,PE,RFe,I,' + Esoil_str + Tsoil_str + 'Eg,Tg,ETg,WEL_MF,Esurf,' + Ssoil_str + Ssoilpc_str + dSsoil_str + 'dSsurf,Ssurf,Ro,Romeas,GW_EXF,' + Rp_str + Rexf_str + 'R_MF,hSATFLOW,hMF,hMFcorr,hmeas,dgwt,' + Smeasout + MB_str + 'MB\n'
 if cMF.uzf_yn == 1:
     cMF.uzf_obs(obs = obs)
 
@@ -1192,7 +1195,7 @@ if os.path.exists(cMF.h5_MF_fn):
                             j = list(col).index(RCHmax)
                             x = cMF.delc[row]*row + xllcorner
                             y = cMF.delr[j]*j + yllcorner
-                            obs['Rm'] = {'x':x,'y':y, 'i': row, 'j': j, 'lay': l, 'hi':999, 'h0':999, 'RC':999, 'STO':999, 'outpathname':os.path.join(MM_ws_out,'_0Rm_ts.txt'), 'obs_h':[], 'obs_h_yn':0, 'obs_SM':[], 'obs_sm_yn':0}
+                            obs['Rm'] = {'x':x,'y':y, 'i': row, 'j': j, 'lay': l, 'hi':999, 'h0':999, 'RC':999, 'STO':999, 'outpathname':os.path.join(MM_ws_out,'_0Rm_ts.txt'), 'obs_h':[], 'obs_h_yn':0, 'obs_SM':[], 'obs_sm_yn':0, 'obs_Ro':[], 'obs_Ro_yn':0}
                             obs_list.append('Rm')
                             obs4map[0].append('Rm')
                             obs4map[1].append(row)
@@ -1349,6 +1352,8 @@ if os.path.exists(h5_MM_fn):
         flxmin_d.append(np.ma.min(flx_tmp))
         array_tmp1 = np.sum(np.ma.masked_values(array_tmp, cMF.hnoflo, atol = 0.09), axis = 1)
         flx_Cat_TS.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
+        if i == 'iRo':
+            Ro_TOT = np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)
         del flx_tmp, array_tmp, array_tmp1
     for z, (i, i_tex) in enumerate(zip(flxlbl1, flxlbl1_tex)):
         flxlbl_tex.append(i_tex)
@@ -1410,7 +1415,7 @@ if os.path.exists(h5_MM_fn):
                             print 'row %d, col %d and day %d' % (row + 1, list(col).index(Tg_min) + 1, t + 1)
                             tTgmin = t
                             if plt_out_obs == 1:
-                                obs['PzTgmin'] = {'x':999,'y':999, 'i': row, 'j': list(col).index(Tg_min), 'lay': 0, 'hi':999, 'h0':999, 'RC':999, 'STO':999, 'outpathname':os.path.join(MM_ws_out,'_0PzTgmin_ts.txt'), 'obs_h':[], 'obs_h_yn':0, 'obs_SM':[], 'obs_sm_yn':0}
+                                obs['PzTgmin'] = {'x':999,'y':999, 'i': row, 'j': list(col).index(Tg_min), 'lay': 0, 'hi':999, 'h0':999, 'RC':999, 'STO':999, 'outpathname':os.path.join(MM_ws_out,'_0PzTgmin_ts.txt'), 'obs_h':[], 'obs_h_yn':0, 'obs_SM':[], 'obs_sm_yn':0, 'obs_Ro':[], 'obs_Ro_yn':0}
                                 obs_list.append('Tgm')
                                 obs4map[0].append('Tgm')
                                 obs4map[1].append(row)
@@ -1554,7 +1559,7 @@ if os.path.exists(h5_MM_fn):
         h5_MF.close()
         plt_exportCATCH_fn = os.path.join(MM_ws_out, '_0CATCHMENT_ts.png')
         plt_titleCATCH = 'Time serie of fluxes averaged over the whole catchment'
-        rmseHEADS_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrSM_tmp, nseHEADS_tmp, nseSM_tmp, rHEADS_tmp, rSM_tmp = MMplot.plotTIMESERIES_CATCH(cMF, flx_Cat_TS, flxlbl_tex, plt_exportCATCH_fn, plt_titleCATCH, hmax = hmaxMF, hmin = hminMF, iniMonthHydroYear = iniMonthHydroYear, date_ini = StartDate, date_end = EndDate, obs_catch = obs_catch, obs_catch_list = obs_catch_list, TopSoilAverage = TopSoilAverage, MF = 1)
+        rmseHEADS_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrSM_tmp, nseHEADS_tmp, nseSM_tmp, rHEADS_tmp, rSM_tmp = MMplot.plotTIMESERIES_CATCH(cMF, flx_Cat_TS, flxlbl_tex, Ro_TOT, plt_exportCATCH_fn, plt_titleCATCH, hmax = hmaxMF, hmin = hminMF, iniMonthHydroYear = iniMonthHydroYear, date_ini = StartDate, date_end = EndDate, obs_catch = obs_catch, obs_catch_list = obs_catch_list, TopSoilAverage = TopSoilAverage, MF = 1)
     if rmseHEADS_tmp <> None:
         rmseHEADS.append(rmseHEADS_tmp)
         rsrHEADS.append(rsrHEADS_tmp)
@@ -1600,7 +1605,7 @@ if os.path.exists(h5_MM_fn):
         MMplot.plotWBsankey(path = MM_ws_out, fn = '_0CATCHMENT_ts.txt', index = HYindex, year_lst = year_lst, cMF = cMF, ncell_MM = ncell_MM)
     except:
         print "\nError in plotting the catchment water balance!"
-    del flx_Cat_TS, flx_Cat_TS_str, out_line, plt_exportCATCH_fn, plt_exportCATCH_txt_fn, plt_titleCATCH
+    del flx_Cat_TS, flx_Cat_TS_str, out_line, plt_exportCATCH_fn, plt_exportCATCH_txt_fn, plt_titleCATCH, Ro_TOT
 
 # #################################################
 # EXPORT AT OBSERVATION POINTS
@@ -1610,7 +1615,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
     print '\nExporting output time series plots and ASCII files at observation points...'
     h5_MM = h5py.File(h5_MM_fn, 'r')
     h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
-    clr_lst = ['firebrick','darkgreen','goldenrod','darkmagenta','tomato', 'green', 'yellow', 'magenta']
+    clr_lst = ['darkgreen', 'firebrick', 'darkmagenta', 'goldenrod', 'green', 'tomato', 'magenta', 'yellow']
     x = 0
     for o_ref in obs_list:
         for o in obs.keys():
@@ -1620,6 +1625,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                 l_obs = obs.get(o)['lay']
                 obs_h = obs.get(o)['obs_h']
                 obs_SM = obs.get(o)['obs_SM']
+                obs_Ro = obs.get(o)['obs_Ro']
                 outFileExport = open(obs.get(o)['outpathname'], 'w')
                 outFileExport.write(header)
                 SOILzone_tmp = gridSOIL[i,j]-1
@@ -1641,6 +1647,10 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                     obs_h_tmp = obs_h[0,:]
                 else:
                     obs_h_tmp = []
+                if obs_Ro != []:
+                    obs_Ro_tmp = obs_Ro[0,:]
+                else:
+                    obs_Ro_tmp = []
                 if cMF.wel_yn == 1:
                     cbc_WEL = np.sum(np.ma.masked_values(h5_MF['WEL_d'][:,:,i,j], cMF.hnoflo, atol = 0.09), axis = 1)
                 else:
@@ -1660,7 +1670,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                     else:
                         index_veg = cMF.crop_irr_d[gridMETEO[i,j]-1, IRRfield-1,:]
                 # Export time series results at observations points as ASCII file
-                cMF.cPROCESS.ExportResultsMM(i, j, cMF.inputDate, SP_d, _nslmax, MM, index, MM_S, index_S, cbc_RCH[:,l_obs,i,j], cbc_WEL, h_satflow, h_MF_m[:,l_obs,i,j], obs_h_tmp, obs_SM, index_veg, outFileExport, o)
+                cMF.cPROCESS.ExportResultsMM(i, j, cMF.inputDate, SP_d, _nslmax, MM, index, MM_S, index_S, cbc_RCH[:,l_obs,i,j], cbc_WEL, h_satflow, h_MF_m[:,l_obs,i,j], obs_h_tmp, obs_SM, obs_Ro_tmp, index_veg, outFileExport, o)
                 del cbc_WEL
                 outFileExport.close()
                 # plot time series results as plot
@@ -1696,7 +1706,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                 MM[:,index.get('iuzthick')],
                 MM_S[:,0:nsl,index_S.get('iSAT')],
                 cbc_RCH[:,l_obs,i,j],
-                h_MF_m[:,:,i,j], MM[:,index.get('iHEADScorr')], h_satflow, obs_h_tmp, obs_SM,
+                h_MF_m[:,:,i,j], MM[:,index.get('iHEADScorr')], h_satflow, obs_h_tmp, obs_SM, obs_Ro_tmp,
                 _Sm[gridSOIL[i,j]-1],
                 _Sr[gridSOIL[i,j]-1],
                 cMF.hnoflo,
@@ -2076,6 +2086,7 @@ for o_ref in obs_list:
             l_obs = obs.get(o)['lay']
             obs_h = obs.get(o)['obs_h']
             obs_SM = obs.get(o)['obs_SM']
+            # TODO insert Ro            
             if obs_SM != []:
                 obs_SM_tmp = obs_SM[:,HYindex[1]:HYindex[-1]]
             else:

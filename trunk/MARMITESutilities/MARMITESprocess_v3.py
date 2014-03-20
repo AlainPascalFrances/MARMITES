@@ -403,7 +403,7 @@ class clsPROCESS:
 
     ######################
 
-    def inputObs(self, inputObs_fn, inputObsHEADS_fn, inputObsSM_fn, inputDate, _nslmax, nlay):
+    def inputObs(self, inputObs_fn, inputObsHEADS_fn, inputObsSM_fn, inputObsRo_fn, inputDate, _nslmax, nlay):
         '''
         observations cells for soil moisture and heads (will also compute SATFLOW)
         '''
@@ -460,7 +460,13 @@ class clsPROCESS:
             else:
                 obs_sm = []
                 obs_sm_yn = 0
-            obs[name] = {'x':x,'y':y,'i': i, 'j': j, 'lay': lay, 'hi':hi, 'h0':h0, 'RC':RC, 'STO':STO, 'lbl':lbl, 'outpathname':os.path.join(self.MM_ws_out,'_0%s_ts.txt' % name), 'obs_h':obs_h, 'obs_h_yn':obs_h_yn, 'obs_SM':obs_sm, 'obs_sm_yn':obs_sm_yn}
+            obsRo_fn=os.path.join(self.MM_ws, '%s_%s.txt' % (inputObsRo_fn, name))
+            if os.path.exists(obsRo_fn):
+                obs_Ro, obs_Ro_yn = self.verifObs(inputDate, obsRo_fn, obsnam = name)
+            else:
+                obs_Ro = []
+                obs_Ro_yn = 0
+            obs[name] = {'x':x,'y':y,'i': i, 'j': j, 'lay': lay, 'hi':hi, 'h0':h0, 'RC':RC, 'STO':STO, 'lbl':lbl, 'outpathname':os.path.join(self.MM_ws_out,'_0%s_ts.txt' % name), 'obs_h':obs_h, 'obs_h_yn':obs_h_yn, 'obs_SM':obs_sm, 'obs_sm_yn':obs_sm_yn, 'obs_Ro':obs_Ro, 'obs_Ro_yn':obs_Ro_yn}
 
         #  read catchment obs time series
         obsh_fn = os.path.join(self.MM_ws, '%s_catchment.txt' % inputObsHEADS_fn)
@@ -497,6 +503,7 @@ class clsPROCESS:
                 obsValue = []
                 for l in range(1,len(obsData[0])):
                     obsValue.append(obsData[:,l].astype(float))
+                del obsData
                 if len(obsValue)<_nslmax:
                     for l in range(_nslmax-len(obsValue)):
                         obsValue.append(self.hnoflo)
@@ -565,14 +572,14 @@ class clsPROCESS:
 
     ######################
 
-    def ExportResultsMM(self, i, j, inputDate, SP_d, _nslmax, results, index, results_S, index_S, RCH, WEL, h_satflow, heads_MF, obs_h, obs_S, index_veg, outFileExport, obsname):
+    def ExportResultsMM(self, i, j, inputDate, SP_d, _nslmax, results, index, results_S, index_S, RCH, WEL, h_satflow, heads_MF, obs_h, obs_S, obs_Ro, index_veg, outFileExport, obsname):
         """
         Export the processed data in a txt file
         INPUTS:      output fluxes time series and date
         OUTPUT:      ObsName.txt
         """
         for t in range(len(inputDate)):
-            # 'Date,RF,E0,PT,PE,RFe,I,'+Eu_str+Tu_str+'Eg,Tg,ETg,WEL_MF,Es,'+Ssoil_str+Ssoilpc_str+dSsoil_str+'dSs,Ss,Ro,GW_EXF,GW_EXF_MF,'+Rp_str+Rexf_str+'R_MF,hSATFLOW,hMF,hMFcorr,hmeas,dgwt,' + Smeasout + MB_str + 'MB\n'
+            # 'Date,RF,E0,PT,PE,RFe,I,'+Eu_str+Tu_str+'Eg,Tg,ETg,WEL_MF,Es,'+Ssoil_str+Ssoilpc_str+dSsoil_str+'dSs,Ss,Ro,Romeas,GW_EXF,GW_EXF_MF,'+Rp_str+Rexf_str+'R_MF,hSATFLOW,hMF,hMFcorr,hmeas,dgwt,' + Smeasout + MB_str + 'MB\n'
             out_date = mpl.dates.num2date(inputDate[t]).isoformat()[:10]
             Sout     = ''
             Spcout   = ''
@@ -600,13 +607,17 @@ class clsPROCESS:
                 obs_h_tmp = obs_h[t]
             except:
                 obs_h_tmp = self.hnoflo
+            try:
+                obs_Ro_tmp = obs_Ro[t]
+            except:
+                obs_Ro_tmp = self.hnoflo
             out1 = '%d,%d,%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,' % (SP_d[t], index_veg[t], results[t,index.get('iRF')], results[t,index.get('iE0')],results[t,index.get('iPT')],results[t,index.get('iPE')],results[t,index.get('iRFe')],results[t,index.get('iI')])
             if type(WEL) == np.ndarray or type(WEL) == np.ma.core.MaskedArray:
                 WEL_tmp = WEL[t]
             else:
                 WEL_tmp = 0.0
             out2 = '%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[t,index.get('iEg')], results[t,index.get('iTg')],results[t,index.get('iETg')], WEL_tmp, results[t,index.get('iEsurf')])
-            out3 = '%.8f,%.8f,%.8f,%.8f,' % (results[t,index.get('idSsurf')],results[t,index.get('iSsurf')],results[t,index.get('iRo')],results[t,index.get('iEXF')])
+            out3 = '%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[t,index.get('idSsurf')],results[t,index.get('iSsurf')],results[t,index.get('iRo')],obs_Ro_tmp,results[t,index.get('iEXF')])
             out4 = '%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,' % (RCH[t], h_satflow[t],heads_MF[t],results[t,index.get('iHEADScorr')],obs_h_tmp,results[t,index.get('idgwt')])
             out5 = '%.8f' % (results[t,index.get('iMB')])
             out_line =  out_date, ',', out1, Euout, Tuout, out2, Sout, Spcout, dSout, out3, Rpout, Rexfout, out4, Smeasout, MBout, out5, '\n'
