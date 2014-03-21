@@ -1352,8 +1352,6 @@ if os.path.exists(h5_MM_fn):
         flxmin_d.append(np.ma.min(flx_tmp))
         array_tmp1 = np.sum(np.ma.masked_values(array_tmp, cMF.hnoflo, atol = 0.09), axis = 1)
         flx_Cat_TS.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
-        if i == 'iRo':
-            Ro_TOT = np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)
         del flx_tmp, array_tmp, array_tmp1
     for z, (i, i_tex) in enumerate(zip(flxlbl1, flxlbl1_tex)):
         flxlbl_tex.append(i_tex)
@@ -1559,7 +1557,7 @@ if os.path.exists(h5_MM_fn):
         h5_MF.close()
         plt_exportCATCH_fn = os.path.join(MM_ws_out, '_0CATCHMENT_ts.png')
         plt_titleCATCH = 'Time serie of fluxes averaged over the whole catchment'
-        rmseHEADS_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrSM_tmp, nseHEADS_tmp, nseSM_tmp, rHEADS_tmp, rSM_tmp = MMplot.plotTIMESERIES_CATCH(cMF, flx_Cat_TS, flxlbl_tex, Ro_TOT, plt_exportCATCH_fn, plt_titleCATCH, hmax = hmaxMF, hmin = hminMF, iniMonthHydroYear = iniMonthHydroYear, date_ini = StartDate, date_end = EndDate, obs_catch = obs_catch, obs_catch_list = obs_catch_list, TopSoilAverage = TopSoilAverage, MF = 1)
+        rmseHEADS_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrSM_tmp, nseHEADS_tmp, nseSM_tmp, rHEADS_tmp, rSM_tmp = MMplot.plotTIMESERIES_CATCH(cMF, flx_Cat_TS, flxlbl_tex, plt_exportCATCH_fn, plt_titleCATCH, hmax = hmaxMF, hmin = hminMF, iniMonthHydroYear = iniMonthHydroYear, date_ini = StartDate, date_end = EndDate, obs_catch = obs_catch, obs_catch_list = obs_catch_list, TopSoilAverage = TopSoilAverage, MF = 1)
     if rmseHEADS_tmp <> None:
         rmseHEADS.append(rmseHEADS_tmp)
         rsrHEADS.append(rsrHEADS_tmp)
@@ -1595,6 +1593,10 @@ if os.path.exists(h5_MM_fn):
             flx_Cat_TS_str += ',%s' % (obs_catch.get('catch')['obs_SM'][0][t])
         else:
             flx_Cat_TS_str += ',%s' % cMF.hnoflo
+        if obs_catch_list[2] == 1:
+            flx_Cat_TS_str += ',%s' % (obs_catch.get('catch')['obs_Ro'][0][t])
+        else:
+            flx_Cat_TS_str += ',%s' % cMF.hnoflo            
         out_line = '%s,%s' % (mpl.dates.num2date(cMF.inputDate[t]).isoformat()[:10], flx_Cat_TS_str)
         for l in out_line:
             plt_exportCATCH_txt.write(l)
@@ -1605,7 +1607,7 @@ if os.path.exists(h5_MM_fn):
         MMplot.plotWBsankey(path = MM_ws_out, fn = '_0CATCHMENT_ts.txt', index = HYindex, year_lst = year_lst, cMF = cMF, ncell_MM = ncell_MM)
     except:
         print "\nError in plotting the catchment water balance!"
-    del flx_Cat_TS, flx_Cat_TS_str, out_line, plt_exportCATCH_fn, plt_exportCATCH_txt_fn, plt_titleCATCH, Ro_TOT
+    del flx_Cat_TS, flx_Cat_TS_str, out_line, plt_exportCATCH_fn, plt_exportCATCH_txt_fn, plt_titleCATCH
 
 # #################################################
 # EXPORT AT OBSERVATION POINTS

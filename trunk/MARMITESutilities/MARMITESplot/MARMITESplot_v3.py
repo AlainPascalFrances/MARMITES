@@ -159,7 +159,6 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
     #        dgwtobsmin = np.ma.min(dgwtobs_m)
         plt.plot_date(cMF.inputDate,Roobs_m, ls = 'None', color = 'gray', marker='o', markeredgecolor = 'darkblue', markerfacecolor = 'None', markersize = 2, label = r'$Ro \ obs$') # ls='--', color = 'blue'
     except:
-        print 'Error in plotting Ro obs at obs. pt %s' % obs_name
         pass    
     plt.plot_date(cMF.inputDate,Ro,'r-', c='darkblue', linewidth=2, label = r'$Ro$')
     plt.plot_date(cMF.inputDate,Es,'r-', c='deepskyblue', linewidth=0.75, label = r'$E_{surf}$')
@@ -503,7 +502,7 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
 
 ##################
 
-def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, Ro_TOT, plt_export_fn, plt_title, hmax, hmin, iniMonthHydroYear, date_ini, date_end, obs_catch = None, obs_catch_list = [0, 0], TopSoilAverage = None, MF = None):
+def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin, iniMonthHydroYear, date_ini, date_end, obs_catch = None, obs_catch_list = [0, 0], TopSoilAverage = None, MF = None):
     """
     Plot the time serie of the fluxes observed from the whole catchment
     Use Matplotlib
@@ -563,6 +562,11 @@ def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, Ro_TOT, plt_export_fn, plt_title, hm
     ax2.set_autoscalex_on(False)
     plt.setp(ax2.get_xticklabels(), visible=False)
     plt.setp(ax2.get_yticklabels(), fontsize=8)
+    # Ro obs
+    if obs_catch_list[2] == 1:
+        obs_Ro = obs_catch.get('catch')['obs_Ro']
+        Roobs_m = np.ma.masked_values(obs_Ro[0], cMF.hnoflo, atol = 0.09)
+        plt.plot_date(cMF.inputDate, Roobs_m, 'o', color = 'darkblue', markersize=2, label = r'$Ro \ obs$')
     # Ro
     plt.plot_date(cMF.inputDate,flx[5],'r-', c='darkblue', linewidth=2, label = flx_lbl[5])
     # Esurf    
@@ -804,22 +808,6 @@ def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, Ro_TOT, plt_export_fn, plt_title, hm
         plt.setp(labels, fontsize=8)
         plt.setp(labels, 'rotation', 90)
         del labels
-
-    ax2=fig.add_subplot(8,1,3, sharex=ax1)
-    ax2.set_autoscalex_on(False)
-    plt.setp(ax2.get_xticklabels(), visible=False)
-    plt.setp(ax2.get_yticklabels(), fontsize=8)
-    # Ro_TOT
-    plt.plot_date(cMF.inputDate,Ro_TOT,'r-', c='darkblue', linewidth=2, label = r'$Ro \ tot$')    
-    plt.ylabel('mm', fontsize=10)
-    plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc)
-    leg = plt.gca().get_legend()
-    ltext  = leg.get_texts()
-    plt.setp(ltext, fontsize=8)
-    ax2.xaxis.grid(b=True, which='minor', color='0.65')
-    ax2.grid(b=True, which='major', axis = 'both')
-    ax2.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.4G'))
-    plt.setp(ax2.get_xticklabels(minor=True), visible=False)
 
     plt.subplots_adjust(left=0.10, bottom=0.10, right=0.95, top=0.95, wspace=0.1, hspace=0.1)
     txt = plt_export_fn.split('.')

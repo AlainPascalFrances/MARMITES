@@ -481,9 +481,15 @@ class clsPROCESS:
         else:
             obs_sm = []
             obs_sm_yn = 0
+        obsRo_fn = os.path.join(self.MM_ws, '%s_catchment.txt' % inputObsRo_fn)
+        if os.path.exists(obsRo_fn):
+            obs_Ro, obs_Ro_yn = self.verifObs(inputDate, obsRo_fn, obsnam = name)
+        else:
+            obs_Ro = []
+            obs_Ro_yn = 0
         obs_catch = {}
-        obs_catch['catch'] = {'obs_h':obs_h, 'obs_h_yn':obs_h_yn, 'obs_SM':obs_sm, 'obs_sm_yn':obs_sm_yn}
-        obs_catch_list = [obs_h_yn, obs_sm_yn]
+        obs_catch['catch'] = {'obs_h':obs_h, 'obs_h_yn':obs_h_yn, 'obs_SM':obs_sm, 'obs_sm_yn':obs_sm_yn, 'obs_Ro':obs_Ro, 'obs_Ro_yn':obs_Ro_yn}
+        obs_catch_list = [obs_h_yn, obs_sm_yn, obs_Ro_yn]
 
         return obs, obs_list, obs_catch, obs_catch_list
         del inputObs_fn, inputObsHEADS_fn, inputObsSM_fn, inputDate, _nslmax
