@@ -527,10 +527,10 @@ for l in range(NSOIL):
 
 # compute thickness, top and bottom elevation of each soil layer
 cMF.elev = np.ma.masked_values(np.asarray(cMF.elev), cMF.hnoflo, atol = 0.09)
-cMF.top = np.ma.masked_values(cMF.elev, cMF.hnoflo, atol = 0.09) - gridSOILthick
+cMF.top = np.ma.masked_values(cMF.elev, cMF.hnoflo, atol = 0.09) - np.ma.masked_values(gridSOILthick, cMF.hnoflo, atol = 0.09)
 cMF.botm = np.asarray(cMF.botm)
 for l in range(cMF.nlay):
-    cMF.botm[l,:,:] = np.ma.masked_values(cMF.botm[l,:,:], cMF.hnoflo, atol = 0.09) - gridSOILthick
+    cMF.botm[l,:,:] = np.ma.masked_values(cMF.botm[l,:,:], cMF.hnoflo, atol = 0.09) - np.ma.masked_values(gridSOILthick, cMF.hnoflo, atol = 0.09)
 cMF.botm = np.ma.masked_values(cMF.botm, cMF.hnoflo, atol = 0.09)
 botm_l0 = np.asarray(cMF.botm)[:,:,0]
 
@@ -818,8 +818,8 @@ if os.path.exists(cMF.h5_MF_fn):
 h_diff_surf = None
 if MMsoil_yn > 0:
     durationMMsoil = 0.0
+    h_pSP_average = 0
     h_pSP = 0
-    h_pSP_all = 0
     LOOP = 0
     endloop = 0
     LOOPlst = [LOOP]
@@ -906,8 +906,8 @@ if MMsoil_yn > 0:
         h_MF_m = np.ma.masked_values(np.ma.masked_values(h5_MF['heads'], cMF.hdry, atol = 1E+25), cMF.hnoflo, atol = 0.09)
         h5_MF.close()
         h_MF_average = np.ma.average(h_MF_m)
-        h_diff.append(h_MF_average - h_pSP)
-        h_diff_surf = h_MF_m - h_pSP_all
+        h_diff.append(h_MF_average - h_pSP_average)
+        h_diff_surf = h_MF_m - h_pSP
         h_diff_all_max = np.ma.max(h_diff_surf)
         h_diff_all_min = np.ma.min(h_diff_surf)
         if abs(h_diff_all_max)>abs(h_diff_all_min):
@@ -917,8 +917,8 @@ if MMsoil_yn > 0:
         del h_diff_all_max, h_diff_all_min
         LOOPlst.append(LOOP)
         LOOP += 1
-        h_pSP = h_MF_average
-        h_pSP_all = h_MF_m
+        h_pSP_average = h_MF_average
+        h_pSP = h_MF_m
         del h_MF_m
         if np.absolute(h_diff[LOOP])>0.0:
             h_diff_log.append(np.log10(np.absolute(h_diff[LOOP])))
@@ -1026,7 +1026,7 @@ if MMsoil_yn > 0:
     plt.cla()
     plt.clf()
     plt.close('all')
-    del fig, LOOPlst, h_diff, h_diff_log, h_pSP_all
+    del fig, LOOPlst, h_diff, h_diff_log, h_pSP
 
 # #############################
 # 3rd phase : export results #####
