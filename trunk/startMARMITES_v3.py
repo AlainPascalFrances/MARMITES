@@ -200,7 +200,7 @@ try:
     rmseSMmax  = float(inputFile[l].strip())
     l += 1
     chunks = int(inputFile[l].strip())
-    if MMsoil_yn == 1:
+    if MMsoil_yn > 0:
         MF_yn = 1
     if MMsurf_plot == 1:
         plt_out = 0
@@ -974,6 +974,10 @@ if MMsoil_yn > 0:
         durationMF +=  durationMFtmp
         print '\nMF run time: %02.fmn%02.fs' % (int(durationMFtmp*24.0*60.0), (durationMFtmp*24.0*60.0-int(durationMFtmp*24.0*60.0))*60)
         del durationMFtmp
+        
+        if MMsoil_yn == 999:
+            break
+        
     h5_MF.close()
     # #############################
     # ###  END CONVERGENCE LOOP ###
@@ -1067,7 +1071,7 @@ if MF_yn == 1 and isinstance(cMF.h5_MF_fn, str):
         cMF.cPROCESS.procMF(cMF = cMF, h5_MF = h5_MF, ds_name = 'cbc', ds_name_new = 'RCH_d', conv_fact = conv_fact, index = imfRCH)
     h5_MF.close()
 
-if MMsoil_yn == 1 and isinstance(h5_MM_fn, str):
+if MMsoil_yn > 0 and isinstance(h5_MM_fn, str):
     try:
         h5_MM = h5py.File(h5_MM_fn)
     except:
@@ -1237,12 +1241,12 @@ if os.path.exists(cMF.h5_MF_fn):
         GHBmax = -1.0*GHBmin
         GHBmin = 0.0
     # EXF
-        cbc_EXF = h5_MF['EXF_d']
-        EXFmax = np.ma.max(cbc_EXF)
-        EXFmin = np.ma.min(cbc_EXF)
-        del cbc_EXF
-        EXFmax = -1.0*EXFmin
-        EXFmin = 0.0
+    cbc_EXF = h5_MF['EXF_d']
+    EXFmax = np.ma.max(cbc_EXF)
+    EXFmin = np.ma.min(cbc_EXF)
+    del cbc_EXF
+    EXFmax = -1.0*EXFmin
+    EXFmin = 0.0
     cbcmax_d = np.ma.max(cbcmax_d) #float(np.ceil(np.ma.max(cbcmax_d)))
     cbcmin_d = np.ma.min(cbcmin_d) #float(np.floor(np.ma.min(cbcmin_d)))
     # h
