@@ -165,7 +165,7 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
     except:
         pass
     plt.ylabel('mm', fontsize=10)
-    plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc)
+    plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 4)
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8)
@@ -227,7 +227,26 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
     plt.setp(ax4.get_xticklabels(minor=True), visible=False)
 
     colors_nsl = itertools.cycle(clr_lst)
-    ax5=fig.add_subplot(8,1,5, sharex=ax1)
+    ax6=fig.add_subplot(8,1,5, sharex=ax1)
+    plt.setp(ax6.get_xticklabels(), visible=False)
+    plt.setp(ax6.get_yticklabels(), fontsize=8)
+    plt.bar(cMF.inputDate,EXF, color='lightblue', linewidth=0, align = 'center', label=r'$EXF_g$')
+    for l, (y, lbl) in enumerate(zip(Rp1, lbl_Rp[2:len(lbl_Rp)])) :
+        ax6.plot_date(cMF.inputDate, y, '-', color=colors_nsl.next(), label=lbl)
+    plt.plot_date(cMF.inputDate,R,'-', c='darkblue', linewidth=2)
+    plt.plot_date(cMF.inputDate,ETg,'-', c='blue', linewidth=1.5)
+    plt.legend(lbl_Rp, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc)
+    leg = plt.gca().get_legend()
+    ltext  = leg.get_texts()
+    plt.setp(ltext, fontsize=8 )
+    ax6.grid(b=True, which='major', axis = 'both')
+    ax6.xaxis.grid(b=True, which='minor', color='0.65')
+    plt.ylabel('mm', fontsize=10)
+    ax6.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
+    plt.setp(ax6.get_xticklabels(minor=True), visible=False)
+
+    colors_nsl = itertools.cycle(clr_lst)
+    ax5=fig.add_subplot(8,1,6, sharex=ax1)
     plt.setp(ax5.get_xticklabels(), visible=False)
     plt.setp(ax5.get_yticklabels(), fontsize=8)
     obs_tmp = []
@@ -252,7 +271,7 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
     # legend
     #lbl_Spcobs = lbl_Sobs + lbl_S
     #plt.legend(lbl_Spcobs, loc=0, labelspacing=lblspc, markerscale=mkscale)
-    plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc)
+    plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 4)
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8 )
@@ -260,25 +279,6 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
     ax5.xaxis.grid(b=True, which='minor', color='0.65')
     ax5.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
     plt.setp(ax5.get_xticklabels(minor=True), visible=False)
-
-    colors_nsl = itertools.cycle(clr_lst)
-    ax6=fig.add_subplot(8,1,6, sharex=ax1)
-    plt.setp(ax6.get_xticklabels(), visible=False)
-    plt.setp(ax6.get_yticklabels(), fontsize=8)
-    plt.bar(cMF.inputDate,EXF, color='lightblue', linewidth=0, align = 'center', label=r'$EXF_g$')
-    for l, (y, lbl) in enumerate(zip(Rp1, lbl_Rp[2:len(lbl_Rp)])) :
-        ax6.plot_date(cMF.inputDate, y, '-', color=colors_nsl.next(), label=lbl)
-    plt.plot_date(cMF.inputDate,R,'-', c='darkblue', linewidth=2)
-    plt.plot_date(cMF.inputDate,ETg,'-', c='blue', linewidth=1.5)
-    plt.legend(lbl_Rp, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc)
-    leg = plt.gca().get_legend()
-    ltext  = leg.get_texts()
-    plt.setp(ltext, fontsize=8 )
-    ax6.grid(b=True, which='major', axis = 'both')
-    ax6.xaxis.grid(b=True, which='minor', color='0.65')
-    plt.ylabel('mm', fontsize=10)
-    ax6.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
-    plt.setp(ax6.get_xticklabels(minor=True), visible=False)
 
     ax7=fig.add_subplot(8,1,7, sharex=ax1)
     plt.setp(ax7.get_xticklabels(), fontsize=8)
@@ -307,11 +307,11 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
     # legend
     if obs_leg == None:
         lbl_dgwt.append(r'$d \ corr$')
-        plt.legend(tuple(lbl_dgwt), loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc)
+        plt.legend(tuple(lbl_dgwt), loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 4)
     elif obs_leg == 1:
         lbl_dgwt.insert(0,r'$d \ obs$')
         lbl_dgwt.append(r'$d \ corr$')
-        plt.legend(tuple(lbl_dgwt), loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc)
+        plt.legend(tuple(lbl_dgwt), loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 4)
     leg = plt.gca().get_legend()
     dgwtMFmax = np.max(dgwtMFmax)
     if dgwtMFmax > 0:
@@ -375,12 +375,12 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
     if obs_leg == None:
         lbl_h.append(r'$h \ corr$')
         lbl_h.append(r'$hSF$')
-        plt.legend(tuple(lbl_h), loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc)
+        plt.legend(tuple(lbl_h), loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 4)
     elif obs_leg == 1:
         lbl_h.insert(0,r'$h \ obs$')
         lbl_h.append(r'$h \ corr$')
         lbl_h.append(r'$hSF$')
-        plt.legend(tuple(lbl_h), loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc)
+        plt.legend(tuple(lbl_h), loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 4)
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8 )
@@ -506,7 +506,7 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
     plt.ylabel('mm', fontsize=10)
     if ymax != None:
         plt.ylim(ymax = ymax)
-    plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc)
+    plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 4)
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8)
@@ -608,7 +608,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin
         Roobs_m = np.ma.masked_values(obs_Ro[0], cMF.hnoflo, atol = 0.09)
         plt.plot_date(cMF.inputDate, Roobs_m, 'o', color = 'darkblue', markersize=2, label = r'$Ro \ obs$')
     plt.ylabel('mm', fontsize=10)
-    plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc)
+    plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 4)
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8)
@@ -665,7 +665,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin
 
     ax5=fig.add_subplot(8,1,5, sharex=ax1)
     ax5.set_autoscalex_on(False)
-    plt.setp(ax5.get_xticklabels(), visible=False)
+    plt.setp(ax5.get_xticklabels(), fontsize=8)
     plt.setp(ax5.get_yticklabels(), fontsize=8)
     # Rp / inf
     ax5.plot_date(cMF.inputDate, flx[14+2*cMF.nlay], '-', color = 'brown', label= flx_lbl[14+2*cMF.nlay])
@@ -682,11 +682,20 @@ def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin
     plt.setp(ltext, fontsize=8 )
     ax5.grid(b = True, which = 'major', axis = 'both')
     ax5.xaxis.grid(b=True, which='minor', color='0.65')
+    plt.xlabel('Date', fontsize=10)    
     plt.ylabel('mm', fontsize=10)
     ax5.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
-    plt.setp(ax5.get_xticklabels(minor=True), visible=False)
+    plt.setp(ax5.get_xticklabels(minor=True), visible=True)
+    labels=ax5.get_xticklabels()
+    plt.setp(labels, 'rotation', 90)
+    ax5.xaxis.set_minor_formatter(dateminorFmt)
+    labels=ax5.get_xminorticklabels()
+    plt.setp(labels, fontsize=8)
+    plt.setp(labels, 'rotation', 90)
+    del labels
+    ax5.xaxis.grid(b=True, which='minor', color='0.65')    
 
-    ax6=fig.add_subplot(8,1,6, sharex=ax1)
+    ax6=fig.add_subplot(8,1,7, sharex=ax1)
     ax6.set_autoscalex_on(False)
     plt.setp(ax6.get_yticklabels(), fontsize=8)
     # theta
@@ -712,7 +721,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin
         print 'SM: %.1f %% / %.2f / %.2f / %.2f' % (rmseSM[0], rsrSM[0], nseSM[0], rSM[0])
     # y axis
     plt.ylabel('%', fontsize=10)
-    plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd)
+    plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, numpoints = 4)
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8 )
@@ -740,7 +749,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin
             hobs_m = np.ma.masked_values(obs_h[0], cMF.hnoflo, atol = 0.09)
         # plot GWT
         lines = itertools.cycle(['-','--','-.',':','.',',','o','v','^','<','>','1','2','3','4','s','p','*','h','H','+','x','D','d','|','_'])
-        ax10=fig.add_subplot(8,1,7, sharex=ax1)
+        ax10=fig.add_subplot(8,1,8, sharex=ax1)
         ax10.set_autoscalex_on(False)
         plt.setp(ax10.get_xticklabels(), fontsize=8)
         plt.setp(ax10.get_yticklabels(), fontsize=8)
@@ -753,6 +762,12 @@ def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin
             ax10.plot_date(cMF.inputDate, dobs_m, 'o', color = 'blue', markersize=2, label = r'$d \ obs$')
         plt.ylabel('m', fontsize=10)
         plt.xlabel('Date', fontsize=10)
+        plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 4)
+        leg = plt.gca().get_legend()
+        ltext  = leg.get_texts()
+        plt.setp(ltext, fontsize=8)
+        ax10.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))        
+        ax10.grid(b=True, which='major', axis = 'both')
         labels=ax10.get_xticklabels()
         plt.setp(labels, 'rotation', 90)
         ax10.xaxis.set_minor_formatter(dateminorFmt)
@@ -760,13 +775,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin
         plt.setp(labels, fontsize=8)
         plt.setp(labels, 'rotation', 90)
         del labels
-        plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc)
-        leg = plt.gca().get_legend()
-        ltext  = leg.get_texts()
-        plt.setp(ltext, fontsize=8)
-        ax10.grid(b=True, which='major', axis = 'both')
-        ax10.xaxis.grid(b=True, which='minor', color='0.65')
-        ax10.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
+        ax10.xaxis.grid(b=True, which='minor', color='0.65')     
         plt.setp(ax10.get_xticklabels(minor=True), visible=True)
 
     plt.subplots_adjust(left=0.10, bottom=0.10, right=0.95, top=0.95, wspace=0.1, hspace=0.1)
@@ -807,7 +816,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin
             print 'h: %.2f m / %.2f / %.2f / %.2f' % (rmseHEADS[0], rsrHEADS[0], nseHEADS[0], rHEADS[0])
         plt.ylim(hmin,hmax)
         plt.ylabel('m', fontsize=10)
-        plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc)
+        plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 4)
         leg = plt.gca().get_legend()
         ltext  = leg.get_texts()
         plt.setp(ltext, fontsize=8 )
@@ -853,7 +862,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin
         Roobs_m = np.ma.masked_values(obs_Ro[0], cMF.hnoflo, atol = 0.09)
         plt.plot_date(cMF.inputDate, Roobs_m, 'o', color = 'darkblue', markersize=2, label = r'$Ro \ obs$')
     plt.ylabel('mm', fontsize=10)
-    plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc)
+    plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 4)
     plt.ylim(ymax = np.ma.max(Roobs_m))
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
