@@ -594,10 +594,11 @@ if plt_input == 1:
     print 'Exporting input maps...'
     i_lbl = 1
     T = np.zeros((cMF.nlay, cMF.nrow, cMF.ncol), dtype = np.float)
+    hk_actual_tmp = cMF.cPROCESS.float2array(cMF, cMF.hk_actual)
     if cMF.nlay > 1:
-        T = np.asarray(cMF.hk_actual) * np.asarray(cMF.thick)
+        T = hk_actual_tmp * np.asarray(cMF.thick)
     else:
-        T[0,:,:] = np.asarray(cMF.hk_actual) * np.asarray(cMF.thick[:,:,0])
+        T[0,:,:] = hk_actual_tmp * np.asarray(cMF.thick[:,:,0])
     top_tmp = np.zeros((cMF.nlay, cMF.nrow, cMF.ncol), dtype = np.float)
     top_tmp[0,:,:] = cMF.top
     for l in range(1,cMF.nlay):

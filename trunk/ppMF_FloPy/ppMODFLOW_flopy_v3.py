@@ -455,18 +455,7 @@ class clsMF():
                 self.ibound = (np.asarray(self.ibound)).reshape((1, self.nrow, self.ncol))
         else:
             self.ibound = np.asarray(self.ibound)
-        if self.nlay < 2:
-            if isinstance(self.thick, list):
-                self.thick = (np.asarray(self.thick)).reshape((1, self.nrow, self.ncol))
-            else:
-                self.thick = np.asarray([self.thick])
-        else:
-            self.thick = np.asarray(self.thick)
-        if np.asarray(self.thick).shape[0] == self.nlay and len(self.thick.shape) == 1:
-            thick_tmp = np.ones([self.nlay, self.nrow, self.ncol], dtype = np.float)
-            for l, e in enumerate (self.thick):
-                thick_tmp[l,:,:] *= e  #*ibound[l,:,:]
-            self.thick = thick_tmp
+        self.thick = self.cPROCESS.float2array(self, self.thick)
         elev_tmp = np.ma.masked_values(np.asarray(self.elev), self.hnoflo, atol = 0.09)
         botm_tmp = []
         for l in range(self.nlay):

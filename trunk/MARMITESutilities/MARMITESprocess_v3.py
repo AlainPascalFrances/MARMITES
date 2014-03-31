@@ -74,6 +74,21 @@ class clsPROCESS:
 
     ######################
 
+    def float2array(self, cMF, array):
+        if cMF.nlay < 2:
+            if isinstance(array, list):
+                array = (np.asarray(array)).reshape((1, cMF.nrow, cMF.ncol))
+            else:
+                array = np.asarray([array])
+        else:
+            array = np.asarray(array)
+        if np.asarray(array).shape[0] == cMF.nlay and len(array.shape) == 1:
+            array_tmp = np.ones([cMF.nlay, cMF.nrow, cMF.ncol], dtype = np.float)
+            for l, e in enumerate (array):
+                array_tmp[l,:,:] *= e  #*ibound[l,:,:]
+            array = array_tmp
+        return array
+
     def convASCIIraster2array(self, filenameIN, arrayOUT):
         '''
         Read ESRI/MODFLOW ASCII file and convert to numpy array
