@@ -1105,16 +1105,16 @@ else:
     imfDRN = imfSTO = imfFLF = imfRCH = imfWEL = 0
 
 if h_diff_surf != None:
-    h_diff_n = 0
+    h_diff_n = None
     for n in range(cMF.nper):
-        for l in range(cMF.nlay):
-            for r, c in enumerate(h_diff_surf[n,:,:,l]):
-                try:
-                    list(c).index(h_diff_all[LOOP])
-                    h_diff_n = n
-                    break
-                except:
-                    pass
+        for r, c in enumerate(h_diff_surf[n,:,:,:]):
+            try:
+                list(c.flatten()).index(h_diff_all[LOOP])
+                h_diff_n = n
+                break
+            except:
+                pass
+        if h_diff_n <> None: break
     del n, l, r, c
     V = []
     Vmax = []
