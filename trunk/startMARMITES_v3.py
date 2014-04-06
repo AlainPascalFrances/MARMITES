@@ -934,7 +934,7 @@ if MMsoil_yn > 0:
             msg_end_loop.append('Heads diff. from previous conv. loop: %.3f m' % h_diff[LOOP])
             msg_end_loop.append('Maximum heads difference:             %.3f m' % h_diff_all[LOOP])
         if h_MF_average == 0.0 or str(h_diff[LOOP]) == 'nan':
-            print '\Warning!\nModel with DRY cells or NaN values!'
+            print '\nWARNING!\nModel with DRY cells or NaN values!'
         elif abs(h_diff[LOOP]) < convcrit and abs(h_diff_all[LOOP]) < convcritmax:
             msg_end_loop.append('Successful convergence between MARMITES and MODFLOW!\n(Conv. criterion = %.4f and conv. crit. max. = %.4f)' % (convcrit, convcritmax))
             endloop += 1
@@ -1122,15 +1122,16 @@ if h_diff_surf != None:
     Vmin = []
     V = np.zeros((1, cMF.nlay, cMF.nrow, cMF.ncol), dtype = np.float)
     mask_tmp = np.zeros((cMF.nlay, cMF.nrow, cMF.ncol), dtype = np.float)
-    for L in range(cMF.nlay):
-        V[0,L,:,:] = h_diff_surf[h_diff_n,L,:,:]
-        mask_tmp[L,:,:] = mask[L]
-        Vmax.append(np.ma.max(np.ma.masked_values(np.ma.masked_array(V[0,L,:,:], maskAllL), cMF.hnoflo, atol = 0.09)))
-        Vmin.append(np.ma.min(np.ma.masked_values(np.ma.masked_array(V[0,L,:,:], maskAllL), cMF.hnoflo, atol = 0.09)))
-    Vmax = np.ma.max(Vmax) #float(np.ceil(max(Vmax)))
-    Vmin = np.ma.min(Vmin) #float(np.floor(min(Vmin)))
-    # TODO JD and Date are not correct since h_diff_n is # stress periods and not # of days (same in the plots of MF and MM)
-    MMplot.plotLAYER(timesteps = [h_diff_n], Date = [cMF.inputDate[h_diff_n]], JD = [cMF.JD[h_diff_n]], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = ('(m)'), msg = 'no value', plt_title = 'HEADSmaxdiff_ConvLoop', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = [Vmax], Vmin = [Vmin], contours = ctrsMF, ntick = ntick, points = obs4map, mask = mask_tmp, hnoflo = cMF.hnoflo, pref_plt_title = '__sp_plt')
+    if h_diff_n <> None:
+        for L in range(cMF.nlay):
+            V[0,L,:,:] = h_diff_surf[h_diff_n,L,:,:]
+            mask_tmp[L,:,:] = mask[L]
+            Vmax.append(np.ma.max(np.ma.masked_values(np.ma.masked_array(V[0,L,:,:], maskAllL), cMF.hnoflo, atol = 0.09)))
+            Vmin.append(np.ma.min(np.ma.masked_values(np.ma.masked_array(V[0,L,:,:], maskAllL), cMF.hnoflo, atol = 0.09)))
+        Vmax = np.ma.max(Vmax) #float(np.ceil(max(Vmax)))
+        Vmin = np.ma.min(Vmin) #float(np.floor(min(Vmin)))
+        # TODO JD and Date are not correct since h_diff_n is # stress periods and not # of days (same in the plots of MF and MM)
+        MMplot.plotLAYER(timesteps = [h_diff_n], Date = [cMF.inputDate[h_diff_n]], JD = [cMF.JD[h_diff_n]], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = ('(m)'), msg = 'no value', plt_title = 'HEADSmaxdiff_ConvLoop', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = [Vmax], Vmin = [Vmin], contours = ctrsMF, ntick = ntick, points = obs4map, mask = mask_tmp, hnoflo = cMF.hnoflo, pref_plt_title = '__sp_plt')
     del h_diff_n, V, Vmin, Vmax
 
 # exporting sm computed by MM for PEST (smp format)
