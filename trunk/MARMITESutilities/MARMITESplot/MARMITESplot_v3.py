@@ -350,7 +350,7 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
     fig.suptitle(plt_suptitle + ' - part 2')
     fig.text(x = 0.5, y = 0.05, s = plt_title, horizontalalignment = 'center', verticalalignment = 'bottom', fontsize = 9)
 
-    ax1=fig.add_subplot(8,1,1)
+    ax1=fig.add_subplot(8,1,4)
     plt.setp(ax1.get_xticklabels(), visible = False)
     plt.setp(ax1.get_yticklabels(), fontsize=8)
     obs_leg = None
@@ -389,7 +389,7 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
     ax1.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
 
     colors_nsl = itertools.cycle(clr_lst)
-    ax8b=fig.add_subplot(8,1,2, sharex=ax1)
+    ax8b=fig.add_subplot(8,1,1, sharex=ax1)
     plt.setp(ax8b.get_xticklabels(), visible=False)
     plt.setp(ax8b.get_yticklabels(), fontsize=8)
     plt.plot_date(cMF.inputDate,MB,'-', c='r')
@@ -418,7 +418,7 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
     plt.setp(ax8b.get_xticklabels(minor=True), visible=False)
 
     colors_nsl = itertools.cycle(clr_lst)
-    ax9a=fig.add_subplot(8,1,3, sharex=ax1)
+    ax9a=fig.add_subplot(16,1,5, sharex=ax1)
     plt.setp(ax9a.get_xticklabels(), visible=False)
     plt.setp(ax9a.get_yticklabels(), fontsize=8)
     for l, (y, lbl) in enumerate(zip(SAT1, lbl_SAT)) :
@@ -437,7 +437,7 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
     ax9a.xaxis.grid(b=True, which='minor', color='0.65')
     plt.setp(ax9a.get_xticklabels(minor=True), visible=False)
 
-    ax10a=fig.add_subplot(8,1,4, sharex=ax1)
+    ax10a=fig.add_subplot(16,1,6, sharex=ax1)
     plt.setp(ax10a.get_xticklabels(), visible=False)
     plt.setp(ax10a.get_yticklabels(), fontsize=8)
     plt.plot_date(cMF.inputDate,-uzthick,'-', c='brown')
@@ -482,7 +482,7 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
     ax10b.grid(b=True, which='major', axis = 'both')
     ax10b.xaxis.grid(b=True, which='minor', color='0.65')
 
-    ax20=fig.add_subplot(8,1,6, sharex=ax1)
+    ax20=fig.add_subplot(8,1,2, sharex=ax1)
     plt.setp(ax20.get_xticklabels(), visible = False)
     plt.setp(ax20.get_yticklabels(), fontsize=8)
     plt.plot_date(cMF.inputDate,Ro,'r-', c='darkblue', linewidth=1, label = r'$Ro$')
@@ -502,6 +502,41 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8)
     ax20.grid(b=True, which='major', axis = 'both')
+    
+    colors_nsl = itertools.cycle(clr_lst)
+    ax5=fig.add_subplot(8,1,6, sharex=ax1)
+    plt.setp(ax5.get_xticklabels(), visible=False)
+    plt.setp(ax5.get_yticklabels(), fontsize=8)
+    obs_tmp = []
+    try:
+        for l, (y, lbl) in enumerate(zip(Sobs_m, lbl_Sobs)):
+            obs_tmp.append(y)
+            if y != []:
+                ax5.plot_date(cMF.inputDate, y, ls = 'None', color = 'gray', marker='o', markersize=2, markeredgecolor = colors_nsl.next(), markerfacecolor = 'None', label=lbl) #'--', color = color,
+    except:
+        print'WARNING! Error in plotting SM observations at %s' % obs_name
+        pass
+    sim_tmp = []
+    colors_nsl = itertools.cycle(clr_lst)
+    for l, (y, lbl) in enumerate(zip(Spc1full, lbl_Spc)):
+        sim_tmp.append(y)
+        y = np.ma.masked_where(y < 0.0, y)
+        ax5.plot_date(cMF.inputDate, y, '-', color = colors_nsl.next(), label = lbl)
+    # y axis
+    ybuffer=0.1*(max(Sm)-min(Sr))
+    plt.ylim(min(Sr) - ybuffer,max(Sm) + ybuffer)
+    plt.ylabel('%', fontsize=10)
+    # legend
+    #lbl_Spcobs = lbl_Sobs + lbl_S
+    #plt.legend(lbl_Spcobs, loc=0, labelspacing=lblspc, markerscale=mkscale)
+    plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 4)
+    leg = plt.gca().get_legend()
+    ltext  = leg.get_texts()
+    plt.setp(ltext, fontsize=8 )
+    ax5.grid(b=True, which='major', axis = 'both')
+    ax5.xaxis.grid(b=True, which='minor', color='0.65')
+    ax5.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
+    plt.setp(ax5.get_xticklabels(minor=True), visible=False)
 
     ax7=fig.add_subplot(8,1,7, sharex=ax1)
     plt.setp(ax7.get_xticklabels(), fontsize=8)
