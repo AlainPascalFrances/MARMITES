@@ -481,15 +481,30 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
     plt.setp(ltext, fontsize=8 )
     ax10b.grid(b=True, which='major', axis = 'both')
     ax10b.xaxis.grid(b=True, which='minor', color='0.65')
-    plt.setp(ax10b.get_xticklabels(minor=True), visible=False)
-    plt.xlabel('Date', fontsize=10)
-    labels=ax10b.get_xticklabels()
-    plt.setp(labels, 'rotation', 90)
-    ax10b.xaxis.set_minor_formatter(dateminorFmt)
-    del labels
 
-    ax7=fig.add_subplot(8,1,6, sharex=ax1)
-    plt.setp(ax7.get_xticklabels(), visible = False)
+    ax20=fig.add_subplot(8,1,6, sharex=ax1)
+    plt.setp(ax20.get_xticklabels(), visible = False)
+    plt.setp(ax20.get_yticklabels(), fontsize=8)
+    plt.plot_date(cMF.inputDate,Ro,'r-', c='darkblue', linewidth=1, label = r'$Ro$')
+    ymax = None
+    try:
+        Roobs_m = np.ma.masked_values(Roobs, hnoflo, atol = 0.09)
+    #        dgwtobsmin = np.ma.min(dgwtobs_m)
+        plt.plot_date(cMF.inputDate,Roobs_m, ls = 'None', color = 'gray', marker='o', markeredgecolor = 'darkblue', markerfacecolor = 'None', markersize = 2, label = r'$Ro \ obs$') # ls='--', color = 'blue'
+        ymax = np.ma.max(Roobs_m)
+    except:
+        pass
+    plt.ylabel('mm', fontsize=10)
+    if ymax != None:
+        plt.ylim(ymax = ymax)
+    plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 4)
+    leg = plt.gca().get_legend()
+    ltext  = leg.get_texts()
+    plt.setp(ltext, fontsize=8)
+    ax20.grid(b=True, which='major', axis = 'both')
+
+    ax7=fig.add_subplot(8,1,7, sharex=ax1)
+    plt.setp(ax7.get_xticklabels(), fontsize=8)
     plt.setp(ax7.get_yticklabels(), fontsize=8)
     obs_leg = None
     try:
@@ -538,36 +553,14 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
     plt.setp(ltext, fontsize=8 )
     ax7.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
     plt.setp(ax7.get_xticklabels(minor=True), visible=False)
+    ax7.xaxis.grid(b=True, which='minor', color='0.65')
+    ax7.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
+    plt.setp(ax7.get_xticklabels(minor=True), visible=True)
     plt.xlabel('Date', fontsize=10)
-
-    ax20=fig.add_subplot(8,1,7, sharex=ax1)
-    plt.setp(ax20.get_xticklabels(), fontsize=8)
-    plt.setp(ax20.get_yticklabels(), fontsize=8)
-    plt.plot_date(cMF.inputDate,Ro,'r-', c='darkblue', linewidth=1, label = r'$Ro$')
-    ymax = None
-    try:
-        Roobs_m = np.ma.masked_values(Roobs, hnoflo, atol = 0.09)
-    #        dgwtobsmin = np.ma.min(dgwtobs_m)
-        plt.plot_date(cMF.inputDate,Roobs_m, ls = 'None', color = 'gray', marker='o', markeredgecolor = 'darkblue', markerfacecolor = 'None', markersize = 2, label = r'$Ro \ obs$') # ls='--', color = 'blue'
-        ymax = np.ma.max(Roobs_m)
-    except:
-        pass
-    plt.ylabel('mm', fontsize=10)
-    if ymax != None:
-        plt.ylim(ymax = ymax)
-    plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 4)
-    leg = plt.gca().get_legend()
-    ltext  = leg.get_texts()
-    plt.setp(ltext, fontsize=8)
-    ax20.grid(b=True, which='major', axis = 'both')
-    ax20.xaxis.grid(b=True, which='minor', color='0.65')
-    ax20.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
-    plt.setp(ax20.get_xticklabels(minor=True), visible=True)
-    plt.xlabel('Date', fontsize=10)
-    labels=ax20.get_xticklabels()
+    labels=ax7.get_xticklabels()
     plt.setp(labels, 'rotation', 90)
-    ax20.xaxis.set_minor_formatter(dateminorFmt)
-    labels=ax20.get_xminorticklabels()
+    ax7.xaxis.set_minor_formatter(dateminorFmt)
+    labels=ax7.get_xminorticklabels()
     plt.setp(labels, fontsize=8)
     plt.setp(labels, 'rotation', 90)
     del labels
