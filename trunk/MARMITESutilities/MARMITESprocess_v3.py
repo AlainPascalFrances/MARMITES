@@ -742,7 +742,7 @@ class clsPROCESS:
 
     #####################################
 
-    def compCalibCrit(self, Spc, h_MF, Sobs, hobs, hnoflo, obs_name, nsl):
+    def compCalibCrit(self, Spc, h_MF, Sobs, hobs, hnoflo, obs_name, nsl, l_obs):
 
         rmseSM = None
         rmseHEADS = None
@@ -787,7 +787,7 @@ class clsPROCESS:
                     print 'SM layer %d: error' % (l+1)
             if hobs <> []:
                 try:
-                    a = np.array([h_MF[:,0],hobs])
+                    a = np.array([h_MF[:,l_obs],hobs])
                     a = np.transpose(a)
                     b = a[~(a < hnoflo +1000.0).any(1)]
                     if b[:,0] <> []:

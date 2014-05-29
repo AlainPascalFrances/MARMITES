@@ -561,7 +561,6 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
     # y axis
     plt.ylabel('m', fontsize=10)
     ax7.grid(b=True, which='major', axis = 'both')
-    ax7.xaxis.grid(b=True, which='minor', color='0.65')
     # legend
     if obs_leg == None:
         lbl_dgwt.append(r'$d \ corr$')
@@ -770,7 +769,6 @@ def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin
     plt.setp(labels, fontsize=8)
     plt.setp(labels, 'rotation', 90)
     del labels
-    ax5.xaxis.grid(b=True, which='minor', color='0.65')    
 
     ax6=fig.add_subplot(8,1,7, sharex=ax1)
     ax6.set_autoscalex_on(False)
@@ -871,10 +869,10 @@ def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin
         # plot heads
         lines = itertools.cycle(['-','--','-.',':','.',',','o','v','^','<','>','1','2','3','4','s','p','*','h','H','+','x','D','d','|','_'])
         ax1=fig.add_subplot(8,1,4)
-        ax1.set_autoscalex_on(False)
+        ax1.set_autoscalex_on(True)
         plt.setp(ax1.get_xticklabels(), visible=False)
         plt.setp(ax1.get_yticklabels(), fontsize=8)
-        ax1.set_xlim(date_ini,date_end)
+        #ax1.set_xlim(date_ini,date_end)
         i = 24+2*cMF.nlay
         for l in range(cMF.nlay):
             plt.plot_date(cMF.inputDate,flx[i],lines.next(), color = 'b', label = flx_lbl[i])
@@ -901,9 +899,10 @@ def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin
         ax1.xaxis.grid(b=True, which='minor', color='0.65')
         ax1.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
         plt.setp(ax1.get_xticklabels(minor=True), visible=False)
+
         # plot GW fluxes
         ax8=fig.add_subplot(2,1,2, sharex=ax1)
-        ax8.set_autoscalex_on(False)
+        ax8.set_autoscalex_on(True)
         plt.setp(ax8.get_xticklabels(), fontsize=8)
         plt.setp(ax8.get_yticklabels(), fontsize=8)
         i = 24 + cMF.nlay*2 + 2*cMF.nlay
@@ -928,7 +927,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin
         del labels
 
     ax2=fig.add_subplot(8,1,2, sharex=ax1)
-    ax2.set_autoscalex_on(False)
+    ax2.set_autoscalex_on(True)
     plt.setp(ax2.get_xticklabels(), fontsize=8)
     plt.setp(ax2.get_yticklabels(), fontsize=8)
     # Ro
@@ -940,7 +939,8 @@ def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin
         plt.plot_date(cMF.inputDate, Roobs_m, 'o', color = 'darkblue', markersize=2, label = r'$Ro \ obs$')
     plt.ylabel('mm', fontsize=10)
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 4)
-    plt.ylim(ymax = np.ma.max(Roobs_m))
+    if obs_catch_list[2] == 1:
+        plt.ylim(ymax = np.ma.max(Roobs_m))
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8)
