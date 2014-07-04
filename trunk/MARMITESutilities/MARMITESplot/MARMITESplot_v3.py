@@ -602,7 +602,7 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
     #ax1.set_xlim(date_ini,date_end)
     plt.subplots_adjust(left=0.10, bottom=0.10, right=0.95, top=0.95, wspace=0.1, hspace=0.1)
     txt = plt_export_fn.split('.')
-    plt_export_fn = txt[0] + '_part2' + txt[1]
+    plt_export_fn = txt[0] + '_part2.' + txt[1]
     plt.savefig(plt_export_fn,dpi=150)
 #    plt.show()
     plt.clf()
@@ -610,7 +610,7 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
 
 ##################
 
-def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin, iniMonthHydroYear, date_ini, date_end, obs_catch = None, obs_catch_list = [0, 0], TopSoilAverage = None, MF = None):
+def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin, iniMonthHydroYear, date_ini, date_end, obs_catch = None, obs_catch_list = [0, 0, 0], TopSoilAverage = None, MF = None):
     """
     Plot the time serie of the fluxes observed from the whole catchment
     Use Matplotlib
@@ -860,6 +860,37 @@ def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin
 
     fig = plt.figure(num=None, figsize=(8.27, 11.7), dpi = 60)    #(8.5,15), dpi=30)
     fig.suptitle(plt_title + ' - part 2')
+    
+    ax0=fig.add_subplot(8,1,1)
+    ax0.set_autoscalex_on(False)
+    plt.setp(ax0.get_xticklabels(), visible=False)
+    plt.setp(ax0.get_yticklabels(), fontsize=8)
+    # RF
+    ax0.bar(cMF.inputDate,flx[0],color='darkblue', linewidth=0, align = 'center', label = flx_lbl[0])
+    # RFe
+    ax0.bar(cMF.inputDate,flx[2],color='deepskyblue', linewidth=0, align = 'center', label = flx_lbl[2])
+    plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd)
+    leg = plt.gca().get_legend()
+    ltext  = leg.get_texts()
+    plt.setp(ltext, fontsize=8)
+    ax0.grid(b=True, which='major', axis = 'both')
+    ax0.xaxis.grid(b=True, which='minor', color='0.65')
+    ax0.set_xlim(date_ini,date_end)
+    plt.ylabel('mm', fontsize=10)
+    ax0.xaxis.set_major_formatter(dateFmt)
+    ax0.xaxis.set_major_locator(mpl.dates.YearLocator(1, month = iniMonthHydroYear, day = 1))
+    bymonth = []
+    month_tmp = 3
+    while len(bymonth)<3:
+        if (iniMonthHydroYear+month_tmp) <13:
+            bymonth.append(iniMonthHydroYear+month_tmp)
+        else:
+            bymonth.append(iniMonthHydroYear+month_tmp - 12)
+        month_tmp += 3
+    del month_tmp
+    ax0.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth = bymonth))
+    plt.setp(ax0.get_xticklabels(minor=True), visible=False)
+    ax0.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))    
 
     rmseHEADS = None
     rsrHEADS = None
@@ -880,15 +911,19 @@ def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin
         # RMSE
         if obs_catch_list[0] == 1:
             ax1.plot_date(cMF.inputDate, hobs_m, 'o', color = 'blue', markersize=2, label = r'$h \ obs$')
-            a = np.array([flx[24],obs_h[0]])
-            a = np.transpose(a)
-            b = a[~(a < cMF.hnoflo +1000.0).any(1)]
-            rmseHEADS = [cMF.cPROCESS.compRMSE(b[:,0], b[:,1])]
-            if np.std(b[:,1]) > 0:
-                rsrHEADS = [rmseHEADS[0]/np.std(b[:,1])]
-            nseHEADS = [cMF.cPROCESS.compE(b[:,0], b[:,1], cMF.hnoflo)]
-            rHEADS = [cMF.cPROCESS.compR(b[:,0], b[:,1], cMF.hnoflo)]
-            print 'h: %.2f m / %.2f / %.2f / %.2f' % (rmseHEADS[0], rsrHEADS[0], nseHEADS[0], rHEADS[0])
+            if sum(flx[24]) != 0.0:
+                a = np.array([flx[24],obs_h[0]])
+                a = np.transpose(a)
+                b = a[~(a < cMF.hnoflo +1000.0).any(1)]
+                rmseHEADS = [cMF.cPROCESS.compRMSE(b[:,0], b[:,1])]
+                if np.std(b[:,1]) > 0:
+                    rsrHEADS = [rmseHEADS[0]/np.std(b[:,1])]
+                nseHEADS = [cMF.cPROCESS.compE(b[:,0], b[:,1], cMF.hnoflo)]
+                rHEADS = [cMF.cPROCESS.compR(b[:,0], b[:,1], cMF.hnoflo)]
+                print 'h: %.2f m / %.2f / %.2f / %.2f' % (rmseHEADS[0], rsrHEADS[0], nseHEADS[0], rHEADS[0])
+            else:
+                print 'Error in computing h calibration criteria'
+                rmseHEADS = rsrHEADS = nseHEADS = rHEADS = None
         plt.ylim(hmin,hmax)
         plt.ylabel('m', fontsize=10)
         plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 4)
@@ -905,6 +940,8 @@ def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin
         ax8.set_autoscalex_on(True)
         plt.setp(ax8.get_xticklabels(), fontsize=8)
         plt.setp(ax8.get_yticklabels(), fontsize=8)
+        # uzf recharge
+        plt.plot_date(cMF.inputDate,flx[22+2*cMF.nlay],'-', c='darkblue', linewidth=2, label = flx_lbl[22+2*cMF.nlay])
         i = 24 + cMF.nlay*2 + 2*cMF.nlay
         for l, (e, lbl) in enumerate(zip(flx[i:], flx_lbl[i:])):
             plt.plot_date(cMF.inputDate,e,'-', color = mpl.colors.rgb2hex(np.random.rand(1,3)[0]), label = lbl)
@@ -926,6 +963,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin
         plt.setp(labels, 'rotation', 90)
         del labels
 
+    # plot Ro
     ax2=fig.add_subplot(8,1,2, sharex=ax1)
     ax2.set_autoscalex_on(True)
     plt.setp(ax2.get_xticklabels(), fontsize=8)
@@ -1106,72 +1144,6 @@ def plotLAYER(timesteps, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, ms
 
 ##################
 
-def plotWBbars(XXXXXXXXXXXX):
-    """
-    Plot GW budget
-    WARNING: OBSOLETE!!!
-    """
-    def autolabel(rects, unit):
-    # attach some text labels
-        for rect in rects:
-            y = rect.get_y()
-            height = rect.get_height()
-            if y>=0:
-                ytext = height + 0.1
-                va = 'bottom'
-            else:
-                ytext = -height - 0.1
-                height = - height
-                va = 'top'
-            if unit == 'year':
-                ax1.text(rect.get_x()+rect.get_width()/2., ytext, '%.1f'% float(height), ha='center', va=va)
-            elif unit == 'day':
-                ax1.text(rect.get_x()+rect.get_width()/2., ytext, '%G' %float(height), ha='center', va=va)
-            else:
-                ax1.text(rect.get_x()+rect.get_width()/2., ytext, '%G'%float(height), ha='center', va=va)
-
-    ##################
-
-    fig = plt.figure(num=None, figsize=(2*11.7, 2*8.27), dpi=30)
-    fig.suptitle(plt_title)
-
-    ax1=fig.add_subplot(2,1,1)
-    plt.setp( ax1.get_xticklabels(), fontsize=10)
-    plt.setp( ax1.get_yticklabels(), fontsize=10)
-    x = np.arange(len(flxlst))
-    width = 0.8
-    flxlst1 = np.asarray(flxlst)
-    flxlst1 = np.ma.masked_invalid(flxlst1)
-    # y axis
-    if unit == 'day':
-        plt.ylabel('mm/d', fontsize=10)
-        UnitFmt = '%1.4f'
-    elif unit == 'year':
-        plt.ylabel('mm/y', fontsize=10)
-        UnitFmt = '%1.1f'
-    else:
-        plt.ylabel('mm/?', fontsize=10)
-    plt.grid(True)
-    # fmt xaxis
-    ax1.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter(UnitFmt))
-    ax1.set_xticks(x+width/2)
-    ax1.set_xticklabels(flxlbl)
-    labels=ax1.get_xticklabels()
-    plt.setp(labels, 'rotation', 90)
-    autolabel(rects, unit)
-    plt.xlim(0,len(flxlst))
-    #plt.ylim(fluxmin, fluxmax)
-    ax1.axhline(0, color='black', lw=1)
-
-    plt.subplots_adjust(left=0.05, bottom=0.10, right=0.95, top=0.95, wspace=0.1, hspace=0.1)
-    plt.savefig(plt_export_fn,dpi=150)
-#    plt.show()
-    plt.clf()
-    plt.close('all')
-
-
-##################
-
 def plotWBsankey(path, fn, index, year_lst, cMF, ncell_MM):
 
     """ Computes the water balance for a certain time span
@@ -1287,7 +1259,7 @@ def plotWBsankey(path, fn, index, year_lst, cMF, ncell_MM):
     # Sankey plots
     for f in [0,1]:
         for k in range(len(RF)):
-            print '-------'
+            #print '-------'
             if k == 0:
                 title = "Whole modelled period"
             else:
@@ -1295,11 +1267,11 @@ def plotWBsankey(path, fn, index, year_lst, cMF, ncell_MM):
             if f == 0:
                 ff = 1.0
                 fff = (1.5*RF[k])
-                print 'Water balance (mm.y-1)'
+                #print 'Water balance (mm.y-1)'
             else:
                 ff = RF[k]/100.0
                 fff = (1.5*RF[k])/ff
-                print 'Water balance (%)'
+                #print 'Water balance (%)'
             lbl_tmp = ''
             if cMF.wel_yn == 1:
                 lbl_tmp += 'WEL %s' % (np.asarray(WEL[k])/ff)
@@ -1307,7 +1279,7 @@ def plotWBsankey(path, fn, index, year_lst, cMF, ncell_MM):
                 lbl_tmp += 'DRN %s' % (np.asarray(DRN[k])/ff)
             if cMF.ghb_yn == 1:
                 lbl_tmp += 'GHB %s' % (np.asarray(GHB[k])/ff)
-            print '\nMMsurf: RF %s, I %s, RFe %s, Esurf %s, DSsurf %s\nMMsoil: Esoil %s, Tsoil %s, ETsoil %s, Ro %s, Rp %s, DSsoil  %s\nUZF: R %s, DSu %s\nMF: Eg %s, Tg %s, ETg %s, %s, EXF  %s, FLF %s, DSg %s' % (RF[k]/ff, I[k]/ff, RFe[k]/ff, Esurf[k]/ff, DSsurf[k]/ff, Esoil[k]/ff, Tsoil[k]/ff, ETsoil[k]/ff, Ro[k]/ff, Rp[k]/ff, DSsoil[k]/ff, (np.asarray(R[k])/ff), DSu[k]/ff, (np.asarray(Eg[k])/ff), (np.asarray(Tg[k])/ff), ETg[k]/ff, lbl_tmp, (np.asarray(EXF[k])/ff), (np.asarray(FLF[k])/ff), (np.asarray(DSg[k])/ff))
+            # print '\nMMsurf: RF %s, I %s, RFe %s, Esurf %s, DSsurf %s\nMMsoil: Esoil %s, Tsoil %s, ETsoil %s, Ro %s, Rp %s, DSsoil  %s\nUZF: R %s, DSu %s\nMF: Eg %s, Tg %s, ETg %s, %s, EXF  %s, FLF %s, DSg %s' % (RF[k]/ff, I[k]/ff, RFe[k]/ff, Esurf[k]/ff, DSsurf[k]/ff, Esoil[k]/ff, Tsoil[k]/ff, ETsoil[k]/ff, Ro[k]/ff, Rp[k]/ff, DSsoil[k]/ff, (np.asarray(R[k])/ff), DSu[k]/ff, (np.asarray(Eg[k])/ff), (np.asarray(Tg[k])/ff), ETg[k]/ff, lbl_tmp, (np.asarray(EXF[k])/ff), (np.asarray(FLF[k])/ff), (np.asarray(DSg[k])/ff))
             if k == 0 or k%2 != 0:
                 fig = plt.figure() # figsize=(8.27, 11.7), dpi = 72)
                 if f == 0:
@@ -1509,10 +1481,10 @@ def plotWBsankey(path, fn, index, year_lst, cMF, ncell_MM):
                 xy = (0.61, 0.11)
             plt.annotate(msg, xy, horizontalalignment='right', verticalalignment='bottom', fontsize = 8, xycoords='figure fraction')
             if k == 0:
-                print '\nPlot of the whole modelled period done!'
+                print 'Plot of the whole modelled period done!'
                 msg = '_0whole'
             else:
-                print '\nPlot of hydrological year %d/%d done!' % (year_lst[k-1], year_lst[k-1] + 1)
+                print 'Plot of hydrological year %d/%d done!' % (year_lst[k-1], year_lst[k-1] + 1)
                 msg = '_%d_%d' % (year_lst[k-1], year_lst[k-1] + 1)
             # export png
             if k%2 == 0 or k == len(RF)-1:
@@ -1522,7 +1494,7 @@ def plotWBsankey(path, fn, index, year_lst, cMF, ncell_MM):
                 else:
                     plt_export_fn = os.path.join(path, '_0CATCHMENT_WBsanley%s_pc.png' % msg)
                 plt.savefig(plt_export_fn,dpi=150)
-        print '-------'
+    print '-------'
 
 ##################
 
