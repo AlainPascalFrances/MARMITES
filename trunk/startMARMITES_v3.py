@@ -2138,7 +2138,6 @@ if os.path.exists(h5_MM_fn):
                 else:
                     obs_h_tmp = []
                 h_MF = h_MF_m[HYindex[1]:HYindex[-1],:,i,j]
-                print o
                 rmseHEADS_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrSM_tmp, nseHEADS_tmp, nseSM_tmp, rHEADS_tmp, rSM_tmp = cMF.cPROCESS.compCalibCrit(MM_S, h_MF, obs_SM_tmp, obs_h_tmp, cMF.hnoflo, o, nsl, l_obs)
                 if rmseHEADS_tmp <> None:
                     rmseHEADS.append(rmseHEADS_tmp)
