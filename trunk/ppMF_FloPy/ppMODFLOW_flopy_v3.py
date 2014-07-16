@@ -1394,3 +1394,9 @@ class clsMF():
             os.remove(self.h_MF_fn)
             os.remove(self.cbc_MF_fn)
             os.remove(self.cbc_MFuzf_fn)
+            
+##################
+
+print '\nWARNING!\nStart MARMITES-MODFLOW models using the script startMARMITES_v3.py\n'
+
+# EOF            

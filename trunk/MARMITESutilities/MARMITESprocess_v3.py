@@ -120,7 +120,7 @@ class clsPROCESS:
 
         # verify grid consistency between MODFLOW and ESRI ASCII
         if arrayOUT.shape[0] != self.nrow or arrayOUT.shape[1] != self.ncol or self.cellsizeMF != cellsizeEsriAscii:
-            self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nMODFLOW grid anf the ESRI ASCII grid from file %s don't correspond!.\nCheck the cell size and the number of rows, columns and cellsize." % filenameIN)
+            self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nMODFLOW grid and ESRI ASCII grid from file %s don't correspond!\nCheck the cell size and the number of rows, columns and cellsize." % filenameIN)
 
         # Process the file
 #        print "\nConverting %s to np.array" % (filenameIN)
@@ -804,6 +804,8 @@ class clsPROCESS:
 
         return rmseHEADS, rmseSM, rsrHEADS, rsrSM, nseHEADS, nseSM, rHEADS, rSM
 
-    #####################################
+##################
+
+print '\nWARNING!\nStart MARMITES-MODFLOW models using the script startMARMITES_v3.py\n'
 
 # EOF
