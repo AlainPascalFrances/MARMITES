@@ -165,7 +165,7 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
     plt.bar(cMF.inputDate, POND, color='lightblue', linewidth=0, align = 'center', label = r'$S_{surf}$')
     plt.bar(cMF.inputDate, dPOND, color='darkblue', width=0.60, linewidth=0, align = 'center', label = r'$\Delta S_{surf}$')
     plt.ylabel('mm', fontsize=10)
-    plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 4)
+    plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 3)
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8)
@@ -271,7 +271,7 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
     # legend
     #lbl_Spcobs = lbl_Sobs + lbl_S
     #plt.legend(lbl_Spcobs, loc=0, labelspacing=lblspc, markerscale=mkscale)
-    plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 4)
+    plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 3)
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8 )
@@ -291,7 +291,7 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
         obs_leg = 1
     except:
         pass
-    lines = itertools.cycle(['-','--','-.',':','.',',','o','v','^','<','>','1','2','3','4','s','p','*','h','H','+','x','D','d','|','_'])
+    lines = itertools.cycle(['-','--','-.',':','.',',','o','v','^','<','>','s','p','*','h','H','+','x','D','d','|','_'])
     lbl_dgwt = []
     dgwtMFmax = []
     for l in range(nlay):
@@ -307,11 +307,11 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
     # legend
     if obs_leg == None:
         lbl_dgwt.append(r'$d \ corr$')
-        plt.legend(tuple(lbl_dgwt), loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 4)
+        plt.legend(tuple(lbl_dgwt), loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 3)
     elif obs_leg == 1:
         lbl_dgwt.insert(0,r'$d \ obs$')
         lbl_dgwt.append(r'$d \ corr$')
-        plt.legend(tuple(lbl_dgwt), loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 4)
+        plt.legend(tuple(lbl_dgwt), loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 3)
     leg = plt.gca().get_legend()
     dgwtMFmax = np.max(dgwtMFmax)
     if dgwtMFmax > 0:
@@ -360,7 +360,7 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
         obs_leg = 1
     except:
         pass
-    lines = itertools.cycle(['-','--','-.',':','.',',','o','v','^','<','>','1','2','3','4','s','p','*','h','H','+','x','D','d','|','_'])
+    lines = itertools.cycle(['-','--','-.',':','.',',','o','v','^','<','>','s','p','*','h','H','+','x','D','d','|','_'])
     lbl_h = []
     for l in range(nlay):
         plt.plot_date(cMF.inputDate,h_MF[:,l],lines.next(), color = 'b')
@@ -375,12 +375,12 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
     if obs_leg == None:
         lbl_h.append(r'$h \ corr$')
         lbl_h.append(r'$hSF$')
-        plt.legend(tuple(lbl_h), loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 4)
+        plt.legend(tuple(lbl_h), loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 3)
     elif obs_leg == 1:
         lbl_h.insert(0,r'$h \ obs$')
         lbl_h.append(r'$h \ corr$')
         lbl_h.append(r'$hSF$')
-        plt.legend(tuple(lbl_h), loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 4)
+        plt.legend(tuple(lbl_h), loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 3)
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8 )
@@ -464,7 +464,7 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
     plt.setp(ax10a.get_xticklabels(minor=True), visible=False)
 
     colors_nsl = itertools.cycle(clr_lst)
-    ax10b=fig.add_subplot(8,1,5, sharex=ax1)
+    ax10b=fig.add_subplot(8,1,6, sharex=ax1)
     plt.setp(ax10b.get_xticklabels(), visible = False)
     plt.setp(ax10b.get_yticklabels(), fontsize=8)
     for l, (y, lbl) in enumerate(zip(S1, lbl_S)) :
@@ -497,15 +497,15 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
     plt.ylabel('mm', fontsize=10)
     if ymax != None:
         plt.ylim(ymax = ymax)
-    plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 4)
+    plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 3)
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8)
     ax20.grid(b=True, which='major', axis = 'both')
     
     colors_nsl = itertools.cycle(clr_lst)
-    ax5=fig.add_subplot(8,1,6, sharex=ax1)
-    plt.setp(ax5.get_xticklabels(), visible=False)
+    ax5=fig.add_subplot(8,1,7, sharex=ax1)
+    plt.setp(ax5.get_xticklabels(), fontsize=8)
     plt.setp(ax5.get_yticklabels(), fontsize=8)
     obs_tmp = []
     try:
@@ -529,17 +529,25 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
     # legend
     #lbl_Spcobs = lbl_Sobs + lbl_S
     #plt.legend(lbl_Spcobs, loc=0, labelspacing=lblspc, markerscale=mkscale)
-    plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 4)
+    plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 3)
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8 )
     ax5.grid(b=True, which='major', axis = 'both')
     ax5.xaxis.grid(b=True, which='minor', color='0.65')
     ax5.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
-    plt.setp(ax5.get_xticklabels(minor=True), visible=False)
+    plt.setp(ax7.get_xticklabels(minor=True), visible=True)
+    plt.xlabel('Date', fontsize=10)
+    labels=ax7.get_xticklabels()
+    plt.setp(labels, 'rotation', 90)
+    ax7.xaxis.set_minor_formatter(dateminorFmt)
+    labels=ax7.get_xminorticklabels()
+    plt.setp(labels, fontsize=8)
+    plt.setp(labels, 'rotation', 90)
+    del labels
 
-    ax7=fig.add_subplot(8,1,7, sharex=ax1)
-    plt.setp(ax7.get_xticklabels(), fontsize=8)
+    ax7=fig.add_subplot(8,1,5, sharex=ax1)
+    plt.setp(ax7.get_xticklabels(), visible = False)
     plt.setp(ax7.get_yticklabels(), fontsize=8)
     obs_leg = None
     try:
@@ -549,7 +557,7 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
         obs_leg = 1
     except:
         pass
-    lines = itertools.cycle(['-','--','-.',':','.',',','o','v','^','<','>','1','2','3','4','s','p','*','h','H','+','x','D','d','|','_'])
+    lines = itertools.cycle(['-','--','-.',':','.',',','o','v','^','<','>','s','p','*','h','H','+','x','D','d','|','_'])
     lbl_dgwt = []
     dgwtMFmax = []
     for l in range(nlay):
@@ -564,11 +572,11 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
     # legend
     if obs_leg == None:
         lbl_dgwt.append(r'$d \ corr$')
-        plt.legend(tuple(lbl_dgwt), loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 4)
+        plt.legend(tuple(lbl_dgwt), loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 3)
     elif obs_leg == 1:
         lbl_dgwt.insert(0,r'$d \ obs$')
         lbl_dgwt.append(r'$d \ corr$')
-        plt.legend(tuple(lbl_dgwt), loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 4)
+        plt.legend(tuple(lbl_dgwt), loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 3)
     leg = plt.gca().get_legend()
     dgwtMFmax = np.max(dgwtMFmax)
     if dgwtMFmax > 0:
@@ -589,20 +597,142 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
     plt.setp(ax7.get_xticklabels(minor=True), visible=False)
     ax7.xaxis.grid(b=True, which='minor', color='0.65')
     ax7.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
-    plt.setp(ax7.get_xticklabels(minor=True), visible=True)
-    plt.xlabel('Date', fontsize=10)
-    labels=ax7.get_xticklabels()
-    plt.setp(labels, 'rotation', 90)
-    ax7.xaxis.set_minor_formatter(dateminorFmt)
-    labels=ax7.get_xminorticklabels()
-    plt.setp(labels, fontsize=8)
-    plt.setp(labels, 'rotation', 90)
-    del labels
 
     #ax1.set_xlim(date_ini,date_end)
     plt.subplots_adjust(left=0.10, bottom=0.10, right=0.95, top=0.95, wspace=0.1, hspace=0.1)
     txt = plt_export_fn.split('.')
     plt_export_fn = txt[0] + '_part2.' + txt[1]
+    plt.savefig(plt_export_fn,dpi=150)
+#    plt.show()
+    plt.clf()
+    plt.close('all')
+
+##################
+
+def plotTIMESERIES_obsGW(cMF, flx, flx_lbl, plt_export_fn, plt_title, iniMonthHydroYear, date_ini, date_end):
+    """
+    Plot the time serie of the fluxes observed from the whole catchment
+    Use Matplotlib
+    """
+    dateFmt=mpl.dates.DateFormatter('%Y-%b-%d')
+    dateminorFmt=mpl.dates.DateFormatter('%b')
+    lblspc = 0.05
+    mkscale = 1.0
+    bdpd = 0.1
+    hdltxtpd = 0.05
+    colspc = 0.1
+
+    #fmt_DH = mpl.dates.DateFormatter('%Y-%m-%d')
+    #cUTIL = MMutils.clsUTILITIES(fmt = fmt_DH)
+
+    #date_ini, year_ini = cUTIL.compDATE_INI(cMF.inputDate[0], iniMonthHydroYear)
+    #date_end, year_end = cUTIL.compDATE_END(cMF.inputDate[-1], iniMonthHydroYear)
+    date_ini -= 15
+    date_end += 15
+
+    fig = plt.figure(num=None, figsize=(8.27, 11.7), dpi = 60)    #(8.5,15), dpi=30)
+    fig.suptitle(plt_title + ' - part 3')
+    
+    ax0=fig.add_subplot(8,1,1)
+    ax0.set_autoscalex_on(False)
+    plt.setp(ax0.get_xticklabels(), visible=False)
+    plt.setp(ax0.get_yticklabels(), fontsize=8)
+    # RF
+    ax0.bar(cMF.inputDate,flx[0],color='darkblue', linewidth=0, align = 'center', label = flx_lbl[0])
+    # RFe
+    ax0.bar(cMF.inputDate,flx[2],color='deepskyblue', linewidth=0, align = 'center', label = flx_lbl[2])
+    plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd)
+    leg = plt.gca().get_legend()
+    ltext  = leg.get_texts()
+    plt.setp(ltext, fontsize=8)
+    ax0.grid(b=True, which='major', axis = 'both')
+    ax0.xaxis.grid(b=True, which='minor', color='0.65')
+    ax0.set_xlim(date_ini,date_end)
+    plt.ylabel('mm', fontsize=10)
+#    ax0.xaxis.set_major_formatter(dateFmt)
+#    ax0.xaxis.set_major_locator(mpl.dates.YearLocator(1, month = iniMonthHydroYear, day = 1))
+#    ax0.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth = bymonth))
+    plt.setp(ax0.get_xticklabels(minor=True), visible=False)
+    ax0.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))    
+
+    # plot gwd
+    lines = itertools.cycle(['-','--','-.',':','.',',','o','v','^','<','>','s','p','*','h','H','+','x','D','d','|','_'])
+    ax1=fig.add_subplot(8,1,4)
+    ax1.set_autoscalex_on(True)
+    plt.setp(ax1.get_xticklabels(), visible=False)
+    plt.setp(ax1.get_yticklabels(), fontsize=8)
+    #ax1.set_xlim(date_ini,date_end)
+    i = 25+2*cMF.nlay
+    for l in range(cMF.nlay):
+        plt.plot_date(cMF.inputDate,flx[i],lines.next(), color = 'b', label = flx_lbl[i])
+        i += l + 2
+    plt.ylabel('m', fontsize=10)
+    plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 3)
+    leg = plt.gca().get_legend()
+    ltext  = leg.get_texts()
+    plt.setp(ltext, fontsize=8 )
+    ax1.grid(b=True, which='major', axis = 'both')
+    ax1.xaxis.grid(b=True, which='minor', color='0.65')
+    ax1.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
+    plt.setp(ax1.get_xticklabels(minor=True), visible=False)
+
+    # plot GW fluxes
+    ax8=fig.add_subplot(2,1,2, sharex=ax1)
+    ax8.set_autoscalex_on(True)
+    plt.setp(ax8.get_xticklabels(), fontsize=8)
+    plt.setp(ax8.get_yticklabels(), fontsize=8)
+    # uzf recharge
+    plt.plot_date(cMF.inputDate,flx[22+2*cMF.nlay],'-', c='darkblue', linewidth=2, label = flx_lbl[22+2*cMF.nlay])
+    i = 24 + cMF.nlay*2 + 2*cMF.nlay
+    lines = itertools.cycle(['-','--','-.',':','.',',','o','v','^','<','>','s','p','*','h','H','+','x','D','d','|','_'])
+    for l, (e, lbl) in enumerate(zip(flx[i:], flx_lbl[i:])):
+        plt.plot_date(cMF.inputDate,e, lines.next(), color = mpl.colors.rgb2hex(np.random.rand(1,3)[0]), markersize=2, label = lbl, markeredgecolor = 'None')
+    plt.ylabel('mm', fontsize=10)
+    plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 4, columnspacing = colspc, numpoints = 3)
+    leg = plt.gca().get_legend()
+    ltext  = leg.get_texts()
+    plt.setp(ltext, fontsize=8 )
+    ax8.grid(b=True, which='major', axis = 'both')
+    ax8.xaxis.grid(b=True, which='minor', color='0.65')
+    ax8.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
+    plt.setp(ax8.get_xticklabels(minor=True), visible=True)
+    plt.xlabel('Date', fontsize=10)
+    labels=ax8.get_xticklabels()
+    plt.setp(labels, 'rotation', 90)
+    ax8.xaxis.set_minor_formatter(dateminorFmt)
+    labels=ax8.get_xminorticklabels()
+    plt.setp(labels, fontsize=8)
+    plt.setp(labels, 'rotation', 90)
+    del labels
+
+    # plot Ro
+    ax2=fig.add_subplot(8,1,2, sharex=ax1)
+    ax2.set_autoscalex_on(True)
+    plt.setp(ax2.get_xticklabels(), fontsize=8)
+    plt.setp(ax2.get_yticklabels(), fontsize=8)
+    # Ro
+    plt.plot_date(cMF.inputDate,flx[5],'r-', c='blue', linewidth=1.0, label = flx_lbl[5])
+    plt.ylabel('mm', fontsize=10)
+    plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 3)
+    leg = plt.gca().get_legend()
+    ltext  = leg.get_texts()
+    plt.setp(ltext, fontsize=8)
+    ax2.xaxis.grid(b=True, which='minor', color='0.65')
+    ax2.grid(b=True, which='major', axis = 'both')
+    ax2.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
+    plt.setp(ax2.get_xticklabels(minor=True), visible=True)
+    plt.xlabel('Date', fontsize=10)
+    labels=ax2.get_xticklabels()
+    plt.setp(labels, 'rotation', 90)
+    ax2.xaxis.set_minor_formatter(dateminorFmt)
+    labels=ax2.get_xminorticklabels()
+    plt.setp(labels, fontsize=8)
+    plt.setp(labels, 'rotation', 90)
+    del labels
+
+    plt.subplots_adjust(left=0.10, bottom=0.10, right=0.95, top=0.95, wspace=0.1, hspace=0.1)
+    txt = plt_export_fn.split('.')
+    plt_export_fn = txt[0] + '_part3MF.' + txt[1]
     plt.savefig(plt_export_fn,dpi=150)
 #    plt.show()
     plt.clf()
@@ -684,7 +814,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin
     # DeltaSsurf
     plt.bar(cMF.inputDate, flx[3], color='darkblue', width=0.60, linewidth=0, align = 'center', label = flx_lbl[3])
     plt.ylabel('mm', fontsize=10)
-    plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 4)
+    plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 3)
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8)
@@ -796,7 +926,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin
     ax6.plot_date(cMF.inputDate, flx[19+2*cMF.nlay], '-', color = 'brown', label = flx_lbl[19+2*cMF.nlay])
     # y axis
     plt.ylabel('%', fontsize=10)
-    plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, numpoints = 4)
+    plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, numpoints = 3)
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8 )
@@ -823,7 +953,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin
             obs_h = obs_catch.get('catch')['obs_h']
             hobs_m = np.ma.masked_values(obs_h[0], cMF.hnoflo, atol = 0.09)
         # plot GWT
-        lines = itertools.cycle(['-','--','-.',':','.',',','o','v','^','<','>','1','2','3','4','s','p','*','h','H','+','x','D','d','|','_'])
+        lines = itertools.cycle(['-','--','-.',':','.',',','o','v','^','<','>','s','p','*','h','H','+','x','D','d','|','_'])
         ax10=fig.add_subplot(8,1,8, sharex=ax1)
         ax10.set_autoscalex_on(False)
         plt.setp(ax10.get_xticklabels(), fontsize=8)
@@ -837,7 +967,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin
             i += l + 2
         plt.ylabel('m', fontsize=10)
         plt.xlabel('Date', fontsize=10)
-        plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 4)
+        plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 3)
         leg = plt.gca().get_legend()
         ltext  = leg.get_texts()
         plt.setp(ltext, fontsize=8)
@@ -889,7 +1019,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin
     rHEADS = None
     if MF != None:
         # plot heads
-        lines = itertools.cycle(['-','--','-.',':','.',',','o','v','^','<','>','1','2','3','4','s','p','*','h','H','+','x','D','d','|','_'])
+        lines = itertools.cycle(['-','--','-.',':','.',',','o','v','^','<','>','s','p','*','h','H','+','x','D','d','|','_'])
         ax1=fig.add_subplot(8,1,4)
         ax1.set_autoscalex_on(True)
         plt.setp(ax1.get_xticklabels(), visible=False)
@@ -907,7 +1037,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin
                     rsrHEADS = [rmseHEADS[0]/np.std(b[:,1])]
                 nseHEADS = [cMF.cPROCESS.compE(b[:,0], b[:,1], cMF.hnoflo)]
                 rHEADS = [cMF.cPROCESS.compR(b[:,0], b[:,1], cMF.hnoflo)]
-                print 'h: %.2f m / %.2f / %.2f / %.2f' % (rmseHEADS[0], rsrHEADS[0], nseHEADS[0], rHEADS[0])
+                print 'h: %.2f m / %.2f / %.2f / %.2f\n-------' % (rmseHEADS[0], rsrHEADS[0], nseHEADS[0], rHEADS[0])
             else:
                 print 'Warning!\nError in computing h calibration criteria'
                 rmseHEADS = rsrHEADS = nseHEADS = rHEADS = None
@@ -917,7 +1047,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin
             i += l + 2
         plt.ylim(hmin,hmax)
         plt.ylabel('m', fontsize=10)
-        plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 4)
+        plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 3)
         leg = plt.gca().get_legend()
         ltext  = leg.get_texts()
         plt.setp(ltext, fontsize=8 )
@@ -934,10 +1064,11 @@ def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin
         # uzf recharge
         plt.plot_date(cMF.inputDate,flx[22+2*cMF.nlay],'-', c='darkblue', linewidth=2, label = flx_lbl[22+2*cMF.nlay])
         i = 24 + cMF.nlay*2 + 2*cMF.nlay
+        lines = itertools.cycle(['-','--','-.',':','.',',','o','v','^','<','>','s','p','*','h','H','+','x','D','d','|','_'])
         for l, (e, lbl) in enumerate(zip(flx[i:], flx_lbl[i:])):
-            plt.plot_date(cMF.inputDate,e,'-', color = mpl.colors.rgb2hex(np.random.rand(1,3)[0]), label = lbl)
+            plt.plot_date(cMF.inputDate,e, lines.next(), color = mpl.colors.rgb2hex(np.random.rand(1,3)[0]), markersize=2, label = lbl, markeredgecolor = 'None')
         plt.ylabel('mm', fontsize=10)
-        plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 4, columnspacing = colspc)
+        plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 4, columnspacing = colspc, numpoints = 3)
         leg = plt.gca().get_legend()
         ltext  = leg.get_texts()
         plt.setp(ltext, fontsize=8 )
@@ -967,7 +1098,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin
     # Ro
     plt.plot_date(cMF.inputDate,flx[5],'r-', c='blue', linewidth=1.0, label = flx_lbl[5])
     plt.ylabel('mm', fontsize=10)
-    plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 4)
+    plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 3)
     if obs_catch_list[2] == 1:
         plt.ylim(ymax = np.ma.max(Roobs_m))
     leg = plt.gca().get_legend()
@@ -988,7 +1119,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin
 
     plt.subplots_adjust(left=0.10, bottom=0.10, right=0.95, top=0.95, wspace=0.1, hspace=0.1)
     txt = plt_export_fn.split('.')
-    plt_export_fn = txt[0] + '_part2' + txt[1]
+    plt_export_fn = txt[0] + '_part2.' + txt[1]
     plt.savefig(plt_export_fn,dpi=150)
 #    plt.show()
     plt.clf()
@@ -1135,7 +1266,7 @@ def plotLAYER(timesteps, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, ms
 
 ##################
 
-def plotWBsankey(path, fn, index, year_lst, cMF, ncell_MM, obs):
+def plotWBsankey(path, fn, index, year_lst, cMF, ncell_MM, obspt, fntitle):
 
     """ Computes the water balance for a certain time span
     input: ASCII file with water fluxes wrtitten by MM
@@ -1177,6 +1308,8 @@ def plotWBsankey(path, fn, index, year_lst, cMF, ncell_MM, obs):
     DSu=[]
     R=[]
     DSg=[]
+    FRF=[]
+    FFF=[]
     FLF=[]
     EXF=[]
     EXFtotMF=[]
@@ -1216,6 +1349,8 @@ def plotWBsankey(path, fn, index, year_lst, cMF, ncell_MM, obs):
         nc = 21 + 2 + cMF.nlay*3 + 2*cMF.nlay
         R.append([])
         DSg.append([])
+        FRF.append([])
+        FFF.append([])
         FLF.append([])
         EXF.append([])
         WEL.append([])
@@ -1224,6 +1359,10 @@ def plotWBsankey(path, fn, index, year_lst, cMF, ncell_MM, obs):
         for L in range(cMF.nlay):
             R[k].append(mult*np.sum(np.float16(DATA[i:indexend,21+L+2*cMF.nlay])))
             DSg[k].append(mult*np.sum(np.float16(DATA[i:indexend,nc])))
+            nc += 1
+            FRF[k].append(mult*np.sum(np.float16(DATA[i:indexend,nc])))
+            nc += 1
+            FFF[k].append(mult*np.sum(np.float16(DATA[i:indexend,nc])))
             nc += 1
             FLF[k].append(mult*np.sum(np.float16(DATA[i:indexend,nc])))
             nc += 1
@@ -1235,18 +1374,21 @@ def plotWBsankey(path, fn, index, year_lst, cMF, ncell_MM, obs):
                     nc += 1
                 else:
                     WEL[k].append(0)
+                    nc += 1
             if cMF.drn_yn == 1:
                 if cMF.drncells[L]>0:
                     DRN[k].append(mult*np.sum(np.float16(DATA[i:indexend,nc])))
                     nc += 1
                 else:
                     DRN[k].append(0)
+                    nc += 1
             if cMF.ghb_yn == 1:
                 if cMF.ghbcells[L] > 0:
                     GHB[k].append(mult*np.sum(np.float16(DATA[i:indexend,nc])))
                     nc += 1
                 else:
                     GHB[k].append(0)
+                    nc += 1
         EXFtotMF.append(sum(EXF[k]))
 #    print "\nWater fluxes imported from file:\n%s" % inputFile_fn
 
@@ -1271,20 +1413,20 @@ def plotWBsankey(path, fn, index, year_lst, cMF, ncell_MM, obs):
 #                if prt_test == 1:
 #                    print '\nWater balance (%)'
 #                    prt_test += 1
-            lbl_tmp = ''
-            if cMF.wel_yn == 1:
-                lbl_tmp += 'WEL %s' % (np.asarray(WEL[k])/ff)
-            if cMF.drn_yn == 1:
-                lbl_tmp += 'DRN %s' % (np.asarray(DRN[k])/ff)
-            if cMF.ghb_yn == 1:
-                lbl_tmp += 'GHB %s' % (np.asarray(GHB[k])/ff)
+#            lbl_tmp = ''
+#            if cMF.wel_yn == 1:
+#                lbl_tmp += 'WEL %s' % (np.asarray(WEL[k])/ff)
+#            if cMF.drn_yn == 1:
+#                lbl_tmp += 'DRN %s' % (np.asarray(DRN[k])/ff)
+#            if cMF.ghb_yn == 1:
+#                lbl_tmp += 'GHB %s' % (np.asarray(GHB[k])/ff)
             # print '\nMMsurf: RF %s, I %s, RFe %s, Esurf %s, DSsurf %s\nMMsoil: Esoil %s, Tsoil %s, ETsoil %s, Ro %s, Rp %s, DSsoil  %s\nUZF: R %s, DSu %s\nMF: Eg %s, Tg %s, ETg %s, %s, EXF  %s, FLF %s, DSg %s' % (RF[k]/ff, I[k]/ff, RFe[k]/ff, Esurf[k]/ff, DSsurf[k]/ff, Esoil[k]/ff, Tsoil[k]/ff, ETsoil[k]/ff, Ro[k]/ff, Rp[k]/ff, DSsoil[k]/ff, (np.asarray(R[k])/ff), DSu[k]/ff, (np.asarray(Eg[k])/ff), (np.asarray(Tg[k])/ff), ETg[k]/ff, lbl_tmp, (np.asarray(EXF[k])/ff), (np.asarray(FLF[k])/ff), (np.asarray(DSg[k])/ff))
             if k == 0 or k%2 != 0:
                 fig = plt.figure() # figsize=(8.27, 11.7), dpi = 72)
                 if f == 0:
-                    fig.suptitle('Water balance ($mm.y^{-1}$)\n', fontsize = 10, y = 0.99)
+                    fig.suptitle('Water balance ($mm.y^{-1}$) - %s\n'%obspt, fontsize = 10, y = 0.99)
                 else:
-                    fig.suptitle('Water balance ($\%$ of yearly rainfall)\n', fontsize = 10, y = 0.99)
+                    fig.suptitle('Water balance ($\%%$ of yearly rainfall) - %s\n'%obspt, fontsize = 10, y = 0.99)
                 ax = []
                 ax.append(fig.add_subplot(1, 2, 1, xticks=[], yticks=[]))
                 x = 0.25
@@ -1334,7 +1476,7 @@ def plotWBsankey(path, fn, index, year_lst, cMF, ncell_MM, obs):
                 flows.append(-R[k][L]/ff)
                 labels.append('$R^{L%d}$'%(L+1))
                 orientations.append(-1)
-                pathlengths.append(pl)
+                pathlengths.append(pl*1.5)
             pltsankey.add(patchlabel = '$\Delta S_u$\n%.1f' % (-DSu[k]/ff), label='MF_UZF', facecolor='lavender', trunklength = tl,
                        flows = flows,
                        labels=labels,
@@ -1352,101 +1494,117 @@ def plotWBsankey(path, fn, index, year_lst, cMF, ncell_MM, obs):
             MB_MFuzf = 100*(In - Out)/((In + Out)/2)
             # MF
             # about signs, read MF-2005 manual pag 3-10
-            i_lblDRN = []
+            #i_lblDRN = []
+            InTot = 0
+            OutTot = 0
             MB_MF = []
+            #print '%s'%obspt
             for L in range(cMF.nlay):
-                i_lblDRN.append(0)
-                In = 0
-                Out = 0
+                #i_lblDRN.append(0)
+                In = []
+                Out = []
                 if L == 0:
-                    flows=[R[k][L]/ff, -FLF[k][L]/ff]
-                    labels=[None, '$FLF$']
-                    orientations=[1, -1]
-                    pathlengths = [pl*4, pl]
-                    i_lblDRN[L] += 3
+                    flows=[R[k][L]/ff, FLF[k][L]/ff, FRF[k][L]/ff, FFF[k][L]/ff]
+                    labels=[None, '$FLF$', '$FRF$', '$FFF$']
+                    orientations=[1, -1, 0, 0]
+                    pathlengths = [pl*4, pl, pl, pl*4]
+                    #i_lblDRN[L] += 3
                     tl_mult = 1
-                    In += R[k][L]
                     if FLF[k][L] > 0.0:
-                        Out += FLF[k][L]
+                        In.append(FLF[k][L])
                     else:
-                        In += -FLF[k][L]
+                        Out.append(-FLF[k][L])
                 elif L == (cMF.nlay-1):
-                    flows=[FLF[k][L-1]/ff, R[k][L]/ff]
-                    labels=[None, '$R^{L%d}$'%(L+1)]
-                    orientations=[1, 1]
-                    pathlengths = [pl*4, pl]
-                    i_lblDRN[L] += 3
+                    flows=[-FLF[k][L-1]/ff, R[k][L]/ff, FRF[k][L]/ff, FFF[k][L]/ff]
+                    labels=[None, '$R^{L%d}$'%(L+1), '$FRF$', '$FFF$']
+                    orientations=[1, 1, 0, 0]
+                    pathlengths = [pl*4, pl, pl, pl*4]
+                    #i_lblDRN[L] += 3
                     tl_mult = 1
-                    In += R[k][L]
-                    if FLF[k][L-1] < 0.0:
-                        Out += -FLF[k][L-1]
+                    if FLF[k][L-1] > 0.0:
+                        Out.append(FLF[k][L-1])
                     else:
-                        In += FLF[k][L-1]
+                        In.append(-FLF[k][L-1])
                 else:
-                    flows=[FLF[k][L-1]/ff, R[k][L]/ff, -FLF[k][L]/ff]
-                    labels=[None, None, '$\Delta S_g$', '$FLF$'] #'$R$'
-                    orientations=[1, 1, -1]
-                    pathlengths = [pl, pl, pl]
-                    i_lblDRN[L] += 4
+                    flows=[-FLF[k][L-1]/ff, R[k][L]/ff, FLF[k][L]/ff, FRF[k][L]/ff, FFF[k][L]/ff]
+                    labels=[None, None, '$\Delta S_g$', '$FLF$', '$FRF$', '$FFF$']
+                    orientations=[1, 1, -1, 0, 0]
+                    pathlengths = [pl, pl, pl, pl, pl*4]
+                    #i_lblDRN[L] += 4
                     tl_mult = 1
-                    In += R[k][L]
                     if FLF[k][L] > 0.0:
-                        Out += FLF[k][L]
+                        In.append(FLF[k][L])
                     else:
-                        In += -FLF[k][L]
-                    if FLF[k][L-1] < 0.0:
-                        Out += -FLF[k][L-1]
+                        Out.append(-FLF[k][L])
+                    if FLF[k][L-1] > 0.0:
+                        In.append(FLF[k][L-1])
                     else:
-                        In += FLF[k][L-1]
-                if  DSg[k][L] < 0.0:
-                    Out += -DSg[k][L]
+                        Out.append(-FLF[k][L-1])
+                In.append(R[k][L])
+                if FRF[k][L] > 0.0:
+                    In.append(FRF[k][L])
                 else:
-                    In += DSg[k][L]
+                    Out.append(-FRF[k][L])
+                if FFF[k][L] > 0.0:
+                    In.append(FFF[k][L])
+                else:
+                    Out.append(-FFF[k][L])
+                if  DSg[k][L] > 0.0:
+                    In.append(DSg[k][L])
+                else:
+                    Out.append(-DSg[k][L])
                 if np.abs(EXF[k][L])>1E-3:
                     flows.append(EXF[k][L]/ff)
                     labels.append('$EXF$')
                     orientations.append(-1)
                     pathlengths.append(pl)
-                    i_lblDRN[L] += 1
-                    Out += -EXF[k][L]
+                    #i_lblDRN[L] += 1
+                Out.append(-EXF[k][L])
                 if np.abs(Eg[k][L])>1E-3:
                     flows.append(-Eg[k][L]/ff)
                     labels.append('$E_g$')
                     orientations.append(1)
                     pathlengths.append(pl)
-                    i_lblDRN[L] += 1
-                    Out += Eg[k][L]
+                    #i_lblDRN[L] += 1
+                Out.append(Eg[k][L])
                 if np.abs(Tg[k][L])>1E-3:
                     flows.append(-Tg[k][L]/ff)
                     labels.append('$T_g$')
                     orientations.append(1)
                     pathlengths.append(pl)
-                    i_lblDRN[L] += 1
-                    Out += Tg[k][L]
+                    #i_lblDRN[L] += 1
+                Out.append(Tg[k][L])
                 if cMF.drn_yn == 1:
                     if np.abs(DRN[k][L])>1E-3:
                         flows.append(DRN[k][L]/ff)
                         labels.append('$DRN$')
                         orientations.append(1)
                         pathlengths.append(pl)
-                        Out += -DRN[k][L]
+                    Out.append(-DRN[k][L])
                 if cMF.ghb_yn == 1:
                     if np.abs(GHB[k][L])>1E-3:
                         flows.append(GHB[k][L]/ff)
                         labels.append('$GHB$')
                         orientations.append(1)
                         pathlengths.append(pl)
-                        if  GHB[k][L] < 0.0:
-                            Out += -GHB[k][L]
-                        else:
-                            In += GHB[k][L]
-                pltsankey.add(patchlabel = '$\Delta S_g$\n%.1f' % (-DSg[k][L]/ff), label='MF_L%d'%(L+1), facecolor='LightSteelBlue', trunklength = tl*tl_mult,
+                    if  GHB[k][L] < 0.0:
+                        Out.append(-GHB[k][L])
+                    else:
+                        In.append(-GHB[k][L])
+                pltsankey.add(patchlabel = '$\Delta S_g$\n%.1f' % (-DSg[k][L]/ff), label='MFL%d'%(L+1), facecolor='LightSteelBlue', trunklength = tl*tl_mult,
                    flows = flows,
                    labels = labels,
                    orientations = orientations,
                    pathlengths = pathlengths,
                    prior=2+L, connect=(1, 0))
-                MB_MF.append(100*(In - Out)/((In + Out)/2))
+                MB_MF.append(100*(sum(In) - sum(Out))/((sum(In) + sum(Out)/2)))
+                #print 'L=%d'%(L+1)
+                #print In, Out, MB_MF[L]
+                InTot += sum(In)
+                OutTot += sum(Out)
+            MB_MFTot = 100*(InTot - OutTot)/((InTot + OutTot)/2)
+            #print 'TOT'
+            #print InTot, OutTot, MB_MFTot
             # plot all patches
             diagrams = pltsankey.finish()
             diagrams[-1].patch.set_hatch('/')
@@ -1462,23 +1620,25 @@ def plotWBsankey(path, fn, index, year_lst, cMF, ncell_MM, obs):
             # legend
             if p ==0:
                 lblspc = 0.05
-                mkscl = 0.5
+                mkscl = 0.1
                 handletextpad = 0.25
                 borderaxespad = 0.5
                 colspc = 0.05
-                plt.legend(loc='upper right', labelspacing=lblspc, markerscale=mkscl, handletextpad = handletextpad, borderaxespad = borderaxespad, ncol = 2, columnspacing = colspc)
+                handlelength = 1.0
+                plt.legend(loc='best', labelspacing=lblspc, markerscale=mkscl, handlelength = handlelength, handletextpad = handletextpad, borderaxespad = borderaxespad, ncol = 2, columnspacing = colspc) #loc='upper right'
                 leg = plt.gca().get_legend()
                 ltext  = leg.get_texts()
-                plt.setp(ltext, fontsize=7)
+                plt.setp(ltext, fontsize=6)
             # water balance box
-            msg = 'Water balance\nclosure (%%)\n-----------------\nMMsurf =%3.1f\nMMsoil =%3.1f\nMFuzf =%3.1f' % (MB_MMsurf, MB_MMsoil, MB_MFuzf) #
+            msg = 'Water balance\nclosure (%%)\n-----------------\nMMsurf =%3.1f\nMMsoil =%3.1f\nMFUZF =%3.1f' % (MB_MMsurf, MB_MMsoil, MB_MFuzf) #
             for L in range(cMF.nlay):
-                msg += '\nMF_L%d =%3.1f' % (L+1, MB_MF[L]) #%2.1f
+                msg += '\nMFL%d =%3.1f' % (L+1, MB_MF[L]) #%2.1f
+            msg +=  '\nMFtot =%3.1f' % (MB_MFTot) #%2.1f
             if p == 0:
-                xy = (0.16, 0.11)
+                xy = (0.14, 0.11)
             else:
-                xy = (0.61, 0.11)
-            plt.annotate(msg, xy, horizontalalignment='right', verticalalignment='bottom', fontsize = 8, xycoords='figure fraction')
+                xy = (0.59, 0.11)
+            plt.annotate(msg, xy, horizontalalignment='right', verticalalignment='bottom', fontsize = 6, xycoords='figure fraction')
             if k == 0:
                 #print 'Plot of the whole modelled period done!'
                 msg = '_0whole'
@@ -1489,9 +1649,9 @@ def plotWBsankey(path, fn, index, year_lst, cMF, ncell_MM, obs):
             if k%2 == 0 or k == len(RF)-1:
                 plt.subplots_adjust(left=0.05, bottom=0.10, right=0.95, top=0.95, wspace=0.01, hspace=0.1)
                 if f == 0:
-                    plt_export_fn = os.path.join(path, '_%s_WBsanley%s.png' % (obs, msg))
+                    plt_export_fn = os.path.join(path, '_%s_WBsanley%s.png' % (fntitle, msg))
                 else:
-                    plt_export_fn = os.path.join(path, '_%s_WBsanley%s_pc.png' % (obs,msg))
+                    plt_export_fn = os.path.join(path, '_%s_WBsanley%s_pc.png' % (fntitle,msg))
                 plt.savefig(plt_export_fn,dpi=150)
     #print '-------'
 

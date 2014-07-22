@@ -69,18 +69,7 @@ class clsMF():
             self.nstp = []
             self.tsmult = []
             self.Ss_tr = []
-            if nper <0:
-                # daily nper, perlen, nstp, tsmult
-                self.nper = numDays
-                self.timedef = -1
-                self.perlen = list(np.ones([numDays], dtype = np.int))
-                self.nstp = list(np.ones([numDays], dtype = np.int))
-                self.tsmult = list(np.ones([numDays], dtype = np.int))
-                self.Ss_tr = list(np.zeros([numDays], dtype = np.int))
-            elif nper > 0:
-                # compute nper, perlen, nstp, tsmult based on daily RF analysis
-                self.nper = nper
-                self.timedef = 1
+            self.nper = nper
             l += 1
             self.itmuni = int(inputFile[l].strip())
             l += 1
@@ -460,9 +449,9 @@ class clsMF():
         botm_tmp = []
         for l in range(self.nlay):
             if l == 0:
-                thick_tmp = self.thick[l,:,:]*1.0
+                thick_tmp = self.thick[l,:,:]*self.ibound[l,:,:]
             else:
-                thick_tmp += self.thick[l,:,:]
+                thick_tmp += self.thick[l,:,:]*self.ibound[l,:,:]
             botm_tmp.append(np.ma.masked_values(elev_tmp - thick_tmp, self.hnoflo, atol = 0.09))
         del elev_tmp, thick_tmp
 #        self.botm = list(np.swapaxes(botm_tmp,0,1))
@@ -703,250 +692,214 @@ class clsMF():
         if NFIELD != None:
             del inputZON_dSP_RF_irr_fn, inputZON_dSP_RFe_irr_fn, inputZON_dSP_PT_irr_fn, input_dSP_crop_irr_fn, inputFileRF_irr, inputFileRFe_irr, inputFilePT_irr, inputFilecrop_irr
 
-        if self.timedef > 0:
-            print'\nComputing MODFLOW time discretization based on rainfall analysis in each METEO zone...'
-            # summing RF and avering other flux when RF = 0
-            perlenmax = self.nper
-            RF_veg_stp = []
-            RFe_veg_stp = []
-            PT_veg_stp = []
-            LAI_veg_stp = []
-            PE_stp = []
-            E0_stp = []
-            RF_veg_stp_tmp = []
-            RFe_veg_stp_tmp = []
-            PT_veg_stp_tmp = []
-            LAI_veg_stp_tmp = []
-            PE_stp_tmp=[]
-            E0_stp_tmp = []
+        print'\nComputing MODFLOW time discretization based on rainfall analysis in each METEO zone...'
+        # summing RF and avering other flux when RF = 0
+        perlenmax = self.nper
+        RF_veg_stp = []
+        RFe_veg_stp = []
+        PT_veg_stp = []
+        LAI_veg_stp = []
+        PE_stp = []
+        E0_stp = []
+        RF_veg_stp_tmp = []
+        RFe_veg_stp_tmp = []
+        PT_veg_stp_tmp = []
+        LAI_veg_stp_tmp = []
+        PE_stp_tmp=[]
+        E0_stp_tmp = []
+        if NFIELD != None:
+            RF_irr_stp = []
+            RFe_irr_stp = []
+            PT_irr_stp = []
+            crop_irr_stp = []
+            RF_irr_stp_tmp = []
+            RFe_irr_stp_tmp = []
+            PT_irr_stp_tmp = []
+            crop_irr_stp_tmp = []
+        self.nper = 0
+        self.perlen = []
+        perlen_tmp = 0
+        c_ = 0
+        for n in range(NMETEO):
+            RF_veg_stp.append([])
+            RF_veg_stp_tmp.append(0.0)
+            PT_veg_stp.append([])
+            PT_veg_stp_tmp.append([])
+            RFe_veg_stp.append([])
+            RFe_veg_stp_tmp.append([])
+            LAI_veg_stp.append([])
+            LAI_veg_stp_tmp.append([])
+            for v in range(NVEG):
+                PT_veg_stp[n].append([])
+                PT_veg_stp_tmp[n].append(0.0)
+                RFe_veg_stp[n].append([])
+                RFe_veg_stp_tmp[n].append(0.0)
+                LAI_veg_stp[n].append([])
+                LAI_veg_stp_tmp[n].append(0.0)
+            PE_stp.append([])
+            PE_stp_tmp.append([])
+            for v in range(NSOIL):
+                PE_stp[n].append([])
+                PE_stp_tmp[n].append(0.0)
+            E0_stp.append([])
+            E0_stp_tmp.append(0.0)
             if NFIELD != None:
-                RF_irr_stp = []
-                RFe_irr_stp = []
-                PT_irr_stp = []
-                crop_irr_stp = []
-                RF_irr_stp_tmp = []
-                RFe_irr_stp_tmp = []
-                PT_irr_stp_tmp = []
-                crop_irr_stp_tmp = []
-            self.nper = 0
-            self.perlen = []
-            perlen_tmp = 0
-            c_ = 0
-            for n in range(NMETEO):
-                RF_veg_stp.append([])
-                RF_veg_stp_tmp.append(0.0)
-                PT_veg_stp.append([])
-                PT_veg_stp_tmp.append([])
-                RFe_veg_stp.append([])
-                RFe_veg_stp_tmp.append([])
-                LAI_veg_stp.append([])
-                LAI_veg_stp_tmp.append([])
-                for v in range(NVEG):
-                    PT_veg_stp[n].append([])
-                    PT_veg_stp_tmp[n].append(0.0)
-                    RFe_veg_stp[n].append([])
-                    RFe_veg_stp_tmp[n].append(0.0)
-                    LAI_veg_stp[n].append([])
-                    LAI_veg_stp_tmp[n].append(0.0)
-                PE_stp.append([])
-                PE_stp_tmp.append([])
-                for v in range(NSOIL):
-                    PE_stp[n].append([])
-                    PE_stp_tmp[n].append(0.0)
-                E0_stp.append([])
-                E0_stp_tmp.append(0.0)
-                if NFIELD != None:
-                    RF_irr_stp.append([])
-                    RF_irr_stp_tmp.append([])
-                    RFe_irr_stp.append([])
-                    RFe_irr_stp_tmp.append([])
-                    PT_irr_stp.append([])
-                    PT_irr_stp_tmp.append([])
-                    crop_irr_stp.append([])
-                    crop_irr_stp_tmp.append([])
-                    for f in range(NFIELD):
-                        RF_irr_stp[n].append([])
-                        RF_irr_stp_tmp[n].append(0.0)
-                        RFe_irr_stp[n].append([])
-                        RFe_irr_stp_tmp[n].append(0.0)
-                        PT_irr_stp[n].append([])
-                        PT_irr_stp_tmp[n].append(0.0)
-                        crop_irr_stp[n].append([])
-                        crop_irr_stp_tmp[n].append(0.0)
-            if perlenmax < 2:
-                self.cUTIL.ErrorExit(msg = '\nFATAL ERROR!\nCorrect perlenmax in the MODFLOW ini file (perlenmax must be higher than 1) or select the daily option.')
-            for t in range(len(self.JD)):
-                if NFIELD != None:
-                    val_tmp = (RF_veg_d[:,t].sum()+RF_irr_d[:,:,t].sum()).sum()
-                else:
-                    val_tmp = RF_veg_d[:,t].sum()
-                if val_tmp > 0.0:
-                    if c_ == 1:
-                        for n in range(NMETEO):
-                            RF_veg_stp[n].append(RF_veg_stp_tmp[n]/perlen_tmp)
-                            RF_veg_stp_tmp[n] = 0.0
-                            for v in range(NVEG):
-                                PT_veg_stp[n][v].append(PT_veg_stp_tmp[n][v]/perlen_tmp)
-                                PT_veg_stp_tmp[n][v] = 0.0
-                                RFe_veg_stp[n][v].append(RFe_veg_stp_tmp[n][v]/perlen_tmp)
-                                RFe_veg_stp_tmp[n][v] = 0.0
-                                LAI_veg_stp[n][v].append(LAI_veg_stp_tmp[n][v]/perlen_tmp)
-                                LAI_veg_stp_tmp[n][v] = 0.0
-                            for s in range(NSOIL):
-                                PE_stp[n][s].append(PE_stp_tmp[n][s]/perlen_tmp)
-                                PE_stp_tmp[n][s] = 0.0
-                            E0_stp[n].append(E0_stp_tmp[n]/perlen_tmp)
-                            E0_stp_tmp[n] = 0.0
-                            if NFIELD != None:
-                                for f in range(NFIELD):
-                                    RF_irr_stp[n][f].append(RF_irr_stp_tmp[n][f]/perlen_tmp)
-                                    RF_irr_stp_tmp[n][f] = 0.0
-                                    RFe_irr_stp[n][f].append(RFe_irr_stp_tmp[n][f]/perlen_tmp)
-                                    RFe_irr_stp_tmp[n][f] = 0.0
-                                    PT_irr_stp[n][f].append(PT_irr_stp_tmp[n][f]/perlen_tmp)
-                                    PT_irr_stp_tmp[n][f] = 0.0
-                                    crop_irr_stp[n][f].append(np.ceil(crop_irr_stp_tmp[n][f]/perlen_tmp))
-                                    crop_irr_stp_tmp[n][f] = 0.0
-                        self.perlen.append(perlen_tmp)
-                        perlen_tmp = 0
+                RF_irr_stp.append([])
+                RF_irr_stp_tmp.append([])
+                RFe_irr_stp.append([])
+                RFe_irr_stp_tmp.append([])
+                PT_irr_stp.append([])
+                PT_irr_stp_tmp.append([])
+                crop_irr_stp.append([])
+                crop_irr_stp_tmp.append([])
+                for f in range(NFIELD):
+                    RF_irr_stp[n].append([])
+                    RF_irr_stp_tmp[n].append(0.0)
+                    RFe_irr_stp[n].append([])
+                    RFe_irr_stp_tmp[n].append(0.0)
+                    PT_irr_stp[n].append([])
+                    PT_irr_stp_tmp[n].append(0.0)
+                    crop_irr_stp[n].append([])
+                    crop_irr_stp_tmp[n].append(0.0)
+        for t in range(len(self.JD)):
+            if NFIELD != None:
+                val_tmp = (RF_veg_d[:,t].sum()+RF_irr_d[:,:,t].sum()).sum()
+            else:
+                val_tmp = RF_veg_d[:,t].sum()
+            if val_tmp > 0.0:
+                if c_ == 1:
                     for n in range(NMETEO):
-                        RF_veg_stp[n].append(RF_veg_d[n,t])
+                        RF_veg_stp[n].append(RF_veg_stp_tmp[n]/perlen_tmp)
+                        RF_veg_stp_tmp[n] = 0.0
                         for v in range(NVEG):
-                            PT_veg_stp[n][v].append(PT_veg_d[n,v,t])
-                            RFe_veg_stp[n][v].append(RFe_veg_d[n,v,t])
-                            LAI_veg_stp[n][v].append(self.LAI_veg_d[n,v,t])
+                            PT_veg_stp[n][v].append(PT_veg_stp_tmp[n][v]/perlen_tmp)
+                            PT_veg_stp_tmp[n][v] = 0.0
+                            RFe_veg_stp[n][v].append(RFe_veg_stp_tmp[n][v]/perlen_tmp)
+                            RFe_veg_stp_tmp[n][v] = 0.0
+                            LAI_veg_stp[n][v].append(LAI_veg_stp_tmp[n][v]/perlen_tmp)
+                            LAI_veg_stp_tmp[n][v] = 0.0
                         for s in range(NSOIL):
-                            PE_stp[n][s].append(PE_d[n,s,t])
-                        E0_stp[n].append(E0_d[n,t])
+                            PE_stp[n][s].append(PE_stp_tmp[n][s]/perlen_tmp)
+                            PE_stp_tmp[n][s] = 0.0
+                        E0_stp[n].append(E0_stp_tmp[n]/perlen_tmp)
+                        E0_stp_tmp[n] = 0.0
                         if NFIELD != None:
                             for f in range(NFIELD):
-                                RF_irr_stp[n][f].append(RF_irr_d[n,f,t])
-                                RFe_irr_stp[n][f].append(RFe_irr_d[n,f,t])
-                                PT_irr_stp[n][f].append(PT_irr_d[n,f,t])
-                                crop_irr_stp[n][f].append(self.crop_irr_d[n,f,t])
-                    self.nper += 1
-                    self.perlen.append(1)
-                    c_ = 0
-                else:
-                    if perlen_tmp < perlenmax:
-                        for n in range(NMETEO):
-                            RF_veg_stp_tmp[n]  += RF_veg_d[n,t]
-                            for v in range(NVEG):
-                                PT_veg_stp_tmp[n][v] += PT_veg_d[n,v,t]
-                                LAI_veg_stp_tmp[n][v] += self.LAI_veg_d[n,v,t]
-                            for s in range(NSOIL):
-                                PE_stp_tmp[n][s]  += PE_d[n,s,t]
-                            E0_stp_tmp[n]  += E0_d[n,t]
-                            if NFIELD != None:
-                                for f in range(NFIELD):
-                                    RF_irr_stp_tmp[n][f] += RF_irr_d[n,f,t]
-                                    PT_irr_stp_tmp[n][f] += PT_irr_d[n,f,t]
-                                    crop_irr_stp_tmp[n][f] += self.crop_irr_d[n,f,t]
-                        if c_ == 0:
-                            self.nper += 1
-                        perlen_tmp += 1
-                        c_ = 1
-                    else:
-                        for n in range(NMETEO):
-                            RF_veg_stp[n].append(RF_veg_stp_tmp[n]/perlen_tmp)
-                            RF_veg_stp_tmp[n] = 0.0
-                            for v in range(NVEG):
-                                PT_veg_stp[n][v].append(PT_veg_stp_tmp[n][v]/perlen_tmp)
-                                PT_veg_stp_tmp[n][v] = 0.0
-                                RFe_veg_stp[n][v].append(RFe_veg_stp_tmp[n][v]/perlen_tmp)
-                                RFe_veg_stp_tmp[n][v] = 0.0
-                                LAI_veg_stp[n][v].append(LAI_veg_stp_tmp[n][v]/perlen_tmp)
-                                LAI_veg_stp_tmp[n][v] = 0.0
-                            for s in range(NSOIL):
-                                PE_stp[n][s].append(PE_stp_tmp[n][s]/perlen_tmp)
-                                PE_stp_tmp[n][s] = 0.0
-                            E0_stp[n].append(E0_stp_tmp[n]/perlen_tmp)
-                            E0_stp_tmp[n] = 0.0
-                            if NFIELD != None:
-                                for f in range(NFIELD):
-                                    RF_irr_stp[n][f].append(RF_irr_stp_tmp[n][f]/perlen_tmp)
-                                    RF_irr_stp_tmp[n][f] = 0.0
-                                    RFe_irr_stp[n][f].append(RFe_irr_stp_tmp[n][f]/perlen_tmp)
-                                    RFe_irr_stp_tmp[n][f] = 0.0
-                                    PT_irr_stp[n][f].append(PT_irr_stp_tmp[n][f]/perlen_tmp)
-                                    PT_irr_stp_tmp[n][f] = 0.0
-                                    crop_irr_stp[n][f].append(np.ceil(crop_irr_stp_tmp[n][f]/perlen_tmp))
-                                    crop_irr_stp_tmp[n][f] = 0.0
-                        self.perlen.append(perlen_tmp)
-                        for n in range(NMETEO):
-                            RF_veg_stp_tmp[n]  += RF_veg_d[n,t]
-                            for v in range(NVEG):
-                                PT_veg_stp_tmp[n][v] += PT_veg_d[n,v,t]
-                                LAI_veg_stp_tmp[n][v] += self.LAI_veg_d[n,v,t]
-                            for s in range(NSOIL):
-                                PE_stp_tmp[n][s]  += PE_d[n,s,t]
-                            E0_stp_tmp[n]  += E0_d[n,t]
-                            if NFIELD != None:
-                                for f in range(NFIELD):
-                                    RF_irr_stp_tmp[n][f]  += RF_irr_d[n,f,t]
-                                    PT_irr_stp_tmp[n][f] += PT_irr_d[n,f,t]
-                                    crop_irr_stp_tmp[n][f] += self.crop_irr_d[n,f,t]
-                        self.nper += 1
-                        perlen_tmp = 1
-                        c_ = 1
-            if c_ == 1:
+                                RF_irr_stp[n][f].append(RF_irr_stp_tmp[n][f]/perlen_tmp)
+                                RF_irr_stp_tmp[n][f] = 0.0
+                                RFe_irr_stp[n][f].append(RFe_irr_stp_tmp[n][f]/perlen_tmp)
+                                RFe_irr_stp_tmp[n][f] = 0.0
+                                PT_irr_stp[n][f].append(PT_irr_stp_tmp[n][f]/perlen_tmp)
+                                PT_irr_stp_tmp[n][f] = 0.0
+                                crop_irr_stp[n][f].append(np.ceil(crop_irr_stp_tmp[n][f]/perlen_tmp))
+                                crop_irr_stp_tmp[n][f] = 0.0
+                    self.perlen.append(perlen_tmp)
+                    perlen_tmp = 0
                 for n in range(NMETEO):
-                    RF_veg_stp[n].append(RF_veg_stp_tmp[n]/perlen_tmp)
+                    RF_veg_stp[n].append(RF_veg_d[n,t])
                     for v in range(NVEG):
-                        PT_veg_stp[n][v].append(PT_veg_stp_tmp[n][v]/perlen_tmp)
-                        RFe_veg_stp[n][v].append(RFe_veg_stp_tmp[n][v]/perlen_tmp)
-                        LAI_veg_stp[n][v].append(LAI_veg_stp_tmp[n][v]/perlen_tmp)
+                        PT_veg_stp[n][v].append(PT_veg_d[n,v,t])
+                        RFe_veg_stp[n][v].append(RFe_veg_d[n,v,t])
+                        LAI_veg_stp[n][v].append(self.LAI_veg_d[n,v,t])
                     for s in range(NSOIL):
-                        PE_stp[n][s].append(PE_stp_tmp[n][s]/perlen_tmp)
-                    E0_stp[n].append(E0_stp_tmp[n]/perlen_tmp)
+                        PE_stp[n][s].append(PE_d[n,s,t])
+                    E0_stp[n].append(E0_d[n,t])
                     if NFIELD != None:
                         for f in range(NFIELD):
-                            RF_irr_stp[n][f].append(RF_irr_stp_tmp[n][f]/perlen_tmp)
-                            RFe_irr_stp[n][f].append(RFe_irr_stp_tmp[n][f]/perlen_tmp)
-                            PT_irr_stp[n][f].append(PT_irr_stp_tmp[n][f]/perlen_tmp)
-                            crop_irr_stp[n][f].append(np.ceil(crop_irr_stp_tmp[n][f]/perlen_tmp))
-                self.perlen.append(perlen_tmp)
-            del perlen_tmp
-            del RF_veg_d, RFe_veg_d, PT_veg_d, PE_d, E0_d, RF_veg_stp_tmp, PT_veg_stp_tmp, PE_stp_tmp, E0_stp_tmp, c_
-            self.perlen = np.asarray(self.perlen, dtype = np.int)
-            self.nstp = np.ones(self.nper, dtype = np.int)
-            self.tsmult = self.nstp
-            self.Ss_tr = []
-            for n in range(self.nper):
-                self.Ss_tr.append(False)
-        elif self.timedef < 0:
-            print'\nTime discretization based on daily time step'
-            RF_veg_stp = np.zeros([NMETEO,sum(self.nstp)])
-            PT_veg_stp = np.zeros([NMETEO,NVEG,sum(self.nstp)])
-            RFe_veg_stp = np.zeros([NMETEO,NVEG,sum(self.nstp)])
-            LAI_veg_stp = np.zeros([NMETEO,NVEG,sum(self.nstp)])
-            PE_stp = np.zeros([NMETEO,NSOIL,sum(self.nstp)])
-            E0_stp = np.zeros([NMETEO,sum(self.nstp)])
-            if NFIELD != None:
-                RF_irr_stp = np.zeros([NMETEO,NFIELD,(self.nstp)], dtype = float)
-                RFe_irr_stp = np.zeros([NMETEO,NFIELD,(self.nstp)], dtype = float)
-                PT_irr_stp = np.zeros([NMETEO,NFIELD,(self.nstp)], dtype = float)
-                crop_irr_stp = np.zeros([NMETEO,NFIELD,(self.nstp)], dtype = float)
-            stp = 0
-            for per in range(self.nper):
-                for stp in range(self.nstp[per]):
-                    tstart = sum(self.perlen[0:per])+stp*(self.perlen[per]/self.nstp[per])
-                    tend = sum(self.perlen[0:per])+(self.perlen[per]/self.nstp[per])*(1+stp)
+                            RF_irr_stp[n][f].append(RF_irr_d[n,f,t])
+                            RFe_irr_stp[n][f].append(RFe_irr_d[n,f,t])
+                            PT_irr_stp[n][f].append(PT_irr_d[n,f,t])
+                            crop_irr_stp[n][f].append(self.crop_irr_d[n,f,t])
+                self.nper += 1
+                self.perlen.append(1)
+                c_ = 0
+            else:
+                if perlen_tmp < perlenmax:
                     for n in range(NMETEO):
-                        RF_veg_stp[n,sum(self.nstp[0:per])+stp] += RF_veg_d[n,tstart:tend].sum()/(self.perlen[per]/self.nstp[per])
+                        RF_veg_stp_tmp[n]  += RF_veg_d[n,t]
                         for v in range(NVEG):
-                            PT_veg_stp[n,v,sum(self.nstp[0:per])+stp] += PT_veg_d[n,v,tstart:tend].sum()/(self.perlen[per]/self.nstp[per])
-                            RFe_veg_stp[n,v,sum(self.nstp[0:per])+stp] += RFe_veg_d[n,v,tstart:tend].sum()/(self.perlen[per]/self.nstp[per])
-                            LAI_veg_stp[n,v,sum(self.nstp[0:per])+stp] += self.LAI_veg_d[n,v,tstart:tend].sum()/(self.perlen[per]/self.nstp[per])
+                            PT_veg_stp_tmp[n][v] += PT_veg_d[n,v,t]
+                            LAI_veg_stp_tmp[n][v] += self.LAI_veg_d[n,v,t]
                         for s in range(NSOIL):
-                            PE_stp[n,s,sum(self.nstp[0:per])+stp] += PE_d[n,s,tstart:tend].sum()/(self.perlen[per]/self.nstp[per])
-                        E0_stp[n,sum(self.nstp[0:per])+stp] += E0_d[n,tstart:tend].sum()/(self.perlen[per]/self.nstp[per])
+                            PE_stp_tmp[n][s]  += PE_d[n,s,t]
+                        E0_stp_tmp[n]  += E0_d[n,t]
                         if NFIELD != None:
                             for f in range(NFIELD):
-                                RF_irr_stp[n,f,sum(self.nstp[0:per])+stp] += RF_irr_d[n,f,tstart:tend].sum()/(self.perlen[per]/self.nstp[per])
-                                RFe_irr_stp[n,f,sum(self.nstp[0:per])+stp] += RFe_irr_d[n,f,tstart:tend].sum()/(self.perlen[per]/self.nstp[per])
-                                PT_irr_stp[n,f,sum(self.nstp[0:per])+stp] += PT_irr_d[n,f,tstart:tend].sum()/(self.perlen[per]/self.nstp[per])
-                                crop_irr_stp[n,f,sum(self.nstp[0:per])+stp] += np.ceil(self.crop_irr_d[n,f,tstart:tend].sum()/(self.perlen[per]/self.nstp[per]))
+                                RF_irr_stp_tmp[n][f] += RF_irr_d[n,f,t]
+                                PT_irr_stp_tmp[n][f] += PT_irr_d[n,f,t]
+                                crop_irr_stp_tmp[n][f] += self.crop_irr_d[n,f,t]
+                    if c_ == 0:
+                        self.nper += 1
+                    perlen_tmp += 1
+                    c_ = 1
+                else:
+                    for n in range(NMETEO):
+                        RF_veg_stp[n].append(RF_veg_stp_tmp[n]/perlen_tmp)
+                        RF_veg_stp_tmp[n] = 0.0
+                        for v in range(NVEG):
+                            PT_veg_stp[n][v].append(PT_veg_stp_tmp[n][v]/perlen_tmp)
+                            PT_veg_stp_tmp[n][v] = 0.0
+                            RFe_veg_stp[n][v].append(RFe_veg_stp_tmp[n][v]/perlen_tmp)
+                            RFe_veg_stp_tmp[n][v] = 0.0
+                            LAI_veg_stp[n][v].append(LAI_veg_stp_tmp[n][v]/perlen_tmp)
+                            LAI_veg_stp_tmp[n][v] = 0.0
+                        for s in range(NSOIL):
+                            PE_stp[n][s].append(PE_stp_tmp[n][s]/perlen_tmp)
+                            PE_stp_tmp[n][s] = 0.0
+                        E0_stp[n].append(E0_stp_tmp[n]/perlen_tmp)
+                        E0_stp_tmp[n] = 0.0
+                        if NFIELD != None:
+                            for f in range(NFIELD):
+                                RF_irr_stp[n][f].append(RF_irr_stp_tmp[n][f]/perlen_tmp)
+                                RF_irr_stp_tmp[n][f] = 0.0
+                                RFe_irr_stp[n][f].append(RFe_irr_stp_tmp[n][f]/perlen_tmp)
+                                RFe_irr_stp_tmp[n][f] = 0.0
+                                PT_irr_stp[n][f].append(PT_irr_stp_tmp[n][f]/perlen_tmp)
+                                PT_irr_stp_tmp[n][f] = 0.0
+                                crop_irr_stp[n][f].append(np.ceil(crop_irr_stp_tmp[n][f]/perlen_tmp))
+                                crop_irr_stp_tmp[n][f] = 0.0
+                    self.perlen.append(perlen_tmp)
+                    for n in range(NMETEO):
+                        RF_veg_stp_tmp[n]  += RF_veg_d[n,t]
+                        for v in range(NVEG):
+                            PT_veg_stp_tmp[n][v] += PT_veg_d[n,v,t]
+                            LAI_veg_stp_tmp[n][v] += self.LAI_veg_d[n,v,t]
+                        for s in range(NSOIL):
+                            PE_stp_tmp[n][s]  += PE_d[n,s,t]
+                        E0_stp_tmp[n]  += E0_d[n,t]
+                        if NFIELD != None:
+                            for f in range(NFIELD):
+                                RF_irr_stp_tmp[n][f]  += RF_irr_d[n,f,t]
+                                PT_irr_stp_tmp[n][f] += PT_irr_d[n,f,t]
+                                crop_irr_stp_tmp[n][f] += self.crop_irr_d[n,f,t]
+                    self.nper += 1
+                    perlen_tmp = 1
+                    c_ = 1
+        if c_ == 1:
+            for n in range(NMETEO):
+                RF_veg_stp[n].append(RF_veg_stp_tmp[n]/perlen_tmp)
+                for v in range(NVEG):
+                    PT_veg_stp[n][v].append(PT_veg_stp_tmp[n][v]/perlen_tmp)
+                    RFe_veg_stp[n][v].append(RFe_veg_stp_tmp[n][v]/perlen_tmp)
+                    LAI_veg_stp[n][v].append(LAI_veg_stp_tmp[n][v]/perlen_tmp)
+                for s in range(NSOIL):
+                    PE_stp[n][s].append(PE_stp_tmp[n][s]/perlen_tmp)
+                E0_stp[n].append(E0_stp_tmp[n]/perlen_tmp)
+                if NFIELD != None:
+                    for f in range(NFIELD):
+                        RF_irr_stp[n][f].append(RF_irr_stp_tmp[n][f]/perlen_tmp)
+                        RFe_irr_stp[n][f].append(RFe_irr_stp_tmp[n][f]/perlen_tmp)
+                        PT_irr_stp[n][f].append(PT_irr_stp_tmp[n][f]/perlen_tmp)
+                        crop_irr_stp[n][f].append(np.ceil(crop_irr_stp_tmp[n][f]/perlen_tmp))
+            self.perlen.append(perlen_tmp)
+        del perlen_tmp
+        del RF_veg_d, RFe_veg_d, PT_veg_d, PE_d, E0_d, RF_veg_stp_tmp, PT_veg_stp_tmp, PE_stp_tmp, E0_stp_tmp, c_
+        self.perlen = np.asarray(self.perlen, dtype = np.int)
+        self.nstp = np.ones(self.nper, dtype = np.int)
+        self.tsmult = self.nstp
+        self.Ss_tr = []
+        for n in range(self.nper):
+            self.Ss_tr.append(False)
 
         self.inputZON_SP_RF_veg_fn = "inputZON_RF_veg_stp.txt"
         self.inputZON_RF_veg_fn = os.path.join(self.MM_ws, self.inputZON_SP_RF_veg_fn)

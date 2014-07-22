@@ -151,47 +151,34 @@ class clsPROCESS:
         # cbc format is : (kstp), kper, textprocess, nrow, ncol, nlay
         t = 0
         h5_MF.create_dataset(name = ds_name_new, data = np.zeros((sum(cMF.perlen), cMF.nlay, cMF.nrow, cMF.ncol)))
-        if cMF.timedef > 0:
-            for n in range(cMF.nper):
-                if cMF.perlen[n] != 1:
-                    for x in range(cMF.perlen[n]):
-                        if ds_name == 'heads':
-                            h5_MF[ds_name_new][t,:,:,:] = h5_MF['heads'][n,:,:,:]
-                        else:
-                            array_tmp = h5_MF[ds_name][n,:,:,:,index]
-                            if cMF.reggrid == 1 and ds_name != 'heads':
-                                h5_MF[ds_name_new][t,:,:,:] = conv_fact*array_tmp/(cMF.delr[0]*cMF.delc[0])
-                            else:
-                                for i in range(cMF.nrow):
-                                    for j in range(cMF.ncol):
-                                        h5_MF[ds_name_new][t,i,j,:] = conv_fact*array_tmp[i,j,:]/(cMF.delr[j]*cMF.delc[i])
-                            del array_tmp
-                        t += 1
-                else:
+        for n in range(cMF.nper):
+            if cMF.perlen[n] != 1:
+                for x in range(cMF.perlen[n]):
                     if ds_name == 'heads':
                         h5_MF[ds_name_new][t,:,:,:] = h5_MF['heads'][n,:,:,:]
                     else:
                         array_tmp = h5_MF[ds_name][n,:,:,:,index]
-                        if cMF.reggrid == 1:
+                        if cMF.reggrid == 1 and ds_name != 'heads':
                             h5_MF[ds_name_new][t,:,:,:] = conv_fact*array_tmp/(cMF.delr[0]*cMF.delc[0])
                         else:
                             for i in range(cMF.nrow):
                                 for j in range(cMF.ncol):
-                                    h5_MF[ds_name_new][t,:,i,j] = conv_fact*array_tmp[:,i,j]/(cMF.delr[j]*cMF.delc[i])
+                                    h5_MF[ds_name_new][t,i,j,:] = conv_fact*array_tmp[i,j,:]/(cMF.delr[j]*cMF.delc[i])
                         del array_tmp
                     t += 1
-        else:
-            if ds_name == 'heads':
-                h5_MF[ds_name_new][:,:,:,:] = h5_MF['heads']
             else:
-                array_tmp = h5_MF[ds_name][:,:,:,:,index]
-                if cMF.reggrid == 1:
-                    h5_MF[ds_name_new][:,:,:,:] = conv_fact*array_tmp/(cMF.delr[0]*cMF.delc[0])
+                if ds_name == 'heads':
+                    h5_MF[ds_name_new][t,:,:,:] = h5_MF['heads'][n,:,:,:]
                 else:
-                    for i in range(cMF.nrow):
-                        for j in range(cMF.ncol):
-                            h5_MF[ds_name_new][:,:,i,j] = conv_fact*array_tmp[:,i,j]/(cMF.delr[j]*cMF.delc[i])
+                    array_tmp = h5_MF[ds_name][n,:,:,:,index]
+                    if cMF.reggrid == 1:
+                        h5_MF[ds_name_new][t,:,:,:] = conv_fact*array_tmp/(cMF.delr[0]*cMF.delc[0])
+                    else:
+                        for i in range(cMF.nrow):
+                            for j in range(cMF.ncol):
+                                h5_MF[ds_name_new][t,:,i,j] = conv_fact*array_tmp[:,i,j]/(cMF.delr[j]*cMF.delc[i])
                     del array_tmp
+                t += 1
 
     ######################
 
@@ -199,20 +186,15 @@ class clsPROCESS:
 
         t = 0
         h5_MM.create_dataset(name = ds_name_new, data = np.zeros((sum(cMF.perlen), cMF.nrow, cMF.ncol)))
-        if cMF.timedef > 0:
-            for n in range(cMF.nper):
-                array_tmp = h5_MM[ds_name][n,:,:]
-                if cMF.perlen[n] != 1:
-                    for x in range(cMF.perlen[n]):
-                        h5_MM[ds_name_new][t,:,:] = conv_fact*array_tmp
-                        t += 1
-                else:
+        for n in range(cMF.nper):
+            array_tmp = h5_MM[ds_name][n,:,:]
+            if cMF.perlen[n] != 1:
+                for x in range(cMF.perlen[n]):
                     h5_MM[ds_name_new][t,:,:] = conv_fact*array_tmp
                     t += 1
-        else:
-            array_tmp = h5_MM[ds_name][:,:,:]
-            h5_MM[ds_name_new][:,:,:] = conv_fact*array_tmp
-        del array_tmp
+            else:
+                h5_MM[ds_name_new][t,:,:] = conv_fact*array_tmp
+                t += 1
 
     ######################
 
@@ -435,7 +417,7 @@ class clsPROCESS:
             obs_list.append(name)
             x = float(line[1])
             y = float(line[2])
-            lay = float(line[3])
+            lay = int(line[3])
             try:
                 hi  = float(line[4])
                 h0  = float(line[5])
@@ -460,8 +442,8 @@ class clsPROCESS:
                 lay = lay - 1
             # compute the coordinates in the MODFLOW grid
             #TODO use the PEST utilities for space extrapolation
-            i = self.nrow - np.ceil((y-self.yllcorner)/self.cellsizeMF)
-            j = np.ceil((x-self.xllcorner)/self.cellsizeMF) - 1
+            i = int(self.nrow - np.ceil((y-self.yllcorner)/self.cellsizeMF))
+            j = int(np.ceil((x-self.xllcorner)/self.cellsizeMF) - 1)
             #  read obs time series
             obsh_fn = os.path.join(self.MM_ws, '%s_%s.txt' % (inputObsHEADS_fn, name))
             if os.path.exists(obsh_fn):
@@ -481,7 +463,7 @@ class clsPROCESS:
             else:
                 obs_Ro = []
                 obs_Ro_yn = 0
-            obs[name] = {'x':x,'y':y,'i': i, 'j': j, 'lay': lay, 'hi':hi, 'h0':h0, 'RC':RC, 'STO':STO, 'lbl':lbl, 'outpathname':os.path.join(self.MM_ws_out,'_0%s_ts.txt' % name), 'obs_h':obs_h, 'obs_h_yn':obs_h_yn, 'obs_SM':obs_sm, 'obs_sm_yn':obs_sm_yn, 'obs_Ro':obs_Ro, 'obs_Ro_yn':obs_Ro_yn}
+            obs[name] = {'x':x,'y':y,'i': i, 'j': j, 'lay': lay, 'hi':hi, 'h0':h0, 'RC':RC, 'STO':STO, 'lbl':lbl, 'outpathname':os.path.join(self.MM_ws_out,'_0%s_ts4xls.txt' % name), 'obs_h':obs_h, 'obs_h_yn':obs_h_yn, 'obs_SM':obs_sm, 'obs_sm_yn':obs_sm_yn, 'obs_Ro':obs_Ro, 'obs_Ro_yn':obs_Ro_yn}
 
         #  read catchment obs time series
         obsh_fn = os.path.join(self.MM_ws, '%s_catchment.txt' % inputObsHEADS_fn)
