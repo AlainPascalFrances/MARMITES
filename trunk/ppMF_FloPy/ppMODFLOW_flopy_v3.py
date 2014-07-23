@@ -524,7 +524,6 @@ class clsMF():
                 self.thts_actual = float(self.thts[0])
             except:
                 self.thts_actual = self.thts[0]
-            # TODO if thtr < 0, THTR = Sy + abs(THTR)
             if type(self.thts_actual) == float and self.thts_actual < 0:
                 self.thts_actual = np.abs(self.thts_actual)
                 if self.nlay < 2:
@@ -553,6 +552,13 @@ class clsMF():
                 self.thti_actual = self.thts_actual/(np.abs(self.thti_actual))
             else:
                 self.thti_actual = self.cPROCESS.checkarray(self.thti)
+            for l in range(self.nlay):
+                if (self.sy_actual[l,:,:]*self.ibound[l,:,:]+self.thtr_actual[0]>self.thts_actual).sum()> 0.0:
+                    self.thts_actual = self.sy_actual[l,:,:]+2.0*self.thtr_actual[0]
+                    print '\nWARNING!\nSy + THTR > THTS! Corrected: THTS = Sy + 2.0*THTR'
+            if (self.thti_actual[0]<self.thtr_actual[0]).sum()>0.0 or (self.thti_actual[0]>self.thts_actual).sum()>0.0:
+                self.thti_actual[0] = self.thtr_actual[0] + (self.thts_actual-self.thtr_actual[0])/4.0
+                print '\nWARNING!\nTHTI > THTS or THTI< THTR!Corrected: THTI = THTR + (THTS-THTR)/2.0'
 
         # DRAIN
         if self.drn_yn == 1:

@@ -1476,7 +1476,7 @@ def plotWBsankey(path, fn, index, year_lst, cMF, ncell_MM, obspt, fntitle):
                 flows.append(-R[k][L]/ff)
                 labels.append('$R^{L%d}$'%(L+1))
                 orientations.append(-1)
-                pathlengths.append(pl*1.5)
+                pathlengths.append(pl)
             pltsankey.add(patchlabel = '$\Delta S_u$\n%.1f' % (-DSu[k]/ff), label='MF_UZF', facecolor='lavender', trunklength = tl,
                        flows = flows,
                        labels=labels,
