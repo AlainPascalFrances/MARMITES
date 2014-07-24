@@ -553,12 +553,12 @@ class clsMF():
             else:
                 self.thti_actual = self.cPROCESS.checkarray(self.thti)
             for l in range(self.nlay):
-                if (self.sy_actual[l,:,:]*self.ibound[l,:,:]+self.thtr_actual[0]>self.thts_actual).sum()> 0.0:
-                    self.thts_actual = self.sy_actual[l,:,:]+2.0*self.thtr_actual[0]
+                if (np.asarray(self.sy_actual[l,:,:])*self.ibound[l,:,:]+np.asarray(self.thtr_actual)>np.asarray(self.thts_actual)).sum()> 0.0:
+                    self.thts_actual = np.asarray(self.sy_actual[l,:,:])+2.0*np.asarray(self.thtr_actual[0])
                     print '\nWARNING!\nSy + THTR > THTS! Corrected: THTS = Sy + 2.0*THTR'
-            if (self.thti_actual[0]<self.thtr_actual[0]).sum()>0.0 or (self.thti_actual[0]>self.thts_actual).sum()>0.0:
-                self.thti_actual[0] = self.thtr_actual[0] + (self.thts_actual-self.thtr_actual[0])/4.0
-                print '\nWARNING!\nTHTI > THTS or THTI< THTR!Corrected: THTI = THTR + (THTS-THTR)/2.0'
+            if (np.asarray(self.thti_actual)<np.asarray(self.thtr_actual)).sum()>0.0 or (np.asarray(self.thti_actual)>np.asarray(self.thts_actual)).sum()>0.0:
+                self.thti_actual = np.asarray(self.thtr_actual) + (np.asarray(self.thts_actual)-np.asarray(self.thtr_actual))/4.0
+                print '\nWARNING!\nTHTI > THTS or THTI< THTR!Corrected: THTI = THTR + (THTS-THTR)/4.0'
 
         # DRAIN
         if self.drn_yn == 1:
