@@ -406,7 +406,7 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
         maxfact = 1.05
         if min(np.min(MB), np.min(MB_l1)) > 0:
             minfact = 1.05
-        if max(np.max(MB), np.max(MB_l1ymax)) < 0:
+        if max(np.max(MB), np.max(MB_l1)) < 0:
             maxfact = 0.95
         plt.ylim(min(np.min(MB), np.min(MB_l1))*minfact,max(np.max(MB),np.max(MB_l1))*maxfact)
     # legend
@@ -614,7 +614,7 @@ def plotTIMESERIES_obsGW(cMF, flx, flx_lbl, plt_export_fn, plt_title, iniMonthHy
     Plot the time serie of the fluxes observed from the whole catchment
     Use Matplotlib
     """
-    dateFmt=mpl.dates.DateFormatter('%Y-%b-%d')
+    #dateFmt=mpl.dates.DateFormatter('%Y-%b-%d')
     dateminorFmt=mpl.dates.DateFormatter('%b')
     lblspc = 0.05
     mkscale = 1.0
@@ -1602,9 +1602,6 @@ def plotWBsankey(path, fn, index, year_lst, cMF, ncell_MM, obspt, fntitle):
                 #print In, Out, MB_MF[L]
                 InTot += sum(In)
                 OutTot += sum(Out)
-            MB_MFTot = 100*(InTot - OutTot)/((InTot + OutTot)/2)
-            #print 'TOT'
-            #print InTot, OutTot, MB_MFTot
             # plot all patches
             diagrams = pltsankey.finish()
             diagrams[-1].patch.set_hatch('/')
@@ -1633,7 +1630,6 @@ def plotWBsankey(path, fn, index, year_lst, cMF, ncell_MM, obspt, fntitle):
             msg = 'Water balance\nclosure (%%)\n-----------------\nMMsurf =%3.1f\nMMsoil =%3.1f\nMFUZF =%3.1f' % (MB_MMsurf, MB_MMsoil, MB_MFuzf) #
             for L in range(cMF.nlay):
                 msg += '\nMFL%d =%3.1f' % (L+1, MB_MF[L]) #%2.1f
-            msg +=  '\nMFtot =%3.1f' % (MB_MFTot) #%2.1f
             if p == 0:
                 xy = (0.14, 0.11)
             else:

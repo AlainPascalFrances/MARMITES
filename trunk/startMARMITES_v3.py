@@ -108,10 +108,6 @@ try:
     l += 1
     plt_out_obs = int(inputFile[l].strip())
     l += 1
-    plt_out_catch = int(inputFile[l].strip())
-    l += 1
-    if plt_out_obs>0 or plt_out>0:
-        plt_out_catch = 1
     plt_WB_unit = inputFile[l].strip()
     if plt_WB_unit == 'year':
         facTim = 365.0
@@ -1313,7 +1309,7 @@ else:
 # #################################################
 # plot SOIL/GW ts and balance at the catchment scale
 # #################################################
-if plt_out_catch == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
+if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
     try:
         h5_MM = h5py.File(h5_MM_fn, 'r')
     except:
@@ -1535,20 +1531,24 @@ if plt_out_catch == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_
             del cbc_FFF, array_tmp1
             flxlbl_tex.append('$FFF^{L%d}$'%(l+1))            
             # GW_FLF
-            try:
-                cbc_FLF_L   = h5_MF['FLF_d'][:,l,:,:]
-                cbc_FLF_Lm1 = h5_MF['FLF_d'][:,l-1,:,:]
-                array_tmp1_L   = np.sum(np.ma.masked_values(cbc_FLF_L, cMF.hnoflo, atol = 0.09), axis = 1)
-                array_tmp1_Lm1 = np.sum(np.ma.masked_values(cbc_FLF_Lm1, cMF.hnoflo, atol = 0.09), axis = 1)
-                array_tmp2_L   = np.sum(np.ma.masked_values(array_tmp1_L, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM)
-                array_tmp2_Lm1 = np.sum(np.ma.masked_values(array_tmp1_Lm1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM)
-                flx_Cat_TS.append(array_tmp2_Lm1 - array_tmp2_L)
-                del cbc_FLF_L, cbc_FLF_Lm1, array_tmp1_L, array_tmp2_L, array_tmp1_Lm1, array_tmp2_Lm1
-            except:
-                cbc_FLF = -h5_MF['FLF_d'][:,l,:,:]
-                array_tmp1 = np.sum(np.ma.masked_values(cbc_FLF, cMF.hnoflo, atol = 0.09), axis = 1)
-                flx_Cat_TS.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
-                del cbc_FLF, array_tmp1
+#            try:
+#                cbc_FLF_L   = h5_MF['FLF_d'][:,l,:,:]
+#                cbc_FLF_Lm1 = h5_MF['FLF_d'][:,l-1,:,:]
+#                array_tmp1_L   = np.sum(np.ma.masked_values(cbc_FLF_L, cMF.hnoflo, atol = 0.09), axis = 1)
+#                array_tmp1_Lm1 = np.sum(np.ma.masked_values(cbc_FLF_Lm1, cMF.hnoflo, atol = 0.09), axis = 1)
+#                array_tmp2_L   = np.sum(np.ma.masked_values(array_tmp1_L, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM)
+#                array_tmp2_Lm1 = np.sum(np.ma.masked_values(array_tmp1_Lm1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM)
+#                flx_Cat_TS.append(array_tmp2_Lm1 - array_tmp2_L)
+#                del cbc_FLF_L, cbc_FLF_Lm1, array_tmp1_L, array_tmp2_L, array_tmp1_Lm1, array_tmp2_Lm1
+#            except:
+#                cbc_FLF = -h5_MF['FLF_d'][:,l,:,:]
+#                array_tmp1 = np.sum(np.ma.masked_values(cbc_FLF, cMF.hnoflo, atol = 0.09), axis = 1)
+#                flx_Cat_TS.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
+#                del cbc_FLF, array_tmp1
+            cbc_FLF = h5_MF['FLF_d'][:,l,:,:]
+            array_tmp1 = np.sum(np.ma.masked_values(cbc_FLF, cMF.hnoflo, atol = 0.09), axis = 1)
+            flx_Cat_TS.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
+            del cbc_FLF, array_tmp1
             flxlbl_tex.append('$FLF^{L%d}$'%(l+1))
             # EXF
             cbc_EXF = h5_MF['EXF_d'][:,l,:,:]
@@ -1760,6 +1760,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                                     )
                     except:
                         print 'Error exporting TS at obs. point %s' % o
+                    print o, cMF.elev[i,j], h_MF_m[-1,:,i,j]
                     #x += 1
                     # plot water balance at each obs. cell
                     flx_obs_TS.append((MM[:,index_MM.get('iRF')]))
@@ -1790,7 +1791,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                     for z, ii in enumerate(['iSsurf', 'iPE', 'iPT', 'iinf']):
                         flx_obs_TS.append(np.ma.masked_values(MM[:,index_MM.get(ii)], cMF.hnoflo, atol = 0.09))
                     # ADD SM averaged
-                    flx_obs_TS.append(np.ma.masked_values(MM[:,index_MM.get('idSsoil')], cMF.hnoflo, atol = 0.09))                    
+                    flx_obs_TS.append(np.ma.masked_values(MM[:,index_MM.get('iSsoil_pc')], cMF.hnoflo, atol = 0.09))                    
                     # compute UZF_STO and store GW_RCH
                     rch_tot = 0
                     # GW_RCH
@@ -1804,10 +1805,11 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                     flx_obs_TS.append(rch_tot - Rp)
                     del rch_tmp, rch_tot, Rp
                     for l in range(cMF.nlay):
-                        # ADD heads averaged                    
+                        # ADD heads                    
                         flx_obs_TS.append(h_MF_m[:,l,i,j])
                         # ADD depth GWT
-                        flx_obs_TS.append(flx_obs_TS[-1] - TopSoilAverage)
+                        flx_obs_TS.append(flx_obs_TS[-1] - cMF.elev[i,j])
+                    print o, cMF.elev[i,j], h_MF_m[-1,:,i,j]
                     for l in range(cMF.nlay):
                         # GW STO
                         cbc_STO = h5_MF['STO_d']

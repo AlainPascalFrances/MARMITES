@@ -1,6 +1,11 @@
 ﻿import os
+import matplotlib.dates as mpl_dates
+import MARMITESutilities as MMutils
 
-ws = r'H:\00code_ws\LaMata_new\MF_ws'
+fmt_DH = mpl_dates.DateFormatter('%Y-%m-%d %H:%M')
+cUTIL = MMutils.clsUTILITIES(fmt = fmt_DH)
+
+ws = r'E:\00code_ws\LaMata_new\MF_ws'
 fn = ['h_MF4PEST.smp','h_MF4PESTdiff']
 for e in fn:
     inputFile_fn = os.path.join(ws, e)
@@ -13,6 +18,4 @@ for e in fn:
         fout.write(textout)
         fout.close()
     else:
-        self.ErrorExit(msg = "File [%s] doesn't exist, verify name and path!"%inputFile_fn)
-
-
+        cUTIL.ErrorExit(msg = "File [%s] doesn't exist, verify name and path!"%inputFile_fn)
