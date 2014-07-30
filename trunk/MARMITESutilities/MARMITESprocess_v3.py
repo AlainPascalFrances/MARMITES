@@ -426,7 +426,7 @@ class clsPROCESS:
             except:
                 hi = h0 = RC = STO =  self.hnoflo
             try:
-                lbl  = str(line[8])
+                lbl  = str(line[0])
             except:
                 lbl = ''
             # verify if coordinates are inside MODFLOW grid

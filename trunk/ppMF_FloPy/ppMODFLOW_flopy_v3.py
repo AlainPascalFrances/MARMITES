@@ -553,8 +553,12 @@ class clsMF():
             else:
                 self.thti_actual = self.cPROCESS.checkarray(self.thti)
             for l in range(self.nlay):
-                if (np.asarray(self.sy_actual[l,:,:])*self.ibound[l,:,:]+np.asarray(self.thtr_actual)>np.asarray(self.thts_actual)).sum()> 0.0:
-                    self.thts_actual = np.asarray(self.sy_actual[l,:,:])+2.0*np.asarray(self.thtr_actual[0])
+                try:
+                    sy_tmp = np.asarray(self.sy_actual[l,:,:])
+                except:
+                     sy_tmp = np.asarray(self.sy_actual[l])
+                if (sy_tmp*self.ibound[l,:,:]+np.asarray(self.thtr_actual)>np.asarray(self.thts_actual)).sum()> 0.0:
+                    self.thts_actual = sy_tmp+2.0*np.asarray(self.thtr_actual[0])
                     print '\nWARNING!\nSy + THTR > THTS! Corrected: THTS = Sy + 2.0*THTR'
             if (np.asarray(self.thti_actual)<np.asarray(self.thtr_actual)).sum()>0.0 or (np.asarray(self.thti_actual)>np.asarray(self.thts_actual)).sum()>0.0:
                 self.thti_actual = np.asarray(self.thtr_actual) + (np.asarray(self.thts_actual)-np.asarray(self.thtr_actual))/4.0

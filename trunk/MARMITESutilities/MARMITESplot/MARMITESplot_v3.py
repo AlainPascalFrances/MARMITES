@@ -1128,7 +1128,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin
 
 ##################
 
-def plotLAYER(timesteps, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_title, MM_ws, interval_type = 'arange', interval_diff = 1, interval_num = 1, Vmax = 0, Vmin = 0, fmt = None, contours = False, ntick = 1, axisbg = 'silver', points  = None, mask = None, hnoflo = -999.9, animation = 0, pref_plt_title = '_sp_plt'):
+def plotLAYER(timesteps, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_title, MM_ws, interval_type = 'arange', interval_diff = 1, interval_num = 1, Vmax = 0, Vmin = 0, fmt = None, contours = False, ntick = 1, axisbg = 'silver', points  = None, ptslbl = 0, mask = None, hnoflo = -999.9, animation = 0, pref_plt_title = '_sp_plt'):
 
     # TODO put option to select axes tick as row/col index from MODFLOW or real coordinates (in this last case create it)
 
@@ -1201,7 +1201,8 @@ def plotLAYER(timesteps, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, ms
                     else:
                         color = 'lightgrey'
                     ax[L].plot(xj, yi, 'o', linewidth=1, markersize = 6, color = color)
-                    ax[L].annotate(label, xy = (xj, yi))
+                    if ptslbl>0:
+                        ax[L].annotate(label, xy = (xj, yi))
             ims[i].append(ax[L].pcolormesh(xg, yg, Vtmp, cmap = cmap, vmin = Vmin_tmp, vmax = Vmax_tmp))
             if ctrs_tmp == True:
                 CS = ax[L].contour(xg1, yg1[::-1], Vtmp[::-1], ticks, colors = 'gray')
