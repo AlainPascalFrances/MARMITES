@@ -743,7 +743,7 @@ if plt_input == 1:
         lst_lblCB.append('Recharge layer - $iuzfbnd$')
         lst.append(np.asarray(cMF.LandSurface))
         lst_lbl.append('LandSurface')
-        lst_lblCB.append('Land surface - UZF1')        
+        lst_lblCB.append('Land surface UZF1 - $(m)$')        
     for i, l in enumerate(lst):
         V = np.zeros((1, cMF.nlay, cMF.nrow, cMF.ncol), dtype = np.float)
         Vmax = []
@@ -1402,11 +1402,11 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
         for L in range(cMF.nlay):
             mask_temp = mask_Lsup == (cMF.nlay-L)
             array_tmp1 = np.sum(array_tmp*mask_temp, axis = 1)
-            array_tmp2 = np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM)
-            flx_Cat_TS.append(array_tmp2)
+            array_tmp2 = np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)
+            flx_Cat_TS.append(array_tmp2/sum(ncell_MM))
             Eg_tmp += array_tmp2
             flxlbl_tex.append(r'$E_g^{L%d}$'%(L+1))
-        flx_Cat_TS.append(Eg_tmp)
+        flx_Cat_TS.append(Eg_tmp/sum(ncell_MM))
         flxlbl_tex.append(r'$E_g$')
         del flx_tmp, array_tmp, array_tmp1, array_tmp2, mask_temp
     for z, i in enumerate(flxlbl3):        
@@ -1441,11 +1441,11 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
             for L in range(cMF.nlay):
                 mask_temp = mask_Lsup == (cMF.nlay-L)
                 array_tmp1 = np.sum(array_tmp*mask_temp, axis = 1)
-                array_tmp2 = np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM)
-                flx_Cat_TS.append(array_tmp2)
+                array_tmp2 = np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)
+                flx_Cat_TS.append(array_tmp2/sum(ncell_MM))
                 Tg_tmp += array_tmp2
                 flxlbl_tex.append(r'$T_g^{L%d}$'%(L+1))
-            flx_Cat_TS.append(Tg_tmp)
+            flx_Cat_TS.append(Tg_tmp/sum(ncell_MM))
             flxlbl_tex.append(r'$T_g$')
             del flx_tmp, array_tmp, array_tmp1, array_tmp2, mask_temp
         else:
@@ -1502,13 +1502,13 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
             flxlbl_tex.append(r'$R^{L%d}$' % (l+1))
             array_tmp = cbc_RCH[:,l,:,:]
             array_tmp1 = np.sum(np.ma.masked_values(array_tmp, cMF.hnoflo, atol = 0.09), axis = 1)
-            rch_tmp = np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM)
+            rch_tmp = np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)
             rch_tot += rch_tmp
-            flx_Cat_TS.append(rch_tmp)
+            flx_Cat_TS.append(rch_tmp/sum(ncell_MM))
         flxlbl_tex.append(r'$R$')
-        flx_Cat_TS.append(rch_tot)
+        flx_Cat_TS.append(rch_tot/sum(ncell_MM))
         flxlbl_tex.append(r'$\Delta S_{u}$')
-        flx_Cat_TS.append(rch_tot - Rp)
+        flx_Cat_TS.append(Rp - rch_tot/sum(ncell_MM))
         del array_tmp, array_tmp1, rch_tmp, rch_tot, cbc_RCH, Rp
         for l in range(cMF.nlay):
             # ADD heads averaged
@@ -1541,24 +1541,24 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
             del cbc_FFF, array_tmp1
             flxlbl_tex.append('$FFF^{L%d}$'%(l+1))            
             # GW_FLF
-#            try:
-#                cbc_FLF_L   = h5_MF['FLF_d'][:,l,:,:]
-#                cbc_FLF_Lm1 = h5_MF['FLF_d'][:,l-1,:,:]
-#                array_tmp1_L   = np.sum(np.ma.masked_values(cbc_FLF_L, cMF.hnoflo, atol = 0.09), axis = 1)
-#                array_tmp1_Lm1 = np.sum(np.ma.masked_values(cbc_FLF_Lm1, cMF.hnoflo, atol = 0.09), axis = 1)
-#                array_tmp2_L   = np.sum(np.ma.masked_values(array_tmp1_L, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM)
-#                array_tmp2_Lm1 = np.sum(np.ma.masked_values(array_tmp1_Lm1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM)
-#                flx_Cat_TS.append(array_tmp2_Lm1 - array_tmp2_L)
-#                del cbc_FLF_L, cbc_FLF_Lm1, array_tmp1_L, array_tmp2_L, array_tmp1_Lm1, array_tmp2_Lm1
-#            except:
-#                cbc_FLF = -h5_MF['FLF_d'][:,l,:,:]
-#                array_tmp1 = np.sum(np.ma.masked_values(cbc_FLF, cMF.hnoflo, atol = 0.09), axis = 1)
-#                flx_Cat_TS.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
-#                del cbc_FLF, array_tmp1
-            cbc_FLF = h5_MF['FLF_d'][:,l,:,:]
-            array_tmp1 = np.sum(np.ma.masked_values(cbc_FLF, cMF.hnoflo, atol = 0.09), axis = 1)
-            flx_Cat_TS.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
-            del cbc_FLF, array_tmp1
+            try:
+                cbc_FLF_L   = h5_MF['FLF_d'][:,l,:,:]
+                cbc_FLF_Lm1 = h5_MF['FLF_d'][:,l-1,:,:]
+                array_tmp1_L   = np.sum(np.ma.masked_values(cbc_FLF_L, cMF.hnoflo, atol = 0.09), axis = 1)
+                array_tmp1_Lm1 = np.sum(np.ma.masked_values(cbc_FLF_Lm1, cMF.hnoflo, atol = 0.09), axis = 1)
+                array_tmp2_L   = np.sum(np.ma.masked_values(array_tmp1_L, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM)
+                array_tmp2_Lm1 = np.sum(np.ma.masked_values(array_tmp1_Lm1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM)
+                flx_Cat_TS.append(-array_tmp2_Lm1 + array_tmp2_L)
+                del cbc_FLF_L, cbc_FLF_Lm1, array_tmp1_L, array_tmp2_L, array_tmp1_Lm1, array_tmp2_Lm1
+            except:
+                cbc_FLF = h5_MF['FLF_d'][:,l,:,:]
+                array_tmp1 = np.sum(np.ma.masked_values(cbc_FLF, cMF.hnoflo, atol = 0.09), axis = 1)
+                flx_Cat_TS.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
+                del cbc_FLF, array_tmp1
+#            cbc_FLF = h5_MF['FLF_d'][:,l,:,:]
+#            array_tmp1 = np.sum(np.ma.masked_values(cbc_FLF, cMF.hnoflo, atol = 0.09), axis = 1)
+#            flx_Cat_TS.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
+#            del cbc_FLF, array_tmp1
             flxlbl_tex.append('$FLF^{L%d}$'%(l+1))
             # EXF
             cbc_EXF = h5_MF['EXF_d'][:,l,:,:]
@@ -1661,7 +1661,6 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
         valid  = 1
     if valid == 0:
         clr_lst = ['darkgreen', 'firebrick', 'darkmagenta', 'goldenrod', 'green', 'tomato', 'magenta', 'yellow']
-        #x = 0
         for o_ref in obs_list:
             for o in obs.keys():
                 if o == o_ref:
@@ -1759,8 +1758,8 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                                     cMF.hnoflo,
                                     plt_export_fn, plt_suptitle, plt_title,
                                     clr_lst,
-                                    max(hmax), #hmax[x] + hdiff/2
-                                    min(hmin), #hmin[x] - hdiff/2
+                                    max(hmax),
+                                    min(hmin),
                                     o,
                                     cMF.elev[i,j],
                                     cMF.nlay,
@@ -1770,8 +1769,6 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                                     )
                     except:
                         print 'Error exporting TS at obs. point %s' % o
-                    print o, cMF.elev[i,j], h_MF_m[-1,:,i,j]
-                    #x += 1
                     # plot water balance at each obs. cell
                     flx_obs_TS.append((MM[:,index_MM.get('iRF')]))
                     flx_obs_TS.append((MM[:,index_MM.get('iI')]))
@@ -1812,34 +1809,33 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                     flx_obs_TS.append(rch_tot)
                     # STO UZF
                     Rp = conv_fact*((h5_MM['finf_d'][:,i,j]))
-                    flx_obs_TS.append(rch_tot - Rp)
+                    flx_obs_TS.append(Rp - rch_tot)
                     del rch_tmp, rch_tot, Rp
                     for l in range(cMF.nlay):
                         # ADD heads                    
                         flx_obs_TS.append(h_MF_m[:,l,i,j])
                         # ADD depth GWT
                         flx_obs_TS.append(flx_obs_TS[-1] - cMF.elev[i,j])
-                    print o, cMF.elev[i,j], h_MF_m[-1,:,i,j]
                     for l in range(cMF.nlay):
                         # GW STO
                         cbc_STO = h5_MF['STO_d']
-                        flx_obs_TS.append((cbc_STO[:,l,i,j]))
+                        flx_obs_TS.append(cbc_STO[:,l,i,j])
                         del cbc_STO
                         # GW FRF
                         try:
-                            flx_obs_TS.append(h5_MF['FRF_d'][:,l,i,j-1]-h5_MF['FRF_d'][:,l,i,j])
+                            flx_obs_TS.append(-h5_MF['FRF_d'][:,l,i,j-1]+h5_MF['FRF_d'][:,l,i,j])
                         except:
-                            flx_obs_TS.append(-h5_MF['FRF_d'][:,l,i,j])
+                            flx_obs_TS.append(h5_MF['FRF_d'][:,l,i,j])
                         # GW FFF
                         try:
-                            flx_obs_TS.append(h5_MF['FFF_d'][:,l,i-1,j]-h5_MF['FFF_d'][:,l,i,j])
+                            flx_obs_TS.append(-h5_MF['FFF_d'][:,l,i-1,j]+h5_MF['FFF_d'][:,l,i,j])
                         except:
-                            flx_obs_TS.append(-h5_MF['FFF_d'][:,l,i,j])
+                            flx_obs_TS.append(h5_MF['FFF_d'][:,l,i,j])
                         # GW FLF
                         try:
-                            flx_obs_TS.append(h5_MF['FLF_d'][:,l-1,i,j]-h5_MF['FLF_d'][:,l,i,j])
+                            flx_obs_TS.append(-h5_MF['FLF_d'][:,l-1,i,j]+h5_MF['FLF_d'][:,l,i,j])
                         except:
-                            flx_obs_TS.append(-h5_MF['FLF_d'][:,l,i,j])
+                            flx_obs_TS.append(h5_MF['FLF_d'][:,l,i,j])
                         # EXF
                         h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
                         flx_obs_TS.append(h5_MF['EXF_d'][:,l,i,j])

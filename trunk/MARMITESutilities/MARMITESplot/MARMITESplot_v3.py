@@ -1436,7 +1436,7 @@ def plotWBsankey(path, fn, index, year_lst, cMF, ncell_MM, obspt, fntitle):
                 ax.append(fig.add_subplot(1, 2, 2, xticks=[], yticks=[]))
                 x = 0.75
                 p = 1
-            fig.text(x = x, y = 0.05, s = title, horizontalalignment = 'center', verticalalignment = 'bottom', fontsize = 9)
+            figtitle = fig.text(x = x, y = 0.075, s = title, horizontalalignment = 'center', verticalalignment = 'bottom', fontsize = 8)
             fmt = '%.1f'
             pltsankey = Sankey(ax=ax[p], format=fmt, scale=1.0/fff, offset = 0.25, gap = 0.5, shoulder = 0.0, margin = 0.5)
             pl = 0.5
@@ -1449,13 +1449,13 @@ def plotWBsankey(path, fn, index, year_lst, cMF, ncell_MM, obspt, fntitle):
                        pathlengths = [pl, pl, pl, pl])
             In = RF[k]
             Out = I[k]  + RFe[k] + Esurf[k]
-            if  DSsurf[k] < 0.0:
-                Out += -DSsurf[k]
+            if  DSsurf[k] > 0.0:
+                Out += DSsurf[k]
             else:
-                In += DSsurf[k]
+                In += -DSsurf[k]
             MB_MMsurf = 100*(In - Out)/((In + Out)/2)
             # MMsoil
-            pltsankey.add(patchlabel = '$\Delta S_{soil}$\n%.1f' % (-DSsoil[k]/ff), label='MMsoil', facecolor='khaki', trunklength = tl,
+            pltsankey.add(patchlabel = '$\Delta S_{soil}$\n%.1f' % (DSsoil[k]/ff), label='MMsoil', facecolor='khaki', trunklength = tl,
                        flows=[RFe[k]/ff, -Rp[k]/ff, -Esoil[k]/ff, -Tsoil[k]/ff, EXFtotMM[k]/ff, -Ro[k]/ff],
                        labels=[None,'$Rp$','$E_{soil}$','$T_{soil}$','$EXF$','$Ro$'],
                        orientations=[1,-1,1,1,-1,1],
@@ -1463,10 +1463,10 @@ def plotWBsankey(path, fn, index, year_lst, cMF, ncell_MM, obspt, fntitle):
                        prior=0, connect=(2,0))
             In = RFe[k] + EXFtotMM[k]
             Out = Rp[k] + Esoil[k] + Tsoil[k] + Ro[k]
-            if  DSsoil[k] < 0.0:
-                Out += -DSsoil[k]
+            if  DSsoil[k] > 0.0:
+                Out += DSsoil[k]
             else:
-                In += DSsoil[k]
+                In += -DSsoil[k]
             MB_MMsoil = 100*(In - Out)/((In + Out)/2)
             # MFuzf
             flows=[Rp[k]/ff]
@@ -1478,7 +1478,7 @@ def plotWBsankey(path, fn, index, year_lst, cMF, ncell_MM, obspt, fntitle):
                 labels.append('$R^{L%d}$'%(L+1))
                 orientations.append(-1)
                 pathlengths.append(pl)
-            pltsankey.add(patchlabel = '$\Delta S_u$\n%.1f' % (-DSu[k]/ff), label='MF_UZF', facecolor='lavender', trunklength = tl,
+            pltsankey.add(patchlabel = '$\Delta S_u$\n%.1f' % (DSu[k]/ff), label='MF_UZF', facecolor='lavender', trunklength = tl,
                        flows = flows,
                        labels=labels,
                        orientations=orientations,
@@ -1488,16 +1488,14 @@ def plotWBsankey(path, fn, index, year_lst, cMF, ncell_MM, obspt, fntitle):
             Out = 0
             for L in range(cMF.nlay):
                 Out += R[k][L]
-            if  DSu[k] < 0.0:
-                Out += -DSu[k]
+            if  DSu[k] > 0.0:
+                Out += DSu[k]
             else:
-                In += DSu[k]
+                In += -DSu[k]
             MB_MFuzf = 100*(In - Out)/((In + Out)/2)
             # MF
             # about signs, read MF-2005 manual pag 3-10
             #i_lblDRN = []
-            InTot = 0
-            OutTot = 0
             MB_MF = []
             #print '%s'%obspt
             for L in range(cMF.nlay):
@@ -1505,55 +1503,60 @@ def plotWBsankey(path, fn, index, year_lst, cMF, ncell_MM, obspt, fntitle):
                 In = []
                 Out = []
                 if L == 0:
-                    flows=[R[k][L]/ff, FLF[k][L]/ff, FRF[k][L]/ff, FFF[k][L]/ff]
+                    flows=[R[k][L]/ff, -FLF[k][L]/ff, -FRF[k][L]/ff, -FFF[k][L]/ff]
                     labels=[None, '$FLF$', '$FRF$', '$FFF$']
                     orientations=[1, -1, 0, 0]
                     pathlengths = [pl*4, pl, pl, pl*4]
                     #i_lblDRN[L] += 3
                     tl_mult = 1
                     if FLF[k][L] > 0.0:
-                        In.append(FLF[k][L])
+                        Out.append(FLF[k][L])
                     else:
-                        Out.append(-FLF[k][L])
+                        In.append(-FLF[k][L])
                 elif L == (cMF.nlay-1):
-                    flows=[-FLF[k][L-1]/ff, R[k][L]/ff, FRF[k][L]/ff, FFF[k][L]/ff]
+                    flows=[FLF[k][L-1]/ff, R[k][L]/ff, -FRF[k][L]/ff, -FFF[k][L]/ff]
                     labels=[None, '$R^{L%d}$'%(L+1), '$FRF$', '$FFF$']
                     orientations=[1, 1, 0, 0]
                     pathlengths = [pl*4, pl, pl, pl*4]
                     #i_lblDRN[L] += 3
                     tl_mult = 1
                     if FLF[k][L-1] > 0.0:
-                        Out.append(FLF[k][L-1])
+                        In.append(FLF[k][L-1])
                     else:
-                        In.append(-FLF[k][L-1])
+                        Out.append(-FLF[k][L-1])
                 else:
-                    flows=[-FLF[k][L-1]/ff, R[k][L]/ff, FLF[k][L]/ff, FRF[k][L]/ff, FFF[k][L]/ff]
+                    flows=[FLF[k][L-1]/ff, R[k][L]/ff, -FLF[k][L]/ff, -FRF[k][L]/ff, -FFF[k][L]/ff]
                     labels=[None, None, '$\Delta S_g$', '$FLF$', '$FRF$', '$FFF$']
                     orientations=[1, 1, -1, 0, 0]
                     pathlengths = [pl, pl, pl, pl, pl*4]
                     #i_lblDRN[L] += 4
                     tl_mult = 1
                     if FLF[k][L] > 0.0:
-                        In.append(FLF[k][L])
+                        Out.append(FLF[k][L])
                     else:
-                        Out.append(-FLF[k][L])
+                        In.append(-FLF[k][L])
                     if FLF[k][L-1] > 0.0:
                         In.append(FLF[k][L-1])
                     else:
                         Out.append(-FLF[k][L-1])
+                # R
                 In.append(R[k][L])
+                # FRF                
                 if FRF[k][L] > 0.0:
-                    In.append(FRF[k][L])
+                    Out.append(FRF[k][L])
                 else:
-                    Out.append(-FRF[k][L])
+                    In.append(-FRF[k][L])
+                # FFF
                 if FFF[k][L] > 0.0:
-                    In.append(FFF[k][L])
+                    Out.append(FFF[k][L])
                 else:
-                    Out.append(-FFF[k][L])
+                    In.append(-FFF[k][L])
+                # GW STO
                 if  DSg[k][L] > 0.0:
                     In.append(DSg[k][L])
                 else:
                     Out.append(-DSg[k][L])
+                # EXF
                 if np.abs(EXF[k][L])>1E-3:
                     flows.append(EXF[k][L]/ff)
                     labels.append('$EXF$')
@@ -1561,6 +1564,7 @@ def plotWBsankey(path, fn, index, year_lst, cMF, ncell_MM, obspt, fntitle):
                     pathlengths.append(pl)
                     #i_lblDRN[L] += 1
                 Out.append(-EXF[k][L])
+                # Eg
                 if np.abs(Eg[k][L])>1E-3:
                     flows.append(-Eg[k][L]/ff)
                     labels.append('$E_g$')
@@ -1568,6 +1572,7 @@ def plotWBsankey(path, fn, index, year_lst, cMF, ncell_MM, obspt, fntitle):
                     pathlengths.append(pl)
                     #i_lblDRN[L] += 1
                 Out.append(Eg[k][L])
+                # Tg                
                 if np.abs(Tg[k][L])>1E-3:
                     flows.append(-Tg[k][L]/ff)
                     labels.append('$T_g$')
@@ -1575,6 +1580,7 @@ def plotWBsankey(path, fn, index, year_lst, cMF, ncell_MM, obspt, fntitle):
                     pathlengths.append(pl)
                     #i_lblDRN[L] += 1
                 Out.append(Tg[k][L])
+                # DRN
                 if cMF.drn_yn == 1:
                     if np.abs(DRN[k][L])>1E-3:
                         flows.append(DRN[k][L]/ff)
@@ -1582,6 +1588,7 @@ def plotWBsankey(path, fn, index, year_lst, cMF, ncell_MM, obspt, fntitle):
                         orientations.append(1)
                         pathlengths.append(pl)
                     Out.append(-DRN[k][L])
+                # GHB
                 if cMF.ghb_yn == 1:
                     if np.abs(GHB[k][L])>1E-3:
                         flows.append(GHB[k][L]/ff)
@@ -1591,18 +1598,14 @@ def plotWBsankey(path, fn, index, year_lst, cMF, ncell_MM, obspt, fntitle):
                     if  GHB[k][L] < 0.0:
                         Out.append(-GHB[k][L])
                     else:
-                        In.append(-GHB[k][L])
+                        In.append(GHB[k][L])
                 pltsankey.add(patchlabel = '$\Delta S_g$\n%.1f' % (-DSg[k][L]/ff), label='MFL%d'%(L+1), facecolor='LightSteelBlue', trunklength = tl*tl_mult,
                    flows = flows,
                    labels = labels,
                    orientations = orientations,
                    pathlengths = pathlengths,
                    prior=2+L, connect=(1, 0))
-                MB_MF.append(100*(sum(In) - sum(Out))/((sum(In) + sum(Out)/2)))
-                #print 'L=%d'%(L+1)
-                #print In, Out, MB_MF[L]
-                InTot += sum(In)
-                OutTot += sum(Out)
+                MB_MF.append(100*(sum(In) - sum(Out))/((sum(In) + sum(Out))/2))
             # plot all patches
             diagrams = pltsankey.finish()
             diagrams[-1].patch.set_hatch('/')
@@ -1628,14 +1631,12 @@ def plotWBsankey(path, fn, index, year_lst, cMF, ncell_MM, obspt, fntitle):
                 ltext  = leg.get_texts()
                 plt.setp(ltext, fontsize=6)
             # water balance box
-            msg = 'Water balance\nclosure (%%)\n-----------------\nMMsurf =%3.1f\nMMsoil =%3.1f\nMFUZF =%3.1f' % (MB_MMsurf, MB_MMsoil, MB_MFuzf) #
+            #msg = 'Water balance\nclosure (%%)\n-----------------\nMMsurf =%3.1f\nMMsoil =%3.1f\nMFUZF =%3.1f' % (MB_MMsurf, MB_MMsoil, MB_MFuzf) #
+            msg = 'Water balance closure (%%)\nMMsurf=%3.1f // MMsoil=%3.1f\nMFUZF=%3.1f' % (MB_MMsurf, MB_MMsoil, MB_MFuzf) #
             for L in range(cMF.nlay):
-                msg += '\nMFL%d =%3.1f' % (L+1, MB_MF[L]) #%2.1f
-            if p == 0:
-                xy = (0.14, 0.11)
-            else:
-                xy = (0.59, 0.11)
-            plt.annotate(msg, xy, horizontalalignment='right', verticalalignment='bottom', fontsize = 6, xycoords='figure fraction')
+                msg += ' // MFL%d=%3.1f' % (L+1, MB_MF[L]) #%2.1f
+            xy = (figtitle.get_position()[0], figtitle.get_position()[1]-0.005)   
+            plt.annotate(msg, xy, horizontalalignment='center', verticalalignment='top', fontsize = 6, xycoords='figure fraction')
             if k == 0:
                 #print 'Plot of the whole modelled period done!'
                 msg = '_0whole'
