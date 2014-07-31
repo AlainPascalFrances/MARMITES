@@ -451,7 +451,7 @@ for l in range(cMF.nlay):
     iboundBOL[l,:,:] = (np.asarray(cMF.ibound)[l,:,:] != 0)
     mask.append(np.ma.make_mask(iboundBOL[l,:,:]-1))
     mask_tmp += (np.asarray(cMF.ibound)[l,:,:] != 0)
-maskAllL = (mask_tmp == 0)
+cMF.maskAllL = (mask_tmp == 0)
 del iboundBOL, mask_tmp
 timeendMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
 durationMF +=  timeendMF-timestartMF
@@ -534,7 +534,7 @@ for l in range(cMF.nlay):
     cMF.botm[l,:,:] = np.ma.masked_values(cMF.botm[l,:,:], cMF.hnoflo, atol = 0.09) - np.ma.masked_values(gridSOILthick, cMF.hnoflo, atol = 0.09)
     cMF.LandSurface += cMF.top*(np.asarray(cMF.iuzfbnd) == l+1)
 cMF.botm = np.ma.masked_values(cMF.botm, cMF.hnoflo, atol = 0.09)
-botm_l0 = np.asarray(cMF.botm)[:,:,0]
+botm_l0 = np.asarray(cMF.botm)[0,:,:]
 
 # create MM array
 h5_MM_fn = os.path.join(MM_ws,'_h5_MM.h5')
@@ -600,7 +600,7 @@ if plt_input == 1:
     if cMF.nlay > 1:
         T = hk_actual_tmp * np.asarray(cMF.thick)
     else:
-        T[0,:,:] = hk_actual_tmp * np.asarray(cMF.thick[:,:,0])
+        T[0,:,:] = hk_actual_tmp * np.asarray(cMF.thick[0,:,:])
     top_tmp = np.zeros((cMF.nlay, cMF.nrow, cMF.ncol), dtype = np.float)
     top_tmp[0,:,:] = cMF.top
     for l in range(1,cMF.nlay):
@@ -667,9 +667,9 @@ if plt_input == 1:
                     nplot = cMF.nlay
                 except:
                     V[0,L,:,:] = l
-                    mask_tmp[L,:,:] = maskAllL
-                    Vmax.append(np.ma.max(np.ma.masked_values(np.ma.masked_array(V[0,L,:,:], maskAllL), cMF.hnoflo, atol = 0.09)))
-                    Vmin.append(np.ma.min(np.ma.masked_values(np.ma.masked_array(V[0,L,:,:], maskAllL), cMF.hnoflo, atol = 0.09)))
+                    mask_tmp[L,:,:] = cMF.maskAllL
+                    Vmax.append(np.ma.max(np.ma.masked_values(np.ma.masked_array(V[0,L,:,:], cMF.maskAllL), cMF.hnoflo, atol = 0.09)))
+                    Vmin.append(np.ma.min(np.ma.masked_values(np.ma.masked_array(V[0,L,:,:], cMF.maskAllL), cMF.hnoflo, atol = 0.09)))
                     nplot = 1
             elif l.shape != ():
                 V[0,L,:,:] = l[L]*ibound[L,:,:]
@@ -678,10 +678,10 @@ if plt_input == 1:
                 Vmin.append(np.ma.min(np.ma.masked_values(np.ma.masked_array(V[0,L,:,:], mask[L]), cMF.hnoflo, atol = 0.09)))
                 nplot = cMF.nlay
             else:
-                V[0,L,:,:] = l*np.invert(maskAllL)
-                mask_tmp[L,:,:] = maskAllL
-                Vmax.append(np.ma.max(np.ma.masked_values(np.ma.masked_array(V[0,L,:,:], maskAllL), cMF.hnoflo, atol = 0.09)))
-                Vmin.append(np.ma.min(np.ma.masked_values(np.ma.masked_array(V[0,L,:,:], maskAllL), cMF.hnoflo, atol = 0.09)))
+                V[0,L,:,:] = l*np.invert(cMF.maskAllL)
+                mask_tmp[L,:,:] = cMF.maskAllL
+                Vmax.append(np.ma.max(np.ma.masked_values(np.ma.masked_array(V[0,L,:,:], cMF.maskAllL), cMF.hnoflo, atol = 0.09)))
+                Vmin.append(np.ma.min(np.ma.masked_values(np.ma.masked_array(V[0,L,:,:], cMF.maskAllL), cMF.hnoflo, atol = 0.09)))
                 nplot = 1
         if lst_lbl[i] == 'Ss' or lst_lbl[i] == 'hk' or lst_lbl[i] == 'T' or lst_lbl[i] == 'drn_cond' or lst_lbl[i] == 'ghb_cond' or lst_lbl[i] == 'vks':
             fmt = '%5.e'
@@ -724,7 +724,7 @@ if plt_input == 1:
         V_lbl = 'veg%02d_%s' %(v+1, VegName[v])
         V_lblCB = 'Frac. area of veg. #%02d - $%s$ $(\%%)$' %(v+1, VegName[v])
         for L in range(cMF.nlay):
-            mask_tmp[L,:,:] = maskAllL
+            mask_tmp[L,:,:] = cMF.maskAllL
         #print V_lbl
         MMplot.plotLAYER(timesteps = [0], Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.gist_rainbow_r, CBlabel = V_lblCB, msg = '', plt_title = 'IN_%03d_%s'% (i_lbl,V_lbl), MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, contours = False, Vmax = [Vmax], Vmin = [Vmin], ntick = ntick, fmt = '%5.1f', points = obs4map, mask = mask_tmp, hnoflo = cMF.hnoflo)
         i_lbl += 1
@@ -752,14 +752,14 @@ if plt_input == 1:
             try:
                 V[0,L,:,:] = l[L,:,:]
                 mask_tmp[L,:,:] = mask[L]
-                Vmax.append(np.ma.max(np.ma.masked_values(np.ma.masked_array(V[0,L,:,:], maskAllL), cMF.hnoflo, atol = 0.09)))
-                Vmin.append(np.ma.min(np.ma.masked_values(np.ma.masked_array(V[0,L,:,:], maskAllL), cMF.hnoflo, atol = 0.09)))
+                Vmax.append(np.ma.max(np.ma.masked_values(np.ma.masked_array(V[0,L,:,:], cMF.maskAllL), cMF.hnoflo, atol = 0.09)))
+                Vmin.append(np.ma.min(np.ma.masked_values(np.ma.masked_array(V[0,L,:,:], cMF.maskAllL), cMF.hnoflo, atol = 0.09)))
                 nplot = cMF.nlay
             except:
                 V[0,L,:,:] = l
-                mask_tmp[L,:,:] = maskAllL
-                Vmax.append(np.ma.max(np.ma.masked_values(np.ma.masked_array(V[0,L,:,:], maskAllL), cMF.hnoflo, atol = 0.09)))
-                Vmin.append(np.ma.min(np.ma.masked_values(np.ma.masked_array(V[0,L,:,:], maskAllL), cMF.hnoflo, atol = 0.09)))
+                mask_tmp[L,:,:] = cMF.maskAllL
+                Vmax.append(np.ma.max(np.ma.masked_values(np.ma.masked_array(V[0,L,:,:], cMF.maskAllL), cMF.hnoflo, atol = 0.09)))
+                Vmin.append(np.ma.min(np.ma.masked_values(np.ma.masked_array(V[0,L,:,:], cMF.maskAllL), cMF.hnoflo, atol = 0.09)))
                 nplot = 1
         Vmax = np.ma.max(Vmax)
         Vmin = np.ma.min(Vmin)
@@ -1126,8 +1126,8 @@ if h_diff_surf != None:
         for L in range(cMF.nlay):
             V[0,L,:,:] = h_diff_surf[h_diff_n,L,:,:]
             mask_tmp[L,:,:] = mask[L]
-            Vmax.append(np.ma.max(np.ma.masked_values(np.ma.masked_array(V[0,L,:,:], maskAllL), cMF.hnoflo, atol = 0.09)))
-            Vmin.append(np.ma.min(np.ma.masked_values(np.ma.masked_array(V[0,L,:,:], maskAllL), cMF.hnoflo, atol = 0.09)))
+            Vmax.append(np.ma.max(np.ma.masked_values(np.ma.masked_array(V[0,L,:,:],cMF. maskAllL), cMF.hnoflo, atol = 0.09)))
+            Vmin.append(np.ma.min(np.ma.masked_values(np.ma.masked_array(V[0,L,:,:], cMF.maskAllL), cMF.hnoflo, atol = 0.09)))
         Vmax = np.ma.max(Vmax) #float(np.ceil(max(Vmax)))
         Vmin = np.ma.min(Vmin) #float(np.floor(min(Vmin)))
         # TODO JD and Date are not correct since h_diff_n is # stress periods and not # of days (same in the plots of MF and MM)
@@ -1356,7 +1356,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
     flx_Cat_TS   = []
     flxmax_d     = []
     flxmin_d     = []
-    TopSoilAverage = np.ma.masked_array(cMF.elev*1000.0, maskAllL).sum()*.001/sum(ncell_MM)
+    TopSoilAverage = np.ma.masked_array(cMF.elev*1000.0, cMF.maskAllL).sum()*.001/sum(ncell_MM)
     for z, (i, i_tex) in enumerate(zip(flxlbl, flxlbl_tex)):
         i = 'i'+i
         array_tmp = h5_MM['MM'][:,:,:,index_MM.get(i)]
@@ -2000,7 +2000,7 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
         for L in range(cMF.nlay):
             V[i,L,:,:] = h_MF_m[t,L,:,:]
             mask_tmp[L,:,:] = mask[L]
-            maskAllL_tmp[L,:,:] = maskAllL
+            maskAllL_tmp[L,:,:] = cMF.maskAllL
         Vmax[i] = hmaxMF
         Vmin[i] = hminMF
     MMplot.plotLAYER(timesteps = day_lst, Date = Date_lst, JD = JD_lst, ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation - $h$ $(m)$', msg = 'DRY', plt_title = 'OUT_MF_HEADS', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, contours = ctrsMF, Vmax = Vmax, Vmin = Vmin, ntick = ntick, points = obs4map, mask = mask_tmp, hnoflo = cMF.hnoflo, animation = animation)
@@ -2266,8 +2266,8 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
             for ii, t in enumerate(day_lst):
                 for l in range(_nslmax):
                     V[ii,0,:,:] += h5_MM['MM_S'][t,:,:,l,index_MM_soil.get(i1)]
-                Vmin1[ii] = np.ma.min(np.ma.masked_values(np.ma.masked_array(V[ii,0,:,:], maskAllL), cMF.hnoflo, atol = 0.09))
-                Vmax1[ii] = np.ma.max(np.ma.masked_values(np.ma.masked_array(V[ii,0,:,:], maskAllL), cMF.hnoflo, atol = 0.09))
+                Vmin1[ii] = np.ma.min(np.ma.masked_values(np.ma.masked_array(V[ii,0,:,:], cMF.maskAllL), cMF.hnoflo, atol = 0.09))
+                Vmax1[ii] = np.ma.max(np.ma.masked_values(np.ma.masked_array(V[ii,0,:,:], cMF.maskAllL), cMF.hnoflo, atol = 0.09))
             for ii, t in enumerate(day_lst):
                 Vmax[ii] = np.ma.max(Vmax1)
                 Vmin[ii] = np.ma.min(Vmin1)

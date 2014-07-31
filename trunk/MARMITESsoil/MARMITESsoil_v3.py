@@ -356,7 +356,7 @@ class clsMMsoil:
             # loop into the grid
             for i in range(cMF.nrow):
                 for j in range(cMF.ncol):
-                    if cMF.iuzfbnd[i][j] != 0.0:
+                    if cMF.maskAllL[i,j] == False:
                         SOILzone_tmp = gridSOIL[i,j]-1
                         METEOzone_tmp = gridMETEO[i,j]-1
                         slprop = _slprop[SOILzone_tmp]
@@ -484,7 +484,7 @@ class clsMMsoil:
                         INTER_tot  = RF_tmp - RFe_tot
                         PE_tot     = PE_zonesSP_tmp*SOILarea*0.01
                         # handle drycell
-                        if h_MF_tmp > (cMF.hdry-1.0E3):
+                        if np.abs(h_MF_tmp - cMF.hdry) > 1.0E-5:
                             HEADS_drycell = botm_l0[i,j]*1000.0
                         else:
                             HEADS_drycell = h_MF_tmp*1000.0
