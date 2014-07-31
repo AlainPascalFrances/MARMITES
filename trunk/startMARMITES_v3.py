@@ -1529,16 +1529,18 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
             del cbc_STO, array_tmp1
             flxlbl_tex.append(r'$\Delta S_{g}^{L%d}$'%(l+1))
             # GW_FRF
-            cbc_FRF = h5_MF['FRF_d'][:,l,:,:]
-            array_tmp1 = np.sum(np.ma.masked_values(cbc_FRF, cMF.hnoflo, atol = 0.09), axis = 1)
-            flx_Cat_TS.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
-            del cbc_FRF, array_tmp1
+#            cbc_FRF = h5_MF['FRF_d'][:,l,:,:]
+#            array_tmp1 = np.sum(np.ma.masked_values(cbc_FRF, cMF.hnoflo, atol = 0.09), axis = 1)
+#            flx_Cat_TS.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
+#            del cbc_FRF, array_tmp1
+            flx_Cat_TS.append(np.zeros((sum(cMF.perlen)), dtype = np.int))
             flxlbl_tex.append('$FRF^{L%d}$'%(l+1))
             # GW_FFF
-            cbc_FFF = h5_MF['FFF_d'][:,l,:,:]
-            array_tmp1 = np.sum(np.ma.masked_values(cbc_FFF, cMF.hnoflo, atol = 0.09), axis = 1)
-            flx_Cat_TS.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
-            del cbc_FFF, array_tmp1
+#            cbc_FFF = h5_MF['FFF_d'][:,l,:,:]
+#            array_tmp1 = np.sum(np.ma.masked_values(cbc_FFF, cMF.hnoflo, atol = 0.09), axis = 1)
+#            flx_Cat_TS.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
+#            del cbc_FFF, array_tmp1
+            flx_Cat_TS.append(np.zeros((sum(cMF.perlen)), dtype = np.int))
             flxlbl_tex.append('$FFF^{L%d}$'%(l+1))            
             # GW_FLF
             try:
