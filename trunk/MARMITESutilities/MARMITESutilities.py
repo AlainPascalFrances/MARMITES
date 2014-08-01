@@ -112,4 +112,7 @@ class clsUTILITIES():
         return date_end, year
 
 #####################################
+if __name__ == "__main__":
+    print '\nWARNING!\nStart MARMITES-MODFLOW models using the script startMARMITES_v3.py\n'
+
 #EOF

@@ -403,13 +403,13 @@ EndDate   = DATE[HYindex[-1]]
         
 #    print year_lst
 #    print index
-print '-------\nStarting date of time serie:\n%s' % (mpl.dates.DateFormatter.format_data(fmt_DH, DATE[0]))
+print '-------\nStarting date of time series:\n%s' % (mpl.dates.DateFormatter.format_data(fmt_DH, DATE[0]))
 print '-------\nStarting date of hydrological year(s):'
 for j in HYindex[1:-1]:
     print mpl.dates.DateFormatter.format_data(fmt_DH, DATE[j])
 print 'End date of last hydrological year:'
 print mpl.dates.DateFormatter.format_data(fmt_DH, DATE[HYindex[-1]])
-print '-------\nEnd date of time serie:\n%s' % (mpl.dates.DateFormatter.format_data(fmt_DH, DATE[-1]))
+print '-------\nEnd date of time series:\n%s' % (mpl.dates.DateFormatter.format_data(fmt_DH, DATE[-1]))
 
 # #############################
 # ###  READ MODFLOW CONFIG ####
@@ -440,7 +440,7 @@ else:
     itmuni_str = 'day'
 ncell_MF = []
 ncell_MM = []
-iboundBOL = np.ones(np.array(cMF.ibound).shape, dtype = bool)
+cMF.outcropL = np.zeros((cMF.nrow, cMF.ncol), dtype = int)
 mask_tmp = np.zeros((cMF.nrow, cMF.ncol), dtype = int)
 mask = []
 mask_Lsup = np.zeros((cMF.nrow, cMF.ncol), dtype = int)
@@ -448,9 +448,10 @@ for l in range(cMF.nlay):
     mask_Lsup += np.asarray(cMF.ibound)[l,:,:]
     ncell_MF.append((np.asarray(cMF.ibound)[l,:,:] != 0).sum())
     ncell_MM.append((mask_Lsup*np.asarray(cMF.ibound)[l,:,:] == 1).sum())
-    iboundBOL[l,:,:] = (np.asarray(cMF.ibound)[l,:,:] != 0)
-    mask.append(np.ma.make_mask(iboundBOL[l,:,:]-1))
+    iboundBOL = (np.asarray(cMF.ibound)[l,:,:] != 0)
+    mask.append(np.ma.make_mask(iboundBOL-1))
     mask_tmp += (np.asarray(cMF.ibound)[l,:,:] != 0)
+    cMF.outcropL += ((cMF.outcropL == 0) & (iboundBOL == 1))*(l+1)    
 cMF.maskAllL = (mask_tmp == 0)
 del iboundBOL, mask_tmp
 timeendMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
@@ -714,7 +715,7 @@ if plt_input == 1:
             Vmin_tmp = np.ma.min(Vmin)
             MMplot.plotLAYER(timesteps = [0], Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = nplot, V = V,  cmap = plt.cm.gist_rainbow_r, CBlabel = CBlabel, msg = '', plt_title = 'IN_%03d_%s' % (i_lbl,lst_lbl[i]), MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, contours = ctrsMM, Vmax = [Vmax_tmp], Vmin = [Vmin_tmp], ntick = ntick, fmt = fmt, points = obs4map, ptslbl = 1, mask = mask_tmp, hnoflo = cMF.hnoflo)
         i_lbl += 1
-    del V, lst, lst_lbl, nplot, Vmax, Vmin, Vmax_tmp, Vmin_tmp
+    del V, lst, lst_lbl, nplot, Vmax, Vmin, Vmax_tmp, Vmin_tmp, top_tmp, hk_actual_tmp
 
     Vmax = 100.0
     Vmin = 0.0
@@ -1132,7 +1133,7 @@ if h_diff_surf != None:
         Vmin = np.ma.min(Vmin) #float(np.floor(min(Vmin)))
         # TODO JD and Date are not correct since h_diff_n is # stress periods and not # of days (same in the plots of MF and MM)
         MMplot.plotLAYER(timesteps = [h_diff_n], Date = [cMF.inputDate[h_diff_n]], JD = [cMF.JD[h_diff_n]], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = ('(m)'), msg = 'no value', plt_title = 'HEADSmaxdiff_ConvLoop', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = [Vmax], Vmin = [Vmin], contours = ctrsMF, ntick = ntick, points = obs4map, mask = mask_tmp, hnoflo = cMF.hnoflo, pref_plt_title = '__sp_plt')
-    del h_diff_n, V, Vmin, Vmax
+    del h_diff_n, V, Vmin, Vmax, mask_tmp
 
 # exporting sm computed by MM for PEST (smp format)
 if os.path.exists(h5_MM_fn):
@@ -1582,7 +1583,9 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                     array_tmp1 = np.sum(np.ma.masked_values(cbc_DRN, cMF.hnoflo, atol = 0.09), axis = 1)
                     flx_Cat_TS.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
                     del array_tmp1
-                    flxlbl_tex.append('$DRN^{L%d}$'%(l+1))
+                else:
+                    flx_Cat_TS.append(np.zeros((sum(cMF.perlen)), dtype = np.int))
+                flxlbl_tex.append('$DRN^{L%d}$'%(l+1))
                 del cbc_DRN
             # GHB
             if cMF.ghb_yn == 1:
@@ -1590,12 +1593,14 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                 if cMF.ghbcells[l] > 0:
                     array_tmp1 = np.sum(np.ma.masked_values(cbc_GHB, cMF.hnoflo, atol = 0.09), axis = 1)
                     flx_Cat_TS.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
-                    flxlbl_tex.append('$GHB^{L%d}$'%(l+1))
                     del array_tmp1
+                else:
+                    flx_Cat_TS.append(np.zeros((sum(cMF.perlen)), dtype = np.int))                    
+                flxlbl_tex.append('$GHB^{L%d}$'%(l+1))
                 del cbc_GHB                
         h5_MF.close()
         plt_exportCATCH_fn = os.path.join(MM_ws_out, '_0CATCHMENT_ts.png')
-        plt_titleCATCH = 'Time serie of fluxes averaged over the whole catchment'
+        plt_titleCATCH = 'Time series of fluxes averaged over the whole catchment'
         rmseHEADS_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrSM_tmp, nseHEADS_tmp, nseSM_tmp, rHEADS_tmp, rSM_tmp = MMplot.plotTIMESERIES_CATCH(cMF, flx_Cat_TS, flxlbl_tex, plt_exportCATCH_fn, plt_titleCATCH, hmax = hmaxMF, hmin = hminMF, iniMonthHydroYear = iniMonthHydroYear, date_ini = StartDate, date_end = EndDate, obs_catch = obs_catch, obs_catch_list = obs_catch_list, TopSoilAverage = TopSoilAverage, MF = 1)
     if rmseHEADS_tmp <> None:
         rmseHEADS.append(rmseHEADS_tmp)
@@ -1610,7 +1615,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
         rSM.append(rSM_tmp)
         obslstSM.append('catch.')
     del rmseHEADS_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrSM_tmp, nseHEADS_tmp, nseSM_tmp, rHEADS_tmp, rSM_tmp
-    # export average time serie of fluxes in txt
+    # export average time series of fluxes in txt
     plt_exportCATCH_txt_fn = os.path.join(MM_ws_out, '_0CATCHMENT_ts4sankey.txt')
     plt_exportCATCH_txt = open(plt_exportCATCH_txt_fn, 'w')
     flxlbl_CATCH_str = 'Date'
@@ -1643,7 +1648,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
         plt_exportCATCH_txt.write('\n')
     plt_exportCATCH_txt.close()
     #try:
-    MMplot.plotWBsankey(path = MM_ws_out, fn = plt_exportCATCH_txt_fn.split('\\')[-1], index = HYindex, year_lst = year_lst, cMF = cMF, ncell_MM = ncell_MM, obspt = 'whole catchment', fntitle = '0CATCHMENT')
+    MMplot.plotWBsankey(path = MM_ws_out, fn = plt_exportCATCH_txt_fn.split('\\')[-1], index = HYindex, year_lst = year_lst, cMF = cMF, ncell_MM = ncell_MM, obspt = 'whole catchment', fntitle = '0CATCHMENT', ibound4Sankey = np.ones((cMF.nlay), dtype = int))
     #except:
      #   print "\nError in plotting the catchment water balance!"
     del flx_Cat_TS, flx_Cat_TS_str, out_line, plt_exportCATCH_fn, plt_exportCATCH_txt_fn, plt_titleCATCH
@@ -1721,7 +1726,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                     del cbc_WEL
                     outFileExport.close()
                     # plot time series results as plot
-                    plt_suptitle = 'Time serie of fluxes at observation point %s' % o
+                    plt_suptitle = 'Time series of fluxes at observation point %s' % o
                     plt_title = 'i = %d, j = %d, l = %d, x = %.2f, y = %.2f, elev. = %.2f, %s\nSm = %s, Sfc = %s, Sr = %s, Ks = %s, thick. = %.3f %s' % (i+1, j+1, l_obs+1, obs.get(o)['x'], obs.get(o)['y'], cMF.elev[i,j], soilnam, _Sm[SOILzone_tmp], _Sfc[SOILzone_tmp], _Sr[SOILzone_tmp], _Ks[SOILzone_tmp], gridSOILthick[i,j], Tl)
                     # index_MM = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSsurf':4, 'iRo':5, 'iEXF':6, 'iEsurf':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSsurf':13, 'iETg':14, 'iETsoil':15, 'iSsoil_pc':16, 'idSsoil':17, 'iinf':18, 'iHEADScorr':19, 'idgwt':20, 'iuzthick':21}
                     # index_MM_soil = {'iEsoil':0, 'iTsoil':1,'iSsoil_pc':2, 'iRp':3, 'iRexf':4, 'idSsoil':5, 'iSsoil':6, 'iSAT':7, 'iMB_l':8}
@@ -1856,7 +1861,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                             cbc_GHB = h5_MF['GHB_d']
                             flx_obs_TS.append((cbc_GHB[:,l,i,j]))
                             del cbc_GHB
-                    # export average time serie of fluxes in txt
+                    # export average time series of fluxes in txt
                     plt_export_txt_fn = os.path.join(MM_ws_out, '_0%s_ts4sankey.txt'%o)
                     plt_export_obs_txt = open(plt_export_txt_fn, 'w')
                     plt_export_obs_txt.write(flxlbl_CATCH_str)
@@ -1874,13 +1879,13 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                         plt_export_obs_txt.write('\n')
                     plt_export_obs_txt.close() 
                     try:
-                        MMplot.plotWBsankey(path = MM_ws_out, fn = plt_export_txt_fn.split('\\')[-1], index = HYindex, year_lst = year_lst, cMF = cMF, ncell_MM = ncell_MM, obspt = 'obs. pt. %s'%o, fntitle = '0%s'%o)  
+                        MMplot.plotWBsankey(path = MM_ws_out, fn = plt_export_txt_fn.split('\\')[-1], index = HYindex, year_lst = year_lst, cMF = cMF, ncell_MM = ncell_MM, obspt = 'obs. pt. %s'%o, fntitle = '0%s'%o, ibound4Sankey = cMF.ibound[:,i,j])  
                     except:
                        print 'Error in plotting water balance at obs. point %s' % o
                     try:
                         MMplot.plotTIMESERIES_obsGW(cMF, flx_obs_TS, flxlbl_tex, plt_export_fn, plt_suptitle, iniMonthHydroYear = iniMonthHydroYear, date_ini = StartDate, date_end = EndDate)  
                     except:
-                       print 'Error in plotting water balance at obs. point %s' % o
+                       print 'Error in plotting MF fluxes time series at obs. point %s' % o
                     
                     # CALIBRATION CRITERIA
                     # RMSE, RSR, Nash-Sutcliffe efficiency NSE, Pearson's correlation coefficient r

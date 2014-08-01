@@ -352,7 +352,7 @@ class clsPROCESS:
         inputFile = self.cUTIL.readFile(self.MM_ws,SOILparam_fn)
         SOILzones=int(int(inputFile[0]))
         if SOILzones>NSOIL:
-            print '\nWARNING!\n' + str(SOILzones) + ' soil parameters groups in file [' + SOILparam_fn + ']\n Only ' + str(NSOIL) + ' PE time serie(s) found.'
+            print '\nWARNING!\n' + str(SOILzones) + ' soil parameters groups in file [' + SOILparam_fn + ']\n Only ' + str(NSOIL) + ' PE time series found.'
         # trick to initialise the reading position in the next loop
         nsl.append(0)
         for i in range(SOILzones):
@@ -787,7 +787,7 @@ class clsPROCESS:
         return rmseHEADS, rmseSM, rsrHEADS, rsrSM, nseHEADS, nseSM, rHEADS, rSM
 
 ##################
-
-print '\nWARNING!\nStart MARMITES-MODFLOW models using the script startMARMITES_v3.py\n'
+if __name__ == "__main__":
+    print '\nWARNING!\nStart MARMITES-MODFLOW models using the script startMARMITES_v3.py\n'
 
 # EOF

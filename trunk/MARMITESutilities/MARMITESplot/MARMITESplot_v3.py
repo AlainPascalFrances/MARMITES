@@ -16,7 +16,7 @@ from matplotlib.sankey import Sankey
 
 def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S, dS, Spc, Rp, EXF, ETg, Es, MB, MB_l, dgwt, uzthick, SAT, R, h_MF, h_MF_corr, h_SF, hobs, Sobs, Roobs, Sm, Sr, hnoflo, plt_export_fn, plt_suptitle, plt_title, clr_lst, hmax, hmin, obs_name, elev, nlay, l_obs, nsl, iniMonthHydroYear, date_ini, date_end):
     """
-    Plot the time serie of the fluxes observed at one point of the catchment
+    Plot the time series of the fluxes observed at one point of the catchment
     Use Matplotlib
     _______________________________________________________________________________
 
@@ -340,6 +340,7 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
     del labels
 
     ax1.set_xlim(date_ini,date_end)
+
     plt.subplots_adjust(left=0.10, bottom=0.10, right=0.95, top=0.95, wspace=0.1, hspace=0.1)
     plt.savefig(plt_export_fn,dpi=150)
 
@@ -598,7 +599,8 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
     ax7.xaxis.grid(b=True, which='minor', color='0.65')
     ax7.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
 
-    #ax1.set_xlim(date_ini,date_end)
+    ax1.set_xlim(date_ini,date_end)
+    
     plt.subplots_adjust(left=0.10, bottom=0.10, right=0.95, top=0.95, wspace=0.1, hspace=0.1)
     txt = plt_export_fn.split('.')
     plt_export_fn = txt[0] + '_part2.' + txt[1]
@@ -611,10 +613,10 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
 
 def plotTIMESERIES_obsGW(cMF, flx, flx_lbl, plt_export_fn, plt_title, iniMonthHydroYear, date_ini, date_end):
     """
-    Plot the time serie of the fluxes observed from the whole catchment
+    Plot the time series of the fluxes observed from the whole catchment
     Use Matplotlib
     """
-    #dateFmt=mpl.dates.DateFormatter('%Y-%b-%d')
+    dateFmt=mpl.dates.DateFormatter('%Y-%b-%d')
     dateminorFmt=mpl.dates.DateFormatter('%b')
     lblspc = 0.05
     mkscale = 1.0
@@ -622,11 +624,6 @@ def plotTIMESERIES_obsGW(cMF, flx, flx_lbl, plt_export_fn, plt_title, iniMonthHy
     hdltxtpd = 0.05
     colspc = 0.1
 
-    #fmt_DH = mpl.dates.DateFormatter('%Y-%m-%d')
-    #cUTIL = MMutils.clsUTILITIES(fmt = fmt_DH)
-
-    #date_ini, year_ini = cUTIL.compDATE_INI(cMF.inputDate[0], iniMonthHydroYear)
-    #date_end, year_end = cUTIL.compDATE_END(cMF.inputDate[-1], iniMonthHydroYear)
     date_ini -= 15
     date_end += 15
 
@@ -634,7 +631,6 @@ def plotTIMESERIES_obsGW(cMF, flx, flx_lbl, plt_export_fn, plt_title, iniMonthHy
     fig.suptitle(plt_title + ' - part 3')
     
     ax0=fig.add_subplot(8,1,1)
-    ax0.set_autoscalex_on(False)
     plt.setp(ax0.get_xticklabels(), visible=False)
     plt.setp(ax0.get_yticklabels(), fontsize=8)
     # RF
@@ -647,21 +643,27 @@ def plotTIMESERIES_obsGW(cMF, flx, flx_lbl, plt_export_fn, plt_title, iniMonthHy
     plt.setp(ltext, fontsize=8)
     ax0.grid(b=True, which='major', axis = 'both')
     ax0.xaxis.grid(b=True, which='minor', color='0.65')
-    ax0.set_xlim(date_ini,date_end)
     plt.ylabel('mm', fontsize=10)
-#    ax0.xaxis.set_major_formatter(dateFmt)
-#    ax0.xaxis.set_major_locator(mpl.dates.YearLocator(1, month = iniMonthHydroYear, day = 1))
-#    ax0.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth = bymonth))
+    ax0.xaxis.set_major_formatter(dateFmt)
+    ax0.xaxis.set_major_locator(mpl.dates.YearLocator(1, month = iniMonthHydroYear, day = 1))
+    bymonth = []
+    month_tmp = 3
+    while len(bymonth)<3:
+        if (iniMonthHydroYear+month_tmp) <13:
+            bymonth.append(iniMonthHydroYear+month_tmp)
+        else:
+            bymonth.append(iniMonthHydroYear+month_tmp - 12)
+        month_tmp += 3
+    del month_tmp
+    ax0.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth = bymonth))
     plt.setp(ax0.get_xticklabels(minor=True), visible=False)
     ax0.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))    
 
     # plot gwd
     lines = itertools.cycle(['-','--','-.',':','.',',','o','v','^','<','>','s','p','*','h','H','+','x','D','d','|','_'])
-    ax1=fig.add_subplot(8,1,4)
-    ax1.set_autoscalex_on(True)
+    ax1=fig.add_subplot(8,1,4, sharex = ax0)
     plt.setp(ax1.get_xticklabels(), visible=False)
     plt.setp(ax1.get_yticklabels(), fontsize=8)
-    #ax1.set_xlim(date_ini,date_end)
     i = 25+2*cMF.nlay
     for l in range(cMF.nlay):
         plt.plot_date(cMF.inputDate,flx[i],lines.next(), color = 'b', label = flx_lbl[i])
@@ -677,8 +679,7 @@ def plotTIMESERIES_obsGW(cMF, flx, flx_lbl, plt_export_fn, plt_title, iniMonthHy
     plt.setp(ax1.get_xticklabels(minor=True), visible=False)
 
     # plot GW fluxes
-    ax8=fig.add_subplot(2,1,2, sharex=ax1)
-    ax8.set_autoscalex_on(True)
+    ax8=fig.add_subplot(2,1,2, sharex=ax0)
     plt.setp(ax8.get_xticklabels(), fontsize=8)
     plt.setp(ax8.get_yticklabels(), fontsize=8)
     # uzf recharge
@@ -706,8 +707,7 @@ def plotTIMESERIES_obsGW(cMF, flx, flx_lbl, plt_export_fn, plt_title, iniMonthHy
     del labels
 
     # plot Ro
-    ax2=fig.add_subplot(8,1,2, sharex=ax1)
-    ax2.set_autoscalex_on(True)
+    ax2=fig.add_subplot(8,1,2, sharex=ax0)
     plt.setp(ax2.get_xticklabels(), fontsize=8)
     plt.setp(ax2.get_yticklabels(), fontsize=8)
     # Ro
@@ -730,6 +730,8 @@ def plotTIMESERIES_obsGW(cMF, flx, flx_lbl, plt_export_fn, plt_title, iniMonthHy
     plt.setp(labels, 'rotation', 90)
     del labels
 
+    ax0.set_xlim(date_ini,date_end)
+
     plt.subplots_adjust(left=0.10, bottom=0.10, right=0.95, top=0.95, wspace=0.1, hspace=0.1)
     txt = plt_export_fn.split('.')
     plt_export_fn = txt[0] + '_part3MF.' + txt[1]
@@ -742,7 +744,7 @@ def plotTIMESERIES_obsGW(cMF, flx, flx_lbl, plt_export_fn, plt_title, iniMonthHy
 
 def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin, iniMonthHydroYear, date_ini, date_end, obs_catch = None, obs_catch_list = [0, 0, 0], TopSoilAverage = None, MF = None):
     """
-    Plot the time serie of the fluxes observed from the whole catchment
+    Plot the time series of the fluxes observed from the whole catchment
     Use Matplotlib
     """
 
@@ -983,6 +985,8 @@ def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin
         ax10.xaxis.grid(b=True, which='minor', color='0.65')     
         plt.setp(ax10.get_xticklabels(minor=True), visible=True)
 
+    ax1.set_xlim(date_ini,date_end)
+
     plt.subplots_adjust(left=0.10, bottom=0.10, right=0.95, top=0.95, wspace=0.1, hspace=0.1)
     plt.savefig(plt_export_fn,dpi=150)
 
@@ -1005,11 +1009,10 @@ def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin
     plt.setp(ltext, fontsize=8)
     ax0.grid(b=True, which='major', axis = 'both')
     ax0.xaxis.grid(b=True, which='minor', color='0.65')
-    ax0.set_xlim(date_ini,date_end)
     plt.ylabel('mm', fontsize=10)
-#    ax0.xaxis.set_major_formatter(dateFmt)
-#    ax0.xaxis.set_major_locator(mpl.dates.YearLocator(1, month = iniMonthHydroYear, day = 1))
-#    ax0.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth = bymonth))
+    ax0.xaxis.set_major_formatter(dateFmt)
+    ax0.xaxis.set_major_locator(mpl.dates.YearLocator(1, month = iniMonthHydroYear, day = 1))
+    ax0.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth = bymonth))
     plt.setp(ax0.get_xticklabels(minor=True), visible=False)
     ax0.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))    
 
@@ -1116,6 +1119,8 @@ def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin
     plt.setp(labels, fontsize=8)
     plt.setp(labels, 'rotation', 90)
     del labels
+
+    ax0.set_xlim(date_ini,date_end)
 
     plt.subplots_adjust(left=0.10, bottom=0.10, right=0.95, top=0.95, wspace=0.1, hspace=0.1)
     txt = plt_export_fn.split('.')
@@ -1267,7 +1272,7 @@ def plotLAYER(timesteps, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, ms
 
 ##################
 
-def plotWBsankey(path, fn, index, year_lst, cMF, ncell_MM, obspt, fntitle):
+def plotWBsankey(path, fn, index, year_lst, cMF, ncell_MM, obspt, fntitle, ibound4Sankey):
 
     """ Computes the water balance for a certain time span
     input: ASCII file with water fluxes wrtitten by MM
@@ -1422,6 +1427,7 @@ def plotWBsankey(path, fn, index, year_lst, cMF, ncell_MM, obspt, fntitle):
 #            if cMF.ghb_yn == 1:
 #                lbl_tmp += 'GHB %s' % (np.asarray(GHB[k])/ff)
             # print '\nMMsurf: RF %s, I %s, RFe %s, Esurf %s, DSsurf %s\nMMsoil: Esoil %s, Tsoil %s, ETsoil %s, Ro %s, Rp %s, DSsoil  %s\nUZF: R %s, DSu %s\nMF: Eg %s, Tg %s, ETg %s, %s, EXF  %s, FLF %s, DSg %s' % (RF[k]/ff, I[k]/ff, RFe[k]/ff, Esurf[k]/ff, DSsurf[k]/ff, Esoil[k]/ff, Tsoil[k]/ff, ETsoil[k]/ff, Ro[k]/ff, Rp[k]/ff, DSsoil[k]/ff, (np.asarray(R[k])/ff), DSu[k]/ff, (np.asarray(Eg[k])/ff), (np.asarray(Tg[k])/ff), ETg[k]/ff, lbl_tmp, (np.asarray(EXF[k])/ff), (np.asarray(FLF[k])/ff), (np.asarray(DSg[k])/ff))
+            treshold = 5E-2
             if k == 0 or k%2 != 0:
                 fig = plt.figure() # figsize=(8.27, 11.7), dpi = 72)
                 if f == 0:
@@ -1474,10 +1480,11 @@ def plotWBsankey(path, fn, index, year_lst, cMF, ncell_MM, obspt, fntitle):
             orientations=[1]
             pathlengths = [pl]
             for L in range(cMF.nlay):
-                flows.append(-R[k][L]/ff)
-                labels.append('$R^{L%d}$'%(L+1))
-                orientations.append(-1)
-                pathlengths.append(pl)
+                if ibound4Sankey[L] > 0:
+                    flows.append(-R[k][L]/ff)
+                    labels.append('$R^{L%d}$'%(L+1))
+                    orientations.append(-1)
+                    pathlengths.append(pl)
             pltsankey.add(patchlabel = '$\Delta S_u$\n%.1f' % (DSu[k]/ff), label='MF_UZF', facecolor='lavender', trunklength = tl,
                        flows = flows,
                        labels=labels,
@@ -1495,117 +1502,111 @@ def plotWBsankey(path, fn, index, year_lst, cMF, ncell_MM, obspt, fntitle):
             MB_MFuzf = 100*(In - Out)/((In + Out)/2)
             # MF
             # about signs, read MF-2005 manual pag 3-10
-            #i_lblDRN = []
             MB_MF = []
             #print '%s'%obspt
+            LL = 0
             for L in range(cMF.nlay):
-                #i_lblDRN.append(0)
-                In = []
-                Out = []
-                if L == 0:
-                    flows=[R[k][L]/ff, -FLF[k][L]/ff, -FRF[k][L]/ff, -FFF[k][L]/ff]
-                    labels=[None, '$FLF$', '$FRF$', '$FFF$']
-                    orientations=[1, -1, 0, 0]
-                    pathlengths = [pl*4, pl, pl, pl*4]
-                    #i_lblDRN[L] += 3
-                    tl_mult = 1
-                    if FLF[k][L] > 0.0:
-                        Out.append(FLF[k][L])
+                if ibound4Sankey[L] > 0:
+                    LL += L
+                    In = []
+                    Out = []
+                    if LL == 0:
+                        flows=[R[k][L]/ff, -FLF[k][L]/ff, -FRF[k][L]/ff, -FFF[k][L]/ff]
+                        labels=[None, '$FLF$', '$FRF$', '$FFF$']
+                        orientations=[1, -1, 0, 0]
+                        pathlengths = [pl*4, pl, pl, pl*4]
+                        tl_mult = 1
+                        if FLF[k][L] > 0.0:
+                            Out.append(FLF[k][L])
+                        else:
+                            In.append(-FLF[k][L])
+                    elif LL == (cMF.nlay-1):
+                        flows=[FLF[k][L-1]/ff, R[k][L]/ff, -FRF[k][L]/ff, -FFF[k][L]/ff]
+                        labels=[None, '$R^{L%d}$'%(L+1), '$FRF$', '$FFF$']
+                        orientations=[1, 1, 0, 0]
+                        pathlengths = [pl*4, pl, pl, pl*4]
+                        tl_mult = 1
+                        if FLF[k][L-1] > 0.0:
+                            In.append(FLF[k][L-1])
+                        else:
+                            Out.append(-FLF[k][L-1])
                     else:
-                        In.append(-FLF[k][L])
-                elif L == (cMF.nlay-1):
-                    flows=[FLF[k][L-1]/ff, R[k][L]/ff, -FRF[k][L]/ff, -FFF[k][L]/ff]
-                    labels=[None, '$R^{L%d}$'%(L+1), '$FRF$', '$FFF$']
-                    orientations=[1, 1, 0, 0]
-                    pathlengths = [pl*4, pl, pl, pl*4]
-                    #i_lblDRN[L] += 3
-                    tl_mult = 1
-                    if FLF[k][L-1] > 0.0:
-                        In.append(FLF[k][L-1])
+                        flows=[FLF[k][L-1]/ff, R[k][L]/ff, -FLF[k][L]/ff, -FRF[k][L]/ff, -FFF[k][L]/ff]
+                        labels=[None, None, '$\Delta S_g$', '$FLF$', '$FRF$', '$FFF$']
+                        orientations=[1, 1, -1, 0, 0]
+                        pathlengths = [pl, pl, pl, pl, pl*4]
+                        tl_mult = 1
+                        if FLF[k][L] > 0.0:
+                            Out.append(FLF[k][L])
+                        else:
+                            In.append(-FLF[k][L])
+                        if FLF[k][L-1] > 0.0:
+                            In.append(FLF[k][L-1])
+                        else:
+                            Out.append(-FLF[k][L-1])
+                    # R
+                    In.append(R[k][L])
+                    # FRF                
+                    if FRF[k][L] > 0.0:
+                        Out.append(FRF[k][L])
                     else:
-                        Out.append(-FLF[k][L-1])
-                else:
-                    flows=[FLF[k][L-1]/ff, R[k][L]/ff, -FLF[k][L]/ff, -FRF[k][L]/ff, -FFF[k][L]/ff]
-                    labels=[None, None, '$\Delta S_g$', '$FLF$', '$FRF$', '$FFF$']
-                    orientations=[1, 1, -1, 0, 0]
-                    pathlengths = [pl, pl, pl, pl, pl*4]
-                    #i_lblDRN[L] += 4
-                    tl_mult = 1
-                    if FLF[k][L] > 0.0:
-                        Out.append(FLF[k][L])
+                        In.append(-FRF[k][L])
+                    # FFF
+                    if FFF[k][L] > 0.0:
+                        Out.append(FFF[k][L])
                     else:
-                        In.append(-FLF[k][L])
-                    if FLF[k][L-1] > 0.0:
-                        In.append(FLF[k][L-1])
+                        In.append(-FFF[k][L])
+                    # GW STO
+                    if  DSg[k][L] > 0.0:
+                        In.append(DSg[k][L])
                     else:
-                        Out.append(-FLF[k][L-1])
-                # R
-                In.append(R[k][L])
-                # FRF                
-                if FRF[k][L] > 0.0:
-                    Out.append(FRF[k][L])
-                else:
-                    In.append(-FRF[k][L])
-                # FFF
-                if FFF[k][L] > 0.0:
-                    Out.append(FFF[k][L])
-                else:
-                    In.append(-FFF[k][L])
-                # GW STO
-                if  DSg[k][L] > 0.0:
-                    In.append(DSg[k][L])
-                else:
-                    Out.append(-DSg[k][L])
-                # EXF
-                if np.abs(EXF[k][L])>1E-3:
-                    flows.append(EXF[k][L]/ff)
-                    labels.append('$EXF$')
-                    orientations.append(-1)
-                    pathlengths.append(pl)
-                    #i_lblDRN[L] += 1
-                Out.append(-EXF[k][L])
-                # Eg
-                if np.abs(Eg[k][L])>1E-3:
-                    flows.append(-Eg[k][L]/ff)
-                    labels.append('$E_g$')
-                    orientations.append(1)
-                    pathlengths.append(pl)
-                    #i_lblDRN[L] += 1
-                Out.append(Eg[k][L])
-                # Tg                
-                if np.abs(Tg[k][L])>1E-3:
-                    flows.append(-Tg[k][L]/ff)
-                    labels.append('$T_g$')
-                    orientations.append(1)
-                    pathlengths.append(pl)
-                    #i_lblDRN[L] += 1
-                Out.append(Tg[k][L])
-                # DRN
-                if cMF.drn_yn == 1:
-                    if np.abs(DRN[k][L])>1E-3:
-                        flows.append(DRN[k][L]/ff)
-                        labels.append('$DRN$')
+                        Out.append(-DSg[k][L])
+                    # EXF
+                    if np.abs(EXF[k][L])>treshold:
+                        flows.append(EXF[k][L]/ff)
+                        labels.append('$EXF$')
+                        orientations.append(-1)
+                        pathlengths.append(pl)
+                    Out.append(-EXF[k][L])
+                    # Eg
+                    if np.abs(Eg[k][L])>treshold:
+                        flows.append(-Eg[k][L]/ff)
+                        labels.append('$E_g$')
                         orientations.append(1)
                         pathlengths.append(pl)
-                    Out.append(-DRN[k][L])
-                # GHB
-                if cMF.ghb_yn == 1:
-                    if np.abs(GHB[k][L])>1E-3:
-                        flows.append(GHB[k][L]/ff)
-                        labels.append('$GHB$')
+                    Out.append(Eg[k][L])
+                    # Tg                
+                    if np.abs(Tg[k][L])>treshold:
+                        flows.append(-Tg[k][L]/ff)
+                        labels.append('$T_g$')
                         orientations.append(1)
                         pathlengths.append(pl)
-                    if  GHB[k][L] < 0.0:
-                        Out.append(-GHB[k][L])
-                    else:
-                        In.append(GHB[k][L])
-                pltsankey.add(patchlabel = '$\Delta S_g$\n%.1f' % (-DSg[k][L]/ff), label='MFL%d'%(L+1), facecolor='LightSteelBlue', trunklength = tl*tl_mult,
-                   flows = flows,
-                   labels = labels,
-                   orientations = orientations,
-                   pathlengths = pathlengths,
-                   prior=2+L, connect=(1, 0))
-                MB_MF.append(100*(sum(In) - sum(Out))/((sum(In) + sum(Out))/2))
+                    Out.append(Tg[k][L])
+                    # DRN
+                    if cMF.drn_yn == 1:
+                        if np.abs(DRN[k][L])>treshold:
+                            flows.append(DRN[k][L]/ff)
+                            labels.append('$DRN$')
+                            orientations.append(1)
+                            pathlengths.append(pl)
+                        Out.append(-DRN[k][L])
+                    # GHB
+                    if cMF.ghb_yn == 1:
+                        if np.abs(GHB[k][L])>treshold:
+                            flows.append(GHB[k][L]/ff)
+                            labels.append('$GHB$')
+                            orientations.append(1)
+                            pathlengths.append(pl)
+                        if  GHB[k][L] < 0.0:
+                            Out.append(-GHB[k][L])
+                        else:
+                            In.append(GHB[k][L])
+                    pltsankey.add(patchlabel = '$\Delta S_g$\n%.1f' % (-DSg[k][L]/ff), label='MFL%d'%(L+1), facecolor='LightSteelBlue', trunklength = tl*tl_mult, flows = flows, labels = labels, orientations = orientations, pathlengths = pathlengths, prior=2+LL, connect=(1, 0))
+                    MB_MF.append(100*(sum(In) - sum(Out))/((sum(In) + sum(Out))/2))
+                    LL == 0
+                else:
+                    LL -= 1
+                    MB_MF.append(np.nan)
             # plot all patches
             diagrams = pltsankey.finish()
             diagrams[-1].patch.set_hatch('/')
@@ -1772,7 +1773,7 @@ def plotCALIBCRIT(calibcritSM, calibcritSMobslst, calibcritHEADS, calibcritHEADS
     plt.savefig(plt_export_fn)
 
 ##################
-
-print '\nWARNING!\nStart MARMITES-MODFLOW models using the script startMARMITES_v3.py\n'
+if __name__ == "__main__":
+    print '\nWARNING!\nStart MARMITES-MODFLOW models using the script startMARMITES_v3.py\n'
 
 # EOF

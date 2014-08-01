@@ -1068,7 +1068,6 @@ class clsMF():
                     wel_array = self.wel_user
             # implement a well in every active cell
             layer_row_column_Q = []
-            iuzfbnd = np.asarray(self.iuzfbnd)
             wel_dum = 0
             if isinstance(wel_array, float):
                 for n in range(self.nper):
@@ -1077,9 +1076,9 @@ class clsMF():
                         for c in range(self.ncol):
                             if np.abs(self.ibound[:,r,c]).sum() != 0:
                                 if wel_array > 0.0:
-                                    layer_row_column_Q[n].append([iuzfbnd[r,c],r+1,c+1,-wel_array*self.delr[c]*self.delc[r]])
+                                    layer_row_column_Q[n].append([self.outcropL[r,c],r+1,c+1,-wel_array*self.delr[c]*self.delc[r]])
                                 else:
-                                    layer_row_column_Q[n].append([iuzfbnd[r,c],r+1,c+1,0.0])
+                                    layer_row_column_Q[n].append([self.outcropL[r,c],r+1,c+1,0.0])
                                     wel_dum = 1
                             if wel_dum == 1:
                                 break
@@ -1096,12 +1095,12 @@ class clsMF():
                                 for c in range(self.ncol):                        
                                     if np.abs(self.ibound[:,r,c]).sum() != 0:
                                         if wel_array[n][r][c]>0.0:
-                                            layer_row_column_Q[n].append([iuzfbnd[r,c],r+1,c+1,-(wel_array[n][r][c])*self.delr[c]*self.delc[r]])
+                                            layer_row_column_Q[n].append([self.outcropL[r,c],r+1,c+1,-(wel_array[n][r][c])*self.delr[c]*self.delc[r]])
                         else:
                             for r in range(self.nrow):
                                 for c in range(self.ncol):
                                     if np.abs(self.ibound[:,r,c]).sum() != 0:
-                                        layer_row_column_Q[n].append([iuzfbnd[r,c],r+1,c+1,0.0])
+                                        layer_row_column_Q[n].append([self.outcropL[r,c],r+1,c+1,0.0])
                                         wel_dum = 1
                                     if wel_dum == 1:
                                         break
@@ -1112,13 +1111,12 @@ class clsMF():
                     for r in range(self.nrow):
                         for c in range(self.ncol):
                             if np.abs(self.ibound[:,r,c]).sum() != 0:
-                                layer_row_column_Q = [[iuzfbnd[r,c],r+1,c+1,0.0]]
+                                layer_row_column_Q = [[self.outcropL[r,c],r+1,c+1,0.0]]
                                 wel_dum = 1
                             if wel_dum == 1:
                                 break
                         if wel_dum == 1:
                             break
-            del iuzfbnd
             print "Done!"
 
         # RCH
@@ -1333,9 +1331,8 @@ class clsMF():
 
         h4MM = np.zeros((len(self.perlen),self.nrow,self.ncol), dtype = np.float)
         h_MF = h5_MF['heads'][:,:,:,:]
-        iuzfbnd = np.asarray(self.iuzfbnd)
         for l in range(self.nlay):
-            mask = np.ma.make_mask(iuzfbnd == l+1)
+            mask = np.ma.make_mask(self.outcropL == l+1)
             h4MM[:,:,:] += h_MF[:,l,:,:]*mask
         del h_MF
         h5_MF.create_dataset(name = 'heads4MM', data = h4MM)
@@ -1348,7 +1345,7 @@ class clsMF():
             exf_MF = h5_MF['cbc_uzf'][:,:,:,:,imfEXF]
             for l in range(self.nlay):
                 for t in range(len(self.perlen)):
-                    mask = np.ma.make_mask(iuzfbnd == l+1)
+                    mask = np.ma.make_mask(self.outcropL == l+1)
                     exf4MM[t,:,:] += exf_MF[t,l,:,:]*mask
             h5_MF.create_dataset(name = 'exf4MM', data = exf4MM)
         h5_MF.close()
@@ -1359,7 +1356,7 @@ class clsMF():
             os.remove(self.cbc_MFuzf_fn)
             
 ##################
-
-print '\nWARNING!\nStart MARMITES-MODFLOW models using the script startMARMITES_v3.py\n'
+if __name__ == "__main__":
+    print '\nWARNING!\nStart MARMITES-MODFLOW models using the script startMARMITES_v3.py\n'
 
 # EOF            
