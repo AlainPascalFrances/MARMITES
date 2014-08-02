@@ -98,9 +98,9 @@ class clsMMsoil:
                        'silt'            : {'dll':31.0,'y0':0.007,'b':0.021, 'ext_d':430.0},
                        'silty clay loam' : {'dll':40.0,'y0':0.007,'b':0.021, 'ext_d':450.0},
                        'clay'            : {'dll':45.0,'y0':0.006,'b':0.019, 'ext_d':620.0},
-                       'custom'          : {'dll':100.0,'y0':0.00,'b':0.013, 'ext_d':330.0}
-}
-                     # custom'          : {'dll':30.0,'y0':0.005,'b':0.013, 'ext_d':330.0}
+                       'custom'          : {'dll':30.0,'y0':0.005,'b':0.013, 'ext_d':330.0}
+                       }
+                     #                        'custom'          : {'dll':100.0,'y0':0.00,'b':0.013, 'ext_d':330.0}
 #####################
 
     def flux(self, perlen, perleni, RFe, PT, PE, E0surf_max, Zr_elev, VEGarea, HEADS, TopSoilLay, BotSoilLay, Tl, nsl, Sm, Sfc, Sr, Ks, Ssurf_max, Ssoil_ini, Rp_ini, Ssurf_ini, EXF, dgwt, st, i, j, n, kT_min, kT_max, kT_n, NVEG, LAIveg):

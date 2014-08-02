@@ -1675,6 +1675,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                     i = obs.get(o)['i']
                     j = obs.get(o)['j']
                     l_obs = obs.get(o)['lay']
+                    l_highest = cMF.outcropL[i,j]-1
                     obs_h = obs.get(o)['obs_h']
                     obs_SM = obs.get(o)['obs_SM']
                     obs_Ro = obs.get(o)['obs_Ro']
@@ -1692,7 +1693,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                     MM_S = h5_MM['MM_S'][:,i,j,:,:]
                     # SATFLOW
                     cbc_RCH = h5_MF['RCH_d']
-                    h_satflow = MM_SATFLOW.run(cbc_RCH[:,l_obs,i,j], float(obs.get(o)['hi']),float(obs.get(o)['h0']),float(obs.get(o)['RC']),float(obs.get(o)['STO']))
+                    h_satflow = MM_SATFLOW.run(cbc_RCH[:,l_highest,i,j], float(obs.get(o)['hi']),float(obs.get(o)['h0']),float(obs.get(o)['RC']),float(obs.get(o)['STO']))
                     # export ASCII file at piezometers location
                     #TODO extract heads at piezo location and not center of cell
                     if obs_h != []:
@@ -1722,12 +1723,12 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                         else:
                             index_veg = cMF.crop_irr_d[gridMETEO[i,j]-1, IRRfield-1,:]
                     # Export time series results at observations points as ASCII file
-                    cMF.cPROCESS.ExportResultsMM(i, j, cMF.inputDate, SP_d, _nslmax, MM, index_MM, MM_S, index_MM_soil, cbc_RCH[:,l_obs,i,j], cbc_WEL, h_satflow, h_MF_m[:,l_obs,i,j], obs_h_tmp, obs_SM, obs_Ro_tmp, index_veg, outFileExport, o)
+                    cMF.cPROCESS.ExportResultsMM(i, j, cMF.inputDate, SP_d, _nslmax, MM, index_MM, MM_S, index_MM_soil, cbc_RCH[:,l_highest,i,j], cbc_WEL, h_satflow, h_MF_m[:,l_highest,i,j], obs_h_tmp, obs_SM, obs_Ro_tmp, index_veg, outFileExport, o)
                     del cbc_WEL
                     outFileExport.close()
                     # plot time series results as plot
                     plt_suptitle = 'Time series of fluxes at observation point %s' % o
-                    plt_title = 'i = %d, j = %d, l = %d, x = %.2f, y = %.2f, elev. = %.2f, %s\nSm = %s, Sfc = %s, Sr = %s, Ks = %s, thick. = %.3f %s' % (i+1, j+1, l_obs+1, obs.get(o)['x'], obs.get(o)['y'], cMF.elev[i,j], soilnam, _Sm[SOILzone_tmp], _Sfc[SOILzone_tmp], _Sr[SOILzone_tmp], _Ks[SOILzone_tmp], gridSOILthick[i,j], Tl)
+                    plt_title = 'i = %d, j = %d, l_obs = %d, l_highest = %d, x = %.2f, y = %.2f, elev. = %.2f, %s\nSm = %s, Sfc = %s, Sr = %s, Ks = %s, thick. = %.3f %s' % (i+1, j+1, l_obs+1, l_highest+1, obs.get(o)['x'], obs.get(o)['y'], cMF.elev[i,j], soilnam, _Sm[SOILzone_tmp], _Sfc[SOILzone_tmp], _Sr[SOILzone_tmp], _Ks[SOILzone_tmp], gridSOILthick[i,j], Tl)
                     # index_MM = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSsurf':4, 'iRo':5, 'iEXF':6, 'iEsurf':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSsurf':13, 'iETg':14, 'iETsoil':15, 'iSsoil_pc':16, 'idSsoil':17, 'iinf':18, 'iHEADScorr':19, 'idgwt':20, 'iuzthick':21}
                     # index_MM_soil = {'iEsoil':0, 'iTsoil':1,'iSsoil_pc':2, 'iRp':3, 'iRexf':4, 'idSsoil':5, 'iSsoil':6, 'iSAT':7, 'iMB_l':8}
                     plt_export_fn = os.path.join(MM_ws_out, '_0%s_ts.png'%o)
@@ -1758,7 +1759,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                                     MM[:,index_MM.get('idgwt')],
                                     MM[:,index_MM.get('iuzthick')],
                                     MM_S[:,0:nsl,index_MM_soil.get('iSAT')],
-                                    cbc_RCH[:,l_obs,i,j],
+                                    cbc_RCH[:,l_highest,i,j],
                                     h_MF_m[:,:,i,j], MM[:,index_MM.get('iHEADScorr')], h_satflow, obs_h_tmp, obs_SM, obs_Ro_tmp,
                                     _Sm[gridSOIL[i,j]-1],
                                     _Sr[gridSOIL[i,j]-1],
@@ -1866,22 +1867,20 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                     plt_export_obs_txt = open(plt_export_txt_fn, 'w')
                     plt_export_obs_txt.write(flxlbl_CATCH_str)
                     plt_export_obs_txt.write('\n')
-                    #xx = flxlbl_CATCH_str.split(',')
                     for t in range(len(cMF.inputDate)):
                         #print t
                         flx_obs_TS_str = str(flx_obs_TS[0][t])
                         for f, e in enumerate(flx_obs_TS[1:]):
-                            #print str(f), xx[f+1], type(e)
                             flx_obs_TS_str += ',%s' % str(e[t])
                         out_line = '%s,%s' % (mpl.dates.num2date(cMF.inputDate[t]).isoformat()[:10], flx_obs_TS_str)
                         for l in out_line:
                             plt_export_obs_txt.write(l)
                         plt_export_obs_txt.write('\n')
                     plt_export_obs_txt.close() 
-                    try:
-                        MMplot.plotWBsankey(path = MM_ws_out, fn = plt_export_txt_fn.split('\\')[-1], index = HYindex, year_lst = year_lst, cMF = cMF, ncell_MM = ncell_MM, obspt = 'obs. pt. %s'%o, fntitle = '0%s'%o, ibound4Sankey = cMF.ibound[:,i,j])  
-                    except:
-                       print 'Error in plotting water balance at obs. point %s' % o
+#                    try:
+                    MMplot.plotWBsankey(path = MM_ws_out, fn = plt_export_txt_fn.split('\\')[-1], index = HYindex, year_lst = year_lst, cMF = cMF, ncell_MM = ncell_MM, obspt = 'obs. pt. %s'%o, fntitle = '0%s'%o, ibound4Sankey = cMF.ibound[:,i,j])  
+#                    except:
+#                       print 'Error in plotting water balance at obs. point %s' % o
                     try:
                         MMplot.plotTIMESERIES_obsGW(cMF, flx_obs_TS, flxlbl_tex, plt_export_fn, plt_suptitle, iniMonthHydroYear = iniMonthHydroYear, date_ini = StartDate, date_end = EndDate)  
                     except:
@@ -1948,7 +1947,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                     
         del flx_obs_TS, flxlbl_tex, flxlbl_CATCH_str
         del h_satflow, MM
-        del i, j, l_obs, SOILzone_tmp, outFileExport, nsl, soilnam, slprop, Tl, plt_export_fn                
+        del i, j, l_obs, l_highest, SOILzone_tmp, outFileExport, nsl, soilnam, slprop, Tl, plt_export_fn                
         h5_MM.close()
         h5_MF.close()
 

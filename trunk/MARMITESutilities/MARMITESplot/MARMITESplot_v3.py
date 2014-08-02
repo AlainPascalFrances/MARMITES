@@ -1481,7 +1481,10 @@ def plotWBsankey(path, fn, index, year_lst, cMF, ncell_MM, obspt, fntitle, iboun
             pathlengths = [pl]
             for L in range(cMF.nlay):
                 if ibound4Sankey[L] > 0:
-                    flows.append(-R[k][L]/ff)
+                    if R[k][L]/ff>0.0:
+                        flows.append(-R[k][L]/ff)
+                    else:
+                        flows.append(0.0)                        
                     labels.append('$R^{L%d}$'%(L+1))
                     orientations.append(-1)
                     pathlengths.append(pl)
@@ -1504,23 +1507,29 @@ def plotWBsankey(path, fn, index, year_lst, cMF, ncell_MM, obspt, fntitle, iboun
             # about signs, read MF-2005 manual pag 3-10
             MB_MF = []
             #print '%s'%obspt
-            LL = 0
+            L_act = 0
             for L in range(cMF.nlay):
                 if ibound4Sankey[L] > 0:
-                    LL += L
+                    L_act += L
                     In = []
                     Out = []
-                    if LL == 0:
-                        flows=[R[k][L]/ff, -FLF[k][L]/ff, -FRF[k][L]/ff, -FFF[k][L]/ff]
-                        labels=[None, '$FLF$', '$FRF$', '$FFF$']
-                        orientations=[1, -1, 0, 0]
-                        pathlengths = [pl*4, pl, pl, pl*4]
+                    if L_act == 0:
+                        if L == (cMF.nlay-1):
+                            flows=[R[k][L]/ff, -FRF[k][L]/ff, -FFF[k][L]/ff]
+                            labels=[None, '$FRF$', '$FFF$']
+                            orientations=[1, 0, 0]
+                            pathlengths = [pl*4, pl, pl*4]
+                        else:
+                            flows=[R[k][L]/ff, -FLF[k][L]/ff, -FRF[k][L]/ff, -FFF[k][L]/ff]
+                            labels=[None, '$FLF$', '$FRF$', '$FFF$']
+                            orientations=[1, -1, 0, 0]
+                            pathlengths = [pl*4, pl, pl, pl*4]
                         tl_mult = 1
                         if FLF[k][L] > 0.0:
                             Out.append(FLF[k][L])
                         else:
                             In.append(-FLF[k][L])
-                    elif LL == (cMF.nlay-1):
+                    elif L_act == (cMF.nlay-1):
                         flows=[FLF[k][L-1]/ff, R[k][L]/ff, -FRF[k][L]/ff, -FFF[k][L]/ff]
                         labels=[None, '$R^{L%d}$'%(L+1), '$FRF$', '$FFF$']
                         orientations=[1, 1, 0, 0]
@@ -1601,11 +1610,11 @@ def plotWBsankey(path, fn, index, year_lst, cMF, ncell_MM, obspt, fntitle, iboun
                             Out.append(-GHB[k][L])
                         else:
                             In.append(GHB[k][L])
-                    pltsankey.add(patchlabel = '$\Delta S_g$\n%.1f' % (-DSg[k][L]/ff), label='MFL%d'%(L+1), facecolor='LightSteelBlue', trunklength = tl*tl_mult, flows = flows, labels = labels, orientations = orientations, pathlengths = pathlengths, prior=2+LL, connect=(1, 0))
+                    pltsankey.add(patchlabel = '$\Delta S_g$\n%.1f' % (-DSg[k][L]/ff), label='MFL%d'%(L+1), facecolor='LightSteelBlue', trunklength = tl*tl_mult, flows = flows, labels = labels, orientations = orientations, pathlengths = pathlengths, prior=2+L_act, connect=(1, 0))
                     MB_MF.append(100*(sum(In) - sum(Out))/((sum(In) + sum(Out))/2))
-                    LL == 0
+                    L_act == 0
                 else:
-                    LL -= 1
+                    L_act -= 1
                     MB_MF.append(np.nan)
             # plot all patches
             diagrams = pltsankey.finish()

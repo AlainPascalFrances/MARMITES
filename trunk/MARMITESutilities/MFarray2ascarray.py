@@ -1,16 +1,16 @@
 import os
 
 header_fn = r'E:\00code_ws\LAMATA_new\MF_ws\00header_asc.txt'
-arrays_PEST_fn = [r'E:\00code_ws\LAMATA_new\MF_ws\00Sy_l1.ref', r'E:\00code_ws\LAMATA_new\MF_ws\00Ss_l2.ref', r'E:\00code_ws\LAMATA_new\MF_ws\00hk_l1.ref', r'E:\00code_ws\LAMATA_new\MF_ws\00hk_l2.ref']
-arrays_MM_fn = [r'E:\00code_ws\LAMATA_new\MF_ws\00Sy_l1.asc', r'E:\00code_ws\LAMATA_new\MF_ws\00Ss_l2.asc', r'E:\00code_ws\LAMATA_new\MF_ws\00hk_l1.asc', r'E:\00code_ws\LAMATA_new\MF_ws\00hk_l2.asc']
+arrays_PEST_fn = [r'E:\00code_ws\LAMATA_new\MF_ws\00Sy_l1.ref', r'E:\00code_ws\LAMATA_new\MF_ws\00Sy_l2.ref', r'E:\00code_ws\LAMATA_new\MF_ws\00Ss_l2.ref', r'E:\00code_ws\LAMATA_new\MF_ws\00hk_l1.ref', r'E:\00code_ws\LAMATA_new\MF_ws\00hk_l2.ref']
 ncol = 60
 
 print ''
 
-for l, (fin_fn, fout_fn) in enumerate(zip(arrays_PEST_fn, arrays_MM_fn)):
+for l, fin_fn in enumerate(arrays_PEST_fn):
 
     if os.path.exists(fin_fn):
         fin = open(fin_fn, 'r')
+    fout_fn = '%s.asc' % fin_fn.split('.')[0]
     fout = open(fout_fn, 'w')
 
     if os.path.exists(header_fn):
