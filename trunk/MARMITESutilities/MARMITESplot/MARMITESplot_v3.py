@@ -599,7 +599,7 @@ def plotTIMESERIES(cMF, P, PT, PE, Pe, dPOND, POND, Ro, Esoil, Tsoil, Eg, Tg, S,
     ax7.xaxis.grid(b=True, which='minor', color='0.65')
     ax7.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
 
-    ax1.set_xlim(date_ini,date_end)
+    ax1.set_xlim(np.min(cMF.inputDate)-15.0, np.max(cMF.inputDate)+15)
     
     plt.subplots_adjust(left=0.10, bottom=0.10, right=0.95, top=0.95, wspace=0.1, hspace=0.1)
     txt = plt_export_fn.split('.')
@@ -730,7 +730,7 @@ def plotTIMESERIES_obsGW(cMF, flx, flx_lbl, plt_export_fn, plt_title, iniMonthHy
     plt.setp(labels, 'rotation', 90)
     del labels
 
-    ax0.set_xlim(date_ini,date_end)
+    ax0.set_xlim(np.min(cMF.inputDate)-15.0, np.max(cMF.inputDate)+15)
 
     plt.subplots_adjust(left=0.10, bottom=0.10, right=0.95, top=0.95, wspace=0.1, hspace=0.1)
     txt = plt_export_fn.split('.')
@@ -1027,7 +1027,6 @@ def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin
         ax1.set_autoscalex_on(True)
         plt.setp(ax1.get_xticklabels(), visible=False)
         plt.setp(ax1.get_yticklabels(), fontsize=8)
-        #ax1.set_xlim(date_ini,date_end)
         # RMSE
         if obs_catch_list[0] == 1:
             ax1.plot_date(cMF.inputDate, hobs_m, markerfacecolor = 'None', marker='o', markeredgecolor = 'LightBlue', markersize=2, label = r'$h \ obs$')
@@ -1120,7 +1119,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin
     plt.setp(labels, 'rotation', 90)
     del labels
 
-    ax0.set_xlim(date_ini,date_end)
+    ax0.set_xlim(np.min(cMF.inputDate)-15.0, np.max(cMF.inputDate)+15)
 
     plt.subplots_adjust(left=0.10, bottom=0.10, right=0.95, top=0.95, wspace=0.1, hspace=0.1)
     txt = plt_export_fn.split('.')
