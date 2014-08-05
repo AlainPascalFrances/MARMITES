@@ -1267,7 +1267,8 @@ def plotLAYER(timesteps, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, ms
                 os.remove(f)
         except:
             pass
-    plt.close('all')
+    
+    plt.close()
 
 ##################
 

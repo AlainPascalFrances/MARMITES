@@ -633,7 +633,14 @@ if plt_input == 1:
         if cMF.vks_actual != 0.0:
             lst.append(np.asarray(cMF.vks_actual))
             lst_lbl.append('vks')
-            lst_lblCB.append('Sat. vert. hydraulic conductivity - $vks$')
+            lst_lblCB.append('Sat. vert. hydraulic conductivity - $vks$, $iuzfopt$ = ' % cMF.iuzfopt)
+        elif cMF.vks == 1:
+            if cMF.layvka == 0: 
+                lst.append(np.asarray(cMF.vka_actual))
+            else:
+                lst.append(np.asarray(cMF.hk_actual/float(cMF.vka)))                
+            lst_lbl.append('vks')
+            lst_lblCB.append('Sat. vert. hydraulic conductivity - $vks$, $iuzfopt$ = ' % cMF.iuzfopt)                        
         try:
             lst.append(np.asarray(cMF.thti_actual))
             lst_lbl.append('thti')
@@ -741,10 +748,13 @@ if plt_input == 1:
     if cMF.uzf_yn == 1:
         lst.append(np.asarray(cMF.iuzfbnd))
         lst_lbl.append('iuzfbnd')
-        lst_lblCB.append('Recharge layer - $iuzfbnd$')
+        lst_lblCB.append('UFZ1 - $iuzfbnd$, $nuztop$ = %d' % cMF.nuztop)
         lst.append(np.asarray(cMF.LandSurface))
         lst_lbl.append('LandSurface')
-        lst_lblCB.append('Land surface UZF1 - $(m)$')        
+        lst_lblCB.append('Land surface UZF1 - $(m)$')  
+        lst.append(cMF.outcropL)
+        lst_lbl.append('outcropL')
+        lst_lblCB.append('Outcropping MF layer')          
     for i, l in enumerate(lst):
         V = np.zeros((1, cMF.nlay, cMF.nrow, cMF.ncol), dtype = np.float)
         Vmax = []
