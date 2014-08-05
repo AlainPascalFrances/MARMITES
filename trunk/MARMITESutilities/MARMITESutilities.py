@@ -14,22 +14,20 @@ import os, sys, traceback
 import matplotlib as mpl
 
 class clsUTILITIES():
-    def __init__(self, fmt = mpl.dates.DateFormatter('%Y-%m-%d %H:%M'), verbose = 1, s = '', report = None, report_fn = ''):
+    def __init__(self, fmt = mpl.dates.DateFormatter('%Y-%m-%d %H:%M'), verbose = 1, report_fn = ''):
         self.fmt = fmt
         self.verbose = verbose
-        self.s = s
-        self.report = report
         self.report_fn = report_fn
 
 #####################################
 
-    def ErrorExit(self, msg = 'Undefined error.'):
+    def ErrorExit(self, msg = 'Undefined error.', stdout = None, report = None):
         print '%s\nError description:' % msg
         traceback.print_exc(file=sys.stdout)
         print ('\n##############\nWARNING!\nMARMITES terminated with ERROR!\n%s\n##############' % (mpl.dates.DateFormatter.format_data(self.fmt, mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat()))))
         if self.verbose == 0:
-            sys.stdout = self.s
-            self.report.close()
+            sys.stdout = stdout
+            report.close()
             raise SystemExit('##############\nWARNING!\nMARMITES terminated with ERROR!\nCheck report file:\n%s.\n%s\n##############' % (self.report_fn, mpl.dates.DateFormatter.format_data(self.fmt, mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat()))))
         else:
             raise SystemExit()

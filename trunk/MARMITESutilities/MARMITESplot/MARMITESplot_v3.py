@@ -1272,7 +1272,7 @@ def plotLAYER(timesteps, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, ms
 
 ##################
 
-def plotWBsankey(path, fn, index, year_lst, cMF, ncell_MM, obspt, fntitle, ibound4Sankey):
+def plotWBsankey(path, fn, index, year_lst, cMF, ncell_MM, obspt, fntitle, ibound4Sankey, stdout = None, report = None):
 
     """ Computes the water balance for a certain time span
     input: ASCII file with water fluxes wrtitten by MM
@@ -1285,7 +1285,7 @@ def plotWBsankey(path, fn, index, year_lst, cMF, ncell_MM, obspt, fntitle, iboun
     if os.path.exists(inputFile_fn):
         DATA = np.loadtxt(inputFile_fn, skiprows = 1, dtype = str, delimiter = ',')
     else:
-        cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nThe input file [" + inputFile_fn + "] doesn't exist, verify name and path!")
+        cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nThe input file [" + inputFile_fn + "] doesn't exist, verify name and path!", stdout = stdout, report = report)
 
     date = DATA[:,0]
     DATE = np.zeros(len(date), dtype = float)

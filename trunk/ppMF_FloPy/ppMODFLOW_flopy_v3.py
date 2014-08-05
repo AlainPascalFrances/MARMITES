@@ -25,7 +25,7 @@ import MARMITESprocess_v3 as MMproc
 
 #####################################
 class clsMF():
-    def __init__(self, cUTIL, MM_ws, MM_ws_out, MF_ws, MF_ini_fn, xllcorner, yllcorner, numDays = -1):
+    def __init__(self, cUTIL, MM_ws, MM_ws_out, MF_ws, MF_ini_fn, xllcorner, yllcorner, numDays = -1, stdout = None, report = None):
 
         ''' read input file (called _input.ini in the MARMITES workspace
         the first character on the first line has to be the character used to comment
@@ -416,7 +416,7 @@ class clsMF():
             l += 1
             self.MFout_yn = int(inputFile[l].strip())
         except:
-            self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nUnexpected error in the MODFLOW input file:\n")
+            self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nUnexpected error in the MODFLOW input file:\n", stdout = stdout, report = report)
         del inputFile
 
         self.cPROCESS = MMproc.clsPROCESS(
@@ -435,10 +435,10 @@ class clsMF():
         # 1 - reaf asc file and convert in np.array
         print "\nImporting ESRI ASCII files to initialize the MODFLOW packages..."
 
-        self.elev     = self.cPROCESS.checkarray(self.elev)
-        self.strt     = self.cPROCESS.checkarray(self.strt)
-        self.thick    = self.cPROCESS.checkarray(self.thick)
-        self.ibound   = self.cPROCESS.checkarray(self.ibound, dtype = np.int)
+        self.elev     = self.cPROCESS.checkarray(self.elev, stdout = stdout, report = report)
+        self.strt     = self.cPROCESS.checkarray(self.strt, stdout = stdout, report = report)
+        self.thick    = self.cPROCESS.checkarray(self.thick, stdout = stdout, report = report)
+        self.ibound   = self.cPROCESS.checkarray(self.ibound, dtype = np.int, stdout = stdout, report = report)
         if self.nlay < 2:
             if isinstance(self.ibound, list):
                 self.ibound = (np.asarray(self.ibound)).reshape((1, self.nrow, self.ncol))
@@ -462,9 +462,9 @@ class clsMF():
             if isinstance(self.botm, list):
                 self.botm = np.ma.masked_values((np.asarray(self.botm)).reshape((1, self.nrow, self.ncol)), self.hnoflo, atol = 0.09)
         if self.uzf_yn == 1:
-            self.iuzfbnd = self.cPROCESS.checkarray(self.iuzfbnd, dtype = np.int)
+            self.iuzfbnd = self.cPROCESS.checkarray(self.iuzfbnd, dtype = np.int, stdout = stdout, report = report)
         if self.ghb_yn == 1:
-            ghb = np.asarray(self.cPROCESS.checkarray(self.ghb_cond, dtype = np.float))
+            ghb = np.asarray(self.cPROCESS.checkarray(self.ghb_cond, dtype = np.float, stdout = stdout, report = report))
             if self.nlay > 1:
                 self.ghbcells = np.zeros((self.nlay), dtype = np.int)
                 for l in range(self.nlay):
@@ -473,7 +473,7 @@ class clsMF():
                 self.ghbcells = (np.asarray(ghb[:,:]) > 0.0).sum()
             del ghb
         if self.drn_yn == 1:
-            drn = np.asarray(self.cPROCESS.checkarray(self.drn_cond, dtype = np.float))
+            drn = np.asarray(self.cPROCESS.checkarray(self.drn_cond, dtype = np.float, stdout = stdout, report = report))
             if self.nlay > 1:
                 self.drncells = np.zeros((self.nlay), dtype = np.int)
                 for l in range(self.nlay):
@@ -482,7 +482,7 @@ class clsMF():
                 self.drncells = [(np.asarray(drn[:,:]) > 0.0).sum()]
             del drn
 
-        self.array_ini(MF_ws = self.MF_ws)
+        self.array_ini(MF_ws = self.MF_ws, stdout = stdout, report = report)
 
 #####################################
 
@@ -498,24 +498,24 @@ class clsMF():
 
 ####################################
 
-    def array_ini(self, MF_ws):
+    def array_ini(self, MF_ws, stdout = None, report = None):
 
-        self.hk_actual      = np.asarray(self.cPROCESS.checkarray(self.hk))
-        self.vka_actual     = np.asarray(self.cPROCESS.checkarray(self.vka))
-        self.ss_actual      = np.asarray(self.cPROCESS.checkarray(self.ss))
-        self.sy_actual      = np.asarray(self.cPROCESS.checkarray(self.sy))
+        self.hk_actual      = np.asarray(self.cPROCESS.checkarray(self.hk, stdout = stdout, report = report))
+        self.vka_actual     = np.asarray(self.cPROCESS.checkarray(self.vka, stdout = stdout, report = report))
+        self.ss_actual      = np.asarray(self.cPROCESS.checkarray(self.ss, stdout = stdout, report = report))
+        self.sy_actual      = np.asarray(self.cPROCESS.checkarray(self.sy, stdout = stdout, report = report))
         if np.sum(np.asarray(self.sy_actual)>1.0)>0.0:
-            self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nSy value > 1.0!!!\nCorrect it (it should be expressed in [L^3/L^3]), and verify also thts, thtr and thti.")
+            self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nSy value > 1.0!!!\nCorrect it (it should be expressed in [L^3/L^3]), and verify also thts, thtr and thti.", stdout = stdout, report = report)
         # uzf
         if self.uzf_yn == 1:
             if self.iuzfopt == 1:
-                self.vks_actual     = self.cPROCESS.checkarray(self.vks)
+                self.vks_actual     = self.cPROCESS.checkarray(self.vks, stdout = stdout, report = report)
             else:
                 self.vks_actual = 0.0
-            self.eps_actual     = self.cPROCESS.checkarray(self.eps)
+            self.eps_actual     = self.cPROCESS.checkarray(self.eps, stdout = stdout, report = report)
             self.thtr_actual = None
             if self.specifythtr > 0:
-                self.thtr_actual     = self.cPROCESS.checkarray(self.thtr)
+                self.thtr_actual     = self.cPROCESS.checkarray(self.thtr, stdout = stdout, report = report)
                 thtr_tmp  = np.asarray(self.thtr_actual)
             else:
                 self.thtr_actual = 0.0
@@ -543,7 +543,7 @@ class clsMF():
                 if self.thtr_actual != None:
                     del thtr_tmp
             else:
-                self.thts_actual = self.cPROCESS.checkarray(self.thts)
+                self.thts_actual = self.cPROCESS.checkarray(self.thts, stdout = stdout, report = report)
             try:
                 self.thti_actual = float(self.thti[0])
             except:
@@ -551,15 +551,15 @@ class clsMF():
             if type(self.thti_actual) == float and self.thti_actual < 0:
                 self.thti_actual = self.thts_actual/(np.abs(self.thti_actual))
             else:
-                self.thti_actual = self.cPROCESS.checkarray(self.thti)
+                self.thti_actual = self.cPROCESS.checkarray(self.thti, stdout = stdout, report = report)
             for l in range(self.nlay):
                 try:
                     sy_tmp = np.asarray(self.sy_actual[l,:,:])
                 except:
                      sy_tmp = np.asarray(self.sy_actual[l])
                 if (sy_tmp*self.ibound[l,:,:]+np.asarray(self.thtr_actual)>np.asarray(self.thts_actual)).sum()> 0.0:
-                    self.thts_actual = sy_tmp+2.0*np.asarray(self.thtr_actual[0])
-                    print '\nWARNING!\nSy + THTR > THTS! Corrected: THTS = Sy + 2.0*THTR'
+                    self.thts_actual = sy_tmp*self.ibound[l,:,:]+2.0*np.asarray(self.thtr_actual)
+                    print '\nWARNING!\nSy + THTR > THTS in layer %d! Corrected: THTS = Sy + 2.0*THTR' % l
             if (np.asarray(self.thti_actual)<np.asarray(self.thtr_actual)).sum()>0.0 or (np.asarray(self.thti_actual)>np.asarray(self.thts_actual)).sum()>0.0:
                 self.thti_actual = np.asarray(self.thtr_actual) + (np.asarray(self.thts_actual)-np.asarray(self.thtr_actual))/4.0
                 print '\nWARNING!\nTHTI > THTS or THTI< THTR!Corrected: THTI = THTR + (THTS-THTR)/4.0'
@@ -626,7 +626,7 @@ class clsMF():
 ####################################
 
 
-    def ppMFtime(self, inputDate_fn, inputZON_dSP_RF_veg_fn, inputZON_dSP_RFe_veg_fn, inputZON_dSP_PT_fn, input_dSP_LAI_veg_fn, inputZON_dSP_PE_fn, inputZON_dSP_E0_fn, NMETEO, NVEG, NSOIL, inputZON_dSP_RF_irr_fn = None, inputZON_dSP_RFe_irr_fn = None, inputZON_dSP_PT_irr_fn = None, input_dSP_crop_irr_fn = None, NFIELD = None):
+    def ppMFtime(self, inputDate_fn, inputZON_dSP_RF_veg_fn, inputZON_dSP_RFe_veg_fn, inputZON_dSP_PT_fn, input_dSP_LAI_veg_fn, inputZON_dSP_PE_fn, inputZON_dSP_E0_fn, NMETEO, NVEG, NSOIL, inputZON_dSP_RF_irr_fn = None, inputZON_dSP_RFe_irr_fn = None, inputZON_dSP_PT_irr_fn = None, input_dSP_crop_irr_fn = None, NFIELD = None, stdout = None, report = None):
 
         ''' RF analysis to define automatically nper/perlen/nstp
         Daily RF>0 creates a nper
@@ -657,9 +657,9 @@ class clsMF():
                 difDay=self.inputDate[i]-self.inputDate[i-1]
                 if (difDay !=1.0):
                     print 'DifDay = ' + str(difDay)
-                    self.cUTIL.ErrorExit(msg = '\nFATAL ERROR!\nDates of the input data are not sequencial, check your daily time step!\nError at date %s ' % str(self.inputDate[i]))
+                    self.cUTIL.ErrorExit(msg = '\nFATAL ERROR!\nDates of the input data are not sequencial, check your daily time step!\nError at date %s ' % str(self.inputDate[i]), stdout = stdout, report = report)
         else:
-            self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % inputDate_fn)
+            self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % inputDate_fn, stdout = stdout, report = report)
 
         inputFileRF_veg = self.cUTIL.readFile(self.MM_ws, inputZON_dSP_RF_veg_fn)
         RF_veg_d = np.zeros([NMETEO, len(self.JD)], dtype = np.float)
@@ -988,7 +988,7 @@ class clsMF():
                 for f in range(NFIELD):
                     ExportResults1(crop_irr_stp[0][f], inputcrop_irr)
         except:
-            self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nError in exporting output files in MF time processing.")
+            self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nError in exporting output files in MF time processing.", stdout = stdout, report = report)
 
         print 'Found %d days converted into %d stress periods.' % (sum(self.perlen), self.nper)
 
@@ -1006,7 +1006,7 @@ class clsMF():
 
 #####################################
 
-    def runMF(self, finf_MM = "", finf_user = None, wel_MM = "", wel_user = None, report = None, verbose = 1, s = '', chunks = 0, numDays = -1):
+    def runMF(self, finf_MM = "", finf_user = None, wel_MM = "", wel_user = None, verbose = 1, s = '', chunks = 0, numDays = -1, stdout = None, report = None):
 
         if verbose == 0:
             print '--------------'
@@ -1026,7 +1026,7 @@ class clsMF():
             if self.rch_yn == 1:
                 rch_input = self.rch_user
 
-        self.array_ini(MF_ws = self.MF_ws)
+        self.array_ini(MF_ws = self.MF_ws, stdout = stdout, report = report)
 
         # FINF
         if self.uzf_yn == 1:
@@ -1257,7 +1257,7 @@ class clsMF():
         self.cbc_MF_fn = os.path.join(self.MF_ws, self.modelname + "." + self.ext_cbc)
         if self.uzf_yn == 1:
             if uzf.iuzfcb1 == 0:
-                self.cUTIL.ErrorExit(msg = '\nFATAL ERROR!\nPlease fix the UZF parameters iuzfcb1 equal to 57!')
+                self.cUTIL.ErrorExit(msg = '\nFATAL ERROR!\nPlease fix the UZF parameters iuzfcb1 equal to 57!', stdout = stdout, report = report)
             self.cbc_MFuzf_fn = os.path.join(self.MF_ws, self.modelname + '.uzfbt1')
 
         # run MODFLOW and read the heads back into Python
@@ -1277,13 +1277,13 @@ class clsMF():
             hmain = flopy.utils.HeadFile(self.h_MF_fn)
         except:
             h5_MF.close()
-            self.cUTIL.ErrorExit(msg= '\nMODFLOW error!\nCheck the MODFLOW list file in folder:\n%s' % self.MF_ws)
+            self.cUTIL.ErrorExit(msg= '\nMODFLOW error!\nCheck the MODFLOW list file in folder:\n%s' % self.MF_ws, stdout = stdout, report = report)
         h = np.zeros((self.nper, self.nlay, self.nrow, self.ncol), dtype = np.float32)
         for i, e in enumerate(hmain.get_kstpkper()):
             h[i,:,:,:] = hmain.get_data(kstp = e[0], kper = e[1])
         if hmain.get_times()[-1]<sum(self.nstp):
             h5_MF.close()
-            self.cUTIL.ErrorExit(msg = '\nMODFLOW error!\nCheck the MODFLOW list file in folder:\n%s' % self.MF_ws)        
+            self.cUTIL.ErrorExit(msg = '\nMODFLOW error!\nCheck the MODFLOW list file in folder:\n%s' % self.MF_ws, stdout = stdout, report = report)        
         if chunks == 1:
             if self.dum_sssp1 == 1:
                 h5_MF.create_dataset(name = 'heads', data = h[1:], chunks = (1,self.nlay,self.nrow,self.ncol), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf')

@@ -226,14 +226,14 @@ if verbose == 0:
 # capture interpreter output to be written in to a report file
     report_fn = os.path.join(MM_ws_out,'__%s_MMMFrun_report.txt' % (mpl.dates.DateFormatter.format_data(fmt_DHshort, timestart)))
     print '\nECHO OFF (no screen output).\nSee the report of the MM-MF run in file:\n%s\n' % report_fn
-    s = sys.stdout
+    stdout = sys.stdout
     report = open(report_fn, 'w')
     sys.stdout = report
     print '\n##############\nMARMITES v0.3 started!\n%s\n##############' % mpl.dates.DateFormatter.format_data(fmt_DH, timestart)
-
-    cUTIL = MMutils.clsUTILITIES(fmt = fmt_DH, verbose = verbose, s = s, report = report, report_fn = report_fn)
+    cUTIL = MMutils.clsUTILITIES(fmt = fmt_DH, verbose = verbose, report_fn = report_fn)
 else:
     report = None
+    stdout = None
 
 MMsurf_ws = os.path.join(MM_ws,MMsurf_ws)
 MF_ws = os.path.join(MM_ws,MF_ws)
@@ -351,7 +351,7 @@ try:
         l += 1
         input_dSP_crop_irr_fn = str(inputFile[l].strip())
 except:
-    cUTIL.ErrorExit('\nFATAL ERROR!\Error in reading file [%s].' % outMMsurf_fn)
+    cUTIL.ErrorExit('\nFATAL ERROR!\Error in reading file [%s].' % outMMsurf_fn, stdout = stdout, report = report)
 
 del inputFile
 numDays = len(cUTIL.readFile(MM_ws, inputDate_fn))
@@ -362,7 +362,7 @@ inputFile_fn = os.path.join(MM_ws, inputDate_fn)
 if os.path.exists(inputFile_fn):
     date = np.loadtxt(inputFile_fn, skiprows = 1, dtype = str, delimiter = ',')[:,0]
 else:
-    cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nThe input file [" + inputFile_fn + "] doesn't exist, verify name and path!")
+    cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nThe input file [" + inputFile_fn + "] doesn't exist, verify name and path!", stdout = stdout, report = report)
 DATE = np.zeros(len(date), dtype = float)
 for i, d in enumerate(date):
     DATE[i] = mpl.dates.datestr2num(d)
@@ -377,7 +377,7 @@ else:
 HYindex.append(np.argmax(DATE[:] == mpl.dates.datestr2num('%d-%d-01' % (year_lst[0], iniMonthHydroYear))))
 
 if sum(DATE[:] == mpl.dates.datestr2num('%d-%d-01' % (year_lst[0]+1, iniMonthHydroYear)))==0:
-    cUTIL.ErrorExit(msg = '\nThe data file does not contain a full hydrological year starting at date 01/%d' % iniMonthHydroYear)
+    cUTIL.ErrorExit(msg = '\nThe data file does not contain a full hydrological year starting at date 01/%d' % iniMonthHydroYear, stdout = stdout, report = report)
 
 y = 0    
 while DATE[-1] >= mpl.dates.datestr2num('%d-%d-01' % (year_lst[y]+1, iniMonthHydroYear)):
@@ -418,7 +418,7 @@ print'\n##############'
 print 'MODFLOW initialization'
 durationMF = 0.0
 timestartMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
-cMF = ppMF.clsMF(cUTIL, MM_ws, MM_ws_out, MF_ws, MF_ini_fn, xllcorner, yllcorner, numDays = numDays)
+cMF = ppMF.clsMF(cUTIL, MM_ws, MM_ws_out, MF_ws, MF_ini_fn, xllcorner, yllcorner, numDays = numDays, stdout = stdout, report = report)
 # compute cbc conversion factor from volume to mm
 if cMF.lenuni == 1:
     conv_fact = 304.8
@@ -430,12 +430,12 @@ elif cMF.lenuni == 3:
     conv_fact = 10.0
     lenuni_str = 'cm'
 else:
-    cUTIL.ErrorExit('\nFATAL ERROR!\nDefine the length unit in the MODFLOW ini file!\n (see USGS Open-File Report 00-92)')
+    cUTIL.ErrorExit('\nFATAL ERROR!\nDefine the length unit in the MODFLOW ini file!\n (see USGS Open-File Report 00-92)', stdout = stdout, report = report)
     # TODO if lenuni!=2 apply conversion factor to delr, delc, etc...
 if cMF.laytyp[0]==0:
-    cUTIL.ErrorExit('\nFATAL ERROR!\nThe first layer cannot be confined type!\nChange your parameter laytyp in the MODFLOW lpf package.\n(see USGS Open-File Report 00-92)')
+    cUTIL.ErrorExit('\nFATAL ERROR!\nThe first layer cannot be confined type!\nChange your parameter laytyp in the MODFLOW lpf package.\n(see USGS Open-File Report 00-92)', stdout = stdout, report = report)
 if cMF.itmuni != 4:
-    cUTIL.ErrorExit('\nFATAL ERROR!\nTime unit is not in days!')
+    cUTIL.ErrorExit('\nFATAL ERROR!\nTime unit is not in days!', stdout = stdout, report = report)
 else:
     itmuni_str = 'day'
 ncell_MF = []
@@ -465,11 +465,11 @@ if isinstance(cMF.nper, str):
     try:
         perlenmax = int(cMF.nper.split()[1].strip())
     except:
-        cUTIL.ErrorExit('\nFATAL ERROR!\nError in nper format of the MODFLOW ini file!')
+        cUTIL.ErrorExit('\nFATAL ERROR!\nError in nper format of the MODFLOW ini file!', stdout = stdout, report = report)
 if irr_yn == 0:
-    cMF.ppMFtime(inputDate_fn, inputZON_dSP_RF_veg_fn, inputZON_dSP_RFe_veg_fn, inputZON_dSP_PT_fn,input_dSP_LAI_veg_fn, inputZON_dSP_PE_fn, inputZON_dSP_E0_fn, NMETEO, NVEG, NSOIL)
+    cMF.ppMFtime(inputDate_fn, inputZON_dSP_RF_veg_fn, inputZON_dSP_RFe_veg_fn, inputZON_dSP_PT_fn,input_dSP_LAI_veg_fn, inputZON_dSP_PE_fn, inputZON_dSP_E0_fn, NMETEO, NVEG, NSOIL, stdout = stdout, report = report)
 else:
-    cMF.ppMFtime(inputDate_fn, inputZON_dSP_RF_veg_fn, inputZON_dSP_RFe_veg_fn, inputZON_dSP_PT_fn, input_dSP_LAI_veg_fn, inputZON_dSP_PE_fn, inputZON_dSP_E0_fn, NMETEO, NVEG, NSOIL, inputZON_dSP_RF_irr_fn, inputZON_dSP_RFe_irr_fn, inputZON_dSP_PT_irr_fn, input_dSP_crop_irr_fn, NFIELD)
+    cMF.ppMFtime(inputDate_fn, inputZON_dSP_RF_veg_fn, inputZON_dSP_RFe_veg_fn, inputZON_dSP_PT_fn, input_dSP_LAI_veg_fn, inputZON_dSP_PE_fn, inputZON_dSP_E0_fn, NMETEO, NVEG, NSOIL, inputZON_dSP_RF_irr_fn, inputZON_dSP_RFe_irr_fn, inputZON_dSP_PT_irr_fn, input_dSP_crop_irr_fn, NFIELD, stdout = stdout, report = report)
 
 print'\n##############'
 print 'MARMITESsoil initialization'
@@ -486,7 +486,7 @@ gridSsurfw = cMF.cPROCESS.inputEsriAscii(grid_fn = gridSsurfw_fn, datatype = flo
 if irr_yn == 1:
     gridIRR = cMF.cPROCESS.inputEsriAscii(grid_fn = gridIRR_fn, datatype = int)
     if gridIRR.max() > NFIELD:
-        cUTIL.ErrorExit('\nFATAL ERROR!\nThere is more fields in the asc file than in the MMsurf file!')
+        cUTIL.ErrorExit('\nFATAL ERROR!\nThere is more fields in the asc file than in the MMsurf file!', stdout = stdout, report = report)
 
 # READ input time series and parameters
 if irr_yn == 0:
@@ -552,7 +552,8 @@ obs, obs_list, obs_catch, obs_catch_list = cMF.cPROCESS.inputObs(
                               inputObsRo_fn    = inputObsRo_fn,
                               inputDate        = cMF.inputDate,
                               _nslmax          = _nslmax,
-                              nlay             = cMF.nlay
+                              nlay             = cMF.nlay,
+                              stdout = stdout, report = report
                               )
 i = []
 j = []
@@ -787,12 +788,12 @@ if MF_yn == 1 :
     print 'MODFLOW RUN (initial user-input fluxes)\n'
     if verbose == 0:
         print '\n--------------'
-        sys.stdout = s
+        sys.stdout = stdout
         report.close()
-        s = sys.stdout
+        stdout = sys.stdout
         report = open(report_fn, 'a')
         sys.stdout = report
-    cMF.runMF(finf_MM = (h5_MM_fn, 'finf'), wel_MM = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks, numDays = numDays)
+    cMF.runMF(finf_MM = (h5_MM_fn, 'finf'), wel_MM = (h5_MM_fn, 'ETg'), verbose = verbose, chunks = chunks, numDays = numDays, stdout = stdout, report = report)
     timeendMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
     durationMFtmp =  timeendMF - timestartMF
     durationMF +=  durationMFtmp
@@ -815,7 +816,7 @@ if os.path.exists(cMF.h5_MF_fn):
                 cbc_uzf_nam.append(c.strip())
         elif cMF.rch_yn == 1:
             #imfRCH = cbc_nam.index_MM('RECHARGE')
-            cUTIL.ErrorExit('\nFATAL ERROR!\nMM has to be run together with the UZF1 package of MODFLOW-NWT, thus the RCH package should be desactivacted!\nExisting MM.')
+            cUTIL.ErrorExit('\nFATAL ERROR!\nMM has to be run together with the UZF1 package of MODFLOW-NWT, thus the RCH package should be desactivacted!\nExisting MM.', stdout = stdout, report = report)
         cbc_uzf_nam_tex = [0]*len(cbc_uzf_nam)
         imfSTO = cbc_nam.index('STORAGE')
         imfFRF = cbc_nam.index('FLOW RIGHT FACE')
@@ -835,7 +836,7 @@ if os.path.exists(cMF.h5_MF_fn):
         if MMsoil_yn == 0:
             h5_MF.close()
     except:
-        cUTIL.ErrorExit('\nFATAL ERROR!\nInvalid MODFLOW HDF5 file. Run MARMITES and/or MODFLOW again.')
+        cUTIL.ErrorExit('\nFATAL ERROR!\nInvalid MODFLOW HDF5 file. Run MARMITES and/or MODFLOW again.', stdout = stdout, report = report)
 
 # #############################
 # 2nd phase : MM/MF loop #####
@@ -985,16 +986,16 @@ if MMsoil_yn > 0:
             print 'MODFLOW RUN (MARMITES fluxes after conv. loop)'
         if verbose == 0:
             print '\n--------------'
-            sys.stdout = s
+            sys.stdout = stdout
             report.close()
-            s = sys.stdout
+            stdout = sys.stdout
             report = open(report_fn, 'a')
             sys.stdout = report
-        cMF.runMF(finf_MM = (h5_MM_fn, 'finf'), wel_MM = (h5_MM_fn, 'ETg'), report = report, verbose = verbose, chunks = chunks, numDays = numDays)
+        cMF.runMF(finf_MM = (h5_MM_fn, 'finf'), wel_MM = (h5_MM_fn, 'ETg'), verbose = verbose, chunks = chunks, numDays = numDays, stdout = stdout, report = report)
         try:
             h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
         except:
-            cUTIL.ErrorExit('\nFATAL ERROR!\nInvalid MODFLOW HDF5 file. Run MARMITES and/or MODFLOW again.')
+            cUTIL.ErrorExit('\nFATAL ERROR!\nInvalid MODFLOW HDF5 file. Run MARMITES and/or MODFLOW again.', stdout = stdout, report = report)
         timeendMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
         durationMFtmp =  timeendMF-timestartMF
         durationMF +=  durationMFtmp
@@ -1081,7 +1082,7 @@ if MF_yn == 1 and isinstance(cMF.h5_MF_fn, str):
     try:
         h5_MF = h5py.File(cMF.h5_MF_fn)
     except:
-        cUTIL.ErrorExit('\nFATAL ERROR!\nInvalid MODFLOW HDF5 file. Run MARMITES and/or MODFLOW again.')
+        cUTIL.ErrorExit('\nFATAL ERROR!\nInvalid MODFLOW HDF5 file. Run MARMITES and/or MODFLOW again.', stdout = stdout, report = report)
     cMF.cPROCESS.procMF(cMF = cMF, h5_MF = h5_MF, ds_name = 'cbc', ds_name_new = 'STO_d', conv_fact = conv_fact, index = imfSTO)
     cMF.cPROCESS.procMF(cMF = cMF, h5_MF = h5_MF, ds_name = 'cbc', ds_name_new = 'FRF_d', conv_fact = conv_fact, index = imfFRF)
     cMF.cPROCESS.procMF(cMF = cMF, h5_MF = h5_MF, ds_name = 'cbc', ds_name_new = 'FFF_d', conv_fact = conv_fact, index = imfFFF)
@@ -1104,7 +1105,7 @@ if MMsoil_yn > 0 and isinstance(h5_MM_fn, str):
     try:
         h5_MM = h5py.File(h5_MM_fn)
     except:
-        cUTIL.ErrorExit('\nFATAL ERROR!\nInvalid MARMITES HDF5 file. Run MARMITES and/or MODFLOW again.')
+        cUTIL.ErrorExit('\nFATAL ERROR!\nInvalid MARMITES HDF5 file. Run MARMITES and/or MODFLOW again.', stdout = stdout, report = report)
     cMF.cPROCESS.procMM(cMF = cMF, h5_MM = h5_MM, ds_name = 'finf', ds_name_new = 'finf_d')
     cMF.cPROCESS.procMM(cMF = cMF, h5_MM = h5_MM, ds_name = 'ETg', ds_name_new = 'ETg_d')
     h5_MM.close()
@@ -1150,7 +1151,7 @@ if os.path.exists(h5_MM_fn):
     try:
         h5_MM = h5py.File(h5_MM_fn, 'r')
     except:
-        cUTIL.ErrorExit('\nFATAL ERROR!\nInvalid MARMITES HDF5 file. Run MARMITES and/or MODFLOW again.')
+        cUTIL.ErrorExit('\nFATAL ERROR!\nInvalid MARMITES HDF5 file. Run MARMITES and/or MODFLOW again.', stdout = stdout, report = report)
     outPESTsmMM = open(os.path.join(MF_ws,'sm_MM4PEST.smp'), 'w')
     for o_ref in obs_list:
         for o in obs.keys():
@@ -1190,7 +1191,7 @@ if os.path.exists(cMF.h5_MF_fn):
     try:
         h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
     except:
-        cUTIL.ErrorExit('\nFATAL ERROR!\nInvalid MODFLOW HDF5 file. Run MARMITES and/or MODFLOW again.')
+        cUTIL.ErrorExit('\nFATAL ERROR!\nInvalid MODFLOW HDF5 file. Run MARMITES and/or MODFLOW again.', stdout = stdout, report = report)
     # STO
     cbc_STO = h5_MF['STO_d']
     cbcmax_d.append(-1*np.ma.max(cbc_STO))
@@ -1281,7 +1282,7 @@ if os.path.exists(h5_MM_fn):
     try:
         h5_MM = h5py.File(h5_MM_fn, 'r')
     except:
-        cUTIL.ErrorExit('\nFATAL ERROR!\nInvalid MARMITES HDF5 file. Run MARMITES and/or MODFLOW again.')
+        cUTIL.ErrorExit('\nFATAL ERROR!\nInvalid MARMITES HDF5 file. Run MARMITES and/or MODFLOW again.', stdout = stdout, report = report)
     # h
     headscorr_m = np.ma.masked_values(np.ma.masked_values(h5_MM['MM'][:,:,:,19], cMF.hnoflo, atol = 0.09), cMF.hdry, atol = 1E+25)
     hcorrmax = np.ma.max(headscorr_m.flatten())
@@ -1335,7 +1336,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
     try:
         h5_MM = h5py.File(h5_MM_fn, 'r')
     except:
-        cUTIL.ErrorExit('\nFATAL ERROR!\nInvalid MARMITES HDF5 file. Run MARMITES and/or MODFLOW again.')
+        cUTIL.ErrorExit('\nFATAL ERROR!\nInvalid MARMITES HDF5 file. Run MARMITES and/or MODFLOW again.', stdout = stdout, report = report)
     # RMSE list to plot
     rmseSM = []
     rsrSM = []
@@ -1504,7 +1505,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
         try:
             h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
         except:
-            cUTIL.ErrorExit('\nFATAL ERROR!\nInvalid MF HDF5 file. Run MARMITES and/or MODFLOW again.')        
+            cUTIL.ErrorExit('\nFATAL ERROR!\nInvalid MF HDF5 file. Run MARMITES and/or MODFLOW again.', stdout = stdout, report = report)        
         cbc_RCH = h5_MF['RCH_d']
         array_tmp2 = np.zeros((sum(cMF.perlen)), dtype = np.float)
         rch_tot = 0
@@ -1658,7 +1659,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
         plt_exportCATCH_txt.write('\n')
     plt_exportCATCH_txt.close()
     #try:
-    MMplot.plotWBsankey(path = MM_ws_out, fn = plt_exportCATCH_txt_fn.split('\\')[-1], index = HYindex, year_lst = year_lst, cMF = cMF, ncell_MM = ncell_MM, obspt = 'whole catchment', fntitle = '0CATCHMENT', ibound4Sankey = np.ones((cMF.nlay), dtype = int))
+    MMplot.plotWBsankey(path = MM_ws_out, fn = plt_exportCATCH_txt_fn.split('\\')[-1], index = HYindex, year_lst = year_lst, cMF = cMF, ncell_MM = ncell_MM, obspt = 'whole catchment', fntitle = '0CATCHMENT', ibound4Sankey = np.ones((cMF.nlay), dtype = int), stdout = stdout, report = report)
     #except:
      #   print "\nError in plotting the catchment water balance!"
     del flx_Cat_TS, flx_Cat_TS_str, out_line, plt_exportCATCH_fn, plt_exportCATCH_txt_fn, plt_titleCATCH
@@ -1674,7 +1675,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
         h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
         h5_MM = h5py.File(h5_MM_fn, 'r')
     except:
-        cUTIL.ErrorExit('\nFATAL ERROR!\nInvalid MM or MF HDF5 file. Run MARMITES and/or MODFLOW again.')
+        cUTIL.ErrorExit('\nFATAL ERROR!\nInvalid MM or MF HDF5 file. Run MARMITES and/or MODFLOW again.', stdout = stdout, report = report)
         valid  = 1
     if valid == 0:
         clr_lst = ['darkgreen', 'firebrick', 'darkmagenta', 'goldenrod', 'green', 'tomato', 'magenta', 'yellow']
@@ -1888,7 +1889,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                         plt_export_obs_txt.write('\n')
                     plt_export_obs_txt.close() 
 #                    try:
-                    MMplot.plotWBsankey(path = MM_ws_out, fn = plt_export_txt_fn.split('\\')[-1], index = HYindex, year_lst = year_lst, cMF = cMF, ncell_MM = ncell_MM, obspt = 'obs. pt. %s'%o, fntitle = '0%s'%o, ibound4Sankey = cMF.ibound[:,i,j])  
+                    MMplot.plotWBsankey(path = MM_ws_out, fn = plt_export_txt_fn.split('\\')[-1], index = HYindex, year_lst = year_lst, cMF = cMF, ncell_MM = ncell_MM, obspt = 'obs. pt. %s'%o, fntitle = '0%s'%o, ibound4Sankey = cMF.ibound[:,i,j], stdout = stdout, report = report)  
 #                    except:
 #                       print 'Error in plotting water balance at obs. point %s' % o
                     try:
@@ -2358,7 +2359,8 @@ print ('Total: %s minute(s) and %.1f second(s)') % (str(int(durationTotal*24.0*6
 print ('\nOutput written in folder: \n%s\n##############\n') % MM_ws_out
 
 if verbose == 0:
-    sys.stdout = s
+    sys.stdout = stdout
     report.close()
     print '##############\nMARMITES terminated normally!\n%s\n##############' % mpl.dates.DateFormatter.format_data(fmt_DH, mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat()))
-    del s
+    
+# EOF    

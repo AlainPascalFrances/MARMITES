@@ -41,7 +41,7 @@ class clsPROCESS:
 
     ######################
 
-    def checkarray(self, var, dtype = np.float):
+    def checkarray(self, var, dtype = np.float, stdout = None, report = None):
         try:
             if len(var)>1:
                 lst_out = []
@@ -63,7 +63,7 @@ class clsPROCESS:
                     array_path = os.path.join(self.MF_ws, v)
                     array[l,:,:] = self.convASCIIraster2array(array_path, array[l,:,:])
                 else:
-                    self.cUTIL.ErrorExit('\nFATAL ERROR!\nMODFLOW ini file incorrect, check files or values %s' % var)
+                    self.cUTIL.ErrorExit('\nFATAL ERROR!\nMODFLOW ini file incorrect, check files or values %s' % var, stdout = stdout, report = report)
                 l += 1
             if len(var)>1:
                 lst_out = list(array)
@@ -400,7 +400,7 @@ class clsPROCESS:
 
     ######################
 
-    def inputObs(self, inputObs_fn, inputObsHEADS_fn, inputObsSM_fn, inputObsRo_fn, inputDate, _nslmax, nlay):
+    def inputObs(self, inputObs_fn, inputObsHEADS_fn, inputObsSM_fn, inputObsRo_fn, inputDate, _nslmax, nlay, stdout = None, report = None):
         '''
         observations cells for soil moisture and heads (will also compute SATFLOW)
         '''
@@ -447,19 +447,19 @@ class clsPROCESS:
             #  read obs time series
             obsh_fn = os.path.join(self.MM_ws, '%s_%s.txt' % (inputObsHEADS_fn, name))
             if os.path.exists(obsh_fn):
-                obs_h, obs_h_yn = self.verifObs(inputDate, obsh_fn, obsnam = name)
+                obs_h, obs_h_yn = self.verifObs(inputDate, obsh_fn, obsnam = name, stdout = stdout, report = report)
             else:
                 obs_h = []
                 obs_h_yn = 0
             obssm_fn=os.path.join(self.MM_ws, '%s_%s.txt' % (inputObsSM_fn, name))
             if os.path.exists(obssm_fn):
-                obs_sm, obs_sm_yn = self.verifObs(inputDate, obssm_fn, _nslmax, obsnam = name)
+                obs_sm, obs_sm_yn = self.verifObs(inputDate, obssm_fn, _nslmax, obsnam = name, stdout = stdout, report = report)
             else:
                 obs_sm = []
                 obs_sm_yn = 0
             obsRo_fn=os.path.join(self.MM_ws, '%s_%s.txt' % (inputObsRo_fn, name))
             if os.path.exists(obsRo_fn):
-                obs_Ro, obs_Ro_yn = self.verifObs(inputDate, obsRo_fn, obsnam = name)
+                obs_Ro, obs_Ro_yn = self.verifObs(inputDate, obsRo_fn, obsnam = name, stdout = stdout, report = report)
             else:
                 obs_Ro = []
                 obs_Ro_yn = 0
@@ -468,19 +468,19 @@ class clsPROCESS:
         #  read catchment obs time series
         obsh_fn = os.path.join(self.MM_ws, '%s_catchment.txt' % inputObsHEADS_fn)
         if os.path.exists(obsh_fn):
-            obs_h, obs_h_yn = self.verifObs(inputDate, obsh_fn, obsnam = name)
+            obs_h, obs_h_yn = self.verifObs(inputDate, obsh_fn, obsnam = name, stdout = stdout, report = report)
         else:
             obs_h = []
             obs_h_yn = 0
         obssm_fn = os.path.join(self.MM_ws, '%s_catchment.txt' % inputObsSM_fn)
         if os.path.exists(obssm_fn):
-            obs_sm, obs_sm_yn = self.verifObs(inputDate, obssm_fn, _nslmax, obsnam = name)
+            obs_sm, obs_sm_yn = self.verifObs(inputDate, obssm_fn, _nslmax, obsnam = name, stdout = stdout, report = report)
         else:
             obs_sm = []
             obs_sm_yn = 0
         obsRo_fn = os.path.join(self.MM_ws, '%s_catchment.txt' % inputObsRo_fn)
         if os.path.exists(obsRo_fn):
-            obs_Ro, obs_Ro_yn = self.verifObs(inputDate, obsRo_fn, obsnam = name)
+            obs_Ro, obs_Ro_yn = self.verifObs(inputDate, obsRo_fn, obsnam = name, stdout = stdout, report = report)
         else:
             obs_Ro = []
             obs_Ro_yn = 0
@@ -494,7 +494,7 @@ class clsPROCESS:
 
     ######################
 
-    def verifObs(self, inputDate, filename, _nslmax = 0, obsnam = 'unknown location'):
+    def verifObs(self, inputDate, filename, _nslmax = 0, obsnam = 'unknown location', stdout = None, report = None):
         '''
         Import and process data and parameters
         '''
@@ -511,7 +511,7 @@ class clsPROCESS:
                     for l in range(_nslmax-len(obsValue)):
                         obsValue.append(self.hnoflo)
             except:
-                self.cUTIL.ErrorExit(msg = '\nFATAL ERROR!\nFormat of observation file uncorrect!\n%s' % filename)
+                self.cUTIL.ErrorExit(msg = '\nFATAL ERROR!\nFormat of observation file uncorrect!\n%s' % filename, stdout = stdout, report = report)
             obsOutput = np.ones([len(obsValue),len(inputDate)], dtype=float)*self.hnoflo
             obs_yn = 0
             if (obsDate[len(obsDate)-1] < inputDate[0]) or (obsDate[0] > inputDate[len(inputDate)-1]):
