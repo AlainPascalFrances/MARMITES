@@ -1658,10 +1658,10 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
             plt_exportCATCH_txt.write(l)
         plt_exportCATCH_txt.write('\n')
     plt_exportCATCH_txt.close()
-    #try:
-    MMplot.plotWBsankey(path = MM_ws_out, fn = plt_exportCATCH_txt_fn.split('\\')[-1], index = HYindex, year_lst = year_lst, cMF = cMF, ncell_MM = ncell_MM, obspt = 'whole catchment', fntitle = '0CATCHMENT', ibound4Sankey = np.ones((cMF.nlay), dtype = int), stdout = stdout, report = report)
-    #except:
-     #   print "\nError in plotting the catchment water balance!"
+    try:
+        MMplot.plotWBsankey(path = MM_ws_out, fn = plt_exportCATCH_txt_fn.split('\\')[-1], index = HYindex, year_lst = year_lst, cMF = cMF, ncell_MM = ncell_MM, obspt = 'whole catchment', fntitle = '0CATCHMENT', ibound4Sankey = np.ones((cMF.nlay), dtype = int), stdout = stdout, report = report)
+    except:
+        print "\nError in plotting the catchment water balance!"
     del flx_Cat_TS, flx_Cat_TS_str, out_line, plt_exportCATCH_fn, plt_exportCATCH_txt_fn, plt_titleCATCH
 
 # #################################################
@@ -1888,10 +1888,10 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                             plt_export_obs_txt.write(l)
                         plt_export_obs_txt.write('\n')
                     plt_export_obs_txt.close() 
-#                    try:
-                    MMplot.plotWBsankey(path = MM_ws_out, fn = plt_export_txt_fn.split('\\')[-1], index = HYindex, year_lst = year_lst, cMF = cMF, ncell_MM = ncell_MM, obspt = 'obs. pt. %s'%o, fntitle = '0%s'%o, ibound4Sankey = cMF.ibound[:,i,j], stdout = stdout, report = report)  
-#                    except:
-#                       print 'Error in plotting water balance at obs. point %s' % o
+                    try:
+                        MMplot.plotWBsankey(path = MM_ws_out, fn = plt_export_txt_fn.split('\\')[-1], index = HYindex, year_lst = year_lst, cMF = cMF, ncell_MM = ncell_MM, obspt = 'obs. pt. %s'%o, fntitle = '0%s'%o, ibound4Sankey = cMF.ibound[:,i,j], stdout = stdout, report = report)  
+                    except:
+                       print 'Error in plotting water balance at obs. point %s' % o
                     try:
                         MMplot.plotTIMESERIES_obsGW(cMF, flx_obs_TS, flxlbl_tex, plt_export_fn, plt_suptitle, iniMonthHydroYear = iniMonthHydroYear, date_ini = StartDate, date_end = EndDate)  
                     except:

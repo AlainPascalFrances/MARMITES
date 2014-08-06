@@ -524,7 +524,7 @@ class clsMMsoil:
                         if nsl > 1:
                             # surficial soil layer
                             l = 0
-                            MB_l[l] = (RFe_tot + dSsurf + Rexf_tmp[l+1]) - (Rp_tmp[l] + Esoil_tmp[l] + Tsoil_tmp[l] + Ro_tmp + Esurf_tmp + dSsoil[l] )
+                            MB_l[l] = (RFe_tot + Rexf_tmp[l+1]) - (Rp_tmp[l] + Esoil_tmp[l] + Tsoil_tmp[l] + Ro_tmp + Esurf_tmp + dSsoil[l] + dSsurf)
                             # intermediate soil layers
                             llst = range(1,nsl-1)
                             for l in llst:
@@ -535,10 +535,10 @@ class clsMMsoil:
                         else:
                             # only one soil layer
                             l = 0
-                            MB_l[l] = (RFe_tot + dSsoil[l] + dSsurf + exf_MF_tmp) - (Rp_tmp[l] + Esoil_tmp[l] + Tsoil_tmp[l] + Ro_tmp + Esurf_tmp)
+                            MB_l[l] = (RFe_tot + exf_MF_tmp) - (Rp_tmp[l] + Esoil_tmp[l] + Tsoil_tmp[l] + Ro_tmp + Esurf_tmp + dSsurf + dSsoil[l])
                             # last soil layer
                         # total mass balance for the soil
-                        MB = RFe_tot + dSsurf + dRp_tot + exf_MF_tmp - (Ro_tmp + Esurf_tmp + Esoil_MB + Tsoil_MB + dSsoil_tot)
+                        MB = RFe_tot + dRp_tot + exf_MF_tmp - (Ro_tmp + Esurf_tmp + Esoil_MB + Tsoil_MB + dSsoil_tot + dSsurf)
                         # export list
                         # indexes of the HDF5 output arrays
                         # index = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSsurf':4, 'iRo':5, 'iEXF':6, 'iEsurf':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSsurf':13, 'iETg':14, 'iETsoil':15, 'iSsoil_pc':16, 'idSsoil':17, 'iinf':18, 'iHEADScorr':19, 'idgwt':20, 'iuzthick':21}
