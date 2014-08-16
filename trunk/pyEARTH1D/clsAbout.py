@@ -16,7 +16,7 @@ class clsAbout(wx.Dialog):
         # begin wxGlade: clsAbout.__init__
         kwds["style"] = wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER|wx.THICK_FRAME|wx.STAY_ON_TOP
         wx.Dialog.__init__(self, *args, **kwds)
-        self.lbl_About = wx.StaticText(self, -1, u"\n-x-x-x-x-x-x-x-x-\n\npyEARTH1D\n\nBased on:\nVan der Lee J. and Gehrels, J. (1990)\nModelling Aquifer Recharge - Introduction to the Lumped Parameter Model EARTH\nFree University of Amsterdam, The Netherlands\n\nSee also:\nFrancés, A. P. (2008)\nSpatio - temporal groundwater recharge assessment : a data - integration and modelling approach\nM.Sc. thesis, ITC-WRS, Enschede\n\nContact:\nfrances08512@itc.nl\n\n-x-x-x-x-x-x-x-x-\n", style=wx.ALIGN_CENTRE)
+        self.lbl_About = wx.StaticText(self, -1, u"\n-x-x-x-x-x-x-x-x-\n\npyEARTH1D\n\nBased on:\nVan der Lee J. and Gehrels, J. (1990)\nModelling Aquifer Recharge - Introduction to the Lumped Parameter Model EARTH\nFree University of Amsterdam, The Netherlands\n\nSee also:\nFrancés, A. P. (2008)\nSpatio - temporal groundwater recharge assessment : a data - integration and modelling approach\nM.Sc. thesis, ITC-WRS, Enschede\n\nContact:\na.p.frances@utwente.nl\n\n-x-x-x-x-x-x-x-x-\n", style=wx.ALIGN_CENTRE)
 
         self.__set_properties()
         self.__do_layout()

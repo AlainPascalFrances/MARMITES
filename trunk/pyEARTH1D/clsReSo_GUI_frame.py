@@ -4,6 +4,7 @@
 import wx
 import os
 import numpy
+import tempfile
 from pylab import *
 from time import *
 
@@ -28,7 +29,7 @@ class clsReSo_GUI_frame(wx.Frame):
         # Menu Bar
         self.fram_main_menubar = wx.MenuBar()
         self.mnFile = wx.Menu()
-        self.mnLoadAll = wx.MenuItem(self.mnFile, 10, "Load &All (folder)", "For fast upload, name your files \"input.txt\", \"param.txt\", \"h.txt\" and \"s.txt\"", wx.ITEM_NORMAL)
+        self.mnLoadAll = wx.MenuItem(self.mnFile, 10, "Load &All (folder)", "For fast upload, name your files \"__input.txt\", \"__param.txt\", \"__h.txt\" and \"__s.txt\"", wx.ITEM_NORMAL)
         self.mnFile.AppendItem(self.mnLoadAll)
         self.mnFile.AppendSeparator()
         self.mnLoadInput = wx.MenuItem(self.mnFile, 11, "Load &Input", "", wx.ITEM_NORMAL)
@@ -64,13 +65,13 @@ class clsReSo_GUI_frame(wx.Frame):
         self.pn_13_copy = wx.Panel(self.pn_input, -1)
         self.lbl_InputMain = wx.StaticText(self.pn_input, -1, " INPUT FILES")
         self.lbl_Input = wx.StaticText(self.pn_input, -1, " Inputs")
-        self.txt_OpenInput = wx.TextCtrl(self.pn_input, -1, "input.txt")
+        self.txt_OpenInput = wx.TextCtrl(self.pn_input, -1, "__input.txt")
         self.lbl_param = wx.StaticText(self.pn_input, -1, " Param.")
-        self.txt_OpenParam = wx.TextCtrl(self.pn_input, -1, "param.txt")
+        self.txt_OpenParam = wx.TextCtrl(self.pn_input, -1, "__param.txt")
         self.lbl_hmeas = wx.StaticText(self.pn_input, -1, " hmeas")
-        self.txt_Openhmeas = wx.TextCtrl(self.pn_input, -1, "h.txt")
+        self.txt_Openhmeas = wx.TextCtrl(self.pn_input, -1, "__h.txt")
         self.lbl_Smeas = wx.StaticText(self.pn_input, -1, " Smeas")
-        self.txt_OpenSmeas = wx.TextCtrl(self.pn_input, -1, "s.txt")
+        self.txt_OpenSmeas = wx.TextCtrl(self.pn_input, -1, "__s.txt")
         self.pn_13 = wx.Panel(self.pn_param, -1)
         self.lbl_paramMain = wx.StaticText(self.pn_param, -1, " PARAMETERS")
         self.panel_1 = wx.Panel(self.pn_param, -1)
@@ -134,11 +135,13 @@ class clsReSo_GUI_frame(wx.Frame):
         self.bt_hGraph = wx.Button(self.pn_graph, -1, "Piez. calib. graph")
         self.bt_hSGraph = wx.Button(self.pn_graph, -1, "Calibration graphs")
         self.bt_AllGraph = wx.Button(self.pn_graph, -1, "All graphs")
-        self.lbl_RMSE = wx.StaticText(self.pn_RMSE, -1, "RMSE h")
+        self.lbl_RMSE_h = wx.StaticText(self.pn_RMSE, -1, "RMSEh")
+        self.lbl_RMSE_s = wx.StaticText(self.pn_RMSE, -1, "RMSEs")
         self.lbl_Rtotal = wx.StaticText(self.pn_RMSE, -1, "Rtotal (mm)")
         self.lbl_RFtotal = wx.StaticText(self.pn_RMSE, -1, "RFtotal (mm)")
         self.lbl_Rpercent = wx.StaticText(self.pn_RMSE, -1, "Rtotal (%)")
-        self.txt_RMSE = wx.TextCtrl(self.pn_RMSE, -1, "")
+        self.txt_RMSE_h = wx.TextCtrl(self.pn_RMSE, -1, "")
+        self.txt_RMSE_s = wx.TextCtrl(self.pn_RMSE, -1, "")
         self.txt_Rtotal = wx.TextCtrl(self.pn_RMSE, -1, "")
         self.txt_RFtotal = wx.TextCtrl(self.pn_RMSE, -1, "")
         self.txt_Rpercent = wx.TextCtrl(self.pn_RMSE, -1, "")
@@ -282,27 +285,33 @@ class clsReSo_GUI_frame(wx.Frame):
         self.bt_AllGraph.SetFont(wx.Font(10, wx.DEFAULT, wx.NORMAL, wx.BOLD, 0, ""))
         self.pn_graph.SetMinSize((420, 35))
         self.pn_graph.SetBackgroundColour(wx.Colour(216, 216, 191))
-        self.lbl_RMSE.SetMinSize((95, 20))
-        self.lbl_RMSE.SetFont(wx.Font(10, wx.DEFAULT, wx.NORMAL, wx.BOLD, 0, ""))
-        self.lbl_Rtotal.SetMinSize((95, 20))
+        self.lbl_RMSE_h.SetMinSize((60, 20))
+        self.lbl_RMSE_h.SetFont(wx.Font(10, wx.DEFAULT, wx.NORMAL, wx.BOLD, 0, ""))
+        self.lbl_RMSE_s.SetMinSize((60, 20))
+        self.lbl_RMSE_s.SetFont(wx.Font(10, wx.DEFAULT, wx.NORMAL, wx.BOLD, 0, ""))
+        self.lbl_Rtotal.SetMinSize((85, 20))
         self.lbl_Rtotal.SetFont(wx.Font(10, wx.DEFAULT, wx.NORMAL, wx.BOLD, 0, ""))
-        self.lbl_RFtotal.SetMinSize((95, 20))
+        self.lbl_RFtotal.SetMinSize((85, 20))
         self.lbl_RFtotal.SetFont(wx.Font(10, wx.DEFAULT, wx.NORMAL, wx.BOLD, 0, ""))
-        self.lbl_Rpercent.SetMinSize((95, 20))
+        self.lbl_Rpercent.SetMinSize((85, 20))
         self.lbl_Rpercent.SetFont(wx.Font(10, wx.DEFAULT, wx.NORMAL, wx.BOLD, 0, ""))
-        self.txt_RMSE.SetMinSize((95, 20))
-        self.txt_RMSE.SetBackgroundColour(wx.Colour(148, 255, 255))
-        self.txt_RMSE.SetFont(wx.Font(10, wx.MODERN, wx.NORMAL, wx.NORMAL, 0, ""))
-        self.txt_RMSE.Enable(False)
-        self.txt_Rtotal.SetMinSize((95, 20))
+        self.txt_RMSE_h.SetMinSize((60, 20))
+        self.txt_RMSE_h.SetBackgroundColour(wx.Colour(148, 255, 255))
+        self.txt_RMSE_h.SetFont(wx.Font(10, wx.MODERN, wx.NORMAL, wx.NORMAL, 0, ""))
+        self.txt_RMSE_h.Enable(False)
+        self.txt_RMSE_s.SetMinSize((60, 20))
+        self.txt_RMSE_s.SetBackgroundColour(wx.Colour(148, 255, 255))
+        self.txt_RMSE_s.SetFont(wx.Font(10, wx.MODERN, wx.NORMAL, wx.NORMAL, 0, ""))
+        self.txt_RMSE_s.Enable(False)        
+        self.txt_Rtotal.SetMinSize((75, 20))
         self.txt_Rtotal.SetBackgroundColour(wx.Colour(148, 255, 255))
         self.txt_Rtotal.SetFont(wx.Font(10, wx.MODERN, wx.NORMAL, wx.NORMAL, 0, ""))
         self.txt_Rtotal.Enable(False)
-        self.txt_RFtotal.SetMinSize((95, 20))
+        self.txt_RFtotal.SetMinSize((75, 20))
         self.txt_RFtotal.SetBackgroundColour(wx.Colour(148, 255, 255))
         self.txt_RFtotal.SetFont(wx.Font(10, wx.MODERN, wx.NORMAL, wx.NORMAL, 0, ""))
         self.txt_RFtotal.Enable(False)
-        self.txt_Rpercent.SetMinSize((95, 20))
+        self.txt_Rpercent.SetMinSize((75, 20))
         self.txt_Rpercent.SetBackgroundColour(wx.Colour(148, 255, 255))
         self.txt_Rpercent.SetFont(wx.Font(10, wx.MODERN, wx.NORMAL, wx.NORMAL, 0, ""))
         self.txt_Rpercent.Enable(False)
@@ -326,7 +335,7 @@ class clsReSo_GUI_frame(wx.Frame):
         # begin wxGlade: clsReSo_GUI_frame.__do_layout
         grdsz_main = wx.FlexGridSizer(5, 1, 5, 5)
         grdsz_output = wx.FlexGridSizer(2, 2, 5, 5)
-        grid_RMSE = wx.GridSizer(2, 4, 5, 5)
+        grid_RMSE = wx.GridSizer(2, 5, 5, 5)
         grdsz_graph = wx.FlexGridSizer(1, 3, 2, 2)
         grdsz_param = wx.FlexGridSizer(10, 6, 5, 5)
         grdsz_input = wx.FlexGridSizer(5, 2, 5, 5)
@@ -411,11 +420,13 @@ class clsReSo_GUI_frame(wx.Frame):
         grdsz_graph.AddGrowableCol(1)
         grdsz_graph.AddGrowableCol(2)
         grdsz_main.Add(self.pn_graph, 1, wx.LEFT|wx.RIGHT|wx.TOP|wx.EXPAND|wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER_VERTICAL, 5)
-        grid_RMSE.Add(self.lbl_RMSE, 0, wx.ALIGN_BOTTOM|wx.ALIGN_CENTER_HORIZONTAL, 0)
+        grid_RMSE.Add(self.lbl_RMSE_h, 0, wx.ALIGN_BOTTOM|wx.ALIGN_CENTER_HORIZONTAL, 0)
+        grid_RMSE.Add(self.lbl_RMSE_s, 0, wx.ALIGN_BOTTOM|wx.ALIGN_CENTER_HORIZONTAL, 0)        
         grid_RMSE.Add(self.lbl_Rtotal, 0, wx.ALIGN_BOTTOM|wx.ALIGN_CENTER_HORIZONTAL, 0)
         grid_RMSE.Add(self.lbl_RFtotal, 0, wx.ALIGN_BOTTOM|wx.ALIGN_CENTER_HORIZONTAL, 0)
         grid_RMSE.Add(self.lbl_Rpercent, 0, wx.ALIGN_BOTTOM|wx.ALIGN_CENTER_HORIZONTAL, 0)
-        grid_RMSE.Add(self.txt_RMSE, 0, wx.ALIGN_CENTER_HORIZONTAL, 0)
+        grid_RMSE.Add(self.txt_RMSE_h, 0, wx.ALIGN_CENTER_HORIZONTAL, 0)
+        grid_RMSE.Add(self.txt_RMSE_s, 0, wx.ALIGN_CENTER_HORIZONTAL, 0)
         grid_RMSE.Add(self.txt_Rtotal, 0, wx.ALIGN_CENTER_HORIZONTAL, 0)
         grid_RMSE.Add(self.txt_RFtotal, 0, wx.ALIGN_CENTER_HORIZONTAL, 0)
         grid_RMSE.Add(self.txt_Rpercent, 0, wx.ALIGN_CENTER_HORIZONTAL, 0)
@@ -528,7 +539,7 @@ class clsReSo_GUI_frame(wx.Frame):
             elif event.GetId()==14:
                 self.txt_OpenSmeas.Clear()
                 self.txt_OpenSmeas.WriteText(str(path[0]))
-            Out_path=str(os.path.split(str(path[0]))[0]) + "\\pyEARTH1D_out.txt"
+            Out_path=str(os.path.split(str(path[0]))[0]) + "\\_pyEARTH1D_out.txt"
             self.txt_Output.Clear()
             self.txt_Output.WriteText(str(Out_path))
 
@@ -543,7 +554,7 @@ class clsReSo_GUI_frame(wx.Frame):
             inputsDir = inputsDirFile.readline()
             inputsDirFile.close()
         else:
-            inputsDir = 'E:\\'
+            inputsDir = tempfile.gettempdir()
 
         dlg = wx.DirDialog(self, "Choose a directory with the input files:",
                           style=wx.DD_DEFAULT_STYLE, defaultPath = inputsDir
@@ -558,13 +569,13 @@ class clsReSo_GUI_frame(wx.Frame):
             path = str(dlg.Path)
             # inputs file
             self.txt_OpenInput.Clear()
-            pathInput = path + "\\input.txt"
+            pathInput = path + "\\__input.txt"
             if os.path.exists(pathInput):
                 self.txt_OpenInput.WriteText(pathInput)
             else:
                 self.callDialog(-1)
             # param files
-            pathParam = path + "\\param.txt"
+            pathParam = path + "\\__param.txt"
             self.txt_OpenParam.Clear()
             if os.path.exists(pathParam):
                 self.txt_OpenParam.WriteText(pathParam)
@@ -614,25 +625,25 @@ class clsReSo_GUI_frame(wx.Frame):
             else:
                     self.callDialog(2)
             # hmeas file
-            pathhmeas = path + "\\h.txt"
+            pathhmeas = path + "\\__h.txt"
             self.txt_Openhmeas.Clear()
             if os.path.exists(pathhmeas):
                  self.txt_Openhmeas.WriteText(pathhmeas)
             else:
                 self.callDialog(3)
             # smeas file
-            pathsmeas = path + "\\s.txt"
+            pathsmeas = path + "\\__s.txt"
             self.txt_OpenSmeas.Clear()
             if os.path.exists(pathsmeas):
                  self.txt_OpenSmeas.WriteText(pathsmeas)
             else:
                 self.callDialog(4)
             # output file
-            Out_path= path + "\\pyEARTH1D_out.txt"
+            Out_path= path + "\\_pyEARTH1D_out.txt"
             self.txt_Output.Clear()
             self.txt_Output.WriteText(Out_path)
             # output param
-            Out_param= path + "\\param_out.txt"
+            Out_param= path + "\\_param_out.txt"
             self.txt_SaveParam.Clear()
             self.txt_SaveParam.WriteText(Out_param)
             #save the path of the input directory
@@ -700,7 +711,7 @@ class clsReSo_GUI_frame(wx.Frame):
             self.callDialog(ErrorType)
         else:
             if type(DateInput)!=int:
-                self.UpdateStats(h, hmeas, R, P)
+                self.UpdateStats(h, hmeas, S, Smeas, R, P)
                 ReSoGraph.piezocalibGRAPH(DateInput, h, hmeas, P, Pe)
     #                cls_CalibGraph.calibGRAPH(DateInput, S, h, hmeas, Smeas, Sm, Sr)
             else :
@@ -717,7 +728,7 @@ class clsReSo_GUI_frame(wx.Frame):
             self.callDialog(ErrorType)
         else:
             if type(DateInput)!=int:
-                self.UpdateStats(h, hmeas, R, P)
+                self.UpdateStats(h, hmeas, S, Smeas, R, P)
                 ReSoGraph.calibGRAPH(DateInput, P, PET, Pe, ETa, S, R, h, hmeas, Smeas, Sm, Sr)
     #                cls_CalibGraph.calibGRAPH(DateInput, S, h, hmeas, Smeas, Sm, Sr)
             else :
@@ -733,7 +744,7 @@ class clsReSo_GUI_frame(wx.Frame):
             self.callDialog(ErrorType)
         else:
             if type(DateInput)!=int:
-                self.UpdateStats(h, hmeas, R, P)
+                self.UpdateStats(h, hmeas, S, Smeas, R, P)
                 ReSoGraph.allGRAPH(DateInput, P, PET, Pe, SUST, Qs, ETa, S, Rp, R, h, hmeas, Smeas, Sm, Sr)
             else :
                 self.callDialog(10)
@@ -821,7 +832,7 @@ class clsReSo_GUI_frame(wx.Frame):
         elif ErrorType == 104:
             message = 'WARNING, there is more Smeas data than P and PET data,\n data will not be plotted correctly'
         else:
-            message = "Hé bé, ça c'était pas prévu...\nPlease send your dataset to frances08512@itc.nl"
+            message = "Hé bé, ça c'était pas prévu...\nPlease send your dataset to a.p.frances@utwente.nl"
 
         dlg = wx.MessageDialog(self, message,
                                'pyEARTH1D',
@@ -831,23 +842,30 @@ class clsReSo_GUI_frame(wx.Frame):
         dlg.ShowModal()
         dlg.Destroy()
 
-    def UpdateStats(self, h, hmeas, R, P):
+    def UpdateStats(self, h, hmeas, S, Smeas, R, P):
 
-        # h RMSE
-        SumError=0
-        n=0
-        for i in range(len(h)):
-            if hmeas[i]!=-999:
-                SumError=(h[i]-hmeas[i])*(h[i]-hmeas[i])+SumError
-                n=n+1
-        if n>0:
-            RMSE = sqrt(SumError/n)
-            RMSE = str(round(RMSE,3))
-        else:
-            RMSE = 'N/A'
-        self.txt_RMSE.Clear()
-        self.txt_RMSE.WriteText(RMSE)
+        def RMSE(x, xmeas):
+            SumError=0
+            n=0
+            for i in range(len(h)):
+                if xmeas[i]!=-999:
+                    SumError=(x[i]-xmeas[i])*(x[i]-xmeas[i])+SumError
+                    n=n+1
+            if n>0:
+                RMSE = sqrt(SumError/n)
+            else:
+                RMSE = -999.99
+            
+            return RMSE
+                
+        RMSE_h = RMSE(h, hmeas)
+        self.txt_RMSE_h.Clear()
+        self.txt_RMSE_h.WriteText(str(round(RMSE_h,2)))
 
+        RMSE_s = RMSE(S, Smeas)
+        self.txt_RMSE_s.Clear()
+        self.txt_RMSE_s.WriteText(str(round(100.0*RMSE_s,1)))
+        
         # R total
         Rtotal=0
         for i in range(len(R)):
@@ -867,8 +885,7 @@ class clsReSo_GUI_frame(wx.Frame):
         self.txt_Rpercent.Clear()
         self.txt_Rpercent.WriteText(str(round(Rpercent,1)))
 
-        del RMSE, SumError, n, Rtotal, RFtotal, Rpercent
-
+        del RMSE, Rtotal, RFtotal, Rpercent
 
     def Exit(self, event):
         self.Close(1)

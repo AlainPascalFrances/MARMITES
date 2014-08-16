@@ -14,11 +14,6 @@ from matplotlib.dates import MonthLocator, DateFormatter
 from matplotlib.ticker import FormatStrFormatter
 from sys import *
 import os
-import datetime
-from time import gmtime
-import wx
-
-import clsReSo_GUI_frame as GUI
 
 class ReSo:
     """ ReSo from 'Recharge and Soil Moisture' computes on a daily temporal basis aquifer
@@ -29,10 +24,6 @@ class ReSo:
     Modelling Aquifer Recharge – Introduction to the Lumped Parameter Model EARTH
     Free University of Amsterdam, The Netherlands
     """
-##    def __init__(self, name, x, y):
-##        self.name=name
-##        self.x=x
-##        self.y=y
 
 ##=========================================================================================##
 ##===========================|-----------------|===========================================##
@@ -72,8 +63,6 @@ class ReSo:
         ______________________________________________________________________________
         """
 
-
-
     ##________________________________FUNCTION CORE________________________________##
 
 
@@ -85,6 +74,7 @@ class ReSo:
         Rp=[]   # Deep percolation inicialization
         ETa=[]  # Actual evapotranspiration inicialization
         S=[]    # Soil moisture storage inicialization
+        MB = 0.0
 
 
         for t in range(len(P)):
@@ -119,9 +109,9 @@ class ReSo:
 
             S.append(S_tmp/D)
 
-            MB = P[t]+SUSTprev-(P[t]-Pe[t])-Rp[t]-Qs[t]-SUST[t]-ETa[t]-((S[t]-Sprev)*D)
-
-        return P, PET, Pe, SUST, Qs, ETa, S, Rp
+            MB += P[t]+SUSTprev-(P[t]-Pe[t])-Rp[t]-Qs[t]-SUST[t]-ETa[t]-((S[t]-Sprev)*D)
+            
+        return P, PET, Pe, SUST, Qs, ETa, S, Rp, MB
 
         del P, PET, Pe, SUST, Qs, ETa, S, Rp
 
@@ -465,8 +455,9 @@ def runReSo(strDateFormat, param, input_path, hmeas_path, Smeas_path):
 
     # cal functions for reservoirs calculations
     print "\nData verified succesfully!"
-    P, PET, Pe, SUST, Qs, ETa, S, Rp = dataset.SOMOS(MAXIL, Sm, Sfc, Sr, Si, D, Ks, SUSTm, P, PET)
+    P, PET, Pe, SUST, Qs, ETa, S, Rp, MB = dataset.SOMOS(MAXIL, Sm, Sfc, Sr, Si, D, Ks, SUSTm, P, PET)
     print "\nSOMOS done!"
+    print "MASS BALANCE: %.2f" % MB
     R = dataset.LINRES(Rp, n, f)
     print "\nLINRES done!"
     h = dataset.SATFLOW(R, hi, h0, RC, STO)

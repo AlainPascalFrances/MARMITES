@@ -1669,115 +1669,118 @@ def plotCALIBCRIT(calibcritSM, calibcritSMobslst, calibcritHEADS, calibcritHEADS
     # plot RMSE
     fig = plt.figure()
     fig.suptitle(plt_title, fontsize=10)
-    ax1=fig.add_subplot(2,1,1)
-    plt.setp(ax1.get_xticklabels(), fontsize=8)
-    plt.setp(ax1.get_yticklabels(), fontsize=8)
-    ax1.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.1f'))
-    plt.ylabel('%s soil moisture %s' % (calibcrit, units[1]), fontsize=10, horizontalalignment = 'center')
-    plt.grid(True)
-    xserie = []
-    yserie = []
-    labels = []
-    if calibcritSMmax == None:
-        tmp = np.max(list(itertools.chain.from_iterable(calibcritSM)))
-        if tmp > 0:
-            max_tmp = 1.2*tmp
-        else:
-            max_tmp = 1.0
-        del tmp
-    else:
-        max_tmp = calibcritSMmax
-    n = 0
-    for e in calibcritSM:
-        if len(e) > 1:
-            numtick = len(e)
-            if n == 0:
-                newx = 1.0
-            else:
-                newx = 1.0 + xserie[-1]
-            ee = 0
-            lst = range(1,numtick/2+1)
-            lst.reverse()
-            for i in lst:
-                xserie.append(newx-i/10.0)
-                yserie.append(e[ee])
-                ee += 1
-                labels.append('')
-            xserie.append(newx)
-            labels.append('%s' % calibcritSMobslst[n])
-            if numtick %2 <> 0:
-                yserie.append(e[ee])
-                ee += 1
-            else:
-                yserie.append(max_tmp*2.0)
-            lst = range(1,numtick/2+1)
-            for i in lst:
-                xserie.append(newx+i/10.0)
-                yserie.append(e[ee])
-                ee += 1
-                labels.append('')
-        else:
-            if n == 0:
-                xserie.append(1.0)
-                yserie.append(e[0])
-                labels.append('%s' % calibcritSMobslst[n])
-            else:
-                xserie.append(1+xserie[-1])
-                yserie.append(e[0])
-                labels.append('%s' % calibcritSMobslst[n])
-        n += 1
-    offset = (max_tmp)*0.05
-    for i in range(len(xserie)):
-        plt.scatter(xserie[i], yserie[i], marker='o', c = 'orange', s = 15)
-        if yserie[i] < max_tmp:
-            plt.text(xserie[i], yserie[i]+offset, '%.1f' % yserie[i], fontsize=6, ha = 'center', va = 'center')
-    plt.xticks(xserie, labels)
-    if ymin == None:
-        tmp = np.min(np.ma.masked_where(np.asarray(yserie).flatten() == hnoflo,np.asarray(yserie).flatten()))
-        if tmp > 0:
-            ymin_tmp = 0
-        else:
-            ymin_tmp = 1.2*tmp
-        del tmp
-    else:
-        ymin_tmp = ymin
-    plt.ylim(ymin_tmp, max_tmp)
-    ax1.set_xlim(0, int(max(xserie))+1.0)
 
-    ax2=fig.add_subplot(2,1,2)
-    plt.setp(ax2.get_xticklabels(), fontsize=8)
-    plt.setp(ax2.get_yticklabels(), fontsize=8)
-    ax2.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.1f'))
-    plt.ylabel('%s hydraulic heads %s' % (calibcrit, units[0]), fontsize=10, horizontalalignment = 'center')
-    plt.grid(True)
-    xserie = range(1,len(calibcritHEADSobslst)+1)
-    yserie_txt = list(itertools.chain.from_iterable(calibcritHEADS))
-    if calibcritHEADSmax == None:
-        tmp = np.max(list(itertools.chain.from_iterable(calibcritHEADS)))
-        if tmp > 0:
-            max_tmp = 1.2*tmp
+    if calibcritSM <> []:
+        ax1=fig.add_subplot(2,1,1)
+        plt.setp(ax1.get_xticklabels(), fontsize=8)
+        plt.setp(ax1.get_yticklabels(), fontsize=8)
+        ax1.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.1f'))
+        plt.ylabel('%s soil moisture %s' % (calibcrit, units[1]), fontsize=10, horizontalalignment = 'center')
+        plt.grid(True)
+        xserie = []
+        yserie = []
+        labels = []
+        if calibcritSMmax == None:
+            tmp = np.max(list(itertools.chain.from_iterable(calibcritSM)))
+            if tmp > 0:
+                max_tmp = 1.2*tmp
+            else:
+                max_tmp = 1.0
+            del tmp
         else:
-            max_tmp = 1.0
-        del tmp
-    else:
-        max_tmp = calibcritHEADSmax
-    offset = (max_tmp)*0.05
-    for i in range(len(xserie)):
-        plt.scatter(xserie[i], calibcritHEADS[i], marker='o', c = 'orange', s = 15)
-        if yserie_txt[i] < max_tmp:
-            plt.text(xserie[i], yserie_txt[i]+offset, '%.1f' % yserie_txt[i], fontsize=6, ha = 'center', va = 'center')
-    plt.xticks(xserie, calibcritHEADSobslst)
-    if ymin == None:
-        tmp = np.min(np.ma.masked_where(np.asarray(calibcritHEADS).flatten() == hnoflo,np.asarray(calibcritHEADS).flatten()))
-        if tmp< 0:
-            ymin_tmp = 1.2*tmp
+            max_tmp = calibcritSMmax
+        n = 0
+        for e in calibcritSM:
+            if len(e) > 1:
+                numtick = len(e)
+                if n == 0:
+                    newx = 1.0
+                else:
+                    newx = 1.0 + xserie[-1]
+                ee = 0
+                lst = range(1,numtick/2+1)
+                lst.reverse()
+                for i in lst:
+                    xserie.append(newx-i/10.0)
+                    yserie.append(e[ee])
+                    ee += 1
+                    labels.append('')
+                xserie.append(newx)
+                labels.append('%s' % calibcritSMobslst[n])
+                if numtick %2 <> 0:
+                    yserie.append(e[ee])
+                    ee += 1
+                else:
+                    yserie.append(max_tmp*2.0)
+                lst = range(1,numtick/2+1)
+                for i in lst:
+                    xserie.append(newx+i/10.0)
+                    yserie.append(e[ee])
+                    ee += 1
+                    labels.append('')
+            else:
+                if n == 0:
+                    xserie.append(1.0)
+                    yserie.append(e[0])
+                    labels.append('%s' % calibcritSMobslst[n])
+                else:
+                    xserie.append(1+xserie[-1])
+                    yserie.append(e[0])
+                    labels.append('%s' % calibcritSMobslst[n])
+            n += 1
+        offset = (max_tmp)*0.05
+        for i in range(len(xserie)):
+            plt.scatter(xserie[i], yserie[i], marker='o', c = 'orange', s = 15)
+            if yserie[i] < max_tmp:
+                plt.text(xserie[i], yserie[i]+offset, '%.1f' % yserie[i], fontsize=6, ha = 'center', va = 'center')
+        plt.xticks(xserie, labels)
+        if ymin == None:
+            tmp = np.min(np.ma.masked_where(np.asarray(yserie).flatten() == hnoflo,np.asarray(yserie).flatten()))
+            if tmp > 0:
+                ymin_tmp = 0
+            else:
+                ymin_tmp = 1.2*tmp
+            del tmp
         else:
-            ymin_tmp = 0.8*tmp
-        del tmp
-    else:
-        ymin_tmp = ymin
-    plt.ylim(ymin_tmp, max_tmp)
-    ax2.set_xlim(0, len(calibcritHEADS)+1)
+            ymin_tmp = ymin
+        plt.ylim(ymin_tmp, max_tmp)
+        ax1.set_xlim(0, int(max(xserie))+1.0)
+
+    if calibcritHEADS <> []:
+        ax2=fig.add_subplot(2,1,2)
+        plt.setp(ax2.get_xticklabels(), fontsize=8)
+        plt.setp(ax2.get_yticklabels(), fontsize=8)
+        ax2.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.1f'))
+        plt.ylabel('%s hydraulic heads %s' % (calibcrit, units[0]), fontsize=10, horizontalalignment = 'center')
+        plt.grid(True)
+        xserie = range(1,len(calibcritHEADSobslst)+1)
+        yserie_txt = list(itertools.chain.from_iterable(calibcritHEADS))
+        if calibcritHEADSmax == None:
+            tmp = np.max(list(itertools.chain.from_iterable(calibcritHEADS)))
+            if tmp > 0:
+                max_tmp = 1.2*tmp
+            else:
+                max_tmp = 1.0
+            del tmp
+        else:
+            max_tmp = calibcritHEADSmax
+        offset = (max_tmp)*0.05
+        for i in range(len(xserie)):
+            plt.scatter(xserie[i], calibcritHEADS[i], marker='o', c = 'orange', s = 15)
+            if yserie_txt[i] < max_tmp:
+                plt.text(xserie[i], yserie_txt[i]+offset, '%.1f' % yserie_txt[i], fontsize=6, ha = 'center', va = 'center')
+        plt.xticks(xserie, calibcritHEADSobslst)
+        if ymin == None:
+            tmp = np.min(np.ma.masked_where(np.asarray(calibcritHEADS).flatten() == hnoflo,np.asarray(calibcritHEADS).flatten()))
+            if tmp< 0:
+                ymin_tmp = 1.2*tmp
+            else:
+                ymin_tmp = 0.8*tmp
+            del tmp
+        else:
+            ymin_tmp = ymin
+        plt.ylim(ymin_tmp, max_tmp)
+        ax2.set_xlim(0, len(calibcritHEADS)+1)
 
     plt.savefig(plt_export_fn)
 

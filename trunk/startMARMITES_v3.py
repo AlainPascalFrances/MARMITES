@@ -104,16 +104,25 @@ try:
     ntick =  int(inputFile[l].strip())
     l += 1
     animation =  int(inputFile[l].strip())
-    # read observations?
     l += 1
+    # export time series/water balance at observation points and catch. scale?  (1 is YES, 0 is NO)
     plt_out_obs = int(inputFile[l].strip())
     l += 1
+    # water balance Sankey plot (1 is YES, 0 is NO)
+    WBsankey_yn = int(inputFile[l].strip())
+    l += 1    
+    # plot at obs.pt. with max. recharge (1 is YES, 0 is NO)
+    RCHmax_yn = int(inputFile[l].strip())
+    l += 1
+    # define if unit of the water balance plots are in mm/day or mm/year
+    # value MUST be 'year' or 'day'
     plt_WB_unit = inputFile[l].strip()
     if plt_WB_unit == 'year':
         facTim = 365.0
     else:
         facTim = 1.0
     l += 1
+    # starting month of the hydrologic year (integer value between 1 and 12)
     iniMonthHydroYear = int(inputFile[l].strip())
     if iniMonthHydroYear < 1 or iniMonthHydroYear > 12:
         print '\nWARNING!\nInvalid starting month of the hydrologic year. Please correct your input (currently %d) to a value between 1 and 12 inclusive. The starting month was now defined as October (10).' % iniMonthHydroYear
@@ -478,19 +487,20 @@ MM_SATFLOW = MMsoil.SATFLOW()
 
 # READ input ESRI ASCII rasters
 print "\nImporting ESRI ASCII files to initialize MARMITES..."
-gridMETEO = cMF.cPROCESS.inputEsriAscii(grid_fn = gridMETEO_fn, datatype = int)
-gridSOIL = cMF.cPROCESS.inputEsriAscii(grid_fn = gridSOIL_fn, datatype = int)
-gridSOILthick = cMF.cPROCESS.inputEsriAscii(grid_fn = gridSOILthick_fn, datatype = float)
-gridSsurfhmax = cMF.cPROCESS.inputEsriAscii(grid_fn = gridSsurfhmax_fn, datatype = float)
-gridSsurfw = cMF.cPROCESS.inputEsriAscii(grid_fn = gridSsurfw_fn, datatype = float)
+gridMETEO = cMF.cPROCESS.inputEsriAscii(grid_fn = gridMETEO_fn, datatype = int, stdout = None, report = None)
+gridSOIL = cMF.cPROCESS.inputEsriAscii(grid_fn = gridSOIL_fn, datatype = int, stdout = None, report = None)
+gridSOILthick = cMF.cPROCESS.inputEsriAscii(grid_fn = gridSOILthick_fn, datatype = float, stdout = None, report = None)
+gridSsurfhmax = cMF.cPROCESS.inputEsriAscii(grid_fn = gridSsurfhmax_fn, datatype = float, stdout = None, report = None)
+gridSsurfw = cMF.cPROCESS.inputEsriAscii(grid_fn = gridSsurfw_fn, datatype = float, stdout = None, report = None)
 if irr_yn == 1:
-    gridIRR = cMF.cPROCESS.inputEsriAscii(grid_fn = gridIRR_fn, datatype = int)
+    gridIRR = cMF.cPROCESS.inputEsriAscii(grid_fn = gridIRR_fn, datatype = int, stdout = None, report = None)
     if gridIRR.max() > NFIELD:
         cUTIL.ErrorExit('\nFATAL ERROR!\nThere is more fields in the asc file than in the MMsurf file!', stdout = stdout, report = report)
 
 # READ input time series and parameters
 if irr_yn == 0:
-    gridVEGarea, RF_veg_zoneSP, E0_zonesSP, PT_veg_zonesSP, RFe_veg_zonesSP, LAI_veg_zonesSP, PE_zonesSP = cMF.cPROCESS.inputSP(                       NMETEO                   = NMETEO,
+    gridVEGarea, RF_veg_zoneSP, E0_zonesSP, PT_veg_zonesSP, RFe_veg_zonesSP, LAI_veg_zonesSP, PE_zonesSP = cMF.cPROCESS.inputSP(
+                                NMETEO                   = NMETEO,
                                 NVEG                     = NVEG,
                                 NSOIL                    = NSOIL,
                                 nper                     = cMF.nper,
@@ -500,7 +510,7 @@ if irr_yn == 0:
                                 inputZON_SP_PT_fn        = cMF.inputZON_SP_PT_fn,
                                 inputZON_SP_PE_fn        = cMF.inputZON_SP_PE_fn,
                                 inputZON_SP_E0_fn        = cMF.inputZON_SP_E0_fn,
-                                )
+                                stdout = None, report = None)
 else:
     gridVEGarea, RF_veg_zoneSP, E0_zonesSP, PT_veg_zonesSP, RFe_veg_zonesSP, LAI_veg_zonesSP, PE_zonesSP, RF_irr_zoneSP, RFe_irr_zoneSP, PT_irr_zonesSP, crop_irr_SP = cMF.cPROCESS.inputSP(
                                 NMETEO                   = NMETEO,
@@ -517,11 +527,11 @@ else:
                                 inputZON_SP_RF_irr_fn    = cMF.inputZON_SP_RF_irr_fn,
                                 inputZON_SP_RFe_irr_fn   = cMF.inputZON_SP_RFe_irr_fn,
                                 inputZON_SP_PT_irr_fn    = cMF.inputZON_SP_PT_irr_fn,
-                                input_SP_crop_irr_fn     = cMF.input_SP_crop_irr_fn
-                                )
+                                input_SP_crop_irr_fn     = cMF.input_SP_crop_irr_fn,
+                                stdout = None, report = None)
 
 # SOIL PARAMETERS
-_nsl, _nam_soil, _st, _slprop, _Sm, _Sfc, _Sr, _S_ini, _Ks = cMF.cPROCESS.inputSoilParam(SOILparam_fn = SOILparam_fn, NSOIL = NSOIL)
+_nsl, _nam_soil, _st, _slprop, _Sm, _Sfc, _Sr, _S_ini, _Ks = cMF.cPROCESS.inputSoilParam(SOILparam_fn = SOILparam_fn, NSOIL = NSOIL, stdout = None, report = None)
 _nslmax = max(_nsl)
 for l in range(NSOIL):
     _slprop[l] = np.asarray(_slprop[l])
@@ -899,7 +909,7 @@ if MMsoil_yn > 0:
         print'\n##############'
         print 'MARMITESsoil RUN'
         # SOIL PARAMETERS
-        _nsl, _nam_soil, _st, _slprop, _Sm, _Sfc, _Sr, _S_ini, _Ks = cMF.cPROCESS.inputSoilParam(SOILparam_fn = SOILparam_fn, NSOIL = NSOIL)
+        _nsl, _nam_soil, _st, _slprop, _Sm, _Sfc, _Sr, _S_ini, _Ks = cMF.cPROCESS.inputSoilParam(SOILparam_fn = SOILparam_fn, NSOIL = NSOIL, stdout = None, report = None)
         _nslmax = max(_nsl)
         for l in range(NSOIL):
             _slprop[l] = np.asarray(_slprop[l])
@@ -1204,28 +1214,29 @@ if os.path.exists(cMF.h5_MF_fn):
     RCHmin = np.ma.min(cbc_RCH)
     print '\nMaximum GW recharge (%.2f mm/day) observed at:' % RCHmax
     tRCHmax = -1
-    if RCHmax> 0.0:
-        for l in range(cMF.nlay):
-            for row in range(cMF.nrow):
-                for t,col in enumerate(cbc_RCH[:,l,row,:]):
-                    try:
-                        if plt_out_obs == 1 and obs_list[-1] <> 'PzRCHmax':
-                            j = list(col).index(RCHmax)
-                            x = cMF.delc[row]*row + xllcorner
-                            y = cMF.delr[j]*j + yllcorner
-                            obs['Rm'] = {'x':x,'y':y, 'i': row, 'j': j, 'lay': l, 'hi':999, 'h0':999, 'RC':999, 'STO':999, 'outpathname':os.path.join(MM_ws_out,'_0Rm_ts4xls.txt'), 'obs_h':[], 'obs_h_yn':0, 'obs_SM':[], 'obs_sm_yn':0, 'obs_Ro':[], 'obs_Ro_yn':0}
-                            obs_list.append('Rm')
-                            obs4map[0].append('Rm')
-                            obs4map[1].append(float(row)+1.0)
-                            obs4map[2].append(float(j)+1.0)
-                            obs4map[3].append(float(l))
-                            del x, y
-                        print 'row %d, col %d, layer %d and day %d (%s)' % (row + 1, list(col).index(RCHmax) + 1, l+1, t+1, mpl.dates.num2date(cMF.inputDate[t] + 1.0).isoformat()[:10])
-                        tRCHmax = t
-                    except:
-                        pass
-    if tRCHmax < 0:
-        print 'WARNING!\nNo recharge max found!'
+    if RCHmax_yn == 1:
+        if RCHmax> 0.0:
+            for l in range(cMF.nlay):
+                for row in range(cMF.nrow):
+                    for t,col in enumerate(cbc_RCH[:,l,row,:]):
+                        try:
+                            if plt_out_obs == 1 and obs_list[-1] <> 'PzRCHmax':
+                                j = list(col).index(RCHmax)
+                                x = cMF.delc[row]*row + xllcorner
+                                y = cMF.delr[j]*j + yllcorner
+                                obs['Rm'] = {'x':x,'y':y, 'i': row, 'j': j, 'lay': l, 'hi':999, 'h0':999, 'RC':999, 'STO':999, 'outpathname':os.path.join(MM_ws_out,'_0Rm_ts4xls.txt'), 'obs_h':[], 'obs_h_yn':0, 'obs_SM':[], 'obs_sm_yn':0, 'obs_Ro':[], 'obs_Ro_yn':0}
+                                obs_list.append('Rm')
+                                obs4map[0].append('Rm')
+                                obs4map[1].append(float(row)+1.0)
+                                obs4map[2].append(float(j)+1.0)
+                                obs4map[3].append(float(l))
+                                del x, y
+                            print 'row %d, col %d, layer %d and day %d (%s)' % (row + 1, list(col).index(RCHmax) + 1, l+1, t+1, mpl.dates.num2date(cMF.inputDate[t] + 1.0).isoformat()[:10])
+                            tRCHmax = t
+                        except:
+                            pass
+        if tRCHmax < 0:
+            print 'WARNING!\nNo recharge max found!'
     del cbc_RCH
     RCHmax = np.ma.max(RCHmax) #float(np.ceil(np.ma.max(RCHmax)))  #
     RCHmin = np.ma.min(RCHmin) #float(np.floor(np.ma.min(RCHmin))) #
@@ -1658,10 +1669,11 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
             plt_exportCATCH_txt.write(l)
         plt_exportCATCH_txt.write('\n')
     plt_exportCATCH_txt.close()
-    try:
-        MMplot.plotWBsankey(path = MM_ws_out, fn = plt_exportCATCH_txt_fn.split('\\')[-1], index = HYindex, year_lst = year_lst, cMF = cMF, ncell_MM = ncell_MM, obspt = 'whole catchment', fntitle = '0CATCHMENT', ibound4Sankey = np.ones((cMF.nlay), dtype = int), stdout = stdout, report = report)
-    except:
-        print "\nError in plotting the catchment water balance!"
+    if WBsankey_yn == 1:
+        try:
+            MMplot.plotWBsankey(path = MM_ws_out, fn = plt_exportCATCH_txt_fn.split('\\')[-1], index = HYindex, year_lst = year_lst, cMF = cMF, ncell_MM = ncell_MM, obspt = 'whole catchment', fntitle = '0CATCHMENT', ibound4Sankey = np.ones((cMF.nlay), dtype = int), stdout = stdout, report = report)
+        except:
+            print "\nError in plotting the catchment water balance!"
     del flx_Cat_TS, flx_Cat_TS_str, out_line, plt_exportCATCH_fn, plt_exportCATCH_txt_fn, plt_titleCATCH
 
 # #################################################
@@ -1887,11 +1899,12 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                         for l in out_line:
                             plt_export_obs_txt.write(l)
                         plt_export_obs_txt.write('\n')
-                    plt_export_obs_txt.close() 
-                    try:
-                        MMplot.plotWBsankey(path = MM_ws_out, fn = plt_export_txt_fn.split('\\')[-1], index = HYindex, year_lst = year_lst, cMF = cMF, ncell_MM = ncell_MM, obspt = 'obs. pt. %s'%o, fntitle = '0%s'%o, ibound4Sankey = cMF.ibound[:,i,j], stdout = stdout, report = report)  
-                    except:
-                       print 'Error in plotting water balance at obs. point %s' % o
+                    plt_export_obs_txt.close()
+                    if WBsankey_yn == 1:
+                        try:
+                            MMplot.plotWBsankey(path = MM_ws_out, fn = plt_export_txt_fn.split('\\')[-1], index = HYindex, year_lst = year_lst, cMF = cMF, ncell_MM = ncell_MM, obspt = 'obs. pt. %s'%o, fntitle = '0%s'%o, ibound4Sankey = cMF.ibound[:,i,j], stdout = stdout, report = report)  
+                        except:
+                           print 'Error in plotting water balance at obs. point %s' % o
                     try:
                         MMplot.plotTIMESERIES_obsGW(cMF, flx_obs_TS, flxlbl_tex, plt_export_fn, plt_suptitle, iniMonthHydroYear = iniMonthHydroYear, date_ini = StartDate, date_end = EndDate)  
                     except:
@@ -1929,31 +1942,32 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
             try:
                 MMplot.plotCALIBCRIT(calibcritSM = calibcritSM, calibcritSMobslst = obslstSM, calibcritHEADS = calibcritHEADS, calibcritHEADSobslst = obslstHEADS, plt_export_fn = os.path.join(MM_ws_out, '__plt_calibcrit%s.png'% calibcrit), plt_title = 'Calibration criteria between simulated and observed state variables\n%s'%title, calibcrit = calibcrit, calibcritSMmax = calibcritSMmax, calibcritHEADSmax = calibcritHEADSmax, ymin = ymin, units = units, hnoflo = cMF.hnoflo)
             except:
-                print 'Error in exporting %s at obs. pt. %s' % (calibcrit, obs_list[cc])
+                print '-------\nError in exporting %s at obs. pt. %s' % (calibcrit, obs_list[cc])
         print '-------\nRMSE/RSR/NSE/r averages of the obs. pts. (except catch.)'
         try:
             for cc, (rmse, rsr, nse, r, obslst, msg) in enumerate(zip([rmseSM,rmseHEADS],[rsrSM,rsrHEADS],[nseSM,nseHEADS],[rSM,rHEADS],[obslstSM,obslstHEADS],['SM (all layers): %.1f %% /','h: %.2f m /'])):
-                if obslst[0] == 'catch.' and len(rmse)> 1:
-                    rmseaverage = list(itertools.chain.from_iterable(rmse[1:]))
-                    rsraverage = list(itertools.chain.from_iterable(rsr[1:]))
-                    nseaverage = list(itertools.chain.from_iterable(nse[1:]))
-                    raverage = list(itertools.chain.from_iterable(r[1:]))
-                    numobs = len(obslst[1:])
-                else:
-                    rmseaverage = list(itertools.chain.from_iterable(rmse))
-                    rsraverage = list(itertools.chain.from_iterable(rsr))
-                    nseaverage = list(itertools.chain.from_iterable(nse))
-                    raverage = list(itertools.chain.from_iterable(r))
-                    numobs = len(obslst)
-                if len(rmse)> 1:
-                    rmseaverage = sum(rmseaverage)/float(len(rmseaverage))
-                    rsraverage = sum(rsraverage)/float(len(rsraverage))
-                    nseaverage = sum(nseaverage)/float(len(nseaverage))
-                    raverage = sum(raverage)/float(len(raverage))
-                    msg = '%s %s' % (msg, '%.2f / %.2f / %.2f (%d obs. points)')
-                    print msg % (rmseaverage, rsraverage, nseaverage, raverage, numobs)
+                if obslst <> []:
+                    if obslst[0] == 'catch.' and len(rmse)> 1:
+                        rmseaverage = list(itertools.chain.from_iterable(rmse[1:]))
+                        rsraverage = list(itertools.chain.from_iterable(rsr[1:]))
+                        nseaverage = list(itertools.chain.from_iterable(nse[1:]))
+                        raverage = list(itertools.chain.from_iterable(r[1:]))
+                        numobs = len(obslst[1:])
+                    else:
+                        rmseaverage = list(itertools.chain.from_iterable(rmse))
+                        rsraverage = list(itertools.chain.from_iterable(rsr))
+                        nseaverage = list(itertools.chain.from_iterable(nse))
+                        raverage = list(itertools.chain.from_iterable(r))
+                        numobs = len(obslst)
+                    if len(rmse)> 1:
+                        rmseaverage = sum(rmseaverage)/float(len(rmseaverage))
+                        rsraverage = sum(rsraverage)/float(len(rsraverage))
+                        nseaverage = sum(nseaverage)/float(len(nseaverage))
+                        raverage = sum(raverage)/float(len(raverage))
+                        msg = '%s %s' % (msg, '%.2f / %.2f / %.2f (%d obs. points)')
+                        print msg % (rmseaverage, rsraverage, nseaverage, raverage, numobs)
         except:
-            print 'Error! Check observations data.'
+            print '-------\nError! Check observations data.'
         print '-------'
                     
         del flx_obs_TS, flxlbl_tex, flxlbl_CATCH_str
