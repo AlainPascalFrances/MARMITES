@@ -17,7 +17,7 @@ __author__ = "Alain P. Francés <frances.alain@gmail.com>"
 __version__ = "0.3"
 __date__ = "2012"
 
-import sys, os, h5py, shutil, itertools
+import sys, os, h5py, shutil, glob, itertools
 from win32com.shell import shell, shellcon
 import matplotlib as mpl
 if mpl.get_backend!='agg':
@@ -226,10 +226,29 @@ except:
 
 del inputFile
 
+# copy MM ini file into MM output folder
 shutil.copy2(os.path.join(MM_ws,MM_ini_fn), os.path.join(MM_ws_out,'__%s%s'% (mpl.dates.DateFormatter.format_data(fmt_DHshort, timestart), MM_ini_fn)))
+# copy MF ini file into MM output folder
 shutil.copy2(os.path.join(MM_ws, MF_ws,MF_ini_fn), os.path.join(MM_ws_out,'__%s%s'% (mpl.dates.DateFormatter.format_data(fmt_DHshort, timestart), MF_ini_fn)))
+# copy MMsurf ini file into MM output folder
 shutil.copy2(os.path.join(MM_ws, MMsurf_ws,inputFile_PAR_fn), os.path.join(MM_ws_out,'__%s%s'% (mpl.dates.DateFormatter.format_data(fmt_DHshort, timestart), inputFile_PAR_fn)))
+# copy MM soil parameters file into MM output folder
 shutil.copy2(os.path.join(MM_ws, SOILparam_fn), os.path.join(MM_ws_out,'__%s__%s'% (mpl.dates.DateFormatter.format_data(fmt_DHshort, timestart), SOILparam_fn.split('\\')[-1])))
+# copy MM input asc file
+files = glob.iglob(os.path.join(MM_ws, "*.asc"))
+path_out = os.path.join(MM_ws_out, 'MM_asc')
+os.makedirs(path_out)
+for file in files:
+    if os.path.isfile(file):
+        shutil.copy2(file, path_out)
+# copy MF input asc file
+files = glob.iglob(os.path.join(MM_ws, MF_ws, "*.asc"))
+path_out = os.path.join(MM_ws_out, 'MF_asc')
+os.makedirs(path_out)
+for file in files:
+    if os.path.isfile(file):
+        shutil.copy2(file, path_out) 
+del path_out, file, files
 
 if verbose == 0:
 # capture interpreter output to be written in to a report file
@@ -920,7 +939,7 @@ if MMsoil_yn > 0:
 #        t0=0
         print '\nComputing...'
         if irr_yn == 0:
-            MM_SOIL.run(_nsl, _nslmax, _st, _Sm, _Sfc, _Sr, _slprop, _S_ini, botm_l0, _Ks,
+            MM_SOIL.runMMsoil(_nsl, _nslmax, _st, _Sm, _Sfc, _Sr, _slprop, _S_ini, botm_l0, _Ks,
                           gridSOIL, gridSOILthick, cMF.elev*1000.0, gridMETEO,
                           index_MM, index_MM_soil, gridSsurfhmax, gridSsurfw,
                           RF_veg_zoneSP, E0_zonesSP, PT_veg_zonesSP, RFe_veg_zonesSP, PE_zonesSP, gridVEGarea,
@@ -928,7 +947,7 @@ if MMsoil_yn > 0:
                           cMF, conv_fact, h5_MF, h5_MM, irr_yn
                           )
         else:
-            MM_SOIL.run(_nsl, _nslmax, _st, _Sm, _Sfc, _Sr, _slprop, _S_ini, botm_l0, _Ks,
+            MM_SOIL.runMMsoil(_nsl, _nslmax, _st, _Sm, _Sfc, _Sr, _slprop, _S_ini, botm_l0, _Ks,
                           gridSOIL, gridSOILthick, cMF.elev*1000.0, gridMETEO,
                           index_MM, index_MM_soil, gridSsurfhmax, gridSsurfw,
                           RF_veg_zoneSP, E0_zonesSP, PT_veg_zonesSP, RFe_veg_zonesSP, PE_zonesSP, gridVEGarea,
@@ -1716,7 +1735,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                     MM_S = h5_MM['MM_S'][:,i,j,:,:]
                     # SATFLOW
                     cbc_RCH = h5_MF['RCH_d']
-                    h_satflow = MM_SATFLOW.run(cbc_RCH[:,l_highest,i,j], float(obs.get(o)['hi']),float(obs.get(o)['h0']),float(obs.get(o)['RC']),float(obs.get(o)['STO']))
+                    h_satflow = MM_SATFLOW.runSATFLOW(cbc_RCH[:,l_highest,i,j], float(obs.get(o)['hi']),float(obs.get(o)['h0']),float(obs.get(o)['RC']),float(obs.get(o)['STO']))
                     # export ASCII file at piezometers location
                     #TODO extract heads at piezo location and not center of cell
                     if obs_h != []:

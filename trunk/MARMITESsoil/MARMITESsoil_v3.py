@@ -305,7 +305,7 @@ class clsMMsoil:
 
 #####################
 
-    def run(self, _nsl, _nslmax, _st, _Sm, _Sfc, _Sr, _slprop, _Ssoil_ini, botm_l0, _Ks,
+    def runMMsoil(self, _nsl, _nslmax, _st, _Sm, _Sfc, _Sr, _slprop, _Ssoil_ini, botm_l0, _Ks,
             gridSOIL, gridSOILthick, TopSoil, gridMETEO,
             index, index_S, gridSsurfhmax, gridSsurfw,
             RF_veg_zoneSP, E0_zonesSP, PT_veg_zonesSP, RFe_veg_zonesSP, PE_zonesSP, gridVEGarea,
@@ -598,7 +598,7 @@ class SATFLOW:
      _________________________
     """
 
-    def run(self, R, hi, h0, RC, STO):
+    def runSATFLOW(self, R, hi, h0, RC, STO):
         h1 = np.zeros([len(R)], dtype=np.float)
         h_tmp = (hi*1000.0 + R[0]/STO - hi*1000.0/RC)
         h1[0] = h_tmp
