@@ -1278,12 +1278,12 @@ class clsMF():
         except:
             h5_MF.close()
             self.cUTIL.ErrorExit(msg= '\nMODFLOW error!\nCheck the MODFLOW list file in folder:\n%s' % self.MF_ws, stdout = stdout, report = report)
+        if len(hmain.times)<sum(self.nstp):
+            h5_MF.close()
+            self.cUTIL.ErrorExit(msg = '\nMODFLOW error!\nCheck the MODFLOW list file in folder:\n%s' % self.MF_ws, stdout = stdout, report = report)        
         h = np.zeros((self.nper, self.nlay, self.nrow, self.ncol), dtype = np.float32)
         for i, e in enumerate(hmain.get_kstpkper()):
             h[i,:,:,:] = hmain.get_data(kstp = e[0], kper = e[1])
-        if hmain.get_times()[-1]<sum(self.nstp):
-            h5_MF.close()
-            self.cUTIL.ErrorExit(msg = '\nMODFLOW error!\nCheck the MODFLOW list file in folder:\n%s' % self.MF_ws, stdout = stdout, report = report)        
         if chunks == 1:
             if self.dum_sssp1 == 1:
                 h5_MF.create_dataset(name = 'heads', data = h[1:], chunks = (1,self.nlay,self.nrow,self.ncol), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf')

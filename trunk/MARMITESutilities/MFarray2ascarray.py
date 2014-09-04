@@ -6,6 +6,10 @@ ncol = 60
 header_fn = r'E:\00code_ws\LAMATA_new\MF_ws\00header_asc.txt'
 if os.path.exists(header_fn):
     header = open(header_fn, 'r')
+    header_lst = []
+    for line in header:
+        header_lst.append(line)
+    header.close()
 else:
     raise SystemExit("File %s does not exist." % header_fn)   
 
@@ -15,10 +19,12 @@ for l, fin_fn in enumerate(arrays_PEST_fn):
 
     if os.path.exists(fin_fn):
         fin = open(fin_fn, 'r')
+    else:
+        raise SystemExit("File %s does not exist." % fin_fn) 
     fout_fn = '%s.asc' % fin_fn.split('.')[0]
     fout = open(fout_fn, 'w')
 
-    for line in header:
+    for line in header_lst:
         fout.write(line)
 
     fout.write('\n')
@@ -37,7 +43,5 @@ for l, fin_fn in enumerate(arrays_PEST_fn):
     fin.close()
     fout.close()
     print 'File %s done!' % fin_fn
-
-header.close()
-
+    
 print '\nDone!\n'

@@ -1028,10 +1028,11 @@ def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin
         plt.setp(ax1.get_xticklabels(), visible=False)
         plt.setp(ax1.get_yticklabels(), fontsize=8)
         # RMSE
+        i = 24+2*cMF.nlay
         if obs_catch_list[0] == 1:
             ax1.plot_date(cMF.inputDate, hobs_m, markerfacecolor = 'None', marker='o', markeredgecolor = 'LightBlue', markersize=2, label = r'$h \ obs$')
-            if sum(flx[24]) != 0.0:
-                a = np.array([flx[24],obs_h[0]])
+            if sum(flx[i]) != 0.0:
+                a = np.array([flx[i],obs_h[0]])
                 a = np.transpose(a)
                 b = a[~(a < cMF.hnoflo +1000.0).any(1)]
                 rmseHEADS = [cMF.cPROCESS.compRMSE(b[:,0], b[:,1])]
@@ -1043,7 +1044,6 @@ def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin
             else:
                 print 'Warning!\nError in computing h calibration criteria'
                 rmseHEADS = rsrHEADS = nseHEADS = rHEADS = None
-        i = 24+2*cMF.nlay
         for l in range(cMF.nlay):
             plt.plot_date(cMF.inputDate,flx[i],lines.next(), color = 'b', label = flx_lbl[i])
             i += l + 2
@@ -1132,7 +1132,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin
 
 ##################
 
-def plotLAYER(timesteps, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_title, MM_ws, interval_type = 'arange', interval_diff = 1, interval_num = 1, Vmax = 0, Vmin = 0, fmt = None, contours = False, ntick = 1, axisbg = 'silver', points  = None, ptslbl = 0, mask = None, hnoflo = -999.9, animation = 0, pref_plt_title = '_sp_plt'):
+def plotLAYER(days, timesteps, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_title, MM_ws, interval_type = 'arange', interval_diff = 1, interval_num = 1, Vmax = 0, Vmin = 0, fmt = None, contours = False, ntick = 1, axisbg = 'silver', points  = None, ptslbl = 0, mask = None, hnoflo = -999.9, animation = 0, pref_plt_title = '_sp_plt'):
 
     # TODO put option to select axes tick as row/col index from MODFLOW or real coordinates (in this last case create it)
 
@@ -1165,13 +1165,13 @@ def plotLAYER(timesteps, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, ms
 
     ims = []
     files_tmp = []
-    for i, day in enumerate(timesteps):
+    for i, day in enumerate(days):
         ax= []
         fig = plt.figure(num=None, figsize=(11.7, 8.27), dpi=30)
         figtitle = fig.suptitle('')
         ims.append([])
         if isinstance(Date[i], float):
-            figtitle.set_text(plt_title + '\nDay %s, DOY %s, time step %s' % (mpl.dates.num2date(Date[i]).isoformat()[:10], JD[i], day+1))
+            figtitle.set_text(plt_title + '\nDate %s, DOY %s, time step %s, day %d' % (mpl.dates.num2date(Date[i]).isoformat()[:10], JD[i], timesteps[i], day+1))
         else:
             figtitle.set_text(plt_title)
         plt.draw()
@@ -1233,11 +1233,11 @@ def plotLAYER(timesteps, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, ms
             cax.yaxis.set_label_position('left')
             plt.setp(CB.ax.get_yticklabels(), fontsize = 7)
         if isinstance(Date[i], float):
-            plt_export_fn = os.path.join(MM_ws, '%s_%s_timestep%05d.png' % (pref_plt_title, plt_title, day+1))
+            plt_export_fn = os.path.join(MM_ws, '%s_%s_day%05d.png' % (pref_plt_title, plt_title, day+1))
         else:
             plt_export_fn = os.path.join(MM_ws, '%s_%s.png' % (pref_plt_title, plt_title))
         plt.savefig(plt_export_fn)
-        if len(timesteps)>1 and animation == 1:
+        if len(days)>1 and animation == 1:
             try:
                 if i == 0:
                     files_tmp.append(os.path.join(MM_ws,'%05d.png'%(0)))
@@ -1252,7 +1252,7 @@ def plotLAYER(timesteps, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, ms
         for L in range(nplot):
             ax[L].cla()
 
-    if len(timesteps)>1 and animation == 1:
+    if len(days)>1 and animation == 1:
         batch_fn = os.path.join(MM_ws, 'run.bat')
         f = open(batch_fn, 'w')
         f.write('ffmpeg -r 1 -i %s -s:v 1280x720 -c:v libx264 -profile:v high -crf 23 -pix_fmt yuv420p -r 30 -y %s_mov.mp4' % ('%s\%%%%05d.png' % (MM_ws),'%s\%s_%s' % (MM_ws, pref_plt_title, plt_title)))
