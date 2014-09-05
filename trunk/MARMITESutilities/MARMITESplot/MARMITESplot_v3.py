@@ -907,7 +907,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin
     plt.setp(ax6.get_yticklabels(), fontsize=8)
     # theta
     if sum(obs_catch_list) > 0:
-            print '-------\nRMSE/RSR/NSE/r of obs. at the catch. scale'
+        print '-------\nRMSE/RSR/NSE/r of obs. at the catch. scale\nRo: still not implemented'
     rmseSM = None
     rsrSM = None
     nseSM = None
@@ -1132,7 +1132,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flx_lbl, plt_export_fn, plt_title, hmax, hmin
 
 ##################
 
-def plotLAYER(days, timesteps, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_title, MM_ws, interval_type = 'arange', interval_diff = 1, interval_num = 1, Vmax = 0, Vmin = 0, fmt = None, contours = False, ntick = 1, axisbg = 'silver', points  = None, ptslbl = 0, mask = None, hnoflo = -999.9, animation = 0, pref_plt_title = '_sp_plt'):
+def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_title, MM_ws, interval_type = 'arange', interval_diff = 1, interval_num = 1, Vmax = 0, Vmin = 0, fmt = None, contours = False, ntick = 1, axisbg = 'silver', points  = None, ptslbl = 0, mask = None, hnoflo = -999.9, animation = 0, pref_plt_title = '_sp_plt'):
 
     # TODO put option to select axes tick as row/col index from MODFLOW or real coordinates (in this last case create it)
 
@@ -1171,7 +1171,7 @@ def plotLAYER(days, timesteps, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlab
         figtitle = fig.suptitle('')
         ims.append([])
         if isinstance(Date[i], float):
-            figtitle.set_text(plt_title + '\nDate %s, DOY %s, time step %s, day %d' % (mpl.dates.num2date(Date[i]).isoformat()[:10], JD[i], timesteps[i], day+1))
+            figtitle.set_text(plt_title + '\nDate %s, DOY %s, stress period %s, day %d' % (mpl.dates.num2date(Date[i]).isoformat()[:10], JD[i], str_per[i], day+1))
         else:
             figtitle.set_text(plt_title)
         plt.draw()
