@@ -88,6 +88,8 @@ class clsPROCESS:
                 array_tmp[l,:,:] *= e  #*ibound[l,:,:]
             array = array_tmp
         return array
+        
+    ######################
 
     def convASCIIraster2array(self, filenameIN, arrayOUT, stdout = None, report = None):
         '''
@@ -463,7 +465,7 @@ class clsPROCESS:
             else:
                 obs_Ro = []
                 obs_Ro_yn = 0
-            obs[name] = {'x':x,'y':y,'i': i, 'j': j, 'lay': lay, 'hi':hi, 'h0':h0, 'RC':RC, 'STO':STO, 'lbl':lbl, 'outpathname':os.path.join(self.MM_ws_out,'_0%s_ts4xls.txt' % name), 'obs_h':obs_h, 'obs_h_yn':obs_h_yn, 'obs_SM':obs_sm, 'obs_sm_yn':obs_sm_yn, 'obs_Ro':obs_Ro, 'obs_Ro_yn':obs_Ro_yn}
+            obs[name] = {'x':x,'y':y,'i': i, 'j': j, 'lay': lay, 'hi':hi, 'h0':h0, 'RC':RC, 'STO':STO, 'lbl':lbl, 'obs_h':obs_h, 'obs_h_yn':obs_h_yn, 'obs_SM':obs_sm, 'obs_sm_yn':obs_sm_yn, 'obs_Ro':obs_Ro, 'obs_Ro_yn':obs_Ro_yn}
 
         #  read catchment obs time series
         obsh_fn = os.path.join(self.MM_ws, '%s_catchment.txt' % inputObsHEADS_fn)
@@ -573,61 +575,6 @@ class clsPROCESS:
         return file_asc
         del file_asc
 
-    ######################
-
-    def ExportResultsMM(self, i, j, inputDate, SP_d, _nslmax, results, index, results_S, index_S, RCH, WEL, h_satflow, heads_MF, obs_h, obs_S, obs_Ro, index_veg, outFileExport, obsname):
-        """
-        Export the processed data in a txt file
-        INPUTS:      output fluxes time series and date
-        OUTPUT:      ObsName.txt
-        """
-        for t in range(len(inputDate)):
-            # 'Date,RF,E0,PT,PE,RFe,I,'+Eu_str+Tu_str+'Eg,Tg,ETg,WEL_MF,Es,'+Ssoil_str+Ssoilpc_str+dSsoil_str+'dSs,Ss,Ro,Romeas,GW_EXF,GW_EXF_MF,'+Rp_str+Rexf_str+'R_MF,hSATFLOW,hMF,hMFcorr,hmeas,dgwt,' + Smeasout + MB_str + 'MB\n'
-            out_date = mpl.dates.num2date(inputDate[t]).isoformat()[:10]
-            Sout     = ''
-            Spcout   = ''
-            dSout    = ''
-            Rpout    = ''
-            Rexfout     = ''
-            Euout    = ''
-            Tuout    = ''
-            Smeasout = ''
-            MBout=''
-            for l in range(_nslmax):
-                Sout += str(results_S[t,l,index_S.get('iSsoil')]) + ','
-                Spcout += str(results_S[t,l,index_S.get('iSsoil_pc')]) + ','
-                dSout += str(results_S[t,l,index_S.get('idSsoil')]) + ','
-                Rpout += str(results_S[t,l,index_S.get('iRp')]) + ','
-                Rexfout += str(results_S[t,l,index_S.get('iRexf')]) + ','
-                Euout += str(results_S[t,l,index_S.get('iEsoil')]) + ','
-                Tuout += str(results_S[t,l,index_S.get('iTsoil')]) + ','
-                MBout += str(results_S[t,l,index_S.get('iMB_l')]) + ','
-                try:
-                    Smeasout += str(obs_S[l,t]) + ','
-                except:
-                    Smeasout += str(self.hnoflo) + ','
-            try:
-                obs_h_tmp = obs_h[t]
-            except:
-                obs_h_tmp = self.hnoflo
-            try:
-                obs_Ro_tmp = obs_Ro[t]
-            except:
-                obs_Ro_tmp = self.hnoflo
-            out1 = '%d,%d,%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,' % (SP_d[t], index_veg[t], results[t,index.get('iRF')], results[t,index.get('iE0')],results[t,index.get('iPT')],results[t,index.get('iPE')],results[t,index.get('iRFe')],results[t,index.get('iI')])
-            if type(WEL) == np.ndarray or type(WEL) == np.ma.core.MaskedArray:
-                WEL_tmp = WEL[t]
-            else:
-                WEL_tmp = 0.0
-            out2 = '%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[t,index.get('iEg')], results[t,index.get('iTg')],results[t,index.get('iETg')], WEL_tmp, results[t,index.get('iEsurf')])
-            out3 = '%.8f,%.8f,%.8f,%.8f,%.8f,' % (results[t,index.get('idSsurf')],results[t,index.get('iSsurf')],results[t,index.get('iRo')],obs_Ro_tmp,results[t,index.get('iEXF')])
-            out4 = '%.8f,%.8f,%.8f,%.8f,%.8f,%.8f,' % (RCH[t], h_satflow[t],heads_MF[t],results[t,index.get('iHEADScorr')],obs_h_tmp,results[t,index.get('idgwt')])
-            out5 = '%.8f' % (results[t,index.get('iMB')])
-            out_line =  out_date, ',', out1, Euout, Tuout, out2, Sout, Spcout, dSout, out3, Rpout, Rexfout, out4, Smeasout, MBout, out5, '\n'
-            for l in out_line:
-                outFileExport.write(l)
-        del i, j, inputDate, _nslmax, results, index, results_S, index_S, RCH, WEL, h_satflow, heads_MF, obs_h, obs_S, outFileExport, obsname
-
     #####################################
 
     def ExportResultsMM4PEST(self, i, j, inputDate, _nslmax, results_S, index_S, obs_S, obsname):
@@ -645,8 +592,8 @@ class clsPROCESS:
                     obs_S_tmp = obs_S[l,t]
                 except:
                     obs_S_tmp = -1.0
-                if results_S[t,l,index_S.get('iSsoil_pc')] > 0.0 and obs_S_tmp > 0.0:
-                    self.smMM[len_smMM-1].append((obsname+'SM_l'+str(l+1)).ljust(10,' ')+ out_date.ljust(10,' ')+ ' 00:00:00 ' + str(results_S[t,l,index_S.get('iSsoil_pc')]).ljust(10,' ') + '\n')
+                if results_S[t,l,index_S.get('iSsoil_pc_l')] > 0.0 and obs_S_tmp > 0.0:
+                    self.smMM[len_smMM-1].append((obsname+'SM_l'+str(l+1)).ljust(10,' ')+ out_date.ljust(10,' ')+ ' 00:00:00 ' + str(results_S[t,l,index_S.get('iSsoil_pc_l')]).ljust(10,' ') + '\n')
         del i, j, _nslmax, results_S, index_S, obs_S, obsname
 
     #####################################
