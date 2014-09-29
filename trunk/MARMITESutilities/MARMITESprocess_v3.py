@@ -9,13 +9,14 @@ import numpy as np
 import matplotlib as mpl
 
 class clsPROCESS:
-    def __init__(self, cUTIL, MM_ws, MM_ws_out, MF_ws, nrow, ncol, xllcorner, yllcorner, cellsizeMF, hnoflo):
+    def __init__(self, cUTIL, MM_ws, MM_ws_out, MF_ws, nrow, ncol, nlay, xllcorner, yllcorner, cellsizeMF, hnoflo):
         self.cUTIL = cUTIL
         self.MM_ws = MM_ws
         self.MM_ws_out = MM_ws_out
         self.MF_ws = MF_ws
         self.nrow= nrow
         self.ncol= ncol
+        self.nlay= nlay
         self.xllcorner= xllcorner
         self.yllcorner=yllcorner
         self.cellsizeMF=cellsizeMF
@@ -67,23 +68,25 @@ class clsPROCESS:
                 l += 1
             if len(var)>1:
                 lst_out = list(array)
-            else:
+            elif l>1:
                 lst_out = list(array[0,:,:])
+            else:
+                lst_out = array[0,:,:]
 
         return lst_out
 
     ######################
 
-    def float2array(self, cMF, array):
-        if cMF.nlay < 2:
+    def float2array(self, array):
+        if self.nlay < 2:
             if isinstance(array, list):
-                array = (np.asarray(array)).reshape((1, cMF.nrow, cMF.ncol))
+                array = (np.asarray(array)).reshape((1, self.nrow, self.ncol))
             else:
                 array = np.asarray([array])
         else:
             array = np.asarray(array)
-        if np.asarray(array).shape[0] == cMF.nlay and len(array.shape) == 1:
-            array_tmp = np.ones([cMF.nlay, cMF.nrow, cMF.ncol], dtype = np.float)
+        if np.asarray(array).shape[0] == self.nlay and len(array.shape) == 1:
+            array_tmp = np.ones([self.nlay, self.nrow, self.ncol], dtype = np.float)
             for l, e in enumerate (array):
                 array_tmp[l,:,:] *= e  #*ibound[l,:,:]
             array = array_tmp
@@ -438,8 +441,8 @@ class clsPROCESS:
                y > (self.yllcorner+self.nrow*self.cellsizeMF)):
                    self.cUTIL.ErrorExit(msg = 'The coordinates of the observation point %s are not inside the MODFLOW grid' % name, stdout = stdout, report = report)
             if lay > nlay or lay < 1:
-                lay = 0
                 print 'WARNING!\nLayer %s of observation point %s is not valid (corrected to layer 1)!\nCheck your file %s (layer number should be between 1 and the number of layer of the MODFLOW model, in this case %s).' % (lay, name, inputObs_fn, nlay)
+                lay = 0
             else:
                 lay = lay - 1
             # compute the coordinates in the MODFLOW grid

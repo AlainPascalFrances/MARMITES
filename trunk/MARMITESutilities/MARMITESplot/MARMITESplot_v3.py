@@ -1262,7 +1262,8 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
             dSg[k].append(mult*np.sum(np.float16(flx[flxIndex['idSg_L%d'%(L+1)]][i:indexend])))
             FRF[k].append(mult*np.sum(np.float16(flx[flxIndex['iFRF_L%d'%(L+1)]][i:indexend])))
             FFF[k].append(mult*np.sum(np.float16(flx[flxIndex['iFFF_L%d'%(L+1)]][i:indexend])))
-            FLF[k].append(mult*np.sum(np.float16(flx[flxIndex['iFLF_L%d'%(L+1)]][i:indexend])))
+            if cMF.nlay>1:
+                FLF[k].append(mult*np.sum(np.float16(flx[flxIndex['iFLF_L%d'%(L+1)]][i:indexend])))
             EXF[k].append(mult*np.sum(np.float16(flx[flxIndex['iEXFg_L%d'%(L+1)]][i:indexend])))
             if cMF.wel_yn == 1:
                 if ncell_MM[L]>0:
@@ -1409,10 +1410,11 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                             orientations=[1, -1, 0, 0]
                             pathlengths = [pl*4, pl, pl, pl*4]
                         tl_mult = 1
-                        if FLF[k][L] > 0.0:
-                            Out.append(FLF[k][L])
-                        else:
-                            In.append(-FLF[k][L])
+                        if cMF.nlay>1:
+                            if FLF[k][L] > 0.0:
+                                Out.append(FLF[k][L])
+                            else:
+                                In.append(-FLF[k][L])
                     elif L_act == (cMF.nlay-1):
                         flows=[FLF[k][L-1]/ff, R[k][L]/ff, -FRF[k][L]/ff, -FFF[k][L]/ff]
                         labels=[None, '$R^{L%d}$'%(L+1), '$FRF$', '$FFF$']

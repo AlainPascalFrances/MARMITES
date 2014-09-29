@@ -426,6 +426,7 @@ class clsMF():
                                 MF_ws           = self.MF_ws,
                                 nrow            = self.nrow,
                                 ncol            = self.ncol,
+                                nlay            = self.nlay,
                                 xllcorner       = self.xllcorner,
                                 yllcorner       = self.yllcorner,
                                 cellsizeMF      = self.delr[0],
@@ -440,11 +441,14 @@ class clsMF():
         self.thick    = self.cPROCESS.checkarray(self.thick, stdout = stdout, report = report)
         self.ibound   = self.cPROCESS.checkarray(self.ibound, dtype = np.int, stdout = stdout, report = report)
         if self.nlay < 2:
-            if isinstance(self.ibound, list):
+            if isinstance(self.ibound, (list, np.ndarray)):
                 self.ibound = (np.asarray(self.ibound)).reshape((1, self.nrow, self.ncol))
+            if isinstance(self.strt, (list, np.ndarray)):
+                self.strt = (np.asarray(self.strt)).reshape((1, self.nrow, self.ncol))                
         else:
             self.ibound = np.asarray(self.ibound)
-        self.thick = self.cPROCESS.float2array(self, self.thick)
+            self.strt = np.asarray(self.strt)
+        self.thick = self.cPROCESS.float2array(self.thick)
         elev_tmp = np.ma.masked_values(np.asarray(self.elev), self.hnoflo, atol = 0.09)
         botm_tmp = []
         for l in range(self.nlay):
@@ -500,10 +504,10 @@ class clsMF():
 
     def array_ini(self, MF_ws, stdout = None, report = None):
 
-        self.hk_actual      = np.asarray(self.cPROCESS.checkarray(self.hk, stdout = stdout, report = report))
-        self.vka_actual     = np.asarray(self.cPROCESS.checkarray(self.vka, stdout = stdout, report = report))
-        self.ss_actual      = np.asarray(self.cPROCESS.checkarray(self.ss, stdout = stdout, report = report))
-        self.sy_actual      = np.asarray(self.cPROCESS.checkarray(self.sy, stdout = stdout, report = report))
+        self.hk_actual      = self.cPROCESS.checkarray(self.hk, stdout = stdout, report = report)
+        self.vka_actual     = self.cPROCESS.checkarray(self.vka, stdout = stdout, report = report)
+        self.ss_actual      = self.cPROCESS.checkarray(self.ss, stdout = stdout, report = report)
+        self.sy_actual      = self.cPROCESS.checkarray(self.sy, stdout = stdout, report = report)
         if np.sum(np.asarray(self.sy_actual)>1.0)>0.0:
             self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nSy value > 1.0!!!\nCorrect it (it should be expressed in [L^3/L^3]), and verify also thts, thtr and thti.", stdout = stdout, report = report)
         # uzf

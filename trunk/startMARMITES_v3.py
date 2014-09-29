@@ -611,7 +611,7 @@ if plt_input == 1:
     print 'Exporting input maps...'
     i_lbl = 1
     T = np.zeros((cMF.nlay, cMF.nrow, cMF.ncol), dtype = np.float)
-    hk_actual_tmp = cMF.cPROCESS.float2array(cMF, cMF.hk_actual)
+    hk_actual_tmp = cMF.cPROCESS.float2array(cMF.hk_actual)
     if cMF.nlay > 1:
         T = hk_actual_tmp * np.asarray(cMF.thick)
     else:
@@ -647,14 +647,14 @@ if plt_input == 1:
         if cMF.vks_actual != 0.0:
             lst.append(np.asarray(cMF.vks_actual))
             lst_lbl.append('vks')
-            lst_lblCB.append('Sat. vert. hydraulic conductivity - $vks$, $iuzfopt$ = ' % cMF.iuzfopt)
+            lst_lblCB.append('Sat. vert. hydraulic conductivity - $vks$, $iuzfopt$ = %d' % cMF.iuzfopt)
         elif cMF.vks == 1:
             if cMF.layvka == 0: 
                 lst.append(np.asarray(cMF.vka_actual))
             else:
                 lst.append(np.asarray(cMF.hk_actual/float(cMF.vka)))                
             lst_lbl.append('vks')
-            lst_lblCB.append('Sat. vert. hydraulic conductivity - $vks$, $iuzfopt$ = ' % cMF.iuzfopt)                        
+            lst_lblCB.append('Sat. vert. hydraulic conductivity - $vks$, $iuzfopt$ = %d' % cMF.iuzfopt)                        
         try:
             lst.append(np.asarray(cMF.thti_actual))
             lst_lbl.append('thti')
@@ -834,7 +834,8 @@ if os.path.exists(cMF.h5_MF_fn):
         imfSTO = cbc_nam.index('STORAGE')
         imfFRF = cbc_nam.index('FLOW RIGHT FACE')
         imfFFF = cbc_nam.index('FLOW FRONT FACE')
-        imfFLF = cbc_nam.index('FLOW LOWER FACE')
+        if cMF.nlay>1:
+            imfFLF = cbc_nam.index('FLOW LOWER FACE')
         if cMF.ghb_yn == 1:
             imfGHB = cbc_nam.index('HEAD DEP BOUNDS')
         if cMF.drn_yn == 1:
@@ -1097,7 +1098,8 @@ if MF_yn == 1 and isinstance(cMF.h5_MF_fn, str):
     cMF.cPROCESS.procMF(cMF = cMF, h5_MF = h5_MF, ds_name = 'cbc', ds_name_new = 'STO_d', conv_fact = conv_fact, index = imfSTO)
     cMF.cPROCESS.procMF(cMF = cMF, h5_MF = h5_MF, ds_name = 'cbc', ds_name_new = 'FRF_d', conv_fact = conv_fact, index = imfFRF)
     cMF.cPROCESS.procMF(cMF = cMF, h5_MF = h5_MF, ds_name = 'cbc', ds_name_new = 'FFF_d', conv_fact = conv_fact, index = imfFFF)
-    cMF.cPROCESS.procMF(cMF = cMF, h5_MF = h5_MF, ds_name = 'cbc', ds_name_new = 'FLF_d', conv_fact = conv_fact, index = imfFLF)
+    if cMF.nlay>1:
+        cMF.cPROCESS.procMF(cMF = cMF, h5_MF = h5_MF, ds_name = 'cbc', ds_name_new = 'FLF_d', conv_fact = conv_fact, index = imfFLF)
     if cMF.drn_yn == 1:
         cMF.cPROCESS.procMF(cMF = cMF, h5_MF = h5_MF, ds_name = 'cbc', ds_name_new = 'DRN_d', conv_fact = conv_fact, index = imfDRN)
     if cMF.wel_yn == 1:
@@ -1270,7 +1272,7 @@ if os.path.exists(cMF.h5_MF_fn):
             
             for e in tmp:
                 if len(e)>1:
-                    print "\nWARNING!\nETg max occurred at several cells and/or stress periods"
+                    print "WARNING!\nETg max occurred at several cells and/or stress periods"
                     break
             del tmp
             if tETgmax < 0:
@@ -1577,28 +1579,29 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
             flxIndex_lst[i] = count
             count += 1               
             # GW_FLF
-            try:
-                cbc_FLF_L   = h5_MF['FLF_d'][:,L,:,:]
-                cbc_FLF_Lm1 = h5_MF['FLF_d'][:,L-1,:,:]
-                array_tmp1_L   = np.sum(np.ma.masked_values(cbc_FLF_L, cMF.hnoflo, atol = 0.09), axis = 1)
-                array_tmp1_Lm1 = np.sum(np.ma.masked_values(cbc_FLF_Lm1, cMF.hnoflo, atol = 0.09), axis = 1)
-                array_tmp2_L   = np.sum(np.ma.masked_values(array_tmp1_L, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM)
-                array_tmp2_Lm1 = np.sum(np.ma.masked_values(array_tmp1_Lm1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM)
-                flxCatch_lst.append(-array_tmp2_Lm1 + array_tmp2_L)
-                del cbc_FLF_L, cbc_FLF_Lm1, array_tmp1_L, array_tmp2_L, array_tmp1_Lm1, array_tmp2_Lm1
-            except:
-                cbc_FLF = h5_MF['FLF_d'][:,L,:,:]
-                array_tmp1 = np.sum(np.ma.masked_values(cbc_FLF, cMF.hnoflo, atol = 0.09), axis = 1)
-                flxCatch_lst.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
-                del cbc_FLF, array_tmp1
-#            cbc_FLF = h5_MF['FLF_d'][:,L,:,:]
-#            array_tmp1 = np.sum(np.ma.masked_values(cbc_FLF, cMF.hnoflo, atol = 0.09), axis = 1)
-#            flxCatch_lst.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
-#            del cbc_FLF, array_tmp1
-            flxLbl_lst.append('$FLF^{L%d}$'%(L+1))
-            i = 'iFLF_L%d'%(L+1)
-            flxIndex_lst[i] = count
-            count += 1              
+            if cMF.nlay>1:
+                try:
+                    cbc_FLF_L   = h5_MF['FLF_d'][:,L,:,:]
+                    cbc_FLF_Lm1 = h5_MF['FLF_d'][:,L-1,:,:]
+                    array_tmp1_L   = np.sum(np.ma.masked_values(cbc_FLF_L, cMF.hnoflo, atol = 0.09), axis = 1)
+                    array_tmp1_Lm1 = np.sum(np.ma.masked_values(cbc_FLF_Lm1, cMF.hnoflo, atol = 0.09), axis = 1)
+                    array_tmp2_L   = np.sum(np.ma.masked_values(array_tmp1_L, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM)
+                    array_tmp2_Lm1 = np.sum(np.ma.masked_values(array_tmp1_Lm1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM)
+                    flxCatch_lst.append(-array_tmp2_Lm1 + array_tmp2_L)
+                    del cbc_FLF_L, cbc_FLF_Lm1, array_tmp1_L, array_tmp2_L, array_tmp1_Lm1, array_tmp2_Lm1
+                except:
+                    cbc_FLF = h5_MF['FLF_d'][:,L,:,:]
+                    array_tmp1 = np.sum(np.ma.masked_values(cbc_FLF, cMF.hnoflo, atol = 0.09), axis = 1)
+                    flxCatch_lst.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
+                    del cbc_FLF, array_tmp1
+#                cbc_FLF = h5_MF['FLF_d'][:,L,:,:]
+#                array_tmp1 = np.sum(np.ma.masked_values(cbc_FLF, cMF.hnoflo, atol = 0.09), axis = 1)
+#                flxCatch_lst.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
+#                del cbc_FLF, array_tmp1
+                flxLbl_lst.append('$FLF^{L%d}$'%(L+1))
+                i = 'iFLF_L%d'%(L+1)
+                flxIndex_lst[i] = count
+                count += 1              
             # EXF
             cbc_EXF = h5_MF['EXF_d'][:,L,:,:]
             array_tmp1 = np.sum(np.ma.masked_values(cbc_EXF, cMF.hnoflo, atol = 0.09), axis = 1)
@@ -1919,13 +1922,14 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                         flxIndex_lst['iFFF_L%d'%(L+1)] = count
                         count += 1
                         # GW FLF
-                        try:
-                            flxObs_lst.append(-h5_MF['FLF_d'][:,L-1,i,j]+h5_MF['FLF_d'][:,L,i,j])
-                        except:
-                            flxObs_lst.append(h5_MF['FLF_d'][:,L,i,j])
-                        flxLbl_lst.append('$FLF^{L%d}$'%(L+1))
-                        flxIndex_lst['iFLF_L%d'%(L+1)] = count
-                        count += 1
+                        if cMF.nlay>1:
+                            try:
+                                flxObs_lst.append(-h5_MF['FLF_d'][:,L-1,i,j]+h5_MF['FLF_d'][:,L,i,j])
+                            except:
+                                flxObs_lst.append(h5_MF['FLF_d'][:,L,i,j])
+                            flxLbl_lst.append('$FLF^{L%d}$'%(L+1))
+                            flxIndex_lst['iFLF_L%d'%(L+1)] = count
+                            count += 1
                         # EXF
                         flxObs_lst.append(h5_MF['EXF_d'][:,L,i,j])
                         flxLbl_lst.append('$EXF_g^{L%d}$'%(L+1))
@@ -1987,18 +1991,18 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                                     iniMonthHydroYear, date_ini = StartDate, date_end = EndDate
                                     )
                     except:
-                        print 'Error in plotting MF fluxes time series at obs. point %s' % o
+                        print '-------\nError in plotting MM fluxes time series at obs. point %s' % o
                    # plot GW flux time series at each obs. cell
                     try:
                         MMplot.plotTIMESERIES_flxGW(cMF, flxObs_lst, flxLbl_lst, flxIndex_lst, plt_export_fn, plt_suptitle, iniMonthHydroYear = iniMonthHydroYear, date_ini = StartDate, date_end = EndDate)  
                     except:
-                       print 'Error in plotting MF GW fluxes time series at obs. point %s' % o
+                       print '-------\nError in plotting MF GW fluxes time series at obs. point %s' % o
                     # plot water balance at each obs. cell
                     if WBsankey_yn == 1:
                         try:
                             MMplot.plotWBsankey(MM_ws_out, cMF.inputDate , flxObs_lst, flxIndex_lst, fn = plt_export_txt_fn.split('\\')[-1], indexTime = HYindex, year_lst = year_lst, cMF = cMF, ncell_MM = ncell_MM, obspt = 'obs. pt. %s'%o, fntitle = '0%s'%o, ibound4Sankey = cMF.ibound[:,i,j], stdout = stdout, report = report)  
                         except:
-                           print 'Error in plotting water balance at obs. point %s' % o
+                           print '-------\nError in plotting water balance at obs. point %s' % o
                            
                     # CALIBRATION CRITERIA
                     # RMSE, RSR, Nash-Sutcliffe efficiency NSE, Pearson's correlation coefficient r
@@ -2089,10 +2093,11 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
         lst = [sum(cMF.perlen)-1]
         if tRCHmax > 0:
             lst.append(tRCHmax)
-        if tETgmax > 0:
-            lst.append(tETgmax)
-        if tTgmin > 0:
-            lst.append(tTgmin)
+        if cMF.wel_yn == 1:
+            if tETgmax > 0:
+                lst.append(tETgmax)
+            if tTgmin > 0:
+                lst.append(tTgmin)
         for e in lst:
             days_lst.append(e)
             Date_lst.append(cMF.inputDate[e])
