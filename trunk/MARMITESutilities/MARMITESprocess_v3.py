@@ -707,7 +707,10 @@ class clsPROCESS:
                         if y_obs <> []:
                             a = np.array([y,y_obs])
                             a = np.transpose(a)
-                            b = a[~(a < hnoflo +1000.0).any(1)]
+                            if hnoflo > 0:
+                                b = a[~(a > hnoflo - 1000.0).any(1)]
+                            else:
+                                b = a[~(a < hnoflo + 1000.0).any(1)]
                             if b[:,0] <> []:
                                 rmseSM.append(100.0*self.compRMSE(b[:,0], b[:,1]))
                                 if np.std(b[:,1]) > 0:
@@ -721,7 +724,10 @@ class clsPROCESS:
                 try:
                     a = np.array([h_MF[:,l_obs],hobs])
                     a = np.transpose(a)
-                    b = a[~(a < hnoflo +1000.0).any(1)]
+                    if hnoflo > 0:
+                        b = a[~(a > hnoflo - 1000.0).any(1)]
+                    else:
+                        b = a[~(a < hnoflo + 1000.0).any(1)]
                     if b[:,0] <> []:
                         rmseHEADS = [self.compRMSE(b[:,0], b[:,1])]
                         if np.std(b[:,1]) > 0:

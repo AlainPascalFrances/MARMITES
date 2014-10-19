@@ -830,7 +830,10 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
         ax6.plot_date(cMF.inputDate, Sobs_m, markerfacecolor = 'None', marker='o', markeredgecolor = 'brown', markersize=2, label = r'$\theta \ obs$')
         a = np.array([flx[flxIndex_lst['iSsoil_pc']],obs_SM[0]])
         a = np.transpose(a)
-        b = a[~(a < cMF.hnoflo +1000.0).any(1)]
+        if cMF.hnoflo > 0:
+            b = a[~(a > cMF.hnoflo - 1000.0).any(1)]
+        else:
+            b = a[~(a < cMF.hnoflo + 1000.0).any(1)]
         rmseSM = [100.0*cMF.cPROCESS.compRMSE(b[:,0], b[:,1])]
         if np.std(b[:,1]) > 0:
             rsrSM = [rmseSM/(100.0*np.std(b[:,1]))]
@@ -944,8 +947,11 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
             i = 'ih_L%d' % (l+1) 
             if sum(flx[flxIndex_lst[i]]) != 0.0:
                 a = np.array([flx[flxIndex_lst[i]],obs_h[0]])
-                a = np.transpose(a)
-                b = a[~(a < cMF.hnoflo +1000.0).any(1)]
+                a = np.transpose(a)                                
+                if cMF.hnoflo > 0:
+                    b = a[~(a > cMF.hnoflo - 1000.0).any(1)]
+                else:
+                    b = a[~(a < cMF.hnoflo + 1000.0).any(1)]
                 rmseHEADS = [cMF.cPROCESS.compRMSE(b[:,0], b[:,1])]
                 if np.std(b[:,1]) > 0:
                     rsrHEADS = [rmseHEADS[0]/np.std(b[:,1])]

@@ -474,7 +474,7 @@ class clsMF():
                 for l in range(self.nlay):
                     self.ghbcells[l] = (np.asarray(ghb[l,:,:]) > 0.0).sum()
             else:
-                self.ghbcells = (np.asarray(ghb[:,:]) > 0.0).sum()
+                self.ghbcells = [(np.asarray(ghb[:,:]) > 0.0).sum()]
             del ghb
         if self.drn_yn == 1:
             drn = np.asarray(self.cPROCESS.checkarray(self.drn_cond, dtype = np.float, stdout = stdout, report = report))
@@ -510,8 +510,9 @@ class clsMF():
         self.sy_actual      = self.cPROCESS.checkarray(self.sy, stdout = stdout, report = report)
         if np.sum(np.asarray(self.sy_actual)>1.0)>0.0:
             self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nSy value > 1.0!!!\nCorrect it (it should be expressed in [L^3/L^3]), and verify also thts, thtr and thti.", stdout = stdout, report = report)
-        # uzf
+        # uzf        
         if self.uzf_yn == 1:
+            sy_actual = self.cPROCESS.float2array(self.sy_actual)
             if self.iuzfopt == 1:
                 self.vks_actual     = self.cPROCESS.checkarray(self.vks, stdout = stdout, report = report)
             else:
@@ -530,20 +531,17 @@ class clsMF():
                 self.thts_actual = self.thts[0]
             if type(self.thts_actual) == float and self.thts_actual < 0:
                 self.thts_actual = np.abs(self.thts_actual)
-                if self.nlay < 2:
-                    self.thts_actual += self.sy_actual[:,:]*self.ibound[0,:,:] + thtr_tmp
-                else:
-                    for l in range(self.nlay):
-                        if l == 0:
-                            if len(self.sy_actual) > self.nlay:
-                                self.thts_actual += self.sy_actual[l,:,:]*self.ibound[l,:,:] + thtr_tmp
-                            else:
-                                self.thts_actual += self.sy_actual[l]*self.ibound[l,:,:] + thtr_tmp
+                for l in range(self.nlay):
+                    if l == 0:
+                        if len(sy_actual) > self.nlay:
+                            self.thts_actual += sy_actual[l,:,:]*self.ibound[l,:,:] + thtr_tmp
                         else:
-                            if len(self.sy_actual) > self.nlay:
-                                self.thts_actual += self.sy_actual[l,:,:]*self.ibound[l,:,:]*abs(self.ibound[l-1,:,:]-1)
-                            else:
-                                self.thts_actual += self.sy_actual[l]*self.ibound[l,:,:]*abs(self.ibound[l-1,:,:]-1)
+                            self.thts_actual += sy_actual[l]*self.ibound[l,:,:] + thtr_tmp
+                    else:
+                        if len(sy_actual) > self.nlay:
+                            self.thts_actual += sy_actual[l,:,:]*self.ibound[l,:,:]*abs(self.ibound[l-1,:,:]-1)
+                        else:
+                            self.thts_actual += sy_actual[l]*self.ibound[l,:,:]*abs(self.ibound[l-1,:,:]-1)
                 if self.thtr_actual != None:
                     del thtr_tmp
             else:
@@ -558,16 +556,17 @@ class clsMF():
                 self.thti_actual = self.cPROCESS.checkarray(self.thti, stdout = stdout, report = report)
             for l in range(self.nlay):
                 try:
-                    sy_tmp = np.asarray(self.sy_actual[l,:,:])
+                    sy_tmp = np.asarray(sy_actual[l,:,:])
                 except:
-                     sy_tmp = np.asarray(self.sy_actual[l])
+                     sy_tmp = np.asarray(sy_actual[l])
                 if (sy_tmp*self.ibound[l,:,:]+np.asarray(self.thtr_actual)>np.asarray(self.thts_actual)).sum()> 0.0:
                     self.thts_actual = sy_tmp*self.ibound[l,:,:]+2.0*np.asarray(self.thtr_actual)
                     print '\nWARNING!\nSy + THTR > THTS in layer %d! Corrected: THTS = Sy + 2.0*THTR' % l
             if (np.asarray(self.thti_actual)<np.asarray(self.thtr_actual)).sum()>0.0 or (np.asarray(self.thti_actual)>np.asarray(self.thts_actual)).sum()>0.0:
                 self.thti_actual = np.asarray(self.thtr_actual) + (np.asarray(self.thts_actual)-np.asarray(self.thtr_actual))/4.0
                 print '\nWARNING!\nTHTI > THTS or THTI< THTR!Corrected: THTI = THTR + (THTS-THTR)/4.0'
-
+            del sy_actual
+            
         # DRAIN
         if self.drn_yn == 1:
             print '\nDRN package initialization'

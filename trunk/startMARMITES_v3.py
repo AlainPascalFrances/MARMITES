@@ -647,14 +647,16 @@ if plt_input == 1:
         if cMF.vks_actual != 0.0:
             lst.append(np.asarray(cMF.vks_actual))
             lst_lbl.append('vks')
-            lst_lblCB.append('Sat. vert. hydraulic conductivity - $vks$, $iuzfopt$ = %d' % cMF.iuzfopt)
-        elif cMF.vks == 1:
-            if cMF.layvka == 0: 
-                lst.append(np.asarray(cMF.vka_actual))
-            else:
-                lst.append(np.asarray(cMF.hk_actual/float(cMF.vka)))                
-            lst_lbl.append('vks')
-            lst_lblCB.append('Sat. vert. hydraulic conductivity - $vks$, $iuzfopt$ = %d' % cMF.iuzfopt)                        
+            lst_lblCB.append('Sat. vert. hydraulic conductivity - $vks$')
+#            
+## TODO eliminate?
+#        elif cMF.vks == 1:
+#            if cMF.layvka == 0: 
+#                lst.append(np.asarray(cMF.vka_actual))
+#            else:
+#                lst.append(np.asarray(cMF.hk_actual/float(cMF.vka)))                
+#            lst_lbl.append('vks')
+#            lst_lblCB.append('Sat. vert. hydraulic conductivity - $vks$')                        
         try:
             lst.append(np.asarray(cMF.thti_actual))
             lst_lbl.append('thti')
@@ -718,9 +720,11 @@ if plt_input == 1:
         elif lst_lbl[i] == 'T':
             CBlabel = lst_lblCB[i] + ' $(%s^{2}/%s)$' % (lenuni_str, itmuni_str)
         elif lst_lbl[i] == 'Sy' or lst_lbl[i] == 'thts' or lst_lbl[i] == 'thti' or lst_lbl[i] == 'thtr':
-            CBlabel = lst_lblCB[i] + ' $(L^3/L^{-3})$'
+            CBlabel = lst_lblCB[i] + ' $([L]^3/[L]^{-3})$'
         elif lst_lbl[i] == 'vka':
             CBlabel = lst_lblCB[i] + ' $([-]$ $or$ $%s/%s,$ $layvka = %s)$' % (lenuni_str, itmuni_str, cMF.layvka)
+        elif lst_lbl[i] == 'vks':
+            CBlabel = lst_lblCB[i] + ' $(m,$ $iuzfopt = %d)$' % cMF.iuzfopt     
         else:
             CBlabel = lst_lblCB[i] + ' $(m)$'
         if lst_lbl[i] == 'elev' or lst_lbl[i] == 'top' or lst_lbl[i] == 'botm':
@@ -1177,6 +1181,8 @@ if os.path.exists(h5_MM_fn):
                     cMF.cPROCESS.smMMname.append(o)
                 MM_S = h5_MM['MM_S'][:,i,j,:,:]
                 cMF.cPROCESS.ExportResultsMM4PEST(i, j, cMF.inputDate, _nslmax, MM_S, index_MM_soil, obs_SM, o)
+                del i, j, l, obs_SM, MM_S
+        del o
     # write PEST smp file with MM output
     inputFile = cUTIL.readFile(MM_ws,inputObs_fn)
     ind = 0
@@ -2008,8 +2014,8 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                     # RMSE, RSR, Nash-Sutcliffe efficiency NSE, Pearson's correlation coefficient r
                     # Moriasi et al, 2007, ASABE 50(3):885-900
                     # TODO insert Ro            
-                    if obs_SM != []:
-                        obs_SM_tmp = obs_SM[:,HYindex[1]:HYindex[-1]]
+                    if obs_S != []:
+                        obs_SM_tmp = obs_S[:,HYindex[1]:HYindex[-1]]
                     else:
                         obs_SM_tmp = []
                     MM_S = h5_MM['MM_S'][HYindex[1]:HYindex[-1],i,j,0:nsl,index_MM_soil.get('iSsoil_pc_l')]
