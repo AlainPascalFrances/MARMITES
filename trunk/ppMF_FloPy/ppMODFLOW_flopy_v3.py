@@ -1270,11 +1270,6 @@ class clsMF():
         print "Done!"
 
         h5_MF = h5py.File(self.h5_MF_fn, 'w')
-        print '\nStoring heads and cbc terms into HDF5 file\n%s\n' % (self.h5_MF_fn)
-        if self.dum_sssp1 == 1:
-            nper_tmp = self.nper - 1
-        else:
-            nper_tmp = self.nper
         # HEADS            
         try:
             hmain = flopy.utils.HeadFile(self.h_MF_fn)
@@ -1284,6 +1279,11 @@ class clsMF():
         if len(hmain.times)<sum(self.nstp):
             h5_MF.close()
             self.cUTIL.ErrorExit(msg = '\nMODFLOW error!\nCheck the MODFLOW list file in folder:\n%s' % self.MF_ws, stdout = stdout, report = report)        
+        print '\nStoring heads and cbc terms into HDF5 file\n%s\n' % (self.h5_MF_fn)
+        if self.dum_sssp1 == 1:
+            nper_tmp = self.nper - 1
+        else:
+            nper_tmp = self.nper
         h = np.zeros((self.nper, self.nlay, self.nrow, self.ncol), dtype = np.float32)
         for i, e in enumerate(hmain.get_kstpkper()):
             h[i,:,:,:] = hmain.get_data(kstp = e[0], kper = e[1])

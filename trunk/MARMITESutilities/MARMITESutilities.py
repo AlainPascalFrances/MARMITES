@@ -47,7 +47,7 @@ class clsUTILITIES():
             for line in fin:
                 line_tmp = line.split(delimChar)
                 if not line_tmp == []:
-                    if (not line_tmp[0] == '') and (not line_tmp[0] == '\n'):
+                    if (not line_tmp[0] == '') and (not line_tmp[0] == '\n') and (not line_tmp[0].isspace()):
                         inputFile.append(line_tmp[0])
                 else:
                     raise NameError('InputFileFormat')

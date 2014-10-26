@@ -206,7 +206,7 @@ try:
     rmseSMmax  = float(inputFile[l].strip())
     l += 1
     chunks = int(inputFile[l].strip())
-    if MMsoil_yn > 0:
+    if MMsoil_yn != 0:
         MF_yn = 1
     if MMsurf_plot == 1:
         plt_out = 0
@@ -858,7 +858,7 @@ if os.path.exists(cMF.h5_MF_fn):
 # 2nd phase : MM/MF loop #####
 # #############################
 h_diff_surf = None
-if MMsoil_yn > 0:
+if MMsoil_yn != 0:
     durationMMsoil = 0.0
     h_pSP_average = 0
     h_pSP = 0
@@ -1019,7 +1019,7 @@ if MMsoil_yn > 0:
         del durationMFtmp
         print '%s'% mpl.dates.DateFormatter.format_data(fmt_DH, mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat()))
         
-        if MMsoil_yn == 999:
+        if MMsoil_yn < 0:
             break
         
     h5_MF.close()
@@ -1028,53 +1028,54 @@ if MMsoil_yn > 0:
     # #############################
 
     # export loop plot
-    print'\n##############'
-    print 'Exporting plot of the convergence loop...'
-    fig = plt.figure()
-    fig.suptitle('Convergence loop plot between MM and MF based on heads differences.\nOrange: average heads for the whole model.\nGreen: maximun heads difference observed in the model (one cell)', fontsize=10)
-    if LOOP>0:
-        ax1=fig.add_subplot(3,1,1)
-        plt.setp(ax1.get_xticklabels(), fontsize=8)
-        plt.setp(ax1.get_yticklabels(), fontsize=8)
-        ax1.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
-        plt.ylabel('h_diff [m]', fontsize=10, horizontalalignment = 'center')
-        plt.grid(True)
-        plt.plot(LOOPlst[1:], h_diff[1:], linestyle='-', marker='o', markersize=5, c = 'orange', markerfacecolor='orange', markeredgecolor='red')
-        plt.plot(LOOPlst[1:], h_diff_all[1:], linestyle='-', marker='o', markersize=5, c = 'green', markerfacecolor='green', markeredgecolor='blue')
-
-    if LOOP>1:
-        ax2=fig.add_subplot(3,1,2, sharex = ax1)
-        plt.setp(ax2.get_xticklabels(), fontsize=8)
-        plt.setp(ax2.get_yticklabels(), fontsize=8)
-        plt.plot(LOOPlst[2:], h_diff[2:], linestyle='-', marker='o', markersize=5, c = 'orange', markerfacecolor='orange', markeredgecolor='red')
-        plt.plot(LOOPlst[2:], h_diff_all[2:], linestyle='-', marker='o', markersize=5, c = 'green', markerfacecolor='green', markeredgecolor='blue')
-        ax2.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
-        plt.ylabel('h_diff [m]', fontsize=10, horizontalalignment = 'center')
-    #        plt.ylabel.Text.position(0.5, -0.5)
-        plt.grid(True)
-
-        ax3=fig.add_subplot(3,1,3, sharex = ax1)
-        plt.setp(ax3.get_xticklabels(), fontsize=8)
-        plt.setp(ax3.get_yticklabels(), fontsize=8)
-        ax3.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
-        plt.ylabel('log(abs(h_diff)) [log(m)]', fontsize=10, horizontalalignment = 'center')
-        plt.grid(True)
-        plt.xlabel('loop', fontsize=10)
-        plt.plot(LOOPlst[2:], h_diff_log[2:], linestyle='-', marker='o', markersize=5, c = 'orange', markerfacecolor='orange', markeredgecolor='red')
-        plt.plot(LOOPlst[2:], h_diff_all_log[2:], linestyle='-', marker='o', markersize=5, c = 'green', markerfacecolor='green', markeredgecolor='blue')
-
-        ax2.xaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%2d'))
-        ax3.xaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%2d'))
-
-        plt.xlim(0,LOOP-1)
-        ax1.xaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%2d'))
-        ax1.xaxis.set_ticks(LOOPlst[1:])
-
-    plt.savefig(plt_ConvLoop_fn)
-    plt.cla()
-    plt.clf()
-    plt.close('all')
-    del fig, LOOPlst, h_diff, h_diff_log, h_pSP
+    if MMsoil_yn > 0:  
+        print'\n##############'
+        print 'Exporting plot of the convergence loop...'
+        fig = plt.figure()
+        fig.suptitle('Convergence loop plot between MM and MF based on heads differences.\nOrange: average heads for the whole model.\nGreen: maximun heads difference observed in the model (one cell)', fontsize=10)
+        if LOOP>0:
+            ax1=fig.add_subplot(3,1,1)
+            plt.setp(ax1.get_xticklabels(), fontsize=8)
+            plt.setp(ax1.get_yticklabels(), fontsize=8)
+            ax1.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
+            plt.ylabel('h_diff [m]', fontsize=10, horizontalalignment = 'center')
+            plt.grid(True)
+            plt.plot(LOOPlst[1:], h_diff[1:], linestyle='-', marker='o', markersize=5, c = 'orange', markerfacecolor='orange', markeredgecolor='red')
+            plt.plot(LOOPlst[1:], h_diff_all[1:], linestyle='-', marker='o', markersize=5, c = 'green', markerfacecolor='green', markeredgecolor='blue')
+    
+        if LOOP>1:
+            ax2=fig.add_subplot(3,1,2, sharex = ax1)
+            plt.setp(ax2.get_xticklabels(), fontsize=8)
+            plt.setp(ax2.get_yticklabels(), fontsize=8)
+            plt.plot(LOOPlst[2:], h_diff[2:], linestyle='-', marker='o', markersize=5, c = 'orange', markerfacecolor='orange', markeredgecolor='red')
+            plt.plot(LOOPlst[2:], h_diff_all[2:], linestyle='-', marker='o', markersize=5, c = 'green', markerfacecolor='green', markeredgecolor='blue')
+            ax2.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
+            plt.ylabel('h_diff [m]', fontsize=10, horizontalalignment = 'center')
+        #        plt.ylabel.Text.position(0.5, -0.5)
+            plt.grid(True)
+    
+            ax3=fig.add_subplot(3,1,3, sharex = ax1)
+            plt.setp(ax3.get_xticklabels(), fontsize=8)
+            plt.setp(ax3.get_yticklabels(), fontsize=8)
+            ax3.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
+            plt.ylabel('log(abs(h_diff)) [log(m)]', fontsize=10, horizontalalignment = 'center')
+            plt.grid(True)
+            plt.xlabel('loop', fontsize=10)
+            plt.plot(LOOPlst[2:], h_diff_log[2:], linestyle='-', marker='o', markersize=5, c = 'orange', markerfacecolor='orange', markeredgecolor='red')
+            plt.plot(LOOPlst[2:], h_diff_all_log[2:], linestyle='-', marker='o', markersize=5, c = 'green', markerfacecolor='green', markeredgecolor='blue')
+    
+            ax2.xaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%2d'))
+            ax3.xaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%2d'))
+    
+            plt.xlim(0,LOOP-1)
+            ax1.xaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%2d'))
+            ax1.xaxis.set_ticks(LOOPlst[1:])
+    
+        plt.savefig(plt_ConvLoop_fn)
+        plt.cla()
+        plt.clf()
+        plt.close('all')
+        del fig, LOOPlst, h_diff, h_diff_log, h_pSP
 
 # #############################
 # 3rd phase : export results #####
@@ -1118,7 +1119,7 @@ if MF_yn == 1 and isinstance(cMF.h5_MF_fn, str):
         cMF.cPROCESS.procMF(cMF = cMF, h5_MF = h5_MF, ds_name = 'cbc', ds_name_new = 'RCH_d', conv_fact = conv_fact, index = imfRCH)
     h5_MF.close()
 
-if MMsoil_yn > 0 and isinstance(h5_MM_fn, str):
+if MMsoil_yn != 0 and isinstance(h5_MM_fn, str):
     try:
         h5_MM = h5py.File(h5_MM_fn)
     except:
@@ -1134,7 +1135,7 @@ for n in range(cMF.nper):
         SP_d[t] = n + 1
         t += 1
 
-if h_diff_surf != None:
+if h_diff_surf != None and MMsoil_yn > 0:
     h_diff_n = None
     for n in range(cMF.nper):
         for r, c in enumerate(h_diff_surf[n,:,:,:]):
@@ -1390,14 +1391,19 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
     # RMSE list to plot
     rmseSM = []
     rsrSM = []
+    nseSM = []
     rSM = []
     obslstSM = []
     rmseHEADS = []
     rsrHEADS = []
     nseHEADS = []
-    nseSM = []
     rHEADS = []
     obslstHEADS = []    
+    rmseHEADSc = []
+    rsrHEADSc = []
+    nseHEADSc = []
+    rHEADSc = []
+    obslstHEADSc = []    
     # indexes of the HDF5 output arrays
     # index_MM = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSsurf':4, 'iRo':5, 'iEXFg':6, 'iEsurf':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSsurf':13, 'iETg':14, 'iETsoil':15, 'iSsoil_pc':16, 'idSsoil':17, 'iinf':18, 'ihcorr':19, 'idgwt':20, 'iuzthick':21}
     # index_MM_soil = {'iEsoil_l':0, 'iTsoil_l':1,'iSsoil_pc_l':2, 'iRp_l':3, 'iEXFg_l':4, 'idSsoil_l':5, 'iSsoil_l':6, 'iSAT_l':7, 'iMB_l':8}
@@ -2024,7 +2030,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                     else:
                         obs_h_tmp = []    
                     h_MF = h_MF_m[HYindex[1]:HYindex[-1],:,i,j]
-                    rmseHEADS_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrSM_tmp, nseHEADS_tmp, nseSM_tmp, rHEADS_tmp, rSM_tmp = cMF.cPROCESS.compCalibCrit(MM_S, h_MF, obs_SM_tmp, obs_h_tmp, cMF.hnoflo, o, nsl, l_obs)
+                    rmseHEADS_tmp, rmseHEADSc_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrHEADSc_tmp, rsrSM_tmp, nseHEADS_tmp, nseHEADSc_tmp, nseSM_tmp, rHEADS_tmp, rHEADSc_tmp, rSM_tmp = cMF.cPROCESS.compCalibCrit(MM_S, h_MF, obs_SM_tmp, obs_h_tmp, cMF.hnoflo, o, nsl, l_obs, MM[HYindex[1]:HYindex[-1],index_MM.get('ihcorr')])
                     del obs_h_tmp, obs_SM_tmp
                     if rmseHEADS_tmp <> None:
                         rmseHEADS.append(rmseHEADS_tmp)
@@ -2032,6 +2038,12 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                         nseHEADS.append(nseHEADS_tmp)
                         rHEADS.append(rHEADS_tmp)
                         obslstHEADS.append(o)
+                    if rmseHEADSc_tmp <> None:
+                        rmseHEADSc.append(rmseHEADSc_tmp)
+                        rsrHEADSc.append(rsrHEADSc_tmp)
+                        nseHEADSc.append(nseHEADSc_tmp)
+                        rHEADSc.append(rHEADSc_tmp)
+                        obslstHEADSc.append(o)                        
                     if rmseSM_tmp <> None:
                         rmseSM.append(rmseSM_tmp)
                         rsrSM.append(rsrSM_tmp)
@@ -2039,11 +2051,11 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                         rSM.append(rSM_tmp)
                         obslstSM.append(o)
                     del rmseHEADS_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrSM_tmp, nseHEADS_tmp, nseSM_tmp, rHEADS_tmp, rSM_tmp, h_MF, MM_S
-        for cc, (calibcritSM, calibcritHEADS, calibcrit, title, calibcritSMmax, calibcritHEADSmax, ymin, units) in enumerate(zip([rmseSM, rsrSM, nseSM, rSM], [rmseHEADS, rsrHEADS, nseHEADS, rHEADS], ['RMSE', 'RSR', 'NSE', 'r'], ['Root mean square error', 'Root mean square error - observations standard deviation ratio', 'Nash-Sutcliffe efficiency', "Pearson's correlation coefficient"], [rmseSMmax, None, 1.0, 1.0], [rmseHEADSmax, None, 1.0, 1.0], [0, 0, None, -1.0], [['($m$)', '($\%%wc$)'], ['',''], ['',''], ['','']])):
-            try:
-                MMplot.plotCALIBCRIT(calibcritSM = calibcritSM, calibcritSMobslst = obslstSM, calibcritHEADS = calibcritHEADS, calibcritHEADSobslst = obslstHEADS, plt_export_fn = os.path.join(MM_ws_out, '__plt_calibcrit%s.png'% calibcrit), plt_title = 'Calibration criteria between simulated and observed state variables\n%s'%title, calibcrit = calibcrit, calibcritSMmax = calibcritSMmax, calibcritHEADSmax = calibcritHEADSmax, ymin = ymin, units = units, hnoflo = cMF.hnoflo)
-            except:
-                print '-------\nError in exporting %s at obs. pt. %s' % (calibcrit, obs_list[cc])
+        for cc, (calibcritSM, calibcritHEADS, calibcritHEADSc, calibcrit, title, calibcritSMmax, calibcritHEADSmax, ymin, units) in enumerate(zip([rmseSM, rsrSM, nseSM, rSM], [rmseHEADS, rsrHEADS, nseHEADS, rHEADS], [rmseHEADSc, rsrHEADSc, nseHEADSc, rHEADSc], ['RMSE', 'RSR', 'NSE', 'r'], ['Root mean square error', 'Root mean square error - observations standard deviation ratio', 'Nash-Sutcliffe efficiency', "Pearson's correlation coefficient"], [rmseSMmax, None, 1.0, 1.0], [rmseHEADSmax, None, 1.0, 1.0], [0, 0, None, -1.0], [['($m$)', '($\%%wc$)'], ['',''], ['',''], ['','']])):
+#            try:
+            MMplot.plotCALIBCRIT(calibcritSM = calibcritSM, calibcritSMobslst = obslstSM, calibcritHEADS = calibcritHEADS, calibcritHEADSobslst = obslstHEADS, calibcritHEADSc = calibcritHEADSc, calibcritHEADScobslst = obslstHEADSc, plt_export_fn = os.path.join(MM_ws_out, '__plt_calibcrit%s.png'% calibcrit), plt_title = 'Calibration criteria between simulated and observed state variables\n%s'%title, calibcrit = calibcrit, calibcritSMmax = calibcritSMmax, calibcritHEADSmax = calibcritHEADSmax, ymin = ymin, units = units, hnoflo = cMF.hnoflo)
+#            except:
+#                print '-------\nError in exporting %s at obs. pt. %s' % (calibcrit, obs_list[cc])
         if len(obslstHEADS)> 0 or len(obslstSM) > 0:
             print '-------\nRMSE/RSR/NSE/r averages of the obs. pts. (except catch.)'
             try:
@@ -2172,7 +2184,7 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
     # plot heads corrigidas [m]
     headscorr_m = np.zeros((len(days_lst), cMF.nlay, cMF.nrow, cMF.ncol), dtype = np.float)
     for i, t in enumerate(days_lst):
-        headscorr_m[i,0,:,:] = np.ma.masked_values(np.ma.masked_values(h5_MM['MM'][t,:,:,19], cMF.hnoflo, atol = 0.09), cMF.hdry, atol = 1E+25)
+        headscorr_m[i,0,:,:] = np.ma.masked_values(np.ma.masked_values(h5_MM['MM'][t,:,:,index_MM.get('ihcorr')], cMF.hnoflo, atol = 0.09), cMF.hdry, atol = 1E+25)
         Vmin[i] = hcorrmin
         Vmax[i] = hcorrmax
     MMplot.plotLAYER(days = days_lst, str_per = sp_lst, Date = Date_lst, JD = JD_lst, ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = headscorr_m,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation - $h$ $(m)$', msg = 'DRY', plt_title = 'OUT_MF_HEADScorr', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, contours = ctrsMF, Vmax = Vmax, Vmin = Vmin, ntick = ntick, points = obs4map, mask = mask_tmp, hnoflo = cMF.hnoflo, animation = animation)
@@ -2479,7 +2491,7 @@ durationTotal = (timeendExport-timestart)
 
 # final report of successful run
 print '\n##############\nMARMITES executed successfully!\n%s' % mpl.dates.DateFormatter.format_data(fmt_DH, mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat()))
-if MMsoil_yn > 0:
+if MMsoil_yn != 0:
     print '\nLOOP %d/%d' % (LOOP-1, ccnum)
     for txt in msg_end_loop:
         print txt
@@ -2495,7 +2507,7 @@ for n in ncell_MF:
 print ('\nApproximate run times:')
 if MMsurf_yn > 0:
     print ('MARMITES surface: %s minute(s) and %.1f second(s)') % (str(int(durationMMsurf*24.0*60.0)), (durationMMsurf*24.0*60.0-int(durationMMsurf*24.0*60.0))*60)
-if MMsoil_yn > 0:
+if MMsoil_yn != 0:
     print ('MARMITES soil zone: %s minute(s) and %.1f second(s)') % (str(int(durationMMsoil*24.0*60.0)), (durationMMsoil*24.0*60.0-int(durationMMsoil*24.0*60.0))*60)
 if MF_yn == 1:
     print ('MODFLOW: %s minute(s) and %.1f second(s)') % (str(int(durationMF*24.0*60.0)), (durationMF*24.0*60.0-int(durationMF*24.0*60.0))*60)

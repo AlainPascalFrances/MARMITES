@@ -713,6 +713,19 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
         obs_Ro = obs_catch.get('catch')['obs_Ro']
         Roobs_m = np.ma.masked_values(obs_Ro[0], cMF.hnoflo, atol = 0.09)
         plt.plot_date(cMF.inputDate, Roobs_m, markerfacecolor = 'None', marker='o', markeredgecolor = 'lightblue', markersize=2, label = r'$Ro \ obs$')
+        print '-------\nRMSE/RSR/NSE/r of obs. at the catch. scale'
+        a = np.array([flx[flxIndex_lst['iRo']],obs_Ro[0]])
+        a = np.transpose(a)
+        if cMF.hnoflo > 0:
+            b = a[~(a > cMF.hnoflo - 1000.0).any(1)]
+        else:
+            b = a[~(a < cMF.hnoflo + 1000.0).any(1)]
+        rmseSM = [100.0*cMF.cPROCESS.compRMSE(b[:,0], b[:,1])]
+        if np.std(b[:,1]) > 0:
+            rsrSM = [rmseSM/(100.0*np.std(b[:,1]))]
+        nseSM = [cMF.cPROCESS.compE(b[:,0], b[:,1], cMF.hnoflo)]
+        rSM = [cMF.cPROCESS.compR(b[:,0], b[:,1], cMF.hnoflo)]
+        print 'Ro: %.1f mm / %.2f / %.2f / %.2f' % (rmseSM[0], rsrSM[0], nseSM[0], rSM[0])           
     # Ro
     plt.plot_date(cMF.inputDate,flx[flxIndex_lst['iRo']],'r-', c='blue', linewidth=1.0, label = flxLbl[flxIndex_lst['iRo']])
     # Esurf
@@ -818,8 +831,6 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
     ax6.set_autoscalex_on(False)
     plt.setp(ax6.get_yticklabels(), fontsize=8)
     # theta
-    if sum(obs_catch_list) > 0:
-        print '-------\nRMSE/RSR/NSE/r of obs. at the catch. scale\nRo: still not implemented'
     rmseSM = None
     rsrSM = None
     nseSM = None
@@ -1559,7 +1570,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
 
 ##################
 
-def plotCALIBCRIT(calibcritSM, calibcritSMobslst, calibcritHEADS, calibcritHEADSobslst, plt_export_fn, plt_title, calibcrit, calibcritSMmax = None, calibcritHEADSmax = None, ymin = None, units = '', hnoflo = -9999.9):
+def plotCALIBCRIT(calibcritSM, calibcritSMobslst, calibcritHEADS, calibcritHEADSobslst, calibcritHEADSc, calibcritHEADScobslst, plt_export_fn, plt_title, calibcrit, calibcritSMmax = None, calibcritHEADSmax = None, ymin = None, units = '', hnoflo = -9999.9):
     # plot RMSE
     fig = plt.figure()
     fig.suptitle(plt_title, fontsize=10)
@@ -1649,6 +1660,7 @@ def plotCALIBCRIT(calibcritSM, calibcritSMobslst, calibcritHEADS, calibcritHEADS
         plt.grid(True)
         xserie = range(1,len(calibcritHEADSobslst)+1)
         yserie_txt = list(itertools.chain.from_iterable(calibcritHEADS))
+        yseriec_txt = list(itertools.chain.from_iterable(calibcritHEADSc))
         if calibcritHEADSmax == None:
             tmp = np.max(list(itertools.chain.from_iterable(calibcritHEADS)))
             if tmp > 0:
@@ -1658,11 +1670,17 @@ def plotCALIBCRIT(calibcritSM, calibcritSMobslst, calibcritHEADS, calibcritHEADS
             del tmp
         else:
             max_tmp = calibcritHEADSmax
-        offset = (max_tmp)*0.05
+#        offset = (max_tmp)*0.05
         for i in range(len(xserie)):
             plt.scatter(xserie[i], calibcritHEADS[i], marker='o', c = 'orange', s = 15)
+            for ii, cc in enumerate(calibcritHEADScobslst):
+                if calibcritHEADSobslst[i] == cc:
+                    plt.scatter(xserie[i], calibcritHEADSc[ii], marker='o', c = 'green', s = 10)
+                    if yseriec_txt[ii] < max_tmp:
+                        plt.text(xserie[i]-.05, yseriec_txt[ii], '%.1f' % yseriec_txt[ii], fontsize=6, ha = 'right', va = 'center')
+            del cc, ii
             if yserie_txt[i] < max_tmp:
-                plt.text(xserie[i], yserie_txt[i]+offset, '%.1f' % yserie_txt[i], fontsize=6, ha = 'center', va = 'center')
+                plt.text(xserie[i]+.05, yserie_txt[i], '%.1f' % yserie_txt[i], fontsize=6, ha = 'left', va = 'center')
         plt.xticks(xserie, calibcritHEADSobslst)
         if ymin == None:
             tmp = np.min(np.ma.masked_where(np.asarray(calibcritHEADS).flatten() == hnoflo,np.asarray(calibcritHEADS).flatten()))
@@ -1676,7 +1694,7 @@ def plotCALIBCRIT(calibcritSM, calibcritSMobslst, calibcritHEADS, calibcritHEADS
         plt.ylim(ymin_tmp, max_tmp)
         ax2.set_xlim(0, len(calibcritHEADS)+1)
 
-    plt.savefig(plt_export_fn)
+    plt.savefig(plt_export_fn, dpi = 150)
 
 ##################
 if __name__ == "__main__":

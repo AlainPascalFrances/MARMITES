@@ -596,7 +596,7 @@ class clsPROCESS:
                 except:
                     obs_S_tmp = -1.0
                 if results_S[t,l,index_S.get('iSsoil_pc_l')] > 0.0 and obs_S_tmp > 0.0:
-                    self.smMM[len_smMM-1].append((obsname+'SM_l'+str(l+1)).ljust(10,' ')+ out_date.ljust(10,' ')+ ' 00:00:00 ' + str(results_S[t,l,index_S.get('iSsoil_pc_l')]).ljust(10,' ') + '\n')
+                    self.smMM[len_smMM-1].append((obsname+'SM_l'+str(l+1)).ljust(12,' ')+ out_date.ljust(12,' ')+ ' 00:00:00 ' + str(results_S[t,l,index_S.get('iSsoil_pc_l')]).ljust(10,' ') + '\n')
         del i, j, _nslmax, results_S, index_S, obs_S, obsname
 
     #####################################
@@ -674,16 +674,39 @@ class clsPROCESS:
 
     #####################################
 
-    def compCalibCrit(self, Spc, h_MF, Sobs, hobs, hnoflo, obs_name, nsl, l_obs):
+    def compCalibCrit(self, Spc, h_MF, Sobs, hobs, hnoflo, obs_name, nsl, l_obs, h_MM = None):
+        
+        def comp(sim, obs): 
+            rmse = None
+            rsr = None
+            nse = None
+            r = None
+            a = np.array([sim,obs])
+            a = np.transpose(a)
+            if hnoflo > 0:
+                b = a[~(a > hnoflo - 1000.0).any(1)]
+            else:
+                b = a[~(a < hnoflo + 1000.0).any(1)]
+            if b[:,0] <> []:
+                rmse = (100.0*self.compRMSE(b[:,0], b[:,1]))
+                if np.std(b[:,1]) > 0:
+                    rsr = (rmse/(100.0*np.std(b[:,1])))
+                nse = (self.compE(b[:,0], b[:,1], hnoflo))
+                r = (self.compR(b[:,0], b[:,1], hnoflo))
+            return rmse, rsr, nse, r
 
         rmseSM = None
         rmseHEADS = None
+        rmseHEADSc = None
         rsrSM = None
         rsrHEADS = None
+        rsrHEADSc = None
         nseSM = None
         nseHEADS = None
+        nseHEADSc = None
         rSM = None
         rHEADS = None
+        rHEADSc = None
 
         testSM = 0
         Sobs_m = []
@@ -705,42 +728,47 @@ class clsPROCESS:
                 try:
                     for l, (y, y_obs) in enumerate(zip(Spc1full, Sobs_m)):
                         if y_obs <> []:
-                            a = np.array([y,y_obs])
-                            a = np.transpose(a)
-                            if hnoflo > 0:
-                                b = a[~(a > hnoflo - 1000.0).any(1)]
-                            else:
-                                b = a[~(a < hnoflo + 1000.0).any(1)]
-                            if b[:,0] <> []:
-                                rmseSM.append(100.0*self.compRMSE(b[:,0], b[:,1]))
-                                if np.std(b[:,1]) > 0:
-                                    rsrSM.append(rmseSM[l]/(100.0*np.std(b[:,1])))
-                                nseSM.append(self.compE(b[:,0], b[:,1], hnoflo))
-                                rSM.append(self.compR(b[:,0], b[:,1], hnoflo))
+                            rmse, rsr, nse, r = comp(y,y_obs)
+                            rmseSM.append(rmse)
+                            rsrSM.append(rsr)
+                            nseSM.append(nse)
+                            rSM.append(r)
+                            if rmseSM[l] != None:
                                 print 'SM layer %d: %.1f %% / %.2f / %.2f / %.2f' % (l+1, rmseSM[l], rsrSM[l], nseSM[l], rSM[l])
                 except:
                     print 'SM layer %d: error' % (l+1)
             if hobs <> []:
+                rmseHEADS = []
+                rsrHEADS = []
+                nseHEADS = []
+                rHEADS = []
                 try:
-                    a = np.array([h_MF[:,l_obs],hobs])
-                    a = np.transpose(a)
-                    if hnoflo > 0:
-                        b = a[~(a > hnoflo - 1000.0).any(1)]
-                    else:
-                        b = a[~(a < hnoflo + 1000.0).any(1)]
-                    if b[:,0] <> []:
-                        rmseHEADS = [self.compRMSE(b[:,0], b[:,1])]
-                        if np.std(b[:,1]) > 0:
-                            rsrHEADS = [rmseHEADS/np.std(b[:,1])]
-                        else:
-                            rsrHEADS = [hnoflo]
-                        nseHEADS = [self.compE(b[:,0], b[:,1], hnoflo)]
-                        rHEADS = [self.compR(b[:,0], b[:,1], hnoflo)]
+                    rmse, rsr, nse, r = comp(h_MF[:,l_obs],hobs)
+                    rmseHEADS.append(rmse)
+                    rsrHEADS.append(rsr)
+                    nseHEADS.append(nse)
+                    rHEADS.append(r)
+                    if rmseHEADS[0] != None:
                         print 'h: %.2f m / %.2f / %.2f / %.2f' % (rmseHEADS[0], rsrHEADS[0], nseHEADS[0], rHEADS[0])
                 except:
                     print 'h: error'
+                if h_MM != None:
+                    rmseHEADSc = []
+                    rsrHEADSc = []
+                    nseHEADSc = []
+                    rHEADSc = []
+                    try:
+                        rmse, rsr, nse, r = comp(h_MM,hobs)
+                        rmseHEADSc.append(rmse)
+                        rsrHEADSc.append(rsr)
+                        nseHEADSc.append(nse)
+                        rHEADSc.append(r)
+                        if rmseHEADSc[0] != None:
+                            print 'hcorr: %.2f m / %.2f / %.2f / %.2f' % (rmseHEADSc[0], rsrHEADSc[0], nseHEADSc[0], rHEADSc[0])
+                    except:
+                        print 'hcorr: error'                    
 
-        return rmseHEADS, rmseSM, rsrHEADS, rsrSM, nseHEADS, nseSM, rHEADS, rSM
+        return rmseHEADS, rmseHEADSc, rmseSM, rsrHEADS, rsrHEADSc, rsrSM, nseHEADS, nseHEADSc, nseSM, rHEADS, rHEADSc, rSM
 
 ##################
 if __name__ == "__main__":
