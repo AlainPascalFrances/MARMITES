@@ -674,27 +674,29 @@ class clsPROCESS:
 
     #####################################
 
-    def compCalibCrit(self, Spc, h_MF, Sobs, hobs, hnoflo, obs_name, nsl, l_obs, h_MM = None):
-        
-        def comp(sim, obs): 
-            rmse = None
-            rsr = None
-            nse = None
-            r = None
-            a = np.array([sim,obs])
-            a = np.transpose(a)
-            if hnoflo > 0:
-                b = a[~(a > hnoflo - 1000.0).any(1)]
-            else:
-                b = a[~(a < hnoflo + 1000.0).any(1)]
-            if b[:,0] <> []:
-                rmse = (100.0*self.compRMSE(b[:,0], b[:,1]))
-                if np.std(b[:,1]) > 0:
-                    rsr = (rmse/(100.0*np.std(b[:,1])))
-                nse = (self.compE(b[:,0], b[:,1], hnoflo))
-                r = (self.compR(b[:,0], b[:,1], hnoflo))
-            return rmse, rsr, nse, r
+    def compCalibCrit(self, sim, obs, hnoflo): 
+        rmse = None
+        rsr  = None
+        nse  = None
+        r    = None
+        a = np.array([sim,obs])
+        a = np.transpose(a)
+        if hnoflo > 0:
+            b = a[~(a > hnoflo - 1000.0).any(1)]
+        else:
+            b = a[~(a < hnoflo + 1000.0).any(1)]
+        if b[:,0] <> []:
+            rmse = (self.compRMSE(b[:,0], b[:,1]))
+            if np.std(b[:,1]) > 0:
+                rsr = (rmse/(np.std(b[:,1])))
+            nse = (self.compE(b[:,0], b[:,1], hnoflo))
+            r = (self.compR(b[:,0], b[:,1], hnoflo))
+        return rmse, rsr, nse, r
 
+#####################################
+
+    def compCalibCritObs(self, Spc, h_MF, Sobs, hobs, hnoflo, obs_name, nsl, h_MM = None):
+        
         rmseSM = None
         rmseHEADS = None
         rmseHEADSc = None
@@ -728,41 +730,36 @@ class clsPROCESS:
                 try:
                     for l, (y, y_obs) in enumerate(zip(Spc1full, Sobs_m)):
                         if y_obs <> []:
-                            rmse, rsr, nse, r = comp(y,y_obs)
-                            rmseSM.append(rmse)
+                            rmse, rsr, nse, r = self.compCalibCrit(y,y_obs, hnoflo)
+                            rmseSM.append(100.0*rmse)
                             rsrSM.append(rsr)
                             nseSM.append(nse)
                             rSM.append(r)
+                            del rmse, rsr, nse, r
                             if rmseSM[l] != None:
                                 print 'SM layer %d: %.1f %% / %.2f / %.2f / %.2f' % (l+1, rmseSM[l], rsrSM[l], nseSM[l], rSM[l])
                 except:
                     print 'SM layer %d: error' % (l+1)
             if hobs <> []:
-                rmseHEADS = []
-                rsrHEADS = []
-                nseHEADS = []
-                rHEADS = []
                 try:
-                    rmse, rsr, nse, r = comp(h_MF[:,l_obs],hobs)
-                    rmseHEADS.append(rmse)
-                    rsrHEADS.append(rsr)
-                    nseHEADS.append(nse)
-                    rHEADS.append(r)
+                    rmse, rsr, nse, r = self.compCalibCrit(h_MF,hobs, hnoflo)
+                    rmseHEADS = [rmse]
+                    rsrHEADS  = [rsr]
+                    nseHEADS  = [nse]
+                    rHEADS    = [r]
+                    del rmse, rsr, nse, r
                     if rmseHEADS[0] != None:
                         print 'h: %.2f m / %.2f / %.2f / %.2f' % (rmseHEADS[0], rsrHEADS[0], nseHEADS[0], rHEADS[0])
                 except:
                     print 'h: error'
                 if h_MM != None:
-                    rmseHEADSc = []
-                    rsrHEADSc = []
-                    nseHEADSc = []
-                    rHEADSc = []
                     try:
-                        rmse, rsr, nse, r = comp(h_MM,hobs)
-                        rmseHEADSc.append(rmse)
-                        rsrHEADSc.append(rsr)
-                        nseHEADSc.append(nse)
-                        rHEADSc.append(r)
+                        rmse, rsr, nse, r = self.compCalibCrit(h_MM,hobs,hnoflo)
+                        rmseHEADSc = [rmse]
+                        rsrHEADSc = [rsr]
+                        nseHEADSc = [nse]
+                        rHEADSc = [r]
+                        del rmse, rsr, nse, r
                         if rmseHEADSc[0] != None:
                             print 'hcorr: %.2f m / %.2f / %.2f / %.2f' % (rmseHEADSc[0], rsrHEADSc[0], nseHEADSc[0], rHEADSc[0])
                     except:

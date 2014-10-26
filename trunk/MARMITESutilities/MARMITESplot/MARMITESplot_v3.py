@@ -714,18 +714,14 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
         Roobs_m = np.ma.masked_values(obs_Ro[0], cMF.hnoflo, atol = 0.09)
         plt.plot_date(cMF.inputDate, Roobs_m, markerfacecolor = 'None', marker='o', markeredgecolor = 'lightblue', markersize=2, label = r'$Ro \ obs$')
         print '-------\nRMSE/RSR/NSE/r of obs. at the catch. scale'
-        a = np.array([flx[flxIndex_lst['iRo']],obs_Ro[0]])
-        a = np.transpose(a)
-        if cMF.hnoflo > 0:
-            b = a[~(a > cMF.hnoflo - 1000.0).any(1)]
-        else:
-            b = a[~(a < cMF.hnoflo + 1000.0).any(1)]
-        rmseSM = [100.0*cMF.cPROCESS.compRMSE(b[:,0], b[:,1])]
-        if np.std(b[:,1]) > 0:
-            rsrSM = [rmseSM/(100.0*np.std(b[:,1]))]
-        nseSM = [cMF.cPROCESS.compE(b[:,0], b[:,1], cMF.hnoflo)]
-        rSM = [cMF.cPROCESS.compR(b[:,0], b[:,1], cMF.hnoflo)]
-        print 'Ro: %.1f mm / %.2f / %.2f / %.2f' % (rmseSM[0], rsrSM[0], nseSM[0], rSM[0])           
+        rmse, rsr, nse, r = cMF.cPROCESS.compCalibCrit(flx[flxIndex_lst['iRo']],obs_Ro[0], cMF.hnoflo)
+        rmseRo = [rmse]
+        rsrRo = [rsr]
+        nseRo = [nse]
+        rRo = [r]
+        del rmse, rsr, nse, r
+        if rmseRo[0] != None:
+            print 'Ro: %.1f mm / %.2f / %.2f / %.2f' % (rmseRo[0], rsrRo[0], nseRo[0], rRo[0])           
     # Ro
     plt.plot_date(cMF.inputDate,flx[flxIndex_lst['iRo']],'r-', c='blue', linewidth=1.0, label = flxLbl[flxIndex_lst['iRo']])
     # Esurf
@@ -839,18 +835,14 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
         obs_SM = obs_catch.get('catch')['obs_SM']
         Sobs_m = np.ma.masked_values(obs_SM[0], cMF.hnoflo, atol = 0.09)
         ax6.plot_date(cMF.inputDate, Sobs_m, markerfacecolor = 'None', marker='o', markeredgecolor = 'brown', markersize=2, label = r'$\theta \ obs$')
-        a = np.array([flx[flxIndex_lst['iSsoil_pc']],obs_SM[0]])
-        a = np.transpose(a)
-        if cMF.hnoflo > 0:
-            b = a[~(a > cMF.hnoflo - 1000.0).any(1)]
-        else:
-            b = a[~(a < cMF.hnoflo + 1000.0).any(1)]
-        rmseSM = [100.0*cMF.cPROCESS.compRMSE(b[:,0], b[:,1])]
-        if np.std(b[:,1]) > 0:
-            rsrSM = [rmseSM/(100.0*np.std(b[:,1]))]
-        nseSM = [cMF.cPROCESS.compE(b[:,0], b[:,1], cMF.hnoflo)]
-        rSM = [cMF.cPROCESS.compR(b[:,0], b[:,1], cMF.hnoflo)]
-        print 'SM: %.1f %% / %.2f / %.2f / %.2f' % (rmseSM[0], rsrSM[0], nseSM[0], rSM[0])
+        rmse, rsr, nse, r = cMF.cPROCESS.compCalibCrit(flx[flxIndex_lst['iSsoil_pc']],obs_SM[0], cMF.hnoflo)
+        rmseSM = [100.0*rmse]
+        rsrSM = [rsr]
+        nseSM = [nse]
+        rSM = [r]
+        del rmse, rsr, nse, r
+        if rmseSM[0] != None:
+            print 'SM: %.1f %% / %.2f / %.2f / %.2f' % (rmseSM[0], rsrSM[0], nseSM[0], rSM[0])     
     ax6.plot_date(cMF.inputDate, flx[flxIndex_lst['iSsoil_pc']], '-', color = 'brown', label = flxLbl[flxIndex_lst['iSsoil_pc']])
     # y axis
     plt.ylabel('%', fontsize=10)
@@ -957,18 +949,14 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
             ax1.plot_date(cMF.inputDate, hobs_m, markerfacecolor = 'None', marker='o', markeredgecolor = 'LightBlue', markersize=2, label = r'$h \ obs$')
             i = 'ih_L%d' % (l+1) 
             if sum(flx[flxIndex_lst[i]]) != 0.0:
-                a = np.array([flx[flxIndex_lst[i]],obs_h[0]])
-                a = np.transpose(a)                                
-                if cMF.hnoflo > 0:
-                    b = a[~(a > cMF.hnoflo - 1000.0).any(1)]
-                else:
-                    b = a[~(a < cMF.hnoflo + 1000.0).any(1)]
-                rmseHEADS = [cMF.cPROCESS.compRMSE(b[:,0], b[:,1])]
-                if np.std(b[:,1]) > 0:
-                    rsrHEADS = [rmseHEADS[0]/np.std(b[:,1])]
-                nseHEADS = [cMF.cPROCESS.compE(b[:,0], b[:,1], cMF.hnoflo)]
-                rHEADS = [cMF.cPROCESS.compR(b[:,0], b[:,1], cMF.hnoflo)]
-                print 'h: %.2f m / %.2f / %.2f / %.2f\n-------' % (rmseHEADS[0], rsrHEADS[0], nseHEADS[0], rHEADS[0])
+                rmse, rsr, nse, r = cMF.cPROCESS.compCalibCrit(flx[flxIndex_lst[i]],obs_h[0], cMF.hnoflo)
+                rmseHEADS = [rmse]
+                rsrHEADS = [rsr]
+                nseHEADS = [nse]
+                rHEADS = [r]
+                del rmse, rsr, nse, r
+                if rmseHEADS[0] != None:
+                    print 'h: %.2f m / %.2f / %.2f / %.2f\n-------' % (rmseHEADS[0], rsrHEADS[0], nseHEADS[0], rHEADS[0])             
             else:
                 print 'Warning!\nError in computing h calibration criteria'
                 rmseHEADS = rsrHEADS = nseHEADS = rHEADS = None

@@ -2029,8 +2029,8 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                         obs_h_tmp = obs_h[0,HYindex[1]:HYindex[-1]]
                     else:
                         obs_h_tmp = []    
-                    h_MF = h_MF_m[HYindex[1]:HYindex[-1],:,i,j]
-                    rmseHEADS_tmp, rmseHEADSc_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrHEADSc_tmp, rsrSM_tmp, nseHEADS_tmp, nseHEADSc_tmp, nseSM_tmp, rHEADS_tmp, rHEADSc_tmp, rSM_tmp = cMF.cPROCESS.compCalibCrit(MM_S, h_MF, obs_SM_tmp, obs_h_tmp, cMF.hnoflo, o, nsl, l_obs, MM[HYindex[1]:HYindex[-1],index_MM.get('ihcorr')])
+                    h_MF = h_MF_m[HYindex[1]:HYindex[-1],l_obs,i,j]
+                    rmseHEADS_tmp, rmseHEADSc_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrHEADSc_tmp, rsrSM_tmp, nseHEADS_tmp, nseHEADSc_tmp, nseSM_tmp, rHEADS_tmp, rHEADSc_tmp, rSM_tmp = cMF.cPROCESS.compCalibCritObs(MM_S, h_MF, obs_SM_tmp, obs_h_tmp, cMF.hnoflo, o, nsl, MM[HYindex[1]:HYindex[-1],index_MM.get('ihcorr')])
                     del obs_h_tmp, obs_SM_tmp
                     if rmseHEADS_tmp <> None:
                         rmseHEADS.append(rmseHEADS_tmp)
