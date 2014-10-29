@@ -172,7 +172,7 @@ class clsMMsoil:
 
         ##################
         if EXF < 0.0:
-            print 'WARNING!\nEXF < 0.0, value %.6f corrected to 0.0.' % EXF
+            print 'WARNING!\nEXFg < 0.0, value %.6f corrected to 0.0.' % EXF
             EXF = 0.0
         SAT = np.zeros([nsl], dtype = bool)
 

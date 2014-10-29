@@ -9,7 +9,6 @@ import matplotlib.pyplot as plt
 import subprocess as sp
 import numpy as np
 import os, itertools, shutil
-import MARMITESutilities as MMutils
 from matplotlib.sankey import Sankey
 
 #####################################
@@ -1353,7 +1352,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
             # MMsoil
             pltsankey.add(patchlabel = '$\Delta S_{soil}$\n%.1f' % (dSsoil[k]/ff), label='MMsoil', facecolor='khaki', trunklength = tl,
                        flows=[RFe[k]/ff, -Rp[k]/ff, -Esoil[k]/ff, -Tsoil[k]/ff, EXFtotMM[k]/ff, -Ro[k]/ff],
-                       labels=[None,'$Rp$','$E_{soil}$','$T_{soil}$','$EXF$','$Ro$'],
+                       labels=[None,'$Rp$','$E_{soil}$','$T_{soil}$','$Exf_g$','$Ro$'],
                        orientations=[1,-1,1,1,-1,1],
                        pathlengths = [pl, pl, pl, pl, pl, pl],
                        prior=0, connect=(2,0))
@@ -1464,7 +1463,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                     # EXF
                     if np.abs(EXF[k][L])>treshold:
                         flows.append(EXF[k][L]/ff)
-                        labels.append('$EXF$')
+                        labels.append('$Exf_g$')
                         orientations.append(-1)
                         pathlengths.append(pl)
                     Out.append(-EXF[k][L])
