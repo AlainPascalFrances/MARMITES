@@ -140,6 +140,9 @@ try:
     #run MODFLOW  (1 is YES, 0 is NO)
     MF_yn = int(inputFile[l].strip())
     l += 1
+    MF_lastrun = int(inputFile[l].strip())
+    l += 1
+    # MM-MF loop
     convcrit = float(inputFile[l].strip())
     l += 1
     convcritmax = float(inputFile[l].strip())
@@ -984,36 +987,37 @@ if MMsoil_yn != 0:
         durationMMsoil += durationMMloop
         print '%s'% mpl.dates.DateFormatter.format_data(fmt_DH, mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat()))
 
-        # MODFLOW RUN with MM-computed recharge
-        timestartMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
-        print'\n##############'
-        if endloop < 1:
-            print 'MODFLOW RUN (MARMITES fluxes)'
-        else:
-            print 'MODFLOW RUN (MARMITES fluxes after conv. loop)'
-        if verbose == 0:
-            print '\n--------------'
-            sys.stdout = stdout
-            report.close()
-            stdout = sys.stdout
-            report = open(report_fn, 'a')
-            sys.stdout = report
-        cMF.runMF(finf_MM = (h5_MM_fn, 'finf'), wel_MM = (h5_MM_fn, 'ETg'), verbose = verbose, chunks = chunks, numDays = numDays, stdout = stdout, report = report)
-        try:
-            h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
-        except:
-            cUTIL.ErrorExit('\nFATAL ERROR!\nInvalid MODFLOW HDF5 file. Run MARMITES and/or MODFLOW again.', stdout = stdout, report = report)
-        timeendMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
-        durationMFtmp =  timeendMF-timestartMF
-        durationMF +=  durationMFtmp
-        print '\nMF run time: %02.fmn%02.fs' % (int(durationMFtmp*24.0*60.0), (durationMFtmp*24.0*60.0-int(durationMFtmp*24.0*60.0))*60)
-        del durationMFtmp
-        print '%s'% mpl.dates.DateFormatter.format_data(fmt_DH, mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat()))
+        if not (endloop == 1 and MF_lastrun == 0):
+            # MODFLOW RUN with MM-computed recharge
+            timestartMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
+            print'\n##############'
+            if endloop < 1:
+                print 'MODFLOW RUN (MARMITES fluxes)'
+            else:
+                print 'MODFLOW RUN (MARMITES fluxes after conv. loop)'
+            if verbose == 0:
+                print '\n--------------'
+                sys.stdout = stdout
+                report.close()
+                stdout = sys.stdout
+                report = open(report_fn, 'a')
+                sys.stdout = report
+            cMF.runMF(finf_MM = (h5_MM_fn, 'finf'), wel_MM = (h5_MM_fn, 'ETg'), verbose = verbose, chunks = chunks, numDays = numDays, stdout = stdout, report = report)
+            try:
+                h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
+            except:
+                cUTIL.ErrorExit('\nFATAL ERROR!\nInvalid MODFLOW HDF5 file. Run MARMITES and/or MODFLOW again.', stdout = stdout, report = report)
+            timeendMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
+            durationMFtmp =  timeendMF-timestartMF
+            durationMF +=  durationMFtmp
+            print '\nMF run time: %02.fmn%02.fs' % (int(durationMFtmp*24.0*60.0), (durationMFtmp*24.0*60.0-int(durationMFtmp*24.0*60.0))*60)
+            del durationMFtmp
+            print '%s'% mpl.dates.DateFormatter.format_data(fmt_DH, mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat()))
         
         if MMsoil_yn < 0:
             break
-        
-    h5_MF.close()
+    if not (endloop == 1 and MF_lastrun == 0):   
+        h5_MF.close()
     # #############################
     # ###  END CONVERGENCE LOOP ###
     # #############################

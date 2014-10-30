@@ -1350,11 +1350,21 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                 In += -dSsurf[k]
             MB_MMsurf = 100*(In - Out)/((In + Out)/2)
             # MMsoil
+            if EXFtotMM[k] > treshold:
+                flows = [RFe[k]/ff, -Rp[k]/ff, -Esoil[k]/ff, -Tsoil[k]/ff, EXFtotMM[k]/ff, -Ro[k]/ff]
+                labels = [None,'$Rp$','$E_{soil}$','$T_{soil}$','$Exf_g$','$Ro$']
+                orientations = [1,-1,1,1,-1,1]
+                pathlengths = [pl, pl, pl, pl, pl, pl]
+            else:
+                flows = [RFe[k]/ff, -Rp[k]/ff, -Esoil[k]/ff, -Tsoil[k]/ff, -Ro[k]/ff]
+                labels = [None,'$Rp$','$E_{soil}$','$T_{soil}$','$Ro$']
+                orientations = [1,-1,1,1,1]
+                pathlengths = [pl, pl, pl, pl, pl]
             pltsankey.add(patchlabel = '$\Delta S_{soil}$\n%.1f' % (dSsoil[k]/ff), label='MMsoil', facecolor='khaki', trunklength = tl,
-                       flows=[RFe[k]/ff, -Rp[k]/ff, -Esoil[k]/ff, -Tsoil[k]/ff, EXFtotMM[k]/ff, -Ro[k]/ff],
-                       labels=[None,'$Rp$','$E_{soil}$','$T_{soil}$','$Exf_g$','$Ro$'],
-                       orientations=[1,-1,1,1,-1,1],
-                       pathlengths = [pl, pl, pl, pl, pl, pl],
+                       flows=flows,
+                       labels=labels,
+                       orientations=orientations,
+                       pathlengths = pathlengths,
                        prior=0, connect=(2,0))
             In = RFe[k] + EXFtotMM[k]
             Out = Rp[k] + Esoil[k] + Tsoil[k] + Ro[k]
