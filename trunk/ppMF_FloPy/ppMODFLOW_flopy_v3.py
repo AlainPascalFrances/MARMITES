@@ -330,7 +330,10 @@ class clsMF():
                 l += 1
                 self.iuzfbnd = [inputFile[l].strip()]
                 l += 1
-                self.vks = [inputFile[l].strip()]
+                if self.iuzfopt ==1:
+                    self.vks = [inputFile[l].strip()]
+                else:
+                    self.vks = None
                 l += 1
                 self.eps = [inputFile[l].strip()]
                 l += 1
@@ -516,7 +519,7 @@ class clsMF():
             if self.iuzfopt == 1:
                 self.vks_actual     = self.cPROCESS.checkarray(self.vks, stdout = stdout, report = report)
             else:
-                self.vks_actual = 0.0
+                self.vks_actual = None
             self.eps_actual     = self.cPROCESS.checkarray(self.eps, stdout = stdout, report = report)
             self.thtr_actual = None
             if self.specifythtr > 0:

@@ -647,22 +647,16 @@ if plt_input == 1:
         lst.append(np.asarray(cMF.thts_actual))
         lst_lbl.append('thts')
         lst_lblCB.append('Sat. water content - $thts$')
-        if cMF.vks_actual != 0.0:
+        if cMF.iuzfopt == 1:
             lst.append(np.asarray(cMF.vks_actual))
             lst_lbl.append('vks')
             lst_lblCB.append('Sat. vert. hydraulic conductivity - $vks$')
-        try:
-            lst.append(np.asarray(cMF.thti_actual))
-            lst_lbl.append('thti')
-            lst_lblCB.append('Initial water content - $thti$')
-        except:
-            pass
-        try:
-            lst.append(np.asarray(cMF.thtr_actual))
-            lst_lbl.append('thtr')
-            lst_lblCB.append('Residual water content - $thtr$')
-        except:
-            pass
+        lst.append(np.asarray(cMF.thti_actual))
+        lst_lbl.append('thti')
+        lst_lblCB.append('Initial water content - $thti$')
+        lst.append(np.asarray(cMF.thtr_actual))
+        lst_lbl.append('thtr')
+        lst_lblCB.append('Residual water content - $thtr$')
     elev_max = []
     elev_min = []
     for e in [cMF.elev, cMF.top, cMF.botm]:
@@ -2281,22 +2275,22 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
     V = np.zeros((1, cMF.nlay, cMF.nrow, cMF.ncol), dtype = np.float)
     for L in range(cMF.nlay):
         V[0,L,:,:] = np.ma.masked_array(np.sum(h_MF_m[HYindex[1]:HYindex[-1],L,:,:], axis = 0)/(HYindex[-1]-HYindex[1]+1), mask[L])
-    MMplot.plotLAYER(days = ['NA'], str_per = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation - $h$ (m)', msg = 'DRY', plt_title = 'OUT_average_MF_HEADS', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, contours = ctrsMF, Vmax = [hmaxMF], Vmin = [hminMF], ntick = ntick, points = obs4map, ptslbl = 1, mask = mask_tmp, hnoflo = cMF.hnoflo)
+    MMplot.plotLAYER(days = ['NA'], str_per = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation - $h$ (m)', msg = 'DRY', plt_title = 'OUT_average_MF_HEADS', MM_ws = MM_ws_out, interval_type = 'percentile', interval_num = 5, contours = ctrsMF, Vmax = [hmaxMF], Vmin = [hminMF], ntick = ntick, points = obs4map, ptslbl = 1, mask = mask_tmp, hnoflo = cMF.hnoflo)
 
     # plot GWTD average [m]
     for L in range(cMF.nlay):
         V[0,L,:,:] = cMF.elev-V[0,L,:,:]
-    MMplot.plotLAYER(days = ['NA'], str_per = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'depth to groundwater table - $d$ (m)', msg = 'DRY', plt_title = 'OUT_average_MF_GWTD', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, contours = ctrsMF, Vmax = [GWTDmax], Vmin = [GWTDmin], ntick = ntick, points = obs4map, ptslbl = 1, mask = mask_tmp, hnoflo = cMF.hnoflo)
+    MMplot.plotLAYER(days = ['NA'], str_per = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'depth to groundwater table - $d$ (m)', msg = 'DRY', plt_title = 'OUT_average_MF_GWTD', MM_ws = MM_ws_out, interval_type = 'percentile', interval_num = 5, contours = ctrsMF, Vmax = [GWTDmax], Vmin = [GWTDmin], ntick = ntick, points = obs4map, ptslbl = 1, mask = mask_tmp, hnoflo = cMF.hnoflo)
 
     # plot heads corrigidas average [m]
     headscorr_m = np.zeros((1, cMF.nlay, cMF.nrow, cMF.ncol), dtype = np.float)
     headscorr_m[0,0,:,:] = np.ma.masked_values(np.ma.masked_values(np.sum(h5_MM['MM'][HYindex[1]:HYindex[-1],:,:,19], axis = 0)/(HYindex[-1]-HYindex[1]+1), cMF.hnoflo, atol = 0.09), cMF.hdry, atol = 1E+25)
-    MMplot.plotLAYER(days = ['NA'], str_per = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = headscorr_m,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation - $h$ (m)', msg = 'DRY', plt_title = 'OUT_average_MF_HEADScorr', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, contours = ctrsMF, Vmax = [hcorrmax], Vmin = [hcorrmin], ntick = ntick, points = obs4map, ptslbl = 1, mask = maskAllL_tmp, hnoflo = cMF.hnoflo)
+    MMplot.plotLAYER(days = ['NA'], str_per = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = headscorr_m,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation - $h$ (m)', msg = 'DRY', plt_title = 'OUT_average_MF_HEADScorr', MM_ws = MM_ws_out, interval_type = 'percentile', interval_num = 5, contours = ctrsMF, Vmax = [hcorrmax], Vmin = [hcorrmin], ntick = ntick, points = obs4map, ptslbl = 1, mask = maskAllL_tmp, hnoflo = cMF.hnoflo)
 
     # plot GWTD correct average [m]
     GWTDcorr = np.zeros((1, cMF.nlay, cMF.nrow, cMF.ncol), dtype = np.float)
     GWTDcorr[0,0,:,:] = cMF.elev-headscorr_m[0,0,:,:]
-    MMplot.plotLAYER(days = ['NA'], str_per = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = GWTDcorr, cmap = plt.cm.Blues, CBlabel = 'depth to groundwater table - $d$ (m)', msg = 'DRY', plt_title = 'OUT_average_MF_GWTDcorr', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, contours = ctrsMF, Vmax = [GWTDcorrmax], Vmin = [GWTDcorrmin], ntick = ntick, points = obs4map, ptslbl = 1, mask = maskAllL_tmp, hnoflo = cMF.hnoflo)
+    MMplot.plotLAYER(days = ['NA'], str_per = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = GWTDcorr, cmap = plt.cm.Blues, CBlabel = 'depth to groundwater table - $d$ (m)', msg = 'DRY', plt_title = 'OUT_average_MF_GWTDcorr', MM_ws = MM_ws_out, interval_type = 'percentile', interval_num = 5, contours = ctrsMF, Vmax = [GWTDcorrmax], Vmin = [GWTDcorrmin], ntick = ntick, points = obs4map, ptslbl = 1, mask = maskAllL_tmp, hnoflo = cMF.hnoflo)
 
     # plot GW GROSS RCH average [mm]
     R = np.zeros((1, cMF.nlay, cMF.nrow, cMF.ncol), dtype = np.float)
@@ -2305,7 +2299,7 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
     MMplot.plotLAYER(days = ['NA'], str_per = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = R,  cmap = plt.cm.Blues, CBlabel = 'groundwater gross recharge - $R$ (mm.day$^{-1}$)', msg = '- no flux', plt_title = 'OUT_average_MF_R', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = [RCHmax], Vmin = [RCHmin], contours = ctrsMF, ntick = ntick, points = obs4map, ptslbl = 1, mask = mask_tmp, hnoflo = cMF.hnoflo)
     Vmin_tmp1 = np.min(R)
     Vmax_tmp1 = np.max(R)
-    MMplot.plotLAYER(days = ['NA'], str_per = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = R,  cmap = plt.cm.Blues, CBlabel = 'groundwater gross recharge - $R$ (mm.day$^{-1}$)', msg = '- no flux', plt_title = 'OUT_average_MF_R1', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = [Vmax_tmp1], Vmin = [Vmin_tmp1], contours = ctrsMF, ntick = ntick, points = obs4map, ptslbl = 1, mask = mask_tmp, hnoflo = cMF.hnoflo)
+    MMplot.plotLAYER(days = ['NA'], str_per = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = R,  cmap = plt.cm.Blues, CBlabel = 'groundwater gross recharge - $R$ (mm.day$^{-1}$)', msg = '- no flux', plt_title = 'OUT_average_MF_R1', MM_ws = MM_ws_out, interval_type = 'percentile', interval_num = 5, Vmax = [Vmax_tmp1], Vmin = [Vmin_tmp1], contours = ctrsMF, ntick = ntick, points = obs4map, ptslbl = 1, mask = mask_tmp, hnoflo = cMF.hnoflo)
     
     # plot GW EFFECTIVE RCH average [mm]
     Re = np.zeros((1, cMF.nlay, cMF.nrow, cMF.ncol), dtype = np.float)
@@ -2314,7 +2308,7 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
     MMplot.plotLAYER(days = ['NA'], str_per = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = Re,  cmap = plt.cm.Blues, CBlabel = 'groundwater effective recharge - $Re$ (mm.day$^{-1}$)', msg = '- no flux', plt_title = 'OUT_average_MF_Re', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = [np.ma.max(Re)], Vmin = [np.ma.min(Re)], contours = ctrsMF, ntick = ntick, points = obs4map, ptslbl = 1, mask = mask_tmp, hnoflo = cMF.hnoflo)
     Vmin_tmp1 = np.min(Re)
     Vmax_tmp1 = np.max(Re)
-    MMplot.plotLAYER(days = ['NA'], str_per = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = Re,  cmap = plt.cm.Blues, CBlabel = 'groundwater effective recharge - $Re$ (mm.day$^{-1}$)', msg = '- no flux', plt_title = 'OUT_average_MF_Re1', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = [Vmax_tmp1], Vmin = [Vmin_tmp1], contours = ctrsMF, ntick = ntick, points = obs4map, ptslbl = 1, mask = mask_tmp, hnoflo = cMF.hnoflo)
+    MMplot.plotLAYER(days = ['NA'], str_per = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = Re,  cmap = plt.cm.Blues, CBlabel = 'groundwater effective recharge - $Re$ (mm.day$^{-1}$)', msg = '- no flux', plt_title = 'OUT_average_MF_Re1', MM_ws = MM_ws_out, interval_type = 'percentile', interval_num = 5, Vmax = [Vmax_tmp1], Vmin = [Vmin_tmp1], contours = ctrsMF, ntick = ntick, points = obs4map, ptslbl = 1, mask = mask_tmp, hnoflo = cMF.hnoflo)
     
     # plot GW NET RCH average [mm]
     if cMF.wel_yn == 1: 
@@ -2324,7 +2318,7 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
         MMplot.plotLAYER(days = ['NA'], str_per = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = Rn,  cmap = plt.cm.Blues, CBlabel = 'groundwater net recharge - $Rn$ (mm.day$^{-1}$)', msg = '- no flux', plt_title = 'OUT_average_MF_Rn', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = [np.ma.max(Rn)], Vmin = [np.ma.min(Rn)], contours = ctrsMF, ntick = ntick, points = obs4map, ptslbl = 1, mask = mask_tmp, hnoflo = cMF.hnoflo)
         Vmin_tmp1 = np.min(Rn)
         Vmax_tmp1 = np.max(Rn)
-        MMplot.plotLAYER(days = ['NA'], str_per = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = Rn,  cmap = plt.cm.Blues, CBlabel = 'groundwater net recharge - $Rn$ (mm.day$^{-1}$)', msg = '- no flux', plt_title = 'OUT_average_MF_Rn1', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = [Vmax_tmp1], Vmin = [Vmin_tmp1], contours = ctrsMF, ntick = ntick, points = obs4map, ptslbl = 1, mask = mask_tmp, hnoflo = cMF.hnoflo) 
+        MMplot.plotLAYER(days = ['NA'], str_per = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = Rn,  cmap = plt.cm.Blues, CBlabel = 'groundwater net recharge - $Rn$ (mm.day$^{-1}$)', msg = '- no flux', plt_title = 'OUT_average_MF_Rn1', MM_ws = MM_ws_out, interval_type = 'percentile', interval_num = 5, Vmax = [Vmax_tmp1], Vmin = [Vmin_tmp1], contours = ctrsMF, ntick = ntick, points = obs4map, ptslbl = 1, mask = mask_tmp, hnoflo = cMF.hnoflo) 
         del Rn, cbc_WEL
     
     del cbc_RCH, R, Re
@@ -2338,7 +2332,7 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
         del cbc_DRN, DRNmax, DRNmin
         Vmin_tmp1 = np.min(V)
         Vmax_tmp1 = np.max(V)
-        MMplot.plotLAYER(days = ['NA'], str_per = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater drainage - $DRN$ (mm.day$^{-1}$)', msg = '- no drainage', plt_title = 'OUT_average_MF_DRN1', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = [Vmax_tmp1], Vmin = [Vmin_tmp1], contours = ctrsMF, ntick = ntick, points = obs4map, ptslbl = 1, mask = mask_tmp, hnoflo = cMF.hnoflo)
+        MMplot.plotLAYER(days = ['NA'], str_per = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater drainage - $DRN$ (mm.day$^{-1}$)', msg = '- no drainage', plt_title = 'OUT_average_MF_DRN1', MM_ws = MM_ws_out, interval_type = 'percentile', interval_num = 5, Vmax = [Vmax_tmp1], Vmin = [Vmin_tmp1], contours = ctrsMF, ntick = ntick, points = obs4map, ptslbl = 1, mask = mask_tmp, hnoflo = cMF.hnoflo)
 
     # plot GHB average [mm]
     if cMF.ghb_yn == 1:
@@ -2349,7 +2343,7 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
         del cbc_GHB, GHBmax, GHBmin
         Vmin_tmp1 = np.min(V)
         Vmax_tmp1 = np.max(V)
-        MMplot.plotLAYER(days = ['NA'], str_per = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'general head bdry - $GHB$ (mm.day$^{-1}$)', msg = '- no flux', plt_title = 'OUT_average_MF_GHB1', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = [Vmax_tmp1], Vmin = [Vmin_tmp1], contours = ctrsMF, ntick = ntick, points = obs4map, ptslbl = 1, mask = mask_tmp, hnoflo = cMF.hnoflo)
+        MMplot.plotLAYER(days = ['NA'], str_per = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'general head bdry - $GHB$ (mm.day$^{-1}$)', msg = '- no flux', plt_title = 'OUT_average_MF_GHB1', MM_ws = MM_ws_out, interval_type = 'percentile', interval_num = 5, Vmax = [Vmax_tmp1], Vmin = [Vmin_tmp1], contours = ctrsMF, ntick = ntick, points = obs4map, ptslbl = 1, mask = mask_tmp, hnoflo = cMF.hnoflo)
 
     # plot GW exfiltration average [mm]
     V = np.zeros((1, cMF.nlay, cMF.nrow, cMF.ncol), dtype = np.float)
@@ -2359,7 +2353,7 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
     del cbc_EXF, EXFmax, EXFmin
     Vmin_tmp1 = np.min(V)
     Vmax_tmp1 = np.max(V)
-    MMplot.plotLAYER(days = ['NA'], str_per = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater exfiltration - $Exf_g$ (mm.day$^{-1}$)', msg = '- no exfiltration', plt_title = 'OUT_average_MF_EXF1', MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = [Vmax_tmp1], Vmin = [Vmin_tmp1], contours = ctrsMF, ntick = ntick, points = obs4map, ptslbl = 1, mask = mask_tmp, hnoflo = cMF.hnoflo)
+    MMplot.plotLAYER(days = ['NA'], str_per = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater exfiltration - $Exf_g$ (mm.day$^{-1}$)', msg = '- no exfiltration', plt_title = 'OUT_average_MF_EXF1', MM_ws = MM_ws_out, interval_type = 'percentile', interval_num = 5, Vmax = [Vmax_tmp1], Vmin = [Vmin_tmp1], contours = ctrsMF, ntick = ntick, points = obs4map, ptslbl = 1, mask = mask_tmp, hnoflo = cMF.hnoflo)
         
     h5_MF.close()
     h5_MM.close()

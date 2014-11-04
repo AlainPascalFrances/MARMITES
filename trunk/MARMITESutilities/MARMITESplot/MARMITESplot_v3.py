@@ -1101,10 +1101,14 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
                     fmt = '%5.2f'
                 else:
                     fmt = '%5.e'
+            norm = None
             if interval_type == 'arange':
                 ticks = np.arange(Vmin_tmp,Vmax_tmp,interval_diff)
             elif interval_type == 'linspace':
                 ticks = np.linspace(Vmin_tmp,Vmax_tmp,interval_num)
+            elif interval_type == 'percentile':
+                ticks = np.percentile(Vtmp.compressed().flatten(),[0.0,10.0,20.0,30.0,40.0,50.0,60.0,70.0,80.0,90.0,100.0])
+                norm = mpl.colors.BoundaryNorm(ticks, cmap.N)
             ax.append(fig.add_subplot(1,nlay,L+1, axisbg = axisbg))
             ax[L].xaxis.set_ticks(np.arange(0,ncol+1,ntick))
             ax[L].yaxis.set_ticks(np.arange(0,nrow+1,ntick))
@@ -1121,7 +1125,7 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
                     ax[L].plot(xj, yi, 'o', linewidth=1, markersize = 6, color = color)
                     if ptslbl>0:
                         ax[L].annotate(label, xy = (xj, yi))
-            ims[i].append(ax[L].pcolormesh(xg, yg, Vtmp, cmap = cmap, vmin = Vmin_tmp, vmax = Vmax_tmp))
+            ims[i].append(ax[L].pcolormesh(xg, yg, Vtmp, cmap = cmap, vmin = Vmin_tmp, vmax = Vmax_tmp, norm = norm))
             if ctrs_tmp == True:
                 CS = ax[L].contour(xg1, yg1[::-1], Vtmp[::-1], ticks, colors = 'gray')
                 plt.draw()
