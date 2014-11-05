@@ -733,17 +733,27 @@ if plt_input == 1:
     Vmax = 100.0
     Vmin = 0.0
     V = np.zeros((1, cMF.nlay, cMF.nrow, cMF.ncol), dtype = np.float)
+    Vvegtot = np.zeros((1, cMF.nlay, cMF.nrow, cMF.ncol), dtype = np.float)
     for v in range(NVEG):
         V[0,0,:,:] = gridVEGarea[v,:,:]
+        Vvegtot += gridVEGarea[v,:,:]
         V_lbl = 'veg%02d_%s' %(v+1, VegName[v])
-        V_lblCB = 'Frac. area of veg. #%02d - $%s$ (\%%)' %(v+1, VegName[v])
+        V_lblCB = 'Frac. area of veg. #%02d - $%s$ (%%)' %(v+1, VegName[v])
         for L in range(cMF.nlay):
             mask_tmp[L,:,:] = cMF.maskAllL
         #print V_lbl
         MMplot.plotLAYER(days = [0], str_per = [0], Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.gist_rainbow_r, CBlabel = V_lblCB, msg = '', plt_title = 'IN_%03d_%s'% (i_lbl,V_lbl), MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, contours = False, Vmax = [Vmax], Vmin = [Vmin], ntick = ntick, fmt = '%5.1f', points = obs4map, mask = mask_tmp, hnoflo = cMF.hnoflo)
         i_lbl += 1
-    del V, V_lbl, Vmax, Vmin
-
+    del V, V_lbl, V_lblCB
+    VareaSoil = 100.0 - Vvegtot
+    lst = [Vvegtot,VareaSoil]
+    lst_lbl = ['veg_tot','soil']
+    lst_lblCB = ['Frac. area of veg. tot. (%)','Frac. area of soil (%)']    
+    for i, l in enumerate(lst):
+        MMplot.plotLAYER(days = [0], str_per = [0], Date = 'NA', JD = 'NA', ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = l,  cmap = plt.cm.gist_rainbow_r, CBlabel = lst_lblCB[i], msg = '', plt_title = 'IN_%03d_%s'% (i_lbl,lst_lbl[i]), MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, contours = False, Vmax = [Vmax], Vmin = [Vmin], ntick = ntick, fmt = '%5.1f', points = obs4map, mask = mask_tmp, hnoflo = cMF.hnoflo)
+        i_lbl += 1
+    del Vmax, Vmin
+    
     lst = [ibound, gridSOIL, gridMETEO]
     lst_lbl = ['ibound', 'gridSOIL', 'gridMETEO']
     lst_lblCB = ['MF cell type - $ibound$', 'Soil type', 'Meteo. zone']
@@ -2040,7 +2050,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                         rSM.append(rSM_tmp)
                         obslstSM.append(o)
                     del rmseHEADS_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrSM_tmp, nseHEADS_tmp, nseSM_tmp, rHEADS_tmp, rSM_tmp, h_MF, MM_S
-        for cc, (calibcritSM, calibcritHEADS, calibcritHEADSc, calibcrit, title, calibcritSMmax, calibcritHEADSmax, ymin, units) in enumerate(zip([rmseSM, rsrSM, nseSM, rSM], [rmseHEADS, rsrHEADS, nseHEADS, rHEADS], [rmseHEADSc, rsrHEADSc, nseHEADSc, rHEADSc], ['RMSE', 'RSR', 'NSE', 'r'], ['Root mean square error', 'Root mean square error - observations standard deviation ratio', 'Nash-Sutcliffe efficiency', "Pearson's correlation coefficient"], [rmseSMmax, None, 1.0, 1.0], [rmseHEADSmax, None, 1.0, 1.0], [0, 0, None, -1.0], [['(m)', '(\%%wc)'], ['',''], ['',''], ['','']])):
+        for cc, (calibcritSM, calibcritHEADS, calibcritHEADSc, calibcrit, title, calibcritSMmax, calibcritHEADSmax, ymin, units) in enumerate(zip([rmseSM, rsrSM, nseSM, rSM], [rmseHEADS, rsrHEADS, nseHEADS, rHEADS], [rmseHEADSc, rsrHEADSc, nseHEADSc, rHEADSc], ['RMSE', 'RSR', 'NSE', 'r'], ['Root mean square error', 'Root mean square error - observations standard deviation ratio', 'Nash-Sutcliffe efficiency', "Pearson's correlation coefficient"], [rmseSMmax, None, 1.0, 1.0], [rmseHEADSmax, None, 1.0, 1.0], [0, 0, None, -1.0], [['(m)', '(%wc)'], ['',''], ['',''], ['','']])):
 #            try:
             MMplot.plotCALIBCRIT(calibcritSM = calibcritSM, calibcritSMobslst = obslstSM, calibcritHEADS = calibcritHEADS, calibcritHEADSobslst = obslstHEADS, calibcritHEADSc = calibcritHEADSc, calibcritHEADScobslst = obslstHEADSc, plt_export_fn = os.path.join(MM_ws_out, '__plt_calibcrit%s.png'% calibcrit), plt_title = 'Calibration criteria between simulated and observed state variables\n%s'%title, calibcrit = calibcrit, calibcritSMmax = calibcritSMmax, calibcritHEADSmax = calibcritHEADSmax, ymin = ymin, units = units, hnoflo = cMF.hnoflo)
 #            except:
