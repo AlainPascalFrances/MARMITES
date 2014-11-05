@@ -1776,6 +1776,12 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                                 obs_S_tmp.append([])
                     else:
                         for l in range(nsl): obs_S_tmp.append([])
+                    VEGarea = []
+                    VEGareaTot = 0.0
+                    for v in range(NVEG):
+                        VEGarea.append(gridVEGarea[v,i,j])
+                        VEGareaTot += gridVEGarea[v,i,j]
+                    SOILarea = 100.0 - VEGareaTot
                     if irr_yn == 0:
                         index_veg = np.ones((NVEG, sum(cMF.perlen)), dtype = float)
                         for v in range(NVEG):
@@ -1987,7 +1993,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
 
                     # plot time series at each obs. cell
                     plt_suptitle = 'Time series of fluxes at observation point %s' % o
-                    plt_title = 'i = %d, j = %d, l_obs = %d, l_highest = %d, x = %.2f, y = %.2f, elev. = %.2f, %s\nSm = %s, Sfc = %s, Sr = %s, Ks = %s, thick. = %.3f %s' % (i+1, j+1, l_obs+1, l_highest+1, obs.get(o)['x'], obs.get(o)['y'], cMF.elev[i,j], soilnam, _Sm[SOILzone_tmp], _Sfc[SOILzone_tmp], _Sr[SOILzone_tmp], _Ks[SOILzone_tmp], gridSOILthick[i,j], Tl)
+                    plt_title = 'i = %d, j = %d, l_obs = %d, l_highest = %d, x = %.2f, y = %.2f, elev. = %.2f, %s\nSm = %s, Sfc = %s, Sr = %s, Ks = %s, thick. = %.3f %s\nfrac. area veg. = %s (veg. name = %s), frac. area veg. tot. = %.1f, frac. area soil = %.1f' % (i+1, j+1, l_obs+1, l_highest+1, obs.get(o)['x'], obs.get(o)['y'], cMF.elev[i,j], soilnam, _Sm[SOILzone_tmp], _Sfc[SOILzone_tmp], _Sr[SOILzone_tmp], _Ks[SOILzone_tmp], gridSOILthick[i,j], Tl, VEGarea, VegName, VEGareaTot, SOILarea)
                     # index_MM = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSsurf':4, 'iRo':5, 'iEXFg':6, 'iEsurf':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSsurf':13, 'iETg':14, 'iETsoil':15, 'iSsoil_pc':16, 'idSsoil':17, 'iinf':18, 'ihcorr':19, 'idgwt':20, 'iuzthick':21}
                     # index_MM_soil = {'iEsoil':0, 'iTsoil':1,'iSsoil_pc':2, 'iRp':3, 'iRexf':4, 'idSsoil':5, 'iSsoil':6, 'iSAT':7, 'iMB_l':8}
                     plt_export_fn = os.path.join(MM_ws_out, '_0%s_ts.png'%o)
