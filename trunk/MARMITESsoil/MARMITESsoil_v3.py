@@ -256,6 +256,8 @@ class clsMMsoil:
                                 Tsoil_tmpZr[l,v] = evp(Ssoil_tmp[l],Sm[l]*Tl[l], Sr[l]*Tl[l], PTc, perlen)
                             Tsoil_tmp[l] += Tsoil_tmpZr[l,v]*VEGarea[v]*0.01
                             PT[v] -= Tsoil_tmpZr[l,v]
+                            if PT[v] < 0.0:
+                               PT[v] = 0.0 
             Ssoil_tmp[l] -= Tsoil_tmp[l]*perlen
 
         for l in range(nsl):
@@ -299,9 +301,7 @@ class clsMMsoil:
                                     kT = kT_max[v]
                             else:
                                 kT = kT_min[v]
-                            Tg_tmp_Zr[l,v] = Tsoil_tmpZr[l,v]*(1.0/kT-1.0)
-                            if Tg_tmp_Zr[l,v] > PT[v]:
-                                Tg_tmp_Zr[l,v] = PT[v]
+                            Tg_tmp_Zr[l,v] = PT[v]*kT
                             PT[v] -= Tg_tmp_Zr[l,v]
                             Tg_tmp += (Tg_tmp_Zr[l,v]*VEGarea[v]*0.01)
         else:
