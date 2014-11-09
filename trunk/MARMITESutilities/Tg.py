@@ -15,101 +15,110 @@ phi = 0.40
 theta_wp = 0.1
 ThickSoil = 1000.0
 PT = 5.0
-kT_min = 0.2  #0.2   #0.01  #
-kT_max = 0.8  #0.8   #0.02  #
+kT_min_lst = [0.2,0.01, 0.95]
+kT_max_lst = [0.8,0.05, 1.00]
+titlesuffix_lst = ['intermediate', 'noTg','riparian']
 kT_n = [0.5,1.0,2.0]
 daynum= 300
 
 # plot parameters (legend)
 lblspc = 0.05
-mkscale = 0.5
+mkscale = 0.25
 handletextpad = 0.25
+borderpad = 0.25
 borderaxespad = 0.5
-fig = plt.figure(figsize=(11.7, 8.27))
+n_x = 0.45
+n_y = 0.60
 
 incr = 0.001
-theta = np.arange(theta_wp,phi, incr)
-ax1=fig.add_subplot(2,2,1)
-plt.setp(ax1.get_xticklabels(), fontsize=8)
-plt.setp(ax1.get_yticklabels(), fontsize=8)
-for l, n in enumerate(kT_n):
-    kT = kT_min+(kT_max-kT_min)*np.power(1-np.power((phi-theta)/(phi - theta_wp),n),1/n)
-    kT[-1] = kT_max
-    ax1.plot(theta, kT, color = 'black')
-    x_lbl = theta_wp + (phi-theta_wp)/2.0
-    y_lbl = kT_min+(kT_max-kT_min)*np.power(1-np.power((phi-x_lbl)/(phi - theta_wp),n),1/n)
-    ax1.annotate('$n = %.1f$' % n, (x_lbl, y_lbl), horizontalalignment='right', verticalalignment='bottom', fontsize = 10, color = 'black')
-plt.grid(True)
-plt.xlim((theta_wp, phi))
-plt.ylim((kT_min,kT_max))
-plt.xlabel(r'$\theta\ (\%)$')
-plt.ylabel(r'$k_T$')
-
-days = np.arange(1,daynum + 1,1)
-Tsoil = np.zeros([2,daynum], float)
-Tg    = np.zeros([2,daynum], float)
-T     = np.zeros([2,daynum], float)
-theta = np.zeros([2,daynum], float)
-for i, n in enumerate([0.5, 2.0]):
-    for d in range(len(days)):
-        if d == 0:
-            theta_tmp = phi*ThickSoil
-        else:
-            theta_tmp = theta[i,d-1]
-        Tsoil[i,d] = PT * (theta_tmp/ThickSoil - theta_wp)/(phi - theta_wp)
-        theta[i,d] = theta_tmp - Tsoil[i,d]
-        kT = kT_min+(kT_max-kT_min)*np.power(1-np.power((phi-theta[i,d]/ThickSoil)/(phi - theta_wp),n),1/n)
-        Tg[i,d] = (PT-Tsoil[i,d])*kT
-        T[i,d] = Tsoil[i,d] + Tg[i,d]
-
-lines = itertools.cycle(['-','--','-.','-'])
-ax2=fig.add_subplot(4,2,2)
-plt.setp(ax2.get_xticklabels(), fontsize=8)
-plt.setp(ax2.get_yticklabels(), fontsize=8)
-plt2_0=ax2.plot(days, T[0], lines.next(), color = 'black', label = r'$T$')
-plt2_1=ax2.plot(days, Tsoil[0], lines.next(), color = 'black', label = r'$T_{soil}$')
-plt2_2=ax2.plot(days, Tg[0], lines.next(), color = 'black', label = r'$T_g$')
-plt.grid(True)
-plt.ylabel(r'$(mm)$')
-plt.ylim((0,PT+0.5))
-ax2a = ax2.twinx()
-plt.setp(ax2a.get_yticklabels(), fontsize=8, color = 'darkgray')
-plt2a = ax2a.plot(days, theta[0]/ThickSoil, lines.next(), color = 'darkgray', label = r'$\theta$')
-plt.ylim((theta_wp,phi+.025))
-plt.ylabel(r'$(\%)$', color = 'darkgray')
-plts =  plt2_0 + plt2_1 + plt2_2 + plt2a
-labs = [l.get_label() for l in plts]
-plt.legend(plts, labs, loc=1, labelspacing=lblspc, markerscale=mkscale, handletextpad = handletextpad, borderaxespad = borderaxespad, ncol = 2, columnspacing = 0.05)
-leg = plt.gca().get_legend()
-ltext  = leg.get_texts()
-plt.setp(ltext, fontsize=10)
-ax2a.text(.15, .85, '$n = 0.5$', horizontalalignment='left', verticalalignment='bottom', transform=ax2a.transAxes, bbox=dict(facecolor='white'), fontsize = 10)
-
-lines = itertools.cycle(['-','--','-.','-'])
-ax3=fig.add_subplot(4,2,4)
-plt.setp(ax3.get_xticklabels(), fontsize=8)
-plt.setp(ax3.get_yticklabels(), fontsize=8)
-plt3_0 = ax3.plot(days, T[1], lines.next(), color = 'black', label = r'$T$')
-plt3_1 = ax3.plot(days, Tsoil[1], lines.next(), color = 'black', label = r'$T_{soil}$')
-plt3_2 = ax3.plot(days, Tg[1], lines.next(), color = 'black', label = r'$T_g$')
-plt.grid(True)
-plt.ylabel(r'$(mm)$')
-plt.xlabel(r'$days$')
-plt.ylim((0,PT+0.5))
-ax3a = ax3.twinx()
-plt.setp(ax3a.get_yticklabels(), fontsize=8, color = 'darkgray')
-plt3a = ax3a.plot(days, theta[1]/ThickSoil, lines.next(), color = 'darkgray', label = r'$\theta$')
-plt.ylim((theta_wp,phi+.025))
-plt.ylabel(r'$(\%)$', color = 'darkgray')
-#plts =  plt3_0 + plt3_1 + plt3_2 + plt3a
-#labs = [l.get_label() for l in plts]
-#plt.legend(plts, labs, loc=1, labelspacing=lblspc, markerscale=mkscale, handletextpad = handletextpad, borderaxespad = borderaxespad, ncol = 2, columnspacing = 0.05)
-#leg = plt.gca().get_legend()
-#ltext  = leg.get_texts()
-#plt.setp(ltext, fontsize=10)
-ax3a.text(.15, .85, '$n = 2.0$', horizontalalignment='left', verticalalignment='bottom', transform=ax3a.transAxes, bbox=dict(facecolor='white'), fontsize = 10)
-
-plt.show()
-img_path = 'kT_function'
-plt.savefig(img_path,dpi=300)
-print 'Plot printed:\n%s' % img_path
+for k, (kT_min, kT_max, titlesuffix) in enumerate(zip(kT_min_lst, kT_max_lst, titlesuffix_lst)):
+    fig = plt.figure(figsize=(11.7, 8.27))
+    ax1=fig.add_subplot(2,2,1)
+    plt.setp(ax1.get_xticklabels(), fontsize=8)
+    plt.setp(ax1.get_yticklabels(), fontsize=8) 
+    theta = np.arange(theta_wp,phi, incr)
+    for l, n in enumerate(kT_n):
+        kT = kT_min+(kT_max-kT_min)*np.power(1-np.power((phi-theta)/(phi - theta_wp),n),1/n)
+        kT[-1] = kT_max
+        ax1.plot(theta, kT, color = 'black')
+        x_lbl = theta_wp + (phi-theta_wp)/2.0
+        y_lbl = kT_min+(kT_max-kT_min)*np.power(1-np.power((phi-x_lbl)/(phi - theta_wp),n),1/n)
+        ax1.annotate('$n = %.1f$' % n, (x_lbl, y_lbl), horizontalalignment='right', verticalalignment='bottom', fontsize = 10, color = 'black')
+    plt.grid(True)
+    plt.xlim((theta_wp, phi))
+    plt.ylim((kT_min,kT_max))
+    plt.xlabel(r'$\theta\ (\%)$')
+    plt.ylabel(r'$k_T$')
+    
+    days = np.arange(1,daynum + 1,1)
+    Tsoil = np.zeros([2,daynum], float)
+    Tg    = np.zeros([2,daynum], float)
+    T     = np.zeros([2,daynum], float)
+    theta = np.zeros([2,daynum], float)
+    PTarray = np.ones([daynum], float)*PT
+    for i, n in enumerate([0.5, 2.0]):
+        for d in range(len(days)):
+            if d == 0:
+                theta_tmp = phi*ThickSoil
+            else:
+                theta_tmp = theta[i,d-1]
+            Tsoil[i,d] = PT * (theta_tmp/ThickSoil - theta_wp)/(phi - theta_wp)
+            theta[i,d] = theta_tmp - Tsoil[i,d]
+            kT = kT_min+(kT_max-kT_min)*np.power(1-np.power((phi-theta[i,d]/ThickSoil)/(phi - theta_wp),n),1/n)
+            Tg[i,d] = (PT-Tsoil[i,d])*kT
+            T[i,d] = Tsoil[i,d] + Tg[i,d]
+    
+    lines = itertools.cycle(['-','--','-.','-'])
+    ax2=fig.add_subplot(4,2,2)
+    plt.setp(ax2.get_xticklabels(), fontsize=8)
+    plt.setp(ax2.get_yticklabels(), fontsize=8)
+    plt2_0=ax2.plot(days, T[0], lines.next(), color = 'black', label = r'$T$')
+    plt2_1=ax2.plot(days, Tsoil[0], lines.next(), color = 'black', label = r'$T_{soil}$')
+    plt2_2=ax2.plot(days, Tg[0], lines.next(), color = 'black', label = r'$T_g$')
+    plt2_3=ax2.plot(days, PTarray, '-', color = 'red', label = r'$PT$')
+    plt.grid(True)
+    plt.ylabel(r'$mm$')
+    plt.ylim((0,PT+0.5))
+    ax2a = ax2.twinx()
+    plt.setp(ax2a.get_yticklabels(), fontsize=8, color = 'darkgray')
+    plt2a = ax2a.plot(days, theta[0]/ThickSoil, lines.next(), color = 'darkgray', label = r'$\theta$')
+    plt.ylim((theta_wp,phi+.025))
+    plt.ylabel(r'$(\%)$', color = 'darkgray')
+    plts =  plt2_3 + plt2_0 + plt2_1 + plt2_2 + plt2a
+    labs = [l.get_label() for l in plts]
+    plt.legend(plts, labs, loc=7, labelspacing=lblspc, markerscale=mkscale, handletextpad = handletextpad, borderaxespad = borderaxespad, borderpad = borderpad, ncol = 3, columnspacing = 0.05)
+    leg = plt.gca().get_legend()
+    ltext  = leg.get_texts()
+    plt.setp(ltext, fontsize=10)
+    ax2a.text(n_x, n_y, '$n = 0.5$', horizontalalignment='right', verticalalignment='center', transform=ax2a.transAxes, bbox=dict(facecolor='white'), fontsize = 10)
+    
+    lines = itertools.cycle(['-','--','-.','-'])
+    ax3=fig.add_subplot(4,2,4)
+    plt.setp(ax3.get_xticklabels(), fontsize=8)
+    plt.setp(ax3.get_yticklabels(), fontsize=8)
+    plt3_0 = ax3.plot(days, T[1], lines.next(), color = 'black', label = r'$T$')
+    plt3_1 = ax3.plot(days, Tsoil[1], lines.next(), color = 'black', label = r'$T_{soil}$')
+    plt3_2 = ax3.plot(days, Tg[1], lines.next(), color = 'black', label = r'$T_g$')
+    plt3_3 = ax3.plot(days, PTarray, '-', color = 'red', label = r'$PT$')
+    plt.grid(True)
+    plt.ylabel(r'$mm$')
+    plt.xlabel(r'$day$')
+    plt.ylim((0,PT+0.5))
+    ax3a = ax3.twinx()
+    plt.setp(ax3a.get_yticklabels(), fontsize=8, color = 'darkgray')
+    plt3a = ax3a.plot(days, theta[1]/ThickSoil, lines.next(), color = 'darkgray', label = r'$\theta$')
+    plt.ylim((theta_wp,phi+.025))
+    plt.ylabel(r'$(\%)$', color = 'darkgray')
+    #plts =  plt3_0 + plt3_1 + plt3_2 + plt3a
+    #labs = [l.get_label() for l in plts]
+    #plt.legend(plts, labs, loc=1, labelspacing=lblspc, markerscale=mkscale, handletextpad = handletextpad, borderaxespad = borderaxespad, ncol = 2, columnspacing = 0.05)
+    #leg = plt.gca().get_legend()
+    #ltext  = leg.get_texts()
+    #plt.setp(ltext, fontsize=10)
+    ax3a.text(n_x, n_y, '$n = 2.0$', horizontalalignment='right', verticalalignment='center', transform=ax3a.transAxes, bbox=dict(facecolor='white'), fontsize = 10)
+    
+    plt.show()
+    img_path = 'kT_function_%s' % titlesuffix
+    plt.savefig(img_path,dpi=300)
+    print 'Plot printed:\n%s' % img_path
+    del fig
