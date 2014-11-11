@@ -1206,13 +1206,13 @@ class clsMF():
         else:
             upw = flopy.modflow.ModflowUpw(model = mfmain, hdry = self.hdry, iphdry = self.iphdry, laytyp = self.laytyp, layavg = self.layavg, chani = self.chani, layvka = self.layvka, laywet = self.laywet, hk = self.hk_actual, vka = self.vka_actual, ss = self.ss_actual, sy = self.sy_actual, extension = self.ext_upw)
             upw.write_file()
-            cb = upw.ilpfcb
+            cb = upw.iupwcb
         # wel package
         if self.wel_yn == 1:
             if layer_row_column_Q != None:
                 if self.iunitramp <> None:
                     options = ['\nSPECIFY 0.05 %d\n' % self.iunitramp] 
-                wel = flopy.modflow.ModflowWel(model = mfmain, iwelcb = cb, layer_row_column_Q = layer_row_column_Q, extension = self.ext_wel, options = options)
+                wel = flopy.modflow.ModflowWel(model = mfmain, iwelcb = cb, layer_row_column_data = layer_row_column_Q, extension = self.ext_wel, options = options)
                 wel.write_file()
                 del layer_row_column_Q
                 if self.iunitramp <> None:
@@ -1223,12 +1223,12 @@ class clsMF():
                     Package.__init__(wel, parent = mfmain, extension = wel.extension, name = class_nam, unit_number = wel.unit_number)  
         # drn package
         if self.drn_yn == 1:
-            drn = flopy.modflow.ModflowDrn(model = mfmain, idrncb = cb, layer_row_column_elevation_cond = self.layer_row_column_elevation_cond, extension = self.ext_drn)
+            drn = flopy.modflow.ModflowDrn(model = mfmain, idrncb = cb, layer_row_column_data = self.layer_row_column_elevation_cond, extension = self.ext_drn)
             drn.write_file()
             del self.layer_row_column_elevation_cond
         # ghb package
         if self.ghb_yn == 1:
-            ghb = flopy.modflow.ModflowGhb(model = mfmain, ighbcb = cb, layer_row_column_head_cond = self.layer_row_column_head_cond, extension = self.ext_ghb)
+            ghb = flopy.modflow.ModflowGhb(model = mfmain, ighbcb = cb, layer_row_column_data = self.layer_row_column_head_cond, extension = self.ext_ghb)
             ghb.write_file()
             del self.layer_row_column_head_cond
         # uzf package
