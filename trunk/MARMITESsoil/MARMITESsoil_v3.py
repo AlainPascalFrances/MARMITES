@@ -598,27 +598,27 @@ class SATFLOW:
                 RC          Saturated recession constant
                 STO         Aquifer Storage capacity
             STATE VARIABLES
-                R           Daily recharge
+                Rg           Daily gross recharge
     OUTPUTS
             h               Daily water level
      _________________________
     """
 
-    def runSATFLOW(self, R, hi, h0, RC, STO):
-        h1 = np.zeros([len(R)], dtype=np.float)
-        h_tmp = (hi*1000.0 + R[0]/STO - hi*1000.0/RC)
+    def runSATFLOW(self, Rg, hi, h0, RC, STO):
+        h1 = np.zeros([len(Rg)], dtype=np.float)
+        h_tmp = (hi*1000.0 + Rg[0]/STO - hi*1000.0/RC)
         h1[0] = h_tmp
-        for t in range(1,len(R)):
-            h_tmp = h1[t-1] + R[t]/STO -h1[t-1]/RC
+        for t in range(1,len(Rg)):
+            h_tmp = h1[t-1] + Rg[t]/STO -h1[t-1]/RC
             h1[t] = h_tmp
 
-        h = np.zeros([len(R)], dtype=np.float)
-        for t in range(0,len(R)):
+        h = np.zeros([len(Rg)], dtype=np.float)
+        for t in range(0,len(Rg)):
             h_tmp = (h1[t] + h0*1000.0)*0.001
             h[t] = h_tmp
 
         return h
-        del R, h1, h_tmp, h
+        del Rg, h1, h_tmp, h
 
 ##################
 if __name__ == "__main__":
