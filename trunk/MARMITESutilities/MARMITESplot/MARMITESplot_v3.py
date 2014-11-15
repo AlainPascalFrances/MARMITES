@@ -172,7 +172,7 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     plt.setp(ax6.get_yticklabels(), fontsize=8)
     plt.bar(cMF.inputDate,flx[flxIndex_lst['iEXFg']], color='lightblue', linewidth=0, align = 'center', label=flxLbl[flxIndex_lst['iEXFg']])
     for l in range(nsl):
-        ax6.plot_date(cMF.inputDate, flx[flxIndex_lst['iRp_l%d'%(l+1)]], '-', color=colors_nsl.next(), label=flxLbl[flxIndex_lst['iRp_l%d'%(l+1)]])
+        ax6.plot_date(cMF.inputDate, flx[flxIndex_lst['iRsoil_l%d'%(l+1)]], '-', color=colors_nsl.next(), label=flxLbl[flxIndex_lst['iRsoil_l%d'%(l+1)]])
     plt.plot_date(cMF.inputDate,flx[flxIndex_lst['iRg']],'-', c='darkblue', linewidth=2, label=flxLbl[flxIndex_lst['iRg']])
     if cMF.wel_yn == 1:
         plt.plot_date(cMF.inputDate,flx[flxIndex_lst['iETg']],'-', c='blue', linewidth=1.5, label=flxLbl[flxIndex_lst['iETg']])
@@ -712,7 +712,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
         obs_Ro = obs_catch.get('catch')['obs_Ro']
         Roobs_m = np.ma.masked_values(obs_Ro[0], cMF.hnoflo, atol = 0.09)
         plt.plot_date(cMF.inputDate, Roobs_m, markerfacecolor = 'None', marker='o', markeredgecolor = 'lightblue', markersize=2, label = r'$Ro \ obs$')
-        print '-------\nRMSE/RSR/NSE/r of obs. at the catch. scale'
+        print 'RMSE/RSR/NSE/r of obs. at the catch. scale'
         rmse, rsr, nse, r = cMF.cPROCESS.compCalibCrit(flx[flxIndex_lst['iRo']],obs_Ro[0], cMF.hnoflo)
         rmseRo = [rmse]
         rsrRo = [rsr]
@@ -795,7 +795,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
     plt.setp(ax5.get_xticklabels(), fontsize=8)
     plt.setp(ax5.get_yticklabels(), fontsize=8)
     # Rp / inf
-    ax5.plot_date(cMF.inputDate, flx[flxIndex_lst['iinf']], '-', color = 'brown', label= flxLbl[flxIndex_lst['iRp_l']])
+    ax5.plot_date(cMF.inputDate, flx[flxIndex_lst['iinf']], '-', color = 'brown', label= flxLbl[flxIndex_lst['iRsoil_l']])
     if cMF != None:
         # Rg
         plt.plot_date(cMF.inputDate,flx[flxIndex_lst['iRg']],'-', c='darkblue', linewidth=2, label = flxLbl[flxIndex_lst['iRg']])
@@ -1368,12 +1368,12 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
             # MMsoil
             if EXFtotMM[k] > treshold:
                 flows = [RFe[k]/ff, -Rp[k]/ff, -Esoil[k]/ff, -Tsoil[k]/ff, EXFtotMM[k]/ff, -Ro[k]/ff]
-                labels = [None,'$Rp$','$E_{soil}$','$T_{soil}$','$Exf_g$','$Ro$']
+                labels = [None,'$R_p$','$E_{soil}$','$T_{soil}$','$Exf_g$','$Ro$']
                 orientations = [1,-1,1,1,-1,1]
                 pathlengths = [pl, pl, pl, pl, pl, pl]
             else:
                 flows = [RFe[k]/ff, -Rp[k]/ff, -Esoil[k]/ff, -Tsoil[k]/ff, -Ro[k]/ff]
-                labels = [None,'$Rp$','$E_{soil}$','$T_{soil}$','$Ro$']
+                labels = [None,'$R_p$','$E_{soil}$','$T_{soil}$','$Ro$']
                 orientations = [1,-1,1,1,1]
                 pathlengths = [pl, pl, pl, pl, pl]
             pltsankey.add(patchlabel = '$\Delta S_{soil}$\n%.1f' % (dSsoil[k]/ff), label='MMsoil', facecolor='khaki', trunklength = tl,
@@ -1403,7 +1403,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                     labels.append('$Rg^{L%d}$'%(L+1))
                     orientations.append(-1)
                     pathlengths.append(pl)
-            pltsankey.add(patchlabel = '$\Delta S_u$\n%.1f' % (dSu[k]/ff), label='MF_UZF', facecolor='lavender', trunklength = tl,
+            pltsankey.add(patchlabel = '$\Delta S_p$\n%.1f' % (dSu[k]/ff), label='MF_UZF', facecolor='lavender', trunklength = tl,
                        flows = flows,
                        labels=labels,
                        orientations=orientations,

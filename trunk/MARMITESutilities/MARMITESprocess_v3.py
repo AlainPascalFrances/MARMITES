@@ -721,7 +721,7 @@ class clsPROCESS:
             except:
                 Sobs_m.append([])
         if testSM > 0 or hobs <> []:
-            print '-------\nRMSE/RSR/NSE/r [%s]' % obs_name
+            print 'RMSE/RSR/NSE/r'
             if testSM > 0:
                 rmseSM = []
                 rsrSM = []

@@ -578,7 +578,7 @@ botm_l0 = np.asarray(cMF.botm)[0,:,:]
 h5_MM_fn = os.path.join(MM_ws,'_h5_MM.h5')
 # indexes of the HDF5 output arrays
 index_MM = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSsurf':4, 'iRo':5, 'iEXFg':6, 'iEsurf':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSsurf':13, 'iETg':14, 'iETsoil':15, 'iSsoil_pc':16, 'idSsoil':17, 'iinf':18, 'ihcorr':19, 'idgwt':20, 'iuzthick':21}
-index_MM_soil = {'iEsoil_l':0, 'iTsoil_l':1,'iSsoil_pc_l':2, 'iRp_l':3, 'iEXFg_l':4, 'idSsoil_l':5, 'iSsoil_l':6, 'iSAT_l':7, 'iMB_l':8}
+index_MM_soil = {'iEsoil_l':0, 'iTsoil_l':1,'iSsoil_pc_l':2, 'iRsoil_l':3, 'iEXFg_l':4, 'idSsoil_l':5, 'iSsoil_l':6, 'iSAT_l':7, 'iMB_l':8}
 
 # READ observations time series (heads and soil moisture)
 print "\nReading observations time series (hydraulic heads and soil moisture)..."
@@ -1405,9 +1405,9 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
     obslstHEADSc = []    
     # indexes of the HDF5 output arrays
     # index_MM = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSsurf':4, 'iRo':5, 'iEXFg':6, 'iEsurf':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSsurf':13, 'iETg':14, 'iETsoil':15, 'iSsoil_pc':16, 'idSsoil':17, 'iinf':18, 'ihcorr':19, 'idgwt':20, 'iuzthick':21}
-    # index_MM_soil = {'iEsoil_l':0, 'iTsoil_l':1,'iSsoil_pc_l':2, 'iRp_l':3, 'iEXFg_l':4, 'idSsoil_l':5, 'iSsoil_l':6, 'iSAT_l':7, 'iMB_l':8}
+    # index_MM_soil = {'iEsoil_l':0, 'iTsoil_l':1,'iSsoil_pc_l':2, 'iRsoil_l':3, 'iEXFg_l':4, 'idSsoil_l':5, 'iSsoil_l':6, 'iSAT_l':7, 'iMB_l':8}
     #    # TODO Ro sould not be averaged by ncell_MM, as well as EXF
-    print '\nExporting output ASCII files, time series plots and water balance sankey plots of water fluxes at the catchment scale...'
+    print '\nExporting output ASCII files, time series plots and water balance sankey plots of water fluxes at the catchment scale...-------'
     flxCatch_lst   = []
     flxmax_d     = []
     flxmin_d     = []
@@ -1417,7 +1417,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
     # MM
     flx_lst = []
     for e in sorted(index_MM, key=index_MM.get): flx_lst.append(e)
-    flxLbl_lst = [r'$RF$', r'$PT$', r'$PE$', r'$RFe$', r'$S_{surf}$', r'$Ro$', r'$Exf_g$', r'$E_{surf}$',  r'$MB_{soil}$', r'$I$',  r'$E_0$', r'$E_g$', r'$T_g$', r'$\Delta S_{surf}$', r'$ET_g$', r'$ET_{soil}$', r'$\theta$', r'\Delta S_{soil}', r'$inf$', r'$h \ corr$', '$d$', r'$thick_u}$']    
+    flxLbl_lst = [r'$RF$', r'$PT$', r'$PE$', r'$RFe$', r'$S_{surf}$', r'$Ro$', r'$Exf_g$', r'$E_{surf}$',  r'$MB_{soil}$', r'$I$',  r'$E_0$', r'$E_g$', r'$T_g$', r'$\Delta S_{surf}$', r'$ET_g$', r'$ET_{soil}$', r'$\theta$', r'\Delta S_{soil}', r'$inf$', r'$h \ corr$', '$d$', r'$thick_p}$']    
     for z, (i, i_tex) in enumerate(zip(flx_lst, flxLbl_lst)):
         flxIndex_lst[i] = count
         count += 1
@@ -1432,7 +1432,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
     # MM_S
     flx_lst = []
     for e in sorted(index_MM_soil, key=index_MM_soil.get): flx_lst.append(e)
-    for z, (i, i_tex) in enumerate(zip(flx_lst, [r'$E_{soil}$', r'$T_{soil}$', r'$\\theta$', r'$Rp$', r'$Exf_g$', r'$\Delta S_{soil}$', r'$S_{soil}$', r'$SAT$', r'$MB_{soil}$'])):
+    for z, (i, i_tex) in enumerate(zip(flx_lst, [r'$E_{soil}$', r'$T_{soil}$', r'$\\theta$', r'$R_p$', r'$Exf_g$', r'$\Delta S_{soil}$', r'$S_{soil}$', r'$SAT$', r'$MB_{soil}$'])):
         flxLbl_lst.append(i_tex)
         flxIndex_lst[i] = count
         count += 1
@@ -1736,6 +1736,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
         for o_ref in obs_list:
             for o in obs.keys():
                 if o == o_ref:
+                    print '-------\nObs. point [%s]' % o
                     flxObs_lst = []
                     i = obs.get(o)['i']
                     j = obs.get(o)['j']
@@ -1804,23 +1805,23 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                     # index_MM = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSsurf':4, 'iRo':5, 'iEXFg':6, 'iEsurf':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSsurf':13, 'iETg':14, 'iETsoil':15, 'iSsoil_pc':16, 'idSsoil':17, 'iinf':18, 'ihcorr':19, 'idgwt':20, 'iuzthick':21}
                     flx_lst = []
                     for e in sorted(index_MM, key=index_MM.get): flx_lst.append(e)
-                    flxLbl_lst = [r'$RF$', r'$PT$', r'$PE$', r'$RFe$', r'$S_{surf}$', r'$Ro$', r'$Exf_g$', r'$E_{surf}$',  r'$MB_{soil}$', r'$I$',  r'$E_0$', r'$E_g$', r'$T_g$', r'$\Delta S_{surf}$', r'$ET_g$', r'$ET_{soil}$', r'$\theta$', r'\Delta S_{soil}', r'$inf$', r'$h \ corr$', '$d$', r'$thick_u}$']    
+                    flxLbl_lst = [r'$RF$', r'$PT$', r'$PE$', r'$RFe$', r'$S_{surf}$', r'$Ro$', r'$Exf_g$', r'$E_{surf}$',  r'$MB_{soil}$', r'$I$',  r'$E_0$', r'$E_g$', r'$T_g$', r'$\Delta S_{surf}$', r'$ET_g$', r'$ET_{soil}$', r'$\theta$', r'\Delta S_{soil}', r'$inf$', r'$h \ corr$', '$d$', r'$thick_p}$']    
                     for ii in flx_lst:              
                         flxObs_lst.append((MM[:,index_MM.get(ii)]))
                         flxIndex_lst[ii] = count
                         count += 1
                     # flx from MM_S
                     # whole soil reservoir
-                    # index_MM_soil = {'iEsoil_l':0, 'iTsoil_l':1,'iSsoil_pc_l':2, 'iRp_l':3, 'iEXFg_l':4, 'idSsoil_l':5, 'iSsoil_l':6, 'iSAT_l':7, 'iMB_l':8} 
+                    # index_MM_soil = {'iEsoil_l':0, 'iTsoil_l':1,'iSsoil_pc_l':2, 'iRsoil_l':3, 'iEXFg_l':4, 'idSsoil_l':5, 'iSsoil_l':6, 'iSAT_l':7, 'iMB_l':8} 
                     flx_lst = []
                     for e in sorted(index_MM_soil, key=index_MM_soil.get): flx_lst.append(e)
-                    for z, (ii, ii_tex) in enumerate(zip(flx_lst, [r'E_{soil}', 'T_{soil}', '\\theta', 'Rp', 'Exf_g','\Delta S_{soil}', 'S_{soil}', 'SAT', 'MB_{soil}'])):
+                    for z, (ii, ii_tex) in enumerate(zip(flx_lst, [r'E_{soil}', 'T_{soil}', '\\theta', 'R_p', 'Exf_g','\Delta S_{soil}', 'S_{soil}', 'SAT', 'MB_{soil}'])):
                         flxLbl_lst.append(r'$%s$'%ii_tex)
                         flxObs_lst.append((np.sum(np.ma.masked_values(MM_S[:,:,index_MM_soil.get(ii)], cMF.hnoflo, atol = 0.09), axis = 1)))
                         flxIndex_lst[ii] = count
                         count += 1
                     # each layer of soil reservoir
-                    for z, (ii, ii_tex) in enumerate(zip(flx_lst, [r'E_{soil}', 'T_{soil}', '\\theta', 'Rp', 'Exf_g','\Delta \\theta', 'S_{soil}', 'SAT', 'MB_{soil}'])):
+                    for z, (ii, ii_tex) in enumerate(zip(flx_lst, [r'E_{soil}', 'T_{soil}', '\\theta', 'R_{soil}', 'Exf_g','\Delta \\theta', 'S_{soil}', 'SAT', 'MB_{soil}'])):
                         for l in range(nsl):
                             flxLbl_lst.append(r'$%s^{l%d}$'%(ii_tex,l+1))
                             flxObs_lst.append(np.ma.masked_values(MM_S[:,l,index_MM_soil.get(ii)], cMF.hnoflo, atol = 0.09))
@@ -1899,7 +1900,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                     flxIndex_lst['iRg'] = count
                     count += 1
                     # STO UZF
-                    flxLbl_lst.append(r'$inf_u$')
+                    flxLbl_lst.append(r'$inf_p$')
                     flxObs_lst.append(conv_fact*h5_MM['finf_d'][:,i,j])
                     flxIndex_lst['iinf'] = count
                     count += 1
@@ -1995,11 +1996,11 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                     plt_suptitle = 'Time series of fluxes at observation point %s' % o
                     plt_title = 'i = %d, j = %d, l_obs = %d, l_highest = %d, x = %.2f, y = %.2f, elev. = %.2f, %s\nSm = %s, Sfc = %s, Sr = %s, Ks = %s, thick. = %.3f %s\nfrac. area veg. = %s (veg. name = %s)\nfrac. area veg. tot. = %.1f, frac. area soil = %.1f' % (i+1, j+1, l_obs+1, l_highest+1, obs.get(o)['x'], obs.get(o)['y'], cMF.elev[i,j], soilnam, _Sm[SOILzone_tmp], _Sfc[SOILzone_tmp], _Sr[SOILzone_tmp], _Ks[SOILzone_tmp], gridSOILthick[i,j], Tl, VEGarea, VegName, VEGareaTot, SOILarea)
                     # index_MM = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSsurf':4, 'iRo':5, 'iEXFg':6, 'iEsurf':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSsurf':13, 'iETg':14, 'iETsoil':15, 'iSsoil_pc':16, 'idSsoil':17, 'iinf':18, 'ihcorr':19, 'idgwt':20, 'iuzthick':21}
-                    # index_MM_soil = {'iEsoil':0, 'iTsoil':1,'iSsoil_pc':2, 'iRp':3, 'iRexf':4, 'idSsoil':5, 'iSsoil':6, 'iSAT':7, 'iMB_l':8}
+                    # index_MM_soil = {'iEsoil':0, 'iTsoil':1,'iSsoil_pc':2, 'iRsoil':3, 'iRexf':4, 'idSsoil':5, 'iSsoil':6, 'iSAT':7, 'iMB_l':8}
                     plt_export_fn = os.path.join(MM_ws_out, '_0%s_ts.png'%o)
                     # def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, EXF, ETg, Es, MB, MB_l, dgwt, SAT, Rg, h_MF, h_MF_corr, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin):
-                    try:
-                        MMplot.plotTIMESERIES(cMF, i, j, flxObs_lst, flxLbl_lst, flxIndex_lst,
+#                    try:
+                    MMplot.plotTIMESERIES(cMF, i, j, flxObs_lst, flxLbl_lst, flxIndex_lst,
                                     _Sm[gridSOIL[i,j]-1], _Sr[gridSOIL[i,j]-1],
                                     plt_export_fn, plt_suptitle, plt_title,
                                     clr_lst,
@@ -2007,19 +2008,21 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                                     o, l_obs, nsl,
                                     iniMonthHydroYear, date_ini = StartDate, date_end = EndDate
                                     )
-                    except:
-                        print '-------\nError in plotting MM fluxes time series at obs. point %s' % o
+                    print 'TS plot done!'
+#                    except:
+#                        print 'TS plot error!'
                    # plot GW flux time series at each obs. cell
                     try:
                         MMplot.plotTIMESERIES_flxGW(cMF, flxObs_lst, flxLbl_lst, flxIndex_lst, plt_export_fn, plt_suptitle, iniMonthHydroYear = iniMonthHydroYear, date_ini = StartDate, date_end = EndDate)  
                     except:
-                       print '-------\nError in plotting MF GW fluxes time series at obs. point %s' % o
+                       print 'TS GW error!'
                     # plot water balance at each obs. cell
                     if WBsankey_yn == 1:
                         try:
-                            MMplot.plotWBsankey(MM_ws_out, cMF.inputDate , flxObs_lst, flxIndex_lst, fn = plt_export_txt_fn.split('\\')[-1], indexTime = HYindex, year_lst = year_lst, cMF = cMF, ncell_MM = ncell_MM, obspt = 'obs. pt. %s'%o, fntitle = '0%s'%o, ibound4Sankey = cMF.ibound[:,i,j], stdout = stdout, report = report)  
+                            MMplot.plotWBsankey(MM_ws_out, cMF.inputDate , flxObs_lst, flxIndex_lst, fn = plt_export_txt_fn.split('\\')[-1], indexTime = HYindex, year_lst = year_lst, cMF = cMF, ncell_MM = ncell_MM, obspt = 'obs. pt. %s'%o, fntitle = '0%s'%o, ibound4Sankey = cMF.ibound[:,i,j], stdout = stdout, report = report)
+                            print 'WB Sankey plot done!'
                         except:
-                           print '-------\nError in plotting water balance at obs. point %s' % o
+                           print 'WB Sankey plot error!'
                            
                     # CALIBRATION CRITERIA
                     # RMSE, RSR, Nash-Sutcliffe efficiency NSE, Pearson's correlation coefficient r
@@ -2057,10 +2060,10 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                         obslstSM.append(o)
                     del rmseHEADS_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrSM_tmp, nseHEADS_tmp, nseSM_tmp, rHEADS_tmp, rSM_tmp, h_MF, MM_S
         for cc, (calibcritSM, calibcritHEADS, calibcritHEADSc, calibcrit, title, calibcritSMmax, calibcritHEADSmax, ymin, units) in enumerate(zip([rmseSM, rsrSM, nseSM, rSM], [rmseHEADS, rsrHEADS, nseHEADS, rHEADS], [rmseHEADSc, rsrHEADSc, nseHEADSc, rHEADSc], ['RMSE', 'RSR', 'NSE', 'r'], ['Root mean square error', 'Root mean square error - observations standard deviation ratio', 'Nash-Sutcliffe efficiency', "Pearson's correlation coefficient"], [rmseSMmax, None, 1.0, 1.0], [rmseHEADSmax, None, 1.0, 1.0], [0, 0, None, -1.0], [['(m)', '(%wc)'], ['',''], ['',''], ['','']])):
-#            try:
-            MMplot.plotCALIBCRIT(calibcritSM = calibcritSM, calibcritSMobslst = obslstSM, calibcritHEADS = calibcritHEADS, calibcritHEADSobslst = obslstHEADS, calibcritHEADSc = calibcritHEADSc, calibcritHEADScobslst = obslstHEADSc, plt_export_fn = os.path.join(MM_ws_out, '__plt_calibcrit%s.png'% calibcrit), plt_title = 'Calibration criteria between simulated and observed state variables\n%s'%title, calibcrit = calibcrit, calibcritSMmax = calibcritSMmax, calibcritHEADSmax = calibcritHEADSmax, ymin = ymin, units = units, hnoflo = cMF.hnoflo)
-#            except:
-#                print '-------\nError in exporting %s at obs. pt. %s' % (calibcrit, obs_list[cc])
+            try:
+                MMplot.plotCALIBCRIT(calibcritSM = calibcritSM, calibcritSMobslst = obslstSM, calibcritHEADS = calibcritHEADS, calibcritHEADSobslst = obslstHEADS, calibcritHEADSc = calibcritHEADSc, calibcritHEADScobslst = obslstHEADSc, plt_export_fn = os.path.join(MM_ws_out, '__plt_calibcrit%s.png'% calibcrit), plt_title = 'Calibration criteria between simulated and observed state variables\n%s'%title, calibcrit = calibcrit, calibcritSMmax = calibcritSMmax, calibcritHEADSmax = calibcritHEADSmax, ymin = ymin, units = units, hnoflo = cMF.hnoflo)
+            except:
+                print '-------\nError in exporting %s at obs. pt. %s' % (calibcrit, obs_list[cc])
         if len(obslstHEADS)> 0 or len(obslstSM) > 0:
             print '-------\nRMSE/RSR/NSE/r averages of the obs. pts. (except catch.)'
             try:
@@ -2471,7 +2474,7 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
         # ####   PERCOLATION   #########
         # ##############################
         i = 'Rp'
-        i_lbl = r'$Rp$'
+        i_lbl = r'$R_p$'
         # ############################################
         # plot average of all hydrologic years
         # ############################################

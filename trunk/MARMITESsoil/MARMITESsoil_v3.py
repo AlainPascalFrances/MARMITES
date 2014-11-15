@@ -560,13 +560,13 @@ class clsMMsoil:
                             for l in range(nsl):
                                 MM_S[:,i,j,l,k] = MM_S_tmp[l,k]
                         # # Volumetric recharge rate UZF1 package
-                        MM_finf_MF[i,j] = MM_S_tmp[nsl-1,index_S.get('iRp_l')]/conv_fact
+                        MM_finf_MF[i,j] = MM_S_tmp[nsl-1,index_S.get('iRsoil_l')]/conv_fact
                         # Volumetric recharge rate WEL package
                         MM_wel_MF[i,j] = MM_tmp[index.get('iETg')]/conv_fact
                         del MM_tmp, MM_S_tmp
                         # setting initial conditions for the next SP
                         Ssoil_ini_tmp_array[i,j,:]  = MM_S[cMF.perlen[n]-1,i,j,:,index_S.get('iSsoil_l')]
-                        Rp_ini_tmp_array[i,j,:]     = MM_S[cMF.perlen[n]-1,i,j,:,index_S.get('iRp_l')]
+                        Rp_ini_tmp_array[i,j,:]     = MM_S[cMF.perlen[n]-1,i,j,:,index_S.get('iRsoil_l')]
                         Ssurf_ini_tmp_array[i,j]    = MM[cMF.perlen[n]-1,i,j,index.get('iSsurf')]
                     else:
                         if cMF.perlen[n]>1:
