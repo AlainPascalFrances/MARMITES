@@ -872,8 +872,10 @@ if MMsoil_yn != 0:
     try:
         h5_MM = h5py.File(h5_MM_fn, 'w')
     except:
-        h5_MM.close()
-        os.remove(h5_MM_fn)
+        try:
+            h5_MM.close()
+        except:
+            pass
         h5_MM = h5py.File(h5_MM_fn, 'w')
         print "WARNING! Previous h5_MM file corrupted!\nDeleted, new one created."
     # arrays for fluxes independent of the soil layering

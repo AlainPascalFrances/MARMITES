@@ -263,10 +263,7 @@ class clsMMsoil:
         for l in range(nsl):
             Ssoil_pc_tmp[l] = Ssoil_tmp[l]/Tl[l]
             
-        if type(cMF.sy_actual[0]) == float:
-            sy_tmp = cMF.sy_actual[cMF.outcropL[i,j]-1]
-        else:
-            sy_tmp = cMF.sy_actual[cMF.outcropL[i,j]-1][i][j]
+        sy_tmp = cMF.cPROCESS.float2array(cMF.sy_actual)[cMF.outcropL[i,j]-1,i,j]
         # GW evaporation Eg, equation 17 of Shah et al 2007, see ref in the __init__
         if cMF.wel_yn == 1:
             if Ssurf_tmp == 0.0:
@@ -329,6 +326,8 @@ class clsMMsoil:
 #                    print 'veg%d: root too short!' % v
         else:
             Tg_tmp = 0.0
+        
+        del sy_tmp
     
         return Esurf_tmp, Ssurf_tmp, Ro_tmp, Rp_tmp, Esoil_tmp, Tsoil_tmp, Ssoil_tmp, Ssoil_pc_tmp, Eg_tmp, Tg_tmp, HEADS_corr, dgwt_corr, SAT, Rexf_tmp
 
