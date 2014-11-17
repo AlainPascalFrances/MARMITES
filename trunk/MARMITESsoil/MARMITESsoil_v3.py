@@ -276,6 +276,8 @@ class clsMMsoil:
                         Eg_tmp = PE*1.0
                     elif dgwt_corr < ext_d:
                         Eg_tmp = PE*(y0 + np.exp(-b*(dgwt_corr-dll)))
+                        dgwt_corr += Eg_tmp/cMF.sy_actual[cMF.outcropL[i,j]-1][i][j]
+                        HEADS_corr -= Eg_tmp/cMF.sy_actual[cMF.outcropL[i,j]-1][i][j]
                     else:
                         Eg_tmp = 0.0
                     dgwt_corr *= 10.0
@@ -290,20 +292,37 @@ class clsMMsoil:
         Tg_tmp_Zr = np.zeros([nsl, len(Zr_elev)])
         Tg_tmp = 0.0
         if cMF.wel_yn == 1:
-            for v in range(NVEG):
-                if HEADS_corr > Zr_elev[v]:
+            order = np.asarray(Zr_elev).flatten().argsort()
+#            print 'Zr_elev', Zr_elev, np.array(Zr_elev)[order]
+#            print 'NVEG', range(NVEG), np.array(range(NVEG))[order]
+#            print 'kT_max', kT_max, np.array(kT_max)[order]
+            for jj, (Zr_elev_, v, kT_min_, kT_max_, kT_n_) in enumerate(zip(np.array(Zr_elev)[order],np.array(range(NVEG))[order], np.array(kT_min)[order], np.array(kT_max)[order], np.array(kT_n)[order])):
+                #print '----'
+                if HEADS_corr > Zr_elev_:
                     for l in range(nsl):
-                        if Ssoil_pc_tmp[l] != self.hnoflo:
+                        #print 'veg%d, soil layer %d' %(v,l)
+                        if Ssoil_pc_tmp[l] != cMF.hnoflo:
                             if Ssoil_pc_tmp[l] >= Sr[l]:
                                 if Ssoil_pc_tmp[l] <= Sm[l]:
-                                    kT = kT_min[v]+(kT_max[v]-kT_min[v])*np.power(1-np.power(np.abs(Ssoil_pc_tmp[l]-Sm[l])/(Sm[l]-Sr[l]),kT_n[v]),1/kT_n[v])
+                                    kT = kT_min_+(kT_max_-kT_min_)*np.power(1-np.power(np.abs(Ssoil_pc_tmp[l]-Sm[l])/(Sm[l]-Sr[l]),kT_n_),1/kT_n_)
                                 else:
-                                    kT = kT_max[v]
+                                    kT = kT_max_
                             else:
-                                kT = kT_min[v]
+                                kT = kT_min_
                             Tg_tmp_Zr[l,v] = PT[v]*kT
                             PT[v] -= Tg_tmp_Zr[l,v]
-                            Tg_tmp += (Tg_tmp_Zr[l,v]*VEGarea[v]*0.01)
+                            Tg_tmp1 = (Tg_tmp_Zr[l,v]*VEGarea[v]*0.01)
+                            if Tg_tmp1 > 1E-6 and (HEADS_corr-Tg_tmp1/cMF.sy_actual[cMF.outcropL[i,j]-1][i][j]) < Zr_elev_:
+                                print 'WARNING at cell [i=%d,j=%d,L=%d] with NVEG = %d\nTg = %.2f, HEADS_corr = %.2f, dgwt_corr= %.2f, Zr_elev = %.2f, Sy = %.3f' % (i+1,j+1,cMF.outcropL[i,j], v, Tg_tmp1, HEADS_corr, dgwt_corr, Zr_elev_, cMF.sy_actual[cMF.outcropL[i,j]-1][i][j])
+                                Tg_tmp1 = (HEADS_corr - Zr_elev[v])*cMF.sy_actual[cMF.outcropL[i,j]-1][i][j]
+                                print 'New Tg = %.2f mm' % Tg_tmp1
+#                            else:                        
+#                                print 'Tg veg%d = %.2f mm' %(v,Tg_tmp1)
+                            Tg_tmp += Tg_tmp1
+                            dgwt_corr += Tg_tmp1/cMF.sy_actual[cMF.outcropL[i,j]-1][i][j]
+                            HEADS_corr -= Tg_tmp1/cMF.sy_actual[cMF.outcropL[i,j]-1][i][j]                                                
+#                else:
+#                    print 'veg%d: root too short!' % v
         else:
             Tg_tmp = 0.0
     
