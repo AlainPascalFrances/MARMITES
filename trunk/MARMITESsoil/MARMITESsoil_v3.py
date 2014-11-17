@@ -262,7 +262,11 @@ class clsMMsoil:
 
         for l in range(nsl):
             Ssoil_pc_tmp[l] = Ssoil_tmp[l]/Tl[l]
-
+            
+        if type(cMF.sy_actual[0]) == float:
+            sy_tmp = cMF.sy_actual[cMF.outcropL[i,j]-1]
+        else:
+            sy_tmp = cMF.sy_actual[cMF.outcropL[i,j]-1][i][j]
         # GW evaporation Eg, equation 17 of Shah et al 2007, see ref in the __init__
         if cMF.wel_yn == 1:
             if Ssurf_tmp == 0.0:
@@ -276,8 +280,8 @@ class clsMMsoil:
                         Eg_tmp = PE*1.0
                     elif dgwt_corr < ext_d:
                         Eg_tmp = PE*(y0 + np.exp(-b*(dgwt_corr-dll)))
-                        dgwt_corr += Eg_tmp/cMF.sy_actual[cMF.outcropL[i,j]-1][i][j]
-                        HEADS_corr -= Eg_tmp/cMF.sy_actual[cMF.outcropL[i,j]-1][i][j]
+                        dgwt_corr += Eg_tmp/sy_tmp
+                        HEADS_corr -= Eg_tmp/sy_tmp
                     else:
                         Eg_tmp = 0.0
                     dgwt_corr *= 10.0
@@ -312,15 +316,15 @@ class clsMMsoil:
                             Tg_tmp_Zr[l,v] = PT[v]*kT
                             PT[v] -= Tg_tmp_Zr[l,v]
                             Tg_tmp1 = (Tg_tmp_Zr[l,v]*VEGarea[v]*0.01)
-                            if Tg_tmp1 > 1E-6 and (HEADS_corr-Tg_tmp1/cMF.sy_actual[cMF.outcropL[i,j]-1][i][j]) < Zr_elev_:
-                                print 'WARNING at cell [i=%d,j=%d,L=%d] with NVEG = %d\nTg = %.2f, HEADS_corr = %.2f, dgwt_corr= %.2f, Zr_elev = %.2f, Sy = %.3f' % (i+1,j+1,cMF.outcropL[i,j], v, Tg_tmp1, HEADS_corr, dgwt_corr, Zr_elev_, cMF.sy_actual[cMF.outcropL[i,j]-1][i][j])
-                                Tg_tmp1 = (HEADS_corr - Zr_elev[v])*cMF.sy_actual[cMF.outcropL[i,j]-1][i][j]
-                                print 'New Tg = %.2f mm' % Tg_tmp1
+                            if Tg_tmp1 > 1E-6 and (HEADS_corr-Tg_tmp1/sy_tmp) < Zr_elev_:
+                                #print 'WARNING at cell [i=%d,j=%d,L=%d] with NVEG = %d\nTg = %.2f, HEADS_corr = %.2f, dgwt_corr= %.2f, Zr_elev = %.2f, Sy = %.3f' % (i+1,j+1,cMF.outcropL[i,j], v, Tg_tmp1, HEADS_corr, dgwt_corr, Zr_elev_, sy_tmp)
+                                Tg_tmp1 = (HEADS_corr - Zr_elev[v])*sy_tmp
+                                #print 'New Tg = %.2f mm' % Tg_tmp1
 #                            else:                        
 #                                print 'Tg veg%d = %.2f mm' %(v,Tg_tmp1)
                             Tg_tmp += Tg_tmp1
-                            dgwt_corr += Tg_tmp1/cMF.sy_actual[cMF.outcropL[i,j]-1][i][j]
-                            HEADS_corr -= Tg_tmp1/cMF.sy_actual[cMF.outcropL[i,j]-1][i][j]                                                
+                            dgwt_corr += Tg_tmp1/sy_tmp
+                            HEADS_corr -= Tg_tmp1/sy_tmp                                           
 #                else:
 #                    print 'veg%d: root too short!' % v
         else:
