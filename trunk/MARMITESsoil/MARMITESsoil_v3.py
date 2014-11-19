@@ -264,24 +264,29 @@ class clsMMsoil:
             Ssoil_pc_tmp[l] = Ssoil_tmp[l]/Tl[l]
             
         sy_tmp = cMF.cPROCESS.float2array(cMF.sy_actual)[cMF.outcropL[i,j]-1,i,j]
+        dgwt_corr_tmp = dgwt_corr*1.0
+        HEADS_corr_tmp = HEADS_corr
         # GW evaporation Eg, equation 17 of Shah et al 2007, see ref in the __init__
         if cMF.wel_yn == 1:
             if Ssurf_tmp == 0.0:
                 if PE > 0.0:
-                    dgwt_corr *= 0.1
+                    dgwt_corr_tmp *= 0.1
                     y0    = self.paramEg[st]['y0']
                     b     = self.paramEg[st]['b']
                     dll   = self.paramEg[st]['dll']
                     ext_d = self.paramEg[st]['ext_d']
-                    if dgwt_corr <= dll:
+                    #print 'dgwt_corr_tmp %.2f, dll %.2f, ext_d %.2f' % (dgwt_corr_tmp, dll, ext_d)
+                    if dgwt_corr_tmp <= dll:
                         Eg_tmp = PE*1.0
-                    elif dgwt_corr < ext_d:
-                        Eg_tmp = PE*(y0 + np.exp(-b*(dgwt_corr-dll)))
-                        dgwt_corr += Eg_tmp/sy_tmp
-                        HEADS_corr -= Eg_tmp/sy_tmp
+                    elif dgwt_corr_tmp < ext_d:
+                        Eg_tmp = PE*(y0 + np.exp(-b*(dgwt_corr_tmp-dll)))
+                        dgwt_corr_tmp += Eg_tmp/sy_tmp
+                        HEADS_corr_tmp -= Eg_tmp/sy_tmp
                     else:
                         Eg_tmp = 0.0
-                    dgwt_corr *= 10.0
+                    #print 'new dgwt_corr_tmp %.2f, Eg_tmp %.2f, PE %.2f' %(dgwt_corr_tmp, Eg_tmp, PE)
+                    #print '------'
+                    dgwt_corr_tmp *= 10.0
                 else:
                     Eg_tmp = 0.0
             else:
@@ -299,7 +304,7 @@ class clsMMsoil:
 #            print 'kT_max', kT_max, np.array(kT_max)[order]
             for jj, (Zr_elev_, v, kT_min_, kT_max_, kT_n_) in enumerate(zip(np.array(Zr_elev)[order],np.array(range(NVEG))[order], np.array(kT_min)[order], np.array(kT_max)[order], np.array(kT_n)[order])):
                 #print '----'
-                if HEADS_corr > Zr_elev_:
+                if HEADS_corr_tmp > Zr_elev_:
                     for l in range(nsl):
                         #print 'veg%d, soil layer %d' %(v,l)
                         if Ssoil_pc_tmp[l] != cMF.hnoflo:
@@ -314,20 +319,20 @@ class clsMMsoil:
                             PT[v] -= Tg_tmp_Zr[l,v]
                             Tg_tmp1 = (Tg_tmp_Zr[l,v]*VEGarea[v]*0.01)
                             if Tg_tmp1 > 1E-6 and (HEADS_corr-Tg_tmp1/sy_tmp) < Zr_elev_:
-                                #print 'WARNING at cell [i=%d,j=%d,L=%d] with NVEG = %d\nTg = %.2f, HEADS_corr = %.2f, dgwt_corr= %.2f, Zr_elev = %.2f, Sy = %.3f' % (i+1,j+1,cMF.outcropL[i,j], v, Tg_tmp1, HEADS_corr, dgwt_corr, Zr_elev_, sy_tmp)
-                                Tg_tmp1 = (HEADS_corr - Zr_elev[v])*sy_tmp
+                                #print 'WARNING at cell [i=%d,j=%d,L=%d] with NVEG = %d\nTg = %.2f, HEADS_corr_tmp = %.2f, dgwt_corr_tmp= %.2f, Zr_elev = %.2f, Sy = %.3f' % (i+1,j+1,cMF.outcropL[i,j], v, Tg_tmp1, HEADS_corr_tmp, dgwt_corr_tmp, Zr_elev_, sy_tmp)
+                                Tg_tmp1 = (HEADS_corr_tmp - Zr_elev[v])*sy_tmp
                                 #print 'New Tg = %.2f mm' % Tg_tmp1
 #                            else:                        
 #                                print 'Tg veg%d = %.2f mm' %(v,Tg_tmp1)
                             Tg_tmp += Tg_tmp1
-                            dgwt_corr += Tg_tmp1/sy_tmp
-                            HEADS_corr -= Tg_tmp1/sy_tmp                                           
+                            dgwt_corr_tmp += Tg_tmp1/sy_tmp
+                            HEADS_corr_tmp -= Tg_tmp1/sy_tmp
 #                else:
 #                    print 'veg%d: root too short!' % v
         else:
             Tg_tmp = 0.0
         
-        del sy_tmp
+        del sy_tmp, HEADS_corr_tmp, dgwt_corr_tmp
     
         return Esurf_tmp, Ssurf_tmp, Ro_tmp, Rp_tmp, Esoil_tmp, Tsoil_tmp, Ssoil_tmp, Ssoil_pc_tmp, Eg_tmp, Tg_tmp, HEADS_corr, dgwt_corr, SAT, Rexf_tmp
 

@@ -56,7 +56,7 @@ def PET_PM_FAO56():
         Liu www.hydrol-earth-syst-sci.net/11/769/2007/
         """
 
-    print 'A Python script to compute potential evaporation'
+    print 'A Python script to compute potential evaporation/transpiration'
     print 'from hourly meteorological data of different land covers'
     print '(vegetation, open water, bare soil)'
     print 'using Penman-Monteith equation.'

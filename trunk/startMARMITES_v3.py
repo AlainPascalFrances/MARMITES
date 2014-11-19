@@ -1163,7 +1163,11 @@ if h_diff_surf != None and MMsoil_yn > 0:
         Vmin = np.ma.min(Vmin) #float(np.floor(min(Vmin)))
         h_diff_d = sum(cMF.perlen[0:h_diff_n])
         MMplot.plotLAYER(days = [h_diff_d], str_per = [h_diff_n], Date = [cMF.inputDate[h_diff_d]], JD = [cMF.JD[h_diff_d]], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = ('(m)'), msg = 'no value', plt_title = 'HEADSmaxdiff_ConvLoop', MM_ws = MM_ws_out, interval_type = 'percentile', interval_num = 5, Vmax = [Vmax], Vmin = [Vmin], contours = ctrsMF, ntick = ntick, points = obs4map, mask = mask_tmp, hnoflo = cMF.hnoflo, pref_plt_title = '__sp_plt')
-    del h_diff_n, h_diff_d, V, Vmin, Vmax, mask_tmp
+    for e in [h_diff_n, h_diff_d, V, Vmin, Vmax, mask_tmp]:
+        try:
+            del e
+        except:
+            pass
 
 # exporting sm computed by MM for PEST (smp format)
 if os.path.exists(h5_MM_fn):
