@@ -1046,7 +1046,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
 
 ##################
 
-def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_title, MM_ws, interval_type = 'arange', interval_diff = 1, interval_num = 1, Vmax = 0, Vmin = 0, fmt = None, contours = False, ntick = 1, axisbg = 'silver', points  = None, ptslbl = 0, mask = None, hnoflo = -999.9, animation = 0, pref_plt_title = '_sp_plt'):
+def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_title, MM_ws, interval_type = 'arange', interval_diff = 1, interval_num = 1, Vmax = 0, Vmin = 0, fmt = None, contours = False, ntick = 1, axisbg = 'silver', points  = None, ptslbl = 0, mask = None, hnoflo = -999.9, animation = 0, pref_plt_title = '_sp_plt', cMF = None):
 
     # TODO put option to select axes tick as row/col index from MODFLOW or real coordinates (in this last case create it)
 
@@ -1125,6 +1125,14 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
                     ax[L].plot(xj, yi, 'o', linewidth=1, markersize = 6, color = color)
                     if ptslbl>0:
                         ax[L].annotate(label, xy = (xj, yi))
+            if Vmax_tmp >0 and Vmin_tmp<0 and cMF != None:
+                cmap = plt.cm.coolwarm_r
+                #shifted_cmap = cMF.cUTIL.remappedColorMap(cmap, midpoint=0.75, name='shifted')
+                start = 0.0 #(Vmax_tmp-abs(Vmin_tmp))/(2*Vmax_tmp)
+                midpoint = abs(Vmin_tmp)/(Vmax_tmp+abs(Vmin_tmp))
+                stop = 1.0 #(abs(Vmin_tmp)-Vmax_tmp)/(2*abs(Vmin_tmp))
+                shrunk_cmap = cMF.cUTIL.remappedColorMap(cmap, start=start, midpoint=midpoint, stop=stop, name='shrunk')
+                cmap = shrunk_cmap                            
             ims[i].append(ax[L].pcolormesh(xg, yg, Vtmp, cmap = cmap, vmin = Vmin_tmp, vmax = Vmax_tmp, norm = norm))
             if ctrs_tmp == True:
                 CS = ax[L].contour(xg1, yg1[::-1], Vtmp[::-1], ticks, colors = 'gray')
