@@ -13,7 +13,6 @@
 import os, sys, traceback
 import matplotlib as mpl
 import numpy as np
-import matplotlib as mpl
 import matplotlib.pyplot as plt
 
 class clsUTILITIES():

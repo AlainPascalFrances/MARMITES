@@ -264,13 +264,12 @@ class clsMMsoil:
             Ssoil_pc_tmp[l] = Ssoil_tmp[l]/Tl[l]
             
         sy_tmp = cMF.cPROCESS.float2array(cMF.sy_actual)[cMF.outcropL[i,j]-1,i,j]
-        dgwt_corr_tmp = dgwt_corr*1.0
-        HEADS_corr_tmp = HEADS_corr
+        dgwt_corr_tmp = dgwt_corr*0.1
+        HEADS_corr_tmp = HEADS_corr*0.1     
         # GW evaporation Eg, equation 17 of Shah et al 2007, see ref in the __init__
         if cMF.wel_yn == 1:
             if Ssurf_tmp == 0.0:
                 if PE > 0.0:
-                    dgwt_corr_tmp *= 0.1
                     y0    = self.paramEg[st]['y0']
                     b     = self.paramEg[st]['b']
                     dll   = self.paramEg[st]['dll']
@@ -280,19 +279,26 @@ class clsMMsoil:
                         Eg_tmp = PE*1.0
                     elif dgwt_corr_tmp < ext_d:
                         Eg_tmp = PE*(y0 + np.exp(-b*(dgwt_corr_tmp-dll)))
-                        dgwt_corr_tmp += Eg_tmp/sy_tmp
-                        HEADS_corr_tmp -= Eg_tmp/sy_tmp
                     else:
                         Eg_tmp = 0.0
+                    if Eg_tmp>0.0:
+                        if (dgwt_corr_tmp + Eg_tmp/sy_tmp) > ext_d:
+                            Eg_tmp = 10.0*(ext_d - dgwt_corr_tmp)*sy_tmp
+                            dgwt_corr_tmp = ext_d
+                            HEADS_corr_tmp -= ext_d
+                        else:
+                            dgwt_corr_tmp += Eg_tmp/sy_tmp
+                            HEADS_corr_tmp -= Eg_tmp/sy_tmp
                     #print 'new dgwt_corr_tmp %.2f, Eg_tmp %.2f, PE %.2f' %(dgwt_corr_tmp, Eg_tmp, PE)
-                    #print '------'
-                    dgwt_corr_tmp *= 10.0
+                    #print '------'                    
                 else:
                     Eg_tmp = 0.0
             else:
                 Eg_tmp = 0.0
         else:
-            Eg_tmp = 0.0                
+            Eg_tmp = 0.0        
+        dgwt_corr_tmp *= 10.0
+        HEADS_corr_tmp *= 10.0                                                
 
         # Groundwater transpiration Tg
         Tg_tmp_Zr = np.zeros([nsl, len(Zr_elev)])
@@ -318,7 +324,7 @@ class clsMMsoil:
                             Tg_tmp_Zr[l,v] = PT[v]*kT
                             PT[v] -= Tg_tmp_Zr[l,v]
                             Tg_tmp1 = (Tg_tmp_Zr[l,v]*VEGarea[v]*0.01)
-                            if Tg_tmp1 > 1E-6 and (HEADS_corr-Tg_tmp1/sy_tmp) < Zr_elev_:
+                            if Tg_tmp1 > 1E-6 and (HEADS_corr_tmp-Tg_tmp1/sy_tmp) < Zr_elev_:
                                 #print 'WARNING at cell [i=%d,j=%d,L=%d] with NVEG = %d\nTg = %.2f, HEADS_corr_tmp = %.2f, dgwt_corr_tmp= %.2f, Zr_elev = %.2f, Sy = %.3f' % (i+1,j+1,cMF.outcropL[i,j], v, Tg_tmp1, HEADS_corr_tmp, dgwt_corr_tmp, Zr_elev_, sy_tmp)
                                 Tg_tmp1 = (HEADS_corr_tmp - Zr_elev[v])*sy_tmp
                                 #print 'New Tg = %.2f mm' % Tg_tmp1

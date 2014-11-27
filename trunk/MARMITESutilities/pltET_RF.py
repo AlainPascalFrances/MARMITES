@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 #input section
 ws_fn = r'E:\WREM\SARDON\MonitoringNetwork\EddyTower'
 # read input files
-TXT_in_fnn = 'Eddy_MM.csv'
+TXT_in_fnn = 'Eddy_MM1.csv'
 
 # read XLS file
 inputFile_TS_fn = os.path.join(ws_fn, TXT_in_fnn)
@@ -202,7 +202,7 @@ del labels
 ax0.set_xlim(date_ini,date_end)
 
 plt.show()
-plt_export_fn = '%s\pltET_RF.png' % ws_fn
+plt_export_fn = '%s\pltET_RF1.png' % ws_fn
 plt.subplots_adjust(left=0.10, bottom=0.10, right=0.95, top=0.95, wspace=0.1, hspace=0.1)
 plt.savefig(plt_export_fn,dpi=150)
 print 'Plot printed:\n%s' % plt_export_fn

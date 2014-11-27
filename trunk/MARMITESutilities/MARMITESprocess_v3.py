@@ -439,36 +439,37 @@ class clsPROCESS:
                x > (self.xllcorner+self.ncol*self.cellsizeMF) or
                y <= self.yllcorner or
                y > (self.yllcorner+self.nrow*self.cellsizeMF)):
-                   self.cUTIL.ErrorExit(msg = 'The coordinates of the observation point %s are not inside the MODFLOW grid' % name, stdout = stdout, report = report)
-            if lay > nlay or lay < 1:
-                print 'WARNING!\nLayer %s of observation point %s is not valid (corrected to layer 1)!\nCheck your file %s (layer number should be between 1 and the number of layer of the MODFLOW model, in this case %s).' % (lay, name, inputObs_fn, nlay)
-                lay = 0
+                   print 'WARNING!\nObservation point %s has coordinates outside the MODFLOW grid and will not be considered.' % name
             else:
-                lay = lay - 1
-            # compute the coordinates in the MODFLOW grid
-            #TODO use the PEST utilities for space extrapolation
-            i = int(self.nrow - np.ceil((y-self.yllcorner)/self.cellsizeMF))
-            j = int(np.ceil((x-self.xllcorner)/self.cellsizeMF) - 1)
-            #  read obs time series
-            obsh_fn = os.path.join(self.MM_ws, '%s_%s.txt' % (inputObsHEADS_fn, name))
-            if os.path.exists(obsh_fn):
-                obs_h, obs_h_yn = self.verifObs(inputDate, obsh_fn, obsnam = name, stdout = stdout, report = report)
-            else:
-                obs_h = []
-                obs_h_yn = 0
-            obssm_fn=os.path.join(self.MM_ws, '%s_%s.txt' % (inputObsSM_fn, name))
-            if os.path.exists(obssm_fn):
-                obs_sm, obs_sm_yn = self.verifObs(inputDate, obssm_fn, _nslmax, obsnam = name, stdout = stdout, report = report)
-            else:
-                obs_sm = []
-                obs_sm_yn = 0
-            obsRo_fn=os.path.join(self.MM_ws, '%s_%s.txt' % (inputObsRo_fn, name))
-            if os.path.exists(obsRo_fn):
-                obs_Ro, obs_Ro_yn = self.verifObs(inputDate, obsRo_fn, obsnam = name, stdout = stdout, report = report)
-            else:
-                obs_Ro = []
-                obs_Ro_yn = 0
-            obs[name] = {'x':x,'y':y,'i': i, 'j': j, 'lay': lay, 'hi':hi, 'h0':h0, 'RC':RC, 'STO':STO, 'lbl':lbl, 'obs_h':obs_h, 'obs_h_yn':obs_h_yn, 'obs_SM':obs_sm, 'obs_sm_yn':obs_sm_yn, 'obs_Ro':obs_Ro, 'obs_Ro_yn':obs_Ro_yn}
+                if lay > nlay or lay < 1:
+                    print 'WARNING!\nLayer %s of observation point %s is not valid (corrected to layer 1)!\nCheck your file %s (layer number should be between 1 and the number of layer of the MODFLOW model, in this case %s).' % (lay, name, inputObs_fn, nlay)
+                    lay = 0
+                else:
+                    lay = lay - 1
+                # compute the coordinates in the MODFLOW grid
+                #TODO use the PEST utilities for space extrapolation
+                i = int(self.nrow - np.ceil((y-self.yllcorner)/self.cellsizeMF))
+                j = int(np.ceil((x-self.xllcorner)/self.cellsizeMF) - 1)
+                #  read obs time series
+                obsh_fn = os.path.join(self.MM_ws, '%s_%s.txt' % (inputObsHEADS_fn, name))
+                if os.path.exists(obsh_fn):
+                    obs_h, obs_h_yn = self.verifObs(inputDate, obsh_fn, obsnam = name, stdout = stdout, report = report)
+                else:
+                    obs_h = []
+                    obs_h_yn = 0
+                obssm_fn=os.path.join(self.MM_ws, '%s_%s.txt' % (inputObsSM_fn, name))
+                if os.path.exists(obssm_fn):
+                    obs_sm, obs_sm_yn = self.verifObs(inputDate, obssm_fn, _nslmax, obsnam = name, stdout = stdout, report = report)
+                else:
+                    obs_sm = []
+                    obs_sm_yn = 0
+                obsRo_fn=os.path.join(self.MM_ws, '%s_%s.txt' % (inputObsRo_fn, name))
+                if os.path.exists(obsRo_fn):
+                    obs_Ro, obs_Ro_yn = self.verifObs(inputDate, obsRo_fn, obsnam = name, stdout = stdout, report = report)
+                else:
+                    obs_Ro = []
+                    obs_Ro_yn = 0
+                obs[name] = {'x':x,'y':y,'i': i, 'j': j, 'lay': lay, 'hi':hi, 'h0':h0, 'RC':RC, 'STO':STO, 'lbl':lbl, 'obs_h':obs_h, 'obs_h_yn':obs_h_yn, 'obs_SM':obs_sm, 'obs_sm_yn':obs_sm_yn, 'obs_Ro':obs_Ro, 'obs_Ro_yn':obs_Ro_yn}
 
         #  read catchment obs time series
         obsh_fn = os.path.join(self.MM_ws, '%s_catchment.txt' % inputObsHEADS_fn)

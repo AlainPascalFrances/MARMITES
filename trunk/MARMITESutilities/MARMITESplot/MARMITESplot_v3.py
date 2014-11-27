@@ -1122,9 +1122,9 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
                         color = 'dimgrey'
                     else:
                         color = 'lightgrey'
-                    ax[L].plot(xj, yi, 'o', linewidth=1, markersize = 6, color = color)
+                    ax[L].plot(xj, yi, 'o', linewidth=1, markersize = 4, color = color)
                     if ptslbl>0:
-                        ax[L].annotate(label, xy = (xj, yi))
+                        ax[L].annotate(label, xy = (xj, yi-0.15), fontsize=8, ha ='center', va = 'bottom')
             if Vmax_tmp >0 and Vmin_tmp<0 and cMF != None:
                 cmap = plt.cm.coolwarm_r
                 #shifted_cmap = cMF.cUTIL.remappedColorMap(cmap, midpoint=0.75, name='shifted')
