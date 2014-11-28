@@ -282,13 +282,13 @@ class clsMMsoil:
                     else:
                         Eg_tmp = 0.0
                     if Eg_tmp>0.0:
-                        if (dgwt_corr_tmp + Eg_tmp/sy_tmp) > ext_d:
+                        if (dgwt_corr_tmp + 0.1*Eg_tmp/sy_tmp) > ext_d:
                             Eg_tmp = 10.0*(ext_d - dgwt_corr_tmp)*sy_tmp
                             dgwt_corr_tmp = ext_d
                             HEADS_corr_tmp -= ext_d
                         else:
-                            dgwt_corr_tmp += Eg_tmp/sy_tmp
-                            HEADS_corr_tmp -= Eg_tmp/sy_tmp
+                            dgwt_corr_tmp += 0.1*Eg_tmp/sy_tmp
+                            HEADS_corr_tmp -= 0.1*Eg_tmp/sy_tmp
                     #print 'new dgwt_corr_tmp %.2f, Eg_tmp %.2f, PE %.2f' %(dgwt_corr_tmp, Eg_tmp, PE)
                     #print '------'                    
                 else:
