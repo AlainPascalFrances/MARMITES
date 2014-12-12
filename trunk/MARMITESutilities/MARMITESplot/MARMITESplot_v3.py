@@ -1246,10 +1246,11 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
     WEL=[]
     DRN=[]
     GHB=[]
-    for k, i in enumerate(indexTime[:-1]):
+    for k, i in enumerate(indexTime[:-2]):
         if k == 0:
-            indexend = len(DATE)
-            mult = 365.0/len(DATE)
+            i = indexTime[1]
+            indexend = indexTime[-2]
+            mult = 365.0/(indexend-i+1)
         else:
             indexend = indexTime[k+1]-1
             mult = 1.0
@@ -1317,7 +1318,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
         for k in range(len(RF)):
             #print '-------'
             if k == 0:
-                title = "Whole modelled period"
+                title = "Average of the %d hydrological year(s)" % len(indexTime[1:-2])
             else:
                 title = "Hydrological year %d/%d" % (year_lst[k-1], year_lst[k-1] + 1)
             if f == 0:
@@ -1384,7 +1385,8 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                 labels = [None,'$R_p$','$E_{soil}$','$T_{soil}$','$Ro$']
                 orientations = [1,-1,1,1,1]
                 pathlengths = [pl, pl, pl, pl, pl]
-            pltsankey.add(patchlabel = '$\Delta S_{soil}$\n%.1f' % (dSsoil[k]/ff), label='MMsoil', facecolor='khaki', trunklength = tl,
+            pltsankey.add(patchlabel = '$\Delta S_{soil}$\n%.1f' % (dSsoil[k]/ff),
+                       label='MMsoil', facecolor='khaki', trunklength = tl,
                        flows=flows,
                        labels=labels,
                        orientations=orientations,

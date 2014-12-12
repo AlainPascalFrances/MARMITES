@@ -425,19 +425,20 @@ while DATE[-1] >= mpl.dates.datestr2num('%d-%d-01' % (year_lst[y]+1, iniMonthHyd
         break
 HYindex.append(indexend)
 HYindex.insert(0, 0)
+HYindex.append(len(DATE)-1)
 del indexend
 StartDate = DATE[HYindex[1]]
 EndDate   = DATE[HYindex[-1]]
         
 #    print year_lst
 #    print index
-print '-------\nStarting date of time series:\n%s' % (mpl.dates.DateFormatter.format_data(fmt_DH, DATE[0]))
+print '-------\nStarting date of time series:\n%s' % mpl.dates.DateFormatter.format_data(fmt_DH, DATE[HYindex[0]])
 print '-------\nStarting date of hydrological year(s):'
-for j in HYindex[1:-1]:
+for j in HYindex[1:-2]:
     print mpl.dates.DateFormatter.format_data(fmt_DH, DATE[j])
 print 'End date of last hydrological year:'
-print mpl.dates.DateFormatter.format_data(fmt_DH, DATE[HYindex[-1]])
-print '-------\nEnd date of time series:\n%s' % (mpl.dates.DateFormatter.format_data(fmt_DH, DATE[-1]))
+print mpl.dates.DateFormatter.format_data(fmt_DH, DATE[HYindex[-2]])
+print '-------\nEnd date of time series:\n%s' % mpl.dates.DateFormatter.format_data(fmt_DH, DATE[HYindex[-1]])
 
 # #############################
 # ###  READ MODFLOW CONFIG ####
@@ -1719,7 +1720,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
     del flxlbl_CATCH_str
     if WBsankey_yn == 1:
         try:
-            MMplot.plotWBsankey(MM_ws_out, cMF.inputDate , flxCatch_lst, flxIndex_lst, fn = plt_exportCATCH_txt_fn.split('\\')[-1], indexTime = HYindex, year_lst = year_lst, cMF = cMF, ncell_MM = ncell_MM, obspt = 'whole catchment', fntitle = '0CATCHMENT', ibound4Sankey = np.ones((cMF.nlay), dtype = int), stdout = stdout, report = report)
+            MMplot.plotWBsankey(MM_ws_out, cMF.inputDate, flxCatch_lst, flxIndex_lst, fn = plt_exportCATCH_txt_fn.split('\\')[-1], indexTime = HYindex, year_lst = year_lst, cMF = cMF, ncell_MM = ncell_MM, obspt = 'whole catchment', fntitle = '0CATCHMENT', ibound4Sankey = np.ones((cMF.nlay), dtype = int), stdout = stdout, report = report)
         except:
             print "\nError in plotting the catchment water balance!"
     del flxCatch_lst, flxCatch_lst_str, out_line, plt_exportCATCH_fn, plt_exportCATCH_txt_fn, plt_titleCATCH
