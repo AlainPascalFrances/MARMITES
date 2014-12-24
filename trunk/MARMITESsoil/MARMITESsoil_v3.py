@@ -103,30 +103,7 @@ class clsMMsoil:
                      #                        'custom'          : {'dll':100.0,'y0':0.00,'b':0.013, 'ext_d':330.0}
 #####################
 
-    def flux(self, cMF, perleni, RFe, PT, PE, E0surf_max, Zr_elev, VEGarea, HEADS, TopSoilLay, BotSoilLay, Tl, nsl, Sm, Sfc, Sr, Ks, Ssurf_max, Ssoil_ini, Rp_ini, Ssurf_ini, EXF, dgwt, st, i, j, n, kT_min, kT_max, kT_n, NVEG, LAIveg):
-
-        def surfwater(s_tmp, Sm, Ssurf_max, E0, perlen):
-            '''
-            Ponding and surface runoff function
-            '''
-            if (Sm - s_tmp) < 1.0E-7:
-                Ssurf_tmp = s_tmp - Sm
-                if (Ssurf_tmp - Ssurf_max) > 1.0E-7:
-                    Ro_tmp = (Ssurf_tmp - Ssurf_max)/perlen
-                    Ssurf_tmp = Ssurf_max
-                else:
-                    Ro_tmp = 0.0
-                if (Ssurf_tmp - E0) > 1.0E-7:
-                    Esurf_tmp = E0
-                    Ssurf_tmp = Ssurf_tmp - E0*perlen
-                else:
-                    Esurf_tmp = Ssurf_tmp/perlen
-                    Ssurf_tmp = 0.0
-            else:
-                Ssurf_tmp = 0.0
-                Ro_tmp = 0.0
-                Esurf_tmp = 0.0
-            return Ssurf_tmp, Ro_tmp, Esurf_tmp
+    def flux(self, cMF, perleni, RFe, PT, PE, E0surf_max, Zr_elev, VEGarea, HEADSini, TopSoilLay, BotSoilLay, Tl, nsl, Sm, Sfc, Sr, Ks, Ssurf_max, Ssoil_ini, Rp_ini, Ssurf_ini, EXF_ini, dgwt, st, i, j, n, kT_min, kT_max, kT_n, NVEG, LAIveg):
 
         ##################
 
@@ -144,7 +121,7 @@ class clsMMsoil:
                     rp_tmp = Ks*Sg
             elif (s_tmp - Sm) > 1.0E-7:
                 if (Ks) - (Sm-Sfc) > 1.0E-7:
-                    rp_tmp = (Sm-Sfc)//perlen
+                    rp_tmp = (Sm-Sfc)/perlen
                 else:
                     rp_tmp = Ks
             return rp_tmp
@@ -171,57 +148,85 @@ class clsMMsoil:
             return evp_tmp
 
         ##################
-        if EXF < 0.0:
-            print 'WARNING!\nEXFg < 0.0, value %.6f corrected to 0.0.' % EXF
-            EXF = 0.0
-        SAT = np.zeros([nsl], dtype = bool)
+        if EXF_ini < 0.0:
+            print 'WARNING!\nEXFg < 0.0, value %.6f corrected to 0.0.' % EXF_ini
+            EXF_ini = 0.0
 
-         # Ssoil_tmp from previous time step
-        # if first time step, use Ssoil_ini
+        # INITIALIZATION        
+        SAT = np.zeros([nsl], dtype = bool)
+        perlen = cMF.perlen[n]
+        # Surface
+        Ssurf_tmp = 0
+        Ssurf_tmp  += RFe + Ssurf_ini 
+        # Soil
         Ssoil_tmp = np.zeros([nsl])
         Rexf_tmp = np.zeros([nsl])
+        Rexf_tmp1 = np.zeros([nsl])
         for l in range(nsl):
             Ssoil_tmp[l] = Ssoil_ini[l]*1.0
-
-        # INFILTRATION
-        # first soil layer
-        Ssoil_tmp[0] += RFe + Ssurf_ini
-        # other soil layer, percolation from previous time step
+        # PERCOLATION
         for l in range(1,nsl):
             Ssoil_tmp[l] += Rp_ini[l-1]*perleni
-
-        # GW EXF
-        perlen = cMF.perlen[n]
-        Ssoil_tmp[nsl-1] += EXF*perlen
+        # EXFILTRATION
+        Ssoil_tmp[-1] += EXF_ini*perleni
 
         # SOIL EXF
         llst = range(nsl)
         llst.reverse()
-        for l in llst[:-1]:
-            if Ssoil_tmp[l] >= (Sm[l]*Tl[l]):
-                Rexf_tmp[l] += Ssoil_tmp[l] - Sm[l]*Tl[l]
-                Ssoil_tmp[l-1] += Rexf_tmp[l]
-                Ssoil_tmp[l] = Sm[l]*Tl[l]
-        Rexf_tmp /= perlen
+        if EXF_ini > 0.0:
+            for l in llst:
+                if Ssoil_tmp[l] - Sm[l]*Tl[l] > 1.0E-7:
+                    Rexf_tmp[l] = Ssoil_tmp[l] - Sm[l]*Tl[l]
+                    Ssoil_tmp[l] = Sm[l]*Tl[l]
+                    if l!=0:
+                        if Rexf_tmp[l] - (Sm[l-1]*Tl[l-1] - Ssoil_tmp[l-1]) > 1.0E-7 or (Ssoil_tmp[l-1] - Sm[l-1]*Tl[l-1]) > 1.0E-7:
+                            if  (Ssoil_tmp[l-1] - Sm[l-1]*Tl[l-1]) > 1.0E-7:
+                                Rexf_tmp1[l] = 0.0
+                            else:
+                                Rexf_tmp1[l] = (Sm[l-1]*Tl[l-1] - Ssoil_tmp[l-1])                            
+                            Ssoil_tmp[l-1] += Rexf_tmp[l]
+                            Rexf_tmp[l] = Rexf_tmp1[l]
+                        else:
+                            Ssoil_tmp[l-1] += Rexf_tmp[l]
+            Rexf_tmp /= perlen
+            # SURFACE
+            Ssurf_tmp += Rexf_tmp[0]*perlen                   
+        del Rexf_tmp1
+            
+        #Inf            
+        if (Ssurf_tmp - (Sm[0]*Tl[0] - Ssoil_tmp[0])) > 1.0E-7:
+            Inf = (Sm[0]*Tl[0] - Ssoil_tmp[0])
+            Ssurf_tmp -= Sm[0]*Tl[0] - Ssoil_tmp[0]
+        else:
+            Inf = Ssurf_tmp
+            Ssurf_tmp = 0.0
+        Ssoil_tmp[0] += Inf
+        Inf /= perlen
 
         # SAT = True indicates saturation overland flow
-        HEADS_corr = HEADS * 1.0
+        HEADSini_corr = HEADSini * 1.0
         dgwt_corr = dgwt * 1.0
-        if EXF > 0.0:
+        if EXF_ini > 0.0:
             for l in llst:
-                if Ssoil_tmp[l] >= (Sm[l]*Tl[l]):
-                    HEADS_corr += Tl[l]
+                if np.abs(Ssoil_tmp[l] - Sm[l]*Tl[l]) < 1E-7:
+                    HEADSini_corr += Tl[l]
                     dgwt_corr -= Tl[l]
                     SAT[l] = True
                 else:
                     break
-
-        # Ssurf and Ro
-        surfwater_tmp = surfwater(Ssoil_tmp[0], Sm[0]*Tl[0], Ssurf_max, E0surf_max, perlen)
-        Ssurf_tmp = surfwater_tmp[0]
-        Ro_tmp = surfwater_tmp[1]
-        Esurf_tmp = surfwater_tmp[2]
-        Ssoil_tmp[0] -= (Ssurf_tmp + perlen*(Ro_tmp + Esurf_tmp))
+            
+        # SURFACE storage, Ro, Eo
+        if (Ssurf_tmp - Ssurf_max) > 1.0E-7:
+            Ro_tmp = (Ssurf_tmp - Ssurf_max)/perlen
+            Ssurf_tmp = Ssurf_max
+        else:
+            Ro_tmp = 0.0
+        if (Ssurf_tmp - E0surf_max) > 1.0E-7:
+            Esurf_tmp = E0surf_max
+            Ssurf_tmp -= E0surf_max*perlen
+        else:
+            Esurf_tmp = Ssurf_tmp/perlen
+            Ssurf_tmp = 0.0
 
         Rp_tmp = np.zeros([nsl])
         Tsoil_tmpZr = np.zeros([nsl,len(Zr_elev)])
@@ -235,7 +240,9 @@ class clsMMsoil:
             if l < (nsl-1):
                 if SAT[l+1] == False:
                     Rp_tmp[l] = perc(Ssoil_tmp[l], Sm[l]*Tl[l], Sfc[l]*Tl[l], Ks[l], perlen)
-            elif EXF == 0.0:
+                    if Rp_tmp[l]*perlen - (Sm[l+1]*Tl[l+1] - Ssoil_tmp[l+1]) > 1.0E-7:
+                        Rp_tmp[l] = (Sm[l+1]*Tl[l+1] - Ssoil_tmp[l+1])/perlen
+            elif EXF_ini == 0.0:
                 Rp_tmp[l] = perc(Ssoil_tmp[l], Sm[l]*Tl[l], Sfc[l]*Tl[l], Ks[l], perlen)
             Ssoil_tmp[l] -= Rp_tmp[l]*perlen
             # Esoil
@@ -265,7 +272,7 @@ class clsMMsoil:
             
         sy_tmp = cMF.cPROCESS.float2array(cMF.sy_actual)[cMF.outcropL[i,j]-1,i,j]
         dgwt_corr_tmp = dgwt_corr*0.1
-        HEADS_corr_tmp = HEADS_corr*0.1     
+        HEADSini_corr_tmp = HEADSini_corr*0.1     
         # GW evaporation Eg, equation 17 of Shah et al 2007, see ref in the __init__
         if cMF.wel_yn == 1:
             if Ssurf_tmp == 0.0:
@@ -285,10 +292,10 @@ class clsMMsoil:
                         if (dgwt_corr_tmp + 0.1*Eg_tmp/sy_tmp) > ext_d:
                             Eg_tmp = 10.0*(ext_d - dgwt_corr_tmp)*sy_tmp
                             dgwt_corr_tmp = ext_d
-                            HEADS_corr_tmp -= ext_d
+                            HEADSini_corr_tmp -= ext_d
                         else:
                             dgwt_corr_tmp += 0.1*Eg_tmp/sy_tmp
-                            HEADS_corr_tmp -= 0.1*Eg_tmp/sy_tmp
+                            HEADSini_corr_tmp -= 0.1*Eg_tmp/sy_tmp
                     #print 'new dgwt_corr_tmp %.2f, Eg_tmp %.2f, PE %.2f' %(dgwt_corr_tmp, Eg_tmp, PE)
                     #print '------'                    
                 else:
@@ -298,7 +305,7 @@ class clsMMsoil:
         else:
             Eg_tmp = 0.0        
         dgwt_corr_tmp *= 10.0
-        HEADS_corr_tmp *= 10.0                                                
+        HEADSini_corr_tmp *= 10.0                                                
 
         # Groundwater transpiration Tg
         Tg_tmp_Zr = np.zeros([nsl, len(Zr_elev)])
@@ -310,7 +317,7 @@ class clsMMsoil:
 #            print 'kT_max', kT_max, np.array(kT_max)[order]
             for jj, (Zr_elev_, v, kT_min_, kT_max_, kT_n_) in enumerate(zip(np.array(Zr_elev)[order],np.array(range(NVEG))[order], np.array(kT_min)[order], np.array(kT_max)[order], np.array(kT_n)[order])):
                 #print '----'
-                if HEADS_corr_tmp > Zr_elev_:
+                if HEADSini_corr_tmp > Zr_elev_:
                     for l in range(nsl):
                         #print 'veg%d, soil layer %d' %(v,l)
                         if Ssoil_pc_tmp[l] != cMF.hnoflo:
@@ -324,23 +331,23 @@ class clsMMsoil:
                             Tg_tmp_Zr[l,v] = PT[v]*kT
                             PT[v] -= Tg_tmp_Zr[l,v]
                             Tg_tmp1 = (Tg_tmp_Zr[l,v]*VEGarea[v]*0.01)
-                            if Tg_tmp1 > 1E-6 and (HEADS_corr_tmp-Tg_tmp1/sy_tmp) < Zr_elev_:
-                                #print 'WARNING at cell [i=%d,j=%d,L=%d] with NVEG = %d\nTg = %.2f, HEADS_corr_tmp = %.2f, dgwt_corr_tmp= %.2f, Zr_elev = %.2f, Sy = %.3f' % (i+1,j+1,cMF.outcropL[i,j], v, Tg_tmp1, HEADS_corr_tmp, dgwt_corr_tmp, Zr_elev_, sy_tmp)
-                                Tg_tmp1 = (HEADS_corr_tmp - Zr_elev[v])*sy_tmp
+                            if Tg_tmp1 > 1E-6 and (HEADSini_corr_tmp-Tg_tmp1/sy_tmp) < Zr_elev_:
+                                #print 'WARNING at cell [i=%d,j=%d,L=%d] with NVEG = %d\nTg = %.2f, HEADSini_corr_tmp = %.2f, dgwt_corr_tmp= %.2f, Zr_elev = %.2f, Sy = %.3f' % (i+1,j+1,cMF.outcropL[i,j], v, Tg_tmp1, HEADSini_corr_tmp, dgwt_corr_tmp, Zr_elev_, sy_tmp)
+                                Tg_tmp1 = (HEADSini_corr_tmp - Zr_elev[v])*sy_tmp
                                 #print 'New Tg = %.2f mm' % Tg_tmp1
 #                            else:                        
 #                                print 'Tg veg%d = %.2f mm' %(v,Tg_tmp1)
                             Tg_tmp += Tg_tmp1
                             dgwt_corr_tmp += Tg_tmp1/sy_tmp
-                            HEADS_corr_tmp -= Tg_tmp1/sy_tmp
+                            HEADSini_corr_tmp -= Tg_tmp1/sy_tmp
 #                else:
 #                    print 'veg%d: root too short!' % v
         else:
             Tg_tmp = 0.0
         
-        del sy_tmp, HEADS_corr_tmp, dgwt_corr_tmp
+        del sy_tmp, HEADSini_corr_tmp, dgwt_corr_tmp
     
-        return Esurf_tmp, Ssurf_tmp, Ro_tmp, Rp_tmp, Esoil_tmp, Tsoil_tmp, Ssoil_tmp, Ssoil_pc_tmp, Eg_tmp, Tg_tmp, HEADS_corr, dgwt_corr, SAT, Rexf_tmp
+        return Esurf_tmp, Ssurf_tmp, Ro_tmp, Rp_tmp, Esoil_tmp, Tsoil_tmp, Ssoil_tmp, Ssoil_pc_tmp, Eg_tmp, Tg_tmp, HEADSini_corr, dgwt_corr, SAT, Rexf_tmp, Inf
 
 #####################
 
@@ -354,20 +361,20 @@ class clsMMsoil:
             crop_irr_SP = [], gridIRR = [],
             Zr_c = [], kT_min_c = [], kT_max_c = [], kT_n_c = [], NCROP = []):
 
-        h_MF = None
-        h_MF_mem = 'slow'
+        h_MF_ini = None
+        h_MF_ini_mem = 'slow'
         try:
-            h_MF = h5_MF['heads4MM'][:,:,:]
-            h_MF_mem = 'fast'
+            h_MF_ini = h5_MF['heads4MM'][:,:,:]
+            h_MF_ini_mem = 'fast'
         except:
             print '\nRAM memory too small compared to the size of the heads array -> slow computing.'
         if cMF.uzf_yn == 1:
-            exf_MF = None
-            exf_MF_mem = 'slow'
+            exf_MF_ini = None
+            exf_MF_ini_mem = 'slow'
             try:
                 # TODO this below assume that there is no grid refinement
-                exf_MF = h5_MF['exf4MM'][:,:,:]*conv_fact/(cMF.delr[0]*cMF.delc[0])
-                exf_MF_mem = 'fast'
+                exf_MF_ini = h5_MF['exf4MM'][:,:,:]*conv_fact/(cMF.delr[0]*cMF.delc[0])
+                exf_MF_ini_mem = 'fast'
             except:
                 print '\nRAM memory too small compared to the size of the exfiltration array -> slow computing.'
         tstart_MM = 0
@@ -377,7 +384,7 @@ class clsMMsoil:
         Rp_ini_tmp_array = np.zeros([cMF.nrow,cMF.ncol,_nslmax])
         Ssurf_ini_tmp_array = np.zeros([cMF.nrow,cMF.ncol])
         Ssurf_ini_tmp_array = np.zeros([cMF.nrow,cMF.ncol])
-        MM_finf_MF = np.zeros([cMF.nrow,cMF.ncol], dtype=float)
+        MM_perc_MF = np.zeros([cMF.nrow,cMF.ncol], dtype=float)
         MM_wel_MF  = np.zeros([cMF.nrow,cMF.ncol], dtype=float)
         for n in range(cMF.nper):
             if n > 0:
@@ -387,11 +394,11 @@ class clsMMsoil:
             tend_MF = tstart_MF + cMF.nstp[n]
             MM         = np.zeros([cMF.perlen[n],cMF.nrow,cMF.ncol,len(index)], dtype=float)
             MM_S       = np.zeros([cMF.perlen[n],cMF.nrow,cMF.ncol,_nslmax,len(index_S)], dtype=float)
-            if h_MF == None:
-                h_MF       = h5_MF['heads4MM'][tstart_MF:tend_MF,:,:]
+            if h_MF_ini == None:
+                h_MF_ini       = h5_MF['heads4MM'][tstart_MF:tend_MF,:,:]
             if cMF.uzf_yn == 1:
-                if exf_MF == None:
-                    exf_MF = h5_MF['exf4MM'][tstart_MF:tend_MF,:,:]*conv_fact/(cMF.delr[0]*cMF.delc[0])
+                if exf_MF_ini == None:
+                    exf_MF_ini = h5_MF['exf4MM'][tstart_MF:tend_MF,:,:]*conv_fact/(cMF.delr[0]*cMF.delc[0])
             # loop into the grid
             for i in range(cMF.nrow):
                 for j in range(cMF.ncol):
@@ -461,17 +468,17 @@ class clsMMsoil:
                                 kT_n_tmp[v]          = kT_n[v]
                         PE_zonesSP_tmp = PE_zonesSP[METEOzone_tmp,SOILzone_tmp,tstart_MF:tend_MF]
                         E0_zonesSP_tmp = E0_zonesSP[METEOzone_tmp][tstart_MF:tend_MF]
-                        if h_MF_mem == 'slow':
-                            h_MF_tmp   = h_MF[:,i,j]
-                        elif h_MF_mem == 'fast':
-                            h_MF_tmp   = h_MF[tstart_MF:tend_MF,i,j]
+                        if h_MF_ini_mem == 'slow':
+                            h_MF_ini_tmp   = h_MF_ini[:,i,j]
+                        elif h_MF_ini_mem == 'fast':
+                            h_MF_ini_tmp   = h_MF_ini[tstart_MF:tend_MF,i,j]
                         if cMF.uzf_yn == 1:
-                            if exf_MF_mem == 'slow':
-                                exf_MF_tmp = -exf_MF[:,i,j]
-                            elif exf_MF_mem == 'fast':
-                                exf_MF_tmp = -exf_MF[tstart_MF:tend_MF,i,j]
+                            if exf_MF_ini_mem == 'slow':
+                                exf_MF_ini_tmp = -exf_MF_ini[:,i,j]
+                            elif exf_MF_ini_mem == 'fast':
+                                exf_MF_ini_tmp = -exf_MF_ini[tstart_MF:tend_MF,i,j]
                         else:
-                            exf_MF_tmp = 0.0
+                            exf_MF_ini_tmp = 0.0
                         st         = _st[SOILzone_tmp]
                         Sm         = _Sm[SOILzone_tmp]
                         Sfc        = _Sfc[SOILzone_tmp]
@@ -488,11 +495,6 @@ class clsMMsoil:
                         dSsoil = np.zeros([nsl], dtype = np.float)
                         # MASS BALANCE each soil layer
                         MB_l = np.zeros([nsl], dtype = np.float)
-                        # output arrays
-                        nflux1 = 22
-                        nflux2 = 9
-                        MM_tmp = np.zeros([nflux1])
-                        MM_S_tmp = np.zeros([nsl,nflux2])
 
                         # PROCESSING THE WHOLE DATA SET
                         # Preprocessing of PT/PE/INTER and RFe
@@ -523,24 +525,24 @@ class clsMMsoil:
                         INTER_tot  = RF_tmp - RFe_tot
                         PE_tot     = PE_zonesSP_tmp*SOILarea*0.01
                         # handle drycell
-                        if np.abs(h_MF_tmp - cMF.hdry) < 1.0E-5:
-                            HEADS_drycell = botm_l0[i,j]*1000.0
+                        if np.abs(h_MF_ini_tmp - cMF.hdry) < 1.0E-5:
+                            HEADSini_drycell = botm_l0[i,j]*1000.0
                         else:
-                            HEADS_drycell = h_MF_tmp*1000.0
+                            HEADSini_drycell = h_MF_ini_tmp*1000.0
                         # dgwt and uzthick
-                        if exf_MF_tmp <= 0.0: # or BotSoilLay[nsl-1] > HEADS_drycell:
-                            dgwt = TopSoilLay[0] - HEADS_drycell
-                        elif exf_MF_tmp > 0.0:
+                        if exf_MF_ini_tmp <= 0.0: # or BotSoilLay[nsl-1] > HEADSini_drycell:
+                            dgwt = TopSoilLay[0] - HEADSini_drycell
+                        elif exf_MF_ini_tmp > 0.0:
                             dgwt = sum(Tl)
-                            HEADS_drycell = BotSoilLay[nsl-1]
-                        uzthick = BotSoilLay[nsl-1] - HEADS_drycell
+                            HEADSini_drycell = BotSoilLay[nsl-1]
+                        uzthick = BotSoilLay[nsl-1] - HEADSini_drycell
                         # for the first SP, S_ini is expressed in % and has to be converted in mm
                         if n == 0:
                             Ssoil_ini_tmp = Ssoil_ini_tmp * Tl
                         # fluxes
-                        Esurf_tmp, Ssurf_tmp, Ro_tmp, Rp_tmp, Esoil_tmp, Tsoil_tmp, Ssoil_tmp, Ssoil_pc_tmp, Eg_tmp, Tg_tmp, HEADS_MM, dgwt_tmp, SAT_tmp, Rexf_tmp = self.flux(cMF, perleni, RFe_tot, PT_zonesSP_tmp[:], PE_zonesSP_tmp*SOILarea*0.01, E0surf_max, Zr_elev, VEGarea_tmp, HEADS_drycell, TopSoilLay, BotSoilLay, Tl, nsl, Sm, Sfc, Sr, Ks, Ssurf_max, Ssoil_ini_tmp, Rp_ini_tmp_array[i,j,:], Ssurf_ini_tmp, exf_MF_tmp, dgwt, st, i, j, n, kT_min_tmp, kT_max_tmp, kT_n_tmp, NVEG_tmp, LAIveg_tmp[:])
+                        Esurf_tmp, Ssurf_tmp, Ro_tmp, Rp_tmp, Esoil_tmp, Tsoil_tmp, Ssoil_tmp, Ssoil_pc_tmp, Eg_tmp, Tg_tmp, HEADSini_MM, dgwt_tmp, SAT_tmp, Rexf_tmp, Inf = self.flux(cMF, perleni, RFe_tot, PT_zonesSP_tmp[:], PE_zonesSP_tmp*SOILarea*0.01, E0surf_max, Zr_elev, VEGarea_tmp, HEADSini_drycell, TopSoilLay, BotSoilLay, Tl, nsl, Sm, Sfc, Sr, Ks, Ssurf_max, Ssoil_ini_tmp, Rp_ini_tmp_array[i,j,:], Ssurf_ini_tmp, exf_MF_ini_tmp, dgwt, st, i, j, n, kT_min_tmp, kT_max_tmp, kT_n_tmp, NVEG_tmp, LAIveg_tmp[:])
                         Ssoil_pc_tot = sum(Ssoil_pc_tmp[:])/nsl
-                        inf     = Rp_tmp[-1]
+                        perc     = Rp_tmp[-1]
                         ETg = Eg_tmp + Tg_tmp
                         dSsurf = (Ssurf_tmp - Ssurf_ini_tmp)/cMF.perlen[n]
                         # compute the water mass balance (MB) in the soil zone
@@ -559,30 +561,50 @@ class clsMMsoil:
                             dSsoil_tot += dSsoil[l]
                         dRp_tot = (Rp_in_MB - Rp_out_MB)/cMF.perlen[n]
                         ETsoil_tot = Esoil_MB + Tsoil_MB
-                        # MASS BALANCE COMPUTING
+                       
+                       # MASS BALANCE COMPUTING
+                        MBsurf = RFe_tot + Rexf_tmp[0] - (Esurf_tmp + Ro_tmp + Inf + dSsurf)
                         if nsl > 1:
                             # surficial soil layer
                             l = 0
-                            MB_l[l] = (RFe_tot + Rexf_tmp[l+1]) - (Rp_tmp[l] + Esoil_tmp[l] + Tsoil_tmp[l] + Ro_tmp + Esurf_tmp + dSsoil[l] + dSsurf)
+                            In = Inf + Rexf_tmp[l+1]
+                            Out = Rp_tmp[l] + Esoil_tmp[l] + Tsoil_tmp[l] + dSsoil[l]
+                            MB_l[l] = In - Out
+                            del In, Out
                             # intermediate soil layers
                             llst = range(1,nsl-1)
                             for l in llst:
-                                MB_l[l] = (Rp_ini_tmp_array[i,j,l-1]*perleni - Rp_tmp[l]*cMF.perlen[n])/cMF.perlen[n] + Rexf_tmp[l+1] - (Esoil_tmp[l] + Tsoil_tmp[l] + Rexf_tmp[l]+ dSsoil[l] )
+                                # Rexf[l] already added to Ssoil
+                                In = (Rp_ini_tmp_array[i,j,l-1]*perleni - Rp_tmp[l]*cMF.perlen[n])/cMF.perlen[n] + Rexf_tmp[l+1]
+                                Out = Esoil_tmp[l] + Tsoil_tmp[l] + dSsoil[l]
+                                MB_l[l] = In - Out
+                                del In, Out
                             # last soil layer
                             l = nsl-1
-                            MB_l[l] = (Rp_ini_tmp_array[i,j,l-1]*perleni - Rp_tmp[l]*cMF.perlen[n])/cMF.perlen[n] + exf_MF_tmp - (Esoil_tmp[l] + Tsoil_tmp[l] + Rexf_tmp[l] + dSsoil[l] )
+                            In = (Rp_ini_tmp_array[i,j,l-1]*perleni - Rp_tmp[l]*cMF.perlen[n])/cMF.perlen[n] + exf_MF_ini_tmp
+                            Out = Esoil_tmp[l] + Tsoil_tmp[l] + sum(Rexf_tmp) + dSsoil[l]
+                            MB_l[l] = In - Out
+                            del In, Out
                         else:
                             # only one soil layer
                             l = 0
-                            MB_l[l] = (RFe_tot + exf_MF_tmp) - (Rp_tmp[l] + Esoil_tmp[l] + Tsoil_tmp[l] + Ro_tmp + Esurf_tmp + dSsurf + dSsoil[l])
+                            In = Inf + exf_MF_ini_tmp
+                            Out = Rp_tmp[l] + Rexf_tmp[l] + Esoil_tmp[l] + Tsoil_tmp[l] + dSsoil[l]
+                            MB_l[l] = In - Out
+                            del In, Out
                             # last soil layer
                         # total mass balance for the soil
-                        MB = RFe_tot + dRp_tot + exf_MF_tmp - (Ro_tmp + Esurf_tmp + Esoil_MB + Tsoil_MB + dSsoil_tot + dSsurf)
+                        In = Inf + dRp_tot + exf_MF_ini_tmp
+                        Out = Rexf_tmp[0] + Esoil_MB + Tsoil_MB + dSsoil_tot
+                        MB = In - Out
+                        del In, Out
+                      
                         # export list
                         # indexes of the HDF5 output arrays
-                        # index_MM = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSsurf':4, 'iRo':5, 'iEXFg':6, 'iEsurf':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSsurf':13, 'iETg':14, 'iETsoil':15, 'iSsoil_pc':16, 'idSsoil':17, 'iinf':18, 'ihcorr':19, 'idgwt':20, 'iuzthick':21}
-                        MM_tmp[:] = [RF_tmp, PT_tot, PE_tot, RFe_tot, Ssurf_tmp, Ro_tmp, exf_MF_tmp, Esurf_tmp, MB, INTER_tot, E0_zonesSP_tmp, Eg_tmp, Tg_tmp, dSsurf, ETg, ETsoil_tot, Ssoil_pc_tot, dSsoil_tot, inf, HEADS_MM*0.001, -dgwt_tmp*0.001, uzthick*0.001]
-                        # index_MM_soil = {'iEsoil_l':0, 'iTsoil_l':1,'iSsoil_pc_l':2, 'iRp_l':3, 'iEXFg_l':4, 'idSsoil_l':5, 'iSsoil_l':6, 'iSAT_l':7, 'iMB_l':8}
+                        # index_MM = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSsurf':4, 'iRo':5, 'iEXFg':6, 'iEsurf':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSsurf':13, 'iETg':14, 'iETsoil':15, 'iSsoil_pc':16, 'idSsoil':17, 'iperc':18, 'ihcorr':19, 'idgwt':20, 'iuzthick':21, 'iInf':22, 'iMBsurf':23}
+                        MM_tmp = [RF_tmp, PT_tot, PE_tot, RFe_tot, Ssurf_tmp, Ro_tmp, exf_MF_ini_tmp, Esurf_tmp, MB, INTER_tot, E0_zonesSP_tmp, Eg_tmp, Tg_tmp, dSsurf, ETg, ETsoil_tot, Ssoil_pc_tot, dSsoil_tot, perc, HEADSini_MM*0.001, -dgwt_tmp*0.001, uzthick*0.001, Inf, MBsurf]
+                        # index_MM_soil = {'iEsoil_l':0, 'iTsoil_l':1,'iSsoil_pc_l':2, 'iRp_l':3, 'iEXF_l':4, 'idSsoil_l':5, 'iSsoil_l':6, 'iSAT_l':7, 'iMB_l':8}
+                        MM_S_tmp = np.zeros([nsl,len(index_S)], dtype = float)
                         for l in range(nsl):
                             MM_S_tmp[l,:] = [Esoil_tmp[l], Tsoil_tmp[l], Ssoil_pc_tmp[l], Rp_tmp[l], Rexf_tmp[l], dSsoil[l], Ssoil_tmp[l], SAT_tmp[l], MB_l[l]]
 
@@ -593,7 +615,7 @@ class clsMMsoil:
                             for l in range(nsl):
                                 MM_S[:,i,j,l,k] = MM_S_tmp[l,k]
                         # # Volumetric recharge rate UZF1 package
-                        MM_finf_MF[i,j] = MM_S_tmp[nsl-1,index_S.get('iRsoil_l')]/conv_fact
+                        MM_perc_MF[i,j] = MM_S_tmp[nsl-1,index_S.get('iRsoil_l')]/conv_fact
                         # Volumetric recharge rate WEL package
                         MM_wel_MF[i,j] = MM_tmp[index.get('iETg')]/conv_fact
                         del MM_tmp, MM_S_tmp
@@ -608,12 +630,12 @@ class clsMMsoil:
                         else:
                             MM[:,i,j,:] = cMF.hnoflo
                             MM_S[:,i,j,:,:] = cMF.hnoflo
-                        MM_finf_MF[i,j] = 0.0
+                        MM_perc_MF[i,j] = 0.0
                         MM_wel_MF[i,j] = 0.0
             #dti = float(cMF.perlen[n])
             h5_MM['MM'][tstart_MM:tend_MM,:,:,:]     = MM[:,:,:,:]
             h5_MM['MM_S'][tstart_MM:tend_MM,:,:,:,:] = MM_S[:,:,:,:,:]
-            h5_MM['finf'][n,:,:]                     = MM_finf_MF
+            h5_MM['perc'][n,:,:]                     = MM_perc_MF
             h5_MM['ETg'][n,:,:]                      = MM_wel_MF
         h5_MM.close()
 

@@ -97,7 +97,7 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     plt.plot_date(cMF.inputDate,flx[flxIndex_lst['iRo']],'r-', c='blue', linewidth=1.0, label=flxLbl[flxIndex_lst['iRo']])
     plt.plot_date(cMF.inputDate,flx[flxIndex_lst['iEsurf']],'r-', c='deepskyblue', linewidth=0.75, label=flxLbl[flxIndex_lst['iEsurf']])
     plt.bar(cMF.inputDate, flx[flxIndex_lst['iSsurf']], color='lightblue', linewidth=0, align = 'center', label=flxLbl[flxIndex_lst['iSsurf']])
-    plt.bar(cMF.inputDate, flx[flxIndex_lst['idSsurf']], color='darkblue', width=0.60, linewidth=0, align = 'center', label=flxLbl[flxIndex_lst['idSsurf']])
+    plt.bar(cMF.inputDate, flx[flxIndex_lst['idSsurf']], color='darkblue', linewidth=0, align = 'center', label=flxLbl[flxIndex_lst['idSsurf']])
     plt.ylabel('mm', fontsize=10)
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 3)
     leg = plt.gca().get_legend()
@@ -127,7 +127,7 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     for l in range(nsl):
         if np.absolute(sum(flx[flxIndex_lst['iEsoil_l%d'%(l+1)]])):
             ax3.plot_date(cMF.inputDate, flx[flxIndex_lst['iEsoil_l%d'%(l+1)]], '-', color=colors_nsl.next(), label = flxLbl[flxIndex_lst['iEsoil_l%d'%(l+1)]])
-    plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc)
+    plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 3, columnspacing = colspc)
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8)
@@ -156,7 +156,7 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     for l in range(nsl):
         if np.absolute(sum(flx[flxIndex_lst['iTsoil_l%d'%(l+1)]])):            
             ax4.plot_date(cMF.inputDate, flx[flxIndex_lst['iTsoil_l%d'%(l+1)]], '-', color=colors_nsl.next(), label = flxLbl[flxIndex_lst['iTsoil_l%d'%(l+1)]])
-    plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc)
+    plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 3, columnspacing = colspc)
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8 )
@@ -172,11 +172,14 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     plt.setp(ax6.get_yticklabels(), fontsize=8)
     plt.bar(cMF.inputDate,flx[flxIndex_lst['iEXFg']], color='lightblue', linewidth=0, align = 'center', label=flxLbl[flxIndex_lst['iEXFg']])
     for l in range(nsl):
-        ax6.plot_date(cMF.inputDate, flx[flxIndex_lst['iRsoil_l%d'%(l+1)]], '-', color=colors_nsl.next(), label=flxLbl[flxIndex_lst['iRsoil_l%d'%(l+1)]])
-    plt.plot_date(cMF.inputDate,flx[flxIndex_lst['iRg']],'-', c='darkblue', linewidth=2, label=flxLbl[flxIndex_lst['iRg']])
+        ax6.plot_date(cMF.inputDate, -1.0*flx[flxIndex_lst['iRsoil_l%d'%(l+1)]], '-', color=colors_nsl.next(), label=flxLbl[flxIndex_lst['iRsoil_l%d'%(l+1)]])
+    colors_nsl = itertools.cycle(clr_lst)
+    for l in range(nsl):
+        ax6.plot_date(cMF.inputDate, flx[flxIndex_lst['iExf_l%d'%(l+1)]], '-.', color=colors_nsl.next(), label=flxLbl[flxIndex_lst['iExf_l%d'%(l+1)]])        
+    plt.plot_date(cMF.inputDate, -1.0*flx[flxIndex_lst['iRg']],'-', c='darkblue', linewidth=2, label=flxLbl[flxIndex_lst['iRg']])
     if cMF.wel_yn == 1:
-        plt.plot_date(cMF.inputDate,flx[flxIndex_lst['iETg']],'-', c='blue', linewidth=1.5, label=flxLbl[flxIndex_lst['iETg']])
-    plt.legend(labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc)
+        plt.plot_date(cMF.inputDate, flx[flxIndex_lst['iETg']],'-', c='blue', linewidth=1.5, label=flxLbl[flxIndex_lst['iETg']])
+    plt.legend(labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 3, columnspacing = colspc, loc = 0)
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8 )
@@ -308,20 +311,23 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     ax8b=fig.add_subplot(8,1,1, sharex=ax1)
     plt.setp(ax8b.get_xticklabels(), visible=False)
     plt.setp(ax8b.get_yticklabels(), fontsize=8)
+    plt.plot_date(cMF.inputDate,flx[flxIndex_lst['iMBsurf']],'-', c='lightblue', label = flxLbl[flxIndex_lst['iMBsurf']])
+    MBmin = [min(flx[flxIndex_lst['iMBsurf']])]
+    MBmax = [max(flx[flxIndex_lst['iMBsurf']])]
     plt.plot_date(cMF.inputDate,flx[flxIndex_lst['iMB']],'-', c='r', label = flxLbl[flxIndex_lst['iMB']])
     MBmin = [min(flx[flxIndex_lst['iMB_l']])]
     MBmax = [max(flx[flxIndex_lst['iMB_l']])]
     for l in range(nsl):
         ax8b.plot_date(cMF.inputDate, flx[flxIndex_lst['iMB_l%d'%(l+1)]], '-', color=colors_nsl.next(), label=flxLbl[flxIndex_lst['iMB_l%d'%(l+1)]])
-        MBmin.append(min(flx[flxIndex_lst['iMB_l']]))
-        MBmin.append(max(flx[flxIndex_lst['iMB_l']]))
+        MBmin.append(min(flx[flxIndex_lst['iMB_l%d'%(l+1)]]))
+        MBmax.append(max(flx[flxIndex_lst['iMB_l%d'%(l+1)]]))
     # y axis
     plt.ylabel('mm', fontsize=10)
     ax8b.grid(b=True, which='major', axis = 'both')
     ax8b.xaxis.grid(b=True, which='minor', color='0.65')
     MBmax = max(MBmax)
-    MBmin = max(MBmin)
-    if MBmax < 0.001 and MBmin > -0.001:
+    MBmin = min(MBmin)
+    if np.abs(MBmax - MBmin) < 1E-7:
         plt.ylim(-0.1,0.1)
     else:
         minfact = 0.95
@@ -612,9 +618,8 @@ def plotTIMESERIES_flxGW(cMF, flx, flxLbl, flxIndex_lst, plt_export_fn, plt_titl
     plt.setp(ax8.get_yticklabels(), fontsize=8)
     # uzf recharge
     plt.plot_date(cMF.inputDate,flx[flxIndex_lst['iRg']],'-', c='darkblue', linewidth=2, label = flxLbl[flxIndex_lst['iRg']])
-    i = flxIndex_lst['idSg_L1']
     lines = itertools.cycle(['-','--','-.',':','.',',','o','v','^','<','>','s','p','*','h','H','+','x','D','d','|','_'])
-    for i in range(flxIndex_lst['idSg_L1'], len(flxIndex_lst)+1):
+    for i in range(flxIndex_lst['idSg_L1'], len(flxIndex_lst)):
         if np.absolute(sum(flx[i])) > 1E-6:
             plt.plot_date(cMF.inputDate,flx[i], lines.next(), color = mpl.colors.rgb2hex(np.random.rand(1,3)[0]), markersize=2, label = flxLbl[i], markeredgecolor = 'None')
     plt.ylabel('mm', fontsize=10)
@@ -728,7 +733,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
     # Ssurf
     plt.bar(cMF.inputDate, flx[flxIndex_lst['iSsurf']], color='lightblue', linewidth=0, align = 'center', label = flxLbl[flxIndex_lst['iSsurf']])
     # DeltaSsurf
-    plt.bar(cMF.inputDate, flx[flxIndex_lst['idSsurf']], color='darkblue', width=0.60, linewidth=0, align = 'center', label = flxLbl[flxIndex_lst['idSsurf']])
+    plt.bar(cMF.inputDate, flx[flxIndex_lst['idSsurf']], color='darkblue', linewidth=0, align = 'center', label = flxLbl[flxIndex_lst['idSsurf']])
     plt.ylabel('mm', fontsize=10)
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 3)
     leg = plt.gca().get_legend()
@@ -794,8 +799,8 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
     ax5.set_autoscalex_on(False)
     plt.setp(ax5.get_xticklabels(), fontsize=8)
     plt.setp(ax5.get_yticklabels(), fontsize=8)
-    # Rp / inf
-    ax5.plot_date(cMF.inputDate, flx[flxIndex_lst['iinf']], '-', color = 'brown', label= flxLbl[flxIndex_lst['iRsoil_l']])
+    # Rp / Inf
+    ax5.plot_date(cMF.inputDate, flx[flxIndex_lst['iInf']], '-', color = 'brown', label= flxLbl[flxIndex_lst['iRsoil_l']])
     if cMF != None:
         # Rg
         plt.plot_date(cMF.inputDate,flx[flxIndex_lst['iRg']],'-', c='darkblue', linewidth=2, label = flxLbl[flxIndex_lst['iRg']])
@@ -1225,9 +1230,11 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
     Esurf=[]
     dSsoil=[]
     EXFtotMM=[]
+    Exf_l0 = []
     Esoil=[]
     Tsoil=[]
     ETsoil=[]
+    Inf = []
     Eg = []
     Tg = []
     Egtot=[]
@@ -1262,9 +1269,11 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
         Esurf.append(mult*np.sum(np.float16(flx[flxIndex['iEsurf']][i:indexend])))
         dSsoil.append(mult*np.sum(np.float16(flx[flxIndex['idSsoil']][i:indexend])))
         EXFtotMM.append(mult*np.sum(np.float16(flx[flxIndex['iEXFg']][i:indexend])))
+        Exf_l0.append(mult*np.sum(np.float16(flx[flxIndex['iExf_l1']][i:indexend])))
         Esoil.append(mult*np.sum(np.float16(flx[flxIndex['iEsoil_l']][i:indexend])))
         Tsoil.append(mult*np.sum(np.float16(flx[flxIndex['iTsoil_l']][i:indexend])))
         ETsoil.append(mult*np.sum(np.float16(flx[flxIndex['iETsoil']][i:indexend])))
+        Inf.append(mult*np.sum(np.float16(flx[flxIndex['iInf']][i:indexend])))
         if cMF.wel_yn == 1:
             Eg.append([])
             Tg.append([])
@@ -1275,7 +1284,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
             Tgtot.append(mult*np.sum(np.float16(flx[flxIndex['iTg']][i:indexend])))
             ETg.append(mult*np.sum(np.float16(flx[flxIndex['iETg']][i:indexend])))
         Ssurf.append(mult*np.sum(np.float16(flx[flxIndex['iSsurf']][i:indexend])))
-        Rp.append(mult*np.sum(np.float16(flx[flxIndex['iinf']][i:indexend])))
+        Rp.append(mult*np.sum(np.float16(flx[flxIndex['iperc']][i:indexend])))
         dSu.append(mult*np.sum(np.float16(flx[flxIndex['idSu']][i:indexend])))
         Rg.append([])
         dSg.append([])
@@ -1343,32 +1352,49 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
             # print '\nMMsurf: RF %s, I %s, RFe %s, Esurf %s, DSsurf %s\nMMsoil: Esoil %s, Tsoil %s, ETsoil %s, Ro %s, Rp %s, DSsoil  %s\nUZF: Rg %s, DSu %s\nMF: Eg %s, Tg %s, ETg %s, %s, EXF  %s, FLF %s, dSg %s' % (RF[k]/ff, I[k]/ff, RFe[k]/ff, Esurf[k]/ff, DSsurf[k]/ff, Esoil[k]/ff, Tsoil[k]/ff, ETsoil[k]/ff, Ro[k]/ff, Rp[k]/ff, DSsoil[k]/ff, (np.asarray(Rg[k])/ff), DSu[k]/ff, (np.asarray(Eg[k])/ff), (np.asarray(Tg[k])/ff), ETg[k]/ff, lbl_tmp, (np.asarray(EXF[k])/ff), (np.asarray(FLF[k])/ff), (np.asarray(dSg[k])/ff))
             treshold = 5E-2
             if k == 0 or k%2 != 0:
-                fig = plt.figure() # figsize=(8.27, 11.7), dpi = 72)
+                fig = plt.figure(figsize=(8.27, 11.7), dpi = 72)
                 if f == 0:
                     fig.suptitle('Water balance ($mm.y^{-1}$) - %s\n'%obspt, fontsize = 10, y = 0.99)
                 else:
                     fig.suptitle('Water balance ($\%%$ of yearly rainfall) - %s\n'%obspt, fontsize = 10, y = 0.99)
                 ax = []
-                ax.append(fig.add_subplot(1, 2, 1, xticks=[], yticks=[]))
-                x = 0.25
+                ax.append(fig.add_subplot(2, 1, 1, xticks=[], yticks=[]))
+                y = 0.530
                 p = 0
             else:
-                ax.append(fig.add_subplot(1, 2, 2, xticks=[], yticks=[]))
-                x = 0.75
+                ax.append(fig.add_subplot(2, 1, 2, xticks=[], yticks=[]))
+                y = 0.085
                 p = 1
-            figtitle = fig.text(x = x, y = 0.075, s = title, horizontalalignment = 'center', verticalalignment = 'bottom', fontsize = 8)
+            figtitle = fig.text(x = 0.5, y = y, s = title, horizontalalignment = 'center', verticalalignment = 'bottom', fontsize = 8)
             fmt = '%.1f'
             pltsankey = Sankey(ax=ax[p], format=fmt, scale=1.0/fff, offset = 0.25, gap = 0.5, shoulder = 0.0, margin = 0.5)
             pl = 0.5
-            tl = 1.0
+            tl = 2.0
+            # MMveg
+            pltsankey.add(patchlabel='veg', facecolor='lightgreen', trunklength =tl/1.5,
+                       flows=[RF[k]/ff, -I[k]/ff, -RFe[k]/ff],
+                       labels=['$RF$', '$I$', '$RFe$'],
+                       orientations=[1,1,-1],
+                       pathlengths = [pl, pl, pl])
             # MMsurf
-            pltsankey.add(patchlabel = '$\Delta S_{surf}$\n%.1f' % (-dSsurf[k]/ff), label='MMsurf', facecolor='lightblue', trunklength =tl,
-                       flows=[RF[k]/ff, -I[k]/ff, -RFe[k]/ff, -Esurf[k]/ff],
-                       labels=['$RF$', '$I$', '$RFe$','$E_{surf}$'],
-                       orientations=[1,1,-1,1],
-                       pathlengths = [pl, pl, pl, pl])
-            In = RF[k]
-            Out = I[k]  + RFe[k] + Esurf[k]
+            if np.abs(Exf_l0[k]) > treshold:
+               flows=[RFe[k]/ff, -Inf[k]/ff, Exf_l0[k]/ff, -Esurf[k]/ff, -Ro[k]/ff]
+               labels=[None, '$Inf$', '$Exf^{l1}$', '$E_{surf}$','$Ro$']
+               orientations=[1,-1,-1,1,0]
+               pathlengths = [pl, pl, pl, pl, pl]
+            else:
+               flows=[RFe[k]/ff, -Inf[k]/ff, -Esurf[k]/ff, -Ro[k]/ff]
+               labels=[None, '$Inf$', '$E_{surf}$','$Ro$']
+               orientations=[1,-1,1,0]
+               pathlengths = [pl, pl, pl, pl]
+            pltsankey.add(patchlabel = '$\Delta S_{surf}$\n%.1f' % (-dSsurf[k]/ff), label='MMsurf', facecolor='lightblue', trunklength = tl,
+               flows=flows,
+               labels=labels,
+               orientations=orientations,
+               pathlengths = pathlengths,
+               prior=0, connect=(2,0))
+            In = RFe[k] + Exf_l0[k]
+            Out = Inf[k]  + Esurf[k] + Ro[k]
             if  dSsurf[k] > 0.0:
                 Out += dSsurf[k]
             else:
@@ -1376,24 +1402,36 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
             MB_MMsurf = 100*(In - Out)/((In + Out)/2)
             # MMsoil
             if EXFtotMM[k] > treshold:
-                flows = [RFe[k]/ff, -Rp[k]/ff, -Esoil[k]/ff, -Tsoil[k]/ff, EXFtotMM[k]/ff, -Ro[k]/ff]
-                labels = [None,'$R_p$','$E_{soil}$','$T_{soil}$','$Exf_g$','$Ro$']
-                orientations = [1,-1,1,1,-1,1]
-                pathlengths = [pl, pl, pl, pl, pl, pl]
+                if np.abs(-Exf_l0[k]) > treshold:
+                    flows = [Inf[k]/ff, -Rp[k]/ff, -Exf_l0[k]/ff, -Esoil[k]/ff, -Tsoil[k]/ff, EXFtotMM[k]/ff]
+                    labels = [None,'$R_p$','$Exf^{l1}$','$E_{soil}$','$T_{soil}$','$Exf_g$']
+                    orientations = [1,-1,1,1,1,-1]
+                    pathlengths = [pl, pl, pl, pl, pl, pl]
+                else:
+                    flows = [Inf[k]/ff, -Rp[k]/ff, -Esoil[k]/ff, -Tsoil[k]/ff, EXFtotMM[k]/ff]
+                    labels = [None,'$R_p$','$E_{soil}$','$T_{soil}$','$Exf_g$']
+                    orientations = [1,-1,1,1,-1]
+                    pathlengths = [pl, pl, pl, pl, pl]
             else:
-                flows = [RFe[k]/ff, -Rp[k]/ff, -Esoil[k]/ff, -Tsoil[k]/ff, -Ro[k]/ff]
-                labels = [None,'$R_p$','$E_{soil}$','$T_{soil}$','$Ro$']
-                orientations = [1,-1,1,1,1]
-                pathlengths = [pl, pl, pl, pl, pl]
+                if np.abs(EXF[k][0]) > treshold:
+                    flows = [Inf[k]/ff, -Rp[k]/ff, -Exf_l0[k]/ff, -Esoil[k]/ff, -Tsoil[k]/ff]
+                    labels = [None,'$R_p$','$Exf^{l1}$','$E_{soil}$','$T_{soil}$']
+                    orientations = [1,-1,1,1,1]
+                    pathlengths = [pl, pl, pl, pl, pl]
+                else:
+                    flows = [Inf[k]/ff,-Rp[k]/ff, -Esoil[k]/ff, -Tsoil[k]/ff]
+                    labels = [None,'$R_p$','$E_{soil}$','$T_{soil}$']
+                    orientations = [1,-1,1,1]
+                    pathlengths = [pl, pl, pl, pl]
             pltsankey.add(patchlabel = '$\Delta S_{soil}$\n%.1f' % (dSsoil[k]/ff),
                        label='MMsoil', facecolor='khaki', trunklength = tl,
                        flows=flows,
                        labels=labels,
                        orientations=orientations,
                        pathlengths = pathlengths,
-                       prior=0, connect=(2,0))
-            In = RFe[k] + EXFtotMM[k]
-            Out = Rp[k] + Esoil[k] + Tsoil[k] + Ro[k]
+                       prior=1, connect=(1,0))
+            In = Inf[k] + EXFtotMM[k]
+            Out = Rp[k] + Esoil[k] + Tsoil[k] + Exf_l0[k]
             if  dSsoil[k] > 0.0:
                 Out += dSsoil[k]
             else:
@@ -1403,7 +1441,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
             flows=[Rp[k]/ff]
             labels=[None]
             orientations=[1]
-            pathlengths = [pl]
+            pathlengths = [2*pl]
             for L in range(cMF.nlay):
                 if ibound4Sankey[L] > 0:
                     if Rg[k][L]/ff>0.0:
@@ -1418,7 +1456,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                        labels=labels,
                        orientations=orientations,
                        pathlengths = pathlengths,
-                       prior=1, connect=(1, 0))
+                       prior=2, connect=(1, 0))
             In = Rp[k]
             Out = 0
             for L in range(cMF.nlay):
@@ -1449,7 +1487,6 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                             labels=[None, '$FLF$', '$FRF$', '$FFF$']
                             orientations=[1, -1, 0, 0]
                             pathlengths = [pl*4, pl, pl, pl*4]
-                        tl_mult = 1
                         if cMF.nlay>1:
                             if FLF[k][L] > 0.0:
                                 Out.append(FLF[k][L])
@@ -1460,7 +1497,6 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                         labels=[None, '$Rg^{L%d}$'%(L+1), '$FRF$', '$FFF$']
                         orientations=[1, 1, 0, 0]
                         pathlengths = [pl*4, pl, pl, pl*4]
-                        tl_mult = 1
                         if FLF[k][L-1] > 0.0:
                             In.append(FLF[k][L-1])
                         else:
@@ -1470,7 +1506,6 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                         labels=[None, None, '$\Delta S_g$', '$FLF$', '$FRF$', '$FFF$']
                         orientations=[1, 1, -1, 0, 0]
                         pathlengths = [pl, pl, pl, pl, pl*4]
-                        tl_mult = 1
                         if FLF[k][L] > 0.0:
                             Out.append(FLF[k][L])
                         else:
@@ -1538,7 +1573,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                             Out.append(-GHB[k][L])
                         else:
                             In.append(GHB[k][L])
-                    pltsankey.add(patchlabel = '$\Delta S_g$\n%.1f' % (-dSg[k][L]/ff), label='MFL%d'%(L+1), facecolor='LightSteelBlue', trunklength = tl*tl_mult, flows = flows, labels = labels, orientations = orientations, pathlengths = pathlengths, prior=2+L_act, connect=(1, 0))
+                    pltsankey.add(patchlabel = '$\Delta S_g$\n%.1f' % (-dSg[k][L]/ff), label='MFL%d'%(L+1), facecolor='LightSteelBlue', trunklength = tl, flows = flows, labels = labels, orientations = orientations, pathlengths = pathlengths, prior=3+L_act, connect=(1, 0))
                     MB_MF.append(100*(sum(In) - sum(Out))/((sum(In) + sum(Out))/2))
                     L_act == 0
                 else:
@@ -1570,7 +1605,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                 plt.setp(ltext, fontsize=6)
             # water balance box
             #msg = 'Water balance\nclosure (%%)\n-----------------\nMMsurf =%3.1f\nMMsoil =%3.1f\nMFUZF =%3.1f' % (MB_MMsurf, MB_MMsoil, MB_MFuzf) #
-            msg = 'Water balance closure (%%)\nMMsurf=%3.1f // MMsoil=%3.1f\nMFUZF=%3.1f' % (MB_MMsurf, MB_MMsoil, MB_MFuzf) #
+            msg = 'Water balance closure (%%)\nMMsurf=%3.1f, MMsoil=%3.1f, MFUZF=%3.1f' % (MB_MMsurf, MB_MMsoil, MB_MFuzf) #
             for L in range(cMF.nlay):
                 msg += ' // MFL%d=%3.1f' % (L+1, MB_MF[L]) #%2.1f
             xy = (figtitle.get_position()[0], figtitle.get_position()[1]-0.005)   

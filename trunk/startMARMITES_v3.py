@@ -405,30 +405,31 @@ else:
 HYindex.append(np.argmax(DATE[:] == mpl.dates.datestr2num('%d-%d-01' % (year_lst[0], iniMonthHydroYear))))
 
 if sum(DATE[:] == mpl.dates.datestr2num('%d-%d-01' % (year_lst[0]+1, iniMonthHydroYear)))==0:
-    cUTIL.ErrorExit(msg = '\nThe data file does not contain a full hydrological year starting at date 01/%d' % iniMonthHydroYear, stdout = stdout, report = report)
-
-y = 0    
-while DATE[-1] >= mpl.dates.datestr2num('%d-%d-01' % (year_lst[y]+1, iniMonthHydroYear)):
-    if iniMonthHydroYear == 1:
-        iniMonth_prev = 12
-        add = 0
-    else:
-        iniMonth_prev = iniMonthHydroYear - 1
-        add = 1
-    indexend = np.argmax(DATE[:] == mpl.dates.datestr2num('%d-%d-30' % (year_lst[y]+add, iniMonth_prev)))
-    if DATE[-1] >= mpl.dates.datestr2num('%d-%d-30' % (year_lst[y]+2, iniMonth_prev)):
-        year_lst.append(year_lst[y]+1)
-        HYindex.append(np.argmax(DATE[:] == mpl.dates.datestr2num('%d-%d-01' % (year_lst[y]+1, iniMonthHydroYear))))
-        indexend = np.argmax(DATE[:] == mpl.dates.datestr2num('%d-%d-30' % (year_lst[y]+2, iniMonth_prev)))
-        y += 1
-    else:
-        break
-HYindex.append(indexend)
-HYindex.insert(0, 0)
-HYindex.append(len(DATE)-1)
-del indexend
-StartDate = DATE[HYindex[1]]
-EndDate   = DATE[HYindex[-1]]
+    HYindex.append(HYindex[0])
+    HYindex.append(len(DATE)-1)
+    HYindex.append(len(DATE)-1)
+    print '\nWARNING!\nThe data file does not contain a full hydrological year!'
+else:
+    y = 0    
+    while DATE[-1] >= mpl.dates.datestr2num('%d-%d-01' % (year_lst[y]+1, iniMonthHydroYear)):
+        if iniMonthHydroYear == 1:
+            iniMonth_prev = 12
+            add = 0
+        else:
+            iniMonth_prev = iniMonthHydroYear - 1
+            add = 1
+        indexend = np.argmax(DATE[:] == mpl.dates.datestr2num('%d-%d-30' % (year_lst[y]+add, iniMonth_prev)))
+        if DATE[-1] >= mpl.dates.datestr2num('%d-%d-30' % (year_lst[y]+2, iniMonth_prev)):
+            year_lst.append(year_lst[y]+1)
+            HYindex.append(np.argmax(DATE[:] == mpl.dates.datestr2num('%d-%d-01' % (year_lst[y]+1, iniMonthHydroYear))))
+            indexend = np.argmax(DATE[:] == mpl.dates.datestr2num('%d-%d-30' % (year_lst[y]+2, iniMonth_prev)))
+            y += 1
+        else:
+            break
+    HYindex.append(indexend)
+    HYindex.insert(0, 0)
+    HYindex.append(len(DATE)-1)
+    del indexend, iniMonth_prev
         
 #    print year_lst
 #    print index
@@ -578,8 +579,8 @@ botm_l0 = np.asarray(cMF.botm)[0,:,:]
 # create MM array
 h5_MM_fn = os.path.join(MM_ws,'_h5_MM.h5')
 # indexes of the HDF5 output arrays
-index_MM = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSsurf':4, 'iRo':5, 'iEXFg':6, 'iEsurf':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSsurf':13, 'iETg':14, 'iETsoil':15, 'iSsoil_pc':16, 'idSsoil':17, 'iinf':18, 'ihcorr':19, 'idgwt':20, 'iuzthick':21}
-index_MM_soil = {'iEsoil_l':0, 'iTsoil_l':1,'iSsoil_pc_l':2, 'iRsoil_l':3, 'iEXFg_l':4, 'idSsoil_l':5, 'iSsoil_l':6, 'iSAT_l':7, 'iMB_l':8}
+index_MM = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSsurf':4, 'iRo':5, 'iEXFg':6, 'iEsurf':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSsurf':13, 'iETg':14, 'iETsoil':15, 'iSsoil_pc':16, 'idSsoil':17, 'iperc':18, 'ihcorr':19, 'idgwt':20, 'iuzthick':21, 'iInf':22, 'iMBsurf':23}
+index_MM_soil = {'iEsoil_l':0, 'iTsoil_l':1,'iSsoil_pc_l':2, 'iRsoil_l':3, 'iExf_l':4, 'idSsoil_l':5, 'iSsoil_l':6, 'iSAT_l':7, 'iMB_l':8}
 
 # READ observations time series (heads and soil moisture)
 print "\nReading observations time series (hydraulic heads and soil moisture)..."
@@ -809,7 +810,7 @@ if MF_yn == 1 :
         stdout = sys.stdout
         report = open(report_fn, 'a')
         sys.stdout = report
-    cMF.runMF(finf_MM = (h5_MM_fn, 'finf'), wel_MM = (h5_MM_fn, 'ETg'), verbose = verbose, chunks = chunks, numDays = numDays, stdout = stdout, report = report)
+    cMF.runMF(perc_MM = (h5_MM_fn, 'perc'), wel_MM = (h5_MM_fn, 'ETg'), verbose = verbose, chunks = chunks, numDays = numDays, stdout = stdout, report = report)
     timeendMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
     durationMFtmp =  timeendMF - timestartMF
     durationMF +=  durationMFtmp
@@ -893,10 +894,10 @@ if MMsoil_yn != 0:
         h5_MM.create_dataset(name = 'MM_S', shape = (sum(cMF.perlen),cMF.nrow,cMF.ncol,_nslmax,len(index_MM_soil)), dtype = np.float)
     # arrays to compute net recharge to be exported to MF
     if chunks == 1:
-        h5_MM.create_dataset(name = 'finf', shape = (cMF.nper,cMF.nrow,cMF.ncol), dtype = np.float, chunks = (1,cMF.nrow,cMF.ncol),  compression = 'gzip', compression_opts = 5, shuffle = True)
+        h5_MM.create_dataset(name = 'perc', shape = (cMF.nper,cMF.nrow,cMF.ncol), dtype = np.float, chunks = (1,cMF.nrow,cMF.ncol),  compression = 'gzip', compression_opts = 5, shuffle = True)
         h5_MM.create_dataset(name = 'ETg', shape = (cMF.nper,cMF.nrow,cMF.ncol), dtype = np.float, chunks = (1,cMF.nrow,cMF.ncol),  compression = 'gzip', compression_opts = 5, shuffle = True)
     else:
-        h5_MM.create_dataset(name = 'finf', shape = (cMF.nper,cMF.nrow,cMF.ncol), dtype = np.float)
+        h5_MM.create_dataset(name = 'perc', shape = (cMF.nper,cMF.nrow,cMF.ncol), dtype = np.float)
         h5_MM.create_dataset(name = 'ETg', shape = (cMF.nper,cMF.nrow,cMF.ncol), dtype = np.float)
 
     # #############################
@@ -1009,7 +1010,7 @@ if MMsoil_yn != 0:
                 stdout = sys.stdout
                 report = open(report_fn, 'a')
                 sys.stdout = report
-            cMF.runMF(finf_MM = (h5_MM_fn, 'finf'), wel_MM = (h5_MM_fn, 'ETg'), verbose = verbose, chunks = chunks, numDays = numDays, stdout = stdout, report = report)
+            cMF.runMF(perc_MM = (h5_MM_fn, 'perc'), wel_MM = (h5_MM_fn, 'ETg'), verbose = verbose, chunks = chunks, numDays = numDays, stdout = stdout, report = report)
             try:
                 h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
             except:
@@ -1126,7 +1127,7 @@ if MMsoil_yn != 0 and isinstance(h5_MM_fn, str):
         h5_MM = h5py.File(h5_MM_fn)
     except:
         cUTIL.ErrorExit('\nFATAL ERROR!\nInvalid MARMITES HDF5 file. Run MARMITES and/or MODFLOW again.', stdout = stdout, report = report)
-    cMF.cPROCESS.procMM(cMF = cMF, h5_MM = h5_MM, ds_name = 'finf', ds_name_new = 'finf_d')
+    cMF.cPROCESS.procMM(cMF = cMF, h5_MM = h5_MM, ds_name = 'perc', ds_name_new = 'perc_d')
     cMF.cPROCESS.procMM(cMF = cMF, h5_MM = h5_MM, ds_name = 'ETg', ds_name_new = 'ETg_d')
     h5_MM.close()
 
@@ -1411,8 +1412,8 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
     rHEADSc = []
     obslstHEADSc = []    
     # indexes of the HDF5 output arrays
-    # index_MM = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSsurf':4, 'iRo':5, 'iEXFg':6, 'iEsurf':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSsurf':13, 'iETg':14, 'iETsoil':15, 'iSsoil_pc':16, 'idSsoil':17, 'iinf':18, 'ihcorr':19, 'idgwt':20, 'iuzthick':21}
-    # index_MM_soil = {'iEsoil_l':0, 'iTsoil_l':1,'iSsoil_pc_l':2, 'iRsoil_l':3, 'iEXFg_l':4, 'idSsoil_l':5, 'iSsoil_l':6, 'iSAT_l':7, 'iMB_l':8}
+    # index_MM = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSsurf':4, 'iRo':5, 'iEXFg':6, 'iEsurf':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSsurf':13, 'iETg':14, 'iETsoil':15, 'iSsoil_pc':16, 'idSsoil':17, 'iperc':18, 'ihcorr':19, 'idgwt':20, 'iuzthick':21, 'iInf':22, 'iMBsurf':23}
+    # index_MM_soil = {'iEsoil_l':0, 'iTsoil_l':1,'iSsoil_pc_l':2, 'iRsoil_l':3, 'iExf_l':4, 'idSsoil_l':5, 'iSsoil_l':6, 'iSAT_l':7, 'iMB_l':8}
     #    # TODO Ro sould not be averaged by ncell_MM, as well as EXF
     print '\nExporting output ASCII files, time series plots and water balance sankey plots of water fluxes at the catchment scale...\n-------'
     flxCatch_lst   = []
@@ -1424,7 +1425,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
     # MM
     flx_lst = []
     for e in sorted(index_MM, key=index_MM.get): flx_lst.append(e)
-    flxLbl_lst = [r'$RF$', r'$PT$', r'$PE$', r'$RFe$', r'$S_{surf}$', r'$Ro$', r'$Exf_g$', r'$E_{surf}$',  r'$MB_{soil}$', r'$I$',  r'$E_0$', r'$E_g$', r'$T_g$', r'$\Delta S_{surf}$', r'$ET_g$', r'$ET_{soil}$', r'$\theta$', r'\Delta S_{soil}', r'$inf$', r'$h \ corr$', '$d$', r'$thick_p}$']    
+    flxLbl_lst = [r'$RF$', r'$PT$', r'$PE$', r'$RFe$', r'$S_{surf}$', r'$Ro$', r'$Exf_g$', r'$E_{surf}$',  r'$MB_{soil}$', r'$I$',  r'$E_0$', r'$E_g$', r'$T_g$', r'$\Delta S_{surf}$', r'$ET_g$', r'$ET_{soil}$', r'$\theta$', r'\Delta S_{soil}', r'$perc$', r'$h \ corr$', '$d$', r'$thick_p}$', r'$Inf$', r'$MB_{surf}$']    
     for z, (i, i_tex) in enumerate(zip(flx_lst, flxLbl_lst)):
         flxIndex_lst[i] = count
         count += 1
@@ -1439,7 +1440,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
     # MM_S
     flx_lst = []
     for e in sorted(index_MM_soil, key=index_MM_soil.get): flx_lst.append(e)
-    for z, (i, i_tex) in enumerate(zip(flx_lst, [r'$E_{soil}$', r'$T_{soil}$', r'$\\theta$', r'$R_p$', r'$Exf_g$', r'$\Delta S_{soil}$', r'$S_{soil}$', r'$SAT$', r'$MB_{soil}$'])):
+    for z, (i, i_tex) in enumerate(zip(flx_lst, [r'${E_{soil}}^l$', r'${T_{soil}}^l$', r'$\\theta^l$', r'${R_p}^l$', r'$Exf_l$', r'${\Delta S_{soil}}^l$', r'${S_{soil}}}^l$', r'$SAT^l$', r'${MB_{soil}}^l$'])):
         flxLbl_lst.append(i_tex)
         flxIndex_lst[i] = count
         count += 1
@@ -1456,6 +1457,17 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
         del flx_tmp, array_tmp, array_tmp1
         flxCatch_lst.append(array_tmp2/sum(ncell_MM))
         del flx_tmp1, array_tmp2
+    # Exf_l0
+    flxLbl_lst.append('$iExf_l1$')
+    flxIndex_lst['iExf_l1'] = count
+    count += 1        
+    array_tmp = h5_MM['MM_S'][:,:,:,0,index_MM_soil.get('iExf_l')]
+    flx_tmp = np.ma.masked_values(array_tmp, cMF.hnoflo, atol = 0.09)
+    flxmax_d.append(np.ma.max(flx_tmp))
+    flxmin_d.append(np.ma.min(flx_tmp))
+    array_tmp1 = np.sum(np.ma.masked_values(array_tmp, cMF.hnoflo, atol = 0.09), axis = 1)
+    flxCatch_lst.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
+    del flx_tmp, array_tmp, array_tmp1    
     if cMF.wel_yn == 1:
         array_tmp = h5_MM['MM'][:,:,:,index_MM.get('iEg')]
         flx_tmp = np.ma.masked_values(array_tmp, cMF.hnoflo, atol = 0.09)
@@ -1545,7 +1557,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
         flxIndex_lst['iRg'] = count
         count += 1
         flxLbl_lst.append(r'$\Delta S_{u}$')
-        flxCatch_lst.append(flxCatch_lst[flxIndex_lst['iinf']] - rch_tot/sum(ncell_MM))
+        flxCatch_lst.append(flxCatch_lst[flxIndex_lst['iperc']] - rch_tot/sum(ncell_MM))
         flxIndex_lst['idSu'] = count
         count += 1        
         del array_tmp, array_tmp1, rch_tmp, rch_tot, cbc_RCH
@@ -1671,7 +1683,11 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
         h5_MF.close()
         plt_exportCATCH_fn = os.path.join(MM_ws_out, '_0CATCHMENT_ts.png')
         plt_titleCATCH = 'Time series of fluxes averaged over the whole catchment'
-        rmseHEADS_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrSM_tmp, nseHEADS_tmp, nseSM_tmp, rHEADS_tmp, rSM_tmp = MMplot.plotTIMESERIES_CATCH(cMF, flxCatch_lst, flxLbl_lst, plt_exportCATCH_fn, plt_titleCATCH, hmax = hmaxMF, hmin = hminMF, iniMonthHydroYear = iniMonthHydroYear, date_ini = StartDate, date_end = EndDate, flxIndex_lst = flxIndex_lst, obs_catch = obs_catch, obs_catch_list = obs_catch_list, TopSoilAverage = TopSoilAverage, MF = 1)
+        try:
+            rmseHEADS_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrSM_tmp, nseHEADS_tmp, nseSM_tmp, rHEADS_tmp, rSM_tmp = MMplot.plotTIMESERIES_CATCH(cMF, flxCatch_lst, flxLbl_lst, plt_exportCATCH_fn, plt_titleCATCH, hmax = hmaxMF, hmin = hminMF, iniMonthHydroYear = iniMonthHydroYear, date_ini = DATE[HYindex[1]], date_end = DATE[HYindex[-2]], flxIndex_lst = flxIndex_lst, obs_catch = obs_catch, obs_catch_list = obs_catch_list, TopSoilAverage = TopSoilAverage, MF = 1)
+            print 'TS plot done!'
+        except:
+            print 'TS plot error!'            
     if rmseHEADS_tmp <> None:
         rmseHEADS.append(rmseHEADS_tmp)
         rsrHEADS.append(rsrHEADS_tmp)
@@ -1721,8 +1737,9 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
     if WBsankey_yn == 1:
         try:
             MMplot.plotWBsankey(MM_ws_out, cMF.inputDate, flxCatch_lst, flxIndex_lst, fn = plt_exportCATCH_txt_fn.split('\\')[-1], indexTime = HYindex, year_lst = year_lst, cMF = cMF, ncell_MM = ncell_MM, obspt = 'whole catchment', fntitle = '0CATCHMENT', ibound4Sankey = np.ones((cMF.nlay), dtype = int), stdout = stdout, report = report)
+            print 'WB Sankey plot done!\n-------'
         except:
-            print "\nError in plotting the catchment water balance!"
+            print 'WB Sankey plot error!\n-------'
     del flxCatch_lst, flxCatch_lst_str, out_line, plt_exportCATCH_fn, plt_exportCATCH_txt_fn, plt_titleCATCH
 
 # #################################################
@@ -1809,26 +1826,26 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                     flxObs_lst = []
                     count = 0
                     # flx from MM
-                    # index_MM = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSsurf':4, 'iRo':5, 'iEXFg':6, 'iEsurf':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSsurf':13, 'iETg':14, 'iETsoil':15, 'iSsoil_pc':16, 'idSsoil':17, 'iinf':18, 'ihcorr':19, 'idgwt':20, 'iuzthick':21}
+                    # index_MM = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSsurf':4, 'iRo':5, 'iEXFg':6, 'iEsurf':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSsurf':13, 'iETg':14, 'iETsoil':15, 'iSsoil_pc':16, 'idSsoil':17, 'iperc':18, 'ihcorr':19, 'idgwt':20, 'iuzthick':21, 'iInf': 22, 'iMBsurf':23}
                     flx_lst = []
                     for e in sorted(index_MM, key=index_MM.get): flx_lst.append(e)
-                    flxLbl_lst = [r'$RF$', r'$PT$', r'$PE$', r'$RFe$', r'$S_{surf}$', r'$Ro$', r'$Exf_g$', r'$E_{surf}$',  r'$MB_{soil}$', r'$I$',  r'$E_0$', r'$E_g$', r'$T_g$', r'$\Delta S_{surf}$', r'$ET_g$', r'$ET_{soil}$', r'$\theta$', r'\Delta S_{soil}', r'$inf$', r'$h \ corr$', '$d$', r'$thick_p}$']    
+                    flxLbl_lst = [r'$RF$', r'$PT$', r'$PE$', r'$RFe$', r'$S_{surf}$', r'$Ro$', r'$Exf_g$', r'$E_{surf}$',  r'$MB_{soil}$', r'$I$',  r'$E_0$', r'$E_g$', r'$T_g$', r'$\Delta S_{surf}$', r'$ET_g$', r'$ET_{soil}$', r'$\theta$', r'\Delta S_{soil}', r'$perc$', r'$h \ corr$', '$d$', r'$thick_p$', r'$Inf$', r'$MB_{surf}$']    
                     for ii in flx_lst:              
                         flxObs_lst.append((MM[:,index_MM.get(ii)]))
                         flxIndex_lst[ii] = count
                         count += 1
                     # flx from MM_S
                     # whole soil reservoir
-                    # index_MM_soil = {'iEsoil_l':0, 'iTsoil_l':1,'iSsoil_pc_l':2, 'iRsoil_l':3, 'iEXFg_l':4, 'idSsoil_l':5, 'iSsoil_l':6, 'iSAT_l':7, 'iMB_l':8} 
+                    # index_MM_soil = {'iEsoil_l':0, 'iTsoil_l':1,'iSsoil_pc_l':2, 'iRsoil_l':3, 'iExf_l':4, 'idSsoil_l':5, 'iSsoil_l':6, 'iSAT_l':7, 'iMB_l':8} 
                     flx_lst = []
                     for e in sorted(index_MM_soil, key=index_MM_soil.get): flx_lst.append(e)
-                    for z, (ii, ii_tex) in enumerate(zip(flx_lst, [r'E_{soil}', 'T_{soil}', '\\theta', 'R_p', 'Exf_g','\Delta S_{soil}', 'S_{soil}', 'SAT', 'MB_{soil}'])):
+                    for z, (ii, ii_tex) in enumerate(zip(flx_lst, ['{E_{soil}}^l', '{T_{soil}}^l', '\\theta^l', '{R_p}^l', 'Exf_l', '{\Delta S_{soil}}^l', '{S_{soil}}}^l', 'SAT^l', '{MB_{soil}}^l'])):
                         flxLbl_lst.append(r'$%s$'%ii_tex)
                         flxObs_lst.append((np.sum(np.ma.masked_values(MM_S[:,:,index_MM_soil.get(ii)], cMF.hnoflo, atol = 0.09), axis = 1)))
                         flxIndex_lst[ii] = count
                         count += 1
                     # each layer of soil reservoir
-                    for z, (ii, ii_tex) in enumerate(zip(flx_lst, [r'E_{soil}', 'T_{soil}', '\\theta', 'R_{soil}', 'Exf_g','\Delta \\theta', 'S_{soil}', 'SAT', 'MB_{soil}'])):
+                    for z, (ii, ii_tex) in enumerate(zip(flx_lst, [r'E_{soil}', 'T_{soil}', '\\theta', 'R_{soil}', 'Exf','\Delta \\theta', 'S_{soil}', 'SAT', 'MB_{soil}'])):
                         for l in range(nsl):
                             flxLbl_lst.append(r'$%s^{l%d}$'%(ii_tex,l+1))
                             flxObs_lst.append(np.ma.masked_values(MM_S[:,l,index_MM_soil.get(ii)], cMF.hnoflo, atol = 0.09))
@@ -1907,12 +1924,12 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                     flxIndex_lst['iRg'] = count
                     count += 1
                     # STO UZF
-                    flxLbl_lst.append(r'$inf_p$')
-                    flxObs_lst.append(conv_fact*h5_MM['finf_d'][:,i,j])
-                    flxIndex_lst['iinf'] = count
+                    flxLbl_lst.append(r'$Perc_p$')
+                    flxObs_lst.append(conv_fact*h5_MM['perc_d'][:,i,j])
+                    flxIndex_lst['iperc_p'] = count
                     count += 1
                     flxLbl_lst.append(r'$\Delta S_{u}$')
-                    flxObs_lst.append(flxObs_lst[flxIndex_lst['iinf']] - flxObs_lst[flxIndex_lst['iRg']])
+                    flxObs_lst.append(flxObs_lst[flxIndex_lst['iperc']] - flxObs_lst[flxIndex_lst['iRg']])
                     flxIndex_lst['idSu'] = count
                     count += 1
                     for L in range(cMF.nlay):
@@ -2002,25 +2019,26 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                     # plot time series at each obs. cell
                     plt_suptitle = 'Time series of fluxes at observation point %s' % o
                     plt_title = 'i = %d, j = %d, l_obs = %d, l_highest = %d, x = %.2f, y = %.2f, elev. = %.2f, %s\nSm = %s, Sfc = %s, Sr = %s, Ks = %s, thick. = %.3f %s\nfrac. area veg. = %s (veg. name = %s)\nfrac. area veg. tot. = %.1f, frac. area soil = %.1f' % (i+1, j+1, l_obs+1, l_highest+1, obs.get(o)['x'], obs.get(o)['y'], cMF.elev[i,j], soilnam, _Sm[SOILzone_tmp], _Sfc[SOILzone_tmp], _Sr[SOILzone_tmp], _Ks[SOILzone_tmp], gridSOILthick[i,j], Tl, VEGarea, VegName, VEGareaTot, SOILarea)
-                    # index_MM = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSsurf':4, 'iRo':5, 'iEXFg':6, 'iEsurf':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSsurf':13, 'iETg':14, 'iETsoil':15, 'iSsoil_pc':16, 'idSsoil':17, 'iinf':18, 'ihcorr':19, 'idgwt':20, 'iuzthick':21}
+                    # index_MM = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSsurf':4, 'iRo':5, 'iEXFg':6, 'iEsurf':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSsurf':13, 'iETg':14, 'iETsoil':15, 'iSsoil_pc':16, 'idSsoil':17, 'iperc':18, 'ihcorr':19, 'idgwt':20, 'iuzthick':21, 'iInf': 22, 'iMBsurf':23}
                     # index_MM_soil = {'iEsoil':0, 'iTsoil':1,'iSsoil_pc':2, 'iRsoil':3, 'iRexf':4, 'idSsoil':5, 'iSsoil':6, 'iSAT':7, 'iMB_l':8}
                     plt_export_fn = os.path.join(MM_ws_out, '_0%s_ts.png'%o)
                     # def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, EXF, ETg, Es, MB, MB_l, dgwt, SAT, Rg, h_MF, h_MF_corr, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin):
-#                    try:
-                    MMplot.plotTIMESERIES(cMF, i, j, flxObs_lst, flxLbl_lst, flxIndex_lst,
+                    try:
+                        MMplot.plotTIMESERIES(cMF, i, j, flxObs_lst, flxLbl_lst, flxIndex_lst,
                                     _Sm[gridSOIL[i,j]-1], _Sr[gridSOIL[i,j]-1],
                                     plt_export_fn, plt_suptitle, plt_title,
                                     clr_lst,
                                     max(hmax), min(hmin),
                                     o, l_obs, nsl,
-                                    iniMonthHydroYear, date_ini = StartDate, date_end = EndDate
+                                    iniMonthHydroYear, date_ini = DATE[HYindex[1]], date_end = DATE[HYindex[-2]]
                                     )
-                    print 'TS plot done!'
-#                    except:
-#                        print 'TS plot error!'
+                        print 'TS plot done!'
+                    except:
+                        print 'TS plot error!'
                    # plot GW flux time series at each obs. cell
                     try:
-                        MMplot.plotTIMESERIES_flxGW(cMF, flxObs_lst, flxLbl_lst, flxIndex_lst, plt_export_fn, plt_suptitle, iniMonthHydroYear = iniMonthHydroYear, date_ini = StartDate, date_end = EndDate)  
+                        MMplot.plotTIMESERIES_flxGW(cMF, flxObs_lst, flxLbl_lst, flxIndex_lst, plt_export_fn, plt_suptitle, iniMonthHydroYear = iniMonthHydroYear, date_ini = DATE[HYindex[1]], date_end = DATE[HYindex[-2]])
+                        print 'TS GW plot done!'
                     except:
                        print 'TS GW error!'
                     # plot water balance at each obs. cell
@@ -2036,16 +2054,16 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                     # Moriasi et al, 2007, ASABE 50(3):885-900
                     # TODO insert Ro            
                     if obs_S != []:
-                        obs_SM_tmp = obs_S[:,HYindex[1]:HYindex[-1]]
+                        obs_SM_tmp = obs_S[:,HYindex[1]:HYindex[-2]]
                     else:
                         obs_SM_tmp = []
-                    MM_S = h5_MM['MM_S'][HYindex[1]:HYindex[-1],i,j,0:nsl,index_MM_soil.get('iSsoil_pc_l')]
+                    MM_S = h5_MM['MM_S'][HYindex[1]:HYindex[-2],i,j,0:nsl,index_MM_soil.get('iSsoil_pc_l')]
                     if obs_h != []:
-                        obs_h_tmp = obs_h[0,HYindex[1]:HYindex[-1]]
+                        obs_h_tmp = obs_h[0,HYindex[1]:HYindex[-2]]
                     else:
                         obs_h_tmp = []    
-                    h_MF = h_MF_m[HYindex[1]:HYindex[-1],l_obs,i,j]
-                    rmseHEADS_tmp, rmseHEADSc_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrHEADSc_tmp, rsrSM_tmp, nseHEADS_tmp, nseHEADSc_tmp, nseSM_tmp, rHEADS_tmp, rHEADSc_tmp, rSM_tmp = cMF.cPROCESS.compCalibCritObs(MM_S, h_MF, obs_SM_tmp, obs_h_tmp, cMF.hnoflo, o, nsl, MM[HYindex[1]:HYindex[-1],index_MM.get('ihcorr')])
+                    h_MF = h_MF_m[HYindex[1]:HYindex[-2],l_obs,i,j]
+                    rmseHEADS_tmp, rmseHEADSc_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrHEADSc_tmp, rsrSM_tmp, nseHEADS_tmp, nseHEADSc_tmp, nseSM_tmp, rHEADS_tmp, rHEADSc_tmp, rSM_tmp = cMF.cPROCESS.compCalibCritObs(MM_S, h_MF, obs_SM_tmp, obs_h_tmp, cMF.hnoflo, o, nsl, MM[HYindex[1]:HYindex[-2],index_MM.get('ihcorr')])
                     del obs_h_tmp, obs_SM_tmp
                     if rmseHEADS_tmp <> None:
                         rmseHEADS.append(rmseHEADS_tmp)
@@ -2137,7 +2155,7 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
             JD_lst.append(cMF.JD[e])
             sp_lst.append(sp_days_lst[e])
     else:
-        for t, e in enumerate(HYindex[1:-1]):
+        for t, e in enumerate(HYindex[1:-2]):
             days_lst.append(e)
             sp_lst.append(sp_days_lst[e])
             Date_lst.append(cMF.inputDate[e])
@@ -2148,10 +2166,10 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
                 sp_lst.append(sp_days_lst[int(e+inter*i/4.0)])
                 Date_lst.append(cMF.inputDate[int(e+inter*i/4.0)])
                 JD_lst.append(cMF.JD[int(e+inter*i/4.0)])
-        days_lst.append(HYindex[-1])
-        sp_lst.append(sp_days_lst[HYindex[-1]])
-        Date_lst.append(cMF.inputDate[HYindex[-1]])
-        JD_lst.append(cMF.JD[HYindex[-1]])
+#        days_lst.append(HYindex[-1])
+#        sp_lst.append(sp_days_lst[HYindex[-1]])
+#        Date_lst.append(cMF.inputDate[HYindex[-1]])
+#        JD_lst.append(cMF.JD[HYindex[-1]])
     del day
 
     # ##############################
@@ -2300,7 +2318,7 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
     # plot heads average [m]
     V = np.zeros((1, cMF.nlay, cMF.nrow, cMF.ncol), dtype = np.float)
     for L in range(cMF.nlay):
-        V[0,L,:,:] = np.ma.masked_array(np.sum(h_MF_m[HYindex[1]:HYindex[-1],L,:,:], axis = 0)/(HYindex[-1]-HYindex[1]+1), mask[L])
+        V[0,L,:,:] = np.ma.masked_array(np.sum(h_MF_m[HYindex[1]:HYindex[-2],L,:,:], axis = 0)/(HYindex[-2]-HYindex[1]+1), mask[L])
     for i, int_typ in enumerate(['percentile','linspace']):
         MMplot.plotLAYER(days = ['NA'], str_per = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation - $h$ (m)', msg = 'DRY', plt_title = 'OUT_average_MF_HEADS%s'%int_typ, MM_ws = MM_ws_out, interval_type = int_typ, interval_num = 5, contours = ctrsMF, Vmax = [hmaxMF], Vmin = [hminMF], ntick = ntick, points = obs4map, ptslbl = 0, mask = mask_tmp, hnoflo = cMF.hnoflo, cMF = cMF)
 
@@ -2312,7 +2330,7 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
 
     # plot heads corrigidas average [m]
     headscorr_m = np.zeros((1, cMF.nlay, cMF.nrow, cMF.ncol), dtype = np.float)
-    headscorr_m[0,0,:,:] = np.ma.masked_values(np.ma.masked_values(np.sum(h5_MM['MM'][HYindex[1]:HYindex[-1],:,:,19], axis = 0)/(HYindex[-1]-HYindex[1]+1), cMF.hnoflo, atol = 0.09), cMF.hdry, atol = 1E+25)
+    headscorr_m[0,0,:,:] = np.ma.masked_values(np.ma.masked_values(np.sum(h5_MM['MM'][HYindex[1]:HYindex[-2],:,:,19], axis = 0)/(HYindex[-2]-HYindex[1]+1), cMF.hnoflo, atol = 0.09), cMF.hdry, atol = 1E+25)
     for i, int_typ in enumerate(['percentile','linspace']):
         MMplot.plotLAYER(days = ['NA'], str_per = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = headscorr_m,  cmap = plt.cm.Blues, CBlabel = 'hydraulic heads elevation - $h$ (m)', msg = 'DRY', plt_title = 'OUT_average_MF_HEADScorr%s'%int_typ, MM_ws = MM_ws_out, interval_type = int_typ, interval_num = 5, contours = ctrsMF, Vmax = [hcorrmax], Vmin = [hcorrmin], ntick = ntick, points = obs4map, ptslbl = 0, mask = maskAllL_tmp, hnoflo = cMF.hnoflo, cMF = cMF)
 
@@ -2325,7 +2343,7 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
     # plot GW GROSS RCH average [mm]
     Rg = np.zeros((1, cMF.nlay, cMF.nrow, cMF.ncol), dtype = np.float)
     for L in range(cMF.nlay):
-        Rg[0,L,:,:] = np.ma.masked_array(np.sum(cbc_RCH[HYindex[1]:HYindex[-1],L,:,:], axis = 0)/(HYindex[-1]-HYindex[1]+1), mask[L])
+        Rg[0,L,:,:] = np.ma.masked_array(np.sum(cbc_RCH[HYindex[1]:HYindex[-2],L,:,:], axis = 0)/(HYindex[-2]-HYindex[1]+1), mask[L])
     for i, int_typ in enumerate(['percentile','linspace']):
         MMplot.plotLAYER(days = ['NA'], str_per = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = Rg,  cmap = plt.cm.Blues, CBlabel = 'groundwater gross recharge - $Rg$ (mm.day$^{-1}$)', msg = '- no flux', plt_title = 'OUT_average_MF_Rg%s'%int_typ, MM_ws = MM_ws_out, interval_type = int_typ, interval_num = 5, Vmax = [RCHmax], Vmin = [RCHmin], contours = ctrsMF, ntick = ntick, points = obs4map, ptslbl = 1, mask = mask_tmp, hnoflo = cMF.hnoflo, cMF = cMF)
     Vmin_tmp1 = np.min(Rg)
@@ -2336,7 +2354,7 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
     # plot GW EFFECTIVE RCH average [mm]
     Re = np.zeros((1, cMF.nlay, cMF.nrow, cMF.ncol), dtype = np.float)
     for L in range(cMF.nlay):
-        Re[0,L,:,:] = Rg[0,L,:,:] + np.ma.masked_array(np.sum(cbc_EXF[HYindex[1]:HYindex[-1],L,:,:], axis = 0)/(HYindex[-1]-HYindex[1]+1), mask[L])
+        Re[0,L,:,:] = Rg[0,L,:,:] + np.ma.masked_array(np.sum(cbc_EXF[HYindex[1]:HYindex[-2],L,:,:], axis = 0)/(HYindex[-2]-HYindex[1]+1), mask[L])
     for i, int_typ in enumerate(['percentile','linspace']):
         MMplot.plotLAYER(days = ['NA'], str_per = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = Re,  cmap = plt.cm.Blues, CBlabel = 'groundwater effective recharge - $Re$ (mm.day$^{-1}$)', msg = '- no flux', plt_title = 'OUT_average_MF_Re1%s'%int_typ, MM_ws = MM_ws_out, interval_type = int_typ, interval_num = 5, Vmax = [np.ma.max(Re)], Vmin = [np.ma.min(Re)], contours = ctrsMF, ntick = ntick, points = obs4map, ptslbl = 0, mask = mask_tmp, hnoflo = cMF.hnoflo, cMF = cMF)
     Vmin_tmp1 = np.min(Re)
@@ -2346,7 +2364,7 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
     if cMF.wel_yn == 1: 
         Rn = np.zeros((1, cMF.nlay, cMF.nrow, cMF.ncol), dtype = np.float)
         for L in range(cMF.nlay):
-            Rn[0,L,:,:] = Re[0,L,:,:] + np.sum(cbc_WEL[HYindex[1]:HYindex[-1],L,:,:], axis = 0)/(HYindex[-1]-HYindex[1]+1)
+            Rn[0,L,:,:] = Re[0,L,:,:] + np.sum(cbc_WEL[HYindex[1]:HYindex[-2],L,:,:], axis = 0)/(HYindex[-2]-HYindex[1]+1)
         for i, int_typ in enumerate(['percentile','linspace']):
             MMplot.plotLAYER(days = ['NA'], str_per = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = Rn,  cmap = plt.cm.Blues, CBlabel = 'groundwater net recharge - $Rn$ (mm.day$^{-1}$)', msg = '- no flux', plt_title = 'OUT_average_MF_Rn1%s'%int_typ, MM_ws = MM_ws_out, interval_type = int_typ, interval_num = 5, Vmax = [np.ma.max(Rn)], Vmin = [np.ma.min(Rn)], contours = ctrsMF, ntick = ntick, points = obs4map, ptslbl = 0, mask = mask_tmp, hnoflo = cMF.hnoflo, cMF = cMF)
         del Rn, cbc_WEL
@@ -2357,7 +2375,7 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
     if cMF.drn_yn == 1:
         V = np.zeros((1, cMF.nlay, cMF.nrow, cMF.ncol), dtype = np.float)
         for L in range(cMF.nlay):
-            V[0,L,:,:] = np.ma.masked_array(np.sum(cbc_DRN[HYindex[1]:HYindex[-1],L,:,:], axis = 0)/(HYindex[-1]-HYindex[1]+1)*(-1.0), mask[L])
+            V[0,L,:,:] = np.ma.masked_array(np.sum(cbc_DRN[HYindex[1]:HYindex[-2],L,:,:], axis = 0)/(HYindex[-2]-HYindex[1]+1)*(-1.0), mask[L])
         for i, int_typ in enumerate(['percentile','linspace']):
             MMplot.plotLAYER(days = ['NA'], str_per = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater drainage - $DRN$ (mm.day$^{-1}$)', msg = '- no drainage', plt_title = 'OUT_average_MF_DRN%s'%int_typ, MM_ws = MM_ws_out, interval_type = int_typ, interval_num = 5, Vmax = [DRNmax], Vmin = [DRNmin], contours = ctrsMF, ntick = ntick, points = obs4map, ptslbl = 1, mask = mask_tmp, hnoflo = cMF.hnoflo, cMF = cMF)
         del cbc_DRN, DRNmax, DRNmin
@@ -2370,7 +2388,7 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
     if cMF.ghb_yn == 1:
         V = np.zeros((1, cMF.nlay, cMF.nrow, cMF.ncol), dtype = np.float)
         for L in range(cMF.nlay):
-            V[0,L,:,:] = np.ma.masked_array(np.sum(cbc_GHB[HYindex[1]:HYindex[-1],L,:,:], axis = 0)/(HYindex[-1]-HYindex[1]+1)*(-1.0), mask[L])
+            V[0,L,:,:] = np.ma.masked_array(np.sum(cbc_GHB[HYindex[1]:HYindex[-2],L,:,:], axis = 0)/(HYindex[-2]-HYindex[1]+1)*(-1.0), mask[L])
         for i, int_typ in enumerate(['percentile','linspace']):
             MMplot.plotLAYER(days = ['NA'], str_per = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'general head bdry - $GHB$ (mm.day$^{-1}$)', msg = '- no flux', plt_title = 'OUT_average_MF_GHB%s'%int_typ, MM_ws = MM_ws_out, interval_type = int_typ, interval_num = 5, Vmax = [GHBmax], Vmin = [GHBmin], contours = ctrsMF, ntick = ntick, points = obs4map, ptslbl = 1, mask = mask_tmp, hnoflo = cMF.hnoflo, cMF = cMF)
         del cbc_GHB, GHBmax, GHBmin
@@ -2382,7 +2400,7 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
     # plot GW exfiltration average [mm]
     V = np.zeros((1, cMF.nlay, cMF.nrow, cMF.ncol), dtype = np.float)
     for L in range(cMF.nlay):
-        V[0,L,:,:] = np.ma.masked_array(np.sum(cbc_EXF[HYindex[1]:HYindex[-1],L,:,:], axis = 0)/(HYindex[-1]-HYindex[1]+1)*(-1.0), mask[L])
+        V[0,L,:,:] = np.ma.masked_array(np.sum(cbc_EXF[HYindex[1]:HYindex[-2],L,:,:], axis = 0)/(HYindex[-2]-HYindex[1]+1)*(-1.0), mask[L])
     for i, int_typ in enumerate(['percentile','linspace']):
         MMplot.plotLAYER(days = ['NA'], str_per = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = cMF.nlay, V = V,  cmap = plt.cm.Blues, CBlabel = 'groundwater exfiltration - $Exf_g$ (mm.day$^{-1}$)', msg = '- no exfiltration', plt_title = 'OUT_average_MF_EXF%s'%int_typ, MM_ws = MM_ws_out, interval_type = int_typ, interval_num = 5, Vmax = [EXFmax], Vmin = [EXFmin], contours = ctrsMF, ntick = ntick, points = obs4map, ptslbl = 1, mask = mask_tmp, hnoflo = cMF.hnoflo, cMF = cMF)
     del cbc_EXF, EXFmax, EXFmin
@@ -2409,7 +2427,7 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
             i1 = 'i'+i
             MM = h5_MM['MM'][:,:,:,index_MM.get(i1)]
             V = np.zeros((1, 1, cMF.nrow, cMF.ncol), dtype = np.float)
-            V[0,0,:,:] = np.sum(np.ma.masked_values(MM[HYindex[1]:HYindex[-1],:,:], cMF.hnoflo, atol = 0.09), axis = 0)/(HYindex[-1]-HYindex[1]+1)
+            V[0,0,:,:] = np.sum(np.ma.masked_values(MM[HYindex[1]:HYindex[-2],:,:], cMF.hnoflo, atol = 0.09), axis = 0)/(HYindex[-2]-HYindex[1]+1)
             V[0,0,:,:] = np.ma.masked_values(V[0,0,:,:], cMF.hnoflo, atol = 0.09)
             Vmax = [np.ma.max(V)]
             Vmin = [np.ma.min(V)]
@@ -2445,7 +2463,7 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
             V = np.zeros((1, 1, cMF.nrow, cMF.ncol), dtype = np.float)
             for l in range(_nslmax):
                 MM = h5_MM['MM_S'][:,:,:,l,index_MM_soil.get(i1)]
-                V[0,0,:,:] += np.sum(np.ma.masked_values(MM[HYindex[1]:HYindex[-1],:,:], cMF.hnoflo, atol = 0.09), axis = 0)/(HYindex[-1]-HYindex[1]+1)
+                V[0,0,:,:] += np.sum(np.ma.masked_values(MM[HYindex[1]:HYindex[-2],:,:], cMF.hnoflo, atol = 0.09), axis = 0)/(HYindex[-2]-HYindex[1]+1)
                 V[0,0,:,:] = np.ma.masked_values(V[0,0,:,:], cMF.hnoflo, atol = 0.09)
             Vmax = [np.ma.max(V)]
             Vmin = [np.ma.min(V)]
@@ -2480,8 +2498,8 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
         # plot average of all hydrologic years
         # ############################################
         V = np.zeros((1, 1, cMF.nrow, cMF.ncol), dtype = np.float)
-        MM = conv_fact*h5_MM['finf_d'][:,:,:]
-        V[0,0,:,:] = np.sum(np.ma.masked_values(MM[HYindex[1]:HYindex[-1],:,:], cMF.hnoflo, atol = 0.09), axis = 0)/(HYindex[-1]-HYindex[1]+1)   
+        MM = conv_fact*h5_MM['perc_d'][:,:,:]
+        V[0,0,:,:] = np.sum(np.ma.masked_values(MM[HYindex[1]:HYindex[-2],:,:], cMF.hnoflo, atol = 0.09), axis = 0)/(HYindex[-2]-HYindex[1]+1)   
         Vmax = [np.ma.max(V)]
         Vmin = [np.ma.min(V)]
         MMplot.plotLAYER(days = ['NA'], str_per = ['NA'], Date = ['NA'], JD = ['NA'], ncol = cMF.ncol, nrow = cMF.nrow, nlay = cMF.nlay, nplot = 1, V = V,  cmap = plt.cm.Blues, CBlabel = (i_lbl + ' (mm.day$^{-1}$)'), msg = 'no flux', plt_title = ('OUT_average_MM_%s'% i), MM_ws = MM_ws_out, interval_type = 'linspace', interval_num = 5, Vmax = Vmax, Vmin = Vmin, contours = ctrsMM, ntick = ntick, points = obs4map, mask = maskAllL_tmp, hnoflo = cMF.hnoflo, cMF = cMF)
@@ -2495,7 +2513,7 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
         Vmin1 = np.zeros((len(days_lst)), dtype = np.float)
         V = np.zeros((len(days_lst), 1, cMF.nrow, cMF.ncol), dtype = np.float)
         for ii, t in enumerate(days_lst):
-            MM = conv_fact*h5_MM['finf_d'][t,:,:]
+            MM = conv_fact*h5_MM['perc_d'][t,:,:]
             V[ii,0,:,:] = np.ma.masked_values(MM, cMF.hnoflo, atol = 0.09)
             Vmin1[ii] = np.ma.min(np.ma.masked_values(V[ii,0,:,:], cMF.hnoflo, atol = 0.09))
             Vmax1[ii] = np.ma.max(np.ma.masked_values(V[ii,0,:,:], cMF.hnoflo, atol = 0.09))

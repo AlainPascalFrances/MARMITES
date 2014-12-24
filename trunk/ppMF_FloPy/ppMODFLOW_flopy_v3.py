@@ -358,7 +358,7 @@ class clsMF():
                             self.uzfbud_ext.append(self.ext_uzf + '_tot' + str(abs(int(iftunit[g]))))
                         else:
                             self.uzfbud_ext.append(str(abs(int(iftunit[g]))) + '.' + self.ext_uzf)
-                self.finf_user = float(inputFile[l].strip())
+                self.perc_user = float(inputFile[l].strip())
             else:
                 l += 24
             # wel
@@ -1012,21 +1012,21 @@ class clsMF():
 
 #####################################
 
-    def runMF(self, finf_MM = "", finf_user = None, wel_MM = "", wel_user = None, verbose = 1, s = '', chunks = 0, numDays = -1, stdout = None, report = None):
+    def runMF(self, perc_MM = "", perc_user = None, wel_MM = "", wel_user = None, verbose = 1, s = '', chunks = 0, numDays = -1, stdout = None, report = None):
 
         if verbose == 0:
             print '--------------'
 
-        if os.path.exists(finf_MM[0]):
+        if os.path.exists(perc_MM[0]):
             if self.uzf_yn == 1:
-                finf_input = finf_MM
+                perc_input = perc_MM
             if self.wel_yn == 1:
                 wel_input = wel_MM
             if self.rch_yn == 1:
-                rch_input = finf_MM
+                rch_input = perc_MM
         else:
             if self.uzf_yn == 1:
-                finf_input = self.finf_user
+                perc_input = self.perc_user
             if self.wel_yn == 1:
                 wel_input = self.wel_user
             if self.rch_yn == 1:
@@ -1034,24 +1034,24 @@ class clsMF():
 
         self.array_ini(MF_ws = self.MF_ws, stdout = stdout, report = report)
 
-        # FINF
+        # perc
         if self.uzf_yn == 1:
             print '\nUZF1 package initialization'
-            if isinstance(finf_input,float):
-                finf_array = finf_input
-                print 'Infiltration input: %s' % str(finf_input)
+            if isinstance(perc_input,float):
+                perc_array = perc_input
+                print 'Infiltration input: %s' % str(perc_input)
             else:
-                finf_array = []
-                print 'Infiltration input: %s' % finf_input[0]
+                perc_array = []
+                print 'Infiltration input: %s' % perc_input[0]
                 try:
-                    h5_finf = h5py.File(finf_input[0], 'r')
+                    h5_perc = h5py.File(perc_input[0], 'r')
                     for n in range(self.nper):
-                        finf_array.append(h5_finf[finf_input[1]][n])
-                    h5_finf.close()
+                        perc_array.append(h5_perc[perc_input[1]][n])
+                    h5_perc.close()
                 except:
-                    finf_array = self.finf_user
-                    print 'WARNING!\nNo valid UZF1 package file(s) provided, running MODFLOW using user-input UZF1 infiltration value: %.3G' % self.finf_user
-                    finf_input = self.finf_user
+                    perc_array = self.perc_user
+                    print 'WARNING!\nNo valid UZF1 package file(s) provided, running MODFLOW using user-input UZF1 infiltration value: %.3G' % self.perc_user
+                    perc_input = self.perc_user
             print "Done!"
 
         # WELL
@@ -1152,15 +1152,15 @@ class clsMF():
         self.tsmult      = list(self.tsmult)
         self.Ss_tr       = list(self.Ss_tr)
         if self.dum_sssp1 == 1:
-            if self.uzf_yn == 1 and isinstance(finf_input,tuple):
-                finf_array = np.asarray(finf_array)
-                finf_SS = np.zeros((self.nrow,self.ncol))
+            if self.uzf_yn == 1 and isinstance(perc_input,tuple):
+                perc_array = np.asarray(perc_array)
+                perc_SS = np.zeros((self.nrow,self.ncol))
                 for n in range(self.nper):
-                    finf_SS += finf_array[n,:,:]
-                finf_SS = finf_SS/self.nper
-                finf_array = list(finf_array)
-                finf_array.insert(0, finf_SS)
-                del finf_SS
+                    perc_SS += perc_array[n,:,:]
+                perc_SS = perc_SS/self.nper
+                perc_array = list(perc_array)
+                perc_array.insert(0, perc_SS)
+                del perc_SS
             if self.rch_yn == 1 and isinstance(rch_input,tuple):
                 rch_array = np.asarray(rch_array)
                 rch_SS = np.zeros((self.nrow,self.ncol))
@@ -1233,9 +1233,9 @@ class clsMF():
             del self.layer_row_column_head_cond
         # uzf package
         if self.uzf_yn == 1:
-            uzf = flopy.modflow.ModflowUzf1(model = mfmain, nuztop = self.nuztop, specifythtr = self.specifythtr, specifythti = self.specifythti, nosurfleak = self.nosurfleak, iuzfopt = self.iuzfopt, irunflg = self.irunflg, ietflg = self.ietflg, iuzfcb1 = self.iuzfcb1, iuzfcb2 = self.iuzfcb2, ntrail2 = self.ntrail2, nsets = self.nsets, nuzgag = self.nuzgag, surfdep = self.surfdep, iuzfbnd = self.iuzfbnd, vks = self.vks_actual, eps = self.eps_actual, thts = self.thts_actual, thtr = self.thtr_actual, thti = self.thti_actual, row_col_iftunit_iuzopt = self.row_col_iftunit_iuzopt, finf = finf_array, extension = self.ext_uzf, uzfbud_ext = self.uzfbud_ext)
+            uzf = flopy.modflow.ModflowUzf1(model = mfmain, nuztop = self.nuztop, specifythtr = self.specifythtr, specifythti = self.specifythti, nosurfleak = self.nosurfleak, iuzfopt = self.iuzfopt, irunflg = self.irunflg, ietflg = self.ietflg, iuzfcb1 = self.iuzfcb1, iuzfcb2 = self.iuzfcb2, ntrail2 = self.ntrail2, nsets = self.nsets, nuzgag = self.nuzgag, surfdep = self.surfdep, iuzfbnd = self.iuzfbnd, vks = self.vks_actual, eps = self.eps_actual, thts = self.thts_actual, thtr = self.thtr_actual, thti = self.thti_actual, row_col_iftunit_iuzopt = self.row_col_iftunit_iuzopt, finf = perc_array, extension = self.ext_uzf, uzfbud_ext = self.uzfbud_ext)
             uzf.write_file()
-            del finf_array
+            del perc_array
         # rch package
         if self.rch_yn == 1:
             rch = flopy.modflow.ModflowRch(model = mfmain, irchcb = cb, nrchop = self.nrchop, rech = rch_array, extension = self.ext_rch)
