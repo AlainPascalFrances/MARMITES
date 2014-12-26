@@ -603,7 +603,7 @@ class clsMMsoil:
                         # indexes of the HDF5 output arrays
                         # index_MM = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSsurf':4, 'iRo':5, 'iEXFg':6, 'iEsurf':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSsurf':13, 'iETg':14, 'iETsoil':15, 'iSsoil_pc':16, 'idSsoil':17, 'iperc':18, 'ihcorr':19, 'idgwt':20, 'iuzthick':21, 'iInf':22, 'iMBsurf':23}
                         MM_tmp = [RF_tmp, PT_tot, PE_tot, RFe_tot, Ssurf_tmp, Ro_tmp, exf_MF_ini_tmp, Esurf_tmp, MB, INTER_tot, E0_zonesSP_tmp, Eg_tmp, Tg_tmp, dSsurf, ETg, ETsoil_tot, Ssoil_pc_tot, dSsoil_tot, perc, HEADSini_MM*0.001, -dgwt_tmp*0.001, uzthick*0.001, Inf, MBsurf]
-                        # index_MM_soil = {'iEsoil_l':0, 'iTsoil_l':1,'iSsoil_pc_l':2, 'iRp_l':3, 'iEXF_l':4, 'idSsoil_l':5, 'iSsoil_l':6, 'iSAT_l':7, 'iMB_l':8}
+                        # index_MM_soil = {'iEsoil':0, 'iTsoil':1,'iSsoil_pc':2, 'iRsoil':3, 'iExf':4, 'idSsoil':5, 'iSsoil':6, 'iSAT':7, 'iMB':8}
                         MM_S_tmp = np.zeros([nsl,len(index_S)], dtype = float)
                         for l in range(nsl):
                             MM_S_tmp[l,:] = [Esoil_tmp[l], Tsoil_tmp[l], Ssoil_pc_tmp[l], Rp_tmp[l], Rexf_tmp[l], dSsoil[l], Ssoil_tmp[l], SAT_tmp[l], MB_l[l]]
@@ -615,13 +615,13 @@ class clsMMsoil:
                             for l in range(nsl):
                                 MM_S[:,i,j,l,k] = MM_S_tmp[l,k]
                         # # Volumetric recharge rate UZF1 package
-                        MM_perc_MF[i,j] = MM_S_tmp[nsl-1,index_S.get('iRsoil_l')]/conv_fact
+                        MM_perc_MF[i,j] = MM_S_tmp[nsl-1,index_S.get('iRsoil')]/conv_fact
                         # Volumetric recharge rate WEL package
                         MM_wel_MF[i,j] = MM_tmp[index.get('iETg')]/conv_fact
                         del MM_tmp, MM_S_tmp
                         # setting initial conditions for the next SP
-                        Ssoil_ini_tmp_array[i,j,:]  = MM_S[cMF.perlen[n]-1,i,j,:,index_S.get('iSsoil_l')]
-                        Rp_ini_tmp_array[i,j,:]     = MM_S[cMF.perlen[n]-1,i,j,:,index_S.get('iRsoil_l')]
+                        Ssoil_ini_tmp_array[i,j,:]  = MM_S[cMF.perlen[n]-1,i,j,:,index_S.get('iSsoil')]
+                        Rp_ini_tmp_array[i,j,:]     = MM_S[cMF.perlen[n]-1,i,j,:,index_S.get('iRsoil')]
                         Ssurf_ini_tmp_array[i,j]    = MM[cMF.perlen[n]-1,i,j,index.get('iSsurf')]
                     else:
                         if cMF.perlen[n]>1:

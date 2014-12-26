@@ -596,8 +596,8 @@ class clsPROCESS:
                     obs_S_tmp = obs_S[l,t]
                 except:
                     obs_S_tmp = -1.0
-                if results_S[t,l,index_S.get('iSsoil_pc_l')] > 0.0 and obs_S_tmp > 0.0:
-                    self.smMM[len_smMM-1].append((obsname+'SM_l'+str(l+1)).ljust(12,' ')+ out_date.ljust(12,' ')+ ' 00:00:00 ' + str(results_S[t,l,index_S.get('iSsoil_pc_l')]).ljust(10,' ') + '\n')
+                if results_S[t,l,index_S.get('iSsoil_pc')] > 0.0 and obs_S_tmp > 0.0:
+                    self.smMM[len_smMM-1].append((obsname+'SM_l'+str(l+1)).ljust(12,' ')+ out_date.ljust(12,' ')+ ' 00:00:00 ' + str(results_S[t,l,index_S.get('iSsoil_pc')]).ljust(10,' ') + '\n')
         del i, j, _nslmax, results_S, index_S, obs_S, obsname
 
     #####################################
