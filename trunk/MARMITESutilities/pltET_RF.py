@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 #input section
 ws_fn = r'E:\WREM\SARDON\MonitoringNetwork\EddyTower'
 # read input files
-TXT_in_fnn = 'Eddy_MM2.csv'
+TXT_in_fnn = 'Eddy_MM.csv'
 
 # read XLS file
 inputFile_TS_fn = os.path.join(ws_fn, TXT_in_fnn)
@@ -140,7 +140,7 @@ plt.plot_date(date,Ro_MM,'r-', c='blue', linewidth=1.0, label = 'MM')
 plt.ylabel('$Ro$ (mm)', fontsize=10)
 plt.plot_date(date,Ro_obs, ls = 'None', color = 'lightblue', marker='o', markeredgecolor = 'green', markerfacecolor = 'lightgreen', markersize = 2, label = 'flume') # ls='--', color = 'blue'
 ymax = np.ma.max(np.ma.masked_invalid(Ro_obs))
-plt.ylim(0, 1.5*ymax)
+plt.ylim(0, 3.5*ymax)
 plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 5)
 leg = plt.gca().get_legend()
 ltext  = leg.get_texts()

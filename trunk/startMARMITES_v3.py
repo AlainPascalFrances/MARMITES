@@ -105,6 +105,8 @@ try:
     l += 1
     animation =  int(inputFile[l].strip())
     l += 1
+    animation_freq = int(inputFile[l].strip())
+    l += 1
     # export time series/water balance at observation points and catch. scale?  (1 is YES, 0 is NO)
     plt_out_obs = int(inputFile[l].strip())
     l += 1
@@ -2134,7 +2136,7 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
     Date_lst = []
     JD_lst = []
     day = HYindex[1]
-    if animation < 1:
+    if animation == 0:
         while day < sum(cMF.perlen):  #len(h_MF_m):
             days_lst.append(day)
             sp_lst.append(sp_days_lst[day])
@@ -2160,12 +2162,12 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
             sp_lst.append(sp_days_lst[e])
             Date_lst.append(cMF.inputDate[e])
             JD_lst.append(cMF.JD[e])
-            for i in range(1,4):
+            for i in range(1,animation_freq):
                 inter=HYindex[t+2]-HYindex[t+1]
-                days_lst.append(int(e+inter*i/4.0))
-                sp_lst.append(sp_days_lst[int(e+inter*i/4.0)])
-                Date_lst.append(cMF.inputDate[int(e+inter*i/4.0)])
-                JD_lst.append(cMF.JD[int(e+inter*i/4.0)])
+                days_lst.append(int(e+inter*i/float(animation_freq)))
+                sp_lst.append(sp_days_lst[int(e+inter*i/float(animation_freq))])
+                Date_lst.append(cMF.inputDate[int(e+inter*i/float(animation_freq))])
+                JD_lst.append(cMF.JD[int(e+inter*i/float(animation_freq))])
 #        days_lst.append(HYindex[-1])
 #        sp_lst.append(sp_days_lst[HYindex[-1]])
 #        Date_lst.append(cMF.inputDate[HYindex[-1]])
