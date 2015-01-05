@@ -1199,12 +1199,11 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
             try:
                 if i == 0:
                     files_tmp.append(os.path.join(MM_ws,'%05d.png'%(0)))
+                    print plt_export_fn, files_tmp[0]
                     shutil.copyfile(plt_export_fn, files_tmp[0])
-                    files_tmp.append(os.path.join(MM_ws,'%05d.png'%(1)))
-                    shutil.copyfile(plt_export_fn, files_tmp[1])
                 else:
-                    files_tmp.append(os.path.join(MM_ws,'%05d.png'%(i+1)))
-                    shutil.copyfile(plt_export_fn, files_tmp[i+1])
+                    files_tmp.append(os.path.join(MM_ws,'%05d.png'%(i)))
+                    shutil.copyfile(plt_export_fn, files_tmp[i])
             except:
                 pass
         for L in range(nplot):
