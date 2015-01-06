@@ -487,7 +487,7 @@ def process(cUTIL, datenum = np.array([]), datenum_d = np.array([]), J = np.arra
                     r_s_FIELD[f].append(1.0/f_temp)
         del f_k, DELTArho_f, f_rho, f_T
         r_s_FIELD = np.asarray(r_s_FIELD)
-     # SOIL: equation 20 of van de Griend and Owe, 1994
+    # SOIL: equation 20 of van de Griend and Owe, 1994
     r_s_SOIL = []
     if NSOIL>0:
         for s in range(NSOIL):
@@ -525,6 +525,7 @@ def process(cUTIL, datenum = np.array([]), datenum_d = np.array([]), J = np.arra
         r_a_FIELD = np.where(LAI_f > 0.0, pow(np.log((h_f+2-(0.7*h_f))/(0.1*h_f)),2)/(pow(k,2)*u_hplus2_f),0.0)
     # r_a of SOIL
     # Liu www.hydrol-earth-syst-sci.net/11/769/2007/
+    # equation for neutral conditions (eq. 9)    
     # only function of ws, it is assumed that roughness are the same for any type of soil
     if NSOIL > 0:
         r_a_SOIL = np.log((2.0)/0.0058)*np.log(2.0/0.0058)/(pow(k,2)*u_2)
