@@ -565,6 +565,7 @@ def process(cUTIL, datenum = np.array([]), datenum_d = np.array([]), J = np.arra
             PT_PM_VEG_v = []
             Erf_v = []
             for j in range(len(J)):
+                # PT
                 if r_a_VEG[v][j] > 0.0:
                     value = (DELTA[j]*(Rns_VEG[v][j]-Rnl[j]-G_VEG[v][j])+3600*ro_a[j]*Cp*(e0_Ta[j]-e_a[j])/r_a_VEG[v][j])/  \
                             (lambdav*(DELTA[j] + gama[j]*(1+r_s_VEG[v][j]/r_a_VEG[v][j])))
@@ -574,6 +575,7 @@ def process(cUTIL, datenum = np.array([]), datenum_d = np.array([]), J = np.arra
                     PT_PM_VEG_v.append(value)
                 else:
                     PT_PM_VEG_v.append(0.0)
+                # Erf_VEG
                 if r_a_VEG[v][j] > 0.0:
                     value = (DELTA[j]*(Rns_VEG[v][j]-Rnl[j]-G_VEG[v][j])+3600*ro_a[j]*Cp*(e0_Ta[j]-e_a[j])/r_a_VEG[v][j])/  \
                             (lambdav*(DELTA[j] + gama[j]))

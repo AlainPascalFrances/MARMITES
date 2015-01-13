@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 #input section
 ws_fn = r'E:\WREM\SARDON\MonitoringNetwork\EddyTower'
 # read input files
-TXT_in_fnn = 'Eddy_MM.csv'
+TXT_in_fnn = 'Eddy_MM1.csv'
 
 # read XLS file
 inputFile_TS_fn = os.path.join(ws_fn, TXT_in_fnn)

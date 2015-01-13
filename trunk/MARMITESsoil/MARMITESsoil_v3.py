@@ -86,19 +86,19 @@ class clsMMsoil:
 ##        }
         # table 5, values for bare soil
         # dll [cm], y0 [], b [cm^-1], ext_d [cm]
-        self.paramEg = {'sand'           : {'dll':16.0,'y0':0.000,'b':0.171, 'ext_d':50.0},
-                       'loamy sand'      : {'dll':21.0,'y0':0.002,'b':0.130, 'ext_d':70.0},
-                       'sandy loam'      : {'dll':30.0,'y0':0.004,'b':0.065, 'ext_d':130.0},
-                       'sandy clay loam' : {'dll':30.0,'y0':0.006,'b':0.046, 'ext_d':200.0},
-                       'sandy clay'      : {'dll':20.0,'y0':0.005,'b':0.042, 'ext_d':210.0},
-                       'loam'            : {'dll':33.0,'y0':0.004,'b':0.028, 'ext_d':265.0},
-                       'silty clay'      : {'dll':37.0,'y0':0.007,'b':0.046, 'ext_d':335.0},
-                       'clay loam'       : {'dll':33.0,'y0':0.008,'b':0.027, 'ext_d':405.0},
-                       'silt loam'       : {'dll':38.0,'y0':0.006,'b':0.019, 'ext_d':420.0},
-                       'silt'            : {'dll':31.0,'y0':0.007,'b':0.021, 'ext_d':430.0},
-                       'silty clay loam' : {'dll':40.0,'y0':0.007,'b':0.021, 'ext_d':450.0},
-                       'clay'            : {'dll':45.0,'y0':0.006,'b':0.019, 'ext_d':620.0},
-                       'custom'          : {'dll':100.0,'y0':0.000,'b':0.013, 'ext_d':330.0}
+        self.paramEg = {'sand'            : {'dll':16.0,'y0':0.000,'b':0.171, 'ext_d':50.0},
+                        'loamy sand'      : {'dll':21.0,'y0':0.002,'b':0.130, 'ext_d':70.0},
+                        'sandy loam'      : {'dll':30.0,'y0':0.004,'b':0.065, 'ext_d':130.0},
+                        'sandy clay loam' : {'dll':30.0,'y0':0.006,'b':0.046, 'ext_d':200.0},
+                        'sandy clay'      : {'dll':20.0,'y0':0.005,'b':0.042, 'ext_d':210.0},
+                        'loam'            : {'dll':33.0,'y0':0.004,'b':0.028, 'ext_d':265.0},
+                        'silty clay'      : {'dll':37.0,'y0':0.007,'b':0.046, 'ext_d':335.0},
+                        'clay loam'       : {'dll':33.0,'y0':0.008,'b':0.027, 'ext_d':405.0},
+                        'silt loam'       : {'dll':38.0,'y0':0.006,'b':0.019, 'ext_d':420.0},
+                        'silt'            : {'dll':31.0,'y0':0.007,'b':0.021, 'ext_d':430.0},
+                        'silty clay loam' : {'dll':40.0,'y0':0.007,'b':0.021, 'ext_d':450.0},
+                        'clay'            : {'dll':45.0,'y0':0.006,'b':0.019, 'ext_d':620.0},
+                        'sandy loam field': {'dll':100.0,'y0':0.000,'b':0.013, 'ext_d':475.0}
                        }
                      #                        'custom'          : {'dll':100.0,'y0':0.00,'b':0.013, 'ext_d':330.0}
 #####################
@@ -236,15 +236,6 @@ class clsMMsoil:
 
         # soil layers
         for l in range(nsl):
-            # Rp
-            if l < (nsl-1):
-                if SAT[l+1] == False:
-                    Rp_tmp[l] = perc(Ssoil_tmp[l], Sm[l]*Tl[l], Sfc[l]*Tl[l], Ks[l], perlen)
-                    if Rp_tmp[l]*perlen - (Sm[l+1]*Tl[l+1] - Ssoil_tmp[l+1]) > 1.0E-7:
-                        Rp_tmp[l] = (Sm[l+1]*Tl[l+1] - Ssoil_tmp[l+1])/perlen
-            elif EXF_ini == 0.0:
-                Rp_tmp[l] = perc(Ssoil_tmp[l], Sm[l]*Tl[l], Sfc[l]*Tl[l], Ks[l], perlen)
-            Ssoil_tmp[l] -= Rp_tmp[l]*perlen
             # Esoil
             if Ssurf_tmp == 0.0:
                 if PE > 0.0:
@@ -265,7 +256,16 @@ class clsMMsoil:
                             PT[v] -= Tsoil_tmpZr[l,v]
                             if PT[v] < 0.0:
                                PT[v] = 0.0 
-            Ssoil_tmp[l] -= Tsoil_tmp[l]*perlen
+                            Ssoil_tmp[l] -= Tsoil_tmp[l]*perlen
+            # Rp
+            if l < (nsl-1):
+                if SAT[l+1] == False:
+                    Rp_tmp[l] = perc(Ssoil_tmp[l], Sm[l]*Tl[l], Sfc[l]*Tl[l], Ks[l], perlen)
+                    if Rp_tmp[l]*perlen - (Sm[l+1]*Tl[l+1] - Ssoil_tmp[l+1]) > 1.0E-7:
+                        Rp_tmp[l] = (Sm[l+1]*Tl[l+1] - Ssoil_tmp[l+1])/perlen
+            elif EXF_ini == 0.0:
+                Rp_tmp[l] = perc(Ssoil_tmp[l], Sm[l]*Tl[l], Sfc[l]*Tl[l], Ks[l], perlen)
+            Ssoil_tmp[l] -= Rp_tmp[l]*perlen
 
         for l in range(nsl):
             Ssoil_pc_tmp[l] = Ssoil_tmp[l]/Tl[l]
