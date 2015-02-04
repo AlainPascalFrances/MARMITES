@@ -2,7 +2,7 @@
 # Name:        module1
 # Purpose:
 #
-# Author:      frances08512
+# Author:      frances.alain@gmail.com
 #
 # Created:     30-03-2011
 # Copyright:   (c) frances08512 2011
@@ -37,19 +37,20 @@ paramEg = {'sand'            : {'dll':16.0,'y0':0.000,'b':0.171, 'ext_d':50.0},
            'silt'            : {'dll':31.0,'y0':0.007,'b':0.021, 'ext_d':430.0},
            'silty clay loam' : {'dll':40.0,'y0':0.007,'b':0.021, 'ext_d':450.0},
            'clay'            : {'dll':45.0,'y0':0.006,'b':0.019, 'ext_d':620.0},
-           'sandy loam field': {'dll':100.0,'y0':0.000,'b':0.013, 'ext_d':475.0}
+           'sandy loam field': {'dll':100.0,'y0':0.000,'b':0.013, 'ext_d':475.0},
+           'sandy loam field1': {'dll':100.0,'y0':0.030,'b':0.012, 'ext_d':450.0}
            }
 
 lblspc = 0.05
 mkscale = 0.5
 #colors_ = CreateColors.main(hi=10, hf=150, numbcolors = (len(paramEg.keys())))
-lines = itertools.cycle(['-','--','-.',':','.','o','v','^','<','>','1','2','3','4','s','p','*','h','H','+','x','D','d','|','_'])
+lines = itertools.cycle(['-','--','-.',':','--','-.'])
 fig = plt.figure(figsize=(11.7, 8.27))
 
-dtwt = np.asarray(range(-100,650,1))
+dtwt = np.asarray(range(-100,5000,1))
 #dtwt_norm = []
 GWET = []
-lbls = ['sand', 'loam', 'silt', 'clay', 'sandy loam field']
+lbls = ['sand', 'loam', 'silt', 'clay', 'sandy loam field'] #, 'sandy loam field1']
 for s, lbl in enumerate(lbls):
     GWET.append([])
     #dtwt_norm.append([])
@@ -64,8 +65,8 @@ for s, lbl in enumerate(lbls):
 ax1=fig.add_subplot(2,2,1)
 plt.setp(ax1.get_xticklabels(), fontsize=8)
 plt.setp(ax1.get_yticklabels(), fontsize=8)
-for l, (x, lbl) in enumerate(zip(GWET, lbls)) :
-    ax1.plot(x, dtwt/100.0, lines.next(), color = 'black', label=lbl)
+for l, (x, lbl, col) in enumerate(zip(GWET, lbls, ['black','black','black','black','grey','grey'])) :
+    ax1.plot(x, dtwt/100.0, lines.next(), color = col, label=lbl)
 plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale)
 leg = plt.gca().get_legend()
 ltext  = leg.get_texts()
@@ -73,7 +74,7 @@ plt.setp(ltext, fontsize=10)
 plt.grid(True)
 plt.xlim((0.0, 1.0))
 plt.ylim(0.0, 5.00)
-plt.xlabel(r'$E_g/PE$')
+plt.xlabel(r'$E_g/PE_g$')
 plt.ylabel('$d\ (m)$')
 ax1.set_ylim(ax1.get_ylim()[::-1])
 

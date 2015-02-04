@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 #input section
 ws_fn = r'E:\WREM\SARDON\MonitoringNetwork\EddyTower'
 # read input files
-TXT_in_fnn = 'Eddy_MM1.csv'
+TXT_in_fnn = 'Eddy_MM.csv'
 
 # read XLS file
 inputFile_TS_fn = os.path.join(ws_fn, TXT_in_fnn)
@@ -132,23 +132,65 @@ date_end = mpl.dates.datestr2num('2010-09-30')+15
 fig = plt.figure(num=None, figsize=(8.27, 11.7), dpi = 60)    #(8.5,15), dpi=30)
 fig.suptitle(plt_suptitle)
 
-# Ro
-ax0=fig.add_subplot(8,1,1)
-plt.setp(ax0.get_xticklabels(), visible = False)
-plt.setp(ax0.get_yticklabels(), fontsize=8)    
-plt.plot_date(date,Ro_MM,'r-', c='blue', linewidth=1.0, label = 'MM')
-plt.ylabel('$Ro$ (mm)', fontsize=10)
-plt.plot_date(date,Ro_obs, ls = 'None', color = 'lightblue', marker='o', markeredgecolor = 'green', markerfacecolor = 'lightgreen', markersize = 2, label = 'flume') # ls='--', color = 'blue'
-ymax = np.ma.max(np.ma.masked_invalid(Ro_obs))
-plt.ylim(0, 3.5*ymax)
-plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 5)
+## Ro
+#ax0=fig.add_subplot(8,1,2)
+#plt.setp(ax0.get_xticklabels(), visible = False)
+#plt.setp(ax0.get_yticklabels(), fontsize=8)    
+#plt.plot_date(date,Ro_MM,'r-', c='blue', linewidth=1.0, label = 'MM')
+#plt.ylabel('$Ro$ (mm)', fontsize=10)
+#plt.plot_date(date,Ro_obs, ls = 'None', color = 'lightblue', marker='o', markeredgecolor = 'green', markerfacecolor = 'lightgreen', markersize = 2, label = 'flume') # ls='--', color = 'blue'
+#ymax = np.ma.max(np.ma.masked_invalid(Ro_obs))
+#plt.ylim(0, 0.6)
+#plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 5)
+#leg = plt.gca().get_legend()
+#ltext  = leg.get_texts()
+#plt.setp(ltext, fontsize=8)
+#ax0.grid(b=True, which='major', axis = 'both')
+#ax0.xaxis.grid(b=True, which='minor', color='0.65')
+#ax0.xaxis.set_major_formatter(dateFmt)
+#ax0.xaxis.set_major_locator(mpl.dates.YearLocator(1, month = iniMonthHydroYear, day = 1))
+#bymonth = []
+#month_tmp = 3
+#while len(bymonth)<3:
+#    if (iniMonthHydroYear+month_tmp) <13:
+#        bymonth.append(iniMonthHydroYear+month_tmp)
+#    else:
+#        bymonth.append(iniMonthHydroYear+month_tmp - 12)
+#    month_tmp += 3
+#del month_tmp
+#ax0.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth = bymonth))
+#ax0.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
+#plt.setp(ax0.get_xticklabels(minor=True), visible=False)
+
+# ET
+ax1=fig.add_subplot(4,1,1) #, sharex=ax0)
+plt.setp(ax1.get_xticklabels(), fontsize=8)
+plt.setp(ax1.get_yticklabels(), fontsize=8)
+plt1a = plt.plot_date(date,ET_EC,'r-', c='red', linewidth=1.0, label='EC')
+plt1b = plt.plot_date(date,ET_MM,'r-', c='orange', linewidth=1.0, label='MM')
+plt.xlabel('Date', fontsize=10)    
+plt.ylabel('$ET$ (mm)', fontsize=10)
+ax1.set_ylim(0.0,6.0)
+
+ax2 = ax1.twinx()
+plt2a = ax2.bar(date,RF,color='darkblue', linewidth=0, align = 'center', label='RF')
+for tl in ax2.get_yticklabels():
+    tl.set_color('darkblue')
+    tl.set_fontsize(8)
+plt.ylabel('$RF$ (mm)', fontsize=10, color = 'darkblue') 
+ax2.set_ylim(0,60)   
+plt.gca().invert_yaxis()
+plts =  plt1a + plt1b + [plt2a]
+labs = [l.get_label() for l in plts]
+plt.legend(plts, labs, loc=6, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 3, columnspacing = colspc, numpoints = 5)
 leg = plt.gca().get_legend()
 ltext  = leg.get_texts()
 plt.setp(ltext, fontsize=8)
-ax0.grid(b=True, which='major', axis = 'both')
-ax0.xaxis.grid(b=True, which='minor', color='0.65')
-ax0.xaxis.set_major_formatter(dateFmt)
-ax0.xaxis.set_major_locator(mpl.dates.YearLocator(1, month = iniMonthHydroYear, day = 1))
+
+ax1.grid(b=True, which='major', axis = 'both')
+ax1.xaxis.grid(b=True, which='minor', color='0.65')
+ax1.xaxis.set_major_formatter(dateFmt)
+ax1.xaxis.set_major_locator(mpl.dates.YearLocator(1, month = iniMonthHydroYear, day = 1))
 bymonth = []
 month_tmp = 3
 while len(bymonth)<3:
@@ -158,34 +200,10 @@ while len(bymonth)<3:
         bymonth.append(iniMonthHydroYear+month_tmp - 12)
     month_tmp += 3
 del month_tmp
-ax0.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth = bymonth))
-ax0.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
-plt.setp(ax0.get_xticklabels(minor=True), visible=False)
+ax1.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth = bymonth))
+ax1.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
+plt.setp(ax1.get_xticklabels(minor=True), visible=False)
 
-# ET
-ax1=fig.add_subplot(8,1,2, sharex=ax0)
-plt.setp(ax1.get_xticklabels(), fontsize=8)
-plt.setp(ax1.get_yticklabels(), fontsize=8)
-plt1a = plt.plot_date(date,ET_EC,'r-', c='red', linewidth=1.0, label='EC')
-plt1b = plt.plot_date(date,ET_MM,'r-', c='orange', linewidth=1.0, label='MM')
-plt.xlabel('Date', fontsize=10)    
-plt.ylabel('$ET$ (mm)', fontsize=10)
-ax1.set_ylim(0,5)
-
-ax2 = ax1.twinx()
-plt2a = ax2.bar(date,RF,color='darkblue', linewidth=0, align = 'center', label='RF')
-for tl in ax2.get_yticklabels():
-    tl.set_color('darkblue')
-    tl.set_fontsize(8)
-plt.ylabel('$RF$ (mm)', fontsize=10, color = 'darkblue') 
-ax2.set_ylim(0,50)   
-plt.gca().invert_yaxis()
-plts =  plt1a + plt1b + [plt2a]
-labs = [l.get_label() for l in plts]
-plt.legend(plts, labs, loc=6, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 3, columnspacing = colspc, numpoints = 5)
-leg = plt.gca().get_legend()
-ltext  = leg.get_texts()
-plt.setp(ltext, fontsize=8)
 
 ax1.grid(b=True, which='major', axis = 'both')
 ax1.xaxis.grid(b=True, which='minor', color='0.65')
@@ -199,7 +217,7 @@ plt.setp(labels, fontsize=8)
 plt.setp(labels, 'rotation', 90)
 del labels
 
-ax0.set_xlim(date_ini,date_end)
+ax1.set_xlim(date_ini,date_end)
 
 plt.show()
 plt_export_fn = '%s\%s.png' % (ws_fn, TXT_in_fnn.split('.')[0])
