@@ -1,0 +1,9 @@
+<keymap version="1" name="Default copy" parent="$default">
+  <action id="ChooseRunConfiguration">
+    <keyboard-shortcut first-keystroke="ctrl alt f9" />
+  </action>
+  <action id="ForceRunToCursor" />
+  <action id="Run">
+    <keyboard-shortcut first-keystroke="ctrl f9" />
+  </action>
+</keymap>

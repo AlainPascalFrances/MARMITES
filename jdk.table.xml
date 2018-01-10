@@ -1,0 +1,73 @@
+<application>
+  <component name="ProjectJdkTable">
+    <jdk version="2">
+      <name value="Python 2.7.10 (C:\Python27\ArcGIS10.4\python.exe)" />
+      <type value="Python SDK" />
+      <version value="Python 2.7.10" />
+      <homePath value="C:\Python27\ArcGIS10.4\python.exe" />
+      <roots>
+        <classPath>
+          <root type="composite">
+            <root url="file://C:/Python27/ArcGIS10.4/DLLs" type="simple" />
+            <root url="file://C:/Python27/ArcGIS10.4/Lib" type="simple" />
+            <root url="file://C:/Python27/ArcGIS10.4/Lib/lib-tk" type="simple" />
+            <root url="file://C:/Python27/ArcGIS10.4" type="simple" />
+            <root url="file://C:/Python27/ArcGIS10.4/Lib/site-packages" type="simple" />
+            <root url="file://C:/Program Files (x86)/ArcGIS/Desktop10.4/bin" type="simple" />
+            <root url="file://C:/Program Files (x86)/ArcGIS/Desktop10.4/arcpy" type="simple" />
+            <root url="file://C:/Program Files (x86)/ArcGIS/Desktop10.4/ArcToolbox/Scripts" type="simple" />
+            <root url="file://$USER_HOME$/.PyCharmCE2017.3/system/python_stubs/1506250101" type="simple" />
+            <root url="file://$APPLICATION_HOME_DIR$/helpers/python-skeletons" type="simple" />
+            <root url="file://$APPLICATION_HOME_DIR$/helpers/typeshed/stdlib/2" type="simple" />
+            <root url="file://$APPLICATION_HOME_DIR$/helpers/typeshed/stdlib/2and3" type="simple" />
+            <root url="file://$APPLICATION_HOME_DIR$/helpers/typeshed/third_party/2" type="simple" />
+            <root url="file://$APPLICATION_HOME_DIR$/helpers/typeshed/third_party/2and3" type="simple" />
+          </root>
+        </classPath>
+        <sourcePath>
+          <root type="composite" />
+        </sourcePath>
+      </roots>
+      <additional />
+    </jdk>
+    <jdk version="2">
+      <name value="Python 2.7.5 (C:\Python27\WinPython-64bit-2.7.5.3\python-2.7.5.amd64\python.exe)" />
+      <type value="Python SDK" />
+      <version value="Python 2.7.5" />
+      <homePath value="C:\Python27\WinPython-64bit-2.7.5.3\python-2.7.5.amd64\python.exe" />
+      <roots>
+        <classPath>
+          <root type="composite">
+            <root url="file://C:/Python27/WinPython-64bit-2.7.5.3/python-2.7.5.amd64/DLLs" type="simple" />
+            <root url="file://C:/Python27/WinPython-64bit-2.7.5.3/python-2.7.5.amd64/Lib" type="simple" />
+            <root url="file://C:/Python27/WinPython-64bit-2.7.5.3/python-2.7.5.amd64/Lib/lib-tk" type="simple" />
+            <root url="file://C:/Python27/WinPython-64bit-2.7.5.3/python-2.7.5.amd64" type="simple" />
+            <root url="file://C:/Python27/WinPython-64bit-2.7.5.3/python-2.7.5.amd64/Lib/site-packages" type="simple" />
+            <root url="file://C:/Python27/WinPython-64bit-2.7.5.3/python-2.7.5.amd64/Lib/site-packages/FontTools" type="simple" />
+            <root url="file://C:/Python27/WinPython-64bit-2.7.5.3/python-2.7.5.amd64/Lib/site-packages/MARMITES/trunk" type="simple" />
+            <root url="file://C:/Python27/WinPython-64bit-2.7.5.3/python-2.7.5.amd64/Lib/site-packages/MARMITES/trunk/MARMITESutilities" type="simple" />
+            <root url="file://C:/Python27/WinPython-64bit-2.7.5.3/python-2.7.5.amd64/Lib/site-packages/MARMITES/trunk/MARMITESutilities/MARMITESplot" type="simple" />
+            <root url="file://C:/Python27/WinPython-64bit-2.7.5.3/python-2.7.5.amd64/Lib/site-packages/MARMITES/trunk/MARMITESsurf" type="simple" />
+            <root url="file://C:/Python27/WinPython-64bit-2.7.5.3/python-2.7.5.amd64/Lib/site-packages/MARMITES/trunk/MARMITESsoil" type="simple" />
+            <root url="file://C:/Python27/WinPython-64bit-2.7.5.3/python-2.7.5.amd64/Lib/site-packages/MARMITES/trunk/ppMF_FloPy" type="simple" />
+            <root url="file://C:/Python27/WinPython-64bit-2.7.5.3/python-2.7.5.amd64/Lib/site-packages/MARMITES/trunk/pyEARTH1D" type="simple" />
+            <root url="file://C:/Python27/WinPython-64bit-2.7.5.3/python-2.7.5.amd64/Lib/site-packages/win32" type="simple" />
+            <root url="file://C:/Python27/WinPython-64bit-2.7.5.3/python-2.7.5.amd64/Lib/site-packages/win32/lib" type="simple" />
+            <root url="file://C:/Python27/WinPython-64bit-2.7.5.3/python-2.7.5.amd64/Lib/site-packages/pythonwin" type="simple" />
+            <root url="file://C:/Python27/WinPython-64bit-2.7.5.3/python-2.7.5.amd64/Lib/site-packages/wx-3.0-msw" type="simple" />
+            <root url="file://$USER_HOME$/.PyCharmCE2017.3/system/python_stubs/1627886085" type="simple" />
+            <root url="file://$APPLICATION_HOME_DIR$/helpers/python-skeletons" type="simple" />
+            <root url="file://$APPLICATION_HOME_DIR$/helpers/typeshed/stdlib/2" type="simple" />
+            <root url="file://$APPLICATION_HOME_DIR$/helpers/typeshed/stdlib/2and3" type="simple" />
+            <root url="file://$APPLICATION_HOME_DIR$/helpers/typeshed/third_party/2" type="simple" />
+            <root url="file://$APPLICATION_HOME_DIR$/helpers/typeshed/third_party/2and3" type="simple" />
+          </root>
+        </classPath>
+        <sourcePath>
+          <root type="composite" />
+        </sourcePath>
+      </roots>
+      <additional />
+    </jdk>
+  </component>
+</application>
