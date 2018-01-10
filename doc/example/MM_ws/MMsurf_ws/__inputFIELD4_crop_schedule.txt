@@ -1,3 +1,0 @@
-﻿StartDate	EndDate	GrowingDuration	WiltingDuration	CROP
-2006-03-17	2006-11-02	12	10	1
-2007-03-22	2007-10-28	18	12	2

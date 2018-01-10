@@ -1,3 +1,0 @@
-#
-C:\MM_ws
-__inputMM_v3.ini
