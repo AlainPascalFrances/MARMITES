@@ -1397,11 +1397,10 @@ class clsMF():
             for c in h5_MF['cbc_uzf_nam']:
                 cbc_uzf_nam.append(c.strip())
             imfEXF   = cbc_uzf_nam.index('SURFACE LEAKAGE')
-            exf_MF = h5_MF['cbc_uzf'][:,:,:,:,imfEXF]
             for l in range(self.nlay):
                 for t in range(len(self.perlen)):
                     mask = np.ma.make_mask(self.outcropL == l) #+1
-                    exf4MM[t,:,:] += exf_MF[t,l,:,:]*mask
+                    exf4MM[t,:,:] += h5_MF['cbc_uzf'][t,l,:,:,imfEXF]*mask
             h5_MF.create_dataset(name = 'exf4MM', data = exf4MM)
         h5_MF.close()
         # to delete MF binary files and save disk space
