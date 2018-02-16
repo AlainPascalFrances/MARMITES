@@ -387,20 +387,20 @@ class clsMMsoil:
         Rp_ini_tmp_array = np.zeros([cMF.nrow,cMF.ncol,_nslmax])
         Ssurf_ini_tmp_array = np.zeros([cMF.nrow,cMF.ncol])
         Ssurf_ini_tmp_array = np.zeros([cMF.nrow,cMF.ncol])
-        MM_perc_MF = np.zeros([cMF.nrow,cMF.ncol], dtype=float)
-        MM_wel_MF  = np.zeros([cMF.nrow,cMF.ncol], dtype=float)
+        #MM_perc_MF = np.zeros([cMF.nrow,cMF.ncol], dtype=np.float32)
+        #MM_wel_MF  = np.zeros([cMF.nrow,cMF.ncol], dtype=np.float32)
         for n in range(cMF.nper):
             if n > 0:
                 tstart_MM += cMF.perlen[n-1]
                 tstart_MF += cMF.nstp[n-1]
             tend_MM = tstart_MM + cMF.perlen[n]
             tend_MF = tstart_MF + cMF.nstp[n]
-            MM         = np.zeros([cMF.perlen[n],cMF.nrow,cMF.ncol,len(index)], dtype=float)
-            MM_S       = np.zeros([cMF.perlen[n],cMF.nrow,cMF.ncol,_nslmax,len(index_S)], dtype=float)
-            if h_MF_ini.all() == None:
-                h_MF_ini       = h5_MF['heads4MM'][tstart_MF:tend_MF,:,:]
+            #MM         = np.zeros([cMF.perlen[n],cMF.nrow,cMF.ncol,len(index)], dtype=np.float32)
+            #MM_S       = np.zeros([cMF.perlen[n],cMF.nrow,cMF.ncol,_nslmax,len(index_S)], dtype=np.float32)
+            if h_MF_ini_mem == 'slow':
+                h_MF_ini = h5_MF['heads4MM'][tstart_MF:tend_MF,:,:]
             if cMF.uzf_yn == 1:
-                if exf_MF_ini.all() == None:
+                if exf_MF_ini_mem == 'slow':
                     exf_MF_ini = h5_MF['exf4MM'][tstart_MF:tend_MF,:,:]*conv_fact/(cMF.delr[0]*cMF.delc[0])
             # loop into the grid
             for i in range(cMF.nrow):
@@ -413,8 +413,8 @@ class clsMMsoil:
                         # thickness of soil layers
                         Tl = gridSOILthick[i,j]*slprop*1000.0
                         # elevation of top and bottom of soil layers
-                        TopSoilLay = np.zeros([nsl], dtype=float)
-                        BotSoilLay = np.zeros([nsl], dtype=float)
+                        TopSoilLay = np.zeros([nsl], dtype=np.float32)
+                        BotSoilLay = np.zeros([nsl], dtype=np.float32)
                         for l in range(nsl):
                             if l==0:
                                 TopSoilLay[0] = TopSoil[i,j]
@@ -437,11 +437,11 @@ class clsMMsoil:
                             NVEG_tmp = 1
                             IRRfield -= 1
                             VEGarea_tmp = None
-                            LAIveg_tmp = np.ones((NVEG_tmp,tend_MF-tstart_MF), dtype = np.float)
+                            LAIveg_tmp = np.ones((NVEG_tmp,tend_MF-tstart_MF), dtype = np.float32)
                             CROP_tmp = crop_irr_SP[IRRfield,tstart_MF:tend_MF]
                             RF_tmp = RF_irr_zoneSP[METEOzone_tmp,IRRfield,tstart_MF:tend_MF]
-                            PT_zonesSP_tmp = np.zeros((NVEG_tmp,tend_MF-tstart_MF), dtype = np.float)
-                            RFe_zonesSP_tmp = np.zeros((NVEG_tmp,tend_MF-tstart_MF), dtype = np.float)
+                            PT_zonesSP_tmp = np.zeros((NVEG_tmp,tend_MF-tstart_MF), dtype = np.float32)
+                            RFe_zonesSP_tmp = np.zeros((NVEG_tmp,tend_MF-tstart_MF), dtype = np.float32)
                             RFe_zonesSP_tmp[0,:] = RFe_irr_zoneSP[METEOzone_tmp,IRRfield,tstart_MF:tend_MF]
                             PT_zonesSP_tmp[0,:] = PT_irr_zonesSP[METEOzone_tmp,IRRfield,tstart_MF:tend_MF]
                             Zr_tmp = Zr_c
@@ -452,14 +452,14 @@ class clsMMsoil:
                             NVEG_tmp = NVEG
                             CROP_tmp = None
                             RF_tmp = RF_veg_zoneSP[METEOzone_tmp][tstart_MF:tend_MF]
-                            PT_zonesSP_tmp = np.zeros((NVEG_tmp,tend_MF-tstart_MF), dtype = np.float)
-                            RFe_zonesSP_tmp = np.zeros((NVEG_tmp,tend_MF-tstart_MF), dtype = np.float)
-                            LAIveg_tmp = np.zeros((NVEG_tmp,tend_MF - tstart_MF), dtype = np.float)
-                            VEGarea_tmp = np.zeros([NVEG_tmp], dtype = np.float)
-                            Zr_tmp = np.ones((NVEG_tmp,tend_MF - tstart_MF), dtype = np.float)
-                            kT_min_tmp = np.ones((NVEG_tmp,tend_MF - tstart_MF), dtype = np.float)
-                            kT_max_tmp = np.ones((NVEG_tmp,tend_MF - tstart_MF), dtype = np.float)
-                            kT_n_tmp = np.ones((NVEG_tmp,tend_MF - tstart_MF), dtype = np.float)
+                            PT_zonesSP_tmp = np.zeros((NVEG_tmp,tend_MF-tstart_MF), dtype = np.float32)
+                            RFe_zonesSP_tmp = np.zeros((NVEG_tmp,tend_MF-tstart_MF), dtype = np.float32)
+                            LAIveg_tmp = np.zeros((NVEG_tmp,tend_MF - tstart_MF), dtype = np.float32)
+                            VEGarea_tmp = np.zeros([NVEG_tmp], dtype = np.float32)
+                            Zr_tmp = np.ones((NVEG_tmp,tend_MF - tstart_MF), dtype = np.float32)
+                            kT_min_tmp = np.ones((NVEG_tmp,tend_MF - tstart_MF), dtype = np.float32)
+                            kT_max_tmp = np.ones((NVEG_tmp,tend_MF - tstart_MF), dtype = np.float32)
+                            kT_n_tmp = np.ones((NVEG_tmp,tend_MF - tstart_MF), dtype = np.float32)
                             for v in range(NVEG_tmp):
                                 PT_zonesSP_tmp[v,:]  = PT_veg_zonesSP[METEOzone_tmp,v,tstart_MF:tend_MF]
                                 RFe_zonesSP_tmp[v,:] = RFe_veg_zonesSP[METEOzone_tmp,v,tstart_MF:tend_MF]
@@ -491,13 +491,13 @@ class clsMMsoil:
                         E0surf_max = cMF.delr[j]*gridSsurfw[i,j]*1.126847784*E0_zonesSP_tmp/np.power(100.0,2)  #1.12*gridSsurfw[i,j]/cMF.delr[j]
                         # Output initialisation
                         # PT for the vegetation patchwork
-                        PT_tot = np.zeros([len(PT_zonesSP_tmp[0])], dtype = float)
+                        PT_tot = np.zeros([len(PT_zonesSP_tmp[0])], dtype = np.float32)
                         # RFe for the vegetation patchwork
-                        RFe_tot = np.zeros([len(RFe_zonesSP_tmp[0])], dtype = float)
+                        RFe_tot = np.zeros([len(RFe_zonesSP_tmp[0])], dtype = np.float32)
                         #Soil moisture storage changes
-                        dSsoil = np.zeros([nsl], dtype = np.float)
+                        dSsoil = np.zeros([nsl], dtype = np.float32)
                         # MASS BALANCE each soil layer
-                        MB_l = np.zeros([nsl], dtype = np.float)
+                        MB_l = np.zeros([nsl], dtype = np.float32)
 
                         # PROCESSING THE WHOLE DATA SET
                         # Preprocessing of PT/PE/INTER and RFe
@@ -607,39 +607,52 @@ class clsMMsoil:
                         # index_MM = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSsurf':4, 'iRo':5, 'iEXFg':6, 'iEsurf':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSsurf':13, 'iETg':14, 'iETsoil':15, 'iSsoil_pc':16, 'idSsoil':17, 'iperc':18, 'ihcorr':19, 'idgwt':20, 'iuzthick':21, 'iInf':22, 'iMBsurf':23}
                         MM_tmp = [RF_tmp, PT_tot, PE_tot, RFe_tot, Ssurf_tmp, Ro_tmp, exf_MF_ini_tmp, Esurf_tmp, MB, INTER_tot, E0_zonesSP_tmp, Eg_tmp, Tg_tmp, dSsurf, ETg, ETsoil_tot, Ssoil_pc_tot, dSsoil_tot, perc, HEADSini_MM*0.001, -dgwt_tmp*0.001, uzthick*0.001, Inf, MBsurf]
                         # index_MM_soil = {'iEsoil':0, 'iTsoil':1,'iSsoil_pc':2, 'iRsoil':3, 'iExf':4, 'idSsoil':5, 'iSsoil':6, 'iSAT':7, 'iMB':8}
-                        MM_S_tmp = np.zeros([nsl,len(index_S)], dtype = float)
+                        MM_S_tmp = np.zeros([nsl,len(index_S)], dtype = np.float32)
                         for l in range(nsl):
                             MM_S_tmp[l,:] = [Esoil_tmp[l], Tsoil_tmp[l], Ssoil_pc_tmp[l], Rp_tmp[l], Rexf_tmp[l], dSsoil[l], Ssoil_tmp[l], SAT_tmp[l], MB_l[l]]
 
                         # fill MF and MM output arrays
                         for k in range(len(index)):
-                            MM[:,i,j,k] = MM_tmp[k]
+                            #MM[:,i,j,k] = MM_tmp[k]
+                            h5_MM['MM'][tstart_MM:tend_MM,i,j,k] = MM_tmp[k]
                         for k in range(len(index_S)):
                             for l in range(nsl):
-                                MM_S[:,i,j,l,k] = MM_S_tmp[l,k]
+                                # MM_S[:,i,j,l,k] = MM_S_tmp[l,k]
+                                h5_MM['MM_S'][tstart_MM:tend_MM,i,j,l,k] = MM_S_tmp[l,k]
                         # # Volumetric recharge rate UZF1 package
-                        MM_perc_MF[i,j] = MM_S_tmp[nsl-1,index_S.get('iRsoil')]/conv_fact
+                        #MM_perc_MF[i,j] = MM_S_tmp[nsl-1,index_S.get('iRsoil')]/conv_fact
+                        h5_MM['perc'][n,i,j] = MM_S_tmp[nsl - 1, index_S.get('iRsoil')] / conv_fact
                         # Volumetric recharge rate WEL package
-                        MM_wel_MF[i,j] = MM_tmp[index.get('iETg')]/conv_fact
+                        #MM_wel_MF[i,j] = MM_tmp[index.get('iETg')]/conv_fact
+                        h5_MM['ETg'][n,i,j] = MM_tmp[index.get('iETg')] / conv_fact
                         del MM_tmp, MM_S_tmp
                         # setting initial conditions for the next SP
-                        Ssoil_ini_tmp_array[i,j,:]  = MM_S[cMF.perlen[n]-1,i,j,:,index_S.get('iSsoil')]
-                        Rp_ini_tmp_array[i,j,:]     = MM_S[cMF.perlen[n]-1,i,j,:,index_S.get('iRsoil')]
-                        Ssurf_ini_tmp_array[i,j]    = MM[cMF.perlen[n]-1,i,j,index.get('iSsurf')]
+                        #Ssoil_ini_tmp_array[i,j,:]  = MM_S[cMF.perlen[n]-1,i,j,:,index_S.get('iSsoil')]
+                        #Rp_ini_tmp_array[i,j,:]     = MM_S[cMF.perlen[n]-1,i,j,:,index_S.get('iRsoil')]
+                        #Ssurf_ini_tmp_array[i,j]    = MM[cMF.perlen[n]-1,i,j,index.get('iSsurf')]
+                        Ssoil_ini_tmp_array[i,j,:]  = h5_MM['MM_S'][cMF.perlen[n]-1,i,j,:,index_S.get('iSsoil')]
+                        Rp_ini_tmp_array[i,j,:]     = h5_MM['MM_S'][cMF.perlen[n]-1,i,j,:,index_S.get('iRsoil')]
+                        Ssurf_ini_tmp_array[i,j]    = h5_MM['MM'][cMF.perlen[n]-1,i,j,index.get('iSsurf')]
                     else:
                         if cMF.perlen[n]>1:
-                            MM[:,i,j,:] = cMF.hnoflo
-                            MM_S[:,i,j,:,:] = cMF.hnoflo
+                            #MM[:,i,j,:] = cMF.hnoflo
+                            #MM_S[:,i,j,:,:] = cMF.hnoflo
+                            h5_MM['MM'][tstart_MM:tend_MM,i,j,:] = cMF.hnoflo
+                            h5_MM['MM_S'][tstart_MM:tend_MM,i,j,:,:] = cMF.hnoflo
                         else:
-                            MM[:,i,j,:] = cMF.hnoflo
-                            MM_S[:,i,j,:,:] = cMF.hnoflo
-                        MM_perc_MF[i,j] = 0.0
-                        MM_wel_MF[i,j] = 0.0
-            #dti = float(cMF.perlen[n])
-            h5_MM['MM'][tstart_MM:tend_MM,:,:,:]     = MM[:,:,:,:]
-            h5_MM['MM_S'][tstart_MM:tend_MM,:,:,:,:] = MM_S[:,:,:,:,:]
-            h5_MM['perc'][n,:,:]                     = MM_perc_MF
-            h5_MM['ETg'][n,:,:]                      = MM_wel_MF
+                            #MM[:,i,j,:] = cMF.hnoflo
+                            #MM_S[:,i,j,:,:] = cMF.hnoflo
+                            h5_MM['MM'][tstart_MM:tend_MM,i,j,:] = cMF.hnoflo
+                            h5_MM['MM_S'][tstart_MM:tend_MM,i,j,:,:] = cMF.hnoflo
+                        #MM_perc_MF[i,j] = 0.0
+                        #MM_wel_MF[i,j] = 0.0
+                        h5_MM['perc'][n, i, j] = 0.0
+                        h5_MM['ETg'][n, i, j] = 0.0
+                        #dti = float(cMF.perlen[n])
+            #h5_MM['MM'][tstart_MM:tend_MM,:,:,:]     = MM[:,:,:,:]
+            #h5_MM['MM_S'][tstart_MM:tend_MM,:,:,:,:] = MM_S[:,:,:,:,:]
+            #h5_MM['perc'][n,:,:]                     = MM_perc_MF
+            #h5_MM['ETg'][n,:,:]                      = MM_wel_MF
         h5_MM.close()
 
 #####################
@@ -663,14 +676,14 @@ class SATFLOW:
     """
 
     def runSATFLOW(self, Rg, hi, h0, RC, STO):
-        h1 = np.zeros([len(Rg)], dtype=np.float)
+        h1 = np.zeros([len(Rg)], dtype=np.float32)
         h_tmp = (hi*1000.0 + Rg[0]/STO - hi*1000.0/RC)
         h1[0] = h_tmp
         for t in range(1,len(Rg)):
             h_tmp = h1[t-1] + Rg[t]/STO -h1[t-1]/RC
             h1[t] = h_tmp
 
-        h = np.zeros([len(Rg)], dtype=np.float)
+        h = np.zeros([len(Rg)], dtype=np.float32)
         for t in range(0,len(Rg)):
             h_tmp = (h1[t] + h0*1000.0)*0.001
             h[t] = h_tmp
