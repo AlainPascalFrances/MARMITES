@@ -479,7 +479,7 @@ class clsMF():
         if self.uzf_yn == 1:
             self.iuzfbnd = self.cPROCESS.checkarray(self.iuzfbnd, dtype = np.int, stdout = stdout, report = report)
         if self.ghb_yn == 1:
-            ghb = np.asarray(self.cPROCESS.checkarray(self.ghb_cond, dtype = np.float, stdout = stdout, report = report))
+            ghb = np.asarray(self.cPROCESS.checkarray(self.ghb_cond, dtype = np.float32, stdout = stdout, report = report))
             if self.nlay > 1:
                 self.ghbcells = np.zeros((self.nlay), dtype = np.int)
                 for l in range(self.nlay):
@@ -488,7 +488,7 @@ class clsMF():
                 self.ghbcells = [(np.asarray(ghb[:,:]) > 0.0).sum()]
             del ghb
         if self.drn_yn == 1:
-            drn = np.asarray(self.cPROCESS.checkarray(self.drn_cond, dtype = np.float, stdout = stdout, report = report))
+            drn = np.asarray(self.cPROCESS.checkarray(self.drn_cond, dtype = np.float32, stdout = stdout, report = report))
             if self.nlay > 1:
                 self.drncells = np.zeros((self.nlay), dtype = np.int)
                 for l in range(self.nlay):
@@ -655,8 +655,8 @@ class clsMF():
             Write the processed data in a open txt file readable by  MARMITES
             INPUT:      output flux time series and open file
             """
-            for i in range(len(SP)):
-                out_line =  '%14.9G' %SP[i],'\n'
+            for sp in range(len(SP)):
+                out_line =  '%14.9G' %SP[sp],'\n'
                 for l in out_line:
                     outFileExport.write(l)
 
@@ -670,36 +670,36 @@ class clsMF():
             self.JD = np.asarray(inputDate_tmp[:,2], dtype = np.int)
             del inputDate_tmp
             self.inputDate = mpl.dates.datestr2num(self.inputDate)
-            for i in range(1,len(self.inputDate)):
+            for t in range(1,len(self.inputDate)):
                 #__________________Check date consistency________________#
-                difDay=self.inputDate[i]-self.inputDate[i-1]
+                difDay=self.inputDate[t]-self.inputDate[t-1]
                 if (difDay !=1.0):
                     print 'DifDay = ' + str(difDay)
-                    self.cUTIL.ErrorExit(msg = '\nFATAL ERROR!\nDates of the input data are not sequencial, check your daily time step!\nError at date %s ' % str(self.inputDate[i]), stdout = stdout, report = report)
+                    self.cUTIL.ErrorExit(msg = '\nFATAL ERROR!\nDates of the input data are not sequencial, check your daily time step!\nError at date %s ' % str(self.inputDate[t]), stdout = stdout, report = report)
         else:
             self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % inputDate_fn, stdout = stdout, report = report)
 
         inputFileRF_veg = self.cUTIL.readFile(self.MM_ws, inputZON_dSP_RF_veg_fn)
-        RF_veg_d = np.zeros([NMETEO, len(self.JD)], dtype = np.float)
+        RF_veg_d = np.zeros([NMETEO, len(self.JD)], dtype = np.float32)
         inputFileRFe_veg = self.cUTIL.readFile(self.MM_ws, inputZON_dSP_RFe_veg_fn)
-        RFe_veg_d = np.zeros([NMETEO, NVEG, len(self.JD)], dtype = np.float)
+        RFe_veg_d = np.zeros([NMETEO, NVEG, len(self.JD)], dtype = np.float32)
         inputFilePT = self.cUTIL.readFile(self.MM_ws, inputZON_dSP_PT_fn)
-        PT_veg_d = np.zeros([NMETEO, NVEG, len(self.JD)], dtype = np.float)
+        PT_veg_d = np.zeros([NMETEO, NVEG, len(self.JD)], dtype = np.float32)
         inputFileLAI_veg = self.cUTIL.readFile(self.MM_ws, input_dSP_LAI_veg_fn)
-        self.LAI_veg_d = np.zeros([NMETEO, NVEG, len(self.JD)], dtype = float)
+        self.LAI_veg_d = np.zeros([NMETEO, NVEG, len(self.JD)], dtype = np.float32)
         inputFilePE = self.cUTIL.readFile(self.MM_ws, inputZON_dSP_PE_fn)
-        PE_d = np.zeros([NMETEO, NSOIL, len(self.JD)], dtype = np.float)
+        PE_d = np.zeros([NMETEO, NSOIL, len(self.JD)], dtype = np.float32)
         inputFileE0 = self.cUTIL.readFile(self.MM_ws, inputZON_dSP_E0_fn)
-        E0_d = np.zeros([NMETEO, len(self.JD)], dtype = np.float)
+        E0_d = np.zeros([NMETEO, len(self.JD)], dtype = np.float32)
         if NFIELD != None:
             inputFileRF_irr = self.cUTIL.readFile(self.MM_ws, inputZON_dSP_RF_irr_fn)
-            RF_irr_d = np.zeros([NMETEO, NFIELD, len(self.JD)], dtype = float)
+            RF_irr_d = np.zeros([NMETEO, NFIELD, len(self.JD)], dtype = np.float32)
             inputFileRFe_irr = self.cUTIL.readFile(self.MM_ws, inputZON_dSP_RFe_irr_fn)
-            RFe_irr_d = np.zeros([NMETEO, NFIELD, len(self.JD)], dtype = float)
+            RFe_irr_d = np.zeros([NMETEO, NFIELD, len(self.JD)], dtype = np.float32)
             inputFilePT_irr = self.cUTIL.readFile(self.MM_ws, inputZON_dSP_PT_irr_fn)
-            PT_irr_d = np.zeros([NMETEO, NFIELD, len(self.JD)], dtype = float)
+            PT_irr_d = np.zeros([NMETEO, NFIELD, len(self.JD)], dtype = np.float32)
             inputFilecrop_irr = self.cUTIL.readFile(self.MM_ws, input_dSP_crop_irr_fn)
-            self.crop_irr_d = np.zeros([NMETEO, NFIELD, len(self.JD)], dtype = float)
+            self.crop_irr_d = np.zeros([NMETEO, NFIELD, len(self.JD)], dtype = np.float32)
         for n in range(NMETEO):
             for t in range(len(self.JD)):
                 RF_veg_d[n,t] = float(inputFileRF_veg[t+len(self.JD)*n].strip())
@@ -1202,13 +1202,13 @@ class clsMF():
             self.Ss_tr.insert(0, True)
             # array for heads and cbc
             spd = {}
-            for i, n in enumerate(self.nstp):
-                spd[(i, 0)] = ['save head', 'save budget', 'print head']
+            for t, n in enumerate(self.nstp):
+                spd[(t, 0)] = ['save head', 'save budget', 'print head']
         else:
             # array for heads and cbc
             spd = {}
-            for i, n in enumerate(self.nstp):
-                spd[(i, 0)] = ['save head', 'save budget','print head']
+            for t, n in enumerate(self.nstp):
+                spd[(t, 0)] = ['save head', 'save budget','print head']
 
         # 2 - create the modflow packages files
         print '\nMODFLOW files writing'
@@ -1337,8 +1337,8 @@ class clsMF():
         else:
             nper_tmp = self.nper
         h = np.zeros((self.nper, self.nlay, self.nrow, self.ncol), dtype = np.float32)
-        for i, e in enumerate(hmain.get_kstpkper()):
-            h[i,:,:,:] = hmain.get_data(kstpkper = e)
+        for t, e in enumerate(hmain.get_kstpkper()):
+            h[t,:,:,:] = hmain.get_data(kstpkper = e)
         if chunks == 1:
             if self.dum_sssp1 == 1:
                 h5_MF.create_dataset(name = 'heads', data = h[1:], chunks = (1,self.nlay,self.nrow,self.ncol), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf')
@@ -1354,9 +1354,9 @@ class clsMF():
         cbc = flopy.utils.CellBudgetFile(self.cbc_MF_fn)
         h5_MF.create_dataset('cbc_nam', data = np.asarray(cbc.get_unique_record_names()))
         if chunks == 1:
-            h5_MF.create_dataset(name = 'cbc', shape = (nper_tmp, self.nlay, self.nrow, self.ncol, h5_MF['cbc_nam'].shape[0]), dtype = np.float, chunks = (1,self.nlay,self.nrow,self.ncol,h5_MF['cbc_nam'].shape[0]), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf')
+            h5_MF.create_dataset(name = 'cbc', shape = (nper_tmp, self.nlay, self.nrow, self.ncol, h5_MF['cbc_nam'].shape[0]), dtype = np.float32, chunks = (1,self.nlay,self.nrow,self.ncol,h5_MF['cbc_nam'].shape[0]), compression = 'gzip', compression_opts = 5, shuffle = True)  # 'lzf')
         else:
-            h5_MF.create_dataset(name = 'cbc', shape = (nper_tmp, self.nlay, self.nrow, self.ncol, h5_MF['cbc_nam'].shape[0]), dtype = np.float)
+            h5_MF.create_dataset(name = 'cbc', shape = (nper_tmp, self.nlay, self.nrow, self.ncol, h5_MF['cbc_nam'].shape[0]), dtype = np.float32)
         for x, txt in enumerate(h5_MF['cbc_nam']):
             if self.dum_sssp1 == 1 and txt.replace(' ','') != 'STORAGE':
                 h5_MF['cbc'][:,:,:,:,x] = cbc.get_data(text = txt, full3D=True)[1:]
@@ -1368,9 +1368,9 @@ class clsMF():
             cbc_uzf = flopy.utils.CellBudgetFile(self.cbc_MFuzf_fn)
             h5_MF.create_dataset('cbc_uzf_nam', data = np.asarray(cbc_uzf.get_unique_record_names()))
             if chunks == 1:
-                h5_MF.create_dataset(name = 'cbc_uzf', shape = (nper_tmp, self.nlay, self.nrow, self.ncol, h5_MF['cbc_uzf_nam'].shape[0]), dtype = np.float, chunks = (1, self.nlay, self.nrow,self.ncol, h5_MF['cbc_uzf_nam'].shape[0]), compression = 'gzip', compression_opts = 5, shuffle = True)
+                h5_MF.create_dataset(name = 'cbc_uzf', shape = (nper_tmp, self.nlay, self.nrow, self.ncol, h5_MF['cbc_uzf_nam'].shape[0]), dtype = np.float32, chunks = (1, self.nlay, self.nrow,self.ncol, h5_MF['cbc_uzf_nam'].shape[0]), compression = 'gzip', compression_opts = 5, shuffle = True)
             else:
-                h5_MF.create_dataset(name = 'cbc_uzf', shape = (nper_tmp, self.nlay, self.nrow, self.ncol, h5_MF['cbc_uzf_nam'].shape[0]), dtype = np.float)
+                h5_MF.create_dataset(name = 'cbc_uzf', shape = (nper_tmp, self.nlay, self.nrow, self.ncol, h5_MF['cbc_uzf_nam'].shape[0]), dtype = np.float32)
             for x, txt in enumerate(h5_MF['cbc_uzf_nam']):
                 if self.dum_sssp1 == 1:
                     h5_MF['cbc_uzf'][:,:,:,:,x] = cbc_uzf.get_data(text = txt, full3D=True)[1:]
@@ -1384,25 +1384,33 @@ class clsMF():
             self.nstp = self.nstp[1:]
             self.Ss_tr = self.Ss_tr[1:]    
 
-        h4MM = np.zeros((len(self.perlen),self.nrow,self.ncol), dtype = np.float)
-        h_MF = h5_MF['heads'][:,:,:,:]
+        h4MM = np.zeros((len(self.perlen),self.nrow,self.ncol), dtype = np.float32)
         for l in range(self.nlay):
             mask = np.ma.make_mask(self.outcropL == l) #+1
-            h4MM[:,:,:] += h_MF[:,l,:,:]*mask
-        del h_MF
+            try:
+                h4MM[:,:,:] += h5_MF['heads'][:,l,:,:]*mask
+            except:
+                for i in range(self.nrow):
+                    h4MM[:, i, :] += h5_MF['heads'][:, l, i, :] * mask[i,:]
         h5_MF.create_dataset(name = 'heads4MM', data = h4MM)
-        exf4MM = np.zeros((len(self.perlen),self.nrow,self.ncol), dtype = np.float)
+        del h4MM
+
+        exf4MM = np.zeros((len(self.perlen), self.nrow, self.ncol), dtype=np.float32)
         if self.uzf_yn == 1:
             cbc_uzf_nam = []
             for c in h5_MF['cbc_uzf_nam']:
                 cbc_uzf_nam.append(c.strip())
             imfEXF   = cbc_uzf_nam.index('SURFACE LEAKAGE')
-            exf_MF = h5_MF['cbc_uzf'][:,:,:,:,imfEXF]
             for l in range(self.nlay):
                 for t in range(len(self.perlen)):
                     mask = np.ma.make_mask(self.outcropL == l) #+1
-                    exf4MM[t,:,:] += exf_MF[t,l,:,:]*mask
+                    try:
+                        exf4MM[t,:,:] += h5_MF['cbc_uzf'][t,l,:,:,imfEXF]*mask
+                    except:
+                        for i in range(self.row):
+                            exf4MM[t, i, :] += h5_MF['cbc_uzf'][t, l,i, :, imfEXF] * mask[i,:]
             h5_MF.create_dataset(name = 'exf4MM', data = exf4MM)
+        del exf4MM
         h5_MF.close()
         # to delete MF binary files and save disk space
         if self.MFout_yn == 0:
