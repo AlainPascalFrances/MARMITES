@@ -2,8 +2,8 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="d22c9b79-29ab-4d63-9d08-5417fd7bbef7" name="Default" comment="">
-      <change beforePath="$PROJECT_DIR$/trunk/MARMITESsoil/MARMITESsoil_v3.py" afterPath="$PROJECT_DIR$/trunk/MARMITESsoil/MARMITESsoil_v3.py" />
-      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MM_XLSstuff/ArraySize.xlsx" afterPath="$PROJECT_DIR$/trunk/MARMITESutilities/MM_XLSstuff/ArraySize.xlsx" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
+      <change beforePath="$PROJECT_DIR$/trunk/ppMF_FloPy/ppMODFLOW_flopy_v3.py" afterPath="$PROJECT_DIR$/trunk/ppMF_FloPy/ppMODFLOW_flopy_v3.py" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="TRACKING_ENABLED" value="true" />
@@ -14,11 +14,11 @@
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
-      <file leaf-file-name="startMARMITES_v3.py" pinned="false" current-in-tab="true">
+      <file leaf-file-name="startMARMITES_v3.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/trunk/startMARMITES_v3.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="17">
-              <caret line="914" column="4" lean-forward="true" selection-start-line="914" selection-start-column="4" selection-end-line="914" selection-end-column="4" />
+            <state relative-caret-position="244">
+              <caret line="817" column="0" lean-forward="false" selection-start-line="817" selection-start-column="0" selection-end-line="817" selection-end-column="0" />
               <folding />
             </state>
           </provider>
@@ -27,8 +27,8 @@
       <file leaf-file-name="MARMITESsoil_v3.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/trunk/MARMITESsoil/MARMITESsoil_v3.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="614">
-              <caret line="697" column="5" lean-forward="true" selection-start-line="697" selection-start-column="5" selection-end-line="697" selection-end-column="5" />
+            <state relative-caret-position="11849">
+              <caret line="697" column="5" lean-forward="false" selection-start-line="697" selection-start-column="5" selection-end-line="697" selection-end-column="5" />
               <folding />
             </state>
           </provider>
@@ -88,14 +88,36 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="ppMODFLOW_flopy_v3.py" pinned="false" current-in-tab="false">
+      <file leaf-file-name="ppMODFLOW_flopy_v3.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/trunk/ppMF_FloPy/ppMODFLOW_flopy_v3.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="373">
-              <caret line="1403" column="17" lean-forward="false" selection-start-line="1403" selection-start-column="17" selection-end-line="1403" selection-end-column="17" />
+            <state relative-caret-position="243">
+              <caret line="1323" column="18" lean-forward="true" selection-start-line="1323" selection-start-column="18" selection-end-line="1323" selection-end-column="18" />
               <folding>
-                <element signature="e#471#480#0" expanded="true" />
+                <element signature="e#471#485#0" expanded="true" />
               </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="mfuzf1.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/../flopy/flopy/modflow/mfuzf1.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="243">
+              <caret line="470" column="0" lean-forward="false" selection-start-line="470" selection-start-column="0" selection-end-line="470" selection-end-column="0" />
+              <folding>
+                <element signature="e#328#338#0" expanded="true" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="util_array.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/../flopy/flopy/utils/util_array.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="253">
+              <caret line="1526" column="0" lean-forward="false" selection-start-line="1526" selection-start-column="0" selection-end-line="1526" selection-end-column="0" />
+              <folding />
             </state>
           </provider>
         </entry>
@@ -119,6 +141,13 @@
       <find>MM</find>
       <find>MM_S</find>
       <find>MM_perc_MF</find>
+      <find>os.path.join</find>
+      <find>Package</find>
+      <find>iunitramp</find>
+      <find>uzfbud_ext</find>
+      <find>row_col_iftunit_iuzopt</find>
+      <find>nuzgag</find>
+      <find>perc_array</find>
     </findStrings>
   </component>
   <component name="Git.Settings">
@@ -130,6 +159,7 @@
         <option value="$PROJECT_DIR$/trunk/startMARMITES_v3.py" />
         <option value="$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESprocess_v3.py" />
         <option value="$PROJECT_DIR$/trunk/MARMITESsoil/MARMITESsoil_v3.py" />
+        <option value="$PROJECT_DIR$/trunk/ppMF_FloPy/ppMODFLOW_flopy_v3.py" />
       </list>
     </option>
   </component>
@@ -161,33 +191,17 @@
               <item name="MARMITES" type="b2602c69:ProjectViewProjectNode" />
               <item name="MARMITES" type="462c0819:PsiDirectoryNode" />
             </path>
-            <path>
-              <item name="MARMITES" type="b2602c69:ProjectViewProjectNode" />
-              <item name="MARMITES" type="462c0819:PsiDirectoryNode" />
-              <item name="trunk" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="MARMITES" type="b2602c69:ProjectViewProjectNode" />
-              <item name="MARMITES" type="462c0819:PsiDirectoryNode" />
-              <item name="trunk" type="462c0819:PsiDirectoryNode" />
-              <item name="MARMITESutilities" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="MARMITES" type="b2602c69:ProjectViewProjectNode" />
-              <item name="MARMITES" type="462c0819:PsiDirectoryNode" />
-              <item name="trunk" type="462c0819:PsiDirectoryNode" />
-              <item name="ppMF_FloPy" type="462c0819:PsiDirectoryNode" />
-            </path>
           </expand>
           <select />
         </subPane>
       </pane>
-      <pane id="Scope" />
       <pane id="Scratches" />
+      <pane id="Scope" />
     </panes>
   </component>
   <component name="PropertiesComponent">
     <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/../flopy/flopy/modflow/mfuzf1.py" />
   </component>
   <component name="RunDashboard">
     <option name="ruleStates">
@@ -273,10 +287,10 @@
       <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.3298292" sideWeight="0.5" order="7" side_tool="true" content_ui="tabs" />
       <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.23562677" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
       <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
-      <window_info id="Python Console" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.3298292" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
+      <window_info id="Python Console" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32893497" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Terminal" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
-      <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.39947438" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
+      <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.39868048" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="Favorites" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="2" side_tool="true" content_ui="tabs" />
       <window_info id="Cvs" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="4" side_tool="false" content_ui="tabs" />
       <window_info id="Message" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
@@ -294,54 +308,21 @@
     <breakpoint-manager>
       <breakpoints>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/../numpy/core/records.py</url>
-          <line>628</line>
-          <option name="timeStamp" value="3" />
+          <url>file://$PROJECT_DIR$/trunk/ppMF_FloPy/ppMODFLOW_flopy_v3.py</url>
+          <line>1253</line>
+          <option name="timeStamp" value="6" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/../flopy/flopy/pakbase.py</url>
+          <line>27</line>
+          <option name="timeStamp" value="8" />
         </line-breakpoint>
       </breakpoints>
-      <option name="time" value="4" />
+      <option name="time" value="9" />
     </breakpoint-manager>
     <watches-manager />
   </component>
   <component name="editorHistoryManager">
-    <entry file="file://$PROJECT_DIR$/trunk/MARMITESsurf/startMARMITESsurface.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="0">
-          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-          <folding>
-            <element signature="e#466#475#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/trunk/MARMITESsurf/PET_RF_INTER.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="0">
-          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-          <folding>
-            <element signature="e#2802#2820#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/trunk/ppMF_FloPy/ppMODFLOW_flopy_v3.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="20706">
-          <caret line="1218" column="0" lean-forward="false" selection-start-line="1218" selection-start-column="0" selection-end-line="1218" selection-end-column="0" />
-          <folding>
-            <element signature="e#471#480#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/trunk/startMARMITES_v3.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="0">
-          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/trunk/MARMITESsoil/MARMITESsoil_v3.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="0">
@@ -375,7 +356,7 @@
         <state relative-caret-position="20706">
           <caret line="1218" column="0" lean-forward="false" selection-start-line="1218" selection-start-column="0" selection-end-line="1218" selection-end-column="0" />
           <folding>
-            <element signature="e#471#480#0" expanded="true" />
+            <element signature="e#471#485#0" expanded="true" />
           </folding>
         </state>
       </provider>
@@ -421,7 +402,7 @@
         <state relative-caret-position="20706">
           <caret line="1218" column="0" lean-forward="false" selection-start-line="1218" selection-start-column="0" selection-end-line="1218" selection-end-column="0" />
           <folding>
-            <element signature="e#471#480#0" expanded="true" />
+            <element signature="e#471#485#0" expanded="true" />
           </folding>
         </state>
       </provider>
@@ -467,7 +448,7 @@
         <state relative-caret-position="289">
           <caret line="17" column="0" lean-forward="false" selection-start-line="17" selection-start-column="0" selection-end-line="17" selection-end-column="0" />
           <folding>
-            <element signature="e#471#480#0" expanded="true" />
+            <element signature="e#471#485#0" expanded="true" />
           </folding>
         </state>
       </provider>
@@ -513,7 +494,7 @@
         <state relative-caret-position="289">
           <caret line="17" column="0" lean-forward="false" selection-start-line="17" selection-start-column="0" selection-end-line="17" selection-end-column="0" />
           <folding>
-            <element signature="e#471#480#0" expanded="true" />
+            <element signature="e#471#485#0" expanded="true" />
           </folding>
         </state>
       </provider>
@@ -559,7 +540,7 @@
         <state relative-caret-position="289">
           <caret line="17" column="0" lean-forward="false" selection-start-line="17" selection-start-column="0" selection-end-line="17" selection-end-column="0" />
           <folding>
-            <element signature="e#471#480#0" expanded="true" />
+            <element signature="e#471#485#0" expanded="true" />
           </folding>
         </state>
       </provider>
@@ -605,7 +586,7 @@
         <state relative-caret-position="289">
           <caret line="17" column="0" lean-forward="false" selection-start-line="17" selection-start-column="0" selection-end-line="17" selection-end-column="0" />
           <folding>
-            <element signature="e#471#480#0" expanded="true" />
+            <element signature="e#471#485#0" expanded="true" />
           </folding>
         </state>
       </provider>
@@ -651,7 +632,7 @@
         <state relative-caret-position="289">
           <caret line="17" column="0" lean-forward="false" selection-start-line="17" selection-start-column="0" selection-end-line="17" selection-end-column="0" />
           <folding>
-            <element signature="e#471#480#0" expanded="true" />
+            <element signature="e#471#485#0" expanded="true" />
           </folding>
         </state>
       </provider>
@@ -678,14 +659,6 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/../flopy/modflow/mfdis.py" />
     <entry file="file://$PROJECT_DIR$/../flopy/utils/check.py" />
-    <entry file="file://$PROJECT_DIR$/../numpy/core/records.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="143">
-          <caret line="628" column="25" lean-forward="true" selection-start-line="628" selection-start-column="8" selection-end-line="628" selection-end-column="25" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/../flopy/setup.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="17">
@@ -724,29 +697,73 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/trunk/ppMF_FloPy/ppMODFLOW_flopy_v3.py">
+    <entry file="file://$PROJECT_DIR$/trunk/MARMITESsoil/MARMITESsoil_v3.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="373">
-          <caret line="1403" column="17" lean-forward="false" selection-start-line="1403" selection-start-column="17" selection-end-line="1403" selection-end-column="17" />
+        <state relative-caret-position="11849">
+          <caret line="697" column="5" lean-forward="false" selection-start-line="697" selection-start-column="5" selection-end-line="697" selection-end-column="5" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../numpy/core/records.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="143">
+          <caret line="628" column="0" lean-forward="false" selection-start-line="628" selection-start-column="0" selection-end-line="628" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../flopy/flopy/pakbase.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
           <folding>
-            <element signature="e#471#480#0" expanded="true" />
+            <element signature="e#124#161#0" expanded="false" />
           </folding>
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/trunk/MARMITESsoil/MARMITESsoil_v3.py">
+    <entry file="file://$PROJECT_DIR$/../flopy/flopy/modflow/mf.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="614">
-          <caret line="697" column="5" lean-forward="true" selection-start-line="697" selection-start-column="5" selection-end-line="697" selection-end-column="5" />
+        <state relative-caret-position="195">
+          <caret line="116" column="0" lean-forward="false" selection-start-line="116" selection-start-column="0" selection-end-line="116" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../flopy/flopy/modflow/mfuzf1.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="243">
+          <caret line="470" column="0" lean-forward="false" selection-start-line="470" selection-start-column="0" selection-end-line="470" selection-end-column="0" />
+          <folding>
+            <element signature="e#328#338#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../flopy/flopy/utils/util_array.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="253">
+          <caret line="1526" column="0" lean-forward="false" selection-start-line="1526" selection-start-column="0" selection-end-line="1526" selection-end-column="0" />
           <folding />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/trunk/startMARMITES_v3.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="17">
-          <caret line="914" column="4" lean-forward="true" selection-start-line="914" selection-start-column="4" selection-end-line="914" selection-end-column="4" />
+        <state relative-caret-position="244">
+          <caret line="817" column="0" lean-forward="false" selection-start-line="817" selection-start-column="0" selection-end-line="817" selection-end-column="0" />
           <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/ppMF_FloPy/ppMODFLOW_flopy_v3.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="243">
+          <caret line="1323" column="18" lean-forward="true" selection-start-line="1323" selection-start-column="18" selection-end-line="1323" selection-end-column="18" />
+          <folding>
+            <element signature="e#471#485#0" expanded="true" />
+          </folding>
         </state>
       </provider>
     </entry>
