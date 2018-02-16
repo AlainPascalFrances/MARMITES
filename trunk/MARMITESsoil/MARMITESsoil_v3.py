@@ -387,16 +387,16 @@ class clsMMsoil:
         Rp_ini_tmp_array = np.zeros([cMF.nrow,cMF.ncol,_nslmax])
         Ssurf_ini_tmp_array = np.zeros([cMF.nrow,cMF.ncol])
         Ssurf_ini_tmp_array = np.zeros([cMF.nrow,cMF.ncol])
-        #MM_perc_MF = np.zeros([cMF.nrow,cMF.ncol], dtype=np.float32)
-        #MM_wel_MF  = np.zeros([cMF.nrow,cMF.ncol], dtype=np.float32)
+        MM_perc_MF = np.zeros([cMF.nrow,cMF.ncol], dtype=np.float32)
+        MM_wel_MF  = np.zeros([cMF.nrow,cMF.ncol], dtype=np.float32)
         for n in range(cMF.nper):
             if n > 0:
                 tstart_MM += cMF.perlen[n-1]
                 tstart_MF += cMF.nstp[n-1]
             tend_MM = tstart_MM + cMF.perlen[n]
             tend_MF = tstart_MF + cMF.nstp[n]
-            #MM         = np.zeros([cMF.perlen[n],cMF.nrow,cMF.ncol,len(index)], dtype=np.float32)
-            #MM_S       = np.zeros([cMF.perlen[n],cMF.nrow,cMF.ncol,_nslmax,len(index_S)], dtype=np.float32)
+            MM         = np.zeros([cMF.perlen[n],cMF.nrow,cMF.ncol,len(index)], dtype=np.float32)
+            MM_S       = np.zeros([cMF.perlen[n],cMF.nrow,cMF.ncol,_nslmax,len(index_S)], dtype=np.float32)
             if h_MF_ini_mem == 'slow':
                 h_MF_ini = h5_MF['heads4MM'][tstart_MF:tend_MF,:,:]
             if cMF.uzf_yn == 1:
@@ -542,7 +542,7 @@ class clsMMsoil:
                         # for the first SP, S_ini is expressed in % and has to be converted in mm
                         if n == 0:
                             Ssoil_ini_tmp = Ssoil_ini_tmp * Tl
-                        # fluxes
+                        # MAIN SUB-ROUTINE fluxes
                         Esurf_tmp, Ssurf_tmp, Ro_tmp, Rp_tmp, Esoil_tmp, Tsoil_tmp, Ssoil_tmp, Ssoil_pc_tmp, Eg_tmp, Tg_tmp, HEADSini_MM, dgwt_tmp, SAT_tmp, Rexf_tmp, Inf = self.flux(cMF, perleni, RFe_tot, PT_zonesSP_tmp[:], PE_zonesSP_tmp*SOILarea*0.01, E0surf_max, Zr_elev, VEGarea_tmp, HEADSini_drycell, TopSoilLay, BotSoilLay, Tl, nsl, Sm, Sfc, Sr, Ks, Ssurf_max, Ssoil_ini_tmp, Rp_ini_tmp_array[i,j,:], Ssurf_ini_tmp, exf_MF_ini_tmp, dgwt, st, i, j, n, kT_min_tmp, kT_max_tmp, kT_n_tmp, NVEG_tmp, LAIveg_tmp[:])
                         Ssoil_pc_tot = sum(Ssoil_pc_tmp[:])/nsl
                         perc     = Rp_tmp[-1]
@@ -613,46 +613,46 @@ class clsMMsoil:
 
                         # fill MF and MM output arrays
                         for k in range(len(index)):
-                            #MM[:,i,j,k] = MM_tmp[k]
-                            h5_MM['MM'][tstart_MM:tend_MM,i,j,k] = MM_tmp[k]
+                            MM[:,i,j,k] = MM_tmp[k]
+                            #h5_MM['MM'][tstart_MM:tend_MM,i,j,k] = MM_tmp[k]
                         for k in range(len(index_S)):
                             for l in range(nsl):
-                                # MM_S[:,i,j,l,k] = MM_S_tmp[l,k]
-                                h5_MM['MM_S'][tstart_MM:tend_MM,i,j,l,k] = MM_S_tmp[l,k]
+                                MM_S[:,i,j,l,k] = MM_S_tmp[l,k]
+                                #h5_MM['MM_S'][tstart_MM:tend_MM,i,j,l,k] = MM_S_tmp[l,k]
                         # # Volumetric recharge rate UZF1 package
-                        #MM_perc_MF[i,j] = MM_S_tmp[nsl-1,index_S.get('iRsoil')]/conv_fact
-                        h5_MM['perc'][n,i,j] = MM_S_tmp[nsl - 1, index_S.get('iRsoil')] / conv_fact
+                        MM_perc_MF[i,j] = MM_S_tmp[nsl-1,index_S.get('iRsoil')]/conv_fact
+                        #h5_MM['perc'][n,i,j] = MM_S_tmp[nsl - 1, index_S.get('iRsoil')] / conv_fact
                         # Volumetric recharge rate WEL package
-                        #MM_wel_MF[i,j] = MM_tmp[index.get('iETg')]/conv_fact
-                        h5_MM['ETg'][n,i,j] = MM_tmp[index.get('iETg')] / conv_fact
+                        MM_wel_MF[i,j] = MM_tmp[index.get('iETg')]/conv_fact
+                        #h5_MM['ETg'][n,i,j] = MM_tmp[index.get('iETg')] / conv_fact
                         del MM_tmp, MM_S_tmp
                         # setting initial conditions for the next SP
-                        #Ssoil_ini_tmp_array[i,j,:]  = MM_S[cMF.perlen[n]-1,i,j,:,index_S.get('iSsoil')]
-                        #Rp_ini_tmp_array[i,j,:]     = MM_S[cMF.perlen[n]-1,i,j,:,index_S.get('iRsoil')]
-                        #Ssurf_ini_tmp_array[i,j]    = MM[cMF.perlen[n]-1,i,j,index.get('iSsurf')]
-                        Ssoil_ini_tmp_array[i,j,:]  = h5_MM['MM_S'][cMF.perlen[n]-1,i,j,:,index_S.get('iSsoil')]
-                        Rp_ini_tmp_array[i,j,:]     = h5_MM['MM_S'][cMF.perlen[n]-1,i,j,:,index_S.get('iRsoil')]
-                        Ssurf_ini_tmp_array[i,j]    = h5_MM['MM'][cMF.perlen[n]-1,i,j,index.get('iSsurf')]
+                        Ssoil_ini_tmp_array[i,j,:]  = MM_S[cMF.perlen[n]-1,i,j,:,index_S.get('iSsoil')]
+                        Rp_ini_tmp_array[i,j,:]     = MM_S[cMF.perlen[n]-1,i,j,:,index_S.get('iRsoil')]
+                        Ssurf_ini_tmp_array[i,j]    = MM[cMF.perlen[n]-1,i,j,index.get('iSsurf')]
+                        #Ssoil_ini_tmp_array[i,j,:]  = h5_MM['MM_S'][cMF.perlen[n]-1,i,j,:,index_S.get('iSsoil')]
+                        #Rp_ini_tmp_array[i,j,:]     = h5_MM['MM_S'][cMF.perlen[n]-1,i,j,:,index_S.get('iRsoil')]
+                        #Ssurf_ini_tmp_array[i,j]    = h5_MM['MM'][cMF.perlen[n]-1,i,j,index.get('iSsurf')]
                     else:
                         if cMF.perlen[n]>1:
-                            #MM[:,i,j,:] = cMF.hnoflo
-                            #MM_S[:,i,j,:,:] = cMF.hnoflo
-                            h5_MM['MM'][tstart_MM:tend_MM,i,j,:] = cMF.hnoflo
-                            h5_MM['MM_S'][tstart_MM:tend_MM,i,j,:,:] = cMF.hnoflo
+                            MM[:,i,j,:] = cMF.hnoflo
+                            MM_S[:,i,j,:,:] = cMF.hnoflo
+                            #h5_MM['MM'][tstart_MM:tend_MM,i,j,:] = cMF.hnoflo
+                            #h5_MM['MM_S'][tstart_MM:tend_MM,i,j,:,:] = cMF.hnoflo
                         else:
-                            #MM[:,i,j,:] = cMF.hnoflo
-                            #MM_S[:,i,j,:,:] = cMF.hnoflo
-                            h5_MM['MM'][tstart_MM:tend_MM,i,j,:] = cMF.hnoflo
-                            h5_MM['MM_S'][tstart_MM:tend_MM,i,j,:,:] = cMF.hnoflo
-                        #MM_perc_MF[i,j] = 0.0
-                        #MM_wel_MF[i,j] = 0.0
+                            MM[:,i,j,:] = cMF.hnoflo
+                            MM_S[:,i,j,:,:] = cMF.hnoflo
+                            #h5_MM['MM'][tstart_MM:tend_MM,i,j,:] = cMF.hnoflo
+                            #h5_MM['MM_S'][tstart_MM:tend_MM,i,j,:,:] = cMF.hnoflo
+                        MM_perc_MF[i,j] = 0.0
+                        MM_wel_MF[i,j] = 0.0
                         h5_MM['perc'][n, i, j] = 0.0
                         h5_MM['ETg'][n, i, j] = 0.0
                         #dti = float(cMF.perlen[n])
-            #h5_MM['MM'][tstart_MM:tend_MM,:,:,:]     = MM[:,:,:,:]
-            #h5_MM['MM_S'][tstart_MM:tend_MM,:,:,:,:] = MM_S[:,:,:,:,:]
-            #h5_MM['perc'][n,:,:]                     = MM_perc_MF
-            #h5_MM['ETg'][n,:,:]                      = MM_wel_MF
+            h5_MM['MM'][tstart_MM:tend_MM,:,:,:]     = MM[:,:,:,:]
+            h5_MM['MM_S'][tstart_MM:tend_MM,:,:,:,:] = MM_S[:,:,:,:,:]
+            h5_MM['perc'][n,:,:]                     = MM_perc_MF
+            h5_MM['ETg'][n,:,:]                      = MM_wel_MF
         h5_MM.close()
 
 #####################
