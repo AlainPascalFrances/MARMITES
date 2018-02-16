@@ -15,13 +15,15 @@ __author__ = "Alain P. Francés <frances.alain@gmail.com>"
 __version__ = "0.3"
 __date__ = "2012"
 
-import os
+import os, sys
 import numpy as np
 import matplotlib as mpl
 import h5py
+flopypth = os.path.dirname(sys.executable) + r'\Lib\site-packages\flopy'
+if flopypth not in sys.path:
+    sys.path.append(flopypth)
 import flopy
 import MARMITESprocess_v3 as MMproc
-from flopy.pakbase import Package
 
 #####################################
 class clsMF():
@@ -348,8 +350,8 @@ class clsMF():
                 l += 1
                 self.thti = [inputFile[l].strip()]
                 self.row_col_iftunit_iuzopt = {}
-                self.uzfbud_ext = ['%s.%s' % (self.modelname,self.ext_uzf)]
-                self.uzfbud_ext.append('%s.%s' % (self.modelname,'uzfbt1'))
+                #self.uzfbud_ext = ['%s.%s' % (self.modelname,self.ext_uzf)]
+                #self.uzfbud_ext.append('%s.%s' % (self.modelname,'uzfbt1'))
                 if self.nuzgag > 0:
                     l += 1
                     iuzrow =  inputFile[l].split()
@@ -362,10 +364,10 @@ class clsMF():
                     l += 1
                     for g in range(self.nuzgag):
                         self.row_col_iftunit_iuzopt[int(iftunit[g])]= [int(iuzrow[g]),int(iuzcol[g]),int(iftunit[g]),int(iuzopt[g])]
-                        if int(iftunit[g])<0.0:
-                            self.uzfbud_ext.append('%s.uzf_tot%s.%s' % (self.modelname,str(abs(int(iftunit[g]))),self.ext_uzf))
-                        else:
-                            self.uzfbud_ext.append('%s.uzf%s.%s' % (self.modelname,str(abs(int(iftunit[g]))),self.ext_uzf))
+                        # if int(iftunit[g])<0.0:
+                        #     self.uzfbud_ext.append('%s.uzf_tot%s.%s' % (self.modelname,str(abs(int(iftunit[g]))),self.ext_uzf))
+                        # else:
+                        #     self.uzfbud_ext.append('%s.uzf%s.%s' % (self.modelname,str(abs(int(iftunit[g]))),self.ext_uzf))
                 self.perc_user = float(inputFile[l].strip())
             else:
                 l += 24
@@ -502,11 +504,11 @@ class clsMF():
 #####################################
 
     def uzf_obs(self, obs):
-        self.nuzgag += len(obs)
+        #self.nuzgag += len(obs)
         n = 200
         for o in range(len(obs)):
                 self.row_col_iftunit_iuzopt[n]= [obs.get(obs.keys()[o])['i'], obs.get(obs.keys()[o])['j'], n, 2]
-                self.uzfbud_ext.append('%s.%s.%s' % (self.modelname, obs.keys()[o], self.ext_uzf))
+                #self.uzfbud_ext.append('%s.%s.%s' % (self.modelname, obs.keys()[o], self.ext_uzf))
                 n += 1
         self.iunitramp = n
         del n
@@ -1054,12 +1056,12 @@ class clsMF():
                 perc_array = perc_input
                 print 'Infiltration input: %s' % str(perc_input)
             else:
-                perc_array = []
+                perc_array = {}
                 print 'Infiltration input: %s' % perc_input[0]
                 try:
                     h5_perc = h5py.File(perc_input[0], 'r')
                     for n in range(self.nper):
-                        perc_array.append(h5_perc[perc_input[1]][n])
+                        perc_array[n] =  h5_perc[perc_input[1]][n]
                     h5_perc.close()
                 except:
                     perc_array = self.perc_user
@@ -1249,7 +1251,7 @@ class clsMF():
                    wel.unit_number.append(self.iunitramp)
                    wel.extension.append('ReducedWells.out')
                    class_nam += ['DATA']
-                   Package.__init__(wel, parent = mfmain, extension = wel.extension, name = class_nam, unit_number = wel.unit_number)
+                   flopy.pakbase.Package.__init__(wel, parent = mfmain, extension = wel.extension, name = class_nam, unit_number = wel.unit_number)
             # if layer_row_column_Q != None:
             #     if self.iunitramp <> None:
             #         options = ['\nSPECIFY 0.05 %d\n' % self.iunitramp]
@@ -1273,7 +1275,7 @@ class clsMF():
         # uzf package
         if self.uzf_yn == 1:
             # uzf = flopy.modflow.ModflowUzf1(model = mfmain, nuztop = self.nuztop, specifythtr = self.specifythtr, specifythti = self.specifythti, nosurfleak = self.nosurfleak, iuzfopt = self.iuzfopt, irunflg = self.irunflg, ietflg = self.ietflg, iuzfcb1 = self.iuzfcb1, iuzfcb2 = self.iuzfcb2, ntrail2 = self.ntrail2, nsets = self.nsets, nuzgag = self.nuzgag, surfdep = self.surfdep, iuzfbnd = self.iuzfbnd, vks = self.vks_actual, eps = self.eps_actual, thts = self.thts_actual, thtr = self.thtr_actual, thti = self.thti_actual, row_col_iftunit_iuzopt = self.row_col_iftunit_iuzopt, finf = perc_array, extension = self.ext_uzf, uzfbud_ext = self.uzfbud_ext)
-            uzf = flopy.modflow.ModflowUzf1(model = mfmain, nuztop = self.nuztop, specifythtr = self.specifythtr, specifythti = self.specifythti, nosurfleak = self.nosurfleak, iuzfopt = self.iuzfopt, irunflg = self.irunflg, ietflg = self.ietflg, ipakcb = self.iuzfcb1, iuzfcb2 = self.iuzfcb2, ntrail2 = self.ntrail2, nsets = self.nsets, nuzgag = self.nuzgag, surfdep = self.surfdep, iuzfbnd = self.iuzfbnd, vks = self.vks_actual, eps = self.eps_actual, thts = self.thts_actual, thtr = self.thtr_actual, thti = self.thti_actual, uzgag = self.row_col_iftunit_iuzopt, finf = perc_array, extension = self.ext_uzf) #, filenames = self.uzfbud_ext)   #, uzfbud_ext = self.uzfbud_ext)
+            uzf = flopy.modflow.ModflowUzf1(model = mfmain, nuztop = self.nuztop, specifythtr = self.specifythtr, specifythti = self.specifythti, nosurfleak = self.nosurfleak, iuzfopt = self.iuzfopt, irunflg = self.irunflg, ietflg = self.ietflg, ipakcb = self.iuzfcb1, iuzfcb2 = self.iuzfcb2, ntrail2 = self.ntrail2, nsets = self.nsets, surfdep = self.surfdep, iuzfbnd = self.iuzfbnd, vks = self.vks_actual, eps = self.eps_actual, thts = self.thts_actual, thtr = self.thtr_actual, thti = self.thti_actual, uzgag = self.row_col_iftunit_iuzopt, finf = perc_array, extension = self.ext_uzf) #, filenames = self.uzfbud_ext)   #, uzfbud_ext = self.uzfbud_ext)
             uzf.write_file()
             del perc_array
         # rch package
@@ -1319,7 +1321,7 @@ class clsMF():
                                  stdout=stdout, report=report)
 
         uzf.uzgag = []
-        del mfmain, uzf.uzgag, uzf, wel
+        del mfmain
 
         h5_MF = h5py.File(self.h5_MF_fn, 'w')
         # HEADS            
