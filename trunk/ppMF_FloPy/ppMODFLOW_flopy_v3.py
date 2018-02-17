@@ -350,8 +350,9 @@ class clsMF():
                 l += 1
                 self.thti = [inputFile[l].strip()]
                 self.row_col_iftunit_iuzopt = {}
-                #self.uzfbud_ext = ['%s.%s' % (self.modelname,self.ext_uzf)]
-                #self.uzfbud_ext.append('%s.%s' % (self.modelname,'uzfbt1'))
+                self.uzf_filenames = ['%s.%s' % (self.modelname,self.ext_uzf), ]
+                self.uzf_filenames.append('%s.%s.cbc' % (self.modelname, self.ext_uzf))
+                self.uzf_filenames.append('%s.%s.bin' % (self.modelname, self.ext_uzf))
                 if self.nuzgag > 0:
                     l += 1
                     iuzrow =  inputFile[l].split()
@@ -363,11 +364,12 @@ class clsMF():
                     iuzopt = inputFile[l].split()
                     l += 1
                     for g in range(self.nuzgag):
-                        self.row_col_iftunit_iuzopt[int(iftunit[g])]= [int(iuzrow[g]),int(iuzcol[g]),int(iftunit[g]),int(iuzopt[g])]
-                        # if int(iftunit[g])<0.0:
-                        #     self.uzfbud_ext.append('%s.uzf_tot%s.%s' % (self.modelname,str(abs(int(iftunit[g]))),self.ext_uzf))
-                        # else:
-                        #     self.uzfbud_ext.append('%s.uzf%s.%s' % (self.modelname,str(abs(int(iftunit[g]))),self.ext_uzf))
+                        if int(iftunit[g])<0:
+                            self.row_col_iftunit_iuzopt[int(iftunit[g])] = [iftunit[g]]
+                            self.uzf_filenames.append('%s.%s%s.out' % (self.modelname, self.ext_uzf, int(iftunit[g])))
+                        else:
+                            self.row_col_iftunit_iuzopt[int(iftunit[g])]= [int(iuzrow[g]),int(iuzcol[g]),int(iftunit[g]),int(iuzopt[g])]
+                            self.uzf_filenames.append('%s.%s%s.out' % (self.modelname, self.ext_uzf, int(iftunit[g])))
                 self.perc_user = float(inputFile[l].strip())
             else:
                 l += 24
@@ -508,7 +510,7 @@ class clsMF():
         n = 200
         for o in range(len(obs)):
                 self.row_col_iftunit_iuzopt[n]= [obs.get(obs.keys()[o])['i'], obs.get(obs.keys()[o])['j'], n, 2]
-                #self.uzfbud_ext.append('%s.%s.%s' % (self.modelname, obs.keys()[o], self.ext_uzf))
+                self.uzf_filenames.append('%s.%s%s.%s.out' % (self.modelname, self.ext_uzf, obs.keys()[o],str(n)))
                 n += 1
         self.iunitramp = n
         del n
@@ -1252,16 +1254,6 @@ class clsMF():
                    wel.extension.append('ReducedWells.out')
                    class_nam += ['DATA']
                    flopy.pakbase.Package.__init__(wel, parent = mfmain, extension = wel.extension, name = class_nam, unit_number = wel.unit_number)
-            # if layer_row_column_Q != None:
-            #     if self.iunitramp <> None:
-            #         options = ['\nSPECIFY 0.05 %d\n' % self.iunitramp]
-            #         filenames = ['%s.wel'%self.modelname,'%s.ReducedWells.out'%self.modelname]
-            #     else:
-            #         options = None
-            #         filenames = None
-            #     wel = flopy.modflow.ModflowWel(model = mfmain, ipakcb = cb, stress_period_data = layer_row_column_Q, extension = self.ext_wel, options = options, filenames = filenames)
-            #     wel.write_file()
-            #     del layer_row_column_Q
         # drn package
         if self.drn_yn == 1:
             drn = flopy.modflow.ModflowDrn(model = mfmain, ipakcb = cb, stress_period_data = self.layer_row_column_elevation_cond, extension = self.ext_drn)
@@ -1275,7 +1267,7 @@ class clsMF():
         # uzf package
         if self.uzf_yn == 1:
             # uzf = flopy.modflow.ModflowUzf1(model = mfmain, nuztop = self.nuztop, specifythtr = self.specifythtr, specifythti = self.specifythti, nosurfleak = self.nosurfleak, iuzfopt = self.iuzfopt, irunflg = self.irunflg, ietflg = self.ietflg, iuzfcb1 = self.iuzfcb1, iuzfcb2 = self.iuzfcb2, ntrail2 = self.ntrail2, nsets = self.nsets, nuzgag = self.nuzgag, surfdep = self.surfdep, iuzfbnd = self.iuzfbnd, vks = self.vks_actual, eps = self.eps_actual, thts = self.thts_actual, thtr = self.thtr_actual, thti = self.thti_actual, row_col_iftunit_iuzopt = self.row_col_iftunit_iuzopt, finf = perc_array, extension = self.ext_uzf, uzfbud_ext = self.uzfbud_ext)
-            uzf = flopy.modflow.ModflowUzf1(model = mfmain, nuztop = self.nuztop, specifythtr = self.specifythtr, specifythti = self.specifythti, nosurfleak = self.nosurfleak, iuzfopt = self.iuzfopt, irunflg = self.irunflg, ietflg = self.ietflg, ipakcb = self.iuzfcb1, iuzfcb2 = self.iuzfcb2, ntrail2 = self.ntrail2, nsets = self.nsets, surfdep = self.surfdep, iuzfbnd = self.iuzfbnd, vks = self.vks_actual, eps = self.eps_actual, thts = self.thts_actual, thtr = self.thtr_actual, thti = self.thti_actual, uzgag = self.row_col_iftunit_iuzopt, finf = perc_array, extension = self.ext_uzf) #, filenames = self.uzfbud_ext)   #, uzfbud_ext = self.uzfbud_ext)
+            uzf = flopy.modflow.ModflowUzf1(model = mfmain, nuztop = self.nuztop, specifythtr = self.specifythtr, specifythti = self.specifythti, nosurfleak = self.nosurfleak, iuzfopt = self.iuzfopt, irunflg = self.irunflg, ietflg = self.ietflg, ipakcb = self.iuzfcb1, iuzfcb2 = self.iuzfcb2, ntrail2 = self.ntrail2, nsets = self.nsets, surfdep = self.surfdep, iuzfbnd = self.iuzfbnd, vks = self.vks_actual, eps = self.eps_actual, thts = self.thts_actual, thtr = self.thtr_actual, thti = self.thti_actual, uzgag = self.row_col_iftunit_iuzopt, finf = perc_array, extension = self.ext_uzf, filenames = self.uzf_filenames)
             uzf.write_file()
             del perc_array
         # rch package
@@ -1319,8 +1311,6 @@ class clsMF():
         else:
             self.cUTIL.ErrorExit(msg='\nMODFLOW error!\nCheck the MODFLOW list file in folder:\n%s' % self.MF_ws,
                                  stdout=stdout, report=report)
-
-        uzf.uzgag = []
         del mfmain
 
         h5_MF = h5py.File(self.h5_MF_fn, 'w')

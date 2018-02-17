@@ -606,8 +606,8 @@ lbl = []
 for o_ref in obs_list:
     for o in obs.keys():
         if o == o_ref:
-            i.append(obs.get(o)['i'])
-            j.append(obs.get(o)['j'])
+            i.append(obs.get(o)['i']+1)
+            j.append(obs.get(o)['j']+1)
             lay.append(obs.get(o)['lay'])
             lbl.append(obs.get(o)['lbl'])
 obs4map = [lbl, i, j, lay]
@@ -1689,7 +1689,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
         plt_exportCATCH_fn = os.path.join(MM_ws_out, '_0CATCHMENT_ts.png')
         plt_titleCATCH = 'Time series of fluxes averaged over the whole catchment'
         try:
-            rmseHEADS_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrSM_tmp, nseHEADS_tmp, nseSM_tmp, rHEADS_tmp, rSM_tmp = MMplot.plotTIMESERIES_CATCH(cMF, flxCatch_lst, flxLbl_lst, plt_exportCATCH_fn, plt_titleCATCH, hmax = hmaxMF, hmin = hminMF, iniMonthHydroYear = iniMonthHydroYear, date_ini = DATE[HYindex[1]], date_end = DATE[HYindex[-2]], flxIndex_lst = flxIndex_lst, obs_catch = obs_catch, obs_catch_list = obs_catch_list, TopSoilAverage = TopSoilAverage, MF = 1)
+            rmseHEADS_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrSM_tmp, nseHEADS_tmp, nseSM_tmp, rHEADS_tmp, rSM_tmp = MMplot.plotTIMESERIES_CATCH(cMF, flxCatch_lst, flxLbl_lst, plt_exportCATCH_fn, plt_titleCATCH, hmax = hmaxMF, hmin = hminMF, iniMonthHydroYear = iniMonthHydroYear-1, date_ini = DATE[HYindex[1]], date_end = DATE[HYindex[-2]], flxIndex_lst = flxIndex_lst, obs_catch = obs_catch, obs_catch_list = obs_catch_list, TopSoilAverage = TopSoilAverage, MF = 1)
             print 'TS plot done!'
         except:
             print 'TS plot error!'            
@@ -2041,14 +2041,14 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                                         clr_lst,
                                         max(hmax), min(hmin),
                                         o, l_obs, nsl,
-                                        iniMonthHydroYear, date_ini = DATE[HYindex[1]], date_end = DATE[HYindex[-2]]
+                                        iniMonthHydroYear-1, date_ini = DATE[HYindex[1]], date_end = DATE[HYindex[-2]]
                                         )
                         print 'TS plot done!'
                     except:
                         print 'TS plot error!'
                    # plot GW flux time series at each obs. cell
                     try:
-                        MMplot.plotTIMESERIES_flxGW(cMF, flxObs_lst, flxLbl_lst, flxIndex_lst, plt_export_fn, plt_suptitle, iniMonthHydroYear = iniMonthHydroYear, date_ini = DATE[HYindex[1]], date_end = DATE[HYindex[-2]])
+                        MMplot.plotTIMESERIES_flxGW(cMF, flxObs_lst, flxLbl_lst, flxIndex_lst, plt_export_fn, plt_suptitle, iniMonthHydroYear = iniMonthHydroYear-1, date_ini = DATE[HYindex[1]], date_end = DATE[HYindex[-2]])
                         print 'TS GW plot done!'
                     except:
                        print 'TS GW error!'

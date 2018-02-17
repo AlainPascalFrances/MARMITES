@@ -1070,29 +1070,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
 
 def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_title, MM_ws, interval_type = 'arange', interval_diff = 1, interval_num = 1, Vmax = 0, Vmin = 0, fmt = None, contours = False, ntick = 1, facecolor = 'silver', points  = None, ptslbl = 0, mask = None, hnoflo = -999.9, animation = 0, pref_plt_title = '_sp_plt', cMF = None):
 
-    # TODO put option to select axes tick as row/col index from MODFLOW or real coordinates (in this last case create it)
-    # SEE CODE BELOW
-    # fig = plt.figure()
-    # ax1 = fig.add_subplot(111)
-    # ax2 = ax1.twiny()
-    #
-    # X = np.linspace(0, 1, 1000)
-    # Y = np.cos(X * 20)
-    #
-    # ax1.plot(X, Y)
-    # ax1.set_xlabel(r"Original x-axis: $X$")
-    #
-    # new_tick_locations = np.array([.2, .5, .9])
-    #
-    # def tick_function(X):
-    #     V = 1 / (1 + X)
-    #     return ["%.3f" % z for z in V]
-    #
-    # ax2.set_xlim(ax1.get_xlim())
-    # ax2.set_xticks(new_tick_locations)
-    # ax2.set_xticklabels(tick_function(new_tick_locations))
-    # ax2.set_xlabel(r"Modified x-axis: $1/(1+X)$")
-    # plt.show()
+    # TODO put axes tick as row/col index from MODFLOW AND real coordinates
 
     def MinMax(min_, max_, ctrs_):
         if max_ == min_:
