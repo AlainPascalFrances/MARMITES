@@ -349,27 +349,16 @@ class clsMF():
                 self.thts = [inputFile[l].strip()]
                 l += 1
                 self.thti = [inputFile[l].strip()]
-                self.row_col_iftunit_iuzopt = {}
-                self.uzf_filenames = ['%s.%s' % (self.modelname,self.ext_uzf), ]
-                self.uzf_filenames.append('%s.%s.cbc' % (self.modelname, self.ext_uzf))
-                self.uzf_filenames.append('%s.%s.bin' % (self.modelname, self.ext_uzf))
                 if self.nuzgag > 0:
                     l += 1
-                    iuzrow =  inputFile[l].split()
+                    self.iuzrow =  inputFile[l].split()
                     l += 1
-                    iuzcol = inputFile[l].split()
+                    self.iuzcol = inputFile[l].split()
                     l += 1
-                    iftunit = inputFile[l].split()
+                    self.iftunit = inputFile[l].split()
                     l += 1
-                    iuzopt = inputFile[l].split()
+                    self.iuzopt = inputFile[l].split()
                     l += 1
-                    for g in range(self.nuzgag):
-                        if int(iftunit[g])<0:
-                            self.row_col_iftunit_iuzopt[int(iftunit[g])] = [iftunit[g]]
-                            self.uzf_filenames.append('%s.%s%s.out' % (self.modelname, self.ext_uzf, int(iftunit[g])))
-                        else:
-                            self.row_col_iftunit_iuzopt[int(iftunit[g])]= [int(iuzrow[g]),int(iuzcol[g]),int(iftunit[g]),int(iuzopt[g])]
-                            self.uzf_filenames.append('%s.%s%s.out' % (self.modelname, self.ext_uzf, int(iftunit[g])))
                 self.perc_user = float(inputFile[l].strip())
             else:
                 l += 24
@@ -502,18 +491,6 @@ class clsMF():
             del drn
 
         self.array_ini(MF_ws = self.MF_ws, stdout = stdout, report = report)
-
-#####################################
-
-    def uzf_obs(self, obs):
-        #self.nuzgag += len(obs)
-        n = 200
-        for o in range(len(obs)):
-                self.row_col_iftunit_iuzopt[n]= [obs.get(obs.keys()[o])['i'], obs.get(obs.keys()[o])['j'], n, 2]
-                self.uzf_filenames.append('%s.%s%s.%s.out' % (self.modelname, self.ext_uzf, obs.keys()[o],str(n)))
-                n += 1
-        self.iunitramp = n
-        del n
 
 ####################################
 
@@ -1028,7 +1005,7 @@ class clsMF():
 
 #####################################
 
-    def runMF(self, perc_MM = "", perc_user = None, wel_MM = "", wel_user = None, verbose = 1, s = '', chunks = 0, numDays = -1, stdout = None, report = None):
+    def runMF(self, perc_MM = "", perc_user = None, wel_MM = "", wel_user = None, verbose = 1, s = '', chunks = 0, numDays = -1, stdout = None, report = None, obs = None):
 
         #global hmain, uzf, rch_array, perc_array, options, cb, upw, layer_row_column_Q, wel_array, wel_dum, rch_array, perc_array, rch_input, wel_input, perc_input
         if verbose == 0:
@@ -1070,6 +1047,30 @@ class clsMF():
                     print 'WARNING!\nNo valid UZF1 package file(s) provided, running MODFLOW using user-input UZF1 infiltration value: %.3G' % self.perc_user
                     perc_input = self.perc_user
             print "Done!"
+
+            #def uzf_obs(self, obs):
+            self.row_col_iftunit_iuzopt = {}
+            self.uzf_filenames = ['%s.%s' % (self.modelname, self.ext_uzf), ]
+            self.uzf_filenames.append('%s.%s.cbc' % (self.modelname, self.ext_uzf))
+            self.uzf_filenames.append('%s.%s.bin' % (self.modelname, self.ext_uzf))
+            if self.nuzgag > 0:
+                for g in range(self.nuzgag):
+                    if int(self.iftunit[g]) < 0:
+                        self.row_col_iftunit_iuzopt[int(self.iftunit[g])] = [self.iftunit[g]]
+                        self.uzf_filenames.append(
+                            '%s.%s%s.out' % (self.modelname, self.ext_uzf, abs(int(self.iftunit[g]))))
+                    else:
+                        self.row_col_iftunit_iuzopt[int(self.iftunit[g])] = [int(self.iuzrow[g]), int(self.iuzcol[g]),
+                                                                             int(self.iftunit[g]), int(self.iuzopt[g])]
+                        self.uzf_filenames.append('%s.%s%s.out' % (self.modelname, self.ext_uzf, int(self.iftunit[g])))
+            if obs != None:
+                n = 200
+                for o in range(len(obs)):
+                    self.row_col_iftunit_iuzopt[n] = [obs.get(obs.keys()[o])['i'], obs.get(obs.keys()[o])['j'], n, 2]
+                    self.uzf_filenames.append('%s.%s%s.%s.out' % (self.modelname, self.ext_uzf, obs.keys()[o], str(n)))
+                    n += 1
+                self.iunitramp = n
+                del n
 
         # WELL
         # TODO add well by user to simulate extraction by borehole

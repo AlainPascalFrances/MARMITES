@@ -29,7 +29,6 @@ import MARMITESsoil_v3 as MMsoil
 import ppMODFLOW_flopy_v3 as ppMF
 import MARMITESplot_v3 as MMplot
 import MARMITESutilities as MMutils
-#import MARMITESprocess_v3 as MMproc
 
 # TODO verify if thickness of MF layer 1 > thickness of soil
 
@@ -611,8 +610,6 @@ for o_ref in obs_list:
             lay.append(obs.get(o)['lay'])
             lbl.append(obs.get(o)['lbl'])
 obs4map = [lbl, i, j, lay]
-if cMF.uzf_yn == 1:
-    cMF.uzf_obs(obs = obs)
 
 # EXPORT INPUT MAPS
 if plt_input == 1:
@@ -815,7 +812,7 @@ if MF_yn == 1 :
         stdout = sys.stdout
         report = open(report_fn, 'a')
         sys.stdout = report
-    cMF.runMF(perc_MM = (h5_MM_fn, 'perc'), wel_MM = (h5_MM_fn, 'ETg'), verbose = verbose, chunks = chunks, numDays = numDays, stdout = stdout, report = report)
+    cMF.runMF(perc_MM = (h5_MM_fn, 'perc'), wel_MM = (h5_MM_fn, 'ETg'), verbose = verbose, chunks = chunks, numDays = numDays, stdout = stdout, report = report, obs = obs)
     timeendMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
     durationMFtmp =  timeendMF - timestartMF
     durationMF +=  durationMFtmp
@@ -1015,7 +1012,7 @@ if MMsoil_yn != 0:
                 stdout = sys.stdout
                 report = open(report_fn, 'a')
                 sys.stdout = report
-            cMF.runMF(perc_MM = (h5_MM_fn, 'perc'), wel_MM = (h5_MM_fn, 'ETg'), verbose = verbose, chunks = chunks, numDays = numDays, stdout = stdout, report = report)
+            cMF.runMF(perc_MM = (h5_MM_fn, 'perc'), wel_MM = (h5_MM_fn, 'ETg'), verbose = verbose, chunks = chunks, numDays = numDays, stdout = stdout, report = report, obs = obs)
             try:
                 h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
             except:
@@ -1420,7 +1417,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
     # index_MM = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSsurf':4, 'iRo':5, 'iEXFg':6, 'iEsurf':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSsurf':13, 'iETg':14, 'iETsoil':15, 'iSsoil_pc':16, 'idSsoil':17, 'iperc':18, 'ihcorr':19, 'idgwt':20, 'iuzthick':21, 'iInf':22, 'iMBsurf':23}
     # index_MM_soil = {'iEsoil':0, 'iTsoil':1,'iSsoil_pc':2, 'iRsoil':3, 'iExf':4, 'idSsoil':5, 'iSsoil':6, 'iSAT':7, 'iMB':8}
     #    # TODO Ro sould not be averaged by ncell_MM, as well as EXF
-    print '\nExporting output ASCII files, time series plots and water balance sankey plots of water fluxes at the catchment scale...\n-------'
+    print '\n-------\nExporting output ASCII files, time series plots and water balance sankey plots of water fluxes at the catchment scale...'
     flxCatch_lst   = []
     flxmax_d     = []
     flxmin_d     = []
@@ -2573,5 +2570,5 @@ if verbose == 0:
     sys.stdout = stdout
     report.close()
     print '##############\nMARMITES terminated normally!\n%s\n##############' % mpl.dates.DateFormatter.format_data(fmt_DH, mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat()))
-    
-# EOF    
+
+# EOF
