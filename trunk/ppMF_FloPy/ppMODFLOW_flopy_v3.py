@@ -1047,8 +1047,7 @@ class clsMF():
                     print 'WARNING!\nNo valid UZF1 package file(s) provided, running MODFLOW using user-input UZF1 infiltration value: %.3G' % self.perc_user
                     perc_input = self.perc_user
             print "Done!"
-
-            #def uzf_obs(self, obs):
+           #def uzf_obs(self, obs):
             self.row_col_iftunit_iuzopt = {}
             self.uzf_filenames = ['%s.%s' % (self.modelname, self.ext_uzf), ]
             self.uzf_filenames.append('%s.%s.cbc' % (self.modelname, self.ext_uzf))
@@ -1072,7 +1071,27 @@ class clsMF():
                 self.iunitramp = n
                 del n
 
-        # WELL
+        # RCH
+        if self.rch_yn == 1:
+            print '\nRCH package initialization'
+            if isinstance(rch_input, float):
+                rch_array = rch_input
+                print 'recharge input: %s' % str(rch_input)
+            else:
+                rch_array = {}
+                print 'recharge input: %s' % rch_input[0]
+                try:
+                    h5_rch = h5py.File(rch_input[0], 'r')
+                    for n in range(self.nper):
+                        rch_array[n]= h5_rch[rch_input[1]][n]
+                    h5_rch.close()
+                except:
+                    rch_array = self.rch_user
+                    print 'WARNING!\nNo valid RCH package file(s) provided, running MODFLOW using user-input recharge value: %.3G' % self.rch_user
+                    rch_input = self.rch_user
+            print "Done!"
+
+         # WELL
         # TODO add well by user to simulate extraction by borehole
         if self.wel_yn == 1:
             print '\nWEL package initialization'
@@ -1144,26 +1163,6 @@ class clsMF():
                             break
             print "Done!"
 
-        # RCH
-        if self.rch_yn == 1:
-            print '\nRCH package initialization'
-            if isinstance(rch_input,float):
-                rch_array = rch_input
-                print 'recharge input: %s' % str(rch_input)
-            else:
-                rch_array = []
-                print 'recharge input: %s' % rch_input[0]
-                try:
-                    h5_rch = h5py.File(rch_input[0], 'r')
-                    for n in range(self.nper):
-                        rch_array.append(h5_rch[rch_input[1]][n])
-                    h5_rch.close()
-                except:
-                    rch_array = self.rch_user
-                    print 'WARNING!\nNo valid RCH package file(s) provided, running MODFLOW using user-input recharge value: %.3G' % self.rch_user
-                    rch_input = self.rch_user
-            print "Done!"
-
         # average for 1st SS stress period
         # TODO verify the if the average of wells is done correctly
         self.perlen      = list(self.perlen)
@@ -1172,33 +1171,33 @@ class clsMF():
         self.Ss_tr       = list(self.Ss_tr)
         if self.dum_sssp1 == 1:
             if self.uzf_yn == 1 and isinstance(perc_input,tuple):
-                perc_array = np.asarray(perc_array)
                 perc_SS = np.zeros((self.nrow,self.ncol))
                 for n in range(self.nper):
-                    perc_SS += perc_array[n,:,:]
+                    perc_SS += perc_array[n]
                 perc_SS = perc_SS/self.nper
-                perc_array = list(perc_array)
-                perc_array.insert(0, perc_SS)
-                del perc_SS
+                perc_array_lst = list(perc_array)
+                perc_array_lst.insert(0, perc_SS)
+                perc_array = {k: v for k, v in enumerate(perc_array_lst)}
+                del perc_SS, perc_array_lst
             if self.rch_yn == 1 and isinstance(rch_input,tuple):
-                rch_array = np.asarray(rch_array)
                 rch_SS = np.zeros((self.nrow,self.ncol))
                 for n in range(self.nper):
-                    rch_SS += rch_array[n,:,:]
+                    rch_SS += rch_array[n]
                 rch_SS = rch_SS/self.nper
-                rch_array = list(rch_array)
-                rch_array.insert(0, rch_SS)
-                del rch_SS
+                rch_array_lst = list(rch_array)
+                rch_array_lst.insert(0, rch_SS)
+                rch_array = {k: v for k, v in enumerate(rch_array_lst)}
+                del rch_SS, rch_array_lst
             if self.wel_yn == 1 and isinstance(wel_input,tuple):
                 if wel_dum == 0:
-                    wel_array = np.asarray(wel_array)
                     wel_SS = np.zeros((self.nrow,self.ncol))
                     for n in range(self.nper):
-                        wel_SS += wel_array[n,:,:]
+                        wel_SS += wel_array[n]
                     wel_SS = wel_SS/self.nper
-                    wel_array = list(wel_array)
-                    wel_array.insert(0, wel_SS)
-                    del wel_SS
+                    wel_array_lst = list(wel_array)
+                    wel_array_lst.insert(0, wel_SS)
+                    wel_array = {k: v for k, v in enumerate(wel_array_lst)}
+                    del wel_SS, wel_array_lst
                 del wel_dum
             self.nper +=  1
             self.perlen.insert(0,1)

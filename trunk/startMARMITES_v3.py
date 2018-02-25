@@ -1767,7 +1767,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                     i = obs.get(o)['i']
                     j = obs.get(o)['j']
                     l_obs = obs.get(o)['lay']
-                    l_highest = cMF.outcropL[i,j]
+                    l_highest = cMF.outcropL[i,j]-1
                     obs_h = obs.get(o)['obs_h']
                     obs_S = obs.get(o)['obs_SM']
                     obs_Ro = obs.get(o)['obs_Ro']
