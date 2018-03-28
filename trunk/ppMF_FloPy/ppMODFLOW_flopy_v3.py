@@ -457,9 +457,9 @@ class clsMF():
         botm_tmp = []
         for l in range(self.nlay):
             if l == 0:
-                thick_tmp = self.thick[l,:,:]*self.ibound[l,:,:]
+                thick_tmp = self.thick[l,:,:]*np.abs(self.ibound)[l,:,:]
             else:
-                thick_tmp += self.thick[l,:,:]*self.ibound[l,:,:]
+                thick_tmp += self.thick[l,:,:]*np.abs(self.ibound)[l,:,:]
             botm_tmp.append(np.ma.masked_values(elev_tmp - thick_tmp, self.hnoflo, atol = 0.09))
         del elev_tmp, thick_tmp
 #        self.botm = list(np.swapaxes(botm_tmp,0,1))
@@ -526,14 +526,14 @@ class clsMF():
                 for l in range(self.nlay):
                     if l == 0:
                         if len(sy_actual) > self.nlay:
-                            self.thts_actual += sy_actual[l,:,:]*self.ibound[l,:,:] + thtr_tmp
+                            self.thts_actual += sy_actual[l,:,:]*np.abs(self.ibound)[l,:,:] + thtr_tmp
                         else:
-                            self.thts_actual += sy_actual[l]*self.ibound[l,:,:] + thtr_tmp
+                            self.thts_actual += sy_actual[l]*np.abs(self.ibound)[l,:,:] + thtr_tmp
                     else:
                         if len(sy_actual) > self.nlay:
-                            self.thts_actual += sy_actual[l,:,:]*self.ibound[l,:,:]*abs(self.ibound[l-1,:,:]-1)
+                            self.thts_actual += sy_actual[l,:,:]*np.abs(self.ibound)[l,:,:]*abs(np.abs(self.ibound)[l-1,:,:]-1)
                         else:
-                            self.thts_actual += sy_actual[l]*self.ibound[l,:,:]*abs(self.ibound[l-1,:,:]-1)
+                            self.thts_actual += sy_actual[l]*np.abs(self.ibound)[l,:,:]*abs(np.abs(self.ibound)[l-1,:,:]-1)
                 if self.thtr_actual != None:
                     del thtr_tmp
             else:
@@ -551,8 +551,8 @@ class clsMF():
                     sy_tmp = np.asarray(sy_actual[l,:,:])
                 except:
                      sy_tmp = np.asarray(sy_actual[l])
-                if (sy_tmp*self.ibound[l,:,:]+np.asarray(self.thtr_actual)>np.asarray(self.thts_actual)).sum()> 0.0:
-                    self.thts_actual = sy_tmp*self.ibound[l,:,:]+2.0*np.asarray(self.thtr_actual)
+                if (sy_tmp*np.abs(self.ibound)[l,:,:]+np.asarray(self.thtr_actual)>np.asarray(self.thts_actual)).sum()> 0.0:
+                    self.thts_actual = sy_tmp*np.abs(self.ibound)[l,:,:]+2.0*np.asarray(self.thtr_actual)
                     print '\nWARNING!\nSy + THTR > THTS in layer %d! Corrected: THTS = Sy + 2.0*THTR' % l
             if (np.asarray(self.thti_actual)<np.asarray(self.thtr_actual)).sum()>0.0 or (np.asarray(self.thti_actual)>np.asarray(self.thts_actual)).sum()>0.0:
                 self.thti_actual = np.asarray(self.thtr_actual) + (np.asarray(self.thts_actual)-np.asarray(self.thtr_actual))/4.0

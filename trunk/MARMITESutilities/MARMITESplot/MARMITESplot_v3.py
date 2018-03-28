@@ -1269,6 +1269,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
     WEL=[]
     DRN=[]
     GHB=[]
+    CH=[]
     for k, i in enumerate(indexTime[:-2]):
         if k == 0:
             i = indexTime[1]
@@ -1311,6 +1312,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
         WEL.append([])
         DRN.append([])
         GHB.append([])
+        CH.append([])
         for L in range(cMF.nlay):
             Rg[k].append(mult*np.sum(np.float16(flx[flxIndex['iRg_%d'%(L+1)]][i:indexend])))
             dSg[k].append(mult*np.sum(np.float16(flx[flxIndex['idSg_%d'%(L+1)]][i:indexend])))
@@ -1334,6 +1336,8 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                     GHB[k].append(mult*np.sum(np.float16(flx[flxIndex['iGHB_%d'%(L+1)]][i:indexend])))
                 else:
                     GHB[k].append(0)
+            if len(cMF.ibound[cMF.ibound < 0]) > 0:
+                CH[k].append(mult * np.sum(np.float16(flx[flxIndex['iCH_%d' % (L + 1)]][i:indexend])))
         EXFtotMF.append(sum(EXF[k]))
 #    print "\nWater fluxes imported from file:\n%s" % inputFile_fn
 
@@ -1589,6 +1593,18 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                             Out.append(-GHB[k][L])
                         else:
                             In.append(GHB[k][L])
+                    # CH
+                    if len(cMF.ibound[cMF.ibound < 0]) > 0:
+                        if np.abs(CH[k][L])>treshold:
+                            flows.append(CH[k][L]/ff)
+                            labels.append('$CH$')
+                            orientations.append(1)
+                            pathlengths.append(pl)
+                        if  CH[k][L] < 0.0:
+                            Out.append(-CH[k][L])
+                        else:
+                            In.append(CH[k][L])
+
                     pltsankey.add(patchlabel = '$\Delta S_g$\n%.1f' % (-dSg[k][L]/ff), label='MFL%d'%(L+1), facecolor='LightSteelBlue', trunklength = tl, flows = flows, labels = labels, orientations = orientations, pathlengths = pathlengths, prior=3+L_act, connect=(1, 0))
                     MB_MF.append(100*(sum(In) - sum(Out))/((sum(In) + sum(Out))/2))
                     L_act == 0

@@ -700,7 +700,7 @@ class clsPROCESS:
 
 #####################################
 
-    def compCalibCritObs(self, Spc, h_MF, Sobs, hobs, hnoflo, obs_name, nsl, h_MM = np.asarray(None)):
+    def compCalibCritObs(self, Spc, h_MF, Sobs, hobs, hnoflo, obs_name, nsl, h_MM = None):
         
         global l
         rmseSM = None
