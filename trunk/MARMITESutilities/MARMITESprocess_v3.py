@@ -452,7 +452,7 @@ class clsPROCESS:
                 # compute the coordinates in the MODFLOW grid
                 #TODO use the PEST utilities for space extrapolation
                 i = int(self.nrow - np.ceil((y-self.yllcorner)/self.cellsizeMF))
-                j = int(np.ceil((x-self.xllcorner)/self.cellsizeMF) - 1)
+                j = int(np.ceil((x-self.xllcorner)/self.cellsizeMF)-1)
                 #  read obs time series
                 obsh_fn = os.path.join(self.MM_ws, '%s_%s.txt' % (inputObsHEADS_fn, name))
                 if os.path.exists(obsh_fn):
@@ -700,7 +700,7 @@ class clsPROCESS:
 
 #####################################
 
-    def compCalibCritObs(self, Spc, h_MF, Sobs, hobs, hnoflo, obs_name, nsl, h_MM = np.asarray(None)):
+    def compCalibCritObs(self, Spc, h_MF, Sobs, hobs, hnoflo, obs_name, nsl, h_MM = None):
         
         global l
         rmseSM = None

@@ -158,7 +158,7 @@ class clsMMsoil:
         SAT = np.zeros([nsl], dtype = bool)
         perlen = cMF.perlen[n]
         # Surface
-        Ssurf_tmp = 0
+        Ssurf_tmp = 0.0
         Ssurf_tmp  += RFe + Ssurf_ini 
         # Soil
         Ssoil_tmp = np.zeros([nsl])
@@ -487,8 +487,9 @@ class clsMMsoil:
                         Sfc        = _Sfc[SOILzone_tmp]
                         Sr         = _Sr[SOILzone_tmp]
                         Ks         = _Ks[SOILzone_tmp]
-                        Ssurf_max  = np.power(cMF.delr[j],3)*gridSsurfhmax[i,j]*gridSsurfw[i,j]*1.126847784/np.power(100.0,2)/10.0   #1000*1.12*gridSsurfhmax[i,j]*gridSsurfw[i,j]/cMF.delr[j]
-                        E0surf_max = cMF.delr[j]*gridSsurfw[i,j]*1.126847784*E0_zonesSP_tmp/np.power(100.0,2)  #1.12*gridSsurfw[i,j]/cMF.delr[j]
+                        shapeFactor = 1.126847784
+                        Ssurf_max  = np.power(cMF.delr[j],3)*gridSsurfhmax[i,j]*gridSsurfw[i,j]*shapeFactor/np.power(100.0,2)/10.0   #1000*1.12*gridSsurfhmax[i,j]*gridSsurfw[i,j]/cMF.delr[j]
+                        E0surf_max = cMF.delr[j]*gridSsurfw[i,j]*shapeFactor*E0_zonesSP_tmp/np.power(100.0,2)  #1.12*gridSsurfw[i,j]/cMF.delr[j]
                         # Output initialisation
                         # PT for the vegetation patchwork
                         PT_tot = np.zeros([len(PT_zonesSP_tmp[0])], dtype = np.float32)
@@ -646,8 +647,8 @@ class clsMMsoil:
                             #h5_MM['MM_S'][tstart_MM:tend_MM,i,j,:,:] = cMF.hnoflo
                         MM_perc_MF[i,j] = 0.0
                         MM_wel_MF[i,j] = 0.0
-                        h5_MM['perc'][n, i, j] = 0.0
-                        h5_MM['ETg'][n, i, j] = 0.0
+                        #h5_MM['perc'][n, i, j] = 0.0
+                        #h5_MM['ETg'][n, i, j] = 0.0
                         #dti = float(cMF.perlen[n])
             h5_MM['MM'][tstart_MM:tend_MM,:,:,:]     = MM[:,:,:,:]
             h5_MM['MM_S'][tstart_MM:tend_MM,:,:,:,:] = MM_S[:,:,:,:,:]

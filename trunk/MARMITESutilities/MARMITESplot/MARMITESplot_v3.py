@@ -1070,29 +1070,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
 
 def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_title, MM_ws, interval_type = 'arange', interval_diff = 1, interval_num = 1, Vmax = 0, Vmin = 0, fmt = None, contours = False, ntick = 1, facecolor = 'silver', points  = None, ptslbl = 0, mask = None, hnoflo = -999.9, animation = 0, pref_plt_title = '_sp_plt', cMF = None):
 
-    # TODO put option to select axes tick as row/col index from MODFLOW or real coordinates (in this last case create it)
-    # SEE CODE BELOW
-    # fig = plt.figure()
-    # ax1 = fig.add_subplot(111)
-    # ax2 = ax1.twiny()
-    #
-    # X = np.linspace(0, 1, 1000)
-    # Y = np.cos(X * 20)
-    #
-    # ax1.plot(X, Y)
-    # ax1.set_xlabel(r"Original x-axis: $X$")
-    #
-    # new_tick_locations = np.array([.2, .5, .9])
-    #
-    # def tick_function(X):
-    #     V = 1 / (1 + X)
-    #     return ["%.3f" % z for z in V]
-    #
-    # ax2.set_xlim(ax1.get_xlim())
-    # ax2.set_xticks(new_tick_locations)
-    # ax2.set_xticklabels(tick_function(new_tick_locations))
-    # ax2.set_xlabel(r"Modified x-axis: $1/(1+X)$")
-    # plt.show()
+    # TODO put axes tick as row/col index from MODFLOW AND real coordinates
 
     def MinMax(min_, max_, ctrs_):
         if max_ == min_:
@@ -1291,6 +1269,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
     WEL=[]
     DRN=[]
     GHB=[]
+    CH=[]
     for k, i in enumerate(indexTime[:-2]):
         if k == 0:
             i = indexTime[1]
@@ -1333,6 +1312,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
         WEL.append([])
         DRN.append([])
         GHB.append([])
+        CH.append([])
         for L in range(cMF.nlay):
             Rg[k].append(mult*np.sum(np.float16(flx[flxIndex['iRg_%d'%(L+1)]][i:indexend])))
             dSg[k].append(mult*np.sum(np.float16(flx[flxIndex['idSg_%d'%(L+1)]][i:indexend])))
@@ -1356,6 +1336,8 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                     GHB[k].append(mult*np.sum(np.float16(flx[flxIndex['iGHB_%d'%(L+1)]][i:indexend])))
                 else:
                     GHB[k].append(0)
+            if len(cMF.ibound[cMF.ibound < 0]) > 0:
+                CH[k].append(mult * np.sum(np.float16(flx[flxIndex['iCH_%d' % (L + 1)]][i:indexend])))
         EXFtotMF.append(sum(EXF[k]))
 #    print "\nWater fluxes imported from file:\n%s" % inputFile_fn
 
@@ -1611,6 +1593,18 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                             Out.append(-GHB[k][L])
                         else:
                             In.append(GHB[k][L])
+                    # CH
+                    if len(cMF.ibound[cMF.ibound < 0]) > 0:
+                        if np.abs(CH[k][L])>treshold:
+                            flows.append(CH[k][L]/ff)
+                            labels.append('$CH$')
+                            orientations.append(1)
+                            pathlengths.append(pl)
+                        if  CH[k][L] < 0.0:
+                            Out.append(-CH[k][L])
+                        else:
+                            In.append(CH[k][L])
+
                     pltsankey.add(patchlabel = '$\Delta S_g$\n%.1f' % (-dSg[k][L]/ff), label='MFL%d'%(L+1), facecolor='LightSteelBlue', trunklength = tl, flows = flows, labels = labels, orientations = orientations, pathlengths = pathlengths, prior=3+L_act, connect=(1, 0))
                     MB_MF.append(100*(sum(In) - sum(Out))/((sum(In) + sum(Out))/2))
                     L_act == 0

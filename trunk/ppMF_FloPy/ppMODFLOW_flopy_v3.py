@@ -349,25 +349,16 @@ class clsMF():
                 self.thts = [inputFile[l].strip()]
                 l += 1
                 self.thti = [inputFile[l].strip()]
-                self.row_col_iftunit_iuzopt = {}
-                #self.uzfbud_ext = ['%s.%s' % (self.modelname,self.ext_uzf)]
-                #self.uzfbud_ext.append('%s.%s' % (self.modelname,'uzfbt1'))
                 if self.nuzgag > 0:
                     l += 1
-                    iuzrow =  inputFile[l].split()
+                    self.iuzrow =  inputFile[l].split()
                     l += 1
-                    iuzcol = inputFile[l].split()
+                    self.iuzcol = inputFile[l].split()
                     l += 1
-                    iftunit = inputFile[l].split()
+                    self.iftunit = inputFile[l].split()
                     l += 1
-                    iuzopt = inputFile[l].split()
+                    self.iuzopt = inputFile[l].split()
                     l += 1
-                    for g in range(self.nuzgag):
-                        self.row_col_iftunit_iuzopt[int(iftunit[g])]= [int(iuzrow[g]),int(iuzcol[g]),int(iftunit[g]),int(iuzopt[g])]
-                        # if int(iftunit[g])<0.0:
-                        #     self.uzfbud_ext.append('%s.uzf_tot%s.%s' % (self.modelname,str(abs(int(iftunit[g]))),self.ext_uzf))
-                        # else:
-                        #     self.uzfbud_ext.append('%s.uzf%s.%s' % (self.modelname,str(abs(int(iftunit[g]))),self.ext_uzf))
                 self.perc_user = float(inputFile[l].strip())
             else:
                 l += 24
@@ -466,9 +457,9 @@ class clsMF():
         botm_tmp = []
         for l in range(self.nlay):
             if l == 0:
-                thick_tmp = self.thick[l,:,:]*self.ibound[l,:,:]
+                thick_tmp = self.thick[l,:,:]*np.abs(self.ibound)[l,:,:]
             else:
-                thick_tmp += self.thick[l,:,:]*self.ibound[l,:,:]
+                thick_tmp += self.thick[l,:,:]*np.abs(self.ibound)[l,:,:]
             botm_tmp.append(np.ma.masked_values(elev_tmp - thick_tmp, self.hnoflo, atol = 0.09))
         del elev_tmp, thick_tmp
 #        self.botm = list(np.swapaxes(botm_tmp,0,1))
@@ -500,18 +491,6 @@ class clsMF():
             del drn
 
         self.array_ini(MF_ws = self.MF_ws, stdout = stdout, report = report)
-
-#####################################
-
-    def uzf_obs(self, obs):
-        #self.nuzgag += len(obs)
-        n = 200
-        for o in range(len(obs)):
-                self.row_col_iftunit_iuzopt[n]= [obs.get(obs.keys()[o])['i'], obs.get(obs.keys()[o])['j'], n, 2]
-                #self.uzfbud_ext.append('%s.%s.%s' % (self.modelname, obs.keys()[o], self.ext_uzf))
-                n += 1
-        self.iunitramp = n
-        del n
 
 ####################################
 
@@ -547,14 +526,14 @@ class clsMF():
                 for l in range(self.nlay):
                     if l == 0:
                         if len(sy_actual) > self.nlay:
-                            self.thts_actual += sy_actual[l,:,:]*self.ibound[l,:,:] + thtr_tmp
+                            self.thts_actual += sy_actual[l,:,:]*np.abs(self.ibound)[l,:,:] + thtr_tmp
                         else:
-                            self.thts_actual += sy_actual[l]*self.ibound[l,:,:] + thtr_tmp
+                            self.thts_actual += sy_actual[l]*np.abs(self.ibound)[l,:,:] + thtr_tmp
                     else:
                         if len(sy_actual) > self.nlay:
-                            self.thts_actual += sy_actual[l,:,:]*self.ibound[l,:,:]*abs(self.ibound[l-1,:,:]-1)
+                            self.thts_actual += sy_actual[l,:,:]*np.abs(self.ibound)[l,:,:]*abs(np.abs(self.ibound)[l-1,:,:]-1)
                         else:
-                            self.thts_actual += sy_actual[l]*self.ibound[l,:,:]*abs(self.ibound[l-1,:,:]-1)
+                            self.thts_actual += sy_actual[l]*np.abs(self.ibound)[l,:,:]*abs(np.abs(self.ibound)[l-1,:,:]-1)
                 if self.thtr_actual != None:
                     del thtr_tmp
             else:
@@ -572,8 +551,8 @@ class clsMF():
                     sy_tmp = np.asarray(sy_actual[l,:,:])
                 except:
                      sy_tmp = np.asarray(sy_actual[l])
-                if (sy_tmp*self.ibound[l,:,:]+np.asarray(self.thtr_actual)>np.asarray(self.thts_actual)).sum()> 0.0:
-                    self.thts_actual = sy_tmp*self.ibound[l,:,:]+2.0*np.asarray(self.thtr_actual)
+                if (sy_tmp*np.abs(self.ibound)[l,:,:]+np.asarray(self.thtr_actual)>np.asarray(self.thts_actual)).sum()> 0.0:
+                    self.thts_actual = sy_tmp*np.abs(self.ibound)[l,:,:]+2.0*np.asarray(self.thtr_actual)
                     print '\nWARNING!\nSy + THTR > THTS in layer %d! Corrected: THTS = Sy + 2.0*THTR' % l
             if (np.asarray(self.thti_actual)<np.asarray(self.thtr_actual)).sum()>0.0 or (np.asarray(self.thti_actual)>np.asarray(self.thts_actual)).sum()>0.0:
                 self.thti_actual = np.asarray(self.thtr_actual) + (np.asarray(self.thts_actual)-np.asarray(self.thtr_actual))/4.0
@@ -1026,7 +1005,7 @@ class clsMF():
 
 #####################################
 
-    def runMF(self, perc_MM = "", perc_user = None, wel_MM = "", wel_user = None, verbose = 1, s = '', chunks = 0, numDays = -1, stdout = None, report = None):
+    def runMF(self, perc_MM = "", perc_user = None, wel_MM = "", wel_user = None, verbose = 1, s = '', chunks = 0, numDays = -1, stdout = None, report = None, obs = None):
 
         #global hmain, uzf, rch_array, perc_array, options, cb, upw, layer_row_column_Q, wel_array, wel_dum, rch_array, perc_array, rch_input, wel_input, perc_input
         if verbose == 0:
@@ -1068,8 +1047,51 @@ class clsMF():
                     print 'WARNING!\nNo valid UZF1 package file(s) provided, running MODFLOW using user-input UZF1 infiltration value: %.3G' % self.perc_user
                     perc_input = self.perc_user
             print "Done!"
+           #def uzf_obs(self, obs):
+            self.row_col_iftunit_iuzopt = {}
+            self.uzf_filenames = ['%s.%s' % (self.modelname, self.ext_uzf), ]
+            self.uzf_filenames.append('%s.%s.cbc' % (self.modelname, self.ext_uzf))
+            self.uzf_filenames.append('%s.%s.bin' % (self.modelname, self.ext_uzf))
+            if self.nuzgag > 0:
+                for g in range(self.nuzgag):
+                    if int(self.iftunit[g]) < 0:
+                        self.row_col_iftunit_iuzopt[int(self.iftunit[g])] = [self.iftunit[g]]
+                        self.uzf_filenames.append(
+                            '%s.%s%s.out' % (self.modelname, self.ext_uzf, abs(int(self.iftunit[g]))))
+                    else:
+                        self.row_col_iftunit_iuzopt[int(self.iftunit[g])] = [int(self.iuzrow[g]), int(self.iuzcol[g]),
+                                                                             int(self.iftunit[g]), int(self.iuzopt[g])]
+                        self.uzf_filenames.append('%s.%s%s.out' % (self.modelname, self.ext_uzf, int(self.iftunit[g])))
+            if obs != None:
+                n = 200
+                for o in range(len(obs)):
+                    self.row_col_iftunit_iuzopt[n] = [obs.get(obs.keys()[o])['i'], obs.get(obs.keys()[o])['j'], n, 2]
+                    self.uzf_filenames.append('%s.%s%s.%s.out' % (self.modelname, self.ext_uzf, obs.keys()[o], str(n)))
+                    n += 1
+                self.iunitramp = n
+                del n
 
-        # WELL
+        # RCH
+        if self.rch_yn == 1:
+            print '\nRCH package initialization'
+            if isinstance(rch_input, float):
+                rch_array = rch_input
+                print 'recharge input: %s' % str(rch_input)
+            else:
+                rch_array = {}
+                print 'recharge input: %s' % rch_input[0]
+                try:
+                    h5_rch = h5py.File(rch_input[0], 'r')
+                    for n in range(self.nper):
+                        rch_array[n]= h5_rch[rch_input[1]][n]
+                    h5_rch.close()
+                except:
+                    rch_array = self.rch_user
+                    print 'WARNING!\nNo valid RCH package file(s) provided, running MODFLOW using user-input recharge value: %.3G' % self.rch_user
+                    rch_input = self.rch_user
+            print "Done!"
+
+         # WELL
         # TODO add well by user to simulate extraction by borehole
         if self.wel_yn == 1:
             print '\nWEL package initialization'
@@ -1141,26 +1163,6 @@ class clsMF():
                             break
             print "Done!"
 
-        # RCH
-        if self.rch_yn == 1:
-            print '\nRCH package initialization'
-            if isinstance(rch_input,float):
-                rch_array = rch_input
-                print 'recharge input: %s' % str(rch_input)
-            else:
-                rch_array = []
-                print 'recharge input: %s' % rch_input[0]
-                try:
-                    h5_rch = h5py.File(rch_input[0], 'r')
-                    for n in range(self.nper):
-                        rch_array.append(h5_rch[rch_input[1]][n])
-                    h5_rch.close()
-                except:
-                    rch_array = self.rch_user
-                    print 'WARNING!\nNo valid RCH package file(s) provided, running MODFLOW using user-input recharge value: %.3G' % self.rch_user
-                    rch_input = self.rch_user
-            print "Done!"
-
         # average for 1st SS stress period
         # TODO verify the if the average of wells is done correctly
         self.perlen      = list(self.perlen)
@@ -1169,33 +1171,33 @@ class clsMF():
         self.Ss_tr       = list(self.Ss_tr)
         if self.dum_sssp1 == 1:
             if self.uzf_yn == 1 and isinstance(perc_input,tuple):
-                perc_array = np.asarray(perc_array)
                 perc_SS = np.zeros((self.nrow,self.ncol))
                 for n in range(self.nper):
-                    perc_SS += perc_array[n,:,:]
+                    perc_SS += perc_array[n]
                 perc_SS = perc_SS/self.nper
-                perc_array = list(perc_array)
-                perc_array.insert(0, perc_SS)
-                del perc_SS
+                perc_array_lst = list(perc_array)
+                perc_array_lst.insert(0, perc_SS)
+                perc_array = {k: v for k, v in enumerate(perc_array_lst)}
+                del perc_SS, perc_array_lst
             if self.rch_yn == 1 and isinstance(rch_input,tuple):
-                rch_array = np.asarray(rch_array)
                 rch_SS = np.zeros((self.nrow,self.ncol))
                 for n in range(self.nper):
-                    rch_SS += rch_array[n,:,:]
+                    rch_SS += rch_array[n]
                 rch_SS = rch_SS/self.nper
-                rch_array = list(rch_array)
-                rch_array.insert(0, rch_SS)
-                del rch_SS
+                rch_array_lst = list(rch_array)
+                rch_array_lst.insert(0, rch_SS)
+                rch_array = {k: v for k, v in enumerate(rch_array_lst)}
+                del rch_SS, rch_array_lst
             if self.wel_yn == 1 and isinstance(wel_input,tuple):
                 if wel_dum == 0:
-                    wel_array = np.asarray(wel_array)
                     wel_SS = np.zeros((self.nrow,self.ncol))
                     for n in range(self.nper):
-                        wel_SS += wel_array[n,:,:]
+                        wel_SS += wel_array[n]
                     wel_SS = wel_SS/self.nper
-                    wel_array = list(wel_array)
-                    wel_array.insert(0, wel_SS)
-                    del wel_SS
+                    wel_array_lst = list(wel_array)
+                    wel_array_lst.insert(0, wel_SS)
+                    wel_array = {k: v for k, v in enumerate(wel_array_lst)}
+                    del wel_SS, wel_array_lst
                 del wel_dum
             self.nper +=  1
             self.perlen.insert(0,1)
@@ -1252,16 +1254,6 @@ class clsMF():
                    wel.extension.append('ReducedWells.out')
                    class_nam += ['DATA']
                    flopy.pakbase.Package.__init__(wel, parent = mfmain, extension = wel.extension, name = class_nam, unit_number = wel.unit_number)
-            # if layer_row_column_Q != None:
-            #     if self.iunitramp <> None:
-            #         options = ['\nSPECIFY 0.05 %d\n' % self.iunitramp]
-            #         filenames = ['%s.wel'%self.modelname,'%s.ReducedWells.out'%self.modelname]
-            #     else:
-            #         options = None
-            #         filenames = None
-            #     wel = flopy.modflow.ModflowWel(model = mfmain, ipakcb = cb, stress_period_data = layer_row_column_Q, extension = self.ext_wel, options = options, filenames = filenames)
-            #     wel.write_file()
-            #     del layer_row_column_Q
         # drn package
         if self.drn_yn == 1:
             drn = flopy.modflow.ModflowDrn(model = mfmain, ipakcb = cb, stress_period_data = self.layer_row_column_elevation_cond, extension = self.ext_drn)
@@ -1275,7 +1267,7 @@ class clsMF():
         # uzf package
         if self.uzf_yn == 1:
             # uzf = flopy.modflow.ModflowUzf1(model = mfmain, nuztop = self.nuztop, specifythtr = self.specifythtr, specifythti = self.specifythti, nosurfleak = self.nosurfleak, iuzfopt = self.iuzfopt, irunflg = self.irunflg, ietflg = self.ietflg, iuzfcb1 = self.iuzfcb1, iuzfcb2 = self.iuzfcb2, ntrail2 = self.ntrail2, nsets = self.nsets, nuzgag = self.nuzgag, surfdep = self.surfdep, iuzfbnd = self.iuzfbnd, vks = self.vks_actual, eps = self.eps_actual, thts = self.thts_actual, thtr = self.thtr_actual, thti = self.thti_actual, row_col_iftunit_iuzopt = self.row_col_iftunit_iuzopt, finf = perc_array, extension = self.ext_uzf, uzfbud_ext = self.uzfbud_ext)
-            uzf = flopy.modflow.ModflowUzf1(model = mfmain, nuztop = self.nuztop, specifythtr = self.specifythtr, specifythti = self.specifythti, nosurfleak = self.nosurfleak, iuzfopt = self.iuzfopt, irunflg = self.irunflg, ietflg = self.ietflg, ipakcb = self.iuzfcb1, iuzfcb2 = self.iuzfcb2, ntrail2 = self.ntrail2, nsets = self.nsets, surfdep = self.surfdep, iuzfbnd = self.iuzfbnd, vks = self.vks_actual, eps = self.eps_actual, thts = self.thts_actual, thtr = self.thtr_actual, thti = self.thti_actual, uzgag = self.row_col_iftunit_iuzopt, finf = perc_array, extension = self.ext_uzf) #, filenames = self.uzfbud_ext)   #, uzfbud_ext = self.uzfbud_ext)
+            uzf = flopy.modflow.ModflowUzf1(model = mfmain, nuztop = self.nuztop, specifythtr = self.specifythtr, specifythti = self.specifythti, nosurfleak = self.nosurfleak, iuzfopt = self.iuzfopt, irunflg = self.irunflg, ietflg = self.ietflg, ipakcb = self.iuzfcb1, iuzfcb2 = self.iuzfcb2, ntrail2 = self.ntrail2, nsets = self.nsets, surfdep = self.surfdep, iuzfbnd = self.iuzfbnd, vks = self.vks_actual, eps = self.eps_actual, thts = self.thts_actual, thtr = self.thtr_actual, thti = self.thti_actual, uzgag = self.row_col_iftunit_iuzopt, finf = perc_array, extension = self.ext_uzf, filenames = self.uzf_filenames)
             uzf.write_file()
             del perc_array
         # rch package
@@ -1319,8 +1311,6 @@ class clsMF():
         else:
             self.cUTIL.ErrorExit(msg='\nMODFLOW error!\nCheck the MODFLOW list file in folder:\n%s' % self.MF_ws,
                                  stdout=stdout, report=report)
-
-        uzf.uzgag = []
         del mfmain
 
         h5_MF = h5py.File(self.h5_MF_fn, 'w')
