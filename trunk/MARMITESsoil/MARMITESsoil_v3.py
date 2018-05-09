@@ -346,7 +346,7 @@ class clsMMsoil:
 #                    print 'veg%d: root too short!' % v
         else:
             Tg_tmp = 0.0
-        
+
         del sy_tmp, HEADSini_corr_tmp, dgwt_corr_tmp
     
         return Esurf_tmp, Ssurf_tmp, Ro_tmp, Rp_tmp, Esoil_tmp, Tsoil_tmp, Ssoil_tmp, Ssoil_pc_tmp, Eg_tmp, Tg_tmp, HEADSini_corr, dgwt_corr, SAT, Rexf_tmp, Inf

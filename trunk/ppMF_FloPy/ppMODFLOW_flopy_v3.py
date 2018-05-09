@@ -15,7 +15,8 @@ __author__ = "Alain P. Francés <frances.alain@gmail.com>"
 __version__ = "0.3"
 __date__ = "2012"
 
-import os, sys
+import os
+import sys
 import numpy as np
 import matplotlib as mpl
 import h5py
@@ -1114,13 +1115,14 @@ class clsMF():
             wel_dum = 0
             if isinstance(wel_array, float):
                 for n in range(self.nper):
+                    layer_row_column_Q[n] = []
                     for r in range(self.nrow):
                         for c in range(self.ncol):
                             if np.abs(self.ibound[:,r,c]).sum() != 0:
                                 if wel_array > 0.0:
-                                    layer_row_column_Q[n] = [self.outcropL[r,c]-1,r,c,-wel_array*self.delr[c]*self.delc[r]]
+                                    layer_row_column_Q[n].append([self.outcropL[r,c]-1,r,c,-wel_array*self.delr[c]*self.delc[r]])
                                 else:
-                                    layer_row_column_Q[n] = [self.outcropL[r,c]-1,r,c,0.0]
+                                    layer_row_column_Q[n].append([self.outcropL[r,c]-1,r,c,0.0])
                                     wel_dum = 1
                             if wel_dum == 1:
                                 break
@@ -1131,17 +1133,18 @@ class clsMF():
             else:
                 if sum(sum(sum(wel_array))) > 0.0:
                     for n in range(self.nper):
+                        layer_row_column_Q[n] = []
                         if sum(sum(wel_array[n]))>0.0:
                             for r in range(self.nrow):
                                 for c in range(self.ncol):                        
                                     if np.abs(self.ibound[:,r,c]).sum() != 0:
                                         if wel_array[n][r][c]>0.0:
-                                            layer_row_column_Q[n] = [self.outcropL[r,c]-1,r,c,-(wel_array[n][r][c])*self.delr[c]*self.delc[r]]
+                                            layer_row_column_Q[n].append([self.outcropL[r,c]-1,r,c,-(wel_array[n][r][c])*self.delr[c]*self.delc[r]])
                         else:
                             for r in range(self.nrow):
                                 for c in range(self.ncol):
                                     if np.abs(self.ibound[:,r,c]).sum() != 0:
-                                        layer_row_column_Q[n] = [self.outcropL[r,c]-1,r,c,0.0]
+                                        layer_row_column_Q[n].append([self.outcropL[r,c]-1,r,c,0.0])
                                         wel_dum = 1
                                     if wel_dum == 1:
                                         break
@@ -1150,10 +1153,11 @@ class clsMF():
                             wel_dum = 0
                 else:
                     for n in range(self.nper):
+                        layer_row_column_Q[n] = []
                         for r in range(self.nrow):
                             for c in range(self.ncol):
                                 if np.abs(self.ibound[:,r,c]).sum() != 0:
-                                    layer_row_column_Q[n] = [self.outcropL[r,c]-1,r,c,0.0]
+                                    layer_row_column_Q[n].append([self.outcropL[r,c]-1,r,c,0.0])
                                     wel_dum = 1
                                 if wel_dum == 1:
                                     break
@@ -1175,7 +1179,9 @@ class clsMF():
                 for n in range(self.nper):
                     perc_SS += perc_array[n]
                 perc_SS = perc_SS/self.nper
-                perc_array_lst = list(perc_array)
+                perc_array_lst = []
+                for n in range(self.nper):
+                    perc_array_lst.append(perc_array[n])
                 perc_array_lst.insert(0, perc_SS)
                 perc_array = {k: v for k, v in enumerate(perc_array_lst)}
                 del perc_SS, perc_array_lst
@@ -1190,14 +1196,21 @@ class clsMF():
                 del rch_SS, rch_array_lst
             if self.wel_yn == 1 and isinstance(wel_input,tuple):
                 if wel_dum == 0:
-                    wel_SS = np.zeros((self.nrow,self.ncol))
-                    for n in range(self.nper):
-                        wel_SS += wel_array[n]
-                    wel_SS = wel_SS/self.nper
-                    wel_array_lst = list(wel_array)
-                    wel_array_lst.insert(0, wel_SS)
-                    wel_array = {k: v for k, v in enumerate(wel_array_lst)}
-                    del wel_SS, wel_array_lst
+                    if isinstance(wel_array, float):
+                        wel_SS = np.ones((self.nrow, self.ncol))*wel_array
+                    else:
+                        wel_SS = np.zeros((self.nrow,self.ncol))
+                        for n in range(self.nper):
+                            wel_SS += wel_array[n]
+                        wel_SS = wel_SS / self.nper
+                    for n in reversed(range(self.nper)):
+                        layer_row_column_Q[n+1] = layer_row_column_Q.pop(n)
+                    layer_row_column_Q[0] = []
+                    for r in range(self.nrow):
+                        for c in range(self.ncol):
+                            if np.abs(self.ibound[:, r, c]).sum() != 0:
+                                layer_row_column_Q[0].append([self.outcropL[r,c]-1,r,c,-wel_SS[r,c]])
+                    del wel_SS
                 del wel_dum
             self.nper +=  1
             self.perlen.insert(0,1)
@@ -1207,12 +1220,12 @@ class clsMF():
             # array for heads and cbc
             spd = {}
             for t, n in enumerate(self.nstp):
-                spd[(t, 0)] = ['save head', 'save budget', 'print head']
+                spd[(t, 0)] = ['save head', 'save budget']#, 'print head']
         else:
             # array for heads and cbc
             spd = {}
             for t, n in enumerate(self.nstp):
-                spd[(t, 0)] = ['save head', 'save budget','print head']
+                spd[(t, 0)] = ['save head', 'save budget']#,'print head']
 
         # 2 - create the modflow packages files
         print '\nMODFLOW files writing'
@@ -1378,7 +1391,7 @@ class clsMF():
 
         h4MM = np.zeros((len(self.perlen),self.nrow,self.ncol), dtype = np.float32)
         for l in range(self.nlay):
-            mask = np.ma.make_mask(self.outcropL == l) #+1
+            mask = np.ma.make_mask(self.outcropL == l+1) #+1
             try:
                 h4MM[:,:,:] += h5_MF['heads'][:,l,:,:]*mask
             except:
@@ -1395,7 +1408,7 @@ class clsMF():
             imfEXF   = cbc_uzf_nam.index('SURFACE LEAKAGE')
             for l in range(self.nlay):
                 for t in range(len(self.perlen)):
-                    mask = np.ma.make_mask(self.outcropL == l) #+1
+                    mask = np.ma.make_mask(self.outcropL == l+1) #+1
                     try:
                         exf4MM[t,:,:] += h5_MF['cbc_uzf'][t,l,:,:,imfEXF]*mask
                     except:

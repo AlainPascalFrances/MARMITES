@@ -215,10 +215,10 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     sim_tmp = []
     colors_nsl = itertools.cycle(clr_lst)
     for l in range(nsl):
-        y = flx[flxIndex_lst['iSsoil_pc_%d'%(l+1)]]
+        y = flx[flxIndex_lst['iSsoil_pc_s_%d'%(l+1)]]
         sim_tmp.append(y)
         y = np.ma.masked_where(y < 0.0, y)
-        ax5.plot_date(cMF.inputDate, y, '-', color = colors_nsl.next(), label = flxLbl[flxIndex_lst['iSsoil_pc_%d'%(l+1)]])
+        ax5.plot_date(cMF.inputDate, y, '-', color = colors_nsl.next(), label = flxLbl[flxIndex_lst['iSsoil_pc_s_%d'%(l+1)]])
         del y
     # y axis
     ybuffer=0.1*(max(Sm)-min(Sr))
@@ -331,9 +331,9 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     MBmin = [min(flx[flxIndex_lst['iMB']])]
     MBmax = [max(flx[flxIndex_lst['iMB']])]
     for l in range(nsl):
-        ax8b.plot_date(cMF.inputDate, flx[flxIndex_lst['iMB_%d'%(l+1)]], '-', color=colors_nsl.next(), label=flxLbl[flxIndex_lst['iMB_%d'%(l+1)]])
-        MBmin.append(min(flx[flxIndex_lst['iMB_%d'%(l+1)]]))
-        MBmax.append(max(flx[flxIndex_lst['iMB_%d'%(l+1)]]))
+        ax8b.plot_date(cMF.inputDate, flx[flxIndex_lst['iMB_s_%d'%(l+1)]], '-', color=colors_nsl.next(), label=flxLbl[flxIndex_lst['iMB_s_%d'%(l+1)]])
+        MBmin.append(min(flx[flxIndex_lst['iMB_s_%d'%(l+1)]]))
+        MBmax.append(max(flx[flxIndex_lst['iMB_s_%d'%(l+1)]]))
     # y axis
     plt.ylabel('mm', fontsize=10)
     ax8b.grid(b=True, which='major', axis = 'both')
@@ -457,9 +457,9 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
             pass
     colors_nsl = itertools.cycle(clr_lst)
     for l in range(nsl):
-        y = flx[flxIndex_lst['iSsoil_pc_%d'%(l+1)]]
+        y = flx[flxIndex_lst['iSsoil_pc_s_%d'%(l+1)]]
         y = np.ma.masked_where(y < 0.0, y)
-        ax5.plot_date(cMF.inputDate, y, '-', color = colors_nsl.next(), label = flxLbl[flxIndex_lst['iSsoil_pc_%d'%(l+1)]])
+        ax5.plot_date(cMF.inputDate, y, '-', color = colors_nsl.next(), label = flxLbl[flxIndex_lst['iSsoil_pc_s_%d'%(l+1)]])
     # y axis
     ybuffer=0.1*(max(Sm)-min(Sr))
     plt.ylim(min(Sr) - ybuffer,max(Sm) + ybuffer)
