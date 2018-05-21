@@ -1092,7 +1092,7 @@ class clsMF():
                     rch_input = self.rch_user
             print "Done!"
 
-         # WELL
+        # WELL
         # TODO add well by user to simulate extraction by borehole
         if self.wel_yn == 1:
             print '\nWEL package initialization'
