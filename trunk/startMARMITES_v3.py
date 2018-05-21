@@ -503,14 +503,14 @@ cMF.outcropL = np.zeros((cMF.nrow, cMF.ncol), dtype=int)
 mask_tmp = np.zeros((cMF.nrow, cMF.ncol), dtype=int)
 mask = []
 mask_Lsup = np.zeros((cMF.nrow, cMF.ncol), dtype=int)
-for l in range(cMF.nlay):
-    mask_Lsup += np.asarray(np.abs(cMF.ibound))[l, :, :]
-    ncell_MF.append((np.asarray(np.abs(cMF.ibound))[l, :, :] != 0).sum())
-    ncell_MM.append((mask_Lsup * np.asarray(np.abs(cMF.ibound))[l, :, :] == 1).sum())
-    iboundBOL = (np.asarray(np.abs(cMF.ibound))[l, :, :] != 0)
+for L in range(cMF.nlay):
+    mask_Lsup += np.asarray(np.abs(cMF.ibound))[L, :, :]
+    ncell_MF.append((np.asarray(np.abs(cMF.ibound))[L, :, :] != 0).sum())
+    ncell_MM.append((mask_Lsup * np.asarray(np.abs(cMF.ibound))[L, :, :] == 1).sum())
+    iboundBOL = (np.asarray(np.abs(cMF.ibound))[L, :, :] != 0)
     mask.append(np.ma.make_mask(iboundBOL - 1))
-    mask_tmp += (np.asarray(np.abs(cMF.ibound))[l, :, :] != 0)
-    cMF.outcropL += ((cMF.outcropL == 0) & (iboundBOL == 1))+l
+    mask_tmp += (np.asarray(np.abs(cMF.ibound))[L, :, :] != 0)
+    cMF.outcropL += (((cMF.outcropL == 0) & (iboundBOL == 1)))*(L+1)
 cMF.maskAllL = (mask_tmp == 0)
 del iboundBOL, mask_tmp
 timeendMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
@@ -2288,19 +2288,19 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                         MM_S, h_MF, obs_SM_tmp, obs_h_tmp, cMF.hnoflo, o, nsl,
                         MM[HYindex[1]:HYindex[-2], index_MM.get('ihcorr')])
                     del obs_h_tmp, obs_SM_tmp
-                    if rmseHEADS_tmp <> None:
+                    if rmseHEADS_tmp <> None or rmseHEADS_tmp <> []:
                         rmseHEADS.append(rmseHEADS_tmp)
                         rsrHEADS.append(rsrHEADS_tmp)
                         nseHEADS.append(nseHEADS_tmp)
                         rHEADS.append(rHEADS_tmp)
                         obslstHEADS.append(o)
-                    if rmseHEADSc_tmp <> None:
+                    if rmseHEADSc_tmp <> None and rmseHEADSc_tmp <> []:
                         rmseHEADSc.append(rmseHEADSc_tmp)
                         rsrHEADSc.append(rsrHEADSc_tmp)
                         nseHEADSc.append(nseHEADSc_tmp)
                         rHEADSc.append(rHEADSc_tmp)
                         obslstHEADSc.append(o)
-                    if rmseSM_tmp <> None:
+                    if rmseSM_tmp <> None and rmseSM_tmp <> []:
                         rmseSM.append(rmseSM_tmp)
                         rsrSM.append(rsrSM_tmp)
                         nseSM.append(nseSM_tmp)
