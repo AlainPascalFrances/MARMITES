@@ -2821,22 +2821,28 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
                 np.sum(cbc_CH[HYindex[1]:HYindex[-2], L, :, :], axis=0) / (HYindex[-2] - HYindex[1] + 1) * (-1.0),
                 mask[L])
         for i, int_typ in enumerate(['percentile', 'linspace']):
-            MMplot.plotLAYER(days=['NA'], str_per=['NA'], Date=['NA'], JD=['NA'], ncol=cMF.ncol, nrow=cMF.nrow,
+            try:
+                MMplot.plotLAYER(days=['NA'], str_per=['NA'], Date=['NA'], JD=['NA'], ncol=cMF.ncol, nrow=cMF.nrow,
                              nlay=cMF.nlay, nplot=cMF.nlay, V=V, cmap=plt.cm.Blues,
                              CBlabel='constant head bdry - $CH$ (mm.day$^{-1}$)', msg='- no flux',
                              plt_title='OUT_average_MF_CH%s' % int_typ, MM_ws=MM_ws_out, interval_type=int_typ,
                              interval_num=5, Vmax=[CHmax], Vmin=[CHmin], contours=ctrsMF, ntick=ntick, points=obs4map,
                              ptslbl=1, mask=mask_tmp, hnoflo=cMF.hnoflo, cMF=cMF)
+            except:
+                print "ERROR IN PLOTTING CH"
         del cbc_CH, CHmax, CHmin
         Vmin_tmp1 = np.min(V)
         Vmax_tmp1 = np.max(V)
         for i, int_typ in enumerate(['linspace']):
-            MMplot.plotLAYER(days=['NA'], str_per=['NA'], Date=['NA'], JD=['NA'], ncol=cMF.ncol, nrow=cMF.nrow,
+            try:
+                MMplot.plotLAYER(days=['NA'], str_per=['NA'], Date=['NA'], JD=['NA'], ncol=cMF.ncol, nrow=cMF.nrow,
                              nlay=cMF.nlay, nplot=cMF.nlay, V=V, cmap=plt.cm.Blues,
                              CBlabel='constant head bdry - $CH$ (mm.day$^{-1}$)', msg='- no flux',
                              plt_title='OUT_average_MF_CH1%s' % int_typ, MM_ws=MM_ws_out, interval_type=int_typ,
                              interval_num=5, Vmax=[Vmax_tmp1], Vmin=[Vmin_tmp1], contours=ctrsMF, ntick=ntick,
                              points=obs4map, ptslbl=0, mask=mask_tmp, hnoflo=cMF.hnoflo, cMF=cMF)
+            except:
+                print "ERROR IN PLOTTING CH average"
 
     # plot GW exfiltration average [mm]
     V = np.zeros((1, cMF.nlay, cMF.nrow, cMF.ncol), dtype=np.float32)
@@ -2844,22 +2850,28 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
         V[0, L, :, :] = np.ma.masked_array(
             np.sum(cbc_EXF[HYindex[1]:HYindex[-2], L, :, :], axis=0) / (HYindex[-2] - HYindex[1] + 1) * (-1.0), mask[L])
     for i, int_typ in enumerate(['percentile', 'linspace']):
-        MMplot.plotLAYER(days=['NA'], str_per=['NA'], Date=['NA'], JD=['NA'], ncol=cMF.ncol, nrow=cMF.nrow,
+        try:
+            MMplot.plotLAYER(days=['NA'], str_per=['NA'], Date=['NA'], JD=['NA'], ncol=cMF.ncol, nrow=cMF.nrow,
                          nlay=cMF.nlay, nplot=cMF.nlay, V=V, cmap=plt.cm.Blues,
                          CBlabel='groundwater exfiltration - $Exf_g$ (mm.day$^{-1}$)', msg='- no exfiltration',
                          plt_title='OUT_average_MF_EXF%s' % int_typ, MM_ws=MM_ws_out, interval_type=int_typ,
                          interval_num=5, Vmax=[EXFmax], Vmin=[EXFmin], contours=ctrsMF, ntick=ntick, points=obs4map,
                          ptslbl=1, mask=mask_tmp, hnoflo=cMF.hnoflo, cMF=cMF)
+        except:
+            print "ERROR IN PLOTTING EXFg"
     del cbc_EXF, EXFmax, EXFmin
     Vmin_tmp1 = np.min(V)
     Vmax_tmp1 = np.max(V)
     for i, int_typ in enumerate(['linspace']):
-        MMplot.plotLAYER(days=['NA'], str_per=['NA'], Date=['NA'], JD=['NA'], ncol=cMF.ncol, nrow=cMF.nrow,
+        try:
+            MMplot.plotLAYER(days=['NA'], str_per=['NA'], Date=['NA'], JD=['NA'], ncol=cMF.ncol, nrow=cMF.nrow,
                          nlay=cMF.nlay, nplot=cMF.nlay, V=V, cmap=plt.cm.Blues,
                          CBlabel='groundwater exfiltration - $Exf_g$ (mm.day$^{-1}$)', msg='- no exfiltration',
                          plt_title='OUT_average_MF_EXF1%s' % int_typ, MM_ws=MM_ws_out, interval_type=int_typ,
                          interval_num=5, Vmax=[Vmax_tmp1], Vmin=[Vmin_tmp1], contours=ctrsMF, ntick=ntick,
                          points=obs4map, ptslbl=0, mask=mask_tmp, hnoflo=cMF.hnoflo, cMF=cMF)
+        except:
+            print "ERROR IN PLOTTING EXFg average"
 
     h5_MF.close()
     h5_MM.close()
