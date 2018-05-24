@@ -891,8 +891,8 @@ if MF_yn == 1:
     timeendMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
     durationMFtmp = timeendMF - timestartMF
     durationMF += durationMFtmp
-    print 'MF run time: %02.fmn%02.fs' % (
-    int(durationMFtmp * 24.0 * 60.0), (durationMFtmp * 24.0 * 60.0 - int(durationMFtmp * 24.0 * 60.0)) * 60)
+    print 'MF run time  (days hh:mm:ss): %s' % str(mpl.dates.num2timedelta(durationMFtmp))#%02.fmn%02.fs' % (
+    #int(durationMFtmp * 24.0 * 60.0), (durationMFtmp * 24.0 * 60.0 - int(durationMFtmp * 24.0 * 60.0)) * 60)
     del durationMFtmp
     print '%s' % mpl.dates.DateFormatter.format_data(fmt_DH, mpl.dates.datestr2num(
         mpl.dates.datetime.datetime.today().isoformat()))
@@ -1089,8 +1089,8 @@ if MMsoil_yn != 0:
 
         timeendMMloop = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
         durationMMloop = timeendMMloop - timestartMMloop
-        print '\nMM run time: %02.fmn%02.fs' % (
-        int(durationMMloop * 24.0 * 60.0), (durationMMloop * 24.0 * 60.0 - int(durationMMloop * 24.0 * 60.0)) * 60)
+        print '\nMM run time  (days hh:mm:ss): %s' % str(mpl.dates.num2timedelta(durationMMloop)) #%02.fmn%02.fs' % (
+        #int(durationMMloop * 24.0 * 60.0), (durationMMloop * 24.0 * 60.0 - int(durationMMloop * 24.0 * 60.0)) * 60)
         durationMMsoil += durationMMloop
         print '%s' % mpl.dates.DateFormatter.format_data(fmt_DH, mpl.dates.datestr2num(
             mpl.dates.datetime.datetime.today().isoformat()))
@@ -1120,8 +1120,8 @@ if MMsoil_yn != 0:
             timeendMF = mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())
             durationMFtmp = timeendMF - timestartMF
             durationMF += durationMFtmp
-            print '\nMF run time: %02.fmn%02.fs' % (
-            int(durationMFtmp * 24.0 * 60.0), (durationMFtmp * 24.0 * 60.0 - int(durationMFtmp * 24.0 * 60.0)) * 60)
+            print '\nMF run time (days hh:mm:ss): %s' % str(mpl.dates.num2timedelta(durationMFtmp)) #%02.fmn%02.fs' % (
+            #int(durationMFtmp * 24.0 * 60.0), (durationMFtmp * 24.0 * 60.0 - int(durationMFtmp * 24.0 * 60.0)) * 60)
             del durationMFtmp
             print '%s' % mpl.dates.DateFormatter.format_data(fmt_DH, mpl.dates.datestr2num(
                 mpl.dates.datetime.datetime.today().isoformat()))
@@ -1286,11 +1286,14 @@ if h_diff_surf.all() is not None and MMsoil_yn > 0:
         Vmax = np.ma.max(Vmax)  # float(np.ceil(max(Vmax)))
         Vmin = np.ma.min(Vmin)  # float(np.floor(min(Vmin)))
         h_diff_d = sum(cMF.perlen[0:h_diff_n])
-        MMplot.plotLAYER(days=[h_diff_d], str_per=[h_diff_n], Date=[cMF.inputDate[h_diff_d]], JD=[cMF.JD[h_diff_d]],
+        try:
+            MMplot.plotLAYER(days=[h_diff_d], str_per=[h_diff_n], Date=[cMF.inputDate[h_diff_d]], JD=[cMF.JD[h_diff_d]],
                          ncol=cMF.ncol, nrow=cMF.nrow, nlay=cMF.nlay, nplot=cMF.nlay, V=V, cmap=plt.cm.Blues,
                          CBlabel=('(m)'), msg='no value', plt_title='HEADSmaxdiff_ConvLoop', MM_ws=MM_ws_out,
                          interval_type='percentile', interval_num=5, Vmax=[Vmax], Vmin=[Vmin], contours=ctrsMF,
                          ntick=ntick, points=obs4map, mask=mask_tmp, hnoflo=cMF.hnoflo, pref_plt_title='__sp_plt')
+        except:
+            print "Error in plotting HEADSmaxdiff_ConvLoop (which is expected if [Heads diff. from previous conv. loop] and [Maximum heads difference] are both 0)"
     for e in [h_diff_n, h_diff_d, V, Vmin, Vmax, mask_tmp]:
         try:
             del e
@@ -3040,20 +3043,20 @@ for n in ncell_MF:
     print '%d MF active cells' % (n)
     print '%d MM active cells' % (ncell_MM[L - 1])
     L += 1
-print ('\nApproximate run times:')
+print ('\nApproximate run times (days hh:mm:ss):')
 if MMsurf_yn > 0:
-    print ('MARMITES surface: %s minute(s) and %.1f second(s)') % (
-    str(int(durationMMsurf * 24.0 * 60.0)), (durationMMsurf * 24.0 * 60.0 - int(durationMMsurf * 24.0 * 60.0)) * 60)
+    print ('MARMITES surface: %s' % str(mpl.dates.num2timedelta(durationMMsurf)))#%s minute(s) and %.1f second(s)') % (
+    #str(int(durationMMsurf * 24.0 * 60.0)), (durationMMsurf * 24.0 * 60.0 - int(durationMMsurf * 24.0 * 60.0)) * 60)
 if MMsoil_yn != 0:
-    print ('MARMITES soil zone: %s minute(s) and %.1f second(s)') % (
-    str(int(durationMMsoil * 24.0 * 60.0)), (durationMMsoil * 24.0 * 60.0 - int(durationMMsoil * 24.0 * 60.0)) * 60)
+    print ('MARMITES soil zone: %s' % str(mpl.dates.num2timedelta(durationMMsoil)))#%s minute(s) and %.1f second(s)') % (
+    #str(int(durationMMsoil * 24.0 * 60.0)), (durationMMsoil * 24.0 * 60.0 - int(durationMMsoil * 24.0 * 60.0)) * 60)
 if MF_yn == 1:
-    print ('MODFLOW: %s minute(s) and %.1f second(s)') % (
-    str(int(durationMF * 24.0 * 60.0)), (durationMF * 24.0 * 60.0 - int(durationMF * 24.0 * 60.0)) * 60)
-print ('Export: %s minute(s) and %.1f second(s)') % (
-str(int(durationExport * 24.0 * 60.0)), (durationExport * 24.0 * 60.0 - int(durationExport * 24.0 * 60.0)) * 60)
-print ('Total: %s minute(s) and %.1f second(s)') % (
-str(int(durationTotal * 24.0 * 60.0)), (durationTotal * 24.0 * 60.0 - int(durationTotal * 24.0 * 60.0)) * 60)
+    print ('MODFLOW: %s' % str(mpl.dates.num2timedelta(durationMF)))#%s minute(s) and %.1f second(s)') % (
+    #str(int(durationMF * 24.0 * 60.0)), (durationMF * 24.0 * 60.0 - int(durationMF * 24.0 * 60.0)) * 60)
+print ('Export: %s' % str(mpl.dates.num2timedelta(durationExport)))#%s minute(s) and %.1f second(s)') % (
+#str(int(durationExport * 24.0 * 60.0)), (durationExport * 24.0 * 60.0 - int(durationExport * 24.0 * 60.0)) * 60)
+print ('Total: %s' % str(mpl.dates.num2timedelta(durationTotal)))#%s minute(s) and %.1f second(s)') % (
+#str(int(durationTotal * 24.0 * 60.0)), (durationTotal * 24.0 * 60.0 - int(durationTotal * 24.0 * 60.0)) * 60)
 print ('\nOutput written in folder: \n%s\n##############\n') % MM_ws_out
 
 if verbose == 0:
