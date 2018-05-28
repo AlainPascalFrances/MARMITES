@@ -1865,7 +1865,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
         try:
             rmseHEADS_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrSM_tmp, nseHEADS_tmp, nseSM_tmp, rHEADS_tmp, rSM_tmp = MMplot.plotTIMESERIES_CATCH(
                 cMF, flxCatch_lst, flxLbl_lst, plt_exportCATCH_fn, plt_titleCATCH, hmax=hmaxMF, hmin=hminMF,
-                iniMonthHydroYear=iniMonthHydroYear - 1, date_ini=DATE[HYindex[1]], date_end=DATE[HYindex[-2]],
+                iniMonthHydroYear=iniMonthHydroYear, date_ini=DATE[HYindex[1]], date_end=DATE[HYindex[-2]],
                 flxIndex_lst=flxIndex_lst, obs_catch=obs_catch, obs_catch_list=obs_catch_list,
                 TopSoilAverage=TopSoilAverage, MF=1)
             print 'TS plot done!'
@@ -2240,23 +2240,23 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                     #                 'iSAT': 7, 'iMB_s': 8}
                     plt_export_fn = os.path.join(MM_ws_out, '_0%s_ts.png' % o)
                     # def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, EXF, ETg, Es, MB, MB_l, dgwt, SAT, Rg, h_MF, h_MF_corr, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin):
-                    try:
-                        MMplot.plotTIMESERIES(cMF, i, j, flxObs_lst, flxLbl_lst, flxIndex_lst,
+                    #try:
+                    MMplot.plotTIMESERIES(cMF, i, j, flxObs_lst, flxLbl_lst, flxIndex_lst,
                                               _Sm[gridSOIL[i, j] - 1], _Sr[gridSOIL[i, j] - 1],
                                               plt_export_fn, plt_suptitle, plt_title,
                                               clr_lst,
                                               max(hmax), min(hmin),
                                               o, l_obs, nsl,
-                                              iniMonthHydroYear - 1, date_ini=DATE[HYindex[1]],
+                                              iniMonthHydroYear, date_ini=DATE[HYindex[1]],
                                               date_end=DATE[HYindex[-2]]
                                               )
-                        print 'TS plot done!'
-                    except:
-                        print 'TS plot error!'
+                    #    print 'TS plot done!'
+                    #except:
+                    #    print 'TS plot error!'
                     # plot GW flux time series at each obs. cell
                     try:
                         MMplot.plotTIMESERIES_flxGW(cMF, flxObs_lst, flxLbl_lst, flxIndex_lst, plt_export_fn,
-                                                    plt_suptitle, iniMonthHydroYear=iniMonthHydroYear - 1,
+                                                    plt_suptitle, iniMonthHydroYear=iniMonthHydroYear,
                                                     date_ini=DATE[HYindex[1]], date_end=DATE[HYindex[-2]])
                         print 'TS GW plot done!'
                     except:
@@ -2291,7 +2291,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                         MM_S, h_MF, obs_SM_tmp, obs_h_tmp, cMF.hnoflo, o, nsl,
                         MM[HYindex[1]:HYindex[-2], index_MM.get('ihcorr')])
                     del obs_h_tmp, obs_SM_tmp
-                    if rmseHEADS_tmp <> None or rmseHEADS_tmp <> []:
+                    if rmseHEADS_tmp <> None and rmseHEADS_tmp <> []:
                         rmseHEADS.append(rmseHEADS_tmp)
                         rsrHEADS.append(rsrHEADS_tmp)
                         nseHEADS.append(nseHEADS_tmp)
@@ -2736,12 +2736,15 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
         Re[0, L, :, :] = Rg[0, L, :, :] + np.ma.masked_array(
             np.sum(cbc_EXF[HYindex[1]:HYindex[-2], L, :, :], axis=0) / (HYindex[-2] - HYindex[1] + 1), mask[L])
     for i, int_typ in enumerate(['percentile', 'linspace']):
-        MMplot.plotLAYER(days=['NA'], str_per=['NA'], Date=['NA'], JD=['NA'], ncol=cMF.ncol, nrow=cMF.nrow,
+        try:
+            MMplot.plotLAYER(days=['NA'], str_per=['NA'], Date=['NA'], JD=['NA'], ncol=cMF.ncol, nrow=cMF.nrow,
                          nlay=cMF.nlay, nplot=cMF.nlay, V=Re, cmap=plt.cm.Blues,
                          CBlabel='groundwater effective recharge - $Re$ (mm.day$^{-1}$)', msg='- no flux',
                          plt_title='OUT_average_MF_Re1%s' % int_typ, MM_ws=MM_ws_out, interval_type=int_typ,
                          interval_num=5, Vmax=[np.ma.max(Re)], Vmin=[np.ma.min(Re)], contours=ctrsMF, ntick=ntick,
                          points=obs4map, ptslbl=0, mask=mask_tmp, hnoflo=cMF.hnoflo, cMF=cMF)
+        except:
+            print "ERROR IN PLOTTING GW EFFECTIVE RCH average"
     Vmin_tmp1 = np.min(Re)
     Vmax_tmp1 = np.max(Re)
 
@@ -2752,12 +2755,14 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
             Rn[0, L, :, :] = Re[0, L, :, :] + np.sum(cbc_WEL[HYindex[1]:HYindex[-2], L, :, :], axis=0) / (
                         HYindex[-2] - HYindex[1] + 1)
         for i, int_typ in enumerate(['percentile', 'linspace']):
-            MMplot.plotLAYER(days=['NA'], str_per=['NA'], Date=['NA'], JD=['NA'], ncol=cMF.ncol, nrow=cMF.nrow,
+            try:
+                MMplot.plotLAYER(days=['NA'], str_per=['NA'], Date=['NA'], JD=['NA'], ncol=cMF.ncol, nrow=cMF.nrow,
                              nlay=cMF.nlay, nplot=cMF.nlay, V=Rn, cmap=plt.cm.Blues,
                              CBlabel='groundwater net recharge - $Rn$ (mm.day$^{-1}$)', msg='- no flux',
                              plt_title='OUT_average_MF_Rn1%s' % int_typ, MM_ws=MM_ws_out, interval_type=int_typ,
                              interval_num=5, Vmax=[np.ma.max(Rn)], Vmin=[np.ma.min(Rn)], contours=ctrsMF, ntick=ntick,
                              points=obs4map, ptslbl=0, mask=mask_tmp, hnoflo=cMF.hnoflo, cMF=cMF)
+            print "ERROR IN PLOTTING GW NET RCH average"
         del Rn, cbc_WEL
 
     del cbc_RCH, Rg, Re
@@ -2770,12 +2775,15 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
                 np.sum(cbc_DRN[HYindex[1]:HYindex[-2], L, :, :], axis=0) / (HYindex[-2] - HYindex[1] + 1) * (-1.0),
                 mask[L])
         for i, int_typ in enumerate(['percentile', 'linspace']):
-            MMplot.plotLAYER(days=['NA'], str_per=['NA'], Date=['NA'], JD=['NA'], ncol=cMF.ncol, nrow=cMF.nrow,
+            try:
+                MMplot.plotLAYER(days=['NA'], str_per=['NA'], Date=['NA'], JD=['NA'], ncol=cMF.ncol, nrow=cMF.nrow,
                              nlay=cMF.nlay, nplot=cMF.nlay, V=V, cmap=plt.cm.Blues,
                              CBlabel='groundwater drainage - $DRN$ (mm.day$^{-1}$)', msg='- no drainage',
                              plt_title='OUT_average_MF_DRN%s' % int_typ, MM_ws=MM_ws_out, interval_type=int_typ,
                              interval_num=5, Vmax=[DRNmax], Vmin=[DRNmin], contours=ctrsMF, ntick=ntick, points=obs4map,
                              ptslbl=1, mask=mask_tmp, hnoflo=cMF.hnoflo, cMF=cMF)
+            except:
+                print "ERROR IN PLOTTING GW drainage average"
         del cbc_DRN, DRNmax, DRNmin
         Vmin_tmp1 = np.min(V)
         Vmax_tmp1 = np.max(V)
@@ -2795,13 +2803,15 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
                 np.sum(cbc_GHB[HYindex[1]:HYindex[-2], L, :, :], axis=0) / (HYindex[-2] - HYindex[1] + 1) * (-1.0),
                 mask[L])
         for i, int_typ in enumerate(['percentile', 'linspace']):
-            MMplot.plotLAYER(days=['NA'], str_per=['NA'], Date=['NA'], JD=['NA'], ncol=cMF.ncol, nrow=cMF.nrow,
+            try:
+                MMplot.plotLAYER(days=['NA'], str_per=['NA'], Date=['NA'], JD=['NA'], ncol=cMF.ncol, nrow=cMF.nrow,
                              nlay=cMF.nlay, nplot=cMF.nlay, V=V, cmap=plt.cm.Blues,
                              CBlabel='general head bdry - $GHB$ (mm.day$^{-1}$)', msg='- no flux',
                              plt_title='OUT_average_MF_GHB%s' % int_typ, MM_ws=MM_ws_out, interval_type=int_typ,
                              interval_num=5, Vmax=[GHBmax], Vmin=[GHBmin], contours=ctrsMF, ntick=ntick, points=obs4map,
                              ptslbl=1, mask=mask_tmp, hnoflo=cMF.hnoflo, cMF=cMF)
-        del cbc_GHB, GHBmax, GHBmin
+            except:
+                print "ERROR IN PLOTTING GHB
         Vmin_tmp1 = np.min(V)
         Vmax_tmp1 = np.max(V)
         for i, int_typ in enumerate(['linspace']):
