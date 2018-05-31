@@ -1702,6 +1702,8 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
         cbc_RCH = h5_MF['RCH_d']
         array_tmp2 = np.zeros((sum(cMF.perlen)), dtype=np.float32)
         rch_tot = 0
+        rmseHEADS_tmp = None
+        rmseSM_tmp = None
         # GW_RCH
         for L in range(cMF.nlay):
             flxLbl_lst.append(r'$Rg_%d$' % (L + 1))
@@ -2240,8 +2242,8 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                     #                 'iSAT': 7, 'iMB_s': 8}
                     plt_export_fn = os.path.join(MM_ws_out, '_0%s_ts.png' % o)
                     # def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, EXF, ETg, Es, MB, MB_l, dgwt, SAT, Rg, h_MF, h_MF_corr, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin):
-                    #try:
-                    MMplot.plotTIMESERIES(cMF, i, j, flxObs_lst, flxLbl_lst, flxIndex_lst,
+                    try:
+                        MMplot.plotTIMESERIES(cMF, i, j, flxObs_lst, flxLbl_lst, flxIndex_lst,
                                               _Sm[gridSOIL[i, j] - 1], _Sr[gridSOIL[i, j] - 1],
                                               plt_export_fn, plt_suptitle, plt_title,
                                               clr_lst,
@@ -2250,9 +2252,9 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                                               iniMonthHydroYear, date_ini=DATE[HYindex[1]],
                                               date_end=DATE[HYindex[-2]]
                                               )
-                    #    print 'TS plot done!'
-                    #except:
-                    #    print 'TS plot error!'
+                        print 'TS plot done!'
+                    except:
+                        print 'TS plot error!'
                     # plot GW flux time series at each obs. cell
                     try:
                         MMplot.plotTIMESERIES_flxGW(cMF, flxObs_lst, flxLbl_lst, flxIndex_lst, plt_export_fn,
@@ -2762,7 +2764,8 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
                              plt_title='OUT_average_MF_Rn1%s' % int_typ, MM_ws=MM_ws_out, interval_type=int_typ,
                              interval_num=5, Vmax=[np.ma.max(Rn)], Vmin=[np.ma.min(Rn)], contours=ctrsMF, ntick=ntick,
                              points=obs4map, ptslbl=0, mask=mask_tmp, hnoflo=cMF.hnoflo, cMF=cMF)
-            print "ERROR IN PLOTTING GW NET RCH average"
+            except:
+                print "ERROR IN PLOTTING GW NET RCH average"
         del Rn, cbc_WEL
 
     del cbc_RCH, Rg, Re
@@ -2811,7 +2814,7 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
                              interval_num=5, Vmax=[GHBmax], Vmin=[GHBmin], contours=ctrsMF, ntick=ntick, points=obs4map,
                              ptslbl=1, mask=mask_tmp, hnoflo=cMF.hnoflo, cMF=cMF)
             except:
-                print "ERROR IN PLOTTING GHB
+                print "ERROR IN PLOTTING GHB"
         Vmin_tmp1 = np.min(V)
         Vmax_tmp1 = np.max(V)
         for i, int_typ in enumerate(['linspace']):
