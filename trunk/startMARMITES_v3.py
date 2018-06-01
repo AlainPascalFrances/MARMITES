@@ -2762,7 +2762,8 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
                              plt_title='OUT_average_MF_Rn1%s' % int_typ, MM_ws=MM_ws_out, interval_type=int_typ,
                              interval_num=5, Vmax=[np.ma.max(Rn)], Vmin=[np.ma.min(Rn)], contours=ctrsMF, ntick=ntick,
                              points=obs4map, ptslbl=0, mask=mask_tmp, hnoflo=cMF.hnoflo, cMF=cMF)
-            print "ERROR IN PLOTTING GW NET RCH average"
+            except:
+                print "ERROR IN PLOTTING GW NET RCH average"
         del Rn, cbc_WEL
 
     del cbc_RCH, Rg, Re
@@ -2811,7 +2812,7 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
                              interval_num=5, Vmax=[GHBmax], Vmin=[GHBmin], contours=ctrsMF, ntick=ntick, points=obs4map,
                              ptslbl=1, mask=mask_tmp, hnoflo=cMF.hnoflo, cMF=cMF)
             except:
-                print "ERROR IN PLOTTING GHB
+                print "ERROR IN PLOTTING GHB"
         Vmin_tmp1 = np.min(V)
         Vmax_tmp1 = np.max(V)
         for i, int_typ in enumerate(['linspace']):
