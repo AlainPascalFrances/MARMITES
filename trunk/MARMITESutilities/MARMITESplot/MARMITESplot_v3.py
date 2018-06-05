@@ -1575,7 +1575,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                     if Rg[k][L]/ff>0.0:
                         flows.append(-Rg[k][L]/ff)
                     else:
-                        flows.append(0.0)                        
+                        flows.append(0.0)
                     labels.append('$Rg_%d$'%(L+1))
                     orientations.append(-1)
                     pathlengths.append(pl)
@@ -1599,41 +1599,86 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
             MB_MF = []
             #print '%s'%obspt
             L_act = 0
+            lst_colors = []
+            for L in range(cMF.nlay):
+                lst_colors.append(getattr(mpl.cm, 'Blues')(L*200/cMF.nlay, bytes=False))
+            colors = itertools.cycle(lst_colors)
             for L in range(cMF.nlay):
                 if ibound4Sankey[L] > 0:
                     L_act += L
+                    #print "----"
+                    #print L, L_act
                     In = []
                     Out = []
+                    # first layer
                     if L_act == 0:
+                        #print "First layer"
                         if L == (cMF.nlay-1):
-                            flows=[Rg[k][L]/ff, -FRF[k][L]/ff, -FFF[k][L]/ff]
-                            labels=[None, '$FRF$', '$FFF$']
-                            orientations=[1, 0, 0]
-                            pathlengths = [pl*4, pl, pl*4]
+                            flows=[Rg[k][L]/ff, -FLF[k][L]/ff, -FRF[k][L]/ff, -FFF[k][L]/ff]
+                            labels=[None, '$FLF$', '$FRF$', '$FFF$']
+                            orientations = [1, -1, 0, 0]
+                            pathlengths = [pl * 4, pl, pl, pl * 4]
                         else:
                             flows=[Rg[k][L]/ff, -FLF[k][L]/ff, -FRF[k][L]/ff, -FFF[k][L]/ff]
                             labels=[None, '$FLF$', '$FRF$', '$FFF$']
                             orientations=[1, -1, 0, 0]
                             pathlengths = [pl*4, pl, pl, pl*4]
+                        connect = (1, 0)
                         if cMF.nlay>1:
                             if FLF[k][L] > 0.0:
                                 Out.append(FLF[k][L])
                             else:
                                 In.append(-FLF[k][L])
+                        facecolor = colors.next()
+                        #print flows
+                        #print labels
+                    # last layer
                     elif L_act == (cMF.nlay-1):
-                        flows=[FLF[k][L-1]/ff, Rg[k][L]/ff, -FRF[k][L]/ff, -FFF[k][L]/ff]
-                        labels=[None, '$Rg_%d$'%(L+1), '$FRF$', '$FFF$']
-                        orientations=[1, 1, 0, 0]
-                        pathlengths = [pl*4, pl, pl, pl*4]
+                        #print "Last layer"
+                        if np.abs(Rg[k][L]) > treshold:
+                            flows=[FLF[k][L-1]/ff, Rg[k][L]/ff, -FRF[k][L]/ff, -FFF[k][L]/ff]
+                            labels=[None, '$Rg_%d$'%(L+1), '$FRF$', '$FFF$']
+                            orientations=[1, 1, 0, 0]
+                            pathlengths = [pl*4, pl, pl, pl*4]
+                            connect = (2, 0)
+                        else:
+                            flows=[FLF[k][L-1]/ff, -FRF[k][L]/ff, -FFF[k][L]/ff]
+                            labels=[None, '$FRF$', '$FFF$']
+                            orientations=[1, 0, 0]
+                            pathlengths = [pl*4, pl, pl*4]
+                            if np.abs(Rg[k][L-1]) > treshold:
+                                connect = (2, 0)
+                            else:
+                                connect = (1, 0)
                         if FLF[k][L-1] > 0.0:
                             In.append(FLF[k][L-1])
                         else:
                             Out.append(-FLF[k][L-1])
+                        #print flows
+                        #print labels
+                        facecolor = colors.next()
+                    # intermediary layers
                     else:
-                        flows=[FLF[k][L-1]/ff, Rg[k][L]/ff, -FLF[k][L]/ff, -FRF[k][L]/ff, -FFF[k][L]/ff]
-                        labels=[None, None, '$FLF$', '$FRF$', '$FFF$'] #labels=[None, None, '$\Delta S_g$', '$FLF$', '$FRF$', '$FFF$']
-                        orientations=[1, 1, -1, 0, 0]
-                        pathlengths = [pl, pl, pl, pl, pl*4]
+                        #print "intermediary layer"
+                        if np.abs(Rg[k][L]) > treshold:
+                            flows=[FLF[k][L-1]/ff, Rg[k][L]/ff, -FLF[k][L]/ff, -FRF[k][L]/ff, -FFF[k][L]/ff]
+                            labels = [None, None, '$FLF$', '$FRF$', '$FFF$'] #labels=[None, None, '$\Delta S_g$', '$FLF$', '$FRF$', '$FFF$']
+                            orientations=[1, 1, -1, 0, 0]
+                            pathlengths = [pl, pl, pl, pl, pl*4]
+                            rch = True
+                        else:
+                            flows=[FLF[k][L-1]/ff, -FLF[k][L]/ff, -FRF[k][L]/ff, -FFF[k][L]/ff]
+                            labels = [None, '$FLF$', '$FRF$', '$FFF$'] #labels=[None, None, '$\Delta S_g$', '$FLF$', '$FRF$', '$FFF$']
+                            orientations=[1, -1, 0, 0]
+                            pathlengths = [pl, pl, pl, pl*4]
+                            rch = False
+                        if L_act==1:
+                            connect = (1, 0) #(prior, this)
+                        else:
+                            if np.abs(Rg[k][L-1]) > treshold:
+                                connect = (2, 0)
+                            else:
+                                connect = (1, 0)
                         if FLF[k][L] > 0.0:
                             Out.append(FLF[k][L])
                         else:
@@ -1642,6 +1687,9 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                             In.append(FLF[k][L-1])
                         else:
                             Out.append(-FLF[k][L-1])
+                        facecolor = colors.next()
+                        #print flows
+                        #print labels
                     # Rg
                     In.append(Rg[k][L])
                     # FRF                
@@ -1663,7 +1711,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                     if np.abs(EXF[k][L])>treshold:
                         flows.append(EXF[k][L]/ff)
                         labels.append('$Exf_g$')
-                        orientations.append(-1)
+                        orientations.append(1)
                         pathlengths.append(pl)
                         Out.append(-EXF[k][L])
                     # Eg
@@ -1673,7 +1721,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                             labels.append('$E_g$')
                             orientations.append(1)
                             pathlengths.append(pl)
-                            Out.append(Eg[k][L])
+                        Out.append(Eg[k][L])
                     # Tg   
                     if cMF.wel_yn == 1:
                         if np.abs(Tg[k][L])>treshold:
@@ -1681,7 +1729,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                             labels.append('$T_g$')
                             orientations.append(1)
                             pathlengths.append(pl)
-                            Out.append(Tg[k][L])
+                        Out.append(Tg[k][L])
                     # DRN
                     if cMF.drn_yn == 1:
                         if np.abs(DRN[k][L])>treshold:
@@ -1689,7 +1737,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                             labels.append('$DRN$')
                             orientations.append(1)
                             pathlengths.append(pl)
-                            Out.append(-DRN[k][L])
+                        Out.append(-DRN[k][L])
                     # GHB
                     if cMF.ghb_yn == 1:
                         if np.abs(GHB[k][L])>treshold:
@@ -1697,7 +1745,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                             labels.append('$GHB$')
                             orientations.append(1)
                             pathlengths.append(pl)
-                        if  GHB[k][L] < 0.0:
+                        if GHB[k][L] < 0.0:
                             Out.append(-GHB[k][L])
                         else:
                             In.append(GHB[k][L])
@@ -1712,13 +1760,17 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                             Out.append(-CH[k][L])
                         else:
                             In.append(CH[k][L])
-
-                    pltsankey.add(patchlabel = '$\Delta S_g$\n%.1f' % (-dSg[k][L]/ff), label='MFL%d'%(L+1), facecolor='LightSteelBlue', trunklength = tl, flows = flows, labels = labels, orientations = orientations, pathlengths = pathlengths, prior=3+L_act, connect=(1, 0))
+                    #print labels
+                    #print flows
+                    #print connect
+                    #print facecolor
+                    pltsankey.add(patchlabel = '$\Delta S_g$\n%.1f' % (-dSg[k][L]/ff), label='MFL%d'%(L+1), facecolor=facecolor, trunklength = tl, flows = flows, labels = labels, orientations = orientations, pathlengths = pathlengths, prior=3+L_act, connect=connect)
                     MB_MF.append(100*(sum(In) - sum(Out))/((sum(In) + sum(Out))/2))
-                    L_act == 0
+                    L_act = 0
                 else:
                     L_act -= 1
                     MB_MF.append(np.nan)
+                #print L_act
             # plot all patches
             diagrams = pltsankey.finish()
             diagrams[-1].patch.set_hatch('/')

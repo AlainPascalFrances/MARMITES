@@ -2265,15 +2265,15 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                         print 'TS GW error!'
                     # plot water balance at each obs. cell
                     if WBsankey_yn == 1:
-                        try:
-                            MMplot.plotWBsankey(MM_ws_out, cMF.inputDate, flxObs_lst, flxIndex_lst,
+                        #try:
+                        MMplot.plotWBsankey(MM_ws_out, cMF.inputDate, flxObs_lst, flxIndex_lst,
                                                 fn=plt_export_txt_fn.split('\\')[-1], indexTime=HYindex,
                                                 year_lst=year_lst, cMF=cMF, ncell_MM=ncell_MM, obspt='obs. pt. %s' % o,
                                                 fntitle='0%s' % o, ibound4Sankey=np.abs(cMF.ibound)[:, i, j],
                                                 stdout=stdout, report=report)
-                            print 'WB Sankey plot done!'
-                        except:
-                            print 'WB Sankey plot error!'
+                        #    print 'WB Sankey plot done!'
+                        #except:
+                        #    print 'WB Sankey plot error!'
 
                     # CALIBRATION CRITERIA
                     # RMSE, RSR, Nash-Sutcliffe efficiency NSE, Pearson's correlation coefficient r
