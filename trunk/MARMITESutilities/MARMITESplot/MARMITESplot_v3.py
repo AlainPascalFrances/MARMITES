@@ -84,10 +84,10 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     # x
     ax1.xaxis.set_major_locator(mpl.dates.YearLocator(1, month = iniMonthHydroYear, day = 1))
     ax1.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth = bymonth))
-    plt.setp(ax1.get_xticklabels(), visible=False)
+    plt.setp(ax1.get_xticklabels(which = 'both'), visible=False)
     # grd
     ax1.grid(b=True, which='major', axis = 'both', linestyle = ':', color='darkgray')
-    ax1.grid(b=True, which='minor', color='gainsboro')
+    ax1.grid(b=True, which='minor', axis = 'x', linestyle = ':', color='gainsboro')
 
     ax2=fig.add_subplot(8,1,2, sharex=ax1)
     try:
@@ -118,7 +118,7 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     # x
     ax2.xaxis.set_major_locator(mpl.dates.YearLocator(1, month = iniMonthHydroYear, day = 1))
     ax2.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth = bymonth))
-    plt.setp(ax2.get_xticklabels(), visible=False)
+    plt.setp(ax2.get_xticklabels(which = 'both'), visible=False)
     # y
     plt.ylabel('mm', fontsize=10)
     ax2.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
@@ -152,7 +152,7 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     # x
     ax3.xaxis.set_major_locator(mpl.dates.YearLocator(1, month = iniMonthHydroYear, day = 1))
     ax3.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth = bymonth))
-    plt.setp(ax3.get_xticklabels(), visible=False)
+    plt.setp(ax3.get_xticklabels(which = 'both'), visible=False)
     # y
     plt.ylabel('mm', fontsize=10)
     ax3.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
@@ -186,7 +186,7 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     # x
     ax4.xaxis.set_major_locator(mpl.dates.YearLocator(1, month = iniMonthHydroYear, day = 1))
     ax4.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth = bymonth))
-    plt.setp(ax4.get_xticklabels(), visible=False)
+    plt.setp(ax4.get_xticklabels(which = 'both'), visible=False)
     # y
     plt.ylabel('mm', fontsize=10)
     ax4.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
@@ -223,7 +223,7 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     # x
     ax6.xaxis.set_major_locator(mpl.dates.YearLocator(1, month = iniMonthHydroYear, day = 1))
     ax6.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth = bymonth))
-    plt.setp(ax6.get_xticklabels(), visible=False)
+    plt.setp(ax6.get_xticklabels(which = 'both'), visible=False)
 
     colors_nsl = itertools.cycle(clr_lst)
     ax5=fig.add_subplot(8,1,6, sharex=ax1)
@@ -260,7 +260,7 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     # x
     ax5.xaxis.set_major_locator(mpl.dates.YearLocator(1, month = iniMonthHydroYear, day = 1))
     ax5.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth = bymonth))
-    plt.setp(ax5.get_xticklabels(), visible=False)
+    plt.setp(ax5.get_xticklabels(which = 'both'), visible=False)
 
     ax7=fig.add_subplot(8,1,7, sharex=ax1)
     try:
@@ -347,10 +347,10 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     # x
     ax1.xaxis.set_major_locator(mpl.dates.YearLocator(1, month=iniMonthHydroYear, day=1))
     ax1.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth=bymonth))
-    plt.setp(ax1.get_xticklabels(), visible=False)
+    plt.setp(ax1.get_xticklabels(which = 'both'), visible=False)
     # grd
-    ax1.grid(b=True, which='major', axis='both', linestyle=':', color = 'darkgray')
-    ax1.grid(b=True, which='minor', color='gainsboro')
+    ax1.grid(b=True, which='major', axis = 'both', linestyle = ':', color='darkgray')
+    ax1.grid(b=True, which='minor', axis = 'x', linestyle = ':', color='gainsboro')
 
     colors_nsl = itertools.cycle(clr_lst)
     ax8b=fig.add_subplot(8,1,1, sharex=ax1)
@@ -388,10 +388,10 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     # x
     ax8b.xaxis.set_major_locator(mpl.dates.YearLocator(1, month = iniMonthHydroYear, day = 1))
     ax8b.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth = bymonth))
-    plt.setp(ax8b.get_xticklabels(), visible=False)
+    plt.setp(ax8b.get_xticklabels(which = 'both'), visible=False)
     # grd
     ax8b.grid(b=True, which='major', axis = 'both', linestyle = ':', color='darkgray')
-    ax8b.grid(b=True, which='minor', color='gainsboro')
+    ax8b.grid(b=True, which='minor', axis = 'x', linestyle = ':', color='gainsboro')
 
     ax20 = fig.add_subplot(8, 1, 2, sharex=ax1)
     ymax = None
@@ -405,23 +405,24 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
         pass
     plt.plot_date(cMF.inputDate, flx[flxIndex_lst['iRo']], 'r-', c='blue', linewidth=1.0,
                   label=flxLbl[flxIndex_lst['iRo']])
+    # y
     plt.ylabel('mm', fontsize=10)
+    plt.setp(ax20.get_yticklabels(), fontsize=8)
     if ymax != None:
         plt.ylim(ymax=ymax)
+    # leg
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad=bdpd, handletextpad=hdltxtpd, ncol=2,
                columnspacing=colspc, numpoints=3)
     leg = plt.gca().get_legend()
     ltext = leg.get_texts()
     plt.setp(ltext, fontsize=8)
-    plt.setp(ax20.get_yticklabels(), fontsize=8)
     # x
     ax20.xaxis.set_major_locator(mpl.dates.YearLocator(1, month=iniMonthHydroYear, day=1))
     ax20.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth=bymonth))
-    plt.setp(ax20.get_xticklabels(), visible=False)
+    plt.setp(ax20.get_xticklabels(which = 'both'), visible=False)
     # grd
-    ax20.grid(b=True, which='major', axis='both', linestyle=':', color='darkgray')
-    ax20.grid(b=True, which='minor', color='gainsboro')
-
+    ax20.grid(b=True, which='major', axis = 'both', linestyle = ':', color='darkgray')
+    ax20.grid(b=True, which='minor', axis = 'x', linestyle = ':', color='gainsboro')
 
     colors_nsl = itertools.cycle(clr_lst)
     ax9a=fig.add_subplot(16,1,5, sharex=ax1)
@@ -441,10 +442,10 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     # x
     ax9a.xaxis.set_major_locator(mpl.dates.YearLocator(1, month = iniMonthHydroYear, day = 1))
     ax9a.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth = bymonth))
-    plt.setp(ax9a.get_xticklabels(), visible=False)
+    plt.setp(ax9a.get_xticklabels(which = 'both'), visible=False)
     # grd
     ax9a.grid(b=True, which='major', axis = 'both', linestyle = ':', color='darkgray')
-    ax9a.grid(b=True, which='minor', color='gainsboro')
+    ax9a.grid(b=True, which='minor', axis = 'x', linestyle = ':', color='gainsboro')
 
     ax10a=fig.add_subplot(16,1,6, sharex=ax1)
     uzthick = flx[flxIndex_lst['iuzthick']]
@@ -471,10 +472,10 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     # x
     ax10a.xaxis.set_major_locator(mpl.dates.YearLocator(1, month = iniMonthHydroYear, day = 1))
     ax10a.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth = bymonth))
-    plt.setp(ax10a.get_xticklabels(), visible=False)
+    plt.setp(ax10a.get_xticklabels(which = 'both'), visible=False)
     # grd
     ax10a.grid(b=True, which='major', axis = 'both', linestyle = ':', color='darkgray')
-    ax10a.grid(b=True, which='minor', color='gainsboro')
+    ax10a.grid(b=True, which='minor', axis = 'x', linestyle = ':', color='gainsboro')
 
     ax7 = fig.add_subplot(8, 1, 5, sharex=ax1)
     try:
@@ -519,10 +520,10 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     # x
     ax7.xaxis.set_major_locator(mpl.dates.YearLocator(1, month=iniMonthHydroYear, day=1))
     ax7.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth=bymonth))
-    plt.setp(ax7.get_xticklabels(), visible=False)
+    plt.setp(ax7.get_xticklabels(which = 'both'), visible=False)
     # grd
-    ax7.grid(b=True, which='major', axis='both', linestyle=':', color='darkgray')
-    ax7.grid(b=True, which='minor', color='gainsboro')
+    ax7.grid(b=True, which='major', axis = 'both', linestyle = ':', color='darkgray')
+    ax7.grid(b=True, which='minor', axis = 'x', linestyle = ':', color='gainsboro')
 
     colors_nsl = itertools.cycle(clr_lst)
     ax10b=fig.add_subplot(8,1,6, sharex=ax1)
@@ -543,10 +544,10 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     # x
     ax10b.xaxis.set_major_locator(mpl.dates.YearLocator(1, month = iniMonthHydroYear, day = 1))
     ax10b.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth = bymonth))
-    plt.setp(ax10b.get_xticklabels(), visible=False)
+    plt.setp(ax10b.get_xticklabels(which = 'both'), visible=False)
     # grd
     ax10b.grid(b=True, which='major', axis = 'both', linestyle = ':', color='darkgray')
-    ax10b.grid(b=True, which='minor', color='gainsboro')
+    ax10b.grid(b=True, which='minor', axis = 'x', linestyle = ':', color='gainsboro')
 
     colors_nsl = itertools.cycle(clr_lst)
     ax5=fig.add_subplot(8,1,7, sharex=ax1)
@@ -606,6 +607,16 @@ def plotTIMESERIES_flxGW(cMF, flx, flxLbl, flxIndex_lst, plt_export_fn, plt_titl
     """
     dateFmt=mpl.dates.DateFormatter('%Y-%b-%d')
     dateminorFmt=mpl.dates.DateFormatter('%b')
+    bymonth = []
+    month_tmp = 3
+    while len(bymonth) < 3:
+        if (iniMonthHydroYear + month_tmp) < 13:
+            bymonth.append(iniMonthHydroYear + month_tmp)
+        else:
+            bymonth.append(iniMonthHydroYear + month_tmp - 12)
+        month_tmp += 3
+    del month_tmp
+    
     lblspc = 0.05
     mkscale = 1.0
     bdpd = 0.1
@@ -619,102 +630,105 @@ def plotTIMESERIES_flxGW(cMF, flx, flxLbl, flxIndex_lst, plt_export_fn, plt_titl
     fig.suptitle(plt_title + ' - part 3')
     
     ax0=fig.add_subplot(8,1,1)
-    plt.setp(ax0.get_xticklabels(), visible=False)
-    plt.setp(ax0.get_yticklabels(), fontsize=8)
     # RF
     ax0.bar(cMF.inputDate,flx[flxIndex_lst['iRF']],color='darkblue', linewidth=0, align = 'center', label = flxLbl[flxIndex_lst['iRF']])
     # RFe
     ax0.bar(cMF.inputDate,flx[flxIndex_lst['iRFe']],color='deepskyblue', linewidth=0, align = 'center', label = flxLbl[flxIndex_lst['iRFe']])
+    # legend
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd)
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8)
+    # y
+    plt.ylabel('mm', fontsize=10)
+    ax0.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
+    plt.setp(ax0.get_yticklabels(), fontsize=8)
+    # x
+    ax0.xaxis.set_major_locator(mpl.dates.YearLocator(1, month = iniMonthHydroYear, day = 1))
+    ax0.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth = bymonth))
+    plt.setp(ax0.get_xticklabels(which = 'both'), visible=False)
+    # grd
     ax0.grid(b=True, which='major', axis = 'both', linestyle = ':', color='darkgray')
     ax0.grid(b=True, which='minor', axis = 'x', linestyle = ':', color='gainsboro')
-    plt.ylabel('mm', fontsize=10)
-    ax0.xaxis.set_major_formatter(dateFmt)
-    ax0.xaxis.set_major_locator(mpl.dates.YearLocator(1, month = iniMonthHydroYear, day = 1))
-    bymonth = []
-    month_tmp = 3
-    while len(bymonth)<3:
-        if (iniMonthHydroYear+month_tmp) <13:
-            bymonth.append(iniMonthHydroYear+month_tmp)
-        else:
-            bymonth.append(iniMonthHydroYear+month_tmp - 12)
-        month_tmp += 3
-    del month_tmp
-    ax0.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth = bymonth))
-    plt.setp(ax0.get_xticklabels(minor=True), visible=False)
-    ax0.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))   
-    
+       
     # plot Ro
     ax2=fig.add_subplot(8,1,2, sharex=ax0)
-    plt.setp(ax2.get_xticklabels(), fontsize=8)
-    plt.setp(ax2.get_yticklabels(), fontsize=8)
     # Ro
     plt.plot_date(cMF.inputDate,flx[flxIndex_lst['iRo']],'r-', c='blue', linewidth=1.0, label = flxLbl[flxIndex_lst['iRo']])
-    plt.ylabel('mm', fontsize=10)
+    # leg
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 3)
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8)
+    # y
+    plt.ylabel('mm', fontsize=10)
+    ax2.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
+    plt.setp(ax2.get_yticklabels(), fontsize=8)
+    # x axis
+    ax2.xaxis.set_major_locator(mpl.dates.YearLocator(1, month = iniMonthHydroYear, day = 1))
+    ax2.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth = bymonth))
+    ax2.xaxis.set_major_formatter(dateFmt)
+    ax2.xaxis.set_minor_formatter(dateminorFmt)
+    labels = ax2.get_xticklabels(which = 'both')
+    plt.setp(labels, rotation= 90, fontsize = 8)
+    del labels
+    ax2.set_xlabel('Date', fontsize=10)
+    # grd
     ax2.grid(b=True, which='major', axis = 'both', linestyle = ':', color='darkgray')
     ax2.grid(b=True, which='minor', axis = 'x', linestyle = ':', color='gainsboro')
-    ax2.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
-    plt.setp(ax2.get_xticklabels(minor=True), visible=True)
-    plt.xlabel('Date', fontsize=10)
-    labels=ax2.get_xticklabels()
-    plt.setp(labels, 'rotation', 90)
-    ax2.xaxis.set_minor_formatter(dateminorFmt)
-    labels=ax2.get_xminorticklabels()
-    plt.setp(labels, fontsize=8)
-    plt.setp(labels, 'rotation', 90)
-    del labels    
-    
+
     # plot gwd
     lines = itertools.cycle(['-','--','-.',':','.',',','o','v','^','<','>','s','p','*','h','H','+','x','D','d','|','_'])
     ax1=fig.add_subplot(8,1,4, sharex = ax0)
-    plt.setp(ax1.get_xticklabels(), visible=False)
-    plt.setp(ax1.get_yticklabels(), fontsize=8)
     for L in range(cMF.nlay):
         plt.plot_date(cMF.inputDate,flx[flxIndex_lst['id_%d'%(L+1)]],lines.next(), color = 'b', label = flxLbl[flxIndex_lst['id_%d'%(L+1)]])
-    plt.ylabel('m', fontsize=10)
+    # leg
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 3)
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8 )
+    # y
+    ax1.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
+    plt.ylabel('m', fontsize=10)
+    plt.setp(ax1.get_yticklabels(), fontsize=8)
+    # x
+    ax1.xaxis.set_major_locator(mpl.dates.YearLocator(1, month=iniMonthHydroYear, day=1))
+    ax1.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth=bymonth))
+    plt.setp(ax1.get_xticklabels(which='both'), visible=False)
+    # grd
     ax1.grid(b=True, which='major', axis = 'both', linestyle = ':', color='darkgray')
     ax1.grid(b=True, which='minor', axis = 'x', linestyle = ':', color='gainsboro')
-    ax1.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
-    plt.setp(ax1.get_xticklabels(minor=True), visible=False)
 
     # plot GW fluxes
     ax8=fig.add_subplot(2,1,2, sharex=ax0)
-    plt.setp(ax8.get_xticklabels(), fontsize=8)
-    plt.setp(ax8.get_yticklabels(), fontsize=8)
     # uzf recharge
     plt.plot_date(cMF.inputDate,flx[flxIndex_lst['iRg']],'-', c='darkblue', linewidth=1.5, label = flxLbl[flxIndex_lst['iRg']])
     lines = itertools.cycle(['-','--','-.',':','.',',','o','v','^','<','>','s','p','*','h','H','+','x','D','d','|','_'])
     for i in range(flxIndex_lst['idSg_1'], len(flxIndex_lst)):
         if np.absolute(sum(flx[i])) > 1E-6:
             plt.plot_date(cMF.inputDate,flx[i], lines.next(), color = mpl.colors.rgb2hex(np.random.rand(1,3)[0]), markersize=2, label = flxLbl[i], markeredgecolor = 'None')
-    plt.ylabel('mm', fontsize=10)
-    plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 4, columnspacing = colspc, numpoints = 3)
+    # leg
+    plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad=bdpd, handletextpad=hdltxtpd, ncol=4,
+               columnspacing=colspc, numpoints=3)
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
-    plt.setp(ltext, fontsize=8 )
+    plt.setp(ltext, fontsize=8)
+    # y
+    plt.ylabel('mm', fontsize=10)
+    ax8.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
+    plt.setp(ax8.get_yticklabels(), fontsize=8)
+    # x axis
+    ax8.xaxis.set_major_locator(mpl.dates.YearLocator(1, month = iniMonthHydroYear, day = 1))
+    ax8.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth = bymonth))
+    ax8.xaxis.set_major_formatter(dateFmt)
+    ax8.xaxis.set_minor_formatter(dateminorFmt)
+    labels = ax8.get_xticklabels(which = 'both')
+    plt.setp(labels, rotation= 90, fontsize = 8)
+    del labels
+    ax8.set_xlabel('Date', fontsize=10)
+    # grd
     ax8.grid(b=True, which='major', axis = 'both', linestyle = ':', color='darkgray')
     ax8.grid(b=True, which='minor', axis = 'x', linestyle = ':', color='gainsboro')
-    ax8.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
-    plt.setp(ax8.get_xticklabels(minor=True), visible=True)
-    plt.xlabel('Date', fontsize=10)
-    labels=ax8.get_xticklabels()
-    plt.setp(labels, 'rotation', 90)
-    ax8.xaxis.set_minor_formatter(dateminorFmt)
-    labels=ax8.get_xminorticklabels()
-    plt.setp(labels, fontsize=8)
-    plt.setp(labels, 'rotation', 90)
-    del labels
 
     ax0.set_xlim(np.min(cMF.inputDate)-15.0, np.max(cMF.inputDate)+15)
 
@@ -734,9 +748,19 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
     Use Matplotlib
     """
 
-    global Roobs_m, obs_h, l, hobs_m
+    #global Roobs_m, obs_h, l, hobs_m
     dateFmt=mpl.dates.DateFormatter('%Y-%b-%d')
     dateminorFmt=mpl.dates.DateFormatter('%b')
+    bymonth = []
+    month_tmp = 3
+    while len(bymonth)<3:
+        if (iniMonthHydroYear+month_tmp) <13:
+            bymonth.append(iniMonthHydroYear+month_tmp)
+        else:
+            bymonth.append(iniMonthHydroYear+month_tmp - 12)
+        month_tmp += 3
+    del month_tmp
+
     lblspc = 0.05
     mkscale = 1.0
     bdpd = 0.1
@@ -748,47 +772,35 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
 
     #date_ini, year_ini = cUTIL.compDATE_INI(cMF.inputDate[0], iniMonthHydroYear)
     #date_end, year_end = cUTIL.compDATE_END(cMF.inputDate[-1], iniMonthHydroYear)
-    date_ini -= 15
-    date_end += 15
 
     fig = plt.figure(num=None, figsize=(8.27, 11.7), dpi = 60)    #(8.5,15), dpi=30)
     fig.suptitle(plt_title)
 
     ax1=fig.add_subplot(8,1,1)
-    ax1.set_autoscalex_on(False)
-    plt.setp(ax1.get_xticklabels(), visible=False)
-    plt.setp(ax1.get_yticklabels(), fontsize=8)
+    # ax1.set_autoscalex_on(False)
     # RF
     ax1.bar(cMF.inputDate,flx[flxIndex_lst['iRF']],color='darkblue', linewidth=0, align = 'center', label = flxLbl[flxIndex_lst['iRF']])
     # RFe
     ax1.bar(cMF.inputDate,flx[flxIndex_lst['iRFe']],color='deepskyblue', linewidth=0, align = 'center', label = flxLbl[flxIndex_lst['iRFe']])
+    # leg
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd)
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8)
+    # y
+    plt.ylabel('mm', fontsize=10)
+    ax1.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
+    plt.setp(ax1.get_yticklabels(), fontsize=8)
+    # x
+    ax1.xaxis.set_major_locator(mpl.dates.YearLocator(1, month=iniMonthHydroYear, day=1))
+    ax1.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth=bymonth))
+    plt.setp(ax1.get_xticklabels(which='both'), visible=False)
+    # grd
     ax1.grid(b=True, which='major', axis = 'both', linestyle = ':', color='darkgray')
     ax1.grid(b=True, which='minor', axis = 'x', linestyle = ':', color='gainsboro')
-    ax1.set_xlim(date_ini,date_end)
-    plt.ylabel('mm', fontsize=10)
-    ax1.xaxis.set_major_formatter(dateFmt)
-    ax1.xaxis.set_major_locator(mpl.dates.YearLocator(1, month = iniMonthHydroYear, day = 1))
-    bymonth = []
-    month_tmp = 3
-    while len(bymonth)<3:
-        if (iniMonthHydroYear+month_tmp) <13:
-            bymonth.append(iniMonthHydroYear+month_tmp)
-        else:
-            bymonth.append(iniMonthHydroYear+month_tmp - 12)
-        month_tmp += 3
-    del month_tmp
-    ax1.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth = bymonth))
-    plt.setp(ax1.get_xticklabels(minor=True), visible=False)
-    ax1.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
 
     ax2=fig.add_subplot(8,1,2, sharex=ax1)
-    ax2.set_autoscalex_on(False)
-    plt.setp(ax2.get_xticklabels(), visible=False)
-    plt.setp(ax2.get_yticklabels(), fontsize=8)
+    # ax2.set_autoscalex_on(False)
     # Ro obs
     if obs_catch_list[2] == 1:
         obs_Ro = obs_catch.get('catch')['obs_Ro']
@@ -814,20 +826,25 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
     plt.bar(cMF.inputDate, flx[flxIndex_lst['iSsurf']], color='lightblue', linewidth=0, align = 'center', label = flxLbl[flxIndex_lst['iSsurf']])
     # DeltaSsurf
     plt.bar(cMF.inputDate, flx[flxIndex_lst['idSsurf']], color='darkblue', linewidth=0, align = 'center', label = flxLbl[flxIndex_lst['idSsurf']])
+    # y
     plt.ylabel('mm', fontsize=10)
+    ax2.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
+    plt.setp(ax2.get_yticklabels(), fontsize=8)
+    # leg
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 3)
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8)
+    # x
+    ax2.xaxis.set_major_locator(mpl.dates.YearLocator(1, month=iniMonthHydroYear, day=1))
+    ax2.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth=bymonth))
+    plt.setp(ax2.get_xticklabels(which='both'), visible=False)
+    # grd
     ax2.grid(b=True, which='major', axis = 'both', linestyle = ':', color='darkgray')
     ax2.grid(b=True, which='minor', axis = 'x', linestyle = ':', color='gainsboro')
-    ax2.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
-    plt.setp(ax2.get_xticklabels(minor=True), visible=False)
 
     ax3=fig.add_subplot(8,1,3, sharex=ax1)
-    ax3.set_autoscalex_on(False)
-    plt.setp(ax3.get_xticklabels(), visible=False)
-    plt.setp(ax3.get_yticklabels(), fontsize=8)
+    # ax3.set_autoscalex_on(False)
     # PE
     plt.plot_date(cMF.inputDate,flx[flxIndex_lst['iPE']],'-', color='lightblue', linewidth=2.5, label = flxLbl[flxIndex_lst['iPE']])
     if cMF.wel_yn == 1:
@@ -836,24 +853,28 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
         plt.plot_date(cMF.inputDate,E,'-', color='darkblue', linewidth=1.5, label = r'$E$')
     # Esoil
     plt.plot_date(cMF.inputDate,flx[flxIndex_lst['iEsoil']],'--', color='brown', label = flxLbl[flxIndex_lst['iEsoil']])    
-
     if cMF.wel_yn == 1:
         # Eg
         plt.plot_date(cMF.inputDate,flx[flxIndex_lst['iEg']],'-', color='blue', label = flxLbl[flxIndex_lst['iEg']])
+    # leg
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc)
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8)
+    # y
+    ax3.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
+    plt.ylabel('mm', fontsize=10)
+    plt.setp(ax3.get_yticklabels(), fontsize=8)
+    # x
+    ax3.xaxis.set_major_locator(mpl.dates.YearLocator(1, month=iniMonthHydroYear, day=1))
+    ax3.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth=bymonth))
+    plt.setp(ax3.get_xticklabels(which='both'), visible=False)
+    # grd
     ax3.grid(b=True, which='major', axis = 'both', linestyle = ':', color='darkgray')
     ax3.grid(b=True, which='minor', axis = 'x', linestyle = ':', color='gainsboro')
-    plt.ylabel('mm', fontsize=10)
-    ax3.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
-    plt.setp(ax3.get_xticklabels(minor=True), visible=False)
 
     ax4=fig.add_subplot(8,1,4, sharex=ax1)
-    ax4.set_autoscalex_on(False)
-    plt.setp(ax4.get_xticklabels(), visible=False)
-    plt.setp(ax4.get_yticklabels(), fontsize=8)
+    # ax4.set_autoscalex_on(False)
     # PT
     plt.plot_date(cMF.inputDate,flx[flxIndex_lst['iPT']],'-', color='lightblue', linewidth=3, label = flxLbl[flxIndex_lst['iPT']])
     if cMF.wel_yn == 1:
@@ -865,20 +886,25 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
     if cMF.wel_yn == 1:
         # Tg
         plt.plot_date(cMF.inputDate,flx[flxIndex_lst['iTg']],'-', color='blue', label = flxLbl[flxIndex_lst['iTg']])
+    # leg
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc)
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8 )
-    ax4.grid(b=True, which='major', axis = 'both', linestyle = ':', color='darkgray')
-    ax4.grid(b=True, which='minor', axis = 'x', linestyle = ':', color='gainsboro')
+    # y
     plt.ylabel('mm', fontsize=10)
     ax4.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
-    plt.setp(ax4.get_xticklabels(minor=True), visible=False)
+    plt.setp(ax4.get_yticklabels(), fontsize=8)
+    # x
+    ax4.xaxis.set_major_locator(mpl.dates.YearLocator(1, month=iniMonthHydroYear, day=1))
+    ax4.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth=bymonth))
+    plt.setp(ax4.get_xticklabels(which='both'), visible=False)
+    # grd
+    ax4.grid(b=True, which='major', axis = 'both', linestyle = ':', color='darkgray')
+    ax4.grid(b=True, which='minor', axis = 'x', linestyle = ':', color='gainsboro')
 
     ax5=fig.add_subplot(8,1,5, sharex=ax1)
-    ax5.set_autoscalex_on(False)
-    plt.setp(ax5.get_xticklabels(), fontsize=8)
-    plt.setp(ax5.get_yticklabels(), fontsize=8)
+    # ax5.set_autoscalex_on(False)
     # Rp
     ax5.plot_date(cMF.inputDate, -1.0*flx[flxIndex_lst['iperc']], '-', color = 'brown', label= flxLbl[flxIndex_lst['iRsoil']])
     if cMF != None:
@@ -889,26 +915,30 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
         plt.plot_date(cMF.inputDate,flx[flxIndex_lst['iETg']],'-', c='blue', linewidth=1.5, label = flxLbl[flxIndex_lst['iETg']])
     # EXF
     plt.bar(cMF.inputDate,flx[flxIndex_lst['iEXFg']], color='lightblue', linewidth=0, align = 'center', label = flxLbl[flxIndex_lst['iEXFg']])
+    # leg
     plt.legend(loc = 0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc)
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8 )
-    ax5.grid(b=True, which='major', axis = 'both', linestyle = ':', color='darkgray')
-    ax5.grid(b=True, which='minor', axis = 'x', linestyle = ':', color='gainsboro')
-    plt.xlabel('Date', fontsize=10)    
+    # y
     plt.ylabel('mm', fontsize=10)
     ax5.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
-    plt.setp(ax5.get_xticklabels(minor=True), visible=True)
-    labels=ax5.get_xticklabels()
-    plt.setp(labels, 'rotation', 90)
+    plt.setp(ax5.get_yticklabels(), fontsize=8)
+    # x axis
+    ax5.xaxis.set_major_locator(mpl.dates.YearLocator(1, month=iniMonthHydroYear, day=1))
+    ax5.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth=bymonth))
+    ax5.xaxis.set_major_formatter(dateFmt)
     ax5.xaxis.set_minor_formatter(dateminorFmt)
-    labels=ax5.get_xminorticklabels()
-    plt.setp(labels, fontsize=8)
-    plt.setp(labels, 'rotation', 90)
+    labels = ax5.get_xticklabels(which='both')
+    plt.setp(labels, rotation=90, fontsize=8)
     del labels
+    ax5.set_xlabel('Date', fontsize=10)
+    # grd
+    ax5.grid(b=True, which='major', axis='both', linestyle=':', color='darkgray')
+    ax5.grid(b=True, which='minor', axis='x', linestyle=':', color='gainsboro')
 
     ax6=fig.add_subplot(8,1,7, sharex=ax1)
-    ax6.set_autoscalex_on(False)
+    # ax6.set_autoscalex_on(False)
     plt.setp(ax6.get_yticklabels(), fontsize=8)
     # theta
     rmseSM = None
@@ -930,26 +960,28 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
     ax6.plot_date(cMF.inputDate, flx[flxIndex_lst['iSsoil_pc']], '-', color = 'brown', label = flxLbl[flxIndex_lst['iSsoil_pc']])
     # y axis
     plt.ylabel('%', fontsize=10)
+    ax6.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
+    plt.setp(ax6.get_yticklabels(), fontsize=8)
+    # leg
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, numpoints = 3)
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8 )
     if cMF == None:
-        plt.xlabel('Date', fontsize=10)
-        labels=ax6.get_xticklabels()
-        plt.setp(labels, fontsize=8)
-        plt.setp(labels, 'rotation', 90)
+        # x axis
+        ax6.xaxis.set_major_locator(mpl.dates.YearLocator(1, month=iniMonthHydroYear, day=1))
+        ax6.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth=bymonth))
+        ax6.xaxis.set_major_formatter(dateFmt)
         ax6.xaxis.set_minor_formatter(dateminorFmt)
-        labels=ax6.get_xminorticklabels()
-        plt.setp(labels, fontsize=8)
-        plt.setp(labels, 'rotation', 90)
+        labels = ax6.get_xticklabels(which='both')
+        plt.setp(labels, rotation=90, fontsize=8)
         del labels
+        ax6.set_xlabel('Date', fontsize=10)
     else:
-        plt.setp(ax6.get_xticklabels(), visible=False)
-        plt.setp(ax6.get_xticklabels(minor=True), visible=False)
-    ax6.grid(b=True, which='major', axis = 'both', linestyle = ':', color='darkgray')
-    ax6.grid(b=True, which='minor', axis = 'x', linestyle = ':', color='gainsboro')
-    ax6.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
+        plt.setp(ax6.get_xticklabels(which = 'both'), visible=False)
+    # grd
+    ax6.grid(b=True, which='major', axis='both', linestyle=':', color='darkgray')
+    ax6.grid(b=True, which='minor', axis='x', linestyle=':', color='gainsboro')
 
     if MF != None:
         # compute heads
@@ -959,34 +991,36 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
         # plot GWT
         lines = itertools.cycle(['-','--','-.',':','.',',','o','v','^','<','>','s','p','*','h','H','+','x','D','d','|','_'])
         ax10=fig.add_subplot(8,1,8, sharex=ax1)
-        ax10.set_autoscalex_on(False)
-        plt.setp(ax10.get_xticklabels(), fontsize=8)
-        plt.setp(ax10.get_yticklabels(), fontsize=8)
+        # ax10.set_autoscalex_on(False)
         if obs_catch_list[0] == 1:
             dobs_m = hobs_m - TopSoilAverage
             ax10.plot_date(cMF.inputDate, dobs_m, markerfacecolor = 'None', marker='o', markeredgecolor = 'LightBlue', markersize=2, label = r'$d \ obs$')
         for l in range(cMF.nlay):
             i = 'id_%d'%(l+1)
             plt.plot_date(cMF.inputDate,flx[flxIndex_lst[i]],lines.next(), color = 'b', label = flxLbl[flxIndex_lst[i]])
+        # y
         plt.ylabel('m', fontsize=10)
-        plt.xlabel('Date', fontsize=10)
+        plt.setp(ax10.get_yticklabels(), fontsize=8)
+        # leg
         plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 3)
         leg = plt.gca().get_legend()
         ltext  = leg.get_texts()
         plt.setp(ltext, fontsize=8)
         ax10.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
-        ax10.grid(b=True, which='major', axis='both', linestyle=':')
-        ax10.grid(b=True, which='minor', axis = 'x', linestyle = ':', color='gainsboro')
-        labels=ax10.get_xticklabels()
-        plt.setp(labels, 'rotation', 90)
+        # x axis
+        ax10.xaxis.set_major_locator(mpl.dates.YearLocator(1, month=iniMonthHydroYear, day=1))
+        ax10.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth=bymonth))
+        ax10.xaxis.set_major_formatter(dateFmt)
         ax10.xaxis.set_minor_formatter(dateminorFmt)
-        labels=ax10.get_xminorticklabels()
-        plt.setp(labels, fontsize=8)
-        plt.setp(labels, 'rotation', 90)
+        labels = ax10.get_xticklabels(which='both')
+        plt.setp(labels, rotation=90, fontsize=8)
         del labels
-        plt.setp(ax10.get_xticklabels(minor=True), visible=True)
+        ax10.set_xlabel('Date', fontsize=10)
+        # grd
+        ax10.grid(b=True, which='major', axis='both', linestyle=':', color='darkgray')
+        ax10.grid(b=True, which='minor', axis='x', linestyle=':', color='gainsboro')
 
-    ax1.set_xlim(date_ini,date_end)
+    ax1.set_xlim(np.min(cMF.inputDate) - 15.0, np.max(cMF.inputDate) + 15)
 
     plt.subplots_adjust(left=0.10, bottom=0.10, right=0.95, top=0.95, wspace=0.1, hspace=0.1)
     plt.savefig(plt_export_fn,dpi=150)
@@ -997,25 +1031,61 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
     fig.suptitle(plt_title + ' - part 2')
     
     ax0=fig.add_subplot(8,1,1)
-    ax0.set_autoscalex_on(False)
-    plt.setp(ax0.get_xticklabels(), visible=False)
-    plt.setp(ax0.get_yticklabels(), fontsize=8)
+    # ax0.set_autoscalex_on(False)
     # RF
     ax0.bar(cMF.inputDate,flx[flxIndex_lst['iRF']],color='darkblue', linewidth=0, align = 'center', label = flxLbl[flxIndex_lst['iRF']])
     # RFe
     ax0.bar(cMF.inputDate,flx[flxIndex_lst['iRFe']],color='deepskyblue', linewidth=0, align = 'center', label = flxLbl[flxIndex_lst['iRFe']])
+    # leg
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd)
     leg = plt.gca().get_legend()
     ltext  = leg.get_texts()
     plt.setp(ltext, fontsize=8)
+    # y
+    plt.ylabel('mm', fontsize=10)
+    plt.setp(ax0.get_yticklabels(), fontsize=8)
+    ax0.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
+    # x
+    ax0.xaxis.set_major_locator(mpl.dates.YearLocator(1, month=iniMonthHydroYear, day=1))
+    ax0.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth=bymonth))
+    plt.setp(ax0.get_xticklabels(which='both'), visible=False)
+    # grd
     ax0.grid(b=True, which='major', axis = 'both', linestyle = ':', color='darkgray')
     ax0.grid(b=True, which='minor', axis = 'x', linestyle = ':', color='gainsboro')
+
+    # plot Ro
+    ax2=fig.add_subplot(8,1,2, sharex=ax0)
+    # ax2.set_autoscalex_on(True)
+    # Ro obs
+    if obs_catch_list[2] == 1:
+        obs_Ro = obs_catch.get('catch')['obs_Ro']
+        Roobs_m = np.ma.masked_values(obs_Ro[0], cMF.hnoflo, atol = 0.09)
+        plt.plot_date(cMF.inputDate, Roobs_m, markerfacecolor = 'None', marker='o', markeredgecolor = 'lightBlue', markersize=2, label = r'$Ro \ obs$')
+    # Ro
+    plt.plot_date(cMF.inputDate,flx[flxIndex_lst['iRo']],'r-', c='blue', linewidth=1.0, label = flxLbl[5])
+    # y
     plt.ylabel('mm', fontsize=10)
-    ax0.xaxis.set_major_formatter(dateFmt)
-    ax0.xaxis.set_major_locator(mpl.dates.YearLocator(1, month = iniMonthHydroYear, day = 1))
-    ax0.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth = bymonth))
-    plt.setp(ax0.get_xticklabels(minor=True), visible=False)
-    ax0.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))    
+    plt.setp(ax2.get_yticklabels(), fontsize=8)
+    ax2.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
+    # leg
+    plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 3)
+    if obs_catch_list[2] == 1:
+        plt.ylim(ymax = np.ma.max(Roobs_m))
+    leg = plt.gca().get_legend()
+    ltext  = leg.get_texts()
+    plt.setp(ltext, fontsize=8)
+    # x axis
+    ax2.xaxis.set_major_locator(mpl.dates.YearLocator(1, month = iniMonthHydroYear, day = 1))
+    ax2.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth = bymonth))
+    ax2.xaxis.set_major_formatter(dateFmt)
+    ax2.xaxis.set_minor_formatter(dateminorFmt)
+    labels = ax2.get_xticklabels(which = 'both')
+    plt.setp(labels, rotation= 90, fontsize = 8)
+    del labels
+    ax2.set_xlabel('Date', fontsize=10)
+    # grd
+    ax2.grid(b=True, which='major', axis = 'both', linestyle = ':', color='darkgray')
+    ax2.grid(b=True, which='minor', axis = 'x', linestyle = ':', color='gainsboro')
 
     rmseHEADS = None
     rsrHEADS = None
@@ -1025,9 +1095,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
         # plot heads
         lines = itertools.cycle(['-','--','-.',':','.',',','o','v','^','<','>','s','p','*','h','H','+','x','D','d','|','_'])
         ax1=fig.add_subplot(8,1,4)
-        ax1.set_autoscalex_on(True)
-        plt.setp(ax1.get_xticklabels(), visible=False)
-        plt.setp(ax1.get_yticklabels(), fontsize=8)
+        # ax1.set_autoscalex_on(True)
         # RMSE
         if obs_catch_list[0] == 1:
             ax1.plot_date(cMF.inputDate, hobs_m, markerfacecolor = 'None', marker='o', markeredgecolor = 'LightBlue', markersize=2, label = r'$h \ obs$')
@@ -1047,78 +1115,55 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
         for l in range(cMF.nlay):
             i = 'ih_%d' % (l+1) 
             plt.plot_date(cMF.inputDate,flx[flxIndex_lst[i]],lines.next(), color = 'b', label = flxLbl[flxIndex_lst[i]])
+        # y
         plt.ylim(hmin,hmax)
         plt.ylabel('m', fontsize=10)
+        plt.setp(ax1.get_yticklabels(), fontsize=8)
+        # leg
         plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 3)
         leg = plt.gca().get_legend()
         ltext  = leg.get_texts()
         plt.setp(ltext, fontsize=8 )
-        ax1.grid(b=True, which='major', axis='both', linestyle=':')
-        ax1.grid(b=True, which='minor', axis = 'x', linestyle = ':', color='gainsboro')
-        ax1.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
-        plt.setp(ax1.get_xticklabels(minor=True), visible=False)
+        # x
+        ax1.xaxis.set_major_locator(mpl.dates.YearLocator(1, month=iniMonthHydroYear, day=1))
+        ax1.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth=bymonth))
+        plt.setp(ax1.get_xticklabels(which='both'), visible=False)
+        # grd
+        ax1.grid(b=True, which='major', axis='both', linestyle=':', color='darkgray')
+        ax1.grid(b=True, which='minor', axis='x', linestyle=':', color='gainsboro')
 
         # plot GW fluxes
         ax8=fig.add_subplot(2,1,2, sharex=ax1)
-        ax8.set_autoscalex_on(True)
-        plt.setp(ax8.get_xticklabels(), fontsize=8)
-        plt.setp(ax8.get_yticklabels(), fontsize=8)
+        # ax8.set_autoscalex_on(True)
         # uzf recharge
         plt.plot_date(cMF.inputDate,flx[flxIndex_lst['iRg']],'-', c='darkblue', linewidth=1.5, label = flxLbl[flxIndex_lst['iRg']])
         lines = itertools.cycle(['-','--','-.',':','.',',','o','v','^','<','>','s','p','*','h','H','+','x','D','d','|','_'])
         for l, (e, lbl) in enumerate(zip(flx[flxIndex_lst['idSg_1']:], flxLbl[flxIndex_lst['idSg_1']:])):
             plt.plot_date(cMF.inputDate,e, lines.next(), color = mpl.colors.rgb2hex(np.random.rand(1,3)[0]), markersize=2, label = lbl, markeredgecolor = 'None')
+        # y
         plt.ylabel('mm', fontsize=10)
+        plt.setp(ax8.get_yticklabels(), fontsize=8)
+        ax8.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
+        # leg
         plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 4, columnspacing = colspc, numpoints = 3)
         leg = plt.gca().get_legend()
         ltext  = leg.get_texts()
         plt.setp(ltext, fontsize=8 )
-        ax8.grid(b=True, which='major', axis='both', linestyle=':')
-        ax8.grid(b=True, which='minor', axis = 'x', linestyle = ':', color='gainsboro')
-        ax8.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
-        plt.setp(ax8.get_xticklabels(minor=True), visible=True)
-        plt.xlabel('Date', fontsize=10)
-        labels=ax8.get_xticklabels()
-        plt.setp(labels, 'rotation', 90)
+        # x axis
+        ax8.xaxis.set_major_locator(mpl.dates.YearLocator(1, month=iniMonthHydroYear, day=1))
+        ax8.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth=bymonth))
+        ax8.xaxis.set_major_formatter(dateFmt)
         ax8.xaxis.set_minor_formatter(dateminorFmt)
-        labels=ax8.get_xminorticklabels()
-        plt.setp(labels, fontsize=8)
-        plt.setp(labels, 'rotation', 90)
+        labels = ax8.get_xticklabels(which='both')
+        plt.setp(labels, rotation=90, fontsize=8)
         del labels
-
-    # plot Ro
-    ax2=fig.add_subplot(8,1,2, sharex=ax1)
-    ax2.set_autoscalex_on(True)
-    plt.setp(ax2.get_xticklabels(), fontsize=8)
-    plt.setp(ax2.get_yticklabels(), fontsize=8)
-    # Ro obs
-    if obs_catch_list[2] == 1:
-        obs_Ro = obs_catch.get('catch')['obs_Ro']
-        Roobs_m = np.ma.masked_values(obs_Ro[0], cMF.hnoflo, atol = 0.09)
-        plt.plot_date(cMF.inputDate, Roobs_m, markerfacecolor = 'None', marker='o', markeredgecolor = 'lightBlue', markersize=2, label = r'$Ro \ obs$')
-    # Ro
-    plt.plot_date(cMF.inputDate,flx[flxIndex_lst['iRo']],'r-', c='blue', linewidth=1.0, label = flxLbl[5])
-    plt.ylabel('mm', fontsize=10)
-    plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 3)
-    if obs_catch_list[2] == 1:
-        plt.ylim(ymax = np.ma.max(Roobs_m))
-    leg = plt.gca().get_legend()
-    ltext  = leg.get_texts()
-    plt.setp(ltext, fontsize=8)
-    ax2.grid(b=True, which='major', axis = 'both', linestyle = ':', color='darkgray')
-    ax2.grid(b=True, which='minor', axis = 'x', linestyle = ':', color='gainsboro')
-    ax2.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
-    plt.setp(ax2.get_xticklabels(minor=True), visible=True)
-    plt.xlabel('Date', fontsize=10)
-    labels=ax2.get_xticklabels()
-    plt.setp(labels, 'rotation', 90)
-    ax2.xaxis.set_minor_formatter(dateminorFmt)
-    labels=ax2.get_xminorticklabels()
-    plt.setp(labels, fontsize=8)
-    plt.setp(labels, 'rotation', 90)
-    del labels
+        ax8.set_xlabel('Date', fontsize=10)
+        # grd
+        ax8.grid(b=True, which='major', axis='both', linestyle=':', color='darkgray')
+        ax8.grid(b=True, which='minor', axis='x', linestyle=':', color='gainsboro')
 
     ax0.set_xlim(np.min(cMF.inputDate)-15.0, np.max(cMF.inputDate)+15)
+    ax1.set_xlim(np.min(cMF.inputDate) - 15.0, np.max(cMF.inputDate) + 15)
 
     plt.subplots_adjust(left=0.10, bottom=0.10, right=0.95, top=0.95, wspace=0.1, hspace=0.1)
     txt = plt_export_fn.split('.')
@@ -1586,7 +1631,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                             Out.append(-FLF[k][L-1])
                     else:
                         flows=[FLF[k][L-1]/ff, Rg[k][L]/ff, -FLF[k][L]/ff, -FRF[k][L]/ff, -FFF[k][L]/ff]
-                        labels=[None, None, '$\Delta S_g$', '$FLF$', '$FRF$', '$FFF$']
+                        labels=[None, None, '$FLF$', '$FRF$', '$FFF$'] #labels=[None, None, '$\Delta S_g$', '$FLF$', '$FRF$', '$FFF$']
                         orientations=[1, 1, -1, 0, 0]
                         pathlengths = [pl, pl, pl, pl, pl*4]
                         if FLF[k][L] > 0.0:
@@ -1620,7 +1665,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                         labels.append('$Exf_g$')
                         orientations.append(-1)
                         pathlengths.append(pl)
-                    Out.append(-EXF[k][L])
+                        Out.append(-EXF[k][L])
                     # Eg
                     if cMF.wel_yn == 1:
                         if np.abs(Eg[k][L])>treshold:
@@ -1628,7 +1673,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                             labels.append('$E_g$')
                             orientations.append(1)
                             pathlengths.append(pl)
-                        Out.append(Eg[k][L])
+                            Out.append(Eg[k][L])
                     # Tg   
                     if cMF.wel_yn == 1:
                         if np.abs(Tg[k][L])>treshold:
@@ -1636,7 +1681,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                             labels.append('$T_g$')
                             orientations.append(1)
                             pathlengths.append(pl)
-                        Out.append(Tg[k][L])
+                            Out.append(Tg[k][L])
                     # DRN
                     if cMF.drn_yn == 1:
                         if np.abs(DRN[k][L])>treshold:
@@ -1644,7 +1689,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                             labels.append('$DRN$')
                             orientations.append(1)
                             pathlengths.append(pl)
-                        Out.append(-DRN[k][L])
+                            Out.append(-DRN[k][L])
                     # GHB
                     if cMF.ghb_yn == 1:
                         if np.abs(GHB[k][L])>treshold:
@@ -1658,12 +1703,12 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                             In.append(GHB[k][L])
                     # CH
                     if len(cMF.ibound[cMF.ibound < 0]) > 0:
-                        if np.abs(CH[k][L])>treshold:
+                        if np.abs(CH[k][L])> treshold:
                             flows.append(CH[k][L]/ff)
                             labels.append('$CH$')
                             orientations.append(1)
                             pathlengths.append(pl)
-                        if  CH[k][L] < 0.0:
+                        if CH[k][L] < 0.0:
                             Out.append(-CH[k][L])
                         else:
                             In.append(CH[k][L])
