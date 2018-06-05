@@ -1920,14 +1920,14 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
     plt_exportCATCH_txt.close()
     del flxlbl_CATCH_str
     if WBsankey_yn == 1:
-        try:
-            MMplot.plotWBsankey(MM_ws_out, cMF.inputDate, flxCatch_lst, flxIndex_lst,
+        #try:
+        MMplot.plotWBsankey(MM_ws_out, cMF.inputDate, flxCatch_lst, flxIndex_lst,
                                 fn=plt_exportCATCH_txt_fn.split('\\')[-1], indexTime=HYindex, year_lst=year_lst,
                                 cMF=cMF, ncell_MM=ncell_MM, obspt='whole catchment', fntitle='0CATCHMENT',
                                 ibound4Sankey=np.ones((cMF.nlay), dtype=int), stdout=stdout, report=report)
-            print 'WB Sankey plot done!\n-------'
-        except:
-            print 'WB Sankey plot error!\n-------'
+        #    print 'WB Sankey plot done!\n-------'
+        #except:
+        #    print 'WB Sankey plot error!\n-------'
     del flxCatch_lst, flxCatch_lst_str, out_line, plt_exportCATCH_fn, plt_exportCATCH_txt_fn, plt_titleCATCH
 
 # #################################################
@@ -2321,16 +2321,16 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                                  'Nash-Sutcliffe efficiency', "Pearson's correlation coefficient"],
                                 [rmseSMmax, None, 1.0, 1.0], [rmseHEADSmax, None, 1.0, 1.0], [0, 0, None, -1.0],
                                 [['(m)', '(%wc)'], ['', ''], ['', ''], ['', '']])):
-            try:
-                MMplot.plotCALIBCRIT(calibcritSM=calibcritSM, calibcritSMobslst=obslstSM, calibcritHEADS=calibcritHEADS,
+            #try:
+            MMplot.plotCALIBCRIT(calibcritSM=calibcritSM, calibcritSMobslst=obslstSM, calibcritHEADS=calibcritHEADS,
                                      calibcritHEADSobslst=obslstHEADS, calibcritHEADSc=calibcritHEADSc,
                                      calibcritHEADScobslst=obslstHEADSc,
                                      plt_export_fn=os.path.join(MM_ws_out, '__plt_calibcrit%s.png' % calibcrit),
                                      plt_title='Calibration criteria between simulated and observed state variables\n%s' % title,
                                      calibcrit=calibcrit, calibcritSMmax=calibcritSMmax,
                                      calibcritHEADSmax=calibcritHEADSmax, ymin=ymin, units=units, hnoflo=cMF.hnoflo)
-            except:
-                print '-------\nError in exporting %s at obs. pt. %s' % (calibcrit, obs_list[cc])
+            #except:
+            #    print '-------\nError in exporting %s at obs. pt. %s' % (calibcrit, obs_list[cc])
         if len(obslstHEADS) > 0 or len(obslstSM) > 0:
             print '-------\nRMSE/RSR/NSE/r averages of the obs. pts. (except catch.)'
             try:

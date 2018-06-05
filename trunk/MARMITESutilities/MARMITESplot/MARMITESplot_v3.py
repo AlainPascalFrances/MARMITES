@@ -1631,7 +1631,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                             Out.append(-FLF[k][L-1])
                     else:
                         flows=[FLF[k][L-1]/ff, Rg[k][L]/ff, -FLF[k][L]/ff, -FRF[k][L]/ff, -FFF[k][L]/ff]
-                        labels=[None, None, '$\Delta S_g$', '$FLF$', '$FRF$', '$FFF$']
+                        labels=[None, None, '$FLF$', '$FRF$', '$FFF$'] #labels=[None, None, '$\Delta S_g$', '$FLF$', '$FRF$', '$FFF$']
                         orientations=[1, 1, -1, 0, 0]
                         pathlengths = [pl, pl, pl, pl, pl*4]
                         if FLF[k][L] > 0.0:
@@ -1665,7 +1665,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                         labels.append('$Exf_g$')
                         orientations.append(-1)
                         pathlengths.append(pl)
-                    Out.append(-EXF[k][L])
+                        Out.append(-EXF[k][L])
                     # Eg
                     if cMF.wel_yn == 1:
                         if np.abs(Eg[k][L])>treshold:
@@ -1673,7 +1673,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                             labels.append('$E_g$')
                             orientations.append(1)
                             pathlengths.append(pl)
-                        Out.append(Eg[k][L])
+                            Out.append(Eg[k][L])
                     # Tg   
                     if cMF.wel_yn == 1:
                         if np.abs(Tg[k][L])>treshold:
@@ -1681,7 +1681,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                             labels.append('$T_g$')
                             orientations.append(1)
                             pathlengths.append(pl)
-                        Out.append(Tg[k][L])
+                            Out.append(Tg[k][L])
                     # DRN
                     if cMF.drn_yn == 1:
                         if np.abs(DRN[k][L])>treshold:
@@ -1689,7 +1689,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                             labels.append('$DRN$')
                             orientations.append(1)
                             pathlengths.append(pl)
-                        Out.append(-DRN[k][L])
+                            Out.append(-DRN[k][L])
                     # GHB
                     if cMF.ghb_yn == 1:
                         if np.abs(GHB[k][L])>treshold:
@@ -1703,12 +1703,12 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                             In.append(GHB[k][L])
                     # CH
                     if len(cMF.ibound[cMF.ibound < 0]) > 0:
-                        if np.abs(CH[k][L])>treshold:
+                        if np.abs(CH[k][L])> treshold:
                             flows.append(CH[k][L]/ff)
                             labels.append('$CH$')
                             orientations.append(1)
                             pathlengths.append(pl)
-                        if  CH[k][L] < 0.0:
+                        if CH[k][L] < 0.0:
                             Out.append(-CH[k][L])
                         else:
                             In.append(CH[k][L])
