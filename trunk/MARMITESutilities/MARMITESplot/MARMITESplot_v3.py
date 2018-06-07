@@ -90,12 +90,6 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     ax1.grid(b=True, which='minor', axis = 'x', linestyle = ':', color='gainsboro')
 
     ax2=fig.add_subplot(8,1,2, sharex=ax1)
-    try:
-        Roobs_m = np.ma.masked_values(flx[flxIndex_lst['iRoobs']], cMF.hnoflo, atol = 0.09)
-    #        dgwtobsmin = np.ma.min(dgwtobs_m)
-        plt.plot_date(cMF.inputDate,Roobs_m, ls = 'None', color = 'lightblue', marker='o', markeredgecolor = 'lightblue', markerfacecolor = 'None', markersize = 2, label=flxLbl[flxIndex_lst['iRoobs']]) # ls='--', color = 'blue'
-    except:
-        pass
     if np.sum(np.abs(flx[flxIndex_lst['iRo']])) > 1E-7:
         plt.plot_date(cMF.inputDate,flx[flxIndex_lst['iRo']],'r-', c='blue', linewidth=1.0, label=flxLbl[flxIndex_lst['iRo']])
     colors_nsl = itertools.cycle(clr_lst)
@@ -107,6 +101,12 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
         plt.bar(cMF.inputDate, flx[flxIndex_lst['iSsurf']], color='lightblue', linewidth=0, align = 'center', label=flxLbl[flxIndex_lst['iSsurf']])
     if np.sum(np.abs(flx[flxIndex_lst['idSsurf']])) > 1E-7:
         plt.bar(cMF.inputDate, flx[flxIndex_lst['idSsurf']], color='darkblue', linewidth=0, align = 'center', label=flxLbl[flxIndex_lst['idSsurf']])
+    try:
+        Roobs_m = np.ma.masked_values(flx[flxIndex_lst['iRoobs']], cMF.hnoflo, atol = 0.09)
+    #        dgwtobsmin = np.ma.min(dgwtobs_m)
+        plt.plot_date(cMF.inputDate,Roobs_m, ls = 'None', color = 'lightblue', marker='o', markeredgecolor = 'lightblue', markerfacecolor = 'None', markersize = 2, label=flxLbl[flxIndex_lst['iRoobs']]) # ls='--', color = 'blue'
+    except:
+        print "ERROR plotting Ro obs. %s" % obs_name
     # leg
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 3)
     leg = plt.gca().get_legend()
@@ -801,20 +801,6 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
 
     ax2=fig.add_subplot(8,1,2, sharex=ax1)
     # ax2.set_autoscalex_on(False)
-    # Ro obs
-    if obs_catch_list[2] == 1:
-        obs_Ro = obs_catch.get('catch')['obs_Ro']
-        Roobs_m = np.ma.masked_values(obs_Ro[0], cMF.hnoflo, atol = 0.09)
-        plt.plot_date(cMF.inputDate, Roobs_m, markerfacecolor = 'None', marker='o', markeredgecolor = 'lightblue', markersize=2, label = r'$Ro \ obs$')
-        print 'RMSE/RSR/NSE/r of obs. at the catch. scale'
-        rmse, rsr, nse, r = cMF.cPROCESS.compCalibCrit(flx[flxIndex_lst['iRo']],obs_Ro[0], cMF.hnoflo)
-        rmseRo = [rmse]
-        rsrRo = [rsr]
-        nseRo = [nse]
-        rRo = [r]
-        del rmse, rsr, nse, r
-        if rmseRo[0] != None:
-            print 'Ro: %.1f mm / %.2f / %.2f / %.2f' % (rmseRo[0], rsrRo[0], nseRo[0], rRo[0])           
     # Ro
     plt.plot_date(cMF.inputDate,flx[flxIndex_lst['iRo']],'r-', c='blue', linewidth=1.0, label = flxLbl[flxIndex_lst['iRo']])
     # Inf
@@ -826,6 +812,24 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
     plt.bar(cMF.inputDate, flx[flxIndex_lst['iSsurf']], color='lightblue', linewidth=0, align = 'center', label = flxLbl[flxIndex_lst['iSsurf']])
     # DeltaSsurf
     plt.bar(cMF.inputDate, flx[flxIndex_lst['idSsurf']], color='darkblue', linewidth=0, align = 'center', label = flxLbl[flxIndex_lst['idSsurf']])
+    # Ro obs
+    try:
+        if obs_catch_list[2] == 1:
+            obs_Ro = obs_catch.get('catch')['obs_Ro']
+            Roobs_m = np.ma.masked_values(obs_Ro[0], cMF.hnoflo, atol=0.09)
+            plt.plot_date(cMF.inputDate, Roobs_m, markerfacecolor='None', marker='o', markeredgecolor='lightblue',
+                          markersize=2, label=r'$Ro \ obs$')
+            print 'RMSE/RSR/NSE/r of obs. at the catch. scale'
+            rmse, rsr, nse, r = cMF.cPROCESS.compCalibCrit(flx[flxIndex_lst['iRo']], obs_Ro[0], cMF.hnoflo)
+            rmseRo = [rmse]
+            rsrRo = [rsr]
+            nseRo = [nse]
+            rRo = [r]
+            del rmse, rsr, nse, r
+            if rmseRo[0] != None:
+                print 'Ro: %.1f mm / %.2f / %.2f / %.2f' % (rmseRo[0], rsrRo[0], nseRo[0], rRo[0])
+    except:
+        print "ERROR plotting Ro obs. catchment"
     # y
     plt.ylabel('mm', fontsize=10)
     ax2.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
@@ -1828,8 +1832,6 @@ def plotCALIBCRIT(calibcritSM, calibcritSMobslst, calibcritHEADS, calibcritHEADS
 
     if calibcritSM <> []:
         ax1=fig.add_subplot(2,1,1)
-        plt.setp(ax1.get_xticklabels(), fontsize=8)
-        plt.setp(ax1.get_yticklabels(), fontsize=8)
         ax1.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.1f'))
         plt.ylabel('%s soil moisture %s' % (calibcrit, units[1]), fontsize=10, horizontalalignment = 'center')
         plt.grid(True)
@@ -1900,12 +1902,14 @@ def plotCALIBCRIT(calibcritSM, calibcritSMobslst, calibcritHEADS, calibcritHEADS
         else:
             ymin_tmp = ymin
         plt.ylim(ymin_tmp, max_tmp)
+        plt.setp(ax1.get_yticklabels(), fontsize=6)
         ax1.set_xlim(0, int(max(xserie))+1.0)
+        labels = ax1.get_xticklabels(which='both')
+        plt.setp(labels, rotation=90, fontsize=6)
+        del labels
 
     if calibcritHEADS <> []:
         ax2=fig.add_subplot(2,1,2)
-        plt.setp(ax2.get_xticklabels(), fontsize=8)
-        plt.setp(ax2.get_yticklabels(), fontsize=8)
         ax2.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.1f'))
         plt.ylabel('%s hydraulic heads %s' % (calibcrit, units[0]), fontsize=10, horizontalalignment = 'center')
         plt.grid(True)
@@ -1943,7 +1947,11 @@ def plotCALIBCRIT(calibcritSM, calibcritSMobslst, calibcritHEADS, calibcritHEADS
         else:
             ymin_tmp = ymin
         plt.ylim(ymin_tmp, max_tmp)
+        plt.setp(ax2.get_yticklabels(), fontsize=6)
         ax2.set_xlim(0, len(calibcritHEADS)+1)
+        labels = ax2.get_xticklabels(which='both')
+        plt.setp(labels, rotation=90, fontsize=6)
+        del labels
 
     plt.savefig(plt_export_fn, dpi = 150)
 
