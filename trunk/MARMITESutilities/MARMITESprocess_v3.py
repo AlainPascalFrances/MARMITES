@@ -735,7 +735,7 @@ class clsPROCESS:
                 rSM = []
                 try:
                     for l, (y, y_obs) in enumerate(zip(Spc1full, Sobs_m)):
-                        if y_obs <> []:
+                        if y_obs.all(): # != []:
                             rmse, rsr, nse, r = self.compCalibCrit(y,y_obs, hnoflo)
                             rmseSM.append(100.0*rmse)
                             rsrSM.append(rsr)

@@ -102,11 +102,12 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     if np.sum(np.abs(flx[flxIndex_lst['idSsurf']])) > 1E-7:
         plt.bar(cMF.inputDate, flx[flxIndex_lst['idSsurf']], color='darkblue', linewidth=0, align = 'center', label=flxLbl[flxIndex_lst['idSsurf']])
     try:
-        Roobs_m = np.ma.masked_values(flx[flxIndex_lst['iRoobs']], cMF.hnoflo, atol = 0.09)
+        if 'iRoobs' in flxIndex_lst:
+            Roobs_m = np.ma.masked_values(flx[flxIndex_lst['iRoobs']], cMF.hnoflo, atol = 0.09)
     #        dgwtobsmin = np.ma.min(dgwtobs_m)
-        plt.plot_date(cMF.inputDate,Roobs_m, ls = 'None', color = 'lightblue', marker='o', markeredgecolor = 'lightblue', markerfacecolor = 'None', markersize = 2, label=flxLbl[flxIndex_lst['iRoobs']]) # ls='--', color = 'blue'
+            plt.plot_date(cMF.inputDate,Roobs_m, ls = 'None', color = 'lightblue', marker='o', markeredgecolor = 'lightblue', markerfacecolor = 'None', markersize = 2, label=flxLbl[flxIndex_lst['iRoobs']]) # ls='--', color = 'blue'
     except:
-        print "ERROR plotting Ro obs. %s" % obs_name
+        print "ERROR plotting Ro obs"
     # leg
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 3)
     leg = plt.gca().get_legend()
@@ -229,10 +230,11 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     ax5=fig.add_subplot(8,1,6, sharex=ax1)
     for l in range(nsl):
         try:
-            if flx[flxIndex_lst['iSobs_%d'%(l+1)]] != []:
-                ax5.plot_date(cMF.inputDate, flx[flxIndex_lst['iSobs_%d'%(l+1)]], ls = 'None', color = 'gray', marker='o', markersize=2, markeredgecolor = colors_nsl.next(), markerfacecolor = 'None', label=flxLbl[flxIndex_lst['iSobs_%d'%(l+1)]]) #'--', color = color,
+            if 'iSobs_%d'%(l+1) in flxIndex_lst:
+                if flx[flxIndex_lst['iSobs_%d'%(l+1)]].all != []:
+                    ax5.plot_date(cMF.inputDate, flx[flxIndex_lst['iSobs_%d'%(l+1)]], ls = 'None', color = 'gray', marker='o', markersize=2, markeredgecolor = colors_nsl.next(), markerfacecolor = 'None', label=flxLbl[flxIndex_lst['iSobs_%d'%(l+1)]]) #'--', color = color,
         except:
-            pass
+            print "ERROR plotting SM obs"
     sim_tmp = []
     colors_nsl = itertools.cycle(clr_lst)
     for l in range(nsl):
@@ -263,10 +265,6 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     plt.setp(ax5.get_xticklabels(which = 'both'), visible=False)
 
     ax7=fig.add_subplot(8,1,7, sharex=ax1)
-    try:
-        plt.plot_date(cMF.inputDate,flx[flxIndex_lst['idobs']], ls = 'None', color = 'LightBlue', marker='o', markeredgecolor = 'LightBlue', markerfacecolor = 'None', markersize = 2, label = flxLbl[flxIndex_lst['idobs']]) # ls='--', color = 'blue'
-    except:
-        pass
     lines = itertools.cycle(['-','--','-.',':','.',',','o','v','^','<','>','s','p','*','h','H','+','x','D','d','|','_'])
     dgwtMFmax = []
     for L in range(cMF.nlay):
@@ -274,6 +272,11 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
         dgwtMFmax.append(np.max(dgwtMF))
         plt.plot_date(cMF.inputDate, dgwtMF, lines.next(), color = 'b', label = flxLbl[flxIndex_lst['id_%d'%(L+1)]])
     plt.plot_date(cMF.inputDate,flx[flxIndex_lst['idcorr']],'--', c='g', label = flxLbl[flxIndex_lst['idcorr']])
+    try:
+        if 'idobs' in flxIndex_lst:
+            plt.plot_date(cMF.inputDate,flx[flxIndex_lst['idobs']], ls = 'None', color = 'LightBlue', marker='o', markeredgecolor = 'LightBlue', markerfacecolor = 'None', markersize = 2, label = flxLbl[flxIndex_lst['idobs']]) # ls='--', color = 'blue'
+    except:
+        print "ERROR plotting dgw obs"
     # legend
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 3)
     leg = plt.gca().get_legend()
@@ -313,6 +316,7 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
 
     plt.subplots_adjust(left = 0.10, bottom = 0.10, right = 0.95, top = 0.95, wspace = 0.1, hspace = 0.1)
     plt.savefig(plt_export_fn,dpi = 150)
+    plt.close()
 
 
 #--------------FIGURE PART2----------
@@ -322,15 +326,16 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     fig.text(x = 0.5, y = 0.05, s = plt_title, horizontalalignment = 'center', verticalalignment = 'bottom', fontsize = 9)
 
     ax1=fig.add_subplot(8,1,4)
-    try:
-        plt.plot_date(cMF.inputDate,flx[flxIndex_lst['ihobs']], ls = 'None', color = 'LightBlue', marker='o', markeredgecolor = 'LightBlue', markerfacecolor = 'None', markersize = 2, label = flxLbl[flxIndex_lst['ihobs']]) # ls='--', color = 'blue'
-    except:
-        pass
     lines = itertools.cycle(['-','--','-.',':','.',',','o','v','^','<','>','s','p','*','h','H','+','x','D','d','|','_'])
     for L in range(cMF.nlay):
         plt.plot_date(cMF.inputDate,flx[flxIndex_lst['ih_%d'%(L+1)]],lines.next(), color = 'b',label = flxLbl[flxIndex_lst['ih_%d'%(L+1)]])
     plt.plot_date(cMF.inputDate,flx[flxIndex_lst['ihcorr']],'--', color = 'g', label = flxLbl[flxIndex_lst['ihcorr']])
     plt.plot_date(cMF.inputDate,flx[flxIndex_lst['ih_SF']],'-', color = 'r', label = flxLbl[flxIndex_lst['ih_SF']])
+    try:
+        if 'ihobs' in flxIndex_lst:
+            plt.plot_date(cMF.inputDate,flx[flxIndex_lst['ihobs']], ls = 'None', color = 'LightBlue', marker='o', markeredgecolor = 'LightBlue', markerfacecolor = 'None', markersize = 2, label = flxLbl[flxIndex_lst['ihobs']]) # ls='--', color = 'blue'
+    except:
+        print "ERROR plotting h obs"
     # y
     ybuffer=0.1*(hmax-hmin)
     if ybuffer == 0.0:
@@ -394,17 +399,18 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     ax8b.grid(b=True, which='minor', axis = 'x', linestyle = ':', color='gainsboro')
 
     ax20 = fig.add_subplot(8, 1, 2, sharex=ax1)
+    plt.plot_date(cMF.inputDate, flx[flxIndex_lst['iRo']], 'r-', c='blue', linewidth=1.0,
+                  label=flxLbl[flxIndex_lst['iRo']])
     ymax = None
     try:
         #        dgwtobsmin = np.ma.min(dgwtobs_m)
-        plt.plot_date(cMF.inputDate, flx[flxIndex_lst['iRoobs']], ls='None', color='lightblue', marker='o',
+        if 'iRoobs' in flxIndex_lst:
+            plt.plot_date(cMF.inputDate, flx[flxIndex_lst['iRoobs']], ls='None', color='lightblue', marker='o',
                       markeredgecolor='lightblue', markerfacecolor='None', markersize=2,
                       label=flxLbl[flxIndex_lst['iRoobs']])  # ls='--', color = 'blue'
-        ymax = np.ma.max(flx[flxIndex_lst['iRoobs']])
+            ymax = np.ma.max(flx[flxIndex_lst['iRoobs']])
     except:
-        pass
-    plt.plot_date(cMF.inputDate, flx[flxIndex_lst['iRo']], 'r-', c='blue', linewidth=1.0,
-                  label=flxLbl[flxIndex_lst['iRo']])
+        print "ERROR plotting Ro obs"
     # y
     plt.ylabel('mm', fontsize=10)
     plt.setp(ax20.get_yticklabels(), fontsize=8)
@@ -478,13 +484,6 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     ax10a.grid(b=True, which='minor', axis = 'x', linestyle = ':', color='gainsboro')
 
     ax7 = fig.add_subplot(8, 1, 5, sharex=ax1)
-    try:
-        if flx[flxIndex_lst['idobs']] != []:
-            plt.plot_date(cMF.inputDate, flx[flxIndex_lst['idobs']], ls='None', color='LightBlue', marker='o',
-                          markeredgecolor='LightBlue', markerfacecolor='None', markersize=2,
-                          label=flxLbl[flxIndex_lst['idobs']])  # ls='--', color = 'blue'
-    except:
-        pass
     lines = itertools.cycle(
         ['-', '--', '-.', ':', '.', ',', 'o', 'v', '^', '<', '>', 's', 'p', '*', 'h', 'H', '+', 'x', 'D', 'd', '|',
          '_'])
@@ -494,6 +493,14 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
         plt.plot_date(cMF.inputDate, flx[flxIndex_lst['id_%d' % (L + 1)]], lines.next(), color='b',
                       label=flxLbl[flxIndex_lst['id_%d' % (L + 1)]])
     plt.plot_date(cMF.inputDate, flx[flxIndex_lst['idcorr']], '--', c='g', label=flxLbl[flxIndex_lst['idcorr']])
+    try:
+        if 'idobs' in flxIndex_lst:
+            if flx[flxIndex_lst['idobs']].all() != []:
+                plt.plot_date(cMF.inputDate, flx[flxIndex_lst['idobs']], ls='None', color='LightBlue', marker='o',
+                          markeredgecolor='LightBlue', markerfacecolor='None', markersize=2,
+                          label=flxLbl[flxIndex_lst['idobs']])  # ls='--', color = 'blue'
+    except:
+        print "ERROR plotting dgw obs"
     # y axis
     plt.ylabel('m', fontsize=10)
     plt.setp(ax7.get_yticklabels(), fontsize=8)
@@ -551,17 +558,18 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
 
     colors_nsl = itertools.cycle(clr_lst)
     ax5=fig.add_subplot(8,1,7, sharex=ax1)
-    for l in range(nsl):
-        try:
-            y = flx[flxIndex_lst['iSobs_%d'%(l+1)]]
-            ax5.plot_date(cMF.inputDate, y, ls = 'None', color = 'gray', marker='o', markersize=2, markeredgecolor = colors_nsl.next(), markerfacecolor = 'None', label=flxLbl[flxIndex_lst['iSobs_%d'%(l+1)]]) #'--', color = color,
-        except:
-            pass
     colors_nsl = itertools.cycle(clr_lst)
     for l in range(nsl):
         y = flx[flxIndex_lst['iSsoil_pc_s_%d'%(l+1)]]
         y = np.ma.masked_where(y < 0.0, y)
         ax5.plot_date(cMF.inputDate, y, '-', color = colors_nsl.next(), label = flxLbl[flxIndex_lst['iSsoil_pc_s_%d'%(l+1)]])
+    for l in range(nsl):
+        try:
+            if 'iSobs_%d'%(l+1) in flxIndex_lst:
+                y = flx[flxIndex_lst['iSobs_%d'%(l+1)]]
+                ax5.plot_date(cMF.inputDate, y, ls = 'None', color = 'gray', marker='o', markersize=2, markeredgecolor = colors_nsl.next(), markerfacecolor = 'None', label=flxLbl[flxIndex_lst['iSobs_%d'%(l+1)]]) #'--', color = color,
+        except:
+            print "ERROR plotting SM obs"
     # y axis
     ybuffer=0.1*(max(Sm)-min(Sr))
     plt.ylim(min(Sr) - ybuffer,max(Sm) + ybuffer)
@@ -596,7 +604,7 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     plt.savefig(plt_export_fn,dpi=150)
 #    plt.show()
     plt.clf()
-    plt.close('all')
+    plt.close()
 
 ##################
 
@@ -949,10 +957,11 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
     rsrSM = None
     nseSM = None
     rSM = None
+    ax6.plot_date(cMF.inputDate, flx[flxIndex_lst['iSsoil_pc']], '-', color = 'brown', label = flxLbl[flxIndex_lst['iSsoil_pc']])
     if obs_catch_list[1] == 1:
         obs_SM = obs_catch.get('catch')['obs_SM']
         Sobs_m = np.ma.masked_values(obs_SM[0], cMF.hnoflo, atol = 0.09)
-        ax6.plot_date(cMF.inputDate, Sobs_m, markerfacecolor = 'None', marker='o', markeredgecolor = 'brown', markersize=2, label = r'$\theta \ obs$') 
+        ax6.plot_date(cMF.inputDate, Sobs_m, markerfacecolor = 'None', marker='o', markeredgecolor = 'brown', markersize=2, label = r'$\theta \ obs$')
         rmse, rsr, nse, r = cMF.cPROCESS.compCalibCrit(flx[flxIndex_lst['iSsoil_pc']],obs_SM[0], cMF.hnoflo)
         rmseSM = [100.0*rmse]
         rsrSM = [rsr]
@@ -960,8 +969,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
         rSM = [r]
         del rmse, rsr, nse, r
         if rmseSM[0] != None:
-            print 'SM: %.1f %% / %.2f / %.2f / %.2f' % (rmseSM[0], rsrSM[0], nseSM[0], rSM[0])     
-    ax6.plot_date(cMF.inputDate, flx[flxIndex_lst['iSsoil_pc']], '-', color = 'brown', label = flxLbl[flxIndex_lst['iSsoil_pc']])
+            print 'SM: %.1f %% / %.2f / %.2f / %.2f' % (rmseSM[0], rsrSM[0], nseSM[0], rSM[0])
     # y axis
     plt.ylabel('%', fontsize=10)
     ax6.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
@@ -989,19 +997,19 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
 
     if MF != None:
         # compute heads
-        if obs_catch_list[0] == 1:
-            obs_h = obs_catch.get('catch')['obs_h']
-            hobs_m = np.ma.masked_values(obs_h[0], cMF.hnoflo, atol = 0.09)
         # plot GWT
         lines = itertools.cycle(['-','--','-.',':','.',',','o','v','^','<','>','s','p','*','h','H','+','x','D','d','|','_'])
         ax10=fig.add_subplot(8,1,8, sharex=ax1)
         # ax10.set_autoscalex_on(False)
-        if obs_catch_list[0] == 1:
-            dobs_m = hobs_m - TopSoilAverage
-            ax10.plot_date(cMF.inputDate, dobs_m, markerfacecolor = 'None', marker='o', markeredgecolor = 'LightBlue', markersize=2, label = r'$d \ obs$')
         for l in range(cMF.nlay):
             i = 'id_%d'%(l+1)
             plt.plot_date(cMF.inputDate,flx[flxIndex_lst[i]],lines.next(), color = 'b', label = flxLbl[flxIndex_lst[i]])
+        if obs_catch_list[0] == 1:
+            obs_h = obs_catch.get('catch')['obs_h']
+            hobs_m = np.ma.masked_values(obs_h[0], cMF.hnoflo, atol=0.09)
+        if obs_catch_list[0] == 1:
+            dobs_m = hobs_m - TopSoilAverage
+            ax10.plot_date(cMF.inputDate, dobs_m, markerfacecolor = 'None', marker='o', markeredgecolor = 'LightBlue', markersize=2, label = r'$d \ obs$')
         # y
         plt.ylabel('m', fontsize=10)
         plt.setp(ax10.get_yticklabels(), fontsize=8)
@@ -1028,6 +1036,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
 
     plt.subplots_adjust(left=0.10, bottom=0.10, right=0.95, top=0.95, wspace=0.1, hspace=0.1)
     plt.savefig(plt_export_fn,dpi=150)
+    plt.close()
 
 #--------------FIGURE CATCH PART2----------
 
@@ -1060,13 +1069,13 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
     # plot Ro
     ax2=fig.add_subplot(8,1,2, sharex=ax0)
     # ax2.set_autoscalex_on(True)
+    # Ro
+    plt.plot_date(cMF.inputDate,flx[flxIndex_lst['iRo']],'r-', c='blue', linewidth=1.0, label = flxLbl[5])
     # Ro obs
     if obs_catch_list[2] == 1:
         obs_Ro = obs_catch.get('catch')['obs_Ro']
         Roobs_m = np.ma.masked_values(obs_Ro[0], cMF.hnoflo, atol = 0.09)
         plt.plot_date(cMF.inputDate, Roobs_m, markerfacecolor = 'None', marker='o', markeredgecolor = 'lightBlue', markersize=2, label = r'$Ro \ obs$')
-    # Ro
-    plt.plot_date(cMF.inputDate,flx[flxIndex_lst['iRo']],'r-', c='blue', linewidth=1.0, label = flxLbl[5])
     # y
     plt.ylabel('mm', fontsize=10)
     plt.setp(ax2.get_yticklabels(), fontsize=8)
@@ -1102,8 +1111,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
         # ax1.set_autoscalex_on(True)
         # RMSE
         if obs_catch_list[0] == 1:
-            ax1.plot_date(cMF.inputDate, hobs_m, markerfacecolor = 'None', marker='o', markeredgecolor = 'LightBlue', markersize=2, label = r'$h \ obs$')
-            i = 'ih_%d' % (l+1) 
+            i = 'ih_%d' % (l+1)
             if sum(flx[flxIndex_lst[i]]) != 0.0:
                 rmse, rsr, nse, r = cMF.cPROCESS.compCalibCrit(flx[flxIndex_lst[i]],obs_h[0], cMF.hnoflo)
                 rmseHEADS = [rmse]
@@ -1114,11 +1122,13 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
                 if rmseHEADS[0] != None:
                     print 'h: %.2f m / %.2f / %.2f / %.2f\n-------' % (rmseHEADS[0], rsrHEADS[0], nseHEADS[0], rHEADS[0])             
             else:
-                print 'Warning!\nError in computing h calibration criteria'
+                print 'Warning!\nERROR computing h calibration criteria'
                 rmseHEADS = rsrHEADS = nseHEADS = rHEADS = None
         for l in range(cMF.nlay):
             i = 'ih_%d' % (l+1) 
             plt.plot_date(cMF.inputDate,flx[flxIndex_lst[i]],lines.next(), color = 'b', label = flxLbl[flxIndex_lst[i]])
+        ax1.plot_date(cMF.inputDate, hobs_m, markerfacecolor='None', marker='o', markeredgecolor='LightBlue',
+                      markersize=2, label=r'$h \ obs$')
         # y
         plt.ylim(hmin,hmax)
         plt.ylabel('m', fontsize=10)
@@ -1339,7 +1349,7 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
         except:
             pass
     
-    plt.close()
+    plt.close('all')
 
 ##################
 
@@ -1820,140 +1830,164 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                 else:
                     plt_export_fn = os.path.join(path, '_%s_WBsanley%s_pc.png' % (fntitle,msg))
                 plt.savefig(plt_export_fn,dpi=150)
+        plt.close('all')
     #print '-------'
 
 ##################
 
 def plotCALIBCRIT(calibcritSM, calibcritSMobslst, calibcritHEADS, calibcritHEADSobslst, calibcritHEADSc, calibcritHEADScobslst, plt_export_fn, plt_title, calibcrit, calibcritSMmax = None, calibcritHEADSmax = None, ymin = None, units = '', hnoflo = -9999.9):
     # plot RMSE
-    global ii, cc
-    fig = plt.figure()
-    fig.suptitle(plt_title, fontsize=10)
 
-    if calibcritSM <> []:
-        ax1=fig.add_subplot(2,1,1)
-        ax1.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.1f'))
-        plt.ylabel('%s soil moisture %s' % (calibcrit, units[1]), fontsize=10, horizontalalignment = 'center')
-        plt.grid(True)
-        xserie = []
-        yserie = []
-        labels = []
-        if calibcritSMmax == None:
-            tmp = np.max(list(itertools.chain.from_iterable(calibcritSM)))
-            if tmp > 0:
-                max_tmp = 1.2*tmp
-            else:
-                max_tmp = 1.0
-            del tmp
-        else:
-            max_tmp = calibcritSMmax
-        n = 0
-        for e in calibcritSM:
-            if len(e) > 1:
-                numtick = len(e)
-                if n == 0:
-                    newx = 1.0
-                else:
-                    newx = 1.0 + xserie[-1]
-                ee = 0
-                lst = range(1,numtick/2+1)
-                lst.reverse()
-                for i in lst:
-                    xserie.append(newx-i/10.0)
-                    yserie.append(e[ee])
-                    ee += 1
-                    labels.append('')
-                xserie.append(newx)
-                labels.append('%s' % calibcritSMobslst[n])
-                if numtick %2 <> 0:
-                    yserie.append(e[ee])
-                    ee += 1
-                else:
-                    yserie.append(max_tmp*2.0)
-                lst = range(1,numtick/2+1)
-                for i in lst:
-                    xserie.append(newx+i/10.0)
-                    yserie.append(e[ee])
-                    ee += 1
-                    labels.append('')
-            else:
-                if n == 0:
-                    xserie.append(1.0)
-                    yserie.append(e[0])
-                    labels.append('%s' % calibcritSMobslst[n])
-                else:
-                    xserie.append(1+xserie[-1])
-                    yserie.append(e[0])
-                    labels.append('%s' % calibcritSMobslst[n])
-            n += 1
-        offset = (max_tmp)*0.05
-        for i in range(len(xserie)):
-            plt.scatter(xserie[i], yserie[i], marker='o', c = 'orange', s = 15)
-            if yserie[i] < max_tmp:
-                plt.text(xserie[i], yserie[i]+offset, '%.1f' % yserie[i], fontsize=6, ha = 'center', va = 'center')
-        plt.xticks(xserie, labels)
-        if ymin == None:
-            tmp = np.min(np.ma.masked_where(np.asarray(yserie).flatten() == hnoflo,np.asarray(yserie).flatten()))
-            if tmp > 0:
-                ymin_tmp = 0
-            else:
-                ymin_tmp = 1.2*tmp
-            del tmp
-        else:
-            ymin_tmp = ymin
-        plt.ylim(ymin_tmp, max_tmp)
-        plt.setp(ax1.get_yticklabels(), fontsize=6)
-        ax1.set_xlim(0, int(max(xserie))+1.0)
-        labels = ax1.get_xticklabels(which='both')
-        plt.setp(labels, rotation=90, fontsize=6)
-        del labels
+    num_plt_max = 6
+    if len(calibcritSM) > num_plt_max or len(calibcritHEADS) > num_plt_max:
+        num_plt_tmp = []
+        num_plt_tmp.append(int(np.ceil(len(calibcritSM) / float(num_plt_max))))
+        num_plt_tmp.append(int(np.ceil(len(calibcritHEADS) / float(num_plt_max))))
+        num_plt = np.max(num_plt_tmp)
+        del num_plt_tmp
+    else:
+        num_plt = 1
 
-    if calibcritHEADS <> []:
-        ax2=fig.add_subplot(2,1,2)
-        ax2.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.1f'))
-        plt.ylabel('%s hydraulic heads %s' % (calibcrit, units[0]), fontsize=10, horizontalalignment = 'center')
-        plt.grid(True)
-        xserie = range(1,len(calibcritHEADSobslst)+1)
-        yserie_txt = list(itertools.chain.from_iterable(calibcritHEADS))
-        yseriec_txt = list(itertools.chain.from_iterable(calibcritHEADSc))
-        if calibcritHEADSmax == None:
-            tmp = np.max(list(itertools.chain.from_iterable(calibcritHEADS)))
-            if tmp > 0:
-                max_tmp = 1.2*tmp
+    p_mult = 0
+    for p in range(num_plt):
+        fig = plt.figure()
+        fig.suptitle(plt_title, fontsize=10)
+        test = 0
+        calibcritSM_tmp = calibcritSM[p_mult:(p_mult + 1) * num_plt_max]
+        calibcritSMobslst_tmp = calibcritSMobslst[p_mult:(p_mult + 1) * num_plt_max]
+        if calibcritSM_tmp <> []:
+            test += 1
+            ax1=fig.add_subplot(2,1,1)
+            ax1.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.1f'))
+            plt.ylabel('%s soil moisture %s' % (calibcrit, units[1]), fontsize=10, horizontalalignment = 'center')
+            plt.grid(True)
+            xserie = []
+            yserie = []
+            labels = []
+            if calibcritSMmax == None:
+                tmp = np.max(list(itertools.chain.from_iterable(calibcritSM_tmp)))
+                if tmp > 0:
+                    max_tmp = 1.2*tmp
+                else:
+                    max_tmp = 1.0
+                del tmp
             else:
-                max_tmp = 1.0
-            del tmp
-        else:
-            max_tmp = calibcritHEADSmax
-#        offset = (max_tmp)*0.05
-        for i in range(len(xserie)):
-            plt.scatter(xserie[i], calibcritHEADS[i], marker='o', c = 'orange', s = 15)
-            for ii, cc in enumerate(calibcritHEADScobslst):
-                if calibcritHEADSobslst[i] == cc:
-                    plt.scatter(xserie[i], calibcritHEADSc[ii], marker='o', c = 'green', s = 10)
-                    if yseriec_txt[ii] < max_tmp:
-                        plt.text(xserie[i]-.05, yseriec_txt[ii], '%.1f' % yseriec_txt[ii], fontsize=6, ha = 'right', va = 'center')
-            del cc, ii
-            if yserie_txt[i] < max_tmp:
-                plt.text(xserie[i]+.05, yserie_txt[i], '%.1f' % yserie_txt[i], fontsize=6, ha = 'left', va = 'center')
-        plt.xticks(xserie, calibcritHEADSobslst)
-        if ymin == None:
-            tmp = np.min(np.ma.masked_where(np.asarray(calibcritHEADS).flatten() == hnoflo,np.asarray(calibcritHEADS).flatten()))
-            if tmp< 0:
-                ymin_tmp = 1.2*tmp
+                max_tmp = calibcritSMmax
+            n = 0
+            for e in calibcritSM_tmp:
+                if len(e) > 1:
+                    numtick = len(e)
+                    if n == 0:
+                        newx = 1.0
+                    else:
+                        newx = 1.0 + xserie[-1]
+                    ee = 0
+                    lst = range(1,numtick/2+1)
+                    lst.reverse()
+                    for i in lst:
+                        xserie.append(newx-i/10.0)
+                        yserie.append(e[ee])
+                        ee += 1
+                        labels.append('')
+                    xserie.append(newx)
+                    labels.append('%s' % calibcritSMobslst_tmp[n])
+                    if numtick %2 <> 0:
+                        yserie.append(e[ee])
+                        ee += 1
+                    else:
+                        yserie.append(max_tmp*2.0)
+                    lst = range(1,numtick/2+1)
+                    for i in lst:
+                        xserie.append(newx+i/10.0)
+                        yserie.append(e[ee])
+                        ee += 1
+                        labels.append('')
+                else:
+                    if n == 0:
+                        xserie.append(1.0)
+                        yserie.append(e[0])
+                        labels.append('%s' % calibcritSMobslst_tmp[n])
+                    else:
+                        xserie.append(1+xserie[-1])
+                        yserie.append(e[0])
+                        labels.append('%s' % calibcritSMobslst_tmp[n])
+                n += 1
+            offset = (max_tmp)*0.05
+            for i in range(len(xserie)):
+                plt.scatter(xserie[i], yserie[i], marker='o', c = 'orange', s = 15)
+                if yserie[i] < max_tmp:
+                    plt.text(xserie[i], yserie[i]+offset, '%.1f' % yserie[i], fontsize=6, ha = 'center', va = 'center')
+            plt.xticks(xserie, labels)
+            if ymin == None:
+                tmp = np.min(np.ma.masked_where(np.asarray(yserie).flatten() == hnoflo,np.asarray(yserie).flatten()))
+                if tmp > 0:
+                    ymin_tmp = 0
+                else:
+                    ymin_tmp = 1.2*tmp
+                del tmp
             else:
-                ymin_tmp = 0.8*tmp
-            del tmp
-        else:
-            ymin_tmp = ymin
-        plt.ylim(ymin_tmp, max_tmp)
-        plt.setp(ax2.get_yticklabels(), fontsize=6)
-        ax2.set_xlim(0, len(calibcritHEADS)+1)
-        labels = ax2.get_xticklabels(which='both')
-        plt.setp(labels, rotation=90, fontsize=6)
-        del labels
+                ymin_tmp = ymin
+            plt.ylim(ymin_tmp, max_tmp)
+            plt.setp(ax1.get_yticklabels(), fontsize=6)
+            ax1.set_xlim(0, int(max(xserie))+1.0)
+            labels = ax1.get_xticklabels(which='both')
+            plt.setp(labels, rotation=90, fontsize=6)
+            del labels
 
-    plt.savefig(plt_export_fn, dpi = 150)
+
+        calibcritHEADS_tmp = calibcritHEADS[p_mult:(p_mult + 1) * num_plt_max]
+        calibcritHEADSc_tmp = calibcritHEADSc[p_mult:(p_mult + 1) * num_plt_max]
+        calibcritHEADSobslst_tmp = calibcritHEADSobslst[p_mult:(p_mult + 1) * num_plt_max]
+        calibcritHEADScobslst_tmp = calibcritHEADScobslst[p_mult:(p_mult + 1) * num_plt_max]
+        if calibcritHEADS_tmp <> []:
+            test += 1
+            ax2=fig.add_subplot(2,1,2)
+            ax2.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.1f'))
+            plt.ylabel('%s hydraulic heads %s' % (calibcrit, units[0]), fontsize=10, horizontalalignment = 'center')
+            plt.grid(True)
+            xserie = range(1,len(calibcritHEADSobslst_tmp)+1)
+            yserie_txt = list(itertools.chain.from_iterable(calibcritHEADS_tmp))
+            yseriec_txt = list(itertools.chain.from_iterable(calibcritHEADSc_tmp))
+            if calibcritHEADSmax == None:
+                tmp = np.max(list(itertools.chain.from_iterable(calibcritHEADS_tmp)))
+                if tmp > 0:
+                    max_tmp = 1.2*tmp
+                else:
+                    max_tmp = 1.0
+                del tmp
+            else:
+                max_tmp = calibcritHEADSmax
+    #        offset = (max_tmp)*0.05
+            for i in range(len(xserie)):
+                plt.scatter(xserie[i], calibcritHEADS_tmp[i], marker='o', c = 'orange', s = 15)
+                for ii, cc in enumerate(calibcritHEADScobslst_tmp):
+                    if calibcritHEADSobslst_tmp[i] == cc:
+                        plt.scatter(xserie[i], calibcritHEADSc_tmp[ii], marker='o', c = 'green', s = 10)
+                        if yseriec_txt[ii] < max_tmp:
+                            plt.text(xserie[i]-.05, yseriec_txt[ii], '%.1f' % yseriec_txt[ii], fontsize=6, ha = 'right', va = 'center')
+                if yserie_txt[i] < max_tmp:
+                    plt.text(xserie[i]+.05, yserie_txt[i], '%.1f' % yserie_txt[i], fontsize=6, ha = 'left', va = 'center')
+            plt.xticks(xserie, calibcritHEADSobslst_tmp)
+            if ymin == None:
+                tmp = np.min(np.ma.masked_where(np.asarray(calibcritHEADS_tmp).flatten() == hnoflo,np.asarray(calibcritHEADS_tmp).flatten()))
+                if tmp< 0:
+                    ymin_tmp = 1.2*tmp
+                else:
+                    ymin_tmp = 0.8*tmp
+                del tmp
+            else:
+                ymin_tmp = ymin
+            plt.ylim(ymin_tmp, max_tmp)
+            plt.setp(ax2.get_yticklabels(), fontsize=6)
+            ax2.set_xlim(0, len(calibcritHEADS_tmp)+1)
+            labels = ax2.get_xticklabels(which='both')
+            plt.setp(labels, rotation=90, fontsize=6)
+            del labels
+        if test > 0:
+            plt_export_fn_tmp = "%s_%d.png" % (plt_export_fn.split(".")[0], p)
+            plt.savefig(plt_export_fn_tmp, dpi = 150)
+            plt.close('all')
+        p_mult += num_plt_max
 
 ##################
 if __name__ == "__main__":
