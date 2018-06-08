@@ -775,20 +775,26 @@ if plt_input == 1:
         else:
             Vmax_tmp = np.ma.max(Vmax)
             Vmin_tmp = np.ma.min(Vmin)
-        MMplot.plotLAYER(days=[0], str_per=[0], Date='NA', JD='NA', ncol=cMF.ncol, nrow=cMF.nrow, nlay=cMF.nlay,
+        try:
+            MMplot.plotLAYER(days=[0], str_per=[0], Date='NA', JD='NA', ncol=cMF.ncol, nrow=cMF.nrow, nlay=cMF.nlay,
                          nplot=nplot, V=V, cmap=plt.cm.gist_rainbow_r, CBlabel=CBlabel, msg='',
                          plt_title='IN_%03d_%s' % (i_lbl, lst_lbl[i]), MM_ws=MM_ws_out, interval_type='linspace',
                          interval_num=5, contours=ctrsMM, Vmax=[Vmax_tmp], Vmin=[Vmin_tmp], ntick=ntick, fmt=fmt,
                          points=obs4map, mask=mask_tmp, hnoflo=cMF.hnoflo)
+        except:
+            print "ERROR plotting input map %s" % lst_lbl[i]
         if lst_lbl[i] == 'elev' or lst_lbl[i] == 'top' or lst_lbl[i] == 'botm':
             i_lbl += 1
             Vmax_tmp = np.ma.max(Vmax)
             Vmin_tmp = np.ma.min(Vmin)
-            MMplot.plotLAYER(days=[0], str_per=[0], Date='NA', JD='NA', ncol=cMF.ncol, nrow=cMF.nrow, nlay=cMF.nlay,
+            try:
+                MMplot.plotLAYER(days=[0], str_per=[0], Date='NA', JD='NA', ncol=cMF.ncol, nrow=cMF.nrow, nlay=cMF.nlay,
                              nplot=nplot, V=V, cmap=plt.cm.gist_rainbow_r, CBlabel=CBlabel, msg='',
                              plt_title='IN_%03d_%s' % (i_lbl, lst_lbl[i]), MM_ws=MM_ws_out, interval_type='linspace',
                              interval_num=5, contours=ctrsMM, Vmax=[Vmax_tmp], Vmin=[Vmin_tmp], ntick=ntick, fmt=fmt,
                              points=obs4map, ptslbl=1, mask=mask_tmp, hnoflo=cMF.hnoflo)
+            except:
+                print "ERROR plotting input map %s" % lst_lbl[i]
         i_lbl += 1
     del V, lst, lst_lbl, nplot, Vmax, Vmin, Vmax_tmp, Vmin_tmp, top_tmp, hk_actual_tmp
 
@@ -804,11 +810,14 @@ if plt_input == 1:
         for L in range(cMF.nlay):
             mask_tmp[L, :, :] = cMF.maskAllL
         # print V_lbl
-        MMplot.plotLAYER(days=[0], str_per=[0], Date='NA', JD='NA', ncol=cMF.ncol, nrow=cMF.nrow, nlay=cMF.nlay,
+        try:
+            MMplot.plotLAYER(days=[0], str_per=[0], Date='NA', JD='NA', ncol=cMF.ncol, nrow=cMF.nrow, nlay=cMF.nlay,
                          nplot=1, V=V, cmap=plt.cm.gist_rainbow_r, CBlabel=V_lblCB, msg='',
                          plt_title='IN_%03d_%s' % (i_lbl, V_lbl), MM_ws=MM_ws_out, interval_type='linspace',
                          interval_num=5, contours=False, Vmax=[Vmax], Vmin=[Vmin], ntick=ntick, fmt='%5.1f',
                          points=obs4map, mask=mask_tmp, hnoflo=cMF.hnoflo)
+        except:
+            print "ERROR plotting input map %s" % V_lbl
         i_lbl += 1
     del V, V_lbl, V_lblCB
     VareaSoil = 100.0 - Vvegtot
@@ -816,11 +825,14 @@ if plt_input == 1:
     lst_lbl = ['veg_tot', 'soil']
     lst_lblCB = ['Frac. area of veg. tot. (%)', 'Frac. area of soil (%)']
     for i, l in enumerate(lst):
-        MMplot.plotLAYER(days=[0], str_per=[0], Date='NA', JD='NA', ncol=cMF.ncol, nrow=cMF.nrow, nlay=cMF.nlay,
+        try:
+            MMplot.plotLAYER(days=[0], str_per=[0], Date='NA', JD='NA', ncol=cMF.ncol, nrow=cMF.nrow, nlay=cMF.nlay,
                          nplot=1, V=l, cmap=plt.cm.gist_rainbow_r, CBlabel=lst_lblCB[i], msg='',
                          plt_title='IN_%03d_%s' % (i_lbl, lst_lbl[i]), MM_ws=MM_ws_out, interval_type='linspace',
                          interval_num=5, contours=False, Vmax=[Vmax], Vmin=[Vmin], ntick=ntick, fmt='%5.1f',
                          points=obs4map, mask=mask_tmp, hnoflo=cMF.hnoflo)
+        except:
+            print "ERROR plotting input map %s" % lst_lbl[i]
         i_lbl += 1
     del Vmax, Vmin
 
@@ -864,11 +876,14 @@ if plt_input == 1:
                 nplot = 1
         Vmax = np.ma.max(Vmax)
         Vmin = np.ma.min(Vmin)
-        MMplot.plotLAYER(days=[0], str_per=[0], Date='NA', JD='NA', ncol=cMF.ncol, nrow=cMF.nrow, nlay=cMF.nlay,
+        try:
+            MMplot.plotLAYER(days=[0], str_per=[0], Date='NA', JD='NA', ncol=cMF.ncol, nrow=cMF.nrow, nlay=cMF.nlay,
                          nplot=nplot, V=V, cmap=plt.cm.gist_rainbow_r, CBlabel=lst_lblCB[i], msg='',
                          plt_title='IN_%03d_%s' % (i_lbl, lst_lbl[i]), MM_ws=MM_ws_out, interval_type='linspace',
                          interval_num=5, contours=False, Vmax=[Vmax], Vmin=[Vmin], ntick=ntick, fmt='%2.2f',
                          points=obs4map, mask=mask_tmp, hnoflo=cMF.hnoflo)
+        except:
+            print "ERROR plotting input map %s" % lst_lbl[i]
         i_lbl += 1
     del V, lst, lst_lbl, lst_lblCB, nplot, Vmax, Vmin
 
@@ -1920,14 +1935,14 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
     plt_exportCATCH_txt.close()
     del flxlbl_CATCH_str
     if WBsankey_yn == 1:
-        #try:
-        MMplot.plotWBsankey(MM_ws_out, cMF.inputDate, flxCatch_lst, flxIndex_lst,
+        try:
+            MMplot.plotWBsankey(MM_ws_out, cMF.inputDate, flxCatch_lst, flxIndex_lst,
                                 fn=plt_exportCATCH_txt_fn.split('\\')[-1], indexTime=HYindex, year_lst=year_lst,
                                 cMF=cMF, ncell_MM=ncell_MM, obspt='whole catchment', fntitle='0CATCHMENT',
                                 ibound4Sankey=np.ones((cMF.nlay), dtype=int), stdout=stdout, report=report)
-        #    print 'WB Sankey plot done!\n-------'
-        #except:
-        #    print 'WB Sankey plot error!\n-------'
+            print 'WB Sankey plot done!\n-------'
+        except:
+            print 'WB Sankey plot error!\n-------'
     del flxCatch_lst, flxCatch_lst_str, out_line, plt_exportCATCH_fn, plt_exportCATCH_txt_fn, plt_titleCATCH
 
 # #################################################
@@ -2321,16 +2336,16 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                                  'Nash-Sutcliffe efficiency', "Pearson's correlation coefficient"],
                                 [rmseSMmax, None, 1.0, 1.0], [rmseHEADSmax, None, 1.0, 1.0], [0, 0, None, -1.0],
                                 [['(m)', '(%wc)'], ['', ''], ['', ''], ['', '']])):
-            #try:
-            MMplot.plotCALIBCRIT(calibcritSM=calibcritSM, calibcritSMobslst=obslstSM, calibcritHEADS=calibcritHEADS,
+            try:
+                MMplot.plotCALIBCRIT(calibcritSM=calibcritSM, calibcritSMobslst=obslstSM, calibcritHEADS=calibcritHEADS,
                                      calibcritHEADSobslst=obslstHEADS, calibcritHEADSc=calibcritHEADSc,
                                      calibcritHEADScobslst=obslstHEADSc,
                                      plt_export_fn=os.path.join(MM_ws_out, '__plt_calibcrit%s.png' % calibcrit),
                                      plt_title='Calibration criteria between simulated and observed state variables\n%s' % title,
                                      calibcrit=calibcrit, calibcritSMmax=calibcritSMmax,
                                      calibcritHEADSmax=calibcritHEADSmax, ymin=ymin, units=units, hnoflo=cMF.hnoflo)
-            #except:
-            #    print '-------\nError in exporting %s at obs. pt. %s' % (calibcrit, obs_list[cc])
+            except:
+                print '-------\nError in exporting %s at obs. pt. %s' % (calibcrit, obs_list[cc])
         if len(obslstHEADS) > 0 or len(obslstSM) > 0:
             print '-------\nRMSE/RSR/NSE/r averages of the obs. pts. (except catch.)'
             try:
@@ -2450,11 +2465,14 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
             maskAllL_tmp[L, :, :] = cMF.maskAllL
         Vmax[i] = hmaxMF
         Vmin[i] = hminMF
-    MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
+    try:
+        MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
                      nlay=cMF.nlay, nplot=cMF.nlay, V=V, cmap=plt.cm.Blues,
                      CBlabel='hydraulic heads elevation - $h$ (m)', msg='DRY', plt_title='OUT_MF_HEADS',
                      MM_ws=MM_ws_out, interval_type='linspace', interval_num=5, contours=ctrsMF, Vmax=Vmax, Vmin=Vmin,
                      ntick=ntick, points=obs4map, mask=mask_tmp, hnoflo=cMF.hnoflo, animation=animation, cMF=cMF)
+    except:
+        print "ERROR plotting map of heads"
 
     # plot GWTD [m]
     for i, t in enumerate(days_lst):
@@ -2462,11 +2480,14 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
             V[i, L, :, :] = cMF.elev - V[i, L, :, :]
             Vmin[i] = GWTDmin
             Vmax[i] = GWTDmax
-    MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
+    try:
+        MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
                      nlay=cMF.nlay, nplot=cMF.nlay, V=V, cmap=plt.cm.Blues,
                      CBlabel='depth to groundwater table - $d$ (m)', msg='DRY', plt_title='OUT_MF_GWTD',
                      MM_ws=MM_ws_out, interval_type='linspace', interval_num=5, contours=ctrsMF, Vmax=Vmax, Vmin=Vmin,
                      ntick=ntick, points=obs4map, mask=mask_tmp, hnoflo=cMF.hnoflo, animation=animation, cMF=cMF)
+    except:
+        print "ERROR plotting map of dgw"
 
     # plot heads corrigidas [m]
     headscorr_m = np.zeros((len(days_lst), cMF.nlay, cMF.nrow, cMF.ncol), dtype=np.float32)
@@ -2476,11 +2497,14 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
             atol=1E+25)
         Vmin[i] = hcorrmin
         Vmax[i] = hcorrmax
-    MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
+    try:
+        MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
                      nlay=cMF.nlay, nplot=1, V=headscorr_m, cmap=plt.cm.Blues,
                      CBlabel='hydraulic heads elevation - $h$ (m)', msg='DRY', plt_title='OUT_MF_HEADScorr',
                      MM_ws=MM_ws_out, interval_type='linspace', interval_num=5, contours=ctrsMF, Vmax=Vmax, Vmin=Vmin,
                      ntick=ntick, points=obs4map, mask=mask_tmp, hnoflo=cMF.hnoflo, animation=animation, cMF=cMF)
+    except:
+        print "ERROR plotting map of heads corrected"
 
     # plot GWTD correct [m]
     GWTDcorr = np.zeros((len(days_lst), cMF.nlay, cMF.nrow, cMF.ncol), dtype=np.float32)
@@ -2488,11 +2512,14 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
         GWTDcorr[i, 0, :, :] = cMF.elev - headscorr_m[i, 0, :, :]
         Vmin[i] = GWTDcorrmin
         Vmax[i] = GWTDcorrmax
-    MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
+    try:
+        MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
                      nlay=cMF.nlay, nplot=1, V=GWTDcorr, cmap=plt.cm.Blues,
                      CBlabel='depth to groundwater table - $d$ (m)', msg='DRY', plt_title='OUT_MF_GWTDcorr',
                      MM_ws=MM_ws_out, interval_type='linspace', interval_num=5, contours=ctrsMF, Vmax=Vmax, Vmin=Vmin,
                      ntick=ntick, points=obs4map, mask=mask_tmp, hnoflo=cMF.hnoflo, animation=animation, cMF=cMF)
+    except:
+        print "ERROR plotting map of dgw corrected"
 
     # plot GW GROSS RCH [mm]
     Rg = np.zeros((len(days_lst), cMF.nlay, cMF.nrow, cMF.ncol), dtype=np.float32)
@@ -2503,18 +2530,21 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
         Vmax[i] = RCHmax
         Vmin1[i] = np.ma.min(Rg[i, :, :, :])
         Vmax1[i] = np.ma.max(Rg[i, :, :, :])
-    MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
+    try:
+        MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
                      nlay=cMF.nlay, nplot=cMF.nlay, V=Rg, cmap=plt.cm.Blues,
                      CBlabel='groundwater gross recharge - $Rg$ (mm.day$^{-1}$)', msg='- no flux',
                      plt_title='OUT_MF_Rg', MM_ws=MM_ws_out, interval_type='linspace', interval_num=5, Vmin=Vmin,
                      contours=ctrsMF, Vmax=Vmax, ntick=ntick, points=obs4map, hnoflo=cMF.hnoflo, mask=mask_tmp,
                      animation=animation, cMF=cMF)
-    MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
+        MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
                      nlay=cMF.nlay, nplot=cMF.nlay, V=Rg, cmap=plt.cm.Blues,
                      CBlabel='groundwater gross recharge - $Rg$ (mm.day$^{-1}$)', msg='- no flux',
                      plt_title='OUT_MF_Rg1', MM_ws=MM_ws_out, interval_type='linspace', interval_num=5, Vmin=Vmin1,
                      contours=ctrsMF, Vmax=Vmax1, ntick=ntick, points=obs4map, hnoflo=cMF.hnoflo, mask=mask_tmp,
                      animation=animation, cMF=cMF)
+    except:
+        print "ERROR plotting map of Rg"
 
     # plot GW EFFECTIVE RCH [mm]
     Re = np.zeros((len(days_lst), cMF.nlay, cMF.nrow, cMF.ncol), dtype=np.float32)
@@ -2525,18 +2555,21 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
         Vmax[i] = np.ma.max(Re)
         Vmin1[i] = np.ma.min(Re[i, :, :, :])
         Vmax1[i] = np.ma.max(Re[i, :, :, :])
-    MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
+    try:
+        MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
                      nlay=cMF.nlay, nplot=cMF.nlay, V=Re, cmap=plt.cm.Blues,
                      CBlabel='groundwater effective recharge - $Re$ (mm.day$^{-1}$)', msg='- no flux',
                      plt_title='OUT_MF_Re', MM_ws=MM_ws_out, interval_type='linspace', interval_num=5, Vmin=Vmin,
                      contours=ctrsMF, Vmax=Vmax, ntick=ntick, points=obs4map, hnoflo=cMF.hnoflo, mask=mask_tmp,
                      animation=animation, cMF=cMF)
-    MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
+        MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
                      nlay=cMF.nlay, nplot=cMF.nlay, V=Re, cmap=plt.cm.Blues_r,
                      CBlabel='groundwater effective recharge - $Re$ (mm.day$^{-1}$)', msg='- no flux',
                      plt_title='OUT_MF_Re1', MM_ws=MM_ws_out, interval_type='linspace', interval_num=5, Vmin=Vmin1,
                      contours=ctrsMF, Vmax=Vmax1, ntick=ntick, points=obs4map, hnoflo=cMF.hnoflo, mask=mask_tmp,
                      animation=animation, cMF=cMF)
+    except:
+        print "ERROR plotting map of Re"
 
     # plot GW NET RCH [mm]
     if cMF.wel_yn == 1:
@@ -2548,18 +2581,21 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
             Vmax[i] = np.ma.max(Rn)
             Vmin1[i] = np.ma.min(Rn[i, :, :, :])
             Vmax1[i] = np.ma.max(Rn[i, :, :, :])
-        MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
+        try:
+            MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
                          nlay=cMF.nlay, nplot=cMF.nlay, V=Rn, cmap=plt.cm.Blues,
                          CBlabel='groundwater net recharge - $Rn$ (mm.day$^{-1}$)', msg='- no flux',
                          plt_title='OUT_MF_Rn', MM_ws=MM_ws_out, interval_type='linspace', interval_num=5, Vmin=Vmin,
                          contours=ctrsMF, Vmax=Vmax, ntick=ntick, points=obs4map, hnoflo=cMF.hnoflo, mask=mask_tmp,
                          animation=animation, cMF=cMF)
-        MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
+            MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
                          nlay=cMF.nlay, nplot=cMF.nlay, V=Rn, cmap=plt.cm.Blues,
                          CBlabel='groundwater net recharge - $Rn$ (mm.day$^{-1}$)', msg='- no flux',
                          plt_title='OUT_MF_Rn1', MM_ws=MM_ws_out, interval_type='linspace', interval_num=5, Vmin=Vmin1,
                          contours=ctrsMF, Vmax=Vmax1, ntick=ntick, points=obs4map, hnoflo=cMF.hnoflo, mask=mask_tmp,
                          animation=animation, cMF=cMF)
+        except:
+            print "ERROR plotting map of Rn"
         del Rn
 
     del Rg, Re
@@ -2574,18 +2610,21 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
             Vmax[i] = DRNmax
             Vmin1[i] = np.ma.min(V[i, :, :, :])
             Vmax1[i] = np.ma.max(V[i, :, :, :])
-        MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
+        try:
+            MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
                          nlay=cMF.nlay, nplot=cMF.nlay, V=V, cmap=plt.cm.Blues,
                          CBlabel='groundwater drainage - $DRN$ (mm.day$^{-1}$)', msg='- no drainage',
                          plt_title='OUT_MF_DRN', MM_ws=MM_ws_out, interval_type='linspace', interval_num=5, Vmin=Vmin,
                          contours=ctrsMF, Vmax=Vmax, ntick=ntick, points=obs4map, mask=mask_tmp, hnoflo=cMF.hnoflo,
                          animation=animation, cMF=cMF)
-        MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
+            MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
                          nlay=cMF.nlay, nplot=cMF.nlay, V=V, cmap=plt.cm.Blues,
                          CBlabel='groundwater drainage - $DRN$ (mm.day$^{-1}$)', msg='- no drainage',
                          plt_title='OUT_MF_DRN1', MM_ws=MM_ws_out, interval_type='linspace', interval_num=5, Vmin=Vmin1,
                          contours=ctrsMF, Vmax=Vmax1, ntick=ntick, points=obs4map, mask=mask_tmp, hnoflo=cMF.hnoflo,
                          animation=animation, cMF=cMF)
+        except:
+            print "ERROR plotting map of DRN"
 
     # plot GHB [mm]
     if cMF.ghb_yn == 1:
@@ -2597,18 +2636,21 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
             Vmax[i] = GHBmax
             Vmin1[i] = np.ma.min(V[i, :, :, :])
             Vmax1[i] = np.ma.max(V[i, :, :, :])
-        MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
+        try:
+            MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
                          nlay=cMF.nlay, nplot=cMF.nlay, V=V, cmap=plt.cm.Blues,
                          CBlabel='general head bdry - $GHB$ (mm.day$^{-1}$)', msg='- no flux', plt_title='OUT_MF_GHB',
                          MM_ws=MM_ws_out, interval_type='linspace', interval_num=5, Vmin=Vmin, contours=ctrsMF,
                          Vmax=Vmax, ntick=ntick, points=obs4map, hnoflo=cMF.hnoflo, mask=mask_tmp, animation=animation,
                          cMF=cMF)
-        MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
+            MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
                          nlay=cMF.nlay, nplot=cMF.nlay, V=V, cmap=plt.cm.Blues,
                          CBlabel='general head bdry - $GHB$ (mm.day$^{-1}$)', msg='- no flux', plt_title='OUT_MF_GHB1',
                          MM_ws=MM_ws_out, interval_type='linspace', interval_num=5, Vmin=Vmin1, contours=ctrsMF,
                          Vmax=Vmax1, ntick=ntick, points=obs4map, hnoflo=cMF.hnoflo, mask=mask_tmp, animation=animation,
                          cMF=cMF)
+        except:
+            print "ERROR plotting map of GHB"
 
     # plot CH (mm)
     if len(cMF.ibound[cMF.ibound < 0]) > 0:
@@ -2620,18 +2662,21 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
             Vmax[i] = CHmax
             Vmin1[i] = np.ma.min(V[i, :, :, :])
             Vmax1[i] = np.ma.max(V[i, :, :, :])
-        MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
+        try:
+            MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
                          nlay=cMF.nlay, nplot=cMF.nlay, V=V, cmap=plt.cm.Blues,
                          CBlabel='constant head - $CH$ (mm.day$^{-1}$)', msg='- no flux', plt_title='OUT_MF_CH',
                          MM_ws=MM_ws_out, interval_type='linspace', interval_num=5, Vmin=Vmin, contours=ctrsMF,
                          Vmax=Vmax, ntick=ntick, points=obs4map, hnoflo=cMF.hnoflo, mask=mask_tmp, animation=animation,
                          cMF=cMF)
-        MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
+            MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
                          nlay=cMF.nlay, nplot=cMF.nlay, V=V, cmap=plt.cm.Blues,
                          CBlabel='constant head - $CH$ (mm.day$^{-1}$)', msg='- no flux', plt_title='OUT_MF_CH1',
                          MM_ws=MM_ws_out, interval_type='linspace', interval_num=5, Vmin=Vmin1, contours=ctrsMF,
                          Vmax=Vmax1, ntick=ntick, points=obs4map, hnoflo=cMF.hnoflo, mask=mask_tmp, animation=animation,
                          cMF=cMF)
+        except:
+            print "ERROR plotting map of CH"
 
     # plot EXF [mm]
     V = np.zeros((len(days_lst), cMF.nlay, cMF.nrow, cMF.ncol), dtype=np.float32)
@@ -2642,18 +2687,21 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
         Vmax[i] = EXFmax
         Vmin1[i] = np.ma.min(V[i, :, :, :])
         Vmax1[i] = np.ma.max(V[i, :, :, :])
-    MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
+    try:
+        MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
                      nlay=cMF.nlay, nplot=cMF.nlay, V=V, cmap=plt.cm.Blues,
                      CBlabel='groundwater exfiltration - $Exf_g$ (mm.day$^{-1}$)', msg='- no exfiltration',
                      plt_title='OUT_MF_EXF', MM_ws=MM_ws_out, interval_type='linspace', interval_num=5, Vmin=Vmin,
                      contours=ctrsMF, Vmax=Vmax, ntick=ntick, points=obs4map, mask=mask_tmp, hnoflo=cMF.hnoflo,
                      animation=animation, cMF=cMF)
-    MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
+        MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
                      nlay=cMF.nlay, nplot=cMF.nlay, V=V, cmap=plt.cm.Blues,
                      CBlabel='groundwater exfiltration - $Exf_g$ (mm.day$^{-1}$)', msg='- no exfiltration',
                      plt_title='OUT_MF_EXF1', MM_ws=MM_ws_out, interval_type='linspace', interval_num=5, Vmin=Vmin1,
                      contours=ctrsMF, Vmax=Vmax1, ntick=ntick, points=obs4map, mask=mask_tmp, hnoflo=cMF.hnoflo,
                      animation=animation, cMF=cMF)
+    except:
+        print "ERROR plotting map of EXF"
 
     del V
     del Vmin1, Vmax1, Vmin, Vmax
@@ -2668,23 +2716,29 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
         V[0, L, :, :] = np.ma.masked_array(
             np.sum(h_MF_m[HYindex[1]:HYindex[-2], L, :, :], axis=0) / (HYindex[-2] - HYindex[1] + 1), mask[L])
     for i, int_typ in enumerate(['percentile', 'linspace']):
-        MMplot.plotLAYER(days=['NA'], str_per=['NA'], Date=['NA'], JD=['NA'], ncol=cMF.ncol, nrow=cMF.nrow,
+        try:
+            MMplot.plotLAYER(days=['NA'], str_per=['NA'], Date=['NA'], JD=['NA'], ncol=cMF.ncol, nrow=cMF.nrow,
                          nlay=cMF.nlay, nplot=cMF.nlay, V=V, cmap=plt.cm.Blues,
                          CBlabel='hydraulic heads elevation - $h$ (m)', msg='DRY',
                          plt_title='OUT_average_MF_HEADS%s' % int_typ, MM_ws=MM_ws_out, interval_type=int_typ,
                          interval_num=5, contours=ctrsMF, Vmax=[hmaxMF], Vmin=[hminMF], ntick=ntick, points=obs4map,
                          ptslbl=0, mask=mask_tmp, hnoflo=cMF.hnoflo, cMF=cMF)
+        except:
+            print "ERROR plotting map of heads average"
 
     # plot GWTD average [m]
     for L in range(cMF.nlay):
         V[0, L, :, :] = cMF.elev - V[0, L, :, :]
     for i, int_typ in enumerate(['percentile', 'linspace']):
-        MMplot.plotLAYER(days=['NA'], str_per=['NA'], Date=['NA'], JD=['NA'], ncol=cMF.ncol, nrow=cMF.nrow,
+        try:
+            MMplot.plotLAYER(days=['NA'], str_per=['NA'], Date=['NA'], JD=['NA'], ncol=cMF.ncol, nrow=cMF.nrow,
                          nlay=cMF.nlay, nplot=cMF.nlay, V=V, cmap=plt.cm.Blues,
                          CBlabel='depth to groundwater table - $d$ (m)', msg='DRY',
                          plt_title='OUT_average_MF_GWTD%s' % int_typ, MM_ws=MM_ws_out, interval_type=int_typ,
                          interval_num=5, contours=ctrsMF, Vmax=[GWTDmax], Vmin=[GWTDmin], ntick=ntick, points=obs4map,
                          ptslbl=0, mask=mask_tmp, hnoflo=cMF.hnoflo, cMF=cMF)
+        except:
+            print "ERROR plotting map of dgw average"
 
     # plot heads corrigidas average [m]
     headscorr_m = np.zeros((1, cMF.nlay, cMF.nrow, cMF.ncol), dtype=np.float32)
@@ -2692,23 +2746,29 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
         np.sum(h5_MM['MM'][HYindex[1]:HYindex[-2], :, :, 19], axis=0) / (HYindex[-2] - HYindex[1] + 1), cMF.hnoflo,
         atol=0.09), cMF.hdry, atol=1E+25)
     for i, int_typ in enumerate(['percentile', 'linspace']):
-        MMplot.plotLAYER(days=['NA'], str_per=['NA'], Date=['NA'], JD=['NA'], ncol=cMF.ncol, nrow=cMF.nrow,
+        try:
+            MMplot.plotLAYER(days=['NA'], str_per=['NA'], Date=['NA'], JD=['NA'], ncol=cMF.ncol, nrow=cMF.nrow,
                          nlay=cMF.nlay, nplot=1, V=headscorr_m, cmap=plt.cm.Blues,
                          CBlabel='hydraulic heads elevation - $h$ (m)', msg='DRY',
                          plt_title='OUT_average_MF_HEADScorr%s' % int_typ, MM_ws=MM_ws_out, interval_type=int_typ,
                          interval_num=5, contours=ctrsMF, Vmax=[hcorrmax], Vmin=[hcorrmin], ntick=ntick, points=obs4map,
                          ptslbl=0, mask=maskAllL_tmp, hnoflo=cMF.hnoflo, cMF=cMF)
+        except:
+            print "ERROR plotting map of heads corrected average"
 
     # plot GWTD correct average [m]
     GWTDcorr = np.zeros((1, cMF.nlay, cMF.nrow, cMF.ncol), dtype=np.float32)
     GWTDcorr[0, 0, :, :] = cMF.elev - headscorr_m[0, 0, :, :]
     for i, int_typ in enumerate(['percentile', 'linspace']):
-        MMplot.plotLAYER(days=['NA'], str_per=['NA'], Date=['NA'], JD=['NA'], ncol=cMF.ncol, nrow=cMF.nrow,
+        try:
+            MMplot.plotLAYER(days=['NA'], str_per=['NA'], Date=['NA'], JD=['NA'], ncol=cMF.ncol, nrow=cMF.nrow,
                          nlay=cMF.nlay, nplot=1, V=GWTDcorr, cmap=plt.cm.Blues,
                          CBlabel='depth to groundwater table - $d$ (m)', msg='DRY',
                          plt_title='OUT_average_MF_GWTDcorr%s' % int_typ, MM_ws=MM_ws_out, interval_type=int_typ,
                          interval_num=5, contours=ctrsMF, Vmax=[GWTDcorrmax], Vmin=[GWTDcorrmin], ntick=ntick,
                          points=obs4map, ptslbl=0, mask=maskAllL_tmp, hnoflo=cMF.hnoflo, cMF=cMF)
+        except:
+            print "ERROR plotting map of dgw corrected average"
 
     # plot GW GROSS RCH average [mm]
     Rg = np.zeros((1, cMF.nlay, cMF.nrow, cMF.ncol), dtype=np.float32)
@@ -2716,21 +2776,27 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
         Rg[0, L, :, :] = np.ma.masked_array(
             np.sum(cbc_RCH[HYindex[1]:HYindex[-2], L, :, :], axis=0) / (HYindex[-2] - HYindex[1] + 1), mask[L])
     for i, int_typ in enumerate(['percentile', 'linspace']):
-        MMplot.plotLAYER(days=['NA'], str_per=['NA'], Date=['NA'], JD=['NA'], ncol=cMF.ncol, nrow=cMF.nrow,
+        try:
+            MMplot.plotLAYER(days=['NA'], str_per=['NA'], Date=['NA'], JD=['NA'], ncol=cMF.ncol, nrow=cMF.nrow,
                          nlay=cMF.nlay, nplot=cMF.nlay, V=Rg, cmap=plt.cm.Blues,
                          CBlabel='groundwater gross recharge - $Rg$ (mm.day$^{-1}$)', msg='- no flux',
                          plt_title='OUT_average_MF_Rg%s' % int_typ, MM_ws=MM_ws_out, interval_type=int_typ,
                          interval_num=5, Vmax=[RCHmax], Vmin=[RCHmin], contours=ctrsMF, ntick=ntick, points=obs4map,
                          ptslbl=1, mask=mask_tmp, hnoflo=cMF.hnoflo, cMF=cMF)
+        except:
+            print "ERROR plotting map of Rg average"
     Vmin_tmp1 = np.min(Rg)
     Vmax_tmp1 = np.max(Rg)
     for i, int_typ in enumerate(['linspace']):
-        MMplot.plotLAYER(days=['NA'], str_per=['NA'], Date=['NA'], JD=['NA'], ncol=cMF.ncol, nrow=cMF.nrow,
+        try:
+            MMplot.plotLAYER(days=['NA'], str_per=['NA'], Date=['NA'], JD=['NA'], ncol=cMF.ncol, nrow=cMF.nrow,
                          nlay=cMF.nlay, nplot=cMF.nlay, V=Rg, cmap=plt.cm.Blues,
                          CBlabel='groundwater gross recharge - $Rg$ (mm.day$^{-1}$)', msg='- no flux',
                          plt_title='OUT_average_MF_Rg1%s' % int_typ, MM_ws=MM_ws_out, interval_type=int_typ,
                          interval_num=5, Vmax=[Vmax_tmp1], Vmin=[Vmin_tmp1], contours=ctrsMF, ntick=ntick,
                          points=obs4map, ptslbl=0, mask=mask_tmp, hnoflo=cMF.hnoflo, cMF=cMF)
+        except:
+            print "ERROR plotting map of Rg average"
 
     # plot GW EFFECTIVE RCH average [mm]
     Re = np.zeros((1, cMF.nlay, cMF.nrow, cMF.ncol), dtype=np.float32)
@@ -2746,7 +2812,7 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
                          interval_num=5, Vmax=[np.ma.max(Re)], Vmin=[np.ma.min(Re)], contours=ctrsMF, ntick=ntick,
                          points=obs4map, ptslbl=0, mask=mask_tmp, hnoflo=cMF.hnoflo, cMF=cMF)
         except:
-            print "ERROR IN PLOTTING GW EFFECTIVE RCH average"
+            print "ERROR plotting map of Re average"
     Vmin_tmp1 = np.min(Re)
     Vmax_tmp1 = np.max(Re)
 
@@ -2765,7 +2831,7 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
                              interval_num=5, Vmax=[np.ma.max(Rn)], Vmin=[np.ma.min(Rn)], contours=ctrsMF, ntick=ntick,
                              points=obs4map, ptslbl=0, mask=mask_tmp, hnoflo=cMF.hnoflo, cMF=cMF)
             except:
-                print "ERROR IN PLOTTING GW NET RCH average"
+                print "ERROR plotting map of Rn average"
         del Rn, cbc_WEL
 
     del cbc_RCH, Rg, Re
@@ -2786,17 +2852,20 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
                              interval_num=5, Vmax=[DRNmax], Vmin=[DRNmin], contours=ctrsMF, ntick=ntick, points=obs4map,
                              ptslbl=1, mask=mask_tmp, hnoflo=cMF.hnoflo, cMF=cMF)
             except:
-                print "ERROR IN PLOTTING GW drainage average"
+                print "ERROR plotting map of DRN average"
         del cbc_DRN, DRNmax, DRNmin
         Vmin_tmp1 = np.min(V)
         Vmax_tmp1 = np.max(V)
         for i, int_typ in enumerate(['linspace']):
-            MMplot.plotLAYER(days=['NA'], str_per=['NA'], Date=['NA'], JD=['NA'], ncol=cMF.ncol, nrow=cMF.nrow,
+            try:
+                MMplot.plotLAYER(days=['NA'], str_per=['NA'], Date=['NA'], JD=['NA'], ncol=cMF.ncol, nrow=cMF.nrow,
                              nlay=cMF.nlay, nplot=cMF.nlay, V=V, cmap=plt.cm.Blues,
                              CBlabel='groundwater drainage - $DRN$ (mm.day$^{-1}$)', msg='- no drainage',
                              plt_title='OUT_average_MF_DRN1%s' % int_typ, MM_ws=MM_ws_out, interval_type=int_typ,
                              interval_num=5, Vmax=[Vmax_tmp1], Vmin=[Vmin_tmp1], contours=ctrsMF, ntick=ntick,
                              points=obs4map, ptslbl=0, mask=mask_tmp, hnoflo=cMF.hnoflo, cMF=cMF)
+            except:
+                print "ERROR plotting map of Rn average"
 
     # plot GHB average [mm]
     if cMF.ghb_yn == 1:
@@ -2814,16 +2883,19 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
                              interval_num=5, Vmax=[GHBmax], Vmin=[GHBmin], contours=ctrsMF, ntick=ntick, points=obs4map,
                              ptslbl=1, mask=mask_tmp, hnoflo=cMF.hnoflo, cMF=cMF)
             except:
-                print "ERROR IN PLOTTING GHB"
+                print "ERROR plotting map of GHB average"
         Vmin_tmp1 = np.min(V)
         Vmax_tmp1 = np.max(V)
         for i, int_typ in enumerate(['linspace']):
-            MMplot.plotLAYER(days=['NA'], str_per=['NA'], Date=['NA'], JD=['NA'], ncol=cMF.ncol, nrow=cMF.nrow,
+            try:
+                MMplot.plotLAYER(days=['NA'], str_per=['NA'], Date=['NA'], JD=['NA'], ncol=cMF.ncol, nrow=cMF.nrow,
                              nlay=cMF.nlay, nplot=cMF.nlay, V=V, cmap=plt.cm.Blues,
                              CBlabel='general head bdry - $GHB$ (mm.day$^{-1}$)', msg='- no flux',
                              plt_title='OUT_average_MF_GHB1%s' % int_typ, MM_ws=MM_ws_out, interval_type=int_typ,
                              interval_num=5, Vmax=[Vmax_tmp1], Vmin=[Vmin_tmp1], contours=ctrsMF, ntick=ntick,
                              points=obs4map, ptslbl=0, mask=mask_tmp, hnoflo=cMF.hnoflo, cMF=cMF)
+            except:
+                print "ERROR plotting map of GHB average"
 
     # plot CH average (mm)
     # plot CH (mm)
@@ -2842,7 +2914,7 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
                              interval_num=5, Vmax=[CHmax], Vmin=[CHmin], contours=ctrsMF, ntick=ntick, points=obs4map,
                              ptslbl=1, mask=mask_tmp, hnoflo=cMF.hnoflo, cMF=cMF)
             except:
-                print "ERROR IN PLOTTING CH"
+                print "ERROR plotting map of CH average"
         del cbc_CH, CHmax, CHmin
         Vmin_tmp1 = np.min(V)
         Vmax_tmp1 = np.max(V)
@@ -2855,7 +2927,7 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
                              interval_num=5, Vmax=[Vmax_tmp1], Vmin=[Vmin_tmp1], contours=ctrsMF, ntick=ntick,
                              points=obs4map, ptslbl=0, mask=mask_tmp, hnoflo=cMF.hnoflo, cMF=cMF)
             except:
-                print "ERROR IN PLOTTING CH average"
+                print "ERROR plotting map of CH average"
 
     # plot GW exfiltration average [mm]
     V = np.zeros((1, cMF.nlay, cMF.nrow, cMF.ncol), dtype=np.float32)
@@ -2871,7 +2943,7 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
                          interval_num=5, Vmax=[EXFmax], Vmin=[EXFmin], contours=ctrsMF, ntick=ntick, points=obs4map,
                          ptslbl=1, mask=mask_tmp, hnoflo=cMF.hnoflo, cMF=cMF)
         except:
-            print "ERROR IN PLOTTING EXFg"
+            print "ERROR plotting map of EXF average"
     del cbc_EXF, EXFmax, EXFmin
     Vmin_tmp1 = np.min(V)
     Vmax_tmp1 = np.max(V)
@@ -2884,7 +2956,7 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
                          interval_num=5, Vmax=[Vmax_tmp1], Vmin=[Vmin_tmp1], contours=ctrsMF, ntick=ntick,
                          points=obs4map, ptslbl=0, mask=mask_tmp, hnoflo=cMF.hnoflo, cMF=cMF)
         except:
-            print "ERROR IN PLOTTING EXFg average"
+            print "ERROR plotting map of EXF average"
 
     h5_MF.close()
     h5_MM.close()
@@ -2932,16 +3004,19 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
             for ii, t in enumerate(days_lst):
                 Vmax[ii] = np.ma.max(Vmax1)
                 Vmin[ii] = np.ma.min(Vmin1)
-            MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
+            try:
+                MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
                              nlay=cMF.nlay, nplot=1, V=V, cmap=plt.cm.Blues, CBlabel=(i_lbl + ' (mm.day$^{-1}$)'),
                              msg='no flux', plt_title=('OUT_MM_' + i), MM_ws=MM_ws_out, interval_type='linspace',
                              interval_num=5, Vmax=Vmax, Vmin=Vmin, contours=ctrsMM, ntick=ntick, points=obs4map,
                              hnoflo=cMF.hnoflo, mask=maskAllL_tmp, animation=animation, cMF=cMF)
-            MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
+                MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
                              nlay=cMF.nlay, nplot=1, V=V, cmap=plt.cm.Blues, CBlabel=(i_lbl + ' (mm.day$^{-1}$)'),
                              msg='no flux', plt_title=('OUT_MM_%s1' % i), MM_ws=MM_ws_out, interval_type='linspace',
                              interval_num=5, Vmax=Vmax1, Vmin=Vmin1, contours=ctrsMM, ntick=ntick, points=obs4map,
                              hnoflo=cMF.hnoflo, mask=maskAllL_tmp, animation=animation, cMF=cMF)
+            except:
+                print "ERROR plotting map of %s at TS &d" % (i_lbl, i)
             del V, MM, Vmax, Vmin
 
         flx_lst = ['Esoil', 'Tsoil']
@@ -2959,11 +3034,14 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
                 V[0, 0, :, :] = np.ma.masked_values(V[0, 0, :, :], cMF.hnoflo, atol=0.09)
             Vmax = [np.ma.max(V)]
             Vmin = [np.ma.min(V)]
-            MMplot.plotLAYER(days=['NA'], str_per=['NA'], Date=['NA'], JD=['NA'], ncol=cMF.ncol, nrow=cMF.nrow,
+            try:
+                MMplot.plotLAYER(days=['NA'], str_per=['NA'], Date=['NA'], JD=['NA'], ncol=cMF.ncol, nrow=cMF.nrow,
                              nlay=cMF.nlay, nplot=1, V=V, cmap=plt.cm.Blues, CBlabel=(i_lbl + ' (mm.day$^{-1}$)'),
                              msg='no flux', plt_title=('OUT_average_MM_%s' % i), MM_ws=MM_ws_out,
                              interval_type='linspace', interval_num=5, Vmax=Vmax, Vmin=Vmin, contours=ctrsMM,
                              ntick=ntick, points=obs4map, mask=maskAllL_tmp, hnoflo=cMF.hnoflo, cMF=cMF)
+            except:
+                print "ERROR plotting map of MM flux average"
             del V
 
             # ############################################
@@ -2984,16 +3062,19 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
             for ii, t in enumerate(days_lst):
                 Vmax[ii] = np.ma.max(Vmax1)
                 Vmin[ii] = np.ma.min(Vmin1)
-            MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
+            try:
+                MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
                              nlay=cMF.nlay, nplot=1, V=V, cmap=plt.cm.Blues, CBlabel=(i_lbl + ' (mm.day$^{-1}$)'),
                              msg='no flux', plt_title=('OUT_MM_' + i), MM_ws=MM_ws_out, interval_type='linspace',
                              interval_num=5, Vmax=Vmax, Vmin=Vmin, contours=ctrsMM, ntick=ntick, points=obs4map,
                              hnoflo=cMF.hnoflo, mask=maskAllL_tmp, animation=animation, cMF=cMF)
-            MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
+                MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
                              nlay=cMF.nlay, nplot=1, V=V, cmap=plt.cm.Blues, CBlabel=(i_lbl + ' (mm.day$^{-1}$)'),
                              msg='no flux', plt_title=('OUT_MM_%s1' % i), MM_ws=MM_ws_out, interval_type='linspace',
                              interval_num=5, Vmax=Vmax1, Vmin=Vmin1, contours=ctrsMM, ntick=ntick, points=obs4map,
                              hnoflo=cMF.hnoflo, mask=maskAllL_tmp, animation=animation, cMF=cMF)
+            except:
+                print "ERROR plotting map of MM"
 
         # ##############################
         # ####   PERCOLATION   #########
@@ -3009,11 +3090,14 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
                     HYindex[-2] - HYindex[1] + 1)
         Vmax = [np.ma.max(V)]
         Vmin = [np.ma.min(V)]
-        MMplot.plotLAYER(days=['NA'], str_per=['NA'], Date=['NA'], JD=['NA'], ncol=cMF.ncol, nrow=cMF.nrow,
+        try:
+            MMplot.plotLAYER(days=['NA'], str_per=['NA'], Date=['NA'], JD=['NA'], ncol=cMF.ncol, nrow=cMF.nrow,
                          nlay=cMF.nlay, nplot=1, V=V, cmap=plt.cm.Blues, CBlabel=(i_lbl + ' (mm.day$^{-1}$)'),
                          msg='no flux', plt_title=('OUT_average_MM_%s' % i), MM_ws=MM_ws_out, interval_type='linspace',
                          interval_num=5, Vmax=Vmax, Vmin=Vmin, contours=ctrsMM, ntick=ntick, points=obs4map,
                          mask=maskAllL_tmp, hnoflo=cMF.hnoflo, cMF=cMF)
+        except:
+            print "ERROR plotting map of inf average"
 
         # ############################################
         # plot for selected day
@@ -3031,16 +3115,19 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
         for ii, t in enumerate(days_lst):
             Vmax[ii] = np.ma.max(Vmax1)
             Vmin[ii] = np.ma.min(Vmin1)
-        MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
+        try:
+            MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
                          nlay=cMF.nlay, nplot=1, V=V, cmap=plt.cm.Blues, CBlabel=(i_lbl + ' (mm.day$^{-1}$)'),
                          msg='no flux', plt_title=('OUT_MM_' + i), MM_ws=MM_ws_out, interval_type='linspace',
                          interval_num=5, Vmax=Vmax, Vmin=Vmin, contours=ctrsMM, ntick=ntick, points=obs4map,
                          hnoflo=cMF.hnoflo, mask=maskAllL_tmp, animation=animation, cMF=cMF)
-        MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
+            MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
                          nlay=cMF.nlay, nplot=1, V=V, cmap=plt.cm.Blues, CBlabel=(i_lbl + ' (mm.day$^{-1}$)'),
                          msg='no flux', plt_title=('OUT_MM_%s1' % i), MM_ws=MM_ws_out, interval_type='linspace',
                          interval_num=5, Vmax=Vmax1, Vmin=Vmin1, contours=ctrsMM, ntick=ntick, points=obs4map,
                          hnoflo=cMF.hnoflo, mask=maskAllL_tmp, animation=animation, cMF=cMF)
+        except:
+            print "ERROR plotting map of inf"
 
         h5_MM.close()
         del V, MM, t, Vmax, Vmin
