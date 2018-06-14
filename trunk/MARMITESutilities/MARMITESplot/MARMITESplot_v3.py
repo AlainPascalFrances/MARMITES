@@ -1612,6 +1612,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
             # about signs, read MF-2005 manual pag 3-10
             MB_MF = []
             #print '%s'%obspt
+            #print ibound4Sankey
             L_act = 0
             lst_colors = []
             for L in range(cMF.nlay):
@@ -1619,7 +1620,6 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
             colors = itertools.cycle(lst_colors)
             for L in range(cMF.nlay):
                 if ibound4Sankey[L] > 0:
-                    L_act += L
                     #print "----"
                     #print L, L_act
                     In = []
@@ -1671,8 +1671,8 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                         #print flows
                         #print labels
                         facecolor = colors.next()
-                    # intermediary layers
                     else:
+                        # intermediary layers
                         #print "intermediary layer"
                         if np.abs(Rg[k][L]) > treshold:
                             flows=[FLF[k][L-1]/ff, Rg[k][L]/ff, -FLF[k][L]/ff, -FRF[k][L]/ff, -FFF[k][L]/ff]
@@ -1780,9 +1780,8 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                     #print facecolor
                     pltsankey.add(patchlabel = '$\Delta S_g$\n%.1f' % (-dSg[k][L]/ff), label='MFL%d'%(L+1), facecolor=facecolor, trunklength = tl, flows = flows, labels = labels, orientations = orientations, pathlengths = pathlengths, prior=3+L_act, connect=connect)
                     MB_MF.append(100*(sum(In) - sum(Out))/((sum(In) + sum(Out))/2))
-                    L_act = 0
+                    L_act += 1
                 else:
-                    L_act -= 1
                     MB_MF.append(np.nan)
                 #print L_act
             # plot all patches

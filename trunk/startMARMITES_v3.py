@@ -611,6 +611,8 @@ for l in range(cMF.nlay):
     cMF.LandSurface += cMF.top * (np.asarray(cMF.iuzfbnd) == l + 1)
 cMF.botm = np.ma.masked_values(cMF.botm, cMF.hnoflo, atol=0.09)
 botm_l0 = np.asarray(cMF.botm)[0, :, :]
+for l in range(cMF.nlay):
+    cMF.iuzfbnd[cMF.ibound[l] <= 0] = 0
 
 # create MM array
 h5_MM_fn = os.path.join(MM_ws, '_h5_MM.h5')
