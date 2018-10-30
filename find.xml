@@ -3,7 +3,9 @@
     <option name="customScope" value="Project 'MARMITES'" />
     <option name="defaultScopeName" value="Project 'MARMITES'" />
     <option name="localCaseSensitive" value="true" />
+    <option name="localWholeWordsOnly" value="true" />
     <option name="LOCAL_CASE_SENSITIVE_SEARCH" value="true" />
+    <option name="LOCAL_WHOLE_WORDS_ONLY" value="true" />
     <option name="SEARCH_SCOPE" value="Project 'MARMITES'" />
   </component>
 </application>
