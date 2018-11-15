@@ -784,7 +784,7 @@ if plt_input == 1:
                          interval_num=5, contours=ctrsMM, Vmax=[Vmax_tmp], Vmin=[Vmin_tmp], ntick=ntick, fmt=fmt,
                          points=obs4map, mask=mask_tmp, hnoflo=cMF.hnoflo)
         except:
-            print "ERROR plotting input map %s" % lst_lbl[i]
+           print "ERROR plotting input map %s" % lst_lbl[i]
         if lst_lbl[i] == 'elev' or lst_lbl[i] == 'top' or lst_lbl[i] == 'botm':
             i_lbl += 1
             Vmax_tmp = np.ma.max(Vmax)
