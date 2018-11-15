@@ -1719,8 +1719,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
         cbc_RCH = h5_MF['RCH_d']
         array_tmp2 = np.zeros((sum(cMF.perlen)), dtype=np.float32)
         rch_tot = 0
-        rmseHEADS_tmp = None
-        rmseSM_tmp = None
+        rmseHEADS_tmp = rmseSM_tmp = rsrHEADS_tmp = rsrSM_tmp = nseHEADS_tmp = nseSM_tmp = rHEADS_tmp = rSM_tmp = None
         # GW_RCH
         for L in range(cMF.nlay):
             flxLbl_lst.append(r'$Rg_%d$' % (L + 1))

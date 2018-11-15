@@ -156,7 +156,7 @@ class clsPROCESS:
 
         # cbc format is : (kstp), kper, textprocess, nrow, ncol, nlay
         t = 0
-        h5_MF.create_dataset(name = ds_name_new, data = np.zeros((sum(cMF.perlen), cMF.nlay, cMF.nrow, cMF.ncol)))
+        h5_MF.create_dataset(name = ds_name_new, data = np.zeros((sum(cMF.perlen), cMF.nlay, cMF.nrow, cMF.ncol), dtype=np.float32))
         for n in range(cMF.nper):
             if cMF.perlen[n] != 1:
                 for x in range(cMF.perlen[n]):
@@ -191,7 +191,7 @@ class clsPROCESS:
     def procMM(self, cMF, h5_MM, ds_name, ds_name_new, conv_fact = 1.0):
 
         t = 0
-        h5_MM.create_dataset(name = ds_name_new, data = np.zeros((sum(cMF.perlen), cMF.nrow, cMF.ncol)))
+        h5_MM.create_dataset(name = ds_name_new, data = np.zeros((sum(cMF.perlen), cMF.nrow, cMF.ncol), dtype=np.float32))
         for n in range(cMF.nper):
             array_tmp = h5_MM[ds_name][n,:,:]
             if cMF.perlen[n] != 1:
@@ -218,9 +218,9 @@ class clsPROCESS:
         gridVEGarea_fn=[]
         for v in range(NVEG):
             gridVEGarea_fn.append(os.path.join(self.MM_ws,'inputVEG' + str(v+1)+'area.asc'))
-        gridVEGarea=np.zeros([NVEG,self.nrow,self.ncol], dtype=float)
+        gridVEGarea=np.zeros([NVEG,self.nrow,self.ncol], dtype=np.float32)
         for v in range(NVEG):
-            grid_tmp=np.zeros([self.nrow,self.ncol], dtype=float)
+            grid_tmp=np.zeros([self.nrow,self.ncol], dtype=np.float32)
             gridVEGarea[v,:,:]=self.convASCIIraster2array(gridVEGarea_fn[v],grid_tmp, stdout = stdout, report = report)
         gridVEGareatot = np.add.accumulate(gridVEGarea, axis = 0)
         area100_test = gridVEGareatot > 100.0
@@ -234,14 +234,14 @@ class clsPROCESS:
             RF_veg = np.loadtxt(RF_veg_fn)
         else:
             self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % RF_veg_fn, stdout = stdout, report = report)
-        RF_veg_zonesSP = np.zeros([NMETEO,nper], dtype=float)
+        RF_veg_zonesSP = np.zeros([NMETEO,nper], dtype=np.float32)
         # E0
         E0_fn=os.path.join(self.MM_ws, inputZON_SP_E0_fn)
         if os.path.exists(E0_fn):
             E0 = np.loadtxt(E0_fn)
         else:
             self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % E0_fn, stdout = stdout, report = report)
-        E0_zonesSP = np.zeros([NMETEO,nper], dtype=float)
+        E0_zonesSP = np.zeros([NMETEO,nper], dtype=np.float32)
         for n in range(NMETEO):
             for t in range(nper):
                 RF_veg_zonesSP[n,t]=RF_veg[n*nper+t]
@@ -254,21 +254,21 @@ class clsPROCESS:
             RFe_veg_tmp = np.loadtxt(RFe_veg_fn)
         else:
             self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % RFe_veg_fn, stdout = stdout, report = report)
-        RFe_veg_zonesSP = np.zeros([NMETEO,NVEG,nper], dtype=float)
+        RFe_veg_zonesSP = np.zeros([NMETEO,NVEG,nper], dtype=np.float32)
         # LAI
         LAI_veg_fn = os.path.join(self.MM_ws, inputZON_SP_LAI_veg_fn)
         if os.path.exists(LAI_veg_fn):
             LAI_veg_tmp = np.loadtxt(LAI_veg_fn)
         else:
             self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % LAI_veg_fn, stdout = stdout, report = report)
-        LAI_veg_zonesSP = np.zeros([NVEG,nper], dtype=float)
+        LAI_veg_zonesSP = np.zeros([NVEG,nper], dtype=np.float32)
         # PT
         PT_veg_fn = os.path.join(self.MM_ws, inputZON_SP_PT_fn)
         if os.path.exists(PT_veg_fn):
             PT_veg_tmp = np.loadtxt(PT_veg_fn)
         else:
             self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % PT_veg_fn, stdout = stdout, report = report)
-        PT_veg_zonesSP = np.zeros([NMETEO,NVEG,nper], dtype=float)
+        PT_veg_zonesSP = np.zeros([NMETEO,NVEG,nper], dtype=np.float32)
         for n in range(NMETEO):
             for v in range(NVEG):
                 for t in range(nper):
@@ -286,7 +286,7 @@ class clsPROCESS:
             PE_tmp = np.loadtxt(PE_fn)
         else:
             self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % PE_fn, stdout = stdout, report = report)
-        PE_zonesSP=np.zeros([NMETEO,NSOIL,nper], dtype=float)
+        PE_zonesSP=np.zeros([NMETEO,NSOIL,nper], dtype=np.float32)
         for n in range(NMETEO):
             for s in range(NSOIL):
                 for t in range(nper):
@@ -301,21 +301,21 @@ class clsPROCESS:
                 RF_irr_tmp = np.loadtxt(RF_irr_fn)
             else:
                 self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % RF_irr_fn, stdout = stdout, report = report)
-            RF_irr_zonesSP = np.zeros([NMETEO,NFIELD,nper], dtype=float)
+            RF_irr_zonesSP = np.zeros([NMETEO,NFIELD,nper], dtype=np.float32)
             # RFe irr
             RFe_irr_fn = os.path.join(self.MM_ws, inputZON_SP_RFe_irr_fn)
             if os.path.exists(RFe_irr_fn):
                 RFe_irr_tmp = np.loadtxt(RFe_irr_fn)
             else:
                 self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % RFe_irr_fn, stdout = stdout, report = report)
-            RFe_irr_zonesSP = np.zeros([NMETEO,NFIELD,nper], dtype=float)
+            RFe_irr_zonesSP = np.zeros([NMETEO,NFIELD,nper], dtype=np.float32)
             # PT irr
             PT_irr_fn = os.path.join(self.MM_ws, inputZON_SP_PT_irr_fn)
             if os.path.exists(PT_irr_fn):
                 PT_irr_tmp = np.loadtxt(PT_irr_fn)
             else:
                 self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % PT_irr_fn, stdout = stdout, report = report)
-            PT_irr_zonesSP = np.zeros([NMETEO,NFIELD,nper], dtype=float)
+            PT_irr_zonesSP = np.zeros([NMETEO,NFIELD,nper], dtype=np.float32)
             # crop irr
             crop_irr_fn = os.path.join(self.MM_ws, input_SP_crop_irr_fn)
             if os.path.exists(crop_irr_fn):
@@ -522,7 +522,7 @@ class clsPROCESS:
                         obsValue.append(self.hnoflo)
             except:
                 self.cUTIL.ErrorExit(msg = '\nFATAL ERROR!\nFormat of observation file uncorrect!\n%s' % filename, stdout = stdout, report = report)
-            obsOutput = np.ones([len(obsValue),len(inputDate)], dtype=float)*self.hnoflo
+            obsOutput = np.ones([len(obsValue),len(inputDate)], dtype=np.float32)*self.hnoflo
             obs_yn = 0
             if (obsDate[len(obsDate)-1] < inputDate[0]) or (obsDate[0] > inputDate[len(inputDate)-1]):
                 obsOutput = []
