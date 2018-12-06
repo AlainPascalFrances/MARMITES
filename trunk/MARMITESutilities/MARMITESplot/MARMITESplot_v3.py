@@ -1455,7 +1455,7 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
                     plt.setp(CB.ax.get_yticklabels(), fontsize=7)
 
             if isinstance(Date[i], float):
-                plt_export_fn = os.path.join(MM_ws, '%s_%s_day%05d%s_%s.png' % (
+                plt_export_fn = os.path.join(MM_ws, '%s_%s_day%05d_%s_%s.png' % (
                 pref_plt_title, plt_title, day + 1, F + 1, NPage))
             else:
                 plt_export_fn = os.path.join(MM_ws, '%s_%s_%s_%s.png' % (pref_plt_title, plt_title, F + 1, NPage))
