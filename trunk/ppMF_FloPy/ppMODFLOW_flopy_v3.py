@@ -26,6 +26,11 @@ if flopypth not in sys.path:
 import flopy
 import MARMITESprocess_v3 as MMproc
 
+print(sys.version)
+print('numpy version: {}'.format(np.__version__))
+print('matplotlib version: {}'.format(mpl.__version__))
+print('flopy version: {}'.format(flopy.__version__))
+
 #####################################
 class clsMF():
     def __init__(self, cUTIL, MM_ws, MM_ws_out, MF_ws, MF_ini_fn, xllcorner, yllcorner, numDays = -1, stdout = None, report = None):
