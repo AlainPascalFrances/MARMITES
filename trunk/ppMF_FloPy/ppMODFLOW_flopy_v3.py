@@ -89,8 +89,12 @@ class clsMF():
             l += 1
             self.laycbd = []
             laycbd_tmp =  inputFile[l].split()
-            for i in range(self.nlay):
-                self.laycbd.append(int(laycbd_tmp[i]))
+            if len(laycbd_tmp) > 1:
+                for i in range(self.nlay):
+                    self.laycbd.append(int(laycbd_tmp[i]))
+            else:
+                for i in range(self.nlay):
+                    self.laycbd.append(int(laycbd_tmp[0]))
             l += 1
             self.delr = []
             delr_tmp =  inputFile[l].split()
@@ -261,7 +265,8 @@ class clsMF():
                     self.sy.append(inputFile[l].split()[i])
             else:
                 print 'FATAL ERROR!\nMODFLOW version should be mf2005 or mfnwt!'
-                print 'Value %s provided in the MF ini file.' % self.versionsys.exit()
+                print 'Value %s provided in the MF ini file.' % self.version
+                sys.exit()
             # oc
             l += 1
             self.ext_oc = str(inputFile[l].strip())
