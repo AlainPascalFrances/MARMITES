@@ -89,8 +89,12 @@ class clsMF():
             l += 1
             self.laycbd = []
             laycbd_tmp =  inputFile[l].split()
-            for i in range(self.nlay):
-                self.laycbd.append(int(laycbd_tmp[i]))
+            if len(laycbd_tmp) > 1:
+                for i in range(self.nlay):
+                    self.laycbd.append(int(laycbd_tmp[i]))
+            else:
+                for i in range(self.nlay):
+                    self.laycbd.append(int(laycbd_tmp[0]))
             l += 1
             self.delr = []
             delr_tmp =  inputFile[l].split()

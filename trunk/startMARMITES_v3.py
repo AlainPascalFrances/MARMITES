@@ -1486,14 +1486,24 @@ if os.path.exists(cMF.h5_MF_fn):
     cbcmax_d = np.ma.max(cbcmax_d)  # float(np.ceil(np.ma.max(cbcmax_d)))
     cbcmin_d = np.ma.min(cbcmin_d)  # float(np.floor(np.ma.min(cbcmin_d)))
     # h
-    h_MF_m = np.ma.masked_values(np.ma.masked_values(h5_MF['heads_d'], cMF.hnoflo, atol=0.09), cMF.hdry, atol=1E+25)
-    hmaxMF = np.ma.max(h_MF_m[:, :, :, :].flatten())
-    hminMF = np.ma.min(h_MF_m[:, :, :, :].flatten())
-    GWTD = cMF.elev[np.newaxis, np.newaxis, :, :] - h_MF_m
-    GWTDmax = np.ma.max(GWTD.flatten())
-    GWTDmin = np.ma.min(GWTD.flatten())
+    hmaxMF_lst = []
+    hminMF_lst = []
+    GWTDmax_lst = []
+    GWTDmin_lst = []
+    for L in range(cMF.nlay):
+        h_MF_m = np.ma.masked_values(np.ma.masked_values(h5_MF['heads_d'][:, L, :, :], cMF.hnoflo, atol=0.09), cMF.hdry, atol=1E+25)
+        hmaxMF_lst.append(np.ma.max(h_MF_m.flatten()))
+        hminMF_lst.append(np.ma.min(h_MF_m.flatten()))
+        GWTD = cMF.elev[np.newaxis, :, :] - h_MF_m
+        del h_MF_m
+        GWTDmax_lst.append(np.ma.max(GWTD.flatten()))
+        GWTDmin_lst.append(np.ma.min(GWTD.flatten()))
+        del GWTD
+    hmaxMF = np.ma.max(hmaxMF_lst)
+    hminMF = np.ma.min(hminMF_lst)
+    GWTDmax = np.ma.max(GWTDmax_lst)
+    GWTDmin = np.ma.min(GWTDmin_lst)
     h5_MF.close()
-    del GWTD
 else:
     DRNmax = GHBmax = cbcmax_d = 1.0
     DRNmin = GHBmin = cbcmin_d = -1.0
@@ -1530,8 +1540,18 @@ if obs != None:
         l = obs.get(o)['lay']
         obs_h = obs.get(o)['obs_h']
         if os.path.exists(cMF.h5_MF_fn):
+            try:
+                h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
+            except:
+                cUTIL.ErrorExit('\nFATAL ERROR!\nInvalid MODFLOW HDF5 file. Run MARMITES and/or MODFLOW again.',
+                                stdout=stdout,
+                                report=report)
+            h_MF_m = np.ma.masked_values(np.ma.masked_values(h5_MF['heads_d'], cMF.hnoflo, atol=0.09), cMF.hdry,
+                                         atol=1E+25)
             hmaxMF_tmp = np.ma.max(h_MF_m[:, l, i, j].flatten())
             hminMF_tmp = np.ma.min(h_MF_m[:, l, i, j].flatten())
+            del h_MF_m
+            h5_MF.close()
         else:
             hmaxMF_tmp = -9999.9
             hminMF_tmp = -9999.9
@@ -1743,7 +1763,8 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
         for L in range(cMF.nlay):
             # ADD heads averaged
             flxLbl_lst.append(r'$h_%d$' % (L + 1))
-            array_tmp = h_MF_m[:, L, :, :]
+            array_tmp = np.ma.masked_values(np.ma.masked_values(h5_MF['heads_d'][:, L, :, :], cMF.hnoflo, atol=0.09), cMF.hdry,
+                                         atol=1E+25)
             array_tmp1 = np.sum(array_tmp, axis=1)
             flxCatch_lst.append(np.sum(array_tmp1, axis=1) / ncell_MF[L])
             i = 'ih_%d' % (L + 1)
@@ -2092,7 +2113,8 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                     # h
                     for L in range(cMF.nlay):
                         flxLbl_lst.append(r'$h_%d$' % (L + 1))
-                        flxObs_lst.append(h_MF_m[:, L, i, j])
+                        flxObs_lst.append(np.ma.masked_values(np.ma.masked_values(h5_MF['heads_d'][:, L, i, j], cMF.hnoflo, atol=0.09),
+                                            cMF.hdry, atol=1E+25))
                         flxIndex_lst['ih_%d' % (L + 1)] = count
                         count += 1
                         # ADD depth GWT
@@ -2304,7 +2326,8 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                         obs_h_tmp = obs_h[0, HYindex[1]:HYindex[-2]]
                     else:
                         obs_h_tmp = []
-                    h_MF = h_MF_m[HYindex[1]:HYindex[-2], l_obs, i, j]
+                    h_MF = np.ma.masked_values(np.ma.masked_values(h5_MF['heads_d'][HYindex[1]:HYindex[-2], l_obs, i, j], cMF.hnoflo, atol=0.09),
+                                            cMF.hdry, atol=1E+25)
                     rmseHEADS_tmp, rmseHEADSc_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrHEADSc_tmp, rsrSM_tmp, nseHEADS_tmp, nseHEADSc_tmp, nseSM_tmp, rHEADS_tmp, rHEADSc_tmp, rSM_tmp = cMF.cPROCESS.compCalibCritObs(
                         MM_S, h_MF, obs_SM_tmp, obs_h_tmp, cMF.hnoflo, o, nsl,
                         MM[HYindex[1]:HYindex[-2], index_MM.get('ihcorr')])
@@ -2461,7 +2484,8 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
     Vmin1 = np.zeros((len(days_lst)), dtype=np.float32)
     for i, t in enumerate(days_lst):
         for L in range(cMF.nlay):
-            V[i, L, :, :] = h_MF_m[t, L, :, :]
+            V[i, L, :, :] = np.ma.masked_values(np.ma.masked_values(h5_MF['heads_d'][t, L, :, :], cMF.hnoflo, atol=0.09),
+                                            cMF.hdry, atol=1E+25)
             mask_tmp[L, :, :] = mask[L]
             maskAllL_tmp[L, :, :] = cMF.maskAllL
         Vmax[i] = hmaxMF
@@ -2715,7 +2739,8 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
     V = np.zeros((1, cMF.nlay, cMF.nrow, cMF.ncol), dtype=np.float32)
     for L in range(cMF.nlay):
         V[0, L, :, :] = np.ma.masked_array(
-            np.sum(h_MF_m[HYindex[1]:HYindex[-2], L, :, :], axis=0) / (HYindex[-2] - HYindex[1] + 1), mask[L])
+            np.sum(np.ma.masked_values(np.ma.masked_values(h5_MF['heads_d'][HYindex[1]:HYindex[-2], L, :, :], cMF.hnoflo, atol=0.09),
+                                            cMF.hdry, atol=1E+25), axis=0) / (HYindex[-2] - HYindex[1] + 1), mask[L])
     for i, int_typ in enumerate(['percentile', 'linspace']):
         try:
             MMplot.plotLAYER(days=['NA'], str_per=['NA'], Date=['NA'], JD=['NA'], ncol=cMF.ncol, nrow=cMF.nrow,
