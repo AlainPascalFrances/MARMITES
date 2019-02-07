@@ -261,7 +261,8 @@ class clsMF():
                     self.sy.append(inputFile[l].split()[i])
             else:
                 print 'FATAL ERROR!\nMODFLOW version should be mf2005 or mfnwt!'
-                print 'Value %s provided in the MF ini file.' % self.versionsys.exit()
+                print 'Value %s provided in the MF ini file.' % self.version
+                sys.exit()
             # oc
             l += 1
             self.ext_oc = str(inputFile[l].strip())
