@@ -1486,14 +1486,24 @@ if os.path.exists(cMF.h5_MF_fn):
     cbcmax_d = np.ma.max(cbcmax_d)  # float(np.ceil(np.ma.max(cbcmax_d)))
     cbcmin_d = np.ma.min(cbcmin_d)  # float(np.floor(np.ma.min(cbcmin_d)))
     # h
-    h_MF_m = np.ma.masked_values(np.ma.masked_values(h5_MF['heads_d'], cMF.hnoflo, atol=0.09), cMF.hdry, atol=1E+25)
-    hmaxMF = np.ma.max(h_MF_m[:, :, :, :].flatten())
-    hminMF = np.ma.min(h_MF_m[:, :, :, :].flatten())
-    GWTD = cMF.elev[np.newaxis, np.newaxis, :, :] - h_MF_m
-    GWTDmax = np.ma.max(GWTD.flatten())
-    GWTDmin = np.ma.min(GWTD.flatten())
+    hmaxMF_lst = []
+    hminMF_lst = []
+    GWTDmax_lst = []
+    GWTDmin_lst = []
+    for L in range(cMF.nlay):
+        h_MF_m = np.ma.masked_values(np.ma.masked_values(h5_MF['heads_d'][:, L, :, :], cMF.hnoflo, atol=0.09), cMF.hdry, atol=1E+25)
+        hmaxMF_lst.append(np.ma.max(h_MF_m.flatten()))
+        hminMF_lst.append(np.ma.min(h_MF_m.flatten()))
+        GWTD = cMF.elev[np.newaxis, :, :] - h_MF_m
+        del h_MF_m
+        GWTDmax_lst.append(np.ma.max(GWTD.flatten()))
+        GWTDmin_lst.append(np.ma.min(GWTD.flatten()))
+        del GWTD
+    hmaxMF = np.ma.max(hmaxMF_lst)
+    hminMF = np.ma.min(hminMF_lst)
+    GWTDmax = np.ma.max(GWTDmax_lst)
+    GWTDmin = np.ma.min(GWTDmin_lst)
     h5_MF.close()
-    del GWTD
 else:
     DRNmax = GHBmax = cbcmax_d = 1.0
     DRNmin = GHBmin = cbcmin_d = -1.0
@@ -1530,8 +1540,18 @@ if obs != None:
         l = obs.get(o)['lay']
         obs_h = obs.get(o)['obs_h']
         if os.path.exists(cMF.h5_MF_fn):
+            try:
+                h5_MF = h5py.File(cMF.h5_MF_fn, 'r')
+            except:
+                cUTIL.ErrorExit('\nFATAL ERROR!\nInvalid MODFLOW HDF5 file. Run MARMITES and/or MODFLOW again.',
+                                stdout=stdout,
+                                report=report)
+            h_MF_m = np.ma.masked_values(np.ma.masked_values(h5_MF['heads_d'], cMF.hnoflo, atol=0.09), cMF.hdry,
+                                         atol=1E+25)
             hmaxMF_tmp = np.ma.max(h_MF_m[:, l, i, j].flatten())
             hminMF_tmp = np.ma.min(h_MF_m[:, l, i, j].flatten())
+            del h_MF_m
+            h5_MF.close()
         else:
             hmaxMF_tmp = -9999.9
             hminMF_tmp = -9999.9
@@ -1699,7 +1719,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
             array_tmp2 = np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol=0.09), axis=1)
             flxCatch_lst.append(array_tmp2 / sum(ncell_MM))
             Tg_tmp += array_tmp2
-            flxLbl_lst.append(r'$T_{g%d}$' % (L + 1))
+            flxLbl_lst.append(r'$T_{g,{%d}}$' % (L + 1))
             flxIndex_lst['iTg_%d' % (L + 1)] = count
             count += 1
         flxCatch_lst.append(Tg_tmp / sum(ncell_MM))
@@ -1722,7 +1742,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
         rmseHEADS_tmp = rmseSM_tmp = rsrHEADS_tmp = rsrSM_tmp = nseHEADS_tmp = nseSM_tmp = rHEADS_tmp = rSM_tmp = None
         # GW_RCH
         for L in range(cMF.nlay):
-            flxLbl_lst.append(r'$Rg_%d$' % (L + 1))
+            flxLbl_lst.append(r'$Rg_{%d}$' % (L + 1))
             array_tmp = cbc_RCH[:, L, :, :]
             array_tmp1 = np.sum(np.ma.masked_values(array_tmp, cMF.hnoflo, atol=0.09), axis=1)
             rch_tmp = np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol=0.09), axis=1)
@@ -1742,8 +1762,9 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
         del array_tmp, array_tmp1, rch_tmp, rch_tot, cbc_RCH
         for L in range(cMF.nlay):
             # ADD heads averaged
-            flxLbl_lst.append(r'$h_%d$' % (L + 1))
-            array_tmp = h_MF_m[:, L, :, :]
+            flxLbl_lst.append(r'$h_{%d}$' % (L + 1))
+            array_tmp = np.ma.masked_values(np.ma.masked_values(h5_MF['heads_d'][:, L, :, :], cMF.hnoflo, atol=0.09), cMF.hdry,
+                                         atol=1E+25)
             array_tmp1 = np.sum(array_tmp, axis=1)
             flxCatch_lst.append(np.sum(array_tmp1, axis=1) / ncell_MF[L])
             i = 'ih_%d' % (L + 1)
@@ -1751,7 +1772,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
             count += 1
             del array_tmp
             # ADD depth GWT
-            flxLbl_lst.append(r'$d_%d$' % (L + 1))
+            flxLbl_lst.append(r'$d_{%d}$' % (L + 1))
             flxCatch_lst.append(flxCatch_lst[-1] - TopSoilAverage)
             i = 'id_%d' % (L + 1)
             flxIndex_lst[i] = count
@@ -1763,7 +1784,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
             array_tmp1 = np.sum(np.ma.masked_values(cbc_STO, cMF.hnoflo, atol=0.09), axis=1)
             flxCatch_lst.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol=0.09), axis=1) / sum(ncell_MM))
             del cbc_STO, array_tmp1
-            flxLbl_lst.append(r'$\Delta S_{g,%d}$' % (L + 1))
+            flxLbl_lst.append(r'$\Delta S_{g,{%d}}$' % (L + 1))
             i = 'idSg_%d' % (L + 1)
             flxIndex_lst[i] = count
             count += 1
@@ -1773,7 +1794,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
             #            flxCatch_lst.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
             #            del cbc_FRF, array_tmp1
             flxCatch_lst.append(np.zeros((sum(cMF.perlen)), dtype=np.int))
-            flxLbl_lst.append('$FRF_%d$' % (L + 1))
+            flxLbl_lst.append('$FRF_{%d}$' % (L + 1))
             i = 'iFRF_%d' % (L + 1)
             flxIndex_lst[i] = count
             count += 1
@@ -1783,7 +1804,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
             #            flxCatch_lst.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
             #            del cbc_FFF, array_tmp1
             flxCatch_lst.append(np.zeros((sum(cMF.perlen)), dtype=np.int))
-            flxLbl_lst.append('$FFF_%d$' % (L + 1))
+            flxLbl_lst.append('$FFF_{%d}$' % (L + 1))
             i = 'iFFF_%d' % (L + 1)
             flxIndex_lst[i] = count
             count += 1
@@ -1810,7 +1831,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                 #                array_tmp1 = np.sum(np.ma.masked_values(cbc_FLF, cMF.hnoflo, atol = 0.09), axis = 1)
                 #                flxCatch_lst.append(np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol = 0.09), axis = 1)/sum(ncell_MM))
                 #                del cbc_FLF, array_tmp1
-                flxLbl_lst.append('$FLF_%d$' % (L + 1))
+                flxLbl_lst.append('$FLF_{%d}$' % (L + 1))
                 i = 'iFLF_%d' % (L + 1)
                 flxIndex_lst[i] = count
                 count += 1
@@ -1829,7 +1850,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                 array_tmp1 = np.sum(np.ma.masked_values(cbc_WEL, cMF.hnoflo, atol=0.09), axis=1)
                 flxCatch_lst.append(
                     np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol=0.09), axis=1) / sum(ncell_MM))
-                flxLbl_lst.append('$WEL_%d$' % (L + 1))
+                flxLbl_lst.append('$WEL_{%d}$' % (L + 1))
                 i = 'iWEL_%d' % (L + 1)
                 flxIndex_lst[i] = count
                 count += 1
@@ -1844,7 +1865,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                     del array_tmp1
                 else:
                     flxCatch_lst.append(np.zeros((sum(cMF.perlen)), dtype=np.int))
-                flxLbl_lst.append('$DRN_%d$' % (L + 1))
+                flxLbl_lst.append('$DRN_{%d}$' % (L + 1))
                 i = 'iDRN_%d' % (L + 1)
                 flxIndex_lst[i] = count
                 count += 1
@@ -1859,7 +1880,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                     del array_tmp1
                 else:
                     flxCatch_lst.append(np.zeros((sum(cMF.perlen)), dtype=np.int))
-                flxLbl_lst.append('$GHB_%d$' % (L + 1))
+                flxLbl_lst.append('$GHB_{%d}$' % (L + 1))
                 i = 'iGHB_%d' % (L + 1)
                 flxIndex_lst[i] = count
                 count += 1
@@ -1871,7 +1892,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                 flxCatch_lst.append(
                     np.sum(np.ma.masked_values(array_tmp1, cMF.hnoflo, atol=0.09), axis=1) / sum(ncell_MM))
                 del array_tmp1
-                flxLbl_lst.append('$CH_%d$' % (L + 1))
+                flxLbl_lst.append('$CH_{%d}$' % (L + 1))
                 i = 'iCH_%d' % (L + 1)
                 flxIndex_lst[i] = count
                 count += 1
@@ -2069,7 +2090,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                                 flxLbl_lst.append(str_tmp)
                                 del pos, str_tmp
                             except:
-                                flxLbl_lst.append(r'$%s_%d$' % (ii_tex, l + 1))
+                                flxLbl_lst.append(r'$%s_{%d}$' % (ii_tex, l + 1))
                             flxObs_lst.append(
                                 np.ma.masked_values(MM_S[:, l, index_MM_soil.get(ii)], cMF.hnoflo, atol=0.09))
                             flxIndex_lst['%s_%d' % (ii, l + 1)] = count
@@ -2091,12 +2112,13 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                         del flx_lst
                     # h
                     for L in range(cMF.nlay):
-                        flxLbl_lst.append(r'$h_%d$' % (L + 1))
-                        flxObs_lst.append(h_MF_m[:, L, i, j])
+                        flxLbl_lst.append(r'$h_{%d}$' % (L + 1))
+                        flxObs_lst.append(np.ma.masked_values(np.ma.masked_values(h5_MF['heads_d'][:, L, i, j], cMF.hnoflo, atol=0.09),
+                                            cMF.hdry, atol=1E+25))
                         flxIndex_lst['ih_%d' % (L + 1)] = count
                         count += 1
                         # ADD depth GWT
-                        flxLbl_lst.append(r'$d_%d$' % (L + 1))
+                        flxLbl_lst.append(r'$d_{%d}$' % (L + 1))
                         flxObs_lst.append(flxObs_lst[-1] - cMF.elev[i, j])
                         flxIndex_lst['id_%d' % (L + 1)] = count
                         count += 1
@@ -2129,7 +2151,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                     # S obs
                     for l in range(nsl):
                         if obs_S_tmp[l] != []:
-                            flxLbl_lst.append(r'$\theta_%d \ obs$' % (l + 1))
+                            flxLbl_lst.append(r'$\theta_{%d} \ obs$' % (l + 1))
                             flxObs_lst.append(np.ma.masked_values(obs_S_tmp[l], cMF.hnoflo, atol=0.09))
                             flxIndex_lst['iSobs_%d' % (l + 1)] = count
                             count += 1
@@ -2167,7 +2189,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                         cbc_R = h5_MF['RCH_d']
                         flxObs_lst.append(cbc_R[:, L, i, j])
                         del cbc_R
-                        flxLbl_lst.append(r'$Rg_%d$' % (L + 1))
+                        flxLbl_lst.append(r'$Rg_{%d}$' % (L + 1))
                         flxIndex_lst['iRg_%d' % (L + 1)] = count
                         count += 1
                         # GW FRF
@@ -2175,7 +2197,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                             flxObs_lst.append(-h5_MF['FRF_d'][:, L, i, j - 1] + h5_MF['FRF_d'][:, L, i, j])
                         except:
                             flxObs_lst.append(h5_MF['FRF_d'][:, L, i, j])
-                        flxLbl_lst.append('$FRF_%d$' % (L + 1))
+                        flxLbl_lst.append('$FRF_{%d}$' % (L + 1))
                         flxIndex_lst['iFRF_%d' % (L + 1)] = count
                         count += 1
                         # GW FFF
@@ -2183,7 +2205,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                             flxObs_lst.append(-h5_MF['FFF_d'][:, L, i - 1, j] + h5_MF['FFF_d'][:, L, i, j])
                         except:
                             flxObs_lst.append(h5_MF['FFF_d'][:, L, i, j])
-                        flxLbl_lst.append('$FFF_%d$' % (L + 1))
+                        flxLbl_lst.append('$FFF_{%d}$' % (L + 1))
                         flxIndex_lst['iFFF_%d' % (L + 1)] = count
                         count += 1
                         # GW FLF
@@ -2192,7 +2214,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                                 flxObs_lst.append(-h5_MF['FLF_d'][:, L - 1, i, j] + h5_MF['FLF_d'][:, L, i, j])
                             except:
                                 flxObs_lst.append(h5_MF['FLF_d'][:, L, i, j])
-                            flxLbl_lst.append('$FLF_%d$' % (L + 1))
+                            flxLbl_lst.append('$FLF_{%d}$' % (L + 1))
                             flxIndex_lst['iFLF_%d' % (L + 1)] = count
                             count += 1
                         # EXF
@@ -2203,25 +2225,25 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                         # WEL
                         if cMF.wel_yn == 1:
                             flxObs_lst.append(h5_MF['WEL_d'][:, L, i, j])
-                            flxLbl_lst.append('$WEL_%d$' % (L + 1))
+                            flxLbl_lst.append('$WEL_{%d}$' % (L + 1))
                             flxIndex_lst['iWEL_%d' % (L + 1)] = count
                             count += 1
                             # DRN
                         if cMF.drn_yn == 1:
                             flxObs_lst.append(h5_MF['DRN_d'][:, L, i, j])
-                            flxLbl_lst.append('$DRN_%d$' % (L + 1))
+                            flxLbl_lst.append('$DRN_{%d}$' % (L + 1))
                             flxIndex_lst['iDRN_%d' % (L + 1)] = count
                             count += 1
                             # GHB
                         if cMF.ghb_yn == 1:
                             flxObs_lst.append(h5_MF['GHB_d'][:, L, i, j])
-                            flxLbl_lst.append('$GHB_%d$' % (L + 1))
+                            flxLbl_lst.append('$GHB_{%d}$' % (L + 1))
                             flxIndex_lst['iGHB_%d' % (L + 1)] = count
                             count += 1
                         # CH
                         if len(cMF.ibound[cMF.ibound < 0]) > 0:
                             flxObs_lst.append(h5_MF['CH_d'][:, L, i, j])
-                            flxLbl_lst.append('$CH_%d$' % (L + 1))
+                            flxLbl_lst.append('$CH_{%d}$' % (L + 1))
                             flxIndex_lst['iCH_%d' % (L + 1)] = count
                             count += 1
 
@@ -2258,8 +2280,8 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                     #                 'iSAT': 7, 'iMB_s': 8}
                     plt_export_fn = os.path.join(MM_ws_out, '_0%s_ts.png' % o)
                     # def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, EXF, ETg, Es, MB, MB_l, dgwt, SAT, Rg, h_MF, h_MF_corr, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin):
-                    try:
-                        MMplot.plotTIMESERIES(cMF, i, j, flxObs_lst, flxLbl_lst, flxIndex_lst,
+#                    try:
+                    MMplot.plotTIMESERIES(cMF, i, j, flxObs_lst, flxLbl_lst, flxIndex_lst,
                                               _Sm[gridSOIL[i, j] - 1], _Sr[gridSOIL[i, j] - 1],
                                               plt_export_fn, plt_suptitle, plt_title,
                                               clr_lst,
@@ -2268,9 +2290,9 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                                               iniMonthHydroYear, date_ini=DATE[HYindex[1]],
                                               date_end=DATE[HYindex[-2]]
                                               )
-                        print 'TS plot done!'
-                    except:
-                        print 'TS plot error!'
+                    #    print 'TS plot done!'
+                    #except:
+                    #   print 'TS plot error!'
                     # plot GW flux time series at each obs. cell
                     try:
                         MMplot.plotTIMESERIES_flxGW(cMF, flxObs_lst, flxLbl_lst, flxIndex_lst, plt_export_fn,
@@ -2304,7 +2326,8 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                         obs_h_tmp = obs_h[0, HYindex[1]:HYindex[-2]]
                     else:
                         obs_h_tmp = []
-                    h_MF = h_MF_m[HYindex[1]:HYindex[-2], l_obs, i, j]
+                    h_MF = np.ma.masked_values(np.ma.masked_values(h5_MF['heads_d'][HYindex[1]:HYindex[-2], l_obs, i, j], cMF.hnoflo, atol=0.09),
+                                            cMF.hdry, atol=1E+25)
                     rmseHEADS_tmp, rmseHEADSc_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrHEADSc_tmp, rsrSM_tmp, nseHEADS_tmp, nseHEADSc_tmp, nseSM_tmp, rHEADS_tmp, rHEADSc_tmp, rSM_tmp = cMF.cPROCESS.compCalibCritObs(
                         MM_S, h_MF, obs_SM_tmp, obs_h_tmp, cMF.hnoflo, o, nsl,
                         MM[HYindex[1]:HYindex[-2], index_MM.get('ihcorr')])
@@ -2461,7 +2484,8 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
     Vmin1 = np.zeros((len(days_lst)), dtype=np.float32)
     for i, t in enumerate(days_lst):
         for L in range(cMF.nlay):
-            V[i, L, :, :] = h_MF_m[t, L, :, :]
+            V[i, L, :, :] = np.ma.masked_values(np.ma.masked_values(h5_MF['heads_d'][t, L, :, :], cMF.hnoflo, atol=0.09),
+                                            cMF.hdry, atol=1E+25)
             mask_tmp[L, :, :] = mask[L]
             maskAllL_tmp[L, :, :] = cMF.maskAllL
         Vmax[i] = hmaxMF
@@ -2715,7 +2739,8 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
     V = np.zeros((1, cMF.nlay, cMF.nrow, cMF.ncol), dtype=np.float32)
     for L in range(cMF.nlay):
         V[0, L, :, :] = np.ma.masked_array(
-            np.sum(h_MF_m[HYindex[1]:HYindex[-2], L, :, :], axis=0) / (HYindex[-2] - HYindex[1] + 1), mask[L])
+            np.sum(np.ma.masked_values(np.ma.masked_values(h5_MF['heads_d'][HYindex[1]:HYindex[-2], L, :, :], cMF.hnoflo, atol=0.09),
+                                            cMF.hdry, atol=1E+25), axis=0) / (HYindex[-2] - HYindex[1] + 1), mask[L])
     for i, int_typ in enumerate(['percentile', 'linspace']):
         try:
             MMplot.plotLAYER(days=['NA'], str_per=['NA'], Date=['NA'], JD=['NA'], ncol=cMF.ncol, nrow=cMF.nrow,

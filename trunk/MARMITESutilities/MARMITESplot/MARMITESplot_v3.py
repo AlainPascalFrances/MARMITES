@@ -67,7 +67,7 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     hdltxtpd = 0.05
     colspc = 0.1
 
-    fig = plt.figure(num=None, figsize=(8.27, 11.7), dpi=60)  # (8.5,15), dpi=30)
+    fig = plt.figure(num=None, figsize=(8.27, 11.7), dpi=150)  # (8.5,15), dpi=30)
     fig.suptitle(plt_suptitle)
     fig.text(x=0.5, y=0.05, s=plt_title, horizontalalignment='center', verticalalignment='bottom', fontsize=9)
 
@@ -257,7 +257,7 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
             if 'iSobs_%d' % (l + 1) in flxIndex_lst:
                 if flx[flxIndex_lst['iSobs_%d' % (l + 1)]].all != []:
                     ax5.plot_date(cMF.inputDate, flx[flxIndex_lst['iSobs_%d' % (l + 1)]], ls='None', color='gray',
-                                  marker='o', markersize=2, markeredgecolor=colors_nsl.next(), markerfacecolor='None',
+                                  marker='o', markersize=2, markevery = 2, markeredgecolor=colors_nsl.next(), markerfacecolor='None',
                                   label=flxLbl[flxIndex_lst['iSobs_%d' % (l + 1)]])  # '--', color = color,
         except:
             print "ERROR plotting SM obs"
@@ -300,12 +300,12 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     for L in range(cMF.nlay):
         dgwtMF = flx[flxIndex_lst['id_%d' % (L + 1)]]
         dgwtMFmax.append(np.max(dgwtMF))
-        plt.plot_date(cMF.inputDate, dgwtMF, lines.next(), color='b', label=flxLbl[flxIndex_lst['id_%d' % (L + 1)]])
-    plt.plot_date(cMF.inputDate, flx[flxIndex_lst['idcorr']], '--', c='g', label=flxLbl[flxIndex_lst['idcorr']])
+        plt.plot_date(cMF.inputDate, dgwtMF, lines.next(), color='b', markersize=2, markevery = 7,  label=flxLbl[flxIndex_lst['id_%d' % (L + 1)]])
+    plt.plot_date(cMF.inputDate, flx[flxIndex_lst['idcorr']], '--', c='g', markersize=2, markevery = 7,  label=flxLbl[flxIndex_lst['idcorr']])
     try:
         if 'idobs' in flxIndex_lst:
             plt.plot_date(cMF.inputDate, flx[flxIndex_lst['idobs']], ls='None', color='LightBlue', marker='o',
-                          markeredgecolor='LightBlue', markerfacecolor='None', markersize=2,
+                          markeredgecolor='LightBlue', markerfacecolor='None', markersize=2, markevery = 7,
                           label=flxLbl[flxIndex_lst['idobs']])  # ls='--', color = 'blue'
     except:
         print "ERROR plotting dgw obs"
@@ -353,7 +353,7 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
 
     # --------------FIGURE PART2----------
 
-    fig = plt.figure(num=None, figsize=(8.27, 11.7), dpi=60)  # (8.5,15), dpi=30)
+    fig = plt.figure(num=None, figsize=(8.27, 11.7), dpi=150)  # (8.5,15), dpi=30)
     fig.suptitle(plt_suptitle + ' - part 2')
     fig.text(x=0.5, y=0.05, s=plt_title, horizontalalignment='center', verticalalignment='bottom', fontsize=9)
 
@@ -363,13 +363,13 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
          '_'])
     for L in range(cMF.nlay):
         plt.plot_date(cMF.inputDate, flx[flxIndex_lst['ih_%d' % (L + 1)]], lines.next(), color='b',
-                      label=flxLbl[flxIndex_lst['ih_%d' % (L + 1)]])
-    plt.plot_date(cMF.inputDate, flx[flxIndex_lst['ihcorr']], '--', color='g', label=flxLbl[flxIndex_lst['ihcorr']])
-    plt.plot_date(cMF.inputDate, flx[flxIndex_lst['ih_SF']], '-', color='r', label=flxLbl[flxIndex_lst['ih_SF']])
+                      markersize = 2, markevery = 7,  label=flxLbl[flxIndex_lst['ih_%d' % (L + 1)]])
+    plt.plot_date(cMF.inputDate, flx[flxIndex_lst['ihcorr']], '--', color='g', markersize = 2, markevery = 7,  label=flxLbl[flxIndex_lst['ihcorr']])
+    plt.plot_date(cMF.inputDate, flx[flxIndex_lst['ih_SF']], '-', color='r', markersize = 2, markevery = 7,  label=flxLbl[flxIndex_lst['ih_SF']])
     try:
         if 'ihobs' in flxIndex_lst:
             plt.plot_date(cMF.inputDate, flx[flxIndex_lst['ihobs']], ls='None', color='LightBlue', marker='o',
-                          markeredgecolor='LightBlue', markerfacecolor='None', markersize=2,
+                          markeredgecolor='LightBlue', markerfacecolor='None', markersize=2, markevery = 7,
                           label=flxLbl[flxIndex_lst['ihobs']])  # ls='--', color = 'blue'
     except:
         print "ERROR plotting h obs"
@@ -533,14 +533,14 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     dgwtMFmax = []
     for L in range(cMF.nlay):
         dgwtMFmax.append(np.max(flx[flxIndex_lst['id_%d' % (L + 1)]]))
-        plt.plot_date(cMF.inputDate, flx[flxIndex_lst['id_%d' % (L + 1)]], lines.next(), color='b',
+        plt.plot_date(cMF.inputDate, flx[flxIndex_lst['id_%d' % (L + 1)]], lines.next(), color='b', markersize=2, markevery = 7,
                       label=flxLbl[flxIndex_lst['id_%d' % (L + 1)]])
-    plt.plot_date(cMF.inputDate, flx[flxIndex_lst['idcorr']], '--', c='g', label=flxLbl[flxIndex_lst['idcorr']])
+    plt.plot_date(cMF.inputDate, flx[flxIndex_lst['idcorr']], '--', c='g', markersize=2, markevery = 7,  label=flxLbl[flxIndex_lst['idcorr']])
     try:
         if 'idobs' in flxIndex_lst:
             if flx[flxIndex_lst['idobs']].all() != []:
                 plt.plot_date(cMF.inputDate, flx[flxIndex_lst['idobs']], ls='None', color='LightBlue', marker='o',
-                              markeredgecolor='LightBlue', markerfacecolor='None', markersize=2,
+                              markeredgecolor='LightBlue', markerfacecolor='None', markersize=2, markevery = 7,
                               label=flxLbl[flxIndex_lst['idobs']])  # ls='--', color = 'blue'
     except:
         print "ERROR plotting dgw obs"
@@ -613,7 +613,7 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
         try:
             if 'iSobs_%d' % (l + 1) in flxIndex_lst:
                 y = flx[flxIndex_lst['iSobs_%d' % (l + 1)]]
-                ax5.plot_date(cMF.inputDate, y, ls='None', color='gray', marker='o', markersize=2,
+                ax5.plot_date(cMF.inputDate, y, ls='None', color='gray', marker='o', markersize=2, markevery = 2,
                               markeredgecolor=colors_nsl.next(), markerfacecolor='None',
                               label=flxLbl[flxIndex_lst['iSobs_%d' % (l + 1)]])  # '--', color = color,
         except:
@@ -685,7 +685,7 @@ def plotTIMESERIES_flxGW(cMF, flx, flxLbl, flxIndex_lst, plt_export_fn, plt_titl
     date_ini -= 15
     date_end += 15
 
-    fig = plt.figure(num=None, figsize=(8.27, 11.7), dpi=60)  # (8.5,15), dpi=30)
+    fig = plt.figure(num=None, figsize=(8.27, 11.7), dpi=150)  # (8.5,15), dpi=30)
     fig.suptitle(plt_title + ' - part 3')
 
     ax0 = fig.add_subplot(8, 1, 1)
@@ -746,7 +746,7 @@ def plotTIMESERIES_flxGW(cMF, flx, flxLbl, flxIndex_lst, plt_export_fn, plt_titl
          '_'])
     ax1 = fig.add_subplot(8, 1, 4, sharex=ax0)
     for L in range(cMF.nlay):
-        plt.plot_date(cMF.inputDate, flx[flxIndex_lst['id_%d' % (L + 1)]], lines.next(), color='b',
+        plt.plot_date(cMF.inputDate, flx[flxIndex_lst['id_%d' % (L + 1)]], lines.next(), color='b', markersize=2, markevery = 7,
                       label=flxLbl[flxIndex_lst['id_%d' % (L + 1)]])
     # leg
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad=bdpd, handletextpad=hdltxtpd, ncol=2,
@@ -777,7 +777,7 @@ def plotTIMESERIES_flxGW(cMF, flx, flxLbl, flxIndex_lst, plt_export_fn, plt_titl
     for i in range(flxIndex_lst['idSg_1'], len(flxIndex_lst)):
         if np.absolute(sum(flx[i])) > 1E-6:
             plt.plot_date(cMF.inputDate, flx[i], lines.next(), color=mpl.colors.rgb2hex(np.random.rand(1, 3)[0]),
-                          markersize=2, label=flxLbl[i], markeredgecolor='None')
+                          markersize=2, markevery = 7,  label=flxLbl[i], markeredgecolor='None')
     # leg
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad=bdpd, handletextpad=hdltxtpd, ncol=4,
                columnspacing=colspc, numpoints=3)
@@ -846,7 +846,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
     # date_ini, year_ini = cUTIL.compDATE_INI(cMF.inputDate[0], iniMonthHydroYear)
     # date_end, year_end = cUTIL.compDATE_END(cMF.inputDate[-1], iniMonthHydroYear)
 
-    fig = plt.figure(num=None, figsize=(8.27, 11.7), dpi=60)  # (8.5,15), dpi=30)
+    fig = plt.figure(num=None, figsize=(8.27, 11.7), dpi=150)  # (8.5,15), dpi=30)
     fig.suptitle(plt_title)
 
     ax1 = fig.add_subplot(8, 1, 1)
@@ -897,7 +897,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
             obs_Ro = obs_catch.get('catch')['obs_Ro']
             Roobs_m = np.ma.masked_values(obs_Ro[0], cMF.hnoflo, atol=0.09)
             plt.plot_date(cMF.inputDate, Roobs_m, markerfacecolor='None', marker='o', markeredgecolor='lightblue',
-                          markersize=2, label=r'$Ro \ obs$')
+                          markersize=2, markevery = 7,  label=r'$Ro \ obs$')
             print 'RMSE/RSR/NSE/r of obs. at the catch. scale'
             rmse, rsr, nse, r = cMF.cPROCESS.compCalibCrit(flx[flxIndex_lst['iRo']], obs_Ro[0], cMF.hnoflo)
             rmseRo = [rmse]
@@ -1043,7 +1043,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
     if obs_catch_list[1] == 1:
         obs_SM = obs_catch.get('catch')['obs_SM']
         Sobs_m = np.ma.masked_values(obs_SM[0], cMF.hnoflo, atol=0.09)
-        ax6.plot_date(cMF.inputDate, Sobs_m, markerfacecolor='None', marker='o', markeredgecolor='brown', markersize=2,
+        ax6.plot_date(cMF.inputDate, Sobs_m, markerfacecolor='None', marker='o', markeredgecolor='brown', markersize=2, markevery = 7,
                       label=r'$\theta \ obs$')
         rmse, rsr, nse, r = cMF.cPROCESS.compCalibCrit(flx[flxIndex_lst['iSsoil_pc']], obs_SM[0], cMF.hnoflo)
         rmseSM = [100.0 * rmse]
@@ -1088,14 +1088,14 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
         # ax10.set_autoscalex_on(False)
         for l in range(cMF.nlay):
             i = 'id_%d' % (l + 1)
-            plt.plot_date(cMF.inputDate, flx[flxIndex_lst[i]], lines.next(), color='b', label=flxLbl[flxIndex_lst[i]])
+            plt.plot_date(cMF.inputDate, flx[flxIndex_lst[i]], lines.next(), color='b', markersize=2, markevery = 7,  label=flxLbl[flxIndex_lst[i]])
         if obs_catch_list[0] == 1:
             obs_h = obs_catch.get('catch')['obs_h']
             hobs_m = np.ma.masked_values(obs_h[0], cMF.hnoflo, atol=0.09)
         if obs_catch_list[0] == 1:
             dobs_m = hobs_m - TopSoilAverage
             ax10.plot_date(cMF.inputDate, dobs_m, markerfacecolor='None', marker='o', markeredgecolor='LightBlue',
-                           markersize=2, label=r'$d \ obs$')
+                           markersize=2, markevery = 7,  label=r'$d \ obs$')
         # y
         plt.ylabel('m', fontsize=10)
         plt.setp(ax10.get_yticklabels(), fontsize=8)
@@ -1127,7 +1127,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
 
     # --------------FIGURE CATCH PART2----------
 
-    fig = plt.figure(num=None, figsize=(8.27, 11.7), dpi=60)  # (8.5,15), dpi=30)
+    fig = plt.figure(num=None, figsize=(8.27, 11.7), dpi=150)  # (8.5,15), dpi=30)
     fig.suptitle(plt_title + ' - part 2')
 
     ax0 = fig.add_subplot(8, 1, 1)
@@ -1165,7 +1165,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
         obs_Ro = obs_catch.get('catch')['obs_Ro']
         Roobs_m = np.ma.masked_values(obs_Ro[0], cMF.hnoflo, atol=0.09)
         plt.plot_date(cMF.inputDate, Roobs_m, markerfacecolor='None', marker='o', markeredgecolor='lightBlue',
-                      markersize=2, label=r'$Ro \ obs$')
+                      markersize=2, markevery = 7,  label=r'$Ro \ obs$')
     # y
     plt.ylabel('mm', fontsize=10)
     plt.setp(ax2.get_yticklabels(), fontsize=8)
@@ -1220,9 +1220,9 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
                 rmseHEADS = rsrHEADS = nseHEADS = rHEADS = None
         for l in range(cMF.nlay):
             i = 'ih_%d' % (l + 1)
-            plt.plot_date(cMF.inputDate, flx[flxIndex_lst[i]], lines.next(), color='b', label=flxLbl[flxIndex_lst[i]])
+            plt.plot_date(cMF.inputDate, flx[flxIndex_lst[i]], lines.next(), color='b', markersize = 2, markevery = 7,  label=flxLbl[flxIndex_lst[i]])
         ax1.plot_date(cMF.inputDate, hobs_m, markerfacecolor='None', marker='o', markeredgecolor='LightBlue',
-                      markersize=2, label=r'$h \ obs$')
+                      markersize=2, markevery = 7,  label=r'$h \ obs$')
         # y
         plt.ylim(hmin, hmax)
         plt.ylabel('m', fontsize=10)
@@ -1252,7 +1252,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
              '_'])
         for l, (e, lbl) in enumerate(zip(flx[flxIndex_lst['idSg_1']:], flxLbl[flxIndex_lst['idSg_1']:])):
             plt.plot_date(cMF.inputDate, e, lines.next(), color=mpl.colors.rgb2hex(np.random.rand(1, 3)[0]),
-                          markersize=2, label=lbl, markeredgecolor='None')
+                          markersize=2, markevery = 7,  label=lbl, markeredgecolor='None')
         # y
         plt.ylabel('mm', fontsize=10)
         plt.setp(ax8.get_yticklabels(), fontsize=8)
@@ -1455,7 +1455,7 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
                     plt.setp(CB.ax.get_yticklabels(), fontsize=7)
 
             if isinstance(Date[i], float):
-                plt_export_fn = os.path.join(MM_ws, '%s_%s_day%05d%s_%s.png' % (
+                plt_export_fn = os.path.join(MM_ws, '%s_%s_day%05d_%s_%s.png' % (
                 pref_plt_title, plt_title, day + 1, F + 1, NPage))
             else:
                 plt_export_fn = os.path.join(MM_ws, '%s_%s_%s_%s.png' % (pref_plt_title, plt_title, F + 1, NPage))

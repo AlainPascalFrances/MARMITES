@@ -26,6 +26,11 @@ if flopypth not in sys.path:
 import flopy
 import MARMITESprocess_v3 as MMproc
 
+print(sys.version)
+print('numpy version: {}'.format(np.__version__))
+print('matplotlib version: {}'.format(mpl.__version__))
+print('flopy version: {}'.format(flopy.__version__))
+
 #####################################
 class clsMF():
     def __init__(self, cUTIL, MM_ws, MM_ws_out, MF_ws, MF_ini_fn, xllcorner, yllcorner, numDays = -1, stdout = None, report = None):
@@ -84,8 +89,12 @@ class clsMF():
             l += 1
             self.laycbd = []
             laycbd_tmp =  inputFile[l].split()
-            for i in range(self.nlay):
-                self.laycbd.append(int(laycbd_tmp[i]))
+            if len(laycbd_tmp) > 1:
+                for i in range(self.nlay):
+                    self.laycbd.append(int(laycbd_tmp[i]))
+            else:
+                for i in range(self.nlay):
+                    self.laycbd.append(int(laycbd_tmp[0]))
             l += 1
             self.delr = []
             delr_tmp =  inputFile[l].split()
@@ -256,7 +265,8 @@ class clsMF():
                     self.sy.append(inputFile[l].split()[i])
             else:
                 print 'FATAL ERROR!\nMODFLOW version should be mf2005 or mfnwt!'
-                print 'Value %s provided in the MF ini file.' % self.versionsys.exit()
+                print 'Value %s provided in the MF ini file.' % self.version
+                sys.exit()
             # oc
             l += 1
             self.ext_oc = str(inputFile[l].strip())
