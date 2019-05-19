@@ -1382,31 +1382,31 @@ if os.path.exists(cMF.h5_MF_fn):
     tRCHmax = -1
     if RCHmax > 0.0:
         tmp = np.where(cbc_RCH[:, :, :, :] == RCHmax)
-        tRCHmax = tmp[0][0]
-        l = tmp[1][0]
-        i = tmp[2][0]
-        j = tmp[3][0]
-        print 'row %d, col %d, layer %d and stress period %d (day %d, date %s)' % (
-        i + 1, j + 1, l + 1, sp_days_lst[tRCHmax], tRCHmax + 1,
-        mpl.dates.num2date(cMF.inputDate[tRCHmax] + 1.0).isoformat()[:10])
-        if plt_out_obs == 1:
-            x = cMF.delc[i] * i + xllcorner
-            y = cMF.delr[j] * j + yllcorner
-            obs['RCHmax'] = {'x': x, 'y': y, 'i': i, 'j': j, 'lay': l, 'hi': 999, 'h0': 999, 'RC': 999, 'STO': 999,
-                             'obs_h': [], 'obs_h_yn': 0, 'obs_SM': [], 'obs_sm_yn': 0, 'obs_Ro': [], 'obs_Ro_yn': 0}
-            obs_list.append('RCHmax')
-            obs4map[0].append('RCHmax')
-            obs4map[1].append(float(i) + 1.0)
-            obs4map[2].append(float(j) + 1.0)
-            obs4map[3].append(float(l))
-            del x, y
-        for e in tmp:
-            if len(e) > 1:
-                print "\nWARNING!\nR max occurred at several cells and/or stress periods"
-                break
-        del tmp
-        if tRCHmax < 0:
-            print 'WARNING!\nNo Rg max found!'
+        try:
+            tRCHmax = tmp[0][0]
+            l = tmp[1][0]
+            i = tmp[2][0]
+            j = tmp[3][0]
+            print 'row %d, col %d, layer %d and stress period %d (day %d, date %s)' % (
+                i + 1, j + 1, l + 1, sp_days_lst[tRCHmax], tRCHmax + 1,
+                mpl.dates.num2date(cMF.inputDate[tRCHmax] + 1.0).isoformat()[:10])
+            if plt_out_obs == 1:
+                x = cMF.delc[i] * i + xllcorner
+                y = cMF.delr[j] * j + yllcorner
+                obs['RCHmax'] = {'x': x, 'y': y, 'i': i, 'j': j, 'lay': l, 'hi': 999, 'h0': 999, 'RC': 999, 'STO': 999, 'obs_h': [], 'obs_h_yn': 0, 'obs_SM': [], 'obs_sm_yn': 0, 'obs_Ro': [], 'obs_Ro_yn': 0}
+                obs_list.append('RCHmax')
+                obs4map[0].append('RCHmax')
+                obs4map[1].append(float(i) + 1.0)
+                obs4map[2].append(float(j) + 1.0)
+                obs4map[3].append(float(l))
+                del x, y
+            for e in tmp:
+                if len(e) > 1:
+                    print "\nWARNING!\nR max occurred at several cells and/or stress periods"
+                    break
+            del tmp
+        except:
+            print "ERROR! It was not possible to export maximum GW recharge"
     del cbc_RCH
     RCHmax = np.ma.max(RCHmax)  # float(np.ceil(np.ma.max(RCHmax)))  #
     RCHmin = np.ma.min(RCHmin)  # float(np.floor(np.ma.min(RCHmin))) #
@@ -1420,30 +1420,33 @@ if os.path.exists(cMF.h5_MF_fn):
         tETgmax = -1
         if ETgmax < 0.0:
             tmp = np.where(cbc_WEL[:, :, :, :] == ETgmax)
-            tETgmax = tmp[0][0]
-            l = tmp[1][0]
-            i = tmp[2][0]
-            j = tmp[3][0]
-            print 'row %d, col %d, layer %d and stress period %d (day %d, date %s)' % (
-            i + 1, j + 1, l + 1, sp_days_lst[tETgmax], tETgmax + 1,
-            mpl.dates.num2date(cMF.inputDate[tETgmax] + 1.0).isoformat()[:10])
-            if plt_out_obs == 1:
-                x = cMF.delc[i] * i + xllcorner
-                y = cMF.delr[j] * j + yllcorner
-                obs['ETgmax'] = {'x': x, 'y': y, 'i': i, 'j': j, 'lay': l, 'hi': 999, 'h0': 999, 'RC': 999, 'STO': 999,
-                                 'obs_h': [], 'obs_h_yn': 0, 'obs_SM': [], 'obs_sm_yn': 0, 'obs_Ro': [], 'obs_Ro_yn': 0}
-                obs_list.append('ETgmax')
-                obs4map[0].append('ETgmax')
-                obs4map[1].append(float(i) + 1.0)
-                obs4map[2].append(float(j) + 1.0)
-                obs4map[3].append(float(l))
-                del x, y
+            try:
+                tETgmax = tmp[0][0]
+                l = tmp[1][0]
+                i = tmp[2][0]
+                j = tmp[3][0]
+                print 'row %d, col %d, layer %d and stress period %d (day %d, date %s)' % (
+                i + 1, j + 1, l + 1, sp_days_lst[tETgmax], tETgmax + 1,
+                mpl.dates.num2date(cMF.inputDate[tETgmax] + 1.0).isoformat()[:10])
+                if plt_out_obs == 1:
+                    x = cMF.delc[i] * i + xllcorner
+                    y = cMF.delr[j] * j + yllcorner
+                    obs['ETgmax'] = {'x': x, 'y': y, 'i': i, 'j': j, 'lay': l, 'hi': 999, 'h0': 999, 'RC': 999, 'STO': 999,
+                                     'obs_h': [], 'obs_h_yn': 0, 'obs_SM': [], 'obs_sm_yn': 0, 'obs_Ro': [], 'obs_Ro_yn': 0}
+                    obs_list.append('ETgmax')
+                    obs4map[0].append('ETgmax')
+                    obs4map[1].append(float(i) + 1.0)
+                    obs4map[2].append(float(j) + 1.0)
+                    obs4map[3].append(float(l))
+                    del x, y
 
-            for e in tmp:
-                if len(e) > 1:
-                    print "WARNING!\nETg max occurred at several cells and/or stress periods"
-                    break
-            del tmp
+                for e in tmp:
+                    if len(e) > 1:
+                        print "WARNING!\nETg max occurred at several cells and/or stress periods"
+                        break
+                del tmp
+            except:
+                print "ERROR! It was not possible to export maximum ETg"
             if tETgmax < 0:
                 print 'WARNING!\nNo ETg max found!'
         del cbc_WEL
@@ -1465,9 +1468,9 @@ if os.path.exists(cMF.h5_MF_fn):
         GHBmin = np.ma.min(cbc_GHB)
         cbcmin_d.append(GHBmin)
         del cbc_GHB
-        # TODO correct below siince GHB can be <0 or >0, same with CH
-        GHBmax = -1.0 * GHBmin
-        GHBmin = 0.0
+        if GHBmax < GHBmin:
+            GHBmax = -1.0 * GHBmin
+            GHBmin = 0.0
     # CH
     if len(cMF.ibound[cMF.ibound < 0]) > 0:
         cbc_CH = h5_MF['CH_d']

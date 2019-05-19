@@ -1429,9 +1429,12 @@ class clsMF():
         h5_MF.close()
         # to delete MF binary files and save disk space
         if self.MFout_yn == 0:
-            os.remove(self.h_MF_fn)
-            os.remove(self.cbc_MF_fn)
-            os.remove(self.cbc_MFuzf_fn)
+            for e in [self.h_MF_fn,self.cbc_MF_fn, self.cbc_MFuzf_fn]:
+                try:
+                    os.remove(e)
+                except:
+                    print "ERRO! It was not possible to remove %s" % e
+
             
 ##################
 if __name__ == "__main__":
