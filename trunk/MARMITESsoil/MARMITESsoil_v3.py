@@ -34,6 +34,7 @@ __version__ = "0.3"
 __date__ = "2012"
 
 import numpy as np
+import sys
 
 class clsMMsoil:
 
@@ -361,7 +362,8 @@ class clsMMsoil:
             cMF, conv_fact, h5_MF, h5_MM, irr_yn,
             RF_irr_zoneSP = [], PT_irr_zonesSP = [], RFe_irr_zoneSP = [],
             crop_irr_SP = [], gridIRR = [],
-            Zr_c = [], kT_min_c = [], kT_max_c = [], kT_n_c = [], NCROP = []):
+            Zr_c = [], kT_min_c = [], kT_max_c = [], kT_n_c = [], NCROP = [],
+            verbose = 0, report = None, report_fn = None, stdout = None):
 
         global dgwt, IRRfield
         h_MF_ini = None
@@ -654,6 +656,14 @@ class clsMMsoil:
             h5_MM['MM_S'][tstart_MM:tend_MM,:,:,:,:] = MM_S[:,:,:,:,:]
             h5_MM['perc'][n,:,:]                     = MM_perc_MF
             h5_MM['ETg'][n,:,:]                      = MM_wel_MF
+            if (n/100.0).is_integer():
+                print "Processed data up to stress period %d of %d" % (n,cMF.nper)
+                if verbose == 0:
+                    sys.stdout = stdout
+                    report.close()
+                    stdout = sys.stdout
+                    report = open(report_fn, 'a')
+                    sys.stdout = report
         h5_MM.close()
 
 #####################

@@ -1473,7 +1473,7 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
                     pass
             for l in range(len(ax)):
                 ax[l].cla()
-
+    # TODO correct to produze movies for each pages
     if len(days) > 1 and animation == 1:
         batch_fn = os.path.join(MM_ws, 'run.bat')
         f = open(batch_fn, 'w')
@@ -1733,13 +1733,13 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
             pathlengths = [2 * pl]
             for L in range(cMF.nlay):
                 if ibound4Sankey[L] > 0:
-                    if Rg[k][L] / ff > 0.0:
+                    if Rg[k][L] / ff > treshold:
                         flows.append(-Rg[k][L] / ff)
-                    else:
-                        flows.append(0.0)
-                    labels.append('$Rg_%d$' % (L + 1))
-                    orientations.append(-1)
-                    pathlengths.append(pl)
+                    #else:
+                    #    flows.append(0.0)
+                        labels.append('$Rg_%d$' % (L + 1))
+                        orientations.append(-1)
+                        pathlengths.append(pl)
             pltsankey.add(patchlabel='$\Delta S_p$\n%.1f' % (dSu[k] / ff), label='MF_UZF', facecolor='lavender',
                           trunklength=tl,
                           flows=flows,
@@ -2148,6 +2148,8 @@ def plotCALIBCRIT(calibcritSM, calibcritSMobslst, calibcritHEADS, calibcritHEADS
             plt.savefig(plt_export_fn_tmp, dpi=150)
             plt.close('all')
         p_mult += num_plt_max
+
+        # TODO export a table with calib. crit. results
 
 
 ##################

@@ -1037,15 +1037,15 @@ if MMsoil_yn != 0:
         # ###############
         # # main loop: calculation of soil water balance in each cell-grid for each time step inside each stress period
         #        t0=0
-        print '\nComputing...'
+        print '\nComputing...\n'
         if irr_yn == 0:
             MM_SOIL.runMMsoil(_nsl, _nslmax, _st, _Sm, _Sfc, _Sr, _slprop, _S_ini, botm_l0, _Ks,
                               gridSOIL, gridSOILthick, cMF.elev * 1000.0, gridMETEO,
                               index_MM, index_MM_soil, gridSsurfhmax, gridSsurfw,
                               RF_veg_zoneSP, E0_zonesSP, PT_veg_zonesSP, RFe_veg_zonesSP, PE_zonesSP, gridVEGarea,
                               LAI_veg_zonesSP, Zr, kT_min, kT_max, kT_n, NVEG,
-                              cMF, conv_fact, h5_MF, h5_MM, irr_yn
-                              )
+                              cMF, conv_fact, h5_MF, h5_MM, irr_yn,
+                              verbose = verbose, report = report, report_fn = report_fn, stdout = stdout)
         else:
             MM_SOIL.runMMsoil(_nsl, _nslmax, _st, _Sm, _Sfc, _Sr, _slprop, _S_ini, botm_l0, _Ks,
                               gridSOIL, gridSOILthick, cMF.elev * 1000.0, gridMETEO,
@@ -1055,8 +1055,8 @@ if MMsoil_yn != 0:
                               cMF, conv_fact, h5_MF, h5_MM, irr_yn,
                               RF_irr_zoneSP, PT_irr_zonesSP, RFe_irr_zoneSP,
                               crop_irr_SP, gridIRR,
-                              Zr_c, kT_min_c, kT_max_c, kT_n_c, NCROP
-                              )
+                              Zr_c, kT_min_c, kT_max_c, kT_n_c, NCROP,
+                              verbose = verbose, report = report, report_fn = report_fn, stdout = stdout)
 
         # CHECK MM amd MF CONVERG.
         h_MF_m = np.ma.masked_values(np.ma.masked_values(h5_MF['heads'], cMF.hdry, atol=1E+25), cMF.hnoflo, atol=0.09)
@@ -1084,7 +1084,7 @@ if MMsoil_yn != 0:
             h_diff_all_log.append(np.log10(convcritmax))
 
         msg_end_loop = []
-        msg_end_loop.append('Average heads:\n%.3f m' % h_MF_average)
+        msg_end_loop.append('\nAverage heads:\n%.3f m' % h_MF_average)
         if LOOP > 1:
             msg_end_loop.append('Heads diff. from previous conv. loop: %.3f m' % h_diff[LOOP])
             msg_end_loop.append('Maximum heads difference:             %.3f m' % h_diff_all[LOOP])
