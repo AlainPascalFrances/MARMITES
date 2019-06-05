@@ -5,9 +5,8 @@
       <change beforePath="$PROJECT_DIR$/.idea/MARMITES.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/MARMITES.iml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/trunk/.spyderproject" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/trunk/.spyderworkspace" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESplot/MARMITESplot_v3.py" beforeDir="false" afterPath="$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESplot/MARMITESplot_v3.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/ppMF_FloPy/ppMODFLOW_flopy_v3.py" beforeDir="false" afterPath="$PROJECT_DIR$/trunk/ppMF_FloPy/ppMODFLOW_flopy_v3.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/trunk/startMARMITES_v3.py" beforeDir="false" afterPath="$PROJECT_DIR$/trunk/startMARMITES_v3.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
@@ -18,11 +17,11 @@
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
-      <file pinned="false" current-in-tab="false">
+      <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/trunk/startMARMITES_v3.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="323">
-              <caret line="2130" column="47" lean-forward="true" selection-start-line="2130" selection-start-column="47" selection-end-line="2130" selection-end-column="47" />
+            <state relative-caret-position="466">
+              <caret line="78" lean-forward="true" selection-start-line="78" selection-end-line="78" />
               <folding>
                 <element signature="e#513#558#0" expanded="true" />
               </folding>
@@ -33,8 +32,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESutilities.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="476">
-              <caret line="31" selection-start-line="31" selection-end-line="31" />
+            <state relative-caret-position="2736">
+              <caret line="174" column="4" selection-start-line="174" selection-start-column="4" selection-end-line="174" selection-end-column="4" />
             </state>
           </provider>
         </entry>
@@ -42,7 +41,7 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/trunk/MARMITESsoil/MARMITESsoil_v3.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="615">
+            <state relative-caret-position="10464">
               <caret line="654" selection-start-line="654" selection-end-line="654" />
             </state>
           </provider>
@@ -51,17 +50,17 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESprocess_v3.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="2397">
-              <caret line="143" selection-start-line="143" selection-end-line="143" />
+            <state relative-caret-position="12432">
+              <caret line="779" column="5" selection-start-line="779" selection-start-column="5" selection-end-line="779" selection-end-column="5" />
             </state>
           </provider>
         </entry>
       </file>
-      <file pinned="false" current-in-tab="true">
+      <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESplot/MARMITESplot_v3.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="274">
-              <caret line="613" column="22" selection-start-line="613" selection-start-column="16" selection-end-line="613" selection-end-column="22" />
+            <state relative-caret-position="27728">
+              <caret line="1738" column="42" selection-start-line="1738" selection-start-column="31" selection-end-line="1738" selection-end-column="42" />
             </state>
           </provider>
         </entry>
@@ -80,8 +79,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/trunk/ppMF_FloPy/ppMODFLOW_flopy_v3.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="1462">
-              <caret line="90" column="18" selection-start-line="90" selection-start-column="12" selection-end-line="90" selection-end-column="18" />
+            <state relative-caret-position="22480">
+              <caret line="1409" column="43" selection-start-line="1409" selection-start-column="43" selection-end-line="1409" selection-end-column="43" />
             </state>
           </provider>
         </entry>
@@ -90,14 +89,6 @@
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>rsrHEADS_tmp</find>
-      <find>rmseHEADS_tmp</find>
-      <find>report</find>
-      <find>h_pSP</find>
-      <find>h5_MF</find>
-      <find>h_MF_m</find>
-      <find>cMF.nlay</find>
-      <find>h5_MF['heads_d']</find>
       <find>999</find>
       <find>sy</find>
       <find>vka</find>
@@ -111,7 +102,6 @@
       <find>E_soil</find>
       <find>iEsoil_</find>
       <find>_%d</find>
-      <find>flxLbl_lst</find>
       <find>_{%d</find>
       <find>{g</find>
       <find>%d}</find>
@@ -120,12 +110,21 @@
       <find>markersize</find>
       <find>ih</find>
       <find>iSobs_</find>
+      <find>obs</find>
+      <find>flxLbl_lst</find>
+      <find>sankey</find>
+      <find>0.0</find>
+      <find>append(0.0)</find>
+      <find>RCHmax</find>
+      <find>chunks</find>
+      <find>heads_d</find>
+      <find>tRCHmax</find>
     </findStrings>
     <replaceStrings>
       <replace>=np.float32</replace>
-      <replace>dpi=150</replace>
       <replace>_{%d}</replace>
       <replace>_%d</replace>
+      <replace>dpi=150</replace>
     </replaceStrings>
   </component>
   <component name="Git.Settings">
@@ -137,17 +136,17 @@
       <list>
         <option value="$PROJECT_DIR$/trunk/MARMITESsoil/MARMITESsoil_v3.py" />
         <option value="$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESprocess_v3.py" />
-        <option value="$PROJECT_DIR$/trunk/ppMF_FloPy/ppMODFLOW_flopy_v3.py" />
-        <option value="$PROJECT_DIR$/trunk/startMARMITES_v3.py" />
         <option value="$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESplot/MARMITESplot_v3.py" />
+        <option value="$PROJECT_DIR$/trunk/startMARMITES_v3.py" />
+        <option value="$PROJECT_DIR$/trunk/ppMF_FloPy/ppMODFLOW_flopy_v3.py" />
       </list>
     </option>
   </component>
   <component name="ProjectFrameBounds" extendedState="6">
-    <option name="x" value="1850" />
-    <option name="y" value="124" />
-    <option name="width" value="1265" />
-    <option name="height" value="856" />
+    <option name="x" value="-4" />
+    <option name="y" value="-4" />
+    <option name="width" value="1928" />
+    <option name="height" value="1164" />
   </component>
   <component name="ProjectView">
     <navigator proportions="" version="1">
@@ -174,8 +173,9 @@
     </panes>
   </component>
   <component name="PropertiesComponent">
-    <property name="last_opened_file_path" value="$USER_HOME$/AppData/Local/GitHubDesktop/app-1.2.2/resources/app/git/cmd/git.exe" />
-    <property name="settings.editor.selected.configurable" value="configurable.group.project" />
+    <property name="SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
+    <property name="last_opened_file_path" value="$USER_HOME$/AppData/Local/GitHubDesktop/app-1.6.5/resources/app/git/cmd/git.exe" />
+    <property name="settings.editor.selected.configurable" value="vcs.Git" />
   </component>
   <component name="RunDashboard">
     <option name="ruleStates">
@@ -218,7 +218,7 @@
       <envs>
         <env name="PYTHONUNBUFFERED" value="1" />
       </envs>
-      <option name="SDK_HOME" value="C:\Python27\201811\python.exe" />
+      <option name="SDK_HOME" value="C:\Python27\v2714\python.exe" />
       <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/trunk" />
       <option name="IS_MODULE_SDK" value="false" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
@@ -266,22 +266,22 @@
     </todo-panel>
   </component>
   <component name="ToolWindowManager">
-    <frame x="1592" y="-143" width="1936" height="1216" extended-state="6" />
+    <frame x="-4" y="-4" width="1608" height="864" extended-state="6" />
     <layout>
-      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.12908325" />
+      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.16212793" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
       <window_info id="Favorites" order="2" side_tool="true" />
       <window_info anchor="bottom" id="Message" order="0" />
       <window_info anchor="bottom" id="Find" order="1" />
-      <window_info anchor="bottom" id="Run" order="2" sideWeight="0.49525815" weight="0.1509434" />
-      <window_info anchor="bottom" id="Debug" order="3" weight="0.2715105" />
+      <window_info active="true" anchor="bottom" id="Run" order="2" sideWeight="0.49461684" visible="true" weight="0.26675603" />
+      <window_info anchor="bottom" id="Debug" order="3" weight="0.27055448" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
       <window_info anchor="bottom" id="TODO" order="6" sideWeight="0.49667552" weight="0.32894737" />
       <window_info anchor="bottom" id="Terminal" order="7" weight="0.32894737" />
       <window_info anchor="bottom" id="Python Console" order="8" sideWeight="0.4973404" weight="0.32791588" />
       <window_info anchor="bottom" id="Version Control" order="9" />
-      <window_info anchor="bottom" id="Event Log" order="10" sideWeight="0.50474185" side_tool="true" weight="0.31603774" />
+      <window_info anchor="bottom" id="Event Log" order="10" sideWeight="0.50538313" side_tool="true" weight="0.31903484" />
       <window_info anchor="right" id="Commander" order="0" weight="0.4" />
       <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
       <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.25" />
@@ -292,7 +292,7 @@
       <breakpoints>
         <line-breakpoint suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/../flopy/flopy/modflow/mfuzf1.py</url>
-          <line>675</line>
+          <line>706</line>
           <option name="timeStamp" value="18" />
         </line-breakpoint>
         <line-breakpoint suspend="THREAD" type="python-line">
@@ -462,10 +462,41 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/startMARMITES_v3.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="466">
+          <caret line="78" lean-forward="true" selection-start-line="78" selection-end-line="78" />
+          <folding>
+            <element signature="e#513#558#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESutilities.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="2736">
+          <caret line="174" column="4" selection-start-line="174" selection-start-column="4" selection-end-line="174" selection-end-column="4" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/MARMITESsoil/MARMITESsoil_v3.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="10464">
+          <caret line="654" selection-start-line="654" selection-end-line="654" />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESprocess_v3.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="2397">
-          <caret line="143" selection-start-line="143" selection-end-line="143" />
+        <state relative-caret-position="12432">
+          <caret line="779" column="5" selection-start-line="779" selection-start-column="5" selection-end-line="779" selection-end-column="5" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESplot/MARMITESplot_v3.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="27728">
+          <caret line="1738" column="42" selection-start-line="1738" selection-start-column="31" selection-end-line="1738" selection-end-column="42" />
         </state>
       </provider>
     </entry>
@@ -480,39 +511,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/trunk/ppMF_FloPy/ppMODFLOW_flopy_v3.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="1462">
-          <caret line="90" column="18" selection-start-line="90" selection-start-column="12" selection-end-line="90" selection-end-column="18" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESutilities.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="476">
-          <caret line="31" selection-start-line="31" selection-end-line="31" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/trunk/MARMITESsoil/MARMITESsoil_v3.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="615">
-          <caret line="654" selection-start-line="654" selection-end-line="654" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/trunk/startMARMITES_v3.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="323">
-          <caret line="2130" column="47" lean-forward="true" selection-start-line="2130" selection-start-column="47" selection-end-line="2130" selection-end-column="47" />
-          <folding>
-            <element signature="e#513#558#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESplot/MARMITESplot_v3.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="274">
-          <caret line="613" column="22" selection-start-line="613" selection-start-column="16" selection-end-line="613" selection-end-column="22" />
+        <state relative-caret-position="22480">
+          <caret line="1409" column="43" selection-start-line="1409" selection-start-column="43" selection-end-line="1409" selection-end-column="43" />
         </state>
       </provider>
     </entry>
