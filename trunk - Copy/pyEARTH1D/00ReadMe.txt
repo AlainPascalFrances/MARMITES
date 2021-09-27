@@ -1,1 +1,0 @@
-Start with appReSoGUI.py

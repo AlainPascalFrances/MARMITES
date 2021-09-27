@@ -1,1 +1,0 @@
-python -n appReSoGUI.py

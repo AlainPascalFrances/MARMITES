@@ -258,7 +258,7 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S,
     lines = itertools.cycle(['-','--','-.',':','.',',','o','v','^','<','>','1','2','3','4','s','p','*','h','H','+','x','D','d','|','_'])
     lbl_h = []
     for l in range(nlay):
-        plt.plot_date(DateInput,h_MF[:,l],lines.next(), color = 'b')
+        plt.plot_date(DateInput,h_MF[:,l],next(lines), color = 'b')
         lbl_h.append(r'h_MF_l%i' % (l+1))
     plt.plot_date(DateInput,h_MF_corr,'-', color = 'g')
     plt.plot_date(DateInput,h_SF,'-', color = 'r')
@@ -550,7 +550,7 @@ def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, hmax
         plt.setp(ax7.get_yticklabels(), fontsize=8)
         i = 20
         for l in range(cMF.nlay):
-            plt.plot_date(DateInput,flx[i],lines.next(), color = 'b', label = flx_lbl[i])
+            plt.plot_date(DateInput,flx[i],next(lines), color = 'b', label = flx_lbl[i])
             i += l + 2
         plt.xlim(DateInput[0]-1,DateInput[len(DateInput)-1]+1)
         plt.ylim(hmin,hmax)
@@ -590,7 +590,7 @@ def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, hmax
         plt.setp(ax10.get_yticklabels(), fontsize=8)
         i = 21
         for l in range(cMF.nlay):
-            plt.plot_date(DateInput,flx[i],lines.next(), color = 'b', label = flx_lbl[i])
+            plt.plot_date(DateInput,flx[i],next(lines), color = 'b', label = flx_lbl[i])
             i += l + 2
         plt.xlim(DateInput[0]-1,DateInput[len(DateInput)-1]+1)
         plt.ylabel('m', fontsize=10)
@@ -641,7 +641,7 @@ def plotLAYER(timesteps, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, ms
         plt.setp(ax[L].get_yticklabels(), fontsize=8)
         plt.ylabel('row i', fontsize=10)
         plt.xlabel('col j', fontsize=10)
-        if points <> None:
+        if points != None:
             for k, (xj,yi,lay, label) in enumerate(zip(points[2],points[1],points[3],points[0])):
                 if lay == L:
                     color = 'dimgrey'

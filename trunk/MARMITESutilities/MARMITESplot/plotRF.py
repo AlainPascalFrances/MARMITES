@@ -126,7 +126,7 @@ def plot(x, y1, \
     elif MMsurf_plot == 0:
         plt.savefig(plot_exportRF_fn,dpi=150)
     else:
-        print '\nWARNING!\nMMsurf_plot should be iqual to 0 or to 1! Plot saved anyway at %s' % plot_exportRF_fn
+        print('\nWARNING!\nMMsurf_plot should be iqual to 0 or to 1! Plot saved anyway at %s' % plot_exportRF_fn)
         plt.savefig(plot_exportRF_fn,dpi=150)
     plt.close()
     del fig

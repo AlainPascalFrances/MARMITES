@@ -72,4 +72,4 @@ for p, (sp, title, array) in enumerate(zip([221,223],['RSR','r'],[rsr, r])):
 img_fn = os.path.join(win32com.shell.shell.SHGetFolderPath(0, win32com.shell.shellcon.CSIDL_DESKTOP, None, 0), 'calib_criteria_ft10.png') #(os.path.expanduser('~'), 'Desktop\calib_criteria.png')
 plt.savefig(img_fn, dpi = 300)
 
-print '\nDone!\nImage save in:\n%s' % img_fn
+print('\nDone!\nImage save in:\n%s' % img_fn)

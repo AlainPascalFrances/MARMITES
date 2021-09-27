@@ -294,7 +294,7 @@ class clsPROCESS:
                     #structure is [number of zones, number of soil type, time]
 
         # read IRRIGATION RF and RFe
-        if NFIELD != None:
+        if NFIELD is not None:
             # RF_irr
             RF_irr_fn = os.path.join(self.MM_ws, inputZON_SP_RF_irr_fn)
             if os.path.exists(RF_irr_fn):
@@ -335,7 +335,7 @@ class clsPROCESS:
                     #structure is [number of field, time]
                     crop_irr_SP[f,t] = crop_irr_tmp[t+f*nper]
 
-        if NFIELD == None:
+        if NFIELD is None:
             return gridVEGarea, RF_veg_zonesSP, E0_zonesSP, PT_veg_zonesSP, RFe_veg_zonesSP, LAI_veg_zonesSP, PE_zonesSP
         else:
             return gridVEGarea, RF_veg_zonesSP, E0_zonesSP, PT_veg_zonesSP, RFe_veg_zonesSP, LAI_veg_zonesSP, PE_zonesSP, RF_irr_zonesSP, RFe_irr_zonesSP, PT_irr_zonesSP, crop_irr_SP
@@ -359,7 +359,7 @@ class clsPROCESS:
         inputFile = self.cUTIL.readFile(self.MM_ws,SOILparam_fn)
         SOILzones=int(int(inputFile[0]))
         if SOILzones>NSOIL:
-            print '\nWARNING!\n' + str(SOILzones) + ' soil parameters groups in file [' + SOILparam_fn + ']\n Only ' + str(NSOIL) + ' PE time series found.'
+            print('\nWARNING!\n' + str(SOILzones) + ' soil parameters groups in file [' + SOILparam_fn + ']\n Only ' + str(NSOIL) + ' PE time series found.')
         # trick to initialise the reading position in the next loop
         nsl.append(0)
         for i in range(SOILzones):
@@ -442,10 +442,10 @@ class clsPROCESS:
                x > (self.xllcorner+self.ncol*self.cellsizeMF) or
                y <= self.yllcorner or
                y > (self.yllcorner+self.nrow*self.cellsizeMF)):
-                   print 'WARNING!\nObservation point %s has coordinates outside the MODFLOW grid and will not be considered.' % name
+                   print('WARNING!\nObservation point %s has coordinates outside the MODFLOW grid and will not be considered.' % name)
             else:
                 if lay > nlay or lay < 1:
-                    print 'WARNING!\nLayer %s of observation point %s is not valid (corrected to layer 1)!\nCheck your file %s (layer number should be between 1 and the number of layer of the MODFLOW model, in this case %s).' % (lay, name, inputObs_fn, nlay)
+                    print('WARNING!\nLayer %s of observation point %s is not valid (corrected to layer 1)!\nCheck your file %s (layer number should be between 1 and the number of layer of the MODFLOW model, in this case %s).' % (lay, name, inputObs_fn, nlay))
                     lay = 0
                 else:
                     lay = lay - 1
@@ -458,19 +458,19 @@ class clsPROCESS:
                 if os.path.exists(obsh_fn):
                     obs_h, obs_h_yn = self.verifObs(inputDate, obsh_fn, obsnam = name, stdout = stdout, report = report)
                 else:
-                    obs_h = []
+                    obs_h = None
                     obs_h_yn = 0
                 obssm_fn=os.path.join(self.MM_ws, '%s_%s.txt' % (inputObsSM_fn, name))
                 if os.path.exists(obssm_fn):
                     obs_sm, obs_sm_yn = self.verifObs(inputDate, obssm_fn, _nslmax, obsnam = name, stdout = stdout, report = report)
                 else:
-                    obs_sm = []
+                    obs_sm = None
                     obs_sm_yn = 0
                 obsRo_fn=os.path.join(self.MM_ws, '%s_%s.txt' % (inputObsRo_fn, name))
                 if os.path.exists(obsRo_fn):
                     obs_Ro, obs_Ro_yn = self.verifObs(inputDate, obsRo_fn, obsnam = name, stdout = stdout, report = report)
                 else:
-                    obs_Ro = []
+                    obs_Ro = None
                     obs_Ro_yn = 0
                 obs[name] = {'x':x,'y':y,'i': i, 'j': j, 'lay': lay, 'hi':hi, 'h0':h0, 'RC':RC, 'STO':STO, 'lbl':lbl, 'obs_h':obs_h, 'obs_h_yn':obs_h_yn, 'obs_SM':obs_sm, 'obs_sm_yn':obs_sm_yn, 'obs_Ro':obs_Ro, 'obs_Ro_yn':obs_Ro_yn}
 
@@ -479,19 +479,19 @@ class clsPROCESS:
         if os.path.exists(obsh_fn):
             obs_h, obs_h_yn = self.verifObs(inputDate, obsh_fn, obsnam = name, stdout = stdout, report = report)
         else:
-            obs_h = []
+            obs_h = None
             obs_h_yn = 0
         obssm_fn = os.path.join(self.MM_ws, '%s_catchment.txt' % inputObsSM_fn)
         if os.path.exists(obssm_fn):
             obs_sm, obs_sm_yn = self.verifObs(inputDate, obssm_fn, _nslmax, obsnam = name, stdout = stdout, report = report)
         else:
-            obs_sm = []
+            obs_sm = None
             obs_sm_yn = 0
         obsRo_fn = os.path.join(self.MM_ws, '%s_catchment.txt' % inputObsRo_fn)
         if os.path.exists(obsRo_fn):
             obs_Ro, obs_Ro_yn = self.verifObs(inputDate, obsRo_fn, obsnam = name, stdout = stdout, report = report)
         else:
-            obs_Ro = []
+            obs_Ro = None
             obs_Ro_yn = 0
         obs_catch = {}
         obs_catch['catch'] = {'obs_h':obs_h, 'obs_h_yn':obs_h_yn, 'obs_SM':obs_sm, 'obs_sm_yn':obs_sm_yn, 'obs_Ro':obs_Ro, 'obs_Ro_yn':obs_Ro_yn}
@@ -525,8 +525,8 @@ class clsPROCESS:
             obsOutput = np.ones([len(obsValue),len(inputDate)], dtype=np.float32)*self.hnoflo
             obs_yn = 0
             if (obsDate[len(obsDate)-1] < inputDate[0]) or (obsDate[0] > inputDate[len(inputDate)-1]):
-                obsOutput = []
-                print '\nObservations of file %s outside the modeling period!' % filename
+                obsOutput = None
+                print('\nObservations of file %s outside the modeling period!' % filename)
             else:
                 for l in range(len(obsValue)):
                     if not isinstance(obsValue[l], float):
@@ -550,15 +550,15 @@ class clsPROCESS:
                     else:
                         obsOutput[l,:] = np.ones([len(inputDate)])*self.hnoflo
         else:
-            obsOutput = []
+            obsOutput = None
         return obsOutput, obs_yn
         del inputDate, obsOutput
 
     ######################
 
-    def outputEAgrd(self, outFile_fn, outFolder = []):
+    def outputEAgrd(self, outFile_fn, outFolder = None):
 
-        if outFolder == []:
+        if outFolder is None:
             outFolder = self.MM_ws
 
         outFile=open(os.path.join(outFolder, outFile_fn), 'w')
@@ -600,8 +600,8 @@ class clsPROCESS:
                     obs_S_tmp = obs_S[l,t]
                 except:
                     obs_S_tmp = -1.0
-                if results_S[t,l,index_S.get('iSsoil_pc_s')] > 0.0 and obs_S_tmp > 0.0:
-                    self.smMM[len_smMM-1].append((obsname+'SM_l'+str(l+1)).ljust(12,' ')+ out_date.ljust(12,' ')+ ' 00:00:00 ' + str(results_S[t,l,index_S.get('iSsoil_pc_s')]).ljust(10,' ') + '\n')
+                if results_S[t,l,index_S.get(b'iSsoil_pc_s')] > 0.0 and obs_S_tmp > 0.0:
+                    self.smMM[len_smMM-1].append((obsname+'SM_l'+str(l+1)).ljust(12,' ')+ out_date.ljust(12,' ')+ ' 00:00:00 ' + str(results_S[t,l,index_S.get(b'iSsoil_pc_s')]).ljust(10,' ') + '\n')
         del i, j, _nslmax, results_S, index_S, obs_S, obsname
 
     #####################################
@@ -690,7 +690,7 @@ class clsPROCESS:
             b = a[~(a > hnoflo - 1000.0).any(1)]
         else:
             b = a[~(a < hnoflo + 1000.0).any(1)]
-        if b[:,0] <> []:
+        if b[:,0].any():
             rmse = (self.compRMSE(b[:,0], b[:,1]))
             if np.std(b[:,1]) > 0:
                 rsr = (rmse/(np.std(b[:,1])))
@@ -726,8 +726,8 @@ class clsPROCESS:
                 testSM += 1
             except:
                 Sobs_m.append([])
-        if testSM > 0 or hobs <> []:
-            print 'RMSE/RSR/NSE/r'
+        if testSM > 0 or hobs != []:
+            print('RMSE/RSR/NSE/r')
             if testSM > 0:
                 rmseSM = []
                 rsrSM = []
@@ -743,10 +743,10 @@ class clsPROCESS:
                             rSM.append(r)
                             del rmse, rsr, nse, r
                             if rmseSM[l] != None:
-                                print 'SM layer %d: %.1f %% / %.2f / %.2f / %.2f' % (l+1, rmseSM[l], rsrSM[l], nseSM[l], rSM[l])
+                                print('SM layer %d: %.1f %% / %.2f / %.2f / %.2f' % (l+1, rmseSM[l], rsrSM[l], nseSM[l], rSM[l]))
                 except:
-                    print 'SM layer %d: error' % (l+1)
-            if hobs <> []:
+                    print('SM layer %d: error' % (l+1))
+            if hobs is not None:
                 try:
                     rmse, rsr, nse, r = self.compCalibCrit(h_MF,hobs, hnoflo)
                     rmseHEADS = [rmse]
@@ -754,10 +754,10 @@ class clsPROCESS:
                     nseHEADS  = [nse]
                     rHEADS    = [r]
                     del rmse, rsr, nse, r
-                    if rmseHEADS[0] != None:
-                        print 'h: %.2f m / %.2f / %.2f / %.2f' % (rmseHEADS[0], rsrHEADS[0], nseHEADS[0], rHEADS[0])
+                    if rmseHEADS[0] is not None:
+                        print('h: %.2f m / %.2f / %.2f / %.2f' % (rmseHEADS[0], rsrHEADS[0], nseHEADS[0], rHEADS[0]))
                 except:
-                    print 'h: error'
+                    print('h: error')
                 if h_MM is not None:
                     try:
                         rmse, rsr, nse, r = self.compCalibCrit(h_MM,hobs,hnoflo)
@@ -766,15 +766,15 @@ class clsPROCESS:
                         nseHEADSc = [nse]
                         rHEADSc = [r]
                         del rmse, rsr, nse, r
-                        if rmseHEADSc[0] != None:
-                            print 'hcorr: %.2f m / %.2f / %.2f / %.2f' % (rmseHEADSc[0], rsrHEADSc[0], nseHEADSc[0], rHEADSc[0])
+                        if rmseHEADSc[0] is not None:
+                            print('hcorr: %.2f m / %.2f / %.2f / %.2f' % (rmseHEADSc[0], rsrHEADSc[0], nseHEADSc[0], rHEADSc[0]))
                     except:
-                        print 'hcorr: error'                    
+                        print('hcorr: error')                    
 
         return rmseHEADS, rmseHEADSc, rmseSM, rsrHEADS, rsrHEADSc, rsrSM, nseHEADS, nseHEADSc, nseSM, rHEADS, rHEADSc, rSM
 
 ##################
 if __name__ == "__main__":
-    print '\nWARNING!\nStart MARMITES-MODFLOW models using the script startMARMITES_v3.py\n'
+    print('\nWARNING!\nStart MARMITES-MODFLOW models using the script startMARMITES_v3.py\n')
 
 # EOF

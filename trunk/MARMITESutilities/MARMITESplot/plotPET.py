@@ -27,7 +27,7 @@ def plot(x, \
     colors_y1 = CreateColors.main(hi=100, hf=110, numbcolors = (len(y1)-1))
     colors_y3 = CreateColors.main(hi=70, hf=80, numbcolors = (len(y3)))
     lbl_y = []
-    if lbl_y2 <> '':
+    if lbl_y2 != '':
         lbl_y.append(lbl_y2)
     for i in range(len(lbl_y1)):
         lbl_y.append(lbl_y1[i])
@@ -38,12 +38,12 @@ def plot(x, \
     ax2.set_title(strTitle)
     plt.setp( ax2.get_xticklabels(), fontsize=8)
     plt.setp( ax2.get_yticklabels(), fontsize=8)
-    if y2<>[]:
+    if y2!=[]:
         plt.plot_date(x,y2,'-', color='blue')
     plt.plot_date(x,y1[0],'-', color='green')
     for i in range(1,len(y1)):
         plt.plot_date(x,y1[i],'-.', color=colors_y1[i-1], linewidth = 2)
-    if y3<>[]:
+    if y3!=[]:
         for i in range(len(y3)):
             plt.plot_date(x,y3[i],'-.', color=colors_y3[i], linewidth = 2)
     ax2.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%1.2f'))
@@ -68,7 +68,7 @@ def plot(x, \
     elif MMsurf_plot == 0:
         plt.savefig(plot_exportPET_fn,dpi=150)
     else:
-        print '\nWARNING!\nMMsurf_plot should be iqual to 0 or to 1! Plot saved anyway at %s' % plot_exportPET_fn
+        print('\nWARNING!\nMMsurf_plot should be iqual to 0 or to 1! Plot saved anyway at %s' % plot_exportPET_fn)
         plt.savefig(plot_exportPET_fn,dpi=150)
     plt.close()
     del fig
@@ -94,15 +94,15 @@ def plotVAR(strTitle = 'Title', x = [] \
     plt.setp( ax2.get_xticklabels(), fontsize=8)
     plt.setp( ax2.get_yticklabels(), fontsize=8)
     plt.plot_date(x,y1,'-', color='red')
-    if y2<>[]:
+    if y2!=[]:
         plt.plot_date(x,y2,'-', color='yellow')
-    if y3<>[]:
+    if y3!=[]:
         plt.plot_date(x,y3,'-.', color='orange', linewidth = 2)
-    if y4<>[]:
+    if y4!=[]:
         plt.plot_date(x,y4,'-.', color='blue')
-    if y5<>[]:
+    if y5!=[]:
         plt.plot_date(x,y5,'--', color='green')
-    if y6<>[]:
+    if y6!=[]:
         plt.plot_date(x,y6,'--', color='black')
     ax2.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%1.2f'))
     labels=ax2.get_yticklabels()
@@ -125,7 +125,7 @@ def plotVAR(strTitle = 'Title', x = [] \
     elif MMsurf_plot == 0:
         plt.savefig(plot_exportVAR_fn,dpi=150)
     else:
-        print '\nWARNING!\nMMsurf_plot should be iqual to 0 or to 1! Plot saved anyway at %s' % plot_exportVAR_fn
+        print('\nWARNING!\nMMsurf_plot should be iqual to 0 or to 1! Plot saved anyway at %s' % plot_exportVAR_fn)
         plt.savefig(plot_exportVAR_fn,dpi=150)
     plt.close()
     del fig

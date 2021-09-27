@@ -56,14 +56,14 @@ def PET_PM_FAO56():
         Liu www.hydrol-earth-syst-sci.net/11/769/2007/
         """
 
-    print 'A Python script to compute potential evaporation/transpiration'
-    print 'from hourly meteorological data of different land covers'
-    print '(vegetation, open water, bare soil)'
-    print 'using Penman-Monteith equation.'
-    print 'Type PET.PM() for help'
-    print 'Author: ',__author__
-    print 'Version: ',__version__
-    print 'Date: ',__date__
+    print('A Python script to compute potential evaporation/transpiration')
+    print('from hourly meteorological data of different land covers')
+    print('(vegetation, open water, bare soil)')
+    print('using Penman-Monteith equation.')
+    print('Type PET.PM() for help')
+    print('Author: ',__author__)
+    print('Version: ',__version__)
+    print('Date: ',__date__)
     return
 
 import numpy as np
@@ -230,7 +230,7 @@ def process(cUTIL, datenum = np.array([]), datenum_d = np.array([]), J = np.arra
     # [kPa.ªC-1]
     # FAO56 pag 37 Eq13
     DELTA = 4098*(0.6108*np.exp(17.27*Ta/(Ta+237.3)))/pow(Ta+237.3,2)
-    print "\nDELTA computed!"
+    print("\nDELTA computed!")
 
     # compute dr - inverse distance to the sun
     # FAO56 pag47 Eq23
@@ -310,9 +310,9 @@ def process(cUTIL, datenum = np.array([]), datenum_d = np.array([]), J = np.arra
         else:
             Rs_corr.append(Rs[j])
     if badvalues > 0:
-        print "\n" + '%.1f' %(100.0*badvalues/len(J)) + " % (" + str(badvalues) + '/' + str(len(J)) +') shortwave radiation measurements that were higher than the clear-sky one were corrected.'
+        print("\n" + '%.1f' %(100.0*badvalues/len(J)) + " % (" + str(badvalues) + '/' + str(len(J)) +') shortwave radiation measurements that were higher than the clear-sky one were corrected.')
         if badvalues/len(J)>0.15:
-            print '\nCalibrate your sensors!!!'
+            print('\nCalibrate your sensors!!!')
     Rs_corr = np.asarray(Rs_corr)
 
     # compute Rns - NET SHORTWAVE RADIATION
@@ -322,7 +322,7 @@ def process(cUTIL, datenum = np.array([]), datenum_d = np.array([]), J = np.arra
     Rns_VEG = np.zeros((NVEG, len(J)), dtype = float)
     for v in range(NVEG):
         Rns_VEG[v] = (1 - alfa_v[v])*Rs_corr
-    if IRR <> None:
+    if IRR != None:
         Rns_FIELD = np.zeros((NFIELD, len(J)), dtype = float)
         for f in range(NFIELD):
             Rns_FIELD[f] = (1 - alfa_f[f])*Rs_corr
@@ -330,7 +330,7 @@ def process(cUTIL, datenum = np.array([]), datenum_d = np.array([]), J = np.arra
     for s in range(NSOIL):
         Rns_SOIL[s] = (1 - alfa_s[s])*Rs_corr
     Rns_WATER = (1-alfa_w)*Rs_corr
-    print "\nRns computed!"
+    print("\nRns computed!")
 
     # compute e0_Ta - saturation vapour pressure at actual air temperature
     # [kPa]
@@ -341,7 +341,7 @@ def process(cUTIL, datenum = np.array([]), datenum_d = np.array([]), J = np.arra
     # [kPa]
     # FAO56 pag74 eq53
     # es = e0_Ta
-    print "\ne_s (e0_Ta) computed!"
+    print("\ne_s (e0_Ta) computed!")
 
     # correcting RHa measurement values
     badhighvalues = 0
@@ -354,19 +354,19 @@ def process(cUTIL, datenum = np.array([]), datenum_d = np.array([]), J = np.arra
             RHa[j] = 25.0  #observed value in calibrated sensors in Sardon
             badlowvalues = badlowvalues + 1
     if badhighvalues > 0:
-        print "\n" + '%.1f' % (100*badhighvalues/len(J)) + " % (" + str(badhighvalues) + "/" + str(len(J)) + ") relative humidity measurements > 100% were fixed to 100%."
+        print("\n" + '%.1f' % (100*badhighvalues/len(J)) + " % (" + str(badhighvalues) + "/" + str(len(J)) + ") relative humidity measurements > 100% were fixed to 100%.")
         if badvalues/len(J)>0.15:
-            print '\nCalibrate your sensors!!!'
+            print('\nCalibrate your sensors!!!')
     if badlowvalues > 0:
-        print "\n" + '%.1f' % (100*badlowvalues/len(J)) + " % (" + str(badlowvalues) + "/" + str(len(J)) + ") relative humidity measurements < 25% were fixed to 25%."
+        print("\n" + '%.1f' % (100*badlowvalues/len(J)) + " % (" + str(badlowvalues) + "/" + str(len(J)) + ") relative humidity measurements < 25% were fixed to 25%.")
         if badvalues/len(J)>0.15:
-            print '\nCalibrate your sensors!!!'
+            print('\nCalibrate your sensors!!!')
 
     # compute e_a - ACTUAL VAPOUR PRESSURE
     # [kPa]
     # FAO56 pag74 Eq54
     e_a = e0_Ta*RHa/100
-    print "\ne_a computed!"
+    print("\ne_a computed!")
 
     # compute Rnl - NET LONGWAVE RADIATION
     # [MJ.m-2.hour-1]
@@ -398,7 +398,7 @@ def process(cUTIL, datenum = np.array([]), datenum_d = np.array([]), J = np.arra
 ##            r=0.8
 ##            Rnl[j] = sigma*pow(Ta[j] + 273.16,4)*(0.34-0.14*np.sqrt(e_a[j]))*(1.35*r-0.35)
 
-    print "\nRnl computed!"
+    print("\nRnl computed!")
 
     # compute G - SOIL HEAT FLUX
     # [MJ.m-2.hour-1]
@@ -414,7 +414,7 @@ def process(cUTIL, datenum = np.array([]), datenum_d = np.array([]), J = np.arra
                 G_v.append(0.1*Rn[j])
         G_VEG[v] = np.asarray(G_v)
         del Rn, G_v
-    if IRR <> None:
+    if IRR != None:
         G_FIELD = np.zeros((NFIELD, len(J)), dtype = float)
         for f in range(NFIELD):
             G_f = []
@@ -447,7 +447,7 @@ def process(cUTIL, datenum = np.array([]), datenum_d = np.array([]), J = np.arra
             G_w.append(0.1*Rn[j])
     G_WATER = np.asarray(G_w)
     del Rn, G_w
-    print "\nG computed!"
+    print("\nG computed!")
 ##    G_VEG_Watts = []
 ##    for j in range(len(J)):
 ##        G_VEG_Watts.append(G_VEG[0][j]*24/0.08864)
@@ -456,13 +456,13 @@ def process(cUTIL, datenum = np.array([]), datenum_d = np.array([]), J = np.arra
     # [kg.m-3]
     # FAO56 pag26 box6
     ro_a = Pa/(R*1.01*(Ta+273.16))
-    print "\nro_a computed!"
+    print("\nro_a computed!")
 
     # gama - PSYCHROMETRIC CONSTANT
     # [kPa.ªC-1]
     # FAO56 pag31 eq8
     gama = Cp*Pa/(eps*lambdav)
-    print "\ngama computed!"
+    print("\ngama computed!")
 
     # r_s - SURFACE RESISTANCE
     # [s.m-1]
@@ -508,7 +508,7 @@ def process(cUTIL, datenum = np.array([]), datenum_d = np.array([]), J = np.arra
         r_s_VEG = np.asarray(r_s_VEG)
     del f_k, DELTArho_v, f_rho, f_T
     # FIELD/CROP: Dingman pag 208 (canopy conductance) (equivalent to FAO56 pag21 Eq5)
-    if IRR <> None:
+    if IRR != None:
         r_s_FIELD = []
         f_k = []
         DELTArho_f = []
@@ -550,19 +550,19 @@ def process(cUTIL, datenum = np.array([]), datenum_d = np.array([]), J = np.arra
     if NSOIL>0:
         for s in range(NSOIL):
             r_s_SOIL.append(10.0*np.exp(0.3563*100.0*(fc[s]-por[s])))
-        print "\nr_s computed!"
+        print("\nr_s computed!")
     r_s_SOIL = np.asarray(r_s_SOIL)
 
     # correction windspeed measurement and scaling at h+2m
     # [m.s-1]
     # FAO56 pag56 eq47
 #    u_z_m = np.where(u_z_m <= 0.0, 1E-9, u_z_m)
-    u_2 = np.where(z_m <> 2.0,u_z_m*4.87/(np.log(67.8*z_m-5.42)),u_z_m)
+    u_2 = np.where(z_m != 2.0,u_z_m*4.87/(np.log(67.8*z_m-5.42)),u_z_m)
     u_2 = np.where(u_2 <= 0.0, 1E-9, u_2)
     u_hplus2_v = np.zeros((NVEG, len(J)), dtype = float)
     u_hplus2_v = u_2 * (np.log(67.8*(h_v+2.0)-5.42)) / 4.87
     # FIELD/CROP
-    if IRR <> None:
+    if IRR != None:
         u_hplus2_f = np.zeros((NFIELD, len(J)), dtype = float)
         u_hplus2_f = u_2*(np.log(67.8*(h_f+2.0)-5.42)) / 4.87
 
@@ -578,7 +578,7 @@ def process(cUTIL, datenum = np.array([]), datenum_d = np.array([]), J = np.arra
                 # DINGMAN pag 296
                 r_a_VEG[v] = pow(np.log((h_v[v]+2-(0.7*h_v[v]))/(0.1*h_v[v])),2)/(pow(k,2)*u_hplus2_v[v])
     # FIELD/CROP
-    if IRR <> None:
+    if IRR != None:
         # DINGMAN pag 296
         r_a_FIELD = np.where(LAI_f > 0.0, pow(np.log((h_f+2-(0.7*h_f))/(0.1*h_f)),2)/(pow(k,2)*u_hplus2_f),0.0)
     # r_a of SOIL
@@ -594,7 +594,7 @@ def process(cUTIL, datenum = np.array([]), datenum_d = np.array([]), J = np.arra
 ##    if NSOIL > 0:
 ##        for j in range(len(J)):
 ##            r_a_SOIL.append(pow(np.log(2.0/Z0),2)/(0.16*u_2[j]))
-    print "\nr_a computed!"
+    print("\nr_a computed!")
 
     # equation variables of outputs
     outputVAR = [DELTA,gama, Rs, Rs_corr, Rs0, Rnl, r]
@@ -611,7 +611,7 @@ def process(cUTIL, datenum = np.array([]), datenum_d = np.array([]), J = np.arra
     value = (DELTA*(Rns_WATER-Rnl-G_WATER) + gama*0.26*(1+0.54*u_2)*(e0_Ta-e_a))/(lambdav*(DELTA + gama[j]))
     E0 = np.where(value >= 0.0, value, 0.0)
     del value
-    print "\nE0 of open water computed!"
+    print("\nE0 of open water computed!")
     # PT/PE - Penman-Montheith
     # mm.hour-1
     # FAO56 pag19 eq3
@@ -647,10 +647,10 @@ def process(cUTIL, datenum = np.array([]), datenum_d = np.array([]), J = np.arra
             Erf_VEG.append(Erf_v)
         PT_PM_VEG = np.asarray(PT_PM_VEG)
         Erf_VEG = np.asarray(Erf_VEG)
-        print "\nPT of VEGETATION computed!"
+        print("\nPT of VEGETATION computed!")
         del PT_PM_VEG_v, Erf_v, value
     # FIELD
-    if IRR <> None:
+    if IRR != None:
         PT_PM_FIELD = []
         Erf_FIELD = []  # Evaporation during RF
         if NFIELD>0:
@@ -680,7 +680,7 @@ def process(cUTIL, datenum = np.array([]), datenum_d = np.array([]), J = np.arra
                 Erf_FIELD.append(Erf_f)
             PT_PM_FIELD = np.asarray(PT_PM_FIELD)
             Erf_FIELD = np.asarray(Erf_FIELD)
-            print "\nPT of FIELDS/CROPS computed!"
+            print("\nPT of FIELDS/CROPS computed!")
             del PT_PM_FIELD_f, Erf_f, value
     # for SOIL
     PE_PM_SOIL = []
@@ -690,11 +690,11 @@ def process(cUTIL, datenum = np.array([]), datenum_d = np.array([]), J = np.arra
                         (lambdav*(DELTA + gama*(1+r_s_SOIL[s]/r_a_SOIL)))
             PE_PM_SOIL.append(np.where(value >= 0.0, np.where(value <= E0, value, E0), 0.0))
         PE_PM_SOIL = np.asarray(PE_PM_SOIL)
-        print "\nPE of SOIL computed!"
+        print("\nPE of SOIL computed!")
         del value
 
     # #### DAILY SUM ##############################################
-    if IRR <> None:
+    if IRR != None:
         RF_irr = np.zeros([NFIELD, len(RF)], dtype = float)
         for f in range(NFIELD):
             try:
@@ -707,7 +707,7 @@ def process(cUTIL, datenum = np.array([]), datenum_d = np.array([]), J = np.arra
     J_day = np.zeros([len(datenum_d)], dtype=float)
     PT_PM_VEG_d = np.zeros([NVEG,len(datenum_d)], dtype=float)
     LAI_veg_d = np.zeros([NVEG,len(datenum_d)], dtype=float)
-    if IRR <> None:
+    if IRR != None:
         PT_PM_FIELD_d = np.zeros([NFIELD,len(datenum_d)], dtype=float)
     if NSOIL > 0:
         PE_PM_SOIL_d = np.zeros([NSOIL,len(datenum_d)], dtype=float)
@@ -732,7 +732,7 @@ def process(cUTIL, datenum = np.array([]), datenum_d = np.array([]), J = np.arra
             if RF[t]>0:
                 RF_veg_d[t_d] = RF_veg_d[t_d] + RF[t]
                 RF_veg_duration[t_d] = RF_veg_duration[t_d] + 1.0
-            if IRR <> None:
+            if IRR != None:
                 for f in range(NFIELD):
                     if RF_irr[f][t]>0:
                         RF_irr_d[f][t_d] = RF_irr_d[f][t_d] + RF_irr[f][t]
@@ -741,7 +741,7 @@ def process(cUTIL, datenum = np.array([]), datenum_d = np.array([]), J = np.arra
         else:
             if RF_veg_duration[t_d]>0:
                 RFint_veg[t_d] = RF_veg_d[t_d]/RF_veg_duration[t_d]
-            if IRR <> None:
+            if IRR != None:
                 for f in range(NFIELD):
                     if RF_irr_duration[f][t_d]>0:
                         RFint_irr[f][t_d] = RF_irr_d[f][t_d]/RF_irr_duration[f,t_d]
@@ -759,21 +759,21 @@ def process(cUTIL, datenum = np.array([]), datenum_d = np.array([]), J = np.arra
             if RF[t]>0:
                 RF_veg_d[t_d] = RF_veg_d[t_d] + RF[t]
                 RF_veg_duration[t_d] = RF_veg_duration[t_d] + 1.0
-            if IRR <> None:
+            if IRR != None:
                 for f in range(NFIELD):
                     RF_irr_d[f][t_d] = RF_irr_d[f][t_d] + RF_irr[f][t]
                     RF_irr_duration[f][t_d] = RF_irr_duration[f][t_d] + 1.0
                     PT_PM_FIELD_d[f,t_d] = PT_PM_FIELD[f][t]
-    if n1<>0:
+    if n1!=0:
         if RF_veg_duration[t_d]>0:
             RFint_veg[t_d] = RF_veg_d[t_d]/RF_veg_duration[t_d]
-        if IRR <> None:
+        if IRR != None:
             for f in range(NFIELD):
                 RFint_irr[f][t_d] = RF_irr_d[f][t_d]/RF_irr_duration[f][t_d]
         n1_d.append(n1+1)
 
     #  #####  COMPUTING RF/INTERCEPTION ##############################################
-    print "\nComputing INTERCEPTION..."
+    print("\nComputing INTERCEPTION...")
     """Gash sparse model
         Gash 1979
         Gash, Lloyd and Lachaud 1995
@@ -792,7 +792,7 @@ def process(cUTIL, datenum = np.array([]), datenum_d = np.array([]), J = np.arra
         if len(RF_sat_)>0:
             avRF_sat_ = sum(RF_sat_)/len(RF_sat_)
         else:
-            print '\nWARNING!!! There is no RF during the input period!'
+            print('\nWARNING!!! There is no RF during the input period!')
             avRF_sat_ = 0.0
         return avRF_sat_, len(RF_sat_)
 
@@ -805,48 +805,48 @@ def process(cUTIL, datenum = np.array([]), datenum_d = np.array([]), J = np.arra
             avErf_sat_ = sum(Erf_sat_)/len(Erf_sat_)
             Pgl_ = -avRF_sat_*(S_/c_)*np.log(1-avErf_sat_/avRF_sat_)/avErf_sat_
         else:
-            print '\nWARNING!!! There is no RF during the input period!'
+            print('\nWARNING!!! There is no RF during the input period!')
             avErf_sat_ = 0.0
             Pgl_ = 0.0
         return Pgl_, avErf_sat_, len(Erf_sat_)
 
     # INTERCEPTION VEG
-    print '\n-----------\nInterception by VEGETATION'
+    print('\n-----------\nInterception by VEGETATION')
     I_veg_d = np.zeros([NVEG,len(datenum_d)], dtype=float)
     RFe_veg_d = np.zeros([NVEG,len(datenum_d)], dtype=float)
     avRFsat_veg, len_RFsat_veg = RFsat(datenum_ = datenum, RF_ = RF, RFtreshold_ = RFtreshold)
-    print 'RF average = ' + '%.4f' %avRFsat_veg + ' mm/h'
-    print 'Values computed for ' + str(len_RFsat_veg) + ' events of hourly RF higher than ' + str(RFtreshold) + ' mm'
+    print('RF average = ' + '%.4f' %avRFsat_veg + ' mm/h')
+    print('Values computed for ' + str(len_RFsat_veg) + ' events of hourly RF higher than ' + str(RFtreshold) + ' mm')
     for v in range(NVEG):
         Pgl, avErf_sat, len_Erf_sat = Erf_sat(datenum_ = datenum, RF_ = RF, Erf_ = Erf_VEG[v], avRF_sat_ = avRFsat_veg, S_ = S_w_v[v], c_ = c, RFtreshold_ = RFtreshold)
-        print '\nVegetation type ' + str(v)  + ' (' + VegType[v] + ')'
-        print 'Evaporation average during RF = ' + '%.4f' % (avErf_sat) + ' mm/h (' + str(len_Erf_sat)   + ' values)'
-        print 'RF treshold to saturate the canopy (Pgl) = ' + '%.2f' %Pgl
+        print('\nVegetation type ' + str(v)  + ' (' + VegType[v] + ')')
+        print('Evaporation average during RF = ' + '%.4f' % (avErf_sat) + ' mm/h (' + str(len_Erf_sat)   + ' values)')
+        print('RF treshold to saturate the canopy (Pgl) = ' + '%.2f' %Pgl)
         if avRFsat_veg > 0.0:
             I_veg_d[v] = np.where(RF_veg_d > Pgl, c*Pgl + (c*avErf_sat/avRFsat_veg)*(RF_veg_d-Pgl), c*RF_veg_d)  #- c*S_w_v[v]
             RFe_veg_d[v] = np.where(RF_veg_d > Pgl, RF_veg_d-I_veg_d[v], 0.0)
 
     # INTERCEPTION IRR
-    if IRR <> None:
-        print '\n-----------\nInterception by CROPS in FIELDS'
+    if IRR != None:
+        print('\n-----------\nInterception by CROPS in FIELDS')
         I_irr_d = np.zeros([NFIELD,len(datenum_d)], dtype=float)
         RFe_irr_d = np.zeros([NFIELD,len(datenum_d)], dtype=float)
         for f in range(NFIELD):
-            print '\nFIELD #%i' % (f+1)
+            print('\nFIELD #%i' % (f+1))
             avRFsat_irr, len_RFsat_irr = RFsat(datenum_ = datenum, RF_ = RF_irr[f], RFtreshold_ = RFtreshold)
-            print 'RF average = ' + '%.4f' %avRFsat_irr + ' mm/h'
-            print 'Values computed for ' + str(len_RFsat_irr) + ' events of hourly RF higher than ' + str(RFtreshold) + ' mm'
+            print('RF average = ' + '%.4f' %avRFsat_irr + ' mm/h')
+            print('Values computed for ' + str(len_RFsat_irr) + ' events of hourly RF higher than ' + str(RFtreshold) + ' mm')
             if S_w_f[f].sum() > 0.0:
                 Pgl, avErf_sat, len_Erf_sat = Erf_sat(datenum_ = datenum, RF_ = RF, Erf_ = Erf_FIELD[f], avRF_sat_ = avRFsat_irr, S_ = S_w_f[f], c_ = c, RFtreshold_ = RFtreshold)
-                print 'Evaporation average during RF = ' + '%.4f' % (avErf_sat) + ' mm/h (' + str(len_Erf_sat)   + ' values)'
-                print 'Averaged RF treshold to saturate the canopy (Pgl) = ' + '%.2f' % (sum(Pgl)/sum(RF_irr[f]>0.0))
+                print('Evaporation average during RF = ' + '%.4f' % (avErf_sat) + ' mm/h (' + str(len_Erf_sat)   + ' values)')
+                print('Averaged RF treshold to saturate the canopy (Pgl) = ' + '%.2f' % (sum(Pgl)/sum(RF_irr[f]>0.0)))
                 if avRFsat_irr > 0.0:
                     I_irr_d[f] = np.where(RF_irr_d[f] > Pgl, c*Pgl + (c*avErf_sat/avRFsat_irr)*(RF_irr_d[f]-Pgl), c*RF_irr_d[f])  #- c*S_w_f[f]
                     RFe_irr_d[f] = np.where(RF_irr_d[f] > Pgl, RF_irr_d[f]-I_irr_d[f], 0.0)
             else:
-                print 'No crop'
+                print('No crop')
                 RFe_irr_d[f] = RF_irr_d[f]
-    print '-----------'
+    print('-----------')
 
     # RETURN ARRAY VALUES TO MAIN PROGRAM
     if IRR == None:

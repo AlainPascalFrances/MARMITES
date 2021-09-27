@@ -152,7 +152,7 @@ class clsMMsoil:
 
         ##################
         if EXF_ini < 0.0:
-            print 'WARNING!\nEXFg < 0.0, value %.6f corrected to 0.0.' % EXF_ini
+            print('WARNING!\nEXFg < 0.0, value %.6f corrected to 0.0.' % EXF_ini)
             EXF_ini = 0.0
 
         # INITIALIZATION        
@@ -174,7 +174,7 @@ class clsMMsoil:
         Ssoil_tmp[-1] += EXF_ini*perleni
 
         # SOIL EXF
-        llst = range(nsl)
+        llst = list(range(nsl))
         llst.reverse()
         if EXF_ini > 0.0:
             for l in llst:
@@ -318,7 +318,7 @@ class clsMMsoil:
 #            print 'Zr_elev', Zr_elev, np.array(Zr_elev)[order]
 #            print 'NVEG', range(NVEG), np.array(range(NVEG))[order]
 #            print 'kT_max', kT_max, np.array(kT_max)[order]
-            for jj, (Zr_elev_, v, kT_min_, kT_max_, kT_n_) in enumerate(zip(np.array(Zr_elev)[order],np.array(range(NVEG))[order], np.array(kT_min)[order], np.array(kT_max)[order], np.array(kT_n)[order])):
+            for jj, (Zr_elev_, v, kT_min_, kT_max_, kT_n_) in enumerate(zip(np.array(Zr_elev)[order],np.array(list(range(NVEG)))[order], np.array(kT_min)[order], np.array(kT_max)[order], np.array(kT_n)[order])):
                 #print '----'
                 if HEADSini_corr_tmp > Zr_elev_:
                     for l in range(nsl):
@@ -372,7 +372,7 @@ class clsMMsoil:
             h_MF_ini = h5_MF['heads4MM'][:,:,:]
             h_MF_ini_mem = 'fast'
         except:
-            print '\nRAM memory too small compared to the size of the heads array -> slow computing.'
+            print('\nRAM memory too small compared to the size of the heads array -> slow computing.')
         if cMF.uzf_yn == 1:
             exf_MF_ini = None
             exf_MF_ini_mem = 'slow'
@@ -381,7 +381,7 @@ class clsMMsoil:
                 exf_MF_ini = h5_MF['exf4MM'][:,:,:]*conv_fact/(cMF.delr[0]*cMF.delc[0])
                 exf_MF_ini_mem = 'fast'
             except:
-                print '\nRAM memory too small compared to the size of the exfiltration array -> slow computing.'
+                print('\nRAM memory too small compared to the size of the exfiltration array -> slow computing.')
         tstart_MM = 0
         tstart_MF = 0
         # initial values of SP
@@ -578,7 +578,7 @@ class clsMMsoil:
                             MB_l[l] = In - Out
                             del In, Out
                             # intermediate soil layers
-                            llst = range(1,nsl-1)
+                            llst = list(range(1,nsl-1))
                             for l in llst:
                                 # Rexf[l] already added to Ssoil
                                 In = (Rp_ini_tmp_array[i,j,l-1]*perleni - Rp_tmp[l]*cMF.perlen[n])/cMF.perlen[n] + Rexf_tmp[l+1]
@@ -623,19 +623,19 @@ class clsMMsoil:
                                 MM_S[:,i,j,l,k] = MM_S_tmp[l,k]
                                 #h5_MM['MM_S'][tstart_MM:tend_MM,i,j,l,k] = MM_S_tmp[l,k]
                         # # Volumetric recharge rate UZF1 package
-                        MM_perc_MF[i,j] = MM_S_tmp[nsl-1,index_S.get('iRsoil')]/conv_fact
-                        #h5_MM['perc'][n,i,j] = MM_S_tmp[nsl - 1, index_S.get('iRsoil')] / conv_fact
+                        MM_perc_MF[i,j] = MM_S_tmp[nsl-1,index_S.get(b'iRsoil')]/conv_fact
+                        #h5_MM['perc'][n,i,j] = MM_S_tmp[nsl - 1, index_S.get(b'iRsoil')] / conv_fact
                         # Volumetric recharge rate WEL package
-                        MM_wel_MF[i,j] = MM_tmp[index.get('iETg')]/conv_fact
-                        #h5_MM['ETg'][n,i,j] = MM_tmp[index.get('iETg')] / conv_fact
+                        MM_wel_MF[i,j] = MM_tmp[index.get(b'iETg')]/conv_fact
+                        #h5_MM['ETg'][n,i,j] = MM_tmp[index.get(b'iETg')] / conv_fact
                         del MM_tmp, MM_S_tmp
                         # setting initial conditions for the next SP
-                        Ssoil_ini_tmp_array[i,j,:]  = MM_S[cMF.perlen[n]-1,i,j,:,index_S.get('iSsoil')]
-                        Rp_ini_tmp_array[i,j,:]     = MM_S[cMF.perlen[n]-1,i,j,:,index_S.get('iRsoil')]
-                        Ssurf_ini_tmp_array[i,j]    = MM[cMF.perlen[n]-1,i,j,index.get('iSsurf')]
-                        #Ssoil_ini_tmp_array[i,j,:]  = h5_MM['MM_S'][cMF.perlen[n]-1,i,j,:,index_S.get('iSsoil')]
-                        #Rp_ini_tmp_array[i,j,:]     = h5_MM['MM_S'][cMF.perlen[n]-1,i,j,:,index_S.get('iRsoil')]
-                        #Ssurf_ini_tmp_array[i,j]    = h5_MM['MM'][cMF.perlen[n]-1,i,j,index.get('iSsurf')]
+                        Ssoil_ini_tmp_array[i,j,:]  = MM_S[cMF.perlen[n]-1,i,j,:,index_S.get(b'iSsoil')]
+                        Rp_ini_tmp_array[i,j,:]     = MM_S[cMF.perlen[n]-1,i,j,:,index_S.get(b'iRsoil')]
+                        Ssurf_ini_tmp_array[i,j]    = MM[cMF.perlen[n]-1,i,j,index.get(b'iSsurf')]
+                        #Ssoil_ini_tmp_array[i,j,:]  = h5_MM['MM_S'][cMF.perlen[n]-1,i,j,:,index_S.get(b'iSsoil')]
+                        #Rp_ini_tmp_array[i,j,:]     = h5_MM['MM_S'][cMF.perlen[n]-1,i,j,:,index_S.get(b'iRsoil')]
+                        #Ssurf_ini_tmp_array[i,j]    = h5_MM['MM'][cMF.perlen[n]-1,i,j,index.get(b'iSsurf')]
                     else:
                         if cMF.perlen[n]>1:
                             MM[:,i,j,:] = cMF.hnoflo
@@ -656,8 +656,8 @@ class clsMMsoil:
             h5_MM['MM_S'][tstart_MM:tend_MM,:,:,:,:] = MM_S[:,:,:,:,:]
             h5_MM['perc'][n,:,:]                     = MM_perc_MF
             h5_MM['ETg'][n,:,:]                      = MM_wel_MF
-            if (n/100.0).is_integer():
-                print "Processed data up to stress period %d of %d" % (n,cMF.nper)
+            if (n/100.0).is_integer() and n>0:
+                print("Processed data up to stress period %d of %d" % (n,cMF.nper))
                 if verbose == 0:
                     sys.stdout = stdout
                     report.close()
@@ -704,6 +704,6 @@ class SATFLOW:
 
 ##################
 if __name__ == "__main__":
-    print '\nWARNING!\nStart MARMITES-MODFLOW models using the script startMARMITES_v3.py\n'
+    print('\nWARNING!\nStart MARMITES-MODFLOW models using the script startMARMITES_v3.py\n')
 
 #EOF#

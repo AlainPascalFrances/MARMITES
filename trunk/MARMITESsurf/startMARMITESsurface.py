@@ -197,7 +197,7 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
                 out_line =  date_t, ', ', '%3d'% J[t], '\n'
             for l in out_line:
                 outFileExport.write(l)
-        print "\n[" + outpathname + "] exported!"
+        print("\n[" + outpathname + "] exported!")
         outFileExport.close()
 
     def ExportResults1(TS, outFileExport):
@@ -214,7 +214,7 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
 
 
     #  ##### READING INPUT ###############################################
-    print '\nReading MARMITESsurface INPUT FILES...'
+    print('\nReading MARMITESsurface INPUT FILES...')
 
     # METEO/VEGETATION/SOIL/WATER PARAMETERS
 
@@ -406,7 +406,7 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
     except:
         cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nError reading the input file:\n[" + inputFile_PAR_fn +"]")
     del inputFile, l, line
-    print "\nMETEO/VEGETATION/CROP/SOIL PARAMETERS file imported!\n[" + inputFile_PAR_fn +"]"
+    print("\nMETEO/VEGETATION/CROP/SOIL PARAMETERS file imported!\n[" + inputFile_PAR_fn +"]")
 
     # read INPUT file
     # METEO TIME SERIES
@@ -454,7 +454,7 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
                 if n == 0:
                     datetime.append(date[t] + " " + time[t])
                     datenum.append(mpl.dates.datestr2num(datetime[t])-(DTS[0])/24.0)
-                    if actual_day <> date[t]:
+                    if actual_day != date[t]:
                         datenum_d.append(mpl.dates.datestr2num(date[t]))
                         actual_day = date[t]
                 RF[n].append(float(RF1[n][t]))
@@ -473,7 +473,7 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
     except:
         cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nUnexpected error in the input file\n[%s]\n" % inputFile_TS_fn)
     del dataMETEOTS, date, time, datetime, datetime_i, actual_day, RF1, Ta1, RHa1, Pa1, u_z_m1,Rs1
-    print "\nMETEO TIME SERIES file imported!\n[" + inputFile_TS_fn +"]"
+    print("\nMETEO TIME SERIES file imported!\n[" + inputFile_TS_fn +"]")
     # compute J - julian day
     YYYY = []
     MM = []
@@ -499,7 +499,7 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
     FIELD_growdur = []
     FIELD_wiltdur = []
     FIELD_crop = []
-    if inputFile_IRR_TS_fn <> None:
+    if inputFile_IRR_TS_fn != None:
         # IRRIGATION TIME SERIES
         inputFile_IRR_TS_fn = os.path.join(pathMMsurf, inputFile_IRR_TS_fn)
         if os.path.exists(inputFile_IRR_TS_fn):
@@ -512,7 +512,7 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
                 IRR_TS.append(data_IRR_TS[:,2+n].astype(float))
         except:
             cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nUnexpected error in the input file\n[%s]\n" % inputFile_IRR_TS_fn)
-        print "\nIRRIGATION TIME SERIES file imported!\n[" + inputFile_IRR_TS_fn +"]"
+        print("\nIRRIGATION TIME SERIES file imported!\n[" + inputFile_IRR_TS_fn +"]")
         # FIELD/CROP schedule
         FIELD_crop_schedule_fn = []
         FIELD_crop_schedule = []
@@ -522,7 +522,7 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
                 FIELD_crop_schedule.append(np.loadtxt(FIELD_crop_schedule_fn[f], skiprows = 1, dtype = str))
             else:
                 cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nThe input file [%s] doesn't exist, verify name and path!"%FIELD_crop_schedule_fn[f])
-        print "\nImporting FIELD/CROP schedule files..."
+        print("\nImporting FIELD/CROP schedule files...")
         try:
             for f in range(NFIELD):
                 FIELD_startdate.append(FIELD_crop_schedule[f][:,0])
@@ -530,7 +530,7 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
                 FIELD_growdur.append(FIELD_crop_schedule[f][:,2])
                 FIELD_wiltdur.append(FIELD_crop_schedule[f][:,3])
                 FIELD_crop.append(FIELD_crop_schedule[f][:,4])
-                print "[%s]" % FIELD_crop_schedule_fn[f]
+                print("[%s]" % FIELD_crop_schedule_fn[f])
                 for i, d in enumerate(FIELD_startdate[f]):
                     try:
                         FIELD_startdate[f][i] = mpl.dates.datestr2num(d)
@@ -551,7 +551,7 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
                 FIELD_crop[f] = FIELD_crop[f].astype(int)
         except:
             cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nUnexpected error in the input file\n[%s]\n"%FIELD_crop_schedule_fn[f])
-        print 'Done!'
+        print('Done!')
     else:
         IRR_TS = None
 
@@ -681,7 +681,7 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
         return TS
 
     ######################
-    print '\nComputing vegetation parameters time series...'
+    print('\nComputing vegetation parameters time series...')
     alfa_v = np.zeros((NVEG, len(datenum)), dtype = float)
     f_s_v = np.zeros((NVEG, len(datenum)), dtype = float)
     LAI_v = np.zeros((NVEG, len(datenum)), dtype = float)
@@ -696,8 +696,8 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
     for s in range(NSOIL):
         alfa_s[s] = paramTS(J = J, J_d = J_sd[s], J_w = J_sw[s], TRANS_dw = TRANS_sdw[s], TRANS_wd = TRANS_sdw[s], value_d = alfa_sd[s], value_w = alfa_sw[s], min_ = 0.0, max_ = 1.0, name = 'albedo_SOIL%d_%s' % (s+1, SoilType[s]))
 
-    if IRR_TS <> None:
-        print '\nComputing field crops parameters time series...'
+    if IRR_TS != None:
+        print('\nComputing field crops parameters time series...')
         alfa_f = np.zeros((NFIELD, len(datenum)), dtype = float)
         f_s_f = np.zeros((NFIELD, len(datenum)), dtype = float)
         LAI_f = np.zeros((NFIELD, len(datenum)), dtype = float)
@@ -723,7 +723,7 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
         crop_f = []
 
     #  ##### COMPUTING PT, PE and INTERCEPTION ##############################################
-    print "\nComputing PT, PE, RFe, etc..."
+    print("\nComputing PT, PE, RFe, etc...")
 
     inputZON_TS_RF_veg_fn = "inputZONRF_veg_d.txt"
     inputZONRF_veg_fn = os.path.join(pathMMws, inputZON_TS_RF_veg_fn)
@@ -755,7 +755,7 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
     inputZONE0 = open(inputZONE0_fn, 'w')
     inputZONE0.write('#\n')
 
-    if IRR_TS <> None:
+    if IRR_TS != None:
         inputZON_TS_RF_irr_fn = "inputZONRF_irr_d.txt"
         inputZONRF_irr_fn = os.path.join(pathMMws, inputZON_TS_RF_irr_fn)
         inputZONRF_irr = open(inputZONRF_irr_fn, 'w')
@@ -780,7 +780,7 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
         inputcrop_irr.close()
 
     for n in range(NMETEO):
-        print "\n--------------\nProcessing data of ZONE %d/%d\n--------------" % (n+1, NMETEO)
+        print("\n--------------\nProcessing data of ZONE %d/%d\n--------------" % (n+1, NMETEO))
         J, J_d, outputVAR, PT_PM_VEG, Erf_VEG, PE_PM_SOIL, E0, PT_PM_VEG_d, PE_PM_SOIL_d, E0_d, RF_veg_d, RFint_veg,                      RF_veg_duration, n1_d, RFe_veg_d, I_veg_d, LAI_veg_d, PT_PM_FIELD, PT_PM_FIELD_d, Erf_FIELD, RF_irr_d, RFint_irr, RF_irr_duration, RFe_irr_d, I_irr_d = PET_RF_INTER.process(
                 cUTIL,
                 datenum, datenum_d, J, time, pathMMsurf,\
@@ -793,7 +793,7 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
                 )
 
         #  #####  PLOTTING ##############################################
-        print "\nExporting plots..."
+        print("\nExporting plots...")
         npdatenum = np.array(datenum)
         if MMsurf_plot == 1:
             plt.switch_backend('WXagg')
@@ -841,7 +841,7 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
                 ,strTitle = 'Rainfall and interception'
                 )
         # FIELD/CROP
-        if IRR_TS <> None:
+        if IRR_TS != None:
             # PT
             lbl_f = []
             for f in range(NFIELD): lbl_f.append('FIELD%s'%(f+1))
@@ -873,22 +873,22 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
         #  #####  EXPORTING ASCII FILES ##############################################
         try:
             if os.path.exists(pathMMsurf):
-                print "\n-----------\nExporting output to ASCII files..."
+                print("\n-----------\nExporting output to ASCII files...")
         # EXPORTING RESULTS PT/ET0/PE/E0/RF/RFe/INTER/
                 ws = pathMMsurf
                 for ts_output in range(2):
                     if ts_output == 0:
-                        print "\nHourly values..."                  # hourly output
+                        print("\nHourly values...")                  # hourly output
                         datenumOUT = datenum
                         dORh_suffix = "_h"  # for file naming in export
                     else:                                # daily output
-                        print "\nDaily values..."
+                        print("\nDaily values...")
                         datenumOUT = datenum_d
                         dORh_suffix = "_d"  # for file naming in export
                         ExportResults1(RF_veg_d, inputZONRF_veg)
                         ExportResults1(E0_d, inputZONE0)
                     outputfile_fn = outputFILE_fn + "_ZON" + str(n+1) + dORh_suffix
-                    if ts_output <> 1:
+                    if ts_output != 1:
                         # OUPUT VARIABLES FOR PM EQUATION
                         name = outputfile_fn + "_VAR.int"
                         row1 = 'Date,J,DELTA,gama,Rs_meas,Rs_corr,Rs0,Rnl,r\n'
@@ -922,7 +922,7 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
                             row1 = 'Date,J,Erf\n'
                             ExportResults(name, ws, row1, datenumOUT, J, Erf_VEG[v], ts_output)
                     # NFIELD/NCROP
-                    if IRR_TS <> None:
+                    if IRR_TS != None:
                     # RF, RFe, etc
                         for f in range(NFIELD):
                             if ts_output == 1:
@@ -975,7 +975,7 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
                         row1 = 'Date,J,E0\n'
                         ExportResults(name, ws, row1, datenumOUT, J, E0, ts_output)
             else:
-                print "\nNo ASCII file export required."
+                print("\nNo ASCII file export required.")
         except:
             cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nError in exporting output files of MMsurf.")
 
@@ -987,7 +987,7 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
     inputZONPT_veg.close()
     inputZONPE.close()
     inputZONE0.close()
-    if IRR_TS <> None:
+    if IRR_TS != None:
         inputZONRF_irr.close()
         inputZONRFe_irr.close()
         inputZONPT_irr.close()
@@ -1031,7 +1031,7 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
     outFileExport.write('\n# kT_n\n')
     for v in range(1,NVEG):
         outFileExport.write(str(kT_n[v])+' ')
-    if IRR_TS <> None:
+    if IRR_TS != None:
         outFileExport.write('\n# NCROP: number of crop types\n')
         outFileExport.write(str(NCROP))
         outFileExport.write('\n# NFIELD: number of irrigation fields\n')

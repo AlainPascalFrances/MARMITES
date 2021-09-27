@@ -1,209 +1,529 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
   <component name="ChangeListManager">
     <list default="true" id="d22c9b79-29ab-4d63-9d08-5417fd7bbef7" name="Default" comment="">
+      <change afterPath="$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESplot/testCBposition.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/MARMITES.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/MARMITES.iml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/2copyOnDesktop/startMM_fn.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/MF_ws/Ss_l1.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/MF_ws/Sy_l1.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/MF_ws/Sy_l2.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/MF_ws/__inputMF_flopy_v3_1L.ini" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/MF_ws/drn_cond_l1.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/MF_ws/drn_cond_l2.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/MF_ws/drn_elev_l1.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/MF_ws/drn_elev_l2.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/MF_ws/elev.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/MF_ws/elev_sinkfil.ASC" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/MF_ws/ghb_cond_l1.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/MF_ws/ghb_cond_l1BAK.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/MF_ws/ghb_cond_l2.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/MF_ws/ghb_cond_l2BAK.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/MF_ws/ghb_head_l1.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/MF_ws/ghb_head_l1BAk.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/MF_ws/ghb_head_l2.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/MF_ws/ghb_head_l2BAK.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/MF_ws/hi_L1.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/MF_ws/hi_L2.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/MF_ws/hi_topL1.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/MF_ws/hi_topL1_0p5.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/MF_ws/ibound_l1.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/MF_ws/ibound_l2.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/MF_ws/ss_l2.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/MF_ws/thick_l1.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/MF_ws/thick_l2.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/MF_ws/uzf_iuzfbnd.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/MMsurf_ws/__IRR_TS.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/MMsurf_ws/__inputFIELD1_crop_schedule.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/MMsurf_ws/__inputMMsurf.ini" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/MMsurf_ws/__meteoTB.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/__inputMM_v3.ini" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/inputIRRzones.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/inputMETEOzones.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/inputObs.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/inputObsHEADS_O1.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/inputObsHEADS_O2.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/inputObsHEADS_P0.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/inputObsHEADS_P1.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/inputObsHEADS_P2.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/inputObsHEADS_P3.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/inputObsHEADS_P4.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/inputObsHEADS_P5.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/inputObsHEADS_W1.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/inputObsSM_P0.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/inputObsSM_SM.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/inputPONDhmax.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/inputPONDw.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/inputSOILthick.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/inputSOILzones.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/inputVEG1area.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/inputVEG2area.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataSet_WRR/inputVEG3area.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/00ReadMe.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/MF_ws/__inputMF_flopy_v3.ini" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/MF_ws/drn_cond_l1.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/MF_ws/drn_cond_l2.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/MF_ws/drn_elev_l1.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/MF_ws/drn_elev_l2.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/MF_ws/elev.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/MF_ws/ghb_cond_l1.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/MF_ws/ghb_cond_l2.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/MF_ws/ghb_head_l1.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/MF_ws/ghb_head_l2.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/MF_ws/hi_l1.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/MF_ws/hi_l2.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/MF_ws/hk_l1.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/MF_ws/hk_l2.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/MF_ws/ibound_l1.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/MF_ws/ibound_l2.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/MF_ws/inputSOILparam.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/MF_ws/ss_l1.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/MF_ws/ss_l2.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/MF_ws/sy_l1.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/MF_ws/sy_l2.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/MF_ws/thick_l1.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/MF_ws/thick_l2.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/MF_ws/thtr.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/MF_ws/uzf_iuzfbnd.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/MF_ws/vka_l1.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/MF_ws/vka_l2.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/MMsurf_ws/__IRR_TS.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/MMsurf_ws/__SNIRH_2005_2007_4_MARMITES.prn" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/MMsurf_ws/__inputFIELD1_crop_schedule.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/MMsurf_ws/__inputFIELD2_crop_schedule.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/MMsurf_ws/__inputFIELD3_crop_schedule.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/MMsurf_ws/__inputFIELD4_crop_schedule.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/MMsurf_ws/__inputFIELD5_crop_schedule.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/MMsurf_ws/__inputMMsurf_v3.ini" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/__inputMM_v3.ini" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/inputIRRzones.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/inputMETEOzones.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/inputObs.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/inputObsHEADS_Pz0.txtBAK" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/inputObsHEADS_Pz1.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/inputObsHEADS_Pz2.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/inputObsHEADS_Pz3.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/inputObsHEADS_Pz4.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/inputObsHEADS_Pz5.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/inputObsHEADS_Pz6.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/inputObsHEADS_Pz9.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/inputObsHEADS_catchment.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/inputObsSM_Pz0.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/inputObsSM_Pz1.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/inputObsSM_Pz2.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/inputObsSM_Pz3.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/inputObsSM_Pz4.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/inputObsSM_Pz5.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/inputObsSM_Pz6.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/inputObsSM_Pz9.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/inputObsSM_SM9.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/inputObsSM_catchment.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/inputPONDhmax.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/inputPONDw.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/inputSOILthick.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/inputSOILzones.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/inputveg1area.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/inputveg2area.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/MM_ws/inputveg3area.asc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/example/startMM_fn.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/frances_ZNS2011_volX.pdf" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/imgs/00README.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/imgs/_MM_00plt_MM_MF_ConvLoop.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/imgs/_plt_021X.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/imgs/_plt_021X_UNSATandGWbalances.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/imgs/_plt_0E10.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/imgs/_plt_0E10_UNSATandGWbalances.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/imgs/_plt_0Pz13.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/imgs/_plt_0Pz13_UNSATandGWbalances.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/imgs/_plt_0UNSATandGWbalances.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/imgs/_plt_MF_HEADS_TS01768.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/imgs/_plt_MF_average_RCH.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/imgs/_plt_MM_average_ETg.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/imgs/_plt_MM_average_ETu.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/imgs/_plt_MM_average_EXF.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/imgs/_plt_MM_average_Eg.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/imgs/_plt_MM_average_Eu.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/imgs/_plt_MM_average_I.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/imgs/_plt_MM_average_RFe.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/imgs/_plt_MM_average_Ro.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/imgs/_plt_MM_average_Rp_botlayer.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/imgs/_plt_MM_average_Tg.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/imgs/_plt_MM_average_Tu.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/imgs/_plt_MM_average_dSu.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/logo/300_500____54_716_chaudron_1719.jpg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/logo/GClogo.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/logo/MARMITES.jpg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/logo/MARMITESPixels.cpt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/logo/MARMITESPixels.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/logo/MARMITESPixels_GC.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/logo/Pixels.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/logo/funky-python-icon.gif" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/logo/icon-technology-python.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/logo/logo.pdn" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/logo/logoMARMITES.gif" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/logo/logoMARMITES.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/logo/logoMARMITES1.gif" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/logo/logoMARMITES1.ico" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/logo/logoMARMITES1.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/logo/marmites (2).jpg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/doc/logo/python1.jpg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/.spyderproject" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/.spyderworkspace" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESsoil/.spyderproject" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESsoil/MARMITESsoil_v3.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESsoil/MARMITESsoil_v4.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESsoil/MARMITESunsat_v1.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESsoil/MARMITESunsat_v2.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESsoil/MARMITESunsat_v2_20110718.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESsoil/MARMITESunsat_v2_20110718previous.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESsoil/MARMITESunsat_v2_20110720.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESsoil/MARMITESunsat_v2_20110727.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESsoil/MARMITESunsat_v2_20110830.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESsoil/test_E_T_Rp_partition.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESsurf/.spyderproject" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESsurf/PET_RF_INTER.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESsurf/startMARMITESsurface.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/.spyderproject" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/Eg.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/Eg_function.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/Eg_function_201603.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/Eg_function_new.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/Eg_function_new20.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MARMITESplot/CreateColors.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MARMITESplot/MARMITESplot.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MARMITESplot/MARMITESplotWSt.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MARMITESplot/MARMITESplot_v3.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MARMITESplot/MARMITESplot_v3_animation.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MARMITESplot/MARMITESplot_v4.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MARMITESplot/plotPET.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MARMITESplot/plotRF.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MARMITESplot/plt_CalibCriteria.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MARMITESplot/test_animation.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MARMITESprocess_v2.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MARMITESprocess_v3.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MARMITESprocess_v4.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MARMITESutilities.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MFarray2ascarray.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MM_XLSstuff/ArrayReadingTime.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MM_XLSstuff/ArraySize.xlsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MM_XLSstuff/BrooksCorey.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MM_XLSstuff/BrooksCorey_function.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MM_XLSstuff/BrooksCorey_function1.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MM_XLSstuff/CalibCriteria.xlsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MM_XLSstuff/Eg_function.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MM_XLSstuff/Eg_function_1.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MM_XLSstuff/FFT.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MM_XLSstuff/GWcorr.xlsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MM_XLSstuff/GaussianNoise.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MM_XLSstuff/GaussianNoiseARRAYS.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MM_XLSstuff/LINRES.xls" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MM_XLSstuff/MainLoopFLOW.xls" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MM_XLSstuff/OLS.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MM_XLSstuff/PET_T_area.xlsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MM_XLSstuff/POND_EvaporationCorrection.xlsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MM_XLSstuff/Perc_K.xls" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MM_XLSstuff/Perc_K_1.xls" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MM_XLSstuff/SeelValueInArray.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MM_XLSstuff/UZF_WB.xlsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MM_XLSstuff/UZF_WB_dTS.xlsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MM_XLSstuff/UZF_WB_dTS_201407.xlsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MM_XLSstuff/UZF_WB_dTS_201407_daily.xlsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MM_XLSstuff/UZF_WB_dTS_201407_days10.xlsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MM_XLSstuff/budget.xlsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MM_XLSstuff/desktop.ini" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MM_XLSstuff/elev_corr.xlsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MM_XLSstuff/kT_function.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MM_XLSstuff/ktsoil.xlsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MM_XLSstuff/multiplePlots.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MM_XLSstuff/np_aray_conditional_replacement.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MM_XLSstuff/testH5.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MM_XLSstuff/testplot.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MM_XLSstuff/testplot1.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MM_XLSstuff/testplot2.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MM_XLSstuff/tune_K_S.xlsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/Obs2PESTformat.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/RFprocessingINST2HOUR.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/Rp.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/Rp_function.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/Season_transition.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/Tg.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/Tg4Maciek.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/Tg_Heads_Zr_control.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/Tg_function.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/Tg_function0.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/Tg_function1.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/Tg_function_new.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/WB_plot.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/ncells_outcrop.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/pltET_RF.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/plt_RasterPercentile.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/pp_indexfromcoordinates.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/replaceNaN.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MARMITESutilities/texput.log" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/MM/.spyderproject" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/UZF_OUT_READING.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/UZF_OUT_READING_1.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/ppMF_FloPy/.spyderproject" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/ppMF_FloPy/ppMODFLOW_flopy_v2.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/ppMF_FloPy/ppMODFLOW_flopy_v3.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/ppMF_FloPy/ppMODFLOW_flopy_v4.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/profile.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/profile0_10.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/profile1_10.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/pyEARTH1D/00ReadMe.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/pyEARTH1D/EARTHconfigConversion2pyEARTHparam.xls" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/pyEARTH1D/ReSo.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/pyEARTH1D/ReSoGraph.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/pyEARTH1D/ReSo_dialogv.wxg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/pyEARTH1D/_inputsDir.ini" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/pyEARTH1D/aquaflagged.ico" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/pyEARTH1D/clsAbout.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/pyEARTH1D/clsAbout.py.bak" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/pyEARTH1D/clsReSo_GUI_frame.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/pyEARTH1D/clsReSo_GUI_frame.py.bak" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/pyEARTH1D/hhh.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/pyEARTH1D/hhh.xml.bak" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/pyEARTH1D/old/ReSo.bat" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/pyEARTH1D/old/ReSoBackup090109.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/pyEARTH1D/old/ReSo_dialog.wxg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/pyEARTH1D/old/ReSo_dialog.wxg.bak" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/pyEARTH1D/old/ReSo_dialogv1.wxg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/pyEARTH1D/old/ReSo_dialogv1.wxg.bak" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/pyEARTH1D/old/cls_AllGraph.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/pyEARTH1D/old/cls_AllGraph.py.bak" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/pyEARTH1D/old/cls_CalibGraph.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/pyEARTH1D/old/cls_CalibGraph.py.bak" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/pyEARTH1D/old/wxGraph.zip" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/pyEARTH1D/pyEARTH1D.psproj" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/pyEARTH1D/start_pyEARTH1D.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/startMARMITES_v1.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/startMARMITES_v2.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/startMARMITES_v2_work.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/startMARMITES_v2_work_WITHEXPORTESRIASCII.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/startMARMITES_v2_work_WSt.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/startMARMITES_v2_work_noHDF.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/startMARMITES_v3.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/startMARMITES_v3tmp.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/startMARMITES_v4.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk - Copy/test_colormap.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/.coverage" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESsoil/.spyderproject" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESsoil/MARMITESsoil_v3.py" beforeDir="false" afterPath="$PROJECT_DIR$/trunk/MARMITESsoil/MARMITESsoil_v3.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESsoil/MARMITESsoil_v4.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESsoil/MARMITESunsat_v1.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESsoil/MARMITESunsat_v2.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESsoil/MARMITESunsat_v2_20110718.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESsoil/MARMITESunsat_v2_20110718previous.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESsoil/MARMITESunsat_v2_20110720.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESsoil/MARMITESunsat_v2_20110727.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESsoil/MARMITESunsat_v2_20110830.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESsoil/test_E_T_Rp_partition.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESsurf/.spyderproject" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESsurf/PET_RF_INTER.py" beforeDir="false" afterPath="$PROJECT_DIR$/trunk/MARMITESsurf/PET_RF_INTER.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESsurf/startMARMITESsurface.py" beforeDir="false" afterPath="$PROJECT_DIR$/trunk/MARMITESsurf/startMARMITESsurface.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/.spyderproject" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/Eg.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/Eg_function.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/Eg_function_201603.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/Eg_function_new.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/Eg_function_new20.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESplot/MARMITESplot.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESplot/MARMITESplotWSt.py" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESplot/MARMITESplot_v3.py" beforeDir="false" afterPath="$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESplot/MARMITESplot_v3.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESplot/MARMITESplot_v3_animation.py" beforeDir="false" afterPath="$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESplot/MARMITESplot_v3_animation.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESplot/MARMITESplot_v4.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESplot/plotPET.py" beforeDir="false" afterPath="$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESplot/plotPET.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESplot/plotRF.py" beforeDir="false" afterPath="$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESplot/plotRF.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESplot/plt_CalibCriteria.py" beforeDir="false" afterPath="$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESplot/plt_CalibCriteria.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESplot/test_animation.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESprocess_v2.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESprocess_v3.py" beforeDir="false" afterPath="$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESprocess_v3.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESprocess_v4.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESutilities.py" beforeDir="false" afterPath="$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESutilities.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MFarray2ascarray.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MM_XLSstuff/ArrayReadingTime.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MM_XLSstuff/ArraySize.xlsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MM_XLSstuff/BrooksCorey.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MM_XLSstuff/BrooksCorey_function.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MM_XLSstuff/BrooksCorey_function1.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MM_XLSstuff/CalibCriteria.xlsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MM_XLSstuff/Eg_function.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MM_XLSstuff/Eg_function_1.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MM_XLSstuff/FFT.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MM_XLSstuff/GWcorr.xlsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MM_XLSstuff/GaussianNoise.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MM_XLSstuff/GaussianNoiseARRAYS.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MM_XLSstuff/LINRES.xls" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MM_XLSstuff/MainLoopFLOW.xls" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MM_XLSstuff/OLS.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MM_XLSstuff/PET_T_area.xlsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MM_XLSstuff/POND_EvaporationCorrection.xlsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MM_XLSstuff/Perc_K.xls" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MM_XLSstuff/Perc_K_1.xls" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MM_XLSstuff/SeelValueInArray.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MM_XLSstuff/UZF_WB.xlsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MM_XLSstuff/UZF_WB_dTS.xlsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MM_XLSstuff/UZF_WB_dTS_201407.xlsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MM_XLSstuff/UZF_WB_dTS_201407_daily.xlsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MM_XLSstuff/UZF_WB_dTS_201407_days10.xlsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MM_XLSstuff/budget.xlsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MM_XLSstuff/desktop.ini" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MM_XLSstuff/elev_corr.xlsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MM_XLSstuff/kT_function.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MM_XLSstuff/ktsoil.xlsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MM_XLSstuff/multiplePlots.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MM_XLSstuff/np_aray_conditional_replacement.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MM_XLSstuff/testH5.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MM_XLSstuff/testplot.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MM_XLSstuff/testplot1.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MM_XLSstuff/testplot2.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MM_XLSstuff/tune_K_S.xlsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/Obs2PESTformat.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/RFprocessingINST2HOUR.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/Rp.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/Rp_function.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/Season_transition.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/Tg.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/Tg4Maciek.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/Tg_Heads_Zr_control.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/Tg_function.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/Tg_function0.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/Tg_function1.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/Tg_function_new.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/WB_plot.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/ncells_outcrop.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/pltET_RF.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/plt_RasterPercentile.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/pp_indexfromcoordinates.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/replaceNaN.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/texput.log" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/UZF_OUT_READING.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/UZF_OUT_READING_1.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/ppMF_FloPy/.spyderproject" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/ppMF_FloPy/ppMODFLOW_flopy_v2.py" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/trunk/ppMF_FloPy/ppMODFLOW_flopy_v3.py" beforeDir="false" afterPath="$PROJECT_DIR$/trunk/ppMF_FloPy/ppMODFLOW_flopy_v3.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/ppMF_FloPy/ppMODFLOW_flopy_v4.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/profile.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/profile0_10.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/profile1_10.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/pyEARTH1D/00ReadMe.txt" beforeDir="false" afterPath="$PROJECT_DIR$/trunk/pyEARTH1D/00ReadMe.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/pyEARTH1D/ReSo.py" beforeDir="false" afterPath="$PROJECT_DIR$/trunk/pyEARTH1D/ReSo.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/pyEARTH1D/_inputsDir.ini" beforeDir="false" afterPath="$PROJECT_DIR$/trunk/pyEARTH1D/_inputsDir.ini" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/pyEARTH1D/clsReSo_GUI_frame.py" beforeDir="false" afterPath="$PROJECT_DIR$/trunk/pyEARTH1D/clsReSo_GUI_frame.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/pyEARTH1D/old/ReSo.bat" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/pyEARTH1D/old/ReSoBackup090109.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/pyEARTH1D/old/ReSo_dialog.wxg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/pyEARTH1D/old/ReSo_dialog.wxg.bak" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/pyEARTH1D/old/ReSo_dialogv1.wxg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/pyEARTH1D/old/ReSo_dialogv1.wxg.bak" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/pyEARTH1D/old/cls_AllGraph.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/pyEARTH1D/old/cls_AllGraph.py.bak" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/pyEARTH1D/old/cls_CalibGraph.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/pyEARTH1D/old/cls_CalibGraph.py.bak" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/pyEARTH1D/old/wxGraph.zip" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/pyEARTH1D/start_pyEARTH1D.py" beforeDir="false" afterPath="$PROJECT_DIR$/trunk/pyEARTH1D/start_pyEARTH1D.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/startMARMITES_v1.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/startMARMITES_v2.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/startMARMITES_v2_work.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/startMARMITES_v2_work_WITHEXPORTESRIASCII.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/startMARMITES_v2_work_WSt.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/startMARMITES_v2_work_noHDF.py" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/trunk/startMARMITES_v3.py" beforeDir="false" afterPath="$PROJECT_DIR$/trunk/startMARMITES_v3.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/startMARMITES_v3tmp.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/startMARMITES_v4.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/test_colormap.py" beforeDir="false" />
     </list>
-    <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
-  <component name="FileEditorManager">
-    <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
-      <file pinned="false" current-in-tab="true">
-        <entry file="file://$PROJECT_DIR$/trunk/startMARMITES_v3.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="466">
-              <caret line="78" lean-forward="true" selection-start-line="78" selection-end-line="78" />
-              <folding>
-                <element signature="e#513#558#0" expanded="true" />
-              </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESutilities.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="2736">
-              <caret line="174" column="4" selection-start-line="174" selection-start-column="4" selection-end-line="174" selection-end-column="4" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/trunk/MARMITESsoil/MARMITESsoil_v3.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="10464">
-              <caret line="654" selection-start-line="654" selection-end-line="654" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESprocess_v3.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="12432">
-              <caret line="779" column="5" selection-start-line="779" selection-start-column="5" selection-end-line="779" selection-end-column="5" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESplot/MARMITESplot_v3.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="27728">
-              <caret line="1738" column="42" selection-start-line="1738" selection-start-column="31" selection-end-line="1738" selection-end-column="42" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/trunk/MARMITESsurf/PET_RF_INTER.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state>
-              <folding>
-                <element signature="e#2802#2820#0" expanded="true" />
-              </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/trunk/ppMF_FloPy/ppMODFLOW_flopy_v3.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="22480">
-              <caret line="1409" column="43" selection-start-line="1409" selection-start-column="43" selection-end-line="1409" selection-end-column="43" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-    </leaf>
-  </component>
-  <component name="FindInProjectRecents">
-    <findStrings>
-      <find>999</find>
-      <find>sy</find>
-      <find>vka</find>
-      <find>vkcb</find>
-      <find>laycbd</find>
-      <find>d_</find>
-      <find>dpi=60</find>
-      <find>_{</find>
-      <find>_{%</find>
-      <find>C:\Python27\v2714\python.exe</find>
-      <find>E_soil</find>
-      <find>iEsoil_</find>
-      <find>_%d</find>
-      <find>_{%d</find>
-      <find>{g</find>
-      <find>%d}</find>
-      <find>_{%d}</find>
-      <find>h_</find>
-      <find>markersize</find>
-      <find>ih</find>
-      <find>iSobs_</find>
-      <find>obs</find>
-      <find>flxLbl_lst</find>
-      <find>sankey</find>
-      <find>0.0</find>
-      <find>append(0.0)</find>
-      <find>RCHmax</find>
-      <find>chunks</find>
-      <find>heads_d</find>
-      <find>tRCHmax</find>
-    </findStrings>
-    <replaceStrings>
-      <replace>=np.float32</replace>
-      <replace>_{%d}</replace>
-      <replace>_%d</replace>
-      <replace>dpi=150</replace>
-    </replaceStrings>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Python Script" />
+      </list>
+    </option>
   </component>
   <component name="Git.Settings">
     <option name="ROOT_SYNC" value="DONT_SYNC" />
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="IdeDocumentHistory">
-    <option name="CHANGED_PATHS">
-      <list>
-        <option value="$PROJECT_DIR$/trunk/MARMITESsoil/MARMITESsoil_v3.py" />
-        <option value="$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESprocess_v3.py" />
-        <option value="$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESplot/MARMITESplot_v3.py" />
-        <option value="$PROJECT_DIR$/trunk/startMARMITES_v3.py" />
-        <option value="$PROJECT_DIR$/trunk/ppMF_FloPy/ppMODFLOW_flopy_v3.py" />
-      </list>
-    </option>
+  <component name="GitSEFilterConfiguration">
+    <file-type-list>
+      <filtered-out-file-type name="LOCAL_BRANCH" />
+      <filtered-out-file-type name="REMOTE_BRANCH" />
+      <filtered-out-file-type name="TAG" />
+      <filtered-out-file-type name="COMMIT_BY_MESSAGE" />
+    </file-type-list>
   </component>
-  <component name="ProjectFrameBounds" extendedState="6">
-    <option name="x" value="-4" />
-    <option name="y" value="-4" />
-    <option name="width" value="1928" />
-    <option name="height" value="1164" />
+  <component name="HighlightingSettingsPerFile">
+    <setting file="file://$PROJECT_DIR$/trunk/MARMITESsurf/startMARMITESsurface.py" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESprocess_v3.py" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/trunk/ppMF_FloPy/ppMODFLOW_flopy_v3.py" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESplot/MARMITESplot_v3.py" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/trunk/startMarmites_v3.py" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/trunk/MARMITESsoil/MARMITESsoil_v3.py" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESutilities.py" root0="FORCE_HIGHLIGHTING" />
   </component>
-  <component name="ProjectView">
-    <navigator proportions="" version="1">
-      <foldersAlwaysOnTop value="true" />
-    </navigator>
-    <panes>
-      <pane id="ProjectPane">
-        <subPane>
-          <expand>
-            <path>
-              <item name="MARMITES" type="b2602c69:ProjectViewProjectNode" />
-              <item name="MARMITES" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="MARMITES" type="b2602c69:ProjectViewProjectNode" />
-              <item name="MARMITES" type="462c0819:PsiDirectoryNode" />
-              <item name="trunk" type="462c0819:PsiDirectoryNode" />
-            </path>
-          </expand>
-          <select />
-        </subPane>
-      </pane>
-      <pane id="Scope" />
-    </panes>
+  <component name="ProblemsViewState">
+    <option name="selectedIndex" value="2" />
+  </component>
+  <component name="ProjectId" id="1T95CEAW3sxVODCToELDtKvME4J" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
   </component>
   <component name="PropertiesComponent">
     <property name="SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
-    <property name="last_opened_file_path" value="$USER_HOME$/AppData/Local/GitHubDesktop/app-1.6.5/resources/app/git/cmd/git.exe" />
-    <property name="settings.editor.selected.configurable" value="vcs.Git" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/../../../../Python27/201811/Lib/site-packages/MARMITES/trunk/startMARMITES_v3.py" />
+    <property name="run.code.analysis.last.selected.profile" value="pProject Default" />
+    <property name="settings.editor.selected.configurable" value="preferences.lookFeel" />
   </component>
-  <component name="RunDashboard">
-    <option name="ruleStates">
-      <list>
-        <RuleState>
-          <option name="name" value="ConfigurationTypeDashboardGroupingRule" />
-        </RuleState>
-        <RuleState>
-          <option name="name" value="StatusDashboardGroupingRule" />
-        </RuleState>
-      </list>
-    </option>
+  <component name="ReaderModeSettings">
+    <option name="enabled" value="false" />
   </component>
-  <component name="RunManager" selected="Python.startMARMITES_v3">
-    <configuration name="setup" type="PythonConfigurationType" factoryName="Python" temporary="true">
+  <component name="RunManager" selected="Python.startMarmites_v3">
+    <configuration name="PartitioningPictures2015_ALF" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="MARMITES" />
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
       <envs>
         <env name="PYTHONUNBUFFERED" value="1" />
       </envs>
-      <option name="SDK_HOME" value="C:\Python27\201811\python.exe" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/../flopy" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="E:/00WIP/00MyPapers_ws/Enrico/Partitioning/DATA" />
       <option name="IS_MODULE_SDK" value="false" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/../flopy/setup.py" />
-      <option name="PARAMETERS" value="bdist --format=wininst" />
+      <option name="SCRIPT_NAME" value="E:/00WIP/00MyPapers_ws/Enrico/Partitioning/DATA/PartitioningPictures2015_ALF.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="lixo" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="MARMITES" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESplot" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESplot/lixo.py" />
+      <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
       <option name="MODULE_MODE" value="false" />
@@ -218,9 +538,9 @@
       <envs>
         <env name="PYTHONUNBUFFERED" value="1" />
       </envs>
-      <option name="SDK_HOME" value="C:\Python27\v2714\python.exe" />
+      <option name="SDK_HOME" value="" />
       <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/trunk" />
-      <option name="IS_MODULE_SDK" value="false" />
+      <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/trunk/startMARMITES_v3.py" />
@@ -232,17 +552,66 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
+    <configuration name="startMarmites_v3" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="MARMITES" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/trunk" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/trunk/startMarmites_v3.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="testCBposition" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="MARMITES" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESplot" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESplot/testCBposition.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
     <list>
-      <item itemvalue="Python.setup" />
       <item itemvalue="Python.startMARMITES_v3" />
+      <item itemvalue="Python.lixo" />
+      <item itemvalue="Python.startMarmites_v3" />
+      <item itemvalue="Python.testCBposition" />
+      <item itemvalue="Python.PartitioningPictures2015_ALF" />
     </list>
     <recent_temporary>
       <list>
+        <item itemvalue="Python.startMarmites_v3" />
+        <item itemvalue="Python.PartitioningPictures2015_ALF" />
+        <item itemvalue="Python.testCBposition" />
+        <item itemvalue="Python.lixo" />
         <item itemvalue="Python.startMARMITES_v3" />
-        <item itemvalue="Python.setup" />
       </list>
     </recent_temporary>
   </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
   <component name="SvnConfiguration">
     <configuration>C:\Users\apf\AppData\Roaming\Subversion</configuration>
   </component>
@@ -256,265 +625,32 @@
     </task>
     <servers />
   </component>
-  <component name="TodoView">
-    <todo-panel id="selected-file">
-      <is-autoscroll-to-source value="true" />
-    </todo-panel>
-    <todo-panel id="all">
-      <are-packages-shown value="true" />
-      <is-autoscroll-to-source value="true" />
-    </todo-panel>
-  </component>
-  <component name="ToolWindowManager">
-    <frame x="-4" y="-4" width="1608" height="864" extended-state="6" />
-    <layout>
-      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.16212793" />
-      <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
-      <window_info id="Favorites" order="2" side_tool="true" />
-      <window_info anchor="bottom" id="Message" order="0" />
-      <window_info anchor="bottom" id="Find" order="1" />
-      <window_info active="true" anchor="bottom" id="Run" order="2" sideWeight="0.49461684" visible="true" weight="0.26675603" />
-      <window_info anchor="bottom" id="Debug" order="3" weight="0.27055448" />
-      <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
-      <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
-      <window_info anchor="bottom" id="TODO" order="6" sideWeight="0.49667552" weight="0.32894737" />
-      <window_info anchor="bottom" id="Terminal" order="7" weight="0.32894737" />
-      <window_info anchor="bottom" id="Python Console" order="8" sideWeight="0.4973404" weight="0.32791588" />
-      <window_info anchor="bottom" id="Version Control" order="9" />
-      <window_info anchor="bottom" id="Event Log" order="10" sideWeight="0.50538313" side_tool="true" weight="0.31903484" />
-      <window_info anchor="right" id="Commander" order="0" weight="0.4" />
-      <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
-      <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.25" />
-    </layout>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+    <option name="oldMeFiltersMigrated" value="true" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
       <breakpoints>
-        <line-breakpoint suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/../flopy/flopy/modflow/mfuzf1.py</url>
-          <line>706</line>
-          <option name="timeStamp" value="18" />
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/trunk/pyEARTH1D/ReSo.py</url>
+          <line>79</line>
+          <option name="timeStamp" value="8" />
         </line-breakpoint>
-        <line-breakpoint suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/trunk/startMARMITES_v3.py</url>
-          <line>825</line>
-          <option name="timeStamp" value="24" />
-        </line-breakpoint>
-        <line-breakpoint suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/trunk/ppMF_FloPy/ppMODFLOW_flopy_v3.py</url>
-          <line>1284</line>
-          <option name="timeStamp" value="28" />
-        </line-breakpoint>
-        <line-breakpoint suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/trunk/ppMF_FloPy/ppMODFLOW_flopy_v3.py</url>
-          <line>1283</line>
-          <option name="timeStamp" value="29" />
-        </line-breakpoint>
-        <line-breakpoint suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/trunk/ppMF_FloPy/ppMODFLOW_flopy_v3.py</url>
-          <line>1191</line>
-          <option name="timeStamp" value="35" />
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/trunk/pyEARTH1D/ReSo.py</url>
+          <line>329</line>
+          <option name="timeStamp" value="9" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>
-    <watches-manager>
-      <configuration name="PythonConfigurationType">
-        <watch expression="cMF.uzf_filenames" language="Python" />
-        <watch expression="cMF.row_col_iftunit_iuzopt" language="Python" />
-        <watch expression="self.uzf_filenames" language="Python" />
-        <watch expression="self.row_col_iftunit_iuzopt" language="Python" />
-        <watch expression="__py_debug_temp_var_1787318744" />
-      </configuration>
-    </watches-manager>
-  </component>
-  <component name="debuggerHistoryManager">
-    <expressions id="watch">
-      <expression>
-        <expression-string>cMF.uzf_filenames</expression-string>
-        <language-id>Python</language-id>
-        <evaluation-mode>EXPRESSION</evaluation-mode>
-      </expression>
-      <expression>
-        <expression-string>cMF.row_col_iftunit_iuzopt</expression-string>
-        <language-id>Python</language-id>
-        <evaluation-mode>EXPRESSION</evaluation-mode>
-      </expression>
-    </expressions>
-    <expressions id="evaluateExpression">
-      <expression>
-        <expression-string>self.uzf_filenames</expression-string>
-        <language-id>Python</language-id>
-        <evaluation-mode>EXPRESSION</evaluation-mode>
-      </expression>
-      <expression>
-        <expression-string>self.row_col_iftunit_iuzopt</expression-string>
-        <language-id>Python</language-id>
-        <evaluation-mode>EXPRESSION</evaluation-mode>
-      </expression>
-    </expressions>
-  </component>
-  <component name="editorHistoryManager">
-    <entry file="file://$PROJECT_DIR$/../flopy/modflow/mfdis.py" />
-    <entry file="file://$PROJECT_DIR$/../flopy/utils/check.py" />
-    <entry file="file://$PROJECT_DIR$/../flopy/setup.py" />
-    <entry file="file://$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESprocess_v2.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="356">
-          <caret line="347" column="63" lean-forward="true" selection-start-line="346" selection-end-line="347" selection-end-column="63" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/../numpy/core/records.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="143">
-          <caret line="628" selection-start-line="628" selection-end-line="628" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/../flopy/flopy/modflow/mf.py" />
-    <entry file="file://$PROJECT_DIR$/trunk - Copy/MARMITESsoil/MARMITESsoil_v3.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="255">
-          <caret line="15" column="17" lean-forward="true" selection-start-line="15" selection-start-column="17" selection-end-line="15" selection-end-column="17" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/trunk - Copy/MARMITESutilities/MARMITESprocess_v3.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="330">
-          <caret line="453" column="11" lean-forward="true" selection-start-line="453" selection-start-column="11" selection-end-line="453" selection-end-column="11" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/../flopy/flopy/pakbase.py" />
-    <entry file="file://$PROJECT_DIR$/../flopy/flopy/modflow/mfuzf1.py" />
-    <entry file="file://$PROJECT_DIR$/trunk - Copy/startMARMITES_v2.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-897" />
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/trunk - Copy/startMARMITES_v4.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-2189">
-          <caret line="24" column="10" lean-forward="true" selection-start-line="24" selection-start-column="10" selection-end-line="24" selection-end-column="10" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/trunk - Copy/startMARMITES_v3.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-10103" />
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/trunk/startMARMITES_v3tmp.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-547">
-          <caret line="429" column="10" selection-start-line="429" selection-start-column="5" selection-end-line="429" selection-end-column="10" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/../coverage/html.py" />
-    <entry file="file://$PROJECT_DIR$/../matplotlib/__init__.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="159">
-          <caret line="1854" selection-start-line="1854" selection-end-line="1854" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/../matplotlib/sankey.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="16">
-          <caret line="461" selection-start-line="461" selection-end-line="461" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/../h5py/__init__.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="159">
-          <caret line="35" selection-start-line="35" selection-end-line="35" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/../numpy/core/_methods.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="166">
-          <caret line="25" selection-start-line="25" selection-end-line="25" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/../numpy/ma/core.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="159">
-          <caret line="2783" selection-start-line="2783" selection-end-line="2783" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/../flopy/flopy/utils/util_array.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="258">
-          <caret line="823" selection-start-line="823" selection-end-line="823" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/../flopy/flopy/modflow/mfdis.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="258">
-          <caret line="171" selection-start-line="171" selection-end-line="171" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/trunk/startMARMITES_v3.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="466">
-          <caret line="78" lean-forward="true" selection-start-line="78" selection-end-line="78" />
-          <folding>
-            <element signature="e#513#558#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESutilities.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="2736">
-          <caret line="174" column="4" selection-start-line="174" selection-start-column="4" selection-end-line="174" selection-end-column="4" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/trunk/MARMITESsoil/MARMITESsoil_v3.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="10464">
-          <caret line="654" selection-start-line="654" selection-end-line="654" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESprocess_v3.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="12432">
-          <caret line="779" column="5" selection-start-line="779" selection-start-column="5" selection-end-line="779" selection-end-column="5" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESplot/MARMITESplot_v3.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="27728">
-          <caret line="1738" column="42" selection-start-line="1738" selection-start-column="31" selection-end-line="1738" selection-end-column="42" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/trunk/MARMITESsurf/PET_RF_INTER.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state>
-          <folding>
-            <element signature="e#2802#2820#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/trunk/ppMF_FloPy/ppMODFLOW_flopy_v3.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="22480">
-          <caret line="1409" column="43" selection-start-line="1409" selection-start-column="43" selection-end-line="1409" selection-end-column="43" />
-        </state>
-      </provider>
-    </entry>
   </component>
 </project>

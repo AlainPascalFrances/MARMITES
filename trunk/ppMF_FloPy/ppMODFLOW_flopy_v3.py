@@ -26,10 +26,10 @@ if flopypth not in sys.path:
 import flopy
 import MARMITESprocess_v3 as MMproc
 
-print(sys.version)
-print('numpy version: {}'.format(np.__version__))
-print('matplotlib version: {}'.format(mpl.__version__))
-print('flopy version: {}'.format(flopy.__version__))
+print((sys.version))
+print(('numpy version: {}'.format(np.__version__)))
+print(('matplotlib version: {}'.format(mpl.__version__)))
+print(('flopy version: {}'.format(flopy.__version__)))
 
 #####################################
 class clsMF():
@@ -76,7 +76,7 @@ class clsMF():
             nper = int(inputFile[l].strip())
             if nper<1:
                 nper = 1
-                print "WARNING! nper must be >0! nper was fixed to 1 (daily time step)"
+                print("WARNING! nper must be >0! nper was fixed to 1 (daily time step)")
             self.perlen = []
             self.nstp = []
             self.tsmult = []
@@ -219,7 +219,7 @@ class clsMF():
                 self.iupwcb = int(inputFile[l].strip())
                 if self.iupwcb<1:
                     self.iupwcb = 53
-                    print"\nWARNING! UZF cbc itunit cannot be <1, fixed to 53!"
+                    print("\nWARNING! UZF cbc itunit cannot be <1, fixed to 53!")
                 l += 1
                 self.hdry = eval(inputFile[l].strip())
                 l += 1
@@ -264,8 +264,8 @@ class clsMF():
                 for i in range(self.nlay):
                     self.sy.append(inputFile[l].split()[i])
             else:
-                print 'FATAL ERROR!\nMODFLOW version should be mf2005 or mfnwt!'
-                print 'Value %s provided in the MF ini file.' % self.version
+                print('FATAL ERROR!\nMODFLOW version should be mf2005 or mfnwt!')
+                print('Value %s provided in the MF ini file.' % self.version)
                 sys.exit()
             # oc
             l += 1
@@ -310,8 +310,8 @@ class clsMF():
                 l += 1
                 self.options = str(inputFile[l].strip())
             else:
-                print 'FATAL ERROR!\nMODFLOW version should be mf2k, mf2005 or mfnwt!'
-                print 'Value %s provided in the MF ini file.' % self.versionsys.exit()
+                print('FATAL ERROR!\nMODFLOW version should be mf2k, mf2005 or mfnwt!')
+                print('Value %s provided in the MF ini file.' % self.versionsys.exit())
             # OPTIONNAL PACKAGES
             # uzf
             l += 1
@@ -449,7 +449,7 @@ class clsMF():
                                 )
 
         # 1 - reaf asc file and convert in np.array
-        print "\nImporting ESRI ASCII files to initialize the MODFLOW packages..."
+        print("\nImporting ESRI ASCII files to initialize the MODFLOW packages...")
 
         self.elev     = self.cPROCESS.checkarray(self.elev, stdout = stdout, report = report)
         self.strt     = self.cPROCESS.checkarray(self.strt, stdout = stdout, report = report)
@@ -564,15 +564,15 @@ class clsMF():
                      sy_tmp = np.asarray(sy_actual[l])
                 if (sy_tmp*np.abs(self.ibound)[l,:,:]+np.asarray(self.thtr_actual)>np.asarray(self.thts_actual)).sum()> 0.0:
                     self.thts_actual = sy_tmp*np.abs(self.ibound)[l,:,:]+2.0*np.asarray(self.thtr_actual)
-                    print '\nWARNING!\nSy + THTR > THTS in layer %d! Corrected: THTS = Sy + 2.0*THTR' % l
+                    print('\nWARNING!\nSy + THTR > THTS in layer %d! Corrected: THTS = Sy + 2.0*THTR' % l)
             if (np.asarray(self.thti_actual)<np.asarray(self.thtr_actual)).sum()>0.0 or (np.asarray(self.thti_actual)>np.asarray(self.thts_actual)).sum()>0.0:
                 self.thti_actual = np.asarray(self.thtr_actual) + (np.asarray(self.thts_actual)-np.asarray(self.thtr_actual))/4.0
-                print '\nWARNING!\nTHTI > THTS or THTI< THTR!Corrected: THTI = THTR + (THTS-THTR)/4.0'
+                print('\nWARNING!\nTHTI > THTS or THTI< THTR!Corrected: THTI = THTR + (THTS-THTR)/4.0')
             del sy_actual
             
         # DRAIN
         if self.drn_yn == 1:
-            print '\nDRN package initialization'
+            print('\nDRN package initialization')
             l = 0
             self.drn_elev_array = np.zeros((self.nlay,self.nrow,self.ncol))
             self.drn_cond_array = np.zeros((self.nlay,self.nrow,self.ncol))
@@ -602,11 +602,11 @@ class clsMF():
                             self.drn_elev_array[l,i,j] = drn_elev_tmp
                             del drn_elev_tmp
                 l += 1
-            print "Done!"
+            print("Done!")
 
         # GHB
         if self.ghb_yn == 1:
-            print '\nGHB package initialization'
+            print('\nGHB package initialization')
             l = 0
             self.ghb_head_array = np.zeros((self.nlay,self.nrow,self.ncol))
             self.ghb_cond_array = np.zeros((self.nlay,self.nrow,self.ncol))
@@ -629,7 +629,7 @@ class clsMF():
                                 self.layer_row_column_head_cond[0].append([l, i, j, ghb_head_tmp, self.ghb_cond_array[l,i,j]])
                             del ghb_head_tmp
                 l += 1
-            print "Done!"
+            print("Done!")
 
 ####################################
 
@@ -666,7 +666,7 @@ class clsMF():
                 #__________________Check date consistency________________#
                 difDay=self.inputDate[t]-self.inputDate[t-1]
                 if (difDay !=1.0):
-                    print 'DifDay = ' + str(difDay)
+                    print('DifDay = ' + str(difDay))
                     self.cUTIL.ErrorExit(msg = '\nFATAL ERROR!\nDates of the input data are not sequencial, check your daily time step!\nError at date %s ' % str(self.inputDate[t]), stdout = stdout, report = report)
         else:
             self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % inputDate_fn, stdout = stdout, report = report)
@@ -712,7 +712,7 @@ class clsMF():
         if NFIELD != None:
             del inputZON_dSP_RF_irr_fn, inputZON_dSP_RFe_irr_fn, inputZON_dSP_PT_irr_fn, input_dSP_crop_irr_fn, inputFileRF_irr, inputFileRFe_irr, inputFilePT_irr, inputFilecrop_irr
 
-        print'\nComputing MODFLOW time discretization based on rainfall analysis in each METEO zone...'
+        print('\nComputing MODFLOW time discretization based on rainfall analysis in each METEO zone...')
         # summing RF and avering other flux when RF = 0
         perlenmax = self.nper
         RF_veg_stp = []
@@ -1000,7 +1000,7 @@ class clsMF():
         except:
             self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nError in exporting output files in MF time processing.", stdout = stdout, report = report)
 
-        print 'Found %d days converted into %d stress periods.' % (sum(self.perlen), self.nper)
+        print('Found %d days converted into %d stress periods.' % (sum(self.perlen), self.nper))
 
         inputZON_RF_veg.close()
         inputZON_RFe_veg.close()
@@ -1020,7 +1020,7 @@ class clsMF():
 
         #global hmain, uzf, rch_array, perc_array, options, cb, upw, layer_row_column_Q, wel_array, wel_dum, rch_array, perc_array, rch_input, wel_input, perc_input
         if verbose == 0:
-            print '--------------'
+            print('--------------')
 
         if os.path.exists(perc_MM[0]):
             if self.uzf_yn == 1:
@@ -1041,13 +1041,13 @@ class clsMF():
 
         # perc
         if self.uzf_yn == 1:
-            print '\nUZF1 package initialization'
+            print('\nUZF1 package initialization')
             if isinstance(perc_input,float):
                 perc_array = perc_input
-                print 'Infiltration input: %s' % str(perc_input)
+                print('Infiltration input: %s' % str(perc_input))
             else:
                 perc_array = {}
-                print 'Infiltration input: %s' % perc_input[0]
+                print('Infiltration input: %s' % perc_input[0])
                 try:
                     h5_perc = h5py.File(perc_input[0], 'r')
                     for n in range(self.nper):
@@ -1055,9 +1055,9 @@ class clsMF():
                     h5_perc.close()
                 except:
                     perc_array = self.perc_user
-                    print 'WARNING!\nNo valid UZF1 package file(s) provided, running MODFLOW using user-input UZF1 infiltration value: %.3G' % self.perc_user
+                    print('WARNING!\nNo valid UZF1 package file(s) provided, running MODFLOW using user-input UZF1 infiltration value: %.3G' % self.perc_user)
                     perc_input = self.perc_user
-            print "Done!"
+            print("Done!")
            #def uzf_obs(self, obs):
             self.row_col_iftunit_iuzopt = {}
             self.uzf_filenames = ['%s.%s' % (self.modelname, self.ext_uzf), ]
@@ -1076,21 +1076,21 @@ class clsMF():
             if obs != None:
                 n = 200
                 for o in range(len(obs)):
-                    self.row_col_iftunit_iuzopt[n] = [obs.get(obs.keys()[o])['i'], obs.get(obs.keys()[o])['j'], n, 2]
-                    self.uzf_filenames.append('%s.%s%s.%s.out' % (self.modelname, self.ext_uzf, obs.keys()[o], str(n)))
+                    self.row_col_iftunit_iuzopt[n] = [obs.get(list(obs.keys())[o])['i'], obs.get(list(obs.keys())[o])['j'], n, 2]
+                    self.uzf_filenames.append('%s.%s%s.%s.out' % (self.modelname, self.ext_uzf, list(obs.keys())[o], str(n)))
                     n += 1
                 self.iunitramp = n
                 del n
 
         # RCH
         if self.rch_yn == 1:
-            print '\nRCH package initialization'
+            print('\nRCH package initialization')
             if isinstance(rch_input, float):
                 rch_array = rch_input
-                print 'recharge input: %s' % str(rch_input)
+                print('recharge input: %s' % str(rch_input))
             else:
                 rch_array = {}
-                print 'recharge input: %s' % rch_input[0]
+                print('recharge input: %s' % rch_input[0])
                 try:
                     h5_rch = h5py.File(rch_input[0], 'r')
                     for n in range(self.nper):
@@ -1098,27 +1098,27 @@ class clsMF():
                     h5_rch.close()
                 except:
                     rch_array = self.rch_user
-                    print 'WARNING!\nNo valid RCH package file(s) provided, running MODFLOW using user-input recharge value: %.3G' % self.rch_user
+                    print('WARNING!\nNo valid RCH package file(s) provided, running MODFLOW using user-input recharge value: %.3G' % self.rch_user)
                     rch_input = self.rch_user
-            print "Done!"
+            print("Done!")
 
         # WELL
         # TODO add well by user to simulate extraction by borehole
         if self.wel_yn == 1:
-            print '\nWEL package initialization'
+            print('\nWEL package initialization')
             if isinstance(wel_input,float):
                 wel_array = wel_input
-                print 'Discharge input: %s' % str(wel_input)
+                print('Discharge input: %s' % str(wel_input))
             else:
                 wel_array = []
-                print 'Discharge input: %s' % wel_input[0]
+                print('Discharge input: %s' % wel_input[0])
                 try:
                     h5_wel = h5py.File(wel_input[0], 'r')
                     for n in range(self.nper):
                         wel_array.append(h5_wel[wel_input[1]][n])
                     h5_wel.close()
                 except:
-                    print 'WARNING!\nNo valid WEL package file(s) provided, running MODFLOW using user-input well value: %.3G' % self.wel_user
+                    print('WARNING!\nNo valid WEL package file(s) provided, running MODFLOW using user-input well value: %.3G' % self.wel_user)
                     wel_array = self.wel_user
             # implement a well in every active cell
             layer_row_column_Q = {}
@@ -1175,7 +1175,7 @@ class clsMF():
                                 break
                         if wel_dum == 1:
                             break
-            print "Done!"
+            print("Done!")
 
         # average for 1st SS stress period
         # TODO verify the if the average of wells is done correctly
@@ -1213,7 +1213,7 @@ class clsMF():
                         for n in range(self.nper):
                             wel_SS += wel_array[n]
                         wel_SS = wel_SS / self.nper
-                    for n in reversed(range(self.nper)):
+                    for n in reversed(list(range(self.nper))):
                         layer_row_column_Q[n+1] = layer_row_column_Q.pop(n)
                     layer_row_column_Q[0] = []
                     for r in range(self.nrow):
@@ -1238,7 +1238,7 @@ class clsMF():
                 spd[(t, 0)] = ['save head', 'save budget']#,'print head']
 
         # 2 - create the modflow packages files
-        print '\nMODFLOW files writing'
+        print('\nMODFLOW files writing')
         # MFfile initialization
         mfmain = flopy.modflow.Modflow(modelname = self.modelname, exe_name = self.exe_name, namefile_ext = self.namefile_ext, version = self.version, model_ws = self.MF_ws)
         # dis package
@@ -1266,12 +1266,12 @@ class clsMF():
         # wel package
         if self.wel_yn == 1:
             if layer_row_column_Q != None:
-               if self.iunitramp <> None:
+               if self.iunitramp != None:
                    options = ['\nSPECIFY 0.05 %d\n' % self.iunitramp]
                wel = flopy.modflow.ModflowWel(model = mfmain, ipakcb = cb, stress_period_data = layer_row_column_Q, extension = self.ext_wel, options = options)
                wel.write_file()
                del layer_row_column_Q
-               if self.iunitramp <> None:
+               if self.iunitramp != None:
                    class_nam = ['WEL']
                    wel.unit_number.append(self.iunitramp)
                    wel.extension.append('ReducedWells.out')
@@ -1326,11 +1326,11 @@ class clsMF():
              self.cbc_MFuzf_fn = os.path.join(self.MF_ws, self.modelname + '.UZF.cbc')
 
         # run MODFLOW and read the heads back into Python
-        print '\nMODFLOW run'
+        print('\nMODFLOW run')
         mfmain.write_name_file()
         success, buff = mfmain.run_model(pause = False, report = report)
         if success == True:
-            print "\nMODFLOW run done successfully!"
+            print("\nMODFLOW run done successfully!")
         else:
             self.cUTIL.ErrorExit(msg='\nMODFLOW error!\nCheck the MODFLOW list file in folder:\n%s' % self.MF_ws,
                                  stdout=stdout, report=report)
@@ -1346,7 +1346,7 @@ class clsMF():
         if len(hmain.times)<sum(self.nstp):
             h5_MF.close()
             self.cUTIL.ErrorExit(msg = '\nMODFLOW error!\nCheck the MODFLOW list file in folder:\n%s' % self.MF_ws, stdout = stdout, report = report)        
-        print '\nStoring heads and cbc terms into HDF5 file\n%s\n' % (self.h5_MF_fn)
+        print('\nStoring heads and cbc terms into HDF5 file\n%s\n' % (self.h5_MF_fn))
         if self.dum_sssp1 == 1:
             nper_tmp = self.nper - 1
         else:
@@ -1373,7 +1373,7 @@ class clsMF():
         else:
             h5_MF.create_dataset(name = 'cbc', shape = (nper_tmp, self.nlay, self.nrow, self.ncol, h5_MF['cbc_nam'].shape[0]), dtype = np.float32)
         for x, txt in enumerate(h5_MF['cbc_nam']):
-            if self.dum_sssp1 == 1 and txt.replace(' ','') != 'STORAGE':
+            if self.dum_sssp1 == 1 and txt.replace(b' ',b'') != b'STORAGE':
                 h5_MF['cbc'][:,:,:,:,x] = cbc.get_data(text = txt, full3D=True)[1:]
             else:
                 h5_MF['cbc'][:,:,:,:,x] = cbc.get_data(text = txt, full3D=True)
@@ -1415,7 +1415,7 @@ class clsMF():
             cbc_uzf_nam = []
             for c in h5_MF['cbc_uzf_nam']:
                 cbc_uzf_nam.append(c.strip())
-            imfEXF   = cbc_uzf_nam.index('SURFACE LEAKAGE')
+            imfEXF   = cbc_uzf_nam.index(b'SURFACE LEAKAGE')
             for l in range(self.nlay):
                 for t in range(len(self.perlen)):
                     mask = np.ma.make_mask(self.outcropL == l+1) #+1
@@ -1433,11 +1433,11 @@ class clsMF():
                 try:
                     os.remove(e)
                 except:
-                    print "ERRO! It was not possible to remove %s" % e
+                    print("WARNING!\nIt was not possible to remove %s\n" % e)
 
             
 ##################
 if __name__ == "__main__":
-    print '\nWARNING!\nStart MARMITES-MODFLOW models using the script startMARMITES_v3.py\n'
+    print('\nWARNING!\nStart MARMITES-MODFLOW models using the script startMARMITES_v3.py\n')
 
 # EOF            

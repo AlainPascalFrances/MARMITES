@@ -30,34 +30,34 @@ class clsReSo_GUI_frame(wx.Frame):
         self.fram_main_menubar = wx.MenuBar()
         self.mnFile = wx.Menu()
         self.mnLoadAll = wx.MenuItem(self.mnFile, 10, "Load &All (folder)", "For fast upload, name your files \"__input.txt\", \"__param.txt\", \"__h.txt\" and \"__s.txt\"", wx.ITEM_NORMAL)
-        self.mnFile.AppendItem(self.mnLoadAll)
+        self.mnFile.Append(self.mnLoadAll)
         self.mnFile.AppendSeparator()
         self.mnLoadInput = wx.MenuItem(self.mnFile, 11, "Load &Input", "", wx.ITEM_NORMAL)
-        self.mnFile.AppendItem(self.mnLoadInput)
+        self.mnFile.Append(self.mnLoadInput)
         self.mnLoadParam = wx.MenuItem(self.mnFile, 12, "Load &Param.", "", wx.ITEM_NORMAL)
-        self.mnFile.AppendItem(self.mnLoadParam)
+        self.mnFile.Append(self.mnLoadParam)
         self.mnLoadhMeas = wx.MenuItem(self.mnFile, 13, "Load [&h] meas.", "", wx.ITEM_NORMAL)
-        self.mnFile.AppendItem(self.mnLoadhMeas)
+        self.mnFile.Append(self.mnLoadhMeas)
         self.mnLoadSMeas = wx.MenuItem(self.mnFile, 14, "Load [&S] meas.", "", wx.ITEM_NORMAL)
-        self.mnFile.AppendItem(self.mnLoadSMeas)
+        self.mnFile.Append(self.mnLoadSMeas)
         self.mnFile.AppendSeparator()
         self.mnExit = wx.MenuItem(self.mnFile, 15, "E&xit", "", wx.ITEM_NORMAL)
-        self.mnFile.AppendItem(self.mnExit)
+        self.mnFile.Append(self.mnExit)
         self.fram_main_menubar.Append(self.mnFile, "&File")
         self.mnConfig = wx.Menu()
         mnFormatDate = wx.Menu()
         self.mnDateTrace = wx.MenuItem(mnFormatDate, 211, "YYYY&-MM-DD", "", wx.ITEM_RADIO)
-        mnFormatDate.AppendItem(self.mnDateTrace)
+        mnFormatDate.Append(self.mnDateTrace)
         self.mnDateSchlas = wx.MenuItem(mnFormatDate, 212, "YYYY&/MM/DD", "", wx.ITEM_RADIO)
-        mnFormatDate.AppendItem(self.mnDateSchlas)
-        self.mnConfig.AppendMenu(21, "Format da&te", mnFormatDate, "")
+        mnFormatDate.Append(self.mnDateSchlas)
+        self.mnConfig.Append(21, "Format da&te", mnFormatDate, "")
         self.fram_main_menubar.Append(self.mnConfig, "Con&figure")
         self.mnHelp = wx.Menu()
         self.mnHelppdf = wx.MenuItem(self.mnHelp, 31, "Help [&pdf]", "", wx.ITEM_NORMAL)
-        self.mnHelp.AppendItem(self.mnHelppdf)
+        self.mnHelp.Append(self.mnHelppdf)
         self.mnHelp.AppendSeparator()
         self.mnAbout = wx.MenuItem(self.mnHelp, 32, "A&bout", "", wx.ITEM_NORMAL)
-        self.mnHelp.AppendItem(self.mnAbout)
+        self.mnHelp.Append(self.mnAbout)
         self.fram_main_menubar.Append(self.mnHelp, "&Help")
         self.SetMenuBar(self.fram_main_menubar)
         # Menu Bar end
@@ -191,7 +191,7 @@ class clsReSo_GUI_frame(wx.Frame):
 ##=========== END OF EVENT TXT ==============##
 
     def __set_properties(self):
-        _icon = wx.EmptyIcon()
+        _icon = wx.Icon()
         path = os.path.dirname(ReSo.__file__)
         _icon.CopyFromBitmap(wx.Bitmap(path + '\\aquaflagged.ico', wx.BITMAP_TYPE_ANY))
         self.SetIcon(_icon)
@@ -342,15 +342,15 @@ class clsReSo_GUI_frame(wx.Frame):
         grdsz_input.Add(self.pn_13_copy, 1, wx.EXPAND, 0)
         grdsz_input.Add(self.lbl_InputMain, 0, 0, 0)
         grdsz_input.Add(self.lbl_Input, 0, wx.ALIGN_RIGHT|wx.ALIGN_CENTER_VERTICAL, 0)
-        grdsz_input.Add(self.txt_OpenInput, 0, wx.ALL|wx.EXPAND|wx.ALIGN_RIGHT|wx.ALIGN_CENTER_HORIZONTAL, 5)
+        grdsz_input.Add(self.txt_OpenInput, 0, wx.ALL|wx.ALIGN_RIGHT|wx.ALIGN_CENTER_VERTICAL, 5)
         grdsz_input.Add(self.lbl_param, 0, wx.ALIGN_RIGHT|wx.ALIGN_CENTER_VERTICAL, 0)
-        grdsz_input.Add(self.txt_OpenParam, 0, wx.ALL|wx.EXPAND|wx.ALIGN_RIGHT|wx.ALIGN_CENTER_HORIZONTAL, 5)
+        grdsz_input.Add(self.txt_OpenParam, 0, wx.ALL|wx.ALIGN_RIGHT|wx.ALIGN_CENTER_VERTICAL, 5)
         grdsz_input.Add(self.lbl_hmeas, 0, wx.ALIGN_RIGHT|wx.ALIGN_CENTER_VERTICAL, 0)
-        grdsz_input.Add(self.txt_Openhmeas, 0, wx.ALL|wx.EXPAND|wx.ALIGN_RIGHT|wx.ALIGN_CENTER_HORIZONTAL, 5)
+        grdsz_input.Add(self.txt_Openhmeas, 0, wx.ALL|wx.ALIGN_RIGHT|wx.ALIGN_CENTER_VERTICAL, 5)
         grdsz_input.Add(self.lbl_Smeas, 0, wx.ALIGN_RIGHT|wx.ALIGN_CENTER_VERTICAL, 0)
-        grdsz_input.Add(self.txt_OpenSmeas, 0, wx.ALL|wx.EXPAND|wx.ALIGN_RIGHT|wx.ALIGN_CENTER_HORIZONTAL, 5)
+        grdsz_input.Add(self.txt_OpenSmeas, 0, wx.ALL|wx.ALIGN_RIGHT|wx.ALIGN_CENTER_VERTICAL, 5)
         self.pn_input.SetSizer(grdsz_input)
-        grdsz_main.Add(self.pn_input, 1, wx.LEFT|wx.RIGHT|wx.TOP|wx.EXPAND|wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER_VERTICAL, 5)
+        grdsz_main.Add(self.pn_input, 1, wx.LEFT|wx.RIGHT|wx.TOP|wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER_VERTICAL, 5)
         grdsz_param.Add(self.pn_13, 1, wx.EXPAND, 0)
         grdsz_param.Add(self.lbl_paramMain, 0, wx.ALL, 1)
         grdsz_param.Add(self.panel_1, 1, wx.EXPAND, 0)
@@ -409,17 +409,17 @@ class clsReSo_GUI_frame(wx.Frame):
         grdsz_param.Add(self.txt_SUSTm, 0, 0, 0)
         grdsz_param.Add(self.panel_11, 1, wx.EXPAND, 0)
         grdsz_param.Add(self.pn_07, 1, wx.EXPAND, 0)
-        grdsz_param.Add(self.lbl_Elev, 0, wx.ALIGN_RIGHT|wx.ALIGN_CENTER_HORIZONTAL, 0)
+        grdsz_param.Add(self.lbl_Elev, 0, wx.ALIGN_RIGHT|wx.ALIGN_CENTER_VERTICAL, 0)
         grdsz_param.Add(self.txt_Elev, 0, 0, 0)
         self.pn_param.SetSizer(grdsz_param)
-        grdsz_main.Add(self.pn_param, 1, wx.LEFT|wx.RIGHT|wx.TOP|wx.EXPAND|wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER_VERTICAL, 5)
+        grdsz_main.Add(self.pn_param, 1, wx.LEFT|wx.RIGHT|wx.TOP|wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER_VERTICAL, 5)
         grdsz_graph.Add(self.bt_hGraph, 0, wx.ALL|wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER_VERTICAL, 2)
         grdsz_graph.Add(self.bt_hSGraph, 0, wx.ALL|wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER_VERTICAL, 2)
         grdsz_graph.Add(self.bt_AllGraph, 0, wx.ALL|wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER_VERTICAL, 2)
         self.pn_graph.SetSizer(grdsz_graph)
         grdsz_graph.AddGrowableCol(1)
         grdsz_graph.AddGrowableCol(2)
-        grdsz_main.Add(self.pn_graph, 1, wx.LEFT|wx.RIGHT|wx.TOP|wx.EXPAND|wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER_VERTICAL, 5)
+        grdsz_main.Add(self.pn_graph, 1, wx.LEFT|wx.RIGHT|wx.TOP|wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER_VERTICAL, 5)
         grid_RMSE.Add(self.lbl_RMSE_h, 0, wx.ALIGN_BOTTOM|wx.ALIGN_CENTER_HORIZONTAL, 0)
         grid_RMSE.Add(self.lbl_RMSE_s, 0, wx.ALIGN_BOTTOM|wx.ALIGN_CENTER_HORIZONTAL, 0)        
         grid_RMSE.Add(self.lbl_Rtotal, 0, wx.ALIGN_BOTTOM|wx.ALIGN_CENTER_HORIZONTAL, 0)
@@ -431,7 +431,7 @@ class clsReSo_GUI_frame(wx.Frame):
         grid_RMSE.Add(self.txt_RFtotal, 0, wx.ALIGN_CENTER_HORIZONTAL, 0)
         grid_RMSE.Add(self.txt_Rpercent, 0, wx.ALIGN_CENTER_HORIZONTAL, 0)
         self.pn_RMSE.SetSizer(grid_RMSE)
-        grdsz_main.Add(self.pn_RMSE, 1, wx.LEFT|wx.RIGHT|wx.TOP|wx.EXPAND|wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER_VERTICAL, 5)
+        grdsz_main.Add(self.pn_RMSE, 1, wx.LEFT|wx.RIGHT|wx.TOP|wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER_VERTICAL, 5)
         grdsz_output.Add(self.bt_SaveOutput, 0, wx.ALL|wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER_VERTICAL, 5)
         grdsz_output.Add(self.txt_Output, 0, wx.ALL|wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER_VERTICAL, 5)
         grdsz_output.Add(self.bt_SaveParam, 0, wx.ALL|wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER_VERTICAL, 5)
@@ -439,7 +439,7 @@ class clsReSo_GUI_frame(wx.Frame):
         self.pn_output.SetSizer(grdsz_output)
         grdsz_output.AddGrowableRow(0)
         grdsz_output.AddGrowableRow(1)
-        grdsz_main.Add(self.pn_output, 1, wx.LEFT|wx.RIGHT|wx.TOP|wx.EXPAND|wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER_VERTICAL, 5)
+        grdsz_main.Add(self.pn_output, 1, wx.LEFT|wx.RIGHT|wx.TOP|wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER_VERTICAL, 5)
         self.SetSizer(grdsz_main)
         self.Layout()
         # end wxGlade
@@ -474,7 +474,7 @@ class clsReSo_GUI_frame(wx.Frame):
             defaultDir=os.getcwd(),
             defaultFile="",
             wildcard=wildcard,
-            style=wx.OPEN | wx.CHANGE_DIR
+            style=wx.FD_OPEN | wx.FD_CHANGE_DIR
             )
 
         # Show the dialog and retrieve the user response. If it is the OK response,
@@ -708,7 +708,7 @@ class clsReSo_GUI_frame(wx.Frame):
 
         DateInput, P, PET, Pe, SUST, Qs, ETa, S, Rp, R, h, hmeas, Smeas, Sm, Sr, ErrorType = self.CallrunReSo()
 
-        if ErrorType<>999:
+        if ErrorType!=999:
             self.callDialog(ErrorType)
         else:
             if type(DateInput)!=int:
@@ -725,7 +725,7 @@ class clsReSo_GUI_frame(wx.Frame):
 
         DateInput, P, PET, Pe, SUST, Qs, ETa, S, Rp, R, h, hmeas, Smeas, Sm, Sr, ErrorType = self.CallrunReSo()
 
-        if ErrorType<>999:
+        if ErrorType!=999:
             self.callDialog(ErrorType)
         else:
             if type(DateInput)!=int:
@@ -741,7 +741,7 @@ class clsReSo_GUI_frame(wx.Frame):
 
         DateInput, P, PET, Pe, SUST, Qs, ETa, S, Rp, R, h, hmeas, Smeas, Sm, Sr, ErrorType = self.CallrunReSo()
 
-        if ErrorType<>999:
+        if ErrorType!=999:
             self.callDialog(ErrorType)
         else:
             if type(DateInput)!=int:
@@ -756,7 +756,7 @@ class clsReSo_GUI_frame(wx.Frame):
 
         DateInput, P, PET, Pe, SUST, Qs, ETa, S, Rp, R, h, hmeas, Smeas, Sm, Sr, ErrorType  = self.CallrunReSo()
 
-        if ErrorType<>999:
+        if ErrorType!=999:
             self.callDialog(ErrorType)
         else:
             Output_path = self.txt_Output.GetValue()
