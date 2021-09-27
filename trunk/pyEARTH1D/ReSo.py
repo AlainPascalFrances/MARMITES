@@ -1,4 +1,4 @@
-# -*- coding: cp1252 -*-
+# -*- coding: utf-8 -*-
 ##=========================================================================================##
 ##===========================|------------------------------------|========================##
 ##===========================|               ReSo                 |========================##
@@ -21,7 +21,7 @@ class ReSo:
     It is a modular software, check below the several modules and their inputs.
     Equations are based on:
     Van der Lee J. and Gehrels, J. (1990)
-    Modelling Aquifer Recharge – Introduction to the Lumped Parameter Model EARTH
+    Modelling Aquifer Recharge â€“ Introduction to the Lumped Parameter Model EARTH
     Free University of Amsterdam, The Netherlands
     """
 
@@ -327,7 +327,7 @@ class ReSo:
         try:
             #_________________Open input file for date, P ad PET___________________________#
             if os.path.exists(input_path):
-                input_ar=numpy.loadtxt(input_path, converters={0:datestr2num})
+                input_ar=numpy.loadtxt(input_path, converters={0:date2num})
                 DateInput = input_ar[:,0]
                 for i in range(1,input_ar.shape[0]):
                     #__________________Check date consistency________________#
@@ -339,7 +339,7 @@ class ReSo:
                 #_________________Open measured piezometric levels___________________________#
                 hmeas=[]
                 if os.path.exists(hmeas_path):
-                    hmeas_ar=numpy.loadtxt(hmeas_path, converters={0:datestr2num})
+                    hmeas_ar=numpy.loadtxt(hmeas_path, converters={0:date2num})
                     Datehmeas = hmeas_ar[:,0]
                     if Datehmeas[0]<DateInput[0]:
                         ErrorType = 101;
@@ -365,7 +365,7 @@ class ReSo:
                 #_________________Open measured soil moisture___________________________#
                 Smeas=[]
                 if os.path.exists(Smeas_path):
-                    Smeas_ar=numpy.loadtxt(Smeas_path, converters={0:datestr2num})
+                    Smeas_ar=numpy.loadtxt(Smeas_path, converters={0:date2num})
                     DateSmeas=Smeas_ar[:,0]
                     if DateSmeas[0]<DateInput[0]:
                         ErrorType = 103
@@ -392,9 +392,9 @@ class ReSo:
                 ErrorType = -1
                 DateInput, P , PET, hmeas, Smeas = 0,0,0,0,0
 
-        except (ValueError, TypeError, KeyboardInterrupt), e:
+        except (ValueError, TypeError, KeyboardInterrupt) as e:
             DateInput, P , PET, hmeas, Smeas = 0,0,0,0,0
-            ErrorType = e[0]
+            ErrorType = e
         except (SystemExit):
             DateInput, P , PET, hmeas, Smeas = 0,0,0,0,0
             ErrorType = 100
@@ -454,14 +454,14 @@ def runReSo(strDateFormat, param, input_path, hmeas_path, Smeas_path):
         sys.exit()
 
     # cal functions for reservoirs calculations
-    print "\nData verified succesfully!"
+    print( "\nData verified succesfully!")
     P, PET, Pe, SUST, Qs, ETa, S, Rp, MB = dataset.SOMOS(MAXIL, Sm, Sfc, Sr, Si, D, Ks, SUSTm, P, PET)
-    print "\nSOMOS done!"
-    print "MASS BALANCE: %.2f" % MB
+    print("\nSOMOS done!")
+    print("MASS BALANCE: %.2f" % MB)
     R = dataset.LINRES(Rp, n, f)
-    print "\nLINRES done!"
+    print("\nLINRES done!")
     h = dataset.SATFLOW(R, hi, h0, RC, STO)
-    print "\nSATFLOW done!"
+    print("\nSATFLOW done!")
 
     ## check if h> elevation of piezometer
 

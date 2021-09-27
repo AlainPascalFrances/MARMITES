@@ -24,9 +24,9 @@ class clsUTILITIES():
 #####################################
 
     def ErrorExit(self, msg = 'Undefined error.', stdout = None, report = None):
-        print '%s\nError description:' % msg
+        print('%s\nError description:' % msg)
         traceback.print_exc(file=sys.stdout)
-        print ('\n##############\nWARNING!\nMARMITES terminated with ERROR!\n%s\n##############' % (mpl.dates.DateFormatter.format_data(self.fmt, mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat()))))
+        print(('\n##############\nWARNING!\nMARMITES terminated with ERROR!\n%s\n##############' % (mpl.dates.DateFormatter.format_data(self.fmt, mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())))))
         if self.verbose == 0:
             sys.stdout = stdout
             report.close()
@@ -170,6 +170,6 @@ class clsUTILITIES():
 
 #####################################
 if __name__ == "__main__":
-    print '\nWARNING!\nStart MARMITES-MODFLOW models using the script startMARMITES_v3.py\n'
+    print('\nWARNING!\nStart MARMITES-MODFLOW models using the script startMARMITES_v3.py\n')
 
 #EOF

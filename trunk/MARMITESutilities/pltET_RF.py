@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 
 #####################
 #input section
-ws_fn = r'E:\WREM\SARDON\MonitoringNetwork\EddyTower'
+ws_fn = r'D:\BAK_DIV\WREM\SARDON\MonitoringNetwork\EddyTower'
 # read input files
 TXT_in_fnn = 'Eddy_MM.csv'
 

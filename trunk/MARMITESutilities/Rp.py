@@ -42,7 +42,7 @@ plt.grid(True, color = 'lightgray')
 plt.xlim((0.30, 0.35))
 plt.ylim((0.0,325))
 plt.xlabel(r'$\theta$ (%)')#, labelpad=20)
-plt.ylabel(r'$R_{soil}$  (mm.d$^{-1}$)')
+plt.ylabel(r'$R_p$  ($mm.d^{-1}$)')
 ax1.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.1f'))
 ax1.text(theta_fc+0.00075, 150, r'$\theta_{fc}$', horizontalalignment='left', verticalalignment='center')#, fontsize = 14)
 ax1.text(theta_fcl+0.00075, 150, r"$\theta_{fc}'$", horizontalalignment='left', verticalalignment='center')#, fontsize = 14)
@@ -50,7 +50,7 @@ ax1.text(phi+0.00075, 150, r'$\phi$', horizontalalignment='left', verticalalignm
 ax1.text(0.315, Ksat+8, r'$Ksat$', horizontalalignment='left', verticalalignment='center')#, fontsize = 14)
 
 #plt.subplots_adjust(left=0.075, bottom=0.05, right=0.95, top=0.95, wspace=0.25, hspace=0.3)    
-plt.show()
+#plt.show()
 img_path = 'Rp_function'
 plt.savefig(img_path,dpi=300)
-print 'Plot printed:\n%s' % img_path
+print('Plot printed:\n%s' % img_path)
