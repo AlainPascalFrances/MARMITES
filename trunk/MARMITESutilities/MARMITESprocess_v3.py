@@ -28,7 +28,7 @@ class clsPROCESS:
 
     def inputEsriAscii(self, grid_fn, datatype, stdout = None, report = None):
         try:
-            if datatype == np.int or datatype == int:
+            if datatype == int:
                 grid_fn = int(grid_fn)
             else:
                 grid_fn = float(grid_fn)
@@ -42,17 +42,17 @@ class clsPROCESS:
 
     ######################
 
-    def checkarray(self, var, dtype = np.float, stdout = None, report = None):
+    def checkarray(self, var, dtype = float, stdout = None, report = None):
         try:
             if len(var)>1:
                 lst_out = []
                 for v in var:
-                    if dtype == np.int or dtype == int:
+                    if dtype == int:
                         lst_out.append(int(v))
                     else:
                         lst_out.append(float(v))
             else:
-                if dtype == np.int or dtype == int:
+                if dtype == int:
                     lst_out = int(var[0])
                 else:
                     lst_out = float(var[0])
@@ -86,7 +86,7 @@ class clsPROCESS:
         else:
             array = np.asarray(array)
         if np.asarray(array).shape[0] == self.nlay and len(array.shape) == 1:
-            array_tmp = np.ones([self.nlay, self.nrow, self.ncol], dtype = np.float)
+            array_tmp = np.ones([self.nlay, self.nrow, self.ncol], dtype = float)
             for l, e in enumerate (array):
                 array_tmp[l,:,:] *= e  #*ibound[l,:,:]
             array = array_tmp

@@ -454,7 +454,7 @@ class clsMF():
         self.elev     = self.cPROCESS.checkarray(self.elev, stdout = stdout, report = report)
         self.strt     = self.cPROCESS.checkarray(self.strt, stdout = stdout, report = report)
         self.thick    = self.cPROCESS.checkarray(self.thick, stdout = stdout, report = report)
-        self.ibound   = self.cPROCESS.checkarray(self.ibound, dtype = np.int, stdout = stdout, report = report)
+        self.ibound   = self.cPROCESS.checkarray(self.ibound, dtype = int, stdout = stdout, report = report)
         if self.nlay < 2:
             if isinstance(self.ibound, (list, np.ndarray)):
                 self.ibound = (np.asarray(self.ibound)).reshape((1, self.nrow, self.ncol))
@@ -481,11 +481,11 @@ class clsMF():
             if isinstance(self.botm, list):
                 self.botm = np.ma.masked_values((np.asarray(self.botm)).reshape((1, self.nrow, self.ncol)), self.hnoflo, atol = 0.09)
         if self.uzf_yn == 1:
-            self.iuzfbnd = self.cPROCESS.checkarray(self.iuzfbnd, dtype = np.int, stdout = stdout, report = report)
+            self.iuzfbnd = self.cPROCESS.checkarray(self.iuzfbnd, dtype = int, stdout = stdout, report = report)
         if self.ghb_yn == 1:
             ghb = np.asarray(self.cPROCESS.checkarray(self.ghb_cond, dtype = np.float32, stdout = stdout, report = report))
             if self.nlay > 1:
-                self.ghbcells = np.zeros((self.nlay), dtype = np.int)
+                self.ghbcells = np.zeros((self.nlay), dtype = int)
                 for l in range(self.nlay):
                     self.ghbcells[l] = (np.asarray(ghb[l,:,:]) > 0.0).sum()
             else:
@@ -494,7 +494,7 @@ class clsMF():
         if self.drn_yn == 1:
             drn = np.asarray(self.cPROCESS.checkarray(self.drn_cond, dtype = np.float32, stdout = stdout, report = report))
             if self.nlay > 1:
-                self.drncells = np.zeros((self.nlay), dtype = np.int)
+                self.drncells = np.zeros((self.nlay), dtype = int)
                 for l in range(self.nlay):
                     self.drncells[l] = (np.asarray(drn[l,:,:]) > 0.0).sum()
             else:
@@ -659,7 +659,7 @@ class clsMF():
         if os.path.exists(inputDate_fn):
             inputDate_tmp = np.loadtxt(inputDate_fn, dtype = str)
             self.inputDate = inputDate_tmp[:,0]
-            self.JD = np.asarray(inputDate_tmp[:,2], dtype = np.int)
+            self.JD = np.asarray(inputDate_tmp[:,2], dtype = int)
             del inputDate_tmp
             self.inputDate = mpl.dates.datestr2num(self.inputDate)
             for t in range(1,len(self.inputDate)):
@@ -914,8 +914,8 @@ class clsMF():
             self.perlen.append(perlen_tmp)
         del perlen_tmp
         del RF_veg_d, RFe_veg_d, PT_veg_d, PE_d, E0_d, RF_veg_stp_tmp, PT_veg_stp_tmp, PE_stp_tmp, E0_stp_tmp, c_
-        self.perlen = np.asarray(self.perlen, dtype = np.int)
-        self.nstp = np.ones(self.nper, dtype = np.int)
+        self.perlen = np.asarray(self.perlen, dtype = int)
+        self.nstp = np.ones(self.nper, dtype = int)
         self.tsmult = self.nstp
         self.Ss_tr = []
         for n in range(self.nper):

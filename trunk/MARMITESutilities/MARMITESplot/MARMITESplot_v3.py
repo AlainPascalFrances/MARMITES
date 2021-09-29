@@ -253,14 +253,14 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     colors_nsl = itertools.cycle(clr_lst)
     ax5 = fig.add_subplot(8, 1, 6, sharex=ax1)
     for l in range(nsl):
-        try:
-            if b'iSobs_%d' % (l + 1) in flxIndex_lst:
+        #try:
+        if b'iSobs_%d' % (l + 1) in flxIndex_lst:
                 if flx[flxIndex_lst[b'iSobs_%d' % (l + 1)]].all != []:
                     ax5.plot_date(cMF.inputDate, flx[flxIndex_lst[b'iSobs_%d' % (l + 1)]], ls='None', color='gray',
                                   marker='o', markersize=2, markeredgecolor=next(colors_nsl), markerfacecolor='None',
                                   label=flxLbl[flxIndex_lst[b'iSobs_%d' % (l + 1)]])  # '--', color = color,  markevery = 2
-        except:
-            print("ERROR plotting SM obs")
+        #except:
+        #    print("ERROR plotting SM obs")
     sim_tmp = []
     colors_nsl = itertools.cycle(clr_lst)
     for l in range(nsl):
@@ -1325,8 +1325,8 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
 
     ims = []
     files_tmp = []
-    # print plt_title
-    # print "nplot: %s"% (nplot)
+    # print(plt_title)
+    # print("nplot: %s"% (nplot))
     for i, day in enumerate(days):
         # DEFINE HERE SUBPLOT FORMAT
         if nrow > ncol:
@@ -1345,6 +1345,30 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
                 NrowPage = 1
         NPage = int(np.ceil(nplot / 2.0))
         L = 0
+        Vmin_tmp, Vmax_tmp, ctrs_tmp = MinMax(np.min(Vmin), np.max(Vmax), contours)
+        if fmt == None:
+            if Vmax_tmp > 0.0999 or abs(Vmin_tmp) > 0.0999:
+                fmt = '%5.2f'
+            else:
+                fmt = '%5.e'
+        if Vmax_tmp > 0 and Vmin_tmp < 0 and cMF != None:
+            cmap = plt.cm.coolwarm_r
+            # shifted_cmap = cMF.cUTIL.remappedColorMap(cmap, midpoint=0.75, name='shifted')
+            start = 0.0  # (Vmax_tmp-abs(Vmin_tmp))/(2*Vmax_tmp)
+            midpoint = abs(Vmin_tmp) / (Vmax_tmp + abs(Vmin_tmp))
+            stop = 1.0  # (abs(Vmin_tmp)-Vmax_tmp)/(2*abs(Vmin_tmp))
+            shrunk_cmap = cMF.cUTIL.remappedColorMap(cmap, start=start, midpoint=midpoint, stop=stop, name='shrunk')
+            cmap = shrunk_cmap
+        norm = None
+        if interval_type == b'arange':
+            ticks = np.arange(Vmin_tmp, Vmax_tmp, interval_diff)
+            levels = mpl.ticker.MaxNLocator(nbins=cmap.N).tick_values(Vmin_tmp, Vmax_tmp)
+            norm = mpl.colors.BoundaryNorm(levels, cmap.N)
+        elif interval_type == b'linspace':
+            ticks = np.linspace(Vmin_tmp, Vmax_tmp, interval_num)
+            levels = mpl.ticker.MaxNLocator(nbins=cmap.N).tick_values(Vmin_tmp, Vmax_tmp)
+            norm = mpl.colors.BoundaryNorm(levels, cmap.N)  # , vmin=Vmin_tmp, vmax=Vmax_tmp)
+        #print(Vmin_tmp, Vmax_tmp, interval_num, interval_diff, ticks, cmap.N)
         for F in range(NPage):
             fig = plt.figure(num=None, figsize=figsize, dpi=90)
             figtitle = fig.suptitle('')
@@ -1361,43 +1385,27 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
             ax = []
             for l in range(2):
                 if L < nplot:
-                    # print "layer %d, Layer %d, Page %d" % (l, L, F)
+                    #print("layer %d, Layer %d, Page %d" % (l, L, F))
                     if mask.all() == None:
                         Vtmp = V[i, L, :, :]
                     else:
                         Vtmp = np.ma.masked_array(V[i, L, :, :], mask[L, :, :])
                     Vtmp = np.ma.masked_values(Vtmp, hnoflo, atol=0.09)
-                    Vmin_tmp, Vmax_tmp, ctrs_tmp = MinMax(np.min(Vmin), np.max(Vmax), contours)
-                    if fmt == None:
-                        if Vmax_tmp > 0.0999 or abs(Vmin_tmp) > 0.0999:
-                            fmt = '%5.2f'
-                        else:
-                            fmt = '%5.e'
-                    if Vmax_tmp > 0 and Vmin_tmp < 0 and cMF != None:
-                        cmap = plt.cm.coolwarm_r
-                        # shifted_cmap = cMF.cUTIL.remappedColorMap(cmap, midpoint=0.75, name='shifted')
-                        start = 0.0  # (Vmax_tmp-abs(Vmin_tmp))/(2*Vmax_tmp)
-                        midpoint = abs(Vmin_tmp) / (Vmax_tmp + abs(Vmin_tmp))
-                        stop = 1.0  # (abs(Vmin_tmp)-Vmax_tmp)/(2*abs(Vmin_tmp))
-                        shrunk_cmap = cMF.cUTIL.remappedColorMap(cmap, start=start, midpoint=midpoint, stop=stop,
-                                                                 name='shrunk')
-                        cmap = shrunk_cmap
-                    norm = None
-                    if interval_type == b'arange':
-                        ticks = np.arange(Vmin_tmp, Vmax_tmp, interval_diff)
-                    elif interval_type == b'linspace':
-                        ticks = np.linspace(Vmin_tmp, Vmax_tmp, interval_num)
-                    elif interval_type == b'percentile':
+                    if interval_type == b'percentile':
                         ticks = np.percentile(Vtmp.compressed().flatten(),
-                                              [0.0, 10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0])
-                        norm = mpl.colors.BoundaryNorm(ticks, cmap.N)   #, vmin=Vmin_tmp, vmax=Vmax_tmp)
+                                [0.0, 10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0])
+                        levels = mpl.ticker.MaxNLocator(nbins=cmap.N).tick_values(0.0, 100.0)
+                        norm = mpl.colors.BoundaryNorm(ticks, cmap.N)  # , vmin=Vmin_tmp, vmax=Vmax_tmp)
                     ax.append(fig.add_subplot(NrowPage, NcolPage, l + 1, facecolor=facecolor))
                     ax[l].xaxis.set_ticks(np.arange(0, ncol + 1, ntick))
-                    ax[l].yaxis.set_ticks(np.arange(0, nrow + 1, ntick))
                     plt.setp(ax[l].get_xticklabels(), fontsize=8)
-                    plt.setp(ax[l].get_yticklabels(), fontsize=8)
-                    plt.ylabel('row i', fontsize=10)
-                    ax[l].yaxis.set_label_position("right")
+                    if l<1:
+                        ax[l].yaxis.set_ticks(np.arange(0, nrow + 1, ntick))
+                        plt.setp(ax[l].get_yticklabels(), fontsize=8)
+                        plt.ylabel('row i', fontsize=10)
+                        ax[l].yaxis.set_label_position("right")
+                    else:
+                        ax[l].set_yticklabels([])
                     ax[l].yaxis.tick_right()
                     ax[l].yaxis.set_ticks_position('both')
                     plt.xlabel('col j', fontsize=10)
@@ -1415,9 +1423,12 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
                                 ax[l].annotate(label, xy=(xj, yi - 0.15), fontsize=8, ha='center', va='bottom')
                     ims[F].append(ax[l].pcolormesh(xg, yg, Vtmp, cmap=cmap, norm=norm))
                     if ctrs_tmp == True:
-                        CS = ax[l].contour(xg1, yg1[::-1], Vtmp[::-1], ticks, colors='gray')
-                        plt.draw()
-                        ax[l].clabel(CS, inline=1, fontsize=6, fmt=fmt, colors='gray')
+                        try:
+                            CS = ax[l].contour(xg1, yg1[::-1], Vtmp[::-1], ticks, colors='gray')
+                            plt.draw()
+                            ax[l].clabel(CS, inline=1, fontsize=6, fmt=fmt, colors='gray')
+                        except:
+                            print('Error in drawing contours for map %s' % plt_title)
                     if np.ma.max(Vtmp) > np.ma.min(Vtmp):
                         ax[l].set_title('layer %d' % (L + 1), fontsize=10, y=-0.1, fontweight='bold')
                     else:
@@ -1436,20 +1447,25 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
                                 #cax = fig.add_axes([0.625, 0.035, 0.75, 0.025])
                                 cax = fig.add_axes([axl, 0.035, axw, 0.025])
                             CBorient = 'horizontal'
+                            #cax.xaxis.set_label_position('top')
                         else:
                             if l == 0:
                                 #cax = fig.add_axes([0.005, 0.125, 0.025, 0.75])
                                 cax = fig.add_axes([0.035, axb, 0.025, axh])
+                                #cax.yaxis.set_label_position('left')
                             else:
                                 #cax = fig.add_axes([0.925, 0.125, 0.025, 0.75])
-                                cax = fig.add_axes([0.95, axb, 0.025, axh])
+                                cax = fig.add_axes([axl+axw+0.015, axb, 0.025, axh])
+                                #cax.yaxis.set_label_position('right')
                             CBorient = 'vertical'
                         CB = fig.colorbar(ims[F][0 + l], ticks=ticks, extend='both', format=fmt, cax=cax,
-                                          orientation=CBorient, shrink=0.8)
-                        CB.set_label(CBlabel, fontsize=10)
+                                              orientation=CBorient)  #, shrink=0.8)
+                        if l == 0:
+                            CB.set_label(CBlabel, fontsize=10)  #, loc='center')
                         plt.setp(CB.ax.get_xticklabels(), fontsize=7)
                         plt.setp(CB.ax.get_yticklabels(), fontsize=7)
                     L += 1
+                    del cax
 
             if interval_type != b'percentile':
                 if max(x) > max(y):
@@ -1460,7 +1476,8 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
                     #cax = fig.add_axes([0.035, 0.125, 0.025, 0.75])
                     cax = fig.add_axes([0.035, axb, 0.025, axh])
                     CBorient = 'vertical'
-                CB = fig.colorbar(ims[F][0], ticks=ticks, extend='both', format=fmt, cax=cax, orientation=CBorient, shrink=0.8)
+                CB = fig.colorbar(ims[F][0], ticks=ticks, extend='both', format=fmt, cax=cax, orientation=CBorient)  #, shrink=0.8)
+                #print(ticks)
                 CB.set_label(CBlabel, fontsize=10)
                 if max(x) > max(y):
                     cax.xaxis.set_label_position('top')
@@ -1468,6 +1485,7 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
                 else:
                     cax.yaxis.set_label_position('left')
                     plt.setp(CB.ax.get_yticklabels(), fontsize=7)
+                del cax
 
             if isinstance(Date[i], float):
                 plt_export_fn = os.path.join(MM_ws, '%s_%s_day%05d_%s_%s.png' % (
@@ -1475,6 +1493,7 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
             else:
                 plt_export_fn = os.path.join(MM_ws, '%s_%s_%s_%s.png' % (pref_plt_title, plt_title, F + 1, NPage))
             plt.savefig(plt_export_fn)
+            #print("Printed %s" % plt_export_fn)
             if len(days) > 1 and animation == 1:
                 try:
                     if i == 0:
@@ -1488,7 +1507,7 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
                     pass
             for l in range(len(ax)):
                 ax[l].cla()
-    # TODO correct to produze movies for each pages
+    # TODO correct to produce movies for each pages
     if len(days) > 1 and animation == 1:
         batch_fn = os.path.join(MM_ws, 'run.bat')
         f = open(batch_fn, 'w')
@@ -1508,7 +1527,6 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
             pass
 
     plt.close('all')
-
 
 ##################
 
@@ -2062,7 +2080,7 @@ def plotCALIBCRIT(calibcritSM, calibcritSMobslst, calibcritHEADS, calibcritHEADS
                     else:
                         newx = 1.0 + xserie[-1]
                     ee = 0
-                    lst = list(range(1, numtick / 2 + 1))
+                    lst = list(range(1, int(numtick / 2 + 1)))
                     lst.reverse()
                     for i in lst:
                         xserie.append(newx - i / 10.0)
@@ -2076,7 +2094,7 @@ def plotCALIBCRIT(calibcritSM, calibcritSMobslst, calibcritHEADS, calibcritHEADS
                         ee += 1
                     else:
                         yserie.append(max_tmp * 2.0)
-                    lst = list(range(1, numtick / 2 + 1))
+                    lst = list(range(1, int(numtick / 2 + 1)))
                     for i in lst:
                         xserie.append(newx + i / 10.0)
                         yserie.append(e[ee])

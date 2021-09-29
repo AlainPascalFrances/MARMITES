@@ -778,26 +778,26 @@ if plt_input == 1:
         else:
             Vmax_tmp = np.ma.max(Vmax)
             Vmin_tmp = np.ma.min(Vmin)
-        #try:
-        MMplot.plotLAYER(days=[0], str_per=[0], Date='NA', JD='NA', ncol=cMF.ncol, nrow=cMF.nrow, nlay=cMF.nlay,
+        try:
+            MMplot.plotLAYER(days=[0], str_per=[0], Date='NA', JD='NA', ncol=cMF.ncol, nrow=cMF.nrow, nlay=cMF.nlay,
                          nplot=nplot, V=V, cmap=plt.cm.gist_rainbow_r, CBlabel=CBlabel, msg='',
                          plt_title='IN_%03d_%s' % (i_lbl, lst_lbl[i]), MM_ws=MM_ws_out, interval_type=b'linspace',
                          interval_num=5, contours=ctrsMM, Vmax=[Vmax_tmp], Vmin=[Vmin_tmp], ntick=ntick, fmt=fmt,
                          points=obs4map, mask=mask_tmp, hnoflo=cMF.hnoflo)
-        #except:
-        #   print("ERROR plotting input map %s" % lst_lbl[i])
+        except:
+           print("ERROR plotting input map %s" % lst_lbl[i])
         if lst_lbl[i] == 'elev' or lst_lbl[i] == 'top' or lst_lbl[i] == 'botm':
             i_lbl += 1
             Vmax_tmp = np.ma.max(Vmax)
             Vmin_tmp = np.ma.min(Vmin)
-            #try:
-            MMplot.plotLAYER(days=[0], str_per=[0], Date='NA', JD='NA', ncol=cMF.ncol, nrow=cMF.nrow, nlay=cMF.nlay,
+            try:
+                MMplot.plotLAYER(days=[0], str_per=[0], Date='NA', JD='NA', ncol=cMF.ncol, nrow=cMF.nrow, nlay=cMF.nlay,
                              nplot=nplot, V=V, cmap=plt.cm.gist_rainbow_r, CBlabel=CBlabel, msg='',
                              plt_title='IN_%03d_%s' % (i_lbl, lst_lbl[i]), MM_ws=MM_ws_out, interval_type=b'linspace',
                              interval_num=5, contours=ctrsMM, Vmax=[Vmax_tmp], Vmin=[Vmin_tmp], ntick=ntick, fmt=fmt,
                              points=obs4map, ptslbl=1, mask=mask_tmp, hnoflo=cMF.hnoflo)
-            #except:
-             #   print("ERROR plotting input map %s" % lst_lbl[i])
+            except:
+                print("ERROR plotting input map %s" % lst_lbl[i])
         i_lbl += 1
     del V, lst, lst_lbl, nplot, Vmax, Vmin, Vmax_tmp, Vmin_tmp, top_tmp, hk_actual_tmp
 
@@ -813,14 +813,14 @@ if plt_input == 1:
         for L in range(cMF.nlay):
             mask_tmp[L, :, :] = cMF.maskAllL
         # print(V_lbl)
-        #try:
-        MMplot.plotLAYER(days=[0], str_per=[0], Date='NA', JD='NA', ncol=cMF.ncol, nrow=cMF.nrow, nlay=cMF.nlay,
+        try:
+            MMplot.plotLAYER(days=[0], str_per=[0], Date='NA', JD='NA', ncol=cMF.ncol, nrow=cMF.nrow, nlay=cMF.nlay,
                          nplot=1, V=V, cmap=plt.cm.gist_rainbow_r, CBlabel=V_lblCB, msg='',
                          plt_title='IN_%03d_%s' % (i_lbl, V_lbl), MM_ws=MM_ws_out, interval_type=b'linspace',
                          interval_num=5, contours=False, Vmax=[Vmax], Vmin=[Vmin], ntick=ntick, fmt='%5.1f',
                          points=obs4map, mask=mask_tmp, hnoflo=cMF.hnoflo)
-        #except:
-        #    print("ERROR plotting input map %s" % V_lbl)
+        except:
+            print("ERROR plotting input map %s" % V_lbl)
         i_lbl += 1
     del V, V_lbl, V_lblCB
     VareaSoil = 100.0 - Vvegtot
@@ -828,14 +828,14 @@ if plt_input == 1:
     lst_lbl = ['veg_tot', 'soil']
     lst_lblCB = ['Frac. area of veg. tot. (%)', 'Frac. area of soil (%)']
     for i, l in enumerate(lst):
-        #try:
-        MMplot.plotLAYER(days=[0], str_per=[0], Date='NA', JD='NA', ncol=cMF.ncol, nrow=cMF.nrow, nlay=cMF.nlay,
+        try:
+            MMplot.plotLAYER(days=[0], str_per=[0], Date='NA', JD='NA', ncol=cMF.ncol, nrow=cMF.nrow, nlay=cMF.nlay,
                          nplot=1, V=l, cmap=plt.cm.gist_rainbow_r, CBlabel=lst_lblCB[i], msg='',
                          plt_title='IN_%03d_%s' % (i_lbl, lst_lbl[i]), MM_ws=MM_ws_out, interval_type=b'linspace',
                          interval_num=5, contours=False, Vmax=[Vmax], Vmin=[Vmin], ntick=ntick, fmt='%5.1f',
                          points=obs4map, mask=mask_tmp, hnoflo=cMF.hnoflo)
-        #except:
-        #    print("ERROR plotting input map %s" % lst_lbl[i])
+        except:
+            print("ERROR plotting input map %s" % lst_lbl[i])
         i_lbl += 1
     del Vmax, Vmin
 
@@ -879,14 +879,14 @@ if plt_input == 1:
                 nplot = 1
         Vmax = np.ma.max(Vmax)
         Vmin = np.ma.min(Vmin)
-        #try:
-        MMplot.plotLAYER(days=[0], str_per=[0], Date='NA', JD='NA', ncol=cMF.ncol, nrow=cMF.nrow, nlay=cMF.nlay,
+        try:
+            MMplot.plotLAYER(days=[0], str_per=[0], Date='NA', JD='NA', ncol=cMF.ncol, nrow=cMF.nrow, nlay=cMF.nlay,
                          nplot=nplot, V=V, cmap=plt.cm.gist_rainbow_r, CBlabel=lst_lblCB[i], msg='',
                          plt_title='IN_%03d_%s' % (i_lbl, lst_lbl[i]), MM_ws=MM_ws_out, interval_type=b'linspace',
                          interval_num=5, contours=False, Vmax=[Vmax], Vmin=[Vmin], ntick=ntick, fmt='%2.2f',
                          points=obs4map, mask=mask_tmp, hnoflo=cMF.hnoflo)
-        #except:
-        #    print("ERROR plotting input map %s" % lst_lbl[i])
+        except:
+            print("ERROR plotting input map %s" % lst_lbl[i])
         i_lbl += 1
     del V, lst, lst_lbl, lst_lblCB, nplot, Vmax, Vmin
 
@@ -1961,14 +1961,14 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
     plt_exportCATCH_txt.close()
     del flxlbl_CATCH_str
     if WBsankey_yn == 1:
-        try:
-            MMplot.plotWBsankey(MM_ws_out, cMF.inputDate, flxCatch_lst, flxIndex_lst,
+        #try:
+        MMplot.plotWBsankey(MM_ws_out, cMF.inputDate, flxCatch_lst, flxIndex_lst,
                                 fn=plt_exportCATCH_txt_fn.split('\\')[-1], indexTime=HYindex, year_lst=year_lst,
                                 cMF=cMF, ncell_MM=ncell_MM, obspt='whole catchment', fntitle='0CATCHMENT',
                                 ibound4Sankey=np.ones((cMF.nlay), dtype=int), stdout=stdout, report=report)
-            print('WB Sankey plot done!\n-------')
-        except:
-            print('WB Sankey plot error!\n-------')
+        #    print('WB Sankey plot done!\n-------')
+        #except:
+        #    print('WB Sankey plot error!\n-------')
     del flxCatch_lst, flxCatch_lst_str, out_line, plt_exportCATCH_fn, plt_exportCATCH_txt_fn, plt_titleCATCH
 
 # #################################################
@@ -2323,15 +2323,15 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                         print('TS GW error!')
                     # plot water balance at each obs. cell
                     if WBsankey_yn == 1:
-                       try:
-                            MMplot.plotWBsankey(MM_ws_out, cMF.inputDate, flxObs_lst, flxIndex_lst,
+                        #try:
+                        MMplot.plotWBsankey(MM_ws_out, cMF.inputDate, flxObs_lst, flxIndex_lst,
                                                 fn=plt_export_txt_fn.split('\\')[-1], indexTime=HYindex,
                                                 year_lst=year_lst, cMF=cMF, ncell_MM=ncell_MM, obspt='obs. pt. %s' % o,
                                                 fntitle='0%s' % o, ibound4Sankey=np.abs(cMF.ibound)[:, i, j],
                                                 stdout=stdout, report=report)
-                            print('WB Sankey plot done!')
-                       except:
-                            print('WB Sankey plot error!')
+                       #     print('WB Sankey plot done!')
+                       #except:
+                       #     print('WB Sankey plot error!')
 
                     # CALIBRATION CRITERIA
                     # RMSE, RSR, Nash-Sutcliffe efficiency NSE, Pearson's correlation coefficient r
@@ -2380,16 +2380,16 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                                  'Nash-Sutcliffe efficiency', "Pearson's correlation coefficient"],
                                 [rmseSMmax, None, 1.0, 1.0], [rmseHEADSmax, None, 1.0, 1.0], [0, 0, None, -1.0],
                                 [['(m)', '(%wc)'], ['', ''], ['', ''], ['', '']])):
-            try:
-                MMplot.plotCALIBCRIT(calibcritSM=calibcritSM, calibcritSMobslst=obslstSM, calibcritHEADS=calibcritHEADS,
+            #try:
+            MMplot.plotCALIBCRIT(calibcritSM=calibcritSM, calibcritSMobslst=obslstSM, calibcritHEADS=calibcritHEADS,
                                      calibcritHEADSobslst=obslstHEADS, calibcritHEADSc=calibcritHEADSc,
                                      calibcritHEADScobslst=obslstHEADSc,
                                      plt_export_fn=os.path.join(MM_ws_out, '__plt_calibcrit%s.png' % calibcrit),
                                      plt_title='Calibration criteria between simulated and observed state variables\n%s' % title,
                                      calibcrit=calibcrit, calibcritSMmax=calibcritSMmax,
                                      calibcritHEADSmax=calibcritHEADSmax, ymin=ymin, units=units, hnoflo=cMF.hnoflo)
-            except:
-                print('-------\nError in exporting %s at obs. pt. %s' % (calibcrit, obs_list[cc]))
+            #except:
+            #    print('-------\nError in exporting %s at obs. pt. %s' % (calibcrit, obs_list[cc]))
         if len(obslstHEADS) > 0 or len(obslstSM) > 0:
             print('-------\nRMSE/RSR/NSE/r averages of the obs. pts. (except catch.)')
             try:
@@ -2981,28 +2981,28 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
         V[0, L, :, :] = np.ma.masked_array(
             np.sum(cbc_EXF[HYindex[1]:HYindex[-2], L, :, :], axis=0) / (HYindex[-2] - HYindex[1] + 1) * (-1.0), mask[L])
     for i, int_typ in enumerate([b'percentile', b'linspace']):
-        try:
-            MMplot.plotLAYER(days=['NA'], str_per=['NA'], Date=['NA'], JD=['NA'], ncol=cMF.ncol, nrow=cMF.nrow,
+        #try:
+        MMplot.plotLAYER(days=['NA'], str_per=['NA'], Date=['NA'], JD=['NA'], ncol=cMF.ncol, nrow=cMF.nrow,
                          nlay=cMF.nlay, nplot=cMF.nlay, V=V, cmap=plt.cm.Blues,
                          CBlabel='groundwater exfiltration - $Exf_g$ (mm.day$^{-1}$)', msg='- no exfiltration',
                          plt_title=b'OUT_average_MF_EXF%s' % int_typ, MM_ws=MM_ws_out, interval_type=int_typ,
                          interval_num=5, Vmax=[EXFmax], Vmin=[EXFmin], contours=ctrsMF, ntick=ntick, points=obs4map,
                          ptslbl=1, mask=mask_tmp, hnoflo=cMF.hnoflo, cMF=cMF)
-        except:
-            print("ERROR plotting map of EXF average")
+        #except:
+        #    print("ERROR plotting map of EXF average")
     del cbc_EXF, EXFmax, EXFmin
     Vmin_tmp1 = np.min(V)
     Vmax_tmp1 = np.max(V)
     for i, int_typ in enumerate([b'linspace']):
-        try:
-            MMplot.plotLAYER(days=['NA'], str_per=['NA'], Date=['NA'], JD=['NA'], ncol=cMF.ncol, nrow=cMF.nrow,
+        #try:
+        MMplot.plotLAYER(days=['NA'], str_per=['NA'], Date=['NA'], JD=['NA'], ncol=cMF.ncol, nrow=cMF.nrow,
                          nlay=cMF.nlay, nplot=cMF.nlay, V=V, cmap=plt.cm.Blues,
                          CBlabel='groundwater exfiltration - $Exf_g$ (mm.day$^{-1}$)', msg='- no exfiltration',
                          plt_title=b'OUT_average_MF_EXF1%s' % int_typ, MM_ws=MM_ws_out, interval_type=int_typ,
                          interval_num=5, Vmax=[Vmax_tmp1], Vmin=[Vmin_tmp1], contours=ctrsMF, ntick=ntick,
                          points=obs4map, ptslbl=0, mask=mask_tmp, hnoflo=cMF.hnoflo, cMF=cMF)
-        except:
-            print("ERROR plotting map of EXF average")
+        #except:
+        #    print("ERROR plotting map of EXF average")
 
     h5_MF.close()
     h5_MM.close()
