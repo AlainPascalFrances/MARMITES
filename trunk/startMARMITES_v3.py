@@ -2263,11 +2263,12 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                     del flxObs_str
                     #print(o)
                     #print(len(flxIndex_lst))
-                    fl_error=0
+                    #fl_error = []
+                    #fl_error_label = []
                     for t in range(len(cMF.inputDate)):
                         #print('t=%d' % t)
                         flxObs_str = str(flxObs_lst[0][t])
-                        countz = 0
+                        #countz = 0
                         for e in flxObs_lst[1:]:
                             try:
                                 #print('#%d - %s' %(countz, flxLbl_lst[countz]))    # ERRO Pz0a com flxObs_lst[1:][84] empty array >84, i.e. flxLbl_lst[84] = '$d \\ corr$'
@@ -2276,8 +2277,9 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                             except:
                                 flxObs_str += ',%s' % str(cMF.hnoflo)
                                 #print('      ERROR! hnoflo value assigned!')
-                                fl_error +=1
-                            countz += 1
+                                #fl_error.append(t)
+                                #fl_error_label.append(flxLbl_lst[countz])
+                            #countz += 1
                         out_line = '%s,%s' % (mpl.dates.num2date(cMF.inputDate[t]).isoformat()[:10], flxObs_str)
                         del flxObs_str
                         for l in out_line:
@@ -2317,8 +2319,12 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                                                 plt_suptitle, iniMonthHydroYear=iniMonthHydroYear,
                                                 date_ini=DATE[HYindex[1]], date_end=DATE[HYindex[-2]])
                     print('TS GW plot done!')
-                    if fl_error>0:
-                        print('Error at %d time step, hnofl assigned.' % fl_error)
+                    #if len(fl_error)>0:
+                    #    print('Error in flux values, hnofl assigned!')
+                    #    print('time steps')
+                    #    print(fl_error)
+                    #    print('flux')
+                    #    print(fl_error_label)
                     #except:
                     #    print('TS GW error!')
                     # plot water balance at each obs. cell
@@ -2372,9 +2378,8 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                         rSM.append(rSM_tmp)
                         obslstSM.append(o)
                     del rmseHEADS_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrSM_tmp, nseHEADS_tmp, nseSM_tmp, rHEADS_tmp, rSM_tmp, h_MF, MM_S
-        for cc, (
-        calibcritSM, calibcritHEADS, calibcritHEADSc, calibcrit, title, calibcritSMmax, calibcritHEADSmax, ymin,
-        units) in enumerate(zip([rmseSM, rsrSM, nseSM, rSM], [rmseHEADS, rsrHEADS, nseHEADS, rHEADS],
+        for cc, (calibcritSM, calibcritHEADS, calibcritHEADSc, calibcrit, title, calibcritSMmax, calibcritHEADSmax, ymin, units)\
+                in enumerate(zip([rmseSM, rsrSM, nseSM, rSM], [rmseHEADS, rsrHEADS, nseHEADS, rHEADS],
                                 [rmseHEADSc, rsrHEADSc, nseHEADSc, rHEADSc], ['RMSE', 'RSR', 'NSE', 'r'],
                                 ['Root mean square error',
                                  'Root mean square error - observations standard deviation ratio',
