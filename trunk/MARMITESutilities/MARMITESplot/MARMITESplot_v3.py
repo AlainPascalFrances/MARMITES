@@ -2026,7 +2026,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                     ##print("connect: %s" % (connect,))
                     ##print("facecolor: %s" % (facecolor,))
                     ##print("dSg %s" % (dSg[k][L]))
-                    pltsankey.add(patchlabel='$\Delta S_g$\n%.1f' % (-dSg[k][L] / ff), label='MFL%d' % (L + 1),
+                    pltsankey.add(patchlabel='$\Delta S_g$\n%.1f' % (-dSg[k][L] / ff), label='MF_ML%d' % (L + 1),
                                   facecolor=facecolor, trunklength=tl, flows=flows, labels=labels,
                                   orientations=orientations, pathlengths=pathlengths, prior=3 + L_act, connect=connect)
                     MB_MF.append(100 * (sum(In) - sum(Out)) / ((sum(In) + sum(Out)) / 2))
@@ -2170,7 +2170,7 @@ def plotCALIBCRIT(calibcritSM, calibcritSMobslst, calibcritHEADS, calibcritHEADS
                 n += 1
             offset = (max_tmp) * 0.05
             for i in range(len(xserie)):
-                plt.scatter(xserie[i], yserie[i], 'o', c='orange', s=15)
+                plt.scatter(xserie[i], yserie[i], marker = 'o', c='orange', s=15)
                 if yserie[i] < max_tmp:
                     plt.text(xserie[i], yserie[i] + offset, '%.1f' % yserie[i], fontsize=6, ha='center', va='center')
             plt.xticks(xserie, labels)
@@ -2214,10 +2214,10 @@ def plotCALIBCRIT(calibcritSM, calibcritSMobslst, calibcritHEADS, calibcritHEADS
                 max_tmp = calibcritHEADSmax
             #        offset = (max_tmp)*0.05
             for i in range(len(xserie)):
-                plt.scatter(xserie[i], calibcritHEADS_tmp[i], 'o', c='orange', s=15)
+                plt.scatter(xserie[i], calibcritHEADS_tmp[i], marker = 'o', c='orange', s=15)
                 for ii, cc in enumerate(calibcritHEADScobslst_tmp):
                     if calibcritHEADSobslst_tmp[i] == cc:
-                        plt.scatter(xserie[i], calibcritHEADSc_tmp[ii], 'o', c='green', s=10)
+                        plt.scatter(xserie[i], calibcritHEADSc_tmp[ii], marker = 'o', c='green', s=10)
                         if yseriec_txt[ii] < max_tmp:
                             plt.text(xserie[i] - .05, yseriec_txt[ii], '%.1f' % yseriec_txt[ii], fontsize=6, ha='right',
                                      va='center')
