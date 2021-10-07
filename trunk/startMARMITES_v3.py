@@ -778,14 +778,14 @@ if plt_input == 1:
         else:
             Vmax_tmp = np.ma.max(Vmax)
             Vmin_tmp = np.ma.min(Vmin)
-        try:
-            MMplot.plotLAYER(days=[0], str_per=[0], Date='NA', JD='NA', ncol=cMF.ncol, nrow=cMF.nrow, nlay=cMF.nlay,
+#        try:
+        MMplot.plotLAYER(days=[0], str_per=[0], Date='NA', JD='NA', ncol=cMF.ncol, nrow=cMF.nrow, nlay=cMF.nlay,
                          nplot=nplot, V=V, cmap=plt.cm.gist_rainbow_r, CBlabel=CBlabel, msg='',
                          plt_title='IN_%03d_%s' % (i_lbl, lst_lbl[i]), MM_ws=MM_ws_out, interval_type=b'linspace',
                          interval_num=5, contours=ctrsMM, Vmax=[Vmax_tmp], Vmin=[Vmin_tmp], ntick=ntick, fmt=fmt,
                          points=obs4map, mask=mask_tmp, hnoflo=cMF.hnoflo)
-        except:
-           print("ERROR plotting input map %s" % lst_lbl[i])
+        #except:
+        #   print("ERROR plotting input map %s" % lst_lbl[i])
         if lst_lbl[i] == 'elev' or lst_lbl[i] == 'top' or lst_lbl[i] == 'botm':
             i_lbl += 1
             Vmax_tmp = np.ma.max(Vmax)
@@ -1907,10 +1907,10 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
         plt_titleCATCH = 'Time series of fluxes averaged over the whole catchment'
         try:
             rmseHEADS_tmp, rmseSM_tmp, rsrHEADS_tmp, rsrSM_tmp, nseHEADS_tmp, nseSM_tmp, rHEADS_tmp, rSM_tmp = MMplot.plotTIMESERIES_CATCH(
-            cMF, flxCatch_lst, flxLbl_lst, plt_exportCATCH_fn, plt_titleCATCH, hmax=hmaxMF, hmin=hminMF,
-            iniMonthHydroYear=iniMonthHydroYear, date_ini=DATE[HYindex[1]], date_end=DATE[HYindex[-2]],
-            flxIndex_lst=flxIndex_lst, obs_catch=obs_catch, obs_catch_list=obs_catch_list,
-            TopSoilAverage=TopSoilAverage, MF=1)
+                cMF, flxCatch_lst, flxLbl_lst, plt_exportCATCH_fn, plt_titleCATCH, hmax=hmaxMF, hmin=hminMF,
+                iniMonthHydroYear=iniMonthHydroYear, date_ini=DATE[HYindex[1]], date_end=DATE[HYindex[-2]],
+                flxIndex_lst=flxIndex_lst, obs_catch=obs_catch, obs_catch_list=obs_catch_list,
+                TopSoilAverage=TopSoilAverage, MF=1)
             print('TS plot done!')
         except:
             print('TS plot error!')
@@ -1965,7 +1965,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
         MMplot.plotWBsankey(MM_ws_out, cMF.inputDate, flxCatch_lst, flxIndex_lst,
                                 fn=plt_exportCATCH_txt_fn.split('\\')[-1], indexTime=HYindex, year_lst=year_lst,
                                 cMF=cMF, ncell_MM=ncell_MM, obspt='whole catchment', fntitle='0CATCHMENT',
-                                ibound4Sankey=np.ones((cMF.nlay), dtype=int), stdout=stdout, report=report)
+                                ibound4Sankey=np.ones((cMF.Mnlay), dtype=int), stdout=stdout, report=report)
         #    print('WB Sankey plot done!\n-------')
         #except:
         #    print('WB Sankey plot error!\n-------')
@@ -2298,8 +2298,8 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                     #                 'iSAT': 7, 'iMB_s': 8}
                     plt_export_fn = os.path.join(MM_ws_out, '_0%s_ts.png' % o)
                     # def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, EXF, ETg, Es, MB, MB_l, dgwt, SAT, Rg, h_MF, h_MF_corr, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin):
-                    try:
-                        MMplot.plotTIMESERIES(cMF, i, j, flxObs_lst, flxLbl_lst, flxIndex_lst,
+                    #try:
+                    MMplot.plotTIMESERIES(cMF, i, j, flxObs_lst, flxLbl_lst, flxIndex_lst,
                                               _Sm[gridSOIL[i, j] - 1], _Sr[gridSOIL[i, j] - 1],
                                               plt_export_fn, plt_suptitle, plt_title,
                                               clr_lst,
@@ -2308,22 +2308,23 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                                               iniMonthHydroYear, date_ini=DATE[HYindex[1]],
                                               date_end=DATE[HYindex[-2]]
                                               )
-                        print('TS plot done!')
-                    except:
-                       print('TS plot error!')
+                    #    print('TS plot done!')
+                    #except:
+                    #   print('TS plot error!')
                     # plot GW flux time series at each obs. cell
-                    try:
-                        MMplot.plotTIMESERIES_flxGW(cMF, flxObs_lst, flxLbl_lst, flxIndex_lst, plt_export_fn,
-                                                    plt_suptitle, iniMonthHydroYear=iniMonthHydroYear,
-                                                    date_ini=DATE[HYindex[1]], date_end=DATE[HYindex[-2]])
-                        print('TS GW plot done!')
-                        if fl_error>0:
-                            print('Error at %d time step, hnofl assigned.' % fl_error)
-                    except:
-                        print('TS GW error!')
+                    #try:
+                    MMplot.plotTIMESERIES_flxGW(cMF, flxObs_lst, flxLbl_lst, flxIndex_lst, plt_export_fn,
+                                                plt_suptitle, iniMonthHydroYear=iniMonthHydroYear,
+                                                date_ini=DATE[HYindex[1]], date_end=DATE[HYindex[-2]])
+                    print('TS GW plot done!')
+                    if fl_error>0:
+                        print('Error at %d time step, hnofl assigned.' % fl_error)
+                    #except:
+                    #    print('TS GW error!')
                     # plot water balance at each obs. cell
                     if WBsankey_yn == 1:
                         #try:
+                        # TODO rever ibound4Sankey  = cMF.Mnlay
                         MMplot.plotWBsankey(MM_ws_out, cMF.inputDate, flxObs_lst, flxIndex_lst,
                                                 fn=plt_export_txt_fn.split('\\')[-1], indexTime=HYindex,
                                                 year_lst=year_lst, cMF=cMF, ncell_MM=ncell_MM, obspt='obs. pt. %s' % o,

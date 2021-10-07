@@ -267,6 +267,17 @@ class clsMF():
                 print('FATAL ERROR!\nMODFLOW version should be mf2005 or mfnwt!')
                 print('Value %s provided in the MF ini file.' % self.version)
                 sys.exit()
+            # define main, hydrogeological layers from MODFLOW layers
+            l += 1
+            self.Mnlay = int(inputFile[l].strip())
+            l += 1
+            self.Mlay = []
+            Mlay_tmp = inputFile[l].split()
+            for i in range(self.nlay):
+                self.Mlay.append(int(Mlay_tmp[i]))
+            if max(self.Mlay) != self.Mnlay:
+                print('ERROR!\nMnlay must be a list with nlay values that must be incremental and with maximum igual to Mnlay')
+                sys.exit()
             # oc
             l += 1
             self.ext_oc = str(inputFile[l].strip())
