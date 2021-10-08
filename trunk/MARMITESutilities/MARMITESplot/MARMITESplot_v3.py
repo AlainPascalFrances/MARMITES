@@ -257,14 +257,14 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     colors_nsl = itertools.cycle(clr_lst)
     ax5 = fig.add_subplot(8, 1, 6, sharex=ax1)
     for l in range(nsl):
-        # try:
-        if b'iSobs_%d' % (l + 1) in flxIndex_lst:
-            if list(flx[flxIndex_lst[b'iSobs_%d' % (l + 1)]]):
-                ax5.plot_date(cMF.inputDate, flx[flxIndex_lst[b'iSobs_%d' % (l + 1)]], 'o', ls='None', color='gray',
-                              markersize=2, markeredgecolor=next(colors_nsl), markerfacecolor='None',
-                              label=flxLbl[flxIndex_lst[b'iSobs_%d' % (l + 1)]])  # '--', color = color,  markevery = 2
-        # except:
-        #    print("ERROR plotting SM obs")
+        try:
+            if b'iSobs_%d' % (l + 1) in flxIndex_lst:
+                if list(flx[flxIndex_lst[b'iSobs_%d' % (l + 1)]]):
+                    ax5.plot_date(cMF.inputDate, flx[flxIndex_lst[b'iSobs_%d' % (l + 1)]], 'o', ls='None', color='gray',
+                                  markersize=2, markeredgecolor=next(colors_nsl), markerfacecolor='None',
+                                  label=flxLbl[flxIndex_lst[b'iSobs_%d' % (l + 1)]])  # '--', color = color,  markevery = 2
+        except:
+            print("ERROR plotting SM obs")
     sim_tmp = []
     colors_nsl = itertools.cycle(clr_lst)
     for l in range(nsl):
@@ -905,23 +905,23 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
     plt.bar(cMF.inputDate, flx[flxIndex_lst[b'idSsurf']], color='darkblue', linewidth=0, align='center',
             label=flxLbl[flxIndex_lst[b'idSsurf']])
     # Ro obs
-    # try:
-    if obs_catch_list[2] == 1:
-        obs_Ro = obs_catch.get('catch')['obs_Ro']
-        Roobs_m = np.ma.masked_values(obs_Ro[0], cMF.hnoflo, atol=0.09)
-        plt.plot_date(cMF.inputDate, Roobs_m, 'o', markerfacecolor='None', markeredgecolor='lightblue',
-                      markersize=2, label=r'$Ro \ obs$')  # markevery = 7,
-        print('RMSE/RSR/NSE/r of obs. at the catch. scale')
-        rmse, rsr, nse, r = cMF.cPROCESS.compCalibCrit(flx[flxIndex_lst[b'iRo']], obs_Ro[0], cMF.hnoflo)
-        rmseRo = [rmse]
-        rsrRo = [rsr]
-        nseRo = [nse]
-        rRo = [r]
-        del rmse, rsr, nse, r
-        if rmseRo[0] is not None:
-            print('Ro: %.1f mm / %.2f / %.2f / %.2f' % (rmseRo[0], rsrRo[0], nseRo[0], rRo[0]))
-    # except:
-    #   print("ERROR plotting Ro obs. catchment")
+    try:
+        if obs_catch_list[2] == 1:
+            obs_Ro = obs_catch.get('catch')['obs_Ro']
+            Roobs_m = np.ma.masked_values(obs_Ro[0], cMF.hnoflo, atol=0.09)
+            plt.plot_date(cMF.inputDate, Roobs_m, 'o', markerfacecolor='None', markeredgecolor='lightblue',
+                          markersize=2, label=r'$Ro \ obs$')  # markevery = 7,
+            print('RMSE/RSR/NSE/r of obs. at the catch. scale')
+            rmse, rsr, nse, r = cMF.cPROCESS.compCalibCrit(flx[flxIndex_lst[b'iRo']], obs_Ro[0], cMF.hnoflo)
+            rmseRo = [rmse]
+            rsrRo = [rsr]
+            nseRo = [nse]
+            rRo = [r]
+            del rmse, rsr, nse, r
+            if rmseRo[0] is not None:
+                print('Ro: %.1f mm / %.2f / %.2f / %.2f' % (rmseRo[0], rsrRo[0], nseRo[0], rRo[0]))
+    except:
+       print("ERROR plotting Ro obs. catchment")
     # y
     plt.ylabel('mm', fontsize=10)
     ax2.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))

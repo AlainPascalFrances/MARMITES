@@ -1961,14 +1961,14 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
     plt_exportCATCH_txt.close()
     del flxlbl_CATCH_str
     if WBsankey_yn == 1:
-        #try:
-        MMplot.plotWBsankey(MM_ws_out, cMF.inputDate, flxCatch_lst, flxIndex_lst,
+        try:
+            MMplot.plotWBsankey(MM_ws_out, cMF.inputDate, flxCatch_lst, flxIndex_lst,
                                 fn=plt_exportCATCH_txt_fn.split('\\')[-1], indexTime=HYindex, year_lst=year_lst,
                                 cMF=cMF, ncell_MM=ncell_MM, obspt='whole catchment', fntitle='0CATCHMENT',
                                 ibound4Sankey=np.ones((cMF.Mnlay), dtype=int), stdout=stdout, report=report)
-        #    print('WB Sankey plot done!\n-------')
-        #except:
-        #    print('WB Sankey plot error!\n-------')
+            print('WB Sankey plot done!\n-------')
+        except:
+            print('WB Sankey plot error!\n-------')
     del flxCatch_lst, flxCatch_lst_str, out_line, plt_exportCATCH_fn, plt_exportCATCH_txt_fn, plt_titleCATCH
 
 # #################################################
@@ -2300,8 +2300,8 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                     #                 'iSAT': 7, 'iMB_s': 8}
                     plt_export_fn = os.path.join(MM_ws_out, '_0%s_ts.png' % o)
                     # def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, EXF, ETg, Es, MB, MB_l, dgwt, SAT, Rg, h_MF, h_MF_corr, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin):
-                    #try:
-                    MMplot.plotTIMESERIES(cMF, i, j, flxObs_lst, flxLbl_lst, flxIndex_lst,
+                    try:
+                        MMplot.plotTIMESERIES(cMF, i, j, flxObs_lst, flxLbl_lst, flxIndex_lst,
                                               _Sm[gridSOIL[i, j] - 1], _Sr[gridSOIL[i, j] - 1],
                                               plt_export_fn, plt_suptitle, plt_title,
                                               clr_lst,
@@ -2310,35 +2310,35 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                                               iniMonthHydroYear, date_ini=DATE[HYindex[1]],
                                               date_end=DATE[HYindex[-2]]
                                               )
-                    #    print('TS plot done!')
-                    #except:
-                    #   print('TS plot error!')
+                        print('TS plot done!')
+                    except:
+                       print('TS plot error!')
                     # plot GW flux time series at each obs. cell
-                    #try:
-                    MMplot.plotTIMESERIES_flxGW(cMF, flxObs_lst, flxLbl_lst, flxIndex_lst, plt_export_fn,
+                    try:
+                        MMplot.plotTIMESERIES_flxGW(cMF, flxObs_lst, flxLbl_lst, flxIndex_lst, plt_export_fn,
                                                 plt_suptitle, iniMonthHydroYear=iniMonthHydroYear,
                                                 date_ini=DATE[HYindex[1]], date_end=DATE[HYindex[-2]])
-                    print('TS GW plot done!')
+                        print('TS GW plot done!')
                     #if len(fl_error)>0:
                     #    print('Error in flux values, hnofl assigned!')
                     #    print('time steps')
                     #    print(fl_error)
                     #    print('flux')
                     #    print(fl_error_label)
-                    #except:
-                    #    print('TS GW error!')
+                    except:
+                        print('TS GW error!')
                     # plot water balance at each obs. cell
                     if WBsankey_yn == 1:
-                        #try:
-                        # TODO rever ibound4Sankey  = cMF.Mnlay
-                        MMplot.plotWBsankey(MM_ws_out, cMF.inputDate, flxObs_lst, flxIndex_lst,
+                        try:
+                            # TODO rever ibound4Sankey  = cMF.Mnlay
+                            MMplot.plotWBsankey(MM_ws_out, cMF.inputDate, flxObs_lst, flxIndex_lst,
                                                 fn=plt_export_txt_fn.split('\\')[-1], indexTime=HYindex,
                                                 year_lst=year_lst, cMF=cMF, ncell_MM=ncell_MM, obspt='obs. pt. %s' % o,
                                                 fntitle='0%s' % o, ibound4Sankey=np.abs(cMF.ibound)[:, i, j],
                                                 stdout=stdout, report=report)
-                       #     print('WB Sankey plot done!')
-                       #except:
-                       #     print('WB Sankey plot error!')
+                            print('WB Sankey plot done!')
+                        except:
+                            print('WB Sankey plot error!')
 
                     # CALIBRATION CRITERIA
                     # RMSE, RSR, Nash-Sutcliffe efficiency NSE, Pearson's correlation coefficient r
@@ -2386,16 +2386,16 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                                  'Nash-Sutcliffe efficiency', "Pearson's correlation coefficient"],
                                 [rmseSMmax, None, 1.0, 1.0], [rmseHEADSmax, None, 1.0, 1.0], [0, 0, None, -1.0],
                                 [['(m)', '(%wc)'], ['', ''], ['', ''], ['', '']])):
-            #try:
-            MMplot.plotCALIBCRIT(calibcritSM=calibcritSM, calibcritSMobslst=obslstSM, calibcritHEADS=calibcritHEADS,
+            try:
+                MMplot.plotCALIBCRIT(calibcritSM=calibcritSM, calibcritSMobslst=obslstSM, calibcritHEADS=calibcritHEADS,
                                      calibcritHEADSobslst=obslstHEADS, calibcritHEADSc=calibcritHEADSc,
                                      calibcritHEADScobslst=obslstHEADSc,
                                      plt_export_fn=os.path.join(MM_ws_out, '__plt_calibcrit%s.png' % calibcrit),
                                      plt_title='Calibration criteria between simulated and observed state variables\n%s' % title,
                                      calibcrit=calibcrit, calibcritSMmax=calibcritSMmax,
                                      calibcritHEADSmax=calibcritHEADSmax, ymin=ymin, units=units, hnoflo=cMF.hnoflo)
-            #except:
-            #    print('-------\nError in exporting %s at obs. pt. %s' % (calibcrit, obs_list[cc]))
+            except:
+                print('-------\nError in exporting %s at obs. pt. %s' % (calibcrit, obs_list[cc]))
         if len(obslstHEADS) > 0 or len(obslstSM) > 0:
             print('-------\nRMSE/RSR/NSE/r averages of the obs. pts. (except catch.)')
             try:
@@ -2516,14 +2516,14 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
             maskAllL_tmp[L, :, :] = cMF.maskAllL
         Vmax[i] = hmaxMF
         Vmin[i] = hminMF
-    #try:
-    MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
+    try:
+        MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
                      nlay=cMF.nlay, nplot=cMF.nlay, V=V, cmap=plt.cm.Blues,
                      CBlabel='hydraulic heads elevation - $h$ (m)', msg='DRY', plt_title='OUT_MF_HEADS',
                      MM_ws=MM_ws_out, interval_type=b'linspace', interval_num=5, contours=ctrsMF, Vmax=Vmax, Vmin=Vmin,
                      ntick=ntick, points=obs4map, mask=mask_tmp, hnoflo=cMF.hnoflo, animation=animation, cMF=cMF)
-    #except:
-    #    print("ERROR plotting map of heads")
+    except:
+        print("ERROR plotting map of heads")
 
     # plot GWTD [m]
     for i, t in enumerate(days_lst):
@@ -2768,15 +2768,15 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
             np.sum(np.ma.masked_values(np.ma.masked_values(h5_MF['heads_d'][HYindex[1]:HYindex[-2], L, :, :], cMF.hnoflo, atol=0.09),
                                             cMF.hdry, atol=1E+25), axis=0) / (HYindex[-2] - HYindex[1] + 1), mask[L])
     for i, int_typ in enumerate([b'percentile', b'linspace']):
-        #try:
-        MMplot.plotLAYER(days=['NA'], str_per=['NA'], Date=['NA'], JD=['NA'], ncol=cMF.ncol, nrow=cMF.nrow,
+        try:
+            MMplot.plotLAYER(days=['NA'], str_per=['NA'], Date=['NA'], JD=['NA'], ncol=cMF.ncol, nrow=cMF.nrow,
                          nlay=cMF.nlay, nplot=cMF.nlay, V=V, cmap=plt.cm.Blues,
                          CBlabel='hydraulic heads elevation - $h$ (m)', msg='DRY',
                          plt_title=b'OUT_average_MF_HEADS%s' % int_typ, MM_ws=MM_ws_out, interval_type=int_typ,
                          interval_num=5, contours=ctrsMF, Vmax=[hmaxMF], Vmin=[hminMF], ntick=ntick, points=obs4map,
                          ptslbl=0, mask=mask_tmp, hnoflo=cMF.hnoflo, cMF=cMF)
-        #except:
-        #    print("ERROR plotting map of heads average")
+        except:
+            print("ERROR plotting map of heads average")
 
     # plot GWTD average [m]
     for L in range(cMF.nlay):
@@ -2798,15 +2798,15 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
         np.sum(h5_MM['MM'][HYindex[1]:HYindex[-2], :, :, 19], axis=0) / (HYindex[-2] - HYindex[1] + 1), cMF.hnoflo,
         atol=0.09), cMF.hdry, atol=1E+25)
     for i, int_typ in enumerate([b'percentile', b'linspace']):
-        #try:
-        MMplot.plotLAYER(days=['NA'], str_per=['NA'], Date=['NA'], JD=['NA'], ncol=cMF.ncol, nrow=cMF.nrow,
+        try:
+            MMplot.plotLAYER(days=['NA'], str_per=['NA'], Date=['NA'], JD=['NA'], ncol=cMF.ncol, nrow=cMF.nrow,
                          nlay=cMF.nlay, nplot=1, V=headscorr_m, cmap=plt.cm.Blues,
                          CBlabel='hydraulic heads elevation - $h$ (m)', msg='DRY',
                          plt_title=b'OUT_average_MF_HEADScorr%s' % int_typ, MM_ws=MM_ws_out, interval_type=int_typ,
                          interval_num=5, contours=ctrsMF, Vmax=[hcorrmax], Vmin=[hcorrmin], ntick=ntick, points=obs4map,
                          ptslbl=0, mask=maskAllL_tmp, hnoflo=cMF.hnoflo, cMF=cMF)
-        #except:
-        #    print("ERROR plotting map of heads corrected average")
+        except:
+            print("ERROR plotting map of heads corrected average")
 
     # plot GWTD correct average [m]
     GWTDcorr = np.zeros((1, cMF.nlay, cMF.nrow, cMF.ncol), dtype=np.float32)
@@ -2987,28 +2987,28 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
         V[0, L, :, :] = np.ma.masked_array(
             np.sum(cbc_EXF[HYindex[1]:HYindex[-2], L, :, :], axis=0) / (HYindex[-2] - HYindex[1] + 1) * (-1.0), mask[L])
     for i, int_typ in enumerate([b'percentile', b'linspace']):
-        #try:
-        MMplot.plotLAYER(days=['NA'], str_per=['NA'], Date=['NA'], JD=['NA'], ncol=cMF.ncol, nrow=cMF.nrow,
+        try:
+            MMplot.plotLAYER(days=['NA'], str_per=['NA'], Date=['NA'], JD=['NA'], ncol=cMF.ncol, nrow=cMF.nrow,
                          nlay=cMF.nlay, nplot=cMF.nlay, V=V, cmap=plt.cm.Blues,
                          CBlabel='groundwater exfiltration - $Exf_g$ (mm.day$^{-1}$)', msg='- no exfiltration',
                          plt_title=b'OUT_average_MF_EXF%s' % int_typ, MM_ws=MM_ws_out, interval_type=int_typ,
                          interval_num=5, Vmax=[EXFmax], Vmin=[EXFmin], contours=ctrsMF, ntick=ntick, points=obs4map,
                          ptslbl=1, mask=mask_tmp, hnoflo=cMF.hnoflo, cMF=cMF)
-        #except:
-        #    print("ERROR plotting map of EXF average")
+        except:
+            print("ERROR plotting map of EXF average")
     del cbc_EXF, EXFmax, EXFmin
     Vmin_tmp1 = np.min(V)
     Vmax_tmp1 = np.max(V)
     for i, int_typ in enumerate([b'linspace']):
-        #try:
-        MMplot.plotLAYER(days=['NA'], str_per=['NA'], Date=['NA'], JD=['NA'], ncol=cMF.ncol, nrow=cMF.nrow,
+        try:
+            MMplot.plotLAYER(days=['NA'], str_per=['NA'], Date=['NA'], JD=['NA'], ncol=cMF.ncol, nrow=cMF.nrow,
                          nlay=cMF.nlay, nplot=cMF.nlay, V=V, cmap=plt.cm.Blues,
                          CBlabel='groundwater exfiltration - $Exf_g$ (mm.day$^{-1}$)', msg='- no exfiltration',
                          plt_title=b'OUT_average_MF_EXF1%s' % int_typ, MM_ws=MM_ws_out, interval_type=int_typ,
                          interval_num=5, Vmax=[Vmax_tmp1], Vmin=[Vmin_tmp1], contours=ctrsMF, ntick=ntick,
                          points=obs4map, ptslbl=0, mask=mask_tmp, hnoflo=cMF.hnoflo, cMF=cMF)
-        #except:
-        #    print("ERROR plotting map of EXF average")
+        except:
+            print("ERROR plotting map of EXF average")
 
     h5_MF.close()
     h5_MM.close()
@@ -3056,19 +3056,19 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
             for ii, t in enumerate(days_lst):
                 Vmax[ii] = np.ma.max(Vmax1)
                 Vmin[ii] = np.ma.min(Vmin1)
-            #try:
-            MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
+            try:
+                MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
                              nlay=cMF.nlay, nplot=1, V=V, cmap=plt.cm.Blues, CBlabel=(i_lbl + ' (mm.day$^{-1}$)'),
                              msg=b'no flux', plt_title=b'OUT_MM_' + i, MM_ws=MM_ws_out, interval_type=b'linspace',
                              interval_num=5, Vmax=Vmax, Vmin=Vmin, contours=ctrsMM, ntick=ntick, points=obs4map,
                              hnoflo=cMF.hnoflo, mask=maskAllL_tmp, animation=animation, cMF=cMF)
-            MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
+                MMplot.plotLAYER(days=days_lst, str_per=sp_lst, Date=Date_lst, JD=JD_lst, ncol=cMF.ncol, nrow=cMF.nrow,
                              nlay=cMF.nlay, nplot=1, V=V, cmap=plt.cm.Blues, CBlabel=(i_lbl + ' (mm.day$^{-1}$)'),
                              msg='no flux', plt_title=b'OUT_MM_%s1' % i, MM_ws=MM_ws_out, interval_type=b'linspace',
                              interval_num=5, Vmax=Vmax1, Vmin=Vmin1, contours=ctrsMM, ntick=ntick, points=obs4map,
                              hnoflo=cMF.hnoflo, mask=maskAllL_tmp, animation=animation, cMF=cMF)
-            #except:
-             #   print("ERROR plotting map of %s" % (i_lbl))
+            except:
+                print("ERROR plotting map of %s" % (i_lbl))
             del V, MM, Vmax, Vmin
 
         flx_lst = [b'Esoil', b'Tsoil']
