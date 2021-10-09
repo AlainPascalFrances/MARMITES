@@ -1308,7 +1308,7 @@ if h_diff_surf.all() is not None and MMsoil_yn > 0:
             MMplot.plotLAYER(days=[h_diff_d], str_per=[h_diff_n], Date=[cMF.inputDate[h_diff_d]], JD=[cMF.JD[h_diff_d]],
                          ncol=cMF.ncol, nrow=cMF.nrow, nlay=cMF.nlay, nplot=cMF.nlay, V=V, cmap=plt.cm.Blues,
                          CBlabel=('(m)'), msg='no value', plt_title='HEADSmaxdiff_ConvLoop', MM_ws=MM_ws_out,
-                         interval_type='percentile', interval_num=5, Vmax=[Vmax], Vmin=[Vmin], contours=ctrsMF,
+                         interval_type=b'percentile', interval_num=5, Vmax=[Vmax], Vmin=[Vmin], contours=ctrsMF,
                          ntick=ntick, points=obs4map, mask=mask_tmp, hnoflo=cMF.hnoflo, pref_plt_title='__sp_plt')
         except:
             print("Error in plotting HEADSmaxdiff_ConvLoop (which is expected if [Heads diff. from previous conv. loop] and [Maximum heads difference] are both 0)")
