@@ -726,7 +726,8 @@ class clsPROCESS:
                 testSM += 1
             except:
                 Sobs_m.append([])
-        if testSM > 0 or hobs != None:
+        #print(obs_name, type(hobs), hobs)
+        if testSM > 0 or hobs is not None:
             print('RMSE/RSR/NSE/r')
             if testSM > 0:
                 rmseSM = []

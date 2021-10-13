@@ -276,7 +276,7 @@ class clsMF():
             for i in range(self.nlay):
                 self.Mlay.append(int(Mlay_tmp[i]))
             if max(self.Mlay) != self.Mnlay:
-                print('ERROR!\nMnlay must be a list with nlay values that must be incremental and with maximum igual to Mnlay')
+                print('\nERROR!\nMnlay must be a list with nlay values that must be incremental and with maximum igual to Mnlay')
                 sys.exit()
             # oc
             l += 1
