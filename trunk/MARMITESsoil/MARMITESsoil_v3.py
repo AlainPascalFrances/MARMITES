@@ -58,7 +58,7 @@ class clsMMsoil:
                 PT           Daily transpiration
                 PE           Daily evaporation
     OUTPUTS
-            RFe              Daily Excess rainfall
+            TF              Throughfall
             ETsoil             Daily evapotranspiration
             Ssoil               Daily soil moisture
             Rp              Daily percolation
@@ -104,7 +104,7 @@ class clsMMsoil:
                      #                        'custom'          : {'dll':100.0,'y0':0.00,'b':0.013, 'ext_d':330.0}
 #####################
 
-    def flux(self, cMF, perleni, RFe, PT, PE, E0surf_max, Zr_elev, VEGarea, HEADSini, TopSoilLay, BotSoilLay, Tl, nsl, Sm, Sfc, Sr, Ks, Ssurf_max, Ssoil_ini, Rp_ini, Ssurf_ini, EXF_ini, dgwt, st, i, j, n, kT_min, kT_max, kT_n, NVEG, LAIveg):
+    def flux(self, cMF, perleni, TF, PT, PE, E0surf_max, Zr_elev, VEGarea, HEADSini, TopSoilLay, BotSoilLay, Tl, nsl, Sm, Sfc, Sr, Ks, Ssurf_max, Ssoil_ini, Rp_ini, Ssurf_ini, EXF_ini, dgwt, st, i, j, n, kT_min, kT_max, kT_n, NVEG, LAIveg):
 
         ##################
 
@@ -160,7 +160,7 @@ class clsMMsoil:
         perlen = cMF.perlen[n]
         # Surface
         Ssurf_tmp = 0.0
-        Ssurf_tmp  += RFe + Ssurf_ini 
+        Ssurf_tmp  += TF + Ssurf_ini
         # Soil
         Ssoil_tmp = np.zeros([nsl])
         Rexf_tmp = np.zeros([nsl])
@@ -357,10 +357,10 @@ class clsMMsoil:
     def runMMsoil(self, _nsl, _nslmax, _st, _Sm, _Sfc, _Sr, _slprop, _Ssoil_ini, botm_l0, _Ks,
             gridSOIL, gridSOILthick, TopSoil, gridMETEO,
             index, index_S, gridSsurfhmax, gridSsurfw,
-            RF_veg_zoneSP, E0_zonesSP, PT_veg_zonesSP, RFe_veg_zonesSP, PE_zonesSP, gridVEGarea,
+            RF_veg_zoneSP, E0_zonesSP, PT_veg_zonesSP, TF_veg_zonesSP, PE_zonesSP, gridVEGarea,
             LAI_veg_zonesSP, Zr, kT_min, kT_max, kT_n, NVEG,
             cMF, conv_fact, h5_MF, h5_MM, irr_yn,
-            RF_irr_zoneSP = [], PT_irr_zonesSP = [], RFe_irr_zoneSP = [],
+            RF_irr_zoneSP = [], PT_irr_zonesSP = [], TF_irr_zoneSP = [],
             crop_irr_SP = [], gridIRR = [],
             Zr_c = [], kT_min_c = [], kT_max_c = [], kT_n_c = [], NCROP = [],
             verbose = 0, report = None, report_fn = None, stdout = None):
@@ -443,8 +443,8 @@ class clsMMsoil:
                             CROP_tmp = crop_irr_SP[IRRfield,tstart_MF:tend_MF]
                             RF_tmp = RF_irr_zoneSP[METEOzone_tmp,IRRfield,tstart_MF:tend_MF]
                             PT_zonesSP_tmp = np.zeros((NVEG_tmp,tend_MF-tstart_MF), dtype = np.float32)
-                            RFe_zonesSP_tmp = np.zeros((NVEG_tmp,tend_MF-tstart_MF), dtype = np.float32)
-                            RFe_zonesSP_tmp[0,:] = RFe_irr_zoneSP[METEOzone_tmp,IRRfield,tstart_MF:tend_MF]
+                            TF_zonesSP_tmp = np.zeros((NVEG_tmp,tend_MF-tstart_MF), dtype = np.float32)
+                            TF_zonesSP_tmp[0,:] = TF_irr_zoneSP[METEOzone_tmp,IRRfield,tstart_MF:tend_MF]
                             PT_zonesSP_tmp[0,:] = PT_irr_zonesSP[METEOzone_tmp,IRRfield,tstart_MF:tend_MF]
                             Zr_tmp = Zr_c
                             kT_min_tmp = kT_min_c
@@ -455,7 +455,7 @@ class clsMMsoil:
                             CROP_tmp = None
                             RF_tmp = RF_veg_zoneSP[METEOzone_tmp][tstart_MF:tend_MF]
                             PT_zonesSP_tmp = np.zeros((NVEG_tmp,tend_MF-tstart_MF), dtype = np.float32)
-                            RFe_zonesSP_tmp = np.zeros((NVEG_tmp,tend_MF-tstart_MF), dtype = np.float32)
+                            TF_zonesSP_tmp = np.zeros((NVEG_tmp,tend_MF-tstart_MF), dtype = np.float32)
                             LAIveg_tmp = np.zeros((NVEG_tmp,tend_MF - tstart_MF), dtype = np.float32)
                             VEGarea_tmp = np.zeros([NVEG_tmp], dtype = np.float32)
                             Zr_tmp = np.ones((NVEG_tmp,tend_MF - tstart_MF), dtype = np.float32)
@@ -464,7 +464,7 @@ class clsMMsoil:
                             kT_n_tmp = np.ones((NVEG_tmp,tend_MF - tstart_MF), dtype = np.float32)
                             for v in range(NVEG_tmp):
                                 PT_zonesSP_tmp[v,:]  = PT_veg_zonesSP[METEOzone_tmp,v,tstart_MF:tend_MF]
-                                RFe_zonesSP_tmp[v,:] = RFe_veg_zonesSP[METEOzone_tmp,v,tstart_MF:tend_MF]
+                                TF_zonesSP_tmp[v,:] = TF_veg_zonesSP[METEOzone_tmp,v,tstart_MF:tend_MF]
                                 LAIveg_tmp[v,:]      = LAI_veg_zonesSP[v,tstart_MF:tend_MF]
                                 VEGarea_tmp[v]       = gridVEGarea[v,i,j]
                                 Zr_tmp[v]            = Zr[v]
@@ -495,15 +495,15 @@ class clsMMsoil:
                         # Output initialisation
                         # PT for the vegetation patchwork
                         PT_tot = np.zeros([len(PT_zonesSP_tmp[0])], dtype = np.float32)
-                        # RFe for the vegetation patchwork
-                        RFe_tot = np.zeros([len(RFe_zonesSP_tmp[0])], dtype = np.float32)
+                        # TF for the vegetation patchwork
+                        TF_tot = np.zeros([len(TF_zonesSP_tmp[0])], dtype = np.float32)
                         #Soil moisture storage changes
                         dSsoil = np.zeros([nsl], dtype = np.float32)
                         # MASS BALANCE each soil layer
                         MB_l = np.zeros([nsl], dtype = np.float32)
 
                         # PROCESSING THE WHOLE DATA SET
-                        # Preprocessing of PT/PE/INTER and RFe
+                        # Preprocessing of PT/PE/INTER and TF
                         # for different vegetation
                         Zr_elev = []
                         SOILarea = 100.0
@@ -524,11 +524,11 @@ class clsMMsoil:
                             kT_n_tmp = kT_n_tmp[:]
                         for v in range(NVEG_tmp):
                             if LAIveg_tmp[v] > 1.0E-7:
-                                RFe_tot += RFe_zonesSP_tmp[v]*VEGarea_tmp[v]*0.01
+                                TF_tot += TF_zonesSP_tmp[v]*VEGarea_tmp[v]*0.01
                                 PT_tot  += PT_zonesSP_tmp[v]*VEGarea_tmp[v]*0.01
                                 SOILarea -= VEGarea_tmp[v]
-                        RFe_tot   += RF_tmp*SOILarea*0.01
-                        INTER_tot  = RF_tmp - RFe_tot
+                        TF_tot   += RF_tmp*SOILarea*0.01
+                        INTER_tot  = RF_tmp - TF_tot
                         PE_tot     = PE_zonesSP_tmp*SOILarea*0.01
                         # handle drycell
                         if np.abs(h_MF_ini_tmp - cMF.hdry) < 1.0E-5:
@@ -546,7 +546,7 @@ class clsMMsoil:
                         if n == 0:
                             Ssoil_ini_tmp = Ssoil_ini_tmp * Tl
                         # MAIN SUB-ROUTINE fluxes
-                        Esurf_tmp, Ssurf_tmp, Ro_tmp, Rp_tmp, Esoil_tmp, Tsoil_tmp, Ssoil_tmp, Ssoil_pc_tmp, Eg_tmp, Tg_tmp, HEADSini_MM, dgwt_tmp, SAT_tmp, Rexf_tmp, Inf = self.flux(cMF, perleni, RFe_tot, PT_zonesSP_tmp[:], PE_zonesSP_tmp*SOILarea*0.01, E0surf_max, Zr_elev, VEGarea_tmp, HEADSini_drycell, TopSoilLay, BotSoilLay, Tl, nsl, Sm, Sfc, Sr, Ks, Ssurf_max, Ssoil_ini_tmp, Rp_ini_tmp_array[i,j,:], Ssurf_ini_tmp, exf_MF_ini_tmp, dgwt, st, i, j, n, kT_min_tmp, kT_max_tmp, kT_n_tmp, NVEG_tmp, LAIveg_tmp[:])
+                        Esurf_tmp, Ssurf_tmp, Ro_tmp, Rp_tmp, Esoil_tmp, Tsoil_tmp, Ssoil_tmp, Ssoil_pc_tmp, Eg_tmp, Tg_tmp, HEADSini_MM, dgwt_tmp, SAT_tmp, Rexf_tmp, Inf = self.flux(cMF, perleni, TF_tot, PT_zonesSP_tmp[:], PE_zonesSP_tmp*SOILarea*0.01, E0surf_max, Zr_elev, VEGarea_tmp, HEADSini_drycell, TopSoilLay, BotSoilLay, Tl, nsl, Sm, Sfc, Sr, Ks, Ssurf_max, Ssoil_ini_tmp, Rp_ini_tmp_array[i,j,:], Ssurf_ini_tmp, exf_MF_ini_tmp, dgwt, st, i, j, n, kT_min_tmp, kT_max_tmp, kT_n_tmp, NVEG_tmp, LAIveg_tmp[:])
                         Ssoil_pc_tot = sum(Ssoil_pc_tmp[:])/nsl
                         perc     = Rp_tmp[-1]
                         ETg = Eg_tmp + Tg_tmp
@@ -569,7 +569,7 @@ class clsMMsoil:
                         ETsoil_tot = Esoil_MB + Tsoil_MB
                        
                        # MASS BALANCE COMPUTING
-                        MBsurf = RFe_tot + Rexf_tmp[0] - (Esurf_tmp + Ro_tmp + Inf + dSsurf)
+                        MBsurf = TF_tot + Rexf_tmp[0] - (Esurf_tmp + Ro_tmp + Inf + dSsurf)
                         if nsl > 1:
                             # surficial soil layer
                             l = 0
@@ -607,8 +607,8 @@ class clsMMsoil:
                       
                         # export list
                         # indexes of the HDF5 output arrays
-                        # index_MM = {'iRF':0, 'iPT':1, 'iPE':2, 'iRFe':3, 'iSsurf':4, 'iRo':5, 'iEXFg':6, 'iEsurf':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSsurf':13, 'iETg':14, 'iETsoil':15, 'iSsoil_pc':16, 'idSsoil':17, 'iperc':18, 'ihcorr':19, 'idgwt':20, 'iuzthick':21, 'iInf':22, 'iMBsurf':23}
-                        MM_tmp = [RF_tmp, PT_tot, PE_tot, RFe_tot, Ssurf_tmp, Ro_tmp, exf_MF_ini_tmp, Esurf_tmp, MB, INTER_tot, E0_zonesSP_tmp, Eg_tmp, Tg_tmp, dSsurf, ETg, ETsoil_tot, Ssoil_pc_tot, dSsoil_tot, perc, HEADSini_MM*0.001, -dgwt_tmp*0.001, uzthick*0.001, Inf, MBsurf]
+                        # index_MM = {'iRF':0, 'iPT':1, 'iPE':2, 'iTF':3, 'iSsurf':4, 'iRo':5, 'iEXFg':6, 'iEsurf':7, 'iMB':8, 'iI':9, 'iE0':10, 'iEg':11, 'iTg':12, 'idSsurf':13, 'iETg':14, 'iETsoil':15, 'iSsoil_pc':16, 'idSsoil':17, 'iperc':18, 'ihcorr':19, 'idgwt':20, 'iuzthick':21, 'iInf':22, 'iMBsurf':23}
+                        MM_tmp = [RF_tmp, PT_tot, PE_tot, TF_tot, Ssurf_tmp, Ro_tmp, exf_MF_ini_tmp, Esurf_tmp, MB, INTER_tot, E0_zonesSP_tmp, Eg_tmp, Tg_tmp, dSsurf, ETg, ETsoil_tot, Ssoil_pc_tot, dSsoil_tot, perc, HEADSini_MM*0.001, -dgwt_tmp*0.001, uzthick*0.001, Inf, MBsurf]
                         # index_MM_soil = {'iEsoil':0, 'iTsoil':1,'iSsoil_pc':2, 'iRsoil':3, 'iExf':4, 'idSsoil':5, 'iSsoil':6, 'iSAT':7, 'iMB':8}
                         MM_S_tmp = np.zeros([nsl,len(index_S)], dtype = np.float32)
                         for l in range(nsl):

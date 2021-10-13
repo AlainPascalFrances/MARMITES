@@ -331,7 +331,7 @@ try:
     l += 1
     inputZON_dSP_RF_veg_fn = str(inputFile[l].strip())
     l += 1
-    inputZON_dSP_RFe_veg_fn = str(inputFile[l].strip())
+    inputZON_dSP_TF_veg_fn = str(inputFile[l].strip())
     l += 1
     inputZON_dSP_PT_fn = str(inputFile[l].strip())
     l += 1
@@ -368,7 +368,7 @@ try:
         l += 1
         inputZON_dSP_RF_irr_fn = str(inputFile[l].strip())
         l += 1
-        inputZON_dSP_RFe_irr_fn = str(inputFile[l].strip())
+        inputZON_dSP_TF_irr_fn = str(inputFile[l].strip())
         l += 1
         inputZON_dSP_PT_irr_fn = str(inputFile[l].strip())
         l += 1
@@ -527,13 +527,13 @@ if isinstance(cMF.nper, str):
     except:
         cUTIL.ErrorExit('\nFATAL ERROR!\nError in nper format of the MODFLOW ini file!', stdout=stdout, report=report)
 if irr_yn == 0:
-    cMF.ppMFtime(inputDate_fn, inputZON_dSP_RF_veg_fn, inputZON_dSP_RFe_veg_fn, inputZON_dSP_PT_fn,
+    cMF.ppMFtime(inputDate_fn, inputZON_dSP_RF_veg_fn, inputZON_dSP_TF_veg_fn, inputZON_dSP_PT_fn,
                  input_dSP_LAI_veg_fn, inputZON_dSP_PE_fn, inputZON_dSP_E0_fn, NMETEO, NVEG, NSOIL, stdout=stdout,
                  report=report)
 else:
-    cMF.ppMFtime(inputDate_fn, inputZON_dSP_RF_veg_fn, inputZON_dSP_RFe_veg_fn, inputZON_dSP_PT_fn,
+    cMF.ppMFtime(inputDate_fn, inputZON_dSP_RF_veg_fn, inputZON_dSP_TF_veg_fn, inputZON_dSP_PT_fn,
                  input_dSP_LAI_veg_fn, inputZON_dSP_PE_fn, inputZON_dSP_E0_fn, NMETEO, NVEG, NSOIL,
-                 inputZON_dSP_RF_irr_fn, inputZON_dSP_RFe_irr_fn, inputZON_dSP_PT_irr_fn, input_dSP_crop_irr_fn, NFIELD,
+                 inputZON_dSP_RF_irr_fn, inputZON_dSP_TF_irr_fn, inputZON_dSP_PT_irr_fn, input_dSP_crop_irr_fn, NFIELD,
                  stdout=stdout, report=report)
 # make list of day/stress period
 sp_days_lst = []
@@ -561,33 +561,33 @@ if irr_yn == 1:
 
 # READ input time series and parameters
 if irr_yn == 0:
-    gridVEGarea, RF_veg_zoneSP, E0_zonesSP, PT_veg_zonesSP, RFe_veg_zonesSP, LAI_veg_zonesSP, PE_zonesSP = cMF.cPROCESS.inputSP(
+    gridVEGarea, RF_veg_zoneSP, E0_zonesSP, PT_veg_zonesSP, TF_veg_zonesSP, LAI_veg_zonesSP, PE_zonesSP = cMF.cPROCESS.inputSP(
         NMETEO=NMETEO,
         NVEG=NVEG,
         NSOIL=NSOIL,
         nper=cMF.nper,
         inputZON_SP_RF_veg_fn=cMF.inputZON_SP_RF_veg_fn,
-        inputZON_SP_RFe_veg_fn=cMF.inputZON_SP_RFe_veg_fn,
+        inputZON_SP_TF_veg_fn=cMF.inputZON_SP_TF_veg_fn,
         inputZON_SP_LAI_veg_fn=cMF.inputZON_SP_LAI_veg_fn,
         inputZON_SP_PT_fn=cMF.inputZON_SP_PT_fn,
         inputZON_SP_PE_fn=cMF.inputZON_SP_PE_fn,
         inputZON_SP_E0_fn=cMF.inputZON_SP_E0_fn,
         stdout=None, report=None)
 else:
-    gridVEGarea, RF_veg_zoneSP, E0_zonesSP, PT_veg_zonesSP, RFe_veg_zonesSP, LAI_veg_zonesSP, PE_zonesSP, RF_irr_zoneSP, RFe_irr_zoneSP, PT_irr_zonesSP, crop_irr_SP = cMF.cPROCESS.inputSP(
+    gridVEGarea, RF_veg_zoneSP, E0_zonesSP, PT_veg_zonesSP, TF_veg_zonesSP, LAI_veg_zonesSP, PE_zonesSP, RF_irr_zoneSP, TF_irr_zoneSP, PT_irr_zonesSP, crop_irr_SP = cMF.cPROCESS.inputSP(
         NMETEO=NMETEO,
         NVEG=NVEG,
         NSOIL=NSOIL,
         nper=cMF.nper,
         inputZON_SP_RF_veg_fn=cMF.inputZON_SP_RF_veg_fn,
-        inputZON_SP_RFe_veg_fn=cMF.inputZON_SP_RFe_veg_fn,
+        inputZON_SP_TF_veg_fn=cMF.inputZON_SP_TF_veg_fn,
         inputZON_SP_LAI_veg_fn=cMF.inputZON_SP_LAI_veg_fn,
         inputZON_SP_PT_fn=cMF.inputZON_SP_PT_fn,
         inputZON_SP_PE_fn=cMF.inputZON_SP_PE_fn,
         inputZON_SP_E0_fn=cMF.inputZON_SP_E0_fn,
         NFIELD=NFIELD,
         inputZON_SP_RF_irr_fn=cMF.inputZON_SP_RF_irr_fn,
-        inputZON_SP_RFe_irr_fn=cMF.inputZON_SP_RFe_irr_fn,
+        inputZON_SP_TF_irr_fn=cMF.inputZON_SP_TF_irr_fn,
         inputZON_SP_PT_irr_fn=cMF.inputZON_SP_PT_irr_fn,
         input_SP_crop_irr_fn=cMF.input_SP_crop_irr_fn,
         stdout=None, report=None)
@@ -618,7 +618,7 @@ for l in range(cMF.nlay):
 # create MM array
 h5_MM_fn = os.path.join(MM_ws, '_h5_MM.h5')
 # indexes of the HDF5 output arrays
-index_MM = {b'iRF': 0, b'iPT': 1, b'iPE': 2, b'iRFe': 3, b'iSsurf': 4, b'iRo': 5, b'iEXFg': 6, b'iEsurf': 7, b'iMB': 8, b'iI': 9,
+index_MM = {b'iRF': 0, b'iPT': 1, b'iPE': 2, b'iTF': 3, b'iSsurf': 4, b'iRo': 5, b'iEXFg': 6, b'iEsurf': 7, b'iMB': 8, b'iI': 9,
             b'iE0': 10, b'iEg': 11, b'iTg': 12, b'idSsurf': 13, b'iETg': 14, b'iETsoil': 15, b'iSsoil_pc': 16, b'idSsoil': 17,
             b'iperc': 18, b'ihcorr': 19, b'idgwt': 20, b'iuzthick': 21, b'iInf': 22, b'iMBsurf': 23}
 index_MM_soil = {b'iEsoil': 0, b'iTsoil': 1, b'iSsoil_pc_s': 2, b'iRsoil': 3, b'iExf': 4, b'idSsoil_s': 5, b'iSsoil': 6, b'iSAT': 7,
@@ -1043,7 +1043,7 @@ if MMsoil_yn != 0:
             MM_SOIL.runMMsoil(_nsl, _nslmax, _st, _Sm, _Sfc, _Sr, _slprop, _S_ini, botm_l0, _Ks,
                               gridSOIL, gridSOILthick, cMF.elev * 1000.0, gridMETEO,
                               index_MM, index_MM_soil, gridSsurfhmax, gridSsurfw,
-                              RF_veg_zoneSP, E0_zonesSP, PT_veg_zonesSP, RFe_veg_zonesSP, PE_zonesSP, gridVEGarea,
+                              RF_veg_zoneSP, E0_zonesSP, PT_veg_zonesSP, TF_veg_zonesSP, PE_zonesSP, gridVEGarea,
                               LAI_veg_zonesSP, Zr, kT_min, kT_max, kT_n, NVEG,
                               cMF, conv_fact, h5_MF, h5_MM, irr_yn,
                               verbose = verbose, report = report, report_fn = report_fn, stdout = stdout)
@@ -1051,10 +1051,10 @@ if MMsoil_yn != 0:
             MM_SOIL.runMMsoil(_nsl, _nslmax, _st, _Sm, _Sfc, _Sr, _slprop, _S_ini, botm_l0, _Ks,
                               gridSOIL, gridSOILthick, cMF.elev * 1000.0, gridMETEO,
                               index_MM, index_MM_soil, gridSsurfhmax, gridSsurfw,
-                              RF_veg_zoneSP, E0_zonesSP, PT_veg_zonesSP, RFe_veg_zonesSP, PE_zonesSP, gridVEGarea,
+                              RF_veg_zoneSP, E0_zonesSP, PT_veg_zonesSP, TF_veg_zonesSP, PE_zonesSP, gridVEGarea,
                               LAI_veg_zonesSP, Zr, kT_min, kT_max, kT_n, NVEG,
                               cMF, conv_fact, h5_MF, h5_MM, irr_yn,
-                              RF_irr_zoneSP, PT_irr_zonesSP, RFe_irr_zoneSP,
+                              RF_irr_zoneSP, PT_irr_zonesSP, TF_irr_zoneSP,
                               crop_irr_SP, gridIRR,
                               Zr_c, kT_min_c, kT_max_c, kT_n_c, NCROP,
                               verbose = verbose, report = report, report_fn = report_fn, stdout = stdout)
@@ -1221,7 +1221,7 @@ print('\n##############\nMARMITES exporting...')
 del RF_veg_zoneSP
 del E0_zonesSP
 del PT_veg_zonesSP
-del RFe_veg_zonesSP
+del TF_veg_zonesSP
 del PE_zonesSP
 del gridSsurfhmax
 del gridSsurfw
@@ -1603,7 +1603,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
     rHEADSc = []
     obslstHEADSc = []
     # indexes of the HDF5 output arrays
-    #index_MM = {'iRF': 0, 'iPT': 1, 'iPE': 2, 'iRFe': 3, 'iSsurf': 4, 'iRo': 5, 'iEXFg': 6, 'iEsurf': 7, 'iMB': 8,
+    #index_MM = {'iRF': 0, 'iPT': 1, 'iPE': 2, 'iTF': 3, 'iSsurf': 4, 'iRo': 5, 'iEXFg': 6, 'iEsurf': 7, 'iMB': 8,
     #            'iI': 9, 'iE0': 10, 'iEg': 11, 'iTg': 12, 'idSsurf': 13, 'iETg': 14, 'iETsoil': 15, 'iSsoil_pc': 16,
     #            'idSsoil': 17, 'iperc': 18, 'ihcorr': 19, 'idgwt': 20, 'iuzthick': 21, 'iInf': 22, 'iMBsurf': 23}
     #index_MM_soil = {'iEsoil': 0, 'iTsoil': 1, 'iSsoil_pc_s': 2, 'iRsoil': 3, 'iExf': 4, 'idSsoil_s': 5, 'iSsoil': 6,
@@ -1619,7 +1619,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
     # MM
     flx_lst = []
     for e in sorted(index_MM, key=index_MM.get): flx_lst.append(e)
-    flxLbl_lst = [r'$RF$', r'$PT$', r'$PE$', r'$RFe$', r'$S_{surf}$', r'$Ro$', r'$Exf_g$', r'$E_{surf}$',
+    flxLbl_lst = [r'$RF$', r'$PT$', r'$PE$', r'$TF$', r'$S_{surf}$', r'$Ro$', r'$Exf_g$', r'$E_{surf}$',
                   r'$MB_{soil}$', r'$I$', r'$E_0$', r'$E_g$', r'$T_g$', r'$\Delta S_{surf}$', r'$ET_g$', r'$ET_{soil}$',
                   r'$\theta$', r'\Delta S_{soil}', r'$perc$', r'$h \ corr$', '$d$', r'$thick_p}$', r'$Inf$',
                   r'$MB_{surf}$']
@@ -2058,12 +2058,12 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                     flxObs_lst = []
                     count = 0
                     # flx from MM
-                    # index_MM = {'iRF': 0, 'iPT': 1, 'iPE': 2, 'iRFe': 3, 'iSsurf': 4, 'iRo': 5, 'iEXFg': 6, 'iEsurf': 7, 'iMB': 8,
+                    # index_MM = {'iRF': 0, 'iPT': 1, 'iPE': 2, 'iTF': 3, 'iSsurf': 4, 'iRo': 5, 'iEXFg': 6, 'iEsurf': 7, 'iMB': 8,
                     #            'iI': 9, 'iE0': 10, 'iEg': 11, 'iTg': 12, 'idSsurf': 13, 'iETg': 14, 'iETsoil': 15, 'iSsoil_pc': 16,
                     #            'idSsoil': 17, 'iperc': 18, 'ihcorr': 19, 'idgwt': 20, 'iuzthick': 21, 'iInf': 22, 'iMBsurf': 23}
                     flx_lst = []
                     for e in sorted(index_MM, key=index_MM.get): flx_lst.append(e)
-                    flxLbl_lst = [r'$RF$', r'$PT$', r'$PE$', r'$RFe$', r'$S_{surf}$', r'$Ro$', r'$Exf_g$', r'$E_{surf}$',
+                    flxLbl_lst = [r'$RF$', r'$PT$', r'$PE$', r'$TF$', r'$S_{surf}$', r'$Ro$', r'$Exf_g$', r'$E_{surf}$',
                                   r'$MB_{soil}$', r'$I$', r'$E_0$', r'$E_g$', r'$T_g$', r'$\Delta S_{surf}$', r'$ET_g$',
                                   r'$ET_{soil}$', r'$\theta$', r'\Delta S_{soil}', r'$perc$', r'$h \ corr$', '$d$', r'$thick_p}$',
                                   r'$Inf$', r'$MB_{surf}$']
@@ -2293,7 +2293,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                     i + 1, j + 1, l_obs + 1, l_highest + 1, obs.get(o)['x'], obs.get(o)['y'], cMF.elev[i, j], soilnam,
                     _Sm[SOILzone_tmp], _Sfc[SOILzone_tmp], _Sr[SOILzone_tmp], _Ks[SOILzone_tmp], gridSOILthick[i, j],
                     Tl, VEGarea, VegName, VEGareaTot, SOILarea)
-                    # index_MM = {'iRF': 0, 'iPT': 1, 'iPE': 2, 'iRFe': 3, 'iSsurf': 4, 'iRo': 5, 'iEXFg': 6, 'iEsurf': 7, 'iMB': 8,
+                    # index_MM = {'iRF': 0, 'iPT': 1, 'iPE': 2, 'iTF': 3, 'iSsurf': 4, 'iRo': 5, 'iEXFg': 6, 'iEsurf': 7, 'iMB': 8,
                     #            'iI': 9, 'iE0': 10, 'iEg': 11, 'iTg': 12, 'idSsurf': 13, 'iETg': 14, 'iETsoil': 15, 'iSsoil_pc': 16,
                     #            'idSsoil': 17, 'iperc': 18, 'ihcorr': 19, 'idgwt': 20, 'iuzthick': 21, 'iInf': 22, 'iMBsurf': 23}
                     # index_MM_soil = {'iEsoil': 0, 'iTsoil': 1, 'iSsoil_pc_s': 2, 'iRsoil': 3, 'iExf': 4, 'idSsoil_s': 5, 'iSsoil': 6,
@@ -3019,8 +3019,8 @@ if plt_out == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn):
     # ##############################
     if os.path.exists(h5_MM_fn):
         h5_MM = h5py.File(h5_MM_fn, 'r')
-        flx_lst = [b'RF', b'RFe', b'I', b'EXFg', b'dSsurf', b'Ro', b'Esurf', b'Eg', b'Tg', b'ETg', b'ETsoil', b'dSsoil']
-        flxLbl_lst = [r'$RF$', r'$RFe$', r'$I$', r'$Exf_g$', r'$\Delta S_{surf}$', r'$Ro$', r'$E_{surf}$', r'$E_g$',
+        flx_lst = [b'RF', b'TF', b'I', b'EXFg', b'dSsurf', b'Ro', b'Esurf', b'Eg', b'Tg', b'ETg', b'ETsoil', b'dSsoil']
+        flxLbl_lst = [r'$RF$', r'$TF$', r'$I$', r'$Exf_g$', r'$\Delta S_{surf}$', r'$Ro$', r'$E_{surf}$', r'$E_g$',
                       r'$T_g$', r'$ET_g$', r'$ET_{soil}$', r'$\Delta S_{soil}$']
         for z, (i, i_lbl) in enumerate(zip(flx_lst, flxLbl_lst)):
             # ############################################

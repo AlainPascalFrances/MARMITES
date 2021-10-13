@@ -12,9 +12,10 @@
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import CreateColors
+import numpy as np
 
 def plot(x, \
-        y1, y2 = [] , y3 = [], lbl_y1 = '', lbl_y2 = '', lbl_y3 = ''
+        y1, y2 = np.asarray([]) , y3 = np.asarray([]), lbl_y1 = '', lbl_y2 = '', lbl_y3 = ''
         ,plot_exportPET_fn = '', MMsurf_plot = 0, strTitle = 'Title'):
 
 ##    if len(x)>35:
@@ -38,12 +39,12 @@ def plot(x, \
     ax2.set_title(strTitle)
     plt.setp( ax2.get_xticklabels(), fontsize=8)
     plt.setp( ax2.get_yticklabels(), fontsize=8)
-    if y2:
+    if y2.any():
         plt.plot_date(x,y2,'-', color='blue')
     plt.plot_date(x,y1[0],'-', color='green')
     for i in range(1,len(y1)):
         plt.plot_date(x,y1[i],'-.', color=colors_y1[i-1], linewidth = 2)
-    if y3:
+    if y3.any():
         for i in range(len(y3)):
             plt.plot_date(x,y3[i],'-.', color=colors_y3[i], linewidth = 2)
     ax2.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%1.2f'))
@@ -94,15 +95,15 @@ def plotVAR(strTitle = 'Title', x = [] \
     plt.setp( ax2.get_xticklabels(), fontsize=8)
     plt.setp( ax2.get_yticklabels(), fontsize=8)
     plt.plot_date(x,y1,'-', color='red')
-    if y2:
+    if y2.any():
         plt.plot_date(x,y2,'-', color='yellow')
-    if y3:
+    if y3.any():
         plt.plot_date(x,y3,'-.', color='orange', linewidth = 2)
-    if y4:
+    if y4.any():
         plt.plot_date(x,y4,'-.', color='blue')
-    if y5:
+    if y5.any():
         plt.plot_date(x,y5,'--', color='green')
-    if y6:
+    if y6.any():
         plt.plot_date(x,y6,'--', color='black')
     ax2.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%1.2f'))
     labels=ax2.get_yticklabels()

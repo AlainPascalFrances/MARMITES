@@ -74,8 +74,8 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     ax1 = fig.add_subplot(8, 1, 1)
     ax1.bar(cMF.inputDate, flx[flxIndex_lst[b'iRF']], color='darkblue', linewidth=0, align='center',
             label=flxLbl[flxIndex_lst[b'iRF']])
-    ax1.bar(cMF.inputDate, flx[flxIndex_lst[b'iRFe']], color='deepskyblue', linewidth=0, align='center',
-            label=flxLbl[flxIndex_lst[b'iRFe']])
+    ax1.bar(cMF.inputDate, flx[flxIndex_lst[b'iTF']], color='deepskyblue', linewidth=0, align='center',
+            label=flxLbl[flxIndex_lst[b'iTF']])
     # leg
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad=bdpd, handletextpad=hdltxtpd)
     leg = plt.gca().get_legend()
@@ -703,9 +703,9 @@ def plotTIMESERIES_flxGW(cMF, flx, flxLbl, flxIndex_lst, plt_export_fn, plt_titl
     # RF
     ax0.bar(cMF.inputDate, flx[flxIndex_lst[b'iRF']], color='darkblue', linewidth=0, align='center',
             label=flxLbl[flxIndex_lst[b'iRF']])
-    # RFe
-    ax0.bar(cMF.inputDate, flx[flxIndex_lst[b'iRFe']], color='deepskyblue', linewidth=0, align='center',
-            label=flxLbl[flxIndex_lst[b'iRFe']])
+    # TF
+    ax0.bar(cMF.inputDate, flx[flxIndex_lst[b'iTF']], color='deepskyblue', linewidth=0, align='center',
+            label=flxLbl[flxIndex_lst[b'iTF']])
     # legend
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad=bdpd, handletextpad=hdltxtpd)
     leg = plt.gca().get_legend()
@@ -866,9 +866,9 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
     # RF
     ax1.bar(cMF.inputDate, flx[flxIndex_lst[b'iRF']], color='darkblue', linewidth=0, align='center',
             label=flxLbl[flxIndex_lst[b'iRF']])
-    # RFe
-    ax1.bar(cMF.inputDate, flx[flxIndex_lst[b'iRFe']], color='deepskyblue', linewidth=0, align='center',
-            label=flxLbl[flxIndex_lst[b'iRFe']])
+    # TF
+    ax1.bar(cMF.inputDate, flx[flxIndex_lst[b'iTF']], color='deepskyblue', linewidth=0, align='center',
+            label=flxLbl[flxIndex_lst[b'iTF']])
     # leg
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad=bdpd, handletextpad=hdltxtpd)
     leg = plt.gca().get_legend()
@@ -1150,9 +1150,9 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
     # RF
     ax0.bar(cMF.inputDate, flx[flxIndex_lst[b'iRF']], color='darkblue', linewidth=0, align='center',
             label=flxLbl[flxIndex_lst[b'iRF']])
-    # RFe
-    ax0.bar(cMF.inputDate, flx[flxIndex_lst[b'iRFe']], color='deepskyblue', linewidth=0, align='center',
-            label=flxLbl[flxIndex_lst[b'iRFe']])
+    # TF
+    ax0.bar(cMF.inputDate, flx[flxIndex_lst[b'iTF']], color='deepskyblue', linewidth=0, align='center',
+            label=flxLbl[flxIndex_lst[b'iTF']])
     # leg
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad=bdpd, handletextpad=hdltxtpd)
     leg = plt.gca().get_legend()
@@ -1561,7 +1561,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
     # compute fluxes for whole modelled period and hydrological years
     RF = []
     I = []
-    RFe = []
+    TF = []
     dSsurf = []
     Ro = []
     Esurf = []
@@ -1601,7 +1601,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
             mult = 1.0
         RF.append(mult * np.sum(np.float16(flx[flxIndex[b'iRF']][i:indexend])))
         I.append(mult * np.sum(np.float16(flx[flxIndex[b'iI']][i:indexend])))
-        RFe.append(mult * np.sum(np.float16(flx[flxIndex[b'iRFe']][i:indexend])))
+        TF.append(mult * np.sum(np.float16(flx[flxIndex[b'iTF']][i:indexend])))
         dSsurf.append(mult * np.sum(np.float16(flx[flxIndex[b'idSsurf']][i:indexend])))
         Ro.append(mult * np.sum(np.float16(flx[flxIndex[b'iRo']][i:indexend])))
         Esurf.append(mult * np.sum(np.float16(flx[flxIndex[b'iEsurf']][i:indexend])))
@@ -1684,7 +1684,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
             #                lbl_tmp += 'DRN %s' % (np.asarray(DRN[k])/ff)
             #            if cMF.ghb_yn == 1:
             #                lbl_tmp += 'GHB %s' % (np.asarray(GHB[k])/ff)
-            # print '\nMMsurf: RF %s, I %s, RFe %s, Esurf %s, DSsurf %s\nMMsoil: Esoil %s, Tsoil %s, ETsoil %s, Ro %s, Rp %s, DSsoil  %s\nUZF: Rg %s, DSu %s\nMF: Eg %s, Tg %s, ETg %s, %s, EXF  %s, FLF %s, dSg %s' % (RF[k]/ff, I[k]/ff, RFe[k]/ff, Esurf[k]/ff, DSsurf[k]/ff, Esoil[k]/ff, Tsoil[k]/ff, ETsoil[k]/ff, Ro[k]/ff, Rp[k]/ff, DSsoil[k]/ff, (np.asarray(Rg[k])/ff), DSu[k]/ff, (np.asarray(Eg[k])/ff), (np.asarray(Tg[k])/ff), ETg[k]/ff, lbl_tmp, (np.asarray(EXF[k])/ff), (np.asarray(FLF[k])/ff), (np.asarray(dSg[k])/ff))
+            # print '\nMMsurf: RF %s, I %s, TF %s, Esurf %s, DSsurf %s\nMMsoil: Esoil %s, Tsoil %s, ETsoil %s, Ro %s, Rp %s, DSsoil  %s\nUZF: Rg %s, DSu %s\nMF: Eg %s, Tg %s, ETg %s, %s, EXF  %s, FLF %s, dSg %s' % (RF[k]/ff, I[k]/ff, TF[k]/ff, Esurf[k]/ff, DSsurf[k]/ff, Esoil[k]/ff, Tsoil[k]/ff, ETsoil[k]/ff, Ro[k]/ff, Rp[k]/ff, DSsoil[k]/ff, (np.asarray(Rg[k])/ff), DSu[k]/ff, (np.asarray(Eg[k])/ff), (np.asarray(Tg[k])/ff), ETg[k]/ff, lbl_tmp, (np.asarray(EXF[k])/ff), (np.asarray(FLF[k])/ff), (np.asarray(dSg[k])/ff))
             ##print(title)
             treshold = 5E-2  # 5E-2
             if k == 0 or k % 2 != 0:
@@ -1709,19 +1709,19 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
             tl = 2.0
             # MMveg
             pltsankey.add(patchlabel='veg', facecolor='lightgreen', trunklength=tl / 1.5,
-                          flows=[RF[k] / ff, -I[k] / ff, -RFe[k] / ff],
-                          labels=['$RF$', '$I$', '$RFe$'],
+                          flows=[RF[k] / ff, -I[k] / ff, -TF[k] / ff],
+                          labels=['$RF$', '$I$', '$TF$'],
                           orientations=[1, 1, -1],
                           pathlengths=[pl, pl, pl])
             # MMsurf
-            flows = [RFe[k] / ff, -Inf[k] / ff, Exf_l0[k] / ff, -Esurf[k] / ff, -Ro[k] / ff]
+            flows = [TF[k] / ff, -Inf[k] / ff, Exf_l0[k] / ff, -Esurf[k] / ff, -Ro[k] / ff]
             if np.abs(Exf_l0[k]) > treshold:
-                #flows = [RFe[k] / ff, -Inf[k] / ff, Exf_l0[k] / ff, -Esurf[k] / ff, -Ro[k] / ff]
+                #flows = [TF[k] / ff, -Inf[k] / ff, Exf_l0[k] / ff, -Esurf[k] / ff, -Ro[k] / ff]
                 labels = [None, '$Inf$', '$Exf_1$', '$E_{surf}$', '$Ro$']
                 orientations = [1, -1, -1, 1, 0]
                 pathlengths = [pl, pl, pl, pl, pl]
             else:
-                #flows = [RFe[k] / ff, -Inf[k] / ff, 0.0, -Esurf[k] / ff, -Ro[k] / ff]
+                #flows = [TF[k] / ff, -Inf[k] / ff, 0.0, -Esurf[k] / ff, -Ro[k] / ff]
                 labels = [None, '$Inf$', '', '$E_{surf}$', '$Ro$']
                 orientations = [1, -1, -1, 1, 0]
                 pathlengths = [pl, pl, 0, pl, pl]
@@ -1732,7 +1732,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                           orientations=orientations,
                           pathlengths=pathlengths,
                           prior=0, connect=(2, 0))
-            In = RFe[k] + Exf_l0[k]
+            In = TF[k] + Exf_l0[k]
             Out = Inf[k] + Esurf[k] + Ro[k]
             if dSsurf[k] > 0.0:
                 Out += dSsurf[k]
