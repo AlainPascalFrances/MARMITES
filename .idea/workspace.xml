@@ -8,10 +8,7 @@
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/trunk/MARMITESsoil/MARMITESsoil_v3.py" beforeDir="false" afterPath="$PROJECT_DIR$/trunk/MARMITESsoil/MARMITESsoil_v3.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/trunk/MARMITESsurf/startMARMITESsurface.py" beforeDir="false" afterPath="$PROJECT_DIR$/trunk/MARMITESsurf/startMARMITESsurface.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESplot/MARMITESplot_v3.py" beforeDir="false" afterPath="$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESplot/MARMITESplot_v3.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESplot/plotPET.py" beforeDir="false" afterPath="$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESplot/plotPET.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESprocess_v3.py" beforeDir="false" afterPath="$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESprocess_v3.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/pltET_RF.py" beforeDir="false" afterPath="$PROJECT_DIR$/trunk/MARMITESutilities/pltET_RF.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/trunk/ppMF_FloPy/ppMODFLOW_flopy_v3.py" beforeDir="false" afterPath="$PROJECT_DIR$/trunk/ppMF_FloPy/ppMODFLOW_flopy_v3.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
