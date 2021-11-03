@@ -22,6 +22,13 @@ kT_min =  0.1 #[0.1, 0.8, 0.1]  # [0.1, 0.8, 0.1]
 kT_max =  0.9 #[0.9, 0.9, 0.2]  # [0.9, 0.9, 0.2]
 daynum= 350
 
+cT = 'royalblue'
+cTs = 'cornflowerblue'
+cTg = 'deepskyblue'
+cPTa = 'red'
+cPT = 'red'
+cSM = 'green'
+
 # plot parameters (legend)
 lblspc = 0.05
 mkscale = 0.15
@@ -62,20 +69,21 @@ fig = plt.figure(figsize=(11.7, 8.27))
 ax2=fig.add_subplot(2,2,1)
 plt.setp(ax2.get_xticklabels(), fontsize=8)
 plt.setp(ax2.get_yticklabels(), fontsize=8)
-plt2_0 = ax2.plot(days, T[0], lines.next(), color = 'black', label = r'$T$')
-plt2_1 = ax2.plot(days, Tsoil[0], lines.next(), color = 'black', label = r'$T_{soil}$')
-plt2_2 = ax2.plot(days, Tg[0], lines.next(), color = 'black', label = r'$T_g$')
-plt2_3 = ax2.plot(days, PTarray, '-', color = 'red', label = r'$PT$')
-plt2_4 = ax2.plot(days, PTg[0], '-.', color = 'red', label = r'$PT_g$')
+plt2_0 = ax2.plot(days, T[0], lines.__next__(), color = cT, label = r'$T$')
+plt2_1 = ax2.plot(days, Tsoil[0], lines.__next__(), color = cTs, label = r'$T_{soil}$')
+plt2_2 = ax2.plot(days, Tg[0], lines.__next__(), color = cTg, label = r'$T_g$')
+plt2_3 = ax2.plot(days, PTarray, '-', color = cPTa, label = r'$PT$')
+plt2_4 = ax2.plot(days, PTg[0], '-.', color = cPT, label = r'$PT_g$')
 plt.grid(True)
 plt.ylabel(r'$mm$')
 plt.xlabel(r'$day$')
 plt.ylim((0,PT+0.5))
 ax2a = ax2.twinx()
-plt.setp(ax2a.get_yticklabels(), fontsize=8, color = 'darkgray')
-plt2a = ax2a.plot(days, theta[0]/ThickSoil, lines.next(), color = 'darkgray', label = r'$\theta$')
+plt.setp(ax2a.get_yticklabels(), fontsize=8, color = cSM)
+plt2a = ax2a.plot(days, theta[0]/ThickSoil, lines.__next__(), color = cSM, label = r'$\theta$')
 plt.ylim((theta_wp-.05,phi+.05))
-plt.ylabel(r'$(\%)$', color = 'darkgray')
+plt.ylabel(r'$(\%)$', color = cSM)
+plt.xlim((0, daynum))
 plts =  plt2_3 + plt2_4 + plt2_0 + plt2_1 + plt2_2 + plt2a
 labs = [l.get_label() for l in plts]
 plt.legend(plts, labs, loc=5, labelspacing=lblspc, markerscale=mkscale, handletextpad = handletextpad, borderaxespad = borderaxespad, borderpad = borderpad, ncol = 3, columnspacing = 0.05)
@@ -84,7 +92,7 @@ ltext  = leg.get_texts()
 plt.setp(ltext, fontsize=10)
 
 plt.subplots_adjust(left=0.075, bottom=0.05, right=0.95, top=0.95, wspace=0.25, hspace=0.3)    
-plt.show()
-img_path = 'Tg_function%d'%version
+#plt.show()
+img_path = 'Tg_function%d_20211101'%version
 plt.savefig(img_path,dpi=300)
-print 'Plot printed:\n%s' % img_path
+print('Plot printed:\n%s' % img_path)

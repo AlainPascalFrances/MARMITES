@@ -1385,9 +1385,17 @@ class clsMF():
             h5_MF.create_dataset(name = 'cbc', shape = (nper_tmp, self.nlay, self.nrow, self.ncol, h5_MF['cbc_nam'].shape[0]), dtype = np.float32)
         for x, txt in enumerate(h5_MF['cbc_nam']):
             if self.dum_sssp1 == 1 and txt.replace(b' ',b'') != b'STORAGE':
-                h5_MF['cbc'][:,:,:,:,x] = cbc.get_data(text = txt, full3D=True)[1:]
+                try:
+                    h5_MF['cbc'][:,:,:,:,x] = cbc.get_data(text = txt, full3D=True)[1:]
+                except:
+                    for l in range(self.nlay):
+                        h5_MF['cbc'][:, l, :, :, x] = np.asarray(cbc.get_data(text=txt, full3D=True)[1:])[:,l,:,:]
             else:
-                h5_MF['cbc'][:,:,:,:,x] = cbc.get_data(text = txt, full3D=True)
+                try:
+                    h5_MF['cbc'][:,:,:,:,x] = cbc.get_data(text = txt, full3D=True)
+                except:
+                    for l in range(self.nlay):
+                        h5_MF['cbc'][:, l, :, :, x] = np.asarray(cbc.get_data(text=txt, full3D=True))[:,l,:,:]
         del cbc
         # CBC UZF
         if self.uzf_yn == 1:
@@ -1399,9 +1407,17 @@ class clsMF():
                 h5_MF.create_dataset(name = 'cbc_uzf', shape = (nper_tmp, self.nlay, self.nrow, self.ncol, h5_MF['cbc_uzf_nam'].shape[0]), dtype = np.float32)
             for x, txt in enumerate(h5_MF['cbc_uzf_nam']):
                 if self.dum_sssp1 == 1:
-                    h5_MF['cbc_uzf'][:,:,:,:,x] = cbc_uzf.get_data(text = txt, full3D=True)[1:]
+                    try:
+                        h5_MF['cbc_uzf'][:,:,:,:,x] = cbc_uzf.get_data(text=txt, full3D=True)[1:]
+                    except:
+                        for l in range(self.nlay):
+                            h5_MF['cbc_uzf'][:, l, :, :, x] = np.asarray(cbc_uzf.get_data(text=txt, full3D=True)[1:])[:,l,:,:]
                 else:
-                    h5_MF['cbc_uzf'][:,:,:,:,x] = cbc_uzf.get_data(text = txt, full3D=True)
+                    try:
+                        h5_MF['cbc_uzf'][:,:,:,:,x] = cbc_uzf.get_data(text = txt, full3D=True)
+                    except:
+                        for l in range(self.nlay):
+                            h5_MF['cbc_uzf'][:, l, :, :, x] = np.asarray(cbc_uzf.get_data(text=txt, full3D=True))[:,l,:,:]
             del cbc_uzf  
         if self.dum_sssp1 == 1:
             self.nper = self.nper - 1

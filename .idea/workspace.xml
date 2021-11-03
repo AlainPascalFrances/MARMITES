@@ -6,9 +6,8 @@
   <component name="ChangeListManager">
     <list default="true" id="d22c9b79-29ab-4d63-9d08-5417fd7bbef7" name="Default" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/trunk/MARMITESsoil/MARMITESsoil_v3.py" beforeDir="false" afterPath="$PROJECT_DIR$/trunk/MARMITESsoil/MARMITESsoil_v3.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/trunk/MARMITESsurf/startMARMITESsurface.py" beforeDir="false" afterPath="$PROJECT_DIR$/trunk/MARMITESsurf/startMARMITESsurface.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESprocess_v3.py" beforeDir="false" afterPath="$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESprocess_v3.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/Tg.py" beforeDir="false" afterPath="$PROJECT_DIR$/trunk/MARMITESutilities/Tg.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/Tg4Maciek.py" beforeDir="false" afterPath="$PROJECT_DIR$/trunk/MARMITESutilities/Tg4Maciek.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/trunk/ppMF_FloPy/ppMODFLOW_flopy_v3.py" beforeDir="false" afterPath="$PROJECT_DIR$/trunk/ppMF_FloPy/ppMODFLOW_flopy_v3.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -62,7 +61,7 @@
     <option name="enabled" value="false" />
   </component>
   <component name="RunManager" selected="Python.startMarmites_v3">
-    <configuration name="PartitioningPictures2015_ALF" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+    <configuration name="Tg" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="MARMITES" />
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
@@ -70,11 +69,32 @@
         <env name="PYTHONUNBUFFERED" value="1" />
       </envs>
       <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="E:/00WIP/00MyPapers_ws/Enrico/Partitioning/DATA" />
-      <option name="IS_MODULE_SDK" value="false" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/trunk/MARMITESutilities" />
+      <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="E:/00WIP/00MyPapers_ws/Enrico/Partitioning/DATA/PartitioningPictures2015_ALF.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/trunk/MARMITESutilities/Tg.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="Tg4Maciek" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="MARMITES" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/trunk/MARMITESutilities" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/trunk/MARMITESutilities/Tg4Maciek.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -146,41 +166,20 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="testCBposition" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
-      <module name="MARMITES" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESplot" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESplot/testCBposition.py" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <option name="EMULATE_TERMINAL" value="false" />
-      <option name="MODULE_MODE" value="false" />
-      <option name="REDIRECT_INPUT" value="false" />
-      <option name="INPUT_FILE" value="" />
-      <method v="2" />
-    </configuration>
     <list>
       <item itemvalue="Python.startMarmites_v3" />
-      <item itemvalue="Python.testCBposition" />
-      <item itemvalue="Python.PartitioningPictures2015_ALF" />
       <item itemvalue="Python.test" />
       <item itemvalue="Python.pltET_RF" />
+      <item itemvalue="Python.Tg" />
+      <item itemvalue="Python.Tg4Maciek" />
     </list>
     <recent_temporary>
       <list>
         <item itemvalue="Python.startMarmites_v3" />
+        <item itemvalue="Python.Tg4Maciek" />
+        <item itemvalue="Python.Tg" />
         <item itemvalue="Python.pltET_RF" />
         <item itemvalue="Python.test" />
-        <item itemvalue="Python.PartitioningPictures2015_ALF" />
-        <item itemvalue="Python.testCBposition" />
       </list>
     </recent_temporary>
   </component>
