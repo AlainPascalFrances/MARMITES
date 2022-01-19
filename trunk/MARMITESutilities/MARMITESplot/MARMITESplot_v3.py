@@ -12,10 +12,10 @@ import os, itertools, shutil
 from matplotlib.sankey import Sankey
 
 
-#####################################
+#
 
 def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, plt_suptitle, plt_title, clr_lst, hmax,
-                   hmin, obs_name, l_obs, nsl, iniMonthHydroYear, date_ini, date_end):
+                   hmin, obs_name, l_obs, nsl, iniMonthHydroYear, date_ini, date_end, maxYearsTickTrimester = 5, maxYearsTickSemester = 10):
     """
     Plot the time series of the fluxes observed at one point of the catchment
     Use Matplotlib
@@ -45,21 +45,28 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     #    cUTIL = MMutils.clsUTILITIES(fmt = fmt_DH)
     #    date_ini, year_ini = cUTIL.compDATE_INI(cMF.inputDate[0], iniMonthHydroYear)
     #    date_end, year_end = cUTIL.compDATE_END(cMF.inputDate[-1], iniMonthHydroYear)
-    global l
-    date_ini -= 15
-    date_end += 15
-
+#    global l
     dateFmt = mpl.dates.DateFormatter('%Y-%b-%d')
     dateminorFmt = mpl.dates.DateFormatter('%b')
+    date_ini -= 15
+    date_end += 15
+    year_diff = np.round((date_end - date_ini)/365)
+    if year_diff<maxYearsTickTrimester:
+        nb_intervalos = 4
+    elif year_diff > maxYearsTickTrimester  and year_diff < maxYearsTickSemester:
+        nb_intervalos = 2
+    else:
+        nb_intervalos = 1
+    year_split = 12/nb_intervalos
     bymonth = []
-    month_tmp = 3
-    while len(bymonth) < 3:
-        if (iniMonthHydroYear + month_tmp) < 13:
-            bymonth.append(iniMonthHydroYear + month_tmp)
+    mult = 1
+    while len(bymonth) < nb_intervalos:
+        if (iniMonthHydroYear + mult*12/nb_intervalos) < 13:
+            bymonth.append(iniMonthHydroYear + mult*12/nb_intervalos)
         else:
-            bymonth.append(iniMonthHydroYear + month_tmp - 12)
-        month_tmp += 3
-    del month_tmp
+            bymonth.append(iniMonthHydroYear + mult*12/nb_intervalos - 12)
+        mult += 1
+    del nb_intervalos, mult
 
     lblspc = 0.05
     mkscale = 1.0
@@ -302,10 +309,11 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
          '_'])
     dgwtMFmax = []
     for L in range(cMF.nlay):
-        dgwtMF = flx[flxIndex_lst[b'id_%d' % (L + 1)]]
-        dgwtMFmax.append(np.max(dgwtMF))
-        plt.plot_date(cMF.inputDate, dgwtMF, next(lines), color='b', markersize=2, markevery=7,
-                      label=flxLbl[flxIndex_lst[b'id_%d' % (L + 1)]])
+        if cMF.h_plt[L] == 1:
+            dgwtMF = flx[flxIndex_lst[b'id_%s' % cMF.h_lbl[L].encode('ASCII')]] #b'id_%d' % (L + 1)]]
+            dgwtMFmax.append(np.max(dgwtMF))
+            plt.plot_date(cMF.inputDate, dgwtMF, next(lines), color='b', markersize=2, markevery=7,
+                      label=flxLbl[flxIndex_lst[b'id_%s' % cMF.h_lbl[L].encode('ASCII')]])
     plt.plot_date(cMF.inputDate, flx[flxIndex_lst[b'idcorr']], '--', c='g', markersize=2, markevery=7,
                   label=flxLbl[flxIndex_lst[b'idcorr']])
     try:
@@ -368,8 +376,9 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
         ['-', '--', '-.', ':', '.', ',', 'o', 'v', '^', '<', '>', 's', 'p', '*', 'h', 'H', '+', 'x', 'D', 'd', '|',
          '_'])
     for L in range(cMF.nlay):
-        plt.plot_date(cMF.inputDate, flx[flxIndex_lst[b'ih_%d' % (L + 1)]], next(lines), color='b',
-                      markersize=2, markevery=7, label=flxLbl[flxIndex_lst[b'ih_%d' % (L + 1)]])
+        if cMF.h_plt[L] == 1:
+            plt.plot_date(cMF.inputDate, flx[flxIndex_lst[b'ih_%s' % cMF.h_lbl[L].encode('ASCII')]], next(lines), color='b',
+                      markersize=2, markevery=7, label=flxLbl[flxIndex_lst[b'ih_%s' % cMF.h_lbl[L].encode('ASCII')]])   # b'ih_%d' % (L + 1)]
     plt.plot_date(cMF.inputDate, flx[flxIndex_lst[b'ihcorr']], '--', color='g', markersize=2, markevery=7,
                   label=flxLbl[flxIndex_lst[b'ihcorr']])
     plt.plot_date(cMF.inputDate, flx[flxIndex_lst[b'ih_SF']], '-', color='r', markersize=2, markevery=7,
@@ -540,10 +549,11 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
          '_'])
     dgwtMFmax = []
     for L in range(cMF.nlay):
-        dgwtMFmax.append(np.max(flx[flxIndex_lst[b'id_%d' % (L + 1)]]))
-        plt.plot_date(cMF.inputDate, flx[flxIndex_lst[b'id_%d' % (L + 1)]], next(lines), color='b', markersize=2,
+        if cMF.h_plt[L] == 1:
+            dgwtMFmax.append(np.max(flx[flxIndex_lst[b'id_%s' % cMF.h_lbl[L].encode('ASCII')]]))  # b'id_%d' % (L + 1)
+            plt.plot_date(cMF.inputDate, flx[flxIndex_lst[b'id_%s' % cMF.h_lbl[L].encode('ASCII')]], next(lines), color='b', markersize=2,
                       markevery=7,
-                      label=flxLbl[flxIndex_lst[b'id_%d' % (L + 1)]])
+                      label=flxLbl[flxIndex_lst[b'id_%s' % cMF.h_lbl[L].encode('ASCII')]])  # b'id_%d' % (L + 1)
     plt.plot_date(cMF.inputDate, flx[flxIndex_lst[b'idcorr']], '--', c='g', markersize=2, markevery=7,
                   label=flxLbl[flxIndex_lst[b'idcorr']])
     try:
@@ -667,25 +677,33 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     plt.close()
 
 
-##################
+
 
 def plotTIMESERIES_flxGW(cMF, flx, flxLbl, flxIndex_lst, plt_export_fn, plt_title, iniMonthHydroYear, date_ini,
-                         date_end):
+                         date_end, maxYearsTickTrimester = 5, maxYearsTickSemester = 10):
     """
     Plot the time series of the fluxes observed from the whole catchment
     Use Matplotlib
     """
     dateFmt = mpl.dates.DateFormatter('%Y-%b-%d')
     dateminorFmt = mpl.dates.DateFormatter('%b')
+    year_diff = np.round((date_end - date_ini)/365)
+    if year_diff<maxYearsTickTrimester:
+        nb_intervalos = 4
+    elif year_diff >maxYearsTickTrimester and year_diff<maxYearsTickSemester:
+        nb_intervalos = 2
+    else:
+        nb_intervalos = 1
+    year_split = int(12/nb_intervalos)
     bymonth = []
-    month_tmp = 3
-    while len(bymonth) < 3:
-        if (iniMonthHydroYear + month_tmp) < 13:
-            bymonth.append(iniMonthHydroYear + month_tmp)
+    mult = 1
+    while len(bymonth) < nb_intervalos:
+        if (iniMonthHydroYear + mult*12/nb_intervalos) < 13:
+            bymonth.append(iniMonthHydroYear + mult*12/nb_intervalos)
         else:
-            bymonth.append(iniMonthHydroYear + month_tmp - 12)
-        month_tmp += 3
-    del month_tmp
+            bymonth.append(iniMonthHydroYear + mult*12/nb_intervalos - 12)
+        mult += 1
+    del nb_intervalos, mult
 
     lblspc = 0.05
     mkscale = 1.0
@@ -757,9 +775,9 @@ def plotTIMESERIES_flxGW(cMF, flx, flxLbl, flxIndex_lst, plt_export_fn, plt_titl
          '_'])
     ax1 = fig.add_subplot(8, 1, 4, sharex=ax0)
     for L in range(cMF.nlay):
-        plt.plot_date(cMF.inputDate, flx[flxIndex_lst[b'id_%d' % (L + 1)]], next(lines), color='b', markersize=2,
-                      markevery=7,
-                      label=flxLbl[flxIndex_lst[b'id_%d' % (L + 1)]])
+        if cMF.h_plt[L] == 1:
+            plt.plot_date(cMF.inputDate, flx[flxIndex_lst[b'id_%s' % cMF.h_lbl[L].encode('ASCII')]], next(lines), color='b', markersize=2,
+                      markevery=7, label=flxLbl[flxIndex_lst[b'id_%s' % cMF.h_lbl[L].encode('ASCII')]])  # b'id_%d' % (L + 1)
     # leg
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad=bdpd, handletextpad=hdltxtpd, ncol=2,
                columnspacing=colspc, numpoints=3)
@@ -824,27 +842,45 @@ def plotTIMESERIES_flxGW(cMF, flx, flxLbl, flxIndex_lst, plt_export_fn, plt_titl
     plt.close('all')
 
 
-##################
+
 
 def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin, iniMonthHydroYear, date_ini, date_end,
-                         flxIndex_lst, obs_catch=None, obs_catch_list=[0, 0, 0], TopSoilAverage=None, MF=None):
+                         flxIndex_lst, obs_catch=None, obs_catch_list=[0, 0, 0], TopSoilAverage=None, MF=None, maxYearsTickTrimester = 5, maxYearsTickSemester = 10):
     """
     Plot the time series of the fluxes observed from the whole catchment
     Use Matplotlib
     """
 
     # global Roobs_m, obs_h, l, hobs_m
+    # bymonth = []
+    # month_tmp = 3
+    # while len(bymonth) < 3:
+    #     if (iniMonthHydroYear + month_tmp) < 13:
+    #         bymonth.append(iniMonthHydroYear + month_tmp)
+    #     else:
+    #         bymonth.append(iniMonthHydroYear + month_tmp - 12)
+    #     month_tmp += 3
+    # del month_tmp
+
     dateFmt = mpl.dates.DateFormatter('%Y-%b-%d')
     dateminorFmt = mpl.dates.DateFormatter('%b')
+    year_diff = np.round((date_end - date_ini)/365)
+    if year_diff<maxYearsTickTrimester:
+        nb_intervalos = 4
+    elif year_diff > maxYearsTickTrimester and year_diff < maxYearsTickSemester:
+        nb_intervalos = 2
+    else:
+        nb_intervalos = 1
+    year_split = int(12/nb_intervalos)
     bymonth = []
-    month_tmp = 3
-    while len(bymonth) < 3:
-        if (iniMonthHydroYear + month_tmp) < 13:
-            bymonth.append(iniMonthHydroYear + month_tmp)
+    mult = 1
+    while len(bymonth) < nb_intervalos:
+        if (iniMonthHydroYear + mult*12/nb_intervalos) < 13:
+            bymonth.append(iniMonthHydroYear + mult*12/nb_intervalos)
         else:
-            bymonth.append(iniMonthHydroYear + month_tmp - 12)
-        month_tmp += 3
-    del month_tmp
+            bymonth.append(iniMonthHydroYear + mult*12/nb_intervalos - 12)
+        mult += 1
+    del nb_intervalos, mult
 
     lblspc = 0.05
     mkscale = 1.0
@@ -1102,8 +1138,9 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
         ax10 = fig.add_subplot(8, 1, 8, sharex=ax1)
         # ax10.set_autoscalex_on(False)
         for l in range(cMF.nlay):
-            i = b'id_%d' % (l + 1)
-            plt.plot_date(cMF.inputDate, flx[flxIndex_lst[i]], next(lines), color='b', markersize=2, markevery=7,
+            if cMF.h_plt[l] == 1:
+                i = b'id_%s' % cMF.h_lbl[l].encode('ASCII')
+                plt.plot_date(cMF.inputDate, flx[flxIndex_lst[i]], next(lines), color='b', markersize=2, markevery=7,
                           label=flxLbl[flxIndex_lst[i]])
         if obs_catch_list[0] == 1:
             obs_h = obs_catch.get('catch')['obs_h']
@@ -1219,7 +1256,12 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
         # ax1.set_autoscalex_on(True)
         # RMSE
         if obs_catch_list[0] == 1:
-            i = b'ih_%d' % (l + 1)
+            l = 0
+            for a in cMF.h_plt:
+                if a == 1:
+                    i = b'ih_%s' % cMF.h_lbl[l].encode('ASCII')  #b'ih_%d' % (l + 1)
+                    break
+                l += 1
             if sum(flx[flxIndex_lst[i]]) != 0.0:
                 rmse, rsr, nse, r = cMF.cPROCESS.compCalibCrit(flx[flxIndex_lst[i]], obs_h[0], cMF.hnoflo)
                 rmseHEADS = [rmse]
@@ -1234,8 +1276,9 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
                 print('Warning!\nERROR computing h calibration criteria')
                 rmseHEADS = rsrHEADS = nseHEADS = rHEADS = None
         for l in range(cMF.nlay):
-            i = b'ih_%d' % (l + 1)
-            plt.plot_date(cMF.inputDate, flx[flxIndex_lst[i]], next(lines), color='b', markersize=2, markevery=7,
+            if cMF.h_plt[l] == 1:
+                i = b'ih_%s' % cMF.h_lbl[l].encode('ASCII')
+                plt.plot_date(cMF.inputDate, flx[flxIndex_lst[i]], next(lines), color='b', markersize=2, markevery=7,
                           label=flxLbl[flxIndex_lst[i]])
         if obs_catch_list[0] == 1:
             ax1.plot_date(cMF.inputDate, hobs_m, 'o', markerfacecolor='None', markeredgecolor='LightBlue',
@@ -1306,7 +1349,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
     return rmseHEADS, rmseSM, rsrHEADS, rsrSM, nseHEADS, nseSM, rHEADS, rSM
 
 
-##################
+
 
 def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_title, MM_ws,
               interval_type=b'arange', interval_diff=1, interval_num=1, Vmax=0, Vmin=0, fmt=None, contours=False,
@@ -1443,12 +1486,12 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
                                 ax[l].annotate(label, xy=(xj, yi - 0.15), fontsize=8, ha='center', va='bottom')
                     ims[F].append(ax[l].pcolormesh(xg, yg, Vtmp, cmap=cmap, norm=norm))
                     if ctrs_tmp == True:
-                        try:
-                            CS = ax[l].contour(xg1, yg1[::-1], Vtmp[::-1], ticks, colors='gray')
-                            plt.draw()
-                            ax[l].clabel(CS, inline=1, fontsize=6, fmt=fmt, colors='gray')
-                        except:
-                            print('Error in drawing contours for map %s' % plt_title)
+                        #try:
+                        CS = ax[l].contour(xg1, yg1[::-1], Vtmp[::-1], ticks, colors='gray')
+                        plt.draw()
+                        ax[l].clabel(CS, inline=1, fontsize=6, fmt=fmt, colors='gray')
+                        #except:
+                        #    print('Error in drawing contours for map %s' % plt_title)
                     if np.ma.max(Vtmp) > np.ma.min(Vtmp):
                         ax[l].set_title('layer %d' % (L + 1), fontsize=10, y=-0.1, fontweight='bold')
                     else:
@@ -1550,7 +1593,7 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
     plt.close('all')
 
 
-##################
+
 
 def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_MM, obspt, fntitle, ibound4Sankey,
                  stdout=None, report=None):
@@ -1640,7 +1683,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
             FRF[k][ML - 1] += mult * np.sum(np.float16(flx[flxIndex[b'iFRF_%d' % (L + 1)]][i:indexend]))
             FFF[k][ML - 1] += mult * np.sum(np.float16(flx[flxIndex[b'iFFF_%d' % (L + 1)]][i:indexend]))
             if cMF.nlay > 1:
-                FLF[k][ML - 1] += mult * np.sum(np.float16(flx[flxIndex[b'iFLF_%d' % (L + 1)]][i:indexend]))
+                FLF[k][ML - 1] += mult * np.ma.masked_invalid(np.float32(flx[flxIndex[b'iFLF_%d' % (L + 1)]][i:indexend])).sum()
             EXF[k][ML - 1] += mult * np.sum(np.float16(flx[flxIndex[b'iEXFg_%d' % (L + 1)]][i:indexend]))
             if cMF.wel_yn == 1:
                 if ncell_MM[L] > 0:
@@ -1660,7 +1703,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
     #    prt_test = 0
     for f in [0, 1]:
         for k in range(len(RF)):
-            # print '-------'
+            # print('-------')
             if k == 0:
                 title = "Average of the %d hydrological year(s)" % len(indexTime[1:-2])
             else:
@@ -1685,7 +1728,6 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
             #            if cMF.ghb_yn == 1:
             #                lbl_tmp += 'GHB %s' % (np.asarray(GHB[k])/ff)
             # print '\nMMsurf: RF %s, I %s, TF %s, Esurf %s, DSsurf %s\nMMsoil: Esoil %s, Tsoil %s, ETsoil %s, Ro %s, Rp %s, DSsoil  %s\nUZF: Rg %s, DSu %s\nMF: Eg %s, Tg %s, ETg %s, %s, EXF  %s, FLF %s, dSg %s' % (RF[k]/ff, I[k]/ff, TF[k]/ff, Esurf[k]/ff, DSsurf[k]/ff, Esoil[k]/ff, Tsoil[k]/ff, ETsoil[k]/ff, Ro[k]/ff, Rp[k]/ff, DSsoil[k]/ff, (np.asarray(Rg[k])/ff), DSu[k]/ff, (np.asarray(Eg[k])/ff), (np.asarray(Tg[k])/ff), ETg[k]/ff, lbl_tmp, (np.asarray(EXF[k])/ff), (np.asarray(FLF[k])/ff), (np.asarray(dSg[k])/ff))
-            ##print(title)
             treshold = 5E-2  # 5E-2
             if k == 0 or k % 2 != 0:
                 fig = plt.figure(figsize=(8.27, 11.7), dpi=72)
@@ -1815,8 +1857,9 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
             # MF
             # about signs, read MF-2005 manual pag 3-10
             MB_MF = []
-            ##print('\nSANKEY TIME!--------\n%s'%obspt)
-            ##print("ibound4Sankey: %s" % ibound4Sankey)
+            #print('--------\nSANKEY TIME!\n%s'%obspt)
+            #print(title)
+            #print("ibound4Sankey: %s" % ibound4Sankey)
             L_act = 0
             lst_colors = []
             for L in range(cMF.Mnlay):
@@ -1831,6 +1874,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                     # first layer
                     if L_act == 0:
                         ##print("First layer")
+                        FirstLayer = 1
                         if L == (cMF.Mnlay - 1):
                             if cMF.Mnlay > 1:
                                 flows = [Rg[k][L] / ff, -FLF[k][L] / ff, -FRF[k][L] / ff, -FFF[k][L] / ff]
@@ -1857,7 +1901,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                         ##print("labels: %s" % labels)
                         ##print("flows: %s" % flows)
                     # last layer
-                    elif L_act == (cMF.Mnlay - 1):
+                    elif L_act == (sum(ibound4Sankey)-1): #(cMF.Mnlay - 1):
                         ##print("Last layer")
                         flows = [FLF[k][L - 1] / ff, Rg[k][L] / ff, -FRF[k][L] / ff, -FFF[k][L] / ff]
                         if np.abs(Rg[k][L]) > treshold:
@@ -1865,13 +1909,16 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                             labels = [None, '$Rg_%d$' % (L + 1), '$FRF$', '$FFF$']
                             orientations = [1, 1, 0, 0]
                             pathlengths = [pl * 4, pl, pl, pl * 4]
-                            #connect = (2, 0)
                             connect = (1, 0)
                         else:
                             #flows = [FLF[k][L - 1] / ff, 0.0, -FRF[k][L] / ff, -FFF[k][L] / ff]
                             labels = [None, '', '$FRF$', '$FFF$']
                             orientations = [1, 1, 0, 0]
                             pathlengths = [pl * 4, pl, pl, pl * 4]
+                            if FirstLayer == 1:
+                                connect = (1, 0)
+                            else:
+                                connect = (2, 0)
                             #if np.abs(Rg[k][L - 1]) > treshold:
                             #    connect = (2, 0)
                             #else:
@@ -1886,30 +1933,35 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                     else:
                         # intermediary layers
                         ##print("intermediary layer")
+                        FirstLayer = 0
                         flows = [FLF[k][L - 1] / ff, Rg[k][L] / ff, -FLF[k][L] / ff, -FRF[k][L] / ff,
                                  -FFF[k][L] / ff]
-                        if np.abs(Rg[k][L]) > treshold:
-                            #flows = [FLF[k][L - 1] / ff, Rg[k][L] / ff, -FLF[k][L] / ff, -FRF[k][L] / ff,
-                                     #-FFF[k][L] / ff]
-                            labels = [None, None, '$FLF$', '$FRF$',
-                                      '$FFF$']  # labels=[None, None, '$\Delta S_g$', '$FLF$', '$FRF$', '$FFF$']
-                            orientations = [1, 1, -1, 0, 0]
-                            pathlengths = [pl, pl, pl, pl, pl * 4]
-                            #rch = True
-                        else:
-                            #flows = [FLF[k][L - 1] / ff, 0.0, -FLF[k][L] / ff, -FRF[k][L] / ff, -FFF[k][L] / ff]
-                            labels = [None, '$FLF$', '$FRF$',
-                                      '$FFF$']  # labels=[None, None, '$\Delta S_g$', '$FLF$', '$FRF$', '$FFF$']
-                            orientations = [1, 1, -1, 0, 0]
-                            pathlengths = [pl, pl, pl, pl, pl * 4]
-                            #rch = False
+                        labels = [None, None, '$FLF$', '$FRF$',
+                                  '$FFF$']  # labels=[None, None, '$\Delta S_g$', '$FLF$', '$FRF$', '$FFF$']
+                        orientations = [1, 1, -1, 0, 0]
+                        pathlengths = [pl, pl, pl, pl, pl * 4]
+                        # if np.abs(Rg[k][L]) > treshold:
+                        #     #flows = [FLF[k][L - 1] / ff, Rg[k][L] / ff, -FLF[k][L] / ff, -FRF[k][L] / ff,
+                        #              #-FFF[k][L] / ff]
+                        #     labels = [None, None, '$FLF$', '$FRF$',
+                        #               '$FFF$']  # labels=[None, None, '$\Delta S_g$', '$FLF$', '$FRF$', '$FFF$']
+                        #     orientations = [1, 1, -1, 0, 0]
+                        #     pathlengths = [pl, pl, pl, pl, pl * 4]
+                        #     #rch = True
+                        # else:
+                        #     #flows = [FLF[k][L - 1] / ff, 0.0, -FLF[k][L] / ff, -FRF[k][L] / ff, -FFF[k][L] / ff]
+                        #     labels = [None, '$FLF$', '$FRF$',
+                        #               '$FFF$']  # labels=[None, None, '$\Delta S_g$', '$FLF$', '$FRF$', '$FFF$']
+                        #     orientations = [1, 1, -1, 0, 0]
+                        #     pathlengths = [pl, pl, pl, pl, pl * 4]
+                        #     #rch = False
                         if L_act == 1:
                             connect = (1, 0)  # (prior, this)
                         else:
-                            if np.abs(Rg[k][L - 1]) > treshold:
-                                connect = (2, 0)
-                            else:
-                                connect = (1, 0)
+                            #if np.abs(Rg[k][L - 1]) > treshold:
+                            connect = (2, 0)
+                            #else:
+                            #    connect = (1, 0)
                         if FLF[k][L] > 0.0:
                             Out.append(FLF[k][L])
                         else:
@@ -1939,84 +1991,84 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                     else:
                         Out.append(-dSg[k][L])
                     # EXF
-                    flows.append(EXF[k][L] / ff)
-                    orientations.append(1)
+                    #flows.append(EXF[k][L] / ff)
+                    #orientations.append(1)
                     if np.abs(EXF[k][L]) > treshold:
-                        #flows.append(EXF[k][L] / ff)
+                        flows.append(EXF[k][L] / ff)
                         labels.append('$Exf_g$')
-                        #orientations.append(1)
+                        orientations.append(1)
                         pathlengths.append(pl)
-                    else:
-                        labels.append('')
-                        pathlengths.append(pl)
+                    #else:
+                    #    labels.append('')
+                    #    pathlengths.append(pl)
                     Out.append(-EXF[k][L])
                     # Eg
                     if cMF.wel_yn == 1:
-                        flows.append(-Eg[k][L] / ff)
-                        orientations.append(1)
+                        #flows.append(-Eg[k][L] / ff)
+                        #orientations.append(1)
                         if np.abs(Eg[k][L]) > treshold:
-                            #flows.append(-Eg[k][L] / ff)
+                            flows.append(-Eg[k][L] / ff)
                             labels.append('$E_g$')
-                            #orientations.append(1)
+                            orientations.append(1)
                             pathlengths.append(pl)
-                        else:
-                            labels.append('')
-                            pathlengths.append(pl)
+                        #else:
+                        #    labels.append('')
+                        #    pathlengths.append(pl)
                         Out.append(Eg[k][L])
                     # Tg   
                     if cMF.wel_yn == 1:
-                        flows.append(-Tg[k][L] / ff)
-                        orientations.append(1)
+                        #flows.append(-Tg[k][L] / ff)
+                        #orientations.append(1)
                         if np.abs(Tg[k][L]) > treshold:
-                            #flows.append(-Tg[k][L] / ff)
+                            flows.append(-Tg[k][L] / ff)
                             labels.append('$T_g$')
-                            #orientations.append(1)
+                            orientations.append(1)
                             pathlengths.append(pl)
-                        else:
-                            labels.append('')
-                            pathlengths.append(pl)
+                        #else:
+                        #    labels.append('')
+                        #    pathlengths.append(pl)
                         Out.append(Tg[k][L])
                     # DRN
                     if cMF.drn_yn == 1:
-                        flows.append(DRN[k][L] / ff)
-                        orientations.append(1)
+                        #flows.append(DRN[k][L] / ff)
+                        #orientations.append(1)
                         if np.abs(DRN[k][L]) > treshold:
-                            #flows.append(DRN[k][L] / ff)
+                            flows.append(DRN[k][L] / ff)
                             labels.append('$DRN$')
-                            #orientations.append(1)
+                            orientations.append(1)
                             pathlengths.append(pl)
-                        else:
-                            labels.append('')
-                            pathlengths.append(pl)
+                        #else:
+                        #    labels.append('')
+                        #   pathlengths.append(pl)
                         Out.append(-DRN[k][L])
                     # GHB
                     if cMF.ghb_yn == 1:
-                        flows.append(GHB[k][L] / ff)
-                        orientations.append(1)
+                        #flows.append(GHB[k][L] / ff)
+                        #orientations.append(1)
                         if np.abs(GHB[k][L]) > treshold:
-                            #flows.append(GHB[k][L] / ff)
+                            flows.append(GHB[k][L] / ff)
                             labels.append('$GHB$')
-                            #orientations.append(1)
+                            orientations.append(1)
                             pathlengths.append(pl)
-                        else:
-                            labels.append('')
-                            pathlengths.append(pl)
+                        #else:
+                        #    labels.append('')
+                        #    pathlengths.append(pl)
                         if GHB[k][L] < 0.0:
                             Out.append(-GHB[k][L])
                         else:
                             In.append(GHB[k][L])
                     # CH
                     if len(cMF.ibound[cMF.ibound < 0]) > 0:
-                        flows.append(CH[k][L] / ff)
-                        orientations.append(1)
+                        #flows.append(CH[k][L] / ff)
+                        #orientations.append(1)
                         if np.abs(CH[k][L]) > treshold:
-                            #flows.append(CH[k][L] / ff)
+                            flows.append(CH[k][L] / ff)
                             labels.append('$CH$')
-                            #orientations.append(1)
+                            orientations.append(1)
                             pathlengths.append(pl)
-                        else:
-                            labels.append('')
-                            pathlengths.append(pl)
+                        #else:
+                        #    labels.append('')
+                        #    pathlengths.append(pl)
                         if CH[k][L] < 0.0:
                             Out.append(-CH[k][L])
                         else:
@@ -2033,7 +2085,13 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                     L_act += 1
                 else:
                     MB_MF.append(np.nan)
-                ##print("L_act: %s" % L_act)
+                    ##print("----")
+                    ##print("L: %s, L_act: %s" % (L, L_act))
+                    ##print("ibound4Sankey[%d] = 0, nothing happens in L = %d" % (L, L))
+                if L_act < sum(ibound4Sankey):
+                    ##print("Next L_act: %s" % L_act)
+                else:
+                    ##print("Concluded!")
             # plot all patches
             diagrams = pltsankey.finish()
             diagrams[-1].patch.set_hatch('/')
@@ -2087,7 +2145,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
     # print '-------'
 
 
-##################
+
 
 def plotCALIBCRIT(calibcritSM, calibcritSMobslst, calibcritHEADS, calibcritHEADSobslst, calibcritHEADSc,
                   calibcritHEADScobslst, plt_export_fn, plt_title, calibcrit, calibcritSMmax=None,
@@ -2249,7 +2307,7 @@ def plotCALIBCRIT(calibcritSM, calibcritSMobslst, calibcritHEADS, calibcritHEADS
         # TODO export a table with calib. crit. results
 
 
-##################
+
 if __name__ == "__main__":
     print('\nWARNING!\nStart MARMITES-MODFLOW models using the script startMARMITES_v3.py\n')
 

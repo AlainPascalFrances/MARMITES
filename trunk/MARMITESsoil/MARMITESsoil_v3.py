@@ -1,4 +1,4 @@
-    # -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """
 MARMITES is a distributed depth-wise lumped-parameter model for
 spatio-temporal assessment of water fluxes in the unsaturated zone.

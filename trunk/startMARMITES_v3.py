@@ -19,9 +19,9 @@ __date__ = "2012"
 
 import sys, os, h5py, shutil, glob, itertools
 import matplotlib as mpl
-
 if mpl.get_backend != 'agg':
     mpl.use('agg')
+mpl.rcParams['agg.path.chunksize'] = 50000
 import matplotlib.pyplot as plt
 
 plt.ioff()
@@ -129,7 +129,16 @@ try:
     if iniMonthHydroYear < 1 or iniMonthHydroYear > 12:
         print('\nWARNING!\nInvalid starting month of the hydrologic year. Please correct your input (currently %d) to a value between 1 and 12 inclusive. The starting month was now defined as October (10).' % iniMonthHydroYear)
         iniMonthHydroYear = 10
+    # max number of time series (in years) with trimesters minor grid
     l += 1
+    maxYearsTickTrimester = int(inputFile[l].strip())
+    #  max number of time series (in years) with semester minor grid
+    l += 1
+    maxYearsTickSemester = int(inputFile[l].strip())
+    l += 1
+    if maxYearsTickTrimester > maxYearsTickSemester:
+        maxYearsTickTrimester = 5
+        maxYearsTickSemester  = 10
     # map of inputs (1 is YES, 0 is NO)
     plt_input = int(inputFile[l].strip())
     l += 1
@@ -1550,11 +1559,14 @@ if obs is not None:
                 cUTIL.ErrorExit('\nFATAL ERROR!\nInvalid MODFLOW HDF5 file. Run MARMITES and/or MODFLOW again.',
                                 stdout=stdout,
                                 report=report)
-            h_MF_m = np.ma.masked_values(np.ma.masked_values(h5_MF['heads_d'], cMF.hnoflo, atol=0.09), cMF.hdry,
+            hmaxMF_tmp = []
+            hminMF_tmp = []
+            for l in range(cMF.nlay):
+                h_MF_m = np.ma.masked_values(np.ma.masked_values(h5_MF['heads_d'][:, l, :, :], cMF.hnoflo, atol=0.09), cMF.hdry,
                                          atol=1E+25)
-            hmaxMF_tmp = np.ma.max(h_MF_m[:, l, i, j].flatten())
-            hminMF_tmp = np.ma.min(h_MF_m[:, l, i, j].flatten())
-            del h_MF_m
+                hmaxMF_tmp.append(np.ma.max(h_MF_m[:, i, j].flatten()))
+                hminMF_tmp.append(np.ma.min(h_MF_m[:, i, j].flatten()))
+                del h_MF_m
             h5_MF.close()
         else:
             hmaxMF_tmp = -9999.9
@@ -1567,8 +1579,8 @@ if obs is not None:
         else:
             hmaxMM = -9999.9
             hminMM = 9999.9
-        hmax.append(np.ma.max((hmaxMF_tmp, hmaxMM)))
-        hmin.append(np.ma.min((hminMF_tmp, hminMM)))
+        hmax.append(max(np.ma.max(hmaxMF_tmp), hmaxMM))
+        hmin.append(min(np.ma.min(hminMF_tmp), hminMM))
         hdiff.append(hmax[x] - hmin[x])
         x += 1
     hdiff = np.ma.max(hdiff)
@@ -1621,7 +1633,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
     for e in sorted(index_MM, key=index_MM.get): flx_lst.append(e)
     flxLbl_lst = [r'$RF$', r'$PT$', r'$PE$', r'$TF$', r'$S_{surf}$', r'$Ro$', r'$Exf_g$', r'$E_{surf}$',
                   r'$MB_{soil}$', r'$I$', r'$E_o$', r'$E_g$', r'$T_g$', r'$\Delta S_{surf}$', r'$ET_g$', r'$ET_{soil}$',
-                  r'$\theta$', r'\Delta S_{soil}', r'$perc$', r'$h \ corr$', '$d$', r'$thick_p}$', r'$Inf$',
+                  r'$\theta$', r'\Delta S_{soil}', r'$perc$', r'$h \/corr$', '$d$', r'$thick_p$', r'$Inf$',
                   r'$MB_{surf}$']
     for z, (i, i_tex) in enumerate(zip(flx_lst, flxLbl_lst)):
         flxIndex_lst[i] = count
@@ -1766,22 +1778,23 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
         del array_tmp, array_tmp1, rch_tmp, rch_tot, cbc_RCH
         for L in range(cMF.nlay):
             # ADD heads averaged
-            flxLbl_lst.append(r'$h_{%d}$' % (L + 1))
-            array_tmp = np.ma.masked_values(np.ma.masked_values(h5_MF['heads_d'][:, L, :, :], cMF.hnoflo, atol=0.09), cMF.hdry,
-                                         atol=1E+25)
-            array_tmp1 = np.sum(array_tmp, axis=1)
-            flxCatch_lst.append(np.sum(array_tmp1, axis=1) / ncell_MF[L])
-            i = b'ih_%d' % (L + 1)
-            flxIndex_lst[i] = count
-            count += 1
-            del array_tmp
-            # ADD depth GWT
-            flxLbl_lst.append(r'$d_{%d}$' % (L + 1))
-            flxCatch_lst.append(flxCatch_lst[-1] - TopSoilAverage)
-            i = b'id_%d' % (L + 1)
-            flxIndex_lst[i] = count
-            count += 1
-            del array_tmp1
+            if cMF.h_plt[L] == 1:
+                flxLbl_lst.append(r'$h_{%s}$' % cMF.h_lbl[L]) #r'$h_{%d}$' % (L + 1))
+                array_tmp = np.ma.masked_values(np.ma.masked_values(h5_MF['heads_d'][:, L, :, :], cMF.hnoflo, atol=0.09), cMF.hdry,
+                                             atol=1E+25)
+                array_tmp1 = np.sum(array_tmp, axis=1)
+                flxCatch_lst.append(np.sum(array_tmp1, axis=1) / ncell_MF[L])
+                i = b'ih_%s' % cMF.h_lbl[L].encode('ASCII')  #b'ih_%d' % (L + 1)
+                flxIndex_lst[i] = count
+                count += 1
+                del array_tmp
+                # ADD depth GWT
+                flxLbl_lst.append(r'$d_{%s}$' % cMF.h_lbl[L])    #r'$d_{%d}$' % (L + 1))
+                flxCatch_lst.append(flxCatch_lst[-1] - TopSoilAverage)
+                i = b'id_%s' % cMF.h_lbl[L].encode('ASCII')  #b'id_%d' % (L + 1)
+                flxIndex_lst[i] = count
+                count += 1
+                del array_tmp1
         for L in range(cMF.nlay):
             # GW_STO
             cbc_STO = h5_MF['STO_d'][:, L, :, :]
@@ -1910,7 +1923,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                 cMF, flxCatch_lst, flxLbl_lst, plt_exportCATCH_fn, plt_titleCATCH, hmax=hmaxMF, hmin=hminMF,
                 iniMonthHydroYear=iniMonthHydroYear, date_ini=DATE[HYindex[1]], date_end=DATE[HYindex[-2]],
                 flxIndex_lst=flxIndex_lst, obs_catch=obs_catch, obs_catch_list=obs_catch_list,
-                TopSoilAverage=TopSoilAverage, MF=1)
+                TopSoilAverage=TopSoilAverage, MF=1, maxYearsTickTrimester = maxYearsTickTrimester, maxYearsTickSemester = maxYearsTickSemester)
             print('TS plot done!')
         except:
             print('TS plot error!')
@@ -1930,12 +1943,12 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
     # export average time series of fluxes in txt
     plt_exportCATCH_txt_fn = os.path.join(MM_ws_out, '_0CATCHMENT_ts4sankey.txt')
     plt_exportCATCH_txt = open(plt_exportCATCH_txt_fn, 'w')
-    flxlbl_CATCH_str = r'Date'
+    flxlbl_CATCH_str = '"Date'
     for e in flxLbl_lst:
-        flxlbl_CATCH_str += ',' + e
-    flxlbl_CATCH_str += ',%s' % '$h \ obs$'
-    flxlbl_CATCH_str += ',%s' % '$\theta \ obs$'
-    flxlbl_CATCH_str += ',%s' % '$\\Ro \ obs$'
+        flxlbl_CATCH_str += '","' + e
+    flxlbl_CATCH_str += '","%s' % '$h \/ obs$'
+    flxlbl_CATCH_str += '","%s' % '$theta \/ obs$'
+    flxlbl_CATCH_str += '","%s"' % '$Ro \/ obs$'
     plt_exportCATCH_txt.write(flxlbl_CATCH_str)
     plt_exportCATCH_txt.write('\n')
     for t in range(len(cMF.inputDate)):
@@ -2065,7 +2078,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                     for e in sorted(index_MM, key=index_MM.get): flx_lst.append(e)
                     flxLbl_lst = [r'$RF$', r'$PT$', r'$PE$', r'$TF$', r'$S_{surf}$', r'$Ro$', r'$Exf_g$', r'$E_{surf}$',
                                   r'$MB_{soil}$', r'$I$', r'$E_o$', r'$E_g$', r'$T_g$', r'$\Delta S_{surf}$', r'$ET_g$',
-                                  r'$ET_{soil}$', r'$\theta$', r'\Delta S_{soil}', r'$perc$', r'$h \ corr$', '$d$', r'$thick_p}$',
+                                  r'$ET_{soil}$', r'$\theta$', r'\Delta S_{soil}', r'$perc$', r'$h \/ corr}$', '$d$', r'$thick_p$',
                                   r'$Inf$', r'$MB_{surf}$']
                     for ii in flx_lst:
                         flxObs_lst.append((MM[:, index_MM.get(ii)]))
@@ -2116,17 +2129,18 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                         del flx_lst
                     # h
                     for L in range(cMF.nlay):
-                        flxLbl_lst.append(r'$h_{%d}$' % (L + 1))
-                        flxObs_lst.append(np.ma.masked_values(np.ma.masked_values(h5_MF['heads_d'][:, L, i, j], cMF.hnoflo, atol=0.09),
-                                            cMF.hdry, atol=1E+25))
-                        flxIndex_lst[b'ih_%d' % (L + 1)] = count
-                        count += 1
-                        # ADD depth GWT
-                        flxLbl_lst.append(r'$d_{%d}$' % (L + 1))
-                        flxObs_lst.append(flxObs_lst[-1] - cMF.elev[i, j])
-                        flxIndex_lst[b'id_%d' % (L + 1)] = count
-                        count += 1
-                        # h SATFLOW
+                        if cMF.h_plt[L] == 1:
+                            flxLbl_lst.append(r'$h_{%s}$' % cMF.h_lbl[L])   #(r'$h_{%d}$' % (L + 1))
+                            flxObs_lst.append(np.ma.masked_values(np.ma.masked_values(h5_MF['heads_d'][:, L, i, j], cMF.hnoflo, atol=0.09),
+                                                cMF.hdry, atol=1E+25))
+                            flxIndex_lst[b'ih_%s' % cMF.h_lbl[L].encode('ASCII')] = count   # b'ih_%d' % (L + 1)
+                            count += 1
+                            # ADD depth GWT
+                            flxLbl_lst.append(r'$d_{%s}$' % cMF.h_lbl[L])      #r'$d_{%d}$' % (L + 1))
+                            flxObs_lst.append(flxObs_lst[-1] - cMF.elev[i, j])
+                            flxIndex_lst[b'id_%s' % cMF.h_lbl[L].encode('ASCII')] = count  # b'id_%d' % (L + 1)
+                            count += 1
+                    # h SATFLOW
                     flxLbl_lst.append(r'$hSF$')
                     flxObs_lst.append(h_satflow)
                     flxIndex_lst[b'ih_SF'] = count
@@ -2137,17 +2151,17 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                     flxIndex_lst[b'id_SF'] = count
                     count += 1
                     # depth GWT HEADS corr
-                    flxLbl_lst.append(r'$d \ corr$')
+                    flxLbl_lst.append(r'$d \/ corr$')
                     flxObs_lst.append(flxObs_lst[flxIndex_lst[b'ihcorr']] - cMF.elev[i, j])
                     flxIndex_lst[b'idcorr'] = count
                     count += 1
                     # h obs
                     if obs_h_tmp is not None:
-                        flxLbl_lst.append(r'$h \ obs$')
+                        flxLbl_lst.append(r'$h \/ obs$')
                         flxObs_lst.append(np.ma.masked_values(obs_h_tmp, cMF.hnoflo, atol=0.09))
                         flxIndex_lst[b'ihobs'] = count
                         count += 1
-                        flxLbl_lst.append(r'$d \ obs$')
+                        flxLbl_lst.append(r'$d \/ obs$')
                         flxObs_lst.append(np.ma.masked_values(obs_h_tmp, cMF.hnoflo, atol=0.09) - cMF.elev[i, j])
                         flxIndex_lst[b'idobs'] = count
                         count += 1
@@ -2155,14 +2169,14 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                     # S obs
                     for l in range(nsl):
                         if obs_S_tmp[l] is not None:
-                            flxLbl_lst.append(r'$\theta_{%d} \ obs$' % (l + 1))
+                            flxLbl_lst.append(r'$\theta_{%d} \/ obs$' % (l + 1))
                             flxObs_lst.append(np.ma.masked_values(obs_S_tmp[l], cMF.hnoflo, atol=0.09))
                             flxIndex_lst[b'iSobs_%d' % (l + 1)] = count
                             count += 1
                     del obs_S_tmp
                     # Roobs
                     if obs_Ro_tmp is not None:
-                        flxLbl_lst.append(r'$Ro \ obs$')
+                        flxLbl_lst.append(r'$Ro \/ obs$')
                         flxObs_lst.append(np.ma.masked_values(obs_Ro_tmp, cMF.hnoflo, atol=0.09))
                         flxIndex_lst[b'iRoobs'] = count
                         count += 1
@@ -2308,8 +2322,8 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                                               max(hmax), min(hmin),
                                               o, l_obs, nsl,
                                               iniMonthHydroYear, date_ini=DATE[HYindex[1]],
-                                              date_end=DATE[HYindex[-2]]
-                                              )
+                                              date_end=DATE[HYindex[-2]],
+                                              maxYearsTickTrimester = maxYearsTickTrimester, maxYearsTickSemester = maxYearsTickSemester)
                         print('TS plot done!')
                     except:
                        print('TS plot error!')
@@ -2317,7 +2331,8 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                     try:
                         MMplot.plotTIMESERIES_flxGW(cMF, flxObs_lst, flxLbl_lst, flxIndex_lst, plt_export_fn,
                                                 plt_suptitle, iniMonthHydroYear=iniMonthHydroYear,
-                                                date_ini=DATE[HYindex[1]], date_end=DATE[HYindex[-2]])
+                                                date_ini=DATE[HYindex[1]], date_end=DATE[HYindex[-2]],
+                                                maxYearsTickTrimester = maxYearsTickTrimester, maxYearsTickSemester = maxYearsTickSemester)
                         print('TS GW plot done!')
                     #if len(fl_error)>0:
                     #    print('Error in flux values, hnofl assigned!')
@@ -2326,19 +2341,31 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                     #    print('flux')
                     #    print(fl_error_label)
                     except:
-                        print('TS GW error!')
+                        print('TS GW plot error!')
                     # plot water balance at each obs. cell
                     if WBsankey_yn == 1:
                         try:
                             # TODO rever ibound4Sankey  = cMF.Mnlay
+                            ibound4Sankey = np.zeros(cMF.Mnlay)
+                            l = 0
+                            #print(len(cMF.Mlay))
+                            #print("l=%d" % l)
+                            for Ml in range(cMF.Mnlay):
+                                while cMF.Mlay[l] == (Ml + 1):
+                                    if abs(cMF.ibound[l, i, j]) == 1:
+                                        ibound4Sankey[Ml] = 1
+                                    l += 1
+                                    #print("l=%d"%l)
+                                    if l == len(cMF.Mlay):
+                                        break
                             MMplot.plotWBsankey(MM_ws_out, cMF.inputDate, flxObs_lst, flxIndex_lst,
                                                 fn=plt_export_txt_fn.split('\\')[-1], indexTime=HYindex,
                                                 year_lst=year_lst, cMF=cMF, ncell_MM=ncell_MM, obspt='obs. pt. %s' % o,
-                                                fntitle='0%s' % o, ibound4Sankey=np.abs(cMF.ibound)[:, i, j],
+                                                fntitle='0%s' % o, ibound4Sankey=ibound4Sankey,
                                                 stdout=stdout, report=report)
                             print('WB Sankey plot done!')
                         except:
-                            print('WB Sankey plot error!')
+                           print('WB Sankey plot error!')
 
                     # CALIBRATION CRITERIA
                     # RMSE, RSR, Nash-Sutcliffe efficiency NSE, Pearson's correlation coefficient r

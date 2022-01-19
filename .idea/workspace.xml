@@ -5,10 +5,12 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="d22c9b79-29ab-4d63-9d08-5417fd7bbef7" name="Default" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/MARMITES.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/MARMITES.iml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/Tg.py" beforeDir="false" afterPath="$PROJECT_DIR$/trunk/MARMITESutilities/Tg.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/Tg4Maciek.py" beforeDir="false" afterPath="$PROJECT_DIR$/trunk/MARMITESutilities/Tg4Maciek.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESsoil/MARMITESsoil_v3.py" beforeDir="false" afterPath="$PROJECT_DIR$/trunk/MARMITESsoil/MARMITESsoil_v3.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESplot/MARMITESplot_v3.py" beforeDir="false" afterPath="$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESplot/MARMITESplot_v3.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/trunk/ppMF_FloPy/ppMODFLOW_flopy_v3.py" beforeDir="false" afterPath="$PROJECT_DIR$/trunk/ppMF_FloPy/ppMODFLOW_flopy_v3.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/trunk/startMARMITES_v3.py" beforeDir="false" afterPath="$PROJECT_DIR$/trunk/startMARMITES_v3.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -35,13 +37,16 @@
     </file-type-list>
   </component>
   <component name="HighlightingSettingsPerFile">
-    <setting file="file://$PROJECT_DIR$/trunk/MARMITESsurf/startMARMITESsurface.py" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESprocess_v3.py" root0="FORCE_HIGHLIGHTING" />
-    <setting file="file://$PROJECT_DIR$/trunk/ppMF_FloPy/ppMODFLOW_flopy_v3.py" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESplot/MARMITESplot_v3.py" root0="FORCE_HIGHLIGHTING" />
-    <setting file="file://$PROJECT_DIR$/trunk/startMarmites_v3.py" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/trunk/ppMF_FloPy/ppMODFLOW_flopy_v3.py" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/trunk/MARMITESsoil/MARMITESsoil_v3.py" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/trunk/startMarmites_v3.py" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/trunk/MARMITESutilities/MARMITESutilities.py" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/trunk/MARMITESsurf/startMARMITESsurface.py" root0="FORCE_HIGHLIGHTING" />
+  </component>
+  <component name="MarkdownSettingsMigration">
+    <option name="stateVersion" value="1" />
   </component>
   <component name="ProblemsViewState">
     <option name="selectedIndex" value="2" />
@@ -207,7 +212,6 @@
         </entry>
       </map>
     </option>
-    <option name="oldMeFiltersMigrated" value="true" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -223,6 +227,13 @@
           <option name="timeStamp" value="9" />
         </line-breakpoint>
       </breakpoints>
+      <default-breakpoints>
+        <breakpoint type="python-exception">
+          <properties notifyOnTerminate="true" exception="BaseException">
+            <option name="notifyOnTerminate" value="true" />
+          </properties>
+        </breakpoint>
+      </default-breakpoints>
     </breakpoint-manager>
   </component>
 </project>
