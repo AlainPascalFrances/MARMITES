@@ -1576,8 +1576,8 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
         batch_fn = os.path.join(MM_ws, 'run.bat')
         f = open(batch_fn, 'w')
         f.write(
-            'ffmpeg -r 1 -i %s -s:v 1280x720 -c:v libx264 -profile:v high -crf 23 -pix_fmt yuv420p -r 30 -y %s_mov.mp4' % (
-                '%s\%%%%05d.png' % (MM_ws), '%s\%s_%s' % (MM_ws, pref_plt_title, plt_title)))
+            r'ffmpeg -r 1 -i %s -s:v 1280x720 -c:v libx264 -profile:v high -crf 23 -pix_fmt yuv420p -r 30 -y %s_mov.mp4' % (
+                r'%s\%%%%05d.png' % (MM_ws), '%s\%s_%s' % (MM_ws, pref_plt_title, plt_title)))
         f.close()
         run_report_fn = os.path.join(MM_ws, '__FFmpegRunReport.txt')
         run_report = open(run_report_fn, 'w')
@@ -1732,9 +1732,9 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
             if k == 0 or k % 2 != 0:
                 fig = plt.figure(figsize=(8.27, 11.7), dpi=72)
                 if f == 0:
-                    fig.suptitle('Water balance ($mm.y^{-1}$) - %s\n' % obspt, fontsize=10, y=0.99)
+                    fig.suptitle("Water balance ($mm.y^{-1}$) - %s\n" % obspt, fontsize=10, y=0.99)
                 else:
-                    fig.suptitle('Water balance ($\%%$ of yearly rainfall) - %s\n' % obspt, fontsize=10, y=0.99)
+                    fig.suptitle(r"Water balance ($\%%$ of yearly rainfall)" " - %s\n" % obspt, fontsize=10, y=0.99)
                 ax = []
                 ax.append(fig.add_subplot(2, 1, 1, xticks=[], yticks=[]))
                 y = 0.530
@@ -1767,7 +1767,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                 labels = [None, '$Inf$', '', '$E_{surf}$', '$Ro$']
                 orientations = [1, -1, -1, 1, 0]
                 pathlengths = [pl, pl, 0, pl, pl]
-            pltsankey.add(patchlabel='$\Delta S_{surf}$\n%.1f' % (-dSsurf[k] / ff), label='MMsurf',
+            pltsankey.add(patchlabel=r"$\Delta S_{surf}$" "\n%.1f" % (-dSsurf[k] / ff), label='MMsurf',
                           facecolor='lightblue', trunklength=tl,
                           flows=flows,
                           labels=labels,
@@ -1808,7 +1808,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                     labels = [None, '$R_p$', '', '$E_{soil}$', '$T_{soil}$']
                     orientations = [1, -1, 1, 1, 1]
                     pathlengths = [pl, pl, 0, pl, pl]
-            pltsankey.add(patchlabel='$\Delta S_{soil}$\n%.1f' % (dSsoil[k] / ff),
+            pltsankey.add(patchlabel=(r"$\Delta S_{soil}$" "\n%.1f" % (dSsoil[k] / ff)),
                           label='MMsoil', facecolor='khaki', trunklength=tl,
                           flows=flows,
                           labels=labels,
@@ -1838,7 +1838,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                         labels.append('')
                     orientations.append(-1)
                     pathlengths.append(pl)
-            pltsankey.add(patchlabel='$\Delta S_p$\n%.1f' % (dSu[k] / ff), label='MF_UZF', facecolor='lavender',
+            pltsankey.add(patchlabel=r"$\Delta S_p$" "\n%.1f" % (dSu[k] / ff), label='MF_UZF', facecolor='lavender',
                           trunklength=tl,
                           flows=flows,
                           labels=labels,
@@ -2078,7 +2078,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                     ##print("connect: %s" % (connect,))
                     ##print("facecolor: %s" % (facecolor,))
                     ##print("dSg %s" % (dSg[k][L]))
-                    pltsankey.add(patchlabel='$\Delta S_g$\n%.1f' % (-dSg[k][L] / ff), label='MF_ML%d' % (L + 1),
+                    pltsankey.add(patchlabel=r"$\Delta S_g$" "\n%.1f" % (-dSg[k][L] / ff), label='MF_ML%d' % (L + 1),
                                   facecolor=facecolor, trunklength=tl, flows=flows, labels=labels,
                                   orientations=orientations, pathlengths=pathlengths, prior=3 + L_act, connect=connect)
                     MB_MF.append(100 * (sum(In) - sum(Out)) / ((sum(In) + sum(Out)) / 2))
@@ -2088,9 +2088,9 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                     ##print("----")
                     ##print("L: %s, L_act: %s" % (L, L_act))
                     ##print("ibound4Sankey[%d] = 0, nothing happens in L = %d" % (L, L))
-                if L_act < sum(ibound4Sankey):
+                #if L_act < sum(ibound4Sankey):
                     ##print("Next L_act: %s" % L_act)
-                else:
+                #else:
                     ##print("Concluded!")
             # plot all patches
             diagrams = pltsankey.finish()
@@ -2137,9 +2137,9 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
             if k % 2 == 0 or k == len(RF) - 1:
                 plt.subplots_adjust(left=0.05, bottom=0.10, right=0.95, top=0.95, wspace=0.01, hspace=0.1)
                 if f == 0:
-                    plt_export_fn = os.path.join(path, '_%s_WBsanley%s.png' % (fntitle, msg))
+                    plt_export_fn = os.path.join(path, '_%s_WBsankey%s.png' % (fntitle, msg))
                 else:
-                    plt_export_fn = os.path.join(path, '_%s_WBsanley%s_pc.png' % (fntitle, msg))
+                    plt_export_fn = os.path.join(path, '_%s_WBsankey%s_pc.png' % (fntitle, msg))
                 plt.savefig(plt_export_fn, dpi=150)
         plt.close('all')
     # print '-------'

@@ -99,7 +99,8 @@ class clsMMsoil:
                         'silt'            : {'dll':31.0,'y0':0.007,'b':0.021, 'ext_d':430.0},
                         'silty clay loam' : {'dll':40.0,'y0':0.007,'b':0.021, 'ext_d':450.0},
                         'clay'            : {'dll':45.0,'y0':0.006,'b':0.019, 'ext_d':620.0},
-                        'sandy loam field': {'dll':100.0,'y0':0.000,'b':0.013, 'ext_d':475.0}
+                        'sandy loam field_enrico': {'dll':100.0,'y0':0.000,'b':0.013, 'ext_d':475.0},
+                        'sandy loam field': {'dll':115.6,'y0':0.004,'b':0.013, 'ext_d':1000.0}
                        }
                      #                        'custom'          : {'dll':100.0,'y0':0.00,'b':0.013, 'ext_d':330.0}
 #####################

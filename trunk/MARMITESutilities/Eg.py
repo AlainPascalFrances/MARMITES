@@ -68,7 +68,7 @@ ax1=fig.add_subplot(2,2,1)
 plt.setp(ax1.get_xticklabels(), fontsize=8)
 plt.setp(ax1.get_yticklabels(), fontsize=8)
 for l, (x, lbl, col) in enumerate(zip(GWET, lbls, ['black','black','black','black','grey','grey'])) :
-    ax1.plot(x, dtwt/100.0, lines.next(), color = col, label=lbl)
+    ax1.plot(x, dtwt/100.0, next(lines), color = col, label=lbl)
 ax1.plot(GWET_pts, d_pts, 'o', color = 'grey', label = 'field/HYDRUS data')
 plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale)
 leg = plt.gca().get_legend()
@@ -98,6 +98,6 @@ ax1.set_ylim(ax1.get_ylim()[::-1])
 #ax5.set_ylim(ax5.get_ylim()[::-1])
 
 #plt.show()
-img_path = 'Eg_function_201603'
+img_path = 'Eg_function_202208'
 plt.savefig(img_path,dpi=300)
-print 'Plot printed:\n%s' % img_path
+print('Plot printed:\n%s' % img_path)

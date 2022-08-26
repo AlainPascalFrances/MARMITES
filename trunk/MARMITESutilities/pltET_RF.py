@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 
 #####################
 #input section
-ws_fn = r'E:\00code_ws\LaMata_new_PhD_artigo_2s2L\out_202110100955_2s2L_2013_SySsdim_DRN0p9_Kh1_full_1stSS_3runs'
+ws_fn = r'E:\00WIP\00MyPapers_ws\MMMFalgorithm\FrontiersWater' #E:\00code_ws\LaMata_new_PhD_artigo_2s2L\out_202110100955_2s2L_2013_SySsdim_DRN0p9_Kh1_full_1stSS_3runs'
 # read input files
 TXT_in_fnn = 'Eddy_MM_202110.csv'
 
@@ -220,7 +220,7 @@ del labels
 ax1.set_xlim(date_ini,date_end)
 
 #plt.show()
-plt_export_fn = '%s\%s_.png' % (ws_fn, TXT_in_fnn.split('.')[0])
+plt_export_fn = '%s\%s.png' % (ws_fn, TXT_in_fnn.split('.')[0])
 plt.subplots_adjust(left=0.10, bottom=0.10, right=0.95, top=0.95, wspace=0.1, hspace=0.1)
 plt.savefig(plt_export_fn,dpi=150)
 print('Plot printed:\n%s' % plt_export_fn)
