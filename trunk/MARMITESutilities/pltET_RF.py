@@ -16,6 +16,9 @@ import matplotlib as mpl
 if mpl.get_backend!='agg':
     mpl.use('agg')
 import matplotlib.pyplot as plt
+mpl.rcParams['mathtext.fontset'] = 'stix'
+#matplotlib.rcParams['font.family'] = 'STIXGeneral'
+mpl.pyplot.legend(r'ABC123 vs $\mathrm{ABC123}^{123}$')
 
 #####################
 #input section
@@ -36,6 +39,8 @@ RF     = data[:,3].astype(float)
 ET_ECT  = data[:,4].astype(float)
 Ro_MM  = data[:,5].astype(float)
 Ro_obs = data[:,6].astype(float)
+bF_obs = data[:,7].astype(float)
+Rof_obs = data[:,8].astype(float)
 
 # end of reading data from TXT file
 
@@ -113,8 +118,18 @@ def compCalibCrit(sim, obs, hnoflo):
 hnoflo = 99999.99
 ECT = np.where(~np.isnan(ET_ECT),ET_ECT,hnoflo)
 MM = np.where(~np.isnan(ET_MM),ET_MM,hnoflo)
-print('ET_MM vs ET_ECT\nrmse, rsr, nse, r')
+Ro_MM1 = np.where(~np.isnan(Ro_MM),Ro_MM,hnoflo)
+Ro_obs1 = np.where(~np.isnan(Ro_obs),Ro_obs,hnoflo)
+bF_obs1 = np.where(~np.isnan(bF_obs),bF_obs,hnoflo)
+Rof_obs1 = np.where(~np.isnan(Rof_obs),Rof_obs,hnoflo)
+print('\nET_MM vs ET_ECT\nrmse, rsr, nse, r')
 print('%.2f, %.2f, %.2f, %.2f' % compCalibCrit(ECT, MM, hnoflo))
+print('\nRo vs flume obs\nrmse, rsr, nse, r')
+print('%.2f, %.2f, %.2f, %.2f' % compCalibCrit(Ro_obs1, Ro_MM1, hnoflo))
+print('\nRo vs bF flume obs\nrmse, rsr, nse, r')
+print('%.2f, %.2f, %.2f, %.2f' % compCalibCrit(bF_obs1, Ro_MM1, hnoflo))
+print('\nRo vs flume obs compiled\nrmse, rsr, nse, r')
+print('%.2f, %.2f, %.2f, %.2f\n' % compCalibCrit(Rof_obs1, Ro_MM1, hnoflo))
 
 dateFmt=mpl.dates.DateFormatter('%Y-%b-%d')
 dateminorFmt=mpl.dates.DateFormatter('%b')
@@ -127,68 +142,128 @@ colspc = 0.1
 plt_suptitle = 'ET ECT vs ET MM + RF' 
 iniMonthHydroYear = 10
 date_ini = mpl.dates.datestr2num('2008-10-01')-15
-date_end = mpl.dates.datestr2num('2010-09-30')+15
+date_end = mpl.dates.datestr2num('2013-09-30')+15
 
-fig = plt.figure(num=None, figsize=(8.27, 11.7), dpi = 60)    #(8.5,15), dpi=30)
+fig = plt.figure(num=None, figsize=(8.27, 11.7), dpi = 150)    #(8.5,15), dpi=30)
 fig.suptitle(plt_suptitle)
 
-# # Ro
-# ax0=fig.add_subplot(8,1,1) #8,1,1
-# plt.setp(ax0.get_xticklabels(), visible = False)
-# plt.setp(ax0.get_yticklabels(), fontsize=8)
-# plt.plot_date(date,Ro_MM,fmt = '-', c='blue', linewidth=1.0, label = 'MM')
-# plt.ylabel('$Ro$ (mm)', fontsize=10)
-# plt.plot_date(date,Ro_obs, marker='o', ls = 'None', color = 'lightblue', markeredgecolor = 'green', markerfacecolor = 'lightgreen', markersize = 2, label = 'flume') # ls='--', color = 'blue'
-# ymax = np.ma.max(np.ma.masked_invalid(Ro_obs))
-# plt.ylim(0, 0.6)
-# plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 2, columnspacing = colspc, numpoints = 5)
-# leg = plt.gca().get_legend()
-# ltext  = leg.get_texts()
-# plt.setp(ltext, fontsize=8)
-# ax0.grid(b=True, which='major', axis = 'both')
-# ax0.xaxis.grid(b=True, which='minor', color='0.65')
-# ax0.xaxis.set_major_formatter(dateFmt)
-# ax0.xaxis.set_major_locator(mpl.dates.YearLocator(1, month = iniMonthHydroYear, day = 1))
-# bymonth = []
-# month_tmp = 3
-# while len(bymonth)<3:
-#    if (iniMonthHydroYear+month_tmp) <13:
-#        bymonth.append(iniMonthHydroYear+month_tmp)
-#    else:
-#        bymonth.append(iniMonthHydroYear+month_tmp - 12)
-#    month_tmp += 3
-# del month_tmp
-# ax0.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth = bymonth))
-# ax0.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
-# plt.setp(ax0.get_xticklabels(minor=True), visible=False)
+# Ro compiled
+ax0=fig.add_subplot(8,1,1) #8,1,1
+plt.setp(ax0.get_xticklabels(), visible = False)
+plt.setp(ax0.get_yticklabels(), fontsize=8)
+plt.plot_date(date,Ro_MM,fmt = '-', c='blue', linewidth=1.0, label = '$Ro$')
+plt.ylabel('$Ro$ (mm)', fontsize=10)
+plt.plot_date(date,Rof_obs, marker='o', ls = 'None', color = 'lightblue', markeredgecolor = 'green', markerfacecolor = 'lightgreen', markersize = 2, label = '$Ro \ obs$') # ls='--', color = 'blue'
+ymax = np.ma.max(np.ma.masked_invalid(Rof_obs))
+plt.ylim(0, 0.6)
+plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 1, columnspacing = colspc, numpoints = 5)
+leg = plt.gca().get_legend()
+ltext  = leg.get_texts()
+plt.setp(ltext, fontsize=8)
+ax0.grid(visible=True, which='major', axis = 'both')
+ax0.xaxis.grid(visible=True, which='minor', color='0.65')
+ax0.xaxis.set_major_formatter(dateFmt)
+ax0.xaxis.set_major_locator(mpl.dates.YearLocator(1, month = iniMonthHydroYear, day = 1))
+bymonth = []
+month_tmp = 3
+while len(bymonth)<3:
+   if (iniMonthHydroYear+month_tmp) <13:
+       bymonth.append(iniMonthHydroYear+month_tmp)
+   else:
+       bymonth.append(iniMonthHydroYear+month_tmp - 12)
+   month_tmp += 3
+del month_tmp
+ax0.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
+ax0.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth = bymonth))
+plt.setp(ax0.get_xticklabels(minor=True), visible=False)
+
+# bF
+ax2=fig.add_subplot(8,1,4, sharex=ax0) #8,1,1
+plt.setp(ax2.get_xticklabels(), visible = True)
+plt.setp(ax2.get_yticklabels(), fontsize=8)
+plt.plot_date(date,Ro_MM,fmt = '-', c='blue', linewidth=1.0, label = '$Ro$')
+plt.ylabel('$Ro$ (mm)', fontsize=10)
+plt.plot_date(date,bF_obs, marker='o', ls = 'None', color = 'lightblue', markeredgecolor = 'green', markerfacecolor = 'lightgreen', markersize = 2, label = '$Ro \ obs$') # ls='--', color = 'blue'
+ymax = np.ma.max(np.ma.masked_invalid(bF_obs))
+plt.ylim(0, 0.6)
+plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 1, columnspacing = colspc, numpoints = 5)
+leg = plt.gca().get_legend()
+ltext  = leg.get_texts()
+plt.setp(ltext, fontsize=8)
+ax2.grid(visible=True, which='major', axis = 'both')
+ax2.xaxis.grid(visible=True, which='minor', color='0.65')
+ax2.xaxis.set_major_formatter(dateFmt)
+ax2.xaxis.set_major_locator(mpl.dates.YearLocator(1, month = iniMonthHydroYear, day = 1))
+bymonth = []
+month_tmp = 3
+while len(bymonth)<3:
+   if (iniMonthHydroYear+month_tmp) <13:
+       bymonth.append(iniMonthHydroYear+month_tmp)
+   else:
+       bymonth.append(iniMonthHydroYear+month_tmp - 12)
+   month_tmp += 3
+del month_tmp
+ax2.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth = bymonth))
+ax2.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
+plt.setp(ax2.get_xticklabels(minor=True), visible=False)
+
+# Ro
+ax3=fig.add_subplot(8,1,6, sharex=ax0) #8,1,1
+plt.setp(ax2.get_xticklabels(), visible = True)
+plt.setp(ax2.get_yticklabels(), fontsize=8)
+plt.plot_date(date,Ro_MM,fmt = '-', c='blue', linewidth=1.0, label = '$Ro$')
+plt.ylabel('$Ro$ (mm)', fontsize=10)
+plt.plot_date(date,Ro_obs, marker='o', ls = 'None', color = 'lightblue', markeredgecolor = 'green', markerfacecolor = 'lightgreen', markersize = 2, label = '$Ro \ obs$') # ls='--', color = 'blue'
+ymax = np.ma.max(np.ma.masked_invalid(Ro_obs))
+plt.ylim(0, 0.6)
+plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 1, columnspacing = colspc, numpoints = 5)
+leg = plt.gca().get_legend()
+ltext  = leg.get_texts()
+plt.setp(ltext, fontsize=8)
+ax3.grid(visible=True, which='major', axis = 'both')
+ax3.xaxis.grid(visible=True, which='minor', color='0.65')
+ax3.xaxis.set_major_formatter(dateFmt)
+ax3.xaxis.set_major_locator(mpl.dates.YearLocator(1, month = iniMonthHydroYear, day = 1))
+bymonth = []
+month_tmp = 3
+while len(bymonth)<3:
+   if (iniMonthHydroYear+month_tmp) <13:
+       bymonth.append(iniMonthHydroYear+month_tmp)
+   else:
+       bymonth.append(iniMonthHydroYear+month_tmp - 12)
+   month_tmp += 3
+del month_tmp
+ax3.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth = bymonth))
+ax3.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
+plt.setp(ax3.get_xticklabels(minor=True), visible=False)
 
 # ET
-ax1=fig.add_subplot(4,1,1) #8,1,2, sharex=ax0)
+ax1=fig.add_subplot(8,1,2, sharex=ax0)  # only PET 4,1,1)
 plt.setp(ax1.get_xticklabels(), fontsize=8)
 plt.setp(ax1.get_yticklabels(), fontsize=8)
-plt1a = plt.plot_date(date,ET_ECT, fmt = '-', c='red', linewidth=1.0, label='ECT')
-plt1b = plt.plot_date(date,ET_MM, fmt = '-', c='orange', linewidth=1.0, label='MM')
+plt1a = plt.plot_date(date,ET_ECT, fmt = '-', c='red', linewidth=1.0, label='$ET \ obs$')
+plt1b = plt.plot_date(date,ET_MM, fmt = '-', c='orange', linewidth=1.0, label='$ET$')
 plt.xlabel('Date', fontsize=10)
 plt.ylabel('$ET$ (mm)', fontsize=10)
 ax1.set_ylim(0.0,6.0)
 
 ax2 = ax1.twinx()
-plt2a = ax2.bar(date,RF,color='darkblue', linewidth=0, align = 'center', label='RF')
+plt2a = ax2.bar(date,RF,color='darkblue', linewidth=0, align = 'center', label='$RF$')
 for tl in ax2.get_yticklabels():
     tl.set_color('darkblue')
     tl.set_fontsize(8)
 plt.ylabel('$RF$ (mm)', fontsize=10, color = 'darkblue')
 ax2.set_ylim(0,60)
 plt.gca().invert_yaxis()
-plts =  plt1a + plt1b + [plt2a]
+plts =  plt1b + plt1a + [plt2a]
 labs = [l.get_label() for l in plts]
-plt.legend(plts, labs, loc=6, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 3, columnspacing = colspc, numpoints = 5)
+plt.legend(plts, labs, loc=6, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 1, columnspacing = colspc, numpoints = 5)
 leg = plt.gca().get_legend()
 ltext  = leg.get_texts()
 plt.setp(ltext, fontsize=8)
 
-ax1.grid(b=True, which='major', axis = 'both')
-ax1.xaxis.grid(b=True, which='minor', color='0.65')
+ax1.grid(visible=True, which='major', axis = 'both')
+ax1.xaxis.grid(visible=True, which='minor', color='0.65')
 ax1.xaxis.set_major_formatter(dateFmt)
 ax1.xaxis.set_major_locator(mpl.dates.YearLocator(1, month = iniMonthHydroYear, day = 1))
 bymonth = []
@@ -200,13 +275,12 @@ while len(bymonth)<3:
         bymonth.append(iniMonthHydroYear+month_tmp - 12)
     month_tmp += 3
 del month_tmp
-ax1.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth = bymonth))
 ax1.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
-plt.setp(ax1.get_xticklabels(minor=True), visible=False)
+ax1.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth = bymonth))
+plt.setp(ax1.get_xticklabels(which='both'), visible=True)
 
-
-ax1.grid(b=True, which='major', axis = 'both')
-ax1.xaxis.grid(b=True, which='minor', color='0.65')
+ax1.grid(visible=True, which='major', axis = 'both')
+ax1.xaxis.grid(visible=True, which='minor', color='0.65')
 plt.setp(ax1.get_xticklabels(minor=True), visible=True)
 plt.xlabel('Date', fontsize=10)
 labels=ax1.get_xticklabels()
@@ -220,7 +294,7 @@ del labels
 ax1.set_xlim(date_ini,date_end)
 
 #plt.show()
-plt_export_fn = '%s\%s.png' % (ws_fn, TXT_in_fnn.split('.')[0])
-plt.subplots_adjust(left=0.10, bottom=0.10, right=0.95, top=0.95, wspace=0.1, hspace=0.1)
+plt_export_fn = '%s\%s_Ro_bF.png' % (ws_fn, TXT_in_fnn.split('.')[0])
+plt.subplots_adjust(left=0.10, bottom=0.10, right=0.9, top=0.95, wspace=0.1, hspace=0.1)
 plt.savefig(plt_export_fn,dpi=150)
 print('Plot printed:\n%s' % plt_export_fn)

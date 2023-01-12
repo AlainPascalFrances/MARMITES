@@ -93,9 +93,10 @@ import PET_RF_INTER, plotPET, plotRF
     # 13 - TRANS_vdw: transition period between dry and wet season [days]
     # 14 - TRANS_vwd: transition period between wet and dry season [days]
     # 15 - Zr: maximum root depth [m]
-    # 16 - kT_min: transpiration sourcing factor min [], 1>=k_T>0
-    # 17 - kT_max: transpiration sourcing factor max [], 1<k_T<=0
-    # 18 - kT_n: transpiration sourcing factor power value [], n>0
+    # 16 - kTg_min: transpiration sourcing factor min [], 1>=k_T>0
+    # 17 - kTg_max: transpiration sourcing factor max [], 1<k_T<=0
+    # 18 - kT_f: transpiration sourcing factor f [], phi>f>wp
+    # 19 - kT_s: transpiration sourcing factor slope [], 1>s>0
     # BY DEFAULT THE PROGRAM WILL COMPUTE ETref USING GRASS FAO56 PARAMETERS
     # grassFAO56 0.12 0.12 0.1 0.01 2.88 2.88 0.5 0.5 0.23 0.23 150 270 20 20 0.25 0.01 0.011 2.0
     # VEG1 (grass muelledes)
@@ -119,9 +120,10 @@ import PET_RF_INTER, plotPET, plotRF
     # 5 - f_s_c: shelter factor []
     # 6 - alfa_c: vegetation albedo []
     # 7 - Zr_c: maximum root depth [m]
-    # 8 - kT_min_c: transpiration sourcing factor min [], 1>=k_Tu>0
-    # 9 - kT_max: transpiration sourcing factor max [], 1<k_T<=0
-    # 10 - kT_n_c: transpiration sourcing factor power value [], n>0
+    # 8 - kTg_min_c: transpiration sourcing factor min [], 1>=k_Tu>0
+    # 9 - kTg_max: transpiration sourcing factor max [], 1<k_T<=0
+    # 10 - kT_f_c: transpiration sourcing factor [], phi>f>wp
+    # 11 - kT_s_c: transpiration sourcing factor slope [], 1>s>0
     # CROP1 (alfafa) # CHANGE PARAMETERS WITH FAO56
     #alfafa 1.0 0.15 0.010 3.5 0.55 0.15 0.40 0.01 0.011 2.0
     # CROP2 (wheat)  # CHANGE PARAMETERS WITH FAO56
@@ -164,7 +166,7 @@ import PET_RF_INTER, plotPET, plotRF
 
 def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, pathMMws, outMMsurf_fn, MMsurf_plot = 0, inputFile_IRR_TS_fn = None):
 
-    global J_d, datenumOUT, input_TS_crop_irr_fn, kT_n_c, kT_max_c, kT_min_c, Zr_c, inputZON_TS_PT_irr_fn, inputZON_TS_TF_irr_fn, inputZON_TS_RF_irr_fn, NCROP, kT_n, kT_max, kT_min, Zr, LAI_veg_d, inputZONTF_irr, inputZONRF_irr, inputZONPT_irr, v, alfa_w, fc, por, C_leaf_star_v, S_w_v, z_h, z_m, FC, Lz, Z, Lm, phi, Rs, u_z_m, Pa, RHa, Ta, RF, f_s_c, alfa_c, datenum_d, IRR_TS, SoilType, alfa_sw, alfa_sd, J_sw, J_sd, NSOIL, f_s_vw, f_s_vd, alfa_vw, alfa_vd, NVEG, f, data_IRR_TS, NFIELD, datenum, Rs1, u_z_m1, Pa1, RHa1, Ta1, RF1, actual_day, datetime_i, datetime, time, date, NMETEO, DTS, dataMETEOTS, line, l
+    global J_d, datenumOUT, input_TS_crop_irr_fn, kT_f_c, kT_s_c, kTg_max_c, kTg_min_c, Zr_c, inputZON_TS_PT_irr_fn, inputZON_TS_TF_irr_fn, inputZON_TS_RF_irr_fn, NCROP, kT_f, kT_s, kTg_max, kTg_min, Zr, LAI_veg_d, inputZONTF_irr, inputZONRF_irr, inputZONPT_irr, v, alfa_w, fc, por, C_leaf_star_v, S_w_v, z_h, z_m, FC, Lz, Z, Lm, phi, Rs, u_z_m, Pa, RHa, Ta, RF, f_s_c, alfa_c, datenum_d, IRR_TS, SoilType, alfa_sw, alfa_sd, J_sw, J_sd, NSOIL, f_s_vw, f_s_vd, alfa_vw, alfa_vd, NVEG, f, data_IRR_TS, NFIELD, datenum, Rs1, u_z_m1, Pa1, RHa1, Ta1, RF1, actual_day, datetime_i, datetime, time, date, NMETEO, DTS, dataMETEOTS, line, l
 
     def ExportResults(name, ws, row1, Dates, J, TS, ts_output = 0, n_d = [], TypeFile = "PET"):
         """
@@ -265,9 +267,10 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
         TRANS_vdw = [] # transition period between dry and wet season [days]
         TRANS_vwd = [] # transition period between wet and dry season [days]
         Zr = [] # maximum root depth [m]
-        kT_min = [] #transpiration sourcing factor min [], 1>=k_Tu>0
-        kT_max = [] #transpiration sourcing factor max [], 1<k_Tu<=0
-        kT_n = [] # transpiration sourcing factor power value [], n>0
+        kTg_min = [] #transpiration sourcing factor min [], 1>=k_Tu>0
+        kTg_max = [] #transpiration sourcing factor max [], 1<k_Tu<=0
+        kT_f = [] # transpiration sourcing factor
+        kT_s = []  # transpiration sourcing factor
         # input FAO56 grass parameters
         VegName.append("grassFAO56")
         h_vd.append(0.12)
@@ -285,9 +288,10 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
         TRANS_vdw.append(1)
         TRANS_vwd.append(1)
         Zr.append(0.25)
-        kT_min.append(0.01)
-        kT_max.append(0.011)
-        kT_n.append(2.0)
+        kTg_min.append(0.05)
+        kTg_max.append(0.10)
+        kT_f.append(0.5)
+        kT_s.append(1.0)
         if NVEG>0:
             for i in range(NVEG):
                 l = l + 1
@@ -325,11 +329,13 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
                 e += 1
                 Zr.append(float(line[e]))
                 e += 1
-                kT_min.append(float(line[e]))
+                kTg_min.append(float(line[e]))
                 e += 1
-                kT_max.append(float(line[e]))
+                kTg_max.append(float(line[e]))
                 e += 1
-                kT_n.append(float(line[e]))
+                kT_f.append(float(line[e]))
+                e += 1
+                kT_s.append(float(line[e]))
                 del e
         NVEG = NVEG + 1 # number of vegetation types + FAO56 GRASS (default)
         #CROP PARAMETERS
@@ -347,9 +353,10 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
         f_s_c = [] # shelter factor []
         alfa_c = [] # vegetation albedo in wet season
         Zr_c = [] # maximum root depth [m]
-        kT_min_c = [] #transpiration sourcing factor min [], 1>=k_Tu>0
-        kT_max_c = [] #transpiration sourcing factor min [], 1<k_Tu<=0
-        kT_n_c = [] # transpiration sourcing factor power value [], n>0
+        kTg_min_c = [] #transpiration sourcing factor min [], 1>=k_Tu>0
+        kTg_max_c = [] #transpiration sourcing factor min [], 1<k_Tu<=0
+        kT_f_c = [] # transpiration sourcing factor
+        kT_s_c = []  # transpiration sourcing factor
         if NCROP > 0:
             for i in range(NCROP):
                 l = l + 1
@@ -371,11 +378,13 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
                 e += 1
                 Zr_c.append(float(line[e]))
                 e += 1
-                kT_min_c.append(float(line[e]))
+                kTg_min_c.append(float(line[e]))
                 e += 1
-                kT_max_c.append(float(line[e]))
+                kTg_max_c.append(float(line[e]))
                 e += 1
-                kT_n_c.append(float(line[e]))
+                kT_f_c.append(float(line[e]))
+                e += 1
+                kT_s_c.append(float(line[e]))
                 del e
         # SOIL PARAMETERS
         l = l + 1
@@ -1022,15 +1031,18 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
     outFileExport.write('\n# Zr\n')
     for v in range(1,NVEG):
         outFileExport.write(str(Zr[v])+' ')
-    outFileExport.write('\n# kT_min\n')
+    outFileExport.write('\n# kTg_min\n')
     for v in range(1,NVEG):
-        outFileExport.write(str(kT_min[v])+' ')
-    outFileExport.write('\n# kT_max\n')
+        outFileExport.write(str(kTg_min[v])+' ')
+    outFileExport.write('\n# kTg_max\n')
     for v in range(1,NVEG):
-        outFileExport.write(str(kT_max[v])+' ')
-    outFileExport.write('\n# kT_n\n')
+        outFileExport.write(str(kTg_max[v])+' ')
+    outFileExport.write('\n# kT_f\n')
     for v in range(1,NVEG):
-        outFileExport.write(str(kT_n[v])+' ')
+        outFileExport.write(str(kT_f[v])+' ')
+    outFileExport.write('\n# kT_s\n')
+    for v in range(1,NVEG):
+        outFileExport.write(str(kT_s[v])+' ')
     if IRR_TS != None:
         outFileExport.write('\n# NCROP: number of crop types\n')
         outFileExport.write(str(NCROP))
@@ -1045,15 +1057,18 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
         outFileExport.write('\n# Zr_c\n')
         for f in range(NCROP):
             outFileExport.write(str(Zr_c[f])+' ')
-        outFileExport.write('\n# kT_min_c\n')
+        outFileExport.write('\n# kTg_min_c\n')
         for f in range(NCROP):
-            outFileExport.write(str(kT_min_c[f])+' ')
-        outFileExport.write('\n# kT_max_c\n')
+            outFileExport.write(str(kTg_min_c[f])+' ')
+        outFileExport.write('\n# kTg_max_c\n')
         for f in range(NCROP):
-            outFileExport.write(str(kT_max_c[f])+' ')            
-        outFileExport.write('\n# kT_n_c\n')
+            outFileExport.write(str(kTg_max_c[f])+' ')
+        outFileExport.write('\n# kT_f_c\n')
         for f in range(NCROP):
-            outFileExport.write(str(kT_n_c[f])+' ')
+            outFileExport.write(str(kT_f_c[f])+' ')
+        outFileExport.write('\n# kT_s_c\n')
+        for f in range(NCROP):
+            outFileExport.write(str(kT_s_c[f]) + ' ')
         outFileExport.write('\n# input_TS_crop_irr_fn: field crop time series\n')
         outFileExport.write(input_TS_crop_irr_fn)
 

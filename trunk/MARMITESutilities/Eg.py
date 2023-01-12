@@ -9,11 +9,14 @@
 # Licence:     <your licence>
 #-------------------------------------------------------------------------------
 #!/usr/bin/env python
-
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 #import CreateColors
 import itertools
+matplotlib.rcParams['mathtext.fontset'] = 'stix'
+#matplotlib.rcParams['font.family'] = 'STIXGeneral'
+matplotlib.pyplot.legend(r'ABC123 vs $\mathrm{ABC123}^{123}$')
 
 def Eg(PE, y0, b, dtwt, dll):
     '''
@@ -37,8 +40,8 @@ paramEg = {'sand'            : {'dll':16.0,'y0':0.000,'b':0.171, 'ext_d':50.0},
            'silt'            : {'dll':31.0,'y0':0.007,'b':0.021, 'ext_d':430.0},
            'silty clay loam' : {'dll':40.0,'y0':0.007,'b':0.021, 'ext_d':450.0},
            'clay'            : {'dll':45.0,'y0':0.006,'b':0.019, 'ext_d':620.0},
-           'sandy loam field_enrico': {'dll':100.0,'y0':0.000,'b':0.013, 'ext_d':475.0},
-           'sandy loam field': {'dll':115.6,'y0':0.004,'b':0.013, 'ext_d':1000.0}
+           'sandy loam field_enrico': {'dll':100.0,'y0':0.030,'b':0.012, 'ext_d':475.0},
+           'sandy loam (field)': {'dll':115.3,'y0':0.023,'b':0.013, 'ext_d':1000.0}
            }
 d_pts = [0,0.25,0.50,0.75,1.00,1.25,1.50,1.75,2.00,2.50,3.00,3.50,4.00,4.50,5.00]
 GWET_pts = [1.00E+00,1.00E+00,1.00E+00,1.00E+00,1.00E+00,9.01E-01,6.59E-01,4.66E-01,3.37E-01,1.84E-01,1.12E-01,7.59E-02,5.54E-02,4.33E-02,3.56E-02]
@@ -52,7 +55,7 @@ fig = plt.figure(figsize=(11.7, 8.27))
 dtwt = np.asarray(range(-100,5000,1))
 #dtwt_norm = []
 GWET = []
-lbls = ['sand', 'loam', 'silt', 'clay', 'sandy loam field'] #, 'sandy loam field_enrico']
+lbls = ['sand', 'loam', 'silt', 'clay', 'sandy loam (field)'] #, 'sandy loam field_enrico']
 for s, lbl in enumerate(lbls):
     GWET.append([])
     #dtwt_norm.append([])
@@ -77,7 +80,7 @@ plt.setp(ltext, fontsize=10)
 plt.grid(True)
 plt.xlim((0.0, 1.0))
 plt.ylim(0.0, 5.00)
-plt.xlabel(r'$E_g/PE_g$')
+plt.xlabel('$E_g$/$PE_g$')
 plt.ylabel('$d\ (m)$')
 ax1.set_ylim(ax1.get_ylim()[::-1])
 
@@ -98,6 +101,6 @@ ax1.set_ylim(ax1.get_ylim()[::-1])
 #ax5.set_ylim(ax5.get_ylim()[::-1])
 
 #plt.show()
-img_path = 'Eg_function_202208'
+img_path = 'Eg_function_202209'
 plt.savefig(img_path,dpi=300)
 print('Plot printed:\n%s' % img_path)

@@ -8,6 +8,9 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 #import CreateColors
+mpl.rcParams['mathtext.fontset'] = 'stix'
+#matplotlib.rcParams['font.family'] = 'STIXGeneral'
+mpl.pyplot.legend(r'ABC123 vs $\mathrm{ABC123}^{123}$')
 
 # INPUT
 phi = 0.3413

@@ -142,9 +142,10 @@ def process(cUTIL, datenum = np.array([]), datenum_d = np.array([]), J = np.arra
         # 13 - TRANS_vdw: transition period between dry and wet season [days]
         # 14 - TRANS_vwd: transition period between wet and dry season [days]
         # 15 - Zr: maximum root depth [m]
-        # 16 - kT_min: transpiration sourcing factor min [], 1>=k_T>0
-        # 17 - kT_max: transpiration sourcing factor max [], 1<k_T<=0
-        # 18 - kT_n: transpiration sourcing factor power value [], n>0
+        # 16 - kTg_min: transpiration sourcing factor min [], 1>=k_T>0
+        # 17 - kTg_max: transpiration sourcing factor max [], 1<k_T<=0
+        # 18 - kT_f: transpiration sourcing factor f [], phi>f>wp
+        # 19 - kT_s: transpiration sourcing factor slope [], 1>s>0
         # BY DEFAULT THE PROGRAM WILL COMPUTE ETref USING GRASS FAO56 PARAMETERS
         # grassFAO56 0.12 0.12 0.1 0.01 2.88 2.88 0.5 0.5 0.23 0.23 150 270 20 20 0.25 0.01 0.011 2.0
         # VEG1 (grass muelledes)
@@ -168,9 +169,10 @@ def process(cUTIL, datenum = np.array([]), datenum_d = np.array([]), J = np.arra
         # 5 - f_s_c: shelter factor []
         # 6 - alfa_c: vegetation albedo []
         # 7 - Zr_c: maximum root depth [m]
-        # 8 - kT_min_c: transpiration sourcing factor min [], 1>=k_Tu>0
-        # 9 - kT_max: transpiration sourcing factor max [], 1<k_T<=0
-        # 10 - kT_n_c: transpiration sourcing factor power value [], n>0
+        # 8 - kTg_min_c: transpiration sourcing factor min [], 1>=k_Tu>0
+        # 9 - kTg_max: transpiration sourcing factor max [], 1<k_T<=0
+        # 10 - kT_f_c: transpiration sourcing factor [], phi>f>wp
+        # 11 - kT_s_c: transpiration sourcing factor slope [], 1>s>0
         # CROP1 (alfafa) # CHANGE PARAMETERS WITH FAO56
         #alfafa 1.0 0.15 0.010 3.5 0.55 0.15 0.40 0.01 0.011 2.0
         # CROP2 (wheat)  # CHANGE PARAMETERS WITH FAO56

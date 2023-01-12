@@ -10,12 +10,14 @@ import subprocess as sp
 import numpy as np
 import os, itertools, shutil
 from matplotlib.sankey import Sankey
-
+mpl.rcParams['mathtext.fontset'] = 'stix'
+#matplotlib.rcParams['font.family'] = 'STIXGeneral'
+mpl.pyplot.legend(r'ABC123 vs $\mathrm{ABC123}^{123}$')
 
 #
 
 def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, plt_suptitle, plt_title, clr_lst, hmax,
-                   hmin, obs_name, l_obs, nsl, iniMonthHydroYear, date_ini, date_end, maxYearsTickTrimester = 5, maxYearsTickSemester = 10):
+                   hmin, obs_name, l_obs, nsl, elev, iniMonthHydroYear, date_ini, date_end, maxYearsTickTrimester = 5, maxYearsTickSemester = 10):
     """
     Plot the time series of the fluxes observed at one point of the catchment
     Use Matplotlib
@@ -81,15 +83,15 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     ax1 = fig.add_subplot(8, 1, 1)
     ax1.bar(cMF.inputDate, flx[flxIndex_lst[b'iRF']], color='darkblue', linewidth=0, align='center',
             label=flxLbl[flxIndex_lst[b'iRF']])
-    ax1.bar(cMF.inputDate, flx[flxIndex_lst[b'iTF']], color='deepskyblue', linewidth=0, align='center',
-            label=flxLbl[flxIndex_lst[b'iTF']])
+    ax1.bar(cMF.inputDate, flx[flxIndex_lst[b'iRFe']], color='deepskyblue', linewidth=0, align='center',
+            label=flxLbl[flxIndex_lst[b'iRFe']])
     # leg
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad=bdpd, handletextpad=hdltxtpd)
     leg = plt.gca().get_legend()
     ltext = leg.get_texts()
     plt.setp(ltext, fontsize=8)
     # y
-    plt.ylabel('mm', fontsize=10)
+    plt.ylabel('(mm)', fontsize=10)
     ax1.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
     plt.setp(ax1.get_yticklabels(), fontsize=8)
     # x
@@ -97,17 +99,17 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     ax1.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth=bymonth))
     plt.setp(ax1.get_xticklabels(which='both'), visible=False)
     # grd
-    ax1.grid(b=True, which='major', axis='both', linestyle=':', color='darkgray')
-    ax1.grid(b=True, which='minor', axis='x', linestyle=':', color='gainsboro')
+    ax1.grid(visible=True, which='major', axis='both', linestyle=':', color='darkgray')
+    ax1.grid(visible=True, which='minor', axis='x', linestyle=':', color='gainsboro')
 
     ax2 = fig.add_subplot(8, 1, 2, sharex=ax1)
     if np.sum(np.abs(flx[flxIndex_lst[b'iRo']])) > 1E-7:
         plt.plot_date(cMF.inputDate, flx[flxIndex_lst[b'iRo']], '-', c='blue', linewidth=1.0,
                       label=flxLbl[flxIndex_lst[b'iRo']])
     colors_nsl = itertools.cycle(clr_lst)
-    if np.sum(np.abs(flx[flxIndex_lst[b'iInf']])) > 1E-7:
-        plt.plot_date(cMF.inputDate, flx[flxIndex_lst[b'iInf']], '--', c=next(colors_nsl), linewidth=1.5,
-                      label=flxLbl[flxIndex_lst[b'iInf']])
+    if np.sum(np.abs(flx[flxIndex_lst[b'iI']])) > 1E-7:
+        plt.plot_date(cMF.inputDate, flx[flxIndex_lst[b'iI']], '--', c=next(colors_nsl), linewidth=1,
+                      label=flxLbl[flxIndex_lst[b'iI']])
     if np.sum(np.abs(flx[flxIndex_lst[b'iEsurf']])) > 1E-7:
         plt.plot_date(cMF.inputDate, flx[flxIndex_lst[b'iEsurf']], '-', c='deepskyblue', linewidth=0.75,
                       label=flxLbl[flxIndex_lst[b'iEsurf']])
@@ -133,33 +135,33 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     ltext = leg.get_texts()
     plt.setp(ltext, fontsize=8)
     # grd
-    ax2.grid(b=True, which='major', axis='both', linestyle=':', color='darkgray')
-    ax2.grid(b=True, which='minor', axis='x', linestyle=':', color='gainsboro')
+    ax2.grid(visible=True, which='major', axis='both', linestyle=':', color='darkgray')
+    ax2.grid(visible=True, which='minor', axis='x', linestyle=':', color='gainsboro')
     # x
     ax2.xaxis.set_major_locator(mpl.dates.YearLocator(1, month=iniMonthHydroYear, day=1))
     ax2.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth=bymonth))
     plt.setp(ax2.get_xticklabels(which='both'), visible=False)
     # y
-    plt.ylabel('mm', fontsize=10)
+    plt.ylabel('(mm)', fontsize=10)
     ax2.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
     plt.setp(ax2.get_yticklabels(), fontsize=8)
 
     colors_nsl = itertools.cycle(clr_lst)
     ax3 = fig.add_subplot(8, 1, 3, sharex=ax1)
     # PE
-    plt.plot_date(cMF.inputDate, flx[flxIndex_lst[b'iPE']], '-', color='lightblue', linewidth=3,
+    plt.plot_date(cMF.inputDate, flx[flxIndex_lst[b'iPE']], '-', color='lightblue', linewidth=2,
                   label=flxLbl[flxIndex_lst[b'iPE']])
     if cMF.wel_yn == 1:
         E = flx[flxIndex_lst[b'iEsoil']] + flx[flxIndex_lst[b'iEg']]
         # Etot
-        plt.plot_date(cMF.inputDate, E, '-', color='darkblue', linewidth=1.5, label=r'$E$')
+        plt.plot_date(cMF.inputDate, E, '-', color='darkblue', linewidth=1, label=r'$E$')
     # Esoil
     plt.plot_date(cMF.inputDate, flx[flxIndex_lst[b'iEsoil']], '--', color='brown',
                   label=flxLbl[flxIndex_lst[b'iEsoil']])
     if cMF.wel_yn == 1:
         # Eg
         if np.absolute(sum(flx[flxIndex_lst[b'iEg']])) > 1E-6:
-            plt.plot_date(cMF.inputDate, flx[flxIndex_lst[b'iEg']], '-', color='blue',
+            plt.plot_date(cMF.inputDate, flx[flxIndex_lst[b'iEg']], '-', color='deepskyblue',
                           label=flxLbl[flxIndex_lst[b'iEg']])
     for l in range(nsl):
         if np.absolute(sum(flx[flxIndex_lst[b'iEsoil_%d' % (l + 1)]])):
@@ -172,33 +174,33 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     ltext = leg.get_texts()
     plt.setp(ltext, fontsize=8)
     # grd
-    ax3.grid(b=True, which='major', axis='both', linestyle=':', color='darkgray')
-    ax3.grid(b=True, which='minor', axis='x', linestyle=':', color='gainsboro')
+    ax3.grid(visible=True, which='major', axis='both', linestyle=':', color='darkgray')
+    ax3.grid(visible=True, which='minor', axis='x', linestyle=':', color='gainsboro')
     # x
     ax3.xaxis.set_major_locator(mpl.dates.YearLocator(1, month=iniMonthHydroYear, day=1))
     ax3.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth=bymonth))
     plt.setp(ax3.get_xticklabels(which='both'), visible=False)
     # y
-    plt.ylabel('mm', fontsize=10)
+    plt.ylabel('(mm)', fontsize=10)
     ax3.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
     plt.setp(ax3.get_yticklabels(), fontsize=8)
 
     colors_nsl = itertools.cycle(clr_lst)
     ax4 = fig.add_subplot(8, 1, 4, sharex=ax1)
     # PT
-    plt.plot_date(cMF.inputDate, flx[flxIndex_lst[b'iPT']], '-', color='lightblue', linewidth=3,
+    plt.plot_date(cMF.inputDate, flx[flxIndex_lst[b'iPT']], '-', color='lightblue', linewidth=2,
                   label=flxLbl[flxIndex_lst[b'iPT']])
     if cMF.wel_yn == 1:
         T = flx[flxIndex_lst[b'iTsoil']] + flx[flxIndex_lst[b'iTg']]
         # Ttot
-        plt.plot_date(cMF.inputDate, T, '-', color='darkblue', linewidth=1.5, label=r'$T$')
+        plt.plot_date(cMF.inputDate, T, '-', color='darkblue', linewidth=1, label=r'$T$')
     # Tsoil
     plt.plot_date(cMF.inputDate, flx[flxIndex_lst[b'iTsoil']], '--', color='brown',
                   label=flxLbl[flxIndex_lst[b'iTsoil']])
     if cMF.wel_yn == 1:
         # Tg
         if np.absolute(sum(flx[flxIndex_lst[b'iTg']])) > 1E-6:
-            plt.plot_date(cMF.inputDate, flx[flxIndex_lst[b'iTg']], '-', color='blue',
+            plt.plot_date(cMF.inputDate, flx[flxIndex_lst[b'iTg']], '-', color='deepskyblue',
                           label=flxLbl[flxIndex_lst[b'iTg']])
     for l in range(nsl):
         if np.absolute(sum(flx[flxIndex_lst[b'iTsoil_%d' % (l + 1)]])):
@@ -211,41 +213,45 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     ltext = leg.get_texts()
     plt.setp(ltext, fontsize=8)
     # grd
-    ax4.grid(b=True, which='major', axis='both', linestyle=':', color='darkgray')
-    ax4.grid(b=True, which='minor', axis='x', linestyle=':', color='gainsboro')
+    ax4.grid(visible=True, which='major', axis='both', linestyle=':', color='darkgray')
+    ax4.grid(visible=True, which='minor', axis='x', linestyle=':', color='gainsboro')
     # x
     ax4.xaxis.set_major_locator(mpl.dates.YearLocator(1, month=iniMonthHydroYear, day=1))
     ax4.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth=bymonth))
     plt.setp(ax4.get_xticklabels(which='both'), visible=False)
     # y
-    plt.ylabel('mm', fontsize=10)
+    plt.ylabel('(mm)', fontsize=10)
     ax4.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
     plt.setp(ax4.get_yticklabels(), fontsize=8)
 
     colors_nsl = itertools.cycle(clr_lst)
     ax6 = fig.add_subplot(8, 1, 5, sharex=ax1)
     if np.sum(np.abs(flx[flxIndex_lst[b'iEXFg']])) > 1E-7:
-        plt.bar(cMF.inputDate, flx[flxIndex_lst[b'iEXFg']], color='lightblue', linewidth=0, align='center',
+        plt.bar(cMF.inputDate, -1.0 * flx[flxIndex_lst[b'iEXFg']], color='lightblue', linewidth=0, align='center',
                 label=flxLbl[flxIndex_lst[b'iEXFg']])
     if cMF.wel_yn == 1:
         if np.sum(np.abs(flx[flxIndex_lst[b'iETg']])) > 1E-7:
-            plt.plot_date(cMF.inputDate, flx[flxIndex_lst[b'iETg']], '-', c='blue', linewidth=1.5,
+            plt.plot_date(cMF.inputDate, -1.0 * flx[flxIndex_lst[b'iETg']], '-', c='deepskyblue', linewidth=1,
                           label=flxLbl[flxIndex_lst[b'iETg']])
     for l in range(nsl):
         if np.sum(np.abs(flx[flxIndex_lst[b'iRsoil_%d' % (l + 1)]])) > 1E-7:
-            ax6.plot_date(cMF.inputDate, -1.0 * flx[flxIndex_lst[b'iRsoil_%d' % (l + 1)]], '-', color=next(colors_nsl),
+            ax6.plot_date(cMF.inputDate, flx[flxIndex_lst[b'iRsoil_%d' % (l + 1)]], '-', color=next(colors_nsl),
                           label=flxLbl[flxIndex_lst[b'iRsoil_%d' % (l + 1)]])
     if np.sum(np.abs(flx[flxIndex_lst[b'iRg']])) > 1E-7:
-        plt.plot_date(cMF.inputDate, -1.0 * flx[flxIndex_lst[b'iRg']], '-', c='darkblue', linewidth=1.5,
+        plt.plot_date(cMF.inputDate, flx[flxIndex_lst[b'iRg']], '-', c='darkblue', linewidth=1,
                       label=flxLbl[flxIndex_lst[b'iRg']])
+    Rn = flx[flxIndex_lst[b'iRg']] - flx[flxIndex_lst[b'iETg']] - flx[flxIndex_lst[b'iEXFg']]
+    if np.sum(np.abs(Rn)) > 1E-7:
+        plt.plot_date(cMF.inputDate, Rn, '--', c='black', linewidth=1, label='$Rn$')
+    del Rn
     colors_nsl = itertools.cycle(clr_lst)
     for l in range(nsl):
         if np.sum(np.abs(flx[flxIndex_lst[b'iExf_%d' % (l + 1)]])) > 1E-7:
-            ax6.plot_date(cMF.inputDate, flx[flxIndex_lst[b'iExf_%d' % (l + 1)]], '--', color=next(colors_nsl),
+            ax6.plot_date(cMF.inputDate, -1.0 * flx[flxIndex_lst[b'iExf_%d' % (l + 1)]], '--', color=next(colors_nsl),
                           label=flxLbl[flxIndex_lst[b'iExf_%d' % (l + 1)]])
             # y
     ax6.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
-    plt.ylabel('mm', fontsize=10)
+    plt.ylabel('(mm)', fontsize=10)
     plt.setp(ax6.get_yticklabels(), fontsize=8)
     # leg
     plt.legend(labelspacing=lblspc, markerscale=mkscale, borderpad=bdpd, handletextpad=hdltxtpd, ncol=3,
@@ -254,8 +260,8 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     ltext = leg.get_texts()
     plt.setp(ltext, fontsize=8)
     # grd
-    ax6.grid(b=True, which='major', axis='both', linestyle=':', color='darkgray')
-    ax6.grid(b=True, which='minor', axis='x', linestyle=':', color='gainsboro')
+    ax6.grid(visible=True, which='major', axis='both', linestyle=':', color='darkgray')
+    ax6.grid(visible=True, which='minor', axis='x', linestyle=':', color='gainsboro')
     # x
     ax6.xaxis.set_major_locator(mpl.dates.YearLocator(1, month=iniMonthHydroYear, day=1))
     ax6.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth=bymonth))
@@ -282,10 +288,10 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
                       label=flxLbl[flxIndex_lst[b'iSsoil_pc_s_%d' % (l + 1)]])
         del y
     # y axis
-    ybuffer = 0.1 * (max(Sm) - min(Sr))
-    plt.ylim(min(Sr) - ybuffer, max(Sm) + ybuffer)
+    ybuffer = 0.1 * (float(max(Sm) - min(Sr)))
+    plt.ylim(float(min(Sr)) - ybuffer, float(max(Sm)) + ybuffer)
     ax5.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
-    plt.ylabel('%', fontsize=10)
+    plt.ylabel('(%)', fontsize=10)
     plt.setp(ax5.get_yticklabels(), fontsize=8)
     # legend
     # lbl_Spcobs = lbl_Sobs + lbl_S
@@ -296,8 +302,8 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     ltext = leg.get_texts()
     plt.setp(ltext, fontsize=8)
     # grd
-    ax5.grid(b=True, which='major', axis='both', linestyle=':', color='darkgray')
-    ax5.grid(b=True, which='minor', axis='x', linestyle=':', color='gainsboro')
+    ax5.grid(visible=True, which='major', axis='both', linestyle=':', color='darkgray')
+    ax5.grid(visible=True, which='minor', axis='x', linestyle=':', color='gainsboro')
     # x
     ax5.xaxis.set_major_locator(mpl.dates.YearLocator(1, month=iniMonthHydroYear, day=1))
     ax5.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth=bymonth))
@@ -307,31 +313,31 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     lines = itertools.cycle(
         ['-', '--', '-.', ':', '.', ',', 'o', 'v', '^', '<', '>', 's', 'p', '*', 'h', 'H', '+', 'x', 'D', 'd', '|',
          '_'])
-    dgwtMFmax = []
+    #hMFmax = []
     for L in range(cMF.nlay):
         if cMF.h_plt[L] == 1:
-            dgwtMF = flx[flxIndex_lst[b'id_%s' % cMF.h_lbl[L].encode('ASCII')]] #b'id_%d' % (L + 1)]]
-            dgwtMFmax.append(np.max(dgwtMF))
-            plt.plot_date(cMF.inputDate, dgwtMF, next(lines), color='b', markersize=2, markevery=7,
-                      label=flxLbl[flxIndex_lst[b'id_%s' % cMF.h_lbl[L].encode('ASCII')]])
-    plt.plot_date(cMF.inputDate, flx[flxIndex_lst[b'idcorr']], '--', c='g', markersize=2, markevery=7,
-                  label=flxLbl[flxIndex_lst[b'idcorr']])
+            hMF = flx[flxIndex_lst[b'ih_%s' % cMF.h_lbl[L].encode('ASCII')]] #b'id_%d' % (L + 1)]]
+            #hMFmax.append(np.max(hMF))
+            plt.plot_date(cMF.inputDate, hMF, next(lines), color='b', markersize=2, markevery=7,
+                      label=flxLbl[flxIndex_lst[b'ih_%s' % cMF.h_lbl[L].encode('ASCII')]])
+    #plt.plot_date(cMF.inputDate, flx[flxIndex_lst[b'ihcorr']], '--', c='g', markersize=2, markevery=7,
+    #              label=flxLbl[flxIndex_lst[b'ihcorr']])
     try:
-        if b'idobs' in flxIndex_lst:
-            plt.plot_date(cMF.inputDate, flx[flxIndex_lst[b'idobs']], 'o', ls='None', color='LightBlue',
+        if b'ihobs' in flxIndex_lst:
+            plt.plot_date(cMF.inputDate, flx[flxIndex_lst[b'ihobs']], 'o', ls='None', color='LightBlue',
                           markeredgecolor='LightBlue', markerfacecolor='None', markersize=2,
-                          label=flxLbl[flxIndex_lst[b'idobs']])  # ls='--', color = 'blue'  markevery = 7,
+                          label=flxLbl[flxIndex_lst[b'ihobs']])  # ls='--', color = 'blue'  markevery = 7,
     except:
         print("ERROR plotting dgw obs")
     # legend
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad=bdpd, handletextpad=hdltxtpd, ncol=2,
                columnspacing=colspc, numpoints=3)
     leg = plt.gca().get_legend()
-    dgwtMFmax = np.max(dgwtMFmax)
-    if dgwtMFmax > 0:
-        ymax = dgwtMFmax * 1.05
-    else:
-        ymax = 0.25
+#    hMFmax = np.max(hMFmax)
+#    if hMFmax > 0:
+#        ymax = hMFmax * 1.05
+#    else:
+#        ymax = 0.25
     #    if obs_leg <> None:
     #        if dgwtobsmin < 0.0:
     #            plt.ylim(ymax = ymax, ymin = dgwtobsmin * 1.05)
@@ -342,10 +348,16 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     ltext = leg.get_texts()
     plt.setp(ltext, fontsize=8)
     # y axis
-    ax7.set_ylabel('m', fontsize=10)
+    ax7.set_ylabel('(masl)', fontsize=10)
     ax7.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
-    ax7.set_ylim(ymax=ymax)
+#    ax7.set_ylim(ymax=hmax)
     plt.setp(ax7.get_yticklabels(), fontsize=8)
+    # y secondary axis
+    ax7b = ax7.twinx()
+    y1, y2 = ax7.get_ylim()
+    ax7b.set_ylim(y1 - elev, y2 - elev)
+    plt.setp(ax7b.get_yticklabels(), fontsize=8)
+    ax7b.set_ylabel('(mbgs)', fontsize=10)
     # x axis
     ax7.xaxis.set_major_locator(mpl.dates.YearLocator(1, month=iniMonthHydroYear, day=1))
     ax7.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth=bymonth))
@@ -356,12 +368,12 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     del labels
     ax7.set_xlabel('Date', fontsize=10)
     # grd
-    ax7.grid(b=True, which='major', axis='both', linestyle=':', color='darkgray')
-    ax7.grid(b=True, which='minor', axis='x', linestyle=':', color='gainsboro')
+    ax7.grid(visible=True, which='major', axis='both', linestyle=':', color='darkgray')
+    ax7.grid(visible=True, which='minor', axis='x', linestyle=':', color='gainsboro')
 
     ax1.set_xlim(date_ini, date_end)
 
-    plt.subplots_adjust(left=0.10, bottom=0.10, right=0.95, top=0.95, wspace=0.1, hspace=0.1)
+    plt.subplots_adjust(left=0.10, bottom=0.10, right=0.90, top=0.95, wspace=0.1, hspace=0.1)
     plt.savefig(plt_export_fn, dpi=150)
     plt.close()
 
@@ -395,7 +407,7 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     if ybuffer == 0.0:
         ybuffer = 1.0
     plt.ylim((hmin - ybuffer, hmax + ybuffer))
-    plt.ylabel('m', fontsize=10)
+    plt.ylabel('(m)', fontsize=10)
     ax1.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
     plt.setp(ax1.get_yticklabels(), fontsize=8)
     # leg
@@ -409,8 +421,8 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     ax1.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth=bymonth))
     plt.setp(ax1.get_xticklabels(which='both'), visible=False)
     # grd
-    ax1.grid(b=True, which='major', axis='both', linestyle=':', color='darkgray')
-    ax1.grid(b=True, which='minor', axis='x', linestyle=':', color='gainsboro')
+    ax1.grid(visible=True, which='major', axis='both', linestyle=':', color='darkgray')
+    ax1.grid(visible=True, which='minor', axis='x', linestyle=':', color='gainsboro')
 
     colors_nsl = itertools.cycle(clr_lst)
     ax8b = fig.add_subplot(8, 1, 1, sharex=ax1)
@@ -427,7 +439,7 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
         MBmin.append(min(flx[flxIndex_lst[b'iMB_s_%d' % (l + 1)]]))
         MBmax.append(max(flx[flxIndex_lst[b'iMB_s_%d' % (l + 1)]]))
     # y axis
-    plt.ylabel('mm', fontsize=10)
+    plt.ylabel('(mm)', fontsize=10)
     MBmax = max(MBmax)
     MBmin = min(MBmin)
     if np.abs(MBmax - MBmin) < 1E-7:
@@ -453,8 +465,8 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     ax8b.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth=bymonth))
     plt.setp(ax8b.get_xticklabels(which='both'), visible=False)
     # grd
-    ax8b.grid(b=True, which='major', axis='both', linestyle=':', color='darkgray')
-    ax8b.grid(b=True, which='minor', axis='x', linestyle=':', color='gainsboro')
+    ax8b.grid(visible=True, which='major', axis='both', linestyle=':', color='darkgray')
+    ax8b.grid(visible=True, which='minor', axis='x', linestyle=':', color='gainsboro')
 
     ax20 = fig.add_subplot(8, 1, 2, sharex=ax1)
     plt.plot_date(cMF.inputDate, flx[flxIndex_lst[b'iRo']], '-', c='blue', linewidth=1.0,
@@ -470,7 +482,7 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     except:
         print("ERROR plotting Ro obs")
     # y
-    plt.ylabel('mm', fontsize=10)
+    plt.ylabel('(mm)', fontsize=10)
     plt.setp(ax20.get_yticklabels(), fontsize=8)
     if ymax is not None:
         plt.ylim(ymax=ymax)
@@ -485,8 +497,8 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     ax20.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth=bymonth))
     plt.setp(ax20.get_xticklabels(which='both'), visible=False)
     # grd
-    ax20.grid(b=True, which='major', axis='both', linestyle=':', color='darkgray')
-    ax20.grid(b=True, which='minor', axis='x', linestyle=':', color='gainsboro')
+    ax20.grid(visible=True, which='major', axis='both', linestyle=':', color='darkgray')
+    ax20.grid(visible=True, which='minor', axis='x', linestyle=':', color='gainsboro')
 
     colors_nsl = itertools.cycle(clr_lst)
     ax9a = fig.add_subplot(16, 1, 5, sharex=ax1)
@@ -510,14 +522,14 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     ax9a.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth=bymonth))
     plt.setp(ax9a.get_xticklabels(which='both'), visible=False)
     # grd
-    ax9a.grid(b=True, which='major', axis='both', linestyle=':', color='darkgray')
-    ax9a.grid(b=True, which='minor', axis='x', linestyle=':', color='gainsboro')
+    ax9a.grid(visible=True, which='major', axis='both', linestyle=':', color='darkgray')
+    ax9a.grid(visible=True, which='minor', axis='x', linestyle=':', color='gainsboro')
 
     ax10a = fig.add_subplot(16, 1, 6, sharex=ax1)
     uzthick = flx[flxIndex_lst[b'iuzthick']]
     plt.plot_date(cMF.inputDate, -uzthick, '-', c='brown', label=flxLbl[flxIndex_lst[b'iuzthick']])
     # y axis
-    plt.ylabel('m', fontsize=10)
+    plt.ylabel('(m)', fontsize=10)
     minfact = 0.95
     maxfact = 1.05
     if np.min(uzthick) < 0:
@@ -540,8 +552,8 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     ax10a.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth=bymonth))
     plt.setp(ax10a.get_xticklabels(which='both'), visible=False)
     # grd
-    ax10a.grid(b=True, which='major', axis='both', linestyle=':', color='darkgray')
-    ax10a.grid(b=True, which='minor', axis='x', linestyle=':', color='gainsboro')
+    ax10a.grid(visible=True, which='major', axis='both', linestyle=':', color='darkgray')
+    ax10a.grid(visible=True, which='minor', axis='x', linestyle=':', color='gainsboro')
 
     ax7 = fig.add_subplot(8, 1, 5, sharex=ax1)
     lines = itertools.cycle(
@@ -565,7 +577,7 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     except:
         print("ERROR plotting dgw obs")
     # y axis
-    plt.ylabel('m', fontsize=10)
+    plt.ylabel('(m)', fontsize=10)
     plt.setp(ax7.get_yticklabels(), fontsize=8)
     # legend
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad=bdpd, handletextpad=hdltxtpd, ncol=2,
@@ -592,8 +604,8 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     ax7.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth=bymonth))
     plt.setp(ax7.get_xticklabels(which='both'), visible=False)
     # grd
-    ax7.grid(b=True, which='major', axis='both', linestyle=':', color='darkgray')
-    ax7.grid(b=True, which='minor', axis='x', linestyle=':', color='gainsboro')
+    ax7.grid(visible=True, which='major', axis='both', linestyle=':', color='darkgray')
+    ax7.grid(visible=True, which='minor', axis='x', linestyle=':', color='gainsboro')
 
     colors_nsl = itertools.cycle(clr_lst)
     ax10b = fig.add_subplot(8, 1, 6, sharex=ax1)
@@ -604,7 +616,7 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
                         label=flxLbl[flxIndex_lst[b'iSsoil_%d' % (l + 1)]])
     # y axis
     plt.ylim(0, np.max(flx[flxIndex_lst[b'iSsoil_%d' % (l + 1)]]) * 1.05)
-    plt.ylabel('mm', fontsize=10)
+    plt.ylabel('(mm)', fontsize=10)
     ax10b.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
     plt.setp(ax10b.get_yticklabels(), fontsize=8)
     # legend
@@ -618,8 +630,8 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     ax10b.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth=bymonth))
     plt.setp(ax10b.get_xticklabels(which='both'), visible=False)
     # grd
-    ax10b.grid(b=True, which='major', axis='both', linestyle=':', color='darkgray')
-    ax10b.grid(b=True, which='minor', axis='x', linestyle=':', color='gainsboro')
+    ax10b.grid(visible=True, which='major', axis='both', linestyle=':', color='darkgray')
+    ax10b.grid(visible=True, which='minor', axis='x', linestyle=':', color='gainsboro')
 
     colors_nsl = itertools.cycle(clr_lst)
     ax5 = fig.add_subplot(8, 1, 7, sharex=ax1)
@@ -640,9 +652,9 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
         except:
             print("ERROR plotting SM obs")
     # y axis
-    ybuffer = 0.1 * (max(Sm) - min(Sr))
-    plt.ylim(min(Sr) - ybuffer, max(Sm) + ybuffer)
-    plt.ylabel('%', fontsize=10)
+    ybuffer = 0.1 * float(max(Sm) - min(Sr))
+    plt.ylim(float(min(Sr)) - ybuffer, float(max(Sm)) + ybuffer)
+    plt.ylabel('(%)', fontsize=10)
     ax5.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
     plt.setp(ax5.get_yticklabels(), fontsize=8)
     # legend
@@ -663,8 +675,8 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     del labels
     ax5.set_xlabel('Date', fontsize=10)
     # grd
-    ax5.grid(b=True, which='major', axis='both', linestyle=':', color='darkgray')
-    ax5.grid(b=True, which='minor', axis='x', linestyle=':', color='gainsboro')
+    ax5.grid(visible=True, which='major', axis='both', linestyle=':', color='darkgray')
+    ax5.grid(visible=True, which='minor', axis='x', linestyle=':', color='gainsboro')
 
     ax1.set_xlim(np.min(cMF.inputDate) - 15.0, np.max(cMF.inputDate) + 15)
 
@@ -721,16 +733,16 @@ def plotTIMESERIES_flxGW(cMF, flx, flxLbl, flxIndex_lst, plt_export_fn, plt_titl
     # RF
     ax0.bar(cMF.inputDate, flx[flxIndex_lst[b'iRF']], color='darkblue', linewidth=0, align='center',
             label=flxLbl[flxIndex_lst[b'iRF']])
-    # TF
-    ax0.bar(cMF.inputDate, flx[flxIndex_lst[b'iTF']], color='deepskyblue', linewidth=0, align='center',
-            label=flxLbl[flxIndex_lst[b'iTF']])
+    # RFe
+    ax0.bar(cMF.inputDate, flx[flxIndex_lst[b'iRFe']], color='deepskyblue', linewidth=0, align='center',
+            label=flxLbl[flxIndex_lst[b'iRFe']])
     # legend
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad=bdpd, handletextpad=hdltxtpd)
     leg = plt.gca().get_legend()
     ltext = leg.get_texts()
     plt.setp(ltext, fontsize=8)
     # y
-    plt.ylabel('mm', fontsize=10)
+    plt.ylabel('(mm)', fontsize=10)
     ax0.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
     plt.setp(ax0.get_yticklabels(), fontsize=8)
     # x
@@ -738,8 +750,8 @@ def plotTIMESERIES_flxGW(cMF, flx, flxLbl, flxIndex_lst, plt_export_fn, plt_titl
     ax0.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth=bymonth))
     plt.setp(ax0.get_xticklabels(which='both'), visible=False)
     # grd
-    ax0.grid(b=True, which='major', axis='both', linestyle=':', color='darkgray')
-    ax0.grid(b=True, which='minor', axis='x', linestyle=':', color='gainsboro')
+    ax0.grid(visible=True, which='major', axis='both', linestyle=':', color='darkgray')
+    ax0.grid(visible=True, which='minor', axis='x', linestyle=':', color='gainsboro')
 
     # plot Ro
     ax2 = fig.add_subplot(8, 1, 2, sharex=ax0)
@@ -753,7 +765,7 @@ def plotTIMESERIES_flxGW(cMF, flx, flxLbl, flxIndex_lst, plt_export_fn, plt_titl
     ltext = leg.get_texts()
     plt.setp(ltext, fontsize=8)
     # y
-    plt.ylabel('mm', fontsize=10)
+    plt.ylabel('(mm)', fontsize=10)
     ax2.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
     plt.setp(ax2.get_yticklabels(), fontsize=8)
     # x axis
@@ -766,8 +778,8 @@ def plotTIMESERIES_flxGW(cMF, flx, flxLbl, flxIndex_lst, plt_export_fn, plt_titl
     del labels
     ax2.set_xlabel('Date', fontsize=10)
     # grd
-    ax2.grid(b=True, which='major', axis='both', linestyle=':', color='darkgray')
-    ax2.grid(b=True, which='minor', axis='x', linestyle=':', color='gainsboro')
+    ax2.grid(visible=True, which='major', axis='both', linestyle=':', color='darkgray')
+    ax2.grid(visible=True, which='minor', axis='x', linestyle=':', color='gainsboro')
 
     # plot gwd
     lines = itertools.cycle(
@@ -786,20 +798,20 @@ def plotTIMESERIES_flxGW(cMF, flx, flxLbl, flxIndex_lst, plt_export_fn, plt_titl
     plt.setp(ltext, fontsize=8)
     # y
     ax1.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
-    plt.ylabel('m', fontsize=10)
+    plt.ylabel('(m)', fontsize=10)
     plt.setp(ax1.get_yticklabels(), fontsize=8)
     # x
     ax1.xaxis.set_major_locator(mpl.dates.YearLocator(1, month=iniMonthHydroYear, day=1))
     ax1.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth=bymonth))
     plt.setp(ax1.get_xticklabels(which='both'), visible=False)
     # grd
-    ax1.grid(b=True, which='major', axis='both', linestyle=':', color='darkgray')
-    ax1.grid(b=True, which='minor', axis='x', linestyle=':', color='gainsboro')
+    ax1.grid(visible=True, which='major', axis='both', linestyle=':', color='darkgray')
+    ax1.grid(visible=True, which='minor', axis='x', linestyle=':', color='gainsboro')
 
     # plot GW fluxes
     ax8 = fig.add_subplot(2, 1, 2, sharex=ax0)
     # uzf recharge
-    plt.plot_date(cMF.inputDate, flx[flxIndex_lst[b'iRg']], '-', c='darkblue', linewidth=1.5,
+    plt.plot_date(cMF.inputDate, flx[flxIndex_lst[b'iRg']], '-', c='darkblue', linewidth=1,
                   label=flxLbl[flxIndex_lst[b'iRg']])
     lines = itertools.cycle(
         ['-', '--', '-.', ':', '.', ',', 'o', 'v', '^', '<', '>', 's', 'p', '*', 'h', 'H', '+', 'x', 'D', 'd', '|',
@@ -815,7 +827,7 @@ def plotTIMESERIES_flxGW(cMF, flx, flxLbl, flxIndex_lst, plt_export_fn, plt_titl
     ltext = leg.get_texts()
     plt.setp(ltext, fontsize=8)
     # y
-    plt.ylabel('mm', fontsize=10)
+    plt.ylabel('(mm)', fontsize=10)
     ax8.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
     plt.setp(ax8.get_yticklabels(), fontsize=8)
     # x axis
@@ -828,8 +840,8 @@ def plotTIMESERIES_flxGW(cMF, flx, flxLbl, flxIndex_lst, plt_export_fn, plt_titl
     del labels
     ax8.set_xlabel('Date', fontsize=10)
     # grd
-    ax8.grid(b=True, which='major', axis='both', linestyle=':', color='darkgray')
-    ax8.grid(b=True, which='minor', axis='x', linestyle=':', color='gainsboro')
+    ax8.grid(visible=True, which='major', axis='both', linestyle=':', color='darkgray')
+    ax8.grid(visible=True, which='minor', axis='x', linestyle=':', color='gainsboro')
 
     ax0.set_xlim(np.min(cMF.inputDate) - 15.0, np.max(cMF.inputDate) + 15)
 
@@ -840,9 +852,6 @@ def plotTIMESERIES_flxGW(cMF, flx, flxLbl, flxIndex_lst, plt_export_fn, plt_titl
     #    plt.show()
     plt.clf()
     plt.close('all')
-
-
-
 
 def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin, iniMonthHydroYear, date_ini, date_end,
                          flxIndex_lst, obs_catch=None, obs_catch_list=[0, 0, 0], TopSoilAverage=None, MF=None, maxYearsTickTrimester = 5, maxYearsTickSemester = 10):
@@ -864,21 +873,23 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
 
     dateFmt = mpl.dates.DateFormatter('%Y-%b-%d')
     dateminorFmt = mpl.dates.DateFormatter('%b')
-    year_diff = np.round((date_end - date_ini)/365)
-    if year_diff<maxYearsTickTrimester:
+    date_ini -= 15
+    date_end += 15
+    year_diff = np.round((date_end - date_ini) / 365)
+    if year_diff < maxYearsTickTrimester:
         nb_intervalos = 4
     elif year_diff > maxYearsTickTrimester and year_diff < maxYearsTickSemester:
         nb_intervalos = 2
     else:
         nb_intervalos = 1
-    year_split = int(12/nb_intervalos)
+    year_split = 12 / nb_intervalos
     bymonth = []
     mult = 1
     while len(bymonth) < nb_intervalos:
-        if (iniMonthHydroYear + mult*12/nb_intervalos) < 13:
-            bymonth.append(iniMonthHydroYear + mult*12/nb_intervalos)
+        if (iniMonthHydroYear + mult * 12 / nb_intervalos) < 13:
+            bymonth.append(iniMonthHydroYear + mult * 12 / nb_intervalos)
         else:
-            bymonth.append(iniMonthHydroYear + mult*12/nb_intervalos - 12)
+            bymonth.append(iniMonthHydroYear + mult * 12 / nb_intervalos - 12)
         mult += 1
     del nb_intervalos, mult
 
@@ -902,16 +913,16 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
     # RF
     ax1.bar(cMF.inputDate, flx[flxIndex_lst[b'iRF']], color='darkblue', linewidth=0, align='center',
             label=flxLbl[flxIndex_lst[b'iRF']])
-    # TF
-    ax1.bar(cMF.inputDate, flx[flxIndex_lst[b'iTF']], color='deepskyblue', linewidth=0, align='center',
-            label=flxLbl[flxIndex_lst[b'iTF']])
+    # RFe
+    ax1.bar(cMF.inputDate, flx[flxIndex_lst[b'iRFe']], color='deepskyblue', linewidth=0, align='center',
+            label=flxLbl[flxIndex_lst[b'iRFe']])
     # leg
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad=bdpd, handletextpad=hdltxtpd)
     leg = plt.gca().get_legend()
     ltext = leg.get_texts()
     plt.setp(ltext, fontsize=8)
     # y
-    plt.ylabel('mm', fontsize=10)
+    plt.ylabel('(mm)', fontsize=10)
     ax1.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
     plt.setp(ax1.get_yticklabels(), fontsize=8)
     # x
@@ -919,18 +930,18 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
     ax1.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth=bymonth))
     plt.setp(ax1.get_xticklabels(which='both'), visible=False)
     # grd
-    ax1.grid(b=True, which='major', axis='both', linestyle=':', color='darkgray')
-    ax1.grid(b=True, which='minor', axis='x', linestyle=':', color='gainsboro')
+    ax1.grid(visible=True, which='major', axis='both', linestyle=':', color='darkgray')
+    ax1.grid(visible=True, which='minor', axis='x', linestyle=':', color='gainsboro')
 
     ax2 = fig.add_subplot(8, 1, 2, sharex=ax1)
     # ax2.set_autoscalex_on(False)
     # Ro
     plt.plot_date(cMF.inputDate, flx[flxIndex_lst[b'iRo']], '-', c='blue', linewidth=1.0,
                   label=flxLbl[flxIndex_lst[b'iRo']])  # 'r-', c='blue',
-    # Inf
-    if np.sum(np.abs(flx[flxIndex_lst[b'iInf']])) > 1E-7:
-        plt.plot_date(cMF.inputDate, flx[flxIndex_lst[b'iInf']], '--', color='brown',
-                      label=flxLbl[flxIndex_lst[b'iInf']])
+    # I
+    if np.sum(np.abs(flx[flxIndex_lst[b'iI']])) > 1E-7:
+        plt.plot_date(cMF.inputDate, flx[flxIndex_lst[b'iI']], '--', color='brown',
+                      label=flxLbl[flxIndex_lst[b'iI']])
     # Esurf
     plt.plot_date(cMF.inputDate, flx[flxIndex_lst[b'iEsurf']], '-', c='deepskyblue', linewidth=1.0,
                   label=flxLbl[flxIndex_lst[b'iEsurf']])
@@ -959,7 +970,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
     except:
        print("ERROR plotting Ro obs. catchment")
     # y
-    plt.ylabel('mm', fontsize=10)
+    plt.ylabel('(mm)', fontsize=10)
     ax2.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
     plt.setp(ax2.get_yticklabels(), fontsize=8)
     # leg
@@ -973,24 +984,24 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
     ax2.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth=bymonth))
     plt.setp(ax2.get_xticklabels(which='both'), visible=False)
     # grd
-    ax2.grid(b=True, which='major', axis='both', linestyle=':', color='darkgray')
-    ax2.grid(b=True, which='minor', axis='x', linestyle=':', color='gainsboro')
+    ax2.grid(visible=True, which='major', axis='both', linestyle=':', color='darkgray')
+    ax2.grid(visible=True, which='minor', axis='x', linestyle=':', color='gainsboro')
 
     ax3 = fig.add_subplot(8, 1, 3, sharex=ax1)
     # ax3.set_autoscalex_on(False)
     # PE
-    plt.plot_date(cMF.inputDate, flx[flxIndex_lst[b'iPE']], '-', color='lightblue', linewidth=2.5,
+    plt.plot_date(cMF.inputDate, flx[flxIndex_lst[b'iPE']], '-', color='lightblue', linewidth=2,
                   label=flxLbl[flxIndex_lst[b'iPE']])
     if cMF.wel_yn == 1:
         E = flx[flxIndex_lst[b'iEsoil']] + flx[flxIndex_lst[b'iEg']]
         # Etot
-        plt.plot_date(cMF.inputDate, E, '-', color='darkblue', linewidth=1.5, label=r'$E$')
+        plt.plot_date(cMF.inputDate, E, '-', color='darkblue', linewidth=1, label=r'$E$')
     # Esoil
     plt.plot_date(cMF.inputDate, flx[flxIndex_lst[b'iEsoil']], '--', color='brown',
                   label=flxLbl[flxIndex_lst[b'iEsoil']])
     if cMF.wel_yn == 1:
         # Eg
-        plt.plot_date(cMF.inputDate, flx[flxIndex_lst[b'iEg']], '-', color='blue', label=flxLbl[flxIndex_lst[b'iEg']])
+        plt.plot_date(cMF.inputDate, flx[flxIndex_lst[b'iEg']], '-', color='deepskyblue', label=flxLbl[flxIndex_lst[b'iEg']])
     # leg
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad=bdpd, handletextpad=hdltxtpd, ncol=2,
                columnspacing=colspc)
@@ -999,31 +1010,31 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
     plt.setp(ltext, fontsize=8)
     # y
     ax3.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
-    plt.ylabel('mm', fontsize=10)
+    plt.ylabel('(mm)', fontsize=10)
     plt.setp(ax3.get_yticklabels(), fontsize=8)
     # x
     ax3.xaxis.set_major_locator(mpl.dates.YearLocator(1, month=iniMonthHydroYear, day=1))
     ax3.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth=bymonth))
     plt.setp(ax3.get_xticklabels(which='both'), visible=False)
     # grd
-    ax3.grid(b=True, which='major', axis='both', linestyle=':', color='darkgray')
-    ax3.grid(b=True, which='minor', axis='x', linestyle=':', color='gainsboro')
+    ax3.grid(visible=True, which='major', axis='both', linestyle=':', color='darkgray')
+    ax3.grid(visible=True, which='minor', axis='x', linestyle=':', color='gainsboro')
 
     ax4 = fig.add_subplot(8, 1, 4, sharex=ax1)
     # ax4.set_autoscalex_on(False)
     # PT
-    plt.plot_date(cMF.inputDate, flx[flxIndex_lst[b'iPT']], '-', color='lightblue', linewidth=3,
+    plt.plot_date(cMF.inputDate, flx[flxIndex_lst[b'iPT']], '-', color='lightblue', linewidth=2,
                   label=flxLbl[flxIndex_lst[b'iPT']])
     if cMF.wel_yn == 1:
         T = flx[flxIndex_lst[b'iTsoil']] + flx[flxIndex_lst[b'iTg']]
         # Ttot
-        plt.plot_date(cMF.inputDate, T, '-', color='darkblue', linewidth=1.5, label=r'$T$')
+        plt.plot_date(cMF.inputDate, T, '-', color='darkblue', linewidth=1, label=r'$T$')
     # Tsoil
     plt.plot_date(cMF.inputDate, flx[flxIndex_lst[b'iTsoil']], '--', color='brown',
                   label=flxLbl[flxIndex_lst[b'iTsoil']])
     if cMF.wel_yn == 1:
         # Tg
-        plt.plot_date(cMF.inputDate, flx[flxIndex_lst[b'iTg']], '-', color='blue', label=flxLbl[flxIndex_lst[b'iTg']])
+        plt.plot_date(cMF.inputDate, flx[flxIndex_lst[b'iTg']], '-', color='deepskyblue', label=flxLbl[flxIndex_lst[b'iTg']])
     # leg
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad=bdpd, handletextpad=hdltxtpd, ncol=2,
                columnspacing=colspc)
@@ -1031,7 +1042,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
     ltext = leg.get_texts()
     plt.setp(ltext, fontsize=8)
     # y
-    plt.ylabel('mm', fontsize=10)
+    plt.ylabel('(mm)', fontsize=10)
     ax4.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
     plt.setp(ax4.get_yticklabels(), fontsize=8)
     # x
@@ -1039,24 +1050,29 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
     ax4.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth=bymonth))
     plt.setp(ax4.get_xticklabels(which='both'), visible=False)
     # grd
-    ax4.grid(b=True, which='major', axis='both', linestyle=':', color='darkgray')
-    ax4.grid(b=True, which='minor', axis='x', linestyle=':', color='gainsboro')
+    ax4.grid(visible=True, which='major', axis='both', linestyle=':', color='darkgray')
+    ax4.grid(visible=True, which='minor', axis='x', linestyle=':', color='gainsboro')
 
     ax5 = fig.add_subplot(8, 1, 5, sharex=ax1)
     # ax5.set_autoscalex_on(False)
     # Rp
-    ax5.plot_date(cMF.inputDate, -1.0 * flx[flxIndex_lst[b'iperc']], '-', color='brown',
+    ax5.plot_date(cMF.inputDate, flx[flxIndex_lst[b'iperc']], '-', color='brown',
                   label=flxLbl[flxIndex_lst[b'iRsoil']])
     if cMF is not None:
+        if cMF.wel_yn == 1:
+            # ETg
+            plt.plot_date(cMF.inputDate, -1.0 * flx[flxIndex_lst[b'iETg']], '-', c='deepskyblue', linewidth=1,
+                          label=flxLbl[flxIndex_lst[b'iETg']])
         # Rg
-        plt.plot_date(cMF.inputDate, -1.0 * flx[flxIndex_lst[b'iRg']], '-', c='darkblue', linewidth=1.5,
+        plt.plot_date(cMF.inputDate, flx[flxIndex_lst[b'iRg']], '-', c='darkblue', linewidth=1,
                       label=flxLbl[flxIndex_lst[b'iRg']])
-    if cMF.wel_yn == 1:
-        # ETg
-        plt.plot_date(cMF.inputDate, flx[flxIndex_lst[b'iETg']], '-', c='blue', linewidth=1.5,
-                      label=flxLbl[flxIndex_lst[b'iETg']])
+        # Rn
+        Rn = flx[flxIndex_lst[b'iRg']] - flx[flxIndex_lst[b'iETg']] - flx[flxIndex_lst[b'iEXFg']]
+        plt.plot_date(cMF.inputDate, Rn, '--', c='black', linewidth=1,
+                      label='$Rn$')
+        del Rn
     # EXF
-    plt.bar(cMF.inputDate, flx[flxIndex_lst[b'iEXFg']], color='lightblue', linewidth=0, align='center',
+    plt.bar(cMF.inputDate, -1.0 * flx[flxIndex_lst[b'iEXFg']], color='lightblue', linewidth=0, align='center',
             label=flxLbl[flxIndex_lst[b'iEXFg']])
     # leg
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad=bdpd, handletextpad=hdltxtpd, ncol=2,
@@ -1065,7 +1081,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
     ltext = leg.get_texts()
     plt.setp(ltext, fontsize=8)
     # y
-    plt.ylabel('mm', fontsize=10)
+    plt.ylabel('(mm)', fontsize=10)
     ax5.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
     plt.setp(ax5.get_yticklabels(), fontsize=8)
     # x axis
@@ -1078,8 +1094,8 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
     del labels
     ax5.set_xlabel('Date', fontsize=10)
     # grd
-    ax5.grid(b=True, which='major', axis='both', linestyle=':', color='darkgray')
-    ax5.grid(b=True, which='minor', axis='x', linestyle=':', color='gainsboro')
+    ax5.grid(visible=True, which='major', axis='both', linestyle=':', color='darkgray')
+    ax5.grid(visible=True, which='minor', axis='x', linestyle=':', color='gainsboro')
 
     ax6 = fig.add_subplot(8, 1, 7, sharex=ax1)
     # ax6.set_autoscalex_on(False)
@@ -1105,7 +1121,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
         if rmseSM[0] is not None:
             print('SM: %.1f %% / %.2f / %.2f / %.2f' % (rmseSM[0], rsrSM[0], nseSM[0], rSM[0]))
     # y axis
-    plt.ylabel('%', fontsize=10)
+    plt.ylabel('(%)', fontsize=10)
     ax6.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
     plt.setp(ax6.get_yticklabels(), fontsize=8)
     # leg
@@ -1126,12 +1142,12 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
     else:
         plt.setp(ax6.get_xticklabels(which='both'), visible=False)
     # grd
-    ax6.grid(b=True, which='major', axis='both', linestyle=':', color='darkgray')
-    ax6.grid(b=True, which='minor', axis='x', linestyle=':', color='gainsboro')
+    ax6.grid(visible=True, which='major', axis='both', linestyle=':', color='darkgray')
+    ax6.grid(visible=True, which='minor', axis='x', linestyle=':', color='gainsboro')
 
     if MF is not None:
         # compute heads
-        # plot GWT
+        # plot h and DGWT (d)
         lines = itertools.cycle(
             ['-', '--', '-.', ':', '.', ',', 'o', 'v', '^', '<', '>', 's', 'p', '*', 'h', 'H', '+', 'x', 'D', 'd', '|',
              '_'])
@@ -1139,17 +1155,17 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
         # ax10.set_autoscalex_on(False)
         for l in range(cMF.nlay):
             if cMF.h_plt[l] == 1:
-                i = b'id_%s' % cMF.h_lbl[l].encode('ASCII')
-                plt.plot_date(cMF.inputDate, flx[flxIndex_lst[i]], next(lines), color='b', markersize=2, markevery=7,
+                i = b'ih_%s' % cMF.h_lbl[l].encode('ASCII')
+                ax10.plot_date(cMF.inputDate, flx[flxIndex_lst[i]], next(lines), color='b', markersize=2, markevery=7,
                           label=flxLbl[flxIndex_lst[i]])
         if obs_catch_list[0] == 1:
             obs_h = obs_catch.get('catch')['obs_h']
             hobs_m = np.ma.masked_values(obs_h[0], cMF.hnoflo, atol=0.09)
-            dobs_m = hobs_m - TopSoilAverage
-            ax10.plot_date(cMF.inputDate, dobs_m, 'o', markerfacecolor='None', markeredgecolor='LightBlue',
-                           markersize=2, markevery=7, label=r'$d \ obs$')
+            #dobs_m = hobs_m - TopSoilAverage
+            ax10.plot_date(cMF.inputDate,hobs_m, 'o', markerfacecolor='None', markeredgecolor='LightBlue',
+                           markersize=2, markevery=7, label=r'$h \ obs$')
         # y
-        plt.ylabel('m', fontsize=10)
+        plt.ylabel('(masl)', fontsize=10)
         plt.setp(ax10.get_yticklabels(), fontsize=8)
         # leg
         plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad=bdpd, handletextpad=hdltxtpd, ncol=2,
@@ -1158,6 +1174,12 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
         ltext = leg.get_texts()
         plt.setp(ltext, fontsize=8)
         ax10.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
+        # y secondary axis
+        ax10b = ax10.twinx()
+        y1, y2 = ax10.get_ylim()
+        ax10b.set_ylim(y1-TopSoilAverage, y2-TopSoilAverage)
+        plt.setp(ax10b.get_yticklabels(), fontsize=8)
+        ax10b.set_ylabel('(mbgs)', fontsize=10)
         # x axis
         ax10.xaxis.set_major_locator(mpl.dates.YearLocator(1, month=iniMonthHydroYear, day=1))
         ax10.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth=bymonth))
@@ -1168,12 +1190,12 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
         del labels
         ax10.set_xlabel('Date', fontsize=10)
         # grd
-        ax10.grid(b=True, which='major', axis='both', linestyle=':', color='darkgray')
-        ax10.grid(b=True, which='minor', axis='x', linestyle=':', color='gainsboro')
+        ax10.grid(visible=True, which='major', axis='both', linestyle=':', color='darkgray')
+        ax10.grid(visible=True, which='minor', axis='x', linestyle=':', color='gainsboro')
 
-    ax1.set_xlim(np.min(cMF.inputDate) - 15.0, np.max(cMF.inputDate) + 15)
+    ax1.set_xlim(date_ini, date_end)
 
-    plt.subplots_adjust(left=0.10, bottom=0.10, right=0.95, top=0.95, wspace=0.1, hspace=0.1)
+    plt.subplots_adjust(left=0.10, bottom=0.10, right=0.90, top=0.95, wspace=0.1, hspace=0.1)
     plt.savefig(plt_export_fn, dpi=150)
     plt.close()
 
@@ -1187,16 +1209,16 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
     # RF
     ax0.bar(cMF.inputDate, flx[flxIndex_lst[b'iRF']], color='darkblue', linewidth=0, align='center',
             label=flxLbl[flxIndex_lst[b'iRF']])
-    # TF
-    ax0.bar(cMF.inputDate, flx[flxIndex_lst[b'iTF']], color='deepskyblue', linewidth=0, align='center',
-            label=flxLbl[flxIndex_lst[b'iTF']])
+    # RFe
+    ax0.bar(cMF.inputDate, flx[flxIndex_lst[b'iRFe']], color='deepskyblue', linewidth=0, align='center',
+            label=flxLbl[flxIndex_lst[b'iRFe']])
     # leg
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad=bdpd, handletextpad=hdltxtpd)
     leg = plt.gca().get_legend()
     ltext = leg.get_texts()
     plt.setp(ltext, fontsize=8)
     # y
-    plt.ylabel('mm', fontsize=10)
+    plt.ylabel('(mm)', fontsize=10)
     plt.setp(ax0.get_yticklabels(), fontsize=8)
     ax0.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
     # x
@@ -1204,8 +1226,8 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
     ax0.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth=bymonth))
     plt.setp(ax0.get_xticklabels(which='both'), visible=False)
     # grd
-    ax0.grid(b=True, which='major', axis='both', linestyle=':', color='darkgray')
-    ax0.grid(b=True, which='minor', axis='x', linestyle=':', color='gainsboro')
+    ax0.grid(visible=True, which='major', axis='both', linestyle=':', color='darkgray')
+    ax0.grid(visible=True, which='minor', axis='x', linestyle=':', color='gainsboro')
 
     # plot Ro
     ax2 = fig.add_subplot(8, 1, 2, sharex=ax0)
@@ -1219,7 +1241,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
         plt.plot_date(cMF.inputDate, Roobs_m, 'o', markerfacecolor='None', markeredgecolor='lightBlue',
                       markersize=2, label=r'$Ro \ obs$')  # markevery = 7,
     # y
-    plt.ylabel('mm', fontsize=10)
+    plt.ylabel('(mm)', fontsize=10)
     plt.setp(ax2.get_yticklabels(), fontsize=8)
     ax2.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
     # leg
@@ -1240,8 +1262,8 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
     del labels
     ax2.set_xlabel('Date', fontsize=10)
     # grd
-    ax2.grid(b=True, which='major', axis='both', linestyle=':', color='darkgray')
-    ax2.grid(b=True, which='minor', axis='x', linestyle=':', color='gainsboro')
+    ax2.grid(visible=True, which='major', axis='both', linestyle=':', color='darkgray')
+    ax2.grid(visible=True, which='minor', axis='x', linestyle=':', color='gainsboro')
 
     rmseHEADS = None
     rsrHEADS = None
@@ -1285,7 +1307,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
                           markersize=2, markevery=7, label=r'$h \ obs$')
         # y
         plt.ylim(hmin, hmax)
-        plt.ylabel('m', fontsize=10)
+        plt.ylabel('(m)', fontsize=10)
         plt.setp(ax1.get_yticklabels(), fontsize=8)
         # leg
         plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad=bdpd, handletextpad=hdltxtpd, ncol=2,
@@ -1298,14 +1320,14 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
         ax1.xaxis.set_minor_locator(mpl.dates.MonthLocator(bymonth=bymonth))
         plt.setp(ax1.get_xticklabels(which='both'), visible=False)
         # grd
-        ax1.grid(b=True, which='major', axis='both', linestyle=':', color='darkgray')
-        ax1.grid(b=True, which='minor', axis='x', linestyle=':', color='gainsboro')
+        ax1.grid(visible=True, which='major', axis='both', linestyle=':', color='darkgray')
+        ax1.grid(visible=True, which='minor', axis='x', linestyle=':', color='gainsboro')
 
         # plot GW fluxes
         ax8 = fig.add_subplot(2, 1, 2, sharex=ax1)
         # ax8.set_autoscalex_on(True)
         # uzf recharge
-        plt.plot_date(cMF.inputDate, flx[flxIndex_lst[b'iRg']], '-', c='darkblue', linewidth=1.5,
+        plt.plot_date(cMF.inputDate, flx[flxIndex_lst[b'iRg']], '-', c='darkblue', linewidth=1,
                       label=flxLbl[flxIndex_lst[b'iRg']])
         lines = itertools.cycle(
             ['-', '--', '-.', ':', '.', ',', 'o', 'v', '^', '<', '>', 's', 'p', '*', 'h', 'H', '+', 'x', 'D', 'd', '|',
@@ -1314,7 +1336,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
             plt.plot_date(cMF.inputDate, e, next(lines), color=mpl.colors.rgb2hex(np.random.rand(1, 3)[0]),
                           markersize=2, markevery=7, label=lbl, markeredgecolor='None')
         # y
-        plt.ylabel('mm', fontsize=10)
+        plt.ylabel('(mm)', fontsize=10)
         plt.setp(ax8.get_yticklabels(), fontsize=8)
         ax8.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
         # leg
@@ -1333,8 +1355,8 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
         del labels
         ax8.set_xlabel('Date', fontsize=10)
         # grd
-        ax8.grid(b=True, which='major', axis='both', linestyle=':', color='darkgray')
-        ax8.grid(b=True, which='minor', axis='x', linestyle=':', color='gainsboro')
+        ax8.grid(visible=True, which='major', axis='both', linestyle=':', color='darkgray')
+        ax8.grid(visible=True, which='minor', axis='x', linestyle=':', color='gainsboro')
 
     ax0.set_xlim(np.min(cMF.inputDate) - 15.0, np.max(cMF.inputDate) + 15)
     ax1.set_xlim(np.min(cMF.inputDate) - 15.0, np.max(cMF.inputDate) + 15)
@@ -1384,6 +1406,8 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
     y = np.arange(1, nrow + 1, 1)
     xg1, yg1 = np.meshgrid(x, y)
 
+    #print('\n%s' % plt_title)
+
     ims = []
     files_tmp = []
     # print(plt_title)
@@ -1406,6 +1430,10 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
                 NrowPage = 1
         NPage = int(np.ceil(nplot / 2.0))
         L = 0
+        if mask.all() == None:
+            Vtick = V[i, L, :, :]
+        else:
+            Vtick = np.ma.masked_array(V[i, L, :, :], mask[L, :, :])
         Vmin_tmp, Vmax_tmp, ctrs_tmp = MinMax(np.min(Vmin), np.max(Vmax), contours)
         if fmt == None:
             if Vmax_tmp > 0.0999 or abs(Vmin_tmp) > 0.0999:
@@ -1455,7 +1483,7 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
                         Vtmp = np.ma.masked_array(V[i, L, :, :], mask[L, :, :])
                     Vtmp = np.ma.masked_values(Vtmp, hnoflo, atol=0.09)
                     if interval_type == b'percentile':
-                        ticks = np.percentile(Vtmp.compressed().flatten(),
+                        ticks = np.percentile(Vtick.compressed().flatten(),
                                               [0.0, 10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0])
                         levels = mpl.ticker.MaxNLocator(nbins=cmap.N).tick_values(0.0, 100.0)
                         norm = mpl.colors.BoundaryNorm(ticks, cmap.N)  # , vmin=Vmin_tmp, vmax=Vmax_tmp)
@@ -1484,6 +1512,7 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
                             ax[l].plot(xj, yi, 'o', linewidth=1, markersize=4, color=color)
                             if ptslbl > 0:
                                 ax[l].annotate(label, xy=(xj, yi - 0.15), fontsize=8, ha='center', va='bottom')
+                    #print('Vtmp\n', np.sum(Vtmp.flatten()))
                     ims[F].append(ax[l].pcolormesh(xg, yg, Vtmp, cmap=cmap, norm=norm))
                     if ctrs_tmp == True:
                         #try:
@@ -1603,8 +1632,8 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
 
     # compute fluxes for whole modelled period and hydrological years
     RF = []
-    I = []
-    TF = []
+    Ei = []
+    RFe = []
     dSsurf = []
     Ro = []
     Esurf = []
@@ -1614,7 +1643,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
     Esoil = []
     Tsoil = []
     ETsoil = []
-    Inf = []
+    I = []
     Eg = []
     Tg = []
     Egtot = []
@@ -1643,8 +1672,8 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
             indexend = indexTime[k + 1] - 1
             mult = 1.0
         RF.append(mult * np.sum(np.float16(flx[flxIndex[b'iRF']][i:indexend])))
-        I.append(mult * np.sum(np.float16(flx[flxIndex[b'iI']][i:indexend])))
-        TF.append(mult * np.sum(np.float16(flx[flxIndex[b'iTF']][i:indexend])))
+        Ei.append(mult * np.sum(np.float16(flx[flxIndex[b'iEi']][i:indexend])))
+        RFe.append(mult * np.sum(np.float16(flx[flxIndex[b'iRFe']][i:indexend])))
         dSsurf.append(mult * np.sum(np.float16(flx[flxIndex[b'idSsurf']][i:indexend])))
         Ro.append(mult * np.sum(np.float16(flx[flxIndex[b'iRo']][i:indexend])))
         Esurf.append(mult * np.sum(np.float16(flx[flxIndex[b'iEsurf']][i:indexend])))
@@ -1654,7 +1683,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
         Esoil.append(mult * np.sum(np.float16(flx[flxIndex[b'iEsoil']][i:indexend])))
         Tsoil.append(mult * np.sum(np.float16(flx[flxIndex[b'iTsoil']][i:indexend])))
         ETsoil.append(mult * np.sum(np.float16(flx[flxIndex[b'iETsoil']][i:indexend])))
-        Inf.append(mult * np.sum(np.float16(flx[flxIndex[b'iInf']][i:indexend])))
+        I.append(mult * np.sum(np.float16(flx[flxIndex[b'iI']][i:indexend])))
         if cMF.wel_yn == 1:
             Eg.append(np.zeros(cMF.Mnlay))
             Tg.append(np.zeros(cMF.Mnlay))
@@ -1727,7 +1756,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
             #                lbl_tmp += 'DRN %s' % (np.asarray(DRN[k])/ff)
             #            if cMF.ghb_yn == 1:
             #                lbl_tmp += 'GHB %s' % (np.asarray(GHB[k])/ff)
-            # print '\nMMsurf: RF %s, I %s, TF %s, Esurf %s, DSsurf %s\nMMsoil: Esoil %s, Tsoil %s, ETsoil %s, Ro %s, Rp %s, DSsoil  %s\nUZF: Rg %s, DSu %s\nMF: Eg %s, Tg %s, ETg %s, %s, EXF  %s, FLF %s, dSg %s' % (RF[k]/ff, I[k]/ff, TF[k]/ff, Esurf[k]/ff, DSsurf[k]/ff, Esoil[k]/ff, Tsoil[k]/ff, ETsoil[k]/ff, Ro[k]/ff, Rp[k]/ff, DSsoil[k]/ff, (np.asarray(Rg[k])/ff), DSu[k]/ff, (np.asarray(Eg[k])/ff), (np.asarray(Tg[k])/ff), ETg[k]/ff, lbl_tmp, (np.asarray(EXF[k])/ff), (np.asarray(FLF[k])/ff), (np.asarray(dSg[k])/ff))
+            # print '\nMMsurf: RF %s, Ei %s, RFe %s, Esurf %s, DSsurf %s\nMMsoil: Esoil %s, Tsoil %s, ETsoil %s, Ro %s, Rp %s, DSsoil  %s\nUZF: Rg %s, DSu %s\nMF: Eg %s, Tg %s, ETg %s, %s, EXF  %s, FLF %s, dSg %s' % (RF[k]/ff, Ei[k]/ff, RFe[k]/ff, Esurf[k]/ff, DSsurf[k]/ff, Esoil[k]/ff, Tsoil[k]/ff, ETsoil[k]/ff, Ro[k]/ff, Rp[k]/ff, DSsoil[k]/ff, (np.asarray(Rg[k])/ff), DSu[k]/ff, (np.asarray(Eg[k])/ff), (np.asarray(Tg[k])/ff), ETg[k]/ff, lbl_tmp, (np.asarray(EXF[k])/ff), (np.asarray(FLF[k])/ff), (np.asarray(dSg[k])/ff))
             treshold = 5E-2  # 5E-2
             if k == 0 or k % 2 != 0:
                 fig = plt.figure(figsize=(8.27, 11.7), dpi=72)
@@ -1751,20 +1780,20 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
             tl = 2.0
             # MMveg
             pltsankey.add(patchlabel='veg', facecolor='lightgreen', trunklength=tl / 1.5,
-                          flows=[RF[k] / ff, -I[k] / ff, -TF[k] / ff],
-                          labels=['$RF$', '$I$', '$TF$'],
+                          flows=[RF[k] / ff, -Ei[k] / ff, -RFe[k] / ff],
+                          labels=['$RF$', '$Ei$', '$RFe$'],
                           orientations=[1, 1, -1],
                           pathlengths=[pl, pl, pl])
             # MMsurf
-            flows = [TF[k] / ff, -Inf[k] / ff, Exf_l0[k] / ff, -Esurf[k] / ff, -Ro[k] / ff]
+            flows = [RFe[k] / ff, -I[k] / ff, Exf_l0[k] / ff, -Esurf[k] / ff, -Ro[k] / ff]
             if np.abs(Exf_l0[k]) > treshold:
-                #flows = [TF[k] / ff, -Inf[k] / ff, Exf_l0[k] / ff, -Esurf[k] / ff, -Ro[k] / ff]
-                labels = [None, '$Inf$', '$Exf_1$', '$E_{surf}$', '$Ro$']
+                #flows = [RFe[k] / ff, -I[k] / ff, Exf_l0[k] / ff, -Esurf[k] / ff, -Ro[k] / ff]
+                labels = [None, '$I$', '$Exf_1$', '$E_{surf}$', '$Ro$']
                 orientations = [1, -1, -1, 1, 0]
                 pathlengths = [pl, pl, pl, pl, pl]
             else:
-                #flows = [TF[k] / ff, -Inf[k] / ff, 0.0, -Esurf[k] / ff, -Ro[k] / ff]
-                labels = [None, '$Inf$', '', '$E_{surf}$', '$Ro$']
+                #flows = [RFe[k] / ff, -I[k] / ff, 0.0, -Esurf[k] / ff, -Ro[k] / ff]
+                labels = [None, '$I$', '', '$E_{surf}$', '$Ro$']
                 orientations = [1, -1, -1, 1, 0]
                 pathlengths = [pl, pl, 0, pl, pl]
             pltsankey.add(patchlabel=r"$\Delta S_{surf}$" "\n%.1f" % (-dSsurf[k] / ff), label='MMsurf',
@@ -1774,8 +1803,8 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                           orientations=orientations,
                           pathlengths=pathlengths,
                           prior=0, connect=(2, 0))
-            In = TF[k] + Exf_l0[k]
-            Out = Inf[k] + Esurf[k] + Ro[k]
+            In = RFe[k] + Exf_l0[k]
+            Out = I[k] + Esurf[k] + Ro[k]
             if dSsurf[k] > 0.0:
                 Out += dSsurf[k]
             else:
@@ -1783,28 +1812,28 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
             MB_MMsurf = 100 * (In - Out) / ((In + Out) / 2)
             # MMsoil
             if EXFtotMM[k] > treshold:
-                flows = [Inf[k] / ff, -Rp[k] / ff, -Exf_l0[k] / ff, -Esoil[k] / ff, -Tsoil[k] / ff,
+                flows = [I[k] / ff, -Rp[k] / ff, -Exf_l0[k] / ff, -Esoil[k] / ff, -Tsoil[k] / ff,
                          EXFtotMM[k] / ff]
                 if np.abs(-Exf_l0[k]) > treshold:
-                    #flows = [Inf[k] / ff, -Rp[k] / ff, -Exf_l0[k] / ff, -Esoil[k] / ff, -Tsoil[k] / ff,
+                    #flows = [I[k] / ff, -Rp[k] / ff, -Exf_l0[k] / ff, -Esoil[k] / ff, -Tsoil[k] / ff,
                              #EXFtotMM[k] / ff]
                     labels = [None, '$R_p$', '$Exf_1$', '$E_{soil}$', '$T_{soil}$', '$Exf_g$']
                     orientations = [1, -1, 1, 1, 1, -1]
                     pathlengths = [pl, pl, pl, pl, pl, pl]
                 else:
-                    #flows = [Inf[k] / ff, -Rp[k] / ff, 0.0, -Esoil[k] / ff, -Tsoil[k] / ff, EXFtotMM[k] / ff]
+                    #flows = [I[k] / ff, -Rp[k] / ff, 0.0, -Esoil[k] / ff, -Tsoil[k] / ff, EXFtotMM[k] / ff]
                     labels = [None, '$R_p$', '', '$E_{soil}$', '$T_{soil}$', '$Exf_g$']
                     orientations = [1, -1, 1, 1, 1, -1]
                     pathlengths = [pl, pl, 0, pl, pl, pl]
             else:
-                flows = [Inf[k] / ff, -Rp[k] / ff, -Exf_l0[k] / ff, -Esoil[k] / ff, -Tsoil[k] / ff]
+                flows = [I[k] / ff, -Rp[k] / ff, -Exf_l0[k] / ff, -Esoil[k] / ff, -Tsoil[k] / ff]
                 if np.abs(EXF[k][0]) > treshold:
-                    #flows = [Inf[k] / ff, -Rp[k] / ff, -Exf_l0[k] / ff, -Esoil[k] / ff, -Tsoil[k] / ff]
+                    #flows = [I[k] / ff, -Rp[k] / ff, -Exf_l0[k] / ff, -Esoil[k] / ff, -Tsoil[k] / ff]
                     labels = [None, '$R_p$', '$Exf_1$', '$E_{soil}$', '$T_{soil}$']
                     orientations = [1, -1, 1, 1, 1]
                     pathlengths = [pl, pl, pl, pl, pl]
                 else:
-                    #flows = [Inf[k] / ff, -Rp[k] / ff, 0.0, -Esoil[k] / ff, -Tsoil[k] / ff]
+                    #flows = [I[k] / ff, -Rp[k] / ff, 0.0, -Esoil[k] / ff, -Tsoil[k] / ff]
                     labels = [None, '$R_p$', '', '$E_{soil}$', '$T_{soil}$']
                     orientations = [1, -1, 1, 1, 1]
                     pathlengths = [pl, pl, 0, pl, pl]
@@ -1815,7 +1844,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                           orientations=orientations,
                           pathlengths=pathlengths,
                           prior=1, connect=(1, 0))
-            In = Inf[k] + EXFtotMM[k]
+            In = I[k] + EXFtotMM[k]
             Out = Rp[k] + Esoil[k] + Tsoil[k] + Exf_l0[k]
             if dSsoil[k] > 0.0:
                 Out += dSsoil[k]
@@ -2305,7 +2334,6 @@ def plotCALIBCRIT(calibcritSM, calibcritSMobslst, calibcritHEADS, calibcritHEADS
         p_mult += num_plt_max
 
         # TODO export a table with calib. crit. results
-
 
 
 if __name__ == "__main__":

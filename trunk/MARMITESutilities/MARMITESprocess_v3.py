@@ -7,6 +7,7 @@ __date__ = "2012"
 import os
 import numpy as np
 import matplotlib as mpl
+from decimal import Decimal, ROUND_HALF_EVEN
 
 class clsPROCESS:
     def __init__(self, cUTIL, MM_ws, MM_ws_out, MF_ws, nrow, ncol, nlay, xllcorner, yllcorner, cellsizeMF, hnoflo):
@@ -205,16 +206,16 @@ class clsPROCESS:
     ######################
 
     def inputSP(self, NMETEO, NVEG, NSOIL, nper,
-                inputZON_SP_RF_veg_fn, inputZON_SP_TF_veg_fn, inputZON_SP_LAI_veg_fn,
+                inputZON_SP_RF_veg_fn, inputZON_SP_RFe_veg_fn, inputZON_SP_LAI_veg_fn,
                 inputZON_SP_PT_fn, inputZON_SP_PE_fn,
                 inputZON_SP_Eo_fn,
                 NFIELD = None,
-                inputZON_SP_RF_irr_fn = None, inputZON_SP_TF_irr_fn = None,
+                inputZON_SP_RF_irr_fn = None, inputZON_SP_RFe_irr_fn = None,
                 inputZON_SP_PT_irr_fn = None, input_SP_crop_irr_fn = None,
                 stdout = None, report = None):
 
         # READ input ESRI ASCII rasters vegetation
-        global crop_irr_SP, PT_irr_zonesSP, TF_irr_zonesSP, RF_irr_zonesSP, crop_irr_tmp, PT_irr_tmp, TF_irr_tmp, RF_irr_tmp, PE_tmp, LAI_veg_tmp, PT_veg_tmp, TF_veg_tmp, Eo, RF_veg
+        global crop_irr_SP, PT_irr_zonesSP, RFe_irr_zonesSP, RF_irr_zonesSP, crop_irr_tmp, PT_irr_tmp, RFe_irr_tmp, RF_irr_tmp, PE_tmp, LAI_veg_tmp, PT_veg_tmp, RFe_veg_tmp, Eo, RF_veg
         gridVEGarea_fn=[]
         for v in range(NVEG):
             gridVEGarea_fn.append(os.path.join(self.MM_ws,'inputVEG' + str(v+1)+'area.asc'))
@@ -247,14 +248,14 @@ class clsPROCESS:
                 RF_veg_zonesSP[n,t]=RF_veg[n*nper+t]
                 Eo_zonesSP[n,t]=Eo[n*nper+t]
 
-        # READ PT/TF for each zone and each vegetation
-        # TF
-        TF_veg_fn = os.path.join(self.MM_ws, inputZON_SP_TF_veg_fn)
-        if os.path.exists(TF_veg_fn):
-            TF_veg_tmp = np.loadtxt(TF_veg_fn)
+        # READ PT/RFe for each zone and each vegetation
+        # RFe
+        RFe_veg_fn = os.path.join(self.MM_ws, inputZON_SP_RFe_veg_fn)
+        if os.path.exists(RFe_veg_fn):
+            RFe_veg_tmp = np.loadtxt(RFe_veg_fn)
         else:
-            self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % TF_veg_fn, stdout = stdout, report = report)
-        TF_veg_zonesSP = np.zeros([NMETEO,NVEG,nper], dtype=np.float32)
+            self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % RFe_veg_fn, stdout = stdout, report = report)
+        RFe_veg_zonesSP = np.zeros([NMETEO,NVEG,nper], dtype=np.float32)
         # LAI
         LAI_veg_fn = os.path.join(self.MM_ws, inputZON_SP_LAI_veg_fn)
         if os.path.exists(LAI_veg_fn):
@@ -273,7 +274,7 @@ class clsPROCESS:
             for v in range(NVEG):
                 for t in range(nper):
                     #structure is [number of zones, number of vegetation type, time]
-                    TF_veg_zonesSP[n,v,t] = TF_veg_tmp[t+(n*NVEG+v)*nper]
+                    RFe_veg_zonesSP[n,v,t] = RFe_veg_tmp[t+(n*NVEG+v)*nper]
                     PT_veg_zonesSP[n,v,t]  = PT_veg_tmp[t+(n*NVEG+v)*nper]
         for v in range(NVEG):
             for t in range(nper):
@@ -293,7 +294,7 @@ class clsPROCESS:
                     PE_zonesSP[n,s,t] = PE_tmp[t+(n*NSOIL+s)*nper]
                     #structure is [number of zones, number of soil type, time]
 
-        # read IRRIGATION RF and TF
+        # read IRRIGATION RF and RFe
         if NFIELD is not None:
             # RF_irr
             RF_irr_fn = os.path.join(self.MM_ws, inputZON_SP_RF_irr_fn)
@@ -302,13 +303,13 @@ class clsPROCESS:
             else:
                 self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % RF_irr_fn, stdout = stdout, report = report)
             RF_irr_zonesSP = np.zeros([NMETEO,NFIELD,nper], dtype=np.float32)
-            # TF irr
-            TF_irr_fn = os.path.join(self.MM_ws, inputZON_SP_TF_irr_fn)
-            if os.path.exists(TF_irr_fn):
-                TF_irr_tmp = np.loadtxt(TF_irr_fn)
+            # RFe irr
+            RFe_irr_fn = os.path.join(self.MM_ws, inputZON_SP_RFe_irr_fn)
+            if os.path.exists(RFe_irr_fn):
+                RFe_irr_tmp = np.loadtxt(RFe_irr_fn)
             else:
-                self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % TF_irr_fn, stdout = stdout, report = report)
-            TF_irr_zonesSP = np.zeros([NMETEO,NFIELD,nper], dtype=np.float32)
+                self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % RFe_irr_fn, stdout = stdout, report = report)
+            RFe_irr_zonesSP = np.zeros([NMETEO,NFIELD,nper], dtype=np.float32)
             # PT irr
             PT_irr_fn = os.path.join(self.MM_ws, inputZON_SP_PT_irr_fn)
             if os.path.exists(PT_irr_fn):
@@ -328,7 +329,7 @@ class clsPROCESS:
                     for t in range(nper):
                         #structure is [number of zones, number of field, time]
                         RF_irr_zonesSP[n,f,t]  = RF_irr_tmp[t+(n*NFIELD+f)*nper]
-                        TF_irr_zonesSP[n,f,t] = TF_irr_tmp[t+(n*NFIELD+f)*nper]
+                        RFe_irr_zonesSP[n,f,t] = RFe_irr_tmp[t+(n*NFIELD+f)*nper]
                         PT_irr_zonesSP[n,f,t]  = PT_irr_tmp[t+(n*NFIELD+f)*nper]
             for f in range(NFIELD):
                 for t in range(nper):
@@ -336,9 +337,9 @@ class clsPROCESS:
                     crop_irr_SP[f,t] = crop_irr_tmp[t+f*nper]
 
         if NFIELD is None:
-            return gridVEGarea, RF_veg_zonesSP, Eo_zonesSP, PT_veg_zonesSP, TF_veg_zonesSP, LAI_veg_zonesSP, PE_zonesSP
+            return gridVEGarea, RF_veg_zonesSP, Eo_zonesSP, PT_veg_zonesSP, RFe_veg_zonesSP, LAI_veg_zonesSP, PE_zonesSP
         else:
-            return gridVEGarea, RF_veg_zonesSP, Eo_zonesSP, PT_veg_zonesSP, TF_veg_zonesSP, LAI_veg_zonesSP, PE_zonesSP, RF_irr_zonesSP, TF_irr_zonesSP, PT_irr_zonesSP, crop_irr_SP
+            return gridVEGarea, RF_veg_zonesSP, Eo_zonesSP, PT_veg_zonesSP, RFe_veg_zonesSP, LAI_veg_zonesSP, PE_zonesSP, RF_irr_zonesSP, RFe_irr_zonesSP, PT_irr_zonesSP, crop_irr_SP
 
     ######################
 
@@ -385,15 +386,15 @@ class clsPROCESS:
             for ns in range(nsl[z+1]):
                 slprop[z].append(float(inputFile[nslst]))
                 nslst += 1
-                Sm[z].append(float(inputFile[nslst]))
+                Sm[z].append(Decimal(float(inputFile[nslst])).quantize(Decimal('.00001'), rounding=ROUND_HALF_EVEN))
                 nslst += 1
-                Sfc[z].append(float(inputFile[nslst]))
+                Sfc[z].append(Decimal(float(inputFile[nslst])).quantize(Decimal('.00001'), rounding=ROUND_HALF_EVEN))
                 nslst += 1
-                Sr[z].append(float(inputFile[nslst]))
+                Sr[z].append(Decimal(float(inputFile[nslst])).quantize(Decimal('.00001'), rounding=ROUND_HALF_EVEN))
                 nslst += 1
-                Si[z].append(float(inputFile[nslst]))
+                Si[z].append(Decimal(float(inputFile[nslst])).quantize(Decimal('.00001'), rounding=ROUND_HALF_EVEN))
                 nslst += 1
-                Ks[z].append(float(inputFile[nslst]))
+                Ks[z].append(Decimal(float(inputFile[nslst])).quantize(Decimal('.00001'), rounding=ROUND_HALF_EVEN))
                 nslst += 1
                 if not(Sm[z][ns]>Sfc[z][ns]>Sr[z][ns]) or not(Sm[z][ns]>=Si[z][ns]>=Sr[z][ns]):
                     self.cUTIL.ErrorExit('\nFATAL ERROR!\nSoils parameters are not valid!\nThe conditions are Sm>Sfc>Sr and Sm>Si>Sr!', stdout = stdout, report = report)
