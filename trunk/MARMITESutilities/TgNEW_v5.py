@@ -19,11 +19,11 @@ theta_fc = 0.35
 theta_wp = 0.05
 ThickSoil = 1000.0
 PT = 4.0
-plt_numb_lst = ['b)', 'c)', 'c)', 'd)']
+plt_numb_lst = ['B', 'C', 'C', 'D']
 pos = [2,4,4,6]
 daynum= 350
 #veg param
-subtitle_list = ['major phreatophytic behavior', 'intermediate phreatophytic behavior', 'intermediate phreatophytic behavior','minor to null phreatophytic behavior']
+subtitle_list = ['Major phreatophytic behavior', 'Intermediate phreatophytic behavior', 'Intermediate phreatophytic behavior','Vadophyte behavior']
 veg_list = ['$k_{T_g}$ riparian', '$k_{T_{soil}}$ $Quercus$', '$k_{T_g}$ $Quercus$', '$k_{T_g}$ grass']
 f_lst = [0.5, 0.101, 0.101, 0.5]#[0.10, 0.217336864608619, 0.30]
 s_lst = [1.00, 21.57, 21.57, 1.00]#[20, 28.26674282, 35]
@@ -71,7 +71,7 @@ fig = plt.figure(figsize=(11.7, 8.27))
 ax1=fig.add_subplot(1,2,1)
 plt.setp(ax1.get_xticklabels(), fontsize=8)
 plt.setp(ax1.get_yticklabels(), fontsize=8)
-title = plt.title(r'a) - Transpiration splitting factor $k_{T}$ as a function of $\theta_{norm}$', fontsize = 12)
+title = plt.title(r'Transpiration splitting factor $k_{T}$ as a function of $\theta_{norm}$', fontsize = 12)
 theta = np.arange(theta_wp,phi+incr, incr)
 thetanorm = (theta - theta_wp) / (phi - theta_wp)
 linesTg = itertools.cycle(['-.','-','--',':'])
@@ -80,7 +80,7 @@ x = []
 y = []
 m = []
 texts = []
-for l, (s, s_inv, f, kT_max, kT_min, v, plt_numb) in enumerate(zip(s_inv_lst, s_lst, f_lst, kT_max_lst, kT_min_lst, veg_list, plt_numb_lst)):
+for l, (s, s_inv, f, kT_max, kT_min, v) in enumerate(zip(s_inv_lst, s_lst, f_lst, kT_max_lst, kT_min_lst, veg_list)): #  plt_numb, plt_numb_lst)):
     kT = kT_max - (kT_max-kT_min)/(1 + np.exp((thetanorm - f)/s))
     plts += ax1.plot(thetanorm, kT, linesTg.__next__(), color = cTg, label = '%s'%v)
     #ax1.annotate('$1/s = %.1f,\ f = %.2f$\n$k_{T_{max}} = %.1f,\ k_{T_{min}} = %.1f$\n$(T_g\ parameters\ of\ figure\ %s$' % (s_inv, f, kT_max, kT_min, plt_numb), (f, kT_max - (kT_max-kT_min)/(1 + np.exp((f - f)/s))), horizontalalignment='left', verticalalignment='bottom', bbox=dict(facecolor='white'), fontsize = 10, color = 'black')
@@ -135,13 +135,14 @@ for j, (s, f, kT_max, kT_min, titlesuffix, v, plt_numb) in enumerate(zip(s_inv_l
             T[d] = Tsoil[d] + Tg[d]
         lines = itertools.cycle(['-','--','-.','-'])
         ax2=fig.add_subplot(3,2,pos[j])
-        plt.title('%s - %s (%s)' % (plt_numb,titlesuffix, v), fontsize = 12)
+        #plt.title('%s - %s (%s)' % (plt_numb,titlesuffix, v), fontsize = 12)
+        plt.title('%s (%s)' % (titlesuffix, v), fontsize = 12)
         plt.setp(ax2.get_xticklabels(), fontsize=8)
         plt.setp(ax2.get_yticklabels(), fontsize=8)
         plt2_3 = ax2.plot(days, PTarray, '-', color = cPTa, label = r'$PT$')
         plt2_0 = ax2.plot(days, T, lines.__next__(), color = cT, label = r'$T$')
         plt2_1 = ax2.plot(days, Tsoil, lines.__next__(), color = cTs, label = r'$T_{soil}$')
-        plt2_2 = ax2.plot(days, Tg, linesTg.__next__(), color = cTg, label = r'$T_g\ (fig.\ %s$'% plt_numb)
+        plt2_2 = ax2.plot(days, Tg, linesTg.__next__(), color = cTg, label = r'$T_g\ (fig.\ %s$)'% plt_numb)
         plt2_4 = ax2.plot(days, PTg, '-.', color = cPT, label = r'$PT_g$')
         plt.grid(True)
         plt.ylabel('mm')
@@ -157,9 +158,9 @@ for j, (s, f, kT_max, kT_min, titlesuffix, v, plt_numb) in enumerate(zip(s_inv_l
         ax2a.text(n_x, n_y, '$1/s = %.1f,\ f = %.2f$\n${k_{T_g}}_{min} = %.2f,\ {k_{T_g}}_{max} = %.2f$' % (1/s, f, kT_min, kT_max), horizontalalignment='right', verticalalignment='center', transform=ax2a.transAxes, bbox=dict(facecolor='white'), fontsize = 10)
         if j == 0:
             plts =  plt2_3 + plt2_4 + plt2_0 + plt2_1 + plt2_2
-        elif j==1:
-            plts += (plt2_2)
         elif j==2:
+            plts += (plt2_2)
+        elif j==3:
             plts += (plt2_2+ plt2a)
     else:
         linesTg.__next__()

@@ -16,7 +16,7 @@ import CreateColors
 def plot(x, y1, \
         y2 = [], y3 = [], y4 = [],\
         lbl_y1 = '', lbl_y2 = '', lbl_y3 = '', lbl_y4 = '', lbl_veg = ''
-        ,plot_exportRF_fn = ''
+        ,plot_exportP_fn = ''
         , MMsurf_plot = 0,
         strTitle = 'Title'
         ):
@@ -124,10 +124,10 @@ def plot(x, y1, \
     if MMsurf_plot == 1:
         plt.show(block = True)
     elif MMsurf_plot == 0:
-        plt.savefig(plot_exportRF_fn,dpi=150)
+        plt.savefig(plot_exportP_fn,dpi=150)
     else:
-        print('\nWARNING!\nMMsurf_plot should be iqual to 0 or to 1! Plot saved anyway at %s' % plot_exportRF_fn)
-        plt.savefig(plot_exportRF_fn,dpi=150)
+        print('\nWARNING!\nMMsurf_plot should be iqual to 0 or to 1! Plot saved anyway at %s' % plot_exportP_fn)
+        plt.savefig(plot_exportP_fn,dpi=150)
     plt.close()
     del fig
 # EOF

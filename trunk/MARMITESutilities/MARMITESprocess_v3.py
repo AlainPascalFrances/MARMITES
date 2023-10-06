@@ -206,16 +206,16 @@ class clsPROCESS:
     ######################
 
     def inputSP(self, NMETEO, NVEG, NSOIL, nper,
-                inputZON_SP_RF_veg_fn, inputZON_SP_RFe_veg_fn, inputZON_SP_LAI_veg_fn,
+                inputZON_SP_P_veg_fn, inputZON_SP_Pe_veg_fn, inputZON_SP_LAI_veg_fn,
                 inputZON_SP_PT_fn, inputZON_SP_PE_fn,
                 inputZON_SP_Eo_fn,
                 NFIELD = None,
-                inputZON_SP_RF_irr_fn = None, inputZON_SP_RFe_irr_fn = None,
+                inputZON_SP_P_irr_fn = None, inputZON_SP_Pe_irr_fn = None,
                 inputZON_SP_PT_irr_fn = None, input_SP_crop_irr_fn = None,
                 stdout = None, report = None):
 
         # READ input ESRI ASCII rasters vegetation
-        global crop_irr_SP, PT_irr_zonesSP, RFe_irr_zonesSP, RF_irr_zonesSP, crop_irr_tmp, PT_irr_tmp, RFe_irr_tmp, RF_irr_tmp, PE_tmp, LAI_veg_tmp, PT_veg_tmp, RFe_veg_tmp, Eo, RF_veg
+        global crop_irr_SP, PT_irr_zonesSP, Pe_irr_zonesSP, P_irr_zonesSP, crop_irr_tmp, PT_irr_tmp, Pe_irr_tmp, P_irr_tmp, PE_tmp, LAI_veg_tmp, PT_veg_tmp, Pe_veg_tmp, Eo, P_veg
         gridVEGarea_fn=[]
         for v in range(NVEG):
             gridVEGarea_fn.append(os.path.join(self.MM_ws,'inputVEG' + str(v+1)+'area.asc'))
@@ -228,14 +228,14 @@ class clsPROCESS:
         if area100_test.sum() > 0:
             self.cUTIL.ErrorExit(msg = '\nFATAL ERROR!\nThe total area of the vegetation in one cell cannot exceed 100.0%!', stdout = stdout, report = report)
 
-        # READ RF and Eo for each zone
-        # RF
-        RF_veg_fn=os.path.join(self.MM_ws, inputZON_SP_RF_veg_fn)
-        if os.path.exists(RF_veg_fn):
-            RF_veg = np.loadtxt(RF_veg_fn)
+        # READ P and Eo for each zone
+        # P
+        P_veg_fn=os.path.join(self.MM_ws, inputZON_SP_P_veg_fn)
+        if os.path.exists(P_veg_fn):
+            P_veg = np.loadtxt(P_veg_fn)
         else:
-            self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % RF_veg_fn, stdout = stdout, report = report)
-        RF_veg_zonesSP = np.zeros([NMETEO,nper], dtype=np.float32)
+            self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % P_veg_fn, stdout = stdout, report = report)
+        P_veg_zonesSP = np.zeros([NMETEO,nper], dtype=np.float32)
         # Eo
         Eo_fn=os.path.join(self.MM_ws, inputZON_SP_Eo_fn)
         if os.path.exists(Eo_fn):
@@ -245,17 +245,17 @@ class clsPROCESS:
         Eo_zonesSP = np.zeros([NMETEO,nper], dtype=np.float32)
         for n in range(NMETEO):
             for t in range(nper):
-                RF_veg_zonesSP[n,t]=RF_veg[n*nper+t]
+                P_veg_zonesSP[n,t]=P_veg[n*nper+t]
                 Eo_zonesSP[n,t]=Eo[n*nper+t]
 
-        # READ PT/RFe for each zone and each vegetation
-        # RFe
-        RFe_veg_fn = os.path.join(self.MM_ws, inputZON_SP_RFe_veg_fn)
-        if os.path.exists(RFe_veg_fn):
-            RFe_veg_tmp = np.loadtxt(RFe_veg_fn)
+        # READ PT/Pe for each zone and each vegetation
+        # Pe
+        Pe_veg_fn = os.path.join(self.MM_ws, inputZON_SP_Pe_veg_fn)
+        if os.path.exists(Pe_veg_fn):
+            Pe_veg_tmp = np.loadtxt(Pe_veg_fn)
         else:
-            self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % RFe_veg_fn, stdout = stdout, report = report)
-        RFe_veg_zonesSP = np.zeros([NMETEO,NVEG,nper], dtype=np.float32)
+            self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % Pe_veg_fn, stdout = stdout, report = report)
+        Pe_veg_zonesSP = np.zeros([NMETEO,NVEG,nper], dtype=np.float32)
         # LAI
         LAI_veg_fn = os.path.join(self.MM_ws, inputZON_SP_LAI_veg_fn)
         if os.path.exists(LAI_veg_fn):
@@ -274,7 +274,7 @@ class clsPROCESS:
             for v in range(NVEG):
                 for t in range(nper):
                     #structure is [number of zones, number of vegetation type, time]
-                    RFe_veg_zonesSP[n,v,t] = RFe_veg_tmp[t+(n*NVEG+v)*nper]
+                    Pe_veg_zonesSP[n,v,t] = Pe_veg_tmp[t+(n*NVEG+v)*nper]
                     PT_veg_zonesSP[n,v,t]  = PT_veg_tmp[t+(n*NVEG+v)*nper]
         for v in range(NVEG):
             for t in range(nper):
@@ -294,22 +294,22 @@ class clsPROCESS:
                     PE_zonesSP[n,s,t] = PE_tmp[t+(n*NSOIL+s)*nper]
                     #structure is [number of zones, number of soil type, time]
 
-        # read IRRIGATION RF and RFe
+        # read IRRIGATION P and Pe
         if NFIELD is not None:
-            # RF_irr
-            RF_irr_fn = os.path.join(self.MM_ws, inputZON_SP_RF_irr_fn)
-            if os.path.exists(RF_irr_fn):
-                RF_irr_tmp = np.loadtxt(RF_irr_fn)
+            # P_irr
+            P_irr_fn = os.path.join(self.MM_ws, inputZON_SP_P_irr_fn)
+            if os.path.exists(P_irr_fn):
+                P_irr_tmp = np.loadtxt(P_irr_fn)
             else:
-                self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % RF_irr_fn, stdout = stdout, report = report)
-            RF_irr_zonesSP = np.zeros([NMETEO,NFIELD,nper], dtype=np.float32)
-            # RFe irr
-            RFe_irr_fn = os.path.join(self.MM_ws, inputZON_SP_RFe_irr_fn)
-            if os.path.exists(RFe_irr_fn):
-                RFe_irr_tmp = np.loadtxt(RFe_irr_fn)
+                self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % P_irr_fn, stdout = stdout, report = report)
+            P_irr_zonesSP = np.zeros([NMETEO,NFIELD,nper], dtype=np.float32)
+            # Pe irr
+            Pe_irr_fn = os.path.join(self.MM_ws, inputZON_SP_Pe_irr_fn)
+            if os.path.exists(Pe_irr_fn):
+                Pe_irr_tmp = np.loadtxt(Pe_irr_fn)
             else:
-                self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % RFe_irr_fn, stdout = stdout, report = report)
-            RFe_irr_zonesSP = np.zeros([NMETEO,NFIELD,nper], dtype=np.float32)
+                self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nThe file %s doesn't exist!!!" % Pe_irr_fn, stdout = stdout, report = report)
+            Pe_irr_zonesSP = np.zeros([NMETEO,NFIELD,nper], dtype=np.float32)
             # PT irr
             PT_irr_fn = os.path.join(self.MM_ws, inputZON_SP_PT_irr_fn)
             if os.path.exists(PT_irr_fn):
@@ -328,8 +328,8 @@ class clsPROCESS:
                 for f in range(NFIELD):
                     for t in range(nper):
                         #structure is [number of zones, number of field, time]
-                        RF_irr_zonesSP[n,f,t]  = RF_irr_tmp[t+(n*NFIELD+f)*nper]
-                        RFe_irr_zonesSP[n,f,t] = RFe_irr_tmp[t+(n*NFIELD+f)*nper]
+                        P_irr_zonesSP[n,f,t]  = P_irr_tmp[t+(n*NFIELD+f)*nper]
+                        Pe_irr_zonesSP[n,f,t] = Pe_irr_tmp[t+(n*NFIELD+f)*nper]
                         PT_irr_zonesSP[n,f,t]  = PT_irr_tmp[t+(n*NFIELD+f)*nper]
             for f in range(NFIELD):
                 for t in range(nper):
@@ -337,9 +337,9 @@ class clsPROCESS:
                     crop_irr_SP[f,t] = crop_irr_tmp[t+f*nper]
 
         if NFIELD is None:
-            return gridVEGarea, RF_veg_zonesSP, Eo_zonesSP, PT_veg_zonesSP, RFe_veg_zonesSP, LAI_veg_zonesSP, PE_zonesSP
+            return gridVEGarea, P_veg_zonesSP, Eo_zonesSP, PT_veg_zonesSP, Pe_veg_zonesSP, LAI_veg_zonesSP, PE_zonesSP
         else:
-            return gridVEGarea, RF_veg_zonesSP, Eo_zonesSP, PT_veg_zonesSP, RFe_veg_zonesSP, LAI_veg_zonesSP, PE_zonesSP, RF_irr_zonesSP, RFe_irr_zonesSP, PT_irr_zonesSP, crop_irr_SP
+            return gridVEGarea, P_veg_zonesSP, Eo_zonesSP, PT_veg_zonesSP, Pe_veg_zonesSP, LAI_veg_zonesSP, PE_zonesSP, P_irr_zonesSP, Pe_irr_zonesSP, PT_irr_zonesSP, crop_irr_SP
 
     ######################
 

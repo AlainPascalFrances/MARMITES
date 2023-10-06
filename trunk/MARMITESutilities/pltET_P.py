@@ -35,7 +35,7 @@ else:
 date   = data[:,0]
 date   = mpl.dates.datestr2num(date)
 ET_MM  = data[:,2].astype(float)
-RF     = data[:,3].astype(float)
+P     = data[:,3].astype(float)
 ET_ECT  = data[:,4].astype(float)
 Ro_MM  = data[:,5].astype(float)
 Ro_obs = data[:,6].astype(float)
@@ -134,12 +134,12 @@ print('%.2f, %.2f, %.2f, %.2f\n' % compCalibCrit(Rof_obs1, Ro_MM1, hnoflo))
 dateFmt=mpl.dates.DateFormatter('%Y-%b-%d')
 dateminorFmt=mpl.dates.DateFormatter('%b')
 lblspc = 0.05
-mkscale = 0.5
+mkscale = 1.0
 bdpd = 0.1
 hdltxtpd = 0.05
 colspc = 0.1
 
-plt_suptitle = 'ET ECT vs ET MM + RF' 
+plt_suptitle = 'ET ECT vs ET MM + P'
 iniMonthHydroYear = 10
 date_ini = mpl.dates.datestr2num('2008-10-01')-15
 date_end = mpl.dates.datestr2num('2013-09-30')+15
@@ -153,10 +153,10 @@ plt.setp(ax0.get_xticklabels(), visible = False)
 plt.setp(ax0.get_yticklabels(), fontsize=8)
 plt.plot_date(date,Ro_MM,fmt = '-', c='blue', linewidth=1.0, label = '$Ro$')
 plt.ylabel('$Ro$ (mm)', fontsize=10)
-plt.plot_date(date,Rof_obs, marker='o', ls = 'None', color = 'lightblue', markeredgecolor = 'green', markerfacecolor = 'lightgreen', markersize = 2, label = '$Ro \ obs$') # ls='--', color = 'blue'
+plt.plot_date(date,Rof_obs, 'o', ls = 'None', color = 'lightblue', markeredgecolor = 'green', markerfacecolor = 'lightgreen', markersize = 2, label = '$Ro \ obs$') # ls='--', color = 'blue'
 ymax = np.ma.max(np.ma.masked_invalid(Rof_obs))
 plt.ylim(0, 0.6)
-plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 1, columnspacing = colspc, numpoints = 5)
+plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 1, columnspacing = colspc, numpoints = 3)
 leg = plt.gca().get_legend()
 ltext  = leg.get_texts()
 plt.setp(ltext, fontsize=8)
@@ -183,7 +183,7 @@ plt.setp(ax2.get_xticklabels(), visible = True)
 plt.setp(ax2.get_yticklabels(), fontsize=8)
 plt.plot_date(date,Ro_MM,fmt = '-', c='blue', linewidth=1.0, label = '$Ro$')
 plt.ylabel('$Ro$ (mm)', fontsize=10)
-plt.plot_date(date,bF_obs, marker='o', ls = 'None', color = 'lightblue', markeredgecolor = 'green', markerfacecolor = 'lightgreen', markersize = 2, label = '$Ro \ obs$') # ls='--', color = 'blue'
+plt.plot_date(date,bF_obs, 'o', ls = 'None', color = 'lightblue', markeredgecolor = 'green', markerfacecolor = 'lightgreen', markersize = 2, label = '$Ro \ obs$') # ls='--', color = 'blue'
 ymax = np.ma.max(np.ma.masked_invalid(bF_obs))
 plt.ylim(0, 0.6)
 plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 1, columnspacing = colspc, numpoints = 5)
@@ -213,7 +213,7 @@ plt.setp(ax2.get_xticklabels(), visible = True)
 plt.setp(ax2.get_yticklabels(), fontsize=8)
 plt.plot_date(date,Ro_MM,fmt = '-', c='blue', linewidth=1.0, label = '$Ro$')
 plt.ylabel('$Ro$ (mm)', fontsize=10)
-plt.plot_date(date,Ro_obs, marker='o', ls = 'None', color = 'lightblue', markeredgecolor = 'green', markerfacecolor = 'lightgreen', markersize = 2, label = '$Ro \ obs$') # ls='--', color = 'blue'
+plt.plot_date(date,Ro_obs, 'o', ls = 'None', color = 'lightblue', markeredgecolor = 'green', markerfacecolor = 'lightgreen', markersize = 2, label = '$Ro \ obs$') # ls='--', color = 'blue'
 ymax = np.ma.max(np.ma.masked_invalid(Ro_obs))
 plt.ylim(0, 0.6)
 plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 1, columnspacing = colspc, numpoints = 5)
@@ -248,11 +248,11 @@ plt.ylabel('$ET$ (mm)', fontsize=10)
 ax1.set_ylim(0.0,6.0)
 
 ax2 = ax1.twinx()
-plt2a = ax2.bar(date,RF,color='darkblue', linewidth=0, align = 'center', label='$RF$')
+plt2a = ax2.bar(date,P,color='darkblue', linewidth=0, align = 'center', label='$P$')
 for tl in ax2.get_yticklabels():
     tl.set_color('darkblue')
     tl.set_fontsize(8)
-plt.ylabel('$RF$ (mm)', fontsize=10, color = 'darkblue')
+plt.ylabel('$P$ (mm)', fontsize=10, color = 'darkblue')
 ax2.set_ylim(0,60)
 plt.gca().invert_yaxis()
 plts =  plt1b + plt1a + [plt2a]

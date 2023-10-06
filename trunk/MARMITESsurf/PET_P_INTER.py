@@ -468,7 +468,7 @@ def process(cUTIL, datenum = np.array([]), datenum_d = np.array([]), J = np.arra
 
     # r_s - SURFACE RESISTANCE
     # [s.m-1]
-    # VEG: Dingman pag 208 (canopy conductance) (equivalent to FAO56 pag21 Eq5)
+    # VEG: Dingman pag 298 eq7-54 (canopy conductance) (equivalent to FAO56 pag21 Eq5)
     r_s_VEG = []
     f_k = []
     DELTArho_v = []
@@ -509,7 +509,7 @@ def process(cUTIL, datenum = np.array([]), datenum_d = np.array([]), J = np.arra
                     r_s_VEG[v].append(1.0/f_temp)
         r_s_VEG = np.asarray(r_s_VEG)
     del f_k, DELTArho_v, f_rho, f_T
-    # FIELD/CROP: Dingman pag 208 (canopy conductance) (equivalent to FAO56 pag21 Eq5)
+    # FIELD/CROP: Dingman pag 298 eq7-54 (canopy conductance) (equivalent to FAO56 pag21 Eq5)
     if IRR != None:
         r_s_FIELD = []
         f_k = []

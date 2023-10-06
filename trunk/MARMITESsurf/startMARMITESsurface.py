@@ -19,7 +19,7 @@ import os
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
-import PET_RF_INTER, plotPET, plotRF
+import PET_P_INTER, plotPET, plotP
 
 '''
     Reads input files for PET_PM_FAO56 and call this function
@@ -35,15 +35,15 @@ import PET_RF_INTER, plotPET, plotRF
     format/units:
     column 1:     date: date [yyyy-mm-dd]
     column 2:     time: time [hh-mm]
-    column 3:     RF: rainfall [mm]
+    column 3:     P: rainfall [mm]
     column 4:     Ta: air temperature measured at heigth z_h [ºC]
     column 5:     RHa: relative air humidity [%] measured at heigth z_h [m]
     column 6:     Pa: air pressure [kPa]
     column 7:     u_z_m: windspeed measured at heigth z_m [m.s-1]
     column 8:     Rs: incoming solar (=shortwave) radiation [MJ.m-2.hour-1]
-    Example 19 from FAO56 pag 75 (RF added by myself)
+    Example 19 from FAO56 pag 75 (P added by myself)
     - BOF - don't copy this line in a txt file
-    date       time  RF Ta RHa Pa      u_z_m   Rs  # the first line is not read but is compulsory
+    date       time  P Ta RHa Pa      u_z_m   Rs  # the first line is not read but is compulsory
     2010-10-01 02:00 0.0 28 90  101.325 1.9     0.0
     2010-10-01 14:00 0.0 38 52  101.325 3.3     2.450
     - EOF - don't copy this line in a txt file
@@ -166,7 +166,7 @@ import PET_RF_INTER, plotPET, plotRF
 
 def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, pathMMws, outMMsurf_fn, MMsurf_plot = 0, inputFile_IRR_TS_fn = None):
 
-    global J_d, datenumOUT, input_TS_crop_irr_fn, kT_f_c, kT_s_c, kTg_max_c, kTg_min_c, Zr_c, inputZON_TS_PT_irr_fn, inputZON_TS_TF_irr_fn, inputZON_TS_RF_irr_fn, NCROP, kT_f, kT_s, kTg_max, kTg_min, Zr, LAI_veg_d, inputZONTF_irr, inputZONRF_irr, inputZONPT_irr, v, alfa_w, fc, por, C_leaf_star_v, S_w_v, z_h, z_m, FC, Lz, Z, Lm, phi, Rs, u_z_m, Pa, RHa, Ta, RF, f_s_c, alfa_c, datenum_d, IRR_TS, SoilType, alfa_sw, alfa_sd, J_sw, J_sd, NSOIL, f_s_vw, f_s_vd, alfa_vw, alfa_vd, NVEG, f, data_IRR_TS, NFIELD, datenum, Rs1, u_z_m1, Pa1, RHa1, Ta1, RF1, actual_day, datetime_i, datetime, time, date, NMETEO, DTS, dataMETEOTS, line, l
+    global J_d, datenumOUT, input_TS_crop_irr_fn, kT_f_c, kT_s_c, kTg_max_c, kTg_min_c, Zr_c, inputZON_TS_PT_irr_fn, inputZON_TS_TF_irr_fn, inputZON_TS_P_irr_fn, NCROP, kT_f, kT_s, kTg_max, kTg_min, Zr, LAI_veg_d, inputZONTF_irr, inputZONP_irr, inputZONPT_irr, v, alfa_w, fc, por, C_leaf_star_v, S_w_v, z_h, z_m, FC, Lz, Z, Lm, phi, Rs, u_z_m, Pa, RHa, Ta, P, f_s_c, alfa_c, datenum_d, IRR_TS, SoilType, alfa_sw, alfa_sd, J_sw, J_sd, NSOIL, f_s_vw, f_s_vd, alfa_vw, alfa_vd, NVEG, f, data_IRR_TS, NFIELD, datenum, Rs1, u_z_m1, Pa1, RHa1, Ta1, P1, actual_day, datetime_i, datetime, time, date, NMETEO, DTS, dataMETEOTS, line, l
 
     def ExportResults(name, ws, row1, Dates, J, TS, ts_output = 0, n_d = [], TypeFile = "PET"):
         """
@@ -191,9 +191,9 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
                     out_line =  date_t, ', ', '%3d'% J[t], ",", '%14.9G' %TS[t], ",",'%2d'% n_d[t],'\n'  #mpl.dates.num2date(Dates[t]).isoformat()[:10]
             elif TypeFile == "VAR":
                 out_line =  date_t, ', ', '%3d'% J[t], ",", '%14.9G' %TS[0][t], ',', '%14.9G' %TS[1][t], ',', '%14.9G' %TS[2][t], ',', '%14.9G' %TS[3][t],',', '%14.9G' %TS[4][t],',', '%14.9G' %TS[5][t],',', '%14.9G' %TS[6][t],'\n'
-            elif TypeFile == "RF":
+            elif TypeFile == "P":
                 out_line =  date_t, ', ', '%3d'% J[t], ",", '%14.9G' %TS[0][t], ',', '%14.9G' %TS[1][t], ',', '%14.9G' %TS[2][t], ',', '%14.9G' %TS[3][t], ',', '%14.9G' %TS[4][t],'\n'
-            elif TypeFile == "avRF_Eo":
+            elif TypeFile == "avP_Eo":
                 out_line =  date_t, ', ', '%14.9G' %TS[0][t], ',', '%14.9G' %TS[1][t], ',', '\n'
             elif TypeFile == "Date":
                 out_line =  date_t, ', ', '%3d'% J[t], '\n'
@@ -434,26 +434,26 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
         datenum_i = mpl.dates.datestr2num(datetime_i)-(DTS[0])/24.0
         actual_day = mpl.dates.num2date(datenum_i).isoformat()[:10]
         datenum_d.append(mpl.dates.datestr2num(actual_day))
-        RF1 = []
+        P1 = []
         Ta1 = []
         RHa1 = []
         Pa1 = []
         u_z_m1 = []
         Rs1 = []
-        RF = []
+        P = []
         Ta = []
         RHa = []
         Pa = []
         u_z_m = []
         Rs = []
         for n in range(NMETEO):
-            RF1.append(dataMETEOTS[:,2+n*6])
+            P1.append(dataMETEOTS[:,2+n*6])
             Ta1.append(dataMETEOTS[:,3+n*6])
             RHa1.append(dataMETEOTS[:,4+n*6])
             Pa1.append(dataMETEOTS[:,5+n*6])
             u_z_m1.append(dataMETEOTS[:,6+n*6])
             Rs1.append(dataMETEOTS[:,7+n*6])
-            RF.append([])
+            P.append([])
             Ta.append([])
             RHa.append([])
             Pa.append([])
@@ -466,14 +466,14 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
                     if actual_day != date[t]:
                         datenum_d.append(mpl.dates.datestr2num(date[t]))
                         actual_day = date[t]
-                RF[n].append(float(RF1[n][t]))
+                P[n].append(float(P1[n][t]))
                 Ta[n].append(float(Ta1[n][t]))
                 RHa[n].append(float(RHa1[n][t]))
                 Pa[n].append(float(Pa1[n][t]))
                 u_z_m[n].append(float(u_z_m1[n][t]))
                 Rs[n].append(float(Rs1[n][t]))
         datenum_d = np.asarray(datenum_d)
-        RF = np.asarray(RF)
+        P = np.asarray(P)
         Ta = np.asarray(Ta)
         RHa = np.asarray(RHa)
         Pa = np.asarray(Pa)
@@ -481,7 +481,7 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
         Rs = np.asarray(Rs)
     except:
         cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nUnexpected error in the input file\n[%s]\n" % inputFile_TS_fn)
-    del dataMETEOTS, date, time, datetime, datetime_i, actual_day, RF1, Ta1, RHa1, Pa1, u_z_m1,Rs1
+    del dataMETEOTS, date, time, datetime, datetime_i, actual_day, P1, Ta1, RHa1, Pa1, u_z_m1,Rs1
     print("\nMETEO TIME SERIES file imported!\n[" + inputFile_TS_fn +"]")
     # compute J - julian day
     YYYY = []
@@ -734,10 +734,10 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
     #  ##### COMPUTING PT, PE and INTERCEPTION ##############################################
     print("\nComputing PT, PE, TF, etc...")
 
-    inputZON_TS_RF_veg_fn = "inputZONRF_veg_d.txt"
-    inputZONRF_veg_fn = os.path.join(pathMMws, inputZON_TS_RF_veg_fn)
-    inputZONRF_veg = open(inputZONRF_veg_fn, 'w')
-    inputZONRF_veg.write('#\n')
+    inputZON_TS_P_veg_fn = "inputZONP_veg_d.txt"
+    inputZONP_veg_fn = os.path.join(pathMMws, inputZON_TS_P_veg_fn)
+    inputZONP_veg = open(inputZONP_veg_fn, 'w')
+    inputZONP_veg.write('#\n')
 
     inputZON_TS_TF_veg_fn = "inputZONTF_veg_d.txt"
     inputZONTF_veg_fn = os.path.join(pathMMws, inputZON_TS_TF_veg_fn)
@@ -765,10 +765,10 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
     inputZONEo.write('#\n')
 
     if IRR_TS != None:
-        inputZON_TS_RF_irr_fn = "inputZONRF_irr_d.txt"
-        inputZONRF_irr_fn = os.path.join(pathMMws, inputZON_TS_RF_irr_fn)
-        inputZONRF_irr = open(inputZONRF_irr_fn, 'w')
-        inputZONRF_irr.write('#\n')
+        inputZON_TS_P_irr_fn = "inputZONP_irr_d.txt"
+        inputZONP_irr_fn = os.path.join(pathMMws, inputZON_TS_P_irr_fn)
+        inputZONP_irr = open(inputZONP_irr_fn, 'w')
+        inputZONP_irr.write('#\n')
 
         inputZON_TS_PT_irr_fn = "inputZONPT_irr_d.txt"
         inputZONPT_irr_fn = os.path.join(pathMMws, inputZON_TS_PT_irr_fn)
@@ -790,10 +790,10 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
 
     for n in range(NMETEO):
         print("\n--------------\nProcessing data of ZONE %d/%d\n--------------" % (n+1, NMETEO))
-        J, J_d, outputVAR, PT_PM_VEG, Erf_VEG, PE_PM_SOIL, Eo, PT_PM_VEG_d, PE_PM_SOIL_d, Eo_d, RF_veg_d, RFint_veg,                      RF_veg_duration, n1_d, TF_veg_d, I_veg_d, LAI_veg_d, PT_PM_FIELD, PT_PM_FIELD_d, Erf_FIELD, RF_irr_d, RFint_irr, RF_irr_duration, TF_irr_d, I_irr_d = PET_RF_INTER.process(
+        J, J_d, outputVAR, PT_PM_VEG, Erf_VEG, PE_PM_SOIL, Eo, PT_PM_VEG_d, PE_PM_SOIL_d, Eo_d, P_veg_d, Pint_veg,                      P_veg_duration, n1_d, TF_veg_d, I_veg_d, LAI_veg_d, PT_PM_FIELD, PT_PM_FIELD_d, Erf_FIELD, P_irr_d, Pint_irr, P_irr_duration, TF_irr_d, I_irr_d = PET_P_INTER.process(
                 cUTIL,
                 datenum, datenum_d, J, time, pathMMsurf,\
-                RF[n], IRR_TS, Ta[n], RHa[n], Pa[n], u_z_m[n], Rs[n], \
+                P[n], IRR_TS, Ta[n], RHa[n], Pa[n], u_z_m[n], Rs[n], \
                 phi[n], Lm[n], Z[n], Lz[n], FC[n], z_m[n], z_h[n], \
                 NVEG, VegName, S_w_v, C_leaf_star_v, alfa_v, f_s_v, LAI_v, h_v,\
                 NSOIL, SoilType, por, fc, alfa_s,\
@@ -838,14 +838,14 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
             ,strTitle = 'PE'
             )
 
-        # PLOTTING RF and INTERCEPTION
+        # PLOTTING P and INTERCEPTION
         # VEG
-        plot_exportRF_fn = os.path.join(pathMMsurf,  '%s_ZON%s_RF_veg.png' % (outputFILE_fn,str(n+1)))
-        plotRF.plot(x = datenum_d \
-                ,y1 = RF_veg_d, y2 = RFint_veg, y3 = I_veg_d, y4 = TF_veg_d
-                ,lbl_y1 = 'RF (mm/d)',  lbl_y2 = 'RFint (mm/h/d)' \
+        plot_exportP_fn = os.path.join(pathMMsurf,  '%s_ZON%s_P_veg.png' % (outputFILE_fn,str(n+1)))
+        plotP.plot(x = datenum_d \
+                ,y1 = P_veg_d, y2 = Pint_veg, y3 = I_veg_d, y4 = TF_veg_d
+                ,lbl_y1 = 'P (mm/d)',  lbl_y2 = 'Pint (mm/h/d)' \
                 ,lbl_y3 = 'I (mm/d)',lbl_y4 = 'TF (mm/d)', lbl_veg = VegName\
-                ,plot_exportRF_fn = plot_exportRF_fn
+                ,plot_exportP_fn = plot_exportP_fn
                 , MMsurf_plot = MMsurf_plot\
                 ,strTitle = 'Rainfall and interception'
                 )
@@ -863,15 +863,15 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
                 , MMsurf_plot = MMsurf_plot\
                 , strTitle = 'PT'
                 )
-            #RF/I
+            #P/I
             for f in range(NFIELD):
-                plot_exportRF_fn = os.path.join(pathMMsurf, '%s_ZON%s_RF_irr_FIELD%d.png' % (outputFILE_fn,str(n+1),f+1))
-                plotRF.plot(x = datenum_d \
-                        ,y1 = RF_irr_d[f], y2 = RFint_irr[f] \
+                plot_exportP_fn = os.path.join(pathMMsurf, '%s_ZON%s_P_irr_FIELD%d.png' % (outputFILE_fn,str(n+1),f+1))
+                plotP.plot(x = datenum_d \
+                        ,y1 = P_irr_d[f], y2 = Pint_irr[f] \
                         ,y3 = [I_irr_d[f]], y4 = [TF_irr_d[f]] \
-                        ,lbl_y1 = 'RF (mm/d)',  lbl_y2 = 'RFint (mm/h/d)' \
+                        ,lbl_y1 = 'P (mm/d)',  lbl_y2 = 'Pint (mm/h/d)' \
                         ,lbl_y3 = 'I (mm/d)',lbl_y4 = 'TF (mm/d)', lbl_veg = ['crops'] \
-                        ,plot_exportRF_fn = plot_exportRF_fn
+                        ,plot_exportP_fn = plot_exportP_fn
                         , MMsurf_plot = MMsurf_plot\
                         , strTitle = 'Rainfall and interception'
                         )
@@ -883,7 +883,7 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
         try:
             if os.path.exists(pathMMsurf):
                 print("\n-----------\nExporting output to ASCII files...")
-        # EXPORTING RESULTS PT/ET0/PE/Eo/RF/TF/INTER/
+        # EXPORTING RESULTS PT/ET0/PE/Eo/P/TF/INTER/
                 ws = pathMMsurf
                 for ts_output in range(2):
                     if ts_output == 0:
@@ -894,7 +894,7 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
                         print("\nDaily values...")
                         datenumOUT = datenum_d
                         dORh_suffix = "_d"  # for file naming in export
-                        ExportResults1(RF_veg_d, inputZONRF_veg)
+                        ExportResults1(P_veg_d, inputZONP_veg)
                         ExportResults1(Eo_d, inputZONEo)
                     outputfile_fn = outputFILE_fn + "_ZON" + str(n+1) + dORh_suffix
                     if ts_output != 1:
@@ -911,11 +911,11 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
                             name = outputfile_fn + "_PT_" + nam_tmp + "_" + VegName[v] + ".out"
                             row1 = 'Date,J,PT,n_d\n'
                             ExportResults(name, ws, row1, datenumOUT, J_d, PT_PM_VEG_d[v],ts_output, n1_d)
-                            # RF, TF, etc...
-                            name = outputfile_fn + "_RF_VEG" + str(v) + "_" + VegName[v] + ".out"
-                            row1 = 'Date,J,RF_mm,duration_day,RFint_mm_h,TF_mm,Interception_mm\n'
-                            TStmp = [RF_veg_d, RF_veg_duration, RFint_veg, TF_veg_d[v], I_veg_d[v]]
-                            ExportResults(name, ws, row1, datenumOUT, J_d, TStmp, TypeFile = "RF")
+                            # P, TF, etc...
+                            name = outputfile_fn + "_P_VEG" + str(v) + "_" + VegName[v] + ".out"
+                            row1 = 'Date,J,P_mm,duration_day,Pint_mm_h,TF_mm,Interception_mm\n'
+                            TStmp = [P_veg_d, P_veg_duration, Pint_veg, TF_veg_d[v], I_veg_d[v]]
+                            ExportResults(name, ws, row1, datenumOUT, J_d, TStmp, TypeFile = "P")
                             # PT, TF and LAI for MARMITES
                             if v > 0: #to skip ETref (NVEG=0)
                                 ExportResults1(PT_PM_VEG_d[v], inputZONPT_veg)
@@ -932,7 +932,7 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
                             ExportResults(name, ws, row1, datenumOUT, J, Erf_VEG[v], ts_output)
                     # NFIELD/NCROP
                     if IRR_TS != None:
-                    # RF, TF, etc
+                    # P, TF, etc
                         for f in range(NFIELD):
                             if ts_output == 1:
                             # DAILY
@@ -943,13 +943,13 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
                                 # PT for MARMITES
                                 if v>0: #to skip ETref (NVEG=0)
                                     ExportResults1(PT_PM_FIELD_d[f], inputZONPT_irr)
-                                # RF, TF, etc...
-                                name = "%s_RF_FIELD%d.out" % (outputfile_fn, f+1)
-                                row1 = 'Date,J,RF_mm,duration_day,RFint_mm_h,TF_mm,Interception_mm\n'
-                                TStmp = [RF_irr_d[f], RF_irr_duration[f], RFint_irr[f], TF_irr_d[f], I_irr_d[f]]
-                                ExportResults(name, ws, row1, datenumOUT, J_d, TStmp,  TypeFile = "RF")
-                                # RF for MARMITES
-                                ExportResults1(RF_irr_d[f], inputZONRF_irr)
+                                # P, TF, etc...
+                                name = "%s_P_FIELD%d.out" % (outputfile_fn, f+1)
+                                row1 = 'Date,J,P_mm,duration_day,Pint_mm_h,TF_mm,Interception_mm\n'
+                                TStmp = [P_irr_d[f], P_irr_duration[f], Pint_irr[f], TF_irr_d[f], I_irr_d[f]]
+                                ExportResults(name, ws, row1, datenumOUT, J_d, TStmp,  TypeFile = "P")
+                                # P for MARMITES
+                                ExportResults1(P_irr_d[f], inputZONP_irr)
                                 # TF for MARMITES
                                 ExportResults1(TF_irr_d[f], inputZONTF_irr)
                             else:
@@ -991,13 +991,13 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
     for v in range(1,NVEG):
         ExportResults1(LAI_veg_d[v], inputLAI_veg)
     inputLAI_veg.close()
-    inputZONRF_veg.close()
+    inputZONP_veg.close()
     inputZONTF_veg.close()
     inputZONPT_veg.close()
     inputZONPE.close()
     inputZONEo.close()
     if IRR_TS != None:
-        inputZONRF_irr.close()
+        inputZONP_irr.close()
         inputZONTF_irr.close()
         inputZONPT_irr.close()
 
@@ -1013,8 +1013,8 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
     outFileExport.write(str(NSOIL))
     outFileExport.write('\n# inputDate_fn: file with the dates\n')
     outFileExport.write(date_fn)
-    outFileExport.write('\n# inputZON_TS_RF_veg_fn: RF zones\n')
-    outFileExport.write(inputZON_TS_RF_veg_fn)
+    outFileExport.write('\n# inputZON_TS_P_veg_fn: P zones\n')
+    outFileExport.write(inputZON_TS_P_veg_fn)
     outFileExport.write('\n# inputZON_TS_TF_veg_fn: TF zones\n')
     outFileExport.write(inputZON_TS_TF_veg_fn)
     outFileExport.write('\n# inputZON_TS_PT_veg_fn: PT zones\n')
@@ -1048,8 +1048,8 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
         outFileExport.write(str(NCROP))
         outFileExport.write('\n# NFIELD: number of irrigation fields\n')
         outFileExport.write(str(NFIELD))
-        outFileExport.write('\n# inputZON_TS_RF_irr_fn: RF zones\n')
-        outFileExport.write(inputZON_TS_RF_irr_fn)
+        outFileExport.write('\n# inputZON_TS_P_irr_fn: P zones\n')
+        outFileExport.write(inputZON_TS_P_irr_fn)
         outFileExport.write('\n# inputZON_TS_TF_irr_fn: TF zones\n')
         outFileExport.write(inputZON_TS_TF_irr_fn)
         outFileExport.write('\n# inputZON_TS_PT_irr_fn: PT zones\n')
