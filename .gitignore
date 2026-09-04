@@ -1,2 +1,25 @@
-*.pyc
-trunk/MARMITESutilities/MARMITESplot/test.py
+# --- Python ---
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.spyproject/
+.ipynb_checkpoints/
+
+# --- MODFLOW / MARMITES model workspaces (large, regenerable) ---
+DataSet_*/MF_ws/
+DataSet_*/MF6_ws/
+DataSet_*/MF6_ws_disv/
+DataSet_*/MMsurf_ws/
+
+# --- model outputs / binaries ---
+*.h5
+*.hds
+*.cbc
+*.grb
+*.lst
+
+# --- post-processing products ---
+**/postproc/
+**/preproc/
+**/figures/
