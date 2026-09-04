@@ -1,0 +1,288 @@
+# MARMITES / MODFLOW 6 — handoff & next-steps
+
+Written at the end of a long session, to resume cleanly after a restart.
+Full technical history is in `MARMITES_SFR_LAK_CRR_analysis.md` (read §8.x, esp.
+8.15.x for the recharge-coupling bug and 8.14 for the drawdown diagnosis).
+
+Working tree: `E:\tmp_claude_marmites\MARMITES`
+Dataset: `E:\tmp_claude_marmites\MARMITES\DataSet_LaMata`
+MF6 workspace (outputs): `DataSet_LaMata\MF6_ws`
+libmf6: `C:\00MODFLOW\mf6.7.0_win64\bin\libmf6.dll`
+
+---
+
+## 0. STATUS SNAPSHOT (what works today)
+
+- Python-3.12 / MODFLOW-6 / UZF6 conversion is COMPLETE and behaves like the
+  MODFLOW-NWT reference (the conversion goal). MM-side fluxes match; the coupled
+  run is mass-conserving and converges.
+- The recharge coupling is FIXED (was the big hidden bug — see §2 below).
+- Two-layer model (`--nlay 2`, reads `_2s1L.ini` directly), DRN-seep seepage
+  (`--seep drn`, cond 10000), ATS, spin-up with reusable `hi_spinup` heads +
+  means, DEM-regression initial heads, and a pre/post figure suite all work.
+- SFR network, LAK (EMBEDDEDV ponds), MVR stream-through-ponds all BUILD and
+  reload; not yet run/validated coupled (see §4).
+- Test suite was ~198 passing before the last coupler edits; those edits
+  (SINF bind, write-after-prepare_solve, plot_water_budget wiring) were made
+  while the sandbox shell was wedged and are UNVERIFIED — first task after
+  restart is to run the suite (§1).
+
+Canonical run command (recharge now couples correctly):
+```
+python tests\run_lamata_mf6.py --libmf6 C:\00MODFLOW\mf6.7.0_win64\bin\libmf6.dll ^
+  --mode lagged --nlay 2 --seep drn --strt-dem 0.9995 -2.0 --spinup 5 --preproc --postproc
+```
+Reuse a saved equilibrium (skip spin-up):
+```
+python tests\run_lamata_mf6.py --libmf6 ... --nlay 2 --seep drn ^
+  --strt-heads hi_spinup --steady-means hi_spinup --preproc --postproc
+```
+
+---
+
+## 1. VERIFIED 2026-07-25 — the unverified edits are sound ✅
+
+`python -m pytest tests -q` (flopy env) = **190 passed, 7 skipped, 0 failed**.
+The wedged-shell edits all compile and pass:
+- `trunk/marmites_coupler.py`: `_bind_first` now accepts a reachable,
+  correctly-sized pointer even if not in `get_input_var_names()` (SINF fix);
+  binds `SINF` before `FINF`; writes fluxes AFTER `prepare_solve` via a
+  `write_cb` threaded through `_advance`/`_one_step`; SFR runoff folded into the
+  same callback; `check_solution` has an infiltration-fidelity guard.
+- `tests/plot_water_budget.py`: body refactored into `make_figures(ws, mode,
+  no_reference, verbose)`; `main()` calls it.
+- `tests/run_lamata_mf6.py`: `--postproc` calls `pwb.make_figures(a.ws, mode=)`.
+
+The initial run showed 3 failures, all in `tests/test_coupler_mock.py` — STALE
+tests, not a coupler bug. They simulated a "missing" MF6 variable by only
+dropping its name from `get_input_var_names()`, while the mock's
+`get_value_ptr` still returned a valid array for every leaf. Under the SINF fix
+(the var list is NOT authoritative) those "missing" vars correctly bind, so the
+mock no longer reproduced absence. Real MF6 signals absence by RAISING in
+`get_value_ptr` (that is exactly why SINF — absent from the list, resolvable —
+binds and a truly-absent var does not). Fix (mock only, coupler untouched):
+`_BadApi.get_value_ptr` now raises for the leaf each mode hides
+(`no_finf`→SINF/FINF, `no_gwd`→GWD, `no_q`→Q). All 21 mock tests pass.
+
+Pending confirmation from the user's Spyder run (§6 step 2): one short coupled
+run should log `coupler: UZF infiltration bound to LAMATAMM/UZF/SINF` and the
+aquifer-balance recharge should VARY (not a flat 977 m3/d).
+
+---
+
+## 2. CRITICAL LESSONS (do not relearn these the hard way)
+
+1. **UZF infiltration = SINF, not FINF.** MF6's operative infiltration array in
+   the memory manager is `<MODEL>/UZF/SINF`. `FINF` resolves to a valid but
+   non-operative pointer. Binding FINF made UZF apply a constant `perc_user`
+   (977 m3/d) for the whole project while looking wired.
+2. **Write API inputs AFTER `prepare_solve`.** UZF re-derives SINF from its
+   period data during BOTH `prepare_time_step` and `prepare_solve`. A value
+   written before `prepare_solve` is overwritten. Proven with `tests/diag_sinf.py`
+   (position A=fails, B/C=stick). This applies to every API-written input
+   (UZF SINF, WEL Q, SFR INFLOW).
+3. **`get_input_var_names()` is not authoritative** — advanced-package vars
+   (UZF SINF) are reachable via `get_value_ptr` but absent from that list.
+   Validate a bound pointer by SIZE, not list membership.
+4. **The infiltration-fidelity guard** in `check_solution` fails the run if the
+   written percolation varies but UZF INFILTRATION is constant — keep it; it is
+   what caught the bug.
+5. **A steady-state SP ignores the initial-head file** (solves dh/dt=0). To seed
+   near equilibrium, drive SP0 with mean recharge/ETg (`--steady-means`), not
+   just carried heads.
+6. **max_outer must equal the IMS OUTER_MAXIMUM** or ATS never sees a failed
+   step and cannot retry with a smaller dt.
+7. **Files can be stale/mismatched.** Always confirm `.hds`/`.lst`/`.uzf.cbc`
+   and `_coupled_*.h5` are from the SAME run (timestamps, nper) before drawing
+   conclusions. A 1-year `--nsp 365` test's cbc mixed with a full-run h5 wasted
+   a diagnosis.
+8. **The remaining water-table drawdown is a CALIBRATION matter, not a bug.**
+   Recharge (~67 mm/yr) < discharge (~97): the aquifer bleeds storage and the
+   table sinks below the (stable) observed heads. `--uzf-vks-scale` does NOT fix
+   it (recharge is not UZF-throttled once SINF is bound). The NWT reference
+   drains too. This is La Mata hydrology (recharge/discharge/BCs/soil params),
+   the modeller's domain — out of scope for the conversion.
+
+---
+
+## 3. PLOTTING: recover full MARMITESplot_v3.py on MF6 output (Stages 1-3)
+
+Goal (user): MODIFY `trunk/MARMITESutilities/MARMITESplot/MARMITESplot_v3.py`
+to consume MF6 output and produce ALL its native figures — do NOT reimplement/
+imitate. Decisions already taken:
+- **Feed data via the legacy MARMITES HDF5 layout** (emit the full arrays the
+  old driver read), so the native functions run almost unchanged.
+- **Deliver in stages, review each** before moving on.
+
+### Data contract (from the old driver `trunk/startMARMITES_v3.py`, post-proc
+section ~lines 1550-2740). The native functions consume:
+- `flx` / `flxCatch_lst` / `flxObs_lst`: a LIST indexed by flux position, each
+  element a per-stress-period time series (catchment-mean, or at an obs cell).
+- `flxIndex_lst`: dict mapping exact flux-name -> position. Names MUST match or
+  the native functions raise KeyError. Required names include:
+  MM soil: `iP iEi iPe iPE iPT iRo iEow iI iSsurf idSsurf idSsoil iperc idSu
+  iETg iEg iTg iETsoil`; per soil layer: `iEsoil iTsoil iRsoil iExf_1`; per
+  MF layer L: `iEg_L iTg_L iRg_L idSg_L iFRF_L iFFF_L iFLF_L iEXFg_L iWEL_L
+  iDRN_L iGHB_L iCH_L`.
+- `cMF` attributes used: `inputDate` (matplotlib date numbers), `Mlay`, `Mnlay`,
+  `nlay`, `nrow`, `ncol`, `wel_yn`, `drn_yn`, `ghb_yn`, `drncells`, `ghbcells`,
+  `ibound`, `perlen`, `hnoflo`.
+- `ncell_MM` (active-cell count per layer), `HYindex`/`indexTime` (hydro-year
+  boundary indices), `year_lst`, `iniMonthHydroYear`, `DATE`.
+- Observations: `inputObsHEADS_{C1..C5,P0,W1}.txt` (date, head), `inputObsSM_*`
+  (soil moisture), `inputObsRo_catchment.txt` (runoff); `inputObs.txt` lists
+  point name/X/Y/lay (lines starting with # or ## are disabled).
+
+### Native functions to drive (all in MARMITESplot_v3.py):
+- `plotTIMESERIES_CATCH(cMF, flx, flxLbl, fn, title, hmax, hmin,
+  iniMonthHydroYear, date_ini, date_end, flxIndex_lst, obs_catch=..., ...)`
+  — ALREADY WORKS from `wb_ts` (see `native_suite` in
+  `trunk/ppMF6/marmites_postprocess.py`, which reassembles the combined MM+soil
+  flux array). Returns calibration stats.
+- `plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF,
+  ncell_MM, obspt, fntitle, ibound4Sankey, ...)` — the Sankey. Needs the FULL
+  per-layer flux list above. Splits per-MF-layer terms onto units via
+  `cMF.Mlay`. Reads `flx[flxIndex['iX']][i:indexend]` per hydro-year.
+- `plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex, Sm, Sr, fn, suptitle, title,
+  clr, hmax, ...)` — per-obs-cell soil-column time series with obs overlay.
+- `plotTIMESERIES_flxGW(...)` — per-obs-cell groundwater fluxes.
+- `plotCALIBCRIT(calibcritSM, ..., calibcritHEADS, ..., fn, title, calibcrit,
+  ...)` — RMSE/RSR/NSE/R for heads and soil moisture vs obs.
+- `plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel,
+  msg, plt_title, MM_ws, mask=..., hnoflo=..., pref_plt_title=..., cMF=...)`
+  — per-layer maps; V shape (ndays, nlay, nrow, ncol). ALREADY partly wired
+  (native_layer_maps / _native_flux_maps in marmites_postprocess.py). `cmap`
+  must be a colormap OBJECT (matplotlib.colormaps['viridis']), not a string.
+
+### Legacy HDF5 to emit from the coupled run (basis for all stages):
+`_h5_MF.h5` datasets, each `(nper, nlay, nrow, ncol)`, from the MF6 hds+cbc:
+  `heads_d`, `RCH_d` (=UZF-GWRCH), `DRN_d` (drn + drn_seep), `GHB_d`, `STO_d`,
+  `WEL_d`, `EXF_d`, and `FLF_d` (layer-to-layer, from the GWF FLOW-JA-FACE or
+  UZF/lower-layer exchange). `FRF_d`/`FFF_d` were zeroed by the old driver — OK
+  to write zeros.
+`_h5_MM.h5` datasets: `MM` per-cell/per-SP `(nper, ncell, nidx)` and `MM_S`
+  `(nper, ncell, nsl, nidx_s)`. The coupler currently AGGREGATES these
+  (`wb_ts`, `wb_map`); it must additionally stream the full arrays to H5 during
+  the run (write per-SP to avoid holding ~0.7-1.5 GB in memory; use gzip).
+  Per-layer groundwater ET split (`iEg_L`, `iTg_L`) and recharge-per-layer
+  (`iRg_L`) must be derived — check how MMsoil partitions ETg across layers.
+
+### Stage plan (tasks #42-45 in the task list):
+- **Stage 1** (#42, #43): CATCHMENT Sankey DONE + VALIDATED 2026-07-25. ✅
+  `plotWBsankey` now takes a `treshold=0.05` keyword (was hardcoded 5E-2);
+  `marmites_postprocess._native_sankey` + `_aquifer_layer_fluxes` +
+  `_hydro_year_index` assemble `flxCatch_lst`/`flxIndex_lst` (MM from
+  `wb_ts`/`wb_ts_soil`, aquifer per-layer from the cbc: UZF-GWRCH→Rg,
+  STO-SS/SY→dSg, WEL→Eg/Tg split by catchment ratio, DRN→DRN, FLOW-JA-FACE→FLF
+  via get_structured_faceflows; FRF/FFF/GHB/CH=0; ETg drawn as Eg/Tg so WEL not
+  double-counted). `native_suite` emits a decluttered CORE diagram + optional
+  FULL (`treshold=0`); runner flags `--sankey-min-flux`, `--no-sankey-full`.
+  Depth conv: `conv_fact/total_surface_area` (same basis as wb_ts).
+  VALIDATION: MM-side MB closes (MMsurf 0.0 / MMsoil -1.1 / MFUZF -0.1 %); MF6's
+  own layer-2 budget closes to net -0.00 with the extracted terms at a settled
+  SP. CAVEAT on the 30-day cold-start test run: absolute values inflated
+  (Ro>P) by the SP1 pulse, and MFL2 whole-period closure reads 157% only because
+  FLF oscillates sign per-SP and averages to ~0 while recharge is one-signed --
+  a spun-up `--seep drn` run's hydro-year SUMS will close. plotTIMESERIES_CATCH
+  still works (native_wb_catchment.png). Suite 190 pass / 7 skip / 0 fail.
+  PER-POINT Sankeys (flxObs_lst): DONE 2026-07-25. ✅ The coupler now captures
+  the FULL per-SP MM flux vectors at the obs cells (`MF6Coupler(obs_idx=,
+  obs_names=)` -> `res['mm_obs']` (nper,nobs,nidx), `mms_obs`, `obs_ij`,
+  `obs_names`; auto-saved to `_coupled_*.h5`; tiny vs the whole grid).
+  `resolve_obs_cells` reuses `cPROCESS.inputObs` to map inputObs.txt points ->
+  MM cell-list positions (runner resolves once when `--postproc`, passes to the
+  coupler each spin-up cycle). Postproc `_native_sankey_obs` builds a per-point
+  `flx` (MM from that cell's captured series, aquifer from that single cell via
+  `_aquifer_layer_fluxes(sel_ij=[(i,j)])`) and renders one Sankey per point
+  (`_obs_<NAME>_WBsankey_*.png`). VALIDATED offline: obs resolution real, per-
+  cell aquifer extraction genuinely cell-specific (P0 Rg1=1502/FLF=39.1 vs
+  catchment Rg1=2766/FLF=0.7), renders coherently; MM side needs a real re-run
+  to populate `mm_obs` (offline test broadcast wb_ts as a placeholder). Coupler
+  mock tests added (obs capture + back-compat). **TO GET REAL per-point values:
+  re-run with `--postproc` (obs capture auto-on); the 09:04 h5 predates the
+  capture so has no mm_obs.** RELOAD in Spyder: run_lamata_mf6.py,
+  marmites_coupler.py, marmites_postprocess.py, MARMITESplot_v3.py.
+  NEXT: Stage 2 (per-obs-cell plotTIMESERIES + plotCALIBCRIT) reuses the SAME
+  mm_obs/mms_obs capture.
+- **Stage 2** (#44): stream full `MM`/`MM_S` to `_h5_MM.h5`; drive
+  `plotTIMESERIES` + `plotTIMESERIES_flxGW` at each obs cell; `plotCALIBCRIT`
+  from `inputObsHEADS_*`/`inputObsSM_*`.
+- **Stage 3** (#45): drive `plotLAYER` over the full flux set + time selection
+  from the legacy H5 (heads, recharge, exf, ETg, storage, per layer).
+
+### Build-and-test discipline (the reason we restarted):
+Implement each stage against a REAL short run (`--nsp 30`) and view the PNGs
+with the Read tool before declaring it done. Do not ship untested index-matching
+code. `diag_sinf.py` is a template for isolating BMI issues.
+
+---
+
+## 4. NEXT BIG STAGE: SFR / LAK / CRR
+
+Design + decisions are in `MARMITES_SFR_LAK_CRR_analysis.md` §7-8. Status:
+
+DONE (builds + reloads; NOT yet run coupled/validated):
+- **Two-layer aggregation** — superseded: `--nlay 2` reads `_2s1L.ini` directly
+  (`marmites_layers.py` kept for `--aggregate` comparison only).
+- **DRN-seep** seepage (`trunk/ppMF6/marmites_mf6.py`, `seep='drn'`, cond 10000
+  — NB user's original "10" was wrong; a seepage face must be free-draining).
+- **SFR** network from `inputPONDw.asc` via priority-flood routing
+  (`trunk/ppMF6/marmites_sfr.py`); outlet reaches replace the 6 outlet DRN
+  cells; `EVAPORATION=0` (MARMITES does E_ow); runoff delivered as reach INFLOW
+  by the coupler (now via the post-prepare_solve callback).
+- **LAK** — 12 EMBEDDEDV lakes from `GIS/lm_ponds.shp`
+  (`trunk/ppMF6/marmites_lak.py`); ponds are all sub-grid so one lake per host
+  cell with a stage-volume table; assigned by centroid.
+- **MVR** routes the stream through the 11 on-channel ponds (inlet reach->LAK,
+  LAK outlet->downstream reach).
+- Flags: `--sfr`, `--lak`, `--seep drn`, `--sfr-rhk`, `--lak-bedleak`.
+
+REMAINING:
+- **Run SFR+LAK coupled and validate.** First do it now that recharge couples
+  (SINF fix). Command adds `--sfr --lak` to the canonical run. Watch: SFR INFLOW
+  binds (advanced-package var — the SINF lesson applies), MVR balance, LAK
+  stages sane, no non-convergence/discrepancy from the guard.
+- **CRR** (task #32) — NOT STARTED. Daoud et al. 2022 cascade routing &
+  reinfiltration, `CRR_BETA=1.0`. Must run in PYTHON in the coupler (MVR cannot
+  reach MARMITES' soil column). MFD weights alpha_ij = beta * S_ij/sum(S_ij).
+  Receivers in priority LAK > SFR > downslope MARMITES soil; topographic sinks
+  evaporate. REQUIRES a descending-topographic cell ordering, which changes the
+  Phase-2 cell-list order contract — plan that carefully. Reference:
+  `trunk/SFR_LAK_CRR/cdl_gwf_model_fable_v2.py` (user's CdL model).
+- SFR INFLOW / LAK / MVR writes must all go through the post-prepare_solve
+  callback (same BMI timing rule as SINF).
+
+---
+
+## 5. FILE MAP (the pieces)
+
+- `trunk/ppMF6/marmites_mf6.py` — clsMF6: builds the MF6 sim (DIS/DISV), UZF6,
+  DRN-seep, SFR, LAK, MVR, ATS, initial heads (DEM/array/ini), save/load heads
+  asc, layer handling.
+- `trunk/marmites_coupler.py` — MF6Coupler: per-SP API coupling (lagged/
+  iterative), SINF/Q/INFLOW writes after prepare_solve, ATS sub-stepping,
+  check_solution guard, spin-up means, wb_ts/wb_map aggregates.
+- `trunk/ppMF6/marmites_sfr.py`, `marmites_lak.py`, `marmites_layers.py`.
+- `trunk/ppMF6/marmites_postprocess.py` — cdl-style pre/post + native_suite
+  (plotLAYER maps + plotTIMESERIES_CATCH already wired).
+- `tests/run_lamata_mf6.py` — the driver/CLI (all flags).
+- `tests/plot_water_budget.py` — 01-07 figures incl. NWT-vs-MF6, now callable
+  via make_figures().
+- `tests/diag_sinf.py` — BMI write-position diagnostic (template).
+- `trunk/MARMITESutilities/MARMITESplot/MARMITESplot_v3.py` — the native suite
+  to finish wiring (Stages 1-3).
+- `trunk/startMARMITES_v3.py` — the OLD NWT driver; the reference for the
+  post-proc assembly to port (do not run it; read it).
+- `trunk/MM_MF6_conversion/` — checkpoint snapshot (earlier milestone).
+
+---
+
+## 6. SUGGESTED ORDER AFTER RESTART
+1. `pytest tests -q` — DONE 2026-07-25 (§1): 190 pass / 7 skip / 0 fail. ✅
+2. One short coupled run `--nsp 30 --nlay 2 --seep drn` — confirm SINF binding
+   line + varying recharge.  ← USER RUNNING THIS IN SPYDER (2026-07-25).
+3. Plotting Stage 1 (Sankey + catchment TS), review PNGs.  ← NEXT UP.
+4. Plotting Stages 2, 3.
+5. Run + validate SFR+LAK coupled.
+6. CRR implementation.
+(Calibration of the water-table deficit is the modeller's separate task.)

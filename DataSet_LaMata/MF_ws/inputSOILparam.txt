@@ -1,0 +1,41 @@
+#  
+3  #  number of zones  SOILzones
+2  #  soil layers  nsl
+2  #  soil layers  nsl
+1  #  soil layers  nsl
+SOIL1 - alluvium
+sandy loam field  #  soil type layer 1  st
+0.75  #  soil layer thickness proportion  slprop
+0.15  #  Max soil moisture  Smax
+0.125  #  Soil moisture at field capacity  Sfc
+0.075  #  Residual soil moisture  Sr
+0.145  #  Initial soil moisture  Si
+1.5  #  Saturated conductivity  Ks
+0.25  #  soil layer thickness proportion  slprop
+0.19  #  Max soil moisture  Smax
+0.175  #  Soil moisture at field capacity  Sfc
+0.10  #  Residual soil moisture  Sr
+0.185  #  Initial soil moisture  Si
+1.5  #  Saturated conductivity  Ks
+SOIL2 - regolith
+sandy loam field  #  soil type layer 1  st
+0.55  #  .7 soil layer thickness proportion  slprop
+0.22  #  Max soil moisture  Smax
+0.15  #  Soil moisture at field capacity  Sfc
+0.07  #  Residual soil moisture  Sr
+0.215  #  Initial soil moisture  Si
+5.0  #  Saturated conductivity  Ks
+0.45  #  .3 soil layer thickness proportion  slprop
+0.35  #  Max soil moisture  Smax
+0.2  #  Soil moisture at field capacity  Sfc
+0.125  #  Residual soil moisture  Sr
+0.25  #  Initial soil moisture  Si
+3.0  #  Saturated conductivity  Ks
+SOIL3 - outcrop
+sand  #  soil type layer 1  st
+1.00  #  soil layer thickness proportion  slprop
+0.05  #  Max soil moisture  Smax
+0.02  #  Soil moisture at field capacity  Sfc
+0.01  #  Residual soil moisture  Sr
+0.02  #  Initial soil moisture  Si
+5.00  #  Saturated conductivity  Ks

@@ -1,0 +1,55 @@
+#
+# NMETEO: number of meteo zones
+1
+# NVEG: number of vegetation types
+3
+# NSOIL: number of soil types
+3
+# inputDate_fn: file with the dates
+inputDATE.txt
+# inputZON_TS_RF_veg_fn: RF zones
+inputZONRF_veg_d.txt
+# inputZON_TS_TF_veg_fn: TF zones
+inputZONTF_veg_d.txt
+# inputZON_TS_PT_veg_fn: PT zones
+inputZONPT_veg_d.txt
+# input_TS_LAI_veg_fn: LAI veg time series
+inputZONLAI_veg_d.txt
+# inputZON_TS_PE_fn: PE zones
+inputZONPE_d.txt
+# inputZON_TS_Eo_fn: Eo zones
+inputZONEo_d.txt
+# VegName
+grassMU Qilex Qpyr 
+# Zr
+0.4 15.0 10.0 
+# kTg_min
+0.05 0.044694325 0.044694325 
+# kTg_max
+0.1 0.865399396 0.865399396 
+# kT_f
+0.5 0.10177166815831 0.10177166815831 
+# kT_s
+1.0 21.98151201 21.98151201 
+# NCROP: number of crop types
+1
+# NFIELD: number of irrigation fields
+1
+# inputZON_TS_RF_irr_fn: RF zones
+inputZONRF_irr_d.txt
+# inputZON_TS_TF_irr_fn: TF zones
+inputZONTF_irr_d.txt
+# inputZON_TS_PT_irr_fn: PT zones
+inputZONPT_irr_d.txt
+# Zr_c
+1.2 
+# kTg_min_c
+0.05 
+# kTg_max_c
+0.1 
+# kT_f_c
+0.5 
+# kT_s_c
+1.0 
+# input_TS_crop_irr_fn: field crop time series
+inputZONcrop_irr_d.txt

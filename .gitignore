@@ -7,7 +7,13 @@ __pycache__/
 .ipynb_checkpoints/
 
 # --- MODFLOW / MARMITES model workspaces (large, regenerable) ---
-DataSet_*/MF_ws/
+# MF_ws is a mix: keep the ASCII inputs, the parameter sets and the reusable
+# spin-up state; drop the MODFLOW-NWT model files, checks and run outputs.
+DataSet_*/MF_ws/*
+!DataSet_*/MF_ws/*.asc
+!DataSet_*/MF_ws/*.ASC
+!DataSet_*/MF_ws/*.ini
+!DataSet_*/MF_ws/*.txt
 DataSet_*/MF6_ws/
 DataSet_*/MF6_ws_disv/
 DataSet_*/MMsurf_ws/

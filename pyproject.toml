@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "marmites"
+version = "0.4.0.dev0"
+description = "MARMITES - distributed soil water balance model coupled with MODFLOW 6 (recharge, ET partitioning and sourcing)"
+authors = [{ name = "Alain P. Francés", email = "frances.alain@gmail.com" }]
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "GPL-3.0-or-later" }
+dependencies = [
+    "numpy>=2.0",
+    "matplotlib>=3.9",
+    "h5py>=3.11",
+    "flopy>=3.9",
+    "modflowapi>=0.3",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+extend-exclude = ["_archive", "DataSet_WRR", "doc"]
+
+[tool.ruff.lint]
+# E722: bare except -- the legacy pattern being eradicated in Phase 1
+# NPY: numpy 2.x rules; UP: pyupgrade; B: bugbear
+select = ["E4", "E7", "E9", "F", "B", "UP", "NPY", "E722"]
+ignore = ["E741"]  # ambiguous variable name 'l' -- pervasive in legacy code, fixed progressively
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
