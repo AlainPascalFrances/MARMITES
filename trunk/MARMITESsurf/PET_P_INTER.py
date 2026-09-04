@@ -701,7 +701,7 @@ def process(cUTIL, datenum = np.array([]), datenum_d = np.array([]), J = np.arra
         for f in range(NFIELD):
             try:
                 RF_irr[f] = RF + IRR[f]
-            except:
+            except Exception:
                 cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nIrrigation time serie incompatible with rainfall time serie!")
             RF_irr_d =  np.zeros([NFIELD, len(datenum_d)], dtype=float)
             RFint_irr = np.zeros([NFIELD, len(datenum_d)], dtype=float)

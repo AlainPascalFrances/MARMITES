@@ -1,13 +1,17 @@
-﻿    # -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
+"""MARMITES pre/post-processing: spatial input import, soil parameters,
+observations, MF output reorganization.
 
-__author__ = "Alain Francés <frances08512@itc.nl>"
-__version__ = "0.3"
-__date__ = "2012"
+Phase-1 port (2026): Python 3.12, Decimal removed, module globals removed,
+narrowed exception handling.
+"""
+
+__author__ = "Alain P. Francés <frances.alain@gmail.com>"
+__version__ = "0.4.0.dev0"
 
 import os
 import numpy as np
 import matplotlib as mpl
-from decimal import Decimal, ROUND_HALF_EVEN
 
 class clsPROCESS:
     def __init__(self, cUTIL, MM_ws, MM_ws_out, MF_ws, nrow, ncol, nlay, xllcorner, yllcorner, cellsizeMF, hnoflo):
@@ -29,35 +33,33 @@ class clsPROCESS:
 
     def inputEsriAscii(self, grid_fn, datatype, stdout = None, report = None):
         try:
-            if datatype == int:
-                grid_fn = int(grid_fn)
-            else:
-                grid_fn = float(grid_fn)
-            grid_out = np.ones((self.nrow,self.ncol), dtype = datatype)*grid_fn
-        except:
-            grid_fn=os.path.join(self.MM_ws,grid_fn)
-            grid_out=np.zeros([self.nrow,self.ncol], dtype = datatype)
-            grid_out = self.convASCIIraster2array(grid_fn,grid_out, stdout = stdout, report = report)
+            # a constant value instead of a raster file
+            value = int(grid_fn) if datatype is int else float(grid_fn)
+            grid_out = np.ones((self.nrow, self.ncol), dtype=datatype) * value
+        except (TypeError, ValueError):
+            grid_fn = os.path.join(self.MM_ws, grid_fn)
+            grid_out = np.zeros([self.nrow, self.ncol], dtype=datatype)
+            grid_out = self.convASCIIraster2array(grid_fn, grid_out, stdout=stdout, report=report)
         return grid_out
-        del grid_out
 
     ######################
 
     def checkarray(self, var, dtype = float, stdout = None, report = None):
         try:
+            # scalar value(s) instead of raster file name(s)
             if len(var)>1:
                 lst_out = []
                 for v in var:
-                    if dtype == int:
+                    if dtype is int:
                         lst_out.append(int(v))
                     else:
                         lst_out.append(float(v))
             else:
-                if dtype == int:
+                if dtype is int:
                     lst_out = int(var[0])
                 else:
                     lst_out = float(var[0])
-        except:
+        except (TypeError, ValueError):
             array = np.zeros((len(var),self.nrow,self.ncol), dtype = dtype)
             l = 0
             for v in var:
@@ -101,7 +103,6 @@ class clsPROCESS:
         '''
 
         # Load the grid files
-        global NODATA_value, ncol_tmp, nrow_tmp, cellsizeEsriAscii, fin
         if os.path.exists(filenameIN):
             fin = open(filenameIN, 'r')
         else:
@@ -146,10 +147,8 @@ class clsPROCESS:
                 linecol += 1
 
         fin.close()
-        del line, fin
 
         return arrayOUT
-        del arrayOUT
 
     ######################
 
@@ -386,15 +385,15 @@ class clsPROCESS:
             for ns in range(nsl[z+1]):
                 slprop[z].append(float(inputFile[nslst]))
                 nslst += 1
-                Sm[z].append(Decimal(float(inputFile[nslst])).quantize(Decimal('.00001'), rounding=ROUND_HALF_EVEN))
+                Sm[z].append(float(inputFile[nslst]))
                 nslst += 1
-                Sfc[z].append(Decimal(float(inputFile[nslst])).quantize(Decimal('.00001'), rounding=ROUND_HALF_EVEN))
+                Sfc[z].append(float(inputFile[nslst]))
                 nslst += 1
-                Sr[z].append(Decimal(float(inputFile[nslst])).quantize(Decimal('.00001'), rounding=ROUND_HALF_EVEN))
+                Sr[z].append(float(inputFile[nslst]))
                 nslst += 1
-                Si[z].append(Decimal(float(inputFile[nslst])).quantize(Decimal('.00001'), rounding=ROUND_HALF_EVEN))
+                Si[z].append(float(inputFile[nslst]))
                 nslst += 1
-                Ks[z].append(Decimal(float(inputFile[nslst])).quantize(Decimal('.00001'), rounding=ROUND_HALF_EVEN))
+                Ks[z].append(float(inputFile[nslst]))
                 nslst += 1
                 if not(Sm[z][ns]>Sfc[z][ns]>Sr[z][ns]) or not(Sm[z][ns]>=Si[z][ns]>=Sr[z][ns]):
                     self.cUTIL.ErrorExit('\nFATAL ERROR!\nSoils parameters are not valid!\nThe conditions are Sm>Sfc>Sr and Sm>Si>Sr!', stdout = stdout, report = report)
@@ -404,7 +403,6 @@ class clsPROCESS:
                 self.cUTIL.ErrorExit('\nFATAL ERROR!\nThe sum of the soil layers proportion of %s is <1!\nCorrect your soil data input!\n' % nam_soil[z], stdout = stdout, report = report)
 
         return nsl[1:len(nsl)], nam_soil, st, slprop, Sm, Sfc, Sr, Si, Ks
-        del nsl, nam_soil, st, slprop, Sm, Sfc, Sr, Si, Ks
 
     ######################
 
@@ -414,7 +412,7 @@ class clsPROCESS:
         '''
 
         # read coordinates and SATFLOW parameters
-        global name
+        name = 'catchment'
         inputFile = self.cUTIL.readFile(self.MM_ws,inputObs_fn)
 
         # define a dictionnary of observations,  format is: Name (key) x y i j hi h0 RC STO
@@ -432,11 +430,11 @@ class clsPROCESS:
                 h0  = float(line[5])
                 RC  = float(line[6])
                 STO = float(line[7])
-            except:
+            except Exception:
                 hi = h0 = RC = STO =  self.hnoflo
             try:
                 lbl  = str(line[0])
-            except:
+            except Exception:
                 lbl = ''
             # verify if coordinates are inside MODFLOW grid
             if (x <= self.xllcorner or
@@ -499,8 +497,6 @@ class clsPROCESS:
         obs_catch_list = [obs_h_yn, obs_sm_yn, obs_Ro_yn]
 
         return obs, obs_list, obs_catch, obs_catch_list
-        del inputObs_fn, inputObsHEADS_fn, inputObsSM_fn, inputDate, _nslmax
-        del obs
 
     ######################
 
@@ -509,7 +505,10 @@ class clsPROCESS:
         Import and process data and parameters
         '''
 
-        global obs_yn, obsDate, obsValue
+        # bug fix vs v0.3: obs_yn was a module global; when the file did not
+        # exist the function returned the value left over from the previous
+        # observation point
+        obs_yn = 0
         if os.path.exists(filename):
             try:
                 obsData=np.loadtxt(filename, dtype = str)
@@ -521,7 +520,7 @@ class clsPROCESS:
                 if len(obsValue)<_nslmax:
                     for l in range(_nslmax-len(obsValue)):
                         obsValue.append(self.hnoflo)
-            except:
+            except (ValueError, IndexError, OSError):
                 self.cUTIL.ErrorExit(msg = '\nFATAL ERROR!\nFormat of observation file uncorrect!\n%s' % filename, stdout = stdout, report = report)
             obsOutput = np.ones([len(obsValue),len(inputDate)], dtype=np.float32)*self.hnoflo
             obs_yn = 0
@@ -553,7 +552,6 @@ class clsPROCESS:
         else:
             obsOutput = None
         return obsOutput, obs_yn
-        del inputDate, obsOutput
 
     ######################
 
@@ -567,7 +565,6 @@ class clsPROCESS:
         outFile=self.writeHeaderESRIraster(outFile)
 
         return outFile
-        del outFile
 
     ######################
 
@@ -582,7 +579,6 @@ class clsPROCESS:
                         'cellsize   '+ str(self.cellsizeMF)+'\n' +
                         'NODATA_value  '+ str(self.hnoflo)+'\n')
         return file_asc
-        del file_asc
 
     #####################################
 
@@ -599,11 +595,10 @@ class clsPROCESS:
             for l in range(_nslmax):
                 try:
                     obs_S_tmp = obs_S[l,t]
-                except:
+                except (TypeError, IndexError):
                     obs_S_tmp = -1.0
-                if results_S[t,l,index_S.get(b'iSsoil_pc_s')] > 0.0 and obs_S_tmp > 0.0:
-                    self.smMM[len_smMM-1].append((obsname+'SM_l'+str(l+1)).ljust(12,' ')+ out_date.ljust(12,' ')+ ' 00:00:00 ' + str(results_S[t,l,index_S.get(b'iSsoil_pc_s')]).ljust(10,' ') + '\n')
-        del i, j, _nslmax, results_S, index_S, obs_S, obsname
+                if results_S[t,l,index_S.get('iSsoil_pc_s')] > 0.0 and obs_S_tmp > 0.0:
+                    self.smMM[len_smMM-1].append((obsname+'SM_l'+str(l+1)).ljust(12,' ')+ out_date.ljust(12,' ')+ ' 00:00:00 ' + str(results_S[t,l,index_S.get('iSsoil_pc_s')]).ljust(10,' ') + '\n')
 
     #####################################
 
@@ -620,13 +615,13 @@ class clsPROCESS:
             try:
                 if obs_h[t] != self.hnoflo:
                     outPESTheads.write(obsname.ljust(10,' ')+ date.ljust(10,' ')+ ' 00:00:00 ' + str(obs_h[t]).ljust(10,' ') + '\n')
-            except:
+            except Exception:
                 pass
             try:
                 for l in range (_nslmax):
                     if obs_S[l,t] != self.hnoflo:
                         self.smMM[len_smMM-1].append((obsname+'SM_l'+str(l+1)).ljust(10,' ')+ date.ljust(10,' ')+ ' 00:00:00 ' + str(obs_S[l,t]).ljust(10,' ') + '\n')
-            except:
+            except Exception:
                 pass
     #####################################
 
@@ -702,8 +697,7 @@ class clsPROCESS:
 #####################################
 
     def compCalibCritObs(self, Spc, h_MF, Sobs, hobs, hnoflo, obs_name, nsl, h_MM = None):
-        
-        global l
+
         rmseSM = None
         rmseHEADS = None
         rmseHEADSc = None
@@ -725,7 +719,7 @@ class clsPROCESS:
             try:
                 Sobs_m.append(np.ma.masked_values(Sobs[l,:], hnoflo, atol = 0.09))
                 testSM += 1
-            except:
+            except Exception:
                 Sobs_m.append([])
         #print(obs_name, type(hobs), hobs)
         if testSM > 0 or hobs is not None:
@@ -735,6 +729,7 @@ class clsPROCESS:
                 rsrSM = []
                 nseSM = []
                 rSM = []
+                l = 0
                 try:
                     for l, (y, y_obs) in enumerate(zip(Spc1full, Sobs_m)):
                         if y_obs.all(): # != []:
@@ -744,9 +739,9 @@ class clsPROCESS:
                             nseSM.append(nse)
                             rSM.append(r)
                             del rmse, rsr, nse, r
-                            if rmseSM[l] != None:
+                            if rmseSM[l] is not None:
                                 print('SM layer %d: %.1f %% / %.2f / %.2f / %.2f' % (l+1, rmseSM[l], rsrSM[l], nseSM[l], rSM[l]))
-                except:
+                except Exception:
                     print('SM layer %d: error' % (l+1))
             if hobs is not None:
                 try:
@@ -758,7 +753,7 @@ class clsPROCESS:
                     del rmse, rsr, nse, r
                     if rmseHEADS[0] is not None:
                         print('h: %.2f m / %.2f / %.2f / %.2f' % (rmseHEADS[0], rsrHEADS[0], nseHEADS[0], rHEADS[0]))
-                except:
+                except Exception:
                     print('h: error')
                 if h_MM is not None:
                     try:
@@ -770,7 +765,7 @@ class clsPROCESS:
                         del rmse, rsr, nse, r
                         if rmseHEADSc[0] is not None:
                             print('hcorr: %.2f m / %.2f / %.2f / %.2f' % (rmseHEADSc[0], rsrHEADSc[0], nseHEADSc[0], rHEADSc[0]))
-                    except:
+                    except Exception:
                         print('hcorr: error')                    
 
         return rmseHEADS, rmseHEADSc, rmseSM, rsrHEADS, rsrHEADSc, rsrSM, nseHEADS, nseHEADSc, nseSM, rHEADS, rHEADSc, rSM

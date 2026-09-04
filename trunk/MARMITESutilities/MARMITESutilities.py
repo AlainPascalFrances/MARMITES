@@ -1,175 +1,152 @@
-﻿#-------------------------------------------------------------------------------
-# Name:        module1
-# Purpose:
-#
-# Author:      alf
-#
-# Created:     01-05-2013
-# Copyright:   (c) alf 2013
-# Licence:     <your licence>
-#-------------------------------------------------------------------------------
-#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""MARMITES shared utilities: error handling, input-file reading, dates,
+colormap helpers.
 
-import os, sys, traceback
+Phase-1 port (2026): Python 3.12, typed exceptions (MarmitesError),
+no module globals, `plt.register_cmap` (removed in matplotlib 3.9)
+replaced by `matplotlib.colormaps.register`.
+"""
+
+__author__ = "Alain P. Francés <frances.alain@gmail.com>"
+__version__ = "0.4.0.dev0"
+
+import datetime
+import os
+import shutil
+import sys
+import traceback
+
 import matplotlib as mpl
+import matplotlib.dates  # noqa: F401  (registers mpl.dates used across MARMITES)
 import numpy as np
-import matplotlib.pyplot as plt
 
-class clsUTILITIES():
-    def __init__(self, fmt = mpl.dates.DateFormatter('%Y-%m-%d %H:%M'), verbose = 1, report_fn = ''):
-        self.fmt = fmt
+
+class MarmitesError(Exception):
+    """Fatal MARMITES error carrying a user-facing message."""
+
+
+class clsUTILITIES:
+    def __init__(self, fmt=None, verbose=1, report_fn=''):
+        # default formatter built at call time (avoids import-time evaluation)
+        self.fmt = fmt if fmt is not None else mpl.dates.DateFormatter('%Y-%m-%d %H:%M')
         self.verbose = verbose
         self.report_fn = report_fn
 
-#####################################
+    # ------------------------------------------------------------------ #
 
-    def ErrorExit(self, msg = 'Undefined error.', stdout = None, report = None):
+    def ErrorExit(self, msg='Undefined error.', stdout=None, report=None):
+        """Print context and abort the run by raising MarmitesError.
+
+        Kept for API compatibility with the legacy call sites; new code
+        should raise MarmitesError directly.
+        """
         print('%s\nError description:' % msg)
         traceback.print_exc(file=sys.stdout)
-        print(('\n##############\nWARNING!\nMARMITES terminated with ERROR!\n%s\n##############' % (mpl.dates.DateFormatter.format_data(self.fmt, mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat())))))
-        if self.verbose == 0:
+        stamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
+        print('\n##############\nWARNING!\nMARMITES terminated with ERROR!\n%s\n##############' % stamp)
+        if self.verbose == 0 and stdout is not None:
             sys.stdout = stdout
-            report.close()
-            raise sys.exit('##############\nWARNING!\nMARMITES terminated with ERROR!\nCheck report file:\n%s.\n%s\n##############' % (self.report_fn, mpl.dates.DateFormatter.format_data(self.fmt, mpl.dates.datestr2num(mpl.dates.datetime.datetime.today().isoformat()))))
-        else:
-            raise sys.exit()
+            if report is not None:
+                report.close()
+            msg = '%s\nCheck report file:\n%s' % (msg, self.report_fn)
+        raise MarmitesError(msg)
 
-#####################################
+    # ------------------------------------------------------------------ #
 
     def readFile(self, ws, fn):
-        global fin
+        """Read a MARMITES sequential input file.
+
+        The first character of the first line defines the comment
+        delimiter; for each subsequent line, the content before the first
+        delimiter is returned (blank lines skipped).
+        """
         inputFile = []
         inputFile_fn = os.path.join(ws, fn)
-        if os.path.exists(inputFile_fn):
-            fin = open(inputFile_fn, 'r')
-        else:
-            self.ErrorExit(msg = "File [%s] doesn't exist, verify name and path!"%inputFile_fn)
-        line = fin.readline().split()
-        delimChar = line[0]
-        try:
-            for line in fin:
-                line_tmp = line.split(delimChar)
-                if not line_tmp == []:
-                    if (not line_tmp[0] == '') and (not line_tmp[0] == '\n') and (not line_tmp[0].isspace()):
+        if not os.path.exists(inputFile_fn):
+            self.ErrorExit(msg="File [%s] doesn't exist, verify name and path!" % inputFile_fn)
+        with open(inputFile_fn) as fin:
+            line = fin.readline().split()
+            if not line:
+                self.ErrorExit('Error in file [%s]: empty first line, expected comment delimiter!' % inputFile_fn)
+            delimChar = line[0]
+            try:
+                for line in fin:
+                    line_tmp = line.split(delimChar)
+                    if not line_tmp:
+                        raise MarmitesError('Error in file [%s], check format!' % inputFile_fn)
+                    if line_tmp[0] and line_tmp[0] != '\n' and not line_tmp[0].isspace():
                         inputFile.append(line_tmp[0])
-                else:
-                    raise NameError('InputFileFormat')
-        except NameError:
-            self.ErrorExit('Error in file [%s], check format!'%inputFile_fn)
-        except:
-            self.ErrorExit("Unexpected error in file [%s]\n"%inputFile_fn)
-        fin.close()
-        del fin
+            except MarmitesError:
+                raise
+            except Exception:
+                self.ErrorExit('Unexpected error in file [%s]\n' % inputFile_fn)
         return inputFile
 
-#####################################
+    # ------------------------------------------------------------------ #
 
-    def which(self, program):
-        import os
-        def is_exe(fpath):
-            return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
+    @staticmethod
+    def which(program):
+        """Locate an executable on PATH (cross-platform)."""
+        return shutil.which(program)
 
-        fpath, fname = os.path.split(program)
-        if fpath:
-            if is_exe(program):
-                return program
-        else:
-            for path in os.environ["PATH"].split(os.pathsep):
-                path = path.strip('"')
-                exe_file = os.path.join(path, program)
-                if is_exe(exe_file):
-                    return exe_file
+    # ------------------------------------------------------------------ #
 
-        return None
-
-#####################################
-
-    def compDATE_INI(self, date, iniMonthHydroYear):
+    @staticmethod
+    def compDATE_INI(date, iniMonthHydroYear):
         year = mpl.dates.num2date(date).year
         month = mpl.dates.num2date(date).month
-    #    day = mpl.dates.num2date(date).day
         if iniMonthHydroYear == 1:
             iniMonthHydroYear = 12
-            year -= 1            
+            year -= 1
         if month >= iniMonthHydroYear:
-            date_ini = mpl.dates.date2num(mpl.dates.datetime.datetime(year,iniMonthHydroYear,1))
+            date_ini = mpl.dates.date2num(datetime.datetime(year, iniMonthHydroYear, 1))
         else:
-            date_ini = mpl.dates.date2num(mpl.dates.datetime.datetime(year-1,iniMonthHydroYear,1))
+            date_ini = mpl.dates.date2num(datetime.datetime(year - 1, iniMonthHydroYear, 1))
         return date_ini, year
 
-#####################################
-
-    def compDATE_END(self, date, iniMonthHydroYear):
+    @staticmethod
+    def compDATE_END(date, iniMonthHydroYear):
         year = mpl.dates.num2date(date).year
         month = mpl.dates.num2date(date).month
-    #    day = mpl.dates.num2date(date).day
         if iniMonthHydroYear == 12:
             iniMonthHydroYear = 1
-            year += 1            
+            year += 1
         if month >= iniMonthHydroYear:
-            date_end = mpl.dates.date2num(mpl.dates.datetime.datetime(year+1,iniMonthHydroYear,1))
+            date_end = mpl.dates.date2num(datetime.datetime(year + 1, iniMonthHydroYear, 1))
         else:
-            date_end = mpl.dates.date2num(mpl.dates.datetime.datetime(year,iniMonthHydroYear,1))
+            date_end = mpl.dates.date2num(datetime.datetime(year, iniMonthHydroYear, 1))
         return date_end, year
 
-#####################################
+    # ------------------------------------------------------------------ #
 
-    def remappedColorMap(self, cmap, start=0, midpoint=0.5, stop=1.0,
-        name='shiftedcmap'):
-        '''
-        Function to offset the median value of a colormap, and scale the
-        remaining color range. Useful for data with a negative minimum and
-        positive maximum where you want the middle of the colormap's dynamic
-        range to be at zero.
-        Input
-        -----
-        cmap : The matplotlib colormap to be altered
-        start : Offset from lowest point in the colormap's range.
-        Defaults to 0.0 (no lower ofset). Should be between
-        0.0 and 0.5; if your dataset mean is negative you should leave
-        this at 0.0, otherwise to (vmax-abs(vmin))/(2*vmax)
-        midpoint : The new center of the colormap. Defaults to
-        0.5 (no shift). Should be between 0.0 and 1.0; usually the
-        optimal value is abs(vmin)/(vmax+abs(vmin))
-        stop : Offset from highets point in the colormap's range.
-        Defaults to 1.0 (no upper ofset). Should be between
-        0.5 and 1.0; if your dataset mean is positive you should leave
-        this at 1.0, otherwise to (abs(vmin)-vmax)/(2*abs(vmin))
-        http://stackoverflow.com/questions/7404116/defining-the-midpoint-of-a-colormap-in-matplotlib
-        '''
-        cdict = {
-            'red': [],
-            'green': [],
-            'blue': [],
-            'alpha': []
-        }
-    
-        # regular index to compute the colors
+    @staticmethod
+    def remappedColorMap(cmap, start=0, midpoint=0.5, stop=1.0, name='shiftedcmap'):
+        """Offset the midpoint of a colormap (for diverging data with
+        asymmetric vmin/vmax). See matplotlib SO question 7404116."""
+        cdict = {'red': [], 'green': [], 'blue': [], 'alpha': []}
         reg_index = np.hstack([
             np.linspace(start, 0.5, 128, endpoint=False),
-            np.linspace(0.5, stop, 129)
+            np.linspace(0.5, stop, 129),
         ])
-    
-        # shifted index to match the data
         shift_index = np.hstack([
             np.linspace(0.0, midpoint, 128, endpoint=False),
-            np.linspace(midpoint, 1.0, 129)
+            np.linspace(midpoint, 1.0, 129),
         ])
-            
         for ri, si in zip(reg_index, shift_index):
             r, g, b, a = cmap(ri)
             cdict['red'].append((si, r, r))
             cdict['green'].append((si, g, g))
             cdict['blue'].append((si, b, b))
             cdict['alpha'].append((si, a, a))
-            
         newcmap = mpl.colors.LinearSegmentedColormap(name, cdict)
-        plt.register_cmap(cmap=newcmap)
-    
+        try:
+            mpl.colormaps.register(newcmap, force=True)
+        except AttributeError:  # matplotlib < 3.5 fallback
+            mpl.cm.register_cmap(cmap=newcmap)
         return newcmap
 
-#####################################
-if __name__ == "__main__":
+
+if __name__ == '__main__':
     print('\nWARNING!\nStart MARMITES-MODFLOW models using the script startMARMITES_v3.py\n')
 
-#EOF
+# EOF

@@ -412,7 +412,7 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
                 TRANS_sdw.append(int(line[7]))
         # WATER PARAMETERS
         alfa_w = 0.06 # water albedo
-    except:
+    except Exception:
         cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nError reading the input file:\n[" + inputFile_PAR_fn +"]")
     del inputFile, l, line
     print("\nMETEO/VEGETATION/CROP/SOIL PARAMETERS file imported!\n[" + inputFile_PAR_fn +"]")
@@ -479,7 +479,7 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
         Pa = np.asarray(Pa)
         u_z_m = np.asarray(u_z_m)
         Rs = np.asarray(Rs)
-    except:
+    except Exception:
         cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nUnexpected error in the input file\n[%s]\n" % inputFile_TS_fn)
     del dataMETEOTS, date, time, datetime, datetime_i, actual_day, P1, Ta1, RHa1, Pa1, u_z_m1,Rs1
     print("\nMETEO TIME SERIES file imported!\n[" + inputFile_TS_fn +"]")
@@ -519,7 +519,7 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
             IRR_TS = []
             for n in range(NFIELD):
                 IRR_TS.append(data_IRR_TS[:,2+n].astype(float))
-        except:
+        except Exception:
             cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nUnexpected error in the input file\n[%s]\n" % inputFile_IRR_TS_fn)
         print("\nIRRIGATION TIME SERIES file imported!\n[" + inputFile_IRR_TS_fn +"]")
         # FIELD/CROP schedule
@@ -549,7 +549,7 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
                         if i > 0:
                             if FIELD_enddate[f][i-1] > FIELD_startdate[f][i]:
                                 cUTIL.ErrorExit(msg = '\nFATAL ERROR!\nDates in the field/crop schedule files of field #%d are not correct!'%(i+1))
-                    except:
+                    except Exception:
                         cUTIL.ErrorExit(msg = '\nFATAL ERROR!\nDates in the field/crop schedule files of field #%d are not correct!'%(i+1))
                     FIELD_growdur[f][i] = int(FIELD_growdur[f][i])
                     FIELD_wiltdur[f][i] = int(FIELD_wiltdur[f][i])
@@ -558,7 +558,7 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
                 FIELD_growdur[f] = FIELD_growdur[f].astype(float)
                 FIELD_wiltdur[f] = FIELD_wiltdur[f].astype(float)
                 FIELD_crop[f] = FIELD_crop[f].astype(int)
-        except:
+        except Exception:
             cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nUnexpected error in the input file\n[%s]\n"%FIELD_crop_schedule_fn[f])
         print('Done!')
     else:
@@ -985,7 +985,7 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
                         ExportResults(name, ws, row1, datenumOUT, J, Eo, ts_output)
             else:
                 print("\nNo ASCII file export required.")
-        except:
+        except Exception:
             cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nError in exporting output files of MMsurf.")
 
     for v in range(1,NVEG):
