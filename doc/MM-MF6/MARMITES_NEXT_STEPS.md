@@ -10,8 +10,31 @@ Full technical history is in `MARMITES_SFR_LAK_CRR_analysis.md` (read §8.x, esp
 **Dev repo:** `E:\00code\MARMITES`, branch `MM-MF6`
 (github.com/AlainPascalFrances/MARMITES). Run everything from here.
 Dataset (inputs, tracked): `DataSet_LaMata\`
-MF6 workspace (outputs, untracked): `DataSet_LaMata\MF6_ws`
+MF6 workspace (outputs): `$MARMITES_WS_ROOT\MF6_ws` — OUTSIDE the repo (see below)
 libmf6: `C:\00MODFLOW\mf6.7.0_win64\bin\libmf6.dll`
+
+### Repository vs workspace (restructured 2026-09-07)
+
+The repo holds **code, input data and docs only**. All run output goes to a
+workspace outside it, set by `--ws-root` or `$MARMITES_WS_ROOT`
+(default `E:\00code_ws\LaMata_MM-MF6`):
+
+```
+E:\00code\MARMITES\                     REPO
+  trunk\  tests\  doc\
+  DataSet_LaMata\                       INPUTS ONLY (20 MB)
+    *.txt *.asc  GIS\  MF_ws\ (grids + .ini)  MMsurf_ws\ (MMsurf inputs)
+
+E:\00code_ws\LaMata_MM-MF6\             WORKSPACE (never in git)
+  MF6_ws\                               MODFLOW 6 model + output
+  MMsurf_ws\                            MMsurf output
+  out_<YYYYMMDDHHMM>_<tag>\             MM results: postproc\ + figures\
+```
+
+Saved run state (`hi_spinup_*`) is written to the workspace; reading prefers
+the workspace copy and falls back to the baseline committed in
+`DataSet_LaMata\MF_ws`, so `--strt-heads hi_spinup` works on a fresh clone.
+Use `--run-tag` to label a run's results folder.
 
 Branch note: `MM-MF6` was cut at `c849cab`, before master's pyEARTH1D commit
 `c766171`. Merging MM-MF6 -> master will raise **7 modify/delete conflicts** on
