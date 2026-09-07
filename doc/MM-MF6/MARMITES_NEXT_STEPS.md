@@ -18,26 +18,33 @@ Branch note: `MM-MF6` was cut at `c849cab`, before master's pyEARTH1D commit
 `trunk/pyEARTH1D/*` (master modified those files; the Phase-1 cleanup deleted
 them here). Decide then whether pyEARTH1D stays on master.
 
-### Reference data kept OUTSIDE the repo (too large to track)
+### Legacy MODFLOW-NWT reference data (outside the repo)
 
-Deliberately NOT copied into the repo; recorded here so a future comparison can
-find them. Location (NTFS-compressed, hence apparent >> on-disk):
+**Authoritative original — the PhD / paper dataset:**
+`E:\00code_ws\LaMata_new_PhD_artigo_2s3L`  (6.1 GB)
 
-| File | Apparent / on-disk | Purpose |
+| Item | Size | What it is |
 |---|---|---|
-| `E:\tmp_claude_marmites\MARMITES\DataSet_LaMata\_h5_MM.h5` | 1.3 GB / 556 MB | **NWT reference MM output** — read by `tests/plot_water_budget.py::load_reference()` for the NWT-vs-MF6 comparison figures |
-| `E:\tmp_claude_marmites\MARMITES\DataSet_LaMata\MF_ws\_h5_MF.h5` | 3.1 GB / 1.1 GB | NWT reference aquifer output |
-| `E:\tmp_claude_marmites\MARMITES\DataSet_LaMata\MF6_ws\_coupled_lagged.h5` | 183 MB | last MF6 coupled run (regenerable) |
+| `_h5_MM.h5` | 1.3 GB | **NWT reference MM output** — what `tests/plot_water_budget.py::load_reference()` reads for the NWT-vs-MF6 comparison |
+| `MF_ws\_h5_MF.h5` | 3.1 GB | NWT reference aquifer output |
+| `MF_ws\` | 4.4 GB, 68 files | the full MODFLOW-NWT model (bas6/dis/upw/uzf/wel/drn, `__inputMF_flopy_v3_2s3L.ini`, ASCII grids, .chk) |
+| `MMsurf_ws\` | 71 files | MMsurf inputs/outputs (meteo, LAI/veg, irrigation series) — the provenance of the `inputZON_*` series the MF6 pipeline consumes |
+| `out_2023*_2s3L_..._PAPER_newTg\` | ~57-61 MB each | the 12 published paper runs |
 
-**These two NWT references are dated 2023-01-12 and are IRREPLACEABLE**: the
-MODFLOW-NWT build path was removed from the code base in Phase 1, so they cannot
-be regenerated. Whole `DataSet_LaMata` = 6.5 GB apparent / 2.6 GB on disk.
+Both `_h5_*.h5` are dated **2023-01-12** and **cannot be regenerated**: the
+MODFLOW-NWT build path was removed from the code base in Phase 1. Treat this
+folder as read-only archival provenance — it is also the only source for the
+MMsurf side, which is py3-ported but wired into nothing.
 
-Without `_h5_MM.h5` at `DS`, `plot_water_budget` degrades gracefully: it prints
-"reference not loaded" and emits new-run figures only. To restore the comparison,
-either copy that file into the repo's `DataSet_LaMata\` (untracked, .gitignored)
-or point `DS` at the old tree.
+Duplicates of the two `.h5` that had accumulated under
+`E:\tmp_claude_marmites\MARMITES\DataSet_LaMata\` were verified byte-for-byte
+identical to the originals above (size, mtime and full `cmp`) and **deleted on
+2026-09-07** to reclaim 1.5 GB. Do not re-copy them; point at the original.
 
+To restore the NWT-vs-MF6 comparison figures, either copy
+`LaMata_new_PhD_artigo_2s3L\_h5_MM.h5` into the run's `DataSet_LaMata\`
+(untracked, .gitignored) or point `DS` in `plot_water_budget.py` at that folder.
+Without it the script prints "reference not loaded" and emits new-run figures only.
 ---
 
 ## 0. STATUS SNAPSHOT (what works today)
