@@ -16,7 +16,12 @@ DataSet_*/MF_ws/*
 !DataSet_*/MF_ws/*.txt
 DataSet_*/MF6_ws/
 DataSet_*/MF6_ws_disv/
-DataSet_*/MMsurf_ws/
+# MMsurf_ws: keep the MMsurf INPUTS (parameter ini, meteo and irrigation
+# series, crop schedule); drop what MMsurf generates (.out/.int/.png) and
+# the 10 MB raw meteo spreadsheet (kept in the legacy archive).
+DataSet_*/MMsurf_ws/*
+!DataSet_*/MMsurf_ws/*.ini
+!DataSet_*/MMsurf_ws/*.txt
 
 # --- model outputs / binaries ---
 *.h5
