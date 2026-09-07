@@ -70,6 +70,78 @@ To restore the NWT-vs-MF6 comparison figures, either copy
 Without it the script prints "reference not loaded" and emits new-run figures only.
 ---
 
+## 0-bis. OPEN ISSUES (recap 2026-09-07)
+
+Ordered by what blocks "post-processing reproduces MARMITESplot_v3 output".
+
+### A. Post-processing must match the native MARMITESplot_v3 suite
+| Native routine | State |
+|---|---|
+| `plotTIMESERIES_CATCH` | ✅ works (`native_wb_catchment*.png`) |
+| `plotWBsankey` catchment | ✅ works, core + full, MM-side MB ~0 % |
+| `plotWBsankey` per obs point | ⚠️ **BUG: 10 of 11 points fail to render** — only `_obs_C1` was produced by the 1950-SP run, although `mm_obs` captured all 11 (P0, SM, O1, O2, C1, C2, C3, EC, I1, G1, G2), names and cells all distinct. Failure is inside the render call, swallowed by the per-point `try/except` in `_render_sankey`. |
+| `plotLAYER` | 🟡 partial (flux maps + mean-head maps only) |
+| `plotTIMESERIES` (obs soil column) | ❌ Stage 2, not started |
+| `plotTIMESERIES_flxGW` | ❌ Stage 2, not started |
+| `plotCALIBCRIT` (RMSE/RSR/NSE/R) | ❌ Stage 2, not started — needs `inputObsHEADS_*` / `inputObsSM_*` |
+| full `plotLAYER` set + time selection | ❌ Stage 3, not started |
+
+Stage 2 is now cheap: the `mm_obs` / `mms_obs` capture it needs already exists.
+
+### B. Stop carrying heavy HDF5; read MF6 output directly
+`_coupled_lagged.h5` is **182.5 MB** for 1949 SPs, and **96 % of it is six
+per-cell x per-SP arrays** (29.1 MB each). What actually consumes them:
+
+| Array | Consumer | Available instead from |
+|---|---|---|
+| `heads` | `plotHEADS` | `<name>.hds` |
+| `rejinf` | `plotCOUPLING`, one mean | `uzf.cbc` REJ-INF |
+| `exf` | EXFg fallback in `_aquifer_layer_fluxes` | DRN_SEEP SIMVALS / UZF GWD |
+| `perc` | **only `.shape[0]`** (to get nper) | trivial |
+| `etg` | **no consumer** | `cbc` WEL |
+| `runoff` | **no consumer** | (SFR inflow / `wb_ts[iRo]`) |
+
+Target: drop all six, leaving ~8 MB of genuinely MM-only aggregates
+(`wb_ts`, `wb_map`, `wb_ts_soil`, `wb_map_soil`, `mm_obs`, `mms_obs`,
+`cell_ij`, `obs_*`).
+
+**Caveat that bounds this work:** the MM soil/surface fluxes (P, Ei, Pe, I,
+Esoil, Tsoil, dSsoil, Ssurf, ...) are computed in Python by MARMITES and exist
+in NO MODFLOW file. "Read directly from MF6" therefore applies to the aquifer
+and exchange terms only; the soil-side aggregates must stay in the HDF5 (or be
+recomputed by re-running MM). The Sankey's aquifer side already reads the cbc
+directly (`_aquifer_layer_fluxes`) — that is the pattern to extend.
+
+### C. The MODFLOW-NWT comparison is silently OFF
+`plot_water_budget.load_reference()` reads `DS/_h5_MM.h5`, but `DS` is now the
+repo's inputs-only `DataSet_LaMata`, which no longer holds it. The function
+returns None, so every comparison figure quietly degrades to "new run only".
+Fix: point it at the archive
+`E:\00code_ws\LaMata_new_PhD_artigo_2s3L\_h5_MM.h5` (configurable), and cache a
+small digest (catchment-mean series + time-mean maps, a few MB) so the 1.3 GB
+file is read once rather than every time. The legacy `_h5_MF.h5` (3.1 GB,
+aquifer side) is not used at all yet and is the reference for comparing the
+MF6 aquifer terms.
+
+### D. Performance: per-SP cbc reads do not scale
+`_aquifer_layer_fluxes` opens and scans the cell budget **once per stress
+period**. At 1949 SPs x (1 catchment + 11 obs points) that is >20 000 record
+reads; a diagnostic run of the per-point Sankeys did not finish in 10 minutes.
+Restructure to read each cbc record once across all stress periods (or index
+by record) before Stage 2 multiplies the call count.
+
+### E. Carried over
+- **SFR / LAK** build and reload but have never been run coupled or validated.
+- **CRR** (Daoud cascade routing + reinfiltration) not started.
+- **MARMITESsurf** is py3-ported but wired into nothing; its inputs are now in
+  the repo, so re-running it is possible again but unexercised.
+- Merging `MM-MF6` -> `master` raises 7 modify/delete conflicts on
+  `trunk/pyEARTH1D/*`; `master` carries only upstream's minimal `.gitignore`.
+- The water-table drawdown remains a **calibration** matter, out of scope
+  (see §2.8).
+
+---
+
 ## 0. STATUS SNAPSHOT (what works today)
 
 - Python-3.12 / MODFLOW-6 / UZF6 conversion is COMPLETE and behaves like the
