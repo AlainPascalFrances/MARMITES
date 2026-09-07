@@ -79,12 +79,32 @@ Ordered by what blocks "post-processing reproduces MARMITESplot_v3 output".
 |---|---|
 | `plotTIMESERIES_CATCH` | ✅ works (`native_wb_catchment*.png`) |
 | `plotWBsankey` catchment | ✅ works, core + full, MM-side MB ~0 % |
-| `plotWBsankey` per obs point | ⚠️ **BUG: 10 of 11 points fail to render** — only `_obs_C1` was produced by the 1950-SP run, although `mm_obs` captured all 11 (P0, SM, O1, O2, C1, C2, C3, EC, I1, G1, G2), names and cells all distinct. Failure is inside the render call, swallowed by the per-point `try/except` in `_render_sankey`. |
+| `plotWBsankey` per obs point | ⚠️ **BUG, root cause found 2026-09-07** — see below |
 | `plotLAYER` | 🟡 partial (flux maps + mean-head maps only) |
 | `plotTIMESERIES` (obs soil column) | ❌ Stage 2, not started |
 | `plotTIMESERIES_flxGW` | ❌ Stage 2, not started |
 | `plotCALIBCRIT` (RMSE/RSR/NSE/R) | ❌ Stage 2, not started — needs `inputObsHEADS_*` / `inputObsSM_*` |
 | full `plotLAYER` set + time selection | ❌ Stage 3, not started |
+
+**Per-point Sankey — diagnosed.** All 11 points raise, from matplotlib:
+`ValueError: The connection cannot be made, which may occur if the magnitude
+of flow 1 of diagram 3 is less than the specified tolerance`.
+
+Diagram 3 is the `MF UZF` block; its flow 1 is `-Rg_1` (recharge to layer 1),
+which the next block (`MF layer 1`) connects to via `prior=3, connect=(1,0)`.
+At a SINGLE cell Rg_1 is frequently ~0 over a given hydrological year, and
+matplotlib refuses to connect a flow below its `tolerance` (default 1e-6).
+The native code only guards LABELS (via `treshold`); it never guards the
+CONNECTING flow, because at catchment scale that term is never ~0.
+
+This also explains why `_obs_C1_WBsankey_0whole.png` exists alone: plotWBsankey
+saves inside the hydro-year loop, so C1's k=0 page was written before a later
+year raised. C1's per-year pages are missing too - it is not a success.
+
+Fix options (a native change, in the spirit of "modify, do not reimplement"):
+expose matplotlib's `tolerance` on `plotWBsankey`, and/or floor the connecting
+flow to a small non-zero epsilon so the chain can always be built. Must be
+validated at several obs cells, not just one.
 
 Stage 2 is now cheap: the `mm_obs` / `mms_obs` capture it needs already exists.
 
