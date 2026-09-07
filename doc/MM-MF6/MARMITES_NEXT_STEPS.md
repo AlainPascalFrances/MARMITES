@@ -1,13 +1,42 @@
 # MARMITES / MODFLOW 6 — handoff & next-steps
 
-Written at the end of a long session, to resume cleanly after a restart.
+**THIS FILE (in the repo, `doc/MM-MF6/`) IS THE CANONICAL HANDOFF.** A copy also
+exists under the old scratch tree `E:\tmp_claude_marmites\` — it is ABANDONED as
+of 2026-09-07; do not read or update it.
+
 Full technical history is in `MARMITES_SFR_LAK_CRR_analysis.md` (read §8.x, esp.
 8.15.x for the recharge-coupling bug and 8.14 for the drawdown diagnosis).
 
-Working tree: `E:\tmp_claude_marmites\MARMITES`
-Dataset: `E:\tmp_claude_marmites\MARMITES\DataSet_LaMata`
-MF6 workspace (outputs): `DataSet_LaMata\MF6_ws`
+**Dev repo:** `E:\00code\MARMITES`, branch `MM-MF6`
+(github.com/AlainPascalFrances/MARMITES). Run everything from here.
+Dataset (inputs, tracked): `DataSet_LaMata\`
+MF6 workspace (outputs, untracked): `DataSet_LaMata\MF6_ws`
 libmf6: `C:\00MODFLOW\mf6.7.0_win64\bin\libmf6.dll`
+
+Branch note: `MM-MF6` was cut at `c849cab`, before master's pyEARTH1D commit
+`c766171`. Merging MM-MF6 -> master will raise **7 modify/delete conflicts** on
+`trunk/pyEARTH1D/*` (master modified those files; the Phase-1 cleanup deleted
+them here). Decide then whether pyEARTH1D stays on master.
+
+### Reference data kept OUTSIDE the repo (too large to track)
+
+Deliberately NOT copied into the repo; recorded here so a future comparison can
+find them. Location (NTFS-compressed, hence apparent >> on-disk):
+
+| File | Apparent / on-disk | Purpose |
+|---|---|---|
+| `E:\tmp_claude_marmites\MARMITES\DataSet_LaMata\_h5_MM.h5` | 1.3 GB / 556 MB | **NWT reference MM output** — read by `tests/plot_water_budget.py::load_reference()` for the NWT-vs-MF6 comparison figures |
+| `E:\tmp_claude_marmites\MARMITES\DataSet_LaMata\MF_ws\_h5_MF.h5` | 3.1 GB / 1.1 GB | NWT reference aquifer output |
+| `E:\tmp_claude_marmites\MARMITES\DataSet_LaMata\MF6_ws\_coupled_lagged.h5` | 183 MB | last MF6 coupled run (regenerable) |
+
+**These two NWT references are dated 2023-01-12 and are IRREPLACEABLE**: the
+MODFLOW-NWT build path was removed from the code base in Phase 1, so they cannot
+be regenerated. Whole `DataSet_LaMata` = 6.5 GB apparent / 2.6 GB on disk.
+
+Without `_h5_MM.h5` at `DS`, `plot_water_budget` degrades gracefully: it prints
+"reference not loaded" and emits new-run figures only. To restore the comparison,
+either copy that file into the repo's `DataSet_LaMata\` (untracked, .gitignored)
+or point `DS` at the old tree.
 
 ---
 
