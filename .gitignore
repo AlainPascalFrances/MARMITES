@@ -22,6 +22,7 @@ DataSet_*/MF6_ws_disv/
 DataSet_*/MMsurf_ws/*
 !DataSet_*/MMsurf_ws/*.ini
 !DataSet_*/MMsurf_ws/*.txt
+!DataSet_*/MMsurf_ws/*.xlsx
 
 # --- model outputs / binaries ---
 *.h5
