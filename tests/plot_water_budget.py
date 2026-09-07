@@ -101,8 +101,14 @@ def load_reference(chunk=120):
     return {'ts': ts, 'map': acc, 'mask': mask}
 
 
+# Results root for this run, set by make_figures(). Figures belong with the
+# run's results (<ws-root>/out_<stamp>_<tag>/figures), not in the model
+# workspace and never in the repository.
+_OUT_ROOT = None
+
+
 def _fig(ws, name):
-    d = os.path.join(ws, 'figures')
+    d = os.path.join(_OUT_ROOT or ws, 'figures')
     os.makedirs(d, exist_ok=True)
     return os.path.join(d, name)
 
@@ -293,12 +299,20 @@ def write_summary(labels, newv, refv, ws, new):
     print('\n' + txt)
 
 
-def make_figures(ws, mode='lagged', no_reference=False, verbose=True):
+def make_figures(ws, mode='lagged', no_reference=False, verbose=True,
+                 out_dir=None):
     """Build the 01-07 water-budget figures for a coupled run.
+
+    ``ws`` is the MODFLOW 6 workspace the results are READ from; ``out_dir`` is
+    the run's results folder they are WRITTEN to (<ws-root>/out_<stamp>_<tag>/),
+    keeping output out of the model workspace and out of the repository. When
+    ``out_dir`` is None the figures land next to the model, as before.
 
     Callable from the runner's --postproc as well as the CLI. Returns the
     figures directory, or None if the results file has no water-budget arrays.
     """
+    global _OUT_ROOT
+    _OUT_ROOT = os.path.abspath(out_dir) if out_dir else None
     ws = os.path.abspath(ws)
     new = load_new(ws, mode)
     if new['wb_ts'] is None:
@@ -325,7 +339,7 @@ def make_figures(ws, mode='lagged', no_reference=False, verbose=True):
     plot_heads(new, ws, ref)
     plot_coupling(new, ws)
     write_summary(labels, newv, refv, ws, new)
-    figdir = os.path.join(ws, 'figures')
+    figdir = os.path.join(_OUT_ROOT or ws, 'figures')
     if verbose:
         print('Figures written to %s' % figdir)
     return figdir
@@ -333,11 +347,14 @@ def make_figures(ws, mode='lagged', no_reference=False, verbose=True):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--ws', default=os.path.join(DS, 'MF6_ws'))
+    ap.add_argument('--ws', default=os.environ.get(
+        'MARMITES_WS_ROOT', os.path.join('E:' + os.sep, '00code_ws', 'LaMata_MM-MF6')) + os.sep + 'MF6_ws')
+    ap.add_argument('--out-dir', default=None,
+                    help='results folder to write figures into')
     ap.add_argument('--mode', default='lagged')
     ap.add_argument('--no-reference', action='store_true')
     a = ap.parse_args()
-    if make_figures(a.ws, a.mode, a.no_reference) is None:
+    if make_figures(a.ws, a.mode, a.no_reference, out_dir=a.out_dir) is None:
         sys.exit('This results file predates the water-budget output.\n'
                  'Re-run tests/run_lamata_mf6.py to record wb_ts/wb_map.')
 

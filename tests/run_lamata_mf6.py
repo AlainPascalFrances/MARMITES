@@ -21,12 +21,22 @@ Usage:
 import argparse
 import os
 import sys
+import time
 
 import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TRUNK = os.path.abspath(os.path.join(HERE, '..', 'trunk'))
 DS = os.path.abspath(os.path.join(HERE, '..', 'DataSet_LaMata'))
+
+# The repository holds ONLY code, input data and docs. Everything a run
+# produces goes to a workspace outside it, laid out as
+#     <WS_ROOT>/MF6_ws/                 the MODFLOW 6 model + its output
+#     <WS_ROOT>/MMsurf_ws/              MMsurf output
+#     <WS_ROOT>/out_<stamp>_<tag>/      MM results (postproc/ + figures/)
+# Override with --ws-root or the MARMITES_WS_ROOT environment variable.
+WS_ROOT = os.environ.get('MARMITES_WS_ROOT',
+                         os.path.join('E:' + os.sep, '00code_ws', 'LaMata_MM-MF6'))
 for p in ('', 'MARMITESutilities', 'MARMITESsoil', 'ppMF_FloPy', 'ppMF6'):
     sys.path.insert(0, os.path.join(TRUNK, p))
 
@@ -64,6 +74,32 @@ def _read_cell_grid(fn, cells):
     """Read an ESRI-ASCII grid and gather it back to a per-MM-cell vector."""
     g = np.loadtxt(fn, skiprows=6)
     return np.array([g[c[1], c[2]] for c in cells], dtype=float)
+
+
+def _state_in(a, pref, probe):
+    """Resolve a saved-state prefix for READING.
+
+    Run state (equilibrated heads, steady means) is written to the workspace,
+    but a baseline set is committed in the repo's DataSet_LaMata/MF_ws. Prefer
+    the workspace copy, fall back to the repo one, so `--strt-heads hi_spinup`
+    works on a fresh clone and picks up a newer spin-up once one exists.
+    ``probe`` is the suffix that identifies the set (e.g. '_l1.asc').
+    """
+    if os.path.isabs(pref):
+        return pref
+    cand = os.path.join(a.state_dir, pref)
+    if os.path.exists(cand + probe):
+        return cand
+    return os.path.join(DS, 'MF_ws', pref)
+
+
+def _state_out(a, pref):
+    """Resolve a saved-state prefix for WRITING -- always the workspace, never
+    the repository (which holds input data only)."""
+    if os.path.isabs(pref):
+        return pref
+    os.makedirs(a.state_dir, exist_ok=True)
+    return os.path.join(a.state_dir, pref)
 
 
 # La Mata is parameterised at two vertical resolutions. Both are authoritative
@@ -302,10 +338,26 @@ def main():
                          '(no API) -- isolates model faults from coupling faults')
     ap.add_argument('--probe', action='store_true',
                     help='list the MF6 memory variables and exit (diagnostics)')
-    ap.add_argument('--ws', default=None)
+    ap.add_argument('--ws', default=None,
+                    help='MODFLOW 6 workspace (default <ws-root>/MF6_ws)')
+    ap.add_argument('--ws-root', default=WS_ROOT, metavar='DIR',
+                    help='root for ALL run output, outside the repo '
+                         '(default %s, or $MARMITES_WS_ROOT)' % WS_ROOT)
+    ap.add_argument('--run-tag', default=None, metavar='TAG',
+                    help='label for this run\'s results folder '
+                         '<ws-root>/out_<YYYYMMDDHHMM>_<TAG>')
     a = ap.parse_args()
     if a.ws is None:
-        a.ws = os.path.join(DS, 'MF6_ws' if a.grid == 'dis' else 'MF6_ws_disv')
+        a.ws = os.path.join(a.ws_root, 'MF6_ws' if a.grid == 'dis' else 'MF6_ws_disv')
+    os.makedirs(a.ws, exist_ok=True)
+    # results folder for this run, in the legacy out_<stamp>_<tag> style
+    tag = a.run_tag or ('%dlay_%s' % (a.nlay or 6, a.mode))
+    a.out_dir = os.path.join(a.ws_root,
+                             'out_%s_%s' % (time.strftime('%Y%m%d%H%M'), tag))
+    # Saved run state (equilibrated heads, steady means) is run OUTPUT, so it is
+    # written to the workspace; reading falls back to the baseline committed in
+    # the repo's DataSet_LaMata/MF_ws so `--strt-heads hi_spinup` keeps working.
+    a.state_dir = a.ws
 
     cMF, mm, ctx, state, top, botm, conv_fact = setup_lamata(
         daily=a.daily, nsp=a.nsp, grid=a.grid, nlay=a.nlay, aggregate=a.aggregate)
@@ -328,8 +380,7 @@ def main():
     if a.strt_heads:
         # a saved (equilibrated) head field seeds the IC directly, so the
         # spin-up need not be repeated. Resolve relative to the MF workspace.
-        pref = (a.strt_heads if os.path.isabs(a.strt_heads)
-                else os.path.join(DS, 'MF_ws', a.strt_heads))
+        pref = _state_in(a, a.strt_heads, '_l1.asc')
         b.strt_array = b.load_heads_asc(pref)
         print('initial heads loaded from %s_l*.asc' % pref)
     b.build()
@@ -425,8 +476,7 @@ def main():
     # mean recharge / ETg to drive the steady SP0 near dynamic equilibrium
     steady_perc = steady_etg = None
     if a.steady_means:
-        mp = (a.steady_means if os.path.isabs(a.steady_means)
-              else os.path.join(DS, 'MF_ws', a.steady_means))
+        mp = _state_in(a, a.steady_means, '_perc.asc')
         steady_perc = _read_cell_grid(mp + '_perc.asc', ctx.cells)
         steady_etg = _read_cell_grid(mp + '_etg.asc', ctx.cells)
         print('steady-state means loaded from %s_{perc,etg}.asc' % mp)
@@ -513,8 +563,7 @@ def main():
     # (so it is never lost), or on explicit --save-strt for a single run.
     save_pref = a.save_strt or ('hi_spinup' if ncyc > 1 else None)
     if save_pref:
-        pref = (save_pref if os.path.isabs(save_pref)
-                else os.path.join(DS, 'MF_ws', save_pref))
+        pref = _state_out(a, save_pref)
         paths = b.save_heads_asc(prev_heads, pref)
         print('equilibrated heads saved: %s' % ', '.join(os.path.basename(p) for p in paths))
         print('   reuse with:  --strt-heads %s   (skips the spin-up)' % save_pref)
@@ -523,8 +572,7 @@ def main():
     # driven by the dynamic mean (auto after spin-up, or on explicit --save-means).
     mean_pref = a.save_means or ('hi_spinup' if ncyc > 1 else None)
     if mean_pref:
-        mp = (mean_pref if os.path.isabs(mean_pref)
-              else os.path.join(DS, 'MF_ws', mean_pref))
+        mp = _state_out(a, mean_pref)
         _write_cell_grid(res['perc'].mean(axis=0), ctx.cells, cMF.nrow, cMF.ncol,
                          cMF, mp + '_perc.asc')
         _write_cell_grid(res['etg'].mean(axis=0), ctx.cells, cMF.nrow, cMF.ncol,
@@ -533,22 +581,27 @@ def main():
         print('   reuse with:  --steady-means %s' % mean_pref)
 
     if a.postproc or a.preproc:
+        # All results go to <ws-root>/out_<stamp>_<tag>/, never into the
+        # repository and not into the model workspace either.
         from marmites_postprocess import run_preproc, run_postproc, native_suite
+        os.makedirs(a.out_dir, exist_ok=True)
         if a.preproc:
-            run_preproc(a.ws, DS, name=cMF.modelname.lower())
+            run_preproc(a.ws, DS, name=cMF.modelname.lower(), out_root=a.out_dir)
         if a.postproc:
-            run_postproc(a.ws, DS, name=cMF.modelname.lower())
+            run_postproc(a.ws, DS, name=cMF.modelname.lower(), out_root=a.out_dir)
             # native MARMITESplot figures, driven by the in-memory coupled data
-            native_suite(os.path.join(a.ws, 'postproc'), cMF, ctx, res, ds_ws=DS,
-                         sim_ws=a.ws, sankey=True, sankey_full=a.sankey_full,
+            native_suite(os.path.join(a.out_dir, 'postproc'), cMF, ctx, res,
+                         ds_ws=DS, sim_ws=a.ws, sankey=True,
+                         sankey_full=a.sankey_full,
                          sankey_min_flux=a.sankey_min_flux)
             # 01-07 water-budget figures incl. 06_heads/07_coupling and the
-            # NWT-vs-MF6 comparison (writes to <ws>/figures/)
+            # NWT-vs-MF6 comparison (into <out_dir>/figures/)
             try:
                 import plot_water_budget as pwb
-                pwb.make_figures(a.ws, mode=a.mode)
+                pwb.make_figures(a.ws, mode=a.mode, out_dir=a.out_dir)
             except Exception as exc:
                 print('   plot_water_budget skipped: %r' % exc)
+        print('results written to %s' % a.out_dir)
 
 
 if __name__ == '__main__':

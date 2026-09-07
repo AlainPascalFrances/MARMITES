@@ -202,8 +202,9 @@ def test_subsample_is_even_and_bounded():
 def test_native_layer_maps_runs_on_real_hds():
     """The native MARMITES plotLAYER, exercised on whatever coupled output is
     already on disk (no mf6 binary needed to read a .hds)."""
-    ds = os.path.abspath(os.path.join(HERE, '..', 'DataSet_LaMata'))
-    ws = os.path.join(ds, 'MF6_ws')
+    ws = os.path.join(os.environ.get(
+        'MARMITES_WS_ROOT',
+        os.path.join('E:' + os.sep, '00code_ws', 'LaMata_MM-MF6')), 'MF6_ws')
     if not os.path.exists(os.path.join(ws, 'lamatamm.hds')):
         pytest.skip('no La Mata .hds on disk')
     files = PP.native_layer_maps(ws, name='lamatamm', verbose=False)

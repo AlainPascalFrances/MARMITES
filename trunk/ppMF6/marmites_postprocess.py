@@ -257,7 +257,8 @@ def layer_storage_change(sim_ws, name, nlay, nrow, ncol, kper_skip=1,
 # --------------------------------------------------------------------- #
 
 def run_postproc(sim_ws, ds_ws, name='lamatamm', dates=None,
-                 xll=739300.0, yll=4553050.0, cs=50.0, verbose=True):
+                 xll=739300.0, yll=4553050.0, cs=50.0, verbose=True,
+                 out_root=None):
     """Produce the full post-processing figure/CSV set into <sim_ws>/postproc/.
 
     Returns the list of files written. Each figure is guarded so a missing
@@ -270,7 +271,7 @@ def run_postproc(sim_ws, ds_ws, name='lamatamm', dates=None,
     import pandas as pd
     import flopy
 
-    out = _mkdir(sim_ws, 'postproc')
+    out = _mkdir(out_root or sim_ws, 'postproc')
     written = []
     sim = flopy.mf6.MFSimulation.load(sim_ws=sim_ws, verbosity_level=0)
     gwf = sim.get_model()
@@ -380,7 +381,8 @@ def run_postproc(sim_ws, ds_ws, name='lamatamm', dates=None,
     return written
 
 
-def run_preproc(sim_ws, ds_ws, name='lamatamm', mf_ws=None, verbose=True):
+def run_preproc(sim_ws, ds_ws, name='lamatamm', mf_ws=None, verbose=True,
+                out_root=None):
     """Input maps into <sim_ws>/preproc/: MARMITES soil/veg/meteo maps AND the
     MODFLOW aquifer maps (top, per-layer K / Ss / Sy / thickness, ibound+UZF
     footprint, ponds+stream overlay).
@@ -390,7 +392,7 @@ def run_preproc(sim_ws, ds_ws, name='lamatamm', mf_ws=None, verbose=True):
     import matplotlib.pyplot as plt
     import flopy
 
-    out = _mkdir(sim_ws, 'preproc')
+    out = _mkdir(out_root or sim_ws, 'preproc')
     mf_ws = mf_ws or os.path.join(ds_ws, 'MF_ws')
     written = []
 

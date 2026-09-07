@@ -29,6 +29,7 @@ import numpy as np
 HERE = os.path.dirname(os.path.abspath(__file__))
 TRUNK = os.path.abspath(os.path.join(HERE, '..', 'trunk'))
 DS = os.path.abspath(os.path.join(HERE, '..', 'DataSet_LaMata'))
+WS_ROOT = os.environ.get('MARMITES_WS_ROOT', os.path.join('E:' + os.sep, '00code_ws', 'LaMata_MM-MF6'))
 for p in ('', 'MARMITESutilities', 'MARMITESsoil', 'ppMF_FloPy', 'ppMF6'):
     sys.path.insert(0, os.path.join(TRUNK, p))
 
@@ -48,7 +49,7 @@ def main():
     ap.add_argument('--ws', default=None)
     ap.add_argument('--grid', choices=['dis', 'disv'], default='dis')
     a = ap.parse_args()
-    ws = os.path.abspath(a.ws or os.path.join(DS, 'MF6_ws'))
+    ws = os.path.abspath(a.ws or os.path.join(WS_ROOT, 'MF6_ws'))
 
     # --- build the model exactly as the coupled runner does ---------------
     from run_lamata_mf6 import setup_lamata

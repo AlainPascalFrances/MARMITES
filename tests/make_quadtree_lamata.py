@@ -11,7 +11,7 @@ Usage (Anaconda Prompt, env with flopy):
     python tests\\make_quadtree_lamata.py ^
         --gridgen C:\\00MODFLOW\\gridgen.1.0.02\\bin\\gridgen_x64.exe --level 2
 
-Outputs into DataSet_LaMata/MF6_ws_quadtree/:
+Outputs into <ws-root>/MF6_ws_quadtree/:
     * gridgen scratch files and the DISV gridprops summary,
     * quadtree_grid.png  -- the refined grid with the refinement features,
     * gridprops.npz      -- vertices/cell2d/top/botm for reuse by the coupler.
@@ -24,6 +24,7 @@ import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TRUNK = os.path.abspath(os.path.join(HERE, '..', 'trunk'))
+WS_ROOT = os.environ.get('MARMITES_WS_ROOT', os.path.join('E:' + os.sep, '00code_ws', 'LaMata_MM-MF6'))
 DS = os.path.abspath(os.path.join(HERE, '..', 'DataSet_LaMata'))
 for p in ('', 'MARMITESutilities', 'MARMITESsoil', 'ppMF_FloPy', 'ppMF6'):
     sys.path.insert(0, os.path.join(TRUNK, p))
@@ -82,7 +83,7 @@ def main():
     ap.add_argument('--level', type=int, default=2, help='refinement level')
     ap.add_argument('--features', choices=['drn', 'obs', 'both'], default='both',
                     help='refine around drains, observation points, or both')
-    ap.add_argument('--ws', default=os.path.join(DS, 'MF6_ws_quadtree'))
+    ap.add_argument('--ws', default=os.path.join(WS_ROOT, 'MF6_ws_quadtree'))
     a = ap.parse_args()
 
     cUTIL = MMutils.clsUTILITIES(verbose=1)

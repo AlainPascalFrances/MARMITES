@@ -35,7 +35,7 @@ def main():
     ap.add_argument('--nsteps', type=int, default=4)
     a = ap.parse_args()
 
-    ws = os.path.join(R.DS, 'MF6_ws')
+    ws = os.path.join(R.WS_ROOT, 'MF6_ws')
     cMF, mm, ctx, state, top, botm, conv = R.setup_lamata(daily=True, nsp=6, nlay=2)
     b = clsMF6(cMF, top=top, botm=botm, sim_ws=ws, daily=True)
     b.seep = 'drn'
