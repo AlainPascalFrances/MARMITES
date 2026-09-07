@@ -1,20 +1,12 @@
-# -*- coding: cp1252 -*-
-
-from pylab import *
-from matplotlib.dates import MonthLocator, DateFormatter
-from matplotlib.ticker import FormatStrFormatter
-from sys import *
-import os
-import datetime
-
-
+# -*- coding: UTF-8 -*-
+import matplotlib as mpl
+import matplotlib.pyplot as plt
 
 ##=========================================================================================##
 ##===========================| PIEZO GRAPHS |========================================##
 ##=========================================================================================##
 
-
-def piezocalibGRAPH(DateInput, h, hmeas, P, Pe):
+def piezocalibGRAPH(DateInput,h,hmeas,P,Pe):
     """
     calibGRAPH: GRAPH the computed data and the piezometric calibration one
     Use Matplotlib
@@ -28,33 +20,28 @@ def piezocalibGRAPH(DateInput, h, hmeas, P, Pe):
     ______________________________________________________________________________
     ______________________________________________________________________________
     """
-
-    months=MonthLocator()
-    monthsFmt=DateFormatter('%y-%m')
+    first_date = mpl.dates.num2date(DateInput[0])
+    months=mpl.dates.MonthLocator(bymonth=first_date.month,
+    bymonthday=first_date.day, interval=1)
+    monthsFmt=mpl.dates.DateFormatter('%y-%m')
 
 #__________________Create outputs plots______________________#
 #    ioff()
-    figCalib=figure()
+    figCalib=plt.figure(num=None, figsize=(11.7, 8.27), dpi=150)
     figCalib.Title='Calibration graphs'
 
-    ax2=subplot(111)
-    setp( ax2.get_xticklabels(), fontsize=8)
-    setp( ax2.get_yticklabels(), fontsize=8)
-    plot_date(DateInput,hmeas,'o', markersize=5, markerfacecolor = 'lime', markeredgecolor='green')
-    plot_date(DateInput,h,'-', color = 'blue')
-    ax2.yaxis.set_major_formatter(FormatStrFormatter('%1.1f'))
-    labels=ax2.get_yticklabels()
-    setp(labels, 'rotation', 90)
+    ax2=plt.subplot(111)
+    plt.setp(ax2.get_xticklabels(), fontsize=8)
+    plt.setp(ax2.get_yticklabels(), fontsize=8)
+    plt.plot_date(DateInput,hmeas,'o', markersize=5, markerfacecolor = 'lime', markeredgecolor='green')
+    plt.plot_date(DateInput,h,'-', color = 'blue')
+    ax2.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%1.1f'))
     ax2.xaxis.set_major_locator(months)
-    ax2.xaxis.set_major_formatter(monthsFmt)
-    xlim((DateInput[0],DateInput[len(h)-1]))
     if h[0]==-999:
         hmax=-999
         hmin=9999
     else:
         hmax=hmin=h[0]
-    labels=ax2.get_xticklabels()
-    setp(labels, 'rotation', 90)
     for i in range(0,len(DateInput)):
         if h[i]>hmax:
             hmax=h[i]
@@ -71,39 +58,31 @@ def piezocalibGRAPH(DateInput, h, hmeas, P, Pe):
                 hmmax=hmeas[i]
             elif hmeas[i]<hmmin:
                 hmmin=hmeas[i]
-    if hmin>hmmin:
-        hmin=hmmin
-    if hmax<hmmax:
-        hmax=hmmax
+    hmin=min(hmin,hmmin)
+    hmax=max(hmax,hmmax)
     ybuffer=0.1*(hmax-hmin)
-    ylim((hmin - ybuffer, hmax + ybuffer))
-    ylabel('m')
-    legend((r'h obs',r'h sim'), loc=0)
-    leg = gca().get_legend()
+    plt.ylim((hmin - ybuffer, hmax + ybuffer))
+    plt.ylabel('m')
+    plt.legend((r'h obs',r'h sim'), loc=0)
+    leg = plt.gca().get_legend()
     ltext  = leg.get_texts()  # all the text.Text instance in the legend
-    setp(ltext, fontsize='small')    # the legend text fontsize
-    xlabel(r'Date')
+    plt.setp(ltext, fontsize='small')    # the legend text fontsize
+    plt.xlabel(r'Date')
 #    ax2.autoscale_view()
-    grid(True)
+    plt.grid(True)
+    ax2.xaxis.set_major_formatter(monthsFmt)
+    plt.xlim((DateInput[0],DateInput[len(h)-1]))
+    ax2.tick_params(axis='x', labelrotation=90)
+    for label in ax2.get_xticklabels():
+        label.set_verticalalignment('top')
+    ax2.tick_params(axis='y', labelrotation=90)
+    for label in ax2.get_yticklabels():
+        label.set_verticalalignment('center')
 
-##    ax3=subplot(211, sharex=ax2)
-##    setp( ax3.get_xticklabels(), visible=False)
-##    setp( ax3.get_yticklabels(), fontsize=8)
-###    DateInput1=range(0,len(DateInput))
-##    bar(DateInput,P,color='b', linewidth=0, align = 'edge')
-##    bar(DateInput,Pe,color='m', linewidth=0, align = 'edge')
-##    legend((r'P', r'Pe'), loc=0)
-##    leg = gca().get_legend()
-##    ltext  = leg.get_texts()  # all the text.Text instance in the legend
-##    setp(ltext, fontsize='small')    # the legend text fontsize
-##    setp(labels, 'rotation', 90)
-##    grid(True)
-##    ylabel('mm')
-
-    subplots_adjust(left=0.05, bottom=0.1, right=0.95, top=0.95, wspace=0.1, hspace=0.05)
+    plt.subplots_adjust(left=0.05, bottom=0.1, right=0.95, top=0.95, wspace=0.1, hspace=0.05)
 #    draw()
 #    ion()
-    show()
+    plt.show()
     del DateInput, h, hmeas, P, Pe
 
 
@@ -130,32 +109,27 @@ def calibGRAPH(DateInput, P, PET, Pe, ETa, S, R, h, hmeas, Smeas, Sm, Sr):
     ______________________________________________________________________________
     """
 
-    months=MonthLocator()
-    monthsFmt=DateFormatter('%y-%m')
+    first_date = mpl.dates.num2date(DateInput[0])
+    months=mpl.dates.MonthLocator(bymonth=first_date.month,
+    bymonthday=first_date.day, interval=1)
+    monthsFmt=mpl.dates.DateFormatter('%y-%m')
 
 #__________________Create outputs plots______________________#
 #    ioff()
-    figCalib=figure()
+    figCalib=plt.figure(num=None, figsize=(11.7, 8.27), dpi=150)
     figCalib.Title='Calibration graphs'
 
-    ax5=subplot(515)
-    setp( ax5.get_xticklabels(), fontsize=8)
-    setp( ax5.get_yticklabels(), fontsize=8)
-    plot_date(DateInput,hmeas,'o', markersize=5, markerfacecolor = 'lime', markeredgecolor='green')
-    plot_date(DateInput,h,'-', color = 'blue')
-    ax5.yaxis.set_major_formatter(FormatStrFormatter('%1.1f'))
-    labels=ax5.get_yticklabels()
-#    setp(labels, 'rotation', 90)
-##    ax5.xaxis.set_major_locator(months)
-##    ax5.xaxis.set_major_formatter(monthsFmt)
-##    xlim((DateInput[0],DateInput[len(h)-1]))
+    ax5=plt.subplot(515)
+    plt.setp( ax5.get_xticklabels(), fontsize=8)
+    plt.setp( ax5.get_yticklabels(), fontsize=8)
+    plt.plot_date(DateInput,hmeas,'o', markersize=5, markerfacecolor = 'lime', markeredgecolor='green')
+    plt.plot_date(DateInput,h,'-', color = 'blue')
+    ax5.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%1.1f'))
     if h[0]==-999:
         hmax=-999
         hmin=9999
     else:
         hmax=hmin=h[0]
-##    labels=ax5.get_xticklabels()
-##    setp(labels, 'rotation', 90)
     for i in range(0,len(DateInput)):
         if h[i]>hmax:
             hmax=h[i]
@@ -172,87 +146,98 @@ def calibGRAPH(DateInput, P, PET, Pe, ETa, S, R, h, hmeas, Smeas, Sm, Sr):
                 hmmax=hmeas[i]
             elif hmeas[i]<hmmin:
                 hmmin=hmeas[i]
-    if hmin>hmmin:
-        hmin=hmmin
-    if hmax<hmmax:
-        hmax=hmmax
+    hmin=min(hmin,hmmin)
+    hmax=max(hmax,hmmax)
     ybuffer=0.1*(hmax-hmin)
-    ylim((hmin - ybuffer, hmax + ybuffer))
-    ylabel('m')
-    legend((r'h obs',r'h sim'), loc=0)
-    leg = gca().get_legend()
+    plt.ylim((hmin - ybuffer, hmax + ybuffer))
+    plt.ylabel('m')
+    plt.legend((r'h obs',r'h sim'), loc=0)
+    leg = plt.gca().get_legend()
     ltext  = leg.get_texts()  # all the text.Text instance in the legend
-    setp(ltext, fontsize='small')    # the legend text fontsize
-    xlabel(r'Date')
+    plt.setp(ltext, fontsize='small')    # the legend text fontsize
+    plt.xlabel(r'Date')
 #    ax2.autoscale_view()
-    grid(True)
-
-    ax4=subplot(514, sharex=ax5)
-    setp( ax4.get_xticklabels(), visible=False)
-    setp( ax4.get_yticklabels(), fontsize=8)
-    grid(True)
-    plot_date(DateInput,R,'-')
-    legend('R', loc=0)
-    leg = gca().get_legend()
+    ax5.tick_params(axis='x', labelrotation=90)
+    for label in ax5.get_xticklabels():
+        label.set_verticalalignment('top')
+    plt.grid(True)
+    ax5.tick_params(axis='y', labelrotation=90)
+    for label in ax5.get_yticklabels():
+        label.set_verticalalignment('center')
+    
+    ax4=plt.subplot(514, sharex=ax5)
+    plt.setp( ax4.get_xticklabels(), visible=False)
+    plt.setp( ax4.get_yticklabels(), fontsize=8)
+    plt.grid(True)
+    plt.plot_date(DateInput,R,'-')
+    plt.legend('R', loc=0)
+    leg = plt.gca().get_legend()
     ltext  = leg.get_texts()  # all the text.Text instance in the legend
-    setp(ltext, fontsize='small')    # the legend text fontsize
-    ylabel('mm')
-
-    ax3=subplot(513, sharex=ax5)
-    setp( ax3.get_xticklabels(), visible=False)
-    setp( ax3.get_yticklabels(), fontsize=8)
-    plot_date(DateInput, Smeas, 'o', markersize=5, markerfacecolor = 'lime', markeredgecolor='green')
-    plot_date(DateInput,S, '-', color = 'brown')
-    legend((r'S obs',r'S sim'), loc=0)
-    leg = gca().get_legend()
-    ltext  = leg.get_texts()  # all the text.Text instance in the legend
-    setp(ltext, fontsize='small')    # the legend text fontsize
+    plt.setp(ltext, fontsize='small')    # the legend text fontsize
+    plt.ylabel('mm')
+    ax4.tick_params(axis='y', labelrotation=90)
+    for label in ax4.get_yticklabels():
+        label.set_verticalalignment('center')
+    
+    ax3=plt.subplot(513, sharex=ax5)
+    plt.setp(ax3.get_xticklabels(), visible=False)
+    plt.setp(ax3.get_yticklabels(), fontsize=8)
+    plt.plot_date(DateInput, Smeas, 'o', markersize=5, markerfacecolor = 'lime', markeredgecolor='green')
+    plt.plot_date(DateInput,S, '-', color = 'brown')
+    plt.legend((r'S obs',r'S sim'), loc=0)
+    leg = plt.gca().get_legend()
+    ltext = leg.get_texts()  # all the text.Text instance in the legend
+    plt.setp(ltext, fontsize='small')    # the legend text fontsize
 #    ybuffer=0.01*(float(Sm)-float(Sr))
 #    ylim((float(Sr) - ybuffer,float(Sm) + ybuffer))
 #    ylabel('mm')
 #    ylim(0,1)
-    ylim(float(Sr),float(Sm))
-    ax3.yaxis.set_major_formatter(FormatStrFormatter('%0.2f'))
-    labels=ax3.get_yticklabels()
- #   setp(labels, 'rotation', 90)
-    grid(True)
-    ylabel('%')
+    plt.ylim(float(Sr),float(Sm))
+    ax3.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%0.2f'))
+    ax3.tick_params(axis='y', labelrotation=90)
+    for label in ax3.get_yticklabels():
+        label.set_verticalalignment('center')
+    plt.grid(True)
+    plt.ylabel('%')
 
-    ax2=subplot(512, sharex=ax5)
-    setp( ax2.get_xticklabels(), visible=False)
-    setp( ax2.get_yticklabels(), fontsize=8)
-    plot_date(DateInput,PET,'b-')
-    plot_date(DateInput,ETa,'r-')
-    legend((r'PET',r'ETa'), loc=0)  #,  fontsize=10)
-    leg = gca().get_legend()
+    ax2=plt.subplot(512, sharex=ax5)
+    plt.setp(ax2.get_xticklabels(), visible=False)
+    plt.setp(ax2.get_yticklabels(), fontsize=8)
+    plt.plot_date(DateInput,PET,'b-')
+    plt.plot_date(DateInput,ETa,'r-')
+    plt.legend((r'PET',r'ETa'), loc=0)  #,  fontsize=10)
+    leg = plt.gca().get_legend()
     ltext  = leg.get_texts()  # all the text.Text instance in the legend
-    setp(ltext, fontsize='small')    # the legend text fontsize
-    grid(True)
-    ylabel('mm')
+    plt.setp(ltext, fontsize='small')    # the legend text fontsize
+    plt.grid(True)
+    plt.ylabel('mm')
+    ax2.tick_params(axis='y', labelrotation=90)
+    for label in ax2.get_yticklabels():
+        label.set_verticalalignment('center')
 
-    ax1=subplot(511, sharex=ax5)
-    setp( ax1.get_xticklabels(), visible=False)
-    setp( ax1.get_yticklabels(), fontsize=8)
+    ax1=plt.subplot(511, sharex=ax5)
+    plt.setp(ax1.get_xticklabels(), visible=False)
+    plt.setp(ax1.get_yticklabels(), fontsize=8)
 #    DateInput1=range(0,len(DateInput))
-    bar(DateInput,P,color='b', linewidth=0, align = 'edge', label = 'P')
-    bar(DateInput,Pe,color='deepskyblue', linewidth=0, align = 'edge', label = 'Pe')
-    legend(loc=0)
-    leg = gca().get_legend()
+    plt.bar(DateInput,P,color='b', linewidth=0, align = 'edge', label = 'P')
+    plt.bar(DateInput,Pe,color='deepskyblue', linewidth=0, align = 'edge', label = 'Pe')
+    plt.legend(loc=0)
+    leg = plt.gca().get_legend()
     ltext  = leg.get_texts()  # all the text.Text instance in the legend
-    setp(ltext, fontsize='small')    # the legend text fontsize
- #   setp(labels, 'rotation', 90)
-    grid(True)
-    ylabel('mm')
+    plt.setp(ltext, fontsize='small')    # the legend text fontsize
+    plt.grid(True)
+    plt.ylabel('mm')
     ax1.xaxis.set_major_locator(months)
     ax1.xaxis.set_major_formatter(monthsFmt)
-    xlim((DateInput[0],DateInput[len(h)-1]))
-    labels=ax5.get_xticklabels()
-    setp(labels, 'rotation', 90)
+    plt.xlim((DateInput[0],DateInput[len(h)-1]))
+    ax1.tick_params(axis='y', labelrotation=90)
+    for label in ax1.get_yticklabels():
+        label.set_verticalalignment('center')
 
-    subplots_adjust(left=0.05, bottom=0.1, right=0.95, top=0.95, wspace=0.1, hspace=0.05)
+    plt.subplots_adjust(left=0.05, bottom=0.1, right=0.95, top=0.95, wspace=0.1, hspace=0.05)
 #    draw()
 #    ion()
-    show()
+    plt.show()
     del DateInput, P, PET, Pe, ETa, S, R, h, hmeas, Smeas, Sm, Sr
 
 
@@ -284,134 +269,145 @@ def allGRAPH(DateInput, P, PET, Pe, SUST, Qs, ETa, S, Rp, R, h, hmeas, Smeas, Sm
     ______________________________________________________________________________
     """
 
-    months=MonthLocator()
-    monthsFmt=DateFormatter('%y-%m')
+    first_date = mpl.dates.num2date(DateInput[0])
+    months=mpl.dates.MonthLocator(bymonth=first_date.month,
+    bymonthday=first_date.day, interval=1)
+    monthsFmt=mpl.dates.DateFormatter('%y-%m')
 
 #__________________Create outputs plots______________________#
 #    ioff()
-    figCalib=figure()
+    figCalib=plt.figure(num=None, figsize=(11.7, 8.27), dpi=150)
     figCalib.Title='All graphs'
 
 # First column of graphs
 
-    ax7=subplot(427)
-    setp(ax7.get_xticklabels(), fontsize=8)
-    setp(ax7.get_yticklabels(), fontsize=8)
-    plot_date(DateInput,Qs,'r-')
-    ax7.yaxis.set_major_formatter(FormatStrFormatter('%1.1f'))
-    labels=ax7.get_yticklabels()
-    setp(labels, 'rotation', 90)
+    ax7=plt.subplot(427)
+    plt.setp(ax7.get_xticklabels(), fontsize=8)
+    plt.setp(ax7.get_yticklabels(), fontsize=8)
+    plt.plot_date(DateInput,Qs,'r-')
+    ax7.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%1.1f'))
     ax7.xaxis.set_major_locator(months)
     ax7.xaxis.set_major_formatter(monthsFmt)
-#    ax2.autoscale_view()
-    labels=ax7.get_xticklabels()
-    setp(labels, 'rotation', 90)
-#   DateInput1=range(0,len(DateInput))
-    bar(DateInput, SUST, linewidth=0, align = 'edge')
-    xlim((DateInput[0],DateInput[len(S)-1]))
-    ylabel('mm')
-    legend(['Qs', 'SUST'], loc=0)
-    leg = gca().get_legend()
+    plt.bar(DateInput, SUST, linewidth=0, align = 'edge')
+    plt.xlim((DateInput[0],DateInput[len(S)-1]))
+    plt.ylabel('mm')
+    plt.legend(['Qs', 'SUST'], loc=0)
+    leg = plt.gca().get_legend()
     ltext  = leg.get_texts()  # all the text.Text instance in the legend
-    setp(ltext, fontsize='small')    # the legend text fontsize
-    xlabel(r'Date')
+    plt.setp(ltext, fontsize='small')    # the legend text fontsize
+    plt.xlabel(r'Date')
 #    xlim((0,len(P)))
-    grid(True)
-
-    ax5=subplot(425, sharex=ax7)
-    setp( ax5.get_xticklabels(), visible=False)
-    setp( ax5.get_yticklabels(), fontsize=8)
-    plot_date(DateInput, Smeas, 'o', markersize=5, markerfacecolor = 'lime', markeredgecolor='green')
-    plot_date(DateInput,S, '-', color = 'brown')
+    plt.grid(True)
+    ax7.tick_params(axis='x', labelrotation=90)
+    for label in ax7.get_yticklabels():
+        label.set_verticalalignment('center')
+    ax7.tick_params(axis='y', labelrotation=90)
+    for label in ax7.get_yticklabels():
+        label.set_verticalalignment('center')
+    
+    ax5=plt.subplot(425, sharex=ax7)
+    plt.setp(ax5.get_xticklabels(), visible=False)
+    plt.setp(ax5.get_yticklabels(), fontsize=8)
+    plt.plot_date(DateInput, Smeas, 'o', markersize=5, markerfacecolor = 'lime', markeredgecolor='green')
+    plt.plot_date(DateInput,S, '-', color = 'brown')
     ybuffer=0.1*(float(Sm)-float(Sr))
-    ylim((float(Sr) - ybuffer,float(Sm) + ybuffer))
-    ylabel('%')
-    ax5.yaxis.set_major_formatter(FormatStrFormatter('%1.1f'))
-    labels=ax5.get_yticklabels()
-    setp(labels, 'rotation', 90)
-    legend((r'S obs',r'S sim'), loc=0)
-    leg = gca().get_legend()
-    ltext  = leg.get_texts()  # all the text.Text instance in the legend
-    setp(ltext, fontsize='small')    # the legend text fontsize
-    grid(True)
+    plt.ylim((float(Sr) - ybuffer,float(Sm) + ybuffer))
+    plt.ylabel('%')
+    ax5.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%1.1f'))
+    plt.legend((r'S obs',r'S sim'), loc=0)
+    leg = plt.gca().get_legend()
+    ltext = leg.get_texts()  # all the text.Text instance in the legend
+    plt.setp(ltext, fontsize='small')    # the legend text fontsize
+    plt.grid(True)
+    ax5.tick_params(axis='y', labelrotation=90)
+    for label in ax5.get_yticklabels():
+        label.set_verticalalignment('center')
 
-    ax3=subplot(423, sharex=ax7)
-    setp( ax3.get_xticklabels(), visible=False)
-    setp( ax3.get_yticklabels(), fontsize=8)
-    plot_date(DateInput,PET,'b-')
-    plot_date(DateInput,ETa,'r-')
-    legend((r'PET',r'ETa'), loc=0)  #,  fontsize=10)
-    leg = gca().get_legend()
+    ax3=plt.subplot(423, sharex=ax7)
+    plt.setp( ax3.get_xticklabels(), visible=False)
+    plt.setp( ax3.get_yticklabels(), fontsize=8)
+    plt.plot_date(DateInput,PET,'b-')
+    plt.plot_date(DateInput,ETa,'r-')
+    plt.legend((r'PET',r'ETa'), loc=0)  #,  fontsize=10)
+    leg = plt.gca().get_legend()
     ltext  = leg.get_texts()  # all the text.Text instance in the legend
-    setp(ltext, fontsize='small')    # the legend text fontsize
-    grid(True)
-    ylabel('mm')
+    plt.setp(ltext, fontsize='small')    # the legend text fontsize
+    plt.grid(True)
+    plt.ylabel('mm')
+    ax3.tick_params(axis='y', labelrotation=90)
+    for label in ax3.get_yticklabels():
+        label.set_verticalalignment('center')
 
-    ax1=subplot(421, sharex=ax7)
-    setp( ax1.get_xticklabels(), visible=False)
-    setp( ax1.get_yticklabels(), fontsize=8)
+    ax1=plt.subplot(421, sharex=ax7)
+    plt.setp( ax1.get_xticklabels(), visible=False)
+    plt.setp( ax1.get_yticklabels(), fontsize=8)
 #    DateInput1=range(0,len(DateInput))
-    bar(DateInput,P,color='b', linewidth=0, align = 'edge')
-    legend(['P'], loc=0)
-    leg = gca().get_legend()
+    plt.bar(DateInput,P,color='b', linewidth=0, align = 'edge')
+    plt.legend(['P'], loc=0)
+    leg = plt.gca().get_legend()
     ltext  = leg.get_texts()  # all the text.Text instance in the legend
-    setp(ltext, fontsize='small')    # the legend text fontsize
-    grid(True)
-    ylabel('mm')
+    plt.setp(ltext, fontsize='small')    # the legend text fontsize
+    plt.grid(True)
+    plt.ylabel('mm')
+    ax1.tick_params(axis='y', labelrotation=90)
+    for label in ax1.get_yticklabels():
+        label.set_verticalalignment('center')
 
 # Second column of graphs
-    ax2=subplot(422, sharex=ax7)
-    setp( ax2.get_xticklabels(), visible=False)
-    setp( ax2.get_yticklabels(), fontsize=8)
+    ax2=plt.subplot(422, sharex=ax7)
+    plt.setp(ax2.get_xticklabels(), visible=False)
+    plt.setp(ax2.get_yticklabels(), fontsize=8)
 #    DateInput1=range(0,len(DateInput))
-    bar(DateInput,Pe,color='deepskyblue', linewidth=0, align = 'edge')
-    legend(['Pe'], loc=0)
-    leg = gca().get_legend()
+    plt.bar(DateInput,Pe,color='deepskyblue', linewidth=0, align = 'edge')
+    plt.legend(['Pe'], loc=0)
+    leg = plt.gca().get_legend()
     ltext  = leg.get_texts()  # all the text.Text instance in the legend
-    setp(ltext, fontsize='small')    # the legend text fontsize
-    grid(True)
-    ylabel('mm')
-    labels=ax2.get_xticklabels()
-    setp(labels, 'horizontalalignment', 'right')
-    #setp(gca(), 'horizontalalignment', 'right')
+    plt.setp(ltext, fontsize='small')    # the legend text fontsize
+    plt.grid(True)
+    plt.ylabel('mm')
+    ax2.tick_params(axis='y', labelrotation=90)
+    for label in ax2.get_yticklabels():
+        label.set_verticalalignment('center')
 
-    ax4=subplot(424, sharex=ax7)
-    setp( ax4.get_xticklabels(), visible=False)
-    setp( ax4.get_yticklabels(), fontsize=8)
+    ax4=plt.subplot(424, sharex=ax7)
+    plt.setp(ax4.get_xticklabels(), visible=False)
+    plt.setp(ax4.get_yticklabels(), fontsize=8)
 #    DateInput1=range(0,len(DateInput))
-    bar(DateInput,Rp,linewidth=0, align = 'edge')
-    legend(['Rp'], loc=0)
-    leg = gca().get_legend()
-    ltext  = leg.get_texts()  # all the text.Text instance in the legend
-    setp(ltext, fontsize='small')    # the legend text fontsize
-    grid(True)
-    ylabel('mm')
+    plt.bar(DateInput,Rp,linewidth=0, align = 'edge')
+    plt.legend(['Rp'], loc=0)
+    leg = plt.gca().get_legend()
+    ltext = leg.get_texts()  # all the text.Text instance in the legend
+    plt.setp(ltext, fontsize='small')    # the legend text fontsize
+    plt.grid(True)
+    plt.ylabel('mm')
+    ax4.tick_params(axis='y', labelrotation=90)
+    for label in ax4.get_yticklabels():
+        label.set_verticalalignment('center')
 
-    ax6=subplot(426, sharex=ax7)
-    setp( ax6.get_xticklabels(), visible=False)
-    setp( ax6.get_yticklabels(), fontsize=8)
-    grid(True)
-    plot_date(DateInput,R,'-')
-    legend('R', loc=0)
-    leg = gca().get_legend()
+    ax6=plt.subplot(426, sharex=ax7)
+    plt.setp(ax6.get_xticklabels(), visible=False)
+    plt.setp(ax6.get_yticklabels(), fontsize=8)
+    plt.grid(True)
+    plt.plot_date(DateInput,R,'-')
+    plt.legend('R', loc=0)
+    leg = plt.gca().get_legend()
     ltext  = leg.get_texts()  # all the text.Text instance in the legend
-    setp(ltext, fontsize='small')    # the legend text fontsize
-    ylabel('mm')
+    plt.setp(ltext, fontsize='small')    # the legend text fontsize
+    plt.ylabel('mm')
+    ax6.tick_params(axis='y', labelrotation=90)
+    for label in ax6.get_yticklabels():
+        label.set_verticalalignment('center')
 
-    ax8=subplot(428, sharex=ax7)
-    setp( ax8.get_xticklabels(), fontsize=8)
-    setp( ax8.get_yticklabels(), fontsize=8)
-    plot_date(DateInput,hmeas,'o', markersize=5, markerfacecolor = 'lime', markeredgecolor='green')
-    plot_date(DateInput,h,'-', color = 'blue')
-    ax8.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
-    labels=ax8.get_yticklabels()
-    setp(labels, 'rotation', 90)
+    ax8=plt.subplot(428, sharex=ax7)
+    plt.setp(ax8.get_xticklabels(), fontsize=8)
+    plt.setp(ax8.get_yticklabels(), fontsize=8)
+    plt.plot_date(DateInput,hmeas,'o', markersize=5, markerfacecolor = 'lime', markeredgecolor='green')
+    plt.plot_date(DateInput,h,'-', color = 'blue')
+    ax8.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.1f'))
     ax8.xaxis.set_major_locator(months)
     ax8.xaxis.set_major_formatter(monthsFmt)
 #    ax2.autoscale_view()
-    labels=ax8.get_xticklabels()
-    setp(labels, 'rotation', 90)
-    xlim((DateInput[0],DateInput[len(S)-1]))
+    plt.xlim((DateInput[0],DateInput[len(S)-1]))
     if h[0]==-999:
         hmax=-999
         hmin=9999
@@ -433,25 +429,29 @@ def allGRAPH(DateInput, P, PET, Pe, SUST, Qs, ETa, S, Rp, R, h, hmeas, Smeas, Sm
                 hmmax=h[i]
             elif hmeas[i]<hmmin:
                 hmmin=h[i]
-    if hmin>hmmin:
-        hmin=hmmin
-    if hmax<hmmax:
-        hmax=hmmax
+    hmin=min(hmin,hmmin)
+    hmax=max(hmax,hmmax)
     ybuffer=0.1*(hmax-hmin)
-    ylim((hmin - ybuffer, hmax + ybuffer))
-    ylabel('m')
-    legend((r'h obs',r'h sim'), loc=0)
-    leg = gca().get_legend()
-    ltext  = leg.get_texts()  # all the text.Text instance in the legend
-    setp(ltext, fontsize='small')    # the legend text fontsize
-    xlabel(r'Date')
-    grid(True)
+    plt.ylim((hmin - ybuffer, hmax + ybuffer))
+    plt.ylabel('m')
+    plt.legend((r'h obs',r'h sim'), loc=0)
+    leg = plt.gca().get_legend()
+    ltext = leg.get_texts()  # all the text.Text instance in the legend
+    plt.setp(ltext, fontsize='small')    # the legend text fontsize
+    plt.xlabel(r'Date')
+    plt.grid(True)
+    ax8.tick_params(axis='x', labelrotation=90)
+    for label in ax8.get_xticklabels():
+        label.set_verticalalignment('top')
+    ax8.tick_params(axis='y', labelrotation=90)
+    for label in ax8.get_yticklabels():
+        label.set_verticalalignment('center')
 
     #figure.title('EARTH',fontsize=10)
-    subplots_adjust(left=0.05, bottom=0.07, right=0.95, top=0.95, wspace=0.1, hspace=0.1)
+    plt.subplots_adjust(left=0.05, bottom=0.07, right=0.95, top=0.95, wspace=0.1, hspace=0.1)
 #    draw()
 #    ion()
-    show()
+    plt.show()
     del DateInput, P, PET, Pe, SUST, Qs, ETa, S, Rp, R, h, hmeas, Smeas, Sm, Sr
 
 ##    #__________________Export graphs as pdf______________________#

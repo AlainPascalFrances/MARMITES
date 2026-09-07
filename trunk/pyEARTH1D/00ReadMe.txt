@@ -1,11 +1,12 @@
 Start with start_pyEARTH1D.py
 
 
-The original EARTH model is not open source, here it is a exe file that works under DOS: https://www.dropbox.com/sh/zqtmtaaijohnfik/XMnTAygmF_.During MSc, I reprogrammed it in Python using the info of the manual, I called it pyEARTH and this one is open source! However no exe file available, one needs to install Python 3.* and some packages.
+The original EARTH model is not open source, it is a exe file that works under DOS: https://www.icloud.com/iclouddrive/09aVcxcMGLKu_vxnSAEEOUemA#EARTH.
+During MSc, I reprogrammed it in Python using the info of the manual, I called it pyEARTH and this one is open source! However no exe file available, one needs to install Python 3.* and some packages.
 Here it goes specific instructions:
 1 - Install python 3.*, numpy, scipy, win32 and wxpython packages.
 2 - Download the following files:
-https://www.dropbox.com/sh/2eu20t8gnosn7ys/AAB0tcOTQg1hm_FX8OvMWjeGa?dl=0
+https://github.com/AlainPascalFrances/MARMITES/tree/master/trunk/pyEARTH1D
 3 - Double click on start_pyEARTH1D.py
 4 - if it works, continue next step otherwise send me the error message (if you don't see the error message, start pyEARTH1D in a DOS windows)
 5 - unzip the folder attached to this email, it contains the input data

@@ -8,12 +8,11 @@
 ##=========================================================================================##
 ##=========================================================================================##
 
-import numpy
-from pylab import *
-from matplotlib.dates import MonthLocator, DateFormatter
-from matplotlib.ticker import FormatStrFormatter
-from sys import *
-import os
+import sys, os
+import numpy as np
+#from matplotlib.dates import MonthLocator, DateFormatter
+#from matplotlib.ticker import FormatStrFormatter
+import matplotlib as mpl
 
 class ReSo:
     """ ReSo from 'Recharge and Soil Moisture' computes on a daily temporal basis aquifer
@@ -32,7 +31,6 @@ class ReSo:
 ##=========================================================================================##
 
     def SOMOS(self, MAXIL, Sm, Sfc, Sr, Si, D, Ks, SUSTm, P, PET):
-
         """
         SOMOS: SOil MOisture Storage
         Calculate water balance in soil
@@ -110,10 +108,8 @@ class ReSo:
             S.append(S_tmp/D)
 
             MB += P[t]+SUSTprev-(P[t]-Pe[t])-Rp[t]-Qs[t]-SUST[t]-ETa[t]-((S[t]-Sprev)*D)
-            
-        return P, PET, Pe, SUST, Qs, ETa, S, Rp, MB
 
-        del P, PET, Pe, SUST, Qs, ETa, S, Rp
+        return P, PET, Pe, SUST, Qs, ETa, S, Rp, MB
 
 ##=========================================================================================##
 ##________________________________SOMOS FUNCTIONS DEFINITION_______________________________##
@@ -124,44 +120,39 @@ class ReSo:
         if s>Sm:
             sust_tmp =D*(s-Sm)
             if sust_tmp > SUSTm:
-                qs_tmp =(sust_tmp-SUSTm)
+                qs_tmp = sust_tmp-SUSTm
                 sust_tmp = SUSTm
             else:
-                qs_tmp =(0.0)
+                qs_tmp = 0.0
         else:
-            sust_tmp =(0.0)
-            qs_tmp =(0.0)
+            sust_tmp = 0.0
+            qs_tmp = 0.0
         return sust_tmp, qs_tmp
 
     #_________________________Actual evapotranspiration function__________________#
 
-    def evp(self, s,pet,D,Sm,Sr):
-        Se=(s-Sr)/(Sm-Sr)    # Percent. of soil saturation
-        if s<Sr:
+    def evp(self,s,pet,D,Sm,Sr):
+        if s<=Sr:
             return 0.0
-        elif pet>((Sm-Sr)*D):
-            return Se*((Sm-Sr)*D)
-        else:
-            return Se*pet
+        elif s>Sr:
+            Se=(s-Sr)/(Sm-Sr)    # Percent. of soil saturation
+            if pet*Se>((s-Sr)*D):    
+                return (s-Sr)*D
+            else:
+                return Se*pet
 
     #_________________________Percolation function_________________________________#
 
     def perc(self,s,D,Sm,Sfc,Ks):
-        Sg=(s-Sfc)/(Sm-Sfc)  # Percent. of gravitational water
         if s<=Sfc:
-            return (0.0)
-        elif s<=Sm:
+            return 0.0
+        elif s>Sfc:
+            Sg=(s-Sfc)/(Sm-Sfc)  # Percent. of gravitational water
             if (Ks*Sg) > (D*(s-Sfc)):
-                return (D*(s-Sfc))
+                return (s-Sfc)*D
             else:
-                return (Ks*Sg)
-        else:
-            if Ks>(D*(Sm-Sfc)):
-                return (D*(Sm-Sfc))
-            else:
-                return (Ks)
+                return Ks*Sg
     #____________________________________________________________________________#
-
 #________________________________END OF FUNCTIONS DEFINITION__________________##
 
 ##=========================================================================================##
@@ -189,7 +180,7 @@ class ReSo:
         ______________________________________________________________________________
         """
 
-        Y=zeros((len(Rp), n+1), float)
+        Y=np.zeros((len(Rp), n+1), float)
 
         # Initialization of the first line of the array
         Y[0,0] = (1+f)*Rp[0]/f
@@ -206,8 +197,6 @@ class ReSo:
         R = Y[:,n]
 
         return R
-
-        del R, Y
 
 ##=========================================================================================##
 ##===========================|------------------|==========================================##
@@ -236,7 +225,7 @@ class ReSo:
         """
 
         h1=[]
-        h_tmp = (hi*1000 + R[0]/STO -hi*1000/RC)
+        h_tmp = hi*1000 + R[0]/STO -hi*1000/RC
         h1.append(h_tmp)
         for t in range(1,len(R)):
             h_tmp = h1[t-1] + R[t]/STO -h1[t-1]/RC
@@ -248,8 +237,6 @@ class ReSo:
             h.append(h_tmp)
 
         return h
-
-        del h1, h
 
 ##=========================================================================================##
 ##====================| Correct flooding effect ( h> piezometer elevation |================##
@@ -264,20 +251,18 @@ class ReSo:
                 R[i]=STO*(1000*(Elev-h0)+1000*(h[i-1]-h0)*(1-RC)/RC)
                 Rexcdt=Rexcdt_tmp-R[i]+SUST[i-1]-PET[i]
                 if Rexcdt > SUSTm:
-                    qs_tmp =(Rexcdt-SUSTm)
+                    qs_tmp = Rexcdt-SUSTm
                     sust_tmp = SUSTm
                 else:
-                    qs_tmp =(0.0)
+                    qs_tmp = 0.0
                     if Rexcdt>0:
-                        sust_tmp=Rexcdt
+                        sust_tmp = Rexcdt
                     else:
                         sust_tmp=0
                 SUST[i]=sust_tmp
                 Qs[i]=qs_tmp
 
         return R, SUST, Qs, h
-
-        del R, SUST, Qs, h
 
 ##=========================================================================================##
 ##===========================| EXPORT RESULTS |============================================##
@@ -302,7 +287,6 @@ class ReSo:
         outFile=open(Output_path, 'w')
         outFile.write('Date,P,PET,Pe,ETa,S,SUST,Qs,Rp,R,h,hmeas,Smeas\n')
         #__________________         Write the rest        ______________________#
-
         for t in range(0,len(S)):
             if hmeas[t]!=-999:
                 hmeas_tmp = str(hmeas[t])
@@ -312,7 +296,7 @@ class ReSo:
                 Smeas_tmp = str(Smeas[t])
             else:
                 Smeas_tmp = ""
-            out_line = num2date(DateInput[t]).isoformat()[:10], ',', str(P[t]), ',', str(PET[t]), ',', str(Pe[t]), ',' ,str(ETa[t]), ',',str(S[t]), ',', str(SUST[t]), ',',str(Qs[t]), ',', str(Rp[t]),  ',', str(R[t]),  ',', str(h[t]), ',',  hmeas_tmp, ',', Smeas_tmp,'\n'
+            out_line = mpl.dates.num2date(DateInput[t]).isoformat()[:10], ',', str(P[t]), ',', str(PET[t]), ',', str(Pe[t]), ',' ,str(ETa[t]), ',',str(S[t]), ',', str(SUST[t]), ',',str(Qs[t]), ',', str(Rp[t]),  ',', str(R[t]),  ',', str(h[t]), ',',  hmeas_tmp, ',', Smeas_tmp,'\n'
             for l in out_line:
                 outFile.write(l)
         outFile.close()
@@ -324,84 +308,82 @@ class ReSo:
     def processInput(self, strDateFormat, input_path, hmeas_path, Smeas_path):
 
         ErrorType = 999
-        try:
+        #try:
             #_________________Open input file for date, P ad PET___________________________#
-            if os.path.exists(input_path):
-                input_ar=numpy.loadtxt(input_path, converters={0:date2num})
-                DateInput = input_ar[:,0]
-                for i in range(1,input_ar.shape[0]):
-                    #__________________Check date consistency________________#
-                    difDay=DateInput[i]-DateInput[i-1]
-                    if (difDay !=1.0):
-                        sys.exit()
-                P = input_ar[:,1]
-                PET = input_ar[:,2]
-                #_________________Open measured piezometric levels___________________________#
-                hmeas=[]
-                if os.path.exists(hmeas_path):
-                    hmeas_ar=numpy.loadtxt(hmeas_path, converters={0:date2num})
-                    Datehmeas = hmeas_ar[:,0]
-                    if Datehmeas[0]<DateInput[0]:
-                        ErrorType = 101;
-                    if len(DateInput)<len(Datehmeas):
-                        ErrorType=102
-                    hmeas_tmp = hmeas_ar[:,1]
-                    j=0
-                    for i in range(len(DateInput)):
-                        if j<len(Datehmeas):
-                            if DateInput[i]==Datehmeas[j]:
-                                if isinstance(float(hmeas_tmp[j]), float):
-                                    hmeas.append(hmeas_tmp[j])
-                                else:
-                                    hmeas.append(-999)
-                                j=j+1
+        if os.path.exists(input_path):
+            input_ar=np.loadtxt(input_path, converters={0:mpl.dates.datestr2num})
+            DateInput = input_ar[:,0]
+            for i in range(1,input_ar.shape[0]):
+                #__________________Check date consistency________________#
+                difDay=DateInput[i]-DateInput[i-1]
+                if difDay !=1.0:
+                    sys.exit()
+            P = input_ar[:,1]
+            PET = input_ar[:,2]
+            #_________________Open measured piezometric levels___________________________#
+            hmeas=[]
+            if os.path.exists(hmeas_path):
+                hmeas_ar=np.loadtxt(hmeas_path, converters={0:mpl.dates.datestr2num})
+                Datehmeas = hmeas_ar[:,0]
+                if Datehmeas[0]<DateInput[0]:
+                    ErrorType = 101
+                if len(DateInput)<len(Datehmeas):
+                    ErrorType=102
+                hmeas_tmp = hmeas_ar[:,1]
+                j=0
+                for i in range(len(DateInput)):
+                    if j<len(Datehmeas):
+                        if DateInput[i]==Datehmeas[j]:
+                            if isinstance(float(hmeas_tmp[j]), float):
+                                hmeas.append(hmeas_tmp[j])
                             else:
                                 hmeas.append(-999)
+                            j=j+1
                         else:
                             hmeas.append(-999)
-                else:
-                    for i in range(len(DateInput)):
+                    else:
                         hmeas.append(-999)
-                #_________________Open measured soil moisture___________________________#
-                Smeas=[]
-                if os.path.exists(Smeas_path):
-                    Smeas_ar=numpy.loadtxt(Smeas_path, converters={0:date2num})
-                    DateSmeas=Smeas_ar[:,0]
-                    if DateSmeas[0]<DateInput[0]:
-                        ErrorType = 103
-                    if len(DateInput)<len(DateSmeas):
-                        ErrorType = 104
-                    Smeas_tmp = Smeas_ar[:,1]
-                    j=0
-                    for i in range(len(DateInput)):
-                        if j<len(DateSmeas):
-                            if DateInput[i]==DateSmeas[j]:
-                               if isinstance(float(Smeas_tmp[j]), float):
-                                    Smeas.append(Smeas_tmp[j])
-                               else:
-                                    Smeas.append(-999)
-                               j=j+1
+            else:
+                for i in range(len(DateInput)):
+                    hmeas.append(-999)
+            #_________________Open measured soil moisture___________________________#
+            Smeas=[]
+            if os.path.exists(Smeas_path):
+                Smeas_ar=np.loadtxt(Smeas_path, converters={0:mpl.dates.datestr2num})
+                DateSmeas=Smeas_ar[:,0]
+                if DateSmeas[0]<DateInput[0]:
+                    ErrorType = 103
+                if len(DateInput)<len(DateSmeas):
+                    ErrorType = 104
+                Smeas_tmp = Smeas_ar[:,1]
+                j=0
+                for i in range(len(DateInput)):
+                    if j<len(DateSmeas):
+                        if DateInput[i]==DateSmeas[j]:
+                            if isinstance(float(Smeas_tmp[j]), float):
+                                Smeas.append(Smeas_tmp[j])
                             else:
                                 Smeas.append(-999)
+                            j=j+1
                         else:
                             Smeas.append(-999)
-                else:
-                    for i in range(len(DateInput)):
+                    else:
                         Smeas.append(-999)
             else:
-                ErrorType = -1
-                DateInput, P , PET, hmeas, Smeas = 0,0,0,0,0
+                for i in range(len(DateInput)):
+                    Smeas.append(-999)
+        else:
+            ErrorType = -1
+            DateInput, P , PET, hmeas, Smeas = 0,0,0,0,0
 
-        except (ValueError, TypeError, KeyboardInterrupt) as e:
-            DateInput, P , PET, hmeas, Smeas = 0,0,0,0,0
-            ErrorType = e
-        except (SystemExit):
-            DateInput, P , PET, hmeas, Smeas = 0,0,0,0,0
-            ErrorType = 100
+        #except (ValueError, TypeError, KeyboardInterrupt) as e:
+         #   DateInput, P , PET, hmeas, Smeas = 0,0,0,0,0
+          #  ErrorType = e
+        #except (SystemExit):
+         #   DateInput, P , PET, hmeas, Smeas = 0,0,0,0,0
+          #  ErrorType = 100
 
         return DateInput, P , PET, hmeas, Smeas, ErrorType
-
-        del DateInput, P , PET, hmeas, Smeas
 
 ##=========================================================================================##
 ##=============================| MAIN LOOP |===============================================##
@@ -468,8 +450,6 @@ def runReSo(strDateFormat, param, input_path, hmeas_path, Smeas_path):
     R, SUST, Qs, h = dataset.Elevation(STO, RC, h0, SUSTm, Elev, PET, R, SUST, Qs, h)
 
     return DateInput, P, PET, Pe, SUST, Qs, ETa, S, Rp, R, h, hmeas, Smeas, ErrorType
-
-    del DateInput, P, PET, Pe, SUST, Qs, ETa, S, Rp, R, h, hmeas, Smeas, ErrorType
 
 
 def callExportResults(DateInput, P, PET, Pe, SUST, Qs, ETa, S, Rp, R, h, hmeas, Smeas, Output_path):

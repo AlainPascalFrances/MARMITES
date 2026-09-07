@@ -3,11 +3,10 @@
 
 import wx
 import os
-import numpy
+import numpy as np
 import tempfile
-from pylab import *
-from time import *
-
+#import pylab
+#import time
 import ReSo
 import ReSoGraph
 import clsAbout
@@ -275,13 +274,13 @@ class clsReSo_GUI_frame(wx.Frame):
         self.pn_param.SetMinSize((420,260))
         self.pn_param.SetBackgroundColour(wx.Colour(216, 216, 191))
         self.bt_hGraph.SetMinSize((130, -1))
-        self.bt_hGraph.SetBackgroundColour(wx.Colour(50, 50, 204))
+        self.bt_hGraph.SetBackgroundColour(wx.Colour(50, 153, 204))
         self.bt_hGraph.SetFont(wx.Font(10, wx.DEFAULT, wx.NORMAL, wx.BOLD, 0, ""))
         self.bt_hSGraph.SetMinSize((130, -1))
-        self.bt_hSGraph.SetBackgroundColour(wx.Colour(50, 50, 204))
+        self.bt_hSGraph.SetBackgroundColour(wx.Colour(50, 153, 204))
         self.bt_hSGraph.SetFont(wx.Font(10, wx.DEFAULT, wx.NORMAL, wx.BOLD, 0, ""))
         self.bt_AllGraph.SetMinSize((130, -1))
-        self.bt_AllGraph.SetBackgroundColour(wx.Colour(50, 50, 204))
+        self.bt_AllGraph.SetBackgroundColour(wx.Colour(50, 153, 204))
         self.bt_AllGraph.SetFont(wx.Font(10, wx.DEFAULT, wx.NORMAL, wx.BOLD, 0, ""))
         self.pn_graph.SetMinSize((420, 35))
         self.pn_graph.SetBackgroundColour(wx.Colour(216, 216, 191))
@@ -318,12 +317,12 @@ class clsReSo_GUI_frame(wx.Frame):
         self.pn_RMSE.SetMinSize((420,55))
         self.pn_RMSE.SetBackgroundColour(wx.Colour(216, 216, 191))
         self.bt_SaveOutput.SetMinSize((90, -1))
-        self.bt_SaveOutput.SetBackgroundColour(wx.Colour(50, 50, 204))
+        self.bt_SaveOutput.SetBackgroundColour(wx.Colour(50, 153, 204))
         self.bt_SaveOutput.SetFont(wx.Font(8, wx.DEFAULT, wx.NORMAL, wx.BOLD, 0, ""))
         self.txt_Output.SetMinSize((300, 20))
         self.txt_Output.SetBackgroundColour(wx.Colour(148, 255, 255))
         self.bt_SaveParam.SetMinSize((90, -1))
-        self.bt_SaveParam.SetBackgroundColour(wx.Colour(50, 50, 204))
+        self.bt_SaveParam.SetBackgroundColour(wx.Colour(50, 153, 204))
         self.bt_SaveParam.SetFont(wx.Font(8, wx.DEFAULT, wx.NORMAL, wx.BOLD, 0, ""))
         self.txt_SaveParam.SetMinSize((300, 20))
         self.txt_SaveParam.SetBackgroundColour(wx.Colour(148, 255, 255))
@@ -489,7 +488,7 @@ class clsReSo_GUI_frame(wx.Frame):
                 self.txt_OpenParam.Clear()
                 self.txt_OpenParam.WriteText(str(path[0]))
                 if os.path.exists(str(path[0])):
-                    param_ar=numpy.loadtxt(str(path[0]))
+                    param_ar=np.loadtxt(str(path[0]))
                     # D updated first to allow actualizeS to work properly
                     self.txt_D.Clear()
                     self.txt_D.WriteText(str(param_ar[5,]))
@@ -580,7 +579,7 @@ class clsReSo_GUI_frame(wx.Frame):
             self.txt_OpenParam.Clear()
             if os.path.exists(pathParam):
                 self.txt_OpenParam.WriteText(pathParam)
-                param_ar=numpy.loadtxt(pathParam)
+                param_ar=np.loadtxt(pathParam)
                 # D updated first to allow actualizeS to work properly
                 self.txt_D.Clear()
                 self.txt_D.WriteText(str(param_ar[5,]))
@@ -853,7 +852,7 @@ class clsReSo_GUI_frame(wx.Frame):
                     SumError=(x[i]-xmeas[i])*(x[i]-xmeas[i])+SumError
                     n=n+1
             if n>0:
-                RMSE = sqrt(SumError/n)
+                RMSE = np.sqrt(SumError/n)
             else:
                 RMSE = -999.99
             
