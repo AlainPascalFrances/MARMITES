@@ -583,6 +583,15 @@ def native_suite(out_dir, cMF, ctx, res, ds_ws=None, trunk=None, verbose=True,
             if verbose:
                 print('   per-point Sankey skipped: %r' % exc)
 
+    # --- per-observation-point soil-column time series (Stage 2) ------- #
+    try:
+        written += _native_obs_timeseries(MMplot, out_dir, cMF, ctx, res, sim_ws,
+                                          name, agg=agg if sankey else None,
+                                          ds_ws=ds_ws, verbose=verbose)
+    except Exception as exc:                         # pragma: no cover
+        if verbose:
+            print('   native obs time series skipped: %r' % exc)
+
     # --- per-layer maps of the time-mean fluxes ----------------------- #
     try:
         written += _native_flux_maps(MMplot, out_dir, cMF, ctx, res)
@@ -1215,6 +1224,199 @@ def _native_sankey_obs(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
         written += _render_sankey(MMplot, out_dir, DATE, flx, flxIndex, HYindex,
                                   year_lst, smf, ncell_MM, ibound4Sankey,
                                   names[p], 'obs_%s' % names[p], min_flux, verbose)
+    return written
+
+
+# TeX labels, in INDEX_MM / INDEX_MM_SOIL order (from startMARMITES_v3.py).
+_MM_TEX = [r'$P$', r'$PT$', r'$PE$', r'$Pe$', r'$S_{surf}$', r'$Ro$', r'$Exf_g$',
+           r'$E_{ow}$', r'$MB_{soil}$', r'$E_I$', r'$E_o$', r'$E_g$', r'$T_g$',
+           r'$\Delta S_{surf}$', r'$ET_g$', r'$ET_{soil}$', r'$\theta$',
+           r'$\Delta S_{soil}$', r'$perc$', r'$h\/corr$', r'$d$', r'$thick_p$',
+           r'$I$', r'$MB_{surf}$']
+_MMS_TEX = ['E_{soil}', 'T_{soil}', '\\theta', 'R_{soil}', 'Exf',
+            '\\Delta \\theta', 'S_{soil}', 'SAT', 'MB_{soil}']
+_CLR_LST = ['darkgreen', 'firebrick', 'darkmagenta', 'goldenrod', 'green',
+            'tomato', 'magenta', 'yellow']
+
+
+def _obs_head_series(sim_ws, name, nlay, cells_ij, nper):
+    """Head time series at each obs cell, per layer: (nobs, nlay, nper).
+
+    Read straight from the MODFLOW 6 head file rather than any HDF5 copy.
+    """
+    import flopy
+    hds = flopy.utils.HeadFile(os.path.join(sim_ws, '%s.hds' % name))
+    kk = hds.get_kstpkper()
+    off = max(len(kk) - nper, 0)                   # drop the steady SP0
+    out = np.full((len(cells_ij), nlay, nper), np.nan)
+    for p, (i, j) in enumerate(cells_ij):
+        ts = hds.get_ts([(L, int(i), int(j)) for L in range(nlay)])
+        for L in range(nlay):
+            out[p, L] = np.asarray(ts[off:off + nper, L + 1], float)
+    return out
+
+
+def _native_obs_timeseries(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
+                           agg=None, ds_ws=None, verbose=True):
+    """Per-observation-point soil-column time series (native ``plotTIMESERIES``).
+
+    Ports the observation loop of ``startMARMITES_v3.py`` (~1797-2130): the
+    driver built, for ONE cell, a flux list holding every MM flux, every soil
+    flux both summed and per soil layer, the per-layer heads and depths, the
+    SATFLOW head, and the observed head / soil moisture / runoff series. The MM
+    side now comes from the coupler's obs capture (``mm_obs``/``mms_obs``), the
+    heads from the MF6 ``.hds`` and the recharge from the cell budget, so no
+    legacy HDF5 is involved.
+    """
+    if 'mm_obs' not in res:
+        if verbose:
+            print('   obs time series skipped: run has no obs capture (mm_obs).')
+        return []
+    IX = dict(ctx.index)
+    IXS = dict(ctx.index_S)
+    mm_obs = np.asarray(res['mm_obs'])
+    mms_obs = np.asarray(res['mms_obs'])
+    obs_ij = np.asarray(res['obs_ij'])
+    names = [n.decode() if isinstance(n, bytes) else str(n)
+             for n in res.get('obs_names', [str(k) for k in range(len(obs_ij))])]
+    nper, nobs = mm_obs.shape[0], mm_obs.shape[1]
+    nlay = int(cMF.nlay)
+    DATE, HYindex, _yr = _sankey_dates(cMF, nper)
+    cMFd = _SankeyMF(cMF, [0] * nlay, [0] * nlay, DATE)   # supplies inputDate
+
+    # observed series + SATFLOW parameters, from the native reader
+    obs = {}
+    try:
+        obs, _ol, _oc, _ocl = cMF.cPROCESS.inputObs(
+            inputObs_fn='inputObs.txt', inputObsHEADS_fn='inputObsHEADS',
+            inputObsSM_fn='inputObsSM', inputObsRo_fn='inputObsRo',
+            inputDate=DATE, _nslmax=int(ctx._nslmax), nlay=nlay)
+    except Exception as exc:
+        if verbose:
+            print('   obs series unavailable (%r); plotting computed only' % exc)
+
+    heads = _obs_head_series(sim_ws, name, nlay, obs_ij, nper)
+    delr = np.asarray(cMF.delr, float)
+    delc = np.asarray(cMF.delc, float)
+    cf = _conv_fact(cMF)
+    import MARMITESsoil_v3 as _MMsoil
+    satflow = _MMsoil.SATFLOW()
+    h_lbl = list(getattr(cMF, 'h_lbl', [str(L + 1) for L in range(nlay)]))
+    written = []
+
+    for p in range(nobs):
+        i, j = int(obs_ij[p, 0]), int(obs_ij[p, 1])
+        o = names[p]
+        try:
+            zone = int(ctx.gridSOIL[i, j]) - 1
+            nsl = int(ctx._nsl[zone])
+            l_high = int(cMF.outcropL[i, j]) - 1
+            area = delr[j] * delc[i]
+            flx, lbl, idx = [], [], {}
+
+            def put(nm, series, tex):
+                # keep masked arrays MASKED: the observed series carry the
+                # hnoflo sentinel (9999.999) on days without a measurement, and
+                # np.asarray() would silently turn those back into real values
+                # and wreck the head axis.
+                idx[nm] = len(flx)
+                flx.append(series if np.ma.isMaskedArray(series)
+                           else np.asarray(series, float))
+                lbl.append(tex)
+
+            # every MM flux, in index order
+            for nm, k in sorted(IX.items(), key=lambda kv: kv[1]):
+                put(nm, mm_obs[:, p, k],
+                    _MM_TEX[k] if k < len(_MM_TEX) else nm)
+            # soil fluxes summed over the soil layers, then per soil layer
+            for nm, k in sorted(IXS.items(), key=lambda kv: kv[1]):
+                put(nm, mms_obs[:, p, :, k].sum(axis=1), r'$%s$' % _MMS_TEX[k])
+            for nm, k in sorted(IXS.items(), key=lambda kv: kv[1]):
+                for l in range(nsl):
+                    # the layer index goes INSIDE any existing subscript, so
+                    # 'E_{soil}' becomes 'E_{soil,1}' and not the invalid
+                    # 'E_{soil}_{1}' (same rule as the legacy driver)
+                    tex = _MMS_TEX[k]
+                    if '}' in tex:
+                        tex = r'$%s,%d}$' % (tex[:tex.index('}')], l + 1)
+                    else:
+                        tex = r'$%s_{%d}$' % (tex, l + 1)
+                    put('%s_%d' % (nm, l + 1), mms_obs[:, p, l, k], tex)
+            # groundwater ET, attributed to the outcropping layer
+            for nm in ('iEg', 'iTg'):
+                for L in range(nlay):
+                    put('%s_%d' % (nm, L + 1),
+                        mm_obs[:, p, IX[nm]] if L == l_high else np.zeros(nper),
+                        r'$%s_{g,%d}$' % ('E' if nm == 'iEg' else 'T', L + 1))
+            # heads and depth to water, per layer, from the MF6 .hds
+            for L in range(nlay):
+                put('ih_%s' % h_lbl[L], heads[p, L], r'$h_{%s}$' % h_lbl[L])
+                put('id_%s' % h_lbl[L], heads[p, L] - cMF.elev[i, j],
+                    r'$d_{%s}$' % h_lbl[L])
+            # aquifer terms at this cell, from the cell budget (mm/d)
+            to_mm = cf / area
+            if agg is not None:
+                rg = np.asarray(agg['UZF-GWRCH'])[:, p + 1, :] * to_mm
+                sg = ((np.asarray(agg['STO-SS'])[:, p + 1, :]
+                       + np.asarray(agg['STO-SY'])[:, p + 1, :]) * to_mm)
+            else:
+                rg = sg = np.zeros((nper, nlay))
+            put('iRg', rg[:, l_high], r'$Rg$')
+            for L in range(nlay):
+                put('iRg_%d' % (L + 1), rg[:, L], r'$Rg_{%d}$' % (L + 1))
+                put('idSg_%d' % (L + 1), sg[:, L], r'$\Delta S_{g,%d}$' % (L + 1))
+            put('idSu', mm_obs[:, p, IX['iperc']] - rg.sum(axis=1), r'$\Delta S_u$')
+            # SATFLOW head from the same recharge, and the Picard-era corrections
+            # (MF6 has no Picard loop, so hcorr is 0 and dcorr is just the depth)
+            oo = obs.get(o, {})
+            try:
+                h_sf = satflow.runSATFLOW(rg[:, l_high], float(oo['hi']),
+                                          float(oo['h0']), float(oo['RC']),
+                                          float(oo['STO']))
+            except Exception:
+                h_sf = np.full(nper, np.nan)
+            put('ih_SF', h_sf, r'$hSF$')
+            put('id_SF', np.asarray(h_sf) - cMF.elev[i, j], r'$dSF$')
+            put('idcorr', flx[idx['ihcorr']] - cMF.elev[i, j], r'$d\/corr$')
+            # observed series
+            oh = oo.get('obs_h')
+            if oh is not None:
+                v = np.ma.masked_values(np.asarray(oh)[0, :nper], cMF.hnoflo, atol=0.09)
+                put('ihobs', v, r'$h\/obs$')
+                put('idobs', v - cMF.elev[i, j], r'$d\/obs$')
+            osm = oo.get('obs_SM')
+            if osm is not None:
+                for l in range(min(nsl, len(osm))):
+                    put('iSobs_%d' % (l + 1),
+                        np.ma.masked_values(np.asarray(osm[l])[:nper],
+                                            cMF.hnoflo, atol=0.09),
+                        r'$\theta_{%d}\/obs$' % (l + 1))
+            oro = oo.get('obs_Ro')
+            if oro is not None:
+                put('iRoobs', np.ma.masked_values(np.asarray(oro)[0, :nper],
+                                                  cMF.hnoflo, atol=0.09),
+                    r'$Ro\/obs$')
+
+            hs = heads[p][np.isfinite(heads[p])]
+            hmax = float(np.nanmax(hs)) if hs.size else float(cMF.elev[i, j])
+            hmin = float(np.nanmin(hs)) if hs.size else float(cMF.elev[i, j]) - 10.0
+            fn = os.path.join(out_dir, '_0%s_ts.png' % o)
+            MMplot.plotTIMESERIES(
+                cMFd, i, j, flx, lbl, idx,
+                ctx._Sm[zone], ctx._Sr[zone], fn,
+                'Time series of fluxes at observation point %s' % o,
+                'i = %d, j = %d, l_obs = %d, elev. = %.2f m' % (
+                    i + 1, j + 1, l_high + 1, cMF.elev[i, j]),
+                _CLR_LST, hmax, hmin, o, int(oo.get('lay', l_high)), nsl,
+                float(cMF.elev[i, j]), int(getattr(cMF, 'iniMonthHydroYear', 10)),
+                date_ini=DATE[HYindex[1]], date_end=DATE[HYindex[-2]])
+            if os.path.exists(fn):
+                written.append(fn)
+        except Exception as exc:                     # pragma: no cover
+            if verbose:
+                print('   obs time series (%s) skipped: %r' % (o, exc))
+    if verbose:
+        print('   native obs time series: %d/%d point(s)' % (len(written), nobs))
     return written
 
 

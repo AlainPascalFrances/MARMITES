@@ -688,8 +688,11 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     ax1.set_xlim(np.min(cMF.inputDate) - 15.0, np.max(cMF.inputDate) + 15)
 
     plt.subplots_adjust(left=0.10, bottom=0.10, right=0.95, top=0.95, wspace=0.1, hspace=0.1)
-    txt = plt_export_fn.split('.')
-    plt_export_fn = txt[0] + '_part2.' + txt[1]
+    # splitext, NOT split('.'): the latter splits on EVERY dot, so any output
+    # path containing one (a Windows 8.3 short name, a versioned folder) was
+    # rebuilt as a non-existent directory and savefig raised FileNotFoundError.
+    _root, _ext = os.path.splitext(plt_export_fn)
+    plt_export_fn = _root + '_part2' + _ext
     plt.savefig(plt_export_fn, dpi=150)
     #    plt.show()
     plt.clf()
@@ -853,8 +856,11 @@ def plotTIMESERIES_flxGW(cMF, flx, flxLbl, flxIndex_lst, plt_export_fn, plt_titl
     ax0.set_xlim(np.min(cMF.inputDate) - 15.0, np.max(cMF.inputDate) + 15)
 
     plt.subplots_adjust(left=0.10, bottom=0.10, right=0.95, top=0.95, wspace=0.1, hspace=0.1)
-    txt = plt_export_fn.split('.')
-    plt_export_fn = txt[0] + '_part3MF.' + txt[1]
+    # splitext, NOT split('.'): the latter splits on EVERY dot, so any output
+    # path containing one (a Windows 8.3 short name, a versioned folder) was
+    # rebuilt as a non-existent directory and savefig raised FileNotFoundError.
+    _root, _ext = os.path.splitext(plt_export_fn)
+    plt_export_fn = _root + '_part3MF' + _ext
     plt.savefig(plt_export_fn, dpi=150)
     #    plt.show()
     plt.clf()
@@ -1384,8 +1390,11 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
     ax1.set_xlim(np.min(cMF.inputDate) - 15.0, np.max(cMF.inputDate) + 15)
 
     plt.subplots_adjust(left=0.10, bottom=0.10, right=0.95, top=0.95, wspace=0.1, hspace=0.1)
-    txt = plt_export_fn.split('.')
-    plt_export_fn = txt[0] + '_part2.' + txt[1]
+    # splitext, NOT split('.'): the latter splits on EVERY dot, so any output
+    # path containing one (a Windows 8.3 short name, a versioned folder) was
+    # rebuilt as a non-existent directory and savefig raised FileNotFoundError.
+    _root, _ext = os.path.splitext(plt_export_fn)
+    plt_export_fn = _root + '_part2' + _ext
     plt.savefig(plt_export_fn, dpi=150)
     #    plt.show()
     plt.clf()
@@ -2388,7 +2397,7 @@ def plotCALIBCRIT(calibcritSM, calibcritSMobslst, calibcritHEADS, calibcritHEADS
             plt.setp(labels, rotation=90, fontsize=6)
             del labels
         if test > 0:
-            plt_export_fn_tmp = "%s_%d.png" % (plt_export_fn.split(".")[0], p)
+            plt_export_fn_tmp = "%s_%d.png" % (os.path.splitext(plt_export_fn)[0], p)
             plt.savefig(plt_export_fn_tmp, dpi=150)
             plt.close('all')
         p_mult += num_plt_max
