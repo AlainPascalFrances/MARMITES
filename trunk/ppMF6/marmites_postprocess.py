@@ -562,7 +562,7 @@ def native_suite(out_dir, cMF, ctx, res, ds_ws=None, trunk=None, verbose=True,
             if obs_ij is not None:
                 targets += [[(int(i), int(j))] for i, j in np.asarray(obs_ij)]
             agg = _aquifer_pass(sim_ws, name, cMF, targets, nper,
-                                cache_dir=out_dir, verbose=verbose)
+                                cache_dir=sim_ws, verbose=verbose)
         except Exception as exc:                     # pragma: no cover
             if verbose:
                 print('   aquifer pass failed (%r); falling back to per-target '
@@ -900,8 +900,10 @@ def _aquifer_pass(sim_ws, name, cMF, targets, nper, cache_dir=None,
 
     Returns ``{record: (nper, ntarget, nlay) array in m3/d}`` plus the key
     ``'FLF'`` (flow across each layer's bottom face, + downward, flopy's sign
-    convention). Cached to ``<cache_dir>/_aquifer_digest.npz``, keyed on the
-    budget file's size and mtime, so re-plotting a run is instant.
+    convention). Cached as ``<cache_dir>/_aquifer_digest.npz`` -- the caller
+    passes the MF6 WORKSPACE, not a results folder, because the digest is keyed
+    on the cell budget's size and mtime: it belongs beside the file it derives
+    from and is then reused by every later re-plot, whatever its run tag.
     """
     import flopy
     nlay, nrow, ncol = int(cMF.nlay), int(cMF.nrow), int(cMF.ncol)
@@ -1556,7 +1558,10 @@ def _aquifer_map_pass(sim_ws, name, cMF, nper, cache_dir=None, verbose=True):
     The Sankey pass reduces the budget to a few targets; the maps need the
     spatial field kept, so this is a separate single sweep that accumulates
     (nlay, nrow, ncol) sums. Returns ``{record: (nlay, nrow, ncol)}`` in m3/d,
-    cached beside the figures and keyed on the budget's size+mtime.
+    cached as ``<cache_dir>/_aquifer_maps.npz`` in the MF6 WORKSPACE rather
+    than a results folder: the digest is keyed on the cell budget's size and
+    mtime, so keeping it beside that file lets every later re-plot reuse it
+    whatever its run tag.
     """
     import flopy
     nlay, nrow, ncol = int(cMF.nlay), int(cMF.nrow), int(cMF.ncol)
@@ -1721,7 +1726,7 @@ def _native_aquifer_maps(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
              dates=[float(DATE[s]) for s in sel], jd=jd)
 
     # budget terms, per layer, as mm/d
-    maps = _aquifer_map_pass(sim_ws, name, cMF, nper, cache_dir=out_dir,
+    maps = _aquifer_map_pass(sim_ws, name, cMF, nper, cache_dir=sim_ws,
                              verbose=verbose)
     for key, stem, cblbl, sgn in _AQ_MAPS:
         if key not in maps:
