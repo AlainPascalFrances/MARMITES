@@ -1716,7 +1716,7 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
 
 def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_MM, obspt, fntitle, ibound4Sankey,
                  stdout=None, report=None, treshold=5E-2, tolerance=1E-6,
-                 eps_connect=1E-4):
+                 eps_connect=1E-4, plot_years=True):
     """ Computes the water balance for a certain time span
     input: ASCII file with water fluxes wrtitten by MM
 
@@ -1854,7 +1854,10 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
     #    prt_test = 0
     for f in [0, 1]:
         for k in range(len(P)):
-            # print('-------')
+            # k == 0 is the whole-period panel; k > 0 are the individual
+            # hydrological years. plot_years=False keeps only the former.
+            if k > 0 and not plot_years:
+                break
             if k == 0:
                 title = "Average of the %d hydrological year(s)" % len(indexTime[1:-2])
             else:

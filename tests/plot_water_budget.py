@@ -2,7 +2,7 @@
 """Water-budget figures for the coupled MARMITES-MODFLOW 6 run, with an
 optional comparison against the previous MARMITES-MODFLOW-NWT (Picard) run.
 
-Produces, in <ws>/figures/:
+Produces, in <out-dir>/figures_nwt_comparison/:
 
   01_wb_timeseries.png     daily catchment-mean fluxes (new vs reference)
   02_wb_cumulative.png     cumulative volumes over the simulation
@@ -119,7 +119,7 @@ _OUT_ROOT = None
 
 
 def _fig(ws, name):
-    d = os.path.join(_OUT_ROOT or ws, 'figures')
+    d = os.path.join(_OUT_ROOT or ws, 'figures_nwt_comparison')
     os.makedirs(d, exist_ok=True)
     return os.path.join(d, name)
 
@@ -350,7 +350,7 @@ def make_figures(ws, mode='lagged', no_reference=False, verbose=True,
     plot_heads(new, ws, ref)
     plot_coupling(new, ws)
     write_summary(labels, newv, refv, ws, new)
-    figdir = os.path.join(_OUT_ROOT or ws, 'figures')
+    figdir = os.path.join(_OUT_ROOT or ws, 'figures_nwt_comparison')
     if verbose:
         print('Figures written to %s' % figdir)
     return figdir

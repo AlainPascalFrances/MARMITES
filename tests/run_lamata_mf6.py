@@ -334,6 +334,10 @@ def main():
     ap.add_argument('--sankey-min-flux', type=float, default=0.05, metavar='MM',
                     help='native water-balance Sankey: hide flows below this '
                          'magnitude (mm/y) on the core diagram (default 0.05)')
+    ap.add_argument('--sankey-obs-years', action='store_true',
+                    help='also produce a per-hydrological-year Sankey at each '
+                         'observation point (default: whole period only; the '
+                         'catchment always gets both)')
     ap.add_argument('--map-days', type=int, default=6, metavar='N',
                     help='head maps on N evenly spaced days (0 = mean only)')
     ap.add_argument('--no-sankey-full', dest='sankey_full', action='store_false',
@@ -619,16 +623,18 @@ def _run_postproc(a, cMF, ctx, res):
         from marmites_postprocess import run_preproc, run_postproc, native_suite
         os.makedirs(a.out_dir, exist_ok=True)
         if a.preproc:
-            run_preproc(a.ws, DS, name=cMF.modelname.lower(), out_root=a.out_dir)
+            run_preproc(a.ws, DS, name=cMF.modelname.lower(), out_root=a.out_dir,
+                        cMF=cMF, ctx=ctx, res=res)
         if a.postproc:
             run_postproc(a.ws, DS, name=cMF.modelname.lower(), out_root=a.out_dir)
             # native MARMITESplot figures, driven by the in-memory coupled data
             native_suite(os.path.join(a.out_dir, 'postproc'), cMF, ctx, res,
                          ds_ws=DS, sim_ws=a.ws, sankey=True,
                          sankey_full=a.sankey_full,
-                         sankey_min_flux=a.sankey_min_flux, map_days=a.map_days)
+                         sankey_min_flux=a.sankey_min_flux, map_days=a.map_days,
+                         sankey_obs_years=a.sankey_obs_years)
             # 01-07 water-budget figures incl. 06_heads/07_coupling and the
-            # NWT-vs-MF6 comparison (into <out_dir>/figures/)
+            # NWT-vs-MF6 comparison (into <out_dir>/figures_nwt_comparison/)
             try:
                 import plot_water_budget as pwb
                 pwb.make_figures(a.ws, mode=a.mode, out_dir=a.out_dir)

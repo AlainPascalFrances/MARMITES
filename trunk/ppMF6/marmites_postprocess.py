@@ -384,7 +384,7 @@ def run_postproc(sim_ws, ds_ws, name='lamatamm', dates=None,
 
 
 def run_preproc(sim_ws, ds_ws, name='lamatamm', mf_ws=None, verbose=True,
-                out_root=None):
+                out_root=None, cMF=None, ctx=None, res=None, trunk=None):
     """Input maps into <sim_ws>/preproc/: MARMITES soil/veg/meteo maps AND the
     MODFLOW aquifer maps (top, per-layer K / Ss / Sy / thickness, ibound+UZF
     footprint, ponds+stream overlay).
@@ -459,6 +459,21 @@ def run_preproc(sim_ws, ds_ws, name='lamatamm', mf_ws=None, verbose=True,
         if verbose:
             print('   network overlay skipped: %r' % exc)
 
+    # the native MARMITESplot input maps (parameter fields), when the caller
+    # can supply the model objects they are built from
+    if cMF is not None and ctx is not None:
+        try:
+            if trunk is None:
+                trunk = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+            mmplot_dir = os.path.join(trunk, 'MARMITESutilities', 'MARMITESplot')
+            if mmplot_dir not in sys.path:
+                sys.path.insert(0, mmplot_dir)
+            import MARMITESplot_v3 as MMplot
+            written += _native_input_maps(MMplot, out, cMF, ctx, res=res,
+                                          verbose=verbose)
+        except Exception as exc:                     # pragma: no cover
+            if verbose:
+                print('   native input maps skipped: %r' % exc)
     if verbose:
         print('preproc: %d file(s) written to %s' % (len(written), out))
     return written
@@ -508,7 +523,7 @@ _MM_LABEL = {
 
 def native_suite(out_dir, cMF, ctx, res, ds_ws=None, trunk=None, verbose=True,
                  sim_ws=None, sankey=True, sankey_full=True, sankey_min_flux=0.05,
-                 map_days=6):
+                 map_days=6, sankey_obs_years=False):
     """Run the native MARMITESplot figures on the coupled run's in-memory data.
 
     Called from the runner where ``cMF``/``ctx``/``res`` exist. Produces the
@@ -580,7 +595,8 @@ def native_suite(out_dir, cMF, ctx, res, ds_ws=None, trunk=None, verbose=True,
         try:
             written += _native_sankey_obs(MMplot, out_dir, cMF, ctx, res, sim_ws,
                                           name, min_flux=sankey_min_flux,
-                                          verbose=verbose, agg=agg)
+                                          verbose=verbose, agg=agg,
+                                          plot_years=sankey_obs_years)
         except Exception as exc:                     # pragma: no cover
             if verbose:
                 print('   per-point Sankey skipped: %r' % exc)
@@ -1222,7 +1238,7 @@ def _sankey_dates(cMF, nper):
 
 def _render_sankey(MMplot, out_dir, DATE, flx, flxIndex, HYindex, year_lst,
                    smf, ncell_MM, ibound4Sankey, obspt, fntitle, treshold,
-                   verbose):
+                   verbose, plot_years=True):
     """Call plotWBsankey once and collect the PNGs it wrote for this fntitle.
 
     "Ignoring fixed x/y limits to fulfill fixed data aspect with adjustable
@@ -1240,7 +1256,7 @@ def _render_sankey(MMplot, out_dir, DATE, flx, flxIndex, HYindex, year_lst,
         return _render_sankey_inner(MMplot, out_dir, DATE, flx, flxIndex,
                                     HYindex, year_lst, smf, ncell_MM,
                                     ibound4Sankey, obspt, fntitle, treshold,
-                                    verbose)
+                                    verbose, plot_years)
 
 
 class _DropAspectNoise(logging.Filter):
@@ -1263,14 +1279,15 @@ def _quiet_mpl_aspect():
 
 def _render_sankey_inner(MMplot, out_dir, DATE, flx, flxIndex, HYindex,
                          year_lst, smf, ncell_MM, ibound4Sankey, obspt,
-                         fntitle, treshold, verbose):
+                         fntitle, treshold, verbose, plot_years=True):
     written = []
     try:
         MMplot.plotWBsankey(out_dir, DATE, flx, flxIndex,
                             fn='%s_WBsankey' % fntitle, indexTime=HYindex,
                             year_lst=year_lst, cMF=smf, ncell_MM=ncell_MM,
                             obspt=obspt, fntitle=fntitle,
-                            ibound4Sankey=ibound4Sankey, treshold=treshold)
+                            ibound4Sankey=ibound4Sankey, treshold=treshold,
+                            plot_years=plot_years)
         written = [os.path.join(out_dir, f) for f in os.listdir(out_dir)
                    if f.startswith('_%s_WBsankey' % fntitle) and f.endswith('.png')]
         if verbose:
@@ -1313,7 +1330,8 @@ def _native_sankey(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
 
 
 def _native_sankey_obs(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
-                       min_flux=0.05, verbose=True, agg=None):
+                       min_flux=0.05, verbose=True, agg=None,
+                       plot_years=False):
     """Per-observation-point Sankeys (the legacy ``flxObs_lst`` path).
 
     Needs the coupler's obs-cell capture: ``res['mm_obs']`` (nper, nobs, nidx),
@@ -1353,7 +1371,8 @@ def _native_sankey_obs(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
         ibound4Sankey = [1 if ncell_MM[L] > 0 else 0 for L in range(nlay)]
         written += _render_sankey(MMplot, out_dir, DATE, flx, flxIndex, HYindex,
                                   year_lst, smf, ncell_MM, ibound4Sankey,
-                                  names[p], 'obs_%s' % names[p], min_flux, verbose)
+                                  names[p], 'obs_%s' % names[p], min_flux,
+                                  verbose, plot_years=plot_years)
     return written
 
 
@@ -1807,6 +1826,140 @@ def _native_aquifer_maps(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
            if f.endswith('.png')]
     if verbose:
         print('   native aquifer maps: %d page(s)' % len(got))
+    return got
+
+
+def _native_input_maps(MMplot, out_dir, cMF, ctx, res=None, verbose=True):
+    """The native INPUT maps, ported from startMARMITES_v3.py (~678-917).
+
+    The legacy driver mapped every parameter field it had been given before
+    running anything -- geometry, aquifer properties, the UZF soil parameters
+    and the boundary packages -- as ``IN_<nnn>_<name>``. None of them were
+    being produced. Conventions are the legacy ones: gist_rainbow_r (which is
+    the INPUT-map colormap, unlike the results), 5 linspace intervals, the
+    model's own hnoflo, and per-field number formats. elev / top / botm share
+    one elevation scale so they can be read against each other.
+    """
+    import matplotlib
+    nlay, nrow, ncol = int(cMF.nlay), int(cMF.nrow), int(cMF.ncol)
+    hnoflo = float(getattr(cMF, 'hnoflo', 9999.999))
+    ib = np.abs(np.asarray(cMF.ibound))
+    mask = (ib == 0)                                  # (nlay, nrow, ncol)
+    mask_all = mask.all(axis=0)                       # cells inactive everywhere
+    cmap = matplotlib.colormaps['gist_rainbow_r']
+    pts = _obs4map(res) if res is not None else None
+
+    def arr(x):
+        """Any parameter field as (nlay, nrow, ncol).
+
+        The ini gives these in whatever form is shortest: a single scalar
+        (uniform everywhere), one value per layer, one grid shared by all
+        layers, or a full per-layer grid. The legacy driver leaned on
+        cPROCESS.float2array plus a try/except; normalising here is explicit
+        and covers all four, which is what the eps / thts / thti / thtr / vka
+        fields need -- they are scalars on La Mata and were being dropped.
+        """
+        a = np.asarray(x, dtype=float)
+        if a.ndim == 3:
+            return a
+        if a.ndim == 2 and a.shape == (nrow, ncol):
+            return np.repeat(a[None, :, :], nlay, axis=0)
+        if a.size == 1:
+            return np.full((nlay, nrow, ncol), float(a.ravel()[0]))
+        if a.size == nlay:
+            return np.repeat(a.reshape(nlay, 1, 1), nrow, axis=1).repeat(ncol, axis=2)
+        raise ValueError('cannot map a field of shape %s onto (%d, %d, %d)'
+                         % (a.shape, nlay, nrow, ncol))
+
+    # transmissivity, as the legacy derived it (hk x thickness)
+    thick = arr(cMF.thick)
+    T = arr(cMF.hk_actual) * thick
+    # aquifer top per layer: land surface for layer 1, the bottom above for the rest
+    # arr() returns (nlay, nrow, ncol), so take the layer we want from each
+    top_tmp = np.zeros((nlay, nrow, ncol))
+    top_tmp[0] = arr(cMF.top)[0]
+    _botm = arr(cMF.botm)
+    for L in range(1, nlay):
+        top_tmp[L] = _botm[L - 1]
+
+    lst = [('elev', 'Elev.', arr(cMF.elev)),
+           ('top', 'Aq. top - $top$', top_tmp),
+           ('botm', 'Aq. bot. - $botm$', arr(cMF.botm)),
+           ('thick', 'Aq. thick.', thick),
+           ('strt', 'Init. heads - $strt$', arr(cMF.strt)),
+           ('gridSOILthick', 'Soil thick.', arr(ctx.gridSOILthick)),
+           ('gridSsurfhmax', 'Max. stream heigth', arr(ctx.gridSsurfhmax)),
+           ('gridSsurfw', 'Stream width', arr(ctx.gridSsurfw)),
+           ('hk', 'Horizontal hydraulic cond. - $hk$', arr(cMF.hk_actual)),
+           ('Ss', 'Specific storage - $S_s$', arr(cMF.ss_actual)),
+           ('Sy', 'Specific yield - $S_y$', arr(cMF.sy_actual)),
+           ('vka', 'Vertical hydraulic cond. - $vka$', arr(cMF.vka_actual))]
+    if T is not None:
+        lst.insert(9, ('T', 'Transmissivity - $T$', T))
+    if int(getattr(cMF, 'drn_yn', 0)) == 1:
+        lst += [('drn_cond', 'Drain cond.', arr(cMF.drn_cond_array)),
+                ('drn_elev', 'Drain elev.', arr(cMF.drn_elev_array))]
+    if int(getattr(cMF, 'ghb_yn', 0)) == 1 and hasattr(cMF, 'ghb_cond_array'):
+        lst += [('ghb_cond', 'GHB cond.', arr(cMF.ghb_cond_array)),
+                ('ghb_head', 'GHB head', arr(cMF.ghb_head_array))]
+    if int(getattr(cMF, 'uzf_yn', 0)) == 1:
+        lst += [('eps', 'Epsilon - $eps$', arr(cMF.eps_actual)),
+                ('thts', 'Sat. water content - $thts$', arr(cMF.thts_actual))]
+        if int(getattr(cMF, 'iuzfopt', 0)) == 1:
+            lst += [('vks', 'Sat. vert. hydraulic cond. - $vks$',
+                     arr(cMF.vks_actual))]
+        lst += [('thti', 'Initial water content - $thti$', arr(cMF.thti_actual)),
+                ('thtr', 'Residual water content - $thtr$', arr(cMF.thtr_actual))]
+
+    # elev / top / botm share one scale, so the three read against each other
+    elev_all = np.concatenate([arr(cMF.elev).ravel(), top_tmp.ravel(),
+                               arr(cMF.botm).ravel()])
+    elev_all = elev_all[~np.isclose(elev_all, hnoflo, atol=0.09)]
+    elev_lo, elev_hi = float(elev_all.min()), float(elev_all.max())
+
+    before = set(os.listdir(out_dir)) if os.path.isdir(out_dir) else set()
+    for n, (stem, cblbl, a) in enumerate(lst, start=1):
+        try:
+            V = a.reshape(1, nlay, nrow, ncol)
+            # a field that does not vary by layer gets ONE panel, as the legacy
+            # did, and is masked only where every layer is inactive
+            if nlay > 1 and np.allclose(a[0], a[1:], equal_nan=True):
+                m = np.repeat(mask_all[None, :, :], nlay, axis=0)
+                nplot = 1
+            else:
+                m, nplot = mask, nlay
+            good = V[0][~m]
+            good = good[~np.isclose(good, hnoflo, atol=0.09)]
+            good = good[np.isfinite(good)]
+            if not good.size:
+                continue
+            if stem in ('Ss', 'hk', 'T', 'drn_cond', 'ghb_cond', 'vks'):
+                fmt = '%5.e'
+            elif stem in ('Sy', 'thts', 'thti', 'thtr', 'gridSOILthick',
+                          'gridSsurfhmax', 'gridSsurfw'):
+                fmt = '%5.3f'
+            else:
+                fmt = '%5.1f'
+            if stem in ('elev', 'top', 'botm'):
+                lo, hi = elev_lo, elev_hi
+            else:
+                lo, hi = _vrange(good)
+            MMplot.plotLAYER(
+                days=[0], str_per=[0], Date='NA', JD='NA', ncol=ncol, nrow=nrow,
+                nlay=nlay, nplot=nplot, V=np.where(m, hnoflo, V), cmap=cmap,
+                CBlabel=cblbl, msg='', plt_title='IN_%03d_%s' % (n, stem),
+                MM_ws=out_dir, interval_type='linspace', interval_num=5,
+                Vmax=[hi], Vmin=[lo], fmt=fmt, points=pts, mask=m,
+                hnoflo=hnoflo, cMF=cMF)
+        except Exception as exc:                       # pragma: no cover
+            if verbose:
+                print('   input map %s skipped: %r' % (stem, exc))
+    after = set(os.listdir(out_dir)) if os.path.isdir(out_dir) else set()
+    got = [os.path.join(out_dir, f) for f in sorted(after - before)
+           if f.endswith('.png')]
+    if verbose:
+        print('   native input maps: %d page(s) from %d field(s)'
+              % (len(got), len(lst)))
     return got
 
 
