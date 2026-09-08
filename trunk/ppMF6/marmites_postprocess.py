@@ -353,12 +353,14 @@ def run_postproc(sim_ws, ds_ws, name='lamatamm', dates=None,
             if verbose:
                 print('   %s budget skipped: %r' % (pkg, exc))
 
-    # --- native MARMITES plotLAYER head maps -------------------------- #
-    try:
-        written += native_layer_maps(sim_ws, name=name, verbose=verbose)
-    except Exception as exc:               # pragma: no cover
-        if verbose:
-            print('   native plotLAYER skipped: %r' % exc)
+    # NOTE: the native plotLAYER head map is NOT produced here any more.
+    # native_layer_maps() writes into <sim_ws>/postproc -- the MODEL workspace,
+    # not this run's results folder -- so it split the output across two
+    # directories, and it predates the corrections applied to the map wiring
+    # (legacy colormaps, automatic round ticks, observation points, the
+    # model's own hnoflo). native_suite's _native_aquifer_maps() supersedes it:
+    # same figure per layer, from an exact mean over every stress period rather
+    # than a 200-step subsample. native_layer_maps() is kept for standalone use.
 
     # --- per-layer storage change map --------------------------------- #
     try:
