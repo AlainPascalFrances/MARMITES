@@ -70,6 +70,71 @@ To restore the NWT-vs-MF6 comparison figures, either copy
 Without it the script prints "reference not loaded" and emits new-run figures only.
 ---
 
+## 0-ter. COMMAND-LINE FLAGS of `tests/run_lamata_mf6.py`
+
+The single entry point. Everything below is a flag of that script; the
+canonical spun-up run is in section 0.
+
+**Where things go**
+| flag | default | meaning |
+|---|---|---|
+| `--ws-root DIR` | `$MARMITES_WS_ROOT`, else `E:\00code_ws\LaMata_MM-MF6` | root of ALL run output, outside the repo |
+| `--ws DIR` | `<ws-root>\MF6_ws` | the MODFLOW 6 workspace itself |
+| `--run-tag TAG` | `<nlay>lay_<mode>` | names this run's results folder `out_<YYYYMMDDHHMM>_<TAG>` |
+
+**Model set-up**
+| flag | default | meaning |
+|---|---|---|
+| `--libmf6 PATH` | none | path to `libmf6.dll`; without it the run stops after writing the MF6 files |
+| `--nlay {2,6}` | 6 | parameter set: 2 reads `_2s1L.ini` directly, 6 reads `_2s3L.ini` |
+| `--grid {dis,disv}` | `dis` | structured or vertex grid |
+| `--mode {lagged,iterative}` | `lagged` | coupling scheme |
+| `--relax F` | 0.6 | relaxation for `iterative` |
+| `--nsp N` | all | truncate to N stress periods (for quick tests) |
+| `--aggregated` | off | stress periods instead of daily |
+| `--aggregate` | off | derive the 2-layer model from the 6-layer one (comparison only) |
+| `--seep {uzf,drn}` | `uzf` | seepage face; `drn` is the validated choice |
+| `--seep-cond F` | 10000 | DRN-seep conductance (must be free-draining) |
+| `--uzf-vks-scale F` | 1.0 | scale UZF vertical K |
+| `--sfr` / `--sfr-rhk F` | off / 0.1 | stream network and its bed K |
+| `--lak [SHP]` / `--lak-bedleak F` | off / 1e-3 | ponds as lakes and their bed leakance |
+| `--no-ats` | ATS on | disable adaptive time stepping |
+| `--strt-dem A B` | none | initial heads from a DEM regression |
+
+**Spin-up and saved state** (state is written to the workspace; reads fall back
+to the baseline committed in `DataSet_LaMata\MF_ws`)
+| flag | default | meaning |
+|---|---|---|
+| `--spinup N` / `--spinup-tol M` | 1 / 0.05 | repeat the run N times to equilibrate |
+| `--strt-heads PREFIX` | none | start from saved heads, e.g. `hi_spinup` |
+| `--steady-means PREFIX` | none | drive the steady SP0 with saved mean recharge/ETg |
+| `--save-strt [PREFIX]` / `--save-means [PREFIX]` | auto after a spin-up | save that state for reuse |
+
+**Post-processing** (all output lands in `<ws-root>\out_<stamp>_<tag>\`)
+| flag | default | meaning |
+|---|---|---|
+| `--postproc` | off | the full native figure suite + the 01-07 water-budget figures |
+| `--preproc` | off | input maps |
+| `--sankey-min-flux MM` | 0.05 | hide flows below this on the CORE Sankey |
+| `--no-sankey-full` | full on | skip the all-flux Sankey |
+| `--map-days N` | 6 | head maps on N evenly spaced days (0 = time mean only) |
+
+**Diagnostics**
+| flag | meaning |
+|---|---|
+| `--build-only` | write the MF6 files and stop |
+| `--standalone MF6EXE` | build then run `mf6` directly (no API) — isolates model faults from coupling faults |
+| `--probe` | list the MF6 memory variables and exit |
+| `--max-discrepancy F` / `--allow-bad-budget` | budget guard threshold / do not fail on it |
+
+**Environment variables**
+| variable | meaning |
+|---|---|
+| `MARMITES_WS_ROOT` | default for `--ws-root` |
+| `MARMITES_NWT_REF` | the legacy `_h5_MM.h5` used for the MODFLOW-NWT comparison panels |
+
+---
+
 ## 0-bis. OPEN ISSUES (recap 2026-09-07)
 
 Ordered by what blocks "post-processing reproduces MARMITESplot_v3 output".

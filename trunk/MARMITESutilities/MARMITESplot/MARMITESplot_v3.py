@@ -1404,9 +1404,22 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
 
 
 
+def _nice_tick(n, target=8):
+    """Round tick step so an n-cell axis carries at most ~`target` labels.
+
+    Used by plotLAYER for the MODFLOW row/column axes: labelling every index
+    made them illegible on realistic grids, so a round step (1, 2, 5, 10, ...)
+    is chosen from the grid size instead.
+    """
+    for s in (1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000):
+        if n / float(s) <= target:
+            return s
+    return max(1, int(round(n / float(target))))
+
+
 def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_title, MM_ws,
               interval_type='arange', interval_diff=1, interval_num=1, Vmax=0, Vmin=0, fmt=None, contours=False,
-              ntick=1, facecolor='silver', points=None, ptslbl=0, mask=None, hnoflo=-999.9, animation=0,
+              ntick=None, facecolor='silver', points=None, ptslbl=0, mask=None, hnoflo=-999.9, animation=0,
               pref_plt_title='_sp_plt', cMF=None):
     # TODO put axes tick as row/col index from MODFLOW AND real coordinates
 
@@ -1415,6 +1428,12 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
     # literal silently failed to match once callers moved to str, leaving
     # `ticks` unassigned and raising UnboundLocalError in the colorbar.
     interval_type = _as_str(interval_type)
+    # Row/column tick spacing. ntick=1 labelled EVERY row and column, which on
+    # a grid like La Mata's (65 x 60) printed the indices on top of one
+    # another. ntick=None (the default) picks a round step per axis so the
+    # labels stay legible whatever the grid size; an explicit ntick still wins.
+    _ntx = _nice_tick(ncol) if not ntick else ntick
+    _nty = _nice_tick(nrow) if not ntick else ntick
     plt_title = _as_str(plt_title)
     msg = _as_str(msg)
     CBlabel = _as_str(CBlabel)
@@ -1524,10 +1543,10 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
                         levels = mpl.ticker.MaxNLocator(nbins=cmap.N).tick_values(0.0, 100.0)
                         norm = mpl.colors.BoundaryNorm(ticks, cmap.N)  # , vmin=Vmin_tmp, vmax=Vmax_tmp)
                     ax.append(fig.add_subplot(NrowPage, NcolPage, l + 1, facecolor=facecolor))
-                    ax[l].xaxis.set_ticks(np.arange(0, ncol + 1, ntick))
+                    ax[l].xaxis.set_ticks(np.arange(0, ncol + 1, _ntx))
                     plt.setp(ax[l].get_xticklabels(), fontsize=8)
                     if l < 1:
-                        ax[l].yaxis.set_ticks(np.arange(0, nrow + 1, ntick))
+                        ax[l].yaxis.set_ticks(np.arange(0, nrow + 1, _nty))
                         plt.setp(ax[l].get_yticklabels(), fontsize=8)
                         plt.ylabel('row i', fontsize=10)
                         ax[l].yaxis.set_label_position("right")

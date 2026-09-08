@@ -726,7 +726,9 @@ def _native_flux_maps(MMplot, out_dir, cMF, ctx, res, verbose=True):
     cells = ctx.cells
     nrow, ncol = int(cMF.nrow), int(cMF.ncol)
     hnoflo = float(getattr(cMF, 'hnoflo', 9999.999))
-    cmap = matplotlib.colormaps['gist_rainbow_r']
+    # Legacy convention (startMARMITES_v3.py): gist_rainbow_r is for the INPUT
+    # maps only; MM result fluxes are drawn with Reds (OUT_average_MM_*).
+    cmap = matplotlib.colormaps['Reds']
     pts = _obs4map(res)
     before = set(os.listdir(out_dir)) if os.path.isdir(out_dir) else set()
     for key, stem, cblbl in _MAP_FLUXES:
@@ -1625,7 +1627,10 @@ def _native_aquifer_maps(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
     nlay, nrow, ncol = int(cMF.nlay), int(cMF.nrow), int(cMF.ncol)
     nper = int(np.asarray(res['wb_ts']).shape[0])
     hnoflo = float(getattr(cMF, 'hnoflo', 9999.999))
-    cmap = matplotlib.colormaps['gist_rainbow_r']
+    # Legacy convention: heads, recharge and storage in Blues; the terms that
+    # take water OUT of the aquifer (exfiltration, drainage, ET) in Reds.
+    cmap_in = matplotlib.colormaps['Blues']
+    cmap_out = matplotlib.colormaps['Reds']
     pts = _obs4map(res)
     delr = np.asarray(cMF.delr, float)
     delc = np.asarray(cMF.delc, float)
@@ -1634,7 +1639,7 @@ def _native_aquifer_maps(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
     ib = np.abs(np.asarray(cMF.ibound))
     before = set(os.listdir(out_dir)) if os.path.isdir(out_dir) else set()
 
-    def draw(V, stem, cblbl, unit, days=None, dates=None, jd=None):
+    def draw(V, stem, cblbl, unit, days=None, dates=None, jd=None, cmap=None):
         m = np.zeros((V.shape[0], nlay, nrow, ncol), bool)
         for L in range(nlay):
             m[:, L] = (ib[L] == 0)
@@ -1649,7 +1654,8 @@ def _native_aquifer_maps(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
                 str_per=days if days is not None else [0],
                 Date=dates if dates is not None else 'NA',
                 JD=jd if jd is not None else 'NA',
-                ncol=ncol, nrow=nrow, nlay=nlay, nplot=nlay, V=VV, cmap=cmap,
+                ncol=ncol, nrow=nrow, nlay=nlay, nplot=nlay, V=VV,
+                cmap=cmap if cmap is not None else cmap_in,
                 CBlabel='%s [%s]' % (cblbl, unit), msg='',
                 plt_title='GWmap_%s' % stem, MM_ws=out_dir,
                 interval_type='linspace', interval_num=5,
@@ -1689,7 +1695,8 @@ def _native_aquifer_maps(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
             continue
         V = (sgn * np.asarray(maps[key]) * to_mm[None, :, :]).reshape(
             1, nlay, nrow, ncol)
-        draw(V, stem, cblbl, 'mm/d')
+        draw(V, stem, cblbl, 'mm/d',
+             cmap=cmap_out if sgn < 0 else cmap_in)
     # storage change is the sum of the two storage records
     if 'STO-SS' in maps or 'STO-SY' in maps:
         s = (np.asarray(maps.get('STO-SS', 0.0))
