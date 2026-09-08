@@ -79,7 +79,7 @@ Ordered by what blocks "post-processing reproduces MARMITESplot_v3 output".
 |---|---|
 | `plotTIMESERIES_CATCH` | ✅ works (`native_wb_catchment*.png`) |
 | `plotWBsankey` catchment | ✅ works, core + full, MM-side MB ~0 % |
-| `plotWBsankey` per obs point | ⚠️ **BUG, root cause found 2026-09-07** — see below |
+| `plotWBsankey` per obs point | ✅ **FIXED 2026-09-07** — all 11 points render |
 | `plotLAYER` | 🟡 partial (flux maps + mean-head maps only) |
 | `plotTIMESERIES` (obs soil column) | ❌ Stage 2, not started |
 | `plotTIMESERIES_flxGW` | ❌ Stage 2, not started |
@@ -132,7 +132,7 @@ and exchange terms only; the soil-side aggregates must stay in the HDF5 (or be
 recomputed by re-running MM). The Sankey's aquifer side already reads the cbc
 directly (`_aquifer_layer_fluxes`) — that is the pattern to extend.
 
-### C. The MODFLOW-NWT comparison is silently OFF
+### C. MODFLOW-NWT comparison — RESTORED 2026-09-07 ✅
 `plot_water_budget.load_reference()` reads `DS/_h5_MM.h5`, but `DS` is now the
 repo's inputs-only `DataSet_LaMata`, which no longer holds it. The function
 returns None, so every comparison figure quietly degrades to "new run only".
@@ -143,7 +143,7 @@ file is read once rather than every time. The legacy `_h5_MF.h5` (3.1 GB,
 aquifer side) is not used at all yet and is the reference for comparing the
 MF6 aquifer terms.
 
-### D. Reading the cbc: measured, and what it costs vs the HDF5
+### D. Reading the cbc — RESOLVED 2026-09-07 ✅
 
 Benchmarked 2026-09-07 on the 1950-SP run (cbc 862 MB, uzf.cbc 773 MB,
 coupled h5 191 MB):
@@ -189,6 +189,30 @@ pays the pass; every re-plot afterwards is HDF5-speed.
   Workaround: pass `grb_file` (slow) or bypass the helper, as we do.
 - Sign convention: flopy applies `flows[face][n] = -1 * flowja[i]`. A
   hand-rolled JA extraction must negate to match; pin it with a test.
+
+### Resolved on 2026-09-07
+
+**Per-point Sankey.** matplotlib imposes two OPPOSING conditions on the flow
+that connects one block to the previous: it must be ABOVE `tolerance` to get
+an arrow angle, and the two sides must cancel to WITHIN `tolerance`. No
+tolerance satisfies both when the connecting flow is ~0, which is why lowering
+it merely moved the error. `plotWBsankey` now floors the five terms that carry
+a connection (Pe, I, Rp, Rg_L, FLF_L) to `eps_connect` (1e-4) -- the same
+number on both sides, so cancellation stays exact. All 11 points render, 8
+pages each; MM-side closure at P0 is MMsurf 0.1 %, MMsoil 0.0 %, MF-UZF -0.0 %.
+
+**Cell-budget reading.** 558 s -> 16.4 s cold, 0.017 s from the cached digest.
+One pass reduces every record for every target; FLF comes from a precomputed
+JA index instead of get_structured_faceflows; each record series is read in a
+single call with a MemoryError fallback to per-stress-period reads.
+Correctness fix found on the way: MF6 writes BOTH drain packages under the
+text `DRN`, so records are now addressed by (text, paknam2). The 1954-cell
+seepage face (~-2958 m3/d in layer 1) had been missed entirely.
+
+**NWT comparison.** Now reads the archive copy; first quantitative check of
+the conversion: forcing (P/Pe/Ei) identical, ETsoil within 0.7 %, and the
+differences confined to the surface split (I +45.0, Ro -20.6, Rp +36.4 mm/y),
+consistent with UZF6 EPSILON 3.5 vs UZF1 2.0.
 
 ### E. Carried over
 - **SFR / LAK** build and reload but have never been run coupled or validated.
