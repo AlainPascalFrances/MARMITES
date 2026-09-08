@@ -800,6 +800,12 @@ def plotTIMESERIES_flxGW(cMF, flx, flxLbl, flxIndex_lst, plt_export_fn, plt_titl
         if cMF.h_plt[L] == 1:
             plt.plot_date(cMF.inputDate, flx[flxIndex_lst['id_%s' % cMF.h_lbl[L]]], next(lines), color='b', markersize=2,
                       markevery=7, label=flxLbl[flxIndex_lst['id_%s' % cMF.h_lbl[L]]])  # 'id_%d' % (L + 1)
+    # SATFLOW depth to the water table, on the same axis as the per-layer
+    # depths it is meant to be compared with (it is a depth, not a flux).
+    if 'id_SF' in flxIndex_lst:
+        plt.plot_date(cMF.inputDate, flx[flxIndex_lst['id_SF']], '-', color='r',
+                      markersize=2, markevery=7,
+                      label=flxLbl[flxIndex_lst['id_SF']])
     # leg
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad=bdpd, handletextpad=hdltxtpd, ncol=2,
                columnspacing=colspc, numpoints=3)
@@ -826,8 +832,21 @@ def plotTIMESERIES_flxGW(cMF, flx, flxLbl, flxIndex_lst, plt_export_fn, plt_titl
     lines = itertools.cycle(
         ['-', '--', '-.', ':', '.', ',', 'o', 'v', '^', '<', '>', 's', 'p', '*', 'h', 'H', '+', 'x', 'D', 'd', '|',
          '_'])
+    # Only FLUXES belong on this axis. This loop used to take every entry from
+    # idSg_1 to the end of the list, which happened to work while the caller
+    # appended the per-layer aquifer terms last. With any other ordering it
+    # swept in the heads, depths and observed series too -- and hSF, at ~740 m,
+    # then stretched a millimetre axis to 700+ and flattened every real flux.
+    _keyat = {v: str(k) for k, v in flxIndex_lst.items()}
+
+    def _is_flux(pos):
+        k = _keyat.get(pos, '')
+        return not (k.startswith('ih_') or k.startswith('id_')
+                    or k.startswith('iSobs')
+                    or k in ('ihobs', 'idobs', 'idcorr', 'iRoobs', 'ihcorr'))
+
     for i in range(flxIndex_lst['idSg_1'], len(flxIndex_lst)):
-        if np.absolute(sum(flx[i])) > 1E-6:
+        if _is_flux(i) and np.absolute(sum(flx[i])) > 1E-6:
             plt.plot_date(cMF.inputDate, flx[i], next(lines), color=mpl.colors.rgb2hex(np.random.rand(1, 3)[0]),
                           markersize=2, markevery=7, label=flxLbl[i], markeredgecolor='None')
     # leg
@@ -1607,6 +1626,10 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
                             CBorient = 'vertical'
                         CB = fig.colorbar(ims[F][0 + l], ticks=ticks, extend='both', format=fmt, cax=cax,
                                           orientation=CBorient)  # , shrink=0.8)
+                        # The BoundaryNorm puts a minor tick at EVERY colour
+                        # boundary, which crowds the bar into a near-solid line
+                        # of marks. Only the labelled ticks are wanted.
+                        CB.ax.minorticks_off()
                         if l == 0:
                             CB.set_label(CBlabel, fontsize=10)  # , loc='center')
                         plt.setp(CB.ax.get_xticklabels(), fontsize=7)
@@ -1625,6 +1648,7 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
                     CBorient = 'vertical'
                 CB = fig.colorbar(ims[F][0], ticks=ticks, extend='both', format=fmt, cax=cax,
                                   orientation=CBorient)  # , shrink=0.8)
+                CB.ax.minorticks_off()          # see the note on the other bar
                 # print(ticks)
                 CB.set_label(CBlabel, fontsize=10)
                 if max(x) > max(y):

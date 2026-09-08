@@ -679,24 +679,32 @@ def _to_ordinal(d):
 
 
 # Time-mean MM flux maps to draw, as (index key, file/label stem, colourbar).
+# Time-mean MM flux maps: (index key, stem, colourbar label, colormap).
+#
+# Colour follows the meaning, not the package: water ARRIVING or STORED is
+# blue (rainfall, effective rainfall, infiltration, percolation, soil moisture,
+# depth to the water table), water LEAVING is red (runoff, every evaporation
+# and transpiration term, exfiltration), and the unsaturated thickness is drawn
+# brown like the soil it measures. Signed fields (dSsoil, dSsurf) are left to
+# plotLAYER, which switches them to the remapped coolwarm_r ramp by itself.
 _MAP_FLUXES = (
-    ('iP', 'P', 'rainfall'),
-    ('iPe', 'Pe', 'effective rainfall'),
-    ('iRo', 'Ro', 'runoff'),
-    ('iI', 'I', 'infiltration'),
-    ('iEi', 'Ei', 'interception'),
-    ('iEow', 'Eow', 'open-water evaporation'),
-    ('iETsoil', 'ETsoil', 'soil ET'),
-    ('iEg', 'Eg', 'groundwater evaporation'),
-    ('iTg', 'Tg', 'groundwater transpiration'),
-    ('iETg', 'ETg', 'groundwater ET'),
-    ('iperc', 'Rp', 'percolation'),
-    ('iEXFg', 'EXFg', 'exfiltration'),
-    ('idSsoil', 'dSsoil', 'change in soil storage'),
-    ('idSsurf', 'dSsurf', 'change in surface storage'),
-    ('iSsoil_pc', 'theta', 'soil moisture'),
-    ('iuzthick', 'uzthick', 'unsaturated thickness'),
-    ('idgwt', 'dgwt', 'depth to water table'),
+    ('iP', 'P', 'rainfall', 'Blues'),
+    ('iPe', 'Pe', 'effective rainfall', 'Blues'),
+    ('iI', 'I', 'infiltration', 'Blues'),
+    ('iperc', 'Rp', 'percolation', 'Blues'),
+    ('iSsoil_pc', 'theta', 'soil moisture', 'Blues'),
+    ('idgwt', 'dgwt', 'depth to water table', 'Blues'),
+    ('iRo', 'Ro', 'runoff', 'Reds'),
+    ('iEi', 'Ei', 'interception', 'Reds'),
+    ('iEow', 'Eow', 'open-water evaporation', 'Reds'),
+    ('iETsoil', 'ETsoil', 'soil ET', 'Reds'),
+    ('iEg', 'Eg', 'groundwater evaporation', 'Reds'),
+    ('iTg', 'Tg', 'groundwater transpiration', 'Reds'),
+    ('iETg', 'ETg', 'groundwater ET', 'Reds'),
+    ('iEXFg', 'EXFg', 'exfiltration', 'Reds'),
+    ('iuzthick', 'uzthick', 'unsaturated thickness', 'YlOrBr'),
+    ('idSsoil', 'dSsoil', 'change in soil storage', 'Blues'),
+    ('idSsurf', 'dSsurf', 'change in surface storage', 'Blues'),
 )
 
 
@@ -746,11 +754,10 @@ def _native_flux_maps(MMplot, out_dir, cMF, ctx, res, verbose=True):
     nrow, ncol = int(cMF.nrow), int(cMF.ncol)
     hnoflo = float(getattr(cMF, 'hnoflo', 9999.999))
     # Legacy convention (startMARMITES_v3.py): gist_rainbow_r is for the INPUT
-    # maps only; MM result fluxes are drawn with Reds (OUT_average_MM_*).
-    cmap = matplotlib.colormaps['Reds']
+    # maps only. Result colours come from _MAP_FLUXES, per flux.
     pts = _obs4map(res)
     before = set(os.listdir(out_dir)) if os.path.isdir(out_dir) else set()
-    for key, stem, cblbl in _MAP_FLUXES:
+    for key, stem, cblbl, cmname in _MAP_FLUXES:
         if key not in IX:
             continue
         grid = np.full((1, 1, nrow, ncol), hnoflo)
@@ -765,7 +772,7 @@ def _native_flux_maps(MMplot, out_dir, cMF, ctx, res, verbose=True):
         try:
             MMplot.plotLAYER(
                 days=[0], str_per=[0], Date='NA', JD='NA', ncol=ncol, nrow=nrow,
-                nlay=1, nplot=1, V=grid, cmap=cmap,
+                nlay=1, nplot=1, V=grid, cmap=matplotlib.colormaps[cmname],
                 CBlabel='%s [%s]' % (cblbl, unit), msg='',
                 plt_title='MMmap_%s' % stem, MM_ws=out_dir,
                 interval_type='linspace', interval_num=5,
@@ -1480,7 +1487,17 @@ def _native_obs_timeseries(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
                                                   cMF.hnoflo, atol=0.09),
                     r'$Ro\/obs$')
 
-            hs = heads[p][np.isfinite(heads[p])]
+            # The head panel must span EVERY head-like series it draws, not
+            # just the MODFLOW ones: plotTIMESERIES also plots the SATFLOW head
+            # and the observed record, and scaling to the MODFLOW heads alone
+            # pushed hSF (739.6-749.5 m at P0) clean off the top of the axis.
+            hser = [heads[p][np.isfinite(heads[p])], np.asarray(h_sf, float)]
+            if 'ihobs' in idx:
+                # masked entries are the hnoflo sentinel -> NaN, not values
+                hser.append(np.ma.filled(np.ma.asarray(flx[idx['ihobs']],
+                                                       dtype=float), np.nan))
+            hs = np.concatenate([np.asarray(a, float).ravel() for a in hser])
+            hs = hs[np.isfinite(hs)]
             hmax = float(np.nanmax(hs)) if hs.size else float(cMF.elev[i, j])
             hmin = float(np.nanmin(hs)) if hs.size else float(cMF.elev[i, j]) - 10.0
             fn = os.path.join(out_dir, '_0%s_ts.png' % o)
