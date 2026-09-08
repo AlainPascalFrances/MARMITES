@@ -143,12 +143,52 @@ file is read once rather than every time. The legacy `_h5_MF.h5` (3.1 GB,
 aquifer side) is not used at all yet and is the reference for comparing the
 MF6 aquifer terms.
 
-### D. Performance: per-SP cbc reads do not scale
-`_aquifer_layer_fluxes` opens and scans the cell budget **once per stress
-period**. At 1949 SPs x (1 catchment + 11 obs points) that is >20 000 record
-reads; a diagnostic run of the per-point Sankeys did not finish in 10 minutes.
-Restructure to read each cbc record once across all stress periods (or index
-by record) before Stage 2 multiplies the call count.
+### D. Reading the cbc: measured, and what it costs vs the HDF5
+
+Benchmarked 2026-09-07 on the 1950-SP run (cbc 862 MB, uzf.cbc 773 MB,
+coupled h5 191 MB):
+
+| Operation | Time |
+|---|---|
+| HDF5 open | 3 ms |
+| HDF5 read `wb_ts` (0.4 MB) | **3 ms** |
+| HDF5 read `heads` (29 MB) | 19 ms (~1.5 GB/s) |
+| CBC open + build index | **1.9-4.4 s** (irreducible floor) |
+| CBC `get_data(text=...)` one call, ALL 1950 SPs | 3.6 s for 6 record types |
+| `get_data(..., full3D=True)`, single SP | ~2 ms |
+| `get_structured_faceflows(grb_file=...)`, single SP | **10.6 ms** |
+| FLF for all SPs via a precomputed JA index | **0.02 s** |
+
+**Answer to "can the cbc match the HDF5?" - no, and it does not need to.**
+The gap is fundamental: the cbc is 1.6 GB of per-cell, per-package, per-SP data
+that must be parsed record by record, against a 0.4 MB pre-aggregated
+contiguous slab. Cold read is ~250x slower. But the useful figure is seconds,
+not minutes, and it is a one-time cost next to an 11.5-minute model run.
+
+**The 9.3 minutes was self-inflicted, not inherent to the cbc.** Three faults in
+`_aquifer_layer_fluxes`, worth ~100x together:
+1. `get_data` called once per stress period instead of once per record type.
+2. `get_structured_faceflows(grb_file=...)` **re-parses the .grb on every
+   call** - 10.6 ms x 1950 = 17.6 s. Precomputing each cell's downward JA
+   connection index once (0.01 s) reduces the whole FLF extraction to 0.02 s.
+3. The entire extraction repeated per target (catchment + 11 obs = x12) instead
+   of reducing for every target inside one pass.
+
+**Design adopted:** one pass over the stress periods, reducing for ALL targets
+simultaneously, FLF via the precomputed JA index, and the small result cached as
+a digest (a few hundred KB) keyed on the cbc's size+mtime. First post-processing
+pays the pass; every re-plot afterwards is HDF5-speed.
+
+**Two flopy defects found (flopy 3.10.0; verified still present on master /
+3.11 on 2026-09-07):**
+- `get_structured_faceflows(ia=..., ja=...)` **without** `grb_file` raises
+  `UnboundLocalError`/`NameError`: the body does `for n in range(grb.nodes)`
+  while `grb` is only bound inside `if grb_file is not None`. PR #1968 added the
+  `nlay/nrow/ncol` alternative but left that reference, so the documented
+  ia/ja path has never worked. No open issue - worth reporting upstream.
+  Workaround: pass `grb_file` (slow) or bypass the helper, as we do.
+- Sign convention: flopy applies `flows[face][n] = -1 * flowja[i]`. A
+  hand-rolled JA extraction must negate to match; pin it with a test.
 
 ### E. Carried over
 - **SFR / LAK** build and reload but have never been run coupled or validated.
