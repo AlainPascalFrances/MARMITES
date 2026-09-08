@@ -747,7 +747,22 @@ def _conv_fact(cMF):
     return {1: 304.8, 2: 1000.0, 3: 10.0}.get(int(getattr(cMF, 'lenuni', 2)), 1000.0)
 
 
-_AQ_RECORDS = ('UZF-GWRCH', 'STO-SS', 'STO-SY', 'DRN', 'DRN_SEEP', 'WEL')
+# Budget records to harvest, as (key, cbc text, paknam2).
+#
+# The paknam2 filter matters: MODFLOW 6 writes BOTH drain packages under the
+# single text 'DRN', distinguished only by the package name. On La Mata that is
+# the 12-cell boundary drain AND the 1954-cell seepage face (~-2958 m3/d in
+# layer 1). Reading text='DRN' alone silently returns whichever record comes
+# first, so the seepage was being missed entirely and exfiltration fell back to
+# the coupler's own `exf` array.
+_AQ_RECORDS = (
+    ('UZF-GWRCH', 'UZF-GWRCH', None),
+    ('STO-SS', 'STO-SS', None),
+    ('STO-SY', 'STO-SY', None),
+    ('DRN', 'DRN', 'DRN'),                 # boundary drains
+    ('DRN_SEEP', 'DRN', 'DRN_SEEP'),       # seepage face (seep='drn')
+    ('WEL', 'WEL', None),                  # groundwater ET sink
+)
 
 
 def _ja_down_index(grb_file, nlay, nrow, ncol):
@@ -821,7 +836,7 @@ def _aquifer_pass(sim_ws, name, cMF, targets, nper, cache_dir=None,
     kk = cbc.get_kstpkper()
     off = max(len(kk) - nper, 0)                   # skip the steady SP0
     recs = set(r.strip() for r in cbc.get_unique_record_names(decode=True))
-    out = {r: np.zeros((nper, ntg, nlay)) for r in _AQ_RECORDS}
+    out = {key: np.zeros((nper, ntg, nlay)) for key, _t, _p in _AQ_RECORDS}
     out['FLF'] = np.zeros((nper, ntg, nlay))
 
     have_flf = nlay > 1 and 'FLOW-JA-FACE' in recs
@@ -831,25 +846,72 @@ def _aquifer_pass(sim_ws, name, cMF, targets, nper, cache_dir=None,
     else:
         have_flf = False
 
+    def _reduce(a, dest_k):
+        """Reduce one stress period's (nlay, ncell) slab onto every target."""
+        for t in range(ntg):
+            dest_k[t] = a[:, flat[t]].sum(axis=1)
+
+    def _fill(key, text, pak2, dest, flf_mode=False):
+        """Fill (nper, ntg, nlay) for one record.
+
+        Preferred path reads the WHOLE series in a single call -- one
+        sequential sweep of the file instead of nper seeks. One record type is
+        held at a time and freed before the next, so the peak is the largest
+        single series (~350 MB for FLOW-JA-FACE on this model). Falls back to
+        per-stress-period reads if that does not fit.
+        """
+        try:
+            data = (cbc.get_data(text=text, paknam2=pak2) if flf_mode else
+                    cbc.get_data(text=text, paknam2=pak2, full3D=True))
+            if not data:
+                return 'absent'
+            if len(data) < nper + off:
+                raise ValueError('%s: got %d records for %d stress periods'
+                                 % (key, len(data), nper + off))
+            for k in range(nper):
+                rec = data[k + off]
+                if flf_mode:
+                    fj = np.asarray(rec, float).ravel()
+                    a = np.zeros(nodes)
+                    a[src] = -fj[pos]              # flopy negates; match it
+                    a = a.reshape(nlay, -1)
+                else:
+                    a = np.ma.filled(np.asarray(rec, float), 0.0).reshape(nlay, -1)
+                _reduce(a, dest[k])
+            del data
+            return 'bulk'
+        except MemoryError:
+            if verbose:
+                print('   %s: series too large for one read, '
+                      'falling back to per-stress-period' % key)
+        for k in range(nper):
+            kp = kk[k + off]
+            if flf_mode:
+                fj = np.asarray(cbc.get_data(text=text, paknam2=pak2,
+                                             kstpkper=kp)[0], float).ravel()
+                a = np.zeros(nodes)
+                a[src] = -fj[pos]
+                a = a.reshape(nlay, -1)
+            else:
+                d = cbc.get_data(text=text, paknam2=pak2, kstpkper=kp, full3D=True)
+                if not d:
+                    continue
+                a = np.ma.filled(np.asarray(d[0], float), 0.0).reshape(nlay, -1)
+            _reduce(a, dest[k])
+        return 'per-SP'
+
     t0 = time.time()
-    for k in range(nper):
-        kp = kk[k + off]
-        for r in _AQ_RECORDS:
-            if r not in recs:
-                continue
-            d = cbc.get_data(text=r, kstpkper=kp, full3D=True)
-            if not d:
-                continue
-            a = np.ma.filled(np.asarray(d[0], float), 0.0).reshape(nlay, -1)
-            for t in range(ntg):
-                out[r][k, t] = a[:, flat[t]].sum(axis=1)
-        if have_flf:
-            fj = np.asarray(cbc.get_data(text='FLOW-JA-FACE', kstpkper=kp)[0]).ravel()
-            flf = np.zeros(nodes)
-            flf[src] = -fj[pos]                    # flopy negates; match it
-            flf = flf.reshape(nlay, -1)
-            for t in range(ntg):
-                out['FLF'][k, t] = flf[:, flat[t]].sum(axis=1)
+    modes = {}
+    for key, text, pak2 in _AQ_RECORDS:
+        if text in recs:
+            modes[key] = _fill(key, text, pak2, out[key])
+    if have_flf:
+        modes['FLF'] = _fill('FLF', 'FLOW-JA-FACE', None, out['FLF'],
+                             flf_mode=True)
+    if verbose and modes:
+        slow = [r for r, m in modes.items() if m == 'per-SP']
+        if slow:
+            print('   per-SP fallback used for: %s' % ', '.join(slow))
     if verbose:
         print('   aquifer pass: %d SP x %d target(s) in %.1f s'
               % (nper, ntg, time.time() - t0))
