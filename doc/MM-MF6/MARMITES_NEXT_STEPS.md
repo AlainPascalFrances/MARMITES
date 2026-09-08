@@ -115,7 +115,7 @@ to the baseline committed in `DataSet_LaMata\MF_ws`)
 |---|---|---|
 | `--postproc` | off | the full native figure suite + the 01-07 water-budget figures |
 | `--preproc` | off | input maps |
-| `--postproc-only` | off | re-draw from a run already on disk: no MODFLOW, seconds instead of the full run (implies `--postproc`) |
+| `--postproc-only` | off | re-draw from a run already on disk: reads the coupled HDF5 and the MF6 output, builds nothing and runs nothing (implies `--postproc`; combine with `--preproc` for the input maps) |
 | `--sankey-min-flux MM` | 0.05 | hide flows below this on the CORE Sankey |
 | `--no-sankey-full` | full on | skip the all-flux Sankey |
 | `--map-days N` | 6 | head maps on N evenly spaced days (0 = time mean only) |

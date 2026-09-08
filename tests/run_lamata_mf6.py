@@ -373,6 +373,21 @@ def main():
 
     cMF, mm, ctx, state, top, botm, conv_fact = setup_lamata(
         daily=a.daily, nsp=a.nsp, grid=a.grid, nlay=a.nlay, aggregate=a.aggregate)
+    if a.postproc_only:
+        # Re-draw the figures from a run that already happened: everything the
+        # post-processing reads is on disk (the coupled HDF5 for the MM side,
+        # the .hds/.cbc/.grb for the aquifer side), so MODFLOW need not run
+        # again. Iterating on a figure costs seconds instead of the full run.
+        h5_fn = os.path.join(a.ws, '_coupled_%s.h5' % a.mode)
+        if not os.path.exists(h5_fn):
+            raise SystemExit('--postproc-only needs a previous run: %s not found'
+                             % h5_fn)
+        with h5py.File(h5_fn, 'r') as f:
+            res = {k: f[k][:] for k in f.keys()}
+        print('re-using %s (%d stress period(s))'
+              % (h5_fn, res['wb_ts'].shape[0]))
+        _run_postproc(a, cMF, ctx, res)
+        return
     b = clsMF6(cMF, top=top, botm=botm, sim_ws=a.ws, daily=True, grid=a.grid,
                strt_from_dem=(tuple(a.strt_dem) if a.strt_dem else None))
     b.seep = a.seep
@@ -428,21 +443,6 @@ def main():
             print('\n--- mfsim.lst (tail) ---\n%s' % ''.join(tail))
         return
 
-    if a.postproc_only:
-        # Re-draw the figures from a run that already happened: everything the
-        # post-processing reads is on disk (the coupled HDF5 for the MM side,
-        # the .hds/.cbc/.grb for the aquifer side), so MODFLOW need not run
-        # again. Iterating on a figure costs seconds instead of the full run.
-        h5_fn = os.path.join(a.ws, '_coupled_%s.h5' % a.mode)
-        if not os.path.exists(h5_fn):
-            raise SystemExit('--postproc-only needs a previous run: %s not found'
-                             % h5_fn)
-        with h5py.File(h5_fn, 'r') as f:
-            res = {k: f[k][:] for k in f.keys()}
-        print('re-using %s (%d stress period(s))'
-              % (h5_fn, res['wb_ts'].shape[0]))
-        _run_postproc(a, cMF, ctx, res)
-        return
 
     if a.build_only or not a.libmf6:
         # preproc only needs the built model, so it can run without libmf6;
