@@ -698,6 +698,23 @@ _MAP_FLUXES = (
 )
 
 
+def _vrange(v):
+    """(Vmin, Vmax) for plotLAYER, with a NEGLIGIBLE negative snapped to zero.
+
+    plotLAYER switches to the diverging coolwarm_r ramp whenever Vmin < 0 <
+    Vmax. A field that is physically one-signed but carries a -1e-9 rounding
+    value would then waste half the colour range on a bound that is not real,
+    so anything below 1e-6 of the positive range is treated as zero.
+    """
+    lo, hi = float(np.nanmin(v)), float(np.nanmax(v))
+    tol = 1e-6 * max(abs(hi), abs(lo), 1.0)
+    if -tol < lo < 0.0:
+        lo = 0.0
+    if 0.0 < hi < tol:
+        hi = 0.0
+    return lo, hi
+
+
 def _obs4map(res):
     """Observation points for plotLAYER's ``points`` overlay: [lbl, i, j, lay],
     the four parallel lists the native routine expects."""
@@ -750,8 +767,8 @@ def _native_flux_maps(MMplot, out_dir, cMF, ctx, res, verbose=True):
                 CBlabel='%s [%s]' % (cblbl, unit), msg='',
                 plt_title='MMmap_%s' % stem, MM_ws=out_dir,
                 interval_type='linspace', interval_num=5,
-                Vmax=[float(vals.max())], Vmin=[float(vals.min())],
-                fmt='%5.2f', points=pts, mask=mask, hnoflo=hnoflo)
+                Vmax=[_vrange(vals)[1]], Vmin=[_vrange(vals)[0]],
+                fmt='%5.2f', points=pts, mask=mask, hnoflo=hnoflo, cMF=cMF)
         except Exception as exc:                     # pragma: no cover
             if verbose:
                 print('   flux map %s skipped: %r' % (stem, exc))
@@ -1659,8 +1676,8 @@ def _native_aquifer_maps(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
                 CBlabel='%s [%s]' % (cblbl, unit), msg='',
                 plt_title='GWmap_%s' % stem, MM_ws=out_dir,
                 interval_type='linspace', interval_num=5,
-                Vmax=[float(vals.max())], Vmin=[float(vals.min())],
-                fmt='%5.2f', points=pts, mask=m[0], hnoflo=hnoflo)
+                Vmax=[_vrange(vals)[1]], Vmin=[_vrange(vals)[0]],
+                fmt='%5.2f', points=pts, mask=m[0], hnoflo=hnoflo, cMF=cMF)
         except Exception as exc:                     # pragma: no cover
             if verbose:
                 print('   aquifer map %s skipped: %r' % (stem, exc))
