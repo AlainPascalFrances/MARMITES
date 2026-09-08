@@ -1355,6 +1355,7 @@ def _native_obs_timeseries(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
     satflow = _MMsoil.SATFLOW()
     h_lbl = list(getattr(cMF, 'h_lbl', [str(L + 1) for L in range(nlay)]))
     written = []
+    stats = []                 # (name, compCalibCritObs tuple) per obs point
 
     for p in range(nobs):
         i, j = int(obs_ij[p, 0]), int(obs_ij[p, 1])
@@ -1464,11 +1465,117 @@ def _native_obs_timeseries(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
                 date_ini=DATE[HYindex[1]], date_end=DATE[HYindex[-2]])
             if os.path.exists(fn):
                 written.append(fn)
+            # groundwater-flux figure at the same point, from the same flux list
+            fng = os.path.join(out_dir, '_0%s_tsGW.png' % o)
+            try:
+                MMplot.plotTIMESERIES_flxGW(
+                    cMFd, flx, lbl, idx, fng,
+                    'Groundwater fluxes at observation point %s' % o,
+                    iniMonthHydroYear=int(getattr(cMF, 'iniMonthHydroYear', 10)),
+                    date_ini=DATE[HYindex[1]], date_end=DATE[HYindex[-2]])
+                # the native routine writes only the '_part3MF' variant
+                stem = os.path.splitext(os.path.basename(fng))[0]
+                written += [os.path.join(out_dir, f) for f in os.listdir(out_dir)
+                            if f.startswith(stem) and f.endswith('.png')]
+            except Exception as exc:                 # pragma: no cover
+                if verbose:
+                    print('   obs GW time series (%s) skipped: %r' % (o, exc))
+            # calibration statistics for this point, over the hydro-year window
+            a, b = HYindex[1], HYindex[-2]
+            try:
+                l_obs = int(oo.get('lay', l_high))
+                stats.append((o, cMF.cPROCESS.compCalibCritObs(
+                    mms_obs[a:b, p, 0:nsl, IXS['iSsoil_pc_s']],
+                    np.ma.masked_values(heads[p, min(l_obs, nlay - 1), a:b],
+                                        cMF.hnoflo, atol=0.09),
+                    (np.asarray(oo['obs_SM'])[:, a:b]
+                     if oo.get('obs_SM') is not None else []),
+                    (np.asarray(oo['obs_h'])[0, a:b]
+                     if oo.get('obs_h') is not None else None),
+                    cMF.hnoflo, o, nsl, mm_obs[a:b, p, IX['ihcorr']])))
+            except Exception as exc:                 # pragma: no cover
+                if verbose:
+                    print('   calib stats (%s) skipped: %r' % (o, exc))
         except Exception as exc:                     # pragma: no cover
             if verbose:
                 print('   obs time series (%s) skipped: %r' % (o, exc))
     if verbose:
-        print('   native obs time series: %d/%d point(s)' % (len(written), nobs))
+        print('   native obs time series: %d figure(s) from %d point(s)'
+              % (len(written), nobs))
+    written += _native_calibcrit(MMplot, out_dir, cMF, stats, verbose=verbose)
+    return written
+
+
+def _native_calibcrit(MMplot, out_dir, cMF, stats, verbose=True):
+    """Calibration-criteria figures (native ``plotCALIBCRIT``).
+
+    ``stats`` is the list of ``(obs name, compCalibCritObs(...))`` tuples
+    gathered per observation point. That native routine returns, in order:
+    ``rmseHEADS, rmseHEADSc, rmseSM, rsrHEADS, rsrHEADSc, rsrSM,
+    nseHEADS, nseHEADSc, nseSM, rHEADS, rHEADSc, rSM``. One figure is written
+    per criterion (RMSE, RSR, NSE, r), each comparing soil moisture and heads
+    across the points, exactly as the legacy driver did (~2211-2228).
+    """
+    if not stats:
+        return []
+    # unpack into the per-criterion lists plotCALIBCRIT expects, keeping each
+    # observation name aligned with the points that actually produced a value
+    sm = {k: [] for k in ('rmse', 'rsr', 'nse', 'r')}
+    hd = {k: [] for k in ('rmse', 'rsr', 'nse', 'r')}
+    hc = {k: [] for k in ('rmse', 'rsr', 'nse', 'r')}
+    o_sm, o_hd, o_hc = [], [], []
+    for o, t in stats:
+        (rmseH, rmseHc, rmseS, rsrH, rsrHc, rsrS,
+         nseH, nseHc, nseS, rH, rHc, rS) = t
+        if rmseH is not None and rmseH != []:
+            for k, v in zip(('rmse', 'rsr', 'nse', 'r'), (rmseH, rsrH, nseH, rH)):
+                hd[k].append(v)
+            o_hd.append(o)
+        if rmseHc is not None and rmseHc != []:
+            for k, v in zip(('rmse', 'rsr', 'nse', 'r'), (rmseHc, rsrHc, nseHc, rHc)):
+                hc[k].append(v)
+            o_hc.append(o)
+        if rmseS is not None and rmseS != []:
+            for k, v in zip(('rmse', 'rsr', 'nse', 'r'), (rmseS, rsrS, nseS, rS)):
+                sm[k].append(v)
+            o_sm.append(o)
+
+    smmax = max([max(v) for v in sm['rmse']] or [None]) if sm['rmse'] else None
+    hdmax = max([max(v) if hasattr(v, '__len__') else v
+                 for v in hd['rmse']] or [None]) if hd['rmse'] else None
+    jobs = [
+        ('rmse', 'RMSE', 'Root mean square error', smmax, hdmax, 0,
+         ['(m)', '(%wc)']),
+        ('rsr', 'RSR', 'Root mean square error - observations standard '
+                       'deviation ratio', None, None, 0, ['', '']),
+        ('nse', 'NSE', 'Nash-Sutcliffe efficiency', 1.0, 1.0, None, ['', '']),
+        ('r', 'r', "Pearson's correlation coefficient", 1.0, 1.0, -1.0,
+         ['', '']),
+    ]
+    written = []
+    for key, crit, title, smx, hmx, ymin, units in jobs:
+        fn = os.path.join(out_dir, '__plt_calibcrit%s.png' % crit)
+        try:
+            MMplot.plotCALIBCRIT(
+                calibcritSM=sm[key], calibcritSMobslst=o_sm,
+                calibcritHEADS=hd[key], calibcritHEADSobslst=o_hd,
+                calibcritHEADSc=hc[key], calibcritHEADScobslst=o_hc,
+                plt_export_fn=fn,
+                plt_title='Calibration criteria between simulated and observed '
+                          'state variables\n%s' % title,
+                calibcrit=crit, calibcritSMmax=smx, calibcritHEADSmax=hmx,
+                ymin=ymin, units=units, hnoflo=cMF.hnoflo)
+            # plotCALIBCRIT appends a page index, so collect by stem
+            stem = os.path.splitext(os.path.basename(fn))[0]
+            written += [os.path.join(out_dir, f) for f in os.listdir(out_dir)
+                        if f.startswith(stem) and f.endswith('.png')]
+        except Exception as exc:                     # pragma: no cover
+            if verbose:
+                print('   calib criterion %s skipped: %r' % (crit, exc))
+    if verbose:
+        print('   native calibration criteria: %d figure(s) '
+              '(heads at %d point(s), soil moisture at %d)'
+              % (len(written), len(o_hd), len(o_sm)))
     return written
 
 
