@@ -628,7 +628,7 @@ def _run_postproc(a, cMF, ctx, res):
         if a.postproc:
             run_postproc(a.ws, DS, name=cMF.modelname.lower(), out_root=a.out_dir)
             # native MARMITESplot figures, driven by the in-memory coupled data
-            native_suite(os.path.join(a.out_dir, 'postproc'), cMF, ctx, res,
+            native_suite(os.path.join(a.out_dir, '_output'), cMF, ctx, res,
                          ds_ws=DS, sim_ws=a.ws, sankey=True,
                          sankey_full=a.sankey_full,
                          sankey_min_flux=a.sankey_min_flux, map_days=a.map_days,

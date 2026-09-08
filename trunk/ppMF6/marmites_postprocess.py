@@ -85,7 +85,7 @@ def _asc(fn):
     return np.where(a <= -9990.0, np.nan, a)
 
 
-def _mkdir(sim_ws, sub='postproc'):
+def _mkdir(sim_ws, sub='_output'):
     d = os.path.join(sim_ws, sub)
     os.makedirs(d, exist_ok=True)
     return d
@@ -262,7 +262,7 @@ def layer_storage_change(sim_ws, name, nlay, nrow, ncol, kper_skip=1,
 def run_postproc(sim_ws, ds_ws, name='lamatamm', dates=None,
                  xll=739300.0, yll=4553050.0, cs=50.0, verbose=True,
                  out_root=None):
-    """Produce the full post-processing figure/CSV set into <sim_ws>/postproc/.
+    """Produce the full post-processing figure/CSV set into <out-dir>/_output/.
 
     Returns the list of files written. Each figure is guarded so a missing
     output file (e.g. no SFR in this run) skips that figure rather than
@@ -274,7 +274,7 @@ def run_postproc(sim_ws, ds_ws, name='lamatamm', dates=None,
     import pandas as pd
     import flopy
 
-    out = _mkdir(out_root or sim_ws, 'postproc')
+    out = _mkdir(out_root or sim_ws, '_output')
     written = []
     sim = flopy.mf6.MFSimulation.load(sim_ws=sim_ws, verbosity_level=0)
     gwf = sim.get_model()
@@ -385,7 +385,7 @@ def run_postproc(sim_ws, ds_ws, name='lamatamm', dates=None,
 
 def run_preproc(sim_ws, ds_ws, name='lamatamm', mf_ws=None, verbose=True,
                 out_root=None, cMF=None, ctx=None, res=None, trunk=None):
-    """Input maps into <sim_ws>/preproc/: MARMITES soil/veg/meteo maps AND the
+    """Input maps into <out-dir>/_input/: MARMITES soil/veg/meteo maps AND the
     MODFLOW aquifer maps (top, per-layer K / Ss / Sy / thickness, ibound+UZF
     footprint, ponds+stream overlay).
     """
@@ -394,7 +394,7 @@ def run_preproc(sim_ws, ds_ws, name='lamatamm', mf_ws=None, verbose=True,
     import matplotlib.pyplot as plt
     import flopy
 
-    out = _mkdir(out_root or sim_ws, 'preproc')
+    out = _mkdir(out_root or sim_ws, '_input')
     mf_ws = mf_ws or os.path.join(ds_ws, 'MF_ws')
     written = []
 
@@ -503,7 +503,9 @@ def _fig_network_overlay(sim_ws, ds_ws, gwf, top, out):
         ax.plot(lj, li, 'o', ms=6, mfc='none', color='tab:red', label='ponds (LAK)')
     ax.set_title('stream network and ponds')
     ax.legend(fontsize=8, loc='best')
-    ax.invert_yaxis()
+    # NO invert_yaxis(): imshow already draws row 0 at the top, which is the
+    # MODFLOW convention (row 0 = north edge) and matches every other map.
+    # Inverting flipped this one vertically against all the others.
     fn = os.path.join(out, 'network_overlay.png')
     fig.savefig(fn, dpi=140, bbox_inches='tight')
     plt.close(fig)

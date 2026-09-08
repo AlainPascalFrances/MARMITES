@@ -1588,6 +1588,36 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
                     ax[l].xaxis.set_label_position("top")
                     ax[l].xaxis.tick_top()
                     ax[l].xaxis.set_ticks_position('both')
+                    # Real-world coordinates on the BOTTOM and LEFT, keeping the
+                    # MODFLOW indices on the top and right. The mesh puts cell
+                    # centres at 1..ncol / 1..nrow with row 1 at the north edge,
+                    # so a data coordinate maps to the projected one as
+                    #   X = xll + (xd - 0.5) * delr
+                    #   Y = yll + (nrow - yd + 0.5) * delc
+                    # (checked against inputObs.txt: cell i=8, j=4 -> 739525,
+                    # 4555875, exactly the coordinates given for P0).
+                    _xll = getattr(cMF, 'xllcorner', None) if cMF is not None else None
+                    if _xll is not None:
+                        _yll = float(cMF.yllcorner)
+                        _dr = float(np.mean(np.asarray(cMF.delr, dtype=float)))
+                        _dc = float(np.mean(np.asarray(cMF.delc, dtype=float)))
+                        _xll = float(_xll)
+                        secx = ax[l].secondary_xaxis(
+                            'bottom',
+                            functions=(lambda v, a=_xll, d=_dr: a + (v - 0.5) * d,
+                                       lambda X, a=_xll, d=_dr: (X - a) / d + 0.5))
+                        secx.set_xlabel('X [m]', fontsize=9)
+                        secx.ticklabel_format(style='plain', useOffset=False)
+                        plt.setp(secx.get_xticklabels(), fontsize=7, rotation=30,
+                                 ha='right')
+                        if l < 1:
+                            secy = ax[l].secondary_yaxis(
+                                'left',
+                                functions=(lambda v, b=_yll, d=_dc, n=nrow: b + (n - v + 0.5) * d,
+                                           lambda Y, b=_yll, d=_dc, n=nrow: n + 0.5 - (Y - b) / d))
+                            secy.set_ylabel('Y [m]', fontsize=9)
+                            secy.ticklabel_format(style='plain', useOffset=False)
+                            plt.setp(secy.get_yticklabels(), fontsize=7)
                     if points is not None:
                         for k, (xj, yi, lay, label) in enumerate(zip(points[2], points[1], points[3], points[0])):
                             if lay == L:
@@ -1607,11 +1637,17 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
                         #except:
                         #    print('Error in drawing contours for map %s' % plt_title)
                     if np.ma.max(Vtmp) > np.ma.min(Vtmp):
-                        ax[l].set_title('layer %d' % (L + 1), fontsize=10, y=-0.1, fontweight='bold')
+                        ax[l].set_title('layer %d' % (L + 1), fontsize=10, y=-0.42, fontweight='bold')
                     else:
-                        ax[l].set_title('layer %d %s' % (L + 1, msg), fontsize=10, y=-0.1, fontweight='bold')
+                        ax[l].set_title('layer %d %s' % (L + 1, msg), fontsize=10, y=-0.42, fontweight='bold')
                     ax[l].set_ylim(bottom=np.max(yg1), top=np.min(yg1))
                     ax[l].axis('scaled')
+                    # widen the margins: the left colourbar sits at x=0.035 and
+                    # the real-coordinate Y axis needs room between it and the
+                    # map, and the X axis plus the 'layer N' caption need room
+                    # underneath.
+                    plt.subplots_adjust(left=0.22, right=0.88, bottom=0.26,
+                                        top=0.90, wspace=0.35)
                     axl, axb, axw, axh = ax[l].get_position().bounds
                     if interval_type == 'percentile':
                         if max(x) > max(y):
