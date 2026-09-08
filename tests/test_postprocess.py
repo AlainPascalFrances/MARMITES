@@ -225,3 +225,33 @@ def test_run_preproc_writes_input_maps(tiny_run, tmp_path):
     assert any(f.startswith('aq_k_L') for f in got)
     assert any(f.startswith('mm_') for f in got), 'MM input maps must be included'
     assert 'network_overlay.png' in got
+
+
+def test_ja_down_index_matches_flopy_faceflows():
+    """Our precomputed JA down-connection index must reproduce flopy's
+    get_structured_faceflows exactly, including its sign convention
+    (flopy applies flows[face][n] = -1 * flowja[i]).
+
+    We bypass that helper because it re-parses the .grb on every call (10.6 ms
+    x nper) and because its documented ia/ja path raises on flopy master
+    (PR #1968 added nlay/nrow/ncol but left `for n in range(grb.nodes)`).
+    """
+    ws = os.path.join(os.environ.get(
+        'MARMITES_WS_ROOT',
+        os.path.join('E:' + os.sep, '00code_ws', 'LaMata_MM-MF6')), 'MF6_ws')
+    cbc_fn = os.path.join(ws, 'lamatamm.cbc')
+    grb_fn = os.path.join(ws, 'lamatamm.dis.grb')
+    if not (os.path.exists(cbc_fn) and os.path.exists(grb_fn)):
+        pytest.skip('no La Mata cbc/grb on disk')
+    import flopy
+    from flopy.mf6.utils.postprocessing import get_structured_faceflows
+    cbc = flopy.utils.CellBudgetFile(cbc_fn)
+    kk = cbc.get_kstpkper()
+    rec = cbc.get_data(text='FLOW-JA-FACE', kstpkper=kk[len(kk) // 2])[0]
+    nlay, nrow, ncol = 2, 65, 60
+    src, pos, nodes = PP._ja_down_index(grb_fn, nlay, nrow, ncol)
+    mine = np.zeros(nodes)
+    mine[src] = -np.asarray(rec).ravel()[pos]
+    _, _, flf = get_structured_faceflows(rec, grb_file=grb_fn)
+    ref = np.ma.filled(np.asarray(flf, float), 0.0).ravel()
+    assert np.allclose(mine, ref, atol=1e-6), 'JA index diverges from flopy'

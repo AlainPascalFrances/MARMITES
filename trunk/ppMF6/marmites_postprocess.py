@@ -27,6 +27,7 @@ __version__ = "0.4.0.dev0"
 
 import os
 import sys
+import time
 import warnings
 
 import numpy as np
@@ -551,17 +552,33 @@ def native_suite(out_dir, cMF, ctx, res, ds_ws=None, trunk=None, verbose=True,
 
     # --- water-balance Sankey (catchment core + full, then per-point) - #
     if sankey:
+        # ONE pass over the cell budget covering the catchment AND every
+        # observation cell. Reading it per target used to cost 9.3 min for 12
+        # targets; the result is cached beside the figures as a small digest.
+        agg = None
+        try:
+            targets = [[(c[1], c[2]) for c in ctx.cells]]      # 0 = catchment
+            obs_ij = res.get('obs_ij')
+            if obs_ij is not None:
+                targets += [[(int(i), int(j))] for i, j in np.asarray(obs_ij)]
+            agg = _aquifer_pass(sim_ws, name, cMF, targets, nper,
+                                cache_dir=out_dir, verbose=verbose)
+        except Exception as exc:                     # pragma: no cover
+            if verbose:
+                print('   aquifer pass failed (%r); falling back to per-target '
+                      'reads' % exc)
         try:
             written += _native_sankey(MMplot, out_dir, cMF, ctx, res, sim_ws,
                                       name, min_flux=sankey_min_flux,
-                                      full_diagram=sankey_full, verbose=verbose)
+                                      full_diagram=sankey_full, verbose=verbose,
+                                      agg=agg)
         except Exception as exc:                     # pragma: no cover
             if verbose:
                 print('   native Sankey skipped: %r' % exc)
         try:
             written += _native_sankey_obs(MMplot, out_dir, cMF, ctx, res, sim_ws,
                                           name, min_flux=sankey_min_flux,
-                                          verbose=verbose)
+                                          verbose=verbose, agg=agg)
         except Exception as exc:                     # pragma: no cover
             if verbose:
                 print('   per-point Sankey skipped: %r' % exc)
@@ -730,8 +747,126 @@ def _conv_fact(cMF):
     return {1: 304.8, 2: 1000.0, 3: 10.0}.get(int(getattr(cMF, 'lenuni', 2)), 1000.0)
 
 
+_AQ_RECORDS = ('UZF-GWRCH', 'STO-SS', 'STO-SY', 'DRN', 'DRN_SEEP', 'WEL')
+
+
+def _ja_down_index(grb_file, nlay, nrow, ncol):
+    """Position in the FLOW-JA-FACE array of each cell's DOWNWARD connection.
+
+    Computed once. This replaces ``flopy.mf6.utils.get_structured_faceflows``,
+    which (a) re-parses the .grb on EVERY call -- 10.6 ms x nper, by far the
+    dominant cost of the old per-stress-period reader -- and (b) whose
+    documented ``ia``/``ja`` path is broken upstream (it does
+    ``for n in range(grb.nodes)`` while ``grb`` is only bound when ``grb_file``
+    is given; still present on flopy master 2026-09-07, PR #1968).
+
+    Returns ``(src, pos, nodes)``: ``flf.ravel()[src] = flowja[pos]``.
+    """
+    from flopy.mf6.utils import MfGrdFile
+    g = MfGrdFile(grb_file, verbose=False)
+    ia = np.asarray(g.ia)
+    ja = np.asarray(g.ja)
+    ncpl = nrow * ncol
+    nodes = nlay * ncpl
+    src, pos = [], []
+    for n in range(nodes - ncpl):
+        lo, hi = ia[n], ia[n + 1]
+        w = np.where(ja[lo:hi] == n + ncpl)[0]
+        if w.size:
+            src.append(n)
+            pos.append(lo + w[0])
+    return np.array(src, int), np.array(pos, int), nodes
+
+
+def _aquifer_pass(sim_ws, name, cMF, targets, nper, cache_dir=None,
+                  verbose=True):
+    """Read the cell budget ONCE and reduce every record for EVERY target.
+
+    ``targets`` is a list of ``(i, j)`` cell lists -- one entry per Sankey to be
+    drawn (the catchment, then one per observation point). Reducing them all in
+    a single sweep is what removes the old O(nper x ntarget) behaviour: the
+    reader used to rescan the whole budget for each target, costing 9.3 min for
+    12 targets where this takes seconds.
+
+    Returns ``{record: (nper, ntarget, nlay) array in m3/d}`` plus the key
+    ``'FLF'`` (flow across each layer's bottom face, + downward, flopy's sign
+    convention). Cached to ``<cache_dir>/_aquifer_digest.npz``, keyed on the
+    budget file's size and mtime, so re-plotting a run is instant.
+    """
+    import flopy
+    nlay, nrow, ncol = int(cMF.nlay), int(cMF.nrow), int(cMF.ncol)
+    cbc_fn = os.path.join(sim_ws, '%s.cbc' % name)
+    st = os.stat(cbc_fn)
+    sig = '%d_%d_%d_%d' % (st.st_size, int(st.st_mtime), nper, len(targets))
+
+    cache_fn = os.path.join(cache_dir, '_aquifer_digest.npz') if cache_dir else None
+    if cache_fn and os.path.exists(cache_fn):
+        try:
+            z = np.load(cache_fn, allow_pickle=False)
+            if str(z['sig']) == sig:
+                if verbose:
+                    print('   aquifer digest: reusing %s' % os.path.basename(cache_fn))
+                return {k: z[k] for k in z.files if k != 'sig'}
+        except Exception:
+            pass                                   # stale/corrupt -> recompute
+
+    # flat cell indices per target, so the reduction is a gather, not a mask
+    flat = []
+    for ij in targets:
+        a = np.array([int(i) * ncol + int(j) for (i, j) in ij], int)
+        flat.append(a)
+    ntg = len(targets)
+
+    cbc = flopy.utils.CellBudgetFile(cbc_fn)
+    kk = cbc.get_kstpkper()
+    off = max(len(kk) - nper, 0)                   # skip the steady SP0
+    recs = set(r.strip() for r in cbc.get_unique_record_names(decode=True))
+    out = {r: np.zeros((nper, ntg, nlay)) for r in _AQ_RECORDS}
+    out['FLF'] = np.zeros((nper, ntg, nlay))
+
+    have_flf = nlay > 1 and 'FLOW-JA-FACE' in recs
+    grb = os.path.join(sim_ws, '%s.dis.grb' % name)
+    if have_flf and os.path.exists(grb):
+        src, pos, nodes = _ja_down_index(grb, nlay, nrow, ncol)
+    else:
+        have_flf = False
+
+    t0 = time.time()
+    for k in range(nper):
+        kp = kk[k + off]
+        for r in _AQ_RECORDS:
+            if r not in recs:
+                continue
+            d = cbc.get_data(text=r, kstpkper=kp, full3D=True)
+            if not d:
+                continue
+            a = np.ma.filled(np.asarray(d[0], float), 0.0).reshape(nlay, -1)
+            for t in range(ntg):
+                out[r][k, t] = a[:, flat[t]].sum(axis=1)
+        if have_flf:
+            fj = np.asarray(cbc.get_data(text='FLOW-JA-FACE', kstpkper=kp)[0]).ravel()
+            flf = np.zeros(nodes)
+            flf[src] = -fj[pos]                    # flopy negates; match it
+            flf = flf.reshape(nlay, -1)
+            for t in range(ntg):
+                out['FLF'][k, t] = flf[:, flat[t]].sum(axis=1)
+    if verbose:
+        print('   aquifer pass: %d SP x %d target(s) in %.1f s'
+              % (nper, ntg, time.time() - t0))
+
+    if cache_fn:
+        try:
+            os.makedirs(cache_dir, exist_ok=True)
+            np.savez_compressed(cache_fn, sig=sig, **out)
+        except Exception as exc:                   # pragma: no cover
+            if verbose:
+                print('   aquifer digest not cached: %r' % exc)
+    return out
+
+
 def _aquifer_layer_fluxes(sim_ws, name, cMF, ctx, res, sel_ij=None,
-                          eg_series=None, tg_series=None):
+                          eg_series=None, tg_series=None,
+                          agg=None, target=0):
     """Per-layer aquifer fluxes as **mm/d** time series (one value per transient
     stress period), keyed by the names plotWBsankey indexes: ``iRg_L, idSg_L,
     iEXFg_L, iEg_L, iTg_L, iWEL_L, iDRN_L, iFLF_L, iFRF_L, iFFF_L, iGHB_L,
@@ -777,63 +912,45 @@ def _aquifer_layer_fluxes(sim_ws, name, cMF, ctx, res, sel_ij=None,
     area_sel = float((delc[:, None] * delr[None, :])[mask].sum())
     to_mm = _conv_fact(cMF) / area_sel if area_sel > 0 else 0.0
 
-    cbc = flopy.utils.CellBudgetFile(os.path.join(sim_ws, '%s.cbc' % name))
-    kk = cbc.get_kstpkper()
-    off = max(len(kk) - nper, 0)                # skip the steady SP0 if present
-    recs = set(r.strip() for r in cbc.get_unique_record_names(decode=True))
+    # Volumetric (m3/d) per-layer totals for this target. ``agg`` comes from
+    # _aquifer_pass(), which reads the budget ONCE for every target; without it
+    # we fall back to a single-target pass so the function still works alone.
+    if agg is None:
+        agg = _aquifer_pass(sim_ws, name, cMF,
+                            [sel_ij if sel_ij is not None
+                             else [(c[1], c[2]) for c in ctx.cells]],
+                            nper, cache_dir=None, verbose=False)
+        target = 0
 
-    def per_layer(text, kstpkper):
-        """(nlay,) total in m3/d over the selected cells, 0 if absent."""
-        if text not in recs:
-            return np.zeros(nlay)
-        d = cbc.get_data(text=text, kstpkper=kstpkper, full3D=True)
-        if not d:
-            return np.zeros(nlay)
-        a = np.ma.filled(np.asarray(d[0], float), 0.0).reshape(nlay, nrow, ncol)
-        return np.array([a[L][mask].sum() for L in range(nlay)])
+    def vol(rec):
+        """(nper, nlay) m3/d for this target, zeros if the package is absent."""
+        a = agg.get(rec)
+        return np.zeros((nper, nlay)) if a is None else np.asarray(a)[:, target, :]
 
-    grb = os.path.join(sim_ws, '%s.dis.grb' % name)
-    try:
-        from flopy.mf6.utils.postprocessing import get_structured_faceflows
-        have_flf = os.path.exists(grb) and 'FLOW-JA-FACE' in recs and nlay > 1
-    except Exception:
-        have_flf = False
-
-    Rg = np.zeros((nper, nlay)); dSg = np.zeros((nper, nlay))
-    EXF = np.zeros((nper, nlay)); Egl = np.zeros((nper, nlay))
-    Tgl = np.zeros((nper, nlay)); DRN = np.zeros((nper, nlay))
-    FLF = np.zeros((nper, nlay))
     eg = wb_ts[:, IX['iEg']] if eg_series is None else np.asarray(eg_series)
     tg = wb_ts[:, IX['iTg']] if tg_series is None else np.asarray(tg_series)
     egtot = eg + tg
     eg_frac = np.where(egtot > 0, eg / np.where(egtot == 0, 1.0, egtot), 0.5)
 
-    for k in range(nper):
-        kp = kk[k + off]
-        Rg[k] = per_layer('UZF-GWRCH', kp) * to_mm
-        dSg[k] = (per_layer('STO-SS', kp) + per_layer('STO-SY', kp)) * to_mm
-        DRN[k] = per_layer('DRN', kp) * to_mm                 # <0 out
-        wel = -per_layer('WEL', kp) * to_mm                   # >0 magnitude out
-        Egl[k] = wel * eg_frac[k]
-        Tgl[k] = wel * (1.0 - eg_frac[k])
-        # exfiltration to the soil: prefer an explicit seepage-drain package,
-        # else the coupler's captured exfiltration, assigned to the top layer
-        seep = per_layer('DRN_SEEP', kp) * to_mm              # <0 out, or zeros
-        if np.any(seep):
-            EXF[k] = seep
-        elif 'exf' in res:
-            exf = np.asarray(res['exf'])[k]
-            if sel_ij is None:
-                EXF[k, 0] = -float(exf.mean())
-            else:
-                sel = [_cell_pos(ctx, i, j) for (i, j) in sel_ij]
-                sel = [p for p in sel if p is not None]
-                EXF[k, 0] = -float(np.mean(exf[sel])) if sel else 0.0
-        if have_flf:
-            flowja = cbc.get_data(text='FLOW-JA-FACE', kstpkper=kp)[0]
-            _, _, flf = get_structured_faceflows(flowja, grb_file=grb)
-            flf = np.ma.filled(np.asarray(flf, float), 0.0).reshape(nlay, nrow, ncol)
-            FLF[k] = np.array([flf[L][mask].sum() for L in range(nlay)]) * to_mm
+    Rg = vol('UZF-GWRCH') * to_mm
+    dSg = (vol('STO-SS') + vol('STO-SY')) * to_mm
+    DRN = vol('DRN') * to_mm                                  # <0 out
+    FLF = vol('FLF') * to_mm
+    wel = -vol('WEL') * to_mm                                 # >0 magnitude out
+    Egl = wel * eg_frac[:, None]
+    Tgl = wel * (1.0 - eg_frac[:, None])
+    # exfiltration to the soil: prefer an explicit seepage-drain package,
+    # else the coupler's captured exfiltration, assigned to the top layer
+    EXF = vol('DRN_SEEP') * to_mm                             # <0 out, or zeros
+    if not np.any(EXF) and 'exf' in res:
+        exf = np.asarray(res['exf'])
+        if sel_ij is None:
+            EXF[:, 0] = -exf.mean(axis=1)
+        else:
+            sel = [_cell_pos(ctx, i, j) for (i, j) in sel_ij]
+            sel = [p for p in sel if p is not None]
+            if sel:
+                EXF[:, 0] = -exf[:, sel].mean(axis=1)
 
     out = {}
     for L in range(nlay):
@@ -856,7 +973,9 @@ def _aquifer_layer_fluxes(sim_ws, name, cMF, ctx, res, sel_ij=None,
     out['idSu'] = perc - Rg.sum(axis=1)
     # per-layer active-cell and drain-cell counts (over the selection)
     ncell_MM = _active_cells_per_layer(cMF, nlay, mask)
-    drncells = _drn_cells_per_layer(cbc, kk[off], nlay, recs, nrow, ncol, mask)
+    # a layer has drains for this target if its DRN volume is ever non-zero;
+    # that is all the Sankey's 'drncells[L] > 0' guard needs
+    drncells = [int(np.any(DRN[:, L] != 0.0)) for L in range(nlay)]
     return out, ncell_MM, drncells
 
 
@@ -873,18 +992,6 @@ def _active_cells_per_layer(cMF, nlay, mask=None):
     if mask is None:
         return [int((ib[L] != 0).sum()) for L in range(nlay)]
     return [int(((ib[L] != 0) & mask).sum()) for L in range(nlay)]
-
-
-def _drn_cells_per_layer(cbc, kstpkper, nlay, recs, nrow, ncol, mask=None):
-    if 'DRN' not in recs:
-        return [0] * nlay
-    d = cbc.get_data(text='DRN', kstpkper=kstpkper, full3D=True)
-    if not d:
-        return [0] * nlay
-    a = np.ma.filled(np.asarray(d[0], float), 0.0).reshape(nlay, nrow, ncol)
-    if mask is None:
-        return [int((a[L] != 0).sum()) for L in range(nlay)]
-    return [int(((a[L] != 0) & mask).sum()) for L in range(nlay)]
 
 
 class _SankeyMF(object):
@@ -975,7 +1082,7 @@ def _render_sankey(MMplot, out_dir, DATE, flx, flxIndex, HYindex, year_lst,
 
 
 def _native_sankey(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
-                   min_flux=0.05, full_diagram=True, verbose=True):
+                   min_flux=0.05, full_diagram=True, verbose=True, agg=None):
     """Drive the native ``plotWBsankey`` for the whole catchment: MM terms from
     ``wb_ts``/``wb_ts_soil``, aquifer per-layer terms from the cell budgets.
     Renders a decluttered *core* diagram (fluxes below ``min_flux`` hidden) and,
@@ -986,7 +1093,8 @@ def _native_sankey(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
     nper = wb_ts.shape[0]
     nlay = int(cMF.nlay)
 
-    aq, ncell_MM, drncells = _aquifer_layer_fluxes(sim_ws, name, cMF, ctx, res)
+    aq, ncell_MM, drncells = _aquifer_layer_fluxes(sim_ws, name, cMF, ctx, res,
+                                                   agg=agg, target=0)
     flx, flxIndex = _assemble_flx(IX, IXS, wb_ts, wb_ts_soil, aq, nper)
     DATE, HYindex, year_lst = _sankey_dates(cMF, nper)
     smf = _SankeyMF(cMF, ncell_MM, drncells, DATE)
@@ -1004,7 +1112,7 @@ def _native_sankey(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
 
 
 def _native_sankey_obs(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
-                       min_flux=0.05, verbose=True):
+                       min_flux=0.05, verbose=True, agg=None):
     """Per-observation-point Sankeys (the legacy ``flxObs_lst`` path).
 
     Needs the coupler's obs-cell capture: ``res['mm_obs']`` (nper, nobs, nidx),
@@ -1034,7 +1142,8 @@ def _native_sankey_obs(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
         mmsv = mms_obs[:, p, :, :]
         aq, ncell_MM, drncells = _aquifer_layer_fluxes(
             sim_ws, name, cMF, ctx, res, sel_ij=[(i, j)],
-            eg_series=mmv[:, IX['iEg']], tg_series=mmv[:, IX['iTg']])
+            eg_series=mmv[:, IX['iEg']], tg_series=mmv[:, IX['iTg']],
+            agg=agg, target=p + 1)
         # the point's UZF storage change from its own percolation
         aq['idSu'] = mmv[:, IX['iperc']] - sum(aq['iRg_%d' % (L + 1)]
                                                for L in range(nlay))
