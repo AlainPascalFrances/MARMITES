@@ -594,7 +594,7 @@ def native_suite(out_dir, cMF, ctx, res, ds_ws=None, trunk=None, verbose=True,
 
     # --- per-layer maps of the time-mean fluxes ----------------------- #
     try:
-        written += _native_flux_maps(MMplot, out_dir, cMF, ctx, res)
+        written += _native_flux_maps(MMplot, out_dir, cMF, ctx, res, verbose=verbose)
     except Exception as exc:                         # pragma: no cover
         if verbose:
             print('   native flux maps skipped: %r' % exc)
@@ -667,33 +667,85 @@ def _to_ordinal(d):
         return float(getattr(d, 'toordinal', lambda: 0)())
 
 
-def _native_flux_maps(MMplot, out_dir, cMF, ctx, res):
-    """plotLAYER maps of time-mean MM fluxes (recharge, exfiltration, ETg,
-    runoff) scattered onto the grid."""
+# Time-mean MM flux maps to draw, as (index key, file/label stem, colourbar).
+_MAP_FLUXES = (
+    ('iP', 'P', 'rainfall'),
+    ('iPe', 'Pe', 'effective rainfall'),
+    ('iRo', 'Ro', 'runoff'),
+    ('iI', 'I', 'infiltration'),
+    ('iEi', 'Ei', 'interception'),
+    ('iEow', 'Eow', 'open-water evaporation'),
+    ('iETsoil', 'ETsoil', 'soil ET'),
+    ('iEg', 'Eg', 'groundwater evaporation'),
+    ('iTg', 'Tg', 'groundwater transpiration'),
+    ('iETg', 'ETg', 'groundwater ET'),
+    ('iperc', 'Rp', 'percolation'),
+    ('iEXFg', 'EXFg', 'exfiltration'),
+    ('idSsoil', 'dSsoil', 'change in soil storage'),
+    ('idSsurf', 'dSsurf', 'change in surface storage'),
+    ('iSsoil_pc', 'theta', 'soil moisture'),
+    ('iuzthick', 'uzthick', 'unsaturated thickness'),
+    ('idgwt', 'dgwt', 'depth to water table'),
+)
+
+
+def _obs4map(res):
+    """Observation points for plotLAYER's ``points`` overlay: [lbl, i, j, lay],
+    the four parallel lists the native routine expects."""
+    if 'obs_ij' not in res:
+        return None
+    ij = np.asarray(res['obs_ij'])
+    names = [n.decode() if isinstance(n, bytes) else str(n)
+             for n in res.get('obs_names', [str(k) for k in range(len(ij))])]
+    return [names, [int(v) for v in ij[:, 0]], [int(v) for v in ij[:, 1]],
+            [0] * len(ij)]
+
+
+def _native_flux_maps(MMplot, out_dir, cMF, ctx, res, verbose=True):
+    """plotLAYER maps of the time-mean MM fluxes.
+
+    Follows the conventions the legacy driver used for its input/output maps
+    (startMARMITES_v3.py ~808-910): ``Date='NA'``/``JD='NA'`` because these are
+    time-MEAN maps rather than a day in a series, ``interval_type='linspace'``
+    with 5 intervals, the model's own ``hnoflo``, and the observation points
+    overlaid. It previously passed ``msg='arange'`` and a ``pref_plt_title``
+    that duplicated the title, giving files named ``native_native_map_*``.
+    """
     import matplotlib
     IX = dict(ctx.index)
     wb_map = np.asarray(res['wb_map'])              # (ncell, nidx)
     cells = ctx.cells
     nrow, ncol = int(cMF.nrow), int(cMF.ncol)
-    cmap = matplotlib.colormaps['viridis']
-    written = []
-    for key, title in (('iperc', 'recharge'), ('iEXFg', 'exfiltration'),
-                       ('iETg', 'ETg'), ('iRo', 'runoff')):
+    hnoflo = float(getattr(cMF, 'hnoflo', 9999.999))
+    cmap = matplotlib.colormaps['gist_rainbow_r']
+    pts = _obs4map(res)
+    before = set(os.listdir(out_dir)) if os.path.isdir(out_dir) else set()
+    for key, stem, cblbl in _MAP_FLUXES:
         if key not in IX:
             continue
-        grid = np.full((1, 1, nrow, ncol), -999.9)
+        grid = np.full((1, 1, nrow, ncol), hnoflo)
         for n, c in enumerate(cells):
             grid[0, 0, c[1], c[2]] = wb_map[n, IX[key]]
-        mask = (grid[0] <= -999.0)
-        MMplot.plotLAYER(days=[0], str_per=[0], Date=['mean'], JD=[0],
-                         ncol=ncol, nrow=nrow, nlay=1, nplot=1, V=grid,
-                         cmap=cmap, CBlabel='%s [mm/d]' % title, msg='arange',
-                         plt_title='native_map_%s' % title, MM_ws=out_dir,
-                         mask=mask, hnoflo=-999.9, pref_plt_title='native')
-        got = [os.path.join(out_dir, f) for f in os.listdir(out_dir)
-               if f.startswith('native_native_map_%s' % title)]
-        written += got
-    return written
+        mask = np.isclose(grid[0], hnoflo, atol=0.09)
+        vals = grid[0][~mask]
+        if not vals.size:
+            continue
+        unit = '-' if key in ('iSsoil_pc',) else (
+            'm' if key in ('iuzthick', 'idgwt') else 'mm/d')
+        try:
+            MMplot.plotLAYER(
+                days=[0], str_per=[0], Date='NA', JD='NA', ncol=ncol, nrow=nrow,
+                nlay=1, nplot=1, V=grid, cmap=cmap,
+                CBlabel='%s [%s]' % (cblbl, unit), msg='',
+                plt_title='MMmap_%s' % stem, MM_ws=out_dir,
+                interval_type='linspace', interval_num=5,
+                Vmax=[float(vals.max())], Vmin=[float(vals.min())],
+                fmt='%5.2f', points=pts, mask=mask, hnoflo=hnoflo)
+        except Exception as exc:                     # pragma: no cover
+            if verbose:
+                print('   flux map %s skipped: %r' % (stem, exc))
+    after = set(os.listdir(out_dir)) if os.path.isdir(out_dir) else set()
+    return [os.path.join(out_dir, f) for f in sorted(after - before)]
 
 
 def _hydro_year_index(DATE, ini_month):
