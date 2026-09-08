@@ -327,6 +327,10 @@ def main():
                          'to <ws>/postproc/')
     ap.add_argument('--preproc', action='store_true',
                     help='write input maps (MM soil/veg + aquifer) to <ws>/preproc/')
+    ap.add_argument('--postproc-only', action='store_true',
+                    help='re-draw the figures from a run already on disk: reads '
+                         '<ws>/_coupled_<mode>.h5 and the MF6 output, runs no '
+                         'MODFLOW (implies --postproc)')
     ap.add_argument('--sankey-min-flux', type=float, default=0.05, metavar='MM',
                     help='native water-balance Sankey: hide flows below this '
                          'magnitude (mm/y) on the core diagram (default 0.05)')
@@ -349,6 +353,8 @@ def main():
                     help='label for this run\'s results folder '
                          '<ws-root>/out_<YYYYMMDDHHMM>_<TAG>')
     a = ap.parse_args()
+    if a.postproc_only:
+        a.postproc = True
     if a.ws is None:
         a.ws = os.path.join(a.ws_root, 'MF6_ws' if a.grid == 'dis' else 'MF6_ws_disv')
     os.makedirs(a.ws, exist_ok=True)
@@ -416,6 +422,22 @@ def main():
             with open(lst, errors='replace') as f:
                 tail = f.readlines()[-25:]
             print('\n--- mfsim.lst (tail) ---\n%s' % ''.join(tail))
+        return
+
+    if a.postproc_only:
+        # Re-draw the figures from a run that already happened: everything the
+        # post-processing reads is on disk (the coupled HDF5 for the MM side,
+        # the .hds/.cbc/.grb for the aquifer side), so MODFLOW need not run
+        # again. Iterating on a figure costs seconds instead of the full run.
+        h5_fn = os.path.join(a.ws, '_coupled_%s.h5' % a.mode)
+        if not os.path.exists(h5_fn):
+            raise SystemExit('--postproc-only needs a previous run: %s not found'
+                             % h5_fn)
+        with h5py.File(h5_fn, 'r') as f:
+            res = {k: f[k][:] for k in f.keys()}
+        print('re-using %s (%d stress period(s))'
+              % (h5_fn, res['wb_ts'].shape[0]))
+        _run_postproc(a, cMF, ctx, res)
         return
 
     if a.build_only or not a.libmf6:
@@ -582,6 +604,15 @@ def main():
         print('steady-state means saved: %s_{perc,etg}.asc' % os.path.basename(mp))
         print('   reuse with:  --steady-means %s' % mean_pref)
 
+    _run_postproc(a, cMF, ctx, res)
+
+
+def _run_postproc(a, cMF, ctx, res):
+    """Draw every figure for a completed run.
+
+    Shared by the normal path and by --postproc-only, so re-drawing from an
+    existing run takes exactly the same route as drawing at the end of one.
+    """
     if a.postproc or a.preproc:
         # All results go to <ws-root>/out_<stamp>_<tag>/, never into the
         # repository and not into the model workspace either.
