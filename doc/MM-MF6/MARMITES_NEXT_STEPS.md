@@ -82,8 +82,8 @@ Ordered by what blocks "post-processing reproduces MARMITESplot_v3 output".
 | `plotWBsankey` per obs point | ✅ **FIXED 2026-09-07** — all 11 points render |
 | `plotLAYER` | ✅ **CORRECTED 2026-09-07** — 17 flux maps, legacy conventions, obs points overlaid |
 | `plotTIMESERIES` (obs soil column) | ✅ **DONE 2026-09-07** — 11/11 obs points |
-| `plotTIMESERIES_flxGW` | ❌ Stage 2, not started |
-| `plotCALIBCRIT` (RMSE/RSR/NSE/R) | ❌ Stage 2, not started — needs `inputObsHEADS_*` / `inputObsSM_*` |
+| `plotTIMESERIES_flxGW` | ✅ **DONE 2026-09-07** — 11/11 obs points |
+| `plotCALIBCRIT` (RMSE/RSR/NSE/R) | ✅ **DONE 2026-09-07** — 4 criteria; heads at 4 pts, SM at 2 |
 | full `plotLAYER` set + time selection | ❌ Stage 3, not started |
 
 **Per-point Sankey — diagnosed.** All 11 points raise, from matplotlib:
