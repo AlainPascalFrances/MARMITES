@@ -1652,7 +1652,8 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
 
 
 def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_MM, obspt, fntitle, ibound4Sankey,
-                 stdout=None, report=None, treshold=5E-2):
+                 stdout=None, report=None, treshold=5E-2, tolerance=1E-6,
+                 eps_connect=1E-4):
     """ Computes the water balance for a certain time span
     input: ASCII file with water fluxes wrtitten by MM
 
@@ -1760,6 +1761,32 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
         #EXFtotMF[k] += sum(EXF[k])
     #    print "\nWater fluxes imported from file:\n%s" % inputFile_fn
 
+    # --- keep the Sankey chain connectable -------------------------------- #
+    # Every block is attached to the previous one through ONE flow, and
+    # matplotlib imposes two OPPOSING conditions on it (matplotlib/sankey.py):
+    #   * Sankey.add raises "the connection cannot be made" when the magnitude
+    #     of that flow is BELOW `tolerance` (it then has no arrow angle), and
+    #   * it raises "the scaled sum of the connected flows is ..." when the two
+    #     sides do not cancel to WITHIN `tolerance`.
+    # So no choice of tolerance alone can fix a connecting flow of ~0. At
+    # catchment scale these terms are never ~0, but at a SINGLE observation
+    # cell Pe / I / Rp / Rg_L / FLF_L frequently are over a given hydrological
+    # year -- which is why every per-point diagram failed while the catchment
+    # one worked. Floor them to eps_connect: the SAME number feeds both sides
+    # of each connection, so the cancellation stays exact, and eps_connect is
+    # orders of magnitude below any flux that would be drawn or labelled.
+    def _floor(v):
+        return v if abs(v) >= eps_connect else (eps_connect if v >= 0.0
+                                                else -eps_connect)
+
+    for k in range(len(P)):
+        Pe[k] = _floor(Pe[k])
+        I[k] = _floor(I[k])
+        Rp[k] = _floor(Rp[k])
+        for L in range(cMF.Mnlay):
+            Rg[k][L] = _floor(Rg[k][L])
+            FLF[k][L] = _floor(FLF[k][L])
+
     # Sankey plots
     #    prt_test = 0
     for f in [0, 1]:
@@ -1807,7 +1834,8 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
             figtitle = fig.text(x=0.5, y=y, s=title, horizontalalignment='center', verticalalignment='bottom',
                                 fontsize=8)
             fmt = '%.1f'
-            pltsankey = Sankey(ax=ax[p], format=fmt, scale=1.0 / fff, offset=0.25, gap=0.5, shoulder=0.0, margin=0.5)
+            pltsankey = Sankey(ax=ax[p], format=fmt, scale=1.0 / fff, offset=0.25, gap=0.5, shoulder=0.0, margin=0.5,
+                               tolerance=tolerance)
             pl = 0.5
             tl = 2.0
             # MMveg
