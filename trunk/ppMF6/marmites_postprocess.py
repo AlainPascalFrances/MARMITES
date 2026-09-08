@@ -506,7 +506,8 @@ _MM_LABEL = {
 
 
 def native_suite(out_dir, cMF, ctx, res, ds_ws=None, trunk=None, verbose=True,
-                 sim_ws=None, sankey=True, sankey_full=True, sankey_min_flux=0.05):
+                 sim_ws=None, sankey=True, sankey_full=True, sankey_min_flux=0.05,
+                 map_days=6):
     """Run the native MARMITESplot figures on the coupled run's in-memory data.
 
     Called from the runner where ``cMF``/``ctx``/``res`` exist. Produces the
@@ -591,6 +592,14 @@ def native_suite(out_dir, cMF, ctx, res, ds_ws=None, trunk=None, verbose=True,
     except Exception as exc:                         # pragma: no cover
         if verbose:
             print('   native obs time series skipped: %r' % exc)
+
+    # --- Stage 3: per-layer aquifer maps from the MF6 output ---------- #
+    try:
+        written += _native_aquifer_maps(MMplot, out_dir, cMF, ctx, res, sim_ws,
+                                        name, ndays=map_days, verbose=verbose)
+    except Exception as exc:                         # pragma: no cover
+        if verbose:
+            print('   native aquifer maps skipped: %r' % exc)
 
     # --- per-layer maps of the time-mean fluxes ----------------------- #
     try:
@@ -1504,6 +1513,196 @@ def _native_obs_timeseries(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
               % (len(written), nobs))
     written += _native_calibcrit(MMplot, out_dir, cMF, stats, verbose=verbose)
     return written
+
+
+def _aquifer_map_pass(sim_ws, name, cMF, nper, cache_dir=None, verbose=True):
+    """Per-layer, per-CELL time-mean of each aquifer budget record.
+
+    The Sankey pass reduces the budget to a few targets; the maps need the
+    spatial field kept, so this is a separate single sweep that accumulates
+    (nlay, nrow, ncol) sums. Returns ``{record: (nlay, nrow, ncol)}`` in m3/d,
+    cached beside the figures and keyed on the budget's size+mtime.
+    """
+    import flopy
+    nlay, nrow, ncol = int(cMF.nlay), int(cMF.nrow), int(cMF.ncol)
+    cbc_fn = os.path.join(sim_ws, '%s.cbc' % name)
+    st = os.stat(cbc_fn)
+    sig = 'map_%d_%d_%d' % (st.st_size, int(st.st_mtime), nper)
+    cache_fn = os.path.join(cache_dir, '_aquifer_maps.npz') if cache_dir else None
+    if cache_fn and os.path.exists(cache_fn):
+        try:
+            z = np.load(cache_fn, allow_pickle=False)
+            if str(z['sig']) == sig:
+                if verbose:
+                    print('   aquifer map digest: reusing %s'
+                          % os.path.basename(cache_fn))
+                return {k: z[k] for k in z.files if k != 'sig'}
+        except Exception:
+            pass
+    cbc = flopy.utils.CellBudgetFile(cbc_fn)
+    kk = cbc.get_kstpkper()
+    off = max(len(kk) - nper, 0)
+    recs = set(r.strip() for r in cbc.get_unique_record_names(decode=True))
+    out = {}
+    t0 = time.time()
+    for key, text, pak2 in _AQ_RECORDS:
+        if text not in recs:
+            continue
+        acc = np.zeros((nlay, nrow, ncol))
+        n = 0
+        try:
+            data = cbc.get_data(text=text, paknam2=pak2, full3D=True)
+            if not data or len(data) < nper + off:
+                continue
+            for k in range(nper):
+                acc += np.ma.filled(np.asarray(data[k + off], float),
+                                    0.0).reshape(nlay, nrow, ncol)
+                n += 1
+            del data
+        except MemoryError:                          # pragma: no cover
+            for k in range(nper):
+                d = cbc.get_data(text=text, paknam2=pak2,
+                                 kstpkper=kk[k + off], full3D=True)
+                if d:
+                    acc += np.ma.filled(np.asarray(d[0], float),
+                                        0.0).reshape(nlay, nrow, ncol)
+                    n += 1
+        if n:
+            out[key] = acc / n
+    # vertical exchange, via the same precomputed JA index the Sankey uses
+    grb = os.path.join(sim_ws, '%s.dis.grb' % name)
+    if nlay > 1 and 'FLOW-JA-FACE' in recs and os.path.exists(grb):
+        try:
+            src, pos, nodes = _ja_down_index(grb, nlay, nrow, ncol)
+            data = cbc.get_data(text='FLOW-JA-FACE')
+            acc = np.zeros(nodes)
+            for k in range(nper):
+                fj = np.asarray(data[k + off], float).ravel()
+                a = np.zeros(nodes)
+                a[src] = -fj[pos]                    # flopy's sign convention
+                acc += a
+            del data
+            out['FLF'] = (acc / nper).reshape(nlay, nrow, ncol)
+        except Exception as exc:                     # pragma: no cover
+            if verbose:
+                print('   FLF map skipped: %r' % exc)
+    if verbose:
+        print('   aquifer map pass: %d record(s) over %d SP in %.1f s'
+              % (len(out), nper, time.time() - t0))
+    if cache_fn and out:
+        try:
+            os.makedirs(cache_dir, exist_ok=True)
+            np.savez_compressed(cache_fn, sig=sig, **out)
+        except Exception:                            # pragma: no cover
+            pass
+    return out
+
+
+# Per-layer aquifer maps to draw: (record key, stem, colourbar label, sign)
+# sign flips the packages MODFLOW reports as negative (water leaving the
+# aquifer) so the map shows a positive magnitude.
+_AQ_MAPS = (
+    ('UZF-GWRCH', 'Rg', 'recharge to groundwater', +1.0),
+    ('DRN_SEEP', 'EXFg', 'seepage to the surface', -1.0),
+    ('DRN', 'DRN', 'boundary drainage', -1.0),
+    ('WEL', 'ETg', 'groundwater ET', -1.0),
+    ('FLF', 'FLF', 'flow across the lower face', +1.0),
+)
+
+
+def _native_aquifer_maps(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
+                         ndays=0, verbose=True):
+    """Stage 3: per-LAYER aquifer maps, read from the MF6 output.
+
+    Time-mean maps of the head (from the ``.hds``) and of every aquifer budget
+    term (from the cell budget), one panel per layer, plus -- when ``ndays`` is
+    set -- head maps on that many evenly spaced days so the drawdown can be
+    followed through the simulation. Volumetric budget terms are converted to
+    mm/d per cell, so the maps are comparable with the MM flux maps.
+    """
+    import flopy
+    import matplotlib
+    nlay, nrow, ncol = int(cMF.nlay), int(cMF.nrow), int(cMF.ncol)
+    nper = int(np.asarray(res['wb_ts']).shape[0])
+    hnoflo = float(getattr(cMF, 'hnoflo', 9999.999))
+    cmap = matplotlib.colormaps['gist_rainbow_r']
+    pts = _obs4map(res)
+    delr = np.asarray(cMF.delr, float)
+    delc = np.asarray(cMF.delc, float)
+    area = (delc[:, None] * delr[None, :])          # (nrow, ncol) m2
+    to_mm = _conv_fact(cMF) / area                  # m3/d -> mm/d, per cell
+    ib = np.abs(np.asarray(cMF.ibound))
+    before = set(os.listdir(out_dir)) if os.path.isdir(out_dir) else set()
+
+    def draw(V, stem, cblbl, unit, days=None, dates=None, jd=None):
+        m = np.zeros((V.shape[0], nlay, nrow, ncol), bool)
+        for L in range(nlay):
+            m[:, L] = (ib[L] == 0)
+        VV = np.where(m, hnoflo, V)
+        vals = V[~m]
+        vals = vals[np.isfinite(vals)]
+        if not vals.size:
+            return
+        try:
+            MMplot.plotLAYER(
+                days=days if days is not None else [0],
+                str_per=days if days is not None else [0],
+                Date=dates if dates is not None else 'NA',
+                JD=jd if jd is not None else 'NA',
+                ncol=ncol, nrow=nrow, nlay=nlay, nplot=nlay, V=VV, cmap=cmap,
+                CBlabel='%s [%s]' % (cblbl, unit), msg='',
+                plt_title='GWmap_%s' % stem, MM_ws=out_dir,
+                interval_type='linspace', interval_num=5,
+                Vmax=[float(vals.max())], Vmin=[float(vals.min())],
+                fmt='%5.2f', points=pts, mask=m[0], hnoflo=hnoflo)
+        except Exception as exc:                     # pragma: no cover
+            if verbose:
+                print('   aquifer map %s skipped: %r' % (stem, exc))
+
+    # heads: exact time mean over every stress period, then a time selection
+    hds = flopy.utils.HeadFile(os.path.join(sim_ws, '%s.hds' % name))
+    kk = hds.get_kstpkper()
+    off = max(len(kk) - nper, 0)
+    acc = np.zeros((nlay, nrow, ncol))
+    for k in range(nper):
+        acc += np.where(np.abs(hds.get_data(kstpkper=kk[k + off])) > 1e29,
+                        np.nan, hds.get_data(kstpkper=kk[k + off]))
+    draw((acc / nper).reshape(1, nlay, nrow, ncol), 'head', 'mean head', 'm')
+    if ndays and nper > 1:
+        sel = np.unique(np.linspace(0, nper - 1, int(ndays)).astype(int))
+        V = np.array([np.where(np.abs(hds.get_data(kstpkper=kk[s + off])) > 1e29,
+                               np.nan, hds.get_data(kstpkper=kk[s + off]))
+                      for s in sel])
+        DATE, _hy, _yr = _sankey_dates(cMF, nper)
+        import matplotlib as _mpl
+        # JD must be a LIST here: plotLAYER indexes it per panel, so the
+        # 'NA' placeholder used for single maps raises IndexError past i=1
+        jd = [int(_mpl.dates.num2date(DATE[s]).timetuple().tm_yday) for s in sel]
+        draw(V, 'head_series', 'head', 'm', days=[int(s) for s in sel],
+             dates=[float(DATE[s]) for s in sel], jd=jd)
+
+    # budget terms, per layer, as mm/d
+    maps = _aquifer_map_pass(sim_ws, name, cMF, nper, cache_dir=out_dir,
+                             verbose=verbose)
+    for key, stem, cblbl, sgn in _AQ_MAPS:
+        if key not in maps:
+            continue
+        V = (sgn * np.asarray(maps[key]) * to_mm[None, :, :]).reshape(
+            1, nlay, nrow, ncol)
+        draw(V, stem, cblbl, 'mm/d')
+    # storage change is the sum of the two storage records
+    if 'STO-SS' in maps or 'STO-SY' in maps:
+        s = (np.asarray(maps.get('STO-SS', 0.0))
+             + np.asarray(maps.get('STO-SY', 0.0)))
+        draw((s * to_mm[None, :, :]).reshape(1, nlay, nrow, ncol),
+             'dSg', 'release from groundwater storage', 'mm/d')
+
+    after = set(os.listdir(out_dir)) if os.path.isdir(out_dir) else set()
+    got = [os.path.join(out_dir, f) for f in sorted(after - before)
+           if f.endswith('.png')]
+    if verbose:
+        print('   native aquifer maps: %d page(s)' % len(got))
+    return got
 
 
 def _native_calibcrit(MMplot, out_dir, cMF, stats, verbose=True):
