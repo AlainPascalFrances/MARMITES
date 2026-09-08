@@ -468,15 +468,28 @@ contained, no rasterio/shapely/geopandas/pyproj (none of the CdL Voronoi
 machinery is needed on a DIS grid), and validated against the real La Mata MF6
 output already on disk.
 
-preproc (<ws>/preproc/): MARMITES input maps (soil/meteo/irrigation zones, soil
-thickness, pond width & depth, vegetation areas) AND the aquifer maps (top,
-per-layer K / K33 / Ss / Sy / bottom, idomain, stream+pond overlay).
+_input (<out-dir>/_input/): every parameter field as a native `plotLAYER`
+page, `IN_<nnn>_<name>` -- geometry (elev/top/botm/thick/strt), aquifer
+properties (hk/T/Ss/Sy/vka), the DRN and GHB arrays, the UZF soil parameters,
+the model footprint (ibound) and the MARMITES zoning (soil / meteo /
+irrigation zones, vegetation areas) -- plus the stream-and-pond overlay.
 
-postproc (<ws>/postproc/): observed-vs-computed head time series at the active
-piezometers (P0, C1-C3, ... from inputObsHEADS_*), mean-head and
-mean-depth-to-water maps per layer, water budget by compartment from the
-listing, UZF and SFR internal budgets, per-layer storage change, and the native
-MARMITES plotLAYER head map. Each figure has a tidy CSV alongside.
+A second, plainer set of `aq_*` / `mm_*` imshow maps used to be drawn
+alongside. It duplicated the native set field for field, in a style borrowed
+from another project and with no coordinate frame, and has been removed.
+
+_output (<out-dir>/_output/): observed-vs-computed head time series at the
+active piezometers (P0, C1-C3, ... from inputObsHEADS_*), water budget by
+compartment from the listing, UZF and SFR internal budgets, and the native
+figure set (per-point and catchment time series, Sankeys, calibration
+criteria, the GWmap_* / MMmap_* per-layer maps). The mean head, mean
+depth-to-water and per-layer storage change are written as CSV only: the
+native GWmap_head / MMmap_dgwt draw the same fields with the full axes.
+
+Every map, in both folders, carries the same two frames: MODFLOW row/column
+indices on the top and right, projected coordinates in km on the bottom and
+left (`MARMITESplot_v3.add_real_coord_axes`, shared by the plotLAYER pages and
+the imshow overlay).
 
 Run with `--preproc --postproc`. The .cbc means are taken over an even
 subsample (flopy needs ~30 s just to index a 1583-step budget file; the mean is

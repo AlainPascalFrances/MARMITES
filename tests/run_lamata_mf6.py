@@ -326,7 +326,7 @@ def main():
                     help='after the run, write obs/head/budget figures + CSVs '
                          'to <ws>/postproc/')
     ap.add_argument('--preproc', action='store_true',
-                    help='write input maps (MM soil/veg + aquifer) to <ws>/preproc/')
+                    help='write the input parameter maps to <out-dir>/_input/')
     ap.add_argument('--postproc-only', action='store_true',
                     help='re-draw the figures from a run already on disk: reads '
                          '<ws>/_coupled_<mode>.h5 and the MF6 output, runs no '

@@ -42,18 +42,6 @@ __all__ = ['run_postproc', 'run_preproc', 'obs_points', 'obs_series',
 # (aquifer side). Both belong in the preprocessing channel: the MM script
 # itself produces the soil/vegetation/meteo maps, and the aquifer maps come
 # from the MF workspace. (label, filename-relative-to, colormap, integer?)
-_MM_INPUT_MAPS = [
-    ('soil zones', 'inputSOILzones.asc', 'tab20', True),
-    ('meteo zones', 'inputMETEOzones.asc', 'tab10', True),
-    ('irrigation zones', 'inputIRRzones.asc', 'tab10', True),
-    ('soil thickness [m]', 'inputSOILthick.asc', 'YlOrBr', False),
-    ('pond width [m]', 'inputPONDw.asc', 'Blues', False),
-    ('pond depth max [m]', 'inputPONDhmax.asc', 'Blues', False),
-    ('vegetation 1 area', 'inputVEG1area.asc', 'Greens', False),
-    ('vegetation 2 area', 'inputVEG2area.asc', 'Greens', False),
-    ('vegetation 3 area', 'inputVEG3area.asc', 'Greens', False),
-]
-
 # compartment a listing budget term belongs to (same taxonomy as the CdL script)
 COMPARTMENT = {
     'STO': 'aquifer (storage)', 'STORAGE': 'aquifer (storage)',
@@ -306,21 +294,15 @@ def run_postproc(sim_ws, ds_ws, name='lamatamm', dates=None,
         if verbose:
             print('   obs-vs-computed heads skipped: %r' % exc)
 
-    # --- mean head + depth-to-water maps ------------------------------ #
+    # --- mean head + depth-to-water grids ----------------------------- #
+    # CSV only: the figures these used to carry were plain imshow maps with
+    # no coordinate frame, and native_suite draws the same two fields as
+    # GWmap_head / MMmap_dgwt with the full plotLAYER axes.
     for L in range(nlay):
-        for kind, arr, cmap, lbl in (
-                ('mean_head', mean_h[L], 'viridis', 'mean head [m]'),
-                ('mean_depth', top - mean_h[L], 'viridis_r',
-                 'mean depth to water [m]')):
-            fig, ax = plt.subplots(figsize=(6, 6))
-            im = ax.imshow(arr, cmap=cmap)
-            ax.set_title('%s  layer %d' % (lbl, L + 1))
-            fig.colorbar(im, ax=ax, shrink=0.8, label=lbl)
-            fn = os.path.join(out, '%s_L%d.png' % (kind, L + 1))
-            fig.savefig(fn, dpi=140, bbox_inches='tight')
-            plt.close(fig)
-            np.savetxt(os.path.join(out, '%s_L%d.csv' % (kind, L + 1)),
-                       arr, delimiter=',')
+        for kind, grid in (('mean_head', mean_h[L]),
+                           ('mean_depth', top - mean_h[L])):
+            fn = os.path.join(out, '%s_L%d.csv' % (kind, L + 1))
+            np.savetxt(fn, grid, delimiter=',')
             written += [fn]
 
     # --- budget by compartment + yearly ------------------------------- #
@@ -361,22 +343,17 @@ def run_postproc(sim_ws, ds_ws, name='lamatamm', dates=None,
     # native_layer_maps() that used to be called here wrote into the MODEL
     # workspace and predated the map corrections; it has been removed.
 
-    # --- per-layer storage change map --------------------------------- #
+    # --- per-layer storage change ------------------------------------- #
+    # likewise CSV only (m3/d, + = gain)
     try:
         sto = layer_storage_change(sim_ws, name, nlay, nrow, ncol)
         for L in range(nlay):
-            fig, ax = plt.subplots(figsize=(6, 6))
-            vmax = np.nanmax(np.abs(sto[L])) or 1.0
-            im = ax.imshow(sto[L], cmap='RdBu', vmin=-vmax, vmax=vmax)
-            ax.set_title('mean storage change  layer %d' % (L + 1))
-            fig.colorbar(im, ax=ax, shrink=0.8, label='m3/d (+ gain)')
-            fn = os.path.join(out, 'storage_change_L%d.png' % (L + 1))
-            fig.savefig(fn, dpi=140, bbox_inches='tight')
-            plt.close(fig)
+            fn = os.path.join(out, 'storage_change_L%d.csv' % (L + 1))
+            np.savetxt(fn, sto[L], delimiter=',')
             written += [fn]
     except Exception as exc:               # pragma: no cover
         if verbose:
-            print('   storage-change map skipped: %r' % exc)
+            print('   storage-change grid skipped: %r' % exc)
 
     if verbose:
         print('postproc: %d file(s) written to %s' % (len(written), out))
@@ -385,90 +362,47 @@ def run_postproc(sim_ws, ds_ws, name='lamatamm', dates=None,
 
 def run_preproc(sim_ws, ds_ws, name='lamatamm', mf_ws=None, verbose=True,
                 out_root=None, cMF=None, ctx=None, res=None, trunk=None):
-    """Input maps into <out-dir>/_input/: MARMITES soil/veg/meteo maps AND the
-    MODFLOW aquifer maps (top, per-layer K / Ss / Sy / thickness, ibound+UZF
-    footprint, ponds+stream overlay).
+    """Input maps into <out-dir>/_input/.
+
+    Every parameter field -- geometry, aquifer properties, UZF soil
+    parameters, boundary packages, and the MARMITES soil / meteo / irrigation
+    / vegetation zoning -- is drawn by the native ``plotLAYER`` as
+    ``IN_<nnn>_<name>``, so all of them carry the MODFLOW index frame on the
+    top and right and the projected coordinates on the bottom and left. The
+    one figure that is not a parameter field, the stream-and-pond overlay,
+    gets the same coordinate frame from ``add_real_coord_axes``.
+
+    A second, plainer set of ``aq_*`` / ``mm_*`` imshow maps used to be drawn
+    here as well. They duplicated the native set field for field, in a style
+    borrowed from another project and without any coordinate frame, so they
+    have been removed.
     """
     import matplotlib
     matplotlib.use('agg')
-    import matplotlib.pyplot as plt
     import flopy
 
     out = _mkdir(out_root or sim_ws, '_input')
     mf_ws = mf_ws or os.path.join(ds_ws, 'MF_ws')
     written = []
+    MMplot = _mmplot(trunk)
 
-    def _one(arr, title, cmap, fn, integer=False):
-        fig, ax = plt.subplots(figsize=(6, 6))
-        a = np.asarray(arr, dtype=float)
-        im = ax.imshow(a, cmap=cmap)
-        ax.set_title(title)
-        fig.colorbar(im, ax=ax, shrink=0.8)
-        path = os.path.join(out, fn)
-        fig.savefig(path, dpi=140, bbox_inches='tight')
-        plt.close(fig)
-        written.append(path)
-
-    # --- MARMITES input maps (soil-water-balance side) ---------------- #
-    for label, fn, cmap, integer in _MM_INPUT_MAPS:
-        p = os.path.join(ds_ws, fn)
-        if os.path.exists(p):
-            _one(_asc(p), 'MM input: %s' % label, cmap,
-                 'mm_%s.png' % fn.replace('input', '').replace('.asc', '').lower())
-
-    # --- MODFLOW aquifer maps ----------------------------------------- #
     sim = flopy.mf6.MFSimulation.load(sim_ws=sim_ws, verbosity_level=0)
     gwf = sim.get_model()
     mg = gwf.modelgrid
     nlay, nrow, ncol = mg.nlay, mg.nrow, mg.ncol
     top = np.asarray(mg.top, dtype=float).reshape(nrow, ncol)
-    botm = np.asarray(mg.botm, dtype=float).reshape(nlay, nrow, ncol)
-    _one(top, 'aquifer top / land surface [m]', 'terrain', 'aq_top.png')
 
-    npf = gwf.get_package('npf')
-    if npf is not None:
-        k = np.asarray(npf.k.array).reshape(nlay, nrow, ncol)
-        k33 = np.asarray(npf.k33.array).reshape(nlay, nrow, ncol)
-        for L in range(nlay):
-            _one(k[L], 'K horizontal L%d [m/d]' % (L + 1), 'viridis',
-                 'aq_k_L%d.png' % (L + 1))
-            _one(k33[L], 'K vertical L%d [m/d]' % (L + 1), 'viridis',
-                 'aq_k33_L%d.png' % (L + 1))
-            _one(botm[L], 'bottom L%d [m]' % (L + 1), 'terrain',
-                 'aq_botm_L%d.png' % (L + 1))
-
-    sto = gwf.get_package('sto')
-    if sto is not None:
-        ss = np.asarray(sto.ss.array).reshape(nlay, nrow, ncol)
-        sy = np.asarray(sto.sy.array).reshape(nlay, nrow, ncol)
-        for L in range(nlay):
-            _one(ss[L], 'specific storage L%d [1/m]' % (L + 1), 'magma',
-                 'aq_ss_L%d.png' % (L + 1))
-            _one(sy[L], 'specific yield L%d' % (L + 1), 'cividis',
-                 'aq_sy_L%d.png' % (L + 1))
-
-    # ibound / idomain + UZF footprint
-    idom = np.asarray(mg.idomain).reshape(nlay, nrow, ncol) \
-        if mg.idomain is not None else np.ones((nlay, nrow, ncol))
-    _one(idom[0], 'idomain / active cells L1', 'Greys', 'aq_idomain_L1.png')
-
-    # ponds + stream overlay
+    # --- stream network and ponds overlay ----------------------------- #
     try:
-        written += _fig_network_overlay(sim_ws, ds_ws, gwf, top, out)
+        written += _fig_network_overlay(sim_ws, ds_ws, gwf, top, out,
+                                        MMplot=MMplot, mg=mg)
     except Exception as exc:               # pragma: no cover
         if verbose:
             print('   network overlay skipped: %r' % exc)
 
-    # the native MARMITESplot input maps (parameter fields), when the caller
-    # can supply the model objects they are built from
-    if cMF is not None and ctx is not None:
+    # --- the native parameter-field maps ------------------------------ #
+    if cMF is not None and ctx is not None and MMplot is not None:
         try:
-            if trunk is None:
-                trunk = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-            mmplot_dir = os.path.join(trunk, 'MARMITESutilities', 'MARMITESplot')
-            if mmplot_dir not in sys.path:
-                sys.path.insert(0, mmplot_dir)
-            import MARMITESplot_v3 as MMplot
             written += _native_input_maps(MMplot, out, cMF, ctx, res=res,
                                           verbose=verbose)
         except Exception as exc:                     # pragma: no cover
@@ -479,8 +413,9 @@ def run_preproc(sim_ws, ds_ws, name='lamatamm', mf_ws=None, verbose=True,
     return written
 
 
-def _fig_network_overlay(sim_ws, ds_ws, gwf, top, out):
+def _fig_network_overlay(sim_ws, ds_ws, gwf, top, out, MMplot=None, mg=None):
     import matplotlib.pyplot as plt
+    nrow, ncol = top.shape
     fig, ax = plt.subplots(figsize=(7, 7))
     im = ax.imshow(top, cmap='terrain', alpha=0.8)
     fig.colorbar(im, ax=ax, shrink=0.8, label='elevation [m]')
@@ -506,11 +441,28 @@ def _fig_network_overlay(sim_ws, ds_ws, gwf, top, out):
     # NO invert_yaxis(): imshow already draws row 0 at the top, which is the
     # MODFLOW convention (row 0 = north edge) and matches every other map.
     # Inverting flipped this one vertically against all the others.
+    # index frame on the top and right, real coordinates on the bottom and
+    # left -- the same layout the plotLAYER pages use.
+    ax.set_xlabel('col j', fontsize=10)
+    ax.xaxis.set_label_position('top')
+    ax.xaxis.tick_top()
+    ax.set_ylabel('row i', fontsize=10)
+    ax.yaxis.set_label_position('right')
+    ax.yaxis.tick_right()
+    if MMplot is not None and mg is not None and mg.xoffset is not None:
+        MMplot.add_real_coord_axes(
+            ax, nrow, xll=float(mg.xoffset), yll=float(mg.yoffset),
+            delr=float(np.mean(np.asarray(mg.delr, dtype=float))),
+            delc=float(np.mean(np.asarray(mg.delc, dtype=float))),
+            frame='index0', nbins=6)
     fn = os.path.join(out, 'network_overlay.png')
     fig.savefig(fn, dpi=140, bbox_inches='tight')
     plt.close(fig)
     return [fn]
 
+
+# input fields drawn over the whole grid rather than over the active cells
+_IN_NOMASK = ('ibound',)
 
 # labels for the MM flux indices, used by the native catchment plot
 _MM_LABEL = {
@@ -521,6 +473,25 @@ _MM_LABEL = {
     'iSsoil_pc': 'Ssoil%', 'iMB': 'MB', 'iEo': 'Eo', 'ihcorr': 'hcorr',
     'idgwt': 'dgwt', 'iuzthick': 'uzthick', 'iMBsurf': 'MBsurf',
 }
+
+
+def _mmplot(trunk=None):
+    """Import and return the native ``MARMITESplot_v3`` module (or None).
+
+    Three entry points need it -- ``native_suite``, ``run_preproc`` and the
+    network overlay -- and each used to carry its own copy of the sys.path
+    dance.
+    """
+    if trunk is None:
+        trunk = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    mmplot_dir = os.path.join(trunk, 'MARMITESutilities', 'MARMITESplot')
+    if mmplot_dir not in sys.path:
+        sys.path.insert(0, mmplot_dir)
+    try:
+        import MARMITESplot_v3 as MMplot
+    except Exception:                                    # pragma: no cover
+        return None
+    return MMplot
 
 
 def native_suite(out_dir, cMF, ctx, res, ds_ws=None, trunk=None, verbose=True,
@@ -543,12 +514,7 @@ def native_suite(out_dir, cMF, ctx, res, ds_ws=None, trunk=None, verbose=True,
     """
     import matplotlib
     matplotlib.use('agg')
-    if trunk is None:
-        trunk = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-    mmplot_dir = os.path.join(trunk, 'MARMITESutilities', 'MARMITESplot')
-    if mmplot_dir not in sys.path:
-        sys.path.insert(0, mmplot_dir)
-    import MARMITESplot_v3 as MMplot
+    MMplot = _mmplot(trunk)
     IX = dict(ctx.index)
     nper = res['perc'].shape[0]
     if sim_ws is None:
@@ -1913,6 +1879,23 @@ def _native_input_maps(MMplot, out_dir, cMF, ctx, res=None, verbose=True):
         lst += [('thti', 'Initial water content - $thti$', arr(cMF.thti_actual)),
                 ('thtr', 'Residual water content - $thtr$', arr(cMF.thtr_actual))]
 
+    # the model footprint and the MARMITES zoning. These were only ever drawn
+    # by the plain imshow maps that used to sit alongside this set; folding
+    # them in here is what let those be removed.
+    lst += [('ibound', 'Active cells - $ibound$', arr(ib))]
+    for attr, stem, cblbl in (('gridSOIL', 'SOILzones', 'Soil zone'),
+                              ('gridMETEO', 'METEOzones', 'Meteo. zone'),
+                              ('gridIRR', 'IRRzones', 'Irrigation zone')):
+        g = getattr(ctx, attr, None)
+        if g is not None:
+            lst += [(stem, cblbl, arr(g))]
+    veg = getattr(ctx, 'gridVEGarea', None)
+    if veg is not None:
+        veg = np.asarray(veg, dtype=float)
+        for v in range(veg.shape[0]):
+            lst += [('VEG%darea' % (v + 1), 'Veg. %d area [%%]' % (v + 1),
+                     arr(veg[v]))]
+
     # elev / top / botm share one scale, so the three read against each other
     elev_all = np.concatenate([arr(cMF.elev).ravel(), top_tmp.ravel(),
                                arr(cMF.botm).ravel()])
@@ -1930,6 +1913,10 @@ def _native_input_maps(MMplot, out_dir, cMF, ctx, res=None, verbose=True):
                 nplot = 1
             else:
                 m, nplot = mask, nlay
+            if stem in _IN_NOMASK:
+                # the footprint itself: masking it by the footprint would
+                # leave a field that is 1 everywhere it is drawn
+                m = np.zeros(m.shape, dtype=bool)
             good = V[0][~m]
             good = good[~np.isclose(good, hnoflo, atol=0.09)]
             good = good[np.isfinite(good)]
@@ -1937,6 +1924,8 @@ def _native_input_maps(MMplot, out_dir, cMF, ctx, res=None, verbose=True):
                 continue
             if stem in ('Ss', 'hk', 'T', 'drn_cond', 'ghb_cond', 'vks'):
                 fmt = '%5.e'
+            elif stem in ('ibound', 'SOILzones', 'METEOzones', 'IRRzones'):
+                fmt = '%5.0f'
             elif stem in ('Sy', 'thts', 'thti', 'thtr', 'gridSOILthick',
                           'gridSsurfhmax', 'gridSsurfw'):
                 fmt = '%5.3f'
@@ -1946,11 +1935,20 @@ def _native_input_maps(MMplot, out_dir, cMF, ctx, res=None, verbose=True):
                 lo, hi = elev_lo, elev_hi
             else:
                 lo, hi = _vrange(good)
+            if not hi > lo:
+                # a uniform field (an unused zoning grid, say) would give a
+                # zero-width colour scale and a degenerate BoundaryNorm
+                hi = lo + 1.0
+            # an integer field gets one colourbar tick per class, not five
+            # linspace ones (1..3 in five steps prints "2" three times)
+            nint = 5
+            if fmt == '%5.0f':
+                nint = max(2, min(5, int(round(hi - lo)) + 1))
             MMplot.plotLAYER(
                 days=[0], str_per=[0], Date='NA', JD='NA', ncol=ncol, nrow=nrow,
                 nlay=nlay, nplot=nplot, V=np.where(m, hnoflo, V), cmap=cmap,
                 CBlabel=cblbl, msg='', plt_title='IN_%03d_%s' % (n, stem),
-                MM_ws=out_dir, interval_type='linspace', interval_num=5,
+                MM_ws=out_dir, interval_type='linspace', interval_num=nint,
                 Vmax=[hi], Vmin=[lo], fmt=fmt, points=pts, mask=m,
                 hnoflo=hnoflo, cMF=cMF)
         except Exception as exc:                       # pragma: no cover

@@ -1447,6 +1447,76 @@ def _nice_tick(n, target=8):
     return max(1, int(round(n / float(target))))
 
 
+# projected-coordinate unit -> metres per unit
+_COORD_UNIT = {'m': 1.0, 'km': 1000.0}
+
+
+def add_real_coord_axes(ax, nrow, cMF=None, xll=None, yll=None, delr=None,
+                        delc=None, frame='centre1', yaxis=True, unit='km',
+                        ticksize=7, labelsize=9, xrotation=0, yrotation=90,
+                        nbins=4, fmt='%.1f'):
+    """Projected X / Y axes on the BOTTOM and LEFT of a map axes.
+
+    Every map in the suite carries the same pair of frames: MODFLOW row /
+    column indices on the top and right (drawn by the caller) and the real
+    coordinates here. The two families of maps differ only in what their data
+    coordinates mean, which is what ``frame`` selects:
+
+    ``centre1``   plotLAYER's pcolormesh mesh -- 1-based cell centres, so
+                  ``X = xll + (v - 0.5) * delr`` and
+                  ``Y = yll + (nrow - v + 0.5) * delc``
+    ``index0``    a plain ``imshow`` -- 0-based cell indices, half a cell
+                  further along in both directions.
+
+    Both are affine, so one pair of forward/inverse lambdas covers them with
+    a sign flip on the half-cell offset. Coordinates are divided by ``unit``
+    (kilometres by default: UTM metres need 7 digits per label, which does
+    not fit under a 6-inch map).
+
+    The default locator is deliberately coarse (``nbins``) and the labels are
+    fixed to one decimal: matplotlib's own choice put six labels under a
+    two-inch panel, and the Y ones are turned on their side so they cost the
+    figure width of a character rather than of a whole coordinate.
+
+    Pass either ``cMF`` (the origin is read off it) or the four geometry
+    values. Returns ``(secondary_x, secondary_y)``; both are ``None`` when no
+    origin is available, so callers need no guard of their own.
+    """
+    if xll is None and cMF is not None:
+        xll = getattr(cMF, 'xllcorner', None)
+        if xll is not None:
+            yll = getattr(cMF, 'yllcorner')
+            delr = np.mean(np.asarray(cMF.delr, dtype=float))
+            delc = np.mean(np.asarray(cMF.delc, dtype=float))
+    if xll is None or yll is None:
+        return None, None
+    s = _COORD_UNIT.get(unit, 1.0)
+    off = 0.5 if frame == 'centre1' else -0.5
+    dr, dc = float(delr), float(delc)
+    ax0 = float(xll) - off * dr
+    ay0 = float(yll) + (float(nrow) + off) * dc
+
+    secx = ax.secondary_xaxis('bottom', functions=(
+        lambda v, a=ax0, d=dr, k=s: (a + v * d) / k,
+        lambda X, a=ax0, d=dr, k=s: (X * k - a) / d))
+    secx.set_xlabel('X [%s]' % unit, fontsize=labelsize)
+    secx.xaxis.set_major_locator(mpl.ticker.MaxNLocator(nbins=nbins))
+    secx.xaxis.set_major_formatter(mpl.ticker.FormatStrFormatter(fmt))
+    plt.setp(secx.get_xticklabels(), fontsize=ticksize, rotation=xrotation,
+             ha='right' if xrotation else 'center')
+    secy = None
+    if yaxis:
+        secy = ax.secondary_yaxis('left', functions=(
+            lambda v, a=ay0, d=dc, k=s: (a - v * d) / k,
+            lambda Y, a=ay0, d=dc, k=s: (a - Y * k) / d))
+        secy.set_ylabel('Y [%s]' % unit, fontsize=labelsize)
+        secy.yaxis.set_major_locator(mpl.ticker.MaxNLocator(nbins=nbins))
+        secy.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter(fmt))
+        plt.setp(secy.get_yticklabels(), fontsize=ticksize, rotation=yrotation,
+                 va='center')
+    return secx, secy
+
+
 def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_title, MM_ws,
               interval_type='arange', interval_diff=1, interval_num=1, Vmax=0, Vmin=0, fmt=None, contours=False,
               ntick=None, facecolor='silver', points=None, ptslbl=0, mask=None, hnoflo=-999.9, animation=0,
@@ -1588,36 +1658,13 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
                     ax[l].xaxis.set_label_position("top")
                     ax[l].xaxis.tick_top()
                     ax[l].xaxis.set_ticks_position('both')
-                    # Real-world coordinates on the BOTTOM and LEFT, keeping the
-                    # MODFLOW indices on the top and right. The mesh puts cell
-                    # centres at 1..ncol / 1..nrow with row 1 at the north edge,
-                    # so a data coordinate maps to the projected one as
-                    #   X = xll + (xd - 0.5) * delr
-                    #   Y = yll + (nrow - yd + 0.5) * delc
-                    # (checked against inputObs.txt: cell i=8, j=4 -> 739525,
-                    # 4555875, exactly the coordinates given for P0).
-                    _xll = getattr(cMF, 'xllcorner', None) if cMF is not None else None
-                    if _xll is not None:
-                        _yll = float(cMF.yllcorner)
-                        _dr = float(np.mean(np.asarray(cMF.delr, dtype=float)))
-                        _dc = float(np.mean(np.asarray(cMF.delc, dtype=float)))
-                        _xll = float(_xll)
-                        secx = ax[l].secondary_xaxis(
-                            'bottom',
-                            functions=(lambda v, a=_xll, d=_dr: a + (v - 0.5) * d,
-                                       lambda X, a=_xll, d=_dr: (X - a) / d + 0.5))
-                        secx.set_xlabel('X [m]', fontsize=9)
-                        secx.ticklabel_format(style='plain', useOffset=False)
-                        plt.setp(secx.get_xticklabels(), fontsize=7, rotation=30,
-                                 ha='right')
-                        if l < 1:
-                            secy = ax[l].secondary_yaxis(
-                                'left',
-                                functions=(lambda v, b=_yll, d=_dc, n=nrow: b + (n - v + 0.5) * d,
-                                           lambda Y, b=_yll, d=_dc, n=nrow: n + 0.5 - (Y - b) / d))
-                            secy.set_ylabel('Y [m]', fontsize=9)
-                            secy.ticklabel_format(style='plain', useOffset=False)
-                            plt.setp(secy.get_yticklabels(), fontsize=7)
+                    # Real coordinates on the BOTTOM and LEFT, MODFLOW indices
+                    # on the top and right. add_real_coord_axes() carries the
+                    # mesh->projected mapping and is shared with the imshow
+                    # maps (checked against inputObs.txt: cell i=8, j=4 ->
+                    # 739525, 4555875, the coordinates given for P0).
+                    add_real_coord_axes(ax[l], nrow, cMF=cMF, frame='centre1',
+                                        yaxis=(l < 1))
                     if points is not None:
                         for k, (xj, yi, lay, label) in enumerate(zip(points[2], points[1], points[3], points[0])):
                             if lay == L:

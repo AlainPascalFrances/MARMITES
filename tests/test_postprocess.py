@@ -117,8 +117,9 @@ def tiny_run(tmp_path_factory):
     # a well sink so storage and flows are non-trivial
     flopy.mf6.ModflowGwfwel(gwf, stress_period_data={0: [[(0, 0, 0), -50.0]]},
                             save_flows=True)
-    # UZF: one land cell, recharge on top
-    uzf_pkg = [(0, (0, 1, 1), 1, -1, 0.1, 0.1, 0.3, 0.1, 3.5)]
+    # UZF: one land cell, recharge on top. packagedata is
+    # (ifno, cellid, landflag, ivertcon, surfdep, vks, thtr, thts, thti, eps)
+    uzf_pkg = [(0, (0, 1, 1), 1, -1, 0.1, 0.1, 0.05, 0.35, 0.1, 3.5)]
     uzf_spd = {0: [(0, 0.001, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)]}
     flopy.mf6.ModflowGwfuzf(gwf, nuzfcells=1, ntrailwaves=7, nwavesets=40,
                             packagedata=uzf_pkg, perioddata=uzf_spd,
@@ -171,13 +172,18 @@ def test_run_postproc_writes_the_expected_files(tiny_run, tmp_path):
     ws, name, nlay, nrow, ncol = tiny_run
     files = PP.run_postproc(ws, str(tmp_path), name=name, verbose=False)
     got = {os.path.basename(f) for f in files}
+    # the head / depth / storage grids are CSV only: the maps themselves are
+    # drawn by native_suite (GWmap_head, MMmap_dgwt) with the coordinate axes
     for L in range(1, nlay + 1):
-        assert 'mean_head_L%d.png' % L in got
-        assert 'mean_depth_L%d.png' % L in got
+        assert 'mean_head_L%d.csv' % L in got
+        assert 'mean_depth_L%d.csv' % L in got
+        assert 'storage_change_L%d.csv' % L in got
+    assert not any(f.endswith('.png') and f.startswith(('mean_', 'storage_'))
+                   for f in got)
     assert 'budget_compartment.png' in got
     assert 'budget_uzf.png' in got
     assert 'budget_sfr.png' in got
-    outdir = os.path.join(ws, 'postproc')
+    outdir = os.path.join(ws, '_output')
     assert os.path.exists(os.path.join(outdir, 'mean_head_L1.csv'))
     assert os.path.exists(os.path.join(outdir, 'budget_compartment.csv'))
 
@@ -189,7 +195,7 @@ def test_run_postproc_obs_overlay(tiny_run, tmp_path):
     (tmp_path / 'inputObsHEADS_T1.txt').write_text('2008-01-01\t95.0\n2008-01-02\t94.5\n')
     files = PP.run_postproc(ws, str(tmp_path), name=name, verbose=False)
     assert any(os.path.basename(f) == 'obs_heads.png' for f in files)
-    assert os.path.exists(os.path.join(ws, 'postproc', 'obs_heads_computed.csv'))
+    assert os.path.exists(os.path.join(ws, '_output', 'obs_heads_computed.csv'))
 
 
 def test_subsample_is_even_and_bounded():
@@ -207,10 +213,11 @@ def test_run_preproc_writes_input_maps(tiny_run, tmp_path):
     files = PP.run_preproc(ws, str(tmp_path), name=name, mf_ws=str(tmp_path),
                            verbose=False)
     got = {os.path.basename(f) for f in files}
-    assert 'aq_top.png' in got
-    assert any(f.startswith('aq_k_L') for f in got)
-    assert any(f.startswith('mm_') for f in got), 'MM input maps must be included'
+    # without cMF/ctx only the overlay can be drawn; the parameter fields are
+    # the native IN_* maps, which need the model objects
     assert 'network_overlay.png' in got
+    assert not any(f.startswith(('aq_', 'mm_')) for f in got),         'the plain aq_*/mm_* maps were replaced by the native IN_* set'
+    assert os.path.exists(os.path.join(ws, '_input', 'network_overlay.png'))
 
 
 def test_ja_down_index_matches_flopy_faceflows():

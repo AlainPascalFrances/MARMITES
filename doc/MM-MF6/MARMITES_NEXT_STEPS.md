@@ -28,8 +28,17 @@ E:\00code\MARMITES\                     REPO
 E:\00code_ws\LaMata_MM-MF6\             WORKSPACE (never in git)
   MF6_ws\                               MODFLOW 6 model + output
   MMsurf_ws\                            MMsurf output
-  out_<YYYYMMDDHHMM>_<tag>\             MM results: postproc\ + figures\
+  out_<YYYYMMDDHHMM>_<tag>\             MM results:
+    _input\                             input parameter maps (IN_*) + overlay
+    _output\                            all result figures + CSVs
+    figures_nwt_comparison\             the 01-07 MF-NWT vs MF6 figures
 ```
+
+Every map in `_input` and `_output` carries MODFLOW row/column indices on the
+top and right and projected coordinates (km) on the bottom and left, drawn by
+`MARMITESplot_v3.add_real_coord_axes` -- shared by the native `plotLAYER`
+pages (1-based cell centres, `frame='centre1'`) and the plain `imshow` overlay
+(0-based indices, `frame='index0'`).
 
 Saved run state (`hi_spinup_*`) is written to the workspace; reading prefers
 the workspace copy and falls back to the baseline committed in
