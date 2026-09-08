@@ -31,6 +31,14 @@ import numpy as np
 HERE = os.path.dirname(os.path.abspath(__file__))
 TRUNK = os.path.abspath(os.path.join(HERE, '..', 'trunk'))
 DS = os.path.abspath(os.path.join(HERE, '..', 'DataSet_LaMata'))
+
+# MODFLOW-NWT reference for the comparison panels. It lives in the legacy
+# PhD/paper archive, NOT in the repository: it is 1.3 GB and cannot be
+# regenerated (the NWT build path was removed from the code in Phase 1).
+NWT_REF = os.environ.get(
+    'MARMITES_NWT_REF',
+    os.path.join('E:' + os.sep, '00code_ws', 'LaMata_new_PhD_artigo_2s3L',
+                 '_h5_MM.h5'))
 sys.path.insert(0, TRUNK)
 
 import matplotlib  # noqa: E402
@@ -79,8 +87,11 @@ def load_reference(chunk=120):
 
     Read in day chunks: the reference MM array is ~370 MB.
     """
-    fn = os.path.join(DS, '_h5_MM.h5')
+    fn = NWT_REF
     if not os.path.exists(fn):
+        print('plot_water_budget: NWT reference not found at\n  %s\n'
+              '  -> comparison panels omitted. Set $MARMITES_NWT_REF to the '
+              'legacy _h5_MM.h5 to restore them.' % fn)
         return None
     with h5py.File(fn, 'r') as h:
         MM = h['MM']
