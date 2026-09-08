@@ -330,6 +330,8 @@ def main():
     ap.add_argument('--sankey-min-flux', type=float, default=0.05, metavar='MM',
                     help='native water-balance Sankey: hide flows below this '
                          'magnitude (mm/y) on the core diagram (default 0.05)')
+    ap.add_argument('--map-days', type=int, default=6, metavar='N',
+                    help='head maps on N evenly spaced days (0 = mean only)')
     ap.add_argument('--no-sankey-full', dest='sankey_full', action='store_false',
                     default=True, help='skip the all-flux Sankey (keep only the '
                          'decluttered core diagram)')
@@ -593,7 +595,7 @@ def main():
             native_suite(os.path.join(a.out_dir, 'postproc'), cMF, ctx, res,
                          ds_ws=DS, sim_ws=a.ws, sankey=True,
                          sankey_full=a.sankey_full,
-                         sankey_min_flux=a.sankey_min_flux)
+                         sankey_min_flux=a.sankey_min_flux, map_days=a.map_days)
             # 01-07 water-budget figures incl. 06_heads/07_coupling and the
             # NWT-vs-MF6 comparison (into <out_dir>/figures/)
             try:

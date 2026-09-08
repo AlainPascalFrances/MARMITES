@@ -74,7 +74,7 @@ Without it the script prints "reference not loaded" and emits new-run figures on
 
 Ordered by what blocks "post-processing reproduces MARMITESplot_v3 output".
 
-### A. Post-processing must match the native MARMITESplot_v3 suite
+### A. Post-processing vs the native MARMITESplot_v3 suite — COMPLETE ✅
 | Native routine | State |
 |---|---|
 | `plotTIMESERIES_CATCH` | ✅ works (`native_wb_catchment*.png`) |
@@ -84,7 +84,7 @@ Ordered by what blocks "post-processing reproduces MARMITESplot_v3 output".
 | `plotTIMESERIES` (obs soil column) | ✅ **DONE 2026-09-07** — 11/11 obs points |
 | `plotTIMESERIES_flxGW` | ✅ **DONE 2026-09-07** — 11/11 obs points |
 | `plotCALIBCRIT` (RMSE/RSR/NSE/R) | ✅ **DONE 2026-09-07** — 4 criteria; heads at 4 pts, SM at 2 |
-| full `plotLAYER` set + time selection | ❌ Stage 3, not started |
+| full `plotLAYER` set + time selection | ✅ **DONE 2026-09-07** — 7 per-layer aquifer maps + head time series |
 
 **Per-point Sankey — diagnosed.** All 11 points raise, from matplotlib:
 `ValueError: The connection cannot be made, which may occur if the magnitude
