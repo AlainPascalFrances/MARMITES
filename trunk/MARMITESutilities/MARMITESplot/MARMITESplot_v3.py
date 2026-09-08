@@ -111,14 +111,14 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
 
     ax2 = fig.add_subplot(8, 1, 2, sharex=ax1)
     if np.sum(np.abs(flx[flxIndex_lst['iRo']])) > 1E-7:
-        plt.plot_date(cMF.inputDate, flx[flxIndex_lst['iRo']], '-', c='blue', linewidth=1.0,
+        plt.plot(cMF.inputDate, flx[flxIndex_lst['iRo']], '-', c='blue', linewidth=1.0,
                       label=flxLbl[flxIndex_lst['iRo']])
     colors_nsl = itertools.cycle(clr_lst)
     if np.sum(np.abs(flx[flxIndex_lst['iI']])) > 1E-7:
-        plt.plot_date(cMF.inputDate, flx[flxIndex_lst['iI']], '--', c='brown', linewidth=1,
+        plt.plot(cMF.inputDate, flx[flxIndex_lst['iI']], '--', c='brown', linewidth=1,
                       label=flxLbl[flxIndex_lst['iI']])
     if np.sum(np.abs(flx[flxIndex_lst['iEow']])) > 1E-7:
-        plt.plot_date(cMF.inputDate, flx[flxIndex_lst['iEow']], '-', c='deepskyblue', linewidth=0.75,
+        plt.plot(cMF.inputDate, flx[flxIndex_lst['iEow']], '-', c='deepskyblue', linewidth=0.75,
                       label=flxLbl[flxIndex_lst['iEow']])
     if np.sum(np.abs(flx[flxIndex_lst['iSsurf']])) > 1E-7:
         plt.bar(cMF.inputDate, flx[flxIndex_lst['iSsurf']], color='lightblue', linewidth=0, align='center',
@@ -130,7 +130,7 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
         if 'iRoobs' in flxIndex_lst:
             Roobs_m = np.ma.masked_values(flx[flxIndex_lst['iRoobs']], cMF.hnoflo, atol=0.09)
             #        dgwtobsmin = np.ma.min(dgwtobs_m)
-            plt.plot_date(cMF.inputDate, Roobs_m,  'o', ls='None', color='lightblue',markeredgecolor='lightblue',
+            plt.plot(cMF.inputDate, Roobs_m,  'o', ls='None', color='lightblue',markeredgecolor='lightblue',
                           markerfacecolor='None', markersize=2,
                           label=flxLbl[flxIndex_lst['iRoobs']])  # ls='--', color = 'blue'
     except Exception:
@@ -156,23 +156,23 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     colors_nsl = itertools.cycle(clr_lst)
     ax3 = fig.add_subplot(8, 1, 3, sharex=ax1)
     # PE
-    plt.plot_date(cMF.inputDate, flx[flxIndex_lst['iPE']], '-', color='lightblue', linewidth=2,
+    plt.plot(cMF.inputDate, flx[flxIndex_lst['iPE']], '-', color='lightblue', linewidth=2,
                   label=flxLbl[flxIndex_lst['iPE']])
     if cMF.wel_yn == 1:
         E = flx[flxIndex_lst['iEsoil']] + flx[flxIndex_lst['iEg']]
         # Etot
-        plt.plot_date(cMF.inputDate, E, '-', color='darkblue', linewidth=1, label=r'$E$')
+        plt.plot(cMF.inputDate, E, '-', color='darkblue', linewidth=1, label=r'$E$')
     # Esoil
-    plt.plot_date(cMF.inputDate, flx[flxIndex_lst['iEsoil']], '--', color='brown',
+    plt.plot(cMF.inputDate, flx[flxIndex_lst['iEsoil']], '--', color='brown',
                   label=flxLbl[flxIndex_lst['iEsoil']], linewidth=1)
     if cMF.wel_yn == 1:
         # Eg
         if np.absolute(sum(flx[flxIndex_lst['iEg']])) > 1E-6:
-            plt.plot_date(cMF.inputDate, flx[flxIndex_lst['iEg']], '-', color='deepskyblue',
+            plt.plot(cMF.inputDate, flx[flxIndex_lst['iEg']], '-', color='deepskyblue',
                           label=flxLbl[flxIndex_lst['iEg']], linewidth=1)
     for l in range(nsl):
         if np.absolute(sum(flx[flxIndex_lst['iEsoil_%d' % (l + 1)]])):
-            ax3.plot_date(cMF.inputDate, flx[flxIndex_lst['iEsoil_%d' % (l + 1)]], '-', color=next(colors_nsl),
+            ax3.plot(cMF.inputDate, flx[flxIndex_lst['iEsoil_%d' % (l + 1)]], '-', color=next(colors_nsl),
                           label=flxLbl[flxIndex_lst['iEsoil_%d' % (l + 1)]], linewidth=1)
     # leg
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad=bdpd, handletextpad=hdltxtpd, ncol=3,
@@ -195,23 +195,23 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     colors_nsl = itertools.cycle(clr_lst)
     ax4 = fig.add_subplot(8, 1, 4, sharex=ax1)
     # PT
-    plt.plot_date(cMF.inputDate, flx[flxIndex_lst['iPT']], '-', color='lightblue', linewidth=2,
+    plt.plot(cMF.inputDate, flx[flxIndex_lst['iPT']], '-', color='lightblue', linewidth=2,
                   label=flxLbl[flxIndex_lst['iPT']])
     if cMF.wel_yn == 1:
         T = flx[flxIndex_lst['iTsoil']] + flx[flxIndex_lst['iTg']]
         # Ttot
-        plt.plot_date(cMF.inputDate, T, '-', color='darkblue', linewidth=1, label=r'$T$')
+        plt.plot(cMF.inputDate, T, '-', color='darkblue', linewidth=1, label=r'$T$')
     # Tsoil
-    plt.plot_date(cMF.inputDate, flx[flxIndex_lst['iTsoil']], '--', color='brown',
+    plt.plot(cMF.inputDate, flx[flxIndex_lst['iTsoil']], '--', color='brown',
                   label=flxLbl[flxIndex_lst['iTsoil']], linewidth=1)
     if cMF.wel_yn == 1:
         # Tg
         if np.absolute(sum(flx[flxIndex_lst['iTg']])) > 1E-6:
-            plt.plot_date(cMF.inputDate, flx[flxIndex_lst['iTg']], '-', color='deepskyblue',
+            plt.plot(cMF.inputDate, flx[flxIndex_lst['iTg']], '-', color='deepskyblue',
                           label=flxLbl[flxIndex_lst['iTg']], linewidth=1)
     for l in range(nsl):
         if np.absolute(sum(flx[flxIndex_lst['iTsoil_%d' % (l + 1)]])):
-            ax4.plot_date(cMF.inputDate, flx[flxIndex_lst['iTsoil_%d' % (l + 1)]], '-', color=next(colors_nsl),
+            ax4.plot(cMF.inputDate, flx[flxIndex_lst['iTsoil_%d' % (l + 1)]], '-', color=next(colors_nsl),
                           label=flxLbl[flxIndex_lst['iTsoil_%d' % (l + 1)]], linewidth=1)
     # leg
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad=bdpd, handletextpad=hdltxtpd, ncol=3,
@@ -238,23 +238,23 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
                 label=flxLbl[flxIndex_lst['iEXFg']])
     if cMF.wel_yn == 1:
         if np.sum(np.abs(flx[flxIndex_lst['iETg']])) > 1E-7:
-            plt.plot_date(cMF.inputDate, -1.0 * flx[flxIndex_lst['iETg']], '-', c='deepskyblue', linewidth=1,
+            plt.plot(cMF.inputDate, -1.0 * flx[flxIndex_lst['iETg']], '-', c='deepskyblue', linewidth=1,
                           label=flxLbl[flxIndex_lst['iETg']])
     for l in range(nsl):
         if np.sum(np.abs(flx[flxIndex_lst['iRsoil_%d' % (l + 1)]])) > 1E-7:
-            ax6.plot_date(cMF.inputDate, flx[flxIndex_lst['iRsoil_%d' % (l + 1)]], '-', color=next(colors_nsl),
+            ax6.plot(cMF.inputDate, flx[flxIndex_lst['iRsoil_%d' % (l + 1)]], '-', color=next(colors_nsl),
                           label=flxLbl[flxIndex_lst['iRsoil_%d' % (l + 1)]])
     if np.sum(np.abs(flx[flxIndex_lst['iRg']])) > 1E-7:
-        plt.plot_date(cMF.inputDate, flx[flxIndex_lst['iRg']], '-', c='darkblue', linewidth=1,
+        plt.plot(cMF.inputDate, flx[flxIndex_lst['iRg']], '-', c='darkblue', linewidth=1,
                       label=flxLbl[flxIndex_lst['iRg']])
     Rn = flx[flxIndex_lst['iRg']] - flx[flxIndex_lst['iETg']] - flx[flxIndex_lst['iEXFg']]
     if np.sum(np.abs(Rn)) > 1E-7:
-        plt.plot_date(cMF.inputDate, Rn, '--', c='black', linewidth=1, label='$Rn$')
+        plt.plot(cMF.inputDate, Rn, '--', c='black', linewidth=1, label='$Rn$')
     del Rn
     colors_nsl = itertools.cycle(clr_lst)
     for l in range(nsl):
         if np.sum(np.abs(flx[flxIndex_lst['iExf_%d' % (l + 1)]])) > 1E-7:
-            ax6.plot_date(cMF.inputDate, -1.0 * flx[flxIndex_lst['iExf_%d' % (l + 1)]], '--', color=next(colors_nsl),
+            ax6.plot(cMF.inputDate, -1.0 * flx[flxIndex_lst['iExf_%d' % (l + 1)]], '--', color=next(colors_nsl),
                           label=flxLbl[flxIndex_lst['iExf_%d' % (l + 1)]])
             # y
     ax6.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.3G'))
@@ -280,7 +280,7 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
         try:
             if 'iSobs_%d' % (l + 1) in flxIndex_lst:
                 if list(flx[flxIndex_lst['iSobs_%d' % (l + 1)]]):
-                    ax5.plot_date(cMF.inputDate, flx[flxIndex_lst['iSobs_%d' % (l + 1)]], 'o', ls='None', color='gray',
+                    ax5.plot(cMF.inputDate, flx[flxIndex_lst['iSobs_%d' % (l + 1)]], 'o', ls='None', color='gray',
                                   markersize=2, markeredgecolor=next(colors_nsl), markerfacecolor='None',
                                   label=flxLbl[flxIndex_lst['iSobs_%d' % (l + 1)]])  # '--', color = color,  markevery = 2
         except Exception:
@@ -291,7 +291,7 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
         y = flx[flxIndex_lst['iSsoil_pc_s_%d' % (l + 1)]]
         sim_tmp.append(y)
         y = np.ma.masked_where(y < 0.0, y)
-        ax5.plot_date(cMF.inputDate, y, '-', color=next(colors_nsl),
+        ax5.plot(cMF.inputDate, y, '-', color=next(colors_nsl),
                       label=flxLbl[flxIndex_lst['iSsoil_pc_s_%d' % (l + 1)]])
         del y
     # y axis
@@ -325,13 +325,13 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
         if cMF.h_plt[L] == 1:
             hMF = flx[flxIndex_lst['ih_%s' % cMF.h_lbl[L]]] #'id_%d' % (L + 1)]]
             #hMFmax.append(np.max(hMF))
-            plt.plot_date(cMF.inputDate, hMF, next(lines), color='b', markersize=2, markevery=7,
+            plt.plot(cMF.inputDate, hMF, next(lines), color='b', markersize=2, markevery=7,
                       label=flxLbl[flxIndex_lst['ih_%s' % cMF.h_lbl[L]]])
-    #plt.plot_date(cMF.inputDate, flx[flxIndex_lst['ihcorr']], '--', c='g', markersize=2, markevery=7,
+    #plt.plot(cMF.inputDate, flx[flxIndex_lst['ihcorr']], '--', c='g', markersize=2, markevery=7,
     #              label=flxLbl[flxIndex_lst['ihcorr']])
     try:
         if 'ihobs' in flxIndex_lst:
-            plt.plot_date(cMF.inputDate, flx[flxIndex_lst['ihobs']], 'o', ls='None', color='LightBlue',
+            plt.plot(cMF.inputDate, flx[flxIndex_lst['ihobs']], 'o', ls='None', color='LightBlue',
                           markeredgecolor='LightBlue', markerfacecolor='None', markersize=2,
                           label=flxLbl[flxIndex_lst['ihobs']])  # ls='--', color = 'blue'  markevery = 7,
     except Exception:
@@ -396,15 +396,15 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
          '_'])
     for L in range(cMF.nlay):
         if cMF.h_plt[L] == 1:
-            plt.plot_date(cMF.inputDate, flx[flxIndex_lst['ih_%s' % cMF.h_lbl[L]]], next(lines), color='b',
+            plt.plot(cMF.inputDate, flx[flxIndex_lst['ih_%s' % cMF.h_lbl[L]]], next(lines), color='b',
                       markersize=2, markevery=7, label=flxLbl[flxIndex_lst['ih_%s' % cMF.h_lbl[L]]])   # 'ih_%d' % (L + 1)]
-    plt.plot_date(cMF.inputDate, flx[flxIndex_lst['ihcorr']], '--', color='g', markersize=2, markevery=7,
+    plt.plot(cMF.inputDate, flx[flxIndex_lst['ihcorr']], '--', color='g', markersize=2, markevery=7,
                   label=flxLbl[flxIndex_lst['ihcorr']])
-    plt.plot_date(cMF.inputDate, flx[flxIndex_lst['ih_SF']], '-', color='r', markersize=2, markevery=7,
+    plt.plot(cMF.inputDate, flx[flxIndex_lst['ih_SF']], '-', color='r', markersize=2, markevery=7,
                   label=flxLbl[flxIndex_lst['ih_SF']])
     try:
         if 'ihobs' in flxIndex_lst:
-            plt.plot_date(cMF.inputDate, flx[flxIndex_lst['ihobs']], 'o', ls='None', color='LightBlue',
+            plt.plot(cMF.inputDate, flx[flxIndex_lst['ihobs']], 'o', ls='None', color='LightBlue',
                           markeredgecolor='LightBlue', markerfacecolor='None', markersize=2,
                           label=flxLbl[flxIndex_lst['ihobs']])  # ls='--', color = 'blue' markevery = 7,
     except Exception:
@@ -433,15 +433,15 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
 
     colors_nsl = itertools.cycle(clr_lst)
     ax8b = fig.add_subplot(8, 1, 1, sharex=ax1)
-    plt.plot_date(cMF.inputDate, flx[flxIndex_lst['iMBsurf']], '-', c='lightblue',
+    plt.plot(cMF.inputDate, flx[flxIndex_lst['iMBsurf']], '-', c='lightblue',
                   label=flxLbl[flxIndex_lst['iMBsurf']])
     MBmin = [min(flx[flxIndex_lst['iMBsurf']])]
     MBmax = [max(flx[flxIndex_lst['iMBsurf']])]
-    plt.plot_date(cMF.inputDate, flx[flxIndex_lst['iMB']], '-', c='r', label=flxLbl[flxIndex_lst['iMB']])
+    plt.plot(cMF.inputDate, flx[flxIndex_lst['iMB']], '-', c='r', label=flxLbl[flxIndex_lst['iMB']])
     MBmin.append(min(flx[flxIndex_lst['iMB']]))
     MBmax.append(max(flx[flxIndex_lst['iMB']]))
     for l in range(nsl):
-        ax8b.plot_date(cMF.inputDate, flx[flxIndex_lst['iMB_s_%d' % (l + 1)]], '-', color=next(colors_nsl),
+        ax8b.plot(cMF.inputDate, flx[flxIndex_lst['iMB_s_%d' % (l + 1)]], '-', color=next(colors_nsl),
                        label=flxLbl[flxIndex_lst['iMB_s_%d' % (l + 1)]])
         MBmin.append(min(flx[flxIndex_lst['iMB_s_%d' % (l + 1)]]))
         MBmax.append(max(flx[flxIndex_lst['iMB_s_%d' % (l + 1)]]))
@@ -476,13 +476,13 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     ax8b.grid(visible=True, which='minor', axis='x', linestyle=':', color='gainsboro')
 
     ax20 = fig.add_subplot(8, 1, 2, sharex=ax1)
-    plt.plot_date(cMF.inputDate, flx[flxIndex_lst['iRo']], '-', c='blue', linewidth=1.0,
+    plt.plot(cMF.inputDate, flx[flxIndex_lst['iRo']], '-', c='blue', linewidth=1.0,
                   label=flxLbl[flxIndex_lst['iRo']])
     ymax = None
     try:
         #        dgwtobsmin = np.ma.min(dgwtobs_m)
         if 'iRoobs' in flxIndex_lst:
-            plt.plot_date(cMF.inputDate, flx[flxIndex_lst['iRoobs']], 'o', ls='None', color='lightblue',
+            plt.plot(cMF.inputDate, flx[flxIndex_lst['iRoobs']], 'o', ls='None', color='lightblue',
                           markeredgecolor='lightblue', markerfacecolor='None', markersize=2,
                           label=flxLbl[flxIndex_lst['iRoobs']])  # ls='--', color = 'blue'
             ymax = np.ma.max(flx[flxIndex_lst['iRoobs']])
@@ -510,7 +510,7 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     colors_nsl = itertools.cycle(clr_lst)
     ax9a = fig.add_subplot(16, 1, 5, sharex=ax1)
     for l in range(nsl):
-        ax9a.plot_date(cMF.inputDate, flx[flxIndex_lst['iSAT_%d' % (l + 1)]], '-', color=next(colors_nsl),
+        ax9a.plot(cMF.inputDate, flx[flxIndex_lst['iSAT_%d' % (l + 1)]], '-', color=next(colors_nsl),
                        label=flxLbl[flxIndex_lst['iSAT_%d' % (l + 1)]])
     # y axis
     plt.ylim(-0.1, 1.1)
@@ -534,7 +534,7 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
 
     ax10a = fig.add_subplot(16, 1, 6, sharex=ax1)
     uzthick = flx[flxIndex_lst['iuzthick']]
-    plt.plot_date(cMF.inputDate, -uzthick, '-', c='brown', label=flxLbl[flxIndex_lst['iuzthick']])
+    plt.plot(cMF.inputDate, -uzthick, '-', c='brown', label=flxLbl[flxIndex_lst['iuzthick']])
     # y axis
     plt.ylabel('(m)', fontsize=10)
     minfact = 0.95
@@ -570,15 +570,15 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     for L in range(cMF.nlay):
         if cMF.h_plt[L] == 1:
             dgwtMFmax.append(np.max(flx[flxIndex_lst['id_%s' % cMF.h_lbl[L]]]))  # 'id_%d' % (L + 1)
-            plt.plot_date(cMF.inputDate, flx[flxIndex_lst['id_%s' % cMF.h_lbl[L]]], next(lines), color='b', markersize=2,
+            plt.plot(cMF.inputDate, flx[flxIndex_lst['id_%s' % cMF.h_lbl[L]]], next(lines), color='b', markersize=2,
                       markevery=7,
                       label=flxLbl[flxIndex_lst['id_%s' % cMF.h_lbl[L]]])  # 'id_%d' % (L + 1)
-    plt.plot_date(cMF.inputDate, flx[flxIndex_lst['idcorr']], '--', c='g', markersize=2, markevery=7,
+    plt.plot(cMF.inputDate, flx[flxIndex_lst['idcorr']], '--', c='g', markersize=2, markevery=7,
                   label=flxLbl[flxIndex_lst['idcorr']])
     try:
         if 'idobs' in flxIndex_lst:
             if flx[flxIndex_lst['idobs']].size > 0:   # array.size>0
-                plt.plot_date(cMF.inputDate, flx[flxIndex_lst['idobs']], 'o', ls='None', color='LightBlue',
+                plt.plot(cMF.inputDate, flx[flxIndex_lst['idobs']], 'o', ls='None', color='LightBlue',
                               markeredgecolor='LightBlue', markerfacecolor='None', markersize=2,
                               label=flxLbl[flxIndex_lst['idobs']])  # ls='--', color = 'blue' markevery = 7,
     except Exception:
@@ -619,7 +619,7 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     for l in range(nsl):
         y = flx[flxIndex_lst['iSsoil_%d' % (l + 1)]]
         y = np.ma.masked_where(y < 0.0, y)
-        ax10b.plot_date(cMF.inputDate, y, '-', color=next(colors_nsl),
+        ax10b.plot(cMF.inputDate, y, '-', color=next(colors_nsl),
                         label=flxLbl[flxIndex_lst['iSsoil_%d' % (l + 1)]])
     # y axis
     plt.ylim(0, np.max(flx[flxIndex_lst['iSsoil_%d' % (l + 1)]]) * 1.05)
@@ -646,14 +646,14 @@ def plotTIMESERIES(cMF, i, j, flx, flxLbl, flxIndex_lst, Sm, Sr, plt_export_fn, 
     for l in range(nsl):
         y = flx[flxIndex_lst['iSsoil_pc_s_%d' % (l + 1)]]
         y = np.ma.masked_where(y < 0.0, y)
-        ax5.plot_date(cMF.inputDate, y, '-', color=next(colors_nsl),
+        ax5.plot(cMF.inputDate, y, '-', color=next(colors_nsl),
                       label=flxLbl[flxIndex_lst['iSsoil_pc_s_%d' % (l + 1)]])
     for l in range(nsl):
         try:
             if 'iSobs_%d' % (l + 1) in flxIndex_lst:
                 if list(flx[flxIndex_lst['iSobs_%d' % (l + 1)]]):
                     y = flx[flxIndex_lst['iSobs_%d' % (l + 1)]]
-                    ax5.plot_date(cMF.inputDate, y, 'o', ls='None', color='gray', markersize=2,
+                    ax5.plot(cMF.inputDate, y, 'o', ls='None', color='gray', markersize=2,
                                   markeredgecolor=next(colors_nsl), markerfacecolor='None',
                                   label=flxLbl[flxIndex_lst['iSobs_%d' % (l + 1)]])  # '--', color = color, markevery = 2,
         except Exception:
@@ -766,7 +766,7 @@ def plotTIMESERIES_flxGW(cMF, flx, flxLbl, flxIndex_lst, plt_export_fn, plt_titl
     # plot Ro
     ax2 = fig.add_subplot(8, 1, 2, sharex=ax0)
     # Ro
-    plt.plot_date(cMF.inputDate, flx[flxIndex_lst['iRo']], '-', c='blue', linewidth=1.0,
+    plt.plot(cMF.inputDate, flx[flxIndex_lst['iRo']], '-', c='blue', linewidth=1.0,
                   label=flxLbl[flxIndex_lst['iRo']])
     # leg
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad=bdpd, handletextpad=hdltxtpd, ncol=2,
@@ -798,12 +798,12 @@ def plotTIMESERIES_flxGW(cMF, flx, flxLbl, flxIndex_lst, plt_export_fn, plt_titl
     ax1 = fig.add_subplot(8, 1, 4, sharex=ax0)
     for L in range(cMF.nlay):
         if cMF.h_plt[L] == 1:
-            plt.plot_date(cMF.inputDate, flx[flxIndex_lst['id_%s' % cMF.h_lbl[L]]], next(lines), color='b', markersize=2,
+            plt.plot(cMF.inputDate, flx[flxIndex_lst['id_%s' % cMF.h_lbl[L]]], next(lines), color='b', markersize=2,
                       markevery=7, label=flxLbl[flxIndex_lst['id_%s' % cMF.h_lbl[L]]])  # 'id_%d' % (L + 1)
     # SATFLOW depth to the water table, on the same axis as the per-layer
     # depths it is meant to be compared with (it is a depth, not a flux).
     if 'id_SF' in flxIndex_lst:
-        plt.plot_date(cMF.inputDate, flx[flxIndex_lst['id_SF']], '-', color='r',
+        plt.plot(cMF.inputDate, flx[flxIndex_lst['id_SF']], '-', color='r',
                       markersize=2, markevery=7,
                       label=flxLbl[flxIndex_lst['id_SF']])
     # leg
@@ -827,7 +827,7 @@ def plotTIMESERIES_flxGW(cMF, flx, flxLbl, flxIndex_lst, plt_export_fn, plt_titl
     # plot GW fluxes
     ax8 = fig.add_subplot(2, 1, 2, sharex=ax0)
     # uzf recharge
-    plt.plot_date(cMF.inputDate, flx[flxIndex_lst['iRg']], '-', c='darkblue', linewidth=1,
+    plt.plot(cMF.inputDate, flx[flxIndex_lst['iRg']], '-', c='darkblue', linewidth=1,
                   label=flxLbl[flxIndex_lst['iRg']])
     lines = itertools.cycle(
         ['-', '--', '-.', ':', '.', ',', 'o', 'v', '^', '<', '>', 's', 'p', '*', 'h', 'H', '+', 'x', 'D', 'd', '|',
@@ -847,7 +847,7 @@ def plotTIMESERIES_flxGW(cMF, flx, flxLbl, flxIndex_lst, plt_export_fn, plt_titl
 
     for i in range(flxIndex_lst['idSg_1'], len(flxIndex_lst)):
         if _is_flux(i) and np.absolute(sum(flx[i])) > 1E-6:
-            plt.plot_date(cMF.inputDate, flx[i], next(lines), color=mpl.colors.rgb2hex(np.random.rand(1, 3)[0]),
+            plt.plot(cMF.inputDate, flx[i], next(lines), color=_series_colour(i),
                           markersize=2, markevery=7, label=flxLbl[i], markeredgecolor='None')
     # leg
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad=bdpd, handletextpad=hdltxtpd, ncol=4,
@@ -972,14 +972,14 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
 
     ax1a = ax1.twinx()
     # Ro
-    ax1a.plot_date(cMF.inputDate, flx[flxIndex_lst['iRo']], '-', c='blue', linewidth=1.0,
+    ax1a.plot(cMF.inputDate, flx[flxIndex_lst['iRo']], '-', c='blue', linewidth=1.0,
                   label=flxLbl[flxIndex_lst['iRo']])  # 'r-', c='blue',
     # Ro obs
     try:
         if obs_catch_list[2] == 1:
             obs_Ro = obs_catch.get('catch')['obs_Ro']
             Roobs_m = np.ma.masked_values(obs_Ro[0], cMF.hnoflo, atol=0.09)
-            plt.plot_date(cMF.inputDate, Roobs_m, 'o', color = 'lightblue', markeredgecolor = 'green', markerfacecolor = 'lightgreen',
+            plt.plot(cMF.inputDate, Roobs_m, 'o', color = 'lightblue', markeredgecolor = 'green', markerfacecolor = 'lightgreen',
                           markersize=2, label=r'$Ro \ obs$')  # markevery = 7,
             print('RMSE/RSR/NSE/r of obs. at the catch. scale')
             rmse, rsr, nse, r = cMF.cPROCESS.compCalibCrit(flx[flxIndex_lst['iRo']], obs_Ro[0], cMF.hnoflo)
@@ -1008,7 +1008,7 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
     ax2 = fig.add_subplot(8, 1, 2, sharex=ax1)
     # ax2.set_autoscalex_on(False)
     # Eow
-    plt.plot_date(cMF.inputDate, flx[flxIndex_lst['iEow']], '-', c='deepskyblue', linewidth=1.0,
+    plt.plot(cMF.inputDate, flx[flxIndex_lst['iEow']], '-', c='deepskyblue', linewidth=1.0,
                   label=flxLbl[flxIndex_lst['iEow']])
     # Ssurf
     plt.bar(cMF.inputDate, flx[flxIndex_lst['iSsurf']], color='lightblue', linewidth=0, align='center',
@@ -1037,18 +1037,18 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
     ax3 = fig.add_subplot(8, 1, 3, sharex=ax1)
     # ax3.set_autoscalex_on(False)
     # PE
-    plt.plot_date(cMF.inputDate, flx[flxIndex_lst['iPE']], '-', color='lightblue', linewidth=2,
+    plt.plot(cMF.inputDate, flx[flxIndex_lst['iPE']], '-', color='lightblue', linewidth=2,
                   label=flxLbl[flxIndex_lst['iPE']])
     if cMF.wel_yn == 1:
         E = flx[flxIndex_lst['iEsoil']] + flx[flxIndex_lst['iEg']]
         # Etot
-        plt.plot_date(cMF.inputDate, E, '-', color='darkblue', linewidth=1, label=r'$E$')
+        plt.plot(cMF.inputDate, E, '-', color='darkblue', linewidth=1, label=r'$E$')
     # Esoil
-    plt.plot_date(cMF.inputDate, flx[flxIndex_lst['iEsoil']], '--', color='brown',
+    plt.plot(cMF.inputDate, flx[flxIndex_lst['iEsoil']], '--', color='brown',
                   label=flxLbl[flxIndex_lst['iEsoil']], linewidth=1)
     if cMF.wel_yn == 1:
         # Eg
-        plt.plot_date(cMF.inputDate, flx[flxIndex_lst['iEg']], '-', color='deepskyblue', label=flxLbl[flxIndex_lst['iEg']], linewidth=1)
+        plt.plot(cMF.inputDate, flx[flxIndex_lst['iEg']], '-', color='deepskyblue', label=flxLbl[flxIndex_lst['iEg']], linewidth=1)
     # leg
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad=bdpd, handletextpad=hdltxtpd, ncol=2,
                columnspacing=colspc)
@@ -1070,18 +1070,18 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
     ax4 = fig.add_subplot(8, 1, 4, sharex=ax1)
     # ax4.set_autoscalex_on(False)
     # PT
-    plt.plot_date(cMF.inputDate, flx[flxIndex_lst['iPT']], '-', color='lightblue', linewidth=2,
+    plt.plot(cMF.inputDate, flx[flxIndex_lst['iPT']], '-', color='lightblue', linewidth=2,
                   label=flxLbl[flxIndex_lst['iPT']])
     if cMF.wel_yn == 1:
         T = flx[flxIndex_lst['iTsoil']] + flx[flxIndex_lst['iTg']]
         # Ttot
-        plt.plot_date(cMF.inputDate, T, '-', color='darkblue', linewidth=1, label=r'$T$')
+        plt.plot(cMF.inputDate, T, '-', color='darkblue', linewidth=1, label=r'$T$')
     # Tsoil
-    plt.plot_date(cMF.inputDate, flx[flxIndex_lst['iTsoil']], '--', color='brown',
+    plt.plot(cMF.inputDate, flx[flxIndex_lst['iTsoil']], '--', color='brown',
                   label=flxLbl[flxIndex_lst['iTsoil']], linewidth=1)
     if cMF.wel_yn == 1:
         # Tg
-        plt.plot_date(cMF.inputDate, flx[flxIndex_lst['iTg']], '-', color='deepskyblue', label=flxLbl[flxIndex_lst['iTg']], linewidth=1)
+        plt.plot(cMF.inputDate, flx[flxIndex_lst['iTg']], '-', color='deepskyblue', label=flxLbl[flxIndex_lst['iTg']], linewidth=1)
     # leg
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad=bdpd, handletextpad=hdltxtpd, ncol=2,
                columnspacing=colspc)
@@ -1103,19 +1103,19 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
     ax5 = fig.add_subplot(8, 1, 5, sharex=ax1)
     # ax5.set_autoscalex_on(False)
     # Rp
-    ax5.plot_date(cMF.inputDate, flx[flxIndex_lst['iperc']], '-', color='brown',
+    ax5.plot(cMF.inputDate, flx[flxIndex_lst['iperc']], '-', color='brown',
                   label=flxLbl[flxIndex_lst['iRsoil']])
     if cMF is not None:
         if cMF.wel_yn == 1:
             # ETg
-            plt.plot_date(cMF.inputDate, -1.0 * flx[flxIndex_lst['iETg']], '-', c='deepskyblue', linewidth=1,
+            plt.plot(cMF.inputDate, -1.0 * flx[flxIndex_lst['iETg']], '-', c='deepskyblue', linewidth=1,
                           label=flxLbl[flxIndex_lst['iETg']])
         # Rg
-        plt.plot_date(cMF.inputDate, flx[flxIndex_lst['iRg']], '-', c='darkblue', linewidth=1,
+        plt.plot(cMF.inputDate, flx[flxIndex_lst['iRg']], '-', c='darkblue', linewidth=1,
                       label=flxLbl[flxIndex_lst['iRg']])
         # Rn
         Rn = flx[flxIndex_lst['iRg']] - flx[flxIndex_lst['iETg']] - flx[flxIndex_lst['iEXFg']]
-        plt.plot_date(cMF.inputDate, Rn, '--', c='black', linewidth=1,
+        plt.plot(cMF.inputDate, Rn, '--', c='black', linewidth=1,
                       label='$Rn$')
         del Rn
     # EXF
@@ -1152,12 +1152,12 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
     rsrSM = None
     nseSM = None
     rSM = None
-    ax6.plot_date(cMF.inputDate, flx[flxIndex_lst['iSsoil_pc']], '-', color='brown',
+    ax6.plot(cMF.inputDate, flx[flxIndex_lst['iSsoil_pc']], '-', color='brown',
                   label=flxLbl[flxIndex_lst['iSsoil_pc']])
     if obs_catch_list[1] == 1:
         obs_SM = obs_catch.get('catch')['obs_SM']
         Sobs_m = np.ma.masked_values(obs_SM[0], cMF.hnoflo, atol=0.09)
-        ax6.plot_date(cMF.inputDate, Sobs_m, 'o', markerfacecolor='None', markeredgecolor='brown', markersize=2,
+        ax6.plot(cMF.inputDate, Sobs_m, 'o', markerfacecolor='None', markeredgecolor='brown', markersize=2,
                       label=r'$\theta \ obs$')  # markevery = 7,
         rmse, rsr, nse, r = cMF.cPROCESS.compCalibCrit(flx[flxIndex_lst['iSsoil_pc']], obs_SM[0], cMF.hnoflo)
         rmseSM = [100.0 * rmse]
@@ -1203,13 +1203,13 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
         for l in range(cMF.nlay):
             if cMF.h_plt[l] == 1:
                 i = 'ih_%s' % cMF.h_lbl[l]
-                ax10.plot_date(cMF.inputDate, flx[flxIndex_lst[i]], next(lines), color='b', markersize=2, markevery=7,
+                ax10.plot(cMF.inputDate, flx[flxIndex_lst[i]], next(lines), color='b', markersize=2, markevery=7,
                           label=flxLbl[flxIndex_lst[i]])
         if obs_catch_list[0] == 1:
             obs_h = obs_catch.get('catch')['obs_h']
             hobs_m = np.ma.masked_values(obs_h[0], cMF.hnoflo, atol=0.09)
             #dobs_m = hobs_m - TopSoilAverage
-            ax10.plot_date(cMF.inputDate,hobs_m, 'o', markerfacecolor='None', markeredgecolor='LightBlue',
+            ax10.plot(cMF.inputDate,hobs_m, 'o', markerfacecolor='None', markeredgecolor='LightBlue',
                            markersize=2, markevery=7, label=r'$h \ obs$')
         # y
         plt.ylabel('(m a.s.l.)', fontsize=10)
@@ -1280,12 +1280,12 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
     ax2 = fig.add_subplot(8, 1, 2, sharex=ax0)
     # ax2.set_autoscalex_on(True)
     # Ro
-    plt.plot_date(cMF.inputDate, flx[flxIndex_lst['iRo']], '-', c='blue', linewidth=1.0, label=flxLbl[5])
+    plt.plot(cMF.inputDate, flx[flxIndex_lst['iRo']], '-', c='blue', linewidth=1.0, label=flxLbl[5])
     # Ro obs
     if obs_catch_list[2] == 1:
         obs_Ro = obs_catch.get('catch')['obs_Ro']
         Roobs_m = np.ma.masked_values(obs_Ro[0], cMF.hnoflo, atol=0.09)
-        plt.plot_date(cMF.inputDate, Roobs_m, 'o', markerfacecolor='None', markeredgecolor='lightBlue',
+        plt.plot(cMF.inputDate, Roobs_m, 'o', markerfacecolor='None', markeredgecolor='lightBlue',
                       markersize=2, label=r'$Ro \ obs$')  # markevery = 7,
     # y
     plt.ylabel('(mm)', fontsize=10)
@@ -1347,10 +1347,10 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
         for l in range(cMF.nlay):
             if cMF.h_plt[l] == 1:
                 i = 'ih_%s' % cMF.h_lbl[l]
-                plt.plot_date(cMF.inputDate, flx[flxIndex_lst[i]], next(lines), color='b', markersize=2, markevery=7,
+                plt.plot(cMF.inputDate, flx[flxIndex_lst[i]], next(lines), color='b', markersize=2, markevery=7,
                           label=flxLbl[flxIndex_lst[i]])
         if obs_catch_list[0] == 1:
-            ax1.plot_date(cMF.inputDate, hobs_m, 'o', markerfacecolor='None', markeredgecolor='LightBlue',
+            ax1.plot(cMF.inputDate, hobs_m, 'o', markerfacecolor='None', markeredgecolor='LightBlue',
                           markersize=2, markevery=7, label=r'$h \ obs$')
         # y
         plt.ylim(hmin, hmax)
@@ -1374,13 +1374,13 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
         ax8 = fig.add_subplot(2, 1, 2, sharex=ax1)
         # ax8.set_autoscalex_on(True)
         # uzf recharge
-        plt.plot_date(cMF.inputDate, flx[flxIndex_lst['iRg']], '-', c='darkblue', linewidth=1,
+        plt.plot(cMF.inputDate, flx[flxIndex_lst['iRg']], '-', c='darkblue', linewidth=1,
                       label=flxLbl[flxIndex_lst['iRg']])
         lines = itertools.cycle(
             ['-', '--', '-.', ':', '.', ',', 'o', 'v', '^', '<', '>', 's', 'p', '*', 'h', 'H', '+', 'x', 'D', 'd', '|',
              '_'])
         for l, (e, lbl) in enumerate(zip(flx[flxIndex_lst['idSg_1']:], flxLbl[flxIndex_lst['idSg_1']:])):
-            plt.plot_date(cMF.inputDate, e, next(lines), color=mpl.colors.rgb2hex(np.random.rand(1, 3)[0]),
+            plt.plot(cMF.inputDate, e, next(lines), color=_series_colour(l),
                           markersize=2, markevery=7, label=lbl, markeredgecolor='None')
         # y
         plt.ylabel('(mm)', fontsize=10)
@@ -1421,6 +1421,17 @@ def plotTIMESERIES_CATCH(cMF, flx, flxLbl, plt_export_fn, plt_title, hmax, hmin,
     return rmseHEADS, rmseSM, rsrHEADS, rsrSM, nseHEADS, nseSM, rHEADS, rSM
 
 
+
+
+def _series_colour(i):
+    """Stable colour for the i-th extra series on a panel.
+
+    These lines used to take mpl.colors.rgb2hex(np.random.rand(1, 3)[0]), so a
+    figure came out differently on every render -- two runs of identical code
+    differ by thousands of pixels -- and a draw could land on a near-white,
+    unreadable colour. tab20 is qualitative, deterministic and legible.
+    """
+    return mpl.colors.rgb2hex(mpl.colormaps['tab20'](int(i) % 20)[:3])
 
 
 def _nice_tick(n, target=8):

@@ -25,6 +25,8 @@ The steady-state stress period (kper 0) is excluded from every average and map.
 __author__ = "Alain P. Francés <frances.alain@gmail.com>"
 __version__ = "0.4.0.dev0"
 
+import contextlib
+import logging
 import os
 import sys
 import time
@@ -1221,7 +1223,47 @@ def _sankey_dates(cMF, nper):
 def _render_sankey(MMplot, out_dir, DATE, flx, flxIndex, HYindex, year_lst,
                    smf, ncell_MM, ibound4Sankey, obspt, fntitle, treshold,
                    verbose):
-    """Call plotWBsankey once and collect the PNGs it wrote for this fntitle."""
+    """Call plotWBsankey once and collect the PNGs it wrote for this fntitle.
+
+    "Ignoring fixed x/y limits to fulfill fixed data aspect with adjustable
+    data limits" is silenced for the duration: nothing on our side causes it.
+    matplotlib's own Sankey.finish() calls ax.axis([...]), which pins the limits
+    and turns autoscaling off, and then asks for set_aspect('equal',
+    adjustable='datalim') -- so it reports the conflict it just created, once
+    per panel per axis (156 lines on a full La Mata run).
+
+    Note it is emitted with _log.warning(), NOT the warnings module, so
+    warnings.filterwarnings cannot touch it; only a logging filter can.
+    """
+    written = []
+    with _quiet_mpl_aspect():
+        return _render_sankey_inner(MMplot, out_dir, DATE, flx, flxIndex,
+                                    HYindex, year_lst, smf, ncell_MM,
+                                    ibound4Sankey, obspt, fntitle, treshold,
+                                    verbose)
+
+
+class _DropAspectNoise(logging.Filter):
+    """Drop only matplotlib's fixed-aspect/fixed-limits complaint."""
+
+    def filter(self, record):
+        return not str(record.getMessage()).startswith('Ignoring fixed ')
+
+
+@contextlib.contextmanager
+def _quiet_mpl_aspect():
+    log = logging.getLogger('matplotlib.axes._base')
+    filt = _DropAspectNoise()
+    log.addFilter(filt)
+    try:
+        yield
+    finally:
+        log.removeFilter(filt)
+
+
+def _render_sankey_inner(MMplot, out_dir, DATE, flx, flxIndex, HYindex,
+                         year_lst, smf, ncell_MM, ibound4Sankey, obspt,
+                         fntitle, treshold, verbose):
     written = []
     try:
         MMplot.plotWBsankey(out_dir, DATE, flx, flxIndex,
