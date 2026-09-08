@@ -1714,6 +1714,24 @@ def _native_aquifer_maps(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
             1, nlay, nrow, ncol)
         draw(V, stem, cblbl, 'mm/d',
              cmap=cmap_out if sgn < 0 else cmap_in)
+    # Effective and net recharge, exactly as the legacy driver derived them
+    # (startMARMITES_v3.py ~2433-2462):
+    #     Re = Rg + EXF          gross recharge net of exfiltration
+    #     Rn = Re + WEL          ... and net of groundwater ET
+    # The cbc already reports EXF and WEL negative (water leaving the aquifer),
+    # so these are plain sums of the RAW records -- not the sign-flipped
+    # magnitudes used for their individual maps. Both are signed fields, so
+    # plotLAYER draws them with the remapped coolwarm_r ramp.
+    if 'UZF-GWRCH' in maps:
+        re = np.asarray(maps['UZF-GWRCH'], float).copy()
+        if 'DRN_SEEP' in maps:
+            re += np.asarray(maps['DRN_SEEP'], float)
+        draw((re * to_mm[None, :, :]).reshape(1, nlay, nrow, ncol),
+             'Re', 'effective recharge (Rg + Exf)', 'mm/d')
+        if 'WEL' in maps:
+            rn = re + np.asarray(maps['WEL'], float)
+            draw((rn * to_mm[None, :, :]).reshape(1, nlay, nrow, ncol),
+                 'Rn', 'net recharge (Rg + Exf + ETg)', 'mm/d')
     # storage change is the sum of the two storage records
     if 'STO-SS' in maps or 'STO-SY' in maps:
         s = (np.asarray(maps.get('STO-SS', 0.0))
