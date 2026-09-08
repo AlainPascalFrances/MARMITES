@@ -174,29 +174,33 @@ validated at several obs cells, not just one.
 
 Stage 2 is now cheap: the `mm_obs` / `mms_obs` capture it needs already exists.
 
-### B. Stop carrying heavy HDF5; read MF6 output directly
-`_coupled_lagged.h5` is **182.5 MB** for 1949 SPs, and **96 % of it is six
-per-cell x per-SP arrays** (29.1 MB each). What actually consumes them:
+### B. HDF5 vs reading MF6 output — SETTLED 2026-09-08 🟡
 
-| Array | Consumer | Available instead from |
-|---|---|---|
-| `heads` | `plotHEADS` | `<name>.hds` |
-| `rejinf` | `plotCOUPLING`, one mean | `uzf.cbc` REJ-INF |
-| `exf` | EXFg fallback in `_aquifer_layer_fluxes` | DRN_SEEP SIMVALS / UZF GWD |
-| `perc` | **only `.shape[0]`** (to get nper) | trivial |
-| `etg` | **no consumer** | `cbc` WEL |
-| `runoff` | **no consumer** | (SFR inflow / `wb_ts[iRo]`) |
+Decision: **the aquifer side reads the MF6 output directly; the MM side keeps
+its (small) HDF5.** That split is forced, not a preference — the MM soil and
+surface fluxes are computed in Python by MARMITES and exist in NO MODFLOW file,
+so no amount of cbc reading can recover them.
 
-Target: drop all six, leaving ~8 MB of genuinely MM-only aggregates
-(`wb_ts`, `wb_map`, `wb_ts_soil`, `wb_map_soil`, `mm_obs`, `mms_obs`,
-`cell_ij`, `obs_*`).
+Done: every aquifer term the figures need (recharge, storage, seepage, drainage,
+groundwater ET, vertical exchange, heads) now comes from the cell budget and the
+`.hds`, via `_aquifer_pass` / `_aquifer_map_pass` with their cached digests. No
+legacy HDF5 is in any figure path.
 
-**Caveat that bounds this work:** the MM soil/surface fluxes (P, Ei, Pe, I,
-Esoil, Tsoil, dSsoil, Ssurf, ...) are computed in Python by MARMITES and exist
-in NO MODFLOW file. "Read directly from MF6" therefore applies to the aquifer
-and exchange terms only; the soil-side aggregates must stay in the HDF5 (or be
-recomputed by re-running MM). The Sankey's aquifer side already reads the cbc
-directly (`_aquifer_layer_fluxes`) — that is the pattern to extend.
+Still open, and deliberately so: `_coupled_<mode>.h5` is ~182 MB for 1949 SPs,
+96 % of it six per-cell x per-SP arrays (heads, perc, etg, exf, rejinf, runoff,
+29 MB each). Slimming it would leave ~8 MB. The measured facts, so the decision
+can be made on evidence rather than memory:
+
+* the FIGURES take ETg and Ro from the `wb_ts` / `wb_map` aggregates, **not**
+  from the `etg` / `runoff` arrays — so those two plots are safe either way;
+* `heads`, `rejinf` and `exf` are recoverable from the `.hds` and the cbc
+  (`REJ-INF`, and the seepage face now that paknam2 separates it);
+* `perc` is read only for `.shape[0]`;
+* `load_new()` loads five of them eagerly, so any removal must relax that;
+* `--save-means` uses `res['etg']` IN MEMORY during a run, so it is unaffected.
+
+Cost of keeping them: ~174 MB per run, untracked, in the workspace. Cheap to
+revisit; nothing depends on doing it.
 
 ### C. MODFLOW-NWT comparison — RESTORED 2026-09-07 ✅
 `plot_water_budget.load_reference()` reads `DS/_h5_MM.h5`, but `DS` is now the
