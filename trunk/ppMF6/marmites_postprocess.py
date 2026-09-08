@@ -34,7 +34,7 @@ import numpy as np
 
 __all__ = ['run_postproc', 'run_preproc', 'obs_points', 'obs_series',
            'budget_by_compartment', 'package_budget', 'layer_storage_change',
-           'native_layer_maps', 'native_suite', 'COMPARTMENT']
+           'native_suite', 'COMPARTMENT']
 
 # MARMITES input maps (soil-water-balance side) and the MODFLOW input maps
 # (aquifer side). Both belong in the preprocessing channel: the MM script
@@ -353,14 +353,11 @@ def run_postproc(sim_ws, ds_ws, name='lamatamm', dates=None,
             if verbose:
                 print('   %s budget skipped: %r' % (pkg, exc))
 
-    # NOTE: the native plotLAYER head map is NOT produced here any more.
-    # native_layer_maps() writes into <sim_ws>/postproc -- the MODEL workspace,
-    # not this run's results folder -- so it split the output across two
-    # directories, and it predates the corrections applied to the map wiring
-    # (legacy colormaps, automatic round ticks, observation points, the
-    # model's own hnoflo). native_suite's _native_aquifer_maps() supersedes it:
-    # same figure per layer, from an exact mean over every stress period rather
-    # than a 200-step subsample. native_layer_maps() is kept for standalone use.
+    # NOTE: the native plotLAYER head map is produced by native_suite's
+    # _native_aquifer_maps(), per layer and from an exact mean over every
+    # stress period, into this run's results folder. The older
+    # native_layer_maps() that used to be called here wrote into the MODEL
+    # workspace and predated the map corrections; it has been removed.
 
     # --- per-layer storage change map --------------------------------- #
     try:
@@ -1873,53 +1870,6 @@ def resolve_obs_cells(cMF, ctx, ds_ws, verbose=True):
         print('resolve_obs_cells: %d observation cell(s) captured: %s'
               % (len(obs_idx), ', '.join(obs_names)))
     return obs_idx, obs_names
-
-
-def native_layer_maps(sim_ws, name='lamatamm', trunk=None, verbose=True):
-    """Render the mean-head map per layer with the native MARMITES plotLAYER.
-
-    This reuses the original MARMITES figure style (the same routine the NWT
-    driver used for its head maps) on the coupled MF6 output, so the native
-    plotting suite is exercised alongside the cdl-style maps. Returns the files
-    written, or [] if plotLAYER is unavailable.
-    """
-    import flopy
-    if trunk is None:
-        trunk = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-    mmplot_dir = os.path.join(trunk, 'MARMITESutilities', 'MARMITESplot')
-    if mmplot_dir not in sys.path:
-        sys.path.insert(0, mmplot_dir)
-    try:
-        import MARMITESplot_v3 as MMplot
-    except Exception as exc:               # pragma: no cover
-        if verbose:
-            print('   native plotLAYER unavailable: %r' % exc)
-        return []
-    out = _mkdir(sim_ws, 'postproc')
-    sim = flopy.mf6.MFSimulation.load(sim_ws=sim_ws, verbosity_level=0)
-    mg = sim.get_model().modelgrid
-    nlay, nrow, ncol = mg.nlay, mg.nrow, mg.ncol
-    hds = flopy.utils.HeadFile(os.path.join(sim_ws, '%s.hds' % name))
-    kk = [k for k in hds.get_kstpkper() if k[1] >= 1] or hds.get_kstpkper()
-    H = np.array([hds.get_data(kstpkper=k) for k in _subsample(kk, 200)])
-    H = np.where(np.abs(H) > 1e29, np.nan, H)
-    with warnings.catch_warnings():
-        warnings.simplefilter('ignore', category=RuntimeWarning)  # all-NaN layers
-        mean_h = np.nanmean(H, axis=0).reshape(1, nlay, nrow, ncol)
-    mask = ~np.isfinite(mean_h[0])
-    import matplotlib
-    cmap = matplotlib.colormaps['viridis']       # plotLAYER wants a cmap object
-    MMplot.plotLAYER(
-        days=[0], str_per=[0], Date=['mean'], JD=[0], ncol=ncol, nrow=nrow,
-        nlay=nlay, nplot=nlay, V=np.nan_to_num(mean_h, nan=-999.9),
-        cmap=cmap, CBlabel='mean head [m]', msg='arange',
-        plt_title='mean_head_native', MM_ws=out, mask=mask, hnoflo=-999.9,
-        pref_plt_title='native')
-    files = [os.path.join(out, f) for f in os.listdir(out)
-             if f.startswith('native_mean_head_native')]
-    if verbose:
-        print('native plotLAYER: %d head map page(s) -> %s' % (len(files), out))
-    return files
 
 
 def _dates_from_dataset(ds_ws, n):

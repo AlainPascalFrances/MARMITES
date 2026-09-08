@@ -197,20 +197,6 @@ def test_subsample_is_even_and_bounded():
     s = PP._subsample(list(range(1000)), 5)
     assert len(s) == 5 and s[0] == 0 and s[-1] == 999               # endpoints kept
     assert s == sorted(set(s))                                      # unique, ordered
-
-
-def test_native_layer_maps_runs_on_real_hds():
-    """The native MARMITES plotLAYER, exercised on whatever coupled output is
-    already on disk (no mf6 binary needed to read a .hds)."""
-    ws = os.path.join(os.environ.get(
-        'MARMITES_WS_ROOT',
-        os.path.join('E:' + os.sep, '00code_ws', 'LaMata_MM-MF6')), 'MF6_ws')
-    if not os.path.exists(os.path.join(ws, 'lamatamm.hds')):
-        pytest.skip('no La Mata .hds on disk')
-    files = PP.native_layer_maps(ws, name='lamatamm', verbose=False)
-    assert files and all(os.path.exists(f) for f in files)
-
-
 def test_run_preproc_writes_input_maps(tiny_run, tmp_path):
     ws, name, nlay, nrow, ncol = tiny_run
     # a couple of MM input maps so that branch is exercised too
