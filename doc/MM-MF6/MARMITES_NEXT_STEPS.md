@@ -80,8 +80,8 @@ Ordered by what blocks "post-processing reproduces MARMITESplot_v3 output".
 | `plotTIMESERIES_CATCH` | ✅ works (`native_wb_catchment*.png`) |
 | `plotWBsankey` catchment | ✅ works, core + full, MM-side MB ~0 % |
 | `plotWBsankey` per obs point | ✅ **FIXED 2026-09-07** — all 11 points render |
-| `plotLAYER` | 🟡 partial (flux maps + mean-head maps only) |
-| `plotTIMESERIES` (obs soil column) | ❌ Stage 2, not started |
+| `plotLAYER` | ✅ **CORRECTED 2026-09-07** — 17 flux maps, legacy conventions, obs points overlaid |
+| `plotTIMESERIES` (obs soil column) | ✅ **DONE 2026-09-07** — 11/11 obs points |
 | `plotTIMESERIES_flxGW` | ❌ Stage 2, not started |
 | `plotCALIBCRIT` (RMSE/RSR/NSE/R) | ❌ Stage 2, not started — needs `inputObsHEADS_*` / `inputObsSM_*` |
 | full `plotLAYER` set + time selection | ❌ Stage 3, not started |
