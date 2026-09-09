@@ -1,19 +1,100 @@
-# MARMITES
-MARMITES (MM) is a transient and distributed model of the land surface and the soil zone that is coupled with the groundwater model MODFLOW (MF). The MARMITES-MODFLOW coupled model (MM-MF) allows to compute spatio-temporally the water balance at the catchment scale. The main features and novelties of this approach are: (i) spatio-temporal quantification of sub-surface water fluxes; (ii) sourcing of the subsurface water fluxes, i.e. the allocation of these water fluxes to unsaturated or saturated zones; and (iii) partitioning of the evapotranspiration into evaporation and transpiration.
+# MARMITES — branch `MM-MF6_SFR_LAK_CRR`
 
-MM is composed by one surface component (MARMITESsurf, in short MMsurf) and one soil zone component (MARMITESsoil, in short MMsoil). The first step in MM-MF modeling is to compute the driving forces of the hydrological cycle, i.e. rainfall and potential evapotranspiration. This is handled by MMsurf that requires as input the following hourly meteorological data: rainfall, wind speed, air relative humidity, air temperature and incoming solar radiation. Next, the water balance in the soil zone is computed on a daily basis using lumped-parameters and linear relationships between fluxes and soil moisture. The soil zone is discretized into superimposed layers that are parameterized with basic soil hydraulic properties (soil porosity, specific retention, wilting point, saturated hydraulic conductivity and thickness). The percolation from the soil zone into the intermediate unsaturated zone, i.e. the aeration zone between the soil bottom and the water table, is handled by the the MF package UZF1 (see http://pubs.usgs.gov/tm/2006/tm6a19/). UZF1 converts the soil percolation into groundwater recharge using a 1D solution of the Richard's equation that only considers gravitational forces. In this modeling approach, the capillary fringe is thus neglected. Finally, water flow and storage in the saturated zone are computed by MF. Since the MM-MF model is designed to represent phreatic aquifers, we use the MODFLOW-NWT version (see http://water.usgs.gov/nrp/gwsoftware/modflow_nwt/ModflowNwt.html). The transient calibration of the MM-MF coupled model is typically done against soil moisture in MM and hydraulic heads in MF.
+MARMITES is a transient, distributed model of the land surface and the soil zone (recharge,
+ET partitioning and ET sourcing), coupled to **MODFLOW 6** through the BMI/API. The model
+itself is described in [`docs/MARMITES_overview.md`](docs/MARMITES_overview.md).
 
-The hydrological processes included in MM-MF are:
+This branch adds the surface-water side — **SFR** (stream routing), **LAK** (ponds) and
+**CRR** (cascade routing with reinfiltration) — together with a **three-source total ET**, a
+**configuration file** in place of the command-line flags, a **Streamlit** interface, and a
+**PEST++-IES** calibration.
 
-1 - Rainfall interception by vegetation and crops;
-2 - Irrigation in agricultural fields;
-3 - Potential evaporation and transpiration computed for several vegetation, crop and soil types;
-4 - Infiltration, runoff, surface storage, evaporation, transpiration, percolation and soil moisture storage in the soil zone;
-5 - Percolation and storage in the subsoil zone;
-6 - Groundwater recharge, evaporation, transpiration, flow and storage of the saturated zone.
+- The plan: [`docs/MARMITES_x_CdL_merge_cookbook.docx`](docs/MARMITES_x_CdL_merge_cookbook.docx)
+  (work packages WP0–WP8 plus WP1b).
+- The running state: [`docs/MM-MF6/MARMITES_NEXT_STEPS.md`](docs/MM-MF6/MARMITES_NEXT_STEPS.md).
+- The design record: [`docs/MM-MF6/MARMITES_SFR_LAK_CRR_analysis.md`](docs/MM-MF6/MARMITES_SFR_LAK_CRR_analysis.md).
 
-The items 1 to 3 are computed by MMsurf, while item 4 is computed by MMsoil. Item 5 is controlled by UZF1 while item 6 is computed by MODFLOW-NWT. The soil percolation computed by MMsoil is implemented in MF that convert it into groundwater recharge using the UZF1 package. In return, the depth of the water table and the groundwater exfiltration, computed by MF, constitutes the bottom boundary of MM.
+## Layout
 
-MM-MF model output is a daily spatial water balance of the catchment that quantifies the partitioning of: (i) subsurface fluxes into unsaturated and saturated zone components; (ii) saturated zone fluxes into groundwater recharge, groundwater uptake by plants, direct evaporation from water table and groundwater runoff. Output are kept in HDF5 files (see http://www.hdfgroup.org/HDF5/) and they are automatically exported at user-defined observations points in ASCII files to allow their importing in other software such as Microsoft Excel. MM also produces images and plots to visualize spatial data and time series data.
+```
+docs/       documentation
+  MM-MF6/     the MODFLOW 6 conversion record: handoff, design analysis, phase reports
+  MARMITES_x_CdL_merge_cookbook.docx     THE PLAN for this branch
+  MARMITES_overview.md                   what the model is and does
+code/       all the code
+  MARMITESsoil/ MARMITESsurf/ MARMITESutilities/   the MARMITES model itself
+  ppMF6/        the MODFLOW 6 side: build, SFR, LAK, layers, pre/post-processing
+  ppMF_FloPy/   the legacy MODFLOW pre-processor (kept to read, not to run)
+  SFR_LAK_CRR/  the CdL reference model — reference only, not part of the build
+  tests/        the test suite and the run drivers (run_lamata_mf6.py)
+  tools/        one-off utilities: GIS -> dataset conversion, the PEST chain    (WP1, WP7)
+  app/          the Streamlit interface                                          (WP1b)
+  configs/      run configuration files, one per model configuration             (WP0)
+example/    the input data MM and MF read directly — one folder per case study
+  LaMata/     La Mata (Spain) — the development and test case
+  CdL/        Casa de Lobos (Portugal) — the production case      (to be populated)
+  WRR/        the small WRR dataset a few tests use
+```
 
-Operationally, MM is programmed in Python and requires 3 types of ASCII files to run. The 1st type correspond to INI files that are required to initialize the 3 MM-MF components (MMsurf, MMsoil and MF). The 2nd ASCII file type is ESRI ASCII GRID, required to provide spatial parameters and variables to the MM-MF model. The 3rd type provides the times series of meteorological data, observations and other. To interact with MF, we use a Python pre and post-processor called FloPy (see https://modflowpy.github.io/flopydoc/index.html).
+## The repository / workspace rule
+
+**The repository holds code, docs and strictly the input files MM and MF read directly.**
+No GIS, no run output, however small or convenient. Everything a run produces goes to a
+workspace outside the repository, set by `--ws-root` or `$MARMITES_WS_ROOT`
+(default `E:\00code_ws\LaMata_MM-MF6`):
+
+```
+<WS_ROOT>/MF6_ws/                 the MODFLOW 6 model and its output
+<WS_ROOT>/MMsurf_ws/              MMsurf output
+<WS_ROOT>/out_<stamp>_<tag>/      MM results: _input/ (parameter maps) + _output/ (figures, CSV)
+```
+
+Raw geospatial sources (shapefiles, DEM) live outside the repository as well, under
+`$MARMITES_DATA_ROOT` (default `E:\00code_ws\LAMATA_new`). A one-off converter turns them
+into the small plain-text tables under `example/<case>/` that the model actually reads, which
+is what keeps geopandas and rasterio off the model path.
+
+## Running
+
+```
+python code/tests/run_lamata_mf6.py --libmf6 C:\00MODFLOW\mf6.7.0_win64\bin\libmf6.dll ^
+  --mode lagged --nlay 2 --seep drn --strt-heads hi_spinup --steady-means hi_spinup ^
+  --preproc --postproc
+```
+
+Redraw every figure from a run already on disk (no MODFLOW, about a minute):
+
+```
+python code/tests/run_lamata_mf6.py --postproc-only --preproc --nlay 2 --mode lagged --run-tag <tag>
+```
+
+WP0 of the cookbook replaces those flags with `--config code/configs/<case>.toml`.
+
+## Tests
+
+```
+python -m pytest code/tests -q
+```
+
+Six tests need an `mf6` binary on PATH and one needs `pyshp`. A few plotting tests can crash
+natively in a headless shell with some matplotlib/flopy combinations — a pre-existing
+environment issue, not a code fault; run the suite from the same environment as the model.
+
+## Relation to the other branches
+
+Cut from `MM-MF6` at the point where the MODFLOW 6 conversion was complete and validated
+(192 passed / 7 skipped / 0 failed, 2026-09-09). Relative to that branch this one is
+**reorganised, not rewritten**:
+
+| was | is |
+|---|---|
+| `trunk/` | `code/` |
+| `tests/` | `code/tests/` |
+| `doc/` | `docs/` |
+| `DataSet_LaMata/` | `example/LaMata/` |
+| `DataSet_WRR/` | `example/WRR/` |
+
+Dropped here and kept on `MM-MF6` and in the history: the committed Python-2 era `venv/`,
+the JetBrains and PyScripter IDE settings, and the vestigial root `__init__.py` (a
+flopy-derived stub that nothing imported and that made the repository root masquerade as a
+package).

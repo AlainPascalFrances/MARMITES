@@ -24,7 +24,7 @@ dev = ["pytest>=8", "ruff>=0.6"]
 [tool.ruff]
 target-version = "py312"
 line-length = 120
-extend-exclude = ["_archive", "DataSet_WRR", "doc"]
+extend-exclude = ["_archive", "example", "docs"]
 
 [tool.ruff.lint]
 # E722: bare except -- the legacy pattern being eradicated in Phase 1
@@ -33,4 +33,4 @@ select = ["E4", "E7", "E9", "F", "B", "UP", "NPY", "E722"]
 ignore = ["E741"]  # ambiguous variable name 'l' -- pervasive in legacy code, fixed progressively
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["code/tests"]

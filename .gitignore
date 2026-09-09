@@ -13,24 +13,24 @@ __pycache__/
 # These rules remain so a stray or legacy run cannot pollute the tree.
 # MF_ws is a mix: keep the ASCII inputs, the parameter sets and the reusable
 # spin-up state; drop the MODFLOW-NWT model files, checks and run outputs.
-DataSet_*/MF_ws/*
-!DataSet_*/MF_ws/*.asc
-!DataSet_*/MF_ws/*.ASC
-!DataSet_*/MF_ws/*.ini
-!DataSet_*/MF_ws/*.txt
-DataSet_*/MF6_ws/
-DataSet_*/MF6_ws_disv/
+example/*/MF_ws/*
+!example/*/MF_ws/*.asc
+!example/*/MF_ws/*.ASC
+!example/*/MF_ws/*.ini
+!example/*/MF_ws/*.txt
+example/*/MF6_ws/
+example/*/MF6_ws_disv/
 # GIS: source cartography, not model input. Nothing in MM or MF reads a
 # shapefile; the general map reads them straight from the workspace
 # (E:/00code_ws/LAMATA_new/GIS, or --gis-ws).
-DataSet_*/GIS/
+example/*/GIS/
 # MMsurf_ws: keep the MMsurf INPUTS (parameter ini, meteo and irrigation
 # series, crop schedule); drop what MMsurf generates (.out/.int/.png) and
 # the 10 MB raw meteo spreadsheet (kept in the legacy archive).
-DataSet_*/MMsurf_ws/*
-!DataSet_*/MMsurf_ws/*.ini
-!DataSet_*/MMsurf_ws/*.txt
-!DataSet_*/MMsurf_ws/*.xlsx
+example/*/MMsurf_ws/*
+!example/*/MMsurf_ws/*.ini
+!example/*/MMsurf_ws/*.txt
+!example/*/MMsurf_ws/*.xlsx
 
 # --- model outputs / binaries ---
 *.h5
@@ -46,3 +46,30 @@ DataSet_*/MMsurf_ws/*
 **/postproc/
 **/preproc/
 **/figures/
+
+# --- IDE / editor / legacy environment (dropped on this branch; still on MM-MF6) ---
+.idea/
+_windows/
+codestyles/
+inspection/
+keymaps/
+venv/
+*.psproj
+DontShowAgainFeedbackService.xml
+IntelliLang.xml
+ProjectCreationInfoService.xml
+colors.scheme.xml
+debugger.xml
+diff.xml
+editor-font.xml
+editor.xml
+filetypes.xml
+find.xml
+ide-features-trainer.xml
+ide.general.xml
+laf.xml
+project.default.xml
+shared-indexes.xml
+ui.lnf.xml
+vcs.xml
+wsl.distributions.xml
