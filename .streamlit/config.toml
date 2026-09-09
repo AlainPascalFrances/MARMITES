@@ -1,0 +1,18 @@
+# Streamlit settings for the MARMITES front-end (WP1b).
+# Serving from the SERVER: run it there and reach it over the LAN --
+#   streamlit run code/app/Home.py --server.address 0.0.0.0 --server.port 8501
+# The PEST workers already run there and the app only needs to see $MM_WS_ROOT.
+
+[server]
+address = "localhost"     # "0.0.0.0" to serve over the LAN from the server
+port = 8501
+headless = true
+maxUploadSize = 50
+fileWatcherType = "auto"
+
+[browser]
+gatherUsageStats = false
+
+[theme]
+base = "light"
+primaryColor = "#1f4e79"

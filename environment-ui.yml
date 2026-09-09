@@ -1,0 +1,24 @@
+# Streamlit front-end (WP1b) -- a SEPARATE environment on purpose.
+#
+# The model environment stays exactly as it is. Streamlit pulls in tornado,
+# altair, pyarrow and watchdog, and the model env is a pinned flopy 3.10 +
+# rasterio stack that already has native-DLL fragility; adding to it is an
+# unforced risk. The model must also keep running where Streamlit is absent --
+# code/tests/test_repo_hygiene.py asserts the model never imports it.
+#
+#   conda env create -f environment-ui.yml
+#   conda activate mm-ui
+#   streamlit run code/app/Home.py
+name: mm-ui
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - streamlit>=1.36
+  - geopandas>=1.0
+  - rasterio>=1.3
+  - folium>=0.16
+  - numpy>=2.0
+  - pip
+  - pip:
+      - streamlit-folium>=0.21
