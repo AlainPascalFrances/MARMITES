@@ -13,6 +13,30 @@ Dataset (inputs, tracked): `DataSet_LaMata\`
 MF6 workspace (outputs): `$MARMITES_WS_ROOT\MF6_ws` — OUTSIDE the repo (see below)
 libmf6: `C:\00MODFLOW\mf6.7.0_win64\bin\libmf6.dll`
 
+### CURRENT STATE — READ THIS FIRST (2026-09-09)
+
+**The conversion and the whole figure suite are DONE.** MARMITES runs coupled
+to MODFLOW 6 through BMI, is mass-conserving, matches the MODFLOW-NWT
+reference, and the native `MARMITESplot_v3` suite is driven entirely off the
+MF6 output. `pytest tests -q` = **192 passed, 7 skipped, 0 failed**.
+
+**The next step is §4: run SFR + LAK coupled and validate, then CRR.** Nothing
+in §3 remains to do; it is kept as the record of how the plotting was built.
+
+Redraw every figure from a run already on disk, no MODFLOW, ~1 min:
+```
+python tests\run_lamata_mf6.py --postproc-only --preproc --nlay 2 --mode lagged --run-tag <tag>
+```
+
+Two standing rules, both learned the hard way:
+1. **The repo holds code, docs, and STRICTLY the files MM and MF read
+   directly.** Nothing else — no GIS, no run output, however small or
+   convenient. `.gitignore` enforces it; see the split below.
+2. **Never `git add -A` while on `master`** (it carries only upstream's
+   minimal `.gitignore`).
+
+---
+
 ### Repository vs workspace (restructured 2026-09-07)
 
 The repo holds **code, input data and docs only**. All run output goes to a
@@ -147,7 +171,7 @@ to the baseline committed in `DataSet_LaMata\MF_ws`)
 
 ---
 
-## 0-bis. OPEN ISSUES (recap 2026-09-07)
+## 0-bis. OPEN ISSUES (recap 2026-09-09)
 
 Ordered by what blocks "post-processing reproduces MARMITESplot_v3 output".
 
@@ -158,6 +182,11 @@ Ordered by what blocks "post-processing reproduces MARMITESplot_v3 output".
 | `plotWBsankey` catchment | ✅ works, core + full, MM-side MB ~0 % |
 | `plotWBsankey` per obs point | ✅ **FIXED 2026-09-07** — all 11 points render |
 | `plotLAYER` | ✅ **CORRECTED 2026-09-07** — 17 flux maps, legacy conventions, obs points overlaid |
+| map layout | ✅ **UNIFIED 2026-09-09** — `MMmap_*` and `GWmap_*` come from ONE function (`_native_result_maps`) with one `plotLAYER` call, so they share a sheet layout. They had drifted: the MM maps passed `nlay=1`, which puts plotLAYER in single-column mode and gave them a full-width panel against the aquifer maps' half-width one |
+| map axes | ✅ **2026-09-09** — every map carries MODFLOW row/column indices top and right, projected coordinates (km) bottom and left, from one shared helper `MARMITESplot_v3.add_real_coord_axes` (`frame='centre1'` for the plotLAYER mesh, `'index0'` for a plain imshow) |
+| input maps | ✅ **2026-09-09** — 26 native `IN_*` parameter-field pages (geometry, aquifer properties, DRN/GHB, UZF soil parameters, ibound, MM zoning, vegetation areas). The duplicate `aq_*`/`mm_*` imshow set is gone |
+| general map | ✅ **NEW 2026-09-09** — `_input/IN_000_general_map.png`, the site map rebuilt from the workspace GIS layers after `GIS/LaMata_MM_MF_202109.png`. The only figure needing geopandas; skipped cleanly without it |
+| `obs_heads.png` | ✅ **2026-09-09** — all 11 monitoring points (was 4: the others have no `inputObsHEADS_*` file, and the filter dropped them), blue tones |
 | `plotTIMESERIES` (obs soil column) | ✅ **DONE 2026-09-07** — 11/11 obs points |
 | `plotTIMESERIES_flxGW` | ✅ **DONE 2026-09-07** — 11/11 obs points |
 | `plotCALIBCRIT` (RMSE/RSR/NSE/R) | ✅ **DONE 2026-09-07** — 4 criteria; heads at 4 pts, SM at 2 |
@@ -304,6 +333,17 @@ consistent with UZF6 EPSILON 3.5 vs UZF1 2.0.
   `trunk/pyEARTH1D/*`; `master` carries only upstream's minimal `.gitignore`.
 - The water-table drawdown remains a **calibration** matter, out of scope
   (see §2.8).
+- **flopy `get_structured_faceflows(ia=, ja=)` is still broken upstream** —
+  PR #1968 added the parameters but left `for n in range(grb.nodes)`, so it
+  raises. We carry `_ja_down_index` in `marmites_postprocess.py` instead. No
+  issue is filed upstream. Remember this if SFR/LAK work needs face flows.
+- **Six tests cannot run without an `mf6` binary on PATH.** Their fixture
+  (`tests/test_postprocess.py::tiny_run`) was repaired on 2026-09-09 (its UZF
+  `packagedata` was a field short of the MF6 schema, so all six errored the
+  moment `mf6` was reachable), but the repair itself has never been executed.
+- Cosmetic, pre-existing: unused locals/imports in `run_lamata_mf6.py`
+  (`NCROP`, `check`, a re-imported `flopy`) and two unused imports in
+  `marmites_postprocess.py`.
 
 ---
 
@@ -318,10 +358,14 @@ consistent with UZF6 EPSILON 3.5 vs UZF1 2.0.
   means, DEM-regression initial heads, and a pre/post figure suite all work.
 - SFR network, LAK (EMBEDDEDV ponds), MVR stream-through-ponds all BUILD and
   reload; not yet run/validated coupled (see §4).
-- Test suite was ~198 passing before the last coupler edits; those edits
-  (SINF bind, write-after-prepare_solve, plot_water_budget wiring) were made
-  while the sandbox shell was wedged and are UNVERIFIED — first task after
-  restart is to run the suite (§1).
+- The **native figure suite is complete** (§0-bis A): per-point and
+  catchment Sankeys, per-point time series, calibration criteria, the MM flux
+  maps and the per-layer aquifer maps, the input parameter maps and the site's
+  general map. One `--postproc-only --preproc` emits the lot with no skips.
+- Test suite: **192 passed, 7 skipped, 0 failed**. Six of the skips need an
+  `mf6` binary on PATH (they exercise `run_postproc`/`run_preproc` against a
+  tiny real model); the seventh needs `pyshp`. Worth running locally with
+  `E:\00code\moflowapi\emsdatasets\bin` on PATH after touching pre/post.
 
 Canonical run command (recharge now couples correctly):
 ```
@@ -402,7 +446,24 @@ aquifer-balance recharge should VARY (not a flat 977 m3/d).
 
 ---
 
-## 3. PLOTTING: recover full MARMITESplot_v3.py on MF6 output (Stages 1-3)
+## 3. PLOTTING — COMPLETE 2026-09-09 ✅ (kept as the build record)
+
+**Nothing here remains to do.** All three stages shipped and were reviewed
+figure by figure with Alain. What `--postproc-only --preproc` now emits, into
+`out_<stamp>_<tag>\`:
+
+| folder | content |
+|---|---|
+| `_input\` | `IN_000_general_map.png` + 26 native `IN_*` parameter-field pages |
+| `_output\` | per-point time series (3 pages x 11 points), catchment + per-point Sankeys (whole period, and per hydrological year for the catchment), calibration criteria (NSE/RMSE/RSR/r), 17 `MMmap_*` flux maps, 15 `GWmap_*` aquifer maps incl. a head time selection, `obs_heads.png`, listing/UZF/SFR budget figures, and the head / depth / storage grids as CSV |
+| `figures_nwt_comparison\` | the 01-07 MODFLOW-NWT vs MF6 figures |
+
+Decisions that stuck: the native functions were MODIFIED, never reimplemented;
+the aquifer side is read straight from the MF6 `.cbc`/`.hds` (see B) with a
+per-workspace digest cache; the MM side still comes from the coupled HDF5.
+
+The rest of this section is the original plan and the stage-by-stage record.
+Read it for WHY something is the way it is, not for what to do next.
 
 Goal (user): MODIFY `trunk/MARMITESutilities/MARMITESplot/MARMITESplot_v3.py`
 to consume MF6 output and produce ALL its native figures — do NOT reimplement/
@@ -540,6 +601,22 @@ REMAINING:
   (SINF fix). Command adds `--sfr --lak` to the canonical run. Watch: SFR INFLOW
   binds (advanced-package var — the SINF lesson applies), MVR balance, LAK
   stages sane, no non-convergence/discrepancy from the guard.
+- **Where the source geometry lives, and a naming trap.** The network is to
+  come from `hydrography.shp` (SFR) and `lm_ponds.shp` (LAK), both in the
+  WORKSPACE GIS `E:\00code_ws\LAMATA_new\GIS` — never copy them into the
+  repo (see the rules at the top). Alain has flagged a legacy misnomer that
+  will bite: **`inputPONDw.asc` and `inputPONDhmax.asc` hold the STREAM
+  network, not ponds** (hence `gridSsurfw` = "stream width"). Those two
+  rasters, and the `IN_007_gridSsurfhmax` / `IN_008_gridSsurfw` maps built
+  from them, lose their job once SFR reads the shapefile.
+- **Decide the dependency question first.** Reading a shapefile on the MODEL
+  path puts **geopandas** (or pyshp — note pyshp is NOT installed) into the
+  build, where today only the one optional general map needs it and the rest
+  of the module is deliberately free of geospatial dependencies. Either accept
+  it, guard it, or convert the shapefiles to a plain intermediate once.
+- **Wanted with it:** an input map of the LAK configuration. `_fig_general_map`
+  already draws ponds and hydrography, so it is the natural home — a second
+  mode there rather than a new function.
 - **CRR** (task #32) — NOT STARTED. Daoud et al. 2022 cascade routing &
   reinfiltration, `CRR_BETA=1.0`. Must run in PYTHON in the coupler (MVR cannot
   reach MARMITES' soil column). MFD weights alpha_ij = beta * S_ij/sum(S_ij).
@@ -561,14 +638,22 @@ REMAINING:
   iterative), SINF/Q/INFLOW writes after prepare_solve, ATS sub-stepping,
   check_solution guard, spin-up means, wb_ts/wb_map aggregates.
 - `trunk/ppMF6/marmites_sfr.py`, `marmites_lak.py`, `marmites_layers.py`.
-- `trunk/ppMF6/marmites_postprocess.py` — cdl-style pre/post + native_suite
-  (plotLAYER maps + plotTIMESERIES_CATCH already wired).
+- `trunk/ppMF6/marmites_postprocess.py` — all pre/post. `run_preproc` ->
+  `_input\`, `run_postproc` -> `_output\`, `native_suite` drives the native
+  figures. Key pieces: `_native_result_maps` (MMmap_* AND GWmap_*, one draw),
+  `_native_input_maps` (the IN_* set), `_fig_general_map` (the GIS map),
+  `_native_sankey` / `_native_sankey_obs`, `_native_obs_timeseries`,
+  `_native_calibcrit`, `_aquifer_pass` / `_aquifer_map_pass` (cached cbc
+  digests), `_ja_down_index` (our replacement for flopy's broken
+  `get_structured_faceflows`).
 - `tests/run_lamata_mf6.py` — the driver/CLI (all flags).
 - `tests/plot_water_budget.py` — 01-07 figures incl. NWT-vs-MF6, now callable
   via make_figures().
 - `tests/diag_sinf.py` — BMI write-position diagnostic (template).
-- `trunk/MARMITESutilities/MARMITESplot/MARMITESplot_v3.py` — the native suite
-  to finish wiring (Stages 1-3).
+- `trunk/MARMITESutilities/MARMITESplot/MARMITESplot_v3.py` — the native
+  suite, fully wired. Modified, not reimplemented. Additions worth knowing:
+  `add_real_coord_axes` (the shared projected-coordinate axes) and
+  `_nice_tick` / `_series_colour`.
 - `trunk/startMARMITES_v3.py` — the OLD NWT driver; the reference for the
   post-proc assembly to port (do not run it; read it).
 - `trunk/MM_MF6_conversion/` — checkpoint snapshot (earlier milestone).
