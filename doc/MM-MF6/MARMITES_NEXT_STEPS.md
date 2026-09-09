@@ -338,7 +338,8 @@ python tests\run_lamata_mf6.py --libmf6 ... --nlay 2 --seep drn ^
 
 ## 1. VERIFIED 2026-07-25 — the unverified edits are sound ✅
 
-`python -m pytest tests -q` (flopy env) = **190 passed, 7 skipped, 0 failed**.
+`python -m pytest tests -q` (flopy env) = **192 passed, 7 skipped, 0 failed**
+as of 2026-09-09 (190 when this section was written).
 The wedged-shell edits all compile and pass:
 - `trunk/marmites_coupler.py`: `_bind_first` now accepts a reachable,
   correctly-sized pointer even if not in `get_input_var_names()` (SINF fix);
@@ -575,11 +576,18 @@ REMAINING:
 ---
 
 ## 6. SUGGESTED ORDER AFTER RESTART
-1. `pytest tests -q` — DONE 2026-07-25 (§1): 190 pass / 7 skip / 0 fail. ✅
-2. One short coupled run `--nsp 30 --nlay 2 --seep drn` — confirm SINF binding
-   line + varying recharge.  ← USER RUNNING THIS IN SPYDER (2026-07-25).
-3. Plotting Stage 1 (Sankey + catchment TS), review PNGs.  ← NEXT UP.
-4. Plotting Stages 2, 3.
-5. Run + validate SFR+LAK coupled.
-6. CRR implementation.
+1. `pytest tests -q` — DONE (§1): **192 pass / 7 skip / 0 fail**. ✅
+2. One short coupled run `--nsp 30 --nlay 2 --seep drn` — DONE. ✅
+3. Plotting Stages 1, 2, 3 — **DONE 2026-09-09**. ✅ The whole native suite
+   runs off the MF6 output; `--postproc-only --preproc` redraws everything in
+   ~1 min. Reviewed with Alain and corrected over several passes (colormaps,
+   axes, Sankeys, obs points, map layout, the general map).
+4. **Run + validate SFR+LAK coupled.**  ← NEXT UP: the surface network moves
+   from the `inputPONDw/PONDhmax` rasters to **SFR** driven by
+   `GIS/hydrography.shp`, and the ponds to **LAK** driven by
+   `GIS/lm_ponds.shp` (both in the workspace GIS, not the repo). Alain has
+   flagged the current file names as a legacy misnomer: `inputPONDw.asc` and
+   `inputPONDhmax.asc` hold the STREAM network, not ponds. Also wanted then:
+   an input map of the LAK configuration.
+5. CRR implementation.
 (Calibration of the water-table deficit is the modeller's separate task.)
