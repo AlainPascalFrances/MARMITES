@@ -131,7 +131,7 @@ with tab_mmsurf:
                         [{'member': p.member, 'parameter': p.name,
                           'value': p.value, 'units': p.units,
                           'description': p.description} for p in rows],
-                        use_container_width=True, hide_index=True)
+                        width='stretch', hide_index=True)
             st.info('Read-only for now. These migrate into the schema as '
                     '`[mmsurf.*]`; `Zr` is the natural source for the WP2 '
                     '`[et] extdp_source = "veg_zone"` extinction depth.')

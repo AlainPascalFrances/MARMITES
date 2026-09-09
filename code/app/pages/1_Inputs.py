@@ -55,6 +55,39 @@ def _norm(arr):
     return np.nan_to_num(out, nan=0.0)
 
 
+def _bounds_of(geojson_str):
+    """[[south, west], [north, east]] of a GeoJSON string, for fit_bounds."""
+    import json as _json
+
+    def walk(coords, acc):
+        if coords and isinstance(coords[0], (int, float)):
+            x, y = coords[0], coords[1]
+            acc[0] = min(acc[0], y); acc[1] = min(acc[1], x)
+            acc[2] = max(acc[2], y); acc[3] = max(acc[3], x)
+        else:
+            for c in coords:
+                walk(c, acc)
+        return acc
+
+    acc = [90.0, 180.0, -90.0, -180.0]
+    for feat in _json.loads(geojson_str).get('features', []):
+        geom = feat.get('geometry') or {}
+        if geom.get('coordinates'):
+            walk(geom['coordinates'], acc)
+    if acc[0] > acc[2]:
+        return None
+    return [[acc[0], acc[1]], [acc[2], acc[3]]]
+
+
+def _merge_bounds(a, b):
+    if not a:
+        return b
+    if not b:
+        return a
+    return [[min(a[0][0], b[0][0]), min(a[0][1], b[0][1])],
+            [max(a[1][0], b[1][0]), max(a[1][1], b[1][1])]]
+
+
 def _run_converter(case, dry):
     """Run the WP1 converter as a subprocess and return its output.
 
@@ -100,14 +133,14 @@ with tab_a:
             if p.suffix.lower() == '.asc' or p.suffix.upper() == '.ASC':
                 arr, hdr = _asc(str(p), loaders.digest(str(p)))
                 st.write(hdr)
-                st.image(_norm(arr), clamp=True, use_container_width=False,
+                st.image(_norm(arr), clamp=True, width='content',
                          caption='%s (%d x %d)' % (rel, arr.shape[0], arr.shape[1]))
             elif p.suffix.lower() == '.csv':
                 prov, header, rows = _table(str(p), loaders.digest(str(p)))
                 if prov:
                     st.code('\n'.join(prov), language='text')
                 st.dataframe([dict(zip(header, r)) for r in rows[:500]],
-                             use_container_width=True)
+                             width='stretch')
             else:
                 st.code(p.read_text(encoding='utf-8', errors='replace')[:20000])
 
@@ -118,29 +151,43 @@ with tab_b:
     chosen = [n for n, label, _c, ok in layers
               if ok and st.checkbox('%s  (`%s`)' % (label, n), value=ok,
                                     key='lay_' + n)]
-    if st.button('Show map'):
+    # A TOGGLE, not a button. st.button is True only on the rerun its own click
+    # causes, so with a button the map vanished the moment any checkbox was
+    # touched -- the same "Streamlit reruns the whole script" trap the Run page
+    # is built around, walked into here in the view layer.
+    if st.toggle('Show map', value=False, key='show_map'):
         try:
             import folium
             from streamlit_folium import st_folium
-        except Exception:
-            st.info('Install `folium` and `streamlit-folium` (see '
-                    '`environment-ui.yml`) to draw the map. The CRS report '
-                    'below works without them.')
-            chosen = chosen
+        except Exception as exc:
+            st.info('Map needs `folium` and `streamlit-folium` (%s). The CRS '
+                    'report below works without them.' % exc)
         else:
-            m = folium.Map(tiles='OpenStreetMap')
-            bounds = None
-            for name in chosen:
-                gj, note = _vector(os.path.join(gis, name),
-                                   loaders.digest(os.path.join(gis, name)))
-                colour = dict((n, c) for n, _l, c, _o in layers)[name]
-                folium.GeoJson(gj, name=name,
-                               style_function=lambda _f, c=colour: {
-                                   'color': c, 'weight': 2, 'fillOpacity': 0.2},
-                               tooltip=folium.GeoJsonTooltip(
-                                   fields=[], aliases=[])).add_to(m)
-            folium.LayerControl().add_to(m)
-            st_folium(m, height=560, use_container_width=True)
+            if not chosen:
+                st.info('Tick at least one layer.')
+            else:
+                m = folium.Map(tiles='OpenStreetMap')
+                colours = {n: c for n, _l, c, _o in layers}
+                bounds = None
+                for name in chosen:
+                    p = os.path.join(gis, name)
+                    gj, _note = _vector(p, loaders.digest(p))
+                    folium.GeoJson(
+                        gj, name=name,
+                        style_function=(lambda _f, c=colours[name]: {
+                            'color': c, 'weight': 2,
+                            'fillColor': c, 'fillOpacity': 0.25}),
+                        marker=folium.CircleMarker(
+                            radius=4, color=colours[name], fill=True),
+                    ).add_to(m)
+                    b = _bounds_of(gj)
+                    bounds = b if bounds is None else _merge_bounds(bounds, b)
+                folium.LayerControl(collapsed=False).add_to(m)
+                if bounds:
+                    # Without this the map opens on the whole world: folium
+                    # centres on (0, 0) when given no location.
+                    m.fit_bounds(bounds)
+                st_folium(m, height=560, width=None, returned_objects=[])
 
     st.markdown('#### CRS')
     st.caption('Reported, never guessed: the La Mata DEM rasters carry an '

@@ -1,13 +1,20 @@
-# Streamlit front-end (WP1b) -- a SEPARATE environment on purpose.
+# Front-end dependencies (WP1b).
 #
-# The model environment stays exactly as it is. Streamlit pulls in tornado,
-# altair, pyarrow and watchdog, and the model env is a pinned flopy 3.10 +
-# rasterio stack that already has native-DLL fragility; adding to it is an
-# unforced risk. The model must also keep running where Streamlit is absent --
-# code/tests/test_repo_hygiene.py asserts the model never imports it.
+# ON THIS MACHINE they are installed straight into the `flopy` model env, and
+# that turned out to be the right call: the conda solve touches nothing in the
+# model stack -- no numpy, flopy, rasterio, h5py, gdal, matplotlib, geopandas,
+# shapely or pyproj is superseded, downgraded or changed; only ca-certificates,
+# certifi and openssl are updated.
 #
-#   conda env create -f environment-ui.yml
-#   conda activate mm-ui
+#   conda install -n flopy -c conda-forge streamlit streamlit-folium
+#
+# This file is the recipe for a FRESH MACHINE or a server where you would
+# rather keep the front-end separate. Either way the invariant that matters is
+# in the CODE, not the environment: the model never imports streamlit, and
+# code/tests/test_repo_hygiene.py asserts it -- so the model still runs where
+# streamlit is absent, such as a PEST worker.
+#
+#   conda env create -f environment-ui.yml && conda activate mm-ui
 #   streamlit run code/app/Home.py
 name: mm-ui
 channels:
@@ -15,10 +22,8 @@ channels:
 dependencies:
   - python=3.12
   - streamlit>=1.36
+  - streamlit-folium>=0.21
+  - folium>=0.16
   - geopandas>=1.0
   - rasterio>=1.3
-  - folium>=0.16
   - numpy>=2.0
-  - pip
-  - pip:
-      - streamlit-folium>=0.21

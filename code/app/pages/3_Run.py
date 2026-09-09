@@ -113,8 +113,12 @@ st.code(' '.join(str(x) for x in info.get('cmd', [])), language='bash')
 
 auto = st.checkbox('Auto-refresh every %d s' % cfg.ui.poll_secs,
                    value=(info.get('state') == 'running'))
-st.text_area('run.log (tail)', value=runlib.log_tail(RUNS, sel, 400),
-             height=460, key='log_' + sel)
+# st.code, NOT st.text_area: a text_area given both `value` and `key` takes its
+# content from session state after the first render, so the log froze at
+# whatever it was when the page first drew it -- empty, for a run just started.
+st.markdown('**run.log** (tail)')
+st.code(runlib.log_tail(RUNS, sel, 400) or '(empty)', language='text',
+        height=460)
 
 if info.get('state') == 'running' and st.button('Stop this run'):
     st.warning('Stopped.' if runlib.stop(RUNS, sel) else 'Could not stop it.')

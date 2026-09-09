@@ -5,10 +5,16 @@ validate a run configuration, launch a run locally or on the server, follow it,
 and present the output.
 
 ```
-conda env create -f environment-ui.yml      # once -- a SEPARATE environment
-conda activate mm-ui
 streamlit run code/app/Home.py
 ```
+
+Streamlit is installed in the **`flopy`** env on this machine. That was checked
+before doing it: the conda solve touches nothing in the model stack — no
+`numpy`, `flopy`, `rasterio`, `h5py`, `gdal`, `matplotlib`, `geopandas`,
+`shapely` or `pyproj` is superseded, downgraded or changed; only
+`ca-certificates`, `certifi` and `openssl` are updated. `environment-ui.yml` is
+the recipe for a fresh machine, or a server where you would rather keep the
+front-end separate.
 
 Serving from the server: run it **there** and reach it over the LAN —
 `streamlit run code/app/Home.py --server.address 0.0.0.0 --server.port 8501`.
@@ -41,7 +47,21 @@ therefore survives closing the browser.
 
 ## Why the substance is in `lib/`
 
-`loaders.py` and `runs.py` import no Streamlit, so they are unit-tested in the
-**model** environment (`code/tests/test_app_lib.py`) — which is also the only way
-they could be tested at all, given Streamlit deliberately lives elsewhere. The
-pages are thin views over them.
+`loaders.py` and `runs.py` import no Streamlit, so they are unit-tested in
+`code/tests/test_app_lib.py` like any other module. The pages are thin views
+over them.
+
+## Three Streamlit traps this app already hit
+
+Recorded because each one renders *something* plausible rather than failing
+loudly, so none of them shows up as an error:
+
+1. **`st.button` for anything that must persist.** A button is `True` only on
+   the rerun its own click causes, so the map vanished the moment any checkbox
+   was touched. Use `st.toggle` (or session state) for state.
+2. **`st.text_area(value=..., key=...)`.** With a `key`, session state becomes
+   authoritative after the first render, so the log froze at whatever it was
+   when the page first drew it — empty, for a run just started. The log is
+   `st.code` now.
+3. **`folium.Map()` with no location** centres on (0, 0) and opens on the whole
+   world. Compute the layer bounds and `fit_bounds` them.

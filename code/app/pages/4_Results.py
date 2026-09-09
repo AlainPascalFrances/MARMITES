@@ -91,7 +91,7 @@ ncol = st.slider('Columns', 1, 4, 2)
 cols = st.columns(ncol)
 for k, (sub, fname, fpath) in enumerate(shown):
     with cols[k % ncol]:
-        st.image(fpath, caption='%s/%s' % (sub, fname), use_container_width=True)
+        st.image(fpath, caption='%s/%s' % (sub, fname), width='stretch')
 
 if csvs:
     with st.expander('CSV output (%d)' % len(csvs)):
