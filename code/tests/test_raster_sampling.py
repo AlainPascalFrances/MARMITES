@@ -104,7 +104,7 @@ def test_cell_centres_structured_orientation():
     ('inputSOILzones.asc', int),
     ('inputMETEOzones.asc', int),
     ('inputSOILthick.asc', float),
-    ('inputPONDw.asc', float),
+    ('inputSTREAMw.asc', float),
 ])
 def test_sampling_matches_legacy_reader_on_lamata(fn, dt):
     path = os.path.join(DS, fn)

@@ -191,10 +191,10 @@ def test_lamata_lak_mvr_model_builds_and_reloads(tmp_path):
     b = mf6mod.clsMF6(c, top=np.asarray(c.elev, float), botm=np.asarray(c.botm, float),
                       sim_ws=str(tmp_path), daily=True)
     b.verbose = False
-    b.sfr_pondw = asc('inputPONDw.asc')
-    b.sfr_pondhmax = asc('inputPONDhmax.asc')
+    b.sfr_pondw = asc('inputSTREAMw.asc')
+    b.sfr_pondhmax = asc('inputSTREAMhmax.asc')
     b.lak_shapefile = SHP
-    b.lak_depth = asc('inputPONDhmax.asc')
+    b.lak_depth = asc('inputSTREAMhmax.asc')
     b.build()
     b.write()
 

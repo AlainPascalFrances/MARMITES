@@ -25,7 +25,7 @@ from pathlib import Path
 
 __all__ = ['REPO', 'DATA_ROOT', 'WS_ROOT', 'NWT_REF', 'MODFLOW_DIR', 'GIS',
            'LIBMF6', 'MF6_EXE', 'PESTPP_IES', 'PYTHON_EXE', 'TRIANGLE_EXE',
-           'dataset_dir', 'report_paths']
+           'dataset_dir', 'resolve_input', 'report_paths', 'LEGACY_ALIASES']
 
 # ==== the machine-specific roots (edit these, or set the MM_* env vars) ======
 REPO        = Path(__file__).resolve().parents[1]
@@ -60,6 +60,38 @@ def dataset_dir(case='LaMata'):
     holds strictly the files MM and MF read directly.
     """
     return REPO / 'example' / str(case)
+
+
+# Files renamed in WP1.2. `inputPONDw.asc` and `inputPONDhmax.asc` were a legacy
+# MISNOMER: they hold the STREAM network (channel width and depth), which is why
+# the arrays they feed have always been called gridSsurfw / gridSsurfhmax. The
+# shim keeps an un-migrated dataset working for one release.
+LEGACY_ALIASES = {
+    'inputSTREAMw.asc': 'inputPONDw.asc',
+    'inputSTREAMhmax.asc': 'inputPONDhmax.asc',
+}
+
+
+def resolve_input(name, case='LaMata', warn=True):
+    """Absolute path of a Tier-A input, accepting the pre-WP1.2 name.
+
+    Prefers the current name; falls back to the legacy one with a note, so a
+    dataset that has not been renamed still runs.
+    """
+    ds = dataset_dir(case)
+    p = ds / name
+    if p.exists():
+        return str(p)
+    legacy = LEGACY_ALIASES.get(os.path.basename(name))
+    if legacy:
+        alt = p.parent / legacy
+        if alt.exists():
+            if warn:
+                print('note: %s not found; using the legacy name %s. That file '
+                      'holds the STREAM network, not ponds -- rename it '
+                      '(WP1.2).' % (name, legacy))
+            return str(alt)
+    return str(p)          # let the caller raise its own, more specific error
 
 
 def report_paths(case='LaMata', stream=None):

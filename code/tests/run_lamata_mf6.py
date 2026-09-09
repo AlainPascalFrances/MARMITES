@@ -187,8 +187,8 @@ def setup_lamata(daily=True, nsp=None, grid='dis', nlay=None, aggregate=False):
     gridMETEO = cMF.cPROCESS.inputEsriAscii(grid_fn='inputMETEOzones.asc', datatype=int)
     gridSOIL = cMF.cPROCESS.inputEsriAscii(grid_fn='inputSOILzones.asc', datatype=int)
     gridSOILthick = cMF.cPROCESS.inputEsriAscii(grid_fn='inputSOILthick.asc', datatype=float)
-    gridSsurfhmax = cMF.cPROCESS.inputEsriAscii(grid_fn='inputPONDhmax.asc', datatype=float)
-    gridSsurfw = cMF.cPROCESS.inputEsriAscii(grid_fn='inputPONDw.asc', datatype=float)
+    gridSsurfhmax = cMF.cPROCESS.inputEsriAscii(grid_fn='inputSTREAMhmax.asc', datatype=float)
+    gridSsurfw = cMF.cPROCESS.inputEsriAscii(grid_fn='inputSTREAMw.asc', datatype=float)
     gridIRR = cMF.cPROCESS.inputEsriAscii(grid_fn='inputIRRzones.asc', datatype=int)
 
     (gridVEGarea, P_veg_zoneSP, Eo_zonesSP, PT_veg_zonesSP, Pe_veg_zonesSP, LAI_veg_zonesSP,
@@ -438,14 +438,14 @@ def main():
     b.uzf_vks_scale = float(a.uzf_vks_scale)
     if a.sfr:
         # the channel map MARMITES already uses for its ponds/surface storage
-        b.sfr_pondw = _asc(os.path.join(DS, 'inputPONDw.asc'))
-        b.sfr_pondhmax = _asc(os.path.join(DS, 'inputPONDhmax.asc'))
+        b.sfr_pondw = _asc(os.path.join(DS, 'inputSTREAMw.asc'))
+        b.sfr_pondhmax = _asc(os.path.join(DS, 'inputSTREAMhmax.asc'))
         b.sfr_rhk = float(a.sfr_rhk)
     if a.lak:
         shp = a.lak if os.path.isabs(a.lak) else os.path.join(DS, a.lak)
         b.lak_shapefile = shp
         b.lak_bedleak = float(a.lak_bedleak)
-        b.lak_depth = _asc(os.path.join(DS, 'inputPONDhmax.asc'))
+        b.lak_depth = _asc(os.path.join(DS, 'inputSTREAMhmax.asc'))
     if a.strt_heads:
         # a saved (equilibrated) head field seeds the IC directly, so the
         # spin-up need not be repeated. Resolve relative to the MF workspace.

@@ -35,11 +35,10 @@ DS = os.path.abspath(os.path.join(HERE, '..', '..', 'example', 'LaMata'))
 # MODFLOW-NWT reference for the comparison panels. It lives in the legacy
 # PhD/paper archive, NOT in the repository: it is 1.3 GB and cannot be
 # regenerated (the NWT build path was removed from the code in Phase 1).
-NWT_REF = os.environ.get(
-    'MARMITES_NWT_REF',
-    os.path.join('E:' + os.sep, '00code_ws', 'LaMata_new_PhD_artigo_2s3L',
-                 '_h5_MM.h5'))
 sys.path.insert(0, TRUNK)
+import mm_paths as _mmp                              # noqa: E402
+NWT_REF = str(_mmp.NWT_REF)   # WP1.4: ONE definition, in code/mm_paths.py
+                              # ($MM_NWT_REF, or the legacy $MARMITES_NWT_REF)
 
 import matplotlib  # noqa: E402
 matplotlib.use('agg')

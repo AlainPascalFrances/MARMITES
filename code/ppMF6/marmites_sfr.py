@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 """Build a MODFLOW 6 SFR network for MARMITES from the PONDw channel map.
 
-MARMITES already carries the stream network: ``inputPONDw.asc`` gives a channel
+MARMITES already carries the stream network: ``inputSTREAMw.asc`` gives a channel
 width for every cell the drainage net passes through (La Mata: 244 cells,
-1.5-3.0 m wide) and ``inputPONDhmax.asc`` the channel depth (1.0-1.5 m). One
+1.5-3.0 m wide) and ``inputSTREAMhmax.asc`` the channel depth (1.0-1.5 m). One
 SFR reach per stream cell, routed on the sink-filled DEM the flow model already
 uses as its top elevation.
 
@@ -152,7 +152,7 @@ def stream_network(pondw, dem, outlets=None, drn_cells=None):
         raise ValueError(
             '%d stream cell(s) do not connect to any outlet, e.g. %s. The '
             'channel map has a disconnected component; either add an outlet '
-            'there or fix inputPONDw.' % (len(missing), missing[:5]))
+            'there or fix inputSTREAMw.' % (len(missing), missing[:5]))
 
     # accumulation: number of stream cells draining through each cell
     acc = {c: 1 for c in cells}

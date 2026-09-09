@@ -99,8 +99,8 @@ def main(nsp):
     gridMETEO = cMF.cPROCESS.inputEsriAscii(grid_fn='inputMETEOzones.asc', datatype=int)
     gridSOIL = cMF.cPROCESS.inputEsriAscii(grid_fn='inputSOILzones.asc', datatype=int)
     gridSOILthick = cMF.cPROCESS.inputEsriAscii(grid_fn='inputSOILthick.asc', datatype=float)
-    gridSsurfhmax = cMF.cPROCESS.inputEsriAscii(grid_fn='inputPONDhmax.asc', datatype=float)
-    gridSsurfw = cMF.cPROCESS.inputEsriAscii(grid_fn='inputPONDw.asc', datatype=float)
+    gridSsurfhmax = cMF.cPROCESS.inputEsriAscii(grid_fn='inputSTREAMhmax.asc', datatype=float)
+    gridSsurfw = cMF.cPROCESS.inputEsriAscii(grid_fn='inputSTREAMw.asc', datatype=float)
     gridIRR = cMF.cPROCESS.inputEsriAscii(grid_fn='inputIRRzones.asc', datatype=int)
 
     # ---- input stress-period series ----

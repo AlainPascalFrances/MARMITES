@@ -35,12 +35,12 @@ def _asc(fn):
 
 
 def _lamata():
-    fn = os.path.join(DS, 'inputPONDw.asc')
+    fn = os.path.join(DS, 'inputSTREAMw.asc')
     if not os.path.exists(fn):
         pytest.skip('La Mata dataset not present')
     w = _asc(fn)
     dem = _asc(os.path.join(DS, 'MF_ws', 'elev_sinkfil.asc'))
-    hm = _asc(os.path.join(DS, 'inputPONDhmax.asc'))
+    hm = _asc(os.path.join(DS, 'inputSTREAMhmax.asc'))
     dc = _asc(os.path.join(DS, 'MF_ws', 'drn_cond_l1.asc'))
     drn = [(int(i), int(j)) for i, j in zip(*np.where(dc > 0))]
     return w, dem, hm, drn
