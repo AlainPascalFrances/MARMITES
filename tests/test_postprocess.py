@@ -205,21 +205,14 @@ def test_subsample_is_even_and_bounded():
     assert s == sorted(set(s))                                      # unique, ordered
 def test_run_preproc_writes_input_maps(tiny_run, tmp_path):
     ws, name, nlay, nrow, ncol = tiny_run
-    # a couple of MM input maps so that branch is exercised too
-    hdr = ('ncols 5\nnrows 4\nxllcorner 0\nyllcorner 0\ncellsize 50\n'
-           'nodata_value -9999\n')
-    (tmp_path / 'inputSOILzones.asc').write_text(hdr + '1 1 2 2 2\n' * 4)
-    (tmp_path / 'inputPONDw.asc').write_text(hdr + '0 0 0 0 0\n' * 4)
+    # no cMF/ctx and a GIS workspace that does not exist: every figure needs
+    # one or the other, so this exercises the guards rather than the drawing
     files = PP.run_preproc(ws, str(tmp_path), name=name, mf_ws=str(tmp_path),
-                           verbose=False)
-    got = {os.path.basename(f) for f in files}
-    # without cMF/ctx only the overlay can be drawn; the parameter fields are
-    # the native IN_* maps, which need the model objects
-    assert any('network_overlay' in f for f in got)
-    assert not any(f.startswith(('aq_', 'mm_')) for f in got),         'the plain aq_*/mm_* maps were replaced by the native IN_* set'
-    # plotLAYER names its own output (_sp_plt_<title>_<page>_<npage>.png)
-    assert any('network_overlay' in f
-               for f in os.listdir(os.path.join(ws, '_input')))
+                           gis_ws=str(tmp_path / 'no_such_gis'), verbose=False)
+    assert files == []
+    assert not any(f.startswith(('aq_', 'mm_'))
+                   for f in os.listdir(os.path.join(ws, '_input'))), (
+        'the plain aq_*/mm_* maps were replaced by the native IN_* set')
 
 
 def test_ja_down_index_matches_flopy_faceflows():

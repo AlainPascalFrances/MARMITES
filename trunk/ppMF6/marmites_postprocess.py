@@ -361,7 +361,8 @@ def run_postproc(sim_ws, ds_ws, name='lamatamm', dates=None,
 
 
 def run_preproc(sim_ws, ds_ws, name='lamatamm', mf_ws=None, verbose=True,
-                out_root=None, cMF=None, ctx=None, res=None, trunk=None):
+                out_root=None, cMF=None, ctx=None, res=None, trunk=None,
+                gis_ws=None):
     """Input maps into <out-dir>/_input/.
 
     Every parameter field -- geometry, aquifer properties, UZF soil
@@ -369,8 +370,8 @@ def run_preproc(sim_ws, ds_ws, name='lamatamm', mf_ws=None, verbose=True,
     / vegetation zoning -- is drawn by the native ``plotLAYER`` as
     ``IN_<nnn>_<name>``, so all of them carry the MODFLOW index frame on the
     top and right and the projected coordinates on the bottom and left. The
-    one figure that is not a parameter field, the stream-and-pond overlay,
-    gets the same coordinate frame from ``add_real_coord_axes``.
+    one figure that is not a parameter field is the site's general map,
+    rebuilt from the GIS layers in ``gis_ws``.
 
     A second, plainer set of ``aq_*`` / ``mm_*`` imshow maps used to be drawn
     here as well. They duplicated the native set field for field, in a style
@@ -379,26 +380,19 @@ def run_preproc(sim_ws, ds_ws, name='lamatamm', mf_ws=None, verbose=True,
     """
     import matplotlib
     matplotlib.use('agg')
-    import flopy
 
     out = _mkdir(out_root or sim_ws, '_input')
     mf_ws = mf_ws or os.path.join(ds_ws, 'MF_ws')
     written = []
     MMplot = _mmplot(trunk)
 
-    sim = flopy.mf6.MFSimulation.load(sim_ws=sim_ws, verbosity_level=0)
-    gwf = sim.get_model()
-    mg = gwf.modelgrid
-    nlay, nrow, ncol = mg.nlay, mg.nrow, mg.ncol
-    top = np.asarray(mg.top, dtype=float).reshape(nrow, ncol)
-
-    # --- stream network and ponds overlay ----------------------------- #
+    # --- the site's general map, from the GIS layers ------------------ #
     try:
-        written += _fig_network_overlay(sim_ws, ds_ws, gwf, top, out,
-                                        MMplot=MMplot, mg=mg, cMF=cMF)
+        written += _fig_general_map(out, cMF=cMF, gis_ws=gis_ws, ds_ws=ds_ws,
+                                    verbose=verbose)
     except Exception as exc:               # pragma: no cover
         if verbose:
-            print('   network overlay skipped: %r' % exc)
+            print('   general map skipped: %r' % exc)
 
     # --- the native parameter-field maps ------------------------------ #
     if cMF is not None and ctx is not None and MMplot is not None:
@@ -413,105 +407,199 @@ def run_preproc(sim_ws, ds_ws, name='lamatamm', mf_ws=None, verbose=True,
     return written
 
 
-def _fig_network_overlay(sim_ws, ds_ws, gwf, top, out, MMplot=None, mg=None,
-                         cMF=None):
-    """The surface-water network over the DEM, drawn THROUGH ``plotLAYER``.
+# Where the site's GIS layers live. Outside the repo (they are a 200 MB
+# ArcMap workspace), so this is only a default: the caller can pass gis_ws,
+# MARMITES_GIS_WS overrides it, and the figure is skipped when nothing is
+# found. Forward slashes on purpose -- Windows accepts them and they keep the
+# literal free of escapes.
+GIS_WS = os.environ.get('MARMITES_GIS_WS', 'E:/00code_ws/LAMATA_new/GIS')
 
-    What makes the rest of the input set look like one document is the sheet
-    size, where the panel sits on it, the colour bar down the left and the
-    two coordinate frames -- none of which is worth reproducing by hand. So
-    the DEM goes through plotLAYER like any other field and everything drawn
-    on top of it arrives through the ``overlay`` hook.
+# Soil_type.SoilType -> (face colour, hatch). chr(92) is a backslash: writing
+# the hatch as an escaped literal here is unreadable.
+_SOIL_STYLE = (
+    ('Alluvium', '#7fc97f', '///'),
+    ('Regolith', 'none', None),
+    ('Outcrop', '#fdc086', chr(92) * 2),
+)
 
-    The DEM is deliberately NOT masked to the catchment: it is the
-    background, and the terrain outside is what puts the catchment in
-    context. The catchment is shown as an outline instead.
+
+def _fig_general_map(out, cMF=None, gis_ws=None, ds_ws=None, verbose=True):
+    """The site's general map, rebuilt from the ArcMap GIS layers.
+
+    A cartographic figure rather than a model one: soil types, irrigation
+    plots, ponds, the hydrographic network, the catchment boundary and the
+    monitoring / observation points over shaded relief and elevation
+    contours. It follows the published La Mata figure
+    (``GIS/LaMata_MM_MF_202109.png``, ArcMap 10.8) as closely as the
+    available layers allow -- the orthophoto that figure uses as its
+    background is not among them, so a hillshade off the model DEM stands in.
+
+    A layer whose shapefile is absent is simply left out: the set differs
+    between the repo's DataSet_LaMata/GIS (hydrography and ponds only) and
+    the full workspace.
+
+    Needs geopandas, which nothing else in this module does. Missing
+    geopandas or a missing workspace skips the figure rather than failing.
     """
-    import matplotlib
-    from matplotlib.lines import Line2D
-    if MMplot is None:
+    try:
+        import geopandas as gpd
+    except Exception:                                # pragma: no cover
+        if verbose:
+            print('   general map skipped: geopandas not available')
         return []
-    nrow, ncol = top.shape
-    nlay = int(mg.nlay) if mg is not None else 1
-    hnoflo = float(getattr(cMF, 'hnoflo', 9999.999)) if cMF is not None else 9999.999
+    import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
+    from matplotlib.patches import Patch
 
-    # the active footprint, which is the catchment limit
-    act = None
-    if cMF is not None and getattr(cMF, 'ibound', None) is not None:
-        act = np.abs(np.asarray(cMF.ibound)).reshape(nlay, nrow, ncol)[0] > 0
-    elif mg is not None and mg.idomain is not None:
-        act = np.asarray(mg.idomain).reshape(nlay, nrow, ncol)[0] > 0
+    G = gis_ws or GIS_WS
+    if not os.path.isdir(G) and ds_ws:
+        G = os.path.join(ds_ws, 'GIS')
+    if not os.path.isdir(G):
+        if verbose:
+            print('   general map skipped: no GIS workspace at %r' % G)
+        return []
 
-    pondw = os.path.join(ds_ws, 'inputPONDw.asc')
-    pond = _asc(pondw) if os.path.exists(pondw) else None
-
-    def _cells(pkg, attr):
-        if pkg is None:
+    def rd(stem):
+        fn = os.path.join(G, stem + '.shp')
+        if not os.path.exists(fn):
             return None
         try:
-            cd = getattr(pkg, attr).get_data()
-            return ([rec['cellid'][-2] for rec in cd],
-                    [rec['cellid'][-1] for rec in cd])
-        except Exception:                            # pragma: no cover
+            return gpd.read_file(fn)
+        except Exception as exc:                     # pragma: no cover
+            if verbose:
+                print('   general map: %s unreadable (%r)' % (stem, exc))
             return None
 
-    sfr_ij = _cells(gwf.get_package('sfr'), 'packagedata')
-    lak_ij = _cells(gwf.get_package('lak'), 'connectiondata')
+    soil, irr, pond = rd('Soil_type'), rd('Irr_Fields'), rd('lm_ponds')
+    hydro, lim = rd('hydrography'), rd('lm_lim')
+    mon, obs = rd('202109MonitPts'), rd('202109ObsPts')
+    if all(g is None for g in (soil, irr, pond, hydro, lim, mon, obs)):
+        if verbose:
+            print('   general map skipped: no layers found in %r' % G)
+        return []
 
-    POND, LAK, SFR = '#08306b', 'darkorange', '#2171b5'
-    handles = [Line2D([], [], color='k', lw=1.2, label='catchment limit')]
-    if pond is not None:
-        handles.append(Line2D([], [], color=POND, lw=1.0, label='ponds'))
-    if sfr_ij:
-        handles.append(Line2D([], [], color=SFR, lw=1.0, label='SFR reaches'))
-    if lak_ij:
-        handles.append(Line2D([], [], color=LAK, lw=0, marker='s', ms=5,
-                              label='LAK cells'))
+    fig, ax = plt.subplots(figsize=(8.27, 8.27))
+    handles = []
+    K = 1000.0                                       # metres -> km
+    ext = None
 
-    # plotLAYER's mesh puts cell centres at 1..ncol / 1..nrow
-    X = np.arange(1, ncol + 1)
-    Y = np.arange(1, nrow + 1)
+    def to_km(g):
+        """The layer scaled to kilometres, so the axes read in km like every
+        other map in the suite."""
+        return g.set_geometry(g.geometry.scale(1 / K, 1 / K, origin=(0, 0)))
 
-    def _draw(ax, l, L):
-        if l:                                        # single-panel figure
-            return
-        if act is not None:
-            ax.contour(X, Y, act.astype(float), levels=[0.5], colors='k',
-                       linewidths=1.2)
-        if pond is not None:
-            # a contour of the network mask, not one marker per cell: on a
-            # one-cell-wide dendritic network it draws as a line
-            ax.contour(X, Y, (np.asarray(pond) > 0).astype(float),
-                       levels=[0.5], colors=[POND], linewidths=0.9)
-        if sfr_ij:
-            ax.plot([c + 1 for c in sfr_ij[1]], [r + 1 for r in sfr_ij[0]],
-                    '-', color=SFR, lw=1.0)
-        if lak_ij:
-            ax.plot([c + 1 for c in lak_ij[1]], [r + 1 for r in lak_ij[0]],
-                    's', color=LAK, ms=4, ls='none')
-        # Legend down the left, hanging under the colour bar. Anchored in
-        # AXES coordinates, not figure ones: plotLAYER only fixes the panel
-        # position later (subplots_adjust, then axis('scaled')), so a figure
-        # anchor chosen here would drift with the grid aspect.
-        ax.legend(handles=handles, loc='upper left',
-                  bbox_to_anchor=(-0.70, 0.0), fontsize=8, frameon=False)
+    # --- elevation: shaded relief plus labelled contours --------------- #
+    if cMF is not None and getattr(cMF, 'xllcorner', None) is not None:
+        from matplotlib.colors import LightSource
+        nrow, ncol = int(cMF.nrow), int(cMF.ncol)
+        dem = np.asarray(cMF.elev, dtype=float).reshape(nrow, ncol)
+        dr = float(np.mean(np.asarray(cMF.delr, dtype=float)))
+        dc = float(np.mean(np.asarray(cMF.delc, dtype=float)))
+        x0, y0 = float(cMF.xllcorner), float(cMF.yllcorner)
+        ext = [x0 / K, (x0 + ncol * dr) / K, y0 / K, (y0 + nrow * dc) / K]
+        # bilinear: the DEM is on the 50 m model grid, and nearest-neighbour
+        # relief reads as a checkerboard at this scale
+        ax.imshow(LightSource(azdeg=315, altdeg=45).hillshade(
+                      dem, vert_exag=2.0, dx=dr, dy=dc),
+                  cmap='Greys_r', extent=ext, origin='upper', alpha=0.4,
+                  interpolation='bilinear', zorder=0)
+        X = (x0 + (np.arange(ncol) + 0.5) * dr) / K
+        Y = (y0 + (nrow - np.arange(nrow) - 0.5) * dc) / K
+        lv = np.arange(np.floor(dem.min() / 10) * 10, dem.max() + 10, 10.0)
+        CS = ax.contour(X, Y, dem, levels=lv, colors='#8c5a2b',
+                        linewidths=0.6, zorder=2)
+        ax.clabel(CS, CS.levels[::2], fmt='%d', fontsize=6, colors='#8c5a2b')
+        handles.append(Line2D([], [], color='#8c5a2b', lw=0.8,
+                              label='Elevation (m)'))
 
-    good = top[np.isfinite(top)]
-    good = good[~np.isclose(good, hnoflo, atol=0.09)]
-    lo, hi = _vrange(good)
-    V = np.repeat(top[None, None, :, :], nlay, axis=1)     # (1, nlay, nrow, ncol)
+    # --- soil types ---------------------------------------------------- #
+    if soil is not None and 'SoilType' in soil:
+        for kind, face, hatch in _SOIL_STYLE:
+            sel = soil[soil['SoilType'].astype(str) == kind]
+            if not len(sel):
+                continue
+            to_km(sel).plot(ax=ax, facecolor=face, edgecolor='0.4', lw=0.3,
+                            hatch=hatch, alpha=0.45, zorder=1)
+            handles.append(Patch(facecolor=face, edgecolor='0.4',
+                                 hatch=hatch, alpha=0.45, label=kind))
 
-    before = set(os.listdir(out)) if os.path.isdir(out) else set()
-    MMplot.plotLAYER(
-        days=[0], str_per=[0], Date='NA', JD='NA', ncol=ncol, nrow=nrow,
-        nlay=nlay, nplot=1, V=V, cmap=matplotlib.colormaps['terrain'],
-        CBlabel='Elev. - $MDT$', msg='', plt_title='IN_000_network_overlay',
-        MM_ws=out, interval_type='linspace', interval_num=5, Vmax=[hi],
-        Vmin=[lo], fmt='%5.1f', mask=None, hnoflo=hnoflo, cMF=cMF,
-        overlay=_draw)
-    after = set(os.listdir(out)) if os.path.isdir(out) else set()
-    return [os.path.join(out, f) for f in sorted(after - before)
-            if f.endswith('.png')]
+    # --- irrigation plots and ponds ------------------------------------ #
+    if irr is not None and len(irr):
+        # Irr_Fields holds the two pivots AND a frame polygon spanning the
+        # whole sheet; hatched as-is the frame covers the entire map, so
+        # anything larger than a fifth of the area is dropped
+        if ext is not None:
+            cap = 0.2 * (ext[1] - ext[0]) * (ext[3] - ext[2]) * K * K
+            irr = irr[irr.geometry.area < cap]
+        if len(irr):
+            to_km(irr).plot(ax=ax, facecolor='#4292c6', edgecolor='#08519c',
+                            lw=0.6, hatch='//', alpha=0.45, zorder=3)
+            handles.append(Patch(facecolor='#4292c6', edgecolor='#08519c',
+                                 hatch='//', alpha=0.45,
+                                 label='Irrigation plot'))
+    if pond is not None and len(pond):
+        to_km(pond).plot(ax=ax, facecolor='#08306b', edgecolor='#08306b',
+                         lw=0.6, zorder=4)
+        handles.append(Patch(facecolor='#08306b', label='Ponds'))
+
+    # --- hydrography and the catchment --------------------------------- #
+    if hydro is not None and len(hydro):
+        to_km(hydro).plot(ax=ax, color='#1f6fd0', lw=1.0, zorder=5)
+        handles.append(Line2D([], [], color='#1f6fd0', lw=1.2,
+                              label='Hydrography'))
+    if lim is not None and len(lim):
+        to_km(lim).boundary.plot(ax=ax, color='red', lw=2.0, ls='--', zorder=6)
+        handles.append(Line2D([], [], color='red', lw=2.0, ls='--',
+                              label='Catchment boundary'))
+
+    # --- monitoring and observation points ----------------------------- #
+    for g, colour, label in ((mon, '#33cc33', 'Monitoring points'),
+                             (obs, '#33ddee', 'Observation points')):
+        if g is None or not len(g):
+            continue
+        gx = to_km(g)
+        ax.plot(gx.geometry.x, gx.geometry.y, 'o', ms=8, mfc=colour, mec='k',
+                mew=0.8, ls='none', zorder=7)
+        if 'Name' in gx:
+            import matplotlib.patheffects as pe
+            # P0 / SM / EC sit within ~100 m of each other, so the labels
+            # are placed round the marker in turn instead of all up-right;
+            # the halo keeps them readable over the relief
+            box = ((7, 8, 'left'), (7, -14, 'left'),
+                   (-7, 8, 'right'), (-7, -14, 'right'))
+            for k, (nm, pt) in enumerate(zip(gx['Name'], gx.geometry)):
+                dx, dy, ha = box[k % len(box)]
+                ax.annotate(str(nm), xy=(pt.x, pt.y), xytext=(dx, dy),
+                            textcoords='offset points', fontsize=8,
+                            fontweight='bold', ha=ha, zorder=8,
+                            path_effects=[pe.withStroke(linewidth=2,
+                                                        foreground='white')])
+        handles.append(Line2D([], [], color=colour, marker='o', ms=8, mec='k',
+                              ls='none', label=label))
+
+    # --- frame on the model grid, so it matches the other pages -------- #
+    if ext is not None:
+        ax.set_xlim(ext[0], ext[1])
+        ax.set_ylim(ext[2], ext[3])
+    ax.set_aspect('equal')
+    ax.set_xlabel('X [km]', fontsize=10)
+    ax.set_ylabel('Y [km]', fontsize=10)
+    plt.setp(ax.get_yticklabels(), rotation=90, va='center')
+    ax.set_title('La Mata catchment', fontsize=13)
+    ax.legend(handles=handles, loc='upper right', fontsize=8, framealpha=0.9)
+    crs = None
+    for g in (lim, hydro, soil):
+        if g is not None and g.crs is not None:
+            crs = g.crs.to_string()
+            break
+    if crs:
+        ax.annotate('Coordinate system: %s' % crs, xy=(0.01, 0.01),
+                    xycoords='axes fraction', fontsize=7,
+                    bbox=dict(fc='white', ec='0.5', lw=0.4))
+    fn = os.path.join(out, 'IN_000_general_map.png')
+    fig.savefig(fn, dpi=200, bbox_inches='tight')
+    plt.close(fig)
+    return [fn]
 
 
 # input fields drawn over the whole grid rather than over the active cells
@@ -618,20 +706,13 @@ def native_suite(out_dir, cMF, ctx, res, ds_ws=None, trunk=None, verbose=True,
         if verbose:
             print('   native obs time series skipped: %r' % exc)
 
-    # --- Stage 3: per-layer aquifer maps from the MF6 output ---------- #
+    # --- result maps: the MM fluxes and the aquifer terms ------------- #
     try:
-        written += _native_aquifer_maps(MMplot, out_dir, cMF, ctx, res, sim_ws,
-                                        name, ndays=map_days, verbose=verbose)
+        written += _native_result_maps(MMplot, out_dir, cMF, ctx, res, sim_ws,
+                                       name, ndays=map_days, verbose=verbose)
     except Exception as exc:                         # pragma: no cover
         if verbose:
-            print('   native aquifer maps skipped: %r' % exc)
-
-    # --- per-layer maps of the time-mean fluxes ----------------------- #
-    try:
-        written += _native_flux_maps(MMplot, out_dir, cMF, ctx, res, verbose=verbose)
-    except Exception as exc:                         # pragma: no cover
-        if verbose:
-            print('   native flux maps skipped: %r' % exc)
+            print('   native result maps skipped: %r' % exc)
 
     if verbose:
         print('native MARMITESplot: %d figure(s) -> %s' % (len(written), out_dir))
@@ -686,54 +767,6 @@ def _obs4map(res):
              for n in res.get('obs_names', [str(k) for k in range(len(ij))])]
     return [names, [int(v) for v in ij[:, 0]], [int(v) for v in ij[:, 1]],
             [0] * len(ij)]
-
-
-def _native_flux_maps(MMplot, out_dir, cMF, ctx, res, verbose=True):
-    """plotLAYER maps of the time-mean MM fluxes.
-
-    Follows the conventions the legacy driver used for its input/output maps
-    (startMARMITES_v3.py ~808-910): ``Date='NA'``/``JD='NA'`` because these are
-    time-MEAN maps rather than a day in a series, ``interval_type='linspace'``
-    with 5 intervals, the model's own ``hnoflo``, and the observation points
-    overlaid. It previously passed ``msg='arange'`` and a ``pref_plt_title``
-    that duplicated the title, giving files named ``native_native_map_*``.
-    """
-    import matplotlib
-    IX = dict(ctx.index)
-    wb_map = np.asarray(res['wb_map'])              # (ncell, nidx)
-    cells = ctx.cells
-    nrow, ncol = int(cMF.nrow), int(cMF.ncol)
-    hnoflo = float(getattr(cMF, 'hnoflo', 9999.999))
-    # Legacy convention (startMARMITES_v3.py): gist_rainbow_r is for the INPUT
-    # maps only. Result colours come from _MAP_FLUXES, per flux.
-    pts = _obs4map(res)
-    before = set(os.listdir(out_dir)) if os.path.isdir(out_dir) else set()
-    for key, stem, cblbl, cmname in _MAP_FLUXES:
-        if key not in IX:
-            continue
-        grid = np.full((1, 1, nrow, ncol), hnoflo)
-        for n, c in enumerate(cells):
-            grid[0, 0, c[1], c[2]] = wb_map[n, IX[key]]
-        mask = np.isclose(grid[0], hnoflo, atol=0.09)
-        vals = grid[0][~mask]
-        if not vals.size:
-            continue
-        unit = '-' if key in ('iSsoil_pc',) else (
-            'm' if key in ('iuzthick', 'idgwt') else 'mm/d')
-        try:
-            MMplot.plotLAYER(
-                days=[0], str_per=[0], Date='NA', JD='NA', ncol=ncol, nrow=nrow,
-                nlay=1, nplot=1, V=grid, cmap=matplotlib.colormaps[cmname],
-                CBlabel='%s [%s]' % (cblbl, unit), msg='',
-                plt_title='MMmap_%s' % stem, MM_ws=out_dir,
-                interval_type='linspace', interval_num=5,
-                Vmax=[_vrange(vals)[1]], Vmin=[_vrange(vals)[0]],
-                fmt='%5.2f', points=pts, mask=mask, hnoflo=hnoflo, cMF=cMF)
-        except Exception as exc:                     # pragma: no cover
-            if verbose:
-                print('   flux map %s skipped: %r' % (stem, exc))
-    after = set(os.listdir(out_dir)) if os.path.isdir(out_dir) else set()
-    return [os.path.join(out_dir, f) for f in sorted(after - before)]
 
 
 def _hydro_year_index(DATE, ini_month):
@@ -1647,15 +1680,23 @@ _AQ_MAPS = (
 )
 
 
-def _native_aquifer_maps(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
-                         ndays=0, verbose=True):
-    """Stage 3: per-LAYER aquifer maps, read from the MF6 output.
+def _native_result_maps(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
+                        ndays=0, verbose=True):
+    """Every result map: the MM soil-water-balance fluxes (``MMmap_*``) and
+    the aquifer terms read from the MF6 output (``GWmap_*``).
 
-    Time-mean maps of the head (from the ``.hds``) and of every aquifer budget
-    term (from the cell budget), one panel per layer, plus -- when ``ndays`` is
-    set -- head maps on that many evenly spaced days so the drawdown can be
-    followed through the simulation. Volumetric budget terms are converted to
-    mm/d per cell, so the maps are comparable with the MM flux maps.
+    Both families go through ONE ``draw``. They used to sit in two functions
+    with two plotLAYER calls, and drifted: the MM maps passed ``nlay=1``,
+    which puts plotLAYER in single-column mode and gave them a full-width
+    panel on the sheet while every aquifer map got a half-width one. Here the
+    MM fields are handed the same grid geometry as the aquifer ones and drawn
+    as a single panel (they are surface fluxes, not per-layer), so the two
+    sets come out the same size and in the same place on the page.
+
+    Aquifer maps are time means -- the head from the ``.hds``, every budget
+    term from the cell budget, one panel per layer, plus (when ``ndays`` is
+    set) head maps on that many evenly spaced days. Volumetric budget terms
+    are converted to mm/d per cell so they are comparable with the MM fluxes.
     """
     import flopy
     import matplotlib
@@ -1663,7 +1704,8 @@ def _native_aquifer_maps(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
     nper = int(np.asarray(res['wb_ts']).shape[0])
     hnoflo = float(getattr(cMF, 'hnoflo', 9999.999))
     # Legacy convention: heads, recharge and storage in Blues; the terms that
-    # take water OUT of the aquifer (exfiltration, drainage, ET) in Reds.
+    # take water OUT of the aquifer (exfiltration, drainage, ET) in Reds. The
+    # MM fluxes carry their own colour in _MAP_FLUXES.
     cmap_in = matplotlib.colormaps['Blues']
     cmap_out = matplotlib.colormaps['Reds']
     pts = _obs4map(res)
@@ -1674,31 +1716,61 @@ def _native_aquifer_maps(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
     ib = np.abs(np.asarray(cMF.ibound))
     before = set(os.listdir(out_dir)) if os.path.isdir(out_dir) else set()
 
-    def draw(V, stem, cblbl, unit, days=None, dates=None, jd=None, cmap=None):
-        m = np.zeros((V.shape[0], nlay, nrow, ncol), bool)
-        for L in range(nlay):
-            m[:, L] = (ib[L] == 0)
+    def draw(V, stem, cblbl, unit, m3, nplot=None, cmap=None, days=None,
+             dates=None, jd=None, prefix='GWmap'):
+        """One plotLAYER page. ``m3`` is the (nlay, nrow, ncol) inactive-cell
+        mask and ``nplot`` how many layer panels to draw (default: all)."""
+        V = np.asarray(V, dtype=float)
+        m = np.repeat(m3[None, :, :, :], V.shape[0], axis=0)
         VV = np.where(m, hnoflo, V)
         vals = V[~m]
         vals = vals[np.isfinite(vals)]
         if not vals.size:
             return
+        lo, hi = _vrange(vals)
         try:
             MMplot.plotLAYER(
                 days=days if days is not None else [0],
                 str_per=days if days is not None else [0],
                 Date=dates if dates is not None else 'NA',
                 JD=jd if jd is not None else 'NA',
-                ncol=ncol, nrow=nrow, nlay=nlay, nplot=nlay, V=VV,
+                ncol=ncol, nrow=nrow, nlay=nlay,
+                nplot=nlay if nplot is None else nplot, V=VV,
                 cmap=cmap if cmap is not None else cmap_in,
                 CBlabel='%s [%s]' % (cblbl, unit), msg='',
-                plt_title='GWmap_%s' % stem, MM_ws=out_dir,
+                plt_title='%s_%s' % (prefix, stem), MM_ws=out_dir,
                 interval_type='linspace', interval_num=5,
-                Vmax=[_vrange(vals)[1]], Vmin=[_vrange(vals)[0]],
-                fmt='%5.2f', points=pts, mask=m[0], hnoflo=hnoflo, cMF=cMF)
+                Vmax=[hi], Vmin=[lo], fmt='%5.2f', points=pts, mask=m3,
+                hnoflo=hnoflo, cMF=cMF)
         except Exception as exc:                     # pragma: no cover
             if verbose:
-                print('   aquifer map %s skipped: %r' % (stem, exc))
+                print('   %s map %s skipped: %r' % (prefix, stem, exc))
+
+    # ---------------- MM soil-water-balance fluxes -------------------- #
+    # Time-mean per-cell fluxes, following the legacy driver's output-map
+    # conventions (startMARMITES_v3.py ~808-910): linspace/5, the model's own
+    # hnoflo, the observation points overlaid.
+    IX = dict(ctx.index)
+    wb_map = np.asarray(res['wb_map'])              # (ncell, nidx)
+    for key, stem, cblbl, cmname in _MAP_FLUXES:
+        if key not in IX:
+            continue
+        g = np.full((nrow, ncol), hnoflo)
+        for n, c in enumerate(ctx.cells):
+            g[c[1], c[2]] = wb_map[n, IX[key]]
+        unit = '-' if key in ('iSsoil_pc',) else (
+            'm' if key in ('iuzthick', 'idgwt') else 'mm/d')
+        # one surface layer, given the aquifer grid's shape so the page comes
+        # out the same size, and drawn as the single panel it is
+        mm = np.repeat(np.isclose(g, hnoflo, atol=0.09)[None, :, :], nlay,
+                       axis=0)
+        draw(np.repeat(g[None, None, :, :], nlay, axis=1), stem, cblbl, unit,
+             mm, nplot=1, cmap=matplotlib.colormaps[cmname], prefix='MMmap')
+
+    # ---------------- aquifer terms from the MF6 output --------------- #
+    m3 = np.zeros((nlay, nrow, ncol), bool)
+    for L in range(nlay):
+        m3[L] = (ib[L] == 0)
 
     # heads: exact time mean over every stress period, then a time selection
     hds = flopy.utils.HeadFile(os.path.join(sim_ws, '%s.hds' % name))
@@ -1708,7 +1780,8 @@ def _native_aquifer_maps(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
     for k in range(nper):
         acc += np.where(np.abs(hds.get_data(kstpkper=kk[k + off])) > 1e29,
                         np.nan, hds.get_data(kstpkper=kk[k + off]))
-    draw((acc / nper).reshape(1, nlay, nrow, ncol), 'head', 'mean head', 'm')
+    draw((acc / nper).reshape(1, nlay, nrow, ncol), 'head', 'mean head',
+         'm', m3)
     if ndays and nper > 1:
         sel = np.unique(np.linspace(0, nper - 1, int(ndays)).astype(int))
         V = np.array([np.where(np.abs(hds.get_data(kstpkper=kk[s + off])) > 1e29,
@@ -1719,7 +1792,8 @@ def _native_aquifer_maps(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
         # JD must be a LIST here: plotLAYER indexes it per panel, so the
         # 'NA' placeholder used for single maps raises IndexError past i=1
         jd = [int(_mpl.dates.num2date(DATE[s]).timetuple().tm_yday) for s in sel]
-        draw(V, 'head_series', 'head', 'm', days=[int(s) for s in sel],
+        draw(V, 'head_series', 'head', 'm', m3,
+             days=[int(s) for s in sel],
              dates=[float(DATE[s]) for s in sel], jd=jd)
 
     # budget terms, per layer, as mm/d
@@ -1730,7 +1804,7 @@ def _native_aquifer_maps(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
             continue
         V = (sgn * np.asarray(maps[key]) * to_mm[None, :, :]).reshape(
             1, nlay, nrow, ncol)
-        draw(V, stem, cblbl, 'mm/d',
+        draw(V, stem, cblbl, 'mm/d', m3,
              cmap=cmap_out if sgn < 0 else cmap_in)
     # Effective and net recharge, exactly as the legacy driver derived them
     # (startMARMITES_v3.py ~2433-2462):
@@ -1745,23 +1819,23 @@ def _native_aquifer_maps(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
         if 'DRN_SEEP' in maps:
             re += np.asarray(maps['DRN_SEEP'], float)
         draw((re * to_mm[None, :, :]).reshape(1, nlay, nrow, ncol),
-             'Re', 'effective recharge (Rg + Exf)', 'mm/d')
+             'Re', 'effective recharge (Rg + Exf)', 'mm/d', m3)
         if 'WEL' in maps:
             rn = re + np.asarray(maps['WEL'], float)
             draw((rn * to_mm[None, :, :]).reshape(1, nlay, nrow, ncol),
-                 'Rn', 'net recharge (Rg + Exf + ETg)', 'mm/d')
+                 'Rn', 'net recharge (Rg + Exf + ETg)', 'mm/d', m3)
     # storage change is the sum of the two storage records
     if 'STO-SS' in maps or 'STO-SY' in maps:
         s = (np.asarray(maps.get('STO-SS', 0.0))
              + np.asarray(maps.get('STO-SY', 0.0)))
         draw((s * to_mm[None, :, :]).reshape(1, nlay, nrow, ncol),
-             'dSg', 'release from groundwater storage', 'mm/d')
+             'dSg', 'release from groundwater storage', 'mm/d', m3)
 
     after = set(os.listdir(out_dir)) if os.path.isdir(out_dir) else set()
     got = [os.path.join(out_dir, f) for f in sorted(after - before)
            if f.endswith('.png')]
     if verbose:
-        print('   native aquifer maps: %d page(s)' % len(got))
+        print('   native result maps: %d page(s)' % len(got))
     return got
 
 

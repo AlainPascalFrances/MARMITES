@@ -327,6 +327,9 @@ def main():
                          'to <ws>/postproc/')
     ap.add_argument('--preproc', action='store_true',
                     help='write the input parameter maps to <out-dir>/_input/')
+    ap.add_argument('--gis-ws', default=None,
+                    help='GIS workspace for the general map (default: '
+                         'MARMITES_GIS_WS, else the built-in path)')
     ap.add_argument('--postproc-only', action='store_true',
                     help='re-draw the figures from a run already on disk: reads '
                          '<ws>/_coupled_<mode>.h5 and the MF6 output, runs no '
@@ -449,7 +452,8 @@ def main():
         # postproc needs MF6 output, so it is skipped here
         if a.preproc:
             from marmites_postprocess import run_preproc
-            run_preproc(a.ws, DS, name=cMF.modelname.lower())
+            run_preproc(a.ws, DS, name=cMF.modelname.lower(),
+                        gis_ws=a.gis_ws)
         print('\nNo --libmf6 given: stopping after build.\n'
               'To run coupled:  python tests/run_lamata_mf6.py --libmf6 <path> --mode %s' % a.mode)
         return
@@ -624,6 +628,7 @@ def _run_postproc(a, cMF, ctx, res):
         os.makedirs(a.out_dir, exist_ok=True)
         if a.preproc:
             run_preproc(a.ws, DS, name=cMF.modelname.lower(), out_root=a.out_dir,
+                        gis_ws=a.gis_ws,
                         cMF=cMF, ctx=ctx, res=res)
         if a.postproc:
             run_postproc(a.ws, DS, name=cMF.modelname.lower(), out_root=a.out_dir)

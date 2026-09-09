@@ -472,17 +472,23 @@ _input (<out-dir>/_input/): every parameter field as a native `plotLAYER`
 page, `IN_<nnn>_<name>` -- geometry (elev/top/botm/thick/strt), aquifer
 properties (hk/T/Ss/Sy/vka), the DRN and GHB arrays, the UZF soil parameters,
 the model footprint (ibound) and the MARMITES zoning (soil / meteo /
-irrigation zones, vegetation areas) -- plus the stream-and-pond overlay.
+irrigation zones, vegetation areas) -- plus `IN_000_general_map.png`, the
+site's general map rebuilt from the ArcMap GIS layers (soil types, irrigation
+plots, ponds, hydrography, catchment boundary, monitoring and observation
+points over shaded relief and elevation contours), after
+`GIS/LaMata_MM_MF_202109.png`. That one needs geopandas and the GIS
+workspace, and is skipped without them.
 
 A second, plainer set of `aq_*` / `mm_*` imshow maps used to be drawn
 alongside. It duplicated the native set field for field, in a style borrowed
 from another project and with no coordinate frame, and has been removed.
 
-_output (<out-dir>/_output/): observed-vs-computed head time series at the
-active piezometers (P0, C1-C3, ... from inputObsHEADS_*), water budget by
-compartment from the listing, UZF and SFR internal budgets, and the native
-figure set (per-point and catchment time series, Sankeys, calibration
-criteria, the GWmap_* / MMmap_* per-layer maps). The mean head, mean
+_output (<out-dir>/_output/): observed-vs-computed head time series at every
+monitoring point, water budget by compartment from the listing, UZF and SFR
+internal budgets, and the native figure set (per-point time series, Sankeys,
+calibration criteria, the maps). `MMmap_*` (the MM soil-water-balance fluxes)
+and `GWmap_*` (the aquifer terms) come from ONE function, `_native_result_maps`,
+so the two sets share a layout. The mean head, mean
 depth-to-water and per-layer storage change are written as CSV only: the
 native GWmap_head / MMmap_dgwt draw the same fields with the full axes.
 

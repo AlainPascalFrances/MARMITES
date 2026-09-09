@@ -1520,7 +1520,7 @@ def add_real_coord_axes(ax, nrow, cMF=None, xll=None, yll=None, delr=None,
 def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_title, MM_ws,
               interval_type='arange', interval_diff=1, interval_num=1, Vmax=0, Vmin=0, fmt=None, contours=False,
               ntick=None, facecolor='silver', points=None, ptslbl=0, mask=None, hnoflo=-999.9, animation=0,
-              pref_plt_title='_sp_plt', cMF=None, overlay=None):
+              pref_plt_title='_sp_plt', cMF=None):
     # TODO put axes tick as row/col index from MODFLOW AND real coordinates
 
     # Phase-4 recovery: accept str or bytes for the text arguments. The legacy
@@ -1676,15 +1676,6 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
                                 ax[l].annotate(label, xy=(xj, yi - 0.15), fontsize=8, ha='center', va='bottom')
                     #print('Vtmp\n', np.sum(Vtmp.flatten()))
                     ims[F].append(ax[l].pcolormesh(xg, yg, Vtmp, cmap=cmap, norm=norm))
-                    # Anything a caller wants drawn ON TOP of the field --
-                    # a catchment outline, a stream network, boundary cells.
-                    # The map layout (sheet size, panel position, the left
-                    # colourbar) is what makes a figure look like the rest of
-                    # the set, so an overlay figure is drawn through here
-                    # rather than rebuilt alongside. Data coordinates are the
-                    # 1-based cell centres of the mesh above.
-                    if overlay is not None:
-                        overlay(ax[l], l, L)
                     if ctrs_tmp == True:
                         #try:
                         CS = ax[l].contour(xg1, yg1[::-1], Vtmp[::-1], ticks, colors='gray')
