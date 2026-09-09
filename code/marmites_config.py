@@ -303,6 +303,501 @@ def dump_toml(cfg, path):
         fh.write('\n'.join(lines) + '\n')
 
 
+
+# ===========================================================================
+# WP0 -- the RUN configuration: the ~40 argparse flags become schema keys.
+#
+# Design rules, all enforced below:
+#   * every default equals TODAY'S flag default, so an empty file reproduces
+#     current behaviour and WP0 stays a pure refactor (verified byte-identical
+#     MF6 inputs).  WP1c is what flips grid.kind to "voronoi".
+#   * UNKNOWN KEYS RAISE -- a typo must never fall through to a default.
+#   * config_hash() stamps the run folder and every cache, so a stale grid /
+#     layer set / spin-up state can never silently override the configuration
+#     (the CdL grid-design cache did exactly that once).
+# ===========================================================================
+
+
+@dataclass
+class Meta:
+    config_version: int = 1
+    name: str = ''                 # -> out_<stamp>_<name>; blank = <nlay>lay_<mode>
+    description: str = ''
+
+
+@dataclass
+class Paths:
+    case: str = 'LaMata'           # -> example/<case>/ (Tier A inputs)
+    ws: str = ''                   # blank -> WS_ROOT/MF6_ws[_disv]
+    gis_ws: str = ''               # blank -> mm_paths.GIS (figures only)
+    nwt_reference: str = ''        # blank -> mm_paths.NWT_REF
+    libmf6: str = ''               # blank -> mm_paths.LIBMF6
+
+
+@dataclass
+class Run:
+    mode: str = 'lagged'           # lagged | iterative        (--mode)
+    relax: float = 0.6             #                           (--relax)
+    nsp: int = 0                   # 0 = all stress periods    (--nsp)
+    daily: bool = True             # false = aggregated        (--aggregated)
+    ats: bool = True               #                           (--no-ats)
+    build_only: bool = False       #                           (--build-only)
+    standalone: str = ''           # mf6.exe path              (--standalone)
+    probe: bool = False            #                           (--probe)
+    max_discrepancy: float = 1.0   #                           (--max-discrepancy)
+    allow_bad_budget: bool = False  #                          (--allow-bad-budget)
+
+
+@dataclass
+class GridVoronoi:
+    """WP1c. Ignored while grid.kind is 'structured' or 'disv'."""
+
+    cell_far: float = 100.0
+    cell_near_stream: float = 40.0
+    stream_buffer: float = 60.0
+    stream_refine: bool = True
+    trans_levels: list = field(default_factory=lambda: [10.0, 20.0, 40.0, 70.0])
+    seed_ponds: bool = True
+
+
+@dataclass
+class Grid:
+    # 'structured' is today's DIS grid and stays the DEFAULT until WP1c lands;
+    # 'dis' is accepted as an alias.
+    kind: str = 'structured'
+    rebuild: bool = False
+    voronoi: GridVoronoi = field(default_factory=GridVoronoi)
+
+
+@dataclass
+class Layers:
+    nlay: int = 6                  # 2 reads _2s1L.ini directly (--nlay)
+    aggregate: bool = False        # 6->2 derivation, comparison (--aggregate)
+
+
+@dataclass
+class Uzf:
+    vks_scale: float = 1.0         #                           (--uzf-vks-scale)
+
+
+@dataclass
+class Seep:
+    kind: str = 'uzf'              # uzf | drn                 (--seep)
+    cond: float = 10000.0          #                           (--seep-cond)
+
+
+@dataclass
+class Et:
+    """WP2. Defaults OFF so WP0 changes no behaviour."""
+
+    uzf_et: bool = False           # UZF SIMULATE_ET
+    unsat_form: str = 'etwc'       # etwc | etae
+    gwet_in_mf: bool = False       # MUST stay false: ETg comes from MM
+    extdp_source: str = 'uniform'  # uniform | veg_zone | raster
+    extdp_default: float = 2.0     # m
+    extwc_source: str = 'thtr'
+
+
+@dataclass
+class ParamSource:
+    """A parameter that declares WHERE its value comes from (cookbook 3a).
+
+    Exactly one producer may be set:
+        value    -- one number for the whole network
+        column   -- an attribute column of the source shapefile
+        raster   -- sampled from a raster
+        drainage -- computed as w = a * A**b from contributing drainage area
+    Resolved by the CONVERTER (WP1), never by the model.
+    """
+
+    value: float = None
+    column: str = ''
+    raster: str = ''
+    drainage: dict = field(default_factory=dict)
+
+    def _set(self):
+        return [n for n in ('value', 'column', 'raster', 'drainage')
+                if getattr(self, n) not in (None, '', {})]
+
+    def producer(self):
+        s = self._set()
+        return s[0] if len(s) == 1 else None
+
+    def validate(self, what):
+        s = self._set()
+        if len(s) != 1:
+            raise ConfigError(
+                '%s: exactly one producer must be set (value | column | raster | '
+                'drainage), got %s' % (what, s or 'none'))
+        if s[0] == 'drainage':
+            miss = {'a', 'b'} - set(self.drainage)
+            if miss:
+                raise ConfigError('%s.drainage needs a and b (w = a*A**b), missing %s'
+                                  % (what, sorted(miss)))
+
+    @classmethod
+    def from_value(cls, v):
+        """Accept a bare number as shorthand for a value producer."""
+        if isinstance(v, dict):
+            return _build(cls, v, 'parameter')
+        return cls(value=float(v))
+
+
+@dataclass
+class Sfr:
+    enable: bool = False           #                           (--sfr)
+    source: str = 'inputSTREAM.csv'
+    min_slope: float = 1e-4
+    monotonic_bed: bool = True     # SFRmaker rule (Leaf et al. 2021)
+    width: ParamSource = field(
+        default_factory=lambda: ParamSource(drainage={'a': 0.5, 'b': 0.35}))
+    manning: ParamSource = field(default_factory=lambda: ParamSource(value=0.035))
+    rhk: ParamSource = field(default_factory=lambda: ParamSource(value=0.1))
+    rbth: ParamSource = field(default_factory=lambda: ParamSource(value=0.5))
+
+
+@dataclass
+class Lak:
+    enable: bool = False           #                           (--lak)
+    source: str = 'inputPONDS.csv'
+    bedleak: float = 1e-3          # 1/d                       (--lak-bedleak)
+    surfdep: float = 0.05          # m
+    maxiter: int = 200             # LAK Newton cap (CdL)
+    stagechg: float = 1e-4         # m (CdL)
+
+
+@dataclass
+class Crr:
+    """WP5. Disabled by default; enable=false is bit-identical to WP4."""
+
+    enable: bool = False
+    beta: float = 1.0              # Daoud Eq. 23; calibrated 0.8-1.0
+    sinks: str = 'evaporate'
+    dem: str = 'inputDEMfill.asc'
+
+
+@dataclass
+class Spinup:
+    cycles: int = 1                #                           (--spinup)
+    tol: float = 0.05              #                           (--spinup-tol)
+    strt_heads: str = ''           #                           (--strt-heads)
+    steady_means: str = ''         #                           (--steady-means)
+    save_strt: str = ''            #                           (--save-strt)
+    save_means: str = ''           #                           (--save-means)
+    strt_dem: list = field(default_factory=list)   # [a, b]     (--strt-dem)
+
+
+@dataclass
+class Postproc:
+    enable: bool = False           #                           (--postproc)
+    preproc: bool = False          #                           (--preproc)
+    only: bool = False             #                           (--postproc-only)
+    sankey_min_flux: float = 0.05  #                           (--sankey-min-flux)
+    sankey_full: bool = True       #                           (--no-sankey-full)
+    sankey_obs_years: bool = False  #                          (--sankey-obs-years)
+    map_days: int = 6              #                           (--map-days)
+
+
+@dataclass
+class Pest:
+    use_pest_params: bool = False
+    params_npz: str = 'pest_optimised.npz'
+
+
+@dataclass
+class Ui:
+    """WP1b. Read only by code/app/, never by the model."""
+
+    execution: str = 'local'       # local | server
+    runs_dir: str = ''             # blank -> WS_ROOT/runs
+    port: int = 8501
+    address: str = 'localhost'
+    poll_secs: int = 3
+
+
+_SECTIONS = {
+    'meta': Meta, 'paths': Paths, 'run': Run, 'grid': Grid, 'layers': Layers,
+    'uzf': Uzf, 'seep': Seep, 'et': Et, 'sfr': Sfr, 'lak': Lak, 'crr': Crr,
+    'spinup': Spinup, 'postproc': Postproc, 'pest': Pest, 'ui': Ui,
+}
+
+GRID_KINDS = ('structured', 'disv', 'voronoi', 'quadtree')
+_GRID_ALIAS = {'dis': 'structured'}
+_NOT_YET = ('voronoi', 'quadtree')       # producers arrive with WP1c
+
+
+def _build(cls, data, where):
+    """Instantiate a section dataclass, RAISING on any unknown key."""
+    if not isinstance(data, dict):
+        raise ConfigError('%s: expected a table, got %s' % (where, type(data).__name__))
+    fields_ = {f.name: f for f in dataclasses.fields(cls)}
+    unknown = sorted(set(data) - set(fields_))
+    if unknown:
+        raise ConfigError(
+            '%s: unknown key(s) %s -- valid keys are %s'
+            % (where, ', '.join(repr(u) for u in unknown), ', '.join(sorted(fields_))))
+    kwargs = {}
+    for k, v in data.items():
+        ftype = fields_[k].type
+        if ftype in (GridVoronoi, 'GridVoronoi'):
+            v = _build(GridVoronoi, v, '%s.%s' % (where, k))
+        elif ftype in (ParamSource, 'ParamSource'):
+            v = ParamSource.from_value(v)
+        kwargs[k] = v
+    return cls(**kwargs)
+
+
+@dataclass
+class RunConfig:
+    """The whole run: machine-independent settings for one model configuration."""
+
+    meta: Meta = field(default_factory=Meta)
+    paths: Paths = field(default_factory=Paths)
+    run: Run = field(default_factory=Run)
+    grid: Grid = field(default_factory=Grid)
+    layers: Layers = field(default_factory=Layers)
+    uzf: Uzf = field(default_factory=Uzf)
+    seep: Seep = field(default_factory=Seep)
+    et: Et = field(default_factory=Et)
+    sfr: Sfr = field(default_factory=Sfr)
+    lak: Lak = field(default_factory=Lak)
+    crr: Crr = field(default_factory=Crr)
+    spinup: Spinup = field(default_factory=Spinup)
+    postproc: Postproc = field(default_factory=Postproc)
+    pest: Pest = field(default_factory=Pest)
+    ui: Ui = field(default_factory=Ui)
+    source_path: str = ''
+
+    @classmethod
+    def from_dict(cls, data, source_path=''):
+        if not isinstance(data, dict):
+            raise ConfigError('configuration must be a table')
+        unknown = sorted(set(data) - set(_SECTIONS))
+        if unknown:
+            raise ConfigError(
+                'unknown section(s) %s -- valid sections are %s'
+                % (', '.join(repr(u) for u in unknown), ', '.join(sorted(_SECTIONS))))
+        kwargs = {name: _build(_SECTIONS[name], data[name], name) for name in data}
+        cfg = cls(source_path=str(source_path), **kwargs)
+        cfg.validate()
+        return cfg
+
+    def validate(self):
+        errs = []
+        if self.meta.config_version != 1:
+            errs.append('meta.config_version %r is not supported (expected 1)'
+                        % self.meta.config_version)
+        if self.run.mode not in ('lagged', 'iterative'):
+            errs.append("run.mode must be 'lagged' or 'iterative'")
+        if not (0.0 < self.run.relax <= 1.0):
+            errs.append('run.relax must be in (0, 1]')
+        if self.run.nsp < 0:
+            errs.append('run.nsp must be >= 0 (0 = all stress periods)')
+        if self.grid_kind not in GRID_KINDS:
+            errs.append('grid.kind must be one of %s' % ', '.join(GRID_KINDS))
+        if self.layers.nlay not in (2, 6):
+            errs.append('layers.nlay must be 2 or 6')
+        if self.seep.kind not in ('uzf', 'drn'):
+            errs.append("seep.kind must be 'uzf' or 'drn'")
+        if self.seep.kind == 'drn' and self.seep.cond <= 0:
+            errs.append('seep.cond must be > 0 (a seepage face must be free-draining)')
+        if self.et.unsat_form not in ('etwc', 'etae'):
+            errs.append("et.unsat_form must be 'etwc' or 'etae'")
+        if self.et.gwet_in_mf:
+            errs.append('et.gwet_in_mf must stay false: ETg is computed by MM and '
+                        'applied as a WEL sink, so MODFLOW must not remove it too '
+                        '(cookbook WP2, the GWET guard)')
+        if self.et.extdp_source not in ('uniform', 'veg_zone', 'raster'):
+            errs.append("et.extdp_source must be 'uniform', 'veg_zone' or 'raster'")
+        if self.spinup.cycles < 1:
+            errs.append('spinup.cycles must be >= 1')
+        if self.spinup.strt_dem and len(self.spinup.strt_dem) != 2:
+            errs.append('spinup.strt_dem must be [] or [a, b]')
+        if not (0.0 < self.crr.beta <= 1.0):
+            errs.append('crr.beta must be in (0, 1]')
+        if self.ui.execution not in ('local', 'server'):
+            errs.append("ui.execution must be 'local' or 'server'")
+        for name in ('width', 'manning', 'rhk', 'rbth'):
+            try:
+                getattr(self.sfr, name).validate('sfr.%s' % name)
+            except ConfigError as exc:
+                errs.append(str(exc))
+        if errs:
+            raise ConfigError('Invalid MARMITES run configuration'
+                              + (' (%s)' % self.source_path if self.source_path else '')
+                              + ':\n  - ' + '\n  - '.join(errs))
+
+    def apply_overrides(self, assignments, echo=True):
+        """Apply ``section.key=value`` strings (the CLI --set switch).
+
+        Every override is echoed: a setting that changes a run without
+        appearing anywhere is how a multi-hour run gets wasted.
+        """
+        applied = []
+        for item in assignments or ():
+            if '=' not in item:
+                raise ConfigError('--set expects section.key=value, got %r' % item)
+            dotted, raw = item.split('=', 1)
+            parts = dotted.strip().split('.')
+            if len(parts) < 2:
+                raise ConfigError('--set expects section.key=value, got %r' % item)
+            obj = self
+            for p in parts[:-1]:
+                if not hasattr(obj, p):
+                    raise ConfigError('--set: no such section %r in %r' % (p, dotted))
+                obj = getattr(obj, p)
+            leaf = parts[-1]
+            if not hasattr(obj, leaf):
+                raise ConfigError('--set: no such key %r in %r' % (leaf, dotted))
+            old = getattr(obj, leaf)
+            setattr(obj, leaf, _coerce_like(old, raw.strip(), dotted))
+            applied.append((dotted, old, getattr(obj, leaf)))
+        self.validate()
+        if echo and applied:
+            print('config overrides (--set):')
+            for dotted, old, new in applied:
+                print('   %-28s %r -> %r' % (dotted, old, new))
+        return applied
+
+    def to_dict(self):
+        return {name: dataclasses.asdict(getattr(self, name)) for name in _SECTIONS}
+
+    def config_hash(self):
+        """Stable digest of the RESOLVED configuration.
+
+        Stamped into the run folder and carried by every cache (grid, layer set,
+        spin-up state) so a mismatch stops the run instead of silently
+        overriding what was asked for.
+        """
+        import hashlib
+        import json
+        payload = json.dumps(self.to_dict(), sort_keys=True, default=str)
+        return hashlib.sha256(payload.encode('utf-8')).hexdigest()[:16]
+
+    # Keys that decide whether saved state (spin-up heads, steady means, and in
+    # WP1c a cached grid or layer set) is still valid. Deliberately NARROW: the
+    # full config_hash would invalidate the state on an unrelated change such as
+    # postproc.map_days, and a guard that cries wolf gets switched off.
+    STATE_SCOPE = ('paths.case', 'grid.kind', 'layers.nlay', 'layers.aggregate')
+
+    def state_scope(self):
+        out = {}
+        for dotted in self.STATE_SCOPE:
+            sec, key = dotted.split('.')
+            v = self.grid_kind if dotted == 'grid.kind' else getattr(
+                getattr(self, sec), key)
+            out[dotted] = v
+        return out
+
+    def state_hash(self):
+        """Digest of the keys that make saved state valid or stale."""
+        import hashlib
+        import json
+        payload = json.dumps(self.state_scope(), sort_keys=True, default=str)
+        return hashlib.sha256(payload.encode('utf-8')).hexdigest()[:16]
+
+    def write_toml(self, path):
+        """Write the resolved configuration (after --set) for provenance."""
+        lines = ['# MARMITES resolved run configuration',
+                 '# config_hash = %s' % self.config_hash(), '']
+        for name in _SECTIONS:
+            sec = getattr(self, name)
+            nested = []
+            lines.append('[%s]' % name)
+            for f in dataclasses.fields(sec):
+                v = getattr(sec, f.name)
+                if dataclasses.is_dataclass(v):
+                    nested.append((f.name, v))
+                else:
+                    lines.append('%s = %s' % (f.name, _toml_value(v)))
+            for sub, v in nested:
+                lines.append('')
+                lines.append('[%s.%s]' % (name, sub))
+                for f in dataclasses.fields(v):
+                    val = getattr(v, f.name)
+                    if val in (None, '', {}, []):
+                        continue
+                    lines.append('%s = %s' % (f.name, _toml_value(val)))
+            lines.append('')
+        with open(path, 'w', encoding='utf-8') as fh:
+            fh.write('\n'.join(lines))
+        return path
+
+    @property
+    def grid_kind(self):
+        """Normalised grid kind ('dis' is accepted as 'structured')."""
+        return _GRID_ALIAS.get(self.grid.kind, self.grid.kind)
+
+    @property
+    def run_tag(self):
+        return self.meta.name or '%dlay_%s' % (self.layers.nlay, self.run.mode)
+
+    def require_implemented_grid(self):
+        """Fail fast and clearly on a grid producer that WP1c has not built yet."""
+        if self.grid_kind in _NOT_YET:
+            raise ConfigError(
+                "grid.kind = %r is not implemented yet: the %s producer arrives "
+                "with WP1c. Use 'structured' (today's DIS grid) or 'disv'."
+                % (self.grid.kind, self.grid_kind))
+
+
+def _toml_value(v):
+    if isinstance(v, bool):
+        return 'true' if v else 'false'
+    if v is None:
+        return '""'
+    if isinstance(v, (int, float)):
+        return repr(v)
+    if isinstance(v, (list, tuple)):
+        return '[%s]' % ', '.join(_toml_value(x) for x in v)
+    if isinstance(v, dict):
+        return '{%s}' % ', '.join('%s = %s' % (k, _toml_value(x)) for k, x in v.items())
+    return '"%s"' % str(v).replace('\\', '\\\\').replace('"', '\\"')
+
+
+def _coerce_like(old, raw, dotted):
+    """Coerce a --set string to the type of the value it replaces."""
+    if isinstance(old, bool):
+        low = raw.lower()
+        if low in ('true', '1', 'yes', 'on'):
+            return True
+        if low in ('false', '0', 'no', 'off'):
+            return False
+        raise ConfigError('--set %s: expected a boolean, got %r' % (dotted, raw))
+    if isinstance(old, int) and not isinstance(old, bool):
+        try:
+            return int(raw)
+        except ValueError:
+            raise ConfigError('--set %s: expected an integer, got %r'
+                              % (dotted, raw)) from None
+    if isinstance(old, float):
+        try:
+            return float(raw)
+        except ValueError:
+            raise ConfigError('--set %s: expected a number, got %r'
+                              % (dotted, raw)) from None
+    if isinstance(old, list):
+        raw = raw.strip().strip('[]')
+        if not raw:
+            return []
+        return [float(x) for x in raw.replace(',', ' ').split()]
+    return raw
+
+
+def load_run_config(path):
+    """Load and validate a WP0 run-configuration TOML file."""
+    if not os.path.exists(path):
+        raise ConfigError('config file does not exist: %s' % path)
+    tomllib = _load_tomllib()
+    with open(path, 'rb') as f:
+        data = tomllib.load(f)
+    return RunConfig.from_dict(data, source_path=path)
+
+
+__all__ += ['RunConfig', 'load_run_config', 'GRID_KINDS', 'ParamSource',
+            'Meta', 'Paths', 'Run', 'Grid', 'GridVoronoi', 'Layers', 'Uzf',
+            'Seep', 'Et', 'Sfr', 'Lak', 'Crr', 'Spinup', 'Postproc', 'Pest', 'Ui']
+
 if __name__ == '__main__':
     import sys
     if len(sys.argv) == 3:

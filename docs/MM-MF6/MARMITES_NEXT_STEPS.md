@@ -25,7 +25,7 @@ in §3 remains to do; it is kept as the record of how the plotting was built.
 
 Redraw every figure from a run already on disk, no MODFLOW, ~1 min:
 ```
-python tests\run_lamata_mf6.py --postproc-only --preproc --nlay 2 --mode lagged --run-tag <tag>
+python code\tests\run_lamata_mf6.py --config code\configs\lamata.toml --set postproc.only=true --run-tag <tag>
 ```
 
 Two standing rules, both learned the hard way:
@@ -367,16 +367,29 @@ consistent with UZF6 EPSILON 3.5 vs UZF1 2.0.
   tiny real model); the seventh needs `pyshp`. Worth running locally with
   `E:\00code\moflowapi\emsdatasets\bin` on PATH after touching pre/post.
 
-Canonical run command (recharge now couples correctly):
+**THE FLAGS ARE GONE (WP0, 2026-09-09).** Everything that was a flag is now a
+key in a configuration file; §0-ter below is kept as the flag -> key reference.
+The CLI is `--config`, `--set`, `--run-tag`, `--probe` and nothing else.
+Machine paths live in `code/mm_paths.py` (or the `MM_*` environment variables).
+
+Canonical run -- the reference configuration already encodes it (2 layers, DRN
+seepage, from the saved spin-up state, pre- and post-processing on):
 ```
-python tests\run_lamata_mf6.py --libmf6 C:\00MODFLOW\mf6.7.0_win64\bin\libmf6.dll ^
-  --mode lagged --nlay 2 --seep drn --strt-dem 0.9995 -2.0 --spinup 5 --preproc --postproc
+python code\tests\run_lamata_mf6.py --config code\configs\lamata.toml
 ```
-Reuse a saved equilibrium (skip spin-up):
+One-off variations, always echoed at startup:
 ```
-python tests\run_lamata_mf6.py --libmf6 ... --nlay 2 --seep drn ^
-  --strt-heads hi_spinup --steady-means hi_spinup --preproc --postproc
+python code\tests\run_lamata_mf6.py --config code\configs\lamata.toml ^
+  --set run.nsp=365 --set sfr.enable=true --run-tag oneyear_sfr
 ```
+Redraw the figures from a run already on disk:
+```
+python code\tests\run_lamata_mf6.py --config code\configs\lamata.toml ^
+  --set postproc.only=true --run-tag <tag>
+```
+Translate an old command line: `python code\tools\flags_to_toml.py <old flags>`.
+The resolved configuration is copied into every run folder as
+`_input/resolved_config.toml`, so a result always says what produced it.
 
 ---
 

@@ -49,6 +49,8 @@ import MARMITESsoil_v3 as MMsoil  # noqa: E402
 from marmites_indices import INDEX_MM, INDEX_MM_SOIL  # noqa: E402
 from marmites_mf6 import clsMF6  # noqa: E402
 from marmites_coupler import MF6Coupler  # noqa: E402
+import marmites_config as mcfg  # noqa: E402
+import mm_paths  # noqa: E402
 
 
 def _asc(fn):
@@ -243,123 +245,149 @@ def setup_lamata(daily=True, nsp=None, grid='dis', nlay=None, aggregate=False):
     return cMF, mm, ctx, state, top, botm, conv_fact
 
 
+def _state_sidecar(a, prefix):
+    """Path of the scope sidecar written beside a saved state prefix."""
+    return os.path.join(a.state_dir, '%s.scope.json' % prefix)
+
+
+def _write_state_scope(a, cfg, prefix):
+    """Record WHICH configuration produced a saved state (WP0.6)."""
+    import json
+    payload = {'state_hash': cfg.state_hash(), 'scope': cfg.state_scope()}
+    with open(_state_sidecar(a, prefix), 'w', encoding='utf-8') as fh:
+        json.dump(payload, fh, indent=2, sort_keys=True, default=str)
+
+
+def _check_state_scope(a, cfg):
+    """Refuse to reuse saved state produced under a different grid or layer set.
+
+    Only the keys in RunConfig.STATE_SCOPE matter; an unrelated change (a
+    different map_days, say) must not invalidate a spin-up that cost hours. A
+    state with no sidecar is accepted with a note -- every state written before
+    WP0 predates the guard, and failing on those would break existing runs.
+    """
+    import json
+    for what, prefix in (('spinup.strt_heads', cfg.spinup.strt_heads),
+                         ('spinup.steady_means', cfg.spinup.steady_means)):
+        prefix = (prefix or '').strip()
+        if not prefix:
+            continue
+        side = _state_sidecar(a, prefix)
+        if not os.path.exists(side):
+            print('note: %s = %r has no scope sidecar (written before WP0); '
+                  'accepted unchecked' % (what, prefix))
+            continue
+        with open(side, encoding='utf-8') as fh:
+            saved = json.load(fh)
+        if saved.get('state_hash') == cfg.state_hash():
+            continue
+        now, was = cfg.state_scope(), saved.get('scope', {})
+        differing = [k for k in now if str(now[k]) != str(was.get(k))]
+        raise SystemExit(
+            'CONFIG ERROR: %s = %r was produced under a different configuration.\n'
+            '  differing key(s): %s\n'
+            '  saved: %s\n'
+            '  now:   %s\n'
+            'Regenerate that state, or point %s at one produced with this grid '
+            'and layer set. (Refusing to reuse it silently: a stale cache '
+            'overriding the configuration is a wasted multi-hour run.)'
+            % (what, prefix, ', '.join(differing) or '(none)',
+               {k: was.get(k) for k in now}, now, what))
+def _args_from_config(cfg, probe=False):
+    """Map a RunConfig onto the legacy attribute names the driver body uses.
+
+    WP0 is a REFACTOR, not a rewrite: the body of main() below is untouched, so
+    a configuration that mirrors the old flags produces byte-identical MF6
+    input. This function is the whole of the translation, and it is the only
+    place the old flag vocabulary survives.
+
+    Blank strings and 0 in the schema mean "not set" for the flags whose
+    argparse default was ``None``.
+    """
+    def _or_none(s):
+        s = (s or '').strip()
+        return s or None
+
+    lak_source = None
+    if cfg.lak.enable:
+        lak_source = cfg.lak.source or 'GIS/lm_ponds.shp'
+
+    libmf6 = (cfg.paths.libmf6 or '').strip()
+    if libmf6.lower() == 'auto':
+        libmf6 = mm_paths.LIBMF6 if os.path.exists(mm_paths.LIBMF6) else ''
+
+    return argparse.Namespace(
+        # run
+        mode=cfg.run.mode, relax=cfg.run.relax,
+        nsp=(cfg.run.nsp or None), daily=cfg.run.daily, ats=cfg.run.ats,
+        build_only=cfg.run.build_only, standalone=_or_none(cfg.run.standalone),
+        probe=bool(probe or cfg.run.probe),
+        max_discrepancy=cfg.run.max_discrepancy,
+        allow_bad_budget=cfg.run.allow_bad_budget,
+        # grid / layers  (the body compares grid against the legacy 'dis')
+        grid=('dis' if cfg.grid_kind == 'structured' else cfg.grid.kind),
+        nlay=cfg.layers.nlay, aggregate=cfg.layers.aggregate,
+        # packages
+        uzf_vks_scale=cfg.uzf.vks_scale,
+        seep=cfg.seep.kind, seep_cond=cfg.seep.cond,
+        sfr=cfg.sfr.enable,
+        sfr_rhk=(cfg.sfr.rhk.value if cfg.sfr.rhk.value is not None else 0.1),
+        lak=lak_source, lak_bedleak=cfg.lak.bedleak,
+        # spin-up / initial state
+        spinup=cfg.spinup.cycles, spinup_tol=cfg.spinup.tol,
+        strt_heads=_or_none(cfg.spinup.strt_heads),
+        steady_means=_or_none(cfg.spinup.steady_means),
+        save_strt=_or_none(cfg.spinup.save_strt),
+        save_means=_or_none(cfg.spinup.save_means),
+        strt_dem=(list(cfg.spinup.strt_dem) or None),
+        # post-processing
+        postproc=cfg.postproc.enable, preproc=cfg.postproc.preproc,
+        postproc_only=cfg.postproc.only, gis_ws=_or_none(cfg.paths.gis_ws),
+        sankey_min_flux=cfg.postproc.sankey_min_flux,
+        sankey_full=cfg.postproc.sankey_full,
+        sankey_obs_years=cfg.postproc.sankey_obs_years,
+        map_days=cfg.postproc.map_days,
+        # where things go
+        ws=_or_none(cfg.paths.ws),
+        ws_root=str(mm_paths.WS_ROOT),
+        run_tag=(cfg.meta.name or None),
+        libmf6=(libmf6 or None),
+        # carried for provenance
+        config=cfg,
+    )
+
+
 def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument('--build-only', action='store_true')
-    ap.add_argument('--libmf6', default=None, help='path to libmf6.dll/.so (enables the coupled run)')
-    ap.add_argument('--mode', choices=['lagged', 'iterative'], default='lagged')
-    ap.add_argument('--relax', type=float, default=0.6)
-    ap.add_argument('--nsp', type=int, default=None, help='truncate to N stress periods')
-    ap.add_argument('--daily', action='store_true', default=True)
-    ap.add_argument('--aggregated', dest='daily', action='store_false')
-    ap.add_argument('--nlay', type=int, default=None, choices=[2, 6],
-                    help='vertical resolution: 2 reads the 2-layer parameter file '
-                         '(_2s1L.ini) directly, 6 (default) the 6-layer file')
-    ap.add_argument('--aggregate', action='store_true',
-                    help='derive the 2-layer model by collapsing the 6-layer one '
-                         'instead of reading _2s1L.ini (comparison only)')
-    ap.add_argument('--grid', choices=['dis', 'disv'], default='dis',
-                    help="'disv' builds the vertex-grid equivalent (Phase 4)")
-    ap.add_argument('--strt-dem', nargs=2, type=float, metavar=('A', 'B'), default=None,
-                    help='initial heads from the DEM: head = A*elevation + B '
-                         '(e.g. --strt-dem 0.9995 -2.0); default uses the ini arrays')
-    ap.add_argument('--sfr', action='store_true',
-                    help='build the SFR stream network from inputPONDw.asc '
-                         '(the SFR outlet then replaces the outlet DRN cells)')
-    ap.add_argument('--sfr-rhk', type=float, default=0.1,
-                    help='streambed hydraulic conductivity [m/d]')
-    ap.add_argument('--lak', nargs='?', const='GIS/lm_ponds.shp', default=None,
-                    metavar='SHAPEFILE',
-                    help='build EMBEDDEDV lakes from a pond-polygon shapefile '
-                         '(default GIS/lm_ponds.shp, relative to the dataset)')
-    ap.add_argument('--lak-bedleak', type=float, default=1e-3,
-                    help='lakebed leakance [1/d]')
-    ap.add_argument('--uzf-vks-scale', type=float, default=1.0, metavar='F',
-                    help='multiply the UZF unsaturated vks by F to offset the '
-                         'EPSILON 2.0->3.5 clamp (UZF6 minimum), which otherwise '
-                         'throttles recharge and drains the water table. '
-                         'Calibrate so UZF-GWRCH matches the target (try ~3)')
-    ap.add_argument('--seep', choices=['uzf', 'drn'], default='uzf',
-                    help='groundwater-seepage mechanism: uzf = UZF SIMULATE_GWSEEP, '
-                         'drn = smoothed land-surface drain')
-    ap.add_argument('--seep-cond', type=float, default=10000.0,
-                    help='DRN-SEEP conductance per cell [m2/d] (--seep drn only). '
-                         'This is a free-draining seepage face, not a physical '
-                         'aquitard: too small and the water table stands above '
-                         'the land surface instead of discharging')
-    ap.add_argument('--no-ats', dest='ats', action='store_false', default=True,
-                    help='disable adaptive time stepping (not recommended: a '
-                         'stress period MF6 cannot solve in one step then '
-                         'silently becomes a non-solution)')
-    ap.add_argument('--max-discrepancy', type=float, default=1.0,
-                    help='fail the run above this cumulative mass-balance '
-                         'discrepancy [%%]')
-    ap.add_argument('--allow-bad-budget', action='store_true',
-                    help='report instead of failing when the solution check '
-                         'does not pass')
-    ap.add_argument('--strt-heads', default=None, metavar='PREFIX',
-                    help='use a saved per-layer head field <PREFIX>_l1.asc.. as '
-                         'the initial condition (e.g. an equilibrated spin-up '
-                         'result); overrides --strt-dem')
-    ap.add_argument('--save-strt', nargs='?', const='hi_spinup', default=None,
-                    metavar='PREFIX',
-                    help='after the run, save the final head field as '
-                         '<PREFIX>_l1.asc.. in the MF workspace (default prefix '
-                         'hi_spinup) so it can seed later runs via --strt-heads')
-    ap.add_argument('--steady-means', default=None, metavar='PREFIX',
-                    help='drive the steady SP0 with saved per-cell mean recharge '
-                         'and ETg (<PREFIX>_perc.asc, <PREFIX>_etg.asc) instead '
-                         'of uniform perc_user, so SP0 lands near the dynamic '
-                         'equilibrium')
-    ap.add_argument('--save-means', nargs='?', const='hi_spinup', default=None,
-                    metavar='PREFIX',
-                    help='after the run, save per-cell mean recharge/ETg as '
-                         '<PREFIX>_perc.asc / _etg.asc for reuse via --steady-means')
-    ap.add_argument('--spinup', type=int, default=1, metavar='N',
-                    help='repeat the forcing up to N times, each cycle starting '
-                         'from the previous final heads, until the water table '
-                         'stabilises (equilibrium IC). Default 1 = single run')
-    ap.add_argument('--spinup-tol', type=float, default=0.05, metavar='M',
-                    help='spin-up converged when the mean between-cycle water '
-                         'table change is below this [m] (default 0.05)')
-    ap.add_argument('--postproc', action='store_true',
-                    help='after the run, write obs/head/budget figures + CSVs '
-                         'to <ws>/postproc/')
-    ap.add_argument('--preproc', action='store_true',
-                    help='write the input parameter maps to <out-dir>/_input/')
-    ap.add_argument('--gis-ws', default=None,
-                    help='GIS workspace for the general map (default: '
-                         'MARMITES_GIS_WS, else the built-in path)')
-    ap.add_argument('--postproc-only', action='store_true',
-                    help='re-draw the figures from a run already on disk: reads '
-                         '<ws>/_coupled_<mode>.h5 and the MF6 output, runs no '
-                         'MODFLOW (implies --postproc)')
-    ap.add_argument('--sankey-min-flux', type=float, default=0.05, metavar='MM',
-                    help='native water-balance Sankey: hide flows below this '
-                         'magnitude (mm/y) on the core diagram (default 0.05)')
-    ap.add_argument('--sankey-obs-years', action='store_true',
-                    help='also produce a per-hydrological-year Sankey at each '
-                         'observation point (default: whole period only; the '
-                         'catchment always gets both)')
-    ap.add_argument('--map-days', type=int, default=6, metavar='N',
-                    help='head maps on N evenly spaced days (0 = mean only)')
-    ap.add_argument('--no-sankey-full', dest='sankey_full', action='store_false',
-                    default=True, help='skip the all-flux Sankey (keep only the '
-                         'decluttered core diagram)')
-    ap.add_argument('--standalone', default=None, metavar='MF6EXE',
-                    help='build, then run the model with the mf6 executable '
-                         '(no API) -- isolates model faults from coupling faults')
-    ap.add_argument('--probe', action='store_true',
-                    help='list the MF6 memory variables and exit (diagnostics)')
-    ap.add_argument('--ws', default=None,
-                    help='MODFLOW 6 workspace (default <ws-root>/MF6_ws)')
-    ap.add_argument('--ws-root', default=WS_ROOT, metavar='DIR',
-                    help='root for ALL run output, outside the repo '
-                         '(default %s, or $MARMITES_WS_ROOT)' % WS_ROOT)
+    ap = argparse.ArgumentParser(
+        description='Run the MARMITES / MODFLOW 6 coupled model for one case '
+                    'study. Everything that used to be a flag is now a key in '
+                    'the configuration file; see code/configs/lamata.toml.',
+        epilog='example:  python code/tests/run_lamata_mf6.py '
+               '--config code/configs/lamata.toml --set run.nsp=365')
+    ap.add_argument('--config', required=True, metavar='FILE',
+                    help='run configuration (TOML). The single source of truth '
+                         'for every model and run setting.')
+    ap.add_argument('--set', action='append', dest='overrides', default=[],
+                    metavar='SECTION.KEY=VALUE',
+                    help='one-off override of a configuration key, repeatable. '
+                         'Every override is echoed at startup, because a '
+                         'setting that changes a run without appearing '
+                         'anywhere is how a multi-hour run gets wasted.')
     ap.add_argument('--run-tag', default=None, metavar='TAG',
-                    help='label for this run\'s results folder '
+                    help='label this run, overriding meta.name -> '
                          '<ws-root>/out_<YYYYMMDDHHMM>_<TAG>')
-    a = ap.parse_args()
+    ap.add_argument('--probe', action='store_true',
+                    help='list the MF6 memory variables and exit (diagnostic)')
+    ns = ap.parse_args()
+
+    cfg = mcfg.load_run_config(ns.config)
+    cfg.apply_overrides(ns.overrides)
+    if ns.run_tag:
+        cfg.meta.name = ns.run_tag
+    cfg.require_implemented_grid()
+    print('config: %s  (hash %s)' % (os.path.abspath(ns.config), cfg.config_hash()))
+
+    a = _args_from_config(cfg, probe=ns.probe)
     if a.postproc_only:
         a.postproc = True
     if a.ws is None:
@@ -369,10 +397,21 @@ def main():
     tag = a.run_tag or ('%dlay_%s' % (a.nlay or 6, a.mode))
     a.out_dir = os.path.join(a.ws_root,
                              'out_%s_%s' % (time.strftime('%Y%m%d%H%M'), tag))
+    # PROVENANCE (WP0.5): the RESOLVED configuration -- after --set -- is copied
+    # into the run folder, so every result says exactly what produced it.
+    _prov_dir = os.path.join(a.out_dir, '_input')
+    os.makedirs(_prov_dir, exist_ok=True)
+    cfg.write_toml(os.path.join(_prov_dir, 'resolved_config.toml'))
     # Saved run state (equilibrated heads, steady means) is run OUTPUT, so it is
     # written to the workspace; reading falls back to the baseline committed in
-    # the repo's DataSet_LaMata/MF_ws so `--strt-heads hi_spinup` keeps working.
+    # the repo's example/LaMata/MF_ws so `spinup.strt_heads` keeps working.
     a.state_dir = a.ws
+    # STATE GUARD (WP0.6): saved state is only valid for the grid and layer set
+    # it was produced on, so the sidecar carries THAT scope rather than the whole
+    # configuration -- a full-config hash would trip on an unrelated key such as
+    # postproc.map_days. A mismatch stops the run naming the offending key,
+    # which is the failure the CdL grid-design cache produced once.
+    _check_state_scope(a, cfg)
 
     cMF, mm, ctx, state, top, botm, conv_fact = setup_lamata(
         daily=a.daily, nsp=a.nsp, grid=a.grid, nlay=a.nlay, aggregate=a.aggregate)
@@ -602,8 +641,9 @@ def main():
     if save_pref:
         pref = _state_out(a, save_pref)
         paths = b.save_heads_asc(prev_heads, pref)
+        _write_state_scope(a, a.config, save_pref)      # WP0.6 scope sidecar
         print('equilibrated heads saved: %s' % ', '.join(os.path.basename(p) for p in paths))
-        print('   reuse with:  --strt-heads %s   (skips the spin-up)' % save_pref)
+        print('   reuse with:  spinup.strt_heads = "%s"   (skips the spin-up)' % save_pref)
 
     # Save per-cell mean recharge / ETg so the steady state of later runs can be
     # driven by the dynamic mean (auto after spin-up, or on explicit --save-means).
@@ -614,8 +654,9 @@ def main():
                          cMF, mp + '_perc.asc')
         _write_cell_grid(res['etg'].mean(axis=0), ctx.cells, cMF.nrow, cMF.ncol,
                          cMF, mp + '_etg.asc')
+        _write_state_scope(a, a.config, mean_pref)      # WP0.6 scope sidecar
         print('steady-state means saved: %s_{perc,etg}.asc' % os.path.basename(mp))
-        print('   reuse with:  --steady-means %s' % mean_pref)
+        print('   reuse with:  spinup.steady_means = "%s"' % mean_pref)
 
     _run_postproc(a, cMF, ctx, res)
 

@@ -1,0 +1,154 @@
+# =============================================================================
+# MARMITES run configuration -- La Mata
+#
+# This file replaces the command-line flags of code/tests/run_lamata_mf6.py.
+# Machine-specific paths are NOT here: they live in code/mm_paths.py (or the
+# matching MM_* environment variables).
+#
+#   python code/tests/run_lamata_mf6.py --config code/configs/lamata.toml
+#   ... [--set section.key=value ...]        one-off overrides, always echoed
+#
+# As written this reproduces the canonical spun-up run:
+#   --nlay 2 --seep drn --strt-heads hi_spinup --steady-means hi_spinup
+#   --preproc --postproc
+#
+# Every key carries its old flag in a comment. Unknown keys RAISE -- a typo
+# must never fall through to a default. Full reference: the cookbook, section 7
+# and Appendix A.
+# =============================================================================
+
+[meta]
+config_version = 1
+name           = "2lay_drn_spinup"     # -> out_<stamp>_<name>   (--run-tag)
+description    = "La Mata, 2 layers, DRN seepage, from the saved spin-up state"
+
+[paths]
+case          = "LaMata"     # -> example/LaMata/  (Tier A inputs)
+ws            = ""           # blank -> WS_ROOT/MF6_ws            (--ws)
+gis_ws        = ""           # blank -> mm_paths.GIS (figures only, never the model path)
+nwt_reference = ""           # blank -> mm_paths.NWT_REF (the NWT comparison panels)
+libmf6        = ""           # blank -> mm_paths.LIBMF6           (--libmf6)
+
+[run]
+mode             = "lagged"  # lagged | iterative                 (--mode)
+relax            = 0.6       # iterative under-relaxation         (--relax)
+nsp              = 0         # 0 = all stress periods             (--nsp)
+daily            = true      # false = aggregated                 (--aggregated)
+ats              = true      # adaptive time stepping             (--no-ats)
+build_only       = false     #                                    (--build-only)
+standalone       = ""        # mf6.exe path -> run without the API (--standalone)
+probe            = false     # list the MF6 memory variables      (--probe)
+max_discrepancy  = 1.0       # fail above this cumulative MB [%]  (--max-discrepancy)
+allow_bad_budget = false     #                                    (--allow-bad-budget)
+
+# --- GRID ---------------------------------------------------------------
+# WP1c will add the "voronoi" and "quadtree" producers and make voronoi the
+# default. Until then those two raise a clear "not implemented" error, and
+# "structured" is today's DIS grid. "dis" is accepted as an alias.
+[grid]
+kind    = "structured"       # structured | disv | voronoi | quadtree   (--grid)
+rebuild = false              # true = re-mesh; the cache carries the config hash
+
+[grid.voronoi]               # WP1c; ignored while kind is structured/disv
+cell_far         = 100.0     # m, background cell size
+cell_near_stream = 40.0      # m, stream corridor
+stream_buffer    = 60.0      # m
+stream_refine    = true      # false = SFRmaker style, network on the background
+trans_levels     = [10.0, 20.0, 40.0, 70.0]   # Daoud-style graded transitions
+seed_ponds       = true      # one pond-scale cell per pond, centroid-seeded
+
+[layers]
+nlay      = 2                # 2 reads _2s1L.ini directly         (--nlay)
+aggregate = false            # 6->2 derivation, comparison only   (--aggregate)
+
+[uzf]
+vks_scale = 1.0              #                                    (--uzf-vks-scale)
+
+[seep]
+kind = "drn"                 # uzf | drn -- drn is the validated choice   (--seep)
+cond = 10000.0               # m2/d; must be free-draining        (--seep-cond)
+
+# --- ET (WP2) -----------------------------------------------------------
+# Total ET = Ei + Eow + ETsoil (MM) + ETuzf (MF/UZF) + ETg (MM).
+# uzf_et = false keeps today's behaviour (no UZF ET at all); WP2 turns it on.
+# gwet_in_mf MUST stay false: ETg is computed by MM and applied as a WEL sink,
+# so MODFLOW must not remove it as well. The schema refuses true.
+[et]
+uzf_et        = false        # UZF SIMULATE_ET (+ unsat form, never LINEAR/SQUARE_GWET)
+unsat_form    = "etwc"       # etwc (water content) | etae (capillary pressure)
+gwet_in_mf    = false        # guarded: groundwater ET stays in MM
+extdp_source  = "uniform"    # uniform | veg_zone (MMsurf Zr) | raster
+extdp_default = 2.0          # m, fallback rooting depth
+extwc_source  = "thtr"
+
+# --- SFR (WP3) ----------------------------------------------------------
+# Each reach parameter declares WHERE its value comes from -- value | column |
+# raster | drainage -- and the CONVERTER resolves it into inputSTREAM.csv, so
+# no shapefile is ever on the model path.
+[sfr]
+enable        = false        #                                    (--sfr)
+source        = "inputSTREAM.csv"
+min_slope     = 1e-4
+monotonic_bed = true         # SFRmaker rule (Leaf et al. 2021)
+
+[sfr.width]
+drainage = { a = 0.5, b = 0.35 }   # w = a * A**b -- CdL's method, the default
+# column = "width_m"               # or: an attribute column of the stream shapefile
+# value  = 2.0                     # or: uniform over the network
+
+[sfr.manning]
+value = 0.035
+
+[sfr.rhk]
+value = 0.1                  # m/d streambed K                    (--sfr-rhk)
+
+[sfr.rbth]
+value = 0.5                  # m streambed thickness
+
+# --- LAK (WP4) ----------------------------------------------------------
+[lak]
+enable   = false             #                                    (--lak)
+source   = "inputPONDS.csv"
+bedleak  = 1e-3              # 1/d, clay-lined charca             (--lak-bedleak)
+surfdep  = 0.05              # m, smooths the wetted area near the bed
+maxiter  = 200               # LAK-internal Newton cap (CdL)
+stagechg = 1e-4              # m, LAK stage closure tolerance (CdL)
+
+# --- CRR (WP5) ----------------------------------------------------------
+[crr]
+enable = false               # false is bit-identical to WP4
+beta   = 1.0                 # Daoud Eq. 23; calibrated 0.8-1.0
+sinks  = "evaporate"         # topographic sinks evaporate their runoff
+dem    = "inputDEMfill.asc"
+
+[spinup]
+cycles       = 1             #                                    (--spinup)
+tol          = 0.05          # m, between-cycle water-table change (--spinup-tol)
+strt_heads   = "hi_spinup"   #                                    (--strt-heads)
+steady_means = "hi_spinup"   #                                    (--steady-means)
+save_strt    = ""            #                                    (--save-strt)
+save_means   = ""            #                                    (--save-means)
+strt_dem     = []            # [a, b] -> head = a*elev + b        (--strt-dem)
+
+[postproc]
+enable           = true      #                                    (--postproc)
+preproc          = true      #                                    (--preproc)
+only             = false     #                                    (--postproc-only)
+sankey_min_flux  = 0.05      # mm/y                               (--sankey-min-flux)
+sankey_full      = true      #                                    (--no-sankey-full)
+sankey_obs_years = false     #                                    (--sankey-obs-years)
+map_days         = 6         # 0 = time mean only                 (--map-days)
+
+# --- PEST (WP7) ---------------------------------------------------------
+[pest]
+use_pest_params = false
+params_npz      = "pest_optimised.npz"
+
+# --- Streamlit interface (WP1b) -----------------------------------------
+# Read only by code/app/; the model never looks at this section.
+[ui]
+execution = "local"          # local | server
+runs_dir  = ""               # blank -> WS_ROOT/runs
+port      = 8501
+address   = "localhost"      # "0.0.0.0" when serving from the server over the LAN
+poll_secs = 3
