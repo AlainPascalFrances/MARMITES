@@ -22,7 +22,8 @@ workspace outside it, set by `--ws-root` or `$MARMITES_WS_ROOT`
 ```
 E:\00code\MARMITES\                     REPO
   trunk\  tests\  doc\
-  DataSet_LaMata\                       INPUTS ONLY (20 MB)
+  DataSet_LaMata\                       INPUTS ONLY (20 MB) -- strictly the
+                                        files MM and MF read; no GIS, no output
     *.txt *.asc  GIS\  MF_ws\ (grids + .ini)  MMsurf_ws\ (MMsurf inputs)
 
 E:\00code_ws\LaMata_MM-MF6\             WORKSPACE (never in git)
@@ -124,7 +125,7 @@ to the baseline committed in `DataSet_LaMata\MF_ws`)
 |---|---|---|
 | `--postproc` | off | the full native figure suite + the 01-07 water-budget figures |
 | `--preproc` | off | input maps |
-| `--gis-ws DIR` | `MARMITES_GIS_WS`, else `E:/00code_ws/LAMATA_new/GIS` | GIS layers for the general map (`_input/IN_000_general_map.png`); the figure is skipped when the workspace or geopandas is missing |
+| `--gis-ws DIR` | `MARMITES_GIS_WS`, else `E:/00code_ws/LAMATA_new/GIS` (the shapefiles stay in the WORKSPACE -- nothing in MM or MF reads one, so none belongs in the repo) | GIS layers for the general map (`_input/IN_000_general_map.png`); the figure is skipped when the workspace or geopandas is missing |
 | `--postproc-only` | off | re-draw from a run already on disk: reads the coupled HDF5 and the MF6 output, builds nothing and runs nothing (implies `--postproc`; combine with `--preproc` for the input maps) |
 | `--sankey-min-flux MM` | 0.05 | hide flows below this on the CORE Sankey |
 | `--no-sankey-full` | full on | skip the all-flux Sankey |

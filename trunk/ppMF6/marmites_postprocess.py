@@ -388,7 +388,7 @@ def run_preproc(sim_ws, ds_ws, name='lamatamm', mf_ws=None, verbose=True,
 
     # --- the site's general map, from the GIS layers ------------------ #
     try:
-        written += _fig_general_map(out, cMF=cMF, gis_ws=gis_ws, ds_ws=ds_ws,
+        written += _fig_general_map(out, cMF=cMF, gis_ws=gis_ws,
                                     verbose=verbose)
     except Exception as exc:               # pragma: no cover
         if verbose:
@@ -407,11 +407,12 @@ def run_preproc(sim_ws, ds_ws, name='lamatamm', mf_ws=None, verbose=True,
     return written
 
 
-# Where the site's GIS layers live. Outside the repo (they are a 200 MB
-# ArcMap workspace), so this is only a default: the caller can pass gis_ws,
-# MARMITES_GIS_WS overrides it, and the figure is skipped when nothing is
-# found. Forward slashes on purpose -- Windows accepts them and they keep the
-# literal free of escapes.
+# Where the site's GIS layers live: in the WORKSPACE, never in the repo. The
+# repo holds only what MM and MF read directly, and no shapefile is read by
+# either -- this map is the one thing that touches them. So this is only a
+# default: the caller can pass gis_ws, MARMITES_GIS_WS overrides it, and the
+# figure is skipped when nothing is found. Forward slashes on purpose --
+# Windows accepts them and they keep the literal free of escapes.
 GIS_WS = os.environ.get('MARMITES_GIS_WS', 'E:/00code_ws/LAMATA_new/GIS')
 
 # Soil_type.SoilType -> (face colour, hatch). chr(92) is a backslash: writing
@@ -423,7 +424,7 @@ _SOIL_STYLE = (
 )
 
 
-def _fig_general_map(out, cMF=None, gis_ws=None, ds_ws=None, verbose=True):
+def _fig_general_map(out, cMF=None, gis_ws=None, verbose=True):
     """The site's general map, rebuilt from the ArcMap GIS layers.
 
     A cartographic figure rather than a model one: soil types, irrigation
@@ -434,9 +435,7 @@ def _fig_general_map(out, cMF=None, gis_ws=None, ds_ws=None, verbose=True):
     available layers allow -- the orthophoto that figure uses as its
     background is not among them, so a hillshade off the model DEM stands in.
 
-    A layer whose shapefile is absent is simply left out: the set differs
-    between the repo's DataSet_LaMata/GIS (hydrography and ponds only) and
-    the full workspace.
+    A layer whose shapefile is absent is simply left out.
 
     Needs geopandas, which nothing else in this module does. Missing
     geopandas or a missing workspace skips the figure rather than failing.
@@ -451,9 +450,10 @@ def _fig_general_map(out, cMF=None, gis_ws=None, ds_ws=None, verbose=True):
     from matplotlib.lines import Line2D
     from matplotlib.patches import Patch
 
+    # No fall-back onto ds_ws/GIS: the dataset folder in the repo is for what
+    # MM and MF import, and putting shapefiles there to satisfy this figure is
+    # exactly the mix-up to avoid.
     G = gis_ws or GIS_WS
-    if not os.path.isdir(G) and ds_ws:
-        G = os.path.join(ds_ws, 'GIS')
     if not os.path.isdir(G):
         if verbose:
             print('   general map skipped: no GIS workspace at %r' % G)
@@ -650,7 +650,6 @@ def native_suite(out_dir, cMF, ctx, res, ds_ws=None, trunk=None, verbose=True,
     import matplotlib
     matplotlib.use('agg')
     MMplot = _mmplot(trunk)
-    IX = dict(ctx.index)
     nper = res['perc'].shape[0]
     if sim_ws is None:
         sim_ws = os.path.dirname(os.path.abspath(out_dir))
@@ -1220,7 +1219,6 @@ def _render_sankey(MMplot, out_dir, DATE, flx, flxIndex, HYindex, year_lst,
     Note it is emitted with _log.warning(), NOT the warnings module, so
     warnings.filterwarnings cannot touch it; only a logging filter can.
     """
-    written = []
     with _quiet_mpl_aspect():
         return _render_sankey_inner(MMplot, out_dir, DATE, flx, flxIndex,
                                     HYindex, year_lst, smf, ncell_MM,

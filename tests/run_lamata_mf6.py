@@ -525,6 +525,11 @@ def main():
 
     ncyc = max(1, int(a.spinup))
     prev = None
+    # Bound at the end of every cycle below. Named here because the cyc > 0
+    # branch reads it: the loop always runs at least once, so it is never
+    # actually unbound there, but nothing in the block says so and pyflakes
+    # reports it as an undefined name.
+    prev_heads = None
     for cyc in range(ncyc):
         if cyc > 0:
             b.strt_array = prev_heads      # equilibrating IC from last cycle
