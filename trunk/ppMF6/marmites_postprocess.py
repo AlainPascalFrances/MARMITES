@@ -395,7 +395,7 @@ def run_preproc(sim_ws, ds_ws, name='lamatamm', mf_ws=None, verbose=True,
     # --- stream network and ponds overlay ----------------------------- #
     try:
         written += _fig_network_overlay(sim_ws, ds_ws, gwf, top, out,
-                                        MMplot=MMplot, mg=mg)
+                                        MMplot=MMplot, mg=mg, cMF=cMF)
     except Exception as exc:               # pragma: no cover
         if verbose:
             print('   network overlay skipped: %r' % exc)
@@ -413,67 +413,114 @@ def run_preproc(sim_ws, ds_ws, name='lamatamm', mf_ws=None, verbose=True,
     return written
 
 
-def _fig_network_overlay(sim_ws, ds_ws, gwf, top, out, MMplot=None, mg=None):
-    import matplotlib.pyplot as plt
+def _fig_network_overlay(sim_ws, ds_ws, gwf, top, out, MMplot=None, mg=None,
+                         cMF=None):
+    """The surface-water network over the DEM, drawn THROUGH ``plotLAYER``.
+
+    What makes the rest of the input set look like one document is the sheet
+    size, where the panel sits on it, the colour bar down the left and the
+    two coordinate frames -- none of which is worth reproducing by hand. So
+    the DEM goes through plotLAYER like any other field and everything drawn
+    on top of it arrives through the ``overlay`` hook.
+
+    The DEM is deliberately NOT masked to the catchment: it is the
+    background, and the terrain outside is what puts the catchment in
+    context. The catchment is shown as an outline instead.
+    """
+    import matplotlib
+    from matplotlib.lines import Line2D
+    if MMplot is None:
+        return []
     nrow, ncol = top.shape
-    fig, ax = plt.subplots(figsize=(7, 7))
-    im = ax.imshow(top, cmap='terrain', alpha=0.8)
-    fig.colorbar(im, ax=ax, shrink=0.8, label='elevation [m]')
+    nlay = int(mg.nlay) if mg is not None else 1
+    hnoflo = float(getattr(cMF, 'hnoflo', 9999.999)) if cMF is not None else 9999.999
+
+    # the active footprint, which is the catchment limit
+    act = None
+    if cMF is not None and getattr(cMF, 'ibound', None) is not None:
+        act = np.abs(np.asarray(cMF.ibound)).reshape(nlay, nrow, ncol)[0] > 0
+    elif mg is not None and mg.idomain is not None:
+        act = np.asarray(mg.idomain).reshape(nlay, nrow, ncol)[0] > 0
+
     pondw = os.path.join(ds_ws, 'inputPONDw.asc')
-    if os.path.exists(pondw):
-        w = _asc(pondw)
-        ii, jj = np.where(w > 0)
-        ax.plot(jj, ii, 's', ms=2, color='tab:blue', label='stream cells')
-    sfr = gwf.get_package('sfr')
-    if sfr is not None:
-        cd = sfr.packagedata.get_data()
-        ri = [rec['cellid'][-2] for rec in cd]
-        cj = [rec['cellid'][-1] for rec in cd]
-        ax.plot(cj, ri, '.', ms=3, color='navy', label='SFR reaches')
-    lak = gwf.get_package('lak')
-    if lak is not None:
-        cd = lak.connectiondata.get_data()
-        li = [rec['cellid'][-2] for rec in cd]
-        lj = [rec['cellid'][-1] for rec in cd]
-        ax.plot(lj, li, 'o', ms=6, mfc='none', color='tab:red', label='ponds (LAK)')
-    ax.set_title('stream network and ponds')
-    ax.legend(fontsize=8, loc='best')
-    # NO invert_yaxis(): imshow already draws row 0 at the top, which is the
-    # MODFLOW convention (row 0 = north edge) and matches every other map.
-    # Inverting flipped this one vertically against all the others.
-    # index frame on the top and right, real coordinates on the bottom and
-    # left -- the same layout the plotLAYER pages use.
-    ax.set_xlabel('col j', fontsize=10)
-    ax.xaxis.set_label_position('top')
-    ax.xaxis.tick_top()
-    ax.set_ylabel('row i', fontsize=10)
-    ax.yaxis.set_label_position('right')
-    ax.yaxis.tick_right()
-    if MMplot is not None and mg is not None and mg.xoffset is not None:
-        MMplot.add_real_coord_axes(
-            ax, nrow, xll=float(mg.xoffset), yll=float(mg.yoffset),
-            delr=float(np.mean(np.asarray(mg.delr, dtype=float))),
-            delc=float(np.mean(np.asarray(mg.delc, dtype=float))),
-            frame='index0', nbins=6)
-    fn = os.path.join(out, 'network_overlay.png')
-    fig.savefig(fn, dpi=140, bbox_inches='tight')
-    plt.close(fig)
-    return [fn]
+    pond = _asc(pondw) if os.path.exists(pondw) else None
+
+    def _cells(pkg, attr):
+        if pkg is None:
+            return None
+        try:
+            cd = getattr(pkg, attr).get_data()
+            return ([rec['cellid'][-2] for rec in cd],
+                    [rec['cellid'][-1] for rec in cd])
+        except Exception:                            # pragma: no cover
+            return None
+
+    sfr_ij = _cells(gwf.get_package('sfr'), 'packagedata')
+    lak_ij = _cells(gwf.get_package('lak'), 'connectiondata')
+
+    POND, LAK, SFR = '#08306b', 'darkorange', '#2171b5'
+    handles = [Line2D([], [], color='k', lw=1.2, label='catchment limit')]
+    if pond is not None:
+        handles.append(Line2D([], [], color=POND, lw=1.0, label='ponds'))
+    if sfr_ij:
+        handles.append(Line2D([], [], color=SFR, lw=1.0, label='SFR reaches'))
+    if lak_ij:
+        handles.append(Line2D([], [], color=LAK, lw=0, marker='s', ms=5,
+                              label='LAK cells'))
+
+    # plotLAYER's mesh puts cell centres at 1..ncol / 1..nrow
+    X = np.arange(1, ncol + 1)
+    Y = np.arange(1, nrow + 1)
+
+    def _draw(ax, l, L):
+        if l:                                        # single-panel figure
+            return
+        if act is not None:
+            ax.contour(X, Y, act.astype(float), levels=[0.5], colors='k',
+                       linewidths=1.2)
+        if pond is not None:
+            # a contour of the network mask, not one marker per cell: on a
+            # one-cell-wide dendritic network it draws as a line
+            ax.contour(X, Y, (np.asarray(pond) > 0).astype(float),
+                       levels=[0.5], colors=[POND], linewidths=0.9)
+        if sfr_ij:
+            ax.plot([c + 1 for c in sfr_ij[1]], [r + 1 for r in sfr_ij[0]],
+                    '-', color=SFR, lw=1.0)
+        if lak_ij:
+            ax.plot([c + 1 for c in lak_ij[1]], [r + 1 for r in lak_ij[0]],
+                    's', color=LAK, ms=4, ls='none')
+        # Legend down the left, hanging under the colour bar. Anchored in
+        # AXES coordinates, not figure ones: plotLAYER only fixes the panel
+        # position later (subplots_adjust, then axis('scaled')), so a figure
+        # anchor chosen here would drift with the grid aspect.
+        ax.legend(handles=handles, loc='upper left',
+                  bbox_to_anchor=(-0.70, 0.0), fontsize=8, frameon=False)
+
+    good = top[np.isfinite(top)]
+    good = good[~np.isclose(good, hnoflo, atol=0.09)]
+    lo, hi = _vrange(good)
+    V = np.repeat(top[None, None, :, :], nlay, axis=1)     # (1, nlay, nrow, ncol)
+
+    before = set(os.listdir(out)) if os.path.isdir(out) else set()
+    MMplot.plotLAYER(
+        days=[0], str_per=[0], Date='NA', JD='NA', ncol=ncol, nrow=nrow,
+        nlay=nlay, nplot=1, V=V, cmap=matplotlib.colormaps['terrain'],
+        CBlabel='Elev. - $MDT$', msg='', plt_title='IN_000_network_overlay',
+        MM_ws=out, interval_type='linspace', interval_num=5, Vmax=[hi],
+        Vmin=[lo], fmt='%5.1f', mask=None, hnoflo=hnoflo, cMF=cMF,
+        overlay=_draw)
+    after = set(os.listdir(out)) if os.path.isdir(out) else set()
+    return [os.path.join(out, f) for f in sorted(after - before)
+            if f.endswith('.png')]
 
 
 # input fields drawn over the whole grid rather than over the active cells
 _IN_NOMASK = ('ibound',)
 
-# labels for the MM flux indices, used by the native catchment plot
-_MM_LABEL = {
-    'iP': 'P', 'iPe': 'Pe', 'iPT': 'PT', 'iPE': 'PE', 'iRo': 'Ro',
-    'iI': 'I', 'iEXFg': 'EXFg', 'iEow': 'Eow', 'iEi': 'Ei', 'iEg': 'Eg',
-    'iTg': 'Tg', 'iETg': 'ETg', 'iETsoil': 'ETsoil', 'iperc': 'Rp',
-    'idSsurf': 'dSsurf', 'iSsurf': 'Ssurf', 'idSsoil': 'dSsoil',
-    'iSsoil_pc': 'Ssoil%', 'iMB': 'MB', 'iEo': 'Eo', 'ihcorr': 'hcorr',
-    'idgwt': 'dgwt', 'iuzthick': 'uzthick', 'iMBsurf': 'MBsurf',
-}
-
+# blue tones for the observed-vs-computed head figure, taken from the Blues
+# ramp that every other water figure uses
+_OBS_BLUE_LINE = '#2171b5'
+_OBS_BLUE_MARK = '#08306b'
 
 def _mmplot(trunk=None):
     """Import and return the native ``MARMITESplot_v3`` module (or None).
@@ -522,18 +569,11 @@ def native_suite(out_dir, cMF, ctx, res, ds_ws=None, trunk=None, verbose=True,
     name = str(getattr(cMF, 'modelname', 'lamatamm')).lower()
     written = []
 
-    # --- catchment water-balance time series -------------------------- #
-    # plotTIMESERIES_CATCH expects the driver's COMBINED catchment-flux array:
-    # the per-cell MM fluxes (wb_ts) plus the soil-layer fluxes summed over
-    # layers (wb_ts_soil) under extra index keys (iEsoil, iTsoil, iRsoil), plus
-    # a few derived ones (iRg == recharge). Reassemble that layout here.
-    try:
-        fn = _native_catchment_series(MMplot, out_dir, cMF, ctx, res, nper)
-        if fn:
-            written.append(fn)
-    except Exception as exc:                         # pragma: no cover
-        if verbose:
-            print('   native catchment WB series skipped: %r' % exc)
+    # NOTE: the catchment water-balance series (plotTIMESERIES_CATCH, written
+    # as native_wb_catchment[_part2].png) is deliberately NOT produced. Its
+    # panels came out empty -- the routine wants the legacy driver's combined
+    # catchment-flux array, and reassembling that layout here never filled the
+    # curves -- and the per-point series below carry the same fluxes.
 
     # --- water-balance Sankey (catchment core + full, then per-point) - #
     if sankey:
@@ -598,78 +638,6 @@ def native_suite(out_dir, cMF, ctx, res, ds_ws=None, trunk=None, verbose=True,
     return written
 
 
-def _native_catchment_series(MMplot, out_dir, cMF, ctx, res, nper):
-    """Assemble the driver's combined catchment-flux array and call
-    plotTIMESERIES_CATCH. Returns the file path or None."""
-    IX = dict(ctx.index)
-    IXS = dict(ctx.index_S)
-    wb_ts = np.asarray(res['wb_ts'])                # (nper, nMM)
-    wb_ts_soil = np.asarray(res['wb_ts_soil'])      # (nper, nsl, nsoil)
-
-    comb = dict(IX)                                 # start from the MM indices
-    rows = [wb_ts[:, i] for _, i in sorted(IX.items(), key=lambda kv: kv[1])]
-    # append the soil-layer fluxes, summed over layers, under the keys the
-    # native routine references
-    for key, skey in (('iEsoil', 'iEsoil'), ('iTsoil', 'iTsoil'),
-                      ('iRsoil', 'iRsoil')):
-        if skey in IXS and key not in comb:
-            comb[key] = len(rows)
-            rows.append(wb_ts_soil[:, :, IXS[skey]].sum(axis=1))
-    # derived/aliased indices the routine also uses
-    if 'iRg' not in comb:                           # groundwater recharge ~ perc
-        comb['iRg'] = len(rows)
-        rows.append(wb_ts[:, IX['iperc']] if 'iperc' in IX else np.zeros(nper))
-    # observation overlays are optional (obs_catch=None); give them safe slots
-    for key in ('iRoobs', 'ihobs', 'idobs', 'ih_SF', 'idcorr', 'idSg_1'):
-        if key not in comb:
-            comb[key] = len(rows)
-            rows.append(np.zeros(nper))
-    flx = np.vstack(rows)                           # (nflux, nper)
-    flxLbl = [''] * len(comb)
-    for k, i in comb.items():
-        flxLbl[i] = _MM_LABEL.get(k, k[1:] if k.startswith('i') else k)
-
-    dates = getattr(cMF, 'inputDate', None)
-    if dates is None or len(np.atleast_1d(dates)) != nper:
-        import pandas as pd
-        dates = pd.date_range('2000-01-01', periods=nper, freq='D')
-        cMF = _ShimDate(cMF, dates)
-    d0, d1 = _to_ordinal(dates[0]), _to_ordinal(dates[-1])
-    fn = os.path.join(out_dir, 'native_wb_catchment.png')
-    MMplot.plotTIMESERIES_CATCH(
-        cMF, flx, flxLbl, fn, 'catchment_wb',
-        float(np.nanmax(flx)), float(np.nanmin(flx)),
-        int(getattr(cMF, 'iniMonthHydroYear', 10)), d0, d1, comb)
-    return fn if os.path.exists(fn) else None
-
-
-class _ShimDate(object):
-    """Thin wrapper adding inputDate to a cMF that lacks it (fallback only)."""
-    def __init__(self, cMF, dates):
-        self._c = cMF
-        self.inputDate = dates
-
-    def __getattr__(self, name):
-        return getattr(self._c, name)
-
-
-def _to_ordinal(d):
-    try:
-        import matplotlib.dates as mdates
-        return mdates.date2num(d)
-    except Exception:
-        return float(getattr(d, 'toordinal', lambda: 0)())
-
-
-# Time-mean MM flux maps to draw, as (index key, file/label stem, colourbar).
-# Time-mean MM flux maps: (index key, stem, colourbar label, colormap).
-#
-# Colour follows the meaning, not the package: water ARRIVING or STORED is
-# blue (rainfall, effective rainfall, infiltration, percolation, soil moisture,
-# depth to the water table), water LEAVING is red (runoff, every evaporation
-# and transpiration term, exfiltration), and the unsaturated thickness is drawn
-# brown like the soil it measures. Signed fields (dSsoil, dSsurf) are left to
-# plotLAYER, which switches them to the remapped coolwarm_r ramp by itself.
 _MAP_FLUXES = (
     ('iP', 'P', 'rainfall', 'Blues'),
     ('iPe', 'Pe', 'effective rainfall', 'Blues'),
@@ -2096,7 +2064,11 @@ def _fig_obs_heads(hds, ds_ws, kk_real, dates, top, nlay, nrow, ncol,
     import pandas as pd
     pts = obs_points(ds_ws)
     series = {p['name']: obs_series(ds_ws, p['name']) for p in pts}
-    have = [p for p in pts if series.get(p['name']) is not None]
+    # EVERY monitoring point, not only the ones with an observed series: on
+    # La Mata just 4 of the 11 active points in inputObs.txt have an
+    # inputObsHEADS_* file, and the computed head is worth seeing at all of
+    # them. A point without observations simply gets no markers.
+    have = list(pts)
     if not have:
         return []
     dates = pd.to_datetime(dates)
@@ -2105,11 +2077,16 @@ def _fig_obs_heads(hds, ds_ws, kk_real, dates, top, nlay, nrow, ncol,
     fig, axes = plt.subplots(nrows_f, ncols, figsize=(12, 3 * nrows_f),
                              squeeze=False)
     tidy = []
+    drawn = 0
     for ax, p in zip(axes.ravel(), have):
-        i, j = _xy_to_ij(p['x'], p['y'], xll, yll, cs, nrow, ncol)
-        L = min(max(p['lay'] - 1, 0), nlay - 1)
-        # full-resolution series at this single cell (cheap via get_ts)
-        ts = hds.get_ts((L, i, j))
+        try:
+            i, j = _xy_to_ij(p['x'], p['y'], xll, yll, cs, nrow, ncol)
+            L = min(max(p['lay'] - 1, 0), nlay - 1)
+            # full-resolution series at this single cell (cheap via get_ts)
+            ts = hds.get_ts((L, i, j))
+        except Exception:                  # pragma: no cover - point off grid
+            ax.axis('off')
+            continue
         comp = ts[:, 1]
         comp = np.where(np.abs(comp) > 1e29, np.nan, comp)
         # get_ts returns every saved step (incl. steady); align to transient
@@ -2117,15 +2094,26 @@ def _fig_obs_heads(hds, ds_ws, kk_real, dates, top, nlay, nrow, ncol,
             comp = comp[1:]
         n = min(len(dates), comp.shape[0])
         dd, comp = dates[:n], comp[:n]
-        ax.plot(dd, comp, '-', color='#5c3211', lw=1.0, label='computed L%d' % (L + 1))
-        obs = series[p['name']]
-        ax.plot(obs['date'], obs['head'], 'o', ms=4, color='tab:red', label='observed')
-        ax.axhline(float(top[i, j]), color='0.6', ls=':', lw=0.8, label='land surface')
+        # blue tones throughout, as everywhere else water is plotted: the
+        # computed head mid-blue, the observations the darkest blue of the
+        # same ramp so they read as the same quantity
+        ax.plot(dd, comp, '-', color=_OBS_BLUE_LINE, lw=1.0,
+                label='computed L%d' % (L + 1))
+        obs = series.get(p['name'])
+        if obs is not None:
+            ax.plot(obs['date'], obs['head'], 'o', ms=4, color=_OBS_BLUE_MARK,
+                    mec=_OBS_BLUE_MARK, label='observed')
+        ax.axhline(float(top[i, j]), color='0.6', ls=':', lw=0.8,
+                   label='land surface')
         ax.set_title('%s  (%d,%d)' % (p['name'], i, j))
         ax.set_ylabel('head [m]')
         ax.legend(fontsize=7, loc='best')
+        drawn += 1
         for d, v in zip(dd, comp):
             tidy.append((p['name'], d, float(v)))
+    if not drawn:
+        plt.close(fig)
+        return []
     for ax in axes.ravel()[len(have):]:
         ax.axis('off')
     fig.tight_layout()

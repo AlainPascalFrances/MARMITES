@@ -215,9 +215,11 @@ def test_run_preproc_writes_input_maps(tiny_run, tmp_path):
     got = {os.path.basename(f) for f in files}
     # without cMF/ctx only the overlay can be drawn; the parameter fields are
     # the native IN_* maps, which need the model objects
-    assert 'network_overlay.png' in got
+    assert any('network_overlay' in f for f in got)
     assert not any(f.startswith(('aq_', 'mm_')) for f in got),         'the plain aq_*/mm_* maps were replaced by the native IN_* set'
-    assert os.path.exists(os.path.join(ws, '_input', 'network_overlay.png'))
+    # plotLAYER names its own output (_sp_plt_<title>_<page>_<npage>.png)
+    assert any('network_overlay' in f
+               for f in os.listdir(os.path.join(ws, '_input')))
 
 
 def test_ja_down_index_matches_flopy_faceflows():

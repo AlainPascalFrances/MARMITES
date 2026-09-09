@@ -152,7 +152,7 @@ Ordered by what blocks "post-processing reproduces MARMITESplot_v3 output".
 ### A. Post-processing vs the native MARMITESplot_v3 suite — COMPLETE ✅
 | Native routine | State |
 |---|---|
-| `plotTIMESERIES_CATCH` | ✅ works (`native_wb_catchment*.png`) |
+| `plotTIMESERIES_CATCH` | ❌ NOT produced -- its panels came out empty and the per-point series cover the same fluxes (removed 2026-09-09) |
 | `plotWBsankey` catchment | ✅ works, core + full, MM-side MB ~0 % |
 | `plotWBsankey` per obs point | ✅ **FIXED 2026-09-07** — all 11 points render |
 | `plotLAYER` | ✅ **CORRECTED 2026-09-07** — 17 flux maps, legacy conventions, obs points overlaid |
@@ -478,7 +478,8 @@ section ~lines 1550-2740). The native functions consume:
   (Ro>P) by the SP1 pulse, and MFL2 whole-period closure reads 157% only because
   FLF oscillates sign per-SP and averages to ~0 while recharge is one-signed --
   a spun-up `--seep drn` run's hydro-year SUMS will close. plotTIMESERIES_CATCH
-  still works (native_wb_catchment.png). Suite 190 pass / 7 skip / 0 fail.
+  still worked then (native_wb_catchment.png; dropped 2026-09-09, see A).
+  Suite 190 pass / 7 skip / 0 fail.
   PER-POINT Sankeys (flxObs_lst): DONE 2026-07-25. ✅ The coupler now captures
   the FULL per-SP MM flux vectors at the obs cells (`MF6Coupler(obs_idx=,
   obs_names=)` -> `res['mm_obs']` (nper,nobs,nidx), `mms_obs`, `obs_ij`,

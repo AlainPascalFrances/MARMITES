@@ -640,7 +640,8 @@ arrays and writes into `postproc/`:
 
 * `native_wb_catchment.png` -- `plotTIMESERIES_CATCH`, the catchment
   water-balance series (combined MM + soil-layer flux array reassembled from
-  `wb_ts` + `wb_ts_soil`).
+  `wb_ts` + `wb_ts_soil`). **Removed 2026-09-09**: the reassembled array never
+  filled the curves and the per-point series carry the same fluxes.
 * `native_native_map_{recharge,exfiltration,ETg,runoff}.png` -- `plotLAYER`
   time-mean flux maps.
 
