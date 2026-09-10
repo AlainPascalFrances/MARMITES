@@ -241,9 +241,10 @@ def test_a_short_row_is_reported_against_a_named_field(tmp_path):
 
 # ------------------------------------------------------------- the view layer
 def test_every_streamlit_page_compiles():
-    """The pages cannot be executed here (Streamlit lives in its own
-    environment, on purpose), so at least guarantee they parse -- a syntax
-    error in a page is otherwise only discovered on the server."""
+    """A page needs a Streamlit runtime to execute, so it cannot be run under
+    pytest even though Streamlit is installed in this env -- so at least
+    guarantee they parse: a syntax error in a page is otherwise only
+    discovered on the server."""
     import glob
     import py_compile
     import tempfile

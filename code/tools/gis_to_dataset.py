@@ -248,11 +248,16 @@ def convert(case='LaMata', gis=None, out_dir=None, cfg=None, dry_run=False):
 def _sample_polygon(raster_path, geom):
     """Raster values whose cell CENTRES fall inside ``geom``.
 
-    Deliberately does NOT use rasterio.mask / windows.from_bounds: on this
-    environment that path reaches numpy.linalg.solve through
-    rasterio.transform.rowcol and dies with a native delay-load DLL failure
-    (0xc06d007f) -- the same class of crash as the plotting tests. Inverting the
-    affine transform is closed-form and needs no LAPACK, so we do it by hand.
+    Does not use rasterio.mask / windows.from_bounds. Inverting a 2-D affine
+    transform is closed-form, so doing it by hand is cheaper than the mask
+    machinery and drops a LAPACK call from a purely geometric step.
+
+    (Historical note: this was first written to dodge a native 0xc06d007f crash
+    in rasterio.transform.rowcol. That crash was NOT a rasterio or LAPACK fault
+    -- it was this env's Library\bin missing from PATH because python.exe had
+    been launched without activation, which breaks every delay-loaded MKL DLL.
+    Run activated and rasterio.mask works fine. The hand inverse is kept on its
+    own merits, not as a workaround.)
     """
     import numpy as np
     import rasterio
