@@ -32,7 +32,27 @@ def _load(name, path):
 
 LK = _load('marmites_lak', os.path.join(TRUNK, 'ppMF6', 'marmites_lak.py'))
 
-SHP = os.path.join(DS, 'GIS', 'lm_ponds.shp')
+def _pond_shapefile():
+    """Where the pond cartography actually lives.
+
+    NOT in the repository: WP1 removed `example/LaMata/GIS/` because the repo
+    holds only what MM and MF read directly. The canonical location is
+    `$MM_DATA_ROOT/GIS` (mm_paths.GIS); the old in-dataset path is still tried
+    so an unmigrated checkout keeps working.
+    """
+    try:
+        import mm_paths
+        cand = [os.path.join(str(mm_paths.GIS), 'lm_ponds.shp')]
+    except Exception:
+        cand = []
+    cand.append(os.path.join(DS, 'GIS', 'lm_ponds.shp'))
+    for c in cand:
+        if os.path.exists(c):
+            return c
+    return cand[0]
+
+
+SHP = _pond_shapefile()
 XLL, YLL, CS, NROW, NCOL = 739300.0, 4553050.0, 50.0, 65, 60
 
 
@@ -167,6 +187,8 @@ def test_lamata_lak_mvr_model_builds_and_reloads(tmp_path):
     flopy = pytest.importorskip('flopy')
     if not os.path.exists(os.path.join(DS, 'MF_ws', '__inputMF_flopy_v3_2s3L.ini')):
         pytest.skip('La Mata dataset not present')
+    if not os.path.exists(SHP):
+        pytest.skip('pond shapefile not present (%s)' % SHP)
     import matplotlib
     matplotlib.use('agg')
     from test_mf6_build import cmf as _cmf  # noqa: F401
@@ -226,6 +248,8 @@ def test_initial_stage_stays_between_bed_and_rim(tmp_path):
     pytest.importorskip('flopy')
     if not os.path.exists(os.path.join(DS, 'MF_ws', '__inputMF_flopy_v3_2s3L.ini')):
         pytest.skip('La Mata dataset not present')
+    if not os.path.exists(SHP):
+        pytest.skip('pond shapefile not present (%s)' % SHP)
     import matplotlib
     matplotlib.use('agg')
     import MARMITESutilities as MMutils

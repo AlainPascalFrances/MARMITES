@@ -258,7 +258,13 @@ def setup_lamata(daily=True, nsp=None, grid='dis', nlay=None, aggregate=False,
                   'square side %.1f m)'
                   % (info['area_min'], info['area_max'], info['area_mean'],
                      info['size_equiv']))
-        cMF, grids, proj = marmites_mesh.project_model(cMF, gp, grids)
+        cMF, grids, proj = marmites_mesh.project_model(
+            cMF, gp, grids, how=cfg.grid.resample)
+        _cov = proj.overlap_report()
+        print('      resample=%s, %.1f source cell(s) per mesh cell, '
+              'cell coverage %.3f, mesh tiles %.3f%% of the grid rectangle'
+              % (cfg.grid.resample, _cov['src_per_cell_mean'],
+                 _cov['coverage_mean'], 100.0 * _cov['domain_ratio']))
         cMF.mesh_gridprops, cMF.mesh_proj = gp, proj
         gridMETEO = grids['gridMETEO']; gridSOIL = grids['gridSOIL']
         gridSOILthick = grids['gridSOILthick']

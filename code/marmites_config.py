@@ -362,10 +362,13 @@ class GridVoronoi:
 
 @dataclass
 class Grid:
-    # 'structured' is today's DIS grid and stays the DEFAULT until WP1c lands;
-    # 'dis' is accepted as an alias.
+    # 'structured' is today's DIS grid and stays the DEFAULT until the WP1c.8
+    # validation ladder clears the Voronoi mesh; 'dis' is accepted as an alias.
     kind: str = 'structured'
     rebuild: bool = False
+    # WP1c.3. 'auto' = area-weighted for continuous fields, majority for zone
+    # rasters. 'centre' is the WP1c.1 behaviour, kept for comparison.
+    resample: str = 'auto'
     voronoi: GridVoronoi = field(default_factory=GridVoronoi)
 
 
@@ -522,6 +525,10 @@ _SECTIONS = {
 }
 
 GRID_KINDS = ('structured', 'disv', 'voronoi', 'quadtree')
+# Must stay in step with marmites_mesh.MODEL_SAMPLING_MODES; a test asserts it.
+# 'area' and 'majority' are deliberately NOT offered here: they are per-field
+# rules, and forcing either on the whole model is meaningless.
+RESAMPLE_MODES = ('auto', 'centre')
 _GRID_ALIAS = {'dis': 'structured'}
 # Both mesh producers landed with WP1c. 'quadtree' additionally needs pyshp,
 # which flopy's gridgen wrapper uses to read the mesh back; that is reported by
@@ -598,6 +605,9 @@ class RunConfig:
             errs.append('run.nsp must be >= 0 (0 = all stress periods)')
         if self.grid_kind not in GRID_KINDS:
             errs.append('grid.kind must be one of %s' % ', '.join(GRID_KINDS))
+        if self.grid.resample not in RESAMPLE_MODES:
+            errs.append('grid.resample must be one of %s'
+                        % ', '.join(RESAMPLE_MODES))
         if self.layers.nlay not in (2, 6):
             errs.append('layers.nlay must be 2 or 6')
         if self.seep.kind not in ('uzf', 'drn'):
@@ -798,7 +808,8 @@ def load_run_config(path):
     return RunConfig.from_dict(data, source_path=path)
 
 
-__all__ += ['RunConfig', 'load_run_config', 'GRID_KINDS', 'ParamSource',
+__all__ += ['RunConfig', 'load_run_config', 'GRID_KINDS', 'RESAMPLE_MODES',
+            'ParamSource',
             'Meta', 'Paths', 'Run', 'Grid', 'GridVoronoi', 'Layers', 'Uzf',
             'Seep', 'Et', 'Sfr', 'Lak', 'Crr', 'Spinup', 'Postproc', 'Pest', 'Ui']
 

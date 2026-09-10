@@ -287,13 +287,24 @@ def test_zone_rasters_are_never_interpolated():
     assert set(np.unique(out)) <= {1, 3}
 
 
-def test_an_unimplemented_sampling_mode_fails_loudly():
+def test_an_unknown_sampling_mode_fails_loudly():
     cMF = _FakeMF()
     proj = MESH.MeshProjection(_dis_equivalent_gridprops(cMF),
                                cMF.delr, cMF.delc, XLL, YLL)
     with pytest.raises(MESH.MeshProjectionError) as e:
-        proj.sample2d(np.zeros((NROW, NCOL)), how='area')
-    assert 'WP1c.3' in str(e.value)
+        proj.sample2d(np.zeros((NROW, NCOL)), how='bicubic')
+    assert 'unknown sampling mode' in str(e.value)
+
+
+def test_a_per_field_rule_is_refused_as_a_whole_model_policy():
+    """'majority' on an elevation would round it to whole metres, and 'area'
+    on a zone raster would interpolate class codes. Only 'auto' and 'centre'
+    mean anything applied to every field at once."""
+    cMF = _FakeMF()
+    for bad in ('area', 'majority'):
+        with pytest.raises(MESH.MeshProjectionError) as e:
+            MESH.project_model(cMF, _dis_equivalent_gridprops(cMF), {}, how=bad)
+        assert 'whole-model policy' in str(e.value)
 
 
 def test_a_wrongly_shaped_source_array_is_refused():
@@ -375,3 +386,163 @@ def test_cell_size_report_measures_real_polygons():
     rep = MESHES.cell_size_report(_dis_equivalent_gridprops(cMF))
     assert abs(rep['area_mean'] - CS * CS) < 1e-6
     assert abs(rep['size_equiv'] - CS) < 1e-6
+
+
+# ------------------------------------------------------- WP1c.3 resampling
+def _coarse_gridprops(cMF, factor=2):
+    """A mesh of `factor` x `factor` source cells per mesh cell.
+
+    Coarsening is the case that matters: centre sampling then keeps one source
+    cell out of factor**2 and discards the rest.
+    """
+    delr = [CS * factor] * (NCOL // factor)
+    delc = [CS * factor] * (NROW // factor)
+    verts, cell2d, ncpl = GRID.disv_from_structured(delr, delc, XLL, YLL)
+    return {'vertices': verts, 'cell2d': cell2d, 'ncpl': ncpl,
+            'nlay': cMF.nlay}, delr, delc
+
+
+def test_clip_to_rect_computes_exact_overlap_area():
+    square = [(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)]
+    assert abs(MESH._shoelace(MESH._clip_to_rect(square, 0, 0, 10, 10))
+               - 100.0) < 1e-9
+    assert abs(MESH._shoelace(MESH._clip_to_rect(square, 5, 0, 15, 10))
+               - 50.0) < 1e-9                       # half overlap
+    assert abs(MESH._shoelace(MESH._clip_to_rect(square, 5, 5, 15, 15))
+               - 25.0) < 1e-9                       # quarter overlap
+    assert MESH._clip_to_rect(square, 20, 20, 30, 30) == []   # disjoint
+    tri = [(0.0, 0.0), (10.0, 0.0), (0.0, 10.0)]
+    assert abs(MESH._shoelace(MESH._clip_to_rect(tri, -5, -5, 15, 15))
+               - 50.0) < 1e-9                       # fully inside
+
+
+def test_overlap_weights_partition_each_mesh_cell():
+    """Every mesh cell's overlaps must sum to its own area, or the weighted
+    mean is normalised by the wrong total."""
+    cMF = _FakeMF()
+    gp, _dr, _dc = _coarse_gridprops(cMF)
+    proj = MESH.MeshProjection(gp, cMF.delr, cMF.delc, XLL, YLL)
+    for ic, (_r, _c, w) in enumerate(proj.overlaps()):
+        assert abs(w.sum() - MESH._shoelace(proj.cell_polygon(ic))) < 1e-6
+    rep = proj.overlap_report()
+    assert abs(rep['coverage_mean'] - 1.0) < 1e-9
+    assert abs(rep['src_per_cell_mean'] - 4.0) < 1e-9      # 2x2 source cells
+
+
+def test_area_weighting_is_exactly_mass_conserving():
+    """The acceptance criterion. When the mesh tiles the source grid and
+    nothing is excluded, sum(value * area) must be preserved to round-off --
+    that is an identity, so any drift is a bug rather than a tolerance."""
+    cMF = _FakeMF()
+    gp, _dr, _dc = _coarse_gridprops(cMF)
+    proj = MESH.MeshProjection(gp, cMF.delr, cMF.delc, XLL, YLL)
+    src = np.random.default_rng(3).random((NROW, NCOL)) * 100.0
+    areas = np.array([MESH._shoelace(proj.cell_polygon(i))
+                      for i in range(proj.ncpl)])
+    # the coarse mesh covers only the tiled part of the grid, so compare there
+    ref = float((src[:len(_dc) * 2, :len(_dr) * 2] * CS * CS).sum())
+    out = np.asarray(proj.sample2d(src, fill=np.nan, dtype=float, how='area'))
+    assert abs(float((out[:, 0] * areas).sum()) - ref) / ref < 1e-12
+
+
+def test_area_weighting_beats_centre_sampling_on_a_coarser_mesh():
+    """Centre sampling keeps one source cell in four; the point of WP1c.3 is
+    that it stops doing that."""
+    cMF = _FakeMF()
+    gp, _dr, _dc = _coarse_gridprops(cMF)
+    proj = MESH.MeshProjection(gp, cMF.delr, cMF.delc, XLL, YLL)
+    src = np.random.default_rng(5).random((NROW, NCOL)) * 100.0
+    ref = float(src[:len(_dc) * 2, :len(_dr) * 2].mean())
+    got_c = float(np.asarray(proj.sample2d(src, how='centre')).mean())
+    got_a = float(np.asarray(proj.sample2d(src, how='area')).mean())
+    assert abs(got_a - ref) < 1e-12                  # exact: uniform cells
+    assert abs(got_c - ref) > abs(got_a - ref)
+
+
+def test_majority_picks_the_class_with_the_largest_overlap():
+    cMF = _FakeMF()
+    gp, _dr, _dc = _coarse_gridprops(cMF)
+    proj = MESH.MeshProjection(gp, cMF.delr, cMF.delc, XLL, YLL)
+    zones = np.ones((NROW, NCOL), dtype=int)
+    zones[0, 0] = 7                       # 1 of the 4 source cells of cell 0
+    out = np.asarray(proj.sample2d(zones, fill=0, dtype=int, how='majority'))
+    assert out[0, 0] == 1                 # 3 beats 1
+    zones[0, 1] = zones[1, 0] = 7         # now 3 of 4
+    out = np.asarray(proj.sample2d(zones, fill=0, dtype=int, how='majority'))
+    assert out[0, 0] == 7
+
+
+def test_a_nodata_sentinel_never_wins_a_vote_or_skews_a_mean():
+    """The bug this guards: La Mata's zone rasters hold hnoflo outside the
+    catchment, and a boundary mesh cell elected 9999 as its soil zone --
+    which moved the mean soil zone from 1.9 to 1248."""
+    cMF = _FakeMF()
+    gp, _dr, _dc = _coarse_gridprops(cMF)
+    proj = MESH.MeshProjection(gp, cMF.delr, cMF.delc, XLL, YLL)
+    valid = np.ones((NROW, NCOL), dtype=bool)
+    zones = np.ones((NROW, NCOL), dtype=int)
+    zones[0, 0] = zones[0, 1] = zones[1, 0] = 9999      # 3 of 4, but nodata
+    valid[zones == 9999] = False
+    out = np.asarray(proj.sample2d(zones, fill=0, dtype=int, how='majority',
+                                   valid=valid))
+    assert out[0, 0] == 1, 'the sentinel won the vote'
+    cont = np.ones((NROW, NCOL)) * 2.0
+    cont[0, 0] = cont[0, 1] = cont[1, 0] = 9999.999
+    got = np.asarray(proj.sample2d(cont, fill=np.nan, dtype=float, how='area',
+                                   valid=valid))
+    assert abs(got[0, 0] - 2.0) < 1e-9, 'the sentinel was averaged in'
+
+
+def test_auto_picks_the_rule_from_the_field_kind():
+    assert MESH.MeshProjection._resolve_how('auto', int) == 'majority'
+    assert MESH.MeshProjection._resolve_how('auto', float) == 'area'
+    assert MESH.MeshProjection._resolve_how('centre', int) == 'centre'
+    with pytest.raises(MESH.MeshProjectionError):
+        MESH.MeshProjection._resolve_how('bilinear', float)
+
+
+@pytest.mark.parametrize('how', list(MESH.MODEL_SAMPLING_MODES))
+def test_the_identity_holds_under_every_sampling_mode(how):
+    """On a DIS-equivalent mesh each mesh cell IS one source cell, so every
+    mode must collapse to the same answer. That is what lets the mode change
+    without re-arguing the correctness of the projection."""
+    cMF = _FakeMF()
+    grids = _grids(cMF)
+    m, g2, _p = MESH.project_model(cMF, _dis_equivalent_gridprops(cMF), grids,
+                                   how=how)
+    flat = lambda a: np.asarray(a).reshape(-1, 1)          # noqa: E731
+    assert np.array_equal(flat(cMF.outcropL), m.outcropL)
+    assert np.allclose(flat(np.asarray(cMF.top)), np.asarray(m.top))
+    for k in range(NLAY):
+        assert np.allclose(flat(cMF.botm[k]), m.botm[k])
+    for name, src in grids.items():
+        a = np.asarray(src)
+        if a.ndim == 2:
+            assert np.allclose(flat(a), g2[name]), '%s under %s' % (name, how)
+
+
+def test_a_generator_on_the_domain_edge_still_counts_as_inside():
+    """flopy's VoronoiGrid reports a cell's GENERATOR as its centre, and for a
+    boundary cell that point lies exactly ON the domain edge. A strict
+    `x < xmax` test then declares much of a clipped mesh to be off-grid."""
+    cMF = _FakeMF()
+    proj = MESH.MeshProjection(_dis_equivalent_gridprops(cMF),
+                               cMF.delr, cMF.delc, XLL, YLL)
+    xmax = XLL + NCOL * CS
+    _r, _c, inside = proj.locate([xmax, XLL, xmax],
+                                 [YLL, YLL, YLL + NROW * CS])
+    assert list(inside) == [True, True, True]
+
+
+def test_domain_ratio_is_reported():
+    cMF = _FakeMF()
+    proj = MESH.MeshProjection(_dis_equivalent_gridprops(cMF),
+                               cMF.delr, cMF.delc, XLL, YLL)
+    assert abs(proj.overlap_report()['domain_ratio'] - 1.0) < 1e-9
+
+
+def test_config_resample_modes_match_the_projection():
+    """The schema and the sampler must not drift apart."""
+    import marmites_config as cfgmod
+    assert set(cfgmod.RESAMPLE_MODES) == set(MESH.MODEL_SAMPLING_MODES)
+    assert set(MESH.MODEL_SAMPLING_MODES) <= set(MESH.SAMPLING_MODES)

@@ -50,6 +50,22 @@ allow_bad_budget = false     #                                    (--allow-bad-b
 [grid]
 kind    = "structured"       # structured | disv | voronoi | quadtree   (--grid)
 rebuild = false              # true = re-mesh; the cache carries the mesh signature
+# WP1c.3. "auto" = area-weighted means for continuous fields, largest-overlap
+# class for zone rasters. "centre" is the WP1c.1 behaviour, kept for comparison.
+# Measured on the 100 m La Mata Voronoi mesh, error in the active-domain mean
+# against the raster:
+#             centre   auto
+#   SOILthick  2.93%   0.06%
+#   STREAMhmax 14.47%   0.24%
+#   STREAMw    14.55%   0.42%
+# For ZONE rasters the comparison goes the other way, and it is worth knowing:
+# majority vote is better per cell (each cell gets the class that actually
+# dominates it) but biased in aggregate, because a minority class that never
+# wins anywhere disappears into the dominant one. Share of active area
+# misassigned for inputSOILzones: centre 3.66%, auto 7.64% -- soil zone 1 drops
+# from 13.1% of the catchment to 9.5%. If preserving zone PROPORTIONS matters
+# more than per-cell fidelity, use "centre".
+resample = "auto"            # auto | centre
 
 [grid.voronoi]               # WP1c; ignored while kind is structured/disv
 # Sizes are the SIDE OF THE EQUIVALENT SQUARE, so cell_far = 100 aims at a mean
