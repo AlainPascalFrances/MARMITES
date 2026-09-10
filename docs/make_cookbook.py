@@ -319,14 +319,14 @@ plain_table(
                         "branch `MM-MF6_SFR_LAK_CRR`; `pytest code/tests -q` = **353 passed / 6 skipped**. "
                         "A coupled La Mata run completes on a **Voronoi mesh**, mass-conserving, with SFR "
                         "routing over the shared-face topology. Voronoi is NOT yet the default. WP2 onwards "
-                        "not started. **See chapter 0 for what to verify and how.**"],
+                        "not started. **Chapter 11 says what to verify and how.**"],
      ["Companion documents", "`doc/MM-MF6/MARMITES_NEXT_STEPS.md` (canonical running state), "
                              "`doc/MM-MF6/MARMITES_SFR_LAK_CRR_analysis.md` §7–8 (design record)"]],
     [4.0, 12.6], font=9.5)
 
 para("")
 callout("How to read this:",
-        "**Chapter 0 is the status report -- start there to check what has been built.** The rest is the plan: "
+        "this is the plan; **chapter 11, at the end, is the status report -- what has actually been built, and the command that checks each claim.** "
         "the work is cut into twelve work packages -- the ten numbered **WP0 -> WP9**, plus **WP1b** (the Streamlit interface) and "
         "**WP1c** (one grid path, Voronoi by default). Each one states its objective, the files it "
         "touches, a numbered step list, the configuration keys it introduces, and the acceptance criteria that "
@@ -338,175 +338,6 @@ pagebreak()
 h(1, "Contents")
 toc_field()
 
-
-pagebreak()
-# =============================================================== 0
-h(1, "0  Implementation status — what is done, and how to check it")
-
-rich([("Written 2026-09-10. ", "b"),
-      ("WP0, WP1, WP1b (stage 1) and WP1c are implemented and committed on branch "
-       "`MM-MF6_SFR_LAK_CRR`. This chapter exists so the work can be VERIFIED rather than taken on trust: "
-       "every claim below has a command beside it that reproduces it. Where the implementation departed "
-       "from the plan in the chapters that follow, §0.4 says so and why.", "")])
-
-h(2, "0.1  At a glance")
-table(["Package", "Status", "What proves it"],
-      [["WP0  configuration file", "DONE",
-        "The ~40 command-line flags are replaced by `code/configs/lamata.toml`. A structured build is "
-        "**byte-identical** to the pre-WP0 one across all 13 MF6 input files (bar flopy's timestamp line)."],
-       ["WP1  data tiers + converter", "DONE",
-        "`code/tools/gis_to_dataset.py` turns the GIS layers into four GRID-INDEPENDENT tables in "
-        "`example/LaMata/`. No shapefile is read by the model. `test_repo_hygiene.py` asserts it."],
-       ["WP1b  Streamlit interface", "DONE (stage 1)",
-        "Five pages, driven in a real browser. A run can be launched from the UI and survives closing the tab. "
-        "Stages 2–3 (richer Results, Calibration) follow WP6/WP7."],
-       ["WP1c  one grid path", "DONE (1c.1 – 1c.8)",
-        "A **coupled La Mata run completes on a Voronoi mesh**, mass-conserving (cumulative discrepancy "
-        "0.000 % with SFR). 60 figures draw, against 61 on the structured grid. `MARMITESplot_v3.py` was not "
-        "touched."],
-       ["WP2 … WP9", "NOT STARTED", "Unchanged from the plan below."]],
-      [3.2, 2.2, 11.2], font=8.5)
-
-callout("The one thing that is NOT done:",
-        "**Voronoi is not the default.** `[grid] kind` is still `\"structured\"`, and it stays that way until "
-        "rung (c) of the validation ladder is judged on an equilibrated multi-year run — which is yours to "
-        "launch. See §0.3 step 6 and `docs/MM-MF6/WP1c8_grid_validation.md`.")
-
-h(2, "0.2  Before anything: activate the environment")
-rich([("This matters more than it looks. ", "b"),
-      ("Calling `envs\\flopy\\python.exe` directly does NOT put the environment's `Library\\bin` on PATH, so "
-       "every delay-loaded native DLL fails to resolve and Windows kills the interpreter with "
-       "**0xC06D007F** and no Python traceback. It hits numpy's MKL BLAS — `np.dot` alone is enough — and "
-       "therefore matplotlib and rasterio too. Two days of \"pre-existing environment faults\" were this.", "")])
-code([
-    "# PowerShell — always by PREFIX (there are TWO envs called flopy; the other is empty)",
-    '& "C:\\miniconda3\\Scripts\\conda.exe" run -p C:\\miniconda3\\envs\\flopy --no-capture-output python -u <script>',
-    "",
-    "# or activate the shell once, then plain python works",
-    "conda activate C:\\miniconda3\\envs\\flopy",
-])
-
-h(2, "0.3  Six checks, in order")
-
-rich([("1.  The test suite. ", "b"), ("Expect ", ""), ("353 passed / 6 skipped", "b"),
-      (". If you see ~218 with two modules excluded, the environment was not activated (see §0.2).", "")])
-code(["cd E:\\00code\\MM-MF6_SFR_LAK_CRR",
-      "python -m pytest code/tests -q"])
-
-rich([("2.  WP0 — the structured grid still writes the same model. ", "b"),
-      ("This is the regression anchor: everything WP1c added must leave it untouched. Build into a scratch "
-       "workspace and compare against a known-good one; all 13 files match once flopy's timestamp comment is "
-       "ignored.", "")])
-code(["python code/tests/run_lamata_mf6.py --config code/configs/lamata.toml \\",
-      "       --set run.build_only=true --set run.nsp=10 --set paths.ws=<TMP>"])
-
-rich([("3.  WP1 — the dataset is grid-independent. ", "b"),
-      ("`inputSTREAM.csv`, `inputSTREAM_param.csv`, `inputPONDS.csv` and `inputWATERSHED.csv` carry model-CRS "
-       "geometry with a provenance header naming the shapefile and its mtime. Re-generate them and confirm "
-       "nothing changes:", "")])
-code(["python code/tools/gis_to_dataset.py --case LaMata --dry-run"])
-
-rich([("4.  WP1c — a coupled run on a Voronoi mesh. ", "b"),
-      ("Takes a couple of minutes at 10 stress periods. Watch for the mesh line (ncpl, achieved cell size, "
-       "resampling and coverage), then the solution check.", "")])
-code(["python code/tests/run_lamata_mf6.py --config code/configs/lamata.toml \\",
-      "       --set grid.kind=voronoi --set grid.voronoi.stream_refine=false \\",
-      "       --set run.nsp=10 --set paths.libmf6=auto \\",
-      "       --set spinup.strt_heads= --set spinup.steady_means= \\",
-      "       --set postproc.enable=true --set postproc.preproc=true"])
-bullet("`mesh: voronoi, ncpl=989` — cell area mean 9845 m², i.e. 99.2 m against the 100 m asked for.")
-bullet("`resample=auto, 9.6 source cell(s) per mesh cell, mesh tiles 99.863 % of the grid rectangle`.")
-bullet("`solution check: converged, cumulative discrepancy 0.0200%`.")
-bullet("`native MARMITESplot: 60 figure(s)` in `<ws-root>/out_<stamp>_<tag>/_output/`.")
-
-rich([("5.  WP1c.8 — rung (a) of the validation ladder. ", "b"),
-      ("DIS against DISV-from-DIS: the same geometry re-expressed, so it must be identical. It is — all "
-       "fourteen water-balance terms agree to 1e-9 mm/y.", "")])
-code(["python code/tools/validate_grid.py --ladder --rungs a --nsp 10"])
-
-rich([("6.  The remaining judgement — rungs (b) and (c). ", "b"),
-      ("These cannot be settled from a cold start: at 10 stress periods runoff and exfiltration reach "
-       "**30× precipitation**, because the water table begins above ground and recirculates. The tool detects "
-       "that and reports INCONCLUSIVE rather than a misleading PASS or FAIL. To settle them you need a "
-       "spin-up state generated ON THE MESH (the saved `hi_spinup_*.asc` is structured, and WP0.6 refuses it "
-       "on a mesh — correctly), then a run of at least one hydrological year on each grid.", "")])
-code(["python code/tools/validate_grid.py --compare <WS_structured> <WS_voronoi> \\",
-      "       --labels structured voronoi --tol 15 --report rung_c.md"])
-
-h(2, "0.4  The front end — how to launch it")
-body("Streamlit is installed in the **`flopy`** environment (checked first: the conda solve touched nothing in "
-     "the model stack). There is no second environment to manage.")
-code(["cd E:\\00code\\MM-MF6_SFR_LAK_CRR",
-      "streamlit run code/app/Home.py",
-      "",
-      "# it prints a local URL, normally http://localhost:8501 , and opens a browser",
-      "# to serve it from the server instead, run it THERE and reach it over the LAN:",
-      "streamlit run code/app/Home.py --server.address 0.0.0.0 --server.port 8501"])
-table(["Page", "What it is for"],
-      [["Home", "Case selector, machine paths (green = found), recent runs."],
-       ["Inputs", "**Tier A** — every file the model reads, with size and a viewer (rasters as images, CSVs as "
-                  "tables with their provenance header). **Tier B** — the source cartography on an OpenStreetMap "
-                  "backdrop, with the CRS of each layer REPORTED rather than guessed. Also runs the WP1 "
-                  "converter, preview first."],
-       ["Configuration", "The TOML schema as widgets, every field with its units and meaning — including the "
-                         "100 MMsurf parameters enumerated from `__inputMMsurf.ini`, shown pre-filled."],
-       ["Run", "Launch a run with one-off `section.key=value` overrides, validated BEFORE launching. The run is "
-               "detached: it survives closing the browser. Live log and status."],
-       ["Results", "The figures a run wrote, with folder and name filters."],
-       ["**Grid**", "**New (WP1c.7).** The TRUE cell polygons of the mesh — not the display raster the figure "
-                    "suite uses — coloured by cell area, with the stream network, ponds, catchment boundary and "
-                    "observation points overlaid, plus the shared-face topology report. Pick `voronoi` in the "
-                    "*Grid kind* selector."]],
-      [2.6, 14.0], font=8.5)
-callout("If the Grid page says \"no mesh cached\":",
-        "the mesh is built the first time a run uses that grid, and cached under "
-        "`<ws-root>/MF6_ws_<kind>/_mesh/`. Run check 4 of §0.3 once and it will appear. A structured grid has "
-        "no mesh to show, which is why the page opens empty on the default configuration.")
-
-h(2, "0.5  Where the implementation departed from the plan")
-table(["Plan said", "What was done", "Why"],
-      [["WP1c.1 proves the mesh path with a **quadtree**, then WP1c.2 adds Voronoi.",
-        "Voronoi first; quadtree works too but landed second.",
-        "flopy's GRIDGEN wrapper needs `pyshp` to read its own output back, and the environment is not "
-        "writable without elevation. Voronoi needs only `triangle.exe`, which was already present. `pyshp` "
-        "has since been installed and the quadtree producer works (ncpl 7728, refined to 12.5 m along the "
-        "streams)."],
-       ["Cells `(cid, cid, 0, icell2d)` over `(ncell, 1)` column vectors (the Phase-4 `refined_cell_list`).",
-        "`nrow := ncpl, ncol := 1` — arrays are `(ncpl, 1)`, and the ROW INDEX IS the icell2d.",
-        "Because `i*ncol+j == i`, `build_cell_list`, `clsMF6._cellid` and `clsMF6._griddata` all work with NO "
-        "change. The compacted convention needs an explicit node map and breaks the `_griddata` reshape."],
-       ["`code/ppMF6/marmites_voronoi.py`",
-        "`code/marmites_meshes.py` (the producers) + `code/marmites_mesh.py` (the projection).",
-        "The producers are not Voronoi-specific — one function per `[grid] kind`, all returning the same MF6 "
-        "DISV gridprops — and the projection is a separate concern from producing a mesh."],
-       ["WP1c.7 rasterises the result vectors for `plotLAYER`.",
-        "That, plus three more figure families that failed for unrelated reasons.",
-        "The Sankey was reading `<name>.dis.grb`, which a DISV model never writes; the obs time series passed "
-        "the wrong cellid arity to flopy; and `delc × delr` gives **1 m² per cell** on a mesh. None of them "
-        "was the display raster."],
-       ["The MODFLOW-NWT comparison runs on every run.",
-        "It is SKIPPED on a mesh, with the reason printed.",
-        "The NWT reference is a 65 × 60 structured run. Comparing it to a mesh is not like-for-like, exactly "
-        "as §WP1c already anticipated; the new-run figures still draw."]],
-      [4.6, 5.4, 6.6], font=8)
-
-h(2, "0.6  Decisions waiting on you")
-table(["#", "Question", "Where it bites"],
-      [["1", "`grid.voronoi.stream_refine` defaults to **true** (this cookbook's choice), but CdL settled on "
-             "**false** — the SFRmaker approach, mapping the network onto the background — after judging a "
-             "refined mesh \"too refined near streams\". Every La Mata run so far used `false`.",
-        "WP1c / WP3. Changing it changes ncpl and therefore every downstream number."],
-       ["2", "Zone rasters: majority vote is better PER CELL but biased in aggregate. On La Mata it "
-             "misassigns 7.64 % of the active area against centre sampling's 3.66 %, and soil zone 1 drops "
-             "from 13.1 % of the catchment to 9.5 %. `[grid] resample = \"centre\"` is the alternative.",
-        "WP1c.3. Affects ETsoil and percolation through the soil parameter set."],
-       ["3", "`seep.cond` is per cell and therefore **grid-dependent**. 10 000 m²/d holds the seepage within "
-             "~0.2 m on 50 m cells; the first mesh run wanted ~1.5 × 10⁶.",
-        "WP1c.8 rungs (b) and (c). Retune it against an equilibrated mesh state, not blind."],
-       ["4", "Two observation points, **SM and EC**, fall in the same cell on the 100 m Voronoi mesh, so their "
-             "modelled series are identical by construction.",
-        "WP7 calibration: two observations constraining one cell."]],
-      [0.8, 10.4, 5.4], font=8)
 
 pagebreak()
 
@@ -1028,7 +859,7 @@ rich([("Objective. ", "b"),
 
 callout("Status 2026-09-10 - all eight steps implemented.",
         "A coupled La Mata run completes on a Voronoi mesh (ncpl 989, 469 active cells, cumulative "
-        "discrepancy 0.000 % with SFR). The order of 1c.1/1c.2 was swapped and 1c.7 grew; see chapter 0.5. "
+        "discrepancy 0.000 % with SFR). The order of 1c.1/1c.2 was swapped and 1c.7 grew; see §11.5. "
         "**Voronoi is not yet the default** - `[grid] kind` stays `\"structured\"` until rung (c) of the "
         "ladder is judged on an equilibrated multi-year run. Modules built: `code/marmites_meshes.py` "
         "(producers), `code/marmites_mesh.py` (projection + resampling), "
@@ -2066,6 +1897,176 @@ bullet("**Q6 — zone-raster resampling** (new, WP1c.3) — majority vote is bet
 bullet("**Q7 — `seep.cond` on a mesh** (new, WP1c) — it is a per-cell conductance and therefore "
        "grid-dependent. 10 000 m²/d holds the seepage within ~0.2 m on 50 m cells; the first mesh run wanted "
        "~1.5 × 10⁶. Retune against an equilibrated mesh state, not blind.")
+
+
+pagebreak()
+# =============================================================== 11
+h(1, "11  Implementation status — what is done, and how to check it")
+
+rich([("Written 2026-09-10. ", "b"),
+      ("WP0, WP1, WP1b (stage 1) and WP1c are implemented and committed on branch "
+       "`MM-MF6_SFR_LAK_CRR`. This chapter exists so the work can be VERIFIED rather than taken on trust: "
+       "every claim below has a command beside it that reproduces it. Where the implementation departed "
+       "from the plan in the chapters that follow, §11.4 says so and why.", "")])
+
+h(2, "11.1  At a glance")
+table(["Package", "Status", "What proves it"],
+      [["WP0  configuration file", "DONE",
+        "The ~40 command-line flags are replaced by `code/configs/lamata.toml`. A structured build is "
+        "**byte-identical** to the pre-WP0 one across all 13 MF6 input files (bar flopy's timestamp line)."],
+       ["WP1  data tiers + converter", "DONE",
+        "`code/tools/gis_to_dataset.py` turns the GIS layers into four GRID-INDEPENDENT tables in "
+        "`example/LaMata/`. No shapefile is read by the model. `test_repo_hygiene.py` asserts it."],
+       ["WP1b  Streamlit interface", "DONE (stage 1)",
+        "Five pages, driven in a real browser. A run can be launched from the UI and survives closing the tab. "
+        "Stages 2–3 (richer Results, Calibration) follow WP6/WP7."],
+       ["WP1c  one grid path", "DONE (1c.1 – 1c.8)",
+        "A **coupled La Mata run completes on a Voronoi mesh**, mass-conserving (cumulative discrepancy "
+        "0.000 % with SFR). 60 figures draw, against 61 on the structured grid. `MARMITESplot_v3.py` was not "
+        "touched."],
+       ["WP2 … WP9", "NOT STARTED", "Unchanged from the plan below."]],
+      [3.2, 2.2, 11.2], font=8.5)
+
+callout("The one thing that is NOT done:",
+        "**Voronoi is not the default.** `[grid] kind` is still `\"structured\"`, and it stays that way until "
+        "rung (c) of the validation ladder is judged on an equilibrated multi-year run — which is yours to "
+        "launch. See §11.3 step 6 and `docs/MM-MF6/WP1c8_grid_validation.md`.")
+
+h(2, "11.2  Before anything: activate the environment")
+rich([("This matters more than it looks. ", "b"),
+      ("Calling `envs\\flopy\\python.exe` directly does NOT put the environment's `Library\\bin` on PATH, so "
+       "every delay-loaded native DLL fails to resolve and Windows kills the interpreter with "
+       "**0xC06D007F** and no Python traceback. It hits numpy's MKL BLAS — `np.dot` alone is enough — and "
+       "therefore matplotlib and rasterio too. Two days of \"pre-existing environment faults\" were this.", "")])
+code([
+    "# PowerShell — always by PREFIX (there are TWO envs called flopy; the other is empty)",
+    '& "C:\\miniconda3\\Scripts\\conda.exe" run -p C:\\miniconda3\\envs\\flopy --no-capture-output python -u <script>',
+    "",
+    "# or activate the shell once, then plain python works",
+    "conda activate C:\\miniconda3\\envs\\flopy",
+])
+
+h(2, "11.3  Six checks, in order")
+
+rich([("1.  The test suite. ", "b"), ("Expect ", ""), ("353 passed / 6 skipped", "b"),
+      (". If you see ~218 with two modules excluded, the environment was not activated (see §11.2).", "")])
+code(["cd E:\\00code\\MM-MF6_SFR_LAK_CRR",
+      "python -m pytest code/tests -q"])
+
+rich([("2.  WP0 — the structured grid still writes the same model. ", "b"),
+      ("This is the regression anchor: everything WP1c added must leave it untouched. Build into a scratch "
+       "workspace and compare against a known-good one; all 13 files match once flopy's timestamp comment is "
+       "ignored.", "")])
+code(["python code/tests/run_lamata_mf6.py --config code/configs/lamata.toml \\",
+      "       --set run.build_only=true --set run.nsp=10 --set paths.ws=<TMP>"])
+
+rich([("3.  WP1 — the dataset is grid-independent. ", "b"),
+      ("`inputSTREAM.csv`, `inputSTREAM_param.csv`, `inputPONDS.csv` and `inputWATERSHED.csv` carry model-CRS "
+       "geometry with a provenance header naming the shapefile and its mtime. Re-generate them and confirm "
+       "nothing changes:", "")])
+code(["python code/tools/gis_to_dataset.py --case LaMata --dry-run"])
+
+rich([("4.  WP1c — a coupled run on a Voronoi mesh. ", "b"),
+      ("Takes a couple of minutes at 10 stress periods. Watch for the mesh line (ncpl, achieved cell size, "
+       "resampling and coverage), then the solution check.", "")])
+code(["python code/tests/run_lamata_mf6.py --config code/configs/lamata.toml \\",
+      "       --set grid.kind=voronoi --set grid.voronoi.stream_refine=false \\",
+      "       --set run.nsp=10 --set paths.libmf6=auto \\",
+      "       --set spinup.strt_heads= --set spinup.steady_means= \\",
+      "       --set postproc.enable=true --set postproc.preproc=true"])
+bullet("`mesh: voronoi, ncpl=989` — cell area mean 9845 m², i.e. 99.2 m against the 100 m asked for.")
+bullet("`resample=auto, 9.6 source cell(s) per mesh cell, mesh tiles 99.863 % of the grid rectangle`.")
+bullet("`solution check: converged, cumulative discrepancy 0.0200%`.")
+bullet("`native MARMITESplot: 60 figure(s)` in `<ws-root>/out_<stamp>_<tag>/_output/`.")
+
+rich([("5.  WP1c.8 — rung (a) of the validation ladder. ", "b"),
+      ("DIS against DISV-from-DIS: the same geometry re-expressed, so it must be identical. It is — all "
+       "fourteen water-balance terms agree to 1e-9 mm/y.", "")])
+code(["python code/tools/validate_grid.py --ladder --rungs a --nsp 10"])
+
+rich([("6.  The remaining judgement — rungs (b) and (c). ", "b"),
+      ("These cannot be settled from a cold start: at 10 stress periods runoff and exfiltration reach "
+       "**30× precipitation**, because the water table begins above ground and recirculates. The tool detects "
+       "that and reports INCONCLUSIVE rather than a misleading PASS or FAIL. To settle them you need a "
+       "spin-up state generated ON THE MESH (the saved `hi_spinup_*.asc` is structured, and WP0.6 refuses it "
+       "on a mesh — correctly), then a run of at least one hydrological year on each grid.", "")])
+code(["python code/tools/validate_grid.py --compare <WS_structured> <WS_voronoi> \\",
+      "       --labels structured voronoi --tol 15 --report rung_c.md"])
+
+h(2, "11.4  The front end — how to launch it")
+body("Streamlit is installed in the **`flopy`** environment (checked first: the conda solve touched nothing in "
+     "the model stack). There is no second environment to manage.")
+code(["cd E:\\00code\\MM-MF6_SFR_LAK_CRR",
+      "streamlit run code/app/Home.py",
+      "",
+      "# it prints a local URL, normally http://localhost:8501 , and opens a browser",
+      "# to serve it from the server instead, run it THERE and reach it over the LAN:",
+      "streamlit run code/app/Home.py --server.address 0.0.0.0 --server.port 8501"])
+table(["Page", "What it is for"],
+      [["Home", "Case selector, machine paths (green = found), recent runs."],
+       ["Inputs", "**Tier A** — every file the model reads, with size and a viewer (rasters as images, CSVs as "
+                  "tables with their provenance header). **Tier B** — the source cartography on an OpenStreetMap "
+                  "backdrop, with the CRS of each layer REPORTED rather than guessed. Also runs the WP1 "
+                  "converter, preview first."],
+       ["Configuration", "The TOML schema as widgets, every field with its units and meaning — including the "
+                         "100 MMsurf parameters enumerated from `__inputMMsurf.ini`, shown pre-filled."],
+       ["Run", "Launch a run with one-off `section.key=value` overrides, validated BEFORE launching. The run is "
+               "detached: it survives closing the browser. Live log and status."],
+       ["Results", "The figures a run wrote, with folder and name filters."],
+       ["**Grid**", "**New (WP1c.7).** The TRUE cell polygons of the mesh — not the display raster the figure "
+                    "suite uses — coloured by cell area, with the stream network, ponds, catchment boundary and "
+                    "observation points overlaid, plus the shared-face topology report. Pick `voronoi` in the "
+                    "*Grid kind* selector."]],
+      [2.6, 14.0], font=8.5)
+callout("If the Grid page says \"no mesh cached\":",
+        "the mesh is built the first time a run uses that grid, and cached under "
+        "`<ws-root>/MF6_ws_<kind>/_mesh/`. Run check 4 of §11.3 once and it will appear. A structured grid has "
+        "no mesh to show, which is why the page opens empty on the default configuration.")
+
+h(2, "11.5  Where the implementation departed from the plan")
+table(["Plan said", "What was done", "Why"],
+      [["WP1c.1 proves the mesh path with a **quadtree**, then WP1c.2 adds Voronoi.",
+        "Voronoi first; quadtree works too but landed second.",
+        "flopy's GRIDGEN wrapper needs `pyshp` to read its own output back, and the environment is not "
+        "writable without elevation. Voronoi needs only `triangle.exe`, which was already present. `pyshp` "
+        "has since been installed and the quadtree producer works (ncpl 7728, refined to 12.5 m along the "
+        "streams)."],
+       ["Cells `(cid, cid, 0, icell2d)` over `(ncell, 1)` column vectors (the Phase-4 `refined_cell_list`).",
+        "`nrow := ncpl, ncol := 1` — arrays are `(ncpl, 1)`, and the ROW INDEX IS the icell2d.",
+        "Because `i*ncol+j == i`, `build_cell_list`, `clsMF6._cellid` and `clsMF6._griddata` all work with NO "
+        "change. The compacted convention needs an explicit node map and breaks the `_griddata` reshape."],
+       ["`code/ppMF6/marmites_voronoi.py`",
+        "`code/marmites_meshes.py` (the producers) + `code/marmites_mesh.py` (the projection).",
+        "The producers are not Voronoi-specific — one function per `[grid] kind`, all returning the same MF6 "
+        "DISV gridprops — and the projection is a separate concern from producing a mesh."],
+       ["WP1c.7 rasterises the result vectors for `plotLAYER`.",
+        "That, plus three more figure families that failed for unrelated reasons.",
+        "The Sankey was reading `<name>.dis.grb`, which a DISV model never writes; the obs time series passed "
+        "the wrong cellid arity to flopy; and `delc × delr` gives **1 m² per cell** on a mesh. None of them "
+        "was the display raster."],
+       ["The MODFLOW-NWT comparison runs on every run.",
+        "It is SKIPPED on a mesh, with the reason printed.",
+        "The NWT reference is a 65 × 60 structured run. Comparing it to a mesh is not like-for-like, exactly "
+        "as §WP1c already anticipated; the new-run figures still draw."]],
+      [4.6, 5.4, 6.6], font=8)
+
+h(2, "11.6  Decisions waiting on you")
+table(["#", "Question", "Where it bites"],
+      [["1", "`grid.voronoi.stream_refine` defaults to **true** (this cookbook's choice), but CdL settled on "
+             "**false** — the SFRmaker approach, mapping the network onto the background — after judging a "
+             "refined mesh \"too refined near streams\". Every La Mata run so far used `false`.",
+        "WP1c / WP3. Changing it changes ncpl and therefore every downstream number."],
+       ["2", "Zone rasters: majority vote is better PER CELL but biased in aggregate. On La Mata it "
+             "misassigns 7.64 % of the active area against centre sampling's 3.66 %, and soil zone 1 drops "
+             "from 13.1 % of the catchment to 9.5 %. `[grid] resample = \"centre\"` is the alternative.",
+        "WP1c.3. Affects ETsoil and percolation through the soil parameter set."],
+       ["3", "`seep.cond` is per cell and therefore **grid-dependent**. 10 000 m²/d holds the seepage within "
+             "~0.2 m on 50 m cells; the first mesh run wanted ~1.5 × 10⁶.",
+        "WP1c.8 rungs (b) and (c). Retune it against an equilibrated mesh state, not blind."],
+       ["4", "Two observation points, **SM and EC**, fall in the same cell on the 100 m Voronoi mesh, so their "
+             "modelled series are identical by construction.",
+        "WP7 calibration: two observations constraining one cell."]],
+      [0.8, 10.4, 5.4], font=8)
 
 
 # =============================================================== APPENDIX
