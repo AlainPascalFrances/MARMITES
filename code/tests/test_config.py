@@ -181,14 +181,23 @@ def test_grid_dis_is_accepted_as_an_alias_for_structured():
     assert c.grid_kind == 'structured'
 
 
-@pytest.mark.parametrize('kind', ['voronoi', 'quadtree'])
-def test_unimplemented_grid_producer_fails_fast(kind):
-    """Valid in the schema, but WP1c has not built the producer yet: the run
-    must stop with a clear message rather than silently doing something else."""
+@pytest.mark.parametrize('kind', list(cfgmod.GRID_KINDS))
+def test_every_declared_grid_producer_exists(kind):
+    """WP1c built them all, so the schema and the producers must agree. The
+    guard stays wired for the next producer that gets declared before it
+    works -- an unimplemented kind has to stop the run, not quietly do
+    something else."""
     c = cfgmod.RunConfig.from_dict({'grid': {'kind': kind}})
+    c.require_implemented_grid()          # must not raise
+    import marmites_meshes
+    assert kind in marmites_meshes._PRODUCERS
+
+
+def test_an_unknown_grid_kind_is_rejected():
+    """from_dict validates, so an unknown producer never reaches a run."""
     with pytest.raises(cfgmod.ConfigError) as e:
-        c.require_implemented_grid()
-    assert 'WP1c' in str(e.value)
+        cfgmod.RunConfig.from_dict({'grid': {'kind': 'hexagons'}})
+    assert 'grid.kind' in str(e.value)
 
 
 def test_set_overrides_coerce_to_the_replaced_type():

@@ -113,13 +113,23 @@ def _state_out(a, pref):
 INI_BY_NLAY = {2: '__inputMF_flopy_v3_2s1L.ini', 6: '__inputMF_flopy_v3_2s3L.ini'}
 
 
-def setup_lamata(daily=True, nsp=None, grid='dis', nlay=None, aggregate=False):
+def setup_lamata(daily=True, nsp=None, grid='dis', nlay=None, aggregate=False,
+                 cfg=None, mesh_ws=None):
     """Replicate the driver setup; returns (cMF, mm, ctx, state, top, botm).
 
     ``nlay`` selects the parameter set: 2 reads the 2-layer ini directly, 6 (or
     None) the 6-layer ini. ``aggregate=True`` forces the old behaviour of
     deriving the 2-layer model by collapsing the 6-layer one (kept for
     comparison only).
+
+    ``cfg`` (WP1c.1) enables the unstructured path. When ``cfg.grid_kind`` is
+    a genuine mesh producer -- 'quadtree', later 'voronoi' -- the model is
+    built on the structured raster exactly as before and then PROJECTED onto
+    the mesh (``marmites_mesh.project_model``). The returned ``cMF`` then
+    carries ``mesh_gridprops`` and ``mesh_proj``, and its arrays are
+    ``(ncpl, 1)``; see ``marmites_mesh`` for why that shape makes the rest of
+    the code work unchanged. 'structured' and 'disv' never project: they are
+    the regression anchor and must stay byte-identical.
     """
     if aggregate:
         ini_fn = INI_BY_NLAY[6]
@@ -226,11 +236,51 @@ def setup_lamata(daily=True, nsp=None, grid='dis', nlay=None, aggregate=False):
     # MF6 semantics: no hdry sentinel; MMsoil switches to h < botm dryness
     cMF.hdry = None
 
+    # ---- WP1c.1: project onto an unstructured mesh, if one is configured.
+    # Everything above ran on the structured raster, which is the point: the
+    # mesh path reuses the whole validated setup and only changes the
+    # discretisation the model is expressed on.
+    grids = {'gridMETEO': gridMETEO, 'gridSOIL': gridSOIL,
+             'gridSOILthick': gridSOILthick, 'gridSsurfhmax': gridSsurfhmax,
+             'gridSsurfw': gridSsurfw, 'gridIRR': gridIRR,
+             'gridVEGarea': gridVEGarea}
+    mesh_kind = (cfg.grid_kind if cfg is not None else 'structured')
+    if mesh_kind in ('quadtree', 'voronoi'):
+        import marmites_mesh
+        import marmites_meshes
+        gp, info = marmites_meshes.build_mesh(
+            cfg, cMF, cache_dir=mesh_ws, dataset_dir=DS, model_ws=mesh_ws)
+        print('mesh: %s, ncpl=%d, signature %s%s'
+              % (info['kind'], info['ncpl'], info['signature'],
+                 ' (from cache)' if info['cached'] else ''))
+        if 'size_equiv' in info:
+            print('      cell area %.4g..%.4g m2, mean %.4g (equivalent '
+                  'square side %.1f m)'
+                  % (info['area_min'], info['area_max'], info['area_mean'],
+                     info['size_equiv']))
+        cMF, grids, proj = marmites_mesh.project_model(cMF, gp, grids)
+        cMF.mesh_gridprops, cMF.mesh_proj = gp, proj
+        gridMETEO = grids['gridMETEO']; gridSOIL = grids['gridSOIL']
+        gridSOILthick = grids['gridSOILthick']
+        gridSsurfhmax = grids['gridSsurfhmax']; gridSsurfw = grids['gridSsurfw']
+        gridIRR = grids['gridIRR']; gridVEGarea = grids['gridVEGarea']
+        # derived from the PROJECTED arrays, never carried over from the raster
+        botm_l0 = np.asarray(cMF.botm)[0]
+        print('projected onto the mesh: %d active cell(s) of %d'
+              % (int(np.count_nonzero(cMF.outcropL > 0)), info['ncpl']))
+
     mm = MMsoil.clsMMsoil(hnoflo=cMF.hnoflo)
     cells = mm.build_cell_list(cMF)
     # Phase 4: cell geometry provider (DIS = legacy delr/delc; DISV = polygons)
     from marmites_grid import geometry_for
-    geom = geometry_for(cMF, cells, grid=grid)
+    if getattr(cMF, 'mesh_gridprops', None) is not None:
+        # icell2d == the row index under the (ncpl, 1) convention
+        from marmites_grid import VertexGeometry
+        geom = VertexGeometry.from_vertices(
+            cMF.mesh_gridprops['vertices'], cMF.mesh_gridprops['cell2d'],
+            np.array([c[3] for c in cells], dtype=int), nlay=cMF.nlay)
+    else:
+        geom = geometry_for(cMF, cells, grid=grid)
     ctx = mm.build_context(cMF, cells, _nsl, _nslmax, _st, _Sm, _Sfc, _Sr, _slprop, _S_ini,
                            botm_l0, _Ks, gridSOIL, gridSOILthick, cMF.elev * 1000.0, gridMETEO,
                            INDEX_MM, INDEX_MM_SOIL, gridSsurfhmax, gridSsurfw,
@@ -274,6 +324,19 @@ def _check_state_scope(a, cfg):
             continue
         side = _state_sidecar(a, prefix)
         if not os.path.exists(side):
+            # A state with no sidecar predates WP0, hence predates WP1c, hence
+            # was produced on the STRUCTURED grid. That is fine on the
+            # structured grid and impossible on a mesh, where it would reach
+            # MF6 as an array of the wrong length -- so the escape hatch stops
+            # exactly at the grid boundary (cookbook WP1c: "Voronoi invalidates
+            # the saved state").
+            if cfg.grid_kind not in ('structured', 'disv'):
+                raise SystemExit(
+                    'CONFIG ERROR: %s = %r has no scope sidecar, so it was '
+                    'produced on the structured grid, and grid.kind = %r needs '
+                    'state on its own mesh.\n'
+                    'Regenerate it with a spin-up on this mesh, or clear %s.'
+                    % (what, prefix, cfg.grid_kind, what))
             print('note: %s = %r has no scope sidecar (written before WP0); '
                   'accepted unchecked' % (what, prefix))
             continue
@@ -324,8 +387,12 @@ def _args_from_config(cfg, probe=False):
         probe=bool(probe or cfg.run.probe),
         max_discrepancy=cfg.run.max_discrepancy,
         allow_bad_budget=cfg.run.allow_bad_budget,
-        # grid / layers  (the body compares grid against the legacy 'dis')
-        grid=('dis' if cfg.grid_kind == 'structured' else cfg.grid.kind),
+        # grid / layers. Two separate notions (WP1c.1): `grid` is the MF6
+        # DISCRETISATION ('dis' or 'disv', all clsMF6 understands), `mesh_kind`
+        # is the PRODUCER that made it. Conflating them is what made 'quadtree'
+        # reach clsMF6 as a grid type it rejects.
+        grid=('dis' if cfg.grid_kind == 'structured' else 'disv'),
+        mesh_kind=cfg.grid_kind,
         nlay=cfg.layers.nlay, aggregate=cfg.layers.aggregate,
         # packages
         uzf_vks_scale=cfg.uzf.vks_scale,
@@ -391,7 +458,12 @@ def main():
     if a.postproc_only:
         a.postproc = True
     if a.ws is None:
-        a.ws = os.path.join(a.ws_root, 'MF6_ws' if a.grid == 'dis' else 'MF6_ws_disv')
+        # One workspace per MESH, not per discretisation: a quadtree and a
+        # DISV-from-DIS model are both 'disv' but share no file, and letting
+        # them overwrite each other is a grid-cache bug waiting to happen.
+        _sub = {'structured': 'MF6_ws', 'disv': 'MF6_ws_disv'}.get(
+            a.mesh_kind, 'MF6_ws_%s' % a.mesh_kind)
+        a.ws = os.path.join(a.ws_root, _sub)
     os.makedirs(a.ws, exist_ok=True)
     # results folder for this run, in the legacy out_<stamp>_<tag> style
     tag = a.run_tag or ('%dlay_%s' % (a.nlay or 6, a.mode))
@@ -414,7 +486,8 @@ def main():
     _check_state_scope(a, cfg)
 
     cMF, mm, ctx, state, top, botm, conv_fact = setup_lamata(
-        daily=a.daily, nsp=a.nsp, grid=a.grid, nlay=a.nlay, aggregate=a.aggregate)
+        daily=a.daily, nsp=a.nsp, grid=a.grid, nlay=a.nlay, aggregate=a.aggregate,
+        cfg=cfg, mesh_ws=os.path.join(a.ws, '_mesh'))
     if a.postproc_only:
         # Re-draw the figures from a run that already happened: everything the
         # post-processing reads is on disk (the coupled HDF5 for the MM side,
@@ -430,7 +503,10 @@ def main():
               % (h5_fn, res['wb_ts'].shape[0]))
         _run_postproc(a, cMF, ctx, res)
         return
+    _gp = getattr(cMF, 'mesh_gridprops', None)
     b = clsMF6(cMF, top=top, botm=botm, sim_ws=a.ws, daily=True, grid=a.grid,
+               vertices=(_gp['vertices'] if _gp else None),
+               cell2d=(_gp['cell2d'] if _gp else None),
                strt_from_dem=(tuple(a.strt_dem) if a.strt_dem else None))
     b.seep = a.seep
     b.ats = a.ats

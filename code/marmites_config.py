@@ -523,7 +523,10 @@ _SECTIONS = {
 
 GRID_KINDS = ('structured', 'disv', 'voronoi', 'quadtree')
 _GRID_ALIAS = {'dis': 'structured'}
-_NOT_YET = ('voronoi', 'quadtree')       # producers arrive with WP1c
+# Both mesh producers landed with WP1c. 'quadtree' additionally needs pyshp,
+# which flopy's gridgen wrapper uses to read the mesh back; that is reported by
+# the producer itself rather than here, because it is an environment fact.
+_NOT_YET = ()
 
 
 def _build(cls, data, where):
@@ -737,7 +740,8 @@ class RunConfig:
         if self.grid_kind in _NOT_YET:
             raise ConfigError(
                 "grid.kind = %r is not implemented yet: the %s producer arrives "
-                "with WP1c. Use 'structured' (today's DIS grid) or 'disv'."
+                "with WP1c.2. Use 'structured' (today's DIS grid), 'disv', or "
+                "'quadtree' (a real unstructured mesh, WP1c.1)."
                 % (self.grid.kind, self.grid_kind))
 
 

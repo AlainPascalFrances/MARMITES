@@ -42,20 +42,32 @@ max_discrepancy  = 1.0       # fail above this cumulative MB [%]  (--max-discrep
 allow_bad_budget = false     #                                    (--allow-bad-budget)
 
 # --- GRID ---------------------------------------------------------------
-# WP1c will add the "voronoi" and "quadtree" producers and make voronoi the
-# default. Until then those two raise a clear "not implemented" error, and
-# "structured" is today's DIS grid. "dis" is accepted as an alias.
+# WP1c built all four producers. "structured" is today's DIS grid and stays the
+# DEFAULT until the Voronoi mesh is validated against it (the WP1c.8 ladder);
+# it is also the regression anchor and the MODFLOW-NWT comparison, so it is
+# kept permanently. "dis" is accepted as an alias. "quadtree" additionally
+# needs pyshp, which flopy's gridgen wrapper uses to read the mesh back.
 [grid]
 kind    = "structured"       # structured | disv | voronoi | quadtree   (--grid)
-rebuild = false              # true = re-mesh; the cache carries the config hash
+rebuild = false              # true = re-mesh; the cache carries the mesh signature
 
 [grid.voronoi]               # WP1c; ignored while kind is structured/disv
+# Sizes are the SIDE OF THE EQUIVALENT SQUARE, so cell_far = 100 aims at a mean
+# cell area of 10 000 m2. Triangle is driven by a maximum TRIANGLE area and the
+# conversion is calibrated, not exact -- every build prints the cell area it
+# actually achieved (La Mata, uniform: 9845 m2, i.e. 99.2 m). Read that line
+# rather than assuming.
 cell_far         = 100.0     # m, background cell size
 cell_near_stream = 40.0      # m, stream corridor
 stream_buffer    = 60.0      # m
+# NOTE: CdL settled on stream_refine = FALSE (the SFRmaker approach: map the
+# network onto the background) after judging a refined mesh "too refined near
+# streams". La Mata has not made that call yet, so this default is the
+# cookbook's rather than a decision.
 stream_refine    = true      # false = SFRmaker style, network on the background
 trans_levels     = [10.0, 20.0, 40.0, 70.0]   # Daoud-style graded transitions
-seed_ponds       = true      # one pond-scale cell per pond, centroid-seeded
+seed_ponds       = true      # one pond-scale cell per pond, centroid-seeded;
+                             # honoured from WP4, and the producer says so if set
 
 [layers]
 nlay      = 2                # 2 reads _2s1L.ini directly         (--nlay)
@@ -65,6 +77,12 @@ aggregate = false            # 6->2 derivation, comparison only   (--aggregate)
 vks_scale = 1.0              #                                    (--uzf-vks-scale)
 
 [seep]
+# WARNING (found in WP1c): cond is PER CELL, so it is grid-dependent. 10000 m2/d
+# holds La Mata's seepage within ~0.2 m on 50 m cells; the first 100 m Voronoi
+# run pushed the water table up to 3.5 m above ground in 220 of 472 cells and
+# asked for ~1.5e6 m2/d. That run had no mesh spin-up, so part of it is start-up
+# transient rather than discretisation -- do not retune this until the mesh has
+# an equilibrated state to judge it from.
 kind = "drn"                 # uzf | drn -- drn is the validated choice   (--seep)
 cond = 10000.0               # m2/d; must be free-draining        (--seep-cond)
 

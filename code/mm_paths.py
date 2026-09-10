@@ -25,6 +25,7 @@ from pathlib import Path
 
 __all__ = ['REPO', 'DATA_ROOT', 'WS_ROOT', 'NWT_REF', 'MODFLOW_DIR', 'GIS',
            'LIBMF6', 'MF6_EXE', 'PESTPP_IES', 'PYTHON_EXE', 'TRIANGLE_EXE',
+           'GRIDGEN_EXE',
            'dataset_dir', 'resolve_input', 'report_paths', 'LEGACY_ALIASES']
 
 # ==== the machine-specific roots (edit these, or set the MM_* env vars) ======
@@ -42,6 +43,10 @@ LIBMF6       = str(MODFLOW_DIR / 'mf6.7.0_win64' / 'bin' / 'libmf6.dll')
 MF6_EXE      = str(MODFLOW_DIR / 'mf6.7.0_win64' / 'bin' / 'mf6.exe')
 TRIANGLE_EXE = str(MODFLOW_DIR / 'win64' / 'triangle.exe')
 PESTPP_IES   = str(MODFLOW_DIR / 'pestpp' / 'pestpp-ies.exe')
+# GRIDGEN ships two builds side by side; the x64 one is the one to use (WP1c.1).
+GRIDGEN_EXE  = os.environ.get(
+    'MM_GRIDGEN_EXE',
+    str(MODFLOW_DIR / 'gridgen.1.0.02' / 'bin' / 'gridgen_x64.exe'))
 
 # Backwards compatibility with the pre-WP0 environment variables, so an
 # existing shell keeps working while the flags are being retired.
@@ -112,6 +117,7 @@ def report_paths(case='LaMata', stream=None):
         ('LIBMF6',       Path(LIBMF6),       False),
         ('MF6_EXE',      Path(MF6_EXE),      False),
         ('TRIANGLE_EXE', Path(TRIANGLE_EXE), False),
+        ('GRIDGEN_EXE',  Path(GRIDGEN_EXE),  False),
         ('PESTPP_IES',   Path(PESTPP_IES),   False),
         ('PYTHON_EXE',   Path(PYTHON_EXE),   False),
     ]
