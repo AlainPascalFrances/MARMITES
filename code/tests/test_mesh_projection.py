@@ -17,7 +17,8 @@ import pytest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CODE = os.path.abspath(os.path.join(HERE, '..'))
-for _p in (CODE, HERE):
+REPO_ROOT = os.path.abspath(os.path.join(CODE, '..'))
+for _p in (CODE, os.path.join(CODE, 'ppMF6'), HERE):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
@@ -546,3 +547,129 @@ def test_config_resample_modes_match_the_projection():
     import marmites_config as cfgmod
     assert set(cfgmod.RESAMPLE_MODES) == set(MESH.MODEL_SAMPLING_MODES)
     assert set(MESH.MODEL_SAMPLING_MODES) <= set(MESH.SAMPLING_MODES)
+
+
+# ------------------------------------------ WP1c.6 point -> cell resolution
+def test_cell_containing_finds_the_polygon_the_point_is_in():
+    cMF = _FakeMF()
+    proj = MESH.MeshProjection(_dis_equivalent_gridprops(cMF),
+                               cMF.delr, cMF.delc, XLL, YLL)
+    for ic in (0, 7, NROW * NCOL - 1):
+        x, y = proj.xy[ic]
+        assert proj.cell_containing(x, y) == ic
+        assert proj.cell_containing(x + 1.0, y - 1.0) == ic
+
+
+def test_a_corner_point_breaks_the_tie_the_way_the_legacy_grid_does():
+    """La Mata's I1 sits exactly on a cell corner, where four cells contain it
+    equally. cPROCESS.inputObs uses j = ceil(dx/cs)-1 and i = nrow-ceil(dy/cs),
+    which puts it in the cell LEFT of a vertical edge and BELOW a horizontal
+    one. Matching that keeps a DIS-equivalent mesh run placing observations in
+    the same cells as the structured run."""
+    cMF = _FakeMF()
+    proj = MESH.MeshProjection(_dis_equivalent_gridprops(cMF),
+                               cMF.delr, cMF.delc, XLL, YLL)
+    # the corner shared by cells (0,0) (0,1) (1,0) (1,1)
+    x, y = XLL + CS, YLL + NROW * CS - CS
+    ic = proj.cell_containing(x, y)
+    i, j = divmod(ic, NCOL)
+    legacy_i = int(NROW - np.ceil((y - YLL) / CS))
+    legacy_j = int(np.ceil((x - XLL) / CS) - 1)
+    assert (i, j) == (legacy_i, legacy_j)
+    # left of the vertical edge and below the horizontal one
+    assert (i, j) == (1, 0)
+
+
+def test_a_point_on_a_vertical_edge_goes_to_the_cell_on_the_left():
+    cMF = _FakeMF()
+    proj = MESH.MeshProjection(_dis_equivalent_gridprops(cMF),
+                               cMF.delr, cMF.delc, XLL, YLL)
+    x = XLL + CS                      # the edge between columns 0 and 1
+    y = YLL + NROW * CS - 0.5 * CS    # mid-height of row 0
+    assert divmod(proj.cell_containing(x, y), NCOL) == (0, 0)
+
+
+def test_a_point_outside_the_mesh_falls_back_to_the_nearest_centroid():
+    cMF = _FakeMF()
+    proj = MESH.MeshProjection(_dis_equivalent_gridprops(cMF),
+                               cMF.delr, cMF.delc, XLL, YLL)
+    ic = proj.cell_containing(XLL - 500.0, YLL - 500.0)
+    assert ic == proj.cell_of(XLL - 500.0, YLL - 500.0)
+    assert 0 <= ic < proj.ncpl
+
+
+def test_point_in_polygon_beats_nearest_centroid_on_a_refined_mesh():
+    """Why cell_containing is not just cell_of: on a quadtree a small cell's
+    centroid can be nearer to a point than the centroid of the large cell the
+    point is actually inside."""
+    v = {0: (0., 0.), 1: (20., 0.), 2: (20., 10.), 3: (20., 20.), 4: (0., 20.),
+         5: (30., 0.), 6: (30., 10.), 7: (30., 20.)}
+    gp = {'vertices': [[k, x, y] for k, (x, y) in v.items()],
+          'cell2d': [[0, 10., 10., 5, 0, 1, 2, 3, 4],
+                     [1, 25., 5., 4, 1, 5, 6, 2],
+                     [2, 25., 15., 4, 2, 6, 7, 3]],
+          'ncpl': 3, 'nlay': 1}
+    proj = MESH.MeshProjection(gp, [10.0] * 3, [10.0] * 2, 0.0, 0.0)
+    x, y = 19.0, 6.0                       # inside the COARSE cell
+    assert proj.cell_of(x, y) == 1         # nearest centroid: the refined cell
+    assert proj.cell_containing(x, y) == 0  # ...but the point is in cell 0
+
+
+def test_resolve_obs_cells_on_a_mesh_captures_every_point():
+    """The acceptance criterion: all the points resolve, and to cells that
+    contain them."""
+    import marmites_postprocess as PP
+    ds = os.path.join(REPO_ROOT, 'example', 'LaMata')
+    if not os.path.exists(os.path.join(ds, 'inputObs.txt')):
+        pytest.skip('La Mata dataset not present')
+    pts = PP.obs_points(ds)
+    assert pts, 'no enabled observation points'
+
+    cMF = _FakeMF()
+    gp = _dis_equivalent_gridprops(cMF)
+    proj = MESH.MeshProjection(gp, cMF.delr, cMF.delc, XLL, YLL)
+
+    class _M:
+        mesh_proj = proj
+
+    class _C:
+        # every mesh cell active, so nothing is dropped for the wrong reason
+        cells = [(k, k, 0, k) for k in range(proj.ncpl)]
+
+    # place the points inside this small synthetic mesh
+    import marmites_postprocess as _pp
+    real = _pp.obs_points
+    _pp.obs_points = lambda _ws, fn='inputObs.txt': [
+        {'name': p['name'], 'lay': 1,
+         'x': XLL + (k % NCOL + 0.5) * CS,
+         'y': YLL + NROW * CS - (k % NROW + 0.5) * CS}
+        for k, p in enumerate(pts)]
+    try:
+        idx, names = _pp._resolve_obs_cells_mesh(_M(), _C(), ds, verbose=False)
+    finally:
+        _pp.obs_points = real
+    assert len(idx) == len(pts)
+    assert names == [p['name'] for p in pts]
+
+
+def test_an_observation_in_an_inactive_cell_is_dropped_not_mismapped():
+    import marmites_postprocess as _pp
+    cMF = _FakeMF()
+    proj = MESH.MeshProjection(_dis_equivalent_gridprops(cMF),
+                               cMF.delr, cMF.delc, XLL, YLL)
+
+    class _M:
+        mesh_proj = proj
+
+    class _C:
+        cells = [(0, 5, 0, 5)]          # only mesh cell 5 is active
+
+    real = _pp.obs_points
+    _pp.obs_points = lambda _ws, fn='inputObs.txt': [
+        {'name': 'IN', 'lay': 1, 'x': proj.xy[5][0], 'y': proj.xy[5][1]},
+        {'name': 'OUT', 'lay': 1, 'x': proj.xy[9][0], 'y': proj.xy[9][1]}]
+    try:
+        idx, names = _pp._resolve_obs_cells_mesh(_M(), _C(), '.', verbose=False)
+    finally:
+        _pp.obs_points = real
+    assert names == ['IN'] and idx == [0]

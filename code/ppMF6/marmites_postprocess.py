@@ -2076,6 +2076,46 @@ def _native_calibcrit(MMplot, out_dir, cMF, stats, verbose=True):
     return written
 
 
+def _resolve_obs_cells_mesh(cMF, ctx, ds_ws, verbose=True):
+    """WP1c.6: observation points -> mesh cells, by point-in-polygon.
+
+    Reads the points with ``obs_points``, which applies the same '#'-disabled
+    convention as the native reader, and keeps their file order so the obs
+    capture is comparable across grids.
+    """
+    proj = cMF.mesh_proj
+    pos = {int(c[1]): p for p, c in enumerate(ctx.cells)}
+    obs_idx, obs_names, outside = [], [], []
+    for pt in obs_points(ds_ws):
+        ic = proj.cell_containing(pt['x'], pt['y'])
+        p = pos.get(int(ic))
+        if p is None:
+            outside.append((pt['name'], ic))
+            continue
+        obs_idx.append(p)
+        obs_names.append(pt['name'])
+    if verbose:
+        for nm, ic in outside:
+            print('   obs point %s falls in mesh cell %d, which is not an '
+                  'active MM cell; skipped.' % (nm, ic))
+        print('resolve_obs_cells (mesh): %d observation cell(s) captured: %s'
+              % (len(obs_idx), ', '.join(obs_names)))
+    # Two points in one cell is not an error -- a coarse mesh can genuinely
+    # merge nearby piezometers -- but it means their modelled series are
+    # identical, which would otherwise look like a suspicious coincidence in
+    # the calibration plots.
+    if verbose and len(set(obs_idx)) < len(obs_idx):
+        seen = {}
+        for nm, p in zip(obs_names, obs_idx):
+            seen.setdefault(p, []).append(nm)
+        for p, nms in seen.items():
+            if len(nms) > 1:
+                print('   NOTE: %s share mesh cell %d, so their modelled '
+                      'series are identical.' % (' and '.join(nms),
+                                                 ctx.cells[p][1]))
+    return obs_idx, obs_names
+
+
 def resolve_obs_cells(cMF, ctx, ds_ws, verbose=True):
     """Map the enabled observation points (inputObs.txt) to MM cell-list
     positions. Returns ``(obs_idx, obs_names)`` for the coupler's obs capture.
@@ -2083,7 +2123,15 @@ def resolve_obs_cells(cMF, ctx, ds_ws, verbose=True):
     Reuses the native ``cPROCESS.inputObs`` reader (so the same points, grid
     mapping and disabled-line handling as the legacy driver), then finds each
     point's ``(i, j)`` in the MM cell list. Points whose cell is inactive are
-    dropped with a warning."""
+    dropped with a warning.
+
+    On a MESH (WP1c.6) the points are resolved GEOMETRICALLY from their
+    coordinates instead. ``cPROCESS.inputObs`` derives ``(i, j)`` from
+    ``nrow``/``ncol``/``cellsizeMF``, and under the ``(ncpl, 1)`` convention
+    that grid is one cell wide -- so it would reject almost every point as
+    lying outside the model before this function ever saw it."""
+    if getattr(cMF, 'mesh_proj', None) is not None:
+        return _resolve_obs_cells_mesh(cMF, ctx, ds_ws, verbose=verbose)
     try:
         obs, obs_list, _oc, _ocl = cMF.cPROCESS.inputObs(
             inputObs_fn='inputObs.txt', inputObsHEADS_fn='inputObsHEADS',

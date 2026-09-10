@@ -141,6 +141,21 @@ def _clip_to_rect(pts, xmin, ymin, xmax, ymax):
     return out
 
 
+def _point_in_polygon(x, y, poly):
+    """Ray-casting point-in-polygon test (crossing number)."""
+    inside = False
+    n = len(poly)
+    x1, y1 = poly[-1]
+    for k in range(n):
+        x2, y2 = poly[k]
+        if (y2 > y) != (y1 > y):
+            xin = x2 + (y - y2) * (x1 - x2) / (y1 - y2)
+            if x < xin:
+                inside = not inside
+        x1, y1 = x2, y2
+    return inside
+
+
 def _cx(a, b, value, axis):
     """Intersection of segment a-b with the line coord[axis] == value."""
     d = b[axis] - a[axis]
@@ -266,6 +281,50 @@ class MeshProjection:
         """Public point lookup: returns (row, col, inside) for scalars/arrays."""
         xy = np.column_stack([np.atleast_1d(x), np.atleast_1d(y)])
         return self._locate(xy)
+
+    def _bboxes(self):
+        if getattr(self, '_bbox', None) is None:
+            bb = np.empty((self.ncpl, 4), dtype=float)
+            for ic in range(self.ncpl):
+                p = np.asarray(self.cell_polygon(ic), dtype=float)
+                bb[ic] = (p[:, 0].min(), p[:, 1].min(),
+                          p[:, 0].max(), p[:, 1].max())
+            self._bbox = bb
+        return self._bbox
+
+    def cell_containing(self, x, y):
+        """icell2d of the cell whose POLYGON contains (x, y).
+
+        Falls back to the nearest centroid when no polygon contains the point
+        -- which happens for a point exactly on a shared edge, and for one just
+        outside the mesh boundary.
+
+        Point-in-polygon rather than nearest-centroid throughout: the two agree
+        on a true Voronoi mesh by construction, but NOT on a quadtree, where a
+        small cell's centroid can be nearer to a point than the centroid of the
+        large cell the point actually sits in.
+
+        Ties are broken the way the legacy grid arithmetic breaks them. La
+        Mata's observation point I1 sits exactly on a cell CORNER, where four
+        cells contain it equally; ``cPROCESS.inputObs`` computes
+        ``j = ceil(dx/cs) - 1`` and ``i = nrow - ceil(dy/cs)``, which puts such
+        a point in the cell to the LEFT of a vertical edge and BELOW a
+        horizontal one. Testing the point nudged by a micron in both negative
+        directions reproduces that on any mesh -- so a DIS-equivalent mesh run
+        places every observation in the same cell as the structured run, and
+        the WP1c.8 comparison is not confounded by an arbitrary tie.
+        """
+        x, y = float(x), float(y)
+        bb = self._bboxes()
+        cand = np.flatnonzero((bb[:, 0] <= x) & (x <= bb[:, 2])
+                              & (bb[:, 1] <= y) & (y <= bb[:, 3]))
+        eps = 1e-6
+        for probe in ((x - eps, y - eps), (x, y)):
+            for ic in cand:
+                if _point_in_polygon(probe[0], probe[1],
+                                     self.cell_polygon(int(ic))):
+                    return int(ic)
+        return self.cell_of(x, y)
 
     def cell_of(self, x, y):
         """icell2d of the mesh cell whose CENTRE is nearest to (x, y).
