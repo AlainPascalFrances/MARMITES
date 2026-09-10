@@ -72,6 +72,41 @@ def _write_cell_grid(vals, cells, nrow, ncol, cMF, fn, nodata=-9999.0):
         np.savetxt(f, g, fmt='%.6g')
 
 
+def _asc_on_grid(fn, cMF):
+    """Read a Tier-A raster and put it on the model's grid (WP1c.5).
+
+    Channel rasters need a resampling rule of their own. Averaging
+    inputSTREAMw over ALL the source cells a mesh cell covers would smear a
+    2 m channel across a 100 m cell -- every cell downstream of a channel would
+    acquire a small positive width and become a stream cell. So the average is
+    taken over the STREAM source cells only (`valid = arr > 0`), which gives a
+    mesh cell the width of the channel actually crossing it, and leaves a cell
+    that no channel crosses at zero.
+
+    This whole raster path is transitional: WP3 builds the reach table from
+    `inputSTREAM.csv`, which carries the channel as GRID-INDEPENDENT lines and
+    needs no resampling at all.
+    """
+    arr = _asc(fn)
+    proj = getattr(cMF, 'mesh_proj', None)
+    if proj is None:
+        return arr
+    out = proj.sample2d(arr, fill=0.0, dtype=float, how='area',
+                        valid=(np.asarray(arr) > 0))
+    out = np.ma.filled(np.asarray(out), 0.0)
+    # A channel can only exist where the model has a cell. A mesh cell that
+    # overhangs the active domain can overlap a channel source cell while
+    # being inactive itself, and MODFLOW then rejects the reach with "Cellid
+    # is outside of the active model grid". Dropping those is the right
+    # answer, but it TRUNCATES the network, so say how many went.
+    act = np.asarray(cMF.outcropL) > 0
+    dropped = int(np.count_nonzero((out > 0) & ~act))
+    if dropped:
+        print('   %s: %d channel cell(s) fall outside the active domain on '
+              'this mesh and were dropped' % (os.path.basename(fn), dropped))
+    return np.where(act, out, 0.0)
+
+
 def _read_cell_grid(fn, cells):
     """Read an ESRI-ASCII grid and gather it back to a per-MM-cell vector."""
     g = np.loadtxt(fn, skiprows=6)
@@ -520,14 +555,14 @@ def main():
     b.uzf_vks_scale = float(a.uzf_vks_scale)
     if a.sfr:
         # the channel map MARMITES already uses for its ponds/surface storage
-        b.sfr_pondw = _asc(os.path.join(DS, 'inputSTREAMw.asc'))
-        b.sfr_pondhmax = _asc(os.path.join(DS, 'inputSTREAMhmax.asc'))
+        b.sfr_pondw = _asc_on_grid(os.path.join(DS, 'inputSTREAMw.asc'), cMF)
+        b.sfr_pondhmax = _asc_on_grid(os.path.join(DS, 'inputSTREAMhmax.asc'), cMF)
         b.sfr_rhk = float(a.sfr_rhk)
     if a.lak:
         shp = a.lak if os.path.isabs(a.lak) else os.path.join(DS, a.lak)
         b.lak_shapefile = shp
         b.lak_bedleak = float(a.lak_bedleak)
-        b.lak_depth = _asc(os.path.join(DS, 'inputSTREAMhmax.asc'))
+        b.lak_depth = _asc_on_grid(os.path.join(DS, 'inputSTREAMhmax.asc'), cMF)
     if a.strt_heads:
         # a saved (equilibrated) head field seeds the IC directly, so the
         # spin-up need not be repeated. Resolve relative to the MF workspace.

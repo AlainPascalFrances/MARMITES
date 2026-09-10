@@ -375,6 +375,23 @@ class clsMF6:
 
     # ------------------------------------------------------------------ #
 
+    def topology(self):
+        """Shared-face adjacency of this model's grid, or None on DIS (WP1c.5).
+
+        Built once and cached: SFR routing, LAK host cells and the CRR
+        neighbour graph must all agree about what "adjacent" means, and
+        rebuilding it per package is how they would drift apart.
+        """
+        if getattr(self, '_topology', 'unset') != 'unset':
+            return self._topology
+        self._topology = None
+        if self.grid == 'disv' and self.vertices is not None:
+            from marmites_topology import MeshTopology
+            self._topology = MeshTopology(
+                {'vertices': self.vertices, 'cell2d': self.cell2d,
+                 'ncpl': self.ncpl})
+        return self._topology
+
     def _build_sfr_network(self):
         """Route the MARMITES channel map (PONDw) into an SFR reach network."""
         self.sfr_outlet_cells = set()
@@ -388,7 +405,8 @@ class clsMF6:
         if getattr(cMF, 'drn_yn', 0) == 1:
             drn_cells = [(int(i), int(j))
                          for (_l, i, j, _e, _c) in cMF.layer_row_column_elevation_cond[0]]
-        net = stream_network(self.sfr_pondw, self.top, drn_cells=drn_cells)
+        net = stream_network(self.sfr_pondw, self.top, drn_cells=drn_cells,
+                             topology=self.topology())
         build_sfr(net, self.top, pondhmax=self.sfr_pondhmax, pondw=self.sfr_pondw,
                   delr=cMF.delr, delc=cMF.delc, botm=self.botm,
                   idomain=self.idomain, rbth=self.sfr_rbth, rhk=self.sfr_rhk,

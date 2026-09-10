@@ -82,7 +82,7 @@ class SFRNetwork(object):
                    max(self.acc.values()) if self.acc else 0))
 
 
-def stream_network(pondw, dem, outlets=None, drn_cells=None):
+def stream_network(pondw, dem, outlets=None, drn_cells=None, topology=None):
     """Route the stream cells of ``pondw`` on ``dem``.
 
     Parameters
@@ -96,6 +96,16 @@ def stream_network(pondw, dem, outlets=None, drn_cells=None):
         also stream cells, else the single lowest stream cell.
     drn_cells : sequence of (i, j), optional
         Existing outlet DRN cells, used to infer the outlets.
+    topology : marmites_topology.MeshTopology, optional
+        Shared-face adjacency (WP1c.5). REQUIRED on an unstructured mesh,
+        ignored on the structured grid.
+
+        Without it the flood walks the fixed ``_NB8`` stencil, in which the
+        neighbour of ``(i, j)`` is ``(i-1, j)`` and so on. Under the
+        ``(ncpl, 1)`` mesh convention ``i`` IS the icell2d, so ``i-1`` is
+        whichever cell the mesh generator happened to number one lower --
+        typically nowhere near it -- and ``j±1`` is off the array. The routing
+        would still produce a network, and it would be nonsense.
 
     Returns
     -------
@@ -103,6 +113,24 @@ def stream_network(pondw, dem, outlets=None, drn_cells=None):
     """
     pondw = np.asarray(pondw, dtype=float)
     dem = np.asarray(dem, dtype=float)
+    if topology is None:
+        # A single-column array is the (ncpl, 1) mesh convention, never a real
+        # structured grid. Routing that on _NB8 would silently invent a network
+        # from cell-numbering adjacency, so refuse instead.
+        if pondw.ndim == 2 and pondw.shape[1] == 1 and pondw.shape[0] > 1:
+            raise ValueError(
+                'pondw is (%d, 1), which is the unstructured (ncpl, 1) layout, '
+                'but no `topology` was given. Pass a '
+                'marmites_topology.MeshTopology: on a mesh the _NB8 stencil '
+                'addresses cells by their numbering, not by where they are.'
+                % pondw.shape[0])
+
+        def _nbrs(c):
+            return [(c[0] + di, c[1] + dj) for di, dj in _NB8]
+    else:
+        def _nbrs(c):
+            return topology.neighbour_cells_ij(c[0])
+
     if pondw.shape != dem.shape:
         raise ValueError('pondw %s and dem %s have different shapes'
                          % (pondw.shape, dem.shape))
@@ -139,8 +167,7 @@ def stream_network(pondw, dem, outlets=None, drn_cells=None):
     while heap:
         z, _, c = heapq.heappop(heap)
         order.append(c)
-        for di, dj in _NB8:
-            n_ = (c[0] + di, c[1] + dj)
+        for n_ in _nbrs(c):
             if n_ in sset and n_ not in seen:
                 seen.add(n_)
                 recv[n_] = c
