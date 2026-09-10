@@ -805,7 +805,18 @@ def _run_postproc(a, cMF, ctx, res):
             # NWT-vs-MF6 comparison (into <out_dir>/figures_nwt_comparison/)
             try:
                 import plot_water_budget as pwb
-                pwb.make_figures(a.ws, mode=a.mode, out_dir=a.out_dir)
+                # The MODFLOW-NWT reference is a 65 x 60 structured run, so on
+                # a mesh it is not a like-for-like comparison -- and indexing
+                # it by icell2d simply fails. The new-run figures are still
+                # drawn; the NWT comparison stays on the grid it was
+                # established on (cookbook WP1c).
+                _on_mesh = getattr(cMF, 'mesh_proj', None) is not None
+                if _on_mesh:
+                    print('   plot_water_budget: the MODFLOW-NWT reference is '
+                          'on the 65x60 structured grid, so it is NOT compared '
+                          'against this mesh run; new-run figures only.')
+                pwb.make_figures(a.ws, mode=a.mode, out_dir=a.out_dir,
+                                 no_reference=_on_mesh)
             except Exception as exc:
                 print('   plot_water_budget skipped: %r' % exc)
         print('results written to %s' % a.out_dir)

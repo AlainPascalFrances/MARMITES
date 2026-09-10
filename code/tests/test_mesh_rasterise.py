@@ -190,3 +190,81 @@ def test_field_refuses_a_wrongly_sized_vector():
     dr = RAST.DisplayRaster.from_projection(proj, refine=1)
     with pytest.raises(ValueError):
         dr.field(np.zeros(7))
+
+
+# ------------------------------------------- WP1c.7 postprocessing helpers
+def _pp():
+    import marmites_postprocess as PP
+    return PP
+
+
+def test_the_grid_file_is_found_for_either_discretisation(tmp_path):
+    """A DIS model writes <name>.dis.grb, a DISV model <name>.disv.grb.
+    Looking only for the DIS name made every mesh run silently lose
+    FLOW-JA-FACE -- the file was absent, so inter-layer flow came out as
+    zeros and the Sankey could not be drawn."""
+    PP = _pp()
+    (tmp_path / 'm.disv.grb').write_bytes(b'x')
+    assert PP._grb_path(str(tmp_path), 'm').endswith('m.disv.grb')
+    (tmp_path / 'm.dis.grb').write_bytes(b'x')
+    assert PP._grb_path(str(tmp_path), 'm').endswith('m.dis.grb')
+
+
+def test_cellid_uses_the_files_own_framing_for_a_vertex_grid():
+    """A DISV head record is STORED as (nlay, 1, ncpl), and flopy treats a
+    file opened without a modelgrid as structured -- so the address is
+    (lay, 0, icell2d), not the 2-tuple flopy's DISV documentation implies."""
+    PP = _pp()
+    assert PP._cellid(False, 1, 4, 7) == (1, 4, 7)
+    assert PP._cellid(True, 1, 22, 0) == (1, 0, 22)
+
+
+def test_is_vertex_reads_the_head_file_header():
+    PP = _pp()
+
+    class _H:
+        nrow, ncol = 1, 989
+
+    class _D:
+        nrow, ncol = 65, 60
+
+    assert PP._is_vertex(_H()) is True
+    assert PP._is_vertex(_D()) is False
+
+
+def test_model_cell_area_is_never_derived_from_the_mesh_placeholders():
+    """The mesh proxy carries delr=[1.0] and delc=[1.0]*ncpl deliberately, so
+    delc[:,None]*delr[None,:] gives 1 m2 per cell -- a factor of ~10 000 on La
+    Mata's 100 m mesh, which is what made the Sankey unplottable."""
+    import marmites_rasterise as RAST
+    proj = _proj()
+
+    class _MeshMF:
+        nrow, ncol = proj.ncpl, 1
+        delr, delc = [1.0], [1.0] * proj.ncpl
+        mesh_proj = proj
+
+    a = RAST.model_cell_area(_MeshMF())
+    assert a.shape == (proj.ncpl, 1)
+    assert np.allclose(a, CS * CS)          # NOT 1.0
+    # and the structured path is unchanged
+    b = RAST.model_cell_area(_StructMF())
+    assert b.shape == (NROW, NCOL)
+    assert np.allclose(b, CS * CS)
+
+
+def test_model_cell_area_indexes_with_a_cell_mask():
+    """It must be shaped like the model's own grid, so a boolean (nrow, ncol)
+    cell mask selects from it either way."""
+    import marmites_rasterise as RAST
+    proj = _proj()
+
+    class _MeshMF:
+        nrow, ncol = proj.ncpl, 1
+        delr, delc = [1.0], [1.0] * proj.ncpl
+        mesh_proj = proj
+
+    area = RAST.model_cell_area(_MeshMF())
+    mask = np.zeros((proj.ncpl, 1), bool)
+    mask[[3, 9]] = True
+    assert abs(float(area[mask].sum()) - 2 * CS * CS) < 1e-6

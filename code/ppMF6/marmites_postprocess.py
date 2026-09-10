@@ -875,6 +875,22 @@ _AQ_RECORDS = (
 )
 
 
+def _grb_path(sim_ws, name):
+    """The MF6 binary grid file, whichever discretisation wrote it (WP1c.7).
+
+    A DIS model writes ``<name>.dis.grb`` and a DISV model ``<name>.disv.grb``.
+    Looking only for the DIS name made every mesh run silently lose
+    FLOW-JA-FACE: the file was simply absent, `have_flf` went False, and the
+    inter-layer flow came out as zeros -- which is what made the Sankey fail
+    with "Axis limits cannot be NaN or Inf" rather than draw a wrong number.
+    """
+    for ext in ('dis', 'disv'):
+        cand = os.path.join(sim_ws, '%s.%s.grb' % (name, ext))
+        if os.path.exists(cand):
+            return cand
+    return os.path.join(sim_ws, '%s.dis.grb' % name)
+
+
 def _ja_down_index(grb_file, nlay, nrow, ncol):
     """Position in the FLOW-JA-FACE array of each cell's DOWNWARD connection.
 
@@ -952,7 +968,7 @@ def _aquifer_pass(sim_ws, name, cMF, targets, nper, cache_dir=None,
     out['FLF'] = np.zeros((nper, ntg, nlay))
 
     have_flf = nlay > 1 and 'FLOW-JA-FACE' in recs
-    grb = os.path.join(sim_ws, '%s.dis.grb' % name)
+    grb = _grb_path(sim_ws, name)
     if have_flf and os.path.exists(grb):
         src, pos, nodes = _ja_down_index(grb, nlay, nrow, ncol)
     else:
@@ -1069,8 +1085,7 @@ def _aquifer_layer_fluxes(sim_ws, name, cMF, ctx, res, sel_ij=None,
     nper = int(res['perc'].shape[0])
     IX = dict(ctx.index)
     wb_ts = np.asarray(res['wb_ts'])
-    delr = np.asarray(cMF.delr, float)
-    delc = np.asarray(cMF.delc, float)
+    from marmites_rasterise import model_cell_area
 
     # cell selection + depth conversion. A boolean (nrow, ncol) mask picks the
     # cells; the depth factor is conv_fact / (their total area) so the flux is a
@@ -1083,7 +1098,9 @@ def _aquifer_layer_fluxes(sim_ws, name, cMF, ctx, res, sel_ij=None,
     else:
         for (i, j) in sel_ij:
             mask[int(i), int(j)] = True
-    area_sel = float((delc[:, None] * delr[None, :])[mask].sum())
+    # NOT delc x delr: on a mesh those are the placeholder unit spacings, which
+    # would make every cell 1 m2 (WP1c.7).
+    area_sel = float(model_cell_area(cMF)[mask].sum())
     to_mm = _conv_fact(cMF) / area_sel if area_sel > 0 else 0.0
 
     # Volumetric (m3/d) per-layer totals for this target. ``agg`` comes from
@@ -1384,6 +1401,32 @@ _CLR_LST = ['darkgreen', 'firebrick', 'darkmagenta', 'goldenrod', 'green',
             'tomato', 'magenta', 'yellow']
 
 
+def _is_vertex(hds):
+    """True when a head file belongs to a DISV model (WP1c.7).
+
+    flopy's ``get_ts`` wants ``(lay, row, col)`` for DIS and ``(lay, icell2d)``
+    for DISV; handing it the wrong arity raises "Row index N out of range
+    [0, 1)" -- which is what a mesh run used to do, because under the
+    ``(ncpl, 1)`` convention the icell2d arrives as the ROW.
+    """
+    # MF6 writes a DISV head record with NROW=1 and NCOL=ncpl in its header
+    # (verified: DISV -> nrow=1 ncol=989; DIS -> nrow=65 ncol=60).
+    return (int(getattr(hds, 'nrow', 0) or 0) == 1
+            and int(getattr(hds, 'ncol', 0) or 0) > 1)
+
+
+def _cellid(vertex, lay, i, j):
+    """Address for flopy's ``get_ts``.
+
+    A DISV head record is STORED as (nlay, 1, ncpl), and flopy treats a file
+    opened without a modelgrid as structured -- so the right address is the
+    3-tuple ``(lay, 0, icell2d)`` in the file's own framing. That needs no
+    modelgrid and no simulation load; under the ``(ncpl, 1)`` convention the
+    icell2d arrives here as ``i``.
+    """
+    return (int(lay), 0, int(i)) if vertex else (int(lay), int(i), int(j))
+
+
 def _obs_head_series(sim_ws, name, nlay, cells_ij, nper):
     """Head time series at each obs cell, per layer: (nobs, nlay, nper).
 
@@ -1394,8 +1437,9 @@ def _obs_head_series(sim_ws, name, nlay, cells_ij, nper):
     kk = hds.get_kstpkper()
     off = max(len(kk) - nper, 0)                   # drop the steady SP0
     out = np.full((len(cells_ij), nlay, nper), np.nan)
+    vertex = _is_vertex(hds)
     for p, (i, j) in enumerate(cells_ij):
-        ts = hds.get_ts([(L, int(i), int(j)) for L in range(nlay)])
+        ts = hds.get_ts([_cellid(vertex, L, i, j) for L in range(nlay)])
         for L in range(nlay):
             out[p, L] = np.asarray(ts[off:off + nper, L + 1], float)
     return out
@@ -1441,8 +1485,8 @@ def _native_obs_timeseries(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
             print('   obs series unavailable (%r); plotting computed only' % exc)
 
     heads = _obs_head_series(sim_ws, name, nlay, obs_ij, nper)
-    delr = np.asarray(cMF.delr, float)
-    delc = np.asarray(cMF.delc, float)
+    from marmites_rasterise import model_cell_area
+    cell_area = model_cell_area(cMF)
     cf = _conv_fact(cMF)
     import MARMITESsoil_v3 as _MMsoil
     satflow = _MMsoil.SATFLOW()
@@ -1457,7 +1501,7 @@ def _native_obs_timeseries(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
             zone = int(ctx.gridSOIL[i, j]) - 1
             nsl = int(ctx._nsl[zone])
             l_high = int(cMF.outcropL[i, j]) - 1
-            area = delr[j] * delc[i]
+            area = float(cell_area[i, j])
             flx, lbl, idx = [], [], {}
 
             def put(nm, series, tex):
@@ -1667,7 +1711,7 @@ def _aquifer_map_pass(sim_ws, name, cMF, nper, cache_dir=None, verbose=True):
         if n:
             out[key] = acc / n
     # vertical exchange, via the same precomputed JA index the Sankey uses
-    grb = os.path.join(sim_ws, '%s.dis.grb' % name)
+    grb = _grb_path(sim_ws, name)
     if nlay > 1 and 'FLOW-JA-FACE' in recs and os.path.exists(grb):
         try:
             src, pos, nodes = _ja_down_index(grb, nlay, nrow, ncol)
@@ -2249,7 +2293,7 @@ def _fig_obs_heads(hds, ds_ws, kk_real, dates, top, nlay, nrow, ncol,
                     else _xy_to_ij(p['x'], p['y'], xll, yll, cs, nrow, ncol))
             L = min(max(p['lay'] - 1, 0), nlay - 1)
             # full-resolution series at this single cell (cheap via get_ts)
-            ts = hds.get_ts((L, i, j))
+            ts = hds.get_ts(_cellid(_is_vertex(hds), L, i, j))
         except Exception:                  # pragma: no cover - point off grid
             ax.axis('off')
             continue

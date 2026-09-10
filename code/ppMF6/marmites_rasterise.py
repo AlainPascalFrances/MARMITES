@@ -288,6 +288,30 @@ class MapAdapter:
         return self.dr.field(areas, nodata=np.nan)
 
 
+def model_cell_area(cMF):
+    """Plan area [m2] of every MODEL cell, shaped like the model's own grid.
+
+    ``(nrow, ncol)`` on a structured grid, ``(ncpl, 1)`` on a mesh -- so a
+    boolean cell mask indexes it either way.
+
+    This exists because ``delc[:, None] * delr[None, :]`` is WRONG on a mesh:
+    the mesh proxy carries delr = [1.0] and delc = [1.0] * ncpl deliberately,
+    so anything still deriving an area from them silently gets 1 m2 per cell.
+    That is a factor of ~10 000 on La Mata's 100 m Voronoi mesh, and it turned
+    the water-balance Sankey into an unplottable axis.
+    """
+    proj = getattr(cMF, 'mesh_proj', None)
+    if proj is None:
+        delr = np.asarray(cMF.delr, dtype=float)
+        delc = np.asarray(cMF.delc, dtype=float)
+        return delc[:, None] * delr[None, :]
+    vxy = proj._vxy
+    areas = np.array(
+        [_polygon_area([vxy[int(iv)] for iv in rec[4:4 + int(rec[3])]])
+         for rec in proj.gridprops['cell2d']], dtype=float)
+    return areas.reshape(-1, 1)
+
+
 def _subdivide(edge, k):
     """Split every interval of an edge array into ``k`` equal parts."""
     edge = np.asarray(edge, dtype=float)

@@ -179,3 +179,65 @@ def vector_layers(gis_dir):
     ]
     root = Path(gis_dir)
     return [(n, label, colour, (root / n).exists()) for n, label, colour in names]
+
+
+# --------------------------------------------------------------------- #
+# the mesh  (WP1c.7)
+# --------------------------------------------------------------------- #
+
+def mesh_cache_paths(ws_root, kind):
+    """Where a built mesh is cached, per grid kind.
+
+    The driver writes it under the mesh's own MF6 workspace, so the front-end
+    can show the grid a run WOULD use without loading the model -- building it
+    needs the .ini, the time discretisation and Triangle, which is a ~20 s
+    round trip the page should not make on every rerun.
+    """
+    sub = {'structured': 'MF6_ws', 'disv': 'MF6_ws_disv'}.get(
+        kind, 'MF6_ws_%s' % kind)
+    d = Path(ws_root) / sub / '_mesh'
+    return d / ('mesh_%s.json' % kind), d / ('mesh_%s.sig.json' % kind)
+
+
+def read_mesh(ws_root, kind):
+    """Cached DISV gridprops for one grid kind, or None if not built yet.
+
+    Returns ``(gridprops, signature)``.
+    """
+    import json
+    grid_fn, sig_fn = mesh_cache_paths(ws_root, kind)
+    if not grid_fn.exists():
+        return None, None
+    with open(grid_fn, encoding='utf-8') as fh:
+        gp = json.load(fh)
+    sig = None
+    if sig_fn.exists():
+        try:
+            with open(sig_fn, encoding='utf-8') as fh:
+                sig = json.load(fh)
+        except ValueError:
+            pass
+    return gp, sig
+
+
+def mesh_polygons(gridprops):
+    """``(polygons, areas, centres)`` for a DISV gridprops.
+
+    Polygons are lists of (x, y) in model CRS -- TRUE cell outlines, not the
+    display raster the figure suite uses, so the page shows the mesh as it
+    actually is.
+    """
+    import numpy as np
+    vxy = {int(v[0]): (float(v[1]), float(v[2]))
+           for v in gridprops['vertices']}
+    polys, areas, centres = [], [], []
+    for rec in gridprops['cell2d']:
+        n = int(rec[3])
+        p = [vxy[int(iv)] for iv in rec[4:4 + n]]
+        a = np.asarray(p, dtype=float)
+        x, y = a[:, 0], a[:, 1]
+        polys.append(p)
+        areas.append(0.5 * abs(float(np.dot(x, np.roll(y, -1))
+                                     - np.dot(y, np.roll(x, -1)))))
+        centres.append((float(rec[1]), float(rec[2])))
+    return polys, np.asarray(areas), np.asarray(centres)
