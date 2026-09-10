@@ -741,6 +741,24 @@ def project_model(cMF, gridprops, grids, warn=None, how='auto'):
             setattr(m, name, proj.sample2d(val, fill=hnoflo, how=how,
                                            valid=src_active))
 
+    # ---- the ARRAY forms of the boundary packages, which exist only so the
+    # input maps can draw them. They are zero where there is no boundary, so
+    # they resample over the cells that HAVE one -- averaging a drain
+    # conductance with the zeros around it would show a drain that is not
+    # there and hide the one that is.
+    for name in ('drn_elev_array', 'drn_cond_array',
+                 'ghb_head_array', 'ghb_cond_array'):
+        val = getattr(cMF, name, None)
+        if val is None:
+            continue
+        a = np.asarray(val, dtype=float)
+        if a.ndim == 3:
+            setattr(m, name, proj.sample3d(a, fill=0.0, how=how,
+                                           valid=(a != 0.0)))
+        elif a.ndim == 2:
+            setattr(m, name, proj.sample2d(a, fill=0.0, how=how,
+                                           valid=(a != 0.0)))
+
     # ---- boundary records. DRN elevations are re-anchored to the receiving
     # cell's bottom (see remap_drn_records); GHB carries an absolute HEAD, a
     # boundary condition on the water table itself, so it is moved unchanged.

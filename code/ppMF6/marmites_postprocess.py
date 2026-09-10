@@ -267,7 +267,20 @@ def run_postproc(sim_ws, ds_ws, name='lamatamm', dates=None,
     sim = flopy.mf6.MFSimulation.load(sim_ws=sim_ws, verbosity_level=0)
     gwf = sim.get_model()
     mg = gwf.modelgrid
-    nlay, nrow, ncol = mg.nlay, mg.nrow, mg.ncol
+    # WP1c.7: a DISV model has no rows or columns. Everything here works on
+    # the (ncpl, 1) shape MARMITES already uses for a mesh, so adopt it --
+    # the CSV grids come out as one column per layer, and the head maps with
+    # real axes are drawn by native_suite's rasterising path instead.
+    locate = None
+    if getattr(mg, 'nrow', None) is None:
+        nlay = int(mg.nlay)
+        nrow = int(np.atleast_1d(mg.ncpl)[0])
+        ncol = 1
+        # observation points cannot be found by grid arithmetic on a mesh;
+        # flopy's own intersect() gives the icell2d, which IS the row here
+        locate = lambda x, y: (int(mg.intersect(x, y)), 0)   # noqa: E731
+    else:
+        nlay, nrow, ncol = mg.nlay, mg.nrow, mg.ncol
     top = np.asarray(mg.top, dtype=float).reshape(nrow, ncol)
 
     hds = flopy.utils.HeadFile(os.path.join(sim_ws, '%s.hds' % name))
@@ -277,6 +290,9 @@ def run_postproc(sim_ws, ds_ws, name='lamatamm', dates=None,
     # full record (one cell, cheap) via _obs_series_from_hds
     kk_map = _subsample(kk_real, 200)
     H = np.array([hds.get_data(kstpkper=k) for k in kk_map])   # (nt, nlay, nrow, ncol)
+    # a DISV read comes back (nlay, 1, ncpl); the model shape here is
+    # (nlay, ncpl, 1), and the middle axis being 1 makes this a pure reshape
+    H = H.reshape(H.shape[0], nlay, nrow, ncol)
     H = np.where(np.abs(H) > 1e29, np.nan, H)
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', category=RuntimeWarning)  # all-NaN layers
@@ -288,7 +304,7 @@ def run_postproc(sim_ws, ds_ws, name='lamatamm', dates=None,
     # --- obs vs computed heads ---------------------------------------- #
     try:
         f = _fig_obs_heads(hds, ds_ws, kk_real, dates, top, nlay, nrow, ncol,
-                           xll, yll, cs, out)
+                           xll, yll, cs, out, locate=locate)
         written += f
     except Exception as exc:               # pragma: no cover
         if verbose:
@@ -491,11 +507,24 @@ def _fig_general_map(out, cMF=None, gis_ws=None, verbose=True):
     # --- elevation: shaded relief plus labelled contours --------------- #
     if cMF is not None and getattr(cMF, 'xllcorner', None) is not None:
         from matplotlib.colors import LightSource
-        nrow, ncol = int(cMF.nrow), int(cMF.ncol)
-        dem = np.asarray(cMF.elev, dtype=float).reshape(nrow, ncol)
-        dr = float(np.mean(np.asarray(cMF.delr, dtype=float)))
-        dc = float(np.mean(np.asarray(cMF.delc, dtype=float)))
-        x0, y0 = float(cMF.xllcorner), float(cMF.yllcorner)
+        from marmites_rasterise import MapAdapter
+        # WP1c.7: a hillshade needs a raster. On a mesh the DEM is a per-cell
+        # vector, and np.gradient on the (ncpl, 1) shape fails outright, so the
+        # backdrop is rendered on the display raster.
+        DA = MapAdapter(cMF)
+        nrow, ncol = DA.nrow, DA.ncol
+        dem = DA.lay(np.asarray(cMF.elev, dtype=float).reshape(1, -1))[0]
+        if DA.on_mesh:
+            dr = float(np.mean(np.diff(DA.dr.x_edge)))
+            dc = float(np.mean(-np.diff(DA.dr.y_edge)))
+            x0, y0 = float(DA.dr.x_edge[0]), float(DA.dr.y_edge[-1])
+            # pixels the mesh does not cover would make the relief NaN
+            if np.isnan(dem).any():
+                dem = np.where(np.isnan(dem), np.nanmean(dem), dem)
+        else:
+            dr = float(np.mean(np.asarray(cMF.delr, dtype=float)))
+            dc = float(np.mean(np.asarray(cMF.delc, dtype=float)))
+            x0, y0 = float(cMF.xllcorner), float(cMF.yllcorner)
         ext = [x0 / K, (x0 + ncol * dr) / K, y0 / K, (y0 + nrow * dc) / K]
         # bilinear: the DEM is on the 50 m model grid, and nearest-neighbour
         # relief reads as a checkerboard at this scale
@@ -1698,7 +1727,15 @@ def _native_result_maps(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
     """
     import flopy
     import matplotlib
-    nlay, nrow, ncol = int(cMF.nlay), int(cMF.nrow), int(cMF.ncol)
+    from marmites_rasterise import MapAdapter
+    # WP1c.7: on a mesh every array below is rasterised onto a display grid,
+    # so plotLAYER and the whole native suite are untouched. On the structured
+    # grid the adapter is the identity.
+    DA = MapAdapter(cMF)
+    nlay = int(cMF.nlay)
+    nrow, ncol = DA.nrow, DA.ncol
+    if verbose and DA.on_mesh:
+        print('   %s' % DA.report())
     nper = int(np.asarray(res['wb_ts']).shape[0])
     hnoflo = float(getattr(cMF, 'hnoflo', 9999.999))
     # Legacy convention: heads, recharge and storage in Blues; the terms that
@@ -1707,11 +1744,9 @@ def _native_result_maps(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
     cmap_in = matplotlib.colormaps['Blues']
     cmap_out = matplotlib.colormaps['Reds']
     pts = _obs4map(res)
-    delr = np.asarray(cMF.delr, float)
-    delc = np.asarray(cMF.delc, float)
-    area = (delc[:, None] * delr[None, :])          # (nrow, ncol) m2
+    area = DA.cell_area()                           # (nrow, ncol) m2
     to_mm = _conv_fact(cMF) / area                  # m3/d -> mm/d, per cell
-    ib = np.abs(np.asarray(cMF.ibound))
+    ib = DA.lay_int(np.abs(np.asarray(cMF.ibound)))
     before = set(os.listdir(out_dir)) if os.path.isdir(out_dir) else set()
 
     def draw(V, stem, cblbl, unit, m3, nplot=None, cmap=None, days=None,
@@ -1753,9 +1788,7 @@ def _native_result_maps(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
     for key, stem, cblbl, cmname in _MAP_FLUXES:
         if key not in IX:
             continue
-        g = np.full((nrow, ncol), hnoflo)
-        for n, c in enumerate(ctx.cells):
-            g[c[1], c[2]] = wb_map[n, IX[key]]
+        g = DA.cells(wb_map[:, IX[key]], ctx.cells, nodata=hnoflo)
         unit = '-' if key in ('iSsoil_pc',) else (
             'm' if key in ('iuzthick', 'idgwt') else 'mm/d')
         # one surface layer, given the aquifer grid's shape so the page comes
@@ -1774,17 +1807,20 @@ def _native_result_maps(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
     hds = flopy.utils.HeadFile(os.path.join(sim_ws, '%s.hds' % name))
     kk = hds.get_kstpkper()
     off = max(len(kk) - nper, 0)
-    acc = np.zeros((nlay, nrow, ncol))
+    acc = None
     for k in range(nper):
-        acc += np.where(np.abs(hds.get_data(kstpkper=kk[k + off])) > 1e29,
-                        np.nan, hds.get_data(kstpkper=kk[k + off]))
-    draw((acc / nper).reshape(1, nlay, nrow, ncol), 'head', 'mean head',
-         'm', m3)
+        h = np.asarray(hds.get_data(kstpkper=kk[k + off]), dtype=float)
+        h = np.where(np.abs(h) > 1e29, np.nan, h)
+        acc = h if acc is None else acc + h
+    draw(DA.lay(np.asarray(acc).reshape(nlay, -1) / nper)[None, :, :, :],
+         'head', 'mean head', 'm', m3)
     if ndays and nper > 1:
         sel = np.unique(np.linspace(0, nper - 1, int(ndays)).astype(int))
-        V = np.array([np.where(np.abs(hds.get_data(kstpkper=kk[s + off])) > 1e29,
-                               np.nan, hds.get_data(kstpkper=kk[s + off]))
-                      for s in sel])
+        V = np.array([DA.lay(np.where(
+            np.abs(np.asarray(hds.get_data(kstpkper=kk[s + off]), dtype=float))
+            > 1e29, np.nan,
+            np.asarray(hds.get_data(kstpkper=kk[s + off]), dtype=float)
+        ).reshape(nlay, -1)) for s in sel])
         DATE, _hy, _yr = _sankey_dates(cMF, nper)
         import matplotlib as _mpl
         # JD must be a LIST here: plotLAYER indexes it per panel, so the
@@ -1800,8 +1836,8 @@ def _native_result_maps(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
     for key, stem, cblbl, sgn in _AQ_MAPS:
         if key not in maps:
             continue
-        V = (sgn * np.asarray(maps[key]) * to_mm[None, :, :]).reshape(
-            1, nlay, nrow, ncol)
+        V = (sgn * DA.lay(np.asarray(maps[key]).reshape(nlay, -1))
+             * to_mm[None, :, :])[None, :, :, :]
         draw(V, stem, cblbl, 'mm/d', m3,
              cmap=cmap_out if sgn < 0 else cmap_in)
     # Effective and net recharge, exactly as the legacy driver derived them
@@ -1816,17 +1852,19 @@ def _native_result_maps(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
         re = np.asarray(maps['UZF-GWRCH'], float).copy()
         if 'DRN_SEEP' in maps:
             re += np.asarray(maps['DRN_SEEP'], float)
-        draw((re * to_mm[None, :, :]).reshape(1, nlay, nrow, ncol),
+        re = DA.lay(re.reshape(nlay, -1))
+        draw((re * to_mm[None, :, :])[None, :, :, :],
              'Re', 'effective recharge (Rg + Exf)', 'mm/d', m3)
         if 'WEL' in maps:
-            rn = re + np.asarray(maps['WEL'], float)
-            draw((rn * to_mm[None, :, :]).reshape(1, nlay, nrow, ncol),
+            rn = re + DA.lay(np.asarray(maps['WEL'], float).reshape(nlay, -1))
+            draw((rn * to_mm[None, :, :])[None, :, :, :],
                  'Rn', 'net recharge (Rg + Exf + ETg)', 'mm/d', m3)
     # storage change is the sum of the two storage records
     if 'STO-SS' in maps or 'STO-SY' in maps:
         s = (np.asarray(maps.get('STO-SS', 0.0))
              + np.asarray(maps.get('STO-SY', 0.0)))
-        draw((s * to_mm[None, :, :]).reshape(1, nlay, nrow, ncol),
+        s = DA.lay(np.asarray(s, dtype=float).reshape(nlay, -1))
+        draw((s * to_mm[None, :, :])[None, :, :, :],
              'dSg', 'release from groundwater storage', 'mm/d', m3)
 
     after = set(os.listdir(out_dir)) if os.path.isdir(out_dir) else set()
@@ -1849,9 +1887,14 @@ def _native_input_maps(MMplot, out_dir, cMF, ctx, res=None, verbose=True):
     one elevation scale so they can be read against each other.
     """
     import matplotlib
-    nlay, nrow, ncol = int(cMF.nlay), int(cMF.nrow), int(cMF.ncol)
+    from marmites_rasterise import MapAdapter
+    # WP1c.7: normalise on the MODEL shape, draw on the DISPLAY shape.
+    DA = MapAdapter(cMF)
+    nlay = int(cMF.nlay)
+    nrow_m, ncol_m = int(cMF.nrow), int(cMF.ncol)     # model
+    nrow, ncol = DA.nrow, DA.ncol                     # display
     hnoflo = float(getattr(cMF, 'hnoflo', 9999.999))
-    ib = np.abs(np.asarray(cMF.ibound))
+    ib = DA.lay_int(np.abs(np.asarray(cMF.ibound)))
     mask = (ib == 0)                                  # (nlay, nrow, ncol)
     mask_all = mask.all(axis=0)                       # cells inactive everywhere
     cmap = matplotlib.colormaps['gist_rainbow_r']
@@ -1869,15 +1912,15 @@ def _native_input_maps(MMplot, out_dir, cMF, ctx, res=None, verbose=True):
         """
         a = np.asarray(x, dtype=float)
         if a.ndim == 3:
-            return a
-        if a.ndim == 2 and a.shape == (nrow, ncol):
-            return np.repeat(a[None, :, :], nlay, axis=0)
+            return DA.lay(a)
+        if a.ndim == 2 and a.shape == (nrow_m, ncol_m):
+            return DA.lay(np.repeat(a[None, :, :], nlay, axis=0))
         if a.size == 1:
             return np.full((nlay, nrow, ncol), float(a.ravel()[0]))
         if a.size == nlay:
             return np.repeat(a.reshape(nlay, 1, 1), nrow, axis=1).repeat(ncol, axis=2)
         raise ValueError('cannot map a field of shape %s onto (%d, %d, %d)'
-                         % (a.shape, nlay, nrow, ncol))
+                         % (a.shape, nlay, nrow_m, ncol_m))
 
     # transmissivity, as the legacy derived it (hk x thickness)
     thick = arr(cMF.thick)
@@ -1922,7 +1965,9 @@ def _native_input_maps(MMplot, out_dir, cMF, ctx, res=None, verbose=True):
     # the model footprint and the MARMITES zoning. These were only ever drawn
     # by the plain imshow maps that used to sit alongside this set; folding
     # them in here is what let those be removed.
-    lst += [('ibound', 'Active cells - $ibound$', arr(ib))]
+    # `ib` came from DA.lay_int and is ALREADY display-shaped, so it must
+    # not go through arr() again -- that would rasterise a picture.
+    lst += [('ibound', 'Active cells - $ibound$', np.asarray(ib, dtype=float))]
     for attr, stem, cblbl in (('gridSOIL', 'SOILzones', 'Soil zone'),
                               ('gridMETEO', 'METEOzones', 'Meteo. zone'),
                               ('gridIRR', 'IRRzones', 'Irrigation zone')):
@@ -2179,7 +2224,7 @@ def _dates_from_dataset(ds_ws, n):
 
 
 def _fig_obs_heads(hds, ds_ws, kk_real, dates, top, nlay, nrow, ncol,
-                   xll, yll, cs, out):
+                   xll, yll, cs, out, locate=None):
     import matplotlib.pyplot as plt
     import pandas as pd
     pts = obs_points(ds_ws)
@@ -2200,7 +2245,8 @@ def _fig_obs_heads(hds, ds_ws, kk_real, dates, top, nlay, nrow, ncol,
     drawn = 0
     for ax, p in zip(axes.ravel(), have):
         try:
-            i, j = _xy_to_ij(p['x'], p['y'], xll, yll, cs, nrow, ncol)
+            i, j = (locate(p['x'], p['y']) if locate is not None
+                    else _xy_to_ij(p['x'], p['y'], xll, yll, cs, nrow, ncol))
             L = min(max(p['lay'] - 1, 0), nlay - 1)
             # full-resolution series at this single cell (cheap via get_ts)
             ts = hds.get_ts((L, i, j))
