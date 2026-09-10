@@ -327,7 +327,7 @@ plain_table(
 para("")
 callout("How to read this:",
         "**Chapter 0 is the status report -- start there to check what has been built.** The rest is the plan: "
-        "the work is cut into eleven work packages, **WP0 -> WP9**, plus **WP1b** (the Streamlit interface) and "
+        "the work is cut into twelve work packages -- the ten numbered **WP0 -> WP9**, plus **WP1b** (the Streamlit interface) and "
         "**WP1c** (one grid path, Voronoi by default). Each one states its objective, the files it "
         "touches, a numbered step list, the configuration keys it introduces, and the acceptance criteria that "
         "must be green before the next package starts. Sections 6–8 are the reference material the packages "
