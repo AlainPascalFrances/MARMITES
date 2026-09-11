@@ -42,7 +42,7 @@ import numpy as np
 
 __all__ = ['VectorError', 'OVERLAY_MODES', 'Layer', 'TargetGrid',
            'overlay_polygons', 'burn_lines', 'locate_points',
-           'coverage_report']
+           'coverage_report', 'write_geojson']
 
 # 'majority'      the class covering the largest area of the cell
 # 'area_fraction' percentage of the cell covered, 0..100  (what VEGarea wants)
@@ -180,22 +180,102 @@ _KIND = {1: 'point', 11: 'point', 21: 'point', 8: 'point', 18: 'point',
          5: 'polygon', 15: 'polygon', 25: 'polygon'}
 
 
+def _geojson_rings(gtype, coords):
+    """Flatten a GeoJSON geometry into a list of coordinate rings/parts."""
+    if gtype == 'LineString':
+        return [coords]
+    if gtype in ('MultiLineString', 'Polygon'):
+        return list(coords)
+    out = []                                   # MultiPolygon
+    for poly in coords:
+        out.extend(poly)
+    return out
+
+
+def write_geojson(path, kind, geometries, properties, crs='', provenance=None,
+                  precision=2):
+    """Write a derived layer into the dataset folder (WP1 tier A).
+
+    ``geometries`` is one list of rings (or a single point) per feature, in
+    MODEL CRS. Coordinates are rounded to ``precision`` decimals: these are
+    metres, so two decimals is a centimetre -- far finer than any of the
+    mapping behind them, and it roughly halves the file.
+
+    The ``marmites`` member carries the provenance WP1 established: which
+    shapefile this came from, its size and mtime, and the CRS as REPORTED by
+    its .prj. A derived file with no provenance is not evidence of anything.
+    """
+    import json
+
+    def rnd(xy):
+        return [round(float(xy[0]), precision), round(float(xy[1]), precision)]
+
+    feats = []
+    for geom, props in zip(geometries, properties):
+        if kind == 'point':
+            g = {'type': 'Point', 'coordinates': rnd(geom)}
+        elif kind == 'line':
+            parts = [[rnd(p) for p in part] for part in geom]
+            g = ({'type': 'LineString', 'coordinates': parts[0]} if len(parts) == 1
+                 else {'type': 'MultiLineString', 'coordinates': parts})
+        else:
+            rings = [[rnd(p) for p in ring] for ring in geom]
+            g = {'type': 'Polygon', 'coordinates': rings}
+        feats.append({'type': 'Feature', 'geometry': g,
+                      'properties': dict(props)})
+    doc = {'type': 'FeatureCollection',
+           'marmites': dict(provenance or {}, crs=crs),
+           'features': feats}
+    with open(path, 'w', encoding='utf-8') as fh:
+        json.dump(doc, fh, separators=(',', ':'))
+    return path
+
+
+class _Shape:
+    """The little of pyshp's shape interface this module uses."""
+
+    __slots__ = ('points', 'parts', 'bbox')
+
+    def __init__(self, points, parts, bbox=None):
+        self.points = points
+        self.parts = parts
+        if bbox is None and points:
+            xs = [p[0] for p in points]
+            ys = [p[1] for p in points]
+            bbox = (min(xs), min(ys), max(xs), max(ys))
+        self.bbox = bbox
+
+
 class Layer:
-    """One shapefile, read with pyshp, with its attribute table.
+    """One vector layer: a shapefile, or a derived GeoJSON in the dataset.
 
     Deliberately thin: no geometry engine, no CRS transformation. The CRS is
     REPORTED from the ``.prj`` rather than assumed, exactly as WP1 already
     does for the converter -- a silent reprojection is the one failure mode
     that produces a plausible-looking wrong answer.
+
+    Two tiers, as WP1 established them. Shapefiles live in ``DATA_ROOT/GIS``
+    and are read by the CONVERTER; the converter writes a derived GeoJSON
+    into the dataset folder, carrying only the geometry and the columns the
+    model was configured to use, and that is what a run reads. Both arrive
+    here through the same class, so the wrapping code never knows which tier
+    it was handed.
     """
 
     def __init__(self, path):
-        import shapefile                       # pyshp
-
         if not os.path.exists(path):
             raise VectorError('vector layer not found: %s' % path)
         self.path = path
         self.name = os.path.splitext(os.path.basename(path))[0]
+        if path.lower().endswith(('.geojson', '.json')):
+            self._read_geojson(path)
+        else:
+            self._read_shapefile(path)
+
+    # -- readers ----------------------------------------------------------
+    def _read_shapefile(self, path):
+        import shapefile                       # pyshp
+
         rdr = self._open(shapefile, path)
         self.shape_type = int(rdr.shapeType)
         self.kind = _KIND.get(self.shape_type)
@@ -210,6 +290,52 @@ class Layer:
         self.crs_wkt = (open(prj, encoding='utf-8', errors='replace').read()
                         if os.path.exists(prj) else '')
         rdr.close()
+
+    def _read_geojson(self, path):
+        import json
+
+        with open(path, encoding='utf-8') as fh:
+            doc = json.load(fh)
+        feats = doc.get('features') or []
+        self.provenance = doc.get('marmites') or {}
+        self.crs_wkt = str(self.provenance.get('crs', ''))
+        kinds, names = set(), []
+        self.shapes, self.records = [], []
+        for ft in feats:
+            geom = ft.get('geometry') or {}
+            gtype = geom.get('type', '')
+            coords = geom.get('coordinates')
+            if gtype == 'Point':
+                kinds.add('point')
+                pts, parts = [(float(coords[0]), float(coords[1]))], [0]
+            elif gtype in ('LineString', 'MultiLineString', 'Polygon',
+                           'MultiPolygon'):
+                kinds.add('line' if 'Line' in gtype else 'polygon')
+                rings = _geojson_rings(gtype, coords)
+                pts, parts = [], []
+                for r in rings:
+                    parts.append(len(pts))
+                    pts.extend((float(x), float(y)) for x, y in r)
+            else:
+                raise VectorError('%s: unsupported geometry %r'
+                                  % (self.name, gtype))
+            props = ft.get('properties') or {}
+            for k in props:
+                if k not in names:
+                    names.append(k)
+            self.shapes.append(_Shape(pts, parts))
+            self.records.append(props)
+        if len(kinds) > 1:
+            raise VectorError('%s: mixed geometry types %s'
+                              % (self.name, sorted(kinds)))
+        self.kind = kinds.pop() if kinds else 'polygon'
+        self.shape_type = {'point': 1, 'line': 3, 'polygon': 5}[self.kind]
+        self.fields = names
+        self.records = [[r.get(n) for n in names] for r in self.records]
+        xs = [p[0] for s in self.shapes for p in s.points]
+        ys = [p[1] for s in self.shapes for p in s.points]
+        self.bbox = ((min(xs), min(ys), max(xs), max(ys))
+                     if xs else (0.0, 0.0, 0.0, 0.0))
 
     @staticmethod
     def _open(shapefile, path):

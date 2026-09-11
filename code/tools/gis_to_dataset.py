@@ -65,9 +65,133 @@ TARGET_EPSG = 23029
 SOURCES = {
     'streams':   'hydrography.shp',
     'ponds':     'lm_ponds.shp',
-    'watershed': 'Limite.shp',
+    # The catchment now comes from [grid] boundary; this is only the fallback
+    # for a configuration that does not name one. Limite.shp, which WP1 used,
+    # is 19.159 km2 against the catchment's 4.844 km2 -- nearly four times too
+    # big, and the reason the mesh producer had to clip to the grid rectangle.
+    'watershed': 'lm_lim.shp',
     'dem':       'lm_demfill',
 }
+
+# WP1d: the layers the four panels wrap onto the grid. Each entry says where
+# the source name comes from in the configuration, which attribute columns to
+# carry, and what the derived file is called. Geometry is exported in MODEL
+# CRS and stays GRID-INDEPENDENT -- the wrapping happens at run time, against
+# whichever grid panel 1 produced.
+VECTOR_LAYERS = [
+    ('boundary',  'grid.boundary',           [],                'inputBOUNDARY'),
+    ('soil',      'soil.zones.layer',        ['SoilType', 'SoilCode', 'SOILthick',
+                                              'ibound_l1', 'ibound_l2', 'iuzfbnd'],
+     'inputSOILZONES'),
+    ('vegetation', 'soil.veg_layer',         ['Species'],       'inputVEG'),
+    ('irrigation', 'surface.irr_zones.layer', ['field_id', 'Id'], 'inputIRR'),
+    ('obs',       'obs.layer',               ['Name', 'lay', 'hi', 'h0', 'RC',
+                                              'STO', 'NameReal', 'onMap'],
+     'inputOBSPTS'),
+]
+
+
+def _dotted(obj, dotted):
+    for part in dotted.split('.'):
+        obj = getattr(obj, part, None)
+        if obj is None:
+            return None
+    return obj
+
+
+def _export_vector(gis, out_dir, cfg, report, dry_run=False):
+    """Export the configured vector layers as derived GeoJSON (WP1 tier A).
+
+    Two tiers, as WP1 established them and the modeller confirmed (C.7): the
+    shapefiles stay in ``DATA_ROOT/GIS`` and only this converter reads them;
+    what a run reads is the derived file, in model CRS, carrying the geometry
+    and ONLY the columns the configuration asked for. The dataset therefore
+    stays self-contained without the repository ever holding a shapefile.
+
+    Coordinates are rounded to the centimetre. On La Mata that costs 0.031
+    percentage points on the worst vegetation cell -- far below the mapping
+    behind it -- and roughly halves the file.
+    """
+    import geopandas as gpd
+
+    import marmites_vector as mv
+
+    written = []
+    for role, dotted, columns, stem in VECTOR_LAYERS:
+        name = _dotted(cfg, dotted)
+        if not name:
+            report.append('%-12s not configured (%s) -- skipped' % (role, dotted))
+            continue
+        src = os.path.join(gis, name)
+        if not os.path.exists(src):
+            report.append('%-12s %s NOT FOUND in %s' % (role, name, gis))
+            continue
+        gdf = _to_target(gpd.read_file(src), role, report)
+        have = [c for c in columns if c in gdf.columns]
+        missing = [c for c in columns if c not in gdf.columns]
+        kind = ('point' if gdf.geom_type.iloc[0].endswith('Point')
+                else 'line' if 'Line' in gdf.geom_type.iloc[0] else 'polygon')
+        geoms, props = [], []
+        for _, row in gdf.iterrows():
+            g = row.geometry
+            if g is None or g.is_empty:
+                continue
+            if kind == 'point':
+                geoms.append((g.x, g.y))
+            elif kind == 'line':
+                parts = (list(g.geoms) if g.geom_type.startswith('Multi') else [g])
+                geoms.append([list(part.coords) for part in parts])
+            else:
+                polys = (list(g.geoms) if g.geom_type.startswith('Multi') else [g])
+                rings = []
+                for poly in polys:
+                    rings.append(list(poly.exterior.coords))
+                    rings.extend(list(r.coords) for r in poly.interiors)
+                geoms.append(rings)
+            props.append({c: _plain(row[c]) for c in have})
+        out = os.path.join(out_dir, stem + '.geojson')
+        if dry_run:
+            print('   would write %-24s %d feature(s)'
+                  % (os.path.basename(out), len(geoms)))
+        else:
+            mv.write_geojson(out, kind, geoms, props,
+                             crs=_crs_note(gdf.crs),
+                             provenance=_provenance_dict(src, len(geoms)))
+            print('   wrote %-26s %d feature(s), %.1f KB'
+                  % (os.path.basename(out), len(geoms),
+                     os.path.getsize(out) / 1024.0))
+        written.append(out)
+        if missing:
+            report.append('%-12s columns not in the layer: %s (it has: %s)'
+                          % (role, ', '.join(missing),
+                             ', '.join(c for c in gdf.columns if c != 'geometry')))
+    return written
+
+
+def _plain(v):
+    """A JSON-safe scalar: numpy types and NaT/NaN do not survive json.dump."""
+    try:
+        import numpy as np
+        if isinstance(v, np.generic):
+            v = v.item()
+    except Exception:                                        # pragma: no cover
+        pass
+    if v is None or (isinstance(v, float) and v != v):
+        return None
+    return v if isinstance(v, (int, float, bool, str)) else str(v)
+
+
+def _provenance_dict(path, n):
+    st = os.stat(path)
+    return {
+        'generated': datetime.datetime.now().strftime('%Y-%m-%d %H:%M'),
+        'generator': 'code/tools/gis_to_dataset.py',
+        'source': path,
+        'size': st.st_size,
+        'mtime': datetime.datetime.fromtimestamp(st.st_mtime)
+                 .strftime('%Y-%m-%d %H:%M'),
+        'features': n,
+    }
 
 
 def _provenance(path, gdf_or_crs=None, n=None):
@@ -221,7 +345,7 @@ def convert(case='LaMata', gis=None, out_dir=None, cfg=None, dry_run=False):
         pond_rows, dry_run))
 
     # -------------------------------------------------------------- watershed
-    p = os.path.join(gis, SOURCES['watershed'])
+    p = os.path.join(gis, cfg.grid.boundary or SOURCES['watershed'])
     ws = _to_target(gpd.read_file(p), 'watershed', report)
     ws_rows = []
     for ring_id, (_, row) in enumerate(ws.iterrows()):
@@ -236,6 +360,9 @@ def convert(case='LaMata', gis=None, out_dir=None, cfg=None, dry_run=False):
         + ['# catchment boundary in EPSG:%d -- the Voronoi domain (WP1c).'
            % TARGET_EPSG],
         ['ring_id', 'seq', 'x', 'y'], ws_rows, dry_run))
+
+    # ------------------------------------------------- WP1d: vector layers
+    written += _export_vector(gis, out_dir, cfg, report, dry_run)
 
     print('\nCRS handling:')
     for line in report:
