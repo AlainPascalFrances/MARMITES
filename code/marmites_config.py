@@ -336,6 +336,15 @@ class Paths:
 
 @dataclass
 class Run:
+    # --- the master switches behind the four front-end panels (WP1d) -----
+    # One block, so the shape of a run is visible in one place. MMsoil and MF6
+    # share ONE switch because they are no longer separable: the legacy
+    # ``MMsoil_yn = -1`` ("run MMsoil alone, for calibration") and ``MF_yn``
+    # belonged to the Picard loop that Phase 1 removed. ``model`` exists so
+    # MMsurf can be run on its own to produce the forcing and nothing else.
+    surface: bool = False          # panel 2: run MMsurf       (was MARMsurf_yn)
+    model: bool = True             # panel 3: MMsoil + MODFLOW 6, together
+    plot: bool = True              # panel 4: figures
     mode: str = 'lagged'           # lagged | iterative        (--mode)
     relax: float = 0.6             #                           (--relax)
     nsp: int = 0                   # 0 = all stress periods    (--nsp)
@@ -361,7 +370,43 @@ class GridVoronoi:
 
 
 @dataclass
+class GridOverride:
+    """Reproduce an EXISTING grid exactly, instead of deriving one (WP1d, C.1).
+
+    Panel 1 derives the grid from the catchment polygon, which is the right
+    design and also means the grid is no longer the one every committed
+    raster, the saved spin-up state and the WP0 byte-identical regression
+    were built on. This block is the escape hatch: set ``enable`` and the
+    origin and shape are taken from here, so an old grid can still be
+    rebuilt when something needs comparing against it.
+    """
+
+    enable: bool = False
+    xllcorner: float = 0.0
+    yllcorner: float = 0.0
+    nrow: int = 0
+    ncol: int = 0
+
+
+@dataclass
 class Grid:
+    """Panel 1 -- the first thing the modeller defines.
+
+    The catchment polygon comes first and the grid is built inside it. Every
+    other input is then wrapped onto whatever this produces, which is why
+    this panel is answered before any of the others.
+    """
+
+    # --- the domain (WP1d) ----------------------------------------------
+    # A polygon in DATA_ROOT/GIS, in the project CRS: PROJECTED, metric units.
+    # It defines the active domain, the mesh boundary and the model rectangle.
+    boundary: str = 'lm_lim.shp'
+    crs_epsg: int = 0              # 0 = take it from the layer's .prj
+    cell_size: float = 50.0        # m, background cell size for every kind
+    buffer: float = 0.0            # m, extend the rectangle beyond the polygon
+    override: GridOverride = field(default_factory=GridOverride)
+
+    # --- the producer ----------------------------------------------------
     # 'structured' is today's DIS grid and stays the DEFAULT until the WP1c.8
     # validation ladder clears the Voronoi mesh; 'dis' is accepted as an alias.
     kind: str = 'structured'
@@ -447,6 +492,261 @@ class ParamSource:
 
 
 @dataclass
+class VectorSource:
+    """A spatial input, from a vector layer, a raster, or one number (WP1d).
+
+    The new paradigm in one dataclass: information arrives as a shapefile in
+    ``DATA_ROOT/GIS`` -- points, lines or polygons, with or without attribute
+    columns -- and is wrapped onto whichever grid panel 1 defined.
+
+    Precedence, deliberately explicit rather than decided by which file
+    happens to exist:
+
+        raster  >  layer  >  value
+
+    A raster beats a polygon attribute (the modeller's ruling, C.4: a real
+    continuous map is better evidence than a per-polygon constant), and a
+    bare number stands for "uniform over the catchment". Nothing is set is an
+    ERROR, not a silent zero.
+    """
+
+    layer: str = ''                # shapefile in DATA_ROOT/GIS
+    column: str = ''               # attribute carrying the value
+    how: str = 'auto'              # see marmites_vector; 'auto' picks by kind
+    raster: str = ''               # an ASCII raster in the dataset folder
+    value: float = None            # one number for the whole catchment
+    fill: float = 0.0              # where nothing reaches
+
+    def producer(self):
+        if self.raster:
+            return 'raster'
+        if self.layer:
+            return 'layer'
+        if self.value is not None:
+            return 'value'
+        return None
+
+    def validate(self, what):
+        if self.producer() is None:
+            raise ConfigError(
+                '%s: nothing to read -- set one of raster, layer or value '
+                '(a raster wins over a layer, and a layer over a value)' % what)
+        if self.layer and not self.layer.lower().endswith('.shp'):
+            raise ConfigError('%s.layer must name a shapefile, got %r'
+                              % (what, self.layer))
+
+    @classmethod
+    def from_value(cls, v):
+        if isinstance(v, dict):
+            return _build(cls, v, 'vector source')
+        if isinstance(v, str):
+            return cls(layer=v) if v.lower().endswith('.shp') else cls(raster=v)
+        return cls(value=float(v))
+
+
+# =====================================================================
+#  Panel 2 -- SURFACE (MMsurf)
+# =====================================================================
+# These replace MMsurf_ws/__inputMMsurf.ini entirely. Field names are the
+# ini's own wherever the ini had a name; where it only had a position, the
+# name is the one the MMsurf code uses.
+
+@dataclass
+class MeteoStation:
+    """One meteorological station.
+
+    ``x``/``y`` are in the PROJECT CRS and are what the modeller enters; the
+    code converts them to the latitude and longitude Penman-Monteith needs
+    for its solar geometry (WP1d, C.5). The ini held the geographic pair
+    directly, and on La Mata it was 6.8 km out -- which never showed, because
+    with one station the Thiessen polygon is the whole catchment either way.
+    """
+
+    name: str = 'station1'
+    x: float = 0.0                 # project CRS, m
+    y: float = 0.0                 # project CRS, m
+    z: float = 0.0                 # m a.s.l.                          (Z)
+    tz_lon: float = 0.0            # deg W, centre of the time zone    (Lz)
+    fuse_shift: float = 0.0        # h, site not in its nominal zone   (FC)
+    data_shift: float = 0.0        # h, data not on standard clock     (DTS)
+    z_wind: float = 2.0            # m, wind measurement height        (z_m)
+    z_hum: float = 2.0             # m, humidity measurement height    (z_h)
+
+
+@dataclass
+class Vegetation:
+    """One vegetation type.
+
+    NOTE MMsurf prepends a reference ``grassFAO56`` with fixed FAO-56
+    parameters and works internally with NVEG+1 types. Only the modeller's
+    own types belong here; index 0 is never one of them.
+    """
+
+    name: str = 'veg1'
+    h_dry: float = 0.12            # m                                 (h_d)
+    h_wet: float = 0.12            # m                                 (h_w)
+    canopy_mm: float = 0.1         # mm, canopy storage                (S_w)
+    c_leaf: float = 0.01           # m/s, max leaf conductance         (C_leaf_star)
+    lai_dry: float = 2.88          # m2/m2                             (LAI_d)
+    lai_wet: float = 2.88          # m2/m2                             (LAI_w)
+    shelter_dry: float = 0.5       #                                   (f_s_vd)
+    shelter_wet: float = 0.5       #                                   (f_s_vw)
+    albedo_dry: float = 0.23       #                                   (alfa_vd)
+    albedo_wet: float = 0.23       #                                   (alfa_vw)
+    j_dry: int = 150               # julian day the dry season starts  (J_vd)
+    j_wet: int = 270               # julian day the wet season starts  (J_vw)
+    trans_dry_wet: int = 20        # d                                 (TRANS_vdw)
+    trans_wet_dry: int = 20        # d                                 (TRANS_vwd)
+    root_depth: float = 0.25       # m, max root depth                 (Zr)
+    ktg_min: float = 0.05          #                                   (kTg_min)
+    ktg_max: float = 0.10          #                                   (kTg_max)
+    kt_f: float = 0.5              #                                   (kT_f)
+    # The ini's 19th field is commented 'kT_1/s' and holds values above 1,
+    # and the driver applies 1/x before using it. So the FILE stored 1/s
+    # while the model wanted s. Here the field IS s, 0 < s < 1, and the
+    # inversion happens on the way to MMsurf -- not in the modeller's head.
+    kt_s: float = 1.0              #                                   (kT_s)
+
+
+@dataclass
+class Crop:
+    """One irrigated crop. The crop counterpart of Vegetation."""
+
+    name: str = 'crop1'
+    h: float = 0.7                 # m                                 (h_c)
+    canopy_mm: float = 0.15        # mm                                (S_w_c)
+    c_leaf: float = 0.010          # m/s                               (C_leaf_star_c)
+    lai: float = 3.5               # m2/m2, max                        (LAI_c)
+    shelter: float = 0.55          #                                   (f_s_c)
+    albedo: float = 0.15           #                                   (alfa_c)
+    root_depth: float = 1.2        # m                                 (Zr_c)
+    ktg_min: float = 0.05          #                                   (kTg_min_c)
+    ktg_max: float = 0.10          #                                   (kTg_max_c)
+    kt_f: float = 0.5              #                                   (kT_f_c)
+    kt_s: float = 1.0              # s, as for Vegetation.kt_s         (kT_s_c)
+
+
+@dataclass
+class SurfaceSoil:
+    """Surface (top 1 cm) soil properties, for bare-soil EVAPORATION.
+
+    NOT the soil-column parameters of panel 3: different file, different
+    meaning, same word. These drive PE in MMsurf; ``Smax``, ``Sfc``, ``Sr``
+    and ``Ks`` drive the soil water balance in MMsoil.
+    """
+
+    name: str = 'soil1'
+    porosity: float = 0.40         # m3/m3, top 1 cm                   (por)
+    field_capacity: float = 0.25   # m3/m3, top 1 cm                   (fc)
+    albedo_dry: float = 0.20       #                                   (alfa_sd)
+    albedo_wet: float = 0.15       #                                   (alfa_sw)
+    j_dry: int = 150               #                                   (J_sd)
+    j_wet: int = 270               #                                   (J_sw)
+    trans_dry_wet: int = 20        # d                                 (TRANS_sdw)
+    trans_wet_dry: int = 20        # d                                 (TRANS_swd)
+
+
+@dataclass
+class Surface:
+    """Panel 2 -- everything MMsurf needs. Run when ``run.surface`` is true.
+
+    MMsurf turns the hourly meteorological record into the daily forcing
+    MMsoil consumes (rainfall, throughfall, potential transpiration per
+    vegetation type, potential evaporation per surface soil, open-water
+    evaporation, LAI). Those outputs are RUN OUTPUT and go to the workspace;
+    they are not inputs and do not appear in the front-end.
+
+    ``__inputMMsurf4MMsoil.txt`` is gone: MMsurf and MMsoil both read these
+    values from the configuration, so nothing is written to be read back.
+    """
+
+    # --- time series (in MMsurf_ws, beside the case) ---------------------
+    meteo_ts: str = '__meteoTB.txt'
+    # ONE wide file: Date, Time, then SIX columns per station in the order
+    # P, Ta, RHa, Pa, u_z_m, Rs. Hourly. The header row is compulsory and is
+    # never parsed -- column ORDER is the contract.
+    irrigation: bool = False       #                                   (irr_yn)
+    irr_ts: str = '__IRR_TS.txt'   # Date, Time, then one column per FIELD
+    crop_schedule: str = '__inputFIELD%d_crop_schedule.txt'   # one per field
+    nfield: int = 0                # number of irrigated fields        (NFIELD)
+    out_prefix: str = 'lamata'     #                                   (outputFILE_fn)
+    plot: int = 0                  # 0 = PNG to disk, 1 = on screen  (MMsurf_plot)
+
+    # --- parameter tables, one entry per zone/type -----------------------
+    station: list = field(default_factory=list)      # MeteoStation
+    vegetation: list = field(default_factory=list)   # Vegetation
+    crop: list = field(default_factory=list)         # Crop
+    soil: list = field(default_factory=list)         # SurfaceSoil
+
+    # --- spatial ---------------------------------------------------------
+    # Meteo zones are Thiessen polygons of the stations, built from their
+    # project-CRS coordinates; with one station that is the whole catchment.
+    # Set `layer` to override with a mapped zonation.
+    meteo_zones: VectorSource = field(default_factory=VectorSource)
+    irr_zones: VectorSource = field(default_factory=VectorSource)
+
+    _ELEMENTS = {'station': MeteoStation, 'vegetation': Vegetation,
+                 'crop': Crop, 'soil': SurfaceSoil}
+
+
+# =====================================================================
+#  Panel 3 -- SOIL (MMsoil).  The MODFLOW half keeps its own sections.
+# =====================================================================
+
+@dataclass
+class VegetationClass:
+    """One value of the vegetation layer's class column -> a Vegetation index.
+
+    ``code`` is what the attribute holds ('i', 'p', 'g' on La Mata) and
+    ``veg`` is the 1-based index into ``surface.vegetation``. The share of
+    each cell covered is computed by exact area overlay, so a cell 37 %
+    covered gets 37 -- not the class under its centre.
+    """
+
+    code: str = ''
+    veg: int = 0
+
+
+@dataclass
+class Soil:
+    """Panel 3 -- what MMsoil reads, now from vector layers."""
+
+    params: str = 'MF_ws/inputSOILparam.txt'   # per-zone soil column table
+    # The zone code MUST match the zone order of `params`.
+    zones: VectorSource = field(
+        default_factory=lambda: VectorSource(layer='Soil_type.shp',
+                                             column='SoilCode', how='majority'))
+    # A raster beats the polygon attribute (C.4).
+    thickness: VectorSource = field(
+        default_factory=lambda: VectorSource(raster='inputSOILthick.asc',
+                                             column='SOILthick', how='area_mean'))
+    # Vegetation cover: one area-fraction field per vegetation type.
+    veg_layer: str = 'lm_veg.shp'
+    veg_column: str = 'Species'
+    veg_class: list = field(default_factory=list)     # VegetationClass
+
+    _ELEMENTS = {'veg_class': VegetationClass}
+
+
+@dataclass
+class Observations:
+    """Where the measured series live, and which points are used.
+
+    The point table stays a text file: it carries per-point metadata (layer,
+    initial head, the RC/STO columns) that no shapefile column set has ever
+    fully matched, and `##` in front of a name means the point is not drawn
+    on the maps.
+    """
+
+    table: str = 'inputObs.txt'
+    layer: str = ''                # optional point layer, for the map preview
+    name_column: str = 'Name'
+    heads_prefix: str = 'inputObsHEADS'
+    sm_prefix: str = 'inputObsSM'
+    ro_prefix: str = 'inputObsRo'
+
+
+@dataclass
 class Sfr:
     enable: bool = False           #                           (--sfr)
     source: str = 'inputSTREAM.csv'
@@ -492,6 +792,8 @@ class Spinup:
 
 @dataclass
 class Postproc:
+    """Panel 4 -- plotting. Run when ``run.plot`` is true."""
+
     enable: bool = False           #                           (--postproc)
     preproc: bool = False          #                           (--preproc)
     only: bool = False             #                           (--postproc-only)
@@ -499,6 +801,19 @@ class Postproc:
     sankey_full: bool = True       #                           (--no-sankey-full)
     sankey_obs_years: bool = False  #                          (--sankey-obs-years)
     map_days: int = 6              #                           (--map-days)
+    # --- recovered from the MM ini (WP1d) --------------------------------
+    # hydro_year_start drives the x-axis major locator of ~20 time-series
+    # figures and the Sankey year index. It was in the ini but never reached
+    # the model: nothing set it on cMF, so every call site fell back to the
+    # getattr default of October and the modeller's value did nothing.
+    hydro_year_start: int = 10     # month 1..12               (iniMonthHydroYear)
+    wb_unit: str = 'year'          # year | day                (plt_WB_unit)
+    obs_series: bool = True        # per-point series + balance  (plt_out_obs)
+    sankey: bool = True            #                           (WBsankey_yn)
+    input_maps: bool = False       #                           (plt_input)
+    result_maps: bool = True       # the plotLAYER map families
+    tick_trimester_years: int = 10  #                   (maxYearsTickTrimester)
+    tick_semester_years: int = 20  #                    (maxYearsTickSemester)
 
 
 @dataclass
@@ -518,10 +833,17 @@ class Ui:
     poll_secs: int = 3
 
 
+# Order matters only for the resolved-config dump; it follows the panels:
+# 1 grid, 2 surface, 3 soil + MODFLOW, 4 plotting.
 _SECTIONS = {
-    'meta': Meta, 'paths': Paths, 'run': Run, 'grid': Grid, 'layers': Layers,
+    'meta': Meta, 'paths': Paths, 'run': Run,
+    'grid': Grid,
+    'surface': Surface,
+    'soil': Soil, 'obs': Observations, 'layers': Layers,
     'uzf': Uzf, 'seep': Seep, 'et': Et, 'sfr': Sfr, 'lak': Lak, 'crr': Crr,
-    'spinup': Spinup, 'postproc': Postproc, 'pest': Pest, 'ui': Ui,
+    'spinup': Spinup,
+    'postproc': Postproc,
+    'pest': Pest, 'ui': Ui,
 }
 
 GRID_KINDS = ('structured', 'disv', 'voronoi', 'quadtree')
@@ -536,6 +858,24 @@ _GRID_ALIAS = {'dis': 'structured'}
 _NOT_YET = ()
 
 
+def _sub_dataclass(f):
+    """The nested dataclass a field holds, or None.
+
+    Taken from the field's DEFAULT rather than from its annotation: the
+    annotations in this file are bare names, which arrive as strings on some
+    interpreters, and a lookup table of them is one more thing to forget to
+    update when a section is added.
+    """
+    if f.default_factory is not dataclasses.MISSING:      # type: ignore[attr-defined]
+        try:
+            probe = f.default_factory()
+        except Exception:                                 # pragma: no cover
+            return None
+        if dataclasses.is_dataclass(probe):
+            return type(probe)
+    return None
+
+
 def _build(cls, data, where):
     """Instantiate a section dataclass, RAISING on any unknown key."""
     if not isinstance(data, dict):
@@ -546,13 +886,21 @@ def _build(cls, data, where):
         raise ConfigError(
             '%s: unknown key(s) %s -- valid keys are %s'
             % (where, ', '.join(repr(u) for u in unknown), ', '.join(sorted(fields_))))
+    elements = getattr(cls, '_ELEMENTS', {})
     kwargs = {}
     for k, v in data.items():
-        ftype = fields_[k].type
-        if ftype in (GridVoronoi, 'GridVoronoi'):
-            v = _build(GridVoronoi, v, '%s.%s' % (where, k))
-        elif ftype in (ParamSource, 'ParamSource'):
-            v = ParamSource.from_value(v)
+        if k in elements:                     # an array of tables: [[a.b]]
+            if not isinstance(v, list):
+                raise ConfigError('%s.%s: expected a list of tables, got %s'
+                                  % (where, k, type(v).__name__))
+            v = [_build(elements[k], item, '%s.%s[%d]' % (where, k, n))
+                 for n, item in enumerate(v)]
+        else:
+            sub = _sub_dataclass(fields_[k])
+            if sub in (ParamSource, VectorSource):
+                v = sub.from_value(v)         # a bare number or name is allowed
+            elif sub is not None:
+                v = _build(sub, v, '%s.%s' % (where, k))
         kwargs[k] = v
     return cls(**kwargs)
 
@@ -565,6 +913,9 @@ class RunConfig:
     paths: Paths = field(default_factory=Paths)
     run: Run = field(default_factory=Run)
     grid: Grid = field(default_factory=Grid)
+    surface: Surface = field(default_factory=Surface)
+    soil: Soil = field(default_factory=Soil)
+    obs: Observations = field(default_factory=Observations)
     layers: Layers = field(default_factory=Layers)
     uzf: Uzf = field(default_factory=Uzf)
     seep: Seep = field(default_factory=Seep)
@@ -635,6 +986,55 @@ class RunConfig:
                 getattr(self.sfr, name).validate('sfr.%s' % name)
             except ConfigError as exc:
                 errs.append(str(exc))
+        # --- panel 1: the domain ----------------------------------------
+        if not self.grid.boundary:
+            errs.append('grid.boundary must name the catchment polygon '
+                        '(a projected, metric shapefile in DATA_ROOT/GIS)')
+        elif not self.grid.boundary.lower().endswith('.shp'):
+            errs.append('grid.boundary must be a shapefile, got %r'
+                        % self.grid.boundary)
+        if self.grid.cell_size <= 0:
+            errs.append('grid.cell_size must be > 0')
+        if self.grid.buffer < 0:
+            errs.append('grid.buffer must be >= 0')
+        ov = self.grid.override
+        if ov.enable and (ov.nrow <= 0 or ov.ncol <= 0):
+            errs.append('grid.override.enable needs nrow and ncol > 0')
+        # --- panel 2: the surface ---------------------------------------
+        if self.run.surface:
+            if not self.surface.station:
+                errs.append('run.surface is on but surface.station is empty: '
+                            'MMsurf needs at least one meteo station')
+            if not self.surface.vegetation:
+                errs.append('run.surface is on but surface.vegetation is empty')
+            if not self.surface.soil:
+                errs.append('run.surface is on but surface.soil is empty '
+                            '(the SURFACE soils, for bare-soil evaporation)')
+        if self.surface.irrigation and self.surface.nfield < 1:
+            errs.append('surface.irrigation needs surface.nfield >= 1')
+        if self.surface.irrigation and not self.surface.crop:
+            errs.append('surface.irrigation needs at least one surface.crop')
+        for n, v in enumerate(self.surface.vegetation):
+            if not (0.0 < v.kt_s <= 1.0):
+                errs.append('surface.vegetation[%d].kt_s must be in (0, 1] -- '
+                            'this field is s, not the 1/s the old ini stored'
+                            % n)
+        # --- panel 3: the soil ------------------------------------------
+        for name in ('zones', 'thickness'):
+            try:
+                getattr(self.soil, name).validate('soil.%s' % name)
+            except ConfigError as exc:
+                errs.append(str(exc))
+        nveg = len(self.surface.vegetation)
+        for n, c in enumerate(self.soil.veg_class):
+            if nveg and not (1 <= c.veg <= nveg):
+                errs.append('soil.veg_class[%d].veg = %d is not a vegetation '
+                            'index (1..%d)' % (n, c.veg, nveg))
+        # --- panel 4: plotting ------------------------------------------
+        if not (1 <= self.postproc.hydro_year_start <= 12):
+            errs.append('postproc.hydro_year_start must be a month, 1..12')
+        if self.postproc.wb_unit not in ('year', 'day'):
+            errs.append("postproc.wb_unit must be 'year' or 'day'")
         if errs:
             raise ConfigError('Invalid MARMITES run configuration'
                               + (' (%s)' % self.source_path if self.source_path else '')
@@ -715,12 +1115,14 @@ class RunConfig:
                  '# config_hash = %s' % self.config_hash(), '']
         for name in _SECTIONS:
             sec = getattr(self, name)
-            nested = []
+            nested, arrays = [], []
             lines.append('[%s]' % name)
             for f in dataclasses.fields(sec):
                 v = getattr(sec, f.name)
                 if dataclasses.is_dataclass(v):
                     nested.append((f.name, v))
+                elif isinstance(v, list) and v and dataclasses.is_dataclass(v[0]):
+                    arrays.append((f.name, v))
                 else:
                     lines.append('%s = %s' % (f.name, _toml_value(v)))
             for sub, v in nested:
@@ -731,6 +1133,13 @@ class RunConfig:
                     if val in (None, '', {}, []):
                         continue
                     lines.append('%s = %s' % (f.name, _toml_value(val)))
+            for sub, items in arrays:
+                for it in items:
+                    lines.append('')
+                    lines.append('[[%s.%s]]' % (name, sub))
+                    for f in dataclasses.fields(it):
+                        lines.append('%s = %s'
+                                     % (f.name, _toml_value(getattr(it, f.name))))
             lines.append('')
         with open(path, 'w', encoding='utf-8') as fh:
             fh.write('\n'.join(lines))

@@ -196,7 +196,7 @@ class Layer:
             raise VectorError('vector layer not found: %s' % path)
         self.path = path
         self.name = os.path.splitext(os.path.basename(path))[0]
-        rdr = shapefile.Reader(path)
+        rdr = self._open(shapefile, path)
         self.shape_type = int(rdr.shapeType)
         self.kind = _KIND.get(self.shape_type)
         if self.kind is None:
@@ -210,6 +210,30 @@ class Layer:
         self.crs_wkt = (open(prj, encoding='utf-8', errors='replace').read()
                         if os.path.exists(prj) else '')
         rdr.close()
+
+    @staticmethod
+    def _open(shapefile, path):
+        """Open the layer, surviving the encoding names GIS software writes.
+
+        ArcGIS drops a ``.cpg`` saying ``ansi 1252``, which pyshp hands
+        straight to ``bytes.decode`` and Python does not know -- so a file
+        re-saved from ArcGIS stops opening, with a LookupError that says
+        nothing about shapefiles. cp1252 is what that name means; latin-1 is
+        the last resort because it cannot fail.
+        """
+        try:
+            return shapefile.Reader(path)
+        except (LookupError, UnicodeDecodeError):
+            pass
+        for enc in ('cp1252', 'latin-1'):
+            try:
+                return shapefile.Reader(path, encoding=enc,
+                                        encodingErrors='replace')
+            except (LookupError, UnicodeDecodeError):
+                continue
+        raise VectorError('%s: cannot decode the attribute table; the .cpg '
+                          'file names an encoding Python does not know'
+                          % os.path.basename(path))
 
     def __len__(self):
         return len(self.shapes)

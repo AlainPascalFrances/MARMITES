@@ -30,6 +30,13 @@ nwt_reference = ""           # blank -> mm_paths.NWT_REF (the NWT comparison pan
 libmf6        = ""           # blank -> mm_paths.LIBMF6           (--libmf6)
 
 [run]
+# The four panels' master switches, in one block so the shape of a run is
+# visible in one place. MMsoil and MF6 share one switch -- they are no longer
+# separable -- and `surface` exists so MMsurf can be run on its own to
+# produce the forcing.
+surface          = false     # panel 2: run MMsurf                (MARMsurf_yn)
+model            = true      # panel 3: MMsoil + MODFLOW 6, together
+plot             = true      # panel 4: figures
 mode             = "lagged"  # lagged | iterative                 (--mode)
 relax            = 0.6       # iterative under-relaxation         (--relax)
 nsp              = 0         # 0 = all stress periods             (--nsp)
@@ -41,13 +48,27 @@ probe            = false     # list the MF6 memory variables      (--probe)
 max_discrepancy  = 1.0       # fail above this cumulative MB [%]  (--max-discrepancy)
 allow_bad_budget = false     #                                    (--allow-bad-budget)
 
-# --- GRID ---------------------------------------------------------------
+# =========================================================================
+# PANEL 1 -- THE GRID.  The first thing defined, and everything else is
+# wrapped onto it: the catchment polygon comes first, the grid is built
+# inside it, and every other input is then projected onto whatever it
+# produces.
+#
 # WP1c built all four producers. "structured" is today's DIS grid and stays the
 # DEFAULT until the Voronoi mesh is validated against it (the WP1c.8 ladder);
 # it is also the regression anchor and the MODFLOW-NWT comparison, so it is
 # kept permanently. "dis" is accepted as an alias. "quadtree" additionally
 # needs pyshp, which flopy's gridgen wrapper uses to read the mesh back.
+# =========================================================================
 [grid]
+# The catchment: a PROJECTED, metric polygon in DATA_ROOT/GIS. lm_lim.shp is
+# 4.844 km2, against 4.885 km2 for the 1954 active cells of the legacy model
+# -- the same domain. (Limite.shp, which WP1 used, is 19.159 km2: nearly four
+# times the catchment, and the reason the converter had to clip to the grid.)
+boundary  = "lm_lim.shp"
+crs_epsg  = 23029            # 0 = take it from the layer's .prj  (ED50 / UTM 29N)
+cell_size = 50.0             # m, background cell size for every grid kind
+buffer    = 0.0              # m, extend the rectangle beyond the polygon
 kind    = "structured"       # structured | disv | voronoi | quadtree   (--grid)
 rebuild = false              # true = re-mesh; the cache carries the mesh signature
 # WP1c.3. "auto" = area-weighted means for continuous fields, largest-overlap
@@ -84,6 +105,238 @@ stream_refine    = true      # false = SFRmaker style, network on the background
 trans_levels     = [10.0, 20.0, 40.0, 70.0]   # Daoud-style graded transitions
 seed_ponds       = true      # one pond-scale cell per pond, centroid-seeded;
                              # honoured from WP4, and the producer says so if set
+
+# Deriving the grid from the polygon means it is NOT the grid every committed
+# raster, the saved spin-up state and the WP0 byte-identical regression were
+# built on -- lm_lim.shp spans x 739293..742223, y 4553110..4556240, which is
+# inside the legacy rectangle and 7 m west of its western edge. This block
+# rebuilds the legacy grid exactly when something needs comparing against it.
+[grid.override]
+enable    = false
+xllcorner = 739300.0
+yllcorner = 4553050.0
+nrow      = 65
+ncol      = 60
+
+# =========================================================================
+# PANEL 2 -- SURFACE (MMsurf).  Run when run.surface is true.
+#
+# Replaces MMsurf_ws/__inputMMsurf.ini entirely, and with it
+# __inputMMsurf4MMsoil.txt: MMsurf and MMsoil read these values from here,
+# so nothing is written to be read back. MMsurf's outputs -- rainfall,
+# throughfall, PT per vegetation type, PE per surface soil, open-water
+# evaporation, LAI -- are RUN OUTPUT and go to the workspace.
+# =========================================================================
+[surface]
+meteo_ts      = "__meteoTB.txt"
+# ONE wide file: Date, Time, then SIX columns per station in the order
+# P, Ta, RHa, Pa, u_z_m, Rs. Hourly. The header row is compulsory and is
+# never parsed -- column ORDER is the contract.
+irrigation    = true         #                                    (irr_yn)
+irr_ts        = "__IRR_TS.txt"     # Date, Time, one column per FIELD
+crop_schedule = "__inputFIELD%d_crop_schedule.txt"   # one file per field
+nfield        = 1            #                                    (NFIELD)
+out_prefix    = "lamata"     #                                    (outputFILE_fn)
+plot          = 0            # 0 = PNG to disk, 1 = on screen   (MMsurf_plot)
+
+# Coordinates are in the PROJECT CRS and the code converts them to the
+# latitude/longitude Penman-Monteith needs. The old ini held the geographic
+# pair directly and was 6.8 km out (41.045 N / 6.16 W against the catchment's
+# 41.117 N / 6.149 W), which never showed because one station means one zone.
+[[surface.station]]
+name       = "Sardon"
+x          = 739508.0
+y          = 4555882.0
+z          = 798.422         # m a.s.l.                                (Z)
+tz_lon     = 0.0             # deg W, centre of the time zone          (Lz)
+fuse_shift = 1.0             # h                                       (FC)
+data_shift = 3.0             # h, data not on standard clock time      (DTS)
+z_wind     = 6.0             # m                                       (z_m)
+z_hum      = 6.0             # m                                       (z_h)
+
+# NOTE MMsurf prepends a reference grassFAO56 with fixed FAO-56 parameters, so
+# three types here means four internally and index 0 is never one of them.
+# kt_s is s (0 < s <= 1); the old ini stored 1/s and the driver inverted it.
+# Values are the ones the model runs on today, i.e. from the handover file --
+# which differs slightly from the committed ini (kTg_min 0.044694 against
+# 0.044409), because the ini in the repo predates the forcing.
+[[surface.vegetation]]
+name          = "grassMU"
+h_dry         = 0.01
+h_wet         = 0.5
+canopy_mm     = 0.15
+c_leaf        = 0.010
+lai_dry       = 0.0
+lai_wet       = 2.88
+shelter_dry   = 0.5
+shelter_wet   = 0.55
+albedo_dry    = 0.50
+albedo_wet    = 0.20
+j_dry         = 150
+j_wet         = 300
+trans_dry_wet = 20
+trans_wet_dry = 30
+root_depth    = 0.40
+ktg_min       = 0.05
+ktg_max       = 0.10
+kt_f          = 0.5
+kt_s          = 1.0
+
+[[surface.vegetation]]
+name          = "Qilex"
+h_dry         = 6.0
+h_wet         = 6.0
+canopy_mm     = 1.16
+c_leaf        = 0.004
+lai_dry       = 6.0
+lai_wet       = 6.0
+shelter_dry   = 0.75
+shelter_wet   = 0.70
+albedo_dry    = 0.25
+albedo_wet    = 0.10
+j_dry         = 150
+j_wet         = 290
+trans_dry_wet = 20
+trans_wet_dry = 50
+root_depth    = 15.0
+ktg_min       = 0.044694325
+ktg_max       = 0.865399396
+kt_f          = 0.10177166815831
+kt_s          = 0.04549277590845763    # = 1 / 21.98151201
+
+[[surface.vegetation]]
+name          = "Qpyr"
+h_dry         = 8.0
+h_wet         = 8.0
+canopy_mm     = 1.75
+c_leaf        = 0.004
+lai_dry       = 6.0
+lai_wet       = 1.0
+shelter_dry   = 0.80
+shelter_wet   = 0.30
+albedo_dry    = 0.25
+albedo_wet    = 0.15
+j_dry         = 150
+j_wet         = 290
+trans_dry_wet = 20
+trans_wet_dry = 30
+root_depth    = 10.0
+ktg_min       = 0.044694325
+ktg_max       = 0.865399396
+kt_f          = 0.10177166815831
+kt_s          = 0.04549277590845763
+
+[[surface.crop]]
+name       = "alfalfa"
+h          = 0.7
+canopy_mm  = 0.15
+c_leaf     = 0.010
+lai        = 3.5
+shelter    = 0.55
+albedo     = 0.15
+root_depth = 1.2
+ktg_min    = 0.05
+ktg_max    = 0.10
+kt_f       = 0.5
+kt_s       = 1.0
+
+# The SURFACE soils: top 1 cm, for bare-soil EVAPORATION. Not the soil-column
+# parameters of panel 3 -- different file, different meaning, same word.
+# (MMsurf reads eight values and uses trans_dry_wet for both directions; the
+# ini's ninth number was never read.)
+[[surface.soil]]
+name           = "alluvium"
+porosity       = 0.40
+field_capacity = 0.25
+albedo_dry     = 0.20
+albedo_wet     = 0.15
+j_dry          = 150
+j_wet          = 270
+trans_dry_wet  = 20
+trans_wet_dry  = 20
+
+[[surface.soil]]
+name           = "regolith"
+porosity       = 0.35
+field_capacity = 0.15
+albedo_dry     = 0.25
+albedo_wet     = 0.20
+j_dry          = 150
+j_wet          = 270
+trans_dry_wet  = 20
+trans_wet_dry  = 20
+
+[[surface.soil]]
+name           = "outcrop"
+porosity       = 0.05
+field_capacity = 0.02
+albedo_dry     = 0.30
+albedo_wet     = 0.20
+j_dry          = 130
+j_wet          = 270
+trans_dry_wet  = 20
+trans_wet_dry  = 20
+
+# Meteo zones are Thiessen polygons of the stations above, so with one station
+# the whole catchment is zone 1 and inputMETEOzones.asc disappears. Set `layer`
+# to override with a mapped zonation instead.
+[surface.meteo_zones]
+value = 1.0
+
+[surface.irr_zones]
+layer  = "Irr_Fields.shp"
+column = "field_id"          # 1..NFIELD, 0 = not irrigated
+how    = "majority"
+
+# =========================================================================
+# PANEL 3 -- SOIL (MMsoil).  The MODFLOW half keeps its own sections below.
+# =========================================================================
+[soil]
+params = "MF_ws/inputSOILparam.txt"   # per-zone soil column table
+
+# Vegetation cover: the share of each cell covered by each type, by exact area
+# overlay of the crown polygons. Validated against the legacy rasters -- Qilex
+# 3.847 % against 3.847 %, Qpyr 0.374 % against 0.374 %, worst cell 0.014
+# percentage points.
+veg_layer  = "lm_veg.shp"
+veg_column = "Species"
+
+# The zone code must match the zone ORDER of params (1 alluvium, 2 regolith,
+# 3 outcrop). Soil_type.shp is the layer -- 27 polygons, 1831 of 1962 cells
+# agreeing with the legacy raster; SOIL_map.shp agrees on only 1342.
+[soil.zones]
+layer  = "Soil_type.shp"
+column = "SoilCode"
+how    = "majority"
+
+# A raster beats the polygon attribute. inputSOILthick.asc is a real
+# continuous thickness map (mean 0.612 m), not the per-zone constants the
+# SOILthick column holds (which would give 0.789 m) -- which is exactly why
+# the raster wins. Drop the raster and the column takes over.
+[soil.thickness]
+raster = "inputSOILthick.asc"
+column = "SOILthick"
+how    = "area_mean"
+
+[[soil.veg_class]]
+code = "g"                   # grass
+veg  = 1
+
+[[soil.veg_class]]
+code = "i"                   # Quercus ilex
+veg  = 2
+
+[[soil.veg_class]]
+code = "p"                   # Quercus pyrenaica
+veg  = 3
+
+[obs]
+table        = "inputObs.txt"   # '##' before a name means: not drawn on maps
+layer        = "202109MonitPts.shp"   # preview only; the table is authoritative
+name_column  = "Name"
+heads_prefix = "inputObsHEADS"
+sm_prefix    = "inputObsSM"
+ro_prefix    = "inputObsRo"
 
 [layers]
 nlay      = 2                # 2 reads _2s1L.ini directly         (--nlay)
@@ -164,6 +417,9 @@ save_strt    = ""            #                                    (--save-strt)
 save_means   = ""            #                                    (--save-means)
 strt_dem     = []            # [a, b] -> head = a*elev + b        (--strt-dem)
 
+# =========================================================================
+# PANEL 4 -- PLOTTING.  Run when run.plot is true.
+# =========================================================================
 [postproc]
 enable           = true      #                                    (--postproc)
 preproc          = true      #                                    (--preproc)
@@ -172,6 +428,18 @@ sankey_min_flux  = 0.05      # mm/y                               (--sankey-min-
 sankey_full      = true      #                                    (--no-sankey-full)
 sankey_obs_years = false     #                                    (--sankey-obs-years)
 map_days         = 6         # 0 = time mean only                 (--map-days)
+# Recovered from the MM ini. hydro_year_start drives the x-axis major locator
+# of ~20 time-series figures and the Sankey year index; it was in the ini but
+# never reached the model -- nothing set it on cMF, so every call site fell
+# back to a hardcoded October and the modeller's value did nothing.
+hydro_year_start     = 10    # month 1..12                  (iniMonthHydroYear)
+wb_unit              = "year"   # year | day                    (plt_WB_unit)
+obs_series           = true  # per-point series + balance       (plt_out_obs)
+sankey               = true  #                                  (WBsankey_yn)
+input_maps           = false #                                    (plt_input)
+result_maps          = true  # the plotLAYER map families
+tick_trimester_years = 10    #                        (maxYearsTickTrimester)
+tick_semester_years  = 20    #                         (maxYearsTickSemester)
 
 # --- PEST (WP7) ---------------------------------------------------------
 [pest]
