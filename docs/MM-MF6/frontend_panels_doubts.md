@@ -410,3 +410,40 @@ place: majority is faithful per cell and loses minority classes in aggregate.
 Since the grid is changing anyway (panel 1) exact reproduction is not
 required, but a third fewer alluvium cells changes the soil water balance, so
 I want you to see it rather than discover it later.
+
+---
+
+## F  MMsurf recovered, and proven faithful  (2026-09-11)
+
+Finding B.1 said the MMsurf in the repository could not reproduce the forcing
+it supposedly wrote. It can now, and the proof is exact.
+
+**Run 1 — the recovered MMsurf, driven by the configuration.** Rainfall, LAI
+and the crop schedule come out identical; the residual is 0.009 % on the mean
+and confined to the three quantities that pass through Penman-Monteith:
+
+| file | mean new | mean old | max diff |
+|---|---:|---:|---:|
+| `inputZONRF_veg_d.txt` | 1.201939 | 1.201939 | **0** |
+| `inputZONLAI_veg_d.txt` | 3.516259 | 3.516259 | **0** |
+| `inputZONRF_irr_d.txt` | 1.807574 | 1.807574 | **0** |
+| `inputZONcrop_irr_d.txt` | 0.617753 | 0.617753 | **0** |
+| `inputZONTF_veg_d.txt` | 0.880196 | 0.880193 | 1.2e-04 |
+| `inputZONPT_veg_d.txt` | 0.514251 | 0.514252 | 1.8e-02 |
+| `inputZONPE_d.txt` | 1.577433 | 1.577571 | 1.2e-01 |
+| `inputZONEo_d.txt` | 1.761934 | 1.762088 | 1.3e-01 |
+
+**Run 2 — the same, with the ini's station position pinned back** (41.045 N /
+6.16 W instead of the 41.117 N / 6.149 W that 739508, 4555882 projects to).
+Every one of the ten files reproduces **exactly, max diff 0**.
+
+So the residual is the station move and nothing else: net radiation depends
+on the station's latitude and longitude, and the station was 6.8 km south of
+the catchment. The recovered module is faithful to the one that produced the
+committed dataset, and the only behavioural change is a correction.
+
+This also closes B.2's second half in passing. The writer labels its output
+TF (throughfall) while `PET_P_INTER` computes it as `RFe_veg_d = RF - I` --
+effective rainfall. They are the same quantity under two names, so the
+driver's `Pe` is not a misnomer after all; only the file name is inconsistent
+with the variable that fills it.
