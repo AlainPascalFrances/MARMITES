@@ -108,9 +108,9 @@ TIER_A_GROUPS = [
     ('Observations', [
         'inputObs.txt', 'inputObsHEADS_*.txt', 'inputObsSM_*.txt',
         'inputObsRo_catchment.txt']),
-    ('Generated from the cartography (WP1.1)', [
-        'inputSTREAM.csv', 'inputSTREAM_param.csv', 'inputPONDS.csv',
-        'inputWATERSHED.csv']),
+    # (The converter's CSV outputs used to be listed again here; they are in
+    # "Vector layers" above, and listing a file twice gives two widgets the
+    # same key.)
 ]
 
 

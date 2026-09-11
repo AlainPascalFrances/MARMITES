@@ -1,13 +1,17 @@
 # -*- coding: utf-8 -*-
-"""MARMITES / MODFLOW 6 -- Streamlit front-end.  WP1b, stage 1.
+"""Panel 0 -- MARMITES / MODFLOW 6 front-end.  WP1d.
 
     streamlit run code/app/Home.py
 
-A VIEWER AND A LAUNCHER. It reads the inputs, edits the configuration, starts a
-run and shows the output. It is never part of the model path: `code/app/` may
-import the model, the model may never import `code/app/` or streamlit, and
-`code/tests/test_repo_hygiene.py` asserts it -- so the model keeps running
-headless from Spyder and from a PEST worker where Streamlit is not installed.
+A VIEWER, AN EDITOR AND A LAUNCHER. It reads the inputs, edits the
+configuration, starts a run and shows the output. It is never part of the
+model path: ``code/app/`` may import the model, the model may never import
+``code/app/`` or streamlit, and ``code/tests/test_repo_hygiene.py`` asserts
+it -- so the model keeps running headless from Spyder and from a PEST worker
+where Streamlit is not installed.
+
+The panels are in the order the work is done, and the grid comes first
+because every other input is wrapped onto it.
 """
 
 import os
@@ -22,13 +26,12 @@ for p in (CODE, APP):
         sys.path.insert(0, p)
 
 import mm_paths                                  # noqa: E402
-from lib import runs as runlib                   # noqa: E402
+from lib import panelui, runs as runlib          # noqa: E402
 
 st.set_page_config(page_title='MARMITES / MF6', page_icon='💧', layout='wide')
 
 
 def case_selector():
-    """The case study every page works against, kept in session state."""
     cases = []
     ex = mm_paths.REPO / 'example'
     if ex.is_dir():
@@ -41,64 +44,68 @@ def case_selector():
 
 
 def runs_dir(cfg=None):
-    d = (cfg.ui.runs_dir if cfg and cfg.ui.runs_dir else
-         os.path.join(str(mm_paths.WS_ROOT), 'runs'))
-    return d
-
-
-def sidebar_paths(case):
-    """The machine banner: where this session is actually reading and writing."""
-    st.sidebar.markdown('### Paths')
-    rows = [('dataset', mm_paths.dataset_dir(case)),
-            ('GIS (Tier B)', mm_paths.GIS),
-            ('workspace', mm_paths.WS_ROOT),
-            ('libmf6', mm_paths.LIBMF6)]
-    for label, p in rows:
-        ok = os.path.exists(str(p))
-        st.sidebar.markdown('%s **%s**  \n`%s`'
-                            % ('🟢' if ok else '🔴', label, p))
-    st.sidebar.caption('Edit `code/mm_paths.py`, or set the `MM_*` environment '
-                       'variables.')
+    return (cfg.ui.runs_dir if cfg and cfg.ui.runs_dir else
+            os.path.join(str(mm_paths.WS_ROOT), 'runs'))
 
 
 def main():
     case = case_selector()
-    sidebar_paths(case)
+    cfg, path = panelui.pick_config()
+    panelui.dataset_banner(cfg)
+    st.sidebar.caption('Edit `code/mm_paths.py`, or set the `MM_*` '
+                       'environment variables.')
 
-    st.title('MARMITES / MODFLOW 6')
-    st.caption('Soil-water balance coupled to MODFLOW 6 — inputs, configuration, '
-               'runs and results for **%s**.' % case)
+    st.title('💧  MARMITES / MODFLOW 6')
+    st.caption('A soil water balance coupled to MODFLOW 6 through the API. '
+               'Case **%s**, configuration `%s`.'
+               % (case, os.path.basename(path)))
 
-    c1, c2, c3 = st.columns(3)
-    ds = mm_paths.dataset_dir(case)
-    n_inputs = sum(len(fs) for _, fs in
-                   __import__('lib.loaders', fromlist=['x']).inventory(ds)) \
-        if ds.is_dir() else 0
-    with c1:
-        st.metric('Tier-A inputs', n_inputs)
-    with c2:
-        rd = runs_dir()
-        st.metric('Runs on record', len(runlib.list_runs(rd)))
-    with c3:
-        st.metric('Case', case)
+    st.markdown('### What this configuration will run')
+    cols = st.columns(3)
+    for c, (sw, what) in zip(cols, [
+            ('run.surface', 'MMsurf — the daily forcing'),
+            ('run.model', 'MMsoil + MODFLOW 6'),
+            ('run.plot', 'Figures')]):
+        section, key = sw.split('.')
+        on = bool(getattr(getattr(cfg, section), key))
+        c.metric(what, 'ON' if on else 'off')
+    if not cfg.run.surface:
+        st.caption('MMsurf is off, so the daily forcing must already exist. It '
+                   'is checked for presence AND shape before the run starts — '
+                   'a stale or truncated file stops the run rather than being '
+                   'used.')
 
+    st.markdown('### The panels, in the order to fill them')
     st.markdown("""
-### Where to go
+| Panel | What it settles | Switch |
+|---|---|---|
+| **1 Grid** | the catchment polygon, and the grid built inside it | always |
+| **2 Surface** | the meteorological record → the daily forcing | `run.surface` |
+| **3 Model** | the soil column, the aquifer, the stream and the ponds | `run.model` |
+| **4 Plots** | what to draw afterwards | `run.plot` |
+| **5 Run** | launch it, and follow the log | — |
+| **6 Results** | the figures a run wrote | — |
+| **7 Inputs** | every file the model reads, and the source cartography | — |
 
-| Page | What it does |
-|---|---|
-| **Inputs** | every file MM and MF read, plus the source cartography on a map |
-| **Configuration** | edit and validate a run configuration; the MMsurf parameters, already filled |
-| **Run** | launch on this machine or the server, and follow the log |
-| **Results** | the figures a run wrote, with a run picker |
-| **Calibration** | PEST++-IES output *(stage 3, WP7)* |
+**The grid comes first**, because every other input is *wrapped onto it*: the
+soil zones, the vegetation cover, the stream network and the observation
+points are vector layers, projected onto whichever grid panel 1 produced.
+Change the grid and they follow — they do not have to be re-made.
 
-The model is launched as a **detached** process: a run survives closing this
-browser tab, and its log keeps being written. Nothing here runs a model inline —
-a coupled run is minutes and an IES run is hours.
+The switches are not decoration. They are the same `[run]` keys the driver
+reads, so turning one off means that half of the model does not execute.
 """)
 
-    recent = runlib.list_runs(runs_dir(), limit=5)
+    ds = mm_paths.dataset_dir(case)
+    c1, c2, c3 = st.columns(3)
+    c1.metric('Grid', '%s @ %g m' % (cfg.grid.kind, cfg.grid.cell_size))
+    c2.metric('Vegetation types', len(cfg.surface.vegetation))
+    c3.metric('Runs on record', len(runlib.list_runs(runs_dir(cfg))))
+
+    if not ds.is_dir():
+        st.error('The dataset folder does not exist: %s' % ds)
+
+    recent = runlib.list_runs(runs_dir(cfg), limit=5)
     if recent:
         st.markdown('### Recent runs')
         for r in recent:
@@ -109,8 +116,11 @@ a coupled run is minutes and an IES run is hours.
             st.write('%s `%s` — %s, started %s'
                      % (icon, r['run_id'], state, r.get('started')))
 
+    st.markdown('---')
+    st.caption('A run is launched as a DETACHED process: it survives closing '
+               'this tab, and its log keeps being written. Nothing here runs a '
+               'model inline — a coupled run is minutes and a calibration is '
+               'hours.')
 
-if __name__ == '__main__':
-    main()
-else:
-    main()
+
+main()

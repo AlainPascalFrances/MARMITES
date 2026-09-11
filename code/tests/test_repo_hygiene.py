@@ -78,15 +78,28 @@ def _python_files(where, exclude=()):
 
 def test_the_model_never_imports_streamlit_or_the_app():
     """Rule 2 (WP1b.10). `code/app/` may import the model; the model may never
-    import `code/app/` or streamlit."""
+    import `code/app/` or streamlit.
+
+    A TEST of the front-end is the one exception, and only when it guards the
+    import with ``pytest.importorskip('streamlit')`` -- so the suite still
+    runs where the model runs, which is the whole point of the rule. The
+    guard has to come BEFORE the import, or it guards nothing.
+    """
     pat = re.compile(r'^\s*(?:import\s+streamlit|from\s+streamlit\b|'
                      r'import\s+app\b|from\s+app\b|from\s+code\.app\b)',
                      re.MULTILINE)
+    guard = re.compile(r"importorskip\(\s*['\"]streamlit['\"]")
     offenders = []
     for path in _python_files(CODE, exclude={'app'}):
         with open(path, encoding='utf-8', errors='replace') as fh:
-            if pat.search(fh.read()):
-                offenders.append(os.path.relpath(path, REPO))
+            src = fh.read()
+        hit = pat.search(src)
+        if not hit:
+            continue
+        g = guard.search(src)
+        if g and g.start() < hit.start() and os.sep + 'tests' + os.sep in path:
+            continue
+        offenders.append(os.path.relpath(path, REPO))
     assert not offenders, (
         'The model must stay runnable where Streamlit is not installed '
         '(Spyder, a PEST worker). These modules import it:\n  '
