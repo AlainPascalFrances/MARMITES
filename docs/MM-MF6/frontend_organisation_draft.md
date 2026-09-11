@@ -49,19 +49,20 @@ but `setup_lamata` hardcodes `'inputMETEOzones.asc'`, `'inputSOILzones.asc'`,
 `'inputIRRzones.asc'`. So those ini entries are inert. They should become
 front-end fields that the code actually honours.
 
+### 1.4 Rastering or griding from input vector info
+We will change the paradigm in order to ease the life of the users. The information will be provided as scalars or shape file (points, lines or polygons, with or without columns with parametric values. This vectorial information will be later converted into model input by wrapping it or projecting it on the grid (structured, voronoi, quadtree). The grid itself will be defined in a group, indicated the resolution, refinemnet, that will be specific to one of the 3 grid type and will be defined inside the catchment boundary, that is one of the main input that the front-end must require (polygon that will be in the main CRS of the project, must be projected, metric units) 
 ---
 
 ## 2  The four groups and their master switches
 
 | # | Group | Switch | What OFF means |
 |---|---|---|---|
-| 1 | **Surface** (MMsurf) | `MARMsurf_yn` | MMsurf is not run. The *Time & forcing series* must already exist in the workspace, and the page says so with their dates and row counts. |
-| 2 | **Soil** (MMsoil) | `MMsoil_yn` | No soil water balance. Only meaningful with MF off too, or as a forcing-only run. Legacy allowed `-1` = run MMsoil once, for calibration — keep? |
-| 3 | **MODFLOW 6** | `MF_yn` | Write the MF6 input files and stop — today's `run.build_only`. |
+| 1 | **Surface** (MMsurf) | `MARMsurf_yn` | MMsurf is not run. The *Time & forcing series* must already exist in the workspace, and the page says so with their dates and row counts. If the *Time & forcing series* does not exist and MMsurf is off, a warning message must appear and code stops.|
+| 2 | **Soil** (MMsoil) | `MMsoil_yn` | No soil water balance. This option on/off will be removed since MMsoil and MF are run together now. So the legacy option that allowed `-1` = run MMsoil once, for calibration, will be also removed. |
+| 3 | **MODFLOW 6** | `MF_yn` | Write the MF6 input files and stop — today's `run.build_only`. Option to be removed also, the MF run is compulsory, together with MMsoil, as stated in the previous line.|
 | 4 | **Plotting** | `plot_yn` | No figures. Today's `postproc.enable` / `postproc.preproc`. |
 
-Each group also carries its own sub-switches (per-package for MF, per-figure
-family for plotting).
+So only groups 1 and 4 carries a sub-switches (per-figure family for plotting).
 
 **What the code must do.** The switches cannot be decoration:
 
@@ -131,10 +132,18 @@ vegetation set.
 | `__IRR_TS.txt` | irrigation time series per zone (only if `irr_yn = 1`) |
 | `__inputFIELD1_crop_schedule.txt` | crop schedule per field |
 
-### 1.6  *Time & forcing series* — MMsurf's OUTPUT
+### 1.6  Zone and property rasters (the filenames the driver currently hardcodes)
+
+| raster | what it maps |
+|---|---|
+| `inputMETEOzones.asc` | meteo zone per cell |
+| `inputIRRzones.asc` | irrigation zone (if `irr_yn`) |
+The inputMETEOzones.asc will be eliminated and produced using the grid characteristics as voronoi polygon (derived from the grid defined in 1.4). If there is only one station, the meteo zone will be the same for the whole catchment. 
+
+### 1.7  *Time & forcing series* — MMsurf's OUTPUT (to be eliminated from the front-end)
 
 These are what your "Time & forcing series" group contains. They are produced
-when `MARMsurf_yn = 1` and consumed as-is when it is 0:
+when `MARMsurf_yn = 1` and consumed as-is when it is 0. So they will not appear in the front-end.
 
 `inputDATE.txt` · `inputZONRF_veg_d.txt` (rainfall) ·
 `inputZONTF_veg_d.txt` (throughfall) · `inputZONPT_veg_d.txt` (potential
@@ -143,14 +152,16 @@ evaporation) · `inputZONEo_d.txt` (open-water evaporation) — plus the
 irrigation trio `inputZONRF_irr_d`, `inputZONTF_irr_d`, `inputZONPT_irr_d`
 and `inputZONcrop_irr_d`.
 
-**Open question A:** these currently live in `example/LaMata/`, i.e. in the
-repository. If MMsurf generates them they become run OUTPUT and belong in the
-workspace. Do you want them moved, or kept committed as a reproducible
-baseline?
+These currently live in `example/LaMata/`, i.e. in the
+repository. As MMsurf generates them, they are a run OUTPUT and belong in the
+workspace. So they will be deleted from the repo. They do not appear in the front-end.
 
+IMPORTANT NOTE:
+In groups 1.1 to 1.4, the list of parameters are repeated as a function of NMETEO, NVEG, NCRP and NSOIL. So the front-end should put one column for each entry.
+In relation to 1.5, verify in the code how should be the format please and make proposal how the data must be organized (is it one txt file with several columns, or the data are repeated sequencially? Instructions about the data format should be inserted in the front-end  
 ---
 
-## 4  Group 2 — SOIL  (MMsoil)  ·  switch `MMsoil_yn`
+## 4  Group 2 — SOIL  (MMsoil)
 
 ### 2.1  Soil column parameters — `MF_ws/inputSOILparam.txt`
 
@@ -163,10 +174,11 @@ Per soil zone (3), per soil layer (`nsl` = 2, 2, 1):
 
 | raster | what it maps |
 |---|---|
-| `inputMETEOzones.asc` | meteo zone per cell |
+The following raster will be elimintaed. Instead, a vector, polygon layer is required, thta must contain the soil zone code that must correpond with the soil zone code of MF_ws/inputSOILparam.txt. The soil polygon layer may have a column called thick_m, in which the thickness will be uniform for each polygon of the layer. Note that if the inputSOILthick.asc exists, it will be the default value. If none of them exist raise an error.
 | `inputSOILzones.asc` | soil zone per cell |
+The following raster can exist and will be projected on the grid defined in 1.4. It must be coincident with the catchment polygon.
 | `inputSOILthick.asc` | soil column thickness |
-| `inputIRRzones.asc` | irrigation zone (if `irr_yn`) |
+I think that the two following rasters must be eliminated. They will be produced using the shape file of hydrography that will have a column with spatial variation of these parameters (a value for each segment) or they will be fixed for the whole catchment. To produce them from the shape file, the script should use    
 | `inputSTREAMhmax.asc` | max stream/surface water height |
 | `inputSTREAMw.asc` | channel width |
 
@@ -177,15 +189,12 @@ Per soil zone (3), per soil layer (`nsl` = 2, 2, 1):
 ### 2.4  Observations
 
 `inputObs.txt` (points: name, x, y, layer) · `inputObsHEADS_*.txt` ·
-`inputObsSM_*.txt` · `inputObsRo_*.txt`, plus `rmseHEADSmax`, `rmseSMmax`.
-
-**Open question B:** `rmseHEADSmax` / `rmseSMmax` were the legacy convergence
-criteria for the MM↔MF Picard loop, which no longer exists. Do they still
-mean anything, or do they go to §7?
+`inputObsSM_*.txt` · `inputObsRo_*.txt`
+NOTE: `rmseHEADSmax` and `rmseSMmax` eliminated
 
 ---
 
-## 5  Group 3 — MODFLOW 6  ·  switch `MF_yn`
+## 5  Group 3 — MODFLOW 6
 
 The 34 live parameters of the MF ini, regrouped. **Everything else in that
 file goes to §7.**
@@ -204,13 +213,15 @@ supersedes `reggrid`.
 `sy_fn` (`Sy_l1/l2.asc`) · `laytyp`, `layavg`, `layvka`, `laywet`.
 
 ### 3.4  UZF
-`uzf_yn` · `iuzfopt` · `ntrail2` · `nsets` · `surfdep` · `vks` · `eps` ·
+`iuzfopt` · `ntrail2` · `nsets` · `surfdep` · `vks` · `eps` ·
 `thts` · `thti` — plus WP0's `[uzf] vks_scale` and WP2's `[et]` block.
+NOTE: `uzf_yn` removed since it is compulsory
 
 ### 3.5  Boundary packages
-`wel_yn` · `drn_yn` + `drn_elev`, `drn_cond` · `ghb_yn` + `ghb_head`,
+`drn_yn` + `drn_elev`, `drn_cond` · `ghb_yn` + `ghb_head`,
 `ghb_cond` — plus the WP0 `[seep]` block (`kind`, `cond`) and the
 `[sfr]`/`[lak]`/`[crr]` blocks.
+NOTE: 'wel_yn' removed since it is compulsory to compute ETG
 
 ### 3.6  Water-balance aggregation
 `Mnlay`, `Mlay` (hydrogeological layers from MODFLOW layers) · `h_plt`,
@@ -284,10 +295,19 @@ Also `exe_name`, `version` (MF6 comes from `mm_paths.MF6_EXE`/`LIBMF6`),
 
 1. **Open question A** — do the *Time & forcing series* move to the workspace
    once MMsurf generates them, or stay committed as a baseline?
+YES, definitively. They are also going out from the front-end, as stated in point 1.7
+ 
 2. **Open question B** — do `rmseHEADSmax` / `rmseSMmax` still mean anything?
+NO, remove
+
 3. `MMsoil_yn = -1` (run MMsoil once, for calibration) — keep, or is that now
    PEST's job?
+NO, remove
+
 4. Should the four master switches live in one `[run]` block
    (`run.surface`, `run.soil`, `run.mf`, `run.plot`) or in each group's own
    block? I lean to one block, so a run's shape is visible in one place.
+run.surface in one block, run.soil and run.mf togerher in one block, run.plot in one block
+
 5. Anything in §7 you want kept that I have proposed to delete.
+NO, it is ok. Just verify thta the time series plots must be started at the used-defined starting hydrologic year.  
