@@ -33,7 +33,7 @@ happens here, on the way out -- the one place that has to know.
 """
 
 import os
-import shutil
+
 
 __all__ = ['MMsurfError', 'FORCING', 'forcing_spec', 'write_par_file', 'run',
            'check_forcing', 'surface_ws']
@@ -239,9 +239,14 @@ def run(cfg, dataset_dir, out_ws, config_hash='', verbose=True):
     import sys
 
     here = os.path.dirname(os.path.abspath(__file__))
-    surf_dir = os.path.join(here, 'MARMITESsurf')
-    util_dir = os.path.join(here, 'MARMITESutilities')
-    for p in (surf_dir, util_dir, here):
+    # startMARMITESsurface imports plotPET and plotP as top-level modules, but
+    # they live under MARMITESutilities/MARMITESplot -- so that folder has to
+    # be on the path too, or the import fails with a name that says nothing
+    # about where it came from.
+    for p in (os.path.join(here, 'MARMITESsurf'),
+              os.path.join(here, 'MARMITESutilities'),
+              os.path.join(here, 'MARMITESutilities', 'MARMITESplot'),
+              here):
         if p not in sys.path:
             sys.path.insert(0, p)
     import MARMITESutilities as MMutils
@@ -257,12 +262,13 @@ def run(cfg, dataset_dir, out_ws, config_hash='', verbose=True):
     if not os.path.exists(meteo):
         raise MMsurfError('the meteorological record is missing: %s' % meteo)
 
-    # MMsurf reads the parameter file from pathMMsurf, so the generated one
-    # has to sit beside the inputs; it goes to out_ws too, as the record.
-    par_name = '__inputMMsurf.generated.ini'
-    write_par_file(cfg, os.path.join(out_ws, par_name), config_hash)
-    staged = os.path.join(in_ws, par_name)
-    shutil.copyfile(os.path.join(out_ws, par_name), staged)
+    # The generated parameter file lives in the WORKSPACE and is passed by
+    # ABSOLUTE path: MMsurf resolves it with os.path.join(in_ws, name), which
+    # returns an absolute second argument unchanged. Copying it in beside the
+    # inputs would work too, and would leave a stray file in the repository
+    # whenever a run crashed.
+    par_name = os.path.join(out_ws, '__inputMMsurf.generated.ini')
+    write_par_file(cfg, par_name, config_hash)
 
     irr_ts = s.irr_ts if s.irrigation else None
     if s.irrigation:
@@ -283,15 +289,11 @@ def run(cfg, dataset_dir, out_ws, config_hash='', verbose=True):
         print('   output : %s' % out_ws)
 
     cUTIL = MMutils.clsUTILITIES(verbose=1 if verbose else 0)
-    try:
-        MMsurf_mod.MMsurf(
-            cUTIL, in_ws, s.meteo_ts, par_name, s.out_prefix,
-            out_ws, '__inputMMsurf4MMsoil.generated.txt',
-            MMsurf_plot=int(s.plot), inputFile_IRR_TS_fn=irr_ts,
-            out_ws=out_ws)
-    finally:
-        if os.path.exists(staged):
-            os.remove(staged)
+    MMsurf_mod.MMsurf(
+        cUTIL, in_ws, s.meteo_ts, par_name, s.out_prefix,
+        out_ws, '__inputMMsurf4MMsoil.generated.txt',
+        MMsurf_plot=int(s.plot), inputFile_IRR_TS_fn=irr_ts,
+        out_ws=out_ws)
 
     spec = forcing_spec(cfg, out_ws)
     check_forcing(spec, must_exist=True)
