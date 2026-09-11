@@ -222,11 +222,79 @@ def _produce_quadtree(cfg, cMF, dataset_dir=None, model_ws=None, warn=None,
             warn('pyshp is not installed, so the stream refinement is SKIPPED '
                  'and this quadtree is geometrically the base grid. Install it '
                  'with:  conda install -p C:\\miniconda3\\envs\\flopy pyshp')
+    elif csv and not getattr(getattr(cfg.grid, 'quadtree', None),
+                             'refine_streams', True):
+        if warn:
+            warn('grid.quadtree.refine_streams is off: building an UNREFINED '
+                 'quadtree, which is geometrically the base grid.')
     elif csv:
-        feats.append((stream_lines(csv), 'line', 2))
+        level = int(getattr(getattr(cfg.grid, 'quadtree', None),
+                            'refine_level', 2))
+        feats.append((stream_lines(csv), 'line', level))
     ws = model_ws or os.path.join(os.getcwd(), '_gridgen')
     return build_quadtree(cMF, exe, ws, refine_features=feats,
                           layers=list(range(int(cMF.nlay))))
+
+
+def model_rectangle(cfg, bbox=None):
+    """The grid rectangle for this configuration (WP1d, panel 1).
+
+    Returns ``(nrow, ncol, delr, delc, xllcorner, yllcorner)`` -- the six
+    numbers every producer needs, and the only ones the mesh signature is
+    keyed on besides the ``[grid]`` block itself.
+
+    Derived from the CATCHMENT POLYGON's bounding box, which is the whole
+    point of panel 1: the domain comes first and the grid is built inside it.
+    The origin is snapped DOWN to a multiple of the cell size and the far edge
+    UP, so the same polygon and cell size always give the same grid -- a
+    rectangle that shifted with a re-exported shapefile would invalidate every
+    cached mesh for no reason.
+
+    ``grid.override.enable`` bypasses all of it and returns the origin and
+    shape verbatim, which is how an existing grid is reproduced exactly.
+    """
+    import math
+
+    ov = cfg.grid.override
+    if ov.enable:
+        if ov.nrow <= 0 or ov.ncol <= 0:
+            raise MeshBuildError('grid.override needs nrow and ncol > 0')
+        cs = float(cfg.grid.cell_size)
+        return (int(ov.nrow), int(ov.ncol),
+                np.full(int(ov.ncol), cs), np.full(int(ov.nrow), cs),
+                float(ov.xllcorner), float(ov.yllcorner))
+    if bbox is None:
+        raise MeshBuildError(
+            'no catchment bounding box: either set grid.override.enable, or '
+            'give the polygon named by grid.boundary')
+    cs = float(cfg.grid.cell_size)
+    if cs <= 0:
+        raise MeshBuildError('grid.cell_size must be > 0')
+    b = float(cfg.grid.buffer)
+    x0, y0, x1, y1 = (float(bbox[0]) - b, float(bbox[1]) - b,
+                      float(bbox[2]) + b, float(bbox[3]) + b)
+    if x1 <= x0 or y1 <= y0:
+        raise MeshBuildError('the catchment bounding box is empty: %s' % (bbox,))
+    x0 = math.floor(x0 / cs) * cs
+    y0 = math.floor(y0 / cs) * cs
+    ncol = int(math.ceil((x1 - x0) / cs))
+    nrow = int(math.ceil((y1 - y0) / cs))
+    return (nrow, ncol, np.full(ncol, cs), np.full(nrow, cs), x0, y0)
+
+
+def grid_stub(cfg, bbox=None, nlay=1):
+    """A cMF-shaped object carrying only what the mesh producers read.
+
+    They use ``nrow``, ``ncol``, ``nlay``, ``delr``, ``delc`` and the origin
+    and nothing else, so a mesh can be built -- and previewed -- without
+    parsing the MODFLOW parameter file or the time discretisation.
+    """
+    from types import SimpleNamespace
+
+    nrow, ncol, delr, delc, xll, yll = model_rectangle(cfg, bbox)
+    return SimpleNamespace(nrow=nrow, ncol=ncol, nlay=int(nlay),
+                           delr=delr, delc=delc,
+                           xllcorner=float(xll), yllcorner=float(yll))
 
 
 def watershed_ring(csv_path):

@@ -268,3 +268,108 @@ def test_a_table_path_that_is_not_one_is_refused(cfg):
         editor.table_rows(cfg, 'surface.meteo_ts')
     with pytest.raises(editor.EditError):
         editor.table_rows(cfg, 'surface.nope')
+
+
+# ------------------------------------------------- panel 1: the rectangle
+
+meshes = _load('marmites_meshes_p', os.path.join(CODE, 'marmites_meshes.py'))
+
+
+def test_the_rectangle_is_derived_from_the_polygon(cfg):
+    """Panel 1's whole point: the domain comes first and the grid is built
+    inside it."""
+    bbox = (739293.0, 4553110.0, 742223.0, 4556240.0)     # lm_lim.shp
+    nrow, ncol, delr, delc, xll, yll = meshes.model_rectangle(cfg, bbox)
+    assert (xll, yll) == (739250.0, 4553100.0)            # snapped DOWN
+    assert nrow == 63 and ncol == 60
+    assert xll + ncol * cfg.grid.cell_size >= bbox[2]     # covers the polygon
+    assert yll + nrow * cfg.grid.cell_size >= bbox[3]
+    assert len(delr) == ncol and len(delc) == nrow
+
+
+def test_the_origin_is_snapped_so_the_grid_is_reproducible(cfg):
+    """A rectangle that shifted with a re-exported shapefile would invalidate
+    every cached mesh for no reason."""
+    a = meshes.model_rectangle(cfg, (739293.0, 4553110.0, 742223.0, 4556240.0))
+    b = meshes.model_rectangle(cfg, (739299.9, 4553149.9, 742223.0, 4556240.0))
+    assert a[4:] == b[4:]
+
+
+def test_the_buffer_grows_the_rectangle(cfg):
+    bbox = (1000.0, 2000.0, 1500.0, 2500.0)
+    base = meshes.model_rectangle(cfg, bbox)
+    cfg.grid.buffer = 200.0
+    wide = meshes.model_rectangle(cfg, bbox)
+    assert wide[1] > base[1] and wide[0] > base[0]
+    assert wide[4] < base[4] and wide[5] < base[5]
+
+
+def test_the_override_reproduces_an_existing_grid(cfg):
+    cfg.grid.override.enable = True
+    cfg.grid.override.nrow, cfg.grid.override.ncol = 65, 60
+    cfg.grid.override.xllcorner = 739300.0
+    cfg.grid.override.yllcorner = 4553050.0
+    nrow, ncol, _dr, _dc, xll, yll = meshes.model_rectangle(cfg)
+    assert (nrow, ncol) == (65, 60)
+    assert (xll, yll) == (739300.0, 4553050.0)
+
+
+def test_no_polygon_and_no_override_is_an_error(cfg):
+    with pytest.raises(meshes.MeshBuildError) as e:
+        meshes.model_rectangle(cfg, None)
+    assert 'grid.boundary' in str(e.value)
+
+
+def test_a_zero_cell_size_is_an_error(cfg):
+    cfg.grid.cell_size = 0.0
+    with pytest.raises(meshes.MeshBuildError):
+        meshes.model_rectangle(cfg, (0.0, 0.0, 100.0, 100.0))
+
+
+def test_grid_stub_carries_what_the_producers_read(cfg):
+    """They use nrow, ncol, nlay, delr, delc and the origin -- and nothing
+    else, which is what lets a grid be previewed without the MF ini."""
+    stub = meshes.grid_stub(cfg, (739293.0, 4553110.0, 742223.0, 4556240.0),
+                            nlay=2)
+    for attr in ('nrow', 'ncol', 'nlay', 'delr', 'delc', 'xllcorner',
+                 'yllcorner'):
+        assert hasattr(stub, attr), attr
+    assert stub.nlay == 2
+
+
+# ------------------------------------------------------------- choices
+
+def test_the_enumerated_fields_are_choices():
+    kinds = schema.choices_for('grid.kind')
+    assert set(kinds) >= {'structured', 'disv', 'voronoi', 'quadtree'}
+    assert schema.choices_for('seep.kind') == ['uzf', 'drn']
+    assert schema.choices_for('postproc.wb_unit') == ['year', 'day']
+    assert schema.choices_for('grid.cell_size') is None
+
+
+def test_the_choices_come_from_the_schema_not_a_copy():
+    """A grid kind added to marmites_config must appear in the panel by
+    itself, or the two drift apart."""
+    assert schema.choices_for('grid.kind') == list(cfgmod.GRID_KINDS)
+    assert schema.choices_for('grid.resample') == list(cfgmod.RESAMPLE_MODES)
+
+
+def test_the_conditional_blocks_know_what_controls_them():
+    assert schema.subpanel_for('grid.voronoi.cell_far') == \
+        ('grid.kind', ('voronoi',))
+    assert schema.subpanel_for('grid.quadtree.refine_level') == \
+        ('grid.kind', ('quadtree',))
+    assert schema.subpanel_for('grid.cell_size') is None
+
+
+def test_the_conditional_blocks_are_separable_from_the_rest(cfg):
+    """``fields_of`` is the full inventory -- that is what the label check
+    needs. The PANEL splits it, and this is the rule it splits on."""
+    keys = [k for k, _v in schema.fields_of(cfg, 'grid')]
+    conditional = [k for k in keys if schema.subpanel_for(k)]
+    always = [k for k in keys if not schema.subpanel_for(k)]
+    assert all(k.startswith(('grid.voronoi.', 'grid.quadtree.'))
+               for k in conditional)
+    assert 'grid.cell_size' in always
+    assert 'grid.boundary' in always
+    assert 'grid.override.nrow' in always          # applies to every kind

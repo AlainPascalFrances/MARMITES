@@ -34,6 +34,77 @@ cfg, path = panelui.pick_config()
 panelui.dataset_banner(cfg)
 panel = panelui.header(1)
 
+
+def _boundary_bbox(cfg):
+    """The catchment polygon's bounding box, or None with the reason."""
+    from marmites_vector import Layer, VectorError
+    p = os.path.join(str(mm_paths.GIS), cfg.grid.boundary)
+    try:
+        return Layer(p).bbox, None
+    except (VectorError, Exception) as exc:          # noqa: B014
+        return None, '%r' % exc
+
+
+def _build_grid(cfg):
+    """Build and cache the mesh for the SAVED settings. (ok, [lines])."""
+    import marmites_meshes as mm
+
+    lines = []
+
+    def warn(msg):
+        lines.append('WARNING: %s' % msg)
+
+    bbox, why = _boundary_bbox(cfg)
+    if bbox is None and not cfg.grid.override.enable:
+        return False, ['The catchment polygon could not be read, so the grid '
+                       'rectangle cannot be derived: %s' % why]
+    try:
+        stub = mm.grid_stub(cfg, bbox, nlay=cfg.layers.nlay)
+    except Exception as exc:
+        return False, ['%r' % exc]
+    lines.append('rectangle: %d rows x %d cols of %g m, origin %.1f, %.1f'
+                 % (stub.nrow, stub.ncol, cfg.grid.cell_size,
+                    stub.xllcorner, stub.yllcorner))
+    if cfg.grid_kind in ('structured', 'dis'):
+        return True, ['Structured grid: %d x %d cells of %g m — nothing to '
+                      'build, it IS the rectangle.'
+                      % (stub.nrow, stub.ncol, cfg.grid.cell_size)] + lines
+    ws_root = (str(Path(cfg.paths.ws).parent) if cfg.paths.ws
+               else str(mm_paths.WS_ROOT))
+    model_ws = os.path.join(ws_root, 'MF6_ws_%s' % cfg.grid_kind)
+    cache = os.path.join(model_ws, '_mesh')
+    os.makedirs(cache, exist_ok=True)
+    try:
+        _gp, info = mm.build_mesh(cfg, stub, cache_dir=cache,
+                                  dataset_dir=str(mm_paths.dataset_dir(
+                                      cfg.paths.case)),
+                                  model_ws=model_ws, warn=warn)
+    except Exception as exc:
+        return False, ['The %s producer failed: %r' % (cfg.grid_kind, exc)] + lines
+    head = ('%s mesh: %d cells, mean %.0f m² (%.1f m equivalent side)%s'
+            % (info['kind'], info['ncpl'], info.get('area_mean', 0.0),
+               (info.get('area_mean', 0.0) ** 0.5),
+               ' — served from the cache' if info.get('cached') else ''))
+    lines.append('signature %s' % info['signature'])
+    lines.append('cached at %s' % cache)
+    return True, [head] + lines
+
+
+def _run_converter(case, cfg_path, dry):
+    """Run the WP1 converter as a subprocess and return its output.
+
+    A subprocess, not an import: it keeps geopandas out of this process's
+    import graph, and it is exactly the command a user would type.
+    """
+    import subprocess
+    cmd = [sys.executable, os.path.join(CODE, 'tools', 'gis_to_dataset.py'),
+           '--case', case, '--config', cfg_path]
+    if dry:
+        cmd.append('--dry-run')
+    r = subprocess.run(cmd, capture_output=True, text=True,
+                       cwd=str(mm_paths.REPO), timeout=900)
+    return (r.stdout or '') + (('\n' + r.stderr) if r.stderr else '')
+
 tab_domain, tab_mesh = st.tabs(['Catchment & grid', 'The mesh a run would use'])
 
 # ===================================================================== 1a
@@ -89,24 +160,61 @@ with tab_domain:
                    'shape below, not derived from the polygon. That is how the '
                    'legacy 65 × 60 @ 50 m grid is reproduced when something '
                    'needs comparing against it.')
-    if cfg.grid_kind in ('voronoi', 'quadtree'):
-        st.info('A mesh is built the first time a run uses it and then cached. '
-                'The sizes below are the side of the EQUIVALENT SQUARE — the '
-                'build prints the area it actually achieved, which is what to '
-                'read.')
+
+    # The grid KIND drives everything below it, so it is asked on its own and
+    # the settings that depend on it appear underneath.
+    chosen = edited.get('grid.kind', cfg.grid.kind)
+    sub = panelui.subpanel_form(cfg, 'grid.voronoi', chosen)
+    sub.update(panelui.subpanel_form(cfg, 'grid.quadtree', chosen))
+    edited.update(sub)
+    if chosen in ('structured', 'dis'):
+        st.caption('A structured grid needs nothing beyond the cell size: it '
+                   'is the rectangle above, divided.')
+    elif chosen == 'disv':
+        st.caption('The structured grid re-expressed as polygons. Nothing '
+                   'about the geometry changes, which is what makes it the '
+                   'control for the mesh path.')
+    elif chosen == 'voronoi':
+        st.caption('Sizes are the side of the EQUIVALENT SQUARE, so 100 aims '
+                   'at 10 000 m². The build prints the area it actually '
+                   'achieved — read that, not this.')
+    elif chosen == 'quadtree':
+        st.caption('GRIDGEN halves a cell per refinement level, so level 2 on '
+                   'a %g m background gives %g m along the streams.'
+                   % (cfg.grid.cell_size,
+                      cfg.grid.cell_size / (2 ** cfg.grid.quadtree.refine_level)))
 
     panelui.save_button(cfg, path, edited)
 
-    with st.expander('What the converter would export for this grid'):
-        st.markdown("""
-The shapefiles stay in the GIS folder and are read **only** by the converter,
-which writes grid-independent tables into the dataset. Those are what a run
-reads, and what the panels below wrap onto this grid:
+    # ---- build it ----------------------------------------------------
+    st.markdown('#### Create the grid')
+    st.caption('Builds the mesh from the settings ABOVE AS SAVED and caches '
+               'it, so the second tab shows this grid rather than whatever a '
+               'previous run left behind. A structured grid has no mesh to '
+               'build — it is the rectangle itself.')
+    cbuild, cmsg = st.columns([1, 3])
+    if cbuild.button('Create grid', type='primary', key='mkgrid'):
+        with st.spinner('Building the %s grid…' % cfg.grid_kind):
+            st.session_state['grid_build'] = _build_grid(cfg)
+    out = st.session_state.get('grid_build')
+    if out:
+        ok, lines = out
+        (cmsg.success if ok else cmsg.error)(lines[0])
+        with st.expander('Build log', expanded=not ok):
+            st.code('\n'.join(lines), language='text')
 
-```bash
-python code/tools/gis_to_dataset.py --case %s --config %s --dry-run
-```
-""" % (case, os.path.relpath(path, str(mm_paths.REPO)).replace('\\', '/')))
+    with st.expander('Update the dataset from the cartography'):
+        st.caption('The shapefiles stay in the GIS folder and are read ONLY by '
+                   'the converter, which writes grid-independent tables into '
+                   'the dataset. Those are what a run reads, and what the '
+                   'other panels wrap onto this grid.')
+        c1, c2 = st.columns(2)
+        if c1.button('Preview (dry run)'):
+            st.session_state['conv'] = _run_converter(case, path, dry=True)
+        if c2.button('Update dataset', type='primary'):
+            st.session_state['conv'] = _run_converter(case, path, dry=False)
+        if st.session_state.get('conv'):
+            st.code(st.session_state['conv'], language='text')
 
 # ===================================================================== 1b
 with tab_mesh:

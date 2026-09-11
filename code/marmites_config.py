@@ -370,6 +370,21 @@ class GridVoronoi:
 
 
 @dataclass
+class GridQuadtree:
+    """WP1c. Ignored unless grid.kind is 'quadtree'.
+
+    GRIDGEN halves a cell per refinement level, so level 2 on a 50 m
+    background gives 12.5 m along the streams. Refinement needs ``pyshp``:
+    flopy writes the refinement features through a shapefile, and without it
+    the producer says so and builds an unrefined mesh rather than silently
+    producing one that is geometrically the base grid.
+    """
+
+    refine_level: int = 2
+    refine_streams: bool = True
+
+
+@dataclass
 class GridOverride:
     """Reproduce an EXISTING grid exactly, instead of deriving one (WP1d, C.1).
 
@@ -415,6 +430,7 @@ class Grid:
     # rasters. 'centre' is the WP1c.1 behaviour, kept for comparison.
     resample: str = 'auto'
     voronoi: GridVoronoi = field(default_factory=GridVoronoi)
+    quadtree: GridQuadtree = field(default_factory=GridQuadtree)
 
 
 @dataclass

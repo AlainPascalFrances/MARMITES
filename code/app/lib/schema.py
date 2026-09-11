@@ -21,7 +21,18 @@ Labels come from the ini files the panels replace, so a modeller who knows
 ``kTg_min`` can still find it, with a sentence saying what it does.
 """
 
-__all__ = ['PANELS', 'FIELDS', 'TABLES', 'panel_of', 'describe', 'fields_of',
+import os
+import sys
+
+# The allowed values of an enumerated field come from marmites_config, so this
+# module has to be able to import it however it was loaded -- as part of the
+# app, or standalone by a test.
+_CODE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if _CODE not in sys.path:
+    sys.path.insert(0, _CODE)
+
+__all__ = ['PANELS', 'FIELDS', 'TABLES', 'CHOICES', 'SUBPANELS', 'panel_of',
+           'describe', 'fields_of', 'choices_for', 'subpanel_for', 'is_source',
            'PanelError']
 
 
@@ -146,6 +157,16 @@ FIELDS = {
                                    'settled on off after judging a refined '
                                    'mesh too refined near streams.'),
     'grid.voronoi.seed_ponds': ('Seed a cell per pond', _U, ''),
+    'grid.quadtree.refine_level': ('Refinement levels', 'count',
+                                   'GRIDGEN halves a cell per level, so 2 on '
+                                   'a 50 m background gives 12.5 m along the '
+                                   'streams.'),
+    'grid.quadtree.refine_streams': ('Refine along the streams', _U,
+                                     'Needs pyshp: flopy writes the '
+                                     'refinement features through a '
+                                     'shapefile. Without it the producer says '
+                                     'so and builds an unrefined mesh, which '
+                                     'is geometrically the base grid.'),
     'grid.override.enable': ('Reproduce an existing grid', _U,
                              'Deriving the grid from the polygon means it is '
                              'not the grid the committed rasters and the '
@@ -409,6 +430,61 @@ FIELDS = {
                         '[a, b] gives head = a*elevation + b. Empty uses the '
                         'configured initial condition.'),
 }
+
+
+# A field whose value is one of a fixed set is a CHOICE, not free text.
+# Typing "voroni" into a text box and finding out at run time is exactly the
+# failure the panels exist to prevent, so the allowed values come from the
+# schema itself wherever it declares them.
+def _grid_kinds():
+    import marmites_config as mcfg
+    return list(mcfg.GRID_KINDS)
+
+
+def _resample_modes():
+    import marmites_config as mcfg
+    return list(mcfg.RESAMPLE_MODES)
+
+
+CHOICES = {
+    'grid.kind': _grid_kinds,
+    'grid.resample': _resample_modes,
+    'run.mode': lambda: ['lagged', 'iterative'],
+    'seep.kind': lambda: ['uzf', 'drn'],
+    'et.unsat_form': lambda: ['etwc', 'etae'],
+    'et.extdp_source': lambda: ['uniform', 'veg_zone', 'raster'],
+    'postproc.wb_unit': lambda: ['year', 'day'],
+    'crr.sinks': lambda: ['evaporate', 'route'],
+    'ui.execution': lambda: ['local', 'server'],
+}
+
+# Blocks that only apply for one value of another field. The panel shows them
+# as a SUB-PANEL under that choice, rather than as settings that look live and
+# are not.
+#   dotted prefix -> (controlling field, values that make it apply)
+SUBPANELS = {
+    'grid.voronoi': ('grid.kind', ('voronoi',)),
+    'grid.quadtree': ('grid.kind', ('quadtree',)),
+}
+
+
+def choices_for(dotted):
+    """The allowed values of an enumerated field, or None."""
+    f = CHOICES.get(dotted)
+    if f is None:
+        return None
+    try:
+        return list(f())
+    except Exception:                                    # pragma: no cover
+        return None
+
+
+def subpanel_for(dotted):
+    """(controlling field, applicable values) if this is a conditional block."""
+    for prefix, rule in SUBPANELS.items():
+        if dotted == prefix or dotted.startswith(prefix + '.'):
+            return rule
+    return None
 
 
 def panel_of(section):

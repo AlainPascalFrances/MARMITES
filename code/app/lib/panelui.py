@@ -89,6 +89,13 @@ def _widget(dotted, value, prefix=''):
     help_full = '`%s`%s' % (dotted, ('  \n' + help_) if help_ else '')
     if schema.is_source(value):
         return _source_widget(dotted, value, shown, help_full, key)
+    options = schema.choices_for(dotted)
+    if options:
+        cur = str(value)
+        if cur not in options:
+            options = options + [cur]
+        return st.selectbox(shown, options, index=options.index(cur),
+                            help=help_full, key=key)
     if isinstance(value, bool):
         return st.checkbox(shown, value=value, help=help_full, key=key)
     if isinstance(value, int) and not isinstance(value, bool):
@@ -142,10 +149,20 @@ def _source_widget(dotted, src, shown, help_full, key):
     return edits
 
 
-def section_form(cfg, section, columns=2, expanded=True):
-    """Every plain field of a section, as widgets. Returns the edits."""
+def section_form(cfg, section, columns=2, skip_subpanels=True, only=None):
+    """Every plain field of a section, as widgets. Returns the edits.
+
+    Conditional blocks (``[grid.voronoi]`` and the like) are left out by
+    default and drawn by :func:`subpanel_form` under the field that controls
+    them -- settings that only apply for one grid kind should not sit beside
+    the ones that always apply, looking equally live.
+    """
     edited = {}
     rows = schema.fields_of(cfg, section)
+    if only is not None:
+        rows = [r for r in rows if r[0].startswith(only)]
+    elif skip_subpanels:
+        rows = [r for r in rows if schema.subpanel_for(r[0]) is None]
     if not rows:
         return edited
     cols = st.columns(columns)
@@ -157,6 +174,25 @@ def section_form(cfg, section, columns=2, expanded=True):
             elif got is not None:
                 edited[dotted] = got
     return edited
+
+
+def subpanel_form(cfg, prefix, chosen, columns=3):
+    """A conditional block, shown only when its controlling field selects it.
+
+    ``chosen`` is the value the panel currently has for the controlling field
+    -- the WIDGET's value, not the saved one, so the sub-panel follows the
+    selector immediately rather than after a save.
+    """
+    rule = schema.subpanel_for(prefix)
+    if rule is None:
+        raise KeyError('%s is not a conditional block' % prefix)
+    _control, applies = rule
+    if chosen not in applies:
+        return {}
+    section = prefix.split('.')[0]
+    label = prefix.split('.')[-1]
+    st.markdown('##### `[%s]` — applies to **%s** only' % (prefix, chosen))
+    return section_form(cfg, section, columns=columns, only=prefix + '.')
 
 
 def table_form(cfg, dotted, singular, path):

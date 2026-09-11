@@ -106,6 +106,14 @@ trans_levels     = [10.0, 20.0, 40.0, 70.0]   # Daoud-style graded transitions
 seed_ponds       = true      # one pond-scale cell per pond, centroid-seeded;
                              # honoured from WP4, and the producer says so if set
 
+[grid.quadtree]              # WP1c; ignored unless kind is quadtree
+# GRIDGEN halves a cell per level, so 2 on a 50 m background gives 12.5 m
+# along the streams. Refinement needs pyshp -- flopy writes the refinement
+# features through a shapefile -- and without it the producer SAYS SO and
+# builds an unrefined mesh, which is geometrically the base grid.
+refine_level   = 2
+refine_streams = true
+
 # Deriving the grid from the polygon means it is NOT the grid every committed
 # raster, the saved spin-up state and the WP0 byte-identical regression were
 # built on -- lm_lim.shp spans x 739293..742223, y 4553110..4556240, which is

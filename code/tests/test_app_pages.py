@@ -24,7 +24,7 @@ APP = os.path.join(CODE, 'app')
 
 PAGES = ['Home.py'] + [os.path.join('pages', f) for f in (
     '1_Grid.py', '2_Surface.py', '3_Model.py', '4_Plots.py',
-    '5_Run.py', '6_Results.py', '7_Inputs.py')]
+    '5_Run.py', '6_Results.py')]
 
 
 @pytest.mark.parametrize('page', PAGES)
@@ -43,7 +43,7 @@ def test_the_panels_are_numbered_in_the_modellers_order():
     names = sorted(f for f in os.listdir(os.path.join(APP, 'pages'))
                    if f.endswith('.py') and not f.startswith('_'))
     assert names == ['1_Grid.py', '2_Surface.py', '3_Model.py', '4_Plots.py',
-                     '5_Run.py', '6_Results.py', '7_Inputs.py']
+                     '5_Run.py', '6_Results.py']
 
 
 def test_the_panels_offer_something_to_edit():
@@ -65,3 +65,41 @@ def test_the_master_switches_are_on_their_panels():
         keys = [t.key for t in at.toggle]
         assert any(k and k.startswith('sw_run.') for k in keys), \
             '%s has no master switch' % page
+
+
+def test_the_grid_kind_is_a_choice_not_a_text_box():
+    """Typing 'voroni' into a text box and finding out at run time is exactly
+    what the panels exist to prevent."""
+    at = AppTest.from_file(os.path.join(APP, 'pages', '1_Grid.py'),
+                           default_timeout=180)
+    at.run()
+    boxes = {s.key: list(s.options) for s in at.selectbox if s.key}
+    kind = boxes.get('grid.kind')
+    assert kind is not None, 'grid.kind is not a selectbox'
+    assert set(kind) >= {'structured', 'disv', 'voronoi', 'quadtree'}
+
+
+def test_the_grid_subpanel_follows_the_kind():
+    """[grid.voronoi] must appear for voronoi and NOT for structured --
+    settings that only apply to one kind should not sit beside the ones that
+    always apply, looking equally live."""
+    at = AppTest.from_file(os.path.join(APP, 'pages', '1_Grid.py'),
+                           default_timeout=180)
+    at.run()
+    keys = lambda a: {w.key for w in list(a.number_input) + list(a.checkbox)
+                      + list(a.selectbox) + list(a.text_input) if w.key}
+    assert not any(k.startswith('grid.voronoi.') for k in keys(at)), \
+        'the voronoi block is shown for a structured grid'
+    at.selectbox(key='grid.kind').select('voronoi').run()
+    assert any(k.startswith('grid.voronoi.') for k in keys(at)), \
+        'the voronoi block does not appear when voronoi is chosen'
+    at.selectbox(key='grid.kind').select('quadtree').run()
+    assert any(k.startswith('grid.quadtree.') for k in keys(at))
+    assert not any(k.startswith('grid.voronoi.') for k in keys(at))
+
+
+def test_the_grid_panel_offers_a_create_button():
+    at = AppTest.from_file(os.path.join(APP, 'pages', '1_Grid.py'),
+                           default_timeout=180)
+    at.run()
+    assert any(b.key == 'mkgrid' for b in at.button), 'no Create grid button'
