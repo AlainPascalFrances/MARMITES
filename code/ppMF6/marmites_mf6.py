@@ -486,12 +486,17 @@ class clsMF6:
                           cMF.delr, cMF.delc, self.nrow, self.ncol,
                           idomain=self.idomain,
                           verbose=getattr(self, 'verbose', True))
+        # WP1d: lak_depth is a single value ([lak] depth) now that the pond
+        # depth no longer comes from a raster; a per-cell map is still
+        # accepted, so a case with a real bathymetry can supply one.
         depth = None if self.lak_depth is None else np.asarray(self.lak_depth, float)
         for p in ponds:
             i, j = p.cell
             d = POND_DEPTH
-            if depth is not None and depth[i, j] > 0:
-                d = float(depth[i, j])
+            if depth is not None:
+                v = float(depth) if depth.ndim == 0 else float(depth[i, j])
+                if v > 0:
+                    d = v
             p.rim = float(self.top[i, j])
             p.bottom = p.rim - d
             # the lake connects at the topmost active layer, as the outcropping

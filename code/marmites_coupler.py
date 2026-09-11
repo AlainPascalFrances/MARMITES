@@ -166,6 +166,8 @@ class MF6Coupler:
         # tagged with the zone of the cell it sits in.
         self.p_sfr_evap = None
         self.p_lak_evap = None
+        self.p_sfr_simevap = None
+        self.p_lak_simevap = None
         gm = getattr(ctx, 'gridMETEO', None)
         gm = None if gm is None else np.asarray(gm)
         self.sfr_evap_zone = np.zeros(max(self.nreaches, 1), dtype=int)
@@ -176,10 +178,16 @@ class MF6Coupler:
         ponds = list(getattr(mf6b, 'ponds', None) or [])
         self.nlakes = len(ponds)
         self.lak_evap_zone = np.zeros(max(self.nlakes, 1), dtype=int)
+        # MARMITES cell index of each lake, for reporting its evaporation back
+        # into the per-cell water balance.
+        cell_of = {(int(self.i_arr[n]), int(self.j_arr[n])): n
+                   for n in range(self.ncell)}
+        self.lak_cell_idx = np.full(max(self.nlakes, 1), -1, dtype=int)
         if gm is not None and self.nlakes:
             for L, p in enumerate(ponds):
                 i, j = p.cell
                 self.lak_evap_zone[L] = int(gm[i, j]) - 1
+                self.lak_cell_idx[L] = cell_of.get((int(i), int(j)), -1)
         # The zone rasters are 1-based; a cell outside every mapped zone would
         # index -1 and silently take the LAST zone's Eo.
         self.sfr_evap_zone = np.clip(self.sfr_evap_zone, 0, None)
@@ -305,6 +313,11 @@ class MF6Coupler:
                       % (self.p_sfr_inflow.size, self.nreaches))
                 self.p_sfr_inflow = None
             # WP1d: open-water evaporation, which MMsoil no longer applies.
+            # EVAP is the INPUT rate per unit of wetted area [m/d]; SIMEVAP is
+            # what MF6 actually removed, as a volumetric rate [m3/d], capped
+            # by what the reach holds. Probed, not assumed: writing 0.005 m/d
+            # gave SIMEVAP 1.048 m3/d on the widest reach, whose wetted area
+            # is 70.71 x 3.0 = 212 m2 -> 1.06.
             self.p_sfr_evap, self.addr_sfr_evap = self._bind_first(
                 api, [('EVAP', f'{name}/SFR'), ('EVAP', f'{name}/SFR-1')],
                 'SFR evaporation', required=False)
@@ -312,6 +325,9 @@ class MF6Coupler:
                 print('WARNING: SFR EVAP array not exposed by this MF6 build; '
                       'open-water evaporation will NOT be applied to the '
                       'stream.')
+            self.p_sfr_simevap, _a = self._bind_first(
+                api, [('SIMEVAP', f'{name}/SFR'), ('SIMEVAP', f'{name}/SFR-1')],
+                'SFR simulated evaporation', required=False)
         if self.nlakes:
             self.p_lak_evap, self.addr_lak_evap = self._bind_first(
                 api, [('EVAPORATION', f'{name}/LAK'),
@@ -321,6 +337,14 @@ class MF6Coupler:
                 print('WARNING: LAK EVAPORATION array not exposed by this MF6 '
                       'build; open-water evaporation will NOT be applied to '
                       'the ponds.')
+            self.p_lak_simevap, _a = self._bind_first(
+                api, [('EVAP', f'{name}/LAK'), ('EVAP', f'{name}/LAK-1')],
+                'LAK simulated evaporation', required=False)
+        if (self.p_sfr_simevap is None and self.p_lak_simevap is None
+                and (self.nreaches or self.nlakes)):
+            print('WARNING: neither SFR SIMEVAP nor LAK EVAP is exposed; '
+                  'open-water evaporation will be APPLIED but will not appear '
+                  'in the water balance (Eow reported as 0).')
         if self.p_gwd is None and self.p_drnseep is None:
             print('WARNING: neither the UZF groundwater-discharge array nor a '
                   'DRN_SEEP package was found; exfiltration into the soil will '
@@ -605,6 +629,52 @@ class MF6Coupler:
             wrote = float(v.mean()) if wrote is None else wrote
         return wrote
 
+    def _read_openwater_evap(self):
+        """What SFR and LAK actually evaporated this SP, per cell, in mm/d.
+
+        MMsoil used to compute this itself as ``Eow``, from its own surface
+        store; WP1d moved both the water and the evaporation to MODFLOW, and
+        this brings the number back so ``iEow`` is a measured flux again
+        rather than a structural zero.
+
+        SFR ``SIMEVAP`` and LAK ``EVAP`` are VOLUMETRIC rates (m3/d) capped by
+        what the reach or lake holds -- a dry reach evaporates nothing, which
+        is the same limit the old surface store imposed. Dividing by the CELL
+        area makes it a depth over the cell, which is the unit every other
+        MARMITES flux uses.
+        """
+        out = np.zeros(self.ncell, dtype=float)
+        if self.p_sfr_simevap is not None and self.nreaches:
+            se = np.asarray(self.p_sfr_simevap, dtype=float)
+            has = self.sfr_reach_idx >= 0
+            idx = self.sfr_reach_idx[has]
+            ok = idx < se.size
+            np.add.at(out, np.nonzero(has)[0][ok], se[idx[ok]])
+        if self.p_lak_simevap is not None and self.nlakes:
+            le = np.asarray(self.p_lak_simevap, dtype=float)
+            for L in range(min(self.nlakes, le.size)):
+                n = int(self.lak_cell_idx[L])
+                if n >= 0:
+                    out[n] += float(le[L])
+        # MF6 reports a removal as a positive rate here; carry it as a
+        # positive loss, like every other MARMITES flux.
+        return np.abs(out) / self.area * self.conv_fact          # mm/d
+
+    def _openwater_evap_into(self, mm_cells):
+        """Put this SP's open-water evaporation into ``iEow`` of the vector.
+
+        Deliberately does NOT reduce ``iRo``. Per cell it could not: a reach
+        carries water from upstream, so its evaporation can exceed the runoff
+        that cell generated, and subtracting would drive Ro negative. Eow is a
+        loss from the CHANNEL, downstream of the runoff -- which is what the
+        water-budget figures now say.
+        """
+        if self._iEow is None:
+            return None
+        eow = self._read_openwater_evap()
+        mm_cells[:, self._iEow] = eow
+        return eow
+
     def _write_fluxes(self, perc, etg):
         self.p_finf[:self.ncell] = perc                               # m/d
         if self.p_finf.shape[0] > self.ncell:
@@ -655,7 +725,10 @@ class MF6Coupler:
         nidx_s = len(self.ctx.index_S)
         nsl = int(self.ctx._nslmax)
         self._iRo = int(self.ctx.index['iRo'])
+        self._iEow = self.ctx.index.get('iEow')
+        self._iEow = None if self._iEow is None else int(self._iEow)
         self.runoff_hist = np.zeros((nper_mm, self.ncell))
+        self.evap_hist = np.zeros((nper_mm, self.ncell))
         self.wb_ts = np.zeros((nper_mm, nidx))
         self.wb_map = np.zeros((self.ncell, nidx))
         self.wb_ts_soil = np.zeros((nper_mm, nsl, nidx_s))
@@ -733,6 +806,15 @@ class MF6Coupler:
                 mm_cells = np.asarray(out['MM'], dtype=np.float64)
                 if self.p_sfr_inflow is not None:
                     self.runoff_hist[n] = mm_cells[:, self._iRo]
+                # WP1d: the open-water evaporation MF6 just simulated goes back
+                # into the per-cell vector, so iEow is a measured flux again.
+                # It is read AFTER the advance -- it is what the stress period
+                # actually removed -- and the runoff injected into SFR above
+                # was the gross value, which is correct: MF6 is what
+                # evaporates it.
+                eow = self._openwater_evap_into(mm_cells)
+                if eow is not None:
+                    self.evap_hist[n] = eow
                 mms_cells = np.asarray(out['MM_S'], dtype=np.float64)
                 self.wb_ts[n] = mm_cells.mean(axis=0)
                 self.wb_map += mm_cells

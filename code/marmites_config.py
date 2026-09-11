@@ -791,6 +791,9 @@ class Lak:
     # to a shapefile reader, which is why enabling LAK from the configuration
     # failed on a missing .dbf.
     polygons: str = 'lm_ponds.shp'         # in DATA_ROOT/GIS, for the converter
+    # WP1d: pond depth below the rim [m]. It used to come from
+    # inputSTREAMhmax.asc, which is retired and was never a pond map.
+    depth: float = 1.5
     geometry: str = 'inputPONDS.geojson'   # what a RUN reads
     bedleak: float = 1e-3          # 1/d                       (--lak-bedleak)
     surfdep: float = 0.05          # m

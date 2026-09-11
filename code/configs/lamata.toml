@@ -413,7 +413,10 @@ value = 0.5                  # m streambed thickness
 # --- LAK (WP4) ----------------------------------------------------------
 [lak]
 enable   = false             #                                    (--lak)
-source   = "inputPONDS.csv"
+source   = "inputPONDS.csv"      # the centroid/DEM table
+geometry = "inputPONDS.geojson"  # the POLYGONS the builder fits lakes to
+polygons = "lm_ponds.shp"        # in DATA_ROOT/GIS, for the converter
+depth    = 1.5                   # m, pond depth below the rim
 bedleak  = 1e-3              # 1/d, clay-lined charca             (--lak-bedleak)
 surfdep  = 0.05              # m, smooths the wetted area near the bed
 maxiter  = 200               # LAK-internal Newton cap (CdL)

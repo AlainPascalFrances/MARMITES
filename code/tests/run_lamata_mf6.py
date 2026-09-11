@@ -625,7 +625,12 @@ def main():
         shp = a.lak if os.path.isabs(a.lak) else os.path.join(DS, a.lak)
         b.lak_shapefile = shp
         b.lak_bedleak = float(a.lak_bedleak)
-        b.lak_depth = _asc_on_grid(os.path.join(DS, 'inputSTREAMhmax.asc'), cMF)
+        # WP1d: the pond depth used to be read from inputSTREAMhmax.asc, which
+        # is retired -- and was never a pond map anyway (1.0 m on the alluvium
+        # polygons). It comes from [lak] depth now; None falls back to
+        # marmites_lak.POND_DEPTH.
+        _d = (cfg.lak.depth if cfg else None)
+        b.lak_depth = None if _d is None else float(_d)
     if a.strt_heads:
         # a saved (equilibrated) head field seeds the IC directly, so the
         # spin-up need not be repeated. Resolve relative to the MF workspace.
@@ -796,6 +801,19 @@ def main():
     print('\nCoupled run finished. Results: %s' % out_fn)
     print('perc  mean %.4g m/d   ETg mean %.4g m/d   outer iters mean %.1f'
           % (res['perc'].mean(), res['etg'].mean(), res['outer_iters'].mean()))
+    # WP1d: open-water evaporation is MF6's now, read back from SFR SIMEVAP and
+    # LAK EVAP and carried in the MM vector as iEow, so it is a measured flux
+    # in the water balance rather than a structural zero.
+    _ev = getattr(cpl, 'evap_hist', None)
+    if _ev is not None and np.size(_ev):
+        _cells = int(np.count_nonzero(_ev.sum(axis=0)))
+        if _cells:
+            print('E_ow  %.4g mm/d catchment mean, from %d cell(s) with open '
+                  'water (SFR SIMEVAP + LAK EVAP)'
+                  % (float(np.mean(np.sum(_ev, axis=1))) / _ev.shape[1], _cells))
+        else:
+            print('E_ow  zero -- no open water evaporated (dry channels, or '
+                  'the simulated-evaporation arrays are not exposed)')
 
     # aquifer recharge/discharge balance -- the number to watch when calibrating
     # --uzf-vks-scale: recharge reaching the water table should ~match discharge

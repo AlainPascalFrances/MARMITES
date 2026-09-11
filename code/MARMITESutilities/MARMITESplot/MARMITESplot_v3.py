@@ -1994,14 +1994,28 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                           orientations=[1, 1, -1],
                           pathlengths=[pl, pl, pl])
             # MMsurf
-            flows = [Pe[k] / ff, -I[k] / ff, Exf_l0[k] / ff, -Eow[k] / ff, -Ro[k] / ff]
+            # WP1d: E_ow is no longer a loss from a MARMITES surface store --
+            # there is none. It is what SFR and LAK evaporated from the water
+            # the runoff delivered to them, so it is drawn as a SPLIT OF Ro:
+            #     Pe + Exf_1 = I + E_ow + Ro_net,   Ro_net = Ro - E_ow
+            # which closes exactly, and shows where the water went. The stream
+            # also receives groundwater, so over a dry window E_ow can exceed
+            # the runoff generated; the split is then clamped, and says so
+            # rather than drawing a negative flow.
+            eow_k = min(Eow[k], Ro[k]) if Ro[k] > 0.0 else 0.0
+            if Eow[k] > eow_k + 1e-9:
+                print('   NOTE: open-water evaporation (%.4g) exceeds the runoff '
+                      '(%.4g) over this window -- the stream was fed by '
+                      'groundwater. The Sankey shows %.4g.'
+                      % (Eow[k], Ro[k], eow_k))
+            ro_net = max(Ro[k] - eow_k, 0.0)
+            flows = [Pe[k] / ff, -I[k] / ff, Exf_l0[k] / ff, -eow_k / ff, -ro_net / ff]
             if np.abs(Exf_l0[k]) > treshold:
-                #flows = [Pe[k] / ff, -I[k] / ff, Exf_l0[k] / ff, -Eow[k] / ff, -Ro[k] / ff]
                 labels = [None, '$I$', '$Exf_1$', '$E_{ow}$', '$Ro$']
                 orientations = [1, -1, -1, 1, 0]
                 pathlengths = [pl, pl, pl, pl, pl]
             else:
-                #flows = [Pe[k] / ff, -I[k] / ff, 0.0, -Eow[k] / ff, -Ro[k] / ff]
+                flows[2] = 0.0
                 labels = [None, '$I$', '', '$E_{ow}$', '$Ro$']
                 orientations = [1, -1, -1, 1, 0]
                 pathlengths = [pl, pl, 0, pl, pl]
@@ -2013,7 +2027,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                           pathlengths=pathlengths,
                           prior=0, connect=(2, 0))
             In = Pe[k] + Exf_l0[k]
-            Out = I[k] + Eow[k] + Ro[k]
+            Out = I[k] + eow_k + ro_net
             if dSsurf[k] > 0.0:
                 Out += dSsurf[k]
             else:
