@@ -262,8 +262,6 @@ def setup_lamata(daily=True, nsp=None, grid='dis', nlay=None, aggregate=False,
     gridMETEO = cMF.cPROCESS.inputEsriAscii(grid_fn='inputMETEOzones.asc', datatype=int)
     gridSOIL = cMF.cPROCESS.inputEsriAscii(grid_fn='inputSOILzones.asc', datatype=int)
     gridSOILthick = cMF.cPROCESS.inputEsriAscii(grid_fn='inputSOILthick.asc', datatype=float)
-    gridSsurfhmax = cMF.cPROCESS.inputEsriAscii(grid_fn='inputSTREAMhmax.asc', datatype=float)
-    gridSsurfw = cMF.cPROCESS.inputEsriAscii(grid_fn='inputSTREAMw.asc', datatype=float)
     gridIRR = cMF.cPROCESS.inputEsriAscii(grid_fn='inputIRRzones.asc', datatype=int)
 
     (gridVEGarea, P_veg_zoneSP, Eo_zonesSP, PT_veg_zonesSP, Pe_veg_zonesSP, LAI_veg_zonesSP,
@@ -306,8 +304,7 @@ def setup_lamata(daily=True, nsp=None, grid='dis', nlay=None, aggregate=False,
     # mesh path reuses the whole validated setup and only changes the
     # discretisation the model is expressed on.
     grids = {'gridMETEO': gridMETEO, 'gridSOIL': gridSOIL,
-             'gridSOILthick': gridSOILthick, 'gridSsurfhmax': gridSsurfhmax,
-             'gridSsurfw': gridSsurfw, 'gridIRR': gridIRR,
+             'gridSOILthick': gridSOILthick, 'gridIRR': gridIRR,
              'gridVEGarea': gridVEGarea}
     mesh_kind = (cfg.grid_kind if cfg is not None else 'structured')
     if mesh_kind in ('quadtree', 'voronoi'):
@@ -333,7 +330,6 @@ def setup_lamata(daily=True, nsp=None, grid='dis', nlay=None, aggregate=False,
         cMF.mesh_gridprops, cMF.mesh_proj = gp, proj
         gridMETEO = grids['gridMETEO']; gridSOIL = grids['gridSOIL']
         gridSOILthick = grids['gridSOILthick']
-        gridSsurfhmax = grids['gridSsurfhmax']; gridSsurfw = grids['gridSsurfw']
         gridIRR = grids['gridIRR']; gridVEGarea = grids['gridVEGarea']
         # derived from the PROJECTED arrays, never carried over from the raster
         botm_l0 = np.asarray(cMF.botm)[0]
@@ -354,7 +350,7 @@ def setup_lamata(daily=True, nsp=None, grid='dis', nlay=None, aggregate=False,
         geom = geometry_for(cMF, cells, grid=grid)
     ctx = mm.build_context(cMF, cells, _nsl, _nslmax, _st, _Sm, _Sfc, _Sr, _slprop, _S_ini,
                            botm_l0, _Ks, gridSOIL, gridSOILthick, cMF.elev * 1000.0, gridMETEO,
-                           INDEX_MM, INDEX_MM_SOIL, gridSsurfhmax, gridSsurfw,
+                           INDEX_MM, INDEX_MM_SOIL,
                            P_veg_zoneSP, Eo_zonesSP, PT_veg_zonesSP, Pe_veg_zonesSP, PE_zonesSP,
                            gridVEGarea, LAI_veg_zonesSP, Zr, kTg_min, kTg_max, kT_f, kT_s, NVEG,
                            conv_fact, 1, P_irr_zoneSP, PT_irr_zonesSP, Pe_irr_zoneSP,
@@ -444,7 +440,11 @@ def _args_from_config(cfg, probe=False):
 
     lak_source = None
     if cfg.lak.enable:
-        lak_source = cfg.lak.source or 'GIS/lm_ponds.shp'
+        # The builder fits an embedded lake to each pond FOOTPRINT, so it
+        # needs the polygons -- [lak] geometry, the derived GeoJSON the
+        # converter writes -- not [lak] source, which is the centroid/DEM
+        # table. Passing source here is what made LAK fail on a missing .dbf.
+        lak_source = cfg.lak.geometry or 'inputPONDS.geojson'
 
     libmf6 = (cfg.paths.libmf6 or '').strip()
     if libmf6.lower() == 'auto':

@@ -422,10 +422,12 @@ class clsMF6:
     def _add_sfr_package(self, gwf, name):
         """ModflowGwfsfr from the routed network.
 
-        EVAPORATION is left at 0: MARMITES computes open-water evaporation
-        itself (E_ow, Eq. 1), so letting SFR evaporate too would double-count
-        it. RUNOFF is 0 here as well -- the coupler injects the MARMITES runoff
-        of each stress period through the API instead.
+        EVAPORATION is 0 at BUILD time and written by the coupler each
+        stress period from the Eo forcing (WP1d). It used to be left at zero
+        permanently, because MARMITES evaporated from its own surface store;
+        that store is gone, so the evaporation follows the water to the reach.
+        RUNOFF is 0 here as well -- the coupler injects the MARMITES runoff of
+        each stress period through the API instead.
         """
         net = self.sfr_net
         nreaches = net.nreaches
@@ -436,6 +438,12 @@ class clsMF6:
                       connectiondata=net.connectiondata,
                       perioddata={0: spd0},
                       unit_conversion=86400.0,   # Manning, SI, time unit = day
+                      # MVR hands reach flow to the on-channel lakes and takes
+                      # their spill back, and a package MVR names must declare
+                      # MOVER itself -- otherwise MF6 stops on 'MODEL AND
+                      # PACKAGE "…/SFR" DOES NOT HAVE MOVER SPECIFIED'. LAK
+                      # already declared it; SFR did not (WP1d).
+                      mover=bool(self.lak_mvr and self.ponds),
                       pname='sfr', save_flows=True,
                       budget_filerecord=f'{name}.sfr.cbc',
                       stage_filerecord=f'{name}.sfr.stage')
@@ -478,9 +486,9 @@ class clsMF6:
     def _add_lak_package(self, gwf, name, strt_heads=None):
         """ModflowGwflak: one EMBEDDEDV lake per pond.
 
-        No evaporation is specified: MARMITES computes open-water evaporation
-        itself (E_ow, Eq. 1), and letting LAK evaporate as well would remove
-        the same water twice.
+        No evaporation is specified at BUILD time; the coupler writes it
+        each stress period from the Eo forcing (WP1d), now that MARMITES no
+        longer has a surface store of its own to evaporate from.
         """
         from marmites_lak import lake_table
         pkg, conn, tables, outlets = [], [], [], []
@@ -520,13 +528,18 @@ class clsMF6:
                       surfdep=self.lak_surfdep,
                       nlakes=n, noutlets=len(outlets), ntables=n,
                       packagedata=pkg, connectiondata=conn,
+                      # ntables=n without `tables` writes the COUNT and not the
+                      # block, and MF6 stops with 'Required block "TABLES" not
+                      # found. Found block "OUTLETS" instead.' It only surfaced
+                      # once the pond source became readable at all (WP1d).
+                      tables=tables,
                       outlets=outlets or None,
                       perioddata={0: [[L, 'RAINFALL', 0.0] for L in range(n)]})
         self.lak_outlets = outlets
         if getattr(self, 'verbose', True):
             non = sum(1 for p in self.ponds if p.on_channel)
             print('LAK: %d EMBEDDEDV lake(s), %d on-channel, %d outlet(s); '
-                  'bedleak %.3g 1/d (evaporation left to MARMITES)'
+                  'bedleak %.3g 1/d (evaporation from the Eo forcing)'
                   % (n, non, len(outlets), self.lak_bedleak))
 
     def _add_mvr_package(self, gwf, name):

@@ -6,8 +6,9 @@ spatial quantities the soil model and the coupler need per cell are:
 
   * ``area``  [L^2] -- cell plan area, used to convert MODFLOW volumetric
     fluxes (exfiltration m3/d, WEL m3/d) to/from MARMITES depths (mm/d);
-  * ``width`` [L]   -- a characteristic horizontal cell dimension, used by
-    the surface-storage geometry (``Ssurf_max`` / ``Eosurf_max``).
+  * ``width`` [L]   -- a characteristic horizontal cell dimension. It used to
+    size the surface-storage geometry, which WP1d removed with the pond
+    module; it is kept because a mesh cell still has no delr/delc.
 
 This module supplies both for a structured (DIS) and a vertex (DISV) grid,
 so the soil model never touches ``delr``/``delc`` again.

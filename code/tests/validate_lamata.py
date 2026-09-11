@@ -99,8 +99,6 @@ def main(nsp):
     gridMETEO = cMF.cPROCESS.inputEsriAscii(grid_fn='inputMETEOzones.asc', datatype=int)
     gridSOIL = cMF.cPROCESS.inputEsriAscii(grid_fn='inputSOILzones.asc', datatype=int)
     gridSOILthick = cMF.cPROCESS.inputEsriAscii(grid_fn='inputSOILthick.asc', datatype=float)
-    gridSsurfhmax = cMF.cPROCESS.inputEsriAscii(grid_fn='inputSTREAMhmax.asc', datatype=float)
-    gridSsurfw = cMF.cPROCESS.inputEsriAscii(grid_fn='inputSTREAMw.asc', datatype=float)
     gridIRR = cMF.cPROCESS.inputEsriAscii(grid_fn='inputIRRzones.asc', datatype=int)
 
     # ---- input stress-period series ----
@@ -159,7 +157,7 @@ def main(nsp):
     MM_SOIL = MMsoil.clsMMsoil(hnoflo=cMF.hnoflo)
     MM_SOIL.runMMsoil(_nsl, _nslmax, _st, _Sm, _Sfc, _Sr, _slprop, _S_ini, botm_l0, _Ks,
                       gridSOIL, gridSOILthick, cMF.elev * 1000.0, gridMETEO,
-                      INDEX_MM, INDEX_MM_SOIL, gridSsurfhmax, gridSsurfw,
+                      INDEX_MM, INDEX_MM_SOIL,
                       P_veg_zoneSP, Eo_zonesSP, PT_veg_zonesSP, Pe_veg_zonesSP, PE_zonesSP, gridVEGarea,
                       LAI_veg_zonesSP, Zr, kTg_min, kTg_max, kT_f, kT_s, NVEG,
                       cMF, conv_fact, h5_MF, h5_MM, irr_yn=1,

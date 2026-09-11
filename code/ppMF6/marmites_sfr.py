@@ -28,7 +28,8 @@ of it.
 MARMITES coupling
 -----------------
 ``EVAPORATION`` is left at zero: MARMITES computes open-water evaporation
-itself (E_ow in Eq. 1), so letting SFR evaporate as well would double-count it.
+itself; WP1d moved it here, because MARMITES no longer has a surface store
+to evaporate from. The coupler writes the rate each stress period.
 Runoff is not set here either; the coupler injects the MARMITES runoff of each
 stress period into the reaches as INFLOW through the API.
 """

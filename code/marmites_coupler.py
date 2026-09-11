@@ -157,6 +157,38 @@ class MF6Coupler:
             if b is not None:
                 self.drnseep_idx[n] = int(b)
 
+        # ---- open-water evaporation (WP1d) -------------------------------
+        # Eo used to be applied by MMsoil to its own surface store, and SFR and
+        # LAK were built with evaporation deliberately left at 0 so the same
+        # water would not leave twice. The surface store went with the pond
+        # module, so the evaporation follows the water: onto the stream reaches
+        # and the lakes. Eo is per METEO ZONE, so each reach and each lake is
+        # tagged with the zone of the cell it sits in.
+        self.p_sfr_evap = None
+        self.p_lak_evap = None
+        gm = getattr(ctx, 'gridMETEO', None)
+        gm = None if gm is None else np.asarray(gm)
+        self.sfr_evap_zone = np.zeros(max(self.nreaches, 1), dtype=int)
+        if gm is not None and self.nreaches:
+            for (i, j), r in reach_of.items():
+                if 0 <= int(r) < self.nreaches:
+                    self.sfr_evap_zone[int(r)] = int(gm[i, j]) - 1
+        ponds = list(getattr(mf6b, 'ponds', None) or [])
+        self.nlakes = len(ponds)
+        self.lak_evap_zone = np.zeros(max(self.nlakes, 1), dtype=int)
+        if gm is not None and self.nlakes:
+            for L, p in enumerate(ponds):
+                i, j = p.cell
+                self.lak_evap_zone[L] = int(gm[i, j]) - 1
+        # The zone rasters are 1-based; a cell outside every mapped zone would
+        # index -1 and silently take the LAST zone's Eo.
+        self.sfr_evap_zone = np.clip(self.sfr_evap_zone, 0, None)
+        self.lak_evap_zone = np.clip(self.lak_evap_zone, 0, None)
+        eo = getattr(ctx, 'Eo_zonesSP', None)
+        self.Eo_zonesSP = None if eo is None else np.atleast_2d(np.asarray(eo,
+                                                                          float))
+        self.evap_hist = None
+
     # ---------------- address / pointer helpers ------------------------ #
 
     def _addr(self, api, var, comp):
@@ -272,6 +304,23 @@ class MF6Coupler:
                       'reaches; runoff routing disabled.'
                       % (self.p_sfr_inflow.size, self.nreaches))
                 self.p_sfr_inflow = None
+            # WP1d: open-water evaporation, which MMsoil no longer applies.
+            self.p_sfr_evap, self.addr_sfr_evap = self._bind_first(
+                api, [('EVAP', f'{name}/SFR'), ('EVAP', f'{name}/SFR-1')],
+                'SFR evaporation', required=False)
+            if self.p_sfr_evap is None:
+                print('WARNING: SFR EVAP array not exposed by this MF6 build; '
+                      'open-water evaporation will NOT be applied to the '
+                      'stream.')
+        if self.nlakes:
+            self.p_lak_evap, self.addr_lak_evap = self._bind_first(
+                api, [('EVAPORATION', f'{name}/LAK'),
+                      ('EVAPORATION', f'{name}/LAK-1')],
+                'LAK evaporation', required=False)
+            if self.p_lak_evap is None:
+                print('WARNING: LAK EVAPORATION array not exposed by this MF6 '
+                      'build; open-water evaporation will NOT be applied to '
+                      'the ponds.')
         if self.p_gwd is None and self.p_drnseep is None:
             print('WARNING: neither the UZF groundwater-discharge array nor a '
                   'DRN_SEEP package was found; exfiltration into the soil will '
@@ -529,6 +578,33 @@ class MF6Coupler:
         np.add.at(inflow, self.sfr_reach_idx[has], np.maximum(q[has], 0.0))
         self.p_sfr_inflow[:] = inflow
 
+    def _write_openwater_evap(self, n):
+        """Apply the open-water evaporation of SP ``n`` to SFR and LAK (WP1d).
+
+        Both packages take a rate per unit of wetted area, in model length
+        units per day; ``Eo`` is mm/d, so it is divided by ``conv_fact``. MF6
+        only removes what the reach or lake actually holds, which is what the
+        MMsoil version did too (``Eow`` was capped by the surface store).
+
+        Returns the rate written, for the water-balance record.
+        """
+        if self.Eo_zonesSP is None:
+            return None
+        col = min(int(n), self.Eo_zonesSP.shape[1] - 1)
+        eo = self.Eo_zonesSP[:, col] / self.conv_fact             # m/d
+        wrote = None
+        if self.p_sfr_evap is not None and self.nreaches:
+            v = eo[np.minimum(self.sfr_evap_zone, len(eo) - 1)]
+            self.p_sfr_evap[:min(self.p_sfr_evap.size, self.nreaches)] = \
+                v[:min(self.p_sfr_evap.size, self.nreaches)]
+            wrote = float(v.mean())
+        if self.p_lak_evap is not None and self.nlakes:
+            v = eo[np.minimum(self.lak_evap_zone, len(eo) - 1)]
+            self.p_lak_evap[:min(self.p_lak_evap.size, self.nlakes)] = \
+                v[:min(self.p_lak_evap.size, self.nlakes)]
+            wrote = float(v.mean()) if wrote is None else wrote
+        return wrote
+
     def _write_fluxes(self, perc, etg):
         self.p_finf[:self.ncell] = perc                               # m/d
         if self.p_finf.shape[0] > self.ncell:
@@ -554,7 +630,6 @@ class MF6Coupler:
     @staticmethod
     def _restore_state(state, bak):
         state.Ssoil_ini[:] = bak.Ssoil_ini
-        state.Ssurf_ini[:] = bak.Ssurf_ini
 
     # ---------------- main drive --------------------------------------- #
 
@@ -640,10 +715,11 @@ class MF6Coupler:
                     _ro = (np.asarray(out['MM'], dtype=np.float64)[:, self._iRo]
                            if self.p_sfr_inflow is not None else None)
 
-                    def _write(o=_o, ro=_ro):
+                    def _write(o=_o, ro=_ro, sp=n):
                         self._write_fluxes(o['perc'], o['etg'])
                         if ro is not None:
                             self._write_runoff(ro)
+                        self._write_openwater_evap(sp)
 
                     self.outer_iters[n] = self._advance(api, t_end[n + 1], write_cb=_write)
                 else:
@@ -718,9 +794,9 @@ class MF6Coupler:
             rejected = float(np.sum(self.rejinf_hist))
             if applied > 0 and rejected > 0:
                 print('\nNOTE: UZF rejected %.4g of %.4g m3 of applied percolation '
-                      '(%.1f%%).\n      This water is returned to the MARMITES surface '
-                      'store on the next\n      stress period; any excess above '
-                      'Ssurf_max becomes runoff.'
+                      '(%.1f%%).\n      This water re-enters the MARMITES soil '
+                      'column from below\n      on the next stress period, and '
+                      'whatever the soil cannot hold becomes runoff.'
                       % (rejected, applied, 100.0 * rejected / applied))
         finally:
             # MF6 can fault inside finalize() when the run is aborted early
@@ -871,6 +947,7 @@ class MF6Coupler:
                 etg = self.relax * etg + (1.0 - self.relax) * etg_prev
             perc_prev, etg_prev = perc, etg
             self._write_fluxes(perc, etg)
+            self._write_openwater_evap(n)
             if api.solve(1):
                 break
         converged = kiter < self.max_outer
@@ -889,8 +966,11 @@ class MF6Coupler:
                     break
                 # re-apply the converged fluxes each sub-step, or rp reverts
                 # SINF to the build-time value on the next prepare_time_step
-                k, ok = self._one_step(
-                    api, write_cb=lambda: self._write_fluxes(perc_prev, etg_prev))
+                def _re_apply(p=perc_prev, e=etg_prev, sp=n):
+                    self._write_fluxes(p, e)
+                    self._write_openwater_evap(sp)
+
+                k, ok = self._one_step(api, write_cb=_re_apply)
                 kiter = max(kiter, k)
                 if not ok:
                     self.n_nonconverged += 1

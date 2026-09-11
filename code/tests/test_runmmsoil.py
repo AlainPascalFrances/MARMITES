@@ -84,8 +84,6 @@ def _build_inputs(cMF, nmeteo=1, nveg=2, nsoil=1):
     gridSOILthick = np.full((cMF.nrow, cMF.ncol), 2.0)   # 2 m soil
     TopSoil = np.full((cMF.nrow, cMF.ncol), 700_000.0)   # mm elevation
     botm_l0 = np.full((cMF.nrow, cMF.ncol), 650.0)
-    gridSsurfhmax = np.full((cMF.nrow, cMF.ncol), 0.1)
-    gridSsurfw = np.full((cMF.nrow, cMF.ncol), 1.0)
     gridVEGarea = np.zeros((nveg, cMF.nrow, cMF.ncol))
     gridVEGarea[0] = 40.0
     gridVEGarea[1] = 30.0
@@ -101,7 +99,7 @@ def _build_inputs(cMF, nmeteo=1, nveg=2, nsoil=1):
     return dict(_nsl=_nsl, _nslmax=_nslmax, _st=_st, _Sm=_Sm, _Sfc=_Sfc, _Sr=_Sr, _slprop=slprop,
                 _Ssoil_ini=_Ssoil_ini, botm_l0=botm_l0, _Ks=_Ks, gridSOIL=gridSOIL,
                 gridSOILthick=gridSOILthick, TopSoil=TopSoil, gridMETEO=gridMETEO,
-                gridSsurfhmax=gridSsurfhmax, gridSsurfw=gridSsurfw, P_veg_zoneSP=P_veg,
+                P_veg_zoneSP=P_veg,
                 Eo_zonesSP=Eo, PT_veg_zonesSP=PT_veg, Pe_veg_zonesSP=Pe_veg, PE_zonesSP=PE,
                 gridVEGarea=gridVEGarea, LAI_veg_zonesSP=LAI_veg, Zr=Zr, kTg_min=kTg_min,
                 kTg_max=kTg_max, kT_f=kT_f, kT_s=kT_s, NVEG=nveg)
@@ -138,7 +136,7 @@ def _run(tmp, cMF, exf_val=0.0):
     mm.runMMsoil(inp['_nsl'], inp['_nslmax'], inp['_st'], inp['_Sm'], inp['_Sfc'], inp['_Sr'],
                  inp['_slprop'], inp['_Ssoil_ini'], inp['botm_l0'], inp['_Ks'],
                  inp['gridSOIL'], inp['gridSOILthick'], inp['TopSoil'] , inp['gridMETEO'],
-                 INDEX_MM, INDEX_MM_S, inp['gridSsurfhmax'], inp['gridSsurfw'],
+                 INDEX_MM, INDEX_MM_S,
                  inp['P_veg_zoneSP'], inp['Eo_zonesSP'], inp['PT_veg_zonesSP'],
                  inp['Pe_veg_zonesSP'], inp['PE_zonesSP'], inp['gridVEGarea'],
                  inp['LAI_veg_zonesSP'], inp['Zr'], inp['kTg_min'], inp['kTg_max'],
@@ -225,7 +223,7 @@ def test_step_matches_runmmsoil(tmp_path):
                            inp['_Sfc'], inp['_Sr'], inp['_slprop'], inp['_Ssoil_ini'],
                            inp['botm_l0'], inp['_Ks'], inp['gridSOIL'], inp['gridSOILthick'],
                            inp['TopSoil'], inp['gridMETEO'], INDEX_MM, INDEX_MM_S,
-                           inp['gridSsurfhmax'], inp['gridSsurfw'], inp['P_veg_zoneSP'],
+                           inp['P_veg_zoneSP'],
                            inp['Eo_zonesSP'], inp['PT_veg_zonesSP'], inp['Pe_veg_zonesSP'],
                            inp['PE_zonesSP'], inp['gridVEGarea'], inp['LAI_veg_zonesSP'],
                            inp['Zr'], inp['kTg_min'], inp['kTg_max'], inp['kT_f'], inp['kT_s'],

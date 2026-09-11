@@ -67,7 +67,7 @@ def _ctx_2d(cMF, inp, mm, grid='disv'):
                            inp['_Sfc'], inp['_Sr'], inp['_slprop'], inp['_Ssoil_ini'],
                            inp['botm_l0'], inp['_Ks'], inp['gridSOIL'], inp['gridSOILthick'],
                            inp['TopSoil'], inp['gridMETEO'], T.INDEX_MM, T.INDEX_MM_S,
-                           inp['gridSsurfhmax'], inp['gridSsurfw'], inp['P_veg_zoneSP'],
+                           inp['P_veg_zoneSP'],
                            inp['Eo_zonesSP'], inp['PT_veg_zonesSP'], inp['Pe_veg_zonesSP'],
                            inp['PE_zonesSP'], inp['gridVEGarea'], inp['LAI_veg_zonesSP'],
                            inp['Zr'], inp['kTg_min'], inp['kTg_max'], inp['kT_f'], inp['kT_s'],
@@ -99,7 +99,7 @@ def _ctx_degenerate(cMF, inp, mm, cells2d):
                            col(inp['botm_l0']), inp['_Ks'], col(inp['gridSOIL']),
                            col(inp['gridSOILthick']), col(inp['TopSoil']),
                            col(inp['gridMETEO']), T.INDEX_MM, T.INDEX_MM_S,
-                           col(inp['gridSsurfhmax']), col(inp['gridSsurfw']),
+
                            inp['P_veg_zoneSP'], inp['Eo_zonesSP'], inp['PT_veg_zonesSP'],
                            inp['Pe_veg_zonesSP'], inp['PE_zonesSP'], veg,
                            inp['LAI_veg_zonesSP'], inp['Zr'], inp['kTg_min'], inp['kTg_max'],
@@ -146,7 +146,6 @@ def test_degenerate_layout_matches_2d_exactly():
             assert np.array_equal(np.asarray(a[key]), np.asarray(b[key])), \
                 f'SP{n} differs in {key}'
     assert np.array_equal(s2.Ssoil_ini, sd.Ssoil_ini)
-    assert np.array_equal(s2.Ssurf_ini, sd.Ssurf_ini)
 
 
 def test_degenerate_layout_matches_with_exfiltration():

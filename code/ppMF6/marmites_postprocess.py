@@ -1983,8 +1983,6 @@ def _native_input_maps(MMplot, out_dir, cMF, ctx, res=None, verbose=True):
            ('thick', 'Aq. thick.', thick),
            ('strt', 'Init. heads - $strt$', arr(cMF.strt)),
            ('gridSOILthick', 'Soil thick.', arr(ctx.gridSOILthick)),
-           ('gridSsurfhmax', 'Max. stream heigth', arr(ctx.gridSsurfhmax)),
-           ('gridSsurfw', 'Stream width', arr(ctx.gridSsurfw)),
            ('hk', 'Horizontal hydraulic cond. - $hk$', arr(cMF.hk_actual)),
            ('Ss', 'Specific storage - $S_s$', arr(cMF.ss_actual)),
            ('Sy', 'Specific yield - $S_y$', arr(cMF.sy_actual)),
@@ -2056,7 +2054,7 @@ def _native_input_maps(MMplot, out_dir, cMF, ctx, res=None, verbose=True):
             elif stem in ('ibound', 'SOILzones', 'METEOzones', 'IRRzones'):
                 fmt = '%5.0f'
             elif stem in ('Sy', 'thts', 'thti', 'thtr', 'gridSOILthick',
-                          'gridSsurfhmax', 'gridSsurfw'):
+                          ):
                 fmt = '%5.3f'
             else:
                 fmt = '%5.1f'

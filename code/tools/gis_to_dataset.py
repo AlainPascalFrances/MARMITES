@@ -84,10 +84,13 @@ VECTOR_LAYERS = [
                                               'ibound_l1', 'ibound_l2', 'iuzfbnd'],
      'inputSOILZONES'),
     ('vegetation', 'soil.veg_layer',         ['Species'],       'inputVEG'),
-    ('irrigation', 'surface.irr_zones.layer', ['field_id', 'Id'], 'inputIRR'),
+    ('irrigation', 'surface.irr_zones.layer', ['field_id'],       'inputIRR'),
     ('obs',       'obs.layer',               ['Name', 'lay', 'hi', 'h0', 'RC',
                                               'STO', 'NameReal', 'onMap'],
      'inputOBSPTS'),
+    # The LAK builder needs the pond POLYGONS, not just the centroid table
+    # inputPONDS.csv holds -- it fits an embedded lake to each footprint.
+    ('ponds',     'lak.polygons',            ['id'],            'inputPONDS'),
 ]
 
 

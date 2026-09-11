@@ -22,9 +22,13 @@ from ~0 at the deepest point to the full polygon area at the rim, which lets
 storage and fluxes vanish smoothly as the pond dries. ``barea`` (the bed
 exchange area) is set equal to ``sarea``: the wetted bed IS the exchange area.
 
-Evaporation is left to MARMITES (E_ow in Eq. 1 of the paper), so the LAK
-package is given no evaporation of its own -- otherwise the pond would
-evaporate twice.
+Evaporation
+-----------
+Written by the COUPLER each stress period, from the Eo forcing (WP1d). It
+used to be left to MARMITES, and the package was given none of its own so the
+pond would not evaporate twice; MARMITES no longer has a surface store to
+evaporate from, so the evaporation followed the water here. The build still
+specifies nothing -- the rate arrives through the API.
 """
 
 __author__ = "Alain P. Francés <frances.alain@gmail.com>"
@@ -86,26 +90,47 @@ def _ring_area_centroid(pts):
     return area, (cx, cy)
 
 
-def read_pond_polygons(shp_fn, id_field='id'):
-    """Read pond polygons from an ESRI shapefile into :class:`PondLake` objects."""
+def read_pond_polygons(path, id_field='id'):
+    """Read pond polygons into :class:`PondLake` objects.
+
+    Takes either tier: the derived ``inputPONDS.geojson`` the converter writes
+    -- the one a run should use, since no shapefile belongs on the model path
+    -- or a shapefile directly, which is what the GIS folder holds. Both
+    arrive through ``marmites_vector.Layer``, so this does not branch.
+
+    (Before WP1d this took a shapefile only, while ``[lak] source`` had been
+    pointed at ``inputPONDS.csv``, so enabling LAK from the configuration
+    failed on a missing .dbf.)
+    """
+    import os
+    import sys
+
+    here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if here not in sys.path:
+        sys.path.insert(0, here)
+    from marmites_vector import Layer, VectorError
+
     try:
-        import shapefile                       # pyshp
-    except ImportError:                        # pragma: no cover
-        raise ImportError(
-            'reading %s needs pyshp; install it with "pip install pyshp" '
-            '(flopy ships it as an optional dependency)' % shp_fn)
-    r = shapefile.Reader(shp_fn)
-    names = [f[0] for f in r.fields[1:]]
+        lay = Layer(path)
+    except VectorError as exc:
+        raise ValueError(str(exc)) from exc
+    if lay.kind != 'polygon':
+        raise ValueError('%s is a %s layer; the ponds must be polygons'
+                         % (path, lay.kind))
+    ids = lay.column(id_field) if id_field in lay.fields else None
     ponds = []
-    for k, sr in enumerate(r.iterShapeRecords()):
-        pts = np.asarray(sr.shape.points, dtype=float)
-        if len(pts) < 3:
+    for k in range(len(lay)):
+        rings = [np.asarray(r, dtype=float) for r in lay.rings(k)
+                 if len(r) >= 3]
+        if not rings:
             continue
+        # The outer ring is the largest by area; any interior ring is not
+        # lake surface.
+        pts = max(rings, key=lambda r: abs(_ring_area_centroid(r)[0]))
         area, cen = _ring_area_centroid(pts)
-        fid = sr.record[names.index(id_field)] if id_field in names else k
-        ponds.append(PondLake(fid, pts, area, cen))
+        ponds.append(PondLake(ids[k] if ids else k, pts, area, cen))
     if not ponds:
-        raise ValueError('no polygons found in %s' % shp_fn)
+        raise ValueError('no polygons found in %s' % path)
     return ponds
 
 

@@ -67,7 +67,6 @@ class clsMMsoil:
             Sr      residual soil moisture storage [-]
             Ssoil_ini  initial soil moisture [-]
             Ks      saturated hydraulic conductivity [mm/d]
-            Ssurf_max  max. surface (ponding) storage [mm]
         STATE VARIABLES
             P (rainfall), PT (pot. transpiration), PE (pot. evaporation) [mm/d]
     OUTPUTS
@@ -125,9 +124,9 @@ class clsMMsoil:
 
     # ------------------------------------------------------------------ #
 
-    def flux(self, cMF, perleni, Pe, PT, PE, Eosurf_max, Zr_elev, VEGarea,
+    def flux(self, cMF, perleni, Pe, PT, PE, Zr_elev, VEGarea,
              HEADSini, TopSoilLay, BotSoilLay, Tl, nsl, Sm, Sfc, Sr, Ks,
-             Ssurf_max, Ssoil_ini, Ssurf_ini, EXF_ini, dgwt, st, i, j, n,
+             Ssoil_ini, EXF_ini, dgwt, st, i, j, n,
              kTg_min, kTg_max, kT_f, kT_s, NVEG, LAIveg, REJINF_ini=0.0):
         """Soil water balance of one cell for one stress period.
 
@@ -147,7 +146,13 @@ class clsMMsoil:
             subsurface cannot accept "eventually creat[es] saturation-excess
             overland flow (Dunnian flow) if all the soil layers turn
             saturated". So it fills the soil from below, then the surface
-            store, and only the excess above Ssurf_max becomes runoff.
+            store, and the excess becomes runoff.
+
+        WP1d: MMsoil no longer has a surface RESERVOIR. Ponding capacity and
+        open-water evaporation moved to MODFLOW with the water -- SFR for the
+        channels, LAK for the charcas, both evaporating from the Eo forcing --
+        so nothing is carried between stress periods and everything the soil
+        cannot take becomes runoff in the same step.
 
             Zero for the uncoupled/file-based path, so legacy behaviour is
             unchanged.
@@ -165,8 +170,6 @@ class clsMMsoil:
         perlen = float(cMF.perlen[n])
         Pe = float(Pe)
         PE = float(PE)
-        Eosurf_max = float(Eosurf_max)
-        Ssurf_max = float(Ssurf_max)
         EXF_ini = float(EXF_ini)
         Tl = np.asarray(Tl, dtype=np.float64)
         Sm = np.asarray(Sm, dtype=np.float64)
@@ -181,8 +184,9 @@ class clsMMsoil:
         else:
             VEGarea = np.asarray(VEGarea, dtype=np.float64).reshape(NVEG)
 
-        # Surface storage
-        Ssurf_tmp = Pe + float(Ssurf_ini)
+        # Surface water WITHIN this step. Not a storage: nothing is
+        # carried over, it is only how Pe and exfiltration reach the soil.
+        Ssurf_tmp = Pe
 
         # Soil storages [mm]
         Ssoil_tmp = np.asarray(Ssoil_ini, dtype=np.float64)[:nsl].copy()
@@ -227,18 +231,11 @@ class clsMMsoil:
                 else:
                     break
 
-        # SURFACE storage, runoff Ro, open-water evaporation Eow
-        if Ssurf_tmp > Ssurf_max:
-            Ro_tmp = (Ssurf_tmp - Ssurf_max) / perlen
-            Ssurf_tmp = Ssurf_max
-        else:
-            Ro_tmp = 0.0
-        if Ssurf_tmp > Eosurf_max:
-            Eow_tmp = Eosurf_max
-            Ssurf_tmp -= Eosurf_max * perlen
-        else:
-            Eow_tmp = Ssurf_tmp / perlen
-            Ssurf_tmp = 0.0
+        # RUNOFF. Whatever the soil could not take leaves the cell in the
+        # same step; SFR and LAK receive it and evaporate it (WP1d).
+        Ro_tmp = Ssurf_tmp / perlen
+        Ssurf_tmp = 0.0
+        Eow_tmp = 0.0
 
         Rp_tmp = np.zeros(nsl, dtype=np.float64)
         Tsoil_tmpZr = np.zeros((nsl, NVEG), dtype=np.float64)
@@ -389,7 +386,7 @@ class clsMMsoil:
 
     def build_context(self, cMF, cells, _nsl, _nslmax, _st, _Sm, _Sfc, _Sr, _slprop,
                       _Ssoil_ini, botm_l0, _Ks, gridSOIL, gridSOILthick, TopSoil, gridMETEO,
-                      index, index_S, gridSsurfhmax, gridSsurfw,
+                      index, index_S,
                       P_veg_zoneSP, Eo_zonesSP, PT_veg_zonesSP, Pe_veg_zonesSP, PE_zonesSP,
                       gridVEGarea, LAI_veg_zonesSP, Zr, kTg_min, kTg_max, kT_f, kT_s, NVEG,
                       conv_fact, irr_yn, P_irr_zoneSP, PT_irr_zonesSP, Pe_irr_zoneSP,
@@ -410,7 +407,7 @@ class clsMMsoil:
             _nsl=_nsl, _nslmax=_nslmax, _st=_st, _Sm=_Sm, _Sfc=_Sfc, _Sr=_Sr,
             _slprop=_slprop, _Ssoil_ini=_Ssoil_ini, botm_l0=botm_l0, _Ks=_Ks,
             gridSOIL=gridSOIL, gridSOILthick=gridSOILthick, TopSoil=TopSoil, gridMETEO=gridMETEO,
-            index=index, index_S=index_S, gridSsurfhmax=gridSsurfhmax, gridSsurfw=gridSsurfw,
+            index=index, index_S=index_S,
             P_veg_zoneSP=P_veg_zoneSP, Eo_zonesSP=Eo_zonesSP, PT_veg_zonesSP=PT_veg_zonesSP,
             Pe_veg_zonesSP=Pe_veg_zonesSP, PE_zonesSP=PE_zonesSP, gridVEGarea=gridVEGarea,
             LAI_veg_zonesSP=LAI_veg_zonesSP, Zr=Zr, kTg_min=kTg_min, kTg_max=kTg_max,
@@ -427,7 +424,7 @@ class clsMMsoil:
         not by (row, col)."""
         return SimpleNamespace(
             Ssoil_ini=np.zeros((ctx.ncell, ctx._nslmax), dtype=np.float64),
-            Ssurf_ini=np.zeros(ctx.ncell, dtype=np.float64),
+
         )
 
     def _cell_step(self, ctx, cell, n, tstart_MF, h_MF_ini_tmp, exf_MF_ini_tmp, state,
@@ -444,8 +441,7 @@ class clsMMsoil:
             ctx._nsl, ctx._slprop, ctx._st, ctx._Sm, ctx._Sfc, ctx._Sr, ctx._Ks, ctx._Ssoil_ini)
         gridSOIL, gridMETEO, gridSOILthick, gridVEGarea = (
             ctx.gridSOIL, ctx.gridMETEO, ctx.gridSOILthick, ctx.gridVEGarea)
-        gridSsurfhmax, gridSsurfw, gridIRR, TopSoil, botm_l0 = (
-            ctx.gridSsurfhmax, ctx.gridSsurfw, ctx.gridIRR, ctx.TopSoil, ctx.botm_l0)
+        gridIRR, TopSoil, botm_l0 = (ctx.gridIRR, ctx.TopSoil, ctx.botm_l0)
         NVEG, irr_yn, index, index_S, conv_fact = (
             ctx.NVEG, ctx.irr_yn, ctx.index, ctx.index_S, ctx.conv_fact)
         Zr, kTg_min, kTg_max, kT_f, kT_s = ctx.Zr, ctx.kTg_min, ctx.kTg_max, ctx.kT_f, ctx.kT_s
@@ -470,11 +466,9 @@ class clsMMsoil:
                 BotSoilLay[l] = TopSoilLay[l] - Tl[l]
         if n == 0:
             Ssoil_ini_tmp = np.asarray(_Ssoil_ini[SOILzone_tmp][:nsl], dtype=np.float64)
-            Ssurf_ini_tmp = 0.0
             perleni = 1.0
         else:
             Ssoil_ini_tmp = np.asarray(state.Ssoil_ini[cid, :nsl], dtype=np.float64)
-            Ssurf_ini_tmp = float(state.Ssurf_ini[cid])
             perleni = float(cMF.perlen[n - 1])
         IRRfield = 0
         if irr_yn == 1:
@@ -528,10 +522,6 @@ class clsMMsoil:
         # Phase 4: characteristic cell width from the grid geometry provider
         # (DIS: delr[j], legacy-identical; DISV: sqrt(cell area))
         cell_w = float(ctx.geom.width[cid])
-        Ssurf_max = (np.power(cell_w, 3) * gridSsurfhmax[i, j] * gridSsurfw[i, j]
-                     * shapeFactor / np.power(100.0, 2) / 10.0)
-        Eosurf_max = (cell_w * gridSsurfw[i, j] * shapeFactor
-                      * Eo_zonesSP_tmp / np.power(100.0, 2))
 
         # vegetation patchwork: PT/Pe totals and rooting depths
         SOILarea = 100.0
@@ -581,16 +571,20 @@ class clsMMsoil:
         (Eow_tmp, Ssurf_tmp, Ro_tmp, Rp_tmp, Esoil_tmp, Tsoil_tmp, Ssoil_tmp,
          Ssoil_pc_tmp, Eg_tmp, Tg_tmp, HEADSini_MM, dgwt_tmp, SAT_tmp, Rexf_tmp,
          I) = self.flux(cMF, perleni, Pe_tot, PT_zonesSP_tmp,
-                        PE_zonesSP_tmp * SOILarea * 0.01, Eosurf_max, Zr_elev,
+                        PE_zonesSP_tmp * SOILarea * 0.01, Zr_elev,
                         VEGarea_tmp, HEADSini_drycell, TopSoilLay, BotSoilLay,
-                        Tl, nsl, Sm, Sfc, Sr, Ks, Ssurf_max, Ssoil_ini_tmp,
-                        Ssurf_ini_tmp, exf_MF_ini_tmp, dgwt, st, i, j, n,
+                        Tl, nsl, Sm, Sfc, Sr, Ks, Ssoil_ini_tmp,
+                        exf_MF_ini_tmp, dgwt, st, i, j, n,
                         kTg_min_tmp, kTg_max_tmp, kT_f_tmp, kT_s_tmp,
                         NVEG_tmp, LAIveg_tmp, REJINF_ini=rejinf_cell)
         Ssoil_pc_tot = float(np.sum(Ssoil_pc_tmp)) / nsl
         perc = Rp_tmp[-1]
         ETg = Eg_tmp + Tg_tmp
-        dSsurf = (Ssurf_tmp - Ssurf_ini_tmp) / cMF.perlen[n]
+        # WP1d: no surface reservoir, so nothing is carried between stress
+        # periods. iSsurf and idSsurf keep their slots in the flux index and
+        # are structurally zero; open-water evaporation is now applied by SFR
+        # and LAK, from the same Eo forcing.
+        dSsurf = 0.0
 
         # water mass balance (MB) in the soil zone
         Esoil_MB = float(np.sum(Esoil_tmp))
@@ -600,7 +594,9 @@ class clsMMsoil:
         ETsoil_tot = Esoil_MB + Tsoil_MB
 
         MB_l = np.zeros(nsl, dtype=np.float64)
-        # Eq. 1: dSsurf/dt = Pe + Exf_g1 - I - Eow - Ro
+        # Eq. 1: dSsurf/dt = Pe + Exf_g1 - I - Eow - Ro, with dSsurf and
+        # Eow now identically zero -- the surface term closes as
+        # Pe + Exf_g1 = I + Ro
         # (Exf_g1 = Rexf[0], which now carries any rejected infiltration that
         #  saturated the soil column from below)
         MBsurf = (Pe_tot + Rexf_tmp[0]) - (Eow_tmp + Ro_tmp + I + dSsurf)
@@ -640,7 +636,6 @@ class clsMMsoil:
         etg_vol = MM_tmp[index.get('iETg')] / conv_fact
         # write next-SP state for this cell (percolation-driven soil storage)
         state.Ssoil_ini[cid, :nsl] = MM_S_tmp[:nsl, index_S.get('iSsoil')]
-        state.Ssurf_ini[cid] = MM_tmp[index.get('iSsurf')]
         return MM_tmp, MM_S_tmp, nsl, perc_vol, etg_vol
 
     def step(self, ctx, n, tstart_MF, heads_cell, exf_cell, state, rejinf_cell=None):
@@ -682,7 +677,7 @@ class clsMMsoil:
 
     def runMMsoil(self, _nsl, _nslmax, _st, _Sm, _Sfc, _Sr, _slprop, _Ssoil_ini, botm_l0, _Ks,
                   gridSOIL, gridSOILthick, TopSoil, gridMETEO,
-                  index, index_S, gridSsurfhmax, gridSsurfw,
+                  index, index_S,
                   P_veg_zoneSP, Eo_zonesSP, PT_veg_zonesSP, Pe_veg_zonesSP, PE_zonesSP, gridVEGarea,
                   LAI_veg_zonesSP, Zr, kTg_min, kTg_max, kT_f, kT_s, NVEG,
                   cMF, conv_fact, h5_MF, h5_MM, irr_yn,
@@ -701,7 +696,7 @@ class clsMMsoil:
         cells = self.build_cell_list(cMF)
         ctx = self.build_context(
             cMF, cells, _nsl, _nslmax, _st, _Sm, _Sfc, _Sr, _slprop, _Ssoil_ini, botm_l0, _Ks,
-            gridSOIL, gridSOILthick, TopSoil, gridMETEO, index, index_S, gridSsurfhmax, gridSsurfw,
+            gridSOIL, gridSOILthick, TopSoil, gridMETEO, index, index_S,
             P_veg_zoneSP, Eo_zonesSP, PT_veg_zonesSP, Pe_veg_zonesSP, PE_zonesSP, gridVEGarea,
             LAI_veg_zonesSP, Zr, kTg_min, kTg_max, kT_f, kT_s, NVEG, conv_fact, irr_yn,
             P_irr_zoneSP, PT_irr_zonesSP, Pe_irr_zoneSP, crop_irr_SP, gridIRR,

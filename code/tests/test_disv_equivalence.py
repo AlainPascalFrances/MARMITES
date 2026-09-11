@@ -39,7 +39,7 @@ def _make_ctx(grid, cMF, inp, mm):
                            inp['_Sfc'], inp['_Sr'], inp['_slprop'], inp['_Ssoil_ini'],
                            inp['botm_l0'], inp['_Ks'], inp['gridSOIL'], inp['gridSOILthick'],
                            inp['TopSoil'], inp['gridMETEO'], T.INDEX_MM, T.INDEX_MM_S,
-                           inp['gridSsurfhmax'], inp['gridSsurfw'], inp['P_veg_zoneSP'],
+                           inp['P_veg_zoneSP'],
                            inp['Eo_zonesSP'], inp['PT_veg_zonesSP'], inp['Pe_veg_zonesSP'],
                            inp['PE_zonesSP'], inp['gridVEGarea'], inp['LAI_veg_zonesSP'],
                            inp['Zr'], inp['kTg_min'], inp['kTg_max'], inp['kT_f'], inp['kT_s'],
@@ -81,7 +81,6 @@ def test_disv_reproduces_dis_fluxes_exactly():
                 f'SP{n} differs in {key}'
     # carry-over state must also match, otherwise later SPs would diverge
     assert np.array_equal(st_dis.Ssoil_ini, st_disv.Ssoil_ini)
-    assert np.array_equal(st_dis.Ssurf_ini, st_disv.Ssurf_ini)
 
 
 def test_disv_reproduces_dis_with_exfiltration():

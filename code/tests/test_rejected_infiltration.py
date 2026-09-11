@@ -15,8 +15,12 @@ accept enters the soil column and "eventually creat[es] saturation-excess
 overland flow (Dunnian flow) if all the soil layers turn saturated".
 
 So rejected infiltration enters the BOTTOM soil layer, fills the column from
-below, spills into the surface store, and only the excess above Ssurf_max
-becomes runoff -- identical to the groundwater-exfiltration pathway.
+below, and what the soil cannot hold leaves the cell as runoff -- identical
+to the groundwater-exfiltration pathway.
+
+WP1d removed MMsoil's surface reservoir: the channels and charcas are SFR and
+LAK now, and they receive that runoff and evaporate it. So the excess no
+longer ponds up to Ssurf_max first; it runs off in the same step.
 """
 import importlib.util
 import os
@@ -45,7 +49,7 @@ IEOW, ISSURF, IRO, IRP, IESOIL, ITSOIL, ISSOIL = 0, 1, 2, 3, 4, 5, 6
 ISAT, IREXF, II = 12, 13, 14
 
 
-def _call(rejinf, Ssurf_max=10.0, Pe=0.0, Ssurf_ini=0.0, exf=0.0,
+def _call(rejinf, Pe=0.0, exf=0.0,
           soil_frac=(0.20, 0.22), nsl=2):
     """One cell, one day, with explicit exfiltration / rejected infiltration."""
     mm = T.new.clsMMsoil(hnoflo=T.HNOFLO)
@@ -59,10 +63,10 @@ def _call(rejinf, Ssurf_max=10.0, Pe=0.0, Ssurf_ini=0.0, exf=0.0,
     NVEG = 2
     Zr_elev = [TopSoil - 600.0, TopSoil - 1500.0]
     Ssoil_ini = [soil_frac[l] * Tl[l] for l in range(nsl)]
-    return mm.flux(cMF, 1.0, Pe, np.zeros(NVEG), 0.0, 4.0, Zr_elev,
+    return mm.flux(cMF, 1.0, Pe, np.zeros(NVEG), 0.0, Zr_elev,
                    np.array([0.0, 0.0]), TopSoil - 5000.0, TopSoilLay, BotSoilLay,
-                   Tl, nsl, Sm, Sfc, Sr, Ks, Ssurf_max,
-                   Ssoil_ini, Ssurf_ini, exf, 5000.0, 'loam',
+                   Tl, nsl, Sm, Sfc, Sr, Ks,
+                   Ssoil_ini, exf, 5000.0, 'loam',
                    0, 0, 0, [0.0] * NVEG, [0.9, 0.7], [0.5] * NVEG, [0.1] * NVEG,
                    NVEG, np.array([2.0, 1.5]), REJINF_ini=rejinf)
 
@@ -92,23 +96,26 @@ def test_saturating_the_column_produces_exf_g1_at_the_surface():
     """Once the column saturates, the excess appears as Exf_g1 = Rexf[0],
     the Eq. 1 surface input, and the SAT flags are raised."""
     cap = _capacity()
-    out = _call(rejinf=cap + 200.0, Ssurf_max=1000.0)
+    out = _call(rejinf=cap + 200.0)
     assert float(out[IREXF][0]) > 0.0, 'excess must reach the surface as Exf_g1'
     assert bool(np.asarray(out[ISAT])[-1]), 'bottom layer must be flagged saturated'
-    assert float(out[ISSURF]) > 0.0, 'surface store must receive it'
+    # No reservoir any more: what reaches the surface leaves as runoff, and
+    # SFR/LAK are what receive it.
+    assert float(out[ISSURF]) == 0.0, 'nothing is stored at the surface'
+    assert float(out[IRO]) > 0.0, 'it must leave the cell as runoff'
 
 
 def test_dunnian_runoff_once_soil_and_surface_are_full():
     """Soil saturated AND surface store full -> saturation-excess runoff."""
     cap = _capacity()
-    out = _call(rejinf=cap + 500.0, Ssurf_max=1.0)
+    out = _call(rejinf=cap + 500.0)
     assert float(out[IRO]) > 0.0, 'Dunnian runoff expected'
-    assert float(out[ISSURF]) <= 1.0 + 1e-9, 'store cannot exceed Ssurf_max'
+    assert float(out[ISSURF]) == 0.0, 'nothing is carried over at the surface'
 
 
 def test_more_rejection_gives_more_runoff():
     cap = _capacity()
-    ro = [float(_call(rejinf=r, Ssurf_max=1.0)[IRO])
+    ro = [float(_call(rejinf=r)[IRO])
           for r in (0.0, cap + 100.0, cap + 600.0)]
     assert ro[0] == 0.0 and ro[1] < ro[2], ro
 
@@ -116,8 +123,8 @@ def test_more_rejection_gives_more_runoff():
 def test_rejected_infiltration_behaves_like_exfiltration():
     """Same quantity of water, delivered as exfiltration or as rejected
     infiltration, must give identical results -- both enter the column base."""
-    a = _call(rejinf=0.0, exf=80.0, Ssurf_max=1.0)
-    b = _call(rejinf=80.0, exf=0.0, Ssurf_max=1.0)
+    a = _call(rejinf=0.0, exf=80.0)
+    b = _call(rejinf=80.0, exf=0.0)
     for x, y in zip(a, b):
         assert np.allclose(np.asarray(x, dtype=float),
                            np.asarray(y, dtype=float)), 'pathways must coincide'
@@ -138,7 +145,7 @@ def test_surface_mass_balance_closes_eq1():
     """Eq. 1: dSsurf/dt = Pe + Exf_g1 - I - Eow - Ro."""
     cap = _capacity()
     for rej in (0.0, 20.0, cap + 50.0, cap + 800.0):
-        out = _call(rejinf=rej, Ssurf_max=2.0, Pe=4.0)
+        out = _call(rejinf=rej, Pe=4.0)
         Eow, Ssurf, Ro = float(out[IEOW]), float(out[ISSURF]), float(out[IRO])
         I, Exf_g1 = float(out[II]), float(out[IREXF][0])
         mb = (4.0 + Exf_g1) - (Eow + Ro + I + (Ssurf - 0.0))
@@ -149,7 +156,7 @@ def test_soil_column_mass_balance_closes():
     """Water in (I + returned water) minus out equals the storage change."""
     cap = _capacity()
     for rej in (0.0, 25.0, cap + 300.0):
-        out = _call(rejinf=rej, Ssurf_max=2.0, Pe=3.0)
+        out = _call(rejinf=rej, Pe=3.0)
         Ssoil = np.asarray(out[ISSOIL], dtype=float)
         Rexf = np.asarray(out[IREXF], dtype=float)
         Rp = np.asarray(out[IRP], dtype=float)
@@ -173,8 +180,8 @@ def test_zero_rejection_is_unchanged():
 def test_negative_rejinf_is_treated_as_magnitude():
     """MF6 reports rejection with a negative sign."""
     cap = _capacity()
-    pos = _call(rejinf=cap + 300.0, Ssurf_max=1.0)
-    neg = _call(rejinf=-(cap + 300.0), Ssurf_max=1.0)
+    pos = _call(rejinf=cap + 300.0, )
+    neg = _call(rejinf=-(cap + 300.0), )
     assert np.isclose(float(pos[IRO]), float(neg[IRO]))
 
 
@@ -192,7 +199,6 @@ def test_step_accepts_rejinf_per_cell():
                              inp['_Ssoil_ini'], inp['botm_l0'], inp['_Ks'],
                              inp['gridSOIL'], inp['gridSOILthick'], inp['TopSoil'],
                              inp['gridMETEO'], T.INDEX_MM, T.INDEX_MM_S,
-                             inp['gridSsurfhmax'], inp['gridSsurfw'],
                              inp['P_veg_zoneSP'], inp['Eo_zonesSP'],
                              inp['PT_veg_zonesSP'], inp['Pe_veg_zonesSP'],
                              inp['PE_zonesSP'], inp['gridVEGarea'],

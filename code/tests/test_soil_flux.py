@@ -65,10 +65,19 @@ def _column(nsl=2):
 
 
 def _run_pair(Pe, PT, PE, Ssoil_ini_frac, EXF_ini=0.0, dgwt=5000.0,
-              Eosurf_max=4.0, Ssurf_max=10.0, Ssurf_ini=0.0, nsl=2,
+              nsl=2,
               NVEG=2, VEGarea=(40.0, 30.0), LAI=(2.0, 1.5), Zr=(600.0, 1500.0),
               run_legacy=True):
-    """Run legacy and new flux() with equivalent inputs; return dict pair."""
+    """Run legacy and new flux() with equivalent inputs; return dict pair.
+
+    WP1d removed MMsoil's surface reservoir: ponding capacity and open-water
+    evaporation moved to MODFLOW with the water (SFR for the channels, LAK for
+    the charcas). The legacy side is therefore driven with Ssurf_max = 0 and
+    Eosurf_max = 0, at which point it computes exactly what the new code does
+    -- so this comparison is kept, and now proves the removal is equivalent to
+    the old model with no pond capacity rather than a change of physics.
+    """
+    Eosurf_max = Ssurf_max = Ssurf_ini = 0.0
     Sm, Sfc, Sr, Ks, Tl = _column(nsl)
     TopSoil = 700_000.0  # mm elevation
     TopSoilLay = np.zeros(nsl, dtype=np.float32)
@@ -103,11 +112,11 @@ def _run_pair(Pe, PT, PE, Ssoil_ini_frac, EXF_ini=0.0, dgwt=5000.0,
 
     cMF = _FakeMF()
     out = new.clsMMsoil(hnoflo=HNOFLO).flux(
-        cMF, 1.0, Pe, np.array(PT, dtype=np.float64), PE, Eosurf_max,
+        cMF, 1.0, Pe, np.array(PT, dtype=np.float64), PE,
         Zr_elev, np.array(VEGarea[:NVEG], dtype=np.float64),
         HEADSini, TopSoilLay.astype(np.float64), BotSoilLay.astype(np.float64),
-        Tl, nsl, Sm, Sfc, Sr, Ks, Ssurf_max,
-        Ssoil_ini_mm, Ssurf_ini, EXF_ini, dgwt, st,
+        Tl, nsl, Sm, Sfc, Sr, Ks,
+        Ssoil_ini_mm, EXF_ini, dgwt, st,
         0, 0, 0, kTg_min, kTg_max, kT_f, kT_s, NVEG,
         np.array(LAI[:NVEG], dtype=np.float64))
     results['new'] = out

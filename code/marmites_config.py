@@ -762,7 +762,13 @@ class Sfr:
 @dataclass
 class Lak:
     enable: bool = False           #                           (--lak)
-    source: str = 'inputPONDS.csv'
+    source: str = 'inputPONDS.csv'         # the centroid/DEM table
+    # WP1d: the builder fits an embedded lake to each pond FOOTPRINT, so it
+    # needs the polygons, not the centroid table. `source` used to be handed
+    # to a shapefile reader, which is why enabling LAK from the configuration
+    # failed on a missing .dbf.
+    polygons: str = 'lm_ponds.shp'         # in DATA_ROOT/GIS, for the converter
+    geometry: str = 'inputPONDS.geojson'   # what a RUN reads
     bedleak: float = 1e-3          # 1/d                       (--lak-bedleak)
     surfdep: float = 0.05          # m
     maxiter: int = 200             # LAK Newton cap (CdL)
