@@ -378,10 +378,28 @@ source        = "inputSTREAM.csv"
 min_slope     = 1e-4
 monotonic_bed = true         # SFRmaker rule (Leaf et al. 2021)
 
+# WP1d: the width producer is resolved AFTER routing, because contributing
+# area is only known once the reaches are ordered. Three forms:
+#   drainage = { w_min, w_max, power }  CdL's actual method -- the width grows
+#              from the headwater value to the outlet one with the normalised
+#              ARBOLATE SUM (cumulative channel length draining through the
+#              reach), so "the outlet trunk is not a 1 m pipe carrying the
+#              whole-catchment discharge".
+#   drainage = { a, b }                 a Hack-type law w = a*A**b, A in km2.
+#              (The cookbook's w = 0.5*A**0.35 with A in m2 gives 7.7-57.8 m on
+#              La Mata, where the mapped channel is 1.5-3.0 m. It was never
+#              resolved before WP1d, so the mismatch could not show.)
+#   column / value                      per segment, or uniform.
+# 1.5-3.0 m reproduces the range the retired inputSTREAMw.asc carried.
 [sfr.width]
-drainage = { a = 0.5, b = 0.35 }   # w = a * A**b -- CdL's method, the default
-# column = "width_m"               # or: an attribute column of the stream shapefile
+drainage = { w_min = 1.5, w_max = 3.0, power = 2.0 }
+# column = "width_m"               # or: a per-segment column of inputSTREAM_param.csv
 # value  = 2.0                     # or: uniform over the network
+
+# Channel incision below land surface, replacing inputSTREAMhmax.asc (which
+# held 1.0 m on the alluvium polygons and zero elsewhere).
+[sfr.depth]
+value = 1.0
 
 [sfr.manning]
 value = 0.035

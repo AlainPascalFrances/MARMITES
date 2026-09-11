@@ -478,10 +478,29 @@ class ParamSource:
                 '%s: exactly one producer must be set (value | column | raster | '
                 'drainage), got %s' % (what, s or 'none'))
         if s[0] == 'drainage':
-            miss = {'a', 'b'} - set(self.drainage)
-            if miss:
-                raise ConfigError('%s.drainage needs a and b (w = a*A**b), missing %s'
-                                  % (what, sorted(miss)))
+            # Two accepted forms (WP1d). {w_min, w_max[, power]} is CdL's
+            # actual method -- the width grows with the normalised arbolate
+            # sum -- and {a, b} is a Hack-type power law on contributing area
+            # in km2. Both are resolved after routing, in marmites_channel.
+            keys = set(self.drainage)
+            if {'w_min', 'w_max'} <= keys:
+                if self.drainage['w_max'] < self.drainage['w_min']:
+                    raise ConfigError('%s.drainage: w_max must be >= w_min'
+                                      % what)
+                extra = keys - {'w_min', 'w_max', 'power'}
+                if extra:
+                    raise ConfigError('%s.drainage: unknown key(s) %s'
+                                      % (what, sorted(extra)))
+            elif {'a', 'b'} <= keys:
+                extra = keys - {'a', 'b'}
+                if extra:
+                    raise ConfigError('%s.drainage: unknown key(s) %s'
+                                      % (what, sorted(extra)))
+            else:
+                raise ConfigError(
+                    '%s.drainage needs either {w_min, w_max[, power]} (the '
+                    'arbolate-sum scaling) or {a, b} (w = a*A**b, A in km2); '
+                    'got %s' % (what, sorted(keys)))
 
     @classmethod
     def from_value(cls, v):
@@ -754,6 +773,10 @@ class Sfr:
     monotonic_bed: bool = True     # SFRmaker rule (Leaf et al. 2021)
     width: ParamSource = field(
         default_factory=lambda: ParamSource(drainage={'a': 0.5, 'b': 0.35}))
+    # WP1d: the incision of the channel below land surface, replacing
+    # inputSTREAMhmax.asc -- which was not a channel map either, it held 1.0 m
+    # on the alluvium polygons and zero elsewhere.
+    depth: ParamSource = field(default_factory=lambda: ParamSource(value=1.0))
     manning: ParamSource = field(default_factory=lambda: ParamSource(value=0.035))
     rhk: ParamSource = field(default_factory=lambda: ParamSource(value=0.1))
     rbth: ParamSource = field(default_factory=lambda: ParamSource(value=0.5))
@@ -987,7 +1010,7 @@ class RunConfig:
             errs.append('crr.beta must be in (0, 1]')
         if self.ui.execution not in ('local', 'server'):
             errs.append("ui.execution must be 'local' or 'server'")
-        for name in ('width', 'manning', 'rhk', 'rbth'):
+        for name in ('width', 'depth', 'manning', 'rhk', 'rbth'):
             try:
                 getattr(self.sfr, name).validate('sfr.%s' % name)
             except ConfigError as exc:

@@ -1,11 +1,17 @@
 # -*- coding: utf-8 -*-
-"""Build a MODFLOW 6 SFR network for MARMITES from the PONDw channel map.
+"""Build a MODFLOW 6 SFR network for MARMITES from the mapped hydrography.
 
-MARMITES already carries the stream network: ``inputSTREAMw.asc`` gives a channel
-width for every cell the drainage net passes through (La Mata: 244 cells,
-1.5-3.0 m wide) and ``inputSTREAMhmax.asc`` the channel depth (1.0-1.5 m). One
-SFR reach per stream cell, routed on the sink-filled DEM the flow model already
-uses as its top elevation.
+The stream cells come from ``marmites_channel.burn_channel``: the lines the
+modeller mapped, burned onto whichever grid panel 1 produced, so a cell is a
+stream cell when a line actually crosses it (La Mata: 97 segments, 344 cells,
+14.5 km of channel). One SFR reach per stream cell, routed on the sink-filled
+DEM the flow model already uses as its top elevation.
+
+Before WP1d the cells came from ``inputSTREAMw.asc > 0``. That raster was
+never a channel map -- its values came from ``Soil_type.shp``, where ``PONDw``
+is 1.5 m on the two alluvium polygons and 0 elsewhere -- so what the model
+called "the stream network" was the alluvium footprint, with one width for the
+whole catchment.
 
 Routing (``stream_network``)
 ---------------------------
@@ -180,7 +186,7 @@ def stream_network(pondw, dem, outlets=None, drn_cells=None, topology=None):
         raise ValueError(
             '%d stream cell(s) do not connect to any outlet, e.g. %s. The '
             'channel map has a disconnected component; either add an outlet '
-            'there or fix inputSTREAMw.' % (len(missing), missing[:5]))
+            'there or fix the mapped network.' % (len(missing), missing[:5]))
 
     # accumulation: number of stream cells draining through each cell
     acc = {c: 1 for c in cells}

@@ -121,21 +121,24 @@ def test_geospatial_libraries_stay_off_the_model_path():
         + '\n  '.join(sorted(offenders)))
 
 
-@pytest.mark.parametrize('name', ['inputSTREAMw.asc', 'inputSTREAMhmax.asc'])
-def test_the_stream_rasters_use_their_corrected_names(name):
-    """WP1.2. inputPONDw/inputPONDhmax were a misnomer: they hold the STREAM
-    network, which is why the arrays they feed are called gridSsurfw."""
+@pytest.mark.parametrize('name', ['inputSTREAMw.asc', 'inputSTREAMhmax.asc',
+                                  'inputPONDw.asc', 'inputPONDhmax.asc'])
+def test_the_stream_rasters_are_retired(name):
+    """WP1d retired them; WP1.2 had only renamed them.
+
+    They were never a channel map: the values came from ``Soil_type.shp``,
+    where ``PONDw`` is 1.5 m on the two alluvium polygons and 0 elsewhere, so
+    what the model called "the stream network" was the alluvium footprint,
+    with one width for the whole catchment. The network is the mapped
+    hydrography now (``inputSTREAM.csv``, burned onto the grid at run time),
+    and the surface reservoir they also fed went to SFR and LAK.
+    """
     ds = os.path.join(REPO, 'example', 'LaMata')
     if not os.path.isdir(ds):
         pytest.skip('example/LaMata not present')
-    assert os.path.exists(os.path.join(ds, name)), (
-        '%s missing -- was the WP1.2 rename applied?' % name)
-    legacy = name.replace('inputSTREAM', 'inputPOND').replace('w.asc', 'w.asc')
-    legacy = {'inputSTREAMw.asc': 'inputPONDw.asc',
-              'inputSTREAMhmax.asc': 'inputPONDhmax.asc'}[name]
-    assert not os.path.exists(os.path.join(ds, legacy)), (
-        '%s still present alongside %s -- the rename left a duplicate'
-        % (legacy, name))
+    assert not os.path.exists(os.path.join(ds, name)), (
+        '%s is back -- WP1d retired it. The stream network comes from '
+        'inputSTREAM.csv and the width from [sfr] width.' % name)
 
 
 def test_converter_outputs_are_present_and_carry_provenance():

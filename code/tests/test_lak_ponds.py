@@ -213,10 +213,29 @@ def test_lamata_lak_mvr_model_builds_and_reloads(tmp_path):
     b = mf6mod.clsMF6(c, top=np.asarray(c.elev, float), botm=np.asarray(c.botm, float),
                       sim_ws=str(tmp_path), daily=True)
     b.verbose = False
-    b.sfr_pondw = asc('inputSTREAMw.asc')
-    b.sfr_pondhmax = asc('inputSTREAMhmax.asc')
+    # WP1d: the network is the MAPPED hydrography burned onto the grid, not
+    # inputSTREAMw.asc -- which was the alluvium footprint, and is retired.
+    import marmites_channel as mch
+    import marmites_config as cfgmod
+    import marmites_vector as mv
+    lines, seg_params = mch.read_stream_lines(
+        os.path.join(DS, 'inputSTREAM.csv'),
+        os.path.join(DS, 'inputSTREAM_param.csv'))
+    vgrid = mv.TargetGrid.structured(c.delr, c.delc, c.xllcorner, c.yllcorner)
+    present, seg_of_cell, ch_len = mch.burn_channel(lines, vgrid,
+                                                    (c.nrow, c.ncol))
+    act = np.asarray(c.outcropL) > 0
+    b.sfr_pondw = np.where(act, present, 0.0)
+    b.sfr_pondhmax = np.zeros_like(b.sfr_pondw)
+    b.sfr_seg_of_cell = seg_of_cell
+    b.sfr_seg_params = seg_params
+    b.sfr_cell_length = ch_len
+    b.cell_area = float(np.mean(c.delr)) * float(np.mean(c.delc))
+    b.sfr_width_source = cfgmod.ParamSource(
+        drainage={'w_min': 1.5, 'w_max': 3.0, 'power': 2.0})
+    b.sfr_depth_source = cfgmod.ParamSource(value=1.0)
     b.lak_shapefile = SHP
-    b.lak_depth = asc('inputSTREAMhmax.asc')
+    b.lak_depth = np.full((c.nrow, c.ncol), 1.0)
     b.build()
     b.write()
 

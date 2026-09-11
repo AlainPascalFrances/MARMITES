@@ -78,6 +78,15 @@ def _forcing(cfg):
     return spec
 
 
+def ctx_geom_area(cMF):
+    """Mean cell area [m2], DIS or DISV. The drainage law w = a*A**b needs it."""
+    proj = getattr(cMF, 'mesh_proj', None)
+    if proj is not None:
+        import marmites_vector as mv
+        return mv.TargetGrid.from_gridprops(cMF.mesh_gridprops).area
+    return np.outer(np.asarray(cMF.delc, float), np.asarray(cMF.delr, float))
+
+
 def _asc(fn):
     """Read an ESRI ASCII grid, nodata -> 0."""
     a = np.loadtxt(fn, skiprows=6)
@@ -584,9 +593,33 @@ def main():
     b.drn_seep_cond = float(a.seep_cond)
     b.uzf_vks_scale = float(a.uzf_vks_scale)
     if a.sfr:
-        # the channel map MARMITES already uses for its ponds/surface storage
-        b.sfr_pondw = _asc_on_grid(os.path.join(DS, 'inputSTREAMw.asc'), cMF)
-        b.sfr_pondhmax = _asc_on_grid(os.path.join(DS, 'inputSTREAMhmax.asc'), cMF)
+        # WP1d: the network is the hydrography the modeller MAPPED, burned onto
+        # whichever grid panel 1 produced -- not inputSTREAMw.asc, which was
+        # the alluvium footprint of Soil_type.shp with one width for the whole
+        # catchment. Width and incision are resolved after routing.
+        import marmites_channel as mch
+        import marmites_vector as mv
+        lines, seg_params = mch.read_stream_lines(
+            os.path.join(DS, 'inputSTREAM.csv'),
+            os.path.join(DS, 'inputSTREAM_param.csv'))
+        vgrid = mv.TargetGrid.from_cMF(cMF)
+        present, seg_of_cell, ch_len = mch.burn_channel(
+            lines, vgrid, (cMF.nrow, cMF.ncol))
+        act = np.asarray(cMF.outcropL) > 0
+        dropped = int(np.count_nonzero((present > 0) & ~act))
+        if dropped:
+            print('   %d channel cell(s) fall outside the active domain and '
+                  'were dropped' % dropped)
+        b.sfr_pondw = np.where(act, present, 0.0)
+        b.sfr_pondhmax = np.zeros_like(b.sfr_pondw)
+        b.sfr_seg_of_cell = seg_of_cell
+        b.sfr_seg_params = seg_params
+        b.sfr_cell_length = ch_len
+        b.sfr_width_source = cfg.sfr.width if cfg else None
+        b.sfr_depth_source = cfg.sfr.depth if cfg else None
+        b.cell_area = float(np.mean(np.asarray(ctx_geom_area(cMF))))
+        print('   stream network: %d segment(s) -> %d cell(s), %.0f m mapped'
+              % (len(lines), int((b.sfr_pondw > 0).sum()), float(ch_len.sum())))
         b.sfr_rhk = float(a.sfr_rhk)
     if a.lak:
         shp = a.lak if os.path.isabs(a.lak) else os.path.join(DS, a.lak)

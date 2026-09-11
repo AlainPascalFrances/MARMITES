@@ -43,13 +43,14 @@ explicitly rather than guessing silently.
 | `inputMETEOzones.asc`, `inputSOILzones.asc`, `inputIRRzones.asc` | integer zone maps |
 | `inputVEG{1,2,3}area.asc` | fractional vegetation cover per type |
 | `inputSOILthick.asc` | soil-column thickness (m) |
-| `inputSTREAMw.asc` | **channel width (m)** — feeds `gridSsurfw` |
-| `inputSTREAMhmax.asc` | **channel depth (m)** — feeds `gridSsurfhmax` |
-
-> **Renamed in WP1.2.** These two were `inputPONDw.asc` / `inputPONDhmax.asc`, a
-> legacy misnomer: they hold the **stream network**, not ponds — which is why the
-> arrays they feed have always been called `gridSsurfw` / `gridSsurfhmax`.
-> `mm_paths.resolve_input()` still accepts the old names for one release.
+> **Retired in WP1d: `inputSTREAMw.asc` and `inputSTREAMhmax.asc`.** They were
+> never a channel map — their values came from `Soil_type.shp`, where `PONDw` is
+> 1.5 m on the two alluvium polygons and 0 elsewhere, so the "stream network"
+> was the alluvium footprint with one width for the whole catchment. The network
+> is now the mapped hydrography (`inputSTREAM.csv`), burned onto the grid at run
+> time; width and incision come from `[sfr] width` / `[sfr] depth`. The surface
+> reservoir they also fed (`Ssurf_max`, `Eosurf_max`) went with them — SFR and
+> LAK hold the surface water now, and evaporate it.
 
 ## Aquifer grids (`MF_ws/`, ESRI ASCII)
 

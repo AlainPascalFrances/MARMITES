@@ -81,7 +81,7 @@ def test_inventory_reports_missing_files_rather_than_dropping_them():
     inv = loaders.inventory(DS)
     assert inv and all(len(items) for _g, items in inv)
     flat = {rel: ok for _g, items in inv for rel, _s, ok in items}
-    assert flat.get('inputSTREAMw.asc') is True      # renamed in WP1.2
+    assert flat.get('inputSOILthick.asc') is True
     assert any(k.startswith('inputObsHEADS_') for k in flat)   # glob expanded
     inv2 = loaders.inventory(os.path.join(DS, 'does_not_exist'))
     assert any(not ok for _g, items in inv2 for _r, _s, ok in items)

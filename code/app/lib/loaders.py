@@ -94,7 +94,7 @@ TIER_A_GROUPS = [
     ('Spatial parameter rasters', [
         'inputMETEOzones.asc', 'inputSOILzones.asc', 'inputIRRzones.asc',
         'inputVEG1area.asc', 'inputVEG2area.asc', 'inputVEG3area.asc',
-        'inputSOILthick.asc', 'inputSTREAMw.asc', 'inputSTREAMhmax.asc']),
+        'inputSOILthick.asc']),
     ('Aquifer grids', [
         'MF_ws/elev.asc', 'MF_ws/elev_sinkfil.ASC', 'MF_ws/ibound_l1.asc',
         'MF_ws/ibound_l2.asc', 'MF_ws/hk_l1.asc', 'MF_ws/hk_l2.asc',

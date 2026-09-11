@@ -124,6 +124,15 @@ class clsMF6:
         self.sfr_man = 0.035             # Manning's n
         self.sfr_net = None              # SFRNetwork once built
         self.sfr_reach_of = {}           # (i, j) -> reach number
+        # WP1d: the network comes from the MAPPED LINES. sfr_pondw is then the
+        # channel PRESENCE map (1 where a line crosses), and the width and
+        # incision are resolved after routing from these ParamSources.
+        self.sfr_width_source = None     # marmites_config.ParamSource
+        self.sfr_depth_source = None
+        self.sfr_seg_of_cell = None      # dominant segment id per cell
+        self.sfr_seg_params = None       # inputSTREAM_param.csv rows
+        self.sfr_cell_length = None      # mapped channel length per cell [m]
+        self.cell_area = None            # m2, for the drainage law
         # LAK. Enabled by setting lak_shapefile (pond polygons). Every La Mata
         # pond is smaller than a 50 m cell, so each becomes one EMBEDDEDV lake
         # inside its host cell with its true area carried by a stage-volume
@@ -407,6 +416,22 @@ class clsMF6:
                          for (_l, i, j, _e, _c) in cMF.layer_row_column_elevation_cond[0]]
         net = stream_network(self.sfr_pondw, self.top, drn_cells=drn_cells,
                              topology=self.topology())
+        # WP1d: width and incision are resolved AFTER routing, because the
+        # drainage producer (w = a*A**b) needs contributing area and that is
+        # only known once the reaches are ordered. Falling back to sfr_pondw
+        # keeps the raster path working while a case still uses it.
+        if self.sfr_width_source is not None:
+            from marmites_channel import as_array, channel_depth, channel_width
+            verbose = getattr(self, 'verbose', True)
+            wid = channel_width(net, self.sfr_width_source, self.cell_area,
+                                seg_of_cell=self.sfr_seg_of_cell,
+                                params=self.sfr_seg_params,
+                                cell_length=self.sfr_cell_length,
+                                verbose=verbose)
+            self.sfr_pondw = as_array(wid, np.shape(self.sfr_pondw))
+            if self.sfr_depth_source is not None:
+                dep = channel_depth(net, self.sfr_depth_source, verbose=verbose)
+                self.sfr_pondhmax = as_array(dep, np.shape(self.sfr_pondw))
         build_sfr(net, self.top, pondhmax=self.sfr_pondhmax, pondw=self.sfr_pondw,
                   delr=cMF.delr, delc=cMF.delc, botm=self.botm,
                   idomain=self.idomain, rbth=self.sfr_rbth, rhk=self.sfr_rhk,
