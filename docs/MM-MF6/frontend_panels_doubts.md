@@ -348,3 +348,65 @@ STO, NameReal, onMap`. `inputObs.txt` lists the same 13 but **comments some
 out** (`W1`, `C4`, `C5`, `H3`, `H4`, `C6`, `I2`, `G3` — several of which are
 not in the shapefiles at all). Do I merge the two layers and add an `active`
 column, or is `onMap` already that flag?
+
+---
+
+## E  The overlay, validated against the rasters it replaces  (2026-09-11)
+
+`code/marmites_vector.py` is written and tested (28 unit tests). The real
+test is whether it reproduces the ASCII rasters, which were made in ArcGIS
+from these same layers. Run on today's 65 × 60 @ 50 m grid:
+
+| what | vector source | vector | raster | verdict |
+|---|---|---|---:|---|
+| Qilex area | `lm_veg.Species = 'i'` | mean **3.847 %** | 3.847 % | **exact** (max diff 0.014 pp) |
+| Qpyr area | `lm_veg.Species = 'p'` | mean **0.374 %** | 0.374 % | **exact** (max diff 0.005 pp) |
+| grass area | `lm_veg.Species = ''` | mean 45.221 % | 12.688 % | **wrong source** (E.1) |
+| soil zone | `Soil_type.SoilCode`, majority | 1831/1962 cells agree | | E.2 |
+| soil zone | `SOIL_map.SoilClas`, majority | 1342/1962 cells agree | | worse; `Soil_type` is the layer |
+| soil thickness | `Soil_type.SOILthick`, area mean | mean 0.789 m | 0.612 m | confirms C.4 — the raster is a real thickness map, not per-zone constants |
+| streams | `hydrography.shp` burned | 350 cells, 14 536 m | 244 cells | 234 shared, 116 vector-only |
+
+The two crown classes coming out **exact** against an independent ArcGIS
+computation is the evidence that the clipping, the ring handling and the
+area weighting are right. Everything else below is about which layer to
+point at, not about the machinery.
+
+### E.1  grassMU has no vector source that I can find
+
+Neither candidate matches the 12.688 % of `inputVEG1area.asc`:
+
+| layer | blank-`Species` coverage |
+|---|---|
+| `lm_veg.shp` (15586 crowns) | 45.22 % |
+| `lm_veg_raster.shp` (22471, already cut by the 50 m cells) | **95.78 %** |
+
+`lm_veg_raster.shp` is `lm_veg` intersected with the model grid — its
+`CODveg` is 0 / 1 / 2 for blank / `i` / `p`, and its ilex and pyr totals
+(375 098 m² and 36 457 m²) reproduce the rasters to three digits. So in both
+layers "blank" means **not a tree crown**, which is 96 % of the catchment,
+not the 12.7 % of grass. Grass was mapped somewhere else.
+
+Candidates in the GIS folder I have not been able to open as vectors:
+`ilexveg1area`, `pyrveg2area`, `lm_veg_area.tab`,
+`lm_veg_raster_PROCESSING.xlsx`. Note their numbering is the other way round
+from the model's (`ilexVEG1area` against `inputVEG2area.asc`), which is its
+own trap. **Where does the grass map live?**
+
+### E.2  Soil zone: 93 % agreement, and the gap is alluvium
+
+`Soil_type.shp` by majority vote against `inputSOILzones.asc`:
+
+```
+zone 1 alluvium   vector  167 cells   raster  258 cells
+zone 2 regolith   vector 1840 cells   raster 1620 cells
+zone 3 outcrop    vector   86 cells   raster   84 cells
+```
+
+The alluvium is a ribbon along the streams, mostly narrower than a 50 m
+cell, so it rarely wins a majority vote — while the raster gives it 645 000 m²,
+more than the polygon's own 573 644 m². This is the WP1c.3 trade-off in a new
+place: majority is faithful per cell and loses minority classes in aggregate.
+Since the grid is changing anyway (panel 1) exact reproduction is not
+required, but a third fewer alluvium cells changes the soil water balance, so
+I want you to see it rather than discover it later.
