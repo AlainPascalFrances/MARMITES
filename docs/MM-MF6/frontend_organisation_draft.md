@@ -138,7 +138,7 @@ vegetation set.
 |---|---|
 | `inputMETEOzones.asc` | meteo zone per cell |
 | `inputIRRzones.asc` | irrigation zone (if `irr_yn`) |
-The inputMETEOzones.asc will be eliminated and produced using the grid characteristics as voronoi polygon (derived from the grid defined in 1.4). If there is only one station, the meteo zone will be the same for the whole catchment. 
+The inputMETEOzones.asc will be eliminated and produced using the grid characteristics as Thiessen polygon (derived from the grid defined in 1.4). If there is only one station, the meteo zone will be the same for the whole catchment. 
 
 ### 1.7  *Time & forcing series* — MMsurf's OUTPUT (to be eliminated from the front-end)
 
@@ -178,7 +178,7 @@ The following raster will be elimintaed. Instead, a vector, polygon layer is req
 | `inputSOILzones.asc` | soil zone per cell |
 The following raster can exist and will be projected on the grid defined in 1.4. It must be coincident with the catchment polygon.
 | `inputSOILthick.asc` | soil column thickness |
-I think that the two following rasters must be eliminated. They will be produced using the shape file of hydrography that will have a column with spatial variation of these parameters (a value for each segment) or they will be fixed for the whole catchment. To produce them from the shape file, the script should use    
+I think that the two following rasters must be eliminated. They will be produced using the shape file of hydrography that will have a column with spatial variation of these parameters (a value for each segment) or they will be fixed for the whole catchment. To produce them from the shape file, the script should use the hydrography layer (currently: E:\00code_ws\LAMATA_new\GIS\hydrography.shp)   
 | `inputSTREAMhmax.asc` | max stream/surface water height |
 | `inputSTREAMw.asc` | channel width |
 

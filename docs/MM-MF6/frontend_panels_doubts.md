@@ -252,3 +252,99 @@ point location. `marmites_mesh.py` already has the clipping and the cell
 lookup, but it resamples *rasters onto a mesh*. I propose a sibling
 `marmites_vector.py` with the same `how=` vocabulary, reusing the
 projection's cell index. Any objection?
+
+---
+
+## D  Your answers, and the layer inventory  (2026-09-11)
+
+Settled: **C.2** hydrography carries the stream attributes · **C.1**
+`lm_lim.shp` is the catchment · **C.5** convert lat/long to the project CRS ·
+**C.7** shapefiles stay in `DATA_ROOT/GIS`, never in the repo · **C.4** the
+raster beats the polygon attribute.
+
+Still open: **C.3** (is MMsoil `Ssurfw` the same as SFR `width`), **C.8**
+(scope stops before the MF rasters), **C.9** (does panel 3 need a switch at
+all), **C.10** (a new `marmites_vector.py`).
+
+### D.1  What I found, per input
+
+| front-end input | layer in `DATA_ROOT/GIS` | state |
+|---|---|---|
+| catchment boundary (panel 1) | `lm_lim.shp` | **OK** — 1 polygon, 4.844 km², ED50 / UTM 29N |
+| stream network geometry | `hydrography.shp` | OK as geometry — 97 lines, attributes missing (D.2.1) |
+| ponds | `lm_ponds.shp` | OK — 12 polygons |
+| soil zones | `Soil_type.shp` `SoilCode` 1/2/3 | **OK** — matches `inputSOILparam.txt` order (alluvium, regolith, outcrop) |
+| soil thickness | raster `inputSOILthick.asc`, fallback `Soil_type.SOILthick` | OK |
+| ibound l1/l2, iuzfbnd (MF, later) | `Soil_type.shp` | OK |
+| vegetation crowns | `lm_veg.shp` | needs a mapping (D.2.4) |
+| observation points | `202109ObsPts.shp` + `202109MonitPts.shp` | needs a decision (D.2.5) |
+| irrigation fields | `Irr_Fields.shp` | needs a field index (D.2.3) |
+| meteo station position | none | needs a decision (D.2.2) |
+
+**`lm_lim.shp` also corrects WP1.** `inputWATERSHED.csv` is currently built
+from `Limite.shp`, which is 19.159 km² — nearly four times the catchment, and
+the reason `_clip_to_grid` had to exist. `lm_lim.shp` is 4.844 km², against
+4.885 km² for the 1954 active cells of today's model: the same domain. I will
+switch the converter over.
+
+Its bbox is x 739293..742223, y 4553110..4556240 — **inside** today's model
+rectangle (739300..742300, 4553050..4556300), and 7 m west of its western
+edge. So a grid derived from the polygon is not today's grid, and unless you
+say otherwise I will keep the explicit origin/shape override from C.1 so the
+WP0 regression and rung (a) of the ladder stay reproducible.
+
+### D.2  What is missing — please say where these live
+
+**D.2.1  Stream width and max height, per segment.** `hydrography.shp`
+carries only `GRID_CODE` (1 or 2). Today the values come from
+`Soil_type.shp`, where they are uniform per soil class:
+
+```
+Alluvium (n=2)   PONDhmax 1.0   PONDw 1.5   SOILthick 1.50
+Regolith (n=2)   PONDhmax 0.0   PONDw 0.0   SOILthick 0.75
+Outcrop  (n=23)  PONDhmax 0.0   PONDw 0.0   SOILthick 0.05
+```
+
+So `inputSTREAMw.asc` is really **the alluvium footprint**, not the stream
+lines, and what MMsoil treats as its surface-water network is that footprint.
+Moving these onto the segments is a genuine improvement, but it will change
+the numbers. Is there another hydrography layer that carries width, or shall
+I add `w_m` and `hmax_m` columns to `hydrography.shp` (with one constant for
+the whole network as the fallback, which is what the data says today)?
+
+**D.2.2  The meteo station position.** Converting the ini values as you asked
+works, but the result is outside the catchment:
+
+| source | result | inside the model rectangle |
+|---|---|---|
+| `phi 41.045`, `Lm 6.16 W` from WGS84 | x 738823, y 4547854 | **no — 5.2 km south** |
+| the same from ED50 (EPSG:4230) | x 738710, y 4547718 | **no** |
+| model centre, back-converted | lat 41.1058, lon 6.1339 W | — |
+
+The ini values are 6.8 km south and 2.2 km west of the catchment centre, so
+they are not the station's real position — they only have to be roughly right
+for the solar geometry of Penman-Monteith. The `EC` point of
+`202109MonitPts.shp` — x 739625, y 4555925, the eddy-covariance tower — is
+inside. Which one is the meteorological station? At NMETEO = 1 the Thiessen
+polygon is the whole catchment either way, so this only bites at NMETEO > 1;
+I would rather store the right thing now.
+
+**D.2.3  Irrigation field index.** `Irr_Fields.shp` has 3 polygons and one
+attribute, `Id` in {0, 1}, so nothing selects
+`__inputFIELD<n>_crop_schedule.txt` or the matching `__IRR_TS.txt` column.
+Add a `field_id` column (1..NFIELD, 0 = not irrigated)?
+
+**D.2.4  Vegetation species to VEG index.** `lm_veg.shp` holds 15586 crown
+polygons with `Species`: **`i` 14464, `p` 921, blank 201**. I read that as
+`i` to VEG2 (Qilex), `p` to VEG3 (Qpyr), and VEG1 (grassMU) as the remainder
+of each cell — which is what the name `inputVEG1areaNoGRASS.asc` implies. Two
+things to confirm: that mapping, and what the 201 blank ones are — drop them,
+or treat them as ilex?
+
+**D.2.5  Observation points: two layers, and no active flag.**
+`202109ObsPts.shp` (O1, O2, I1, G1, G2) and `202109MonitPts.shp` (P0, SM,
+C1..C5, EC) are 13 points together, carrying `Name, X, Y, lay, hi, h0, RC,
+STO, NameReal, onMap`. `inputObs.txt` lists the same 13 but **comments some
+out** (`W1`, `C4`, `C5`, `H3`, `H4`, `C6`, `I2`, `G3` — several of which are
+not in the shapefiles at all). Do I merge the two layers and add an `active`
+column, or is `onMap` already that flag?
