@@ -164,9 +164,15 @@ import PET_P_INTER, plotPET, plotP
 
 ###########################################
 
-def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, pathMMws, outMMsurf_fn, MMsurf_plot = 0, inputFile_IRR_TS_fn = None):
+def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, pathMMws, outMMsurf_fn, MMsurf_plot = 0, inputFile_IRR_TS_fn = None, out_ws = None):
 
     global J_d, datenumOUT, input_TS_crop_irr_fn, kT_f_c, kT_s_c, kTg_max_c, kTg_min_c, Zr_c, inputZON_TS_PT_irr_fn, inputZON_TS_TF_irr_fn, inputZON_TS_P_irr_fn, NCROP, kT_f, kT_s, kTg_max, kTg_min, Zr, LAI_veg_d, inputZONTF_irr, inputZONP_irr, inputZONPT_irr, v, alfa_w, fc, por, C_leaf_star_v, S_w_v, z_h, z_m, FC, Lz, Z, Lm, phi, Rs, u_z_m, Pa, RHa, Ta, P, f_s_c, alfa_c, datenum_d, IRR_TS, SoilType, alfa_sw, alfa_sd, J_sw, J_sd, NSOIL, f_s_vw, f_s_vd, alfa_vw, alfa_vd, NVEG, f, data_IRR_TS, NFIELD, datenum, Rs1, u_z_m1, Pa1, RHa1, Ta1, P1, actual_day, datetime_i, datetime, time, date, NMETEO, DTS, dataMETEOTS, line, l
+
+    # WP1d: every WRITE goes to out_ws, every READ stays on
+    # pathMMsurf. Defaulting to pathMMsurf keeps the legacy caller
+    # working; the MF6 driver passes the run workspace, so nothing is
+    # written into the repository any more.
+    out_ws = out_ws or pathMMsurf
 
     def ExportResults(name, ws, row1, Dates, J, TS, ts_output = 0, n_d = [], TypeFile = "PET"):
         """
@@ -590,7 +596,7 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
                         TS[j] =  value_d
 
         monthsFmt=mpl.dates.DateFormatter('%Y-%m-%d')
-        plt_export_fn = os.path.join(pathMMsurf, '%s.png' % name)
+        plt_export_fn = os.path.join(out_ws, '%s.png' % name)
         fig = plt.figure()
         ax1=fig.add_subplot(111)
         plt.plot_date(datenum,TS, 'b-')
@@ -637,7 +643,7 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
                     TS[t] = value[crop[i]-1]
 
         monthsFmt=mpl.dates.DateFormatter('%Y-%m-%d')
-        plt_export_fn = os.path.join(pathMMsurf, '%s.png' % name)
+        plt_export_fn = os.path.join(out_ws, '%s.png' % name)
         fig = plt.figure()
         ax1=fig.add_subplot(111)
         plt.plot_date(datenum,TS, 'b-')
@@ -674,7 +680,7 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
                     break
 
         monthsFmt=mpl.dates.DateFormatter('%Y-%m-%d')
-        plt_export_fn = os.path.join(pathMMsurf, '%s.png' % name)
+        plt_export_fn = os.path.join(out_ws, '%s.png' % name)
         fig = plt.figure()
         ax1=fig.add_subplot(111)
         plt.plot_date(datenum,TS, 'b-')
@@ -734,7 +740,7 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
     #  ##### COMPUTING PT, PE and INTERCEPTION ##############################################
     print("\nComputing PT, PE, TF, etc...")
 
-    inputZON_TS_P_veg_fn = "inputZONP_veg_d.txt"
+    inputZON_TS_P_veg_fn = "inputZONRF_veg_d.txt"
     inputZONP_veg_fn = os.path.join(pathMMws, inputZON_TS_P_veg_fn)
     inputZONP_veg = open(inputZONP_veg_fn, 'w')
     inputZONP_veg.write('#\n')
@@ -765,7 +771,7 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
     inputZONEo.write('#\n')
 
     if IRR_TS != None:
-        inputZON_TS_P_irr_fn = "inputZONP_irr_d.txt"
+        inputZON_TS_P_irr_fn = "inputZONRF_irr_d.txt"
         inputZONP_irr_fn = os.path.join(pathMMws, inputZON_TS_P_irr_fn)
         inputZONP_irr = open(inputZONP_irr_fn, 'w')
         inputZONP_irr.write('#\n')
@@ -792,7 +798,7 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
         print("\n--------------\nProcessing data of ZONE %d/%d\n--------------" % (n+1, NMETEO))
         J, J_d, outputVAR, PT_PM_VEG, Erf_VEG, PE_PM_SOIL, Eo, PT_PM_VEG_d, PE_PM_SOIL_d, Eo_d, P_veg_d, Pint_veg,                      P_veg_duration, n1_d, TF_veg_d, I_veg_d, LAI_veg_d, PT_PM_FIELD, PT_PM_FIELD_d, Erf_FIELD, P_irr_d, Pint_irr, P_irr_duration, TF_irr_d, I_irr_d = PET_P_INTER.process(
                 cUTIL,
-                datenum, datenum_d, J, time, pathMMsurf,\
+                datenum, datenum_d, J, time, out_ws,\
                 P[n], IRR_TS, Ta[n], RHa[n], Pa[n], u_z_m[n], Rs[n], \
                 phi[n], Lm[n], Z[n], Lz[n], FC[n], z_m[n], z_h[n], \
                 NVEG, VegName, S_w_v, C_leaf_star_v, alfa_v, f_s_v, LAI_v, h_v,\
@@ -807,7 +813,7 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
         if MMsurf_plot == 1:
             plt.switch_backend('WXagg')
         # outputVAR = [DELTA,gama, Rs, Rs_corr, Rs0, Rnl, r]
-        plot_exportVAR_fn = os.path.join(pathMMsurf,  outputFILE_fn + "_ZON" + str(n+1)+'_VAR.png')
+        plot_exportVAR_fn = os.path.join(out_ws,  outputFILE_fn + "_ZON" + str(n+1)+'_VAR.png')
         plotPET.plotVAR(strTitle = 'Penman-Monteith variables', x = npdatenum \
                 ,y5 = PT_PM_VEG[0], y4 = Eo \
                 ,y2 = outputVAR[2], y3=outputVAR[3] \
@@ -819,7 +825,7 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
                 , MMsurf_plot = MMsurf_plot
                 )
         # PLOTTING PT and Eo
-        plot_exportPT_fn = os.path.join(pathMMsurf,  outputFILE_fn + "_ZON" + str(n+1)+'_PT.png')
+        plot_exportPT_fn = os.path.join(out_ws,  outputFILE_fn + "_ZON" + str(n+1)+'_PT.png')
         plotPET.plot(x = datenum_d \
             ,y1 = PT_PM_VEG_d, y2 = Eo_d \
             ,lbl_y1 = VegName, lbl_y2 = 'Eo'
@@ -829,7 +835,7 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
             )
 
         # PLOTTING PE and Eo
-        plot_exportPE_fn = os.path.join(pathMMsurf,  outputFILE_fn + "_ZON" + str(n+1)+'_PE.png')
+        plot_exportPE_fn = os.path.join(out_ws,  outputFILE_fn + "_ZON" + str(n+1)+'_PE.png')
         plotPET.plot(x = datenum_d \
             ,y1 = PE_PM_SOIL_d, y2 = Eo_d \
             ,lbl_y1 = SoilType, lbl_y2 = 'Eo'
@@ -840,7 +846,7 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
 
         # PLOTTING P and INTERCEPTION
         # VEG
-        plot_exportP_fn = os.path.join(pathMMsurf,  '%s_ZON%s_P_veg.png' % (outputFILE_fn,str(n+1)))
+        plot_exportP_fn = os.path.join(out_ws,  '%s_ZON%s_P_veg.png' % (outputFILE_fn,str(n+1)))
         plotP.plot(x = datenum_d \
                 ,y1 = P_veg_d, y2 = Pint_veg, y3 = I_veg_d, y4 = TF_veg_d
                 ,lbl_y1 = 'P (mm/d)',  lbl_y2 = 'Pint (mm/h/d)' \
@@ -854,7 +860,7 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
             # PT
             lbl_f = []
             for f in range(NFIELD): lbl_f.append('FIELD%s'%(f+1))
-            plot_exportPET_fn = os.path.join(pathMMsurf,  outputFILE_fn + "_ZON" + str(n+1)+'_PETfields.png')
+            plot_exportPET_fn = os.path.join(out_ws,  outputFILE_fn + "_ZON" + str(n+1)+'_PETfields.png')
             datenum_d = np.array(datenum_d)
             plotPET.plot(x = datenum_d \
                 ,y1 = PT_PM_FIELD_d\
@@ -865,7 +871,7 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
                 )
             #P/I
             for f in range(NFIELD):
-                plot_exportP_fn = os.path.join(pathMMsurf, '%s_ZON%s_P_irr_FIELD%d.png' % (outputFILE_fn,str(n+1),f+1))
+                plot_exportP_fn = os.path.join(out_ws, '%s_ZON%s_P_irr_FIELD%d.png' % (outputFILE_fn,str(n+1),f+1))
                 plotP.plot(x = datenum_d \
                         ,y1 = P_irr_d[f], y2 = Pint_irr[f] \
                         ,y3 = [I_irr_d[f]], y4 = [TF_irr_d[f]] \
@@ -881,10 +887,10 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
 
         #  #####  EXPORTING ASCII FILES ##############################################
         try:
-            if os.path.exists(pathMMsurf):
+            if os.path.exists(out_ws):
                 print("\n-----------\nExporting output to ASCII files...")
         # EXPORTING RESULTS PT/ET0/PE/Eo/P/TF/INTER/
-                ws = pathMMsurf
+                ws = out_ws
                 for ts_output in range(2):
                     if ts_output == 0:
                         print("\nHourly values...")                  # hourly output
@@ -1013,7 +1019,7 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
     outFileExport.write(str(NSOIL))
     outFileExport.write('\n# inputDate_fn: file with the dates\n')
     outFileExport.write(date_fn)
-    outFileExport.write('\n# inputZON_TS_P_veg_fn: P zones\n')
+    outFileExport.write('\n# inputZON_TS_RF_veg_fn: RF zones\n')
     outFileExport.write(inputZON_TS_P_veg_fn)
     outFileExport.write('\n# inputZON_TS_TF_veg_fn: TF zones\n')
     outFileExport.write(inputZON_TS_TF_veg_fn)
@@ -1048,7 +1054,7 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
         outFileExport.write(str(NCROP))
         outFileExport.write('\n# NFIELD: number of irrigation fields\n')
         outFileExport.write(str(NFIELD))
-        outFileExport.write('\n# inputZON_TS_P_irr_fn: P zones\n')
+        outFileExport.write('\n# inputZON_TS_RF_irr_fn: RF zones\n')
         outFileExport.write(inputZON_TS_P_irr_fn)
         outFileExport.write('\n# inputZON_TS_TF_irr_fn: TF zones\n')
         outFileExport.write(inputZON_TS_TF_irr_fn)

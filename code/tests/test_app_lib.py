@@ -197,22 +197,28 @@ def test_mmsurf_ini_parses_with_the_expected_counts():
 
 
 def test_mmsurf_Zr_matches_what_the_model_actually_reads():
-    """The parser must agree with the handover file MMsoil consumes. This is
-    the check that makes the enumeration trustworthy rather than decorative."""
+    """The parser must agree with what MMsoil consumes -- the check that makes
+    the enumeration trustworthy rather than decorative.
+
+    That used to mean ``__inputMMsurf4MMsoil.txt``, the file MMsurf wrote and
+    the driver read back. WP1d removed it, because it was authoritative and
+    disagreed with the ini; the configuration is now the single source, so
+    this compares the ini against the CONFIGURATION instead.
+    """
     if not os.path.exists(MMSURF_INI):
         pytest.skip('MMsurf ini not present')
+    ref = os.path.join(REPO, 'code', 'configs', 'lamata.toml')
+    if not os.path.exists(ref):
+        pytest.skip('reference configuration not present')
+    cfgmod = _load('cfg_for_app_lib', os.path.join(CODE, 'marmites_config.py'))
     ms = msc.load_mmsurf_ini(MMSURF_INI)
-    zr = [v['Zr'] for _n, v in ms.veg]
-    handover = os.path.join(DS, '__inputMMsurf4MMsoil.txt')
-    if not os.path.exists(handover):
-        pytest.skip('handover file not present')
-    with open(handover, encoding='utf-8-sig') as fh:
-        toks = [ln.split('#')[0].strip() for ln in fh
-                if ln.split('#')[0].strip()]
-    # the row after the vegetation-name row is Zr
-    names = [n for n, _v in ms.veg]
-    idx = next(i for i, t in enumerate(toks) if t.split() == names)
-    assert [float(x) for x in toks[idx + 1].split()] == zr
+    cfg = cfgmod.load_run_config(ref)
+    assert [n for n, _v in ms.veg] == [v.name for v in cfg.surface.vegetation]
+    assert [v['Zr'] for _n, v in ms.veg] == \
+        [v.root_depth for v in cfg.surface.vegetation]
+    assert [n for n, _v in ms.soil] == [s.name for s in cfg.surface.soil]
+    assert [v['por'] for _n, v in ms.soil] == \
+        [s.porosity for s in cfg.surface.soil]
 
 
 def test_every_mmsurf_parameter_carries_units_and_a_description():

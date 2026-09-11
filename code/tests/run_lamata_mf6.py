@@ -50,7 +50,32 @@ from marmites_indices import INDEX_MM, INDEX_MM_SOIL  # noqa: E402
 from marmites_mf6 import clsMF6  # noqa: E402
 from marmites_coupler import MF6Coupler  # noqa: E402
 import marmites_config as mcfg  # noqa: E402
+import marmites_surface as msurf  # noqa: E402
 import mm_paths  # noqa: E402
+
+
+def _forcing(cfg):
+    """The daily forcing: run MMsurf, or check what is already there (WP1d).
+
+    ``run.surface = 1``   MMsurf runs from the configuration and writes the
+                          series into the WORKSPACE -- they are run output.
+    ``run.surface = 0``   the series must already exist; they are checked for
+                          presence AND shape, and the run stops if they are
+                          not there rather than proceeding on a stale file.
+
+    With the switch off the series are read from the dataset, which is where
+    the committed La Mata forcing lives, so nothing moves until MMsurf is
+    actually used.
+    """
+    cfg = cfg or mcfg.RunConfig.from_dict({})
+    if cfg.run.surface:
+        out_ws = msurf.surface_ws(cfg, mm_paths.WS_ROOT, cfg.paths.case)
+        return msurf.run(cfg, DS, out_ws, config_hash=cfg.config_hash())
+    spec = msurf.forcing_spec(cfg, DS)
+    ndays = msurf.check_forcing(spec, must_exist=True,
+                                nper=cfg.run.nsp or None)
+    print('forcing: %d day(s) from %s (run.surface is off)' % (ndays, DS))
+    return spec
 
 
 def _asc(fn):
@@ -181,28 +206,33 @@ def setup_lamata(daily=True, nsp=None, grid='dis', nlay=None, aggregate=False,
     print('parameter set: %s (%d layer(s))' % (ini_fn, cMF.nlay))
     conv_fact = {1: 304.8, 2: 1000.0, 3: 10.0}[cMF.lenuni]
 
-    inp = [x.strip() for x in cUTIL.readFile(DS, '__inputMMsurf4MMsoil.txt')]
-    l = 0
-    NMETEO = int(inp[l]); l += 1
-    NVEG = int(inp[l]); l += 1
-    NSOIL = int(inp[l]); l += 1
-    inputDate_fn = inp[l]; l += 1
-    P_veg_fn, Pe_veg_fn, PT_fn, LAI_fn, PE_fn, Eo_fn = inp[l:l + 6]; l += 6
-    _ = inp[l]; l += 1  # VegName
-    Zr = [float(x) for x in inp[l].split()]; l += 1
-    kTg_min = [float(x) for x in inp[l].split()]; l += 1
-    kTg_max = [float(x) for x in inp[l].split()]; l += 1
-    kT_f = [float(x) for x in inp[l].split()]; l += 1
-    kT_s = [1.0 / float(x) for x in inp[l].split()]; l += 1
-    NCROP = int(inp[l]); l += 1
-    NFIELD = int(inp[l]); l += 1
-    P_irr_fn, Pe_irr_fn, PT_irr_fn = inp[l:l + 3]; l += 3
-    Zr_c = np.array([float(x) for x in inp[l].split()]); l += 1
-    kTg_min_c = np.array([float(x) for x in inp[l].split()]); l += 1
-    kTg_max_c = np.array([float(x) for x in inp[l].split()]); l += 1
-    kT_f_c = np.array([float(x) for x in inp[l].split()]); l += 1
-    kT_s_c = np.array([1.0 / float(x) for x in inp[l].split()]); l += 1
-    crop_irr_fn = inp[l]
+    # --- the forcing (WP1d) ------------------------------------------------
+    # Replaces the positional parsing of __inputMMsurf4MMsoil.txt. That file
+    # was written by MMsurf and read back here, and it was AUTHORITATIVE: with
+    # MMsurf not running, editing Zr or kT* in the ini changed nothing, and
+    # the two disagreed. Everything now comes from the configuration, and
+    # kT_s arrives as the slope -- so the old `1.0 / x` is gone with the file.
+    spec = _forcing(cfg)
+    NMETEO, NVEG, NSOIL = spec.nmeteo, spec.nveg, spec.nsoil
+    NCROP, NFIELD = spec.ncrop, spec.nfield
+    # ABSOLUTE paths: with run.surface on, the series are in the workspace,
+    # not the dataset. os.path.join(MM_ws, <absolute>) returns the absolute
+    # one, so ppMFtime finds them wherever they are and cMF.MM_ws -- which
+    # also locates the rasters and receives the stress-period files -- does
+    # not have to move.
+    inputDate_fn = spec.path('date')
+    P_veg_fn, Pe_veg_fn = spec.path('rf_veg'), spec.path('tf_veg')
+    PT_fn, LAI_fn = spec.path('pt_veg'), spec.path('lai_veg')
+    PE_fn, Eo_fn = spec.path('pe'), spec.path('eo')
+    P_irr_fn, Pe_irr_fn = spec.path('rf_irr'), spec.path('tf_irr')
+    PT_irr_fn, crop_irr_fn = spec.path('pt_irr'), spec.path('crop_irr')
+    Zr, kTg_min, kTg_max = spec.Zr, spec.kTg_min, spec.kTg_max
+    kT_f, kT_s = spec.kT_f, spec.kT_s
+    Zr_c = np.array(spec.Zr_c)
+    kTg_min_c = np.array(spec.kTg_min_c)
+    kTg_max_c = np.array(spec.kTg_max_c)
+    kT_f_c = np.array(spec.kT_f_c)
+    kT_s_c = np.array(spec.kT_s_c)
 
     if daily:
         cMF.nper = 1     # perlenmax=1 -> ppMFtime produces daily SPs (decision 4.3)
