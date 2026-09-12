@@ -24,6 +24,9 @@ Writes, into example/<case>/ (and nothing else):
     inputSTREAM_param.csv  per-segment resolved parameters
     inputPONDS.csv         pond table: fid, centroid, area, DEM statistics
     inputWATERSHED.csv     the catchment boundary polygon
+    MF_ws/elev_sinkfil.asc the land surface, block-averaged onto the model
+                           rectangle from the GIS DEM
+    inputDEMfill.asc       the same array, for the CRR cascade
 
 Every output carries a provenance header: which file it came from, that file's
 size and mtime, its CRS, and the feature count. Re-running is idempotent apart
@@ -268,7 +271,8 @@ def _write_csv(path, header_lines, columns, rows, dry_run=False):
     return path
 
 
-def convert(case='LaMata', gis=None, out_dir=None, cfg=None, dry_run=False):
+def convert(case='LaMata', gis=None, out_dir=None, cfg=None, dry_run=False,
+            redo_elevation=False):
     import geopandas as gpd
     import numpy as np
     import rasterio
@@ -388,6 +392,11 @@ def convert(case='LaMata', gis=None, out_dir=None, cfg=None, dry_run=False):
            % TARGET_EPSG],
         ['ring_id', 'seq', 'x', 'y'], ws_rows, dry_run))
 
+    # ------------------------------------------------------------ elevation
+    written.extend(_derive_elevation(gis, out_dir, cfg,
+                                     tuple(ws.total_bounds), report, dry_run,
+                                     redo=redo_elevation))
+
     # ------------------------------------------------- WP1d: vector layers
     written += _export_vector(gis, out_dir, cfg, report, dry_run)
 
@@ -476,6 +485,178 @@ def _write_stream_tables(out_dir, hdr, vert_rows, par_rows, dry_run):
     ]
 
 
+
+# ---------------------------------------------------------------------- #
+#  the elevation rasters the model reads, derived from the GIS DEM
+# ---------------------------------------------------------------------- #
+
+def _read_asc_header(path):
+    """``(ncols, nrows, xll, yll, cellsize)`` of an ESRI ASCII grid, or None."""
+    try:
+        with open(path, encoding='utf-8', errors='replace') as fh:
+            h = {}
+            for _ in range(6):
+                parts = fh.readline().split()
+                if len(parts) != 2:
+                    return None
+                h[parts[0].strip().lower()] = parts[1]
+        return (int(h['ncols']), int(h['nrows']), float(h['xllcorner']),
+                float(h['yllcorner']), float(h['cellsize']))
+    except (OSError, KeyError, ValueError):
+        return None
+
+
+def _sibling_rectangle(out_dir):
+    """The rectangle the dataset's OTHER rasters are on, and which named it.
+
+    Every MF raster -- ibound, thickness, hk, the storage terms -- shares one
+    header, and a DEM on a different rectangle would misalign against all of
+    them rather than fail outright. So when they exist they decide, and the
+    [grid] block only decides for a catchment that has none yet.
+    """
+    mf = os.path.join(out_dir, 'MF_ws')
+    for name in ('ibound_l1.asc', 'thick_l1.asc', 'elev.asc'):
+        hdr = _read_asc_header(os.path.join(mf, name))
+        if hdr:
+            return hdr, name
+    return None, ''
+
+
+def _resample_dem(dem_path, ncols, nrows, xll, yll, cs):
+    """Block-average the DEM onto the model rectangle. (array, filled, total).
+
+    An AVERAGE, not a sample: the DEM is 5 m and the model cell is 50 m, so
+    one cell covers a hundred pixels and taking the one under its centre
+    would throw away the other ninety-nine. Cells the DEM does not reach are
+    left as NODATA and counted, because that is a hole in the model's
+    surface and worth saying out loud.
+    """
+    import numpy as np
+    import rasterio
+
+    with rasterio.open(dem_path) as src:
+        a = src.read(1, masked=True)
+        tr = src.transform
+    xs = tr.c + (np.arange(src.width if hasattr(src, 'width')
+                           else a.shape[1]) + 0.5) * tr.a
+    ys = tr.f + (np.arange(a.shape[0]) + 0.5) * tr.e
+    col = np.floor((xs - xll) / cs).astype(np.int64)
+    row = nrows - 1 - np.floor((ys - yll) / cs).astype(np.int64)
+    C, R = np.meshgrid(col, row)
+    good = (~np.ma.getmaskarray(a)) & np.isfinite(np.ma.filled(a, np.nan))
+    good &= (C >= 0) & (C < ncols) & (R >= 0) & (R < nrows)
+    flat = (R * ncols + C)[good].ravel()
+    vals = np.ma.filled(a, 0.0)[good].ravel().astype(float)
+    total = np.bincount(flat, weights=vals, minlength=ncols * nrows)
+    count = np.bincount(flat, minlength=ncols * nrows)
+    out = np.full(ncols * nrows, -9999.0)
+    hit = count > 0
+    out[hit] = total[hit] / count[hit]
+    return out.reshape(nrows, ncols), int(hit.sum()), ncols * nrows
+
+
+def _write_asc(path, arr, xll, yll, cs, dry_run=False, nodata=-9999.0):
+    """Write an ESRI ASCII grid, in the layout the model's reader expects."""
+    import numpy as np
+    nrows, ncols = arr.shape
+    if dry_run:
+        print('   would write %-24s %d x %d' % (os.path.basename(path),
+                                                nrows, ncols))
+        return path
+    os.makedirs(os.path.dirname(path) or '.', exist_ok=True)
+    with open(path, 'w', encoding='utf-8', newline='\n') as fh:
+        fh.write('ncols         %d\n' % ncols)
+        fh.write('nrows         %d\n' % nrows)
+        # %.10g, not %g: a UTM northing is seven digits and %g writes it as
+        # 4.55305e+06, which the model's ASCII reader does not parse.
+        fh.write('xllcorner     %.10g\n' % xll)
+        fh.write('yllcorner     %.10g\n' % yll)
+        fh.write('cellsize      %.10g\n' % cs)
+        fh.write('NODATA_value  %.10g\n' % nodata)
+        for r in range(nrows):
+            fh.write(' '.join('%.2f' % v for v in np.asarray(arr[r])) + '\n')
+    print('   wrote %-24s %d x %d' % (os.path.basename(path), nrows, ncols))
+    return path
+
+
+def _derive_elevation(gis, out_dir, cfg, bbox, report, dry_run=False,
+                      redo=False):
+    """``elev_sinkfil.asc`` and the CRR DEM, from the GIS raster.
+
+    Both are the SAME array under the two names the model asks for: the MF
+    ini reads ``MF_ws/elev_sinkfil.asc`` as the land surface, and ``[crr]
+    dem`` reads its own copy for the downslope cascade.
+    """
+    if not cfg.grid.dem:
+        report.append('%-12s not set in [grid] -- the elevation rasters were '
+                      'left alone' % 'dem')
+        return []
+    dem_path = os.path.join(gis, cfg.grid.dem)
+    if not os.path.exists(dem_path):
+        report.append('%-12s %s NOT FOUND -- the elevation rasters were left '
+                      'alone' % 'dem', )
+        return []
+
+    hdr, named_by = _sibling_rectangle(out_dir)
+    if hdr:
+        ncols, nrows, xll, yll, cs = hdr
+        report.append('%-12s on the rectangle %s uses: %d x %d of %g m at '
+                      '%.10g, %.10g' % ('elevation', named_by, nrows, ncols, cs,
+                                  xll, yll))
+        import marmites_meshes as mmesh
+        want = mmesh.model_rectangle(cfg, bbox)
+        if (int(want[1]), int(want[0])) != (ncols, nrows) or \
+                (float(want[4]), float(want[5])) != (xll, yll):
+            report.append('%-12s NOTE: [grid] asks for %d x %d at %.10g, %.10g. The '
+                          'DEM follows the EXISTING rasters so the set stays '
+                          'consistent; regenerate them all to move the grid.'
+                          % ('elevation', want[0], want[1], want[4], want[5]))
+    else:
+        import marmites_meshes as mmesh
+        nrows, ncols, _dr, _dc, xll, yll = mmesh.model_rectangle(cfg, bbox)
+        cs = mmesh.rectangle_cell_size(cfg)
+        report.append('%-12s no raster to match, so the [grid] rectangle: '
+                      '%d x %d of %g m at %.10g, %.10g'
+                      % ('elevation', nrows, ncols, cs, xll, yll))
+
+    arr, filled, total = _resample_dem(dem_path, ncols, nrows, xll, yll, cs)
+    report.append('%-12s %d of %d cell(s) covered by %s (%.1f %%)'
+                  % ('elevation', filled, total, cfg.grid.dem,
+                     100.0 * filled / max(total, 1)))
+
+    written = []
+    mf = os.path.join(out_dir, 'MF_ws')
+
+    def _keep(path):
+        """An EXISTING elevation raster is left alone unless asked for.
+
+        Every other output here is a pure derivation from the cartography,
+        but this one is the land surface a calibration was built on: on La
+        Mata the derived array differs from the committed one by 0.29 m on
+        average and 4.4 m at worst, which is a different model. So moving it
+        is a deliberate act (--redo-elevation), not a side effect of
+        refreshing the soil polygons."""
+        if redo or not os.path.exists(path):
+            return False
+        report.append('%-12s %s kept (--redo-elevation rewrites it from %s)'
+                      % ('elevation', os.path.basename(path), cfg.grid.dem))
+        return True
+
+    # Keep the name that is there: the committed file is elev_sinkfil.ASC,
+    # and on a case-insensitive filesystem writing the lower-case spelling
+    # changes the contents while git still sees the old name.
+    target = 'elev_sinkfil.asc'
+    for cand in ('elev_sinkfil.ASC', 'elev_sinkfil.asc'):
+        if os.path.exists(os.path.join(mf, cand)):
+            target = cand
+            break
+    for path in [os.path.join(mf, target)] + (
+            [os.path.join(out_dir, cfg.crr.dem)] if cfg.crr.dem else []):
+        if not _keep(path):
+            written.append(_write_asc(path, arr, xll, yll, cs, dry_run))
+    return written
+
+
 def _resolve(src, row, what):
     """Resolve one ParamSource against a shapefile row."""
     prod = src.producer()
@@ -519,9 +700,15 @@ def main():
                     help='run configuration whose [sfr] producers are used '
                          '(default: the schema defaults)')
     ap.add_argument('--dry-run', action='store_true')
+    ap.add_argument('--redo-elevation', action='store_true',
+                    help='rewrite MF_ws/elev_sinkfil.asc and the CRR DEM from '
+                         '[grid] dem. They are kept by default: the land '
+                         'surface is what a calibration was built on, and '
+                         'moving it is a modelling decision, not a refresh.')
     a = ap.parse_args()
     cfg = mcfg.load_run_config(a.config) if a.config else None
-    convert(case=a.case, gis=a.gis, out_dir=a.out, cfg=cfg, dry_run=a.dry_run)
+    convert(case=a.case, gis=a.gis, out_dir=a.out, cfg=cfg,
+            dry_run=a.dry_run, redo_elevation=a.redo_elevation)
     return 0
 
 
