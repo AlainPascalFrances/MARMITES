@@ -6,7 +6,10 @@
 # shapely or pyproj is superseded, downgraded or changed; only ca-certificates,
 # certifi and openssl are updated.
 #
-#   conda install -n flopy -c conda-forge streamlit streamlit-folium
+#   conda install -p C:\miniconda3\envs\flopy -c conda-forge streamlit streamlit-folium plotly
+#
+# BY PREFIX, not by name: two envs here answer to `flopy` and the other
+# one is empty, which is a native crash rather than an error.
 #
 # This file is the recipe for a FRESH MACHINE or a server where you would
 # rather keep the front-end separate. Either way the invariant that matters is
@@ -23,6 +26,10 @@ dependencies:
   - python=3.12
   - streamlit>=1.36
   - streamlit-folium>=0.21
+  # Panel 1's mesh viewer: its own zoom, pan and reset, which a
+  # matplotlib figure cannot have because it arrives as a picture.
+  # Optional -- without it the page falls back to button controls.
+  - plotly>=5.20
   - folium>=0.16
   - geopandas>=1.0
   - rasterio>=1.3

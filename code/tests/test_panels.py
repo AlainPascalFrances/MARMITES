@@ -278,7 +278,11 @@ meshes = _load('marmites_meshes_p', os.path.join(CODE, 'marmites_meshes.py'))
 def test_the_rectangle_is_derived_from_the_polygon(cfg):
     """Panel 1's whole point: the domain comes first and the grid is built
     inside it."""
-    cfg.grid.kind = 'structured'                          # 50 m cells
+    # Pinned, not inherited: this reads the live configuration, and a
+    # cell size or buffer changed in the front-end would otherwise move the
+    # origin this test asserts.
+    cfg.grid.kind = 'structured'
+    cfg.grid.cell_size, cfg.grid.buffer = 50.0, 0.0
     bbox = (739293.0, 4553110.0, 742223.0, 4556240.0)     # lm_lim.shp
     nrow, ncol, delr, delc, xll, yll = meshes.model_rectangle(cfg, bbox)
     assert (xll, yll) == (739250.0, 4553100.0)            # snapped DOWN
@@ -291,12 +295,15 @@ def test_the_rectangle_is_derived_from_the_polygon(cfg):
 def test_the_origin_is_snapped_so_the_grid_is_reproducible(cfg):
     """A rectangle that shifted with a re-exported shapefile would invalidate
     every cached mesh for no reason."""
+    cfg.grid.kind = 'structured'
+    cfg.grid.cell_size, cfg.grid.buffer = 50.0, 0.0
     a = meshes.model_rectangle(cfg, (739293.0, 4553110.0, 742223.0, 4556240.0))
     b = meshes.model_rectangle(cfg, (739299.9, 4553149.9, 742223.0, 4556240.0))
     assert a[4:] == b[4:]
 
 
 def test_the_buffer_grows_the_rectangle(cfg):
+    cfg.grid.buffer = 0.0
     bbox = (1000.0, 2000.0, 1500.0, 2500.0)
     base = meshes.model_rectangle(cfg, bbox)
     cfg.grid.buffer = 200.0
@@ -334,7 +341,7 @@ def test_a_voronoi_rectangle_is_snapped_to_cell_far(cfg):
     cell_far is the size -- so snapping the rectangle to cell_size left one
     number doing nothing and another doing the work."""
     cfg.grid.kind = 'voronoi'
-    cfg.grid.cell_size = 50.0
+    cfg.grid.cell_size, cfg.grid.buffer = 50.0, 0.0
     cfg.grid.voronoi.cell_far = 100.0
     bbox = (739293.0, 4553110.0, 742223.0, 4556240.0)
     _nr, _nc, delr, _dc, xll, yll = meshes.model_rectangle(cfg, bbox)

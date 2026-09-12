@@ -226,12 +226,12 @@ def native_dialog(want='dir', initial='', title='Select'):
 
 
 def folder_picker(label, value, key, help_=None, want='dir', native=True):
-    """A path: typed, browsed to in the page, or chosen in the OS dialog.
+    """A path: typed, or chosen in the operating system's own dialog.
 
-    ``…`` opens the operating system's own dialog, which is what a modeller
-    expects. The in-page browser stays beside it because the dialog opens on
-    the machine the SERVER runs on -- the same machine either way, but only
-    one of the two works when there is no display to open a window on.
+    ``…`` opens the OS dialog, which is what a modeller expects. There is no
+    in-page folder browser beside it any more: with the dialog working it was
+    two ways to do one thing, and the text box is the fallback when the
+    dialog cannot open a window.
 
     ``want='file'`` picks a file instead of a folder.
     """
@@ -261,41 +261,8 @@ def folder_picker(label, value, key, help_=None, want='dir', native=True):
             elif why:
                 st.session_state[key + '.__why'] = why
     if st.session_state.get(key + '.__why'):
-        st.caption('The system dialog could not be used (%s). The browser '
-                   'below does the same job.'
-                   % st.session_state.pop(key + '.__why'))
-
-    here = st.session_state.get(key + '.__at') or (
-        typed if os.path.isdir(typed) else os.path.dirname(typed) or os.getcwd())
-    with st.expander('Browse in the page…', expanded=False):
-        st.caption('`%s`' % here)
-        try:
-            entries = sorted(os.listdir(here))
-        except OSError as exc:
-            st.error('%r' % exc)
-            entries = []
-        dirs = [d for d in entries if os.path.isdir(os.path.join(here, d))]
-        b1, b2 = st.columns([1, 3])
-        if b1.button('⬆ up', key=key + '.__up'):
-            st.session_state[key + '.__at'] = \
-                os.path.dirname(here.rstrip('\\/')) or here
-            st.rerun()
-        go = b2.selectbox('Subfolder', ['—'] + dirs, key=key + '.__sub')
-        if go and go != '—':
-            st.session_state[key + '.__at'] = os.path.join(here, go)
-            st.session_state.pop(key + '.__sub', None)
-            st.rerun()
-        if want == 'file':
-            files = [f for f in entries
-                     if os.path.isfile(os.path.join(here, f))]
-            pick = st.selectbox('File', ['—'] + files, key=key + '.__file')
-            if pick and pick != '—' and st.button('Use this file',
-                                                  key=key + '.__usef'):
-                st.session_state[pending] = os.path.join(here, pick)
-                st.rerun()
-        elif st.button('Use this folder', key=key + '.__use'):
-            st.session_state[pending] = here
-            st.rerun()
+        st.caption('The system dialog could not be used (%s) — type the path '
+                   'instead.' % st.session_state.pop(key + '.__why'))
     return typed
 
 

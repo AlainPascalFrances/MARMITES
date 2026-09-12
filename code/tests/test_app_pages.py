@@ -178,16 +178,18 @@ def test_panel_zero_sets_the_machine_paths():
         'panel 0 still tells the modeller to edit a source file'
 
 
-def test_panel_zero_offers_a_browser_for_each_path():
-    """"Select the folder inside the computer": typed OR browsed to, without
-    a native dialog -- the server process is only the user's own machine
-    while the app runs locally, which ui.execution says is not a given."""
+def test_panel_zero_offers_the_system_dialog_for_each_path():
+    """"Select the folder inside the computer": every path has a ... button
+    that opens the operating system's own dialog. The in-page folder browser
+    that used to sit beside it is gone -- two ways to do one thing -- and the
+    text box is the fallback when no window can be opened."""
     at = AppTest.from_file(os.path.join(APP, 'Home.py'), default_timeout=180)
     at.run()
     keys = {b.key for b in at.button if b.key}
-    assert 'path_gis.__up' in keys and 'path_gis.__use' in keys
-    # ... and the two that are FILES, not folders, are picked as files.
-    assert 'path_nwt_ref.__usef' in keys or 'path_nwt_ref.__up' in keys
+    for k in ('example_root', 'data_root', 'gis', 'ws_root', 'nwt_ref'):
+        assert 'path_%s.__native' % k in keys, '%s has no ... button' % k
+    assert not any(k.endswith(('.__up', '.__use', '.__usef')) for k in keys), \
+        'the in-page folder browser is still on panel 0'
 
 
 def test_the_derived_bands_follow_the_boxes_without_a_save():
@@ -285,3 +287,98 @@ def test_the_attempt_selector_is_not_on_the_first_tab(tmp_path):
     assert 'pick_attempt' in after
     assert 'selgrid' not in before, \
         'Select this grid is still on the Catchment & grid tab'
+
+
+def _static_map(at):
+    """Turn the interactive map off, so the button controls are drawn.
+
+    With plotly installed the map is interactive and carries its own zoom,
+    pan and reset; the buttons are the fallback for a machine without it,
+    and this is how the test reaches them either way.
+    """
+    for tg in at.toggle:
+        if tg.key == 'interactive_map':
+            at.toggle(key='interactive_map').set_value(False).run()
+            break
+    return at
+
+
+def test_the_map_has_zoom_and_an_original_extent(tmp_path):
+    """A matplotlib figure reaches the browser as a picture, so the view is a
+    state the buttons move and the axes are set from."""
+    import sys
+    sys.path.insert(0, CODE)
+    import marmites_config as mcfg
+
+    d, ncpl = _fake_attempt(tmp_path, 'structured_1', nrow=4, ncol=4)
+    at = AppTest.from_file(os.path.join(APP, 'pages', '1_Grid.py'),
+                           default_timeout=180)
+    at.session_state['grid_attempts'] = [{
+        'tag': 'structured_1', 'ok': True, 'cache': d,
+        'cfg': mcfg.RunConfig.from_dict({'grid': {'kind': 'structured'}}),
+        'label': '4 x 4', 'lines': ['built %d cells' % ncpl],
+        'info': {'kind': 'structured', 'ncpl': ncpl, 'area_mean': 2500.0}}]
+    at.run()
+    assert not at.exception, [str(e.value) for e in at.exception]
+    _static_map(at)
+    keys = {b.key for b in at.button if b.key}
+    for k in ('zin', 'zout', 'zreset', 'pleft', 'pright', 'pup', 'pdown'):
+        assert k in keys, 'the map has no %r control' % k
+
+    def view(a):
+        return (a.session_state['view']
+                if 'view' in a.session_state else None)
+
+    assert view(at) is None                          # the full extent
+    at.button(key='zin').click().run()
+    zoomed = view(at)
+    assert zoomed is not None, 'zooming in did not take'
+    # Compared against the PREVIOUS view rather than against absolute
+    # numbers: which mesh the selector lands on is not this test's business.
+    at.button(key='zin').click().run()
+    closer = view(at)
+    assert (closer[2] - closer[0]) < (zoomed[2] - zoomed[0]), \
+        'zooming in did not narrow the view'
+    at.button(key='zout').click().run()
+    assert round(view(at)[2] - view(at)[0], 3) == \
+        round(zoomed[2] - zoomed[0], 3), 'zoom out did not undo zoom in'
+    at.button(key='pright').click().run()
+    panned = view(at)
+    assert panned[0] > zoomed[0], 'panning did not move the view'
+    assert round(panned[2] - panned[0], 6) == round(zoomed[2] - zoomed[0], 6), \
+        'panning changed the zoom'
+    at.button(key='zreset').click().run()
+    assert view(at) is None, 'Original extent did not reset'
+
+
+def test_a_different_mesh_resets_the_view(tmp_path):
+    """A window from the previous grid would be meaningless on the next."""
+    import sys
+    sys.path.insert(0, CODE)
+    import marmites_config as mcfg
+
+    trial = mcfg.RunConfig.from_dict({'grid': {'kind': 'structured'}})
+    attempts = []
+    for tag, n in (('structured_1', 4), ('structured_2', 9)):
+        d, ncpl = _fake_attempt(tmp_path, tag, nrow=n, ncol=n)
+        attempts.append({'tag': tag, 'ok': True, 'cache': d, 'cfg': trial,
+                         'label': '%d x %d' % (n, n),
+                         'lines': ['built %d cells' % ncpl],
+                         'info': {'kind': 'structured', 'ncpl': ncpl,
+                                  'area_mean': 2500.0}})
+    at = AppTest.from_file(os.path.join(APP, 'pages', '1_Grid.py'),
+                           default_timeout=180)
+    at.session_state['grid_attempts'] = attempts
+    at.run()
+    _static_map(at)
+
+    def view(a):
+        return (a.session_state['view']
+                if 'view' in a.session_state else None)
+    at.button(key='zin').click().run()
+    assert view(at) is not None, 'zooming in did not take'
+    box = at.selectbox(key='pick_attempt')
+    other = [o for o in box.options if 'structured_1' in o][0]
+    at.selectbox(key='pick_attempt').select(other).run()
+    assert view(at) is None, \
+        'the zoom from the previous mesh was kept'

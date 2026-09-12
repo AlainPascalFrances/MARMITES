@@ -160,6 +160,190 @@ def _settings_of(trial):
             if k not in schema.GRID_DERIVED and not schema.is_source(v)}
 
 
+def _have_plotly():
+    try:
+        import plotly.graph_objects            # noqa: F401
+        return True
+    except ImportError:
+        return False
+
+
+def _plotly_mesh(polys, areas, kind, ncpl, colour_by, overlays, epsg, title):
+    """The mesh as an INTERACTIVE figure: plotly's own zoom, pan and reset.
+
+    One trace per area class rather than one per cell -- 4000 traces would
+    make the page unusable -- with the polygons separated by ``None`` inside
+    each trace, which is how plotly draws many outlines in one go.
+    """
+    import numpy as np
+    import plotly.graph_objects as go
+    from matplotlib import colormaps
+
+    fig = go.Figure()
+    if colour_by == 'cell area':
+        # Quantile classes, so the colours separate what is actually there
+        # rather than being stretched by one sliver cell.
+        n = 8
+        edges = np.unique(np.percentile(areas, np.linspace(0, 100, n + 1)))
+        cmap = colormaps['viridis']
+        for k in range(len(edges) - 1):
+            lo, hi = edges[k], edges[k + 1]
+            sel = ((areas >= lo) & (areas <= hi)) if k == len(edges) - 2 else \
+                ((areas >= lo) & (areas < hi))
+            if not sel.any():
+                continue
+            xs, ys = [], []
+            for i in np.nonzero(sel)[0]:
+                p = polys[i]
+                xs.extend([q[0] for q in p] + [p[0][0], None])
+                ys.extend([q[1] for q in p] + [p[0][1], None])
+            r, g, b, _a = cmap(k / max(len(edges) - 2, 1))
+            fig.add_trace(go.Scatter(
+                x=xs, y=ys, fill='toself', mode='lines',
+                fillcolor='rgb(%d,%d,%d)' % (r * 255, g * 255, b * 255),
+                line=dict(color='rgba(68,68,68,0.35)', width=0.4),
+                name='%.0f–%.0f m²' % (lo, hi), hoverinfo='name'))
+    else:
+        xs, ys = [], []
+        for p in polys:
+            xs.extend([q[0] for q in p] + [p[0][0], None])
+            ys.extend([q[1] for q in p] + [p[0][1], None])
+        fig.add_trace(go.Scatter(
+            x=xs, y=ys, fill='toself', mode='lines',
+            fillcolor='#dfe7f5', line=dict(color='rgba(68,68,68,0.35)',
+                                           width=0.4),
+            name='cells', hoverinfo='skip'))
+
+    for name, (xs, ys, how) in overlays.items():
+        if how == 'line':
+            fig.add_trace(go.Scatter(x=xs, y=ys, mode='lines', name=name,
+                                     line=dict(color='#1f77b4', width=1.6)))
+        elif how == 'dash':
+            fig.add_trace(go.Scatter(x=xs, y=ys, mode='lines', name=name,
+                                     line=dict(color='#d62728', width=1.6,
+                                               dash='dash')))
+        else:
+            fig.add_trace(go.Scatter(
+                x=xs, y=ys, mode='markers', name=name,
+                marker=dict(size=9, color='#ffcc00', symbol='triangle-up',
+                            line=dict(color='black', width=0.6)),
+                text=how if isinstance(how, list) else None,
+                hovertemplate='%{text}<br>%{x:.0f}, %{y:.0f}<extra></extra>'
+                if isinstance(how, list) else None))
+
+    fig.update_layout(
+        title=title, height=760, margin=dict(l=10, r=10, t=50, b=10),
+        xaxis_title='x [m], EPSG:%d' % epsg, yaxis_title='y [m]',
+        showlegend=True, dragmode='pan',
+        legend=dict(orientation='h', y=-0.08))
+    # Equal aspect, or a mesh looks stretched and cells look like rectangles.
+    fig.update_yaxes(scaleanchor='x', scaleratio=1)
+    return fig
+
+
+def _static_mesh(polys, areas, colour_by, overlays, epsg, title, view):
+    """The same map as a PICTURE, for when plotly is not installed."""
+    import matplotlib
+    matplotlib.use('agg')
+    import matplotlib.pyplot as plt
+    from matplotlib.collections import PolyCollection
+
+    fig, ax = plt.subplots(figsize=(9, 9))
+    pc = PolyCollection(polys, edgecolors='#44444455', linewidths=0.3)
+    if colour_by == 'cell area':
+        pc.set_array(areas)
+        pc.set_cmap('viridis')
+        fig.colorbar(pc, ax=ax, shrink=0.7, label='cell area [m²]')
+    else:
+        pc.set_facecolor('#dfe7f5')
+    ax.add_collection(pc)
+
+    for name, (xs, ys, how) in overlays.items():
+        if how in ('line', 'dash'):
+            ax.plot(xs, ys, '--' if how == 'dash' else '-',
+                    color='#d62728' if how == 'dash' else '#1f77b4',
+                    lw=1.2, zorder=3, label=name)
+        elif how == 'points':
+            ax.scatter(xs, ys, s=28, c='#17becf', edgecolor='k',
+                       linewidth=0.4, zorder=4, label=name)
+        else:
+            ax.scatter(xs, ys, s=45, marker='^', c='#ffcc00', edgecolor='k',
+                       linewidth=0.5, zorder=5, label=name)
+            for x, y, nm in zip(xs, ys, how):
+                ax.annotate(nm, (x, y), fontsize=7, xytext=(3, 3),
+                            textcoords='offset points', zorder=6)
+
+    ax.set_xlim(view[0], view[2])
+    ax.set_ylim(view[1], view[3])
+    ax.set_aspect('equal')
+    ax.set_xlabel('x [m], EPSG:%d' % epsg)
+    ax.set_ylabel('y [m]')
+    ax.set_title(title)
+    return fig
+
+
+def _provenance(path):
+    """The ``# source / # size`` header the converter writes, as a dict."""
+    out = {}
+    try:
+        with open(path, encoding='utf-8') as fh:
+            for line in fh:
+                if not line.startswith('#'):
+                    break
+                if ':' in line:
+                    k, v = line[1:].split(':', 1)
+                    out[k.strip()] = v.strip()
+    except OSError:
+        return {}
+    return out
+
+
+# What the MESH PRODUCERS read out of the dataset, and the shapefile each is
+# derived from. Voronoi triangulates inputWATERSHED.csv and refines on
+# inputSTREAM.csv; the quadtree refines on the same streams. So these two are
+# the dataset tables a grid actually depends on -- and the reason the
+# converter has to run BEFORE a build rather than after a selection.
+MESH_INPUTS = (('inputWATERSHED.csv', None),          # None = cfg.grid.boundary
+               ('inputSTREAM.csv', 'hydrography.shp'))
+
+
+def _dataset_stale(cfg):
+    """Is what the producers read still what the cartography says? (bool, why).
+
+    Compares the SOURCE and its size recorded in each table's header against
+    the shapefile on disk. A missing table, a table made from a different
+    file, or a file that has been re-exported since all mean the same thing:
+    a mesh built now would be built on the previous cartography.
+    """
+    ds = str(mm_paths.dataset_dir(cfg.paths.case))
+    why = []
+    for table, source in MESH_INPUTS:
+        out = os.path.join(ds, table)
+        name = source or cfg.grid.boundary
+        src = (name if os.path.isabs(name)
+               else os.path.join(str(mm_paths.GIS), name))
+        if not os.path.exists(out):
+            why.append('%s has never been written' % table)
+            continue
+        prov = _provenance(out)
+        was = prov.get('source', '')
+        if was and os.path.normcase(was) != os.path.normcase(src):
+            why.append('%s was made from %s, not %s'
+                       % (table, os.path.basename(was), os.path.basename(src)))
+            continue
+        if not os.path.exists(src):
+            continue                      # the check below would be noise
+        size = prov.get('size', '')
+        try:
+            on_disk = os.path.getsize(src)
+        except OSError:
+            continue
+        if size and ('%d bytes' % on_disk) not in size:
+            why.append('%s has changed since %s was written'
+                       % (os.path.basename(src), table))
+    return bool(why), '; '.join(why)
+
+
 def _run_converter(case, cfg_path, dry):
     """Run the WP1 converter as a subprocess and return its output.
 
@@ -256,13 +440,16 @@ with tab_domain:
         v = panelui.live_voronoi(cfg, edited)
         bands = v.graded_bands()
         if bands:
+            # Every column a STRING: a mixed int/str column cannot be
+            # converted to Arrow, and streamlit's repair pass logs a
+            # traceback on every render.
             lo, rows = 0.0, []
             for i, (d, s) in enumerate(bands, start=1):
-                rows.append({'band': i, 'from [m]': '%g' % lo,
+                rows.append({'band': '%d' % i, 'from [m]': '%g' % lo,
                              'to [m]': '%g' % d, 'cell size [m]': '%g' % s})
                 lo = d
-            rows.append({'band': '—', 'from [m]': '%g' % lo, 'to [m]': '∞',
-                         'cell size [m]': '%g (background)' % v.cell_far})
+            rows.append({'band': 'background', 'from [m]': '%g' % lo,
+                         'to [m]': '∞', 'cell size [m]': '%g' % v.cell_far})
             st.dataframe(rows, width='stretch', hide_index=True)
         elif v.stream_refine:
             st.info('No bands: the size at the stream must be smaller than '
@@ -294,8 +481,21 @@ with tab_domain:
                        '\n\n%s' % exc)
         else:
             tag = '%s_%d' % (trial.grid_kind, len(ATTEMPTS) + 1)
+            pre = []
+            # The producers read the DATASET, not the shapefiles: voronoi
+            # triangulates inputWATERSHED.csv and refines on
+            # inputSTREAM.csv. So a boundary changed on this page means
+            # nothing to the mesh until the converter has run -- which is why
+            # it runs HERE, silently, and not on the selection.
+            stale, why = _dataset_stale(trial)
+            if stale:
+                with st.spinner('Re-reading the cartography…'):
+                    pre = ['the dataset was out of date (%s), so the '
+                           'converter ran first' % why,
+                           _run_converter(case, path, dry=False), '']
             with st.spinner('Building the %s grid…' % trial.grid_kind):
                 ok, lines, info = _build_grid(trial, _attempt_dir(cfg, tag))
+            lines = lines[:1] + pre + lines[1:] if lines else pre
             ATTEMPTS.append({'tag': tag, 'ok': ok, 'lines': lines,
                              'info': info, 'cfg': trial,
                              'label': _describe(trial),
@@ -325,16 +525,21 @@ with tab_domain:
         st.info('No attempt yet. Press **Create grid** — it builds from the '
                 'settings above without saving anything.')
 
-    with st.expander('Re-read the cartography (only when a shapefile changes)'):
+    with st.expander('Re-read the cartography (the other layers)'):
         st.caption(
             'A run never opens a shapefile. The converter does, once: it '
             'reads the GIS folder and writes GRID-INDEPENDENT tables into '
-            '`%s` — the stream network, the pond outlines, the catchment '
-            'ring, the soil and vegetation polygons — and those are what a '
-            'run reads and what every panel wraps onto the grid. So press '
-            'this when you have EDITED OR REPLACED a shapefile, and not '
-            'otherwise: changing the grid does not need it, which is the '
-            'whole point of the two tiers.' % mm_paths.dataset_dir(case))
+            '`%s`, and those are what a run reads and what every panel wraps '
+            'onto the grid.\n\nThe two a GRID depends on — the catchment ring '
+            'and the stream network — are checked and re-read by **Create '
+            'grid** itself, so there is nothing to press for them. This is '
+            'for the rest: soil, vegetation, irrigation, observation points, '
+            'ponds. Press it when you have edited or replaced one of those '
+            'shapefiles.' % mm_paths.dataset_dir(case))
+        stale, why = _dataset_stale(cfg)
+        if stale:
+            st.caption('The grid inputs are out of date too (%s) — the next '
+                       '**Create grid** will re-read them.' % why)
         c1, c2 = st.columns(2)
         if c1.button('Preview (dry run)'):
             st.session_state['conv'] = _run_converter(case, path, dry=True)
@@ -444,6 +649,62 @@ with tab_mesh:
                     'catchment boundary'],
         default=['stream network', 'observation points'])
 
+    # ---- how the map is drawn -----------------------------------------
+    # Plotly carries its own zoom, pan, box-zoom and reset, which is what a
+    # mesh wants. Without it the figure reaches the browser as a picture, so
+    # the view becomes a STATE that buttons move and the axes are set from.
+    interactive = _have_plotly() and st.toggle(
+        'Interactive map — drag to pan, wheel or box to zoom, and the toolbar '
+        'has "Reset axes"', value=True, key='interactive_map')
+
+    _vx = [float(v[1]) for v in gp['vertices']]
+    _vy = [float(v[2]) for v in gp['vertices']]
+    full = (min(_vx), min(_vy), max(_vx), max(_vy))
+    view = full
+    if not interactive:
+        # The full extent is what "Original extent" goes back to -- and what
+        # a newly selected mesh resets to, since a window from the previous
+        # grid would be meaningless on this one.
+        if st.session_state.get('view_of') != (pick, ncpl):
+            st.session_state['view_of'] = (pick, ncpl)
+            st.session_state['view'] = None
+        view = st.session_state.get('view') or full
+
+        def _set(v):
+            st.session_state['view'] = v
+            st.rerun()
+
+        def _zoom(f):
+            x0, y0, x1, y1 = view
+            cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+            w, h = (x1 - x0) / 2, (y1 - y0) / 2
+            _set((cx - w * f, cy - h * f, cx + w * f, cy + h * f))
+
+        def _pan(dx, dy):
+            x0, y0, x1, y1 = view
+            sx, sy = (x1 - x0) * dx * 0.25, (y1 - y0) * dy * 0.25
+            _set((x0 + sx, y0 + sy, x1 + sx, y1 + sy))
+
+        z1, z2, z3, z4, z5, z6, z7 = st.columns(7)
+        if z1.button('🔍 +', key='zin', help='Zoom in'):
+            _zoom(1 / 1.6)
+        if z2.button('🔍 −', key='zout', help='Zoom out'):
+            _zoom(1.6)
+        if z3.button('⟲ Original extent', key='zreset'):
+            _set(None)
+        if z4.button('←', key='pleft'):
+            _pan(-1, 0)
+        if z5.button('→', key='pright'):
+            _pan(1, 0)
+        if z6.button('↑', key='pup'):
+            _pan(0, 1)
+        if z7.button('↓', key='pdown'):
+            _pan(0, -1)
+        if st.session_state.get('view'):
+            x0, y0, x1, y1 = view
+            st.caption('view %.0f–%.0f × %.0f–%.0f m (%.0f × %.0f m)'
+                       % (x0, x1, y0, y1, x1 - x0, y1 - y0))
+
     DS = mm_paths.dataset_dir(case)
 
     def _csv(fn, cols):
@@ -468,65 +729,69 @@ with tab_mesh:
                     continue
         return rows or None
 
-    import matplotlib                                     # noqa: E402
-    matplotlib.use('agg')
-    import matplotlib.pyplot as plt                       # noqa: E402
-    from matplotlib.collections import PolyCollection     # noqa: E402
-
-    fig, ax = plt.subplots(figsize=(9, 9))
-    pc = PolyCollection(polys, edgecolors='#44444455', linewidths=0.3)
-    if colour_by == 'cell area':
-        pc.set_array(areas)
-        pc.set_cmap('viridis')
-        fig.colorbar(pc, ax=ax, shrink=0.7, label='cell area [m²]')
-    else:
-        pc.set_facecolor('#dfe7f5')
-    ax.add_collection(pc)
-
+    # ---- the overlays, gathered once ----------------------------------
+    # Both renderers draw the same things, so they are collected here rather
+    # than twice: (xs, ys, how), with None breaks between parts.
+    overlays = {}
     if 'stream network' in show:
         segs = {}
         for sid, seq, x, y in (_csv('inputSTREAM.csv',
                                     ['seg_id', 'seq', 'x', 'y']) or []):
             segs.setdefault(sid, []).append((seq, x, y))
+        xs, ys = [], []
         for sid in sorted(segs):
             pts = [(x, y) for _s, x, y in sorted(segs[sid])]
-            ax.plot([p[0] for p in pts], [p[1] for p in pts], '-',
-                    color='#1f77b4', lw=1.2, zorder=3)
-    if 'ponds' in show:
-        pd_ = _csv('inputPONDS.csv', ['fid', 'x', 'y']) or []
-        if pd_:
-            ax.scatter([p[1] for p in pd_], [p[2] for p in pd_], s=28,
-                       c='#17becf', edgecolor='k', linewidth=0.4, zorder=4)
+            xs.extend([p[0] for p in pts] + [None])
+            ys.extend([p[1] for p in pts] + [None])
+        if xs:
+            overlays['stream network'] = (xs, ys, 'line')
     if 'catchment boundary' in show:
         ring = _csv('inputWATERSHED.csv', ['ring_id', 'seq', 'x', 'y']) or []
         if ring:
             pts = [(x, y) for _r, _s, x, y in sorted(ring, key=lambda t: t[1])]
-            ax.plot([p[0] for p in pts], [p[1] for p in pts], '--',
-                    color='#d62728', lw=1.2, zorder=3)
+            overlays['catchment boundary'] = ([p[0] for p in pts],
+                                              [p[1] for p in pts], 'dash')
+    if 'ponds' in show:
+        pd_ = _csv('inputPONDS.csv', ['fid', 'x', 'y']) or []
+        if pd_:
+            overlays['ponds'] = ([p[1] for p in pd_], [p[2] for p in pd_],
+                                 'points')
+    obs = []
     if 'observation points' in show:
         try:
             from marmites_postprocess import obs_points
-            pts = obs_points(str(DS))
-            ax.scatter([p['x'] for p in pts], [p['y'] for p in pts], s=45,
-                       marker='^', c='#ffcc00', edgecolor='k', linewidth=0.5,
-                       zorder=5)
-            for p in pts:
-                ax.annotate(p['name'], (p['x'], p['y']), fontsize=7,
-                            xytext=(3, 3), textcoords='offset points', zorder=6)
+            obs = obs_points(str(DS))
+            if obs:
+                overlays['observation points'] = (
+                    [p['x'] for p in obs], [p['y'] for p in obs],
+                    [p['name'] for p in obs])
         except Exception as exc:
             st.caption('observation points not drawn: %r' % exc)
 
-    ax.autoscale_view()
-    ax.set_aspect('equal')
-    ax.set_xlabel('x [m], EPSG:%d' % (cfg.grid.crs_epsg or 23029))
-    ax.set_ylabel('y [m]')
-    ax.set_title('%s — %s mesh, %d cells' % (case, kind, ncpl))
-    st.pyplot(fig, width='content')
-    plt.close(fig)
-
-    st.caption('Cells are the model\'s own polygons. An observation point sits '
-               'in the cell whose polygon contains it — on a coarse mesh two '
-               'nearby points can share one cell, and the run says so.')
+    title = '%s — %s mesh, %d cells' % (case, kind, ncpl)
+    if interactive:
+        st.plotly_chart(
+            _plotly_mesh(polys, areas, kind, ncpl, colour_by, overlays,
+                         cfg.grid.crs_epsg or 23029, title),
+            width='stretch',
+            config={'scrollZoom': True, 'displaylogo': False})
+        st.caption('Cells are the model\'s own polygons. Drag to pan, scroll '
+                   'or drag a box to zoom, and double-click or **Reset axes** '
+                   'in the toolbar to come back to the full extent. An '
+                   'observation point sits in the cell whose polygon contains '
+                   'it -- on a coarse mesh two nearby points share one, and '
+                   'the run says so.')
+    else:
+        import matplotlib.pyplot as plt
+        fig = _static_mesh(polys, areas, colour_by, overlays,
+                           cfg.grid.crs_epsg or 23029,
+                           title + ('' if st.session_state.get('view') is None
+                                    else ' (zoomed)'), view)
+        st.pyplot(fig, width='content')
+        plt.close(fig)
+        st.caption('Cells are the model\'s own polygons. An observation point '
+                   'sits in the cell whose polygon contains it -- on a coarse '
+                   'mesh two nearby points share one, and the run says so.')
 
     # ---- commit, AFTER the map ---------------------------------------
     # Below the figure because that is the order of the decision: look at the

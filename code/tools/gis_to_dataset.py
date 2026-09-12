@@ -310,8 +310,13 @@ def convert(case='LaMata', gis=None, out_dir=None, cfg=None, dry_run=False):
     written.append(_write_csv(
         os.path.join(out_dir, 'inputSTREAM_param.csv'),
         hdr + ['# per-segment parameters resolved from the [sfr] producers.',
-               '# "drainage:a=..,b=.." means the MODEL computes w = a*A**b from its',
-               '# own flow accumulation -- see the module docstring.'],
+               '# A "drainage:" width is resolved by the MODEL, on the routed',
+               '# network, in one of two laws:',
+               '#   w_min,w_max,power  arbolate-sum scaling, w = w_min +',
+               '#                      (w_max-w_min)*(arb/arb_max)**power',
+               '#   a,b                a Hack-type law, w = a*A**b, with the',
+               '#                      catchment area A in km2',
+               '# -- see the module docstring.'],
         ['seg_id', 'grid_code', 'length_m', 'width_m', 'manning', 'rhk', 'rbth'],
         par_rows, dry_run))
 
