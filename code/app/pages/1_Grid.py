@@ -196,24 +196,19 @@ def _describe(cfg):
 
 ATTEMPTS = st.session_state.setdefault('grid_attempts', [])
 
-tab_domain, tab_mesh = st.tabs(['Catchment & grid', 'The selected mesh'])
+tab_domain, tab_mesh = st.tabs(['Catchment & grid', 'Visualize mesh'])
 
 # ===================================================================== 1a
 with tab_domain:
-    st.markdown('#### The catchment and the grid built inside it')
-    st.caption('A PROJECTED, metric polygon. It defines the active domain, '
-               'the mesh boundary and the model rectangle — so it is checked '
-               'here, before anything is built on it.')
+    st.markdown('#### Catchment and grid definition')
+    st.caption('Catchment boundary: polygon shape file with projected '
+               'coordinates (metric). It defines the active domain, the mesh '
+               'boundary and the model rectangle.')
 
-    edited, chosen = panelui.grid_permanent_form(cfg, columns=3)
-
-    # ---- is the file a usable catchment polygon? ---------------------
-    from marmites_vector import check_polygon_layer          # noqa: E402
-    picked = edited.get('grid.boundary', cfg.grid.boundary)
-    bnd = (picked if os.path.isabs(picked)
-           else os.path.join(str(mm_paths.GIS), picked))
-    rep = check_polygon_layer(bnd, expect_epsg=edited.get('grid.crs_epsg',
-                                                          cfg.grid.crs_epsg))
+    # The form CHECKS the polygon as it draws it -- the CRS it shows comes
+    # from that check -- and hands the report back for the read-outs below.
+    edited, chosen, rep = panelui.grid_permanent_form(cfg, columns=3)
+    bnd = rep['path']
     for msg in rep['errors']:
         st.error(msg)
     for msg in rep['warnings']:
@@ -255,20 +250,23 @@ with tab_domain:
     elif chosen == 'voronoi':
         st.caption('Sizes are the side of the EQUIVALENT SQUARE, so 100 aims '
                    'at 10 000 m². The build prints the area it actually '
-                   'achieved — read that, not this. Each transition band is '
-                   'one cell wide, which is what fixes how many there are.')
-        v = cfg.grid.voronoi
-        need = v.corridor_needed() if v.stream_refine else 0.0
-        if need and need > float(v.stream_buffer):
-            st.warning(
-                'Grading from %g to %g m at a ratio of %g takes a **%g m** '
-                'corridor, and the stream corridor is %g m — so the cells '
-                'reach %g m at the edge and then jump to %g m. Widen the '
-                'corridor to %g m, raise the ratio, or accept the step.'
-                % (v.cell_near_stream, v.cell_far, v.grade_ratio, need,
-                   v.stream_buffer,
-                   max([s for _d, s in v.graded_bands()] or [0]),
-                   v.cell_far, need))
+                   'achieved — read that, not this. You give the size AT the '
+                   'stream and how fast it may grow; the corridor follows, '
+                   'because each band is as wide as its own cells.')
+        v = panelui.live_voronoi(cfg, edited)
+        bands = v.graded_bands()
+        if bands:
+            lo, rows = 0.0, []
+            for i, (d, s) in enumerate(bands, start=1):
+                rows.append({'band': i, 'from [m]': '%g' % lo,
+                             'to [m]': '%g' % d, 'cell size [m]': '%g' % s})
+                lo = d
+            rows.append({'band': '—', 'from [m]': '%g' % lo, 'to [m]': '∞',
+                         'cell size [m]': '%g (background)' % v.cell_far})
+            st.dataframe(rows, width='stretch', hide_index=True)
+        elif v.stream_refine:
+            st.info('No bands: the size at the stream must be smaller than '
+                    'the background for a corridor to mean anything.')
     elif chosen == 'quadtree':
         st.caption('GRIDGEN halves a cell per refinement level, so level 2 on '
                    'a %g m background gives %g m along the streams.'
@@ -285,7 +283,7 @@ with tab_domain:
     st.caption('Builds the mesh from the settings ABOVE AS THEY STAND — no '
                'save needed — and keeps it as an attempt, so two kinds or two '
                'cell sizes can be compared. Nothing a run reads is written '
-               'until you select one.')
+               'until you select one (panel **Visualize mesh**).')
 
     cbuild, cclear, cmsg = st.columns([1, 1, 3])
     if cbuild.button('Create grid', type='primary', key='mkgrid'):
@@ -322,16 +320,21 @@ with tab_domain:
                 'built': '✅' if a['ok'] else '❌',
             })
         st.dataframe(rows, width='stretch', hide_index=True)
-        st.caption('Open **The selected mesh** to look at one and choose it.')
+        st.success('After the grid is created, go to panel **Visualize mesh**.')
     else:
         st.info('No attempt yet. Press **Create grid** — it builds from the '
                 'settings above without saving anything.')
 
-    with st.expander('Update the dataset from the cartography'):
-        st.caption('The shapefiles stay in the GIS folder and are read ONLY by '
-                   'the converter, which writes grid-independent tables into '
-                   'the dataset. Those are what a run reads, and what the '
-                   'other panels wrap onto this grid.')
+    with st.expander('Re-read the cartography (only when a shapefile changes)'):
+        st.caption(
+            'A run never opens a shapefile. The converter does, once: it '
+            'reads the GIS folder and writes GRID-INDEPENDENT tables into '
+            '`%s` — the stream network, the pond outlines, the catchment '
+            'ring, the soil and vegetation polygons — and those are what a '
+            'run reads and what every panel wraps onto the grid. So press '
+            'this when you have EDITED OR REPLACED a shapefile, and not '
+            'otherwise: changing the grid does not need it, which is the '
+            'whole point of the two tiers.' % mm_paths.dataset_dir(case))
         c1, c2 = st.columns(2)
         if c1.button('Preview (dry run)'):
             st.session_state['conv'] = _run_converter(case, path, dry=True)
@@ -342,10 +345,6 @@ with tab_domain:
 
 # ===================================================================== 1b
 with tab_mesh:
-    st.caption('True cell polygons, straight from the mesh itself. The maps '
-               'in a run are drawn on a display raster instead; this is the '
-               'grid. Pick an attempt to look at it, and select the one you '
-               'want the model to run on.')
     ws_root = _ws_root(cfg)
     want = _signature(cfg)
 
@@ -399,45 +398,6 @@ with tab_mesh:
                        'settings ask for.' % (saved_where, want))
 
     st.markdown('**`%s`** — %s' % (kind, _describe(shown_cfg)))
-
-    # ---- commit ------------------------------------------------------
-    if att is not None:
-        csel, cnote = st.columns([1, 3])
-        if csel.button('Select this grid for the model', type='primary',
-                       key='selgrid'):
-            try:
-                applied, digest = editor.save(cfg, path,
-                                              _settings_of(att['cfg']))
-            except (editor.EditError, mcfg.ConfigError) as exc:
-                cnote.error('NOT selected — the configuration would be '
-                            'invalid:\n\n%s' % exc)
-            else:
-                st.session_state['grid_selected'] = att['tag']
-                cnote.success('Selected **%s** — %d change(s), hash %s'
-                              % (att['tag'], len(applied), digest))
-                # The settings are written; put the mesh they produced where
-                # the driver looks, so the run reuses it instead of spending
-                # the build again. The signature goes with it, so a later
-                # change to [grid] still invalidates it.
-                dst, moved = loaders.promote_mesh(att['cache'], ws_root, kind)
-                if moved:
-                    cnote.caption('Mesh promoted to `%s` — a run will reuse '
-                                  'it rather than rebuild.' % dst)
-                # Saved spin-up state belongs to the grid it was produced on.
-                # Saying so HERE is the difference between a clear message now
-                # and a CONFIG ERROR at the start of the next run.
-                stale = [n for n in ('strt_heads', 'steady_means')
-                         if getattr(cfg.spinup, n)]
-                if stale and kind not in ('structured', 'dis', 'disv'):
-                    cnote.warning(
-                        'This grid is a mesh, and `spinup.%s` still names '
-                        'state produced on the structured grid. A run will '
-                        'stop rather than feed MODFLOW an array of the wrong '
-                        'length: clear those keys, or re-run the spin-up on '
-                        'this mesh.' % '` / `spinup.'.join(stale))
-        if kind != cfg.grid_kind:
-            cnote.info('The configuration currently says **%s**; this attempt '
-                       'is **%s**.' % (cfg.grid_kind, kind))
 
     (polys, areas, centres) = loaders.mesh_polygons(gp)
     ncpl = int(gp['ncpl'])
@@ -567,3 +527,44 @@ with tab_mesh:
     st.caption('Cells are the model\'s own polygons. An observation point sits '
                'in the cell whose polygon contains it — on a coarse mesh two '
                'nearby points can share one cell, and the run says so.')
+
+    # ---- commit, AFTER the map ---------------------------------------
+    # Below the figure because that is the order of the decision: look at the
+    # mesh, then commit to it.
+    if att is not None:
+        st.markdown('---')
+        if st.button('Select this grid for the model', type='primary',
+                     key='selgrid', width='stretch'):
+            try:
+                applied, digest = editor.save(cfg, path,
+                                              _settings_of(att['cfg']))
+            except (editor.EditError, mcfg.ConfigError) as exc:
+                st.error('NOT selected — the configuration would be '
+                         'invalid:\n\n%s' % exc)
+            else:
+                st.session_state['grid_selected'] = att['tag']
+                st.success('Selected **%s** — %d change(s), hash %s'
+                           % (att['tag'], len(applied), digest))
+                # The settings are written; put the mesh they produced where
+                # the driver looks, so the run reuses it instead of spending
+                # the build again. The signature goes with it, so a later
+                # change to [grid] still invalidates it.
+                dst, moved = loaders.promote_mesh(att['cache'], ws_root, kind)
+                if moved:
+                    st.caption('Mesh promoted to `%s` — a run will reuse it '
+                               'rather than rebuild.' % dst)
+                # Saved spin-up state belongs to the grid it was produced on.
+                # Saying so HERE is the difference between a clear message now
+                # and a CONFIG ERROR at the start of the next run.
+                stale = [n for n in ('strt_heads', 'steady_means')
+                         if getattr(cfg.spinup, n)]
+                if stale and kind not in ('structured', 'dis', 'disv'):
+                    st.warning(
+                        'This grid is a mesh, and `spinup.%s` still names '
+                        'state produced on the structured grid. A run will '
+                        'stop rather than feed MODFLOW an array of the wrong '
+                        'length: clear those keys, or re-run the spin-up on '
+                        'this mesh.' % '` / `spinup.'.join(stale))
+        if kind != cfg.grid_kind:
+            st.info('The configuration currently says **%s**; this attempt is '
+                    '**%s**.' % (cfg.grid_kind, kind))

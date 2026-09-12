@@ -516,14 +516,6 @@ def _add_stream_regions(tri, cfg, dataset_dir, warn):
                  'cell_far %g, stream_buffer %g) -- the mesh is uniform.'
                  % (v.cell_near_stream, v.cell_far, v.stream_buffer))
         return
-    need = v.corridor_needed()
-    if warn and need > float(v.stream_buffer):
-        warn('grid.voronoi: grading from %g to %g m at a ratio of %g takes a '
-             '%g m corridor and stream_buffer is %g m, so the size still '
-             'jumps at the corridor edge. Widen stream_buffer to %g m, or '
-             'accept the step.'
-             % (v.cell_near_stream, v.cell_far, v.grade_ratio, need,
-                v.stream_buffer, need))
     added = 0
     prev = None
     for k, (dist, size) in enumerate(bands):

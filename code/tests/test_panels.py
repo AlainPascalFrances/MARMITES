@@ -498,12 +498,14 @@ def test_the_signature_separates_two_corridors(cfg):
     a = meshes.mesh_signature(cfg, stub)
     # Perturbed from whatever the shipped configuration holds, not set to
     # fixed numbers: this test once asserted the values the file already had.
-    cfg.grid.voronoi.stream_buffer = cfg.grid.voronoi.stream_buffer * 2.0 + 1.0
+    # And perturbed on the INPUTS -- the corridor is derived from them, so
+    # assigning it and validating would simply put it back.
+    cfg.grid.voronoi.cell_near_stream = cfg.grid.voronoi.cell_near_stream / 2.0
     cfg.grid.voronoi.refresh()
     b = meshes.mesh_signature(cfg, stub)
     assert b != a, ('a different corridor gives the same signature, so a '
                     'stale mesh is served for it')
-    cfg.grid.voronoi.cell_near_stream = cfg.grid.voronoi.cell_near_stream / 2.0
+    cfg.grid.voronoi.grade_ratio = 1.9
     cfg.grid.voronoi.refresh()
     assert meshes.mesh_signature(cfg, stub) != b
 

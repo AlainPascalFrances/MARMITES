@@ -838,8 +838,8 @@ def check_polygon_layer(path, expect_epsg=0):
     """
     rep = {'path': str(path), 'ok': False, 'errors': [], 'warnings': [],
            'features': 0, 'kind': '', 'area_m2': 0.0, 'bbox': None,
-           'crs_wkt': '', 'crs_name': '', 'epsg': 0, 'projected': False,
-           'missing': []}
+           'crs_wkt': '', 'crs_name': '', 'epsg': 0, 'epsg_matched': False,
+           'projected': False, 'datum': '', 'missing': []}
     err, warn = rep['errors'].append, rep['warnings'].append
 
     if not path:
@@ -908,6 +908,17 @@ def check_polygon_layer(path, expect_epsg=0):
             frag = wkt[low.rfind('"epsg"'):]
             digits = ''.join(c for c in frag.split(',')[-1] if c.isdigit())
             rep['epsg'] = int(digits) if digits else 0
+        if not rep['epsg']:
+            # No authority code, which is the usual ArcGIS export. pyproj can
+            # still MATCH the definition to one -- it is what geopandas does
+            # when it reports EPSG:23029 for these very files -- so the panel
+            # can show a real code instead of a blank.
+            try:
+                from pyproj import CRS
+                rep['epsg'] = int(CRS.from_wkt(wkt).to_epsg() or 0)
+                rep['epsg_matched'] = bool(rep['epsg'])
+            except Exception:                             # noqa: BLE001
+                pass
         del tail
         if not rep['projected']:
             err('The .prj declares a GEOGRAPHIC CRS (%s): those coordinates '

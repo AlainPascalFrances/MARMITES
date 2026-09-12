@@ -440,7 +440,22 @@ def _resolve(src, row, what):
         raise SystemExit('sfr.%s: the raster producer is not implemented yet '
                          '(no La Mata source needs it)' % what)
     if prod == 'drainage':
-        return 'drainage:a=%g,b=%g' % (src.drainage['a'], src.drainage['b'])
+        # TWO laws, and this knew only one: it read src.drainage['a'] and
+        # raised KeyError on the {w_min, w_max} form, which is the one
+        # lamata.toml uses (CdL's arbolate-sum scaling). The law itself is
+        # resolved at RUN time on the routed network, so all this has to do
+        # is carry the parameters across.
+        d = dict(src.drainage or {})
+        if {'w_min', 'w_max'} <= set(d):
+            return ('drainage:w_min=%g,w_max=%g,power=%g'
+                    % (float(d['w_min']), float(d['w_max']),
+                       float(d.get('power', 2.0))))
+        if {'a', 'b'} <= set(d):
+            return 'drainage:a=%g,b=%g' % (float(d['a']), float(d['b']))
+        raise SystemExit(
+            'sfr.%s drainage needs either {w_min, w_max[, power]} for '
+            'arbolate-sum scaling or {a, b} for a Hack-type law, and has %s'
+            % (what, sorted(d) or 'nothing'))
     raise SystemExit('sfr.%s has no producer set' % what)
 
 

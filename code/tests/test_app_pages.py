@@ -198,19 +198,24 @@ def test_the_derived_bands_follow_the_boxes_without_a_save():
                            default_timeout=180)
     at.run()
     at.selectbox(key='grid.kind').select('voronoi').run()
-    shown = lambda a: [t.value for t in a.text_input
-                       if t.key == 'ro_grid.voronoi.trans_levels'][0]
-    before = shown(at)
-    # A wider corridor must move every band outwards ...
-    at.number_input(key='grid.voronoi.stream_buffer').set_value(120.0).run()
-    wider = shown(at)
-    assert wider != before, 'the bands ignored the corridor width'
-    assert max(float(x) for x in wider.split(',')) == 120.0
-    # ... and a coarser grading ratio must ask for fewer of them.
-    n_before = len(wider.split(','))
+    def shown(a, what='trans_levels'):
+        return [t.value for t in a.text_input
+                if t.key == 'ro_grid.voronoi.%s' % what][0]
+
+    before, corridor = shown(at), shown(at, 'stream_buffer')
+    # A finer cell at the stream takes more bands, and a wider corridor ...
+    at.number_input(key='grid.voronoi.cell_near_stream').set_value(10.0).run()
+    assert shown(at) != before, 'the bands ignored the size at the stream'
+    assert shown(at, 'stream_buffer') != corridor, \
+        'the derived corridor ignored the size at the stream'
+    # ... and a coarser grade asks for fewer of them.
+    n_before = len(shown(at).split(','))
     at.number_input(key='grid.voronoi.grade_ratio').set_value(2.5).run()
     assert len(shown(at).split(',')) < n_before, \
         'the bands ignored the grade ratio'
+    # The corridor is a READ-OUT now, not a question (panel 1, item 9).
+    assert 'grid.voronoi.stream_buffer' not in _keys(at), \
+        'the corridor is still offered as a live field'
 
 
 def _fake_attempt(tmpdir, tag, kind='structured', nrow=3, ncol=4, cell=50.0):

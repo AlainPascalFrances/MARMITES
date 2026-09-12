@@ -58,10 +58,6 @@ def header(number):
     _n, title, icon, _sw, _sec, blurb = panel
     st.title('%s  %d — %s' % (icon, number, title))
     st.caption(blurb)
-    strip = '  '.join(
-        ('**%d %s**' % (p[0], p[1])) if p[0] == number else ('%d %s' % (p[0], p[1]))
-        for p in schema.PANELS)
-    st.caption(strip)
     return panel
 
 
@@ -306,11 +302,12 @@ def folder_picker(label, value, key, help_=None, want='dir', native=True):
 def boundary_picker(dotted, value, folder_key='gis_folder'):
     """Choose the catchment polygon from the shapefiles on this machine.
 
-    A dropdown of what is actually THERE rather than a name to type: the
-    commonest way this field goes wrong is a file that has been renamed or
-    exported somewhere else, and a text box reports that only when the run
-    fails. The folder defaults to ``DATA_ROOT/GIS`` -- where the shapefiles
-    live and are read by the converter alone -- and can be pointed anywhere.
+    The folder on the left, the files in it on the right: a dropdown of what
+    is actually THERE rather than a name to type, because the commonest way
+    this field goes wrong is a file renamed or exported somewhere else, and a
+    text box reports that only when the run fails. The folder defaults to
+    ``DATA_ROOT/GIS`` -- where the shapefiles live, read by the converter
+    alone -- and can be pointed anywhere.
 
     Stores a BARE FILENAME when the file is in the GIS folder, so the
     configuration stays portable between machines, and an absolute path
@@ -319,15 +316,22 @@ def boundary_picker(dotted, value, folder_key='gis_folder'):
     from marmites_vector import find_shapefiles
 
     gis = str(mm_paths.GIS)
-    folder = st.text_input('Folder to look in', value=st.session_state.get(
-        folder_key, gis), key=folder_key,
-        help='Defaults to DATA_ROOT/GIS. The shapefiles stay here and are '
-             'read only by the converter -- they never enter the repository.')
-    found = find_shapefiles(folder)
-    if not os.path.isdir(folder):
-        st.error('No such folder: `%s`' % folder)
-    elif not found:
-        st.warning('No .shp in `%s` (or one level below it).' % folder)
+    label, units, help_ = schema.describe(dotted)
+    shown = '%s [%s]' % (label, units) if units else label
+
+    c1, c2 = st.columns(2)
+    with c1:
+        folder = st.text_input(
+            'Folder to look in', value=st.session_state.get(folder_key, gis),
+            key=folder_key,
+            help='Defaults to DATA_ROOT/GIS. The shapefiles stay here and are '
+                 'read only by the converter -- they never enter the '
+                 'repository.')
+        found = find_shapefiles(folder)
+        if not os.path.isdir(folder):
+            st.error('No such folder: `%s`' % folder)
+        elif not found:
+            st.warning('No .shp in `%s` (or one level below it).' % folder)
 
     # What the configuration currently names, resolved the way the model
     # resolves it, so the saved value is always one of the options.
@@ -337,19 +341,17 @@ def boundary_picker(dotted, value, folder_key='gis_folder'):
     if current and current not in options:
         options.insert(0, current)
 
-    label, units, help_ = schema.describe(dotted)
-    shown = '%s [%s]' % (label, units) if units else label
-    if not options:
-        return st.text_input(shown, value=str(value), key=dotted,
-                             help='`%s`  \n%s' % (dotted, help_))
-    pick = st.selectbox(
-        shown, options, index=options.index(current) if current in options
-        else 0, key=dotted, help='`%s`  \n%s' % (dotted, help_),
-        format_func=lambda p: (os.path.relpath(p, folder)
-                               if os.path.isdir(folder)
-                               and p.startswith(os.path.abspath(folder))
-                               else p))
-    # Back to what the file should hold.
+    with c2:
+        if not options:
+            return st.text_input(shown, value=str(value), key=dotted,
+                                 help='`%s`  \n%s' % (dotted, help_))
+        pick = st.selectbox(
+            shown, options, index=options.index(current) if current in options
+            else 0, key=dotted, help='`%s`  \n%s' % (dotted, help_),
+            format_func=lambda p: (os.path.relpath(p, folder)
+                                   if os.path.isdir(folder)
+                                   and p.startswith(os.path.abspath(folder))
+                                   else p))
     try:
         rel = os.path.relpath(pick, gis)
     except ValueError:                         # different drive
@@ -367,23 +369,41 @@ def derived_value(cfg, dotted, edited, values):
     """
     import copy
 
-    if dotted == 'grid.voronoi.trans_levels':
-        v = copy.deepcopy(cfg.grid.voronoi)
-        for name in ('cell_far', 'cell_near_stream', 'stream_buffer',
-                     'grade_ratio', 'stream_refine'):
-            key = 'grid.voronoi.%s' % name
-            if key in edited:
-                setattr(v, name, edited[key])
-            elif key in st.session_state:
-                setattr(v, name, st.session_state[key])
+    if dotted.startswith('grid.voronoi.'):
+        v = live_voronoi(cfg, edited)
         try:
-            bands = v.bands()
+            bands = v.graded_bands()
         except Exception:                                # noqa: BLE001
             return str(values.get(dotted, ''))
-        if not bands:
-            return '(none — the mesh is uniform)'
-        return ', '.join('%g' % b for b in bands)
+        if dotted == 'grid.voronoi.stream_buffer':
+            return ('%g' % bands[-1][0]) if bands else '0'
+        if dotted == 'grid.voronoi.trans_levels':
+            if not bands:
+                return '(none — the mesh is uniform)'
+            return ', '.join('%g' % d for d, _s in bands)
     return str(values.get(dotted, ''))
+
+
+def live_voronoi(cfg, edited=None):
+    """``cfg.grid.voronoi`` with the values currently ON SCREEN applied.
+
+    A copy, so nothing is written by drawing a page. The derived corridor and
+    bands are computed from this: the configuration only recomputes them on
+    save, and a box that caught up only then would show the previous
+    corridor's numbers.
+    """
+    import copy
+
+    v = copy.deepcopy(cfg.grid.voronoi)
+    edited = edited or {}
+    for name in ('cell_far', 'cell_near_stream', 'grade_ratio',
+                 'stream_refine'):
+        key = 'grid.voronoi.%s' % name
+        if key in edited:
+            setattr(v, name, edited[key])
+        elif key in st.session_state:
+            setattr(v, name, st.session_state[key])
+    return v
 
 
 def grid_form(cfg, columns=3):
@@ -398,7 +418,7 @@ def grid_form(cfg, columns=3):
     Returns ``(edits, chosen_kind)``; the edits are keyed by dotted path
     exactly like :func:`section_form`.
     """
-    edited, chosen = grid_permanent_form(cfg, columns=columns)
+    edited, chosen, _rep = grid_permanent_form(cfg, columns=columns)
     values = dict(schema.fields_of(cfg, 'grid'))
     edited.update(grid_kind_form(cfg, chosen, edited, values, columns=columns))
     return edited, chosen
@@ -407,25 +427,55 @@ def grid_form(cfg, columns=3):
 def grid_permanent_form(cfg, columns=3):
     """The half of ``[grid]`` that applies whatever the producer is.
 
-    Split from the kind's own settings so the panel can put the CATCHMENT
-    READ-OUTS -- area, extent, cell count -- between the two: they describe
-    what has just been chosen here, and they are what says whether the file
-    is the right one before any producer setting matters.
+    Returns ``(edits, chosen_kind, report)``. The catchment is CHECKED here,
+    once, and the report handed back: the CRS shown below the file comes from
+    that check, and so do the read-outs the page draws underneath -- reading
+    the shapefile twice per render to tell the same thing twice would be one
+    read too many.
     """
+    from marmites_vector import check_polygon_layer
+
     values = dict(schema.fields_of(cfg, 'grid'))
     edited = {}
-    st.markdown('##### Always asked')
+
+    # --- the catchment, and what its .prj says -------------------------
+    picked = boundary_picker('grid.boundary', values['grid.boundary'])
+    edited['grid.boundary'] = picked
+    path = (picked if os.path.isabs(picked)
+            else os.path.join(str(mm_paths.GIS), picked))
+    rep = check_polygon_layer(path, expect_epsg=cfg.grid.crs_epsg)
+
+    # Read-only: the CRS is a PROPERTY OF THE FILE, not a choice. It is taken
+    # from the .prj -- by its authority code, or by matching the definition
+    # when ArcGIS wrote none -- and only falls back to the configured value
+    # when the file says nothing a code can be made of.
+    epsg = int(rep['epsg'] or cfg.grid.crs_epsg or 0)
+    label, units, _h = schema.describe('grid.crs_epsg')
+    c1, _c2 = st.columns(2)
+    with c1:
+        st.text_input('%s [%s]' % (label, units), disabled=True,
+                      key='ro_grid.crs_epsg',
+                      value=('EPSG:%d' % epsg) if epsg else 'UNDECLARED',
+                      help='`grid.crs_epsg`  \nRead from the layer, not '
+                           'chosen: every other layer is assumed to be in '
+                           'this CRS and nothing is reprojected.')
+        st.caption(
+            'from the `.prj`%s'
+            % (' (matched — it carries no EPSG code)' if rep.get('epsg_matched')
+               else '' if rep['epsg'] else
+               ': it declares none, so the configured value stands'))
+    if epsg and epsg != int(cfg.grid.crs_epsg):
+        edited['grid.crs_epsg'] = epsg
+
+    # --- the producer, and how values are carried onto it --------------
     cols = st.columns(columns)
-    for k, dotted in enumerate(schema.GRID_PERMANENT):
-        with cols[k % columns]:
-            if dotted == 'grid.boundary':
-                got = boundary_picker(dotted, values[dotted])
-            else:
-                got = _widget(dotted, values[dotted])
+    for k, dotted in enumerate(('grid.kind', 'grid.resample')):
+        with cols[k]:
+            got = _widget(dotted, values[dotted])
             if got is not None:
                 edited[dotted] = got
     raw = edited.get('grid.kind', cfg.grid_kind)
-    return edited, mcfg._GRID_ALIAS.get(raw, raw)
+    return edited, mcfg._GRID_ALIAS.get(raw, raw), rep
 
 
 def grid_kind_form(cfg, chosen, edited=None, values=None, columns=3):

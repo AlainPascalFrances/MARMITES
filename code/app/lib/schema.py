@@ -48,9 +48,11 @@ PANELS = [
      'What this case is, where its files are, and the order to fill the '
      'panels in.'),
     (1, 'Grid', '🗺️', None, ['grid'],
-     'The catchment polygon comes FIRST and the grid is built inside it. '
-     'Every other input is then wrapped onto whatever this produces, which '
-     'is why this panel is answered before any of the others.'),
+     'Introduce here the catchment boundary: it must be a polygon shape file '
+     'with projected coordinates (metric). Next select the type of grid and '
+     'its parameters, test and visualize. When you are satisfied, select it '
+     'as the base of the MM-MF model. All input will be wrapped onto this '
+     'selected grid.'),
     (2, 'Surface', '🌦️', 'run.surface', ['surface'],
      'MMsurf turns the hourly meteorological record into the daily forcing '
      'MMsoil consumes. With the switch off, that forcing must already exist '
@@ -153,10 +155,12 @@ FIELDS = {
     'grid.voronoi.cell_near_stream': ('Cell size near the stream', 'm',
                                       'The size the innermost band carries. '
                                       'Cleared while the refinement is off.'),
-    'grid.voronoi.stream_buffer': ('Stream corridor width', 'm',
+    'grid.voronoi.stream_buffer': ('Stream corridor width (derived)', 'm',
                                    'Distance from the centreline at which the '
-                                   'cells have reached cell_far. Cleared '
-                                   'while the refinement is off.'),
+                                   'cells have reached the background size. '
+                                   'DERIVED: each band is as wide as its own '
+                                   'cells, so the corridor is their sum. '
+                                   'Read-only.'),
     'grid.voronoi.stream_refine': ('Refine along the streams', _U,
                                    'Off is the SFRmaker approach: map the '
                                    'network onto the background grid. CdL '
@@ -508,12 +512,15 @@ _LEGACY_ROWS = (
 GRID_SUBPANEL = {
     'structured': _LEGACY_ROWS,
     'disv': _LEGACY_ROWS,
+    # The modeller gives the two numbers that mean something -- the cell size
+    # AT the stream and how fast it may grow -- and the corridor follows from
+    # them (WP1d, panel 1 item 9). It used to be typed, and a corridor
+    # narrower than the grade takes clamped the refinement silently.
     'voronoi': (
         ('grid.voronoi.cell_far', 'grid.buffer'),
         ('grid.voronoi.stream_refine',),
-        ('grid.voronoi.cell_near_stream', 'grid.voronoi.stream_buffer',
-         'grid.voronoi.grade_ratio'),
-        ('grid.voronoi.trans_levels',),
+        ('grid.voronoi.cell_near_stream', 'grid.voronoi.grade_ratio'),
+        ('grid.voronoi.stream_buffer', 'grid.voronoi.trans_levels'),
         ('grid.voronoi.seed_ponds',),
     ),
     'quadtree': (
@@ -527,8 +534,8 @@ GRID_SUBPANEL = {
 def grid_fields(kind):
     """Every field on one kind's sub-panel, flattened out of its rows."""
     return tuple(d for row in GRID_SUBPANEL.get(kind, ()) for d in row)
-# Shown but never typed: the producer owns them.
-GRID_DERIVED = ('grid.voronoi.trans_levels',)
+# Shown but never typed: the geometry owns them.
+GRID_DERIVED = ('grid.voronoi.stream_buffer', 'grid.voronoi.trans_levels')
 # Greyed out, and CLEARED, while their controlling switch is off (panel 1 D4).
 GRID_GATED = {
     'grid.voronoi.stream_refine': ('grid.voronoi.cell_near_stream',

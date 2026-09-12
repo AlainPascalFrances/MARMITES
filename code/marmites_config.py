@@ -374,7 +374,12 @@ class GridVoronoi:
 
     cell_far: float = 100.0
     cell_near_stream: float = 40.0
-    stream_buffer: float = 60.0
+    # DERIVED since WP1d (panel 1, item 9): the corridor is exactly as wide as
+    # the bands need, so the grade always completes and the size never jumps
+    # at its edge. It used to be typed, and a corridor narrower than the grade
+    # takes -- the shipped 60 m against the 190 m that 40 -> 100 m at 1.5
+    # needs -- silently clamped the refinement and left a step.
+    stream_buffer: float = 0.0
     stream_refine: bool = True
     # Largest acceptable size ratio between neighbouring bands; 1.5 is the
     # usual mesh-grading rule of thumb. Bounded in validate(): as r -> 1 the
@@ -402,63 +407,48 @@ class GridVoronoi:
         more, which no mesh can honour -- Triangle obeyed the band boundaries
         instead and produced 3.7 m cells where 15 m were wanted.
 
-        So each band is one cell wide, and the size grows by at most
-        ``grade_ratio`` from one to the next, until it reaches ``cell_far``
-        (the background takes over) or the band runs past ``stream_buffer``
-        (the corridor is too narrow to finish grading -- see
-        :meth:`corridor_needed`).
+        So the modeller gives the two numbers that mean something -- the cell
+        size AT the stream and how fast it may grow -- and the geometry
+        follows: band *k* carries ``cell_near_stream * grade_ratio**k`` and is
+        that wide, until the size reaches ``cell_far`` and the background
+        takes over. The corridor is the sum of them, which is why
+        ``stream_buffer`` is derived rather than asked for.
         """
         if not self.stream_refine:
             return []
         near, far = float(self.cell_near_stream), float(self.cell_far)
-        buf = float(self.stream_buffer)
-        if near <= 0.0 or buf <= 0.0 or far <= near:
+        if near <= 0.0 or far <= near:
             return []
         r = max(float(self.grade_ratio), 1.0 + 1e-9)
         out, d, s = [], 0.0, near
-        while len(out) < int(self.MAX_BANDS):
+        while len(out) < int(self.MAX_BANDS) and s < far - 1e-9:
             d += s
-            if d >= buf - 1e-9:                    # the corridor ends here
-                out.append((round(buf, 3), round(s, 3)))
-                break
             out.append((round(d, 3), round(s, 3)))
-            if s >= far - 1e-9:                    # the background is this size
-                break
             s = min(far, s * r)
         return out
 
     def corridor_needed(self):
-        """Corridor half-width [m] a FULL grade from near to far would take.
+        """Corridor half-width [m] the grade takes: the sum of the bands.
 
-        The sum of the cell sizes it passes through, since each band is one
-        cell wide. Panel 1 reports it when ``stream_buffer`` is smaller: the
-        mesh is still built, but the step at the corridor edge is bigger than
-        ``grade_ratio`` asked for.
+        This IS ``stream_buffer`` -- :meth:`refresh` assigns it -- kept as a
+        method because the panel has to show what the settings on screen
+        would give before anything is saved.
         """
-        near, far = float(self.cell_near_stream), float(self.cell_far)
-        if near <= 0.0 or far <= near or not self.stream_refine:
-            return 0.0
-        r = max(float(self.grade_ratio), 1.0 + 1e-9)
-        total, s, n = 0.0, near, 0
-        while s < far and n < int(self.MAX_BANDS):
-            total += s
-            s = min(far, s * r)
-            n += 1
-        return round(total, 3)
+        return self.graded_bands()[-1][0] if self.graded_bands() else 0.0
 
     def bands(self):
         """Just the distances, innermost first -- the read-only echo."""
         return [d for d, _s in self.graded_bands()]
 
     def refresh(self):
-        """Recompute the derived echo. Called from ``RunConfig.validate()``."""
+        """Recompute the derived values. Called from ``RunConfig.validate()``."""
         if not self.stream_refine:
             # D4: with the refinement off the corridor does not exist, so the
             # settings describing it are cleared rather than left looking
             # live. Switching it back on restores the class defaults.
             self.cell_near_stream = 0.0
-            self.stream_buffer = 0.0
         self.trans_levels = self.bands()
+        self.stream_buffer = self.corridor_needed()
         return self.trans_levels
 
 

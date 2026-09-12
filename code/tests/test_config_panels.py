@@ -124,15 +124,26 @@ def test_the_bands_are_derived_whatever_the_file_says():
     assert 10.0 not in v.trans_levels
 
 
-def test_a_corridor_too_narrow_to_grade_is_clamped_and_reported():
-    """The mesh is still built -- the step at the corridor edge is simply
-    bigger than the ratio asked for -- and corridor_needed says what it would
-    take to finish the grade. The SHIPPED defaults are in this case: 40 to
-    100 m at 1.5 needs 190 m and the default corridor is 60."""
-    v = _vor(stream_buffer=60.0)
-    assert v.corridor_needed() == 190.0
-    assert v.trans_levels[-1] == 60.0           # clamped to the corridor
+def test_the_corridor_is_derived_from_the_bands_not_typed():
+    """WP1d panel 1, item 9. The corridor used to be a free number, and one
+    narrower than the grade takes clamped the refinement and left a step at
+    its edge -- 40 to 100 m at 1.5 needs 190 m and the shipped default was
+    60. It is now the SUM of the bands, so the grade always completes."""
+    v = _vor(stream_buffer=60.0)                # ... and it is ignored
+    assert v.stream_buffer == 190.0
+    assert v.stream_buffer == v.trans_levels[-1] == v.corridor_needed()
+    assert v.stream_buffer == sum(s for _d, s in v.graded_bands())
     assert max(s for _d, s in v.graded_bands()) < v.cell_far
+
+
+def test_the_corridor_follows_the_two_numbers_that_are_asked_for():
+    """A finer cell at the stream, or a slower grade, means a wider corridor:
+    the geometry is a consequence, which is why it is not a question."""
+    base = _vor(cell_near_stream=40.0, grade_ratio=1.5).stream_buffer
+    assert _vor(cell_near_stream=20.0,
+                grade_ratio=1.5).stream_buffer != base
+    assert _vor(cell_near_stream=40.0,
+                grade_ratio=1.2).stream_buffer > base
 
 
 def test_a_coarser_grade_ratio_asks_for_fewer_bands():
