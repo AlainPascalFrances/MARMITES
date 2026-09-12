@@ -1,426 +1,270 @@
-# =============================================================================
-# MARMITES run configuration -- La Mata
-#
-# This file replaces the command-line flags of code/tests/run_lamata_mf6.py.
-# Machine-specific paths are NOT here: they live in code/mm_paths.py (or the
-# matching MM_* environment variables).
-#
-#   python code/tests/run_lamata_mf6.py --config code/configs/lamata.toml
-#   ... [--set section.key=value ...]        one-off overrides, always echoed
-#
-# As written this reproduces the canonical spun-up run:
-#   --nlay 2 --seep drn --strt-heads hi_spinup --steady-means hi_spinup
-#   --preproc --postproc
-#
-# Every key carries its old flag in a comment. Unknown keys RAISE -- a typo
-# must never fall through to a default. Full reference: the cookbook, section 7
-# and Appendix A.
-# =============================================================================
+# MARMITES resolved run configuration
+# config_hash = 4baada32d5ed417d
 
 [meta]
 config_version = 1
-name           = "2lay_drn_spinup"     # -> out_<stamp>_<name>   (--run-tag)
-description    = "La Mata, 2 layers, DRN seepage, from the saved spin-up state"
+name = "2lay_drn_spinup"
+description = "La Mata, 2 layers, DRN seepage, from the saved spin-up state"
 
 [paths]
-case          = "LaMata"     # -> example/LaMata/  (Tier A inputs)
-ws            = ""           # blank -> WS_ROOT/MF6_ws            (--ws)
-gis_ws        = ""           # blank -> mm_paths.GIS (figures only, never the model path)
-nwt_reference = ""           # blank -> mm_paths.NWT_REF (the NWT comparison panels)
-libmf6        = ""           # blank -> mm_paths.LIBMF6           (--libmf6)
+case = "LaMata"
+ws = ""
+gis_ws = ""
+nwt_reference = ""
+libmf6 = ""
 
 [run]
-# The four panels' master switches, in one block so the shape of a run is
-# visible in one place. MMsoil and MF6 share one switch -- they are no longer
-# separable -- and `surface` exists so MMsurf can be run on its own to
-# produce the forcing.
-surface          = false     # panel 2: run MMsurf                (MARMsurf_yn)
-model            = true      # panel 3: MMsoil + MODFLOW 6, together
-plot             = true      # panel 4: figures
-mode             = "lagged"  # lagged | iterative                 (--mode)
-relax            = 0.6       # iterative under-relaxation         (--relax)
-nsp              = 0         # 0 = all stress periods             (--nsp)
-daily            = true      # false = aggregated                 (--aggregated)
-ats              = true      # adaptive time stepping             (--no-ats)
-build_only       = false     #                                    (--build-only)
-standalone       = ""        # mf6.exe path -> run without the API (--standalone)
-probe            = false     # list the MF6 memory variables      (--probe)
-max_discrepancy  = 1.0       # fail above this cumulative MB [%]  (--max-discrepancy)
-allow_bad_budget = false     #                                    (--allow-bad-budget)
+surface = false
+model = true
+plot = true
+mode = "lagged"
+relax = 0.6
+nsp = 0
+daily = true
+ats = true
+build_only = false
+standalone = ""
+probe = false
+max_discrepancy = 1.0
+allow_bad_budget = false
 
-# =========================================================================
-# PANEL 1 -- THE GRID.  The first thing defined, and everything else is
-# wrapped onto it: the catchment polygon comes first, the grid is built
-# inside it, and every other input is then projected onto whatever it
-# produces.
-#
-# WP1c built all four producers. "structured" is today's DIS grid and stays the
-# DEFAULT until the Voronoi mesh is validated against it (the WP1c.8 ladder);
-# it is also the regression anchor and the MODFLOW-NWT comparison, so it is
-# kept permanently. "dis" is accepted as an alias. "quadtree" additionally
-# needs pyshp, which flopy's gridgen wrapper uses to read the mesh back.
-# =========================================================================
 [grid]
-# The catchment: a PROJECTED, metric polygon in DATA_ROOT/GIS. lm_lim.shp is
-# 4.844 km2, against 4.885 km2 for the 1954 active cells of the legacy model
-# -- the same domain. (Limite.shp, which WP1 used, is 19.159 km2: nearly four
-# times the catchment, and the reason the converter had to clip to the grid.)
-boundary  = "lm_lim.shp"
-crs_epsg  = 23029            # 0 = take it from the layer's .prj  (ED50 / UTM 29N)
-# The CELL on a structured or disv grid, and the background GRIDGEN halves on
-# a quadtree. A Voronoi mesh does NOT use it: there the size is
-# [grid.voronoi] cell_far, and the model rectangle is snapped to that.
-cell_size = 50.0             # m
-buffer    = 0.0              # m, extend the rectangle beyond the polygon
-# WP1d panel 1: voronoi is the DEFAULT. "structured" is the legacy DIS grid,
-# kept as the regression anchor and the MODFLOW-NWT comparison, not as the
-# starting point. There is no "rebuild" key: a rebuild is an ACTION (panel 1's
-# Create grid, or build_mesh(force=True)), never a setting that outlives the
-# run that needed it -- which is how the CdL cache served the wrong mesh.
-kind    = "voronoi"          # structured | disv | voronoi | quadtree   (--grid)
-# WP1c.3. "auto" = area-weighted means for continuous fields, largest-overlap
-# class for zone rasters. "centre" is the WP1c.1 behaviour, kept for comparison.
-# Measured on the 100 m La Mata Voronoi mesh, error in the active-domain mean
-# against the raster:
-#             centre   auto
-#   SOILthick  2.93%   0.06%
-#   STREAMhmax 14.47%   0.24%
-#   STREAMw    14.55%   0.42%
-# For ZONE rasters the comparison goes the other way, and it is worth knowing:
-# majority vote is better per cell (each cell gets the class that actually
-# dominates it) but biased in aggregate, because a minority class that never
-# wins anywhere disappears into the dominant one. Share of active area
-# misassigned for inputSOILzones: centre 3.66%, auto 7.64% -- soil zone 1 drops
-# from 13.1% of the catchment to 9.5%. If preserving zone PROPORTIONS matters
-# more than per-cell fidelity, use "centre".
-resample = "auto"            # auto | centre
+boundary = "lm_lim.shp"
+crs_epsg = 23029
+cell_size = 50.0
+buffer = 0.0
+kind = "voronoi"
+resample = "auto"
 
-[grid.voronoi]               # WP1c; ignored while kind is structured/disv
-# Sizes are the SIDE OF THE EQUIVALENT SQUARE, so cell_far = 100 aims at a mean
-# cell area of 10 000 m2. Triangle is driven by a maximum TRIANGLE area and the
-# conversion is calibrated, not exact -- every build prints the cell area it
-# actually achieved (La Mata, uniform: 9845 m2, i.e. 99.2 m). Read that line
-# rather than assuming.
-cell_far         = 100.0     # m, background cell size
-cell_near_stream = 40.0      # m, stream corridor
-stream_buffer    = 60.0      # m
-# NOTE: CdL settled on stream_refine = FALSE (the SFRmaker approach: map the
-# network onto the background) after judging a refined mesh "too refined near
-# streams". La Mata has not made that call yet, so this default is the
-# cookbook's rather than a decision.
-stream_refine    = true      # false = SFRmaker style, network on the background
-# Largest size ratio between neighbouring transition bands: how fast the cells
-# may grow away from the corridor, and so HOW MANY bands there are. 1.5 is the
-# usual mesh-grading rule of thumb; validate() holds it in (1, 3].
-grade_ratio      = 1.5
-# DERIVED, and rewritten on every validate(): the buffer DISTANCES from the
-# centreline at which the size steps up, innermost first. It was a hand-written
-# list until WP1d, and the shipped default put its outermost band (70 m) beyond
-# the 60 m corridor it was supposed to end at. Editing it here does nothing.
-trans_levels     = [15.0, 30.0, 45.0, 60.0]
-seed_ponds       = true      # one pond-scale cell per pond, centroid-seeded;
-                             # honoured from WP4, and the producer says so if set
-
-[grid.quadtree]              # WP1c; ignored unless kind is quadtree
-# GRIDGEN halves a cell per level, so 2 on a 50 m background gives 12.5 m
-# along the streams. Refinement needs pyshp -- flopy writes the refinement
-# features through a shapefile -- and without it the producer SAYS SO and
-# builds an unrefined mesh, which is geometrically the base grid.
-refine_level   = 2
-refine_streams = true
-
-# Deriving the grid from the polygon means it is NOT the grid every committed
-# raster, the saved spin-up state and the WP0 byte-identical regression were
-# built on -- lm_lim.shp spans x 739293..742223, y 4553110..4556240, which is
-# inside the legacy rectangle and 7 m west of its western edge. This block
-# rebuilds the legacy grid exactly when something needs comparing against it.
 [grid.override]
-enable    = false
+enable = false
 xllcorner = 739300.0
 yllcorner = 4553050.0
-nrow      = 65
-ncol      = 60
+nrow = 65
+ncol = 60
 
-# =========================================================================
-# PANEL 2 -- SURFACE (MMsurf).  Run when run.surface is true.
-#
-# Replaces MMsurf_ws/__inputMMsurf.ini entirely, and with it
-# __inputMMsurf4MMsoil.txt: MMsurf and MMsoil read these values from here,
-# so nothing is written to be read back. MMsurf's outputs -- rainfall,
-# throughfall, PT per vegetation type, PE per surface soil, open-water
-# evaporation, LAI -- are RUN OUTPUT and go to the workspace.
-# =========================================================================
+[grid.voronoi]
+cell_far = 50.0
+cell_near_stream = 15.0
+stream_buffer = 30.0
+stream_refine = true
+grade_ratio = 1.5
+trans_levels = [5.0, 10.0, 15.0, 20.0, 25.0, 30.0]
+seed_ponds = true
+
+[grid.quadtree]
+refine_level = 2
+refine_streams = true
+
 [surface]
-meteo_ts      = "__meteoTB.txt"
-# ONE wide file: Date, Time, then SIX columns per station in the order
-# P, Ta, RHa, Pa, u_z_m, Rs. Hourly. The header row is compulsory and is
-# never parsed -- column ORDER is the contract.
-irrigation    = true         #                                    (irr_yn)
-irr_ts        = "__IRR_TS.txt"     # Date, Time, one column per FIELD
-crop_schedule = "__inputFIELD%d_crop_schedule.txt"   # one file per field
-nfield        = 1            #                                    (NFIELD)
-out_prefix    = "lamata"     #                                    (outputFILE_fn)
-plot          = 0            # 0 = PNG to disk, 1 = on screen   (MMsurf_plot)
+meteo_ts = "__meteoTB.txt"
+irrigation = true
+irr_ts = "__IRR_TS.txt"
+crop_schedule = "__inputFIELD%d_crop_schedule.txt"
+nfield = 1
+out_prefix = "lamata"
+plot = 0
 
-# Coordinates are in the PROJECT CRS and the code converts them to the
-# latitude/longitude Penman-Monteith needs. The old ini held the geographic
-# pair directly and was 6.8 km out (41.045 N / 6.16 W against the catchment's
-# 41.117 N / 6.149 W), which never showed because one station means one zone.
-[[surface.station]]
-name       = "Sardon"
-x          = 739508.0
-y          = 4555882.0
-z          = 798.422         # m a.s.l.                                (Z)
-tz_lon     = 0.0             # deg W, centre of the time zone          (Lz)
-fuse_shift = 1.0             # h                                       (FC)
-data_shift = 3.0             # h, data not on standard clock time      (DTS)
-z_wind     = 6.0             # m                                       (z_m)
-z_hum      = 6.0             # m                                       (z_h)
-
-# NOTE MMsurf prepends a reference grassFAO56 with fixed FAO-56 parameters, so
-# three types here means four internally and index 0 is never one of them.
-# kt_s is s (0 < s <= 1); the old ini stored 1/s and the driver inverted it.
-# Values are the ones the model runs on today, i.e. from the handover file --
-# which differs slightly from the committed ini (kTg_min 0.044694 against
-# 0.044409), because the ini in the repo predates the forcing.
-[[surface.vegetation]]
-name          = "grassMU"
-h_dry         = 0.01
-h_wet         = 0.5
-canopy_mm     = 0.15
-c_leaf        = 0.010
-lai_dry       = 0.0
-lai_wet       = 2.88
-shelter_dry   = 0.5
-shelter_wet   = 0.55
-albedo_dry    = 0.50
-albedo_wet    = 0.20
-j_dry         = 150
-j_wet         = 300
-trans_dry_wet = 20
-trans_wet_dry = 30
-root_depth    = 0.40
-ktg_min       = 0.05
-ktg_max       = 0.10
-kt_f          = 0.5
-kt_s          = 1.0
-
-[[surface.vegetation]]
-name          = "Qilex"
-h_dry         = 6.0
-h_wet         = 6.0
-canopy_mm     = 1.16
-c_leaf        = 0.004
-lai_dry       = 6.0
-lai_wet       = 6.0
-shelter_dry   = 0.75
-shelter_wet   = 0.70
-albedo_dry    = 0.25
-albedo_wet    = 0.10
-j_dry         = 150
-j_wet         = 290
-trans_dry_wet = 20
-trans_wet_dry = 50
-root_depth    = 15.0
-ktg_min       = 0.044694325
-ktg_max       = 0.865399396
-kt_f          = 0.10177166815831
-kt_s          = 0.04549277590845763    # = 1 / 21.98151201
-
-[[surface.vegetation]]
-name          = "Qpyr"
-h_dry         = 8.0
-h_wet         = 8.0
-canopy_mm     = 1.75
-c_leaf        = 0.004
-lai_dry       = 6.0
-lai_wet       = 1.0
-shelter_dry   = 0.80
-shelter_wet   = 0.30
-albedo_dry    = 0.25
-albedo_wet    = 0.15
-j_dry         = 150
-j_wet         = 290
-trans_dry_wet = 20
-trans_wet_dry = 30
-root_depth    = 10.0
-ktg_min       = 0.044694325
-ktg_max       = 0.865399396
-kt_f          = 0.10177166815831
-kt_s          = 0.04549277590845763
-
-[[surface.crop]]
-name       = "alfalfa"
-h          = 0.7
-canopy_mm  = 0.15
-c_leaf     = 0.010
-lai        = 3.5
-shelter    = 0.55
-albedo     = 0.15
-root_depth = 1.2
-ktg_min    = 0.05
-ktg_max    = 0.10
-kt_f       = 0.5
-kt_s       = 1.0
-
-# The SURFACE soils: top 1 cm, for bare-soil EVAPORATION. Not the soil-column
-# parameters of panel 3 -- different file, different meaning, same word.
-# (MMsurf reads eight values and uses trans_dry_wet for both directions; the
-# ini's ninth number was never read.)
-[[surface.soil]]
-name           = "alluvium"
-porosity       = 0.40
-field_capacity = 0.25
-albedo_dry     = 0.20
-albedo_wet     = 0.15
-j_dry          = 150
-j_wet          = 270
-trans_dry_wet  = 20
-trans_wet_dry  = 20
-
-[[surface.soil]]
-name           = "regolith"
-porosity       = 0.35
-field_capacity = 0.15
-albedo_dry     = 0.25
-albedo_wet     = 0.20
-j_dry          = 150
-j_wet          = 270
-trans_dry_wet  = 20
-trans_wet_dry  = 20
-
-[[surface.soil]]
-name           = "outcrop"
-porosity       = 0.05
-field_capacity = 0.02
-albedo_dry     = 0.30
-albedo_wet     = 0.20
-j_dry          = 130
-j_wet          = 270
-trans_dry_wet  = 20
-trans_wet_dry  = 20
-
-# Meteo zones are Thiessen polygons of the stations above, so with one station
-# the whole catchment is zone 1 and inputMETEOzones.asc disappears. Set `layer`
-# to override with a mapped zonation instead.
 [surface.meteo_zones]
+how = "auto"
 value = 1.0
+fill = 0.0
 
 [surface.irr_zones]
-layer  = "Irr_Fields.shp"
-column = "field_id"          # 1..NFIELD, 0 = not irrigated
-how    = "majority"
+layer = "Irr_Fields.shp"
+column = "field_id"
+how = "majority"
+fill = 0.0
 
-# =========================================================================
-# PANEL 3 -- SOIL (MMsoil).  The MODFLOW half keeps its own sections below.
-# =========================================================================
+[[surface.station]]
+name = "Sardon"
+x = 739508.0
+y = 4555882.0
+z = 798.422
+tz_lon = 0.0
+fuse_shift = 1.0
+data_shift = 3.0
+z_wind = 6.0
+z_hum = 6.0
+
+[[surface.vegetation]]
+name = "grassMU"
+h_dry = 0.01
+h_wet = 0.5
+canopy_mm = 0.15
+c_leaf = 0.01
+lai_dry = 0.0
+lai_wet = 2.88
+shelter_dry = 0.5
+shelter_wet = 0.55
+albedo_dry = 0.5
+albedo_wet = 0.2
+j_dry = 150
+j_wet = 300
+trans_dry_wet = 20
+trans_wet_dry = 30
+root_depth = 0.4
+ktg_min = 0.05
+ktg_max = 0.1
+kt_f = 0.5
+kt_s = 1.0
+
+[[surface.vegetation]]
+name = "Qilex"
+h_dry = 6.0
+h_wet = 6.0
+canopy_mm = 1.16
+c_leaf = 0.004
+lai_dry = 6.0
+lai_wet = 6.0
+shelter_dry = 0.75
+shelter_wet = 0.7
+albedo_dry = 0.25
+albedo_wet = 0.1
+j_dry = 150
+j_wet = 290
+trans_dry_wet = 20
+trans_wet_dry = 50
+root_depth = 15.0
+ktg_min = 0.044694325
+ktg_max = 0.865399396
+kt_f = 0.10177166815831
+kt_s = 0.04549277590845763
+
+[[surface.vegetation]]
+name = "Qpyr"
+h_dry = 8.0
+h_wet = 8.0
+canopy_mm = 1.75
+c_leaf = 0.004
+lai_dry = 6.0
+lai_wet = 1.0
+shelter_dry = 0.8
+shelter_wet = 0.3
+albedo_dry = 0.25
+albedo_wet = 0.15
+j_dry = 150
+j_wet = 290
+trans_dry_wet = 20
+trans_wet_dry = 30
+root_depth = 10.0
+ktg_min = 0.044694325
+ktg_max = 0.865399396
+kt_f = 0.10177166815831
+kt_s = 0.04549277590845763
+
+[[surface.crop]]
+name = "alfalfa"
+h = 0.7
+canopy_mm = 0.15
+c_leaf = 0.01
+lai = 3.5
+shelter = 0.55
+albedo = 0.15
+root_depth = 1.2
+ktg_min = 0.05
+ktg_max = 0.1
+kt_f = 0.5
+kt_s = 1.0
+
+[[surface.soil]]
+name = "alluvium"
+porosity = 0.4
+field_capacity = 0.25
+albedo_dry = 0.2
+albedo_wet = 0.15
+j_dry = 150
+j_wet = 270
+trans_dry_wet = 20
+trans_wet_dry = 20
+
+[[surface.soil]]
+name = "regolith"
+porosity = 0.35
+field_capacity = 0.15
+albedo_dry = 0.25
+albedo_wet = 0.2
+j_dry = 150
+j_wet = 270
+trans_dry_wet = 20
+trans_wet_dry = 20
+
+[[surface.soil]]
+name = "outcrop"
+porosity = 0.05
+field_capacity = 0.02
+albedo_dry = 0.3
+albedo_wet = 0.2
+j_dry = 130
+j_wet = 270
+trans_dry_wet = 20
+trans_wet_dry = 20
+
 [soil]
-params = "MF_ws/inputSOILparam.txt"   # per-zone soil column table
-
-# Vegetation cover: the share of each cell covered by each type, by exact area
-# overlay of the crown polygons. Validated against the legacy rasters -- Qilex
-# 3.847 % against 3.847 %, Qpyr 0.374 % against 0.374 %, worst cell 0.014
-# percentage points.
-veg_layer  = "lm_veg.shp"
+params = "MF_ws/inputSOILparam.txt"
+veg_layer = "lm_veg.shp"
 veg_column = "Species"
 
-# The zone code must match the zone ORDER of params (1 alluvium, 2 regolith,
-# 3 outcrop). Soil_type.shp is the layer -- 27 polygons, 1831 of 1962 cells
-# agreeing with the legacy raster; SOIL_map.shp agrees on only 1342.
 [soil.zones]
-layer  = "Soil_type.shp"
+layer = "Soil_type.shp"
 column = "SoilCode"
-how    = "majority"
+how = "majority"
+fill = 0.0
 
-# A raster beats the polygon attribute. inputSOILthick.asc is a real
-# continuous thickness map (mean 0.612 m), not the per-zone constants the
-# SOILthick column holds (which would give 0.789 m) -- which is exactly why
-# the raster wins. Drop the raster and the column takes over.
 [soil.thickness]
-raster = "inputSOILthick.asc"
 column = "SOILthick"
-how    = "area_mean"
+how = "area_mean"
+raster = "inputSOILthick.asc"
+fill = 0.0
 
 [[soil.veg_class]]
-code = "g"                   # grass
-veg  = 1
+code = "g"
+veg = 1
 
 [[soil.veg_class]]
-code = "i"                   # Quercus ilex
-veg  = 2
+code = "i"
+veg = 2
 
 [[soil.veg_class]]
-code = "p"                   # Quercus pyrenaica
-veg  = 3
+code = "p"
+veg = 3
 
 [obs]
-table        = "inputObs.txt"   # '##' before a name means: not drawn on maps
-layer        = "202109MonitPts.shp"   # preview only; the table is authoritative
-name_column  = "Name"
+table = "inputObs.txt"
+layer = "202109MonitPts.shp"
+name_column = "Name"
 heads_prefix = "inputObsHEADS"
-sm_prefix    = "inputObsSM"
-ro_prefix    = "inputObsRo"
+sm_prefix = "inputObsSM"
+ro_prefix = "inputObsRo"
 
 [layers]
-nlay      = 2                # 2 reads _2s1L.ini directly         (--nlay)
-aggregate = false            # 6->2 derivation, comparison only   (--aggregate)
+nlay = 2
+aggregate = false
 
 [uzf]
-vks_scale = 1.0              #                                    (--uzf-vks-scale)
+vks_scale = 1.0
 
 [seep]
-# WARNING (found in WP1c): cond is PER CELL, so it is grid-dependent. 10000 m2/d
-# holds La Mata's seepage within ~0.2 m on 50 m cells; the first 100 m Voronoi
-# run pushed the water table up to 3.5 m above ground in 220 of 472 cells and
-# asked for ~1.5e6 m2/d. That run had no mesh spin-up, so part of it is start-up
-# transient rather than discretisation -- do not retune this until the mesh has
-# an equilibrated state to judge it from.
-kind = "drn"                 # uzf | drn -- drn is the validated choice   (--seep)
-cond = 10000.0               # m2/d; must be free-draining        (--seep-cond)
+kind = "drn"
+cond = 10000.0
 
-# --- ET (WP2) -----------------------------------------------------------
-# Total ET = Ei + Eow + ETsoil (MM) + ETuzf (MF/UZF) + ETg (MM).
-# uzf_et = false keeps today's behaviour (no UZF ET at all); WP2 turns it on.
-# gwet_in_mf MUST stay false: ETg is computed by MM and applied as a WEL sink,
-# so MODFLOW must not remove it as well. The schema refuses true.
 [et]
-uzf_et        = false        # UZF SIMULATE_ET (+ unsat form, never LINEAR/SQUARE_GWET)
-unsat_form    = "etwc"       # etwc (water content) | etae (capillary pressure)
-gwet_in_mf    = false        # guarded: groundwater ET stays in MM
-extdp_source  = "uniform"    # uniform | veg_zone (MMsurf Zr) | raster
-extdp_default = 2.0          # m, fallback rooting depth
-extwc_source  = "thtr"
+uzf_et = false
+unsat_form = "etwc"
+gwet_in_mf = false
+extdp_source = "uniform"
+extdp_default = 2.0
+extwc_source = "thtr"
 
-# --- SFR (WP3) ----------------------------------------------------------
-# Each reach parameter declares WHERE its value comes from -- value | column |
-# raster | drainage -- and the CONVERTER resolves it into inputSTREAM.csv, so
-# no shapefile is ever on the model path.
 [sfr]
-enable        = false        #                                    (--sfr)
-source        = "inputSTREAM.csv"
-min_slope     = 1e-4
-monotonic_bed = true         # SFRmaker rule (Leaf et al. 2021)
+enable = false
+source = "inputSTREAM.csv"
+min_slope = 0.0001
+monotonic_bed = true
 
-# WP1d: the width producer is resolved AFTER routing, because contributing
-# area is only known once the reaches are ordered. Three forms:
-#   drainage = { w_min, w_max, power }  CdL's actual method -- the width grows
-#              from the headwater value to the outlet one with the normalised
-#              ARBOLATE SUM (cumulative channel length draining through the
-#              reach), so "the outlet trunk is not a 1 m pipe carrying the
-#              whole-catchment discharge".
-#   drainage = { a, b }                 a Hack-type law w = a*A**b, A in km2.
-#              (The cookbook's w = 0.5*A**0.35 with A in m2 gives 7.7-57.8 m on
-#              La Mata, where the mapped channel is 1.5-3.0 m. It was never
-#              resolved before WP1d, so the mismatch could not show.)
-#   column / value                      per segment, or uniform.
-# 1.5-3.0 m reproduces the range the retired inputSTREAMw.asc carried.
 [sfr.width]
-drainage = { w_min = 1.5, w_max = 3.0, power = 2.0 }
-# column = "width_m"               # or: a per-segment column of inputSTREAM_param.csv
-# value  = 2.0                     # or: uniform over the network
+drainage = {w_min = 1.5, w_max = 3.0, power = 2.0}
 
-# Channel incision below land surface, replacing inputSTREAMhmax.asc (which
-# held 1.0 m on the alluvium polygons and zero elsewhere).
 [sfr.depth]
 value = 1.0
 
@@ -428,73 +272,61 @@ value = 1.0
 value = 0.035
 
 [sfr.rhk]
-value = 0.1                  # m/d streambed K                    (--sfr-rhk)
+value = 0.1
 
 [sfr.rbth]
-value = 0.5                  # m streambed thickness
+value = 0.5
 
-# --- LAK (WP4) ----------------------------------------------------------
 [lak]
-enable   = false             #                                    (--lak)
-source   = "inputPONDS.csv"      # the centroid/DEM table
-geometry = "inputPONDS.geojson"  # the POLYGONS the builder fits lakes to
-polygons = "lm_ponds.shp"        # in DATA_ROOT/GIS, for the converter
-depth    = 1.5                   # m, pond depth below the rim
-bedleak  = 1e-3              # 1/d, clay-lined charca             (--lak-bedleak)
-surfdep  = 0.05              # m, smooths the wetted area near the bed
-maxiter  = 200               # LAK-internal Newton cap (CdL)
-stagechg = 1e-4              # m, LAK stage closure tolerance (CdL)
+enable = false
+source = "inputPONDS.csv"
+polygons = "lm_ponds.shp"
+depth = 1.5
+geometry = "inputPONDS.geojson"
+bedleak = 0.001
+surfdep = 0.05
+maxiter = 200
+stagechg = 0.0001
 
-# --- CRR (WP5) ----------------------------------------------------------
 [crr]
-enable = false               # false is bit-identical to WP4
-beta   = 1.0                 # Daoud Eq. 23; calibrated 0.8-1.0
-sinks  = "evaporate"         # topographic sinks evaporate their runoff
-dem    = "inputDEMfill.asc"
+enable = false
+beta = 1.0
+sinks = "evaporate"
+dem = "inputDEMfill.asc"
 
 [spinup]
-cycles       = 1             #                                    (--spinup)
-tol          = 0.05          # m, between-cycle water-table change (--spinup-tol)
-strt_heads   = "hi_spinup"   #                                    (--strt-heads)
-steady_means = "hi_spinup"   #                                    (--steady-means)
-save_strt    = ""            #                                    (--save-strt)
-save_means   = ""            #                                    (--save-means)
-strt_dem     = []            # [a, b] -> head = a*elev + b        (--strt-dem)
+cycles = 1
+tol = 0.05
+strt_heads = "hi_spinup"
+steady_means = "hi_spinup"
+save_strt = ""
+save_means = ""
+strt_dem = []
 
-# =========================================================================
-# PANEL 4 -- PLOTTING.  Run when run.plot is true.
-# =========================================================================
 [postproc]
-enable           = true      #                                    (--postproc)
-preproc          = true      #                                    (--preproc)
-only             = false     #                                    (--postproc-only)
-sankey_min_flux  = 0.05      # mm/y                               (--sankey-min-flux)
-sankey_full      = true      #                                    (--no-sankey-full)
-sankey_obs_years = false     #                                    (--sankey-obs-years)
-map_days         = 6         # 0 = time mean only                 (--map-days)
-# Recovered from the MM ini. hydro_year_start drives the x-axis major locator
-# of ~20 time-series figures and the Sankey year index; it was in the ini but
-# never reached the model -- nothing set it on cMF, so every call site fell
-# back to a hardcoded October and the modeller's value did nothing.
-hydro_year_start     = 10    # month 1..12                  (iniMonthHydroYear)
-wb_unit              = "year"   # year | day                    (plt_WB_unit)
-obs_series           = true  # per-point series + balance       (plt_out_obs)
-sankey               = true  #                                  (WBsankey_yn)
-input_maps           = false #                                    (plt_input)
-result_maps          = true  # the plotLAYER map families
-tick_trimester_years = 10    #                        (maxYearsTickTrimester)
-tick_semester_years  = 20    #                         (maxYearsTickSemester)
+enable = true
+preproc = true
+only = false
+sankey_min_flux = 0.05
+sankey_full = true
+sankey_obs_years = false
+map_days = 6
+hydro_year_start = 10
+wb_unit = "year"
+obs_series = true
+sankey = true
+input_maps = false
+result_maps = true
+tick_trimester_years = 10
+tick_semester_years = 20
 
-# --- PEST (WP7) ---------------------------------------------------------
 [pest]
 use_pest_params = false
-params_npz      = "pest_optimised.npz"
+params_npz = "pest_optimised.npz"
 
-# --- Streamlit interface (WP1b) -----------------------------------------
-# Read only by code/app/; the model never looks at this section.
 [ui]
-execution = "local"          # local | server
-runs_dir  = ""               # blank -> WS_ROOT/runs
-port      = 8501
-address   = "localhost"      # "0.0.0.0" when serving from the server over the LAN
+execution = "local"
+runs_dir = ""
+port = 8501
+address = "localhost"
 poll_secs = 3

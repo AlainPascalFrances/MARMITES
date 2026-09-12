@@ -114,6 +114,47 @@ def _build_grid(cfg, cache_dir, force=True):
     return True, [head] + lines, info
 
 
+def _signature(cfg):
+    """The mesh signature THIS configuration asks for, or None.
+
+    The cache is keyed on it, so it is also the only honest way for the
+    viewer to answer "is the mesh on screen the one these settings describe?"
+    -- comparing cell counts would pass a mesh built with the same count and
+    a different corridor.
+    """
+    import marmites_meshes as mm
+    bbox, _why = _boundary_bbox(cfg)
+    try:
+        return mm.mesh_signature(cfg, mm.grid_stub(cfg, bbox,
+                                                   nlay=cfg.layers.nlay))
+    except Exception:                                    # noqa: BLE001
+        return None
+
+
+def _find_mesh(cfg, attempts, want):
+    """The cached mesh for ``want``, wherever it is. (gp, sig, where, fresh).
+
+    Looks through this session's attempts first and the run cache second,
+    and reports whether what it found actually MATCHES the signature -- a
+    stale mesh drawn without comment is how panel 1 came to show a grid
+    nobody had asked for.
+    """
+    kind = cfg.grid_kind
+    seen = []
+    for a in reversed(attempts):
+        if a['ok'] and a['cfg'].grid_kind == kind:
+            gp, sig = loaders.read_mesh_at(a['cache'], kind)
+            if gp is not None:
+                seen.append((gp, sig, 'attempt %s' % a['tag']))
+    gp, sig = loaders.read_mesh(_ws_root(cfg), kind)
+    if gp is not None:
+        seen.append((gp, sig, 'the run cache'))
+    for gp, sig, where in seen:
+        if want and (sig or {}).get('signature') == want:
+            return gp, sig, where, True
+    return (seen[0] + (False,)) if seen else (None, None, '', False)
+
+
 def _run_converter(case, cfg_path, dry):
     """Run the WP1 converter as a subprocess and return its output.
 
@@ -290,6 +331,16 @@ with tab_domain:
                 st.session_state['grid_selected'] = pick
                 cnote.success('Selected **%s** — %d change(s), hash %s'
                               % (pick, len(applied), digest))
+                # The settings are written; put the mesh they produced where
+                # the driver looks, so the run reuses it instead of spending
+                # the build again. The signature goes with it, so a later
+                # change to [grid] still invalidates it.
+                if att['cfg'].grid_kind not in ('structured', 'dis'):
+                    dst, moved = loaders.promote_mesh(
+                        att['cache'], _ws_root(cfg), att['cfg'].grid_kind)
+                    if moved:
+                        cnote.caption('Mesh promoted to `%s` — a run will '
+                                      'reuse it rather than rebuild.' % dst)
                 # The saved spin-up state belongs to the grid it was produced
                 # on. Saying so here is the difference between a clear message
                 # now and a CONFIG ERROR at the start of the next run.
@@ -332,17 +383,8 @@ with tab_mesh:
     st.markdown('**Selected: `%s`** — %s' % (kind, _describe(cfg)))
 
     ws_root = _ws_root(cfg)
-    gp, sig = loaders.read_mesh(ws_root, kind)
-    if gp is None:
-        # Fall back to the attempt built on this page, so a mesh can be looked
-        # at before a run has ever been launched on it.
-        for a in reversed(ATTEMPTS):
-            if a['ok'] and a['cfg'].grid_kind == kind:
-                gp, sig = loaders.read_mesh(a['cache'], kind)
-                if gp is None:
-                    gp, sig = loaders.read_mesh(os.path.dirname(a['cache']),
-                                                kind)
-                break
+    want = _signature(cfg)
+    gp, sig, where, fresh = _find_mesh(cfg, ATTEMPTS, want)
     if gp is None:
         grid_fn, _s = loaders.mesh_cache_paths(ws_root, kind)
         st.info(
@@ -352,11 +394,17 @@ with tab_mesh:
             'A structured grid has no mesh to show — it is the rectangle.'
             % (kind, grid_fn))
         st.stop()
-
-    @st.cache_data(show_spinner='Reading the mesh...')
-    def _mesh(ws_root, kind, _sig):
-        g, _s = loaders.read_mesh(ws_root, kind)
-        return loaders.mesh_polygons(g), int(g['ncpl'])
+    if not fresh:
+        st.warning(
+            'This is **not** the grid the settings describe. What is drawn '
+            'below comes from %s, built under a different `[grid]` block — '
+            'its signature is `%s` and these settings ask for `%s`.\n\n'
+            'Press **Create grid** on the first tab, then **Select this grid '
+            'for the model**.'
+            % (where, (sig or {}).get('signature', 'unknown'), want or '?'))
+    else:
+        st.caption('From %s — signature `%s`, which is what the current '
+                   'settings ask for.' % (where, want))
 
     (polys, areas, centres) = loaders.mesh_polygons(gp)
     ncpl = int(gp['ncpl'])

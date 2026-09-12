@@ -210,25 +210,63 @@ def mesh_cache_paths(ws_root, kind):
     return d / ('mesh_%s.json' % kind), d / ('mesh_%s.sig.json' % kind)
 
 
-def read_mesh(ws_root, kind):
-    """Cached DISV gridprops for one grid kind, or None if not built yet.
+def read_mesh_at(cache_dir, kind):
+    """Read a mesh cache FOLDER, in the layout ``marmites_meshes`` writes.
 
-    Returns ``(gridprops, signature)``.
+    Panel 1 builds its experiments into folders of their own -- two attempts
+    have to coexist to be comparable -- so a reader cannot assume the run's
+    ``<ws>/MF6_ws_<kind>/_mesh``.
+
+    Returns ``(gridprops, signature)``, both None when there is nothing there.
     """
     import json
-    grid_fn, sig_fn = mesh_cache_paths(ws_root, kind)
+    d = Path(cache_dir)
+    grid_fn = d / ('mesh_%s.json' % kind)
+    sig_fn = d / ('mesh_%s.sig.json' % kind)
     if not grid_fn.exists():
         return None, None
-    with open(grid_fn, encoding='utf-8') as fh:
-        gp = json.load(fh)
+    try:
+        with open(grid_fn, encoding='utf-8') as fh:
+            gp = json.load(fh)
+    except (OSError, ValueError):
+        return None, None
     sig = None
     if sig_fn.exists():
         try:
             with open(sig_fn, encoding='utf-8') as fh:
                 sig = json.load(fh)
-        except ValueError:
+        except (OSError, ValueError):
             pass
     return gp, sig
+
+
+def read_mesh(ws_root, kind):
+    """Cached DISV gridprops for the mesh a RUN would use, or None.
+
+    Returns ``(gridprops, signature)``.
+    """
+    grid_fn, _sig = mesh_cache_paths(ws_root, kind)
+    return read_mesh_at(grid_fn.parent, kind)
+
+
+def promote_mesh(cache_dir, ws_root, kind):
+    """Make the mesh in ``cache_dir`` the one a run will pick up.
+
+    Panel 1's *Select this grid for the model* writes the settings; this puts
+    the mesh those settings produced where the driver looks, so a run reuses
+    it instead of spending the build again. The SIGNATURE travels with it, so
+    a later change to ``[grid]`` still invalidates it rather than being
+    served this one.
+    """
+    import shutil
+    src, dst = Path(cache_dir), mesh_cache_paths(ws_root, kind)[0].parent
+    dst.mkdir(parents=True, exist_ok=True)
+    moved = []
+    for name in ('mesh_%s.json' % kind, 'mesh_%s.sig.json' % kind):
+        if (src / name).exists():
+            shutil.copy2(str(src / name), str(dst / name))
+            moved.append(name)
+    return dst, moved
 
 
 def mesh_polygons(gridprops):

@@ -445,3 +445,74 @@ def test_a_gating_switch_is_on_its_own_row_above_what_it_controls(cfg):
                 if dep in flat:
                     assert flat.index(dep) > flat.index(switch), \
                         '%s is drawn before the switch that gates it' % dep
+
+
+# ------------------------------------------------ panel 1: the mesh viewer
+
+def test_a_mesh_cache_folder_round_trips(tmp_path):
+    """The viewer reads the layout the producer writes, wherever it sits --
+    panel 1's experiments each get a folder of their own, so the reader
+    cannot assume the run's <ws>/MF6_ws_<kind>/_mesh."""
+    import json
+    from lib import loaders
+    d = tmp_path / 'attempt_1'
+    d.mkdir()
+    (d / 'mesh_voronoi.json').write_text(
+        json.dumps({'vertices': [], 'cell2d': [], 'ncpl': 7}), encoding='utf-8')
+    (d / 'mesh_voronoi.sig.json').write_text(
+        json.dumps({'signature': 'abc123', 'kind': 'voronoi', 'ncpl': 7}),
+        encoding='utf-8')
+    gp, sig = loaders.read_mesh_at(str(d), 'voronoi')
+    assert gp['ncpl'] == 7 and sig['signature'] == 'abc123'
+    assert loaders.read_mesh_at(str(tmp_path / 'nothing'), 'voronoi') == (None,
+                                                                          None)
+
+
+def test_promoting_a_mesh_puts_it_where_a_run_looks(tmp_path):
+    """Selecting a grid must not leave the run to rebuild it -- and the
+    SIGNATURE has to travel with it, or the promoted mesh would be served for
+    settings it does not belong to."""
+    import json
+    from lib import loaders
+    src = tmp_path / 'attempt_2'
+    src.mkdir()
+    (src / 'mesh_voronoi.json').write_text(
+        json.dumps({'vertices': [], 'cell2d': [], 'ncpl': 830}),
+        encoding='utf-8')
+    (src / 'mesh_voronoi.sig.json').write_text(
+        json.dumps({'signature': 'deadbeef', 'ncpl': 830}), encoding='utf-8')
+    ws = tmp_path / 'ws'
+    dst, moved = loaders.promote_mesh(str(src), str(ws), 'voronoi')
+    assert len(moved) == 2
+    gp, sig = loaders.read_mesh(str(ws), 'voronoi')
+    assert gp['ncpl'] == 830 and sig['signature'] == 'deadbeef'
+    assert dst == loaders.mesh_cache_paths(str(ws), 'voronoi')[0].parent
+
+
+def test_the_signature_separates_two_corridors(cfg):
+    """The viewer decides whether the mesh on screen is the one the settings
+    describe by comparing signatures. Cell counts would not do: two meshes
+    can share one and differ."""
+    cfg.grid.kind = 'voronoi'
+    stub = meshes.grid_stub(cfg, (0.0, 0.0, 3000.0, 3000.0), nlay=1)
+    a = meshes.mesh_signature(cfg, stub)
+    # Perturbed from whatever the shipped configuration holds, not set to
+    # fixed numbers: this test once asserted the values the file already had.
+    cfg.grid.voronoi.stream_buffer = cfg.grid.voronoi.stream_buffer * 2.0 + 1.0
+    cfg.grid.voronoi.refresh()
+    b = meshes.mesh_signature(cfg, stub)
+    assert b != a, ('a different corridor gives the same signature, so a '
+                    'stale mesh is served for it')
+    cfg.grid.voronoi.cell_near_stream = cfg.grid.voronoi.cell_near_stream / 2.0
+    cfg.grid.voronoi.refresh()
+    assert meshes.mesh_signature(cfg, stub) != b
+
+
+def test_the_quadtree_refinement_is_in_the_signature(cfg):
+    """It was not until WP1d: changing refine_level built a different mesh
+    and the cache served the old one."""
+    cfg.grid.kind = 'quadtree'
+    stub = meshes.grid_stub(cfg, (0.0, 0.0, 3000.0, 3000.0), nlay=1)
+    a = meshes.mesh_signature(cfg, stub)
+    cfg.grid.quadtree.refine_level = 4
+    assert meshes.mesh_signature(cfg, stub) != a
