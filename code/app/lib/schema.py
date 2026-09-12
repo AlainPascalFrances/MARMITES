@@ -169,9 +169,11 @@ FIELDS = {
     'grid.voronoi.grade_ratio': ('Maximum size ratio between bands', _U,
                                  'How fast the cells may grow from the '
                                  'corridor outwards, and so how many '
-                                 'transition bands there are. 1.5 is the '
-                                 'usual rule of thumb; the bands themselves '
-                                 'are derived from it.'),
+                                 'transition bands there are and how wide '
+                                 'the corridor becomes. 3, the default, '
+                                 'grades in the fewest size changes; 1.5 to '
+                                 '2 is the gentler rule of thumb and takes '
+                                 'more bands. Held in (1, 3].'),
     'grid.voronoi.seed_ponds': ('Seed a cell per pond', _U, ''),
     'grid.quadtree.refine_level': ('Refinement levels', 'count',
                                    'GRIDGEN halves a cell per level, so 2 on '

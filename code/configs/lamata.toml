@@ -1,5 +1,5 @@
 # MARMITES resolved run configuration
-# config_hash = 4caeba7dea261669
+# config_hash = 116b87e785094917
 
 [meta]
 config_version = 1
@@ -46,10 +46,10 @@ ncol = 60
 [grid.voronoi]
 cell_far = 50.0
 cell_near_stream = 5.0
-stream_buffer = 103.906
+stream_buffer = 65.0
 stream_refine = true
-grade_ratio = 1.5
-trans_levels = [5.0, 12.5, 23.75, 40.625, 65.938, 103.906]
+grade_ratio = 3.0
+trans_levels = [5.0, 20.0, 65.0]
 seed_ponds = true
 
 [grid.quadtree]

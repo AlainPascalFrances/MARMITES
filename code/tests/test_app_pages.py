@@ -210,10 +210,13 @@ def test_the_derived_bands_follow_the_boxes_without_a_save():
     assert shown(at) != before, 'the bands ignored the size at the stream'
     assert shown(at, 'stream_buffer') != corridor, \
         'the derived corridor ignored the size at the stream'
-    # ... and a coarser grade asks for fewer of them.
-    n_before = len(shown(at).split(','))
-    at.number_input(key='grid.voronoi.grade_ratio').set_value(2.5).run()
-    assert len(shown(at).split(',')) < n_before, \
+    # ... and a coarser grade asks for fewer of them. BOTH ratios are set
+    # explicitly: which one the configuration starts at is not this test's
+    # business, and assuming it is what broke this when the default moved.
+    at.number_input(key='grid.voronoi.grade_ratio').set_value(1.2).run()
+    n_fine = len(shown(at).split(','))
+    at.number_input(key='grid.voronoi.grade_ratio').set_value(3.0).run()
+    assert len(shown(at).split(',')) < n_fine, \
         'the bands ignored the grade ratio'
     # The corridor is a READ-OUT now, not a question (panel 1, item 9).
     assert 'grid.voronoi.stream_buffer' not in _keys(at), \

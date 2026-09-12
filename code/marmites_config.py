@@ -381,11 +381,17 @@ class GridVoronoi:
     # needs -- silently clamped the refinement and left a step.
     stream_buffer: float = 0.0
     stream_refine: bool = True
-    # Largest acceptable size ratio between neighbouring bands; 1.5 is the
-    # usual mesh-grading rule of thumb. Bounded in validate(): as r -> 1 the
-    # band count explodes (1.01 on 40 -> 100 m asks for 150 bands) and a big
-    # r reintroduces exactly the jump the grading exists to avoid.
-    grade_ratio: float = 1.5
+    # Largest acceptable size ratio between neighbouring bands: 3, the
+    # loosest the schema allows, is the modeller's default (WP1d). It grades
+    # from the stream to the background in the fewest SIZE CHANGES; it does
+    # not necessarily give the narrowest corridor, since a band is as wide as
+    # the cells it carries and a big step lands on a wide band (on La Mata,
+    # 15 -> 50 m takes 60 m at r = 3 and 45 m at r = 2). 1.5 to 2 is the
+    # gentler mesh-grading rule of thumb. Bounded in validate() to (1, 3]: as
+    # r -> 1 the band count explodes (1.01 on 40 -> 100 m asks for 150 bands)
+    # and past 3 the jump between neighbours is the distortion the grading
+    # exists to avoid.
+    grade_ratio: float = 3.0
     # Read-only echo of what bands() computed, so the file states the mesh it
     # produced. Refreshed by validate(); editing it by hand does nothing.
     trans_levels: list = field(default_factory=list)
