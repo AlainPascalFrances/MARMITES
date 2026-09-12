@@ -380,7 +380,7 @@ def _describe(cfg):
 
 ATTEMPTS = st.session_state.setdefault('grid_attempts', [])
 
-tab_domain, tab_mesh = st.tabs(['Catchment & grid', 'Visualize mesh'])
+tab_domain, tab_mesh = st.tabs(['Catchment & grid', 'Visualize grid'])
 
 # ===================================================================== 1a
 with tab_domain:
@@ -470,7 +470,7 @@ with tab_domain:
     st.caption('Builds the mesh from the settings ABOVE AS THEY STAND — no '
                'save needed — and keeps it as an attempt, so two kinds or two '
                'cell sizes can be compared. Nothing a run reads is written '
-               'until you select one (panel **Visualize mesh**).')
+               'until you select one (panel **Visualize grid**).')
 
     cbuild, cclear, cmsg = st.columns([1, 1, 3])
     if cbuild.button('Create grid', type='primary', key='mkgrid'):
@@ -520,33 +520,11 @@ with tab_domain:
                 'built': '✅' if a['ok'] else '❌',
             })
         st.dataframe(rows, width='stretch', hide_index=True)
-        st.success('After the grid is created, go to panel **Visualize mesh**.')
+        st.success('After the grid is created, go to panel **Visualize grid**.')
     else:
         st.info('No attempt yet. Press **Create grid** — it builds from the '
                 'settings above without saving anything.')
 
-    with st.expander('Re-read the cartography (the other layers)'):
-        st.caption(
-            'A run never opens a shapefile. The converter does, once: it '
-            'reads the GIS folder and writes GRID-INDEPENDENT tables into '
-            '`%s`, and those are what a run reads and what every panel wraps '
-            'onto the grid.\n\nThe two a GRID depends on — the catchment ring '
-            'and the stream network — are checked and re-read by **Create '
-            'grid** itself, so there is nothing to press for them. This is '
-            'for the rest: soil, vegetation, irrigation, observation points, '
-            'ponds. Press it when you have edited or replaced one of those '
-            'shapefiles.' % mm_paths.dataset_dir(case))
-        stale, why = _dataset_stale(cfg)
-        if stale:
-            st.caption('The grid inputs are out of date too (%s) — the next '
-                       '**Create grid** will re-read them.' % why)
-        c1, c2 = st.columns(2)
-        if c1.button('Preview (dry run)'):
-            st.session_state['conv'] = _run_converter(case, path, dry=True)
-        if c2.button('Update dataset', type='primary'):
-            st.session_state['conv'] = _run_converter(case, path, dry=False)
-        if st.session_state.get('conv'):
-            st.code(st.session_state['conv'], language='text')
 
 # ===================================================================== 1b
 with tab_mesh:

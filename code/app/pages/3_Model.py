@@ -143,3 +143,39 @@ with tab_obs:
         st.error('Missing: %s' % tbl)
 
 panelui.save_button(cfg, path, edited)
+
+# ------------------------------------------------------- the cartography
+# HERE and not on panel 1, because these are the layers PANEL 3 wraps: the
+# soil zones, the vegetation cover, the observation points, the pond
+# outlines. Panel 1 needs no button of its own -- the two tables a GRID
+# depends on, the catchment ring and the stream network, are checked and
+# re-read by Create grid itself.
+with st.expander('Re-read the cartography'):
+    st.caption(
+        'A run never opens a shapefile. The converter does, once: it reads '
+        'the GIS folder and writes GRID-INDEPENDENT tables into `%s`, and '
+        'those are what a run reads and what this panel wraps onto the grid. '
+        'So press this when you have EDITED OR REPLACED a shapefile — '
+        'changing the grid does not need it, which is the whole point of the '
+        'two tiers.' % ds)
+
+    def _converter(dry):
+        """The converter as a SUBPROCESS: it keeps geopandas out of this
+        process's import graph, and it is the command a user would type."""
+        import subprocess
+        cmd = [sys.executable,
+               os.path.join(CODE, 'tools', 'gis_to_dataset.py'),
+               '--case', case, '--config', path]
+        if dry:
+            cmd.append('--dry-run')
+        r = subprocess.run(cmd, capture_output=True, text=True,
+                           cwd=str(mm_paths.REPO), timeout=900)
+        return (r.stdout or '') + (('\n' + r.stderr) if r.stderr else '')
+
+    c1, c2 = st.columns(2)
+    if c1.button('Preview (dry run)', key='conv_dry'):
+        st.session_state['conv'] = _converter(True)
+    if c2.button('Update dataset', type='primary', key='conv_run'):
+        st.session_state['conv'] = _converter(False)
+    if st.session_state.get('conv'):
+        st.code(st.session_state['conv'], language='text')

@@ -382,3 +382,27 @@ def test_a_different_mesh_resets_the_view(tmp_path):
     at.selectbox(key='pick_attempt').select(other).run()
     assert view(at) is None, \
         'the zoom from the previous mesh was kept'
+
+
+def test_the_cartography_box_is_on_the_panel_that_uses_it():
+    """Panel 1 re-reads the two tables a GRID depends on inside Create grid,
+    so it needs no button; the soil, vegetation, observation and pond layers
+    belong to panel 3, and so does the button for them."""
+    one = open(os.path.join(APP, 'pages', '1_Grid.py'),
+               encoding='utf-8').read()
+    three = open(os.path.join(APP, 'pages', '3_Model.py'),
+                 encoding='utf-8').read()
+    assert 'Re-read the cartography' not in one
+    assert 'Re-read the cartography' in three
+    # ... and panel 1 still re-reads what a grid needs, by itself.
+    assert '_dataset_stale' in one and 'gis_to_dataset.py' in one
+
+
+def test_the_grid_tabs_are_named_consistently():
+    at = AppTest.from_file(os.path.join(APP, 'pages', '1_Grid.py'),
+                           default_timeout=180)
+    at.run()
+    src = open(os.path.join(APP, 'pages', '1_Grid.py'),
+               encoding='utf-8').read()
+    assert "'Visualize grid'" in src
+    assert 'Visualize mesh' not in src, 'a stale name is still referred to'
