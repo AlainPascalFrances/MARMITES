@@ -8,11 +8,16 @@ the Streamlit app, and nowhere on the model path (cookbook decision D3).
     python code/tools/gis_to_dataset.py --case LaMata            # convert
     python code/tools/gis_to_dataset.py --case LaMata --dry-run  # preview only
 
-Reads, from $MM_DATA_ROOT/GIS:
-    hydrography.shp     the mapped stream network
-    lm_ponds.shp        the charcas
-    Limite.shp          the catchment boundary
+Reads, from $MM_DATA_ROOT/GIS, whatever the CONFIGURATION names -- nothing
+here is hardcoded any more except the DEM, because a new catchment starts
+with an empty list and panel 1 is where the layers are given:
+    [grid] boundary     the catchment polygon          (required)
+    [grid] streams      the mapped stream network      (optional)
+    [grid] ponds        the charcas                    (optional)
     lm_demfill          the sink-filled DEM (native resolution)
+
+An optional layer left blank is simply not converted, and the refinement
+that would need it cannot be switched on (RunConfig.validate).
 
 Writes, into example/<case>/ (and nothing else):
     inputSTREAM.csv        stream geometry, GRID-INDEPENDENT: seg_id, seq, x, y
@@ -62,9 +67,11 @@ import mm_paths                  # noqa: E402
 # on the authority code alone would wrongly report a mismatch -- see _crs_note.
 TARGET_EPSG = 23029
 
+# WP1d: `streams` and `ponds` are NOT here any more -- they are named in
+# [grid], which is where panel 1 asks for them, and a catchment that has
+# neither is a legitimate thing to convert. Only the DEM and the pre-WP1d
+# watershed fallback keep a hardcoded name.
 SOURCES = {
-    'streams':   'hydrography.shp',
-    'ponds':     'lm_ponds.shp',
     # The catchment now comes from [grid] boundary; this is only the fallback
     # for a configuration that does not name one. Limite.shp, which WP1 used,
     # is 19.159 km2 against the catchment's 4.844 km2 -- nearly four times too
@@ -88,9 +95,11 @@ VECTOR_LAYERS = [
     ('obs',       'obs.layer',               ['Name', 'lay', 'hi', 'h0', 'RC',
                                               'STO', 'NameReal', 'onMap'],
      'inputOBSPTS'),
-    # The LAK builder needs the pond POLYGONS, not just the centroid table
-    # inputPONDS.csv holds -- it fits an embedded lake to each footprint.
-    ('ponds',     'lak.polygons',            ['id'],            'inputPONDS'),
+    # [grid] ponds, not [lak] polygons: ONE place names the file, and it is
+    # the panel that asks for it first. The LAK builder needs these polygons
+    # -- it fits an embedded lake to each footprint, which the centroid table
+    # inputPONDS.csv cannot give it -- and reads the GeoJSON written here.
+    ('ponds',     'grid.ponds',              ['id'],            'inputPONDS'),
 ]
 
 
@@ -282,11 +291,23 @@ def convert(case='LaMata', gis=None, out_dir=None, cfg=None, dry_run=False):
     written = []
 
     # ---------------------------------------------------------------- streams
-    p = os.path.join(gis, SOURCES['streams'])
-    streams = _to_target(gpd.read_file(p), 'streams', report)
+    # Absent is a valid answer: panel 1 asks for the layer and leaves it
+    # blank until there is one, and the refinement that needs it cannot be
+    # switched on meanwhile (RunConfig.validate).
+    name = cfg.grid.streams
+    p = os.path.join(gis, name) if name else ''
+    if not name:
+        report.append('%-12s not set in [grid] -- inputSTREAM*.csv not '
+                      'written' % 'streams')
+    elif not os.path.exists(p):
+        raise SystemExit('CONFIG ERROR: grid.streams = %r is not in %s'
+                         % (name, gis))
+    streams = (_to_target(gpd.read_file(p), 'streams', report)
+               if name else None)
     vert_rows, par_rows = [], []
     w_src, m_src = cfg.sfr.width, cfg.sfr.manning
-    for seg_id, (_, row) in enumerate(streams.iterrows()):
+    for seg_id, (_, row) in enumerate(
+            streams.iterrows() if streams is not None else []):
         geom = row.geometry
         parts = (list(geom.geoms) if geom.geom_type.startswith('Multi') else [geom])
         for part in parts:
@@ -301,35 +322,28 @@ def convert(case='LaMata', gis=None, out_dir=None, cfg=None, dry_run=False):
             _resolve(cfg.sfr.rhk, row, 'rhk'),
             _resolve(cfg.sfr.rbth, row, 'rbth'),
         ])
-    hdr = _provenance(p, _crs_note(streams.crs), len(streams))
-    written.append(_write_csv(
-        os.path.join(out_dir, 'inputSTREAM.csv'),
-        hdr + ['# stream geometry in EPSG:%d -- GRID-INDEPENDENT, the model maps'
-               ' it onto its own grid' % TARGET_EPSG],
-        ['seg_id', 'seq', 'x', 'y'], vert_rows, dry_run))
-    written.append(_write_csv(
-        os.path.join(out_dir, 'inputSTREAM_param.csv'),
-        hdr + ['# per-segment parameters resolved from the [sfr] producers.',
-               '# A "drainage:" width is resolved by the MODEL, on the routed',
-               '# network, in one of two laws:',
-               '#   w_min,w_max,power  arbolate-sum scaling, w = w_min +',
-               '#                      (w_max-w_min)*(arb/arb_max)**power',
-               '#   a,b                a Hack-type law, w = a*A**b, with the',
-               '#                      catchment area A in km2',
-               '# -- see the module docstring.'],
-        ['seg_id', 'grid_code', 'length_m', 'width_m', 'manning', 'rhk', 'rbth'],
-        par_rows, dry_run))
+    if streams is not None:
+        written.extend(_write_stream_tables(
+            out_dir, _provenance(p, _crs_note(streams.crs), len(streams)),
+            vert_rows, par_rows, dry_run))
 
     # ------------------------------------------------------------------ ponds
-    p = os.path.join(gis, SOURCES['ponds'])
-    ponds = _to_target(gpd.read_file(p), 'ponds', report)
+    name = cfg.grid.ponds
+    p = os.path.join(gis, name) if name else ''
+    if not name:
+        report.append('%-12s not set in [grid] -- inputPONDS.csv not written'
+                      % 'ponds')
+    elif not os.path.exists(p):
+        raise SystemExit('CONFIG ERROR: grid.ponds = %r is not in %s'
+                         % (name, gis))
+    ponds = _to_target(gpd.read_file(p), 'ponds', report) if name else None
     dem_path = os.path.join(gis, SOURCES['dem'])
     pond_rows = []
     have_dem = os.path.exists(dem_path)
     if not have_dem:
         report.append('%-12s %s not found -- DEM columns left blank'
                       % ('dem', SOURCES['dem']))
-    for _, row in ponds.iterrows():
+    for _, row in (ponds.iterrows() if ponds is not None else []):
         g = row.geometry
         c = g.centroid
         dmean = dmin = ''
@@ -343,14 +357,17 @@ def convert(case='LaMata', gis=None, out_dir=None, cfg=None, dry_run=False):
                               % ('dem', row.get('id', '?'), exc))
         pond_rows.append([int(row.get('id', 0) or 0), '%.3f' % c.x, '%.3f' % c.y,
                           '%.1f' % g.area, '%.1f' % g.length, dmean, dmin])
-    written.append(_write_csv(
-        os.path.join(out_dir, 'inputPONDS.csv'),
-        _provenance(p, _crs_note(ponds.crs), len(ponds))
-        + ['# dem_mean_m / dem_min_m sampled from %s over each footprint;'
-           % SOURCES['dem'],
-           '# the model sets rim = dem_mean and bottom = rim - pond depth.'],
-        ['fid', 'x', 'y', 'area_m2', 'perimeter_m', 'dem_mean_m', 'dem_min_m'],
-        pond_rows, dry_run))
+    if ponds is not None:
+        written.append(_write_csv(
+            os.path.join(out_dir, 'inputPONDS.csv'),
+            _provenance(p, _crs_note(ponds.crs), len(ponds))
+            + ['# dem_mean_m / dem_min_m sampled from %s over each footprint;'
+               % SOURCES['dem'],
+               '# the model sets rim = dem_mean and bottom = rim - pond '
+               'depth.'],
+            ['fid', 'x', 'y', 'area_m2', 'perimeter_m', 'dem_mean_m',
+             'dem_min_m'],
+            pond_rows, dry_run))
 
     # -------------------------------------------------------------- watershed
     p = os.path.join(gis, cfg.grid.boundary or SOURCES['watershed'])
@@ -428,6 +445,33 @@ def _sample_polygon(raster_path, geom):
             if geom.contains(Point(x, y)):
                 out.append(v)
     return np.array(out, dtype='float64')
+
+
+def _write_stream_tables(out_dir, hdr, vert_rows, par_rows, dry_run):
+    """The two stream tables. A function because they are now CONDITIONAL:
+    a catchment with no mapped network writes neither."""
+    return [
+        _write_csv(
+            os.path.join(out_dir, 'inputSTREAM.csv'),
+            hdr + ['# stream geometry in EPSG:%d -- GRID-INDEPENDENT, the '
+                   'model maps it onto its own grid' % TARGET_EPSG],
+            ['seg_id', 'seq', 'x', 'y'], vert_rows, dry_run),
+        _write_csv(
+            os.path.join(out_dir, 'inputSTREAM_param.csv'),
+            hdr + ['# per-segment parameters resolved from the [sfr] '
+                   'producers.',
+                   '# A "drainage:" width is resolved by the MODEL, on the '
+                   'routed',
+                   '# network, in one of two laws:',
+                   '#   w_min,w_max,power  arbolate-sum scaling, w = w_min +',
+                   '#                      (w_max-w_min)*(arb/arb_max)**power',
+                   '#   a,b                a Hack-type law, w = a*A**b, with '
+                   'the',
+                   '#                      catchment area A in km2',
+                   '# -- see the module docstring.'],
+            ['seg_id', 'grid_code', 'length_m', 'width_m', 'manning', 'rhk',
+             'rbth'], par_rows, dry_run),
+    ]
 
 
 def _resolve(src, row, what):

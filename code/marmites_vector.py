@@ -825,13 +825,15 @@ def _same_datum(a, b):
     return x in y or y in x
 
 
-def check_polygon_layer(path, expect_epsg=0):
-    """Is this a usable catchment polygon? A report, never an exception.
+def check_polygon_layer(path, expect_epsg=0, against=None, want='polygon'):
+    """Is this layer usable? A report, never an exception.
 
-    Answers the three questions panel 1 asks of the file before anything is
-    built on it: can it be READ, is it POLYGONS, and does it carry a CRS that
-    is projected and metric. Returns a dict with ``ok`` (fatal problems or
-    not), ``errors``, ``warnings`` and whatever it managed to measure.
+    Answers what panel 1 asks of a file before anything is built on it: can
+    it be READ, is it the GEOMETRY expected (``want``: 'polygon', 'line',
+    'point', or None for any), does it carry a CRS that is projected and
+    metric, and -- when ``against`` is another layer's bounding box -- does
+    it OVERLAP it at all. Returns a dict with ``ok`` (fatal problems or not),
+    ``errors``, ``warnings`` and whatever it managed to measure.
 
     Kept here rather than in the panel so it can be tested without a browser,
     and used by the converter, which meets the same bad files.
@@ -839,7 +841,8 @@ def check_polygon_layer(path, expect_epsg=0):
     rep = {'path': str(path), 'ok': False, 'errors': [], 'warnings': [],
            'features': 0, 'kind': '', 'area_m2': 0.0, 'bbox': None,
            'crs_wkt': '', 'crs_name': '', 'epsg': 0, 'epsg_matched': False,
-           'projected': False, 'datum': '', 'missing': []}
+           'projected': False, 'datum': '', 'missing': [], 'want': want,
+           'overlap_m2': 0.0, 'overlap_pct': 0.0}
     err, warn = rep['errors'].append, rep['warnings'].append
 
     if not path:
@@ -877,16 +880,42 @@ def check_polygon_layer(path, expect_epsg=0):
     rep['kind'] = lay.kind
     rep['bbox'] = tuple(float(v) for v in lay.bbox)
     rep['crs_wkt'] = lay.crs_wkt or ''
-    if lay.kind != 'polygon':
-        err('This layer holds %ss. The catchment must be POLYGONS.' % lay.kind)
+    if want and lay.kind != want:
+        err('This layer holds %ss, and %sS are expected here.'
+            % (lay.kind, want.upper()))
     if not len(lay):
         err('The layer has no features.')
+
+    # Does it overlap what it is supposed to describe? Bounding boxes, which
+    # is enough for the mistake this catches -- a layer from ANOTHER
+    # catchment, or one still in degrees -- and cheap enough to run on every
+    # render. Nothing here reprojects, so a layer that misses the catchment
+    # is a layer the mesh would refine nowhere.
+    if against and rep['bbox']:
+        ax0, ay0, ax1, ay1 = (float(v) for v in against)
+        bx0, by0, bx1, by1 = rep['bbox']
+        ox = min(ax1, bx1) - max(ax0, bx0)
+        oy = min(ay1, by1) - max(ay0, by0)
+        rep['overlap_m2'] = max(ox, 0.0) * max(oy, 0.0)
+        if ox <= 0.0 or oy <= 0.0:
+            err('It does not overlap the catchment at all: this layer spans '
+                'x %.0f..%.0f, y %.0f..%.0f and the catchment spans '
+                'x %.0f..%.0f, y %.0f..%.0f. Either it belongs to another '
+                'catchment or it is in a different CRS.'
+                % (bx0, bx1, by0, by1, ax0, ax1, ay0, ay1))
+        else:
+            span = max((ax1 - ax0) * (ay1 - ay0), 1.0)
+            rep['overlap_pct'] = 100.0 * rep['overlap_m2'] / span
+            if rep['overlap_pct'] < 5.0:
+                warn('Only %.1f %% of the catchment\'s extent is covered by '
+                     'this layer\'s extent. Check it is the right file.'
+                     % rep['overlap_pct'])
 
     # Area of each feature's LARGEST ring: real files disagree about ring
     # orientation, so the outer ring is taken as the biggest one rather than
     # trusted from its winding.
     area = 0.0
-    for i in range(len(lay)):
+    for i in range(len(lay) if lay.kind == 'polygon' else 0):
         try:
             rings = lay.rings(i)
         except Exception:                                 # noqa: BLE001
@@ -960,7 +989,10 @@ def check_polygon_layer(path, expect_epsg=0):
     elif wkt and not rep['epsg']:
         warn('The .prj carries no EPSG authority code, so the project CRS '
              'cannot be checked against it.')
-    if rep['features'] > 1:
+    # Only the CATCHMENT is a domain, and only it is expected to be one
+    # feature. A stream network is 97 lines and a pond layer 12 polygons by
+    # nature, so saying it there would be noise on every render.
+    if against is None and rep['features'] > 1:
         warn('%d features: the whole set is taken as the domain.'
              % rep['features'])
     rep['ok'] = not rep['errors']

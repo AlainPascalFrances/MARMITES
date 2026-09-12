@@ -34,7 +34,7 @@ if _CODE not in sys.path:
 __all__ = ['PANELS', 'FIELDS', 'TABLES', 'CHOICES', 'SUBPANELS', 'panel_of',
            'describe', 'fields_of', 'choices_for', 'subpanel_for', 'is_source',
            'GRID_PERMANENT', 'GRID_SUBPANEL', 'GRID_DERIVED', 'GRID_GATED',
-           'grid_fields', 'PanelError']
+           'GRID_NEEDS_LAYER', 'grid_fields', 'PanelError']
 
 
 class PanelError(Exception):
@@ -127,6 +127,16 @@ FIELDS = {
                       'A PROJECTED, metric shapefile in DATA_ROOT/GIS. It '
                       'defines the active domain, the mesh boundary and the '
                       'model rectangle -- so it is the first thing to set.'),
+    'grid.streams': ('Hydrography layer (lines)', _U,
+                     'The mapped stream network, in DATA_ROOT/GIS. It refines '
+                     'the Voronoi corridor and the quadtree, and becomes the '
+                     'SFR network. Leave it blank if the catchment has none: '
+                     'the refinements that need it are then unavailable '
+                     'rather than silently doing nothing.'),
+    'grid.ponds': ('Pond layer (polygons)', _U,
+                   'The charcas, in DATA_ROOT/GIS. Seeds a mesh cell per pond '
+                   'and becomes the LAK footprints. Blank means the catchment '
+                   'has none.'),
     'grid.crs_epsg': ('Project CRS', 'EPSG',
                       'The projected, metric CRS everything is in. 0 takes it '
                       'from the layer\'s .prj. Station coordinates are '
@@ -503,8 +513,11 @@ SUBPANELS = {
 # the dependency is visible without reading the help. Everything NOT listed
 # here is in the permanent block; a test checks the two partition the [grid]
 # block with nothing left over.
-GRID_PERMANENT = ('grid.boundary', 'grid.crs_epsg', 'grid.kind',
-                  'grid.resample')
+# The catchment comes first, and the two layers a GRID can depend on come
+# with it -- the refinement options below cannot be answered before it is
+# known whether there IS a network or a pond to refine around.
+GRID_PERMANENT = ('grid.boundary', 'grid.streams', 'grid.ponds',
+                  'grid.crs_epsg', 'grid.kind', 'grid.resample')
 _LEGACY_ROWS = (
     ('grid.cell_size', 'grid.buffer'),
     ('grid.override.enable',),
@@ -539,6 +552,14 @@ def grid_fields(kind):
 # Shown but never typed: the geometry owns them.
 GRID_DERIVED = ('grid.voronoi.stream_buffer', 'grid.voronoi.trans_levels')
 # Greyed out, and CLEARED, while their controlling switch is off (panel 1 D4).
+# A switch that cannot be answered yet, because the layer it acts on has
+# not been given. Keyed on the CONFIGURATION field that must be non-blank.
+GRID_NEEDS_LAYER = {
+    'grid.voronoi.stream_refine': 'grid.streams',
+    'grid.quadtree.refine_streams': 'grid.streams',
+    'grid.voronoi.seed_ponds': 'grid.ponds',
+}
+
 GRID_GATED = {
     'grid.voronoi.stream_refine': ('grid.voronoi.cell_near_stream',
                                    'grid.voronoi.stream_buffer',

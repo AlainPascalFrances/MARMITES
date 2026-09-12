@@ -380,7 +380,10 @@ class GridVoronoi:
     # takes -- the shipped 60 m against the 190 m that 40 -> 100 m at 1.5
     # needs -- silently clamped the refinement and left a step.
     stream_buffer: float = 0.0
-    stream_refine: bool = True
+    # OFF until [grid] streams names a layer: from scratch there is no
+    # network to refine along, and a switch that is on with nothing to
+    # act on is how a 'refined' mesh comes out uniform.
+    stream_refine: bool = False
     # Largest acceptable size ratio between neighbouring bands: 3, the
     # loosest the schema allows, is the modeller's default (WP1d). It grades
     # from the stream to the background in the fewest SIZE CHANGES; it does
@@ -395,7 +398,8 @@ class GridVoronoi:
     # Read-only echo of what bands() computed, so the file states the mesh it
     # produced. Refreshed by validate(); editing it by hand does nothing.
     trans_levels: list = field(default_factory=list)
-    seed_ponds: bool = True
+    # OFF until [grid] ponds names a layer, for the same reason.
+    seed_ponds: bool = False
 
     # A ceiling on the derived band count: 12 bands over a 60 m corridor is
     # already one every 5 m, past which the refinement IS the mesh.
@@ -470,7 +474,8 @@ class GridQuadtree:
     """
 
     refine_level: int = 2
-    refine_streams: bool = True
+    # OFF until [grid] streams names a layer.
+    refine_streams: bool = False
 
 
 @dataclass
@@ -505,6 +510,19 @@ class Grid:
     # A polygon in DATA_ROOT/GIS, in the project CRS: PROJECTED, metric units.
     # It defines the active domain, the mesh boundary and the model rectangle.
     boundary: str = 'lm_lim.shp'
+    # The other two layers a GRID depends on, and the ONE place they are
+    # named. Both DEFAULT TO BLANK, because a new catchment knows nothing:
+    # panel 1 asks for them, and until one is given the refinement that needs
+    # it cannot be switched on. They used to be assumed -- the streams were
+    # hardcoded in the converter and the ponds named in [lak] -- which worked
+    # on La Mata and on no other catchment.
+    #
+    #   streams  LINES. Refines the Voronoi corridor and the quadtree, and
+    #            becomes the SFR network.
+    #   ponds    POLYGONS. Seeds a mesh cell per pond, and becomes the LAK
+    #            footprints.
+    streams: str = ''
+    ponds: str = ''
     crs_epsg: int = 0              # 0 = take it from the layer's .prj
     cell_size: float = 50.0        # m, background cell size for every kind
     buffer: float = 0.0            # m, extend the rectangle beyond the polygon
@@ -1181,6 +1199,28 @@ class RunConfig:
         elif not self.grid.boundary.lower().endswith('.shp'):
             errs.append('grid.boundary must be a shapefile, got %r'
                         % self.grid.boundary)
+        # The two other layers a grid may depend on. Blank is FINE -- a
+        # catchment with no mapped network is a legitimate thing to model --
+        # but a refinement switched on with nothing to refine along is not,
+        # because it produces a uniform mesh that claims to be refined.
+        for name, what in (('streams', 'lines'), ('ponds', 'polygons')):
+            v = getattr(self.grid, name)
+            if v and not v.lower().endswith('.shp'):
+                errs.append('grid.%s must be a shapefile (%s) in '
+                            'DATA_ROOT/GIS, got %r' % (name, what, v))
+        if not self.grid.streams:
+            for blk, key in (('voronoi', 'stream_refine'),
+                             ('quadtree', 'refine_streams')):
+                if getattr(getattr(self.grid, blk), key):
+                    errs.append(
+                        'grid.%s.%s is on but grid.streams names no '
+                        'hydrography layer, so there is nothing to refine '
+                        'along. Give the layer on panel 1, or switch the '
+                        'refinement off.' % (blk, key))
+        if not self.grid.ponds and self.grid.voronoi.seed_ponds:
+            errs.append('grid.voronoi.seed_ponds is on but grid.ponds names '
+                        'no pond layer. Give the layer on panel 1, or switch '
+                        'the seeding off.')
         if self.grid.cell_size <= 0:
             errs.append('grid.cell_size must be > 0')
         if self.grid.buffer < 0:

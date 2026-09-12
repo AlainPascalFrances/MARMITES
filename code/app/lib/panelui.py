@@ -24,10 +24,13 @@ import marmites_config as mcfg          # noqa: E402
 import mm_paths                         # noqa: E402
 from lib import editor, schema          # noqa: E402
 
+
 CONFIG_DIR = os.path.join(CODE, 'configs')
 
 __all__ = ['pick_config', 'header', 'master_switch', 'section_form',
-           'grid_form', 'table_form', 'save_button', 'CONFIG_DIR']
+           'grid_form', 'grid_permanent_form', 'grid_kind_form',
+           'gis_folder_box', 'layer_picker', 'resolve_layer', 'folder_picker',
+           'table_form', 'save_button', 'CONFIG_DIR']
 
 
 def pick_config():
@@ -266,64 +269,79 @@ def folder_picker(label, value, key, help_=None, want='dir', native=True):
     return typed
 
 
-def boundary_picker(dotted, value, folder_key='gis_folder'):
-    """Choose the catchment polygon from the shapefiles on this machine.
-
-    The folder on the left, the files in it on the right: a dropdown of what
-    is actually THERE rather than a name to type, because the commonest way
-    this field goes wrong is a file renamed or exported somewhere else, and a
-    text box reports that only when the run fails. The folder defaults to
-    ``DATA_ROOT/GIS`` -- where the shapefiles live, read by the converter
-    alone -- and can be pointed anywhere.
-
-    Stores a BARE FILENAME when the file is in the GIS folder, so the
-    configuration stays portable between machines, and an absolute path
-    otherwise. Both are accepted everywhere the boundary is opened.
-    """
+def gis_folder_box(folder_key='gis_folder'):
+    """Where to look for shapefiles. Shared by the layer pickers below."""
     from marmites_vector import find_shapefiles
 
+    gis = str(mm_paths.GIS)
+    folder = st.text_input(
+        'Folder to look in', value=st.session_state.get(folder_key, gis),
+        key=folder_key,
+        help='Defaults to DATA_ROOT/GIS. The shapefiles stay here and are '
+             'read only by the converter -- they never enter the repository.')
+    found = find_shapefiles(folder)
+    if not os.path.isdir(folder):
+        st.error('No such folder: `%s`' % folder)
+    elif not found:
+        st.warning('No .shp in `%s` (or one level below it).' % folder)
+    return folder, found
+
+
+NONE = '\u2014 none \u2014'
+
+
+def layer_picker(dotted, value, folder, found, optional=False):
+    """Choose one shapefile from what is actually in the folder.
+
+    A dropdown of what is THERE rather than a name to type, because the
+    commonest way these fields go wrong is a file renamed or exported
+    somewhere else, and a text box reports that only when the run fails.
+
+    Stores a BARE FILENAME while the file is in the GIS folder, so the
+    configuration stays portable between machines, and an absolute path
+    otherwise -- both are accepted everywhere a layer is opened. ``optional``
+    adds a "none" entry, which is what a catchment with no mapped network or
+    no ponds selects, and which is the DEFAULT for a new case.
+    """
     gis = str(mm_paths.GIS)
     label, units, help_ = schema.describe(dotted)
     shown = '%s [%s]' % (label, units) if units else label
 
-    c1, c2 = st.columns(2)
-    with c1:
-        folder = st.text_input(
-            'Folder to look in', value=st.session_state.get(folder_key, gis),
-            key=folder_key,
-            help='Defaults to DATA_ROOT/GIS. The shapefiles stay here and are '
-                 'read only by the converter -- they never enter the '
-                 'repository.')
-        found = find_shapefiles(folder)
-        if not os.path.isdir(folder):
-            st.error('No such folder: `%s`' % folder)
-        elif not found:
-            st.warning('No .shp in `%s` (or one level below it).' % folder)
-
-    # What the configuration currently names, resolved the way the model
-    # resolves it, so the saved value is always one of the options.
     current = os.path.join(gis, value) if value and not os.path.isabs(value) \
         else (value or '')
     options = list(found)
     if current and current not in options:
         options.insert(0, current)
+    if optional:
+        options = [NONE] + options
+    if not options:
+        return st.text_input(shown, value=str(value), key=dotted,
+                             help='`%s`  \n%s' % (dotted, help_))
 
-    with c2:
-        if not options:
-            return st.text_input(shown, value=str(value), key=dotted,
-                                 help='`%s`  \n%s' % (dotted, help_))
-        pick = st.selectbox(
-            shown, options, index=options.index(current) if current in options
-            else 0, key=dotted, help='`%s`  \n%s' % (dotted, help_),
-            format_func=lambda p: (os.path.relpath(p, folder)
-                                   if os.path.isdir(folder)
-                                   and p.startswith(os.path.abspath(folder))
-                                   else p))
+    pick = st.selectbox(
+        shown, options,
+        index=options.index(current) if current in options else 0,
+        key=dotted, help='`%s`  \n%s' % (dotted, help_),
+        format_func=lambda p: (p if p == NONE else
+                               (os.path.relpath(p, folder)
+                                if os.path.isdir(folder)
+                                and p.startswith(os.path.abspath(folder))
+                                else p)))
+    if pick == NONE:
+        return ''
     try:
         rel = os.path.relpath(pick, gis)
-    except ValueError:                         # different drive
+    except ValueError:                         # a different drive
         return pick
     return rel if not rel.startswith('..') else pick
+
+
+def resolve_layer(name):
+    """A configured layer name as an absolute path, or '' when unset."""
+    if not name:
+        return ''
+    return (name if os.path.isabs(name)
+            else os.path.join(str(mm_paths.GIS), name))
 
 
 def derived_value(cfg, dotted, edited, values):
@@ -385,7 +403,7 @@ def grid_form(cfg, columns=3):
     Returns ``(edits, chosen_kind)``; the edits are keyed by dotted path
     exactly like :func:`section_form`.
     """
-    edited, chosen, _rep = grid_permanent_form(cfg, columns=columns)
+    edited, chosen, _reps = grid_permanent_form(cfg, columns=columns)
     values = dict(schema.fields_of(cfg, 'grid'))
     edited.update(grid_kind_form(cfg, chosen, edited, values, columns=columns))
     return edited, chosen
@@ -403,14 +421,42 @@ def grid_permanent_form(cfg, columns=3):
     from marmites_vector import check_polygon_layer
 
     values = dict(schema.fields_of(cfg, 'grid'))
-    edited = {}
+    edited, reports = {}, {}
 
-    # --- the catchment, and what its .prj says -------------------------
-    picked = boundary_picker('grid.boundary', values['grid.boundary'])
+    # --- the three layers a GRID can depend on -------------------------
+    # All asked HERE, at the same level, because the refinement options
+    # cannot be answered before it is known whether there IS a network or a
+    # pond to refine around -- and because a new catchment starts with an
+    # empty list and has to be able to say so.
+    folder, found = gis_folder_box()
+    cols = st.columns(3)
+    with cols[0]:
+        picked = layer_picker('grid.boundary', values['grid.boundary'],
+                              folder, found)
+    with cols[1]:
+        streams = layer_picker('grid.streams', values['grid.streams'],
+                               folder, found, optional=True)
+    with cols[2]:
+        ponds = layer_picker('grid.ponds', values['grid.ponds'],
+                             folder, found, optional=True)
     edited['grid.boundary'] = picked
-    path = (picked if os.path.isabs(picked)
-            else os.path.join(str(mm_paths.GIS), picked))
+    edited['grid.streams'] = streams
+    edited['grid.ponds'] = ponds
+
+    path = resolve_layer(picked)
     rep = check_polygon_layer(path, expect_epsg=cfg.grid.crs_epsg)
+    reports['grid.boundary'] = rep
+    # The other two are checked AGAINST the catchment: same CRS, and an
+    # extent that actually overlaps it. Nothing reprojects, so a layer from
+    # another catchment or in another CRS is a layer the mesh refines nowhere.
+    for dotted, name, want in (('grid.streams', streams, 'line'),
+                               ('grid.ponds', ponds, 'polygon')):
+        if not name:
+            continue
+        reports[dotted] = check_polygon_layer(
+            resolve_layer(name), expect_epsg=(rep['epsg']
+                                              or cfg.grid.crs_epsg),
+            against=rep['bbox'], want=want)
 
     # Read-only: the CRS is a PROPERTY OF THE FILE, not a choice. It is taken
     # from the .prj -- by its authority code, or by matching the definition
@@ -442,7 +488,7 @@ def grid_permanent_form(cfg, columns=3):
             if got is not None:
                 edited[dotted] = got
     raw = edited.get('grid.kind', cfg.grid_kind)
-    return edited, mcfg._GRID_ALIAS.get(raw, raw), rep
+    return edited, mcfg._GRID_ALIAS.get(raw, raw), reports
 
 
 def grid_kind_form(cfg, chosen, edited=None, values=None, columns=3):
@@ -460,10 +506,20 @@ def grid_kind_form(cfg, chosen, edited=None, values=None, columns=3):
     # so its live value comes from session_state -- where streamlit keeps the
     # widget's current value under its key -- and only falls back to the saved
     # configuration on the very first render.
+    # A switch whose LAYER has not been given cannot be answered at all: it
+    # is drawn off and disabled, with the reason, rather than offered and
+    # then refused by validate(). Read from the edits, so choosing the layer
+    # enables it immediately instead of after a save.
+    unavailable = {}
+    for switch, needs in schema.GRID_NEEDS_LAYER.items():
+        have = edited.get(needs, values.get(needs, ''))
+        if not have:
+            unavailable[switch] = needs
+
     off = set()
     for switch, dependents in schema.GRID_GATED.items():
         state = st.session_state.get(switch, values.get(switch, True))
-        if not edited.get(switch, state):
+        if switch in unavailable or not edited.get(switch, state):
             off.update(dependents)
 
     # Row by row, so a switch sits on its own line above what it controls.
@@ -488,6 +544,15 @@ def grid_kind_form(cfg, chosen, edited=None, values=None, columns=3):
                         cfg, dotted, dict(edited, **out), values)
                     st.text_input(shown, disabled=True, key=ro,
                                   help='`%s`  \n%s' % (dotted, help_))
+                    continue
+                if dotted in unavailable:
+                    st.checkbox(shown, value=False, disabled=True,
+                                key='na_%s' % dotted,
+                                help='`%s`  \nNeeds `%s`, which is not set.'
+                                     % (dotted, unavailable[dotted]))
+                    st.caption('needs a %s layer'
+                               % unavailable[dotted].split('.')[-1])
+                    out[dotted] = False
                     continue
                 if dotted in off:
                     st.text_input(shown, value='', disabled=True,

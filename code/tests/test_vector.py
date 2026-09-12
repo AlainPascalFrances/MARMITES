@@ -485,3 +485,55 @@ def test_find_shapefiles_lists_what_is_there(tmp_path):
     names = sorted(os.path.basename(f) for f in found)
     assert names == ['a.shp', 'b.shp']      # one level down, not two
     assert mv.find_shapefiles(str(tmp_path / 'nowhere')) == []
+
+
+# ------------------------------- WP1d: the other two layers panel 1 asks for
+
+def _lines(path, coords, prj=_ED50):
+    _write_line(path, [[c] for c in coords], [('id', 'N', 4, 0)],
+                [[i] for i in range(len(coords))])
+    with open(os.path.splitext(path)[0] + '.prj', 'w') as fh:
+        fh.write(prj)
+    return path
+
+
+def test_a_line_layer_is_accepted_where_lines_are_wanted(tmp_path):
+    p = _lines(str(tmp_path / 'hydro.shp'),
+               [[(100, 100), (900, 900)], [(200, 800), (800, 200)]])
+    rep = mv.check_polygon_layer(p, want='line')
+    assert rep['ok'] and rep['kind'] == 'line' and rep['features'] == 2
+
+
+def test_a_layer_that_misses_the_catchment_is_refused(tmp_path):
+    """Nothing reprojects and nothing is clipped into place, so a network
+    somewhere else is a network the mesh would refine nowhere."""
+    catch = mv.check_polygon_layer(_catchment(str(tmp_path / 'lim.shp')))
+    near = _lines(str(tmp_path / 'in.shp'), [[(100, 100), (900, 900)]])
+    far = _lines(str(tmp_path / 'out.shp'),
+                 [[(500000, 500000), (500900, 500900)]])
+    good = mv.check_polygon_layer(near, want='line', against=catch['bbox'])
+    assert good['ok'], good['errors']
+    assert good['overlap_pct'] > 0.0
+    bad = mv.check_polygon_layer(far, want='line', against=catch['bbox'])
+    assert not bad['ok']
+    assert any('does not overlap' in e for e in bad['errors'])
+
+
+def test_a_layer_barely_touching_the_catchment_warns(tmp_path):
+    catch = mv.check_polygon_layer(_catchment(str(tmp_path / 'lim.shp')))
+    edge = _lines(str(tmp_path / 'edge.shp'), [[(995, 995), (1200, 1200)]])
+    rep = mv.check_polygon_layer(edge, want='line', against=catch['bbox'])
+    assert rep['ok']
+    assert any('%' in w for w in rep['warnings'])
+
+
+def test_only_the_catchment_is_told_off_for_having_many_features(tmp_path):
+    """A stream network is 97 lines by nature; saying so on every render is
+    noise. The warning belongs to the layer that IS the domain."""
+    catch = mv.check_polygon_layer(_catchment(str(tmp_path / 'lim.shp')))
+    p = _lines(str(tmp_path / 'many.shp'),
+               [[(100, 100), (200, 200)], [(300, 300), (400, 400)]])
+    rep = mv.check_polygon_layer(p, want='line', against=catch['bbox'])
+    assert not any('taken as the domain' in w for w in rep['warnings'])
+    multi = mv.check_polygon_layer(_catchment(str(tmp_path / 'two.shp'), n=2))
+    assert any('taken as the domain' in w for w in multi['warnings'])

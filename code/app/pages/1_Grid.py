@@ -36,7 +36,7 @@ for p in (CODE, APP, os.path.join(CODE, 'ppMF6')):
 
 import marmites_config as mcfg              # noqa: E402
 import mm_paths                             # noqa: E402
-from lib import editor, loaders, panelui    # noqa: E402
+from lib import editor, loaders, panelui, schema   # noqa: E402
 
 st.set_page_config(page_title='1 Grid', page_icon='🗺️', layout='wide')
 case = st.session_state.get('case', 'LaMata')
@@ -155,7 +155,6 @@ def _settings_of(trial):
     selecting is the moment the grid on screen becomes the model's, and by
     then the boxes may well have moved on to the next experiment.
     """
-    from lib import schema
     return {k: v for k, v in schema.fields_of(trial, 'grid')
             if k not in schema.GRID_DERIVED and not schema.is_source(v)}
 
@@ -389,14 +388,21 @@ with tab_domain:
                'coordinates (metric). It defines the active domain, the mesh '
                'boundary and the model rectangle.')
 
-    # The form CHECKS the polygon as it draws it -- the CRS it shows comes
-    # from that check -- and hands the report back for the read-outs below.
-    edited, chosen, rep = panelui.grid_permanent_form(cfg, columns=3)
+    # The form CHECKS every layer as it draws it -- the CRS it shows comes
+    # from the catchment's check -- and hands the reports back for the
+    # read-outs below.
+    edited, chosen, reports = panelui.grid_permanent_form(cfg, columns=3)
+    rep = reports['grid.boundary']
     bnd = rep['path']
-    for msg in rep['errors']:
-        st.error(msg)
-    for msg in rep['warnings']:
-        st.warning(msg)
+    for dotted, r in reports.items():
+        label = schema.describe(dotted)[0]
+        for msg in r['errors']:
+            st.error('**%s** — %s' % (label, msg))
+        for msg in r['warnings']:
+            st.warning('**%s** — %s' % (label, msg))
+    ok = [schema.describe(d)[0] for d, r in reports.items() if r['ok']]
+    if len(ok) == len(reports) and reports:
+        st.success('Valid: %s.' % ', '.join(ok).lower())
 
     if rep['bbox']:
         x0, y0, x1, y1 = rep['bbox']
@@ -418,9 +424,6 @@ with tab_domain:
                       rep['kind'] or '?',
                       rep['crs_name'] or 'UNDECLARED (no .prj)',
                       ' (EPSG:%d)' % rep['epsg'] if rep['epsg'] else ''))
-    if rep['ok']:
-        st.success('Valid catchment polygon.')
-
     edited.update(panelui.grid_kind_form(cfg, chosen, edited, columns=3))
 
     if chosen in ('structured', 'dis'):

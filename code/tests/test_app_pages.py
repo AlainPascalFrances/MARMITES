@@ -409,3 +409,53 @@ def test_the_grid_tabs_are_named_consistently():
                encoding='utf-8').read()
     assert "'Visualize grid'" in src
     assert 'Visualize mesh' not in src, 'a stale name is still referred to'
+
+
+def test_panel_one_asks_for_all_three_layers():
+    """The working flow is from scratch: the catchment, the hydrography and
+    the ponds are all asked for HERE, at the same level, because the
+    refinement options below cannot be answered before it is known whether
+    there is a network or a pond to refine around."""
+    at = AppTest.from_file(os.path.join(APP, 'pages', '1_Grid.py'),
+                           default_timeout=180)
+    at.run()
+    keys = _keys(at)
+    for k in ('grid.boundary', 'grid.streams', 'grid.ponds'):
+        assert k in keys, '%s is not asked for on panel 1' % k
+    assert 'gis_folder' in keys, 'no folder to look in'
+
+
+def test_the_optional_layers_can_be_set_to_none():
+    """A catchment with no mapped network has to be able to say so."""
+    at = AppTest.from_file(os.path.join(APP, 'pages', '1_Grid.py'),
+                           default_timeout=180)
+    at.run()
+    for k in ('grid.streams', 'grid.ponds'):
+        box = at.selectbox(key=k)
+        assert box is not None, '%s is not a choice' % k
+        assert any('none' in str(o).lower() for o in box.options), \
+            '%s cannot be left unset' % k
+    # ... and the catchment cannot: it is what the grid is built inside.
+    assert not any('none' in str(o).lower()
+                   for o in at.selectbox(key='grid.boundary').options)
+
+
+def test_the_refinement_needs_its_layer():
+    """Panel 1 offers the switch DISABLED, with the reason, rather than
+    offering it and having validate() refuse the save."""
+    at = AppTest.from_file(os.path.join(APP, 'pages', '1_Grid.py'),
+                           default_timeout=180)
+    at.run()
+    at.selectbox(key='grid.kind').select('voronoi').run()
+    assert 'grid.voronoi.stream_refine' in _keys(at), \
+        'the refinement is not offered even with a stream layer set'
+
+    # Take the layer away: the switch must go unavailable, not just unticked.
+    box = at.selectbox(key='grid.streams')
+    none = [o for o in box.options if 'none' in str(o).lower()][0]
+    at.selectbox(key='grid.streams').select(none).run()
+    assert 'grid.voronoi.stream_refine' not in _keys(at), \
+        'the refinement is still live with no hydrography layer'
+    blocked = [c for c in at.checkbox
+               if c.key == 'na_grid.voronoi.stream_refine']
+    assert blocked and blocked[0].disabled and blocked[0].value is False

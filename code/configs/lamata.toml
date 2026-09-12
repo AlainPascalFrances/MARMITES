@@ -30,6 +30,8 @@ allow_bad_budget = false
 
 [grid]
 boundary = "lm_lim.shp"
+streams = "hydrography.shp"
+ponds = "lm_ponds.shp"
 crs_epsg = 23029
 cell_size = 50.0
 buffer = 25.0

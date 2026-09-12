@@ -95,10 +95,15 @@ def test_the_override_is_refused_on_a_mesh(kind):
 
 
 def _vor(**kw):
+    """A refined Voronoi block. The LAYER is named because the refinement
+    cannot be switched on without one -- from scratch there is no network to
+    refine along, and a switch with nothing to act on produced a mesh that
+    claimed to be refined and was uniform."""
     base = {'cell_far': 100.0, 'cell_near_stream': 40.0,
-            'stream_buffer': 1000.0, 'grade_ratio': 1.5}
+            'stream_refine': True, 'grade_ratio': 1.5}
     base.update(kw)
-    return cfg({'grid': {'kind': 'voronoi', 'voronoi': base}}).grid.voronoi
+    return cfg({'grid': {'kind': 'voronoi', 'streams': 'hydrography.shp',
+                         'voronoi': base}}).grid.voronoi
 
 
 def test_a_band_is_as_wide_as_the_cells_it_carries():
@@ -163,8 +168,9 @@ def test_a_ratio_needing_more_bands_than_allowed_is_refused():
     """Capping the bands silently would mean the mesh does not grade the way
     the file says it does."""
     with pytest.raises(cfgmod.ConfigError) as e:
-        cfg({'grid': {'kind': 'voronoi',
+        cfg({'grid': {'kind': 'voronoi', 'streams': 'hydrography.shp',
                       'voronoi': {'cell_near_stream': 2.0, 'cell_far': 200.0,
+                                  'stream_refine': True,
                                   'grade_ratio': 1.05}}})
     assert 'transition bands' in str(e.value)
 
@@ -316,3 +322,46 @@ def test_surface_tables_survive_the_resolved_round_trip(tmp_path):
     assert len(back.surface.vegetation) == 3
     assert back.surface.vegetation[1].root_depth == 15.0
     assert back.soil.veg_class[2].code == 'p'
+
+
+def test_a_new_catchment_knows_nothing(tmp_path):
+    """WP1d: the working flow starts from an EMPTY list. Nothing may be
+    assumed about which shapefiles exist, so the two optional layers are
+    blank and every refinement that needs one is off."""
+    c = cfg({})
+    assert c.grid.streams == '' and c.grid.ponds == ''
+    assert c.grid.voronoi.stream_refine is False
+    assert c.grid.voronoi.seed_ponds is False
+    assert c.grid.quadtree.refine_streams is False
+
+
+@pytest.mark.parametrize('block, key, layer', [
+    ('voronoi', 'stream_refine', 'streams'),
+    ('quadtree', 'refine_streams', 'streams'),
+    ('voronoi', 'seed_ponds', 'ponds'),
+])
+def test_a_refinement_without_its_layer_is_refused(block, key, layer):
+    """A switch on with nothing to act on is how a "refined" mesh comes out
+    uniform -- which is exactly what happened before the layers were asked
+    for."""
+    with pytest.raises(cfgmod.ConfigError) as e:
+        cfg({'grid': {'kind': 'voronoi', block: {key: True}}})
+    assert 'grid.%s' % layer in str(e.value)
+    # ... and it is accepted as soon as the layer is named.
+    c = cfg({'grid': {'kind': 'voronoi', layer: 'x.shp', block: {key: True}}})
+    assert getattr(getattr(c.grid, block), key) is True
+
+
+def test_a_layer_that_is_not_a_shapefile_is_refused():
+    for key in ('streams', 'ponds'):
+        with pytest.raises(cfgmod.ConfigError) as e:
+            cfg({'grid': {key: 'network.geojson'}})
+        assert 'grid.%s' % key in str(e.value)
+
+
+def test_the_pond_layer_is_named_once():
+    """It used to be named in [lak] for the LAK footprints and hardcoded in
+    the converter for the centroid table. Panel 1 asks for it first, so
+    [grid] is where it lives."""
+    c = cfg({'grid': {'ponds': 'charcas.shp'}})
+    assert c.grid.ponds == 'charcas.shp'
