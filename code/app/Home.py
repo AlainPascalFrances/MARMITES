@@ -33,7 +33,7 @@ st.set_page_config(page_title='MARMITES / MF6', page_icon='💧', layout='wide')
 
 def case_selector():
     cases = []
-    ex = mm_paths.REPO / 'example'
+    ex = mm_paths.EXAMPLE_ROOT
     if ex.is_dir():
         cases = sorted(d.name for d in ex.iterdir()
                        if d.is_dir() and not d.name.startswith('.'))
@@ -41,6 +41,64 @@ def case_selector():
     default = st.session_state.get('case', 'LaMata')
     idx = cases.index(default) if default in cases else 0
     return st.sidebar.selectbox('Case study', cases, index=idx, key='case')
+
+
+def where_things_are():
+    """Panel 0 owns the machine-specific folders -- set here, once.
+
+    They used to be read-only in the sidebar under a note telling the modeller
+    to edit ``code/mm_paths.py``. A path is not source code: it says where one
+    person's data sits, so it is set here and saved to a machine-local file
+    that is not tracked. An ``MM_*`` environment variable still wins, and the
+    form says so per row rather than leaving it to be discovered.
+    """
+    st.markdown('### Where things are, on this machine')
+    st.caption('Set once. Written to `code/configs/paths.local.toml`, which '
+               'is machine-local and not tracked — nothing here goes into the '
+               'repository, and no file has to be edited by hand.')
+
+    current = {k: str(getattr(mm_paths, {'gis': 'GIS',
+                                         'example_root': 'EXAMPLE_ROOT'}.get(
+                                  k, k.upper()))) for k in mm_paths.SETTABLE}
+    pinned = [k for k in mm_paths.SETTABLE
+              if 'environment variable' in mm_paths.source_of(k)]
+    if pinned:
+        st.info('Set by the environment, so they cannot be changed here: %s. '
+                'That is deliberate — a batch run or a PEST worker overrides '
+                'these for one run.'
+                % ', '.join('`%s`' % mm_paths.SETTABLE[k][0] for k in pinned))
+
+    edits, cols = {}, st.columns(2)
+    for i, (key, (env, _default, doc)) in enumerate(mm_paths.SETTABLE.items()):
+        with cols[i % 2]:
+            label = key.replace('_', ' ').upper()
+            got = panelui.folder_picker(
+                label, current[key], key='path_%s' % key,
+                help_='`%s`  \n%s  \nFrom %s.'
+                      % (env, doc, mm_paths.source_of(key)),
+                want='file' if key in ('nwt_ref', 'python_exe') else 'dir')
+            exists = os.path.exists(got) if got else False
+            st.caption(('🟢 exists' if exists else '🔴 does not exist')
+                       + ('  ·  read-only: %s is set' % env
+                          if key in pinned else ''))
+            edits[key] = got
+
+    c1, c2 = st.columns([1, 3])
+    if c1.button('Save these paths', type='primary', key='save_paths'):
+        saved = {k: v for k, v in edits.items() if k not in pinned}
+        try:
+            mm_paths.save_settings(saved)
+        except OSError as exc:
+            c2.error('Could not write %s: %r' % (mm_paths.SETTINGS, exc))
+        else:
+            c2.success('Saved to `%s`. Applied now — no restart.'
+                       % mm_paths.settings_label())
+            st.rerun()
+    missing = [k for k, v in edits.items() if v and not os.path.exists(v)]
+    if missing:
+        c2.warning('%d path(s) do not exist yet: %s. A run needs the dataset '
+                   'and the workspace; the rest are needed only by what uses '
+                   'them.' % (len(missing), ', '.join(missing)))
 
 
 def runs_dir(cfg=None):
@@ -52,8 +110,6 @@ def main():
     case = case_selector()
     cfg, path = panelui.pick_config()
     panelui.dataset_banner(cfg)
-    st.sidebar.caption('Edit `code/mm_paths.py`, or set the `MM_*` '
-                       'environment variables.')
 
     st.title('💧  MARMITES / MODFLOW 6')
     st.caption('A soil water balance coupled to MODFLOW 6 through the API. '
@@ -85,7 +141,6 @@ def main():
 | **4 Plots** | what to draw afterwards | `run.plot` |
 | **5 Run** | launch it, and follow the log | — |
 | **6 Results** | the figures a run wrote | — |
-| **7 Inputs** | every file the model reads, and the source cartography | — |
 
 **The grid comes first**, because every other input is *wrapped onto it*: the
 soil zones, the vegetation cover, the stream network and the observation
@@ -96,9 +151,13 @@ The switches are not decoration. They are the same `[run]` keys the driver
 reads, so turning one off means that half of the model does not execute.
 """)
 
+    where_things_are()
+
     ds = mm_paths.dataset_dir(case)
     c1, c2, c3 = st.columns(3)
-    c1.metric('Grid', '%s @ %g m' % (cfg.grid.kind, cfg.grid.cell_size))
+    import marmites_meshes as _mm                 # noqa: E402
+    c1.metric('Grid', '%s @ %g m' % (cfg.grid_kind,
+                                     _mm.rectangle_cell_size(cfg)))
     c2.metric('Vegetation types', len(cfg.surface.vegetation))
     c3.metric('Runs on record', len(runlib.list_runs(runs_dir(cfg))))
 

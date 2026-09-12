@@ -159,3 +159,55 @@ def test_the_grid_panel_offers_both_buttons():
     assert 'mkgrid' in keys, 'no Create grid button'
     assert not any(k and k.startswith('save_') for k in keys), \
         'panel 1 still has a Validate & save'
+
+
+def test_panel_zero_sets_the_machine_paths():
+    """They used to be read-only in the sidebar, under a caption telling the
+    modeller to go and edit code/mm_paths.py. A path is not source code."""
+    at = AppTest.from_file(os.path.join(APP, 'Home.py'), default_timeout=180)
+    at.run()
+    keys = {w.key for w in at.text_input if w.key}
+    for key in ('path_example_root', 'path_data_root', 'path_gis',
+                'path_ws_root'):
+        assert key in keys, '%s is not settable on panel 0' % key
+    assert any(b.key == 'save_paths' for b in at.button), \
+        'panel 0 collects the paths but cannot save them'
+    said = ' '.join(str(m.value) for m in at.caption) + \
+        ' '.join(str(m.value) for m in at.markdown)
+    assert 'mm_paths.py`, or set' not in said, \
+        'panel 0 still tells the modeller to edit a source file'
+
+
+def test_panel_zero_offers_a_browser_for_each_path():
+    """"Select the folder inside the computer": typed OR browsed to, without
+    a native dialog -- the server process is only the user's own machine
+    while the app runs locally, which ui.execution says is not a given."""
+    at = AppTest.from_file(os.path.join(APP, 'Home.py'), default_timeout=180)
+    at.run()
+    keys = {b.key for b in at.button if b.key}
+    assert 'path_gis.__up' in keys and 'path_gis.__use' in keys
+    # ... and the two that are FILES, not folders, are picked as files.
+    assert 'path_nwt_ref.__usef' in keys or 'path_nwt_ref.__up' in keys
+
+
+def test_the_derived_bands_follow_the_boxes_without_a_save():
+    """They are recomputed from what is ON SCREEN. A derived box that only
+    caught up after a save shows the PREVIOUS corridor's bands, and the first
+    thing doubted is the number rather than the box."""
+    at = AppTest.from_file(os.path.join(APP, 'pages', '1_Grid.py'),
+                           default_timeout=180)
+    at.run()
+    at.selectbox(key='grid.kind').select('voronoi').run()
+    shown = lambda a: [t.value for t in a.text_input
+                       if t.key == 'ro_grid.voronoi.trans_levels'][0]
+    before = shown(at)
+    # A wider corridor must move every band outwards ...
+    at.number_input(key='grid.voronoi.stream_buffer').set_value(120.0).run()
+    wider = shown(at)
+    assert wider != before, 'the bands ignored the corridor width'
+    assert max(float(x) for x in wider.split(',')) == 120.0
+    # ... and a coarser grading ratio must ask for fewer of them.
+    n_before = len(wider.split(','))
+    at.number_input(key='grid.voronoi.grade_ratio').set_value(2.5).run()
+    assert len(shown(at).split(',')) < n_before, \
+        'the bands ignored the grade ratio'

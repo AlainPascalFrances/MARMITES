@@ -34,7 +34,7 @@ if _CODE not in sys.path:
 __all__ = ['PANELS', 'FIELDS', 'TABLES', 'CHOICES', 'SUBPANELS', 'panel_of',
            'describe', 'fields_of', 'choices_for', 'subpanel_for', 'is_source',
            'GRID_PERMANENT', 'GRID_SUBPANEL', 'GRID_DERIVED', 'GRID_GATED',
-           'PanelError']
+           'grid_fields', 'PanelError']
 
 
 class PanelError(Exception):
@@ -492,27 +492,41 @@ SUBPANELS = {
     'grid.cell_size': ('grid.kind', ('structured', 'disv', 'quadtree')),
 }
 
-# What each kind's sub-panel shows, in order. Everything NOT listed here is
-# either in the permanent block or derived; a test checks the two partition
-# the [grid] block with nothing left over.
+# What each kind's sub-panel shows, ROW BY ROW. The nesting is the layout: a
+# switch gets a row to itself and what it controls goes on the row below, so
+# the dependency is visible without reading the help. Everything NOT listed
+# here is in the permanent block; a test checks the two partition the [grid]
+# block with nothing left over.
 GRID_PERMANENT = ('grid.boundary', 'grid.crs_epsg', 'grid.kind',
                   'grid.resample')
+_LEGACY_ROWS = (
+    ('grid.cell_size', 'grid.buffer'),
+    ('grid.override.enable',),
+    ('grid.override.xllcorner', 'grid.override.yllcorner',
+     'grid.override.nrow', 'grid.override.ncol'),
+)
 GRID_SUBPANEL = {
-    'structured': ('grid.cell_size', 'grid.buffer', 'grid.override.enable',
-                   'grid.override.xllcorner', 'grid.override.yllcorner',
-                   'grid.override.nrow', 'grid.override.ncol'),
-    'disv': ('grid.cell_size', 'grid.buffer', 'grid.override.enable',
-             'grid.override.xllcorner', 'grid.override.yllcorner',
-             'grid.override.nrow', 'grid.override.ncol'),
-    'voronoi': ('grid.voronoi.cell_far', 'grid.buffer',
-                'grid.voronoi.stream_refine',
-                'grid.voronoi.cell_near_stream', 'grid.voronoi.stream_buffer',
-                'grid.voronoi.grade_ratio', 'grid.voronoi.trans_levels',
-                'grid.voronoi.seed_ponds'),
-    'quadtree': ('grid.cell_size', 'grid.buffer',
-                 'grid.quadtree.refine_streams',
-                 'grid.quadtree.refine_level'),
+    'structured': _LEGACY_ROWS,
+    'disv': _LEGACY_ROWS,
+    'voronoi': (
+        ('grid.voronoi.cell_far', 'grid.buffer'),
+        ('grid.voronoi.stream_refine',),
+        ('grid.voronoi.cell_near_stream', 'grid.voronoi.stream_buffer',
+         'grid.voronoi.grade_ratio'),
+        ('grid.voronoi.trans_levels',),
+        ('grid.voronoi.seed_ponds',),
+    ),
+    'quadtree': (
+        ('grid.cell_size', 'grid.buffer'),
+        ('grid.quadtree.refine_streams',),
+        ('grid.quadtree.refine_level',),
+    ),
 }
+
+
+def grid_fields(kind):
+    """Every field on one kind's sub-panel, flattened out of its rows."""
+    return tuple(d for row in GRID_SUBPANEL.get(kind, ()) for d in row)
 # Shown but never typed: the producer owns them.
 GRID_DERIVED = ('grid.voronoi.trans_levels',)
 # Greyed out, and CLEARED, while their controlling switch is off (panel 1 D4).

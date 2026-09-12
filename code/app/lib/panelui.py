@@ -195,6 +195,135 @@ def subpanel_form(cfg, prefix, chosen, columns=3):
     return section_form(cfg, section, columns=columns, only=prefix + '.')
 
 
+def folder_picker(label, value, key, help_=None, want='dir'):
+    """A path, typed or BROWSED TO, without leaving the page.
+
+    Built out of ordinary widgets rather than a native file dialog: a dialog
+    opened by the server process is only the user's own machine while the app
+    runs locally, and `ui.execution = "server"` says that is not a given. This
+    works either way -- and on a remote host it browses the host, which is the
+    machine whose paths are being set.
+
+    ``want='file'`` picks a file instead of a folder.
+    """
+    typed = st.text_input(label, value=str(value or ''), key=key, help=help_)
+    here = st.session_state.get(key + '.__at') or (
+        typed if os.path.isdir(typed) else os.path.dirname(typed) or os.getcwd())
+    with st.expander('Browse…', expanded=False):
+        st.caption('`%s`' % here)
+        try:
+            entries = sorted(os.listdir(here))
+        except OSError as exc:
+            st.error('%r' % exc)
+            entries = []
+        dirs = [d for d in entries if os.path.isdir(os.path.join(here, d))]
+        c1, c2 = st.columns([1, 3])
+        if c1.button('⬆ up', key=key + '.__up'):
+            st.session_state[key + '.__at'] = os.path.dirname(here.rstrip('\\/')) \
+                or here
+            st.rerun()
+        go = c2.selectbox('Subfolder', ['—'] + dirs, key=key + '.__sub')
+        if go and go != '—':
+            st.session_state[key + '.__at'] = os.path.join(here, go)
+            st.session_state.pop(key + '.__sub', None)
+            st.rerun()
+        if want == 'file':
+            files = [f for f in entries
+                     if os.path.isfile(os.path.join(here, f))]
+            pick = st.selectbox('File', ['—'] + files, key=key + '.__file')
+            if pick and pick != '—' and st.button('Use this file',
+                                                  key=key + '.__usef'):
+                st.session_state[key] = os.path.join(here, pick)
+                st.rerun()
+        elif st.button('Use this folder', key=key + '.__use'):
+            st.session_state[key] = here
+            st.rerun()
+    return st.session_state.get(key, typed)
+
+
+def boundary_picker(dotted, value, folder_key='gis_folder'):
+    """Choose the catchment polygon from the shapefiles on this machine.
+
+    A dropdown of what is actually THERE rather than a name to type: the
+    commonest way this field goes wrong is a file that has been renamed or
+    exported somewhere else, and a text box reports that only when the run
+    fails. The folder defaults to ``DATA_ROOT/GIS`` -- where the shapefiles
+    live and are read by the converter alone -- and can be pointed anywhere.
+
+    Stores a BARE FILENAME when the file is in the GIS folder, so the
+    configuration stays portable between machines, and an absolute path
+    otherwise. Both are accepted everywhere the boundary is opened.
+    """
+    from marmites_vector import find_shapefiles
+
+    gis = str(mm_paths.GIS)
+    folder = st.text_input('Folder to look in', value=st.session_state.get(
+        folder_key, gis), key=folder_key,
+        help='Defaults to DATA_ROOT/GIS. The shapefiles stay here and are '
+             'read only by the converter -- they never enter the repository.')
+    found = find_shapefiles(folder)
+    if not os.path.isdir(folder):
+        st.error('No such folder: `%s`' % folder)
+    elif not found:
+        st.warning('No .shp in `%s` (or one level below it).' % folder)
+
+    # What the configuration currently names, resolved the way the model
+    # resolves it, so the saved value is always one of the options.
+    current = os.path.join(gis, value) if value and not os.path.isabs(value) \
+        else (value or '')
+    options = list(found)
+    if current and current not in options:
+        options.insert(0, current)
+
+    label, units, help_ = schema.describe(dotted)
+    shown = '%s [%s]' % (label, units) if units else label
+    if not options:
+        return st.text_input(shown, value=str(value), key=dotted,
+                             help='`%s`  \n%s' % (dotted, help_))
+    pick = st.selectbox(
+        shown, options, index=options.index(current) if current in options
+        else 0, key=dotted, help='`%s`  \n%s' % (dotted, help_),
+        format_func=lambda p: (os.path.relpath(p, folder)
+                               if os.path.isdir(folder)
+                               and p.startswith(os.path.abspath(folder))
+                               else p))
+    # Back to what the file should hold.
+    try:
+        rel = os.path.relpath(pick, gis)
+    except ValueError:                         # different drive
+        return pick
+    return rel if not rel.startswith('..') else pick
+
+
+def derived_value(cfg, dotted, edited, values):
+    """A derived field's value for the settings currently ON SCREEN.
+
+    The configuration recomputes these in ``validate()``, i.e. on save. The
+    panel has to do it a step earlier, or a box that says "derived" would go
+    on showing the previous corridor's bands until the modeller saved -- and
+    the first thing they would do is doubt the number rather than the box.
+    """
+    import copy
+
+    if dotted == 'grid.voronoi.trans_levels':
+        v = copy.deepcopy(cfg.grid.voronoi)
+        for name in ('cell_far', 'cell_near_stream', 'stream_buffer',
+                     'grade_ratio', 'stream_refine'):
+            key = 'grid.voronoi.%s' % name
+            if key in edited:
+                setattr(v, name, edited[key])
+            elif key in st.session_state:
+                setattr(v, name, st.session_state[key])
+        try:
+            bands = v.bands()
+        except Exception:                                # noqa: BLE001
+            return str(values.get(dotted, ''))
+        if not bands:
+            return '(none — the mesh is uniform)'
+        return ', '.join('%g' % b for b in bands)
+    return str(values.get(dotted, ''))
+
+
 def grid_form(cfg, columns=3):
     """Panel 1's ``[grid]`` block: what is always asked, then the kind's own.
 
@@ -207,19 +336,41 @@ def grid_form(cfg, columns=3):
     Returns ``(edits, chosen_kind)``; the edits are keyed by dotted path
     exactly like :func:`section_form`.
     """
+    edited, chosen = grid_permanent_form(cfg, columns=columns)
+    values = dict(schema.fields_of(cfg, 'grid'))
+    edited.update(grid_kind_form(cfg, chosen, edited, values, columns=columns))
+    return edited, chosen
+
+
+def grid_permanent_form(cfg, columns=3):
+    """The half of ``[grid]`` that applies whatever the producer is.
+
+    Split from the kind's own settings so the panel can put the CATCHMENT
+    READ-OUTS -- area, extent, cell count -- between the two: they describe
+    what has just been chosen here, and they are what says whether the file
+    is the right one before any producer setting matters.
+    """
     values = dict(schema.fields_of(cfg, 'grid'))
     edited = {}
-
     st.markdown('##### Always asked')
     cols = st.columns(columns)
     for k, dotted in enumerate(schema.GRID_PERMANENT):
         with cols[k % columns]:
-            got = _widget(dotted, values[dotted])
+            if dotted == 'grid.boundary':
+                got = boundary_picker(dotted, values[dotted])
+            else:
+                got = _widget(dotted, values[dotted])
             if got is not None:
                 edited[dotted] = got
-
     raw = edited.get('grid.kind', cfg.grid_kind)
-    chosen = mcfg._GRID_ALIAS.get(raw, raw)
+    return edited, mcfg._GRID_ALIAS.get(raw, raw)
+
+
+def grid_kind_form(cfg, chosen, edited=None, values=None, columns=3):
+    """The settings belonging to ONE producer, and only that one."""
+    values = dict(schema.fields_of(cfg, 'grid')) if values is None else values
+    edited = dict(edited or {})
+    out = {}
     st.markdown('##### `%s` — the settings this producer uses' % chosen)
 
     # A field is BLOCKED when the switch it depends on is off. Drawn greyed
@@ -236,26 +387,39 @@ def grid_form(cfg, columns=3):
         if not edited.get(switch, state):
             off.update(dependents)
 
-    cols = st.columns(columns)
-    for k, dotted in enumerate(schema.GRID_SUBPANEL.get(chosen, ())):
-        with cols[k % columns]:
-            label, units, help_ = schema.describe(dotted)
-            shown = '%s [%s]' % (label, units) if units else label
-            if dotted in schema.GRID_DERIVED:
-                st.text_input(shown, value=str(values.get(dotted, '')),
-                              disabled=True, key='ro_%s' % dotted,
-                              help='`%s`  \n%s' % (dotted, help_))
-                continue
-            if dotted in off:
-                st.text_input(shown, value='', disabled=True,
-                              key='off_%s' % dotted,
-                              help='`%s`  \nCleared while its switch is off.'
-                                   % dotted)
-                continue
-            got = _widget(dotted, values[dotted])
-            if got is not None:
-                edited[dotted] = got
-    return edited, chosen
+    # Row by row, so a switch sits on its own line above what it controls.
+    for row in schema.GRID_SUBPANEL.get(chosen, ()):
+        cols = st.columns(max(columns, len(row)))
+        for k, dotted in enumerate(row):
+            with cols[k]:
+                label, units, help_ = schema.describe(dotted)
+                shown = '%s [%s]' % (label, units) if units else label
+                if dotted in schema.GRID_DERIVED:
+                    # Recomputed from what is ON SCREEN, not from the saved
+                    # configuration: a derived box that only caught up after a
+                    # save would show the PREVIOUS corridor's bands, and the
+                    # first thing doubted would be the number, not the box.
+                    #
+                    # It has to go through session_state. A KEYED widget takes
+                    # `value` as its value on the FIRST render only and reads
+                    # session_state on every one after, so passing a freshly
+                    # computed `value` to a keyed box changes nothing at all.
+                    ro = 'ro_%s' % dotted
+                    st.session_state[ro] = derived_value(
+                        cfg, dotted, dict(edited, **out), values)
+                    st.text_input(shown, disabled=True, key=ro,
+                                  help='`%s`  \n%s' % (dotted, help_))
+                    continue
+                if dotted in off:
+                    st.text_input(shown, value='', disabled=True,
+                                  key='off_%s' % dotted,
+                                  help='`%s`  \nCleared while its switch is '
+                                       'off.' % dotted)
+                    continue
+                got = _widget(dotted, values[dotted])
+                if got is not None:
+                    out[dotted] = got
+    return out
 
 
 def table_form(cfg, dotted, singular, path):

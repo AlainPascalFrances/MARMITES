@@ -42,7 +42,8 @@ import numpy as np
 
 __all__ = ['VectorError', 'OVERLAY_MODES', 'Layer', 'TargetGrid',
            'overlay_polygons', 'burn_lines', 'locate_points',
-           'coverage_report', 'write_geojson']
+           'coverage_report', 'write_geojson', 'find_shapefiles',
+           'check_polygon_layer']
 
 # 'majority'      the class covering the largest area of the cell
 # 'area_fraction' percentage of the cell covered, 0..100  (what VEGarea wants)
@@ -761,6 +762,192 @@ def locate_points(layer, grid, name_field=None):
                     'icell': int(ic), 'row': int(row), 'col': int(col),
                     'inside': ic >= 0})
     return out
+
+
+def find_shapefiles(folder, depth=1):
+    """Every ``.shp`` under ``folder``, to ``depth`` levels of subdirectory.
+
+    Returns absolute paths, sorted. Missing or unreadable folders give an
+    empty list rather than raising: this feeds a picker, and a mistyped
+    folder should show nothing to choose, not a traceback.
+    """
+    out = []
+    folder = str(folder or '')
+    if not os.path.isdir(folder):
+        return out
+    root_depth = folder.rstrip('\\/').count(os.sep)
+    for here, dirs, files in os.walk(folder):
+        if here.rstrip('\\/').count(os.sep) - root_depth >= depth:
+            dirs[:] = []
+        for f in files:
+            if f.lower().endswith('.shp'):
+                out.append(os.path.join(here, f))
+    return sorted(out)
+
+
+# A shapefile is a SET of files, and the ones that matter here fail
+# differently: without .shx pyshp cannot index the shapes, without .dbf there
+# are no attributes, and without .prj nothing knows what the coordinates mean.
+SHP_SIDECARS = ('.shx', '.dbf', '.prj')
+
+
+def _datum_name(wkt):
+    """The DATUM[...] name out of a .prj, without needing pyproj."""
+    low = (wkt or '').lower()
+    i = low.find('datum[')
+    if i < 0:
+        return ''
+    frag = wkt[i + len('datum['):]
+    return frag.split('"')[1] if '"' in frag.split(',')[0] + '"' else ''
+
+
+def _datum_of_epsg(epsg):
+    """The datum name of an EPSG code, or '' when pyproj is not installed."""
+    try:
+        from pyproj import CRS
+        return str(CRS.from_epsg(int(epsg)).datum.name)
+    except Exception:                                     # noqa: BLE001
+        return ''
+
+
+def _same_datum(a, b):
+    """Datum names as ArcGIS and EPSG spell them, compared loosely.
+
+    'D_European_1950' and 'European Datum 1950' are the same datum written by
+    two tools; comparing the strings raw would warn on every correct file.
+    """
+    def norm(s):
+        s = str(s).lower().replace('_', ' ').replace('-', ' ')
+        for drop in ('d ', 'datum', 'geodetic', 'the ', '  '):
+            s = s.replace(drop, ' ')
+        return ''.join(c for c in s if c.isalnum())
+    x, y = norm(a), norm(b)
+    return x in y or y in x
+
+
+def check_polygon_layer(path, expect_epsg=0):
+    """Is this a usable catchment polygon? A report, never an exception.
+
+    Answers the three questions panel 1 asks of the file before anything is
+    built on it: can it be READ, is it POLYGONS, and does it carry a CRS that
+    is projected and metric. Returns a dict with ``ok`` (fatal problems or
+    not), ``errors``, ``warnings`` and whatever it managed to measure.
+
+    Kept here rather than in the panel so it can be tested without a browser,
+    and used by the converter, which meets the same bad files.
+    """
+    rep = {'path': str(path), 'ok': False, 'errors': [], 'warnings': [],
+           'features': 0, 'kind': '', 'area_m2': 0.0, 'bbox': None,
+           'crs_wkt': '', 'crs_name': '', 'epsg': 0, 'projected': False,
+           'missing': []}
+    err, warn = rep['errors'].append, rep['warnings'].append
+
+    if not path:
+        err('No catchment polygon is set.')
+        return rep
+    if not os.path.exists(path):
+        err('The file does not exist: %s' % path)
+        return rep
+    if not str(path).lower().endswith('.shp'):
+        err('Not a shapefile: %s' % os.path.basename(str(path)))
+        return rep
+
+    stem = os.path.splitext(path)[0]
+    for ext in SHP_SIDECARS:
+        if not os.path.exists(stem + ext):
+            rep['missing'].append(ext)
+    for ext in rep['missing']:
+        if ext == '.prj':
+            err('No .prj beside it, so the file does not say what CRS its '
+                'coordinates are in. Every other layer is assumed to be in '
+                'the project CRS, and a silent mismatch is the one failure '
+                'that produces a plausible wrong answer. Export it again '
+                'with its projection.')
+        else:
+            err('Incomplete shapefile: %s%s is missing.'
+                % (os.path.basename(stem), ext))
+
+    try:
+        lay = Layer(path)
+    except Exception as exc:                              # noqa: BLE001
+        err('The file could not be read: %r' % exc)
+        return rep
+
+    rep['features'] = len(lay)
+    rep['kind'] = lay.kind
+    rep['bbox'] = tuple(float(v) for v in lay.bbox)
+    rep['crs_wkt'] = lay.crs_wkt or ''
+    if lay.kind != 'polygon':
+        err('This layer holds %ss. The catchment must be POLYGONS.' % lay.kind)
+    if not len(lay):
+        err('The layer has no features.')
+
+    # Area of each feature's LARGEST ring: real files disagree about ring
+    # orientation, so the outer ring is taken as the biggest one rather than
+    # trusted from its winding.
+    area = 0.0
+    for i in range(len(lay)):
+        try:
+            rings = lay.rings(i)
+        except Exception:                                 # noqa: BLE001
+            continue
+        if rings:
+            area += abs(_signed_area(max(rings,
+                                         key=lambda r: abs(_signed_area(r)))))
+    rep['area_m2'] = area
+
+    # The CRS, as the .prj declares it -- reported, never assumed.
+    wkt = rep['crs_wkt']
+    if wkt:
+        rep['crs_name'] = wkt.split('"')[1] if '"' in wkt else ''
+        low = wkt.lower()
+        rep['projected'] = low.lstrip().startswith(('projcs', 'projcrs'))
+        tail = wkt.rstrip().rstrip(']')
+        if '"epsg"' in low:
+            # ... AUTHORITY["EPSG","23029"]] -- the LAST one is the CRS's own
+            frag = wkt[low.rfind('"epsg"'):]
+            digits = ''.join(c for c in frag.split(',')[-1] if c.isdigit())
+            rep['epsg'] = int(digits) if digits else 0
+        del tail
+        if not rep['projected']:
+            err('The .prj declares a GEOGRAPHIC CRS (%s): those coordinates '
+                'are degrees. The catchment must be PROJECTED, in metres.'
+                % (rep['crs_name'] or 'unnamed'))
+
+    x0, y0, x1, y1 = rep['bbox'] if rep['bbox'] else (0, 0, 0, 0)
+    if rep['bbox'] and (x1 - x0 < 100.0 or y1 - y0 < 100.0):
+        err('The extent is %.4f x %.4f, which is too small to be metres. '
+            'The catchment must be PROJECTED, not latitude/longitude.'
+            % (x1 - x0, y1 - y0))
+    if expect_epsg and rep['epsg'] and int(expect_epsg) != rep['epsg']:
+        warn('The layer says EPSG:%d and the project is set to EPSG:%d. '
+             'Nothing is reprojected, so one of the two is wrong.'
+             % (rep['epsg'], int(expect_epsg)))
+    elif wkt and expect_epsg and not rep['epsg']:
+        # No authority code, which is the usual case for an ArcGIS export.
+        # The DATUM name is still there, and that is the difference that
+        # matters: ED50 and WGS84 UTM 29N are both metric, both plausible,
+        # and about 200 m apart. Nothing here reprojects, so a layer on the
+        # other datum lands beside the catchment rather than on it.
+        rep['datum'] = _datum_name(wkt)
+        want = _datum_of_epsg(int(expect_epsg))
+        if rep['datum'] and want and not _same_datum(rep['datum'], want):
+            warn('The layer is on datum %r and EPSG:%d is on %r. Both are '
+                 'metric and neither carries an authority code, so nothing '
+                 'catches this at run time -- and nothing reprojects: a layer '
+                 'on the other datum lands beside the catchment, not on it.'
+                 % (rep['datum'], int(expect_epsg), want))
+        else:
+            warn('The .prj carries no EPSG authority code, so the project CRS '
+                 'cannot be checked against it in full.')
+    elif wkt and not rep['epsg']:
+        warn('The .prj carries no EPSG authority code, so the project CRS '
+             'cannot be checked against it.')
+    if rep['features'] > 1:
+        warn('%d features: the whole set is taken as the domain.'
+             % rep['features'])
+    rep['ok'] = not rep['errors']
+    return rep
 
 
 def coverage_report(reports, indent='  '):

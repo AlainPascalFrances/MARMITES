@@ -154,51 +154,49 @@ tab_domain, tab_mesh = st.tabs(['Catchment & grid', 'The selected mesh'])
 
 # ===================================================================== 1a
 with tab_domain:
-    st.markdown('#### The catchment')
-    st.caption('A PROJECTED, metric polygon in the GIS folder. It defines the '
-               'active domain, the mesh boundary and the model rectangle.')
+    st.markdown('#### The catchment and the grid built inside it')
+    st.caption('A PROJECTED, metric polygon. It defines the active domain, '
+               'the mesh boundary and the model rectangle — so it is checked '
+               'here, before anything is built on it.')
 
-    gis = Path(mm_paths.GIS)
-    shp = sorted(f.name for f in gis.glob('*.shp')) if gis.is_dir() else []
-    if shp and cfg.grid.boundary not in shp:
-        st.warning('`%s` is not in %s. Present: %s'
-                   % (cfg.grid.boundary, gis, ', '.join(shp[:12])))
+    edited, chosen = panelui.grid_permanent_form(cfg, columns=3)
 
-    # ---- is the polygon where it should be? --------------------------
-    bnd = gis / cfg.grid.boundary
-    if bnd.exists():
-        try:
-            from marmites_vector import Layer, _signed_area
-            lay = Layer(str(bnd))
-            area = 0.0
-            for i in range(len(lay)):
-                rings = lay.rings(i)
-                if rings:
-                    area += abs(_signed_area(max(
-                        rings, key=lambda r: abs(_signed_area(r)))))
-            x0, y0, x1, y1 = lay.bbox
-            c1, c2, c3 = st.columns(3)
-            c1.metric('Polygon area', '%.3f km²' % (area / 1e6))
-            c2.metric('Extent', '%.0f × %.0f m' % (x1 - x0, y1 - y0))
-            import marmites_meshes as _mm
-            snap = _mm.rectangle_cell_size(cfg)
-            c3.metric('Cells at %g m' % snap,
-                      '%d' % (((x1 - x0) / snap + 1) * ((y1 - y0) / snap + 1)))
-            st.caption('`%s` — %d feature(s), CRS as declared: %s'
-                       % (bnd.name, len(lay),
-                          (lay.crs_wkt.split('"')[1] if '"' in lay.crs_wkt
-                           else 'UNDECLARED (no .prj)')))
-            if x1 - x0 < 100 or y1 - y0 < 100:
-                st.error('That extent is too small to be metres. The '
-                         'catchment polygon must be PROJECTED, not '
-                         'latitude/longitude.')
-        except Exception as exc:
-            st.info('Could not read the polygon: %r' % exc)
-    else:
-        st.error('The catchment polygon is missing: `%s`' % bnd)
+    # ---- is the file a usable catchment polygon? ---------------------
+    from marmites_vector import check_polygon_layer          # noqa: E402
+    picked = edited.get('grid.boundary', cfg.grid.boundary)
+    bnd = (picked if os.path.isabs(picked)
+           else os.path.join(str(mm_paths.GIS), picked))
+    rep = check_polygon_layer(bnd, expect_epsg=edited.get('grid.crs_epsg',
+                                                          cfg.grid.crs_epsg))
+    for msg in rep['errors']:
+        st.error(msg)
+    for msg in rep['warnings']:
+        st.warning(msg)
 
-    st.markdown('#### The grid built inside it')
-    edited, chosen = panelui.grid_form(cfg, columns=3)
+    if rep['bbox']:
+        x0, y0, x1, y1 = rep['bbox']
+        # The cell count follows the KIND chosen just above, and the size that
+        # kind actually uses -- read live, because the box it comes from is
+        # drawn further down the page.
+        snap = float(st.session_state.get(
+            'grid.voronoi.cell_far' if chosen == 'voronoi' else 'grid.cell_size',
+            (cfg.grid.voronoi.cell_far if chosen == 'voronoi'
+             else cfg.grid.cell_size)) or 0.0)
+        c1, c2, c3 = st.columns(3)
+        c1.metric('Polygon area', '%.3f km²' % (rep['area_m2'] / 1e6))
+        c2.metric('Extent', '%.0f × %.0f m' % (x1 - x0, y1 - y0))
+        c3.metric('Cells at %g m' % snap,
+                  '%d' % (((x1 - x0) / snap + 1) * ((y1 - y0) / snap + 1))
+                  if snap > 0 else '—')
+        st.caption('`%s` — %d %s feature(s), CRS as declared: **%s**%s'
+                   % (os.path.basename(bnd), rep['features'],
+                      rep['kind'] or '?',
+                      rep['crs_name'] or 'UNDECLARED (no .prj)',
+                      ' (EPSG:%d)' % rep['epsg'] if rep['epsg'] else ''))
+    if rep['ok']:
+        st.success('Valid catchment polygon.')
+
+    edited.update(panelui.grid_kind_form(cfg, chosen, edited, columns=3))
 
     if chosen in ('structured', 'dis'):
         st.caption('A structured grid needs nothing beyond the cell size: it '

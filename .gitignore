@@ -73,3 +73,7 @@ shared-indexes.xml
 ui.lnf.xml
 vcs.xml
 wsl.distributions.xml
+
+# Machine-local paths written by panel 0: where one person's data sits is
+# not a property of the project.
+code/configs/paths.local.toml

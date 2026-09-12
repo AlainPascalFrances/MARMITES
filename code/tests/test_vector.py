@@ -361,3 +361,127 @@ def test_coverage_report_mentions_over_100(tmp_path, grid4):
     _, rep = mv.overlay_polygons(mv.Layer(p), grid4, how='area_fraction')
     txt = mv.coverage_report([rep])
     assert 'OVER 100' in txt
+
+
+# =====================================================================
+#  WP1d panel 1 -- is this file a usable catchment polygon?
+# =====================================================================
+
+_ED50 = ('PROJCS["ED_1950_UTM_Zone_29N",GEOGCS["GCS_European_1950",'
+         'DATUM["D_European_1950",SPHEROID["International_1924",'
+         '6378388.0,297.0]]],PROJECTION["Transverse_Mercator"]]')
+_WGS84 = ('PROJCS["WGS_1984_UTM_Zone_29N",GEOGCS["GCS_WGS_1984",'
+          'DATUM["D_WGS_1984",SPHEROID["WGS_1984",6378137.0,298.257223563]]],'
+          'PROJECTION["Transverse_Mercator"]]')
+_GEOG = ('GEOGCS["GCS_WGS_1984",DATUM["D_WGS_1984",'
+         'SPHEROID["WGS_1984",6378137.0,298.257223563]],'
+         'UNIT["Degree",0.0174532925199433]]')
+
+
+def _catchment(path, prj=_ED50, size=1000.0, n=1):
+    """A square catchment of ``size`` metres, with the given .prj."""
+    rings = [[_cw([(0, 0), (size, 0), (size, size), (0, size)])]
+             for _ in range(n)]
+    _write_poly(path, rings, [('id', 'N', 4, 0)], [[i] for i in range(n)])
+    with open(os.path.splitext(path)[0] + '.prj', 'w') as fh:
+        fh.write(prj)
+    return path
+
+
+def test_a_good_catchment_polygon_is_accepted(tmp_path):
+    rep = mv.check_polygon_layer(_catchment(str(tmp_path / 'lim.shp')))
+    assert rep['ok'] and not rep['errors']
+    assert rep['kind'] == 'polygon' and rep['features'] == 1
+    assert rep['projected'] is True
+    assert abs(rep['area_m2'] - 1e6) < 1.0
+
+
+def test_a_missing_file_is_reported_not_raised(tmp_path):
+    """The picker asks about whatever is selected, including nothing."""
+    for path in ('', str(tmp_path / 'nope.shp'), str(tmp_path / 'x.geojson')):
+        rep = mv.check_polygon_layer(path)
+        assert rep['ok'] is False and rep['errors']
+
+
+def test_a_line_layer_is_refused_as_a_catchment(tmp_path):
+    p = str(tmp_path / 'streams.shp')
+    _write_line(p, [[[(0, 0), (100, 100)]]], [('id', 'N', 4, 0)], [[1]])
+    with open(os.path.splitext(p)[0] + '.prj', 'w') as fh:
+        fh.write(_ED50)
+    rep = mv.check_polygon_layer(p)
+    assert not rep['ok']
+    assert any('POLYGONS' in e for e in rep['errors'])
+
+
+def test_a_shapefile_without_a_prj_is_refused(tmp_path):
+    """Nothing reprojects, so a file that does not say what its coordinates
+    mean is the one failure that produces a plausible wrong answer."""
+    p = _catchment(str(tmp_path / 'noprj.shp'))
+    os.remove(os.path.splitext(p)[0] + '.prj')
+    rep = mv.check_polygon_layer(p)
+    assert not rep['ok']
+    assert '.prj' in rep['missing']
+    assert any('CRS' in e for e in rep['errors'])
+
+
+def test_an_incomplete_shapefile_is_refused(tmp_path):
+    p = _catchment(str(tmp_path / 'half.shp'))
+    os.remove(os.path.splitext(p)[0] + '.dbf')
+    rep = mv.check_polygon_layer(p)
+    assert not rep['ok']
+    assert any('.dbf' in e for e in rep['errors'])
+
+
+def test_a_geographic_crs_is_refused(tmp_path):
+    """Degrees, not metres: the extent check alone would catch it, and the
+    .prj says so outright."""
+    p = _catchment(str(tmp_path / 'wgs.shp'), prj=_GEOG, size=0.01)
+    rep = mv.check_polygon_layer(p)
+    assert not rep['ok']
+    assert any('GEOGRAPHIC' in e for e in rep['errors'])
+    assert any('metres' in e for e in rep['errors'])
+
+
+def test_a_tiny_extent_is_refused_as_degrees(tmp_path):
+    rep = mv.check_polygon_layer(_catchment(str(tmp_path / 't.shp'), size=0.5))
+    assert not rep['ok']
+    assert any('too small to be metres' in e for e in rep['errors'])
+
+
+def test_a_layer_on_another_datum_warns(tmp_path):
+    """ED50 and WGS84 UTM 29N are both metric, both plausible, and about
+    200 m apart. Neither ArcGIS .prj carries an authority code, so nothing
+    else in the chain would catch it."""
+    rep = mv.check_polygon_layer(_catchment(str(tmp_path / 'w.shp'),
+                                            prj=_WGS84), expect_epsg=23029)
+    assert rep['ok']                       # metric and polygons: usable
+    assert any('datum' in w for w in rep['warnings']), rep['warnings']
+
+
+def test_the_matching_datum_does_not_warn_about_datums(tmp_path):
+    rep = mv.check_polygon_layer(_catchment(str(tmp_path / 'e.shp'),
+                                            prj=_ED50), expect_epsg=23029)
+    assert rep['ok']
+    assert not any('lands beside the catchment' in w for w in rep['warnings'])
+
+
+def test_a_declared_epsg_that_disagrees_warns(tmp_path):
+    p = _catchment(str(tmp_path / 'auth.shp'),
+                   prj=_ED50[:-1] + ',AUTHORITY["EPSG","23030"]]')
+    rep = mv.check_polygon_layer(p, expect_epsg=23029)
+    assert rep['epsg'] == 23030
+    assert any('23029' in w for w in rep['warnings'])
+
+
+def test_find_shapefiles_lists_what_is_there(tmp_path):
+    _catchment(str(tmp_path / 'a.shp'))
+    sub = tmp_path / 'sub'
+    sub.mkdir()
+    _catchment(str(sub / 'b.shp'))
+    deep = sub / 'deeper'
+    deep.mkdir()
+    _catchment(str(deep / 'c.shp'))
+    found = mv.find_shapefiles(str(tmp_path))
+    names = sorted(os.path.basename(f) for f in found)
+    assert names == ['a.shp', 'b.shp']      # one level down, not two
+    assert mv.find_shapefiles(str(tmp_path / 'nowhere')) == []

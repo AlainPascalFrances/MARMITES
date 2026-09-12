@@ -410,20 +410,38 @@ def test_every_grid_field_is_either_permanent_or_on_one_kinds_subpanel(cfg):
     field no panel shows, which is how a live setting goes invisible."""
     keys = {k for k, _v in schema.fields_of(cfg, 'grid')}
     shown = set(schema.GRID_PERMANENT)
-    for fields in schema.GRID_SUBPANEL.values():
-        shown.update(fields)
+    for kind in schema.GRID_SUBPANEL:
+        shown.update(schema.grid_fields(kind))
     assert not (keys - shown), 'shown by no panel: %s' % sorted(keys - shown)
     assert not (shown - keys), 'not in the configuration: %s' % sorted(shown - keys)
-    assert not (set(schema.GRID_PERMANENT) & set(schema.GRID_SUBPANEL['voronoi']))
+    assert not (set(schema.GRID_PERMANENT)
+                & set(schema.grid_fields('voronoi')))
 
 
 def test_every_grid_subpanel_field_matches_its_visibility_rule(cfg):
     """A field on the voronoi sub-panel whose rule says 'structured' would be
     drawn and then refused by validate()."""
-    for kind, fields in schema.GRID_SUBPANEL.items():
-        for dotted in fields:
+    for kind in schema.GRID_SUBPANEL:
+        for dotted in schema.grid_fields(kind):
             rule = schema.subpanel_for(dotted)
             if rule is not None:
                 assert kind in rule[1], \
                     '%s is on the %s sub-panel but applies to %s' % (
                         dotted, kind, ', '.join(rule[1]))
+
+
+def test_a_gating_switch_is_on_its_own_row_above_what_it_controls(cfg):
+    """The nesting IS the layout: a switch shares a row with nothing, and
+    everything it gates comes after it."""
+    for kind, rows in schema.GRID_SUBPANEL.items():
+        flat = schema.grid_fields(kind)
+        for switch, dependents in schema.GRID_GATED.items():
+            if switch not in flat:
+                continue
+            row = [r for r in rows if switch in r][0]
+            assert len(row) == 1, \
+                '%s shares its row with %s' % (switch, row)
+            for dep in dependents:
+                if dep in flat:
+                    assert flat.index(dep) > flat.index(switch), \
+                        '%s is drawn before the switch that gates it' % dep
