@@ -33,6 +33,7 @@ if _CODE not in sys.path:
 
 __all__ = ['PANELS', 'FIELDS', 'TABLES', 'CHOICES', 'SUBPANELS', 'panel_of',
            'describe', 'fields_of', 'choices_for', 'subpanel_for', 'is_source',
+           'GRID_PERMANENT', 'GRID_SUBPANEL', 'GRID_DERIVED', 'GRID_GATED',
            'PanelError']
 
 
@@ -130,17 +131,17 @@ FIELDS = {
                       'converted from here to the latitude and longitude '
                       'Penman-Monteith needs.'),
     'grid.cell_size': ('Cell size', 'm',
-                       'Background cell size, for every grid kind.'),
+                       'The cell itself on a structured or disv grid, and the '
+                       'background GRIDGEN halves on a quadtree. A Voronoi '
+                       'mesh does not use it at all -- there the size is '
+                       'cell_far, and the rectangle is snapped to that.'),
     'grid.buffer': ('Buffer', 'm',
                     'Extend the model rectangle beyond the polygon.'),
     'grid.kind': ('Grid kind', _U,
-                  'structured is the validated DIS grid and the regression '
-                  'anchor. voronoi and quadtree are real meshes; disv is the '
-                  'structured grid re-expressed as polygons, used to check '
-                  'that the mesh path changes nothing by itself.'),
-    'grid.rebuild': ('Rebuild the mesh', _U,
-                     'The cache carries the mesh signature, so this is only '
-                     'needed to force a rebuild.'),
+                  'voronoi is the default. structured is the legacy DIS grid '
+                  'and the regression anchor; disv is that same grid '
+                  're-expressed as polygons, which is how the mesh path is '
+                  'checked to change nothing by itself.'),
     'grid.resample': ('Resampling rule', _U,
                       'auto area-weights continuous fields and majority-votes '
                       'zone maps. centre samples the cell centre -- worse per '
@@ -149,13 +150,24 @@ FIELDS = {
                               'The side of the EQUIVALENT SQUARE, so 100 aims '
                               'at 10 000 m2. Every build prints the area it '
                               'actually achieved -- read that, not this.'),
-    'grid.voronoi.cell_near_stream': ('Cell size near the stream', 'm', ''),
-    'grid.voronoi.stream_buffer': ('Stream corridor width', 'm', ''),
+    'grid.voronoi.cell_near_stream': ('Cell size near the stream', 'm',
+                                      'The size the innermost band carries. '
+                                      'Cleared while the refinement is off.'),
+    'grid.voronoi.stream_buffer': ('Stream corridor width', 'm',
+                                   'Distance from the centreline at which the '
+                                   'cells have reached cell_far. Cleared '
+                                   'while the refinement is off.'),
     'grid.voronoi.stream_refine': ('Refine along the streams', _U,
                                    'Off is the SFRmaker approach: map the '
                                    'network onto the background grid. CdL '
                                    'settled on off after judging a refined '
                                    'mesh too refined near streams.'),
+    'grid.voronoi.grade_ratio': ('Maximum size ratio between bands', _U,
+                                 'How fast the cells may grow from the '
+                                 'corridor outwards, and so how many '
+                                 'transition bands there are. 1.5 is the '
+                                 'usual rule of thumb; the bands themselves '
+                                 'are derived from it.'),
     'grid.voronoi.seed_ponds': ('Seed a cell per pond', _U, ''),
     'grid.quadtree.refine_level': ('Refinement levels', 'count',
                                    'GRIDGEN halves a cell per level, so 2 on '
@@ -388,9 +400,15 @@ FIELDS = {
                                   'point. Many figures.'),
 
     # ---- the rest of panel 3 ------------------------------------------
-    'grid.voronoi.trans_levels': ('Transition cell sizes', 'm',
-                                  'Graded steps between the stream corridor '
-                                  'and the background, Daoud-style.'),
+    # DERIVED, and shown read-only: these are DISTANCES from the stream
+    # centreline, not cell sizes -- the old label said sizes, which is how a
+    # 70 m band ended up sitting outside a 60 m corridor.
+    'grid.voronoi.trans_levels': ('Transition bands (derived)', 'm',
+                                  'Buffer distances from the centreline at '
+                                  'which the cell size steps up, computed '
+                                  'from the corridor and the maximum size '
+                                  'ratio. Read-only: editing it does '
+                                  'nothing.'),
     'layers.aggregate': ('Derive 2 layers from 6', _U,
                          'Comparison only. The 2-layer parameter set is '
                          'maintained by hand and is NOT this.'),
@@ -465,6 +483,48 @@ CHOICES = {
 SUBPANELS = {
     'grid.voronoi': ('grid.kind', ('voronoi',)),
     'grid.quadtree': ('grid.kind', ('quadtree',)),
+    # WP1d panel 1: the settings that used to sit in the permanent block and
+    # are in fact structured-only. The override reproduces an EXISTING
+    # rectangle, which only means something for the two kinds the legacy
+    # comparison uses -- validate() refuses it for the others rather than
+    # applying a box that is no longer on screen.
+    'grid.override': ('grid.kind', ('structured', 'disv')),
+    'grid.cell_size': ('grid.kind', ('structured', 'disv', 'quadtree')),
+}
+
+# What each kind's sub-panel shows, in order. Everything NOT listed here is
+# either in the permanent block or derived; a test checks the two partition
+# the [grid] block with nothing left over.
+GRID_PERMANENT = ('grid.boundary', 'grid.crs_epsg', 'grid.kind',
+                  'grid.resample')
+GRID_SUBPANEL = {
+    'structured': ('grid.cell_size', 'grid.buffer', 'grid.override.enable',
+                   'grid.override.xllcorner', 'grid.override.yllcorner',
+                   'grid.override.nrow', 'grid.override.ncol'),
+    'disv': ('grid.cell_size', 'grid.buffer', 'grid.override.enable',
+             'grid.override.xllcorner', 'grid.override.yllcorner',
+             'grid.override.nrow', 'grid.override.ncol'),
+    'voronoi': ('grid.voronoi.cell_far', 'grid.buffer',
+                'grid.voronoi.stream_refine',
+                'grid.voronoi.cell_near_stream', 'grid.voronoi.stream_buffer',
+                'grid.voronoi.grade_ratio', 'grid.voronoi.trans_levels',
+                'grid.voronoi.seed_ponds'),
+    'quadtree': ('grid.cell_size', 'grid.buffer',
+                 'grid.quadtree.refine_streams',
+                 'grid.quadtree.refine_level'),
+}
+# Shown but never typed: the producer owns them.
+GRID_DERIVED = ('grid.voronoi.trans_levels',)
+# Greyed out, and CLEARED, while their controlling switch is off (panel 1 D4).
+GRID_GATED = {
+    'grid.voronoi.stream_refine': ('grid.voronoi.cell_near_stream',
+                                   'grid.voronoi.stream_buffer',
+                                   'grid.voronoi.grade_ratio',
+                                   'grid.voronoi.trans_levels'),
+    'grid.quadtree.refine_streams': ('grid.quadtree.refine_level',),
+    'grid.override.enable': ('grid.override.xllcorner',
+                             'grid.override.yllcorner',
+                             'grid.override.nrow', 'grid.override.ncol'),
 }
 
 

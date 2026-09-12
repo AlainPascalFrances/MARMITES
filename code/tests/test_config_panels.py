@@ -74,11 +74,77 @@ def test_panel1_guards(bad, frag):
 def test_legacy_grid_override_carries_the_old_rectangle():
     """Deriving the grid from the polygon loses every baseline unless the old
     one can still be rebuilt (WP1d, C.1)."""
-    c = cfg({'grid': {'override': {'enable': True, 'xllcorner': 739300.0,
+    c = cfg({'grid': {'kind': 'structured',
+                      'override': {'enable': True, 'xllcorner': 739300.0,
                                    'yllcorner': 4553050.0,
                                    'nrow': 65, 'ncol': 60}}})
     assert c.grid.override.enable is True
     assert (c.grid.override.nrow, c.grid.override.ncol) == (65, 60)
+
+
+@pytest.mark.parametrize('kind', ['voronoi', 'quadtree'])
+def test_the_override_is_refused_on_a_mesh(kind):
+    """WP1d panel 1, D3. The override reproduces an EXISTING rectangle, and
+    model_rectangle honours it whatever the kind -- so a box left on from a
+    structured run would silently override a mesh's domain. The panel hides
+    it for these kinds, and hiding is not disabling, so the schema refuses."""
+    with pytest.raises(cfgmod.ConfigError) as e:
+        cfg({'grid': {'kind': kind,
+                      'override': {'enable': True, 'nrow': 65, 'ncol': 60}}})
+    assert 'grid.override.enable' in str(e.value)
+
+
+def test_the_transition_bands_are_derived_not_typed():
+    """They are buffer DISTANCES from the centreline, and the shipped list
+    used to put its outermost band beyond the corridor it was meant to end
+    at. Whatever the file says, validate() rewrites it."""
+    c = cfg({'grid': {'kind': 'voronoi',
+                      'voronoi': {'cell_far': 100.0, 'cell_near_stream': 40.0,
+                                  'stream_buffer': 60.0, 'grade_ratio': 1.5,
+                                  'trans_levels': [10.0, 20.0, 40.0, 70.0]}}})
+    v = c.grid.voronoi
+    assert v.trans_levels == [15.0, 30.0, 45.0, 60.0]
+    # the corridor edge IS the outermost band, which is the whole point
+    assert v.trans_levels[-1] == v.stream_buffer
+    # ... and the steepest step honours the ratio
+    n = len(v.trans_levels)
+    assert (40.0 + (100.0 - 40.0) / (n - 1)) / 40.0 <= 1.5 + 1e-12
+
+
+def test_a_coarser_grade_ratio_asks_for_fewer_bands():
+    fine = cfg({'grid': {'kind': 'voronoi',
+                         'voronoi': {'grade_ratio': 1.2}}}).grid.voronoi
+    coarse = cfg({'grid': {'kind': 'voronoi',
+                           'voronoi': {'grade_ratio': 2.5}}}).grid.voronoi
+    assert len(fine.trans_levels) > len(coarse.trans_levels)
+
+
+@pytest.mark.parametrize('ratio', [1.0, 0.5, 3.5, -1.0])
+def test_an_impossible_grade_ratio_is_refused(ratio):
+    with pytest.raises(cfgmod.ConfigError) as e:
+        cfg({'grid': {'kind': 'voronoi', 'voronoi': {'grade_ratio': ratio}}})
+    assert 'grade_ratio' in str(e.value)
+
+
+def test_a_ratio_needing_more_bands_than_allowed_is_refused():
+    """Capping the bands silently would mean the mesh does not grade the way
+    the file says it does."""
+    with pytest.raises(cfgmod.ConfigError) as e:
+        cfg({'grid': {'kind': 'voronoi',
+                      'voronoi': {'cell_near_stream': 2.0, 'cell_far': 200.0,
+                                  'grade_ratio': 1.05}}})
+    assert 'transition bands' in str(e.value)
+
+
+def test_switching_the_refinement_off_clears_the_corridor():
+    """Panel 1, D4: with no refinement there is no corridor, so the settings
+    that describe one do not stay in the file looking live."""
+    v = cfg({'grid': {'kind': 'voronoi',
+                      'voronoi': {'stream_refine': False,
+                                  'cell_near_stream': 40.0,
+                                  'stream_buffer': 60.0}}}).grid.voronoi
+    assert v.trans_levels == []
+    assert v.cell_near_stream == 0.0 and v.stream_buffer == 0.0
 
 
 # --------------------------------------------------------- panel 2 surface

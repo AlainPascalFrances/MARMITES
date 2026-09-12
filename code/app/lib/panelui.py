@@ -27,7 +27,7 @@ from lib import editor, schema          # noqa: E402
 CONFIG_DIR = os.path.join(CODE, 'configs')
 
 __all__ = ['pick_config', 'header', 'master_switch', 'section_form',
-           'table_form', 'save_button', 'CONFIG_DIR']
+           'grid_form', 'table_form', 'save_button', 'CONFIG_DIR']
 
 
 def pick_config():
@@ -193,6 +193,69 @@ def subpanel_form(cfg, prefix, chosen, columns=3):
     label = prefix.split('.')[-1]
     st.markdown('##### `[%s]` — applies to **%s** only' % (prefix, chosen))
     return section_form(cfg, section, columns=columns, only=prefix + '.')
+
+
+def grid_form(cfg, columns=3):
+    """Panel 1's ``[grid]`` block: what is always asked, then the kind's own.
+
+    The permanent block is the three things that do not depend on the
+    producer -- the catchment, its CRS, and which producer -- plus the
+    wrapping rule, which applies to every kind. Everything else belongs to
+    ONE kind and is drawn underneath it, so a setting that does nothing for
+    the chosen kind never sits beside one that does.
+
+    Returns ``(edits, chosen_kind)``; the edits are keyed by dotted path
+    exactly like :func:`section_form`.
+    """
+    values = dict(schema.fields_of(cfg, 'grid'))
+    edited = {}
+
+    st.markdown('##### Always asked')
+    cols = st.columns(columns)
+    for k, dotted in enumerate(schema.GRID_PERMANENT):
+        with cols[k % columns]:
+            got = _widget(dotted, values[dotted])
+            if got is not None:
+                edited[dotted] = got
+
+    raw = edited.get('grid.kind', cfg.grid_kind)
+    chosen = mcfg._GRID_ALIAS.get(raw, raw)
+    st.markdown('##### `%s` — the settings this producer uses' % chosen)
+
+    # A field is BLOCKED when the switch it depends on is off. Drawn greyed
+    # and empty rather than hidden, so what the switch would give is visible
+    # (panel 1, D4); the value itself is cleared by GridVoronoi.refresh().
+    #
+    # The switch's own widget is drawn INSIDE the loop below, i.e. after this,
+    # so its live value comes from session_state -- where streamlit keeps the
+    # widget's current value under its key -- and only falls back to the saved
+    # configuration on the very first render.
+    off = set()
+    for switch, dependents in schema.GRID_GATED.items():
+        state = st.session_state.get(switch, values.get(switch, True))
+        if not edited.get(switch, state):
+            off.update(dependents)
+
+    cols = st.columns(columns)
+    for k, dotted in enumerate(schema.GRID_SUBPANEL.get(chosen, ())):
+        with cols[k % columns]:
+            label, units, help_ = schema.describe(dotted)
+            shown = '%s [%s]' % (label, units) if units else label
+            if dotted in schema.GRID_DERIVED:
+                st.text_input(shown, value=str(values.get(dotted, '')),
+                              disabled=True, key='ro_%s' % dotted,
+                              help='`%s`  \n%s' % (dotted, help_))
+                continue
+            if dotted in off:
+                st.text_input(shown, value='', disabled=True,
+                              key='off_%s' % dotted,
+                              help='`%s`  \nCleared while its switch is off.'
+                                   % dotted)
+                continue
+            got = _widget(dotted, values[dotted])
+            if got is not None:
+                edited[dotted] = got
+    return edited, chosen
 
 
 def table_form(cfg, dotted, singular, path):

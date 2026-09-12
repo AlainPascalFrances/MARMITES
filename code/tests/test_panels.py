@@ -278,6 +278,7 @@ meshes = _load('marmites_meshes_p', os.path.join(CODE, 'marmites_meshes.py'))
 def test_the_rectangle_is_derived_from_the_polygon(cfg):
     """Panel 1's whole point: the domain comes first and the grid is built
     inside it."""
+    cfg.grid.kind = 'structured'                          # 50 m cells
     bbox = (739293.0, 4553110.0, 742223.0, 4556240.0)     # lm_lim.shp
     nrow, ncol, delr, delc, xll, yll = meshes.model_rectangle(cfg, bbox)
     assert (xll, yll) == (739250.0, 4553100.0)            # snapped DOWN
@@ -321,9 +322,31 @@ def test_no_polygon_and_no_override_is_an_error(cfg):
 
 
 def test_a_zero_cell_size_is_an_error(cfg):
+    cfg.grid.kind = 'structured'
     cfg.grid.cell_size = 0.0
-    with pytest.raises(meshes.MeshBuildError):
+    with pytest.raises(meshes.MeshBuildError) as e:
         meshes.model_rectangle(cfg, (0.0, 0.0, 100.0, 100.0))
+    assert 'grid.cell_size' in str(e.value)
+
+
+def test_a_voronoi_rectangle_is_snapped_to_cell_far(cfg):
+    """WP1d panel 1, D1 of 2A.7: the Voronoi producer never uses cell_size --
+    cell_far is the size -- so snapping the rectangle to cell_size left one
+    number doing nothing and another doing the work."""
+    cfg.grid.kind = 'voronoi'
+    cfg.grid.cell_size = 50.0
+    cfg.grid.voronoi.cell_far = 100.0
+    bbox = (739293.0, 4553110.0, 742223.0, 4556240.0)
+    _nr, _nc, delr, _dc, xll, yll = meshes.model_rectangle(cfg, bbox)
+    assert meshes.rectangle_cell_size(cfg) == 100.0
+    assert (xll, yll) == (739200.0, 4553100.0)            # 100 m, not 50 m
+    assert float(delr[0]) == 100.0
+    cfg.grid.cell_size = 25.0                             # and it does not move
+    assert meshes.model_rectangle(cfg, bbox)[4:] == (xll, yll)
+    cfg.grid.voronoi.cell_far = 0.0
+    with pytest.raises(meshes.MeshBuildError) as e:
+        meshes.model_rectangle(cfg, bbox)
+    assert 'cell_far' in str(e.value)
 
 
 def test_grid_stub_carries_what_the_producers_read(cfg):
@@ -359,7 +382,13 @@ def test_the_conditional_blocks_know_what_controls_them():
         ('grid.kind', ('voronoi',))
     assert schema.subpanel_for('grid.quadtree.refine_level') == \
         ('grid.kind', ('quadtree',))
-    assert schema.subpanel_for('grid.cell_size') is None
+    # WP1d: these two used to be permanent, and are not. cell_size is the
+    # cell for three kinds and nothing at all for voronoi; the override
+    # reproduces an EXISTING rectangle, which only the legacy kinds have.
+    assert schema.subpanel_for('grid.cell_size') == \
+        ('grid.kind', ('structured', 'disv', 'quadtree'))
+    assert schema.subpanel_for('grid.override.nrow') == \
+        ('grid.kind', ('structured', 'disv'))
 
 
 def test_the_conditional_blocks_are_separable_from_the_rest(cfg):
@@ -368,8 +397,33 @@ def test_the_conditional_blocks_are_separable_from_the_rest(cfg):
     keys = [k for k, _v in schema.fields_of(cfg, 'grid')]
     conditional = [k for k in keys if schema.subpanel_for(k)]
     always = [k for k in keys if not schema.subpanel_for(k)]
-    assert all(k.startswith(('grid.voronoi.', 'grid.quadtree.'))
+    assert all(k.startswith(('grid.voronoi.', 'grid.quadtree.',
+                             'grid.override.', 'grid.cell_size'))
                for k in conditional)
-    assert 'grid.cell_size' in always
     assert 'grid.boundary' in always
-    assert 'grid.override.nrow' in always          # applies to every kind
+    assert 'grid.crs_epsg' in always
+    assert 'grid.cell_size' not in always
+
+
+def test_every_grid_field_is_either_permanent_or_on_one_kinds_subpanel(cfg):
+    """The two lists PARTITION the [grid] block: a field in neither is a
+    field no panel shows, which is how a live setting goes invisible."""
+    keys = {k for k, _v in schema.fields_of(cfg, 'grid')}
+    shown = set(schema.GRID_PERMANENT)
+    for fields in schema.GRID_SUBPANEL.values():
+        shown.update(fields)
+    assert not (keys - shown), 'shown by no panel: %s' % sorted(keys - shown)
+    assert not (shown - keys), 'not in the configuration: %s' % sorted(shown - keys)
+    assert not (set(schema.GRID_PERMANENT) & set(schema.GRID_SUBPANEL['voronoi']))
+
+
+def test_every_grid_subpanel_field_matches_its_visibility_rule(cfg):
+    """A field on the voronoi sub-panel whose rule says 'structured' would be
+    drawn and then refused by validate()."""
+    for kind, fields in schema.GRID_SUBPANEL.items():
+        for dotted in fields:
+            rule = schema.subpanel_for(dotted)
+            if rule is not None:
+                assert kind in rule[1], \
+                    '%s is on the %s sub-panel but applies to %s' % (
+                        dotted, kind, ', '.join(rule[1]))

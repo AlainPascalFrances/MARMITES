@@ -92,7 +92,9 @@ REF_CONFIG = os.path.join(REPO, 'code', 'configs', 'lamata.toml')
 
 def test_empty_config_reproduces_todays_flag_defaults():
     """An empty file must behave exactly like the pre-WP0 defaults, so WP0
-    stays a pure refactor. WP1c is what flips grid.kind to voronoi."""
+    stays a pure refactor -- with ONE deliberate exception: WP1d flipped
+    grid.kind to voronoi. A run that wants the old rectangle now asks for it
+    by name, grid.kind = 'structured'."""
     c = cfgmod.RunConfig.from_dict({})
     assert c.run.mode == 'lagged'
     assert c.run.relax == 0.6
@@ -100,7 +102,7 @@ def test_empty_config_reproduces_todays_flag_defaults():
     assert c.run.daily is True
     assert c.run.ats is True
     assert c.run.max_discrepancy == 1.0
-    assert c.grid.kind == 'structured'    # == the old --grid dis
+    assert c.grid.kind == 'voronoi'       # WP1d; was 'structured' == --grid dis
     assert c.layers.nlay == 6
     assert c.layers.aggregate is False
     assert c.uzf.vks_scale == 1.0

@@ -79,27 +79,83 @@ def test_the_grid_kind_is_a_choice_not_a_text_box():
     assert set(kind) >= {'structured', 'disv', 'voronoi', 'quadtree'}
 
 
+def _keys(at):
+    """Every keyed widget on the page, whatever its type."""
+    return {w.key for w in (list(at.number_input) + list(at.checkbox)
+                            + list(at.selectbox) + list(at.text_input))
+            if w.key}
+
+
 def test_the_grid_subpanel_follows_the_kind():
-    """[grid.voronoi] must appear for voronoi and NOT for structured --
-    settings that only apply to one kind should not sit beside the ones that
-    always apply, looking equally live."""
+    """Each kind shows ITS OWN settings and no one else's -- a setting that
+    does nothing for the chosen producer must not sit beside one that does,
+    looking equally live. Written without assuming which kind the shipped
+    configuration selects."""
     at = AppTest.from_file(os.path.join(APP, 'pages', '1_Grid.py'),
                            default_timeout=180)
     at.run()
-    keys = lambda a: {w.key for w in list(a.number_input) + list(a.checkbox)
-                      + list(a.selectbox) + list(a.text_input) if w.key}
-    assert not any(k.startswith('grid.voronoi.') for k in keys(at)), \
+    at.selectbox(key='grid.kind').select('structured').run()
+    keys = _keys(at)
+    assert not any(k.startswith('grid.voronoi.') for k in keys), \
         'the voronoi block is shown for a structured grid'
+    assert not any(k.startswith('grid.quadtree.') for k in keys)
+    # ... and the structured-only settings ARE there. They used to sit in the
+    # permanent block, where they looked as though they applied to a mesh.
+    assert 'grid.cell_size' in keys and 'grid.override.enable' in keys
+
     at.selectbox(key='grid.kind').select('voronoi').run()
-    assert any(k.startswith('grid.voronoi.') for k in keys(at)), \
+    keys = _keys(at)
+    assert any(k.startswith('grid.voronoi.') for k in keys), \
         'the voronoi block does not appear when voronoi is chosen'
+    assert 'grid.override.enable' not in keys, \
+        'the override is offered on a mesh, where validate() refuses it'
+    assert 'grid.cell_size' not in keys, \
+        'cell_size is offered for voronoi, which does not use it'
+
     at.selectbox(key='grid.kind').select('quadtree').run()
-    assert any(k.startswith('grid.quadtree.') for k in keys(at))
-    assert not any(k.startswith('grid.voronoi.') for k in keys(at))
+    keys = _keys(at)
+    assert any(k.startswith('grid.quadtree.') for k in keys)
+    assert not any(k.startswith('grid.voronoi.') for k in keys)
+    assert 'grid.cell_size' in keys, 'the quadtree background is not offered'
 
 
-def test_the_grid_panel_offers_a_create_button():
+def test_the_derived_transition_bands_are_read_only():
+    """They are computed from the corridor and the grade ratio, so a box that
+    accepted a value would be a box that lies."""
     at = AppTest.from_file(os.path.join(APP, 'pages', '1_Grid.py'),
                            default_timeout=180)
     at.run()
-    assert any(b.key == 'mkgrid' for b in at.button), 'no Create grid button'
+    at.selectbox(key='grid.kind').select('voronoi').run()
+    ro = [t for t in at.text_input if t.key == 'ro_grid.voronoi.trans_levels']
+    assert ro, 'the derived bands are not shown'
+    assert ro[0].disabled, 'the derived bands are editable'
+    assert 'grid.voronoi.trans_levels' not in _keys(at), \
+        'the derived bands are ALSO offered as a live field'
+
+
+def test_the_refinement_settings_are_blocked_when_it_is_off():
+    """Panel 1, D4: with the refinement off the corridor does not exist, so
+    the settings describing it are greyed and cleared, not left looking live."""
+    at = AppTest.from_file(os.path.join(APP, 'pages', '1_Grid.py'),
+                           default_timeout=180)
+    at.run()
+    at.selectbox(key='grid.kind').select('voronoi').run()
+    assert 'grid.voronoi.cell_near_stream' in _keys(at)
+    at.checkbox(key='grid.voronoi.stream_refine').uncheck().run()
+    assert 'grid.voronoi.cell_near_stream' not in _keys(at), \
+        'the corridor width is still live with the refinement off'
+    blocked = [t for t in at.text_input
+               if t.key == 'off_grid.voronoi.cell_near_stream']
+    assert blocked and blocked[0].disabled and not blocked[0].value
+
+
+def test_the_grid_panel_offers_both_buttons():
+    """Create is the experiment, Select is the commitment -- and nothing else
+    on this panel writes, because here the save IS the selection."""
+    at = AppTest.from_file(os.path.join(APP, 'pages', '1_Grid.py'),
+                           default_timeout=180)
+    at.run()
+    keys = {b.key for b in at.button}
+    assert 'mkgrid' in keys, 'no Create grid button'
+    assert not any(k and k.startswith('save_') for k in keys), \
+        'panel 1 still has a Validate & save'

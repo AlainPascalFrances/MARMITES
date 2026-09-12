@@ -7,8 +7,18 @@ cover, the stream network and the observation points are vector layers in the
 project CRS, projected onto the grid at run time -- so changing the grid does
 not mean re-making any of them.
 
-Three parts: the catchment and the grid settings, a check that the polygon is
-where it should be, and the mesh a run would actually use.
+Two buttons, and the difference between them is the whole design of the page:
+
+  Create grid       an EXPERIMENT. Builds from what is on screen, keeps the
+                    attempt, writes nothing the model reads. Press it as
+                    often as you like, on as many settings as you like.
+  Select this grid  the COMMITMENT. Writes the settings that produced the
+                    chosen attempt into the configuration, and that is the
+                    grid a run will use.
+
+There is deliberately no separate "Validate & save" here: on this panel a
+save IS the selection, and two buttons that both write would only differ in
+whether the mesh had been looked at first.
 """
 
 import os
@@ -26,7 +36,7 @@ for p in (CODE, APP, os.path.join(CODE, 'ppMF6')):
 
 import marmites_config as mcfg              # noqa: E402
 import mm_paths                             # noqa: E402
-from lib import loaders, panelui            # noqa: E402
+from lib import editor, loaders, panelui    # noqa: E402
 
 st.set_page_config(page_title='1 Grid', page_icon='🗺️', layout='wide')
 case = st.session_state.get('case', 'LaMata')
@@ -45,8 +55,23 @@ def _boundary_bbox(cfg):
         return None, '%r' % exc
 
 
-def _build_grid(cfg):
-    """Build and cache the mesh for the SAVED settings. (ok, [lines])."""
+def _ws_root(cfg):
+    return (str(Path(cfg.paths.ws).parent) if cfg.paths.ws
+            else str(mm_paths.WS_ROOT))
+
+
+def _attempt_dir(cfg, tag):
+    """Where one EXPERIMENT's mesh is cached.
+
+    Keyed on the attempt rather than on the kind alone: two voronoi meshes at
+    different cell sizes have to coexist, or they cannot be compared -- which
+    is what made the old single Create grid button feel like it worked once.
+    """
+    return os.path.join(_ws_root(cfg), '_grid_attempts', tag)
+
+
+def _build_grid(cfg, cache_dir, force=True):
+    """Build the mesh for THIS configuration object. (ok, [lines], info)."""
     import marmites_meshes as mm
 
     lines = []
@@ -57,37 +82,36 @@ def _build_grid(cfg):
     bbox, why = _boundary_bbox(cfg)
     if bbox is None and not cfg.grid.override.enable:
         return False, ['The catchment polygon could not be read, so the grid '
-                       'rectangle cannot be derived: %s' % why]
+                       'rectangle cannot be derived: %s' % why], None
     try:
         stub = mm.grid_stub(cfg, bbox, nlay=cfg.layers.nlay)
     except Exception as exc:
-        return False, ['%r' % exc]
+        return False, ['%r' % exc], None
+    snap = mm.rectangle_cell_size(cfg)
     lines.append('rectangle: %d rows x %d cols of %g m, origin %.1f, %.1f'
-                 % (stub.nrow, stub.ncol, cfg.grid.cell_size,
-                    stub.xllcorner, stub.yllcorner))
+                 % (stub.nrow, stub.ncol, snap, stub.xllcorner, stub.yllcorner))
     if cfg.grid_kind in ('structured', 'dis'):
-        return True, ['Structured grid: %d x %d cells of %g m — nothing to '
-                      'build, it IS the rectangle.'
-                      % (stub.nrow, stub.ncol, cfg.grid.cell_size)] + lines
-    ws_root = (str(Path(cfg.paths.ws).parent) if cfg.paths.ws
-               else str(mm_paths.WS_ROOT))
-    model_ws = os.path.join(ws_root, 'MF6_ws_%s' % cfg.grid_kind)
-    cache = os.path.join(model_ws, '_mesh')
-    os.makedirs(cache, exist_ok=True)
+        info = {'kind': 'structured', 'ncpl': int(stub.nrow * stub.ncol),
+                'area_mean': snap * snap, 'signature': 'rectangle',
+                'nrow': int(stub.nrow), 'ncol': int(stub.ncol)}
+        return True, ['Structured grid: %d x %d = %d cells of %g m — nothing '
+                      'to build, it IS the rectangle.'
+                      % (stub.nrow, stub.ncol, info['ncpl'], snap)] + lines, info
+    os.makedirs(cache_dir, exist_ok=True)
     try:
-        _gp, info = mm.build_mesh(cfg, stub, cache_dir=cache,
+        _gp, info = mm.build_mesh(cfg, stub, cache_dir=cache_dir,
                                   dataset_dir=str(mm_paths.dataset_dir(
                                       cfg.paths.case)),
-                                  model_ws=model_ws, warn=warn)
+                                  model_ws=cache_dir, warn=warn, force=force)
     except Exception as exc:
-        return False, ['The %s producer failed: %r' % (cfg.grid_kind, exc)] + lines
-    head = ('%s mesh: %d cells, mean %.0f m² (%.1f m equivalent side)%s'
+        return False, ['The %s producer failed: %r'
+                       % (cfg.grid_kind, exc)] + lines, None
+    head = ('%s mesh: %d cells, mean %.0f m² (%.1f m equivalent side)'
             % (info['kind'], info['ncpl'], info.get('area_mean', 0.0),
-               (info.get('area_mean', 0.0) ** 0.5),
-               ' — served from the cache' if info.get('cached') else ''))
+               (info.get('area_mean', 0.0) ** 0.5)))
     lines.append('signature %s' % info['signature'])
-    lines.append('cached at %s' % cache)
-    return True, [head] + lines
+    lines.append('cached at %s' % cache_dir)
+    return True, [head] + lines, info
 
 
 def _run_converter(case, cfg_path, dry):
@@ -105,7 +129,28 @@ def _run_converter(case, cfg_path, dry):
                        cwd=str(mm_paths.REPO), timeout=900)
     return (r.stdout or '') + (('\n' + r.stderr) if r.stderr else '')
 
-tab_domain, tab_mesh = st.tabs(['Catchment & grid', 'The mesh a run would use'])
+
+def _describe(cfg):
+    """One line naming the grid a configuration asks for."""
+    k = cfg.grid_kind
+    if k == 'voronoi':
+        v = cfg.grid.voronoi
+        return ('voronoi, %g m background%s'
+                % (v.cell_far,
+                   (', %g m corridor to %g m' % (v.cell_near_stream,
+                                                 v.stream_buffer))
+                   if v.stream_refine else ', unrefined'))
+    if k == 'quadtree':
+        q = cfg.grid.quadtree
+        return ('quadtree, %g m background, %d level(s)%s'
+                % (cfg.grid.cell_size, q.refine_level,
+                   '' if q.refine_streams else ', unrefined'))
+    return '%s, %g m cells' % (k, cfg.grid.cell_size)
+
+
+ATTEMPTS = st.session_state.setdefault('grid_attempts', [])
+
+tab_domain, tab_mesh = st.tabs(['Catchment & grid', 'The selected mesh'])
 
 # ===================================================================== 1a
 with tab_domain:
@@ -119,13 +164,10 @@ with tab_domain:
         st.warning('`%s` is not in %s. Present: %s'
                    % (cfg.grid.boundary, gis, ', '.join(shp[:12])))
 
-    edited = panelui.section_form(cfg, 'grid', columns=3)
-
     # ---- is the polygon where it should be? --------------------------
     bnd = gis / cfg.grid.boundary
     if bnd.exists():
         try:
-            sys.path.insert(0, CODE)
             from marmites_vector import Layer, _signed_area
             lay = Layer(str(bnd))
             area = 0.0
@@ -138,9 +180,10 @@ with tab_domain:
             c1, c2, c3 = st.columns(3)
             c1.metric('Polygon area', '%.3f km²' % (area / 1e6))
             c2.metric('Extent', '%.0f × %.0f m' % (x1 - x0, y1 - y0))
-            c3.metric('Cells at %g m' % cfg.grid.cell_size,
-                      '%d' % (((x1 - x0) / cfg.grid.cell_size + 1)
-                              * ((y1 - y0) / cfg.grid.cell_size + 1)))
+            import marmites_meshes as _mm
+            snap = _mm.rectangle_cell_size(cfg)
+            c3.metric('Cells at %g m' % snap,
+                      '%d' % (((x1 - x0) / snap + 1) * ((y1 - y0) / snap + 1)))
             st.caption('`%s` — %d feature(s), CRS as declared: %s'
                        % (bnd.name, len(lay),
                           (lay.crs_wkt.split('"')[1] if '"' in lay.crs_wkt
@@ -155,21 +198,12 @@ with tab_domain:
         st.error('The catchment polygon is missing: `%s`' % bnd)
 
     st.markdown('#### The grid built inside it')
-    if cfg.grid.override.enable:
-        st.warning('**Override is ON**: the grid is taken from the origin and '
-                   'shape below, not derived from the polygon. That is how the '
-                   'legacy 65 × 60 @ 50 m grid is reproduced when something '
-                   'needs comparing against it.')
+    edited, chosen = panelui.grid_form(cfg, columns=3)
 
-    # The grid KIND drives everything below it, so it is asked on its own and
-    # the settings that depend on it appear underneath.
-    chosen = edited.get('grid.kind', cfg.grid.kind)
-    sub = panelui.subpanel_form(cfg, 'grid.voronoi', chosen)
-    sub.update(panelui.subpanel_form(cfg, 'grid.quadtree', chosen))
-    edited.update(sub)
     if chosen in ('structured', 'dis'):
         st.caption('A structured grid needs nothing beyond the cell size: it '
-                   'is the rectangle above, divided.')
+                   'is the rectangle above, divided. It is the regression '
+                   'anchor, not the default.')
     elif chosen == 'disv':
         st.caption('The structured grid re-expressed as polygons. Nothing '
                    'about the geometry changes, which is what makes it the '
@@ -177,31 +211,106 @@ with tab_domain:
     elif chosen == 'voronoi':
         st.caption('Sizes are the side of the EQUIVALENT SQUARE, so 100 aims '
                    'at 10 000 m². The build prints the area it actually '
-                   'achieved — read that, not this.')
+                   'achieved — read that, not this. The transition bands are '
+                   'derived from the corridor and the maximum size ratio.')
     elif chosen == 'quadtree':
         st.caption('GRIDGEN halves a cell per refinement level, so level 2 on '
                    'a %g m background gives %g m along the streams.'
                    % (cfg.grid.cell_size,
                       cfg.grid.cell_size / (2 ** cfg.grid.quadtree.refine_level)))
+    if cfg.grid.override.enable:
+        st.warning('**Override is ON**: the grid is taken from the origin and '
+                   'shape above, not derived from the polygon. That is how the '
+                   'legacy 65 × 60 @ 50 m grid is reproduced when something '
+                   'needs comparing against it.')
 
-    panelui.save_button(cfg, path, edited)
-
-    # ---- build it ----------------------------------------------------
+    # ---- experiment --------------------------------------------------
     st.markdown('#### Create the grid')
-    st.caption('Builds the mesh from the settings ABOVE AS SAVED and caches '
-               'it, so the second tab shows this grid rather than whatever a '
-               'previous run left behind. A structured grid has no mesh to '
-               'build — it is the rectangle itself.')
-    cbuild, cmsg = st.columns([1, 3])
+    st.caption('Builds the mesh from the settings ABOVE AS THEY STAND — no '
+               'save needed — and keeps it as an attempt, so two kinds or two '
+               'cell sizes can be compared. Nothing a run reads is written '
+               'until you select one.')
+
+    cbuild, cclear, cmsg = st.columns([1, 1, 3])
     if cbuild.button('Create grid', type='primary', key='mkgrid'):
-        with st.spinner('Building the %s grid…' % cfg.grid_kind):
-            st.session_state['grid_build'] = _build_grid(cfg)
-    out = st.session_state.get('grid_build')
-    if out:
-        ok, lines = out
-        (cmsg.success if ok else cmsg.error)(lines[0])
-        with st.expander('Build log', expanded=not ok):
-            st.code('\n'.join(lines), language='text')
+        try:
+            trial, _todo = editor.apply_changes(cfg, edited)
+        except (editor.EditError, mcfg.ConfigError) as exc:
+            cmsg.error('These settings are not valid, so nothing was built:'
+                       '\n\n%s' % exc)
+        else:
+            tag = '%s_%d' % (trial.grid_kind, len(ATTEMPTS) + 1)
+            with st.spinner('Building the %s grid…' % trial.grid_kind):
+                ok, lines, info = _build_grid(trial, _attempt_dir(cfg, tag))
+            ATTEMPTS.append({'tag': tag, 'ok': ok, 'lines': lines,
+                             'info': info, 'cfg': trial,
+                             'label': _describe(trial),
+                             'cache': _attempt_dir(cfg, tag)})
+    if cclear.button('Clear attempts', key='clrgrid') and ATTEMPTS:
+        ATTEMPTS.clear()
+        st.rerun()
+
+    if ATTEMPTS:
+        st.markdown('##### Attempts this session')
+        rows = []
+        for a in ATTEMPTS:
+            i = a['info'] or {}
+            rows.append({
+                'attempt': a['tag'],
+                'settings': a['label'],
+                'cells': i.get('ncpl', '—'),
+                'mean cell [m²]': ('%.0f' % i['area_mean']
+                                   if i.get('area_mean') else '—'),
+                'equivalent side [m]': ('%.1f' % (i['area_mean'] ** 0.5)
+                                        if i.get('area_mean') else '—'),
+                'built': '✅' if a['ok'] else '❌',
+            })
+        st.dataframe(rows, width='stretch', hide_index=True)
+
+        names = [a['tag'] for a in ATTEMPTS]
+        pick = st.selectbox('Attempt to inspect or select', names,
+                            index=len(names) - 1, key='pick_attempt')
+        att = ATTEMPTS[names.index(pick)]
+        (st.success if att['ok'] else st.error)(att['lines'][0])
+        with st.expander('Build log', expanded=not att['ok']):
+            st.code('\n'.join(att['lines']), language='text')
+
+        # ---- commit --------------------------------------------------
+        st.markdown('#### Select this grid for the model')
+        st.caption('Writes the settings that produced **%s** into `%s`. From '
+                   'then on, that is the grid a run builds and every other '
+                   'panel wraps its layers onto.' % (pick, os.path.basename(path)))
+        csel, cnote = st.columns([1, 3])
+        if csel.button('Select this grid for the model', type='primary',
+                       key='selgrid', disabled=not att['ok']):
+            try:
+                applied, digest = editor.save(cfg, path, edited)
+            except (editor.EditError, mcfg.ConfigError) as exc:
+                cnote.error('NOT selected — the configuration would be '
+                            'invalid:\n\n%s' % exc)
+            else:
+                st.session_state['grid_selected'] = pick
+                cnote.success('Selected **%s** — %d change(s), hash %s'
+                              % (pick, len(applied), digest))
+                # The saved spin-up state belongs to the grid it was produced
+                # on. Saying so here is the difference between a clear message
+                # now and a CONFIG ERROR at the start of the next run.
+                stale = [n for n in ('strt_heads', 'steady_means')
+                         if getattr(cfg.spinup, n)]
+                if stale and att['cfg'].grid_kind not in ('structured', 'disv'):
+                    cnote.warning(
+                        'This grid is a mesh, and `spinup.%s` still names '
+                        'state produced on the structured grid. A run will '
+                        'stop rather than feed MODFLOW an array of the wrong '
+                        'length: clear those keys, or re-run the spin-up on '
+                        'this mesh.' % '` / `spinup.'.join(stale))
+                st.rerun()
+        if att['ok'] and not att['cfg'].grid_kind == cfg.grid_kind:
+            cnote.info('The configuration currently says **%s**; this attempt '
+                       'is **%s**.' % (cfg.grid_kind, att['cfg'].grid_kind))
+    else:
+        st.info('No attempt yet. Press **Create grid** — it builds from the '
+                'settings above without saving anything.')
 
     with st.expander('Update the dataset from the cartography'):
         st.caption('The shapefiles stay in the GIS folder and are read ONLY by '
@@ -218,23 +327,32 @@ with tab_domain:
 
 # ===================================================================== 1b
 with tab_mesh:
-    st.caption('True cell polygons, straight from the mesh the driver cached. '
+    st.caption('True cell polygons, straight from the mesh a run would use. '
                'The maps in a run are drawn on a display raster instead; this '
                'is the grid itself.')
-    kind = st.selectbox('Grid kind', list(mcfg.GRID_KINDS),
-                        index=list(mcfg.GRID_KINDS).index(cfg.grid_kind),
-                        key='mesh_kind')
-    ws_root = (str(Path(cfg.paths.ws).parent) if cfg.paths.ws
-               else str(mm_paths.WS_ROOT))
+    kind = cfg.grid_kind
+    st.markdown('**Selected: `%s`** — %s' % (kind, _describe(cfg)))
+
+    ws_root = _ws_root(cfg)
     gp, sig = loaders.read_mesh(ws_root, kind)
+    if gp is None:
+        # Fall back to the attempt built on this page, so a mesh can be looked
+        # at before a run has ever been launched on it.
+        for a in reversed(ATTEMPTS):
+            if a['ok'] and a['cfg'].grid_kind == kind:
+                gp, sig = loaders.read_mesh(a['cache'], kind)
+                if gp is None:
+                    gp, sig = loaders.read_mesh(os.path.dirname(a['cache']),
+                                                kind)
+                break
     if gp is None:
         grid_fn, _s = loaders.mesh_cache_paths(ws_root, kind)
         st.info(
             'No mesh cached for `%s` yet.\n\n'
-            'It is built the first time a run uses that grid, and cached at\n\n'
-            '`%s`\n\n'
-            'Start one from the **Run** panel with `grid.kind=%s`. A '
-            'structured grid has no mesh to show.' % (kind, grid_fn, kind))
+            'Build one with **Create grid** on the first tab, or start a run '
+            'from the **Run** panel; a run caches it at\n\n`%s`\n\n'
+            'A structured grid has no mesh to show — it is the rectangle.'
+            % (kind, grid_fn))
         st.stop()
 
     @st.cache_data(show_spinner='Reading the mesh...')
@@ -242,8 +360,8 @@ with tab_mesh:
         g, _s = loaders.read_mesh(ws_root, kind)
         return loaders.mesh_polygons(g), int(g['ncpl'])
 
-    (polys, areas, centres), ncpl = _mesh(ws_root, kind,
-                                          (sig or {}).get('signature', ''))
+    (polys, areas, centres) = loaders.mesh_polygons(gp)
+    ncpl = int(gp['ncpl'])
     m1, m2, m3, m4 = st.columns(4)
     m1.metric('cells (ncpl)', '%d' % ncpl)
     m2.metric('mean cell', '%.0f m²' % areas.mean())

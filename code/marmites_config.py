@@ -17,6 +17,7 @@ so a TOML schema for the NWT-era fields would be thrown away.
 """
 
 import dataclasses
+import math
 import os
 from dataclasses import dataclass, field
 # (typing generics kept minimal for loader compatibility)
@@ -359,14 +360,74 @@ class Run:
 
 @dataclass
 class GridVoronoi:
-    """WP1c. Ignored while grid.kind is 'structured' or 'disv'."""
+    """WP1c. Ignored while grid.kind is 'structured' or 'disv'.
+
+    ``trans_levels`` is DERIVED (WP1d, panel 1, D2), not typed: it is the
+    list of buffer DISTANCES from the stream centreline at which the cell
+    size steps up from ``cell_near_stream`` towards ``cell_far``. It used to
+    be a free list, and the shipped default -- [10, 20, 40, 70] against a
+    60 m ``stream_buffer`` -- put its outermost band OUTSIDE the declared
+    corridor, so the corridor silently ran to 70 m and ``stream_buffer`` was
+    just one more band. Deriving it makes ``stream_buffer`` the edge it
+    claims to be, and bounds how fast the cells may grow.
+    """
 
     cell_far: float = 100.0
     cell_near_stream: float = 40.0
     stream_buffer: float = 60.0
     stream_refine: bool = True
-    trans_levels: list = field(default_factory=lambda: [10.0, 20.0, 40.0, 70.0])
+    # Largest acceptable size ratio between neighbouring bands; 1.5 is the
+    # usual mesh-grading rule of thumb. Bounded in validate(): as r -> 1 the
+    # band count explodes (1.01 on 40 -> 100 m asks for 150 bands) and a big
+    # r reintroduces exactly the jump the grading exists to avoid.
+    grade_ratio: float = 1.5
+    # Read-only echo of what bands() computed, so the file states the mesh it
+    # produced. Refreshed by validate(); editing it by hand does nothing.
+    trans_levels: list = field(default_factory=list)
     seed_ponds: bool = True
+
+    # A ceiling on the derived band count: 12 bands over a 60 m corridor is
+    # already one every 5 m, past which the refinement IS the mesh.
+    MAX_BANDS = 12
+    # What refresh() clears when the refinement is switched off, and what the
+    # panel puts back when it is switched on again (WP1d panel 1, D4).
+    REFINE_FIELDS = ('cell_near_stream', 'stream_buffer')
+
+    def bands(self):
+        """Buffer distances [m] from the centreline, innermost first.
+
+        The producer spreads the sizes ACROSS the bands -- *n* bands carry
+        *n* sizes, the innermost ``cell_near_stream`` and the outermost
+        ``cell_far`` -- so the steepest step, between the innermost two, is
+        ``1 + (far - near) / ((n - 1) * near)``. Solving that against
+        ``grade_ratio`` is where *n* comes from, hence the ``+ 1``: bounding
+        the ratio takes one more band than it takes intervals.
+
+        On the defaults (40 -> 100 m over a 60 m corridor at r = 1.5) that is
+        4 bands at 15, 30, 45 and 60 m, carrying 40, 60, 80 and 100 m cells.
+        """
+        if not self.stream_refine:
+            return []
+        near, far = float(self.cell_near_stream), float(self.cell_far)
+        buf = float(self.stream_buffer)
+        if near <= 0.0 or buf <= 0.0 or far <= near:
+            return []
+        r = float(self.grade_ratio)
+        n = (int(math.ceil((far - near) / (near * (r - 1.0)))) + 1
+             if r > 1.0 else 2)
+        n = max(2, min(int(self.MAX_BANDS), n))
+        return [round(buf * k / float(n), 3) for k in range(1, n + 1)]
+
+    def refresh(self):
+        """Recompute the derived echo. Called from ``RunConfig.validate()``."""
+        if not self.stream_refine:
+            # D4: with the refinement off the corridor does not exist, so the
+            # settings describing it are cleared rather than left looking
+            # live. Switching it back on restores the class defaults.
+            self.cell_near_stream = 0.0
+            self.stream_buffer = 0.0
+        self.trans_levels = self.bands()
+        return self.trans_levels
 
 
 @dataclass
@@ -422,10 +483,15 @@ class Grid:
     override: GridOverride = field(default_factory=GridOverride)
 
     # --- the producer ----------------------------------------------------
-    # 'structured' is today's DIS grid and stays the DEFAULT until the WP1c.8
-    # validation ladder clears the Voronoi mesh; 'dis' is accepted as an alias.
-    kind: str = 'structured'
-    rebuild: bool = False
+    # WP1d, panel 1 D1: 'voronoi' is the DEFAULT. 'structured' is the legacy
+    # DIS grid, kept as a kind (and 'dis' as its alias) because it is the
+    # control the mesh path is compared against, not because it is the
+    # starting point any more.
+    #
+    # There is no 'rebuild' flag: a rebuild is an ACTION (panel 1's Create
+    # grid, or build_mesh(force=True)), not a stored setting that outlives
+    # the run that needed it.
+    kind: str = 'voronoi'
     # WP1c.3. 'auto' = area-weighted for continuous fields, majority for zone
     # rasters. 'centre' is the WP1c.1 behaviour, kept for comparison.
     resample: str = 'auto'
@@ -1007,6 +1073,47 @@ class RunConfig:
         if self.grid.resample not in RESAMPLE_MODES:
             errs.append('grid.resample must be one of %s'
                         % ', '.join(RESAMPLE_MODES))
+        # WP1d panel 1, D3. The override is offered on the two kinds the
+        # legacy comparison needs, but model_rectangle honours it whatever
+        # the kind -- so enabling it under 'structured' and then switching to
+        # a mesh would override the domain from a box no longer on screen.
+        if self.grid.override.enable and self.grid_kind not in ('structured',
+                                                                'disv'):
+            errs.append(
+                'grid.override.enable is only meaningful for a structured or '
+                "disv grid (it reproduces an EXISTING rectangle), and "
+                'grid.kind is %r. Turn the override off, or go back to '
+                'structured.' % self.grid_kind)
+        v = self.grid.voronoi
+        if not (1.0 < float(v.grade_ratio) <= 3.0):
+            errs.append(
+                'grid.voronoi.grade_ratio must be in (1, 3]: it is the largest '
+                'size ratio between neighbouring transition bands. At 1 the '
+                'band count is unbounded, and past ~2 the jump between '
+                'neighbouring cells is the distortion the grading exists to '
+                'avoid.')
+        elif (v.stream_refine and float(v.cell_near_stream) > 0.0
+              and float(v.cell_far) > float(v.cell_near_stream)):
+            # A ratio can be too fine to honour: the bands needed to hold it
+            # grow without bound as it approaches 1, and capping them silently
+            # would mean the mesh does not grade the way the file says.
+            want = int(math.ceil((float(v.cell_far) - float(v.cell_near_stream))
+                                 / (float(v.cell_near_stream)
+                                    * (float(v.grade_ratio) - 1.0)))) + 1
+            if want > v.MAX_BANDS:
+                errs.append(
+                    'grid.voronoi.grade_ratio = %g needs %d transition bands '
+                    'between %g and %g m, and the producer allows %d. Raise '
+                    'the ratio, raise cell_near_stream, or lower cell_far.'
+                    % (v.grade_ratio, want, v.cell_near_stream, v.cell_far,
+                       v.MAX_BANDS))
+        if v.stream_refine and float(v.cell_near_stream) >= float(v.cell_far):
+            errs.append('grid.voronoi.cell_near_stream must be smaller than '
+                        'cell_far, or the corridor is not a refinement')
+        # The derived echo is refreshed HERE, so any path that validates --
+        # from_dict, the panel's save, a --set override -- leaves the file
+        # stating the bands the producer will actually use.
+        v.refresh()
         if self.layers.nlay not in (2, 6):
             errs.append('layers.nlay must be 2 or 6')
         if self.seep.kind not in ('uzf', 'drn'):

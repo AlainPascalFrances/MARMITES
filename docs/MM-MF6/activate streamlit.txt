@@ -1,0 +1,9 @@
+conda activate C:\miniconda3\envs\flopy
+
+
+cd /d E:\00code\MM-MF6_SFR_LAK_CRR
+streamlit run code/app/Home.py
+
+http://localhost:8501
+
+Ctrl C x2s

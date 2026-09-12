@@ -17,7 +17,7 @@ A mesh takes seconds to minutes to build and is reused across runs, which is
 exactly the situation that produced the CdL grid-design bug: a cached grid from
 one design silently served a run configured for another. So the cache carries a
 SIGNATURE of the inputs that determine the mesh, and a mismatch rebuilds rather
-than warns. ``[grid] rebuild = true`` forces it.
+than warns. ``build_mesh(force=True)`` -- panel 1's Create grid -- forces it.
 """
 
 __author__ = "Alain P. Francés <frances.alain@gmail.com>"
@@ -36,7 +36,7 @@ __all__ = ['build_mesh', 'MeshBuildError', 'stream_lines', 'mesh_signature',
 # Identifies the MESH-PRODUCING BEHAVIOUR, not the module. Bump it on any
 # change that would give a different mesh for the same configuration; it is
 # part of the cache signature.
-PRODUCER_VERSION = 2
+PRODUCER_VERSION = 3
 
 
 class MeshBuildError(Exception):
@@ -106,6 +106,11 @@ def mesh_signature(cfg, cMF):
         'xll': float(getattr(cMF, 'xllcorner', 0.0)),
         'yll': float(getattr(cMF, 'yllcorner', 0.0)),
         'voronoi': dataclasses.asdict(cfg.grid.voronoi),
+        # The quadtree block was missing here until WP1d: changing
+        # refine_level produces a genuinely different mesh, and without it in
+        # the signature the cache served the old one. Same bug as the CdL
+        # grid-design cache, one block further down.
+        'quadtree': dataclasses.asdict(cfg.grid.quadtree),
     }
     blob = json.dumps(payload, sort_keys=True, default=str).encode('utf-8')
     return hashlib.sha256(blob).hexdigest()[:16]
@@ -236,6 +241,18 @@ def _produce_quadtree(cfg, cMF, dataset_dir=None, model_ws=None, warn=None,
                           layers=list(range(int(cMF.nlay))))
 
 
+def rectangle_cell_size(cfg):
+    """The cell size the model rectangle is snapped to, per grid kind.
+
+    ``grid.cell_size`` for structured, disv and quadtree -- where it IS the
+    cell, or the background GRIDGEN halves. ``grid.voronoi.cell_far`` for
+    voronoi, where ``cell_size`` plays no part in the cells at all.
+    """
+    if cfg.grid_kind == 'voronoi':
+        return float(cfg.grid.voronoi.cell_far)
+    return float(cfg.grid.cell_size)
+
+
 def model_rectangle(cfg, bbox=None):
     """The grid rectangle for this configuration (WP1d, panel 1).
 
@@ -252,6 +269,12 @@ def model_rectangle(cfg, bbox=None):
 
     ``grid.override.enable`` bypasses all of it and returns the origin and
     shape verbatim, which is how an existing grid is reproduced exactly.
+
+    WP1d panel 1, D1 of §2A.7: on a VORONOI grid the rectangle is snapped to
+    ``grid.voronoi.cell_far`` rather than ``grid.cell_size``. The Voronoi
+    producer never uses ``cell_size`` for its cells -- ``cell_far`` is the
+    size -- so leaving the snap on ``cell_size`` meant one number that did
+    nothing visible and another that did the work.
     """
     import math
 
@@ -267,9 +290,12 @@ def model_rectangle(cfg, bbox=None):
         raise MeshBuildError(
             'no catchment bounding box: either set grid.override.enable, or '
             'give the polygon named by grid.boundary')
-    cs = float(cfg.grid.cell_size)
+    cs = rectangle_cell_size(cfg)
     if cs <= 0:
-        raise MeshBuildError('grid.cell_size must be > 0')
+        raise MeshBuildError('%s must be > 0'
+                             % ('grid.voronoi.cell_far'
+                                if cfg.grid_kind == 'voronoi'
+                                else 'grid.cell_size'))
     b = float(cfg.grid.buffer)
     x0, y0, x1, y1 = (float(bbox[0]) - b, float(bbox[1]) - b,
                       float(bbox[2]) + b, float(bbox[3]) + b)
@@ -468,8 +494,18 @@ def _add_stream_regions(tri, cfg, dataset_dir, warn):
     # Graded bands: the innermost carries cell_near_stream, each successive
     # band relaxes towards cell_far. Jumping straight from one size to the
     # other makes badly shaped cells along the seam.
-    bands = sorted(set([float(x) for x in v.trans_levels]
-                       + [float(v.stream_buffer)]))
+    #
+    # WP1d panel 1, D2: the bands are DERIVED from cell_near_stream, cell_far,
+    # stream_buffer and grade_ratio -- see GridVoronoi.bands(). They used to be
+    # a hand-written list unioned with stream_buffer, which let the outermost
+    # band fall outside the corridor it was supposed to end at.
+    bands = [float(x) for x in v.bands()]
+    if not bands:
+        if warn:
+            warn('grid.voronoi: no transition bands (cell_near_stream %g, '
+                 'cell_far %g, stream_buffer %g) -- the mesh is uniform.'
+                 % (v.cell_near_stream, v.cell_far, v.stream_buffer))
+        return
     n = len(bands)
     for k, dist in enumerate(bands):
         frac = k / float(max(n - 1, 1))
@@ -489,8 +525,14 @@ _PRODUCERS = {
 
 
 def build_mesh(cfg, cMF, cache_dir=None, dataset_dir=None, model_ws=None,
-               warn=None):
+               warn=None, force=False):
     """Produce DISV gridprops for the configured ``[grid] kind``.
+
+    ``force`` re-meshes even when the cache holds this signature. It is an
+    ARGUMENT and not a configuration key (WP1d panel 1, D2 of §2A.7): a
+    rebuild is something a modeller does once, from panel 1's *Create grid*,
+    not a setting that stays true in the file long after the run that needed
+    it -- which is how the CdL grid-design cache served the wrong mesh.
 
     Returns ``(gridprops, info)`` where ``info`` records what happened --
     the producer, the signature and whether the cache was used -- so the run
@@ -507,7 +549,7 @@ def build_mesh(cfg, cMF, cache_dir=None, dataset_dir=None, model_ws=None,
     sig = mesh_signature(cfg, cMF)
     cached = False
     gp = None
-    if cache_dir and not cfg.grid.rebuild:
+    if cache_dir and not force:
         gp = _load_cached(cache_dir, kind, sig)
         cached = gp is not None
     if gp is None:
