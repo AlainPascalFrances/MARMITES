@@ -1,5 +1,5 @@
 # MARMITES resolved run configuration
-# config_hash = 4baada32d5ed417d
+# config_hash = e814f91415bc088a
 
 [meta]
 config_version = 1
@@ -33,7 +33,7 @@ boundary = "lm_lim.shp"
 crs_epsg = 23029
 cell_size = 50.0
 buffer = 0.0
-kind = "voronoi"
+kind = "structured"
 resample = "auto"
 
 [grid.override]
@@ -49,7 +49,7 @@ cell_near_stream = 15.0
 stream_buffer = 30.0
 stream_refine = true
 grade_ratio = 1.5
-trans_levels = [5.0, 10.0, 15.0, 20.0, 25.0, 30.0]
+trans_levels = [15.0, 30.0]
 seed_ponds = true
 
 [grid.quadtree]

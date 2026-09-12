@@ -195,21 +195,83 @@ def subpanel_form(cfg, prefix, chosen, columns=3):
     return section_form(cfg, section, columns=columns, only=prefix + '.')
 
 
-def folder_picker(label, value, key, help_=None, want='dir'):
-    """A path, typed or BROWSED TO, without leaving the page.
+def native_dialog(want='dir', initial='', title='Select'):
+    """The operating system's own folder/file dialog. (path or '', reason).
 
-    Built out of ordinary widgets rather than a native file dialog: a dialog
-    opened by the server process is only the user's own machine while the app
-    runs locally, and `ui.execution = "server"` says that is not a given. This
-    works either way -- and on a remote host it browses the host, which is the
-    machine whose paths are being set.
+    Run in a SUBPROCESS, not in this one. Streamlit executes the script on a
+    worker thread, and driving Tk from a non-main thread is how a server
+    wedges with no window to close; a child process also cannot take the app
+    down with it if Tk is missing or there is no display. It is the machine
+    the SERVER runs on, which is the machine whose paths are being set --
+    the same one the in-page browser walks.
+    """
+    import subprocess
+    import sys
+    code = (
+        'import sys, tkinter as tk\n'
+        'from tkinter import filedialog\n'
+        'r = tk.Tk(); r.withdraw(); r.attributes("-topmost", True)\n'
+        'p = filedialog.%s(initialdir=sys.argv[1], title=sys.argv[2])\n'
+        'r.destroy()\n'
+        'sys.stdout.write(p or "")\n'
+        % ('askdirectory' if want == 'dir' else 'askopenfilename'))
+    try:
+        r = subprocess.run([sys.executable, '-c', code,
+                            str(initial or os.getcwd()), str(title)],
+                           capture_output=True, text=True, timeout=300)
+    except subprocess.TimeoutExpired:
+        return '', 'the dialog was left open for five minutes'
+    except OSError as exc:
+        return '', '%r' % exc
+    if r.returncode != 0:
+        return '', (r.stderr or '').strip().splitlines()[-1:] and \
+            (r.stderr or '').strip().splitlines()[-1] or 'the dialog failed'
+    return (r.stdout or '').strip(), ''
+
+
+def folder_picker(label, value, key, help_=None, want='dir', native=True):
+    """A path: typed, browsed to in the page, or chosen in the OS dialog.
+
+    ``…`` opens the operating system's own dialog, which is what a modeller
+    expects. The in-page browser stays beside it because the dialog opens on
+    the machine the SERVER runs on -- the same machine either way, but only
+    one of the two works when there is no display to open a window on.
 
     ``want='file'`` picks a file instead of a folder.
     """
-    typed = st.text_input(label, value=str(value or ''), key=key, help=help_)
+    # A widget's value can only be set BEFORE it is instantiated, so a choice
+    # made by a button lower down is parked here and applied on the rerun.
+    # Writing st.session_state[key] after the text_input exists raises
+    # StreamlitWidgetAlreadyInstantiatedError -- which is exactly what the
+    # first version of this did.
+    pending = key + '.__pending'
+    if pending in st.session_state:
+        st.session_state[key] = st.session_state.pop(pending)
+
+    c1, c2 = st.columns([6, 1])
+    with c1:
+        typed = st.text_input(label, value=str(value or ''), key=key,
+                              help=help_)
+    with c2:
+        st.markdown('<div style="height:1.85rem"></div>',
+                    unsafe_allow_html=True)
+        if native and st.button('…', key=key + '.__native',
+                                help='Open the system dialog'):
+            start = typed if os.path.isdir(typed) else os.path.dirname(typed)
+            got, why = native_dialog(want, start, 'Select %s' % label)
+            if got:
+                st.session_state[pending] = got
+                st.rerun()
+            elif why:
+                st.session_state[key + '.__why'] = why
+    if st.session_state.get(key + '.__why'):
+        st.caption('The system dialog could not be used (%s). The browser '
+                   'below does the same job.'
+                   % st.session_state.pop(key + '.__why'))
+
     here = st.session_state.get(key + '.__at') or (
         typed if os.path.isdir(typed) else os.path.dirname(typed) or os.getcwd())
-    with st.expander('Browse…', expanded=False):
+    with st.expander('Browse in the page…', expanded=False):
         st.caption('`%s`' % here)
         try:
             entries = sorted(os.listdir(here))
@@ -217,12 +279,12 @@ def folder_picker(label, value, key, help_=None, want='dir'):
             st.error('%r' % exc)
             entries = []
         dirs = [d for d in entries if os.path.isdir(os.path.join(here, d))]
-        c1, c2 = st.columns([1, 3])
-        if c1.button('⬆ up', key=key + '.__up'):
-            st.session_state[key + '.__at'] = os.path.dirname(here.rstrip('\\/')) \
-                or here
+        b1, b2 = st.columns([1, 3])
+        if b1.button('⬆ up', key=key + '.__up'):
+            st.session_state[key + '.__at'] = \
+                os.path.dirname(here.rstrip('\\/')) or here
             st.rerun()
-        go = c2.selectbox('Subfolder', ['—'] + dirs, key=key + '.__sub')
+        go = b2.selectbox('Subfolder', ['—'] + dirs, key=key + '.__sub')
         if go and go != '—':
             st.session_state[key + '.__at'] = os.path.join(here, go)
             st.session_state.pop(key + '.__sub', None)
@@ -233,12 +295,12 @@ def folder_picker(label, value, key, help_=None, want='dir'):
             pick = st.selectbox('File', ['—'] + files, key=key + '.__file')
             if pick and pick != '—' and st.button('Use this file',
                                                   key=key + '.__usef'):
-                st.session_state[key] = os.path.join(here, pick)
+                st.session_state[pending] = os.path.join(here, pick)
                 st.rerun()
         elif st.button('Use this folder', key=key + '.__use'):
-            st.session_state[key] = here
+            st.session_state[pending] = here
             st.rerun()
-    return st.session_state.get(key, typed)
+    return typed
 
 
 def boundary_picker(dotted, value, folder_key='gis_folder'):

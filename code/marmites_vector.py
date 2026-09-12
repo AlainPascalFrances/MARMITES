@@ -937,9 +937,15 @@ def check_polygon_layer(path, expect_epsg=0):
                  'catches this at run time -- and nothing reprojects: a layer '
                  'on the other datum lands beside the catchment, not on it.'
                  % (rep['datum'], int(expect_epsg), want))
+        elif not (rep['datum'] and want):
+            # Only worth saying when the datum could not stand in for the
+            # missing code. When it matched, the file has been checked as far
+            # as it can be, and saying otherwise is noise on every render.
+            warn('The .prj carries no EPSG authority code and its datum could '
+                 'not be read, so the project CRS cannot be checked against '
+                 'it. Compare them yourself before trusting the overlay.')
         else:
-            warn('The .prj carries no EPSG authority code, so the project CRS '
-                 'cannot be checked against it in full.')
+            rep['datum_ok'] = True
     elif wkt and not rep['epsg']:
         warn('The .prj carries no EPSG authority code, so the project CRS '
              'cannot be checked against it.')

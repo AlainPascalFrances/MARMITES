@@ -90,13 +90,6 @@ def _build_grid(cfg, cache_dir, force=True):
     snap = mm.rectangle_cell_size(cfg)
     lines.append('rectangle: %d rows x %d cols of %g m, origin %.1f, %.1f'
                  % (stub.nrow, stub.ncol, snap, stub.xllcorner, stub.yllcorner))
-    if cfg.grid_kind in ('structured', 'dis'):
-        info = {'kind': 'structured', 'ncpl': int(stub.nrow * stub.ncol),
-                'area_mean': snap * snap, 'signature': 'rectangle',
-                'nrow': int(stub.nrow), 'ncol': int(stub.ncol)}
-        return True, ['Structured grid: %d x %d = %d cells of %g m — nothing '
-                      'to build, it IS the rectangle.'
-                      % (stub.nrow, stub.ncol, info['ncpl'], snap)] + lines, info
     os.makedirs(cache_dir, exist_ok=True)
     try:
         _gp, info = mm.build_mesh(cfg, stub, cache_dir=cache_dir,
@@ -153,6 +146,18 @@ def _find_mesh(cfg, attempts, want):
         if want and (sig or {}).get('signature') == want:
             return gp, sig, where, True
     return (seen[0] + (False,)) if seen else (None, None, '', False)
+
+
+def _settings_of(trial):
+    """The whole ``[grid]`` block of an attempt, as edits to save.
+
+    Taken from the attempt's own configuration rather than from the widgets:
+    selecting is the moment the grid on screen becomes the model's, and by
+    then the boxes may well have moved on to the next experiment.
+    """
+    from lib import schema
+    return {k: v for k, v in schema.fields_of(trial, 'grid')
+            if k not in schema.GRID_DERIVED and not schema.is_source(v)}
 
 
 def _run_converter(case, cfg_path, dry):
@@ -250,8 +255,20 @@ with tab_domain:
     elif chosen == 'voronoi':
         st.caption('Sizes are the side of the EQUIVALENT SQUARE, so 100 aims '
                    'at 10 000 m². The build prints the area it actually '
-                   'achieved — read that, not this. The transition bands are '
-                   'derived from the corridor and the maximum size ratio.')
+                   'achieved — read that, not this. Each transition band is '
+                   'one cell wide, which is what fixes how many there are.')
+        v = cfg.grid.voronoi
+        need = v.corridor_needed() if v.stream_refine else 0.0
+        if need and need > float(v.stream_buffer):
+            st.warning(
+                'Grading from %g to %g m at a ratio of %g takes a **%g m** '
+                'corridor, and the stream corridor is %g m — so the cells '
+                'reach %g m at the edge and then jump to %g m. Widen the '
+                'corridor to %g m, raise the ratio, or accept the step.'
+                % (v.cell_near_stream, v.cell_far, v.grade_ratio, need,
+                   v.stream_buffer,
+                   max([s for _d, s in v.graded_bands()] or [0]),
+                   v.cell_far, need))
     elif chosen == 'quadtree':
         st.caption('GRIDGEN halves a cell per refinement level, so level 2 on '
                    'a %g m background gives %g m along the streams.'
@@ -305,58 +322,7 @@ with tab_domain:
                 'built': '✅' if a['ok'] else '❌',
             })
         st.dataframe(rows, width='stretch', hide_index=True)
-
-        names = [a['tag'] for a in ATTEMPTS]
-        pick = st.selectbox('Attempt to inspect or select', names,
-                            index=len(names) - 1, key='pick_attempt')
-        att = ATTEMPTS[names.index(pick)]
-        (st.success if att['ok'] else st.error)(att['lines'][0])
-        with st.expander('Build log', expanded=not att['ok']):
-            st.code('\n'.join(att['lines']), language='text')
-
-        # ---- commit --------------------------------------------------
-        st.markdown('#### Select this grid for the model')
-        st.caption('Writes the settings that produced **%s** into `%s`. From '
-                   'then on, that is the grid a run builds and every other '
-                   'panel wraps its layers onto.' % (pick, os.path.basename(path)))
-        csel, cnote = st.columns([1, 3])
-        if csel.button('Select this grid for the model', type='primary',
-                       key='selgrid', disabled=not att['ok']):
-            try:
-                applied, digest = editor.save(cfg, path, edited)
-            except (editor.EditError, mcfg.ConfigError) as exc:
-                cnote.error('NOT selected — the configuration would be '
-                            'invalid:\n\n%s' % exc)
-            else:
-                st.session_state['grid_selected'] = pick
-                cnote.success('Selected **%s** — %d change(s), hash %s'
-                              % (pick, len(applied), digest))
-                # The settings are written; put the mesh they produced where
-                # the driver looks, so the run reuses it instead of spending
-                # the build again. The signature goes with it, so a later
-                # change to [grid] still invalidates it.
-                if att['cfg'].grid_kind not in ('structured', 'dis'):
-                    dst, moved = loaders.promote_mesh(
-                        att['cache'], _ws_root(cfg), att['cfg'].grid_kind)
-                    if moved:
-                        cnote.caption('Mesh promoted to `%s` — a run will '
-                                      'reuse it rather than rebuild.' % dst)
-                # The saved spin-up state belongs to the grid it was produced
-                # on. Saying so here is the difference between a clear message
-                # now and a CONFIG ERROR at the start of the next run.
-                stale = [n for n in ('strt_heads', 'steady_means')
-                         if getattr(cfg.spinup, n)]
-                if stale and att['cfg'].grid_kind not in ('structured', 'disv'):
-                    cnote.warning(
-                        'This grid is a mesh, and `spinup.%s` still names '
-                        'state produced on the structured grid. A run will '
-                        'stop rather than feed MODFLOW an array of the wrong '
-                        'length: clear those keys, or re-run the spin-up on '
-                        'this mesh.' % '` / `spinup.'.join(stale))
-                st.rerun()
-        if att['ok'] and not att['cfg'].grid_kind == cfg.grid_kind:
-            cnote.info('The configuration currently says **%s**; this attempt '
-                       'is **%s**.' % (cfg.grid_kind, att['cfg'].grid_kind))
+        st.caption('Open **The selected mesh** to look at one and choose it.')
     else:
         st.info('No attempt yet. Press **Create grid** — it builds from the '
                 'settings above without saving anything.')
@@ -376,35 +342,102 @@ with tab_domain:
 
 # ===================================================================== 1b
 with tab_mesh:
-    st.caption('True cell polygons, straight from the mesh a run would use. '
-               'The maps in a run are drawn on a display raster instead; this '
-               'is the grid itself.')
-    kind = cfg.grid_kind
-    st.markdown('**Selected: `%s`** — %s' % (kind, _describe(cfg)))
-
+    st.caption('True cell polygons, straight from the mesh itself. The maps '
+               'in a run are drawn on a display raster instead; this is the '
+               'grid. Pick an attempt to look at it, and select the one you '
+               'want the model to run on.')
     ws_root = _ws_root(cfg)
     want = _signature(cfg)
-    gp, sig, where, fresh = _find_mesh(cfg, ATTEMPTS, want)
-    if gp is None:
-        grid_fn, _s = loaders.mesh_cache_paths(ws_root, kind)
+
+    # What can be shown: this session's attempts, plus whatever is cached for
+    # the configured kind. Choosing here rather than on the first tab is the
+    # point -- an attempt is chosen by LOOKING at it.
+    choices = [('%s — %s' % (a['tag'], a['label']), a) for a in ATTEMPTS
+               if a['ok']]
+    saved_gp, saved_sig, saved_where, fresh = _find_mesh(cfg, [], want)
+    if saved_gp is not None:
+        choices.append(('the %s cached for `%s` (%s)'
+                        % ('mesh' if cfg.grid_kind not in ('structured', 'dis')
+                           else 'grid', cfg.grid_kind, saved_where), None))
+    if not choices:
+        grid_fn, _s = loaders.mesh_cache_paths(ws_root, cfg.grid_kind)
         st.info(
-            'No mesh cached for `%s` yet.\n\n'
-            'Build one with **Create grid** on the first tab, or start a run '
-            'from the **Run** panel; a run caches it at\n\n`%s`\n\n'
-            'A structured grid has no mesh to show — it is the rectangle.'
-            % (kind, grid_fn))
+            'Nothing to show for `%s` yet.\n\n'
+            'Press **Create grid** on the first tab — it builds from the '
+            'settings on screen without saving anything. A run caches its own '
+            'at\n\n`%s`' % (cfg.grid_kind, grid_fn))
         st.stop()
-    if not fresh:
-        st.warning(
-            'This is **not** the grid the settings describe. What is drawn '
-            'below comes from %s, built under a different `[grid]` block — '
-            'its signature is `%s` and these settings ask for `%s`.\n\n'
-            'Press **Create grid** on the first tab, then **Select this grid '
-            'for the model**.'
-            % (where, (sig or {}).get('signature', 'unknown'), want or '?'))
+
+    labels = [c[0] for c in choices]
+    pick = st.selectbox('Attempt to inspect or select', labels,
+                        index=len(labels) - 1, key='pick_attempt')
+    att = dict(choices)[pick]
+
+    if att is not None:
+        gp, sig = loaders.read_mesh_at(att['cache'], att['cfg'].grid_kind)
+        kind = att['cfg'].grid_kind
+        shown_cfg = att['cfg']
+        (st.success if att['ok'] else st.error)(att['lines'][0])
+        with st.expander('Build log', expanded=not att['ok']):
+            st.code('\n'.join(att['lines']), language='text')
+        if gp is None:
+            st.error('The mesh for %s is no longer in %s.'
+                     % (att['tag'], att['cache']))
+            st.stop()
     else:
-        st.caption('From %s — signature `%s`, which is what the current '
-                   'settings ask for.' % (where, want))
+        gp, sig, kind, shown_cfg = saved_gp, saved_sig, cfg.grid_kind, cfg
+        if not fresh:
+            st.warning(
+                'This is **not** the grid the settings describe. It comes '
+                'from %s, built under a different `[grid]` block — its '
+                'signature is `%s` and the settings ask for `%s`. Press '
+                '**Create grid** on the first tab.'
+                % (saved_where, (sig or {}).get('signature', 'unknown'),
+                   want or '?'))
+        else:
+            st.caption('From %s — signature `%s`, which is what the current '
+                       'settings ask for.' % (saved_where, want))
+
+    st.markdown('**`%s`** — %s' % (kind, _describe(shown_cfg)))
+
+    # ---- commit ------------------------------------------------------
+    if att is not None:
+        csel, cnote = st.columns([1, 3])
+        if csel.button('Select this grid for the model', type='primary',
+                       key='selgrid'):
+            try:
+                applied, digest = editor.save(cfg, path,
+                                              _settings_of(att['cfg']))
+            except (editor.EditError, mcfg.ConfigError) as exc:
+                cnote.error('NOT selected — the configuration would be '
+                            'invalid:\n\n%s' % exc)
+            else:
+                st.session_state['grid_selected'] = att['tag']
+                cnote.success('Selected **%s** — %d change(s), hash %s'
+                              % (att['tag'], len(applied), digest))
+                # The settings are written; put the mesh they produced where
+                # the driver looks, so the run reuses it instead of spending
+                # the build again. The signature goes with it, so a later
+                # change to [grid] still invalidates it.
+                dst, moved = loaders.promote_mesh(att['cache'], ws_root, kind)
+                if moved:
+                    cnote.caption('Mesh promoted to `%s` — a run will reuse '
+                                  'it rather than rebuild.' % dst)
+                # Saved spin-up state belongs to the grid it was produced on.
+                # Saying so HERE is the difference between a clear message now
+                # and a CONFIG ERROR at the start of the next run.
+                stale = [n for n in ('strt_heads', 'steady_means')
+                         if getattr(cfg.spinup, n)]
+                if stale and kind not in ('structured', 'dis', 'disv'):
+                    cnote.warning(
+                        'This grid is a mesh, and `spinup.%s` still names '
+                        'state produced on the structured grid. A run will '
+                        'stop rather than feed MODFLOW an array of the wrong '
+                        'length: clear those keys, or re-run the spin-up on '
+                        'this mesh.' % '` / `spinup.'.join(stale))
+        if kind != cfg.grid_kind:
+            cnote.info('The configuration currently says **%s**; this attempt '
+                       'is **%s**.' % (cfg.grid_kind, kind))
 
     (polys, areas, centres) = loaders.mesh_polygons(gp)
     ncpl = int(gp['ncpl'])

@@ -94,29 +94,51 @@ def test_the_override_is_refused_on_a_mesh(kind):
     assert 'grid.override.enable' in str(e.value)
 
 
-def test_the_transition_bands_are_derived_not_typed():
-    """They are buffer DISTANCES from the centreline, and the shipped list
-    used to put its outermost band beyond the corridor it was meant to end
-    at. Whatever the file says, validate() rewrites it."""
-    c = cfg({'grid': {'kind': 'voronoi',
-                      'voronoi': {'cell_far': 100.0, 'cell_near_stream': 40.0,
-                                  'stream_buffer': 60.0, 'grade_ratio': 1.5,
-                                  'trans_levels': [10.0, 20.0, 40.0, 70.0]}}})
-    v = c.grid.voronoi
-    assert v.trans_levels == [15.0, 30.0, 45.0, 60.0]
-    # the corridor edge IS the outermost band, which is the whole point
-    assert v.trans_levels[-1] == v.stream_buffer
-    # ... and the steepest step honours the ratio
-    n = len(v.trans_levels)
-    assert (40.0 + (100.0 - 40.0) / (n - 1)) / 40.0 <= 1.5 + 1e-12
+def _vor(**kw):
+    base = {'cell_far': 100.0, 'cell_near_stream': 40.0,
+            'stream_buffer': 1000.0, 'grade_ratio': 1.5}
+    base.update(kw)
+    return cfg({'grid': {'kind': 'voronoi', 'voronoi': base}}).grid.voronoi
+
+
+def test_a_band_is_as_wide_as_the_cells_it_carries():
+    """The constraint that was missing. Spacing the bands evenly across the
+    corridor asked for size changes closer together than the cells were
+    wide, and Triangle honoured the band boundaries instead -- which is how
+    a corridor meant to hold 15 m cells came out at 3.7 m."""
+    v = _vor()
+    bands = v.graded_bands()
+    assert bands[0] == (40.0, 40.0)             # first band, one cell wide
+    prev_d = 0.0
+    for d, s in bands:
+        assert d - prev_d <= s + 1e-6, 'a band is narrower than its own cells'
+        prev_d = d
+    sizes = [s for _d, s in bands]
+    assert all(b / a <= 1.5 + 1e-9 for a, b in zip(sizes, sizes[1:]))
+    assert max(sizes) <= v.cell_far
+
+
+def test_the_bands_are_derived_whatever_the_file_says():
+    v = _vor(trans_levels=[10.0, 20.0, 40.0, 70.0])
+    assert v.trans_levels == [d for d, _s in v.graded_bands()]
+    assert 10.0 not in v.trans_levels
+
+
+def test_a_corridor_too_narrow_to_grade_is_clamped_and_reported():
+    """The mesh is still built -- the step at the corridor edge is simply
+    bigger than the ratio asked for -- and corridor_needed says what it would
+    take to finish the grade. The SHIPPED defaults are in this case: 40 to
+    100 m at 1.5 needs 190 m and the default corridor is 60."""
+    v = _vor(stream_buffer=60.0)
+    assert v.corridor_needed() == 190.0
+    assert v.trans_levels[-1] == 60.0           # clamped to the corridor
+    assert max(s for _d, s in v.graded_bands()) < v.cell_far
 
 
 def test_a_coarser_grade_ratio_asks_for_fewer_bands():
-    fine = cfg({'grid': {'kind': 'voronoi',
-                         'voronoi': {'grade_ratio': 1.2}}}).grid.voronoi
-    coarse = cfg({'grid': {'kind': 'voronoi',
-                           'voronoi': {'grade_ratio': 2.5}}}).grid.voronoi
-    assert len(fine.trans_levels) > len(coarse.trans_levels)
+    """Compared on a corridor wide enough not to clamp either of them."""
+    assert len(_vor(grade_ratio=1.2).trans_levels) > \
+        len(_vor(grade_ratio=2.5).trans_levels)
 
 
 @pytest.mark.parametrize('ratio', [1.0, 0.5, 3.5, -1.0])

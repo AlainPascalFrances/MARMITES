@@ -311,15 +311,25 @@ def model_rectangle(cfg, bbox=None):
 def grid_stub(cfg, bbox=None, nlay=1):
     """A cMF-shaped object carrying only what the mesh producers read.
 
-    They use ``nrow``, ``ncol``, ``nlay``, ``delr``, ``delc`` and the origin
-    and nothing else, so a mesh can be built -- and previewed -- without
-    parsing the MODFLOW parameter file or the time discretisation.
+    They use ``nrow``, ``ncol``, ``nlay``, ``delr``, ``delc``, the origin and
+    -- GRIDGEN only -- ``top`` and ``botm``, so a mesh can be built, and
+    previewed, without parsing the MODFLOW parameter file or the time
+    discretisation.
+
+    The elevations are PLACEHOLDERS, a unit-thick layer stack. GRIDGEN wants
+    a StructuredGrid and a StructuredGrid wants elevations, but only the
+    PLAN VIEW of the result is used here: the real top and botm come from the
+    rasters when the model is built. Leaving them out is what made the
+    quadtree producer fail with "SimpleNamespace has no attribute 'top'".
     """
     from types import SimpleNamespace
 
     nrow, ncol, delr, delc, xll, yll = model_rectangle(cfg, bbox)
-    return SimpleNamespace(nrow=nrow, ncol=ncol, nlay=int(nlay),
-                           delr=delr, delc=delc,
+    nlay = int(nlay)
+    top = np.zeros((nrow, ncol), dtype=float)
+    botm = np.stack([np.full((nrow, ncol), -(k + 1.0)) for k in range(nlay)])
+    return SimpleNamespace(nrow=nrow, ncol=ncol, nlay=nlay,
+                           delr=delr, delc=delc, top=top, botm=botm,
                            xllcorner=float(xll), yllcorner=float(yll))
 
 
@@ -499,21 +509,56 @@ def _add_stream_regions(tri, cfg, dataset_dir, warn):
     # stream_buffer and grade_ratio -- see GridVoronoi.bands(). They used to be
     # a hand-written list unioned with stream_buffer, which let the outermost
     # band fall outside the corridor it was supposed to end at.
-    bands = [float(x) for x in v.bands()]
+    bands = [(float(d), float(s)) for d, s in v.graded_bands()]
     if not bands:
         if warn:
             warn('grid.voronoi: no transition bands (cell_near_stream %g, '
                  'cell_far %g, stream_buffer %g) -- the mesh is uniform.'
                  % (v.cell_near_stream, v.cell_far, v.stream_buffer))
         return
-    n = len(bands)
-    for k, dist in enumerate(bands):
-        frac = k / float(max(n - 1, 1))
-        size = v.cell_near_stream + frac * (v.cell_far - v.cell_near_stream)
-        poly = lines.buffer(dist)
-        pt = poly.representative_point()
+    need = v.corridor_needed()
+    if warn and need > float(v.stream_buffer):
+        warn('grid.voronoi: grading from %g to %g m at a ratio of %g takes a '
+             '%g m corridor and stream_buffer is %g m, so the size still '
+             'jumps at the corridor edge. Widen stream_buffer to %g m, or '
+             'accept the step.'
+             % (v.cell_near_stream, v.cell_far, v.grade_ratio, need,
+                v.stream_buffer, need))
+    added = 0
+    prev = None
+    for k, (dist, size) in enumerate(bands):
+        # A buffer carries ~1 m of boundary detail at these radii, and every
+        # vertex of it is a point Triangle must honour -- which is how a
+        # corridor meant to hold 15 m cells came out at 3.7 m. Coarsen the
+        # arc and simplify to a quarter of the cell this band carries: the
+        # band moves by less than that, and the mesh is free again.
+        poly = lines.buffer(dist, quad_segs=3).simplify(max(size / 4.0, 0.5))
+        # The band's BOUNDARY has to go in as segments. A region is the
+        # connected part of the triangulation containing its seed point, and
+        # the parts are bounded by segments -- so without this every seed
+        # point falls in the same region (the whole catchment) and one
+        # maximum area silently applies everywhere. That is the bug that made
+        # a "refined" mesh come out uniform: the sizes were computed, the
+        # regions were seeded, and nothing bounded them.
+        for geom in getattr(poly, 'geoms', [poly]):
+            ring = list(geom.exterior.coords)[:-1]
+            if len(ring) >= 3:
+                tri.add_polygon(ring)
+                added += 1
+        # The seed must land in THIS band and not in the finer one inside it,
+        # so it goes in the annulus rather than in the buffer.
+        area = poly if prev is None else poly.difference(prev)
+        if area.is_empty:
+            prev = poly
+            continue
+        part = max(getattr(area, 'geoms', [area]), key=lambda g: g.area)
+        pt = part.representative_point()
         tri.add_region((pt.x, pt.y), attribute=k + 1,
                        maximum_area=_max_area_for(size))
+        prev = poly
+    if warn and not added:
+        warn('grid.voronoi: the stream corridor produced no polygon, so the '
+             'mesh is uniform at cell_far.')
 
 
 _PRODUCERS = {

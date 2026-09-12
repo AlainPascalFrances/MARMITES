@@ -393,18 +393,20 @@ class GridVoronoi:
     # panel puts back when it is switched on again (WP1d panel 1, D4).
     REFINE_FIELDS = ('cell_near_stream', 'stream_buffer')
 
-    def bands(self):
-        """Buffer distances [m] from the centreline, innermost first.
+    def graded_bands(self):
+        """``[(distance, cell size), ...]`` outward from the centreline.
 
-        The producer spreads the sizes ACROSS the bands -- *n* bands carry
-        *n* sizes, the innermost ``cell_near_stream`` and the outermost
-        ``cell_far`` -- so the steepest step, between the innermost two, is
-        ``1 + (far - near) / ((n - 1) * near)``. Solving that against
-        ``grade_ratio`` is where *n* comes from, hence the ``+ 1``: bounding
-        the ratio takes one more band than it takes intervals.
+        A BAND IS AS WIDE AS THE CELLS IT CARRIES. That is the constraint
+        that was missing: spacing the bands evenly across the corridor asked
+        for six size changes inside 30 m while the cells there were 15 m and
+        more, which no mesh can honour -- Triangle obeyed the band boundaries
+        instead and produced 3.7 m cells where 15 m were wanted.
 
-        On the defaults (40 -> 100 m over a 60 m corridor at r = 1.5) that is
-        4 bands at 15, 30, 45 and 60 m, carrying 40, 60, 80 and 100 m cells.
+        So each band is one cell wide, and the size grows by at most
+        ``grade_ratio`` from one to the next, until it reaches ``cell_far``
+        (the background takes over) or the band runs past ``stream_buffer``
+        (the corridor is too narrow to finish grading -- see
+        :meth:`corridor_needed`).
         """
         if not self.stream_refine:
             return []
@@ -412,11 +414,41 @@ class GridVoronoi:
         buf = float(self.stream_buffer)
         if near <= 0.0 or buf <= 0.0 or far <= near:
             return []
-        r = float(self.grade_ratio)
-        n = (int(math.ceil((far - near) / (near * (r - 1.0)))) + 1
-             if r > 1.0 else 2)
-        n = max(2, min(int(self.MAX_BANDS), n))
-        return [round(buf * k / float(n), 3) for k in range(1, n + 1)]
+        r = max(float(self.grade_ratio), 1.0 + 1e-9)
+        out, d, s = [], 0.0, near
+        while len(out) < int(self.MAX_BANDS):
+            d += s
+            if d >= buf - 1e-9:                    # the corridor ends here
+                out.append((round(buf, 3), round(s, 3)))
+                break
+            out.append((round(d, 3), round(s, 3)))
+            if s >= far - 1e-9:                    # the background is this size
+                break
+            s = min(far, s * r)
+        return out
+
+    def corridor_needed(self):
+        """Corridor half-width [m] a FULL grade from near to far would take.
+
+        The sum of the cell sizes it passes through, since each band is one
+        cell wide. Panel 1 reports it when ``stream_buffer`` is smaller: the
+        mesh is still built, but the step at the corridor edge is bigger than
+        ``grade_ratio`` asked for.
+        """
+        near, far = float(self.cell_near_stream), float(self.cell_far)
+        if near <= 0.0 or far <= near or not self.stream_refine:
+            return 0.0
+        r = max(float(self.grade_ratio), 1.0 + 1e-9)
+        total, s, n = 0.0, near, 0
+        while s < far and n < int(self.MAX_BANDS):
+            total += s
+            s = min(far, s * r)
+            n += 1
+        return round(total, 3)
+
+    def bands(self):
+        """Just the distances, innermost first -- the read-only echo."""
+        return [d for d, _s in self.graded_bands()]
 
     def refresh(self):
         """Recompute the derived echo. Called from ``RunConfig.validate()``."""
@@ -1097,9 +1129,14 @@ class RunConfig:
             # A ratio can be too fine to honour: the bands needed to hold it
             # grow without bound as it approaches 1, and capping them silently
             # would mean the mesh does not grade the way the file says.
-            want = int(math.ceil((float(v.cell_far) - float(v.cell_near_stream))
-                                 / (float(v.cell_near_stream)
-                                    * (float(v.grade_ratio) - 1.0)))) + 1
+            # Each band is one cell wide and the size grows by grade_ratio
+            # from one to the next, so the number of steps from near to far
+            # is a logarithm -- and it is a property of the two sizes and the
+            # ratio, not of the corridor, which only decides how many of them
+            # fit.
+            want = int(math.ceil(math.log(float(v.cell_far)
+                                          / float(v.cell_near_stream))
+                                 / math.log(float(v.grade_ratio))))
             if want > v.MAX_BANDS:
                 errs.append(
                     'grid.voronoi.grade_ratio = %g needs %d transition bands '

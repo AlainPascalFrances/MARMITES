@@ -211,3 +211,72 @@ def test_the_derived_bands_follow_the_boxes_without_a_save():
     at.number_input(key='grid.voronoi.grade_ratio').set_value(2.5).run()
     assert len(shown(at).split(',')) < n_before, \
         'the bands ignored the grade ratio'
+
+
+def _fake_attempt(tmpdir, tag, kind='structured', nrow=3, ncol=4, cell=50.0):
+    """A built attempt, cached the way the producer caches one."""
+    import json
+    import sys
+    sys.path.insert(0, CODE)
+    import numpy as np
+    from marmites_grid import disv_from_structured
+    verts, cell2d, ncpl = disv_from_structured(
+        np.full(ncol, cell), np.full(nrow, cell), 0.0, 0.0)
+    d = os.path.join(str(tmpdir), tag)
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, 'mesh_%s.json' % kind), 'w', encoding='utf-8') as f:
+        json.dump({'vertices': verts, 'cell2d': cell2d, 'ncpl': ncpl,
+                   'nlay': 1}, f)
+    with open(os.path.join(d, 'mesh_%s.sig.json' % kind), 'w',
+              encoding='utf-8') as f:
+        json.dump({'signature': 'sig_' + tag, 'kind': kind, 'ncpl': ncpl}, f)
+    return d, ncpl
+
+
+def test_the_mesh_tab_draws_the_attempt_that_is_selected(tmp_path):
+    """The combo moved here from the first tab because an attempt is chosen
+    by LOOKING at it -- so choosing one has to change the map."""
+    import sys
+    sys.path.insert(0, CODE)
+    import marmites_config as mcfg
+
+    at = AppTest.from_file(os.path.join(APP, 'pages', '1_Grid.py'),
+                           default_timeout=180)
+    attempts = []
+    for tag, nrow, ncol in (('structured_1', 3, 4), ('structured_2', 6, 8)):
+        d, ncpl = _fake_attempt(tmp_path, tag, nrow=nrow, ncol=ncol)
+        trial = mcfg.RunConfig.from_dict({'grid': {'kind': 'structured'}})
+        attempts.append({'tag': tag, 'ok': True, 'cache': d, 'cfg': trial,
+                         'label': '%d x %d' % (nrow, ncol),
+                         'lines': ['built %d cells' % ncpl],
+                         'info': {'kind': 'structured', 'ncpl': ncpl,
+                                  'area_mean': 2500.0}})
+    at.session_state['grid_attempts'] = attempts
+    at.run()
+    assert not at.exception, [str(e.value) for e in at.exception]
+
+    box = at.selectbox(key='pick_attempt')
+    assert box is not None, 'the attempt selector is not on the mesh tab'
+    assert any('structured_1' in o for o in box.options)
+    assert any('structured_2' in o for o in box.options)
+
+    def cells():
+        return [m.value for m in at.metric if 'cells' in str(m.label)][0]
+
+    one = [o for o in box.options if 'structured_1' in o][0]
+    at.selectbox(key='pick_attempt').select(one).run()
+    assert cells() == '12', 'the map did not follow the selector'
+    two = [o for o in box.options if 'structured_2' in o][0]
+    at.selectbox(key='pick_attempt').select(two).run()
+    assert cells() == '48', 'the map did not follow the selector'
+
+
+def test_the_attempt_selector_is_not_on_the_first_tab(tmp_path):
+    """It was moved, not copied: two selectors disagreeing about which grid
+    is on screen is worse than either."""
+    src = open(os.path.join(APP, 'pages', '1_Grid.py'), encoding='utf-8').read()
+    before, after = src.split('with tab_mesh:', 1)
+    assert 'pick_attempt' not in before
+    assert 'pick_attempt' in after
+    assert 'selgrid' not in before, \
+        'Select this grid is still on the Catchment & grid tab'
