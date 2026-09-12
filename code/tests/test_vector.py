@@ -537,3 +537,57 @@ def test_only_the_catchment_is_told_off_for_having_many_features(tmp_path):
     assert not any('taken as the domain' in w for w in rep['warnings'])
     multi = mv.check_polygon_layer(_catchment(str(tmp_path / 'two.shp'), n=2))
     assert any('taken as the domain' in w for w in multi['warnings'])
+
+
+# ------------------------------------- WP1d: the DEM panel 1 asks for
+
+def test_find_rasters_takes_an_esri_grid_as_one_raster(tmp_path):
+    """An ArcInfo binary grid is a DIRECTORY of .adf files -- La Mata's
+    lm_demfill is one -- and GDAL opens it by the directory path. Walking
+    into it would offer eight meaningless pieces instead of one raster."""
+    (tmp_path / 'plain.asc').write_text('ncols 1\n', encoding='utf-8')
+    (tmp_path / 'notes.txt').write_text('x', encoding='utf-8')
+    grid = tmp_path / 'demfill'
+    grid.mkdir()
+    for name in ('hdr.adf', 'w001001.adf', 'prj.adf'):
+        (grid / name).write_bytes(b'\x00')
+    found = [os.path.relpath(p, str(tmp_path)) for p in
+             mv.find_rasters(str(tmp_path))]
+    assert 'plain.asc' in found
+    assert 'demfill' in found
+    assert not any(f.startswith(os.path.join('demfill', '')) for f in found)
+    assert 'notes.txt' not in found
+
+
+def test_check_raster_reports_a_missing_file_rather_than_raising(tmp_path):
+    rep = mv.check_raster(str(tmp_path / 'nowhere.asc'))
+    assert not rep['ok'] and rep['errors']
+    assert not mv.check_raster('')['ok']
+
+
+def test_check_raster_measures_the_catchment_coverage(tmp_path):
+    """Whether the DEM actually covers the catchment is the question worth
+    asking of it: the part it misses is the part with no pond rim."""
+    rio = pytest.importorskip('rasterio')
+    from rasterio.transform import from_origin
+    p = str(tmp_path / 'dem.asc')
+    with rio.open(p, 'w', driver='AAIGrid', height=10, width=10, count=1,
+                  dtype='float32', crs='EPSG:23029',
+                  transform=from_origin(0.0, 100.0, 10.0, 10.0)) as dst:
+        dst.write(np.full((10, 10), 700.0, dtype='float32'), 1)
+
+    inside = mv.check_raster(p, expect_epsg=23029,
+                             against=(10.0, 10.0, 90.0, 90.0))
+    assert inside['ok'] and inside['covers_pct'] > 99.0
+    assert inside['shape'] == (10, 10) and inside['pixel_m'] == 10.0
+
+    half = mv.check_raster(p, against=(50.0, 0.0, 250.0, 100.0))
+    assert half['ok'] and any('%' in w for w in half['warnings'])
+
+    away = mv.check_raster(p, against=(5000.0, 5000.0, 6000.0, 6000.0))
+    assert not away['ok']
+    assert any('does not cover' in e for e in away['errors'])
+
+    wrong = mv.check_raster(p, expect_epsg=23030,
+                            against=(10.0, 10.0, 90.0, 90.0))
+    assert any('23030' in w for w in wrong['warnings'])

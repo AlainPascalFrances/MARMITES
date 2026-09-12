@@ -137,6 +137,12 @@ FIELDS = {
                    'The charcas, in DATA_ROOT/GIS. Seeds a mesh cell per pond '
                    'and becomes the LAK footprints. Blank means the catchment '
                    'has none.'),
+    'grid.dem': ('Elevation raster (DEM)', _U,
+                 'The sink-filled DEM, in DATA_ROOT/GIS -- a file or an ESRI '
+                 'grid folder. It does NOT shape the grid: a quadtree is the '
+                 'same cell for cell with or without it. It is where each '
+                 'pond gets its rim and bottom, so leave it blank only if the '
+                 'catchment has no ponds.'),
     'grid.crs_epsg': ('Project CRS', 'EPSG',
                       'The projected, metric CRS everything is in. 0 takes it '
                       'from the layer\'s .prj. Station coordinates are '
@@ -516,7 +522,7 @@ SUBPANELS = {
 # The catchment comes first, and the two layers a GRID can depend on come
 # with it -- the refinement options below cannot be answered before it is
 # known whether there IS a network or a pond to refine around.
-GRID_PERMANENT = ('grid.boundary', 'grid.streams', 'grid.ponds',
+GRID_PERMANENT = ('grid.boundary', 'grid.streams', 'grid.ponds', 'grid.dem',
                   'grid.crs_epsg', 'grid.kind', 'grid.resample')
 _LEGACY_ROWS = (
     ('grid.cell_size', 'grid.buffer'),

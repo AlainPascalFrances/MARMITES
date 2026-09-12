@@ -523,6 +523,14 @@ class Grid:
     #            footprints.
     streams: str = ''
     ponds: str = ''
+    # A RASTER, not a shapefile, and named here for the same reason: it was
+    # hardcoded as 'lm_demfill', which exists on La Mata and nowhere else. It
+    # does NOT shape the grid -- a quadtree built on a flat placeholder and on
+    # a real 687-912 m surface is cell-for-cell identical, because the
+    # refinement is horizontal and the model's elevations come from the
+    # projected rasters -- but it is where pond rim and bottom come from, and
+    # a new catchment has to be able to name it.
+    dem: str = ''
     crs_epsg: int = 0              # 0 = take it from the layer's .prj
     cell_size: float = 50.0        # m, background cell size for every kind
     buffer: float = 0.0            # m, extend the rectangle beyond the polygon
@@ -1203,6 +1211,9 @@ class RunConfig:
         # catchment with no mapped network is a legitimate thing to model --
         # but a refinement switched on with nothing to refine along is not,
         # because it produces a uniform mesh that claims to be refined.
+        if self.grid.dem and self.grid.dem.lower().endswith('.shp'):
+            errs.append('grid.dem must be a RASTER (an .asc, .tif, or an ESRI '
+                        'grid folder), not a shapefile: %r' % self.grid.dem)
         for name, what in (('streams', 'lines'), ('ponds', 'polygons')):
             v = getattr(self.grid, name)
             if v and not v.lower().endswith('.shp'):

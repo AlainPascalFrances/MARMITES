@@ -14,7 +14,7 @@ with an empty list and panel 1 is where the layers are given:
     [grid] boundary     the catchment polygon          (required)
     [grid] streams      the mapped stream network      (optional)
     [grid] ponds        the charcas                    (optional)
-    lm_demfill          the sink-filled DEM (native resolution)
+    [grid] dem          the sink-filled DEM            (optional)
 
 An optional layer left blank is simply not converted, and the refinement
 that would need it cannot be switched on (RunConfig.validate).
@@ -77,7 +77,6 @@ SOURCES = {
     # is 19.159 km2 against the catchment's 4.844 km2 -- nearly four times too
     # big, and the reason the mesh producer had to clip to the grid rectangle.
     'watershed': 'lm_lim.shp',
-    'dem':       'lm_demfill',
 }
 
 # WP1d: the layers the four panels wrap onto the grid. Each entry says where
@@ -337,12 +336,15 @@ def convert(case='LaMata', gis=None, out_dir=None, cfg=None, dry_run=False):
         raise SystemExit('CONFIG ERROR: grid.ponds = %r is not in %s'
                          % (name, gis))
     ponds = _to_target(gpd.read_file(p), 'ponds', report) if name else None
-    dem_path = os.path.join(gis, SOURCES['dem'])
+    dem_path = os.path.join(gis, cfg.grid.dem) if cfg.grid.dem else ''
     pond_rows = []
-    have_dem = os.path.exists(dem_path)
-    if not have_dem:
-        report.append('%-12s %s not found -- DEM columns left blank'
-                      % ('dem', SOURCES['dem']))
+    have_dem = bool(dem_path) and os.path.exists(dem_path)
+    if not cfg.grid.dem:
+        report.append('%-12s not set in [grid] -- pond rim and bottom left '
+                      'blank' % 'dem')
+    elif not have_dem:
+        report.append('%-12s %s NOT FOUND in %s -- DEM columns left blank'
+                      % ('dem', cfg.grid.dem, gis))
     for _, row in (ponds.iterrows() if ponds is not None else []):
         g = row.geometry
         c = g.centroid
@@ -362,7 +364,7 @@ def convert(case='LaMata', gis=None, out_dir=None, cfg=None, dry_run=False):
             os.path.join(out_dir, 'inputPONDS.csv'),
             _provenance(p, _crs_note(ponds.crs), len(ponds))
             + ['# dem_mean_m / dem_min_m sampled from %s over each footprint;'
-               % SOURCES['dem'],
+               % (cfg.grid.dem or 'no DEM'),
                '# the model sets rim = dem_mean and bottom = rim - pond '
                'depth.'],
             ['fid', 'x', 'y', 'area_m2', 'perimeter_m', 'dem_mean_m',

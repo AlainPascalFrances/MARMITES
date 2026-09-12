@@ -270,8 +270,12 @@ def folder_picker(label, value, key, help_=None, want='dir', native=True):
 
 
 def gis_folder_box(folder_key='gis_folder'):
-    """Where to look for shapefiles. Shared by the layer pickers below."""
-    from marmites_vector import find_shapefiles
+    """Where to look for cartography. Shared by the pickers below.
+
+    Returns ``(folder, shapefiles, rasters)``. An ESRI grid is a DIRECTORY of
+    .adf files, so the raster list is not just a filtered file listing.
+    """
+    from marmites_vector import find_rasters, find_shapefiles
 
     gis = str(mm_paths.GIS)
     folder = st.text_input(
@@ -284,7 +288,7 @@ def gis_folder_box(folder_key='gis_folder'):
         st.error('No such folder: `%s`' % folder)
     elif not found:
         st.warning('No .shp in `%s` (or one level below it).' % folder)
-    return folder, found
+    return folder, found, find_rasters(folder)
 
 
 NONE = '\u2014 none \u2014'
@@ -428,8 +432,8 @@ def grid_permanent_form(cfg, columns=3):
     # cannot be answered before it is known whether there IS a network or a
     # pond to refine around -- and because a new catchment starts with an
     # empty list and has to be able to say so.
-    folder, found = gis_folder_box()
-    cols = st.columns(3)
+    folder, found, rasters = gis_folder_box()
+    cols = st.columns(4)
     with cols[0]:
         picked = layer_picker('grid.boundary', values['grid.boundary'],
                               folder, found)
@@ -439,9 +443,13 @@ def grid_permanent_form(cfg, columns=3):
     with cols[2]:
         ponds = layer_picker('grid.ponds', values['grid.ponds'],
                              folder, found, optional=True)
+    with cols[3]:
+        dem = layer_picker('grid.dem', values['grid.dem'], folder, rasters,
+                           optional=True)
     edited['grid.boundary'] = picked
     edited['grid.streams'] = streams
     edited['grid.ponds'] = ponds
+    edited['grid.dem'] = dem
 
     path = resolve_layer(picked)
     rep = check_polygon_layer(path, expect_epsg=cfg.grid.crs_epsg)
@@ -457,6 +465,11 @@ def grid_permanent_form(cfg, columns=3):
             resolve_layer(name), expect_epsg=(rep['epsg']
                                               or cfg.grid.crs_epsg),
             against=rep['bbox'], want=want)
+    if dem:
+        from marmites_vector import check_raster
+        reports['grid.dem'] = check_raster(
+            resolve_layer(dem), expect_epsg=(rep['epsg'] or cfg.grid.crs_epsg),
+            against=rep['bbox'])
 
     # Read-only: the CRS is a PROPERTY OF THE FILE, not a choice. It is taken
     # from the .prj -- by its authority code, or by matching the definition

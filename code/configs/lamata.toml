@@ -32,6 +32,7 @@ allow_bad_budget = false
 boundary = "lm_lim.shp"
 streams = "hydrography.shp"
 ponds = "lm_ponds.shp"
+dem = "lm_demfill"
 crs_epsg = 23029
 cell_size = 50.0
 buffer = 25.0

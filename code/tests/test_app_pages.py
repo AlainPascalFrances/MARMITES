@@ -459,3 +459,20 @@ def test_the_refinement_needs_its_layer():
     blocked = [c for c in at.checkbox
                if c.key == 'na_grid.voronoi.stream_refine']
     assert blocked and blocked[0].disabled and blocked[0].value is False
+
+
+def test_panel_one_asks_for_the_dem_as_a_raster():
+    """It does not shape the grid, but it is where pond rim and bottom come
+    from -- and it was hardcoded, which a new catchment cannot use."""
+    at = AppTest.from_file(os.path.join(APP, 'pages', '1_Grid.py'),
+                           default_timeout=180)
+    at.run()
+    assert 'grid.dem' in _keys(at), 'the DEM is not asked for'
+    box = at.selectbox(key='grid.dem')
+    assert box is not None and any('none' in str(o).lower()
+                                   for o in box.options), \
+        'the DEM cannot be left unset'
+    # It lists RASTERS: an ESRI grid folder is one, and no .shp belongs.
+    named = [str(o) for o in box.options]
+    assert not any(o.lower().endswith('.shp') for o in named), \
+        'the DEM picker is offering shapefiles'

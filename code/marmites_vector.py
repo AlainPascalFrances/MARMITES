@@ -43,7 +43,7 @@ import numpy as np
 __all__ = ['VectorError', 'OVERLAY_MODES', 'Layer', 'TargetGrid',
            'overlay_polygons', 'burn_lines', 'locate_points',
            'coverage_report', 'write_geojson', 'find_shapefiles',
-           'check_polygon_layer']
+           'check_polygon_layer', 'find_rasters', 'check_raster']
 
 # 'majority'      the class covering the largest area of the cell
 # 'area_fraction' percentage of the cell covered, 0..100  (what VEGarea wants)
@@ -789,6 +789,102 @@ def find_shapefiles(folder, depth=1):
 # differently: without .shx pyshp cannot index the shapes, without .dbf there
 # are no attributes, and without .prj nothing knows what the coordinates mean.
 SHP_SIDECARS = ('.shx', '.dbf', '.prj')
+
+
+# What a raster arrives as. The last case is not a file at all: an ESRI
+# ArcInfo binary grid is a DIRECTORY of .adf files -- which is what La Mata's
+# lm_demfill is -- and GDAL opens it by the directory path.
+RASTER_EXT = ('.asc', '.tif', '.tiff', '.img', '.flt', '.vrt', '.bil',
+              '.grd', '.dem', '.nc')
+AIG_MEMBERS = ('hdr.adf', 'w001001.adf')
+
+
+def find_rasters(folder, depth=1):
+    """Every raster under ``folder``, to ``depth`` levels of subdirectory.
+
+    Files by extension, plus the ESRI grid DIRECTORIES: a folder holding
+    ``hdr.adf`` is one raster, not a place to look inside. A missing folder
+    gives an empty list, because this feeds a picker.
+    """
+    out = []
+    folder = str(folder or '')
+    if not os.path.isdir(folder):
+        return out
+    root_depth = folder.rstrip('\\/').count(os.sep)
+    for here, dirs, files in os.walk(folder):
+        lower = {f.lower() for f in files}
+        if any(m in lower for m in AIG_MEMBERS):
+            out.append(here)                  # an ESRI grid: take the folder
+            dirs[:] = []
+            continue
+        if here.rstrip('\\/').count(os.sep) - root_depth >= depth:
+            dirs[:] = []
+        for f in files:
+            if f.lower().endswith(RASTER_EXT):
+                out.append(os.path.join(here, f))
+    return sorted(out)
+
+
+def check_raster(path, expect_epsg=0, against=None):
+    """Is this raster usable, and does it cover the catchment? A report.
+
+    Needs rasterio, which is a CONVERTER dependency and not a model one, so a
+    machine without it gets a warning and no verdict rather than an import
+    error -- the same degradation the converter makes.
+    """
+    rep = {'path': str(path), 'ok': False, 'errors': [], 'warnings': [],
+           'bbox': None, 'epsg': 0, 'crs_name': '', 'shape': (0, 0),
+           'pixel_m': 0.0, 'covers_pct': 0.0}
+    err, warn = rep['errors'].append, rep['warnings'].append
+    if not path:
+        err('No raster is set.')
+        return rep
+    if not os.path.exists(path):
+        err('It does not exist: %s' % path)
+        return rep
+    try:
+        import rasterio
+    except ImportError:                                   # pragma: no cover
+        warn('rasterio is not installed here, so the raster could not be '
+             'checked. The converter needs it anyway and will report on it.')
+        return rep
+    try:
+        with rasterio.open(path) as src:
+            b = src.bounds
+            rep['bbox'] = (float(b.left), float(b.bottom), float(b.right),
+                           float(b.top))
+            rep['shape'] = (int(src.height), int(src.width))
+            rep['pixel_m'] = abs(float(src.transform.a))
+            if src.crs is not None:
+                rep['epsg'] = int(src.crs.to_epsg() or 0)
+                rep['crs_name'] = str(src.crs.to_string())[:60]
+    except Exception as exc:                              # noqa: BLE001
+        err('It could not be opened: %r' % exc)
+        return rep
+    if not rep['epsg'] and not rep['crs_name']:
+        warn('It declares no CRS. Nothing is reprojected, so it has to be in '
+             'the project CRS already.')
+    elif expect_epsg and rep['epsg'] and int(expect_epsg) != rep['epsg']:
+        warn('The raster says EPSG:%d and the project is set to EPSG:%d. '
+             'Nothing is reprojected, so one of the two is wrong.'
+             % (rep['epsg'], int(expect_epsg)))
+    if against and rep['bbox']:
+        ax0, ay0, ax1, ay1 = (float(v) for v in against)
+        bx0, by0, bx1, by1 = rep['bbox']
+        ox = min(ax1, bx1) - max(ax0, bx0)
+        oy = min(ay1, by1) - max(ay0, by0)
+        if ox <= 0.0 or oy <= 0.0:
+            err('It does not cover the catchment at all: the raster spans '
+                'x %.0f..%.0f, y %.0f..%.0f.' % (bx0, bx1, by0, by1))
+        else:
+            span = max((ax1 - ax0) * (ay1 - ay0), 1.0)
+            rep['covers_pct'] = 100.0 * (ox * oy) / span
+            if rep['covers_pct'] < 99.0:
+                warn('It covers %.1f %% of the catchment extent, so part of '
+                     'the catchment has no elevation under it.'
+                     % rep['covers_pct'])
+    rep['ok'] = not rep['errors']
+    return rep
 
 
 def _datum_name(wkt):

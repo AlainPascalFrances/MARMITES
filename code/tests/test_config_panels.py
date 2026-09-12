@@ -365,3 +365,27 @@ def test_the_pond_layer_is_named_once():
     [grid] is where it lives."""
     c = cfg({'grid': {'ponds': 'charcas.shp'}})
     assert c.grid.ponds == 'charcas.shp'
+
+
+def test_the_dem_is_named_not_assumed():
+    """It was hardcoded as 'lm_demfill' in the converter -- a name that
+    exists on La Mata and nowhere else. Blank is valid: the converter then
+    leaves pond rim and bottom empty and says so."""
+    assert cfg({}).grid.dem == ''
+    assert cfg({'grid': {'dem': 'lm_demfill'}}).grid.dem == 'lm_demfill'
+    assert cfg({'grid': {'dem': 'srtm.tif'}}).grid.dem == 'srtm.tif'
+
+
+def test_a_shapefile_given_as_the_dem_is_refused():
+    with pytest.raises(cfgmod.ConfigError) as e:
+        cfg({'grid': {'dem': 'lm_lim.shp'}})
+    assert 'grid.dem' in str(e.value) and 'RASTER' in str(e.value)
+
+
+def test_the_dem_does_not_gate_any_refinement():
+    """Unlike the streams, it shapes NOTHING in the grid: a quadtree built on
+    a flat placeholder and on a real 687-912 m surface is cell for cell
+    identical. So it is asked for, and nothing depends on it being there."""
+    c = cfg({'grid': {'kind': 'quadtree', 'streams': 'h.shp', 'dem': '',
+                      'quadtree': {'refine_streams': True}}})
+    assert c.grid.quadtree.refine_streams is True
