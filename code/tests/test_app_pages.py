@@ -256,6 +256,33 @@ def test_the_pin_is_not_offered_on_a_mesh():
         assert not [b for b in at.button if b.key == 'adoptrect'], mesh
 
 
+def test_each_layer_picker_keeps_its_title_and_its_help():
+    """The four titles are drawn by hand so they align across the columns,
+    with the widget's own label collapsed underneath -- which is what took
+    the help icon away the first time. It has to ride on the title instead,
+    and the bracket has to be in the SAME block or a paragraph gap opens
+    between them.
+    """
+    at = AppTest.from_file(os.path.join(APP, 'pages', '1_Grid.py'),
+                           default_timeout=180)
+    at.run()
+    want = {'grid.boundary': ('Catchment boundary', '(polygon)'),
+            'grid.streams': ('Hydrography layer', '(lines)'),
+            'grid.ponds': ('Pond layer', '(polygons)'),
+            'grid.dem': ('Elevation raster', '(DEM)')}
+    blocks = [(m.value, getattr(m, 'help', None)
+               or getattr(getattr(m, 'proto', None), 'help', ''))
+              for m in at.markdown]
+    for dotted, (title, bracket) in want.items():
+        hit = [(v, h) for v, h in blocks if v.startswith('**%s**' % title)]
+        assert hit, 'no title block for %s' % dotted
+        value, help_ = hit[0]
+        assert bracket in value, '%s: the bracket left the title block' % dotted
+        assert '\n' in value.split(bracket)[0], \
+            '%s: the bracket is not on its own line' % dotted
+        assert dotted in (help_ or ''), '%s: the help icon is gone' % dotted
+
+
 def test_panel_zero_sets_the_machine_paths():
     """They used to be read-only in the sidebar, under a caption telling the
     modeller to go and edit code/mm_paths.py. A path is not source code."""

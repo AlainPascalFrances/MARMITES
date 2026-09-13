@@ -351,12 +351,20 @@ def layer_picker(dotted, value, folder, found, optional=False):
     gis = str(mm_paths.GIS)
     label, units, help_ = schema.describe(dotted)
     shown = '%s [%s]' % (label, units) if units else label
+    hint = '`%s`  \n%s' % (dotted, help_)
     # The TITLE on its own line and the geometry under it, so the four
     # pickers' titles sit at the same height across the columns instead of
     # stepping down as the longer ones wrap.
+    #
+    # ONE block, not a markdown and a caption: two blocks put a paragraph
+    # gap between the title and its bracket, and the widget's own label is
+    # collapsed below -- which takes its help icon with it. Written here, the
+    # icon sits on the title where it is being looked for.
     title, _sep, qualifier = label.partition(' (')
-    st.markdown('**%s**' % title)
-    st.caption(('(%s' % qualifier) if qualifier else ' ')
+    st.markdown('**%s**  \n<span style="font-size:0.8em;opacity:0.6">%s'
+                '</span>' % (title, ('(%s' % qualifier) if qualifier
+                             else '&nbsp;'),
+                help=hint, unsafe_allow_html=True)
 
     current = os.path.join(gis, value) if value and not os.path.isabs(value) \
         else (value or '')
@@ -367,14 +375,12 @@ def layer_picker(dotted, value, folder, found, optional=False):
         options = [NONE] + options
     if not options:
         return st.text_input(shown, value=str(value), key=dotted,
-                             label_visibility='collapsed',
-                             help='`%s`  \n%s' % (dotted, help_))
+                             label_visibility='collapsed', help=hint)
 
     pick = st.selectbox(
         shown, options,
         index=options.index(current) if current in options else 0,
-        key=dotted, help='`%s`  \n%s' % (dotted, help_),
-        label_visibility='collapsed',
+        key=dotted, help=hint, label_visibility='collapsed',
         format_func=lambda p: (p if p == NONE else
                                (os.path.relpath(p, folder)
                                 if os.path.isdir(folder)
