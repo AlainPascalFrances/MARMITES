@@ -944,7 +944,10 @@ class Crr:
     enable: bool = False
     beta: float = 1.0              # Daoud Eq. 23; calibrated 0.8-1.0
     sinks: str = 'evaporate'
-    dem: str = 'inputDEMfill.asc'
+    # The dataset DEM, at the survey's OWN resolution. The cascade wraps
+    # it onto the model cells like everything else; a copy resampled to
+    # the grid would be the second resampling this design removed.
+    dem: str = 'inputDEM.asc'
 
 
 @dataclass

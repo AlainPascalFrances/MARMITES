@@ -459,7 +459,10 @@ FIELDS = {
     'lak.stagechg': ('LAK stage tolerance', 'm', ''),
     'crr.sinks': ('Topographic sinks', _U,
                   'What happens to runoff that reaches a closed depression.'),
-    'crr.dem': ('Sink-filled DEM', _U, 'Drives the downslope cascade.'),
+    'crr.dem': ('Sink-filled DEM', _U,
+                'Drives the downslope cascade. The DATASET copy, at the '
+                'survey resolution, wrapped onto the model cells like every '
+                'other input -- written by the converter from [grid] dem.'),
     'spinup.tol': ('Spin-up tolerance', 'm',
                    'Water-table change between cycles below which the spin-up '
                    'is considered converged.'),

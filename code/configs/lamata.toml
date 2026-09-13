@@ -295,7 +295,7 @@ stagechg = 0.0001
 enable = false
 beta = 1.0
 sinks = "evaporate"
-dem = "inputDEMfill.asc"
+dem = "inputDEM.asc"
 
 [spinup]
 cycles = 1

@@ -24,9 +24,11 @@ Writes, into example/<case>/ (and nothing else):
     inputSTREAM_param.csv  per-segment resolved parameters
     inputPONDS.csv         pond table: fid, centroid, area, DEM statistics
     inputWATERSHED.csv     the catchment boundary polygon
-    MF_ws/elev_sinkfil.asc the land surface, block-averaged onto the model
-                           rectangle from the GIS DEM
-    inputDEMfill.asc       the same array, for the CRR cascade
+    inputDEM.asc           the land surface at the DEM's OWN resolution,
+                           clipped to the catchment. Wrapped onto the model
+                           cells at run time, whatever the grid kind --
+                           resampling it here would throw away what the
+                           survey knows before the mesh ever sees it.
 
 Every output carries a provenance header: which file it came from, that file's
 size and mtime, its CRS, and the feature count. Re-running is idempotent apart
@@ -490,171 +492,88 @@ def _write_stream_tables(out_dir, hdr, vert_rows, par_rows, dry_run):
 #  the elevation rasters the model reads, derived from the GIS DEM
 # ---------------------------------------------------------------------- #
 
-def _read_asc_header(path):
-    """``(ncols, nrows, xll, yll, cellsize)`` of an ESRI ASCII grid, or None."""
-    try:
-        with open(path, encoding='utf-8', errors='replace') as fh:
-            h = {}
-            for _ in range(6):
-                parts = fh.readline().split()
-                if len(parts) != 2:
-                    return None
-                h[parts[0].strip().lower()] = parts[1]
-        return (int(h['ncols']), int(h['nrows']), float(h['xllcorner']),
-                float(h['yllcorner']), float(h['cellsize']))
-    except (OSError, KeyError, ValueError):
-        return None
+def _derive_elevation(gis, out_dir, cfg, bbox, report, dry_run=False,
+                      redo=False):
+    """The land surface into the dataset, AT ITS OWN RESOLUTION.
 
+    Not resampled onto the model rectangle. That was the first version of
+    this and it was wrong: the elevation was then projected a second time
+    onto whatever mesh the run used, and the first resampling had already
+    thrown away what the 5 m survey knew -- 0.65 m rms and 4.4 m at worst on
+    La Mata. So the DEM stays fine and GRID-INDEPENDENT, exactly like the
+    vector layers, and ``marmites_dem`` wraps it onto the cells of whichever
+    grid panel 1 produced.
 
-def _sibling_rectangle(out_dir):
-    """The rectangle the dataset's OTHER rasters are on, and which named it.
-
-    Every MF raster -- ibound, thickness, hk, the storage terms -- shares one
-    header, and a DEM on a different rectangle would misalign against all of
-    them rather than fail outright. So when they exist they decide, and the
-    [grid] block only decides for a catchment that has none yet.
-    """
-    mf = os.path.join(out_dir, 'MF_ws')
-    for name in ('ibound_l1.asc', 'thick_l1.asc', 'elev.asc'):
-        hdr = _read_asc_header(os.path.join(mf, name))
-        if hdr:
-            return hdr, name
-    return None, ''
-
-
-def _resample_dem(dem_path, ncols, nrows, xll, yll, cs):
-    """Block-average the DEM onto the model rectangle. (array, filled, total).
-
-    An AVERAGE, not a sample: the DEM is 5 m and the model cell is 50 m, so
-    one cell covers a hundred pixels and taking the one under its centre
-    would throw away the other ninety-nine. Cells the DEM does not reach are
-    left as NODATA and counted, because that is a hole in the model's
-    surface and worth saying out loud.
+    Clipped to the catchment plus a margin, because the rest of a regional
+    tile is not this model's business and the file goes in the repository.
     """
     import numpy as np
     import rasterio
+    from rasterio.windows import from_bounds
 
-    with rasterio.open(dem_path) as src:
-        a = src.read(1, masked=True)
-        tr = src.transform
-    xs = tr.c + (np.arange(src.width if hasattr(src, 'width')
-                           else a.shape[1]) + 0.5) * tr.a
-    ys = tr.f + (np.arange(a.shape[0]) + 0.5) * tr.e
-    col = np.floor((xs - xll) / cs).astype(np.int64)
-    row = nrows - 1 - np.floor((ys - yll) / cs).astype(np.int64)
-    C, R = np.meshgrid(col, row)
-    good = (~np.ma.getmaskarray(a)) & np.isfinite(np.ma.filled(a, np.nan))
-    good &= (C >= 0) & (C < ncols) & (R >= 0) & (R < nrows)
-    flat = (R * ncols + C)[good].ravel()
-    vals = np.ma.filled(a, 0.0)[good].ravel().astype(float)
-    total = np.bincount(flat, weights=vals, minlength=ncols * nrows)
-    count = np.bincount(flat, minlength=ncols * nrows)
-    out = np.full(ncols * nrows, -9999.0)
-    hit = count > 0
-    out[hit] = total[hit] / count[hit]
-    return out.reshape(nrows, ncols), int(hit.sum()), ncols * nrows
+    import marmites_dem as mdem
 
-
-def _write_asc(path, arr, xll, yll, cs, dry_run=False, nodata=-9999.0):
-    """Write an ESRI ASCII grid, in the layout the model's reader expects."""
-    import numpy as np
-    nrows, ncols = arr.shape
-    if dry_run:
-        print('   would write %-24s %d x %d' % (os.path.basename(path),
-                                                nrows, ncols))
-        return path
-    os.makedirs(os.path.dirname(path) or '.', exist_ok=True)
-    with open(path, 'w', encoding='utf-8', newline='\n') as fh:
-        fh.write('ncols         %d\n' % ncols)
-        fh.write('nrows         %d\n' % nrows)
-        # %.10g, not %g: a UTM northing is seven digits and %g writes it as
-        # 4.55305e+06, which the model's ASCII reader does not parse.
-        fh.write('xllcorner     %.10g\n' % xll)
-        fh.write('yllcorner     %.10g\n' % yll)
-        fh.write('cellsize      %.10g\n' % cs)
-        fh.write('NODATA_value  %.10g\n' % nodata)
-        for r in range(nrows):
-            fh.write(' '.join('%.2f' % v for v in np.asarray(arr[r])) + '\n')
-    print('   wrote %-24s %d x %d' % (os.path.basename(path), nrows, ncols))
-    return path
-
-
-def _derive_elevation(gis, out_dir, cfg, bbox, report, dry_run=False,
-                      redo=False):
-    """``elev_sinkfil.asc`` and the CRR DEM, from the GIS raster.
-
-    Both are the SAME array under the two names the model asks for: the MF
-    ini reads ``MF_ws/elev_sinkfil.asc`` as the land surface, and ``[crr]
-    dem`` reads its own copy for the downslope cascade.
-    """
     if not cfg.grid.dem:
-        report.append('%-12s not set in [grid] -- the elevation rasters were '
-                      'left alone' % 'dem')
+        report.append('%-12s not set in [grid] -- no elevation was written'
+                      % 'dem')
         return []
-    dem_path = os.path.join(gis, cfg.grid.dem)
-    if not os.path.exists(dem_path):
-        report.append('%-12s %s NOT FOUND -- the elevation rasters were left '
-                      'alone' % 'dem', )
+    src_path = os.path.join(gis, cfg.grid.dem)
+    if not os.path.exists(src_path):
+        report.append('%-12s %s NOT FOUND in %s' % ('dem', cfg.grid.dem, gis))
         return []
 
-    hdr, named_by = _sibling_rectangle(out_dir)
-    if hdr:
-        ncols, nrows, xll, yll, cs = hdr
-        report.append('%-12s on the rectangle %s uses: %d x %d of %g m at '
-                      '%.10g, %.10g' % ('elevation', named_by, nrows, ncols, cs,
-                                  xll, yll))
-        import marmites_meshes as mmesh
-        want = mmesh.model_rectangle(cfg, bbox)
-        if (int(want[1]), int(want[0])) != (ncols, nrows) or \
-                (float(want[4]), float(want[5])) != (xll, yll):
-            report.append('%-12s NOTE: [grid] asks for %d x %d at %.10g, %.10g. The '
-                          'DEM follows the EXISTING rasters so the set stays '
-                          'consistent; regenerate them all to move the grid.'
-                          % ('elevation', want[0], want[1], want[4], want[5]))
-    else:
-        import marmites_meshes as mmesh
-        nrows, ncols, _dr, _dc, xll, yll = mmesh.model_rectangle(cfg, bbox)
-        cs = mmesh.rectangle_cell_size(cfg)
-        report.append('%-12s no raster to match, so the [grid] rectangle: '
-                      '%d x %d of %g m at %.10g, %.10g'
-                      % ('elevation', nrows, ncols, cs, xll, yll))
-
-    arr, filled, total = _resample_dem(dem_path, ncols, nrows, xll, yll, cs)
-    report.append('%-12s %d of %d cell(s) covered by %s (%.1f %%)'
-                  % ('elevation', filled, total, cfg.grid.dem,
-                     100.0 * filled / max(total, 1)))
-
-    written = []
-    mf = os.path.join(out_dir, 'MF_ws')
-
-    def _keep(path):
-        """An EXISTING elevation raster is left alone unless asked for.
-
-        Every other output here is a pure derivation from the cartography,
-        but this one is the land surface a calibration was built on: on La
-        Mata the derived array differs from the committed one by 0.29 m on
-        average and 4.4 m at worst, which is a different model. So moving it
-        is a deliberate act (--redo-elevation), not a side effect of
-        refreshing the soil polygons."""
-        if redo or not os.path.exists(path):
-            return False
+    out = os.path.join(out_dir, mdem.DATASET_DEM)
+    if os.path.exists(out) and not redo:
         report.append('%-12s %s kept (--redo-elevation rewrites it from %s)'
-                      % ('elevation', os.path.basename(path), cfg.grid.dem))
-        return True
+                      % ('dem', mdem.DATASET_DEM, cfg.grid.dem))
+        return []
 
-    # Keep the name that is there: the committed file is elev_sinkfil.ASC,
-    # and on a case-insensitive filesystem writing the lower-case spelling
-    # changes the contents while git still sees the old name.
-    target = 'elev_sinkfil.asc'
-    for cand in ('elev_sinkfil.ASC', 'elev_sinkfil.asc'):
-        if os.path.exists(os.path.join(mf, cand)):
-            target = cand
-            break
-    for path in [os.path.join(mf, target)] + (
-            [os.path.join(out_dir, cfg.crr.dem)] if cfg.crr.dem else []):
-        if not _keep(path):
-            written.append(_write_asc(path, arr, xll, yll, cs, dry_run))
-    return written
+    margin = max(float(cfg.grid.buffer), 0.0) + 100.0
+    x0, y0, x1, y1 = (bbox[0] - margin, bbox[1] - margin,
+                      bbox[2] + margin, bbox[3] + margin)
+    with rasterio.open(src_path) as src:
+        cs = abs(float(src.transform.a))
+        # round_offsets/round_lengths take no positional argument in this
+        # rasterio; snapping the window to whole pixels by hand keeps the
+        # output on the SOURCE lattice, which is the point of not resampling.
+        win = from_bounds(x0, y0, x1, y1, src.transform)
+        r0 = max(int(np.floor(win.row_off)), 0)
+        c0 = max(int(np.floor(win.col_off)), 0)
+        r1 = min(int(np.ceil(win.row_off + win.height)), int(src.height))
+        c1 = min(int(np.ceil(win.col_off + win.width)), int(src.width))
+        if r1 <= r0 or c1 <= c0:
+            report.append('%-12s %s does not overlap the catchment at all'
+                          % ('dem', cfg.grid.dem))
+            return []
+        win = rasterio.windows.Window(c0, r0, c1 - c0, r1 - r0)
+        a = src.read(1, window=win, masked=True)
+        tr = src.window_transform(win)
+        nodata = src.nodata
+    if a.size == 0:
+        report.append('%-12s %s does not overlap the catchment at all'
+                      % ('dem', cfg.grid.dem))
+        return []
+    arr = np.ma.masked_invalid(np.ma.filled(a.astype(float), np.nan))
+    if nodata is not None:
+        arr = np.ma.masked_values(arr, float(nodata), atol=1e-6)
+    xll = float(tr.c)
+    yll = float(tr.f) + float(tr.e) * arr.shape[0]
+
+    covered = int((~np.ma.getmaskarray(arr)).sum())
+    report.append('%-12s %s at its own %g m, clipped to the catchment + %g m: '
+                  '%d x %d px, %.1f %% with data'
+                  % ('dem', cfg.grid.dem, cs, margin, arr.shape[0],
+                     arr.shape[1], 100.0 * covered / max(arr.size, 1)))
+    report.append('%-12s wrapped onto the model cells at RUN time, whatever '
+                  'the grid kind -- not resampled here' % 'dem')
+    if dry_run:
+        print('   would write %-24s %d x %d of %g m'
+              % (mdem.DATASET_DEM, arr.shape[0], arr.shape[1], cs))
+        return []
+    mdem.write_asc(out, arr, xll, yll, cs)
+    print('   wrote %-24s %d x %d of %g m'
+          % (mdem.DATASET_DEM, arr.shape[0], arr.shape[1], cs))
+    return [out]
 
 
 def _resolve(src, row, what):
