@@ -310,6 +310,12 @@ def layer_picker(dotted, value, folder, found, optional=False):
     gis = str(mm_paths.GIS)
     label, units, help_ = schema.describe(dotted)
     shown = '%s [%s]' % (label, units) if units else label
+    # The TITLE on its own line and the geometry under it, so the four
+    # pickers' titles sit at the same height across the columns instead of
+    # stepping down as the longer ones wrap.
+    title, _sep, qualifier = label.partition(' (')
+    st.markdown('**%s**' % title)
+    st.caption(('(%s' % qualifier) if qualifier else ' ')
 
     current = os.path.join(gis, value) if value and not os.path.isabs(value) \
         else (value or '')
@@ -320,12 +326,14 @@ def layer_picker(dotted, value, folder, found, optional=False):
         options = [NONE] + options
     if not options:
         return st.text_input(shown, value=str(value), key=dotted,
+                             label_visibility='collapsed',
                              help='`%s`  \n%s' % (dotted, help_))
 
     pick = st.selectbox(
         shown, options,
         index=options.index(current) if current in options else 0,
         key=dotted, help='`%s`  \n%s' % (dotted, help_),
+        label_visibility='collapsed',
         format_func=lambda p: (p if p == NONE else
                                (os.path.relpath(p, folder)
                                 if os.path.isdir(folder)

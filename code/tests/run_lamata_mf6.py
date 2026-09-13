@@ -78,6 +78,77 @@ def _forcing(cfg):
     return spec
 
 
+
+def _apply_dem(cMF, cfg, dataset_dir, cache_dir=None):
+    """Take the land surface from the DEM panel 1 names. ``(applied, note)``.
+
+    THE FRONT-END FIELD IS THE SWITCH. ``[grid] dem`` names the raster on
+    panel 1; when it is set and the converter has copied it into the dataset,
+    the surface comes from there. Blank -- a case that has no DEM -- and the
+    model keeps the elevation raster the MF parameter file names, exactly as
+    before. There is no separate flag to forget to set.
+
+    Wrapped onto THE GRID THIS RUN USES, after any mesh projection, so the
+    survey is resampled once instead of twice. On La Mata the difference
+    between the two is 0.65 m rms and 4.4 m at worst.
+
+    THE SURFACE MOVES AND THE THICKNESSES DO NOT: top and every botm are
+    shifted by the same delta as elev. The DEM refines where the ground is;
+    it says nothing about how thick the aquifer below it is, and re-deriving
+    the layer geometry from it would invent an answer the raster does not
+    hold. Cells the DEM does not reach keep the elevation they had.
+    """
+    import marmites_dem as mdem
+
+    if not getattr(cfg, 'grid', None) or not cfg.grid.dem:
+        return False, 'no [grid] dem: the land surface is the MF ini raster'
+    path = mdem.dem_path(dataset_dir)
+    if not os.path.exists(path):
+        return False, ('[grid] dem is %r but %s is not in the dataset -- run '
+                       'code/tools/gis_to_dataset.py. The land surface is the '
+                       'MF ini raster.' % (cfg.grid.dem,
+                                           os.path.basename(path)))
+    gp = getattr(cMF, 'mesh_gridprops', None)
+    if gp is None:
+        from marmites_grid import disv_from_structured
+        verts, cell2d, ncpl = disv_from_structured(
+            cMF.delr, cMF.delc, float(getattr(cMF, 'xllcorner', 0.0)),
+            float(getattr(cMF, 'yllcorner', 0.0)))
+        gp = {'vertices': verts, 'cell2d': cell2d, 'ncpl': ncpl,
+              'nlay': int(cMF.nlay)}
+    wrapped, info = mdem.wrap_to_grid(path, gp, cache_dir=cache_dir,
+                                      warn=lambda m: print('WARNING: %s' % m))
+
+    shape = np.asarray(cMF.elev).shape
+    new = np.ma.masked_values(np.ma.filled(wrapped, -9999.0).reshape(shape),
+                              -9999.0, atol=1e-6)
+    old = np.ma.masked_values(np.asarray(cMF.elev), cMF.hnoflo, atol=0.09)
+    both = (~np.ma.getmaskarray(new)) & (~np.ma.getmaskarray(old))
+    delta = np.zeros(shape, dtype=float)
+    delta[both] = np.ma.getdata(new)[both] - np.ma.getdata(old)[both]
+
+    cMF.elev = np.ma.array(np.where(both, np.ma.getdata(new),
+                                    np.ma.getdata(old)),
+                           mask=np.ma.getmaskarray(old))
+    cMF.top = np.ma.array(np.ma.getdata(cMF.top) + delta,
+                          mask=np.ma.getmaskarray(cMF.top))
+    botm = np.asarray(cMF.botm, dtype=float)
+    for L in range(int(cMF.nlay)):
+        botm[L] = botm[L] + delta
+    cMF.botm = botm
+
+    d = delta[both]
+    return True, ('land surface from %s (%g m), wrapped onto %d %s cell(s)%s: '
+                  'moved by mean %+.3f m, rms %.3f m, |max| %.2f m over %d '
+                  'cell(s); %d cell(s) not covered kept their elevation'
+                  % (cfg.grid.dem, info['cellsize'], info['ncpl'],
+                     cfg.grid_kind, ' (cached)' if info['cached'] else '',
+                     d.mean() if d.size else 0.0,
+                     float(np.sqrt((d * d).mean())) if d.size else 0.0,
+                     float(np.abs(d).max()) if d.size else 0.0, int(both.sum()),
+                     int(both.size - both.sum())))
+
+
 def ctx_geom_area(cMF):
     """Mean cell area [m2], DIS or DISV. The drainage law w = a*A**b needs it."""
     proj = getattr(cMF, 'mesh_proj', None)
@@ -344,6 +415,16 @@ def setup_lamata(daily=True, nsp=None, grid='dis', nlay=None, aggregate=False,
         botm_l0 = np.asarray(cMF.botm)[0]
         print('projected onto the mesh: %d active cell(s) of %d'
               % (int(np.count_nonzero(cMF.outcropL > 0)), info['ncpl']))
+
+    # ---- the land surface, from the raster panel 1 names (WP1d).
+    # HERE, after the projection: the DEM is wrapped onto the grid the run
+    # actually uses, so the survey is resampled once instead of twice.
+    _applied, _note = _apply_dem(cMF, cfg, DS,
+                                 cache_dir=os.path.join(mesh_ws or '', '_dem')
+                                 if mesh_ws else None)
+    print('elevation: %s' % _note)
+    if _applied:
+        botm_l0 = np.asarray(cMF.botm)[0]
 
     mm = MMsoil.clsMMsoil(hnoflo=cMF.hnoflo)
     cells = mm.build_cell_list(cMF)
