@@ -30,8 +30,8 @@ import os
 
 import numpy as np
 
-__all__ = ['DEMError', 'read_asc', 'write_asc', 'wrap_to_grid', 'dem_path',
-           'HEADER_KEYS']
+__all__ = ['DEMError', 'read_asc', 'read_asc_header', 'write_asc',
+           'wrap_to_grid', 'dem_path', 'HEADER_KEYS']
 
 HEADER_KEYS = ('ncols', 'nrows', 'xllcorner', 'yllcorner', 'cellsize',
                'nodata_value')
@@ -48,6 +48,32 @@ def dem_path(dataset_dir, name=DATASET_DEM):
     return os.path.join(str(dataset_dir), name)
 
 
+def _header_from(fh, path):
+    """The six header lines, lower-cased, off an already-open handle."""
+    head = {}
+    for _ in range(6):
+        parts = fh.readline().split()
+        if len(parts) != 2:
+            raise DEMError('%s: expected six header lines' % path)
+        head[parts[0].strip().lower()] = float(parts[1])
+    missing = [k for k in HEADER_KEYS if k not in head]
+    if missing:
+        raise DEMError('%s: header has no %s' % (path, ', '.join(missing)))
+    return head
+
+
+def read_asc_header(path):
+    """Where an ESRI ASCII grid SITS, without reading its body.
+
+    The rectangle check on panel 1 asks this of every raster in a dataset;
+    loading the arrays to compare six numbers would make the page crawl.
+    """
+    if not os.path.exists(path):
+        raise DEMError('raster not found: %s' % path)
+    with open(path, encoding='utf-8', errors='replace') as fh:
+        return _header_from(fh, path)
+
+
 def read_asc(path):
     """``(masked array, header)`` of an ESRI ASCII grid.
 
@@ -57,20 +83,12 @@ def read_asc(path):
     """
     if not os.path.exists(path):
         raise DEMError('elevation raster not found: %s' % path)
-    head = {}
     with open(path, encoding='utf-8', errors='replace') as fh:
-        for _ in range(6):
-            parts = fh.readline().split()
-            if len(parts) != 2:
-                raise DEMError('%s: expected six header lines' % path)
-            head[parts[0].strip().lower()] = float(parts[1])
+        head = _header_from(fh, path)
         try:
             arr = np.loadtxt(fh, dtype=float)
         except ValueError as exc:
             raise DEMError('%s: %s' % (path, exc))
-    missing = [k for k in HEADER_KEYS if k not in head]
-    if missing:
-        raise DEMError('%s: header has no %s' % (path, ', '.join(missing)))
     nrows, ncols = int(head['nrows']), int(head['ncols'])
     arr = np.atleast_2d(arr)
     if arr.shape != (nrows, ncols):

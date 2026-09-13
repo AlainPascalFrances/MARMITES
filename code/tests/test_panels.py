@@ -9,6 +9,7 @@ loses a column.
 """
 
 import importlib.util
+import io
 import os
 import sys
 
@@ -18,6 +19,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 CODE = os.path.abspath(os.path.join(HERE, '..'))
 REPO = os.path.abspath(os.path.join(CODE, '..'))
 REF = os.path.join(CODE, 'configs', 'lamata.toml')
+
+for _p in (CODE, os.path.join(CODE, 'app')):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
 
 def _load(name, path):
@@ -365,6 +370,145 @@ def test_grid_stub_carries_what_the_producers_read(cfg):
                  'yllcorner'):
         assert hasattr(stub, attr), attr
     assert stub.nlay == 2
+
+
+# --------------------------------- panel 1: standing on the model's rasters
+
+def _asc(path, xll, yll, nrow, ncol, cs, value=1.0):
+    """A minimal ESRI ASCII grid, written where a dataset would hold one."""
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with io.open(path, 'w', encoding='utf-8', newline='\n') as fh:
+        fh.write('ncols %d\nnrows %d\nxllcorner %.10g\nyllcorner %.10g\n'
+                 'cellsize %.10g\nnodata_value -9999\n' % (ncol, nrow, xll,
+                                                           yll, cs))
+        for _ in range(nrow):
+            fh.write(' '.join(['%g' % value] * ncol) + '\n')
+
+
+def _legacy_dataset(root, xll=739300.0, yll=4553050.0, nrow=65, ncol=60,
+                    cs=50.0):
+    """A dataset shaped like La Mata's: tables at the top, MF rasters below."""
+    _asc(os.path.join(root, 'inputSOILzones.asc'), xll, yll, nrow, ncol, cs)
+    _asc(os.path.join(root, 'inputVEG1area.asc'), xll, yll, nrow, ncol, cs)
+    _asc(os.path.join(root, 'MF_ws', 'elev.asc'), xll, yll, nrow, ncol, cs)
+    _asc(os.path.join(root, 'MF_ws', 'ibound_l1.asc'), xll, yll, nrow, ncol, cs)
+    return root
+
+
+def _pin(cfg, kind='structured', cs=50.0):
+    cfg.grid.kind = kind
+    cfg.grid.cell_size, cfg.grid.buffer = cs, 0.0
+    cfg.grid.override.enable = False
+    return cfg
+
+
+BBOX = (739293.0, 4553110.0, 742223.0, 4556240.0)      # lm_lim.shp
+
+
+def test_the_dataset_rectangle_is_read_off_the_rasters(cfg, tmp_path):
+    root = _legacy_dataset(str(tmp_path))
+    rect, names, others = meshes.dataset_rectangle(root)
+    assert rect == (739300.0, 4553050.0, 65, 60, 50.0)
+    assert len(names) == 4 and not others          # the MF_ws ones are included
+
+
+def test_the_dem_is_not_expected_on_the_model_rectangle(cfg, tmp_path):
+    """It is kept at its own resolution and wrapped onto the cells at run
+    time, so counting it would report a mismatch that is by design."""
+    root = _legacy_dataset(str(tmp_path))
+    _asc(os.path.join(root, 'inputDEM.asc'), 739166.1, 4552982.6, 20, 20, 5.0)
+    rect, names, others = meshes.dataset_rectangle(root)
+    assert rect == (739300.0, 4553050.0, 65, 60, 50.0)
+    assert not others and not any('DEM' in n for n in names)
+
+
+def test_rasters_on_a_third_rectangle_are_reported_not_hidden(cfg, tmp_path):
+    """A majority vote that swallowed the odd ones out would be worse than
+    saying it: the model reads them as it reads the rest."""
+    root = _legacy_dataset(str(tmp_path))
+    _asc(os.path.join(root, 'MF_ws', 'vka_l1_old.asc'),
+         739325.0, 4553190.0, 69, 72, 40.0)
+    _rect, _names, others = meshes.dataset_rectangle(root)
+    assert len(others) == 1
+    assert others[0][0] == (739325.0, 4553190.0, 69, 72, 40.0)
+    assert others[0][1] == ['MF_ws%svka_l1_old.asc' % os.sep]
+
+
+def test_the_derived_rectangle_overhangs_the_legacy_rasters(cfg, tmp_path):
+    """The real La Mata case: the polygon reaches 739293.4 and the snap goes
+    DOWN to 739250, while the rasters were frozen at 739300."""
+    root = _legacy_dataset(str(tmp_path))
+    rc = meshes.rectangle_check(_pin(cfg), BBOX, root)
+    assert rc['status'] == 'overhang'
+    assert rc['overhang'] == {'west': 50.0}
+    assert rc['derived'][0] == 739250.0 and rc['source'][0] == 739300.0
+    assert 'west' in rc['detail']
+
+
+def test_the_overhang_does_not_depend_on_the_grid_kind(cfg, tmp_path):
+    """It is a property of the RECTANGLE, so a mesh is in exactly the same
+    position as the structured grid -- it simply has no override to escape
+    with."""
+    root = _legacy_dataset(str(tmp_path))
+    cfg.grid.voronoi.cell_far = 50.0
+    for kind in ('structured', 'disv', 'voronoi', 'quadtree'):
+        rc = meshes.rectangle_check(_pin(cfg, kind), BBOX, root)
+        assert rc['status'] == 'overhang', kind
+        assert rc['overhang'] == {'west': 50.0}, kind
+
+
+def test_the_override_puts_the_grid_back_on_the_rasters(cfg, tmp_path):
+    """Which is what the panel offers, and the only lever there is until the
+    model panel re-derives its own rasters."""
+    root = _legacy_dataset(str(tmp_path))
+    _pin(cfg)
+    cfg.grid.override.enable = True
+    cfg.grid.override.nrow, cfg.grid.override.ncol = 65, 60
+    cfg.grid.override.xllcorner = 739300.0
+    cfg.grid.override.yllcorner = 4553050.0
+    rc = meshes.rectangle_check(cfg, BBOX, root)
+    assert rc['status'] == 'ok'
+    assert rc['derived'] == rc['source']
+
+
+def test_a_grid_off_the_rasters_lattice_is_flagged(cfg, tmp_path):
+    """Covered, so the projection runs -- but every cell is then resampled
+    from fractions of four, which blurs the legacy model."""
+    root = _legacy_dataset(str(tmp_path))
+    _pin(cfg)
+    cfg.grid.override.enable = True
+    cfg.grid.override.nrow, cfg.grid.override.ncol = 10, 10
+    cfg.grid.override.xllcorner = 739325.0            # half a cell east
+    cfg.grid.override.yllcorner = 4553050.0
+    rc = meshes.rectangle_check(cfg, BBOX, root)
+    assert rc['status'] == 'shifted'
+    assert '25' in rc['detail']
+
+
+def test_an_empty_dataset_has_nothing_to_disagree_with(cfg, tmp_path):
+    """A brand new catchment: from-scratch must not be told it is wrong."""
+    rc = meshes.rectangle_check(_pin(cfg), BBOX, str(tmp_path))
+    assert rc['status'] == 'none'
+    assert rc['source'] is None and rc['derived'] is not None
+
+
+def test_a_rectangle_that_cannot_be_derived_reports_error(cfg, tmp_path):
+    """The page draws this before the build button, so it must never be the
+    thing that breaks the page."""
+    root = _legacy_dataset(str(tmp_path))
+    rc = meshes.rectangle_check(_pin(cfg), None, root)
+    assert rc['status'] == 'error' and 'grid.boundary' in rc['detail']
+
+
+def test_the_header_is_read_without_the_body(tmp_path):
+    dem = _load('marmites_dem_p', os.path.join(CODE, 'marmites_dem.py'))
+    path = os.path.join(str(tmp_path), 'x.asc')
+    _asc(path, 1000.0, 2000.0, 3, 4, 25.0)
+    head = dem.read_asc_header(path)
+    assert (head['xllcorner'], head['cellsize']) == (1000.0, 25.0)
+    assert int(head['nrows']) == 3 and int(head['ncols']) == 4
+    arr, head2 = dem.read_asc(path)
+    assert head2 == head and arr.shape == (3, 4)
 
 
 # ------------------------------------------------------------- choices

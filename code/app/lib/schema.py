@@ -124,33 +124,26 @@ FIELDS = {
 
     # ---- panel 1: the grid --------------------------------------------
     'grid.boundary': ('Catchment boundary (polygon)', _U,
-                      'A PROJECTED, metric shapefile in DATA_ROOT/GIS. It '
-                      'defines the active domain, the mesh boundary and the '
-                      'model rectangle -- so it is the first thing to set.'),
+                      'A projected, metric shapefile that defines the active '
+                      'domain, the grid boundary and the model rectangle.'),
     'grid.streams': ('Hydrography layer (lines)', _U,
-                     'The mapped stream network, in DATA_ROOT/GIS. It refines '
-                     'the Voronoi corridor and the quadtree, and becomes the '
-                     'SFR network. Leave it blank if the catchment has none: '
-                     'the refinements that need it are then unavailable '
-                     'rather than silently doing nothing.'),
+                     'The shape file with the stream network. It refines the '
+                     'grid corridor (voronoi and quadtree), and becomes the '
+                     'MF6 SFR network. Leave it blank if the catchment has '
+                     'none (no refinement).'),
     'grid.ponds': ('Pond layer (polygons)', _U,
-                   'The charcas, in DATA_ROOT/GIS. Seeds a mesh cell per pond '
-                   'and becomes the LAK footprints. Blank means the catchment '
-                   'has none.'),
+                   'The shape file with the ponds limits (charcas). Seeds a '
+                   'grid cell per pond and becomes the LAK footprints. If '
+                   'blank, the LAK package is not activated.'),
     'grid.dem': ('Elevation raster (DEM)', _U,
-                 'The sink-filled DEM in DATA_ROOT/GIS, in any format GDAL '
-                 'reads -- .asc, GeoTIFF, or an ESRI grid folder. It is the '
-                 'LAND SURFACE: the converter copies it into the dataset at '
-                 'its OWN resolution and the model wraps it onto whichever '
-                 'cells this panel produces, area-weighted, so nothing is '
-                 'resampled twice. It also gives each pond its rim and '
-                 'bottom. It does not shape the grid itself -- a quadtree is '
-                 'the same cell for cell with or without it.'),
+                 'The sink-filled DEM, in any format GDAL reads (asc, '
+                 'GeoTIFF, or an ESRI grid folder). It is the land surface. '
+                 'The DEM dataset is kept at its own resolution and the model '
+                 'wraps it onto the grid cells, area-weighted. It also gives '
+                 'each pond its rim and bottom.'),
     'grid.crs_epsg': ('Project CRS', 'EPSG',
-                      'The projected, metric CRS everything is in. 0 takes it '
-                      'from the layer\'s .prj. Station coordinates are '
-                      'converted from here to the latitude and longitude '
-                      'Penman-Monteith needs.'),
+                      'The projected, metric CRS of the project, extracted '
+                      'from file .prj of the catchment layer.'),
     'grid.cell_size': ('Cell size', 'm',
                        'The cell itself on a structured or disv grid, and the '
                        'background GRIDGEN halves on a quadtree. A Voronoi '
@@ -159,14 +152,12 @@ FIELDS = {
     'grid.buffer': ('Buffer', 'm',
                     'Extend the model rectangle beyond the polygon.'),
     'grid.kind': ('Grid kind', _U,
-                  'voronoi is the default. structured is the legacy DIS grid '
-                  'and the regression anchor; disv is that same grid '
-                  're-expressed as polygons, which is how the mesh path is '
-                  'checked to change nothing by itself.'),
+                  'Grid type of the model. voronoi is the default.'),
     'grid.resample': ('Resampling rule', _U,
-                      'auto area-weights continuous fields and majority-votes '
-                      'zone maps. centre samples the cell centre -- worse per '
-                      'cell, but it preserves zone proportions.'),
+                      'auto area-weights: continuous fields and '
+                      'majority-votes zone maps. centre: samples the cell '
+                      'centre (worse per cell, but it preserves zone '
+                      'proportions).'),
     'grid.voronoi.cell_far': ('Background cell size', 'm',
                               'The side of the EQUIVALENT SQUARE, so 100 aims '
                               'at 10 000 m2. Every build prints the area it '

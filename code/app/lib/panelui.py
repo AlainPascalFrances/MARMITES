@@ -30,7 +30,7 @@ CONFIG_DIR = os.path.join(CODE, 'configs')
 __all__ = ['pick_config', 'header', 'master_switch', 'section_form',
            'grid_form', 'grid_permanent_form', 'grid_kind_form',
            'gis_folder_box', 'layer_picker', 'resolve_layer', 'folder_picker',
-           'table_form', 'save_button', 'CONFIG_DIR']
+           'table_form', 'save_button', 'park', 'live', 'CONFIG_DIR']
 
 
 def pick_config():
@@ -80,11 +80,50 @@ def master_switch(cfg, switch):
     return {switch: val}
 
 
+def park(key, value):
+    """Set a widget's value from a button drawn BELOW it, on the next run.
+
+    A keyed widget takes ``value=`` on its FIRST render only and reads
+    session_state on every one after, and session_state[key] cannot be
+    assigned once the widget exists. So a button further down the page parks
+    what it wants here and the widget picks it up when the page reruns.
+    """
+    st.session_state[key + '.__pending'] = value
+
+
+def live(key, default=None):
+    """What a widget will hold on THIS run -- a parked value included.
+
+    Anything deciding whether ANOTHER widget is drawn has to ask this rather
+    than session_state: the parked value is only moved across when the widget
+    itself is instantiated, which for a switch happens after the fields it
+    gates have already been placed. Reading session_state alone left a switch
+    turned on by a button with its own dependants still greyed for one run --
+    and the values parked into them unconsumed.
+    """
+    pending = key + '.__pending'
+    if pending in st.session_state:
+        return st.session_state[pending]
+    return st.session_state.get(key, default)
+
+
 def _widget(dotted, value, prefix=''):
     """One field, with its label, units and explanation."""
     label, units, help_ = schema.describe(dotted)
     shown = '%s [%s]' % (label, units) if units else label
     key = '%s%s' % (prefix, dotted)
+    # Anything parked by a button lower down the page (see park) is applied
+    # HERE, before the widget is instantiated, which is the only moment it
+    # can be. A widget given its value that way must NOT also be given a
+    # default: streamlit warns that two things are deciding it -- and it is
+    # right, the session_state one silently wins.
+    parked = key + '.__pending' in st.session_state
+    if parked:
+        st.session_state[key] = st.session_state.pop(key + '.__pending')
+
+    def _default(**kw):
+        return {} if parked else kw
+
     help_full = '`%s`%s' % (dotted, ('  \n' + help_) if help_ else '')
     if schema.is_source(value):
         return _source_widget(dotted, value, shown, help_full, key)
@@ -96,17 +135,19 @@ def _widget(dotted, value, prefix=''):
         return st.selectbox(shown, options, index=options.index(cur),
                             help=help_full, key=key)
     if isinstance(value, bool):
-        return st.checkbox(shown, value=value, help=help_full, key=key)
+        return st.checkbox(shown, help=help_full, key=key,
+                           **_default(value=value))
     if isinstance(value, int) and not isinstance(value, bool):
-        return st.number_input(shown, value=int(value), step=1,
-                               help=help_full, key=key)
+        return st.number_input(shown, step=1, help=help_full, key=key,
+                               **_default(value=int(value)))
     if isinstance(value, float):
-        return st.number_input(shown, value=float(value), format='%g',
-                               help=help_full, key=key)
+        return st.number_input(shown, format='%g', help=help_full, key=key,
+                               **_default(value=float(value)))
     if isinstance(value, (list, dict)):
         st.caption('%s — `%s`  \n*edit in the TOML tab*' % (shown, value))
         return None
-    return st.text_input(shown, value=str(value), help=help_full, key=key)
+    return st.text_input(shown, help=help_full, key=key,
+                         **_default(value=str(value)))
 
 
 def _source_widget(dotted, src, shown, help_full, key):
@@ -539,7 +580,7 @@ def grid_kind_form(cfg, chosen, edited=None, values=None, columns=3):
 
     off = set()
     for switch, dependents in schema.GRID_GATED.items():
-        state = st.session_state.get(switch, values.get(switch, True))
+        state = live(switch, values.get(switch, True))
         if switch in unavailable or not edited.get(switch, state):
             off.update(dependents)
 

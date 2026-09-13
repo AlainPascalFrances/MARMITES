@@ -11,6 +11,7 @@ Skipped where streamlit is not installed, which is every machine that only
 runs the model (a PEST worker, Spyder). The model must never need it.
 """
 
+import io
 import os
 
 import pytest
@@ -159,6 +160,100 @@ def test_the_grid_panel_offers_both_buttons():
     assert 'mkgrid' in keys, 'no Create grid button'
     assert not any(k and k.startswith('save_') for k in keys), \
         'panel 1 still has a Validate & save'
+
+
+def test_the_panel_says_when_the_grid_leaves_the_model_rasters():
+    """WP1d stopgap. The rectangle panel 1 derives from the polygon and the
+    one the model's rasters were frozen on are not the same, and the
+    projection that discovers it fails deep inside, talking about tops and
+    bottoms. It is stated HERE, where the rectangle is chosen.
+
+    Skipped where the dataset is not on the machine -- the check has nothing
+    to compare against and correctly says so.
+    """
+    import marmites_config as mcfg
+    import marmites_meshes as mmesh
+    import mm_paths
+
+    cfg = mcfg.load_run_config(os.path.join(CODE, 'configs', 'lamata.toml'))
+    ds = str(mm_paths.dataset_dir(cfg.paths.case))
+    rect, _names, _others = mmesh.dataset_rectangle(ds)
+    if rect is None:
+        pytest.skip('no dataset raster on this machine')
+
+    at = AppTest.from_file(os.path.join(APP, 'pages', '1_Grid.py'),
+                           default_timeout=180)
+    at.run()
+    said = ' '.join(w.value for w in at.warning) + \
+        ' '.join(c.value for c in at.caption)
+    assert 'rasters' in said, 'the panel says nothing about the rasters'
+    # and it is drawn BEFORE the build, not after it
+    assert 'mkgrid' in {b.key for b in at.button}
+
+
+def test_pinning_the_grid_takes_the_rectangle_from_the_rasters():
+    """La Mata's configuration already carries the legacy origin, so a test
+    run against it could not tell the button from a coincidence. This one
+    starts from an override that is deliberately WRONG and checks the four
+    boxes come back holding the rasters' own numbers.
+    """
+    import shutil
+
+    import marmites_config as mcfg
+    import marmites_meshes as mmesh
+    import mm_paths
+
+    ref = os.path.join(CODE, 'configs', 'lamata.toml')
+    cfg = mcfg.load_run_config(ref)
+    rect, _names, _others = mmesh.dataset_rectangle(
+        str(mm_paths.dataset_dir(cfg.paths.case)))
+    if rect is None:
+        pytest.skip('no dataset raster on this machine')
+
+    tmp = os.path.join(CODE, 'configs', '_pintest.toml')
+    shutil.copyfile(ref, tmp)
+    try:
+        text = io.open(tmp, encoding='utf-8').read()
+        text = text.replace('xllcorner = 739300.0', 'xllcorner = 111111.0')
+        text = text.replace('nrow = 65', 'nrow = 7')
+        io.open(tmp, 'w', encoding='utf-8', newline='').write(text)
+
+        at = AppTest.from_file(os.path.join(APP, 'pages', '1_Grid.py'),
+                               default_timeout=180)
+        at.session_state['config_file'] = '_pintest.toml'
+        at.run()
+        [s for s in at.selectbox if s.key == 'grid.kind'][0] \
+            .set_value('structured').run()
+        hit = [b for b in at.button if b.key == 'adoptrect']
+        assert hit, 'the pin was not offered on a structured grid'
+        hit[0].click().run()
+
+        got = dict((n.key, n.value) for n in at.number_input)
+        assert got['grid.override.xllcorner'] == rect[0]
+        assert got['grid.override.yllcorner'] == rect[1]
+        assert got['grid.override.nrow'] == rect[2]
+        assert got['grid.override.ncol'] == rect[3]
+        assert got['grid.cell_size'] == rect[4]
+        assert [c for c in at.checkbox
+                if c.key == 'grid.override.enable'][0].value is True
+        # and the page now says so, on the same run
+        assert any('stands on' in c.value for c in at.caption)
+    finally:
+        if os.path.exists(tmp):
+            os.remove(tmp)
+
+
+def test_the_pin_is_not_offered_on_a_mesh():
+    """The override reproduces a legacy DIS grid and means nothing on an
+    unstructured mesh, so there the answer is the model panel, not a button
+    that would be refused by validate()."""
+    at = AppTest.from_file(os.path.join(APP, 'pages', '1_Grid.py'),
+                           default_timeout=180)
+    at.run()
+    kind = [s for s in at.selectbox if s.key == 'grid.kind'][0]
+    for mesh in ('voronoi', 'quadtree'):
+        kind.set_value(mesh).run()
+        assert not [b for b in at.button if b.key == 'adoptrect'], mesh
 
 
 def test_panel_zero_sets_the_machine_paths():

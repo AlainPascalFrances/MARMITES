@@ -30,8 +30,8 @@ import os
 import numpy as np
 
 __all__ = ['build_mesh', 'MeshBuildError', 'stream_lines', 'mesh_signature',
-           'watershed_ring', 'normalise', 'cell_size_report',
-           'PRODUCER_VERSION']
+           'watershed_ring', 'normalise', 'cell_size_report', 'model_rectangle',
+           'dataset_rectangle', 'rectangle_check', 'PRODUCER_VERSION']
 
 # Identifies the MESH-PRODUCING BEHAVIOUR, not the module. Bump it on any
 # change that would give a different mesh for the same configuration; it is
@@ -306,6 +306,153 @@ def model_rectangle(cfg, bbox=None):
     ncol = int(math.ceil((x1 - x0) / cs))
     nrow = int(math.ceil((y1 - y0) / cs))
     return (nrow, ncol, np.full(ncol, cs), np.full(nrow, cs), x0, y0)
+
+
+# --------------------------------------------------------------------- #
+# the rectangle the dataset already carries                     WP1d, 1e
+# --------------------------------------------------------------------- #
+#
+# STOPGAP, and it should stay one. A model is assembled from rasters written
+# on ONE lattice -- soil zones, vegetation areas, and on the MODFLOW side
+# elev, thickness, hk, ibound. `marmites_mesh.project_model` then resamples
+# that assembled model onto the mesh, so the mesh and those rasters have to
+# stand on the same ground. Panel 1 derives its rectangle from the catchment
+# polygon; the committed rasters were frozen on whatever rectangle was
+# current when somebody exported them. When the two disagree the mesh hangs
+# over ground the rasters do not cover, and the projection fails late and
+# obscurely -- top averaged over one subset of source cells and botm over
+# another, until MF6's top > botm is violated.
+#
+# The cure is for the model's own rasters to be re-derived from the
+# cartography onto whatever rectangle this panel produces. That belongs to
+# the MODEL panel and is not built yet. Until it is, this says so HERE, where
+# the rectangle is chosen, instead of leaving it to surface as a traceback.
+#
+# The DEM is excluded on purpose: it is kept at its own resolution and
+# wrapped onto the cells at run time, so it is SUPPOSED to be on its own
+# lattice (see marmites_dem).
+RECT_EXCLUDE = ('inputdem.asc',)
+
+
+def _rect_of(head):
+    """The five numbers that place a raster: origin, shape, cell."""
+    return (round(float(head['xllcorner']), 3),
+            round(float(head['yllcorner']), 3),
+            int(head['nrows']), int(head['ncols']),
+            round(float(head['cellsize']), 6))
+
+
+def _asc_files(dataset_dir, depth=2):
+    """Every ESRI ASCII grid in the dataset tree.
+
+    Two levels deep because the MODFLOW rasters live in a workspace
+    subdirectory next to the MARMITES tables, and the model reads both.
+    """
+    out = []
+    root = str(dataset_dir)
+    for dirpath, dirnames, filenames in os.walk(root):
+        rel = os.path.relpath(dirpath, root)
+        level = 0 if rel == os.curdir else rel.count(os.sep) + 1
+        if level >= depth:
+            dirnames[:] = []
+        for name in filenames:
+            if name.lower().endswith('.asc') \
+                    and name.lower() not in RECT_EXCLUDE:
+                out.append(os.path.join(dirpath, name))
+    return sorted(out)
+
+
+def dataset_rectangle(dataset_dir):
+    """The rectangle the model's rasters occupy.  ``(rect, names, others)``.
+
+    ``rect`` is ``(xll, yll, nrow, ncol, cellsize)``, or None when the dataset
+    holds no raster to compare against -- a brand new catchment, where there
+    is nothing to disagree with yet. Rasters are GROUPED by the rectangle they
+    declare and the largest group wins; ``others`` lists the groups that lost,
+    because rasters disagreeing AMONG THEMSELVES is its own problem and hiding
+    it behind a majority vote would be worse than saying it.
+    """
+    import marmites_dem as mdem
+
+    groups = {}
+    for path in _asc_files(dataset_dir):
+        try:
+            head = mdem.read_asc_header(path)
+        except Exception:
+            continue                      # not this function's to explain
+        groups.setdefault(_rect_of(head), []).append(
+            os.path.relpath(path, str(dataset_dir)))
+    if not groups:
+        return None, [], []
+    ranked = sorted(groups.items(), key=lambda kv: (-len(kv[1]), kv[0]))
+    (rect, names), others = ranked[0], ranked[1:]
+    return rect, sorted(names), [(r, sorted(n)) for r, n in others]
+
+
+def rectangle_check(cfg, bbox, dataset_dir):
+    """Would the grid this panel builds stand on the dataset's rasters?
+
+    Returns a dict whose ``status`` is one of
+
+        'ok'        the derived rectangle is covered by the rasters
+        'overhang'  it reaches past them -- the projection will fail
+        'shifted'   covered, but the two lattices are not commensurate
+        'none'      the dataset has no raster to compare against
+        'error'     the rectangle itself cannot be derived
+
+    with ``derived`` and ``source`` rectangles, the overhang per side in
+    metres, and the rasters the source rectangle was read from.
+    """
+    out = {'status': 'none', 'derived': None, 'source': None, 'overhang': {},
+           'names': [], 'others': [], 'detail': ''}
+    try:
+        nrow, ncol, delr, delc, xll, yll = model_rectangle(cfg, bbox)
+    except MeshBuildError as exc:
+        out['status'] = 'error'
+        out['detail'] = str(exc)
+        return out
+    cs = float(delr[0])
+    out['derived'] = (round(float(xll), 3), round(float(yll), 3),
+                      int(nrow), int(ncol), round(cs, 6))
+
+    rect, names, others = dataset_rectangle(dataset_dir)
+    out['names'], out['others'] = names, others
+    if rect is None:
+        out['detail'] = ('the dataset carries no raster yet, so there is '
+                         'nothing for this grid to disagree with')
+        return out
+    out['source'] = rect
+
+    sx0, sy0, snr, snc, scs = rect
+    sx1, sy1 = sx0 + snc * scs, sy0 + snr * scs
+    dx0, dy0 = float(xll), float(yll)
+    dx1, dy1 = dx0 + ncol * cs, dy0 + nrow * cs
+    over = {'west': max(0.0, sx0 - dx0), 'east': max(0.0, dx1 - sx1),
+            'south': max(0.0, sy0 - dy0), 'north': max(0.0, dy1 - sy1)}
+    out['overhang'] = dict((k, round(v, 3)) for k, v in over.items()
+                           if v > 1e-6)
+    if out['overhang']:
+        out['status'] = 'overhang'
+        out['detail'] = ('the grid reaches %s past the rasters'
+                         % ', '.join('%g m %s' % (v, k) for k, v
+                                     in sorted(out['overhang'].items())))
+        return out
+    # Covered, but a derived cell whose edges fall inside a source cell is
+    # resampled from fractions everywhere instead of cell on cell. Not fatal
+    # -- worth saying, because it is the difference between a projection that
+    # reproduces the legacy model and one that blurs it.
+    off_x, off_y = (dx0 - sx0) % scs, (dy0 - sy0) % scs
+    snapped = (min(off_x, scs - off_x) < 1e-6
+               and min(off_y, scs - off_y) < 1e-6)
+    if not snapped:
+        out['status'] = 'shifted'
+        out['detail'] = ('the grid sits inside the rasters but its origin is '
+                         'offset %g m east and %g m north of their lattice'
+                         % (round(off_x, 3), round(off_y, 3)))
+        return out
+    out['status'] = 'ok'
+    out['detail'] = 'the grid stands entirely on the dataset rasters'
+    return out
 
 
 def grid_stub(cfg, bbox=None, nlay=1):

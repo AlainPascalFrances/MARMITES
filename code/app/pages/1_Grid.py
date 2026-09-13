@@ -343,6 +343,83 @@ def _dataset_stale(cfg):
     return bool(why), '; '.join(why)
 
 
+def _trial_of(cfg, edited):
+    """The configuration AS EDITED ON SCREEN, or None if it is not valid yet.
+
+    The checks below have to describe the grid the button would build, not
+    the one the file still holds -- otherwise changing the kind leaves the
+    warnings talking about the previous one.
+    """
+    try:
+        trial, _todo = editor.apply_changes(cfg, edited)
+    except (editor.EditError, mcfg.ConfigError):
+        return None
+    return trial
+
+
+def _rectangle_check(cfg, bbox):
+    """Whether the derived rectangle stands on the dataset's own rasters."""
+    import marmites_meshes as mm
+
+    if cfg is None or not bbox:
+        return None
+    try:
+        return mm.rectangle_check(cfg, bbox,
+                                  str(mm_paths.dataset_dir(cfg.paths.case)))
+    except Exception as exc:                       # never break the page
+        return {'status': 'error', 'detail': repr(exc), 'derived': None,
+                'source': None, 'overhang': {}, 'names': [], 'others': []}
+
+
+def _show_rectangle_check(rc, kind):
+    """Draw it. Returns True when the legacy rectangle can be adopted.
+
+    STOPGAP (WP1d). The model is still assembled from rasters frozen on one
+    lattice, and `project_model` resamples that assembly onto the grid: a
+    grid that reaches past them fails inside the projection, cells first,
+    with a message about tops and bottoms rather than about rectangles. So
+    the disagreement is stated HERE, where the rectangle is chosen. It
+    disappears for good when the MODEL panel re-derives those rasters onto
+    whatever rectangle this panel produces.
+    """
+    if rc is None or rc['status'] == 'error':
+        return False
+    if rc['status'] == 'none':
+        st.caption('No raster in the dataset yet, so there is nothing for '
+                   'this rectangle to disagree with.')
+        return False
+
+    d, s = rc['derived'], rc['source']
+    line = ('grid `%.10g, %.10g` %d × %d @ %g m — rasters `%.10g, %.10g` %d × %d @ %g m'
+            % (d[0], d[1], d[2], d[3], d[4], s[0], s[1], s[2], s[3], s[4]))
+    if rc['status'] == 'ok':
+        st.caption('✅ This rectangle stands on the %d raster(s) the model '
+                   'reads — %s.' % (len(rc['names']), line))
+    elif rc['status'] == 'shifted':
+        st.warning('**The grid and the model rasters are not on the same '
+                   'lattice.** %s — %s. Every cell is then resampled from '
+                   'fractions of four, which blurs the legacy model instead '
+                   'of reproducing it.' % (line, rc['detail']))
+    else:
+        st.warning(
+            '**This grid does not stand on the rasters the model reads.** '
+            '%s: %s.\n\nThe grid itself will build. What fails is the MODEL '
+            'build, later: it assembles the model from those rasters and '
+            'resamples it onto these cells, and the cells with nothing '
+            'underneath come out with their top at or below their bottom. '
+            'The real cure is for the model panel to re-derive its own '
+            'rasters onto this rectangle; that is not built yet.'
+            % (line, rc['detail']))
+    for rect, names in rc['others']:
+        st.caption('⚠️ %d raster(s) sit on a THIRD rectangle — `%.10g, %.10g` %d × '
+                   '%d @ %g m: %s. Stale exports, most likely, but the model '
+                   'would read them as it reads the rest.'
+                   % (len(names), rect[0], rect[1], rect[2], rect[3], rect[4],
+                      ', '.join(names)))
+    return rc['status'] in ('overhang', 'shifted') \
+        and kind in ('structured', 'dis', 'disv')
+
+
 def _run_converter(case, cfg_path, dry):
     """Run the WP1 converter as a subprocess and return its output.
 
@@ -474,6 +551,33 @@ with tab_domain:
                'save needed — and keeps it as an attempt, so two kinds or two '
                'cell sizes can be compared. Nothing a run reads is written '
                'until you select one (panel **Visualize grid**).')
+
+    # Said BEFORE the button, because it is about the rectangle the button
+    # would use and the answer changes nothing about how to build it -- only
+    # about whether the model can later be put on it.
+    _trial = _trial_of(cfg, edited)
+    _rc = _rectangle_check(_trial, rep['bbox'])
+    if _show_rectangle_check(_rc, _trial.grid_kind if _trial else chosen):
+        _s = _rc['source']
+        if st.button('Pin the grid to the rasters’ rectangle',
+                     key='adoptrect',
+                     help='Turns the override ON and fills it with the '
+                          'rasters\' own origin, shape and cell size. Legal '
+                          'only on a structured or disv grid — on a mesh the '
+                          'override has no meaning, so there the answer is '
+                          'the model panel.'):
+            panelui.park('grid.override.enable', True)
+            panelui.park('grid.override.xllcorner', float(_s[0]))
+            panelui.park('grid.override.yllcorner', float(_s[1]))
+            panelui.park('grid.override.nrow', int(_s[2]))
+            panelui.park('grid.override.ncol', int(_s[3]))
+            panelui.park('grid.cell_size', float(_s[4]))
+            st.rerun()
+        st.caption('It pins the grid to a rectangle that was chosen years '
+                   'ago, cutting %s of the catchment. Use it to reproduce '
+                   'the legacy model, not to build a new one.'
+                   % ('the western edge' if 'west' in (_rc['overhang'] or {})
+                      else 'an edge'))
 
     cbuild, cclear, cmsg = st.columns([1, 1, 3])
     if cbuild.button('Create grid', type='primary', key='mkgrid'):

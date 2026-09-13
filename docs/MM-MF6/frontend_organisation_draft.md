@@ -330,6 +330,63 @@ rather than a stop at the start of the next run.
 
 ---
 
+### 2A.10  The rectangle check — a stopgap, 2026-09-13
+
+**The problem, in workflow order.**
+
+1. Panel 1 derives the model rectangle from the catchment polygon. The
+   polygon's western edge is at x = 739293.4 and the origin snaps *outward*
+   to a whole cell, so the rectangle starts at **739250** — the same for all
+   four grid kinds.
+2. A run then assembles the *structured* model from the rasters committed in
+   the dataset (`inputSOILzones.asc`, `inputVEG*area.asc`, and on the MF side
+   `elev.asc`, `thick_l*.asc`, `hk_l*.asc`, `ibound_l*.asc`). Every one of
+   them declares **739300** — one 50 m column further east, clipping 6.6 m
+   off the catchment. That is a historical rectangle frozen into the exports.
+3. `marmites_mesh.project_model` resamples that assembly onto the grid. Both
+   are in absolute UTM, so they must stand on the same ground. They do not:
+   the grid hangs 50 m west over nothing. There `top` and each `botm` are
+   averaged over different subsets of source cells and can cross, and the
+   projection stops with *"the cell top at or below its bottom after
+   resampling"* — a message about layers, for a fault in rectangles.
+
+**It is not a Voronoi problem.** The rectangle is the same for every kind.
+`structured` and `disv` merely have an escape hatch — `grid.override`, which
+reproduces the legacy grid and is refused on a mesh by D3 — so they can be
+pinned back onto the rasters and a mesh cannot.
+
+**Where it really belongs.** Those rasters are *grid-dependent derived data*
+still sitting in the dataset. Under the two-tier rule they should come out of
+the converter, from the cartography, onto whatever rectangle this panel
+produces. That is step 2 above, it belongs to **panel 3 (Model)**, and it is
+on stand-by until panels 1 and 2 are finished. The DEM is already the
+exception that proves it: `[grid] dem` is kept at its own 5 m resolution and
+wrapped onto the cells at run time, so it covers either rectangle and is
+deliberately excluded from this check.
+
+**The stopgap.** `marmites_meshes.dataset_rectangle()` reads the rectangle
+the dataset's rasters declare — grouped, largest group wins — and
+`rectangle_check()` compares it with the derived one:
+
+| status | meaning |
+|---|---|
+| `ok` | the grid stands entirely on the rasters |
+| `overhang` | it reaches past them — the model build will fail, with the distance per side |
+| `shifted` | covered, but off their lattice, so every cell resamples from fractions of four |
+| `none` | the dataset holds no raster yet — a new catchment has nothing to disagree with |
+| `error` | the rectangle itself cannot be derived (no polygon, no override) |
+
+Panel 1 draws it **above *Create grid***, because it is about the rectangle
+the button would use. On a structured or disv grid it also offers *Pin the
+grid to the rasters' rectangle*, which fills the override from the rasters'
+own header; on a mesh it is not offered, because there the answer is panel 3.
+
+On La Mata the check also found two rasters on a **third** rectangle entirely
+— `MF_ws/vka_l1_old.asc` and `vka_l2_old.asc`, 69 × 72 @ 40 m at 739325 —
+which is why disagreeing rasters are reported rather than out-voted.
+
+---
+
 ## 3  Group 1 — SURFACE  (MMsurf)  ·  switch `MARMsurf_yn`
 
 Source: `MMsurf_ws/__inputMMsurf.ini` (100 parameters) + its time-series
