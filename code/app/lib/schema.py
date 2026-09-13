@@ -123,7 +123,7 @@ FIELDS = {
                             'The run fails above this cumulative value.'),
 
     # ---- panel 1: the grid --------------------------------------------
-    'grid.boundary': ('Catchment polygon', _U,
+    'grid.boundary': ('Catchment boundary (polygon)', _U,
                       'A PROJECTED, metric shapefile in DATA_ROOT/GIS. It '
                       'defines the active domain, the mesh boundary and the '
                       'model rectangle -- so it is the first thing to set.'),
@@ -138,11 +138,14 @@ FIELDS = {
                    'and becomes the LAK footprints. Blank means the catchment '
                    'has none.'),
     'grid.dem': ('Elevation raster (DEM)', _U,
-                 'The sink-filled DEM, in DATA_ROOT/GIS -- a file or an ESRI '
-                 'grid folder. It does NOT shape the grid: a quadtree is the '
-                 'same cell for cell with or without it. It is where each '
-                 'pond gets its rim and bottom, so leave it blank only if the '
-                 'catchment has no ponds.'),
+                 'The sink-filled DEM in DATA_ROOT/GIS, in any format GDAL '
+                 'reads -- .asc, GeoTIFF, or an ESRI grid folder. It is the '
+                 'LAND SURFACE: the converter copies it into the dataset at '
+                 'its OWN resolution and the model wraps it onto whichever '
+                 'cells this panel produces, area-weighted, so nothing is '
+                 'resampled twice. It also gives each pond its rim and '
+                 'bottom. It does not shape the grid itself -- a quadtree is '
+                 'the same cell for cell with or without it.'),
     'grid.crs_epsg': ('Project CRS', 'EPSG',
                       'The projected, metric CRS everything is in. 0 takes it '
                       'from the layer\'s .prj. Station coordinates are '
