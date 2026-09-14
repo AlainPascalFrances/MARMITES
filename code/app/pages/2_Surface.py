@@ -48,43 +48,11 @@ with tab_par:
     st.markdown('#### The meteorological record and its companions')
     in_ws = panelui.surface_folder_box(os.path.join(str(ds), 'MMsurf_ws'))
 
-    # Laid out row by row rather than in field order: the three RECORDS
-    # belong together down the left, and the two spatial layers -- a
-    # different kind of answer entirely -- belong together on the right.
+    # One column per SUBJECT: the meteorology down the left, the irrigation
+    # down the right, each in the order it is filled in.
     edited.update(panelui.rows_form(
         cfg, schema.SURFACE_ROWS, 'surface', columns=2, folder=in_ws,
         files=schema.SURFACE_FILES, patterns=schema.SURFACE_PATTERNS))
-
-    # From the BOXES: a green light against the file that was named before
-    # the last edit is worse than no light at all.
-    def live(dotted, fallback):
-        return panelui.live(dotted, fallback)
-
-    rows = [(live('surface.meteo_ts', cfg.surface.meteo_ts),
-             'meteorological record')]
-    if live('surface.irrigation', cfg.surface.irrigation):
-        rows.append((live('surface.irr_ts', cfg.surface.irr_ts),
-                     'irrigation series'))
-        pattern = live('surface.crop_schedule', cfg.surface.crop_schedule)
-        for f in range(int(live('surface.nfield', cfg.surface.nfield) or 0)):
-            try:
-                name = pattern % (f + 1)
-            except TypeError:
-                name = pattern
-            rows.append((name, 'crop schedule, field %d' % (f + 1)))
-    st.markdown('#### Are they there?')
-    for fn, what in rows:
-        p = os.path.join(in_ws, fn)
-        ok = os.path.exists(p)
-        size = ('%.1f KB' % (os.path.getsize(p) / 1024.0)) if ok else 'missing'
-        st.markdown('%s `%s` — %s, %s' % ('🟢' if ok else '🔴', fn, what, size))
-
-    st.info('The meteorological record is ONE file: `Date`, `Time`, then SIX '
-            'columns per station in the order **P, Ta, RHa, Pa, wind, '
-            'radiation**, hourly. The header row is compulsory and is never '
-            'parsed — column ORDER is the contract. The irrigation series is '
-            'one column per field, and its dates are never read either, so it '
-            'must be row-aligned with the meteorological record.')
 
     panelui.save_button(cfg, path, edited)
 
@@ -98,7 +66,8 @@ with tab_tables:
         if num != 2:
             continue
         st.markdown('---')
-        panelui.table_form(cfg, dotted, singular, path)
+        panelui.table_form(cfg, dotted, singular, path,
+                           records=panelui.record_lines(cfg, dotted, in_ws))
 
 # --------------------------------------------------------- the forcing out
 with tab_forcing:

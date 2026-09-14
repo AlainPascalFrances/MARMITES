@@ -34,8 +34,10 @@ if _CODE not in sys.path:
 __all__ = ['PANELS', 'FIELDS', 'TABLES', 'CHOICES', 'SUBPANELS', 'panel_of',
            'describe', 'fields_of', 'choices_for', 'subpanel_for', 'is_source',
            'GRID_PERMANENT', 'GRID_SUBPANEL', 'GRID_DERIVED', 'GRID_GATED',
-           'GRID_NEEDS_LAYER', 'grid_fields', 'SURFACE_ROWS',
+           'GRID_NEEDS_LAYER', 'GRID_NOTES', 'grid_fields',
+           'SURFACE_ROWS',
            'SURFACE_FILES', 'SURFACE_PATTERNS', 'SURFACE_ON_PLOTS',
+           'SURFACE_TABLE_FILES',
            'PanelError']
 
 
@@ -547,16 +549,17 @@ SUBPANELS = {
 
 # ---- panel 2: the records ------------------------------------------------
 # An explicit layout, like the grid sub-panels, rather than whatever order
-# the dataclass happens to declare: the three RECORDS belong together down
-# the left, and the two spatial layers -- which are a different kind of
-# answer entirely -- belong together on the right.
+# the dataclass happens to declare. One column per SUBJECT: the meteorology
+# down the left, the irrigation down the right, each in the order it is
+# filled in. Irrigation is the longer story and it is optional, so keeping it
+# in one column is what makes the short one readable. ``None`` leaves a cell
+# empty rather than pulling the next field up into it.
 SURFACE_ROWS = (
-    ('surface.meteo_ts', 'surface.meteo_zones'),
-    ('surface.irrigation', 'surface.irr_zones'),
-    ('surface.nfield',),
-    ('surface.irr_ts',),
-    ('surface.crop_schedule',),
-    ('surface.out_prefix',),
+    ('surface.meteo_ts', 'surface.irrigation'),
+    ('surface.meteo_zones', 'surface.irr_zones'),
+    ('surface.out_prefix', 'surface.nfield'),
+    (None, 'surface.irr_ts'),
+    (None, 'surface.crop_schedule'),
 )
 
 # The ones that name a FILE on this machine, so the panel offers the system
@@ -567,6 +570,15 @@ SURFACE_FILES = ('surface.meteo_ts', 'surface.irr_ts', 'surface.crop_schedule')
 # __inputFIELD1_crop_schedule.txt has to store __inputFIELD%d_... or the
 # second field would read the first one's schedule.
 SURFACE_PATTERNS = ('surface.crop_schedule',)
+
+
+# Which record belongs under which table. The files were listed in a block of
+# their own -- "Are they there?" -- which said nothing about what they are
+# for; under the table that reads them, presence and purpose are one answer.
+SURFACE_TABLE_FILES = {
+    'surface.station': ('surface.meteo_ts',),
+    'surface.crop': ('surface.irr_ts', 'surface.crop_schedule'),
+}
 
 # MMsurf's own figures are a PLOTTING choice, so they are asked on panel 4
 # with the rest of them, not here among the records that feed the run.
@@ -608,11 +620,46 @@ GRID_SUBPANEL = {
 def grid_fields(kind):
     """Every field on one kind's sub-panel, flattened out of its rows."""
     return tuple(d for row in GRID_SUBPANEL.get(kind, ()) for d in row)
+
+
 # Shown but never typed: the geometry owns them.
 GRID_DERIVED = ('grid.voronoi.stream_buffer', 'grid.voronoi.trans_levels')
+
+
+def _quadtree_note(get, ponds=False):
+    """What the level on screen actually gives, in metres.
+
+    Under the BOX, because it is the sentence the refined size is read off
+    and a sentence away from the number it describes is read against the
+    wrong one.
+    """
+    bg = float(get('grid.cell_size', 0.0) or 0.0)
+    lv = int(get('grid.quadtree.refine_level', 0) or 0)
+    if not ponds:
+        return ('GRIDGEN halves a cell per refinement level, so level %d on a '
+                '%g m background gives %g m along the streams.'
+                % (lv, bg, bg / (2 ** lv) if lv >= 0 else bg))
+    pl = int(get('grid.quadtree.pond_level', 0) or 0)
+    used = pl or lv
+    got = bg / (2 ** used) if used >= 0 else bg
+    if pl:
+        return ('Level %d on a %g m background gives %g m over the pond '
+                'footprints.' % (used, bg, got))
+    return ('0 follows the streams, so level %d on a %g m background gives '
+            '%g m over the pond footprints.' % (used, bg, got))
+
+
+# A note drawn UNDER one field, computed from what is on screen.
+GRID_NOTES = {
+    'grid.quadtree.refine_level': lambda get: _quadtree_note(get),
+    'grid.quadtree.pond_level': lambda get: _quadtree_note(get, ponds=True),
+}
+
+
 # Greyed out, and CLEARED, while their controlling switch is off (panel 1 D4).
 # A switch that cannot be answered yet, because the layer it acts on has
 # not been given. Keyed on the CONFIGURATION field that must be non-blank.
+
 GRID_NEEDS_LAYER = {
     'grid.voronoi.stream_refine': 'grid.streams',
     'grid.quadtree.refine_streams': 'grid.streams',

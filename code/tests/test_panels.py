@@ -672,18 +672,22 @@ def test_the_surface_rows_name_fields_that_exist(cfg):
     have = dict(schema.fields_of(cfg, 'surface'))
     for row in schema.SURFACE_ROWS:
         for dotted in row:
+            if dotted is None:
+                continue            # a deliberately empty cell
             assert dotted in have, '%s is laid out but does not exist' % dotted
 
 
-def test_the_records_are_on_the_left_and_the_layers_on_the_right():
-    """Two different kinds of answer: a file on this machine, and a mapped
-    zonation. Side by side they read as one list."""
-    left = [row[0] for row in schema.SURFACE_ROWS]
-    right = [row[1] for row in schema.SURFACE_ROWS if len(row) > 1]
-    assert right == ['surface.meteo_zones', 'surface.irr_zones']
-    assert left.index('surface.crop_schedule') > left.index('surface.irr_ts')
-    assert left.index('surface.out_prefix') > left.index(
-        'surface.crop_schedule')
+def test_the_meteorology_and_the_irrigation_are_one_per_column():
+    """One column per SUBJECT. Irrigation is the longer story and it is
+    optional, so keeping it in one column is what makes the short one
+    readable."""
+    left = [row[0] for row in schema.SURFACE_ROWS if row[0]]
+    right = [row[1] for row in schema.SURFACE_ROWS if len(row) > 1 and row[1]]
+    assert left == ['surface.meteo_ts', 'surface.meteo_zones',
+                    'surface.out_prefix']
+    assert right == ['surface.irrigation', 'surface.irr_zones',
+                     'surface.nfield', 'surface.irr_ts',
+                     'surface.crop_schedule']
     assert 'surface.plot' not in left + right, \
         'the MMsurf figures belong to panel 4'
 
@@ -718,6 +722,112 @@ def test_a_picked_schedule_becomes_a_pattern():
     # no field number at all: said, not silently accepted as a pattern
     kept, why = mod._as_pattern('schedule.txt')
     assert kept == 'schedule.txt' and 'no field number' in why
+
+
+# --------------------------------- panel 1: the cells the packages will own
+
+def _square_mesh(n=4, side=10.0):
+    """An n x n square mesh as DISV gridprops, cells in row-major order."""
+    verts, cell2d, vid = [], [], {}
+    for j in range(n + 1):
+        for i in range(n + 1):
+            vid[(i, j)] = len(verts)
+            verts.append([len(verts), i * side, j * side])
+    for j in range(n):
+        for i in range(n):
+            ring = [vid[(i, j)], vid[(i + 1, j)], vid[(i + 1, j + 1)],
+                    vid[(i, j + 1)]]
+            cell2d.append([len(cell2d), (i + 0.5) * side, (j + 0.5) * side,
+                           4] + ring)
+    return {'vertices': verts, 'cell2d': cell2d, 'ncpl': n * n, 'nlay': 1}
+
+
+def test_a_pond_owns_the_cells_whose_centre_is_in_the_water():
+    """CdL's rule. A Voronoi cell belongs to the generator it surrounds, so
+    "the centre is in the water" is the honest test of whether a cell is part
+    of the lake."""
+    gp = _square_mesh()
+    ring = [(0.0, 0.0), (20.0, 0.0), (20.0, 20.0), (0.0, 20.0)]
+    got = meshes.pond_cells(gp, [ring])
+    assert len(got) == 1
+    # the four cells of the lower-left quarter: centres at 5 and 15
+    assert sorted(got[0]) == [0, 1, 4, 5]
+
+
+def test_a_pond_smaller_than_its_cell_still_owns_one():
+    """Without the fallback it would own nothing at all, and LAK would be
+    handed an empty footprint."""
+    gp = _square_mesh()
+    tiny = [(21.0, 21.0), (22.0, 21.0), (22.0, 22.0), (21.0, 22.0)]
+    got = meshes.pond_cells(gp, [tiny])
+    assert len(got[0]) == 1
+    assert got[0][0] == 10, 'the nearest cell is not the one it landed in'
+
+
+def test_the_stream_cells_are_the_ones_the_line_runs_through():
+    gp = _square_mesh()
+    line = [[(1.0, 5.0), (39.0, 5.0)]]          # straight along row 0
+    got = meshes.stream_cells(gp, line)
+    assert got == [0, 1, 2, 3]
+
+
+def test_no_stream_and_no_pond_is_not_an_error():
+    gp = _square_mesh()
+    assert meshes.stream_cells(gp, []) == []
+    assert meshes.pond_cells(gp, []) == []
+
+
+def test_touching_is_a_shared_corner_not_an_overlap():
+    """The question WP4 asks: a lake that does not touch the network it
+    drains into cannot be connected to it by a mover."""
+    gp = _square_mesh()
+    assert meshes.cells_touch(gp, [0], [1]), 'neighbours do not touch'
+    assert meshes.cells_touch(gp, [0], [5]), 'diagonal corner is a touch'
+    assert not meshes.cells_touch(gp, [0], [2]), 'cells apart do touch'
+    assert not meshes.cells_touch(gp, [0], []), 'nothing cannot be touched'
+
+
+def test_the_cell_helpers_agree_with_the_gridprops():
+    gp = _square_mesh(n=3)
+    cen = meshes.cell_centres(gp)
+    polys = meshes.cell_polygons(gp)
+    assert cen.shape == (9, 2) and len(polys) == 9
+    assert len(polys[0]) == 4
+    assert abs(cen[0][0] - 5.0) < 1e-9 and abs(cen[0][1] - 5.0) < 1e-9
+
+
+# ------------------------------------------- panel 1: the level sentences
+
+def test_the_refinement_sentence_is_the_level_on_screen():
+    def get(dotted, default=None):
+        return {'grid.cell_size': 50.0, 'grid.quadtree.refine_level': 4,
+                'grid.quadtree.pond_level': 0}.get(dotted, default)
+
+    streams = schema.GRID_NOTES['grid.quadtree.refine_level'](get)
+    assert 'level 4' in streams and '50 m background' in streams
+    assert 'gives 3.125 m along the streams' in streams
+
+    ponds = schema.GRID_NOTES['grid.quadtree.pond_level'](get)
+    assert '0 follows the streams' in ponds
+    assert 'gives 3.125 m over the pond footprints' in ponds
+
+
+def test_a_pond_level_of_its_own_is_said_as_such():
+    def get(dotted, default=None):
+        return {'grid.cell_size': 50.0, 'grid.quadtree.refine_level': 2,
+                'grid.quadtree.pond_level': 4}.get(dotted, default)
+
+    ponds = schema.GRID_NOTES['grid.quadtree.pond_level'](get)
+    assert ponds.startswith('Level 4 ')
+    assert '3.125 m over the pond footprints' in ponds
+    assert 'follows the streams' not in ponds
+
+
+def test_every_note_belongs_to_a_field_that_is_shown():
+    shown = set(schema.grid_fields('quadtree')) | set(
+        schema.grid_fields('voronoi'))
+    for dotted in schema.GRID_NOTES:
+        assert dotted in shown, '%s has a note but no box' % dotted
 
 
 # ------------------------------------------------------------- choices

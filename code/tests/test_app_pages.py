@@ -412,20 +412,24 @@ def test_the_mmsurf_figures_moved_to_the_plots_panel():
         'the MMsurf figures did not arrive on panel 4'
 
 
-def test_the_presence_check_follows_the_record_box():
-    """A green light against the file named before the last edit is worse
-    than no light at all."""
+def test_the_records_are_stated_under_the_table_that_reads_them():
+    """A block of green and red dots says whether files are there, and
+    nothing about what they are for. Under the table that reads them it is
+    one answer -- and it follows the BOXES, since a green light against the
+    file named before the last edit is worse than no light at all."""
     at = AppTest.from_file(os.path.join(APP, 'pages', '2_Surface.py'),
                            default_timeout=180)
     at.run()
 
     def said():
-        return ' '.join(m.value for m in at.markdown)
+        return ' '.join(c.value for c in at.caption)
 
-    assert '__meteoTB.txt' in said(), said()[:200]
+    assert '__meteoTB.txt' in said(), said()[:300]
+    assert 'Are they there?' not in ' '.join(m.value for m in at.markdown), \
+        'the old block of dots is still on the panel'
     [x for x in at.text_input if x.key == 'surface.meteo_ts'][0] \
         .set_value('nowhere_at_all.txt').run()
-    assert 'nowhere_at_all.txt' in said(), 'the check ignored the box'
+    assert 'nowhere_at_all.txt' in said(), 'the lines ignored the box'
     assert '🔴' in said(), 'a file that is not there came up green'
 
 

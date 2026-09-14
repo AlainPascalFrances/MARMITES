@@ -208,7 +208,18 @@ def _plotly_mesh(polys, areas, kind, ncpl, colour_by, overlays, epsg, title):
             name='cells', hoverinfo='skip'))
 
     for name, (xs, ys, how) in overlays.items():
-        if how == 'poly':
+        if how in ('lak', 'sfr'):
+            # FILLED CELLS, not an outline: the point of drawing them is to
+            # see which cells the package will own, so the cell is the thing
+            # that has to be visible.
+            lak = how == 'lak'
+            fig.add_trace(go.Scatter(
+                x=xs, y=ys, mode='lines', name=name, fill='toself',
+                fillcolor='rgba(255,140,0,0.75)' if lak
+                else 'rgba(31,119,180,0.45)',
+                line=dict(color='#8a4b00' if lak else '#12537e', width=0.6),
+                hoverinfo='name'))
+        elif how == 'poly':
             fig.add_trace(go.Scatter(
                 x=xs, y=ys, mode='lines', name=name, fill='toself',
                 fillcolor='rgba(23,190,207,0.45)',
@@ -257,7 +268,12 @@ def _static_mesh(polys, areas, colour_by, overlays, epsg, title, view):
     ax.add_collection(pc)
 
     for name, (xs, ys, how) in overlays.items():
-        if how == 'poly':
+        if how in ('lak', 'sfr'):
+            ax.fill(xs, ys,
+                    facecolor='#ff8c00bf' if how == 'lak' else '#1f77b473',
+                    edgecolor='#8a4b00' if how == 'lak' else '#12537e',
+                    lw=0.6, zorder=2, label=name)
+        elif how == 'poly':
             ax.fill(xs, ys, facecolor='#17becf70', edgecolor='#0b6d78',
                     lw=1.2, zorder=3, label=name)
         elif how in ('line', 'dash'):
@@ -536,16 +552,6 @@ with tab_domain:
         elif v.stream_refine:
             st.info('No bands: the size at the stream must be smaller than '
                     'the background for a corridor to mean anything.')
-    elif chosen == 'quadtree':
-        # From the BOXES, not from the saved file: a sentence quoting a level
-        # and a background that are no longer on screen is worse than none,
-        # because it is the sentence the size is read off.
-        _bg = float(panelui.live('grid.cell_size', cfg.grid.cell_size) or 0.0)
-        _lv = int(panelui.live('grid.quadtree.refine_level',
-                               cfg.grid.quadtree.refine_level) or 0)
-        st.caption('GRIDGEN halves a cell per refinement level, so level %d '
-                   'on a %g m background gives %g m along the streams.'
-                   % (_lv, _bg, _bg / (2 ** _lv) if _lv >= 0 else _bg))
     if cfg.grid.override.enable:
         st.warning('**Override is ON**: the grid is taken from the origin and '
                    'shape above, not derived from the polygon. That is how the '
@@ -737,7 +743,8 @@ with tab_mesh:
     colour_by = st.radio('Colour cells by', ['cell area', 'uniform'],
                          horizontal=True)
     show = st.multiselect(
-        'Overlay', ['stream network', 'ponds', 'observation points',
+        'Overlay', ['stream network', 'ponds', 'pond cells (LAK)',
+                    'stream cells (SFR)', 'observation points',
                     'catchment boundary'],
         default=['stream network', 'observation points'])
 
@@ -859,6 +866,50 @@ with tab_mesh:
             if pd_:
                 overlays['ponds'] = ([p[1] for p in pd_], [p[2] for p in pd_],
                                      'points')
+    # ---- the cells the packages will own (WP4 read ahead of time) -----
+    # Drawn so that a refinement can be SEEN to have worked. A pond that owns
+    # no cell of its own, or a lake that does not touch the network it is
+    # supposed to drain into, is a thing to find out HERE and not in the LAK
+    # file.
+    want_lak = 'pond cells (LAK)' in show
+    want_sfr = 'stream cells (SFR)' in show
+    if want_lak or want_sfr:
+        import marmites_meshes as _mm
+
+        def _cells(idx):
+            xs, ys = [], []
+            for i in idx:
+                p = polys[i]
+                xs.extend([q[0] for q in p] + [p[0][0], None])
+                ys.extend([q[1] for q in p] + [p[0][1], None])
+            return xs, ys
+
+        rings = _mm.pond_rings(str(DS))
+        segs = []
+        try:
+            segs = _mm.stream_lines(os.path.join(str(DS), 'inputSTREAM.csv'))
+        except Exception:
+            segs = []
+        per_pond = _mm.pond_cells(gp, rings) if rings else []
+        sfr = _mm.stream_cells(gp, segs) if segs else []
+        if want_lak and per_pond:
+            flat = sorted({i for cells in per_pond for i in cells})
+            xs, ys = _cells(flat)
+            overlays['pond cells (LAK)'] = (xs, ys, 'lak')
+        if want_sfr and sfr:
+            xs, ys = _cells(sfr)
+            overlays['stream cells (SFR)'] = (xs, ys, 'sfr')
+        if per_pond:
+            loose = [k + 1 for k, cells in enumerate(per_pond)
+                     if not _mm.cells_touch(gp, cells, sfr)]
+            sizes = [len(c) for c in per_pond]
+            st.caption('%d pond(s) own %d cell(s) between them (%d to %d '
+                       'each), and %s.'
+                       % (len(per_pond), sum(sizes), min(sizes), max(sizes),
+                          'every one touches a stream cell' if not loose
+                          else 'pond(s) %s touch NO stream cell'
+                          % ', '.join(str(k) for k in loose)))
+
     obs = []
     if 'observation points' in show:
         try:

@@ -32,6 +32,7 @@ __all__ = ['pick_config', 'header', 'master_switch', 'section_form',
            'gis_folder_box', 'layer_picker', 'resolve_layer', 'folder_picker',
            'table_form', 'save_button', 'park', 'live',
            'surface_folder_box', 'file_picker', 'rows_form',
+           'record_lines',
            'CONFIG_DIR']
 
 
@@ -318,8 +319,8 @@ def rows_form(cfg, rows, section, columns=2, folder=None, files=(),
     for row in rows:
         cols = st.columns(max(columns, len(row)))
         for k, dotted in enumerate(row):
-            if dotted not in values:
-                continue
+            if dotted is None or dotted not in values:
+                continue          # an empty cell, so the column keeps place
             with cols[k]:
                 if dotted in files:
                     got = file_picker(dotted, values[dotted], folder,
@@ -749,10 +750,42 @@ def grid_kind_form(cfg, chosen, edited=None, values=None, columns=3):
                 got = _widget(dotted, values[dotted])
                 if got is not None:
                     out[dotted] = got
+                note = schema.GRID_NOTES.get(dotted)
+                if note is not None:
+                    st.caption(note(
+                        lambda d, f=None: live(d, values.get(d, f))))
     return out
 
 
-def table_form(cfg, dotted, singular, path):
+def record_lines(cfg, dotted, folder):
+    """``[(ok, name, what, size)]`` for the records this table reads.
+
+    Stated under the TABLE rather than in a list of its own: a block of green
+    and red dots says whether files are there, and nothing about what they
+    are for. Under the table that reads them it is one answer.
+    """
+    fields = schema.SURFACE_TABLE_FILES.get(dotted, ())
+    out = []
+    for field in fields:
+        label = schema.describe(field)[0]
+        name = live(field, getattr(cfg.surface, field.split('.')[-1], ''))
+        if field == 'surface.irr_ts' or field == 'surface.crop_schedule':
+            if not live('surface.irrigation', cfg.surface.irrigation):
+                continue
+        names = [name]
+        if '%d' in str(name):
+            n = int(live('surface.nfield', cfg.surface.nfield) or 0)
+            names = [name % (f + 1) for f in range(n)]
+        for one in names:
+            p = one if os.path.isabs(str(one)) else os.path.join(folder, one)
+            ok = os.path.exists(p)
+            out.append((ok, one, label,
+                        '%.1f KB' % (os.path.getsize(p) / 1024.0) if ok
+                        else 'not found'))
+    return out
+
+
+def table_form(cfg, dotted, singular, path, records=()):
     """One array of tables, as an editable grid with its column help."""
     rows = editor.table_rows(cfg, dotted)
     element_help = []
@@ -764,6 +797,9 @@ def table_form(cfg, dotted, singular, path):
                                ' — ' + help_ if help_ else ''))
     st.markdown('#### %s — %d entr%s'
                 % (singular, len(rows), 'y' if len(rows) == 1 else 'ies'))
+    for ok, name, what, size in records:
+        st.caption('%s `%s` — %s, %s' % ('🟢' if ok else '🔴', name, what.lower(),
+                                         size))
     with st.expander('What each column means'):
         for line in element_help:
             st.markdown('- ' + line)

@@ -32,7 +32,8 @@ import numpy as np
 __all__ = ['build_mesh', 'MeshBuildError', 'stream_lines', 'mesh_signature',
            'watershed_ring', 'normalise', 'cell_size_report', 'model_rectangle',
            'dataset_rectangle', 'rectangle_check', 'pond_rings', 'pond_seeds',
-           'PRODUCER_VERSION']
+           'pond_cells', 'stream_cells', 'cells_touch', 'cell_polygons',
+           'cell_centres', 'PRODUCER_VERSION']
 
 # Identifies the MESH-PRODUCING BEHAVIOUR, not the module. Bump it on any
 # change that would give a different mesh for the same configuration; it is
@@ -733,6 +734,101 @@ def pond_seeds(dataset_dir, inside=None, factor=POND_RING_FACTOR,
             if inside is None or inside(px, py):
                 nodes.append((px, py))
     return nodes, ponds, outside
+
+
+def cell_centres(gridprops):
+    """``(ncpl, 2)`` array of cell centres from a DISV gridprops."""
+    return np.asarray([(float(rec[1]), float(rec[2]))
+                       for rec in gridprops['cell2d']], dtype=float)
+
+
+def cell_polygons(gridprops):
+    """``[[(x, y), ...], ...]``, one ring per cell, in cell2d order."""
+    verts = {int(v[0]): (float(v[1]), float(v[2]))
+             for v in gridprops['vertices']}
+    return [[verts[int(i)] for i in rec[4:]] for rec in gridprops['cell2d']]
+
+
+def pond_cells(gridprops, rings):
+    """The cells each pond footprint owns.  ``[[icell2d, ...], ...]``.
+
+    CENTRE-INSIDE, with the nearest cell as a fallback -- CdL's rule. A
+    Voronoi cell belongs to the generator it surrounds, so "the centre is in
+    the water" is the honest test of whether a cell is part of the lake; the
+    fallback catches a pond smaller than the cell that covers it, which would
+    otherwise own nothing at all and leave LAK with an empty footprint.
+
+    This is the LAK footprint of WP4 read ahead of time. Panel 1 draws it so
+    that a refinement can be SEEN to have worked, rather than taken on trust.
+    """
+    if not rings:
+        return []
+    cen = cell_centres(gridprops)
+    out = []
+    for ring in rings:
+        inside = _inside_ring(ring)
+        got = [i for i in range(cen.shape[0]) if inside(cen[i, 0], cen[i, 1])]
+        if not got:
+            _area, cx, cy = _ring_area_centre(ring)
+            got = [int(np.argmin(np.hypot(cen[:, 0] - cx, cen[:, 1] - cy)))]
+        out.append(got)
+    return out
+
+
+def stream_cells(gridprops, segments, step=None):
+    """The cells a mapped stream runs through.  ``[icell2d, ...]``, sorted.
+
+    By NEAREST CENTRE along a densely sampled centre-line. On a Voronoi mesh
+    that is not an approximation -- the cell containing a point IS the cell
+    whose generator is nearest -- and on a quadtree it is close enough for
+    what this is for, which is showing where the SFR reaches will fall
+    against the pond cells beside them.
+    """
+    if not segments:
+        return []
+    cen = cell_centres(gridprops)
+    if step is None:
+        # Half the smallest cell across, so no cell on the line is stepped
+        # over. Bounded below, or a mesh with one sliver cell samples for
+        # ever.
+        polys = cell_polygons(gridprops)
+        span = min((max(p[0] for p in poly) - min(p[0] for p in poly))
+                   or 1e9 for poly in polys)
+        step = max(span / 2.0, 1.0)
+    pts = []
+    for seg in segments:
+        for k in range(len(seg) - 1):
+            (x0, y0), (x1, y1) = seg[k], seg[k + 1]
+            d = float(np.hypot(x1 - x0, y1 - y0))
+            n = max(int(np.ceil(d / step)), 1)
+            for j in range(n + 1):
+                f = j / float(n)
+                pts.append((x0 + f * (x1 - x0), y0 + f * (y1 - y0)))
+    if not pts:
+        return []
+    pts = np.asarray(pts, dtype=float)
+    hit = set()
+    for a in range(0, pts.shape[0], 2048):
+        chunk = pts[a:a + 2048]
+        d = ((chunk[:, None, 0] - cen[None, :, 0]) ** 2
+             + (chunk[:, None, 1] - cen[None, :, 1]) ** 2)
+        hit.update(int(i) for i in np.argmin(d, axis=1))
+    return sorted(hit)
+
+
+def cells_touch(gridprops, a, b, tol=1e-6):
+    """Do any cell of ``a`` and any cell of ``b`` share a vertex?
+
+    The question WP4 will ask: a lake that does not touch the network it is
+    supposed to drain into cannot be connected to it by a mover, whatever
+    the package file says.
+    """
+    polys = cell_polygons(gridprops)
+
+    def corners(cells):
+        return set((round(x / tol), round(y / tol))
+                   for i in cells for x, y in polys[i])
+    return bool(corners(a) & corners(b))
 
 
 def _produce_voronoi(cfg, cMF, dataset_dir=None, model_ws=None, warn=None,
