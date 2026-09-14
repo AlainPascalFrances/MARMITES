@@ -30,7 +30,9 @@ CONFIG_DIR = os.path.join(CODE, 'configs')
 __all__ = ['pick_config', 'header', 'master_switch', 'section_form',
            'grid_form', 'grid_permanent_form', 'grid_kind_form',
            'gis_folder_box', 'layer_picker', 'resolve_layer', 'folder_picker',
-           'table_form', 'save_button', 'park', 'live', 'CONFIG_DIR']
+           'table_form', 'save_button', 'park', 'live',
+           'surface_folder_box', 'file_picker', 'rows_form',
+           'CONFIG_DIR']
 
 
 def pick_config():
@@ -159,8 +161,11 @@ def _source_widget(dotted, src, shown, help_full, key):
     producers = [n for n in ('raster', 'layer', 'column', 'value', 'drainage')
                  if hasattr(src, n)]
     cur = src.producer()
-    st.markdown('**%s**' % shown)
-    st.caption(help_full)
+    # The field's name and its explanation ride on the title as a tooltip,
+    # the way the layer pickers do. As body text they were three lines of
+    # grey under every one of these boxes -- and on a panel that has a dozen
+    # of them, the text is most of the panel.
+    st.markdown('**%s**' % shown, help=help_full)
     idx = producers.index(cur) if cur in producers else 0
     which = st.selectbox('source', producers, index=idx,
                          key=key + '.__producer', label_visibility='collapsed')
@@ -213,6 +218,118 @@ def section_form(cfg, section, columns=2, skip_subpanels=True, only=None):
                 edited.update(got)
             elif got is not None:
                 edited[dotted] = got
+    return edited
+
+
+def surface_folder_box(default, key='surface_folder'):
+    """Where the meteorological record and its companions live.
+
+    The same shape as :func:`gis_folder_box`: a folder stated ONCE, and the
+    pickers below it are relative to it. It used to be a caption stating a
+    path the modeller could not change -- which is fine until the records are
+    somewhere else, and then there is nothing to do about it.
+    """
+    folder = st.text_input(
+        'Folder with SURFACE information',
+        value=st.session_state.get(key, str(default)), key=key,
+        help='Where MMsurf reads the meteorological record, the irrigation '
+             'series and the crop schedules. Defaults to MMsurf_ws beside '
+             'the case.')
+    if not os.path.isdir(folder):
+        st.error('No such folder: `%s`' % folder)
+    return folder
+
+
+def _as_pattern(name):
+    """``__inputFIELD1_crop_schedule.txt`` -> ``__inputFIELD%d_...``.
+
+    The field number is the FIRST run of digits: a schedule is picked by
+    pointing at one field's file, and what has to be stored is the pattern
+    the other fields are read with.
+    """
+    import re
+
+    if '%d' in name:
+        return name, ''
+    new, n = re.subn(r'\d+', '%d', name, count=1)
+    if not n:
+        return name, ('%s has no field number in it, so it cannot be a '
+                      'pattern -- the name needs a %%d where the field '
+                      'index goes.' % name)
+    return new, ''
+
+
+def file_picker(dotted, value, folder, pattern=False):
+    """A file named relative to ``folder``, or chosen in the OS dialog.
+
+    Stores the BARE NAME while the file is in that folder, so the
+    configuration stays portable between machines, and an absolute path
+    otherwise -- the same rule the layer pickers follow.
+    """
+    label, units, help_ = schema.describe(dotted)
+    shown = '%s [%s]' % (label, units) if units else label
+    hint = '`%s`  \n%s' % (dotted, help_)
+    key = dotted
+    pending = key + '.__pending'
+    if pending in st.session_state:
+        st.session_state[key] = st.session_state.pop(pending)
+
+    c1, c2 = st.columns([6, 1])
+    with c1:
+        typed = st.text_input(shown, value=str(value or ''), key=key,
+                              help=hint)
+    with c2:
+        st.markdown('<div style="height:1.85rem"></div>',
+                    unsafe_allow_html=True)
+        if st.button('…', key=key + '.__pick',
+                     help='Choose the file on this machine'):
+            start = folder if os.path.isdir(folder or '') else os.getcwd()
+            got, why = native_dialog('file', start, 'Select %s' % label)
+            if got:
+                name = got
+                if os.path.isdir(folder or '') and os.path.normcase(
+                        os.path.dirname(got)) == os.path.normcase(
+                            os.path.abspath(folder)):
+                    name = os.path.basename(got)
+                note = ''
+                if pattern:
+                    name, note = _as_pattern(name)
+                st.session_state[pending] = name
+                if note:
+                    st.session_state[key + '.__why'] = note
+                st.rerun()
+            elif why:
+                st.session_state[key + '.__why'] = why
+    if st.session_state.get(key + '.__why'):
+        st.caption(st.session_state.pop(key + '.__why'))
+    return typed
+
+
+def rows_form(cfg, rows, section, columns=2, folder=None, files=(),
+              patterns=()):
+    """A section laid out ROW BY ROW, as written, rather than in field order.
+
+    The order a dataclass happens to declare its fields in is not the order a
+    modeller fills them in, and a round-robin across columns puts unrelated
+    answers side by side. Fields named in ``files`` get the system dialog.
+    """
+    values = dict(schema.fields_of(cfg, section))
+    edited = {}
+    for row in rows:
+        cols = st.columns(max(columns, len(row)))
+        for k, dotted in enumerate(row):
+            if dotted not in values:
+                continue
+            with cols[k]:
+                if dotted in files:
+                    got = file_picker(dotted, values[dotted], folder,
+                                      pattern=dotted in patterns)
+                else:
+                    got = _widget(dotted, values[dotted])
+                if isinstance(got, dict):
+                    edited.update(got)
+                elif got is not None:
+                    edited[dotted] = got
     return edited
 
 

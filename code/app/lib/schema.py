@@ -34,7 +34,9 @@ if _CODE not in sys.path:
 __all__ = ['PANELS', 'FIELDS', 'TABLES', 'CHOICES', 'SUBPANELS', 'panel_of',
            'describe', 'fields_of', 'choices_for', 'subpanel_for', 'is_source',
            'GRID_PERMANENT', 'GRID_SUBPANEL', 'GRID_DERIVED', 'GRID_GATED',
-           'GRID_NEEDS_LAYER', 'grid_fields', 'PanelError']
+           'GRID_NEEDS_LAYER', 'grid_fields', 'SURFACE_ROWS',
+           'SURFACE_FILES', 'SURFACE_PATTERNS', 'SURFACE_ON_PLOTS',
+           'PanelError']
 
 
 class PanelError(Exception):
@@ -542,6 +544,34 @@ SUBPANELS = {
 # The catchment comes first, and the two layers a GRID can depend on come
 # with it -- the refinement options below cannot be answered before it is
 # known whether there IS a network or a pond to refine around.
+
+# ---- panel 2: the records ------------------------------------------------
+# An explicit layout, like the grid sub-panels, rather than whatever order
+# the dataclass happens to declare: the three RECORDS belong together down
+# the left, and the two spatial layers -- which are a different kind of
+# answer entirely -- belong together on the right.
+SURFACE_ROWS = (
+    ('surface.meteo_ts', 'surface.meteo_zones'),
+    ('surface.irrigation', 'surface.irr_zones'),
+    ('surface.nfield',),
+    ('surface.irr_ts',),
+    ('surface.crop_schedule',),
+    ('surface.out_prefix',),
+)
+
+# The ones that name a FILE on this machine, so the panel offers the system
+# dialog beside them instead of a name to be typed correctly.
+SURFACE_FILES = ('surface.meteo_ts', 'surface.irr_ts', 'surface.crop_schedule')
+
+# `crop_schedule` is a PATTERN, one file per field: picking
+# __inputFIELD1_crop_schedule.txt has to store __inputFIELD%d_... or the
+# second field would read the first one's schedule.
+SURFACE_PATTERNS = ('surface.crop_schedule',)
+
+# MMsurf's own figures are a PLOTTING choice, so they are asked on panel 4
+# with the rest of them, not here among the records that feed the run.
+SURFACE_ON_PLOTS = ('surface.plot',)
+
 GRID_PERMANENT = ('grid.boundary', 'grid.streams', 'grid.ponds', 'grid.dem',
                   'grid.crs_epsg', 'grid.kind', 'grid.resample')
 _LEGACY_ROWS = (

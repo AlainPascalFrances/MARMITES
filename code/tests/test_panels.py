@@ -666,6 +666,60 @@ def test_the_pond_level_defaults_to_the_stream_level(cfg):
     assert 'pond_level' in str(e.value)
 
 
+# -------------------------------------------------- panel 2: the records
+
+def test_the_surface_rows_name_fields_that_exist(cfg):
+    have = dict(schema.fields_of(cfg, 'surface'))
+    for row in schema.SURFACE_ROWS:
+        for dotted in row:
+            assert dotted in have, '%s is laid out but does not exist' % dotted
+
+
+def test_the_records_are_on_the_left_and_the_layers_on_the_right():
+    """Two different kinds of answer: a file on this machine, and a mapped
+    zonation. Side by side they read as one list."""
+    left = [row[0] for row in schema.SURFACE_ROWS]
+    right = [row[1] for row in schema.SURFACE_ROWS if len(row) > 1]
+    assert right == ['surface.meteo_zones', 'surface.irr_zones']
+    assert left.index('surface.crop_schedule') > left.index('surface.irr_ts')
+    assert left.index('surface.out_prefix') > left.index(
+        'surface.crop_schedule')
+    assert 'surface.plot' not in left + right, \
+        'the MMsurf figures belong to panel 4'
+
+
+def test_every_record_field_offers_the_file_dialog():
+    assert set(schema.SURFACE_FILES) == {'surface.meteo_ts', 'surface.irr_ts',
+                                         'surface.crop_schedule'}
+    for dotted in schema.SURFACE_FILES:
+        assert dotted in [d for row in schema.SURFACE_ROWS for d in row]
+
+
+def test_a_picked_schedule_becomes_a_pattern():
+    """One file per field: storing the file that was pointed at would make
+    every field read field 1's schedule."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        'panelui_t', os.path.join(CODE, 'app', 'lib', 'panelui.py'))
+    if spec is None:                       # pragma: no cover
+        pytest.skip('panelui not importable')
+    try:
+        mod = importlib.util.module_from_spec(spec)
+        sys.modules['panelui_t'] = mod
+        spec.loader.exec_module(mod)
+    except ImportError:
+        pytest.skip('streamlit not installed')
+
+    got, note = mod._as_pattern('__inputFIELD1_crop_schedule.txt')
+    assert got == '__inputFIELD%d_crop_schedule.txt' and not note
+    # already a pattern: left alone
+    assert mod._as_pattern(got) == (got, '')
+    # no field number at all: said, not silently accepted as a pattern
+    kept, why = mod._as_pattern('schedule.txt')
+    assert kept == 'schedule.txt' and 'no field number' in why
+
+
 # ------------------------------------------------------------- choices
 
 def test_the_enumerated_fields_are_choices():

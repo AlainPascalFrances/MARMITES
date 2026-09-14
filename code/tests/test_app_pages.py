@@ -379,6 +379,56 @@ def test_the_pond_settings_are_on_their_sub_panels():
     assert not any(k.startswith('grid.voronoi.') for k in keys)
 
 
+def test_panel_two_names_its_folder_and_offers_the_dialog():
+    """The folder was a caption stating a path that could not be changed --
+    fine until the records are somewhere else. And a record is a file on this
+    machine, so it is chosen, not typed correctly."""
+    at = AppTest.from_file(os.path.join(APP, 'pages', '2_Surface.py'),
+                           default_timeout=180)
+    at.run()
+    assert not at.exception, [str(e.value) for e in at.exception]
+    labels = [x.label for x in at.text_input]
+    assert 'Folder with SURFACE information' in labels, labels
+    keys = {b.key for b in at.button if b.key}
+    for dotted in ('surface.meteo_ts', 'surface.irr_ts',
+                   'surface.crop_schedule'):
+        assert dotted + '.__pick' in keys, '%s has no ... button' % dotted
+
+
+def test_the_mmsurf_figures_moved_to_the_plots_panel():
+    """A plotting choice, asked with the rest of them rather than among the
+    records that feed the run."""
+    two = AppTest.from_file(os.path.join(APP, 'pages', '2_Surface.py'),
+                            default_timeout=180)
+    two.run()
+    assert 'surface.plot' not in _keys(two), \
+        'the MMsurf figures are still on panel 2'
+
+    four = AppTest.from_file(os.path.join(APP, 'pages', '4_Plots.py'),
+                             default_timeout=180)
+    four.run()
+    assert not four.exception, [str(e.value) for e in four.exception]
+    assert 'surface.plot' in _keys(four), \
+        'the MMsurf figures did not arrive on panel 4'
+
+
+def test_the_presence_check_follows_the_record_box():
+    """A green light against the file named before the last edit is worse
+    than no light at all."""
+    at = AppTest.from_file(os.path.join(APP, 'pages', '2_Surface.py'),
+                           default_timeout=180)
+    at.run()
+
+    def said():
+        return ' '.join(m.value for m in at.markdown)
+
+    assert '__meteoTB.txt' in said(), said()[:200]
+    [x for x in at.text_input if x.key == 'surface.meteo_ts'][0] \
+        .set_value('nowhere_at_all.txt').run()
+    assert 'nowhere_at_all.txt' in said(), 'the check ignored the box'
+    assert '🔴' in said(), 'a file that is not there came up green'
+
+
 def test_panel_zero_sets_the_machine_paths():
     """They used to be read-only in the sidebar, under a caption telling the
     modeller to go and edit code/mm_paths.py. A path is not source code."""

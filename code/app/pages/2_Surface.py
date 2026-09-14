@@ -46,17 +46,32 @@ tab_par, tab_tables, tab_forcing = st.tabs(
 # ------------------------------------------------------- records & options
 with tab_par:
     st.markdown('#### The meteorological record and its companions')
-    in_ws = os.path.join(str(ds), 'MMsurf_ws')
-    st.caption('Read from `%s`' % in_ws)
+    in_ws = panelui.surface_folder_box(os.path.join(str(ds), 'MMsurf_ws'))
 
-    edited.update(panelui.section_form(cfg, 'surface', columns=2))
+    # Laid out row by row rather than in field order: the three RECORDS
+    # belong together down the left, and the two spatial layers -- a
+    # different kind of answer entirely -- belong together on the right.
+    edited.update(panelui.rows_form(
+        cfg, schema.SURFACE_ROWS, 'surface', columns=2, folder=in_ws,
+        files=schema.SURFACE_FILES, patterns=schema.SURFACE_PATTERNS))
 
-    rows = [(cfg.surface.meteo_ts, 'meteorological record')]
-    if cfg.surface.irrigation:
-        rows.append((cfg.surface.irr_ts, 'irrigation series'))
-        for f in range(int(cfg.surface.nfield)):
-            rows.append((cfg.surface.crop_schedule % (f + 1),
-                         'crop schedule, field %d' % (f + 1)))
+    # From the BOXES: a green light against the file that was named before
+    # the last edit is worse than no light at all.
+    def live(dotted, fallback):
+        return panelui.live(dotted, fallback)
+
+    rows = [(live('surface.meteo_ts', cfg.surface.meteo_ts),
+             'meteorological record')]
+    if live('surface.irrigation', cfg.surface.irrigation):
+        rows.append((live('surface.irr_ts', cfg.surface.irr_ts),
+                     'irrigation series'))
+        pattern = live('surface.crop_schedule', cfg.surface.crop_schedule)
+        for f in range(int(live('surface.nfield', cfg.surface.nfield) or 0)):
+            try:
+                name = pattern % (f + 1)
+            except TypeError:
+                name = pattern
+            rows.append((name, 'crop schedule, field %d' % (f + 1)))
     st.markdown('#### Are they there?')
     for fn, what in rows:
         p = os.path.join(in_ws, fn)

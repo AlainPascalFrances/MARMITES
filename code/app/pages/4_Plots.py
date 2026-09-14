@@ -51,6 +51,18 @@ c2.caption('A run that does not span a whole hydrological year still gets a '
 st.markdown('#### What to draw')
 edited.update(panelui.section_form(cfg, 'postproc', columns=3))
 
+# MMsurf's own figures are a PLOTTING choice, so they are asked here with the
+# rest of them rather than on panel 2 among the records that feed the run.
+# The field still lives in [surface], which is where MMsurf reads it.
+st.markdown('#### MMsurf')
+c1, c2 = st.columns([1, 2])
+with c1:
+    edited.update(panelui.section_form(cfg, 'surface', columns=1,
+                                       only='surface.plot'))
+c2.caption('Drawn by MMsurf itself while it turns the hourly record into the '
+           'daily forcing, so they appear only on a run with **panel 2** '
+           'switched on. Everything above is drawn after the model.')
+
 st.markdown('#### The water balance')
 st.info('**Open-water evaporation is drawn as a SPLIT OF RUNOFF**, not as a '
         'loss from a surface store — there is no longer such a store. The '
