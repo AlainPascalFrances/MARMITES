@@ -180,28 +180,22 @@ def _plotly_mesh(polys, areas, kind, ncpl, colour_by, overlays, epsg, title):
 
     fig = go.Figure()
     if colour_by == 'cell area':
-        # Quantile classes, so the colours separate what is actually there
-        # rather than being stretched by one sliver cell.
-        n = 8
-        edges = np.unique(np.percentile(areas, np.linspace(0, 100, n + 1)))
+        classes = loaders.area_classes(areas)
         cmap = colormaps['viridis']
-        for k in range(len(edges) - 1):
-            lo, hi = edges[k], edges[k + 1]
-            sel = ((areas >= lo) & (areas <= hi)) if k == len(edges) - 2 else \
-                ((areas >= lo) & (areas < hi))
-            if not sel.any():
-                continue
+        for k, (lo, hi, sel) in enumerate(classes):
             xs, ys = [], []
             for i in np.nonzero(sel)[0]:
                 p = polys[i]
                 xs.extend([q[0] for q in p] + [p[0][0], None])
                 ys.extend([q[1] for q in p] + [p[0][1], None])
-            r, g, b, _a = cmap(k / max(len(edges) - 2, 1))
+            r, g, b, _a = cmap(k / max(len(classes) - 1, 1))
             fig.add_trace(go.Scatter(
                 x=xs, y=ys, fill='toself', mode='lines',
                 fillcolor='rgb(%d,%d,%d)' % (r * 255, g * 255, b * 255),
                 line=dict(color='rgba(68,68,68,0.35)', width=0.4),
-                name='%.0f–%.0f m²' % (lo, hi), hoverinfo='name'))
+                name=('%.0f m² (every cell)' % lo if hi <= lo
+                      else '%.0f–%.0f m²' % (lo, hi)),
+                hoverinfo='name'))
     else:
         xs, ys = [], []
         for p in polys:
@@ -214,7 +208,12 @@ def _plotly_mesh(polys, areas, kind, ncpl, colour_by, overlays, epsg, title):
             name='cells', hoverinfo='skip'))
 
     for name, (xs, ys, how) in overlays.items():
-        if how == 'line':
+        if how == 'poly':
+            fig.add_trace(go.Scatter(
+                x=xs, y=ys, mode='lines', name=name, fill='toself',
+                fillcolor='rgba(23,190,207,0.45)',
+                line=dict(color='#0b6d78', width=1.4), hoverinfo='name'))
+        elif how == 'line':
             fig.add_trace(go.Scatter(x=xs, y=ys, mode='lines', name=name,
                                      line=dict(color='#1f77b4', width=1.6)))
         elif how == 'dash':
@@ -258,7 +257,10 @@ def _static_mesh(polys, areas, colour_by, overlays, epsg, title, view):
     ax.add_collection(pc)
 
     for name, (xs, ys, how) in overlays.items():
-        if how in ('line', 'dash'):
+        if how == 'poly':
+            ax.fill(xs, ys, facecolor='#17becf70', edgecolor='#0b6d78',
+                    lw=1.2, zorder=3, label=name)
+        elif how in ('line', 'dash'):
             ax.plot(xs, ys, '--' if how == 'dash' else '-',
                     color='#d62728' if how == 'dash' else '#1f77b4',
                     lw=1.2, zorder=3, label=name)
@@ -535,10 +537,15 @@ with tab_domain:
             st.info('No bands: the size at the stream must be smaller than '
                     'the background for a corridor to mean anything.')
     elif chosen == 'quadtree':
-        st.caption('GRIDGEN halves a cell per refinement level, so level 2 on '
-                   'a %g m background gives %g m along the streams.'
-                   % (cfg.grid.cell_size,
-                      cfg.grid.cell_size / (2 ** cfg.grid.quadtree.refine_level)))
+        # From the BOXES, not from the saved file: a sentence quoting a level
+        # and a background that are no longer on screen is worse than none,
+        # because it is the sentence the size is read off.
+        _bg = float(panelui.live('grid.cell_size', cfg.grid.cell_size) or 0.0)
+        _lv = int(panelui.live('grid.quadtree.refine_level',
+                               cfg.grid.quadtree.refine_level) or 0)
+        st.caption('GRIDGEN halves a cell per refinement level, so level %d '
+                   'on a %g m background gives %g m along the streams.'
+                   % (_lv, _bg, _bg / (2 ** _lv) if _lv >= 0 else _bg))
     if cfg.grid.override.enable:
         st.warning('**Override is ON**: the grid is taken from the origin and '
                    'shape above, not derived from the polygon. That is how the '
@@ -837,10 +844,21 @@ with tab_mesh:
             overlays['catchment boundary'] = ([p[0] for p in pts],
                                               [p[1] for p in pts], 'dash')
     if 'ponds' in show:
-        pd_ = _csv('inputPONDS.csv', ['fid', 'x', 'y']) or []
-        if pd_:
-            overlays['ponds'] = ([p[1] for p in pd_], [p[2] for p in pd_],
-                                 'points')
+        # The FOOTPRINT, not the centroid: a pond is a polygon the mesh has
+        # to cover, and a dot says nothing about whether it does.
+        import marmites_meshes as _mmesh
+        rings = _mmesh.pond_rings(str(DS))
+        if rings:
+            xs, ys = [], []
+            for ring in rings:
+                xs.extend([p[0] for p in ring] + [ring[0][0], None])
+                ys.extend([p[1] for p in ring] + [ring[0][1], None])
+            overlays['ponds'] = (xs, ys, 'poly')
+        else:
+            pd_ = _csv('inputPONDS.csv', ['fid', 'x', 'y']) or []
+            if pd_:
+                overlays['ponds'] = ([p[1] for p in pd_], [p[2] for p in pd_],
+                                     'points')
     obs = []
     if 'observation points' in show:
         try:

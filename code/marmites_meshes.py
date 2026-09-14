@@ -31,12 +31,13 @@ import numpy as np
 
 __all__ = ['build_mesh', 'MeshBuildError', 'stream_lines', 'mesh_signature',
            'watershed_ring', 'normalise', 'cell_size_report', 'model_rectangle',
-           'dataset_rectangle', 'rectangle_check', 'PRODUCER_VERSION']
+           'dataset_rectangle', 'rectangle_check', 'pond_rings', 'pond_seeds',
+           'PRODUCER_VERSION']
 
 # Identifies the MESH-PRODUCING BEHAVIOUR, not the module. Bump it on any
 # change that would give a different mesh for the same configuration; it is
 # part of the cache signature.
-PRODUCER_VERSION = 3
+PRODUCER_VERSION = 4
 
 
 class MeshBuildError(Exception):
@@ -579,6 +580,125 @@ def _clip_to_grid(ring, cMF, warn=None):
     return [(float(x), float(y)) for x, y in pts]
 
 
+def pond_rings(dataset_dir):
+    """Pond footprints as ``[[(x, y), ...], ...]`` from ``inputPONDS.geojson``.
+
+    The GeoJSON is what the converter writes for the outlines --
+    ``inputPONDS.csv`` carries only the centroid, the area and the DEM
+    statistics, which is enough to place a cell but not to draw a footprint or
+    to size one. Both are in model CRS and grid-independent.
+
+    Read with ``json`` alone: this is the model path, where the cookbook's D3
+    rule keeps geopandas out. An unreadable or absent file is not an error --
+    a catchment with no ponds is normal -- it is an empty list.
+    """
+    import json
+
+    path = os.path.join(str(dataset_dir), 'inputPONDS.geojson')
+    if not os.path.exists(path):
+        return []
+    try:
+        with open(path, encoding='utf-8') as fh:
+            doc = json.load(fh)
+    except (ValueError, OSError):
+        return []
+    out = []
+    for feat in doc.get('features', []):
+        geom = feat.get('geometry') or {}
+        kind = geom.get('type')
+        if kind == 'Polygon':
+            parts = [geom.get('coordinates', [[]])]
+        elif kind == 'MultiPolygon':
+            parts = geom.get('coordinates', [])
+        else:
+            continue
+        for poly in parts:
+            if not poly:
+                continue
+            ring = [(float(x), float(y)) for x, y in poly[0][:2000]]
+            if len(ring) > 2 and ring[0] == ring[-1]:
+                ring = ring[:-1]
+            if len(ring) >= 3:
+                out.append(ring)
+    return out
+
+
+def _ring_area_centre(ring):
+    """``(area, x, y)`` of a closed ring by the shoelace formula.
+
+    The CENTROID of the polygon, not the mean of its vertices: a rim mapped
+    with many points on one side would drag the mean towards that side, and
+    the seed has to sit where the cell should be centred.
+    """
+    a = cx = cy = 0.0
+    n = len(ring)
+    for i in range(n):
+        x0, y0 = ring[i]
+        x1, y1 = ring[(i + 1) % n]
+        cross = x0 * y1 - x1 * y0
+        a += cross
+        cx += (x0 + x1) * cross
+        cy += (y0 + y1) * cross
+    if abs(a) < 1e-12:
+        xs = [p[0] for p in ring]
+        ys = [p[1] for p in ring]
+        return 0.0, sum(xs) / n, sum(ys) / n
+    return abs(a) / 2.0, cx / (3.0 * a), cy / (3.0 * a)
+
+
+# A Voronoi cell can NEVER follow a pond outline: a face is the bisector of
+# the segment between two generators, so a rim added as a constraint polygon
+# is cut by the cells rather than honoured, and every cell along it straddles
+# the rim half in and half out. CdL proved that on a 5922-cell rim mesh and
+# settled on SEEDING instead (2026-07-04): one generator at the pond centre,
+# plus a ring of helpers a little way out. The centre's cell is then bounded
+# by the bisectors to its own ring, so it comes out pond-SIZED and
+# pond-CENTRED and covers the footprint -- which is what LAK needs.
+#
+# Without the ring the centre generator simply takes the local background
+# cell, because nothing near it competes. 2.5 x the pond radius with 6
+# helpers is what CdL runs on.
+POND_RING_FACTOR = 2.5
+POND_RING_N = 6
+
+
+def pond_seeds(dataset_dir, inside=None, factor=POND_RING_FACTOR,
+               n_ring=POND_RING_N):
+    """Generator nodes that give each pond a cell of its own.
+
+    ``inside`` is an optional ``(x, y) -> bool`` test for the domain. A pond
+    whose centre falls outside it is NOT meshed and is reported: Triangle
+    discards a node outside the boundary polygon, so without this a pond
+    beyond the catchment edge simply disappeared -- no cell, no message, and
+    the LAK footprint later looking for one. Ring helpers outside are dropped
+    on their own, since a generator beyond the boundary would pull a cell out
+    of the domain.
+
+    Returns ``(nodes, ponds, outside)``: the generator nodes, the ponds kept
+    as ``(ring, area, cx, cy, radius)``, and the rings of those refused.
+    """
+    import math
+
+    nodes, ponds, outside = [], [], []
+    for ring in pond_rings(dataset_dir):
+        area, cx, cy = _ring_area_centre(ring)
+        if area <= 0.0:
+            continue
+        if inside is not None and not inside(cx, cy):
+            outside.append(ring)
+            continue
+        r = math.sqrt(area / math.pi)
+        ponds.append((ring, area, cx, cy, r))
+        nodes.append((cx, cy))
+        for k in range(int(n_ring)):
+            th = 2.0 * math.pi * k / float(n_ring)
+            px = cx + factor * r * math.cos(th)
+            py = cy + factor * r * math.sin(th)
+            if inside is None or inside(px, py):
+                nodes.append((px, py))
+    return nodes, ponds, outside
+
+
 def _produce_voronoi(cfg, cMF, dataset_dir=None, model_ws=None, warn=None,
                      **_kw):
     """Triangle + flopy VoronoiGrid over the catchment boundary.  WP1c.2.
@@ -604,19 +724,42 @@ def _produce_voronoi(cfg, cMF, dataset_dir=None, model_ws=None, warn=None,
     ws = model_ws or os.path.join(os.getcwd(), '_triangle')
     os.makedirs(ws, exist_ok=True)
 
+    nodes, ponds, seeds = None, [], []
+    if v.seed_ponds:
+        # The seeds go to Triangle as NODES, not as regions or polygons: they
+        # are generators, points the triangulation must contain, and it is
+        # being a generator that gives the pond its cell.
+        seeds, ponds, gone = pond_seeds(dataset_dir, inside=_inside_ring(ring))
+        if warn and gone:
+            warn('%d pond(s) fall outside the catchment boundary and are NOT '
+                 'meshed: %s.' % (len(gone), ', '.join(
+                     '%.0f, %.0f' % _ring_area_centre(g)[1:] for g in gone)))
+        if not seeds:
+            if warn:
+                warn('grid.voronoi.seed_ponds is on but no pond footprint was '
+                     'read from inputPONDS.geojson: the mesh has no pond '
+                     'cell. Run code/tools/gis_to_dataset.py.')
+        else:
+            nodes = np.asarray(seeds, dtype=float)
+
     tri = Triangle(model_ws=ws, exe_name=exe,
-                   maximum_area=_max_area_for(v.cell_far))
+                   maximum_area=_max_area_for(v.cell_far), nodes=nodes)
     tri.add_polygon(ring)
 
     if v.stream_refine:
-        _add_stream_regions(tri, cfg, dataset_dir, warn)
-    if v.seed_ponds and warn:
-        # A Voronoi cell can never follow a pond outline -- its faces bisect
-        # the segment between two generators, so a constraint polygon is cut
-        # rather than honoured. CdL's answer was to SEED a generator at the
-        # pond centroid instead, which is a LAK concern; it lands with WP4.
-        warn('grid.voronoi.seed_ponds is set, but pond seeding arrives with '
-             'WP4 (LAK). The mesh is built without it.')
+        # Only the ponds that are actually IN the domain: buffering one that
+        # is not would put a band outside the catchment boundary.
+        _add_refinement_regions(tri, cfg, dataset_dir, warn,
+                                ponds=[p[0] for p in ponds])
+    elif ponds and warn:
+        warn('grid.voronoi.seed_ponds is on and stream refinement is off, so '
+             'each pond gets a cell CENTRED on it but at the background size: '
+             'the graded sizes the refinement carries (cell_near_stream, '
+             'grade_ratio) are what a pond would be refined to.')
+    if ponds and warn:
+        warn('pond seeding: %d pond(s), %d generator node(s) (centre + %d '
+             'ring helpers at %g x the pond radius).'
+             % (len(ponds), len(nodes), POND_RING_N, POND_RING_FACTOR))
 
     tri.build(verbose=False)
     gp = VoronoiGrid(tri).get_gridprops_vertexgrid()
@@ -624,13 +767,48 @@ def _produce_voronoi(cfg, cMF, dataset_dir=None, model_ws=None, warn=None,
     return gp
 
 
-def _add_stream_regions(tri, cfg, dataset_dir, warn):
-    """Refine a corridor along the stream network, graded outward.
+def _inside_ring(ring):
+    """``(x, y) -> bool`` for a simple polygon, by the crossing-number rule.
+
+    Written out rather than reached for in shapely: it is a dozen lines, it
+    is called a few dozen times, and the producer already degrades to an
+    unrefined mesh when shapely is absent -- pond seeding should not be the
+    one thing that makes it a hard dependency.
+    """
+    pts = list(ring)
+    n = len(pts)
+
+    def inside(x, y):
+        hit = False
+        j = n - 1
+        for i in range(n):
+            xi, yi = pts[i]
+            xj, yj = pts[j]
+            if (yi > y) != (yj > y):
+                xc = xi + (y - yi) * (xj - xi) / (yj - yi)
+                if x < xc:
+                    hit = not hit
+            j = i
+        return hit
+    return inside
+
+
+def _add_refinement_regions(tri, cfg, dataset_dir, warn, ponds=()):
+    """Refine around the mapped features, graded outward.
+
+    The features are the stream centre-lines and -- when
+    ``grid.voronoi.seed_ponds`` is on -- the pond footprints. They go into
+    ONE geometry before anything is buffered, so the bands stay a single
+    nested family: a pond given a corridor of its own would put a closed
+    constraint polygon across the stream bands it sits in, and Triangle
+    meshes crossing segments unpredictably when it accepts them at all.
+    That is why the ponds refine HERE and not in a step of their own.
 
     Needs shapely to buffer the lines. The import is deliberately LOCAL: the
     repo-hygiene test forbids a top-level geometry import in model code, and a
     mesh producer that runs once per grid is exactly the place for an optional
     dependency rather than a hard one.
+
     """
     v = cfg.grid.voronoi
     csv = os.path.join(dataset_dir, 'inputSTREAM.csv')
@@ -640,14 +818,27 @@ def _add_stream_regions(tri, cfg, dataset_dir, warn):
                  'will be uniform.' % csv)
         return
     try:
-        from shapely.geometry import LineString
+        from shapely.geometry import LineString, Polygon
         from shapely.ops import unary_union
     except ImportError:
         if warn:
             warn('shapely is not available, so the stream corridor is NOT '
                  'refined and the mesh is uniform at cell_far.')
         return
-    lines = unary_union([LineString(p) for p in stream_lines(csv)])
+    feats = [LineString(p) for p in stream_lines(csv)]
+    nponds = 0
+    for ring in ponds:
+        poly = Polygon(ring)
+        if not poly.is_valid:
+            poly = poly.buffer(0)
+        if not poly.is_empty:
+            feats.append(poly)
+            nponds += 1
+    lines = unary_union(feats)
+    if warn and nponds:
+        warn('grid.voronoi: %d pond footprint(s) refined with the stream '
+             'corridor, so a pond carries cell_near_stream and grades out '
+             'with it.' % nponds)
     # Graded bands: the innermost carries cell_near_stream, each successive
     # band relaxes towards cell_far. Jumping straight from one size to the
     # other makes badly shaped cells along the seam.

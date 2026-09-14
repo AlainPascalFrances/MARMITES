@@ -283,6 +283,62 @@ def test_each_layer_picker_keeps_its_title_and_its_help():
         assert dotted in (help_ or ''), '%s: the help icon is gone' % dotted
 
 
+def test_the_quadtree_sentence_follows_the_boxes():
+    """It is the sentence the refined size is read off, so quoting a level
+    and a background that are no longer on screen is worse than saying
+    nothing."""
+    at = AppTest.from_file(os.path.join(APP, 'pages', '1_Grid.py'),
+                           default_timeout=180)
+    at.run()
+    [s for s in at.selectbox if s.key == 'grid.kind'][0] \
+        .set_value('quadtree').run()
+
+    def said():
+        got = [c.value for c in at.caption if 'GRIDGEN halves' in c.value]
+        assert got, 'the quadtree sentence is not on the page'
+        return got[0]
+
+    [n for n in at.number_input if n.key == 'grid.cell_size'][0] \
+        .set_value(80.0).run()
+    assert 'on a 80 m background' in said(), said()
+    lv = [n for n in at.number_input if n.key == 'grid.quadtree.refine_level']
+    if lv:                       # drawn only while the refinement is on
+        lv[0].set_value(3).run()
+        assert 'level 3' in said() and 'gives 10 m' in said(), said()
+
+
+def test_the_gis_folder_box_says_where_the_folder_comes_from():
+    at = AppTest.from_file(os.path.join(APP, 'pages', '1_Grid.py'),
+                           default_timeout=180)
+    at.run()
+    labels = [x.label for x in at.text_input]
+    assert 'Folder with GIS information (defined in panel Home)' in labels, \
+        labels
+
+
+def test_the_map_can_draw_the_pond_footprints():
+    """A pond is a polygon the mesh has to cover, and a dot says nothing
+    about whether it does -- so the overlay reads the GeoJSON outlines."""
+    import marmites_config as mcfg
+    import marmites_meshes as mmesh
+    import mm_paths
+
+    cfg = mcfg.load_run_config(os.path.join(CODE, 'configs', 'lamata.toml'))
+    ds = str(mm_paths.dataset_dir(cfg.paths.case))
+    rings = mmesh.pond_rings(ds)
+    if not rings:
+        pytest.skip('no pond table on this machine')
+    assert all(len(r) >= 3 for r in rings), 'a footprint came back as a point'
+
+    at = AppTest.from_file(os.path.join(APP, 'pages', '1_Grid.py'),
+                           default_timeout=180)
+    at.run()
+    sel = [m for m in at.multiselect if 'Overlay' in str(m.label)]
+    assert sel, 'the overlay chooser is gone'
+    sel[0].set_value(['ponds']).run()
+    assert not at.exception, [str(e.value) for e in at.exception]
+
+
 def test_panel_zero_sets_the_machine_paths():
     """They used to be read-only in the sidebar, under a caption telling the
     modeller to go and edit code/mm_paths.py. A path is not source code."""

@@ -390,6 +390,62 @@ the remaining 42 rasters all agree.
 
 ---
 
+### 2A.11  Ponds in the mesh — 2026-09-14
+
+`grid.voronoi.seed_ponds` did nothing: the producer warned that pond seeding
+"arrives with WP4" and built the mesh without it. It now does two things.
+
+**1. A generator node at each pond** — CdL's design (2026-07-04), and for
+CdL's reason: a Voronoi face is the bisector of the segment between two
+generators, so a cell can *never* follow a pond rim added as a constraint
+polygon; it is cut by the cells instead. Seed a generator at the pond centre
+and the pond gets a cell centred on it. Measured on La Mata: every one of the
+11 ponds inside the catchment now has a cell centre **0.0 m** from its
+centroid, against 1.6–14.4 m before.
+
+The centroid is the POLYGON's, by the shoelace formula, not the mean of the
+rim vertices — a rim mapped densely down one side would drag the mean that
+way and the cell would not be centred on the water.
+
+**2. The footprints refine the mesh**, by joining the stream centre-lines in
+the geometry the graded bands are buffered from. So a pond carries
+`cell_near_stream` and grades outward exactly as the corridor does.
+
+**What did NOT transfer from CdL, and why.** CdL puts a ring of 6 helper
+nodes at 2.5 × the pond radius, and says the ring is what *shrinks* the
+centre's cell to pond size — "without the ring the centroid cell takes the
+local background size". That works because CdL's ponds sit in a **100 m
+background**, coarser than the ponds. La Mata is the other way round:
+`cell_near_stream` is **5 m** and a charca is ~36 m across, so the corridor
+is already finer than the ponds and the ring can only make the cell smaller.
+Seeding alone, measured: the pond cells came out at **0.9 to 200 m² against
+footprints of 341 to 2036 m²** — slivers.
+
+A sizing ZONE per pond (a disc of segments carrying the pond's own maximum
+area) was built and rejected: a zone that crosses a band boundary puts two
+constraint polygons through each other, and on La Mata **11 of the 12** ponds
+sit where the band boundaries run straight through them. Refining the
+footprints with the corridor is what works, and it needs no new constraint
+family.
+
+**Where that leaves the pond cells** (`cell_far` 50, `cell_near_stream` 5,
+`grade_ratio` 3): 125–480 m² cells, so a pond is 2–4 cells with one of them
+centred on it. That is the multi-cell LAK footprint CdL also supports
+(`pond_cells_of`), not its one-cell-per-pond. **One cell per pond would mean
+a cell COARSER than the corridor around it**, which is a modelling choice,
+not a mesh detail — if you want it, it belongs on the panel as a pond cell
+size, and I will add the field rather than pick a number.
+
+**A pond outside the catchment is now refused and named.** Triangle discards
+a node outside the boundary polygon, so pond 7 of La Mata (742094, 4554878)
+was vanishing without a word — no cell, and a LAK footprint that would later
+go looking for one.
+
+`PRODUCER_VERSION` 3 → 4: every cached Voronoi mesh rebuilds rather than
+being served.
+
+---
+
 ## 3  Group 1 — SURFACE  (MMsurf)  ·  switch `MARMsurf_yn`
 
 Source: `MMsurf_ws/__inputMMsurf.ini` (100 parameters) + its time-series

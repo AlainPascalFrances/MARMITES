@@ -511,6 +511,98 @@ def test_the_header_is_read_without_the_body(tmp_path):
     assert head2 == head and arr.shape == (3, 4)
 
 
+# ------------------------------------------ panel 1: the ponds in the mesh
+
+def _pond_geojson(path, polys):
+    """``inputPONDS.geojson`` as the converter writes it."""
+    import json
+    feats = [{'type': 'Feature', 'properties': {'id': i + 1},
+              'geometry': {'type': 'Polygon',
+                           'coordinates': [[list(p) for p in ring]
+                                           + [list(ring[0])]]}}
+             for i, ring in enumerate(polys)]
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    io.open(path, 'w', encoding='utf-8', newline='').write(
+        json.dumps({'type': 'FeatureCollection', 'features': feats}))
+
+
+def _square(cx, cy, half):
+    return [(cx - half, cy - half), (cx + half, cy - half),
+            (cx + half, cy + half), (cx - half, cy + half)]
+
+
+def test_the_pond_footprints_are_read_from_the_geojson(tmp_path):
+    """inputPONDS.csv carries the centroid and the area, which places a cell
+    but cannot draw a footprint or size one -- the outlines are in the
+    GeoJSON, and the mesh producer reads it with json alone."""
+    root = str(tmp_path)
+    _pond_geojson(os.path.join(root, 'inputPONDS.geojson'),
+                  [_square(100.0, 200.0, 10.0), _square(500.0, 600.0, 5.0)])
+    rings = meshes.pond_rings(root)
+    assert len(rings) == 2
+    assert len(rings[0]) == 4, 'the closing point should be dropped'
+    area, cx, cy = meshes._ring_area_centre(rings[0])
+    assert abs(area - 400.0) < 1e-6
+    assert (round(cx, 6), round(cy, 6)) == (100.0, 200.0)
+
+
+def test_a_catchment_with_no_ponds_is_not_an_error(tmp_path):
+    assert meshes.pond_rings(str(tmp_path)) == []
+    nodes, ponds, gone = meshes.pond_seeds(str(tmp_path))
+    assert (nodes, ponds, gone) == ([], [], [])
+
+
+def test_each_pond_is_seeded_with_a_centre_and_a_ring(tmp_path):
+    """The centre gives the cell its position; the ring keeps the cell from
+    simply taking the background size (CdL, 2026-07-04)."""
+    root = str(tmp_path)
+    _pond_geojson(os.path.join(root, 'inputPONDS.geojson'),
+                  [_square(100.0, 200.0, 10.0)])
+    nodes, ponds, _gone = meshes.pond_seeds(root)
+    assert len(ponds) == 1
+    assert nodes[0] == (100.0, 200.0), 'the first node is the pond centre'
+    assert len(nodes) == 1 + meshes.POND_RING_N
+    r = ponds[0][4]
+    for x, y in nodes[1:]:
+        d = ((x - 100.0) ** 2 + (y - 200.0) ** 2) ** 0.5
+        assert abs(d - meshes.POND_RING_FACTOR * r) < 1e-6
+
+
+def test_a_pond_outside_the_domain_is_refused_and_reported(tmp_path):
+    """Triangle discards a node outside the boundary polygon, so without this
+    the pond vanished silently -- no cell, no message, and the LAK footprint
+    later looking for one."""
+    root = str(tmp_path)
+    _pond_geojson(os.path.join(root, 'inputPONDS.geojson'),
+                  [_square(100.0, 200.0, 10.0), _square(9000.0, 9000.0, 10.0)])
+    inside = meshes._inside_ring([(0.0, 0.0), (1000.0, 0.0),
+                                  (1000.0, 1000.0), (0.0, 1000.0)])
+    nodes, ponds, gone = meshes.pond_seeds(root, inside=inside)
+    assert len(ponds) == 1 and len(gone) == 1
+    assert all(0.0 <= x <= 1000.0 and 0.0 <= y <= 1000.0 for x, y in nodes)
+
+
+def test_the_point_in_polygon_test_is_the_crossing_number_rule():
+    inside = meshes._inside_ring([(0.0, 0.0), (10.0, 0.0), (10.0, 10.0),
+                                  (0.0, 10.0)])
+    assert inside(5.0, 5.0)
+    assert not inside(15.0, 5.0)
+    assert not inside(5.0, -1.0)
+
+
+def test_a_concave_pond_is_seeded_at_its_own_centroid(tmp_path):
+    """The centroid of the POLYGON, not the mean of its vertices: a rim
+    mapped with many points down one side would drag the mean that way and
+    the cell would not be centred on the water."""
+    ring = [(0.0, 0.0), (100.0, 0.0), (100.0, 10.0), (10.0, 10.0),
+            (10.0, 100.0), (0.0, 100.0)]
+    area, cx, cy = meshes._ring_area_centre(ring)
+    assert abs(area - 1900.0) < 1e-6
+    mean_x = sum(p[0] for p in ring) / len(ring)
+    assert abs(cx - cy) < 1e-9, 'the L is symmetric about the diagonal'
+    assert abs(cx - mean_x) > 1.0, 'the vertex mean is NOT the centroid'
+
+
 # ------------------------------------------------------------- choices
 
 def test_the_enumerated_fields_are_choices():

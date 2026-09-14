@@ -270,3 +270,40 @@ def test_the_app_lib_layer_is_streamlit_free():
         p = os.path.join(CODE, 'app', 'lib', name)
         with open(p, encoding='utf-8') as fh:
             assert not pat.search(fh.read()), '%s imports streamlit' % name
+
+
+def test_a_uniform_mesh_gets_one_area_class():
+    """A structured grid has ONE cell area, so every quantile is the same
+    number and the class edges collapse to a single value. That left no
+    interval, no trace and a blank map -- the easiest mesh to draw was the
+    one that did not get drawn."""
+    import numpy as np
+
+    got = loaders.area_classes(np.full(24, 2500.0))
+    assert len(got) == 1
+    lo, hi, sel = got[0]
+    assert (lo, hi) == (2500.0, 2500.0)
+    assert sel.all(), 'every cell has to fall in the single class'
+
+
+def test_a_graded_mesh_gets_separated_classes():
+    import numpy as np
+
+    got = loaders.area_classes(np.linspace(10.0, 4000.0, 40))
+    assert len(got) > 1
+    assert sum(int(sel.sum()) for _lo, _hi, sel in got) == 40, \
+        'every cell belongs to exactly one class'
+    assert got[0][0] == 10.0 and got[-1][1] == 4000.0
+
+
+def test_area_classes_of_nothing_is_nothing():
+    assert loaders.area_classes([]) == []
+
+
+def test_two_sizes_do_not_collapse_into_one_class():
+    import numpy as np
+
+    a = np.array([100.0] * 10 + [900.0] * 10)
+    got = loaders.area_classes(a)
+    assert len(got) >= 2
+    assert sum(int(sel.sum()) for _lo, _hi, sel in got) == 20

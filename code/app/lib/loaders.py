@@ -17,7 +17,8 @@ import os
 from pathlib import Path
 
 __all__ = ['digest', 'read_asc', 'read_table', 'provenance_of',
-           'inventory', 'read_vector', 'crs_note', 'TIER_A_GROUPS']
+           'inventory', 'read_vector', 'crs_note', 'area_classes',
+           'TIER_A_GROUPS']
 
 # La Mata: ED50 / UTM 29N. Web maps need WGS84.
 MODEL_EPSG = 23029
@@ -267,6 +268,38 @@ def promote_mesh(cache_dir, ws_root, kind):
             shutil.copy2(str(src / name), str(dst / name))
             moved.append(name)
     return dst, moved
+
+
+def area_classes(areas, n=8):
+    """Quantile classes for colouring a mesh by cell area.
+
+    Returns ``[(lo, hi, mask), ...]``. Quantiles rather than equal intervals,
+    so the colours separate what is actually there instead of being stretched
+    by one sliver cell.
+
+    A UNIFORM grid -- every structured one -- has a single area, so every
+    quantile is the same number and the edges collapse to one value. That is
+    the easiest mesh there is to draw, not a mesh with nothing to draw, so it
+    gets ONE class covering everything. Leaving it to fall out as an empty
+    list is what made a structured attempt come up as a blank map.
+    """
+    import numpy as np
+
+    a = np.asarray(areas, dtype=float).ravel()
+    if a.size == 0:
+        return []
+    edges = np.unique(np.percentile(a, np.linspace(0, 100, int(n) + 1)))
+    if edges.size < 2:
+        lo = float(edges[0])
+        return [(lo, lo, np.ones(a.shape, dtype=bool))]
+    out = []
+    for k in range(edges.size - 1):
+        lo, hi = float(edges[k]), float(edges[k + 1])
+        last = k == edges.size - 2
+        sel = (a >= lo) & (a <= hi) if last else (a >= lo) & (a < hi)
+        if sel.any():
+            out.append((lo, hi, sel))
+    return out
 
 
 def mesh_polygons(gridprops):

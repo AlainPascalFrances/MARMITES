@@ -320,10 +320,11 @@ def gis_folder_box(folder_key='gis_folder'):
 
     gis = str(mm_paths.GIS)
     folder = st.text_input(
-        'Folder to look in', value=st.session_state.get(folder_key, gis),
-        key=folder_key,
-        help='Defaults to DATA_ROOT/GIS. The shapefiles stay here and are '
-             'read only by the converter -- they never enter the repository.')
+        'Folder with GIS information (defined in panel Home)',
+        value=st.session_state.get(folder_key, gis), key=folder_key,
+        help='Defaults to DATA_ROOT/GIS, which panel Home sets. The '
+             'shapefiles and rasters stay here and are read only by the '
+             'converter -- they never enter the repository.')
     found = find_shapefiles(folder)
     if not os.path.isdir(folder):
         st.error('No such folder: `%s`' % folder)
