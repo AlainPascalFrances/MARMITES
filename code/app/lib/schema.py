@@ -37,7 +37,7 @@ __all__ = ['PANELS', 'FIELDS', 'TABLES', 'CHOICES', 'SUBPANELS', 'panel_of',
            'GRID_NEEDS_LAYER', 'GRID_NOTES', 'grid_fields',
            'SURFACE_ROWS',
            'SURFACE_FILES', 'SURFACE_PATTERNS', 'SURFACE_ON_PLOTS',
-           'SURFACE_TABLE_FILES',
+           'SURFACE_TABLE_FILES', 'INTEGER_VALUE',
            'PanelError']
 
 
@@ -508,10 +508,18 @@ FIELDS = {
 }
 
 
+# A source whose single value is a ZONE, not a measurement: "the whole
+# catchment is zone 1". Typed as a count, because 1.0 zones is not a thing
+# and a box that offers decimals invites one. soil.thickness is the
+# counter-example and is deliberately NOT here -- its value is metres.
+INTEGER_VALUE = ('surface.meteo_zones', 'surface.irr_zones', 'soil.zones')
+
 # A field whose value is one of a fixed set is a CHOICE, not free text.
 # Typing "voroni" into a text box and finding out at run time is exactly the
 # failure the panels exist to prevent, so the allowed values come from the
 # schema itself wherever it declares them.
+
+
 def _grid_kinds():
     import marmites_config as mcfg
     return list(mcfg.GRID_KINDS)

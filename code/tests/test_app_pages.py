@@ -13,6 +13,7 @@ runs the model (a PEST worker, Spyder). The model must never need it.
 
 import io
 import os
+import sys
 
 import pytest
 
@@ -431,6 +432,64 @@ def test_the_records_are_stated_under_the_table_that_reads_them():
         .set_value('nowhere_at_all.txt').run()
     assert 'nowhere_at_all.txt' in said(), 'the lines ignored the box'
     assert '🔴' in said(), 'a file that is not there came up green'
+
+
+def _producer(at, dotted, want):
+    """Set a source's producer and rerun. Re-queried, since an AppTest
+    element is a snapshot of one run."""
+    [s for s in at.selectbox if s.key == dotted + '.__producer'][0] \
+        .set_value(want).run()
+
+
+def test_a_source_set_to_a_layer_offers_the_gis_dialog():
+    """A layer is a shapefile in the cartography folder, so it is chosen the
+    way every other shapefile on these panels is chosen."""
+    at = AppTest.from_file(os.path.join(APP, 'pages', '2_Surface.py'),
+                           default_timeout=180)
+    at.run()
+    for dotted in ('surface.meteo_zones', 'surface.irr_zones'):
+        _producer(at, dotted, 'layer')
+        keys = {b.key for b in at.button if b.key}
+        assert dotted + '.__v.__pick' in keys, \
+            '%s as a layer has no ... button' % dotted
+        assert any(x.key == dotted + '.__v' for x in at.text_input), \
+            '%s as a layer is not a path box' % dotted
+
+
+def test_a_zone_set_to_a_value_is_a_count():
+    """1.0 zones is not a thing, and a box that offers decimals invites
+    one."""
+    at = AppTest.from_file(os.path.join(APP, 'pages', '2_Surface.py'),
+                           default_timeout=180)
+    at.run()
+    for dotted in ('surface.meteo_zones', 'surface.irr_zones'):
+        _producer(at, dotted, 'value')
+        box = [n for n in at.number_input if n.key == dotted + '.__v']
+        assert box, '%s as a value is not a number box' % dotted
+        assert isinstance(box[0].value, int), \
+            '%s offers decimals for a zone' % dotted
+        assert not [b for b in at.button
+                    if b.key == dotted + '.__v.__pick'], \
+            'a number has no file to choose'
+
+
+def test_a_measurement_is_still_a_measurement():
+    """soil.thickness is a source too and its value is METRES -- the count
+    rule must not reach it, or a 0.8 m soil becomes 1 m."""
+    import sys
+
+    if CODE not in sys.path:
+        sys.path.insert(0, CODE)
+    from lib import schema as sch
+
+    assert 'soil.thickness' not in sch.INTEGER_VALUE
+    at = AppTest.from_file(os.path.join(APP, 'pages', '3_Model.py'),
+                           default_timeout=180)
+    at.run()
+    vals = [n.value for n in at.number_input
+            if n.key and n.key.endswith('.__v')]
+    assert any(isinstance(v, float) and v != int(v) for v in vals), \
+        'panel 3 lost its fractional source values'
 
 
 def test_panel_zero_sets_the_machine_paths():

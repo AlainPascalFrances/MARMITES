@@ -40,7 +40,6 @@ tab_soil, tab_aq, tab_water, tab_obs = st.tabs(
 
 # ------------------------------------------------------------------ soil
 with tab_soil:
-    st.markdown('#### Where each cell gets its soil from')
     edited.update(panelui.section_form(cfg, 'soil', columns=2))
 
     st.info('**Precedence is explicit, not decided by which file exists:** a '

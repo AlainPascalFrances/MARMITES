@@ -31,7 +31,8 @@ __all__ = ['pick_config', 'header', 'master_switch', 'section_form',
            'grid_form', 'grid_permanent_form', 'grid_kind_form',
            'gis_folder_box', 'layer_picker', 'resolve_layer', 'folder_picker',
            'table_form', 'save_button', 'park', 'live',
-           'surface_folder_box', 'file_picker', 'rows_form',
+           'surface_folder_box', 'file_picker', 'path_box',
+           'rows_form',
            'record_lines',
            'CONFIG_DIR']
 
@@ -158,6 +159,12 @@ def _widget(dotted, value, prefix=''):
                          **_default(value=str(value)))
 
 
+def label_of(dotted):
+    """The field's label, for a box whose own label is collapsed."""
+    label, units, _h = schema.describe(dotted)
+    return '%s [%s]' % (label, units) if units else label
+
+
 def _source_widget(dotted, src, shown, help_full, key):
     """A ParamSource / VectorSource: the producer, then its one value.
 
@@ -179,7 +186,18 @@ def _source_widget(dotted, src, shown, help_full, key):
     if which == 'drainage':
         st.caption('`%s` — edit in the TOML tab' % (val or {}))
         return {}
-    if isinstance(val, float) or (val is None and which == 'value'):
+    if which == 'layer':
+        # A layer is a SHAPEFILE in the cartography folder, so it is chosen
+        # the way every other shapefile on these panels is chosen -- typed if
+        # you know the name, picked if you do not.
+        out = path_box(key + '.__v', label_of(dotted), val,
+                       str(mm_paths.GIS), help_=help_full, collapsed=True)
+    elif which == 'value' and dotted in schema.INTEGER_VALUE:
+        # A zone is a NUMBER of a zone: 1.0 zones is not a thing, and a box
+        # that offers decimals invites one.
+        out = st.number_input('value', value=int(val or 0), step=1,
+                              key=key + '.__v', label_visibility='collapsed')
+    elif isinstance(val, float) or (val is None and which == 'value'):
         out = st.number_input('value', value=float(val if val is not None else 0.0),
                               format='%g', key=key + '.__v',
                               label_visibility='collapsed')
@@ -196,7 +214,10 @@ def _source_widget(dotted, src, shown, help_full, key):
         edits['%s.%s' % (dotted, n)] = out if n == which else blank
     if which == 'value':
         edits.pop('%s.value' % dotted, None)
-        edits['%s.value' % dotted] = out
+        # The FIELD is a float even where the box is a count, so the file
+        # keeps one type and a saved 1 does not become an int on one machine
+        # and a float on the next.
+        edits['%s.value' % dotted] = float(out)
     return edits
 
 
@@ -265,28 +286,27 @@ def _as_pattern(name):
     return new, ''
 
 
-def file_picker(dotted, value, folder, pattern=False):
+def path_box(key, label, value, folder, help_=None, pattern=False,
+             collapsed=False):
     """A file named relative to ``folder``, or chosen in the OS dialog.
 
     Stores the BARE NAME while the file is in that folder, so the
     configuration stays portable between machines, and an absolute path
     otherwise -- the same rule the layer pickers follow.
     """
-    label, units, help_ = schema.describe(dotted)
-    shown = '%s [%s]' % (label, units) if units else label
-    hint = '`%s`  \n%s' % (dotted, help_)
-    key = dotted
     pending = key + '.__pending'
     if pending in st.session_state:
         st.session_state[key] = st.session_state.pop(pending)
 
     c1, c2 = st.columns([6, 1])
     with c1:
-        typed = st.text_input(shown, value=str(value or ''), key=key,
-                              help=hint)
+        typed = st.text_input(
+            label, value=str(value or ''), key=key, help=help_,
+            label_visibility='collapsed' if collapsed else 'visible')
     with c2:
-        st.markdown('<div style="height:1.85rem"></div>',
-                    unsafe_allow_html=True)
+        if not collapsed:
+            st.markdown('<div style="height:1.85rem"></div>',
+                        unsafe_allow_html=True)
         if st.button('…', key=key + '.__pick',
                      help='Choose the file on this machine'):
             start = folder if os.path.isdir(folder or '') else os.getcwd()
@@ -309,6 +329,14 @@ def file_picker(dotted, value, folder, pattern=False):
     if st.session_state.get(key + '.__why'):
         st.caption(st.session_state.pop(key + '.__why'))
     return typed
+
+
+def file_picker(dotted, value, folder, pattern=False):
+    """One of panel 2's records: the box, its label, and the dialog."""
+    label, units, help_ = schema.describe(dotted)
+    shown = '%s [%s]' % (label, units) if units else label
+    return path_box(dotted, shown, value, folder,
+                    help_='`%s`  \n%s' % (dotted, help_), pattern=pattern)
 
 
 def rows_form(cfg, rows, section, columns=2, folder=None, files=(),

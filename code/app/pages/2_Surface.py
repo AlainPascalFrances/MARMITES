@@ -45,7 +45,6 @@ tab_par, tab_tables, tab_forcing = st.tabs(
 
 # ------------------------------------------------------- records & options
 with tab_par:
-    st.markdown('#### The meteorological record and its companions')
     in_ws = panelui.surface_folder_box(os.path.join(str(ds), 'MMsurf_ws'))
 
     # One column per SUBJECT: the meteorology down the left, the irrigation
