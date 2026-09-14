@@ -34,17 +34,37 @@ panel = panelui.header(3)
 edited = {}
 edited.update(panelui.master_switch(cfg, panel[3]) or {})
 
-tab_soil, tab_aq, tab_water, tab_obs = st.tabs(
-    ['Soil column', 'Aquifer & solver', 'Streams, ponds & runoff',
-     'Observations'])
+tab_soil, tab_veg, tab_aq, tab_water, tab_obs, tab_gis = st.tabs(
+    ['Soil column', 'Vegetation characteristics', 'Aquifer & solver',
+     'Streams, ponds & runoff', 'Observations', 'Cartography'])
 
 # ------------------------------------------------------------------ soil
 with tab_soil:
-    edited.update(panelui.section_form(cfg, 'soil', columns=2))
+    edited.update(panelui.rows_form(cfg, schema.SOIL_ROWS, 'soil',
+                                    columns=2))
 
     st.info('**Precedence is explicit, not decided by which file exists:** a '
             'raster beats a polygon attribute, and a polygon attribute beats '
             'a single value. Nothing set is an error, not a silent zero.')
+
+    par = os.path.join(str(ds), cfg.soil.params.replace('/', os.sep))
+    st.markdown('#### Soil column parameters')
+    if os.path.exists(par):
+        st.caption('`%s` — the zone ORDER in this file is what the zone codes '
+                   'above refer to.' % par)
+        with st.expander('Show the file'):
+            st.code(open(par, encoding='utf-8', errors='replace').read())
+    else:
+        st.error('Missing: %s' % par)
+
+# ------------------------------------------------------------ vegetation
+# [soil] carries the vegetation COVER as well, because they share a file --
+# not because they are one question. Shown beside the soil settings the
+# second was read as more of the first.
+with tab_veg:
+    edited.update(panelui.rows_form(cfg, schema.SOIL_VEG_ROWS, 'soil',
+                                    columns=2, folder=str(mm_paths.GIS),
+                                    files=schema.SOIL_FILES))
 
     st.markdown('#### Vegetation classes')
     st.caption('What the layer\'s class column holds, and which vegetation '
@@ -61,15 +81,6 @@ with tab_soil:
                    ', '.join('**%d** %s' % (k + 1, n)
                              for k, n in enumerate(names)))
 
-    par = os.path.join(str(ds), cfg.soil.params.replace('/', os.sep))
-    st.markdown('#### Soil column parameters')
-    if os.path.exists(par):
-        st.caption('`%s` — the zone ORDER in this file is what the zone codes '
-                   'above refer to.' % par)
-        with st.expander('Show the file'):
-            st.code(open(par, encoding='utf-8', errors='replace').read())
-    else:
-        st.error('Missing: %s' % par)
 
 # --------------------------------------------------------------- aquifer
 with tab_aq:
@@ -149,7 +160,11 @@ panelui.save_button(cfg, path, edited)
 # outlines. Panel 1 needs no button of its own -- the two tables a GRID
 # depends on, the catchment ring and the stream network, are checked and
 # re-read by Create grid itself.
-with st.expander('Re-read the cartography'):
+#
+# In a TAB of its own, not at the foot of the page: content outside the tabs
+# is drawn under whichever one is open, so this read as part of the soil
+# column -- which is exactly what it is not.
+with tab_gis:
     st.caption(
         'A run never opens a shapefile. The converter does, once: it reads '
         'the GIS folder and writes GRID-INDEPENDENT tables into `%s`, and '

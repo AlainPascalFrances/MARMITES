@@ -38,6 +38,7 @@ __all__ = ['PANELS', 'FIELDS', 'TABLES', 'CHOICES', 'SUBPANELS', 'panel_of',
            'SURFACE_ROWS',
            'SURFACE_FILES', 'SURFACE_PATTERNS', 'SURFACE_ON_PLOTS',
            'SURFACE_TABLE_FILES', 'INTEGER_VALUE',
+           'SOIL_ROWS', 'SOIL_VEG_ROWS', 'SOIL_FILES',
            'PanelError']
 
 
@@ -603,6 +604,23 @@ SURFACE_TABLE_FILES = {
 # MMsurf's own figures are a PLOTTING choice, so they are asked on panel 4
 # with the rest of them, not here among the records that feed the run.
 SURFACE_ON_PLOTS = ('surface.plot',)
+
+
+# ---- panel 3: the soil column, and the vegetation beside it -------------
+# [soil] carries two different subjects: where a cell gets its SOIL from, and
+# where it gets its VEGETATION COVER from. They share a section because they
+# share a file, not because they are one question, and shown together the
+# second was read as more soil settings.
+SOIL_ROWS = (
+    ('soil.params', 'soil.zones'),
+    ('soil.thickness', None),
+)
+SOIL_VEG_ROWS = (
+    ('soil.veg_layer', 'soil.veg_column'),
+)
+
+# Named a shapefile, so it is chosen the way every other one is.
+SOIL_FILES = ('soil.veg_layer',)
 
 GRID_PERMANENT = ('grid.boundary', 'grid.streams', 'grid.ponds', 'grid.dem',
                   'grid.crs_epsg', 'grid.kind', 'grid.resample')

@@ -726,8 +726,12 @@ def test_the_cartography_box_is_on_the_panel_that_uses_it():
                encoding='utf-8').read()
     three = open(os.path.join(APP, 'pages', '3_Model.py'),
                  encoding='utf-8').read()
-    assert 'Re-read the cartography' not in one
-    assert 'Re-read the cartography' in three
+    assert 'conv_run' not in one, 'panel 1 has a converter button again'
+    assert 'conv_run' in three, 'panel 3 has lost the converter button'
+    # In a TAB of its own: content outside the tabs is drawn under whichever
+    # one is open, so at the foot of the page it read as part of the soil
+    # column, which is exactly what it is not.
+    assert "'Cartography'" in three and 'with tab_gis:' in three
     # ... and panel 1 still re-reads what a grid needs, by itself.
     assert '_dataset_stale' in one and 'gis_to_dataset.py' in one
 

@@ -892,6 +892,27 @@ def test_a_key_that_is_simply_wrong_still_raises(tmp_path):
     assert 'refine_pnds' in str(e.value)
 
 
+def test_the_soil_and_the_vegetation_are_separate_subjects(cfg):
+    """[soil] carries both because they share a FILE, not because they are
+    one question -- and shown together the vegetation read as more soil."""
+    have = dict(schema.fields_of(cfg, 'soil'))
+    soil = [d for row in schema.SOIL_ROWS for d in row if d]
+    veg = [d for row in schema.SOIL_VEG_ROWS for d in row if d]
+    assert soil == ['soil.params', 'soil.zones', 'soil.thickness']
+    assert veg == ['soil.veg_layer', 'soil.veg_column']
+    assert not set(soil) & set(veg), 'a field is on both sub-panels'
+    for dotted in soil + veg:
+        assert dotted in have, '%s is laid out but does not exist' % dotted
+    # nothing of [soil] is left with no home (veg_class is a TABLE)
+    laid = set(soil) | set(veg)
+    missing = [d for d in have if d not in laid and not d.endswith('veg_class')]
+    assert not missing, 'no sub-panel shows %s' % missing
+
+
+def test_the_vegetation_layer_is_chosen_like_every_other_shapefile():
+    assert schema.SOIL_FILES == ('soil.veg_layer',)
+
+
 # ------------------------------------------------------------- choices
 
 def test_the_enumerated_fields_are_choices():
