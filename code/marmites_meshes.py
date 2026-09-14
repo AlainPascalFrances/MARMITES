@@ -857,7 +857,7 @@ def _produce_voronoi(cfg, cMF, dataset_dir=None, model_ws=None, warn=None,
     os.makedirs(ws, exist_ok=True)
 
     nodes, ponds, seeds = None, [], []
-    if v.seed_ponds:
+    if v.refine_ponds:
         # The seeds go to Triangle as NODES, not as regions or polygons: they
         # are generators, points the triangulation must contain, and it is
         # being a generator that gives the pond its cell.
@@ -873,7 +873,7 @@ def _produce_voronoi(cfg, cMF, dataset_dir=None, model_ws=None, warn=None,
                      '%.0f, %.0f' % _ring_area_centre(g)[1:] for g in gone)))
         if not seeds:
             if warn:
-                warn('grid.voronoi.seed_ponds is on but no pond footprint was '
+                warn('grid.voronoi.refine_ponds is on but no pond footprint was '
                      'read from inputPONDS.geojson: the mesh has no pond '
                      'cell. Run code/tools/gis_to_dataset.py.')
         else:
@@ -903,7 +903,7 @@ def _produce_voronoi(cfg, cMF, dataset_dir=None, model_ws=None, warn=None,
                                           ponds=ponds)
         _add_background_region(tri, ring, covered, v.cell_far, warn)
     elif ponds and warn:
-        warn('grid.voronoi.seed_ponds is on and nothing is refined, so '
+        warn('grid.voronoi.refine_ponds is on and nothing is refined, so '
              'each pond gets a cell CENTRED on it but at the background size: '
              'the graded sizes the refinement carries (cell_near_stream, '
              'grade_ratio) are what a pond would be refined to.')
@@ -960,7 +960,7 @@ def _will_refine(cfg, dataset_dir, ponds, warn):
     every per-region one.
     """
     v = cfg.grid.voronoi
-    if v.seed_ponds and float(v.cell_pond) > 0.0 and ponds:
+    if v.refine_ponds and float(v.cell_pond) > 0.0 and ponds:
         pass                       # the pond zones alone are enough
     elif not v.stream_refine:
         return False
@@ -1070,7 +1070,7 @@ def _add_refinement_regions(tri, cfg, dataset_dir, warn, ponds=()):
     """Refine around the mapped features, graded outward.
 
     The features are the stream centre-lines and -- when
-    ``grid.voronoi.seed_ponds`` is on -- the ponds, each given as
+    ``grid.voronoi.refine_ponds`` is on -- the ponds, each given as
     ``(ring, area, cx, cy, radius)`` by :func:`pond_seeds`.
 
     With ``cell_pond`` left at 0 the footprints simply JOIN the geometry the

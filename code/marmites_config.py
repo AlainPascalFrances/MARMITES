@@ -398,8 +398,10 @@ class GridVoronoi:
     # Read-only echo of what bands() computed, so the file states the mesh it
     # produced. Refreshed by validate(); editing it by hand does nothing.
     trans_levels: list = field(default_factory=list)
-    # OFF until [grid] ponds names a layer, for the same reason.
-    seed_ponds: bool = False
+    # OFF until [grid] ponds names a layer, for the same reason. Named
+    # refine_ponds to say what it does and to match the quadtree's switch;
+    # `seed_ponds` is migrated by _build.
+    refine_ponds: bool = False
     # The size a POND's own cell carries. 0 means "whatever the corridor
     # gives it", which is what the producer did before this existed: the
     # footprints join the stream geometry the graded bands are buffered from,
@@ -1071,11 +1073,34 @@ def _sub_dataclass(f):
     return None
 
 
+# A key that has been RENAMED, by the section it lives in. Unknown keys
+# raise -- a typo must never fall through to a default -- so a rename has to
+# be declared here or every existing file stops loading. The old name is
+# accepted, mapped, and REPORTED; saving from a panel then writes the new one
+# and the file has migrated for good.
+RENAMED = {
+    'grid.voronoi': {'seed_ponds': 'refine_ponds'},
+}
+
+# Filled by _build, drained by RunConfig.from_dict. A module-level list
+# because _build is recursive and returns an instance, not a report.
+_MIGRATED = []
+
+
 def _build(cls, data, where):
     """Instantiate a section dataclass, RAISING on any unknown key."""
     if not isinstance(data, dict):
         raise ConfigError('%s: expected a table, got %s' % (where, type(data).__name__))
     fields_ = {f.name: f for f in dataclasses.fields(cls)}
+    for old, new in RENAMED.get(where, {}).items():
+        if old in data:
+            if new in data:
+                raise ConfigError(
+                    '%s: has both %r and its new name %r. Keep %r and delete '
+                    'the other.' % (where, old, new, new))
+            data = dict(data)
+            data[new] = data.pop(old)
+            _MIGRATED.append('%s.%s is now %s.%s' % (where, old, where, new))
     unknown = sorted(set(data) - set(fields_))
     if unknown:
         raise ConfigError(
@@ -1133,8 +1158,13 @@ class RunConfig:
             raise ConfigError(
                 'unknown section(s) %s -- valid sections are %s'
                 % (', '.join(repr(u) for u in unknown), ', '.join(sorted(_SECTIONS))))
+        del _MIGRATED[:]
         kwargs = {name: _build(_SECTIONS[name], data[name], name) for name in data}
         cfg = cls(source_path=str(source_path), **kwargs)
+        # Not a dataclass field: it describes the FILE that was read, not the
+        # configuration, and must not be written back into it.
+        cfg.migrated = list(_MIGRATED)
+        del _MIGRATED[:]
         cfg.validate()
         return cfg
 
@@ -1206,9 +1236,9 @@ class RunConfig:
                         '= %g: a pond cell coarser than the background is not '
                         'a refinement of anything.'
                         % (v.cell_pond, v.cell_far))
-        if float(v.cell_pond) > 0.0 and not v.seed_ponds:
-            errs.append('grid.voronoi.cell_pond = %g but seed_ponds is off, '
-                        'so no pond has a cell to size. Switch the seeding '
+        if float(v.cell_pond) > 0.0 and not v.refine_ponds:
+            errs.append('grid.voronoi.cell_pond = %g but refine_ponds is off, '
+                        'so no pond has a cell to size. Switch the refinement '
                         'on, or clear the size.' % v.cell_pond)
         # The derived echo is refreshed HERE, so any path that validates --
         # from_dict, the panel's save, a --set override -- leaves the file
@@ -1269,13 +1299,12 @@ class RunConfig:
                         'hydrography layer, so there is nothing to refine '
                         'along. Give the layer on panel 1, or switch the '
                         'refinement off.' % (blk, key))
-        for blk, key in (('voronoi', 'seed_ponds'),
-                         ('quadtree', 'refine_ponds')):
-            if not self.grid.ponds and getattr(getattr(self.grid, blk), key):
+        for blk in ('voronoi', 'quadtree'):
+            if not self.grid.ponds and getattr(self.grid, blk).refine_ponds:
                 errs.append(
-                    'grid.%s.%s is on but grid.ponds names no pond layer. '
-                    'Give the layer on panel 1, or switch it off.'
-                    % (blk, key))
+                    'grid.%s.refine_ponds is on but grid.ponds names no pond '
+                    'layer. Give the layer on panel 1, or switch it off.'
+                    % blk)
         if self.grid.quadtree.pond_level < 0:
             errs.append('grid.quadtree.pond_level must be >= 0 '
                         '(0 = the same as refine_level)')

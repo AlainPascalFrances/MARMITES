@@ -1,0 +1,8 @@
+Panel 2 surface
+1 - Where it stands "Read from E:\00code\MM-MF6_SFR_LAK_CRR\example\LaMata\MMsurf_ws", replace with the same style as panel 1 (Folder with GIS information (defined in panel Home)) and write: "Folder with SURFACE information"
+2 - The boxes below "Meteorological record", "Irrigation series" and Crop schedule pattern must have a three dot button to navigate and select the file in local computer. 
+3 - The box "Crop schedule pattern" must be below the box "Irrigation series", on the left column. And below put the box "Output prefix"
+4 - the option "MMsurf figures" musty be on panel 4 Plots.
+5 - on the right column put Meteo zones and Irrigation zones. You can remove surface.meteo_zones and surface.irr_zones text. 
+
+

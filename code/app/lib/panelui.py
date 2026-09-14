@@ -55,6 +55,11 @@ def pick_config():
                  '%s' % exc)
         st.stop()
     st.sidebar.caption('hash `%s`' % cfg.config_hash())
+    for line in getattr(cfg, 'migrated', ()):
+        # Said once, where the file is chosen: the name in the file is not
+        # the name in the panel until something saves it back.
+        st.sidebar.info('This file uses an old name — %s. Saving from any '
+                        'panel writes the new one.' % line)
     return cfg, path
 
 

@@ -144,7 +144,7 @@ path. **Same fields as `structured`** — cell size, buffer, override.
 | Stream corridor width | `grid.voronoi.stream_buffer` | m | `60` | Half-width of the refined corridor. |
 | Maximum size ratio between bands | `grid.voronoi.grade_ratio` | — | `1.5` | How fast the cells may grow away from the corridor, and so how many bands there are. Held in (1, 3] — see D2. |
 | Transition bands **(derived)** | `grid.voronoi.trans_levels` | m | `[15, 30, 45, 60]` | **Read-only.** The buffer DISTANCES from the centreline at which the size steps up, recomputed on every save from the corridor and the ratio. |
-| Seed a cell per pond | `grid.voronoi.seed_ponds` | — | `true` | One pond-scale cell per pond, centroid-seeded (the CdL lesson: a cell can never follow a constraint polygon — seed a generator instead). |
+| Refine at the ponds | `grid.voronoi.refine_ponds` | — | `true` | One pond-scale cell per pond, centroid-seeded (the CdL lesson: a cell can never follow a constraint polygon — seed a generator instead). |
 | Buffer | `grid.buffer` | m | `0` | Still applies: it sets the domain rectangle that is triangulated. `grid.cell_size` does **not** appear here (D1 of 2A.7): the rectangle is snapped to `cell_far`. |
 
 The build **prints the mean cell area it actually achieved** — the triangle
@@ -392,7 +392,7 @@ the remaining 42 rasters all agree.
 
 ### 2A.11  Ponds in the mesh — 2026-09-14
 
-`grid.voronoi.seed_ponds` did nothing: the producer warned that pond seeding
+`grid.voronoi.refine_ponds` (then `seed_ponds`) did nothing: the producer warned that pond seeding
 "arrives with WP4" and built the mesh without it. It now does two things.
 
 **1. A generator node at each pond** — CdL's design (2026-07-04), and for

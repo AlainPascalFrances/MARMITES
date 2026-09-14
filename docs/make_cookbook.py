@@ -1598,7 +1598,7 @@ code([
     "  stream_buffer   = 60.0    # m",
     "  stream_refine   = true    # false = SFRmaker style, network mapped onto the background",
     "  trans_levels    = [10.0, 20.0, 40.0, 70.0]   # Daoud-style graded transitions",
-    "  seed_ponds      = true    # one pond-scale cell per pond, centroid-seeded",
+    "  refine_ponds    = true    # footprints refined, a generator at each centre",
     "",
     "[layers]",
     "nlay      = 2               # 2 reads _2s1L.ini directly (was --nlay)",

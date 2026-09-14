@@ -331,14 +331,14 @@ def test_a_new_catchment_knows_nothing(tmp_path):
     c = cfg({})
     assert c.grid.streams == '' and c.grid.ponds == ''
     assert c.grid.voronoi.stream_refine is False
-    assert c.grid.voronoi.seed_ponds is False
+    assert c.grid.voronoi.refine_ponds is False
     assert c.grid.quadtree.refine_streams is False
 
 
 @pytest.mark.parametrize('block, key, layer', [
     ('voronoi', 'stream_refine', 'streams'),
     ('quadtree', 'refine_streams', 'streams'),
-    ('voronoi', 'seed_ponds', 'ponds'),
+    ('voronoi', 'refine_ponds', 'ponds'),
 ])
 def test_a_refinement_without_its_layer_is_refused(block, key, layer):
     """A switch on with nothing to act on is how a "refined" mesh comes out

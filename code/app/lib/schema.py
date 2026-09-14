@@ -211,7 +211,7 @@ FIELDS = {
                                  'grades in the fewest size changes; 1.5 to '
                                  '2 is the gentler rule of thumb and takes '
                                  'more bands. Held in (1, 3].'),
-    'grid.voronoi.seed_ponds': ('Refine at the ponds', _U,
+    'grid.voronoi.refine_ponds': ('Refine at the ponds', _U,
                                 'Two things, and the second is what the name '
                                 'used to claim. (1) The footprints join the '
                                 'geometry the corridor bands are buffered '
@@ -617,7 +617,7 @@ GRID_SUBPANEL = {
         ('grid.voronoi.stream_refine',),
         ('grid.voronoi.cell_near_stream', 'grid.voronoi.grade_ratio'),
         ('grid.voronoi.stream_buffer', 'grid.voronoi.trans_levels'),
-        ('grid.voronoi.seed_ponds',),
+        ('grid.voronoi.refine_ponds',),
         ('grid.voronoi.cell_pond',),
     ),
     'quadtree': (
@@ -676,7 +676,7 @@ GRID_NOTES = {
 GRID_NEEDS_LAYER = {
     'grid.voronoi.stream_refine': 'grid.streams',
     'grid.quadtree.refine_streams': 'grid.streams',
-    'grid.voronoi.seed_ponds': 'grid.ponds',
+    'grid.voronoi.refine_ponds': 'grid.ponds',
     'grid.quadtree.refine_ponds': 'grid.ponds',
 }
 
@@ -686,7 +686,7 @@ GRID_GATED = {
                                    'grid.voronoi.grade_ratio',
                                    'grid.voronoi.trans_levels'),
     'grid.quadtree.refine_streams': ('grid.quadtree.refine_level',),
-    'grid.voronoi.seed_ponds': ('grid.voronoi.cell_pond',),
+    'grid.voronoi.refine_ponds': ('grid.voronoi.cell_pond',),
     'grid.quadtree.refine_ponds': ('grid.quadtree.pond_level',),
     'grid.override.enable': ('grid.override.xllcorner',
                              'grid.override.yllcorner',

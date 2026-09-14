@@ -1,5 +1,5 @@
 # MARMITES resolved run configuration
-# config_hash = 116b87e785094917
+# config_hash = f2b43f2c035aa65c
 
 [meta]
 config_version = 1
@@ -49,15 +49,18 @@ ncol = 60
 [grid.voronoi]
 cell_far = 50.0
 cell_near_stream = 5.0
-stream_buffer = 65.0
+stream_buffer = 75.0
 stream_refine = true
-grade_ratio = 3.0
-trans_levels = [5.0, 20.0, 65.0]
-seed_ponds = true
+grade_ratio = 2.0
+trans_levels = [5.0, 15.0, 35.0, 75.0]
+refine_ponds = true
+cell_pond = 5.0
 
 [grid.quadtree]
 refine_level = 2
 refine_streams = true
+refine_ponds = false
+pond_level = 0
 
 [surface]
 meteo_ts = "__meteoTB.txt"

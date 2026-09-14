@@ -354,7 +354,7 @@ def test_the_pond_settings_are_on_their_sub_panels():
             .set_value(kind).run()
 
     def seed(on):
-        got = [c for c in at.checkbox if c.key == 'grid.voronoi.seed_ponds']
+        got = [c for c in at.checkbox if c.key == 'grid.voronoi.refine_ponds']
         if got:
             (got[0].check() if on else got[0].uncheck()).run()
         return bool(got)

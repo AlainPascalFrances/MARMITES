@@ -891,10 +891,16 @@ with tab_mesh:
         except Exception:
             segs = []
         per_pond = _mm.pond_cells(gp, rings) if rings else []
-        sfr = _mm.stream_cells(gp, segs) if segs else []
-        if want_lak and per_pond:
-            flat = sorted({i for cells in per_pond for i in cells})
-            xs, ys = _cells(flat)
+        lake = sorted({i for cells in per_pond for i in cells})
+        line = _mm.stream_cells(gp, segs) if segs else []
+        # A cell cannot be both a lake and a reach. THE LAKE TAKES IT: the
+        # stream is cut where it enters the pond and rejoined below it, and
+        # what carries the water across is a mover, not a reach inside the
+        # water. So the cells drawn as SFR are the line's cells MINUS the
+        # lake's -- the picture says what the packages will do.
+        sfr = [i for i in line if i not in set(lake)]
+        if want_lak and lake:
+            xs, ys = _cells(lake)
             overlays['pond cells (LAK)'] = (xs, ys, 'lak')
         if want_sfr and sfr:
             xs, ys = _cells(sfr)
@@ -903,12 +909,18 @@ with tab_mesh:
             loose = [k + 1 for k, cells in enumerate(per_pond)
                      if not _mm.cells_touch(gp, cells, sfr)]
             sizes = [len(c) for c in per_pond]
-            st.caption('%d pond(s) own %d cell(s) between them (%d to %d '
-                       'each), and %s.'
-                       % (len(per_pond), sum(sizes), min(sizes), max(sizes),
-                          'every one touches a stream cell' if not loose
-                          else 'pond(s) %s touch NO stream cell'
-                          % ', '.join(str(k) for k in loose)))
+            taken = len(line) - len(sfr)
+            st.caption(
+                '%d pond(s) own %d cell(s) between them (%d to %d each), and '
+                '%s. The mapped stream runs through %d cell(s); **%d of them '
+                'are inside a pond and belong to the LAKE**, so the reaches '
+                'stop at the rim and a mover carries the flow across — that '
+                'is panel 3, not this one. %d stay as reaches.'
+                % (len(per_pond), sum(sizes), min(sizes), max(sizes),
+                   'every one touches a reach' if not loose
+                   else 'pond(s) %s touch NO reach'
+                   % ', '.join(str(k) for k in loose),
+                   len(line), taken, len(sfr)))
 
     obs = []
     if 'observation points' in show:

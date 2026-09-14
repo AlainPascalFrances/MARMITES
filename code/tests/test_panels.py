@@ -630,18 +630,18 @@ def test_the_zone_ring_is_coarse_enough_to_leave_the_pond_alone(cfg):
 
 
 def test_a_pond_size_is_refused_without_the_seeding(cfg):
-    cfg.grid.voronoi.seed_ponds = False
+    cfg.grid.voronoi.refine_ponds = False
     cfg.grid.voronoi.cell_pond = 30.0
     with pytest.raises(cfgmod.ConfigError) as e:
         cfg.validate()
-    assert 'seed_ponds' in str(e.value)
+    assert 'refine_ponds' in str(e.value)
 
 
 def test_a_pond_cell_may_not_be_coarser_than_the_background(cfg):
     """Past the background it is not a refinement of anything -- it is a hole
     the cells around it have to grade to reach."""
     cfg.grid.ponds = 'lm_ponds.shp'
-    cfg.grid.voronoi.seed_ponds = True
+    cfg.grid.voronoi.refine_ponds = True
     cfg.grid.voronoi.cell_pond = float(cfg.grid.voronoi.cell_far) + 1.0
     with pytest.raises(cfgmod.ConfigError) as e:
         cfg.validate()
@@ -828,6 +828,68 @@ def test_every_note_belongs_to_a_field_that_is_shown():
         schema.grid_fields('voronoi'))
     for dotted in schema.GRID_NOTES:
         assert dotted in shown, '%s has a note but no box' % dotted
+
+
+# ----------------------------------------------- a key that has been renamed
+
+def _toml_with(tmp_path, old, new):
+    """A copy of the reference configuration with one key spelled the old
+    way."""
+    text = io.open(REF, encoding='utf-8').read().replace(new, old)
+    assert old in text, 'the reference file does not carry %r' % new
+    p = os.path.join(str(tmp_path), 'old.toml')
+    io.open(p, 'w', encoding='utf-8', newline='').write(text)
+    return p
+
+
+def test_a_file_with_the_old_name_still_loads(tmp_path):
+    """Unknown keys raise, so a rename has to be declared or every existing
+    file stops loading."""
+    p = _toml_with(tmp_path, 'seed_ponds = true', 'refine_ponds = true')
+    cfg = cfgmod.load_run_config(p)
+    assert cfg.grid.voronoi.refine_ponds is True
+
+
+def test_the_old_name_is_reported_not_silently_accepted(tmp_path):
+    """The name in the file is not the name on the panel until something
+    saves it back, and a modeller reading the TOML has to know that."""
+    p = _toml_with(tmp_path, 'seed_ponds = true', 'refine_ponds = true')
+    cfg = cfgmod.load_run_config(p)
+    said = ' '.join(getattr(cfg, 'migrated', []))
+    assert 'seed_ponds' in said and 'refine_ponds' in said, said
+    assert cfgmod.load_run_config(REF).migrated == [], \
+        'a file already using the new name should report nothing'
+
+
+def test_saving_migrates_the_file_for_good(tmp_path):
+    p = _toml_with(tmp_path, 'seed_ponds = true', 'refine_ponds = true')
+    out = os.path.join(str(tmp_path), 'again.toml')
+    cfgmod.load_run_config(p).write_toml(out)
+    body = io.open(out, encoding='utf-8').read()
+    assert 'refine_ponds' in body and 'seed_ponds' not in body
+
+
+def test_both_names_at_once_is_refused(tmp_path):
+    """One of them would win silently, and it would be the wrong one half
+    the time."""
+    text = io.open(REF, encoding='utf-8').read().replace(
+        'refine_ponds = true', 'refine_ponds = true\nseed_ponds = false')
+    p = os.path.join(str(tmp_path), 'both.toml')
+    io.open(p, 'w', encoding='utf-8', newline='').write(text)
+    with pytest.raises(cfgmod.ConfigError) as e:
+        cfgmod.load_run_config(p)
+    assert 'seed_ponds' in str(e.value) and 'refine_ponds' in str(e.value)
+
+
+def test_a_key_that_is_simply_wrong_still_raises(tmp_path):
+    """The migration must not become a door for typos."""
+    text = io.open(REF, encoding='utf-8').read().replace(
+        'refine_ponds = true', 'refine_pnds = true')
+    p = os.path.join(str(tmp_path), 'typo.toml')
+    io.open(p, 'w', encoding='utf-8', newline='').write(text)
+    with pytest.raises(cfgmod.ConfigError) as e:
+        cfgmod.load_run_config(p)
+    assert 'refine_pnds' in str(e.value)
 
 
 # ------------------------------------------------------------- choices
