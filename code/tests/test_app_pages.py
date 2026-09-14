@@ -504,11 +504,13 @@ def test_every_producer_that_names_a_file_offers_the_dialog():
         [s for s in at.selectbox
          if s.key == dotted + '.__producer'][0].set_value(want).run()
         keys = {b.key for b in at.button if b.key}
-        assert dotted + '.__v.__pick' in keys,             '%s as a %s has no ... button' % (dotted, want)
+        assert dotted + '.__v.__pick' in keys, (
+            '%s as a %s has no ... button' % (dotted, want))
     # a column is not a file
     [s for s in at.selectbox
      if s.key == 'soil.thickness.__producer'][0].set_value('column').run()
-    assert 'soil.thickness.__v.__pick' not in {b.key for b in at.button},         'a column name is being chosen from the filesystem'
+    assert 'soil.thickness.__v.__pick' not in {b.key for b in at.button}, (
+        'a column name is being chosen from the filesystem')
 
 
 def test_the_soil_parameter_file_is_chosen_too():
@@ -533,7 +535,8 @@ def test_a_file_below_the_folder_keeps_its_relative_path():
     src = io.open(os.path.join(APP, 'lib', 'panelui.py'),
                   encoding='utf-8').read()
     assert 'os.path.relpath(got, os.path.abspath(folder))' in src
-    assert "rel.replace(os.sep, '/')" in src,         'a stored path must use / so it reads the same on either platform'
+    assert "rel.replace(os.sep, '/')" in src, (
+        'a stored path must use / so it reads the same on either platform')
 
 
 def test_panel_zero_sets_the_machine_paths():
