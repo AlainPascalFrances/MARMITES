@@ -13,7 +13,6 @@ runs the model (a PEST worker, Spyder). The model must never need it.
 
 import io
 import os
-import sys
 
 import pytest
 
