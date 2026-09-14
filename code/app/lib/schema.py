@@ -39,6 +39,7 @@ __all__ = ['PANELS', 'FIELDS', 'TABLES', 'CHOICES', 'SUBPANELS', 'panel_of',
            'SURFACE_FILES', 'SURFACE_PATTERNS', 'SURFACE_ON_PLOTS',
            'SURFACE_TABLE_FILES', 'INTEGER_VALUE',
            'SOIL_ROWS', 'SOIL_VEG_ROWS', 'SOIL_FILES',
+           'SOIL_DATASET_FILES',
            'PanelError']
 
 
@@ -621,6 +622,10 @@ SOIL_VEG_ROWS = (
 
 # Named a shapefile, so it is chosen the way every other one is.
 SOIL_FILES = ('soil.veg_layer',)
+
+# Named a file in the DATASET, not in the cartography folder -- a different
+# starting point for the same dialog.
+SOIL_DATASET_FILES = ('soil.params',)
 
 GRID_PERMANENT = ('grid.boundary', 'grid.streams', 'grid.ponds', 'grid.dem',
                   'grid.crs_epsg', 'grid.kind', 'grid.resample')

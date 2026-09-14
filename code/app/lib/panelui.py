@@ -55,6 +55,11 @@ def pick_config():
         st.error('This configuration is not valid, so no panel can show it:\n\n'
                  '%s' % exc)
         st.stop()
+    # Remembered here because it is the ONE place every panel passes
+    # through, and the source widgets below need it without being handed a
+    # configuration they otherwise have no use for.
+    st.session_state['__dataset_dir'] = str(
+        mm_paths.dataset_dir(cfg.paths.case))
     st.sidebar.caption('hash `%s`' % cfg.config_hash())
     for line in getattr(cfg, 'migrated', ()):
         # Said once, where the file is chosen: the name in the file is not
@@ -159,6 +164,23 @@ def _widget(dotted, value, prefix=''):
                          **_default(value=str(value)))
 
 
+# A producer that names a FILE, and the folder that kind of file lives in.
+# By RULE, not by listing the fields one at a time: a source is a source, and
+# the next one added should get the dialog without anyone remembering to add
+# it here. `column` names an attribute and `value` is a number, so neither is
+# a file and neither gets one.
+
+def _producer_folder(which):
+    """Where to start the dialog for this producer, or None if not a file."""
+    if which == 'layer':
+        return str(mm_paths.GIS)          # cartography, read by the converter
+    if which == 'raster':
+        # The DATASET copy, grid-independent, written by the converter -- not
+        # the GIS original.
+        return st.session_state.get('__dataset_dir', '')
+    return None
+
+
 def label_of(dotted):
     """The field's label, for a box whose own label is collapsed."""
     label, units, _h = schema.describe(dotted)
@@ -186,12 +208,13 @@ def _source_widget(dotted, src, shown, help_full, key):
     if which == 'drainage':
         st.caption('`%s` — edit in the TOML tab' % (val or {}))
         return {}
-    if which == 'layer':
-        # A layer is a SHAPEFILE in the cartography folder, so it is chosen
-        # the way every other shapefile on these panels is chosen -- typed if
-        # you know the name, picked if you do not.
-        out = path_box(key + '.__v', label_of(dotted), val,
-                       str(mm_paths.GIS), help_=help_full, collapsed=True)
+    folder = _producer_folder(which)
+    if folder is not None:
+        # It names a FILE -- a shapefile in the cartography folder, a raster
+        # in the dataset -- so it is chosen the way every other file on these
+        # panels is chosen: typed if you know the name, picked if you do not.
+        out = path_box(key + '.__v', label_of(dotted), val, folder,
+                       help_=help_full, collapsed=True)
     elif which == 'value' and dotted in schema.INTEGER_VALUE:
         # A zone is a NUMBER of a zone: 1.0 zones is not a thing, and a box
         # that offers decimals invites one.
@@ -312,11 +335,18 @@ def path_box(key, label, value, folder, help_=None, pattern=False,
             start = folder if os.path.isdir(folder or '') else os.getcwd()
             got, why = native_dialog('file', start, 'Select %s' % label)
             if got:
+                # RELATIVE to the folder wherever it sits below it, not only
+                # when it sits directly in it: the soil parameters live in
+                # MF_ws/ under the dataset, and storing an absolute path for
+                # them would tie the configuration to this machine.
                 name = got
-                if os.path.isdir(folder or '') and os.path.normcase(
-                        os.path.dirname(got)) == os.path.normcase(
-                            os.path.abspath(folder)):
-                    name = os.path.basename(got)
+                if os.path.isdir(folder or ''):
+                    try:
+                        rel = os.path.relpath(got, os.path.abspath(folder))
+                    except ValueError:           # a different drive
+                        rel = ''
+                    if rel and not rel.startswith('..'):
+                        name = rel.replace(os.sep, '/')
                 note = ''
                 if pattern:
                     name, note = _as_pattern(name)

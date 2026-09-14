@@ -41,13 +41,18 @@ tab_soil, tab_veg, tab_aq, tab_water, tab_obs, tab_gis = st.tabs(
 # ------------------------------------------------------------------ soil
 with tab_soil:
     edited.update(panelui.rows_form(cfg, schema.SOIL_ROWS, 'soil',
-                                    columns=2))
+                                    columns=2, folder=str(ds),
+                                    files=schema.SOIL_DATASET_FILES))
 
     st.info('**Precedence is explicit, not decided by which file exists:** a '
             'raster beats a polygon attribute, and a polygon attribute beats '
             'a single value. Nothing set is an error, not a silent zero.')
 
-    par = os.path.join(str(ds), cfg.soil.params.replace('/', os.sep))
+    # The BOX, not the saved file: a green light against the file named
+    # before the last edit is worse than no light at all.
+    _par = panelui.live('soil.params', cfg.soil.params) or ''
+    par = (_par if os.path.isabs(_par)
+           else os.path.join(str(ds), _par.replace('/', os.sep)))
     st.markdown('#### Soil column parameters')
     if os.path.exists(par):
         st.caption('`%s` — the zone ORDER in this file is what the zone codes '

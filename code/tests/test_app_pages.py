@@ -491,6 +491,51 @@ def test_a_measurement_is_still_a_measurement():
         'panel 3 lost its fractional source values'
 
 
+def test_every_producer_that_names_a_file_offers_the_dialog():
+    """By rule, not by listing the fields one at a time: a layer is a
+    shapefile in the cartography folder and a raster is a file in the
+    dataset, so both are chosen rather than typed correctly. A column names
+    an attribute and a value is a number, so neither is."""
+    at = AppTest.from_file(os.path.join(APP, 'pages', '3_Model.py'),
+                           default_timeout=180)
+    at.run()
+    keys = {b.key for b in at.button if b.key}
+    for dotted, want in (('soil.zones', 'layer'), ('soil.thickness', 'raster')):
+        [s for s in at.selectbox
+         if s.key == dotted + '.__producer'][0].set_value(want).run()
+        keys = {b.key for b in at.button if b.key}
+        assert dotted + '.__v.__pick' in keys,             '%s as a %s has no ... button' % (dotted, want)
+    # a column is not a file
+    [s for s in at.selectbox
+     if s.key == 'soil.thickness.__producer'][0].set_value('column').run()
+    assert 'soil.thickness.__v.__pick' not in {b.key for b in at.button},         'a column name is being chosen from the filesystem'
+
+
+def test_the_soil_parameter_file_is_chosen_too():
+    at = AppTest.from_file(os.path.join(APP, 'pages', '3_Model.py'),
+                           default_timeout=180)
+    at.run()
+    assert 'soil.params.__pick' in {b.key for b in at.button if b.key}
+    assert any(x.key == 'soil.params' for x in at.text_input)
+
+
+def test_a_file_below_the_folder_keeps_its_relative_path():
+    """The soil parameters live in MF_ws/ under the dataset. Storing an
+    absolute path for them would tie the configuration to this machine."""
+    import importlib.util
+    import sys as _sys
+
+    spec = importlib.util.spec_from_file_location(
+        'panelui_rel', os.path.join(APP, 'lib', 'panelui.py'))
+    mod = importlib.util.module_from_spec(spec)
+    _sys.modules['panelui_rel'] = mod
+    spec.loader.exec_module(mod)
+    src = io.open(os.path.join(APP, 'lib', 'panelui.py'),
+                  encoding='utf-8').read()
+    assert 'os.path.relpath(got, os.path.abspath(folder))' in src
+    assert "rel.replace(os.sep, '/')" in src,         'a stored path must use / so it reads the same on either platform'
+
+
 def test_panel_zero_sets_the_machine_paths():
     """They used to be read-only in the sidebar, under a caption telling the
     modeller to go and edit code/mm_paths.py. A path is not source code."""
