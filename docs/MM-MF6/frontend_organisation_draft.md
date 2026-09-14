@@ -383,7 +383,10 @@ own header; on a mesh it is not offered, because there the answer is panel 3.
 
 On La Mata the check also found two rasters on a **third** rectangle entirely
 — `MF_ws/vka_l1_old.asc` and `vka_l2_old.asc`, 69 × 72 @ 40 m at 739325 —
-which is why disagreeing rasters are reported rather than out-voted.
+which is why disagreeing rasters are reported rather than out-voted. Nothing
+read them (the MF parameter file gives `vka` as a constant, not a filename),
+they were stale exports, and they have been **removed** from the repository;
+the remaining 42 rasters all agree.
 
 ---
 
