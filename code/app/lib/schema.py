@@ -158,6 +158,29 @@ FIELDS = {
                       'majority-votes zone maps. centre: samples the cell '
                       'centre (worse per cell, but it preserves zone '
                       'proportions).'),
+    'grid.voronoi.cell_pond': ('Cell size at a pond', 'm',
+                               'The size a POND\'s own cell carries. 0 lets '
+                               'the pond take whatever the corridor gives it '
+                               '-- its footprint is refined with the stream '
+                               'network, so it is meshed at the cell size '
+                               'near the stream and grades out with it. Set '
+                               'it and each pond gets a zone of its own at '
+                               'this size, which is the ONLY way to make a '
+                               'pond cell COARSER than the corridor around '
+                               'it: put roughly the pond\'s own width here '
+                               'for one cell per pond. It cannot exceed the '
+                               'background size.'),
+    'grid.quadtree.refine_ponds': ('Refine at the ponds', _U,
+                                   'GRIDGEN splits every cell a feature '
+                                   'touches, so the pond footprints refine '
+                                   'the cells they cover whether or not a '
+                                   'mapped stream runs through them. Off '
+                                   'until a pond layer is given.'),
+    'grid.quadtree.pond_level': ('Refinement level at the ponds', 'levels',
+                                 'Each level halves the cell, so one more '
+                                 'than the streams is a quarter of the cell '
+                                 'area. 0 means the same level as the '
+                                 'streams.'),
     'grid.voronoi.cell_far': ('Background cell size', 'm',
                               'The side of the EQUIVALENT SQUARE, so 100 aims '
                               'at 10 000 m2. Every build prints the area it '
@@ -540,11 +563,14 @@ GRID_SUBPANEL = {
         ('grid.voronoi.cell_near_stream', 'grid.voronoi.grade_ratio'),
         ('grid.voronoi.stream_buffer', 'grid.voronoi.trans_levels'),
         ('grid.voronoi.seed_ponds',),
+        ('grid.voronoi.cell_pond',),
     ),
     'quadtree': (
         ('grid.cell_size', 'grid.buffer'),
         ('grid.quadtree.refine_streams',),
         ('grid.quadtree.refine_level',),
+        ('grid.quadtree.refine_ponds',),
+        ('grid.quadtree.pond_level',),
     ),
 }
 
@@ -561,6 +587,7 @@ GRID_NEEDS_LAYER = {
     'grid.voronoi.stream_refine': 'grid.streams',
     'grid.quadtree.refine_streams': 'grid.streams',
     'grid.voronoi.seed_ponds': 'grid.ponds',
+    'grid.quadtree.refine_ponds': 'grid.ponds',
 }
 
 GRID_GATED = {
@@ -569,6 +596,8 @@ GRID_GATED = {
                                    'grid.voronoi.grade_ratio',
                                    'grid.voronoi.trans_levels'),
     'grid.quadtree.refine_streams': ('grid.quadtree.refine_level',),
+    'grid.voronoi.seed_ponds': ('grid.voronoi.cell_pond',),
+    'grid.quadtree.refine_ponds': ('grid.quadtree.pond_level',),
     'grid.override.enable': ('grid.override.xllcorner',
                              'grid.override.yllcorner',
                              'grid.override.nrow', 'grid.override.ncol'),

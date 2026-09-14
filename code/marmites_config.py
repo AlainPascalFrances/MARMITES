@@ -400,6 +400,18 @@ class GridVoronoi:
     trans_levels: list = field(default_factory=list)
     # OFF until [grid] ponds names a layer, for the same reason.
     seed_ponds: bool = False
+    # The size a POND's own cell carries. 0 means "whatever the corridor
+    # gives it", which is what the producer did before this existed: the
+    # footprints join the stream geometry the graded bands are buffered from,
+    # so a pond is meshed at cell_near_stream and grades out with it.
+    #
+    # Set it and each pond is given a bounded zone of its own at this size,
+    # which is the only way to make a pond cell COARSER than what surrounds
+    # it -- one cell per pond, CdL's design. It cannot be had by seeding
+    # alone: a Voronoi cell is only ever as big as its neighbouring
+    # generators allow, and on La Mata the corridor is 5 m while a charca is
+    # 36 m across.
+    cell_pond: float = 0.0
 
     # A ceiling on the derived band count: 12 bands over a 60 m corridor is
     # already one every 5 m, past which the refinement IS the mesh.
@@ -467,7 +479,8 @@ class GridQuadtree:
     """WP1c. Ignored unless grid.kind is 'quadtree'.
 
     GRIDGEN halves a cell per refinement level, so level 2 on a 50 m
-    background gives 12.5 m along the streams. Refinement needs ``pyshp``:
+    background gives 12.5 m along the streams and, with ``refine_ponds``, at
+    the ponds. Refinement needs ``pyshp``:
     flopy writes the refinement features through a shapefile, and without it
     the producer says so and builds an unrefined mesh rather than silently
     producing one that is geometrically the base grid.
@@ -476,6 +489,17 @@ class GridQuadtree:
     refine_level: int = 2
     # OFF until [grid] streams names a layer.
     refine_streams: bool = False
+    # The ponds refine the quadtree as well, as polygon features. GRIDGEN
+    # splits every cell a feature touches, so a pond footprint refines the
+    # cells it covers whether or not the stream network passes through it --
+    # which is the point: a charca off the mapped network was being meshed at
+    # the background size.
+    # OFF until [grid] ponds names a layer.
+    refine_ponds: bool = False
+    # Refinement level at the ponds. 0 means "the same as refine_level", so
+    # the ponds follow the streams unless there is a reason to split them
+    # further -- one more halving is one quarter of the cell area.
+    pond_level: int = 0
 
 
 @dataclass
@@ -1172,6 +1196,20 @@ class RunConfig:
         if v.stream_refine and float(v.cell_near_stream) >= float(v.cell_far):
             errs.append('grid.voronoi.cell_near_stream must be smaller than '
                         'cell_far, or the corridor is not a refinement')
+        if float(v.cell_pond) < 0.0:
+            errs.append('grid.voronoi.cell_pond must be >= 0 '
+                        '(0 = the size the corridor gives the pond)')
+        elif float(v.cell_pond) > float(v.cell_far):
+            # Beyond the background it is no longer a pond cell, it is a hole
+            # in the mesh, and the cells around it have to grade to reach it.
+            errs.append('grid.voronoi.cell_pond = %g is larger than cell_far '
+                        '= %g: a pond cell coarser than the background is not '
+                        'a refinement of anything.'
+                        % (v.cell_pond, v.cell_far))
+        if float(v.cell_pond) > 0.0 and not v.seed_ponds:
+            errs.append('grid.voronoi.cell_pond = %g but seed_ponds is off, '
+                        'so no pond has a cell to size. Switch the seeding '
+                        'on, or clear the size.' % v.cell_pond)
         # The derived echo is refreshed HERE, so any path that validates --
         # from_dict, the panel's save, a --set override -- leaves the file
         # stating the bands the producer will actually use.
@@ -1231,10 +1269,16 @@ class RunConfig:
                         'hydrography layer, so there is nothing to refine '
                         'along. Give the layer on panel 1, or switch the '
                         'refinement off.' % (blk, key))
-        if not self.grid.ponds and self.grid.voronoi.seed_ponds:
-            errs.append('grid.voronoi.seed_ponds is on but grid.ponds names '
-                        'no pond layer. Give the layer on panel 1, or switch '
-                        'the seeding off.')
+        for blk, key in (('voronoi', 'seed_ponds'),
+                         ('quadtree', 'refine_ponds')):
+            if not self.grid.ponds and getattr(getattr(self.grid, blk), key):
+                errs.append(
+                    'grid.%s.%s is on but grid.ponds names no pond layer. '
+                    'Give the layer on panel 1, or switch it off.'
+                    % (blk, key))
+        if self.grid.quadtree.pond_level < 0:
+            errs.append('grid.quadtree.pond_level must be >= 0 '
+                        '(0 = the same as refine_level)')
         if self.grid.cell_size <= 0:
             errs.append('grid.cell_size must be > 0')
         if self.grid.buffer < 0:

@@ -37,7 +37,7 @@ __all__ = ['build_mesh', 'MeshBuildError', 'stream_lines', 'mesh_signature',
 # Identifies the MESH-PRODUCING BEHAVIOUR, not the module. Bump it on any
 # change that would give a different mesh for the same configuration; it is
 # part of the cache signature.
-PRODUCER_VERSION = 4
+PRODUCER_VERSION = 5
 
 
 class MeshBuildError(Exception):
@@ -200,11 +200,19 @@ def _has_pyshp():
 
 def _produce_quadtree(cfg, cMF, dataset_dir=None, model_ws=None, warn=None,
                       **_kw):
-    """GRIDGEN quadtree, refined along the stream network.
+    """GRIDGEN quadtree, refined along the stream network and at the ponds.
 
     Refining on the streams rather than uniformly is what makes this a real
     end-to-end proof for WP1c.1: the mesh genuinely has no (row, column), so
     every projection and index path is exercised, not bypassed.
+
+    The ponds go in as POLYGON features. GRIDGEN splits every cell a feature
+    touches, so a footprint refines the cells it covers whether or not a
+    mapped stream runs through it -- which is the point, since a charca off
+    the network was being meshed at the background size. Unlike the Voronoi
+    case there is nothing to reconcile: a quadtree refines by subdivision,
+    features do not have to nest, and two features over the same cell simply
+    take the deeper level.
     """
     import mm_paths
     from marmites_gridgen import build_quadtree
@@ -237,6 +245,34 @@ def _produce_quadtree(cfg, cMF, dataset_dir=None, model_ws=None, warn=None,
         level = int(getattr(getattr(cfg.grid, 'quadtree', None),
                             'refine_level', 2))
         feats.append((stream_lines(csv), 'line', level))
+
+    q = getattr(cfg.grid, 'quadtree', None)
+    if dataset_dir and getattr(q, 'refine_ponds', False):
+        rings = pond_rings(dataset_dir)
+        if not rings:
+            if warn:
+                warn('grid.quadtree.refine_ponds is on but no pond footprint '
+                     'was read from inputPONDS.geojson, so the ponds are NOT '
+                     'refined. Run code/tools/gis_to_dataset.py.')
+        elif not _has_pyshp():
+            if warn and not csv:    # said once already when there is a csv
+                warn('pyshp is not installed, so the pond refinement is '
+                     'SKIPPED. Install it with:  conda install -p '
+                     'C:\\miniconda3\\envs\\flopy pyshp')
+        else:
+            # 0 means "the same level as the streams", so the ponds follow
+            # them unless there is a reason to split further.
+            lev = int(getattr(q, 'pond_level', 0) or
+                      getattr(q, 'refine_level', 2))
+            # flopy reads a polygon as a list of RINGS, so each footprint is
+            # wrapped in one, and pyshp appends a list to whatever it is
+            # given -- so the ring has to arrive CLOSED and as a list, or it
+            # fails on a tuple it cannot concatenate.
+            feats.append(([[list(r) + [r[0]]] for r in rings],
+                          'polygon', lev))
+            if warn:
+                warn('grid.quadtree: %d pond footprint(s) refined to level %d.'
+                     % (len(rings), lev))
     ws = model_ws or os.path.join(os.getcwd(), '_gridgen')
     return build_quadtree(cMF, exe, ws, refine_features=feats,
                           layers=list(range(int(cMF.nlay))))
@@ -729,7 +765,12 @@ def _produce_voronoi(cfg, cMF, dataset_dir=None, model_ws=None, warn=None,
         # The seeds go to Triangle as NODES, not as regions or polygons: they
         # are generators, points the triangulation must contain, and it is
         # being a generator that gives the pond its cell.
-        seeds, ponds, gone = pond_seeds(dataset_dir, inside=_inside_ring(ring))
+        # With a pond SIZE asked for, the sizing zone is the ring of
+        # generators and the helper ring would only add competitors inside
+        # it -- the centre node is then the one thing near the pond.
+        seeds, ponds, gone = pond_seeds(
+            dataset_dir, inside=_inside_ring(ring),
+            n_ring=0 if float(v.cell_pond) > 0.0 else POND_RING_N)
         if warn and gone:
             warn('%d pond(s) fall outside the catchment boundary and are NOT '
                  'meshed: %s.' % (len(gone), ', '.join(
@@ -742,24 +783,37 @@ def _produce_voronoi(cfg, cMF, dataset_dir=None, model_ws=None, warn=None,
         else:
             nodes = np.asarray(seeds, dtype=float)
 
-    tri = Triangle(model_ws=ws, exe_name=exe,
-                   maximum_area=_max_area_for(v.cell_far), nodes=nodes)
+    # WHY maximum_area IS NOT SET when anything is refined.
+    #
+    # flopy passes it to Triangle as `-a<number>`, and Triangle reads `-a`
+    # WITH a number as "this area, everywhere" -- per-region constraints in
+    # the .poly are then not read at all. So every band's own maximum area
+    # was written into the file and ignored: the grading that came out was
+    # whatever the density of the band BOUNDARY segments happened to produce,
+    # which is why a 5 m corridor was measuring 200 m2 cells and why
+    # cell_pond changed nothing. A bare `-a` reads the regions, so the
+    # background has to become a region like any other -- added below, once
+    # the bands know where they are.
+    refining = _will_refine(cfg, dataset_dir, ponds, warn)
+    tri = Triangle(model_ws=ws, exe_name=exe, nodes=nodes,
+                   maximum_area=None if refining
+                   else _max_area_for(v.cell_far))
     tri.add_polygon(ring)
 
-    if v.stream_refine:
+    if refining:
         # Only the ponds that are actually IN the domain: buffering one that
         # is not would put a band outside the catchment boundary.
-        _add_refinement_regions(tri, cfg, dataset_dir, warn,
-                                ponds=[p[0] for p in ponds])
+        covered = _add_refinement_regions(tri, cfg, dataset_dir, warn,
+                                          ponds=ponds)
+        _add_background_region(tri, ring, covered, v.cell_far, warn)
     elif ponds and warn:
-        warn('grid.voronoi.seed_ponds is on and stream refinement is off, so '
+        warn('grid.voronoi.seed_ponds is on and nothing is refined, so '
              'each pond gets a cell CENTRED on it but at the background size: '
              'the graded sizes the refinement carries (cell_near_stream, '
              'grade_ratio) are what a pond would be refined to.')
     if ponds and warn:
-        warn('pond seeding: %d pond(s), %d generator node(s) (centre + %d '
-             'ring helpers at %g x the pond radius).'
-             % (len(ponds), len(nodes), POND_RING_N, POND_RING_FACTOR))
+        warn('pond seeding: %d pond(s), %d generator node(s).'
+             % (len(ponds), len(nodes)))
 
     tri.build(verbose=False)
     gp = VoronoiGrid(tri).get_gridprops_vertexgrid()
@@ -793,16 +847,148 @@ def _inside_ring(ring):
     return inside
 
 
+# How far a pond's sizing zone stands off it, as a multiple of the pond
+# radius. A Voronoi cell reaches half way to its neighbours, so a ring of
+# generators at f x r gives the centre a cell of radius f x r / 2: at f = 2
+# the pond's cell comes out at about the pond's own area, which is the
+# one-cell-per-pond CdL builds.
+POND_ZONE_FACTOR = 2.0
+POND_ZONE_N = 12
+
+
+def _will_refine(cfg, dataset_dir, ponds, warn):
+    """Will anything actually be given a region of its own?
+
+    Asked BEFORE Triangle is constructed, because the answer decides whether
+    it is given a global maximum area -- and a global area silently disables
+    every per-region one.
+    """
+    v = cfg.grid.voronoi
+    if v.seed_ponds and float(v.cell_pond) > 0.0 and ponds:
+        pass                       # the pond zones alone are enough
+    elif not v.stream_refine:
+        return False
+    if not os.path.exists(os.path.join(dataset_dir, 'inputSTREAM.csv')) \
+            and not (ponds and float(v.cell_pond) > 0.0):
+        return False
+    try:
+        import shapely.geometry                        # noqa: F401
+    except ImportError:
+        return False
+    return bool(v.graded_bands()) or bool(ponds and float(v.cell_pond) > 0.0)
+
+
+def _add_background_region(tri, ring, covered, cell_far, warn):
+    """The unrefined remainder, as a region of its own.
+
+    With the bands carrying their own areas, the rest of the catchment has
+    none unless it is seeded too -- and a part of a PSLG with no area
+    constraint is meshed as coarsely as the quality rules allow, which on La
+    Mata means a handful of enormous triangles.
+    """
+    from shapely.geometry import Polygon
+
+    dom = Polygon(ring)
+    if not dom.is_valid:
+        dom = dom.buffer(0)
+    rest = dom if covered is None else dom.difference(covered)
+    if rest.is_empty:
+        if warn:
+            warn('grid.voronoi: the refinement covers the whole catchment, so '
+                 'there is no background left to size.')
+        return 0
+    added = 0
+    for geom in getattr(rest, 'geoms', [rest]):
+        if geom.area <= 0.0:
+            continue
+        pt = geom.representative_point()
+        tri.add_region((pt.x, pt.y), attribute=0,
+                       maximum_area=_max_area_for(cell_far))
+        added += 1
+    return added
+
+
+def _pond_footprints(rings, Polygon, tol=0.5):
+    """The footprints themselves, as shapely polygons."""
+    out = []
+    for ring in rings:
+        poly = Polygon(ring)
+        if not poly.is_valid:
+            poly = poly.buffer(0)
+        poly = poly.simplify(tol)
+        if not poly.is_empty and poly.area > 0.0:
+            out.append(poly)
+    return out
+
+
+def _pond_zones(ponds, Polygon, factor=POND_ZONE_FACTOR, n=POND_ZONE_N):
+    """A sizing zone standing off each pond, as a coarse ring of segments.
+
+    NOT the footprint. Every vertex of a constraint polygon is a point the
+    triangulation must contain, and in a Voronoi mesh a point is a GENERATOR:
+    a rim added as a zone hands the pond four neighbours of its own, and the
+    centre's cell -- bounded by the bisectors to them -- can only be a
+    fraction of the water it is supposed to cover. Measured: a 1018 m2 pond
+    came back with a 116 m2 cell and 29 cells inside its rim.
+
+    A circle at ``factor`` x the pond radius, with few enough vertices to be
+    the only generators near the pond, gives the centre a cell of about the
+    pond's own size. What ``cell_pond`` then does is decide whether Triangle
+    may put anything INSIDE that circle: at the pond's own width it may not,
+    and the pond is one cell.
+    """
+    import math
+
+    out = []
+    for _ring, _area, cx, cy, r in ponds:
+        rr = float(factor) * float(r)
+        out.append(Polygon([(cx + rr * math.cos(2.0 * math.pi * k / n),
+                             cy + rr * math.sin(2.0 * math.pi * k / n))
+                            for k in range(int(n))]))
+    return out
+
+
+def _add_pond_zones(tri, zones, size, warn):
+    """Each pond as a bounded region at ``size``.  Returns the count.
+
+    Called only once the bands have swallowed the zones, so every rim here is
+    strictly inside whatever band contains it and nothing crosses.
+    """
+    added = 0
+    for poly in zones:
+        for geom in getattr(poly, 'geoms', [poly]):
+            ring = list(geom.exterior.coords)[:-1]
+            if len(ring) < 3:
+                continue
+            tri.add_polygon(ring)
+            pt = geom.representative_point()
+            tri.add_region((pt.x, pt.y), attribute=100 + added,
+                           maximum_area=_max_area_for(size))
+            added += 1
+    if warn and added:
+        warn('grid.voronoi: %d pond zone(s) bounded at %g m.' % (added, size))
+    return added
+
+
 def _add_refinement_regions(tri, cfg, dataset_dir, warn, ponds=()):
     """Refine around the mapped features, graded outward.
 
     The features are the stream centre-lines and -- when
-    ``grid.voronoi.seed_ponds`` is on -- the pond footprints. They go into
-    ONE geometry before anything is buffered, so the bands stay a single
-    nested family: a pond given a corridor of its own would put a closed
-    constraint polygon across the stream bands it sits in, and Triangle
-    meshes crossing segments unpredictably when it accepts them at all.
-    That is why the ponds refine HERE and not in a step of their own.
+    ``grid.voronoi.seed_ponds`` is on -- the ponds, each given as
+    ``(ring, area, cx, cy, radius)`` by :func:`pond_seeds`.
+
+    With ``cell_pond`` left at 0 the footprints simply JOIN the geometry the
+    bands are buffered from, so a pond is meshed at ``cell_near_stream`` and
+    grades out with the corridor. One nested family of constraints, nothing
+    crossing anything.
+
+    With ``cell_pond`` set, each footprint also becomes a zone of its OWN,
+    bounded by its rim and carrying its own maximum area -- the only way to
+    make a pond cell coarser than the corridor around it. The rim would cross
+    the band boundaries, since La Mata's charcas sit ON the mapped streams,
+    so every band is first UNIONED with the footprints widened by a margin.
+    That puts each rim strictly inside every band instead of across it: the
+    constraints nest, which is the one thing Triangle insists on.
 
     Needs shapely to buffer the lines. The import is deliberately LOCAL: the
     repo-hygiene test forbids a top-level geometry import in model code, and a
@@ -812,11 +998,10 @@ def _add_refinement_regions(tri, cfg, dataset_dir, warn, ponds=()):
     """
     v = cfg.grid.voronoi
     csv = os.path.join(dataset_dir, 'inputSTREAM.csv')
-    if not os.path.exists(csv):
-        if warn:
-            warn('grid.voronoi.stream_refine is on but %s is missing: the mesh '
-                 'will be uniform.' % csv)
-        return
+    have_csv = os.path.exists(csv)
+    if not have_csv and warn and v.stream_refine:
+        warn('grid.voronoi.stream_refine is on but %s is missing, so there is '
+             'no corridor.' % csv)
     try:
         from shapely.geometry import LineString, Polygon
         from shapely.ops import unary_union
@@ -824,21 +1009,42 @@ def _add_refinement_regions(tri, cfg, dataset_dir, warn, ponds=()):
         if warn:
             warn('shapely is not available, so the stream corridor is NOT '
                  'refined and the mesh is uniform at cell_far.')
-        return
-    feats = [LineString(p) for p in stream_lines(csv)]
-    nponds = 0
-    for ring in ponds:
-        poly = Polygon(ring)
-        if not poly.is_valid:
-            poly = poly.buffer(0)
-        if not poly.is_empty:
-            feats.append(poly)
-            nponds += 1
+        return None
+    feats = ([LineString(p) for p in stream_lines(csv)]
+             if have_csv and v.stream_refine else [])
+    size_pond = float(v.cell_pond)
+    zones = (_pond_zones(ponds, Polygon) if size_pond > 0.0
+             else _pond_footprints([p[0] for p in ponds], Polygon))
+    # The footprints are part of the geometry the bands are buffered from,
+    # WHATEVER cell_pond says. With cell_pond at 0 that is the whole story --
+    # a pond is meshed at cell_near_stream and grades out with the corridor.
+    #
+    # With cell_pond set, the rims are added as regions further down, and
+    # they are added INSIDE the bands. Being part of the buffered geometry is
+    # what makes that safe: band k then clears every rim by its own distance,
+    # which GROWS with k, so no two bands ever follow the same arc. Padding
+    # the bands by a constant instead -- the first thing tried -- made every
+    # band trace the same pond bulge, and Triangle stops at "topological
+    # inconsistency after splitting a segment" because the arcs coincide.
+    feats.extend(zones)
+    # Only to keep a BAND's seed out of a pond zone: the band's maximum area
+    # would otherwise be the one that applies there.
+    keep_out = unary_union(zones) if zones and size_pond > 0.0 else None
+    if not feats:
+        # Nothing mapped to refine along at all.
+        return None
+    if keep_out is not None and not (have_csv and v.stream_refine):
+        # A pond size with no corridor: the zones ARE the refinement.
+        _add_pond_zones(tri, zones, size_pond, warn)
+        return keep_out
     lines = unary_union(feats)
-    if warn and nponds:
-        warn('grid.voronoi: %d pond footprint(s) refined with the stream '
-             'corridor, so a pond carries cell_near_stream and grades out '
-             'with it.' % nponds)
+    if warn and zones:
+        warn('grid.voronoi: %d pond(s) %s.'
+             % (len(zones),
+                'given a sizing zone at %g x the pond radius, holding %g m '
+                'cells' % (POND_ZONE_FACTOR, size_pond) if size_pond > 0.0
+                else 'refined with the stream corridor, so a pond carries '
+                     'cell_near_stream and grades out with it'))
     # Graded bands: the innermost carries cell_near_stream, each successive
     # band relaxes towards cell_far. Jumping straight from one size to the
     # other makes badly shaped cells along the seam.
@@ -849,11 +1055,17 @@ def _add_refinement_regions(tri, cfg, dataset_dir, warn, ponds=()):
     # band fall outside the corridor it was supposed to end at.
     bands = [(float(d), float(s)) for d, s in v.graded_bands()]
     if not bands:
+        # No corridor is not the same as nothing to do: a pond SIZE stands on
+        # its own, and the zones still have to be added or the size asked for
+        # on the panel would quietly do nothing.
+        if keep_out is not None:
+            _add_pond_zones(tri, zones, size_pond, warn)
+            return keep_out
         if warn:
             warn('grid.voronoi: no transition bands (cell_near_stream %g, '
                  'cell_far %g, stream_buffer %g) -- the mesh is uniform.'
                  % (v.cell_near_stream, v.cell_far, v.stream_buffer))
-        return
+        return None
     added = 0
     prev = None
     for k, (dist, size) in enumerate(bands):
@@ -878,17 +1090,30 @@ def _add_refinement_regions(tri, cfg, dataset_dir, warn, ponds=()):
         # The seed must land in THIS band and not in the finer one inside it,
         # so it goes in the annulus rather than in the buffer.
         area = poly if prev is None else poly.difference(prev)
+        if keep_out is not None:
+            # ... and the band's own seed must not land in a pond zone, or
+            # the band's maximum area would be the one applied there.
+            area = area.difference(keep_out)
         if area.is_empty:
             prev = poly
             continue
-        part = max(getattr(area, 'geoms', [area]), key=lambda g: g.area)
-        pt = part.representative_point()
-        tri.add_region((pt.x, pt.y), attribute=k + 1,
-                       maximum_area=_max_area_for(size))
+        # EVERY disjoint part, not the largest: a stream network in two
+        # catwalks makes an annulus in several pieces, and a piece with no
+        # seed of its own is a piece with no area constraint at all -- it
+        # would be meshed at whatever the quality rules allow.
+        for part in getattr(area, 'geoms', [area]):
+            if part.area <= 0.0:
+                continue
+            pt = part.representative_point()
+            tri.add_region((pt.x, pt.y), attribute=k + 1,
+                           maximum_area=_max_area_for(size))
         prev = poly
     if warn and not added:
         warn('grid.voronoi: the stream corridor produced no polygon, so the '
              'mesh is uniform at cell_far.')
+    if keep_out is not None:
+        _add_pond_zones(tri, zones, size_pond, warn)
+    return prev if keep_out is None else unary_union([prev, keep_out])
 
 
 _PRODUCERS = {

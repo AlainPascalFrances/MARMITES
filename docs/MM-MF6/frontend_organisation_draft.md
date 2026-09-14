@@ -446,6 +446,59 @@ being served.
 
 ---
 
+### 2A.12  The pond cell size — and a bug it uncovered
+
+**⚠ THE BAND SIZES WERE NEVER BEING APPLIED.** flopy hands Triangle
+`-a<number>` whenever `maximum_area` is set, and Triangle reads `-a` *with* a
+number as "this area, everywhere" — per-region constraints in the `.poly` are
+then **not read at all**. Every band's own maximum area was being written to
+the file and ignored. What produced the grading was the DENSITY of the band
+boundary segments, not the sizes asked for, which is why `cell_near_stream`
+= 5 m was measuring **200 m² cells** (a 14 m cell, not a 5 m one).
+
+The fix: when anything is refined, `maximum_area` is left unset so Triangle
+gets a bare `-a` and reads the regions — and the background becomes a region
+like any other, seeded in whatever the bands do not cover. Two related holes
+closed with it: an annulus in several disjoint pieces was seeded only in its
+**largest** piece, so the rest carried no constraint at all.
+
+**Consequence, and it is large.** La Mata's shipped settings now build the
+mesh they ask for: **ncpl 6331 → 15351**, pond cells 25–31 m² where they were
+125–480. If that is finer than intended, the number to change is
+`cell_near_stream` — it is now real.
+
+**`grid.voronoi.cell_pond`** — the size a pond's own cell carries; 0 keeps
+today's behaviour (the footprint is refined with the corridor). Set, each
+pond gets a sizing zone of its own, and this is the only way to make a pond
+cell COARSER than the corridor around it.
+
+The zone is a **ring of 12 generators at 2 × the pond radius**, not the rim.
+A vertex of a constraint polygon is a generator like any other, so a zone
+drawn ON the rim hands the pond four neighbours of its own and its cell can
+only be a fraction of the water — measured, a 1018 m² pond came back with a
+116 m² cell and 29 cells inside its rim. A Voronoi cell reaches half way to
+its neighbours, so a ring at 2 r gives the centre a cell of about the pond's
+own area. Measured at `cell_pond = 35`: pond cells of 250–978 m², and the
+larger charcas are **one cell each**.
+
+The zones are part of the geometry the bands are buffered from, so band *k*
+clears every rim by its own distance — which grows with *k*. Padding the
+bands by a constant instead (the first attempt) made every band trace the
+same pond bulge and Triangle stopped at *"topological inconsistency after
+splitting a segment"*: coincident arcs.
+
+**`grid.quadtree.refine_ponds` and `pond_level`** — the footprints go in as
+polygon features. Nothing to reconcile here: a quadtree refines by
+subdivision, features need not nest, and two over one cell take the deeper
+level. Measured: without it, the pond that sits off the mapped network was in
+a **2500 m² background cell**; with it, every pond is at 156 m² and fully
+covered (ncpl 7788 → 7932). `pond_level = 4` gives 10 m² cells, ncpl 10398.
+0 means "the same level as the streams".
+
+`PRODUCER_VERSION` 4 → 5.
+
+---
+
 ## 3  Group 1 — SURFACE  (MMsurf)  ·  switch `MARMsurf_yn`
 
 Source: `MMsurf_ws/__inputMMsurf.ini` (100 parameters) + its time-series

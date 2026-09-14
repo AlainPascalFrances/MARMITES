@@ -603,6 +603,69 @@ def test_a_concave_pond_is_seeded_at_its_own_centroid(tmp_path):
     assert abs(cx - mean_x) > 1.0, 'the vertex mean is NOT the centroid'
 
 
+def test_a_pond_zone_stands_off_the_pond_it_sizes(cfg):
+    """A vertex of a constraint polygon is a GENERATOR, so a zone drawn on
+    the rim hands the pond neighbours of its own and its cell can only be a
+    fraction of the water. The zone is a ring around it instead."""
+    from shapely.geometry import Polygon
+
+    ponds = [(None, 400.0, 100.0, 200.0, 11.28)]
+    zone = meshes._pond_zones(ponds, Polygon)[0]
+    assert zone.contains(Polygon(_square(100.0, 200.0, 10.0))), \
+        'the zone does not even cover the pond'
+    # every vertex stands off by the same factor
+    for x, y in list(zone.exterior.coords)[:-1]:
+        d = ((x - 100.0) ** 2 + (y - 200.0) ** 2) ** 0.5
+        assert abs(d - meshes.POND_ZONE_FACTOR * 11.28) < 1e-6
+
+
+def test_the_zone_ring_is_coarse_enough_to_leave_the_pond_alone(cfg):
+    """Its vertices are the generators the pond cell is bounded against, so
+    a finely drawn ring would chop the cell up."""
+    from shapely.geometry import Polygon
+
+    zone = meshes._pond_zones([(None, 400.0, 0.0, 0.0, 11.28)], Polygon)[0]
+    assert len(list(zone.exterior.coords)) - 1 == meshes.POND_ZONE_N
+    assert meshes.POND_ZONE_N <= 16, 'too many generators around one pond'
+
+
+def test_a_pond_size_is_refused_without_the_seeding(cfg):
+    cfg.grid.voronoi.seed_ponds = False
+    cfg.grid.voronoi.cell_pond = 30.0
+    with pytest.raises(cfgmod.ConfigError) as e:
+        cfg.validate()
+    assert 'seed_ponds' in str(e.value)
+
+
+def test_a_pond_cell_may_not_be_coarser_than_the_background(cfg):
+    """Past the background it is not a refinement of anything -- it is a hole
+    the cells around it have to grade to reach."""
+    cfg.grid.ponds = 'lm_ponds.shp'
+    cfg.grid.voronoi.seed_ponds = True
+    cfg.grid.voronoi.cell_pond = float(cfg.grid.voronoi.cell_far) + 1.0
+    with pytest.raises(cfgmod.ConfigError) as e:
+        cfg.validate()
+    assert 'cell_far' in str(e.value)
+
+
+def test_the_quadtree_pond_refinement_needs_a_pond_layer(cfg):
+    cfg.grid.ponds = ''
+    cfg.grid.quadtree.refine_ponds = True
+    with pytest.raises(cfgmod.ConfigError) as e:
+        cfg.validate()
+    assert 'grid.ponds' in str(e.value)
+
+
+def test_the_pond_level_defaults_to_the_stream_level(cfg):
+    """0 means "the same as the streams", so the ponds follow them unless
+    there is a reason to split further."""
+    assert cfg.grid.quadtree.pond_level == 0
+    cfg.grid.quadtree.pond_level = -1
+    with pytest.raises(cfgmod.ConfigError) as e:
+        cfg.validate()
+    assert 'pond_level' in str(e.value)
+
+
 # ------------------------------------------------------------- choices
 
 def test_the_enumerated_fields_are_choices():

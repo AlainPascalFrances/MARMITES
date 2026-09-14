@@ -339,6 +339,46 @@ def test_the_map_can_draw_the_pond_footprints():
     assert not at.exception, [str(e.value) for e in at.exception]
 
 
+def test_the_pond_settings_are_on_their_sub_panels():
+    """The pond cell size belongs to voronoi and the pond refinement to the
+    quadtree, each greyed until its own switch is on -- a size for a pond
+    nothing is seeding is a box that does nothing."""
+    at = AppTest.from_file(os.path.join(APP, 'pages', '1_Grid.py'),
+                           default_timeout=180)
+    at.run()
+    def pick(kind):
+        # Re-queried every time: an AppTest element is a SNAPSHOT of one run,
+        # and reusing a handle across a rerun looks up a widget that no
+        # longer exists.
+        [s for s in at.selectbox if s.key == 'grid.kind'][0] \
+            .set_value(kind).run()
+
+    def seed(on):
+        got = [c for c in at.checkbox if c.key == 'grid.voronoi.seed_ponds']
+        if got:
+            (got[0].check() if on else got[0].uncheck()).run()
+        return bool(got)
+
+    pick('voronoi')
+    keys = _keys(at)
+    assert ('grid.voronoi.cell_pond' in keys
+            or 'off_grid.voronoi.cell_pond' in keys), \
+        'the pond cell size is not on the voronoi sub-panel'
+    if seed(False):
+        assert 'grid.voronoi.cell_pond' not in _keys(at), \
+            'the pond size is live with nothing seeding a pond'
+        seed(True)
+        assert 'grid.voronoi.cell_pond' in _keys(at), \
+            'the pond size did not come back with the seeding'
+
+    pick('quadtree')
+    keys = _keys(at)
+    assert ('grid.quadtree.refine_ponds' in keys
+            or 'na_grid.quadtree.refine_ponds' in keys), \
+        'the quadtree cannot be told to refine at the ponds'
+    assert not any(k.startswith('grid.voronoi.') for k in keys)
+
+
 def test_panel_zero_sets_the_machine_paths():
     """They used to be read-only in the sidebar, under a caption telling the
     modeller to go and edit code/mm_paths.py. A path is not source code."""
