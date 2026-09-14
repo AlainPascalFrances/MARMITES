@@ -212,19 +212,18 @@ FIELDS = {
                                  '2 is the gentler rule of thumb and takes '
                                  'more bands. Held in (1, 3].'),
     'grid.voronoi.refine_ponds': ('Refine at the ponds', _U,
-                                'Two things, and the second is what the name '
-                                'used to claim. (1) The footprints join the '
-                                'geometry the corridor bands are buffered '
-                                'from, so a pond is meshed at the cell size '
-                                'near the stream and grades out with it -- '
-                                'which is what reaches a charca that no '
-                                'mapped stream runs through. (2) A GENERATOR '
-                                'sits at each pond centre, so one cell is '
-                                'centred on the water instead of straddling '
-                                'it: that is the cell LAK will be hung on. '
-                                'ONE CELL PER POND is not this switch -- it '
-                                'is the pond cell size below, set to about '
-                                'the pond\'s own width.'),
+                                 'Two behaviours: (1) The footprints join '
+                                 'the geometry the corridor bands are '
+                                 'buffered from, so a pond is meshed at the '
+                                 'cell size near the stream and grades out '
+                                 'with it -- which is what reaches a charca '
+                                 'that no mapped stream runs through. (2) A '
+                                 'GENERATOR sits at each pond centre, so one '
+                                 'cell is centred on the water instead of '
+                                 'straddling it: that is the cell LAK will '
+                                 'be hung on. ONE CELL PER POND is not this '
+                                 'switch -- it is the pond cell size below, '
+                                 'set to about the pond\'s own width.'),
     'grid.quadtree.refine_level': ('Refinement levels', 'count',
                                    'GRIDGEN halves a cell per level, so 2 on '
                                    'a 50 m background gives 12.5 m along the '
