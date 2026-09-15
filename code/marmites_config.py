@@ -1539,6 +1539,78 @@ def _coerce_like(old, raw, dotted):
     return raw
 
 
+# ---------------------------------------------------------------- #
+# saved state: whose is it?                                    WP0.6
+# ---------------------------------------------------------------- #
+# A spin-up costs hours, so it is saved and reused -- and a saved state is
+# only valid for the GRID and LAYER SET it was produced on. The run refuses
+# to reuse one that is not, naming the key, which is the failure the CdL
+# grid-design cache produced once by NOT refusing.
+#
+# Both the run and the front-end ask these, so the panel can say at edit time
+# exactly what the run would say at start time. They live here, on the model
+# path, because the rule belongs to the configuration and not to either.
+
+def state_workspace(cfg, ws_root):
+    """Where a run of this configuration keeps its saved state.
+
+    One workspace per MESH, not per discretisation: a quadtree and a
+    DISV-from-DIS model are both 'disv' but share no file, and letting them
+    overwrite each other is a grid-cache bug waiting to happen.
+    """
+    kind = cfg.grid_kind
+    sub = {'structured': 'MF6_ws', 'disv': 'MF6_ws_disv'}.get(
+        kind, 'MF6_ws_%s' % kind)
+    return os.path.join(str(ws_root), sub)
+
+
+def state_sidecar(state_dir, prefix):
+    """Path of the scope sidecar written beside a saved state prefix."""
+    return os.path.join(str(state_dir), '%s.scope.json' % prefix)
+
+
+def state_problem(cfg, state_dir):
+    """Why the state named in ``[spinup]`` cannot be reused here, or ''.
+
+    The same answer the run gives, so a panel can give it FIRST -- at the
+    moment the field is being edited rather than after the launch.
+    """
+    import json
+
+    for what, prefix in (('spinup.strt_heads', cfg.spinup.strt_heads),
+                         ('spinup.steady_means', cfg.spinup.steady_means)):
+        prefix = (prefix or '').strip()
+        if not prefix:
+            continue
+        side = state_sidecar(state_dir, prefix)
+        if not os.path.exists(side):
+            # No sidecar means it predates the guard, hence predates the mesh
+            # producers, hence was produced on the STRUCTURED grid. Fine
+            # there; impossible on a mesh, where it would reach MF6 as an
+            # array of the wrong length.
+            if cfg.grid_kind not in ('structured', 'disv'):
+                return ('%s = %r has no scope sidecar, so it was produced on '
+                        'the structured grid, and grid.kind = %r needs state '
+                        'on its own mesh. Regenerate it with a spin-up on '
+                        'this mesh, or clear %s.'
+                        % (what, prefix, cfg.grid_kind, what))
+            continue
+        try:
+            with open(side, encoding='utf-8') as fh:
+                saved = json.load(fh)
+        except (OSError, ValueError):
+            continue                       # the run reports it in full
+        if saved.get('state_hash') == cfg.state_hash():
+            continue
+        now, was = cfg.state_scope(), saved.get('scope', {})
+        differing = [k for k in now if str(now[k]) != str(was.get(k))]
+        return ('%s = %r was produced under a different configuration '
+                '(differing: %s). Regenerate that state, or point %s at one '
+                'produced with this grid and layer set.'
+                % (what, prefix, ', '.join(differing) or '(none)', what))
+    return ''
+
+
 def load_run_config(path):
     """Load and validate a WP0 run-configuration TOML file."""
     if not os.path.exists(path):

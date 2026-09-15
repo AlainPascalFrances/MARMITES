@@ -460,7 +460,7 @@ def setup_lamata(daily=True, nsp=None, grid='dis', nlay=None, aggregate=False,
 
 def _state_sidecar(a, prefix):
     """Path of the scope sidecar written beside a saved state prefix."""
-    return os.path.join(a.state_dir, '%s.scope.json' % prefix)
+    return mcfg.state_sidecar(a.state_dir, prefix)
 
 
 def _write_state_scope(a, cfg, prefix):
@@ -474,51 +474,27 @@ def _write_state_scope(a, cfg, prefix):
 def _check_state_scope(a, cfg):
     """Refuse to reuse saved state produced under a different grid or layer set.
 
-    Only the keys in RunConfig.STATE_SCOPE matter; an unrelated change (a
-    different map_days, say) must not invalidate a spin-up that cost hours. A
-    state with no sidecar is accepted with a note -- every state written before
-    WP0 predates the guard, and failing on those would break existing runs.
+    The rule itself is `marmites_config.state_problem`, so the FRONT-END can
+    ask it while the field is being edited and say exactly what this would
+    say at launch -- which is where the modeller wants to hear it, not after
+    a run has been started.
+
+    A state with no sidecar is accepted with a note ON A STRUCTURED GRID:
+    every state written before WP0 predates the guard, and failing on those
+    would break existing runs. On a mesh it cannot be right, so there it is
+    refused.
     """
-    import json
+    why = mcfg.state_problem(cfg, a.state_dir)
+    if why:
+        raise SystemExit('CONFIG ERROR: %s' % why)
     for what, prefix in (('spinup.strt_heads', cfg.spinup.strt_heads),
                          ('spinup.steady_means', cfg.spinup.steady_means)):
         prefix = (prefix or '').strip()
-        if not prefix:
-            continue
-        side = _state_sidecar(a, prefix)
-        if not os.path.exists(side):
-            # A state with no sidecar predates WP0, hence predates WP1c, hence
-            # was produced on the STRUCTURED grid. That is fine on the
-            # structured grid and impossible on a mesh, where it would reach
-            # MF6 as an array of the wrong length -- so the escape hatch stops
-            # exactly at the grid boundary (cookbook WP1c: "Voronoi invalidates
-            # the saved state").
-            if cfg.grid_kind not in ('structured', 'disv'):
-                raise SystemExit(
-                    'CONFIG ERROR: %s = %r has no scope sidecar, so it was '
-                    'produced on the structured grid, and grid.kind = %r needs '
-                    'state on its own mesh.\n'
-                    'Regenerate it with a spin-up on this mesh, or clear %s.'
-                    % (what, prefix, cfg.grid_kind, what))
+        if prefix and not os.path.exists(_state_sidecar(a, prefix)):
             print('note: %s = %r has no scope sidecar (written before WP0); '
                   'accepted unchecked' % (what, prefix))
-            continue
-        with open(side, encoding='utf-8') as fh:
-            saved = json.load(fh)
-        if saved.get('state_hash') == cfg.state_hash():
-            continue
-        now, was = cfg.state_scope(), saved.get('scope', {})
-        differing = [k for k in now if str(now[k]) != str(was.get(k))]
-        raise SystemExit(
-            'CONFIG ERROR: %s = %r was produced under a different configuration.\n'
-            '  differing key(s): %s\n'
-            '  saved: %s\n'
-            '  now:   %s\n'
-            'Regenerate that state, or point %s at one produced with this grid '
-            'and layer set. (Refusing to reuse it silently: a stale cache '
-            'overriding the configuration is a wasted multi-hour run.)'
-            % (what, prefix, ', '.join(differing) or '(none)',
-               {k: was.get(k) for k in now}, now, what))
+
+
 def _args_from_config(cfg, probe=False):
     """Map a RunConfig onto the legacy attribute names the driver body uses.
 
@@ -575,7 +551,11 @@ def _args_from_config(cfg, probe=False):
         save_means=_or_none(cfg.spinup.save_means),
         strt_dem=(list(cfg.spinup.strt_dem) or None),
         # post-processing
-        postproc=cfg.postproc.enable, preproc=cfg.postproc.preproc,
+        # BOTH: the panel offers run.plot as the group's switch and
+        # postproc.enable as a field, and each promises to stop the figures.
+        # run.plot was read by nothing, so only one of the two kept its word.
+        postproc=bool(cfg.postproc.enable and cfg.run.plot),
+        preproc=cfg.postproc.preproc,
         postproc_only=cfg.postproc.only, gis_ws=_or_none(cfg.paths.gis_ws),
         sankey_min_flux=cfg.postproc.sankey_min_flux,
         sankey_full=cfg.postproc.sankey_full,
@@ -628,9 +608,7 @@ def main():
         # One workspace per MESH, not per discretisation: a quadtree and a
         # DISV-from-DIS model are both 'disv' but share no file, and letting
         # them overwrite each other is a grid-cache bug waiting to happen.
-        _sub = {'structured': 'MF6_ws', 'disv': 'MF6_ws_disv'}.get(
-            a.mesh_kind, 'MF6_ws_%s' % a.mesh_kind)
-        a.ws = os.path.join(a.ws_root, _sub)
+        a.ws = mcfg.state_workspace(cfg, a.ws_root)
     os.makedirs(a.ws, exist_ok=True)
     # results folder for this run, in the legacy out_<stamp>_<tag> style
     tag = a.run_tag or ('%dlay_%s' % (a.nlay or 6, a.mode))
@@ -645,11 +623,25 @@ def main():
     # written to the workspace; reading falls back to the baseline committed in
     # the repo's example/LaMata/MF_ws so `spinup.strt_heads` keeps working.
     a.state_dir = a.ws
+    # run.model OFF: produce the forcing and stop. MMsurf is a run of its
+    # own -- that is what the switch on the driving-forces panel promises --
+    # and everything below this line is the model. The switch was read by
+    # NOTHING before WP1d: turning it off changed the file and not the run.
+    if not cfg.run.model:
+        _forcing(cfg)
+        print('run.model is off: the forcing is done and the model is not '
+              'built. Turn it on to run MMsoil + MODFLOW 6.')
+        return
+
     # STATE GUARD (WP0.6): saved state is only valid for the grid and layer set
     # it was produced on, so the sidecar carries THAT scope rather than the whole
     # configuration -- a full-config hash would trip on an unrelated key such as
     # postproc.map_days. A mismatch stops the run naming the offending key,
     # which is the failure the CdL grid-design cache produced once.
+    #
+    # AFTER the switch, not before: this is about MODFLOW's initial state, so
+    # it has no business stopping a forcing-only run -- which is exactly what
+    # it did, and the reason MMsurf never started.
     _check_state_scope(a, cfg)
 
     cMF, mm, ctx, state, top, botm, conv_fact = setup_lamata(

@@ -389,3 +389,37 @@ def test_the_dem_does_not_gate_any_refinement():
     c = cfg({'grid': {'kind': 'quadtree', 'streams': 'h.shp', 'dem': '',
                       'quadtree': {'refine_streams': True}}})
     assert c.grid.quadtree.refine_streams is True
+
+
+def test_every_master_switch_is_read_by_the_run():
+    """A switch the run ignores is decoration, and the panel says otherwise:
+    "the run simply will not execute it". run.model and run.plot were read by
+    NOTHING -- turning either off changed the file and not the run."""
+    import ast
+    import io as _io
+
+    src = _io.open(os.path.join(HERE, 'run_lamata_mf6.py'),
+                   encoding='utf-8').read()
+    tree = ast.parse(src)
+    read = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Attribute) and isinstance(node.value,
+                                                          ast.Attribute):
+            if node.value.attr == 'run':
+                read.add('run.%s' % node.attr)
+    for switch in ('run.surface', 'run.model', 'run.plot'):
+        assert switch in read, '%s is a switch the run never reads' % switch
+
+
+def test_the_state_guard_waits_for_the_model():
+    """It is about MODFLOW's initial state, so it has no business stopping a
+    forcing-only run -- which it did, and MMsurf never started."""
+    import io as _io
+
+    src = _io.open(os.path.join(HERE, 'run_lamata_mf6.py'),
+                   encoding='utf-8').read()
+    body = src[src.index('def main():'):]
+    off = body.index('if not cfg.run.model:')
+    guard = body.index('_check_state_scope(a, cfg)')
+    assert off < guard, ('the state guard runs before the model switch is '
+                         'read, so it stops a forcing-only run')

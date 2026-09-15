@@ -23,6 +23,8 @@ for p in (CODE, APP, os.path.join(CODE, 'ppMF6')):
     if p not in sys.path:
         sys.path.insert(0, p)
 
+import marmites_config as mcfg             # noqa: E402
+import mm_paths                            # noqa: E402
 from lib import panelui, schema             # noqa: E402
 
 st.set_page_config(page_title='4 Subsurface', page_icon='🌍', layout='wide')
@@ -50,6 +52,17 @@ with tab_aq:
                    'hydrology — runoff and exfiltration reach tens of times '
                    'precipitation. Fine for a smoke test, misleading for '
                    'anything else.')
+    else:
+        # The SAME question the run asks at launch, asked here instead: saved
+        # state belongs to the grid and layer set that produced it, and the
+        # run refuses to reuse it otherwise. Hearing that after pressing Run
+        # is hearing it too late.
+        why = mcfg.state_problem(cfg, mcfg.state_workspace(cfg,
+                                                           mm_paths.WS_ROOT))
+        if why:
+            st.error('**This run will not start.** %s' % why)
+        else:
+            st.success('The saved state belongs to this grid and layer set.')
 
 # ------------------------------------------------------- surface water
 with tab_water:
