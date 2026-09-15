@@ -40,7 +40,8 @@ __all__ = ['PANELS', 'FIELDS', 'TABLES', 'CHOICES', 'SUBPANELS', 'panel_of',
            'SURFACE_GATED',
            'SURFACE_TABLE_FILES', 'INTEGER_VALUE',
            'SOIL_ROWS', 'SOIL_VEG_ROWS', 'SOIL_FILES',
-           'SOIL_DATASET_FILES', 'COLUMN_OF',
+           'SOIL_DATASET_FILES', 'COLUMN_OF', 'OBS_COMMON',
+           'OBS_GROUPS',
            'PanelError']
 
 
@@ -60,16 +61,31 @@ PANELS = [
      'its parameters, test and visualize. When you are satisfied, select it '
      'as the base of the MM-MF model. All input will be wrapped onto this '
      'selected grid.'),
-    (2, 'Surface', '🌦️', 'run.surface', ['surface'],
+    (2, 'Surface and driving forces', '🌦️', 'run.surface', ['surface'],
      'MMsurf turns the hourly meteorological record into the daily forcing '
      'MMsoil consumes. With the switch off, that forcing must already exist '
      'and is checked for presence and shape before the run starts.'),
-    (3, 'Model', '🌍', 'run.model', ['soil', 'obs', 'layers', 'uzf', 'seep',
-                                     'et', 'sfr', 'lak', 'crr', 'spinup'],
-     'The soil water balance and MODFLOW 6. One switch, because they are no '
-     'longer separable: the legacy MMsoil-only mode belonged to the Picard '
-     'loop that Phase 1 removed.'),
-    (4, 'Plots', '📊', 'run.plot', ['postproc'],
+    # Panel 3 used to be one panel called Model, carrying the soil column,
+    # the aquifer, the surface-water packages and the observations together.
+    # They are MMsoil's inputs and MODFLOW's inputs, which is one model but
+    # two different sets of questions, and the modeller answers them at
+    # different times. Split three ways.
+    (3, 'Soil', '🌱', 'run.model', ['soil'],
+     'What MMsoil reads: the soil column zones and thickness, and the '
+     'vegetation cover each cell carries.'),
+    (4, 'Unsaturated zone and groundwater', '🌍', 'run.model',
+     ['layers', 'uzf', 'seep', 'et', 'sfr', 'lak', 'crr', 'spinup'],
+     'What MODFLOW 6 reads: the layers, the unsaturated zone, the seepage '
+     'face, evapotranspiration, the surface-water packages and the initial '
+     'state. The switch is the SAME one as panel 3 -- the soil water balance '
+     'and MODFLOW are no longer separable, since MMsoil is stepped from '
+     'inside the MODFLOW time loop.'),
+    (5, 'State variables (calibration)', '📏', None, ['obs'],
+     'What was MEASURED, against what the model produces: groundwater '
+     'levels, soil moisture, actual evapotranspiration and surface runoff. '
+     'Nothing here changes a flux -- it decides what the run is compared '
+     'with.'),
+    (6, 'Plots', '📊', 'run.plot', ['postproc'],
      'What to draw once the run finishes. Nothing here changes a flux.'),
 ]
 
@@ -352,7 +368,7 @@ FIELDS = {
     'veg_class.veg': ('Vegetation index', _U,
                       '1-based, into the vegetation table above.'),
 
-    # ---- panel 3: soil and MODFLOW ------------------------------------
+    # ---- panels 3 to 5: soil, subsurface, calibration -----------------
     'soil.params': ('Soil column parameters', _U,
                     'Per zone and per layer: Smax, Sfc, Sr, Si, Ks. The zone '
                     'ORDER in this file is what the zone codes refer to.'),
@@ -427,7 +443,7 @@ FIELDS = {
                             'Per-cell recharge and groundwater ET driving the '
                             'steady first period.'),
 
-    # ---- panel 4: plots ------------------------------------------------
+    # ---- panel 6: plots ------------------------------------------------
     'postproc.enable': ('Post-process', _U, ''),
     'postproc.preproc': ('Input maps', _U, 'Draw the inputs as maps first.'),
     'postproc.only': ('Post-process only', _U,
@@ -457,7 +473,7 @@ FIELDS = {
                                   'One panel per year at each observation '
                                   'point. Many figures.'),
 
-    # ---- the rest of panel 3 ------------------------------------------
+    # ---- the rest of panels 3 to 5 ------------------------------------
     # DERIVED, and shown read-only: these are DISTANCES from the stream
     # centreline, not cell sizes -- the old label said sizes, which is how a
     # 70 m band ended up sitting outside a 60 m corridor.
@@ -473,8 +489,15 @@ FIELDS = {
     'obs.name_column': ('Name column', _U, 'Of the optional point layer.'),
     'obs.heads_prefix': ('Head series prefix', _U,
                          '<prefix>_<point>.txt, one file per piezometer.'),
-    'obs.sm_prefix': ('Soil-moisture series prefix', _U, ''),
-    'obs.ro_prefix': ('Runoff series prefix', _U, ''),
+    'obs.sm_prefix': ('Soil-moisture series prefix', _U,
+                      '<prefix>_<point>.txt, as for the heads.'),
+    'obs.aet_prefix': ('Actual ET series prefix', _U,
+                       'Measured actual evapotranspiration -- an eddy tower, '
+                       'a lysimeter, or a remote-sensing product. Blank where '
+                       'there is none, which is the usual case.'),
+    'obs.ro_prefix': ('Runoff series prefix', _U,
+                      'At the catchment outlet, so one series rather than one '
+                      'per point.'),
     'et.unsat_form': ('Unsaturated ET form', _U,
                       'etwc uses water content, etae capillary pressure.'),
     'et.extdp_source': ('Extinction depth from', _U,
@@ -570,6 +593,22 @@ SUBPANELS = {
 # with it -- the refinement options below cannot be answered before it is
 # known whether there IS a network or a pond to refine around.
 
+
+# ---- panel 5: the measured state variables -------------------------------
+# The four the model produces, each its own block. They used to be three
+# boxes in a row with no heading, which said nothing about WHAT is being
+# compared -- and the fourth, actual evapotranspiration, was not asked for at
+# all even though the model computes it.
+OBS_COMMON = ('obs.table', 'obs.name_column', 'obs.layer')
+OBS_GROUPS = (
+    ('Groundwater levels', 'obs.heads_prefix', 'm a.s.l., one file per '
+     'piezometer'),
+    ('Soil moisture', 'obs.sm_prefix', 'per soil zone and depth'),
+    ('Actual evapotranspiration', 'obs.aet_prefix', 'an eddy tower, a '
+     'lysimeter, or a remote-sensing product'),
+    ('Surface runoff', 'obs.ro_prefix', 'at the catchment outlet'),
+)
+
 # ---- panel 2: the records ------------------------------------------------
 # An explicit layout, like the grid sub-panels, rather than whatever order
 # the dataclass happens to declare. One column per SUBJECT: the meteorology
@@ -614,7 +653,7 @@ SURFACE_TABLE_FILES = {
     'surface.crop': ('surface.irr_ts', 'surface.crop_schedule'),
 }
 
-# MMsurf's own figures are a PLOTTING choice, so they are asked on panel 4
+# MMsurf's own figures are a PLOTTING choice, so they are asked on panel 6
 # with the rest of them, not here among the records that feed the run.
 SURFACE_ON_PLOTS = ('surface.plot',)
 

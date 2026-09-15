@@ -26,10 +26,10 @@ for p in (CODE, APP):
 
 from lib import panelui                     # noqa: E402
 
-st.set_page_config(page_title='4 Plots', page_icon='📊', layout='wide')
+st.set_page_config(page_title='6 Plots', page_icon='📊', layout='wide')
 cfg, path = panelui.pick_config()
 panelui.dataset_banner(cfg)
-panel = panelui.header(4)
+panel = panelui.header(6)
 
 edited = {}
 edited.update(panelui.master_switch(cfg, panel[3]) or {})

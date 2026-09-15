@@ -49,9 +49,11 @@ def cfg():
 
 def test_the_panels_are_the_modellers_order():
     nums = [p[0] for p in schema.PANELS]
-    assert nums == [0, 1, 2, 3, 4]
+    assert nums == [0, 1, 2, 3, 4, 5, 6]
     titles = [p[1] for p in schema.PANELS]
-    assert titles == ['Overview', 'Grid', 'Surface', 'Model', 'Plots']
+    assert titles == ['Overview', 'Grid', 'Surface and driving forces',
+                      'Soil', 'Unsaturated zone and groundwater',
+                      'State variables (calibration)', 'Plots']
 
 
 def test_the_master_switches_are_real_run_keys(cfg):
@@ -64,12 +66,18 @@ def test_the_master_switches_are_real_run_keys(cfg):
         assert isinstance(getattr(getattr(cfg, section), key), bool)
 
 
-def test_only_surface_model_and_plots_carry_a_switch():
+def test_the_switches_are_where_the_run_is_decided():
     by = {p[1]: p[3] for p in schema.PANELS}
     assert by['Overview'] is None and by['Grid'] is None
-    assert by['Surface'] == 'run.surface'
-    assert by['Model'] == 'run.model'
+    assert by['Surface and driving forces'] == 'run.surface'
     assert by['Plots'] == 'run.plot'
+    # Nothing on the calibration panel changes a flux, so it has no switch.
+    assert by['State variables (calibration)'] is None
+    # ONE switch on TWO panels: MMsoil is stepped from inside the MODFLOW
+    # time loop, so there is no running one without the other, and a panel
+    # that could turn off half of it would be lying.
+    assert by['Soil'] == 'run.model'
+    assert by['Unsaturated zone and groundwater'] == 'run.model'
 
 
 def test_every_panel_section_exists_in_the_schema(cfg):
@@ -91,10 +99,42 @@ def test_every_configuration_section_is_reachable(cfg):
 def test_panel_of_finds_the_right_panel():
     assert schema.panel_of('grid') == 1
     assert schema.panel_of('surface') == 2
-    assert schema.panel_of('sfr') == 3
-    assert schema.panel_of('postproc') == 4
+    assert schema.panel_of('soil') == 3
+    assert schema.panel_of('sfr') == 4
+    assert schema.panel_of('obs') == 5
+    assert schema.panel_of('postproc') == 6
     assert schema.panel_of('nowhere') is None
 
+
+
+def test_the_state_variables_are_the_four_the_model_produces():
+    """Groundwater levels, soil moisture, actual evapotranspiration and
+    surface runoff. The fourth was not asked for at all before the split,
+    although the model computes it."""
+    titles = [g[0] for g in schema.OBS_GROUPS]
+    assert titles == ['Groundwater levels', 'Soil moisture',
+                      'Actual evapotranspiration', 'Surface runoff']
+
+
+def test_every_state_variable_names_a_field_that_exists(cfg):
+    have = dict(schema.fields_of(cfg, 'obs'))
+    for _title, dotted, _note in schema.OBS_GROUPS:
+        assert dotted in have, '%s names a missing field' % dotted
+    for dotted in schema.OBS_COMMON:
+        assert dotted in have, '%s names a missing field' % dotted
+
+
+def test_the_observation_fields_are_all_on_the_panel(cfg):
+    """A prefix shown nowhere is a series nobody can point at."""
+    laid = set(schema.OBS_COMMON) | {g[1] for g in schema.OBS_GROUPS}
+    have = set(dict(schema.fields_of(cfg, 'obs')))
+    assert have == laid, 'unplaced: %s' % sorted(have - laid)
+
+
+def test_actual_evapotranspiration_starts_empty(cfg):
+    """La Mata has none, and a blank prefix is an ANSWER -- not measured
+    here -- rather than an omission."""
+    assert cfg.obs.aet_prefix == ''
 
 # ---------------------------------------------------------------- fields
 

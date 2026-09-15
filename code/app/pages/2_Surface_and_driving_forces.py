@@ -31,7 +31,7 @@ import marmites_surface as msurf            # noqa: E402
 import mm_paths                             # noqa: E402
 from lib import panelui, schema             # noqa: E402
 
-st.set_page_config(page_title='2 Surface', page_icon='🌦️', layout='wide')
+st.set_page_config(page_title='2 Surface and driving forces', page_icon='🌦️', layout='wide')
 case = st.session_state.get('case', 'LaMata')
 cfg, path = panelui.pick_config()
 ds = panelui.dataset_banner(cfg)

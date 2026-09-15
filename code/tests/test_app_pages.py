@@ -23,9 +23,16 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 CODE = os.path.abspath(os.path.join(HERE, '..'))
 APP = os.path.join(CODE, 'app')
 
+SURF = 'pages/2_Surface_and_driving_forces.py'
+SOIL = 'pages/3_Soil.py'
+SUB = 'pages/4_Unsaturated_zone_and_groundwater.py'
+OBS = 'pages/5_State_variables.py'
+PLOT = 'pages/6_Plots.py'
+
 PAGES = ['Home.py'] + [os.path.join('pages', f) for f in (
-    '1_Grid.py', '2_Surface.py', '3_Model.py', '4_Plots.py',
-    '5_Run.py', '6_Results.py')]
+    '1_Grid.py', '2_Surface_and_driving_forces.py', '3_Soil.py',
+    '4_Unsaturated_zone_and_groundwater.py', '5_State_variables.py',
+    '6_Plots.py', '7_Run.py', '8_Results.py')]
 
 
 @pytest.mark.parametrize('page', PAGES)
@@ -43,14 +50,17 @@ def test_the_panels_are_numbered_in_the_modellers_order():
     """The sidebar order is the file order, so it is the panel order."""
     names = sorted(f for f in os.listdir(os.path.join(APP, 'pages'))
                    if f.endswith('.py') and not f.startswith('_'))
-    assert names == ['1_Grid.py', '2_Surface.py', '3_Model.py', '4_Plots.py',
-                     '5_Run.py', '6_Results.py']
+    assert names == ['1_Grid.py', '2_Surface_and_driving_forces.py',
+                     '3_Soil.py',
+                     '4_Unsaturated_zone_and_groundwater.py',
+                     '5_State_variables.py', '6_Plots.py', '7_Run.py',
+                     '8_Results.py']
 
 
 def test_the_panels_offer_something_to_edit():
     """A panel with no widgets is a panel that cannot do its job."""
-    for page, least in (('pages/1_Grid.py', 8), ('pages/2_Surface.py', 6),
-                        ('pages/3_Model.py', 20), ('pages/4_Plots.py', 6)):
+    for page, least in (('pages/1_Grid.py', 8), (SURF, 6), (SOIL, 6),
+                        (SUB, 14), (OBS, 5), (PLOT, 6)):
         at = AppTest.from_file(os.path.join(APP, page), default_timeout=180)
         at.run()
         n = (len(at.text_input) + len(at.number_input) + len(at.checkbox)
@@ -60,7 +70,7 @@ def test_the_panels_offer_something_to_edit():
 
 def test_the_master_switches_are_on_their_panels():
     """Surface, Model and Plots each carry their group's on/off."""
-    for page in ('pages/2_Surface.py', 'pages/3_Model.py', 'pages/4_Plots.py'):
+    for page in (SURF, SOIL, SUB, PLOT):
         at = AppTest.from_file(os.path.join(APP, page), default_timeout=180)
         at.run()
         keys = [t.key for t in at.toggle]
@@ -383,7 +393,7 @@ def test_panel_two_names_its_folder_and_offers_the_dialog():
     """The folder was a caption stating a path that could not be changed --
     fine until the records are somewhere else. And a record is a file on this
     machine, so it is chosen, not typed correctly."""
-    at = AppTest.from_file(os.path.join(APP, 'pages', '2_Surface.py'),
+    at = AppTest.from_file(os.path.join(APP, SURF),
                            default_timeout=180)
     at.run()
     assert not at.exception, [str(e.value) for e in at.exception]
@@ -398,13 +408,13 @@ def test_panel_two_names_its_folder_and_offers_the_dialog():
 def test_the_mmsurf_figures_moved_to_the_plots_panel():
     """A plotting choice, asked with the rest of them rather than among the
     records that feed the run."""
-    two = AppTest.from_file(os.path.join(APP, 'pages', '2_Surface.py'),
+    two = AppTest.from_file(os.path.join(APP, SURF),
                             default_timeout=180)
     two.run()
     assert 'surface.plot' not in _keys(two), \
         'the MMsurf figures are still on panel 2'
 
-    four = AppTest.from_file(os.path.join(APP, 'pages', '4_Plots.py'),
+    four = AppTest.from_file(os.path.join(APP, PLOT),
                              default_timeout=180)
     four.run()
     assert not four.exception, [str(e.value) for e in four.exception]
@@ -417,7 +427,7 @@ def test_the_records_are_stated_under_the_table_that_reads_them():
     nothing about what they are for. Under the table that reads them it is
     one answer -- and it follows the BOXES, since a green light against the
     file named before the last edit is worse than no light at all."""
-    at = AppTest.from_file(os.path.join(APP, 'pages', '2_Surface.py'),
+    at = AppTest.from_file(os.path.join(APP, SURF),
                            default_timeout=180)
     at.run()
 
@@ -443,7 +453,7 @@ def _producer(at, dotted, want):
 def test_a_source_set_to_a_layer_offers_the_gis_dialog():
     """A layer is a shapefile in the cartography folder, so it is chosen the
     way every other shapefile on these panels is chosen."""
-    at = AppTest.from_file(os.path.join(APP, 'pages', '2_Surface.py'),
+    at = AppTest.from_file(os.path.join(APP, SURF),
                            default_timeout=180)
     at.run()
     for dotted in ('surface.meteo_zones', 'surface.irr_zones'):
@@ -458,7 +468,7 @@ def test_a_source_set_to_a_layer_offers_the_gis_dialog():
 def test_a_zone_set_to_a_value_is_a_count():
     """1.0 zones is not a thing, and a box that offers decimals invites
     one."""
-    at = AppTest.from_file(os.path.join(APP, 'pages', '2_Surface.py'),
+    at = AppTest.from_file(os.path.join(APP, SURF),
                            default_timeout=180)
     at.run()
     for dotted in ('surface.meteo_zones', 'surface.irr_zones'):
@@ -482,13 +492,15 @@ def test_a_measurement_is_still_a_measurement():
     from lib import schema as sch
 
     assert 'soil.thickness' not in sch.INTEGER_VALUE
-    at = AppTest.from_file(os.path.join(APP, 'pages', '3_Model.py'),
-                           default_timeout=180)
+    # The fractional source values live on the SUBSURFACE panel now -- the
+    # channel width, the streambed -- so that is where the rule is checked
+    # not to have reached them.
+    at = AppTest.from_file(os.path.join(APP, SUB), default_timeout=180)
     at.run()
     vals = [n.value for n in at.number_input
             if n.key and n.key.endswith('.__v')]
     assert any(isinstance(v, float) and v != int(v) for v in vals), \
-        'panel 3 lost its fractional source values'
+        'the subsurface panel lost its fractional source values'
 
 
 def test_every_producer_that_names_a_file_offers_the_dialog():
@@ -496,7 +508,7 @@ def test_every_producer_that_names_a_file_offers_the_dialog():
     shapefile in the cartography folder and a raster is a file in the
     dataset, so both are chosen rather than typed correctly. A column names
     an attribute and a value is a number, so neither is."""
-    at = AppTest.from_file(os.path.join(APP, 'pages', '3_Model.py'),
+    at = AppTest.from_file(os.path.join(APP, SOIL),
                            default_timeout=180)
     at.run()
     keys = {b.key for b in at.button if b.key}
@@ -506,22 +518,26 @@ def test_every_producer_that_names_a_file_offers_the_dialog():
         keys = {b.key for b in at.button if b.key}
         assert dotted + '.__v.__pick' in keys, (
             '%s as a %s has no ... button' % (dotted, want))
-    # A column is not a file. Asked of a ParamSource, since a VectorSource
-    # no longer offers column as a producer at all -- there it is an
-    # attribute of the layer and is drawn under it.
-    [s for s in at.selectbox
-     if s.key == 'sfr.width.__producer'][0].set_value('column').run()
-    assert 'sfr.width.__v.__pick' not in {b.key for b in at.button}, (
-        'a column name is being chosen from the filesystem')
-    # ... and a value is not one either
+    # ... and a value is not a file
     [s for s in at.selectbox
      if s.key == 'soil.thickness.__producer'][0].set_value('value').run()
     assert 'soil.thickness.__v.__pick' not in {b.key for b in at.button}, (
         'a number is being chosen from the filesystem')
 
+    # A column is not a file either. Asked of a ParamSource, which lives on
+    # the subsurface panel, since a VectorSource no longer offers column as a
+    # producer at all -- there it is an attribute of the layer, drawn under
+    # it.
+    sub = AppTest.from_file(os.path.join(APP, SUB), default_timeout=180)
+    sub.run()
+    [s for s in sub.selectbox
+     if s.key == 'sfr.width.__producer'][0].set_value('column').run()
+    assert 'sfr.width.__v.__pick' not in {b.key for b in sub.button}, (
+        'a column name is being chosen from the filesystem')
+
 
 def test_the_soil_parameter_file_is_chosen_too():
-    at = AppTest.from_file(os.path.join(APP, 'pages', '3_Model.py'),
+    at = AppTest.from_file(os.path.join(APP, SOIL),
                            default_timeout=180)
     at.run()
     assert 'soil.params.__pick' in {b.key for b in at.button if b.key}
@@ -552,7 +568,7 @@ def test_irrigation_off_makes_its_fields_read_only():
     statement about the run, not about the answers."""
     gated = ('surface.irr_zones', 'surface.nfield', 'surface.irr_ts',
              'surface.crop_schedule')
-    at = AppTest.from_file(os.path.join(APP, 'pages', '2_Surface.py'),
+    at = AppTest.from_file(os.path.join(APP, SURF),
                            default_timeout=180)
     at.run()
 
@@ -587,7 +603,7 @@ def test_irrigation_off_makes_its_fields_read_only():
 def test_the_irrigation_fields_come_back_with_their_values():
     """Emptying them on an unticked box would mean typing them again on the
     next tick."""
-    at = AppTest.from_file(os.path.join(APP, 'pages', '2_Surface.py'),
+    at = AppTest.from_file(os.path.join(APP, SURF),
                            default_timeout=180)
     at.run()
     before = [x.value for x in at.text_input if x.key == 'surface.irr_ts'][0]
@@ -603,7 +619,7 @@ def test_a_column_is_an_attribute_of_a_layer_not_an_alternative_to_one():
     """VectorSource.producer() never returns `column`, so offering it as a
     choice set the column, cleared the layer, and left a source producing
     nothing. It belongs under the layer it qualifies."""
-    at = AppTest.from_file(os.path.join(APP, 'pages', '3_Model.py'),
+    at = AppTest.from_file(os.path.join(APP, SOIL),
                            default_timeout=180)
     at.run()
     box = [s for s in at.selectbox if s.key == 'soil.zones.__producer'][0]
@@ -631,8 +647,7 @@ def test_a_column_is_an_attribute_of_a_layer_not_an_alternative_to_one():
 def test_a_param_source_keeps_column_as_a_producer():
     """There it means a column of the SFR source layer, and producer() does
     return it -- the rule is about what the class means, not about the word."""
-    at = AppTest.from_file(os.path.join(APP, 'pages', '3_Model.py'),
-                           default_timeout=180)
+    at = AppTest.from_file(os.path.join(APP, SUB), default_timeout=180)
     at.run()
     box = [s for s in at.selectbox if s.key == 'sfr.width.__producer']
     assert box, 'sfr.width is not a source any more'
@@ -646,7 +661,7 @@ def test_the_attribute_column_is_chosen_from_the_layer():
     """The names are IN the file, so asking someone to remember GRID_CODE
     against GRIDCODE is asking them to make a mistake the panel could have
     prevented."""
-    at = AppTest.from_file(os.path.join(APP, 'pages', '3_Model.py'),
+    at = AppTest.from_file(os.path.join(APP, SOIL),
                            default_timeout=180)
     at.run()
     box = [s for s in at.selectbox if s.key == 'soil.zones.__col']
@@ -661,7 +676,7 @@ def test_the_attribute_column_is_chosen_from_the_layer():
 def test_a_layer_with_no_attributes_falls_back_to_a_box():
     """A name typed for a file still to be exported should not be thrown
     away, and a picker with nothing in it is worse than a box."""
-    at = AppTest.from_file(os.path.join(APP, 'pages', '3_Model.py'),
+    at = AppTest.from_file(os.path.join(APP, SOIL),
                            default_timeout=180)
     at.run()
     [x for x in at.text_input
@@ -675,7 +690,7 @@ def test_a_layer_with_no_attributes_falls_back_to_a_box():
 def test_the_overlay_rule_sits_beside_the_column():
     """Both are properties OF the layer named above them, and both are read
     off that layer's own header."""
-    at = AppTest.from_file(os.path.join(APP, 'pages', '3_Model.py'),
+    at = AppTest.from_file(os.path.join(APP, SOIL),
                            default_timeout=180)
     at.run()
     how = [s for s in at.selectbox if s.key == 'soil.zones.__how']
@@ -690,7 +705,7 @@ def test_the_overlay_rule_sits_beside_the_column():
 def test_the_vegetation_class_column_is_a_list_too():
     """It is a plain string field rather than part of a source, but it is
     the same question -- an attribute OF the layer beside it."""
-    at = AppTest.from_file(os.path.join(APP, 'pages', '3_Model.py'),
+    at = AppTest.from_file(os.path.join(APP, SOIL),
                            default_timeout=180)
     at.run()
     col = [s for s in at.selectbox if s.key == 'soil.veg_column']
@@ -939,7 +954,7 @@ def test_the_cartography_box_is_on_the_panel_that_uses_it():
     belong to panel 3, and so does the button for them."""
     one = open(os.path.join(APP, 'pages', '1_Grid.py'),
                encoding='utf-8').read()
-    three = open(os.path.join(APP, 'pages', '3_Model.py'),
+    three = open(os.path.join(APP, SOIL),
                  encoding='utf-8').read()
     assert 'conv_run' not in one, 'panel 1 has a converter button again'
     assert 'conv_run' in three, 'panel 3 has lost the converter button'

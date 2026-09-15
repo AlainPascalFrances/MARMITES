@@ -344,8 +344,8 @@ class Run:
     # belonged to the Picard loop that Phase 1 removed. ``model`` exists so
     # MMsurf can be run on its own to produce the forcing and nothing else.
     surface: bool = False          # panel 2: run MMsurf       (was MARMsurf_yn)
-    model: bool = True             # panel 3: MMsoil + MODFLOW 6, together
-    plot: bool = True              # panel 4: figures
+    model: bool = True             # panels 3 and 4: MMsoil + MODFLOW 6
+    plot: bool = True              # panel 6: figures
     mode: str = 'lagged'           # lagged | iterative        (--mode)
     relax: float = 0.6             #                           (--relax)
     nsp: int = 0                   # 0 = all stress periods    (--nsp)
@@ -924,6 +924,12 @@ class Observations:
     name_column: str = 'Name'
     heads_prefix: str = 'inputObsHEADS'
     sm_prefix: str = 'inputObsSM'
+    # Measured ACTUAL evapotranspiration -- an eddy tower, a lysimeter, a
+    # remote-sensing product. Blank on La Mata, which has none; it is here
+    # because the calibration panel asks for the four state variables the
+    # model produces, and a missing one should be an empty box rather than a
+    # variable nobody can compare against.
+    aet_prefix: str = ''
     ro_prefix: str = 'inputObsRo'
 
 

@@ -79,18 +79,37 @@ def header(number):
 
 
 def master_switch(cfg, switch):
-    """The group's on/off, as the RUN key the driver actually reads."""
+    """The group's on/off, as the RUN key the driver actually reads.
+
+    ONE switch can appear on more than one panel -- ``run.model`` is the soil
+    water balance and MODFLOW together, which are no longer separable -- and
+    then the two have to agree. A widget's own state does not survive moving
+    to another page, so the value is kept under a plain session key as well,
+    and that is what the next panel starts from. Saving on either writes the
+    same field, so they cannot drift.
+    """
     if switch is None:
         return None
     section, key = switch.split('.')
     label, _u, help_ = schema.describe(switch)
-    cur = bool(getattr(getattr(cfg, section), key))
-    val = st.toggle('**%s**' % label, value=cur, help=help_, key='sw_%s' % switch)
-    if val != cur:
+    saved = bool(getattr(getattr(cfg, section), key))
+    live_key = 'live_%s' % switch
+    cur = bool(st.session_state.get(live_key, saved))
+    val = st.toggle('**%s**' % label, value=cur, help=help_,
+                    key='sw_%s' % switch)
+    st.session_state[live_key] = bool(val)
+    if val != saved:
         st.caption('changed — press *Validate & save* below to keep it')
     if not val:
         st.info('This group is OFF. The panel still edits its settings; the '
                 'run simply will not execute it.')
+    sharing = [p for p in schema.PANELS if p[3] == switch]
+    if len(sharing) > 1:
+        st.caption('One switch for panel%s %s — they run, or do not run, '
+                   'together.'
+                   % ('s' if len(sharing) > 1 else '',
+                      ' and '.join('**%d %s**' % (p[0], p[1])
+                                   for p in sharing)))
     return {switch: val}
 
 
