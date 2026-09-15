@@ -539,6 +539,59 @@ def test_a_file_below_the_folder_keeps_its_relative_path():
         'a stored path must use / so it reads the same on either platform')
 
 
+def test_irrigation_off_makes_its_fields_read_only():
+    """A panel must not be left saying something the run will not do. The
+    fields are SHOWN and greyed, not cleared: a switch that is off is a
+    statement about the run, not about the answers."""
+    gated = ('surface.irr_zones', 'surface.nfield', 'surface.irr_ts',
+             'surface.crop_schedule')
+    at = AppTest.from_file(os.path.join(APP, 'pages', '2_Surface.py'),
+                           default_timeout=180)
+    at.run()
+
+    def boxes():
+        return dict((w.key, w) for w in
+                    (list(at.text_input) + list(at.number_input)
+                     + list(at.checkbox) + list(at.selectbox)) if w.key)
+
+    was = boxes()
+    assert 'surface.irr_ts' in was, 'the series is not live with irrigation on'
+    before = was['surface.irr_ts'].value
+
+    [c for c in at.checkbox if c.key == 'surface.irrigation'][0] \
+        .uncheck().run()
+    now = boxes()
+    for dotted in gated:
+        ro = now.get('ro_' + dotted)
+        assert ro is not None, '%s vanished instead of greying' % dotted
+        assert ro.disabled, '%s is still editable' % dotted
+        assert not any(k == dotted or k.startswith(dotted + '.')
+                       for k in now), '%s is still live' % dotted
+    assert str(before) in str(now['ro_surface.irr_ts'].value), (
+        'the greyed field forgot what it held')
+    assert not [b for b in at.button
+                if b.key == 'surface.irr_ts.__pick'], (
+        'a read-only field still offers the file dialog')
+
+    # ... and the meteorology is untouched by any of it
+    assert 'surface.meteo_ts' in now and not now['surface.meteo_ts'].disabled
+
+
+def test_the_irrigation_fields_come_back_with_their_values():
+    """Emptying them on an unticked box would mean typing them again on the
+    next tick."""
+    at = AppTest.from_file(os.path.join(APP, 'pages', '2_Surface.py'),
+                           default_timeout=180)
+    at.run()
+    before = [x.value for x in at.text_input if x.key == 'surface.irr_ts'][0]
+    [c for c in at.checkbox if c.key == 'surface.irrigation'][0] \
+        .uncheck().run()
+    [c for c in at.checkbox if c.key == 'surface.irrigation'][0] \
+        .check().run()
+    after = [x.value for x in at.text_input if x.key == 'surface.irr_ts']
+    assert after and after[0] == before, 'the series was lost on the way'
+
+
 def test_panel_zero_sets_the_machine_paths():
     """They used to be read-only in the sidebar, under a caption telling the
     modeller to go and edit code/mm_paths.py. A path is not source code."""

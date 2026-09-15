@@ -51,7 +51,8 @@ with tab_par:
     # down the right, each in the order it is filled in.
     edited.update(panelui.rows_form(
         cfg, schema.SURFACE_ROWS, 'surface', columns=2, folder=in_ws,
-        files=schema.SURFACE_FILES, patterns=schema.SURFACE_PATTERNS))
+        files=schema.SURFACE_FILES, patterns=schema.SURFACE_PATTERNS,
+        gated=schema.SURFACE_GATED))
 
     panelui.save_button(cfg, path, edited)
 

@@ -37,6 +37,7 @@ __all__ = ['PANELS', 'FIELDS', 'TABLES', 'CHOICES', 'SUBPANELS', 'panel_of',
            'GRID_NEEDS_LAYER', 'GRID_NOTES', 'grid_fields',
            'SURFACE_ROWS',
            'SURFACE_FILES', 'SURFACE_PATTERNS', 'SURFACE_ON_PLOTS',
+           'SURFACE_GATED',
            'SURFACE_TABLE_FILES', 'INTEGER_VALUE',
            'SOIL_ROWS', 'SOIL_VEG_ROWS', 'SOIL_FILES',
            'SOIL_DATASET_FILES',
@@ -583,6 +584,17 @@ SURFACE_ROWS = (
     (None, 'surface.irr_ts'),
     (None, 'surface.crop_schedule'),
 )
+
+
+# Greyed while their switch is off, like the grid sub-panels -- but SHOWING
+# what they hold, not cleared. Panel 1 clears a switched-off field because
+# what it holds is derived and would be recomputed anyway (D4); these are
+# FILENAMES somebody typed or picked, and emptying them on an unticked box
+# would mean typing them again on the next tick.
+SURFACE_GATED = {
+    'surface.irrigation': ('surface.irr_zones', 'surface.nfield',
+                           'surface.irr_ts', 'surface.crop_schedule'),
+}
 
 # The ones that name a FILE on this machine, so the panel offers the system
 # dialog beside them instead of a name to be typed correctly.

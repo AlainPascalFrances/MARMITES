@@ -32,7 +32,7 @@ __all__ = ['pick_config', 'header', 'master_switch', 'section_form',
            'gis_folder_box', 'layer_picker', 'resolve_layer', 'folder_picker',
            'table_form', 'save_button', 'park', 'live',
            'surface_folder_box', 'file_picker', 'path_box',
-           'rows_form',
+           'rows_form', 'read_only',
            'record_lines',
            'CONFIG_DIR']
 
@@ -369,22 +369,65 @@ def file_picker(dotted, value, folder, pattern=False):
                     help_='`%s`  \n%s' % (dotted, help_), pattern=pattern)
 
 
+def read_only(dotted, value):
+    """One field, shown as it stands and not editable.
+
+    SHOWN, not hidden and not cleared: a switch that is off is a statement
+    about the RUN, not about the answers, and a modeller turning irrigation
+    back on should find the series still named. It returns nothing, so a save
+    leaves the field exactly as the file has it.
+    """
+    label, units, help_ = schema.describe(dotted)
+    shown = '%s [%s]' % (label, units) if units else label
+    hint = '`%s`  \n%s' % (dotted, help_)
+    if schema.is_source(value):
+        which = value.producer() or 'value'
+        st.markdown('**%s**' % shown, help=hint)
+        st.text_input(shown, value='%s: %s' % (which,
+                                               getattr(value, which, '')),
+                      disabled=True, key='ro_%s' % dotted,
+                      label_visibility='collapsed')
+    elif isinstance(value, bool):
+        st.checkbox(shown, value=value, disabled=True, help=hint,
+                    key='ro_%s' % dotted)
+    elif isinstance(value, (int, float)):
+        st.number_input(shown, value=value, disabled=True, help=hint,
+                        key='ro_%s' % dotted)
+    else:
+        st.text_input(shown, value=str(value or ''), disabled=True,
+                      help=hint, key='ro_%s' % dotted)
+
+
 def rows_form(cfg, rows, section, columns=2, folder=None, files=(),
-              patterns=()):
+              patterns=(), gated=None):
     """A section laid out ROW BY ROW, as written, rather than in field order.
 
     The order a dataclass happens to declare its fields in is not the order a
     modeller fills them in, and a round-robin across columns puts unrelated
     answers side by side. Fields named in ``files`` get the system dialog.
+
+    ``gated`` maps a switch to the fields it controls: with the switch off
+    they are drawn READ-ONLY rather than live, so a panel cannot be left
+    saying something the run will not do.
     """
     values = dict(schema.fields_of(cfg, section))
     edited = {}
+    off = set()
+    for switch, dependents in (gated or {}).items():
+        # Read live, so the fields grey on the same run the box is unticked.
+        # Every switch here is drawn BEFORE what it controls, which is the
+        # layout's job to keep true.
+        if not live(switch, values.get(switch, True)):
+            off.update(dependents)
     for row in rows:
         cols = st.columns(max(columns, len(row)))
         for k, dotted in enumerate(row):
             if dotted is None or dotted not in values:
                 continue          # an empty cell, so the column keeps place
             with cols[k]:
+                if dotted in off:
+                    read_only(dotted, values[dotted])
+                    continue
                 if dotted in files:
                     got = file_picker(dotted, values[dotted], folder,
                                       pattern=dotted in patterns)
