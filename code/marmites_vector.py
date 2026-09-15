@@ -44,7 +44,7 @@ __all__ = ['VectorError', 'OVERLAY_MODES', 'Layer', 'TargetGrid',
            'overlay_polygons', 'burn_lines', 'locate_points',
            'coverage_report', 'write_geojson', 'find_shapefiles',
            'check_polygon_layer', 'find_rasters', 'check_raster',
-           'layer_fields']
+           'layer_fields', 'layer_kind', 'overlay_modes_for']
 
 # 'majority'      the class covering the largest area of the cell
 # 'area_fraction' percentage of the cell covered, 0..100  (what VEGarea wants)
@@ -824,6 +824,59 @@ def layer_fields(path):
         if name:
             out.append(name)
     return out
+
+
+def layer_kind(path):
+    """``'point'``, ``'line'``, ``'polygon'`` or ``''``, from the header.
+
+    A shapefile states its geometry in byte 32 of the 100-byte .shp header,
+    so which overlay modes apply can be answered without opening the layer --
+    the same bargain as :func:`layer_fields`. A GeoJSON is read for the
+    geometry of its first feature.
+    """
+    path = str(path or '')
+    if not path:
+        return ''
+    if path.lower().endswith(('.geojson', '.json')):
+        import json
+        try:
+            with open(path, encoding='utf-8') as fh:
+                doc = json.load(fh)
+        except (OSError, ValueError):
+            return ''
+        for feat in (doc.get('features') or []):
+            gt = ((feat.get('geometry') or {}).get('type') or '').lower()
+            if 'polygon' in gt:
+                return 'polygon'
+            if 'linestring' in gt:
+                return 'line'
+            if 'point' in gt:
+                return 'point'
+        return ''
+    try:
+        with open(path, 'rb') as fh:
+            head = fh.read(36)
+    except OSError:
+        return ''
+    if len(head) < 36:
+        return ''
+    return _KIND.get(int.from_bytes(head[32:36], 'little'), '')
+
+
+def overlay_modes_for(kind):
+    """The modes that mean anything for that geometry, 'auto' first.
+
+    Offering `length` for a polygon or `area_mean` for a line is offering a
+    setting that cannot work -- the point of asking by geometry rather than
+    listing everything.
+    """
+    if kind == 'line':
+        return ('auto',) + LINE_MODES
+    if kind == 'point':
+        return ('auto', 'presence')
+    if kind == 'polygon':
+        return ('auto',) + OVERLAY_MODES
+    return ('auto',) + OVERLAY_MODES + LINE_MODES
 
 
 def find_shapefiles(folder, depth=1):

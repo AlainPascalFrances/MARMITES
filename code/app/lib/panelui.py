@@ -32,7 +32,7 @@ __all__ = ['pick_config', 'header', 'master_switch', 'section_form',
            'gis_folder_box', 'layer_picker', 'resolve_layer', 'folder_picker',
            'table_form', 'save_button', 'park', 'live',
            'surface_folder_box', 'file_picker', 'path_box',
-           'rows_form', 'read_only',
+           'rows_form', 'read_only', 'column_box', 'how_box',
            'record_lines',
            'CONFIG_DIR']
 
@@ -187,7 +187,54 @@ def label_of(dotted):
     return '%s [%s]' % (label, units) if units else label
 
 
-def _column_box(dotted, src, key, layer_name):
+def how_box(dotted, current, key, layer_name):
+    """How the layer's values are carried onto a cell.
+
+    The modes that apply depend on the GEOMETRY -- `length` means nothing for
+    a polygon and `area_mean` nothing for a line -- so the list is built from
+    the layer's own header rather than offering everything and letting the
+    run refuse it. `auto` is the default and picks by kind.
+    """
+    from marmites_vector import layer_kind, overlay_modes_for
+
+    try:
+        kind = layer_kind(resolve_layer(str(layer_name or '')))
+    except Exception:                       # never break the panel for this
+        kind = ''
+    modes = list(overlay_modes_for(kind))
+    cur = str(current or 'auto')
+    if cur not in modes:
+        modes.append(cur)
+    st.caption('Overlay rule%s' % (' (%s layer)' % kind if kind else ''))
+    return st.selectbox(
+        'Overlay rule', modes, index=modes.index(cur),
+        key=key + '.__how', label_visibility='collapsed',
+        help='`%s.how`  \nHow a cell takes its value from the features that '
+             'touch it. auto picks by geometry: majority for a polygon class '
+             'map, longest for a line. majority is the class covering most '
+             'of the cell, area_fraction the percentage covered, area_mean '
+             'the area-weighted mean of the column, presence 1 where '
+             'anything touches. For lines, longest is the feature with most '
+             'length in the cell and length the metres of it.' % dotted)
+
+
+def _layer_modifiers(dotted, src, key, layer_name):
+    """The column and the overlay rule, side by side under their layer.
+
+    Both are properties OF the layer named above them, not alternatives to
+    it, and both are read off that layer's own header.
+    """
+    c1, c2 = st.columns(2)
+    with c1:
+        col = column_box(dotted, src.column, key + '.__col',
+                         layer_name)
+    with c2:
+        how = how_box(dotted, getattr(src, 'how', 'auto'), key, layer_name) \
+            if hasattr(src, 'how') else None
+    return col, how
+
+
+def column_box(dotted, current, widget_key, layer_name):
     """The attribute column, chosen from what the shapefile actually carries.
 
     A LIST, not a box to type into: the names are in the file, so asking
@@ -204,7 +251,7 @@ def _column_box(dotted, src, key, layer_name):
     hint = ('`%s.column`  \nThe attribute of that layer carrying the value. '
             'None uses the layer\'s own geometry -- a zone per polygon, in '
             'file order.' % dotted)
-    cur = str(src.column or '')
+    cur = str(current or '')
     try:
         fields = layer_fields(resolve_layer(str(layer_name or '')))
     except Exception:                       # never break the panel for this
@@ -212,7 +259,7 @@ def _column_box(dotted, src, key, layer_name):
     st.caption('Attribute column')
     if not fields:
         return st.text_input('Attribute column', value=cur,
-                             key=key + '.__col', help=hint,
+                             key=widget_key, help=hint,
                              label_visibility='collapsed')
     # A column the file no longer has is SHOWN rather than dropped: it is
     # what the configuration says, and silently replacing it with the first
@@ -220,7 +267,7 @@ def _column_box(dotted, src, key, layer_name):
     options = [NONE] + fields + ([cur] if cur and cur not in fields else [])
     pick = st.selectbox('Attribute column', options,
                         index=options.index(cur) if cur in options else 0,
-                        key=key + '.__col', help=hint,
+                        key=widget_key, help=hint,
                         label_visibility='collapsed')
     if cur and cur not in fields:
         st.caption('⚠️ `%s` is not an attribute of that layer.' % cur)
@@ -256,7 +303,7 @@ def _source_widget(dotted, src, shown, help_full, key):
     if which == 'drainage':
         st.caption('`%s` — edit in the TOML tab' % (val or {}))
         return {}
-    col = None
+    col = how = None
     folder = _producer_folder(which)
     if folder is not None:
         # It names a FILE -- a shapefile in the cartography folder, a raster
@@ -277,7 +324,7 @@ def _source_widget(dotted, src, shown, help_full, key):
         out = st.text_input('value', value=str(val or ''), key=key + '.__v',
                             label_visibility='collapsed')
     if layered and which == 'layer':
-        col = _column_box(dotted, src, key, out)
+        col, how = _layer_modifiers(dotted, src, key, out)
 
     # Only the chosen producer is written; the others are cleared, so the
     # precedence raster > layer > value cannot be decided by a leftover.
@@ -297,6 +344,8 @@ def _source_widget(dotted, src, shown, help_full, key):
         # Written only with the layer it qualifies; cleared with it, or a
         # column left behind would describe a layer that is no longer named.
         edits['%s.column' % dotted] = col if which == 'layer' else ''
+        if how is not None:
+            edits['%s.how' % dotted] = how
     return edits
 
 
@@ -483,6 +532,15 @@ def rows_form(cfg, rows, section, columns=2, folder=None, files=(),
             with cols[k]:
                 if dotted in off:
                     read_only(dotted, values[dotted])
+                    continue
+                of = schema.COLUMN_OF.get(dotted)
+                if of is not None:
+                    # A plain string field that names an ATTRIBUTE of the
+                    # layer another field names -- so it is chosen from that
+                    # layer, exactly as a source's column is.
+                    edited[dotted] = column_box(
+                        dotted, values[dotted], dotted,
+                        live(of, values.get(of, '')))
                     continue
                 if dotted in files:
                     got = file_picker(dotted, values[dotted], folder,

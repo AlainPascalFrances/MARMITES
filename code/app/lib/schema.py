@@ -40,7 +40,7 @@ __all__ = ['PANELS', 'FIELDS', 'TABLES', 'CHOICES', 'SUBPANELS', 'panel_of',
            'SURFACE_GATED',
            'SURFACE_TABLE_FILES', 'INTEGER_VALUE',
            'SOIL_ROWS', 'SOIL_VEG_ROWS', 'SOIL_FILES',
-           'SOIL_DATASET_FILES',
+           'SOIL_DATASET_FILES', 'COLUMN_OF',
            'PanelError']
 
 
@@ -631,6 +631,16 @@ SOIL_ROWS = (
 SOIL_VEG_ROWS = (
     ('soil.veg_layer', 'soil.veg_column'),
 )
+
+
+# A plain field that names an ATTRIBUTE of the layer another field names.
+# Not part of a VectorSource -- the vegetation cover is two strings, because
+# it is read by the converter rather than wrapped like a zone map -- but the
+# same question, so it gets the same list.
+#   the column field -> the layer field it belongs to
+COLUMN_OF = {
+    'soil.veg_column': 'soil.veg_layer',
+}
 
 # Named a shapefile, so it is chosen the way every other one is.
 SOIL_FILES = ('soil.veg_layer',)

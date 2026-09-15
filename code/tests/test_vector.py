@@ -666,3 +666,45 @@ def test_the_header_agrees_with_the_full_reader():
         assert mv.layer_fields(p) == full, p
         checked += 1
     assert checked, 'no layer could be opened to compare against'
+
+
+def test_the_geometry_comes_off_the_shp_header():
+    """Byte 32 of the 100-byte header says what the layer holds, so which
+    overlay modes apply can be answered without opening it."""
+    import mm_paths
+
+    shp = mv.find_shapefiles(str(mm_paths.GIS))
+    if not shp:
+        pytest.skip('no cartography on this machine')
+    checked = 0
+    for p in shp:
+        try:
+            full = mv.Layer(p).kind
+        except Exception:
+            continue
+        assert mv.layer_kind(p) == full, p
+        checked += 1
+    assert checked, 'no layer could be opened to compare against'
+
+
+def test_a_layer_that_is_not_there_has_no_geometry(tmp_path):
+    assert mv.layer_kind('') == ''
+    assert mv.layer_kind(os.path.join(str(tmp_path), 'nope.shp')) == ''
+    stub = os.path.join(str(tmp_path), 'short.shp')
+    io.open(stub, 'wb').write(b'\x00' * 10)
+    assert mv.layer_kind(stub) == ''
+
+
+def test_the_overlay_rules_follow_the_geometry():
+    """`length` means nothing for a polygon and `area_mean` nothing for a
+    line, so offering either is offering a setting that cannot work."""
+    poly = mv.overlay_modes_for('polygon')
+    line = mv.overlay_modes_for('line')
+    assert poly[0] == 'auto' and line[0] == 'auto'
+    assert set(poly[1:]) == set(mv.OVERLAY_MODES)
+    assert set(line[1:]) == set(mv.LINE_MODES)
+    assert 'length' not in poly and 'area_mean' not in line
+    assert mv.overlay_modes_for('point') == ('auto', 'presence')
+    # an unknown geometry offers everything rather than nothing
+    unknown = mv.overlay_modes_for('')
+    assert set(unknown) >= set(poly) | set(line)

@@ -672,6 +672,41 @@ def test_a_layer_with_no_attributes_falls_back_to_a_box():
         'the column was taken away instead of falling back to a box')
 
 
+def test_the_overlay_rule_sits_beside_the_column():
+    """Both are properties OF the layer named above them, and both are read
+    off that layer's own header."""
+    at = AppTest.from_file(os.path.join(APP, 'pages', '3_Model.py'),
+                           default_timeout=180)
+    at.run()
+    how = [s for s in at.selectbox if s.key == 'soil.zones.__how']
+    assert how, 'the overlay rule is not offered'
+    opts = list(how[0].options)
+    assert opts[0] == 'auto', 'auto is not the first choice'
+    # the zones are a polygon layer, so the polygon rules and not the line
+    # ones -- offering `length` for a polygon is offering nothing usable
+    assert 'majority' in opts and 'length' not in opts, opts
+
+
+def test_the_vegetation_class_column_is_a_list_too():
+    """It is a plain string field rather than part of a source, but it is
+    the same question -- an attribute OF the layer beside it."""
+    at = AppTest.from_file(os.path.join(APP, 'pages', '3_Model.py'),
+                           default_timeout=180)
+    at.run()
+    col = [s for s in at.selectbox if s.key == 'soil.veg_column']
+    assert col, 'the vegetation class column is still typed from memory'
+    assert col[0].value in list(col[0].options)
+    assert len(col[0].options) > 2, list(col[0].options)
+
+    # and it follows the LAYER: point that somewhere else and the list goes
+    [x for x in at.text_input
+     if x.key == 'soil.veg_layer'][0].set_value('not_here.shp').run()
+    assert not [s for s in at.selectbox if s.key == 'soil.veg_column'], (
+        'a list is offered for a layer that is not there')
+    assert [x for x in at.text_input if x.key == 'soil.veg_column'], (
+        'the column was taken away instead of falling back to a box')
+
+
 def test_panel_zero_sets_the_machine_paths():
     """They used to be read-only in the sidebar, under a caption telling the
     modeller to go and edit code/mm_paths.py. A path is not source code."""
