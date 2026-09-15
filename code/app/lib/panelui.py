@@ -333,8 +333,13 @@ def _source_widget(dotted, src, shown, help_full, key):
                        help_=help_full, collapsed=True)
     elif which == 'value' and dotted in schema.INTEGER_VALUE:
         # A zone is a NUMBER of a zone: 1.0 zones is not a thing, and a box
-        # that offers decimals invites one.
-        out = st.number_input('value', value=int(val or 0), step=1,
+        # that offers decimals invites one. Read defensively -- a file edited
+        # by hand, or by an older version of this panel, may hold a string.
+        try:
+            start = int(float(val))
+        except (TypeError, ValueError):
+            start = 0
+        out = st.number_input('value', value=start, step=1,
                               key=key + '.__v', label_visibility='collapsed')
     elif isinstance(val, float) or (val is None and which == 'value'):
         out = st.number_input('value', value=float(val if val is not None else 0.0),
@@ -346,16 +351,20 @@ def _source_widget(dotted, src, shown, help_full, key):
     if layered and which == 'layer':
         col, how = _layer_modifiers(dotted, src, key, out)
 
-    # Only the chosen producer is written; the others are cleared, so the
+    # Only the chosen producer is written; the others are CLEARED, so the
     # precedence raster > layer > value cannot be decided by a leftover.
+    #
+    # `value` is the exception, and clearing it was a bug: it was written as
+    # 0.0, which is a legitimate zone NUMBER rather than an absence, and the
+    # field's default is None -- so the editor had no type to coerce to and
+    # stored the string "0.0". It is written only when it is the producer.
+    # Leaving an old number behind is harmless: raster and layer both beat it.
     edits = {}
     for n in producers:
-        if n == 'drainage':
+        if n in ('drainage', 'value'):
             continue
-        blank = 0.0 if n == 'value' else ''
-        edits['%s.%s' % (dotted, n)] = out if n == which else blank
+        edits['%s.%s' % (dotted, n)] = out if n == which else ''
     if which == 'value':
-        edits.pop('%s.value' % dotted, None)
         # The FIELD is a float even where the box is a count, so the file
         # keeps one type and a saved 1 does not become an int on one machine
         # and a float on the next.
@@ -378,7 +387,8 @@ def section_form(cfg, section, columns=2, skip_subpanels=True, only=None):
     the ones that always apply, looking equally live.
     """
     edited = {}
-    rows = schema.fields_of(cfg, section)
+    rows = [r for r in schema.fields_of(cfg, section)
+            if r[0] not in schema.HIDDEN]
     if only is not None:
         rows = [r for r in rows if r[0].startswith(only)]
     elif skip_subpanels:

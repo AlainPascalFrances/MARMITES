@@ -1,5 +1,5 @@
 # MARMITES resolved run configuration
-# config_hash = f2b43f2c035aa65c
+# config_hash = b76a74029c6cc47e
 
 [meta]
 config_version = 1
@@ -14,13 +14,14 @@ nwt_reference = ""
 libmf6 = ""
 
 [run]
-surface = false
+surface = true
 model = true
-plot = true
+plot = false
 mode = "lagged"
 relax = 0.6
 nsp = 0
 daily = true
+perlen_max = 10
 ats = true
 build_only = false
 standalone = ""
@@ -241,6 +242,7 @@ layer = "202109MonitPts.shp"
 name_column = "Name"
 heads_prefix = "inputObsHEADS"
 sm_prefix = "inputObsSM"
+aet_prefix = ""
 ro_prefix = "inputObsRo"
 
 [layers]

@@ -32,7 +32,7 @@ if _CODE not in sys.path:
     sys.path.insert(0, _CODE)
 
 __all__ = ['PANELS', 'FIELDS', 'TABLES', 'CHOICES', 'SUBPANELS', 'panel_of',
-           'panel_name',
+           'panel_name', 'HIDDEN',
            'describe', 'fields_of', 'choices_for', 'subpanel_for', 'is_source',
            'GRID_PERMANENT', 'GRID_SUBPANEL', 'GRID_DERIVED', 'GRID_GATED',
            'GRID_NEEDS_LAYER', 'GRID_NOTES', 'grid_fields',
@@ -566,6 +566,14 @@ FIELDS = {
 # and a box that offers decimals invites one. soil.thickness is the
 # counter-example and is deliberately NOT here -- its value is metres.
 INTEGER_VALUE = ('surface.meteo_zones', 'surface.irr_zones', 'soil.zones')
+
+
+# Never OFFERED on a panel: the configuration carries it, validate() pins it,
+# and a box with one legal value is not a question -- it is an invitation to
+# get an error message. `et.gwet_in_mf` must stay false because MARMITES
+# computes ETg and applies it as a well sink; MODFLOW removing it as well
+# would take the water twice.
+HIDDEN = ('et.gwet_in_mf',)
 
 # A field whose value is one of a fixed set is a CHOICE, not free text.
 # Typing "voroni" into a text box and finding out at run time is exactly the

@@ -823,6 +823,37 @@ def test_the_save_button_key_does_not_move():
             assert 'id(' not in code, 'unstable widget key: %r' % code.strip()
 
 
+def test_saving_a_source_does_not_invent_a_value():
+    """Clearing the producers wrote value = 0.0 -- which is a legitimate zone
+    NUMBER, not an absence -- and the field's default is None, so the editor
+    had no type to coerce to and stored the string "0.0". The file then held
+    a string where a float belongs, and the count box choked on it.
+
+    Save a panel that carries a layer-source and read the file back.
+    """
+
+    tmp = _scratch_config('_sourcetest.toml')
+    try:
+        at = AppTest.from_file(os.path.join(APP, SURF), default_timeout=180)
+        at.session_state['config_file'] = os.path.basename(tmp)
+        at.run()
+        [b for b in at.button if b.key == 'save_panel'][0].click().run()
+
+        body = io.open(tmp, encoding='utf-8').read()
+        head = body.index('[surface.irr_zones]')
+        tail = body.find('\n[', head + 1)
+        block = body[head:tail if tail > 0 else len(body)]
+        for line in block.strip().splitlines():
+            key, _, raw = line.partition('=')
+            if key.strip() in ('value', 'fill'):
+                assert '"' not in raw, (
+                    '%s was written as a string: %s' % (key.strip(),
+                                                        line.strip()))
+    finally:
+        if os.path.exists(tmp):
+            os.remove(tmp)
+
+
 def test_panel_zero_sets_the_machine_paths():
     """They used to be read-only in the sidebar, under a caption telling the
     modeller to go and edit code/mm_paths.py. A path is not source code."""
