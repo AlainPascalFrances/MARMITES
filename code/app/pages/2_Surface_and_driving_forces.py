@@ -37,8 +37,7 @@ cfg, path = panelui.pick_config()
 ds = panelui.dataset_banner(cfg)
 panel = panelui.header(2)
 
-edited = {}
-edited.update(panelui.master_switch(cfg, panel[3]) or {})
+edited, save_slot = panelui.switch_and_save(cfg, panel)
 
 tab_par, tab_time, tab_tables, tab_forcing = st.tabs(
     ['Records & options', 'Time discretisation', 'Parameter tables',
@@ -143,7 +142,7 @@ with tab_forcing:
                'a 1949-day record — not a whole number of blocks — and that '
                'went unnoticed for years. It is checked now, before the run.')
 
-# The save sits below the tabs, not inside one: a button that writes what has
-# been collected SO FAR would miss every tab drawn after it, and the time
-# discretisation is drawn after the records.
-panelui.save_button(cfg, path, edited)
+# Drawn at the TOP, beside the switch, and FILLED here: it writes everything
+# the panel collected, and a panel collects it tab by tab as the tabs are
+# drawn. Calling it earlier would capture an empty dict.
+panelui.save_button(cfg, path, edited, slot=save_slot)

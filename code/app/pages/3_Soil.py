@@ -32,8 +32,7 @@ cfg, path = panelui.pick_config()
 ds = panelui.dataset_banner(cfg)
 panel = panelui.header(3)
 
-edited = {}
-edited.update(panelui.master_switch(cfg, panel[3]) or {})
+edited, save_slot = panelui.switch_and_save(cfg, panel)
 
 tab_soil, tab_veg, tab_gis = st.tabs(
     ['Soil column', 'Vegetation characteristics', 'Cartography'])
@@ -92,8 +91,6 @@ with tab_veg:
                              for k, n in enumerate(names)))
 
 
-panelui.save_button(cfg, path, edited)
-
 # ------------------------------------------------------- the cartography
 # HERE and not on panel 1, because these are the layers PANEL 3 wraps: the
 # soil zones, the vegetation cover, the observation points, the pond
@@ -133,3 +130,7 @@ with tab_gis:
         st.session_state['conv'] = _converter(False)
     if st.session_state.get('conv'):
         st.code(st.session_state['conv'], language='text')
+
+
+# Filled last, drawn first: see switch_and_save.
+panelui.save_button(cfg, path, edited, slot=save_slot)

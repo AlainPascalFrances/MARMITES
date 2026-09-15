@@ -32,7 +32,7 @@ cfg, path = panelui.pick_config()
 ds = panelui.dataset_banner(cfg)
 panel = panelui.header(5)
 
-edited = {}
+edited, save_slot = panelui.switch_and_save(cfg, panel)
 
 # ------------------------------------------------------------ the points
 st.markdown('#### The observation points')
@@ -100,4 +100,4 @@ for tab, (title, dotted, note) in zip(tabs, schema.OBS_GROUPS):
                        'variable has no measurements to be compared against.'
                        % prefix)
 
-panelui.save_button(cfg, path, edited)
+panelui.save_button(cfg, path, edited, slot=save_slot)

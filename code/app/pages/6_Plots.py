@@ -31,8 +31,7 @@ cfg, path = panelui.pick_config()
 panelui.dataset_banner(cfg)
 panel = panelui.header(6)
 
-edited = {}
-edited.update(panelui.master_switch(cfg, panel[3]) or {})
+edited, save_slot = panelui.switch_and_save(cfg, panel)
 
 MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July',
           'August', 'September', 'October', 'November', 'December']
@@ -74,10 +73,11 @@ st.info('**Open-water evaporation is drawn as a SPLIT OF RUNOFF**, not as a '
         'and the run SAYS SO rather than drawing a negative flow — expect '
         'that note on per-point panels, not on the catchment one.')
 
-panelui.save_button(cfg, path, edited)
-
 st.markdown('---')
 st.caption('Figures are written into the run folder under the workspace, and '
            'the **Results** panel shows them with a run picker. Turning this '
            'group off leaves the run itself untouched — a finished run can '
            'always be re-drawn later with `postproc.only`.')
+
+# Filled last, drawn first: see switch_and_save.
+panelui.save_button(cfg, path, edited, slot=save_slot)

@@ -31,8 +31,7 @@ cfg, path = panelui.pick_config()
 ds = panelui.dataset_banner(cfg)
 panel = panelui.header(4)
 
-edited = {}
-edited.update(panelui.master_switch(cfg, panel[3]) or {})
+edited, save_slot = panelui.switch_and_save(cfg, panel)
 
 tab_aq, tab_water = st.tabs(['Aquifer & solver', 'Streams, ponds & runoff'])
 
@@ -87,4 +86,4 @@ with tab_water:
             'from the `Eo` forcing, and reads back what was actually removed '
             'so it still appears in the water balance.')
 
-panelui.save_button(cfg, path, edited)
+panelui.save_button(cfg, path, edited, slot=save_slot)

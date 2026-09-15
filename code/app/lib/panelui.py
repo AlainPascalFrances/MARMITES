@@ -27,7 +27,8 @@ from lib import editor, schema          # noqa: E402
 
 CONFIG_DIR = os.path.join(CODE, 'configs')
 
-__all__ = ['pick_config', 'header', 'master_switch', 'section_form',
+__all__ = ['pick_config', 'header', 'master_switch', 'switch_and_save',
+           'section_form',
            'grid_form', 'grid_permanent_form', 'grid_kind_form',
            'gis_folder_box', 'layer_picker', 'resolve_layer', 'folder_picker',
            'table_form', 'save_button', 'park', 'live',
@@ -1058,24 +1059,52 @@ def table_form(cfg, dotted, singular, path, records=()):
             st.rerun()
 
 
-def save_button(cfg, path, edited, label='Validate & save'):
-    """The one way a panel writes. Validates first, and says what changed."""
-    st.markdown('---')
-    c1, c2 = st.columns([1, 3])
-    if not c1.button(label, type='primary', key='save_%s' % id(edited)):
-        return
-    try:
-        applied, digest = editor.save(cfg, path, edited)
-    except (editor.EditError, mcfg.ConfigError) as exc:
-        c2.error('NOT saved — the configuration would be invalid:\n\n%s' % exc)
-        return
-    if not applied:
-        c2.info('Nothing changed.')
-        return
-    c2.success('Saved %d change(s) — hash %s' % (len(applied), digest))
-    with c2.expander('What changed'):
-        for a in applied:
-            st.code(a, language='ini')
+def switch_and_save(cfg, panel):
+    """The group's switch and the panel's save, side by side at the TOP.
+
+    Returns ``(edited, slot)``. The save is DRAWN here and FILLED last: it
+    writes everything the panel collected, and a panel collects it tab by
+    tab as the tabs are drawn, so a button that captured the edits at this
+    point would capture an empty dict. The container reserves the place and
+    ``save_button(slot=...)`` puts the button in it once every sub-panel has
+    had its say.
+
+    One switch, one save, both where the modeller looks first -- rather than
+    a button at the foot of a page whose tabs may each be a screenful.
+    """
+    edited = {}
+    c1, c2 = st.columns([2, 3])
+    with c1:
+        edited.update(master_switch(cfg, panel[3]) or {})
+    return edited, c2.container()
+
+
+def save_button(cfg, path, edited, label='Validate & save', slot=None):
+    """The one way a panel writes. Validates first, and says what changed.
+
+    ``slot`` is a container reserved earlier -- see :func:`switch_and_save`.
+    Without one the button is drawn where it stands, under a rule.
+    """
+    box = slot if slot is not None else st.container()
+    with box:
+        if slot is None:
+            st.markdown('---')
+        c1, c2 = st.columns([1, 3])
+        if not c1.button(label, type='primary', key='save_%s' % id(edited)):
+            return
+        try:
+            applied, digest = editor.save(cfg, path, edited)
+        except (editor.EditError, mcfg.ConfigError) as exc:
+            c2.error('NOT saved — the configuration would be invalid:\n\n%s'
+                     % exc)
+            return
+        if not applied:
+            c2.info('Nothing changed.')
+            return
+        c2.success('Saved %d change(s) — hash %s' % (len(applied), digest))
+        with c2.expander('What changed'):
+            for a in applied:
+                st.code(a, language='ini')
     st.rerun()
 
 

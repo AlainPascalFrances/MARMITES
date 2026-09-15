@@ -722,16 +722,33 @@ def test_the_vegetation_class_column_is_a_list_too():
         'the column was taken away instead of falling back to a box')
 
 
-def test_the_save_collects_every_sub_panel():
-    """A save button INSIDE a tab writes what has been collected so far, and
-    misses every tab drawn after it. On the driving-forces panel the time
-    discretisation is drawn after the records, so the button has to sit below
-    the tabs -- at column 0, where the page ends."""
-    src = io.open(os.path.join(APP, SURF), encoding='utf-8').read()
-    calls = [ln for ln in src.splitlines() if 'save_button(' in ln]
-    assert len(calls) == 1, 'expected one save button, found %d' % len(calls)
-    assert calls[0].startswith('panelui.save_button('), (
-        'the save button is inside a tab: %r' % calls[0])
+def test_the_save_is_beside_the_switch_and_collects_every_sub_panel():
+    """DRAWN at the top, beside the switch, and FILLED last.
+
+    A save button that captures the edits where it is drawn would capture an
+    empty dict, since a panel collects them tab by tab as the tabs are drawn
+    -- and one drawn inside a tab misses every tab after it, which on the
+    driving-forces panel is the whole time discretisation. So every panel
+    reserves the place with switch_and_save and fills it at the end, at
+    column 0.
+    """
+    for page in (SURF, SOIL, SUB, OBS, PLOT):
+        src = io.open(os.path.join(APP, page), encoding='utf-8').read()
+        calls = [ln for ln in src.splitlines()
+                 if 'panelui.save_button(' in ln]
+        assert len(calls) == 1, '%s has %d save buttons' % (page, len(calls))
+        assert calls[0].startswith('panelui.save_button('), (
+            '%s: the save button is inside a block: %r' % (page, calls[0]))
+        assert 'slot=save_slot' in calls[0], (
+            '%s: the save is not in the slot beside the switch' % page)
+        assert 'switch_and_save(cfg, panel)' in src, (
+            '%s: no place is reserved for it' % page)
+        # ... and it is the LAST thing the page does, so every sub-panel has
+        # had its say by then.
+        body = [ln for ln in src.splitlines()
+                if ln.strip() and not ln.lstrip().startswith('#')]
+        assert body[-1] == calls[0], (
+            '%s: something is collected after the save: %r' % (page, body[-1]))
 
 
 def test_the_time_discretisation_has_a_sub_panel_of_its_own():
