@@ -1079,18 +1079,27 @@ def switch_and_save(cfg, panel):
     return edited, c2.container()
 
 
-def save_button(cfg, path, edited, label='Validate & save', slot=None):
+def save_button(cfg, path, edited, label='Validate & save', slot=None,
+                key='save_panel'):
     """The one way a panel writes. Validates first, and says what changed.
 
     ``slot`` is a container reserved earlier -- see :func:`switch_and_save`.
     Without one the button is drawn where it stands, under a rule.
+
+    ``key`` is CONSTANT, and has to be. It used to be ``'save_%s' % id(edited)``
+    -- the id of a dict built fresh on every run -- so the button was a
+    different widget each rerun: the click arrived for a key that no longer
+    existed and the new button read False. It appeared to work whenever
+    CPython happened to hand the new dict the address the old one had just
+    freed, which is most of the time and not all of it. The symptom was a
+    Validate & save that silently did nothing.
     """
     box = slot if slot is not None else st.container()
     with box:
         if slot is None:
             st.markdown('---')
         c1, c2 = st.columns([1, 3])
-        if not c1.button(label, type='primary', key='save_%s' % id(edited)):
+        if not c1.button(label, type='primary', key=key):
             return
         try:
             applied, digest = editor.save(cfg, path, edited)

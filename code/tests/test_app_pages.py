@@ -762,6 +762,67 @@ def test_the_time_discretisation_has_a_sub_panel_of_its_own():
     assert 'day(s) in the record' in said, said[:200]
 
 
+def _scratch_config(tmp_name='_savetest.toml'):
+    """A copy of the reference configuration the app can be pointed at.
+
+    In code/configs, because that is the only folder pick_config lists --
+    the app edits the file in place, so a test must not aim it at the real
+    one.
+    """
+    import shutil
+
+    ref = os.path.join(CODE, 'configs', 'lamata.toml')
+    tmp = os.path.join(CODE, 'configs', tmp_name)
+    shutil.copyfile(ref, tmp)
+    return tmp
+
+
+def test_validate_and_save_actually_writes():
+    """It did not. The button was keyed on id(edited) -- the address of a
+    dict rebuilt every run -- so it was a DIFFERENT widget on each rerun:
+    the click arrived for a key that no longer existed and the new button
+    read False. It appeared to work whenever CPython handed the new dict the
+    address the old one had just freed, which is most of the time and not
+    all of it, and the symptom was a save that silently did nothing.
+
+    So: change something, press the button, and read the FILE back.
+    """
+    tmp = _scratch_config()
+    try:
+        def says(key):
+            for line in io.open(tmp, encoding='utf-8'):
+                if line.strip().startswith(key + ' '):
+                    return line.strip()
+            return '(missing)'
+
+        assert says('model') == 'model = true', says('model')
+
+        at = AppTest.from_file(os.path.join(APP, SOIL), default_timeout=180)
+        at.session_state['config_file'] = os.path.basename(tmp)
+        at.run()
+        [t for t in at.toggle if t.key == 'sw_run.model'][0] \
+            .set_value(False).run()
+        save = [b for b in at.button if b.key == 'save_panel']
+        assert save, 'the panel save button is not keyed predictably'
+        save[0].click().run()
+        assert says('model') == 'model = false', (
+            'Validate & save did not write the switch: %s' % says('model'))
+    finally:
+        if os.path.exists(tmp):
+            os.remove(tmp)
+
+
+def test_the_save_button_key_does_not_move():
+    """A widget key that changes between runs is a widget that cannot be
+    clicked. Checked as a rule, not only through the one panel."""
+    src = io.open(os.path.join(APP, 'lib', 'panelui.py'),
+                  encoding='utf-8').read()
+    for line in src.splitlines():
+        code = line.split('#')[0]
+        if 'key=' in code and ('button(' in code or 'toggle(' in code):
+            assert 'id(' not in code, 'unstable widget key: %r' % code.strip()
+
+
 def test_panel_zero_sets_the_machine_paths():
     """They used to be read-only in the sidebar, under a caption telling the
     modeller to go and edit code/mm_paths.py. A path is not source code."""
