@@ -506,11 +506,18 @@ def test_every_producer_that_names_a_file_offers_the_dialog():
         keys = {b.key for b in at.button if b.key}
         assert dotted + '.__v.__pick' in keys, (
             '%s as a %s has no ... button' % (dotted, want))
-    # a column is not a file
+    # A column is not a file. Asked of a ParamSource, since a VectorSource
+    # no longer offers column as a producer at all -- there it is an
+    # attribute of the layer and is drawn under it.
     [s for s in at.selectbox
-     if s.key == 'soil.thickness.__producer'][0].set_value('column').run()
-    assert 'soil.thickness.__v.__pick' not in {b.key for b in at.button}, (
+     if s.key == 'sfr.width.__producer'][0].set_value('column').run()
+    assert 'sfr.width.__v.__pick' not in {b.key for b in at.button}, (
         'a column name is being chosen from the filesystem')
+    # ... and a value is not one either
+    [s for s in at.selectbox
+     if s.key == 'soil.thickness.__producer'][0].set_value('value').run()
+    assert 'soil.thickness.__v.__pick' not in {b.key for b in at.button}, (
+        'a number is being chosen from the filesystem')
 
 
 def test_the_soil_parameter_file_is_chosen_too():
@@ -590,6 +597,44 @@ def test_the_irrigation_fields_come_back_with_their_values():
         .check().run()
     after = [x.value for x in at.text_input if x.key == 'surface.irr_ts']
     assert after and after[0] == before, 'the series was lost on the way'
+
+
+def test_a_column_is_an_attribute_of_a_layer_not_an_alternative_to_one():
+    """VectorSource.producer() never returns `column`, so offering it as a
+    choice set the column, cleared the layer, and left a source producing
+    nothing. It belongs under the layer it qualifies."""
+    at = AppTest.from_file(os.path.join(APP, 'pages', '3_Model.py'),
+                           default_timeout=180)
+    at.run()
+    box = [s for s in at.selectbox if s.key == 'soil.zones.__producer'][0]
+    assert 'column' not in list(box.options), \
+        'a zone source still offers column as a producer'
+    assert set(box.options) == {'raster', 'layer', 'value'}
+
+    # on a layer, the column is there and holds what the file holds
+    box.set_value('layer').run()
+    col = [x for x in at.text_input if x.key == 'soil.zones.__col']
+    assert col and col[0].value, 'the attribute column is not shown'
+
+    # on a raster there is no layer, so there is no column either
+    [s for s in at.selectbox
+     if s.key == 'soil.zones.__producer'][0].set_value('raster').run()
+    assert not [x for x in at.text_input if x.key == 'soil.zones.__col'], \
+        'a column is still offered for a raster'
+
+
+def test_a_param_source_keeps_column_as_a_producer():
+    """There it means a column of the SFR source layer, and producer() does
+    return it -- the rule is about what the class means, not about the word."""
+    at = AppTest.from_file(os.path.join(APP, 'pages', '3_Model.py'),
+                           default_timeout=180)
+    at.run()
+    box = [s for s in at.selectbox if s.key == 'sfr.width.__producer']
+    assert box, 'sfr.width is not a source any more'
+    assert 'column' in list(box[0].options), \
+        'a ParamSource lost its column producer'
+    assert 'layer' not in list(box[0].options), \
+        'a ParamSource has no layer of its own to name'
 
 
 def test_panel_zero_sets_the_machine_paths():

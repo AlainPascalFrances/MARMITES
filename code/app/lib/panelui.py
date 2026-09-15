@@ -192,9 +192,17 @@ def _source_widget(dotted, src, shown, help_full, key):
 
     Shown as a choice because exactly one producer may be set -- offering
     five boxes invites setting two, which the schema then refuses.
+
+    `column` is a producer for a ParamSource, where it means a column of the
+    SFR source layer. It is NOT one for a VectorSource: there it is an
+    attribute OF the layer named beside it, and `producer()` never returns
+    it. Offering it as a choice there set the column and cleared the layer,
+    leaving a source that produces nothing -- so for those it is drawn UNDER
+    the layer box instead, which is where it belongs.
     """
+    layered = hasattr(src, 'layer')
     producers = [n for n in ('raster', 'layer', 'column', 'value', 'drainage')
-                 if hasattr(src, n)]
+                 if hasattr(src, n) and not (layered and n == 'column')]
     cur = src.producer()
     # The field's name and its explanation ride on the title as a tooltip,
     # the way the layer pickers do. As body text they were three lines of
@@ -208,6 +216,7 @@ def _source_widget(dotted, src, shown, help_full, key):
     if which == 'drainage':
         st.caption('`%s` — edit in the TOML tab' % (val or {}))
         return {}
+    col = None
     folder = _producer_folder(which)
     if folder is not None:
         # It names a FILE -- a shapefile in the cartography folder, a raster
@@ -227,6 +236,16 @@ def _source_widget(dotted, src, shown, help_full, key):
     else:
         out = st.text_input('value', value=str(val or ''), key=key + '.__v',
                             label_visibility='collapsed')
+    if layered and which == 'layer':
+        # The attribute carrying the value, under the layer it belongs to.
+        st.caption('Attribute column')
+        col = st.text_input(
+            'Attribute column', value=str(src.column or ''),
+            key=key + '.__col', label_visibility='collapsed',
+            help='`%s.column`  \nThe attribute of that layer carrying the '
+                 'value. Blank uses the layer\'s own geometry -- a zone per '
+                 'polygon, in file order.' % dotted)
+
     # Only the chosen producer is written; the others are cleared, so the
     # precedence raster > layer > value cannot be decided by a leftover.
     edits = {}
@@ -241,6 +260,10 @@ def _source_widget(dotted, src, shown, help_full, key):
         # keeps one type and a saved 1 does not become an int on one machine
         # and a float on the next.
         edits['%s.value' % dotted] = float(out)
+    if layered:
+        # Written only with the layer it qualifies; cleared with it, or a
+        # column left behind would describe a layer that is no longer named.
+        edits['%s.column' % dotted] = col if which == 'layer' else ''
     return edits
 
 
