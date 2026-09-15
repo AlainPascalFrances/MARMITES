@@ -149,7 +149,7 @@ FIELDS = {
     'run.relax': ('Under-relaxation', _U,
                   'Iterative mode only: new = relax*evaluated + '
                   '(1-relax)*previous. 0.5-0.7 is the usable range.'),
-    'run.nsp': ('Stress periods', 'count',
+    'run.nsp': ('Number of stress periods for test', 'count',
                 '0 runs the whole record. Use a small number to try a change '
                 'before committing to the full run.'),
     'run.daily': ('One stress period per day', _U,

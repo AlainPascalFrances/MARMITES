@@ -40,8 +40,9 @@ panel = panelui.header(2)
 edited = {}
 edited.update(panelui.master_switch(cfg, panel[3]) or {})
 
-tab_par, tab_tables, tab_forcing = st.tabs(
-    ['Records & options', 'Parameter tables', 'The forcing it produces'])
+tab_par, tab_time, tab_tables, tab_forcing = st.tabs(
+    ['Records & options', 'Time discretisation', 'Parameter tables',
+     'The forcing it produces'])
 
 # ------------------------------------------------------- records & options
 with tab_par:
@@ -54,14 +55,16 @@ with tab_par:
         files=schema.SURFACE_FILES, patterns=schema.SURFACE_PATTERNS,
         gated=schema.SURFACE_GATED))
 
-    # ---- the time discretisation ------------------------------------
-    # HERE, and not in the MODFLOW parameter file where the aggregation
-    # limit used to sit under the name `nper`. The days come from the
-    # RECORD -- MMsurf reads the hourly series and writes one row per day --
-    # and what the run does with them is a question about that record, not
-    # about MODFLOW.
-    st.markdown('---')
-    st.markdown('#### Time discretisation')
+
+# --------------------------------------------------- time discretisation
+# HERE, and not in the MODFLOW parameter file where the aggregation limit
+# used to sit under the name `nper`. The days come from the RECORD -- MMsurf
+# reads the hourly series and writes one row per day -- and what the run does
+# with them is a question about that record, not about MODFLOW.
+with tab_time:
+    st.caption('The days themselves come from the meteorological record: '
+               'MMsurf writes one row per day of it. What the run does with '
+               'them is decided here.')
     edited.update(panelui.rows_form(cfg, schema.TIME_ROWS, 'run', columns=2))
 
     ndays = msurf.record_days(str(ds))
@@ -88,7 +91,6 @@ with tab_par:
         st.caption('The day count comes from `inputDATE.txt`, which MMsurf '
                    'writes; it is not there yet.')
 
-    panelui.save_button(cfg, path, edited)
 
 # ------------------------------------------------------- parameter tables
 with tab_tables:
@@ -140,3 +142,8 @@ with tab_forcing:
     st.caption('The committed `inputZONRFe_veg_d.txt` held 4869 values against '
                'a 1949-day record — not a whole number of blocks — and that '
                'went unnoticed for years. It is checked now, before the run.')
+
+# The save sits below the tabs, not inside one: a button that writes what has
+# been collected SO FAR would miss every tab drawn after it, and the time
+# discretisation is drawn after the records.
+panelui.save_button(cfg, path, edited)

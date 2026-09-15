@@ -722,6 +722,29 @@ def test_the_vegetation_class_column_is_a_list_too():
         'the column was taken away instead of falling back to a box')
 
 
+def test_the_save_collects_every_sub_panel():
+    """A save button INSIDE a tab writes what has been collected so far, and
+    misses every tab drawn after it. On the driving-forces panel the time
+    discretisation is drawn after the records, so the button has to sit below
+    the tabs -- at column 0, where the page ends."""
+    src = io.open(os.path.join(APP, SURF), encoding='utf-8').read()
+    calls = [ln for ln in src.splitlines() if 'save_button(' in ln]
+    assert len(calls) == 1, 'expected one save button, found %d' % len(calls)
+    assert calls[0].startswith('panelui.save_button('), (
+        'the save button is inside a tab: %r' % calls[0])
+
+
+def test_the_time_discretisation_has_a_sub_panel_of_its_own():
+    at = AppTest.from_file(os.path.join(APP, SURF), default_timeout=180)
+    at.run()
+    keys = {w.key for w in (list(at.checkbox) + list(at.number_input))
+            if w.key}
+    for dotted in ('run.daily', 'run.perlen_max', 'run.nsp'):
+        assert dotted in keys, '%s is not on the panel' % dotted
+    said = ' '.join(s.value for s in at.success)
+    assert 'day(s) in the record' in said, said[:200]
+
+
 def test_panel_zero_sets_the_machine_paths():
     """They used to be read-only in the sidebar, under a caption telling the
     modeller to go and edit code/mm_paths.py. A path is not source code."""
