@@ -247,6 +247,59 @@ def test_the_record_length_is_read_from_the_dates(tmp_path):
     assert mod.record_days(str(tmp_path)) == 3
 
 
+# --------------------------------------------- panel 4: the MF6 packages
+
+def test_the_geometry_asks_only_what_is_not_derivable(cfg):
+    """The top is the land surface minus the soil column and ibound is the
+    catchment polygon, so asking for either would be asking for an answer
+    that can only disagree with one already given."""
+    laid = [d for row in schema.GEOMETRY_ROWS for d in row if d]
+    assert laid == ['layers.nlay', 'layers.hnoflo', 'layers.thickness',
+                    'layers.k', 'layers.ss', 'layers.sy']
+    have = dict(schema.fields_of(cfg, 'layers'))
+    for dotted in laid:
+        assert dotted in have, '%s is laid out but does not exist' % dotted
+    assert not any('top' in d or 'ibound' in d for d in laid)
+
+
+def test_every_geometry_field_names_its_flopy_argument():
+    """The flopy name is the only one that does not drift."""
+    for dotted in ('layers.nlay', 'layers.thickness', 'layers.k',
+                   'layers.ss', 'layers.sy'):
+        help_ = schema.describe(dotted)[2]
+        assert 'flopy' in help_.lower(), '%s does not say what it becomes'
+
+
+def test_hnoflo_may_not_be_zero(cfg):
+    """It marks a cell as having nothing to report, and 0 is a perfectly
+    good head."""
+    cfg.layers.hnoflo = 0.0
+    with pytest.raises(cfgmod.ConfigError) as e:
+        cfg.validate()
+    assert 'hnoflo' in str(e.value)
+
+
+def test_the_layer_properties_take_the_usual_three_producers(cfg):
+    """Raster, layer or one value -- the rule every spatial input follows."""
+    for name in ('thickness', 'k', 'ss', 'sy'):
+        src = getattr(cfg.layers, name)
+        assert schema.is_source(src), '%s is not a source' % name
+        for producer in ('raster', 'layer', 'value'):
+            assert hasattr(src, producer), '%s has no %s' % (name, producer)
+    # ... and nothing is set yet, which is how the MF ini keeps supplying it
+    assert cfg.layers.thickness.producer() is None
+
+
+def test_hnoflo_reaches_the_model():
+    """A panel field that the run ignores is decoration. This one is read
+    straight after the ini is parsed, before anything uses it."""
+    src = io.open(os.path.join(HERE, 'run_lamata_mf6.py'),
+                  encoding='utf-8').read()
+    assert 'cfg.layers.hnoflo' in src, 'the run never reads layers.hnoflo'
+    assert src.index('cfg.layers.hnoflo') < src.index('conv_fact = '), (
+        'hnoflo is applied after something has already used it')
+
+
 # ---------------------------------------------------------------- fields
 
 def test_every_field_of_every_panel_has_a_label(cfg):

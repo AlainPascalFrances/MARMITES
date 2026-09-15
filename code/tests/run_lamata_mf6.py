@@ -284,6 +284,15 @@ def setup_lamata(daily=True, nsp=None, grid='dis', nlay=None, aggregate=False,
                      MF_ini_fn=ini_fn,
                      xllcorner=739300.0, yllcorner=4553050.0)
     print('parameter set: %s (%d layer(s))' % (ini_fn, cMF.nlay))
+    # THE FRONT-END OWNS hnoflo (WP1d, geometry). It is the value that marks
+    # a cell as having nothing to report, and MARMITES masks on it as well --
+    # so the two have to be the SAME number, which is why it is asked once on
+    # the panel rather than twice in two files. Applied right after the ini is
+    # parsed, before anything reads it.
+    if cfg is not None and float(cfg.layers.hnoflo) != float(cMF.hnoflo):
+        print('hnoflo: %g from the panel (the ini said %g)'
+              % (cfg.layers.hnoflo, cMF.hnoflo))
+        cMF.hnoflo = float(cfg.layers.hnoflo)
     conv_fact = {1: 304.8, 2: 1000.0, 3: 10.0}[cMF.lenuni]
 
     # --- the forcing (WP1d) ------------------------------------------------

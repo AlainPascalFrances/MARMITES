@@ -588,12 +588,6 @@ class Grid:
 
 
 @dataclass
-class Layers:
-    nlay: int = 6                  # 2 reads _2s1L.ini directly (--nlay)
-    aggregate: bool = False        # 6->2 derivation, comparison (--aggregate)
-
-
-@dataclass
 class Uzf:
     vks_scale: float = 1.0         #                           (--uzf-vks-scale)
 
@@ -731,6 +725,45 @@ class VectorSource:
         if isinstance(v, str):
             return cls(layer=v) if v.lower().endswith('.shp') else cls(raster=v)
         return cls(value=float(v))
+
+
+@dataclass
+class Layers:
+    """Panel 4 -- the aquifer's GEOMETRY and its properties per layer.
+
+    MODFLOW 6 names, so the panel can say which flopy argument each field
+    becomes:
+
+        nlay        ModflowGwfdis / ModflowGwfdisv  nlay
+        hnoflo      the no-flow / dry sentinel written into the head arrays
+        thickness   botm, as top - sum(thickness) layer by layer
+        k           ModflowGwfnpf   k     (and k33 through the same value)
+        ss, sy      ModflowGwfsto   ss, sy
+
+    TOP IS NOT ASKED. The aquifer top is the land surface minus the soil
+    column -- elevation from [grid] dem, thickness from [soil] -- which is
+    the bottom of the MARMITES soil column and the surface UZF discharges
+    at. Asking for it again would be asking for something that has to agree
+    with two other answers.
+
+    IBOUND IS NOT ASKED EITHER. A cell is active when it is inside the
+    catchment polygon of [grid] boundary. That is the same polygon the grid
+    was built inside, so a separate map could only disagree with it.
+    """
+
+    nlay: int = 6                  # 2 reads _2s1L.ini directly (--nlay)
+    aggregate: bool = False        # 6->2 derivation, comparison (--aggregate)
+    # The value that marks a cell as having no head to report. It reaches
+    # MARMITES as well, which masks on it, so the two must be the same
+    # number -- which is why it is asked once here rather than twice.
+    hnoflo: float = 9999.999
+    # Per-layer properties. A raster may carry %d for the layer, the way the
+    # crop schedule carries it for the field: thick_l%d.asc is four rasters
+    # and one answer. A single value is uniform over every layer.
+    thickness: VectorSource = field(default_factory=VectorSource)
+    k: VectorSource = field(default_factory=VectorSource)
+    ss: VectorSource = field(default_factory=VectorSource)
+    sy: VectorSource = field(default_factory=VectorSource)
 
 
 # =====================================================================
@@ -1322,6 +1355,20 @@ class RunConfig:
                     'grid.%s.refine_ponds is on but grid.ponds names no pond '
                     'layer. Give the layer on the Grid panel, or switch it off.'
                     % blk)
+        # --- panel 4: the aquifer geometry ------------------------------
+        if self.layers.hnoflo == 0.0:
+            errs.append('layers.hnoflo must not be 0: it is the value that '
+                        'marks a cell as having nothing to report, and 0 is a '
+                        'perfectly good head.')
+        for name in ('thickness', 'k', 'ss', 'sy'):
+            src = getattr(self.layers, name)
+            if src.producer() is None:
+                continue          # not given yet: the MF ini still supplies it
+            if src.raster and '%d' in src.raster and self.layers.nlay < 1:
+                errs.append('layers.%s names a per-layer raster but '
+                            'layers.nlay is %d' % (name, self.layers.nlay))
+            if src.value is not None and float(src.value) < 0.0:
+                errs.append('layers.%s must not be negative' % name)
         if self.grid.quadtree.pond_level < 0:
             errs.append('grid.quadtree.pond_level must be >= 0 '
                         '(0 = the same as refine_level)')

@@ -41,7 +41,8 @@ __all__ = ['PANELS', 'FIELDS', 'TABLES', 'CHOICES', 'SUBPANELS', 'panel_of',
            'SURFACE_GATED', 'TIME_ROWS',
            'SURFACE_TABLE_FILES', 'INTEGER_VALUE',
            'SOIL_ROWS', 'SOIL_VEG_ROWS', 'SOIL_FILES',
-           'SOIL_DATASET_FILES', 'COLUMN_OF', 'OBS_COMMON',
+           'SOIL_DATASET_FILES', 'COLUMN_OF', 'GEOMETRY_ROWS',
+           'OBS_COMMON',
            'OBS_GROUPS',
            'PanelError']
 
@@ -415,9 +416,29 @@ FIELDS = {
                   'means the point is not drawn on the maps.'),
     'obs.layer': ('Observation layer', _U, 'Preview only; the table wins.'),
     'layers.nlay': ('Aquifer layers', 'count',
-                    '2 and 6 are both authoritative parameter sets, '
+                    'flopy: `ModflowGwfdis(nlay=)`, or `ModflowGwfdisv` on a '
+                    'mesh. 2 and 6 are both authoritative parameter sets, '
                     'maintained by hand -- the 2-layer one is NOT an '
                     'aggregation of the 6-layer one.'),
+    'layers.hnoflo': ('No-flow / dry value', _U,
+                      'The number that marks a cell as having nothing to '
+                      'report. MARMITES masks on it too, so the two must be '
+                      'the SAME number -- which is why it is asked once here '
+                      'rather than twice in two files. It must not be 0: that '
+                      'is a perfectly good head.'),
+    'layers.thickness': ('Layer thickness', 'm',
+                         'flopy: becomes `botm`, subtracted layer by layer '
+                         'from the aquifer top. A raster may carry %d for the '
+                         'layer -- thick_l%d.asc is four rasters and one '
+                         'answer -- and a single value is uniform over every '
+                         'layer.'),
+    'layers.k': ('Hydraulic conductivity', 'm/d',
+                 'flopy: `ModflowGwfnpf(k=)`. Per layer, by the same %d rule '
+                 'as the thickness.'),
+    'layers.ss': ('Specific storage', '1/m',
+                  'flopy: `ModflowGwfsto(ss=)`.'),
+    'layers.sy': ('Specific yield', _U,
+                  'flopy: `ModflowGwfsto(sy=)`.'),
     'uzf.vks_scale': ('UZF vks multiplier', _U,
                       'Offsets the EPSILON clamp MF6 forces (2.0 -> 3.5).'),
     'seep.kind': ('Seepage mechanism', _U,
@@ -628,6 +649,17 @@ SUBPANELS = {
 # with it -- the refinement options below cannot be answered before it is
 # known whether there IS a network or a pond to refine around.
 
+
+# ---- panel 4: one sub-panel per MF6 package ------------------------------
+# GEOMETRY first. The top is NOT asked -- it is the land surface minus the
+# soil column, so a third answer could only disagree with the other two --
+# and neither is ibound: a cell is active when it is inside the catchment
+# polygon the grid was built in.
+GEOMETRY_ROWS = (
+    ('layers.nlay', 'layers.hnoflo'),
+    ('layers.thickness', 'layers.k'),
+    ('layers.ss', 'layers.sy'),
+)
 
 # ---- panel 5: the measured state variables -------------------------------
 # The four the model produces, each its own block. They used to be three

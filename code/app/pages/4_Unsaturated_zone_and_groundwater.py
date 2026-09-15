@@ -35,12 +35,50 @@ panel = panelui.header(4)
 
 edited, save_slot = panelui.switch_and_save(cfg, panel)
 
-tab_aq, tab_water = st.tabs(['Aquifer & solver', 'Streams, ponds & runoff'])
+tab_geom, tab_aq, tab_water = st.tabs(
+    ['Geometry', 'Aquifer & solver', 'Streams, ponds & runoff'])
+
+# ---------------------------------------------------------------- geometry
+# The first of one sub-panel per MF6 package. Every field says which flopy
+# argument it becomes, because that is the only name that does not drift.
+with tab_geom:
+    st.caption('The layer stack, and what each layer is made of. Every field '
+               'names the flopy argument it becomes.')
+    edited.update(panelui.rows_form(cfg, schema.GEOMETRY_ROWS, 'layers',
+                                    columns=2))
+
+    st.info('**The top is not asked.** The aquifer top is the land surface '
+            'minus the soil column — elevation from the DEM on %s, thickness '
+            'from %s — which is the bottom of the MARMITES soil column and '
+            'the surface groundwater discharges at. A third answer could only '
+            'disagree with the other two.\n\n'
+            '**Nor is ibound.** A cell is active when it is inside the '
+            'catchment polygon of %s: the same polygon the grid was built '
+            'inside, so a separate map could only contradict it.'
+            % (schema.panel_name(1), schema.panel_name(3),
+               schema.panel_name(1)))
+
+    # WHAT THE RUN ACTUALLY READS, said plainly. hnoflo and nlay reach the
+    # model; the four properties are still taken from the MODFLOW parameter
+    # file until the converter resolves them, and a panel that implied
+    # otherwise would be the decorative switch all over again.
+    _wired = [d for d in ('layers.nlay', 'layers.hnoflo')]
+    _pending = [d for d in ('layers.thickness', 'layers.k', 'layers.ss',
+                            'layers.sy')
+                if getattr(cfg.layers, d.split('.')[-1]).producer() is None]
+    if _pending:
+        st.warning('Not read by a run yet: %s. Those still come from the '
+                   'MODFLOW parameter file `%s`; naming a raster or a layer '
+                   'here records the intent but does not change the run until '
+                   'the converter resolves them.'
+                   % (', '.join('`%s`' % d for d in _pending),
+                      'MF_ws/__inputMF_flopy_v3_*.ini'))
 
 # --------------------------------------------------------------- aquifer
 with tab_aq:
-    for section, title in [('layers', 'Layers'), ('uzf', 'Unsaturated zone'),
-                           ('seep', 'Seepage face'), ('et', 'Evapotranspiration'),
+    for section, title in [('uzf', 'Unsaturated zone'),
+                           ('seep', 'Seepage face'),
+                           ('et', 'Evapotranspiration'),
                            ('spinup', 'Spin-up & initial state')]:
         st.markdown('#### %s' % title)
         edited.update(panelui.section_form(cfg, section, columns=3))
