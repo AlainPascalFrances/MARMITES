@@ -26,7 +26,7 @@ for p in (CODE, APP):
         sys.path.insert(0, p)
 
 import mm_paths                                  # noqa: E402
-from lib import panelui, runs as runlib          # noqa: E402
+from lib import panelui, schema, runs as runlib  # noqa: E402
 
 st.set_page_config(page_title='MARMITES / MF6', page_icon='💧', layout='wide')
 
@@ -132,19 +132,24 @@ def main():
                    'used.')
 
     st.markdown('### The panels, in the order to fill them')
+    # BUILT from the schema, not typed out: the table went stale the moment
+    # the Model panel was split three ways, and a table of contents that
+    # disagrees with the sidebar is worse than none.
+    rows = ['| Panel | What it settles | Switch |', '|---|---|---|']
+    for num, title, _icon, switch, _sections, blurb in schema.PANELS:
+        if num == 0:
+            continue
+        rows.append('| **%d %s** | %s | %s |'
+                    % (num, title, blurb.split('.')[0].strip().rstrip('.'),
+                       '`%s`' % switch if switch else 'always'))
+    rows.append('| **7 Run** | launch it, and follow the log | — |')
+    rows.append('| **8 Results** | the figures a run wrote | — |')
+    st.markdown(chr(10).join(rows))
     st.markdown("""
-| Panel | What it settles | Switch |
-|---|---|---|
-| **1 Grid** | the catchment polygon, and the grid built inside it | always |
-| **2 Surface** | the meteorological record → the daily forcing | `run.surface` |
-| **3 Model** | the soil column, the aquifer, the stream and the ponds | `run.model` |
-| **4 Plots** | what to draw afterwards | `run.plot` |
-| **5 Run** | launch it, and follow the log | — |
-| **6 Results** | the figures a run wrote | — |
 
 **The grid comes first**, because every other input is *wrapped onto it*: the
 soil zones, the vegetation cover, the stream network and the observation
-points are vector layers, projected onto whichever grid panel 1 produced.
+points are vector layers, projected onto whichever grid the Grid panel produced.
 Change the grid and they follow — they do not have to be re-made.
 
 The switches are not decoration. They are the same `[run]` keys the driver

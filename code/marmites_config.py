@@ -1303,13 +1303,13 @@ class RunConfig:
                     errs.append(
                         'grid.%s.%s is on but grid.streams names no '
                         'hydrography layer, so there is nothing to refine '
-                        'along. Give the layer on panel 1, or switch the '
-                        'refinement off.' % (blk, key))
+                        'along. Give the layer on the Grid panel, or switch '
+                        'the refinement off.' % (blk, key))
         for blk in ('voronoi', 'quadtree'):
             if not self.grid.ponds and getattr(self.grid, blk).refine_ponds:
                 errs.append(
                     'grid.%s.refine_ponds is on but grid.ponds names no pond '
-                    'layer. Give the layer on panel 1, or switch it off.'
+                    'layer. Give the layer on the Grid panel, or switch it off.'
                     % blk)
         if self.grid.quadtree.pond_level < 0:
             errs.append('grid.quadtree.pond_level must be >= 0 '

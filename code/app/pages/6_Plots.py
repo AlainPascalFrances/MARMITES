@@ -24,7 +24,7 @@ for p in (CODE, APP):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from lib import panelui                     # noqa: E402
+from lib import panelui, schema             # noqa: E402
 
 st.set_page_config(page_title='6 Plots', page_icon='📊', layout='wide')
 cfg, path = panelui.pick_config()
@@ -59,9 +59,10 @@ c1, c2 = st.columns([1, 2])
 with c1:
     edited.update(panelui.section_form(cfg, 'surface', columns=1,
                                        only='surface.plot'))
-c2.caption('Drawn by MMsurf itself while it turns the hourly record into the '
-           'daily forcing, so they appear only on a run with **panel 2** '
-           'switched on. Everything above is drawn after the model.')
+c2.caption('Drawn by MMsurf itself while it turns the hourly record into '
+           'the daily forcing, so they appear only on a run with '
+           '**%s** switched on. Everything above is drawn after '
+           'the model.' % schema.panel_name(2))
 
 st.markdown('#### The water balance')
 st.info('**Open-water evaporation is drawn as a SPLIT OF RUNOFF**, not as a '

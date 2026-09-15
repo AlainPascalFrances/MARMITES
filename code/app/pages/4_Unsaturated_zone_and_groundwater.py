@@ -23,7 +23,7 @@ for p in (CODE, APP, os.path.join(CODE, 'ppMF6')):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from lib import panelui                     # noqa: E402
+from lib import panelui, schema             # noqa: E402
 
 st.set_page_config(page_title='4 Subsurface', page_icon='🌍', layout='wide')
 case = st.session_state.get('case', 'LaMata')
@@ -68,7 +68,9 @@ with tab_water:
                 if ln.strip() and not ln.startswith('#'))
         st.caption('`%s` — %d vertex row(s)' % (cfg.sfr.source, n - 1))
     else:
-        st.error('Missing: %s — run the converter from panel 1.' % stream)
+        st.error('Missing: %s — build the grid on the %s panel, which\n'
+                 'reads the cartography first.'
+                 % (stream, schema.panel_name(1)))
 
     st.markdown('#### Ponds (LAK)')
     st.caption('One EMBEDDEDV lake per pond: every La Mata pond is smaller '

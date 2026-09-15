@@ -915,12 +915,12 @@ with tab_mesh:
                 '%s. The mapped stream runs through %d cell(s); **%d of them '
                 'are inside a pond and belong to the LAKE**, so the reaches '
                 'stop at the rim and a mover carries the flow across — that '
-                'is panel 4, not this one. %d stay as reaches.'
+                'is the %s panel, not this one. %d stay as reaches.'
                 % (len(per_pond), sum(sizes), min(sizes), max(sizes),
                    'every one touches a reach' if not loose
                    else 'pond(s) %s touch NO reach'
                    % ', '.join(str(k) for k in loose),
-                   len(line), taken, len(sfr)))
+                   len(line), taken, schema.panel_name(4), len(sfr)))
 
     obs = []
     if 'observation points' in show:

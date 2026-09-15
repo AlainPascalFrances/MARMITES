@@ -106,7 +106,6 @@ def test_panel_of_finds_the_right_panel():
     assert schema.panel_of('nowhere') is None
 
 
-
 def test_the_state_variables_are_the_four_the_model_produces():
     """Groundwater levels, soil moisture, actual evapotranspiration and
     surface runoff. The fourth was not asked for at all before the split,
@@ -135,6 +134,77 @@ def test_actual_evapotranspiration_starts_empty(cfg):
     """La Mata has none, and a blank prefix is an ANSWER -- not measured
     here -- rather than an omission."""
     assert cfg.obs.aet_prefix == ''
+
+
+def _spoken(path):
+    """Every string literal in a file that is NOT a docstring.
+
+    A docstring is written for whoever reads the code and may say whatever is
+    clearest; these are the strings that reach the screen. Parsed rather than
+    grepped, because a comment and a docstring both look like text to a
+    regular expression.
+    """
+    import ast
+
+    tree = ast.parse(io.open(path, encoding='utf-8').read())
+    docs = set()
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef,
+                             ast.AsyncFunctionDef)):
+            body = getattr(node, 'body', None)
+            if body and isinstance(body[0], ast.Expr) \
+                    and isinstance(body[0].value, ast.Constant) \
+                    and isinstance(body[0].value.value, str):
+                docs.add(id(body[0].value))
+    return [(n.lineno, n.value) for n in ast.walk(tree)
+            if isinstance(n, ast.Constant) and isinstance(n.value, str)
+            and id(n) not in docs]
+
+
+def test_a_panel_is_named_not_numbered():
+    """The modeller sees NAMES in the sidebar, and the numbers move whenever
+    a panel is split -- three of them moved when Model became Soil,
+    Unsaturated zone and State variables. A number in a sentence is a number
+    that will one day point at the wrong panel."""
+    import re
+
+    bad = []
+    for folder, _dirs, files in os.walk(os.path.join(CODE, 'app')):
+        if '__pycache__' in folder:
+            continue
+        for name in sorted(f for f in files if f.endswith('.py')):
+            for line, text in _spoken(os.path.join(folder, name)):
+                if re.search(r'\bpanels? [0-9]', text) \
+                        and 'panel %d' not in text:
+                    bad.append('%s:%d  %s' % (name, line, text[:60]))
+    assert not bad, 'a panel is named by its number:\n  ' + '\n  '.join(bad)
+
+
+def test_panel_name_comes_from_the_panels_themselves():
+    assert schema.panel_name(1) == 'Grid'
+    assert schema.panel_name(2) == 'Surface and driving forces'
+    assert schema.panel_name(5) == 'State variables (calibration)'
+    for num, title, _i, _s, _sec, _b in schema.PANELS:
+        assert schema.panel_name(num) == title
+    # a number that is not a panel says so rather than pretending
+    assert 'panel' in schema.panel_name(99)
+
+
+def test_the_model_path_names_panels_that_exist():
+    """marmites_config cannot import the schema -- it is the model path, and
+    the panels are the app's -- so its messages carry the names literally.
+    That is only safe while the names are real ones."""
+    import re
+
+    titles = {p[1] for p in schema.PANELS}
+    for line, text in _spoken(os.path.join(CODE, 'marmites_config.py')):
+        assert not re.search(r'\bpanels? [0-9]', text), \
+            'marmites_config:%d names a panel by number: %s' % (line,
+                                                                text[:60])
+        for word in re.findall(r'the ([A-Z][A-Za-z ]+?) panel', text):
+            assert word in titles, \
+                'marmites_config:%d: no panel is called %r' % (line, word)
+
 
 # ---------------------------------------------------------------- fields
 

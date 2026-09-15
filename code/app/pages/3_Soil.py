@@ -72,17 +72,22 @@ with tab_veg:
                                     files=schema.SOIL_FILES))
 
     st.markdown('#### Vegetation classes')
+    # Concatenated rather than %-formatted: the sentence itself contains a
+    # per-cent sign, and one of those in a format string is a bug waiting for
+    # the day somebody adds a second placeholder.
     st.caption('What the layer\'s class column holds, and which vegetation '
-               'type of panel 2 it means. The share of each cell covered is '
-               'an exact AREA OVERLAY — a cell 37 % covered gets 37, not the '
-               'class that happened to sit under its centre.')
+               'type of ' + schema.panel_name(2) + ' it means. The share of '
+               'each cell covered is an exact AREA OVERLAY — a cell 37 % '
+               'covered gets 37, not the class that happened to sit under '
+               'its centre.')
     for dotted, num, singular, _c in schema.TABLES:
         if num == 3:
             panelui.table_form(cfg, dotted, singular, path)
 
     names = [v.name for v in cfg.surface.vegetation]
     if names:
-        st.caption('Vegetation types available from panel 2: ' +
+        st.caption('Vegetation types available from %s: '
+                   % schema.panel_name(2) +
                    ', '.join('**%d** %s' % (k + 1, n)
                              for k, n in enumerate(names)))
 

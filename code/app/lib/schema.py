@@ -32,6 +32,7 @@ if _CODE not in sys.path:
     sys.path.insert(0, _CODE)
 
 __all__ = ['PANELS', 'FIELDS', 'TABLES', 'CHOICES', 'SUBPANELS', 'panel_of',
+           'panel_name',
            'describe', 'fields_of', 'choices_for', 'subpanel_for', 'is_source',
            'GRID_PERMANENT', 'GRID_SUBPANEL', 'GRID_DERIVED', 'GRID_GATED',
            'GRID_NEEDS_LAYER', 'GRID_NOTES', 'grid_fields',
@@ -77,9 +78,9 @@ PANELS = [
      ['layers', 'uzf', 'seep', 'et', 'sfr', 'lak', 'crr', 'spinup'],
      'What MODFLOW 6 reads: the layers, the unsaturated zone, the seepage '
      'face, evapotranspiration, the surface-water packages and the initial '
-     'state. The switch is the SAME one as panel 3 -- the soil water balance '
-     'and MODFLOW are no longer separable, since MMsoil is stepped from '
-     'inside the MODFLOW time loop.'),
+     'state. The switch is the SAME one as the Soil panel\'s -- the soil water '
+     'balance and MODFLOW are no longer separable, since MMsoil is '
+     'stepped from inside the MODFLOW time loop.'),
     (5, 'State variables (calibration)', '📏', None, ['obs'],
      'What was MEASURED, against what the model produces: groundwater '
      'levels, soil moisture, actual evapotranspiration and surface runoff. '
@@ -88,6 +89,22 @@ PANELS = [
     (6, 'Plots', '📊', 'run.plot', ['postproc'],
      'What to draw once the run finishes. Nothing here changes a flux.'),
 ]
+
+
+def panel_name(number):
+    """A panel's NAME, for anything the modeller reads.
+
+    Never its number. The sidebar shows names, the numbers move whenever a
+    panel is split -- three of them moved when Model became Soil,
+    Unsaturated zone and State variables -- and a sentence carrying a number
+    is a sentence that will one day point somewhere else. Built from PANELS,
+    so a rename cannot leave prose behind.
+    """
+    for p in PANELS:
+        if p[0] == number:
+            return p[1]
+    return 'panel %d' % number
+
 
 # Arrays of tables: one row per zone / type, edited as a grid rather than as
 # a wall of positional numbers. (dotted path, panel, singular label, the
@@ -352,7 +369,8 @@ FIELDS = {
     'soil.name': ('Name', _U, ''),
     'soil.porosity': ('Porosity, top 1 cm', 'm3/m3',
                       'por. The SURFACE soil, for bare-soil evaporation -- '
-                      'not the soil column of panel 3.'),
+                      'not the soil column of the %s panel.'
+                      % panel_name(3)),
     'soil.field_capacity': ('Field capacity, top 1 cm', 'm3/m3', 'fc.'),
     'soil.albedo_dry': ('Albedo, dry', _U, 'alfa_sd.'),
     'soil.albedo_wet': ('Albedo, wet', _U, 'alfa_sw.'),
