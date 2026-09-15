@@ -206,6 +206,47 @@ def test_the_model_path_names_panels_that_exist():
                 'marmites_config:%d: no panel is called %r' % (line, word)
 
 
+def test_the_time_discretisation_is_asked_where_the_record_is(cfg):
+    """The days are MMsurf's -- it writes one row per day -- so what the run
+    does with them belongs beside the record, not in the MODFLOW parameter
+    file where the aggregation limit sat under the name `nper`."""
+    have = dict(schema.fields_of(cfg, 'run'))
+    for row in schema.TIME_ROWS:
+        for dotted in row:
+            if dotted is None:
+                continue
+            assert dotted in have, '%s is laid out but does not exist' % dotted
+    laid = [d for row in schema.TIME_ROWS for d in row if d]
+    assert laid == ['run.daily', 'run.perlen_max', 'run.nsp']
+
+
+def test_the_aggregation_limit_is_a_length_not_a_count(cfg):
+    """`nper` in the MODFLOW ini is NOT the number of periods: it is the
+    longest one, and the count is worked out from the rainfall."""
+    assert cfg.run.perlen_max >= 1
+    cfg.run.perlen_max = 0
+    with pytest.raises(cfgmod.ConfigError) as e:
+        cfg.validate()
+    assert 'perlen_max' in str(e.value)
+
+
+def test_the_record_length_is_read_from_the_dates(tmp_path):
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        'msurf_t', os.path.join(CODE, 'marmites_surface.py'))
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules['msurf_t'] = mod
+    spec.loader.exec_module(mod)
+
+    assert mod.record_days(str(tmp_path)) == 0      # before MMsurf has run
+    p = os.path.join(str(tmp_path), mod.FORCING['date'])
+    io.open(p, 'w', encoding='utf-8', newline='').write(
+        '\n'.join(['# a comment', '01/01/2000 1 1', '02/01/2000 2 2', '',
+                   '03/01/2000 3 3', '']))
+    assert mod.record_days(str(tmp_path)) == 3
+
+
 # ---------------------------------------------------------------- fields
 
 def test_every_field_of_every_panel_has_a_label(cfg):

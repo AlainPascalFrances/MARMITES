@@ -54,6 +54,40 @@ with tab_par:
         files=schema.SURFACE_FILES, patterns=schema.SURFACE_PATTERNS,
         gated=schema.SURFACE_GATED))
 
+    # ---- the time discretisation ------------------------------------
+    # HERE, and not in the MODFLOW parameter file where the aggregation
+    # limit used to sit under the name `nper`. The days come from the
+    # RECORD -- MMsurf reads the hourly series and writes one row per day --
+    # and what the run does with them is a question about that record, not
+    # about MODFLOW.
+    st.markdown('---')
+    st.markdown('#### Time discretisation')
+    edited.update(panelui.rows_form(cfg, schema.TIME_ROWS, 'run', columns=2))
+
+    ndays = msurf.record_days(str(ds))
+    if ndays:
+        daily = panelui.live('run.daily', cfg.run.daily)
+        nsp = int(panelui.live('run.nsp', cfg.run.nsp) or 0)
+        if daily:
+            st.success('%d day(s) in the record, so %d stress period%s.'
+                       % (ndays, nsp or ndays, '' if (nsp or ndays) == 1
+                          else 's'))
+        else:
+            most = int(panelui.live('run.perlen_max', cfg.run.perlen_max) or 1)
+            st.info('%d day(s) in the record. Aggregated, the count is not '
+                    'known until the rainfall is read: a day with rain gets a '
+                    'period of its own and the dry days after it are averaged '
+                    'up to %d, so the run reports it as it starts. At most '
+                    '%d period(s), at least %d.'
+                    % (ndays, most, ndays, -(-ndays // most)))
+        if nsp:
+            st.warning('**run.nsp = %d**: the run stops after %d stress '
+                       'period(s) instead of covering the record. Useful to '
+                       'try a change; misleading in a result.' % (nsp, nsp))
+    else:
+        st.caption('The day count comes from `inputDATE.txt`, which MMsurf '
+                   'writes; it is not there yet.')
+
     panelui.save_button(cfg, path, edited)
 
 # ------------------------------------------------------- parameter tables

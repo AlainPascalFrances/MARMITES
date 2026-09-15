@@ -350,6 +350,14 @@ class Run:
     relax: float = 0.6             #                           (--relax)
     nsp: int = 0                   # 0 = all stress periods    (--nsp)
     daily: bool = True             # false = aggregated        (--aggregated)
+    # The longest a stress period may be, in days, when `daily` is off. The
+    # rule is the rainfall's: a day with P > 0 gets a period of its own, and
+    # the dry days after it are averaged together up to this many. It lived
+    # in the MODFLOW ini as `nper` -- which is not a count of periods at all,
+    # it is this maximum, and ppMFtime then works the real count out from the
+    # record. Asked on the driving-forces panel now, because it is a question
+    # about the RAINFALL SERIES and not about MODFLOW.
+    perlen_max: int = 10
     ats: bool = True               #                           (--no-ats)
     build_only: bool = False       #                           (--build-only)
     standalone: str = ''           # mf6.exe path              (--standalone)
@@ -1185,6 +1193,9 @@ class RunConfig:
             errs.append('run.relax must be in (0, 1]')
         if self.run.nsp < 0:
             errs.append('run.nsp must be >= 0 (0 = all stress periods)')
+        if self.run.perlen_max < 1:
+            errs.append('run.perlen_max must be >= 1 day (1 means one stress '
+                        'period per day, which is what run.daily does)')
         if self.grid_kind not in GRID_KINDS:
             errs.append('grid.kind must be one of %s' % ', '.join(GRID_KINDS))
         if self.grid.resample not in RESAMPLE_MODES:

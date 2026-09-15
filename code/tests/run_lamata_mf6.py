@@ -314,8 +314,14 @@ def setup_lamata(daily=True, nsp=None, grid='dis', nlay=None, aggregate=False,
     kT_f_c = np.array(spec.kT_f_c)
     kT_s_c = np.array(spec.kT_s_c)
 
+    # ppMFtime reads cMF.nper as the LONGEST a stress period may be, not as
+    # a count: 1 gives one period per day, and anything larger lets it average
+    # dry days together. Both numbers come from the front-end now -- the
+    # MODFLOW ini's own value is no longer what decides it.
     if daily:
         cMF.nper = 1     # perlenmax=1 -> ppMFtime produces daily SPs (decision 4.3)
+    elif getattr(cfg, 'run', None) is not None:
+        cMF.nper = int(cfg.run.perlen_max)
     cMF.ppMFtime(inputDate_fn, P_veg_fn, Pe_veg_fn, PT_fn, LAI_fn, PE_fn, Eo_fn,
                  NMETEO, NVEG, NSOIL, P_irr_fn, Pe_irr_fn, PT_irr_fn, crop_irr_fn, NFIELD)
     print('time discretization: nper=%d over %d days (daily=%s)'

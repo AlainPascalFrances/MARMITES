@@ -38,7 +38,7 @@ __all__ = ['PANELS', 'FIELDS', 'TABLES', 'CHOICES', 'SUBPANELS', 'panel_of',
            'GRID_NEEDS_LAYER', 'GRID_NOTES', 'grid_fields',
            'SURFACE_ROWS',
            'SURFACE_FILES', 'SURFACE_PATTERNS', 'SURFACE_ON_PLOTS',
-           'SURFACE_GATED',
+           'SURFACE_GATED', 'TIME_ROWS',
            'SURFACE_TABLE_FILES', 'INTEGER_VALUE',
            'SOIL_ROWS', 'SOIL_VEG_ROWS', 'SOIL_FILES',
            'SOIL_DATASET_FILES', 'COLUMN_OF', 'OBS_COMMON',
@@ -153,7 +153,16 @@ FIELDS = {
                 '0 runs the whole record. Use a small number to try a change '
                 'before committing to the full run.'),
     'run.daily': ('One stress period per day', _U,
-                  'Off aggregates the record by rainfall episode.'),
+                  'On, the run steps day by day, as the record does. Off '
+                  'aggregates it by RAINFALL EPISODE: a day with rain gets a '
+                  'period of its own and the dry days after it are averaged '
+                  'together, up to the maximum beside this box.'),
+    'run.perlen_max': ('Longest aggregated period', 'd',
+                       'How many dry days may be averaged into one stress '
+                       'period. Ignored while the run is daily. This was the '
+                       'MODFLOW ini\'s `nper`, which is NOT a count of '
+                       'periods -- the count is worked out from the rainfall '
+                       'and cannot be known before the record is read.'),
     'run.ats': ('Adaptive time stepping', _U,
                 'On. A period MODFLOW cannot solve in one step is not a '
                 'result, and without this it silently becomes one.'),
@@ -625,6 +634,19 @@ OBS_GROUPS = (
     ('Actual evapotranspiration', 'obs.aet_prefix', 'an eddy tower, a '
      'lysimeter, or a remote-sensing product'),
     ('Surface runoff', 'obs.ro_prefix', 'at the catchment outlet'),
+)
+
+
+# ---- the time discretisation, on the driving-forces panel ---------------
+# WHERE THE CALENDAR COMES FROM. The days themselves are MMsurf's: it reads
+# the hourly record and writes one row per day into inputDATE.txt. What the
+# run then does with those days -- one stress period each, or rainfall
+# episodes averaged together -- is a question about the RECORD, so it is
+# asked beside it rather than buried in the MODFLOW parameter file, where
+# the aggregation limit sat under the misleading name `nper`.
+TIME_ROWS = (
+    ('run.daily', 'run.perlen_max'),
+    ('run.nsp', None),
 )
 
 # ---- panel 2: the records ------------------------------------------------

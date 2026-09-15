@@ -36,6 +36,7 @@ import os
 
 
 __all__ = ['MMsurfError', 'FORCING', 'forcing_spec', 'write_par_file', 'run',
+           'record_days',
            'check_forcing', 'surface_ws']
 
 
@@ -133,6 +134,29 @@ class ForcingSpec(object):
     def __repr__(self):
         return ('<ForcingSpec NMETEO=%d NVEG=%d NSOIL=%d NCROP=%d NFIELD=%d>'
                 % (self.nmeteo, self.nveg, self.nsoil, self.ncrop, self.nfield))
+
+
+def record_days(dataset_dir, name=None):
+    """How many days the forcing record covers, from ``inputDATE.txt``.
+
+    The CALENDAR of a run: MMsurf reads the hourly meteorological series and
+    writes one row per day here, so this is the number of days everything
+    downstream is discretised over. 0 when the file is not there -- which is
+    the normal state before MMsurf has run.
+    """
+    path = os.path.join(str(dataset_dir), name or FORCING['date'])
+    if not os.path.exists(path):
+        return 0
+    n = 0
+    try:
+        with open(path, encoding='utf-8', errors='replace') as fh:
+            for line in fh:
+                line = line.strip()
+                if line and not line.startswith('#'):
+                    n += 1
+    except OSError:
+        return 0
+    return n
 
 
 def forcing_spec(cfg, ws):
