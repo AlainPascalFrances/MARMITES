@@ -187,6 +187,46 @@ def label_of(dotted):
     return '%s [%s]' % (label, units) if units else label
 
 
+def _column_box(dotted, src, key, layer_name):
+    """The attribute column, chosen from what the shapefile actually carries.
+
+    A LIST, not a box to type into: the names are in the file, so asking
+    someone to remember GRID_CODE against GRIDCODE is asking them to make a
+    mistake the panel could have prevented. Read from the .dbf header alone,
+    so offering them costs a few hundred bytes rather than the whole layer.
+
+    A layer that is not there yet, or has no attributes, falls back to a text
+    box -- a name typed for a file still to be exported should not be thrown
+    away, and a picker with nothing in it is worse than a box.
+    """
+    from marmites_vector import layer_fields
+
+    hint = ('`%s.column`  \nThe attribute of that layer carrying the value. '
+            'None uses the layer\'s own geometry -- a zone per polygon, in '
+            'file order.' % dotted)
+    cur = str(src.column or '')
+    try:
+        fields = layer_fields(resolve_layer(str(layer_name or '')))
+    except Exception:                       # never break the panel for this
+        fields = []
+    st.caption('Attribute column')
+    if not fields:
+        return st.text_input('Attribute column', value=cur,
+                             key=key + '.__col', help=hint,
+                             label_visibility='collapsed')
+    # A column the file no longer has is SHOWN rather than dropped: it is
+    # what the configuration says, and silently replacing it with the first
+    # attribute in the file would be a change nobody asked for.
+    options = [NONE] + fields + ([cur] if cur and cur not in fields else [])
+    pick = st.selectbox('Attribute column', options,
+                        index=options.index(cur) if cur in options else 0,
+                        key=key + '.__col', help=hint,
+                        label_visibility='collapsed')
+    if cur and cur not in fields:
+        st.caption('⚠️ `%s` is not an attribute of that layer.' % cur)
+    return '' if pick == NONE else pick
+
+
 def _source_widget(dotted, src, shown, help_full, key):
     """A ParamSource / VectorSource: the producer, then its one value.
 
@@ -237,14 +277,7 @@ def _source_widget(dotted, src, shown, help_full, key):
         out = st.text_input('value', value=str(val or ''), key=key + '.__v',
                             label_visibility='collapsed')
     if layered and which == 'layer':
-        # The attribute carrying the value, under the layer it belongs to.
-        st.caption('Attribute column')
-        col = st.text_input(
-            'Attribute column', value=str(src.column or ''),
-            key=key + '.__col', label_visibility='collapsed',
-            help='`%s.column`  \nThe attribute of that layer carrying the '
-                 'value. Blank uses the layer\'s own geometry -- a zone per '
-                 'polygon, in file order.' % dotted)
+        col = _column_box(dotted, src, key, out)
 
     # Only the chosen producer is written; the others are cleared, so the
     # precedence raster > layer > value cannot be decided by a leftover.

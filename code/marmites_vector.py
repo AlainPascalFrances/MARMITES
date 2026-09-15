@@ -43,7 +43,8 @@ import numpy as np
 __all__ = ['VectorError', 'OVERLAY_MODES', 'Layer', 'TargetGrid',
            'overlay_polygons', 'burn_lines', 'locate_points',
            'coverage_report', 'write_geojson', 'find_shapefiles',
-           'check_polygon_layer', 'find_rasters', 'check_raster']
+           'check_polygon_layer', 'find_rasters', 'check_raster',
+           'layer_fields']
 
 # 'majority'      the class covering the largest area of the cell
 # 'area_fraction' percentage of the cell covered, 0..100  (what VEGarea wants)
@@ -761,6 +762,67 @@ def locate_points(layer, grid, name_field=None):
         out.append({'name': str(names[i]), 'x': float(pt[0]), 'y': float(pt[1]),
                     'icell': int(ic), 'row': int(row), 'col': int(col),
                     'inside': ic >= 0})
+    return out
+
+
+# What a dBASE III header says, in the order it says it. The panel wants the
+# attribute NAMES of a shapefile so a column can be chosen from a list rather
+# than typed from memory, and reading the whole layer to learn them -- every
+# shape, every record, through pyshp -- is a lot of work for a few hundred
+# bytes that sit at the front of the file.
+_DBF_HEADER = 32          # bytes before the first field descriptor
+_DBF_FIELD = 32           # bytes per field descriptor
+_DBF_NAME = 11            # bytes of name in one, null-padded
+
+
+def layer_fields(path):
+    """The attribute column names of a vector layer, in file order.
+
+    Reads the ``.dbf`` HEADER only -- a few hundred bytes -- so a panel can
+    offer them without opening the geometry. A GeoJSON (the dataset tier)
+    gives the properties of its first feature instead.
+
+    An unreadable or absent file is an empty list, not an error: this feeds a
+    picker, and a layer that is not there should offer nothing to choose
+    rather than raise.
+    """
+    path = str(path or '')
+    if not path:
+        return []
+    if path.lower().endswith(('.geojson', '.json')):
+        import json
+        try:
+            with open(path, encoding='utf-8') as fh:
+                doc = json.load(fh)
+        except (OSError, ValueError):
+            return []
+        for feat in (doc.get('features') or []):
+            props = feat.get('properties') or {}
+            if props:
+                return list(props)
+        return []
+
+    dbf = os.path.splitext(path)[0] + '.dbf'
+    if not os.path.exists(dbf):
+        return []
+    try:
+        with open(dbf, 'rb') as fh:
+            head = fh.read(_DBF_HEADER)
+            if len(head) < _DBF_HEADER:
+                return []
+            hlen = int.from_bytes(head[8:10], 'little')
+            n = max((hlen - _DBF_HEADER - 1) // _DBF_FIELD, 0)
+            body = fh.read(n * _DBF_FIELD)
+    except OSError:
+        return []
+    out = []
+    for k in range(n):
+        raw = body[k * _DBF_FIELD:k * _DBF_FIELD + _DBF_NAME]
+        if not raw or raw[0] in (0x0D, 0x00):
+            break
+        name = raw.split(b'\x00')[0].decode('latin-1').strip()
+        if name:
+            out.append(name)
     return out
 
 

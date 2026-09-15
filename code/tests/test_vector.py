@@ -8,6 +8,7 @@ subtracted, and the same answer whichever way round the source file writes
 its rings.
 """
 
+import io
 import os
 import sys
 
@@ -591,3 +592,77 @@ def test_check_raster_measures_the_catchment_coverage(tmp_path):
     wrong = mv.check_raster(p, expect_epsg=23030,
                             against=(10.0, 10.0, 90.0, 90.0))
     assert any('23030' in w for w in wrong['warnings'])
+
+
+# ------------------------------------------------ the attribute names
+
+def test_the_attribute_names_come_off_the_dbf_header(tmp_path):
+    """Read from the HEADER alone -- a few hundred bytes -- so a panel can
+    offer them without opening the geometry."""
+    import struct
+
+    names = ['SoilCode', 'Area', 'A_VERY_LONG']
+    n = len(names)
+    hlen = 32 + 32 * n + 1
+    head = bytearray(32)
+    head[0] = 0x03
+    struct.pack_into('<I', head, 4, 0)          # no records
+    struct.pack_into('<H', head, 8, hlen)
+    struct.pack_into('<H', head, 10, 1)
+    body = bytearray()
+    for name in names:
+        f = bytearray(32)
+        raw = name.encode('latin-1')[:11]
+        f[0:len(raw)] = raw
+        f[11] = ord('C')
+        f[16] = 10
+        body += f
+    body += b'\x0d'
+    p = os.path.join(str(tmp_path), 'zones.dbf')
+    io.open(p, 'wb').write(bytes(head) + bytes(body))
+    got = mv.layer_fields(os.path.join(str(tmp_path), 'zones.shp'))
+    assert got == names, got
+
+
+def test_a_layer_that_is_not_there_offers_nothing(tmp_path):
+    """This feeds a picker: a layer that is absent should offer nothing to
+    choose, not raise."""
+    assert mv.layer_fields('') == []
+    assert mv.layer_fields(os.path.join(str(tmp_path), 'nope.shp')) == []
+    # a .dbf too short to hold a header
+    p = os.path.join(str(tmp_path), 'stub.dbf')
+    io.open(p, 'wb').write(b'\x03' * 8)
+    assert mv.layer_fields(os.path.join(str(tmp_path), 'stub.shp')) == []
+
+
+def test_a_geojson_gives_its_properties(tmp_path):
+    """The dataset tier, where a layer arrives as GeoJSON."""
+    import json
+
+    p = os.path.join(str(tmp_path), 'ponds.geojson')
+    io.open(p, 'w', encoding='utf-8', newline='').write(json.dumps(
+        {'type': 'FeatureCollection', 'features': [
+            {'type': 'Feature', 'properties': {},
+             'geometry': {'type': 'Point', 'coordinates': [0, 0]}},
+            {'type': 'Feature', 'properties': {'id': 1, 'depth': 2.0},
+             'geometry': {'type': 'Point', 'coordinates': [0, 0]}}]}))
+    assert mv.layer_fields(p) == ['id', 'depth']
+
+
+def test_the_header_agrees_with_the_full_reader():
+    """The point of reading the header by hand is speed, not a second
+    opinion: it has to say exactly what opening the layer says."""
+    import mm_paths
+
+    shp = mv.find_shapefiles(str(mm_paths.GIS))
+    if not shp:
+        pytest.skip('no cartography on this machine')
+    checked = 0
+    for p in shp:
+        try:
+            full = mv.Layer(p).fields
+        except Exception:
+            continue
+        assert mv.layer_fields(p) == full, p
+        checked += 1
+    assert checked, 'no layer could be opened to compare against'

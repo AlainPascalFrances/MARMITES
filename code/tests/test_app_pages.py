@@ -611,16 +611,21 @@ def test_a_column_is_an_attribute_of_a_layer_not_an_alternative_to_one():
         'a zone source still offers column as a producer'
     assert set(box.options) == {'raster', 'layer', 'value'}
 
-    # on a layer, the column is there and holds what the file holds
+    # on a layer, the column is there and holds what the file holds. Either
+    # widget will do: it is a LIST when the layer can be read and a box when
+    # it cannot, and this test is about where the column sits, not which.
+    def column(at_):
+        return [w for w in (list(at_.text_input) + list(at_.selectbox))
+                if w.key == 'soil.zones.__col']
+
     box.set_value('layer').run()
-    col = [x for x in at.text_input if x.key == 'soil.zones.__col']
+    col = column(at)
     assert col and col[0].value, 'the attribute column is not shown'
 
     # on a raster there is no layer, so there is no column either
     [s for s in at.selectbox
      if s.key == 'soil.zones.__producer'][0].set_value('raster').run()
-    assert not [x for x in at.text_input if x.key == 'soil.zones.__col'], \
-        'a column is still offered for a raster'
+    assert not column(at), 'a column is still offered for a raster'
 
 
 def test_a_param_source_keeps_column_as_a_producer():
@@ -635,6 +640,36 @@ def test_a_param_source_keeps_column_as_a_producer():
         'a ParamSource lost its column producer'
     assert 'layer' not in list(box[0].options), \
         'a ParamSource has no layer of its own to name'
+
+
+def test_the_attribute_column_is_chosen_from_the_layer():
+    """The names are IN the file, so asking someone to remember GRID_CODE
+    against GRIDCODE is asking them to make a mistake the panel could have
+    prevented."""
+    at = AppTest.from_file(os.path.join(APP, 'pages', '3_Model.py'),
+                           default_timeout=180)
+    at.run()
+    box = [s for s in at.selectbox if s.key == 'soil.zones.__col']
+    assert box, 'the attribute column is not a list'
+    opts = list(box[0].options)
+    assert len(opts) > 2, 'the list holds nothing but the none entry: %s' % opts
+    assert box[0].value in opts
+    assert any('none' in str(o) for o in opts), (
+        'no way to say "use the geometry"')
+
+
+def test_a_layer_with_no_attributes_falls_back_to_a_box():
+    """A name typed for a file still to be exported should not be thrown
+    away, and a picker with nothing in it is worse than a box."""
+    at = AppTest.from_file(os.path.join(APP, 'pages', '3_Model.py'),
+                           default_timeout=180)
+    at.run()
+    [x for x in at.text_input
+     if x.key == 'soil.zones.__v'][0].set_value('not_here_at_all.shp').run()
+    assert not [s for s in at.selectbox if s.key == 'soil.zones.__col'], (
+        'a list is offered for a layer that is not there')
+    assert [x for x in at.text_input if x.key == 'soil.zones.__col'], (
+        'the column was taken away instead of falling back to a box')
 
 
 def test_panel_zero_sets_the_machine_paths():
