@@ -201,6 +201,69 @@ def _producer_folder(which):
     return None
 
 
+def layer_box(dotted, current, nlay, key=None):
+    """Which MODFLOW layers a boundary applies to, 1-based.
+
+    Counted from 1 because that is how MODFLOW, the parameter file and every
+    conversation about the model count them; the run subtracts one when it
+    indexes an array. Layers the model no longer has are dropped from the
+    default rather than silently kept, so shrinking nlay cannot leave a
+    boundary pointing at a layer that is not there.
+    """
+    label, units, help_ = schema.describe(dotted)
+    shown = '%s [%s]' % (label, units) if units else label
+    options = list(range(1, max(int(nlay), 0) + 1))
+    default = [int(v) for v in (current or []) if int(v) in options]
+    return st.multiselect(shown, options, default=default,
+                          key=key or dotted,
+                          help='`%s`  \n%s' % (dotted, help_),
+                          format_func=lambda n: 'layer %d' % n)
+
+
+def boundary_note(cfg, name, value_field, dataset_dir):
+    """What this boundary package resolves to, and whether the run reads it.
+
+    The same two things the layers tab says, because they are the same two
+    questions: which files a `%d` pattern opens on the layers the boundary
+    applies to, and whether answering here changes what a run does. A tab
+    that showed neither would be asking the modeller to take it on trust.
+    """
+    pkg = getattr(cfg, name)
+    if not pkg.enable:
+        st.caption('Off — `ModflowGwf%s` is not built and nothing above is '
+                   'read.' % name)
+        return
+    rows = []
+    for field in (value_field, 'cond'):
+        src = getattr(pkg, field)
+        if src.producer() != 'raster' or '%d' not in (src.raster or ''):
+            continue
+        marks = []
+        for L in pkg.layers:
+            fn = src.raster % int(L)
+            there = _spelled_here(os.path.join(str(dataset_dir or ''), fn))
+            marks.append('%s `%s`' % ('🟢' if there else '🔴',
+                                      fn))
+        rows.append('- **%s** — %s' % (field, ', '.join(marks)))
+    if rows:
+        st.markdown('On layer(s) %s:\n\n%s'
+                    % (', '.join(str(L) for L in pkg.layers),
+                       '\n'.join(rows)))
+    st.warning('**Not read by a run yet.** `[%s]` is answered here but the '
+               'run still builds the package from '
+               '`MF_ws/__inputMF_flopy_v3_*.ini`. The wiring is the next '
+               'step; until it lands, this tab records the intent and '
+               'changes nothing.' % name)
+
+
+def _spelled_here(path):
+    """Is the file there, spelled exactly as asked? (case-strict)"""
+    try:
+        return os.path.basename(path) in os.listdir(os.path.dirname(path))
+    except OSError:
+        return False
+
+
 def label_of(dotted):
     """The field's label, for a box whose own label is collapsed."""
     label, units, _h = schema.describe(dotted)
@@ -562,6 +625,10 @@ def rows_form(cfg, rows, section, columns=2, folder=None, files=(),
             with cols[k]:
                 if dotted in off:
                     read_only(dotted, values[dotted])
+                    continue
+                if dotted in schema.LAYER_LIST:
+                    edited[dotted] = layer_box(dotted, values[dotted],
+                                               cfg.layers.nlay)
                     continue
                 of = schema.COLUMN_OF.get(dotted)
                 if of is not None:

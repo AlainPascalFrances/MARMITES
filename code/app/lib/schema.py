@@ -42,6 +42,7 @@ __all__ = ['PANELS', 'FIELDS', 'TABLES', 'CHOICES', 'SUBPANELS', 'panel_of',
            'SURFACE_TABLE_FILES', 'INTEGER_VALUE',
            'SOIL_ROWS', 'SOIL_VEG_ROWS', 'SOIL_FILES',
            'SOIL_DATASET_FILES', 'COLUMN_OF', 'GEOMETRY_ROWS',
+           'GHB_ROWS', 'DRN_ROWS', 'LAYER_LIST',
            'OBS_COMMON',
            'OBS_GROUPS',
            'PanelError']
@@ -76,7 +77,8 @@ PANELS = [
      'What MMsoil reads: the soil column zones and thickness, and the '
      'vegetation cover each cell carries.'),
     (4, 'Unsaturated zone and groundwater', '🌍', 'run.model',
-     ['layers', 'uzf', 'seep', 'et', 'sfr', 'lak', 'crr', 'spinup'],
+     ['layers', 'ghb', 'drn', 'uzf', 'seep', 'et', 'sfr', 'lak', 'crr',
+      'spinup'],
      'What MODFLOW 6 reads: the layers, the unsaturated zone, the seepage '
      'face, evapotranspiration, the surface-water packages and the initial '
      'state. The switch is the SAME one as the Soil panel\'s -- the soil water '
@@ -471,6 +473,51 @@ FIELDS = {
     'layers.sy': ('Specific yield', _U,
                   'flopy: `ModflowGwfsto(sy=)`. Per layer, by the same `%d` '
                   'rule as the thickness.'),
+    'ghb.enable': ('General-head boundary (GHB)', _U,
+                   'Builds `ModflowGwfghb`. Off is `ghb_yn = 0` in the '
+                   'parameter file, and nothing below is read.'),
+    'ghb.layers': ('MODFLOW layers', 'list',
+                   'Which layers carry the boundary, counted from 1 the way '
+                   'MODFLOW counts them. A per-layer raster (`%d`) gives each '
+                   'listed layer its own map; one value or one shapefile '
+                   'applies to all of them.'),
+    'ghb.head': ('Boundary head', 'm a.s.l.',
+                 'flopy: `ModflowGwfghb` stress period data, `bhead`. WHERE '
+                 'the boundary is comes from this source: a cell carries a '
+                 'GHB where it produces a value and none where it falls back '
+                 'to `fill`. That is the legacy rule -- the rasters are zero '
+                 'except along the boundary -- said once instead of per '
+                 'raster.'),
+    'ghb.cond': ('Boundary conductance', 'm²/d',
+                 'flopy: `ModflowGwfghb` stress period data, `cond`. The '
+                 'conductance of the material between the cell and the head '
+                 'outside it. Must be > 0.'),
+    'drn.enable': ('Drains (DRN)', _U,
+                   'Builds `ModflowGwfdrn`. This is the BOUNDARY drain the '
+                   'parameter file called `drn` -- in La Mata six cells at '
+                   'the catchment outlet. It is NOT the seepage face: that '
+                   'is a second drain package, `drn_seep`, over the whole '
+                   'land surface, configured under Seepage face.'),
+    'drn.layers': ('MODFLOW layers', 'list',
+                   'Which layers carry the drain, counted from 1.'),
+    'drn.elevation': ('Drain elevation', 'm a.s.l.',
+                      'flopy: `ModflowGwfdrn` stress period data, `elev`. '
+                      'Water leaves a cell once its head rises above this. '
+                      'WHERE the drain is comes from this source, as for the '
+                      'GHB head. Ignored when the elevation is taken at the '
+                      'base of the layer below.'),
+    'drn.at_layer_base': ('At the base of the layer', _U,
+                          'The drain sits just above the bottom of its own '
+                          'layer (`botm` + 0.01 m) instead of at the '
+                          'elevation above. This is the convention the '
+                          'parameter file used, where a NEGATIVE elevation '
+                          'meant the layer base, '
+                          'which is how every La Mata drain cell is written '
+                          '(-1) -- as a switch it says what it does, as -1 '
+                          'in a raster it had to be learnt from a comment.'),
+    'drn.cond': ('Drain conductance', 'm²/d',
+                 'flopy: `ModflowGwfdrn` stress period data, `cond`. Must be '
+                 '> 0.'),
     'uzf.vks_scale': ('UZF vks multiplier', _U,
                       'Offsets the EPSILON clamp MF6 forces (2.0 -> 3.5).'),
     'seep.kind': ('Seepage mechanism', _U,
@@ -698,6 +745,28 @@ GEOMETRY_ROWS = (
     (None, 'layers.k33_as_ratio'),
     ('layers.ss', 'layers.sy'),
     ('layers.convertible', None),
+)
+
+# ---- panel 4: the boundary packages --------------------------------------
+# The switch on its own row and what it controls below it, the way the grid
+# sub-panels do it: a reader can see at a glance that nothing under the
+# switch is read when it is off.
+# Fields that are a LIST OF MODFLOW LAYERS. They get a multiselect built
+# from layers.nlay rather than the "edit in the TOML tab" a bare list falls
+# back to -- a boundary that applies to no layer is not buildable, so the
+# panel has to be able to say which.
+LAYER_LIST = ('ghb.layers', 'drn.layers')
+
+GHB_ROWS = (
+    ('ghb.enable', None),
+    ('ghb.layers', None),
+    ('ghb.head', 'ghb.cond'),
+)
+DRN_ROWS = (
+    ('drn.enable', None),
+    ('drn.layers', None),
+    ('drn.elevation', 'drn.cond'),
+    ('drn.at_layer_base', None),
 )
 
 # ---- panel 5: the measured state variables -------------------------------

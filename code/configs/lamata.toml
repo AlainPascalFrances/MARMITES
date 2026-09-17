@@ -277,6 +277,35 @@ how = "auto"
 raster = "MF_ws/Sy_l%d.asc"
 fill = 0.0
 
+[ghb]
+enable = false
+layers = [1, 2]
+
+[ghb.head]
+how = "auto"
+raster = "MF_ws/ghb_head_l%d.asc"
+fill = 0.0
+
+[ghb.cond]
+how = "auto"
+raster = "MF_ws/ghb_cond_l%d.asc"
+fill = 0.0
+
+[drn]
+enable = true
+layers = [1, 2]
+at_layer_base = true
+
+[drn.elevation]
+how = "auto"
+raster = "MF_ws/drn_elev_l%d.asc"
+fill = 0.0
+
+[drn.cond]
+how = "auto"
+raster = "MF_ws/drn_cond_l%d.asc"
+fill = 0.0
+
 [uzf]
 vks_scale = 1.0
 

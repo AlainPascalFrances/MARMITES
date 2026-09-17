@@ -803,6 +803,55 @@ class Layers:
     convertible: bool = True
 
 
+@dataclass
+class Ghb:
+    """Panel 4 -- GENERAL-HEAD BOUNDARY, one sub-panel per MF6 package.
+
+        enable        whether ModflowGwfghb is built at all (the ini's ghb_yn)
+        layers        the MODFLOW layers it applies to, counted from 1
+        head          ModflowGwfghb  stress_period_data  bhead
+        cond          ModflowGwfghb  stress_period_data  cond
+
+    WHERE the boundary IS comes from the source itself: a cell carries a
+    GHB where the head source produces a value, and `fill` (0 by default)
+    everywhere it does not. That is the legacy rule -- the ini's rasters are
+    zero except on the boundary -- said once instead of per raster.
+    """
+
+    enable: bool = False           # the ini's ghb_yn
+    layers: list = field(default_factory=list)   # 1-based, as MODFLOW counts
+    head: VectorSource = field(default_factory=VectorSource)
+    cond: VectorSource = field(default_factory=VectorSource)
+
+
+@dataclass
+class Drn:
+    """Panel 4 -- DRAINS, the catchment's own outflow boundary.
+
+        enable        whether ModflowGwfdrn is built (the ini's drn_yn)
+        layers        the MODFLOW layers it applies to, counted from 1
+        elevation     ModflowGwfdrn  stress_period_data  elev
+        cond          ModflowGwfdrn  stress_period_data  cond
+        at_layer_base put the elevation at the bottom of each layer
+
+    NOT THE SEEPAGE FACE. MARMITES builds a SECOND drain package, `drn_seep`,
+    over the whole land surface, and that one is configured in [seep]. This
+    is the boundary drain the parameter file called `drn`: in La Mata six
+    cells at the catchment outlet.
+
+    `at_layer_base` is the ini's convention that a NEGATIVE elevation means
+    "the bottom of this layer", which is how every La Mata drain cell is
+    written (-1). As a switch it says what it does; as -1 in a raster it had
+    to be learnt from a comment.
+    """
+
+    enable: bool = False           # the ini's drn_yn
+    layers: list = field(default_factory=list)
+    elevation: VectorSource = field(default_factory=VectorSource)
+    cond: VectorSource = field(default_factory=VectorSource)
+    at_layer_base: bool = False
+
+
 # =====================================================================
 #  Panel 2 -- SURFACE (MMsurf)
 # =====================================================================
@@ -1121,6 +1170,7 @@ _SECTIONS = {
     'grid': Grid,
     'surface': Surface,
     'soil': Soil, 'obs': Observations, 'layers': Layers,
+    'ghb': Ghb, 'drn': Drn,
     'uzf': Uzf, 'seep': Seep, 'et': Et, 'sfr': Sfr, 'lak': Lak, 'crr': Crr,
     'spinup': Spinup,
     'postproc': Postproc,
@@ -1222,6 +1272,8 @@ class RunConfig:
     obs: Observations = field(default_factory=Observations)
     layers: Layers = field(default_factory=Layers)
     uzf: Uzf = field(default_factory=Uzf)
+    ghb: Ghb = field(default_factory=Ghb)
+    drn: Drn = field(default_factory=Drn)
     seep: Seep = field(default_factory=Seep)
     et: Et = field(default_factory=Et)
     sfr: Sfr = field(default_factory=Sfr)
@@ -1415,6 +1467,34 @@ class RunConfig:
             errs.append('layers.k33 is the ratio k/k33, so it must be > 0 '
                         '(1 is isotropic). Turn off "as a ratio" to give a '
                         'conductivity instead.')
+        # --- panel 4: the boundary packages -----------------------------
+        # A package that is ON must be answerable: which layers, and where
+        # the head/elevation and the conductance come from. A package that
+        # is OFF is not checked at all -- half-filled answers for something
+        # that is not built are not errors.
+        for name, value_field in (('ghb', 'head'), ('drn', 'elevation')):
+            pkg = getattr(self, name)
+            if not pkg.enable:
+                continue
+            if not pkg.layers:
+                errs.append('%s.layers is empty: say which MODFLOW layer(s) '
+                            'the boundary applies to (1 to %d)'
+                            % (name, self.layers.nlay))
+            for L in pkg.layers:
+                if not (1 <= int(L) <= self.layers.nlay):
+                    errs.append('%s.layers has layer %s, and the model has %d '
+                                '(they are counted from 1)'
+                                % (name, L, self.layers.nlay))
+            if len(set(pkg.layers)) != len(pkg.layers):
+                errs.append('%s.layers repeats a layer' % name)
+            for f in (value_field, 'cond'):
+                src = getattr(pkg, f)
+                if src.producer() is None:
+                    errs.append('%s.%s: %s is on, so it needs a raster, a '
+                                'layer or a value' % (name, f, name))
+            if pkg.cond.value is not None and float(pkg.cond.value) <= 0.0:
+                errs.append('%s.cond must be > 0: a conductance of 0 is a '
+                            'boundary that does nothing' % name)
         if self.grid.quadtree.pond_level < 0:
             errs.append('grid.quadtree.pond_level must be >= 0 '
                         '(0 = the same as refine_level)')

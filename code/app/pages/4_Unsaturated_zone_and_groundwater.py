@@ -35,8 +35,8 @@ panel = panelui.header(4)
 
 edited, save_slot = panelui.switch_and_save(cfg, panel)
 
-tab_geom, tab_aq, tab_water = st.tabs(
-    ['MODFLOW aquifer layers', 'Aquifer & solver',
+tab_geom, tab_ghb, tab_drn, tab_aq, tab_water = st.tabs(
+    ['MODFLOW aquifer layers', 'GHB', 'DRN', 'Aquifer & solver',
      'Streams, ponds & runoff'])
 
 # ---------------------------------------------------------------- geometry
@@ -113,6 +113,33 @@ with tab_geom:
                    'becomes `botm`, `k` and `k33` become `ModflowGwfnpf`, '
                    '`ss` and `sy` become `ModflowGwfsto`, and none of them '
                    'is taken from the MODFLOW parameter file any more.')
+
+# -------------------------------------------------------------------- ghb
+# One sub-panel per MF6 package. The switch is the ini's ghb_yn: with it
+# off nothing below is read, and the fields are drawn read-only rather than
+# live so the panel cannot be left saying something the run will not do.
+with tab_ghb:
+    st.caption('A head held outside the model, and the conductance of what '
+               'lies between it and the boundary cells — `ModflowGwfghb`.')
+    edited.update(panelui.rows_form(
+        cfg, schema.GHB_ROWS, 'ghb', columns=2,
+        gated={'ghb.enable': ('ghb.layers', 'ghb.head', 'ghb.cond')}))
+    panelui.boundary_note(cfg, 'ghb', 'head', ds)
+
+# -------------------------------------------------------------------- drn
+with tab_drn:
+    st.caption('The outflow boundary of the catchment — `ModflowGwfdrn`. '
+               'Water leaves a cell once its head rises above the drain.')
+    edited.update(panelui.rows_form(
+        cfg, schema.DRN_ROWS, 'drn', columns=2,
+        gated={'drn.enable': ('drn.layers', 'drn.elevation', 'drn.cond',
+                              'drn.at_layer_base')}))
+    st.info('**This is not the seepage face.** MARMITES builds a SECOND '
+            'drain package, `drn_seep`, over the whole land surface, and '
+            'that one is configured under **Aquifer & solver → Seepage '
+            'face**. This tab is the boundary drain the parameter file '
+            'called `drn`: in La Mata six cells at the catchment outlet.')
+    panelui.boundary_note(cfg, 'drn', 'elevation', ds)
 
 # --------------------------------------------------------------- aquifer
 with tab_aq:
