@@ -753,8 +753,18 @@ class Layers:
         nlay        ModflowGwfdis / ModflowGwfdisv  nlay
         hnoflo      the no-flow / dry sentinel written into the head arrays
         thickness   botm, as top - sum(thickness) layer by layer
-        k           ModflowGwfnpf   k     (and k33 through the same value)
+        k           ModflowGwfnpf   k
+        k33         ModflowGwfnpf   k33  (a conductivity, or the ratio
+                                          k/k33 when k33_as_ratio -- which
+                                          is the legacy LAYVKA convention)
+        convertible ModflowGwfnpf   icelltype, ModflowGwfsto iconvert
         ss, sy      ModflowGwfsto   ss, sy
+
+    WHAT THE INI HAD AND MODFLOW 6 HAS NOT: layavg, laywet, laycbd and
+    hdry are MODFLOW-2005/NWT only. icelltype covers what layavg and
+    laywet expressed, MF6 has no quasi-3D confining bed, and there is no
+    dry-cell sentinel -- the run sets cMF.hdry = None and MMsoil tests
+    h < botm instead. None of them is asked here because none is used.
 
     TOP IS NOT ASKED. The aquifer top is the land surface minus the soil
     column -- elevation from [grid] dem, thickness from [soil] -- which is
@@ -779,8 +789,18 @@ class Layers:
     # where that rule lives. A single value is uniform over every layer.
     thickness: VectorSource = field(default_factory=VectorSource)
     k: VectorSource = field(default_factory=VectorSource)
+    k33: VectorSource = field(default_factory=VectorSource)
     ss: VectorSource = field(default_factory=VectorSource)
     sy: VectorSource = field(default_factory=VectorSource)
+    # VERTICAL ANISOTROPY, the legacy LAYVKA in one flag instead of one
+    # integer per layer. Every parameter set in the repository sets it the
+    # same way for every layer (1 = the number is the ratio), so a per-layer
+    # answer would be a column of identical values.
+    k33_as_ratio: bool = True
+    # icelltype / iconvert. 1 everywhere in every parameter set here: the
+    # water table is inside the modelled stack, so transmissivity has to
+    # follow the saturated thickness.
+    convertible: bool = True
 
 
 # =====================================================================
@@ -1377,7 +1397,7 @@ class RunConfig:
             errs.append('layers.hnoflo must not be 0: it is the value that '
                         'marks a cell as having nothing to report, and 0 is a '
                         'perfectly good head.')
-        for name in ('thickness', 'k', 'ss', 'sy'):
+        for name in ('thickness', 'k', 'k33', 'ss', 'sy'):
             src = getattr(self.layers, name)
             if src.producer() is None:
                 continue          # not given yet: the MF ini still supplies it
@@ -1386,6 +1406,15 @@ class RunConfig:
                             'layers.nlay is %d' % (name, self.layers.nlay))
             if src.value is not None and float(src.value) < 0.0:
                 errs.append('layers.%s must not be negative' % name)
+        # A ratio of 0 would be a division by zero on the way to k33, and a
+        # ratio below 1 says the aquifer conducts water more easily downwards
+        # than sideways, which is the opposite of what layering does.
+        k33 = self.layers.k33
+        if (self.layers.k33_as_ratio and k33.value is not None
+                and float(k33.value) <= 0.0):
+            errs.append('layers.k33 is the ratio k/k33, so it must be > 0 '
+                        '(1 is isotropic). Turn off "as a ratio" to give a '
+                        'conductivity instead.')
         if self.grid.quadtree.pond_level < 0:
             errs.append('grid.quadtree.pond_level must be >= 0 '
                         '(0 = the same as refine_level)')

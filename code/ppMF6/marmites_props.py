@@ -43,8 +43,17 @@ class PropertyError(Exception):
 PROPERTIES = (
     ('thickness', 'thick', 'layer thickness'),
     ('k', 'hk', 'hydraulic conductivity'),
+    ('k33', 'vka', 'vertical conductivity'),
     ('ss', 'ss', 'specific storage'),
     ('sy', 'sy', 'specific yield'),
+)
+
+# The per-layer FLAGS. The ini gave one integer per layer and every
+# parameter set in the repository repeats the same integer nlay times, so
+# the panel asks once and this fans it out.
+FLAGS = (
+    ('convertible', 'laytyp', lambda on: 1 if on else 0),
+    ('k33_as_ratio', 'layvka', lambda on: 1 if on else 0),
 )
 
 
@@ -120,6 +129,16 @@ def apply_layer_properties(cfg, cMF, dataset_dir, verbose=True):
     if cfg is None:
         return []
     done = []
+
+    # The flags first: one answer per model, fanned out over the layers the
+    # way the ini spelled it out. They are unconditional -- unlike the
+    # sources there is no "not answered" state for a boolean, so the panel
+    # is always the authority.
+    for field, attr, to_int in FLAGS:
+        if hasattr(cfg.layers, field):
+            setattr(cMF, attr,
+                    [to_int(getattr(cfg.layers, field))] * int(cMF.nlay))
+
     for field, attr, label in PROPERTIES:
         src = getattr(cfg.layers, field, None)
         if src is None:
@@ -140,7 +159,7 @@ def apply_layer_properties(cfg, cMF, dataset_dir, verbose=True):
     # and a raster read there cannot diverge.
     touched = {attr for field, attr, _ in PROPERTIES
                if field in [d[0] for d in done]}
-    for attr in ('hk', 'ss', 'sy'):
+    for attr in ('hk', 'vka', 'ss', 'sy'):
         if attr in touched:
             setattr(cMF, attr + '_actual',
                     cMF.cPROCESS.checkarray(getattr(cMF, attr)))

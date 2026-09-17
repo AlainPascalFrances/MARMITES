@@ -439,8 +439,32 @@ FIELDS = {
                          'uniform over all of them. The panel prints the '
                          'expansion and whether the files are there.'),
     'layers.k': ('Hydraulic conductivity', 'm/d',
-                 'flopy: `ModflowGwfnpf(k=)`, and `k33` through the same '
-                 'value. Per layer, by the same `%d` rule as the thickness.'),
+                 'flopy: `ModflowGwfnpf(k=)` -- the HORIZONTAL conductivity. '
+                 'Per layer, by the same `%d` rule as the thickness.'),
+    'layers.k33': ('Vertical conductivity', 'm/d or ratio',
+                   'flopy: `ModflowGwfnpf(k33=)`. With **as a ratio** on '
+                   '(the default, and the legacy `LAYVKA = 1`) the number is '
+                   'the ANISOTROPY k/k33, so 2 means the aquifer conducts '
+                   'water half as easily downwards as sideways and 1 is '
+                   'isotropic; with it off the number is a conductivity in '
+                   'm/d. Layering makes the ratio > 1 -- below 1 says water '
+                   'moves more easily vertically than horizontally, which is '
+                   'rarely what is meant. Per layer, by the same `%d` rule.'),
+    'layers.k33_as_ratio': ('k33 given as a ratio', _U,
+                            'On: the number above is k/k33 (the legacy '
+                            '`LAYVKA = 1`). Off: it is a vertical '
+                            'conductivity in m/d. It applies to every layer '
+                            '-- every parameter set in this repository sets '
+                            'it the same way for all of them.'),
+    'layers.convertible': ('Convertible layers', _U,
+                           'flopy: `ModflowGwfnpf(icelltype=)` and '
+                           '`ModflowGwfsto(iconvert=)`, 1 when on. The water '
+                           'table sits inside the modelled stack, so '
+                           'transmissivity has to follow the saturated '
+                           'thickness and storage has to switch between Sy '
+                           'and Ss as a cell drains. Off means every layer is '
+                           'confined. `layavg`, `laywet`, `laycbd` and `hdry` '
+                           'are not asked: MODFLOW 6 has none of them.'),
     'layers.ss': ('Specific storage', '1/m',
                   'flopy: `ModflowGwfsto(ss=)`. Per layer, by the same `%d` '
                   'rule as the thickness.'),
@@ -665,8 +689,15 @@ SUBPANELS = {
 # polygon the grid was built in.
 GEOMETRY_ROWS = (
     ('layers.nlay', 'layers.hnoflo'),
-    ('layers.thickness', 'layers.k'),
+    ('layers.thickness', None),
+    # k and k33 sit on one row, with the switch that says what the k33
+    # number MEANS directly beneath it: 2 is an anisotropy ratio or a
+    # conductivity in m/d depending on that one box, and a reader who
+    # cannot see them together cannot tell which.
+    ('layers.k', 'layers.k33'),
+    (None, 'layers.k33_as_ratio'),
     ('layers.ss', 'layers.sy'),
+    ('layers.convertible', None),
 )
 
 # ---- panel 5: the measured state variables -------------------------------

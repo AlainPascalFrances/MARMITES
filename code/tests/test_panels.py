@@ -255,7 +255,13 @@ def test_the_geometry_asks_only_what_is_not_derivable(cfg):
     that can only disagree with one already given."""
     laid = [d for row in schema.GEOMETRY_ROWS for d in row if d]
     assert laid == ['layers.nlay', 'layers.hnoflo', 'layers.thickness',
-                    'layers.k', 'layers.ss', 'layers.sy']
+                    'layers.k', 'layers.k33', 'layers.k33_as_ratio',
+                    'layers.ss', 'layers.sy', 'layers.convertible']
+    # the switch that says what the k33 NUMBER means must sit with it: 2 is
+    # an anisotropy ratio or a conductivity depending on that one box
+    flat = [d for row in schema.GEOMETRY_ROWS for d in row]
+    assert abs(flat.index('layers.k33_as_ratio')
+               - flat.index('layers.k33')) <= 2
     have = dict(schema.fields_of(cfg, 'layers'))
     for dotted in laid:
         assert dotted in have, '%s is laid out but does not exist' % dotted

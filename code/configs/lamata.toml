@@ -249,6 +249,8 @@ ro_prefix = "inputObsRo"
 nlay = 2
 aggregate = false
 hnoflo = 9999.99
+k33_as_ratio = true
+convertible = true
 
 [layers.thickness]
 how = "auto"
@@ -258,6 +260,11 @@ fill = 0.0
 [layers.k]
 how = "auto"
 raster = "MF_ws/hk_l%d.asc"
+fill = 0.0
+
+[layers.k33]
+how = "auto"
+value = 2.0
 fill = 0.0
 
 [layers.ss]

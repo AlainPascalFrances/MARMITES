@@ -7,6 +7,7 @@ A wiring that changed the model while claiming to move an input would be
 worse than no wiring at all.
 """
 
+import dataclasses
 import importlib.util
 import os
 import sys
@@ -121,7 +122,7 @@ def test_the_panel_reproduces_the_ini_cell_for_cell(cfg):
 
     def snapshot():
         out = dict((n, np.array(f2a(getattr(cMF, n + '_actual')), dtype=float))
-                   for n in ('hk', 'ss', 'sy'))
+                   for n in ('hk', 'vka', 'ss', 'sy'))
         out['thick'] = np.array(cMF.thick, dtype=float)
         out['botm'] = np.ma.filled(np.asarray(cMF.botm), -9999.0).astype(float)
         return out
@@ -129,11 +130,58 @@ def test_the_panel_reproduces_the_ini_cell_for_cell(cfg):
     from_ini = snapshot()
     assert cfg.layers.nlay == 2, 'this test is pinned to the 2-layer set'
     done = props.apply_layer_properties(cfg, cMF, DS, verbose=False)
-    assert {d[0] for d in done} == {'thickness', 'k', 'ss', 'sy'}
+    assert {d[0] for d in done} == {'thickness', 'k', 'k33', 'ss', 'sy'}
     from_panel = snapshot()
-    for name in ('thick', 'hk', 'ss', 'sy', 'botm'):
+    for name in ('thick', 'hk', 'vka', 'ss', 'sy', 'botm'):
         assert np.array_equal(from_ini[name], from_panel[name]), (
             '%s changed when it moved from the ini to the panel' % name)
+
+
+def test_the_flags_are_fanned_out_over_the_layers(cfg):
+    """The ini gave one integer per layer and every parameter set here
+    repeats the same one, so the panel asks once."""
+    class FakeProcess(object):
+        def checkarray(self, v, **kw):
+            return v
+
+        def float2array(self, v):
+            return v
+
+    class FakeMF(object):
+        nlay = 4
+        cPROCESS = FakeProcess()
+
+    cMF = FakeMF()
+    # only the flags here: the sources are checked against the real dataset
+    # above, and this model has four layers the rasters do not cover
+    for name in ('thickness', 'k', 'k33', 'ss', 'sy'):
+        setattr(cfg.layers, name, cfgmod.VectorSource())
+    cfg.layers.convertible = True
+    cfg.layers.k33_as_ratio = False
+    props.apply_layer_properties(cfg, cMF, DS, verbose=False)
+    assert list(cMF.laytyp) == [1, 1, 1, 1]
+    assert list(cMF.layvka) == [0, 0, 0, 0]
+
+
+def test_k33_as_a_ratio_must_be_positive(cfg):
+    """It divides k on the way to k33, and below 1 it would say the aquifer
+    conducts water more easily downwards than sideways."""
+    cfg.layers.k33 = cfgmod.VectorSource(value=0.0)
+    cfg.layers.k33_as_ratio = True
+    with pytest.raises(cfgmod.ConfigError) as e:
+        cfg.validate()
+    assert 'k33' in str(e.value)
+
+
+def test_what_modflow_6_has_not_is_not_asked():
+    """layavg, laywet, laycbd and hdry are MODFLOW-2005/NWT only, and the
+    run sets hdry to None outright. A panel field for any of them would be
+    a question with nowhere to go."""
+    fields = {f.name for f in dataclasses.fields(cfgmod.Layers)}
+    for dead in ('layavg', 'laywet', 'laycbd', 'hdry'):
+        assert dead not in fields, '%s reached the panel' % dead
+    src = open(os.path.join(HERE, 'run_lamata_mf6.py'), encoding='utf-8').read()
+    assert 'cMF.hdry = None' in src
 
 
 def test_the_reference_config_names_a_pattern_not_one_layer(cfg):

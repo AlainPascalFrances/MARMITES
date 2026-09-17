@@ -62,7 +62,7 @@ with tab_geom:
     # WHAT %d RESOLVES TO, spelled out. A pattern is worth nothing if the
     # modeller has to guess whether `k_%d.asc` means k_1.asc or k_01.asc --
     # so the panel opens the expansion and says whether the files are there.
-    _props = ('thickness', 'k', 'ss', 'sy')
+    _props = ('thickness', 'k', 'k33', 'ss', 'sy')
     _pat = [(n, getattr(cfg.layers, n)) for n in _props
             if '%d' in (getattr(cfg.layers, n).raster or '')]
     if _pat:
@@ -110,8 +110,8 @@ with tab_geom:
                    % ', '.join('`layers.%s`' % n for n in _blank))
     else:
         st.success('Every field on this tab reaches the run: `thickness` '
-                   'becomes `botm`, `k` becomes `ModflowGwfnpf(k=)`, `ss` '
-                   'and `sy` become `ModflowGwfsto`, and none of the four '
+                   'becomes `botm`, `k` and `k33` become `ModflowGwfnpf`, '
+                   '`ss` and `sy` become `ModflowGwfsto`, and none of them '
                    'is taken from the MODFLOW parameter file any more.')
 
 # --------------------------------------------------------------- aquifer
