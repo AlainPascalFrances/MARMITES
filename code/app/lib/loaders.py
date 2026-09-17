@@ -100,7 +100,7 @@ TIER_A_GROUPS = [
         'MF_ws/elev.asc', 'MF_ws/elev_sinkfil.ASC', 'MF_ws/ibound_l1.asc',
         'MF_ws/ibound_l2.asc', 'MF_ws/hk_l1.asc', 'MF_ws/hk_l2.asc',
         'MF_ws/thick_l1.asc', 'MF_ws/thick_l2.asc', 'MF_ws/Sy_l1.asc',
-        'MF_ws/sy_l2.asc', 'MF_ws/Ss_l1.asc', 'MF_ws/ss_l2.asc',
+        'MF_ws/Sy_l2.asc', 'MF_ws/Ss_l1.asc', 'MF_ws/Ss_l2.asc',
         'MF_ws/uzf_iuzfbnd.asc', 'MF_ws/drn_cond_l1.asc', 'MF_ws/drn_elev_l1.asc',
         'MF_ws/ghb_cond_l1.asc', 'MF_ws/ghb_head_l1.asc']),
     ('Saved spin-up state', [

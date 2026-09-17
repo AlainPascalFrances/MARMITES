@@ -98,19 +98,21 @@ with tab_geom:
                        % '; '.join('`%s` vs `%s`' % (a, b)
                                    for a, b in wrong_case))
 
-    # WHAT THE RUN ACTUALLY READS, said plainly. hnoflo and nlay reach the
-    # model; the four properties are still taken from the MODFLOW parameter
-    # file until the converter resolves them, whether or not they are
-    # answered here -- and a panel that implied otherwise would be the
-    # decorative switch all over again.
-    _named = [n for n in _props if getattr(cfg.layers, n).producer()]
-    st.warning('**Not read by a run yet:** `layers.thickness`, `layers.k`, '
-               '`layers.ss`, `layers.sy`. They still come from the MODFLOW '
-               'parameter file `MF_ws/__inputMF_flopy_v3_*.ini`. Answering '
-               'them here records the intent and changes nothing about the '
-               'run until the converter resolves them.%s'
-               % (' Answered so far: %s.'
-                  % ', '.join('`%s`' % n for n in _named) if _named else ''))
+    # WHAT THE RUN ACTUALLY READS, said plainly -- and it now reads all of
+    # it. Each answer replaces what the MODFLOW parameter file parsed,
+    # before the cell list, the soil model or any MF6 package has seen it;
+    # what is left blank still comes from that file, which is the only
+    # reason it is still opened at all.
+    _blank = [n for n in _props if getattr(cfg.layers, n).producer() is None]
+    if _blank:
+        st.warning('Still read from `MF_ws/__inputMF_flopy_v3_*.ini`: %s. '
+                   'Answer it here and the run uses the answer instead.'
+                   % ', '.join('`layers.%s`' % n for n in _blank))
+    else:
+        st.success('Every field on this tab reaches the run: `thickness` '
+                   'becomes `botm`, `k` becomes `ModflowGwfnpf(k=)`, `ss` '
+                   'and `sy` become `ModflowGwfsto`, and none of the four '
+                   'is taken from the MODFLOW parameter file any more.')
 
 # --------------------------------------------------------------- aquifer
 with tab_aq:

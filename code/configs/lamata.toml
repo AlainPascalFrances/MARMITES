@@ -252,22 +252,22 @@ hnoflo = 9999.99
 
 [layers.thickness]
 how = "auto"
-raster = "MF_ws/thick_l1.asc"
+raster = "MF_ws/thick_l%d.asc"
 fill = 0.0
 
 [layers.k]
 how = "auto"
-raster = "MF_ws/hk_l1.asc"
+raster = "MF_ws/hk_l%d.asc"
 fill = 0.0
 
 [layers.ss]
 how = "auto"
-raster = "MF_ws/Ss_l1.asc"
+raster = "MF_ws/Ss_l%d.asc"
 fill = 0.0
 
 [layers.sy]
 how = "auto"
-raster = "MF_ws/Sy_l1.asc"
+raster = "MF_ws/Sy_l%d.asc"
 fill = 0.0
 
 [uzf]

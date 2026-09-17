@@ -48,6 +48,7 @@ import ppMODFLOW_flopy_v3 as ppMF  # noqa: E402
 import MARMITESsoil_v3 as MMsoil  # noqa: E402
 from marmites_indices import INDEX_MM, INDEX_MM_SOIL  # noqa: E402
 from marmites_mf6 import clsMF6  # noqa: E402
+import marmites_props as props  # noqa: E402
 from marmites_coupler import MF6Coupler  # noqa: E402
 import marmites_config as mcfg  # noqa: E402
 import marmites_surface as msurf  # noqa: E402
@@ -293,6 +294,11 @@ def setup_lamata(daily=True, nsp=None, grid='dis', nlay=None, aggregate=False,
         print('hnoflo: %g from the panel (the ini said %g)'
               % (cfg.layers.hnoflo, cMF.hnoflo))
         cMF.hnoflo = float(cfg.layers.hnoflo)
+    # THE FRONT-END OWNS THE LAYER PROPERTIES TOO. thickness, k, Ss and Sy
+    # are asked on the panel, and whatever it answers replaces what the ini
+    # parsed -- before the cell list, the soil model or any MF6 package has
+    # read them. What the panel does not answer is left as the ini had it.
+    props.apply_layer_properties(cfg, cMF, DS)
     conv_fact = {1: 304.8, 2: 1000.0, 3: 10.0}[cMF.lenuni]
 
     # --- the forcing (WP1d) ------------------------------------------------
