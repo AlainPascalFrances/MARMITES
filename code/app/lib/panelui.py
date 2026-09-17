@@ -249,11 +249,10 @@ def boundary_note(cfg, name, value_field, dataset_dir):
         st.markdown('On layer(s) %s:\n\n%s'
                     % (', '.join(str(L) for L in pkg.layers),
                        '\n'.join(rows)))
-    st.warning('**Not read by a run yet.** `[%s]` is answered here but the '
-               'run still builds the package from '
-               '`MF_ws/__inputMF_flopy_v3_*.ini`. The wiring is the next '
-               'step; until it lands, this tab records the intent and '
-               'changes nothing.' % name)
+    st.success('The run builds `[%s]` from these answers, not from '
+               '`MF_ws/__inputMF_flopy_v3_*.ini`. A cell carries a boundary '
+               'where the source above produces a value; everywhere else it '
+               'falls back to `fill` and there is none.' % name)
 
 
 def _spelled_here(path):

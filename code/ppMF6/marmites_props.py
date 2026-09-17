@@ -31,8 +31,8 @@ import numpy as np
 
 __author__ = "Alain P. Francés <frances.alain@gmail.com>"
 
-__all__ = ['PROPERTIES', 'apply_layer_properties', 'resolve_source',
-           'PropertyError']
+__all__ = ['PROPERTIES', 'apply_layer_properties', 'apply_boundaries',
+           'resolve_source', 'PropertyError']
 
 
 class PropertyError(Exception):
@@ -195,3 +195,126 @@ def _recompute_botm(cMF):
         cMF.botm = np.ma.masked_values(
             np.asarray(cMF.botm).reshape((1, cMF.nrow, cMF.ncol)),
             cMF.hnoflo, atol=0.09)
+
+
+# =====================================================================
+#  The boundary packages: GHB and DRN
+# =====================================================================
+# The parameter file kept the FOOTPRINT of each boundary inside its
+# rasters -- zero everywhere except on the boundary -- and two of its
+# conventions only in a comment: that a negative drain elevation means the
+# bottom of the layer, and that a conductance equal to hnoflo means "not
+# here". The configuration says the first out loud (drn.at_layer_base) and
+# keeps the second, because it is how nodata reaches these arrays.
+#
+# The loops below are the ones from clsMF.__init__, and a test requires the
+# list they build to equal the one the parameter file built, entry for
+# entry, on the real La Mata drains.
+
+
+def apply_boundaries(cfg, cMF, dataset_dir, verbose=True):
+    """Build GHB and DRN from the configuration. Returns what it did."""
+    if cfg is None:
+        return []
+    done = []
+    for name in ('ghb', 'drn'):
+        pkg = getattr(cfg, name, None)
+        if pkg is None:
+            continue
+        setattr(cMF, name + '_yn', 1 if pkg.enable else 0)
+        if not pkg.enable:
+            continue
+        builder = _build_ghb if name == 'ghb' else _build_drn
+        n = builder(pkg, cMF, dataset_dir)
+        done.append((name, n))
+        if verbose:
+            print('%s: %d cell(s) on layer(s) %s from the panel'
+                  % (name.upper(), n,
+                     ', '.join(str(L) for L in pkg.layers)))
+    return done
+
+
+def _layer_arrays(src, layers, cMF, dataset_dir, what):
+    """{layer index, 0-based: 2-D array} for the layers the package covers.
+
+    A layer the package does not list gets no array and therefore no
+    boundary cells -- which is the panel's way of saying what the legacy
+    rasters said with a plane of zeros.
+    """
+    nlay = int(cMF.nlay)
+    values = resolve_source(src, nlay, dataset_dir, what)
+    if values is None:
+        raise PropertyError('%s: nothing to read' % what)
+    out = {}
+    for L in layers:
+        idx = int(L) - 1                      # MODFLOW counts layers from 1
+        if not (0 <= idx < nlay):
+            raise PropertyError('%s: layer %s is outside 1..%d'
+                                % (what, L, nlay))
+        v = values[idx]
+        plane = np.zeros((cMF.nrow, cMF.ncol), dtype=float)
+        if isinstance(v, str):
+            plane = cMF.cPROCESS.convASCIIraster2array(v, plane)
+        else:
+            plane[:, :] = float(v)
+        out[idx] = plane
+    return out
+
+
+def _build_ghb(pkg, cMF, dataset_dir):
+    """cMF.ghb_head_array, ghb_cond_array and layer_row_column_head_cond."""
+    nlay, nrow, ncol = int(cMF.nlay), cMF.nrow, cMF.ncol
+    head = _layer_arrays(pkg.head, pkg.layers, cMF, dataset_dir, 'ghb.head')
+    cond = _layer_arrays(pkg.cond, pkg.layers, cMF, dataset_dir, 'ghb.cond')
+    cMF.ghb_head_array = np.zeros((nlay, nrow, ncol))
+    cMF.ghb_cond_array = np.zeros((nlay, nrow, ncol))
+    cMF.layer_row_column_head_cond = {0: []}
+    for l in sorted(head):
+        cMF.ghb_head_array[l, :, :] = head[l]
+        cMF.ghb_cond_array[l, :, :] = cond[l]
+        for i in range(nrow):
+            for j in range(ncol):
+                h = cMF.ghb_head_array[l, i, j]
+                if h == 0 or h == cMF.hnoflo:
+                    continue
+                if cMF.ghb_cond_array[l, i, j] == cMF.hnoflo:
+                    continue
+                cMF.layer_row_column_head_cond[0].append(
+                    [l, i, j, h, cMF.ghb_cond_array[l, i, j]])
+    return len(cMF.layer_row_column_head_cond[0])
+
+
+def _build_drn(pkg, cMF, dataset_dir):
+    """cMF.drn_elev_array, drn_cond_array and the elevation/cond list.
+
+    ``at_layer_base`` puts every drain just above the bottom of its own
+    layer (botm + 0.01 m). The parameter file spelled that as a NEGATIVE
+    elevation in the raster, and a negative elevation is still honoured
+    cell by cell, so a map that mixes the two keeps working.
+    """
+    nlay, nrow, ncol = int(cMF.nlay), cMF.nrow, cMF.ncol
+    elev = _layer_arrays(pkg.elevation, pkg.layers, cMF, dataset_dir,
+                         'drn.elevation')
+    cond = _layer_arrays(pkg.cond, pkg.layers, cMF, dataset_dir, 'drn.cond')
+    cMF.drn_elev_array = np.zeros((nlay, nrow, ncol))
+    cMF.drn_cond_array = np.zeros((nlay, nrow, ncol))
+    cMF.layer_row_column_elevation_cond = {0: []}
+    for l in sorted(elev):
+        cMF.drn_elev_array[l, :, :] = elev[l]
+        cMF.drn_cond_array[l, :, :] = cond[l]
+        for i in range(nrow):
+            for j in range(ncol):
+                e = cMF.drn_elev_array[l, i, j]
+                if e == 0:
+                    continue
+                if e != cMF.hnoflo and (pkg.at_layer_base or e < 0):
+                    base = (cMF.botm[l] if isinstance(cMF.botm[l], float)
+                            else cMF.botm[l, i, j])
+                    e_out = base + 0.01
+                else:
+                    e_out = e + 0.01
+                if cMF.drn_cond_array[l, i, j] != cMF.hnoflo:
+                    cMF.layer_row_column_elevation_cond[0].append(
+                        [l, i, j, e_out, cMF.drn_cond_array[l, i, j]])
+                cMF.drn_elev_array[l, i, j] = e_out
+    return len(cMF.layer_row_column_elevation_cond[0])

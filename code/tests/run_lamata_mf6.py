@@ -299,6 +299,10 @@ def setup_lamata(daily=True, nsp=None, grid='dis', nlay=None, aggregate=False,
     # parsed -- before the cell list, the soil model or any MF6 package has
     # read them. What the panel does not answer is left as the ini had it.
     props.apply_layer_properties(cfg, cMF, DS)
+    # THE BOUNDARY PACKAGES TOO. GHB and DRN are rebuilt from [ghb] and
+    # [drn] -- AFTER the properties, because a drain taken at the base of
+    # its layer reads botm, and botm is the panel thickness now.
+    props.apply_boundaries(cfg, cMF, DS)
     conv_fact = {1: 304.8, 2: 1000.0, 3: 10.0}[cMF.lenuni]
 
     # --- the forcing (WP1d) ------------------------------------------------

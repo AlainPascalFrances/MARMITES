@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 """GHB and DRN as front-end questions, one sub-panel per MF6 package.
 
-These tabs ASK. They are not wired to the run yet, and the panel says so
-rather than implying otherwise -- a test below pins that admission, so it
-cannot quietly disappear before the wiring lands.
+Both are wired: the run builds ModflowGwfghb and ModflowGwfdrn from
+[ghb] and [drn], not from the parameter file. The acceptance test is the
+same one the layer properties had -- the drain list the panel produces
+must equal the one the parameter file produced, entry for entry.
 """
 
 import importlib.util
@@ -113,15 +114,19 @@ def test_the_seepage_face_is_not_confused_with_this_drain():
     assert 'drn_seep' in help_
 
 
-def test_the_panel_admits_these_are_not_wired_yet():
-    """The layers tab earned the right to say 'every field reaches the
-    run'. These two have not, and must not imply it."""
+def test_the_run_builds_both_packages_from_the_panel():
+    """They were unwired for one commit and the tab said so. It says the
+    opposite now, so this checks the opposite is true."""
+    src = open(os.path.join(CODE, 'tests', 'run_lamata_mf6.py'),
+               encoding='utf-8').read()
+    assert 'props.apply_boundaries' in src
+    # AFTER the properties: a drain taken at the base of its layer reads
+    # botm, and botm is the panel thickness now
+    assert (src.index('props.apply_layer_properties')
+            < src.index('props.apply_boundaries'))
     lib = open(os.path.join(CODE, 'app', 'lib', 'panelui.py'),
                encoding='utf-8').read()
-    assert 'Not read by a run yet' in lib, (
-        'boundary_note no longer admits the packages are unwired -- if the '
-        'wiring landed, this test should be replaced by one that checks the '
-        'run reads [ghb] and [drn]')
+    assert 'Not read by a run yet' not in lib
 
 
 def test_which_layers_gets_a_real_widget():
@@ -133,3 +138,98 @@ def test_which_layers_gets_a_real_widget():
                encoding='utf-8').read()
     assert 'def layer_box(' in lib
     assert 'schema.LAYER_LIST' in lib
+
+
+# ------------------------------------- what the run actually builds from it
+
+DS = os.path.abspath(os.path.join(CODE, '..', 'example', 'LaMata'))
+for _p in (os.path.join(CODE, 'ppMF6'), os.path.join(CODE, 'MARMITESutilities'),
+           os.path.join(CODE, 'ppMF_FloPy')):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+props = _load('marmites_props_b', os.path.join(CODE, 'ppMF6',
+                                               'marmites_props.py'))
+
+
+def _built(cfg):
+    """A clsMF parsed from the parameter file, then given the panel's
+    answers -- the properties first, because a drain at the base of its
+    layer reads botm and botm is the panel thickness now."""
+    import MARMITESutilities as MMutils
+    import ppMODFLOW_flopy_v3 as ppMF
+    cUTIL = MMutils.clsUTILITIES(verbose=0)
+    cMF = ppMF.clsMF(cUTIL, MM_ws=DS, MM_ws_out=DS,
+                     MF_ws=os.path.join(DS, 'MF_ws'),
+                     MF_ini_fn='__inputMF_flopy_v3_2s1L.ini',
+                     xllcorner=739300.0, yllcorner=4553050.0)
+    from_ini = [list(r) for r in cMF.layer_row_column_elevation_cond[0]]
+    props.apply_layer_properties(cfg, cMF, DS, verbose=False)
+    props.apply_boundaries(cfg, cMF, DS, verbose=False)
+    return cMF, from_ini
+
+
+@pytest.mark.skipif(not os.path.isdir(os.path.join(DS, 'MF_ws')),
+                    reason='the La Mata dataset is not present')
+def test_the_drains_reproduce_the_parameter_file_entry_for_entry(cfg):
+    """THE acceptance test. Six outlet cells on each of two layers, each at
+    the base of its own layer, with the layer's own conductance."""
+    cMF, from_ini = _built(cfg)
+    from_panel = [list(r) for r in cMF.layer_row_column_elevation_cond[0]]
+    assert len(from_panel) == len(from_ini) == 12
+    for a, b in zip(sorted(from_ini), sorted(from_panel)):
+        assert a[:3] == b[:3]
+        assert abs(a[3] - b[3]) < 1e-9, 'drain elevation moved'
+        assert abs(a[4] - b[4]) < 1e-9, 'drain conductance changed'
+
+
+@pytest.mark.skipif(not os.path.isdir(os.path.join(DS, 'MF_ws')),
+                    reason='the La Mata dataset is not present')
+def test_a_drain_at_the_layer_base_sits_just_above_botm(cfg):
+    """botm + 0.01 m: on the bottom face the cell would be dry before the
+    drain ever took water."""
+    cMF, _ini = _built(cfg)
+    for (l, i, j, elev, _cond) in cMF.layer_row_column_elevation_cond[0]:
+        assert abs(elev - (cMF.botm[l, i, j] + 0.01)) < 1e-9
+
+
+@pytest.mark.skipif(not os.path.isdir(os.path.join(DS, 'MF_ws')),
+                    reason='the La Mata dataset is not present')
+def test_the_ghb_is_built_where_the_head_raster_has_a_head(cfg):
+    """La Mata's GHB is off, so there is no list from the parameter file to
+    compare with: this checks against the rasters themselves -- six cells a
+    layer, heads between 734 and 734.5, each layer's own conductance."""
+    cfg.ghb.enable = True
+    cMF, _ini = _built(cfg)
+    spd = cMF.layer_row_column_head_cond[0]
+    assert len(spd) == 12, 'six boundary cells on each of two layers'
+    assert {int(r[0]) for r in spd} == {0, 1}
+    for (_l, _i, _j, head, cond) in spd:
+        assert 734.0 <= head <= 734.5
+        assert cond > 0
+    # each layer keeps its OWN conductance: 0.0101 and 0.7501
+    per_layer = {}
+    for (l, _i, _j, _h, cond) in spd:
+        per_layer.setdefault(int(l), set()).add(round(float(cond), 4))
+    assert per_layer[0] == {0.0101} and per_layer[1] == {0.7501}
+
+
+@pytest.mark.skipif(not os.path.isdir(os.path.join(DS, 'MF_ws')),
+                    reason='the La Mata dataset is not present')
+def test_a_layer_left_out_carries_no_boundary(cfg):
+    """`layers` is the answer to which layers, and leaving one out has to
+    MEAN something -- otherwise it is a question with no effect."""
+    cfg.drn.layers = [1]
+    cMF, _ini = _built(cfg)
+    got = cMF.layer_row_column_elevation_cond[0]
+    assert len(got) == 6 and {int(r[0]) for r in got} == {0}
+
+
+@pytest.mark.skipif(not os.path.isdir(os.path.join(DS, 'MF_ws')),
+                    reason='the La Mata dataset is not present')
+def test_a_package_switched_off_leaves_nothing_behind(cfg):
+    """Off has to reach the run as ghb_yn/drn_yn = 0, or the package would
+    be built from whatever the parameter file left in place."""
+    cfg.drn.enable = False
+    cMF, _ini = _built(cfg)
+    assert cMF.drn_yn == 0
+    assert cMF.ghb_yn == 0
