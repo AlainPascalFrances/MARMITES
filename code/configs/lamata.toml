@@ -1,5 +1,5 @@
 # MARMITES resolved run configuration
-# config_hash = b76a74029c6cc47e
+# config_hash = 54f2f3c54c5e1872
 
 [meta]
 config_version = 1
@@ -248,6 +248,27 @@ ro_prefix = "inputObsRo"
 [layers]
 nlay = 2
 aggregate = false
+hnoflo = 9999.99
+
+[layers.thickness]
+how = "auto"
+raster = "MF_ws/thick_l1.asc"
+fill = 0.0
+
+[layers.k]
+how = "auto"
+raster = "MF_ws/hk_l1.asc"
+fill = 0.0
+
+[layers.ss]
+how = "auto"
+raster = "MF_ws/Ss_l1.asc"
+fill = 0.0
+
+[layers.sy]
+how = "auto"
+raster = "MF_ws/Sy_l1.asc"
+fill = 0.0
 
 [uzf]
 vks_scale = 1.0

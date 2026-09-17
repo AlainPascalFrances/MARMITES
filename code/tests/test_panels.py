@@ -262,6 +262,25 @@ def test_the_geometry_asks_only_what_is_not_derivable(cfg):
     assert not any('top' in d or 'ibound' in d for d in laid)
 
 
+def test_a_per_layer_raster_expands_over_the_layers():
+    """`k_%d.asc` with 2 layers is k_1.asc and k_2.asc -- %d is the WHOLE
+    placeholder, so no stray `d` and no leading zero."""
+    src = cfgmod.VectorSource(raster='k_%d.asc')
+    assert src.rasters(2) == ['k_1.asc', 'k_2.asc']
+    assert src.rasters(1) == ['k_1.asc']
+    # a name without the placeholder is that one raster, whatever nlay says
+    assert cfgmod.VectorSource(raster='k.asc').rasters(6) == ['k.asc']
+    # and nothing to expand when there is no raster at all
+    assert cfgmod.VectorSource(value=1.0).rasters(2) == []
+
+
+def test_the_layers_help_says_what_the_placeholder_becomes():
+    """A pattern is worth nothing if the modeller has to guess whether it
+    means k_1.asc or k_01.asc."""
+    h = schema.describe('layers.thickness')[2]
+    assert 'thick_1.asc' in h and 'thick_2.asc' in h
+
+
 def test_every_geometry_field_names_its_flopy_argument():
     """The flopy name is the only one that does not drift."""
     for dotted in ('layers.nlay', 'layers.thickness', 'layers.k',
@@ -286,8 +305,10 @@ def test_the_layer_properties_take_the_usual_three_producers(cfg):
         assert schema.is_source(src), '%s is not a source' % name
         for producer in ('raster', 'layer', 'value'):
             assert hasattr(src, producer), '%s has no %s' % (name, producer)
-    # ... and nothing is set yet, which is how the MF ini keeps supplying it
-    assert cfg.layers.thickness.producer() is None
+        # whatever is answered, exactly one producer wins -- and 'value'
+        # is a number rather than the string a hand-edited file may hold
+        if src.producer() is not None:
+            src.validate('layers.%s' % name)
 
 
 def test_hnoflo_reaches_the_model():

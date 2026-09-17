@@ -428,17 +428,25 @@ FIELDS = {
                       'is a perfectly good head.'),
     'layers.thickness': ('Layer thickness', 'm',
                          'flopy: becomes `botm`, subtracted layer by layer '
-                         'from the aquifer top. A raster may carry %d for the '
-                         'layer -- thick_l%d.asc is four rasters and one '
-                         'answer -- and a single value is uniform over every '
-                         'layer.'),
+                         'from the aquifer top. ONE RASTER PER LAYER: write '
+                         '`%d` where the layer number goes and it is replaced '
+                         'by 1, 2, ... up to the number of layers above -- '
+                         '`thick_%d.asc` with 2 layers opens `thick_1.asc` '
+                         'and `thick_2.asc`. `%d` is the whole placeholder, '
+                         'so no `d` is left behind, and the count has no '
+                         'leading zero. A name without `%d` is that one '
+                         'raster for every layer, and a single value is '
+                         'uniform over all of them. The panel prints the '
+                         'expansion and whether the files are there.'),
     'layers.k': ('Hydraulic conductivity', 'm/d',
-                 'flopy: `ModflowGwfnpf(k=)`. Per layer, by the same %d rule '
-                 'as the thickness.'),
+                 'flopy: `ModflowGwfnpf(k=)`, and `k33` through the same '
+                 'value. Per layer, by the same `%d` rule as the thickness.'),
     'layers.ss': ('Specific storage', '1/m',
-                  'flopy: `ModflowGwfsto(ss=)`.'),
+                  'flopy: `ModflowGwfsto(ss=)`. Per layer, by the same `%d` '
+                  'rule as the thickness.'),
     'layers.sy': ('Specific yield', _U,
-                  'flopy: `ModflowGwfsto(sy=)`.'),
+                  'flopy: `ModflowGwfsto(sy=)`. Per layer, by the same `%d` '
+                  'rule as the thickness.'),
     'uzf.vks_scale': ('UZF vks multiplier', _U,
                       'Offsets the EPSILON clamp MF6 forces (2.0 -> 3.5).'),
     'seep.kind': ('Seepage mechanism', _U,
@@ -651,7 +659,7 @@ SUBPANELS = {
 
 
 # ---- panel 4: one sub-panel per MF6 package ------------------------------
-# GEOMETRY first. The top is NOT asked -- it is the land surface minus the
+# MODFLOW AQUIFER LAYERS first. The top is NOT asked -- it is the land surface minus the
 # soil column, so a third answer could only disagree with the other two --
 # and neither is ibound: a cell is active when it is inside the catchment
 # polygon the grid was built in.

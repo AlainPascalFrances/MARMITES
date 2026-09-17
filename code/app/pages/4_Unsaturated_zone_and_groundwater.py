@@ -36,7 +36,8 @@ panel = panelui.header(4)
 edited, save_slot = panelui.switch_and_save(cfg, panel)
 
 tab_geom, tab_aq, tab_water = st.tabs(
-    ['Geometry', 'Aquifer & solver', 'Streams, ponds & runoff'])
+    ['MODFLOW aquifer layers', 'Aquifer & solver',
+     'Streams, ponds & runoff'])
 
 # ---------------------------------------------------------------- geometry
 # The first of one sub-panel per MF6 package. Every field says which flopy
@@ -58,21 +59,58 @@ with tab_geom:
             % (schema.panel_name(1), schema.panel_name(3),
                schema.panel_name(1)))
 
+    # WHAT %d RESOLVES TO, spelled out. A pattern is worth nothing if the
+    # modeller has to guess whether `k_%d.asc` means k_1.asc or k_01.asc --
+    # so the panel opens the expansion and says whether the files are there.
+    _props = ('thickness', 'k', 'ss', 'sy')
+    _pat = [(n, getattr(cfg.layers, n)) for n in _props
+            if '%d' in (getattr(cfg.layers, n).raster or '')]
+    if _pat:
+        lines, wrong_case = [], []
+        for name, src in _pat:
+            marks = []
+            for fn in src.rasters(cfg.layers.nlay):
+                # CASE-STRICT on purpose. Windows opens Ss_l2.asc when the
+                # file is called ss_l2.asc and Linux does not, so a check
+                # that trusted the filesystem would hide the one mistake a
+                # pattern makes easy.
+                folder = os.path.dirname(os.path.join(str(ds or ''), fn))
+                base = os.path.basename(fn)
+                try:
+                    here = os.listdir(folder)
+                except OSError:
+                    here = []
+                if base in here:
+                    marks.append('🟢 `%s`' % fn)
+                elif base.lower() in [h.lower() for h in here]:
+                    real = [h for h in here if h.lower() == base.lower()][0]
+                    marks.append('🟠 `%s` (on disk: `%s`)' % (fn, real))
+                    wrong_case.append((fn, real))
+                else:
+                    marks.append('🔴 `%s`' % fn)
+            lines.append('- **%s** — %s' % (name, ', '.join(marks)))
+        st.markdown('`%%d` over %d layer(s):\n\n%s'
+                    % (cfg.layers.nlay, '\n'.join(lines)))
+        if wrong_case:
+            st.warning('Same name, different case: %s. Windows opens these '
+                       'and Linux does not — rename the file or the '
+                       'pattern so one spelling covers every layer.'
+                       % '; '.join('`%s` vs `%s`' % (a, b)
+                                   for a, b in wrong_case))
+
     # WHAT THE RUN ACTUALLY READS, said plainly. hnoflo and nlay reach the
     # model; the four properties are still taken from the MODFLOW parameter
-    # file until the converter resolves them, and a panel that implied
-    # otherwise would be the decorative switch all over again.
-    _wired = [d for d in ('layers.nlay', 'layers.hnoflo')]
-    _pending = [d for d in ('layers.thickness', 'layers.k', 'layers.ss',
-                            'layers.sy')
-                if getattr(cfg.layers, d.split('.')[-1]).producer() is None]
-    if _pending:
-        st.warning('Not read by a run yet: %s. Those still come from the '
-                   'MODFLOW parameter file `%s`; naming a raster or a layer '
-                   'here records the intent but does not change the run until '
-                   'the converter resolves them.'
-                   % (', '.join('`%s`' % d for d in _pending),
-                      'MF_ws/__inputMF_flopy_v3_*.ini'))
+    # file until the converter resolves them, whether or not they are
+    # answered here -- and a panel that implied otherwise would be the
+    # decorative switch all over again.
+    _named = [n for n in _props if getattr(cfg.layers, n).producer()]
+    st.warning('**Not read by a run yet:** `layers.thickness`, `layers.k`, '
+               '`layers.ss`, `layers.sy`. They still come from the MODFLOW '
+               'parameter file `MF_ws/__inputMF_flopy_v3_*.ini`. Answering '
+               'them here records the intent and changes nothing about the '
+               'run until the converter resolves them.%s'
+               % (' Answered so far: %s.'
+                  % ', '.join('`%s`' % n for n in _named) if _named else ''))
 
 # --------------------------------------------------------------- aquifer
 with tab_aq:

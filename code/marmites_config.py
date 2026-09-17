@@ -709,6 +709,22 @@ class VectorSource:
             return 'value'
         return None
 
+    def rasters(self, n):
+        """The raster name expanded over N layers, in layer order.
+
+        ONE PLACE where the %d rule lives, so the panel previews exactly
+        what a run would open. `k_%d.asc` with n=2 is ['k_1.asc',
+        'k_2.asc'] -- %d is the WHOLE placeholder, so nothing of it is left
+        in the name. Numbering starts at 1, the way MODFLOW counts layers
+        and the way the crop schedule already numbers its fields. A name
+        without %d is that one raster for every layer.
+        """
+        if not self.raster:
+            return []
+        if '%d' not in self.raster:
+            return [self.raster]
+        return [self.raster % (i + 1) for i in range(max(int(n), 0))]
+
     def validate(self, what):
         if self.producer() is None:
             raise ConfigError(
@@ -757,9 +773,10 @@ class Layers:
     # MARMITES as well, which masks on it, so the two must be the same
     # number -- which is why it is asked once here rather than twice.
     hnoflo: float = 9999.999
-    # Per-layer properties. A raster may carry %d for the layer, the way the
-    # crop schedule carries it for the field: thick_l%d.asc is four rasters
-    # and one answer. A single value is uniform over every layer.
+    # Per-layer properties. A raster may carry %d for the layer, the way
+    # the crop schedule carries it for the field: with nlay=2, thick_%d.asc
+    # is thick_1.asc and thick_2.asc -- see VectorSource.rasters, which is
+    # where that rule lives. A single value is uniform over every layer.
     thickness: VectorSource = field(default_factory=VectorSource)
     k: VectorSource = field(default_factory=VectorSource)
     ss: VectorSource = field(default_factory=VectorSource)
