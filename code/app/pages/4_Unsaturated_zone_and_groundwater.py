@@ -37,7 +37,7 @@ edited, save_slot = panelui.switch_and_save(cfg, panel)
 
 tab_geom, tab_ghb, tab_drn, tab_uzf, tab_water, tab_init = st.tabs(
     ['MODFLOW aquifer layers', 'GHB', 'DRN', 'UZF', 'SFR, LAK and CRR',
-     'Initial heads'])
+     'Initial heads & spin-up'])
 
 # ---------------------------------------------------------------- geometry
 # The first of one sub-panel per MF6 package. Every field says which flopy

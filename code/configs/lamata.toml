@@ -1,5 +1,5 @@
 # MARMITES resolved run configuration
-# config_hash = 24ef03c830386fb3
+# config_hash = fccf7e7db56b3229
 
 [meta]
 config_version = 1
@@ -306,13 +306,9 @@ raster = "MF_ws/drn_cond_l%d.asc"
 fill = 0.0
 
 [uzf]
-# The values the MODFLOW parameter file carried, so moving them here is a
-# move and not a change. MODFLOW 6 defaults 7/40; La Mata asked for 15/500.
 ntrailwaves = 15
 nwavesets = 500
 surfdep = 0.25
-# The ini said 2.0 and MODFLOW 6 clamps to 3.5, so 3.5 is what the model
-# has actually been running with -- said out loud instead of clamped.
 eps = 3.5
 thtr = 0.05
 thts = 0.45

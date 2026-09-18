@@ -249,14 +249,18 @@ def test_a_package_switched_off_leaves_nothing_behind(cfg):
 def test_the_initial_heads_tab_is_last_and_holds_only_the_spin_up():
     """It was called "Aquifer & solver" and by the end held neither: the
     aquifer moved to MODFLOW aquifer layers, UZF and ET to their own tabs,
-    and the seepage face to DRN. What is left is where a run STARTS."""
+    and the seepage face to DRN. What is left is where a run STARTS.
+
+    The name says "& spin-up" because [spinup] carries `cycles` and `tol`
+    as well as the heads -- the loop that produces them, not just its
+    result."""
     page = open(PAGE, encoding='utf-8').read()
     tabs = page[page.index('st.tabs('):page.index('])', page.index('st.tabs('))]
     assert 'Aquifer & solver' not in page
-    assert tabs.rstrip().endswith("'Initial heads'"), (
-        'Initial heads is not the last tab')
+    assert tabs.rstrip().endswith("'Initial heads & spin-up'"), (
+        'Initial heads & spin-up is not the last tab')
     init = page[page.index('with tab_init:'):]
     assert "section_form(cfg, 'spinup'" in init
     for moved in ("'seep'", "'uzf'", "'et'", "'layers'"):
         assert 'section_form(cfg, %s' % moved not in init, (
-            '%s is still drawn on the Initial heads tab' % moved)
+            '%s is still drawn on the Initial heads & spin-up tab' % moved)
