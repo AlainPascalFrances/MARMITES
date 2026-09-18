@@ -589,7 +589,23 @@ class Grid:
 
 @dataclass
 class Seep:
-    kind: str = 'uzf'              # uzf | drn                 (--seep)
+    """How groundwater leaves at the LAND SURFACE (the seepage face).
+
+    DEFAULT drn, DELIBERATELY. 'uzf' is UZF6's SIMULATE_GWSEEP, which
+    MODFLOW 6 deprecates and which switches discharge on and off
+    discontinuously -- a single cell can end up in a limit cycle. 'drn'
+    puts a drain at the land surface with AUXDEPTHNAME, so MF6 ramps the
+    discharge in over DDRN by cubic smoothing instead of snapping it on.
+    It is what La Mata was converted to and what CdL uses.
+
+    The default used to be 'uzf', which is what the NWT model did
+    (NOSURFLEAK = 0 in the parameter file). Nothing in La Mata depended on
+    it -- that configuration says drn -- but a NEW catchment started from
+    scratch would have inherited the deprecated path in silence, which is
+    the one way this choice could still do harm.
+    """
+
+    kind: str = 'drn'              # drn | uzf                 (--seep)
     cond: float = 10000.0          #                           (--seep-cond)
 
 

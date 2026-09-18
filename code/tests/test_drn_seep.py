@@ -183,3 +183,36 @@ def test_drnseep_takes_precedence_over_gwd():
     c.p_gwd = np.array([1e6, 1e6])       # stale/absent UZF discharge
     _, exf = c._read_heads_exf()
     assert exf == pytest.approx([1000.0, 1000.0])
+
+
+def test_drn_is_the_default_in_both_places_that_decide_it(cmf, tmp_path):
+    """A NEW catchment started from scratch -- CdL is next -- must not
+    inherit SIMULATE_GWSEEP in silence. It is deprecated in MODFLOW 6 and
+    switches discharge on and off discontinuously, so a cell can sit in a
+    limit cycle; the drain ramps it in over DDRN instead.
+
+    Two places decide, and BOTH have to say drn: the configuration a panel
+    writes, and clsMF6 itself for anything built without the run passing a
+    choice.
+    """
+    import importlib.util as _il
+    trunk = os.path.abspath(os.path.join(HERE, '..'))
+    spec = _il.spec_from_file_location('marmites_config_seep',
+                                       os.path.join(trunk,
+                                                    'marmites_config.py'))
+    cfgmod = _il.module_from_spec(spec)
+    spec.loader.exec_module(cfgmod)
+    assert cfgmod.Seep().kind == 'drn', 'an empty config would get uzf'
+
+    # ... and the builder, with nothing assigned to b.seep at all
+    b = mf6mod.clsMF6(cmf, top=np.asarray(cmf.elev, dtype=float),
+                      botm=np.asarray(cmf.botm, dtype=float),
+                      sim_ws=str(tmp_path), daily=True)
+    assert b.seep == 'drn'
+    b.sfr_cells = set()
+    b.build()
+    assert _pkg(b, 'drn_seep') is not None, 'no seepage face was built'
+    uzf = _pkg(b, 'uzf')
+    assert uzf is not None
+    assert not bool(uzf.simulate_gwseep.get_data()), (
+        'SIMULATE_GWSEEP is on by default again')

@@ -143,18 +143,49 @@ def test_validator_passes_valid_values_untouched(cmf, tmp_path):
     assert b.eps_clamped is None
 
 
-def test_gwseep_enabled_so_exfiltration_can_exist(cmf, tmp_path):
-    """UZF6 computes groundwater discharge (= MARMITES Exf_g) ONLY with
-    SIMULATE_GWSEEP. Without it the GWD array stays identically zero and
-    exfiltration is structurally impossible -- which is exactly what happened
-    in the first full La Mata run. Guard the option in the written file."""
+def test_exactly_one_seepage_mechanism_exists(cmf, tmp_path):
+    """Exfiltration (MARMITES Exf_g) must be structurally POSSIBLE -- the
+    first full La Mata run produced none because neither mechanism was
+    active -- and must not be provided twice, or the discharge is counted
+    twice.
+
+    Which mechanism is a separate question with its own default. Under
+    'uzf' it is UZF6's SIMULATE_GWSEEP; under 'drn' (the default since a
+    new catchment must not inherit the deprecated option) it is the
+    drn_seep package, whose SIMVALS the coupler reads back into the soil
+    column. So this pins the INVARIANT, in both settings.
+    """
+    for kind in ('uzf', 'drn'):
+        ws = tmp_path / kind
+        ws.mkdir()
+        b = mf6mod.clsMF6(cmf, top=np.asarray(cmf.elev, dtype=float),
+                          botm=np.asarray(cmf.botm, dtype=float),
+                          sim_ws=str(ws))
+        b.seep = kind
+        assert b.gwseep is True
+        b.build()
+        b.write()
+        with open(os.path.join(str(ws),
+                               '%s.uzf' % cmf.modelname.lower())) as f:
+            in_uzf = 'SIMULATE_GWSEEP' in f.read(4000).upper()
+        by_drain = b.ndrnseep > 0
+        assert in_uzf != by_drain, (
+            'seep=%r gives %s in UZF and %s by drain: exfiltration is '
+            'either impossible or counted twice'
+            % (kind, in_uzf, by_drain))
+        assert in_uzf if kind == 'uzf' else by_drain
+
+
+def test_the_default_mechanism_is_the_drain(cmf, tmp_path):
+    """Not SIMULATE_GWSEEP, which MODFLOW 6 deprecates and which switches
+    discharge on and off discontinuously."""
     b = _build(cmf, tmp_path)
-    assert b.gwseep is True
+    assert b.seep == 'drn'
     b.write()
-    uzf = os.path.join(str(tmp_path), '%s.uzf' % cmf.modelname.lower())
-    with open(uzf) as f:
-        head = f.read(4000).upper()
-    assert 'SIMULATE_GWSEEP' in head, 'SIMULATE_GWSEEP missing -> Exf_g == 0'
+    with open(os.path.join(str(tmp_path),
+                           '%s.uzf' % cmf.modelname.lower())) as f:
+        assert 'SIMULATE_GWSEEP' not in f.read(4000).upper()
+    assert b.ndrnseep > 0, 'no seepage face at all: Exf_g would be zero'
 
 
 def test_gwseep_can_be_disabled_explicitly(cmf, tmp_path):

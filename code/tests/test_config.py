@@ -92,9 +92,15 @@ REF_CONFIG = os.path.join(REPO, 'code', 'configs', 'lamata.toml')
 
 def test_empty_config_reproduces_todays_flag_defaults():
     """An empty file must behave exactly like the pre-WP0 defaults, so WP0
-    stays a pure refactor -- with ONE deliberate exception: WP1d flipped
-    grid.kind to voronoi. A run that wants the old rectangle now asks for it
-    by name, grid.kind = 'structured'."""
+    stays a pure refactor -- with TWO deliberate exceptions, each of which
+    a run can still ask for by name:
+
+      grid.kind  'structured' -> 'voronoi'  (WP1d)
+      seep.kind  'uzf' -> 'drn'             SIMULATE_GWSEEP is deprecated
+                                            in MF6 and discontinuous; a new
+                                            catchment must not inherit it
+                                            in silence.
+    """
     c = cfgmod.RunConfig.from_dict({})
     assert c.run.mode == 'lagged'
     assert c.run.relax == 0.6
@@ -105,7 +111,7 @@ def test_empty_config_reproduces_todays_flag_defaults():
     assert c.grid.kind == 'voronoi'       # WP1d; was 'structured' == --grid dis
     assert c.layers.nlay == 6
     assert c.uzf.vks_scale == 1.0
-    assert c.seep.kind == 'uzf'
+    assert c.seep.kind == 'drn'       # WP1d; was 'uzf' == SIMULATE_GWSEEP
     assert c.seep.cond == 10000.0
     assert c.sfr.enable is False
     assert c.lak.enable is False

@@ -98,7 +98,9 @@ class clsMF6:
         # With 'drn' the discharge ramps in over DDRN via cubic smoothing.
         # Unlike the reference, the flows are NOT moved to SFR: MARMITES needs
         # them returned to the soil column (Eq. 1 / sec. 2.3).
-        self.seep = 'uzf'
+        # DEFAULT drn: a clsMF6 built without the run passing a
+        # choice must not get the deprecated mechanism by accident.
+        self.seep = 'drn'
         # Conductance of a seepage-face drain is a NUMERICAL device, not a
         # physical streambed/aquitard property: its job is to pin the head at
         # the land surface and carry off whatever excess arrives. It must
