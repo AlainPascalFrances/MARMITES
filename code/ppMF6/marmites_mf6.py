@@ -156,6 +156,14 @@ class clsMF6:
         self.uzf_vks_scale = 1.0
         self.perioddata = None
         self.outer_maximum = min(int(getattr(cMF, 'maxiterout', 500)), 500)
+        # UNSATURATED-ZONE ET (WP2). Off by default; the run turns it on
+        # from [et]. `uzf_et_form` is 'etwc' (a water-content threshold) or
+        # 'etae' (Brooks-Corey capillary pressure).
+        self.uzf_et = False
+        self.uzf_et_form = 'etwc'
+        # per-cell (nlay, nrow, ncol) or None -> taken from thtr
+        self.uzf_extdp = None
+        self.uzf_extwc = None
         # None -> use the ini arrays; (a, b) -> head = a*elevation + b
         self.strt_from_dem = strt_from_dem
         # explicit (nlay,nrow,ncol) initial heads, e.g. a spin-up cycle's final
@@ -205,6 +213,10 @@ class clsMF6:
         self.gwf = None
         # bookkeeping filled by build()
         self.uzf_packagedata = None
+        # the period row per land cell, so a test can read the
+        # PET demand and the extinction depth without parsing
+        # the written file
+        self.uzf_perioddata = None
         self.nuzfcells = 0
         self.surfdep_check = True
         self.eps_clamped = None      # (original, clamped) when EPSILON adjusted
@@ -830,18 +842,58 @@ class clsMF6:
                              float(thts[kk, i, j]), float(thti[kk, i, j]),
                              float(eps[kk, i, j])))
         pkdata = pkdata + subs
-        # period data: finf on land cells only; ET disabled (MARMITES does ET)
-        pdata0 = [(n, float(getattr(cMF, 'perc_user', 0.0)), 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
-                  for n in range(self.ncell)]
+        # PERIOD DATA. (iuzno, finf, pet, extdp, extwc, ha, hroot, rootact)
+        # on the land cells only.
+        #
+        # THE ET SPLIT (WP2, the cookbook's ruling). Total ET is ETsoil +
+        # ETuzf + ETg: the soil column and the groundwater are MARMITES's,
+        # the UNSATURATED ZONE between them is UZF's. MODFLOW 6 supports
+        # exactly that division -- "et can be simulated in the uzf cell and
+        # not the gwf cell by omitting keywords linear_gwet and square_gwet"
+        # (mf6io) -- so simulate_et goes on WITHOUT either gwet keyword and
+        # groundwater ET stays with MARMITES, which applies it through WEL.
+        #
+        # `pet` starts at 0 and the COUPLER writes the demand each step: it
+        # is a daily quantity MARMITES computes, not a property of the
+        # model. What comes back is ETuzf ACTUAL, read from the UZF budget,
+        # and the residual of the demand chain goes to ETg -- never the
+        # demand itself, which UZF may not have been able to meet.
+        _extdp = (self._lay3d(np.asarray(self.uzf_extdp, dtype=float),
+                              self.nlay, self.nrow, self.ncol)
+                  if self.uzf_extdp is not None else None)
+        _extwc = (self._lay3d(np.asarray(self.uzf_extwc, dtype=float),
+                              self.nlay, self.nrow, self.ncol)
+                  if self.uzf_extwc is not None else None)
+        pdata0 = []
+        for n, (i, j, k) in enumerate(self.surf_cells):
+            if self.uzf_et:
+                dp = float(_extdp[k, i, j]) if _extdp is not None else 0.0
+                # extwc must lie between thtr and thts; thtr is the floor
+                # UZF6 already enforces, so it is the honest default.
+                wc = (float(_extwc[k, i, j]) if _extwc is not None
+                      else float(thtr[k, i, j]))
+            else:
+                dp = wc = 0.0
+            pdata0.append((n, float(getattr(cMF, 'perc_user', 0.0)), 0.0,
+                           dp, wc, 0.0, 0.0, 0.0))
+        _etkw = {}
+        if self.uzf_et:
+            _etkw['simulate_et'] = True
+            # ... and NEITHER linear_gwet NOR square_gwet: groundwater ET is
+            # MARMITES's, and asking MODFLOW for it as well would remove the
+            # same water twice.
+            if self.uzf_et_form == 'etae':
+                _etkw['unsat_etae'] = True
+            else:
+                _etkw['unsat_etwc'] = True
         ModflowGwfuzf(gwf, nuzfcells=self.nuzfcells, ntrailwaves=int(getattr(cMF, 'ntrail2', 7)),
                       nwavesets=int(getattr(cMF, 'nsets', 40)),
                       packagedata=pkdata, perioddata={0: pdata0},
-                      simulate_et=False,
                       # exactly one seepage mechanism, never both, or the
                       # discharge would be counted twice
                       simulate_gwseep=(self.gwseep and self.seep == 'uzf'),
                       pname='uzf', save_flows=True,
-                      budget_filerecord=f'{name}.uzf.cbc')
+                      budget_filerecord=f'{name}.uzf.cbc', **_etkw)
 
         if self.sfr:
             self._add_sfr_package(gwf, name)
@@ -855,6 +907,7 @@ class clsMF6:
 
         self.sim, self.gwf = sim, gwf
         self.uzf_packagedata = pkdata
+        self.uzf_perioddata = pdata0
         return sim
 
     # ------------------------------------------------------------------ #

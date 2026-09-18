@@ -586,6 +586,7 @@ def _args_from_config(cfg, probe=False):
         nlay=cfg.layers.nlay,
         # packages
         uzf_vks_scale=cfg.uzf.vks_scale,
+        uzf_et=cfg.et.uzf_et, uzf_et_form=cfg.et.unsat_form,
         seep=cfg.seep.kind, seep_cond=cfg.seep.cond,
         sfr=cfg.sfr.enable,
         sfr_rhk=(cfg.sfr.rhk.value if cfg.sfr.rhk.value is not None else 0.1),
@@ -718,6 +719,17 @@ def main():
     b.ats = a.ats
     b.drn_seep_cond = float(a.seep_cond)
     b.uzf_vks_scale = float(a.uzf_vks_scale)
+    # UNSATURATED-ZONE ET. The extinction depth follows the usual rule --
+    # a raster, a column of the vegetation layer, or one value -- so it is
+    # resolved the way every other spatial input is, per layer and then
+    # broadcast over the column.
+    b.uzf_et = bool(getattr(a, 'uzf_et', False))
+    b.uzf_et_form = str(getattr(a, 'uzf_et_form', 'etwc'))
+    if b.uzf_et and cfg is not None:
+        b.uzf_extdp = props.resolve_source(
+            cfg.et.extdp, int(cMF.nlay), DS, 'et.extdp')
+        print('UZF ET: on (%s), extinction depth from %s'
+              % (b.uzf_et_form, cfg.et.extdp.producer()))
     if a.sfr:
         # WP1d: the network is the hydrography the modeller MAPPED, burned onto
         # whichever grid panel 1 produced -- not inputSTREAMw.asc, which was

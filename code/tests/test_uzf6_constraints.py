@@ -204,3 +204,68 @@ def test_validator_clamps_high_epsilon(cmf, tmp_path):
     _, _, _, eps = b._validate_uzf_params(0.05, 0.45, 0.15, 99.0)
     assert eps == mf6mod.clsMF6.EPS_MAX == 14.0
     assert b.eps_clamped == (99.0, 14.0)
+
+
+# --------------------------------------------------------------------- #
+# the ET split: ETsoil (MM) + ETuzf (MF) + ETg (MM)
+# --------------------------------------------------------------------- #
+
+def _uzf_text(b, tmp):
+    b.write()
+    with open(os.path.join(str(tmp), '%s.uzf' % b.cMF.modelname.lower())) as f:
+        return f.read().upper()
+
+
+def test_uzf_et_is_off_until_it_is_asked_for(cmf, tmp_path):
+    b = _build(cmf, tmp_path)
+    assert 'SIMULATE_ET' not in _uzf_text(b, tmp_path)
+
+
+def test_uzf_does_the_unsaturated_zone_and_never_the_groundwater(cmf,
+                                                                 tmp_path):
+    """THE ruling: total ET is ETsoil + ETuzf + ETg -- the soil column and
+    the groundwater are MARMITES's, the unsaturated zone between them is
+    UZF's. MODFLOW 6 supports exactly that: "et can be simulated in the uzf
+    cell and not the gwf cell by omitting keywords linear_gwet and
+    square_gwet". Asking for groundwater ET here would remove the same
+    water MARMITES already removes through WEL."""
+    b = mf6mod.clsMF6(cmf, top=np.asarray(cmf.elev, dtype=float),
+                      botm=np.asarray(cmf.botm, dtype=float),
+                      sim_ws=str(tmp_path))
+    b.uzf_et = True
+    b.uzf_extdp = np.full((cmf.nlay, cmf.nrow, cmf.ncol), 2.5)
+    b.build()
+    txt = _uzf_text(b, tmp_path)
+    assert 'SIMULATE_ET' in txt
+    assert 'UNSAT_ETWC' in txt
+    assert 'LINEAR_GWET' not in txt, 'MODFLOW would remove ETg a second time'
+    assert 'SQUARE_GWET' not in txt, 'MODFLOW would remove ETg a second time'
+
+
+def test_the_unsaturated_formulation_follows_the_configuration(cmf, tmp_path):
+    b = mf6mod.clsMF6(cmf, top=np.asarray(cmf.elev, dtype=float),
+                      botm=np.asarray(cmf.botm, dtype=float),
+                      sim_ws=str(tmp_path))
+    b.uzf_et, b.uzf_et_form = True, 'etae'
+    b.uzf_extdp = np.full((cmf.nlay, cmf.nrow, cmf.ncol), 2.5)
+    b.build()
+    txt = _uzf_text(b, tmp_path)
+    assert 'UNSAT_ETAE' in txt and 'UNSAT_ETWC' not in txt
+
+
+def test_the_pet_demand_starts_at_zero_for_the_coupler_to_write(cmf,
+                                                                tmp_path):
+    """PET is a daily quantity MARMITES computes, not a property of the
+    model: the build leaves it at 0 and the coupler writes it each step.
+    A non-zero constant here would be a demand nobody chose, applied every
+    day of the run."""
+    b = mf6mod.clsMF6(cmf, top=np.asarray(cmf.elev, dtype=float),
+                      botm=np.asarray(cmf.botm, dtype=float),
+                      sim_ws=str(tmp_path))
+    b.uzf_et = True
+    b.uzf_extdp = np.full((cmf.nlay, cmf.nrow, cmf.ncol), 2.5)
+    b.build()
+    pet = {float(rec[2]) for rec in b.uzf_perioddata}
+    assert pet == {0.0}, 'the build wrote a PET demand: %s' % sorted(pet)
+    extdp = {round(float(rec[3]), 3) for rec in b.uzf_perioddata}
+    assert extdp == {2.5}, extdp

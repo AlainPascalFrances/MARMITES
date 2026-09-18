@@ -125,17 +125,19 @@ def test_uzf_et_needs_an_extinction_depth(cfg):
     assert 'et.extdp' in str(e.value)
 
 
-def test_the_panel_admits_uzf_et_is_not_wired(cfg):
-    """simulate_et is hard-coded False in the build. Switching it on is a
-    modelling decision -- UZF drying the unsaturated zone alongside MMsoil
-    -- so the panel says so instead of implying the switch works."""
+def test_the_panel_says_which_half_of_uzf_et_is_wired(cfg):
+    """The MODFLOW side is built and the demand chain is not. "Not wired"
+    would now be wrong and "wired" would be worse: with PET still zero the
+    switch changes nothing a run produces, and a panel that implied
+    otherwise would be the decorative switch again."""
     page = open(PAGE, encoding='utf-8').read()
-    assert 'simulate_et' in page and 'hard-coded' in page
+    assert 'Half wired' in page
+    assert 'linear_gwet' in page and 'square_gwet' in page
+    assert 'actual' in page and 'residual' in page
     build = open(os.path.join(CODE, 'ppMF6', 'marmites_mf6.py'),
                  encoding='utf-8').read()
-    assert 'simulate_et=False' in build, (
-        'if simulate_et now follows the panel, this test and the panel '
-        'warning should both be replaced')
+    assert 'simulate_et=False' not in build, (
+        'simulate_et is hard-coded off again')
 
 
 # ------------------------------------------------- what the run receives

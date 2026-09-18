@@ -187,11 +187,16 @@ with tab_uzf:
         gated={'et.uzf_et': ('et.extdp', 'et.extwc_source',
                              'et.unsat_form')}))
     if cfg.et.uzf_et:
-        st.warning('`simulate_et` is currently hard-coded to False when the '
-                   'model is built, so this switch and the extinction depth '
-                   'are not read yet. Wiring it means UZF drying the '
-                   'unsaturated zone alongside MMsoil, which is a modelling '
-                   'decision — ask before relying on it.')
+        st.warning('**Half wired.** The MODFLOW side is built: UZF simulates '
+                   'unsaturated-zone ET with this extinction depth, and '
+                   'groundwater ET is deliberately NOT asked of it — '
+                   '`linear_gwet` and `square_gwet` are both omitted, so ETg '
+                   'stays with MARMITES through the WEL package.\n\n'
+                   'What is NOT done is the demand chain: the coupler does '
+                   'not yet write the daily PET into UZF, nor read ETuzf '
+                   '**actual** back from the UZF budget to take the residual '
+                   'off ETg. Until it does, UZF gets a PET of zero and this '
+                   'switch changes nothing a run produces.')
 
     with st.expander('Where every UZF1 name went'):
         st.caption('The parameter file carried twenty-two of these and '
