@@ -77,22 +77,83 @@ def test_the_run_takes_the_name_from_the_panel():
 
 
 def test_overview_asks_for_it_before_anything_else():
+    """It is the first field on the page, before the things named after
+    it. No heading: the field's own label says what it is."""
     page = open(HOME, encoding='utf-8').read()
     assert "'meta.model'" in page
-    assert (page.index('What this model is called')
+    assert (page.index("'meta.model'")
             < page.index('What this configuration will run')), (
         'the name is asked after the things named after it')
 
 
-def test_the_configuration_file_is_not_renamed_behind_the_modeller(cfg):
-    """A file may be open in an editor, named in a launch command, or read
-    by a run still going. The panel says the two disagree and stops there."""
+def test_the_page_says_the_file_follows_the_name():
+    """Automatic, so the panel has to say it is about to happen rather
+    than leave a rename to be discovered."""
     page = open(HOME, encoding='utf-8').read()
-    assert 'nothing is renamed automatically' in page
-    for verb in ('os.rename(', 'shutil.move(', 'os.remove('):
-        assert verb not in page, '%s on the Overview panel' % verb
+    assert 'renames this file to match' in page
 
 
 def test_the_field_says_what_it_becomes():
     help_ = schema.describe('meta.model')[2]
     assert '.hds' in help_ and '16' in help_
+
+
+# ------------------------------------------- the file follows the model name
+
+def _panelui():
+    """panelui imports streamlit; skip where it is not installed."""
+    pytest.importorskip('streamlit')
+    from lib import panelui
+    return panelui
+
+
+def test_saving_renames_the_file_after_the_model(tmp_path, monkeypatch):
+    """The model's name IS its identity: MODFLOW writes <model>.hds, and the
+    configuration describing it should not be called something else."""
+    panelui = _panelui()
+    src = tmp_path / 'old_name.toml'
+    src.write_text(open(REF, encoding='utf-8').read(), encoding='utf-8')
+    cfg = cfgmod.load_run_config(str(src))
+    cfg.meta.model = 'newname'
+
+    monkeypatch.setattr(panelui.st, 'session_state', {}, raising=False)
+    new, why = panelui.rename_to_model(cfg, str(src))
+
+    assert new and os.path.basename(new) == 'newname.toml'
+    assert os.path.exists(new) and not os.path.exists(str(src)), (
+        'it must MOVE, not leave both'
+    )
+    assert 'Renamed' in why
+    # the sidebar picks the file from this, so it has to follow
+    assert panelui.st.session_state['config_file'] == 'newname.toml'
+
+
+def test_a_name_already_taken_is_refused_rather_than_overwritten(tmp_path,
+                                                                 monkeypatch):
+    """That file describes a DIFFERENT model. Silently overwriting it would
+    lose it, and automatic is not the same as careless."""
+    panelui = _panelui()
+    body = open(REF, encoding='utf-8').read()
+    src = tmp_path / 'one.toml'
+    src.write_text(body, encoding='utf-8')
+    other = tmp_path / 'taken.toml'
+    other.write_text('# another model entirely\n', encoding='utf-8')
+
+    cfg = cfgmod.load_run_config(str(src))
+    cfg.meta.model = 'taken'
+    monkeypatch.setattr(panelui.st, 'session_state', {}, raising=False)
+    new, why = panelui.rename_to_model(cfg, str(src))
+
+    assert not new
+    assert 'another configuration' in why
+    assert os.path.exists(str(src)), 'the file being saved was lost'
+    assert other.read_text(encoding='utf-8').startswith('# another model')
+
+
+def test_a_matching_name_is_left_alone(tmp_path, monkeypatch):
+    panelui = _panelui()
+    src = tmp_path / 'lamata.toml'
+    src.write_text(open(REF, encoding='utf-8').read(), encoding='utf-8')
+    cfg = cfgmod.load_run_config(str(src))
+    monkeypatch.setattr(panelui.st, 'session_state', {}, raising=False)
+    assert panelui.rename_to_model(cfg, str(src)) == ('', '')

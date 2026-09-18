@@ -1190,7 +1190,46 @@ def save_button(cfg, path, edited, label='Validate & save', slot=None,
         with c2.expander('What changed'):
             for a in applied:
                 st.code(a, language='ini')
+        moved, why = rename_to_model(cfg, path)
+        if moved:
+            c2.success(why)
+        elif why:
+            c2.warning(why)
     st.rerun()
+
+
+def rename_to_model(cfg, path):
+    """Keep the file named after the model. ``(new_path or '', message)``.
+
+    The model's name IS the model's identity: MODFLOW writes <model>.hds,
+    and the configuration that describes it should not be called something
+    else. So this follows the name rather than reporting that the two
+    disagree.
+
+    It moves, never copies-and-deletes, and it REFUSES to land on a name
+    another configuration already occupies -- that file describes a
+    different model and silently overwriting it would lose it.
+    """
+    want = cfg.meta.model_name(cfg.paths.case)
+    folder, base = os.path.split(str(path))
+    stem, ext = os.path.splitext(base)
+    if not want or stem.lower() == want:
+        return '', ''
+    target = os.path.join(folder, want + ext)
+    if os.path.exists(target) and os.path.abspath(target) != os.path.abspath(path):
+        return '', ('The model is **%s**, but `%s%s` is another '
+                    'configuration. This file stays `%s` — rename or remove '
+                    'the other one first.' % (want, want, ext, base))
+    try:
+        os.replace(path, target)
+    except OSError as exc:
+        return '', 'Could not rename `%s` to `%s%s`: %s' % (base, want, ext,
+                                                            exc)
+    # The sidebar picks the file from this, so it has to follow or the next
+    # run would look for a file that is no longer there.
+    st.session_state['config_file'] = want + ext
+    return target, ('Renamed `%s` to `%s%s`, after the model.'
+                    % (base, want, ext))
 
 
 def dataset_banner(cfg):

@@ -112,40 +112,21 @@ def main():
     panelui.dataset_banner(cfg)
 
     st.title('💧  MARMITES / MODFLOW 6')
-    st.caption('A soil water balance coupled to MODFLOW 6 through the API. '
-               'Case **%s**, configuration `%s`.'
-               % (case, os.path.basename(path)))
 
-    st.markdown('### What this model is called')
-    st.caption('Asked first because everything else is named after it: '
-               'MODFLOW 6 writes `<model>.hds`, `<model>.cbc` and '
-               '`<model>.lst`, and this configuration file should carry the '
-               'same name.')
     _mc1, _mc2 = st.columns([2, 3])
     with _mc1:
         _edited = panelui.rows_form(cfg, (('meta.model', None),), 'meta',
                                     columns=1)
-    _model = (_edited.get('meta.model', cfg.meta.model) or '').strip()
-    _effective = (_model or case).lower()
+    _effective = ((_edited.get('meta.model', cfg.meta.model) or '').strip()
+                  or case).lower()
     with _mc2:
         st.markdown('')
-        stem = os.path.splitext(os.path.basename(path))[0]
-        if not _model:
-            st.info('Blank, so the case name is used: the model is '
-                    '**%s** and MODFLOW writes `%s.hds`.'
-                    % (_effective, _effective))
-        elif stem.lower() != _effective:
-            # NOT renamed here. A configuration file may be open in an
-            # editor, named in a launch command, or referenced by a run that
-            # is still going; renaming it under the modeller would be a
-            # surprise of exactly the kind this front-end exists to avoid.
-            st.warning('The model is **%s** but this file is `%s.toml`. '
-                       'Save a copy as `%s.toml` from your editor, or change '
-                       'one of the two — nothing is renamed automatically.'
-                       % (_effective, stem, _effective))
-        else:
-            st.success('MODFLOW writes `%s.hds`, `%s.cbc`, `%s.lst`.'
-                       % (_effective, _effective, _effective))
+        st.caption('A soil water balance coupled to MODFLOW 6 through the '
+                   'API. Case **%s**, configuration `%s`.'
+                   % (case, os.path.basename(path)))
+        st.caption('MODFLOW writes `%s.hds`, `%s.cbc`, `%s.lst`. Saving '
+                   'renames this file to match.'
+                   % (_effective, _effective, _effective))
     panelui.save_button(cfg, path, _edited, key='save_model_name')
 
     st.markdown('### What this configuration will run')
