@@ -610,9 +610,6 @@ FIELDS = {
                                   'from the corridor and the maximum size '
                                   'ratio. Read-only: editing it does '
                                   'nothing.'),
-    'layers.aggregate': ('Derive 2 layers from 6', _U,
-                         'Comparison only. The 2-layer parameter set is '
-                         'maintained by hand and is NOT this.'),
     'obs.name_column': ('Name column', _U, 'Of the optional point layer.'),
     'obs.heads_prefix': ('Head series prefix', _U,
                          '<prefix>_<point>.txt, one file per piezometer.'),

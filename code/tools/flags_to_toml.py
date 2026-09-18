@@ -47,7 +47,6 @@ _SIMPLE = {
 }
 _STORE_TRUE = {
     '--build-only': ('run', 'build_only'),
-    '--aggregate': ('layers', 'aggregate'),
     '--sfr': ('sfr', 'enable'),
     '--postproc': ('postproc', 'enable'),
     '--preproc': ('postproc', 'preproc'),

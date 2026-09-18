@@ -254,14 +254,13 @@ def _state_out(a, pref):
 INI_BY_NLAY = {2: '__inputMF_flopy_v3_2s1L.ini', 6: '__inputMF_flopy_v3_2s3L.ini'}
 
 
-def setup_lamata(daily=True, nsp=None, grid='dis', nlay=None, aggregate=False,
+def setup_lamata(daily=True, nsp=None, grid='dis', nlay=None,
                  cfg=None, mesh_ws=None):
     """Replicate the driver setup; returns (cMF, mm, ctx, state, top, botm).
 
-    ``nlay`` selects the parameter set: 2 reads the 2-layer ini directly, 6 (or
-    None) the 6-layer ini. ``aggregate=True`` forces the old behaviour of
-    deriving the 2-layer model by collapsing the 6-layer one (kept for
-    comparison only).
+    ``nlay`` selects the parameter set: 2 reads the 2-layer ini directly, 6
+    (or None) the 6-layer ini. Each is authoritative and maintained by hand;
+    there is no derivation of one from the other.
 
     ``cfg`` (WP1c.1) enables the unstructured path. When ``cfg.grid_kind`` is
     a genuine mesh producer -- 'quadtree', later 'voronoi' -- the model is
@@ -272,14 +271,10 @@ def setup_lamata(daily=True, nsp=None, grid='dis', nlay=None, aggregate=False,
     the code work unchanged. 'structured' and 'disv' never project: they are
     the regression anchor and must stay byte-identical.
     """
-    if aggregate:
-        ini_fn = INI_BY_NLAY[6]
-    else:
-        ini_fn = INI_BY_NLAY.get(int(nlay) if nlay else 6)
-        if ini_fn is None:
-            raise SystemExit('--nlay %s has no parameter file; available: %s '
-                             '(or use --aggregate to derive it from the 6-layer '
-                             'model)' % (nlay, sorted(INI_BY_NLAY)))
+    ini_fn = INI_BY_NLAY.get(int(nlay) if nlay else 6)
+    if ini_fn is None:
+        raise SystemExit('--nlay %s has no parameter file; available: %s'
+                         % (nlay, sorted(INI_BY_NLAY)))
     cUTIL = MMutils.clsUTILITIES(verbose=1)
     cMF = ppMF.clsMF(cUTIL, MM_ws=DS, MM_ws_out=DS, MF_ws=os.path.join(DS, 'MF_ws'),
                      MF_ini_fn=ini_fn,
@@ -345,18 +340,6 @@ def setup_lamata(daily=True, nsp=None, grid='dis', nlay=None, aggregate=False,
                  NMETEO, NVEG, NSOIL, P_irr_fn, Pe_irr_fn, PT_irr_fn, crop_irr_fn, NFIELD)
     print('time discretization: nper=%d over %d days (daily=%s)'
           % (cMF.nper, int(np.sum(cMF.perlen)), daily))
-
-    # Comparison-only path: derive the 2-layer model by collapsing the 6-layer
-    # one. The direct 2-layer parameter file (loaded above when nlay=2) is the
-    # authoritative representation; aggregation is kept so the two can be
-    # compared. Done BEFORE the outcrop map and the MARMITES cell list, so soil
-    # and groundwater models always share the same layering.
-    if aggregate and nlay is not None and int(nlay) != cMF.nlay:
-        from marmites_layers import aggregate_layers
-        if int(nlay) != int(cMF.Mnlay):
-            raise SystemExit('--nlay %s requested but the ini declares Mnlay=%d '
-                             '(Mlay=%s)' % (nlay, cMF.Mnlay, cMF.Mlay))
-        aggregate_layers(cMF)
 
     # outcrop / masks
     cMF.outcropL = np.zeros((cMF.nrow, cMF.ncol), dtype=int)
@@ -555,7 +538,7 @@ def _args_from_config(cfg, probe=False):
         # reach clsMF6 as a grid type it rejects.
         grid=('dis' if cfg.grid_kind == 'structured' else 'disv'),
         mesh_kind=cfg.grid_kind,
-        nlay=cfg.layers.nlay, aggregate=cfg.layers.aggregate,
+        nlay=cfg.layers.nlay,
         # packages
         uzf_vks_scale=cfg.uzf.vks_scale,
         seep=cfg.seep.kind, seep_cond=cfg.seep.cond,
@@ -664,7 +647,7 @@ def main():
     _check_state_scope(a, cfg)
 
     cMF, mm, ctx, state, top, botm, conv_fact = setup_lamata(
-        daily=a.daily, nsp=a.nsp, grid=a.grid, nlay=a.nlay, aggregate=a.aggregate,
+        daily=a.daily, nsp=a.nsp, grid=a.grid, nlay=a.nlay,
         cfg=cfg, mesh_ws=os.path.join(a.ws, '_mesh'))
     if a.postproc_only:
         # Re-draw the figures from a run that already happened: everything the

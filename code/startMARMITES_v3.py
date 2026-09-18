@@ -1772,7 +1772,7 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
         MMplot.plotWBsankey(MM_ws_out, cMF.inputDate, flxCatch_lst, flxIndex_lst,
                                 fn=plt_exportCATCH_txt_fn.split('\\')[-1], indexTime=HYindex, year_lst=year_lst,
                                 cMF=cMF, ncell_MM=ncell_MM, obspt='whole catchment', fntitle='0CATCHMENT',
-                                ibound4Sankey=np.ones((cMF.Mnlay), dtype=int), stdout=stdout, report=report)
+                                ibound4Sankey=np.ones((cMF.nlay), dtype=int), stdout=stdout, report=report)
         print('WB Sankey plot done!\n-------')
         #except:
          #   print('WB Sankey plot error!\n-------')
@@ -2148,19 +2148,14 @@ if plt_out_obs == 1 and os.path.exists(h5_MM_fn) and os.path.exists(cMF.h5_MF_fn
                     # plot water balance at each obs. cell
                     if WBsankey_yn == 1:
                         try:
-                            # TODO rever ibound4Sankey  = cMF.Mnlay
-                            ibound4Sankey = np.zeros(cMF.Mnlay)
-                            l = 0
-                            #print(len(cMF.Mlay))
-                            #print("l=%d" % l)
-                            for Ml in range(cMF.Mnlay):
-                                while cMF.Mlay[l] == (Ml + 1):
-                                    if abs(cMF.ibound[l, i, j]) == 1:
-                                        ibound4Sankey[Ml] = 1
-                                    l += 1
-                                    #print("l=%d"%l)
-                                    if l == len(cMF.Mlay):
-                                        break
+                            # One Sankey bucket per MODFLOW layer: the
+                            # grouping of layers into hydrogeological units
+                            # is gone, so a layer counts here when it is
+                            # active at this cell.
+                            ibound4Sankey = np.zeros(cMF.nlay)
+                            for l in range(cMF.nlay):
+                                if abs(cMF.ibound[l, i, j]) == 1:
+                                    ibound4Sankey[l] = 1
                             MMplot.plotWBsankey(MM_ws_out, cMF.inputDate, flxObs_lst, flxIndex_lst,
                                                 fn=plt_export_txt_fn.split('\\')[-1], indexTime=HYindex,
                                                 year_lst=year_lst, cMF=cMF, ncell_MM=ncell_MM, obspt='obs. pt. %s' % o,

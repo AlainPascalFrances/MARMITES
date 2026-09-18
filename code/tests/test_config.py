@@ -104,7 +104,6 @@ def test_empty_config_reproduces_todays_flag_defaults():
     assert c.run.max_discrepancy == 1.0
     assert c.grid.kind == 'voronoi'       # WP1d; was 'structured' == --grid dis
     assert c.layers.nlay == 6
-    assert c.layers.aggregate is False
     assert c.uzf.vks_scale == 1.0
     assert c.seep.kind == 'uzf'
     assert c.seep.cond == 10000.0

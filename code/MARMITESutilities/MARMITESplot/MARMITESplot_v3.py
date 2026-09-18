@@ -1864,46 +1864,46 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
         ETsoil.append(mult * np.sum(np.float16(flx[flxIndex['iETsoil']][i:indexend])))
         I.append(mult * np.sum(np.float16(flx[flxIndex['iI']][i:indexend])))
         if cMF.wel_yn == 1:
-            Eg.append(np.zeros(cMF.Mnlay))
-            Tg.append(np.zeros(cMF.Mnlay))
-            for ii, (ML, L) in enumerate(zip(cMF.Mlay, range(cMF.nlay))):
-                Eg[k][ML-1] += mult * np.sum(np.float16(flx[flxIndex['iEg_%d' % (L + 1)]][i:indexend]))
-                Tg[k][ML-1] += mult * np.sum(np.float16(flx[flxIndex['iTg_%d' % (L + 1)]][i:indexend]))
+            Eg.append(np.zeros(cMF.nlay))
+            Tg.append(np.zeros(cMF.nlay))
+            for L in range(cMF.nlay):
+                Eg[k][L] += mult * np.sum(np.float16(flx[flxIndex['iEg_%d' % (L + 1)]][i:indexend]))
+                Tg[k][L] += mult * np.sum(np.float16(flx[flxIndex['iTg_%d' % (L + 1)]][i:indexend]))
             Egtot.append(mult * np.sum(np.float16(flx[flxIndex['iEg']][i:indexend])))
             Tgtot.append(mult * np.sum(np.float16(flx[flxIndex['iTg']][i:indexend])))
             ETg.append(mult * np.sum(np.float16(flx[flxIndex['iETg']][i:indexend])))
         Ssurf.append(mult * np.sum(np.float16(flx[flxIndex['iSsurf']][i:indexend])))
         Rp.append(mult * np.sum(np.float16(flx[flxIndex['iperc']][i:indexend])))
         dSu.append(mult * np.sum(np.float16(flx[flxIndex['idSu']][i:indexend])))
-        Rg.append(np.zeros(cMF.Mnlay))
-        dSg.append(np.zeros(cMF.Mnlay))
-        FRF.append(np.zeros(cMF.Mnlay))
-        FFF.append(np.zeros(cMF.Mnlay))
-        FLF.append(np.zeros(cMF.Mnlay))
-        EXF.append(np.zeros(cMF.Mnlay))
-        WEL.append(np.zeros(cMF.Mnlay))
-        DRN.append(np.zeros(cMF.Mnlay))
-        GHB.append(np.zeros(cMF.Mnlay))
-        CH.append(np.zeros(cMF.Mnlay))
-        for ii, (ML, L) in enumerate(zip(cMF.Mlay, range(cMF.nlay))):
-            Rg[k][ML - 1] += mult * np.sum(np.float16(flx[flxIndex['iRg_%d' % (L + 1)]][i:indexend]))
-            dSg[k][ML - 1] += mult * np.sum(np.float16(flx[flxIndex['idSg_%d' % (L + 1)]][i:indexend]))
-            FRF[k][ML - 1] += mult * np.sum(np.float16(flx[flxIndex['iFRF_%d' % (L + 1)]][i:indexend]))
-            FFF[k][ML - 1] += mult * np.sum(np.float16(flx[flxIndex['iFFF_%d' % (L + 1)]][i:indexend]))
+        Rg.append(np.zeros(cMF.nlay))
+        dSg.append(np.zeros(cMF.nlay))
+        FRF.append(np.zeros(cMF.nlay))
+        FFF.append(np.zeros(cMF.nlay))
+        FLF.append(np.zeros(cMF.nlay))
+        EXF.append(np.zeros(cMF.nlay))
+        WEL.append(np.zeros(cMF.nlay))
+        DRN.append(np.zeros(cMF.nlay))
+        GHB.append(np.zeros(cMF.nlay))
+        CH.append(np.zeros(cMF.nlay))
+        for L in range(cMF.nlay):
+            Rg[k][L] += mult * np.sum(np.float16(flx[flxIndex['iRg_%d' % (L + 1)]][i:indexend]))
+            dSg[k][L] += mult * np.sum(np.float16(flx[flxIndex['idSg_%d' % (L + 1)]][i:indexend]))
+            FRF[k][L] += mult * np.sum(np.float16(flx[flxIndex['iFRF_%d' % (L + 1)]][i:indexend]))
+            FFF[k][L] += mult * np.sum(np.float16(flx[flxIndex['iFFF_%d' % (L + 1)]][i:indexend]))
             if cMF.nlay > 1:
-                FLF[k][ML - 1] += mult * np.ma.masked_invalid(np.float32(flx[flxIndex['iFLF_%d' % (L + 1)]][i:indexend])).sum()
-            EXF[k][ML - 1] += mult * np.sum(np.float16(flx[flxIndex['iEXFg_%d' % (L + 1)]][i:indexend]))
+                FLF[k][L] += mult * np.ma.masked_invalid(np.float32(flx[flxIndex['iFLF_%d' % (L + 1)]][i:indexend])).sum()
+            EXF[k][L] += mult * np.sum(np.float16(flx[flxIndex['iEXFg_%d' % (L + 1)]][i:indexend]))
             if cMF.wel_yn == 1:
                 if ncell_MM[L] > 0:
-                    WEL[k][ML - 1] += mult * np.sum(np.float16(flx[flxIndex['iWEL_%d' % (L + 1)]][i:indexend]))
+                    WEL[k][L] += mult * np.sum(np.float16(flx[flxIndex['iWEL_%d' % (L + 1)]][i:indexend]))
             if cMF.drn_yn == 1:
                 if cMF.drncells[L] > 0:
-                    DRN[k][ML - 1] += mult * np.sum(np.float16(flx[flxIndex['iDRN_%d' % (L + 1)]][i:indexend]))
+                    DRN[k][L] += mult * np.sum(np.float16(flx[flxIndex['iDRN_%d' % (L + 1)]][i:indexend]))
             if cMF.ghb_yn == 1:
                 if cMF.ghbcells[L] > 0:
-                    GHB[k][ML - 1] += mult * np.sum(np.float16(flx[flxIndex['iGHB_%d' % (L + 1)]][i:indexend]))
+                    GHB[k][L] += mult * np.sum(np.float16(flx[flxIndex['iGHB_%d' % (L + 1)]][i:indexend]))
             if len(cMF.ibound[cMF.ibound < 0]) > 0:
-                CH[k][ML - 1] += mult * np.sum(np.float16(flx[flxIndex['iCH_%d' % (L + 1)]][i:indexend]))
+                CH[k][L] += mult * np.sum(np.float16(flx[flxIndex['iCH_%d' % (L + 1)]][i:indexend]))
         #EXFtotMF[k] += sum(EXF[k])
     #    print "\nWater fluxes imported from file:\n%s" % inputFile_fn
 
@@ -1929,7 +1929,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
         Pe[k] = _floor(Pe[k])
         I[k] = _floor(I[k])
         Rp[k] = _floor(Rp[k])
-        for L in range(cMF.Mnlay):
+        for L in range(cMF.nlay):
             Rg[k][L] = _floor(Rg[k][L])
             FLF[k][L] = _floor(FLF[k][L])
 
@@ -2079,7 +2079,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
             labels = [None]
             orientations = [1]
             pathlengths = [2 * pl]
-            for L in range(cMF.Mnlay):
+            for L in range(cMF.nlay):
                 if ibound4Sankey[L] > 0:
                     flows.append(-Rg[k][L] / ff)
                     if Rg[k][L] / ff > treshold:
@@ -2099,7 +2099,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                           prior=2, connect=(1, 0))
             In = Rp[k]
             Out = 0
-            for L in range(cMF.Mnlay):
+            for L in range(cMF.nlay):
                 Out += Rg[k][L]
             if dSu[k] > 0.0:
                 Out += dSu[k]
@@ -2114,10 +2114,10 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
             #print("ibound4Sankey: %s" % ibound4Sankey)
             L_act = 0
             lst_colors = []
-            for L in range(cMF.Mnlay):
-                lst_colors.append(getattr(mpl.cm, 'Blues')(L / cMF.Mnlay))
+            for L in range(cMF.nlay):
+                lst_colors.append(getattr(mpl.cm, 'Blues')(L / cMF.nlay))
             colors = itertools.cycle(lst_colors)
-            for L in range(cMF.Mnlay):
+            for L in range(cMF.nlay):
                 if ibound4Sankey[L] > 0:
                     ##print("----")
                     ##print("L: %s, L_act: %s" % (L, L_act))
@@ -2127,8 +2127,8 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                     if L_act == 0:
                         ##print("First layer")
                         FirstLayer = 1
-                        if L == (cMF.Mnlay - 1):
-                            if cMF.Mnlay > 1:
+                        if L == (cMF.nlay - 1):
+                            if cMF.nlay > 1:
                                 flows = [Rg[k][L] / ff, -FLF[k][L] / ff, -FRF[k][L] / ff, -FFF[k][L] / ff]
                                 labels = [None, '$FLF$', '$FRF$', '$FFF$']
                                 orientations = [1, -1, 0, 0]
@@ -2144,7 +2144,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                             orientations = [1, -1, 0, 0]
                             pathlengths = [pl * 4, pl, pl, pl * 4]
                         connect = (1, 0)
-                        if cMF.Mnlay > 1:
+                        if cMF.nlay > 1:
                             if FLF[k][L] > 0.0:
                                 Out.append(FLF[k][L])
                             else:
@@ -2153,7 +2153,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                         ##print("labels: %s" % labels)
                         ##print("flows: %s" % flows)
                     # last layer
-                    elif L_act == (sum(ibound4Sankey)-1): #(cMF.Mnlay - 1):
+                    elif L_act == (sum(ibound4Sankey)-1): #(cMF.nlay - 1):
                         ##print("Last layer")
                         flows = [FLF[k][L - 1] / ff, Rg[k][L] / ff, -FRF[k][L] / ff, -FFF[k][L] / ff]
                         if np.abs(Rg[k][L]) > treshold:
@@ -2374,7 +2374,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
             # msg = 'Water balance\nclosure (%%)\n-----------------\nMMsurf =%3.1f\nMMsoil =%3.1f\nMFUZF =%3.1f' % (MB_MMsurf, MB_MMsoil, MB_MFuzf) #
             msg = 'Water balance closure (%%)\nMMsurf=%3.1f, MMsoil=%3.1f, MFUZF=%3.1f' % (
                 MB_MMsurf, MB_MMsoil, MB_MFuzf)  #
-            for L in range(cMF.Mnlay):
+            for L in range(cMF.nlay):
                 msg += ' // MFL%d=%3.1f' % (L + 1, MB_MF[L])  # %2.1f
             xy = (figtitle.get_position()[0], figtitle.get_position()[1] - 0.005)
             plt.annotate(msg, xy, horizontalalignment='center', verticalalignment='top', fontsize=6,

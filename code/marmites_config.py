@@ -778,7 +778,6 @@ class Layers:
     """
 
     nlay: int = 6                  # 2 reads _2s1L.ini directly (--nlay)
-    aggregate: bool = False        # 6->2 derivation, comparison (--aggregate)
     # The value that marks a cell as having no head to report. It reaches
     # MARMITES as well, which masks on it, so the two must be the same
     # number -- which is why it is asked once here rather than twice.
@@ -1596,7 +1595,7 @@ class RunConfig:
     # WP1c a cached grid or layer set) is still valid. Deliberately NARROW: the
     # full config_hash would invalidate the state on an unrelated change such as
     # postproc.map_days, and a guard that cries wolf gets switched off.
-    STATE_SCOPE = ('paths.case', 'grid.kind', 'layers.nlay', 'layers.aggregate')
+    STATE_SCOPE = ('paths.case', 'grid.kind', 'layers.nlay')
 
     def state_scope(self):
         out = {}

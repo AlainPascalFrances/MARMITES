@@ -1198,8 +1198,6 @@ class _SankeyMF(object):
         self.ghbcells = [0] * nlay
         self.ncell_MM = ncell_MM
         self.inputDate = dates
-        self.Mnlay = int(getattr(cMF, 'Mnlay', nlay))
-        self.Mlay = list(getattr(cMF, 'Mlay', range(1, nlay + 1)))
 
     def __getattr__(self, name):
         return getattr(self._c, name)

@@ -1,5 +1,5 @@
 # MARMITES resolved run configuration
-# config_hash = 54f2f3c54c5e1872
+# config_hash = 24ef03c830386fb3
 
 [meta]
 config_version = 1
@@ -247,7 +247,6 @@ ro_prefix = "inputObsRo"
 
 [layers]
 nlay = 2
-aggregate = false
 hnoflo = 9999.99
 k33_as_ratio = true
 convertible = true
