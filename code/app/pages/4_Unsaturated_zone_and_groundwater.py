@@ -37,7 +37,7 @@ edited, save_slot = panelui.switch_and_save(cfg, panel)
 
 tab_geom, tab_ghb, tab_drn, tab_uzf, tab_aq, tab_water = st.tabs(
     ['MODFLOW aquifer layers', 'GHB', 'DRN', 'UZF', 'Aquifer & solver',
-     'Streams, ponds & runoff'])
+     'SFR, LAK and CRR'])
 
 # ---------------------------------------------------------------- geometry
 # The first of one sub-panel per MF6 package. Every field says which flopy
