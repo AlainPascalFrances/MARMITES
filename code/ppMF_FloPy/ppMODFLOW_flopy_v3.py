@@ -18,17 +18,47 @@ import numpy as np
 import matplotlib as mpl
 import MARMITESprocess_v3 as MMproc
 
-def _rows(path):
-    """The non-blank lines of a text file, for ``np.loadtxt``.
+# Excel writes these into a cell when a formula fails. They reach a text
+# export verbatim, and the leading '#' is what makes them dangerous here:
+# np.loadtxt treats '#' as a comment by default, so a row whose FIRST cell
+# is one of these is stripped to nothing and DROPPED -- the series comes up
+# an hour short and nothing says so. La Mata carried exactly that: the
+# timestamp for 2013-08-16 13:00 was #VALUE! in both the meteorological
+# record and the irrigation series, with the measurements beside it intact.
+EXCEL_ERRORS = ('#VALUE!', '#DIV/0!', '#N/A', '#REF!', '#NAME?', '#NUM!',
+                '#NULL!', '#SPILL!', '#CALC!')
 
-    numpy >= 1.23 warns once per call that a blank line "contained no data
-    and will not be counted towards max_rows". Every text file ends with a
-    newline, so that fired on every run and meant nothing. Filtering here
-    keeps the warning available for the case it was meant for -- a file
-    that really is shorter than expected.
+
+def _rows(path):
+    """The rows of a text file, for ``np.loadtxt``, or a clear refusal.
+
+    Two things, and only the first is cosmetic:
+
+    * blank lines are dropped -- a trailing newline is not a row, and
+      numpy warns once per call that it "contained no data";
+
+    * a cell holding an Excel error STOPS the read, naming the file and
+      the line. Dropping the row instead is what numpy does on its own,
+      and a record that is silently one row short is worse than a record
+      that refuses to load.
     """
+    out = []
     with open(path, encoding='utf-8', errors='replace') as fh:
-        return [ln for ln in fh if ln.strip()]
+        for n, ln in enumerate(fh, 1):
+            if not ln.strip():
+                continue
+            found = [e for e in EXCEL_ERRORS if e in ln]
+            if found:
+                raise ValueError(
+                    '%s, line %d holds %s -- an Excel error written into '
+                    'the file where a value belongs:\n    %s\n'
+                    'numpy would treat the leading "#" as a comment and DROP '
+                    'this row, leaving the series one row short with nothing '
+                    'to say so. Repair the cell and run again.'
+                    % (os.path.basename(path), n, ' and '.join(sorted(set(found))),
+                       ln.strip()[:120]))
+            out.append(ln)
+    return out
 
 
 
@@ -705,7 +735,7 @@ class clsMF():
         # READ date of input files (P and PT)
         inputDate_fn=os.path.join(self.MM_ws, inputDate_fn)
         if os.path.exists(inputDate_fn):
-            inputDate_tmp = np.loadtxt(_rows(inputDate_fn), dtype = str)
+            inputDate_tmp = np.loadtxt(_rows(inputDate_fn), dtype = str, comments = None)
             self.inputDate = inputDate_tmp[:,0]
             self.JD = np.asarray(inputDate_tmp[:,2], dtype = int)
             del inputDate_tmp
