@@ -112,6 +112,7 @@ def main():
     panelui.dataset_banner(cfg)
 
     st.title('💧  MARMITES / MODFLOW 6')
+    st.caption('A soil water balance coupled to MODFLOW 6 through the API.')
 
     _mc1, _mc2 = st.columns([2, 3])
     with _mc1:
@@ -121,8 +122,7 @@ def main():
                   or case).lower()
     with _mc2:
         st.markdown('')
-        st.caption('A soil water balance coupled to MODFLOW 6 through the '
-                   'API. Case **%s**, configuration `%s`.'
+        st.caption('Case **%s**, configuration `%s`.'
                    % (case, os.path.basename(path)))
         st.caption('MODFLOW writes `%s.hds`, `%s.cbc`, `%s.lst`. Saving '
                    'renames this file to match.'
