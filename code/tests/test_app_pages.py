@@ -789,10 +789,17 @@ def test_validate_and_save_actually_writes():
     """
     tmp = _scratch_config()
     try:
-        def says(key):
+        def says(key, section='run'):
+            # SECTION-AWARE. `model` is a key in two of them -- run.model is
+            # the master switch and meta.model is what the model is called
+            # -- so a scan of the whole file returns whichever comes first.
+            here = None
             for line in io.open(tmp, encoding='utf-8'):
-                if line.strip().startswith(key + ' '):
-                    return line.strip()
+                s = line.strip()
+                if s.startswith('[') and s.endswith(']'):
+                    here = s[1:-1]
+                elif here == section and s.startswith(key + ' '):
+                    return s
             return '(missing)'
 
         assert says('model') == 'model = true', says('model')

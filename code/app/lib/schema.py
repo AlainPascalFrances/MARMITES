@@ -127,6 +127,14 @@ _U = ''            # dimensionless / not applicable
 
 FIELDS = {
     # ---- meta / paths -------------------------------------------------
+    'meta.model': ('Model name', _U,
+                   'What this model is CALLED. It becomes the MODFLOW 6 '
+                   'model name, so the files a run writes are '
+                   '`<model>.hds`, `<model>.cbc`, `<model>.lst`, and it is '
+                   'what this configuration file should be named. MODFLOW 6 '
+                   'constrains it: start with a letter, then letters, digits '
+                   'and underscores only, at most 16 characters. Blank falls '
+                   'back to the case name.'),
     'meta.name': ('Run name', _U,
                   'Names the output folder, out_<timestamp>_<name>.'),
     'meta.description': ('Description', _U, 'Free text, carried into the run.'),

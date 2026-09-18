@@ -321,9 +321,25 @@ def dump_toml(cfg, path):
 
 @dataclass
 class Meta:
+    """What this configuration IS, before anything about what it does."""
+
     config_version: int = 1
+    # THE MODEL'S NAME, asked first on the Overview panel. It becomes the
+    # MODFLOW 6 model name -- so every file MF6 writes is <model>.hds,
+    # <model>.cbc, <model>.lst -- and it is what the configuration file
+    # should be called. The parameter file used to carry it ("lamataMM"),
+    # which meant the model was named in a file the modeller never opened.
+    #
+    # MF6 constrains it: letters, digits and underscores, starting with a
+    # letter, at most 16 characters. validate() enforces that here rather
+    # than letting MODFLOW reject it after the input is written.
+    model: str = ''                # blank -> paths.case, lower-cased
     name: str = ''                 # -> out_<stamp>_<name>; blank = <nlay>lay_<mode>
     description: str = ''
+
+    def model_name(self, case=''):
+        """The name to use, falling back to the case when it is blank."""
+        return (self.model or str(case) or 'model').strip().lower()
 
 
 @dataclass
@@ -1585,6 +1601,21 @@ class RunConfig:
                     'grid.%s.refine_ponds is on but grid.ponds names no pond '
                     'layer. Give the layer on the Grid panel, or switch it off.'
                     % blk)
+        # --- panel 0: what the model is called --------------------------
+        # MODFLOW 6 names the files it writes after the model, so an
+        # unusable name is discovered only once the input has been written.
+        _m = self.meta.model.strip()
+        if _m:
+            import re as _re
+            if not _re.match(r'^[A-Za-z][A-Za-z0-9_]*$', _m):
+                errs.append(
+                    'meta.model = %r: a MODFLOW 6 model name starts with a '
+                    'letter and holds only letters, digits and underscores '
+                    '(no spaces, no dots, no accents).' % _m)
+            if len(_m) > 16:
+                errs.append('meta.model = %r is %d characters; MODFLOW 6 '
+                            'allows 16.' % (_m, len(_m)))
+
         # --- panel 4: the aquifer geometry ------------------------------
         if self.layers.hnoflo == 0.0:
             errs.append('layers.hnoflo must not be 0: it is the value that '

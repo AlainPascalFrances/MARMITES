@@ -308,6 +308,15 @@ def setup_lamata(daily=True, nsp=None, grid='dis', nlay=None,
     # so the two have to be the SAME number, which is why it is asked once on
     # the panel rather than twice in two files. Applied right after the ini is
     # parsed, before anything reads it.
+    # THE MODEL'S NAME IS THE PANEL'S. MODFLOW 6 names every file it writes
+    # after it, and it used to live in the parameter file ("lamataMM") --
+    # the model was named where the modeller never looked.
+    if cfg is not None:
+        _model = cfg.meta.model_name(cfg.paths.case)
+        if _model != str(cMF.modelname).lower():
+            print('model name: %s (the parameter file said %s)'
+                  % (_model, cMF.modelname))
+            cMF.modelname = _model
     if cfg is not None and float(cfg.layers.hnoflo) != float(cMF.hnoflo):
         print('hnoflo: %g from the panel (the ini said %g)'
               % (cfg.layers.hnoflo, cMF.hnoflo))

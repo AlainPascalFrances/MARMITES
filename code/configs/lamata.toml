@@ -3,6 +3,7 @@
 
 [meta]
 config_version = 1
+model = "lamata"
 name = "2lay_drn_spinup"
 description = "La Mata, 2 layers, DRN seepage, from the saved spin-up state"
 
