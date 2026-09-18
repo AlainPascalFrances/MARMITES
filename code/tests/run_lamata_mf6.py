@@ -299,7 +299,12 @@ def setup_lamata(daily=True, nsp=None, grid='dis', nlay=None,
     # its layer reads botm, and botm is the panel thickness now.
     props.apply_boundaries(cfg, cMF, DS)
     props.apply_uzf(cfg, cMF, DS)
-    conv_fact = {1: 304.8, 2: 1000.0, 3: 10.0}[cMF.lenuni]
+    # LENGTHS ARE METRES, always. The panel asks for a projected CRS in
+    # metres and every raster is metric, so lenuni is 2 and the conversion
+    # to the millimetres MARMITES works in is fixed. It was read from the
+    # parameter file, where nothing could have set it to anything else.
+    cMF.lenuni = 2
+    conv_fact = 1000.0
 
     # --- the forcing (WP1d) ------------------------------------------------
     # Replaces the positional parsing of __inputMMsurf4MMsoil.txt. That file

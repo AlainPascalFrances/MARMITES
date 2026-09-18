@@ -162,7 +162,7 @@ def test_unknown_section_raises():
 @pytest.mark.parametrize('bad,frag', [
     ({'run': {'mode': 'nope'}}, 'run.mode'),
     ({'run': {'relax': 0.0}}, 'run.relax'),
-    ({'layers': {'nlay': 3}}, 'layers.nlay'),
+    ({'layers': {'nlay': 0}}, 'layers.nlay'),   # a count, so >= 1
     ({'seep': {'kind': 'drn', 'cond': 0.0}}, 'free-draining'),
     ({'grid': {'kind': 'nope'}}, 'grid.kind'),
     ({'crr': {'beta': 1.5}}, 'crr.beta'),
@@ -175,12 +175,34 @@ def test_validation_rejects_bad_values(bad, frag):
     assert frag in str(e.value)
 
 
-def test_gwet_guard_refuses_groundwater_et_in_modflow():
+def test_groundwater_et_in_modflow_cannot_be_asked_for_at_all():
     """ETg is computed by MM and applied as a WEL sink; MODFLOW must not
-    remove it as well (cookbook WP2)."""
+    remove it as well (cookbook WP2).
+
+    This used to be a GUARD -- a field forced false. The field is gone, so
+    what is asserted now is that it cannot be set at all: an unknown key
+    is refused by name, and simulate_et is not fed by it either."""
+    import dataclasses
+    assert 'gwet_in_mf' not in {f.name
+                                for f in dataclasses.fields(cfgmod.Et)}
     with pytest.raises(cfgmod.ConfigError) as e:
         cfgmod.RunConfig.from_dict({'et': {'gwet_in_mf': True}})
     assert 'gwet_in_mf' in str(e.value)
+
+
+def test_the_coupled_model_requires_the_drain_seepage_face():
+    """SIMULATE_GWSEEP switches discharge on and off discontinuously, and
+    MARMITES reads the seepage back into the soil column every step -- a
+    discharge that oscillates is a soil water balance that oscillates with
+    it. MODFLOW alone may still use it."""
+    with pytest.raises(cfgmod.ConfigError) as e:
+        cfgmod.RunConfig.from_dict({'run': {'model': True},
+                                    'seep': {'kind': 'uzf'}})
+    assert 'seep.kind' in str(e.value)
+    # ... and it is a coupling rule, not a ban
+    c = cfgmod.RunConfig.from_dict({'run': {'model': False},
+                                    'seep': {'kind': 'uzf'}})
+    assert c.seep.kind == 'uzf'
 
 
 def test_grid_dis_is_accepted_as_an_alias_for_structured():
@@ -235,7 +257,7 @@ def test_set_override_is_revalidated():
     quietly stand."""
     c = cfgmod.RunConfig.from_dict({})
     with pytest.raises(cfgmod.ConfigError):
-        c.apply_overrides(['layers.nlay=4'], echo=False)
+        c.apply_overrides(['layers.nlay=0'], echo=False)
 
 
 def test_config_hash_is_stable_and_sensitive():

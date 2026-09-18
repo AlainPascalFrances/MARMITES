@@ -289,7 +289,7 @@ class clsMMsoil:
 
         # GW evaporation Eg, eq. 17 of Shah et al. (2007)
         Eg_tmp = 0.0
-        if cMF.wel_yn == 1 and Ssurf_tmp == 0.0 and PE > 0.0:
+        if Ssurf_tmp == 0.0 and PE > 0.0:
             p = self.paramEg[st]
             y0, b, dll, ext_d = p['y0'], p['b'], p['dll'], p['ext_d']
             if dgwt_corr_tmp <= dll:
@@ -313,42 +313,43 @@ class clsMMsoil:
 
         # Groundwater transpiration Tg (phenomenological kTg function)
         Tg_tmp = 0.0
-        if cMF.wel_yn == 1:
-            order = Zr_elev.argsort()
-            for Zr_elev_, v, kTg_min_, kTg_max_, kT_f_, kT_s_ in zip(
-                    Zr_elev[order], np.arange(NVEG)[order],
-                    np.asarray(kTg_min, dtype=np.float64).reshape(NVEG)[order],
-                    np.asarray(kTg_max, dtype=np.float64).reshape(NVEG)[order],
-                    np.asarray(kT_f, dtype=np.float64).reshape(NVEG)[order],
-                    np.asarray(kT_s, dtype=np.float64).reshape(NVEG)[order]):
-                if HEADSini_corr_tmp > Zr_elev_:
-                    for l in range(nsl):
-                        if np.isclose(Ssoil_pc_tmp[l], cMF.hnoflo):
-                            continue
-                        if Ssoil_pc_tmp[l] > Sr[l]:
-                            if Ssoil_pc_tmp[l] < Sm[l]:
-                                Ssoil_norm = (Ssoil_pc_tmp[l] - Sr[l]) / (Sm[l] - Sr[l])
-                                kTg = kTg_max_ - (kTg_max_ - kTg_min_) / (
-                                    1.0 + np.exp((Ssoil_norm - kT_f_) / kT_s_))
-                            else:
-                                if Ssoil_pc_tmp[l] > Sm[l]:
-                                    print('WARNING!\nComputing of Tg: soil moisture higher than porosity!'
-                                          '\nSoil moisture = %.4f, phi = %.4f' % (Ssoil_pc_tmp[l], Sm[l]))
-                                kTg = kTg_max_
+        # ETg is applied through the WEL package, which is always present:
+        # computing it IS what the well is for.
+        order = Zr_elev.argsort()
+        for Zr_elev_, v, kTg_min_, kTg_max_, kT_f_, kT_s_ in zip(
+                Zr_elev[order], np.arange(NVEG)[order],
+                np.asarray(kTg_min, dtype=np.float64).reshape(NVEG)[order],
+                np.asarray(kTg_max, dtype=np.float64).reshape(NVEG)[order],
+                np.asarray(kT_f, dtype=np.float64).reshape(NVEG)[order],
+                np.asarray(kT_s, dtype=np.float64).reshape(NVEG)[order]):
+            if HEADSini_corr_tmp > Zr_elev_:
+                for l in range(nsl):
+                    if np.isclose(Ssoil_pc_tmp[l], cMF.hnoflo):
+                        continue
+                    if Ssoil_pc_tmp[l] > Sr[l]:
+                        if Ssoil_pc_tmp[l] < Sm[l]:
+                            Ssoil_norm = (Ssoil_pc_tmp[l] - Sr[l]) / (Sm[l] - Sr[l])
+                            kTg = kTg_max_ - (kTg_max_ - kTg_min_) / (
+                                1.0 + np.exp((Ssoil_norm - kT_f_) / kT_s_))
                         else:
-                            if Ssoil_pc_tmp[l] < Sr[l]:
-                                print('WARNING!\nComputing of Tg: soil moisture lower than wilting point!'
-                                      '\nSoil moisture = %.4f, WP = %.4f' % (Ssoil_pc_tmp[l], Sr[l]))
-                            kTg = kTg_min_
-                        Tg_tmp_Zr = PT[v] * kTg
-                        PT[v] -= Tg_tmp_Zr
-                        Tg_tmp1 = Tg_tmp_Zr * VEGarea[v] * 0.01
-                        # limit Tg so the corrected head does not drop below root bottom
-                        if Tg_tmp1 > 0.0 and (HEADSini_corr_tmp - Tg_tmp1 / sy_tmp) < Zr_elev_:
-                            Tg_tmp1 = (HEADSini_corr_tmp - float(Zr_elev[v])) * sy_tmp
-                        Tg_tmp += Tg_tmp1
-                        dgwt_corr_tmp += Tg_tmp1 / sy_tmp
-                        HEADSini_corr_tmp -= Tg_tmp1 / sy_tmp
+                            if Ssoil_pc_tmp[l] > Sm[l]:
+                                print('WARNING!\nComputing of Tg: soil moisture higher than porosity!'
+                                      '\nSoil moisture = %.4f, phi = %.4f' % (Ssoil_pc_tmp[l], Sm[l]))
+                            kTg = kTg_max_
+                    else:
+                        if Ssoil_pc_tmp[l] < Sr[l]:
+                            print('WARNING!\nComputing of Tg: soil moisture lower than wilting point!'
+                                  '\nSoil moisture = %.4f, WP = %.4f' % (Ssoil_pc_tmp[l], Sr[l]))
+                        kTg = kTg_min_
+                    Tg_tmp_Zr = PT[v] * kTg
+                    PT[v] -= Tg_tmp_Zr
+                    Tg_tmp1 = Tg_tmp_Zr * VEGarea[v] * 0.01
+                    # limit Tg so the corrected head does not drop below root bottom
+                    if Tg_tmp1 > 0.0 and (HEADSini_corr_tmp - Tg_tmp1 / sy_tmp) < Zr_elev_:
+                        Tg_tmp1 = (HEADSini_corr_tmp - float(Zr_elev[v])) * sy_tmp
+                    Tg_tmp += Tg_tmp1
+                    dgwt_corr_tmp += Tg_tmp1 / sy_tmp
+                    HEADSini_corr_tmp -= Tg_tmp1 / sy_tmp
 
         return (Eow_tmp, Ssurf_tmp, Ro_tmp, Rp_tmp, Esoil_tmp, Tsoil_tmp,
                 Ssoil_tmp, Ssoil_pc_tmp, Eg_tmp, Tg_tmp, HEADSini_corr,

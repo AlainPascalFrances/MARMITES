@@ -1461,10 +1461,24 @@ class RunConfig:
         # from_dict, the panel's save, a --set override -- leaves the file
         # stating the bands the producer will actually use.
         v.refresh()
-        if self.layers.nlay not in (2, 6):
-            errs.append('layers.nlay must be 2 or 6')
+        # nlay is a COUNT. It used to be 'one of the two parameter
+        # files that exist', which is not a property of the aquifer.
+        if self.layers.nlay < 1:
+            errs.append('layers.nlay must be at least 1')
         if self.seep.kind not in ('uzf', 'drn'):
             errs.append("seep.kind must be 'uzf' or 'drn'")
+        # UNDER COUPLING IT MUST BE drn. 'uzf' is SIMULATE_GWSEEP, which
+        # MODFLOW 6 deprecates and which switches discharge on and off
+        # discontinuously; MARMITES reads the seepage back into the soil
+        # column every step, so a discharge that oscillates is a soil
+        # water balance that oscillates with it.
+        if self.run.model and self.seep.kind != 'drn':
+            errs.append(
+                "seep.kind = %r: MMsoil and MODFLOW 6 run together, and the "
+                "coupled model requires the smoothed land-surface drain. "
+                "SIMULATE_GWSEEP is deprecated in MODFLOW 6 and switches "
+                "discharge discontinuously. Set seep.kind = 'drn', or turn "
+                "run.model off to build MODFLOW alone." % self.seep.kind)
         if self.seep.kind == 'drn' and self.seep.cond <= 0:
             errs.append('seep.cond must be > 0 (a seepage face must be free-draining)')
         if self.et.unsat_form not in ('etwc', 'etae'):
