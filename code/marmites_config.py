@@ -794,7 +794,12 @@ class Layers:
     # absence. Only this map does. The catchment polygon gives the
     # OUTLINE and is the geographic reference every input is checked
     # against; it cannot know where a layer pinches out.
-    ibound: VectorSource = field(default_factory=VectorSource)
+    # DEFAULTED to the conventional name, the way surface.crop_schedule
+    # defaults to __inputFIELD%d_crop_schedule.txt. Required and undefaulted
+    # would mean an empty configuration is invalid, and an empty
+    # configuration is how every new case and half the tests start.
+    ibound: VectorSource = field(
+        default_factory=lambda: VectorSource(raster='MF_ws/ibound_l%d.asc'))
     thickness: VectorSource = field(default_factory=VectorSource)
     k: VectorSource = field(default_factory=VectorSource)
     k33: VectorSource = field(default_factory=VectorSource)
@@ -1585,6 +1590,18 @@ class RunConfig:
             errs.append('layers.hnoflo must not be 0: it is the value that '
                         'marks a cell as having nothing to report, and 0 is a '
                         'perfectly good head.')
+        # ibound is REQUIRED to build MODFLOW: it is which cells exist, it
+        # cannot be derived (a layer pinches out inside the catchment and
+        # neither the polygon nor the thickness records that), and a model
+        # that silently took it from the parameter file would be a model
+        # whose extent nobody chose. The others may still be blank, and the
+        # panel says which of them the parameter file is still supplying.
+        if self.run.model and self.layers.ibound.producer() is None:
+            errs.append(
+                'layers.ibound: which cells of each layer exist has to be '
+                'answered -- one map per layer (ibound_l%d.asc). The '
+                'catchment polygon gives the outline but cannot know where '
+                'a layer ends.')
         for name in ('ibound', 'thickness', 'k', 'k33', 'ss', 'sy'):
             src = getattr(self.layers, name)
             if src.producer() is None:

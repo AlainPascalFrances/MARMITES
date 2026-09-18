@@ -508,27 +508,29 @@ def _write_state_scope(a, cfg, prefix):
 
 
 def _check_state_scope(a, cfg):
-    """Refuse to reuse saved state produced under a different grid or layer set.
+    """Report on saved state that cannot be reused here. Never refuses.
 
-    The rule itself is `marmites_config.state_problem`, so the FRONT-END can
-    ask it while the field is being edited and say exactly what this would
-    say at launch -- which is where the modeller wants to hear it, not after
-    a run has been started.
+    Saved state belongs to the grid and layer set that produced it: handing
+    a structured-grid field to a mesh model would give MODFLOW an array of
+    the wrong length. This USED TO REFUSE, with "CONFIG ERROR: ... has no
+    scope sidecar". That was the wrong answer to "this state does not fit",
+    because a run can always start from the land surface -- which is where
+    a spin-up starts from anyway. props.resolve_initial_heads decides, and
+    the run says which it chose.
 
-    A state with no sidecar is accepted with a note ON A STRUCTURED GRID:
-    every state written before WP0 predates the guard, and failing on those
-    would break existing runs. On a mesh it cannot be right, so there it is
-    refused.
+    `spinup.steady_means` is still only reported: it feeds the steady
+    period's averages rather than the initial heads, and there is nothing
+    to recompute it from here.
     """
     why = mcfg.state_problem(cfg, a.state_dir)
     if why:
-        raise SystemExit('CONFIG ERROR: %s' % why)
+        print('note: %s' % why)
     for what, prefix in (('spinup.strt_heads', cfg.spinup.strt_heads),
                          ('spinup.steady_means', cfg.spinup.steady_means)):
         prefix = (prefix or '').strip()
         if prefix and not os.path.exists(_state_sidecar(a, prefix)):
-            print('note: %s = %r has no scope sidecar (written before WP0); '
-                  'accepted unchecked' % (what, prefix))
+            print('note: %s = %r has no scope sidecar (written before WP0)'
+                  % (what, prefix))
 
 
 def _args_from_config(cfg, probe=False):
@@ -746,12 +748,17 @@ def main():
         # marmites_lak.POND_DEPTH.
         _d = (cfg.lak.depth if cfg else None)
         b.lak_depth = None if _d is None else float(_d)
-    if a.strt_heads:
-        # a saved (equilibrated) head field seeds the IC directly, so the
-        # spin-up need not be repeated. Resolve relative to the MF workspace.
-        pref = _state_in(a, a.strt_heads, '_l1.asc')
+    # WHERE THE RUN STARTS. The saved state when it exists and belongs to
+    # this grid and layer set; the land surface otherwise. Never the
+    # parameter file's array by accident -- that is how a run ends up
+    # starting from a state nobody chose.
+    _kind, _payload, _why = props.resolve_initial_heads(cfg, a.state_dir)
+    if _kind == 'saved':
+        pref = _state_in(a, str(_payload), '_l1.asc')
         b.strt_array = b.load_heads_asc(pref)
         print('initial heads loaded from %s_l*.asc' % pref)
+    else:
+        b.strt_from_dem = tuple(_payload)
     b.build()
     b.write()
     print('MF6 (%s) simulation written to %s  (%d SPs incl. steady, %d UZF cells, %d wells)'

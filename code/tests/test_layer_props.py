@@ -277,3 +277,78 @@ def test_a_model_somewhere_else_entirely_is_refused(cfg):
     with pytest.raises(props.PropertyError) as e:
         props.check_catchment(cfg, cMF, mm_paths.GIS, verbose=False)
     assert 'coordinate system' in str(e.value)
+
+
+def test_ibound_is_required_to_build_modflow(cfg):
+    """Which cells exist cannot be derived and must not be inherited from
+    the parameter file by accident: a model whose extent nobody chose is
+    worse than a model that refuses to build."""
+    cfg.layers.ibound = cfgmod.VectorSource()
+    cfg.run.model = True
+    with pytest.raises(cfgmod.ConfigError) as e:
+        cfg.validate()
+    assert 'layers.ibound' in str(e.value)
+    # ... but MODFLOW not being built is a legitimate reason not to have it
+    cfg.run.model = False
+    cfg.validate()
+
+
+def test_ibound_carries_the_conventional_name_by_default():
+    """Required AND undefaulted would make an empty configuration invalid,
+    and an empty configuration is how a new case starts. The default is the
+    name the parameter file used, visible on the panel and overridable --
+    the same bargain surface.crop_schedule strikes."""
+    fresh = cfgmod.RunConfig.from_dict({})
+    assert fresh.layers.ibound.raster == 'MF_ws/ibound_l%d.asc'
+    assert fresh.layers.ibound.producer() == 'raster'
+    fresh.validate()          # must not raise
+
+
+# ------------------------------------------------ the state a run starts from
+
+def test_a_state_that_does_not_fit_is_recomputed_not_refused(cfg, tmp_path):
+    """This USED to be `CONFIG ERROR: ... has no scope sidecar` and a
+    stopped run. Saved state belongs to the grid that produced it, but a
+    run can always start from the land surface -- which is where a spin-up
+    starts from anyway -- so the mismatch picks the fallback and says so."""
+    cfg.grid.kind = 'voronoi'
+    cfg.spinup.strt_heads = 'hi_spinup'
+    state = os.path.join(DS, 'MF_ws')
+    kind, payload, why = props.resolve_initial_heads(cfg, state, verbose=False)
+    assert kind == 'dem'
+    assert tuple(payload) == props.DEFAULT_STRT_DEM
+    assert 'scope sidecar' in why and 'instead of refusing' in why
+
+
+def test_no_saved_state_named_starts_from_the_land_surface(cfg, tmp_path):
+    cfg.spinup.strt_heads = ''
+    kind, payload, why = props.resolve_initial_heads(cfg, str(tmp_path),
+                                                     verbose=False)
+    assert kind == 'dem' and 'no saved state' in why
+
+
+def test_a_named_state_that_is_not_there_names_the_missing_files(cfg,
+                                                                tmp_path):
+    """"It is missing" is not an answer a modeller can act on; the file
+    names are."""
+    cfg.spinup.strt_heads = 'not_a_state'
+    _kind, _p, why = props.resolve_initial_heads(cfg, str(tmp_path),
+                                                 verbose=False)
+    assert 'not_a_state_l1.asc' in why
+
+
+def test_the_default_start_is_below_the_land_surface():
+    """Starting AT the surface makes MODFLOW drain a large excess through
+    the first stress periods, which reads as slow convergence and spurious
+    rejected infiltration rather than as hydrology."""
+    a, b = props.DEFAULT_STRT_DEM
+    assert a == 1.0 and b < 0.0
+
+
+def test_the_run_no_longer_refuses_on_state_scope():
+    src = open(os.path.join(HERE, 'run_lamata_mf6.py'), encoding='utf-8').read()
+    assert 'props.resolve_initial_heads' in src
+    guard = src[src.index('def _check_state_scope'):]
+    guard = guard[:guard.index('\ndef ')]
+    assert 'raise SystemExit' not in guard, (
+        'the state guard refuses again instead of recomputing')

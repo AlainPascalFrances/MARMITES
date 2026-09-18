@@ -551,3 +551,76 @@ def check_catchment(cfg, cMF, gis_dir, verbose=True):
             % (inside, total, 100.0 * report['fraction_inside'],
                cfg.grid.boundary))
     return report
+
+
+# =====================================================================
+#  The state a run starts from
+# =====================================================================
+# `spinup.strt_heads` names a saved, equilibrated head field. It belongs
+# to the grid and layer set that produced it, so reusing it under a
+# different grid would hand MODFLOW an array of the wrong length -- which
+# is why a guard existed. But the guard REFUSED, and a refusal is the
+# wrong answer to "this state does not fit": the run can always start from
+# the land surface instead, which is what a spin-up starts from anyway.
+#
+# So the rule is: use the saved state when it exists AND belongs here;
+# otherwise COMPUTE the initial heads from the DEM and say so. Never fall
+# back silently to whatever the parameter file named, which is how a run
+# ends up starting from a state nobody chose.
+
+# head = a * elevation + b. Slightly below the land surface: starting AT
+# it forces MODFLOW to drain a large excess through the first stress
+# periods, which reads as slow convergence and spurious rejected
+# infiltration rather than as hydrology.
+DEFAULT_STRT_DEM = (1.0, -2.0)
+
+
+def resolve_initial_heads(cfg, state_dir, verbose=True):
+    """How this run should start. ``(kind, payload, why)``.
+
+    kind is 'saved' (payload = the prefix), or 'dem' (payload = (a, b)).
+    ``why`` is the human sentence explaining the choice -- empty when the
+    saved state was simply usable.
+    """
+    import marmites_config as mcfg
+
+    prefix = (getattr(cfg.spinup, 'strt_heads', '') or '').strip()
+    dem = tuple(getattr(cfg.spinup, 'strt_dem', ()) or ()) or DEFAULT_STRT_DEM
+
+    if not prefix:
+        why = ('no saved state is named, so the water table starts at '
+               'elevation * %g %+g m' % dem)
+        if verbose:
+            print('initial heads: %s' % why)
+        return 'dem', dem, why
+
+    missing = [os.path.basename(p)
+               for p in _state_files(state_dir, prefix, int(cfg.layers.nlay))
+               if not os.path.exists(p)]
+    if missing:
+        why = ('%s is named but %s not in %s, so the water table starts '
+               'at elevation * %g %+g m instead'
+               % (prefix, ', '.join(missing), state_dir, dem[0], dem[1]))
+        if verbose:
+            print('initial heads: %s' % why)
+        return 'dem', dem, why
+
+    problem = mcfg.state_problem(cfg, state_dir)
+    if problem:
+        why = ('%s   Starting from elevation * %g %+g m instead of refusing '
+               'to run.' % (problem, dem[0], dem[1]))
+        if verbose:
+            print('initial heads: %s' % why)
+        return 'dem', dem, why
+
+    if verbose:
+        print('initial heads: the saved state %s (it belongs to this grid '
+              'and layer set)' % prefix)
+    return 'saved', prefix, ''
+
+
+def _state_files(state_dir, prefix, nlay):
+    """The per-layer files a saved head field is stored in."""
+    base = prefix if os.path.isabs(prefix) else os.path.join(str(state_dir),
+                                                             prefix)
+    return [('%s_l%d.asc' % (base, k + 1)) for k in range(max(int(nlay), 1))]
