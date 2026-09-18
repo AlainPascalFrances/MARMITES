@@ -1,5 +1,5 @@
 # MARMITES resolved run configuration
-# config_hash = fccf7e7db56b3229
+# config_hash = 057cc15404edae68
 
 [meta]
 config_version = 1
@@ -318,8 +318,6 @@ surfdep = 0.25
 vks_from = "layer"
 vks_scale = 1.0
 
-# Brooks-Corey, one value per UZF object. Uniform here, which is what the
-# parameter file said; a raster or a polygon column would vary them.
 [uzf.eps]
 how = "auto"
 value = 3.5

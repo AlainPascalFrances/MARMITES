@@ -40,13 +40,21 @@ def _rows(path):
     * a cell holding an Excel error STOPS the read, naming the file and
       the line. Dropping the row instead is what numpy does on its own,
       and a record that is silently one row short is worse than a record
-      that refuses to load.
+      that refuses to load;
+
+    * whole-line and trailing comments are then removed, which is what
+      numpy's own ``comments='#'`` did before it was turned off to stop
+      it swallowing the corrupt row.
     """
     out = []
     with open(path, encoding='utf-8', errors='replace') as fh:
         for n, ln in enumerate(fh, 1):
             if not ln.strip():
                 continue
+            # THE EXCEL CHECK RUNS FIRST. '#VALUE!' starts with '#' as
+            # well, so whichever rule runs first decides whether such a
+            # row is refused or quietly treated as a comment -- which is
+            # the whole bug this guard exists for.
             found = [e for e in EXCEL_ERRORS if e in ln]
             if found:
                 raise ValueError(
@@ -57,6 +65,13 @@ def _rows(path):
                     'to say so. Repair the cell and run again.'
                     % (os.path.basename(path), n, ' and '.join(sorted(set(found))),
                        ln.strip()[:120]))
+            # ... and THEN comments, exactly as numpy's comments='#'
+            # did: strip from the first '#' to the end of the line and
+            # drop the line if nothing is left. inputDATE.txt opens with
+            # a bare '#', and without this it reads as a 1-column row.
+            ln = ln.split('#', 1)[0]
+            if not ln.strip():
+                continue
             out.append(ln)
     return out
 

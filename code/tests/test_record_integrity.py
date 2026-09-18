@@ -83,3 +83,39 @@ def test_hash_no_longer_means_comment_in_a_data_file(reader):
     for ln in reads:
         assert 'comments = None' in ln or 'comments=None' in ln, (
             'a data read still lets "#" start a comment: %s' % ln.strip())
+
+
+@pytest.mark.parametrize('reader', READERS, ids=os.path.basename)
+def test_a_real_comment_is_still_a_comment(reader, tmp_path):
+    """Turning numpy's comment handling off to stop it eating a corrupt
+    row also stopped it eating inputDATE.txt's opening '#', which made the
+    file read one column wide. _rows does that job now."""
+    rows, _e = _rows_of(reader)
+    f = tmp_path / 'dates.txt'
+    f.write_text('#\n2008-05-31 00:00, 152\n2008-06-01 00:00, 153\n',
+                 encoding='utf-8')
+    got = rows(str(f))
+    assert len(got) == 2, 'the bare # was kept as a data row'
+    assert got[0].startswith('2008-05-31')
+
+
+@pytest.mark.parametrize('reader', READERS, ids=os.path.basename)
+def test_a_trailing_comment_is_stripped_not_parsed(reader, tmp_path):
+    rows, _e = _rows_of(reader)
+    f = tmp_path / 'x.txt'
+    f.write_text('1.0 2.0   # the third column is a note\n', encoding='utf-8')
+    got = rows(str(f))
+    assert got and got[0].split() == ['1.0', '2.0']
+
+
+@pytest.mark.parametrize('reader', READERS, ids=os.path.basename)
+def test_an_excel_error_beats_the_comment_rule(reader, tmp_path):
+    """ORDER MATTERS: #VALUE! starts with '#' too. If the comment rule ran
+    first the row would be stripped to nothing and dropped -- which is
+    precisely the silent data loss this guard exists to stop."""
+    rows, _e = _rows_of(reader)
+    f = tmp_path / 'x.txt'
+    f.write_text('h\n1.0\t2.0\n#VALUE!\t2.0\n', encoding='utf-8')
+    with pytest.raises(ValueError) as e:
+        rows(str(f))
+    assert '#VALUE!' in str(e.value) and 'line 3' in str(e.value)
