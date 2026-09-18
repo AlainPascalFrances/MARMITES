@@ -673,3 +673,81 @@ def test_an_observation_in_an_inactive_cell_is_dropped_not_mismapped():
     finally:
         _pp.obs_points = real
     assert names == ['IN'] and idx == [0]
+
+
+# --------------------------------------------------------------------- #
+# botm is REBUILT from the thickness, never resampled
+# --------------------------------------------------------------------- #
+
+def _pinched():
+    """A model whose upper layer is absent over part of the domain.
+
+    That is La Mata: layer 1 active in 1870 cells, layer 2 in 1954, and
+    where layer 1 is gone the source cell has subtracted only t2 -- so its
+    botm[1] sits HIGH while botm[0] elsewhere sits low. Averaging the two
+    bottoms over different populations is what inverted them.
+    """
+    cMF = _FakeMF()
+    t1, t2 = 10.0, 6.0
+    cMF.thick = np.stack([np.full((NROW, NCOL), t1),
+                          np.full((NROW, NCOL), t2)])
+    # the upper layer pinches out on the eastern half
+    cMF.ibound = np.ones((NLAY, NROW, NCOL), dtype=int)
+    cMF.ibound[:, 0, :] = 0                       # the dead north row
+    cMF.ibound[0, :, NCOL // 2:] = 0              # layer 1 absent, east
+    cMF.outcropL = np.zeros((NROW, NCOL), dtype=int)
+    for L in range(NLAY):
+        ib = np.abs(cMF.ibound)[L] != 0
+        cMF.outcropL += ((cMF.outcropL == 0) & ib) * (L + 1)
+    # botm exactly as the structured model builds it: top minus the
+    # cumulative thickness of the layers that are actually there
+    top = np.ma.filled(np.asarray(cMF.top, dtype=float), np.nan)
+    botm, cum = [], np.zeros_like(top)
+    for k in range(NLAY):
+        cum = cum + cMF.thick[k] * (np.abs(cMF.ibound[k]) != 0)
+        botm.append(top - cum)
+    cMF.botm = np.stack(botm)
+    return cMF
+
+
+def test_botm_is_ordered_across_a_pinch_out():
+    """THE La Mata failure: 12 of 15915 mesh cells came out with layer 2's
+    bottom 7.5 m ABOVE layer 1's. Rebuilding from the thickness makes that
+    impossible -- the thickness is non-negative, so subtracting it
+    cumulatively can only ever go down."""
+    cMF = _pinched()
+    m, _g, _p = MESH.project_model(cMF, _dis_equivalent_gridprops(cMF), {})
+
+    top = np.ma.filled(np.asarray(m.top, dtype=float), np.nan)[:, 0]
+    botm = np.asarray(m.botm, dtype=float)[:, :, 0]
+    prev = top
+    for k in range(NLAY):
+        live = np.abs(np.asarray(m.ibound[k])[:, 0]) != 0
+        assert np.all(prev[live] >= botm[k][live]), (
+            'layer %d is inverted where it is active' % (k + 1))
+        prev = botm[k]
+
+
+def test_a_layer_that_is_absent_gets_no_thickness_not_an_inversion():
+    """Where the upper layer has pinched out, its bottom equals the top:
+    zero thickness is what "absent here" means, and it is the honest
+    representation rather than a geometry fault."""
+    cMF = _pinched()
+    m, _g, _p = MESH.project_model(cMF, _dis_equivalent_gridprops(cMF), {})
+    top = np.ma.filled(np.asarray(m.top, dtype=float), np.nan)[:, 0]
+    botm = np.asarray(m.botm, dtype=float)[:, :, 0]
+    gone = np.abs(np.asarray(m.ibound[0])[:, 0]) == 0
+    live2 = np.abs(np.asarray(m.ibound[1])[:, 0]) != 0
+    both = gone & live2
+    assert both.any(), 'the fixture does not actually pinch out'
+    assert np.allclose(botm[0][both], top[both]), (
+        'an absent layer should take no thickness at all')
+
+
+def test_a_model_without_thickness_still_projects():
+    """cMF.thick is what the rebuild needs; a caller that does not carry it
+    keeps the old behaviour rather than crashing."""
+    cMF = _FakeMF()
+    assert not hasattr(cMF, 'thick')
+    m, _g, _p = MESH.project_model(cMF, _dis_equivalent_gridprops(cMF), {})
+    assert np.asarray(m.botm).shape == (NLAY, NROW * NCOL, 1)

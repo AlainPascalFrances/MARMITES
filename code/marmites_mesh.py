@@ -717,8 +717,50 @@ def project_model(cMF, gridprops, grids, warn=None, how='auto'):
         proj.sample2d(cMF.elev, fill=hnoflo, how=how, valid=src_active), hnoflo)
     m.top = _mask_sentinel(
         proj.sample2d(cMF.top, fill=hnoflo, how=how, valid=src_active), hnoflo)
-    m.botm = proj.sample3d(np.asarray(cMF.botm), fill=hnoflo, how=how,
-                           valid=src_active3)
+    # BOTM IS REBUILT, NOT RESAMPLED.  WP1d.
+    #
+    # Resampling the bottoms directly inverts them. Each layer's botm is
+    # averaged over the source cells where THAT layer is active, so a mesh
+    # cell straddling a pinch-out averages botm[0] over one population and
+    # botm[1] over another: where layer 1 is absent the source cell has
+    # only subtracted t1, so it pulls botm[1] UP, while botm[0] is averaged
+    # only over cells where layer 0 exists and sits low. La Mata produced a
+    # 7.5 m inversion in 12 of 15915 cells that way.
+    #
+    # The thickness cannot do that. It is non-negative, so the cumulative
+    # subtraction that builds botm on the structured grid --
+    #
+    #     botm[k] = top - sum(thickness[j] * |ibound[j]|,  j <= k)
+    #
+    # -- is monotonic by construction, whatever the averaging does to any
+    # single term. So the thickness is what crosses onto the mesh, and the
+    # same arithmetic is redone here with the mesh's own top and ibound.
+    # (`top` already carries the soil column: the driver subtracts it from
+    # elev and from every botm before this runs.)
+    _thick = getattr(cMF, 'thick', None)
+    if _thick is None:
+        m.botm = proj.sample3d(np.asarray(cMF.botm), fill=hnoflo, how=how,
+                               valid=src_active3)
+    else:
+        thick_m = proj.sample3d(np.asarray(_thick, dtype=float), fill=0.0,
+                                how=how, valid=src_active3)
+        top_m = np.ma.filled(np.asarray(m.top, dtype=float), np.nan)
+        botm_layers, cum = [], np.zeros_like(top_m)
+        for k in range(nlay):
+            tk = np.ma.filled(np.asarray(thick_m[k], dtype=float), 0.0)
+            tk = np.where(np.isfinite(tk) & (tk > 0.0), tk, 0.0)
+            live = (np.abs(np.asarray(m.ibound[k], dtype=float)) != 0)
+            cum = cum + tk * live
+            botm_layers.append(top_m - cum)
+        m.botm = np.stack(botm_layers)
+        if warn is not None:
+            _flat = np.asarray(m.botm)[:, :, 0]
+            _thin = int(((_flat[:-1] - _flat[1:]) <= 0.0).sum()) if nlay > 1 \
+                else 0
+            if _thin:
+                warn('%d mesh cell-layer(s) have no thickness left after '
+                     'resampling: the layer is absent there, not inverted.'
+                     % _thin)
     if getattr(cMF, 'strt', None) is not None:
         m.strt = proj.sample3d(np.asarray(cMF.strt), fill=hnoflo, how=how,
                                valid=src_active3)
