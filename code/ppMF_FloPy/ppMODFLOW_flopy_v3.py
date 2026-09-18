@@ -18,6 +18,20 @@ import numpy as np
 import matplotlib as mpl
 import MARMITESprocess_v3 as MMproc
 
+def _rows(path):
+    """The non-blank lines of a text file, for ``np.loadtxt``.
+
+    numpy >= 1.23 warns once per call that a blank line "contained no data
+    and will not be counted towards max_rows". Every text file ends with a
+    newline, so that fired on every run and meant nothing. Filtering here
+    keeps the warning available for the case it was meant for -- a file
+    that really is shorter than expected.
+    """
+    with open(path, encoding='utf-8', errors='replace') as fh:
+        return [ln for ln in fh if ln.strip()]
+
+
+
 #####################################
 class clsMF():
     def __init__(self, cUTIL, MM_ws, MM_ws_out, MF_ws, MF_ini_fn, xllcorner = None, yllcorner = None, numDays = -1, stdout = None, report = None, grid = None):
@@ -691,7 +705,7 @@ class clsMF():
         # READ date of input files (P and PT)
         inputDate_fn=os.path.join(self.MM_ws, inputDate_fn)
         if os.path.exists(inputDate_fn):
-            inputDate_tmp = np.loadtxt(inputDate_fn, dtype = str)
+            inputDate_tmp = np.loadtxt(_rows(inputDate_fn), dtype = str)
             self.inputDate = inputDate_tmp[:,0]
             self.JD = np.asarray(inputDate_tmp[:,2], dtype = int)
             del inputDate_tmp
