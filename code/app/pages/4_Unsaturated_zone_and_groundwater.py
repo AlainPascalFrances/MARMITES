@@ -35,9 +35,9 @@ panel = panelui.header(4)
 
 edited, save_slot = panelui.switch_and_save(cfg, panel)
 
-tab_geom, tab_ghb, tab_drn, tab_uzf, tab_aq, tab_water = st.tabs(
-    ['MODFLOW aquifer layers', 'GHB', 'DRN', 'UZF', 'Aquifer & solver',
-     'SFR, LAK and CRR'])
+tab_geom, tab_ghb, tab_drn, tab_uzf, tab_water, tab_init = st.tabs(
+    ['MODFLOW aquifer layers', 'GHB', 'DRN', 'UZF', 'SFR, LAK and CRR',
+     'Initial heads'])
 
 # ---------------------------------------------------------------- geometry
 # The first of one sub-panel per MF6 package. Every field says which flopy
@@ -134,12 +134,28 @@ with tab_drn:
         cfg, schema.DRN_ROWS, 'drn', columns=2,
         gated={'drn.enable': ('drn.layers', 'drn.elevation', 'drn.cond',
                               'drn.at_layer_base')}))
-    st.info('**This is not the seepage face.** MARMITES builds a SECOND '
-            'drain package, `drn_seep`, over the whole land surface, and '
-            'that one is configured under **Aquifer & solver → Seepage '
-            'face**. This tab is the boundary drain the parameter file '
-            'called `drn`: in La Mata six cells at the catchment outlet.')
     panelui.boundary_note(cfg, 'drn', 'elevation', ds)
+
+    # THE SECOND DRAIN PACKAGE. MARMITES builds two, and they were on
+    # different tabs, which is how someone hunting the seepage face ends up
+    # switching off the catchment outlet. Both are `ModflowGwfdrn`, so both
+    # belong on the DRN tab -- with the difference stated rather than
+    # cross-referenced.
+    st.markdown('---')
+    st.markdown('#### Seepage face — the second drain package')
+    st.caption('Groundwater leaving at the LAND SURFACE, over the whole '
+               'catchment, as `drn_seep`. The boundary drain above is six '
+               'cells at the outlet; this one is every surface cell, and '
+               'MARMITES takes its discharge back into the soil column as '
+               'exfiltration rather than routing it away.')
+    edited.update(panelui.section_form(cfg, 'seep', columns=3))
+    if cfg.seep.kind != 'drn':
+        st.warning('`seep.kind = %r` builds the seepage face inside UZF '
+                   '(`SIMULATE_GWSEEP`) instead, so no `drn_seep` package '
+                   'exists and the conductance above is not read. That '
+                   'option is deprecated in MODFLOW 6 and switches discharge '
+                   'on and off discontinuously; `drn` is the validated '
+                   'choice and what La Mata runs.' % cfg.seep.kind)
 
 # -------------------------------------------------------------------- uzf
 with tab_uzf:
@@ -179,13 +195,16 @@ with tab_uzf:
         st.markdown('\n'.join('- `%s` — %s' % (a, b)
                                for a, b in schema.UZF_LEGACY))
 
-# --------------------------------------------------------------- aquifer
-with tab_aq:
-    for section, title in [('seep', 'Seepage face'),
-                           ('spinup', 'Spin-up & initial state')]:
-        st.markdown('#### %s' % title)
-        edited.update(panelui.section_form(cfg, section, columns=3))
-        st.markdown('')
+# ------------------------------------------------------------ initial heads
+# Last, because it is the only tab that is not about WHAT the model is: it
+# is where the model starts from, which is the last thing answered and the
+# first thing a run reads.
+with tab_init:
+    st.caption('The heads a run starts from, and the spin-up that produces '
+               'them — `ModflowGwfic(strt=)`. Nothing here changes the '
+               'model; it changes where the model begins.')
+    edited.update(panelui.section_form(cfg, 'spinup', columns=3))
+    st.markdown('')
     if not cfg.spinup.strt_heads:
         st.warning('No saved initial heads. A cold start puts the water table '
                    'above ground over much of the catchment, and the first '

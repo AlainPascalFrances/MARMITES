@@ -498,7 +498,7 @@ FIELDS = {
                    'parameter file called `drn` -- in La Mata six cells at '
                    'the catchment outlet. It is NOT the seepage face: that '
                    'is a second drain package, `drn_seep`, over the whole '
-                   'land surface, configured under Seepage face.'),
+                   'land surface, configured lower down this same tab.'),
     'drn.layers': ('MODFLOW layers', 'list',
                    'Which layers carry the drain, counted from 1.'),
     'drn.elevation': ('Drain elevation', 'm a.s.l.',

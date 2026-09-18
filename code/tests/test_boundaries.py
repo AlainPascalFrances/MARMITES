@@ -104,14 +104,25 @@ def test_the_layer_base_is_a_switch_not_a_magic_number(cfg):
     assert 'botm' in help_ and '-1' in help_
 
 
-def test_the_seepage_face_is_not_confused_with_this_drain():
-    """MARMITES builds TWO drain packages -- drn here, drn_seep from
-    [seep] -- and a modeller who thought this tab configured the seepage
-    face would turn the catchment outlet off looking for it."""
+def test_both_drain_packages_are_on_the_drn_tab_and_told_apart():
+    """MARMITES builds TWO -- the boundary drain at the outlet and drn_seep
+    over the land surface. They used to sit on different tabs, which is how
+    someone hunting the seepage face ends up switching off the catchment
+    outlet. Both are ModflowGwfdrn, so both belong here, each named."""
     page = open(PAGE, encoding='utf-8').read()
-    assert 'drn_seep' in page and 'not the seepage face' in page.lower()
+    drn = page[page.index('with tab_drn:'):page.index('with tab_uzf:')]
+    assert 'drn_seep' in drn, 'the seepage face left the DRN tab'
+    assert 'the second drain package' in drn.lower()
+    assert "section_form(cfg, 'seep'" in drn, (
+        '[seep] is not drawn on the DRN tab')
     help_ = schema.describe('drn.enable')[2]
     assert 'drn_seep' in help_
+
+
+def test_the_seepage_face_is_not_drawn_anywhere_else():
+    """One question, one place. It was moved, not copied."""
+    page = open(PAGE, encoding='utf-8').read()
+    assert page.count("section_form(cfg, 'seep'") == 1
 
 
 def test_the_run_builds_both_packages_from_the_panel():
@@ -233,3 +244,19 @@ def test_a_package_switched_off_leaves_nothing_behind(cfg):
     cMF, _ini = _built(cfg)
     assert cMF.drn_yn == 0
     assert cMF.ghb_yn == 0
+
+
+def test_the_initial_heads_tab_is_last_and_holds_only_the_spin_up():
+    """It was called "Aquifer & solver" and by the end held neither: the
+    aquifer moved to MODFLOW aquifer layers, UZF and ET to their own tabs,
+    and the seepage face to DRN. What is left is where a run STARTS."""
+    page = open(PAGE, encoding='utf-8').read()
+    tabs = page[page.index('st.tabs('):page.index('])', page.index('st.tabs('))]
+    assert 'Aquifer & solver' not in page
+    assert tabs.rstrip().endswith("'Initial heads'"), (
+        'Initial heads is not the last tab')
+    init = page[page.index('with tab_init:'):]
+    assert "section_form(cfg, 'spinup'" in init
+    for moved in ("'seep'", "'uzf'", "'et'", "'layers'"):
+        assert 'section_form(cfg, %s' % moved not in init, (
+            '%s is still drawn on the Initial heads tab' % moved)
