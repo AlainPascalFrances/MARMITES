@@ -276,10 +276,27 @@ def setup_lamata(daily=True, nsp=None, grid='dis', nlay=None,
         raise SystemExit('--nlay %s has no parameter file; available: %s'
                          % (nlay, sorted(INI_BY_NLAY)))
     cUTIL = MMutils.clsUTILITIES(verbose=1)
+    # THE ORIGIN COMES FROM THE DATASET. It used to be two literals here,
+    # repeated in the parameter file and in every test -- three copies of
+    # a number that belongs to the grid the converter wrote the rasters
+    # onto. The rasters carry it in their own headers, so that is where it
+    # is read from; a dataset with no raster yet falls back to the
+    # parameter file, which is the only thing left that knows.
+    _rect, _names, _others = props.dataset_grid(DS)
+    if _rect is None:
+        _xll, _yll = 0.0, 0.0
+        print('no raster in the dataset: the origin comes from %s' % ini_fn)
+    else:
+        _xll, _yll = float(_rect[0]), float(_rect[1])
     cMF = ppMF.clsMF(cUTIL, MM_ws=DS, MM_ws_out=DS, MF_ws=os.path.join(DS, 'MF_ws'),
                      MF_ini_fn=ini_fn,
-                     xllcorner=739300.0, yllcorner=4553050.0)
+                     xllcorner=_xll, yllcorner=_yll)
     print('parameter set: %s (%d layer(s))' % (ini_fn, cMF.nlay))
+    # ... and the SHAPE is checked against those same rasters. It cannot be
+    # corrected here -- clsMF has already sized and read every array with
+    # the parameter file's nrow and ncol -- so a disagreement stops the run
+    # rather than producing a model quietly built on the wrong rectangle.
+    props.check_grid(cMF, DS)
     # THE FRONT-END OWNS hnoflo (WP1d, geometry). It is the value that marks
     # a cell as having nothing to report, and MARMITES masks on it as well --
     # so the two have to be the SAME number, which is why it is asked once on

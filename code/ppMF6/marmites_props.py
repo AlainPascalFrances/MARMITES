@@ -389,3 +389,81 @@ def apply_uzf(cfg, cMF, dataset_dir, verbose=True):
         print('UZF: %s from the panel (vks from the %s)'
               % (', '.join(done), u.vks_from))
     return done
+
+
+# =====================================================================
+#  The grid the rasters stand on
+# =====================================================================
+# nrow, ncol, delr, delc and the origin were declared TWICE: in the
+# MODFLOW parameter file, and implicitly by every raster in the dataset.
+# They agreed in La Mata by luck -- all 42 rasters happen to carry the
+# rectangle the ini names -- and nothing checked.
+#
+# The RASTERS are the authority. They are what the converter wrote onto
+# the grid the Grid panel defined, so their header IS that grid; the ini
+# only repeated it. Unlike the layer properties this cannot be applied
+# after the fact: clsMF sizes and reads every array with the ini's nrow
+# and ncol, so a disagreement has already corrupted them by the time this
+# runs. It is therefore a CHECK that refuses, plus the origin, which the
+# driver had hard-coded.
+
+
+class GridMismatch(PropertyError):
+    """The parameter file and the dataset's rasters describe different grids."""
+
+
+def dataset_grid(dataset_dir):
+    """``(xll, yll, nrow, ncol, cellsize)`` the dataset's rasters declare."""
+    import marmites_meshes as meshes
+    rect, names, others = meshes.dataset_rectangle(str(dataset_dir))
+    if rect is None:
+        return None, [], []
+    return rect, names, others
+
+
+def check_grid(cMF, dataset_dir, strict=True, verbose=True):
+    """Does the parameter file describe the grid the rasters are on?
+
+    Returns the rectangle the rasters declare, or None when the dataset
+    holds no raster to compare against -- a new catchment, where there is
+    nothing to disagree with yet.
+    """
+    rect, names, others = dataset_grid(dataset_dir)
+    if rect is None:
+        return None
+    xll, yll, nrow, ncol, cell = rect
+    delr = float(np.ravel(np.asarray(cMF.delr, dtype=float))[0])
+    delc = float(np.ravel(np.asarray(cMF.delc, dtype=float))[0])
+    bad = []
+    if int(cMF.nrow) != int(nrow):
+        bad.append('nrow %d vs %d' % (cMF.nrow, nrow))
+    if int(cMF.ncol) != int(ncol):
+        bad.append('ncol %d vs %d' % (cMF.ncol, ncol))
+    if abs(delr - cell) > 1e-6 or abs(delc - cell) > 1e-6:
+        bad.append('cell %g x %g vs %g' % (delr, delc, cell))
+    if abs(float(cMF.xllcorner) - xll) > 1e-3:
+        bad.append('xll %g vs %g' % (cMF.xllcorner, xll))
+    if abs(float(cMF.yllcorner) - yll) > 1e-3:
+        bad.append('yll %g vs %g' % (cMF.yllcorner, yll))
+    if bad and strict:
+        raise GridMismatch(
+            'the MODFLOW parameter file and the dataset rasters describe '
+            'different grids (%s). The rasters win -- they are what the '
+            'converter wrote onto the grid the Grid panel defined -- but '
+            'every array has already been read with the parameter file\'s '
+            'shape, so this cannot be corrected here. Rebuild the dataset '
+            'from the Grid panel, or fix the parameter file.\n'
+            '  %d raster(s) agree on %r%s'
+            % ('; '.join(bad), len(names), rect,
+               ''.join('\n  %d other(s) disagree among themselves: %r'
+                       % (len(n), r) for r, n in others)))
+    if verbose:
+        if others:
+            print('WARNING: %d raster(s) do not sit on the model grid: %s'
+                  % (sum(len(n) for _r, n in others),
+                     ', '.join(n[0] for _r, n in others)))
+        print('grid: %d x %d cells of %g m at (%g, %g), from %d dataset '
+              'raster(s)%s' % (nrow, ncol, cell, xll, yll, len(names),
+                               '' if not bad else ' -- MISMATCH: %s'
+                               % '; '.join(bad)))
+    return rect
