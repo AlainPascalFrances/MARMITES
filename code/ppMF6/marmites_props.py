@@ -41,6 +41,10 @@ class PropertyError(Exception):
 
 # (config field on [layers], the clsMF attribute the ini filled, a label)
 PROPERTIES = (
+    # ibound is INTEGER and must be read before the thickness: botm is
+    # elev - cumulative thickness*|ibound|, so it decides where a layer
+    # contributes at all.
+    ('ibound', 'ibound', 'active cells'),
     ('thickness', 'thick', 'layer thickness'),
     ('k', 'hk', 'hydraulic conductivity'),
     ('k33', 'vka', 'vertical conductivity'),
@@ -163,6 +167,14 @@ def apply_layer_properties(cfg, cMF, dataset_dir, verbose=True):
         if attr in touched:
             setattr(cMF, attr + '_actual',
                     cMF.cPROCESS.checkarray(getattr(cMF, attr)))
+    if 'ibound' in touched:
+        # INTEGER, and reshaped the way the constructor reshapes it, so a
+        # one-layer model gets (1, nrow, ncol) rather than (nrow, ncol).
+        ib = cMF.cPROCESS.checkarray(cMF.ibound, dtype=int)
+        ib = np.asarray(ib)
+        if int(cMF.nlay) < 2:
+            ib = ib.reshape((1, cMF.nrow, cMF.ncol))
+        cMF.ibound = ib
     if 'thick' in touched:
         cMF.thick = cMF.cPROCESS.float2array(
             cMF.cPROCESS.checkarray(cMF.thick))
@@ -467,3 +479,75 @@ def check_grid(cMF, dataset_dir, strict=True, verbose=True):
                                '' if not bad else ' -- MISMATCH: %s'
                                % '; '.join(bad)))
     return rect
+
+
+# =====================================================================
+#  The catchment polygon as the GEOGRAPHIC REFERENCE
+# =====================================================================
+# It does not decide which cells are active -- `layers.ibound` does, one
+# map per layer, because a layer can pinch out inside the catchment and in
+# La Mata one does (layer 1 absent in 84 cells where layer 2 is present,
+# with a 20-35 m thickness still written there, so the thickness cannot
+# express it either).
+#
+# What the polygon IS, is the thing every input has to agree with about
+# where the model is. So it is used to CHECK: the active cells should sit
+# inside it, and a model whose active cells fall largely outside it is
+# almost certainly in a different coordinate system.
+
+
+def catchment_mask(cfg, cMF, gis_dir):
+    """The cells the catchment polygon touches: (nrow, ncol) of 0/1.
+
+    A cell counts as inside when the polygon touches it AT ALL -- the
+    modeller's rule. None when there is no boundary layer to read.
+    """
+    import marmites_vector as mv
+
+    name = getattr(getattr(cfg, 'grid', None), 'boundary', '') if cfg else ''
+    if not name:
+        return None
+    path = os.path.join(str(gis_dir), name)
+    if not os.path.exists(path):
+        raise PropertyError(
+            'grid.boundary = %r is not in %s. It is the catchment: the '
+            'geographic reference every input is checked against.'
+            % (name, gis_dir))
+    grid = mv.TargetGrid.from_cMF(cMF)
+    mask, _report = mv.overlay_polygons(mv.Layer(path), grid, how='presence',
+                                        fill=0, dtype=int)
+    return np.asarray(mask, dtype=int).reshape(grid.shape)
+
+
+def check_catchment(cfg, cMF, gis_dir, verbose=True):
+    """Do the active cells sit inside the catchment? Returns a report.
+
+    NOT an error by itself: a cell clipped by the boundary is a real
+    modelling choice, and the two maps are allowed to differ at the edge.
+    What it catches is the case that is never intentional -- active cells
+    far outside the polygon, which means the rasters and the catchment are
+    not in the same coordinate system.
+    """
+    mask = catchment_mask(cfg, cMF, gis_dir)
+    if mask is None:
+        return None
+    active = (np.abs(np.asarray(cMF.ibound, dtype=int)) != 0).any(axis=0)
+    inside = int((active & (mask != 0)).sum())
+    outside = int((active & (mask == 0)).sum())
+    total = int(active.sum())
+    report = {'active': total, 'inside': inside, 'outside': outside,
+              'catchment': int((mask != 0).sum()),
+              'fraction_inside': (float(inside) / total) if total else 0.0}
+    if verbose:
+        print('catchment: %d of %d active cell(s) inside %s (%.1f%%); '
+              'the polygon touches %d cell(s)'
+              % (inside, total, cfg.grid.boundary,
+                 100.0 * report['fraction_inside'], report['catchment']))
+    if total and report['fraction_inside'] < 0.5:
+        raise PropertyError(
+            'only %d of %d active cells (%.1f%%) fall inside %s. The active '
+            'cells and the catchment are not in the same place -- check the '
+            'coordinate system of the rasters against the shapefile.'
+            % (inside, total, 100.0 * report['fraction_inside'],
+               cfg.grid.boundary))
+    return report

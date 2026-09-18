@@ -429,6 +429,16 @@ FIELDS = {
                       'the SAME number -- which is why it is asked once here '
                       'rather than twice in two files. It must not be 0: that '
                       'is a perfectly good head.'),
+    'layers.ibound': ('Active cells', _U,
+                      'flopy: becomes `idomain` -- which cells of each layer '
+                      'exist. ONE MAP PER LAYER, by the same `%d` rule as '
+                      'the thickness: a layer can pinch out inside the '
+                      'catchment, and in La Mata one does (layer 1 is absent '
+                      'in 84 cells where layer 2 is present, with a 20-35 m '
+                      'thickness still written there). Non-zero means '
+                      'active. The catchment polygon gives the OUTLINE and '
+                      'is the geographic reference every input is checked '
+                      'against -- it cannot know where a layer ends.'),
     'layers.thickness': ('Layer thickness', 'm',
                          'flopy: becomes `botm`, subtracted layer by layer '
                          'from the aquifer top. ONE RASTER PER LAYER: write '
@@ -787,7 +797,7 @@ SUBPANELS = {
 # polygon the grid was built in.
 GEOMETRY_ROWS = (
     ('layers.nlay', 'layers.hnoflo'),
-    ('layers.thickness', None),
+    ('layers.ibound', 'layers.thickness'),
     # k and k33 sit on one row, with the switch that says what the k33
     # number MEANS directly beneath it: 2 is an anisotropy ratio or a
     # conductivity in m/d depending on that one box, and a reader who

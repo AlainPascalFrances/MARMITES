@@ -251,6 +251,11 @@ hnoflo = 9999.99
 k33_as_ratio = true
 convertible = true
 
+[layers.ibound]
+how = "auto"
+raster = "MF_ws/ibound_l%d.asc"
+fill = 0.0
+
 [layers.thickness]
 how = "auto"
 raster = "MF_ws/thick_l%d.asc"

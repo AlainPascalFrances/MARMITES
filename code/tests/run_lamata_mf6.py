@@ -320,6 +320,11 @@ def setup_lamata(daily=True, nsp=None, grid='dis', nlay=None,
     # THE BOUNDARY PACKAGES TOO. GHB and DRN are rebuilt from [ghb] and
     # [drn] -- AFTER the properties, because a drain taken at the base of
     # its layer reads botm, and botm is the panel thickness now.
+    # THE CATCHMENT IS THE GEOGRAPHIC REFERENCE. It does not decide which
+    # cells are active -- layers.ibound does, per layer -- but the active
+    # cells have to sit inside it, and a model whose cells fall outside is
+    # in a different coordinate system.
+    props.check_catchment(cfg, cMF, mm_paths.GIS)
     props.apply_boundaries(cfg, cMF, DS)
     props.apply_uzf(cfg, cMF, DS)
     # LENGTHS ARE METRES, always. The panel asks for a projected CRS in

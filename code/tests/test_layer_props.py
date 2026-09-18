@@ -130,7 +130,8 @@ def test_the_panel_reproduces_the_ini_cell_for_cell(cfg):
     from_ini = snapshot()
     assert cfg.layers.nlay == 2, 'this test is pinned to the 2-layer set'
     done = props.apply_layer_properties(cfg, cMF, DS, verbose=False)
-    assert {d[0] for d in done} == {'thickness', 'k', 'k33', 'ss', 'sy'}
+    assert {d[0] for d in done} == {'ibound', 'thickness', 'k', 'k33',
+                                    'ss', 'sy'}
     from_panel = snapshot()
     for name in ('thick', 'hk', 'vka', 'ss', 'sy', 'botm'):
         assert np.array_equal(from_ini[name], from_panel[name]), (
@@ -154,7 +155,7 @@ def test_the_flags_are_fanned_out_over_the_layers(cfg):
     cMF = FakeMF()
     # only the flags here: the sources are checked against the real dataset
     # above, and this model has four layers the rasters do not cover
-    for name in ('thickness', 'k', 'k33', 'ss', 'sy'):
+    for name in ('ibound', 'thickness', 'k', 'k33', 'ss', 'sy'):
         setattr(cfg.layers, name, cfgmod.VectorSource())
     cfg.layers.convertible = True
     cfg.layers.k33_as_ratio = False
@@ -200,3 +201,79 @@ def test_the_run_applies_the_properties_before_anything_reads_them():
     src = open(os.path.join(HERE, 'run_lamata_mf6.py'), encoding='utf-8').read()
     assert 'props.apply_layer_properties' in src
     assert src.index('props.apply_layer_properties') < src.index('conv_fact = ')
+
+
+# ------------------------------------- ibound, and the geographic reference
+
+@pytest.mark.skipif(not os.path.isdir(os.path.join(DS, 'MF_ws')),
+                    reason='the La Mata dataset is not present')
+def test_ibound_is_per_layer_and_reproduces_the_parameter_file(cfg):
+    """A layer can pinch out INSIDE the catchment: La Mata's layer 1 is
+    active in 1870 cells and layer 2 in 1954, layer 1 being a strict
+    subset. The catchment polygon cannot know that -- thick_l1 is 20-35 m
+    in the 84 cells where layer 1 is absent, so the thickness cannot
+    express it either. Only this map can."""
+    import MARMITESutilities as MMutils
+    import ppMODFLOW_flopy_v3 as ppMF
+
+    rect, _n, _o = props.dataset_grid(DS)
+    cMF = ppMF.clsMF(MMutils.clsUTILITIES(verbose=0), MM_ws=DS, MM_ws_out=DS,
+                     MF_ws=os.path.join(DS, 'MF_ws'),
+                     MF_ini_fn='__inputMF_flopy_v3_2s1L.ini', grid=rect)
+    from_ini = np.abs(np.asarray(cMF.ibound, dtype=int))
+    botm_ini = np.ma.filled(np.asarray(cMF.botm), -9999.0).astype(float)
+
+    props.apply_layer_properties(cfg, cMF, DS, verbose=False)
+    from_panel = np.abs(np.asarray(cMF.ibound, dtype=int))
+
+    assert from_panel.shape == (cMF.nlay, cMF.nrow, cMF.ncol)
+    assert np.array_equal(from_ini, from_panel)
+    per_layer = [int((from_panel[L] != 0).sum()) for L in range(cMF.nlay)]
+    assert per_layer == [1870, 1954], per_layer
+    # the layers genuinely differ, which is the whole reason this is asked
+    assert per_layer[0] != per_layer[1]
+    # ... and botm is unchanged, though it multiplies by |ibound|
+    assert np.array_equal(
+        botm_ini, np.ma.filled(np.asarray(cMF.botm), -9999.0).astype(float))
+
+
+@pytest.mark.skipif(not os.path.isdir(os.path.join(DS, 'MF_ws')),
+                    reason='the La Mata dataset is not present')
+def test_the_catchment_is_the_geographic_reference_not_the_ibound(cfg):
+    """It checks that the active cells sit inside it; it does not decide
+    which they are. The two are allowed to differ -- the polygon touches
+    2092 cells and 1954 are active -- because a cell clipped at the
+    boundary is a modelling choice."""
+    import mm_paths
+    import MARMITESutilities as MMutils
+    import ppMODFLOW_flopy_v3 as ppMF
+
+    rect, _n, _o = props.dataset_grid(DS)
+    cMF = ppMF.clsMF(MMutils.clsUTILITIES(verbose=0), MM_ws=DS, MM_ws_out=DS,
+                     MF_ws=os.path.join(DS, 'MF_ws'),
+                     MF_ini_fn='__inputMF_flopy_v3_2s1L.ini', grid=rect)
+    rep = props.check_catchment(cfg, cMF, mm_paths.GIS, verbose=False)
+    assert rep['outside'] == 0, 'active cells fall outside the catchment'
+    assert rep['fraction_inside'] == 1.0
+    assert rep['catchment'] > rep['active'], (
+        'the polygon should touch more cells than the model activates')
+
+
+@pytest.mark.skipif(not os.path.isdir(os.path.join(DS, 'MF_ws')),
+                    reason='the La Mata dataset is not present')
+def test_a_model_somewhere_else_entirely_is_refused(cfg):
+    """The case that is never intentional: rasters and catchment in
+    different coordinate systems. An edge disagreement is fine; a model
+    mostly outside its own catchment is not."""
+    import mm_paths
+    import MARMITESutilities as MMutils
+    import ppMODFLOW_flopy_v3 as ppMF
+
+    rect, _n, _o = props.dataset_grid(DS)
+    moved = (rect[0] + 50000.0, rect[1] + 50000.0) + tuple(rect[2:])
+    cMF = ppMF.clsMF(MMutils.clsUTILITIES(verbose=0), MM_ws=DS, MM_ws_out=DS,
+                     MF_ws=os.path.join(DS, 'MF_ws'),
+                     MF_ini_fn='__inputMF_flopy_v3_2s1L.ini', grid=moved)
+    with pytest.raises(props.PropertyError) as e:
+        props.check_catchment(cfg, cMF, mm_paths.GIS, verbose=False)
+    assert 'coordinate system' in str(e.value)

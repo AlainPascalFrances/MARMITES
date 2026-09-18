@@ -751,6 +751,7 @@ class Layers:
 
         nlay        ModflowGwfdis / ModflowGwfdisv  nlay
         hnoflo      the no-flow / dry sentinel written into the head arrays
+        ibound      idomain: which cells of each layer exist
         thickness   botm, as top - sum(thickness) layer by layer
         k           ModflowGwfnpf   k
         k33         ModflowGwfnpf   k33  (a conductivity, or the ratio
@@ -771,9 +772,10 @@ class Layers:
     at. Asking for it again would be asking for something that has to agree
     with two other answers.
 
-    IBOUND IS NOT ASKED EITHER. A cell is active when it is inside the
-    catchment polygon of [grid] boundary. That is the same polygon the grid
-    was built inside, so a separate map could only disagree with it.
+    IBOUND IS ASKED, and the catchment polygon does NOT replace it: the
+    polygon is the outline, and which layers exist inside that outline is
+    geology it cannot see. The polygon is used instead as the GEOGRAPHIC
+    REFERENCE -- every input is checked for overlapping it.
     """
 
     nlay: int = 6                  # 2 reads _2s1L.ini directly (--nlay)
@@ -785,6 +787,14 @@ class Layers:
     # the crop schedule carries it for the field: with nlay=2, thick_%d.asc
     # is thick_1.asc and thick_2.asc -- see VectorSource.rasters, which is
     # where that rule lives. A single value is uniform over every layer.
+    # WHICH CELLS EXIST, per layer. Measured on La Mata: layer 1 is active
+    # in 1870 cells and layer 2 in 1954, layer 1 being a strict subset --
+    # 84 cells carry the lower unit and not the upper one, and thick_l1 is
+    # 20-35 m in exactly those cells, so the thickness does not express the
+    # absence. Only this map does. The catchment polygon gives the
+    # OUTLINE and is the geographic reference every input is checked
+    # against; it cannot know where a layer pinches out.
+    ibound: VectorSource = field(default_factory=VectorSource)
     thickness: VectorSource = field(default_factory=VectorSource)
     k: VectorSource = field(default_factory=VectorSource)
     k33: VectorSource = field(default_factory=VectorSource)
@@ -1575,7 +1585,7 @@ class RunConfig:
             errs.append('layers.hnoflo must not be 0: it is the value that '
                         'marks a cell as having nothing to report, and 0 is a '
                         'perfectly good head.')
-        for name in ('thickness', 'k', 'k33', 'ss', 'sy'):
+        for name in ('ibound', 'thickness', 'k', 'k33', 'ss', 'sy'):
             src = getattr(self.layers, name)
             if src.producer() is None:
                 continue          # not given yet: the MF ini still supplies it

@@ -53,9 +53,13 @@ with tab_geom:
             'from %s — which is the bottom of the MARMITES soil column and '
             'the surface groundwater discharges at. A third answer could only '
             'disagree with the other two.\n\n'
-            '**Nor is ibound.** A cell is active when it is inside the '
-            'catchment polygon of %s: the same polygon the grid was built '
-            'inside, so a separate map could only contradict it.'
+            '**Active cells ARE asked**, one map per layer. The catchment '
+            'polygon on %s gives the outline, but a layer can pinch out '
+            'inside it — here layer 1 is absent in 84 cells where layer 2 '
+            'is present, with a thickness still written there — and a '
+            'polygon cannot see that. What the polygon is instead is the '
+            'GEOGRAPHIC REFERENCE: the run checks that the active cells sit '
+            'inside it, and stops if they do not.'
             % (schema.panel_name(1), schema.panel_name(3),
                schema.panel_name(1)))
 

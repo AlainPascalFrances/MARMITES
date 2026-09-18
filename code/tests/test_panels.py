@@ -250,11 +250,19 @@ def test_the_record_length_is_read_from_the_dates(tmp_path):
 # --------------------------------------------- panel 4: the MF6 packages
 
 def test_the_geometry_asks_only_what_is_not_derivable(cfg):
-    """The top is the land surface minus the soil column and ibound is the
-    catchment polygon, so asking for either would be asking for an answer
-    that can only disagree with one already given."""
+    """The top is the land surface minus the soil column, so asking for it
+    would be asking for an answer that can only disagree with one already
+    given.
+
+    IBOUND IS ASKED, and that is a correction: the catchment polygon gives
+    the outline, but a layer can pinch out inside it. Measured on La Mata,
+    layer 1 is active in 1870 cells and layer 2 in 1954 -- and thick_l1 is
+    20-35 m in the 84 cells where layer 1 is absent, so the thickness does
+    not express it either. The polygon is the geographic REFERENCE instead:
+    every input is checked for sitting inside it."""
     laid = [d for row in schema.GEOMETRY_ROWS for d in row if d]
-    assert laid == ['layers.nlay', 'layers.hnoflo', 'layers.thickness',
+    assert laid == ['layers.nlay', 'layers.hnoflo',
+                    'layers.ibound', 'layers.thickness',
                     'layers.k', 'layers.k33', 'layers.k33_as_ratio',
                     'layers.ss', 'layers.sy', 'layers.convertible']
     # the switch that says what the k33 NUMBER means must sit with it: 2 is
@@ -265,7 +273,9 @@ def test_the_geometry_asks_only_what_is_not_derivable(cfg):
     have = dict(schema.fields_of(cfg, 'layers'))
     for dotted in laid:
         assert dotted in have, '%s is laid out but does not exist' % dotted
-    assert not any('top' in d or 'ibound' in d for d in laid)
+    assert not any('top' in d for d in laid)
+    # ... and ibound is a SOURCE, so it can be a raster per layer
+    assert schema.is_source(cfg.layers.ibound)
 
 
 def test_a_per_layer_raster_expands_over_the_layers():
