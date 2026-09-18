@@ -31,13 +31,13 @@ mf6mod = _load('marmites_mf6', os.path.join(TRUNK, 'ppMF6', 'marmites_mf6.py'))
 
 @pytest.fixture(scope='module')
 def cmf():
-    if not os.path.exists(os.path.join(DS, 'MF_ws', '__inputMF_flopy_v3_2s3L.ini')):
+    if not os.path.exists(os.path.join(DS, 'MF_ws', '__inputMF_flopy_v3_2s1L.ini')):
         pytest.skip('La Mata dataset not present')
     import MARMITESutilities as MMutils
     import ppMODFLOW_flopy_v3 as ppMF
     c = ppMF.clsMF(MMutils.clsUTILITIES(verbose=1), MM_ws=DS, MM_ws_out=DS,
                    MF_ws=os.path.join(DS, 'MF_ws'),
-                   MF_ini_fn='__inputMF_flopy_v3_2s3L.ini',
+                   MF_ini_fn='__inputMF_flopy_v3_2s1L.ini',
                    xllcorner=739300.0, yllcorner=4553050.0)
     # outcrop layer (driver logic)
     c.outcropL = np.zeros((c.nrow, c.ncol), dtype=int)
@@ -81,7 +81,10 @@ def test_reload_roundtrip(cmf, tmp_path):
     # grid + periods: steady SP + 3 daily
     assert sim.tdis.nper.get_data() == 4
     dis = gwf.get_package('dis')
-    assert (dis.nlay.get_data(), dis.nrow.get_data(), dis.ncol.get_data()) == (6, 65, 60)
+    # the layer count is the parameter file's, not a literal: there is
+    # one file now and the panel decides how many layers a model has
+    assert (dis.nlay.get_data(), dis.nrow.get_data(),
+            dis.ncol.get_data()) == (cmf.nlay, 65, 60)
     # newton on
     assert gwf.name_file.newtonoptions.get_data() is not None
     # UZF: land cells first, count matches active columns

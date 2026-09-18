@@ -75,7 +75,7 @@ def read_table(path):
 # the page and the README cannot drift apart.
 TIER_A_GROUPS = [
     ('Run control & parameters', [
-        'MF_ws/__inputMF_flopy_v3_2s1L.ini', 'MF_ws/__inputMF_flopy_v3_2s3L.ini',
+        'MF_ws/__inputMF_flopy_v3_2s1L.ini', 'MF_ws/__inputMF_flopy_v3_2s1L.ini',
         'MF_ws/inputSOILparam.txt']),
     # WP1d: MMsurf's OUTPUT, produced when run.surface is on and consumed
     # as-is when it is off; its inputs are the meteorological record, the

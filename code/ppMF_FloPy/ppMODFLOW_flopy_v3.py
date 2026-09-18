@@ -20,7 +20,7 @@ import MARMITESprocess_v3 as MMproc
 
 #####################################
 class clsMF():
-    def __init__(self, cUTIL, MM_ws, MM_ws_out, MF_ws, MF_ini_fn, xllcorner, yllcorner, numDays = -1, stdout = None, report = None):
+    def __init__(self, cUTIL, MM_ws, MM_ws_out, MF_ws, MF_ini_fn, xllcorner = None, yllcorner = None, numDays = -1, stdout = None, report = None, grid = None):
 
         ''' read input file (called _input.ini in the MARMITES workspace
         the first character on the first line has to be the character used to comment
@@ -32,8 +32,8 @@ class clsMF():
         self.MM_ws_out = MM_ws_out
         self.MF_ws = MF_ws
         self.MF_ini_fn = MF_ini_fn
-        self.xllcorner = xllcorner
-        self.yllcorner = yllcorner
+        self.xllcorner = xllcorner if xllcorner is not None else 0.0
+        self.yllcorner = yllcorner if yllcorner is not None else 0.0
         self.numDays = numDays
 
         inputFile = self.cUTIL.readFile(self.MF_ws, self.MF_ini_fn)
@@ -432,6 +432,41 @@ class clsMF():
         except Exception:
             self.cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nUnexpected error in the MODFLOW input file:\n", stdout = stdout, report = report)
         del inputFile
+
+        # ---------------------------------------------------------------
+        # THE GRID COMES FROM THE DATASET, NOT FROM THIS FILE.  WP1d.
+        #
+        # nrow, ncol, delr, delc and the origin were declared here AND by
+        # every raster the converter wrote, and nothing compared them.
+        # `grid` is (xll, yll, nrow, ncol, cellsize) read from those raster
+        # headers -- the grid the Grid panel defined -- and it replaces what
+        # was parsed above.
+        #
+        # HERE and not later: cPROCESS is built with nrow/ncol next, and
+        # every array is read through it. A value substituted afterwards
+        # would be describing arrays that had already been read with the
+        # other shape.
+        if grid is not None:
+            g_xll, g_yll, g_nrow, g_ncol, g_cell = grid
+            was = (self.nrow, self.ncol, float(self.delr[0]),
+                   float(self.delc[0]), self.xllcorner, self.yllcorner)
+            self.nrow, self.ncol = int(g_nrow), int(g_ncol)
+            # floats: the parser read cell sizes with int(), so a 12.5 m
+            # grid silently became 12 m
+            self.delr = [float(g_cell)] * self.ncol
+            self.delc = [float(g_cell)] * self.nrow
+            self.xllcorner, self.yllcorner = float(g_xll), float(g_yll)
+            now = (self.nrow, self.ncol, float(g_cell), float(g_cell),
+                   self.xllcorner, self.yllcorner)
+            if was != now:
+                print('grid: %d x %d cells of %g/%g m at (%g, %g) from the '
+                      'dataset; the parameter file said %d x %d of %g/%g at '
+                      '(%g, %g)' % (now + was))
+        elif xllcorner is None or yllcorner is None:
+            self.cUTIL.ErrorExit(
+                msg='\nFATAL ERROR!\nclsMF needs either grid=(xll, yll, '
+                    'nrow, ncol, cellsize) or xllcorner and yllcorner.\n',
+                stdout=stdout, report=report)
 
         self.cPROCESS = MMproc.clsPROCESS(
                                 cUTIL           = self.cUTIL,

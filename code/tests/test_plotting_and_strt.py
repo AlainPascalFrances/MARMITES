@@ -120,13 +120,13 @@ def test_plot_coupling_figure(tmp_path):
 
 @pytest.fixture(scope='module')
 def cmf():
-    if not os.path.exists(os.path.join(DS, 'MF_ws', '__inputMF_flopy_v3_2s3L.ini')):
+    if not os.path.exists(os.path.join(DS, 'MF_ws', '__inputMF_flopy_v3_2s1L.ini')):
         pytest.skip('La Mata dataset not present')
     import MARMITESutilities as MMutils
     import ppMODFLOW_flopy_v3 as ppMF
     c = ppMF.clsMF(MMutils.clsUTILITIES(verbose=1), MM_ws=DS, MM_ws_out=DS,
                    MF_ws=os.path.join(DS, 'MF_ws'),
-                   MF_ini_fn='__inputMF_flopy_v3_2s3L.ini',
+                   MF_ini_fn='__inputMF_flopy_v3_2s1L.ini',
                    xllcorner=739300.0, yllcorner=4553050.0)
     c.outcropL = np.zeros((c.nrow, c.ncol), dtype=int)
     for L in range(c.nlay):

@@ -88,7 +88,7 @@ def main():
 
     cUTIL = MMutils.clsUTILITIES(verbose=1)
     cMF = ppMF.clsMF(cUTIL, MM_ws=DS, MM_ws_out=DS, MF_ws=os.path.join(DS, 'MF_ws'),
-                     MF_ini_fn='__inputMF_flopy_v3_2s3L.ini',
+                     MF_ini_fn='__inputMF_flopy_v3_2s1L.ini',
                      xllcorner=739300.0, yllcorner=4553050.0)
     # aquifer top/botm as the model uses them (soil thickness subtracted later
     # in the coupled driver; for grid generation the raw surfaces are enough)

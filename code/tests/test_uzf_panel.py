@@ -193,13 +193,13 @@ def test_the_run_applies_the_unsaturated_zone():
 
 @pytest.fixture(scope='module')
 def built():
-    """The real La Mata UZF package, 6-layer set, as clsMF6 builds it."""
+    """The real La Mata UZF package as clsMF6 builds it."""
     pytest.importorskip('flopy')
     import matplotlib
     matplotlib.use('agg')
     import MARMITESutilities as MMutils
     import ppMODFLOW_flopy_v3 as ppMF
-    ini = os.path.join(DS, 'MF_ws', '__inputMF_flopy_v3_2s3L.ini')
+    ini = os.path.join(DS, 'MF_ws', '__inputMF_flopy_v3_2s1L.ini')
     if not os.path.exists(ini):
         pytest.skip('La Mata dataset not present')
     mf6 = _load('marmites_mf6_up', os.path.join(CODE, 'ppMF6',
@@ -208,7 +208,7 @@ def built():
     def make(tmp, **over):
         c = ppMF.clsMF(MMutils.clsUTILITIES(verbose=0), MM_ws=DS,
                        MM_ws_out=DS, MF_ws=os.path.join(DS, 'MF_ws'),
-                       MF_ini_fn='__inputMF_flopy_v3_2s3L.ini',
+                       MF_ini_fn='__inputMF_flopy_v3_2s1L.ini',
                        xllcorner=739300.0, yllcorner=4553050.0)
         c.outcropL = np.zeros((c.nrow, c.ncol), dtype=int)
         for L in range(c.nlay):
@@ -240,7 +240,8 @@ def test_a_per_layer_answer_actually_varies(built, tmp_path):
     """`layers` and rasters would be decoration if every UZF object still
     took the same number. One value per LAYER is the cheapest proof that
     the packagedata is indexed rather than broadcast."""
-    per_layer = [3.5, 4.0, 4.5, 5.0, 5.5, 6.0]
+    b0 = built(tmp_path / 'probe')
+    per_layer = [3.5 + 0.5 * k for k in range(b0.nlay)]
     b = built(tmp_path, eps=per_layer)
     # cellid -> layer is the first element on a DIS grid
     by_layer = {}
@@ -257,8 +258,10 @@ def test_the_uzf6_rules_are_checked_on_every_cell(built, tmp_path):
     """A rule that only held for the catchment mean would let one bad cell
     reach MODFLOW, which is where the 22,000 validation errors came from."""
     mf6 = sys.modules['marmites_mf6_up']
+    b0 = built(tmp_path / 'probe')
+    bad = [0.0] + [0.05] * (b0.nlay - 1)      # layer 1 only
     with pytest.raises(mf6.MF6BuildError) as e:
-        built(tmp_path, thtr=[0.05, 0.05, 0.0, 0.05, 0.05, 0.05])
+        built(tmp_path, thtr=bad)
     assert 'THTR' in str(e.value)
 
 

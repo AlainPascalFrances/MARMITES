@@ -35,13 +35,13 @@ G = _load('marmites_grid_disv', os.path.join(TRUNK, 'marmites_grid.py'))
 
 @pytest.fixture(scope='module')
 def cmf():
-    if not os.path.exists(os.path.join(DS, 'MF_ws', '__inputMF_flopy_v3_2s3L.ini')):
+    if not os.path.exists(os.path.join(DS, 'MF_ws', '__inputMF_flopy_v3_2s1L.ini')):
         pytest.skip('La Mata dataset not present')
     import MARMITESutilities as MMutils
     import ppMODFLOW_flopy_v3 as ppMF
     c = ppMF.clsMF(MMutils.clsUTILITIES(verbose=1), MM_ws=DS, MM_ws_out=DS,
                    MF_ws=os.path.join(DS, 'MF_ws'),
-                   MF_ini_fn='__inputMF_flopy_v3_2s3L.ini',
+                   MF_ini_fn='__inputMF_flopy_v3_2s1L.ini',
                    xllcorner=739300.0, yllcorner=4553050.0)
     c.outcropL = np.zeros((c.nrow, c.ncol), dtype=int)
     for L in range(c.nlay):
@@ -72,7 +72,7 @@ def test_disv_build_and_reload(cmf, tmp_path):
     sim = flopy.mf6.MFSimulation.load(sim_ws=str(tmp_path), verbosity_level=0)
     gwf = sim.get_model(name)
     disv = gwf.get_package('disv')
-    assert disv.nlay.get_data() == 6
+    assert disv.nlay.get_data() == cmf.nlay
     assert disv.ncpl.get_data() == 3900
     assert disv.nvert.get_data() == len(b.vertices)
 

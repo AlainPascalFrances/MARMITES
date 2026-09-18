@@ -185,7 +185,7 @@ def test_bed_area_equals_surface_area():
 
 def test_lamata_lak_mvr_model_builds_and_reloads(tmp_path):
     flopy = pytest.importorskip('flopy')
-    if not os.path.exists(os.path.join(DS, 'MF_ws', '__inputMF_flopy_v3_2s3L.ini')):
+    if not os.path.exists(os.path.join(DS, 'MF_ws', '__inputMF_flopy_v3_2s1L.ini')):
         pytest.skip('La Mata dataset not present')
     if not os.path.exists(SHP):
         pytest.skip('pond shapefile not present (%s)' % SHP)
@@ -198,7 +198,7 @@ def test_lamata_lak_mvr_model_builds_and_reloads(tmp_path):
 
     c = ppMF.clsMF(MMutils.clsUTILITIES(verbose=1), MM_ws=DS, MM_ws_out=DS,
                    MF_ws=os.path.join(DS, 'MF_ws'),
-                   MF_ini_fn='__inputMF_flopy_v3_2s3L.ini',
+                   MF_ini_fn='__inputMF_flopy_v3_2s1L.ini',
                    xllcorner=XLL, yllcorner=YLL)
     c.outcropL = np.zeros((c.nrow, c.ncol), dtype=int)
     for L in range(c.nlay):
@@ -265,7 +265,7 @@ def test_lamata_lak_mvr_model_builds_and_reloads(tmp_path):
 def test_initial_stage_stays_between_bed_and_rim(tmp_path):
     """A lake started above its rim or below its bed blows up on step one."""
     pytest.importorskip('flopy')
-    if not os.path.exists(os.path.join(DS, 'MF_ws', '__inputMF_flopy_v3_2s3L.ini')):
+    if not os.path.exists(os.path.join(DS, 'MF_ws', '__inputMF_flopy_v3_2s1L.ini')):
         pytest.skip('La Mata dataset not present')
     if not os.path.exists(SHP):
         pytest.skip('pond shapefile not present (%s)' % SHP)
@@ -276,7 +276,7 @@ def test_initial_stage_stays_between_bed_and_rim(tmp_path):
     mf6mod = _load('marmites_mf6', os.path.join(TRUNK, 'ppMF6', 'marmites_mf6.py'))
     c = ppMF.clsMF(MMutils.clsUTILITIES(verbose=1), MM_ws=DS, MM_ws_out=DS,
                    MF_ws=os.path.join(DS, 'MF_ws'),
-                   MF_ini_fn='__inputMF_flopy_v3_2s3L.ini',
+                   MF_ini_fn='__inputMF_flopy_v3_2s1L.ini',
                    xllcorner=XLL, yllcorner=YLL)
     c.outcropL = np.zeros((c.nrow, c.ncol), dtype=int)
     for L in range(c.nlay):

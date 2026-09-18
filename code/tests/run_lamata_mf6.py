@@ -245,22 +245,20 @@ def _state_out(a, pref):
     return os.path.join(a.state_dir, pref)
 
 
-# La Mata is parameterised at two vertical resolutions. Both are authoritative
-# MODFLOW input sets maintained by the modeller -- the 2-layer file is NOT a
-# derived aggregation of the 6-layer one; its Sy (0.01 uniform) and its
-# confining layer-2 Ss (~1e-7) are hand-set and cannot be reproduced by any
-# thickness-weighted mean of the 6-layer values. So for a 2-layer run we read
-# the 2-layer file directly rather than aggregating the 6-layer one.
-INI_BY_NLAY = {2: '__inputMF_flopy_v3_2s1L.ini', 6: '__inputMF_flopy_v3_2s3L.ini'}
+# ONE parameter file. La Mata used to carry two, at two vertical
+# resolutions, and --nlay chose between them -- so "how many layers" was
+# really "which of the two files exists". The number of layers is a panel
+# field now (MODFLOW aquifer layers -> Aquifer layers), and what the file
+# still supplies is being emptied section by section.
+MF_INI = '__inputMF_flopy_v3_2s1L.ini'
 
 
 def setup_lamata(daily=True, nsp=None, grid='dis', nlay=None,
                  cfg=None, mesh_ws=None):
     """Replicate the driver setup; returns (cMF, mm, ctx, state, top, botm).
 
-    ``nlay`` selects the parameter set: 2 reads the 2-layer ini directly, 6
-    (or None) the 6-layer ini. Each is authoritative and maintained by hand;
-    there is no derivation of one from the other.
+    ``nlay`` is checked against the parameter file rather than choosing
+    between two of them: the layer count is a panel field now.
 
     ``cfg`` (WP1c.1) enables the unstructured path. When ``cfg.grid_kind`` is
     a genuine mesh producer -- 'quadtree', later 'voronoi' -- the model is
@@ -271,10 +269,7 @@ def setup_lamata(daily=True, nsp=None, grid='dis', nlay=None,
     the code work unchanged. 'structured' and 'disv' never project: they are
     the regression anchor and must stay byte-identical.
     """
-    ini_fn = INI_BY_NLAY.get(int(nlay) if nlay else 6)
-    if ini_fn is None:
-        raise SystemExit('--nlay %s has no parameter file; available: %s'
-                         % (nlay, sorted(INI_BY_NLAY)))
+    ini_fn = MF_INI
     cUTIL = MMutils.clsUTILITIES(verbose=1)
     # THE ORIGIN COMES FROM THE DATASET. It used to be two literals here,
     # repeated in the parameter file and in every test -- three copies of
@@ -289,7 +284,7 @@ def setup_lamata(daily=True, nsp=None, grid='dis', nlay=None,
     else:
         _xll, _yll = float(_rect[0]), float(_rect[1])
     cMF = ppMF.clsMF(cUTIL, MM_ws=DS, MM_ws_out=DS, MF_ws=os.path.join(DS, 'MF_ws'),
-                     MF_ini_fn=ini_fn,
+                     MF_ini_fn=ini_fn, grid=_rect,
                      xllcorner=_xll, yllcorner=_yll)
     print('parameter set: %s (%d layer(s))' % (ini_fn, cMF.nlay))
     # ... and the SHAPE is checked against those same rasters. It cannot be
@@ -297,6 +292,17 @@ def setup_lamata(daily=True, nsp=None, grid='dis', nlay=None,
     # the parameter file's nrow and ncol -- so a disagreement stops the run
     # rather than producing a model quietly built on the wrong rectangle.
     props.check_grid(cMF, DS)
+    # THE LAYER COUNT IS THE PANEL'S. It cannot be substituted here for the
+    # same reason the grid shape cannot: the parameter file's per-layer
+    # lists -- ibound and strt -- have already been read with its own nlay.
+    # Once those two come from the panel as well, this becomes an override
+    # instead of a check.
+    if nlay is not None and int(nlay) != int(cMF.nlay):
+        raise SystemExit(
+            'layers.nlay = %d but %s describes %d layer(s). ibound and strt '
+            'still come from that file, so the two have to agree; give the '
+            'rasters for %d layers there, or set the panel to %d.'
+            % (int(nlay), ini_fn, cMF.nlay, int(nlay), cMF.nlay))
     # THE FRONT-END OWNS hnoflo (WP1d, geometry). It is the value that marks
     # a cell as having nothing to report, and MARMITES masks on it as well --
     # so the two have to be the SAME number, which is why it is asked once on

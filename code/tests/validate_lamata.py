@@ -42,7 +42,7 @@ def main(nsp):
     cUTIL = MMutils.clsUTILITIES(verbose=1)
     MF_ws = os.path.join(DS, 'MF_ws')
     cMF = ppMF.clsMF(cUTIL, MM_ws=DS, MM_ws_out=DS, MF_ws=MF_ws,
-                     MF_ini_fn='__inputMF_flopy_v3_2s3L.ini',
+                     MF_ini_fn='__inputMF_flopy_v3_2s1L.ini',
                      xllcorner=739300.0, yllcorner=4553050.0)
 
     # conv_fact from length unit (lenuni==2 -> metres -> 1000 mm)
