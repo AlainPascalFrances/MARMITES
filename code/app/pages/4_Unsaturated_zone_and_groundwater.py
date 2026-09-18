@@ -35,8 +35,8 @@ panel = panelui.header(4)
 
 edited, save_slot = panelui.switch_and_save(cfg, panel)
 
-tab_geom, tab_ghb, tab_drn, tab_aq, tab_water = st.tabs(
-    ['MODFLOW aquifer layers', 'GHB', 'DRN', 'Aquifer & solver',
+tab_geom, tab_ghb, tab_drn, tab_uzf, tab_aq, tab_water = st.tabs(
+    ['MODFLOW aquifer layers', 'GHB', 'DRN', 'UZF', 'Aquifer & solver',
      'Streams, ponds & runoff'])
 
 # ---------------------------------------------------------------- geometry
@@ -141,11 +141,47 @@ with tab_drn:
             'called `drn`: in La Mata six cells at the catchment outlet.')
     panelui.boundary_note(cfg, 'drn', 'elevation', ds)
 
+# -------------------------------------------------------------------- uzf
+with tab_uzf:
+    st.caption('A vertical column of UZF objects per active cell — '
+               '`ModflowGwfuzf`. The soil column above it is MARMITES\'s; '
+               'this is what happens between the bottom of that column and '
+               'the water table.')
+    edited.update(panelui.rows_form(cfg, schema.UZF_ROWS, 'uzf', columns=2))
+    # `gated` takes a SWITCH, and this one is a choice of source, so the
+    # dependency is said in words rather than drawn as a greyed box.
+    if cfg.uzf.vks_from != 'raster':
+        st.caption('`uzf.vks` above is not read: the unsaturated vertical K '
+                   'comes from each layer\'s own `k33`, so the column and '
+                   'the aquifer cannot disagree.')
+
+    st.markdown('#### Evapotranspiration inside MODFLOW')
+    st.info('**Groundwater ET is not asked, here or anywhere.** MARMITES '
+            'computes ETg and applies it through the WEL package, so a '
+            'second answer inside MODFLOW could only remove the same water '
+            'twice. The old switch for it was forced off and read by '
+            'nothing, which is worse than absent.')
+    edited.update(panelui.rows_form(
+        cfg, schema.UZF_ET_ROWS, 'et', columns=2,
+        gated={'et.uzf_et': ('et.extdp', 'et.extwc_source',
+                             'et.unsat_form')}))
+    if cfg.et.uzf_et:
+        st.warning('`simulate_et` is currently hard-coded to False when the '
+                   'model is built, so this switch and the extinction depth '
+                   'are not read yet. Wiring it means UZF drying the '
+                   'unsaturated zone alongside MMsoil, which is a modelling '
+                   'decision — ask before relying on it.')
+
+    with st.expander('Where every UZF1 name went'):
+        st.caption('The parameter file carried twenty-two of these and '
+                   'MODFLOW 6 keeps eight. "Gone" is only a useful answer '
+                   'with the reason attached.')
+        st.markdown('\n'.join('- `%s` — %s' % (a, b)
+                               for a, b in schema.UZF_LEGACY))
+
 # --------------------------------------------------------------- aquifer
 with tab_aq:
-    for section, title in [('uzf', 'Unsaturated zone'),
-                           ('seep', 'Seepage face'),
-                           ('et', 'Evapotranspiration'),
+    for section, title in [('seep', 'Seepage face'),
                            ('spinup', 'Spin-up & initial state')]:
         st.markdown('#### %s' % title)
         edited.update(panelui.section_form(cfg, section, columns=3))

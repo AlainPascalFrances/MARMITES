@@ -306,7 +306,23 @@ raster = "MF_ws/drn_cond_l%d.asc"
 fill = 0.0
 
 [uzf]
+# The values the MODFLOW parameter file carried, so moving them here is a
+# move and not a change. MODFLOW 6 defaults 7/40; La Mata asked for 15/500.
+ntrailwaves = 15
+nwavesets = 500
+surfdep = 0.25
+# The ini said 2.0 and MODFLOW 6 clamps to 3.5, so 3.5 is what the model
+# has actually been running with -- said out loud instead of clamped.
+eps = 3.5
+thtr = 0.05
+thts = 0.45
+thti = 0.15
+vks_from = "layer"
 vks_scale = 1.0
+
+[uzf.vks]
+how = "auto"
+fill = 0.0
 
 [seep]
 kind = "drn"
@@ -315,10 +331,12 @@ cond = 10000.0
 [et]
 uzf_et = false
 unsat_form = "etwc"
-gwet_in_mf = false
-extdp_source = "uniform"
-extdp_default = 2.0
 extwc_source = "thtr"
+
+[et.extdp]
+how = "auto"
+value = 2.0
+fill = 0.0
 
 [sfr]
 enable = false

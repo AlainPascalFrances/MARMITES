@@ -588,26 +588,9 @@ class Grid:
 
 
 @dataclass
-class Uzf:
-    vks_scale: float = 1.0         #                           (--uzf-vks-scale)
-
-
-@dataclass
 class Seep:
     kind: str = 'uzf'              # uzf | drn                 (--seep)
     cond: float = 10000.0          #                           (--seep-cond)
-
-
-@dataclass
-class Et:
-    """WP2. Defaults OFF so WP0 changes no behaviour."""
-
-    uzf_et: bool = False           # UZF SIMULATE_ET
-    unsat_form: str = 'etwc'       # etwc | etae
-    gwet_in_mf: bool = False       # MUST stay false: ETg comes from MM
-    extdp_source: str = 'uniform'  # uniform | veg_zone | raster
-    extdp_default: float = 2.0     # m
-    extwc_source: str = 'thtr'
 
 
 @dataclass
@@ -800,6 +783,83 @@ class Layers:
     # water table is inside the modelled stack, so transmissivity has to
     # follow the saturated thickness.
     convertible: bool = True
+
+
+@dataclass
+class Uzf:
+    """Panel 4 -- the UNSATURATED ZONE, one sub-panel per MF6 package.
+
+    A vertical column of UZF objects per active cell, so what is asked here
+    is what ModflowGwfuzf takes:
+
+        ntrailwaves, nwavesets      the wave machine (the ini's ntrail2/nsets)
+        surfdep                     packagedata, per object
+        eps, thts, thti, thtr       packagedata, per object (Brooks-Corey)
+        vks_from                    'layer' uses the layer's own k33,
+                                    'raster' the map below (the ini's iuzfopt)
+        vks                         packagedata vks, when vks_from = raster
+        vks_scale                   offsets the EPSILON clamp; NOT a MF6 field
+
+    MOST OF UZF1 HAS NO MF6 EQUIVALENT and is deliberately absent:
+
+        SPECIFYTHTR/SPECIFYTHTI  UZF6 always carries thtr and thti, and
+                                 requires thtr > 0, so there is nothing to
+                                 switch on
+        NOSURFLEAK, irunflg      rejected infiltration and discharge are
+                                 routed by MVR/SFR/DRN now
+        ietflg                   simulate_et; MARMITES does the ET
+        iuzfcb1, iuzfcb2         budget_filerecord + save_flows
+        nuzgag, iuzrow, iuzcol,  UZF1 gage plumbing; MF6 writes observation
+        iftunit, iuzopt          files instead
+        nuztop                   objects attach to explicit cellids, so
+                                 which layer is at the surface is the cell
+                                 list, not an option
+        uzf_iuzfbnd              the footprint is the active MARMITES
+                                 cells, not a separate raster
+    """
+
+    # The wave machine. The MODFLOW 6 defaults, which are also what the
+    # build used through getattr: the parameter file asked for 15/500.
+    ntrailwaves: int = 7
+    nwavesets: int = 40
+    surfdep: float = 0.25          # m, packagedata
+    # Brooks-Corey. UZF6 enforces 3.5 <= eps <= 14.0 (UZF1 accepted 2.0),
+    # and requires thtr > 0 whatever SPECIFYTHTR used to say.
+    eps: float = 3.5
+    thtr: float = 0.05
+    thts: float = 0.45
+    thti: float = 0.15
+    # Where the unsaturated vertical conductivity comes from. This is the
+    # ini's iuzfopt with the numbers replaced by what they meant.
+    vks_from: str = 'layer'        # layer | raster
+    vks: VectorSource = field(default_factory=VectorSource)
+    vks_scale: float = 1.0         #                           (--uzf-vks-scale)
+
+
+@dataclass
+class Et:
+    """Panel 4 -- evapotranspiration INSIDE MODFLOW.
+
+    Groundwater ET is not here at all. MARMITES computes ETg and applies
+    it through the WEL package, so a second answer inside MODFLOW could
+    only disagree with it -- the old `gwet_in_mf` switch was forced false
+    and read by nothing, which is worse than absent.
+
+    What remains is the UNSATURATED-zone ET that UZF can do itself:
+
+        uzf_et      ModflowGwfuzf  simulate_et
+        extdp       perioddata     extdp, the extinction depth
+        extwc_source                which water content ET stops at
+
+    The extinction depth follows the rule every spatial input follows --
+    a raster, a column of the vegetation layer (as CdL does it), or one
+    value for the whole catchment.
+    """
+
+    uzf_et: bool = False           # UZF SIMULATE_ET
+    unsat_form: str = 'etwc'       # etwc | etae
+    extdp: VectorSource = field(default_factory=lambda: VectorSource(value=2.0))
+    extwc_source: str = 'thtr'
 
 
 @dataclass
@@ -1390,12 +1450,29 @@ class RunConfig:
             errs.append('seep.cond must be > 0 (a seepage face must be free-draining)')
         if self.et.unsat_form not in ('etwc', 'etae'):
             errs.append("et.unsat_form must be 'etwc' or 'etae'")
-        if self.et.gwet_in_mf:
-            errs.append('et.gwet_in_mf must stay false: ETg is computed by MM and '
-                        'applied as a WEL sink, so MODFLOW must not remove it too '
-                        '(cookbook WP2, the GWET guard)')
-        if self.et.extdp_source not in ('uniform', 'veg_zone', 'raster'):
-            errs.append("et.extdp_source must be 'uniform', 'veg_zone' or 'raster'")
+        if self.uzf.vks_from not in ('layer', 'raster'):
+            errs.append("uzf.vks_from must be 'layer' or 'raster'")
+        if self.uzf.vks_from == 'raster' and self.uzf.vks.producer() is None:
+            errs.append('uzf.vks_from is raster, so uzf.vks needs a raster, '
+                        'a layer or a value')
+        # UZF6's own limits, refused here rather than by MODFLOW after the
+        # run has started writing files.
+        if not (3.5 <= self.uzf.eps <= 14.0):
+            errs.append('uzf.eps must be between 3.5 and 14.0: MODFLOW 6 '
+                        'enforces it (UZF1 accepted 2.0, which is why '
+                        'uzf.vks_scale exists)')
+        if self.uzf.thtr <= 0.0:
+            errs.append('uzf.thtr must be > 0: UZF6 requires a residual '
+                        'water content, whatever SPECIFYTHTR used to say')
+        if not (self.uzf.thtr < self.uzf.thts <= 1.0):
+            errs.append('uzf.thts must be above thtr and at most 1')
+        if not (self.uzf.thtr <= self.uzf.thti <= self.uzf.thts):
+            errs.append('uzf.thti must lie between thtr and thts')
+        if self.uzf.ntrailwaves < 1 or self.uzf.nwavesets < 1:
+            errs.append('uzf.ntrailwaves and uzf.nwavesets must be >= 1')
+        if self.et.uzf_et and self.et.extdp.producer() is None:
+            errs.append('et.uzf_et is on, so et.extdp needs a raster, a '
+                        'layer column or a value')
         if self.spinup.cycles < 1:
             errs.append('spinup.cycles must be >= 1')
         if self.spinup.strt_dem and len(self.spinup.strt_dem) != 2:

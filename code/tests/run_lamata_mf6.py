@@ -298,6 +298,7 @@ def setup_lamata(daily=True, nsp=None, grid='dis', nlay=None,
     # [drn] -- AFTER the properties, because a drain taken at the base of
     # its layer reads botm, and botm is the panel thickness now.
     props.apply_boundaries(cfg, cMF, DS)
+    props.apply_uzf(cfg, cMF, DS)
     conv_fact = {1: 304.8, 2: 1000.0, 3: 10.0}[cMF.lenuni]
 
     # --- the forcing (WP1d) ------------------------------------------------

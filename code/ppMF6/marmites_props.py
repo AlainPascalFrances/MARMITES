@@ -32,7 +32,7 @@ import numpy as np
 __author__ = "Alain P. Francés <frances.alain@gmail.com>"
 
 __all__ = ['PROPERTIES', 'apply_layer_properties', 'apply_boundaries',
-           'resolve_source', 'PropertyError']
+           'apply_uzf', 'resolve_source', 'PropertyError']
 
 
 class PropertyError(Exception):
@@ -318,3 +318,57 @@ def _build_drn(pkg, cMF, dataset_dir):
                         [l, i, j, e_out, cMF.drn_cond_array[l, i, j]])
                 cMF.drn_elev_array[l, i, j] = e_out
     return len(cMF.layer_row_column_elevation_cond[0])
+
+
+# =====================================================================
+#  UZF
+# =====================================================================
+# The panel answers what ModflowGwfuzf takes, and this puts it where the
+# build looks for it -- which is still the legacy attribute names, because
+# clsMF6 reads them through getattr. The UZF1 names that MODFLOW 6 has no
+# equivalent for are not set here BECAUSE THEY ARE NOT ASKED: see the Uzf
+# docstring in marmites_config for where each one went.
+
+# (config field on [uzf], the clsMF attribute the build reads)
+UZF_FIELDS = (
+    ('ntrailwaves', 'ntrail2'),
+    ('nwavesets', 'nsets'),
+    ('surfdep', 'surfdep'),
+    ('eps', 'eps'),
+    ('thtr', 'thtr'),
+    ('thts', 'thts'),
+    ('thti', 'thti'),
+)
+
+
+def apply_uzf(cfg, cMF, dataset_dir, verbose=True):
+    """Put the configured unsaturated zone into ``cMF``. Returns what it did.
+
+    ``vks_from`` becomes the legacy ``iuzfopt``: 'raster' is 1 (read the
+    map) and 'layer' is 2 (use the layer's own k33). The build tests
+    ``iuzfopt != 1``, so the meaning survives the rename.
+    """
+    if cfg is None or getattr(cfg, 'uzf', None) is None:
+        return []
+    u = cfg.uzf
+    done = []
+    for field, attr in UZF_FIELDS:
+        if not hasattr(u, field):
+            continue
+        setattr(cMF, attr, float(getattr(u, field)))
+        done.append(field)
+    cMF.ntrail2 = int(u.ntrailwaves)
+    cMF.nsets = int(u.nwavesets)
+    cMF.iuzfopt = 1 if u.vks_from == 'raster' else 2
+    done.append('vks_from')
+    if cMF.iuzfopt == 1:
+        values = resolve_source(u.vks, int(cMF.nlay), dataset_dir, 'uzf.vks')
+        if values is None:
+            raise PropertyError('uzf.vks_from is raster but uzf.vks is empty')
+        cMF.vks = values
+        cMF.vks_actual = cMF.cPROCESS.checkarray(values)
+        done.append('vks')
+    if verbose:
+        print('UZF: %s from the panel (vks from the %s)'
+              % (', '.join(done[:len(UZF_FIELDS)]), u.vks_from))
+    return done

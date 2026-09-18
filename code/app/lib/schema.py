@@ -43,6 +43,7 @@ __all__ = ['PANELS', 'FIELDS', 'TABLES', 'CHOICES', 'SUBPANELS', 'panel_of',
            'SOIL_ROWS', 'SOIL_VEG_ROWS', 'SOIL_FILES',
            'SOIL_DATASET_FILES', 'COLUMN_OF', 'GEOMETRY_ROWS',
            'GHB_ROWS', 'DRN_ROWS', 'LAYER_LIST',
+           'UZF_ROWS', 'UZF_ET_ROWS', 'UZF_LEGACY',
            'OBS_COMMON',
            'OBS_GROUPS',
            'PanelError']
@@ -518,8 +519,53 @@ FIELDS = {
     'drn.cond': ('Drain conductance', 'm²/d',
                  'flopy: `ModflowGwfdrn` stress period data, `cond`. Must be '
                  '> 0.'),
+    'uzf.ntrailwaves': ('Trail waves', 'count',
+                        'flopy: `ModflowGwfuzf(ntrailwaves=)`, the UZF1 '
+                        '`ntrail2`. How finely a drying front is resolved. '
+                        '7 is the MODFLOW 6 default and what the build has '
+                        'been using; the parameter file asked for 15.'),
+    'uzf.nwavesets': ('Wave sets', 'count',
+                      'flopy: `ModflowGwfuzf(nwavesets=)`, the UZF1 `nsets`. '
+                      'How many wetting/drying episodes a column can hold at '
+                      'once. 40 is the MODFLOW 6 default; the parameter file '
+                      'asked for 500.'),
+    'uzf.surfdep': ('Surface depression depth', 'm',
+                    'flopy: `ModflowGwfuzf` packagedata `surfdep`. The relief '
+                    'within a cell, which smooths the onset of surface '
+                    'leakage. Must be smaller than the cell thickness.'),
+    'uzf.eps': ('Brooks-Corey exponent', _U,
+                'flopy: packagedata `eps`. K(theta) = vks * Se^eps, so a '
+                'bigger number throttles recharge through a deep unsaturated '
+                'zone. **MODFLOW 6 enforces 3.5 to 14.0**; UZF1 accepted 2.0, '
+                'which is what the La Mata NWT model used -- `vks multiplier` '
+                'below exists to offset that clamp.'),
+    'uzf.thtr': ('Residual water content', 'm³/m³',
+                 'flopy: packagedata `thtr`. **UZF6 requires it to be > 0** '
+                 'whatever the UZF1 `SPECIFYTHTR` option said, so there is no '
+                 'switch for it any more -- it is always used.'),
+    'uzf.thts': ('Saturated water content', 'm³/m³',
+                 'flopy: packagedata `thts`. Above `thtr`, at most 1.'),
+    'uzf.thti': ('Initial water content', 'm³/m³',
+                 'flopy: packagedata `thti`, between `thtr` and `thts`. '
+                 'Always carried, so the UZF1 `SPECIFYTHTI` option is gone '
+                 'too.'),
+    'uzf.vks_from': ('Unsaturated vertical K from', _U,
+                     'The UZF1 `iuzfopt` with the numbers replaced by what '
+                     'they meant. **layer** (iuzfopt = 2) uses each layer\'s '
+                     'own `k33`, so the unsaturated column and the aquifer '
+                     'cannot disagree. **raster** (iuzfopt = 1) reads the map '
+                     'below instead.'),
+    'uzf.vks': ('Unsaturated vertical K', 'm/d',
+                'flopy: packagedata `vks`. Read only when the source above is '
+                '**raster**. Per layer, by the same `%d` rule as the '
+                'aquifer properties.'),
     'uzf.vks_scale': ('UZF vks multiplier', _U,
-                      'Offsets the EPSILON clamp MF6 forces (2.0 -> 3.5).'),
+                      'NOT a MODFLOW field: it multiplies the `vks` column '
+                      'before it is written. MODFLOW 6 forbids eps < 3.5 and '
+                      'the NWT model ran at 2.0; a higher exponent throttles '
+                      'recharge, and raising vks restores the rate the NWT '
+                      'model had. It scales the UZF column ONLY, never the '
+                      'aquifer `k33`.'),
     'seep.kind': ('Seepage mechanism', _U,
                   'drn is the validated choice: a smoothed land-surface '
                   'drain. uzf uses SIMULATE_GWSEEP, which switches on and off '
@@ -528,10 +574,12 @@ FIELDS = {
                   'A NUMERICAL device, not a physical property: it must be '
                   'effectively free-draining. It is PER CELL, so it is '
                   'grid-dependent -- retune it when the grid changes.'),
-    'et.uzf_et': ('UZF evapotranspiration', _U, 'WP2.'),
-    'et.gwet_in_mf': ('Groundwater ET in MODFLOW', _U,
-                      'Guarded off: ETg is computed by MARMITES and applied '
-                      'as a well sink, so MODFLOW must not remove it as well.'),
+    'et.uzf_et': ('UZF evapotranspiration', _U,
+                  'flopy: `ModflowGwfuzf(simulate_et=)`. Lets UZF dry the '
+                  'unsaturated zone itself. GROUNDWATER ET is never done '
+                  'here: MARMITES computes ETg and applies it through the '
+                  'WEL package, so MODFLOW must not remove it a second '
+                  'time.'),
     'sfr.enable': ('Stream routing (SFR)', _U,
                    'The network is the mapped hydrography, burned onto the '
                    'grid at run time.'),
@@ -624,9 +672,13 @@ FIELDS = {
                       'per point.'),
     'et.unsat_form': ('Unsaturated ET form', _U,
                       'etwc uses water content, etae capillary pressure.'),
-    'et.extdp_source': ('Extinction depth from', _U,
-                        'uniform, the vegetation rooting depth, or a raster.'),
-    'et.extdp_default': ('Default extinction depth', 'm', ''),
+    'et.extdp': ('Extinction depth', 'm',
+                 'flopy: `ModflowGwfuzf` perioddata `extdp`. How deep the '
+                 'unsaturated zone can be dried by evapotranspiration. By the '
+                 'usual rule: a raster, a COLUMN OF THE VEGETATION LAYER (as '
+                 'CdL does it, so each species carries its own rooting '
+                 'depth), or one value for the whole catchment. Read only '
+                 'when UZF evapotranspiration is on.'),
     'et.extwc_source': ('Extinction water content from', _U, ''),
     'sfr.source': ('Reach table', _U,
                    'The grid-independent stream geometry the converter '
@@ -670,7 +722,7 @@ INTEGER_VALUE = ('surface.meteo_zones', 'surface.irr_zones', 'soil.zones')
 # get an error message. `et.gwet_in_mf` must stay false because MARMITES
 # computes ETg and applies it as a well sink; MODFLOW removing it as well
 # would take the water twice.
-HIDDEN = ('et.gwet_in_mf',)
+HIDDEN = ()
 
 # A field whose value is one of a fixed set is a CHOICE, not free text.
 # Typing "voroni" into a text box and finding out at run time is exactly the
@@ -694,7 +746,8 @@ CHOICES = {
     'run.mode': lambda: ['lagged', 'iterative'],
     'seep.kind': lambda: ['uzf', 'drn'],
     'et.unsat_form': lambda: ['etwc', 'etae'],
-    'et.extdp_source': lambda: ['uniform', 'veg_zone', 'raster'],
+    # The ini's iuzfopt, with the numbers replaced by what they meant.
+    'uzf.vks_from': lambda: ['layer', 'raster'],
     'postproc.wb_unit': lambda: ['year', 'day'],
     'crr.sinks': lambda: ['evaporate', 'route'],
     'ui.execution': lambda: ['local', 'server'],
@@ -764,6 +817,54 @@ DRN_ROWS = (
     ('drn.layers', None),
     ('drn.elevation', 'drn.cond'),
     ('drn.at_layer_base', None),
+)
+
+# ---- panel 4: the unsaturated zone ---------------------------------------
+# A vertical column of UZF objects per active cell. The rows group what is
+# answered together: the wave machine, then the Brooks-Corey contents, then
+# where the unsaturated conductivity comes from -- with the switch directly
+# above the map it decides whether to read.
+UZF_ROWS = (
+    ('uzf.ntrailwaves', 'uzf.nwavesets'),
+    ('uzf.surfdep', 'uzf.eps'),
+    ('uzf.thtr', 'uzf.thts'),
+    ('uzf.thti', None),
+    ('uzf.vks_from', 'uzf.vks_scale'),
+    ('uzf.vks', None),
+)
+# Evapotranspiration inside MODFLOW, which is UNSATURATED-zone ET only.
+UZF_ET_ROWS = (
+    ('et.uzf_et', None),
+    ('et.extdp', 'et.extwc_source'),
+    ('et.unsat_form', None),
+)
+
+# WHERE EVERY UZF1 NAME WENT. The parameter file carried twenty-two of
+# them and MODFLOW 6 keeps eight. Written down because the question comes
+# up every time someone opens the old file, and because "it is gone" is
+# only a useful answer with the reason attached.
+# (legacy name, what it is now)
+UZF_LEGACY = (
+    ('ntrail2', 'ntrailwaves, above'),
+    ('nsets', 'nwavesets, above'),
+    ('surfdep', 'surfdep, above'),
+    ('eps', 'eps, above (now clamped to 3.5-14)'),
+    ('thts, thti', 'above'),
+    ('vks', 'above, when the source is a raster'),
+    ('iuzfopt', '"Unsaturated vertical K from": 1 was raster, 2 the layer'),
+    ('finf_user', 'perioddata `finf`; the coupled run overwrites it daily '
+                  'from MMsoil'),
+    ('[SPECIFYTHTR]', 'gone — UZF6 always needs thtr > 0'),
+    ('[SPECIFYTHTI]', 'gone — thti is always carried'),
+    ('[NOSURFLEAK]', 'gone — no equivalent'),
+    ('irunflg', 'gone — rejected infiltration is routed by MVR/SFR/DRN'),
+    ('ietflg', 'gone — this is the UZF evapotranspiration switch below'),
+    ('iuzfcb1, iuzfcb2', 'gone — `budget_filerecord` and `save_flows`'),
+    ('nuzgag, iuzrow, iuzcol, iftunit, iuzopt',
+     'gone — UZF1 gage plumbing; MF6 writes observation files'),
+    ('nuztop', 'gone — objects attach to explicit cell ids, so which layer '
+               'is at the surface is the cell list'),
+    ('uzf_iuzfbnd', 'gone — the footprint is the active catchment cells'),
 )
 
 # ---- panel 5: the measured state variables -------------------------------
