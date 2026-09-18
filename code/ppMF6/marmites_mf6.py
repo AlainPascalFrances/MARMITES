@@ -227,6 +227,20 @@ class clsMF6:
             raise MF6BuildError('cannot broadcast array of shape %s' % (a.shape,))
         return out
 
+    def _uzf3d(self, name):
+        """A UZF packagedata property as (nlay, nrow, ncol).
+
+        One helper for both paths. The parameter file gave one number per
+        property (``['0.05']``), the panel can give a raster per layer, and
+        ``checkarray`` turns either into what ``_lay3d`` broadcasts -- so a
+        uniform answer still produces exactly the array a scalar did.
+        """
+        raw = getattr(self.cMF, name)
+        if isinstance(raw, (list, tuple)):
+            raw = self.cMF.cPROCESS.checkarray(list(raw))
+        return self._lay3d(np.asarray(raw, dtype=float),
+                           self.nlay, self.nrow, self.ncol)
+
     # ---- grid-agnostic helpers (DIS vs DISV) -------------------------- #
 
     def _cellid(self, k, i, j):
@@ -256,24 +270,37 @@ class clsMF6:
     def _validate_uzf_params(self, thtr, thts, thti, eps):
         """Enforce the UZF6 input rules, converting NWT-era values.
 
-        Raises MF6BuildError for physically un-fixable values; clamps
-        EPSILON to the MF6 range with an explicit warning, because a value
-        outside it simply cannot be represented in UZF6.
+        Takes scalars OR arrays: the Brooks-Corey parameters may be given
+        per cell, and a rule that only held for the catchment mean would
+        let a single bad cell reach MODFLOW. Raises MF6BuildError for
+        physically un-fixable values; clamps EPSILON to the MF6 range with
+        an explicit warning, because a value outside it simply cannot be
+        represented in UZF6.
         """
-        if not (thtr > 0.0):
+        import numpy as _np
+        a_thtr, a_thts = _np.asarray(thtr, float), _np.asarray(thts, float)
+        a_thti, a_eps = _np.asarray(thti, float), _np.asarray(eps, float)
+        if not _np.all(a_thtr > 0.0):
             raise MF6BuildError(
-                'UZF6 requires THTR > 0 (got %g). UZF1 tolerated 0 when '
-                'specifythtr=0; set a residual water content in the MF ini '
-                '(the "specifythtr thtr" line).' % thtr)
-        if not (thts > thtr):
-            raise MF6BuildError('UZF6 requires THTS (%g) > THTR (%g).' % (thts, thtr))
-        if not (thtr <= thti <= thts):
+                'UZF6 requires THTR > 0 (lowest %g). UZF1 tolerated 0 when '
+                'specifythtr=0; set a residual water content on the UZF '
+                'panel.' % a_thtr.min())
+        if not _np.all(a_thts > a_thtr):
+            raise MF6BuildError('UZF6 requires THTS > THTR everywhere '
+                                '(worst pair %g, %g).'
+                                % (a_thts.min(), a_thtr.max()))
+        if not _np.all((a_thtr <= a_thti) & (a_thti <= a_thts)):
             raise MF6BuildError('UZF6 requires THTR <= THTI <= THTS '
-                                '(got %g, %g, %g).' % (thtr, thti, thts))
+                                'everywhere (THTI spans %g to %g).'
+                                % (a_thti.min(), a_thti.max()))
+        thtr, thts, thti, eps = a_thtr, a_thts, a_thti, a_eps
         if self.surfdep_check and not (float(self.cMF.surfdep) > 0.0):
             raise MF6BuildError('UZF6 requires SURFDEP > 0.')
-        if eps < self.EPS_MIN or eps > self.EPS_MAX:
-            new = min(max(eps, self.EPS_MIN), self.EPS_MAX)
+        if np.any(eps < self.EPS_MIN) or np.any(eps > self.EPS_MAX):
+            worst = float(eps.min() if np.any(eps < self.EPS_MIN)
+                          else eps.max())
+            new = np.clip(eps, self.EPS_MIN, self.EPS_MAX)
+            eps, new = worst, float(np.ravel(new)[0])
             print('\nWARNING! UZF6 requires %.1f <= EPSILON <= %.1f but the MF '
                   'ini specifies %g.\n         EPSILON clamped to %.1f. This is a real '
                   'NWT->MF6 difference:\n         the Brooks-Corey exponent controls '
@@ -282,7 +309,7 @@ class clsMF6:
                   '         Set a value in range in the MF ini to control this explicitly.'
                   % (self.EPS_MIN, self.EPS_MAX, eps, new))
             self.eps_clamped = (eps, new)
-            eps = new
+            eps = np.clip(np.asarray(a_eps, float), self.EPS_MIN, self.EPS_MAX)
         return thtr, thts, thti, eps
 
     def save_heads_asc(self, heads, prefix):
@@ -745,11 +772,14 @@ class clsMF6:
         #    THTR > 0, so the residual water content given in the ini is
         #    always used (the ini supplies it even when specifythtr = 0).
         #  * UZF1 accepted any EPSILON; UZF6 enforces 3.5 <= EPSILON <= 14.0.
-        thtr = float(np.ravel(np.asarray(cMF.thtr, dtype=float))[0])
-        thts = float(np.ravel(np.asarray(cMF.thts, dtype=float))[0])
-        thti = float(np.ravel(np.asarray(cMF.thti, dtype=float))[0])
-        eps = float(np.ravel(np.asarray(cMF.eps, dtype=float))[0])
-        surfdep = float(cMF.surfdep)
+        #  * they are per CELL now: the panel takes a raster, a polygon
+        #    attribute or one number for each, and a uniform answer still
+        #    broadcasts to exactly the array a single value produced.
+        thtr = self._uzf3d('thtr')
+        thts = self._uzf3d('thts')
+        thti = self._uzf3d('thti')
+        eps = self._uzf3d('eps')
+        surfdep = float(np.ravel(np.asarray(cMF.surfdep, dtype=float))[0])
         thtr, thts, thti, eps = self._validate_uzf_params(thtr, thts, thti, eps)
         # vertical K for UZF: iuzfopt==1 -> vks array; iuzfopt==2 -> layer k33
         use_layer_vk = int(getattr(cMF, 'iuzfopt', 2)) != 1
@@ -787,13 +817,16 @@ class clsMF6:
             chain = col_children[n]
             ivertcon = chain[0][0] if chain else -1
             vks = vks_scale * (float(k33[k, i, j]) if use_layer_vk else float(vks3d[k, i, j]))
-            pkdata.append((n, self._cellid(k, i, j), 1, ivertcon, surfdep, vks,
-                           thtr, thts, thti, eps))
+            pkdata.append((n, self._cellid(k, i, j), 1, ivertcon, surfdep,
+                           vks, float(thtr[k, i, j]), float(thts[k, i, j]),
+                           float(thti[k, i, j]), float(eps[k, i, j])))
             for ci, (no, kk) in enumerate(chain):
                 child_ivert = chain[ci + 1][0] if ci + 1 < len(chain) else -1
                 vks_c = vks_scale * (float(k33[kk, i, j]) if use_layer_vk else float(vks3d[kk, i, j]))
-                subs.append((no, self._cellid(kk, i, j), 0, child_ivert, surfdep,
-                             vks_c, thtr, thts, thti, eps))
+                subs.append((no, self._cellid(kk, i, j), 0, child_ivert,
+                             surfdep, vks_c, float(thtr[kk, i, j]),
+                             float(thts[kk, i, j]), float(thti[kk, i, j]),
+                             float(eps[kk, i, j])))
         pkdata = pkdata + subs
         # period data: finf on land cells only; ET disabled (MARMITES does ET)
         pdata0 = [(n, float(getattr(cMF, 'perc_user', 0.0)), 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)

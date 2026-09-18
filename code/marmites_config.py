@@ -823,12 +823,15 @@ class Uzf:
     ntrailwaves: int = 7
     nwavesets: int = 40
     surfdep: float = 0.25          # m, packagedata
-    # Brooks-Corey. UZF6 enforces 3.5 <= eps <= 14.0 (UZF1 accepted 2.0),
-    # and requires thtr > 0 whatever SPECIFYTHTR used to say.
-    eps: float = 3.5
-    thtr: float = 0.05
-    thts: float = 0.45
-    thti: float = 0.15
+    # Brooks-Corey, one value per UZF OBJECT rather than one for the
+    # catchment: a raster, a polygon attribute, or a single number if the
+    # soil really is uniform. UZF6 enforces 3.5 <= eps <= 14.0 (UZF1
+    # accepted 2.0) and requires thtr > 0 whatever SPECIFYTHTR used to say,
+    # and validate() checks those limits on whatever the source produces.
+    eps: VectorSource = field(default_factory=lambda: VectorSource(value=3.5))
+    thtr: VectorSource = field(default_factory=lambda: VectorSource(value=0.05))
+    thts: VectorSource = field(default_factory=lambda: VectorSource(value=0.45))
+    thti: VectorSource = field(default_factory=lambda: VectorSource(value=0.15))
     # Where the unsaturated vertical conductivity comes from. This is the
     # ini's iuzfopt with the numbers replaced by what they meant.
     vks_from: str = 'layer'        # layer | raster
@@ -1456,18 +1459,35 @@ class RunConfig:
             errs.append('uzf.vks_from is raster, so uzf.vks needs a raster, '
                         'a layer or a value')
         # UZF6's own limits, refused here rather than by MODFLOW after the
-        # run has started writing files.
-        if not (3.5 <= self.uzf.eps <= 14.0):
+        # run has started writing files. A source that reads a map can only
+        # be checked cell by cell at build time, so what is checked here is
+        # the part that IS knowable now: a single number, and that every
+        # one of the four is answered at all.
+        for name in ('eps', 'thtr', 'thts', 'thti', 'surfdep'):
+            src = getattr(self.uzf, name)
+            if hasattr(src, 'producer') and src.producer() is None:
+                errs.append('uzf.%s: set a raster, a layer or a value' % name)
+        # A field may hold a plain number rather than a source: the loader
+        # coerces one, but code that assigns directly does not, and an
+        # AttributeError here would be a worse message than the real one.
+        def _num(v):
+            return getattr(v, 'value', v)
+        _v = dict((n, _num(getattr(self.uzf, n)))
+                  for n in ('eps', 'thtr', 'thts', 'thti'))
+        if _v['eps'] is not None and not (3.5 <= float(_v['eps']) <= 14.0):
             errs.append('uzf.eps must be between 3.5 and 14.0: MODFLOW 6 '
                         'enforces it (UZF1 accepted 2.0, which is why '
                         'uzf.vks_scale exists)')
-        if self.uzf.thtr <= 0.0:
+        if _v['thtr'] is not None and float(_v['thtr']) <= 0.0:
             errs.append('uzf.thtr must be > 0: UZF6 requires a residual '
                         'water content, whatever SPECIFYTHTR used to say')
-        if not (self.uzf.thtr < self.uzf.thts <= 1.0):
-            errs.append('uzf.thts must be above thtr and at most 1')
-        if not (self.uzf.thtr <= self.uzf.thti <= self.uzf.thts):
-            errs.append('uzf.thti must lie between thtr and thts')
+        if _v['thtr'] is not None and _v['thts'] is not None:
+            if not (float(_v['thtr']) < float(_v['thts']) <= 1.0):
+                errs.append('uzf.thts must be above thtr and at most 1')
+            if _v['thti'] is not None and not (
+                    float(_v['thtr']) <= float(_v['thti'])
+                    <= float(_v['thts'])):
+                errs.append('uzf.thti must lie between thtr and thts')
         if self.uzf.ntrailwaves < 1 or self.uzf.nwavesets < 1:
             errs.append('uzf.ntrailwaves and uzf.nwavesets must be >= 1')
         if self.et.uzf_et and self.et.extdp.producer() is None:

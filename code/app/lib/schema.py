@@ -534,19 +534,20 @@ FIELDS = {
                     'within a cell, which smooths the onset of surface '
                     'leakage. Must be smaller than the cell thickness.'),
     'uzf.eps': ('Brooks-Corey exponent', _U,
-                'flopy: packagedata `eps`. K(theta) = vks * Se^eps, so a '
+                'flopy: packagedata `eps`, PER CELL. K(theta) = vks * Se^eps, so a '
                 'bigger number throttles recharge through a deep unsaturated '
                 'zone. **MODFLOW 6 enforces 3.5 to 14.0**; UZF1 accepted 2.0, '
                 'which is what the La Mata NWT model used -- `vks multiplier` '
                 'below exists to offset that clamp.'),
     'uzf.thtr': ('Residual water content', 'm³/m³',
-                 'flopy: packagedata `thtr`. **UZF6 requires it to be > 0** '
+                 'flopy: packagedata `thtr`, per cell. **UZF6 requires it to be > 0** '
                  'whatever the UZF1 `SPECIFYTHTR` option said, so there is no '
                  'switch for it any more -- it is always used.'),
     'uzf.thts': ('Saturated water content', 'm³/m³',
-                 'flopy: packagedata `thts`. Above `thtr`, at most 1.'),
+                 'flopy: packagedata `thts`, per cell. Above `thtr` everywhere, at '
+                 'most 1.'),
     'uzf.thti': ('Initial water content', 'm³/m³',
-                 'flopy: packagedata `thti`, between `thtr` and `thts`. '
+                 'flopy: packagedata `thti`, per cell, between `thtr` and `thts`. '
                  'Always carried, so the UZF1 `SPECIFYTHTI` option is gone '
                  'too.'),
     'uzf.vks_from': ('Unsaturated vertical K from', _U,

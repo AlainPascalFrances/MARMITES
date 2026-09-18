@@ -330,10 +330,16 @@ def _build_drn(pkg, cMF, dataset_dir):
 # docstring in marmites_config for where each one went.
 
 # (config field on [uzf], the clsMF attribute the build reads)
+# The plain numbers. ntrailwaves/nwavesets are counts and surfdep is one
+# depth for the model, so none of them is a map.
 UZF_FIELDS = (
-    ('ntrailwaves', 'ntrail2'),
-    ('nwavesets', 'nsets'),
     ('surfdep', 'surfdep'),
+)
+# The Brooks-Corey properties, one value per UZF OBJECT. They reach the
+# build as the per-layer list checkarray understands, exactly like the
+# aquifer properties -- so a single value still broadcasts to what a
+# scalar produced, and a raster gives each cell its own.
+UZF_SOURCES = (
     ('eps', 'eps'),
     ('thtr', 'thtr'),
     ('thts', 'thts'),
@@ -357,6 +363,17 @@ def apply_uzf(cfg, cMF, dataset_dir, verbose=True):
             continue
         setattr(cMF, attr, float(getattr(u, field)))
         done.append(field)
+    for field, attr in UZF_SOURCES:
+        src = getattr(u, field, None)
+        if src is None:
+            continue
+        values = resolve_source(src, int(cMF.nlay), dataset_dir,
+                                'uzf.%s' % field)
+        if values is None:
+            raise PropertyError('uzf.%s: nothing to read' % field)
+        setattr(cMF, attr, values)
+        setattr(cMF, attr + '_actual', cMF.cPROCESS.checkarray(values))
+        done.append(field)
     cMF.ntrail2 = int(u.ntrailwaves)
     cMF.nsets = int(u.nwavesets)
     cMF.iuzfopt = 1 if u.vks_from == 'raster' else 2
@@ -370,5 +387,5 @@ def apply_uzf(cfg, cMF, dataset_dir, verbose=True):
         done.append('vks')
     if verbose:
         print('UZF: %s from the panel (vks from the %s)'
-              % (', '.join(done[:len(UZF_FIELDS)]), u.vks_from))
+              % (', '.join(done), u.vks_from))
     return done

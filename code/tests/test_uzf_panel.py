@@ -187,3 +187,86 @@ def test_the_panel_gives_uzf_what_the_parameter_file_gave_it(cfg):
 def test_the_run_applies_the_unsaturated_zone():
     src = open(os.path.join(HERE, 'run_lamata_mf6.py'), encoding='utf-8').read()
     assert 'props.apply_uzf' in src
+
+
+# ------------------------------- the Brooks-Corey parameters are per cell
+
+@pytest.fixture(scope='module')
+def built():
+    """The real La Mata UZF package, 6-layer set, as clsMF6 builds it."""
+    pytest.importorskip('flopy')
+    import matplotlib
+    matplotlib.use('agg')
+    import MARMITESutilities as MMutils
+    import ppMODFLOW_flopy_v3 as ppMF
+    ini = os.path.join(DS, 'MF_ws', '__inputMF_flopy_v3_2s3L.ini')
+    if not os.path.exists(ini):
+        pytest.skip('La Mata dataset not present')
+    mf6 = _load('marmites_mf6_up', os.path.join(CODE, 'ppMF6',
+                                                'marmites_mf6.py'))
+
+    def make(tmp, **over):
+        c = ppMF.clsMF(MMutils.clsUTILITIES(verbose=0), MM_ws=DS,
+                       MM_ws_out=DS, MF_ws=os.path.join(DS, 'MF_ws'),
+                       MF_ini_fn='__inputMF_flopy_v3_2s3L.ini',
+                       xllcorner=739300.0, yllcorner=4553050.0)
+        c.outcropL = np.zeros((c.nrow, c.ncol), dtype=int)
+        for L in range(c.nlay):
+            ib = (np.abs(np.asarray(c.ibound))[L] != 0)
+            c.outcropL += ((c.outcropL == 0) & ib) * (L + 1)
+        c.nper, c.perlen, c.nstp = 2, [1, 1], [1, 1]
+        for k, v in over.items():
+            setattr(c, k, v)
+        b = mf6.clsMF6(c, top=np.asarray(c.elev, dtype=float),
+                       botm=np.asarray(c.botm, dtype=float),
+                       sim_ws=str(tmp), grid='dis')
+        b.build()
+        return b
+    return make
+
+
+def test_a_uniform_answer_builds_what_the_scalar_built(built, tmp_path):
+    """The parameter file gave one number for the catchment. Per-cell must
+    reproduce it exactly when the answer is uniform, or this is a model
+    change dressed up as a wiring change."""
+    b = built(tmp_path)
+    eps = {float(r[9]) for r in b.uzf_packagedata}
+    thtr = {float(r[6]) for r in b.uzf_packagedata}
+    assert eps == {3.5}, 'the clamped scalar no longer reaches every object'
+    assert thtr == {0.05}
+
+
+def test_a_per_layer_answer_actually_varies(built, tmp_path):
+    """`layers` and rasters would be decoration if every UZF object still
+    took the same number. One value per LAYER is the cheapest proof that
+    the packagedata is indexed rather than broadcast."""
+    per_layer = [3.5, 4.0, 4.5, 5.0, 5.5, 6.0]
+    b = built(tmp_path, eps=per_layer)
+    # cellid -> layer is the first element on a DIS grid
+    by_layer = {}
+    for rec in b.uzf_packagedata:
+        k = rec[1][0]
+        by_layer.setdefault(int(k), set()).add(round(float(rec[9]), 6))
+    assert len(by_layer) > 1, 'the model has objects in one layer only'
+    for k, values in by_layer.items():
+        assert values == {per_layer[k]}, (
+            'layer %d got %s, expected %g' % (k, values, per_layer[k]))
+
+
+def test_the_uzf6_rules_are_checked_on_every_cell(built, tmp_path):
+    """A rule that only held for the catchment mean would let one bad cell
+    reach MODFLOW, which is where the 22,000 validation errors came from."""
+    mf6 = sys.modules['marmites_mf6_up']
+    with pytest.raises(mf6.MF6BuildError) as e:
+        built(tmp_path, thtr=[0.05, 0.05, 0.0, 0.05, 0.05, 0.05])
+    assert 'THTR' in str(e.value)
+
+
+def test_the_five_uzf_properties_take_the_usual_three_producers(cfg):
+    """eps, thtr, thts, thti and vks -- raster, layer or value, like every
+    other spatial input on these panels."""
+    for name in ('eps', 'thtr', 'thts', 'thti', 'vks'):
+        src = getattr(cfg.uzf, name)
+        assert schema.is_source(src), 'uzf.%s is not a source' % name
+        for producer in ('raster', 'layer', 'value'):
+            assert hasattr(src, producer)

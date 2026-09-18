@@ -309,12 +309,30 @@ fill = 0.0
 ntrailwaves = 15
 nwavesets = 500
 surfdep = 0.25
-eps = 3.5
-thtr = 0.05
-thts = 0.45
-thti = 0.15
 vks_from = "layer"
 vks_scale = 1.0
+
+# Brooks-Corey, one value per UZF object. Uniform here, which is what the
+# parameter file said; a raster or a polygon column would vary them.
+[uzf.eps]
+how = "auto"
+value = 3.5
+fill = 0.0
+
+[uzf.thtr]
+how = "auto"
+value = 0.05
+fill = 0.0
+
+[uzf.thts]
+how = "auto"
+value = 0.45
+fill = 0.0
+
+[uzf.thti]
+how = "auto"
+value = 0.15
+fill = 0.0
 
 [uzf.vks]
 how = "auto"
