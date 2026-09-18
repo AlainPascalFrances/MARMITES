@@ -11,6 +11,30 @@ import matplotlib.animation as animation
 import numpy as np
 import itertools
 
+def plot_date(x, y, *args, ax=None, **kwargs):
+    """What ``plt.plot_date`` did: plot, then make x a date axis.
+
+    Deprecated in Matplotlib 3.9 and removed in 3.11. The function never
+    did more than this, and ``xaxis_date()`` is the half that matters --
+    without it the tick LABELS are still dates (a DateFormatter is set
+    explicitly below) but the ticks land on arbitrary float positions
+    instead of month boundaries.
+    """
+    ax = ax if ax is not None else plt.gca()
+    # plot_date took `fmt` as a KEYWORD and plot takes it only
+    # positionally; tz, xdate and ydate were its own and mean nothing to
+    # plot. Absorbing them here is what keeps the call sites untouched.
+    fmt = kwargs.pop('fmt', None)
+    for gone in ('tz', 'xdate', 'ydate'):
+        kwargs.pop(gone, None)
+    if fmt is not None:
+        args = (fmt,) + tuple(args)
+    out = ax.plot(x, y, *args, **kwargs)
+    ax.xaxis_date()
+    return out
+
+
+
 def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S, dS, Spc, Rp, EXF, ETg, Es, MB, MB_l, dgwt, uzthick, SAT, R, h_MF, h_MF_corr, h_SF, hobs, Sobs, Sm, Sr, hnoflo, plt_export_fn, plt_title, colors_nsl, hmax, hmin, obs_name, elev, nlay):
     """
     Plot the time serie of the fluxes observed at one point of the catchment
@@ -131,8 +155,8 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S,
     ax2=fig.add_subplot(10,1,2, sharex=ax1)
     plt.setp(ax2.get_xticklabels(), visible=False)
     plt.setp(ax2.get_yticklabels(), fontsize=8)
-    plt.plot_date(DateInput,Ro,'r-', c='darkblue', linewidth=2, label = 'Ro')
-    plt.plot_date(DateInput,Es,'r-', c='deepskyblue', linewidth=0.75, label = 'Es')
+    plot_date(DateInput,Ro,'r-', c='darkblue', linewidth=2, label = 'Ro')
+    plot_date(DateInput,Es,'r-', c='deepskyblue', linewidth=0.75, label = 'Es')
     plt.bar(DateInput, POND, color='lightblue', linewidth=0, align = 'center', label = 'Ss')
     plt.bar(DateInput, dPOND, color='blue', width=0.60, linewidth=0, align = 'center', label = r'$\Delta$Ss')
     plt.xlim(DateInput[0]-1,DateInput[len(DateInput)-1]+1)
@@ -154,12 +178,12 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S,
     ax3=fig.add_subplot(10,1,3, sharex=ax1)
     plt.setp(ax3.get_xticklabels(), visible=False)
     plt.setp(ax3.get_yticklabels(), fontsize=8)
-    plt.plot_date(DateInput,PE,'-', color='lightblue', linewidth=3)
-    plt.plot_date(DateInput,E_tot,'-', color='darkblue', linewidth=1.5)
-    plt.plot_date(DateInput,Eu_tot,'-.', color=colors_nsl[len(colors_nsl)-1])
+    plot_date(DateInput,PE,'-', color='lightblue', linewidth=3)
+    plot_date(DateInput,E_tot,'-', color='darkblue', linewidth=1.5)
+    plot_date(DateInput,Eu_tot,'-.', color=colors_nsl[len(colors_nsl)-1])
     for l, (y, color, lbl) in enumerate(zip(Eu1, colors_nsl, lbl_Eu[2:len(lbl_Eu)])):
-        ax3.plot_date(DateInput, y, '-', color=color, label=lbl)
-    plt.plot_date(DateInput,Eg,'-', color='blue')
+        plot_date(DateInput, y, '-', color=color, label=lbl, ax=ax3)
+    plot_date(DateInput,Eg,'-', color='blue')
     plt.xlim(DateInput[0]-1,DateInput[len(DateInput)-1]+1)
     plt.legend(lbl_Eu, loc=0, labelspacing=lblspc, markerscale=mkscale)
     leg = plt.gca().get_legend()
@@ -179,12 +203,12 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S,
     ax4=fig.add_subplot(10,1,4, sharex=ax1)
     plt.setp(ax4.get_xticklabels(), visible=False)
     plt.setp(ax4.get_yticklabels(), fontsize=8)
-    plt.plot_date(DateInput,PT,'-', color='lightblue', linewidth=3)
-    plt.plot_date(DateInput,T_tot,'-', color='darkblue',  linewidth=1.5)
-    plt.plot_date(DateInput,Tu_tot,'-.', color=colors_nsl[len(colors_nsl)-1])
+    plot_date(DateInput,PT,'-', color='lightblue', linewidth=3)
+    plot_date(DateInput,T_tot,'-', color='darkblue',  linewidth=1.5)
+    plot_date(DateInput,Tu_tot,'-.', color=colors_nsl[len(colors_nsl)-1])
     for l, (y, color, lbl) in enumerate(zip(Tu1, colors_nsl, lbl_Tu[2:len(lbl_Tu)])):
-        ax4.plot_date(DateInput, y, '-', color=color, label=lbl)
-    plt.plot_date(DateInput,Tg,'-', color='blue')
+        plot_date(DateInput, y, '-', color=color, label=lbl, ax=ax4)
+    plot_date(DateInput,Tg,'-', color='blue')
     plt.xlim(DateInput[0]-1,DateInput[len(DateInput)-1]+1)
     plt.legend(lbl_Tu, loc=0, labelspacing=lblspc, markerscale=mkscale)
     leg = plt.gca().get_legend()
@@ -200,9 +224,9 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S,
     plt.setp(ax5.get_yticklabels(), fontsize=8)
     plt.bar(DateInput,EXF, color='lightblue', linewidth=0, align = 'center', label='EXF')
     for l, (y, color, lbl) in enumerate(zip(Rp1, colors_nsl, lbl_Rp[2:len(lbl_Rp)])) :
-        ax5.plot_date(DateInput, y, '-', color=color, label=lbl)
-    plt.plot_date(DateInput,R,'-', c='darkblue', linewidth=2)
-    plt.plot_date(DateInput,ETg,'-', c='blue', linewidth=1.5)
+        plot_date(DateInput, y, '-', color=color, label=lbl, ax=ax5)
+    plot_date(DateInput,R,'-', c='darkblue', linewidth=2)
+    plot_date(DateInput,ETg,'-', c='blue', linewidth=1.5)
     plt.xlim(DateInput[0]-1,DateInput[len(DateInput)-1]+1)
     plt.legend(lbl_Rp, loc = 0, labelspacing=lblspc, markerscale=mkscale)
     leg = plt.gca().get_legend()
@@ -219,15 +243,15 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S,
     try:
         for l, (y, color, lbl) in enumerate(zip(Sobs_m, colors_nsl, lbl_Sobs)):
             if y != []:
-                ax6.plot_date(DateInput, y, ls = 'None', color = 'None', marker='o', markersize=2, markeredgecolor = color, markerfacecolor = 'None', label=lbl) #'--', color = color,
+                plot_date(DateInput, y, ls = 'None', color = 'None', marker='o', markersize=2, markeredgecolor = color, markerfacecolor = 'None', label=lbl, ax=ax6) #'--', color = color,
     except:
         #print '\nWARNING!\nSoil moisture at observations point %s will not be plotted.' % obs_name
         pass
     for l, (y, color, lbl) in enumerate(zip(Spc1full, colors_nsl, lbl_S)) :
         y = np.ma.masked_where(y < 0.0, y)
-        ax6.plot_date(DateInput, y, '-', color = color, label = lbl)
+        plot_date(DateInput, y, '-', color = color, label = lbl, ax=ax6)
 ##    for l, (y, color, lbl) in enumerate(zip(Spc1, colors_nsl, lbl_Spc)) :
-##        ax6.plot_date(DateInput, y, '-', color = color, label=lbl)
+##        plot_date(DateInput, y, '-', color = color, label=lbl, ax=ax6)
     # x axis
     plt.xlim(DateInput[0]-1,DateInput[len(DateInput)-1]+1)
     # y axis
@@ -251,17 +275,17 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S,
     obs_leg = None
     try:
         hobs_m = np.ma.masked_values(hobs, hnoflo, atol = 0.09)
-        plt.plot_date(DateInput,hobs_m, ls = 'None', color = 'None', marker='o', markeredgecolor = 'blue', markerfacecolor = 'None', markersize = 2) # ls='--', color = 'blue'
+        plot_date(DateInput,hobs_m, ls = 'None', color = 'None', marker='o', markeredgecolor = 'blue', markerfacecolor = 'None', markersize = 2) # ls='--', color = 'blue'
         obs_leg = 1
     except:
         pass
     lines = itertools.cycle(['-','--','-.',':','.',',','o','v','^','<','>','1','2','3','4','s','p','*','h','H','+','x','D','d','|','_'])
     lbl_h = []
     for l in range(nlay):
-        plt.plot_date(DateInput,h_MF[:,l],next(lines), color = 'b')
+        plot_date(DateInput,h_MF[:,l],next(lines), color = 'b')
         lbl_h.append(r'h_MF_l%i' % (l+1))
-    plt.plot_date(DateInput,h_MF_corr,'-', color = 'g')
-    plt.plot_date(DateInput,h_SF,'-', color = 'r')
+    plot_date(DateInput,h_MF_corr,'-', color = 'g')
+    plot_date(DateInput,h_SF,'-', color = 'r')
     ax7.set_xticklabels(DateInput)
     plt.xlim(DateInput[0]-1,DateInput[len(DateInput)-1]+1)
     labels=ax7.get_xticklabels()
@@ -292,9 +316,9 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S,
     ax8b=fig.add_subplot(20,1,16, sharex=ax1)
     plt.setp(ax8b.get_xticklabels(), visible=False)
     plt.setp(ax8b.get_yticklabels(), fontsize=8)
-    plt.plot_date(DateInput,MB,'-', c='r')
+    plot_date(DateInput,MB,'-', c='r')
     for l, (y, color, lbl) in enumerate(zip(MB_l1, colors_nsl, lbl_MB[1:len(lbl_MB)])) :
-        ax8b.plot_date(DateInput, y, '-', color=color, label=lbl)
+        plot_date(DateInput, y, '-', color=color, label=lbl, ax=ax8b)
     # y axis
     plt.ylabel('mm', fontsize=10)
     plt.grid(True)
@@ -321,7 +345,7 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S,
     plt.setp(ax9a.get_xticklabels(), visible=False)
     plt.setp(ax9a.get_yticklabels(), fontsize=8)
     for l, (y, color, lbl) in enumerate(zip(SAT1, colors_nsl, lbl_SAT)) :
-        ax9a.plot_date(DateInput, y, '-', color = color, label = lbl)
+        plot_date(DateInput, y, '-', color = color, label = lbl, ax=ax9a)
     # x axis
     plt.xlim(DateInput[0]-1,DateInput[len(DateInput)-1]+1)
     # y axis
@@ -343,11 +367,11 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S,
     obs_leg = None
     try:
         hobs_m = np.ma.masked_values(hobs, hnoflo, atol = 0.09) - elev
-        plt.plot_date(DateInput,hobs_m, ls = 'None', color = 'None', marker='o', markeredgecolor = 'blue', markerfacecolor = 'None', markersize = 2) # ls='--', color = 'blue'
+        plot_date(DateInput,hobs_m, ls = 'None', color = 'None', marker='o', markeredgecolor = 'blue', markerfacecolor = 'None', markersize = 2) # ls='--', color = 'blue'
         obs_leg = 1
     except:
         pass
-    plt.plot_date(DateInput,dgwt,'-', c='b')
+    plot_date(DateInput,dgwt,'-', c='b')
     # y axis
     plt.ylabel('m', fontsize=10)
     plt.grid(True)
@@ -368,7 +392,7 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S,
     ax10a=fig.add_subplot(20,1,19, sharex=ax1)
     plt.setp(ax10a.get_xticklabels(), visible=False)
     plt.setp(ax10a.get_yticklabels(), fontsize=8)
-    plt.plot_date(DateInput,uzthick,'-', c='brown')
+    plot_date(DateInput,uzthick,'-', c='brown')
     # y axis
     plt.ylabel('m', fontsize=10)
     plt.grid(True)
@@ -396,7 +420,7 @@ def plotTIMESERIES(DateInput, P, PT, PE, Pe, dPOND, POND, Ro, Eu, Tu, Eg, Tg, S,
     plt.setp(ax10b.get_yticklabels(), fontsize=8)
     for l, (y, color, lbl) in enumerate(zip(S1, colors_nsl, lbl_S)) :
         y = np.ma.masked_where( y < 0.0, y)
-        ax10b.plot_date(DateInput, y, '-', color=color, label=lbl)
+        plot_date(DateInput, y, '-', color=color, label=lbl, ax=ax10b)
     # x axis
     plt.xlim(DateInput[0]-1,DateInput[len(DateInput)-1]+1)
     # y axis
@@ -452,8 +476,8 @@ def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, hmax
     ax2=fig.add_subplot(10,1,2, sharex=ax1)
     plt.setp(ax2.get_xticklabels(), visible=False)
     plt.setp(ax2.get_yticklabels(), fontsize=8)
-    plt.plot_date(DateInput,flx[4],'r-', c='darkblue', linewidth=2, label = flx_lbl[4])
-    plt.plot_date(DateInput,flx[5],'r-', c='deepskyblue', linewidth=0.75, label = flx_lbl[5])
+    plot_date(DateInput,flx[4],'r-', c='darkblue', linewidth=2, label = flx_lbl[4])
+    plot_date(DateInput,flx[5],'r-', c='deepskyblue', linewidth=0.75, label = flx_lbl[5])
     plt.bar(DateInput, flx[14], color='lightblue', linewidth=0, align = 'center', label = flx_lbl[14])
     plt.bar(DateInput, flx[3], color='blue', width=0.60, linewidth=0, align = 'center', label = flx_lbl[3])
     plt.xlim(DateInput[0]-1,DateInput[len(DateInput)-1]+1)
@@ -470,10 +494,10 @@ def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, hmax
     ax3=fig.add_subplot(10,1,3, sharex=ax1)
     plt.setp(ax3.get_xticklabels(), visible=False)
     plt.setp(ax3.get_yticklabels(), fontsize=8)
-    plt.plot_date(DateInput,flx[15],'-', color='lightblue', linewidth=3, label = flx_lbl[15])
-    plt.plot_date(DateInput,E_tot,'-', color='darkblue', linewidth=1.5, label = 'E_tot')
-    plt.plot_date(DateInput,flx[8],'-.', color='brown', label = flx_lbl[8])
-    plt.plot_date(DateInput,flx[11],'-', color='blue', label = flx_lbl[11])
+    plot_date(DateInput,flx[15],'-', color='lightblue', linewidth=3, label = flx_lbl[15])
+    plot_date(DateInput,E_tot,'-', color='darkblue', linewidth=1.5, label = 'E_tot')
+    plot_date(DateInput,flx[8],'-.', color='brown', label = flx_lbl[8])
+    plot_date(DateInput,flx[11],'-', color='blue', label = flx_lbl[11])
     plt.xlim(DateInput[0]-1,DateInput[len(DateInput)-1]+1)
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale)
     leg = plt.gca().get_legend()
@@ -488,10 +512,10 @@ def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, hmax
     ax4=fig.add_subplot(10,1,4, sharex=ax1)
     plt.setp(ax4.get_xticklabels(), visible=False)
     plt.setp(ax4.get_yticklabels(), fontsize=8)
-    plt.plot_date(DateInput,flx[16],'-', color='lightblue', linewidth=3, label = flx_lbl[16])
-    plt.plot_date(DateInput,T_tot,'-', color='darkblue',  linewidth=1.5, label = 'T_tot')
-    plt.plot_date(DateInput,flx[9],'-.', color='brown', label = flx_lbl[9])
-    plt.plot_date(DateInput,flx[12],'-', color='blue', label = flx_lbl[12])
+    plot_date(DateInput,flx[16],'-', color='lightblue', linewidth=3, label = flx_lbl[16])
+    plot_date(DateInput,T_tot,'-', color='darkblue',  linewidth=1.5, label = 'T_tot')
+    plot_date(DateInput,flx[9],'-.', color='brown', label = flx_lbl[9])
+    plot_date(DateInput,flx[12],'-', color='blue', label = flx_lbl[12])
     plt.xlim(DateInput[0]-1,DateInput[len(DateInput)-1]+1)
     plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale)
     leg = plt.gca().get_legend()
@@ -506,10 +530,10 @@ def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, hmax
     plt.setp(ax5.get_xticklabels(), visible=False)
     plt.setp(ax5.get_yticklabels(), fontsize=8)
     plt.bar(DateInput,flx[7], color='lightblue', linewidth=0, align = 'center', label = flx_lbl[7])
-    ax5.plot_date(DateInput, flx[17], '-', color = 'brown', label= 'Rp')
+    plot_date(DateInput, flx[17], '-', color = 'brown', label= 'Rp', ax=ax5)
     if cMF != None:
-        plt.plot_date(DateInput,flx[19],'-', c='darkblue', linewidth=2, label = flx_lbl[19])
-    plt.plot_date(DateInput,flx[13],'-', c='blue', linewidth=1.5, label = flx_lbl[13])
+        plot_date(DateInput,flx[19],'-', c='darkblue', linewidth=2, label = flx_lbl[19])
+    plot_date(DateInput,flx[13],'-', c='blue', linewidth=1.5, label = flx_lbl[13])
     plt.xlim(DateInput[0]-1,DateInput[len(DateInput)-1]+1)
     plt.legend(loc = 0, labelspacing=lblspc, markerscale=mkscale)
     leg = plt.gca().get_legend()
@@ -522,7 +546,7 @@ def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, hmax
 
     ax6=fig.add_subplot(10,1,6, sharex=ax1)
     plt.setp(ax6.get_yticklabels(), fontsize=8)
-    ax6.plot_date(DateInput, flx[18], '-', color = 'brown', label = flx_lbl[18])
+    plot_date(DateInput, flx[18], '-', color = 'brown', label = flx_lbl[18], ax=ax6)
     # x axis
     plt.xlim(DateInput[0]-1,DateInput[len(DateInput)-1]+1)
     # y axis
@@ -550,7 +574,7 @@ def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, hmax
         plt.setp(ax7.get_yticklabels(), fontsize=8)
         i = 20
         for l in range(cMF.nlay):
-            plt.plot_date(DateInput,flx[i],next(lines), color = 'b', label = flx_lbl[i])
+            plot_date(DateInput,flx[i],next(lines), color = 'b', label = flx_lbl[i])
             i += l + 2
         plt.xlim(DateInput[0]-1,DateInput[len(DateInput)-1]+1)
         plt.ylim(hmin,hmax)
@@ -568,7 +592,7 @@ def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, hmax
         plt.setp(ax8.get_yticklabels(), fontsize=8)
         i = 20 + 2*cMF.nlay
         for l, (e, lbl) in enumerate(zip(flx[i:], flx_lbl[i:])):
-            plt.plot_date(DateInput,e,'-', color = mpl.colors.rgb2hex(np.random.rand(1,3)[0]), label = lbl)
+            plot_date(DateInput,e,'-', color = mpl.colors.rgb2hex(np.random.rand(1,3)[0]), label = lbl)
             i += l + 2
         plt.xlim(DateInput[0]-1,DateInput[len(DateInput)-1]+1)
         labels=ax8.get_xticklabels()
@@ -590,7 +614,7 @@ def plotTIMESERIES_CATCH(DateInput, flx, flx_lbl, plt_export_fn, plt_title, hmax
         plt.setp(ax10.get_yticklabels(), fontsize=8)
         i = 21
         for l in range(cMF.nlay):
-            plt.plot_date(DateInput,flx[i],next(lines), color = 'b', label = flx_lbl[i])
+            plot_date(DateInput,flx[i],next(lines), color = 'b', label = flx_lbl[i])
             i += l + 2
         plt.xlim(DateInput[0]-1,DateInput[len(DateInput)-1]+1)
         plt.ylabel('m', fontsize=10)

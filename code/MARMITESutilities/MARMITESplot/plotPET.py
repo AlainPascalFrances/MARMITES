@@ -14,6 +14,30 @@ import matplotlib.pyplot as plt
 import CreateColors
 import numpy as np
 
+def plot_date(x, y, *args, ax=None, **kwargs):
+    """What ``plt.plot_date`` did: plot, then make x a date axis.
+
+    Deprecated in Matplotlib 3.9 and removed in 3.11. The function never
+    did more than this, and ``xaxis_date()`` is the half that matters --
+    without it the tick LABELS are still dates (a DateFormatter is set
+    explicitly below) but the ticks land on arbitrary float positions
+    instead of month boundaries.
+    """
+    ax = ax if ax is not None else plt.gca()
+    # plot_date took `fmt` as a KEYWORD and plot takes it only
+    # positionally; tz, xdate and ydate were its own and mean nothing to
+    # plot. Absorbing them here is what keeps the call sites untouched.
+    fmt = kwargs.pop('fmt', None)
+    for gone in ('tz', 'xdate', 'ydate'):
+        kwargs.pop(gone, None)
+    if fmt is not None:
+        args = (fmt,) + tuple(args)
+    out = ax.plot(x, y, *args, **kwargs)
+    ax.xaxis_date()
+    return out
+
+
+
 def plot(x, \
         y1, y2 = np.asarray([]) , y3 = np.asarray([]), lbl_y1 = '', lbl_y2 = '', lbl_y3 = ''
         ,plot_exportPET_fn = '', MMsurf_plot = 0, strTitle = 'Title'):
@@ -40,13 +64,13 @@ def plot(x, \
     plt.setp( ax2.get_xticklabels(), fontsize=8)
     plt.setp( ax2.get_yticklabels(), fontsize=8)
     if y2.any():
-        plt.plot_date(x,y2,'-', color='blue')
-    plt.plot_date(x,y1[0],'-', color='green')
+        plot_date(x,y2,'-', color='blue')
+    plot_date(x,y1[0],'-', color='green')
     for i in range(1,len(y1)):
-        plt.plot_date(x,y1[i],'-.', color=colors_y1[i-1], linewidth = 2)
+        plot_date(x,y1[i],'-.', color=colors_y1[i-1], linewidth = 2)
     if y3.any():
         for i in range(len(y3)):
-            plt.plot_date(x,y3[i],'-.', color=colors_y3[i], linewidth = 2)
+            plot_date(x,y3[i],'-.', color=colors_y3[i], linewidth = 2)
     ax2.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%1.2f'))
     labels=ax2.get_yticklabels()
     plt.setp(labels, 'rotation', 90)
@@ -94,17 +118,17 @@ def plotVAR(strTitle = 'Title', x = [] \
     ax2.set_title(strTitle)
     plt.setp( ax2.get_xticklabels(), fontsize=8)
     plt.setp( ax2.get_yticklabels(), fontsize=8)
-    plt.plot_date(x,y1,'-', color='red')
+    plot_date(x,y1,'-', color='red')
     if y2.any():
-        plt.plot_date(x,y2,'-', color='yellow')
+        plot_date(x,y2,'-', color='yellow')
     if y3.any():
-        plt.plot_date(x,y3,'-.', color='orange', linewidth = 2)
+        plot_date(x,y3,'-.', color='orange', linewidth = 2)
     if y4.any():
-        plt.plot_date(x,y4,'-.', color='blue')
+        plot_date(x,y4,'-.', color='blue')
     if y5.any():
-        plt.plot_date(x,y5,'--', color='green')
+        plot_date(x,y5,'--', color='green')
     if y6.any():
-        plt.plot_date(x,y6,'--', color='black')
+        plot_date(x,y6,'--', color='black')
     ax2.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%1.2f'))
     labels=ax2.get_yticklabels()
     plt.setp(labels, 'rotation', 90)

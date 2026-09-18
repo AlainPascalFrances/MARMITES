@@ -16,6 +16,30 @@ import matplotlib as mpl
 if mpl.get_backend!='agg':
     mpl.use('agg')
 import matplotlib.pyplot as plt
+
+def plot_date(x, y, *args, ax=None, **kwargs):
+    """What ``plt.plot_date`` did: plot, then make x a date axis.
+
+    Deprecated in Matplotlib 3.9 and removed in 3.11. The function never
+    did more than this, and ``xaxis_date()`` is the half that matters --
+    without it the tick LABELS are still dates (a DateFormatter is set
+    explicitly below) but the ticks land on arbitrary float positions
+    instead of month boundaries.
+    """
+    ax = ax if ax is not None else plt.gca()
+    # plot_date took `fmt` as a KEYWORD and plot takes it only
+    # positionally; tz, xdate and ydate were its own and mean nothing to
+    # plot. Absorbing them here is what keeps the call sites untouched.
+    fmt = kwargs.pop('fmt', None)
+    for gone in ('tz', 'xdate', 'ydate'):
+        kwargs.pop(gone, None)
+    if fmt is not None:
+        args = (fmt,) + tuple(args)
+    out = ax.plot(x, y, *args, **kwargs)
+    ax.xaxis_date()
+    return out
+
+
 mpl.rcParams['mathtext.fontset'] = 'stix'
 #matplotlib.rcParams['font.family'] = 'STIXGeneral'
 mpl.pyplot.legend(r'ABC123 vs $\mathrm{ABC123}^{123}$')
@@ -151,9 +175,9 @@ fig.suptitle(plt_suptitle)
 ax0=fig.add_subplot(8,1,1) #8,1,1
 plt.setp(ax0.get_xticklabels(), visible = False)
 plt.setp(ax0.get_yticklabels(), fontsize=8)
-plt.plot_date(date,Ro_MM,fmt = '-', c='blue', linewidth=1.0, label = '$Ro$')
+plot_date(date,Ro_MM,fmt = '-', c='blue', linewidth=1.0, label = '$Ro$')
 plt.ylabel('$Ro$ (mm)', fontsize=10)
-plt.plot_date(date,Rof_obs, 'o', ls = 'None', color = 'lightblue', markeredgecolor = 'green', markerfacecolor = 'lightgreen', markersize = 2, label = '$Ro \ obs$') # ls='--', color = 'blue'
+plot_date(date,Rof_obs, 'o', ls = 'None', color = 'lightblue', markeredgecolor = 'green', markerfacecolor = 'lightgreen', markersize = 2, label = '$Ro \ obs$') # ls='--', color = 'blue'
 ymax = np.ma.max(np.ma.masked_invalid(Rof_obs))
 plt.ylim(0, 0.6)
 plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 1, columnspacing = colspc, numpoints = 3)
@@ -181,9 +205,9 @@ plt.setp(ax0.get_xticklabels(minor=True), visible=False)
 ax2=fig.add_subplot(8,1,4, sharex=ax0) #8,1,1
 plt.setp(ax2.get_xticklabels(), visible = True)
 plt.setp(ax2.get_yticklabels(), fontsize=8)
-plt.plot_date(date,Ro_MM,fmt = '-', c='blue', linewidth=1.0, label = '$Ro$')
+plot_date(date,Ro_MM,fmt = '-', c='blue', linewidth=1.0, label = '$Ro$')
 plt.ylabel('$Ro$ (mm)', fontsize=10)
-plt.plot_date(date,bF_obs, 'o', ls = 'None', color = 'lightblue', markeredgecolor = 'green', markerfacecolor = 'lightgreen', markersize = 2, label = '$Ro \ obs$') # ls='--', color = 'blue'
+plot_date(date,bF_obs, 'o', ls = 'None', color = 'lightblue', markeredgecolor = 'green', markerfacecolor = 'lightgreen', markersize = 2, label = '$Ro \ obs$') # ls='--', color = 'blue'
 ymax = np.ma.max(np.ma.masked_invalid(bF_obs))
 plt.ylim(0, 0.6)
 plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 1, columnspacing = colspc, numpoints = 5)
@@ -211,9 +235,9 @@ plt.setp(ax2.get_xticklabels(minor=True), visible=False)
 ax3=fig.add_subplot(8,1,6, sharex=ax0) #8,1,1
 plt.setp(ax2.get_xticklabels(), visible = True)
 plt.setp(ax2.get_yticklabels(), fontsize=8)
-plt.plot_date(date,Ro_MM,fmt = '-', c='blue', linewidth=1.0, label = '$Ro$')
+plot_date(date,Ro_MM,fmt = '-', c='blue', linewidth=1.0, label = '$Ro$')
 plt.ylabel('$Ro$ (mm)', fontsize=10)
-plt.plot_date(date,Ro_obs, 'o', ls = 'None', color = 'lightblue', markeredgecolor = 'green', markerfacecolor = 'lightgreen', markersize = 2, label = '$Ro \ obs$') # ls='--', color = 'blue'
+plot_date(date,Ro_obs, 'o', ls = 'None', color = 'lightblue', markeredgecolor = 'green', markerfacecolor = 'lightgreen', markersize = 2, label = '$Ro \ obs$') # ls='--', color = 'blue'
 ymax = np.ma.max(np.ma.masked_invalid(Ro_obs))
 plt.ylim(0, 0.6)
 plt.legend(loc=0, labelspacing=lblspc, markerscale=mkscale, borderpad = bdpd, handletextpad = hdltxtpd, ncol = 1, columnspacing = colspc, numpoints = 5)
@@ -241,8 +265,8 @@ plt.setp(ax3.get_xticklabels(minor=True), visible=False)
 ax1=fig.add_subplot(8,1,2, sharex=ax0)  # only PET 4,1,1)
 plt.setp(ax1.get_xticklabels(), fontsize=8)
 plt.setp(ax1.get_yticklabels(), fontsize=8)
-plt1a = plt.plot_date(date,ET_ECT, fmt = '-', c='red', linewidth=1.0, label='$ET \ obs$')
-plt1b = plt.plot_date(date,ET_MM, fmt = '-', c='orange', linewidth=1.0, label='$ET$')
+plt1a = plot_date(date,ET_ECT, fmt = '-', c='red', linewidth=1.0, label='$ET \ obs$')
+plt1b = plot_date(date,ET_MM, fmt = '-', c='orange', linewidth=1.0, label='$ET$')
 plt.xlabel('Date', fontsize=10)
 plt.ylabel('$ET$ (mm)', fontsize=10)
 ax1.set_ylim(0.0,6.0)

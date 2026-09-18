@@ -21,6 +21,44 @@ import matplotlib.pyplot as plt
 import numpy as np
 import PET_P_INTER, plotPET, plotP
 
+def _rows(path):
+    """The non-blank lines of a text file, for ``np.loadtxt``.
+
+    numpy >= 1.23 warns once per call that a blank line "contained no data
+    and will not be counted towards max_rows". Every text file ends with a
+    newline, so that fired on every run and meant nothing. Filtering here
+    keeps the warning available for the case it was meant for -- a file
+    that really is shorter than expected.
+    """
+    with open(path, encoding='utf-8', errors='replace') as fh:
+        return [ln for ln in fh if ln.strip()]
+
+
+
+def plot_date(x, y, *args, ax=None, **kwargs):
+    """What ``plt.plot_date`` did: plot, then make x a date axis.
+
+    Deprecated in Matplotlib 3.9 and removed in 3.11. The function never
+    did more than this, and ``xaxis_date()`` is the half that matters --
+    without it the tick LABELS are still dates (a DateFormatter is set
+    explicitly below) but the ticks land on arbitrary float positions
+    instead of month boundaries.
+    """
+    ax = ax if ax is not None else plt.gca()
+    # plot_date took `fmt` as a KEYWORD and plot takes it only
+    # positionally; tz, xdate and ydate were its own and mean nothing to
+    # plot. Absorbing them here is what keeps the call sites untouched.
+    fmt = kwargs.pop('fmt', None)
+    for gone in ('tz', 'xdate', 'ydate'):
+        kwargs.pop(gone, None)
+    if fmt is not None:
+        args = (fmt,) + tuple(args)
+    out = ax.plot(x, y, *args, **kwargs)
+    ax.xaxis_date()
+    return out
+
+
+
 '''
     Reads input files for PET_PM_FAO56 and call this function
 
@@ -427,7 +465,7 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
     # METEO TIME SERIES
     inputFile_TS_fn = os.path.join(pathMMsurf, inputFile_TS_fn)
     if os.path.exists(inputFile_TS_fn):
-        dataMETEOTS = np.loadtxt(inputFile_TS_fn, skiprows = 1, dtype = str)
+        dataMETEOTS = np.loadtxt(_rows(inputFile_TS_fn), skiprows = 1, dtype = str)
     else:
         cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nThe input file [" + inputFile_TS_fn + "] doesn't exist, verify name and path!")
     try:
@@ -518,7 +556,7 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
         # IRRIGATION TIME SERIES
         inputFile_IRR_TS_fn = os.path.join(pathMMsurf, inputFile_IRR_TS_fn)
         if os.path.exists(inputFile_IRR_TS_fn):
-            data_IRR_TS = np.loadtxt(inputFile_IRR_TS_fn, skiprows = 1, dtype = str)
+            data_IRR_TS = np.loadtxt(_rows(inputFile_IRR_TS_fn), skiprows = 1, dtype = str)
         else:
             cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nThe input file [%s] doesn't exist, verify name and path!"%inputFile_IRR_TS_fn)
         try:
@@ -534,7 +572,7 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
         for f in range(NFIELD):
             FIELD_crop_schedule_fn.append(os.path.join(pathMMsurf, '__inputFIELD%d_crop_schedule.txt' % (f+1)))
             if os.path.exists(FIELD_crop_schedule_fn[f]):
-                FIELD_crop_schedule.append(np.loadtxt(FIELD_crop_schedule_fn[f], skiprows = 1, dtype = str))
+                FIELD_crop_schedule.append(np.loadtxt(_rows(FIELD_crop_schedule_fn[f]), skiprows = 1, dtype = str))
             else:
                 cUTIL.ErrorExit(msg = "\nFATAL ERROR!\nThe input file [%s] doesn't exist, verify name and path!"%FIELD_crop_schedule_fn[f])
         print("\nImporting FIELD/CROP schedule files...")
@@ -599,7 +637,7 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
         plt_export_fn = os.path.join(out_ws, '%s.png' % name)
         fig = plt.figure()
         ax1=fig.add_subplot(111)
-        plt.plot_date(datenum,TS, 'b-')
+        plot_date(datenum,TS, 'b-')
         plt.yticks(np.linspace(min_, max_, 11))
         plt.ylim(min_*0.95,max_*1.05)
         plt.setp(ax1.get_yticklabels(), fontsize=8)
@@ -646,7 +684,7 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
         plt_export_fn = os.path.join(out_ws, '%s.png' % name)
         fig = plt.figure()
         ax1=fig.add_subplot(111)
-        plt.plot_date(datenum,TS, 'b-')
+        plot_date(datenum,TS, 'b-')
         plt.yticks(np.linspace(min_, max_, 11))
         plt.ylim(min_*0.95,max_*1.05)
         plt.setp(ax1.get_yticklabels(), fontsize=8)
@@ -683,7 +721,7 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
         plt_export_fn = os.path.join(out_ws, '%s.png' % name)
         fig = plt.figure()
         ax1=fig.add_subplot(111)
-        plt.plot_date(datenum,TS, 'b-')
+        plot_date(datenum,TS, 'b-')
         plt.setp(ax1.get_yticklabels(), fontsize=8)
         plt.setp(ax1.get_xticklabels(), fontsize=8)
         plt.ylim(0,max(crop)+1)
