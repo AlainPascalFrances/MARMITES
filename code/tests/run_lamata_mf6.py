@@ -70,6 +70,12 @@ def _forcing(cfg):
     """
     cfg = cfg or mcfg.RunConfig.from_dict({})
     if cfg.run.surface:
+        # SAID BEFORE IT STARTS, and naming the key. MMsurf is the noisiest
+        # thing in the log and the longest part of a build, so "why is this
+        # running when I turned it off" has to be answerable from the log:
+        # the switch is a panel widget, and what runs is the saved file.
+        print('run.surface is ON: MMsurf runs and writes the daily forcing. '
+              'Set [run] surface = false to use the series already there.')
         out_ws = msurf.surface_ws(cfg, mm_paths.WS_ROOT, cfg.paths.case)
         return msurf.run(cfg, DS, out_ws, config_hash=cfg.config_hash())
     spec = msurf.forcing_spec(cfg, DS)

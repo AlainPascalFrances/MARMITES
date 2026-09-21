@@ -129,7 +129,13 @@ def main():
                    % (_effective, _effective, _effective))
     panelui.save_button(cfg, path, _edited, key='save_model_name')
 
+    # THE FILE, which is what a run reads -- not the toggles, which are
+    # widgets until a panel saves them. Where the two disagree the metric
+    # says so rather than showing one of them and leaving the other to be
+    # discovered by a run.
     st.markdown('### What this configuration will run')
+    _pending = dict((sw, (live, saved))
+                    for sw, live, saved in panelui.unsaved_switches(cfg))
     cols = st.columns(3)
     for c, (sw, what) in zip(cols, [
             ('run.surface', 'MMsurf — the daily forcing'),
@@ -137,7 +143,15 @@ def main():
             ('run.plot', 'Figures')]):
         section, key = sw.split('.')
         on = bool(getattr(getattr(cfg, section), key))
-        c.metric(what, 'ON' if on else 'off')
+        c.metric(what, 'ON' if on else 'off',
+                 delta=('panel says %s — NOT SAVED'
+                        % ('ON' if _pending[sw][0] else 'off')
+                        if sw in _pending else None),
+                 delta_color='inverse' if sw in _pending else 'normal')
+    if _pending:
+        st.error('A switch was changed on a panel and not saved. **The run '
+                 'reads the file**, so it would ignore the change. Save the '
+                 'panel it was changed on.')
     if not cfg.run.surface:
         st.caption('MMsurf is off, so the daily forcing must already exist. It '
                    'is checked for presence AND shape before the run starts — '

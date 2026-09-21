@@ -34,8 +34,37 @@ __all__ = ['pick_config', 'header', 'master_switch', 'switch_and_save',
            'table_form', 'save_button', 'park', 'live',
            'surface_folder_box', 'file_picker', 'path_box',
            'rows_form', 'read_only', 'column_box', 'how_box',
-           'record_lines',
+           'record_lines', 'unsaved_switches', 'SWITCHES',
            'CONFIG_DIR']
+
+# The run keys the panels put a master switch on, in panel order and without
+# repeats -- run.model carries two panels.
+SWITCHES = tuple(dict.fromkeys(p[3] for p in schema.PANELS if p[3]))
+
+
+def unsaved_switches(cfg):
+    """Switches whose toggle disagrees with the file. ``[(switch, live, saved)]``
+
+    A toggle is a WIDGET. It changes what the panel shows the moment it is
+    clicked and it changes NOTHING on disk until the panel is saved -- while
+    the run reads the FILE. So a switch turned off and not saved is a switch
+    that still runs, which is exactly how MMsurf ran after being unplugged:
+    the panel said off, ``[run] surface`` still said true, and the launch
+    used the file.
+
+    Only switches whose toggle has been drawn this session are compared: a
+    key that was never touched cannot disagree with anything.
+    """
+    out = []
+    for switch in SWITCHES:
+        section, key = switch.split('.')
+        saved = bool(getattr(getattr(cfg, section), key))
+        live_key = 'live_%s' % switch
+        if live_key not in st.session_state:
+            continue
+        if bool(st.session_state[live_key]) != saved:
+            out.append((switch, bool(st.session_state[live_key]), saved))
+    return out
 
 
 def pick_config():
@@ -49,6 +78,16 @@ def pick_config():
     idx = files.index(default) if default in files else 0
     chosen = st.sidebar.selectbox('Configuration', files, index=idx,
                                   key='config_file')
+    # A SWITCH BELONGS TO A FILE. Its toggle and the shadow copy that carries
+    # it between panels both live in session_state, which outlives the
+    # selectbox above -- so picking another configuration would otherwise
+    # leave the previous file's switches showing, and `unsaved_switches`
+    # would report a disagreement with a file that never had one.
+    if st.session_state.get('__switch_file') != chosen:
+        for k in [k for k in st.session_state
+                  if k.startswith('live_run.') or k.startswith('sw_run.')]:
+            del st.session_state[k]
+        st.session_state['__switch_file'] = chosen
     path = os.path.join(CONFIG_DIR, chosen)
     try:
         cfg = mcfg.load_run_config(path)
@@ -100,7 +139,15 @@ def master_switch(cfg, switch):
                     key='sw_%s' % switch)
     st.session_state[live_key] = bool(val)
     if val != saved:
-        st.caption('changed — press *Validate & save* below to keep it')
+        # A WARNING, not a caption. This toggle changes nothing until it is
+        # saved, because the run reads the file -- and a grey line under a
+        # switch that looks off is how a run executed the half that had just
+        # been unplugged.
+        st.warning('**Not saved.** The run reads the configuration FILE, '
+                   'which still says `%s = %s`. Press *Validate & save* or '
+                   'the next run will %s it anyway.'
+                   % (switch, 'true' if saved else 'false',
+                      'still run' if saved else 'still skip'))
     if not val:
         st.info('This group is OFF. The panel still edits its settings; the '
                 'run simply will not execute it.')

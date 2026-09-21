@@ -1180,3 +1180,109 @@ def test_panel_one_asks_for_the_dem_as_a_raster():
     named = [str(o) for o in box.options]
     assert not any(o.lower().endswith('.shp') for o in named), \
         'the DEM picker is offering shapefiles'
+
+
+# ------------------------------------------------- an unplugged switch stays
+# WHAT THE PANELS SHOW MUST BE WHAT RUNS. A master switch is a widget: it
+# changes its panel at once and the FILE only when that panel is saved, and
+# the Run page launches the FILE. Unplugging MMsurf and launching ran MMsurf,
+# because [run] surface was still true. The save works -- these pin down that
+# the gap between the two is now visible and blocks the launch.
+
+SWITCH_CFG = '_switchtest.toml'
+
+
+def _says(path, section, key):
+    here = None
+    for line in io.open(path, encoding='utf-8'):
+        s = line.strip()
+        if s.startswith('[') and s.endswith(']'):
+            here = s[1:-1]
+        elif here == section and s.startswith(key + ' '):
+            return s
+    return '(missing)'
+
+
+def test_unplugging_mmsurf_and_saving_writes_it():
+    """The report was 'I unplug the button and it runs anyway'."""
+    tmp = _scratch_config(SWITCH_CFG)
+    try:
+        assert _says(tmp, 'run', 'surface') == 'surface = true'
+        at = AppTest.from_file(os.path.join(APP, SURF), default_timeout=300)
+        at.session_state['config_file'] = os.path.basename(tmp)
+        at.run()
+        sw = [t for t in at.toggle if t.key == 'sw_run.surface']
+        assert sw, 'panel 2 has no MMsurf switch'
+        sw[0].set_value(False).run()
+        save = [b for b in at.button if b.key == 'save_panel']
+        assert save, 'the panel save button is not keyed predictably'
+        save[0].click().run()
+        assert _says(tmp, 'run', 'surface') == 'surface = false', (
+            'Validate & save did not unplug MMsurf: %s'
+            % _says(tmp, 'run', 'surface'))
+    finally:
+        if os.path.exists(tmp):
+            os.remove(tmp)
+
+
+def test_an_unsaved_switch_is_not_silent():
+    """Turning it off and NOT saving must say so, not pass for done."""
+    tmp = _scratch_config(SWITCH_CFG)
+    try:
+        at = AppTest.from_file(os.path.join(APP, SURF), default_timeout=300)
+        at.session_state['config_file'] = os.path.basename(tmp)
+        at.run()
+        [t for t in at.toggle if t.key == 'sw_run.surface'][0] \
+            .set_value(False).run()
+        assert _says(tmp, 'run', 'surface') == 'surface = true', \
+            'the toggle wrote the file without a save'
+        said = ' '.join(str(w.value) for w in at.warning)
+        assert 'Not saved' in said, \
+            'an unsaved switch says nothing loud: %r' % said
+    finally:
+        if os.path.exists(tmp):
+            os.remove(tmp)
+
+
+def test_the_run_page_refuses_a_configuration_the_panels_contradict():
+    """The launch is the last moment the two can be reconciled."""
+    import sys
+    if APP not in sys.path:
+        sys.path.insert(0, APP)
+    from lib import panelui
+    tmp = _scratch_config(SWITCH_CFG)
+    try:
+        at = AppTest.from_file(os.path.join(APP, 'pages', '7_Run.py'),
+                               default_timeout=300)
+        at.session_state['config_file'] = os.path.basename(tmp)
+        # what panel 2 would have left behind, having been unplugged and
+        # not saved
+        at.session_state['live_run.surface'] = False
+        at.run()
+        launch = [b for b in at.button if b.label == 'Launch']
+        assert launch, 'the Run page has no Launch button'
+        assert launch[0].disabled, \
+            'Launch is offered although the panels contradict the file'
+        said = ' '.join(str(e.value) for e in at.error)
+        assert 'run.surface' in said, \
+            'the refusal does not name the switch: %r' % said
+        assert 'run.surface' in panelui.SWITCHES
+    finally:
+        if os.path.exists(tmp):
+            os.remove(tmp)
+
+
+def test_switching_configuration_forgets_the_other_ones_switches():
+    """A switch belongs to a file; session_state outlives the selectbox."""
+    tmp = _scratch_config(SWITCH_CFG)
+    try:
+        at = AppTest.from_file(os.path.join(APP, SURF), default_timeout=300)
+        at.session_state['config_file'] = 'lamata.toml'
+        at.session_state['live_run.surface'] = False
+        at.session_state['__switch_file'] = os.path.basename(tmp)
+        at.run()
+        assert at.session_state['live_run.surface'] is True, \
+            'the previous file\'s switch was carried over'
+    finally:
+        if os.path.exists(tmp):
+            os.remove(tmp)

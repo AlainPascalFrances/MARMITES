@@ -26,6 +26,7 @@ for p in (CODE, APP):
 
 import marmites_config as mcfg        # noqa: E402
 import mm_paths                       # noqa: E402
+from lib import panelui               # noqa: E402
 from lib import runs as runlib        # noqa: E402
 
 st.set_page_config(page_title='Run', page_icon='▶️', layout='wide')
@@ -39,9 +40,14 @@ if not files:
     st.error('No configuration in %s' % CONFIG_DIR)
     st.stop()
 
+# THE ONE THE PANELS ARE EDITING, not a fixed favourite: this page used to
+# open on lamata.toml whatever the panels had been pointed at, so the model
+# that was launched need not have been the model that was filled in.
+_panels = st.session_state.get('config_file', 'lamata.toml')
+_default = _panels if _panels in files else (
+    'lamata.toml' if 'lamata.toml' in files else files[0])
 c1, c2 = st.columns([2, 3])
-chosen = c1.selectbox('Configuration', files,
-                      index=files.index('lamata.toml') if 'lamata.toml' in files else 0)
+chosen = c1.selectbox('Configuration', files, index=files.index(_default))
 cfg_path = os.path.join(CONFIG_DIR, chosen)
 try:
     cfg = mcfg.load_run_config(cfg_path)
@@ -80,7 +86,26 @@ if not libmf6:
                'MF6 files. Set it to `auto` (use `mm_paths.LIBMF6`) or to a path '
                'for a coupled run.')
 
+# WHAT THE PANELS SHOW MUST BE WHAT RUNS. A master switch is a widget: it
+# changes its panel at once and the FILE only when that panel is saved, and
+# this page launches the FILE. Unplugging MMsurf and launching from here ran
+# MMsurf, because [run] surface was still true -- the run was right and the
+# screen was lying. Only meaningful for the configuration the panels are
+# editing; another file in the selectbox never had those switches touched.
+pending = panelui.unsaved_switches(cfg) if chosen == _panels else []
+if pending:
+    st.error(
+        '**This configuration does not match the panels.** %s\n\nThe run '
+        'reads the file, so launching now would run what the panels no '
+        'longer say. Go back to the panel and press *Validate & save*, or '
+        'set the switch back.'
+        % '  \n'.join(
+            '`%s` — the panel says **%s**, the file says **%s**.'
+            % (sw, 'ON' if live else 'off', 'true' if saved else 'false')
+            for sw, live, saved in pending))
+
 can_launch = (not overrides) or (preview is not None)
+can_launch = can_launch and not pending
 if st.button('Launch', type='primary', disabled=not can_launch):
     try:
         run_id, st_payload = runlib.launch(
