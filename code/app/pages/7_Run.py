@@ -80,11 +80,41 @@ if overrides:
     except mcfg.ConfigError as exc:
         st.error(str(exc))
 
-libmf6 = (cfg.paths.libmf6 or '').strip()
-if not libmf6:
-    st.warning('`paths.libmf6` is blank, so the run will stop after writing the '
-               'MF6 files. Set it to `auto` (use `mm_paths.LIBMF6`) or to a path '
-               'for a coupled run.')
+# ASKED HERE, not edited into the file by hand. It was described in the
+# schema and drawn by no panel, so the one field standing between a build and
+# a coupled run could only be set in a text editor -- which is the thing the
+# front-end exists to stop. It belongs on this page because this is where its
+# effect is: blank builds and stops, set runs coupled.
+st.markdown('#### MODFLOW 6 library')
+_lc1, _lc2 = st.columns([2, 3])
+with _lc1:
+    _lib_edit = panelui.rows_form(cfg, (('paths.libmf6', None),), 'paths',
+                                  columns=1)
+libmf6 = str(_lib_edit.get('paths.libmf6', cfg.paths.libmf6) or '').strip()
+with _lc2:
+    st.markdown('')
+    if not libmf6:
+        st.warning('Blank: the run will stop after writing the MF6 files. '
+                   'Type `auto` for a coupled run.')
+    else:
+        # SETTLED HERE, where it can still be corrected, rather than after
+        # the build. The same resolver the driver uses, so what this page
+        # says is what the run will do -- a folder is completed to the
+        # library inside it, and mf6.exe is named as the wrong one of the two.
+        _rl = runlib.import_runner()
+        try:
+            _lib = _rl.check_libmf6(_rl.resolve_libmf6(libmf6))
+        except _rl.LibMF6Error as exc:
+            st.error(str(exc))
+        else:
+            st.success('`%s`' % _lib)
+    st.caption('`auto` finds it next to the other MODFLOW binaries and keeps '
+               'the file portable to another machine. It is the shared '
+               'LIBRARY — `libmf6.dll` — not `mf6.exe`: the coupler steps '
+               'MODFLOW one stress period at a time through the API, which '
+               'the executable cannot do. A folder is completed to the '
+               'library inside it.')
+panelui.save_button(cfg, cfg_path, _lib_edit, key='save_libmf6')
 
 # WHAT THE PANELS SHOW MUST BE WHAT RUNS. A master switch is a widget: it
 # changes its panel at once and the FILE only when that panel is saved, and

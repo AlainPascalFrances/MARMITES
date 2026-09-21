@@ -24,7 +24,8 @@ import sys
 import time
 from pathlib import Path
 
-__all__ = ['launch', 'status', 'log_tail', 'list_runs', 'stop', 'run_dir']
+__all__ = ['launch', 'status', 'log_tail', 'list_runs', 'stop', 'run_dir',
+           'driver_path', 'import_runner']
 
 _STATUS = 'status.json'
 _LOG = 'run.log'
@@ -32,6 +33,35 @@ _LOG = 'run.log'
 
 def run_dir(runs_dir, run_id):
     return Path(runs_dir) / run_id
+
+
+def driver_path():
+    """The script ``launch`` runs, as a path."""
+    return str(Path(__file__).resolve().parents[2] / 'tests'
+               / 'run_lamata_mf6.py')
+
+
+def import_runner():
+    """The driver as a MODULE, so a panel can reuse its answers.
+
+    The Run page decides things the driver also decides -- where the MODFLOW
+    library is, above all -- and two implementations of that would drift.
+    Imported by path because ``code/tests`` is not a package, and cached in
+    sys.modules so the import cost is paid once per session.
+    """
+    import importlib.util
+    name = '_mm_runner'
+    if name in sys.modules:
+        return sys.modules[name]
+    code_dir = Path(__file__).resolve().parents[2]
+    for p in (str(code_dir), str(code_dir / 'tests')):
+        if p not in sys.path:
+            sys.path.insert(0, p)
+    spec = importlib.util.spec_from_file_location(name, driver_path())
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[name] = mod
+    spec.loader.exec_module(mod)
+    return mod
 
 
 def _write_status(d, payload):

@@ -307,3 +307,80 @@ def test_two_sizes_do_not_collapse_into_one_class():
     got = loaders.area_classes(a)
     assert len(got) >= 2
     assert sum(int(sel.sum()) for _lo, _hi, sel in got) == 20
+
+
+# ------------------------------------------------------ the MODFLOW library
+# paths.libmf6 is the BMI SHARED LIBRARY, not mf6.exe: the coupler steps
+# MODFLOW one stress period at a time through the API, which the executable
+# cannot do. Both sit in the same bin folder, so the two are easy to confuse
+# and the confusion used to surface as "libmf6 not found" AFTER the build.
+
+def _runner():
+    return _load('_runner_libmf6',
+                 os.path.join(CODE, 'tests', 'run_lamata_mf6.py'))
+
+
+def test_a_folder_is_completed_to_the_library_inside_it(tmp_path):
+    """The natural thing to paste is the bin directory."""
+    r = _runner()
+    binp = tmp_path / 'bin'
+    binp.mkdir()
+    lib = binp / 'libmf6.dll'
+    lib.write_bytes(b'')
+    got = r.resolve_libmf6(str(binp))
+    assert os.path.normcase(got) == os.path.normcase(str(lib)), got
+    assert r.check_libmf6(got) == got
+
+
+def test_a_folder_without_a_library_says_so(tmp_path):
+    r = _runner()
+    empty = tmp_path / 'nothing'
+    empty.mkdir()
+    with pytest.raises(r.LibMF6Error) as exc:
+        r.check_libmf6(r.resolve_libmf6(str(empty)))
+    msg = str(exc.value)
+    assert 'folder' in msg and 'libmf6.dll' in msg, msg
+
+
+def test_the_executable_is_named_as_the_wrong_one(tmp_path):
+    """mf6.exe is a whole simulation; the coupler needs the library."""
+    r = _runner()
+    binp = tmp_path / 'bin'
+    binp.mkdir()
+    (binp / 'mf6.exe').write_bytes(b'')
+    (binp / 'libmf6.dll').write_bytes(b'')
+    with pytest.raises(r.LibMF6Error) as exc:
+        r.check_libmf6(r.resolve_libmf6(str(binp / 'mf6.exe')))
+    msg = str(exc.value)
+    assert 'EXECUTABLE' in msg and 'libmf6.dll' in msg, msg
+
+
+def test_a_missing_library_points_at_auto(tmp_path):
+    r = _runner()
+    with pytest.raises(r.LibMF6Error) as exc:
+        r.check_libmf6(r.resolve_libmf6(str(tmp_path / 'nope' / 'libmf6.dll')))
+    assert 'auto' in str(exc.value)
+
+
+def test_blank_stays_blank_and_is_not_an_error():
+    """Blank means build and stop -- a choice, not a mistake."""
+    r = _runner()
+    assert r.resolve_libmf6('') == ''
+    assert r.resolve_libmf6(None) == ''
+    assert r.check_libmf6('') == ''
+
+
+def test_quotes_from_a_pasted_path_are_stripped(tmp_path):
+    r = _runner()
+    lib = tmp_path / 'libmf6.dll'
+    lib.write_bytes(b'')
+    got = r.resolve_libmf6('"%s"' % lib)
+    assert os.path.normcase(got) == os.path.normcase(str(lib)), got
+
+
+def test_the_run_page_and_the_driver_use_one_resolver():
+    """Two implementations of 'where is the library' would drift."""
+    runs = _load('_runs_for_lib', os.path.join(CODE, 'app', 'lib', 'runs.py'))
+    mod = runs.import_runner()
+    assert hasattr(mod, 'resolve_libmf6') and hasattr(mod, 'check_libmf6')
+    assert os.path.isfile(runs.driver_path())

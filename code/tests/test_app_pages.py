@@ -1192,6 +1192,28 @@ def test_panel_one_asks_for_the_dem_as_a_raster():
 SWITCH_CFG = '_switchtest.toml'
 
 
+def _scratch_with_mmsurf_on():
+    """A scratch configuration that certainly has MMsurf switched ON.
+
+    NOT just a copy of the reference: the reference is a live working file
+    and the first thing anyone does with the fix these tests cover is unplug
+    MMsurf in it and save. A test that assumed `surface = true` there passed
+    until exactly that happened -- so the starting state is SET, not found.
+    """
+    tmp = _scratch_config(SWITCH_CFG)
+    out, here = [], None
+    for line in io.open(tmp, encoding='utf-8'):
+        s = line.strip()
+        if s.startswith('[') and s.endswith(']'):
+            here = s[1:-1]
+        elif here == 'run' and s.startswith('surface '):
+            line = 'surface = true\n'
+        out.append(line)
+    io.open(tmp, 'w', encoding='utf-8', newline='').write(''.join(out))
+    assert _says(tmp, 'run', 'surface') == 'surface = true'
+    return tmp
+
+
 def _says(path, section, key):
     here = None
     for line in io.open(path, encoding='utf-8'):
@@ -1205,7 +1227,7 @@ def _says(path, section, key):
 
 def test_unplugging_mmsurf_and_saving_writes_it():
     """The report was 'I unplug the button and it runs anyway'."""
-    tmp = _scratch_config(SWITCH_CFG)
+    tmp = _scratch_with_mmsurf_on()
     try:
         assert _says(tmp, 'run', 'surface') == 'surface = true'
         at = AppTest.from_file(os.path.join(APP, SURF), default_timeout=300)
@@ -1227,7 +1249,7 @@ def test_unplugging_mmsurf_and_saving_writes_it():
 
 def test_an_unsaved_switch_is_not_silent():
     """Turning it off and NOT saving must say so, not pass for done."""
-    tmp = _scratch_config(SWITCH_CFG)
+    tmp = _scratch_with_mmsurf_on()
     try:
         at = AppTest.from_file(os.path.join(APP, SURF), default_timeout=300)
         at.session_state['config_file'] = os.path.basename(tmp)
@@ -1250,7 +1272,7 @@ def test_the_run_page_refuses_a_configuration_the_panels_contradict():
     if APP not in sys.path:
         sys.path.insert(0, APP)
     from lib import panelui
-    tmp = _scratch_config(SWITCH_CFG)
+    tmp = _scratch_with_mmsurf_on()
     try:
         at = AppTest.from_file(os.path.join(APP, 'pages', '7_Run.py'),
                                default_timeout=300)
@@ -1274,15 +1296,41 @@ def test_the_run_page_refuses_a_configuration_the_panels_contradict():
 
 def test_switching_configuration_forgets_the_other_ones_switches():
     """A switch belongs to a file; session_state outlives the selectbox."""
-    tmp = _scratch_config(SWITCH_CFG)
+    # The file we OPEN has MMsurf on; the session carries an off that
+    # belonged to a different file. Opening this one must show what it says.
+    tmp = _scratch_with_mmsurf_on()
     try:
         at = AppTest.from_file(os.path.join(APP, SURF), default_timeout=300)
-        at.session_state['config_file'] = 'lamata.toml'
+        at.session_state['config_file'] = os.path.basename(tmp)
         at.session_state['live_run.surface'] = False
-        at.session_state['__switch_file'] = os.path.basename(tmp)
+        at.session_state['__switch_file'] = '_some_other_case.toml'
         at.run()
         assert at.session_state['live_run.surface'] is True, \
             'the previous file\'s switch was carried over'
+    finally:
+        if os.path.exists(tmp):
+            os.remove(tmp)
+
+
+def test_the_library_can_be_set_from_the_run_page():
+    """It was described in the schema and drawn by no panel, so the one
+    field between a build and a coupled run needed a text editor."""
+    tmp = _scratch_config('_libtest.toml')
+    try:
+        at = AppTest.from_file(os.path.join(APP, 'pages', '7_Run.py'),
+                               default_timeout=300)
+        at.session_state['config_file'] = os.path.basename(tmp)
+        at.run()
+        assert not at.exception, [str(e.value) for e in at.exception]
+        box = [w for w in at.text_input if w.key == 'paths.libmf6']
+        assert box, 'paths.libmf6 is on no panel: %s' % [
+            w.key for w in at.text_input]
+        box[0].set_value('auto').run()
+        save = [b for b in at.button if b.key == 'save_libmf6']
+        assert save, 'the library has no save button'
+        save[0].click().run()
+        assert _says(tmp, 'paths', 'libmf6') == 'libmf6 = "auto"', \
+            _says(tmp, 'paths', 'libmf6')
     finally:
         if os.path.exists(tmp):
             os.remove(tmp)

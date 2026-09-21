@@ -55,6 +55,71 @@ import marmites_surface as msurf  # noqa: E402
 import mm_paths  # noqa: E402
 
 
+# The BMI/XMI SHARED LIBRARY, not the executable. The coupler steps MODFLOW
+# one stress period at a time from inside python and exchanges arrays with it
+# between steps; mf6.exe can only run a whole simulation start to finish,
+# which is the one thing the coupling cannot use. Same build, two products,
+# side by side in the same bin folder -- so pointing at the wrong one is easy
+# and has to be said rather than reported as "not found".
+LIB_NAMES = ('libmf6.dll', 'libmf6.so', 'libmf6.dylib')
+
+
+class LibMF6Error(Exception):
+    """The MODFLOW 6 library cannot be used as given."""
+
+
+def resolve_libmf6(given):
+    """``paths.libmf6`` -> an absolute library file, or ''. Never raises.
+
+    Blank stops after the build, by design. Everything else is completed
+    here rather than at the API call, which happens AFTER the whole model is
+    built -- a typo should not cost a build. A FOLDER is completed with the
+    library name, because the natural thing to paste is the bin directory.
+    """
+    given = (given or '').strip().strip('"').strip("'")
+    if not given:
+        return ''
+    if given.lower() == 'auto':
+        return mm_paths.LIBMF6 if os.path.isfile(mm_paths.LIBMF6) else ''
+    path = os.path.abspath(given)
+    if os.path.isdir(path):
+        for name in LIB_NAMES:
+            cand = os.path.join(path, name)
+            if os.path.isfile(cand):
+                return cand
+        return path          # let check_libmf6 say what is wrong with it
+    return path
+
+
+def check_libmf6(path):
+    """Say what is wrong with it, in the words that lead to the fix.
+
+    Returns the path. Raises :class:`LibMF6Error` naming the actual mistake:
+    a directory with no library in it, the executable instead of the
+    library, or a path that is simply not there.
+    """
+    if not path:
+        return path
+    if os.path.isdir(path):
+        raise LibMF6Error(
+            '%s is a folder and holds no %s. paths.libmf6 is the MODFLOW 6 '
+            'LIBRARY, not the folder and not mf6.exe.'
+            % (path, ' / '.join(LIB_NAMES)))
+    base = os.path.basename(path).lower()
+    if not os.path.isfile(path):
+        raise LibMF6Error(
+            'libmf6 not found at: %s\nSet paths.libmf6 to "auto" to use %s.'
+            % (path, mm_paths.LIBMF6))
+    if base.startswith('mf6') and base.endswith('.exe'):
+        lib = os.path.join(os.path.dirname(path), 'libmf6.dll')
+        raise LibMF6Error(
+            '%s is the EXECUTABLE. The coupler drives MODFLOW through the '
+            'API one stress period at a time, which the executable cannot '
+            'do; it needs the shared library beside it%s.'
+            % (path, ' -- %s' % lib if os.path.isfile(lib) else ''))
+    return path
+
+
 def _forcing(cfg):
     """The daily forcing: run MMsurf, or check what is already there (WP1d).
 
@@ -571,9 +636,7 @@ def _args_from_config(cfg, probe=False):
         # table. Passing source here is what made LAK fail on a missing .dbf.
         lak_source = cfg.lak.geometry or 'inputPONDS.geojson'
 
-    libmf6 = (cfg.paths.libmf6 or '').strip()
-    if libmf6.lower() == 'auto':
-        libmf6 = mm_paths.LIBMF6 if os.path.exists(mm_paths.LIBMF6) else ''
+    libmf6 = resolve_libmf6((cfg.paths.libmf6 or '').strip())
 
     return argparse.Namespace(
         # run
@@ -677,6 +740,15 @@ def main():
     # written to the workspace; reading falls back to the baseline committed in
     # the repo's example/LaMata/MF_ws so `spinup.strt_heads` keeps working.
     a.state_dir = a.ws
+    # THE LIBRARY IS CHECKED BEFORE THE BUILD. It is not used until the model
+    # has been written, which on La Mata is minutes away, and a run that
+    # spends them only to exit on a mistyped path has wasted all of them.
+    # Blank is not a mistake -- it means "build and stop" -- so only a path
+    # that was GIVEN is judged.
+    try:
+        check_libmf6(a.libmf6)
+    except LibMF6Error as exc:
+        sys.exit('paths.libmf6: %s' % exc)
     # run.model OFF: produce the forcing and stop. MMsurf is a run of its
     # own -- that is what the switch on the driving-forces panel promises --
     # and everything below this line is the model. The switch was read by
@@ -835,9 +907,9 @@ def main():
     # WinError 87 from CDLL(winmode=0x08) happens when the path is not
     # fully qualified (relative, or polluted with quotes by IDE run
     # configs); dependency DLLs also need the bin dir on the search path.
+    # The path itself was settled and checked BEFORE the build -- see
+    # check_libmf6 -- so by here it is a file that exists.
     lib = os.path.abspath(a.libmf6.strip('"').strip("'"))
-    if not os.path.isfile(lib):
-        sys.exit('libmf6 not found at: %s' % lib)
     if hasattr(os, 'add_dll_directory'):
         os.add_dll_directory(os.path.dirname(lib))
     from modflowapi import ModflowApi

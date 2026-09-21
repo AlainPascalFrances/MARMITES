@@ -144,8 +144,12 @@ FIELDS = {
                  'Blank uses WS_ROOT from mm_paths. Everything a run produces '
                  'goes here -- never into the repository.'),
     'paths.libmf6': ('MODFLOW 6 library', _U,
-                     'Blank uses mm_paths.LIBMF6; "auto" searches for it. '
-                     'Without it the run stops after writing the input files.'),
+                     'The shared LIBRARY (libmf6.dll), not mf6.exe: the '
+                     'coupler steps MODFLOW through the API one stress '
+                     'period at a time, which the executable cannot do. '
+                     '"auto" finds it beside the other MODFLOW binaries; a '
+                     'folder is completed to the library inside it. Blank '
+                     'stops after writing the input files.'),
 
     # ---- run ----------------------------------------------------------
     'run.surface': ('Run MMsurf', _U,
