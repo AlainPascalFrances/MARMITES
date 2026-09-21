@@ -33,7 +33,7 @@ cfg, path = panelui.pick_config()
 ds = panelui.dataset_banner(cfg)
 panel = panelui.header(4)
 
-edited, save_slot = panelui.switch_and_save(cfg, panel)
+edited = panelui.panel_switch(cfg, panel)
 
 tab_geom, tab_ghb, tab_drn, tab_uzf, tab_water, tab_init = st.tabs(
     ['MODFLOW aquifer layers', 'GHB', 'DRN', 'UZF', 'SFR, LAK and CRR',
@@ -269,4 +269,8 @@ with tab_water:
             'from the `Eo` forcing, and reads back what was actually removed '
             'so it still appears in the water balance.')
 
-panelui.save_button(cfg, path, edited, slot=save_slot)
+# REMEMBERED, not written: the one save is in the sidebar (see panelui).
+# Collected HERE because a panel collects tab by tab as the tabs are drawn,
+# so remembering earlier would remember an empty dict.
+panelui.remember(edited)
+panelui.sidebar_save(cfg, path)

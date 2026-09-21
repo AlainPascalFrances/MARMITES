@@ -31,7 +31,7 @@ cfg, path = panelui.pick_config()
 panelui.dataset_banner(cfg)
 panel = panelui.header(6)
 
-edited, save_slot = panelui.switch_and_save(cfg, panel)
+edited = panelui.panel_switch(cfg, panel)
 
 MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July',
           'August', 'September', 'October', 'November', 'December']
@@ -79,5 +79,6 @@ st.caption('Figures are written into the run folder under the workspace, and '
            'group off leaves the run itself untouched — a finished run can '
            'always be re-drawn later with `postproc.only`.')
 
-# Filled last, drawn first: see switch_and_save.
-panelui.save_button(cfg, path, edited, slot=save_slot)
+# REMEMBERED, not written: the one save is in the sidebar (see panelui).
+panelui.remember(edited)
+panelui.sidebar_save(cfg, path)

@@ -27,30 +27,106 @@ from lib import editor, schema          # noqa: E402
 
 CONFIG_DIR = os.path.join(CODE, 'configs')
 
-__all__ = ['pick_config', 'header', 'master_switch', 'switch_and_save',
+__all__ = ['pick_config', 'header', 'master_switch', 'panel_switch',
            'section_form',
            'grid_form', 'grid_permanent_form', 'grid_kind_form',
            'gis_folder_box', 'layer_picker', 'resolve_layer', 'folder_picker',
-           'table_form', 'save_button', 'park', 'live',
+           'table_form', 'park', 'live',
            'surface_folder_box', 'file_picker', 'path_box',
            'rows_form', 'read_only', 'column_box', 'how_box',
-           'record_lines', 'unsaved_switches', 'SWITCHES',
+           'record_lines', 'unsaved_switches', 'unsaved_changes', 'SWITCHES',
+           'remember', 'remember_table', 'pending', 'pending_tables',
+           'forget', 'save_now', 'sidebar_save', 'saved_note',
            'CONFIG_DIR']
 
 # The run keys the panels put a master switch on, in panel order and without
 # repeats -- run.model carries two panels.
 SWITCHES = tuple(dict.fromkeys(p[3] for p in schema.PANELS if p[3]))
 
+# ---------------------------------------------------------- pending edits
+# ONE SAVE, IN THE SIDEBAR, FOR THE WHOLE CONFIGURATION. Streamlit runs one
+# page at a time: a button in the sidebar can only see the widgets of the
+# page being drawn, and a widget's own state does not survive moving to
+# another page. So a panel does not save -- it REMEMBERS, into a plain
+# session key that no widget owns and that therefore outlives the page, and
+# the sidebar writes everything remembered so far in one go.
+#
+# This is the same trick master_switch already used for the toggles, applied
+# to every field instead of three, which is why the toggles now go through
+# here as well: two stores of "what is unsaved" would disagree eventually.
+_PENDING = '__pending_edits'
+_PENDING_TABLES = '__pending_tables'
+
+
+def remember(edited):
+    """Collect a panel's edits without writing them. Returns them unchanged.
+
+    Called by every panel in place of the save button it used to draw. Edits
+    accumulate across pages until the sidebar save applies them, so filling
+    panel 2 and then panel 4 and saving once writes both.
+    """
+    if not edited:
+        return edited or {}
+    store = st.session_state.setdefault(_PENDING, {})
+    store.update(edited)
+    return edited
+
+
+def remember_table(dotted, rows):
+    """The same, for an array of tables (vegetation, soils, observations)."""
+    st.session_state.setdefault(_PENDING_TABLES, {})[dotted] = [
+        dict(r) for r in rows]
+    return rows
+
+
+def pending():
+    """Everything remembered and not yet written, as a dict."""
+    return dict(st.session_state.get(_PENDING, {}))
+
+
+def pending_tables():
+    return dict(st.session_state.get(_PENDING_TABLES, {}))
+
+
+def forget():
+    """Drop the remembered edits -- after a save, or on changing file."""
+    st.session_state.pop(_PENDING, None)
+    st.session_state.pop(_PENDING_TABLES, None)
+
+
+def unsaved_changes(cfg):
+    """The remembered edits that would actually CHANGE the file.
+
+    A panel remembers every field it drew, most of them untouched, so the
+    raw store is not a count of anything. editor.changes does the comparing
+    -- the same comparison the save itself will do, so the number shown and
+    the number written are the same number.
+    """
+    try:
+        out = editor.changes(cfg, pending())
+    except editor.EditError:
+        # A remembered key the configuration no longer has: the file was
+        # changed underneath us. The store is stale, not the config.
+        return []
+    for dotted, rows in sorted(pending_tables().items()):
+        try:
+            same = editor.table_rows(cfg, dotted) == [dict(r) for r in rows]
+        except editor.EditError:
+            continue
+        if not same:
+            out.append('%s = %d row(s)' % (dotted, len(rows)))
+    return out
+
 
 def unsaved_switches(cfg):
     """Switches whose toggle disagrees with the file. ``[(switch, live, saved)]``
 
     A toggle is a WIDGET. It changes what the panel shows the moment it is
-    clicked and it changes NOTHING on disk until the panel is saved -- while
-    the run reads the FILE. So a switch turned off and not saved is a switch
-    that still runs, which is exactly how MMsurf ran after being unplugged:
-    the panel said off, ``[run] surface`` still said true, and the launch
-    used the file.
+    clicked and it changes NOTHING on disk until it is saved -- while the run
+    reads the FILE. So a switch turned off and not saved is a switch that
+    still runs, which is exactly how MMsurf ran after being unplugged: the
+    panel said off, ``[run] surface`` still said true, and the launch used
+    the file.
 
     Only switches whose toggle has been drawn this session are compared: a
     key that was never touched cannot disagree with anything.
@@ -65,6 +141,103 @@ def unsaved_switches(cfg):
         if bool(st.session_state[live_key]) != saved:
             out.append((switch, bool(st.session_state[live_key]), saved))
     return out
+
+
+def save_now(cfg, path):
+    """Write everything remembered. ``(applied, digest_or_error, ok)``.
+
+    The one place the front-end writes. Validated first, as it always was:
+    a file on disk the model would refuse is worse than a message in the
+    browser, because it is discovered hours later by a run.
+    """
+    try:
+        applied, digest = editor.save(cfg, path, pending(), pending_tables())
+    except (editor.EditError, mcfg.ConfigError) as exc:
+        return [], str(exc), False
+    forget()
+    return applied, digest, True
+
+
+def sidebar_save(cfg, path):
+    """THE save. One button, in the sidebar, for the whole configuration.
+
+    In the sidebar because it belongs to the configuration, not to a panel:
+    there used to be a *Validate & save* on every page, which meant a panel
+    filled and left unsaved was silently discarded, and which made "is this
+    saved?" a question with six answers. There is now one answer, visible
+    from wherever the modeller happens to be.
+
+    Returns True when it wrote.
+    """
+    edits = pending()
+    todo = unsaved_changes(cfg)
+    st.sidebar.markdown('---')
+    n = len(todo)
+    st.sidebar.markdown('**%s**' % ('%d unsaved change%s'
+                                    % (n, '' if n == 1 else 's')
+                                    if n else 'Saved'))
+    clicked = st.sidebar.button(
+        'Validate & save', type='primary' if n else 'secondary',
+        disabled=not n, key='sidebar_save',
+        help='Writes every panel you have edited, after checking the whole '
+             'configuration is valid.')
+    if n:
+        with st.sidebar.expander('What would change'):
+            for line in todo:
+                st.code(line, language='ini')
+    if not clicked:
+        return False
+    applied, why, ok = save_now(cfg, path)
+    if not ok:
+        st.sidebar.error('NOT saved — the configuration would be invalid:\n\n'
+                         '%s' % why)
+        return False
+    st.session_state['__saved_note'] = (
+        'Saved %d change(s) — hash %s' % (len(applied), why))
+    moved, note = rename_to_model(cfg, path)
+    if note:
+        st.session_state['__saved_note'] += '  \n' + note
+    st.rerun()
+    return True                                   # pragma: no cover
+
+
+VALIDATION_PAGE = 'pages/7_Validation_of_the_configuration.py'
+
+
+def panel_link(target, label, icon=None):
+    """A link to another panel, where the app is running as one.
+
+    ``st.page_link`` only knows the pages of a multipage app, so a single
+    page rendered on its own -- which is how every panel is TESTED -- raises
+    instead of drawing a link. The link is decoration; its absence must not
+    take the page down with it.
+    """
+    try:
+        st.page_link(target, label=label, icon=icon)
+        return True
+    except Exception:                                   # noqa: BLE001
+        return False
+
+
+def go_to(target):
+    """Switch to another panel. False if this app cannot navigate.
+
+    The caller must HONOUR a False: the one use of this is diverting away
+    from a launch, and a navigation that quietly failed would leave the run
+    starting anyway -- the exact opposite of what the divert is for.
+    """
+    try:
+        st.switch_page(target)
+        return True                                     # pragma: no cover
+    except Exception:                                   # noqa: BLE001
+        return False
+
+
+def saved_note():
+    """Show and clear the message a save left for the run after it."""
+    note = st.session_state.pop('__saved_note', '')
+    if note:
+        st.sidebar.success(note)
 
 
 def pick_config():
@@ -87,6 +260,10 @@ def pick_config():
         for k in [k for k in st.session_state
                   if k.startswith('live_run.') or k.startswith('sw_run.')]:
             del st.session_state[k]
+        # ... and the remembered edits with them: they were entered against
+        # a different file and applying them here would write one file's
+        # answers into another's.
+        forget()
         st.session_state['__switch_file'] = chosen
     path = os.path.join(CONFIG_DIR, chosen)
     try:
@@ -106,6 +283,10 @@ def pick_config():
         # the name in the panel until something saves it back.
         st.sidebar.info('This file uses an old name — %s. Saving from any '
                         'panel writes the new one.' % line)
+    # A save reruns the script, so its message has to survive the rerun; it
+    # is shown HERE, which every panel passes through, rather than by each
+    # page remembering to.
+    saved_note()
     return cfg, path
 
 
@@ -144,8 +325,8 @@ def master_switch(cfg, switch):
         # switch that looks off is how a run executed the half that had just
         # been unplugged.
         st.warning('**Not saved.** The run reads the configuration FILE, '
-                   'which still says `%s = %s`. Press *Validate & save* or '
-                   'the next run will %s it anyway.'
+                   'which still says `%s = %s`. Press *Validate & save* in '
+                   'the sidebar or the next run will %s it anyway.'
                    % (switch, 'true' if saved else 'false',
                       'still run' if saved else 'still skip'))
     if not val:
@@ -1169,80 +1350,30 @@ def table_form(cfg, dotted, singular, path, records=()):
 
     edited = st.data_editor(rows, num_rows='dynamic', width='stretch',
                             key='tbl_%s' % dotted)
-    c1, c2 = st.columns([1, 4])
-    if c1.button('Save %s' % singular.lower(), key='save_%s' % dotted):
-        try:
-            new = editor.set_table(cfg, dotted, list(edited))
-        except (editor.EditError, mcfg.ConfigError) as exc:
-            c2.error('NOT saved:\n\n%s' % exc)
-        else:
-            new.write_toml(path)
-            c2.success('Saved %d row(s) — hash %s'
-                       % (len(edited), new.config_hash()))
-            st.rerun()
+    # REMEMBERED, not written. It used to have a *Save <thing>* button of its
+    # own that wrote the file straight out, which was a second way to write
+    # the configuration: pressing it discarded whatever the panels had
+    # entered and not saved, and saving a panel discarded the table.
+    remember_table(dotted, list(edited))
+    if editor.table_rows(cfg, dotted) != [dict(r) for r in edited]:
+        st.caption('Changed — *Validate & save* in the sidebar writes it '
+                   'with the rest of the configuration.')
 
 
-def switch_and_save(cfg, panel):
-    """The group's switch and the panel's save, side by side at the TOP.
+def panel_switch(cfg, panel):
+    """The group's on/off, at the top of the panel it governs.
 
-    Returns ``(edited, slot)``. The save is DRAWN here and FILLED last: it
-    writes everything the panel collected, and a panel collects it tab by
-    tab as the tabs are drawn, so a button that captured the edits at this
-    point would capture an empty dict. The container reserves the place and
-    ``save_button(slot=...)`` puts the button in it once every sub-panel has
-    had its say.
-
-    One switch, one save, both where the modeller looks first -- rather than
-    a button at the foot of a page whose tabs may each be a screenful.
+    Was ``switch_and_save``, which also reserved a place for that panel's own
+    *Validate & save*. There is no longer such a button: a panel REMEMBERS
+    (see :func:`remember`) and the sidebar writes. What is left is the
+    switch, which still belongs at the top of the page it governs rather
+    than in a sidebar where three of them would sit without their context.
     """
     edited = {}
-    c1, c2 = st.columns([2, 3])
+    c1, _c2 = st.columns([2, 3])
     with c1:
         edited.update(master_switch(cfg, panel[3]) or {})
-    return edited, c2.container()
-
-
-def save_button(cfg, path, edited, label='Validate & save', slot=None,
-                key='save_panel'):
-    """The one way a panel writes. Validates first, and says what changed.
-
-    ``slot`` is a container reserved earlier -- see :func:`switch_and_save`.
-    Without one the button is drawn where it stands, under a rule.
-
-    ``key`` is CONSTANT, and has to be. It used to be ``'save_%s' % id(edited)``
-    -- the id of a dict built fresh on every run -- so the button was a
-    different widget each rerun: the click arrived for a key that no longer
-    existed and the new button read False. It appeared to work whenever
-    CPython happened to hand the new dict the address the old one had just
-    freed, which is most of the time and not all of it. The symptom was a
-    Validate & save that silently did nothing.
-    """
-    box = slot if slot is not None else st.container()
-    with box:
-        if slot is None:
-            st.markdown('---')
-        c1, c2 = st.columns([1, 3])
-        if not c1.button(label, type='primary', key=key):
-            return
-        try:
-            applied, digest = editor.save(cfg, path, edited)
-        except (editor.EditError, mcfg.ConfigError) as exc:
-            c2.error('NOT saved — the configuration would be invalid:\n\n%s'
-                     % exc)
-            return
-        if not applied:
-            c2.info('Nothing changed.')
-            return
-        c2.success('Saved %d change(s) — hash %s' % (len(applied), digest))
-        with c2.expander('What changed'):
-            for a in applied:
-                st.code(a, language='ini')
-        moved, why = rename_to_model(cfg, path)
-        if moved:
-            c2.success(why)
-        elif why:
-            c2.warning(why)
-    st.rerun()
+    return remember(edited)
 
 
 def rename_to_model(cfg, path):

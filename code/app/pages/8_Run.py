@@ -26,13 +26,15 @@ for p in (CODE, APP):
 
 import marmites_config as mcfg        # noqa: E402
 import mm_paths                       # noqa: E402
+from lib import checks as chk          # noqa: E402
 from lib import panelui               # noqa: E402
 from lib import runs as runlib        # noqa: E402
 
 st.set_page_config(page_title='Run', page_icon='▶️', layout='wide')
 CONFIG_DIR = os.path.join(CODE, 'configs')
 
-st.title('Run')
+st.title('▶️  8 — Run')
+panelui.saved_note()
 
 files = sorted(f for f in os.listdir(CONFIG_DIR) if f.endswith('.toml')) \
     if os.path.isdir(CONFIG_DIR) else []
@@ -114,39 +116,90 @@ with _lc2:
                'MODFLOW one stress period at a time through the API, which '
                'the executable cannot do. A folder is completed to the '
                'library inside it.')
-panelui.save_button(cfg, cfg_path, _lib_edit, key='save_libmf6')
+panelui.remember(_lib_edit)
 
-# WHAT THE PANELS SHOW MUST BE WHAT RUNS. A master switch is a widget: it
-# changes its panel at once and the FILE only when that panel is saved, and
-# this page launches the FILE. Unplugging MMsurf and launching from here ran
-# MMsurf, because [run] surface was still true -- the run was right and the
-# screen was lying. Only meaningful for the configuration the panels are
-# editing; another file in the selectbox never had those switches touched.
-pending = panelui.unsaved_switches(cfg) if chosen == _panels else []
-if pending:
-    st.error(
-        '**This configuration does not match the panels.** %s\n\nThe run '
-        'reads the file, so launching now would run what the panels no '
-        'longer say. Go back to the panel and press *Validate & save*, or '
-        'set the switch back.'
-        % '  \n'.join(
-            '`%s` — the panel says **%s**, the file says **%s**.'
-            % (sw, 'ON' if live else 'off', 'true' if saved else 'false')
-            for sw, live, saved in pending))
+# ------------------------------------------------------------------ launch
+# LAUNCH SAVES, THEN VALIDATES, THEN RUNS -- in that order, and it is the
+# whole point of the button. The run reads the FILE, so anything the panels
+# hold and have not written would be silently left out; and a configuration
+# nobody has looked at is how a multi-hour run gets spent on a stress-period
+# cap left over from a trial.
+#
+#   errors   -> nothing is launched, and the Validation panel is opened
+#               on them
+#   warnings -> nothing is launched YET, the Validation panel is opened so
+#               they are SEEN,
+#               and the run can be started from there
+#   neither  -> it runs
+#
+# Panel 7 asks lib.checks exactly as this does, so the two cannot disagree.
+st.markdown('---')
+st.markdown('#### Launch')
+_todo = panelui.unsaved_changes(cfg)
+if _todo:
+    st.info('%d unsaved change(s). Launch saves them first.' % len(_todo))
 
-can_launch = (not overrides) or (preview is not None)
-can_launch = can_launch and not pending
-if st.button('Launch', type='primary', disabled=not can_launch):
+# The checks are run HERE as well as on the press, so the state of the button
+# tells the truth before it is pressed: an error is a wall, not a surprise.
+_now = chk.count_by_level(chk.collect_default(
+    cfg, panelui.unsaved_switches(cfg)))
+if _now[chk.ERROR]:
+    st.error('**%d error(s).** This configuration cannot run — the '
+             'Validation panel says what they are.' % _now[chk.ERROR])
+elif _now[chk.WARNING]:
+    st.warning('**%d warning(s).** Launch will take you to the Validation '
+               'panel to read them; the run can be started from there.'
+               % _now[chk.WARNING])
+panelui.panel_link(panelui.VALIDATION_PAGE,
+                   'Validation of the configuration', icon='🔎')
+
+def _start():
+    """Actually start the detached run."""
     try:
-        run_id, st_payload = runlib.launch(
+        run_id, payload = runlib.launch(
             cfg_path, RUNS, overrides=overrides, run_tag=run_tag or None,
-            python_exe=(mm_paths.PYTHON_EXE if os.path.exists(mm_paths.PYTHON_EXE)
+            python_exe=(mm_paths.PYTHON_EXE
+                        if os.path.exists(mm_paths.PYTHON_EXE)
                         else sys.executable))
-    except Exception as exc:
+    except Exception as exc:                            # noqa: BLE001
         st.error('Launch failed: %s' % exc)
     else:
         st.session_state['watch'] = run_id
-        st.success('Launched `%s` (pid %s)' % (run_id, st_payload['pid']))
+        st.success('Launched `%s` (pid %s)' % (run_id, payload['pid']))
+
+
+# Arriving from the Validation panel's own Launch: the checks were just run
+# and looked at there, so they are not asked again -- the hash says it is the
+# same configuration that was approved.
+_approved = st.session_state.pop('validated', None) == cfg.config_hash()
+
+can_launch = ((not overrides) or (preview is not None)) \
+    and not _now[chk.ERROR]
+if _approved:
+    st.info('Validated — starting.')
+    _start()
+elif st.button('Launch', type='primary', disabled=not can_launch):
+    if _todo:
+        _applied, _why, _ok = panelui.save_now(cfg, cfg_path)
+        if not _ok:
+            st.error('NOT saved, so nothing was launched — the configuration '
+                     'would be invalid:\n\n%s' % _why)
+            st.stop()
+        cfg = mcfg.load_run_config(cfg_path)
+        st.session_state['__saved_note'] = (
+            'Saved %d change(s) before launching.' % len(_applied))
+    _counts = chk.count_by_level(
+        chk.collect_default(cfg, panelui.unsaved_switches(cfg)))
+    if _counts[chk.ERROR] or _counts[chk.WARNING]:
+        # NOT launched. Panel 7 says what is wrong, in full, and offers the
+        # launch again for the cases that are only warnings.
+        if not panelui.go_to(panelui.VALIDATION_PAGE):
+            st.error('This configuration has %d error(s) and %d warning(s) '
+                     'and was NOT launched. Open the Validation of the '
+                     'configuration panel to read them.'
+                     % (_counts[chk.ERROR], _counts[chk.WARNING]))
+            st.stop()
+    _start()
 
 st.markdown('---')
 known = runlib.list_runs(RUNS)
@@ -181,3 +234,6 @@ if info.get('state') == 'running' and st.button('Stop this run'):
 if auto and info.get('state') == 'running':
     time.sleep(max(1, int(cfg.ui.poll_secs)))
     st.rerun()
+
+# The one save, as on every other panel: this page edits paths.libmf6.
+panelui.sidebar_save(cfg, cfg_path)

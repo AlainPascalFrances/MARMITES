@@ -68,13 +68,25 @@ def apply_changes(cfg, edited):
     return new, todo
 
 
-def save(cfg, path, edited=None):
+def save(cfg, path, edited=None, tables=None):
     """Validate, then write. Returns (applied, config_hash).
 
     ``write_toml`` writes the RESOLVED configuration, so the file that comes
     back is what the model will actually see -- provenance, not a draft.
+
+    ``tables`` maps a dotted array-of-tables to its rows, and they go through
+    the SAME save as the scalar fields. With one save button for the whole
+    configuration, a vegetation table that wrote itself on its own button
+    would be a second way to write the file, and the two would take turns
+    discarding each other's unsaved edits.
     """
     new, applied = apply_changes(cfg, edited or {})
+    for dotted, rows in sorted((tables or {}).items()):
+        rows = [dict(r) for r in rows]
+        if table_rows(new, dotted) == rows:
+            continue
+        new = set_table(new, dotted, rows)
+        applied.append('%s = %d row(s)' % (dotted, len(rows)))
     new.validate()
     d = os.path.dirname(os.path.abspath(path))
     if not os.path.isdir(d):

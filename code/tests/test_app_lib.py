@@ -384,3 +384,171 @@ def test_the_run_page_and_the_driver_use_one_resolver():
     mod = runs.import_runner()
     assert hasattr(mod, 'resolve_libmf6') and hasattr(mod, 'check_libmf6')
     assert os.path.isfile(runs.driver_path())
+
+
+# ------------------------------------------------------ the validation checks
+# ONE answer serves the validation panel and the Launch button. These pin the
+# levels down, because the level is what decides whether a run is blocked, and
+# a check promoted from warning to error silently would stop every run.
+
+def _checks():
+    return _load('_checks_mod', os.path.join(CODE, 'app', 'lib', 'checks.py'))
+
+
+def _cfg(**over):
+    import marmites_config as mcfg
+    cfg = mcfg.RunConfig.from_dict({})
+    for dotted, val in over.items():
+        sec, key = dotted.split('__')
+        setattr(getattr(cfg, sec), key, val)
+    return cfg
+
+
+def test_a_level_that_does_not_exist_is_refused():
+    chk = _checks()
+    with pytest.raises(chk.CheckError):
+        chk.Check('fatal', 'nope')
+
+
+def test_worst_and_the_counts():
+    chk = _checks()
+    some = [chk.Check(chk.INFO, 'a'), chk.Check(chk.WARNING, 'b'),
+            chk.Check(chk.ERROR, 'c')]
+    assert chk.worst(some) == chk.ERROR
+    assert chk.worst([]) == ''
+    assert chk.worst(some[:2]) == chk.WARNING
+    assert chk.count_by_level(some) == {chk.ERROR: 1, chk.WARNING: 1,
+                                        chk.INFO: 1}
+
+
+def test_a_switch_the_panels_contradict_is_an_error():
+    """It is the one that made MMsurf run after being unplugged."""
+    chk = _checks()
+    got = list(chk.check_switches(_cfg(),
+                                  unsaved=[('run.surface', False, True)]))
+    assert len(got) == 1 and got[0].level == chk.ERROR
+    assert 'run.surface' in got[0].title
+
+
+def test_a_stress_period_cap_is_a_warning_not_an_error():
+    """It does not stop a run; it makes the result mean something else."""
+    chk = _checks()
+    got = [c for c in chk.check_run_scope(_cfg(run__nsp=365))
+           if c.key == 'run.nsp']
+    assert len(got) == 1 and got[0].level == chk.WARNING
+    assert '365' in got[0].title
+    assert not [c for c in chk.check_run_scope(_cfg(run__nsp=0))
+                if c.key == 'run.nsp']
+
+
+def test_a_blank_library_is_a_note_and_not_a_problem():
+    """Blank means build and stop -- a choice, not a mistake."""
+    chk = _checks()
+    got = list(chk.check_libmf6(_cfg(paths__libmf6='')))
+    assert len(got) == 1 and got[0].level == chk.INFO
+
+
+def test_a_library_that_is_not_there_is_an_error():
+    chk = _checks()
+
+    class _Runner(object):
+        class LibMF6Error(Exception):
+            pass
+
+        @staticmethod
+        def resolve_libmf6(given):
+            return given
+
+        @staticmethod
+        def check_libmf6(path):
+            raise RuntimeError('not there')
+
+    got = list(chk.check_libmf6(_cfg(paths__libmf6='C:/nope/libmf6.dll'),
+                                runner=_Runner))
+    assert len(got) == 1 and got[0].level == chk.ERROR
+    assert got[0].panel == chk.RUN_PANEL
+
+
+def test_a_check_that_blows_up_becomes_an_error_and_not_a_crash():
+    """The panel's whole job is to be reachable when something is wrong."""
+    chk = _checks()
+
+    def _boom(cfg, **kw):
+        raise ZeroDivisionError('boom')
+        yield                                        # pragma: no cover
+
+    old = chk.CHECKS
+    chk.CHECKS = (_boom,)
+    try:
+        got = chk.collect(_cfg())
+    finally:
+        chk.CHECKS = old
+    assert len(got) == 1 and got[0].level == chk.ERROR
+    assert '_boom' in got[0].title and 'boom' in got[0].title
+
+
+def test_collect_puts_the_worst_first():
+    chk = _checks()
+    cfg = _cfg(run__nsp=10)
+    got = chk.collect(cfg, unsaved=[('run.surface', False, True)])
+    levels = [c.level for c in got]
+    assert levels == sorted(levels, key=lambda l: {'error': 0, 'warning': 1,
+                                                   'info': 2}[l])
+
+
+def test_problems_returns_what_validate_raises():
+    """The panel needs them one at a time; validate joins them."""
+    import marmites_config as mcfg
+    cfg = mcfg.RunConfig.from_dict({})
+    assert cfg.problems() == []
+    cfg.run.relax = 9.0
+    errs = cfg.problems()
+    assert errs and any('relax' in e for e in errs)
+    with pytest.raises(mcfg.ConfigError) as exc:
+        cfg.validate()
+    for e in errs:
+        assert e in str(exc.value)
+
+
+def test_a_table_is_saved_through_the_same_save_as_the_fields():
+    """Two ways to write the file would take turns discarding each other."""
+    import shutil
+    import marmites_config as mcfg
+    editor = _load('_editor_mod', os.path.join(CODE, 'app', 'lib', 'editor.py'))
+    src = os.path.join(CODE, 'configs', 'lamata.toml')
+    tmp = os.path.join(CODE, 'configs', '_tbltest.toml')
+    shutil.copy2(src, tmp)
+    try:
+        cfg = mcfg.load_run_config(tmp)
+        rows = editor.table_rows(cfg, 'surface.vegetation')
+        assert rows, 'no vegetation to edit'
+        rows[0] = dict(rows[0])
+        rows[0]['name'] = 'renamed_by_test'
+        applied, _digest = editor.save(
+            cfg, tmp, {'run.relax': 0.42},
+            {'surface.vegetation': rows})
+        assert any('run.relax' in a for a in applied), applied
+        assert any('surface.vegetation' in a for a in applied), applied
+        back = mcfg.load_run_config(tmp)
+        assert back.run.relax == 0.42
+        assert back.surface.vegetation[0].name == 'renamed_by_test'
+    finally:
+        if os.path.exists(tmp):
+            os.remove(tmp)
+
+
+def test_an_unchanged_table_is_not_reported_as_a_change():
+    import shutil
+    import marmites_config as mcfg
+    editor = _load('_editor_mod', os.path.join(CODE, 'app', 'lib', 'editor.py'))
+    src = os.path.join(CODE, 'configs', 'lamata.toml')
+    tmp = os.path.join(CODE, 'configs', '_tbltest2.toml')
+    shutil.copy2(src, tmp)
+    try:
+        cfg = mcfg.load_run_config(tmp)
+        rows = editor.table_rows(cfg, 'surface.vegetation')
+        applied, _d = editor.save(cfg, tmp, {}, {'surface.vegetation': rows})
+        assert applied == [], applied
+    finally:
+        if os.path.exists(tmp):
+            os.remove(tmp)

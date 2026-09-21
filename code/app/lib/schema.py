@@ -11,11 +11,21 @@ The panel order is the modeller's:
     0  Overview        what this is, and what to fill in first
     1  Grid            the catchment polygon and the grid built inside it
     2  Surface         MMsurf: the meteorological record -> the daily forcing
-    3  Model           MMsoil and MODFLOW 6, which run together
-    4  Plots           the figures
+    3  Soil            what MMsoil reads
+    4  Unsaturated zone and groundwater    what MODFLOW 6 reads
+    5  State variables what was measured, to compare the run against
+    6  Plots           the figures
+    7  Validation      everything that can be said about it before a run
+    8  Run             launch it, and follow the log
+    9  Results         the figures a run wrote
 
-Panels 2, 3 and 4 carry a MASTER SWITCH, and it is not decoration: the same
-``[run]`` key the driver reads decides whether that half of the model runs.
+Panels 2, 3, 4 and 6 carry a MASTER SWITCH, and it is not decoration: the
+same ``[run]`` key the driver reads decides whether that half of the model
+runs. Panels 7 to 9 settle nothing, so they are not in ``PANELS`` -- that
+table is the list of panels that EDIT the configuration.
+
+NO PANEL SAVES. A panel remembers what was typed into it and the sidebar
+writes the whole configuration at once; see ``panelui.remember``.
 
 Labels come from the ini files the panels replace, so a modeller who knows
 ``kTg_min`` can still find it, with a sentence saying what it does.

@@ -127,7 +127,7 @@ def main():
         st.caption('MODFLOW writes `%s.hds`, `%s.cbc`, `%s.lst`. Saving '
                    'renames this file to match.'
                    % (_effective, _effective, _effective))
-    panelui.save_button(cfg, path, _edited, key='save_model_name')
+    panelui.remember(_edited)
 
     # THE FILE, which is what a run reads -- not the toggles, which are
     # widgets until a panel saves them. Where the two disagree the metric
@@ -169,8 +169,10 @@ def main():
         rows.append('| **%d %s** | %s | %s |'
                     % (num, title, blurb.split('.')[0].strip().rstrip('.'),
                        '`%s`' % switch if switch else 'always'))
-    rows.append('| **7 Run** | launch it, and follow the log | — |')
-    rows.append('| **8 Results** | the figures a run wrote | — |')
+    rows.append('| **7 Validation of the configuration** | everything that '
+                'can be said about it before a run | — |')
+    rows.append('| **8 Run** | launch it, and follow the log | — |')
+    rows.append('| **9 Results** | the figures a run wrote | — |')
     st.markdown(chr(10).join(rows))
     st.markdown("""
 
@@ -212,6 +214,10 @@ reads, so turning one off means that half of the model does not execute.
                'this tab, and its log keeps being written. Nothing here runs a '
                'model inline — a coupled run is minutes and a calibration is '
                'hours.')
+
+    # The one save, as on every panel. Last, so it counts what this page has
+    # remembered on this run.
+    panelui.sidebar_save(cfg, path)
 
 
 main()

@@ -32,7 +32,7 @@ cfg, path = panelui.pick_config()
 ds = panelui.dataset_banner(cfg)
 panel = panelui.header(3)
 
-edited, save_slot = panelui.switch_and_save(cfg, panel)
+edited = panelui.panel_switch(cfg, panel)
 
 tab_soil, tab_veg, tab_gis = st.tabs(
     ['Soil column', 'Vegetation characteristics', 'Cartography'])
@@ -132,5 +132,6 @@ with tab_gis:
         st.code(st.session_state['conv'], language='text')
 
 
-# Filled last, drawn first: see switch_and_save.
-panelui.save_button(cfg, path, edited, slot=save_slot)
+# REMEMBERED, not written: the one save is in the sidebar (see panelui).
+panelui.remember(edited)
+panelui.sidebar_save(cfg, path)

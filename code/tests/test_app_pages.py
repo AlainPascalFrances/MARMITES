@@ -32,7 +32,8 @@ PLOT = 'pages/6_Plots.py'
 PAGES = ['Home.py'] + [os.path.join('pages', f) for f in (
     '1_Grid.py', '2_Surface_and_driving_forces.py', '3_Soil.py',
     '4_Unsaturated_zone_and_groundwater.py', '5_State_variables.py',
-    '6_Plots.py', '7_Run.py', '8_Results.py')]
+    '6_Plots.py', '7_Validation_of_the_configuration.py', '8_Run.py',
+    '9_Results.py')]
 
 
 @pytest.mark.parametrize('page', PAGES)
@@ -53,8 +54,9 @@ def test_the_panels_are_numbered_in_the_modellers_order():
     assert names == ['1_Grid.py', '2_Surface_and_driving_forces.py',
                      '3_Soil.py',
                      '4_Unsaturated_zone_and_groundwater.py',
-                     '5_State_variables.py', '6_Plots.py', '7_Run.py',
-                     '8_Results.py']
+                     '5_State_variables.py', '6_Plots.py',
+                     '7_Validation_of_the_configuration.py', '8_Run.py',
+                     '9_Results.py']
 
 
 def test_the_panels_offer_something_to_edit():
@@ -722,33 +724,46 @@ def test_the_vegetation_class_column_is_a_list_too():
         'the column was taken away instead of falling back to a box')
 
 
-def test_the_save_is_beside_the_switch_and_collects_every_sub_panel():
-    """DRAWN at the top, beside the switch, and FILLED last.
+def test_no_panel_carries_a_save_button_of_its_own():
+    """ONE SAVE, IN THE SIDEBAR, FOR THE WHOLE CONFIGURATION.
 
-    A save button that captures the edits where it is drawn would capture an
-    empty dict, since a panel collects them tab by tab as the tabs are drawn
-    -- and one drawn inside a tab misses every tab after it, which on the
-    driving-forces panel is the whole time discretisation. So every panel
-    reserves the place with switch_and_save and fills it at the end, at
-    column 0.
+    There used to be a *Validate & save* on every panel, which meant a panel
+    filled and left unsaved was silently discarded, and "is this saved?" was
+    a question with six answers. A panel now REMEMBERS and the sidebar
+    writes.
+    """
+    for page in (SURF, SOIL, SUB, OBS, PLOT, 'pages/1_Grid.py'):
+        src = io.open(os.path.join(APP, page), encoding='utf-8').read()
+        assert 'panelui.save_button(' not in src, \
+            '%s still draws its own save button' % page
+        assert 'switch_and_save' not in src, \
+            '%s still reserves a slot for one' % page
+    src = io.open(os.path.join(APP, 'lib', 'panelui.py'),
+                  encoding='utf-8').read()
+    assert 'def save_button(' not in src, \
+        'panelui still offers a per-panel save button'
+
+
+def test_every_panel_remembers_last_and_offers_the_sidebar_save():
+    """Collected at the END, so every sub-panel has had its say.
+
+    A panel collects tab by tab as the tabs are drawn, so remembering where
+    the old button was drawn -- at the top -- would remember an empty dict,
+    and remembering inside a tab would miss every tab after it (on the
+    driving-forces panel, the whole time discretisation).
     """
     for page in (SURF, SOIL, SUB, OBS, PLOT):
         src = io.open(os.path.join(APP, page), encoding='utf-8').read()
-        calls = [ln for ln in src.splitlines()
-                 if 'panelui.save_button(' in ln]
-        assert len(calls) == 1, '%s has %d save buttons' % (page, len(calls))
-        assert calls[0].startswith('panelui.save_button('), (
-            '%s: the save button is inside a block: %r' % (page, calls[0]))
-        assert 'slot=save_slot' in calls[0], (
-            '%s: the save is not in the slot beside the switch' % page)
-        assert 'switch_and_save(cfg, panel)' in src, (
-            '%s: no place is reserved for it' % page)
-        # ... and it is the LAST thing the page does, so every sub-panel has
-        # had its say by then.
         body = [ln for ln in src.splitlines()
                 if ln.strip() and not ln.lstrip().startswith('#')]
-        assert body[-1] == calls[0], (
-            '%s: something is collected after the save: %r' % (page, body[-1]))
+        assert body[-1] == 'panelui.sidebar_save(cfg, path)', (
+            '%s: the sidebar save is not the last thing on the page: %r'
+            % (page, body[-1]))
+        assert body[-2] == 'panelui.remember(edited)', (
+            '%s: the edits are not remembered just before it: %r'
+            % (page, body[-2]))
+        assert 'panelui.panel_switch(cfg, panel)' in src, (
+            '%s: the master switch is gone' % page)
 
 
 def test_the_time_discretisation_has_a_sub_panel_of_its_own():
@@ -809,8 +824,8 @@ def test_validate_and_save_actually_writes():
         at.run()
         [t for t in at.toggle if t.key == 'sw_run.model'][0] \
             .set_value(False).run()
-        save = [b for b in at.button if b.key == 'save_panel']
-        assert save, 'the panel save button is not keyed predictably'
+        save = [b for b in at.button if b.key == 'sidebar_save']
+        assert save, 'the sidebar save is not keyed predictably'
         save[0].click().run()
         assert says('model') == 'model = false', (
             'Validate & save did not write the switch: %s' % says('model'))
@@ -844,7 +859,12 @@ def test_saving_a_source_does_not_invent_a_value():
         at = AppTest.from_file(os.path.join(APP, SURF), default_timeout=180)
         at.session_state['config_file'] = os.path.basename(tmp)
         at.run()
-        [b for b in at.button if b.key == 'save_panel'][0].click().run()
+        # SOMETHING has to change, or the sidebar save is disabled and this
+        # would assert on a file nothing had written.
+        at.number_input(key='run.nsp').set_value(7).run()
+        save = [b for b in at.button if b.key == 'sidebar_save']
+        assert save and not save[0].disabled, 'the sidebar save is not offered'
+        save[0].click().run()
 
         body = io.open(tmp, encoding='utf-8').read()
         head = body.index('[surface.irr_zones]')
@@ -1201,17 +1221,30 @@ def _scratch_with_mmsurf_on():
     until exactly that happened -- so the starting state is SET, not found.
     """
     tmp = _scratch_config(SWITCH_CFG)
+    _force(tmp, 'run', 'surface', 'surface = true')
+    return tmp
+
+
+def _force(path, section, key, line):
+    """Put a key in a KNOWN state in a scratch configuration.
+
+    The reference file these copies come from is a LIVE working file: it is
+    edited in the browser between test runs, and a test that reads its
+    starting state out of it is a test that passes until someone changes
+    that setting -- which has now happened twice, once for the MMsurf switch
+    and once for paths.libmf6.
+    """
     out, here = [], None
-    for line in io.open(tmp, encoding='utf-8'):
-        s = line.strip()
+    for raw in io.open(path, encoding='utf-8'):
+        s = raw.strip()
         if s.startswith('[') and s.endswith(']'):
             here = s[1:-1]
-        elif here == 'run' and s.startswith('surface '):
-            line = 'surface = true\n'
-        out.append(line)
-    io.open(tmp, 'w', encoding='utf-8', newline='').write(''.join(out))
-    assert _says(tmp, 'run', 'surface') == 'surface = true'
-    return tmp
+        elif here == section and s.startswith(key + ' '):
+            raw = line + '\n'
+        out.append(raw)
+    io.open(path, 'w', encoding='utf-8', newline='').write(''.join(out))
+    assert _says(path, section, key) == line, _says(path, section, key)
+    return path
 
 
 def _says(path, section, key):
@@ -1236,8 +1269,8 @@ def test_unplugging_mmsurf_and_saving_writes_it():
         sw = [t for t in at.toggle if t.key == 'sw_run.surface']
         assert sw, 'panel 2 has no MMsurf switch'
         sw[0].set_value(False).run()
-        save = [b for b in at.button if b.key == 'save_panel']
-        assert save, 'the panel save button is not keyed predictably'
+        save = [b for b in at.button if b.key == 'sidebar_save']
+        assert save, 'the sidebar save is not keyed predictably'
         save[0].click().run()
         assert _says(tmp, 'run', 'surface') == 'surface = false', (
             'Validate & save did not unplug MMsurf: %s'
@@ -1274,7 +1307,7 @@ def test_the_run_page_refuses_a_configuration_the_panels_contradict():
     from lib import panelui
     tmp = _scratch_with_mmsurf_on()
     try:
-        at = AppTest.from_file(os.path.join(APP, 'pages', '7_Run.py'),
+        at = AppTest.from_file(os.path.join(APP, 'pages', '8_Run.py'),
                                default_timeout=300)
         at.session_state['config_file'] = os.path.basename(tmp)
         # what panel 2 would have left behind, having been unplugged and
@@ -1286,8 +1319,8 @@ def test_the_run_page_refuses_a_configuration_the_panels_contradict():
         assert launch[0].disabled, \
             'Launch is offered although the panels contradict the file'
         said = ' '.join(str(e.value) for e in at.error)
-        assert 'run.surface' in said, \
-            'the refusal does not name the switch: %r' % said
+        assert 'error' in said.lower(), \
+            'the refusal says nothing: %r' % said
         assert 'run.surface' in panelui.SWITCHES
     finally:
         if os.path.exists(tmp):
@@ -1315,9 +1348,10 @@ def test_switching_configuration_forgets_the_other_ones_switches():
 def test_the_library_can_be_set_from_the_run_page():
     """It was described in the schema and drawn by no panel, so the one
     field between a build and a coupled run needed a text editor."""
-    tmp = _scratch_config('_libtest.toml')
+    tmp = _force(_scratch_config('_libtest.toml'), 'paths', 'libmf6',
+                 'libmf6 = ""')
     try:
-        at = AppTest.from_file(os.path.join(APP, 'pages', '7_Run.py'),
+        at = AppTest.from_file(os.path.join(APP, 'pages', '8_Run.py'),
                                default_timeout=300)
         at.session_state['config_file'] = os.path.basename(tmp)
         at.run()
@@ -1326,11 +1360,98 @@ def test_the_library_can_be_set_from_the_run_page():
         assert box, 'paths.libmf6 is on no panel: %s' % [
             w.key for w in at.text_input]
         box[0].set_value('auto').run()
-        save = [b for b in at.button if b.key == 'save_libmf6']
-        assert save, 'the library has no save button'
+        save = [b for b in at.button if b.key == 'sidebar_save']
+        assert save, 'the Run page does not offer the sidebar save'
         save[0].click().run()
         assert _says(tmp, 'paths', 'libmf6') == 'libmf6 = "auto"', \
             _says(tmp, 'paths', 'libmf6')
+    finally:
+        if os.path.exists(tmp):
+            os.remove(tmp)
+
+
+# ------------------------------------------- one save, for every panel at once
+# THE POINT OF THE SIDEBAR SAVE. A panel used to carry its own Validate &
+# save, so a panel filled and left was silently discarded and "is this saved?"
+# had six answers. Edits now accumulate across pages and one button writes
+# them.
+
+def test_edits_made_on_one_panel_are_saved_from_another():
+    tmp = _force(_scratch_config('_crosstest.toml'), 'run', 'nsp', 'nsp = 0')
+    try:
+        at = AppTest.from_file(os.path.join(APP, SURF), default_timeout=300)
+        at.session_state['config_file'] = os.path.basename(tmp)
+        at.run()
+        at.number_input(key='run.nsp').set_value(42).run()
+        # NOT saved by leaving the panel: carried.
+        assert _says(tmp, 'run', 'nsp') == 'nsp = 0', _says(tmp, 'run', 'nsp')
+        carried = at.session_state['__pending_edits']
+        assert carried.get('run.nsp') == 42, carried
+
+        # ... and written by the sidebar save on a DIFFERENT panel.
+        at2 = AppTest.from_file(os.path.join(APP, PLOT), default_timeout=300)
+        at2.session_state['config_file'] = os.path.basename(tmp)
+        at2.session_state['__switch_file'] = os.path.basename(tmp)
+        at2.session_state['__pending_edits'] = dict(carried)
+        at2.run()
+        save = [b for b in at2.button if b.key == 'sidebar_save']
+        assert save and not save[0].disabled, \
+            'the sidebar save does not offer another panel\'s edits'
+        save[0].click().run()
+        assert _says(tmp, 'run', 'nsp') == 'nsp = 42', _says(tmp, 'run', 'nsp')
+    finally:
+        if os.path.exists(tmp):
+            os.remove(tmp)
+
+
+def test_the_remembered_edits_are_dropped_on_changing_configuration():
+    """They were entered against a different file."""
+    tmp = _scratch_config('_crosstest2.toml')
+    try:
+        at = AppTest.from_file(os.path.join(APP, PLOT), default_timeout=300)
+        at.session_state['config_file'] = os.path.basename(tmp)
+        at.session_state['__switch_file'] = '_some_other_case.toml'
+        at.session_state['__pending_edits'] = {'run.nsp': 999}
+        at.run()
+        left = at.session_state['__pending_edits']
+        assert left.get('run.nsp') != 999, \
+            'another file\'s edits survived the change: %r' % left
+    finally:
+        if os.path.exists(tmp):
+            os.remove(tmp)
+
+
+def test_the_validation_panel_lists_what_it_finds():
+    tmp = _force(_scratch_config('_valtest.toml'), 'run', 'nsp', 'nsp = 365')
+    try:
+        at = AppTest.from_file(
+            os.path.join(APP, 'pages',
+                         '7_Validation_of_the_configuration.py'),
+            default_timeout=300)
+        at.session_state['config_file'] = os.path.basename(tmp)
+        at.run()
+        assert not at.exception, [str(e.value) for e in at.exception]
+        said = ' '.join(str(m.value) for m in at.markdown)
+        assert 'run.nsp' in said, 'the cap is not listed: %r' % said[:400]
+        warned = ' '.join(str(w.value) for w in at.warning)
+        assert 'warning' in warned.lower(), warned[:200]
+    finally:
+        if os.path.exists(tmp):
+            os.remove(tmp)
+
+
+def test_the_launch_is_blocked_while_the_configuration_has_an_error():
+    """Errors are a wall, and the button says so before it is pressed."""
+    tmp = _scratch_with_mmsurf_on()
+    try:
+        at = AppTest.from_file(os.path.join(APP, 'pages', '8_Run.py'),
+                               default_timeout=300)
+        at.session_state['config_file'] = os.path.basename(tmp)
+        at.session_state['live_run.surface'] = False     # panel says off
+        at.run()
+        launch = [b for b in at.button if b.label == 'Launch']
+        assert launch and launch[0].disabled, \
+            'Launch is offered on an invalid configuration'
     finally:
         if os.path.exists(tmp):
             os.remove(tmp)

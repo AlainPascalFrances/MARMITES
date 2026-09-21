@@ -16,9 +16,10 @@ Two buttons, and the difference between them is the whole design of the page:
                     chosen attempt into the configuration, and that is the
                     grid a run will use.
 
-There is deliberately no separate "Validate & save" here: on this panel a
-save IS the selection, and two buttons that both write would only differ in
-whether the mesh had been looked at first.
+Selecting is this panel's own save, and it goes through the SAME write as
+the sidebar's — it carries a side effect the sidebar cannot have, promoting
+the mesh that was just built, so it writes whatever is pending on the other
+panels too rather than discarding it.
 """
 
 import os
@@ -966,12 +967,17 @@ with tab_mesh:
         st.markdown('---')
         if st.button('Select this grid for the model', type='primary',
                      key='selgrid', width='stretch'):
-            try:
-                applied, digest = editor.save(cfg, path,
-                                              _settings_of(att['cfg']))
-            except (editor.EditError, mcfg.ConfigError) as exc:
+            # THE ONE WRITE PATH. This is not a second save button: it is a
+            # commitment with a side effect the sidebar cannot have -- it
+            # promotes the mesh that was just built. So it REMEMBERS the
+            # settings that produced this attempt and then performs the same
+            # save, which also writes whatever is pending on other panels
+            # rather than discarding it.
+            panelui.remember(_settings_of(att['cfg']))
+            applied, digest, _ok = panelui.save_now(cfg, path)
+            if not _ok:
                 st.error('NOT selected — the configuration would be '
-                         'invalid:\n\n%s' % exc)
+                         'invalid:\n\n%s' % digest)
             else:
                 st.session_state['grid_selected'] = att['tag']
                 st.success('Selected **%s** — %d change(s), hash %s'
@@ -999,3 +1005,9 @@ with tab_mesh:
         if kind != cfg.grid_kind:
             st.info('The configuration currently says **%s**; this attempt is '
                     '**%s**.' % (cfg.grid_kind, kind))
+
+# REMEMBERED, not written: the one save is in the sidebar (see panelui).
+# The grid settings are collected across both tabs above, and "Select this
+# grid for the model" is the commitment that also promotes the mesh.
+panelui.remember(edited)
+panelui.sidebar_save(cfg, path)

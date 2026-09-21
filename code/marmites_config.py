@@ -1413,7 +1413,13 @@ class RunConfig:
         cfg.validate()
         return cfg
 
-    def validate(self):
+    def problems(self):
+        """Every reason this configuration would be refused, as a LIST.
+
+        One string per problem, each naming the dotted key it is about, so a
+        panel can group them and a count means something. :meth:`validate`
+        raises from this; nothing else about the rules changed.
+        """
         errs = []
         if self.meta.config_version != 1:
             errs.append('meta.config_version %r is not supported (expected 1)'
@@ -1724,6 +1730,18 @@ class RunConfig:
             errs.append('postproc.hydro_year_start must be a month, 1..12')
         if self.postproc.wb_unit not in ('year', 'day'):
             errs.append("postproc.wb_unit must be 'year' or 'day'")
+        return errs
+
+    def validate(self):
+        """Raise if the configuration is invalid -- the gate before a write.
+
+        Everything is decided by :meth:`problems`, which RETURNS the list;
+        this only turns it into the exception the driver and the editor
+        already expect. The validation panel needs them one at a time, to
+        say which panel each belongs to and to count them, and re-splitting
+        a joined message to get them back would be parsing our own prose.
+        """
+        errs = self.problems()
         if errs:
             raise ConfigError('Invalid MARMITES run configuration'
                               + (' (%s)' % self.source_path if self.source_path else '')
