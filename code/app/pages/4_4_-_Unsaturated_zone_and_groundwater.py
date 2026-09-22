@@ -227,13 +227,50 @@ with tab_init:
                    'anything else.')
     else:
         # The SAME question the run asks at launch, asked here instead: saved
-        # state belongs to the grid and layer set that produced it, and the
-        # run refuses to reuse it otherwise. Hearing that after pressing Run
-        # is hearing it too late.
+        # state belongs to the grid and layer set that produced it. Hearing
+        # that after pressing Run is hearing it too late.
+        #
+        # IT IS NOT A REFUSAL. This said "This run will not start", which was
+        # true when the guard raised a CONFIG ERROR and false from the moment
+        # resolve_initial_heads started falling back to the land surface and
+        # saying so. A panel that threatens a refusal the run does not make
+        # is the same defect as a switch the run does not read.
         why = mcfg.state_problem(cfg, mcfg.state_workspace(cfg,
                                                            mm_paths.WS_ROOT))
         if why:
-            st.error('**This run will not start.** %s' % why)
+            st.warning('**The saved heads will not be used.** %s\n\nThe run '
+                       'does not refuse: it starts the water table from the '
+                       'land surface (`spinup.strt_dem`) and says so in the '
+                       'log. That is a cold start, with the first weeks '
+                       'measuring how the grid relaxes rather than the '
+                       'hydrology.' % why)
+            # HOW TO REGENERATE IT, which the sentence above asks for and
+            # nothing else on this panel explained. A spin-up is not a
+            # button: it is a RUN -- minutes to hours -- so it goes through
+            # the Run panel like any other. What this does is set the fields
+            # that make the next run a spin-up, and say what to do next.
+            st.markdown('**Regenerate it on this grid**')
+            c1, c2 = st.columns([1, 3])
+            _name = '%s_%s' % (cfg.grid_kind, cfg.meta.model_name(
+                cfg.paths.case) or 'spinup')
+            if c1.button('Set up a spin-up run', key='mkspinup'):
+                # Parked rather than assigned: these widgets already exist
+                # this run, and session_state cannot be written to once they
+                # do -- see panelui.park.
+                panelui.park('spinup.cycles', max(int(cfg.spinup.cycles), 6))
+                panelui.park('spinup.strt_heads', '')
+                panelui.park('spinup.steady_means', '')
+                panelui.park('spinup.save_strt', _name)
+                panelui.park('spinup.save_means', _name)
+                st.rerun()
+            c2.caption('Sets `cycles` to 6, clears the state that does not '
+                       'fit, and names the new one `%s`. Then **Validate & '
+                       'save** in the sidebar and launch from the %s panel: '
+                       'the run repeats the forcing until the water table '
+                       'stops moving between cycles (`tol`), writes the '
+                       'equilibrated heads, and prints the line to paste '
+                       'back into `strt_heads`.'
+                       % (_name, schema.panel_name(8)))
         else:
             st.success('The saved state belongs to this grid and layer set.')
 

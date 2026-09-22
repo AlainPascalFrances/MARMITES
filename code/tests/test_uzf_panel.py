@@ -290,3 +290,56 @@ def test_the_five_uzf_properties_take_the_usual_three_producers(cfg):
         assert schema.is_source(src), 'uzf.%s is not a source' % name
         for producer in ('raster', 'layer', 'value'):
             assert hasattr(src, producer)
+
+
+# ------------------------------------------- state that does not fit the grid
+# The panel said "This run will not start." That was true while the guard
+# raised a CONFIG ERROR, and false from the moment resolve_initial_heads began
+# falling back to the land surface and saying so -- a panel threatening a
+# refusal the run does not make is the same defect as a switch the run does
+# not read.
+
+def test_the_panel_does_not_threaten_a_refusal_the_run_never_makes():
+    # WHAT THE PANEL SAYS, not what its comments explain: the comment
+    # recording why the old wording was wrong necessarily quotes it.
+    page = open(PAGE, encoding='utf-8').read()
+    spoken = '\n'.join(
+        ln for ln in page.split('with tab_init:', 1)[-1].splitlines()
+        if not ln.strip().startswith('#'))
+    assert 'This run will not start' not in spoken, (
+        'the panel still claims the run refuses; resolve_initial_heads '
+        'starts from the land surface instead')
+    assert 'will not be used' in spoken, 'it no longer says what happens'
+    assert 'land surface' in spoken
+
+
+def test_the_panel_says_how_to_regenerate_the_spin_up():
+    """The message asks for a spin-up on this mesh and nothing said how.
+    A spin-up is a RUN, not a button, so the panel sets up the fields that
+    make the next run one and names where to launch it."""
+    page = open(PAGE, encoding='utf-8').read()
+    assert 'mkspinup' in page, 'no way to set up a spin-up'
+    for field in ('spinup.cycles', 'spinup.save_strt', 'spinup.strt_heads'):
+        assert "park('%s'" % field in page, '%s is not set up' % field
+
+
+def test_the_run_really_does_start_without_usable_state(tmp_path):
+    """The claim the panel now makes, asked of the code that decides it."""
+    import marmites_props as props
+
+    cfg = cfgmod.RunConfig.from_dict({})
+    cfg.grid.kind = 'voronoi'
+    cfg.spinup.strt_heads = 'hi_spinup'      # no sidecar, no files
+    kind, payload, why = props.resolve_initial_heads(cfg, str(tmp_path),
+                                                     verbose=False)
+    assert kind == 'dem', 'the run refuses instead of starting cold'
+    assert payload == props.DEFAULT_STRT_DEM
+    assert 'starts' in why
+
+
+def test_a_tail_panel_is_named_not_numbered():
+    """panel_name fell back to "panel 8", putting the number back into the
+    prose the function exists to keep it out of."""
+    assert schema.panel_name(8) == 'Run'
+    assert schema.panel_name(7) == 'Validation of the configuration'
+    assert schema.panel_name(9) == 'Results'

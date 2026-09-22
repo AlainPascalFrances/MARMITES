@@ -54,7 +54,7 @@ __all__ = ['PANELS', 'FIELDS', 'TABLES', 'CHOICES', 'SUBPANELS', 'panel_of',
            'SOIL_DATASET_FILES', 'COLUMN_OF', 'GEOMETRY_ROWS',
            'GHB_ROWS', 'DRN_ROWS', 'LAYER_LIST',
            'UZF_ROWS', 'UZF_ET_ROWS', 'UZF_LEGACY',
-           'OBS_COMMON',
+           'OBS_COMMON', 'TAIL_PANELS',
            'OBS_GROUPS',
            'PanelError']
 
@@ -117,7 +117,18 @@ def panel_name(number):
     for p in PANELS:
         if p[0] == number:
             return p[1]
-    return 'panel %d' % number
+    return TAIL_PANELS.get(number, 'panel %d' % number)
+
+
+# The panels that settle nothing, so they are not in PANELS -- they have no
+# sections to edit -- but which prose still has to be able to NAME. Without
+# them panel_name fell back to "panel 8", putting back the number the whole
+# function exists to keep out of sentences.
+TAIL_PANELS = {
+    7: 'Validation of the configuration',
+    8: 'Run',
+    9: 'Results',
+}
 
 
 # Arrays of tables: one row per zone / type, edited as a grid rather than as
