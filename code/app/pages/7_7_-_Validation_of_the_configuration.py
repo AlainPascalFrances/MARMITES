@@ -54,6 +54,18 @@ st.caption('Everything that can be said about this configuration before a '
            'questions and sends you back here if any of them has an '
            'answer.')
 
+# THE ONE THING THE SIDEBAR SAVE DOES NOT COMMIT, said before the list so it
+# is not mistaken for an oversight. Everything else on every panel is written
+# by *Validate & save*; a grid is not, because committing one also promotes
+# the mesh it produced to where the driver looks, and only the Grid panel
+# knows which mesh that is.
+st.info('**The grid is committed on the Grid panel, not by the sidebar '
+        'save.** *Select this grid for the model* writes the `[grid]` '
+        'settings AND puts the mesh they produced where a run will find '
+        'it — the sidebar save cannot do the second half, so a grid built '
+        'and not selected is not the model\'s grid. Which one a run would '
+        'use is listed below, and again on the Run panel.')
+
 
 # UNSAVED EDITS FIRST, and on their own. They are not a property of the
 # configuration -- they are a property of this browser session -- so they are
@@ -101,8 +113,12 @@ for level in (chk.ERROR, chk.WARNING, chk.INFO):
     for c in here:
         where = ('panel %d — %s' % (c.panel, _panel_title(c.panel))
                  if c.panel is not None and _panel_title(c.panel) else '')
+        # The key is shown ONLY when the sentence does not already carry it.
+        # Most checks name the key they are about as their first words --
+        # "spinup.steady_means = 'hi_spinup' has no scope sidecar" -- so
+        # adding it underneath printed the same thing twice.
         head = '**%s**' % c.title
-        if c.key:
+        if c.key and c.key not in c.title:
             head += '  \n`%s`' % c.key
         box = st.container(border=True)
         with box:

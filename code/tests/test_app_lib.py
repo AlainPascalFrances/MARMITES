@@ -552,3 +552,97 @@ def test_an_unchanged_table_is_not_reported_as_a_change():
     finally:
         if os.path.exists(tmp):
             os.remove(tmp)
+
+
+# ------------------------------------------------------------- which grid
+# The grid is the one setting the sidebar save does NOT commit: selecting it
+# on the Grid panel also promotes the mesh it produced. So it cannot be read
+# off the panel you are standing on, and both the validation panel and the
+# Run panel state it.
+
+def test_a_structured_grid_needs_no_mesh(tmp_path):
+    chk = _checks()
+    got = list(chk.check_grid(_cfg(grid__kind='structured'),
+                              ws_root=str(tmp_path)))
+    assert len(got) == 1 and got[0].level == chk.INFO
+    assert 'structured' in got[0].title
+    assert got[0].panel == 1
+
+
+def test_a_mesh_that_is_not_cached_is_a_warning(tmp_path):
+    """The run would build it first -- minutes -- and say nothing."""
+    chk = _checks()
+    got = list(chk.check_grid(_cfg(grid__kind='voronoi'),
+                              ws_root=str(tmp_path)))
+    assert len(got) == 1 and got[0].level == chk.WARNING
+    assert 'no mesh is cached' in got[0].title
+    assert 'Select this grid for the model' in got[0].detail
+
+
+def test_a_cached_mesh_is_reported_with_its_cell_count(tmp_path):
+    chk = _checks()
+    loaders = _load('_loaders_for_grid',
+                    os.path.join(CODE, 'app', 'lib', 'loaders.py'))
+    cfg = _cfg(grid__kind='voronoi')
+    d = loaders.mesh_cache_paths(str(tmp_path), 'voronoi')[0].parent
+    d.mkdir(parents=True, exist_ok=True)
+    (d / 'mesh_voronoi.json').write_text(
+        '{"ncpl": 15915, "cell2d": []}', encoding='utf-8')
+    (d / 'mesh_voronoi.sig.json').write_text(
+        '{"signature": "abc", "kind": "voronoi", "ncpl": 15915}',
+        encoding='utf-8')
+    got = list(chk.check_grid(cfg, ws_root=str(tmp_path)))
+    assert len(got) == 1 and got[0].level == chk.INFO
+    assert '15915' in got[0].title, got[0].title
+    assert 'Select this grid for the model' in got[0].detail
+
+
+def test_describe_grid_says_nothing_it_cannot_establish(tmp_path):
+    """Silence means 'not known' -- it must not invent a cell count."""
+    chk = _checks()
+    g = chk.describe_grid(_cfg(grid__kind='voronoi'), ws_root=str(tmp_path))
+    assert g['cached'] is False and g['ncpl'] is None
+    assert g['kind'] == 'voronoi'
+    # ... and with no workspace at all it still answers the kind.
+    g2 = chk.describe_grid(_cfg(grid__kind='voronoi'))
+    assert g2['kind'] == 'voronoi' and g2['ncpl'] is None
+
+
+def test_a_cache_that_could_not_be_read_is_not_reported_as_empty(tmp_path):
+    """'I could not tell' and 'there is none' are different statements.
+
+    describe_grid used to swallow a failed import of lib.loaders and return
+    cached=False, so check_grid warned that no mesh was cached -- a claim it
+    had not established, on every machine where that import happened to
+    fail.
+    """
+    chk = _checks()
+    cfg = _cfg(grid__kind='voronoi')
+    real = chk._loaders
+
+    def _broken():
+        raise ImportError('no loaders here')
+
+    chk._loaders = _broken
+    try:
+        g = chk.describe_grid(cfg, ws_root=str(tmp_path))
+        assert g['looked'] is False and g['cached'] is False
+        got = list(chk.check_grid(cfg, ws_root=str(tmp_path)))
+        assert len(got) == 1 and got[0].level == chk.INFO, got
+        assert 'no mesh' not in got[0].title.lower(), got[0].title
+    finally:
+        chk._loaders = real
+
+
+def test_a_voronoi_far_field_is_not_called_a_cell_size():
+    """rectangle_cell_size returns grid.voronoi.cell_far on a mesh -- the
+    FAR-FIELD target, not the cell. La Mata's 50 m far field produces a mesh
+    averaging 304 m2, a 17 m square, so labelling that 50 m "cell size" is a
+    number that looks authoritative and is wrong."""
+    chk = _checks()
+    vor = chk.describe_grid(_cfg(grid__kind='voronoi'))
+    assert vor['size_what'] == 'far-field cell'
+    assert 'far-field' in ' '.join(
+        c.title for c in chk.check_grid(_cfg(grid__kind='voronoi')))
+    other = chk.describe_grid(_cfg(grid__kind='structured'))
+    assert other['size_what'] == 'cell'

@@ -24,9 +24,10 @@ cries wolf is a panel that gets skipped, and this one guards the run.
 """
 
 import os
+from pathlib import Path
 
 __all__ = ['Check', 'ERROR', 'WARNING', 'INFO', 'collect', 'collect_default',
-           'worst', 'count_by_level', 'CheckError']
+           'worst', 'count_by_level', 'describe_grid', 'CheckError']
 
 ERROR = 'error'
 WARNING = 'warning'
@@ -236,8 +237,131 @@ def check_dataset(cfg, dataset_dir=None, **_):
                     % dataset_dir, panel=0, key='paths.case')
 
 
-CHECKS = (check_schema, check_switches, check_dataset, check_forcing,
-          check_state_scope, check_run_scope, check_libmf6)
+def _loaders():
+    """``lib.loaders``, however this module was itself loaded.
+
+    Imported by path rather than by name because checks.py is loaded two
+    ways: as ``lib.checks`` inside the app, and standalone from a file path
+    by the tests. Getting this wrong is not harmless -- it used to fall into
+    the ``except`` below and report "no mesh is cached", which is a claim,
+    not a silence.
+    """
+    import importlib.util
+    import sys
+    name = '_mm_lib_loaders'
+    if name in sys.modules:
+        return sys.modules[name]
+    spec = importlib.util.spec_from_file_location(
+        name, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                           'loaders.py'))
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[name] = mod
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def describe_grid(cfg, ws_root=None):
+    """What grid a run would use, as a dict.
+
+    ``kind``      the producer the configuration selects
+    ``size``      the cell size that producer is snapped to, in metres
+    ``ncpl``      cells in the CACHED mesh, when there is one
+    ``cached``    a mesh for this kind is on disk
+    ``looked``    the cache was actually CONSULTED -- see below
+    ``where``     the folder it was read from
+
+    Read from the cache and the configuration only: nothing is built and no
+    shapefile is opened, because this is drawn on every render of two panels.
+
+    ``looked`` is the difference between "there is no mesh" and "I could not
+    tell", and the caller must honour it. They are not the same statement,
+    and reporting the second as the first is how a panel starts crying wolf.
+    """
+    out = {'kind': cfg.grid_kind, 'size': None, 'ncpl': None,
+           'cached': False, 'looked': False, 'where': '',
+           'size_what': 'cell'}
+    try:
+        import marmites_meshes as mm
+        out['size'] = mm.rectangle_cell_size(cfg)
+    except Exception:                                   # noqa: BLE001
+        pass
+    # NOT THE CELL SIZE, on a voronoi mesh. rectangle_cell_size returns
+    # grid.voronoi.cell_far there -- the FAR-FIELD target the rectangle is
+    # snapped to -- while the cells themselves vary: La Mata's 50 m far
+    # field produces a mesh averaging 304 m2, a 17 m square. Calling that
+    # "cell size" would be a number that looks authoritative and is wrong.
+    if cfg.grid_kind == 'voronoi':
+        out['size_what'] = 'far-field cell'
+    if cfg.grid_kind in ('structured', 'dis'):
+        out['looked'] = True           # no mesh: the rectangle IS the grid
+        return out
+    if ws_root is None:
+        return out
+    try:
+        loaders = _loaders()
+        out['where'] = str(loaders.mesh_cache_paths(
+            str(ws_root), cfg.grid_kind)[0].parent)
+        gp, sig = loaders.read_mesh(str(ws_root), cfg.grid_kind)
+    except Exception:                                   # noqa: BLE001
+        return out                     # looked stays False: we do not know
+    out['looked'] = True
+    if gp is None:
+        return out
+    out['cached'] = True
+    out['ncpl'] = (sig or {}).get('ncpl') or gp.get('ncpl')
+    return out
+
+
+def check_grid(cfg, ws_root=None, **_):
+    """WHICH GRID a run would use, and where it was committed.
+
+    Panel 1 has a *Select this grid for the model* button, and that button
+    -- not the sidebar save -- is what makes a grid the model's: it writes
+    the settings AND promotes the mesh those settings produced to where the
+    driver looks. So the grid a run uses is not obvious from the other
+    panels, and it is stated here and on the Run panel rather than left to
+    be inferred.
+    """
+    g = describe_grid(cfg, ws_root)
+    size = (('%g m %s' % (g['size'], g['size_what'])) if g['size']
+            else 'cell size unknown')
+    if g['kind'] in ('structured', 'dis'):
+        yield Check(INFO, 'grid: structured, %s' % size, panel=1,
+                    key='grid.kind',
+                    detail='Chosen on the Grid panel. A structured run '
+                           'builds its rectangle from the catchment '
+                           'boundary; there is no mesh to cache.')
+        return
+    if g['cached']:
+        yield Check(
+            INFO, 'grid: %s, %s cell(s) cached (%s)'
+            % (g['kind'], g['ncpl'] if g['ncpl'] else '?', size),
+            panel=1, key='grid.kind',
+            detail='Committed on the Grid panel with *Select this grid for '
+                   'the model*, which writes the [grid] settings and '
+                   'promotes the mesh they produced to %s. The run reuses '
+                   'that mesh unless [grid] has changed since.'
+                   % (g['where'] or 'the run cache'))
+    elif not g['looked']:
+        # NOT the same as "there is no mesh". Say what is known -- the
+        # producer -- and claim nothing about the cache.
+        yield Check(INFO, 'grid: %s (%s)' % (g['kind'], size), panel=1,
+                    key='grid.kind',
+                    detail='Chosen on the Grid panel, and committed there '
+                           'with *Select this grid for the model*.')
+    else:
+        yield Check(
+            WARNING, 'grid: %s, and no mesh is cached for it' % g['kind'],
+            panel=1, key='grid.kind',
+            detail='The run will BUILD the mesh before it starts, which on '
+                   'La Mata is minutes. Build it on the Grid panel and '
+                   'press *Select this grid for the model* to commit it — '
+                   'that button, not the sidebar save, is what makes a '
+                   'grid the model\'s.')
+
+
+CHECKS = (check_schema, check_switches, check_dataset, check_grid,
+          check_forcing, check_state_scope, check_run_scope, check_libmf6)
 
 
 def collect_default(cfg, unsaved=()):
@@ -263,13 +387,17 @@ def collect_default(cfg, unsaved=()):
         ws = mcfg.state_workspace(cfg, str(mm_paths.WS_ROOT))
     except Exception:                                   # noqa: BLE001
         ws = None
+    # The mesh cache hangs off the WORKSPACE ROOT, not the model workspace:
+    # panel 1 promotes into <ws_root>/MF6_ws_<kind>/_mesh.
+    root = str(Path(cfg.paths.ws).parent) if cfg.paths.ws \
+        else str(mm_paths.WS_ROOT)
     return collect(cfg, dataset_dir=mm_paths.dataset_dir(cfg.paths.case),
                    workspace=ws, unsaved=unsaved, surface=surface,
-                   runner=runner)
+                   runner=runner, ws_root=root)
 
 
 def collect(cfg, dataset_dir=None, workspace=None, unsaved=(), surface=None,
-            runner=None):
+            runner=None, ws_root=None):
     """Every check, worst first. Never raises.
 
     A check that blows up becomes an error naming itself, rather than taking
@@ -280,7 +408,8 @@ def collect(cfg, dataset_dir=None, workspace=None, unsaved=(), surface=None,
     for fn in CHECKS:
         try:
             out.extend(fn(cfg, dataset_dir=dataset_dir, workspace=workspace,
-                          unsaved=unsaved, surface=surface, runner=runner))
+                          unsaved=unsaved, surface=surface, runner=runner,
+                          ws_root=ws_root))
         except Exception as exc:                        # noqa: BLE001
             out.append(Check(ERROR, '%s could not run: %s'
                              % (fn.__name__, exc)))

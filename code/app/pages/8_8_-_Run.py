@@ -60,6 +60,37 @@ except mcfg.ConfigError as exc:
 RUNS = cfg.ui.runs_dir or os.path.join(str(mm_paths.WS_ROOT), 'runs')
 run_tag = c2.text_input('Run tag (optional)', value=cfg.meta.name or '')
 
+# WHICH GRID THIS RUN WILL USE, stated rather than inferred. The grid is not
+# committed by the sidebar save: the Grid panel's *Select this grid for the
+# model* writes the [grid] settings AND promotes the mesh they produced to
+# where the driver looks. So it is the one setting whose current value
+# cannot be read off the panel you are standing on, and this page is the
+# last place to notice that it is not the one you meant.
+st.markdown('#### The grid this run will use')
+_g = chk.describe_grid(cfg, str(mm_paths.WS_ROOT))
+_gc1, _gc2, _gc3 = st.columns(3)
+_gc1.metric('Producer', _g['kind'])
+# NOT 'cell size' on a voronoi mesh: that number is grid.voronoi.cell_far,
+# the far-field target, and the cells themselves vary a long way from it.
+_gc2.metric(_g['size_what'].capitalize(),
+            '%g m' % _g['size'] if _g['size'] else '—')
+_gc3.metric('Cells', '{:,}'.format(_g['ncpl']) if _g['ncpl']
+            else ('rectangle' if _g['kind'] in ('structured', 'dis')
+                  else 'not built'))
+if _g['kind'] in ('structured', 'dis'):
+    st.caption('A structured run builds its rectangle from the catchment '
+               'boundary; there is no mesh to cache.')
+elif _g['cached']:
+    st.caption('Read from `%s`. It got there from the Grid panel — '
+               '*Select this grid for the model* is what commits a grid, '
+               'not the sidebar save, because it also promotes the mesh it '
+               'built. A run rebuilds it if `[grid]` has changed since.'
+               % _g['where'])
+else:
+    st.warning('No mesh is cached for this producer, so **the run will '
+               'build it first** — minutes, on La Mata. Build it on the '
+               'Grid panel and press *Select this grid for the model*.')
+
 st.markdown('#### One-off overrides')
 st.caption('`section.key=value`, one per line. Applied on top of the file and '
            'echoed by the driver — a setting that changes a run without '

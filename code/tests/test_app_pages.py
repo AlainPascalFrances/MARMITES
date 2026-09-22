@@ -1491,3 +1491,18 @@ def test_the_launch_is_blocked_while_the_configuration_has_an_error():
     finally:
         if os.path.exists(tmp):
             os.remove(tmp)
+
+
+def test_a_check_does_not_print_its_key_twice():
+    """Most checks name the key they are about as their first words, so
+    printing the key underneath the sentence said the same thing twice:
+
+        spinup.steady_means = 'hi_spinup' has no scope sidecar
+        spinup.steady_means
+    """
+    src = io.open(
+        os.path.join(APP, 'pages',
+                     '7_7_-_Validation_of_the_configuration.py'),
+        encoding='utf-8').read()
+    assert 'if c.key and c.key not in c.title:' in src, \
+        'the key is added to the heading unconditionally'
