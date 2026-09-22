@@ -124,7 +124,7 @@ if counts[chk.ERROR]:
 else:
     if st.button('Launch the run', type='primary'):
         st.session_state['validated'] = cfg.config_hash()
-        if not panelui.go_to('pages/8_Run.py'):
+        if not panelui.go_to(panelui.RUN_PAGE):
             st.session_state.pop('validated', None)
             st.error('Could not open the Run panel — go there and press '
                      'Launch.')

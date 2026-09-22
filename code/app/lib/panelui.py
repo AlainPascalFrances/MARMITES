@@ -201,7 +201,14 @@ def sidebar_save(cfg, path):
     return True                                   # pragma: no cover
 
 
-VALIDATION_PAGE = 'pages/7_Validation_of_the_configuration.py'
+# THE NUMBER IS IN THE FILENAME TWICE, deliberately. Streamlit reads a page's
+# sidebar label as ([0-9]*)[_ -]*(.*).py -- the leading digits ORDER the page
+# and are then discarded, so 1_Grid.py appeared as plain "Grid". Writing the
+# number again inside the part that survives puts it back: 1_1_-_Grid.py
+# orders by 1 and shows "1 - Grid". Home is the entry script, not a page, so
+# it has no number. See test_the_sidebar_shows_the_number_with_the_name.
+VALIDATION_PAGE = 'pages/7_7_-_Validation_of_the_configuration.py'
+RUN_PAGE = 'pages/8_8_-_Run.py'
 
 
 def panel_link(target, label, icon=None):

@@ -23,17 +23,17 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 CODE = os.path.abspath(os.path.join(HERE, '..'))
 APP = os.path.join(CODE, 'app')
 
-SURF = 'pages/2_Surface_and_driving_forces.py'
-SOIL = 'pages/3_Soil.py'
-SUB = 'pages/4_Unsaturated_zone_and_groundwater.py'
-OBS = 'pages/5_State_variables.py'
-PLOT = 'pages/6_Plots.py'
+SURF = 'pages/2_2_-_Surface_and_driving_forces.py'
+SOIL = 'pages/3_3_-_Soil.py'
+SUB = 'pages/4_4_-_Unsaturated_zone_and_groundwater.py'
+OBS = 'pages/5_5_-_State_variables.py'
+PLOT = 'pages/6_6_-_Plots.py'
 
 PAGES = ['Home.py'] + [os.path.join('pages', f) for f in (
-    '1_Grid.py', '2_Surface_and_driving_forces.py', '3_Soil.py',
-    '4_Unsaturated_zone_and_groundwater.py', '5_State_variables.py',
-    '6_Plots.py', '7_Validation_of_the_configuration.py', '8_Run.py',
-    '9_Results.py')]
+    '1_1_-_Grid.py', '2_2_-_Surface_and_driving_forces.py', '3_3_-_Soil.py',
+    '4_4_-_Unsaturated_zone_and_groundwater.py', '5_5_-_State_variables.py',
+    '6_6_-_Plots.py', '7_7_-_Validation_of_the_configuration.py', '8_8_-_Run.py',
+    '9_9_-_Results.py')]
 
 
 @pytest.mark.parametrize('page', PAGES)
@@ -47,21 +47,57 @@ def test_the_page_renders_without_an_exception(page):
     assert not problems, '%s raised:\n  %s' % (page, '\n  '.join(problems))
 
 
+def test_the_sidebar_shows_the_number_with_the_name():
+    """THE NUMBER IS IN THE FILENAME TWICE, and this says why.
+
+    Streamlit builds a page's sidebar label from its filename with
+    ``([0-9]*)[_ -]*(.*)\\.py``: the leading digits ORDER the page and are
+    then thrown away, so ``1_Grid.py`` appeared as plain "Grid". The number
+    is what lets a modeller match the sidebar against a panel referred to by
+    number, so it is written a second time inside the part that survives --
+    ``1_1_-_Grid.py`` orders by 1 and shows "1 - Grid".
+
+    Asked of streamlit's own function rather than of the names, so a change
+    to that regex fails here instead of quietly renaming every panel in the
+    sidebar.
+    """
+    from pathlib import Path
+
+    from streamlit.source_util import page_icon_and_name
+
+    want = [(1, 'Grid'), (2, 'Surface and driving forces'), (3, 'Soil'),
+            (4, 'Unsaturated zone and groundwater'), (5, 'State variables'),
+            (6, 'Plots'), (7, 'Validation of the configuration'),
+            (8, 'Run'), (9, 'Results')]
+    names = sorted(f for f in os.listdir(os.path.join(APP, 'pages'))
+                   if f.endswith('.py') and not f.startswith('_'))
+    assert len(names) == len(want), names
+    for fn, (num, title) in zip(names, want):
+        _icon, raw = page_icon_and_name(Path(fn))
+        assert raw.replace('_', ' ') == '%d - %s' % (num, title), (
+            '%s would appear in the sidebar as %r'
+            % (fn, raw.replace('_', ' ')))
+    # Home is the ENTRY SCRIPT, not a page, so it carries no number.
+    assert os.path.exists(os.path.join(APP, 'Home.py'))
+    assert not any(f.startswith('0') for f in names), \
+        'Home has been given a number'
+
+
 def test_the_panels_are_numbered_in_the_modellers_order():
     """The sidebar order is the file order, so it is the panel order."""
     names = sorted(f for f in os.listdir(os.path.join(APP, 'pages'))
                    if f.endswith('.py') and not f.startswith('_'))
-    assert names == ['1_Grid.py', '2_Surface_and_driving_forces.py',
-                     '3_Soil.py',
-                     '4_Unsaturated_zone_and_groundwater.py',
-                     '5_State_variables.py', '6_Plots.py',
-                     '7_Validation_of_the_configuration.py', '8_Run.py',
-                     '9_Results.py']
+    assert names == ['1_1_-_Grid.py', '2_2_-_Surface_and_driving_forces.py',
+                     '3_3_-_Soil.py',
+                     '4_4_-_Unsaturated_zone_and_groundwater.py',
+                     '5_5_-_State_variables.py', '6_6_-_Plots.py',
+                     '7_7_-_Validation_of_the_configuration.py', '8_8_-_Run.py',
+                     '9_9_-_Results.py']
 
 
 def test_the_panels_offer_something_to_edit():
     """A panel with no widgets is a panel that cannot do its job."""
-    for page, least in (('pages/1_Grid.py', 8), (SURF, 6), (SOIL, 6),
+    for page, least in (('pages/1_1_-_Grid.py', 8), (SURF, 6), (SOIL, 6),
                         (SUB, 14), (OBS, 5), (PLOT, 6)):
         at = AppTest.from_file(os.path.join(APP, page), default_timeout=180)
         at.run()
@@ -83,7 +119,7 @@ def test_the_master_switches_are_on_their_panels():
 def test_the_grid_kind_is_a_choice_not_a_text_box():
     """Typing 'voroni' into a text box and finding out at run time is exactly
     what the panels exist to prevent."""
-    at = AppTest.from_file(os.path.join(APP, 'pages', '1_Grid.py'),
+    at = AppTest.from_file(os.path.join(APP, 'pages', '1_1_-_Grid.py'),
                            default_timeout=180)
     at.run()
     boxes = {s.key: list(s.options) for s in at.selectbox if s.key}
@@ -104,7 +140,7 @@ def test_the_grid_subpanel_follows_the_kind():
     does nothing for the chosen producer must not sit beside one that does,
     looking equally live. Written without assuming which kind the shipped
     configuration selects."""
-    at = AppTest.from_file(os.path.join(APP, 'pages', '1_Grid.py'),
+    at = AppTest.from_file(os.path.join(APP, 'pages', '1_1_-_Grid.py'),
                            default_timeout=180)
     at.run()
     at.selectbox(key='grid.kind').select('structured').run()
@@ -135,7 +171,7 @@ def test_the_grid_subpanel_follows_the_kind():
 def test_the_derived_transition_bands_are_read_only():
     """They are computed from the corridor and the grade ratio, so a box that
     accepted a value would be a box that lies."""
-    at = AppTest.from_file(os.path.join(APP, 'pages', '1_Grid.py'),
+    at = AppTest.from_file(os.path.join(APP, 'pages', '1_1_-_Grid.py'),
                            default_timeout=180)
     at.run()
     at.selectbox(key='grid.kind').select('voronoi').run()
@@ -149,7 +185,7 @@ def test_the_derived_transition_bands_are_read_only():
 def test_the_refinement_settings_are_blocked_when_it_is_off():
     """Panel 1, D4: with the refinement off the corridor does not exist, so
     the settings describing it are greyed and cleared, not left looking live."""
-    at = AppTest.from_file(os.path.join(APP, 'pages', '1_Grid.py'),
+    at = AppTest.from_file(os.path.join(APP, 'pages', '1_1_-_Grid.py'),
                            default_timeout=180)
     at.run()
     at.selectbox(key='grid.kind').select('voronoi').run()
@@ -165,7 +201,7 @@ def test_the_refinement_settings_are_blocked_when_it_is_off():
 def test_the_grid_panel_offers_both_buttons():
     """Create is the experiment, Select is the commitment -- and nothing else
     on this panel writes, because here the save IS the selection."""
-    at = AppTest.from_file(os.path.join(APP, 'pages', '1_Grid.py'),
+    at = AppTest.from_file(os.path.join(APP, 'pages', '1_1_-_Grid.py'),
                            default_timeout=180)
     at.run()
     keys = {b.key for b in at.button}
@@ -193,7 +229,7 @@ def test_the_panel_says_when_the_grid_leaves_the_model_rasters():
     if rect is None:
         pytest.skip('no dataset raster on this machine')
 
-    at = AppTest.from_file(os.path.join(APP, 'pages', '1_Grid.py'),
+    at = AppTest.from_file(os.path.join(APP, 'pages', '1_1_-_Grid.py'),
                            default_timeout=180)
     at.run()
     said = ' '.join(w.value for w in at.warning) + \
@@ -230,7 +266,7 @@ def test_pinning_the_grid_takes_the_rectangle_from_the_rasters():
         text = text.replace('nrow = 65', 'nrow = 7')
         io.open(tmp, 'w', encoding='utf-8', newline='').write(text)
 
-        at = AppTest.from_file(os.path.join(APP, 'pages', '1_Grid.py'),
+        at = AppTest.from_file(os.path.join(APP, 'pages', '1_1_-_Grid.py'),
                                default_timeout=180)
         at.session_state['config_file'] = '_pintest.toml'
         at.run()
@@ -259,7 +295,7 @@ def test_the_pin_is_not_offered_on_a_mesh():
     """The override reproduces a legacy DIS grid and means nothing on an
     unstructured mesh, so there the answer is the model panel, not a button
     that would be refused by validate()."""
-    at = AppTest.from_file(os.path.join(APP, 'pages', '1_Grid.py'),
+    at = AppTest.from_file(os.path.join(APP, 'pages', '1_1_-_Grid.py'),
                            default_timeout=180)
     at.run()
     kind = [s for s in at.selectbox if s.key == 'grid.kind'][0]
@@ -275,7 +311,7 @@ def test_each_layer_picker_keeps_its_title_and_its_help():
     and the bracket has to be in the SAME block or a paragraph gap opens
     between them.
     """
-    at = AppTest.from_file(os.path.join(APP, 'pages', '1_Grid.py'),
+    at = AppTest.from_file(os.path.join(APP, 'pages', '1_1_-_Grid.py'),
                            default_timeout=180)
     at.run()
     want = {'grid.boundary': ('Catchment boundary', '(polygon)'),
@@ -299,7 +335,7 @@ def test_the_quadtree_sentence_follows_the_boxes():
     """It is the sentence the refined size is read off, so quoting a level
     and a background that are no longer on screen is worse than saying
     nothing."""
-    at = AppTest.from_file(os.path.join(APP, 'pages', '1_Grid.py'),
+    at = AppTest.from_file(os.path.join(APP, 'pages', '1_1_-_Grid.py'),
                            default_timeout=180)
     at.run()
     [s for s in at.selectbox if s.key == 'grid.kind'][0] \
@@ -320,7 +356,7 @@ def test_the_quadtree_sentence_follows_the_boxes():
 
 
 def test_the_gis_folder_box_says_where_the_folder_comes_from():
-    at = AppTest.from_file(os.path.join(APP, 'pages', '1_Grid.py'),
+    at = AppTest.from_file(os.path.join(APP, 'pages', '1_1_-_Grid.py'),
                            default_timeout=180)
     at.run()
     labels = [x.label for x in at.text_input]
@@ -342,7 +378,7 @@ def test_the_map_can_draw_the_pond_footprints():
         pytest.skip('no pond table on this machine')
     assert all(len(r) >= 3 for r in rings), 'a footprint came back as a point'
 
-    at = AppTest.from_file(os.path.join(APP, 'pages', '1_Grid.py'),
+    at = AppTest.from_file(os.path.join(APP, 'pages', '1_1_-_Grid.py'),
                            default_timeout=180)
     at.run()
     sel = [m for m in at.multiselect if 'Overlay' in str(m.label)]
@@ -355,7 +391,7 @@ def test_the_pond_settings_are_on_their_sub_panels():
     """The pond cell size belongs to voronoi and the pond refinement to the
     quadtree, each greyed until its own switch is on -- a size for a pond
     nothing is seeding is a box that does nothing."""
-    at = AppTest.from_file(os.path.join(APP, 'pages', '1_Grid.py'),
+    at = AppTest.from_file(os.path.join(APP, 'pages', '1_1_-_Grid.py'),
                            default_timeout=180)
     at.run()
     def pick(kind):
@@ -732,7 +768,7 @@ def test_no_panel_carries_a_save_button_of_its_own():
     a question with six answers. A panel now REMEMBERS and the sidebar
     writes.
     """
-    for page in (SURF, SOIL, SUB, OBS, PLOT, 'pages/1_Grid.py'):
+    for page in (SURF, SOIL, SUB, OBS, PLOT, 'pages/1_1_-_Grid.py'):
         src = io.open(os.path.join(APP, page), encoding='utf-8').read()
         assert 'panelui.save_button(' not in src, \
             '%s still draws its own save button' % page
@@ -916,7 +952,7 @@ def test_the_derived_bands_follow_the_boxes_without_a_save():
     """They are recomputed from what is ON SCREEN. A derived box that only
     caught up after a save shows the PREVIOUS corridor's bands, and the first
     thing doubted is the number rather than the box."""
-    at = AppTest.from_file(os.path.join(APP, 'pages', '1_Grid.py'),
+    at = AppTest.from_file(os.path.join(APP, 'pages', '1_1_-_Grid.py'),
                            default_timeout=180)
     at.run()
     at.selectbox(key='grid.kind').select('voronoi').run()
@@ -970,7 +1006,7 @@ def test_the_mesh_tab_draws_the_attempt_that_is_selected(tmp_path):
     sys.path.insert(0, CODE)
     import marmites_config as mcfg
 
-    at = AppTest.from_file(os.path.join(APP, 'pages', '1_Grid.py'),
+    at = AppTest.from_file(os.path.join(APP, 'pages', '1_1_-_Grid.py'),
                            default_timeout=180)
     attempts = []
     for tag, nrow, ncol in (('structured_1', 3, 4), ('structured_2', 6, 8)):
@@ -1004,7 +1040,7 @@ def test_the_mesh_tab_draws_the_attempt_that_is_selected(tmp_path):
 def test_the_attempt_selector_is_not_on_the_first_tab(tmp_path):
     """It was moved, not copied: two selectors disagreeing about which grid
     is on screen is worse than either."""
-    src = open(os.path.join(APP, 'pages', '1_Grid.py'), encoding='utf-8').read()
+    src = open(os.path.join(APP, 'pages', '1_1_-_Grid.py'), encoding='utf-8').read()
     before, after = src.split('with tab_mesh:', 1)
     assert 'pick_attempt' not in before
     assert 'pick_attempt' in after
@@ -1034,7 +1070,7 @@ def test_the_map_has_zoom_and_an_original_extent(tmp_path):
     import marmites_config as mcfg
 
     d, ncpl = _fake_attempt(tmp_path, 'structured_1', nrow=4, ncol=4)
-    at = AppTest.from_file(os.path.join(APP, 'pages', '1_Grid.py'),
+    at = AppTest.from_file(os.path.join(APP, 'pages', '1_1_-_Grid.py'),
                            default_timeout=180)
     at.session_state['grid_attempts'] = [{
         'tag': 'structured_1', 'ok': True, 'cache': d,
@@ -1089,7 +1125,7 @@ def test_a_different_mesh_resets_the_view(tmp_path):
                          'lines': ['built %d cells' % ncpl],
                          'info': {'kind': 'structured', 'ncpl': ncpl,
                                   'area_mean': 2500.0}})
-    at = AppTest.from_file(os.path.join(APP, 'pages', '1_Grid.py'),
+    at = AppTest.from_file(os.path.join(APP, 'pages', '1_1_-_Grid.py'),
                            default_timeout=180)
     at.session_state['grid_attempts'] = attempts
     at.run()
@@ -1111,7 +1147,7 @@ def test_the_cartography_box_is_on_the_panel_that_uses_it():
     """Panel 1 re-reads the two tables a GRID depends on inside Create grid,
     so it needs no button; the soil, vegetation, observation and pond layers
     belong to panel 3, and so does the button for them."""
-    one = open(os.path.join(APP, 'pages', '1_Grid.py'),
+    one = open(os.path.join(APP, 'pages', '1_1_-_Grid.py'),
                encoding='utf-8').read()
     three = open(os.path.join(APP, SOIL),
                  encoding='utf-8').read()
@@ -1126,10 +1162,10 @@ def test_the_cartography_box_is_on_the_panel_that_uses_it():
 
 
 def test_the_grid_tabs_are_named_consistently():
-    at = AppTest.from_file(os.path.join(APP, 'pages', '1_Grid.py'),
+    at = AppTest.from_file(os.path.join(APP, 'pages', '1_1_-_Grid.py'),
                            default_timeout=180)
     at.run()
-    src = open(os.path.join(APP, 'pages', '1_Grid.py'),
+    src = open(os.path.join(APP, 'pages', '1_1_-_Grid.py'),
                encoding='utf-8').read()
     assert "'Visualize grid'" in src
     assert 'Visualize mesh' not in src, 'a stale name is still referred to'
@@ -1140,7 +1176,7 @@ def test_panel_one_asks_for_all_three_layers():
     the ponds are all asked for HERE, at the same level, because the
     refinement options below cannot be answered before it is known whether
     there is a network or a pond to refine around."""
-    at = AppTest.from_file(os.path.join(APP, 'pages', '1_Grid.py'),
+    at = AppTest.from_file(os.path.join(APP, 'pages', '1_1_-_Grid.py'),
                            default_timeout=180)
     at.run()
     keys = _keys(at)
@@ -1151,7 +1187,7 @@ def test_panel_one_asks_for_all_three_layers():
 
 def test_the_optional_layers_can_be_set_to_none():
     """A catchment with no mapped network has to be able to say so."""
-    at = AppTest.from_file(os.path.join(APP, 'pages', '1_Grid.py'),
+    at = AppTest.from_file(os.path.join(APP, 'pages', '1_1_-_Grid.py'),
                            default_timeout=180)
     at.run()
     for k in ('grid.streams', 'grid.ponds'):
@@ -1167,7 +1203,7 @@ def test_the_optional_layers_can_be_set_to_none():
 def test_the_refinement_needs_its_layer():
     """Panel 1 offers the switch DISABLED, with the reason, rather than
     offering it and having validate() refuse the save."""
-    at = AppTest.from_file(os.path.join(APP, 'pages', '1_Grid.py'),
+    at = AppTest.from_file(os.path.join(APP, 'pages', '1_1_-_Grid.py'),
                            default_timeout=180)
     at.run()
     at.selectbox(key='grid.kind').select('voronoi').run()
@@ -1188,7 +1224,7 @@ def test_the_refinement_needs_its_layer():
 def test_panel_one_asks_for_the_dem_as_a_raster():
     """It does not shape the grid, but it is where pond rim and bottom come
     from -- and it was hardcoded, which a new catchment cannot use."""
-    at = AppTest.from_file(os.path.join(APP, 'pages', '1_Grid.py'),
+    at = AppTest.from_file(os.path.join(APP, 'pages', '1_1_-_Grid.py'),
                            default_timeout=180)
     at.run()
     assert 'grid.dem' in _keys(at), 'the DEM is not asked for'
@@ -1307,7 +1343,7 @@ def test_the_run_page_refuses_a_configuration_the_panels_contradict():
     from lib import panelui
     tmp = _scratch_with_mmsurf_on()
     try:
-        at = AppTest.from_file(os.path.join(APP, 'pages', '8_Run.py'),
+        at = AppTest.from_file(os.path.join(APP, 'pages', '8_8_-_Run.py'),
                                default_timeout=300)
         at.session_state['config_file'] = os.path.basename(tmp)
         # what panel 2 would have left behind, having been unplugged and
@@ -1351,7 +1387,7 @@ def test_the_library_can_be_set_from_the_run_page():
     tmp = _force(_scratch_config('_libtest.toml'), 'paths', 'libmf6',
                  'libmf6 = ""')
     try:
-        at = AppTest.from_file(os.path.join(APP, 'pages', '8_Run.py'),
+        at = AppTest.from_file(os.path.join(APP, 'pages', '8_8_-_Run.py'),
                                default_timeout=300)
         at.session_state['config_file'] = os.path.basename(tmp)
         at.run()
@@ -1426,7 +1462,7 @@ def test_the_validation_panel_lists_what_it_finds():
     try:
         at = AppTest.from_file(
             os.path.join(APP, 'pages',
-                         '7_Validation_of_the_configuration.py'),
+                         '7_7_-_Validation_of_the_configuration.py'),
             default_timeout=300)
         at.session_state['config_file'] = os.path.basename(tmp)
         at.run()
@@ -1444,7 +1480,7 @@ def test_the_launch_is_blocked_while_the_configuration_has_an_error():
     """Errors are a wall, and the button says so before it is pressed."""
     tmp = _scratch_with_mmsurf_on()
     try:
-        at = AppTest.from_file(os.path.join(APP, 'pages', '8_Run.py'),
+        at = AppTest.from_file(os.path.join(APP, 'pages', '8_8_-_Run.py'),
                                default_timeout=300)
         at.session_state['config_file'] = os.path.basename(tmp)
         at.session_state['live_run.surface'] = False     # panel says off
