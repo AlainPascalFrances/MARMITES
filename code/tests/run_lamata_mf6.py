@@ -209,6 +209,35 @@ def _apply_dem(cMF, cfg, dataset_dir, cache_dir=None):
         botm[L] = botm[L] + delta
     cMF.botm = botm
 
+    # ANYTHING ANCHORED TO THE LAYER GEOMETRY MOVES WITH IT. A DRN elevation
+    # under `drn.at_layer_base` is the layer bottom plus 10 mm -- it is a
+    # position IN the stack, not a height above sea level -- and the stack
+    # has just moved. Leaving the drains behind put 2928 of La Mata's 6059
+    # below their own cell bottom, by up to 4.72 m where the DEM lowered the
+    # surface most, and MODFLOW refused the whole package:
+    #
+    #   DRN BOUNDARY (2178) ELEVATION (771.773) IS LESS THAN CELL BOTTOM
+    #
+    # aborting the process from inside the library. GHB is deliberately NOT
+    # shifted: its HEAD is a boundary condition on the water table, an
+    # absolute elevation that means the same thing wherever the layer sits.
+    _moved = 0
+    _recs = getattr(cMF, 'layer_row_column_elevation_cond', None)
+    for _spd in ((_recs or {}).values() if isinstance(_recs, dict)
+                 else (_recs or ())):
+        for _r in _spd:
+            _i, _j = int(_r[1]), int(_r[2])
+            try:
+                _d = float(delta[_i, _j])
+            except (IndexError, ValueError):
+                continue
+            if _d:
+                _r[3] = float(_r[3]) + _d
+                _moved += 1
+    if _moved:
+        print('   %d drain elevation(s) moved with the land surface, so they '
+              'keep their height above their own layer bottom' % _moved)
+
     d = delta[both]
     return True, ('land surface from %s (%g m), wrapped onto %d %s cell(s)%s: '
                   'moved by mean %+.3f m, rms %.3f m, |max| %.2f m over %d '
@@ -1027,6 +1056,9 @@ def main():
                          obs_idx=obs_idx, obs_names=obs_names)
         cpl.steady_perc, cpl.steady_etg = steady_perc, steady_etg
         res = cpl.run(api)
+        # What held for months rather than what happened once: the soil at
+        # wilting point printed 8205 lines in 240 stress periods before this.
+        MMsoil.report_tallies()
         # A non-converged / non-conserving cycle is not a usable state to
         # iterate from, so the guard runs every cycle.
         cpl.check_solution(max_discrepancy=a.max_discrepancy,

@@ -482,3 +482,66 @@ def test_exfiltration_sign_and_scaling():
     res = cpl.run(api)
     # 25 m3/d / 1e4 m2 * 1000 mm/m = 2.5 mm/d, positive into the soil
     assert np.allclose(res['exf'], 2.5)
+
+
+# ------------------------------------------- saying where a long run has got
+# La Mata's full record is 1949 daily stress periods, ~4.7 h, and the log
+# carried no stress-period marker at all: "is it at period 20 or 1900?" could
+# only be answered by measuring the size of the .hds file.
+
+def test_a_duration_is_readable():
+    from marmites_coupler import _hms
+    assert _hms(45) == '45s'
+    assert _hms(3 * 60 + 7) == '3m 07s'
+    assert _hms(4 * 3600 + 42 * 60) == '4h 42m'
+    assert _hms(-1) == '0s'
+
+
+def test_progress_is_reported_but_not_every_period(capsys):
+    """Every 5%, so the line cannot become the noise it exists to cut."""
+    import types
+
+    from marmites_coupler import MF6Coupler
+
+    c = types.SimpleNamespace(_t0=0.0, _progress=None)
+    c._progress = types.MethodType(MF6Coupler._progress.__func__
+                                   if hasattr(MF6Coupler._progress, '__func__')
+                                   else MF6Coupler._progress, c)
+    import time as _t
+    c._t0 = _t.time()
+    for n in range(100):
+        c._progress(n, 100)
+    out = capsys.readouterr().out
+    lines = [ln for ln in out.splitlines() if 'stress period' in ln]
+    assert 5 <= len(lines) <= 21, 'reported %d time(s) in 100' % len(lines)
+    assert '100/100' in out or '96/100' in out, out[-200:]
+
+
+def test_progress_says_nothing_for_an_empty_run(capsys):
+    import types
+
+    from marmites_coupler import MF6Coupler
+
+    c = types.SimpleNamespace(_t0=0.0)
+    c._progress = types.MethodType(MF6Coupler._progress, c)
+    c._progress(0, 0)
+    assert 'stress period' not in capsys.readouterr().out
+
+
+# ------------------------------------- a condition that holds is not an event
+
+def test_a_recurring_condition_is_counted_once():
+    MMsoil = _load('_mmsoil_tally',
+                   os.path.join(os.path.dirname(HERE), 'MARMITESsoil',
+                                'MARMITESsoil_v3.py'))
+
+    MMsoil.report_tallies(out=False)              # start clean
+    for k in range(2000):
+        MMsoil.tally('Tg: soil moisture below wilting point', 0.001 * (k % 5))
+    MMsoil.tally('something else')
+    lines = MMsoil.report_tallies(out=False)
+    assert len(lines) == 2, lines
+    joined = ' '.join(lines)
+    assert '2000 time(s)' in joined, joined
+    assert 'out of range by 0.0000..0.0040' in joined, joined
+    assert MMsoil.report_tallies(out=False) == [], 'the tally was not cleared'

@@ -547,7 +547,8 @@ class MeshProjection:
                 out.append(v)
         return out
 
-    def remap_drn_records(self, recs, botm_src, botm_mesh, warn=None):
+    def remap_drn_records(self, recs, botm_src, botm_mesh, warn=None,
+                          active=None):
         """Move DRN records onto the mesh, KEEPING THEIR HEIGHT ABOVE THE CELL
         BOTTOM rather than their absolute elevation.
 
@@ -564,9 +565,14 @@ class MeshProjection:
         """
         bs = np.asarray(botm_src, dtype=float)
         bm = np.asarray(botm_mesh, dtype=float)
-        out = self.remap_records(recs, warn=warn)
+        # KEPT indexes back into recs. Pairing by position would silently
+        # mis-anchor every drain after the first dropped one, giving each
+        # the offset of a different source cell.
+        out, kept, clashes, dropped = self._remap(recs, active)
+        self._report(warn, clashes, dropped, 'drain')
         offsets = []
-        for src, dst in zip(recs, out):
+        for n, dst in zip(kept, out):
+            src = recs[n]
             lay, i, j = int(src[0]), int(src[1]), int(src[2])
             ic = int(dst[1])
             off = float(src[3]) - float(bs[lay, i, j])
@@ -578,7 +584,7 @@ class MeshProjection:
                  % (len(offsets), min(offsets), max(offsets)))
         return out
 
-    def remap_records(self, recs, warn=None):
+    def remap_records(self, recs, warn=None, active=None, what='boundary'):
         """Move ``(layer, row, col, *rest)`` boundary records onto the mesh.
 
         DRN and GHB records carry a source (row, col). On the mesh they become
@@ -589,25 +595,63 @@ class MeshProjection:
         A coarser mesh can put two source records in one cell. That is a real
         change to the boundary condition, not a rounding detail, so it is
         reported rather than silently summed.
+
+        A record whose receiving cell-layer is INACTIVE is dropped, and that
+        is reported too. A source cell active on layer 2 can land on a mesh
+        cell where layer 2 pinched out; MODFLOW then refuses the whole
+        package with "Cell is outside active grid domain" -- 1742 of them on
+        La Mata -- and aborts the process from inside the library, before
+        python can say anything about it. Dropping truncates the boundary,
+        which is worth knowing; keeping it stops the run outright. It is the
+        same answer the channel network already gives, for the same reason.
         """
-        out, seen, clashes = [], {}, []
+        out, _kept, clashes, dropped = self._remap(recs, active)
+        self._report(warn, clashes, dropped, what)
+        return out
+
+    def _remap(self, recs, active=None):
+        """``(out, kept, clashes, dropped)``.
+
+        ``kept`` indexes back into ``recs``, so a caller that must pair a
+        moved record with its source -- remap_drn_records does, to re-anchor
+        the elevation -- can still do so once records have been dropped.
+        """
+        out, kept, seen, clashes, dropped = [], [], {}, [], 0
         x_c = 0.5 * (self._x_edge[:-1] + self._x_edge[1:])
         y_c = 0.5 * (self._y_edge[:-1] + self._y_edge[1:])
-        for rec in recs:
+        for n, rec in enumerate(recs):
             lay, i, j = int(rec[0]), int(rec[1]), int(rec[2])
             ic = self.cell_of(x_c[j], y_c[i])
+            if active is not None:
+                try:
+                    ok = bool(np.asarray(active)[lay, ic])
+                except (IndexError, TypeError, ValueError):
+                    ok = False
+                if not ok:
+                    dropped += 1
+                    continue
             key = (lay, ic)
             if key in seen:
                 clashes.append((seen[key], (lay, i, j), ic))
             seen[key] = (lay, i, j)
             out.append([lay, ic, 0] + list(rec[3:]))
-        if clashes and warn is not None:
-            warn('%d boundary record(s) share a mesh cell with another: %s'
-                 % (len(clashes),
+            kept.append(n)
+        return out, kept, clashes, dropped
+
+    @staticmethod
+    def _report(warn, clashes, dropped, what):
+        if warn is None:
+            return
+        if clashes:
+            warn('%d %s record(s) share a mesh cell with another: %s'
+                 % (len(clashes), what,
                     '; '.join('(L%d r%d c%d) and (L%d r%d c%d) -> icell2d %d'
                               % (a[0], a[1], a[2], b[0], b[1], b[2], ic)
                               for a, b, ic in clashes[:5])))
-        return out
+        if dropped:
+            warn('%d %s record(s) fall on a cell-layer that is inactive on '
+                 'this mesh and were dropped: MODFLOW refuses the whole '
+                 'package otherwise.' % (dropped, what))
 
 
 # --------------------------------------------------------------------- #
@@ -805,13 +849,22 @@ def project_model(cMF, gridprops, grids, warn=None, how='auto'):
     # cell's bottom (see remap_drn_records); GHB carries an absolute HEAD, a
     # boundary condition on the water table itself, so it is moved unchanged.
     _src_botm = np.asarray(cMF.botm, dtype=float)
+    # THE MESH's own active mask, per layer, shaped (nlay, ncpl) to index by
+    # (layer, icell2d). A boundary record whose receiving cell-layer is
+    # inactive is what MODFLOW refuses, so it is what has to be checked --
+    # not whether the SOURCE cell was active, which it always was.
+    _active = (np.abs(np.asarray(m.ibound, dtype=float)) != 0)
+    _active = _active.reshape(_active.shape[0], -1)
 
     def _drn(v):
-        return proj.remap_drn_records(v, _src_botm, m.botm, warn=warn)
+        return proj.remap_drn_records(v, _src_botm, m.botm, warn=warn,
+                                      active=_active)
 
     for name, fn in (('layer_row_column_elevation_cond', _drn),
                      ('layer_row_column_head_cond',
-                      lambda v: proj.remap_records(v, warn=warn))):
+                      lambda v: proj.remap_records(v, warn=warn,
+                                                   active=_active,
+                                                   what='GHB'))):
         val = getattr(cMF, name, None)
         if not val:
             continue

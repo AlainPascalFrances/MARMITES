@@ -35,8 +35,19 @@ __version__ = "0.4.0.dev0"
 import copy
 import os
 import re
+import time
 
 import numpy as np
+
+
+def _hms(seconds):
+    """A duration a modeller can act on: 4h 42m, not 16920.3."""
+    s = int(max(seconds, 0))
+    if s >= 3600:
+        return '%dh %02dm' % (s // 3600, (s % 3600) // 60)
+    if s >= 60:
+        return '%dm %02ds' % (s // 60, s % 60)
+    return '%ds' % s
 
 
 class CouplingError(Exception):
@@ -127,6 +138,10 @@ class MF6Coupler:
         self.max_substeps = 5000       # ATS safety cap per stress period
         self.substeps = 0              # extra ATS sub-steps taken overall
         self.n_nonconverged = 0
+        # When the march started, for the progress line's estimate. Set here
+        # so _progress can never be called before it exists, and reset in
+        # run() so a spin-up cycle times itself rather than the whole session.
+        self._t0 = time.time()
         self.p_q = None
         self.p_bound = None
         self.p_gwd = None
@@ -703,6 +718,33 @@ class MF6Coupler:
 
     # ---------------- main drive --------------------------------------- #
 
+    def _progress(self, n, nper, last=False):
+        """Say where the run is, occasionally.
+
+        A DETACHED RUN OF HOURS MUST SAY WHERE IT IS. La Mata's full record
+        is 1949 daily stress periods and took ~4.7 h, and the log carried no
+        stress-period marker at all -- so "is it at period 20 or 1900?" could
+        only be answered by measuring the size of the .hds file. Nothing was
+        wrong with the run; there was simply no way to tell.
+
+        Reported every 5% and never more often than that, so the line cannot
+        become the noise it exists to cut through. This is also where WP2.5b
+        puts the PET balance, which is why it takes the whole stress period
+        rather than just its number.
+        """
+        if nper <= 0:
+            return
+        step = max(1, nper // 20)
+        if not last and (n % step) or n == 0:
+            return
+        now = time.time()
+        done, left = n + 1, nper - (n + 1)
+        rate = (now - self._t0) / max(done, 1)
+        eta = ('' if last or not left
+               else ', ~%s left' % _hms(rate * left))
+        print('   stress period %d/%d (%.0f%%)%s'
+              % (done, nper, 100.0 * done / nper, eta))
+
     def run(self, api, on_sp=None):
         """Drive the coupled model with an initialized-able MF6 API object.
 
@@ -711,6 +753,7 @@ class MF6Coupler:
         """
         cMF = self.mf6b.cMF
         nper_mm = int(cMF.nper)
+        self._t0 = time.time()
         self.heads_hist = np.zeros((nper_mm, self.ncell))
         self.exf_hist = np.zeros((nper_mm, self.ncell))
         self.perc_hist = np.zeros((nper_mm, self.ncell))
@@ -823,8 +866,10 @@ class MF6Coupler:
                 if self.mm_obs is not None:
                     self.mm_obs[n] = mm_cells[self.obs_idx]
                     self.mms_obs[n] = mms_cells[self.obs_idx]
+                self._progress(n, nper_mm)
                 if on_sp is not None:
                     on_sp(n, out)
+            self._progress(nper_mm - 1, nper_mm, last=True)
             self.wb_map /= float(nper_mm)
             self.wb_map_soil /= float(nper_mm)
             # Physical-plausibility guard. Exfiltration identically zero over a

@@ -751,3 +751,86 @@ def test_a_model_without_thickness_still_projects():
     assert not hasattr(cMF, 'thick')
     m, _g, _p = MESH.project_model(cMF, _dis_equivalent_gridprops(cMF), {})
     assert np.asarray(m.botm).shape == (NLAY, NROW * NCOL, 1)
+
+
+# ------------------------------- boundary records on cells that do not exist
+# A source cell active on layer 2 can land on a mesh cell where layer 2
+# pinched out. MODFLOW refuses the WHOLE package then -- "Cell is outside
+# active grid domain", 1742 of them on La Mata -- and aborts the process from
+# inside the library, so python never gets to say anything about it.
+
+class _Proj(object):
+    """Just enough of the projection to exercise remap_records."""
+
+    def __init__(self, ncol=4, nrow=1):
+        import numpy as np
+        self._x_edge = np.arange(ncol + 1, dtype=float)
+        self._y_edge = np.arange(nrow + 1, dtype=float)
+
+    def cell_of(self, x, y):
+        return int(x)                      # one mesh cell per source column
+
+
+def _mesh_proj():
+    import types
+    mod = _mesh_module() if '_mesh_module' in globals() else None
+    if mod is None:
+        import importlib.util
+        import os
+        import sys
+        here = os.path.dirname(os.path.abspath(__file__))
+        path = os.path.join(here, '..', 'marmites_mesh.py')
+        spec = importlib.util.spec_from_file_location('_mesh_bc', path)
+        mod = importlib.util.module_from_spec(spec)
+        sys.modules['_mesh_bc'] = mod
+        spec.loader.exec_module(mod)
+    cls = [v for k, v in vars(mod).items()
+           if isinstance(v, type) and hasattr(v, 'remap_records')]
+    assert cls, 'no class with remap_records'
+    p = _Proj()
+    p.__class__ = type('P', (_Proj, cls[0]), {})
+    return p, types
+
+
+def test_a_record_on_an_inactive_cell_layer_is_dropped_and_said():
+    import numpy as np
+
+    p, _ = _mesh_proj()
+    said = []
+    recs = [[0, 0, 0, 10.0, 1.0],
+            [1, 0, 1, 11.0, 1.0],      # layer 1 inactive at icell2d 1
+            [0, 0, 2, 12.0, 1.0]]
+    active = np.array([[1, 1, 1, 1],
+                       [1, 0, 1, 1]], dtype=bool)
+    out = p.remap_records(recs, warn=said.append, active=active, what='DRN')
+    assert len(out) == 2, out
+    assert [r[0] for r in out] == [0, 0]
+    joined = ' '.join(said)
+    assert 'dropped' in joined and 'DRN' in joined, said
+
+
+def test_nothing_is_dropped_when_no_mask_is_given():
+    """Silence means 'not known': with no mask the old behaviour stands."""
+    p, _ = _mesh_proj()
+    recs = [[1, 0, 1, 11.0, 1.0]]
+    assert len(p.remap_records(recs)) == 1
+
+
+def test_a_drain_is_reanchored_to_its_own_source_after_a_drop():
+    """Pairing by position would give every drain after the first dropped
+    one the offset of a different source cell."""
+    import numpy as np
+
+    p, _ = _mesh_proj()
+    botm_src = np.array([[[0.0, 0.0, 0.0, 0.0]],
+                         [[0.0, 0.0, 0.0, 0.0]]])
+    botm_mesh = np.array([[[5.0], [5.0], [5.0], [5.0]],
+                          [[5.0], [5.0], [5.0], [5.0]]])
+    recs = [[0, 0, 0, 1.0, 1.0],       # offset 1.0 -> 6.0
+            [1, 0, 1, 9.0, 1.0],       # dropped
+            [0, 0, 2, 3.0, 1.0]]       # offset 3.0 -> 8.0
+    active = np.array([[1, 1, 1, 1], [1, 0, 1, 1]], dtype=bool)
+    out = p.remap_drn_records(recs, botm_src, botm_mesh, active=active)
+    assert len(out) == 2
+    assert out[0][3] == 6.0, out
+    assert out[1][3] == 8.0, 'the survivor took the dropped record\'s offset'

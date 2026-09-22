@@ -29,6 +29,46 @@ import os
 import sys
 from types import SimpleNamespace
 
+
+# ----------------------------------------------------------------- tallies
+# A CONDITION THAT IS NORMAL FOR MONTHS IS NOT NEWS EVERY TIME IT HOLDS.
+# The soil sitting at wilting point is expected in a semi-arid summer; it
+# printed two lines per cell per stress period, 8205 of them in the first
+# ~240 periods of La Mata, which is a third of the whole log. Counted here
+# and reported once, with how far out of range it went -- the same treatment
+# the mesh and drain warnings already get.
+_TALLIES = {}
+
+
+def tally(what, amount=None):
+    """Record one occurrence of a recurring condition."""
+    rec = _TALLIES.setdefault(what, {'n': 0, 'lo': None, 'hi': None})
+    rec['n'] += 1
+    if amount is None:
+        return
+    a = float(amount)
+    rec['lo'] = a if rec['lo'] is None else min(rec['lo'], a)
+    rec['hi'] = a if rec['hi'] is None else max(rec['hi'], a)
+
+
+def report_tallies(out=None, clear=True):
+    """Print what was tallied, once. Returns the lines, for a test."""
+    lines = []
+    for what in sorted(_TALLIES):
+        rec = _TALLIES[what]
+        if rec['lo'] is None:
+            lines.append('%s: %d time(s)' % (what, rec['n']))
+        else:
+            lines.append('%s: %d time(s), out of range by %.4f..%.4f'
+                         % (what, rec['n'], rec['lo'], rec['hi']))
+    if lines and out is not False:
+        print('\nconditions met during the run (counted, not repeated):')
+        for ln in lines:
+            print('   %s' % ln)
+    if clear:
+        _TALLIES.clear()
+    return lines
+
 import numpy as np
 
 
@@ -333,13 +373,19 @@ class clsMMsoil:
                                 1.0 + np.exp((Ssoil_norm - kT_f_) / kT_s_))
                         else:
                             if Ssoil_pc_tmp[l] > Sm[l]:
-                                print('WARNING!\nComputing of Tg: soil moisture higher than porosity!'
-                                      '\nSoil moisture = %.4f, phi = %.4f' % (Ssoil_pc_tmp[l], Sm[l]))
+                                tally('Tg: soil moisture above porosity',
+                                      Ssoil_pc_tmp[l] - Sm[l])
                             kTg = kTg_max_
                     else:
                         if Ssoil_pc_tmp[l] < Sr[l]:
-                            print('WARNING!\nComputing of Tg: soil moisture lower than wilting point!'
-                                  '\nSoil moisture = %.4f, WP = %.4f' % (Ssoil_pc_tmp[l], Sr[l]))
+                            # COUNTED, NOT PRINTED. A semi-arid catchment sits
+                            # at wilting point for months on end, so this fired
+                            # 8205 times in the first ~240 stress periods of La
+                            # Mata -- a third of every line in the log, burying
+                            # the run's own output. Reported once, with the
+                            # count and the range, by report_tallies().
+                            tally('Tg: soil moisture below wilting point',
+                                  Sr[l] - Ssoil_pc_tmp[l])
                         kTg = kTg_min_
                     Tg_tmp_Zr = PT[v] * kTg
                     PT[v] -= Tg_tmp_Zr

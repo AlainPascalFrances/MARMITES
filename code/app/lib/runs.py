@@ -98,7 +98,14 @@ def launch(config_path, runs_dir, overrides=None, run_tag=None,
     d = run_dir(runs_dir, run_id)
     d.mkdir(parents=True, exist_ok=True)
 
-    cmd = [python_exe, driver, '--config', config_path]
+    # -u: UNBUFFERED. The child's stdout is a file, so python block-buffers
+    # it, and a run that dies HARD -- MF6 aborting the process from inside
+    # the library, a DLL fault -- never flushes. Four runs in a row left a
+    # 0-byte run.log while the model had in fact got as far as binding the
+    # coupler and then been killed by MF6 over a bad DRN package. The log is
+    # the only thing a detached run leaves behind; it must survive the ways
+    # a run actually fails, not only a clean exit.
+    cmd = [python_exe, '-u', driver, '--config', config_path]
     for item in overrides or ():
         cmd += ['--set', item]
     if run_tag:
@@ -152,7 +159,14 @@ def status(runs_dir, run_id, refresh=True):
         st['state'] = 'finished'
         st['finished'] = time.strftime('%Y-%m-%d %H:%M:%S')
         tail = log_tail(runs_dir, run_id, 40)
-        st['outcome'] = ('failed' if _looks_failed(tail) else 'completed')
+        # AN EMPTY LOG IS NOT A SUCCESS. The outcome is inferred from the
+        # log, because the exit code of another process cannot be recovered
+        # on Windows -- so "no failure marker" was being read as "completed"
+        # for runs that had produced nothing at all. Four such runs were
+        # reported as completed while MF6 had in fact aborted each of them.
+        st['outcome'] = ('failed' if _looks_failed(tail)
+                         else 'completed' if tail.strip()
+                         else 'unknown')
         _write_status(run_dir(runs_dir, run_id), st)
     return st
 

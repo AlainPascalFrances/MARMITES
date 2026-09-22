@@ -250,6 +250,23 @@ c3.metric('Started', (info.get('started') or '')[-8:])
 c4.metric('PID', info.get('pid', '—'))
 st.code(' '.join(str(x) for x in info.get('cmd', [])), language='bash')
 
+# AN EMPTY LOG MEANS THE RUN WAS KILLED, not that it went well. MF6 aborts
+# the process from inside the library when it refuses an input file, which
+# takes python with it before anything buffered is written -- and the run
+# folder is then the only place the reason exists.
+if info.get('outcome') == 'unknown':
+    _ws = mcfg.state_workspace(cfg, str(mm_paths.WS_ROOT))
+    st.error('**This run left no log at all**, which means it was killed '
+             'rather than that it finished. MODFLOW 6 ends the process '
+             'itself when it refuses an input file, which takes Python with '
+             'it. The reason is in the model workspace, not here:\n\n'
+             '- `%s` — the last lines name the file and the records it '
+             'rejected\n'
+             '- `%s` — the model listing, if it got that far'
+             % (os.path.join(str(_ws), 'mfsim.lst'),
+                os.path.join(str(_ws), '%s.lst'
+                             % cfg.meta.model_name(cfg.paths.case))))
+
 auto = st.checkbox('Auto-refresh every %d s' % cfg.ui.poll_secs,
                    value=(info.get('state') == 'running'))
 # st.code, NOT st.text_area: a text_area given both `value` and `key` takes its

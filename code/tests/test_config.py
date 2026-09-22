@@ -127,18 +127,29 @@ def test_empty_config_reproduces_todays_flag_defaults():
 
 
 def test_reference_config_loads_and_is_the_canonical_run():
+    """The reference configuration still describes the La Mata run.
+
+    WHAT IS ASSERTED HERE IS STRUCTURAL, never a working value. This file is
+    EDITED THROUGH THE FRONT-END between test runs -- it is the modeller's
+    live configuration, not a fixture -- so pinning a field they are meant to
+    change turns ordinary work into a red suite. It has now happened three
+    times: run.surface when MMsurf was unplugged, paths.libmf6 when the
+    library was set, and spinup.strt_heads when state that did not fit the
+    mesh was cleared to set up a spin-up. A test that needs a particular
+    value must SET it -- see test_app_pages._force -- not find it.
+    """
     if not os.path.exists(REF_CONFIG):
         pytest.skip('code/configs/lamata.toml not present')
     c = cfgmod.load_run_config(REF_CONFIG)
-    # --nlay 2 --seep drn --strt-heads hi_spinup --steady-means hi_spinup
-    # --preproc --postproc
     assert c.layers.nlay == 2
     assert c.seep.kind == 'drn'
     assert c.seep.cond == 10000.0
-    assert c.spinup.strt_heads == 'hi_spinup'
-    assert c.spinup.steady_means == 'hi_spinup'
     assert c.postproc.enable is True
     assert c.postproc.preproc is True
+    # The spin-up fields NAME saved state; they are filled and cleared as the
+    # grid changes, so that they are strings is the only durable claim.
+    assert isinstance(c.spinup.strt_heads, str)
+    assert isinstance(c.spinup.steady_means, str)
 
 
 @pytest.mark.parametrize('bad', [
