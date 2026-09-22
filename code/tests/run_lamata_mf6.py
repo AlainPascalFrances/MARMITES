@@ -285,8 +285,34 @@ def _asc_on_grid(fn, cMF):
 
 
 def _read_cell_grid(fn, cells):
-    """Read an ESRI-ASCII grid and gather it back to a per-MM-cell vector."""
+    """Read an ESRI-ASCII grid and gather it back to a per-MM-cell vector.
+
+    REFUSES A GRID THE CELLS CANNOT ADDRESS, naming both shapes. The cells
+    belong to the grid THIS run uses; the file belongs to the grid that
+    wrote it. Gather one through the other and numpy raises
+
+        IndexError: index 65 is out of bounds for axis 0 with size 65
+
+    from inside a list comprehension, which says nothing about saved state
+    being tied to the grid that produced it. Worse, a file merely LARGER
+    than the cells need would not raise at all: it would be silently
+    gathered through the wrong cells and drive the steady period with
+    another grid's recharge.
+    """
     g = np.loadtxt(fn, skiprows=6)
+    if g.ndim != 2:
+        raise ValueError('%s is not a 2-D grid (shape %r)'
+                         % (os.path.basename(fn), g.shape))
+    rows = max(int(c[1]) for c in cells) + 1 if len(cells) else 0
+    cols = max(int(c[2]) for c in cells) + 1 if len(cells) else 0
+    if rows > g.shape[0] or cols > g.shape[1]:
+        raise ValueError(
+            '%s is %d x %d, but this run\'s cells reach (%d, %d): the file '
+            'was written on a different grid.\nSaved state belongs to the '
+            'grid that produced it. Regenerate it on this grid, or clear '
+            'the [spinup] key that names it.'
+            % (os.path.basename(fn), g.shape[0], g.shape[1], rows - 1,
+               cols - 1))
     return np.array([g[c[1], c[2]] for c in cells], dtype=float)
 
 
@@ -598,9 +624,18 @@ def _check_state_scope(a, cfg):
     a spin-up starts from anyway. props.resolve_initial_heads decides, and
     the run says which it chose.
 
-    `spinup.steady_means` is still only reported: it feeds the steady
-    period's averages rather than the initial heads, and there is nothing
-    to recompute it from here.
+    `spinup.steady_means` is DROPPED when it cannot be used here, and the
+    run says so. It used only to be reported -- and then read anyway, which
+    is how a note about state belonging to another grid was followed three
+    lines later by
+
+        IndexError: index 65 is out of bounds for axis 0 with size 65
+
+    from gathering a 65x60 structured .asc through voronoi cell indices. A
+    warning that does not prevent the failure it predicts is not a warning.
+    Nothing is lost by dropping it: with no means pinned, the spin-up takes
+    the steady period's averages from the cycle it just ran, which is where
+    they came from in the first place.
     """
     why = mcfg.state_problem(cfg, a.state_dir)
     if why:
@@ -611,6 +646,13 @@ def _check_state_scope(a, cfg):
         if prefix and not os.path.exists(_state_sidecar(a, prefix)):
             print('note: %s = %r has no scope sidecar (written before WP0)'
                   % (what, prefix))
+    # strt_heads has a fallback of its own -- resolve_initial_heads starts the
+    # water table from the land surface and says so -- so only the means are
+    # dropped here.
+    if why and a.steady_means:
+        print('   %s is NOT used: the steady period takes its averages from '
+              'the spin-up cycle instead.' % 'spinup.steady_means')
+        a.steady_means = None
 
 
 def _args_from_config(cfg, probe=False):
@@ -655,7 +697,7 @@ def _args_from_config(cfg, probe=False):
         nlay=cfg.layers.nlay,
         # packages
         uzf_vks_scale=cfg.uzf.vks_scale,
-        uzf_et=cfg.et.uzf_et, uzf_et_form=cfg.et.unsat_form,
+        uzf_et_form=cfg.et.unsat_form,
         seep=cfg.seep.kind, seep_cond=cfg.seep.cond,
         sfr=cfg.sfr.enable,
         sfr_rhk=(cfg.sfr.rhk.value if cfg.sfr.rhk.value is not None else 0.1),
@@ -801,12 +843,11 @@ def main():
     # a raster, a column of the vegetation layer, or one value -- so it is
     # resolved the way every other spatial input is, per layer and then
     # broadcast over the column.
-    b.uzf_et = bool(getattr(a, 'uzf_et', False))
     b.uzf_et_form = str(getattr(a, 'uzf_et_form', 'etwc'))
-    if b.uzf_et and cfg is not None:
+    if cfg is not None:
         b.uzf_extdp = props.resolve_source(
             cfg.et.extdp, int(cMF.nlay), DS, 'et.extdp')
-        print('UZF ET: on (%s), extinction depth from %s'
+        print('UZF ET: always on (%s), extinction depth from %s'
               % (b.uzf_et_form, cfg.et.extdp.producer()))
     if a.sfr:
         # WP1d: the network is the hydrography the modeller MAPPED, burned onto

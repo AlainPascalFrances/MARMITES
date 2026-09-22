@@ -117,12 +117,27 @@ def test_the_extinction_depth_follows_the_usual_rule(cfg):
     assert 'vegetation layer' in help_.lower()
 
 
-def test_uzf_et_needs_an_extinction_depth(cfg):
-    cfg.et.uzf_et = True
+def test_the_extinction_depth_is_always_needed(cfg):
+    """There is no "off" in which a missing extdp would be harmless: UZF
+    always simulates unsaturated-zone ET, so the depth it stops at is
+    always read."""
     cfg.et.extdp = cfgmod.VectorSource()
     with pytest.raises(cfgmod.ConfigError) as e:
         cfg.validate()
     assert 'et.extdp' in str(e.value)
+
+
+def test_there_is_no_switch_for_uzf_et(cfg):
+    """WP2's ruling: total ET has three sources and the deep unsaturated
+    zone is one of them, so an off position could only ever produce a
+    model that evaporates nothing from it. A forced-true switch read by
+    nothing is worse than absent -- gwet_in_mf and wel_yn went the same
+    way."""
+    assert not hasattr(cfg.et, 'uzf_et')
+    flat = [r for row in schema.UZF_ET_ROWS for r in row]
+    assert 'et.uzf_et' not in flat, 'the switch is still on the panel'
+    page = open(PAGE, encoding='utf-8').read()
+    assert 'et.uzf_et' not in page, 'the panel still draws the switch'
 
 
 def test_the_panel_says_which_half_of_uzf_et_is_wired(cfg):

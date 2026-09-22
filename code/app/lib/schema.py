@@ -607,12 +607,6 @@ FIELDS = {
                   'A NUMERICAL device, not a physical property: it must be '
                   'effectively free-draining. It is PER CELL, so it is '
                   'grid-dependent -- retune it when the grid changes.'),
-    'et.uzf_et': ('UZF evapotranspiration', _U,
-                  'flopy: `ModflowGwfuzf(simulate_et=)`. Lets UZF dry the '
-                  'unsaturated zone itself. GROUNDWATER ET is never done '
-                  'here: MARMITES computes ETg and applies it through the '
-                  'WEL package, so MODFLOW must not remove it a second '
-                  'time.'),
     'sfr.enable': ('Stream routing (SFR)', _U,
                    'The network is the mapped hydrography, burned onto the '
                    'grid at run time.'),
@@ -866,8 +860,9 @@ UZF_ROWS = (
     ('uzf.vks', None),
 )
 # Evapotranspiration inside MODFLOW, which is UNSATURATED-zone ET only.
+# There is NO on/off: UZF always simulates it (WP2). What is asked is how --
+# the formulation, the depth it stops at and the water content it stops at.
 UZF_ET_ROWS = (
-    ('et.uzf_et', None),
     ('et.extdp', 'et.extwc_source'),
     ('et.unsat_form', None),
 )

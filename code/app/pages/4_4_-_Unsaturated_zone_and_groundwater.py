@@ -182,21 +182,24 @@ with tab_uzf:
             'second answer inside MODFLOW could only remove the same water '
             'twice. The old switch for it was forced off and read by '
             'nothing, which is worse than absent.')
-    edited.update(panelui.rows_form(
-        cfg, schema.UZF_ET_ROWS, 'et', columns=2,
-        gated={'et.uzf_et': ('et.extdp', 'et.extwc_source',
-                             'et.unsat_form')}))
-    if cfg.et.uzf_et:
-        st.warning('**Half wired.** The MODFLOW side is built: UZF simulates '
-                   'unsaturated-zone ET with this extinction depth, and '
-                   'groundwater ET is deliberately NOT asked of it — '
-                   '`linear_gwet` and `square_gwet` are both omitted, so ETg '
-                   'stays with MARMITES through the WEL package.\n\n'
-                   'What is NOT done is the demand chain: the coupler does '
-                   'not yet write the daily PET into UZF, nor read ETuzf '
-                   '**actual** back from the UZF budget to take the residual '
-                   'off ETg. Until it does, UZF gets a PET of zero and this '
-                   'switch changes nothing a run produces.')
+    st.caption('**UZF always simulates unsaturated-zone ET — there is no '
+               'switch for it.** Total ET has three sources and the deep '
+               'unsaturated zone is one of them, so an off position could '
+               'only ever produce a model that evaporates nothing from it. '
+               'What is asked here is *how*: the formulation, the depth it '
+               'stops at, and the water content it stops at.')
+    edited.update(panelui.rows_form(cfg, schema.UZF_ET_ROWS, 'et',
+                                    columns=2))
+    st.warning('**Half wired.** The MODFLOW side is built: UZF simulates '
+               'unsaturated-zone ET with this extinction depth, and '
+               'groundwater ET is deliberately NOT asked of it — '
+               '`linear_gwet` and `square_gwet` are both omitted, so ETg '
+               'stays with MARMITES through the WEL package.\n\n'
+               'What is NOT done is the demand chain: the coupler does not '
+               'yet write the daily PET into UZF, nor read ETuzf **actual** '
+               'back from the UZF budget to take the residual off ETg. '
+               'Until it does, UZF is handed a PET of zero and takes '
+               'nothing, whatever this panel says.')
 
     with st.expander('Where every UZF1 name went'):
         st.caption('The parameter file carried twenty-two of these and '

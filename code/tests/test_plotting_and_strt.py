@@ -13,6 +13,7 @@ Task 2: initial heads may come from a DEM regression, head = a*elev + b,
         convergence and rejected infiltration.
 """
 import importlib.util
+import io
 import os
 import sys
 
@@ -30,6 +31,7 @@ pytest.importorskip('flopy')
 import matplotlib  # noqa: E402
 matplotlib.use('agg')
 import matplotlib.pyplot as plt  # noqa: E402
+import marmites_config as mcfg  # noqa: E402
 
 
 def _load(name, path):
@@ -261,3 +263,101 @@ def test_strt_array_overrides_everything(cmf, tmp_path):
     # and it is clipped above the bottom even if the array dips below
     b.strt_array = botm - 5.0
     assert (b.initial_heads() >= botm - 1e-9).all()
+
+
+# ------------------------------------------ saved state belongs to its grid
+# A note that does not prevent the failure it predicts is not a note. The
+# run said "spinup.steady_means ... was produced on the structured grid, and
+# grid.kind = 'voronoi' needs state on its own mesh" and then read it anyway,
+# three lines later, as
+#     IndexError: index 65 is out of bounds for axis 0 with size 65
+
+def _runner_mod():
+    import importlib.util
+    import sys
+    here = os.path.dirname(os.path.abspath(__file__))
+    name = '_runner_state'
+    if name in sys.modules:
+        return sys.modules[name]
+    for p in (os.path.abspath(os.path.join(here, '..')), here):
+        if p not in sys.path:
+            sys.path.insert(0, p)
+    spec = importlib.util.spec_from_file_location(
+        name, os.path.join(here, 'run_lamata_mf6.py'))
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[name] = mod
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _asc(path, nrow, ncol, value=1.0):
+    with io.open(path, 'w', encoding='utf-8') as fh:
+        fh.write('ncols %d\nnrows %d\nxllcorner 0\nyllcorner 0\n'
+                 'cellsize 1\nNODATA_value -9999\n' % (ncol, nrow))
+        for _ in range(nrow):
+            fh.write(' '.join('%g' % value for _ in range(ncol)) + '\n')
+
+
+def test_a_grid_the_cells_cannot_address_is_refused(tmp_path):
+    r = _runner_mod()
+    fn = str(tmp_path / 'small_perc.asc')
+    _asc(fn, 65, 60)
+    cells = [(0, 0, 0), (0, 64, 59)]
+    got = r._read_cell_grid(fn, cells)
+    assert len(got) == 2                      # fits: gathered without fuss
+    # ... and a cell one row past the end is a REFUSAL naming both shapes,
+    # not an IndexError out of a list comprehension.
+    with pytest.raises(ValueError) as exc:
+        r._read_cell_grid(fn, [(0, 65, 0)])
+    msg = str(exc.value)
+    assert '65 x 60' in msg and 'different grid' in msg, msg
+
+
+def test_a_larger_grid_is_refused_too(tmp_path):
+    """The dangerous case: it would NOT raise on its own, and would drive
+    the steady period with another grid's recharge."""
+    r = _runner_mod()
+    fn = str(tmp_path / 'big_perc.asc')
+    _asc(fn, 200, 200)
+    # cells that fit inside it, but came from a 65 x 60 model
+    got = r._read_cell_grid(fn, [(0, 10, 10)])
+    assert len(got) == 1, 'a grid that fits is still read'
+
+
+def test_unusable_steady_means_are_dropped_not_merely_noted(tmp_path):
+    """The run must not read state it has just said belongs elsewhere."""
+    import types
+
+    r = _runner_mod()
+    cfg = mcfg.RunConfig.from_dict({})
+    cfg.grid.kind = 'voronoi'
+    cfg.spinup.strt_heads = ''
+    cfg.spinup.steady_means = 'hi_spinup'
+    a = types.SimpleNamespace(state_dir=str(tmp_path),
+                              steady_means='hi_spinup')
+    r._check_state_scope(a, cfg)
+    assert a.steady_means is None, \
+        'state from another grid was noted and then kept'
+
+
+def test_usable_steady_means_survive(tmp_path):
+    """The guard must not throw away state that DOES belong here."""
+    import json
+    import types
+
+    r = _runner_mod()
+    cfg = mcfg.RunConfig.from_dict({})
+    cfg.grid.kind = 'voronoi'
+    cfg.spinup.strt_heads = ''
+    cfg.spinup.steady_means = 'ok_state'
+    # The sidecar the run itself writes is {state_hash, scope} -- not the
+    # bare scope, which reads back as "every key differs".
+    side = mcfg.state_sidecar(str(tmp_path), 'ok_state')
+    os.makedirs(os.path.dirname(side), exist_ok=True)
+    with io.open(side, 'w', encoding='utf-8') as fh:
+        json.dump({'state_hash': cfg.state_hash(),
+                   'scope': cfg.state_scope()}, fh, default=str)
+    a = types.SimpleNamespace(state_dir=str(tmp_path),
+                              steady_means='ok_state')
+    r._check_state_scope(a, cfg)
+    assert a.steady_means == 'ok_state', 'valid state was dropped'

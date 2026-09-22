@@ -897,16 +897,22 @@ class Et:
 
     What remains is the UNSATURATED-zone ET that UZF can do itself:
 
-        uzf_et      ModflowGwfuzf  simulate_et
         extdp       perioddata     extdp, the extinction depth
         extwc_source                which water content ET stops at
+        unsat_form  ModflowGwfuzf  unsat_etwc | unsat_etae
+
+    SIMULATE_ET IS NOT ASKED. It is always on, which is the whole of WP2:
+    total ET has three sources and the deep unsaturated zone is one of
+    them. A switch for it could only ever be turned off to produce a model
+    that evaporates nothing from the deep zone -- which is the behaviour
+    WP2 exists to end -- and it would be one more thing to have left in the
+    wrong position, as the MMsurf switch and gwet_in_mf both were.
 
     The extinction depth follows the rule every spatial input follows --
     a raster, a column of the vegetation layer (as CdL does it), or one
     value for the whole catchment.
     """
 
-    uzf_et: bool = False           # UZF SIMULATE_ET
     unsat_form: str = 'etwc'       # etwc | etae
     extdp: VectorSource = field(default_factory=lambda: VectorSource(value=2.0))
     extwc_source: str = 'thtr'
@@ -1325,6 +1331,17 @@ RENAMED = {
     'grid.voronoi': {'seed_ponds': 'refine_ponds'},
 }
 
+# A key that has been RETIRED, with the reason. Same problem as a rename and
+# the same answer: unknown keys raise, so a key we delete would stop every
+# existing file loading -- a hard refusal, at launch, over a setting that no
+# longer does anything. It is accepted, DROPPED, and reported; saving from a
+# panel writes the file without it.
+RETIRED = {
+    'et': {'uzf_et': 'UZF always simulates unsaturated-zone ET (WP2): total '
+                     'ET has three sources and the deep unsaturated zone is '
+                     'one of them, so there is no off position'},
+}
+
 # Filled by _build, drained by RunConfig.from_dict. A module-level list
 # because _build is recursive and returns an instance, not a report.
 _MIGRATED = []
@@ -1344,6 +1361,11 @@ def _build(cls, data, where):
             data = dict(data)
             data[new] = data.pop(old)
             _MIGRATED.append('%s.%s is now %s.%s' % (where, old, where, new))
+    for gone, why in RETIRED.get(where, {}).items():
+        if gone in data:
+            data = dict(data)
+            data.pop(gone)
+            _MIGRATED.append('%s.%s is gone — %s' % (where, gone, why))
     unknown = sorted(set(data) - set(fields_))
     if unknown:
         raise ConfigError(
@@ -1557,9 +1579,14 @@ class RunConfig:
                 errs.append('uzf.thti must lie between thtr and thts')
         if self.uzf.ntrailwaves < 1 or self.uzf.nwavesets < 1:
             errs.append('uzf.ntrailwaves and uzf.nwavesets must be >= 1')
-        if self.et.uzf_et and self.et.extdp.producer() is None:
-            errs.append('et.uzf_et is on, so et.extdp needs a raster, a '
-                        'layer column or a value')
+        # UZF ET is always simulated, so the extinction depth is always
+        # needed: there is no "off" in which a missing extdp is harmless.
+        if self.et.extdp.producer() is None:
+            errs.append('et.extdp needs a raster, a layer column or a value: '
+                        'UZF always simulates unsaturated-zone ET and that '
+                        'is the depth it stops at')
+        if self.et.unsat_form not in ('etwc', 'etae'):
+            errs.append("et.unsat_form must be 'etwc' or 'etae'")
         if self.spinup.cycles < 1:
             errs.append('spinup.cycles must be >= 1')
         if self.spinup.strt_dem and len(self.spinup.strt_dem) != 2:

@@ -1,5 +1,5 @@
 # MARMITES resolved run configuration
-# config_hash = 057cc15404edae68
+# config_hash = 2ddc8551593c64dc
 
 [meta]
 config_version = 1
@@ -12,10 +12,10 @@ case = "LaMata"
 ws = ""
 gis_ws = ""
 nwt_reference = ""
-libmf6 = ""
+libmf6 = "auto"
 
 [run]
-surface = true
+surface = false
 model = true
 plot = false
 mode = "lagged"
@@ -220,7 +220,6 @@ how = "majority"
 fill = 0.0
 
 [soil.thickness]
-column = "SOILthick"
 how = "area_mean"
 raster = "inputSOILthick.asc"
 fill = 0.0
@@ -347,7 +346,6 @@ kind = "drn"
 cond = 10000.0
 
 [et]
-uzf_et = false
 unsat_form = "etwc"
 extwc_source = "thtr"
 

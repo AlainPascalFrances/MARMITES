@@ -216,9 +216,20 @@ def _uzf_text(b, tmp):
         return f.read().upper()
 
 
-def test_uzf_et_is_off_until_it_is_asked_for(cmf, tmp_path):
+def test_uzf_et_is_always_simulated(cmf, tmp_path):
+    """WP2's ruling: total ET has three sources and the deep unsaturated
+    zone is one of them, so there is no switch that could leave it off --
+    an off position could only ever produce a model that evaporates nothing
+    from the deep zone, which is the behaviour WP2 exists to end.
+
+    Built here with NOTHING asked of it, to show it is not a default that
+    something else turned on.
+    """
     b = _build(cmf, tmp_path)
-    assert 'SIMULATE_ET' not in _uzf_text(b, tmp_path)
+    txt = _uzf_text(b, tmp_path)
+    assert 'SIMULATE_ET' in txt, 'UZF was built without unsaturated-zone ET'
+    assert 'LINEAR_GWET' not in txt and 'SQUARE_GWET' not in txt, \
+        'MODFLOW would remove ETg a second time'
 
 
 def test_uzf_does_the_unsaturated_zone_and_never_the_groundwater(cmf,
@@ -232,7 +243,6 @@ def test_uzf_does_the_unsaturated_zone_and_never_the_groundwater(cmf,
     b = mf6mod.clsMF6(cmf, top=np.asarray(cmf.elev, dtype=float),
                       botm=np.asarray(cmf.botm, dtype=float),
                       sim_ws=str(tmp_path))
-    b.uzf_et = True
     b.uzf_extdp = np.full((cmf.nlay, cmf.nrow, cmf.ncol), 2.5)
     b.build()
     txt = _uzf_text(b, tmp_path)
@@ -246,7 +256,7 @@ def test_the_unsaturated_formulation_follows_the_configuration(cmf, tmp_path):
     b = mf6mod.clsMF6(cmf, top=np.asarray(cmf.elev, dtype=float),
                       botm=np.asarray(cmf.botm, dtype=float),
                       sim_ws=str(tmp_path))
-    b.uzf_et, b.uzf_et_form = True, 'etae'
+    b.uzf_et_form = 'etae'
     b.uzf_extdp = np.full((cmf.nlay, cmf.nrow, cmf.ncol), 2.5)
     b.build()
     txt = _uzf_text(b, tmp_path)
@@ -262,7 +272,6 @@ def test_the_pet_demand_starts_at_zero_for_the_coupler_to_write(cmf,
     b = mf6mod.clsMF6(cmf, top=np.asarray(cmf.elev, dtype=float),
                       botm=np.asarray(cmf.botm, dtype=float),
                       sim_ws=str(tmp_path))
-    b.uzf_et = True
     b.uzf_extdp = np.full((cmf.nlay, cmf.nrow, cmf.ncol), 2.5)
     b.build()
     pet = {float(rec[2]) for rec in b.uzf_perioddata}

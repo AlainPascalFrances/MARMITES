@@ -156,10 +156,10 @@ class clsMF6:
         self.uzf_vks_scale = 1.0
         self.perioddata = None
         self.outer_maximum = min(int(getattr(cMF, 'maxiterout', 500)), 500)
-        # UNSATURATED-ZONE ET (WP2). Off by default; the run turns it on
-        # from [et]. `uzf_et_form` is 'etwc' (a water-content threshold) or
-        # 'etae' (Brooks-Corey capillary pressure).
-        self.uzf_et = False
+        # UNSATURATED-ZONE ET (WP2). ALWAYS SIMULATED -- there is no switch,
+        # see the perioddata block below. `uzf_et_form` is 'etwc' (a
+        # water-content threshold) or 'etae' (Brooks-Corey capillary
+        # pressure), which IS a choice and comes from [et].
         self.uzf_et_form = 'etwc'
         # per-cell (nlay, nrow, ncol) or None -> taken from thtr
         self.uzf_extdp = None
@@ -866,26 +866,25 @@ class clsMF6:
                   if self.uzf_extwc is not None else None)
         pdata0 = []
         for n, (i, j, k) in enumerate(self.surf_cells):
-            if self.uzf_et:
-                dp = float(_extdp[k, i, j]) if _extdp is not None else 0.0
-                # extwc must lie between thtr and thts; thtr is the floor
-                # UZF6 already enforces, so it is the honest default.
-                wc = (float(_extwc[k, i, j]) if _extwc is not None
-                      else float(thtr[k, i, j]))
-            else:
-                dp = wc = 0.0
+            dp = float(_extdp[k, i, j]) if _extdp is not None else 0.0
+            # extwc must lie between thtr and thts; thtr is the floor
+            # UZF6 already enforces, so it is the honest default.
+            wc = (float(_extwc[k, i, j]) if _extwc is not None
+                  else float(thtr[k, i, j]))
             pdata0.append((n, float(getattr(cMF, 'perc_user', 0.0)), 0.0,
                            dp, wc, 0.0, 0.0, 0.0))
-        _etkw = {}
-        if self.uzf_et:
-            _etkw['simulate_et'] = True
-            # ... and NEITHER linear_gwet NOR square_gwet: groundwater ET is
-            # MARMITES's, and asking MODFLOW for it as well would remove the
-            # same water twice.
-            if self.uzf_et_form == 'etae':
-                _etkw['unsat_etae'] = True
-            else:
-                _etkw['unsat_etwc'] = True
+        # SIMULATE_ET IS ALWAYS ON (WP2). Total ET has three sources and the
+        # deep unsaturated zone is one of them, so a switch for it could only
+        # ever be left in the position that evaporates nothing from the deep
+        # zone -- which is the behaviour WP2 exists to end.
+        _etkw = {'simulate_et': True}
+        # ... and NEITHER linear_gwet NOR square_gwet: groundwater ET is
+        # MARMITES's, and asking MODFLOW for it as well would remove the same
+        # water twice.
+        if self.uzf_et_form == 'etae':
+            _etkw['unsat_etae'] = True
+        else:
+            _etkw['unsat_etwc'] = True
         ModflowGwfuzf(gwf, nuzfcells=self.nuzfcells, ntrailwaves=int(getattr(cMF, 'ntrail2', 7)),
                       nwavesets=int(getattr(cMF, 'nsets', 40)),
                       packagedata=pkdata, perioddata={0: pdata0},

@@ -122,7 +122,7 @@ def test_empty_config_reproduces_todays_flag_defaults():
     assert c.postproc.sankey_min_flux == 0.05
     assert c.postproc.sankey_full is True
     assert c.postproc.map_days == 6
-    assert c.et.uzf_et is False           # WP2 turns this on
+    assert c.et.unsat_form == 'etwc'    # UZF ET is always simulated
     assert c.run_tag == '6lay_lagged'
 
 
@@ -315,3 +315,24 @@ def test_mm_paths_resolves_and_reports():
     paths.report_paths('LaMata', stream=buf)
     text = buf.getvalue()
     assert 'REPO' in text and 'DATASET' in text and 'WS_ROOT' in text
+
+
+def test_a_retired_key_is_dropped_and_reported_not_refused():
+    """Unknown keys raise, so DELETING a key would stop every existing file
+    loading -- a hard refusal at launch over a setting that no longer does
+    anything. et.uzf_et is the first: UZF always simulates unsaturated-zone
+    ET, so there is no off position for it to be left in."""
+    cfg = cfgmod.RunConfig.from_dict({'et': {'uzf_et': False,
+                                           'unsat_form': 'etae'}})
+    assert not hasattr(cfg.et, 'uzf_et')
+    assert cfg.et.unsat_form == 'etae', 'the rest of the section was lost'
+    said = ' '.join(cfg.migrated)
+    assert 'et.uzf_et is gone' in said, cfg.migrated
+    assert 'three sources' in said, 'the reason is not carried'
+
+
+def test_a_genuinely_unknown_key_still_raises():
+    """The retirement list must not become a hole a typo falls through."""
+    with pytest.raises(cfgmod.ConfigError) as exc:
+        cfgmod.RunConfig.from_dict({'et': {'uzf_ett': True}})
+    assert 'uzf_ett' in str(exc.value)
