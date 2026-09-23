@@ -1799,7 +1799,7 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
 
 def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_MM, obspt, fntitle, ibound4Sankey,
                  stdout=None, report=None, treshold=5E-2, tolerance=1E-6,
-                 eps_connect=1E-4, plot_years=True):
+                 eps_connect=1E-4, plot_years=True, per_day=False):
     """ Computes the water balance for a certain time span
     input: ASCII file with water fluxes wrtitten by MM
 
@@ -1807,7 +1807,15 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
     whose magnitude falls below it, so tiny terms do not clutter the diagram.
     Was hardcoded to 5E-2; now a keyword so a caller can render a decluttered
     core diagram (default 0.05) and, with ``treshold=0``, a full one.
+
+    ``per_day`` draws the balance in mm.d-1 instead of mm.y-1 -- the
+    configuration's postproc.wb_unit, which was asked on the Plots panel and
+    read by nothing: the Sankey was hard-wired to per-year. The threshold
+    stays a per-YEAR quantity and is converted, so it hides the same flows
+    in either unit.
     """
+    if per_day:
+        treshold = treshold / 365.0
 
     # compute fluxes for whole modelled period and hydrological years
     P = []
@@ -1846,10 +1854,12 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
         if k == 0:
             i = indexTime[1]
             indexend = indexTime[-2]
-            mult = 365.0 / (indexend - i + 1)
+            mult = (1.0 if per_day else 365.0) / (indexend - i + 1)
         else:
             indexend = indexTime[k + 1] - 1
-            mult = 1.0
+            # a hydrological year's total IS mm.y-1; per day it is divided
+            # by that year's own length
+            mult = (1.0 / (indexend - i + 1)) if per_day else 1.0
         P.append(mult * np.sum(np.float16(flx[flxIndex['iP']][i:indexend])))
         Ei.append(mult * np.sum(np.float16(flx[flxIndex['iEi']][i:indexend])))
         Pe.append(mult * np.sum(np.float16(flx[flxIndex['iPe']][i:indexend])))
@@ -1969,7 +1979,9 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
             if k == 0 or k % 2 != 0:
                 fig = plt.figure(figsize=(8.27, 11.7), dpi=72)
                 if f == 0:
-                    fig.suptitle("Water balance ($mm.y^{-1}$) - %s\n" % obspt, fontsize=10, y=0.99)
+                    fig.suptitle("Water balance ($mm.%s^{-1}$) - %s\n"
+                                 % ('d' if per_day else 'y', obspt),
+                                 fontsize=10, y=0.99)
                 else:
                     fig.suptitle(r"Water balance ($\%%$ of yearly rainfall)" " - %s\n" % obspt, fontsize=10, y=0.99)
                 ax = []

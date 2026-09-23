@@ -96,6 +96,19 @@ OBS = {'table': 'inputObs.txt', 'heads': 'inputObsHEADS',
        'sm': 'inputObsSM', 'ro': 'inputObsRo', 'name_column': 'Name'}
 
 
+def _tick_years(cMF):
+    """The time-series tick density, from [postproc] via cMF.
+
+    A record shorter than the first bound gets quarterly minor ticks, one
+    shorter than the second half-yearly. The plotting routines have always
+    taken these; nothing passed them, so the panel's values never arrived.
+    """
+    return {'maxYearsTickTrimester': int(getattr(cMF, 'maxYearsTickTrimester',
+                                                 5)),
+            'maxYearsTickSemester': int(getattr(cMF, 'maxYearsTickSemester',
+                                                10))}
+
+
 def use_observations(cfg):
     """Take the observation files from the State variables panel.
 
@@ -409,7 +422,7 @@ def run_postproc(sim_ws, ds_ws, name='lamatamm', dates=None,
 
 def run_preproc(sim_ws, ds_ws, name='lamatamm', mf_ws=None, verbose=True,
                 out_root=None, cMF=None, ctx=None, res=None, trunk=None,
-                gis_ws=None):
+                gis_ws=None, input_maps=True):
     """Input maps into <out-dir>/_input/.
 
     Every parameter field -- geometry, aquifer properties, UZF soil
@@ -442,7 +455,11 @@ def run_preproc(sim_ws, ds_ws, name='lamatamm', mf_ws=None, verbose=True,
             print('   general map skipped: %r' % exc)
 
     # --- the native parameter-field maps ------------------------------ #
-    if cMF is not None and ctx is not None and MMplot is not None:
+    # [postproc] input_maps: drawn whatever the Plots panel said, until now.
+    if not input_maps:
+        if verbose:
+            print('   input parameter maps: off on the Plots panel')
+    elif cMF is not None and ctx is not None and MMplot is not None:
         try:
             written += _native_input_maps(MMplot, out, cMF, ctx, res=res,
                                           verbose=verbose)
@@ -692,7 +709,8 @@ def _mmplot(trunk=None):
 
 def native_suite(out_dir, cMF, ctx, res, ds_ws=None, trunk=None, verbose=True,
                  sim_ws=None, sankey=True, sankey_full=True, sankey_min_flux=0.05,
-                 map_days=6, sankey_obs_years=False):
+                 map_days=6, sankey_obs_years=False, obs_series=True,
+                 result_maps=True):
     """Run the native MARMITESplot figures on the coupled run's in-memory data.
 
     Called from the runner where ``cMF``/``ctx``/``res`` exist. Produces the
@@ -758,21 +776,32 @@ def native_suite(out_dir, cMF, ctx, res, ds_ws=None, trunk=None, verbose=True,
                 print('   per-point Sankey skipped: %r' % exc)
 
     # --- per-observation-point soil-column time series (Stage 2) ------- #
-    try:
-        written += _native_obs_timeseries(MMplot, out_dir, cMF, ctx, res, sim_ws,
-                                          name, agg=agg if sankey else None,
-                                          ds_ws=ds_ws, verbose=verbose)
-    except Exception as exc:                         # pragma: no cover
+    # [postproc] obs_series and result_maps: these were drawn whatever the
+    # Plots panel said.
+    if not obs_series:
         if verbose:
-            print('   native obs time series skipped: %r' % exc)
+            print('   per-point time series: off on the Plots panel')
+    else:
+        try:
+            written += _native_obs_timeseries(
+                MMplot, out_dir, cMF, ctx, res, sim_ws, name,
+                agg=agg if sankey else None, ds_ws=ds_ws, verbose=verbose)
+        except Exception as exc:                     # pragma: no cover
+            if verbose:
+                print('   native obs time series skipped: %r' % exc)
 
     # --- result maps: the MM fluxes and the aquifer terms ------------- #
-    try:
-        written += _native_result_maps(MMplot, out_dir, cMF, ctx, res, sim_ws,
-                                       name, ndays=map_days, verbose=verbose)
-    except Exception as exc:                         # pragma: no cover
+    if not result_maps:
         if verbose:
-            print('   native result maps skipped: %r' % exc)
+            print('   result maps: off on the Plots panel')
+    else:
+        try:
+            written += _native_result_maps(MMplot, out_dir, cMF, ctx, res,
+                                           sim_ws, name, ndays=map_days,
+                                           verbose=verbose)
+        except Exception as exc:                     # pragma: no cover
+            if verbose:
+                print('   native result maps skipped: %r' % exc)
 
     if verbose:
         print('native MARMITESplot: %d figure(s) -> %s' % (len(written), out_dir))
@@ -1330,7 +1359,11 @@ def _render_sankey_inner(MMplot, out_dir, DATE, flx, flxIndex, HYindex,
                             year_lst=year_lst, cMF=smf, ncell_MM=ncell_MM,
                             obspt=obspt, fntitle=fntitle,
                             ibound4Sankey=ibound4Sankey, treshold=treshold,
-                            plot_years=plot_years)
+                            plot_years=plot_years,
+                            # [postproc] wb_unit, set on cMF by
+                            # props.apply_plot_settings
+                            per_day=(str(getattr(smf, 'plt_WB_unit', 'year'))
+                                     == 'day'))
         written = [os.path.join(out_dir, f) for f in os.listdir(out_dir)
                    if f.startswith('_%s_WBsankey' % fntitle) and f.endswith('.png')]
         if verbose:
@@ -1639,7 +1672,8 @@ def _native_obs_timeseries(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
                     i + 1, j + 1, l_high + 1, cMF.elev[i, j]),
                 _CLR_LST, hmax, hmin, o, int(oo.get('lay', l_high)), nsl,
                 float(cMF.elev[i, j]), int(getattr(cMF, 'iniMonthHydroYear', 10)),
-                date_ini=DATE[HYindex[1]], date_end=DATE[HYindex[-2]])
+                date_ini=DATE[HYindex[1]], date_end=DATE[HYindex[-2]],
+                **_tick_years(cMF))
             if os.path.exists(fn):
                 written.append(fn)
             # groundwater-flux figure at the same point, from the same flux list
@@ -1649,7 +1683,8 @@ def _native_obs_timeseries(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
                     cMFd, flx, lbl, idx, fng,
                     'Groundwater fluxes at observation point %s' % o,
                     iniMonthHydroYear=int(getattr(cMF, 'iniMonthHydroYear', 10)),
-                    date_ini=DATE[HYindex[1]], date_end=DATE[HYindex[-2]])
+                    date_ini=DATE[HYindex[1]], date_end=DATE[HYindex[-2]],
+                    **_tick_years(cMF))
                 # the native routine writes only the '_part3MF' variant
                 stem = os.path.splitext(os.path.basename(fng))[0]
                 written += [os.path.join(out_dir, f) for f in os.listdir(out_dir)

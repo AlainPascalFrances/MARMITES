@@ -328,6 +328,24 @@ def soil_parameters(cfg, nsoil=None):
     return nsl, name, st, slprop, sm, sfc, sr, si, ks
 
 
+def apply_plot_settings(cfg, cMF):
+    """The Plots panel's figure settings, onto cMF where the figures look.
+
+    The post-processing already asked cMF for the hydrological year's first
+    month -- getattr(cMF, 'iniMonthHydroYear', 10) -- and NOTHING set it, so
+    every figure fell back to October whatever the panel said. The tick
+    density and the water-balance unit went the same way. They are set here,
+    under the names the figures read; the on/off switches go to the calls
+    that draw each figure family.
+    """
+    p = cfg.postproc
+    cMF.iniMonthHydroYear = int(p.hydro_year_start)
+    cMF.plt_WB_unit = str(p.wb_unit)
+    cMF.maxYearsTickTrimester = int(p.tick_trimester_years)
+    cMF.maxYearsTickSemester = int(p.tick_semester_years)
+    return cMF
+
+
 def apply_hnoflo(cfg, cMF, verbose=True):
     """Take the no-flow sentinel from the panel -- into BOTH places it lives.
 

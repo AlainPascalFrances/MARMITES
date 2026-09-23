@@ -1213,18 +1213,33 @@ def _run_postproc(a, cMF, ctx, res):
         # repository and not into the model workspace either.
         from marmites_postprocess import run_preproc, run_postproc, native_suite
         os.makedirs(a.out_dir, exist_ok=True)
+        # THE PLOTS PANEL'S FIGURE SETTINGS. The hydrological year, the tick
+        # density and the water-balance unit are set on cMF, where the
+        # figures look; the switches go to the calls below. Every one of
+        # them was read by nothing -- sankey was a literal True here.
+        cfg = getattr(a, 'config', None)
+        if cfg is not None:
+            props.apply_plot_settings(cfg, cMF)
         if a.preproc:
             run_preproc(a.ws, DS, name=cMF.modelname.lower(), out_root=a.out_dir,
                         gis_ws=a.gis_ws,
-                        cMF=cMF, ctx=ctx, res=res)
+                        cMF=cMF, ctx=ctx, res=res,
+                        input_maps=(cfg.postproc.input_maps
+                                    if cfg is not None else True))
         if a.postproc:
             run_postproc(a.ws, DS, name=cMF.modelname.lower(), out_root=a.out_dir)
             # native MARMITESplot figures, driven by the in-memory coupled data
             native_suite(os.path.join(a.out_dir, '_output'), cMF, ctx, res,
-                         ds_ws=DS, sim_ws=a.ws, sankey=True,
+                         ds_ws=DS, sim_ws=a.ws,
+                         sankey=(cfg.postproc.sankey if cfg is not None
+                                 else True),
                          sankey_full=a.sankey_full,
                          sankey_min_flux=a.sankey_min_flux, map_days=a.map_days,
-                         sankey_obs_years=a.sankey_obs_years)
+                         sankey_obs_years=a.sankey_obs_years,
+                         obs_series=(cfg.postproc.obs_series
+                                     if cfg is not None else True),
+                         result_maps=(cfg.postproc.result_maps
+                                      if cfg is not None else True))
             # 01-07 water-budget figures incl. 06_heads/07_coupling and the
             # NWT-vs-MF6 comparison (into <out_dir>/figures_nwt_comparison/)
             try:

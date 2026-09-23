@@ -43,14 +43,6 @@ NOT_WIRED = {
     'lak.surfdep': 'no reader',
     'lak.maxiter': 'no reader',
     'lak.stagechg': 'no reader',
-    'postproc.hydro_year_start': 'no reader',
-    'postproc.wb_unit': 'no reader',
-    'postproc.obs_series': 'no reader',
-    'postproc.sankey': 'no reader',
-    'postproc.input_maps': 'no reader',
-    'postproc.result_maps': 'no reader',
-    'postproc.tick_trimester_years': 'no reader',
-    'postproc.tick_semester_years': 'no reader',
     'paths.nwt_reference': 'defined only',
 }
 # Not model inputs at all, or asked ahead of the work package that uses them.
