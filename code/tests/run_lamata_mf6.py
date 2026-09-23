@@ -259,6 +259,91 @@ def ctx_geom_area(cMF):
     return np.outer(np.asarray(cMF.delc, float), np.asarray(cMF.delr, float))
 
 
+def active_area(cMF, b):
+    """The catchment's area [m2]: the TRUE areas of the active surface cells.
+
+    The balance line used to take (active cells in layer 1) x mean(delr) x
+    mean(delc) -- right on the 50 m grid only. On the Voronoi mesh the cells
+    run from ~1 m2 by the drains to ~4000 m2 in the far field, and the line
+    printed a recharge of 2,263,794 mm/yr.
+    """
+    ar = np.asarray(ctx_geom_area(cMF), dtype=float)
+    if ar.size != b.nrow * b.ncol:
+        raise ValueError('%d cell areas for a %d x %d grid'
+                         % (ar.size, b.nrow, b.ncol))
+    ar = ar.reshape(b.nrow, b.ncol)
+    return float(sum(ar[i, j] for i, j, _lay in b.surf_cells))
+
+
+# The flows into and out of the AQUIFER, by budget-term prefix. Only the
+# terms present in a run's list file count; the rest are simply absent.
+RECHARGE_TERMS = ('UZF-GWRCH_IN',)
+DISCHARGE_PREFIXES = ('DRN', 'GHB', 'WEL')
+
+
+def aquifer_balance(cum, times, area):
+    """Recharge to, and discharge from, the aquifer in mm/yr over the run.
+
+    ``cum`` is the list file's CUMULATIVE volumes [m3], one row per saved
+    step; ``times`` their times [d]. The first period is left out, as it
+    always was (it is the initial state); the rates are volumes over elapsed
+    time, NOT a plain mean of per-step rates -- which weighted a 1-day step
+    as much as a 30-day one. Also returns the share of the recharge carried
+    by the single largest step, and which step, because one pulse can make
+    the whole-run figure meaningless.
+    """
+    t = np.asarray(times, dtype=float)
+    cols = list(cum.columns)
+    dis_cols = [c for c in cols if c.endswith('_OUT')
+                and c.split('_')[0].split('-')[0].rstrip('0123456789')
+                in DISCHARGE_PREFIXES]
+    rch_cols = [c for c in cols if c in RECHARGE_TERMS]
+    i0 = 1 if len(t) > 1 else 0
+    span = t[-1] - (t[0] if i0 else 0.0)
+    if span <= 0 or area <= 0:
+        raise ValueError('no elapsed time (%g d) or no area (%g m2)'
+                         % (span, area))
+    base = cum.iloc[0] if i0 else 0.0
+
+    def vol(c):
+        return float(cum[c].iloc[-1] - (base[c] if i0 else 0.0))
+
+    def mmyr(v):
+        return v / span / area * 1000.0 * 365.0
+
+    v_rch = sum(vol(c) for c in rch_cols)
+    v_dis = sum(vol(c) for c in dis_cols)
+    step = np.zeros(len(t))
+    for c in rch_cols:
+        step += np.diff(np.concatenate([[0.0], cum[c].to_numpy(float)]))
+    step = step[i0:]
+    k = int(np.argmax(step)) if step.size else 0
+    share = float(step[k] / v_rch) if v_rch > 0 else 0.0
+    return {'recharge': mmyr(v_rch), 'discharge': mmyr(v_dis),
+            'discharge_terms': {c: mmyr(vol(c)) for c in dis_cols},
+            'area_km2': area / 1e6, 'days': span,
+            'peak_share': share, 'peak_time': float(t[i0 + k]),
+            'peak_mm': float(step[k]) / area * 1000.0 if step.size else 0.0}
+
+
+def balance_lines(bal):
+    """The balance as printed at the end of a run."""
+    out = ['aquifer balance over %.0f d on %.3f km2: recharge to WT %.1f '
+           'mm/yr  vs  discharge %.1f mm/yr  (deficit %.1f)'
+           % (bal['days'], bal['area_km2'], bal['recharge'],
+              bal['discharge'], bal['discharge'] - bal['recharge']),
+           '   discharge by term: ' + ', '.join(
+               '%s %.1f' % (c, v) for c, v in sorted(
+                   bal['discharge_terms'].items()))]
+    if bal['peak_share'] > 0.5:
+        out.append('   WARNING: %.0f %% of that recharge arrived in ONE step '
+                   '(t = %g d, %.0f mm over the catchment) -- a pulse, not a '
+                   'rate; the whole-run figure says little about the rest '
+                   'of the run.' % (100.0 * bal['peak_share'],
+                                    bal['peak_time'], bal['peak_mm']))
+    return out
+
+
 def _asc(fn):
     """Read an ESRI ASCII grid, nodata -> 0."""
     a = np.loadtxt(fn, skiprows=6)
@@ -1163,18 +1248,16 @@ def main():
     try:
         import flopy
         _lst = flopy.utils.Mf6ListBudget(os.path.join(a.ws, cMF.modelname.lower() + '.lst'))
-        _r = _lst.get_dataframes()[0].iloc[1:]
-        _A = float(np.sum(b.idomain[0] > 0)) * float(np.mean(cMF.delr)) * float(np.mean(cMF.delc))
-        _mmyr = lambda c: float(_r.get(c, 0).mean()) * 365.0 / _A * 1000.0
-        rch = _mmyr('UZF-GWRCH_IN')
-        dis = _mmyr('DRN2_OUT') + _mmyr('WEL_OUT') + _mmyr('DRN_OUT')
-        print('aquifer balance: recharge to WT %.1f mm/yr  vs  discharge %.1f '
-              'mm/yr  (deficit %.1f)' % (rch, dis, dis - rch))
-        if dis - rch > 5.0:
+        _bal = aquifer_balance(_lst.get_dataframes(diff=False)[1],
+                               _lst.get_times(), active_area(cMF, b))
+        for _line in balance_lines(_bal):
+            print(_line)
+        if _bal['discharge'] - _bal['recharge'] > 5.0:
             print('   -> still draining; raise --uzf-vks-scale (currently %.3g) '
                   'to lift recharge' % a.uzf_vks_scale)
-    except Exception as _exc:
-        pass
+    except Exception as _exc:                           # noqa: BLE001
+        print('aquifer balance: not computed (%s: %s)'
+              % (type(_exc).__name__, _exc))
 
     # Save the final head field for reuse as an IC. Auto-save after a spin-up
     # (so it is never lost), or on explicit --save-strt for a single run.
