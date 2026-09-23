@@ -37,6 +37,7 @@ for p in (CODE, APP, os.path.join(CODE, 'ppMF6')):
 
 import marmites_config as mcfg              # noqa: E402
 import mm_paths                             # noqa: E402
+from lib import dataset_state                      # noqa: E402
 from lib import editor, loaders, panelui, schema   # noqa: E402
 
 st.set_page_config(page_title='1 Grid', page_icon='🗺️', layout='wide')
@@ -300,65 +301,13 @@ def _static_mesh(polys, areas, colour_by, overlays, epsg, title, view):
     return fig
 
 
-def _provenance(path):
-    """The ``# source / # size`` header the converter writes, as a dict."""
-    out = {}
-    try:
-        with open(path, encoding='utf-8') as fh:
-            for line in fh:
-                if not line.startswith('#'):
-                    break
-                if ':' in line:
-                    k, v = line[1:].split(':', 1)
-                    out[k.strip()] = v.strip()
-    except OSError:
-        return {}
-    return out
-
-
-# What the MESH PRODUCERS read out of the dataset, and the shapefile each is
-# derived from. Voronoi triangulates inputWATERSHED.csv and refines on
-# inputSTREAM.csv; the quadtree refines on the same streams. So these two are
-# the dataset tables a grid actually depends on -- and the reason the
-# converter has to run BEFORE a build rather than after a selection.
-MESH_INPUTS = (('inputWATERSHED.csv', None),          # None = cfg.grid.boundary
-               ('inputSTREAM.csv', 'hydrography.shp'))
-
-
 def _dataset_stale(cfg):
-    """Is what the producers read still what the cartography says? (bool, why).
-
-    Compares the SOURCE and its size recorded in each table's header against
-    the shapefile on disk. A missing table, a table made from a different
-    file, or a file that has been re-exported since all mean the same thing:
-    a mesh built now would be built on the previous cartography.
-    """
-    ds = str(mm_paths.dataset_dir(cfg.paths.case))
-    why = []
-    for table, source in MESH_INPUTS:
-        out = os.path.join(ds, table)
-        name = source or cfg.grid.boundary
-        src = (name if os.path.isabs(name)
-               else os.path.join(str(mm_paths.GIS), name))
-        if not os.path.exists(out):
-            why.append('%s has never been written' % table)
-            continue
-        prov = _provenance(out)
-        was = prov.get('source', '')
-        if was and os.path.normcase(was) != os.path.normcase(src):
-            why.append('%s was made from %s, not %s'
-                       % (table, os.path.basename(was), os.path.basename(src)))
-            continue
-        if not os.path.exists(src):
-            continue                      # the check below would be noise
-        size = prov.get('size', '')
-        try:
-            on_disk = os.path.getsize(src)
-        except OSError:
-            continue
-        if size and ('%d bytes' % on_disk) not in size:
-            why.append('%s has changed since %s was written'
-                       % (os.path.basename(src), table))
+    """Are the tables a GRID depends on still what the cartography says?
+    (bool, why). The shared rule (lib.dataset_state), limited to the ring
+    and the streams: a vegetation edit is no reason to rebuild a grid --
+    Launch converts the other layers before a run."""
+    why = dataset_state.stale(cfg, mm_paths.dataset_dir(cfg.paths.case),
+                              mm_paths.GIS, only=dataset_state.GRID_TABLES)
     return bool(why), '; '.join(why)
 
 
@@ -440,19 +389,8 @@ def _show_rectangle_check(rc, kind):
 
 
 def _run_converter(case, cfg_path, dry):
-    """Run the WP1 converter as a subprocess and return its output.
-
-    A subprocess, not an import: it keeps geopandas out of this process's
-    import graph, and it is exactly the command a user would type.
-    """
-    import subprocess
-    cmd = [sys.executable, os.path.join(CODE, 'tools', 'gis_to_dataset.py'),
-           '--case', case, '--config', cfg_path]
-    if dry:
-        cmd.append('--dry-run')
-    r = subprocess.run(cmd, capture_output=True, text=True,
-                       cwd=str(mm_paths.REPO), timeout=900)
-    return (r.stdout or '') + (('\n' + r.stderr) if r.stderr else '')
+    """The converter (lib.dataset_state.run_converter); its output."""
+    return dataset_state.run_converter(case, cfg_path, dry=dry)[1]
 
 
 def _describe(cfg):
@@ -475,7 +413,8 @@ def _describe(cfg):
 
 ATTEMPTS = st.session_state.setdefault('grid_attempts', [])
 
-tab_domain, tab_mesh = st.tabs(['Catchment & grid', 'Visualize grid'])
+tab_domain, tab_mesh, tab_gis = st.tabs(
+    ['Catchment & grid', 'Visualize grid', 'Cartography → dataset'])
 
 # ===================================================================== 1a
 with tab_domain:
@@ -645,6 +584,45 @@ with tab_domain:
     else:
         st.info('No attempt yet. Press **Create grid** — it builds from the '
                 'settings above without saving anything.')
+
+
+# ===================================================================== 1c
+# (written BEFORE tab_mesh: that tab calls st.stop() when nothing is
+# cached yet, which would leave this one empty; the tab ORDER on screen
+# is the st.tabs() call's)
+# THE CARTOGRAPHY -> DATASET CONVERTER, by hand. It lived on the Soil panel,
+# but it serves panels 1 to 5 -- the ring and the streams, the soil zones,
+# the vegetation, the irrigation fields, the observation points, the ponds --
+# and nothing said when a layer had been edited: lm_veg.shp was changed on
+# 2026-09-23 and every run that day read the vegetation of the 13th. Launch
+# now converts by itself when a table is out of date; this tab shows the
+# state and keeps the manual button, for a preview or a refresh on demand.
+with tab_gis:
+    _ds = mm_paths.dataset_dir(cfg.paths.case)
+    st.caption(
+        'A run never opens a shapefile. The converter reads the GIS folder '
+        '(`%s`) and writes GRID-INDEPENDENT tables into the dataset (`%s`); '
+        'those are what a run reads. **Launch converts first whenever a '
+        'table is out of date**, and *Create grid* does it for the ring and '
+        'the streams -- so this button is for a preview, or a refresh on '
+        'demand.' % (mm_paths.GIS, _ds))
+    try:
+        _why = dataset_state.stale(cfg, _ds, mm_paths.GIS)
+    except Exception as exc:                            # noqa: BLE001
+        _why = None
+        st.warning('The dataset state could not be read: %s' % exc)
+    if _why:
+        st.warning('**Out of date with the cartography:**\n\n- ' +
+                   '\n- '.join(_why))
+    elif _why is not None:
+        st.success('Every converted table matches its shapefile.')
+    _c1, _c2 = st.columns(2)
+    if _c1.button('Preview (dry run)', key='conv_dry'):
+        st.session_state['conv'] = _run_converter(case, path, dry=True)
+    if _c2.button('Update dataset', type='primary', key='conv_run'):
+        st.session_state['conv'] = _run_converter(case, path, dry=False)
+    if st.session_state.get('conv'):
+        st.code(st.session_state['conv'], language='text')
 
 
 # ===================================================================== 1b

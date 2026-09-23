@@ -27,6 +27,7 @@ for p in (CODE, APP):
 import marmites_config as mcfg        # noqa: E402
 import mm_paths                       # noqa: E402
 from lib import checks as chk          # noqa: E402
+from lib import dataset_state          # noqa: E402
 from lib import panelui               # noqa: E402
 from lib import runs as runlib        # noqa: E402
 from lib import schema                # noqa: E402
@@ -207,7 +208,29 @@ panelui.panel_link(panelui.VALIDATION_PAGE,
                    'Validation of the configuration', icon='🔎')
 
 def _start():
-    """Actually start the detached run."""
+    """Actually start the detached run -- converting the cartography first
+    when a table is out of date with its shapefile (lib.dataset_state)."""
+    _busy_now = runlib.active(RUNS)
+    if _busy_now:
+        # checked BEFORE converting: the dataset is not rewritten under a
+        # run that is still reading it
+        st.error('Not launched: %s' % runlib.RunBusy(_busy_now[0]))
+        return
+    _why = dataset_state.stale(cfg, mm_paths.dataset_dir(cfg.paths.case),
+                               mm_paths.GIS)
+    if _why:
+        with st.spinner('Updating the dataset from the cartography…'):
+            _ok, _out = dataset_state.run_converter(cfg.paths.case, cfg_path)
+        if not _ok:
+            st.error('The dataset could not be updated from the cartography, '
+                     'so nothing was launched: a run would read the tables '
+                     'as they were. The converter said:')
+            st.code(_out[-4000:], language='text')
+            return
+        st.info('Dataset updated from the cartography before the run: %s'
+                % '; '.join(_why))
+        with st.expander('Converter output'):
+            st.code(_out, language='text')
     try:
         run_id, payload = runlib.launch(
             cfg_path, RUNS, overrides=overrides, run_tag=run_tag or None,

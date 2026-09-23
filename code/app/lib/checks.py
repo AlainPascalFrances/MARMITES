@@ -237,6 +237,36 @@ def check_dataset(cfg, dataset_dir=None, **_):
                     % dataset_dir, panel=0, key='paths.case')
 
 
+def check_dataset_fresh(cfg, dataset_dir=None, **_):
+    """Are the converted tables still what the shapefiles say?
+
+    A run reads the tables, never a shapefile, so an edited layer that was
+    not converted is a change the run silently ignores -- lm_veg.shp was
+    edited on 2026-09-23 and every run that day used the vegetation of the
+    13th. Not an error: Launch converts first. Said here so it is seen.
+    """
+    if dataset_dir is None or not os.path.isdir(str(dataset_dir)):
+        return
+    import importlib.util
+    import sys
+    name = '_mm_dataset_state'
+    mod = sys.modules.get(name)
+    if mod is None:
+        spec = importlib.util.spec_from_file_location(
+            name, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                               'dataset_state.py'))
+        mod = importlib.util.module_from_spec(spec)
+        sys.modules[name] = mod
+        spec.loader.exec_module(mod)
+    import mm_paths
+    why = mod.stale(cfg, dataset_dir, mm_paths.GIS)
+    if why:
+        yield Check(INFO, '%d converted table(s) out of date with the '
+                    'cartography -- Launch converts them first'
+                    % len(why), panel=1, key='grid.boundary',
+                    detail='; '.join(why))
+
+
 def _props():
     """``ppMF6/marmites_props``, imported by path like :func:`_loaders`."""
     import importlib.util
@@ -442,7 +472,8 @@ def check_grid(cfg, ws_root=None, **_):
                    'grid the model\'s.')
 
 
-CHECKS = (check_schema, check_switches, check_dataset, check_grid, check_uzf_sy,
+CHECKS = (check_schema, check_switches, check_dataset, check_dataset_fresh,
+          check_grid, check_uzf_sy,
           check_forcing, check_state_scope, check_run_scope, check_libmf6)
 
 

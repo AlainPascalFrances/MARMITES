@@ -35,8 +35,10 @@ panel = panelui.header(3)
 
 edited = panelui.panel_switch(cfg, panel)
 
-tab_soil, tab_veg, tab_gis = st.tabs(
-    ['Soil column', 'Vegetation characteristics', 'Cartography'])
+# The CARTOGRAPHY tab that stood here (the converter) moved to the Grid
+# panel: it serves panels 1 to 5, and Launch now converts by itself when a
+# shapefile has changed (lib.dataset_state).
+tab_soil, tab_veg = st.tabs(['Soil column', 'Vegetation characteristics'])
 
 # ------------------------------------------------------------------ soil
 with tab_soil:
@@ -127,47 +129,6 @@ with tab_veg:
                    % schema.panel_name(2) +
                    ', '.join('**%d** %s' % (k + 1, n)
                              for k, n in enumerate(names)))
-
-
-# ------------------------------------------------------- the cartography
-# HERE and not on panel 1, because these are the layers PANEL 3 wraps: the
-# soil zones, the vegetation cover, the observation points, the pond
-# outlines. Panel 1 needs no button of its own -- the two tables a GRID
-# depends on, the catchment ring and the stream network, are checked and
-# re-read by Create grid itself.
-#
-# In a TAB of its own, not at the foot of the page: content outside the tabs
-# is drawn under whichever one is open, so this read as part of the soil
-# column -- which is exactly what it is not.
-with tab_gis:
-    st.caption(
-        'A run never opens a shapefile. The converter does, once: it reads '
-        'the GIS folder and writes GRID-INDEPENDENT tables into `%s`, and '
-        'those are what a run reads and what this panel wraps onto the grid. '
-        'So press this when you have EDITED OR REPLACED a shapefile — '
-        'changing the grid does not need it, which is the whole point of the '
-        'two tiers.' % ds)
-
-    def _converter(dry):
-        """The converter as a SUBPROCESS: it keeps geopandas out of this
-        process's import graph, and it is the command a user would type."""
-        import subprocess
-        cmd = [sys.executable,
-               os.path.join(CODE, 'tools', 'gis_to_dataset.py'),
-               '--case', case, '--config', path]
-        if dry:
-            cmd.append('--dry-run')
-        r = subprocess.run(cmd, capture_output=True, text=True,
-                           cwd=str(mm_paths.REPO), timeout=900)
-        return (r.stdout or '') + (('\n' + r.stderr) if r.stderr else '')
-
-    c1, c2 = st.columns(2)
-    if c1.button('Preview (dry run)', key='conv_dry'):
-        st.session_state['conv'] = _converter(True)
-    if c2.button('Update dataset', type='primary', key='conv_run'):
-        st.session_state['conv'] = _converter(False)
-    if st.session_state.get('conv'):
-        st.code(st.session_state['conv'], language='text')
 
 
 # REMEMBERED, not written: the one save is in the sidebar (see panelui).
