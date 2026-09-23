@@ -197,3 +197,109 @@ def test_a_thickness_layer_other_than_the_zone_layer_is_refused():
     with pytest.raises(props.PropertyError) as exc:
         props.soil_grid(cfg, cMF, DS, 'thickness')
     assert 'converter exports only' in str(exc.value)
+
+
+# ------------------------------------------------------ the vegetation cover
+# From the Soil panel's vegetation layer, class column and class table. The
+# polygons are the reference: grass ~89 %, where the retired raster said 25.
+
+def _window(r0, r1, c0, c1, nrow=65, xll=739300.0, yll=4553050.0, d=50.0):
+    """A sub-grid of La Mata's 50 m grid, as a cMF-shaped namespace."""
+    import types
+    return types.SimpleNamespace(
+        nrow=r1 - r0, ncol=c1 - c0, hnoflo=9999.999,
+        xllcorner=xll + d * c0, yllcorner=yll + d * (nrow - r1),
+        delr=np.full(c1 - c0, d), delc=np.full(r1 - r0, d))
+
+
+needs_veg = pytest.mark.skipif(
+    not os.path.exists(os.path.join(DS, 'inputVEG.geojson')),
+    reason='the La Mata vegetation layer is not present')
+
+
+@needs_veg
+def test_the_trees_come_out_as_they_always_were_and_grass_as_mapped(
+        lamata, tmp_path):
+    """THE acceptance test, on a 15 x 15 window of the real grid. The tree
+    types reproduce the retired rasters to 0.02 points -- which proves the
+    overlay; grass is the polygons' own ~90 %, which is the ruling."""
+    _cMF, cfg, props, _act = lamata
+    r0, r1, c0, c1 = 25, 40, 20, 35
+    win = _window(r0, r1, c0, c1)
+    got = props.veg_cover(cfg, win, DS, 3, cache_dir=str(tmp_path),
+                          verbose=False)
+    assert got.shape == (3, 15, 15)
+    full = lamata[0]
+    for k in (2, 3):
+        old = np.asarray(full.cPROCESS.convASCIIraster2array(
+            os.path.join(DS, 'inputVEG%darea.asc' % k),
+            np.zeros((full.nrow, full.ncol))), dtype=float)[r0:r1, c0:c1]
+        assert np.abs(got[k - 1] - old).max() <= 0.02, 'type %d moved' % k
+    assert got[0].mean() > 50.0, 'grass is not the polygons\' cover'
+    assert got.sum(axis=0).max() <= 100.0 + 1e-4
+
+
+@needs_veg
+def test_the_overlay_is_cached_on_the_content(lamata, tmp_path):
+    _cMF, cfg, props, _act = lamata
+    win = _window(30, 33, 25, 28)
+    a = props.veg_cover(cfg, win, DS, 3, cache_dir=str(tmp_path),
+                        verbose=False)
+    files = list(tmp_path.glob('veg_cover_*.npz'))
+    assert len(files) == 1, 'the overlay was not cached'
+    b = props.veg_cover(cfg, win, DS, 3, cache_dir=str(tmp_path),
+                        verbose=False)
+    assert np.array_equal(a, b)
+
+
+def _veg_cfg(tmp_path, feats, classes):
+    """A configuration and dataset folder holding a toy vegetation layer."""
+    import marmites_config as mcfg
+    d = tmp_path / 'ds'
+    d.mkdir()
+    _layer(d, feats, name='inputVEG.geojson')
+    cfg = mcfg.RunConfig.from_dict({})
+    cfg.soil.veg_column = 'Species'
+    cfg.soil.veg_class = [mcfg.VegetationClass(code=c, veg=v)
+                          for c, v in classes]
+    return cfg, str(d)
+
+
+def test_a_class_the_table_does_not_map_is_refused(tmp_path):
+    """Every class must be defined: an unmapped one used to be skipped, its
+    area left unvegetated without a word."""
+    import marmites_props as props
+    cfg, ds = _veg_cfg(tmp_path, [(0, 0, 10, 10, {'Species': 'g'}),
+                                  (10, 0, 20, 10, {'Species': 'x'})],
+                       [('g', 1)])
+    win = _window(0, 1, 0, 2, nrow=1, xll=0.0, yll=0.0, d=10.0)
+    with pytest.raises(props.PropertyError) as exc:
+        props.veg_cover(cfg, win, ds, 1, verbose=False)
+    assert "'x'" in str(exc.value) and 'defined' in str(exc.value)
+
+
+def test_a_mapped_type_that_does_not_exist_is_refused(tmp_path):
+    import marmites_props as props
+    cfg, ds = _veg_cfg(tmp_path, [(0, 0, 10, 10, {'Species': 'g'})],
+                       [('g', 4)])
+    win = _window(0, 1, 0, 1, nrow=1, xll=0.0, yll=0.0, d=10.0)
+    with pytest.raises(props.PropertyError) as exc:
+        props.veg_cover(cfg, win, ds, 3, verbose=False)
+    assert 'there are 3' in str(exc.value)
+
+
+def test_the_cover_is_per_type_percent_of_the_cell(tmp_path):
+    import marmites_props as props
+    cfg, ds = _veg_cfg(tmp_path, [(0, 0, 6, 10, {'Species': 'g'}),
+                                  (6, 0, 10, 10, {'Species': 'i'})],
+                       [('g', 1), ('i', 2)])
+    win = _window(0, 1, 0, 1, nrow=1, xll=0.0, yll=0.0, d=10.0)
+    got = props.veg_cover(cfg, win, ds, 2, verbose=False)
+    assert np.allclose(got[:, 0, 0], [60.0, 40.0])
+
+
+def test_the_run_passes_the_cover_in_rather_than_reading_the_rasters():
+    src = open(os.path.join(HERE, 'run_lamata_mf6.py'),
+               encoding='utf-8').read()
+    assert 'props.veg_cover(' in src
+    assert 'gridVEGarea=_veg' in src, 'the cover is computed and not used'

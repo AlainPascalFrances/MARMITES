@@ -211,17 +211,24 @@ class clsPROCESS:
                 NFIELD = None,
                 inputZON_SP_P_irr_fn = None, inputZON_SP_Pe_irr_fn = None,
                 inputZON_SP_PT_irr_fn = None, input_SP_crop_irr_fn = None,
-                stdout = None, report = None):
+                stdout = None, report = None, gridVEGarea = None):
 
         # READ input ESRI ASCII rasters vegetation
         global crop_irr_SP, PT_irr_zonesSP, Pe_irr_zonesSP, P_irr_zonesSP, crop_irr_tmp, PT_irr_tmp, Pe_irr_tmp, P_irr_tmp, PE_tmp, LAI_veg_tmp, PT_veg_tmp, Pe_veg_tmp, Eo, P_veg
-        gridVEGarea_fn=[]
-        for v in range(NVEG):
-            gridVEGarea_fn.append(os.path.join(self.MM_ws,'inputVEG' + str(v+1)+'area.asc'))
-        gridVEGarea=np.zeros([NVEG,self.nrow,self.ncol], dtype=np.float32)
-        for v in range(NVEG):
-            grid_tmp=np.zeros([self.nrow,self.ncol], dtype=np.float32)
-            gridVEGarea[v,:,:]=self.convASCIIraster2array(gridVEGarea_fn[v],grid_tmp, stdout = stdout, report = report)
+        # GIVEN, when the configuration supplies the cover (the Soil panel's
+        # vegetation layer, put onto the grid by props.veg_cover). The files
+        # inputVEG<n>area.asc are then not opened at all -- a case that has
+        # no such files, as a new one will not, must not fail on them.
+        if gridVEGarea is not None:
+            gridVEGarea = np.asarray(gridVEGarea, dtype=np.float32)
+        else:
+            gridVEGarea_fn=[]
+            for v in range(NVEG):
+                gridVEGarea_fn.append(os.path.join(self.MM_ws,'inputVEG' + str(v+1)+'area.asc'))
+            gridVEGarea=np.zeros([NVEG,self.nrow,self.ncol], dtype=np.float32)
+            for v in range(NVEG):
+                grid_tmp=np.zeros([self.nrow,self.ncol], dtype=np.float32)
+                gridVEGarea[v,:,:]=self.convASCIIraster2array(gridVEGarea_fn[v],grid_tmp, stdout = stdout, report = report)
         gridVEGareatot = np.add.accumulate(gridVEGarea, axis = 0)
         area100_test = gridVEGareatot > 100.0
         if area100_test.sum() > 0:

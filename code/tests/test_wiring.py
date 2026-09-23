@@ -32,8 +32,6 @@ from lib import schema                                        # noqa: E402
 
 # Keys the run does NOT read, each with the reason. Mirrors Appendix B.
 NOT_WIRED = {
-    'soil.veg_column': 'no reader',
-    'soil.veg_class': 'no reader',
     'obs.table': 'no reader',
     'obs.name_column': 'no reader',
     'obs.heads_prefix': 'obs_series uses its own default prefix',

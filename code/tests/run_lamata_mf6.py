@@ -534,6 +534,20 @@ def setup_lamata(daily=True, nsp=None, grid='dis', nlay=None,
             grid_fn='inputSOILthick.asc', datatype=float)
     gridIRR = cMF.cPROCESS.inputEsriAscii(grid_fn='inputIRRzones.asc', datatype=int)
 
+    # THE VEGETATION COVER FROM THE SOIL PANEL: its vegetation layer, class
+    # column and class table, put onto the grid by exact area overlay. It came
+    # from inputVEG1area.asc .. inputVEG3area.asc, filenames written into
+    # MARMITESprocess, so the panel changed nothing. The two agree on the
+    # trees to 0.01 %; on grass they do not -- the polygons give ~89 % where
+    # the old raster gave 25 % -- and the polygons are the reference: the
+    # summer is carried by the grass wilting in the seasonal forcing, not by
+    # the cover map.
+    _veg = None
+    if cfg is not None:
+        _veg = props.veg_cover(
+            cfg, cMF, DS, NVEG,
+            cache_dir=(os.path.join(os.path.dirname(mesh_ws), '_overlay')
+                       if mesh_ws else None))
     (gridVEGarea, P_veg_zoneSP, Eo_zonesSP, PT_veg_zonesSP, Pe_veg_zonesSP, LAI_veg_zonesSP,
      PE_zonesSP, P_irr_zoneSP, Pe_irr_zoneSP, PT_irr_zonesSP, crop_irr_SP) = cMF.cPROCESS.inputSP(
         NMETEO=NMETEO, NVEG=NVEG, NSOIL=NSOIL, nper=cMF.nper,
@@ -542,7 +556,7 @@ def setup_lamata(daily=True, nsp=None, grid='dis', nlay=None,
         inputZON_SP_PE_fn=cMF.inputZON_SP_PE_fn, inputZON_SP_Eo_fn=cMF.inputZON_SP_Eo_fn,
         NFIELD=NFIELD, inputZON_SP_P_irr_fn=cMF.inputZON_SP_P_irr_fn,
         inputZON_SP_Pe_irr_fn=cMF.inputZON_SP_Pe_irr_fn, inputZON_SP_PT_irr_fn=cMF.inputZON_SP_PT_irr_fn,
-        input_SP_crop_irr_fn=cMF.input_SP_crop_irr_fn)
+        input_SP_crop_irr_fn=cMF.input_SP_crop_irr_fn, gridVEGarea=_veg)
 
     # THE SOIL COLUMN FROM THE SOIL PANEL. It came from MF_ws/inputSOILparam.txt,
     # at a path hard-coded right here, so the panel's soil.params was never

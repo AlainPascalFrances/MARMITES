@@ -197,6 +197,100 @@ def soil_grid(cfg, cMF, dataset_dir, what, kind='float'):
     return out.astype(int) if kind == 'int' else out
 
 
+VEG_POLYGONS = 'inputVEG.geojson'
+_VEG_OVERLAY_VERSION = 1      # bump if class_percent would give other numbers
+
+
+def veg_cover(cfg, cMF, dataset_dir, nveg, cache_dir=None, verbose=True):
+    """The vegetation cover, ``(nveg, nrow, ncol)`` in % of each cell.
+
+    From the Soil panel: the vegetation layer, its class column, and the
+    [[soil.veg_class]] table mapping each class to a vegetation type. Until
+    now the run read inputVEG1area.asc .. inputVEG3area.asc, filenames
+    written into MARMITESprocess, and the panel's answers changed nothing.
+
+    EVERY CLASS OF THE LAYER MUST BE MAPPED. A class no row names used to be
+    skipped in silence, leaving its area unvegetated without a word; the
+    layer is the modeller's statement of what covers the catchment, so a
+    class it uses and the table omits is a question, not a default.
+
+    The overlay is exact and slow -- 15,586 polygons on La Mata -- and gives
+    the same numbers every run, so the result is cached in ``cache_dir``,
+    keyed on the polygon file's CONTENT, the grid and the class table.
+    """
+    import hashlib
+    import json
+
+    import marmites_overlay as ov
+
+    s = cfg.soil
+    path = os.path.join(str(dataset_dir), VEG_POLYGONS)
+    column = (s.veg_column or '').strip()
+    if not column:
+        raise PropertyError('soil.veg_column is blank: name the class column '
+                            'of the vegetation layer')
+    mapping = {str(c.code): int(c.veg) for c in s.veg_class}
+    if not mapping:
+        raise PropertyError('soil.veg_class is empty: map every class of the '
+                            'vegetation layer to a vegetation type')
+    bad = sorted(v for v in set(mapping.values()) if not 1 <= v <= int(nveg))
+    if bad:
+        raise PropertyError('soil.veg_class maps to vegetation type(s) %s, '
+                            'but there are %d' % (bad, int(nveg)))
+    if not os.path.exists(path):
+        raise PropertyError('%s is not there -- run the converter on the Grid '
+                            'panel, which writes it from %s'
+                            % (path, s.veg_layer or 'the vegetation layer'))
+    nr, nc = int(cMF.nrow), int(cMF.ncol)
+    with open(path, 'rb') as fh:
+        digest = hashlib.sha1(fh.read()).hexdigest()
+    key = json.dumps({'file': digest, 'col': column, 'map': mapping,
+                      'nveg': int(nveg), 'xll': float(cMF.xllcorner),
+                      'yll': float(cMF.yllcorner),
+                      'delr': [float(x) for x in np.ravel(cMF.delr)],
+                      'delc': [float(x) for x in np.ravel(cMF.delc)],
+                      'v': _VEG_OVERLAY_VERSION}, sort_keys=True)
+    sig = hashlib.sha1(key.encode('utf-8')).hexdigest()[:16]
+    cached = (os.path.join(str(cache_dir), 'veg_cover_%s.npz' % sig)
+              if cache_dir else None)
+    if cached and os.path.exists(cached):
+        out = np.load(cached)['cover']
+        if verbose:
+            print('vegetation cover: %s (cached)' % _veg_summary(out, s))
+        return out
+
+    polys = ov.Polygons.from_geojson(path, [column])
+    found = sorted({str(v) for v in polys.attrs[column] if v is not None})
+    unmapped = [v for v in found if v not in mapping]
+    if unmapped:
+        raise PropertyError(
+            'the vegetation layer uses class(es) %s that soil.veg_class does '
+            'not map. Every class must be defined: add a row for each, or '
+            'correct the layer.' % ', '.join(repr(u) for u in unmapped))
+    cells = ov.structured_cells(cMF.xllcorner, cMF.yllcorner,
+                                cMF.delr, cMF.delc)
+    out = ov.class_percent(cells, polys, column, mapping, int(nveg))
+    out = out.reshape(int(nveg), nr, nc).astype(np.float32)
+    if cached:
+        os.makedirs(str(cache_dir), exist_ok=True)
+        np.savez_compressed(cached, cover=out)
+    if verbose:
+        print('vegetation cover: %s' % _veg_summary(out, s))
+    return out
+
+
+def _veg_summary(cover, soil):
+    """One line: the mean share of each type, where anything grows."""
+    grows = cover.sum(axis=0) > 0
+    parts = []
+    for k in range(cover.shape[0]):
+        codes = [c.code for c in soil.veg_class if int(c.veg) == k + 1]
+        parts.append('type %d (%s) %.1f %%'
+                     % (k + 1, '/'.join(codes) or '-',
+                        float(cover[k][grows].mean()) if grows.any() else 0.0))
+    return '; '.join(parts) + ', from the panel'
+
+
 def soil_parameters(cfg, nsoil=None):
     """MMsoil's soil column, from [[soil.zone]] and [[soil.horizon]].
 
