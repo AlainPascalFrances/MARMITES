@@ -123,6 +123,41 @@ def _must_exist(path, what):
     raise PropertyError('%s: %s does not exist' % (what, path))
 
 
+def apply_hnoflo(cfg, cMF, verbose=True):
+    """Take the no-flow sentinel from the panel -- into BOTH places it lives.
+
+    There are two copies: ``cMF.hnoflo``, which the packages test against,
+    and ``cMF.cPROCESS.hnoflo``, which the raster reader WRITES for every
+    NODATA cell. The reader was built from the ini before the panel was
+    asked, so setting only the first split them: the reader went on writing
+    10000 while the DRN build asked for 9999.99, and every NODATA cell of
+    La Mata's drain rasters passed as a real value. Twelve drains became
+    7800 at the aquifer floor, the steady period drained 47 m of a 50 m
+    aquifer, and the first transient day fell over.
+
+    One function, called by the run AND by the tests, because the
+    acceptance test that pins "twelve drains" never applied the override
+    -- it built the packages with both copies still agreeing, and passed.
+    Returns the note the run prints, or '' when nothing changed.
+    """
+    want = float(cfg.layers.hnoflo)
+    was = float(cMF.hnoflo)
+    cMF.hnoflo = want
+    proc = getattr(cMF, 'cPROCESS', None)
+    if proc is not None:
+        proc.hnoflo = want
+    if want == was:
+        return ''
+    # repr, NOT %g. %g rounds to six significant figures, so the ini's
+    # 9999.999 printed as "10000" -- and "9999.99 from the panel (the ini
+    # said 10000)" read as a tidy-up of a round number rather than the
+    # 0.009 discrepancy that turned twelve drains into 7800.
+    note = 'hnoflo: %r from the panel (the ini said %r)' % (want, was)
+    if verbose:
+        print(note)
+    return note
+
+
 def apply_layer_properties(cfg, cMF, dataset_dir, verbose=True):
     """Put the configured layer properties into ``cMF``. Returns what it did.
 
@@ -267,6 +302,17 @@ def _layer_arrays(src, layers, cMF, dataset_dir, what):
         plane = np.zeros((cMF.nrow, cMF.ncol), dtype=float)
         if isinstance(v, str):
             plane = cMF.cPROCESS.convASCIIraster2array(v, plane)
+            # NODATA IS "NO BOUNDARY HERE", and a boundary package already
+            # says that with 0. Mapped HERE, from the reader's own sentinel,
+            # so the packages never have to recognise a sentinel at all --
+            # which is what failed: the reader wrote NODATA as 10000 and the
+            # DRN build tested for 9999.99, turning La Mata's 7788 empty
+            # cells into drains at the aquifer floor. Both sentinels are
+            # cleared, in case the two are ever split again.
+            for s in {float(getattr(cMF.cPROCESS, 'hnoflo', np.nan)),
+                      float(getattr(cMF, 'hnoflo', np.nan))}:
+                if np.isfinite(s):
+                    plane[np.isclose(plane, s)] = 0.0
         else:
             plane[:, :] = float(v)
         out[idx] = plane

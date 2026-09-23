@@ -332,9 +332,21 @@ def test_hnoflo_reaches_the_model():
     straight after the ini is parsed, before anything uses it."""
     src = io.open(os.path.join(HERE, 'run_lamata_mf6.py'),
                   encoding='utf-8').read()
-    assert 'cfg.layers.hnoflo' in src, 'the run never reads layers.hnoflo'
-    assert src.index('cfg.layers.hnoflo') < src.index('conv_fact = '), (
+    # Applied through props.apply_hnoflo, which sets BOTH copies -- cMF's
+    # and the raster reader's. Setting only cMF's split them, and every
+    # NODATA cell of the drain rasters became a drain.
+    call = 'props.apply_hnoflo(cfg, cMF)'
+    assert call in src, 'the run never applies layers.hnoflo'
+    assert src.index(call) < src.index('conv_fact = '), (
         'hnoflo is applied after something has already used it')
+    assert src.index(call) < src.index('props.apply_boundaries'), (
+        'hnoflo is applied after the boundary rasters were read')
+    props_src = io.open(os.path.join(HERE, '..', 'ppMF6', 'marmites_props.py'),
+                        encoding='utf-8').read()
+    body = props_src[props_src.index('def apply_hnoflo'):]
+    body = body[:body.index('\ndef ')]
+    assert 'cfg.layers.hnoflo' in body and 'proc.hnoflo' in body, (
+        'apply_hnoflo does not set the reader\'s copy')
 
 
 # ---------------------------------------------------------------- fields

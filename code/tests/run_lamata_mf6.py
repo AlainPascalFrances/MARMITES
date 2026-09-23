@@ -443,10 +443,11 @@ def setup_lamata(daily=True, nsp=None, grid='dis', nlay=None,
             print('model name: %s (the parameter file said %s)'
                   % (_model, cMF.modelname))
             cMF.modelname = _model
-    if cfg is not None and float(cfg.layers.hnoflo) != float(cMF.hnoflo):
-        print('hnoflo: %g from the panel (the ini said %g)'
-              % (cfg.layers.hnoflo, cMF.hnoflo))
-        cMF.hnoflo = float(cfg.layers.hnoflo)
+    # ONE SENTINEL, NOT TWO -- into cMF AND the raster reader. Setting only
+    # cMF's copy is what turned La Mata's twelve drains into 7800 at the
+    # aquifer floor; see props.apply_hnoflo, which the tests call too.
+    if cfg is not None:
+        props.apply_hnoflo(cfg, cMF)
     # THE FRONT-END OWNS THE LAYER PROPERTIES TOO. thickness, k, Ss and Sy
     # are asked on the panel, and whatever it answers replaces what the ini
     # parsed -- before the cell list, the soil model or any MF6 package has

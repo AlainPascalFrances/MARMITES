@@ -174,6 +174,12 @@ def _built(cfg):
                      MF_ini_fn='__inputMF_flopy_v3_2s1L.ini',
                      xllcorner=739300.0, yllcorner=4553050.0)
     from_ini = [list(r) for r in cMF.layer_row_column_elevation_cond[0]]
+    # IN THE RUN'S ORDER, override included. Without apply_hnoflo this built
+    # the packages with both sentinel copies still agreeing, so "twelve
+    # drains" passed here while the run -- which applies the panel's hnoflo
+    # -- built 7800. A test that skips a step the run takes is testing a
+    # different program.
+    props.apply_hnoflo(cfg, cMF, verbose=False)
     props.apply_layer_properties(cfg, cMF, DS, verbose=False)
     props.apply_boundaries(cfg, cMF, DS, verbose=False)
     return cMF, from_ini
@@ -264,3 +270,58 @@ def test_the_initial_heads_tab_is_last_and_holds_only_the_spin_up():
     for moved in ("'seep'", "'uzf'", "'et'", "'layers'"):
         assert 'section_form(cfg, %s' % moved not in init, (
             '%s is still drawn on the Initial heads & spin-up tab' % moved)
+
+
+# ------------------------------------------------ the no-flow sentinel, once
+# There were two copies. The raster reader writes NODATA as ITS hnoflo; the
+# packages test against cMF.hnoflo. The panel set only the second, the reader
+# went on writing 10000, the DRN build asked for 9999.99 -- and every NODATA
+# cell of La Mata's drain rasters became a drain at the aquifer floor.
+
+def test_the_panel_hnoflo_reaches_both_copies(cfg):
+    import types
+    cMF = types.SimpleNamespace(hnoflo=10000.0,
+                                cPROCESS=types.SimpleNamespace(hnoflo=10000.0))
+    cfg.layers.hnoflo = 9999.99
+    note = props.apply_hnoflo(cfg, cMF, verbose=False)
+    assert cMF.hnoflo == cMF.cPROCESS.hnoflo == 9999.99, \
+        'the reader and the packages disagree on what NODATA is'
+    assert '9999.99' in note and '10000' in note
+
+
+def test_the_note_does_not_round_a_discrepancy_away(cfg):
+    """%g printed the ini's 9999.999 as "10000", so a 0.009 split that
+    turned twelve drains into 7800 read as a tidy-up of a round number."""
+    import types
+    cMF = types.SimpleNamespace(hnoflo=9999.999,
+                                cPROCESS=types.SimpleNamespace(hnoflo=9999.999))
+    cfg.layers.hnoflo = 9999.99
+    note = props.apply_hnoflo(cfg, cMF, verbose=False)
+    assert '9999.999' in note, note
+    assert '10000' not in note, 'the note rounds the discrepancy away'
+
+
+@pytest.mark.skipif(not os.path.isdir(os.path.join(DS, 'MF_ws')),
+                    reason='the La Mata dataset is not present')
+def test_a_split_sentinel_cannot_turn_nodata_into_drains(cfg):
+    """THE BUG, reproduced exactly: the reader left on the ini's 10000 while
+    cMF carries the panel's 9999.99. Twelve drains, not 7800 -- the
+    boundary arrays must not depend on the two copies agreeing."""
+    import MARMITESutilities as MMutils
+    import ppMODFLOW_flopy_v3 as ppMF
+    cMF = ppMF.clsMF(MMutils.clsUTILITIES(verbose=0), MM_ws=DS, MM_ws_out=DS,
+                     MF_ws=os.path.join(DS, 'MF_ws'),
+                     MF_ini_fn='__inputMF_flopy_v3_2s1L.ini',
+                     xllcorner=739300.0, yllcorner=4553050.0)
+    # The ini's value -- 9999.999, which the old note printed as "10000"
+    # because %g rounds to six significant figures.
+    assert float(cMF.cPROCESS.hnoflo) == 9999.999
+    cMF.hnoflo = 9999.99                     # the split, as the run had it
+    props.apply_layer_properties(cfg, cMF, DS, verbose=False)
+    props.apply_boundaries(cfg, cMF, DS, verbose=False)
+    drains = cMF.layer_row_column_elevation_cond[0]
+    assert len(drains) == 12, (
+        '%d drains: NODATA cells passed as values' % len(drains))
+    conds = sorted({round(float(r[4]), 4) for r in drains})
+    assert conds == [0.025, 0.035], (
+        'a NODATA conductance leaked into a drain: %s' % conds)
