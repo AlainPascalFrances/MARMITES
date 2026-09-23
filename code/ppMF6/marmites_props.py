@@ -254,7 +254,7 @@ def veg_cover(cfg, cMF, dataset_dir, nveg, cache_dir=None, verbose=True):
     cached = (os.path.join(str(cache_dir), 'veg_cover_%s.npz' % sig)
               if cache_dir else None)
     if cached and os.path.exists(cached):
-        out = np.load(cached)['cover']
+        out = _at_most_100(np.load(cached)['cover'])
         if verbose:
             print('vegetation cover: %s (cached)' % _veg_summary(out, s))
         return out
@@ -270,13 +270,41 @@ def veg_cover(cfg, cMF, dataset_dir, nveg, cache_dir=None, verbose=True):
     cells = ov.structured_cells(cMF.xllcorner, cMF.yllcorner,
                                 cMF.delr, cMF.delc)
     out = ov.class_percent(cells, polys, column, mapping, int(nveg))
-    out = out.reshape(int(nveg), nr, nc).astype(np.float32)
+    out = _at_most_100(out.reshape(int(nveg), nr, nc))
     if cached:
         os.makedirs(str(cache_dir), exist_ok=True)
         np.savez_compressed(cached, cover=out)
     if verbose:
         print('vegetation cover: %s' % _veg_summary(out, s))
     return out
+
+
+def _at_most_100(cover):
+    """The cover in float32, no cell summing to more than 100 %.
+
+    MMsoil refuses a cell whose classes add up to more than 100.0 -- with no
+    tolerance, and in float32. A cell covered bank to bank sums to 100 in
+    exact arithmetic but can land an ulp above it after the cast: 60 of La
+    Mata's cells came out at 100.0000076 % and stopped the run. The
+    overlay's own check allows 1e-6 (a real overlap is far larger), so what
+    reaches here is rounding: scale such a cell back to 100 and, if float32
+    still rounds it over, take the last ulps off its largest class.
+    """
+    c = np.asarray(cover, dtype=np.float64)
+    tot = c.sum(axis=0)
+    with np.errstate(invalid='ignore', divide='ignore'):
+        c = np.where(tot > 100.0, c * (100.0 / tot), c)
+    c = c.astype(np.float32)
+    for _ in range(16):
+        over = np.add.accumulate(c, axis=0)[-1] > np.float32(100.0)
+        if not over.any():
+            return c
+        big = c.argmax(axis=0)
+        r, q = np.nonzero(over)
+        k = big[r, q]
+        c[k, r, q] = np.nextafter(c[k, r, q], np.float32(0.0))
+    raise PropertyError('the vegetation cover exceeds 100 %% in %d cell(s) '
+                        'after rounding' % int(over.sum()))
 
 
 def _veg_summary(cover, soil):

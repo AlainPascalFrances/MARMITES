@@ -236,7 +236,7 @@ def test_the_trees_come_out_as_they_always_were_and_grass_as_mapped(
             np.zeros((full.nrow, full.ncol))), dtype=float)[r0:r1, c0:c1]
         assert np.abs(got[k - 1] - old).max() <= 0.02, 'type %d moved' % k
     assert got[0].mean() > 50.0, 'grass is not the polygons\' cover'
-    assert got.sum(axis=0).max() <= 100.0 + 1e-4
+    assert not _mmsoil_refuses(got)
 
 
 @needs_veg
@@ -250,6 +250,59 @@ def test_the_overlay_is_cached_on_the_content(lamata, tmp_path):
     b = props.veg_cover(cfg, win, DS, 3, cache_dir=str(tmp_path),
                         verbose=False)
     assert np.array_equal(a, b)
+
+
+def _mmsoil_refuses(cover):
+    """inputSP's own rule, verbatim: float32, accumulated, no tolerance.
+
+    The acceptance test once allowed 1e-4 above 100 -- and passed while 60
+    of La Mata's cells, at 100.0000076 %, stopped the run."""
+    acc = np.add.accumulate(np.asarray(cover, dtype=np.float32), axis=0)
+    return bool((acc > 100.0).sum() > 0)
+
+
+def _over_by_rounding():
+    """Three shares of a fully covered cell, exact in float64, that float32
+    accumulates past 100 -- found the way the overlay makes them."""
+    rng = np.random.default_rng(0)
+    w = rng.random((3, 20000))
+    cover = (100.0 * w / w.sum(axis=0)).astype(np.float32)
+    bad = np.nonzero(np.add.accumulate(cover, axis=0)[-1] > 100.0)[0]
+    assert bad.size, 'no cell rounds past 100 -- the premise has changed'
+    return cover[:, bad[0]].reshape(3, 1, 1)
+
+
+def test_a_cell_covered_bank_to_bank_is_not_refused_for_rounding():
+    """The run of 2026-09-23 stopped on it: float32 put 60 fully covered
+    cells an ulp above 100 %, and MMsoil allows nothing above."""
+    import marmites_props as props
+    bad = _over_by_rounding()
+    got = props._at_most_100(bad)
+    assert got.dtype == np.float32
+    assert not _mmsoil_refuses(got)
+    assert np.allclose(got, bad, atol=1e-4), 'more than rounding was removed'
+
+
+def test_the_cap_leaves_a_partly_covered_cell_alone():
+    import marmites_props as props
+    c = np.array([60.0, 25.5, 3.25], dtype=np.float32).reshape(3, 1, 1)
+    assert np.array_equal(props._at_most_100(c), c)
+
+
+@needs_veg
+def test_a_cover_cached_before_the_cap_is_capped_on_the_way_out(
+        lamata, tmp_path):
+    """So the slow overlay need not be rebuilt."""
+    _cMF, cfg, props, _act = lamata
+    win = _window(30, 33, 25, 28)
+    props.veg_cover(cfg, win, DS, 3, cache_dir=str(tmp_path), verbose=False)
+    f = next(tmp_path.glob('veg_cover_*.npz'))
+    raw = np.load(str(f))['cover'].copy()
+    raw[:, 0, 0] = _over_by_rounding()[:, 0, 0]
+    np.savez_compressed(str(f), cover=raw)
+    got = props.veg_cover(cfg, win, DS, 3, cache_dir=str(tmp_path),
+                          verbose=False)
+    assert _mmsoil_refuses(raw) and not _mmsoil_refuses(got)
 
 
 def _veg_cfg(tmp_path, feats, classes):
