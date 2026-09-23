@@ -410,8 +410,14 @@ def _widget(dotted, value, prefix=''):
         return st.number_input(shown, step=1, help=help_full, key=key,
                                **_default(value=int(value)))
     if isinstance(value, float):
-        return st.number_input(shown, format='%g', help=help_full, key=key,
-                               **_default(value=float(value)))
+        # '%.10g', NOT '%g'. %g rounds to six significant figures, so the
+        # no-flow value 9999.999 was DISPLAYED as 10000 -- a panel showing a
+        # different number from the file, for the one value where a 0.009
+        # difference had already turned twelve drains into 7800. Ten
+        # significant figures show every value this model uses exactly and
+        # still drop trailing zeros (0.035, not 0.0350000000).
+        return st.number_input(shown, format='%.10g', help=help_full,
+                               key=key, **_default(value=float(value)))
     if isinstance(value, (list, dict)):
         st.caption('%s — `%s`  \n*edit in the TOML tab*' % (shown, value))
         return None
@@ -640,7 +646,7 @@ def _source_widget(dotted, src, shown, help_full, key):
                               key=key + '.__v', label_visibility='collapsed')
     elif isinstance(val, float) or (val is None and which == 'value'):
         out = st.number_input('value', value=float(val if val is not None else 0.0),
-                              format='%g', key=key + '.__v',
+                              format='%.10g', key=key + '.__v',
                               label_visibility='collapsed')
     else:
         out = st.text_input('value', value=str(val or ''), key=key + '.__v',
