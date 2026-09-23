@@ -946,8 +946,13 @@ class MF6Coupler:
                               'initial heads.')
 
             # water-balance honesty check on the applied percolation
+            # rejinf_hist is mm/d PER CELL (_read_rejinf), so it goes back to
+            # m3 on each cell's own area. It used to be summed as it stood --
+            # mm/d added over cells, reported as m3: 46.1 % on the run of
+            # 2026-09-23, where MF6's own UZF budget said 2.6 %.
             applied = float(np.sum(self.perc_hist * self.area[None, :]))
-            rejected = float(np.sum(self.rejinf_hist))
+            rejected = float(np.sum(self.rejinf_hist / self.conv_fact
+                                    * self.area[None, :]))
             if applied > 0 and rejected > 0:
                 print('\nNOTE: UZF rejected %.4g of %.4g m3 of applied percolation '
                       '(%.1f%%).\n      This water re-enters the MARMITES soil '

@@ -214,6 +214,21 @@ def test_the_warning_is_silent_below_1_m():
                                         np.zeros(3), 3) == []
 
 
+def test_the_rejection_note_turns_mm_per_day_back_into_m3():
+    """rejinf_hist is mm/d per cell; the note added it up as m3 and said
+    46.1 % where MF6's UZF budget said 2.6 %."""
+    src = open(os.path.join(CODE, 'marmites_coupler.py'),
+               encoding='utf-8').read()
+    assert 'rejected = float(np.sum(self.rejinf_hist))' not in src
+    assert ('self.rejinf_hist / self.conv_fact\n'
+            '                                    * self.area[None, :]') in src
+    # and the arithmetic: 2 cells, 10 mm/d on 100 m2 and 1000 mm/d on 1 m2
+    rej_mm = np.array([[10.0, 1000.0]])
+    area = np.array([100.0, 1.0])
+    assert float(np.sum(rej_mm / 1000.0 * area[None, :])) == \
+        pytest.approx(1.0 + 1.0)                    # m3, not 1010
+
+
 def test_the_seepage_estimate_takes_each_cell_on_its_own_area():
     src = open(os.path.join(CODE, 'marmites_coupler.py'),
                encoding='utf-8').read()
