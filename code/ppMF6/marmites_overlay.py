@@ -52,8 +52,9 @@ class Polygons(object):
     def from_geojson(cls, path, columns):
         import shapely
         if not os.path.exists(path):
-            raise OverlayError('%s is not there -- run the converter on the '
-                               'Grid panel, which writes it from the '
+            raise OverlayError('%s is not there -- run the converter '
+                               '(Soil panel, Cartography tab: Update '
+                               'dataset), which writes it from the '
                                'cartography' % path)
         with open(path, encoding='utf-8') as fh:
             g = json.load(fh)

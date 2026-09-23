@@ -695,8 +695,12 @@ class clsPROCESS:
             b = a[~(a < hnoflo + 1000.0).any(1)]
         if b[:,0].any():
             rmse = (self.compRMSE(b[:,0], b[:,1]))
-            if np.std(b[:,1]) > 0:
-                rsr = (rmse/(np.std(b[:,1])))
+            # RSR is undefined for observations with no spread -- ONE
+            # observation in the window (C1-C3 are quarterly: one date in a
+            # 60-day run). It was left None, and printing it raised a
+            # TypeError reported as 'h: error'; the sentinel is what NSE and
+            # r already return in the same case, and what plotCALIBCRIT masks
+            rsr = (rmse/(np.std(b[:,1]))) if np.std(b[:,1]) > 0 else hnoflo
             nse = (self.compE(b[:,0], b[:,1], hnoflo))
             r = (self.compR(b[:,0], b[:,1], hnoflo))
         return rmse, rsr, nse, r
@@ -747,9 +751,9 @@ class clsPROCESS:
                             rSM.append(r)
                             del rmse, rsr, nse, r
                             if rmseSM[l] is not None:
-                                print('SM layer %d: %.1f %% / %.2f / %.2f / %.2f' % (l+1, rmseSM[l], rsrSM[l], nseSM[l], rSM[l]))
-                except Exception:
-                    print('SM layer %d: error' % (l+1))
+                                print('SM layer %d: %s %% / %s / %s / %s' % (l+1, _crit(rmseSM[l], hnoflo, '%.1f'), _crit(rsrSM[l], hnoflo), _crit(nseSM[l], hnoflo), _crit(rSM[l], hnoflo)))
+                except Exception as exc:
+                    print('SM layer %d: error (%s: %s)' % (l+1, type(exc).__name__, exc))
             if hobs is not None:
                 try:
                     rmse, rsr, nse, r = self.compCalibCrit(h_MF,hobs, hnoflo)
@@ -759,9 +763,11 @@ class clsPROCESS:
                     rHEADS    = [r]
                     del rmse, rsr, nse, r
                     if rmseHEADS[0] is not None:
-                        print('h: %.2f m / %.2f / %.2f / %.2f' % (rmseHEADS[0], rsrHEADS[0], nseHEADS[0], rHEADS[0]))
-                except Exception:
-                    print('h: error')
+                        print('h: %s m / %s / %s / %s' % tuple(_crit(v, hnoflo) for v in (rmseHEADS[0], rsrHEADS[0], nseHEADS[0], rHEADS[0])))
+                    else:
+                        print('h: no observation in the simulated period')
+                except Exception as exc:
+                    print('h: error (%s: %s)' % (type(exc).__name__, exc))
                 if h_MM is not None:
                     try:
                         rmse, rsr, nse, r = self.compCalibCrit(h_MM,hobs,hnoflo)
@@ -771,11 +777,19 @@ class clsPROCESS:
                         rHEADSc = [r]
                         del rmse, rsr, nse, r
                         if rmseHEADSc[0] is not None:
-                            print('hcorr: %.2f m / %.2f / %.2f / %.2f' % (rmseHEADSc[0], rsrHEADSc[0], nseHEADSc[0], rHEADSc[0]))
-                    except Exception:
-                        print('hcorr: error')                    
+                            print('hcorr: %s m / %s / %s / %s' % tuple(_crit(v, hnoflo) for v in (rmseHEADSc[0], rsrHEADSc[0], nseHEADSc[0], rHEADSc[0])))
+                    except Exception as exc:
+                        print('hcorr: error (%s: %s)' % (type(exc).__name__, exc))                    
 
         return rmseHEADS, rmseHEADSc, rmseSM, rsrHEADS, rsrHEADSc, rsrSM, nseHEADS, nseHEADSc, nseSM, rHEADS, rHEADSc, rSM
+
+def _crit(v, hnoflo, fmt='%.2f'):
+    """A calibration criterion for the log: 'n/a' when it is undefined --
+    None, or the hnoflo sentinel (one observation, or no spread)."""
+    if v is None or (hnoflo is not None and abs(float(v) - float(hnoflo)) < 1e-6):
+        return 'n/a'
+    return fmt % float(v)
+
 
 ##################
 if __name__ == "__main__":

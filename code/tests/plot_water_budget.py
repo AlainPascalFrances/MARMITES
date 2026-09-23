@@ -77,15 +77,24 @@ def load_new(ws, mode):
         d = {k: h[k][:] for k in ('heads', 'perc', 'etg', 'exf', 'rejinf',
                                   'outer_iters', 'cell_ij')}
         for k in ('wb_ts', 'wb_map', 'wb_ts_soil', 'wb_map_soil',
-                  'cell_area'):
+                  'cell_area', 'grid_shape'):
             d[k] = h[k][:] if k in h else None
+    # written by the runner and never read: every map then fell back to
+    # "grid size inferred from active cells" (7 warnings a run)
+    if d['grid_shape'] is None:
+        del d['grid_shape']
+    d['_ws'] = ws
     return d
 
 
-def load_reference(chunk=120):
+def load_reference(chunk=120, ndays=None):
     """Catchment-mean time series and time-mean maps from the NWT run.
 
-    Read in day chunks: the reference MM array is ~370 MB.
+    Read in day chunks: the reference MM array is ~370 MB. ``ndays`` limits
+    it to the FIRST ndays -- the days the new run simulated: both start on
+    the dataset's first day (2008-05-31), and a run with run.nsp = N covers
+    days 0..N-1. Without it a 60-day summer run was compared with the NWT
+    run's whole 1949-day record: rain 318 against 451 mm/yr, the same rain.
     """
     fn = NWT_REF
     if not os.path.exists(fn):
@@ -96,6 +105,8 @@ def load_reference(chunk=120):
     with h5py.File(fn, 'r') as h:
         MM = h['MM']
         nday, nrow, ncol, nidx = MM.shape
+        if ndays is not None:
+            nday = min(nday, int(ndays))
         ts = np.zeros((nday, nidx))
         acc = np.zeros((nrow, ncol, nidx))
         mask = None
@@ -143,8 +154,72 @@ def grid_shape(new, ref):
     return int(ij[:, 0].max()) + 1, int(ij[:, 1].max()) + 1
 
 
+def _on_mesh(new):
+    """A DISV run: its cells are (icell2d, 0) of an ncpl x 1 proxy grid."""
+    gs = new.get('grid_shape')
+    return gs is not None and int(np.ravel(gs)[1]) == 1         and int(np.ravel(gs)[0]) > 1
+
+
+def _dataset_grid():
+    """(xll, yll, nrow, ncol, cellsize) of the dataset's 50 m grid -- the
+    grid the NWT reference was run on."""
+    sys.path.insert(0, os.path.join(TRUNK, 'ppMF6'))
+    import marmites_props as props
+    rect, _names, _others = props.dataset_grid(DS)
+    if rect is None:
+        raise RuntimeError('no dataset raster declares the grid in %s' % DS)
+    return rect
+
+
+def _mesh_to_grid(new):
+    """``(nrow, ncol, to_grid)`` putting a mesh run on the dataset grid.
+
+    THE LINK TO THE NWT REFERENCE. On a mesh the maps were scattered by
+    (icell2d, 0) onto an ncpl x 1 'grid' -- blank panels -- and the driver
+    switched the reference off altogether, catchment series included. Each
+    50 m cell now takes the AREA-weighted mean of the mesh cells overlapping
+    it (exact polygon overlay; the polygons from MF6's own .grb), so the
+    comparison is like-for-like with the 65 x 60 NWT run. Cached on ``new``.
+    """
+    if '_to_grid' in new:
+        return new['_to_grid']
+    import glob
+    import flopy
+    import shapely
+    sys.path.insert(0, os.path.join(TRUNK, 'ppMF6'))
+    import marmites_overlay as ov
+    grb = sorted(glob.glob(os.path.join(new['_ws'], '*.disv.grb')))
+    if not grb:
+        raise RuntimeError('no .disv.grb in %s' % new['_ws'])
+    mg = flopy.mf6.utils.MfGrdFile(grb[0], verbose=False).modelgrid
+    ncol_m = int(np.ravel(new['grid_shape'])[1])
+    icell = [int(i) * ncol_m + int(j) for i, j in new['cell_ij']]
+    polys = ov.Polygons(np.array([shapely.Polygon(mg.get_cell_vertices(c))
+                                  for c in icell], dtype=object), {})
+    xll, yll, nrow, ncol, cs = _dataset_grid()
+    cells = ov.structured_cells(xll, yll, [cs] * ncol, [cs] * nrow)
+    ci, pi, area = ov.overlay(cells, polys)
+    den = np.bincount(ci, weights=area, minlength=nrow * ncol)
+
+    def to_grid(values):
+        v = np.asarray(values, dtype=float)[pi]
+        ok = np.isfinite(v)
+        num = np.bincount(ci[ok], weights=v[ok] * area[ok],
+                          minlength=nrow * ncol)
+        wok = np.bincount(ci[ok], weights=area[ok], minlength=nrow * ncol)
+        with np.errstate(invalid='ignore', divide='ignore'):
+            g = np.where(wok > 0, num / wok, np.nan)
+        return g.reshape(nrow, ncol)
+
+    new['_to_grid'] = (nrow, ncol, to_grid, den.reshape(nrow, ncol))
+    return new['_to_grid']
+
+
 def _scatter(new, ref, values):
-    """Per-cell values onto the full (nrow, ncol) grid, NaN elsewhere."""
+    """Per-cell values onto the full (nrow, ncol) grid, NaN elsewhere --
+    on a mesh, the dataset grid through an area-weighted overlay."""
+    if _on_mesh(new):
+        return _mesh_to_grid(new)[2](values)
     nrow, ncol = grid_shape(new, ref)
     ij = new['cell_ij']
     g = np.full((nrow, ncol), np.nan)
@@ -278,6 +353,16 @@ def plot_maps(new, ref, ws, which=('Rp', 'ETg', 'Eg', 'Tg', 'Ro', 'ETsoil')):
 def plot_heads(new, ws, ref=None):
     """Delegates to the recovered MARMITESplot module (single source of
     truth for MARMITES figures)."""
+    if _on_mesh(new):
+        # on the dataset grid, like the other maps; each 50 m cell weighted
+        # by the mesh area it holds
+        nrow, ncol, to_grid, den = _mesh_to_grid(new)
+        H = np.array([to_grid(h) for h in np.asarray(new['heads'])])
+        ii, jj = np.nonzero(den > 0)
+        MMplot.plotHEADS(H[:, ii, jj], np.column_stack([ii, jj]),
+                         (nrow, ncol), _fig(ws, '06_heads.png'),
+                         area=den[ii, jj])
+        return
     MMplot.plotHEADS(new['heads'], new['cell_ij'], grid_shape(new, ref),
                      _fig(ws, '06_heads.png'), area=new.get('cell_area'))
 
@@ -290,7 +375,10 @@ def plot_coupling(new, ws):
 
 
 def write_summary(labels, newv, refv, ws, new):
-    lines = ['La Mata water budget - annual-equivalent rates (mm/year)', '']
+    lines = ['La Mata water budget - annual-equivalent rates (mm/year), '
+             'over the %d simulated day(s)%s' % (
+                 new['wb_ts'].shape[0],
+                 ', both runs' if refv is not None else ''), '']
     if refv is not None:
         lines.append('%-10s %12s %12s %12s' % ('flux', 'MF6 (API)', 'NWT (Picard)', 'diff'))
         lines.append('-' * 50)
@@ -337,7 +425,7 @@ def make_figures(ws, mode='lagged', no_reference=False, verbose=True,
     ref = None
     if not no_reference:
         try:
-            ref = load_reference()
+            ref = load_reference(ndays=new['wb_ts'].shape[0])
         except Exception as exc:                # pragma: no cover
             if verbose:
                 print('plot_water_budget: reference not loaded (%r); '

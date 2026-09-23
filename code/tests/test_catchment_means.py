@@ -53,7 +53,7 @@ def test_the_results_file_keeps_the_cell_areas_and_the_run_line_uses_them():
 
 def test_the_budget_summary_and_the_coupling_figures_weight_by_area():
     pwb = _src('tests', 'plot_water_budget.py')
-    assert "'cell_area'):" in pwb
+    assert "'cell_area', 'grid_shape'):" in pwb
     assert "np.average(new['rejinf'], axis=1, weights=w)" in pwb
     assert pwb.count("area=new.get('cell_area')") == 2
 
@@ -74,3 +74,32 @@ def test_a_spin_up_out_of_cycles_says_so_and_is_not_called_equilibrated():
     assert 'the spin-up did NOT converge' in src
     assert "'NOT-converged spin-up'" in src
     assert "print('equilibrated heads saved:" not in src
+
+
+# ------------------------------------------- the link to the NWT reference
+def test_a_mesh_run_is_compared_with_nwt_again():
+    """The driver switched the reference off on a mesh -- series and totals
+    included, which need no grid -- and the maps scattered (icell2d, 0) onto
+    an ncpl x 1 'grid': blank panels."""
+    drv = _src('tests', 'run_lamata_mf6.py')
+    assert 'no_reference=_on_mesh' not in drv
+    pwb = _src('tests', 'plot_water_budget.py')
+    assert 'def _mesh_to_grid(new):' in pwb
+    assert 'if _on_mesh(new):\n        return _mesh_to_grid(new)[2](values)' in pwb
+    assert "'cell_area', 'grid_shape'):" in pwb, 'grid_shape was never read'
+
+
+def test_the_reference_is_cut_to_the_simulated_days():
+    """A 60-day summer run was compared with the NWT run's 1949 days: rain
+    318 against 451 mm/yr, the same rain."""
+    pwb = _src('tests', 'plot_water_budget.py')
+    assert "load_reference(ndays=new['wb_ts'].shape[0])" in pwb
+    assert 'nday = min(nday, int(ndays))' in pwb
+
+
+def test_the_overlay_mean_is_area_weighted():
+    """Two mesh cells in one 50 m cell: 10 on 2400 m2 and 1000 on 100 m2
+    give the cell 49.6, not the 505 of a plain mean."""
+    v = np.array([10.0, 1000.0])
+    a = np.array([2400.0, 100.0])
+    assert np.sum(v * a) / a.sum() == pytest.approx(49.6)

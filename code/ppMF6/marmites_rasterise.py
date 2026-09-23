@@ -287,6 +287,53 @@ class MapAdapter:
                           for i in range(self.dr.ncpl)], dtype=float)
         return self.dr.field(areas, nodata=np.nan)
 
+    def plot_geometry(self):
+        """What plotLAYER reads its real-coordinate axes from, for the
+        DISPLAY grid: origin, delr (per column), delc (per row), cUTIL.
+
+        On a mesh the model proxy is ncpl x 1 with delr = delc = 1, and the
+        maps took their km axes from THAT: a 17 km tall strip with the
+        catchment squeezed into its top corner (2026-09-23).
+        """
+        if not self.on_mesh:
+            return self.cMF
+        import types
+        xe, ye = self.dr.x_edge, self.dr.y_edge
+        return types.SimpleNamespace(
+            xllcorner=float(xe[0]), yllcorner=float(ye[-1]),
+            delr=np.diff(xe), delc=-np.diff(ye),
+            nrow=self.nrow, ncol=self.ncol, nlay=int(self.cMF.nlay),
+            cUTIL=getattr(self.cMF, 'cUTIL', None))
+
+    def points(self, names, cells, lays=None):
+        """Observation points in plotLAYER's frame: ``[names, y, x, lay]``.
+
+        plotLAYER draws cell (i, j) centred on (j + 1, i + 1) -- its
+        pcolormesh edges run from 0.5 -- and its km axes agree (P0, cell
+        (8, 4) -> 739525, 4555875). The points were drawn at the 0-BASED
+        (j, i): one cell off on the structured grid, and on a mesh, whose
+        cells are (icell2d, 0), at x = 0 and y = icell2d, which stretched
+        every map into a strip. ``cells`` are the model (i, j) of each point;
+        on a mesh the point goes to its cell's centroid, placed exactly on
+        the display raster.
+        """
+        cells = [tuple(int(v) for v in c) for c in cells]
+        lays = list(lays) if lays is not None else [0] * len(cells)
+        if not self.on_mesh:
+            ys = [float(i + 1) for i, _j in cells]
+            xs = [float(j + 1) for _i, j in cells]
+            return [list(names), ys, xs, lays]
+        ncol_m = int(self.cMF.ncol)
+        xe, ye = self.dr.x_edge, self.dr.y_edge
+        ys, xs = [], []
+        for i, j in cells:
+            rec = self.dr.gridprops['cell2d'][i * ncol_m + j]
+            x, y = float(rec[1]), float(rec[2])
+            xs.append(0.5 + float(np.interp(x, xe, np.arange(xe.size))))
+            # y_edge descends with the row index
+            ys.append(0.5 + float(np.interp(-y, -ye, np.arange(ye.size))))
+        return [list(names), ys, xs, lays]
+
 
 def model_cell_area(cMF):
     """Plan area [m2] of every MODEL cell, shaped like the model's own grid.

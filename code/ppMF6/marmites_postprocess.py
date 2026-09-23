@@ -846,16 +846,17 @@ def _vrange(v):
     return lo, hi
 
 
-def _obs4map(res):
-    """Observation points for plotLAYER's ``points`` overlay: [lbl, i, j, lay],
-    the four parallel lists the native routine expects."""
-    if 'obs_ij' not in res:
+def _obs4map(res, DA):
+    """Observation points for plotLAYER's ``points`` overlay: [lbl, y, x,
+    lay], already in plotLAYER's frame -- the map adapter places them (one
+    cell off on the structured grid before, and on a mesh at x = 0, y =
+    icell2d, which stretched every map into a strip)."""
+    if res is None or 'obs_ij' not in res:
         return None
     ij = np.asarray(res['obs_ij'])
     names = [n.decode() if isinstance(n, bytes) else str(n)
              for n in res.get('obs_names', [str(k) for k in range(len(ij))])]
-    return [names, [int(v) for v in ij[:, 0]], [int(v) for v in ij[:, 1]],
-            [0] * len(ij)]
+    return DA.points(names, [(int(i), int(j)) for i, j in ij])
 
 
 def _hydro_year_index(DATE, ini_month):
@@ -1858,7 +1859,8 @@ def _native_result_maps(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
     # MM fluxes carry their own colour in _MAP_FLUXES.
     cmap_in = matplotlib.colormaps['Blues']
     cmap_out = matplotlib.colormaps['Reds']
-    pts = _obs4map(res)
+    pts = _obs4map(res, DA)
+    geo = DA.plot_geometry()      # the DISPLAY grid's axes
     area = DA.cell_area()                           # (nrow, ncol) m2
     to_mm = _conv_fact(cMF) / area                  # m3/d -> mm/d, per cell
     ib = DA.lay_int(np.abs(np.asarray(cMF.ibound)))
@@ -1889,7 +1891,7 @@ def _native_result_maps(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
                 plt_title='%s_%s' % (prefix, stem), MM_ws=out_dir,
                 interval_type='linspace', interval_num=5,
                 Vmax=[hi], Vmin=[lo], fmt='%5.2f', points=pts, mask=m3,
-                hnoflo=hnoflo, cMF=cMF)
+                hnoflo=hnoflo, cMF=geo)
         except Exception as exc:                     # pragma: no cover
             if verbose:
                 print('   %s map %s skipped: %r' % (prefix, stem, exc))
@@ -2013,7 +2015,8 @@ def _native_input_maps(MMplot, out_dir, cMF, ctx, res=None, verbose=True):
     mask = (ib == 0)                                  # (nlay, nrow, ncol)
     mask_all = mask.all(axis=0)                       # cells inactive everywhere
     cmap = matplotlib.colormaps['gist_rainbow_r']
-    pts = _obs4map(res) if res is not None else None
+    pts = _obs4map(res, DA)
+    geo = DA.plot_geometry()      # the DISPLAY grid's axes
 
     def arr(x):
         """Any parameter field as (nlay, nrow, ncol).
@@ -2148,7 +2151,7 @@ def _native_input_maps(MMplot, out_dir, cMF, ctx, res=None, verbose=True):
                 CBlabel=cblbl, msg='', plt_title='IN_%03d_%s' % (n, stem),
                 MM_ws=out_dir, interval_type='linspace', interval_num=nint,
                 Vmax=[hi], Vmin=[lo], fmt=fmt, points=pts, mask=m,
-                hnoflo=hnoflo, cMF=cMF)
+                hnoflo=hnoflo, cMF=geo)
         except Exception as exc:                       # pragma: no cover
             if verbose:
                 print('   input map %s skipped: %r' % (stem, exc))

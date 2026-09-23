@@ -238,8 +238,9 @@ def veg_cover(cfg, cMF, dataset_dir, nveg, cache_dir=None, verbose=True):
         raise PropertyError('soil.veg_class maps to vegetation type(s) %s, '
                             'but there are %d' % (bad, int(nveg)))
     if not os.path.exists(path):
-        raise PropertyError('%s is not there -- run the converter on the Grid '
-                            'panel, which writes it from %s'
+        raise PropertyError('%s is not there -- run the converter (Soil '
+                            'panel, Cartography tab: Update dataset), which '
+                            'writes it from %s'
                             % (path, s.veg_layer or 'the vegetation layer'))
     nr, nc = int(cMF.nrow), int(cMF.ncol)
     with open(path, 'rb') as fh:

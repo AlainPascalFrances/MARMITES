@@ -268,3 +268,86 @@ def test_model_cell_area_indexes_with_a_cell_mask():
     mask = np.zeros((proj.ncpl, 1), bool)
     mask[[3, 9]] = True
     assert abs(float(area[mask].sum()) - 2 * CS * CS) < 1e-6
+
+
+# ------------------------------------------ the map frame (2026-09-23 run)
+# On the Voronoi mesh every result map came out as a 17 km tall strip with
+# the catchment squeezed into its top corner: plotLAYER took its km axes
+# from the ncpl x 1 model proxy, and the observation points sat at x = 0,
+# y = icell2d, stretching the axes to thousands of 'rows'.
+
+def _mesh_mf(refine=2):
+    proj = _proj()
+
+    class _MeshMF:
+        nlay, nrow, ncol = 2, proj.ncpl, 1
+        delr, delc = [1.0], [1.0] * proj.ncpl
+        xllcorner, yllcorner = XLL, YLL
+        hnoflo = 9999.999
+        mesh_proj = proj
+        cUTIL = None
+
+    return RAST.MapAdapter(_MeshMF(), refine=refine)
+
+
+def test_the_plot_geometry_is_the_display_grid_on_a_mesh():
+    DA = _mesh_mf(refine=2)
+    g = DA.plot_geometry()
+    assert (g.xllcorner, g.yllcorner) == (XLL, YLL)
+    assert len(g.delr) == DA.ncol == 2 * NCOL
+    assert len(g.delc) == DA.nrow == 2 * NROW
+    assert np.allclose(g.delr, CS / 2) and np.allclose(g.delc, CS / 2)
+
+
+def test_the_plot_geometry_is_the_model_itself_on_a_structured_grid():
+    mf = _StructMF()
+    assert RAST.MapAdapter(mf).plot_geometry() is mf
+
+
+def test_points_sit_on_their_cell_centres_in_plotlayers_frame():
+    """plotLAYER draws cell (i, j) centred on (j + 1, i + 1)."""
+    pts = RAST.MapAdapter(_StructMF()).points(['a'], [(2, 3)])
+    assert pts == [['a'], [3.0], [4.0], [0]]
+    DA = _mesh_mf(refine=2)
+    # mesh cell (row 2, col 3) of the DIS-equivalent mesh is icell2d 13, a
+    # 2 x 2 block of display pixels whose centre is pixel edge (4, 6):
+    # frame 0.5 + 4 = 4.5 across the block, i.e. between pixel centres 5, 6
+    names, ys, xs, lay = DA.points(['a'], [(2 * NCOL + 3, 0)])
+    assert xs == [pytest.approx(0.5 + 3.5 * 2)]
+    assert ys == [pytest.approx(0.5 + 2.5 * 2)]
+    assert max(xs) <= DA.ncol + 0.5 and max(ys) <= DA.nrow + 0.5, \
+        'a point outside the raster stretches the map'
+
+
+def test_a_mesh_map_spans_the_catchment_not_the_proxy(tmp_path):
+    pytest.importorskip('matplotlib')
+    import matplotlib
+    matplotlib.use('agg')
+    import matplotlib.pyplot as plt
+    MMplot = _load('MARMITESplot_t', os.path.join(
+        CODE, 'MARMITESutilities', 'MARMITESplot', 'MARMITESplot_v3.py'))
+    DA = _mesh_mf(refine=2)
+    V = np.arange(2 * DA.nrow * DA.ncol, dtype=float).reshape(
+        1, 2, DA.nrow, DA.ncol)
+    seen = {}
+    real = plt.savefig
+
+    def grab(*a, **k):
+        ax = plt.gcf().axes[1]
+        seen['xlim'], seen['ylim'] = ax.get_xlim(), ax.get_ylim()
+        return real(*a, **k)
+
+    plt.savefig = grab
+    try:
+        MMplot.plotLAYER(days=[0], str_per=[0], Date='NA', JD='NA',
+                         ncol=DA.ncol, nrow=DA.nrow, nlay=2, nplot=2, V=V,
+                         cmap=matplotlib.colormaps['Blues'], CBlabel='x',
+                         msg='', plt_title='t', MM_ws=str(tmp_path),
+                         interval_type='linspace', interval_num=5,
+                         Vmax=[V.max()], Vmin=[V.min()], fmt='%5.2f',
+                         points=DA.points(['a'], [(7, 0)]),
+                         mask=np.zeros((2, DA.nrow, DA.ncol), bool),
+                         hnoflo=9999.999, cMF=DA.plot_geometry())
+    finally:
+        plt.savefig = real
+    assert max(seen['xlim']) <= DA.ncol + 1 and max(seen['ylim']) <= DA.nrow + 1, seen

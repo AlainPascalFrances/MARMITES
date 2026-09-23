@@ -1517,6 +1517,33 @@ def add_real_coord_axes(ax, nrow, cMF=None, xll=None, yll=None, delr=None,
     return secx, secy
 
 
+def _defined_max(values, hnoflo):
+    """The largest DEFINED criterion: None and the hnoflo sentinel (a
+    criterion undefined for a point with one observation) are skipped, or
+    one such point sets the axis to 1.2 x 9999.999 -- or, as None, raises
+    "'>=' not supported between float and NoneType"."""
+    vals = [float(v) for v in values
+            if v is not None and abs(float(v) - float(hnoflo)) > 1e-6]
+    return max(vals) if vals else 0.0
+
+
+def _colour_levels(cmap, vmin, vmax):
+    """BoundaryNorm edges for ``cmap``: never more bins than colours.
+
+    MaxNLocator(nbins=cmap.N) may return nbins + 2 edges -- it widens the
+    range to round ticks -- which is one bin more than a 256-colour map has,
+    and BoundaryNorm refuses it ("257 color bins including extensions, but
+    ncolors = 256"): the head maps over La Mata's 733-811 m were skipped.
+    """
+    n = int(cmap.N)
+    levels = mpl.ticker.MaxNLocator(nbins=max(1, n - 4)).tick_values(vmin,
+                                                                      vmax)
+    # with both colourbar extensions: (edges - 1) + 2 must not exceed n
+    if len(levels) + 1 > n:
+        levels = np.linspace(vmin, vmax, max(2, n - 1))
+    return levels
+
+
 def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_title, MM_ws,
               interval_type='arange', interval_diff=1, interval_num=1, Vmax=0, Vmin=0, fmt=None, contours=False,
               ntick=None, facecolor='silver', points=None, ptslbl=0, mask=None, hnoflo=-999.9, animation=0,
@@ -1610,11 +1637,11 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
         norm = None
         if interval_type == 'arange':
             ticks = np.arange(Vmin_tmp, Vmax_tmp, interval_diff)
-            levels = mpl.ticker.MaxNLocator(nbins=cmap.N).tick_values(Vmin_tmp, Vmax_tmp)
+            levels = _colour_levels(cmap, Vmin_tmp, Vmax_tmp)
             norm = mpl.colors.BoundaryNorm(levels, cmap.N)
         elif interval_type == 'linspace':
             ticks = np.linspace(Vmin_tmp, Vmax_tmp, interval_num)
-            levels = mpl.ticker.MaxNLocator(nbins=cmap.N).tick_values(Vmin_tmp, Vmax_tmp)
+            levels = _colour_levels(cmap, Vmin_tmp, Vmax_tmp)
             norm = mpl.colors.BoundaryNorm(levels, cmap.N)  # , vmin=Vmin_tmp, vmax=Vmax_tmp)
         # print(Vmin_tmp, Vmax_tmp, interval_num, interval_diff, ticks, cmap.N)
         for F in range(NPage):
@@ -2443,7 +2470,7 @@ def plotCALIBCRIT(calibcritSM, calibcritSMobslst, calibcritHEADS, calibcritHEADS
             yserie = []
             labels = []
             if calibcritSMmax is None:
-                tmp = np.max(list(itertools.chain.from_iterable(calibcritSM_tmp)))
+                tmp = _defined_max(itertools.chain.from_iterable(calibcritSM_tmp), hnoflo)
                 if tmp > 0:
                     max_tmp = 1.2 * tmp
                 else:
@@ -2526,7 +2553,7 @@ def plotCALIBCRIT(calibcritSM, calibcritSMobslst, calibcritHEADS, calibcritHEADS
             yserie_txt = list(itertools.chain.from_iterable(calibcritHEADS_tmp))
             yseriec_txt = list(itertools.chain.from_iterable(calibcritHEADSc_tmp))
             if calibcritHEADSmax is None:
-                tmp = np.max(list(itertools.chain.from_iterable(calibcritHEADS_tmp)))
+                tmp = _defined_max(itertools.chain.from_iterable(calibcritHEADS_tmp), hnoflo)
                 if tmp > 0:
                     max_tmp = 1.2 * tmp
                 else:
