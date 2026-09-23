@@ -1,5 +1,5 @@
 # MARMITES resolved run configuration
-# config_hash = de2b09a8dace0e2e
+# config_hash = 810e59e3ead5a9e0
 
 [meta]
 config_version = 1
@@ -17,7 +17,7 @@ libmf6 = "auto"
 [run]
 surface = false
 model = true
-plot = false
+plot = true
 mode = "lagged"
 relax = 0.6
 nsp = 60
@@ -370,8 +370,8 @@ fill = 0.0
 ntrailwaves = 15
 nwavesets = 500
 surfdep = 0.25
-vks_from = "layer"
 thtr_from = "sy"
+vks_from = "layer"
 vks_scale = 1.0
 
 [uzf.eps]
@@ -452,11 +452,18 @@ dem = "inputDEM.asc"
 [spinup]
 cycles = 6
 tol = 0.05
-strt_heads = ""
-steady_means = ""
+strt_heads = "voronoi_lamata"
+steady_means = "voronoi_lamata_means"
 save_strt = "voronoi_lamata"
 save_means = "voronoi_lamata"
 strt_dem = []
+
+[solver]
+complexity = "complex"
+outer_dvclose = 0.001
+outer_maximum = 500
+inner_dvclose = 0.0001
+inner_rclose = 0.01
 
 [postproc]
 enable = true

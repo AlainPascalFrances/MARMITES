@@ -19,6 +19,7 @@ Usage:
     python tests/run_lamata_mf6.py --libmf6 ... --mode iterative --relax 0.6
 """
 import argparse
+import dataclasses
 import os
 import sys
 import time
@@ -994,6 +995,13 @@ def main():
     b.uzf_vks_scale = float(a.uzf_vks_scale)
     if cfg is not None:
         b.uzf_thtr_from = str(cfg.uzf.thtr_from)
+        b.solver = dataclasses.asdict(cfg.solver)
+        b.outer_maximum = int(cfg.solver.outer_maximum)
+        print('solver: %s, outer_dvclose %g m (max %d), inner_dvclose %g m, '
+              'inner_rclose %g m3/d -- from the panel'
+              % (cfg.solver.complexity.upper(), cfg.solver.outer_dvclose,
+                 cfg.solver.outer_maximum, cfg.solver.inner_dvclose,
+                 cfg.solver.inner_rclose))
     # UNSATURATED-ZONE ET. The extinction depth follows the usual rule --
     # a raster, a column of the vegetation layer, or one value -- so it is
     # resolved the way every other spatial input is, per layer and then

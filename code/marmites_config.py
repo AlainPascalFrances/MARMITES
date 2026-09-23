@@ -1379,6 +1379,28 @@ class Ui:
     poll_secs: int = 3
 
 
+@dataclass
+class Solver:
+    """The Run panel -- MODFLOW 6's IMS solver.
+
+    These came from the legacy NWT ini (HEADTOL -> outer_dvclose, OPTIONS
+    -> complexity, MAXITEROUT -> outer_maximum), and the inner tolerances
+    were MF6's COMPLEX defaults; no panel asked any of them. 0.05 m was
+    loose enough to leave 35..65 m3/d unaccounted in every step of the
+    run of 2026-09-23 -- invisible while a 5.7e6 m3 pulse dominated the
+    budget, a 4.09 % discrepancy once total flows were ~1000 m3/d (with
+    Sy 0.01, 5 cm of head is ~0.15 m3/d of storage per average cell).
+    Newton with under-relaxation, DBD and BICGSTAB are not asked: they are
+    what the La Mata runs are validated with.
+    """
+
+    complexity: str = 'complex'    # simple | moderate | complex
+    outer_dvclose: float = 0.001   # m, head change that ends the Newton loop
+    outer_maximum: int = 500       # Newton iterations per time step
+    inner_dvclose: float = 0.0001  # m, head change that ends a linear solve
+    inner_rclose: float = 0.01     # m3/d, flow residual that ends it
+
+
 # Order matters only for the resolved-config dump; it follows the panels:
 # 1 grid, 2 surface, 3 soil + MODFLOW, 4 plotting.
 _SECTIONS = {
@@ -1390,6 +1412,7 @@ _SECTIONS = {
     'uzf': Uzf, 'seep': Seep, 'et': Et, 'sfr': Sfr, 'lak': Lak, 'crr': Crr,
     'spinup': Spinup,
     'postproc': Postproc,
+    'solver': Solver,
     'pest': Pest, 'ui': Ui,
 }
 
@@ -1561,6 +1584,7 @@ class RunConfig:
     crr: Crr = field(default_factory=Crr)
     spinup: Spinup = field(default_factory=Spinup)
     postproc: Postproc = field(default_factory=Postproc)
+    solver: Solver = field(default_factory=Solver)
     pest: Pest = field(default_factory=Pest)
     ui: Ui = field(default_factory=Ui)
     source_path: str = ''
@@ -1738,6 +1762,21 @@ class RunConfig:
                 errs.append('uzf.thti must lie between thtr and thts')
         if self.uzf.ntrailwaves < 1 or self.uzf.nwavesets < 1:
             errs.append('uzf.ntrailwaves and uzf.nwavesets must be >= 1')
+        sv = self.solver
+        if str(sv.complexity).lower() not in ('simple', 'moderate',
+                                              'complex'):
+            errs.append("solver.complexity must be simple, moderate or "
+                        "complex")
+        for _k in ('outer_dvclose', 'inner_dvclose', 'inner_rclose'):
+            if not float(getattr(sv, _k)) > 0.0:
+                errs.append('solver.%s must be > 0' % _k)
+        if int(sv.outer_maximum) < 1:
+            errs.append('solver.outer_maximum must be >= 1')
+        if float(sv.inner_dvclose) > float(sv.outer_dvclose):
+            errs.append('solver.inner_dvclose must not exceed '
+                        'solver.outer_dvclose: a linear solve looser than '
+                        'the Newton loop it serves cannot let that loop '
+                        'converge')
         # UZF ET is always simulated, so the extinction depth is always
         # needed: there is no "off" in which a missing extdp is harmless.
         if self.et.extdp.producer() is None:

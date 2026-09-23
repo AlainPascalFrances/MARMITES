@@ -90,10 +90,15 @@ def test_every_configuration_section_is_reachable(cfg):
     """A section in no panel is a setting no one can find."""
     shown = {s for p in schema.PANELS for s in p[4]}
     # meta/paths/run live on the Overview panel; pest and ui are not modelling
-    # settings and are edited in the TOML.
-    exempt = {'meta', 'paths', 'run', 'pest', 'ui'}
+    # settings and are edited in the TOML. solver is drawn by the Run panel,
+    # which is a tail panel outside PANELS -- asserted below, not assumed.
+    exempt = {'meta', 'paths', 'run', 'pest', 'ui', 'solver'}
     missing = sorted(set(cfgmod._SECTIONS) - shown - exempt)
     assert not missing, 'no panel shows: %s' % ', '.join(missing)
+    run_page = open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 '..', 'app', 'pages', '8_8_-_Run.py'),
+                    encoding='utf-8').read()
+    assert 'schema.SOLVER_ROWS' in run_page, 'the Run panel lost the solver'
 
 
 def test_panel_of_finds_the_right_panel():

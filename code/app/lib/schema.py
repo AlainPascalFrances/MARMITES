@@ -48,7 +48,7 @@ __all__ = ['PANELS', 'FIELDS', 'TABLES', 'CHOICES', 'SUBPANELS', 'panel_of',
            'GRID_NEEDS_LAYER', 'GRID_NOTES', 'grid_fields',
            'SURFACE_ROWS',
            'SURFACE_FILES', 'SURFACE_PATTERNS', 'SURFACE_ON_PLOTS',
-           'SURFACE_GATED', 'TIME_ROWS', 'RUN_COUPLING_ROWS',
+           'SURFACE_GATED', 'TIME_ROWS', 'RUN_COUPLING_ROWS', 'SOLVER_ROWS',
            'SURFACE_TABLE_FILES', 'INTEGER_VALUE',
            'SOIL_ROWS', 'SOIL_VEG_ROWS', 'SOIL_FILES',
            'SOIL_DATASET_FILES', 'COLUMN_OF', 'GEOMETRY_ROWS',
@@ -610,6 +610,32 @@ FIELDS = {
                 'zone. **MODFLOW 6 enforces 3.5 to 14.0**; UZF1 accepted 2.0, '
                 'which is what the La Mata NWT model used -- `vks multiplier` '
                 'below exists to offset that clamp.'),
+    'solver.complexity': ('Solver complexity', _U,
+                          'flopy: ModflowIms `complexity`. The preset for '
+                          'everything not asked below. Newton with '
+                          'under-relaxation, DBD and BICGSTAB are fixed: '
+                          'they are what the runs are validated with.'),
+    'solver.outer_dvclose': ('Newton head tolerance', 'm',
+                             'flopy: ModflowIms `outer_dvclose`. A time step '
+                             'is solved when no head changes by more than '
+                             'this. It was the NWT ini\'s HEADTOL, 0.05 m, '
+                             'which left 35-65 m3/d unaccounted in every '
+                             'La Mata step: with Sy 0.01, 5 cm of head is '
+                             '~0.15 m3/d of storage per average cell. **0.001** '
+                             'closes the budget; a smaller value costs '
+                             'iterations.'),
+    'solver.outer_maximum': ('Newton iterations', _U,
+                             'flopy: ModflowIms `outer_maximum`. A step that '
+                             'needs more has NOT converged, and the run '
+                             'reports it rather than using it.'),
+    'solver.inner_dvclose': ('Linear head tolerance', 'm',
+                             'flopy: ModflowIms `inner_dvclose`. Must not '
+                             'exceed the Newton head tolerance.'),
+    'solver.inner_rclose': ('Linear flow tolerance', 'm³/d',
+                            'flopy: ModflowIms `inner_rclose`: the largest '
+                            'flow residual a cell may keep. Summed over '
+                            'thousands of cells it is what the mass-balance '
+                            'discrepancy is made of.'),
     'uzf.thtr_from': ('Residual water content from', _U,
                       '**sy** derives `thtr = thts - Sy` in every cell, as '
                       'UZF1 did without `SPECIFYTHTR` -- the La Mata ini '
@@ -828,6 +854,7 @@ CHOICES = {
     'uzf.vks_from': lambda: ['layer', 'raster'],
     # UZF1's SPECIFYTHTR, with the numbers replaced by what they meant.
     'uzf.thtr_from': lambda: ['sy', 'source'],
+    'solver.complexity': lambda: ['simple', 'moderate', 'complex'],
     'postproc.wb_unit': lambda: ['year', 'day'],
     'crr.sinks': lambda: ['evaporate', 'route'],
     'ui.execution': lambda: ['local', 'server'],
@@ -977,6 +1004,14 @@ OBS_GROUPS = (
 # so they are saved like every other answer. They were TOML-only: the audit
 # behind the cookbook's Appendix B found lagged vs iterative, the choice WP2
 # has to be validated under, could be made on no panel.
+# The MODFLOW 6 solver: TOML-free until 2026-09-23, when the NWT ini's
+# HEADTOL 0.05 m turned out to leave a 4 % mass-balance discrepancy.
+SOLVER_ROWS = (
+    ('solver.complexity', 'solver.outer_maximum'),
+    ('solver.outer_dvclose', 'solver.inner_dvclose'),
+    ('solver.inner_rclose', None),
+)
+
 RUN_COUPLING_ROWS = (
     ('run.mode', 'run.relax'),
     ('run.ats', 'run.max_discrepancy'),

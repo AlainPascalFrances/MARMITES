@@ -159,7 +159,12 @@ class clsMF6:
         # the target recharge.
         self.uzf_vks_scale = 1.0
         self.perioddata = None
-        self.outer_maximum = min(int(getattr(cMF, 'maxiterout', 500)), 500)
+        # THE IMS SOLVER, from [solver] on the Run panel (the driver sets
+        # it; None = marmites_config.Solver's defaults, one source for both).
+        # The legacy ini's NWT HEADTOL / MAXITEROUT / OPTIONS are NOT read:
+        # 0.05 m left 35..65 m3/d unaccounted in every step (2026-09-23).
+        self.solver = None
+        self.outer_maximum = int(self._solver()['outer_maximum'])
         # UNSATURATED-ZONE ET (WP2). ALWAYS SIMULATED -- there is no switch,
         # see the perioddata block below. `uzf_et_form` is 'etwc' (a
         # water-content threshold) or 'etae' (Brooks-Corey capillary
@@ -244,6 +249,14 @@ class clsMF6:
         else:
             raise MF6BuildError('cannot broadcast array of shape %s' % (a.shape,))
         return out
+
+    def _solver(self):
+        """The IMS settings: ``self.solver`` or the configuration defaults."""
+        if self.solver is not None:
+            return dict(self.solver)
+        import dataclasses
+        import marmites_config
+        return dataclasses.asdict(marmites_config.Solver())
 
     def _uzf3d(self, name):
         """A UZF packagedata property as (nlay, nrow, ncol).
@@ -667,12 +680,18 @@ class clsMF6:
                     ats_perioddata=ats)
         self.perioddata = perioddata
 
-        # IMS from the NWT settings (COMPLEX option observed on La Mata)
-        complexity = 'COMPLEX' if str(getattr(cMF, 'options', 'COMPLEX')).upper().startswith('COMPLEX') else 'MODERATE'
-        self.outer_maximum = min(int(getattr(cMF, 'maxiterout', 500)), 500)
-        ims = ModflowIms(sim, print_option='SUMMARY', complexity=complexity,
-                         outer_dvclose=float(getattr(cMF, 'headtol', 0.05)),
+        # IMS from [solver] (Run panel). Newton + DBD + BICGSTAB are fixed.
+        sv = self._solver()
+        self.outer_maximum = int(sv['outer_maximum'])
+        ims = ModflowIms(sim, print_option='SUMMARY',
+                         complexity=str(sv['complexity']).upper(),
+                         outer_dvclose=float(sv['outer_dvclose']),
                          outer_maximum=self.outer_maximum,
+                         inner_dvclose=float(sv['inner_dvclose']),
+                         # flopy takes inner_rclose as a record: a bare
+                         # float (a list is refused) writes it with no
+                         # rclose_option = MF6's per-cell infinity norm
+                         rcloserecord=float(sv['inner_rclose']),
                          under_relaxation='DBD', linear_acceleration='BICGSTAB')
 
         gwf = ModflowGwf(sim, modelname=name, newtonoptions='UNDER_RELAXATION',

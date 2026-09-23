@@ -125,6 +125,16 @@ if panelui.live('run.mode', cfg.run.mode) == 'lagged':
     st.caption('`relax` is not read in lagged mode: MMsoil is evaluated once '
                'per stress period, so there is nothing to under-relax.')
 
+# The IMS solver. Its tolerances came from the legacy NWT ini and no panel
+# asked them; HEADTOL 0.05 m left a 4 % mass-balance discrepancy once the
+# UZF/Sy runaway was fixed and the flows became what they really are.
+st.markdown('#### MODFLOW 6 solver')
+_solver = panelui.rows_form(cfg, schema.SOLVER_ROWS, 'solver', columns=2)
+panelui.remember(_solver)
+st.caption('Tighter tolerances close the water budget and cost iterations. '
+           'A run whose cumulative discrepancy exceeds the limit above '
+           'stops rather than being reported as a result.')
+
 # ASKED HERE, not edited into the file by hand. It was described in the
 # schema and drawn by no panel, so the one field standing between a build and
 # a coupled run could only be set in a text editor -- which is the thing the

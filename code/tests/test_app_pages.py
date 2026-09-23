@@ -1547,3 +1547,29 @@ def test_the_coupling_is_asked_on_the_run_panel_and_saved():
     finally:
         if os.path.exists(tmp):
             os.remove(tmp)
+
+
+def test_the_solver_is_asked_on_the_run_panel_and_saved():
+    tmp = _force(_scratch_config('_solvertest.toml'), 'solver',
+                 'outer_dvclose', 'outer_dvclose = 0.001')
+    try:
+        at = AppTest.from_file(os.path.join(APP, 'pages', '8_8_-_Run.py'),
+                               default_timeout=300)
+        at.session_state['config_file'] = os.path.basename(tmp)
+        at.run()
+        assert not at.exception, [str(e.value) for e in at.exception]
+        keys = {w.key for w in list(at.selectbox) + list(at.number_input)
+                if w.key}
+        for k in ('solver.complexity', 'solver.outer_dvclose',
+                  'solver.outer_maximum', 'solver.inner_dvclose',
+                  'solver.inner_rclose'):
+            assert k in keys, '%s is not on the Run panel' % k
+        at.number_input(key='solver.outer_dvclose').set_value(0.002).run()
+        save = [b for b in at.button if b.key == 'sidebar_save']
+        assert save and not save[0].disabled
+        save[0].click().run()
+        assert _says(tmp, 'solver', 'outer_dvclose') == \
+            'outer_dvclose = 0.002', _says(tmp, 'solver', 'outer_dvclose')
+    finally:
+        if os.path.exists(tmp):
+            os.remove(tmp)
