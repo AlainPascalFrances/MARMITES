@@ -1,5 +1,5 @@
 # MARMITES resolved run configuration
-# config_hash = a688ee0d6a8a3f4d
+# config_hash = de2b09a8dace0e2e
 
 [meta]
 config_version = 1
@@ -371,6 +371,7 @@ ntrailwaves = 15
 nwavesets = 500
 surfdep = 0.25
 vks_from = "layer"
+thtr_from = "sy"
 vks_scale = 1.0
 
 [uzf.eps]
@@ -453,8 +454,8 @@ cycles = 6
 tol = 0.05
 strt_heads = ""
 steady_means = ""
-save_strt = "voronoi_lamata_initial"
-save_means = "voronoi_lamata_means"
+save_strt = "voronoi_lamata"
+save_means = "voronoi_lamata"
 strt_dem = []
 
 [postproc]

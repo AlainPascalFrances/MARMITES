@@ -50,6 +50,35 @@ def _hms(seconds):
     return '%ds' % s
 
 
+def surface_excess_lines(heads, top, ncell):
+    """The warning for a water table standing above the land surface.
+
+    ``heads`` is (nper, ncell), ``top`` (ncell,). Silent unless some head
+    is more than 1 m above ground. It used to count only cells MORE THAN
+    1 m above -- and so reported "1176 cells, 1 of 60 stress periods" for
+    a run whose water table sat above the land surface in thousands of
+    cells for all 60 (the UZF/Sy runaway of 2026-09-23). A seepage face
+    holds the head a little above ground, so the count that says how much
+    of the catchment is flooded is > 0.1 m; > 1 m is kept alongside.
+    """
+    above = np.asarray(heads, float) - np.asarray(top, float)[None, :]
+    if not above.size or np.nanmax(above) <= 1.0:
+        return []
+    nper = above.shape[0]
+    wet, far = above > 0.1, above > 1.0
+    per_sp = wet.sum(axis=1)
+    k = int(np.argmax(per_sp))
+    return ['',
+            'WARNING: the water table rises up to %.1f m ABOVE the land '
+            'surface.' % float(np.nanmax(above)),
+            '         more than 0.1 m above: %d of %d cells at some time, in '
+            '%d of %d stress periods; at worst %d cells at once (SP %d)'
+            % (int(wet.any(axis=0).sum()), ncell, int(wet.any(axis=1).sum()),
+               nper, int(per_sp[k]), k + 1),
+            '         more than 1 m above:   %d cells, in %d stress period(s)'
+            % (int(far.any(axis=0).sum()), int(far.any(axis=1).sum()))]
+
+
 class CouplingError(Exception):
     """Raised on MF6 API exchange failures."""
 
@@ -896,17 +925,17 @@ class MF6Coupler:
             # force the flux through. Report it rather than let it look like a
             # wet spin-up.
             if self.top_cell is not None and self.heads_hist.size:
+                for _line in surface_excess_lines(
+                        self.heads_hist, self.top_cell, self.ncell):
+                    print(_line)
                 above = self.heads_hist - self.top_cell[None, :]
                 if above.max() > 1.0:
-                    ncell_over = int((above > 1.0).any(axis=0).sum())
-                    nsp_over = int((above > 1.0).any(axis=1).sum())
-                    print('\nWARNING: the water table rises up to %.1f m ABOVE the '
-                          'land surface\n         (%d of %d cells, %d of %d stress '
-                          'periods).' % (above.max(), ncell_over, self.ncell,
-                                         nsp_over, self.heads_hist.shape[0]))
                     if self.p_drnseep is not None:
-                        need = float(np.nanmax(self.exf_hist) / self.conv_fact
-                                     * np.max(self.area))
+                        # per CELL: its own exfiltration on its own area.
+                        # The maximum rate times the maximum area came from
+                        # two different cells -- on the mesh, 0.01..4121 m2.
+                        need = float(np.nanmax(self.exf_hist / self.conv_fact
+                                               * self.area[None, :]))
                         print('         The seepage drain cannot discharge fast '
                               'enough. Peak seepage is\n         %.0f m3/d per '
                               'cell; a free-draining face needs a conductance of\n'

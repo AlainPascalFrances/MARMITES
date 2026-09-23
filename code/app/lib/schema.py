@@ -610,17 +610,29 @@ FIELDS = {
                 'zone. **MODFLOW 6 enforces 3.5 to 14.0**; UZF1 accepted 2.0, '
                 'which is what the La Mata NWT model used -- `vks multiplier` '
                 'below exists to offset that clamp.'),
+    'uzf.thtr_from': ('Residual water content from', _U,
+                      '**sy** derives `thtr = thts - Sy` in every cell, as '
+                      'UZF1 did without `SPECIFYTHTR` -- the La Mata ini '
+                      'asked for exactly that -- so the unsaturated zone '
+                      'drains the aquifer\'s own specific yield. **source** '
+                      'uses `thtr` below and refuses to run where `thts - '
+                      'thtr` is not Sy. MODFLOW 6 has no such option and '
+                      'says the contents "should be set in a manner that is '
+                      'consistent with the specific yield value specified '
+                      'in the Storage Package": a zone that drains more '
+                      'than Sy makes a rising water table release more '
+                      'water than it takes, and run away to the surface.'),
     'uzf.thtr': ('Residual water content', 'm³/m³',
-                 'flopy: packagedata `thtr`, per cell. **UZF6 requires it to be > 0** '
-                 'whatever the UZF1 `SPECIFYTHTR` option said, so there is no '
-                 'switch for it any more -- it is always used.'),
+                 'flopy: packagedata `thtr`, per cell. Read only when the '
+                 'source above is **source**. **UZF6 requires it to be > 0**.'),
     'uzf.thts': ('Saturated water content', 'm³/m³',
                  'flopy: packagedata `thts`, per cell. Above `thtr` everywhere, at '
                  'most 1.'),
     'uzf.thti': ('Initial water content', 'm³/m³',
-                 'flopy: packagedata `thti`, per cell, between `thtr` and `thts`. '
-                 'Always carried, so the UZF1 `SPECIFYTHTI` option is gone '
-                 'too.'),
+                 'flopy: packagedata `thti`, per cell. Kept between `thtr` and '
+                 '`thts`: a value outside is clipped at the build, and the '
+                 'log counts the cells. Always carried, so the UZF1 '
+                 '`SPECIFYTHTI` option is gone.'),
     'uzf.vks_from': ('Unsaturated vertical K from', _U,
                      'The UZF1 `iuzfopt` with the numbers replaced by what '
                      'they meant. **layer** (iuzfopt = 2) uses each layer\'s '
@@ -814,6 +826,8 @@ CHOICES = {
     'et.unsat_form': lambda: ['etwc', 'etae'],
     # The ini's iuzfopt, with the numbers replaced by what they meant.
     'uzf.vks_from': lambda: ['layer', 'raster'],
+    # UZF1's SPECIFYTHTR, with the numbers replaced by what they meant.
+    'uzf.thtr_from': lambda: ['sy', 'source'],
     'postproc.wb_unit': lambda: ['year', 'day'],
     'crr.sinks': lambda: ['evaporate', 'route'],
     'ui.execution': lambda: ['local', 'server'],
@@ -893,8 +907,8 @@ DRN_ROWS = (
 UZF_ROWS = (
     ('uzf.ntrailwaves', 'uzf.nwavesets'),
     ('uzf.surfdep', 'uzf.eps'),
-    ('uzf.thtr', 'uzf.thts'),
-    ('uzf.thti', None),
+    ('uzf.thtr_from', 'uzf.thts'),
+    ('uzf.thtr', 'uzf.thti'),
     ('uzf.vks_from', 'uzf.vks_scale'),
     ('uzf.vks', None),
 )

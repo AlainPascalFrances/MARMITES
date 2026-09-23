@@ -992,6 +992,8 @@ def main():
     b.ats = a.ats
     b.drn_seep_cond = float(a.seep_cond)
     b.uzf_vks_scale = float(a.uzf_vks_scale)
+    if cfg is not None:
+        b.uzf_thtr_from = str(cfg.uzf.thtr_from)
     # UNSATURATED-ZONE ET. The extinction depth follows the usual rule --
     # a raster, a column of the vegetation layer, or one value -- so it is
     # resolved the way every other spatial input is, per layer and then

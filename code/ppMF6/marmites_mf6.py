@@ -135,6 +135,10 @@ class clsMF6:
         self.sfr_seg_params = None       # inputSTREAM_param.csv rows
         self.sfr_cell_length = None      # mapped channel length per cell [m]
         self.cell_area = None            # m2, for the drainage law
+        # UZF residual water content: 'sy' derives thtr = thts - Sy (UZF1
+        # without SPECIFYTHTR), 'source' takes cMF.thtr and requires it
+        # consistent with Sy. Set from uzf.thtr_from by the driver.
+        self.uzf_thtr_from = 'sy'
         # LAK. Enabled by setting lak_shapefile (pond polygons). Every La Mata
         # pond is smaller than a 50 m cell, so each becomes one EMBEDDEDV lake
         # inside its host cell with its true area carried by a stage-volume
@@ -793,6 +797,19 @@ class clsMF6:
         thts = self._uzf3d('thts')
         thti = self._uzf3d('thti')
         eps = self._uzf3d('eps')
+        # CONSISTENT WITH STO's Sy -- the very array written to STO above.
+        # UZF1 without SPECIFYTHTR derived thtr = thts - Sy; UZF6 has no such
+        # option and leaves it to us (marmites_props.uzf_water_contents).
+        import marmites_props as _props
+        try:
+            thtr, thti, _notes = _props.uzf_water_contents(
+                thtr, thts, thti, self._prop3d('sy_actual'),
+                thtr_from=str(getattr(self, 'uzf_thtr_from', 'sy')),
+                active=np.asarray(self.idomain) > 0)
+        except _props.PropertyError as exc:
+            raise MF6BuildError(str(exc))
+        for _n in _notes:
+            print(_n)
         surfdep = float(np.ravel(np.asarray(cMF.surfdep, dtype=float))[0])
         thtr, thts, thti, eps = self._validate_uzf_params(thtr, thts, thti, eps)
         # vertical K for UZF: iuzfopt==1 -> vks array; iuzfopt==2 -> layer k33

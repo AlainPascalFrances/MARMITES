@@ -7,6 +7,8 @@ NWT->MF6 semantic differences that the build stage can and must catch, so
 they are asserted here rather than discovered by the solver.
 
 MODFLOW 6 UZF rules covered:
+    THTS - THTR = Sy    (UZF1 derived THTR = THTS - Sy when specifythtr = 0;
+                         MF6 asks for consistency with STO's Sy)
     THTR > 0            (UZF1 tolerated 0 when specifythtr = 0)
     THTS > THTR
     THTR <= THTI <= THTS
@@ -98,14 +100,34 @@ def test_epsilon_clamped_and_reported(cmf, tmp_path):
     assert clamped == mf6mod.clsMF6.EPS_MIN == 3.5
 
 
-def test_thtr_taken_from_ini_even_when_specifythtr_zero(cmf, tmp_path):
-    """specifythtr=0 in the ini, but a THTR value is supplied on the same
-    line; UZF6 needs it, so it must be used rather than defaulted to 0."""
+def test_thtr_is_thts_minus_sy_as_uzf1_without_specifythtr(cmf, tmp_path):
+    """specifythtr=0 in the ini: UZF1 did NOT read the 0.05 on that line,
+    it derived thtr = thts - Sy. This test used to assert the opposite --
+    that the 0.05 was used -- and so guarded the bug that let the water
+    table run away to the land surface (2026-09-23): drainable porosity
+    0.40 in the unsaturated zone against Sy 0.01 in the aquifer."""
     assert int(cmf.specifythtr) == 0
-    ini_thtr = float(np.ravel(np.asarray(cmf.thtr, dtype=float))[0])
-    assert ini_thtr > 0
     b = _build(cmf, tmp_path)
-    assert np.isclose(float(b.uzf_packagedata[0][6]), ini_thtr)
+    sy = b._prop3d('sy_actual')
+    for rec in b.uzf_packagedata:
+        cell = tuple(int(c) for c in rec[1])
+        thtr, thts, thti = float(rec[6]), float(rec[7]), float(rec[8])
+        assert np.isclose(thts - thtr, float(sy[cell])), \
+            'the unsaturated zone must drain exactly the aquifer\'s Sy'
+        assert thtr <= thti <= thts
+
+
+def test_the_ini_thtr_is_refused_as_inconsistent_with_sy(cmf, tmp_path):
+    """Asked to take the ini's thtr as given, the build refuses: 0.45 - 0.05
+    is not La Mata's Sy of 0.01, and it quotes MODFLOW 6's own rule."""
+    b = mf6mod.clsMF6(cmf, top=np.asarray(cmf.elev, dtype=float),
+                      botm=np.asarray(cmf.botm, dtype=float),
+                      sim_ws=str(tmp_path), grid='dis')
+    b.uzf_thtr_from = 'source'
+    with pytest.raises(mf6mod.MF6BuildError) as exc:
+        b.build()
+    assert 'Storage Package' in str(exc.value)
+    assert 'uzf.thtr_from = "sy"' in str(exc.value)
 
 
 # --------------------------------------------------------------------- #

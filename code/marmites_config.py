@@ -849,9 +849,25 @@ class Uzf:
 
     MOST OF UZF1 HAS NO MF6 EQUIVALENT and is deliberately absent:
 
-        SPECIFYTHTR/SPECIFYTHTI  UZF6 always carries thtr and thti, and
-                                 requires thtr > 0, so there is nothing to
-                                 switch on
+        SPECIFYTHTR              becomes thtr_from. UZF1 WITHOUT it did
+                                 not read thtr but derived thtr = thts - Sy,
+                                 so the unsaturated zone drained exactly
+                                 the aquifer's specific yield. UZF6 has no
+                                 such option (thtr is required per cell)
+                                 and only says the contents "should be set
+                                 in a manner that is consistent with the
+                                 specific yield value specified in the
+                                 Storage Package". thtr_from = 'sy' does
+                                 that derivation; 'source' uses thtr as
+                                 given and REFUSES a thts - thtr that is
+                                 not Sy. La Mata's ini had SPECIFYTHTR 0 and
+                                 Sy 0.01; the port used thtr 0.05 anyway, so
+                                 the zone drained 0.40, and on the first
+                                 transient day a water-table rise released
+                                 ten times the water it needed and ran away
+                                 to the land surface (2026-09-23).
+        SPECIFYTHTI              UZF6 always carries thti; it is kept in
+                                 [thtr, thts], clipped with a note.
         NOSURFLEAK, irunflg      rejected infiltration and discharge are
                                  routed by MVR/SFR/DRN now
         ietflg                   simulate_et; MARMITES does the ET
@@ -879,6 +895,10 @@ class Uzf:
     thtr: VectorSource = field(default_factory=lambda: VectorSource(value=0.05))
     thts: VectorSource = field(default_factory=lambda: VectorSource(value=0.45))
     thti: VectorSource = field(default_factory=lambda: VectorSource(value=0.15))
+    # Where thtr comes from: 'sy' derives thtr = thts - Sy per cell, as UZF1
+    # did without SPECIFYTHTR (and as MF6 asks: consistent with STO's Sy);
+    # 'source' reads uzf.thtr and requires thts - thtr == Sy.
+    thtr_from: str = 'sy'          # sy | source
     # Where the unsaturated vertical conductivity comes from. This is the
     # ini's iuzfopt with the numbers replaced by what they meant.
     vks_from: str = 'layer'        # layer | raster
@@ -1697,10 +1717,19 @@ class RunConfig:
             errs.append('uzf.eps must be between 3.5 and 14.0: MODFLOW 6 '
                         'enforces it (UZF1 accepted 2.0, which is why '
                         'uzf.vks_scale exists)')
-        if _v['thtr'] is not None and float(_v['thtr']) <= 0.0:
+        if self.uzf.thtr_from not in ('sy', 'source'):
+            errs.append("uzf.thtr_from must be 'sy' (thtr = thts - Sy) or "
+                        "'source' (uzf.thtr as given)")
+        # uzf.thtr is READ only when thtr_from = source; with 'sy' it is
+        # derived at the build, and thti is then clipped into [thtr, thts]
+        # there, with a note -- so neither is a configuration error here.
+        _own = self.uzf.thtr_from == 'source'
+        if _own and _v['thtr'] is not None and float(_v['thtr']) <= 0.0:
             errs.append('uzf.thtr must be > 0: UZF6 requires a residual '
                         'water content, whatever SPECIFYTHTR used to say')
-        if _v['thtr'] is not None and _v['thts'] is not None:
+        if _v['thts'] is not None and not (0.0 < float(_v['thts']) <= 1.0):
+            errs.append('uzf.thts must be above 0 and at most 1')
+        if _own and _v['thtr'] is not None and _v['thts'] is not None:
             if not (float(_v['thtr']) < float(_v['thts']) <= 1.0):
                 errs.append('uzf.thts must be above thtr and at most 1')
             if _v['thti'] is not None and not (

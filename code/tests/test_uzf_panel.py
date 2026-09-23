@@ -160,11 +160,16 @@ def test_the_panel_says_which_half_of_uzf_et_is_wired(cfg):
 def test_the_uzf6_limits_are_refused_here_not_by_modflow(cfg):
     """Better a message on the panel than a failure after the run has
     started writing files."""
-    for field, bad, needle in (('eps', 2.0, '3.5'),
-                               ('thtr', 0.0, 'thtr'),
-                               ('thti', 0.9, 'thti'),
-                               ('ntrailwaves', 0, 'ntrailwaves')):
+    # thtr and the thti range are the modeller's only with thtr_from =
+    # source; with 'sy' thtr is derived and thti clipped at the build.
+    for field, bad, needle, mode in (('eps', 2.0, '3.5', 'sy'),
+                                     ('thtr', 0.0, 'thtr', 'source'),
+                                     ('thti', 0.9, 'thti', 'source'),
+                                     ('ntrailwaves', 0, 'ntrailwaves', 'sy'),
+                                     ('thtr_from', 'raster', 'thtr_from',
+                                      'sy')):
         c = cfgmod.load_run_config(REF)
+        c.uzf.thtr_from = mode
         setattr(c.uzf, field, bad)
         with pytest.raises(cfgmod.ConfigError) as e:
             c.validate()
@@ -250,7 +255,9 @@ def test_a_uniform_answer_builds_what_the_scalar_built(built, tmp_path):
     eps = {float(r[9]) for r in b.uzf_packagedata}
     thtr = {float(r[6]) for r in b.uzf_packagedata}
     assert eps == {3.5}, 'the clamped scalar no longer reaches every object'
-    assert thtr == {0.05}
+    # NOT the ini's 0.05: with SPECIFYTHTR 0 UZF1 never read it and built
+    # thtr = thts - Sy = 0.45 - 0.01, which is what the build does now.
+    assert {round(t, 9) for t in thtr} == {0.44}
 
 
 def test_a_per_layer_answer_actually_varies(built, tmp_path):

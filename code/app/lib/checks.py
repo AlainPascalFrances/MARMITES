@@ -237,6 +237,88 @@ def check_dataset(cfg, dataset_dir=None, **_):
                     % dataset_dir, panel=0, key='paths.case')
 
 
+def _props():
+    """``ppMF6/marmites_props``, imported by path like :func:`_loaders`."""
+    import importlib.util
+    import sys
+    name = '_mm_props'
+    if name in sys.modules:
+        return sys.modules[name]
+    here = os.path.dirname(os.path.abspath(__file__))
+    path = os.path.join(here, '..', '..', 'ppMF6', 'marmites_props.py')
+    spec = importlib.util.spec_from_file_location(name, os.path.abspath(path))
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[name] = mod
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _layer_values(src, nlay, dataset_dir, what, props):
+    """A VectorSource as ``(nlay, ...)`` floats: rasters read, nodata NaN."""
+    import numpy as np
+    items = props.resolve_source(src, nlay, str(dataset_dir), what)
+    if items is None:
+        return None
+    out = []
+    for it in items:
+        if isinstance(it, str):
+            a = np.loadtxt(it, skiprows=6, dtype=float)
+            out.append(np.where(a <= -9999.0, np.nan, a))
+        else:
+            out.append(float(it))
+    # one number per layer is (nlay, 1, 1), so it broadcasts against a
+    # raster of the same stack
+    shape = next((np.shape(a) for a in out if np.ndim(a)), (1, 1))
+    return np.stack([np.broadcast_to(np.asarray(a, float), shape)
+                     for a in out])
+
+
+def check_uzf_sy(cfg, dataset_dir=None, **_):
+    """UZF drains what the aquifer stores: thts - thtr = Sy, cell by cell.
+
+    The same rule the build enforces (marmites_props.uzf_water_contents),
+    asked BEFORE the run so the Launch button knows. La Mata, 2026-09-23:
+    Sy 0.01 against thts - thtr 0.40, and the water table ran away to the
+    land surface on the first transient day.
+    """
+    if dataset_dir is None or not os.path.isdir(str(dataset_dir)):
+        return
+    import numpy as np
+    props = _props()
+    n = int(cfg.layers.nlay)
+    try:
+        sy = _layer_values(cfg.layers.sy, n, dataset_dir, 'layers.sy', props)
+        thts = _layer_values(cfg.uzf.thts, n, dataset_dir, 'uzf.thts', props)
+        thtr = _layer_values(cfg.uzf.thtr, n, dataset_dir, 'uzf.thtr', props)
+        thti = _layer_values(cfg.uzf.thti, n, dataset_dir, 'uzf.thti', props)
+        ib = _layer_values(cfg.layers.ibound, n, dataset_dir, 'layers.ibound',
+                           props)
+    except Exception as exc:                            # noqa: BLE001
+        yield Check(INFO, 'UZF against Sy not checked here (%s); the build '
+                    'checks it' % exc, panel=4, key='uzf.thtr_from')
+        return
+    if sy is None or thts is None:
+        return
+    if thtr is None:
+        thtr = np.full_like(thts, np.nan)
+    if thti is None:
+        thti = thts.copy()
+    arrs = np.broadcast_arrays(thtr, thts, thti, sy)
+    act = np.all([np.isfinite(a) for a in arrs[1:]], axis=0)
+    if ib is not None:
+        act &= np.broadcast_to(np.nan_to_num(ib) != 0, act.shape)
+    try:
+        _thtr, _thti, notes = props.uzf_water_contents(
+            *arrs, thtr_from=cfg.uzf.thtr_from, active=act)
+    except props.PropertyError as exc:
+        yield Check(ERROR, 'the unsaturated zone does not drain what the '
+                    'aquifer stores', panel=4, key='uzf.thtr_from',
+                    detail=str(exc))
+        return
+    for note in notes:
+        yield Check(INFO, note, panel=4, key='uzf.thtr_from')
+
+
 def _loaders():
     """``lib.loaders``, however this module was itself loaded.
 
@@ -360,7 +442,7 @@ def check_grid(cfg, ws_root=None, **_):
                    'grid the model\'s.')
 
 
-CHECKS = (check_schema, check_switches, check_dataset, check_grid,
+CHECKS = (check_schema, check_switches, check_dataset, check_grid, check_uzf_sy,
           check_forcing, check_state_scope, check_run_scope, check_libmf6)
 
 

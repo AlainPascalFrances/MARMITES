@@ -171,6 +171,11 @@ with tab_uzf:
     edited.update(panelui.rows_form(cfg, schema.UZF_ROWS, 'uzf', columns=2))
     # `gated` takes a SWITCH, and this one is a choice of source, so the
     # dependency is said in words rather than drawn as a greyed box.
+    if cfg.uzf.thtr_from == 'sy':
+        st.caption('`uzf.thtr` above is not read: the residual water content '
+                   'is `thts - Sy` in every cell, so the unsaturated zone '
+                   'drains exactly what the aquifer stores. An initial '
+                   'content below it is raised to it at the build.')
     if cfg.uzf.vks_from != 'raster':
         st.caption('`uzf.vks` above is not read: the unsaturated vertical K '
                    'comes from each layer\'s own `k33`, so the column and '

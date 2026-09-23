@@ -700,6 +700,80 @@ def apply_uzf(cfg, cMF, dataset_dir, verbose=True):
     return done
 
 
+# THE UNSATURATED ZONE MUST DRAIN WHAT THE AQUIFER STORES. When a water
+# table rises through the unsaturated zone, UZF hands the water above thtr
+# in the part that saturates to the aquifer; the aquifer needs Sy per metre
+# of rise. If thts - thtr exceeds Sy, a rise releases more than it takes
+# and runs away to the land surface -- La Mata, 2026-09-23: Sy 0.01 against
+# thts - thtr 0.40, the median water table 6.2 m up to 0.26 m ABOVE ground
+# on the first transient day, 5.7e6 m3 released in one step.
+UZF_SY_TOL = 1e-6
+MF6_THTS_RULE = ('MODFLOW 6 (UZF, THTS): "The values for saturated and '
+                 'residual water content should be set in a manner that is '
+                 'consistent with the specific yield value specified in the '
+                 'Storage Package."')
+
+
+def uzf_water_contents(thtr, thts, thti, sy, thtr_from='sy', active=None):
+    """``(thtr, thti, notes)`` made consistent with the aquifer's Sy.
+
+    ``thtr_from = 'sy'``: thtr = thts - Sy, cell by cell -- what UZF1 did
+    without SPECIFYTHTR, and what the legacy La Mata ini asked for.
+    ``'source'``: thtr as given, REFUSED where thts - thtr is not Sy.
+    Either way thti is then clipped into [thtr, thts], and each clip is
+    counted in ``notes``. Only ``active`` cells are touched or judged;
+    arrays broadcast against each other. Raises PropertyError.
+    """
+    arrs = np.broadcast_arrays(*(np.asarray(x, dtype=float)
+                                 for x in (thtr, thts, thti, sy)))
+    thtr, thts, thti, sy = (np.array(a, dtype=float) for a in arrs)
+    act = (np.ones(thtr.shape, dtype=bool) if active is None
+           else np.broadcast_to(np.asarray(active, dtype=bool), thtr.shape))
+    notes = []
+    if not act.any():
+        return thtr, thti, notes
+    if thtr_from == 'sy':
+        bad = act & (sy >= thts)
+        if bad.any():
+            raise PropertyError(
+                'uzf.thtr_from = sy: thtr = thts - Sy is not positive in %d '
+                'cell(s) -- Sy reaches %g against thts %g there. Raise '
+                'uzf.thts above the specific yield.'
+                % (int(bad.sum()), float(sy[bad].max()),
+                   float(thts[bad].min())))
+        thtr = np.where(act, thts - sy, thtr)
+        d = thtr[act]
+        notes.append('UZF thtr = thts - Sy (as UZF1 without SPECIFYTHTR): '
+                     '%.4g..%.4g, so the unsaturated zone drains exactly the '
+                     'aquifer\'s specific yield' % (d.min(), d.max()))
+    elif thtr_from == 'source':
+        gap = (thts - thtr) - sy
+        off = act & (np.abs(gap) > UZF_SY_TOL)
+        if off.any():
+            raise PropertyError(
+                'uzf.thts - uzf.thtr differs from the specific yield in %d '
+                'cell(s): the unsaturated zone drains %.4g..%.4g where the '
+                'aquifer stores Sy %.4g..%.4g. %s A water table rising '
+                'through a zone that drains more than Sy releases more '
+                'water than it takes, and runs away to the land surface. '
+                'Set uzf.thtr_from = "sy", or give a thtr equal to thts - Sy.'
+                % (int(off.sum()), float((thts - thtr)[off].min()),
+                   float((thts - thtr)[off].max()), float(sy[off].min()),
+                   float(sy[off].max()), MF6_THTS_RULE))
+    else:
+        raise PropertyError("uzf.thtr_from must be 'sy' or 'source', got %r"
+                            % (thtr_from,))
+    lo, hi = act & (thti < thtr), act & (thti > thts)
+    if lo.any() or hi.any():
+        thti = np.where(act, np.clip(thti, thtr, thts), thti)
+        notes.append('UZF thti clipped into [thtr, thts] in %d cell(s): %d '
+                     'raised to thtr (they start with no drainable water), '
+                     '%d lowered to thts'
+                     % (int(lo.sum() + hi.sum()), int(lo.sum()),
+                        int(hi.sum())))
+    return thtr, thti, notes
+
+
 # =====================================================================
 #  The grid the rasters stand on
 # =====================================================================
