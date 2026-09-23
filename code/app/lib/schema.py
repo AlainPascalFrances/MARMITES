@@ -48,7 +48,7 @@ __all__ = ['PANELS', 'FIELDS', 'TABLES', 'CHOICES', 'SUBPANELS', 'panel_of',
            'GRID_NEEDS_LAYER', 'GRID_NOTES', 'grid_fields',
            'SURFACE_ROWS',
            'SURFACE_FILES', 'SURFACE_PATTERNS', 'SURFACE_ON_PLOTS',
-           'SURFACE_GATED', 'TIME_ROWS',
+           'SURFACE_GATED', 'TIME_ROWS', 'RUN_COUPLING_ROWS',
            'SURFACE_TABLE_FILES', 'INTEGER_VALUE',
            'SOIL_ROWS', 'SOIL_VEG_ROWS', 'SOIL_FILES',
            'SOIL_DATASET_FILES', 'COLUMN_OF', 'GEOMETRY_ROWS',
@@ -184,7 +184,10 @@ FIELDS = {
     'run.mode': ('Coupling mode', _U,
                  'lagged: MMsoil once per stress period, from the previous '
                  'period\'s heads. iterative: re-evaluated at every MODFLOW '
-                 'outer iteration, which removes the one-period lag.'),
+                 'outer iteration, which removes the one-period lag. The lag '
+                 'reaches the ET chain too: in lagged mode the groundwater ET '
+                 'of a period is sized from the PREVIOUS period\'s actual '
+                 'unsaturated-zone ET (cookbook WP2, 2b).'),
     'run.relax': ('Under-relaxation', _U,
                   'Iterative mode only: new = relax*evaluated + '
                   '(1-relax)*previous. 0.5-0.7 is the usable range.'),
@@ -209,6 +212,11 @@ FIELDS = {
                        'Useful to inspect what MODFLOW would be given.'),
     'run.max_discrepancy': ('Maximum mass-balance discrepancy', '%',
                             'The run fails above this cumulative value.'),
+    'run.allow_bad_budget': ('Keep a run that fails the checks', _U,
+                             'Off: a run whose solution did not converge or '
+                             'does not conserve water stops with the reason. '
+                             'On: it is kept and reported. For diagnosing a '
+                             'failure, never for a result.'),
 
     # ---- panel 1: the grid --------------------------------------------
     'grid.boundary': ('Catchment boundary (polygon)', _U,
@@ -949,6 +957,18 @@ OBS_GROUPS = (
 # episodes averaged together -- is a question about the RECORD, so it is
 # asked beside it rather than buried in the MODFLOW parameter file, where
 # the aggregation limit sat under the misleading name `nper`.
+# The coupled run itself: how MMsoil and MODFLOW exchange, and what a run
+# must satisfy to count as a result. On the Run panel, beside the MODFLOW
+# library -- they are about how the run EXECUTES, and they change results,
+# so they are saved like every other answer. They were TOML-only: the audit
+# behind the cookbook's Appendix B found lagged vs iterative, the choice WP2
+# has to be validated under, could be made on no panel.
+RUN_COUPLING_ROWS = (
+    ('run.mode', 'run.relax'),
+    ('run.ats', 'run.max_discrepancy'),
+    ('run.allow_bad_budget', 'run.build_only'),
+)
+
 TIME_ROWS = (
     ('run.daily', 'run.perlen_max'),
     ('run.nsp', None),

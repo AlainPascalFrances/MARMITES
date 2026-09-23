@@ -29,6 +29,7 @@ import mm_paths                       # noqa: E402
 from lib import checks as chk          # noqa: E402
 from lib import panelui               # noqa: E402
 from lib import runs as runlib        # noqa: E402
+from lib import schema                # noqa: E402
 
 st.set_page_config(page_title='Run', page_icon='▶️', layout='wide')
 CONFIG_DIR = os.path.join(CODE, 'configs')
@@ -112,6 +113,17 @@ if overrides:
         st.success('Overrides valid — resulting hash `%s`' % probe.config_hash())
     except mcfg.ConfigError as exc:
         st.error(str(exc))
+
+# HOW THE RUN IS COUPLED, and what it must satisfy to count as a result.
+# These were TOML-only: the audit behind the cookbook's Appendix B found the
+# choice between lagged and iterative coupling -- the one WP2 has to be
+# validated under -- could be made on no panel at all.
+st.markdown('#### How the run is coupled')
+_coupling = panelui.rows_form(cfg, schema.RUN_COUPLING_ROWS, 'run', columns=2)
+panelui.remember(_coupling)
+if panelui.live('run.mode', cfg.run.mode) == 'lagged':
+    st.caption('`relax` is not read in lagged mode: MMsoil is evaluated once '
+               'per stress period, so there is nothing to under-relax.')
 
 # ASKED HERE, not edited into the file by hand. It was described in the
 # schema and drawn by no panel, so the one field standing between a build and

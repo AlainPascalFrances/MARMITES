@@ -1519,3 +1519,31 @@ def test_a_check_does_not_print_its_key_twice():
         encoding='utf-8').read()
     assert 'if c.key and c.key not in c.title:' in src, \
         'the key is added to the heading unconditionally'
+
+
+def test_the_coupling_is_asked_on_the_run_panel_and_saved():
+    """Lagged vs iterative -- the choice WP2 has to be validated under -- was
+    TOML-only: the audit behind the cookbook's Appendix B found it on no
+    panel at all."""
+    tmp = _force(_scratch_config('_couplingtest.toml'), 'run', 'mode',
+                 'mode = "lagged"')
+    try:
+        at = AppTest.from_file(os.path.join(APP, 'pages', '8_8_-_Run.py'),
+                               default_timeout=300)
+        at.session_state['config_file'] = os.path.basename(tmp)
+        at.run()
+        assert not at.exception, [str(e.value) for e in at.exception]
+        keys = {w.key for w in list(at.selectbox) + list(at.number_input)
+                + list(at.checkbox) if w.key}
+        for k in ('run.mode', 'run.relax', 'run.ats', 'run.max_discrepancy',
+                  'run.allow_bad_budget', 'run.build_only'):
+            assert k in keys, '%s is not on the Run panel' % k
+        at.selectbox(key='run.mode').select('iterative').run()
+        save = [b for b in at.button if b.key == 'sidebar_save']
+        assert save and not save[0].disabled
+        save[0].click().run()
+        assert _says(tmp, 'run', 'mode') == 'mode = "iterative"', \
+            _says(tmp, 'run', 'mode')
+    finally:
+        if os.path.exists(tmp):
+            os.remove(tmp)
