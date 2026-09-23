@@ -1070,6 +1070,16 @@ def main():
     # observation cells at which to keep the full MM flux series (per-point
     # Sankey / time series). Resolved once; the coupler captures them each cycle.
     obs_idx, obs_names = [], []
+    # THE OBSERVATION FILES FROM THE STATE VARIABLES PANEL, before anything
+    # reads one. The post-processing named them as literals, so the panel's
+    # [obs] changed nothing -- see marmites_postprocess.OBS. Set in this
+    # process, which is also the one the post-processing runs in.
+    if getattr(a, 'config', None) is not None:
+        import marmites_postprocess as _pp
+        _o = _pp.use_observations(a.config)
+        print('observations: points %s, heads %s_*, soil moisture %s_*, '
+              'runoff %s_* -- from the panel'
+              % (_o['table'], _o['heads'], _o['sm'], _o['ro']))
     if a.postproc:
         try:
             from marmites_postprocess import resolve_obs_cells

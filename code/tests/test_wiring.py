@@ -32,12 +32,7 @@ from lib import schema                                        # noqa: E402
 
 # Keys the run does NOT read, each with the reason. Mirrors Appendix B.
 NOT_WIRED = {
-    'obs.table': 'no reader',
-    'obs.name_column': 'no reader',
-    'obs.heads_prefix': 'obs_series uses its own default prefix',
-    'obs.sm_prefix': 'no reader',
-    'obs.aet_prefix': 'no reader',
-    'obs.ro_prefix': 'no reader',
+    'obs.aet_prefix': 'no reader takes an actual-ET series yet',
     'surface.meteo_zones': 'no reader in marmites_surface',
     'et.extwc_source': 'the build always takes extwc from thtr',
     'sfr.source': 'the network comes from the dataset CSV',
@@ -78,10 +73,30 @@ def _model_sources():
         for f in files:
             if f.endswith('.py') and f != 'marmites_config.py':
                 p = os.path.join(d, f)
-                out[p] = open(p, encoding='utf-8', errors='replace').read()
+                out[p] = _without_comments(
+                    open(p, encoding='utf-8', errors='replace').read())
     p = os.path.join(CODE, 'tests', 'run_lamata_mf6.py')
-    out[p] = open(p, encoding='utf-8', errors='replace').read()
+    out[p] = _without_comments(open(p, encoding='utf-8',
+                                    errors='replace').read())
     return out
+
+
+def _without_comments(text):
+    """The source with its COMMENTS removed, strings and code untouched.
+
+    A comment that MENTIONS a key is not code that reads it -- the note
+    explaining why obs.aet_prefix is not read made this guard report it as
+    read. Tokenised rather than cut at '#', which would also cut a string
+    that holds one.
+    """
+    import io
+    import tokenize
+    try:
+        toks = [t for t in tokenize.generate_tokens(io.StringIO(text).readline)
+                if t.type != tokenize.COMMENT]
+        return tokenize.untokenize(toks)
+    except (tokenize.TokenError, IndentationError, SyntaxError):
+        return text
 
 
 SRC = _model_sources()

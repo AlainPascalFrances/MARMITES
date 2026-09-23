@@ -83,12 +83,38 @@ def _mkdir(sim_ws, sub='_output'):
 # observation points
 # --------------------------------------------------------------------- #
 
-def obs_points(ds_ws, fn='inputObs.txt'):
-    """Active observation points from inputObs.txt.
+# ---- where the measured series are: the State variables panel ------------
+# These were LITERALS in five places of this module -- the point table, the
+# head, soil-moisture and runoff prefixes, and the name column of the point
+# layer -- so the panel that names them, [obs], changed nothing; the audit
+# behind the cookbook's Appendix B found it. They are one table now, filled
+# from the configuration by use_observations() before a run reads anything.
+# The defaults are the La Mata names the literals were.
+#
+# The ACTUAL-ET series (obs.aet_prefix) is not here: no reader takes one yet.
+OBS = {'table': 'inputObs.txt', 'heads': 'inputObsHEADS',
+       'sm': 'inputObsSM', 'ro': 'inputObsRo', 'name_column': 'Name'}
+
+
+def use_observations(cfg):
+    """Take the observation files from the State variables panel.
+
+    Called once, by the driver, before anything reads them. Returns what is
+    now in use, for the log.
+    """
+    o = cfg.obs
+    OBS.update(table=o.table, heads=o.heads_prefix, sm=o.sm_prefix,
+               ro=o.ro_prefix, name_column=o.name_column)
+    return dict(OBS)
+
+
+def obs_points(ds_ws, fn=None):
+    """Active observation points from the point table ([obs] table).
 
     Lines starting with '#' or '##' are disabled points and are skipped, as in
     the MARMITES input convention. Returns [{name, x, y, lay}, ...].
     """
+    fn = fn or OBS['table']
     pts = []
     with open(os.path.join(ds_ws, fn)) as fh:
         for line in fh:
@@ -106,9 +132,14 @@ def obs_points(ds_ws, fn='inputObs.txt'):
     return pts
 
 
-def obs_series(ds_ws, name, prefix='inputObsHEADS_'):
-    """Observed head time series (date, head) for one point, or None."""
+def obs_series(ds_ws, name, prefix=None):
+    """Observed head time series (date, head) for one point, or None.
+
+    ``prefix`` defaults to the panel's head prefix, joined to the point name
+    with '_' as the files are named (inputObsHEADS_P1.txt).
+    """
     import pandas as pd
+    prefix = prefix if prefix is not None else OBS['heads'] + '_'
     fn = os.path.join(ds_ws, '%s%s.txt' % (prefix, name))
     if not os.path.exists(fn):
         return None
@@ -589,14 +620,15 @@ def _fig_general_map(out, cMF=None, gis_ws=None, verbose=True):
         gx = to_km(g)
         ax.plot(gx.geometry.x, gx.geometry.y, 'o', ms=8, mfc=colour, mec='k',
                 mew=0.8, ls='none', zorder=7)
-        if 'Name' in gx:
+        if OBS['name_column'] in gx:
             import matplotlib.patheffects as pe
             # P0 / SM / EC sit within ~100 m of each other, so the labels
             # are placed round the marker in turn instead of all up-right;
             # the halo keeps them readable over the relief
             box = ((7, 8, 'left'), (7, -14, 'left'),
                    (-7, 8, 'right'), (-7, -14, 'right'))
-            for k, (nm, pt) in enumerate(zip(gx['Name'], gx.geometry)):
+            for k, (nm, pt) in enumerate(zip(gx[OBS['name_column']],
+                                                 gx.geometry)):
                 dx, dy, ha = box[k % len(box)]
                 ax.annotate(str(nm), xy=(pt.x, pt.y), xytext=(dx, dy),
                             textcoords='offset points', fontsize=8,
@@ -1475,8 +1507,8 @@ def _native_obs_timeseries(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
     obs = {}
     try:
         obs, _ol, _oc, _ocl = cMF.cPROCESS.inputObs(
-            inputObs_fn='inputObs.txt', inputObsHEADS_fn='inputObsHEADS',
-            inputObsSM_fn='inputObsSM', inputObsRo_fn='inputObsRo',
+            inputObs_fn=OBS['table'], inputObsHEADS_fn=OBS['heads'],
+            inputObsSM_fn=OBS['sm'], inputObsRo_fn=OBS['ro'],
             inputDate=DATE, _nslmax=int(ctx._nslmax), nlay=nlay)
     except Exception as exc:
         if verbose:
@@ -2219,8 +2251,8 @@ def resolve_obs_cells(cMF, ctx, ds_ws, verbose=True):
         return _resolve_obs_cells_mesh(cMF, ctx, ds_ws, verbose=verbose)
     try:
         obs, obs_list, _oc, _ocl = cMF.cPROCESS.inputObs(
-            inputObs_fn='inputObs.txt', inputObsHEADS_fn='inputObsHEADS',
-            inputObsSM_fn='inputObsSM', inputObsRo_fn='inputObsRo',
+            inputObs_fn=OBS['table'], inputObsHEADS_fn=OBS['heads'],
+            inputObsSM_fn=OBS['sm'], inputObsRo_fn=OBS['ro'],
             inputDate=cMF.inputDate, _nslmax=int(ctx._nslmax), nlay=int(cMF.nlay))
     except Exception as exc:
         if verbose:
