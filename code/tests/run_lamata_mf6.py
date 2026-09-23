@@ -532,8 +532,20 @@ def setup_lamata(daily=True, nsp=None, grid='dis', nlay=None,
         inputZON_SP_Pe_irr_fn=cMF.inputZON_SP_Pe_irr_fn, inputZON_SP_PT_irr_fn=cMF.inputZON_SP_PT_irr_fn,
         input_SP_crop_irr_fn=cMF.input_SP_crop_irr_fn)
 
-    _nsl, _nam, _st, _slprop, _Sm, _Sfc, _Sr, _S_ini, _Ks = cMF.cPROCESS.inputSoilParam(
-        SOILparam_fn=os.path.join('MF_ws', 'inputSOILparam.txt'), NSOIL=NSOIL)
+    # THE SOIL COLUMN FROM THE SOIL PANEL. It came from MF_ws/inputSOILparam.txt,
+    # at a path hard-coded right here, so the panel's soil.params was never
+    # read and editing it changed nothing -- the audit behind the cookbook's
+    # Appendix B found it. Same arrays, same order; only the source moved.
+    if cfg is not None:
+        _nsl, _nam, _st, _slprop, _Sm, _Sfc, _Sr, _S_ini, _Ks = \
+            props.soil_parameters(cfg, nsoil=NSOIL)
+        print('soil: %d zone(s), %s horizon(s), from the panel'
+              % (len(_nsl), '/'.join(str(n) for n in _nsl)))
+    else:
+        _nsl, _nam, _st, _slprop, _Sm, _Sfc, _Sr, _S_ini, _Ks = \
+            cMF.cPROCESS.inputSoilParam(
+                SOILparam_fn=os.path.join('MF_ws', 'inputSOILparam.txt'),
+                NSOIL=NSOIL)
     _nslmax = max(_nsl)
     for z in range(NSOIL):
         _slprop[z] = np.asarray(_slprop[z])

@@ -123,6 +123,43 @@ def _must_exist(path, what):
     raise PropertyError('%s: %s does not exist' % (what, path))
 
 
+def soil_parameters(cfg, nsoil=None):
+    """MMsoil's soil column, from [[soil.zone]] and [[soil.horizon]].
+
+    Returns exactly what MARMITESprocess.inputSoilParam returned --
+    ``(nsl, name, st, slprop, Sm, Sfc, Sr, Si, Ks)``, one entry per zone,
+    and per zone one value per horizon in row order -- so the soil model
+    downstream is untouched; only the SOURCE changes, from a positional
+    text file at a path hard-coded in the driver to the tables the Soil
+    panel edits.
+
+    ``nsoil`` is the number of surface-soil PE series MMsurf produced. More
+    soil zones than series is what the legacy reader warned about: a zone
+    with no evaporation series to draw on.
+    """
+    zones = list(cfg.soil.zone)
+    hz = list(cfg.soil.horizon)
+    if nsoil is not None and len(zones) > int(nsoil):
+        raise PropertyError(
+            'soil.zone has %d zone(s) but MMsurf produced %d surface-soil PE '
+            'series: a zone would have no evaporation to draw on'
+            % (len(zones), int(nsoil)))
+    nsl, name, st = [], [], []
+    slprop, sm, sfc, sr, si, ks = [], [], [], [], [], []
+    for z, zone in enumerate(zones, start=1):
+        mine = [h for h in hz if int(h.zone) == z]
+        nsl.append(len(mine))
+        name.append(zone.name)
+        st.append(zone.type)
+        slprop.append([float(h.slprop) for h in mine])
+        sm.append([float(h.smax) for h in mine])
+        sfc.append([float(h.sfc) for h in mine])
+        sr.append([float(h.sr) for h in mine])
+        si.append([float(h.si) for h in mine])
+        ks.append([float(h.ks) for h in mine])
+    return nsl, name, st, slprop, sm, sfc, sr, si, ks
+
+
 def apply_hnoflo(cfg, cMF, verbose=True):
     """Take the no-flow sentinel from the panel -- into BOTH places it lives.
 

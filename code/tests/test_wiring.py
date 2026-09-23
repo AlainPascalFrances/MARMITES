@@ -32,7 +32,6 @@ from lib import schema                                        # noqa: E402
 
 # Keys the run does NOT read, each with the reason. Mirrors Appendix B.
 NOT_WIRED = {
-    'soil.params': 'MMsoil reads MF_ws/inputSOILparam.txt, hard-coded',
     'soil.thickness': 'the converter hard-codes the SOILthick column',
     'soil.veg_column': 'no reader',
     'soil.veg_class': 'no reader',

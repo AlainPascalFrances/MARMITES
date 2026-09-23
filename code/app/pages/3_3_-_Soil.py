@@ -23,6 +23,7 @@ for p in (CODE, APP, os.path.join(CODE, 'ppMF6')):
     if p not in sys.path:
         sys.path.insert(0, p)
 
+import marmites_config as mcfg              # noqa: E402
 import mm_paths                             # noqa: E402
 from lib import panelui, schema             # noqa: E402
 
@@ -47,19 +48,53 @@ with tab_soil:
             'raster beats a polygon attribute, and a polygon attribute beats '
             'a single value. Nothing set is an error, not a silent zero.')
 
-    # The BOX, not the saved file: a green light against the file named
-    # before the last edit is worse than no light at all.
-    _par = panelui.live('soil.params', cfg.soil.params) or ''
-    par = (_par if os.path.isabs(_par)
-           else os.path.join(str(ds), _par.replace('/', os.sep)))
-    st.markdown('#### Soil column parameters')
-    if os.path.exists(par):
-        st.caption('`%s` — the zone ORDER in this file is what the zone codes '
-                   'above refer to.' % par)
-        with st.expander('Show the file'):
-            st.code(open(par, encoding='utf-8', errors='replace').read())
-    else:
-        st.error('Missing: %s' % par)
+    # THE SOIL COLUMN, AS TABLES. It was the positional inputSOILparam.txt,
+    # and the run read it from a path hard-coded in the driver -- so the
+    # field that named it here changed nothing. The column is now edited in
+    # place, and it is what MMsoil receives.
+    st.markdown('#### The soil column')
+    st.caption('One row per soil zone, in zone-CODE order: row N is the zone '
+               'whose code is N in the soil-zone layer above. Then one row '
+               'per horizon, top to bottom, each naming its zone. The '
+               'horizons of a zone share its thickness through `slprop`, '
+               'which must sum to 1.')
+    for dotted in ('soil.zone', 'soil.horizon'):
+        singular = next(s for d, _n, s, _c in schema.TABLES if d == dotted)
+        panelui.table_form(cfg, dotted, singular, path)
+
+    # IMPORT, ONCE, from an old parameter file -- the way a case that still
+    # has one (CdL) moves over. It writes through the SAME save as the
+    # sidebar, validated, so a file the rules refuse is refused here too.
+    with st.expander('Import the column from an old inputSOILparam.txt'):
+        _default = os.path.join('MF_ws', 'inputSOILparam.txt')
+        imp = st.text_input('File, in the dataset folder or absolute',
+                            value=_default, key='soil_import_path')
+        full = imp if os.path.isabs(imp) else os.path.join(str(ds), imp)
+        st.caption('`%s` — %s' % (full, 'found' if os.path.exists(full)
+                                  else 'not there'))
+        if st.button('Import and replace the tables', key='soil_import',
+                     disabled=not os.path.exists(full)):
+            try:
+                zones, horizons = mcfg.soil_tables_from_param_file(full)
+            except mcfg.ConfigError as exc:
+                st.error(str(exc))
+            else:
+                panelui.remember_table('soil.zone', zones)
+                panelui.remember_table('soil.horizon', horizons)
+                _applied, why, ok = panelui.save_now(cfg, path)
+                if not ok:
+                    st.error('NOT imported -- the column would be invalid:'
+                             '\n\n%s' % why)
+                else:
+                    # The data editors hold their own copy; drop it so they
+                    # redraw from the file that was just written.
+                    for k in ('tbl_soil.zone', 'tbl_soil.horizon'):
+                        st.session_state.pop(k, None)
+                    st.session_state['__saved_note'] = (
+                        'Imported %d zone(s) and %d horizon(s) from %s'
+                        % (len(zones), len(horizons),
+                           os.path.basename(full)))
+                    st.rerun()
 
 # ------------------------------------------------------------ vegetation
 # [soil] carries the vegetation COVER as well, because they share a file --
@@ -79,8 +114,11 @@ with tab_veg:
                'each cell covered is an exact AREA OVERLAY — a cell 37 % '
                'covered gets 37, not the class that happened to sit under '
                'its centre.')
+    # ONLY the vegetation table. This looped over every table of the panel,
+    # which was fine while there was one -- the soil column's two tables
+    # belong on the Soil column tab, and would have appeared here too.
     for dotted, num, singular, _c in schema.TABLES:
-        if num == 3:
+        if dotted == 'soil.veg_class':
             panelui.table_form(cfg, dotted, singular, path)
 
     names = [v.name for v in cfg.surface.vegetation]

@@ -574,17 +574,30 @@ def test_every_producer_that_names_a_file_offers_the_dialog():
         'a column name is being chosen from the filesystem')
 
 
-def test_the_soil_parameter_file_is_chosen_too():
-    at = AppTest.from_file(os.path.join(APP, SOIL),
-                           default_timeout=180)
+def test_the_soil_column_is_edited_as_tables_not_named_as_a_file():
+    """It was a path to inputSOILparam.txt, which the run never read -- the
+    driver hard-coded the same path. The column is the two tables now, on
+    the Soil column tab, with an import for a case that still has a file."""
+    at = AppTest.from_file(os.path.join(APP, SOIL), default_timeout=180)
     at.run()
-    assert 'soil.params.__pick' in {b.key for b in at.button if b.key}
-    assert any(x.key == 'soil.params' for x in at.text_input)
+    assert not at.exception, [str(e.value) for e in at.exception]
+    assert not any(x.key == 'soil.params' for x in at.text_input), \
+        'the soil column is still asked as a file'
+    assert 'soil_import' in {b.key for b in at.button if b.key}, \
+        'no way to import an old inputSOILparam.txt'
+    src = io.open(os.path.join(APP, SOIL), encoding='utf-8').read()
+    tab = src[src.index('with tab_soil:'):src.index('with tab_veg:')]
+    assert "'soil.zone', 'soil.horizon'" in tab, \
+        'the soil column tables are not on the Soil column tab'
+    veg = src[src.index('with tab_veg:'):src.index('with tab_gis:')]
+    assert "dotted == 'soil.veg_class'" in veg, \
+        'the vegetation tab draws tables that are not its own'
 
 
 def test_a_file_below_the_folder_keeps_its_relative_path():
-    """The soil parameters live in MF_ws/ under the dataset. Storing an
-    absolute path for them would tie the configuration to this machine."""
+    """Dataset files live below the dataset folder (the layer rasters in
+    MF_ws/, for one). Storing an absolute path for them would tie the
+    configuration to this machine."""
     import importlib.util
     import sys as _sys
 

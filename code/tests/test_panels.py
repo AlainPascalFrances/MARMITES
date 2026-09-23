@@ -403,7 +403,8 @@ def test_fields_of_rejects_a_missing_section(cfg):
 def test_the_surface_tables_are_declared():
     paths = [t[0] for t in schema.TABLES]
     assert paths == ['surface.station', 'surface.vegetation', 'surface.crop',
-                     'surface.soil', 'soil.veg_class']
+                     'surface.soil', 'soil.zone', 'soil.horizon',
+                     'soil.veg_class']
     assert all(t[1] in (2, 3) for t in schema.TABLES)
 
 
@@ -1151,7 +1152,9 @@ def test_the_soil_and_the_vegetation_are_separate_subjects(cfg):
     have = dict(schema.fields_of(cfg, 'soil'))
     soil = [d for row in schema.SOIL_ROWS for d in row if d]
     veg = [d for row in schema.SOIL_VEG_ROWS for d in row if d]
-    assert soil == ['soil.params', 'soil.zones', 'soil.thickness']
+    # soil.params is gone: the column is [[soil.zone]] / [[soil.horizon]],
+    # edited as tables rather than laid out as a field.
+    assert soil == ['soil.zones', 'soil.thickness']
     assert veg == ['soil.veg_layer', 'soil.veg_column']
     assert not set(soil) & set(veg), 'a field is on both sub-panels'
     for dotted in soil + veg:

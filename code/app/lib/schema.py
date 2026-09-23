@@ -139,6 +139,8 @@ TABLES = [
     ('surface.vegetation', 2, 'Vegetation type', 'NVEG'),
     ('surface.crop', 2, 'Crop', 'NCRP'),
     ('surface.soil', 2, 'Surface soil', 'NSOIL'),
+    ('soil.zone', 3, 'Soil zone', 'NSOIL'),
+    ('soil.horizon', 3, 'Soil horizon', None),
     ('soil.veg_class', 3, 'Vegetation class mapping', None),
 ]
 
@@ -433,12 +435,30 @@ FIELDS = {
                       '1-based, into the vegetation table above.'),
 
     # ---- panels 3 to 5: soil, subsurface, calibration -----------------
-    'soil.params': ('Soil column parameters', _U,
-                    'Per zone and per layer: Smax, Sfc, Sr, Si, Ks. The zone '
-                    'ORDER in this file is what the zone codes refer to.'),
+    # The soil column: [[soil.zone]] and [[soil.horizon]]. It was a
+    # positional text file, inputSOILparam.txt, read from a path the driver
+    # hard-coded -- so the panel's field for it changed nothing.
+    'zone.name': ('Zone name', _U,
+                  'Labels the zone in the figures. Row N is the zone whose '
+                  'CODE is N in the soil-zone layer.'),
+    'zone.type': ('Soil type', _U, 'A description; it changes no flux.'),
+    'horizon.zone': ('Zone', _U,
+                     'Which zone this horizon belongs to, 1-based. A zone\'s '
+                     'horizons are its rows, top to bottom in table order.'),
+    'horizon.slprop': ('Share of the column', _U,
+                       'slprop. The horizons of one zone sum to 1.'),
+    'horizon.smax': ('Saturated moisture', 'm3/m3',
+                     'Smax, the porosity. Must exceed sfc.'),
+    'horizon.sfc': ('Field capacity', 'm3/m3',
+                    'Sfc. Must lie between sr and smax.'),
+    'horizon.sr': ('Residual moisture', 'm3/m3',
+                   'Sr, the wilting point. The lowest of the four.'),
+    'horizon.si': ('Initial moisture', 'm3/m3',
+                   'Si, where the run starts. Between sr and smax.'),
+    'horizon.ks': ('Saturated conductivity', 'mm/d', 'Ks. Must be > 0.'),
     'soil.zones': ('Soil zones', _U,
-                   'A polygon layer whose code column matches the zone order '
-                   'of the parameter file.'),
+                   'A polygon layer whose code column holds the zone NUMBER: '
+                   'code N is row N of the soil zone table.'),
     'soil.thickness': ('Soil thickness', _U,
                        'A raster beats a polygon attribute, and a polygon '
                        'attribute beats a single value. Nothing set is an '
@@ -989,7 +1009,7 @@ SURFACE_ON_PLOTS = ('surface.plot',)
 # share a file, not because they are one question, and shown together the
 # second was read as more soil settings.
 SOIL_ROWS = (
-    ('soil.params', 'soil.zones'),
+    ('soil.zones', None),
     ('soil.thickness', None),
 )
 SOIL_VEG_ROWS = (
@@ -1011,7 +1031,7 @@ SOIL_FILES = ('soil.veg_layer',)
 
 # Named a file in the DATASET, not in the cartography folder -- a different
 # starting point for the same dialog.
-SOIL_DATASET_FILES = ('soil.params',)
+SOIL_DATASET_FILES = ()
 
 GRID_PERMANENT = ('grid.boundary', 'grid.streams', 'grid.ponds', 'grid.dem',
                   'grid.crs_epsg', 'grid.kind', 'grid.resample')

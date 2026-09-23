@@ -1131,11 +1131,91 @@ class VegetationClass:
 
 
 @dataclass
+class SoilZone:
+    """One soil zone: a column of horizons. Zone N is the zone CODE N.
+
+    ``name`` labels it in the figures; ``type`` is the soil-type
+    description the legacy file carried once per zone. Neither changes a
+    flux -- the horizons do.
+    """
+
+    name: str = ''
+    type: str = ''
+
+
+@dataclass
+class SoilHorizon:
+    """One horizon of a soil zone's column, top to bottom in row order.
+
+    Called a HORIZON, not a layer, on purpose: in this configuration
+    ``.layer`` already means a shapefile, and "layer" is also a MODFLOW
+    layer. The values are MMsoil's, unchanged from the legacy file:
+
+        slprop  share of the zone's soil thickness this horizon takes
+        smax    saturated moisture (porosity)           [-]
+        sfc     moisture at field capacity              [-]
+        sr      residual moisture (wilting point)       [-]
+        si      initial moisture                        [-]
+        ks      saturated hydraulic conductivity        [mm/d]
+    """
+
+    zone: int = 1
+    slprop: float = 1.0
+    smax: float = 0.30
+    sfc: float = 0.20
+    sr: float = 0.05
+    si: float = 0.20
+    ks: float = 1.0
+
+
+def soil_tables_from_param_file(path):
+    """``(zones, horizons)`` as lists of dicts, from a legacy inputSOILparam.txt.
+
+    The one-way door out of the positional file: it is READ here to fill the
+    [[soil.zone]] and [[soil.horizon]] tables, and never again by a run. The
+    layout is MARMITESprocess.inputSoilParam's exactly -- the zone count,
+    then the horizon count of each zone, then per zone a name and a soil
+    type, then six values per horizon -- so that a file the legacy reader
+    accepted is a file this accepts, and gives the same numbers.
+    """
+    lines = []
+    with open(path, encoding='utf-8', errors='replace') as fh:
+        for ln in fh:
+            v = ln.split('#', 1)[0].strip()
+            if v:
+                lines.append(v)
+    try:
+        nzone = int(float(lines[0]))
+        nsl = [int(float(lines[1 + z])) for z in range(nzone)]
+        pos = 1 + nzone
+        zones, horizons = [], []
+        for z in range(nzone):
+            name, stype = lines[pos], lines[pos + 1]
+            pos += 2
+            zones.append({'name': name, 'type': stype})
+            for _h in range(nsl[z]):
+                vals = [float(x) for x in lines[pos:pos + 6]]
+                pos += 6
+                horizons.append(dict(zip(('slprop', 'smax', 'sfc', 'sr',
+                                          'si', 'ks'), vals), zone=z + 1))
+    except (IndexError, ValueError) as exc:
+        raise ConfigError('%s is not an inputSOILparam file this can read: '
+                          '%s' % (path, exc))
+    return zones, horizons
+
+
+@dataclass
 class Soil:
     """Panel 3 -- what MMsoil reads, now from vector layers."""
 
-    params: str = 'MF_ws/inputSOILparam.txt'   # per-zone soil column table
-    # The zone code MUST match the zone order of `params`.
+    # THE SOIL COLUMN, as two tables rather than a positional text file:
+    # one row per zone, one row per horizon. Zone N is SoilCode N, so the
+    # rows of [[soil.zone]] are in zone-code order.
+    # The default is ONE zone of ONE horizon: a valid column, so that an
+    # empty configuration still validates -- the same answer layers.ibound
+    # got when it became required. A real case replaces it on the panel.
+    zone: list = field(default_factory=lambda: [SoilZone(name='soil')])
+    horizon: list = field(default_factory=lambda: [SoilHorizon()])
     zones: VectorSource = field(
         default_factory=lambda: VectorSource(layer='Soil_type.shp',
                                              column='SoilCode', how='majority'))
@@ -1148,7 +1228,8 @@ class Soil:
     veg_column: str = 'Species'
     veg_class: list = field(default_factory=list)     # VegetationClass
 
-    _ELEMENTS = {'veg_class': VegetationClass}
+    _ELEMENTS = {'veg_class': VegetationClass, 'zone': SoilZone,
+                 'horizon': SoilHorizon}
 
 
 @dataclass
@@ -1340,7 +1421,55 @@ RETIRED = {
     'et': {'uzf_et': 'UZF always simulates unsaturated-zone ET (WP2): total '
                      'ET has three sources and the deep unsaturated zone is '
                      'one of them, so there is no off position'},
+    'soil': {'params': 'the soil column is the [[soil.zone]] and '
+                       '[[soil.horizon]] tables now, edited on the Soil '
+                       'panel; an old inputSOILparam.txt is imported there '
+                       'once and never read by a run'},
 }
+
+def _import_soil_params(data):
+    """An old file's soil column, IMPORTED rather than defaulted.
+
+    ``[soil] params`` named a positional inputSOILparam.txt; the column now
+    lives in [[soil.zone]] and [[soil.horizon]]. A file that still has the
+    old key and none of the tables must not simply lose it -- the tables
+    have a one-zone default, and a La Mata config would then run, silently,
+    on a soil that is not La Mata's. So the named file is read into the
+    tables here, reported, and written out by the next save. A file that
+    cannot be found is a refusal, never a default.
+    """
+    soil = data.get('soil')
+    if not isinstance(soil, dict) or 'params' not in soil:
+        return data
+    if 'zone' in soil or 'horizon' in soil:
+        return data                    # already migrated; params is retired
+    rel = str(soil['params'])
+    case = (data.get('paths') or {}).get('case') or Paths().case
+    if os.path.isabs(rel):
+        path = rel
+    else:
+        try:
+            import mm_paths
+            path = os.path.join(str(mm_paths.dataset_dir(case)), rel)
+        except Exception:                                  # noqa: BLE001
+            path = rel
+    if not os.path.exists(path):
+        raise ConfigError(
+            'soil.params names %s, which is not there, and this '
+            'configuration has no [[soil.zone]] table to take its place. '
+            'Import the soil column on the Soil panel, or give the path of '
+            'the old inputSOILparam.txt.' % path)
+    zones, horizons = soil_tables_from_param_file(path)
+    soil = dict(soil)
+    soil.pop('params')
+    soil['zone'], soil['horizon'] = zones, horizons
+    data = dict(data)
+    data['soil'] = soil
+    _MIGRATED.append('soil.params: %s was imported into [[soil.zone]] (%d) '
+                     'and [[soil.horizon]] (%d); save to write them into the '
+                     'file' % (rel, len(zones), len(horizons)))
+    return data
+
 
 # Filled by _build, drained by RunConfig.from_dict. A module-level list
 # because _build is recursive and returns an instance, not a report.
@@ -1426,6 +1555,7 @@ class RunConfig:
                 'unknown section(s) %s -- valid sections are %s'
                 % (', '.join(repr(u) for u in unknown), ', '.join(sorted(_SECTIONS))))
         del _MIGRATED[:]
+        data = _import_soil_params(data)
         kwargs = {name: _build(_SECTIONS[name], data[name], name) for name in data}
         cfg = cls(source_path=str(source_path), **kwargs)
         # Not a dataclass field: it describes the FILE that was read, not the
@@ -1752,11 +1882,57 @@ class RunConfig:
             if nveg and not (1 <= c.veg <= nveg):
                 errs.append('soil.veg_class[%d].veg = %d is not a vegetation '
                             'index (1..%d)' % (n, c.veg, nveg))
+        errs.extend(self._soil_column_problems())
         # --- panel 4: plotting ------------------------------------------
         if not (1 <= self.postproc.hydro_year_start <= 12):
             errs.append('postproc.hydro_year_start must be a month, 1..12')
         if self.postproc.wb_unit not in ('year', 'day'):
             errs.append("postproc.wb_unit must be 'year' or 'day'")
+        return errs
+
+    def _soil_column_problems(self):
+        """The soil column's own rules, as the legacy reader enforced them.
+
+        inputSoilParam stopped the RUN on these, with a FATAL ERROR, after
+        the model had been built. They belong on the Soil panel, before a
+        save, which is where the tables are now edited.
+        """
+        errs = []
+        zones, hz = self.soil.zone, self.soil.horizon
+        if not zones:
+            errs.append('soil.zone is empty: MMsoil needs at least one soil '
+                        'zone. Import an inputSOILparam.txt on the Soil '
+                        'panel, or add the rows.')
+            return errs
+        nz = len(zones)
+        for n, h in enumerate(hz):
+            if not (1 <= int(h.zone) <= nz):
+                errs.append('soil.horizon[%d].zone = %s is not a soil zone '
+                            '(1..%d)' % (n, h.zone, nz))
+                continue
+            where = 'soil.horizon[%d] (zone %d)' % (n, h.zone)
+            if not (h.smax > h.sfc > h.sr):
+                errs.append('%s: needs smax > sfc > sr, got %g, %g, %g'
+                            % (where, h.smax, h.sfc, h.sr))
+            if not (h.smax >= h.si >= h.sr):
+                errs.append('%s: needs smax >= si >= sr, got si = %g'
+                            % (where, h.si))
+            if not (0.0 < h.slprop <= 1.0):
+                errs.append('%s: slprop must be in (0, 1], got %g'
+                            % (where, h.slprop))
+            if not h.ks > 0.0:
+                errs.append('%s: ks must be > 0 mm/d, got %g' % (where, h.ks))
+        for z in range(1, nz + 1):
+            mine = [h for h in hz if int(h.zone) == z]
+            if not mine:
+                errs.append('soil zone %d (%s) has no horizon: MMsoil needs '
+                            'at least one' % (z, zones[z - 1].name or '?'))
+                continue
+            total = sum(float(h.slprop) for h in mine)
+            if abs(total - 1.0) > 1e-6:
+                errs.append('soil zone %d (%s): the horizons\' slprop sum to '
+                            '%g, not 1 -- they are shares of one column'
+                            % (z, zones[z - 1].name or '?', total))
         return errs
 
     def validate(self):

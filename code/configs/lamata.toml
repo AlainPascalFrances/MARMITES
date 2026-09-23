@@ -1,5 +1,5 @@
 # MARMITES resolved run configuration
-# config_hash = 2ddc8551593c64dc
+# config_hash = a688ee0d6a8a3f4d
 
 [meta]
 config_version = 1
@@ -20,7 +20,7 @@ model = true
 plot = false
 mode = "lagged"
 relax = 0.6
-nsp = 0
+nsp = 60
 daily = true
 perlen_max = 10
 ats = true
@@ -209,7 +209,6 @@ trans_dry_wet = 20
 trans_wet_dry = 20
 
 [soil]
-params = "MF_ws/inputSOILparam.txt"
 veg_layer = "lm_veg.shp"
 veg_column = "Species"
 
@@ -223,6 +222,63 @@ fill = 0.0
 how = "area_mean"
 raster = "inputSOILthick.asc"
 fill = 0.0
+
+[[soil.zone]]
+name = "SOIL1 - alluvium"
+type = "sandy loam field"
+
+[[soil.zone]]
+name = "SOIL2 - regolith"
+type = "sandy loam field"
+
+[[soil.zone]]
+name = "SOIL3 - outcrop"
+type = "sand"
+
+[[soil.horizon]]
+zone = 1
+slprop = 0.75
+smax = 0.15
+sfc = 0.125
+sr = 0.075
+si = 0.145
+ks = 1.5
+
+[[soil.horizon]]
+zone = 1
+slprop = 0.25
+smax = 0.19
+sfc = 0.175
+sr = 0.1
+si = 0.185
+ks = 1.5
+
+[[soil.horizon]]
+zone = 2
+slprop = 0.55
+smax = 0.22
+sfc = 0.15
+sr = 0.07
+si = 0.215
+ks = 5.0
+
+[[soil.horizon]]
+zone = 2
+slprop = 0.45
+smax = 0.35
+sfc = 0.2
+sr = 0.125
+si = 0.25
+ks = 3.0
+
+[[soil.horizon]]
+zone = 3
+slprop = 1.0
+smax = 0.05
+sfc = 0.02
+sr = 0.01
+si = 0.02
+ks = 5.0
 
 [[soil.veg_class]]
 code = "g"
@@ -247,7 +303,7 @@ ro_prefix = "inputObsRo"
 
 [layers]
 nlay = 2
-hnoflo = 9999.99
+hnoflo = 9999.999
 k33_as_ratio = true
 convertible = true
 
@@ -393,12 +449,12 @@ sinks = "evaporate"
 dem = "inputDEM.asc"
 
 [spinup]
-cycles = 1
+cycles = 6
 tol = 0.05
-strt_heads = "hi_spinup"
-steady_means = "hi_spinup"
-save_strt = ""
-save_means = ""
+strt_heads = ""
+steady_means = ""
+save_strt = "voronoi_lamata_initial"
+save_means = "voronoi_lamata_means"
 strt_dem = []
 
 [postproc]
