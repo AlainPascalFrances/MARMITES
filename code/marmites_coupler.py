@@ -318,17 +318,30 @@ class MF6Coupler:
         name = self.name
         self._known_vars = self.available_vars(api)
         self.p_x, _ = self._bind_first(api, [('X', name)], 'heads (X)')
-        # UZF infiltration. The operative array in MF6's memory manager is
-        # SINF (specified infiltration); FINF is only the flopy input keyword.
-        # Binding FINF returns a valid-but-non-operative pointer, so the daily
-        # percolation written to it is silently ignored and UZF keeps applying
-        # the static perc_user from the build -- the recharge coupling looks
-        # wired but delivers a constant rate. SINF is therefore tried first.
+        # UZF INFILTRATION: TWO ARRAYS, BOTH WRITTEN. MF6's UZF cell group
+        # (UzfCellGroup.f90, MF6 6.7 source) keeps FINF, which the kinematic
+        # wave ROUTES (surflux = finf + mover), and SINF, which the budget's
+        # INFILTRATION line REPORTS (gwf-uzf.f90, appliedinf). uzf_ad sets
+        # both from the period input SINF_PVAR (setdatafinf), and
+        # xmi_prepare_solve runs the *_ad routines -- so they are written
+        # after prepare_solve, together, as setdatafinf would.
+        #
+        # This used to bind SINF alone, on the belief that SINF was the
+        # 'operative' array and FINF 'non-operative' -- drawn from the budget
+        # line, which does follow SINF. The routing never did: on the run of
+        # 2026-09-23 UZF's outflows were a constant 960.9 m3/d in every step
+        # (the input file's steady rate, 961.0), the UZF package budget was
+        # 92 % out, and MMsoil's percolation never entered the unsaturated
+        # zone. Writing FINF before prepare_solve (the earlier attempt) was
+        # reverted by uzf_ad, which is what made FINF look inert.
         self.p_finf, self.addr_finf = self._bind_first(
-            api, [('SINF', f'{name}/UZF'), ('SINF', f'{name}/UZF-1'),
-                  ('FINF', f'{name}/UZF'), ('FINF', f'{name}/UZF-1')],
-            'UZF infiltration (SINF/FINF)', min_size=self.ncell)
-        print('coupler: UZF infiltration bound to %s' % self.addr_finf)
+            api, [('FINF', f'{name}/UZF'), ('FINF', f'{name}/UZF-1')],
+            'UZF routed infiltration (FINF)', min_size=self.ncell)
+        self.p_sinf, self.addr_sinf = self._bind_first(
+            api, [('SINF', f'{name}/UZF'), ('SINF', f'{name}/UZF-1')],
+            'UZF reported infiltration (SINF)', min_size=self.ncell)
+        print('coupler: UZF infiltration bound to %s (routed) and %s '
+              '(budget)' % (self.addr_finf, self.addr_sinf))
         # groundwater discharge to land surface (= MARMITES exfiltration).
         # Name varies by MF6 version; optional -- without it exfiltration is 0.
         self.p_gwd, self.addr_gwd = self._bind_first(
@@ -449,11 +462,12 @@ class MF6Coupler:
         """
         if self.p_x.size < 1:
             raise CouplingError('MF6 head array X is empty')
-        if self.p_finf.size < self.ncell:
-            raise CouplingError(
-                'UZF FINF has %d entries but MARMITES has %d surface cells: the '
-                'bound address is wrong or the UZF package was built differently.'
-                % (self.p_finf.size, self.ncell))
+        for _p, _nm in ((self.p_finf, 'FINF'), (self.p_sinf, 'SINF')):
+            if _p.size < self.ncell:
+                raise CouplingError(
+                    'UZF %s has %d entries but MARMITES has %d surface cells: '
+                    'the bound address is wrong or the UZF package was built '
+                    'differently.' % (_nm, _p.size, self.ncell))
         if self.p_q is not None and self.p_q.size < self.ncell:
             raise CouplingError('WEL Q holds %d entries but MARMITES has %d wells.'
                                 % (self.p_q.size, self.ncell))
@@ -720,9 +734,12 @@ class MF6Coupler:
         return eow
 
     def _write_fluxes(self, perc, etg):
-        self.p_finf[:self.ncell] = perc                               # m/d
-        if self.p_finf.shape[0] > self.ncell:
-            self.p_finf[self.ncell:] = 0.0
+        # both UZF arrays, as MF6's setdatafinf sets them: the land cells
+        # carry the percolation, the objects below them nothing
+        for _p in (self.p_finf, self.p_sinf):
+            _p[:self.ncell] = perc                                    # m/d
+            if _p.shape[0] > self.ncell:
+                _p[self.ncell:] = 0.0
         q = -np.asarray(etg, dtype=float) * self.area                 # m3/d, sink
         if self.p_q is not None:
             self.p_q[:self.ncell] = q
@@ -888,9 +905,17 @@ class MF6Coupler:
                 if eow is not None:
                     self.evap_hist[n] = eow
                 mms_cells = np.asarray(out['MM_S'], dtype=np.float64)
-                self.wb_ts[n] = mm_cells.mean(axis=0)
+                # CATCHMENT means weight each cell by its AREA. A plain mean
+                # over cells is the catchment only on a uniform grid: on the
+                # Voronoi mesh half the cells cover 5 % of La Mata, refined
+                # along the streams, and the plain mean put runoff at 339
+                # mm/yr against 61 area-weighted, exfiltration at 310 against
+                # 16 (MF6's seepage drain: 15.9) -- 2026-09-23.
+                self.wb_ts[n] = np.average(mm_cells, axis=0,
+                                           weights=self.area)
                 self.wb_map += mm_cells
-                self.wb_ts_soil[n] = mms_cells.mean(axis=0)
+                self.wb_ts_soil[n] = np.average(mms_cells, axis=0,
+                                                weights=self.area)
                 self.wb_map_soil += mms_cells
                 if self.mm_obs is not None:
                     self.mm_obs[n] = mm_cells[self.obs_idx]

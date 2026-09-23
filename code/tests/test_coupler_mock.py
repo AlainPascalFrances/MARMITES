@@ -44,7 +44,17 @@ class FakeApi:
                  nouter=1, dh_per_step=0.0, gwd_per_cell=0.0):
         self.name = name.upper()
         self.X = np.full(nlay * nrow * ncol, float(heads0))
+        # MF6's UZF cell group keeps TWO infiltration arrays, both set from
+        # the period input SINF_PVAR by uzf_ad (setdatafinf), which
+        # xmi_prepare_solve runs: FINF is what the kinematic wave ROUTES
+        # (UzfCellGroup.f90, surflux = finf + mover), SINF what the budget's
+        # INFILTRATION line REPORTS (gwf-uzf.f90, appliedinf). They are
+        # separate arrays here too: when this fake shared one backing array
+        # for both, writing only SINF passed every test -- and on the real
+        # model UZF routed the steady input rate all run (2026-09-23).
+        self.SINF_PVAR = np.full(nuzf, -1.0)   # the input file's rate
         self.FINF = np.zeros(nuzf)
+        self.SINF = np.zeros(nuzf)
         self.GWD = np.full(nuzf, float(gwd_per_cell))
         self.BOUND = np.zeros((ncell, 1))
         self.Q = np.zeros(ncell)
@@ -54,6 +64,7 @@ class FakeApi:
         self.finalized = False
         self._k = 0
         self.finf_at_advance = []      # FINF snapshot at each finalize_time_step
+        self.sinf_at_advance = []      # SINF snapshot at each finalize_time_step
         self.q_at_advance = []
         self.finf_iter_trace = []      # FINF snapshot at each solve() call
         self.solve_calls = 0
@@ -65,11 +76,8 @@ class FakeApi:
     def get_input_var_names(self):
         """Addresses this fake exposes (the coupler validates against these).
 
-        MF6's operative UZF infiltration array is SINF; it is listed first so
-        the coupler binds it in preference to the non-operative FINF (that
-        mismatch left UZF applying a constant perc_user in the real run). SINF
-        and FINF share the backing array here so flux-content tests are
-        unaffected by which name is bound."""
+        Both UZF infiltration arrays are listed: FINF (routed) and SINF
+        (reported). A coupler must write both."""
         n = self.name
         return [f'{n}/X', f'{n}/UZF/SINF', f'{n}/UZF/FINF', f'{n}/UZF/GWD',
                 f'{n}/WEL/BOUND', f'{n}/WEL/Q']
@@ -79,7 +87,7 @@ class FakeApi:
 
     def get_value_ptr(self, addr):
         leaf = addr.rsplit('/', 1)[1]
-        return {'X': self.X, 'SINF': self.FINF, 'FINF': self.FINF,
+        return {'X': self.X, 'SINF': self.SINF, 'FINF': self.FINF,
                 'GWD': self.GWD, 'BOUND': self.BOUND, 'Q': self.Q}[leaf]
 
     def get_value(self, addr):
@@ -96,6 +104,9 @@ class FakeApi:
         pass
 
     def prepare_solve(self, sol):
+        # uzf_ad: both arrays back to the period input (setdatafinf)
+        self.FINF[:] = self.SINF_PVAR
+        self.SINF[:] = self.SINF_PVAR
         self._k = 0
 
     def solve(self, sol):
@@ -108,7 +119,8 @@ class FakeApi:
         pass
 
     def finalize_time_step(self):
-        self.finf_at_advance.append(self.FINF.copy())
+        self.finf_at_advance.append(self.FINF.copy())    # what was ROUTED
+        self.sinf_at_advance.append(self.SINF.copy())    # what was REPORTED
         # record whichever rate array is in use (Q preferred, see _bind)
         self.q_at_advance.append(self.Q.copy() if np.any(self.Q) else self.BOUND[:, 0].copy())
         self.X += self.dh              # deterministic head evolution per SP
@@ -370,13 +382,22 @@ def test_missing_get_time_step_is_tolerated():
     assert res['perc'].shape[0] == cpl.mf6b.cMF.nper
 
 
-def test_infiltration_binds_sinf_not_finf():
-    """MF6's operative UZF infiltration array is SINF; FINF is a valid-but-
-    non-operative pointer. Binding FINF left UZF applying a constant perc_user
-    and the water table drained. The coupler must prefer SINF."""
+def test_infiltration_is_written_to_the_routed_and_the_reported_array():
+    """UZF ROUTES FINF and REPORTS SINF (MF6 6.7 source). The coupler wrote
+    SINF only, after the note here said SINF was 'operative': the budget's
+    INFILTRATION line followed MMsoil while the kinematic wave routed the
+    steady input rate on every day of the run (2026-09-23: UZF outflows a
+    constant 960.9 m3/d, the input file's 961.0; UZF budget 92 % out)."""
     cpl, api, ctx = _setup(mode='lagged')
-    cpl.run(api)
-    assert cpl.addr_finf.endswith('/SINF'), cpl.addr_finf
+    res = cpl.run(api)
+    assert cpl.addr_finf.endswith('/FINF'), cpl.addr_finf
+    assert cpl.addr_sinf.endswith('/SINF'), cpl.addr_sinf
+    for n in range(ctx.cMF.nper):
+        routed = api.finf_at_advance[1 + n][:ctx.ncell]
+        reported = api.sinf_at_advance[1 + n][:ctx.ncell]
+        assert np.allclose(routed, res['perc'][n]), 'the wave got the input rate'
+        assert np.array_equal(routed, reported), 'budget and routing disagree'
+        assert not np.any(routed == -1.0), 'SINF_PVAR leaked into the routing'
 
 
 def test_unbindable_finf_reports_available_variables():
