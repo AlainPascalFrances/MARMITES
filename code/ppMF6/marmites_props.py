@@ -123,6 +123,80 @@ def _must_exist(path, what):
     raise PropertyError('%s: %s does not exist' % (what, path))
 
 
+# The converter writes each panel layer into the dataset under a fixed stem
+# (tools/gis_to_dataset.py, VECTOR_LAYERS); the run reads THAT, never the
+# shapefile in the GIS folder, which lives outside the repository.
+SOIL_POLYGONS = 'inputSOILZONES.geojson'
+
+
+def soil_grid(cfg, cMF, dataset_dir, what, kind='float'):
+    """A soil input as a (nrow, ncol) grid, from whichever producer is set.
+
+    ``what`` is 'zones' or 'thickness', the two VectorSources of [soil]. The
+    rule every spatial input follows, raster > layer > value:
+
+      raster  read as the legacy file was, through the same reader, so a
+              NODATA cell is the reader's hnoflo exactly as before;
+      layer   the dataset's soil polygons put onto the grid by exact area
+              overlay -- the MAJORITY value for zones, the AREA MEAN for
+              thickness, or whatever ``how`` names;
+      value   one number everywhere.
+
+    A cell no polygon reaches is hnoflo, the same thing a NODATA raster cell
+    becomes, so everything downstream masks it the same way.
+
+    This is what the Soil panel asked for and the run never read: the grids
+    came from inputSOILzones.asc and inputSOILthick.asc, filenames written
+    into the driver.
+    """
+    import marmites_overlay as ov
+
+    src = getattr(cfg.soil, what)
+    dotted = 'soil.%s' % what
+    producer = src.producer()
+    nr, nc = int(cMF.nrow), int(cMF.ncol)
+    hn = float(cMF.hnoflo)
+    if producer == 'raster':
+        path = (src.raster if os.path.isabs(src.raster)
+                else os.path.join(str(dataset_dir), src.raster))
+        _must_exist(path, dotted)
+        out = cMF.cPROCESS.convASCIIraster2array(path, np.zeros((nr, nc)))
+        return np.asarray(out, dtype=int if kind == 'int' else float)
+    if producer == 'value':
+        return np.full((nr, nc), src.value,
+                       dtype=int if kind == 'int' else float)
+    if producer != 'layer':
+        raise PropertyError('%s has no producer: give a raster, a layer and '
+                            'column, or a value' % dotted)
+    # the thickness may name a layer of its own; the converter exports only
+    # the soil-zone layer, so anything else cannot be read here
+    zl = cfg.soil.zones.layer
+    if src.layer and zl and src.layer != zl:
+        raise PropertyError(
+            '%s names the layer %r, but the converter exports only the soil '
+            'zone layer %r into the dataset. Use that layer\'s column, or a '
+            'raster.' % (dotted, src.layer, zl))
+    if not src.column:
+        raise PropertyError('%s names a layer but no column to read' % dotted)
+    polys = ov.Polygons.from_geojson(
+        os.path.join(str(dataset_dir), SOIL_POLYGONS), [src.column])
+    cells = ov.structured_cells(cMF.xllcorner, cMF.yllcorner,
+                                cMF.delr, cMF.delc)
+    how = (src.how or 'auto').lower()
+    if how == 'auto':
+        how = 'majority' if kind == 'int' else 'area_mean'
+    if how == 'majority':
+        flat = ov.majority(cells, polys, src.column, fill=hn,
+                           cast=int if kind == 'int' else float)
+    elif how in ('area_mean', 'mean'):
+        flat = ov.area_mean(cells, polys, src.column, fill=hn)
+    else:
+        raise PropertyError('%s: how = %r -- the soil layers take majority '
+                            'or area_mean' % (dotted, src.how))
+    out = flat.reshape(nr, nc)
+    return out.astype(int) if kind == 'int' else out
+
+
 def soil_parameters(cfg, nsoil=None):
     """MMsoil's soil column, from [[soil.zone]] and [[soil.horizon]].
 

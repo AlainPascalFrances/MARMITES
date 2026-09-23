@@ -32,7 +32,6 @@ from lib import schema                                        # noqa: E402
 
 # Keys the run does NOT read, each with the reason. Mirrors Appendix B.
 NOT_WIRED = {
-    'soil.thickness': 'the converter hard-codes the SOILthick column',
     'soil.veg_column': 'no reader',
     'soil.veg_class': 'no reader',
     'obs.table': 'no reader',

@@ -518,8 +518,20 @@ def setup_lamata(daily=True, nsp=None, grid='dis', nlay=None,
         cMF.outcropL += ((cMF.outcropL == 0) & ib) * (L + 1)
 
     gridMETEO = cMF.cPROCESS.inputEsriAscii(grid_fn='inputMETEOzones.asc', datatype=int)
-    gridSOIL = cMF.cPROCESS.inputEsriAscii(grid_fn='inputSOILzones.asc', datatype=int)
-    gridSOILthick = cMF.cPROCESS.inputEsriAscii(grid_fn='inputSOILthick.asc', datatype=float)
+    # THE SOIL ZONES AND THICKNESS FROM THE SOIL PANEL -- raster, polygon
+    # layer or one value, whichever it names. They came from
+    # inputSOILzones.asc and inputSOILthick.asc, filenames written right
+    # here, so the panel's soil.zones and soil.thickness changed nothing.
+    if cfg is not None:
+        gridSOIL = props.soil_grid(cfg, cMF, DS, 'zones', kind='int')
+        gridSOILthick = props.soil_grid(cfg, cMF, DS, 'thickness')
+        print('soil zones: %s; soil thickness: %s -- from the panel'
+              % (cfg.soil.zones.producer(), cfg.soil.thickness.producer()))
+    else:
+        gridSOIL = cMF.cPROCESS.inputEsriAscii(grid_fn='inputSOILzones.asc',
+                                               datatype=int)
+        gridSOILthick = cMF.cPROCESS.inputEsriAscii(
+            grid_fn='inputSOILthick.asc', datatype=float)
     gridIRR = cMF.cPROCESS.inputEsriAscii(grid_fn='inputIRRzones.asc', datatype=int)
 
     (gridVEGarea, P_veg_zoneSP, Eo_zonesSP, PT_veg_zonesSP, Pe_veg_zonesSP, LAI_veg_zonesSP,

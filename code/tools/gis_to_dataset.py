@@ -107,6 +107,19 @@ VECTOR_LAYERS = [
 ]
 
 
+def _config_columns(cfg, role):
+    """The attribute columns the configuration names for a layer's role."""
+    s = getattr(cfg, 'soil', None)
+    if s is None:
+        return []
+    if role == 'soil':
+        return [getattr(s.zones, 'column', ''),
+                getattr(s.thickness, 'column', '')]
+    if role == 'vegetation':
+        return [getattr(s, 'veg_column', '')]
+    return []
+
+
 def _dotted(obj, dotted):
     for part in dotted.split('.'):
         obj = getattr(obj, part, None)
@@ -143,6 +156,12 @@ def _export_vector(gis, out_dir, cfg, report, dry_run=False):
             report.append('%-12s %s NOT FOUND in %s' % (role, name, gis))
             continue
         gdf = _to_target(gpd.read_file(src), role, report)
+        # THE COLUMNS THE PANEL NAMES, as well as the fixed ones. The list
+        # above was La Mata's column names written into the code, so a panel
+        # that named another column had it silently left out of the dataset
+        # -- and the run then found nothing to read.
+        columns = list(columns) + [c for c in _config_columns(cfg, role)
+                                   if c and c not in columns]
         have = [c for c in columns if c in gdf.columns]
         missing = [c for c in columns if c not in gdf.columns]
         kind = ('point' if gdf.geom_type.iloc[0].endswith('Point')
