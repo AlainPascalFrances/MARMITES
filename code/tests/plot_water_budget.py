@@ -76,7 +76,8 @@ def load_new(ws, mode):
     with h5py.File(fn, 'r') as h:
         d = {k: h[k][:] for k in ('heads', 'perc', 'etg', 'exf', 'rejinf',
                                   'outer_iters', 'cell_ij')}
-        for k in ('wb_ts', 'wb_map', 'wb_ts_soil', 'wb_map_soil'):
+        for k in ('wb_ts', 'wb_map', 'wb_ts_soil', 'wb_map_soil',
+                  'cell_area'):
             d[k] = h[k][:] if k in h else None
     return d
 
@@ -278,13 +279,14 @@ def plot_heads(new, ws, ref=None):
     """Delegates to the recovered MARMITESplot module (single source of
     truth for MARMITES figures)."""
     MMplot.plotHEADS(new['heads'], new['cell_ij'], grid_shape(new, ref),
-                     _fig(ws, '06_heads.png'))
+                     _fig(ws, '06_heads.png'), area=new.get('cell_area'))
 
 
 def plot_coupling(new, ws):
     """Delegates to the recovered MARMITESplot module."""
     MMplot.plotCOUPLING(new['outer_iters'], rejinf=new['rejinf'],
-                        exf=new.get('exf'), plt_export_fn=_fig(ws, '07_coupling.png'))
+                        exf=new.get('exf'), plt_export_fn=_fig(ws, '07_coupling.png'),
+                        area=new.get('cell_area'))
 
 
 def write_summary(labels, newv, refv, ws, new):
@@ -301,7 +303,10 @@ def write_summary(labels, newv, refv, ws, new):
             lines.append('%-10s %12.1f' % (lab, a))
     lines += ['', 'MF6 outer iterations: mean %.1f, max %d'
               % (new['outer_iters'].mean(), new['outer_iters'].max())]
-    rej = new['rejinf'].mean() * 365.25
+    # area-weighted: a plain mean over mesh cells is the stream corridor's
+    w = new.get('cell_area')
+    rej = (float(np.average(new['rejinf'], axis=1, weights=w).mean())
+           if w is not None else float(new['rejinf'].mean())) * 365.25
     lines.append('rejected infiltration returned to the soil column: %.1f mm/year' % rej)
     txt = '\n'.join(lines)
     with open(_fig(ws, '00_summary.txt'), 'w') as f:

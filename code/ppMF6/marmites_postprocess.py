@@ -1197,7 +1197,13 @@ def _aquifer_layer_fluxes(sim_ws, name, cMF, ctx, res, sel_ij=None,
     if not np.any(EXF) and 'exf' in res:
         exf = np.asarray(res['exf'])
         if sel_ij is None:
-            EXF[:, 0] = -exf.mean(axis=1)
+            # the catchment: area-weighted, never a plain mean over cells
+            _g = getattr(ctx, 'geom', None)
+            _w = (np.asarray(_g.area, dtype=float) if _g is not None
+                  else None)
+            EXF[:, 0] = -(np.average(exf, axis=1, weights=_w)
+                          if _w is not None and _w.size == exf.shape[1]
+                          else exf.mean(axis=1))
         else:
             sel = [_cell_pos(ctx, i, j) for (i, j) in sel_ij]
             sel = [p for p in sel if p is not None]

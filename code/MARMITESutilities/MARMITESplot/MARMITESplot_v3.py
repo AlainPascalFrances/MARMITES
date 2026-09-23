@@ -2590,8 +2590,18 @@ def scatter_to_grid(cell_ij, values, grid_shape, fill=np.nan):
     return g
 
 
+def _cell_mean(a, area=None):
+    """Catchment mean over cells (axis 1), AREA-weighted when ``area`` is
+    given: on a mesh the cells differ by 10^5 and a plain mean is the
+    refined stream corridor's, not the catchment's."""
+    a = np.asarray(a, dtype=float)
+    if area is not None and np.size(area) == a.shape[1]:
+        return np.average(a, axis=1, weights=np.asarray(area, dtype=float))
+    return a.mean(axis=1)
+
+
 def plotHEADS(heads, cell_ij, grid_shape, plt_export_fn, Date=None,
-              plt_title='Groundwater head', obs=None):
+              plt_title='Groundwater head', obs=None, area=None):
     """Head time series (mean and min-max envelope) plus a mean-head map.
 
     heads : (nper, ncell) simulated heads [m]
@@ -2602,7 +2612,8 @@ def plotHEADS(heads, cell_ij, grid_shape, plt_export_fn, Date=None,
     fig, (a1, a2) = plt.subplots(1, 2, figsize=(13, 5))
     a1.fill_between(x, heads.min(axis=1), heads.max(axis=1),
                     color='tab:blue', alpha=0.20, label='min-max')
-    a1.plot(x, heads.mean(axis=1), lw=1.0, color='tab:blue', label='catchment mean')
+    a1.plot(x, _cell_mean(heads, area), lw=1.0, color='tab:blue',
+            label='catchment mean')
     for lbl, (ox, ov) in (obs or {}).items():
         a1.plot(ox, ov, '.', ms=3, label=lbl)
     a1.set_ylabel('head (m)')
@@ -2621,7 +2632,8 @@ def plotHEADS(heads, cell_ij, grid_shape, plt_export_fn, Date=None,
 
 
 def plotCOUPLING(outer_iters, rejinf=None, exf=None, plt_export_fn=None,
-                 Date=None, plt_title='MARMITES-MODFLOW 6 coupling'):
+                 Date=None, plt_title='MARMITES-MODFLOW 6 coupling',
+                 area=None):
     """Coupling diagnostics: MF6 outer iterations per stress period, plus the
     exchanged fluxes that most often explain slow convergence (rejected
     infiltration and exfiltration).
@@ -2644,12 +2656,14 @@ def plotCOUPLING(outer_iters, rejinf=None, exf=None, plt_export_fn=None,
     if rejinf is not None:
         k += 1
         r = np.asarray(rejinf, dtype=float)
-        axes[k].plot(x, r.mean(axis=1) if r.ndim > 1 else r, lw=0.7, color='tab:orange')
+        axes[k].plot(x, _cell_mean(r, area) if r.ndim > 1 else r, lw=0.7,
+                     color='tab:orange')
         axes[k].set_ylabel('rejected infiltr.\n(mm/d)'); axes[k].grid(alpha=0.3)
     if exf is not None:
         k += 1
         e = np.asarray(exf, dtype=float)
-        axes[k].plot(x, e.mean(axis=1) if e.ndim > 1 else e, lw=0.7, color='tab:green')
+        axes[k].plot(x, _cell_mean(e, area) if e.ndim > 1 else e, lw=0.7,
+                     color='tab:green')
         axes[k].set_ylabel('exfiltration\n(mm/d)'); axes[k].grid(alpha=0.3)
     axes[-1].set_xlabel('date' if Date is not None else 'day of simulation')
     fig.tight_layout()

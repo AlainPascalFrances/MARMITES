@@ -1189,6 +1189,7 @@ def main():
     # actually unbound there, but nothing in the block says so and pyflakes
     # reports it as an undefined name.
     prev_heads = None
+    spin_converged, delta = False, float('nan')
     for cyc in range(ncyc):
         if cyc > 0:
             b.strt_array = prev_heads      # equilibrating IC from last cycle
@@ -1223,10 +1224,20 @@ def main():
                       '(tol %.3f)' % (cyc + 1, ncyc, delta, a.spinup_tol))
                 if delta < a.spinup_tol:
                     print('spin-up converged after %d cycle(s).' % (cyc + 1))
+                    spin_converged = True
                     break
             else:
                 print('spin-up cycle 1/%d done (baseline).' % ncyc)
             prev = wt
+    # A spin-up that ran out of cycles is NOT an equilibrium, and the heads
+    # it leaves were saved as 'equilibrated' all the same (2026-09-23: 6
+    # cycles, |dWT| 2.46 -> 0.38 m against a 0.05 m tolerance).
+    if ncyc > 1 and not spin_converged:
+        print('\nWARNING: the spin-up did NOT converge in %d cycle(s): the last '
+              'mean |dWT| was %.3f m against a tolerance of %.3f m.\n'
+              '         The heads saved below are the last cycle\'s, not an '
+              'equilibrium. Raise spinup.cycles, or start the next run from '
+              'them to continue.' % (ncyc, delta, a.spinup_tol))
     check = None
 
     out_fn = os.path.join(a.ws, '_coupled_%s.h5' % a.mode)
@@ -1236,9 +1247,16 @@ def main():
         f.create_dataset('cell_ij', data=np.array([(c[1], c[2]) for c in ctx.cells]))
         # true grid size: cannot be inferred from active cells alone
         f.create_dataset('grid_shape', data=np.array([cMF.nrow, cMF.ncol]))
+        # each cell's area [m2], in the order of cell_ij: a catchment mean
+        # is AREA-weighted, and on a mesh the cells differ by 10^5
+        f.create_dataset('cell_area', data=np.asarray(cpl.area, dtype=float))
     print('\nCoupled run finished. Results: %s' % out_fn)
-    print('perc  mean %.4g m/d   ETg mean %.4g m/d   outer iters mean %.1f'
-          % (res['perc'].mean(), res['etg'].mean(), res['outer_iters'].mean()))
+    _w = np.asarray(cpl.area, dtype=float)
+    print('perc  mean %.4g m/d   ETg mean %.4g m/d (catchment, area-weighted)'
+          '   outer iters mean %.1f'
+          % (float(np.average(res['perc'], axis=1, weights=_w).mean()),
+             float(np.average(res['etg'], axis=1, weights=_w).mean()),
+             res['outer_iters'].mean()))
     # WP1d: open-water evaporation is MF6's now, read back from SFR SIMEVAP and
     # LAK EVAP and carried in the MM vector as iEow, so it is a measured flux
     # in the water balance rather than a structural zero.
@@ -1276,7 +1294,10 @@ def main():
         pref = _state_out(a, save_pref)
         paths = b.save_heads_asc(prev_heads, pref)
         _write_state_scope(a, a.config, save_pref)      # WP0.6 scope sidecar
-        print('equilibrated heads saved: %s' % ', '.join(os.path.basename(p) for p in paths))
+        print('%s heads saved: %s'
+              % ('final' if ncyc <= 1 else 'equilibrated' if spin_converged
+                 else 'NOT-converged spin-up', ', '.join(
+                     os.path.basename(p) for p in paths)))
         print('   reuse with:  spinup.strt_heads = "%s"   (skips the spin-up)' % save_pref)
 
     # Save per-cell mean recharge / ETg so the steady state of later runs can be
