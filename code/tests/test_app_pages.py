@@ -1156,21 +1156,24 @@ def test_a_different_mesh_resets_the_view(tmp_path):
         'the zoom from the previous mesh was kept'
 
 
-def test_the_converter_is_on_the_grid_panel_and_launch_runs_it():
-    """The converter serves panels 1 to 5, so its manual button is on the
-    Grid panel, in a tab of its own -- and a run no longer depends on anyone
-    pressing it: Launch converts whatever is out of date (lm_veg.shp was
-    edited on 2026-09-23 and every run that day read the old vegetation)."""
+def test_the_converter_is_on_the_validation_panel_and_launch_runs_it():
+    """The converter serves panels 1 to 5, and "is the dataset up to date?"
+    is a validation question: its button sits next to the check that lists
+    the out-of-date tables -- and a run does not depend on anyone pressing
+    it, Launch converts first (lm_veg.shp was edited on 2026-09-23 and every
+    run that day read the old vegetation)."""
     one = open(os.path.join(APP, 'pages', '1_1_-_Grid.py'),
                encoding='utf-8').read()
     three = open(os.path.join(APP, SOIL), encoding='utf-8').read()
+    seven = open(os.path.join(APP, 'pages',
+                              '7_7_-_Validation_of_the_configuration.py'),
+                 encoding='utf-8').read()
     run = open(os.path.join(APP, 'pages', '8_8_-_Run.py'),
                encoding='utf-8').read()
-    assert 'conv_run' in one and 'with tab_gis:' in one
-    # before tab_mesh, whose st.stop() would otherwise leave it empty
-    assert one.index('with tab_gis:') < one.index('with tab_mesh:')
-    assert 'conv_run' not in three and 'tab_gis' not in three, \
-        'the Soil panel has a converter again'
+    assert 'conv_run' in seven and 'dataset_state.stale(cfg' in seven
+    assert seven.index('conv_run') < seven.index("'Launch the run'"),         'the converter belongs above the Launch button'
+    for page, name in ((one, 'Grid'), (three, 'Soil')):
+        assert 'conv_run' not in page and 'tab_gis' not in page,             'the %s panel has a converter again' % name
     # Create grid still converts the two tables a grid depends on ...
     assert 'only=dataset_state.GRID_TABLES' in one
     # ... and Launch the rest, refusing to run on a failed conversion

@@ -413,8 +413,9 @@ def _describe(cfg):
 
 ATTEMPTS = st.session_state.setdefault('grid_attempts', [])
 
-tab_domain, tab_mesh, tab_gis = st.tabs(
-    ['Catchment & grid', 'Visualize grid', 'Cartography → dataset'])
+# The CARTOGRAPHY -> DATASET tab that stood here is on the Validation
+# panel, next to the check that reports out-of-date tables.
+tab_domain, tab_mesh = st.tabs(['Catchment & grid', 'Visualize grid'])
 
 # ===================================================================== 1a
 with tab_domain:
@@ -584,45 +585,6 @@ with tab_domain:
     else:
         st.info('No attempt yet. Press **Create grid** — it builds from the '
                 'settings above without saving anything.')
-
-
-# ===================================================================== 1c
-# (written BEFORE tab_mesh: that tab calls st.stop() when nothing is
-# cached yet, which would leave this one empty; the tab ORDER on screen
-# is the st.tabs() call's)
-# THE CARTOGRAPHY -> DATASET CONVERTER, by hand. It lived on the Soil panel,
-# but it serves panels 1 to 5 -- the ring and the streams, the soil zones,
-# the vegetation, the irrigation fields, the observation points, the ponds --
-# and nothing said when a layer had been edited: lm_veg.shp was changed on
-# 2026-09-23 and every run that day read the vegetation of the 13th. Launch
-# now converts by itself when a table is out of date; this tab shows the
-# state and keeps the manual button, for a preview or a refresh on demand.
-with tab_gis:
-    _ds = mm_paths.dataset_dir(cfg.paths.case)
-    st.caption(
-        'A run never opens a shapefile. The converter reads the GIS folder '
-        '(`%s`) and writes GRID-INDEPENDENT tables into the dataset (`%s`); '
-        'those are what a run reads. **Launch converts first whenever a '
-        'table is out of date**, and *Create grid* does it for the ring and '
-        'the streams -- so this button is for a preview, or a refresh on '
-        'demand.' % (mm_paths.GIS, _ds))
-    try:
-        _why = dataset_state.stale(cfg, _ds, mm_paths.GIS)
-    except Exception as exc:                            # noqa: BLE001
-        _why = None
-        st.warning('The dataset state could not be read: %s' % exc)
-    if _why:
-        st.warning('**Out of date with the cartography:**\n\n- ' +
-                   '\n- '.join(_why))
-    elif _why is not None:
-        st.success('Every converted table matches its shapefile.')
-    _c1, _c2 = st.columns(2)
-    if _c1.button('Preview (dry run)', key='conv_dry'):
-        st.session_state['conv'] = _run_converter(case, path, dry=True)
-    if _c2.button('Update dataset', type='primary', key='conv_run'):
-        st.session_state['conv'] = _run_converter(case, path, dry=False)
-    if st.session_state.get('conv'):
-        st.code(st.session_state['conv'], language='text')
 
 
 # ===================================================================== 1b

@@ -32,7 +32,9 @@ for p in (CODE, APP):
     if p not in sys.path:
         sys.path.insert(0, p)
 
+import mm_paths                              # noqa: E402
 from lib import checks as chk                # noqa: E402
+from lib import dataset_state                # noqa: E402
 from lib import panelui, schema              # noqa: E402
 
 _TITLES = dict((p[0], p[1]) for p in schema.PANELS)
@@ -127,6 +129,46 @@ for level in (chk.ERROR, chk.WARNING, chk.INFO):
                 st.caption(c.detail)
             if where:
                 st.caption('Answered on %s.' % where)
+
+st.markdown('---')
+
+# THE CARTOGRAPHY -> DATASET CONVERTER, next to the list that reports it.
+# A run reads the converted tables, never a shapefile; lm_veg.shp was edited
+# on 2026-09-23 and every run that day read the vegetation of the 13th. The
+# check above says which tables are out of date, Launch converts them by
+# itself, and this is the same conversion on demand -- a preview, or a
+# refresh before looking at the input maps. (It was a tab on the Soil panel,
+# then on the Grid panel; it serves panels 1 to 5, and this is where the
+# question "is the dataset up to date?" is asked.)
+st.markdown('#### Cartography → dataset')
+_ds = mm_paths.dataset_dir(cfg.paths.case)
+st.caption('A run never opens a shapefile. The converter reads the GIS folder '
+           '(`%s`) and writes grid-independent tables into the dataset '
+           '(`%s`); those are what a run reads. **Launch converts first '
+           'whenever a table is out of date**, and *Create grid* does it for '
+           'the catchment ring and the streams.' % (mm_paths.GIS, _ds))
+try:
+    _why = dataset_state.stale(cfg, _ds, mm_paths.GIS)
+except Exception as exc:                                # noqa: BLE001
+    _why = None
+    st.warning('The dataset state could not be read: %s' % exc)
+if _why:
+    st.warning('**Out of date with the cartography:**\n\n- ' +
+               '\n- '.join(_why))
+elif _why is not None:
+    st.success('Every converted table matches its shapefile.')
+_c1, _c2 = st.columns(2)
+if _c1.button('Preview (dry run)', key='conv_dry'):
+    st.session_state['conv'] = dataset_state.run_converter(
+        cfg.paths.case, path, dry=True)[1]
+if _c2.button('Update dataset', type='primary', key='conv_run'):
+    _ok, _out = dataset_state.run_converter(cfg.paths.case, path)
+    st.session_state['conv'] = _out
+    if _ok:
+        st.rerun()                  # the list above is now out of date
+if st.session_state.get('conv'):
+    with st.expander('Converter output', expanded=True):
+        st.code(st.session_state['conv'], language='text')
 
 st.markdown('---')
 

@@ -263,8 +263,9 @@ def check_dataset_fresh(cfg, dataset_dir=None, **_):
     if why:
         yield Check(INFO, '%d converted table(s) out of date with the '
                     'cartography -- Launch converts them first'
-                    % len(why), panel=1, key='grid.boundary',
-                    detail='; '.join(why))
+                    % len(why), key='',
+                    detail='; '.join(why) + '. Or update the dataset now, '
+                    'under Cartography -> dataset below.')
 
 
 def _props():
