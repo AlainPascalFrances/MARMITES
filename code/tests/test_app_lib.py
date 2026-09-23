@@ -9,6 +9,7 @@ thin views over them; what is tested here is what could actually be wrong.
 import importlib.util
 import json
 import os
+import subprocess
 import sys
 import time
 
@@ -172,6 +173,59 @@ def test_failed_run_is_reported_as_failed(tmp_path):
             break
         time.sleep(0.1)
     assert runlib.status(str(runs), rid)['outcome'] == 'failed'
+
+
+def test_a_second_launch_is_refused_while_the_first_runs(tmp_path):
+    """2026-09-23: two runs ten seconds apart wrote the same MF6 workspace;
+    the second died on lamata.ims, held open by the first."""
+    cfgp = tmp_path / 'c.toml'
+    cfgp.write_text('[meta]\nconfig_version = 1\n', encoding='utf-8')
+    slow = tmp_path / 'slow.py'
+    slow.write_text('import time\ntime.sleep(30)\n', encoding='utf-8')
+    runs = tmp_path / 'runs'
+    kw = dict(driver=str(slow), python_exe=sys.executable, cwd=str(tmp_path))
+    rid, st = runlib.launch(str(cfgp), str(runs), run_tag='first', **kw)
+    try:
+        assert [r['run_id'] for r in runlib.active(str(runs))] == [rid]
+        with pytest.raises(runlib.RunBusy) as exc:
+            runlib.launch(str(cfgp), str(runs), run_tag='second', **kw)
+        assert exc.value.run['run_id'] == rid and rid in str(exc.value)
+        assert len(list(runs.iterdir())) == 1, 'the refused run left a folder'
+    finally:
+        runlib.stop(str(runs), rid)
+    assert runlib.active(str(runs)) == []
+    fast = tmp_path / 'fast.py'
+    fast.write_text('print("ok")\n', encoding='utf-8')
+    time.sleep(1.1)                    # run ids are stamped to the second
+    rid2, _ = runlib.launch(str(cfgp), str(runs), run_tag='after',
+                            driver=str(fast), python_exe=sys.executable,
+                            cwd=str(tmp_path))
+    assert rid2 != rid
+
+
+@pytest.mark.skipif(os.name != 'nt', reason='the PID check is tasklist')
+def test_a_stale_status_on_a_reused_pid_does_not_block(tmp_path):
+    """Windows reuses PIDs: a 'running' status whose PID now belongs to some
+    other program must not refuse every launch from then on."""
+    runs = tmp_path / 'runs'
+    d = runs / '20260101000001_stale'
+    d.mkdir(parents=True)
+    other = subprocess.Popen(['ping', '-n', '30', '127.0.0.1'],
+                             stdout=subprocess.DEVNULL)
+    try:
+        (d / 'status.json').write_text(json.dumps(
+            {'run_id': d.name, 'state': 'running', 'pid': other.pid}),
+            encoding='utf-8')
+        assert runlib.active(str(runs)) == []
+    finally:
+        other.kill()
+
+
+def test_the_run_page_turns_launch_off_while_a_run_is_going():
+    src = open(os.path.join(CODE, 'app', 'pages', '8_8_-_Run.py'),
+               encoding='utf-8').read()
+    assert 'runlib.active(RUNS)' in src and 'not _busy' in src
+    assert 'except runlib.RunBusy' in src
 
 
 def test_list_runs_is_newest_first(tmp_path):

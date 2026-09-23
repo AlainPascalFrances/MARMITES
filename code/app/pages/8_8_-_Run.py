@@ -204,6 +204,9 @@ def _start():
             python_exe=(mm_paths.PYTHON_EXE
                         if os.path.exists(mm_paths.PYTHON_EXE)
                         else sys.executable))
+    except runlib.RunBusy as exc:
+        st.error('Not launched: %s' % exc)
+        st.session_state['watch'] = exc.run.get('run_id')
     except Exception as exc:                            # noqa: BLE001
         st.error('Launch failed: %s' % exc)
     else:
@@ -216,8 +219,15 @@ def _start():
 # same configuration that was approved.
 _approved = st.session_state.pop('validated', None) == cfg.config_hash()
 
+# One run at a time: a second writes the same MODFLOW workspace (runs.launch
+# refuses it too -- this only says so before the button is pressed).
+_busy = runlib.active(RUNS)
+if _busy:
+    st.warning('Run `%s` is still going (started %s). Launch is off until it '
+               'finishes or is stopped below.'
+               % (_busy[0].get('run_id'), _busy[0].get('started')))
 can_launch = ((not overrides) or (preview is not None)) \
-    and not _now[chk.ERROR]
+    and not _now[chk.ERROR] and not _busy
 if _approved:
     st.info('Validated — starting.')
     _start()

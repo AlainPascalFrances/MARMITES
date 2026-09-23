@@ -25,7 +25,7 @@ import time
 from pathlib import Path
 
 __all__ = ['launch', 'status', 'log_tail', 'list_runs', 'stop', 'run_dir',
-           'driver_path', 'import_runner']
+           'driver_path', 'import_runner', 'active', 'RunBusy']
 
 _STATUS = 'status.json'
 _LOG = 'run.log'
@@ -71,6 +71,31 @@ def _write_status(d, payload):
     os.replace(tmp, Path(d) / _STATUS)     # atomic: a reader never sees half a file
 
 
+class RunBusy(RuntimeError):
+    """A run is still going: a second would write into the same workspace."""
+
+    def __init__(self, run):
+        self.run = run
+        RuntimeError.__init__(
+            self, 'run %s (pid %s, started %s) is still going. Two runs write '
+            'the same MODFLOW workspace and the second dies on a file the '
+            'first holds open -- wait for it, or stop it, first.'
+            % (run.get('run_id'), run.get('pid'), run.get('started')))
+
+
+def active(runs_dir):
+    """The runs whose process is still alive, newest first."""
+    root = Path(runs_dir)
+    if not root.is_dir():
+        return []
+    out = []
+    for d in sorted((x for x in root.iterdir() if x.is_dir()), reverse=True):
+        st = status(runs_dir, d.name, refresh=True)
+        if st and st.get('state') == 'running':
+            out.append(st)
+    return out
+
+
 def launch(config_path, runs_dir, overrides=None, run_tag=None,
            python_exe=None, driver=None, cwd=None, env=None):
     """Start a detached model run. Returns (run_id, status dict).
@@ -78,7 +103,15 @@ def launch(config_path, runs_dir, overrides=None, run_tag=None,
     The command is built from a VALIDATED configuration path and a list of
     ``section.key=value`` overrides -- never from free text. The page must not
     offer a command box: this function executes a process.
+
+    ONE RUN AT A TIME. Two runs launched ten seconds apart (2026-09-23) both
+    wrote MF6_ws_voronoi; the second died with "Permission denied: ...
+    lamata.ims", a file the first held open -- and had it got further it
+    would have overwritten the first's inputs under it. Raises RunBusy.
     """
+    busy = active(runs_dir)
+    if busy:
+        raise RunBusy(busy[0])
     config_path = str(config_path)
     if not os.path.exists(config_path):
         raise FileNotFoundError('configuration not found: %s' % config_path)
@@ -139,7 +172,9 @@ def _pid_alive(pid):
             out = subprocess.run(
                 ['tasklist', '/FI', 'PID eq %d' % int(pid), '/NH'],
                 capture_output=True, text=True, timeout=10).stdout
-            return str(pid) in out
+            # the PID AND a python image: Windows reuses PIDs, and a stale
+            # 'running' held by some other process would refuse every launch
+            return str(pid) in out and 'python' in out.lower()
         os.kill(int(pid), 0)
         return True
     except Exception:
