@@ -96,6 +96,10 @@ VECTOR_LAYERS = [
      'inputSOILZONES'),
     ('vegetation', 'soil.veg_layer',         ['Species'],       'inputVEG'),
     ('irrigation', 'surface.irr_zones.layer', ['field_id'],       'inputIRR'),
+    # the LINES the boundary packages are placed on (marmites_props
+    # .LINE_TABLES reads them under these stems)
+    ('drn_line',  'drn.line',                [],                'inputDRN'),
+    ('ghb_line',  'ghb.line',                [],                'inputGHB'),
     ('obs',       'obs.layer',               ['Name', 'lay', 'hi', 'h0', 'RC',
                                               'STO', 'NameReal', 'onMap'],
      'inputOBSPTS'),

@@ -827,6 +827,11 @@ def setup_lamata(daily=True, nsp=None, grid='dis', nlay=None,
     print('elevation: %s' % _note)
     if _applied:
         botm_l0 = np.asarray(cMF.botm)[0]
+    # THE BOUNDARY LINES, on the grid the run uses and its FINAL bottoms: a
+    # drain at the base of its layer is placed after the land surface moved
+    # the layers, not before, so no re-anchoring is needed
+    if cfg is not None:
+        props.apply_line_boundaries(cfg, cMF, DS)
 
     mm = MMsoil.clsMMsoil(hnoflo=cMF.hnoflo)
     cells = mm.build_cell_list(cMF)

@@ -661,7 +661,11 @@ def _recompute_botm(cMF):
 
 
 def apply_boundaries(cfg, cMF, dataset_dir, verbose=True):
-    """Build GHB and DRN from the configuration. Returns what it did."""
+    """Build GHB and DRN from the configuration. Returns what it did.
+
+    A package given as a LINE is only announced here: its cells are chosen
+    on the grid the run uses, once that grid exists (apply_line_boundaries).
+    """
     if cfg is None:
         return []
     done = []
@@ -671,6 +675,12 @@ def apply_boundaries(cfg, cMF, dataset_dir, verbose=True):
             continue
         setattr(cMF, name + '_yn', 1 if pkg.enable else 0)
         if not pkg.enable:
+            continue
+        if getattr(pkg, 'line', ''):
+            _empty_boundary(cMF, name)
+            if verbose:
+                print('%s: from the line %s, placed on the model grid once it '
+                      'is built' % (name.upper(), pkg.line))
             continue
         builder = _build_ghb if name == 'ghb' else _build_drn
         n = builder(pkg, cMF, dataset_dir)
@@ -777,6 +787,220 @@ def _build_drn(pkg, cMF, dataset_dir):
                         [l, i, j, e_out, cMF.drn_cond_array[l, i, j]])
                 cMF.drn_elev_array[l, i, j] = e_out
     return len(cMF.layer_row_column_elevation_cond[0])
+
+
+# ---------------------------------------------------------------------
+#  The boundary as a LINE (the modeller's design, 2026-09-24)
+# ---------------------------------------------------------------------
+# WHERE a boundary is used to be the non-zero cells of a raster drawn on the
+# 50 m grid, then remapped onto the mesh -- so it was the 50 m grid's cells,
+# whatever the mesh. Now the panel names a LINE, and a boundary cell is a
+# cell of the grid the run USES that the line crosses AND that has a face on
+# the catchment's external boundary. The converter writes the line into the
+# dataset under a fixed name, like every other layer.
+LINE_TABLES = {'drn': 'inputDRN.geojson', 'ghb': 'inputGHB.geojson'}
+_RECORDS = {'drn': ('layer_row_column_elevation_cond', 'drn_elev_array',
+                    'drn_cond_array'),
+            'ghb': ('layer_row_column_head_cond', 'ghb_head_array',
+                    'ghb_cond_array')}
+
+
+def _empty_boundary(cMF, name):
+    """No records and zero arrays yet: the line places them later."""
+    recs, a, b = _RECORDS[name]
+    shape = (int(cMF.nlay), int(cMF.nrow), int(cMF.ncol))
+    setattr(cMF, recs, {0: []})
+    setattr(cMF, a, np.zeros(shape))
+    setattr(cMF, b, np.zeros(shape))
+
+
+def read_line_geojson(path, what='line'):
+    """The line layer the converter wrote, as one shapely geometry."""
+    import json
+
+    import shapely
+    from shapely.geometry import shape
+    if not os.path.exists(path):
+        raise PropertyError(
+            '%s: %s is not there -- run the converter (Validation panel, '
+            'Cartography → dataset; Launch also runs it), which writes it '
+            'from the line layer' % (what, path))
+    with open(path, encoding='utf-8') as fh:
+        g = json.load(fh)
+    parts = []
+    for f in g.get('features', []):
+        geom = shape(f['geometry'])
+        if 'Line' not in geom.geom_type:
+            raise PropertyError('%s must be a LINE layer; %s holds a %s'
+                                % (what, os.path.basename(path),
+                                   geom.geom_type))
+        parts.append(geom)
+    if not parts:
+        raise PropertyError('%s: %s holds no line' % (what, path))
+    return shapely.union_all(parts)
+
+
+def model_cells(cMF):
+    """The cells of the grid the run uses, as shapely polygons in cell order
+    (icell2d on a mesh, row-major on a structured grid)."""
+    cells = mesh_cells(cMF)
+    if cells is not None:
+        return cells
+    import shapely
+
+    import marmites_vector as mv
+    tg = mv.TargetGrid.structured(cMF.delr, cMF.delc, float(cMF.xllcorner),
+                                  float(cMF.yllcorner))
+    return np.array([shapely.Polygon(p) for p in tg.polygons], dtype=object)
+
+
+def boundary_cells_on_line(cells, active, line, tol=0.05):
+    """The cells ``line`` crosses that lie on the catchment's EXTERNAL
+    boundary: ``(idx, face)``, flat cell indices and the length [m] of each
+    one's faces on that boundary.
+
+    CROSSES means a stretch of the line inside the cell, not a point: a line
+    drawn along the boundary touches the next cell at its end vertex, and
+    that cell is not on it. ``tol`` [m] is how far off a face a line drawn
+    ALONG it may lie -- the converter rounds to the centimetre, so a line
+    digitised on the catchment edge is never exactly on it. ON THE BOUNDARY
+    means a FACE on the outer ring of the active cells -- an inactive island
+    inside the catchment is not its boundary, and a cell meeting the ring at
+    one vertex has no face to discharge through.
+    """
+    import shapely
+    act = np.nonzero(np.asarray(active, dtype=bool).ravel())[0]
+    if act.size == 0:
+        return np.zeros(0, dtype=int), np.zeros(0)
+    pool = cells[act]
+    try:
+        dom = shapely.coverage_union_all(pool)
+    except Exception:                         # not an exact coverage
+        dom = shapely.union_all(pool)
+    parts = [p for p in getattr(dom, 'geoms', [dom])
+             if p.geom_type == 'Polygon']
+    ring = shapely.union_all([shapely.LineString(p.exterior.coords)
+                              for p in parts])
+    hit = act[shapely.STRtree(pool).query(line, predicate='dwithin',
+                                          distance=tol)]
+    idx, face = [], []
+    for c in np.unique(hit):
+        if shapely.intersection(cells[c].buffer(tol), line).length \
+                <= 2.0 * tol:
+            continue
+        f = shapely.intersection(cells[c].boundary, ring).length
+        if f > 1e-6:
+            idx.append(int(c))
+            face.append(float(f))
+    return np.asarray(idx, dtype=int), np.asarray(face, dtype=float)
+
+
+def _cell_values(src, cMF, dataset_dir, what):
+    """A VectorSource as (nlay, ncell) on the model grid: one value, or a
+    raster per layer read on the dataset grid and put onto the model's."""
+    nlay = int(cMF.nlay)
+    n = int(cMF.nrow) * int(cMF.ncol)
+    values = resolve_source(src, nlay, dataset_dir, what)
+    if values is None:
+        raise PropertyError('%s: nothing to read' % what)
+    out = np.zeros((nlay, n))
+    proj = getattr(cMF, 'mesh_proj', None)
+    for l, v in enumerate(values):
+        if not isinstance(v, str):
+            out[l] = float(v)
+            continue
+        a = np.loadtxt(v, skiprows=6)
+        a = np.where(a <= -9999.0, 0.0, a)
+        if proj is not None:
+            a = np.ma.filled(np.asarray(proj.sample2d(
+                a, fill=0.0, dtype=float, how='area', valid=(a != 0.0)),
+                dtype=float), 0.0)
+        out[l] = np.asarray(a, dtype=float).ravel()
+    return out
+
+
+def apply_line_boundaries(cfg, cMF, dataset_dir, verbose=True):
+    """DRN and GHB where the panel's LINE crosses the catchment's external
+    boundary, on the grid the run uses -- called once that grid is final.
+
+    Every listed layer where the cell is active gets the boundary. A drain
+    sits at the base of its layer (``botm`` + 0.01 m, as the parameter file
+    did) or at the elevation given; a GHB holds the head given. The
+    conductance is the panel's number PER METRE of boundary face
+    (``cond_per = 'length'``), times the cell's face on the boundary, or PER
+    CELL. Per metre is what keeps the outflow from depending on the mesh: a
+    Voronoi mesh refined along the stream puts many small cells at the
+    outlet, and a conductance per cell would multiply the outflow by their
+    number. Returns ``[(name, ncell, nrecord)]``.
+    """
+    done = []
+    if cfg is None:
+        return done
+    todo = [n for n in ('ghb', 'drn')
+            if getattr(cfg, n).enable and getattr(cfg, n).line]
+    if not todo:
+        return done
+    nlay, nrow, ncol = int(cMF.nlay), int(cMF.nrow), int(cMF.ncol)
+    cells = model_cells(cMF)
+    act = np.abs(np.asarray(cMF.ibound, dtype=float)).reshape(nlay, -1) != 0
+    plan = np.asarray(cMF.outcropL).ravel() > 0
+    botm = np.asarray(cMF.botm, dtype=float).reshape(nlay, -1)
+    for name in todo:
+        pkg = getattr(cfg, name)
+        line = read_line_geojson(os.path.join(str(dataset_dir),
+                                              LINE_TABLES[name]),
+                                 '%s.line' % name)
+        idx, face = boundary_cells_on_line(cells, plan, line)
+        if idx.size == 0:
+            raise PropertyError(
+                '%s.line (%s) crosses no cell on the catchment boundary: '
+                'draw it across, or along, the edge of the catchment where '
+                'the %s is' % (name, pkg.line,
+                               'outlet' if name == 'drn' else 'boundary'))
+        cond = _cell_values(pkg.cond, cMF, dataset_dir, '%s.cond' % name)
+        if name == 'drn':
+            val = (None if pkg.at_layer_base else
+                   _cell_values(pkg.elevation, cMF, dataset_dir,
+                                'drn.elevation'))
+        else:
+            val = _cell_values(pkg.head, cMF, dataset_dir, 'ghb.head')
+        per_len = getattr(pkg, 'cond_per', 'length') == 'length'
+        recs_name, a_name, c_name = _RECORDS[name]
+        va = np.zeros((nlay, nrow * ncol))
+        ca = np.zeros((nlay, nrow * ncol))
+        recs = []
+        for L in pkg.layers:
+            l = int(L) - 1
+            if not (0 <= l < nlay):
+                raise PropertyError('%s.layers: layer %s is outside 1..%d'
+                                    % (name, L, nlay))
+            for c, f in zip(idx, face):
+                if not act[l, c]:
+                    continue
+                cc = float(cond[l, c]) * (f if per_len else 1.0)
+                v = (botm[l, c] + 0.01 if val is None else float(val[l, c]))
+                i, j = divmod(int(c), ncol)
+                recs.append([l, i, j, v, cc])
+                va[l, c], ca[l, c] = v, cc
+        if not recs:
+            raise PropertyError('%s: the line\'s cells are inactive on every '
+                                'listed layer %s' % (name, list(pkg.layers)))
+        setattr(cMF, recs_name, {0: recs})
+        setattr(cMF, a_name, va.reshape(nlay, nrow, ncol))
+        setattr(cMF, c_name, ca.reshape(nlay, nrow, ncol))
+        done.append((name, int(idx.size), len(recs)))
+        if verbose:
+            cs = np.array([r[4] for r in recs])
+            print('%s: %d cell(s) where %s crosses the catchment boundary '
+                  '(%.0f m of boundary face), %d record(s) on layer(s) %s; '
+                  'conductance %g m2/d per %s -> %.3g..%.3g m2/d per cell, '
+                  '%.4g in all'
+                  % (name.upper(), idx.size, pkg.line, float(face.sum()),
+                     len(recs), ', '.join(str(L) for L in pkg.layers),
+                     float(np.max(cond[:, idx])) if cond.size else 0.0,
+                     'metre of boundary' if per_len else 'cell',
+                     cs.min(), cs.max(), cs.sum()))
+    return done
 
 
 # =====================================================================

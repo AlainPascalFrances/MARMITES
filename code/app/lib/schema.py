@@ -554,8 +554,9 @@ FIELDS = {
                    'listed layer its own map; one value or one shapefile '
                    'applies to all of them.'),
     'ghb.head': ('Boundary head', 'm a.s.l.',
-                 'flopy: `ModflowGwfghb` stress period data, `bhead`. WHERE '
-                 'the boundary is comes from this source: a cell carries a '
+                 'flopy: `ModflowGwfghb` stress period data, `bhead`. '
+                 'Without a boundary line, WHERE the boundary is comes from '
+                 'this source: a cell carries a '
                  'GHB where it produces a value and none where it falls back '
                  'to `fill`. That is the legacy rule -- the rasters are zero '
                  'except along the boundary -- said once instead of per '
@@ -563,7 +564,22 @@ FIELDS = {
     'ghb.cond': ('Boundary conductance', 'm²/d',
                  'flopy: `ModflowGwfghb` stress period data, `cond`. The '
                  'conductance of the material between the cell and the head '
-                 'outside it. Must be > 0.'),
+                 'outside it. Must be > 0. With a boundary line it is per '
+                 'METRE of boundary face or per cell, as asked below.'),
+    'ghb.line': ('Boundary line', _U,
+                 'A LINE shapefile in the GIS folder saying WHERE the '
+                 'boundary is: every cell of the model grid that the line '
+                 'crosses AND that has a face on the catchment\'s external '
+                 'boundary becomes a GHB cell, on every layer listed. Draw it '
+                 'across or along the edge of the catchment. Blank: the '
+                 'legacy rule, where the head raster is not zero.'),
+    'ghb.cond_per': ('Conductance per', _U,
+                     '**length**: the conductance is per metre of the '
+                     'cell\'s face on the catchment boundary (m²/d per m), '
+                     'times that face -- the outflow does not depend on the '
+                     'mesh. **cell**: the same number in every cell, so a '
+                     'mesh with twice the cells along the boundary lets out '
+                     'twice the water. Read only with a boundary line.'),
     'drn.enable': ('Drains (DRN)', _U,
                    'Builds `ModflowGwfdrn`. This is the BOUNDARY drain the '
                    'parameter file called `drn` -- in La Mata six cells at '
@@ -575,9 +591,9 @@ FIELDS = {
     'drn.elevation': ('Drain elevation', 'm a.s.l.',
                       'flopy: `ModflowGwfdrn` stress period data, `elev`. '
                       'Water leaves a cell once its head rises above this. '
-                      'WHERE the drain is comes from this source, as for the '
-                      'GHB head. Ignored when the elevation is taken at the '
-                      'base of the layer below.'),
+                      'Without a drain line, WHERE the drain is comes from '
+                      'this source, as for the GHB head. Ignored when the '
+                      'elevation is taken at the base of the layer below.'),
     'drn.at_layer_base': ('At the base of the layer', _U,
                           'The drain sits just above the bottom of its own '
                           'layer (`botm` + 0.01 m) instead of at the '
@@ -589,7 +605,27 @@ FIELDS = {
                           'in a raster it had to be learnt from a comment.'),
     'drn.cond': ('Drain conductance', 'm²/d',
                  'flopy: `ModflowGwfdrn` stress period data, `cond`. Must be '
-                 '> 0.'),
+                 '> 0. With a drain line it is per METRE of boundary face or '
+                 'per cell, as asked below. The legacy La Mata drains were '
+                 '0.035 (layer 1) and 0.025 (layer 2) m²/d per 50 m cell, '
+                 'i.e. 0.0007 and 0.0005 m²/d per metre.'),
+    'drn.line': ('Drain line', _U,
+                 'A LINE shapefile in the GIS folder saying WHERE the outlet '
+                 'is: every cell of the model grid that the line crosses AND '
+                 'that has a face on the catchment\'s external boundary '
+                 'becomes a drain, on every layer listed, at the base of the '
+                 'layer. Draw it across or along the edge of the catchment '
+                 'at the outlet. The cells are chosen on the grid the run '
+                 'USES, so they follow the mesh. Blank: the legacy rule, '
+                 'where the elevation raster is not zero, on the 50 m cells.'),
+    'drn.cond_per': ('Conductance per', _U,
+                     '**length**: the conductance is per metre of the '
+                     'cell\'s face on the catchment boundary (m²/d per m), '
+                     'times that face -- the outflow does not depend on the '
+                     'mesh. On La Mata\'s Voronoi mesh the outlet is 67 '
+                     'small cells where the 50 m grid had 6. **cell**: the '
+                     'same number in every cell. Read only with a drain '
+                     'line.'),
     'uzf.ntrailwaves': ('Trail waves', 'count',
                         'flopy: `ModflowGwfuzf(ntrailwaves=)`, the UZF1 '
                         '`ntrail2`. How finely a drying front is resolved. '
@@ -870,6 +906,8 @@ CHOICES = {
     'seep.kind': lambda: ['uzf', 'drn'],
     'et.unsat_form': lambda: ['etwc', 'etae'],
     'et.extdp_from': lambda: ['source', 'vegetation'],
+    'drn.cond_per': lambda: ['length', 'cell'],
+    'ghb.cond_per': lambda: ['length', 'cell'],
     # The ini's iuzfopt, with the numbers replaced by what they meant.
     'uzf.vks_from': lambda: ['layer', 'raster'],
     # UZF1's SPECIFYTHTR, with the numbers replaced by what they meant.
@@ -936,15 +974,21 @@ LAYER_LIST = ('ghb.layers', 'drn.layers')
 
 GHB_ROWS = (
     ('ghb.enable', None),
+    ('ghb.line', None),
     ('ghb.layers', None),
     ('ghb.head', 'ghb.cond'),
+    ('ghb.cond_per', None),
 )
 DRN_ROWS = (
     ('drn.enable', None),
+    ('drn.line', None),
     ('drn.layers', None),
     ('drn.elevation', 'drn.cond'),
-    ('drn.at_layer_base', None),
+    ('drn.at_layer_base', 'drn.cond_per'),
 )
+# The boundary lines are shapefiles in the cartography folder, chosen the
+# way every other shapefile is.
+BOUNDARY_FILES = ('ghb.line', 'drn.line')
 
 # ---- panel 4: the unsaturated zone ---------------------------------------
 # A vertical column of UZF objects per active cell. The rows group what is

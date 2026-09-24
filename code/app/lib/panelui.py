@@ -474,6 +474,25 @@ def boundary_note(cfg, name, value_field, dataset_dir):
         st.caption('Off — `ModflowGwf%s` is not built and nothing above is '
                    'read.' % name)
         return
+    if getattr(pkg, 'line', ''):
+        import marmites_props
+        table = marmites_props.LINE_TABLES[name]
+        there = _spelled_here(os.path.join(str(dataset_dir or ''), table))
+        st.success(
+            'The run places `[%s]` on every cell of the grid it USES that '
+            '`%s` crosses with a face on the catchment\'s external boundary, '
+            'on layer(s) %s%s; conductance %s. The line reaches the run as '
+            '%s `%s`%s.'
+            % (name, pkg.line, ', '.join(str(L) for L in pkg.layers),
+               (', at the base of each layer' if name == 'drn'
+                and pkg.at_layer_base else ''),
+               'per metre of boundary face' if pkg.cond_per == 'length'
+               else 'per cell',
+               '🟢' if there else '🔴', table,
+               '' if there else ' — not converted yet: the Validation '
+               'panel\'s Cartography → dataset writes it, and Launch does '
+               'too'))
+        return
     rows = []
     for field in (value_field, 'cond'):
         src = getattr(pkg, field)

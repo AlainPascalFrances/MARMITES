@@ -157,7 +157,10 @@ class clsMMsoil:
             raise MarmitesSoilError(f'Non-finite soil storage in evapotranspiration: {s_tmp!r}')
         if s_tmp <= Sr:
             return 0.0
-        Se = (s_tmp - Sr) / (Sm - Sr)  # effective saturation
+        # effective saturation, at most 1: a store above porosity (rounding
+        # in the upward cascade) must not evaporate MORE than its demand --
+        # total ET can never be above PET
+        Se = min((s_tmp - Sr) / (Sm - Sr), 1.0)
         if pet * Se * perlen > (s_tmp - Sr):
             return (s_tmp - Sr) / perlen
         return pet * Se
@@ -365,7 +368,10 @@ class clsMMsoil:
             if dgwt_corr_tmp <= dll:
                 Eg_tmp = PE
             elif dgwt_corr_tmp < ext_d:
-                Eg_tmp = PE * (y0 + np.exp(-b * (dgwt_corr_tmp - dll)))
+                # at most PE: every tabulated y0 is > 0, so the fitted curve
+                # starts ABOVE 1 just past dll (up to 1.023) -- and total ET
+                # can never be above PET
+                Eg_tmp = PE * min(y0 + np.exp(-b * (dgwt_corr_tmp - dll)), 1.0)
             else:
                 Eg_tmp = 0.0
             if Eg_tmp > 0.0:
@@ -422,7 +428,10 @@ class clsMMsoil:
                     Tg_tmp1 = Tg_tmp_Zr * VEGarea[v] * 0.01
                     # limit Tg so the corrected head does not drop below root bottom
                     if Tg_tmp1 > 0.0 and (HEADSini_corr_tmp - Tg_tmp1 / sy_tmp) < Zr_elev_:
-                        Tg_tmp1 = (HEADSini_corr_tmp - float(Zr_elev[v])) * sy_tmp
+                        # never negative: once the head sits at the root tip a
+                        # rounding residue below it would turn Tg into a source
+                        Tg_tmp1 = max((HEADSini_corr_tmp - float(Zr_elev[v]))
+                                      * sy_tmp, 0.0)
                     Tg_tmp += Tg_tmp1
                     dgwt_corr_tmp += Tg_tmp1 / sy_tmp
                     HEADSini_corr_tmp -= Tg_tmp1 / sy_tmp

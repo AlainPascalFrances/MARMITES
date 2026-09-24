@@ -960,16 +960,24 @@ class Ghb:
         head          ModflowGwfghb  stress_period_data  bhead
         cond          ModflowGwfghb  stress_period_data  cond
 
-    WHERE the boundary IS comes from the source itself: a cell carries a
-    GHB where the head source produces a value, and `fill` (0 by default)
-    everywhere it does not. That is the legacy rule -- the ini's rasters are
-    zero except on the boundary -- said once instead of per raster.
+        line          a LINE shapefile in the GIS folder: WHERE the boundary is
+        cond_per      the conductance is per 'length' (metre of boundary
+                      face) or per 'cell'
+
+    WHERE THE BOUNDARY IS. With a `line`, every cell of the grid the run
+    uses that the line crosses AND that has a face on the catchment's
+    external boundary -- the modeller's design, grid-independent. Without
+    one, the legacy rule: a cell carries a GHB where the head source
+    produces a value, and `fill` (0 by default) everywhere it does not --
+    the ini's rasters are zero except on the boundary.
     """
 
     enable: bool = False           # the ini's ghb_yn
     layers: list = field(default_factory=list)   # 1-based, as MODFLOW counts
     head: VectorSource = field(default_factory=VectorSource)
     cond: VectorSource = field(default_factory=VectorSource)
+    line: str = ''                 # line shapefile in DATA_ROOT/GIS
+    cond_per: str = 'length'       # length | cell
 
 
 @dataclass
@@ -981,6 +989,18 @@ class Drn:
         elevation     ModflowGwfdrn  stress_period_data  elev
         cond          ModflowGwfdrn  stress_period_data  cond
         at_layer_base put the elevation at the bottom of each layer
+        line          a LINE shapefile in the GIS folder: WHERE the drain is
+        cond_per      the conductance is per 'length' (metre of boundary
+                      face) or per 'cell'
+
+    WHERE THE DRAIN IS, with a `line`: every cell of the grid the run uses
+    that the line crosses AND that has a face on the catchment's external
+    boundary. Without one, the legacy rule -- where the elevation raster is
+    not zero -- which put the drains on the 50 m grid's cells whatever the
+    mesh. PER METRE of boundary face is what keeps the outflow independent
+    of the mesh: a Voronoi mesh refined along the stream puts many small
+    cells at the outlet, and a conductance per cell multiplies the outflow
+    by their number.
 
     NOT THE SEEPAGE FACE. MARMITES builds a SECOND drain package, `drn_seep`,
     over the whole land surface, and that one is configured in [seep]. This
@@ -997,6 +1017,8 @@ class Drn:
     layers: list = field(default_factory=list)
     elevation: VectorSource = field(default_factory=VectorSource)
     cond: VectorSource = field(default_factory=VectorSource)
+    line: str = ''                 # line shapefile in DATA_ROOT/GIS
+    cond_per: str = 'length'       # length | cell
     at_layer_base: bool = False
 
 
@@ -1926,7 +1948,17 @@ class RunConfig:
                                 % (name, L, self.layers.nlay))
             if len(set(pkg.layers)) != len(pkg.layers):
                 errs.append('%s.layers repeats a layer' % name)
-            for f in (value_field, 'cond'):
+            if pkg.cond_per not in ('length', 'cell'):
+                errs.append("%s.cond_per must be 'length' or 'cell'" % name)
+            if pkg.line and not str(pkg.line).lower().endswith('.shp'):
+                errs.append('%s.line must name a shapefile, got %r'
+                            % (name, pkg.line))
+            # a drain at the base of its layer, placed by a line, needs no
+            # elevation at all
+            need = ('cond',) if (name == 'drn' and pkg.line
+                                 and pkg.at_layer_base) \
+                else (value_field, 'cond')
+            for f in need:
                 src = getattr(pkg, f)
                 if src.producer() is None:
                     errs.append('%s.%s: %s is on, so it needs a raster, a '

@@ -120,7 +120,7 @@ def _run(nper=4):
     def spy(*a, **k):
         seen.append(np.array(k.get('etuzf_cell')))
         out = real(*a, **k)
-        seen[-1] = (seen[-1], np.array(out['petuzf']))
+        seen[-1] = (seen[-1], np.array(out['petuzf']), np.array(out['etg']))
         return out
     cpl.mm.step = spy
     res = cpl.run(api)
@@ -130,10 +130,12 @@ def _run(nper=4):
 def test_the_demand_is_written_to_petmax_after_prepare_solve():
     """PETMAX, not PET: MF6 resets PET from PETMAX every solve iteration.
     The mock's prepare_solve resets both to -1 like uzf_ad, so a demand
-    written before it would not survive."""
+    written before it would not survive. What is written is what the soil
+    left LESS groundwater ET."""
     cpl, api, ctx, res, seen = _run()
-    for n, (_prev, petuzf) in enumerate(seen):
-        assert np.allclose(api.petmax_at_advance[1 + n][:ctx.ncell], petuzf)
+    for n, (_prev, petuzf, etg) in enumerate(seen):
+        assert np.allclose(api.petmax_at_advance[1 + n][:ctx.ncell],
+                           np.maximum(petuzf - etg, 0.0))
         assert np.all(api.pet_used[1 + n][:ctx.ncell] >= 0.0), \
             'the solve saw the period input, not the demand'
 
@@ -146,6 +148,67 @@ def test_the_actual_uzf_et_is_read_back_and_used_one_period_late():
     assert np.allclose(seen[0][0], 0.0), 'nothing is known before SP 1'
     for n in range(1, ctx.cMF.nper):
         assert np.allclose(seen[n][0], want), 'SP %d used the wrong ETuzf' % n
+
+
+# ------------------------------------------------ total ET never above PET
+def test_uzf_gets_what_groundwater_et_left():
+    d = M.coup.MF6Coupler.uzf_demand(np.array([3e-3, 1e-3, 2e-3]),
+                                     np.array([1e-3, 2e-3, 0.0]))
+    assert np.allclose(d, [2e-3, 0.0, 2e-3]), 'never negative'
+
+
+def test_iterative_mode_takes_off_the_larger_etg():
+    """The relaxed ETg is applied, the unrelaxed one booked: both books
+    must hold the bound."""
+    d = M.coup.MF6Coupler.uzf_demand(np.array([3e-3]), np.array([1e-3]),
+                                     etg_booked=np.array([1.5e-3]))
+    assert np.allclose(d, [1.5e-3])
+
+
+def _greedy(nper=6, heads0=699.9, cap=True, monkeypatch=None):
+    """UZF takes ALL of its demand every period -- the worst case -- with a
+    water table close enough for groundwater ET."""
+    cpl, api, ctx = M._setup(nper=nper, mode='lagged', heads0=heads0)
+    if not cap:
+        monkeypatch.setattr(M.coup.MF6Coupler, 'uzf_demand',
+                            staticmethod(lambda p, e, b=None: np.asarray(p)))
+    api.uzet_area = cpl.area
+    res = cpl.run(api)
+    return cpl, ctx, res
+
+
+def test_total_et_is_never_above_pet_even_when_uzf_takes_everything():
+    cpl, ctx, res = _greedy()
+    ix = ctx.index
+    ts = np.asarray(res['wb_ts'])
+    assert ts[:, ix['iETg']].sum() > 0.0, 'the case needs groundwater ET'
+    assert ts[:, ix['iETuzf']].sum() > 0.0
+    assert cpl.n_overdraw == 0
+    rep = cpl.check_solution(raise_on_fail=False)
+    assert rep['et_above_pet'] == 0
+
+
+def test_the_same_case_without_the_cap_goes_above_pet(monkeypatch):
+    """The check sees what the cap prevents -- 2026-09-24: 125,030
+    cell-periods, up to 2.05 mm/d -- and fails the run on it."""
+    cpl, ctx, res = _greedy(cap=False, monkeypatch=monkeypatch)
+    assert cpl.n_overdraw > 0
+    rep = cpl.check_solution(raise_on_fail=False)
+    assert not rep['ok']
+    assert any('can never be above PET' in m for m in rep['messages'])
+
+
+def test_soil_et_never_exceeds_its_demand_above_porosity():
+    """A store above porosity must not evaporate more than asked: 10 mm in
+    a 9 mm store is Se = 1.11, which asked 1 mm/d and gave 1.11."""
+    assert T.new.clsMMsoil._evp(10.0, 9.0, 0.1, 1.0, 1.0) == 1.0
+
+
+def test_groundwater_evaporation_never_exceeds_pe():
+    """Every tabulated y0 > 0: the Shah curve starts at 1 + y0 past dll."""
+    src = open(os.path.join(TRUNK, 'MARMITESsoil', 'MARMITESsoil_v3.py'),
+               encoding='utf-8').read()
+    assert 'PE * min(y0 + np.exp(-b * (dgwt_corr_tmp - dll)), 1.0)' in src
 
 
 def test_the_water_balance_carries_the_uzf_arm():

@@ -127,8 +127,10 @@ with tab_ghb:
     st.caption('A head held outside the model, and the conductance of what '
                'lies between it and the boundary cells — `ModflowGwfghb`.')
     edited.update(panelui.rows_form(
-        cfg, schema.GHB_ROWS, 'ghb', columns=2,
-        gated={'ghb.enable': ('ghb.layers', 'ghb.head', 'ghb.cond')}))
+        cfg, schema.GHB_ROWS, 'ghb', columns=2, folder=str(mm_paths.GIS),
+        files=schema.BOUNDARY_FILES,
+        gated={'ghb.enable': ('ghb.line', 'ghb.layers', 'ghb.head',
+                              'ghb.cond', 'ghb.cond_per')}))
     panelui.boundary_note(cfg, 'ghb', 'head', ds)
 
 # -------------------------------------------------------------------- drn
@@ -136,9 +138,11 @@ with tab_drn:
     st.caption('The outflow boundary of the catchment — `ModflowGwfdrn`. '
                'Water leaves a cell once its head rises above the drain.')
     edited.update(panelui.rows_form(
-        cfg, schema.DRN_ROWS, 'drn', columns=2,
-        gated={'drn.enable': ('drn.layers', 'drn.elevation', 'drn.cond',
-                              'drn.at_layer_base')}))
+        cfg, schema.DRN_ROWS, 'drn', columns=2, folder=str(mm_paths.GIS),
+        files=schema.BOUNDARY_FILES,
+        gated={'drn.enable': ('drn.line', 'drn.layers', 'drn.elevation',
+                              'drn.cond', 'drn.at_layer_base',
+                              'drn.cond_per')}))
     panelui.boundary_note(cfg, 'drn', 'elevation', ds)
 
     # THE SECOND DRAIN PACKAGE. MARMITES builds two, and they were on

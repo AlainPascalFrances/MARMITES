@@ -606,6 +606,16 @@ class MF6Coupler:
         # WP2 2.6, the GWET guard: groundwater ET belongs to MMsoil (WEL), so
         # MODFLOW must simulate none -- no configuration key can ask for
         # linear_gwet or square_gwet, and this catches a regression.
+        # TOTAL ET NEVER ABOVE PET. uzf_demand makes it hold by construction;
+        # a cell-period above it is a fault in the chain, not a result.
+        n_over = int(getattr(self, 'n_overdraw', 0))
+        rep['et_above_pet'] = n_over
+        if n_over:
+            rep['ok'] = False
+            rep['messages'].append(
+                'ETsoil + ETuzf + ETg exceeded PE + PT in %d cell-period(s), '
+                'by up to %.3g mm/d. Total ET can never be above PET.'
+                % (n_over, float(getattr(self, 'max_overdraw', 0.0))))
         if gwet:
             rep['ok'] = False
             rep['messages'].append(
@@ -853,7 +863,35 @@ class MF6Coupler:
         self._eow_split = (sfr, lak)
         return eow
 
-    def _write_fluxes(self, perc, etg, petuzf=None):
+    # mm/d: what the per-cell PET check tolerates -- floating rounding only
+    ET_TOL = 1e-6
+
+    @staticmethod
+    def uzf_demand(petuzf, etg, etg_booked=None):
+        """UZF's PET demand [m/d]: what the soil left, LESS groundwater ET.
+
+        TOTAL ET CAN NEVER EXCEED PET. MMsoil hands on PETuzf = PE + PT the
+        soil did not use, and takes ETg out of it seeing UZF's ET of the
+        PREVIOUS period -- the only one known before MF6 solves. Writing all
+        of PETuzf to UZF let this period's UZF ET and ETg together exceed
+        it: 125,030 cell-periods, up to 2.05 mm/d, on 2026-09-24. With UZF
+        capped at PETuzf - ETg, ETsoil + ETuzf + ETg <= PE + PT holds by
+        construction, since MF6 removes at most PETMAX from a column
+        (setbelowpet hands down only the unmet part).
+
+        UZF keeps its place in the chain: ETg was computed on PETuzf LESS
+        last period's ETuzf, so the cap leaves UZF at least what it took
+        then. ``etg_booked`` is the ETg in the water balance when it differs
+        from the one applied (iterative mode relaxes the applied one); the
+        larger of the two is taken off, so both books hold the bound.
+        """
+        d = np.asarray(petuzf, dtype=float) - np.asarray(etg, dtype=float)
+        if etg_booked is not None:
+            d = np.minimum(d, np.asarray(petuzf, dtype=float)
+                           - np.asarray(etg_booked, dtype=float))
+        return np.maximum(d, 0.0)
+
+    def _write_fluxes(self, perc, etg, petuzf=None, etg_booked=None):
         # both UZF arrays, as MF6's setdatafinf sets them: the land cells
         # carry the percolation, the objects below them nothing
         for _p in (self.p_finf, self.p_sinf):
@@ -861,11 +899,13 @@ class MF6Coupler:
             if _p.shape[0] > self.ncell:
                 _p[self.ncell:] = 0.0
         # WP2: the deep unsaturated zone's PET demand [m/d] on the land
-        # objects; MF6 passes what they leave to the objects below
+        # objects, after groundwater ET; MF6 passes what they leave to the
+        # objects below
         if petuzf is not None and self.p_petmax is not None:
+            dem = self.uzf_demand(petuzf, etg, etg_booked)
             for _p in (self.p_petmax, self.p_pet):
                 if _p is not None:
-                    _p[:self.ncell] = petuzf
+                    _p[:self.ncell] = dem
         q = -np.asarray(etg, dtype=float) * self.area                 # m3/d, sink
         if self.p_q is not None:
             self.p_q[:self.ncell] = q
@@ -905,7 +945,7 @@ class MF6Coupler:
         demand = mm_cells[:, ix['iPT']] + mm_cells[:, ix['iPE']]
         used = mm_cells[:, ix['iETsoil']] + et + mm_cells[:, ix['iETg']]
         over = used - demand
-        bad = over > 1e-6
+        bad = over > self.ET_TOL
         self.n_overdraw += int(bad.sum())
         if bad.any():
             self.max_overdraw = max(self.max_overdraw, float(over[bad].max()))
@@ -928,9 +968,9 @@ class MF6Coupler:
                  demand - used,
                  100.0 * (demand - used) / demand if demand > 0 else 0.0))
         if self.n_overdraw:
-            print('      ET above the demand in %d cell-period(s), at most '
-                  '%.3g mm/d: the one-period lag of UZF\'s ET in the demand '
-                  'chain (lagged mode)' % (self.n_overdraw, self.max_overdraw))
+            print('      ERROR: ET above PET in %d cell-period(s), at most '
+                  '%.3g mm/d -- this must never happen (check_solution '
+                  'fails the run)' % (self.n_overdraw, self.max_overdraw))
         # the open water, each package on its own line (WP2 row 2)
         if (self.nreaches or self.nlakes) and 'iEow' in ix:
             ow = {k: float(ts[:, ix[k]].sum()) * y
@@ -1355,7 +1395,8 @@ class MF6Coupler:
                 etg = self.relax * etg + (1.0 - self.relax) * etg_prev
             perc_prev, etg_prev = perc, etg
             petuzf_prev = out.get('petuzf')
-            self._write_fluxes(perc, etg, petuzf_prev)
+            etg_booked = np.asarray(out['etg'], dtype=float)
+            self._write_fluxes(perc, etg, petuzf_prev, etg_booked)
             self._write_openwater_evap(n)
             if api.solve(1):
                 break
@@ -1376,8 +1417,8 @@ class MF6Coupler:
                 # re-apply the converged fluxes each sub-step, or rp reverts
                 # SINF to the build-time value on the next prepare_time_step
                 def _re_apply(p=perc_prev, e=etg_prev, sp=n,
-                              u=petuzf_prev):
-                    self._write_fluxes(p, e, u)
+                              u=petuzf_prev, b=etg_booked):
+                    self._write_fluxes(p, e, u, b)
                     self._write_openwater_evap(sp)
 
                 k, ok = self._one_step(api, write_cb=_re_apply)
