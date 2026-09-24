@@ -268,3 +268,15 @@ def test_the_driver_places_them_on_the_final_grid():
     assert src.index('_apply_dem(cMF, cfg, DS') \
         < src.index('props.apply_line_boundaries(cfg, cMF, DS)') \
         < src.index('mm.build_cell_list(cMF)')
+
+
+def test_with_a_line_the_conductance_is_the_input_box():
+    """The legacy raster holds 0.035 per 50 m CELL; read per metre of face
+    it was 50 times the legacy boundary (2026-09-24: DRN out 11.8 mm/yr
+    against the legacy 4.4). With a line, only a value is accepted."""
+    cfg = _cfg()
+    cfg.drn.cond = mcfg.VectorSource(raster='MF_ws/drn_cond_l%d.asc')
+    errs = [e for e in cfg.problems() if e.startswith('drn.cond')]
+    assert errs and '0.0007 per metre' in errs[0]
+    cfg.drn.line = ''                       # the legacy rule reads rasters
+    assert not [e for e in cfg.problems() if e.startswith('drn.cond')]

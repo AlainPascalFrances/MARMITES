@@ -1953,6 +1953,19 @@ class RunConfig:
             if pkg.line and not str(pkg.line).lower().endswith('.shp'):
                 errs.append('%s.line must name a shapefile, got %r'
                             % (name, pkg.line))
+            # WITH A LINE THE CONDUCTANCE IS THE INPUT BOX. A raster's numbers
+            # are per cell of ITS grid -- the legacy La Mata drains 0.035 per
+            # 50 m cell -- and read per metre of boundary they were 50 times
+            # the legacy boundary (2026-09-24, DRN out 11.8 mm/yr, not 4.4)
+            if pkg.line and pkg.cond.producer() not in (None, 'value'):
+                errs.append(
+                    '%s.cond: with a line the conductance is one value, '
+                    'in m2/d per %s -- the %s gives numbers per cell of its '
+                    'own grid (the legacy La Mata drains: 0.035 per 50 m '
+                    'cell, i.e. 0.0007 per metre)'
+                    % (name, 'metre of boundary face'
+                       if pkg.cond_per == 'length' else 'cell',
+                       pkg.cond.producer()))
             # a drain at the base of its layer, placed by a line, needs no
             # elevation at all
             need = ('cond',) if (name == 'drn' and pkg.line

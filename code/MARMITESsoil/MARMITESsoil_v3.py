@@ -652,6 +652,13 @@ class clsMMsoil:
         Pe_tot += P_tmp * SOILarea * 0.01
         INTER_tot = P_tmp - Pe_tot
         PE_tot = PE_zonesSP_tmp * SOILarea * 0.01
+        # A TYPE THE DEMAND DOES NOT COUNT TRANSPIRES NOTHING. Dormant (LAI
+        # <= 1e-5: La Mata's grass 101 days a year, lai_dry = 0) its PT is
+        # left out of PT_tot and its area evaporates as bare soil in PE_tot
+        # -- yet flux() let it draw groundwater through Tg on the same area:
+        # ET above PET, and the area used twice.
+        PT_flux = np.where(np.asarray(LAIveg_tmp) > 1.0E-5,
+                           np.asarray(PT_zonesSP_tmp, dtype=np.float64), 0.0)
         # dry cell handling
         # legacy (NWT): dry cells carry the hdry sentinel value;
         # MF6 (cMF.hdry is None): no sentinel exists -- a cell is dry when
@@ -678,7 +685,7 @@ class clsMMsoil:
         # MAIN SUB-ROUTINE fluxes
         (Eow_tmp, Ssurf_tmp, Ro_tmp, Rp_tmp, Esoil_tmp, Tsoil_tmp, Ssoil_tmp,
          Ssoil_pc_tmp, Eg_tmp, Tg_tmp, HEADSini_MM, dgwt_tmp, SAT_tmp, Rexf_tmp,
-         I, PETuzf) = self.flux(cMF, perleni, Pe_tot, PT_zonesSP_tmp,
+         I, PETuzf) = self.flux(cMF, perleni, Pe_tot, PT_flux,
                         PE_zonesSP_tmp * SOILarea * 0.01, Zr_elev,
                         VEGarea_tmp, HEADSini_drycell, TopSoilLay, BotSoilLay,
                         Tl, nsl, Sm, Sfc, Sr, Ks, Ssoil_ini_tmp,
@@ -754,7 +761,7 @@ class clsMMsoil:
             if _k in index:
                 MM_tmp[index[_k]] = float(np.asarray(_v).ravel()[0]
                                           if np.ndim(_v) else _v)
-        MM_S_tmp = np.zeros([nsl, len(index_S)], dtype=np.float32)
+        MM_S_tmp = np.zeros([nsl, len(index_S)], dtype=np.float64)
         for l in range(nsl):
             MM_S_tmp[l, :] = [Esoil_tmp[l], Tsoil_tmp[l], Ssoil_pc_tmp[l],
                               Rp_tmp[l], Rexf_tmp[l], dSsoil[l], Ssoil_tmp[l],
@@ -789,16 +796,19 @@ class clsMMsoil:
         """
         nindex = len(ctx.index)
         nindex_S = len(ctx.index_S)
-        MM_cells = np.zeros((ctx.ncell, nindex), dtype=np.float32)
-        MM_S_cells = np.zeros((ctx.ncell, ctx._nslmax, nindex_S), dtype=np.float32)
-        perc_cell = np.zeros(ctx.ncell, dtype=np.float32)
-        etg_cell = np.zeros(ctx.ncell, dtype=np.float32)
+        # DOUBLE PRECISION: the coupler checks ETsoil + ETuzf + ETg <= PE + PT
+        # per cell to 1e-6 mm/d, and UZF's demand is PETuzf - ETg -- in
+        # float32 each term of a 4 mm/d balance is off by ~5e-7 mm/d
+        MM_cells = np.zeros((ctx.ncell, nindex), dtype=np.float64)
+        MM_S_cells = np.zeros((ctx.ncell, ctx._nslmax, nindex_S), dtype=np.float64)
+        perc_cell = np.zeros(ctx.ncell, dtype=np.float64)
+        etg_cell = np.zeros(ctx.ncell, dtype=np.float64)
         rej = (np.zeros(ctx.ncell) if rejinf_cell is None
                else np.asarray(rejinf_cell, dtype=np.float64))
         # WP2: the previous stress period's ACTUAL UZF ET per cell [mm/d]
         etu = (np.zeros(ctx.ncell) if etuzf_cell is None
                else np.asarray(etuzf_cell, dtype=np.float64))
-        petuzf_cell = np.zeros(ctx.ncell, dtype=np.float32)
+        petuzf_cell = np.zeros(ctx.ncell, dtype=np.float64)
         for cell in ctx.cells:
             cid = cell[0]
             MM_tmp, MM_S_tmp, nsl, perc_vol, etg_vol, petuzf_vol = self._cell_step(

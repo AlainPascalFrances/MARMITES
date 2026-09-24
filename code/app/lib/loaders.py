@@ -317,7 +317,9 @@ def mesh_polygons(gridprops):
         n = int(rec[3])
         p = [vxy[int(iv)] for iv in rec[4:4 + n]]
         a = np.asarray(p, dtype=float)
-        x, y = a[:, 0], a[:, 1]
+        # relative to the first vertex, as MODFLOW 6 does: absolute
+        # coordinates cost a 0.0127 m2 cell 1.5 % of its area
+        x, y = a[:, 0] - a[0, 0], a[:, 1] - a[0, 1]
         polys.append(p)
         areas.append(0.5 * abs(float(np.dot(x, np.roll(y, -1))
                                      - np.dot(y, np.roll(x, -1)))))

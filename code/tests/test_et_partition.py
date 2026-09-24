@@ -302,3 +302,24 @@ def test_the_builder_lists_each_columns_uzf_objects():
     src = open(os.path.join(TRUNK, 'ppMF6', 'marmites_mf6.py'),
                encoding='utf-8').read()
     assert 'self.uzf_columns = [[n] + [no for no, _kk in col_children[n]]' in src
+
+
+def test_a_dormant_type_draws_no_groundwater():
+    """LAI <= 1e-5 -- La Mata's grass 101 days a year, lai_dry = 0: the
+    demand leaves its PT out and its area evaporates as bare soil, so it
+    cannot also transpire groundwater through Tg on the same area. It did,
+    and ET went above PET (2026-09-24)."""
+    ix = M._setup(nper=1)[2].index
+    tg = {}
+    for dormant in (False, True):
+        cpl, api, ctx = M._setup(nper=4, mode='lagged', heads0=699.9)
+        if dormant:
+            lai = np.asarray(ctx.LAI_veg_zonesSP)
+            lai[...] = 0.0
+            ctx.LAI_veg_zonesSP = lai
+        api.uzet_area = cpl.area
+        res = cpl.run(api)
+        tg[dormant] = float(np.asarray(res['wb_ts'])[:, ix['iTg']].sum())
+        assert cpl.n_overdraw == 0
+    assert tg[False] > 0.0, 'the case needs groundwater transpiration'
+    assert tg[True] == 0.0

@@ -38,7 +38,14 @@ from lib import schema                                        # noqa: E402
 
 @pytest.fixture
 def cfg():
-    return cfgmod.load_run_config(REF)
+    """La Mata's configuration on the LEGACY placement -- the rasters --
+    which is what this file holds to the parameter file entry for entry.
+    The placement by a line is tests/test_boundary_lines.py."""
+    c = cfgmod.load_run_config(REF)
+    c.drn.line = ''
+    c.drn.cond = cfgmod.VectorSource(raster='MF_ws/drn_cond_l%d.asc')
+    c.ghb.line = ''
+    return c
 
 
 def test_both_packages_are_sections_of_their_own(cfg):

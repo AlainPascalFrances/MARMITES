@@ -74,7 +74,10 @@ def _signed_area(pts):
     a = np.asarray(pts, dtype=float)
     if a.shape[0] < 3:
         return 0.0
-    x, y = a[:, 0], a[:, 1]
+    # RELATIVE TO THE FIRST VERTEX, as MODFLOW 6 computes it (Disv.f90
+    # get_cell2d_area): on absolute coordinates the products are ~3e12 m2
+    # at La Mata, and a 0.0127 m2 cell lost 1.5 % of its area to rounding.
+    x, y = a[:, 0] - a[0, 0], a[:, 1] - a[0, 1]
     return 0.5 * float(np.dot(x, np.roll(y, -1)) - np.dot(y, np.roll(x, -1)))
 
 

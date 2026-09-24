@@ -663,6 +663,16 @@ class clsMF6:
 
         sim = MFSimulation(sim_name=name, sim_ws=self.sim_ws, exe_name=self.exe_name,
                            version='mf6')
+        # FULL DOUBLE PRECISION in every file MF6 reads. flopy's default is
+        # an 8-digit mantissa, so a vertex at y = 4553208.97 m was written to
+        # the centimetre, and MF6's cell areas came out up to 1.9 % off the
+        # mesh MMsoil and the coupler use -- 0.0127 m2 is La Mata's smallest
+        # cell, and 664 cells were off by more than 0.1 %. Every m3 <-> mm
+        # conversion between the two sides was off by as much there; UZF's
+        # ET read back on the coupler's area exceeded PET by up to 0.011 mm/d
+        # in 207,595 cell-periods (2026-09-24).
+        sim.simulation_data.float_precision = 16
+        sim.simulation_data.float_characters = 24
         # TDIS: steady SP first, then transient
         perioddata = [(1.0, 1, 1.0)] + [(float(p), 1, 1.0) for p in self.perlen]
         # ATS: let MF6 subdivide any stress period it cannot solve in one step.
