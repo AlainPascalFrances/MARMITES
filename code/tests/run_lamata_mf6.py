@@ -1280,9 +1280,17 @@ def main():
                                _lst.get_times(), active_area(cMF, b))
         for _line in balance_lines(_bal):
             print(_line)
+        # A deficit is advice only over a whole year: a summer window drains
+        # by nature (the 60-day June-July runs), and the lever is the panel's
+        # uzf.vks_scale, not the command-line flag it used to name.
         if _bal['discharge'] - _bal['recharge'] > 5.0:
-            print('   -> still draining; raise --uzf-vks-scale (currently %.3g) '
-                  'to lift recharge' % a.uzf_vks_scale)
+            if _bal['days'] >= 365:
+                print('   -> the aquifer drains over the run; if that is not '
+                      'expected, uzf.vks_scale (now %.3g) lifts recharge'
+                      % a.uzf_vks_scale)
+            else:
+                print('   (a %.0f-day window: a deficit says nothing about '
+                      'the long-term balance)' % _bal['days'])
     except Exception as _exc:                           # noqa: BLE001
         print('aquifer balance: not computed (%s: %s)'
               % (type(_exc).__name__, _exc))

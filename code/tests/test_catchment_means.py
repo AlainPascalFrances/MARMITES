@@ -103,3 +103,20 @@ def test_the_overlay_mean_is_area_weighted():
     v = np.array([10.0, 1000.0])
     a = np.array([2400.0, 100.0])
     assert np.sum(v * a) / a.sum() == pytest.approx(49.6)
+
+
+def test_the_draining_hint_is_given_only_over_a_whole_year():
+    """A 60-day June-July run drains by nature; it was told to 'raise
+    --uzf-vks-scale', a command-line flag the panel calls uzf.vks_scale."""
+    src = _src('tests', 'run_lamata_mf6.py')
+    assert "raise --uzf-vks-scale" not in src
+    assert "_bal['days'] >= 365" in src
+
+
+def test_the_remapped_colour_map_is_not_re_registered():
+    """It printed "Overwriting the cmap 'shrunk'" once per map."""
+    src = _src('MARMITESutilities', 'MARMITESutilities.py')
+    body = src[src.index('def remappedColorMap'):]
+    nxt = body.find('\n    def ', 10)          # the last method of its class
+    body = body if nxt < 0 else body[:nxt]
+    assert 'colormaps.register' not in body and 'register_cmap' not in body

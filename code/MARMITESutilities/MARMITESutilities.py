@@ -138,12 +138,10 @@ class clsUTILITIES:
             cdict['green'].append((si, g, g))
             cdict['blue'].append((si, b, b))
             cdict['alpha'].append((si, a, a))
-        newcmap = mpl.colors.LinearSegmentedColormap(name, cdict)
-        try:
-            mpl.colormaps.register(newcmap, force=True)
-        except AttributeError:  # matplotlib < 3.5 fallback
-            mpl.cm.register_cmap(cmap=newcmap)
-        return newcmap
+        # Returned, NOT registered: every caller uses the object, and nothing
+        # looks it up by name -- registering it under the same name on every
+        # map printed "Overwriting the cmap 'shrunk'" once per figure.
+        return mpl.colors.LinearSegmentedColormap(name, cdict)
 
 
 if __name__ == '__main__':
