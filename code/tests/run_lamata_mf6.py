@@ -713,6 +713,46 @@ def setup_lamata(daily=True, nsp=None, grid='dis', nlay=None,
         gridMETEO = grids['gridMETEO']; gridSOIL = grids['gridSOIL']
         gridSOILthick = grids['gridSOILthick']
         gridIRR = grids['gridIRR']; gridVEGarea = grids['gridVEGarea']
+        # THE POLYGON INPUTS ON THE MESH CELLS THEMSELVES. Above they were
+        # overlaid on the 50 m grid and then resampled onto the mesh, so a
+        # mesh cell smaller than 50 m -- half the La Mata Voronoi cells are
+        # under 46 m2, the riparian corridor the 15,586 vegetation polygons
+        # describe in detail -- inherited its 50 m cell's average cover and
+        # majority soil zone. A RASTER source stays raster -> mesh: the
+        # raster is the data.
+        if cfg is not None:
+            _cells = props.mesh_cells(cMF)
+            _ovl = os.path.join(os.path.dirname(mesh_ws), '_overlay') \
+                if mesh_ws else None
+            gridVEGarea = props.veg_cover(cfg, cMF, DS, NVEG, cache_dir=_ovl,
+                                          cells=_cells,
+                                          cells_key=info['signature'])
+            if cfg.soil.zones.producer() == 'layer':
+                _z = np.asarray(props.soil_grid(cfg, cMF, DS, 'zones',
+                                                kind='int', cells=_cells))
+                _none = np.abs(_z - cMF.hnoflo) < 1.0      # no polygon reached
+                _keep = _none & (np.abs(np.asarray(gridSOIL) - cMF.hnoflo)
+                                 >= 1.0)
+                gridSOIL = np.where(_keep, gridSOIL, _z).astype(int)
+                print('soil zones: majority of the soil polygons on each mesh '
+                      'cell%s' % ('' if not _keep.any() else
+                                  ' (%d cell(s) no polygon reaches keep the '
+                                  'resampled zone)' % int(_keep.sum())))
+            if cfg.soil.thickness.producer() == 'layer':
+                # top and every botm were set from the RESAMPLED thickness
+                # (top = elev - thick): they move by the difference, so the
+                # aquifer keeps its own thickness under the new soil column
+                _t = np.asarray(props.soil_grid(cfg, cMF, DS, 'thickness',
+                                                cells=_cells), dtype=float)
+                _ok = (np.abs(_t - cMF.hnoflo) > 0.09) & \
+                    (np.abs(np.asarray(gridSOILthick) - cMF.hnoflo) > 0.09)
+                _d = np.where(_ok, _t - np.asarray(gridSOILthick, float), 0.0)
+                cMF.top = np.asarray(cMF.top) - _d
+                cMF.botm = np.asarray(cMF.botm) - _d[None, :, :]
+                gridSOILthick = np.where(_ok, _t, gridSOILthick)
+                print('soil thickness: area mean of the soil polygons on each '
+                      'mesh cell (top and bottoms moved by up to %.2f m)'
+                      % float(np.abs(_d).max()))
         # derived from the PROJECTED arrays, never carried over from the raster
         botm_l0 = np.asarray(cMF.botm)[0]
         print('projected onto the mesh: %d active cell(s) of %d'

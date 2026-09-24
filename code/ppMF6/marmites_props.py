@@ -129,7 +129,7 @@ def _must_exist(path, what):
 SOIL_POLYGONS = 'inputSOILZONES.geojson'
 
 
-def soil_grid(cfg, cMF, dataset_dir, what, kind='float'):
+def soil_grid(cfg, cMF, dataset_dir, what, kind='float', cells=None):
     """A soil input as a (nrow, ncol) grid, from whichever producer is set.
 
     ``what`` is 'zones' or 'thickness', the two VectorSources of [soil]. The
@@ -180,8 +180,12 @@ def soil_grid(cfg, cMF, dataset_dir, what, kind='float'):
         raise PropertyError('%s names a layer but no column to read' % dotted)
     polys = ov.Polygons.from_geojson(
         os.path.join(str(dataset_dir), SOIL_POLYGONS), [src.column])
-    cells = ov.structured_cells(cMF.xllcorner, cMF.yllcorner,
-                                cMF.delr, cMF.delc)
+    # ``cells``: the MESH cells (mesh_cells), so a polygon layer is overlaid
+    # on the cells the model runs on rather than on the 50 m grid first and
+    # resampled after; by default the structured grid's own cells.
+    if cells is None:
+        cells = ov.structured_cells(cMF.xllcorner, cMF.yllcorner,
+                                    cMF.delr, cMF.delc)
     how = (src.how or 'auto').lower()
     if how == 'auto':
         how = 'majority' if kind == 'int' else 'area_mean'
@@ -201,7 +205,8 @@ VEG_POLYGONS = 'inputVEG.geojson'
 _VEG_OVERLAY_VERSION = 1      # bump if class_percent would give other numbers
 
 
-def veg_cover(cfg, cMF, dataset_dir, nveg, cache_dir=None, verbose=True):
+def veg_cover(cfg, cMF, dataset_dir, nveg, cache_dir=None, verbose=True,
+              cells=None, cells_key=None):
     """The vegetation cover, ``(nveg, nrow, ncol)`` in % of each cell.
 
     From the Soil panel: the vegetation layer, its class column, and the
@@ -245,19 +250,23 @@ def veg_cover(cfg, cMF, dataset_dir, nveg, cache_dir=None, verbose=True):
     nr, nc = int(cMF.nrow), int(cMF.ncol)
     with open(path, 'rb') as fh:
         digest = hashlib.sha1(fh.read()).hexdigest()
-    key = json.dumps({'file': digest, 'col': column, 'map': mapping,
-                      'nveg': int(nveg), 'xll': float(cMF.xllcorner),
-                      'yll': float(cMF.yllcorner),
-                      'delr': [float(x) for x in np.ravel(cMF.delr)],
-                      'delc': [float(x) for x in np.ravel(cMF.delc)],
-                      'v': _VEG_OVERLAY_VERSION}, sort_keys=True)
+    # the GRID the cover is put on: the structured origin and spacing, or --
+    # for cells passed in (the mesh) -- the key that identifies them
+    grid = ({'cells': str(cells_key)} if cells is not None else
+            {'xll': float(cMF.xllcorner), 'yll': float(cMF.yllcorner),
+             'delr': [float(x) for x in np.ravel(cMF.delr)],
+             'delc': [float(x) for x in np.ravel(cMF.delc)]})
+    key = json.dumps(dict({'file': digest, 'col': column, 'map': mapping,
+                           'nveg': int(nveg), 'v': _VEG_OVERLAY_VERSION},
+                          **grid), sort_keys=True)
     sig = hashlib.sha1(key.encode('utf-8')).hexdigest()[:16]
     cached = (os.path.join(str(cache_dir), 'veg_cover_%s.npz' % sig)
               if cache_dir else None)
     if cached and os.path.exists(cached):
         out = _at_most_100(np.load(cached)['cover'])
         if verbose:
-            print('vegetation cover: %s (cached)' % _veg_summary(out, s))
+            print('vegetation cover: %s (cached)'
+                  % _veg_summary(out, s, _areas(cells)))
         return out
 
     polys = ov.Polygons.from_geojson(path, [column])
@@ -268,15 +277,19 @@ def veg_cover(cfg, cMF, dataset_dir, nveg, cache_dir=None, verbose=True):
             'the vegetation layer uses class(es) %s that soil.veg_class does '
             'not map. Every class must be defined: add a row for each, or '
             'correct the layer.' % ', '.join(repr(u) for u in unmapped))
-    cells = ov.structured_cells(cMF.xllcorner, cMF.yllcorner,
-                                cMF.delr, cMF.delc)
+    if cells is None:
+        cells = ov.structured_cells(cMF.xllcorner, cMF.yllcorner,
+                                    cMF.delr, cMF.delc)
     out = ov.class_percent(cells, polys, column, mapping, int(nveg))
     out = _at_most_100(out.reshape(int(nveg), nr, nc))
     if cached:
         os.makedirs(str(cache_dir), exist_ok=True)
         np.savez_compressed(cached, cover=out)
     if verbose:
-        print('vegetation cover: %s' % _veg_summary(out, s))
+        print('vegetation cover: %s%s'
+              % (_veg_summary(out, s, _areas(cells)),
+                 ', overlaid on the %d mesh cells' % len(cells)
+                 if cells_key is not None else ''))
     return out
 
 
@@ -308,15 +321,46 @@ def _at_most_100(cover):
                         'after rounding' % int(over.sum()))
 
 
-def _veg_summary(cover, soil):
-    """One line: the mean share of each type, where anything grows."""
+def _areas(cells):
+    """Plan areas of shapely cells, or None."""
+    if cells is None:
+        return None
+    import shapely
+    return np.asarray(shapely.area(cells), dtype=float)
+
+
+def mesh_cells(cMF):
+    """The model's MESH cells as shapely polygons, in icell2d order -- the
+    cells a polygon layer is overlaid on when the grid is unstructured, so
+    a cell keeps its own cover rather than its 50 m cell's (half the La Mata
+    Voronoi cells are smaller than 46 m2). None on a structured grid."""
+    gp = getattr(cMF, 'mesh_gridprops', None)
+    if gp is None:
+        return None
+    import shapely
+    vxy = {int(v[0]): (float(v[1]), float(v[2])) for v in gp['vertices']}
+    polys = []
+    for rec in gp['cell2d']:
+        ids = [int(v) for v in rec[4:4 + int(rec[3])]]
+        polys.append(shapely.Polygon([vxy[k] for k in ids]))
+    return np.array(polys, dtype=object)
+
+
+def _veg_summary(cover, soil, areas=None):
+    """One line: the mean share of each type where anything grows --
+    AREA-weighted when the cells differ (a mesh)."""
     grows = cover.sum(axis=0) > 0
+    w = None
+    if areas is not None and np.size(areas) == grows.size:
+        w = np.asarray(areas, dtype=float).reshape(grows.shape)[grows]
     parts = []
     for k in range(cover.shape[0]):
         codes = [c.code for c in soil.veg_class if int(c.veg) == k + 1]
+        v = cover[k][grows]
+        mean = (float(np.average(v, weights=w)) if w is not None and v.size
+                else float(v.mean()) if v.size else 0.0)
         parts.append('type %d (%s) %.1f %%'
-                     % (k + 1, '/'.join(codes) or '-',
-                        float(cover[k][grows].mean()) if grows.any() else 0.0))
+                     % (k + 1, '/'.join(codes) or '-', mean))
     return '; '.join(parts) + ', from the panel'
 
 

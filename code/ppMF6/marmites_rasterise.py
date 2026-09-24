@@ -208,34 +208,55 @@ class DisplayRaster:
 
 
 class MapAdapter:
-    """Model-shaped arrays -> display-shaped arrays, for the native maps.
+    """Model-shaped arrays -> what the native maps draw.
 
-    On a structured grid every method is the identity, so the map code has one
-    path and the regression anchor cannot drift. On a mesh the arrays are
-    rasterised onto the display grid.
+    Three cases, one interface:
+
+    structured grid   the identity: (nrow, ncol) cells, pcolormesh.
+    mesh (default)    the MESH CELLS THEMSELVES: arrays stay model-shaped
+                      (ncpl, 1) and ``polys`` carries each cell's polygon in
+                      real coordinates, which plotLAYER draws as such. Maps
+                      used to be rasterised onto a 6.25 m display grid, and
+                      2282 of La Mata's 15,915 Voronoi cells -- smaller than a
+                      pixel -- appeared in no figure at all.
+    mesh, raster=True the display raster (``dr``), for what genuinely needs
+                      a regular grid: the general map's hillshade and DEM
+                      contours.
 
     The point of routing EVERY array through here is that a map mixes sources
     -- per-MM-cell result vectors, per-layer MF6 budgets, the ibound mask and
-    the cell-area conversion -- and they must all end up on the same grid. One
-    of them left in model shape is a broadcast error at best and a silently
-    misaligned picture at worst.
+    the cell-area conversion -- and they must all end up on the same cells.
     """
 
-    def __init__(self, cMF, refine=0):
+    def __init__(self, cMF, refine=0, raster=False):
         self.cMF = cMF
         self.dr = None
+        self.polys = None
         self.nrow, self.ncol = int(cMF.nrow), int(cMF.ncol)
         proj = getattr(cMF, 'mesh_proj', None)
-        if proj is not None:
+        gp = getattr(cMF, 'mesh_gridprops', None)
+        if gp is None and proj is not None:
+            gp = proj.gridprops
+        if proj is not None and raster:
             self.dr = DisplayRaster.from_projection(proj, refine=refine)
             self.nrow, self.ncol = self.dr.nrow, self.dr.ncol
+        elif gp is not None:
+            vxy = {int(v[0]): (float(v[1]), float(v[2]))
+                   for v in gp['vertices']}
+            self.polys = [[vxy[int(iv)] for iv in rec[4:4 + int(rec[3])]]
+                          for rec in gp['cell2d']]
+            self._centre = [(float(rec[1]), float(rec[2]))
+                            for rec in gp['cell2d']]
 
     @property
     def on_mesh(self):
-        return self.dr is not None
+        return self.dr is not None or self.polys is not None
 
     def report(self):
-        if not self.on_mesh:
+        if self.polys is not None:
+            return ('display: the %d mesh cells themselves, no resampling'
+                    % len(self.polys))
+        if self.dr is None:
             return 'display: model grid %d x %d' % (self.nrow, self.ncol)
         c = self.dr.coverage()
         return ('display raster %d x %d (refine x%d): %d of %d mesh cells '
@@ -247,7 +268,7 @@ class MapAdapter:
 
     def cells(self, values, cells, nodata=np.nan):
         """A per-MM-cell vector -> ``(nrow, ncol)``."""
-        if not self.on_mesh:
+        if self.dr is None:
             g = np.full((self.nrow, self.ncol), nodata, dtype=float)
             for v, c in zip(np.asarray(values, dtype=float).reshape(-1), cells):
                 g[c[1], c[2]] = v
@@ -258,7 +279,7 @@ class MapAdapter:
         """``(nlay, ...)`` model-shaped -> ``(nlay, nrow, ncol)``."""
         a = np.asarray(arr, dtype=float)
         nlay = a.shape[0]
-        if not self.on_mesh:
+        if self.dr is None:
             return a.reshape(nlay, self.nrow, self.ncol)
         return np.stack([self.dr.field(a[k].reshape(-1), nodata)
                          for k in range(nlay)])
@@ -266,36 +287,38 @@ class MapAdapter:
     def lay_int(self, arr, nodata=0):
         a = np.asarray(arr)
         nlay = a.shape[0]
-        if not self.on_mesh:
+        if self.dr is None:
             return a.reshape(nlay, self.nrow, self.ncol)
         return np.stack([self.dr.field_int(a[k].reshape(-1), nodata)
                          for k in range(nlay)])
 
     def cell_area(self):
-        """``(nrow, ncol)`` plan area of the MODEL cell each pixel belongs to.
+        """``(nrow, ncol)`` plan area of the MODEL cell each map cell shows.
 
-        Not the pixel's own area: the m3/d -> mm/d conversion divides by the
-        area of the cell the flux was computed in, and on a mesh that is the
-        mesh cell, whatever the display resolution.
+        On a mesh never from delr x delc: the proxy carries delr = delc = 1,
+        which would make every cell 1 m2 (see model_cell_area).
         """
-        if not self.on_mesh:
+        if self.polys is not None:
+            return np.array([_polygon_area(p) for p in self.polys],
+                            dtype=float).reshape(self.nrow, self.ncol)
+        if self.dr is None:
             delr = np.asarray(self.cMF.delr, float)
             delc = np.asarray(self.cMF.delc, float)
             return delc[:, None] * delr[None, :]
-        proj = self.cMF.mesh_proj
         areas = np.array([_polygon_area(self.dr.cell_polygon(i))
                           for i in range(self.dr.ncpl)], dtype=float)
         return self.dr.field(areas, nodata=np.nan)
 
     def plot_geometry(self):
-        """What plotLAYER reads its real-coordinate axes from, for the
-        DISPLAY grid: origin, delr (per column), delc (per row), cUTIL.
+        """What plotLAYER reads its real-coordinate axes from.
 
-        On a mesh the model proxy is ncpl x 1 with delr = delc = 1, and the
-        maps took their km axes from THAT: a 17 km tall strip with the
-        catchment squeezed into its top corner (2026-09-23).
+        Polygons are drawn in real coordinates, so the model object serves
+        (plotLAYER only takes its cUTIL). On the display raster: its origin,
+        delr (per column), delc (per row) -- the mesh proxy is ncpl x 1 with
+        delr = delc = 1, and maps once took their km axes from THAT: a 17 km
+        tall strip with the catchment squeezed into its top corner.
         """
-        if not self.on_mesh:
+        if self.dr is None:
             return self.cMF
         import types
         xe, ye = self.dr.x_edge, self.dr.y_edge
@@ -308,22 +331,23 @@ class MapAdapter:
     def points(self, names, cells, lays=None):
         """Observation points in plotLAYER's frame: ``[names, y, x, lay]``.
 
-        plotLAYER draws cell (i, j) centred on (j + 1, i + 1) -- its
-        pcolormesh edges run from 0.5 -- and its km axes agree (P0, cell
-        (8, 4) -> 739525, 4555875). The points were drawn at the 0-BASED
-        (j, i): one cell off on the structured grid, and on a mesh, whose
-        cells are (icell2d, 0), at x = 0 and y = icell2d, which stretched
-        every map into a strip. ``cells`` are the model (i, j) of each point;
-        on a mesh the point goes to its cell's centroid, placed exactly on
-        the display raster.
+        Structured: plotLAYER draws cell (i, j) centred on (j + 1, i + 1)
+        (its pcolormesh edges run from 0.5; P0, cell (8, 4) -> 739525,
+        4555875). Mesh cells: the cell's centroid in REAL coordinates, the
+        frame the polygons are drawn in. Display raster: the centroid placed
+        exactly on the raster. The points were once drawn at the 0-based
+        (j, i) -- one cell off, and on a mesh at x = 0, y = icell2d.
         """
         cells = [tuple(int(v) for v in c) for c in cells]
         lays = list(lays) if lays is not None else [0] * len(cells)
-        if not self.on_mesh:
+        ncol_m = int(self.cMF.ncol)
+        if self.polys is not None:
+            xy = [self._centre[i * ncol_m + j] for i, j in cells]
+            return [list(names), [p[1] for p in xy], [p[0] for p in xy], lays]
+        if self.dr is None:
             ys = [float(i + 1) for i, _j in cells]
             xs = [float(j + 1) for _i, j in cells]
             return [list(names), ys, xs, lays]
-        ncol_m = int(self.cMF.ncol)
         xe, ye = self.dr.x_edge, self.dr.y_edge
         ys, xs = [], []
         for i, j in cells:

@@ -558,8 +558,9 @@ def _fig_general_map(out, cMF=None, gis_ws=None, verbose=True):
         from marmites_rasterise import MapAdapter
         # WP1c.7: a hillshade needs a raster. On a mesh the DEM is a per-cell
         # vector, and np.gradient on the (ncpl, 1) shape fails outright, so the
-        # backdrop is rendered on the display raster.
-        DA = MapAdapter(cMF)
+        # backdrop is rendered on the display raster -- the one map that
+        # keeps a raster: a hillshade and DEM contours need a regular grid.
+        DA = MapAdapter(cMF, raster=True)
         nrow, ncol = DA.nrow, DA.ncol
         dem = DA.lay(np.asarray(cMF.elev, dtype=float).reshape(1, -1))[0]
         if DA.on_mesh:
@@ -1891,7 +1892,7 @@ def _native_result_maps(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
                 plt_title='%s_%s' % (prefix, stem), MM_ws=out_dir,
                 interval_type='linspace', interval_num=5,
                 Vmax=[hi], Vmin=[lo], fmt='%5.2f', points=pts, mask=m3,
-                hnoflo=hnoflo, cMF=geo)
+                hnoflo=hnoflo, cMF=geo, polys=DA.polys)
         except Exception as exc:                     # pragma: no cover
             if verbose:
                 print('   %s map %s skipped: %r' % (prefix, stem, exc))
@@ -2151,7 +2152,7 @@ def _native_input_maps(MMplot, out_dir, cMF, ctx, res=None, verbose=True):
                 CBlabel=cblbl, msg='', plt_title='IN_%03d_%s' % (n, stem),
                 MM_ws=out_dir, interval_type='linspace', interval_num=nint,
                 Vmax=[hi], Vmin=[lo], fmt=fmt, points=pts, mask=m,
-                hnoflo=hnoflo, cMF=geo)
+                hnoflo=hnoflo, cMF=geo, polys=DA.polys)
         except Exception as exc:                       # pragma: no cover
             if verbose:
                 print('   input map %s skipped: %r' % (stem, exc))

@@ -1544,11 +1544,32 @@ def _colour_levels(cmap, vmin, vmax):
     return levels
 
 
+def _mesh_map_axes(ax, yaxis=True, unit='km'):
+    """Axes of a map drawn in REAL coordinates (mesh polygons): labelled in
+    km, like add_real_coord_axes gives the structured maps."""
+    s = _COORD_UNIT.get(unit, 1.0)
+    fmt = mpl.ticker.FuncFormatter(lambda v, _p, k=s: '%.1f' % (v / k))
+    ax.xaxis.set_major_formatter(fmt)
+    ax.xaxis.set_major_locator(mpl.ticker.MaxNLocator(nbins=4))
+    ax.set_xlabel('X [%s]' % unit, fontsize=8)
+    plt.setp(ax.get_xticklabels(), fontsize=6)
+    if yaxis:
+        ax.yaxis.set_major_formatter(fmt)
+        ax.yaxis.set_major_locator(mpl.ticker.MaxNLocator(nbins=4))
+        ax.set_ylabel('Y [%s]' % unit, fontsize=8)
+        plt.setp(ax.get_yticklabels(), fontsize=6, rotation=90, va='center')
+    else:
+        ax.set_yticklabels([])
+
+
 def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_title, MM_ws,
               interval_type='arange', interval_diff=1, interval_num=1, Vmax=0, Vmin=0, fmt=None, contours=False,
               ntick=None, facecolor='silver', points=None, ptslbl=0, mask=None, hnoflo=-999.9, animation=0,
-              pref_plt_title='_sp_plt', cMF=None):
+              pref_plt_title='_sp_plt', cMF=None, polys=None):
     # TODO put axes tick as row/col index from MODFLOW AND real coordinates
+    # ``polys``: one polygon per cell in REAL coordinates (a mesh, see
+    # marmites_rasterise.MapAdapter). V is then (nday, nlay, ncell, 1) and the
+    # cells themselves are drawn -- no raster, no row/column axes.
 
     # Phase-4 recovery: accept str or bytes for the text arguments. The legacy
     # driver passed bytes ('linspace'); anything comparing against a bytes
@@ -1670,52 +1691,71 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
                         levels = mpl.ticker.MaxNLocator(nbins=cmap.N).tick_values(0.0, 100.0)
                         norm = mpl.colors.BoundaryNorm(ticks, cmap.N)  # , vmin=Vmin_tmp, vmax=Vmax_tmp)
                     ax.append(fig.add_subplot(NrowPage, NcolPage, l + 1, facecolor=facecolor))
-                    ax[l].xaxis.set_ticks(np.arange(0, ncol + 1, _ntx))
-                    plt.setp(ax[l].get_xticklabels(), fontsize=8)
-                    if l < 1:
-                        ax[l].yaxis.set_ticks(np.arange(0, nrow + 1, _nty))
-                        plt.setp(ax[l].get_yticklabels(), fontsize=8)
-                        plt.ylabel('row i', fontsize=10)
-                        ax[l].yaxis.set_label_position("right")
+                    if polys is None:
+                        ax[l].xaxis.set_ticks(np.arange(0, ncol + 1, _ntx))
+                        plt.setp(ax[l].get_xticklabels(), fontsize=8)
+                        if l < 1:
+                            ax[l].yaxis.set_ticks(np.arange(0, nrow + 1, _nty))
+                            plt.setp(ax[l].get_yticklabels(), fontsize=8)
+                            plt.ylabel('row i', fontsize=10)
+                            ax[l].yaxis.set_label_position("right")
+                        else:
+                            ax[l].set_yticklabels([])
+                        ax[l].yaxis.tick_right()
+                        ax[l].yaxis.set_ticks_position('both')
+                        plt.xlabel('col j', fontsize=10)
+                        ax[l].xaxis.set_label_position("top")
+                        ax[l].xaxis.tick_top()
+                        ax[l].xaxis.set_ticks_position('both')
+                        # Real coordinates on the BOTTOM and LEFT, MODFLOW indices
+                        # on the top and right. add_real_coord_axes() carries the
+                        # mesh->projected mapping and is shared with the imshow
+                        # maps (checked against inputObs.txt: cell i=8, j=4 ->
+                        # 739525, 4555875, the coordinates given for P0).
+                        add_real_coord_axes(ax[l], nrow, cMF=cMF, frame='centre1',
+                                            yaxis=(l < 1))
+                        if points is not None:
+                            for k, (xj, yi, lay, label) in enumerate(zip(points[2], points[1], points[3], points[0])):
+                                if lay == L:
+                                    color = 'dimgrey'
+                                else:
+                                    color = 'lightgrey'
+                                ax[l].plot(xj, yi, 'o', linewidth=1, markersize=4, color=color)
+                                if ptslbl > 0:
+                                    ax[l].annotate(label, xy=(xj, yi - 0.15), fontsize=8, ha='center', va='bottom')
                     else:
-                        ax[l].set_yticklabels([])
-                    ax[l].yaxis.tick_right()
-                    ax[l].yaxis.set_ticks_position('both')
-                    plt.xlabel('col j', fontsize=10)
-                    ax[l].xaxis.set_label_position("top")
-                    ax[l].xaxis.tick_top()
-                    ax[l].xaxis.set_ticks_position('both')
-                    # Real coordinates on the BOTTOM and LEFT, MODFLOW indices
-                    # on the top and right. add_real_coord_axes() carries the
-                    # mesh->projected mapping and is shared with the imshow
-                    # maps (checked against inputObs.txt: cell i=8, j=4 ->
-                    # 739525, 4555875, the coordinates given for P0).
-                    add_real_coord_axes(ax[l], nrow, cMF=cMF, frame='centre1',
-                                        yaxis=(l < 1))
-                    if points is not None:
-                        for k, (xj, yi, lay, label) in enumerate(zip(points[2], points[1], points[3], points[0])):
-                            if lay == L:
-                                color = 'dimgrey'
-                            else:
-                                color = 'lightgrey'
-                            ax[l].plot(xj, yi, 'o', linewidth=1, markersize=4, color=color)
-                            if ptslbl > 0:
-                                ax[l].annotate(label, xy=(xj, yi - 0.15), fontsize=8, ha='center', va='bottom')
+                        _mesh_map_axes(ax[l], yaxis=(l < 1))
+                        if points is not None:
+                            for k, (xj, yi, lay, label) in enumerate(zip(points[2], points[1], points[3], points[0])):
+                                ax[l].plot(xj, yi, 'o', markersize=4, zorder=3,
+                                           color='dimgrey' if lay == L else 'lightgrey')
+                                if ptslbl > 0:
+                                    ax[l].annotate(label, xy=(xj, yi), fontsize=8, ha='center', va='bottom')
                     #print('Vtmp\n', np.sum(Vtmp.flatten()))
-                    ims[F].append(ax[l].pcolormesh(xg, yg, Vtmp, cmap=cmap, norm=norm))
-                    if ctrs_tmp == True:
-                        #try:
-                        CS = ax[l].contour(xg1, yg1[::-1], Vtmp[::-1], ticks, colors='gray')
-                        plt.draw()
-                        ax[l].clabel(CS, inline=1, fontsize=6, fmt=fmt, colors='gray')
-                        #except:
-                        #    print('Error in drawing contours for map %s' % plt_title)
+                    if polys is None:
+                        ims[F].append(ax[l].pcolormesh(xg, yg, Vtmp, cmap=cmap, norm=norm))
+                        if ctrs_tmp == True:
+                            #try:
+                            CS = ax[l].contour(xg1, yg1[::-1], Vtmp[::-1], ticks, colors='gray')
+                            plt.draw()
+                            ax[l].clabel(CS, inline=1, fontsize=6, fmt=fmt, colors='gray')
+                            #except:
+                            #    print('Error in drawing contours for map %s' % plt_title)
+                    else:
+                        _pc = mpl.collections.PolyCollection(polys, cmap=cmap, norm=norm,
+                                                             edgecolors='none')
+                        _pc.set_array(np.ma.ravel(Vtmp))
+                        ims[F].append(ax[l].add_collection(_pc))
+                        ax[l].autoscale_view()
                     if np.ma.max(Vtmp) > np.ma.min(Vtmp):
                         ax[l].set_title('layer %d' % (L + 1), fontsize=10, y=-0.42, fontweight='bold')
                     else:
                         ax[l].set_title('layer %d %s' % (L + 1, msg), fontsize=10, y=-0.42, fontweight='bold')
-                    ax[l].set_ylim(bottom=np.max(yg1), top=np.min(yg1))
-                    ax[l].axis('scaled')
+                    if polys is None:
+                        ax[l].set_ylim(bottom=np.max(yg1), top=np.min(yg1))
+                        ax[l].axis('scaled')
+                    else:
+                        ax[l].set_aspect('equal')
                     # widen the margins: the left colourbar sits at x=0.035 and
                     # the real-coordinate Y axis needs room between it and the
                     # map, and the X axis plus the 'layer N' caption need room

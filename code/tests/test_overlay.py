@@ -356,3 +356,78 @@ def test_the_run_passes_the_cover_in_rather_than_reading_the_rasters():
                encoding='utf-8').read()
     assert 'props.veg_cover(' in src
     assert 'gridVEGarea=_veg' in src, 'the cover is computed and not used'
+
+
+# ------------------------------------------------ big polygons are tiled
+# La Mata's grass matrix has 284,640 vertices; overlaid untiled on the
+# 15,915-cell Voronoi mesh it took 24 minutes.
+
+def test_tiling_a_big_polygon_changes_no_area(monkeypatch):
+    import shapely
+    t = np.linspace(0, 2 * np.pi, 5000, endpoint=False)
+    ring = [(150 + 140 * np.cos(a) * (1 + 0.05 * np.sin(9 * a)),
+             150 + 140 * np.sin(a) * (1 + 0.05 * np.sin(9 * a))) for a in t]
+    hole = [(150 + 30 * np.cos(a), 150 + 30 * np.sin(a)) for a in t[::10]]
+    big = shapely.Polygon(ring, [hole[::-1]])
+    small = shapely.box(0, 0, 20, 20)
+    polys = ov.Polygons(np.array([big, small], dtype=object),
+                        {'c': ['g', 'i']})
+    # cells that straddle the 100 m tile edges on purpose
+    cells = ov.structured_cells(-5.0, -5.0, [37.0] * 9, [37.0] * 9)
+    assert shapely.get_num_coordinates(big) > ov.TILE_VERTICES
+    tiled = ov.class_percent(cells, polys, 'c', {'g': 1, 'i': 2}, 2)
+    monkeypatch.setattr(ov, 'TILE_VERTICES', 10 ** 9)
+    whole = ov.class_percent(cells, polys, 'c', {'g': 1, 'i': 2}, 2)
+    assert np.allclose(tiled, whole, atol=1e-9)
+    geoms, src = ov._tiled(np.array([big, small], dtype=object))
+    monkeypatch.undo()
+    geoms, src = ov._tiled(np.array([big, small], dtype=object))
+    assert (src == 0).sum() > 1, 'the big polygon was not cut'
+    assert shapely.area(geoms[src == 0]).sum() == pytest.approx(big.area)
+
+
+# --------------------------------------- polygon inputs on the mesh cells
+# They were overlaid on the 50 m grid and then resampled onto the mesh, so a
+# mesh cell smaller than 50 m (half the La Mata Voronoi cells) inherited its
+# 50 m cell's average cover: 1452 of the small cells differ by > 20 points.
+
+def test_mesh_cells_are_the_gridprops_polygons_in_icell2d_order():
+    import types
+    import marmites_props as props
+    gp = {'vertices': [[0, 0.0, 0.0], [1, 10.0, 0.0], [2, 10.0, 10.0],
+                       [3, 0.0, 10.0], [4, 30.0, 0.0], [5, 30.0, 10.0]],
+          'cell2d': [[0, 5.0, 5.0, 4, 0, 3, 2, 1],
+                     [1, 20.0, 5.0, 4, 1, 2, 5, 4]], 'ncpl': 2}
+    cells = props.mesh_cells(types.SimpleNamespace(mesh_gridprops=gp))
+    assert [round(c.area, 6) for c in cells] == [100.0, 200.0]
+    assert props.mesh_cells(types.SimpleNamespace()) is None
+
+
+def test_a_cover_on_given_cells_is_per_cell_and_keyed_on_them(tmp_path):
+    import types
+    import shapely
+    import marmites_props as props
+    cfg, ds = _veg_cfg(tmp_path, [(0, 0, 6, 10, {'Species': 'g'}),
+                                  (6, 0, 30, 10, {'Species': 'i'})],
+                       [('g', 1), ('i', 2)])
+    cells = np.array([shapely.box(0, 0, 10, 10), shapely.box(10, 0, 30, 10)],
+                     dtype=object)
+    m = types.SimpleNamespace(nrow=2, ncol=1, hnoflo=9999.999)
+    got = props.veg_cover(cfg, m, ds, 2, cells=cells, cells_key='mesh-a',
+                          cache_dir=str(tmp_path / 'c'), verbose=False)
+    assert got.shape == (2, 2, 1)
+    assert np.allclose(got[:, 0, 0], [60.0, 40.0])
+    assert np.allclose(got[:, 1, 0], [0.0, 100.0])
+    props.veg_cover(cfg, m, ds, 2, cells=cells, cells_key='mesh-b',
+                    cache_dir=str(tmp_path / 'c'), verbose=False)
+    assert len(list((tmp_path / 'c').glob('veg_cover_*.npz'))) == 2, \
+        'another mesh must not reuse this cover'
+
+
+def test_the_run_overlays_the_polygon_inputs_on_the_mesh():
+    src = open(os.path.join(HERE, 'run_lamata_mf6.py'),
+               encoding='utf-8').read()
+    body = src[src.index('cMF, grids, proj = marmites_mesh.project_model('):]
+    assert '_cells = props.mesh_cells(cMF)' in body
+    assert "cells=_cells,\n                                          cells_key=info['signature'])" in body
+    assert "soil_grid(cfg, cMF, DS, 'zones'," in body

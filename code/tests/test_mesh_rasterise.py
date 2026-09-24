@@ -152,7 +152,7 @@ def test_the_adapter_rasterises_on_a_mesh():
         hnoflo = 9999.999
         mesh_proj = proj
 
-    DA = RAST.MapAdapter(_MeshMF(), refine=1)
+    DA = RAST.MapAdapter(_MeshMF(), refine=1, raster=True)
     assert DA.on_mesh
     assert (DA.nrow, DA.ncol) == (NROW, NCOL)
     a = np.arange(2 * proj.ncpl, dtype=float).reshape(2, proj.ncpl)
@@ -177,7 +177,7 @@ def test_cell_area_is_the_model_cell_not_the_pixel():
         hnoflo = 9999.999
         mesh_proj = proj
 
-    DA = RAST.MapAdapter(_MeshMF(), refine=4)
+    DA = RAST.MapAdapter(_MeshMF(), refine=4, raster=True)
     area = DA.cell_area()
     vals = np.unique(area[np.isfinite(area)])
     # the coarse cell is 400 m2, the two refined ones 100 m2 -- never the
@@ -287,7 +287,7 @@ def _mesh_mf(refine=2):
         mesh_proj = proj
         cUTIL = None
 
-    return RAST.MapAdapter(_MeshMF(), refine=refine)
+    return RAST.MapAdapter(_MeshMF(), refine=refine, raster=True)
 
 
 def test_the_plot_geometry_is_the_display_grid_on_a_mesh():
@@ -351,3 +351,84 @@ def test_a_mesh_map_spans_the_catchment_not_the_proxy(tmp_path):
     finally:
         plt.savefig = real
     assert max(seen['xlim']) <= DA.ncol + 1 and max(seen['ylim']) <= DA.nrow + 1, seen
+
+
+# --------------------------------------- maps drawn on the mesh cells themselves
+# The default on a mesh since 2026-09-24: no display raster, which hid every
+# cell smaller than a pixel (2282 of La Mata's 15,915 Voronoi cells).
+
+def _poly_mf():
+    proj = _proj()
+
+    class _MeshMF:
+        nlay, nrow, ncol = 2, proj.ncpl, 1
+        delr, delc = [1.0], [1.0] * proj.ncpl
+        xllcorner, yllcorner = XLL, YLL
+        hnoflo = 9999.999
+        mesh_proj = proj
+        mesh_gridprops = proj.gridprops
+        cUTIL = None
+
+    return RAST.MapAdapter(_MeshMF()), proj
+
+
+def test_on_a_mesh_the_maps_keep_the_mesh_cells():
+    DA, proj = _poly_mf()
+    assert DA.on_mesh and DA.dr is None
+    assert len(DA.polys) == proj.ncpl
+    assert (DA.nrow, DA.ncol) == (proj.ncpl, 1), 'model shape, not a raster'
+    a = np.arange(2 * proj.ncpl, dtype=float).reshape(2, proj.ncpl)
+    assert np.array_equal(DA.lay(a)[:, :, 0], a), 'values must not be resampled'
+    assert np.allclose(DA.cell_area(), CS * CS), 'areas from the polygons'
+    assert 'no resampling' in DA.report()
+
+
+def test_points_sit_on_their_cell_centroids_in_real_coordinates():
+    DA, _proj_ = _poly_mf()
+    names, ys, xs, lay = DA.points(['a'], [(2 * NCOL + 3, 0)])
+    assert xs == [pytest.approx(XLL + 3.5 * CS)]
+    assert ys == [pytest.approx(YLL + (NROW - 2 - 0.5) * CS)]
+
+
+def test_a_mesh_map_is_drawn_as_polygons_in_real_coordinates(tmp_path):
+    pytest.importorskip('matplotlib')
+    import matplotlib
+    matplotlib.use('agg')
+    import matplotlib.pyplot as plt
+    MMplot = _load('MARMITESplot_tp', os.path.join(
+        CODE, 'MARMITESutilities', 'MARMITESplot', 'MARMITESplot_v3.py'))
+    DA, proj = _poly_mf()
+    V = np.arange(2 * proj.ncpl, dtype=float).reshape(1, 2, proj.ncpl, 1)
+    seen = {}
+    real = plt.savefig
+
+    def grab(*a, **k):
+        ax = plt.gcf().axes[0]
+        seen['n'] = sum(len(c.get_paths()) for c in ax.collections)
+        seen['xlim'], seen['ylim'] = ax.get_xlim(), ax.get_ylim()
+        return real(*a, **k)
+
+    plt.savefig = grab
+    try:
+        MMplot.plotLAYER(days=[0], str_per=[0], Date='NA', JD='NA',
+                         ncol=DA.ncol, nrow=DA.nrow, nlay=2, nplot=2, V=V,
+                         cmap=matplotlib.colormaps['Blues'], CBlabel='x',
+                         msg='', plt_title='t', MM_ws=str(tmp_path),
+                         interval_type='linspace', interval_num=5,
+                         Vmax=[V.max()], Vmin=[V.min()], fmt='%5.2f',
+                         points=DA.points(['a'], [(7, 0)]),
+                         mask=np.zeros((2, DA.nrow, DA.ncol), bool),
+                         hnoflo=9999.999, cMF=DA.plot_geometry(),
+                         polys=DA.polys)
+    finally:
+        plt.savefig = real
+    assert seen['n'] == proj.ncpl, 'every mesh cell is a polygon on the map'
+    assert seen['xlim'][0] <= XLL and seen['xlim'][1] >= XLL + NCOL * CS
+    assert seen['ylim'][0] <= YLL and seen['ylim'][1] >= YLL + NROW * CS
+
+
+def test_the_hillshade_keeps_its_raster():
+    src = open(os.path.join(CODE, 'ppMF6', 'marmites_postprocess.py'),
+               encoding='utf-8').read()
+    assert 'MapAdapter(cMF, raster=True)' in src
+    assert src.count('polys=DA.polys') == 2

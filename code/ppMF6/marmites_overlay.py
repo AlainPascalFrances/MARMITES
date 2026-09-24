@@ -96,20 +96,64 @@ def structured_cells(xll, yll, delr, delc):
     return np.asarray(shapely.box(x0, y0, x1, y1))
 
 
+# A polygon with more vertices than this is cut into TILE x TILE m tiles
+# before the overlay. La Mata's vegetation layer holds one grass matrix of
+# 284,640 vertices (the mean is 38): every mesh cell's 'intersects' test and
+# intersection ran against all of it -- 655 s for the query and ~320 s for
+# the intersections on the 15,915-cell Voronoi mesh. Intersection does not
+# care how a polygon is split, so tiling is exact; each tile keeps the index
+# of the polygon it came from.
+TILE_VERTICES = 1000
+TILE = 100.0
+
+
+def _tiled(geoms):
+    """``(pieces, source_index)``: small polygons as they are, big ones cut
+    into tiles with GEOS's rectangle clip (one call per tile: shapely's
+    clip_by_rect takes scalar bounds only)."""
+    import shapely
+    n = shapely.get_num_coordinates(geoms)
+    big = np.nonzero(n > TILE_VERTICES)[0]
+    if not big.size:
+        return geoms, np.arange(len(geoms))
+    small = np.nonzero(n <= TILE_VERTICES)[0]
+    pieces, src = [geoms[small]], [small]
+    for i in big:
+        x0, y0, x1, y1 = geoms[i].bounds
+        X0, Y0 = np.meshgrid(np.arange(x0, x1, TILE), np.arange(y0, y1, TILE))
+        cut = np.array([shapely.clip_by_rect(geoms[i], x, y, x + TILE,
+                                             y + TILE)
+                        for x, y in zip(X0.ravel(), Y0.ravel())],
+                       dtype=object)
+        cut = cut[~shapely.is_empty(cut) & (shapely.area(cut) > 0.0)]
+        # clip_by_rect may return an invalid ring on a degenerate edge;
+        # an invalid operand would make the intersection below raise
+        bad = ~shapely.is_valid(cut)
+        if bad.any():
+            cut[bad] = shapely.make_valid(cut[bad])
+        pieces.append(cut)
+        src.append(np.full(cut.size, i))
+    return (np.concatenate([np.asarray(p, dtype=object) for p in pieces]),
+            np.concatenate(src))
+
+
 def overlay(cells, polys):
     """``(cell_index, polygon_index, area)`` of every non-empty intersection.
 
     One spatial-index query for the whole grid, then the intersections
-    computed vectorised. Only pairs that actually overlap are returned.
+    computed vectorised. Only pairs that actually overlap are returned; a
+    polygon cut into tiles (TILE_VERTICES) may give several pairs for one
+    cell, which every consumer sums.
     """
     import shapely
-    tree = shapely.STRtree(polys.geoms)
-    ci, pi = tree.query(cells, predicate='intersects')
+    geoms, src = _tiled(np.asarray(polys.geoms, dtype=object))
+    tree = shapely.STRtree(geoms)
+    ci, ti = tree.query(cells, predicate='intersects')
     if ci.size == 0:
-        return ci, pi, np.zeros(0)
-    area = shapely.area(shapely.intersection(cells[ci], polys.geoms[pi]))
+        return ci, ti, np.zeros(0)
+    area = shapely.area(shapely.intersection(cells[ci], geoms[ti]))
     keep = area > 0.0
-    return ci[keep], pi[keep], area[keep]
+    return ci[keep], src[ti][keep], area[keep]
 
 
 def majority(cells, polys, column, fill, cast=int):
