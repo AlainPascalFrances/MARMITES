@@ -195,16 +195,22 @@ with tab_uzf:
                'stops at, and the water content it stops at.')
     edited.update(panelui.rows_form(cfg, schema.UZF_ET_ROWS, 'et',
                                     columns=2))
-    st.warning('**Half wired.** The MODFLOW side is built: UZF simulates '
-               'unsaturated-zone ET with this extinction depth, and '
-               'groundwater ET is deliberately NOT asked of it — '
-               '`linear_gwet` and `square_gwet` are both omitted, so ETg '
-               'stays with MARMITES through the WEL package.\n\n'
-               'What is NOT done is the demand chain: the coupler does not '
-               'yet write the daily PET into UZF, nor read ETuzf **actual** '
-               'back from the UZF budget to take the residual off ETg. '
-               'Until it does, UZF is handed a PET of zero and takes '
-               'nothing, whatever this panel says.')
+    if cfg.et.extdp_from == 'vegetation':
+        st.caption('**Per vegetation zone.** Each cell takes the rooting '
+                   'depth of its cover — %s — weighted by the cover; the '
+                   'fraction nothing covers takes the extinction depth '
+                   'above, and an irrigated field its crops\' root depth.'
+                   % ', '.join('%s %g m' % (v.name, float(v.root_depth))
+                               for v in cfg.surface.vegetation))
+    st.info('**Wired end to end (WP2).** UZF simulates unsaturated-zone ET '
+            'with this extinction depth, and groundwater ET is deliberately '
+            'NOT asked of it — `linear_gwet` and `square_gwet` are both '
+            'omitted, so ETg stays with MARMITES through the WEL package.\n\n'
+            'The demand chain: what the soil column leaves of PE and PT is '
+            'written to UZF each stress period (PETMAX); UZF\'s **actual** '
+            'ET is read back from its budget and only the residual is left '
+            'to ETg — never the demand, which a dry deep zone cannot meet. '
+            'In lagged mode the actual is the previous stress period\'s.')
 
     with st.expander('Where every UZF1 name went'):
         st.caption('The parameter file carried twenty-two of these and '

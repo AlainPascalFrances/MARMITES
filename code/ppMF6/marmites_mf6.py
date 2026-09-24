@@ -913,6 +913,19 @@ class clsMF6:
                   else float(thtr[k, i, j]))
             pdata0.append((n, float(getattr(cMF, 'perc_user', 0.0)), 0.0,
                            dp, wc, 0.0, 0.0, 0.0))
+        # THE OBJECTS BELOW carry the column's depth too. UZF measures extdp
+        # from the land surface and hands the unmet PET down (setbelowpet),
+        # but each object computes its own ET zone from ITS OWN extdp
+        # (setdataet) -- the land row's is not passed on. Without these rows
+        # a 15 m holm-oak depth would stop at the bottom of layer 1. They
+        # come after every land row, so their own extwc is the one that
+        # stands (setdataetwc also copies the land row's down).
+        for n, (i, j, k) in enumerate(self.surf_cells):
+            dp = float(_extdp[k, i, j]) if _extdp is not None else 0.0
+            for no, kk in col_children[n]:
+                wc = (float(_extwc[kk, i, j]) if _extwc is not None
+                      else float(thtr[kk, i, j]))
+                pdata0.append((no, 0.0, 0.0, dp, wc, 0.0, 0.0, 0.0))
         # SIMULATE_ET IS ALWAYS ON (WP2). Total ET has three sources and the
         # deep unsaturated zone is one of them, so a switch for it could only
         # ever be left in the position that evaporates nothing from the deep

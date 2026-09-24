@@ -140,13 +140,13 @@ def test_there_is_no_switch_for_uzf_et(cfg):
     assert 'et.uzf_et' not in page, 'the panel still draws the switch'
 
 
-def test_the_panel_says_which_half_of_uzf_et_is_wired(cfg):
-    """The MODFLOW side is built and the demand chain is not. "Not wired"
-    would now be wrong and "wired" would be worse: with PET still zero the
-    switch changes nothing a run produces, and a panel that implied
-    otherwise would be the decorative switch again."""
+def test_the_panel_says_uzf_et_is_wired_end_to_end(cfg):
+    """WP2 closed the demand chain: the coupler writes the demand to PETMAX
+    and reads UZF's ACTUAL ET back. "Half wired" was the truth until then
+    and would now be the wrong one."""
     page = open(PAGE, encoding='utf-8').read()
-    assert 'Half wired' in page
+    assert 'Half wired' not in page
+    assert 'Wired end to end' in page and 'PETMAX' in page
     assert 'linear_gwet' in page and 'square_gwet' in page
     assert 'actual' in page and 'residual' in page
     build = open(os.path.join(CODE, 'ppMF6', 'marmites_mf6.py'),

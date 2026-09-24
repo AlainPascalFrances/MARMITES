@@ -787,36 +787,70 @@ class MF6Coupler:
         area makes it a depth over the cell, which is the unit every other
         MARMITES flux uses.
         """
-        out = np.zeros(self.ncell, dtype=float)
+        sfr, lak = self._read_openwater_evap_split()
+        return sfr + lak
+
+    def _read_openwater_evap_split(self):
+        """The same, KEPT APART by package: (SFR, LAK), each per cell in mm/d.
+
+        WP2 row 2. The stream loses water in transit and a pond loses its
+        storage, and a model that only knows their sum cannot say which --
+        so each is read from its own package and carried in its own column.
+        """
+        sfr = np.zeros(self.ncell, dtype=float)
+        lak = np.zeros(self.ncell, dtype=float)
         if self.p_sfr_simevap is not None and self.nreaches:
             se = np.asarray(self.p_sfr_simevap, dtype=float)
             has = self.sfr_reach_idx >= 0
             idx = self.sfr_reach_idx[has]
             ok = idx < se.size
-            np.add.at(out, np.nonzero(has)[0][ok], se[idx[ok]])
-        if self.p_lak_simevap is not None and self.nlakes:
-            le = np.asarray(self.p_lak_simevap, dtype=float)
-            for L in range(min(self.nlakes, le.size)):
+            np.add.at(sfr, np.nonzero(has)[0][ok], np.abs(se[idx[ok]]))
+        vol = self._lak_evap_volumes()
+        if vol is not None:
+            for L in range(vol.size):
                 n = int(self.lak_cell_idx[L])
                 if n >= 0:
-                    out[n] += float(le[L])
+                    lak[n] += float(vol[L])
         # MF6 reports a removal as a positive rate here; carry it as a
         # positive loss, like every other MARMITES flux.
-        return np.abs(out) / self.area * self.conv_fact          # mm/d
+        return (sfr / self.area * self.conv_fact,                  # mm/d
+                lak / self.area * self.conv_fact)
+
+    def _lak_evap_volumes(self):
+        """Each pond's actual evaporation this SP [m3/d], positive; None
+        when there are no ponds or LAK does not expose it."""
+        if self.p_lak_simevap is None or not self.nlakes:
+            return None
+        le = np.abs(np.asarray(self.p_lak_simevap, dtype=float))
+        return le[:min(self.nlakes, le.size)].copy()
 
     def _openwater_evap_into(self, mm_cells):
-        """Put this SP's open-water evaporation into ``iEow`` of the vector.
+        """Put this SP's open-water evaporation into ``iEow`` of the vector,
+        and each package's share into ``iEow_sfr`` and ``iEow_lak``.
 
         Deliberately does NOT reduce ``iRo``. Per cell it could not: a reach
         carries water from upstream, so its evaporation can exceed the runoff
         that cell generated, and subtracting would drive Ro negative. Eow is a
         loss from the CHANNEL, downstream of the runoff -- which is what the
         water-budget figures now say.
+
+        The TOTAL ET follows. MMsoil built ``iETtot`` with its own Eow, which
+        is zero since the surface store went to MODFLOW, so the measured
+        value is added here -- or the five sources would sum to four.
         """
         if self._iEow is None:
             return None
-        eow = self._read_openwater_evap()
+        sfr, lak = self._read_openwater_evap_split()
+        eow = sfr + lak
+        ix = self.ctx.index if getattr(self, 'ctx', None) is not None else {}
+        if 'iETtot' in ix:
+            mm_cells[:, ix['iETtot']] += eow - mm_cells[:, self._iEow]
         mm_cells[:, self._iEow] = eow
+        if 'iEow_sfr' in ix:
+            mm_cells[:, ix['iEow_sfr']] = sfr
+        if 'iEow_lak' in ix:
+            mm_cells[:, ix['iEow_lak']] = lak
+        self._eow_split = (sfr, lak)
         return eow
 
     def _write_fluxes(self, perc, etg, petuzf=None):
@@ -897,6 +931,14 @@ class MF6Coupler:
             print('      ET above the demand in %d cell-period(s), at most '
                   '%.3g mm/d: the one-period lag of UZF\'s ET in the demand '
                   'chain (lagged mode)' % (self.n_overdraw, self.max_overdraw))
+        # the open water, each package on its own line (WP2 row 2)
+        if (self.nreaches or self.nlakes) and 'iEow' in ix:
+            ow = {k: float(ts[:, ix[k]].sum()) * y
+                  for k in ('iEow', 'iEow_sfr', 'iEow_lak') if k in ix}
+            print('      open water (mm/yr over the catchment): Eow %.2f = '
+                  'streams (SFR) %.2f + ponds (LAK) %.2f'
+                  % (ow.get('iEow', 0.0), ow.get('iEow_sfr', 0.0),
+                     ow.get('iEow_lak', 0.0)))
 
     @staticmethod
     def _clone_state(state):
@@ -966,6 +1008,10 @@ class MF6Coupler:
         self._iEow = None if self._iEow is None else int(self._iEow)
         self.runoff_hist = np.zeros((nper_mm, self.ncell))
         self.evap_hist = np.zeros((nper_mm, self.ncell))
+        # ... and by package (WP2 row 2); each pond's own loss in m3/d
+        self.evap_sfr_hist = np.zeros((nper_mm, self.ncell))
+        self.evap_lak_hist = np.zeros((nper_mm, self.ncell))
+        self.lak_evap_hist = np.zeros((nper_mm, max(int(self.nlakes), 0)))
         self.wb_ts = np.zeros((nper_mm, nidx))
         self.wb_map = np.zeros((self.ncell, nidx))
         self.wb_ts_soil = np.zeros((nper_mm, nsl, nidx_s))
@@ -1056,6 +1102,11 @@ class MF6Coupler:
                 eow = self._openwater_evap_into(mm_cells)
                 if eow is not None:
                     self.evap_hist[n] = eow
+                    self.evap_sfr_hist[n], self.evap_lak_hist[n] = \
+                        self._eow_split
+                    _vol = self._lak_evap_volumes()
+                    if _vol is not None:
+                        self.lak_evap_hist[n, :_vol.size] = _vol
                 # WP2 step 5: what UZF actually took this period -- into the
                 # water balance now, and into MM's groundwater ET next period
                 et = self._read_etuzf()
@@ -1161,6 +1212,11 @@ class MF6Coupler:
                'runoff': self.runoff_hist, 'outer_iters': self.outer_iters,
                'wb_ts': self.wb_ts, 'wb_map': self.wb_map,
                'wb_ts_soil': self.wb_ts_soil, 'wb_map_soil': self.wb_map_soil}
+        # The SFR / LAK split per cell is in wb_ts and wb_map (iEow_sfr,
+        # iEow_lak); per cell AND per period it would add ~0.5 GB to a full
+        # La Mata run. Each pond's own loss is small and is kept whole.
+        if self.lak_evap_hist.size:
+            res['lak_evap'] = self.lak_evap_hist      # m3/d per pond
         if self.mm_obs is not None:
             res['mm_obs'] = self.mm_obs
             res['mms_obs'] = self.mms_obs

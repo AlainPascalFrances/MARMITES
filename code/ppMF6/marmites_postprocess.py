@@ -1314,6 +1314,9 @@ def _assemble_flx(IX, IXS, mmv, mmsv, aq, nper):
     # infiltration UZF returns to the soil column
     put('iETuzf', mm('iETuzf'))
     put('iRejInf', mm('iRejInf'))
+    # WP2 row 2: the open water by package (iEow is their sum)
+    put('iEow_sfr', mm('iEow_sfr'))
+    put('iEow_lak', mm('iEow_lak'))
     for nm, series in aq.items():
         put(nm, series)
     return flx, flxIndex

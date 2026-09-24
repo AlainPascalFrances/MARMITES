@@ -21,6 +21,10 @@ INDEX_MM = {
     # budget), the total ET of the five sources, and the rejected
     # infiltration UZF returned to the soil column from below
     'iPETuzf': 24, 'iETuzf': 25, 'iETtot': 26, 'iRejInf': 27,
+    # WP2 row 2: the open-water evaporation kept apart by package -- the
+    # stream reaches (SFR SIMEVAP) and the ponds (LAK EVAP). iEow stays
+    # their sum; how much a pond loses is a result in its own right.
+    'iEow_sfr': 28, 'iEow_lak': 29,
 }
 
 # per-soil-layer fluxes (MM_S dataset, last axis)

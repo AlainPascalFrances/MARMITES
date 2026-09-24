@@ -931,10 +931,23 @@ class Et:
     The extinction depth follows the rule every spatial input follows --
     a raster, a column of the vegetation layer (as CdL does it), or one
     value for the whole catchment.
+
+    PER VEGETATION ZONE (WP2 2.2, `extdp_from = 'vegetation'`). La Mata's
+    cover is not one class per cell but a patchwork -- grass, holm oak and
+    Pyrenean oak in percent of each cell -- and every type already carries
+    its rooting depth (surface.vegetation.root_depth, the Zr MMsoil
+    transpires from). UZF's top is the base of the MMsoil column, so a type
+    reaches UZF with the part of its root zone BELOW the soil; the cell's
+    depth is the cover-weighted mean of those, the fraction nothing covers
+    takes `extdp` as given, and an irrigated field takes its crops' depth
+    weighted by the days each is in the ground.
+    UZF has ONE extinction depth per column, so a blend is the only honest
+    reduction; the maximum would let 1 % of oak dry the whole cell to 15 m.
     """
 
     unsat_form: str = 'etwc'       # etwc | etae
     extdp: VectorSource = field(default_factory=lambda: VectorSource(value=2.0))
+    extdp_from: str = 'source'     # source | vegetation
     extwc_source: str = 'thtr'
 
 
@@ -1783,6 +1796,17 @@ class RunConfig:
             errs.append('et.extdp needs a raster, a layer column or a value: '
                         'UZF always simulates unsaturated-zone ET and that '
                         'is the depth it stops at')
+        if self.et.extdp_from not in ('source', 'vegetation'):
+            errs.append("et.extdp_from must be 'source' or 'vegetation'")
+        elif self.et.extdp_from == 'vegetation':
+            _flat = [v.name for v in self.surface.vegetation
+                     if not float(v.root_depth) > 0.0]
+            _flat += [c.name for c in self.surface.crop
+                      if not float(c.root_depth) > 0.0]
+            if _flat:
+                errs.append('et.extdp_from = vegetation needs a root_depth '
+                            '> 0 for every vegetation type and crop; not '
+                            'for: %s' % ', '.join(_flat))
         if self.et.unsat_form not in ('etwc', 'etae'):
             errs.append("et.unsat_form must be 'etwc' or 'etae'")
         if self.spinup.cycles < 1:

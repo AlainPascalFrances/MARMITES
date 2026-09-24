@@ -781,8 +781,27 @@ FIELDS = {
                  'unsaturated zone can be dried by evapotranspiration. By the '
                  'usual rule: a raster, a COLUMN OF THE VEGETATION LAYER (as '
                  'CdL does it, so each species carries its own rooting '
-                 'depth), or one value for the whole catchment. Read only '
-                 'when UZF evapotranspiration is on.'),
+                 'depth), or one value for the whole catchment. Measured '
+                 'from the top of the MODFLOW model, which is the base of '
+                 'the MMsoil column; every UZF object of the column '
+                 'gets it, so a depth below layer 1 reaches the layers '
+                 'underneath. With **Extinction depth from = vegetation** '
+                 'this is the depth of the fraction NOTHING covers.'),
+    'et.extdp_from': ('Extinction depth from', _U,
+                      '**source**: the extinction depth as given below. '
+                      '**vegetation** (WP2 2.2): each cell takes the rooting '
+                      'depth of its cover, weighted by the cover -- the '
+                      '`root_depth` of every vegetation type on the Surface '
+                      'panel and the cover of the Soil panel, the very ones '
+                      'MMsoil transpires from. UZF starts where the soil '
+                      'column ends, so a type counts only with the part of '
+                      'its roots BELOW the soil: 0.4 m of grass on 0.6 m of '
+                      'soil gives UZF nothing. The fraction nothing covers '
+                      'takes the extinction depth below; an irrigated field '
+                      'takes its crops\' `root_depth`, weighted by the days '
+                      'each is in the ground. One depth per column is what '
+                      'UZF has: the maximum would let 1 % of holm oak dry '
+                      'the whole cell to its 15 m.'),
     'et.extwc_source': ('Extinction water content from', _U, ''),
     'sfr.source': ('Reach table', _U,
                    'The grid-independent stream geometry the converter '
@@ -850,6 +869,7 @@ CHOICES = {
     'run.mode': lambda: ['lagged', 'iterative'],
     'seep.kind': lambda: ['uzf', 'drn'],
     'et.unsat_form': lambda: ['etwc', 'etae'],
+    'et.extdp_from': lambda: ['source', 'vegetation'],
     # The ini's iuzfopt, with the numbers replaced by what they meant.
     'uzf.vks_from': lambda: ['layer', 'raster'],
     # UZF1's SPECIFYTHTR, with the numbers replaced by what they meant.
@@ -943,6 +963,7 @@ UZF_ROWS = (
 # There is NO on/off: UZF always simulates it (WP2). What is asked is how --
 # the formulation, the depth it stops at and the water content it stops at.
 UZF_ET_ROWS = (
+    ('et.extdp_from', None),
     ('et.extdp', 'et.extwc_source'),
     ('et.unsat_form', None),
 )

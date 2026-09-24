@@ -300,3 +300,29 @@ def test_the_pet_demand_starts_at_zero_for_the_coupler_to_write(cmf,
     assert pet == {0.0}, 'the build wrote a PET demand: %s' % sorted(pet)
     extdp = {round(float(rec[3]), 3) for rec in b.uzf_perioddata}
     assert extdp == {2.5}, extdp
+
+
+def test_the_objects_below_carry_the_columns_extinction_depth(cmf, tmp_path):
+    """UZF computes each object's ET zone from ITS OWN extdp (setdataet);
+    the land row's is not passed down. A 15 m holm-oak depth must reach
+    layer 2, so every object of a column gets the column's depth."""
+    b = mf6mod.clsMF6(cmf, top=np.asarray(cmf.elev, dtype=float),
+                      botm=np.asarray(cmf.botm, dtype=float),
+                      sim_ws=str(tmp_path))
+    ext = np.zeros((cmf.nlay, cmf.nrow, cmf.ncol))
+    ext[:] = (np.arange(cmf.nrow * cmf.ncol, dtype=float)
+              .reshape(cmf.nrow, cmf.ncol) % 7.0) + 0.5
+    b.uzf_extdp = ext
+    b.build()
+    rows = {int(r[0]): r for r in b.uzf_perioddata}
+    assert len(rows) == b.nuzfcells, 'an object has no period data'
+    thtr = {int(r[0]): float(r[6]) for r in b.uzf_packagedata}
+    kids = 0
+    for col in b.uzf_columns:
+        land = rows[col[0]]
+        for no in col[1:]:
+            assert float(rows[no][3]) == float(land[3])
+            assert float(rows[no][2]) == 0.0, 'a demand below the land'
+            assert float(rows[no][4]) == thtr[no], 'extwc below its thtr'
+            kids += 1
+    assert kids > 0, 'the fixture has no second layer to test'

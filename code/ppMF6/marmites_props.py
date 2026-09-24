@@ -243,8 +243,8 @@ def veg_cover(cfg, cMF, dataset_dir, nveg, cache_dir=None, verbose=True,
         raise PropertyError('soil.veg_class maps to vegetation type(s) %s, '
                             'but there are %d' % (bad, int(nveg)))
     if not os.path.exists(path):
-        raise PropertyError('%s is not there -- run the converter (Soil '
-                            'panel, Cartography tab: Update dataset), which '
+        raise PropertyError('%s is not there -- run the converter (Validation '
+                            'panel, Cartography → dataset; Launch also runs it), which '
                             'writes it from %s'
                             % (path, s.veg_layer or 'the vegetation layer'))
     nr, nc = int(cMF.nrow), int(cMF.ncol)
@@ -362,6 +362,111 @@ def _veg_summary(cover, soil, areas=None):
         parts.append('type %d (%s) %.1f %%'
                      % (k + 1, '/'.join(codes) or '-', mean))
     return '; '.join(parts) + ', from the panel'
+
+
+def extdp_by_vegetation(cover, root_depth, bare, soil_thick=0.0, irr=None,
+                        crop_by_period=None, crop_root=None, perlen=None,
+                        areas=None):
+    """UZF's extinction depth per cell, from the vegetation (WP2 2.2).
+
+        cover           (nveg, nrow, ncol) % of each cell -- the cover MMsoil
+                        transpires from, so both sides see one community
+        root_depth      (nveg,) m below the GROUND, each type's Zr
+        bare            m below UZF's top, one number or (nrow, ncol): the
+                        fraction nothing covers
+        soil_thick      m, one number or (nrow, ncol): the MMsoil column
+        irr             (nrow, ncol) irrigation field, 1-based, 0 = none
+        crop_by_period  (nfield, nper) crop in the ground, 1-based, 0 = fallow
+        crop_root       (ncrop,) m below the ground, each crop's Zr_c
+        perlen          (nper,) d, the lengths of the periods the run covers
+        areas           (nrow, ncol) m2, to report area-weighted means
+
+    Returns ``(extdp, notes)``, extdp as (nrow, ncol) in m below UZF's top.
+
+    UZF STARTS WHERE THE SOIL ENDS. The model's top is the land surface
+    minus the soil thickness -- the aquifer sits below the MMsoil column --
+    and UZF measures extdp from that top. The soil column already takes
+    what the roots draw inside it, so what reaches UZF is the part of each
+    root zone below the soil:
+
+        z_v   = max(Zr_v - soil_thick, 0)
+        extdp = (sum_v cover_v * z_v + (100 - sum_v cover_v) * bare) / 100
+
+    A 0.4 m grass on a 0.6 m soil gives UZF nothing; a 15 m holm oak gives it
+    14.4 m.
+
+    ONE DEPTH PER COLUMN is what UZF has, so the patchwork is reduced to its
+    cover-weighted mean. The maximum would let 1 % of holm oak dry the whole
+    cell to 15 m, the minimum would hide the oaks altogether.
+
+    AN IRRIGATED CELL IS WHAT MMSOIL MAKES OF IT: the field's crop over the
+    whole cell, bare while fallow. The build writes one value per cell, so it
+    takes the crops' depths weighted by the days each is in the ground over
+    the periods the run covers.
+    """
+    c = np.asarray(cover, dtype=float)
+    zr = np.asarray(root_depth, dtype=float).ravel()
+    if c.ndim != 3 or c.shape[0] != zr.size:
+        raise PropertyError('the extinction depth needs one root depth per '
+                            'vegetation type: %d type(s), %d depth(s)'
+                            % (c.shape[0] if c.ndim == 3 else 0, zr.size))
+    if np.any(~(zr > 0.0)):
+        raise PropertyError('every vegetation type needs a root depth > 0 '
+                            'for the extinction depth, got %s' % zr.tolist())
+    b = np.broadcast_to(np.asarray(bare, dtype=float), c.shape[1:])
+    if np.any(b < 0.0):
+        raise PropertyError('the extinction depth of the bare fraction must '
+                            'be >= 0')
+    st = np.broadcast_to(np.asarray(soil_thick, dtype=float), c.shape[1:])
+    st = np.where(np.isfinite(st) & (st > 0.0), st, 0.0)
+    c = np.clip(c, 0.0, 100.0)
+    covered = np.minimum(c.sum(axis=0), 100.0)
+    below = np.maximum(zr[:, None, None] - st[None], 0.0)
+    out = ((c * below).sum(axis=0) + (100.0 - covered) * b) / 100.0
+    notes = []
+    w = None if areas is None else np.asarray(areas, dtype=float).reshape(
+        out.shape)
+    nirr = 0
+    if irr is not None and crop_by_period is not None and perlen is not None:
+        f = np.asarray(irr, dtype=int).reshape(out.shape)
+        sched = np.asarray(crop_by_period)
+        L = np.asarray(perlen, dtype=float).ravel()
+        sched = sched[:, :L.size].astype(int)
+        cz = np.r_[np.nan, np.asarray(crop_root, dtype=float).ravel()]
+        if np.any(~(cz[1:] > 0.0)):
+            raise PropertyError('every crop needs a root depth > 0 for the '
+                                'extinction depth')
+        if sched.size and int(sched.max()) > cz.size - 1:
+            raise PropertyError('the crop schedule grows crop %d, and %d '
+                                'crop(s) are defined'
+                                % (int(sched.max()), cz.size - 1))
+        wt = L / L.sum()
+        on = (f > 0) & (f <= sched.shape[0])
+        if on.any():
+            # per irrigated cell: each period's crop depth below ITS soil,
+            # or the bare depth while the field lies fallow (as in MMsoil)
+            k = f[on] - 1
+            s = sched[k]                                   # (ncell, nper)
+            z = np.maximum(cz[np.clip(s, 0, cz.size - 1)]
+                           - st[on][:, None], 0.0)
+            z = np.where(s > 0, z, b[on][:, None])
+            out[on] = z @ wt
+            nirr = int(on.sum())
+    notes.append('extinction depth per vegetation zone: root depth below the '
+                 'soil column of %s; bare fraction %s'
+                 % (', '.join('type %d %.3g m' % (v + 1, z)
+                              for v, z in enumerate(zr)),
+                    ('%.3g m' % float(b.flat[0])) if np.ptp(b) == 0
+                    else '%.3g..%.3g m' % (float(b.min()), float(b.max()))))
+    mean = float(np.average(out, weights=w)) if w is not None \
+        else float(out.mean())
+    notes.append('   per cell %.3g..%.3g m, catchment mean %.3g m%s%s'
+                 % (float(out.min()), float(out.max()), mean,
+                    ' (area-weighted)' if w is not None else '',
+                    ('; %d irrigated cell(s) take their crops\' depth, '
+                     'weighted by the days in the ground' % nirr)
+                    if nirr else ''))
+    return out, notes
 
 
 def soil_parameters(cfg, nsoil=None):

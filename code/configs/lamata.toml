@@ -404,6 +404,7 @@ cond = 10000.0
 
 [et]
 unsat_form = "etwc"
+extdp_from = "vegetation"
 extwc_source = "thtr"
 
 [et.extdp]

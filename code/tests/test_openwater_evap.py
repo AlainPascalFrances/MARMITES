@@ -192,3 +192,83 @@ def test_the_sankey_splits_runoff_rather_than_unbalancing_the_box():
         ro_net = max(ro - eow_k, 0.0)
         assert eow_k >= 0.0 and ro_net >= 0.0
         assert eow_k + ro_net == pytest.approx(ro)
+
+
+# ------------------------------------------- WP2 row 2: kept apart by package
+
+def _both():
+    """A reach in cell 0 and a pond in cell 2, 2500 m2 each."""
+    c = _Cpl(3, area=[2500.0] * 3)
+    c.nreaches = 1
+    c.sfr_reach_idx = np.array([0, -1, -1])
+    c.p_sfr_simevap = np.array([2.5])            # 1 mm/d over cell 0
+    c.nlakes = 2
+    c.lak_cell_idx = np.array([2, 0])
+    c.p_lak_simevap = np.array([5.0, -7.5])      # 2 mm/d on 2, 3 mm/d on 0
+    return c
+
+
+def test_the_streams_and_the_ponds_are_read_apart():
+    sfr, lak = _both()._read_openwater_evap_split()
+    assert np.allclose(sfr, [1.0, 0.0, 0.0])
+    assert np.allclose(lak, [3.0, 0.0, 2.0])
+
+
+def test_the_total_is_still_their_sum():
+    c = _both()
+    sfr, lak = c._read_openwater_evap_split()
+    assert np.allclose(c._read_openwater_evap(), sfr + lak)
+
+
+def test_each_pond_keeps_its_own_loss_in_m3():
+    """How much a pond loses is a result in its own right."""
+    assert np.allclose(_both()._lak_evap_volumes(), [5.0, 7.5])
+    c = _Cpl(1, area=[1.0])
+    assert c._lak_evap_volumes() is None, 'no ponds, no pond series'
+
+
+def _ctx_index():
+    import marmites_indices as mi
+    return SimpleNamespace(index=dict(mi.INDEX_MM))
+
+
+def test_each_package_lands_in_its_own_column():
+    import marmites_indices as mi
+    ix = mi.INDEX_MM
+    c = _both()
+    c.ctx = _ctx_index()
+    c._iEow = ix['iEow']
+    mm = np.zeros((3, len(ix)))
+    c._openwater_evap_into(mm)
+    assert np.allclose(mm[:, ix['iEow_sfr']], [1.0, 0.0, 0.0])
+    assert np.allclose(mm[:, ix['iEow_lak']], [3.0, 0.0, 2.0])
+    assert np.allclose(mm[:, ix['iEow']], [4.0, 0.0, 2.0])
+
+
+def test_the_total_et_counts_the_open_water():
+    """MMsoil built iETtot with its own Eow, zero since the surface store
+    went to MODFLOW: without this the five sources summed to four."""
+    import marmites_indices as mi
+    ix = mi.INDEX_MM
+    c = _both()
+    c.ctx = _ctx_index()
+    c._iEow = ix['iEow']
+    mm = np.zeros((3, len(ix)))
+    mm[:, ix['iETtot']] = 10.0                   # Ei + ETsoil + ETg from MMsoil
+    c._openwater_evap_into(mm)
+    assert np.allclose(mm[:, ix['iETtot']], [14.0, 10.0, 12.0])
+    c._openwater_evap_into(mm)                   # idempotent within a period
+    assert np.allclose(mm[:, ix['iETtot']], [14.0, 10.0, 12.0])
+
+
+def test_the_new_columns_are_appended_after_wp2s():
+    import marmites_indices as mi
+    assert [mi.INDEX_MM[k] for k in ('iEow_sfr', 'iEow_lak')] == [28, 29]
+    assert sorted(mi.INDEX_MM.values()) == list(range(len(mi.INDEX_MM)))
+
+
+def test_the_run_keeps_each_ponds_series_and_not_the_per_cell_split():
+    src = open(os.path.join(CODE, 'marmites_coupler.py'),
+               encoding='utf-8').read()
+    assert "res['lak_evap'] = self.lak_evap_hist" in src
+    assert "'eow_sfr':" not in src, 'per cell and per SP: ~0.5 GB a full run'

@@ -260,6 +260,66 @@ def ctx_geom_area(cMF):
     return np.outer(np.asarray(cMF.delc, float), np.asarray(cMF.delr, float))
 
 
+def extdp_grid(cfg, cMF, ctx, dataset_dir, verbose=True):
+    """UZF's extinction depth ON THE GRID THE RUN USES (WP2 2.2).
+
+    `et.extdp` as given -- one value per layer, or a raster read and, on a
+    mesh, area-averaged onto the cells. (resolve_source hands back raster
+    PATHS, which the builder cannot broadcast: a raster never reached UZF.)
+
+    With `et.extdp_from = 'vegetation'` each cell takes the cover-weighted
+    rooting depth of its vegetation, and `et.extdp` -- at the surface
+    layer -- is the depth of the fraction nothing covers. The cover and the
+    depths are MMsoil's own (ctx), so the two sides see one community.
+    """
+    nlay = int(cMF.nlay)
+    src = props.resolve_source(cfg.et.extdp, nlay, dataset_dir, 'et.extdp')
+    if isinstance(src[0], str):
+        proj = getattr(cMF, 'mesh_proj', None)
+        lays = []
+        for fn in src:
+            arr = _asc(fn)
+            if proj is not None:
+                arr = np.ma.filled(np.asarray(
+                    proj.sample2d(arr, fill=0.0, dtype=float, how='area'),
+                    dtype=float), 0.0)
+            lays.append(np.asarray(arr, dtype=float).reshape(
+                int(cMF.nrow), int(cMF.ncol)))
+        base = np.stack(lays)
+    else:
+        base = np.asarray(src, dtype=float)
+    if cfg.et.extdp_from != 'vegetation':
+        if verbose:
+            print('UZF ET: always on (%s), extinction depth from %s'
+                  % (cfg.et.unsat_form, cfg.et.extdp.producer()))
+        return base
+    # the bare fraction's depth: the source at each column's SURFACE layer
+    top_lay = np.clip(np.asarray(cMF.outcropL, dtype=int) - 1, 0, nlay - 1)
+    if base.ndim == 1:
+        bare = base[top_lay]
+    else:
+        bare = np.take_along_axis(base, top_lay[None], axis=0)[0]
+    act = np.asarray(cMF.outcropL) > 0
+    areas = np.asarray(ctx_geom_area(cMF), dtype=float).reshape(act.shape)
+    irr = getattr(ctx, 'gridIRR', None) if getattr(ctx, 'irr_yn', 0) else None
+    # UZF's top is the land surface minus the soil column (setup_lamata),
+    # so each root zone reaches UZF only below the soil
+    soil = np.ma.filled(np.ma.masked_values(
+        np.asarray(ctx.gridSOILthick, dtype=float), cMF.hnoflo, atol=0.09),
+        0.0)
+    ext, notes = props.extdp_by_vegetation(
+        ctx.gridVEGarea, ctx.Zr, bare, soil_thick=soil, irr=irr,
+        crop_by_period=getattr(ctx, 'crop_irr_SP', None),
+        crop_root=getattr(ctx, 'Zr_c', None),
+        perlen=np.asarray(cMF.perlen, dtype=float)[:int(cMF.nper)],
+        areas=np.where(act, areas, 0.0))
+    if verbose:
+        print('UZF ET: always on (%s), %s' % (cfg.et.unsat_form, notes[0]))
+        for n in notes[1:]:
+            print(n)
+    return ext
+
+
 def active_area(cMF, b):
     """The catchment's area [m2]: the TRUE areas of the active surface cells.
 
@@ -1043,15 +1103,12 @@ def main():
                  cfg.solver.outer_maximum, cfg.solver.inner_dvclose,
                  cfg.solver.inner_rclose))
     # UNSATURATED-ZONE ET. The extinction depth follows the usual rule --
-    # a raster, a column of the vegetation layer, or one value -- so it is
-    # resolved the way every other spatial input is, per layer and then
-    # broadcast over the column.
+    # a raster, a column of the vegetation layer, or one value -- resolved
+    # on the grid the run uses; or, per vegetation zone, the rooting depth
+    # of each cell's cover (et.extdp_from, WP2 2.2).
     b.uzf_et_form = str(getattr(a, 'uzf_et_form', 'etwc'))
     if cfg is not None:
-        b.uzf_extdp = props.resolve_source(
-            cfg.et.extdp, int(cMF.nlay), DS, 'et.extdp')
-        print('UZF ET: always on (%s), extinction depth from %s'
-              % (b.uzf_et_form, cfg.et.extdp.producer()))
+        b.uzf_extdp = extdp_grid(cfg, cMF, ctx, DS)
     if a.sfr:
         # WP1d: the network is the hydrography the modeller MAPPED, burned onto
         # whichever grid panel 1 produced -- not inputSTREAMw.asc, which was
@@ -1300,13 +1357,26 @@ def main():
     # WP1d: open-water evaporation is MF6's now, read back from SFR SIMEVAP and
     # LAK EVAP and carried in the MM vector as iEow, so it is a measured flux
     # in the water balance rather than a structural zero.
+    # KEPT APART by package (WP2 row 2): the streams lose water in transit,
+    # a pond loses its storage -- and each pond's own loss is in the h5.
     _ev = getattr(cpl, 'evap_hist', None)
     if _ev is not None and np.size(_ev):
         _cells = int(np.count_nonzero(_ev.sum(axis=0)))
         if _cells:
-            print('E_ow  %.4g mm/d catchment mean, from %d cell(s) with open '
-                  'water (SFR SIMEVAP + LAK EVAP)'
-                  % (float(np.mean(np.sum(_ev, axis=1))) / _ev.shape[1], _cells))
+            _m = {k: float(np.average(getattr(cpl, h), axis=1,
+                                      weights=_w).mean())
+                  for k, h in (('sfr', 'evap_sfr_hist'),
+                               ('lak', 'evap_lak_hist'))}
+            print('E_ow  %.4g mm/d catchment mean (area-weighted) = streams '
+                  '(SFR SIMEVAP) %.4g + ponds (LAK EVAP) %.4g, from %d '
+                  'cell(s) with open water'
+                  % (_m['sfr'] + _m['lak'], _m['sfr'], _m['lak'], _cells))
+            if 'lak_evap' in res:
+                _lv = np.asarray(res['lak_evap'], dtype=float)
+                _pl = np.asarray(cMF.perlen, dtype=float)[:_lv.shape[0]]
+                print('      each pond, m3 over the run: %s'
+                      % ', '.join('%d: %.4g' % (L + 1, v) for L, v in
+                                  enumerate((_lv * _pl[:, None]).sum(axis=0))))
         else:
             print('E_ow  zero -- no open water evaporated (dry channels, or '
                   'the simulated-evaporation arrays are not exposed)')
