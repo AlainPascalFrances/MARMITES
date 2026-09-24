@@ -165,6 +165,44 @@ class clsMMsoil:
             return (s_tmp - Sr) / perlen
         return pet * Se
 
+    @staticmethod
+    def _eg(PE, dgwt, head, sy, p):
+        """Groundwater evaporation, eq. 17 of Shah et al. (2007), and the
+        water table it leaves: ``(Eg [mm], dgwt [cm], head [cm])``.
+
+        ``dgwt`` and ``head`` are in cm, as Shah's parameters ``p`` are
+        (``dll``, ``ext_d``); Eg over ``sy`` is the drawdown it causes.
+
+        THE WATER TABLE DROPS BY WHAT EG TAKES, in both branches. When that
+        drawdown would pass the extinction depth, Eg is cut to what brings
+        the table exactly there -- and the head drops by that same distance,
+        ``ext_d - dgwt``. It used to drop by ``ext_d`` itself, the full
+        extinction depth (0.5 to 10 m below the table in Shah's table), so
+        the groundwater transpiration after it saw a water table metres too
+        deep and roots cut off from water they were standing in.
+        """
+        y0, b, dll, ext_d = p['y0'], p['b'], p['dll'], p['ext_d']
+        if dgwt <= dll:
+            Eg = PE
+        elif dgwt < ext_d:
+            # at most PE: every tabulated y0 is > 0, so the fitted curve
+            # starts ABOVE 1 just past dll (up to 1.023) -- and total ET can
+            # never be above PET
+            Eg = PE * min(y0 + np.exp(-b * (dgwt - dll)), 1.0)
+        else:
+            Eg = 0.0
+        if Eg > 0.0:
+            # water-table drawdown feedback (0.1: mm -> cm)
+            if (dgwt + 0.1 * Eg / sy) > ext_d:
+                drop = ext_d - dgwt
+                Eg = 10.0 * drop * sy
+                dgwt = ext_d
+                head -= drop
+            else:
+                dgwt += 0.1 * Eg / sy
+                head -= 0.1 * Eg / sy
+        return Eg, dgwt, head
+
     # ------------------------------------------------------------------ #
 
     def flux(self, cMF, perleni, Pe, PT, PE, Zr_elev, VEGarea,
@@ -363,26 +401,9 @@ class clsMMsoil:
         # GW evaporation Eg, eq. 17 of Shah et al. (2007)
         Eg_tmp = 0.0
         if Ssurf_tmp == 0.0 and PE > 0.0:
-            p = self.paramEg[st]
-            y0, b, dll, ext_d = p['y0'], p['b'], p['dll'], p['ext_d']
-            if dgwt_corr_tmp <= dll:
-                Eg_tmp = PE
-            elif dgwt_corr_tmp < ext_d:
-                # at most PE: every tabulated y0 is > 0, so the fitted curve
-                # starts ABOVE 1 just past dll (up to 1.023) -- and total ET
-                # can never be above PET
-                Eg_tmp = PE * min(y0 + np.exp(-b * (dgwt_corr_tmp - dll)), 1.0)
-            else:
-                Eg_tmp = 0.0
-            if Eg_tmp > 0.0:
-                # water-table drawdown feedback (0.1: mm -> cm)
-                if (dgwt_corr_tmp + 0.1 * Eg_tmp / sy_tmp) > ext_d:
-                    Eg_tmp = 10.0 * (ext_d - dgwt_corr_tmp) * sy_tmp
-                    dgwt_corr_tmp = ext_d
-                    HEADSini_corr_tmp -= ext_d
-                else:
-                    dgwt_corr_tmp += 0.1 * Eg_tmp / sy_tmp
-                    HEADSini_corr_tmp -= 0.1 * Eg_tmp / sy_tmp
+            Eg_tmp, dgwt_corr_tmp, HEADSini_corr_tmp = self._eg(
+                PE, dgwt_corr_tmp, HEADSini_corr_tmp, sy_tmp,
+                self.paramEg[st])
         Eg_tmp = float(Eg_tmp)
         dgwt_corr_tmp *= 10.0        # cm -> mm
         HEADSini_corr_tmp *= 10.0

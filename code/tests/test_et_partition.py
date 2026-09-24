@@ -204,11 +204,48 @@ def test_soil_et_never_exceeds_its_demand_above_porosity():
     assert T.new.clsMMsoil._evp(10.0, 9.0, 0.1, 1.0, 1.0) == 1.0
 
 
+def _shah():
+    return T.new.clsMMsoil(hnoflo=T.HNOFLO).paramEg
+
+
 def test_groundwater_evaporation_never_exceeds_pe():
     """Every tabulated y0 > 0: the Shah curve starts at 1 + y0 past dll."""
-    src = open(os.path.join(TRUNK, 'MARMITESsoil', 'MARMITESsoil_v3.py'),
-               encoding='utf-8').read()
-    assert 'PE * min(y0 + np.exp(-b * (dgwt_corr_tmp - dll)), 1.0)' in src
+    for st, p in _shah().items():
+        for d in (p['dll'] + 1e-6, 0.5 * (p['dll'] + p['ext_d'])):
+            eg, _d, _h = T.new.clsMMsoil._eg(4.0, d, 700.0, 1e6, p)
+            assert eg <= 4.0, (st, d, eg)
+
+
+def test_the_head_drops_by_what_eg_takes_in_every_branch():
+    """THE BUG (fixed 2026-09-24): where the drawdown would pass the
+    extinction depth the table was put AT ext_d but the head was lowered by
+    ext_d itself -- the whole extinction depth -- so Tg afterwards saw a
+    water table metres too deep. Head and depth must move together."""
+    for st, p in _shah().items():
+        for d, sy in ((0.5 * p['dll'], 0.2),            # Eg = PE, far off
+                      (0.5 * (p['dll'] + p['ext_d']), 0.2),
+                      (p['ext_d'] - 0.5, 1e-3)):       # cut at ext_d
+            eg, d2, h2 = T.new.clsMMsoil._eg(4.0, d, 700.0, sy, p)
+            assert h2 - 700.0 == pytest.approx(-(d2 - d)), (st, d, sy)
+            assert eg == pytest.approx(10.0 * (d2 - d) * sy), (st, d, sy)
+            assert d2 <= p['ext_d'] + 1e-9
+
+
+def test_the_cut_takes_the_table_exactly_to_the_extinction_depth():
+    """loam, ext_d 265 cm, table at 264 cm, sy 0.001: Eg = 0.022 mm would
+    draw it down 2.2 cm, so it is cut to the 1 cm left -- 0.01 mm -- and the
+    head drops 1 cm, not the 265 cm it used to."""
+    p = _shah()['loam']
+    eg, d2, h2 = T.new.clsMMsoil._eg(4.0, 264.0, 700.0, 1e-3, p)
+    assert d2 == pytest.approx(265.0)
+    assert h2 == pytest.approx(699.0)
+    assert eg == pytest.approx(0.01)
+
+
+def test_below_the_extinction_depth_nothing_evaporates():
+    p = _shah()['loam']
+    assert T.new.clsMMsoil._eg(4.0, 300.0, 700.0, 0.1, p) == (0.0, 300.0,
+                                                              700.0)
 
 
 def test_the_water_balance_carries_the_uzf_arm():
