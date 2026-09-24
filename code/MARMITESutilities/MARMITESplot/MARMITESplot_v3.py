@@ -1906,6 +1906,8 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
     Ssurf = []
     Rp = []
     dSu = []
+    ETuzf = []          # WP2: the deep unsaturated zone's actual ET
+    REJ = []            # rejected infiltration, UZF -> soil column
     Rg = []
     dSg = []
     FRF = []
@@ -1952,6 +1954,11 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
         Ssurf.append(mult * np.sum(np.float16(flx[flxIndex['iSsurf']][i:indexend])))
         Rp.append(mult * np.sum(np.float16(flx[flxIndex['iperc']][i:indexend])))
         dSu.append(mult * np.sum(np.float16(flx[flxIndex['idSu']][i:indexend])))
+        # absent from a run older than WP2: zero, and the arms are not drawn
+        ETuzf.append(mult * np.sum(np.float16(flx[flxIndex['iETuzf']][i:indexend]))
+                     if 'iETuzf' in flxIndex else 0.0)
+        REJ.append(mult * np.sum(np.float16(flx[flxIndex['iRejInf']][i:indexend]))
+                   if 'iRejInf' in flxIndex else 0.0)
         Rg.append(np.zeros(cMF.nlay))
         dSg.append(np.zeros(cMF.nlay))
         FRF.append(np.zeros(cMF.nlay))
@@ -2139,6 +2146,11 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                     labels = [None, '$R_p$', '', '$E_{soil}$', '$T_{soil}$']
                     orientations = [1, -1, 1, 1, 1]
                     pathlengths = [pl, pl, 0, pl, pl]
+            if REJ[k] / ff > treshold:
+                flows = list(flows) + [REJ[k] / ff]
+                labels = list(labels) + ['$R_{rej}$']
+                orientations = list(orientations) + [-1]
+                pathlengths = list(pathlengths) + [pl]
             pltsankey.add(patchlabel=(r"$\Delta S_{soil}$" "\n%.1f" % (dSsoil[k] / ff)),
                           label='MMsoil', facecolor='khaki', trunklength=tl,
                           flows=flows,
@@ -2146,7 +2158,9 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                           orientations=orientations,
                           pathlengths=pathlengths,
                           prior=1, connect=(1, 0))
-            In = I[k] + EXFtotMM[k]
+            # the soil's inflow from below is groundwater exfiltration AND
+            # the rejected infiltration UZF returned (-5.6 % closure without)
+            In = I[k] + EXFtotMM[k] + REJ[k]
             Out = Rp[k] + Esoil[k] + Tsoil[k] + Exf_l0[k]
             if dSsoil[k] > 0.0:
                 Out += dSsoil[k]
@@ -2169,6 +2183,12 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                         labels.append('')
                     orientations.append(-1)
                     pathlengths.append(pl)
+            for _v, _lbl in ((ETuzf[k], '$ET_{uzf}$'), (REJ[k], '$R_{rej}$')):
+                if _v / ff > treshold:
+                    flows.append(-_v / ff)
+                    labels.append(_lbl)
+                    orientations.append(1)
+                    pathlengths.append(pl)
             pltsankey.add(patchlabel=r"$\Delta S_p$" "\n%.1f" % (dSu[k] / ff), label='MF UZF', facecolor='lavender',
                           trunklength=tl,
                           flows=flows,
@@ -2177,7 +2197,7 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                           pathlengths=pathlengths,
                           prior=2, connect=(1, 0))
             In = Rp[k]
-            Out = 0
+            Out = ETuzf[k] + REJ[k]
             for L in range(cMF.nlay):
                 Out += Rg[k][L]
             if dSu[k] > 0.0:

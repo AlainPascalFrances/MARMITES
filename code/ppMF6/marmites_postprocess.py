@@ -1230,7 +1230,7 @@ def _aquifer_layer_fluxes(sim_ws, name, cMF, ctx, res, sel_ij=None,
     #   percolation in = recharge to GW out + dS_unsat
     perc = (wb_ts[:, IX['iperc']] if sel_ij is None
             else np.zeros(nper))              # per-point perc filled by caller
-    out['idSu'] = perc - Rg.sum(axis=1)
+    out['idSu'] = perc - Rg.sum(axis=1) - _uzf_out(wb_ts, IX, sel_ij is None)
     # per-layer active-cell and drain-cell counts (over the selection)
     ncell_MM = _active_cells_per_layer(cMF, nlay, mask)
     # a layer has drains for this target if its DRN volume is ever non-zero;
@@ -1272,6 +1272,21 @@ class _SankeyMF(object):
         return getattr(self._c, name)
 
 
+def _uzf_out(mmv, IX, use=True):
+    """What leaves UZF other than recharge: its actual ET and the
+    infiltration it rejected (WP2). The storage change was perc - Rg, so it
+    silently absorbed both -- 58.7 mm/yr on 2026-09-24, 36 of it rejected
+    infiltration."""
+    if not use:
+        return 0.0
+    v = np.asarray(mmv)
+    out = np.zeros(v.shape[0])
+    for k in ('iETuzf', 'iRejInf'):
+        if k in IX:
+            out = out + v[:, IX[k]]
+    return out
+
+
 def _assemble_flx(IX, IXS, mmv, mmsv, aq, nper):
     """Build the driver's ``(flx, flxIndex)`` from an MM flux table ``mmv``
     (nper, nidx), a soil table ``mmsv`` (nper, nsl, nidx_s) and the aquifer
@@ -1295,6 +1310,10 @@ def _assemble_flx(IX, IXS, mmv, mmsv, aq, nper):
     put('iEsoil', mmsv[:, :, IXS['iEsoil']].sum(axis=1))
     put('iTsoil', mmsv[:, :, IXS['iTsoil']].sum(axis=1))
     put('iExf_1', mmsv[:, 0, IXS['iExf']])                 # top soil layer
+    # WP2: the deep unsaturated zone's actual ET, and the rejected
+    # infiltration UZF returns to the soil column
+    put('iETuzf', mm('iETuzf'))
+    put('iRejInf', mm('iRejInf'))
     for nm, series in aq.items():
         put(nm, series)
     return flx, flxIndex
@@ -1448,8 +1467,9 @@ def _native_sankey_obs(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
             eg_series=mmv[:, IX['iEg']], tg_series=mmv[:, IX['iTg']],
             agg=agg, target=p + 1)
         # the point's UZF storage change from its own percolation
-        aq['idSu'] = mmv[:, IX['iperc']] - sum(aq['iRg_%d' % (L + 1)]
-                                               for L in range(nlay))
+        aq['idSu'] = (mmv[:, IX['iperc']] - sum(aq['iRg_%d' % (L + 1)]
+                                                for L in range(nlay))
+                      - _uzf_out(mmv, IX))
         flx, flxIndex = _assemble_flx(IX, IXS, mmv, mmsv, aq, nper)
         smf = _SankeyMF(cMF, ncell_MM, drncells, DATE)
         ibound4Sankey = [1 if ncell_MM[L] > 0 else 0 for L in range(nlay)]
@@ -1626,7 +1646,8 @@ def _native_obs_timeseries(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
             for L in range(nlay):
                 put('iRg_%d' % (L + 1), rg[:, L], r'$Rg_{%d}$' % (L + 1))
                 put('idSg_%d' % (L + 1), sg[:, L], r'$\Delta S_{g,%d}$' % (L + 1))
-            put('idSu', mm_obs[:, p, IX['iperc']] - rg.sum(axis=1), r'$\Delta S_u$')
+            put('idSu', mm_obs[:, p, IX['iperc']] - rg.sum(axis=1)
+                - _uzf_out(mm_obs[:, p, :], IX), r'$\Delta S_u$')
             # SATFLOW head from the same recharge, and the Picard-era corrections
             # (MF6 has no Picard loop, so hcorr is 0 and dcorr is just the depth)
             oo = obs.get(o, {})

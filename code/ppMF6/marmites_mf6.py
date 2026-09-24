@@ -863,6 +863,10 @@ class clsMF6:
                     next_no += 1
             col_children[n] = chain
         self.nuzfcells = next_no
+        # the UZF objects of each land column, land object first (0-based):
+        # the coupler sums UZF's actual ET over them (WP2)
+        self.uzf_columns = [[n] + [no for no, _kk in col_children[n]]
+                            for n in range(self.ncell)]
         for n, (i, j, k) in enumerate(self.surf_cells):
             chain = col_children[n]
             ivertcon = chain[0][0] if chain else -1

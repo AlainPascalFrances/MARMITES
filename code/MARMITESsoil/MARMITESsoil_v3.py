@@ -167,7 +167,8 @@ class clsMMsoil:
     def flux(self, cMF, perleni, Pe, PT, PE, Zr_elev, VEGarea,
              HEADSini, TopSoilLay, BotSoilLay, Tl, nsl, Sm, Sfc, Sr, Ks,
              Ssoil_ini, EXF_ini, dgwt, st, i, j, n,
-             kTg_min, kTg_max, kT_f, kT_s, NVEG, LAIveg, REJINF_ini=0.0):
+             kTg_min, kTg_max, kT_f, kT_s, NVEG, LAIveg, REJINF_ini=0.0,
+             ETUZF_prev=0.0):
         """Soil water balance of one cell for one stress period.
 
         All storages in mm, all fluxes in mm/d. PT and LAIveg are 1-D
@@ -187,6 +188,21 @@ class clsMMsoil:
             overland flow (Dunnian flow) if all the soil layers turn
             saturated". So it fills the soil from below, then the surface
             store, and the excess becomes runoff.
+
+        ETUZF_prev : the deep unsaturated zone's ACTUAL evapotranspiration
+            [mm/d] -- UZF's, read from the MF6 budget -- of the PREVIOUS
+            stress period (WP2, step 5 of the demand chain).
+
+        WP2, THE DEMAND CHAIN (cookbook 2b): PET is spent once, in order --
+        interception, open water, the soil (Esoil, Tsoil), the deep
+        unsaturated zone (ETuzf, in UZF), groundwater (Eg, Tg). What the soil
+        leaves is returned as PETuzf, UZF's demand for this stress period;
+        Eg and Tg then see what remains after UZF's ACTUAL uptake -- never
+        the demand written to UZF, which a dry deep zone cannot meet, or ETg
+        would be starved exactly when the deep-rooted trees draw on the water
+        table. LAGGED: MM cannot know this period's UZF uptake before MF6
+        solves, so the previous period's actual is used; at daily stress
+        periods the lag is one day.
 
         WP1d: MMsoil no longer has a surface RESERVOIR. Ponding capacity and
         open-water evaporation moved to MODFLOW with the water -- SFR for the
@@ -323,6 +339,20 @@ class clsMMsoil:
 
         Ssoil_pc_tmp[:] = Ssoil_tmp / Tl[:nsl]
 
+        # WP2 step 4: what the soil left of PE and PT is the deep unsaturated
+        # zone's demand (UZF PET), per unit cell area [mm/d]
+        PT_left = float(sum(PT[v] * VEGarea[v] * 0.01 for v in range(NVEG)
+                            if LAIveg[v] > 0.0 and VEGarea[v] > 0.0))
+        PETuzf = max(float(PE), 0.0) + PT_left
+        # WP2 step 5: groundwater ET sees what remains after UZF's ACTUAL
+        # uptake. Both remainders shrink in proportion, so the reduction is
+        # exactly ETuzf (at most what was left) and E and T keep their ratio.
+        ETuzf_used = min(max(float(ETUZF_prev), 0.0), PETuzf)
+        if ETuzf_used > 0.0 and PETuzf > 0.0:
+            f = 1.0 - ETuzf_used / PETuzf
+            PE = PE * f
+            PT = PT * f
+
         sy_tmp = float(cMF.cPROCESS.float2array(cMF.sy_actual)[cMF.outcropL[i, j] - 1, i, j])
         dgwt_corr_tmp = float(dgwt_corr) * 0.1        # mm -> cm (Shah et al. parameters)
         HEADSini_corr_tmp = float(HEADSini_corr) * 0.1
@@ -399,7 +429,7 @@ class clsMMsoil:
 
         return (Eow_tmp, Ssurf_tmp, Ro_tmp, Rp_tmp, Esoil_tmp, Tsoil_tmp,
                 Ssoil_tmp, Ssoil_pc_tmp, Eg_tmp, Tg_tmp, HEADSini_corr,
-                dgwt_corr, SAT, Rexf_tmp, I)
+                dgwt_corr, SAT, Rexf_tmp, I, PETuzf)
 
     # ------------------------------------------------------------------ #
 
@@ -475,11 +505,12 @@ class clsMMsoil:
         )
 
     def _cell_step(self, ctx, cell, n, tstart_MF, h_MF_ini_tmp, exf_MF_ini_tmp, state,
-                   rejinf_cell=0.0):
+                   rejinf_cell=0.0, etuzf_cell=0.0):
         """Soil water balance of one active cell for one stress period.
 
-        Returns (MM_tmp list, MM_S_tmp (nsl, nindex_S), nsl, perc_vol, etg_vol)
-        and writes the next-SP state for this cell in `state`.
+        Returns (MM_tmp, MM_S_tmp (nsl, nindex_S), nsl, perc_vol, etg_vol,
+        petuzf_vol) and writes the next-SP state for this cell in `state`.
+        ``etuzf_cell`` is the previous stress period's ACTUAL UZF ET [mm/d].
         """
         cid, i, j, _node = cell
         cMF = ctx.cMF
@@ -617,13 +648,14 @@ class clsMMsoil:
         # MAIN SUB-ROUTINE fluxes
         (Eow_tmp, Ssurf_tmp, Ro_tmp, Rp_tmp, Esoil_tmp, Tsoil_tmp, Ssoil_tmp,
          Ssoil_pc_tmp, Eg_tmp, Tg_tmp, HEADSini_MM, dgwt_tmp, SAT_tmp, Rexf_tmp,
-         I) = self.flux(cMF, perleni, Pe_tot, PT_zonesSP_tmp,
+         I, PETuzf) = self.flux(cMF, perleni, Pe_tot, PT_zonesSP_tmp,
                         PE_zonesSP_tmp * SOILarea * 0.01, Zr_elev,
                         VEGarea_tmp, HEADSini_drycell, TopSoilLay, BotSoilLay,
                         Tl, nsl, Sm, Sfc, Sr, Ks, Ssoil_ini_tmp,
                         exf_MF_ini_tmp, dgwt, st, i, j, n,
                         kTg_min_tmp, kTg_max_tmp, kT_f_tmp, kT_s_tmp,
-                        NVEG_tmp, LAIveg_tmp, REJINF_ini=rejinf_cell)
+                        NVEG_tmp, LAIveg_tmp, REJINF_ini=rejinf_cell,
+                        ETUZF_prev=etuzf_cell)
         Ssoil_pc_tot = float(np.sum(Ssoil_pc_tmp)) / nsl
         perc = Rp_tmp[-1]
         ETg = Eg_tmp + Tg_tmp
@@ -633,7 +665,13 @@ class clsMMsoil:
         # and LAK, from the same Eo forcing.
         dSsurf = 0.0
 
-        # water mass balance (MB) in the soil zone
+        # water mass balance (MB) in the soil zone. The water entering from
+        # below is groundwater exfiltration AND the rejected infiltration UZF
+        # returned (flux adds both at the base); counting the first alone
+        # left the soil balance -- and the Sankey -- short by the second
+        # (-5.6 %, 36 mm/yr, on 2026-09-24).
+        rej_in = abs(float(rejinf_cell))
+        exf_in = exf_MF_ini_tmp / cMF.perlen[n] + rej_in
         Esoil_MB = float(np.sum(Esoil_tmp))
         Tsoil_MB = float(np.sum(Tsoil_tmp))
         dSsoil = (Ssoil_tmp - Ssoil_ini_tmp) / cMF.perlen[n]
@@ -657,21 +695,35 @@ class clsMMsoil:
                     Rp_tmp[l] + Rexf_tmp[l] + Esoil_tmp[l] + Tsoil_tmp[l] + dSsoil[l])
             # last soil layer
             l = nsl - 1
-            MB_l[l] = (Rp_tmp[l - 1] + exf_MF_ini_tmp / cMF.perlen[n]) - (
+            MB_l[l] = (Rp_tmp[l - 1] + exf_in) - (
                 Rp_tmp[l] + Rexf_tmp[l] + Esoil_tmp[l] + Tsoil_tmp[l] + dSsoil[l])
         else:
-            MB_l[0] = (I + exf_MF_ini_tmp / cMF.perlen[n]) - (
+            MB_l[0] = (I + exf_in) - (
                 Rp_tmp[0] + Rexf_tmp[0] + Esoil_tmp[0] + Tsoil_tmp[0] + dSsoil[0])
         # total mass balance for the soil
-        MB = (I + exf_MF_ini_tmp / cMF.perlen[n]) - (
+        MB = (I + exf_in) - (
             Rexf_tmp[0] + Esoil_MB + Tsoil_MB + dSsoil_tot + Rp_tmp[-1])
 
         # export arrays
-        MM_tmp = [P_tmp, PT_tot, PE_tot, Pe_tot, Ssurf_tmp, Ro_tmp,
-                  exf_MF_ini_tmp, Eow_tmp, MB, INTER_tot, Eo_zonesSP_tmp,
-                  Eg_tmp, Tg_tmp, dSsurf, ETg, ETsoil_tot, Ssoil_pc_tot,
-                  dSsoil_tot, perc, HEADSini_MM * 0.001, -dgwt_tmp * 0.001,
-                  uzthick * 0.001, I, MBsurf]
+        _vals = {'iP': P_tmp, 'iPT': PT_tot, 'iPE': PE_tot, 'iPe': Pe_tot,
+                 'iSsurf': Ssurf_tmp, 'iRo': Ro_tmp, 'iEXFg': exf_MF_ini_tmp,
+                 'iEow': Eow_tmp, 'iMB': MB, 'iEi': INTER_tot,
+                 'iEo': Eo_zonesSP_tmp, 'iEg': Eg_tmp, 'iTg': Tg_tmp,
+                 'idSsurf': dSsurf, 'iETg': ETg, 'iETsoil': ETsoil_tot,
+                 'iSsoil_pc': Ssoil_pc_tot, 'idSsoil': dSsoil_tot,
+                 'iperc': perc, 'ihcorr': HEADSini_MM * 0.001,
+                 'idgwt': -dgwt_tmp * 0.001, 'iuzthick': uzthick * 0.001,
+                 'iI': I, 'iMBsurf': MBsurf,
+                 # WP2: UZF's demand; its ACTUAL and the total are written by
+                 # the coupler once MF6 has solved (iETuzf, iETtot)
+                 'iPETuzf': PETuzf, 'iETuzf': 0.0,
+                 'iETtot': INTER_tot + Eow_tmp + ETsoil_tot + ETg,
+                 'iRejInf': rej_in}
+        MM_tmp = np.zeros(len(index), dtype=np.float64)
+        for _k, _v in _vals.items():
+            if _k in index:
+                MM_tmp[index[_k]] = float(np.asarray(_v).ravel()[0]
+                                          if np.ndim(_v) else _v)
         MM_S_tmp = np.zeros([nsl, len(index_S)], dtype=np.float32)
         for l in range(nsl):
             MM_S_tmp[l, :] = [Esoil_tmp[l], Tsoil_tmp[l], Ssoil_pc_tmp[l],
@@ -681,11 +733,13 @@ class clsMMsoil:
         # volumetric recharge (UZF finf) and groundwater ET (WEL) rates
         perc_vol = MM_S_tmp[nsl - 1, index_S.get('iRsoil')] / conv_fact
         etg_vol = MM_tmp[index.get('iETg')] / conv_fact
+        petuzf_vol = PETuzf / conv_fact                   # m/d, UZF PET
         # write next-SP state for this cell (percolation-driven soil storage)
         state.Ssoil_ini[cid, :nsl] = MM_S_tmp[:nsl, index_S.get('iSsoil')]
-        return MM_tmp, MM_S_tmp, nsl, perc_vol, etg_vol
+        return MM_tmp, MM_S_tmp, nsl, perc_vol, etg_vol, petuzf_vol
 
-    def step(self, ctx, n, tstart_MF, heads_cell, exf_cell, state, rejinf_cell=None):
+    def step(self, ctx, n, tstart_MF, heads_cell, exf_cell, state, rejinf_cell=None,
+             etuzf_cell=None):
         """Advance the soil water balance one stress period over all cells.
 
         Parameters
@@ -711,16 +765,22 @@ class clsMMsoil:
         etg_cell = np.zeros(ctx.ncell, dtype=np.float32)
         rej = (np.zeros(ctx.ncell) if rejinf_cell is None
                else np.asarray(rejinf_cell, dtype=np.float64))
+        # WP2: the previous stress period's ACTUAL UZF ET per cell [mm/d]
+        etu = (np.zeros(ctx.ncell) if etuzf_cell is None
+               else np.asarray(etuzf_cell, dtype=np.float64))
+        petuzf_cell = np.zeros(ctx.ncell, dtype=np.float32)
         for cell in ctx.cells:
             cid = cell[0]
-            MM_tmp, MM_S_tmp, nsl, perc_vol, etg_vol = self._cell_step(
+            MM_tmp, MM_S_tmp, nsl, perc_vol, etg_vol, petuzf_vol = self._cell_step(
                 ctx, cell, n, tstart_MF, float(heads_cell[cid]), float(exf_cell[cid]), state,
-                rejinf_cell=float(rej[cid]))
+                rejinf_cell=float(rej[cid]), etuzf_cell=float(etu[cid]))
             MM_cells[cid, :] = MM_tmp
             MM_S_cells[cid, :nsl, :] = MM_S_tmp
             perc_cell[cid] = perc_vol
             etg_cell[cid] = etg_vol
-        return {'MM': MM_cells, 'MM_S': MM_S_cells, 'perc': perc_cell, 'etg': etg_cell}
+            petuzf_cell[cid] = petuzf_vol
+        return {'MM': MM_cells, 'MM_S': MM_S_cells, 'perc': perc_cell,
+                'etg': etg_cell, 'petuzf': petuzf_cell}
 
     def runMMsoil(self, _nsl, _nslmax, _st, _Sm, _Sfc, _Sr, _slprop, _Ssoil_ini, botm_l0, _Ks,
                   gridSOIL, gridSOILthick, TopSoil, gridMETEO,

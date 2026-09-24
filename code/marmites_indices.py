@@ -16,6 +16,11 @@ INDEX_MM = {
     'iEow': 7, 'iMB': 8, 'iEi': 9, 'iEo': 10, 'iEg': 11, 'iTg': 12, 'idSsurf': 13,
     'iETg': 14, 'iETsoil': 15, 'iSsoil_pc': 16, 'idSsoil': 17, 'iperc': 18,
     'ihcorr': 19, 'idgwt': 20, 'iuzthick': 21, 'iI': 22, 'iMBsurf': 23,
+    # WP2, appended so the legacy MODFLOW-NWT reference (24 columns) still
+    # indexes as before: UZF's PET demand, its ACTUAL ET (from the MF6
+    # budget), the total ET of the five sources, and the rejected
+    # infiltration UZF returned to the soil column from below
+    'iPETuzf': 24, 'iETuzf': 25, 'iETtot': 26, 'iRejInf': 27,
 }
 
 # per-soil-layer fluxes (MM_S dataset, last axis)

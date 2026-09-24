@@ -56,6 +56,16 @@ class FakeApi:
         self.FINF = np.zeros(nuzf)
         self.SINF = np.zeros(nuzf)
         self.GWD = np.full(nuzf, float(gwd_per_cell))
+        # WP2: UZF's PET, as MF6 keeps it -- uzf_ad (in prepare_solve) sets
+        # PET and PETMAX from the period input PET_PVAR, and every solve
+        # iteration resets PET from PETMAX: PETMAX is the operative array.
+        # UZET is the actual ET per object [m3/d], a constant per object here.
+        self.PET_PVAR = np.full(nuzf, -1.0)
+        self.PET = np.zeros(nuzf)
+        self.PETMAX = np.zeros(nuzf)
+        self.UZET = np.full(nuzf, -2.0)       # MF6 reports it negative (out)
+        self.petmax_at_advance = []
+        self.pet_used = []                    # PET as the solve saw it
         self.BOUND = np.zeros((ncell, 1))
         self.Q = np.zeros(ncell)
         self.nouter = nouter
@@ -80,6 +90,7 @@ class FakeApi:
         (reported). A coupler must write both."""
         n = self.name
         return [f'{n}/X', f'{n}/UZF/SINF', f'{n}/UZF/FINF', f'{n}/UZF/GWD',
+                f'{n}/UZF/PETMAX', f'{n}/UZF/PET', f'{n}/UZF/UZET',
                 f'{n}/WEL/BOUND', f'{n}/WEL/Q']
 
     def get_time_step(self):
@@ -88,7 +99,9 @@ class FakeApi:
     def get_value_ptr(self, addr):
         leaf = addr.rsplit('/', 1)[1]
         return {'X': self.X, 'SINF': self.SINF, 'FINF': self.FINF,
-                'GWD': self.GWD, 'BOUND': self.BOUND, 'Q': self.Q}[leaf]
+                'GWD': self.GWD, 'BOUND': self.BOUND, 'Q': self.Q,
+                'PETMAX': self.PETMAX, 'PET': self.PET,
+                'UZET': self.UZET}[leaf]
 
     def get_value(self, addr):
         raise KeyError(addr)           # no NODEUSER -> coupler uses identity map
@@ -107,9 +120,13 @@ class FakeApi:
         # uzf_ad: both arrays back to the period input (setdatafinf)
         self.FINF[:] = self.SINF_PVAR
         self.SINF[:] = self.SINF_PVAR
+        self.PET[:] = self.PET_PVAR           # setdataet
+        self.PETMAX[:] = self.PET_PVAR
         self._k = 0
 
     def solve(self, sol):
+        self.PET[:] = self.PETMAX             # uzf_solve, every iteration
+        self.pet_used.append(self.PET.copy())
         self._k += 1
         self.solve_calls += 1
         self.finf_iter_trace.append(self.FINF.copy())
@@ -121,6 +138,7 @@ class FakeApi:
     def finalize_time_step(self):
         self.finf_at_advance.append(self.FINF.copy())    # what was ROUTED
         self.sinf_at_advance.append(self.SINF.copy())    # what was REPORTED
+        self.petmax_at_advance.append(self.PETMAX.copy())
         # record whichever rate array is in use (Q preferred, see _bind)
         self.q_at_advance.append(self.Q.copy() if np.any(self.Q) else self.BOUND[:, 0].copy())
         self.X += self.dh              # deterministic head evolution per SP

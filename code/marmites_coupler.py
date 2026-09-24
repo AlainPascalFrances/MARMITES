@@ -175,6 +175,21 @@ class MF6Coupler:
         self.p_bound = None
         self.p_gwd = None
         self.p_rejinf = None
+        # WP2: UZF's PET demand (written) and its actual ET (read back)
+        self.p_petmax = self.p_pet = self.p_uzet = None
+        self.etuzf_prev = np.zeros(self.ncell)
+        self.etuzf_hist = None
+        # the UZF objects of each land column (land object first): a
+        # column's actual ET is the sum over them -- MF6 hands the demand
+        # the land object leaves to the object below (setbelowpet)
+        cols = getattr(mf6b, 'uzf_columns', None) or [[k] for k in
+                                                      range(self.ncell)]
+        self._col_obj = np.array([o for c in cols for o in c], dtype=int)
+        self._col_own = np.array([k for k, c in enumerate(cols) for _o in c],
+                                 dtype=int)
+        self.pet_unmet = None           # catchment PT+PE - (ETsoil+ETuzf+ETg)
+        self.n_overdraw = 0
+        self.max_overdraw = 0.0
         self.p_drnseep = None
         # land-surface elevation per cell, for the water-table plausibility check
         top = getattr(mf6b, 'top', None)
@@ -414,6 +429,25 @@ class MF6Coupler:
         self.p_rejinf, self.addr_rejinf = self._bind_first(
             api, [('REJINF', f'{name}/UZF'), ('REJINF', f'{name}/UZF-1')],
             'UZF rejected infiltration', required=False)
+        # WP2 step 4: UZF's PET demand. MF6 resets the land object's PET from
+        # PETMAX on EVERY solve iteration (gwf-uzf.f90 uzf_solve), and uzf_ad
+        # sets PET, GWPET and PETMAX from the period input PET_PVAR inside
+        # prepare_solve -- so PETMAX is the operative array, written after
+        # prepare_solve like FINF. Writing PET alone would be undone at the
+        # next iteration: the FINF/SINF trap again. The objects below get the
+        # demand the land object left, from MF6 itself (setbelowpet).
+        self.p_petmax, self.addr_petmax = self._bind_first(
+            api, [('PETMAX', f'{name}/UZF'), ('PETMAX', f'{name}/UZF-1')],
+            'UZF PET demand (PETMAX)', min_size=self.ncell)
+        self.p_pet, _ = self._bind_first(
+            api, [('PET', f'{name}/UZF'), ('PET', f'{name}/UZF-1')],
+            'UZF PET', min_size=self.ncell)
+        # WP2 step 5: its ACTUAL ET, m3/d per UZF object (uzf_cq)
+        self.p_uzet, self.addr_uzet = self._bind_first(
+            api, [('UZET', f'{name}/UZF'), ('UZET', f'{name}/UZF-1')],
+            'UZF actual ET (UZET)', required=False)
+        print('coupler: UZF PET bound to %s; actual ET read from %s'
+              % (self.addr_petmax, self.addr_uzet or '(not exposed)'))
         # WEL rates: write Q ONLY.
         #
         # MF6 6.7 exposes both WEL/Q and WEL/BOUND. Q is the rate array the
@@ -555,6 +589,30 @@ class MF6Coupler:
                     'while the written percolation varies (CV %.2f). The daily '
                     'recharge is NOT reaching UZF -- check the SINF/FINF binding.'
                     % (uzf_cv, [round(v, 1) for v in uzf_vals[:4]], written_cv))
+        # The UZF PACKAGE's own budget. The check above reads the budget's
+        # INFILTRATION line, which follows SINF -- the REPORTED array -- and
+        # so passed while UZF routed a constant FINF: 92.5 % of the UZF
+        # budget unaccounted (2026-09-23), with the GWF budget at 0.04 %.
+        # Routed and reported water disagreeing is exactly what this sees.
+        uzf_d, gwet = self._uzf_budget_checks(ws)
+        rep['uzf_discrepancy'], rep['uzf_gwet'] = uzf_d, gwet
+        if uzf_d is not None and uzf_d > max_discrepancy:
+            rep['ok'] = False
+            rep['messages'].append(
+                'the UZF package budget is %.2f%% out (limit %.2f%%): what UZF '
+                'routes is not what it reports -- check which UZF arrays the '
+                'coupler writes (FINF and SINF, PETMAX and PET).'
+                % (uzf_d, max_discrepancy))
+        # WP2 2.6, the GWET guard: groundwater ET belongs to MMsoil (WEL), so
+        # MODFLOW must simulate none -- no configuration key can ask for
+        # linear_gwet or square_gwet, and this catches a regression.
+        if gwet:
+            rep['ok'] = False
+            rep['messages'].append(
+                'MODFLOW simulated groundwater ET (UZF-GWET %.4g m3): it is '
+                'MMsoil\'s, applied as WEL, and would be counted twice. The UZF '
+                'package must be built without linear_gwet / square_gwet.'
+                % gwet)
         if not rep['ok']:
             msg = 'MF6 solution is not valid:\n  - ' + '\n  - '.join(rep['messages'])
             if raise_on_fail:
@@ -564,6 +622,34 @@ class MF6Coupler:
             print('solution check: converged, cumulative discrepancy %.4f%%, '
                   '%d extra ATS sub-step(s)' % (d, rep['substeps']))
         return rep
+
+    @staticmethod
+    def _uzf_budget_checks(ws):
+        """``(uzf_discrepancy, uzf_gwet)`` from the model listing file.
+
+        uzf_discrepancy: the |cumulative PERCENT DISCREPANCY| of the LAST
+        'UZF BUDGET FOR ENTIRE MODEL' table (None when there is none).
+        uzf_gwet: the largest cumulative UZF-GWET / GWET volume reported,
+        0.0 when the term is absent -- as it must be.
+        """
+        if not ws or not os.path.isdir(ws):
+            return None, 0.0
+        for cand in os.listdir(ws):
+            if not cand.endswith('.lst') or cand == 'mfsim.lst':
+                continue
+            with open(os.path.join(ws, cand), 'r', errors='replace') as fh:
+                lst = fh.read()
+            d = None
+            blocks = lst.split('UZF BUDGET FOR ENTIRE MODEL')
+            if len(blocks) > 1:
+                last = blocks[-1].split('VOLUME BUDGET FOR ENTIRE MODEL')[0]
+                v = re.findall(r'PERCENT DISCREPANCY\s*=\s*(-?[\d.E+-]+)', last)
+                if v:
+                    d = abs(float(v[0]))           # the cumulative column
+            g = [abs(float(x)) for x in re.findall(
+                r'(?:UZF-GWET|\bGWET)\s*=\s*(-?[\d.E+-]+)', lst)]
+            return d, (max(g) if g else 0.0)
+        return None, 0.0
 
     def _uzf_infiltration_cv(self, ws):
         """Coefficient of variation of written percolation vs UZF INFILTRATION.
@@ -733,13 +819,19 @@ class MF6Coupler:
         mm_cells[:, self._iEow] = eow
         return eow
 
-    def _write_fluxes(self, perc, etg):
+    def _write_fluxes(self, perc, etg, petuzf=None):
         # both UZF arrays, as MF6's setdatafinf sets them: the land cells
         # carry the percolation, the objects below them nothing
         for _p in (self.p_finf, self.p_sinf):
             _p[:self.ncell] = perc                                    # m/d
             if _p.shape[0] > self.ncell:
                 _p[self.ncell:] = 0.0
+        # WP2: the deep unsaturated zone's PET demand [m/d] on the land
+        # objects; MF6 passes what they leave to the objects below
+        if petuzf is not None and self.p_petmax is not None:
+            for _p in (self.p_petmax, self.p_pet):
+                if _p is not None:
+                    _p[:self.ncell] = petuzf
         q = -np.asarray(etg, dtype=float) * self.area                 # m3/d, sink
         if self.p_q is not None:
             self.p_q[:self.ncell] = q
@@ -753,6 +845,58 @@ class MF6Coupler:
             b[:self.ncell, 0] = q
         else:                                                         # (naux+1, maxbound)
             b[0, :self.ncell] = q
+
+    def _read_etuzf(self):
+        """UZF's ACTUAL ET per land cell [mm/d]: UZET (m3/d per object)
+        summed over each column's objects, on the cell's own area."""
+        if self.p_uzet is None:
+            return np.zeros(self.ncell)
+        q = np.abs(np.asarray(self.p_uzet, dtype=float).ravel())
+        if self._col_obj.size and self._col_obj.max() >= q.size:
+            return np.zeros(self.ncell)
+        tot = np.bincount(self._col_own, weights=q[self._col_obj],
+                          minlength=self.ncell)
+        return tot / self.area * self.conv_fact
+
+    def _etuzf_into(self, mm_cells, et, n):
+        """This period's ACTUAL UZF ET into the per-cell vector, the total
+        ET made whole, and the PET balance of the period recorded."""
+        ix = self.ctx.index
+        if 'iETuzf' in ix:
+            mm_cells[:, ix['iETuzf']] = et
+        if 'iETtot' in ix:
+            mm_cells[:, ix['iETtot']] += et
+        if not all(k in ix for k in ('iPT', 'iPE', 'iETsoil', 'iETg')):
+            return
+        demand = mm_cells[:, ix['iPT']] + mm_cells[:, ix['iPE']]
+        used = mm_cells[:, ix['iETsoil']] + et + mm_cells[:, ix['iETg']]
+        over = used - demand
+        bad = over > 1e-6
+        self.n_overdraw += int(bad.sum())
+        if bad.any():
+            self.max_overdraw = max(self.max_overdraw, float(over[bad].max()))
+        self.pet_unmet[n] = float(np.average(demand - used, weights=self.area))
+
+    def _print_pet_balance(self, nper):
+        """The run's PET balance, catchment, area-weighted [mm/yr]."""
+        ix = self.ctx.index
+        need = ('iPT', 'iPE', 'iETsoil', 'iETuzf', 'iETg')
+        if self.wb_ts is None or not all(k in ix for k in need):
+            return
+        ts = np.asarray(self.wb_ts)[:nper]
+        y = 365.0 / max(float(np.sum(self.perlen[:nper]) or nper), 1e-9)
+        tot = {k: float(ts[:, ix[k]].sum()) * y for k in need}
+        demand = tot['iPT'] + tot['iPE']
+        used = tot['iETsoil'] + tot['iETuzf'] + tot['iETg']
+        print('\nPET balance (catchment, mm/yr): demand PT+PE %.1f -> ETsoil '
+              '%.1f, ETuzf %.1f, ETg %.1f; unmet %.1f (%.0f %%)'
+              % (demand, tot['iETsoil'], tot['iETuzf'], tot['iETg'],
+                 demand - used,
+                 100.0 * (demand - used) / demand if demand > 0 else 0.0))
+        if self.n_overdraw:
+            print('      ET above the demand in %d cell-period(s), at most '
+                  '%.3g mm/d: the one-period lag of UZF\'s ET in the demand '
+                  'chain (lagged mode)' % (self.n_overdraw, self.max_overdraw))
 
     @staticmethod
     def _clone_state(state):
@@ -805,6 +949,10 @@ class MF6Coupler:
         self.perc_hist = np.zeros((nper_mm, self.ncell))
         self.etg_hist = np.zeros((nper_mm, self.ncell))
         self.rejinf_hist = np.zeros((nper_mm, self.ncell))
+        self.etuzf_hist = np.zeros((nper_mm, self.ncell))
+        self.pet_unmet = np.zeros(nper_mm)
+        self.etuzf_prev = np.zeros(self.ncell)
+        self.n_overdraw, self.max_overdraw = 0, 0.0
         self.outer_iters = np.zeros(nper_mm, dtype=int)
         # Water-budget aggregates (compact: the full per-cell/per-SP MM array
         # would be ~370 MB). wb_ts = catchment mean of every MM flux per SP;
@@ -867,8 +1015,12 @@ class MF6Coupler:
                 if self.mode == 'lagged':
                     heads, exf = self._read_heads_exf()         # end of SP n-1
                     rej = self._read_rejinf()                   # returned to surface
+                    # WP2: Eg/Tg see what remains after the PREVIOUS
+                    # period's actual UZF ET -- lagged: MM cannot know this
+                    # period's before MF6 solves (cookbook 2b)
                     out = self.mm.step(self.ctx, n, tstart_MF, heads, exf, self.state,
-                                       rejinf_cell=rej)
+                                       rejinf_cell=rej,
+                                       etuzf_cell=self.etuzf_prev)
                     # ALL API inputs (UZF SINF, WEL Q, SFR INFLOW) must be
                     # written after prepare_solve, or MF6 reverts them to the
                     # build-time values -- so runoff-to-SFR rides the same
@@ -878,7 +1030,7 @@ class MF6Coupler:
                            if self.p_sfr_inflow is not None else None)
 
                     def _write(o=_o, ro=_ro, sp=n):
-                        self._write_fluxes(o['perc'], o['etg'])
+                        self._write_fluxes(o['perc'], o['etg'], o.get('petuzf'))
                         if ro is not None:
                             self._write_runoff(ro)
                         self._write_openwater_evap(sp)
@@ -904,6 +1056,12 @@ class MF6Coupler:
                 eow = self._openwater_evap_into(mm_cells)
                 if eow is not None:
                     self.evap_hist[n] = eow
+                # WP2 step 5: what UZF actually took this period -- into the
+                # water balance now, and into MM's groundwater ET next period
+                et = self._read_etuzf()
+                self.etuzf_hist[n] = et
+                self.etuzf_prev = et
+                self._etuzf_into(mm_cells, et, n)
                 mms_cells = np.asarray(out['MM_S'], dtype=np.float64)
                 # CATCHMENT means weight each cell by its AREA. A plain mean
                 # over cells is the catchment only on a uniform grid: on the
@@ -984,6 +1142,10 @@ class MF6Coupler:
                       'column from below\n      on the next stress period, and '
                       'whatever the soil cannot hold becomes runoff.'
                       % (rejected, applied, 100.0 * rejected / applied))
+            # WP2 2.5b: PET spent once. Unmet demand is normal (a dry soil
+            # cannot evaporate what it has not got); ET above the demand is
+            # not -- in lagged mode it is the one-period lag of UZF's ET.
+            self._print_pet_balance(nper_mm)
         finally:
             # MF6 can fault inside finalize() when the run is aborted early
             # (the library expects a completed simulation). Never let that
@@ -995,6 +1157,7 @@ class MF6Coupler:
                       'consequence of stopping early, not the root cause.' % (exc,))
         res = {'heads': self.heads_hist, 'exf': self.exf_hist,
                'perc': self.perc_hist, 'etg': self.etg_hist, 'rejinf': self.rejinf_hist,
+               'etuzf': self.etuzf_hist, 'pet_unmet': self.pet_unmet,
                'runoff': self.runoff_hist, 'outer_iters': self.outer_iters,
                'wb_ts': self.wb_ts, 'wb_map': self.wb_map,
                'wb_ts_soil': self.wb_ts_soil, 'wb_map_soil': self.wb_map_soil}
@@ -1124,15 +1287,19 @@ class MF6Coupler:
             heads, exf = self._read_heads_exf()                # current iterate
             rej = self._read_rejinf()
             self._restore_state(self.state, bak)
+            # WP2: UZF's ET is computed at budget time (uzf_cq), after the
+            # solve, so no iterate is available mid-period: the previous
+            # period's actual is used here too
             out = self.mm.step(self.ctx, n, tstart_MF, heads, exf, self.state,
-                               rejinf_cell=rej)
+                               rejinf_cell=rej, etuzf_cell=self.etuzf_prev)
             perc = np.asarray(out['perc'], dtype=float)
             etg = np.asarray(out['etg'], dtype=float)
             if perc_prev is not None:                          # under-relaxation
                 perc = self.relax * perc + (1.0 - self.relax) * perc_prev
                 etg = self.relax * etg + (1.0 - self.relax) * etg_prev
             perc_prev, etg_prev = perc, etg
-            self._write_fluxes(perc, etg)
+            petuzf_prev = out.get('petuzf')
+            self._write_fluxes(perc, etg, petuzf_prev)
             self._write_openwater_evap(n)
             if api.solve(1):
                 break
@@ -1152,8 +1319,9 @@ class MF6Coupler:
                     break
                 # re-apply the converged fluxes each sub-step, or rp reverts
                 # SINF to the build-time value on the next prepare_time_step
-                def _re_apply(p=perc_prev, e=etg_prev, sp=n):
-                    self._write_fluxes(p, e)
+                def _re_apply(p=perc_prev, e=etg_prev, sp=n,
+                              u=petuzf_prev):
+                    self._write_fluxes(p, e, u)
                     self._write_openwater_evap(sp)
 
                 k, ok = self._one_step(api, write_cb=_re_apply)
