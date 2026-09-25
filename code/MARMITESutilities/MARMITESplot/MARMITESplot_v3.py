@@ -1919,45 +1919,52 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
     DRN = []
     GHB = []
     CH = []
+    # EVERY WINDOW IS INCLUSIVE of its last day, summed in double precision.
+    # The legacy slice stopped BEFORE indexend -- dropping that day while
+    # dividing by a count that included it -- and cast each daily value to
+    # half precision, which keeps 3 significant digits.
     for k, i in enumerate(indexTime[:-2]):
         if k == 0:
             i = indexTime[1]
             indexend = indexTime[-2]
             mult = (1.0 if per_day else 365.0) / (indexend - i + 1)
         else:
-            indexend = indexTime[k + 1] - 1
+            # the last hydrological year ends ON indexTime[-2] (its 30
+            # September), not the day before a next year's start
+            indexend = (indexTime[k + 1] - 1 if k + 1 < len(indexTime) - 2
+                        else indexTime[-2])
             # a hydrological year's total IS mm.y-1; per day it is divided
             # by that year's own length
             mult = (1.0 / (indexend - i + 1)) if per_day else 1.0
-        P.append(mult * np.sum(np.float16(flx[flxIndex['iP']][i:indexend])))
-        Ei.append(mult * np.sum(np.float16(flx[flxIndex['iEi']][i:indexend])))
-        Pe.append(mult * np.sum(np.float16(flx[flxIndex['iPe']][i:indexend])))
-        dSsurf.append(mult * np.sum(np.float16(flx[flxIndex['idSsurf']][i:indexend])))
-        Ro.append(mult * np.sum(np.float16(flx[flxIndex['iRo']][i:indexend])))
-        Eow.append(mult * np.sum(np.float16(flx[flxIndex['iEow']][i:indexend])))
-        dSsoil.append(mult * np.sum(np.float16(flx[flxIndex['idSsoil']][i:indexend])))
-        EXFtotMM.append(mult * np.sum(np.float16(flx[flxIndex['iEXFg']][i:indexend])))
-        Exf_l0.append(mult * np.sum(np.float16(flx[flxIndex['iExf_1']][i:indexend])))
-        Esoil.append(mult * np.sum(np.float16(flx[flxIndex['iEsoil']][i:indexend])))
-        Tsoil.append(mult * np.sum(np.float16(flx[flxIndex['iTsoil']][i:indexend])))
-        ETsoil.append(mult * np.sum(np.float16(flx[flxIndex['iETsoil']][i:indexend])))
-        I.append(mult * np.sum(np.float16(flx[flxIndex['iI']][i:indexend])))
+        P.append(mult * np.sum(np.float64(flx[flxIndex['iP']][i:indexend + 1])))
+        Ei.append(mult * np.sum(np.float64(flx[flxIndex['iEi']][i:indexend + 1])))
+        Pe.append(mult * np.sum(np.float64(flx[flxIndex['iPe']][i:indexend + 1])))
+        dSsurf.append(mult * np.sum(np.float64(flx[flxIndex['idSsurf']][i:indexend + 1])))
+        Ro.append(mult * np.sum(np.float64(flx[flxIndex['iRo']][i:indexend + 1])))
+        Eow.append(mult * np.sum(np.float64(flx[flxIndex['iEow']][i:indexend + 1])))
+        dSsoil.append(mult * np.sum(np.float64(flx[flxIndex['idSsoil']][i:indexend + 1])))
+        EXFtotMM.append(mult * np.sum(np.float64(flx[flxIndex['iEXFg']][i:indexend + 1])))
+        Exf_l0.append(mult * np.sum(np.float64(flx[flxIndex['iExf_1']][i:indexend + 1])))
+        Esoil.append(mult * np.sum(np.float64(flx[flxIndex['iEsoil']][i:indexend + 1])))
+        Tsoil.append(mult * np.sum(np.float64(flx[flxIndex['iTsoil']][i:indexend + 1])))
+        ETsoil.append(mult * np.sum(np.float64(flx[flxIndex['iETsoil']][i:indexend + 1])))
+        I.append(mult * np.sum(np.float64(flx[flxIndex['iI']][i:indexend + 1])))
         if cMF.wel_yn == 1:
             Eg.append(np.zeros(cMF.nlay))
             Tg.append(np.zeros(cMF.nlay))
             for L in range(cMF.nlay):
-                Eg[k][L] += mult * np.sum(np.float16(flx[flxIndex['iEg_%d' % (L + 1)]][i:indexend]))
-                Tg[k][L] += mult * np.sum(np.float16(flx[flxIndex['iTg_%d' % (L + 1)]][i:indexend]))
-            Egtot.append(mult * np.sum(np.float16(flx[flxIndex['iEg']][i:indexend])))
-            Tgtot.append(mult * np.sum(np.float16(flx[flxIndex['iTg']][i:indexend])))
-            ETg.append(mult * np.sum(np.float16(flx[flxIndex['iETg']][i:indexend])))
-        Ssurf.append(mult * np.sum(np.float16(flx[flxIndex['iSsurf']][i:indexend])))
-        Rp.append(mult * np.sum(np.float16(flx[flxIndex['iperc']][i:indexend])))
-        dSu.append(mult * np.sum(np.float16(flx[flxIndex['idSu']][i:indexend])))
+                Eg[k][L] += mult * np.sum(np.float64(flx[flxIndex['iEg_%d' % (L + 1)]][i:indexend + 1]))
+                Tg[k][L] += mult * np.sum(np.float64(flx[flxIndex['iTg_%d' % (L + 1)]][i:indexend + 1]))
+            Egtot.append(mult * np.sum(np.float64(flx[flxIndex['iEg']][i:indexend + 1])))
+            Tgtot.append(mult * np.sum(np.float64(flx[flxIndex['iTg']][i:indexend + 1])))
+            ETg.append(mult * np.sum(np.float64(flx[flxIndex['iETg']][i:indexend + 1])))
+        Ssurf.append(mult * np.sum(np.float64(flx[flxIndex['iSsurf']][i:indexend + 1])))
+        Rp.append(mult * np.sum(np.float64(flx[flxIndex['iperc']][i:indexend + 1])))
+        dSu.append(mult * np.sum(np.float64(flx[flxIndex['idSu']][i:indexend + 1])))
         # absent from a run older than WP2: zero, and the arms are not drawn
-        ETuzf.append(mult * np.sum(np.float16(flx[flxIndex['iETuzf']][i:indexend]))
+        ETuzf.append(mult * np.sum(np.float64(flx[flxIndex['iETuzf']][i:indexend + 1]))
                      if 'iETuzf' in flxIndex else 0.0)
-        REJ.append(mult * np.sum(np.float16(flx[flxIndex['iRejInf']][i:indexend]))
+        REJ.append(mult * np.sum(np.float64(flx[flxIndex['iRejInf']][i:indexend + 1]))
                    if 'iRejInf' in flxIndex else 0.0)
         Rg.append(np.zeros(cMF.nlay))
         dSg.append(np.zeros(cMF.nlay))
@@ -1970,24 +1977,24 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
         GHB.append(np.zeros(cMF.nlay))
         CH.append(np.zeros(cMF.nlay))
         for L in range(cMF.nlay):
-            Rg[k][L] += mult * np.sum(np.float16(flx[flxIndex['iRg_%d' % (L + 1)]][i:indexend]))
-            dSg[k][L] += mult * np.sum(np.float16(flx[flxIndex['idSg_%d' % (L + 1)]][i:indexend]))
-            FRF[k][L] += mult * np.sum(np.float16(flx[flxIndex['iFRF_%d' % (L + 1)]][i:indexend]))
-            FFF[k][L] += mult * np.sum(np.float16(flx[flxIndex['iFFF_%d' % (L + 1)]][i:indexend]))
+            Rg[k][L] += mult * np.sum(np.float64(flx[flxIndex['iRg_%d' % (L + 1)]][i:indexend + 1]))
+            dSg[k][L] += mult * np.sum(np.float64(flx[flxIndex['idSg_%d' % (L + 1)]][i:indexend + 1]))
+            FRF[k][L] += mult * np.sum(np.float64(flx[flxIndex['iFRF_%d' % (L + 1)]][i:indexend + 1]))
+            FFF[k][L] += mult * np.sum(np.float64(flx[flxIndex['iFFF_%d' % (L + 1)]][i:indexend + 1]))
             if cMF.nlay > 1:
-                FLF[k][L] += mult * np.ma.masked_invalid(np.float32(flx[flxIndex['iFLF_%d' % (L + 1)]][i:indexend])).sum()
-            EXF[k][L] += mult * np.sum(np.float16(flx[flxIndex['iEXFg_%d' % (L + 1)]][i:indexend]))
+                FLF[k][L] += mult * np.ma.masked_invalid(np.float32(flx[flxIndex['iFLF_%d' % (L + 1)]][i:indexend + 1])).sum()
+            EXF[k][L] += mult * np.sum(np.float64(flx[flxIndex['iEXFg_%d' % (L + 1)]][i:indexend + 1]))
             if cMF.wel_yn == 1:
                 if ncell_MM[L] > 0:
-                    WEL[k][L] += mult * np.sum(np.float16(flx[flxIndex['iWEL_%d' % (L + 1)]][i:indexend]))
+                    WEL[k][L] += mult * np.sum(np.float64(flx[flxIndex['iWEL_%d' % (L + 1)]][i:indexend + 1]))
             if cMF.drn_yn == 1:
                 if cMF.drncells[L] > 0:
-                    DRN[k][L] += mult * np.sum(np.float16(flx[flxIndex['iDRN_%d' % (L + 1)]][i:indexend]))
+                    DRN[k][L] += mult * np.sum(np.float64(flx[flxIndex['iDRN_%d' % (L + 1)]][i:indexend + 1]))
             if cMF.ghb_yn == 1:
                 if cMF.ghbcells[L] > 0:
-                    GHB[k][L] += mult * np.sum(np.float16(flx[flxIndex['iGHB_%d' % (L + 1)]][i:indexend]))
+                    GHB[k][L] += mult * np.sum(np.float64(flx[flxIndex['iGHB_%d' % (L + 1)]][i:indexend + 1]))
             if len(cMF.ibound[cMF.ibound < 0]) > 0:
-                CH[k][L] += mult * np.sum(np.float16(flx[flxIndex['iCH_%d' % (L + 1)]][i:indexend]))
+                CH[k][L] += mult * np.sum(np.float64(flx[flxIndex['iCH_%d' % (L + 1)]][i:indexend + 1]))
         #EXFtotMF[k] += sum(EXF[k])
     #    print "\nWater fluxes imported from file:\n%s" % inputFile_fn
 
@@ -2023,9 +2030,16 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
         for k in range(len(P)):
             # k == 0 is the whole-period panel; k > 0 are the individual
             # hydrological years. plot_years=False keeps only the former.
-            if k > 0 and not plot_years:
+            if k > 0 and (not plot_years or k - 1 >= len(year_lst)):
                 break
-            if k == 0:
+            if k == 0 and not year_lst:
+                # no full hydrological year: the panel is the WHOLE run
+                _d0, _d1 = (mpl.dates.num2date(DATE[indexTime[1]]),
+                            mpl.dates.num2date(DATE[indexTime[-2]]))
+                title = ("Whole run, %s to %s (%d days)"
+                         % (_d0.strftime('%Y-%m-%d'), _d1.strftime('%Y-%m-%d'),
+                            indexTime[-2] - indexTime[1] + 1))
+            elif k == 0:
                 title = "Average of the %d hydrological year(s)" % len(indexTime[1:-2])
             else:
                 title = "Hydrological year %d/%d" % (year_lst[k - 1], year_lst[k - 1] + 1)

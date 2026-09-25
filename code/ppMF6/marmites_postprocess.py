@@ -866,11 +866,17 @@ def _hydro_year_index(DATE, ini_month):
     the NWT post-processing did. Returns ``(HYindex, year_lst)``.
 
     ``DATE`` is the array of matplotlib date numbers (one per stress period).
-    A run shorter than one hydrological year takes the driver's own short-run
-    branch (``HYindex = [h0, h0, N-1, N-1]``), so the 'average' panel still
-    renders (scaled to mm/y).
+
+    A RUN WITHOUT A FULL HYDROLOGICAL YEAR is drawn as a whole: ``HYindex =
+    [0, 0, N-1, N-1]`` and no year of its own (``year_lst`` empty). The
+    legacy branch started the panel at the run's first 1 October instead
+    (``[h0, h0, N-1, N-1]``) and called it "the average of 1 hydrological
+    year": La Mata's run of 31 May 2008 .. 30 May 2009 showed October-May
+    scaled to a year -- P 401 mm/y where the run had 353, groundwater ET 7
+    where it had 38 (2026-09-25).
     """
     import matplotlib as mpl
+    import matplotlib.dates  # noqa: F401  -- a submodule: mpl.dates needs it
     DATE = np.asarray(DATE, dtype=float)
     year_lst = []
     HYindex = []
@@ -883,11 +889,9 @@ def _hydro_year_index(DATE, ini_month):
         '%d-%d-01' % (year_lst[0], ini_month)))))
     if np.sum(DATE == mpl.dates.datestr2num(
             '%d-%d-01' % (year_lst[0] + 1, ini_month))) == 0:
-        HYindex.append(HYindex[0])
-        HYindex.append(len(DATE) - 1)
-        HYindex.append(len(DATE) - 1)
         print('   Sankey: the run does not contain a full hydrological year; '
-              'the whole-period panel is scaled to mm/y.')
+              'the panel is the whole run, scaled to mm/y.')
+        return [0, 0, len(DATE) - 1, len(DATE) - 1], []
     else:
         y = 0
         while DATE[-1] >= mpl.dates.datestr2num(
