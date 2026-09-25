@@ -365,3 +365,18 @@ def test_uzf_s_balance_counts_the_residual():
     assert "for k in ('iETuzf', 'iRejInf', 'iETuzf_num'):" in src
     import marmites_indices as mi
     assert mi.INDEX_MM['iETuzf_num'] == 30
+
+
+def test_the_pet_balance_is_on_the_progress_lines(capsys):
+    """WP2.5b: while the run goes, not only at the end -- each progress
+    line carries the balance since the previous one."""
+    cpl, api, ctx = M._setup(nper=6, mode='lagged')
+    cpl.run(api)
+    lines = [ln for ln in capsys.readouterr().out.splitlines()
+             if ln.strip().startswith('stress period')]
+    assert lines and all('|  PET ' in ln for ln in lines), lines
+    ix = ctx.index
+    ts = np.asarray(cpl.wb_ts)
+    # the last line's window: from the previous report to the end
+    want = ts[-1, ix['iPT']] + ts[-1, ix['iPE']]
+    assert ('PET %.2f mm/d' % want) in lines[-1], (lines[-1], want)

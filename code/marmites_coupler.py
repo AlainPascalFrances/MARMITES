@@ -1066,6 +1066,8 @@ class MF6Coupler:
         """
         if nper <= 0:
             return
+        if last and getattr(self, '_prog_from', None) == n + 1:
+            return                 # the loop already reported this period
         step = max(1, nper // 20)
         if not last and (n % step) or n == 0:
             return
@@ -1074,8 +1076,30 @@ class MF6Coupler:
         rate = (now - self._t0) / max(done, 1)
         eta = ('' if last or not left
                else ', ~%s left' % _hms(rate * left))
-        print('   stress period %d/%d (%.0f%%)%s'
-              % (done, nper, 100.0 * done / nper, eta))
+        print('   stress period %d/%d (%.0f%%)%s%s'
+              % (done, nper, 100.0 * done / nper, eta,
+                 self._pet_window(n) if hasattr(self, '_pet_window')
+                 else ''))
+
+    def _pet_window(self, n):
+        """WP2.5b: the PET balance since the last progress line, catchment
+        means in mm/d -- so a starved or over-drawn chain shows up while the
+        run goes, not only in the balance at the end."""
+        ix = self.ctx.index
+        need = ('iPT', 'iPE', 'iETsoil', 'iETuzf', 'iETg')
+        ts = getattr(self, 'wb_ts', None)
+        start = int(getattr(self, '_prog_from', 0))
+        self._prog_from = n + 1
+        if ts is None or not all(k in ix for k in need) or n < start:
+            return ''
+        m = {k: float(np.mean(np.asarray(ts)[start:n + 1, ix[k]]))
+             for k in need}
+        dem = m['iPT'] + m['iPE']
+        used = m['iETsoil'] + m['iETuzf'] + m['iETg']
+        return ('  |  PET %.2f mm/d -> soil %.2f, UZF %.2f, groundwater %.2f;'
+                ' unmet %.0f%%'
+                % (dem, m['iETsoil'], m['iETuzf'], m['iETg'],
+                   100.0 * (dem - used) / dem if dem > 0 else 0.0))
 
     def run(self, api, on_sp=None):
         """Drive the coupled model with an initialized-able MF6 API object.
@@ -1086,6 +1110,7 @@ class MF6Coupler:
         cMF = self.mf6b.cMF
         nper_mm = int(cMF.nper)
         self._t0 = time.time()
+        self._prog_from = 0
         self.heads_hist = np.zeros((nper_mm, self.ncell))
         self.exf_hist = np.zeros((nper_mm, self.ncell))
         self.perc_hist = np.zeros((nper_mm, self.ncell))
