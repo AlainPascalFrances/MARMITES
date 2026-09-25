@@ -342,7 +342,7 @@ RECHARGE_TERMS = ('UZF-GWRCH_IN',)
 DISCHARGE_PREFIXES = ('DRN', 'GHB', 'WEL')
 
 
-def aquifer_balance(cum, times, area):
+def aquifer_balance(cum, times, area, steady_first=True):
     """Recharge to, and discharge from, the aquifer in mm/yr over the run.
 
     ``cum`` is the list file's CUMULATIVE volumes [m3], one row per saved
@@ -352,6 +352,9 @@ def aquifer_balance(cum, times, area):
     as much as a 30-day one. Also returns the share of the recharge carried
     by the single largest step, and which step, because one pulse can make
     the whole-run figure meaningless.
+
+    Without a steady first period (a periodic spin-up cycle) there is no
+    initial state to leave out: the volumes count from zero at time zero.
     """
     t = np.asarray(times, dtype=float)
     cols = list(cum.columns)
@@ -359,7 +362,7 @@ def aquifer_balance(cum, times, area):
                 and c.split('_')[0].split('-')[0].rstrip('0123456789')
                 in DISCHARGE_PREFIXES]
     rch_cols = [c for c in cols if c in RECHARGE_TERMS]
-    i0 = 1 if len(t) > 1 else 0
+    i0 = 1 if (steady_first and len(t) > 1) else 0
     span = t[-1] - (t[0] if i0 else 0.0)
     if span <= 0 or area <= 0:
         raise ValueError('no elapsed time (%g d) or no area (%g m2)'
@@ -1294,13 +1297,26 @@ def main():
     spin_converged, delta = False, float('nan')
     for cyc in range(ncyc):
         if cyc > 0:
-            b.strt_array = prev_heads      # equilibrating IC from last cycle
+            # PERIODIC SPIN-UP: the next cycle starts where this one ended --
+            # its heads, the water its unsaturated zone holds and its soil --
+            # and runs WITHOUT a steady period, which ignores the heads and
+            # restarts from a mean-forcing equilibrium the year never
+            # reaches (2026-09-25: every cycle ended 0.6 m below its start,
+            # so the cycles agreed with each other and not with themselves).
+            b.strt_array = prev_heads
+            b.steady_first = False
+            b.uzf_thti_carry = (None if cpl.uzf_wc_final is None
+                                else b.thti_from_wc(cpl.uzf_wc_final))
             b.build()
             b.write()
-        st = mm.init_state(ctx)            # fresh soil state each cycle
+            st.carried = True              # the soil the last cycle ended with
+        else:
+            st = mm.init_state(ctx)
+        _carry = cpl.carry_out if cyc > 0 else None
         cpl = MF6Coupler(mm, ctx, st, b, conv_fact=conv_fact,
                          mode=a.mode, relax=a.relax,
                          obs_idx=obs_idx, obs_names=obs_names)
+        cpl.carry_in = _carry
         cpl.steady_perc, cpl.steady_etg = steady_perc, steady_etg
         res = cpl.run(api)
         # What held for months rather than what happened once: the soil at
@@ -1311,10 +1327,10 @@ def main():
         cpl.check_solution(max_discrepancy=a.max_discrepancy,
                            raise_on_fail=not a.allow_bad_budget)
         prev_heads = _final_heads()
-        # Feed THIS cycle's mean recharge/ETg into the next cycle's steady SP0.
-        # Carrying heads alone does not equilibrate (a steady period ignores
-        # STRT); driving SP0 with the dynamic mean is what makes the spin-up
-        # actually converge. Skipped if the user pinned the means explicitly.
+        # THIS cycle's mean recharge/ETg: no longer the next cycle's steady
+        # period (it has none -- see the periodic spin-up above), but what is
+        # saved as the steady means a later run can start from. Skipped if
+        # the user pinned the means explicitly.
         if not a.steady_means:
             steady_perc = res['perc'].mean(axis=0)
             steady_etg = res['etg'].mean(axis=0)
@@ -1392,7 +1408,9 @@ def main():
         import flopy
         _lst = flopy.utils.Mf6ListBudget(os.path.join(a.ws, cMF.modelname.lower() + '.lst'))
         _bal = aquifer_balance(_lst.get_dataframes(diff=False)[1],
-                               _lst.get_times(), active_area(cMF, b))
+                               _lst.get_times(), active_area(cMF, b),
+                               steady_first=bool(getattr(b, 'steady_first',
+                                                         True)))
         for _line in balance_lines(_bal):
             print(_line)
         # A deficit is advice only over a whole year: a summer window drains

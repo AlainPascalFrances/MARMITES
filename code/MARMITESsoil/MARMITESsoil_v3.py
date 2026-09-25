@@ -531,7 +531,10 @@ class clsMMsoil:
         not by (row, col)."""
         return SimpleNamespace(
             Ssoil_ini=np.zeros((ctx.ncell, ctx._nslmax), dtype=np.float64),
-
+            # True once the state holds a previous run's END (a periodic
+            # spin-up cycle): the first period then starts from it, not from
+            # the panel's initial soil moisture
+            carried=False,
         )
 
     def _cell_step(self, ctx, cell, n, tstart_MF, h_MF_ini_tmp, exf_MF_ini_tmp, state,
@@ -572,9 +575,14 @@ class clsMMsoil:
             else:
                 TopSoilLay[l] = BotSoilLay[l - 1]
                 BotSoilLay[l] = TopSoilLay[l] - Tl[l]
-        if n == 0:
+        first = (n == 0 and not getattr(state, 'carried', False))
+        if first:
             Ssoil_ini_tmp = np.asarray(_Ssoil_ini[SOILzone_tmp][:nsl], dtype=np.float64)
             perleni = 1.0
+        elif n == 0:
+            # a periodic spin-up cycle: the soil the previous cycle ended with
+            Ssoil_ini_tmp = np.asarray(state.Ssoil_ini[cid, :nsl], dtype=np.float64)
+            perleni = float(cMF.perlen[-1])
         else:
             Ssoil_ini_tmp = np.asarray(state.Ssoil_ini[cid, :nsl], dtype=np.float64)
             perleni = float(cMF.perlen[n - 1])
@@ -679,7 +687,7 @@ class clsMMsoil:
             HEADSini_drycell = BotSoilLay[nsl - 1]
         uzthick = BotSoilLay[nsl - 1] - HEADSini_drycell
         # for the first SP, Ssoil_ini is in % and has to be converted to mm
-        if n == 0:
+        if first:
             Ssoil_ini_tmp = Ssoil_ini_tmp * Tl[:nsl]
 
         # MAIN SUB-ROUTINE fluxes

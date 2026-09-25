@@ -217,7 +217,15 @@ class clsMF6:
             self.perlen = np.ones(ndays, dtype=float)
         else:
             self.perlen = np.asarray(cMF.perlen, dtype=float)
+        # A STEADY FIRST PERIOD only when the run has no heads of its own to
+        # start from: MF6 ignores the initial heads in a steady period, so a
+        # periodic spin-up -- each cycle starting where the last one ended --
+        # runs without it (clsMF6.steady_first = False).
+        self.steady_first = True
         self.nper = len(self.perlen) + 1          # +1 steady SP at the front
+        # per (layer, row, col): the UZF initial water content carried from a
+        # previous cycle (NaN = the panel's thti), set by the spin-up
+        self.uzf_thti_carry = None
         self.sim = None
         self.gwf = None
         # bookkeeping filled by build()
@@ -231,6 +239,18 @@ class clsMF6:
         self.eps_clamped = None      # (original, clamped) when EPSILON adjusted
 
     # ------------------------------------------------------------------ #
+
+    def thti_from_wc(self, wc):
+        """The UZF initial water content, (nlay, nrow, ncol), from MF6's
+        WCNEW per UZF object -- the mean content over each object's
+        unsaturated part at the end of a run. An object with none (0: under
+        the water table) is left NaN, i.e. to the panel's thti."""
+        out = np.full((self.nlay, self.nrow, self.ncol), np.nan)
+        wc = np.asarray(wc, dtype=float).ravel()
+        for no, kij in enumerate(getattr(self, 'uzf_obj_kij', None) or []):
+            if kij is not None and no < wc.size and wc[no] > 0.0:
+                out[kij] = wc[no]
+        return out
 
     @staticmethod
     def _lay3d(arr_like, nlay, nrow, ncol):
@@ -673,8 +693,11 @@ class clsMF6:
         # in 207,595 cell-periods (2026-09-24).
         sim.simulation_data.float_precision = 16
         sim.simulation_data.float_characters = 24
-        # TDIS: steady SP first, then transient
-        perioddata = [(1.0, 1, 1.0)] + [(float(p), 1, 1.0) for p in self.perlen]
+        # TDIS: steady SP first (unless the run starts from known heads),
+        # then transient
+        s0 = 1 if self.steady_first else 0
+        self.nper = len(self.perlen) + s0
+        perioddata = ([(1.0, 1, 1.0)] if s0 else []) +             [(float(p), 1, 1.0) for p in self.perlen]
         # ATS: let MF6 subdivide any stress period it cannot solve in one step.
         # Without it the first transient day -- a step change from the steady
         # state onto a free-draining seepage boundary -- failed to converge and
@@ -684,7 +707,7 @@ class clsMF6:
         if self.ats:
             recs = [(i, float(p), self.ats_dtmin, float(p), 2.0, 5.0)
                     for i, (p, _, _) in enumerate(perioddata)
-                    if i >= 1]                     # not the steady-state period
+                    if i >= s0]                    # not the steady-state period
             ats = {'maxats': len(recs), 'perioddata': recs}
         ModflowTdis(sim, time_units='DAYS', nper=self.nper, perioddata=perioddata,
                     ats_perioddata=ats)
@@ -742,12 +765,14 @@ class clsMF6:
                       k=self._griddata(hk), k33=self._griddata(k33),
                       save_specific_discharge=False)
 
-        # STO: steady first SP, transient afterwards
+        # STO: steady first SP, transient afterwards -- or transient from
+        # the start when the run starts from known heads
         ss = self._prop3d('ss_actual')
         sy = self._prop3d('sy_actual')
+        _sto = ({'steady_state': {0: True}, 'transient': {1: True}} if s0
+                else {'transient': {0: True}})
         ModflowGwfsto(gwf, iconvert=list(np.asarray(cMF.laytyp, dtype=int)),
-                      ss=self._griddata(ss), sy=self._griddata(sy),
-                      steady_state={0: True}, transient={1: True})
+                      ss=self._griddata(ss), sy=self._griddata(sy), **_sto)
 
         # WEL: one well per active surface cell (ETg sink), q=0 initially,
         # AUTO_FLOW_REDUCE replaces the NWT 'SPECIFY 0.05 iunitramp' option
@@ -839,6 +864,17 @@ class clsMF6:
             raise MF6BuildError(str(exc))
         for _n in _notes:
             print(_n)
+        # THE WATER THE UNSATURATED ZONE HELD at the end of the previous
+        # spin-up cycle: MF6's WCNEW, the mean content over each object's
+        # unsaturated part. Restarting at the panel's thti (raised to thtr:
+        # empty) would throw that water away between cycles.
+        if self.uzf_thti_carry is not None:
+            _c = np.asarray(self.uzf_thti_carry, dtype=float)
+            _c = _c.reshape(thti.shape)
+            _ok = np.isfinite(_c)
+            thti = np.where(_ok, np.clip(_c, thtr, thts), thti)
+            print('UZF thti carried from the previous cycle in %d cell-layer(s)'
+                  % int(_ok.sum()))
         surfdep = float(np.ravel(np.asarray(cMF.surfdep, dtype=float))[0])
         thtr, thts, thti, eps = self._validate_uzf_params(thtr, thts, thti, eps)
         # vertical K for UZF: iuzfopt==1 -> vks array; iuzfopt==2 -> layer k33
@@ -877,6 +913,13 @@ class clsMF6:
         # the coupler sums UZF's actual ET over them (WP2)
         self.uzf_columns = [[n] + [no for no, _kk in col_children[n]]
                             for n in range(self.ncell)]
+        # (layer, row, col) of every UZF object, in object order: what maps
+        # MF6's per-object arrays (WCNEW) back onto the grid
+        self.uzf_obj_kij = [None] * self.nuzfcells
+        for n, (i, j, k) in enumerate(self.surf_cells):
+            self.uzf_obj_kij[n] = (k, i, j)
+            for no, kk in col_children[n]:
+                self.uzf_obj_kij[no] = (kk, i, j)
         for n, (i, j, k) in enumerate(self.surf_cells):
             chain = col_children[n]
             ivertcon = chain[0][0] if chain else -1

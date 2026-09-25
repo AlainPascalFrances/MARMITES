@@ -177,6 +177,12 @@ class MF6Coupler:
         self.p_rejinf = None
         # WP2: UZF's PET demand (written) and its actual ET (read back)
         self.p_petmax = self.p_pet = self.p_uzet = None
+        self.p_wcnew = None
+        self.uzf_wc_final = None
+        # a periodic spin-up: the previous cycle's last seepage, rejected
+        # infiltration and UZF ET, read on the first day in its place
+        self.carry_in = None
+        self.carry_out = None
         self.etuzf_prev = np.zeros(self.ncell)
         self.etuzf_hist = None
         # the UZF objects of each land column (land object first): a
@@ -451,6 +457,11 @@ class MF6Coupler:
             'UZF actual ET (UZET)', required=False)
         print('coupler: UZF PET bound to %s; actual ET read from %s'
               % (self.addr_petmax, self.addr_uzet or '(not exposed)'))
+        # each UZF object's mean water content, read once at the end so a
+        # periodic spin-up can start the next cycle from it
+        self.p_wcnew, _a = self._bind_first(
+            api, [('WCNEW', f'{name}/UZF'), ('WCNEW', f'{name}/UZF-1')],
+            'UZF water content (WCNEW)', required=False)
         # WEL rates: write Q ONLY.
         #
         # MF6 6.7 exposes both WEL/Q and WEL/BOUND. Q is the rate array the
@@ -1127,7 +1138,15 @@ class MF6Coupler:
             # are supplied (from a prior run) they are used; otherwise fall back
             # to the uniform perc_user, which produces a too-wet near-surface
             # table the transient then has to drain from.
-            if self.steady_perc is not None:
+            #
+            # WITHOUT ONE (mf6b.steady_first False) the run starts from the
+            # heads it was given -- the previous spin-up cycle's last ones --
+            # and every period is transient: a periodic spin-up.
+            steady = bool(getattr(self.mf6b, 'steady_first', True))
+            if not steady:
+                print('no steady period: the run starts from the heads it was '
+                      'given')
+            elif self.steady_perc is not None:
                 s_perc = np.asarray(self.steady_perc, dtype=float).ravel()[:self.ncell]
                 s_etg = (np.zeros(self.ncell) if self.steady_etg is None else
                          np.asarray(self.steady_etg, dtype=float).ravel()[:self.ncell])
@@ -1137,13 +1156,17 @@ class MF6Coupler:
                 s_perc = np.full(self.ncell, float(getattr(cMF, 'perc_user', 0.0)))
                 s_etg = np.zeros(self.ncell)
             # end time of every stress period, so the step loop knows when a
-            # period is complete even when ATS subdivides it
+            # period is complete even when ATS subdivides it: t_end[n + 1] is
+            # the end of MARMITES period n either way
             perlen = list(self.perlen) or [1.0] * nper_mm
-            t_end = np.cumsum([1.0] + [float(p) for p in perlen])
-            # write the steady fluxes AFTER prepare_time_step (via _advance's
-            # callback), or UZF rp reverts SINF to the build-time perc_user
-            self._advance(api, t_end[0],
-                          write_cb=lambda: self._write_fluxes(s_perc, s_etg))
+            t_end = np.cumsum([1.0 if steady else 0.0]
+                              + [float(p) for p in perlen])
+            if steady:
+                # write the steady fluxes AFTER prepare_time_step (via
+                # _advance's callback), or UZF rp reverts SINF to the
+                # build-time perc_user
+                self._advance(api, t_end[0],
+                              write_cb=lambda: self._write_fluxes(s_perc, s_etg))
 
             # --- transient march, one MM SP per MF6 SP ---
             for n in range(nper_mm):
@@ -1151,6 +1174,13 @@ class MF6Coupler:
                 if self.mode == 'lagged':
                     heads, exf = self._read_heads_exf()         # end of SP n-1
                     rej = self._read_rejinf()                   # returned to surface
+                    if n == 0 and not steady and self.carry_in:
+                        # a periodic cycle's first day: what the previous
+                        # cycle's last day left -- MF6 has solved nothing yet
+                        exf = np.asarray(self.carry_in['exf'], dtype=float)
+                        rej = np.asarray(self.carry_in['rej'], dtype=float)
+                        self.etuzf_prev = np.asarray(self.carry_in['etuzf'],
+                                                     dtype=float)
                     # WP2: Eg/Tg see what remains after the PREVIOUS
                     # period's actual UZF ET -- lagged: MM cannot know this
                     # period's before MF6 solves (cookbook 2b)
@@ -1231,6 +1261,15 @@ class MF6Coupler:
                 if on_sp is not None:
                     on_sp(n, out)
             self._progress(nper_mm - 1, nper_mm, last=True)
+            # what the unsaturated zone holds at the end: the next spin-up
+            # cycle starts from it (clsMF6.uzf_thti_carry) ...
+            self.uzf_wc_final = (None if self.p_wcnew is None else
+                                 np.array(self.p_wcnew, dtype=float))
+            # ... and what its first day reads as "the previous period"
+            _h, _exf = self._read_heads_exf()
+            self.carry_out = {'exf': np.array(_exf, dtype=float),
+                              'rej': np.array(self._read_rejinf(), dtype=float),
+                              'etuzf': np.array(self.etuzf_prev, dtype=float)}
             self.wb_map /= float(nper_mm)
             self.wb_map_soil /= float(nper_mm)
             # Physical-plausibility guard. Exfiltration identically zero over a

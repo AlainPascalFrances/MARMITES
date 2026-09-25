@@ -174,6 +174,29 @@ def _xy_to_ij(x, y, xll, yll, cs, nrow, ncol):
 # budgets
 # --------------------------------------------------------------------- #
 
+def steady_first(sim_ws, name=None):
+    """Is stress period 1 of the model in ``sim_ws`` steady-state?
+
+    Read from the model's own STO file -- its first PERIOD block says
+    STEADY-STATE or TRANSIENT -- rather than assumed: a periodic spin-up
+    cycle starts from the previous cycle's heads and has no steady period,
+    and dropping kper 0 there would drop the run's first day. No STO file
+    (a model without storage) is steady throughout.
+    """
+    import glob
+    import re
+    cands = ([os.path.join(sim_ws, '%s.sto' % name)] if name else []) +         sorted(glob.glob(os.path.join(sim_ws, '*.sto')))
+    fn = next((c for c in cands if os.path.exists(c)), None)
+    if fn is None:
+        return True
+    with open(fn, encoding='utf-8', errors='replace') as fh:
+        txt = fh.read().upper()
+    m = re.search(r'BEGIN\s+PERIOD\s+(\d+)(.*?)END\s+PERIOD', txt, re.S)
+    if m is None or int(m.group(1)) != 1:
+        return True          # MF6's default for a period never set: steady
+    return 'STEADY-STATE' in m.group(2)
+
+
 def budget_by_compartment(sim_ws, name):
     """Mean IN/OUT rate [m3/d] per compartment from the MF6 listing.
 
@@ -184,8 +207,10 @@ def budget_by_compartment(sim_ws, name):
     import flopy
     lst = flopy.utils.Mf6ListBudget(os.path.join(sim_ws, '%s.lst' % name))
     inc, cum = lst.get_dataframes()
-    # drop the steady-state first period; average the incremental rates
-    rate = inc.iloc[1:] if len(inc) > 1 else inc
+    # drop the steady-state first period, if there is one; average the
+    # incremental rates
+    rate = (inc.iloc[1:] if len(inc) > 1 and steady_first(sim_ws, name)
+            else inc)
     terms = []
     for col in rate.columns:
         if col in ('TOTAL_IN', 'TOTAL_OUT', 'IN-OUT', 'PERCENT_DISCREPANCY'):
@@ -224,14 +249,17 @@ def _subsample(seq, max_samples):
     return [seq[i] for i in sorted(set(idx))]
 
 
-def package_budget(sim_ws, cbc_fn, kperkstp_skip=1, max_samples=120):
+def package_budget(sim_ws, cbc_fn, kperkstp_skip=None, max_samples=120):
     """Mean rate [m3/d] of each budget term in a package .cbc file.
 
     Works for the UZF and SFR budget files (and the GWF cbc). Skips the first
-    ``kperkstp_skip`` stress periods (the steady state) and averages over an
+    ``kperkstp_skip`` stress periods (the steady state; None = 1 when the
+    model HAS a steady first period, 0 when it does not) and averages over an
     even subsample of at most ``max_samples`` of the rest (set None for all).
     """
     import flopy
+    if kperkstp_skip is None:
+        kperkstp_skip = 1 if steady_first(sim_ws) else 0
     cbc = flopy.utils.CellBudgetFile(os.path.join(sim_ws, cbc_fn))
     records = [r.strip().decode() if isinstance(r, bytes) else str(r).strip()
                for r in cbc.get_unique_record_names()]
@@ -329,7 +357,8 @@ def run_postproc(sim_ws, ds_ws, name='lamatamm', dates=None,
 
     hds = flopy.utils.HeadFile(os.path.join(sim_ws, '%s.hds' % name))
     kk = hds.get_kstpkper()
-    kk_real = [k for k in kk if k[1] >= 1] or kk        # drop steady state
+    kk_real = ([k for k in kk if k[1] >= 1] or kk      # drop steady state
+               if steady_first(sim_ws, name) else list(kk))
     # the mean map is taken over an even subsample; the obs series keeps the
     # full record (one cell, cheap) via _obs_series_from_hds
     kk_map = _subsample(kk_real, 200)
