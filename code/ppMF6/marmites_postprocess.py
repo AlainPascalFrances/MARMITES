@@ -17,6 +17,9 @@ Figures / CSVs
   budget_yearly      yearly volumes (m3/yr) by compartment
   budget_uzf         UZF internal budget (recharge / seepage / ET / storage)
   budget_sfr         SFR internal budget (inflow / leakage / outflow / ...)
+  outlet_streamflow  streamflow at the catchment outlet (m3/d and mm/yr)
+                     against the gauge, <ro_prefix>_catchment.txt (WP3.6)
+  budget_sfr_ts      the stream network's budget over time, in mm
   storage_change_L*  per-layer storage change map
 
 The steady-state stress period (kper 0) is excluded from every average and map.
@@ -36,7 +39,8 @@ import numpy as np
 
 __all__ = ['run_postproc', 'run_preproc', 'obs_points', 'obs_series',
            'budget_by_compartment', 'package_budget', 'layer_storage_change',
-           'native_suite', 'COMPARTMENT']
+           'native_suite', 'COMPARTMENT', 'sfr_observations',
+           'obs_streamflow']
 
 # MARMITES input maps (soil-water-balance side) and the MODFLOW input maps
 # (aquifer side). Both belong in the preprocessing channel: the MM script
@@ -426,6 +430,14 @@ def run_postproc(sim_ws, ds_ws, name='lamatamm', dates=None,
             if verbose:
                 print('   %s budget skipped: %r' % (pkg, exc))
 
+    # --- the stream at the outlet, and its budget over time (WP3.6) -- #
+    try:
+        written += _fig_stream(sim_ws, name, ds_ws, out, mg, dates=dates,
+                               verbose=verbose)
+    except Exception as exc:               # pragma: no cover
+        if verbose:
+            print('   streamflow figures skipped: %r' % exc)
+
     # NOTE: the native plotLAYER head map is produced by native_suite's
     # _native_aquifer_maps(), per layer and from an exact mean over every
     # stress period, into this run's results folder. The older
@@ -446,6 +458,314 @@ def run_postproc(sim_ws, ds_ws, name='lamatamm', dates=None,
 
     if verbose:
         print('postproc: %d file(s) written to %s' % (len(written), out))
+    return written
+
+
+# --------------------------------------------------------------------- #
+# the stream (WP3.6)
+# --------------------------------------------------------------------- #
+
+def _tdis_perlen(sim_ws):
+    """Stress-period lengths [d] from the simulation's TDIS file, or None."""
+    import glob
+    import re
+    fn = None
+    nam = os.path.join(sim_ws, 'mfsim.nam')
+    if os.path.exists(nam):
+        with open(nam, encoding='utf-8', errors='replace') as fh:
+            m = re.search(r'^\s*TDIS6\s+(\S+)', fh.read(), re.I | re.M)
+        if m:
+            fn = os.path.join(sim_ws, m.group(1))
+    if fn is None or not os.path.exists(fn):
+        fn = next(iter(sorted(glob.glob(os.path.join(sim_ws, '*.tdis')))),
+                  None)
+    if fn is None:
+        return None
+    with open(fn, encoding='utf-8', errors='replace') as fh:
+        m = re.search(r'BEGIN\s+PERIODDATA(.*?)END\s+PERIODDATA', fh.read(),
+                      re.I | re.S)
+    if m is None:
+        return None
+    per = []
+    for line in m.group(1).splitlines():
+        p = line.split('#')[0].split()
+        if not p:
+            continue
+        try:
+            per.append(float(p[0]))
+        except ValueError:                 # OPEN/CLOSE: not read here
+            return None
+    return np.asarray(per) if per else None
+
+
+def sfr_observations(sim_ws, name, perlen=None):
+    """The SFR continuous observations as ONE ROW PER STRESS PERIOD.
+
+    MF6 writes <name>.obs.sfr.csv at every time step, and adaptive time
+    stepping cuts a period into a parameter-dependent number of them. Each
+    row here is the time-weighted mean of a period's steps -- the rate that
+    moves the period's volume -- so there are as many rows as periods
+    whatever the stepping (the CdL trap, cookbook WP6.4). The steady first
+    period, when there is one, is dropped. Columns: the observation names
+    in lower case, and ``perlen`` [d]. None when the run wrote no file.
+    """
+    import pandas as pd
+    fn = os.path.join(sim_ws, '%s.obs.sfr.csv' % name)
+    if not os.path.exists(fn):
+        return None
+    df = pd.read_csv(fn)
+    df.columns = [str(c).strip().lower() for c in df.columns]
+    t = df['time'].to_numpy(dtype=float)
+    dt = np.diff(np.r_[0.0, t])
+    if perlen is None:
+        perlen = _tdis_perlen(sim_ws)
+    if perlen is None:                     # no TDIS to read: a row per step
+        perlen = dt
+    perlen = np.asarray(perlen, dtype=float)
+    ends = np.cumsum(perlen)
+    # a step belongs to the period it ENDS in; the tolerance absorbs the
+    # rounding of the accumulated time, far below any ATS minimum step
+    kper = np.searchsorted(ends + 1e-6, t, side='left')
+    keep = kper < len(ends)
+    k, w = kper[keep], dt[keep]
+    wsum = np.bincount(k, weights=w, minlength=len(ends))
+    out = {}
+    for c in df.columns:
+        if c == 'time':
+            continue
+        v = df[c].to_numpy(dtype=float)[keep]
+        with np.errstate(invalid='ignore', divide='ignore'):
+            out[c] = (np.bincount(k, weights=v * w, minlength=len(ends))
+                      / np.where(wsum > 0, wsum, np.nan))
+    res = pd.DataFrame(out)
+    res['perlen'] = perlen
+    if len(res) > 1 and steady_first(sim_ws, name):
+        res = res.iloc[1:].reset_index(drop=True)
+    return res
+
+
+def obs_streamflow(ds_ws, fn=None):
+    """Observed catchment streamflow [mm/d] as a date-indexed Series, or None.
+
+    ``<ro_prefix>_catchment.txt`` (date, value), read as the legacy driver
+    reads it: the gauge discharge over the catchment area, which it
+    compared with the catchment-mean MM runoff in mm/d.
+    """
+    import pandas as pd
+    fn = fn or os.path.join(ds_ws, '%s_catchment.txt' % OBS['ro'])
+    if not os.path.exists(fn):
+        return None
+    df = pd.read_csv(fn, sep=r'\s+', header=None, usecols=[0, 1],
+                     names=['date', 'q'], engine='python', comment='#')
+    df['date'] = pd.to_datetime(df['date'], errors='coerce')
+    df['q'] = pd.to_numeric(df['q'], errors='coerce')
+    df = df.dropna()
+    df = df[df['q'] > -9000.0]             # hnoflo marks a gap
+    if df.empty:
+        return None
+    return df.set_index('date')['q'].sort_index()
+
+
+def _active_area(mg):
+    """The model's active footprint [m2]: the catchment the outlet drains."""
+    idm = getattr(mg, 'idomain', None)
+    if getattr(mg, 'nrow', None) is None:
+        verts = np.asarray(mg.verts, dtype=float)
+        area = []
+        for iv in mg.iverts:
+            xy = verts[list(iv)]
+            # relative to the first vertex: on absolute UTM coordinates the
+            # shoelace cancels catastrophically (2026-09-24)
+            x, y = (xy - xy[0]).T
+            area.append(0.5 * abs(np.dot(x, np.roll(y, -1))
+                                  - np.dot(y, np.roll(x, -1))))
+        area = np.asarray(area)
+    else:
+        area = np.outer(np.asarray(mg.delc, dtype=float),
+                        np.asarray(mg.delr, dtype=float)).ravel()
+    if idm is None:
+        return float(area.sum())
+    act = (np.asarray(idm).reshape(int(mg.nlay), -1) > 0).any(axis=0)
+    return float(area[act].sum())
+
+
+def _period_mean(series, starts, perlen):
+    """Mean of a date-indexed series over each period [start, start+perlen)."""
+    ot = series.index.values
+    ov = series.to_numpy(dtype=float)
+    t0 = np.asarray(starts, dtype='datetime64[ns]')
+    t1 = t0 + (np.asarray(perlen, dtype=float) * 86400e9).astype(
+        'timedelta64[ns]')
+    a = np.searchsorted(ot, t0, side='left')
+    b = np.searchsorted(ot, t1, side='left')
+    csum = np.r_[0.0, np.cumsum(ov)]
+    cnt = b - a
+    with np.errstate(invalid='ignore', divide='ignore'):
+        return np.where(cnt > 0, (csum[b] - csum[a]) / np.maximum(cnt, 1),
+                        np.nan)
+
+
+def _fit(sim, obs):
+    """NSE, r, volume bias [%] and n over the periods both series exist."""
+    sim, obs = np.asarray(sim, dtype=float), np.asarray(obs, dtype=float)
+    m = np.isfinite(sim) & np.isfinite(obs)
+    s, o = sim[m], obs[m]
+    if len(o) < 2 or np.ptp(o) == 0:
+        return None
+    return {'nse': 1.0 - np.sum((s - o) ** 2) / np.sum((o - o.mean()) ** 2),
+            'r': float(np.corrcoef(s, o)[0, 1]),
+            'bias': (100.0 * (s.sum() - o.sum()) / o.sum() if o.sum()
+                     else np.nan),
+            'n': int(len(o)), 'mask': m}
+
+
+# the network budget from the stream's point of view, + into it. MF6 reports
+# ext-inflow, from-mvr and evaporation positive, to-mvr and ext-outflow
+# negative -- and the aquifer exchange POSITIVE WHEN THE STREAM LOSES: the
+# reach solver negates the leakage, qgwf = cond * (h_sfr - h_gw), and routes
+# qd = qsrc - qgwf downstream (gwf-sfr-steady.f90). Checked on a five-reach
+# model: 500 in - 0.1 evaporated - 1.633 'sfr' = 498.267 out.
+_SFR_TERMS = (('net_inflow', 1.0, 'MM runoff in', 'tab:blue'),
+              ('net_from_mvr', 1.0, 'from the ponds', 'tab:cyan'),
+              ('net_leakage', -1.0, 'from the aquifer (net)', 'tab:brown'),
+              ('net_to_mvr', 1.0, 'to the ponds', 'tab:olive'),
+              ('net_evaporation', -1.0, 'open-water evaporation', 'tab:red'),
+              ('net_outflow', 1.0, 'outflow at the outlet', 'tab:purple'))
+
+
+def _fig_stream(sim_ws, name, ds_ws, out, mg, dates=None, verbose=True):
+    """Outlet hydrograph against the gauge, and the SFR budget over time.
+
+    Both from the SFR continuous observations -- one small csv, exact at
+    every step -- rather than the SFR budget file. Nothing is drawn for a
+    run without SFR.
+    """
+    import matplotlib.pyplot as plt
+    import pandas as pd
+    per = sfr_observations(sim_ws, name)
+    if per is None or 'outflow' not in per.columns:
+        return []
+    written = []
+    n = len(per)
+    area = _active_area(mg)
+    if dates is None or len(dates) < n:
+        dates = _dates_from_dataset(ds_ws, n)
+    is_dt = isinstance(dates, pd.DatetimeIndex)
+    x = pd.DatetimeIndex(dates[:n]) if is_dt else np.arange(n)
+    mmyr = 1000.0 * 365.25 / area          # m3/d -> mm/yr over the catchment
+    q = -per['outflow'].to_numpy(dtype=float)       # leaving: > 0
+    tab = pd.DataFrame({'q_sim_m3d': q, 'q_sim_mmd': q * 1000.0 / area},
+                       index=x)
+    if 'stage' in per.columns:
+        tab['stage_m'] = per['stage'].to_numpy()
+    if 'leakage' in per.columns:
+        # MF6's sign: > 0 when the outlet reach loses water to the aquifer
+        tab['to_aquifer_m3d'] = per['leakage'].to_numpy()
+    obs = obs_streamflow(ds_ws) if is_dt else None
+    fit = None
+    if obs is not None:
+        tab['q_obs_mmd'] = _period_mean(obs, x, per['perlen'])
+        tab['q_obs_m3d'] = tab['q_obs_mmd'] * area / 1000.0
+        fit = _fit(tab['q_sim_m3d'], tab['q_obs_m3d'])
+    fn = os.path.join(out, 'outlet_streamflow.csv')
+    tab.to_csv(fn, index_label='date' if is_dt else 'period')
+    written.append(fn)
+
+    fig, axes = plt.subplots(2, 1, figsize=(11, 7.5), sharex=True)
+    for ax, log in zip(axes, (False, True)):
+        ax.plot(x, q, color='tab:blue', lw=0.9, label='simulated, SFR outlet')
+        if obs is not None:
+            ax.plot(x, tab['q_obs_m3d'], ls='none', marker='.', ms=2.5,
+                    color='k', label='observed, %s_catchment' % OBS['ro'])
+        ax.set_ylabel('streamflow [m$^3$/d]')
+        sec = ax.secondary_yaxis('right', functions=(lambda v: v * mmyr,
+                                                     lambda v: v / mmyr))
+        sec.set_ylabel('[mm/yr]')
+        ax.grid(alpha=0.3)
+        if log:
+            pos = q[np.isfinite(q) & (q > 0)]
+            if 'q_obs_m3d' in tab:
+                o = tab['q_obs_m3d'].to_numpy()
+                pos = np.r_[pos, o[np.isfinite(o) & (o > 0)]]
+            if len(pos):
+                ax.set_yscale('log')
+                ax.set_ylim(max(pos.min(), pos.max() * 1e-5) * 0.8,
+                            pos.max() * 1.5)
+            ax.set_title('the same, log scale: baseflow and recessions',
+                         fontsize=9)
+    axes[0].legend(loc='upper right', fontsize=8)
+    head = ('Streamflow at the catchment outlet (catchment %.2f km$^2$); '
+            'simulated mean %.0f mm/yr' % (area / 1e6, np.nanmean(q) * mmyr))
+    if fit is not None:
+        o = tab['q_obs_m3d'].to_numpy()[fit['mask']]
+        s = q[fit['mask']]
+        head += ('\nover the %d period(s) observed: NSE %.2f, r %.2f, '
+                 'volume bias %+.0f %%, simulated %.0f vs observed %.0f mm/yr'
+                 % (fit['n'], fit['nse'], fit['r'], fit['bias'],
+                    s.mean() * mmyr, o.mean() * mmyr))
+    elif obs is not None:
+        head += '\nno observed day falls inside the run'
+    axes[0].set_title(head, fontsize=10)
+    fn = os.path.join(out, 'outlet_streamflow.png')
+    fig.savefig(fn, dpi=140, bbox_inches='tight')
+    plt.close(fig)
+    written.append(fn)
+
+    # --- the network budget over time, in mm over the catchment -------- #
+    terms = [t for t in _SFR_TERMS if t[0] in per.columns]
+    if terms:
+        plen = per['perlen'].to_numpy(dtype=float)
+        vol = pd.DataFrame({lab: sgn * per[c].to_numpy() * plen * 1000.0 / area
+                            for c, sgn, lab, _col in terms}, index=x)
+        by, unit = vol, 'per stress period'
+        if is_dt and n > 62:
+            by = vol.groupby(x.to_period('M')).sum()
+            by.index = by.index.to_timestamp()
+            unit = 'per month'
+        years = float(plen.sum()) / 365.25
+        fig, ax = plt.subplots(figsize=(11, 5))
+        xb = np.arange(len(by))
+        pos = np.zeros(len(by))
+        neg = np.zeros(len(by))
+        for (_c, _s, lab, col) in terms:
+            v = by[lab].to_numpy()
+            tot = vol[lab].sum() / years if years > 0 else np.nan
+            up, dn = np.where(v > 0, v, 0.0), np.where(v < 0, v, 0.0)
+            ax.bar(xb, up, bottom=pos, color=col, width=0.85,
+                   label='%s  (%+.1f mm/yr)' % (lab, tot))
+            ax.bar(xb, dn, bottom=neg, color=col, width=0.85)
+            pos += up
+            neg += dn
+        ax.plot(xb, by.sum(axis=1).to_numpy(), color='k', lw=0.8, marker='.',
+                ms=3, label='closure (sum of the terms)')
+        ax.axhline(0, color='k', lw=0.5)
+        ax.set_ylabel('mm over the catchment, %s' % unit)
+        if is_dt:
+            ix = np.unique(np.linspace(0, len(by) - 1,
+                                       min(len(by), 12)).astype(int))
+            ax.set_xticks(ix)
+            ax.set_xticklabels([by.index[i].strftime('%Y-%m') for i in ix],
+                               rotation=45, ha='right', fontsize=8)
+        ax.set_title('Stream network budget (SFR): + into the stream, '
+                     '- out of it', fontsize=10)
+        ax.legend(fontsize=8, loc='best')
+        ax.grid(alpha=0.3, axis='y')
+        fn = os.path.join(out, 'budget_sfr_ts.png')
+        fig.savefig(fn, dpi=140, bbox_inches='tight')
+        plt.close(fig)
+        written.append(fn)
+        rates = pd.DataFrame({c: per[c].to_numpy() for c, *_r in terms},
+                             index=x)
+        fn = os.path.join(out, 'budget_sfr_period.csv')
+        rates.to_csv(fn, index_label='date' if is_dt else 'period')
+        written.append(fn)
+    if verbose:
+        msg = '   outlet streamflow: mean %.0f m3/d (%.0f mm/yr)' % (
+            np.nanmean(q), np.nanmean(q) * mmyr)
+        if fit is not None:
+            msg += '; against the gauge NSE %.2f, bias %+.0f %% (%d periods)' \
+                % (fit['nse'], fit['bias'], fit['n'])
+        print(msg)
     return written
 
 

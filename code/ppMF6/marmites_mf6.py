@@ -47,6 +47,11 @@ class MF6BuildError(Exception):
     """Invalid input while building the MODFLOW 6 simulation."""
 
 
+# every SFR reach carries this boundname, so an observation named by it is
+# MF6's sum over the whole network
+SFR_BOUNDNAME = 'network'
+
+
 class clsMF6:
     """Build a MODFLOW 6 simulation for the MARMITES coupled model.
 
@@ -615,9 +620,10 @@ class clsMF6:
         # (rno, status, inflow, rainfall, evaporation, runoff, upstream fraction)
         spd0 = [[r, 'INFLOW', 0.0] for r in range(nreaches)]
         # WP3.4: the outlet as continuous observations, <name>.obs.sfr.csv --
-        # what leaves the catchment through the stream, its stage, and its
-        # exchange with the aquifer. MF6 numbers reaches from 1 and flopy
-        # writes observation ids as given.
+        # what leaves the catchment through the stream (< 0, out of SFR), its
+        # stage, and its exchange with the aquifer (> 0 when the reach LOSES
+        # water to it). MF6 numbers reaches from 1 and flopy writes
+        # observation ids as given.
         obs = []
         outs = [net.rno[c] + 1 for c in net.outlets]
         for k, rn in enumerate(outs):
@@ -625,9 +631,24 @@ class clsMF6:
             obs += [('outflow%s' % tag, 'ext-outflow', rn),
                     ('stage%s' % tag, 'stage', rn),
                     ('leakage%s' % tag, 'sfr', rn)]
+        # ...and the network's own budget, which MF6 sums over every reach
+        # sharing one boundname (WP3.6): the MM runoff fed in, the open-water
+        # evaporation, the net exchange with the aquifer, what the ponds take
+        # and give back, and what leaves. Exact at every time step and one
+        # small file, where the SFR budget file costs a read per period.
+        mover = bool(self.lak_mvr and self.ponds)
+        bn = SFR_BOUNDNAME
+        obs += [('net_inflow', 'ext-inflow', bn),
+                ('net_evaporation', 'evaporation', bn),
+                ('net_leakage', 'sfr', bn),
+                ('net_outflow', 'ext-outflow', bn)]
+        if mover:
+            obs += [('net_from_mvr', 'from-mvr', bn),
+                    ('net_to_mvr', 'to-mvr', bn)]
+        packagedata = [list(r) + [bn] for r in net.packagedata]
         self.sfr_obs_csv = f'{name}.obs.sfr.csv'
-        ModflowGwfsfr(gwf, nreaches=nreaches,
-                      packagedata=net.packagedata,
+        ModflowGwfsfr(gwf, nreaches=nreaches, boundnames=True,
+                      packagedata=packagedata,
                       connectiondata=net.connectiondata,
                       perioddata={0: spd0},
                       unit_conversion=86400.0,   # Manning, SI, time unit = day
@@ -636,7 +657,7 @@ class clsMF6:
                       # MOVER itself -- otherwise MF6 stops on 'MODEL AND
                       # PACKAGE "…/SFR" DOES NOT HAVE MOVER SPECIFIED'. LAK
                       # already declared it; SFR did not (WP1d).
-                      mover=bool(self.lak_mvr and self.ponds),
+                      mover=mover,
                       pname='sfr', save_flows=True,
                       budget_filerecord=f'{name}.sfr.cbc',
                       stage_filerecord=f'{name}.sfr.stage',
