@@ -67,6 +67,7 @@ class FakeApi:
         # when set (land-object areas, m2): UZF takes ALL of its demand, the
         # worst case for total ET against PET
         self.uzet_area = None
+        self.uzet_extra = 0.0                 # m/d taken BEYOND the demand
         self.petmax_at_advance = []
         self.pet_used = []                    # PET as the solve saw it
         self.BOUND = np.zeros((ncell, 1))
@@ -145,7 +146,7 @@ class FakeApi:
         if self.uzet_area is not None:
             a = np.asarray(self.uzet_area, dtype=float)
             self.UZET[:] = 0.0
-            self.UZET[:a.size] = -self.PETMAX[:a.size] * a
+            self.UZET[:a.size] = -(self.PETMAX[:a.size] + self.uzet_extra) * a
         # record whichever rate array is in use (Q preferred, see _bind)
         self.q_at_advance.append(self.Q.copy() if np.any(self.Q) else self.BOUND[:, 0].copy())
         self.X += self.dh              # deterministic head evolution per SP

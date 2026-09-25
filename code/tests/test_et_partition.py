@@ -323,3 +323,45 @@ def test_a_dormant_type_draws_no_groundwater():
         assert cpl.n_overdraw == 0
     assert tg[False] > 0.0, 'the case needs groundwater transpiration'
     assert tg[True] == 0.0
+
+
+# ------------------------------------- MF6's own tolerance on UZF's ET
+def _wave(extra_per_m):
+    """UZF takes its whole demand PLUS extra_per_m x 1e-6 m per metre of
+    unsaturated zone (top 705 m, water table 699.9 m: 5.1 m)."""
+    cpl, api, ctx = M._setup(nper=4, mode='lagged', heads0=699.9)
+    cpl.top_cell = np.full(ctx.ncell, 705.0)
+    api.uzet_area = cpl.area
+    api.uzet_extra = extra_per_m * 1e-6 * 5.1
+    res = cpl.run(api)
+    return cpl, ctx, res
+
+
+def test_what_mf6_takes_within_its_wave_tolerance_is_not_et():
+    """Replaying the one-year run of 2026-09-24: UZF took more than the
+    PETMAX written in 612 cell-periods, all within MF6's wave-merging
+    tolerance (1e-6 m per metre of unsaturated zone). Booked apart, it
+    keeps ET within PET and UZF's balance equal to MF6's."""
+    cpl, ctx, res = _wave(0.5)
+    ix = ctx.index
+    ts = np.asarray(res['wb_ts'])
+    assert cpl.n_overdraw == 0
+    assert cpl.n_resid > 0 and cpl.resid_m3 > 0.0
+    assert ts[:, ix['iETuzf_num']].sum() > 0.0
+    rep = cpl.check_solution(raise_on_fail=False)
+    assert rep['et_above_pet'] == 0
+
+
+def test_beyond_the_tolerance_it_stays_et_and_fails_the_run():
+    cpl, ctx, res = _wave(3.0)
+    assert cpl.n_resid == 0 and cpl.n_overdraw > 0
+    rep = cpl.check_solution(raise_on_fail=False)
+    assert not rep['ok']
+
+
+def test_uzf_s_balance_counts_the_residual():
+    src = open(os.path.join(TRUNK, 'ppMF6', 'marmites_postprocess.py'),
+               encoding='utf-8').read()
+    assert "for k in ('iETuzf', 'iRejInf', 'iETuzf_num'):" in src
+    import marmites_indices as mi
+    assert mi.INDEX_MM['iETuzf_num'] == 30

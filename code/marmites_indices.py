@@ -25,6 +25,9 @@ INDEX_MM = {
     # stream reaches (SFR SIMEVAP) and the ponds (LAK EVAP). iEow stays
     # their sum; how much a pond loses is a result in its own right.
     'iEow_sfr': 28, 'iEow_lak': 29,
+    # what MF6's UZF ET routine removed BEYOND the demand, within its own
+    # wave-merging tolerance: a numerical storage loss of UZF, not ET
+    'iETuzf_num': 30,
 }
 
 # per-soil-layer fluxes (MM_S dataset, last axis)

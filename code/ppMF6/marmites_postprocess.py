@@ -1281,7 +1281,9 @@ def _uzf_out(mmv, IX, use=True):
         return 0.0
     v = np.asarray(mmv)
     out = np.zeros(v.shape[0])
-    for k in ('iETuzf', 'iRejInf'):
+    # ... and what MF6's ET routine removed beyond the demand, within its
+    # wave tolerance: not ET, but water gone from UZF all the same
+    for k in ('iETuzf', 'iRejInf', 'iETuzf_num'):
         if k in IX:
             out = out + v[:, IX[k]]
     return out

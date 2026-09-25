@@ -190,6 +190,9 @@ class MF6Coupler:
         self.pet_unmet = None           # catchment PT+PE - (ETsoil+ETuzf+ETg)
         self.n_overdraw = 0
         self.max_overdraw = 0.0
+        # UZF's ET beyond the demand within MF6's wave tolerance (_split_etuzf)
+        self.n_resid, self.resid_max, self.resid_m3 = 0, 0.0, 0.0
+        self._petmax_written = None
         self.p_drnseep = None
         # land-surface elevation per cell, for the water-table plausibility check
         top = getattr(mf6b, 'top', None)
@@ -906,6 +909,7 @@ class MF6Coupler:
             for _p in (self.p_petmax, self.p_pet):
                 if _p is not None:
                     _p[:self.ncell] = dem
+            self._petmax_written = np.array(dem, dtype=float)
         q = -np.asarray(etg, dtype=float) * self.area                 # m3/d, sink
         if self.p_q is not None:
             self.p_q[:self.ncell] = q
@@ -932,12 +936,51 @@ class MF6Coupler:
                           minlength=self.ncell)
         return tot / self.area * self.conv_fact
 
-    def _etuzf_into(self, mm_cells, et, n):
+    # MF6's own tolerance on UZF ET [m of water per m of unsaturated zone].
+    # UNSAT_ETWC books ET as the change in a column's storage, and after
+    # taking it merges wave pairs whose water contents differ by less than
+    # DEM6 = 1e-6 (UzfCellGroup.f90), which moves up to 1e-6 x the depth
+    # between them. Replaying the one-year run of 2026-09-24 against its own
+    # MF6 output: UZF took more than the PETMAX written in 612 cell-periods,
+    # all by less than 0.73 x 1e-6 m per metre of unsaturated zone.
+    UZF_WAVE_TOL = 1e-6
+
+    def _split_etuzf(self, et, n):
+        """UZF's ET as ``(booked, residual)`` [mm/d] per cell.
+
+        TOTAL ET CAN NEVER EXCEED PET, and what the coupler wrote to PETMAX
+        is what PET left for UZF. What MF6 removed beyond it, WITHIN its wave
+        tolerance (UZF_WAVE_TOL x the unsaturated thickness per step), is
+        MF6's numerical storage loss, not evapotranspiration: it is booked
+        apart (iETuzf_num), so UZF's balance still matches MF6's budget and
+        ET stays within the demand. Beyond the tolerance nothing is split --
+        it stays ET, and the PET check fails the run on it.
+        """
+        et = np.asarray(et, dtype=float)
+        dem = getattr(self, '_petmax_written', None)
+        top = self.top_cell
+        if dem is None or top is None or self.heads_hist is None:
+            return et, np.zeros_like(et)
+        over = np.maximum(et - np.asarray(dem, dtype=float)
+                          * self.conv_fact, 0.0)
+        uz = np.maximum(top - np.asarray(self.heads_hist[n], dtype=float), 0.0)
+        p_x = getattr(self, 'p_x', None)
+        if p_x is not None and getattr(self, 'x_index', None) is not None:
+            h_end = np.asarray(p_x, dtype=float)[self.x_index]
+            uz = np.maximum(uz, top - h_end)
+        perlen = float(self.perlen[n]) if n < len(self.perlen) else 1.0
+        tol = self.UZF_WAVE_TOL * uz / max(perlen, 1e-12) * self.conv_fact
+        resid = np.where((over > 0.0) & (over <= tol), over, 0.0)
+        return et - resid, resid
+
+    def _etuzf_into(self, mm_cells, et, n, resid=None):
         """This period's ACTUAL UZF ET into the per-cell vector, the total
         ET made whole, and the PET balance of the period recorded."""
         ix = self.ctx.index
         if 'iETuzf' in ix:
             mm_cells[:, ix['iETuzf']] = et
+        if resid is not None and 'iETuzf_num' in ix:
+            mm_cells[:, ix['iETuzf_num']] = resid
         if 'iETtot' in ix:
             mm_cells[:, ix['iETtot']] += et
         if not all(k in ix for k in ('iPT', 'iPE', 'iETsoil', 'iETg')):
@@ -971,6 +1014,12 @@ class MF6Coupler:
             print('      ERROR: ET above PET in %d cell-period(s), at most '
                   '%.3g mm/d -- this must never happen (check_solution '
                   'fails the run)' % (self.n_overdraw, self.max_overdraw))
+        if getattr(self, 'n_resid', 0):
+            print('      UZF: in %d cell-period(s) MF6 took up to %.3g mm/d '
+                  'beyond the demand, within its own wave tolerance (1e-6 m '
+                  'per metre of unsaturated zone): %.3g m3 in all, booked as '
+                  'UZF numerical loss (iETuzf_num), not ET'
+                  % (self.n_resid, self.resid_max, self.resid_m3))
         # the open water, each package on its own line (WP2 row 2)
         if (self.nreaches or self.nlakes) and 'iEow' in ix:
             ow = {k: float(ts[:, ix[k]].sum()) * y
@@ -1035,6 +1084,7 @@ class MF6Coupler:
         self.pet_unmet = np.zeros(nper_mm)
         self.etuzf_prev = np.zeros(self.ncell)
         self.n_overdraw, self.max_overdraw = 0, 0.0
+        self.n_resid, self.resid_max, self.resid_m3 = 0, 0.0, 0.0
         self.outer_iters = np.zeros(nper_mm, dtype=int)
         # Water-budget aggregates (compact: the full per-cell/per-SP MM array
         # would be ~370 MB). wb_ts = catchment mean of every MM flux per SP;
@@ -1149,10 +1199,18 @@ class MF6Coupler:
                         self.lak_evap_hist[n, :_vol.size] = _vol
                 # WP2 step 5: what UZF actually took this period -- into the
                 # water balance now, and into MM's groundwater ET next period
-                et = self._read_etuzf()
+                et, resid = self._split_etuzf(self._read_etuzf(), n)
                 self.etuzf_hist[n] = et
                 self.etuzf_prev = et
-                self._etuzf_into(mm_cells, et, n)
+                self._etuzf_into(mm_cells, et, n, resid)
+                if resid.any():
+                    self.n_resid += int(np.count_nonzero(resid))
+                    self.resid_max = max(self.resid_max, float(resid.max()))
+                    self.resid_m3 += float(np.sum(resid / self.conv_fact
+                                                  * self.area)
+                                           * float(self.perlen[n]
+                                                   if n < len(self.perlen)
+                                                   else 1.0))
                 mms_cells = np.asarray(out['MM_S'], dtype=np.float64)
                 # CATCHMENT means weight each cell by its AREA. A plain mean
                 # over cells is the catchment only on a uniform grid: on the
