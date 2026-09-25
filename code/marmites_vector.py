@@ -470,8 +470,15 @@ class TargetGrid:
 
     @classmethod
     def from_cMF(cls, cMF):
-        """Whatever grid the run is on -- DISV if it has gridprops, else DIS."""
-        gp = getattr(cMF, 'gridprops', None)
+        """Whatever grid the run is on -- DISV if it has gridprops, else DIS.
+
+        A model PROJECTED onto a mesh carries it as ``mesh_gridprops``, with
+        delr = delc = 1 on its (ncpl, 1) proxy grid. Missing that name, this
+        built a column of 15,915 one-metre squares for La Mata's Voronoi
+        mesh, and the 97 mapped streams burned onto 4 of its cells.
+        """
+        gp = (getattr(cMF, 'mesh_gridprops', None)
+              or getattr(cMF, 'gridprops', None))
         if gp:
             return cls.from_gridprops(gp)
         return cls.structured(cMF.delr, cMF.delc,

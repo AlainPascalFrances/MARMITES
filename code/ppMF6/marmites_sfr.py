@@ -47,7 +47,7 @@ import heapq
 
 import numpy as np
 
-__all__ = ['stream_network', 'build_sfr', 'SFRNetwork']
+__all__ = ['stream_network', 'build_sfr', 'SFRNetwork', 'catchment_outlet']
 
 # defaults (overridable by build_sfr kwargs)
 SFR_RBTH = 0.5        # m,   streambed thickness
@@ -78,6 +78,7 @@ class SFRNetwork(object):
         self.reach_top = None
         self.reach_slope = None
         self.nmono = 0
+        self.bridges = []             # [(cell, routed cell)] joined across a gap
 
     @property
     def nreaches(self):
@@ -89,7 +90,24 @@ class SFRNetwork(object):
                    max(self.acc.values()) if self.acc else 0))
 
 
-def stream_network(pondw, dem, outlets=None, drn_cells=None, topology=None):
+def catchment_outlet(cells, dem, on_edge):
+    """The ONE cell where the mapped network leaves the catchment: the
+    lowest stream cell with a face on the catchment's external boundary.
+
+    The outlet used to be every stream cell that was also a DRN cell. With
+    the outlet drain given as a LINE (2026-09-24) that is every stream cell
+    along 300 m of boundary -- 29 on La Mata's mesh -- and a network with 29
+    exits is not the catchment's. None when no stream cell reaches the
+    boundary: the caller then falls back to the lowest stream cell.
+    """
+    edge = [c for c in cells if on_edge(c)]
+    if not edge:
+        return None
+    return min(edge, key=lambda c: (float(dem[c]), c))
+
+
+def stream_network(pondw, dem, outlets=None, drn_cells=None, topology=None,
+                   coords=None):
     """Route the stream cells of ``pondw`` on ``dem``.
 
     Parameters
@@ -106,6 +124,14 @@ def stream_network(pondw, dem, outlets=None, drn_cells=None, topology=None):
     topology : marmites_topology.MeshTopology, optional
         Shared-face adjacency (WP1c.5). REQUIRED on an unstructured mesh,
         ignored on the structured grid.
+    coords : callable, optional
+        ``coords(cell) -> (x, y)``. Given, a piece of the network that no
+        shared face connects to the rest -- a mapped line crossing the mesh
+        exactly at a vertex, where two cells touch only at a corner -- is
+        joined to the nearest routed cell, preferring one no higher than the
+        piece's lowest cell, and the joins are recorded in ``net.bridges``.
+        The mapped line is continuous; the gap is the burn's, not the
+        stream's. Without it such a piece is an error, as before.
 
         Without it the flood walks the fixed ``_NB8`` stencil, in which the
         neighbour of ``(i, j)`` is ``(i-1, j)`` and so on. Under the
@@ -169,19 +195,49 @@ def stream_network(pondw, dem, outlets=None, drn_cells=None, topology=None):
         recv[c] = None
         # n breaks ties deterministically without comparing tuples
         heapq.heappush(heap, (float(dem[c]), n, c))
-    counter = len(outlets)
+    counter = [len(outlets)]
     order = []
-    while heap:
-        z, _, c = heapq.heappop(heap)
-        order.append(c)
-        for n_ in _nbrs(c):
-            if n_ in sset and n_ not in seen:
-                seen.add(n_)
-                recv[n_] = c
-                # carry the running maximum so a flat cannot re-order the flood
-                heapq.heappush(heap, (max(float(dem[n_]), z), counter, n_))
-                counter += 1
+
+    def _flood(heap):
+        while heap:
+            z, _, c = heapq.heappop(heap)
+            order.append(c)
+            for n_ in _nbrs(c):
+                if n_ in sset and n_ not in seen:
+                    seen.add(n_)
+                    recv[n_] = c
+                    # carry the running maximum so a flat cannot re-order
+                    # the flood
+                    heapq.heappush(heap, (max(float(dem[n_]), z),
+                                          counter[0], n_))
+                    counter[0] += 1
+
+    _flood(heap)
+    bridges = []
     missing = [c for c in cells if c not in seen]
+    while missing and coords is not None:
+        # the piece holding the first unrouted cell, over shared faces
+        piece, todo = {missing[0]}, [missing[0]]
+        while todo:
+            c = todo.pop()
+            for n_ in _nbrs(c):
+                if n_ in sset and n_ not in seen and n_ not in piece:
+                    piece.add(n_)
+                    todo.append(n_)
+        low = min(piece, key=lambda c: (float(dem[c]), c))
+        xl = np.asarray(coords(low), dtype=float)
+        routed = list(seen)
+        xy = np.array([coords(r) for r in routed], dtype=float)
+        dist = np.hypot(xy[:, 0] - xl[0], xy[:, 1] - xl[1])
+        higher = np.array([float(dem[r]) > float(dem[low]) + 1e-9
+                           for r in routed])
+        target = routed[int(np.lexsort((dist, higher))[0])]
+        recv[low] = target
+        seen.add(low)
+        bridges.append((low, target))
+        _flood([(float(dem[low]), counter[0], low)])
+        counter[0] += 1
+        missing = [c for c in cells if c not in seen]
     if missing:
         raise ValueError(
             '%d stream cell(s) do not connect to any outlet, e.g. %s. The '
@@ -200,17 +256,33 @@ def stream_network(pondw, dem, outlets=None, drn_cells=None, topology=None):
     # matters because MF6 writes a downstream connection as -rno and -0 has no
     # sign.
     ordered = list(reversed(order))
-    return SFRNetwork(ordered, recv, order, acc, outlets)
+    net = SFRNetwork(ordered, recv, order, acc, outlets)
+    net.bridges = bridges
+    return net
 
 
 def build_sfr(net, dem, pondhmax=None, pondw=None, delr=None, delc=None,
               botm=None, idomain=None, incision=None,
               rbth=SFR_RBTH, rhk=SFR_RHK, man=SFR_MAN,
-              minslope=SFR_MINSLOPE, cellid=None, verbose=True):
+              minslope=SFR_MINSLOPE, cellid=None, verbose=True,
+              reach_length=None, spacing=None, monotonic=True):
     """Fill ``net.packagedata`` / ``net.connectiondata`` for ModflowGwfsfr.
 
     ``cellid(k, i, j)`` maps a cell to the grid-appropriate cellid (DIS tuple or
     DISV pair); if omitted, ``(k, i, j)`` is used.
+
+    ``reach_length`` (per cell: array or mapping) is the MAPPED channel
+    length inside each cell -- the reach length SFRmaker gives (Leaf et al.
+    2021). ``spacing(c, r)`` is the distance between a reach and the one it
+    drains to, over which its slope is taken. Without them the legacy rule
+    stands: index differences times the mean ``delr``/``delc`` -- right on a
+    structured grid, and on a mesh, whose proxy grid has delr = delc = 1,
+    the difference between two CELL NUMBERS (La Mata: 1,289 km of reaches
+    for 14.2 km of channel).
+
+    ``rbth``, ``rhk`` and ``man`` are one number, or per cell (array or
+    mapping) -- the per-segment values the converter resolved.
+    ``monotonic`` applies the SFRmaker downstream-monotonic bed rule.
     """
     dem = np.asarray(dem, dtype=float)
     cells = net.cells
@@ -222,15 +294,28 @@ def build_sfr(net, dem, pondhmax=None, pondw=None, delr=None, delc=None,
     dx = float(np.mean(delr)) if delr is not None else 1.0
     dy = float(np.mean(delc)) if delc is not None else dx
 
-    # ---- reach length: distance to the receiving cell ------------------ #
+    def _per(v, c):
+        if v is None or np.isscalar(v):
+            return float(v)
+        return float(v[c])
+
+    def _gap(c, r):
+        if spacing is not None:
+            return max(float(spacing(c, r)), SFR_MINLEN)
+        di, dj = abs(r[0] - c[0]), abs(r[1] - c[1])
+        return max(float(np.hypot(di * dy, dj * dx)), SFR_MINLEN)
+
+    # ---- reach length: the mapped channel in the cell ----------------- #
     rlen = []
     for c in cells:
+        if reach_length is not None:
+            rlen.append(max(_per(reach_length, c), SFR_MINLEN))
+            continue
         r = net.recv[c]
         if r is None:                       # outlet: half a cell to the edge
             rlen.append(max(0.5 * (dx + dy) * 0.5, SFR_MINLEN))
             continue
-        di, dj = abs(r[0] - c[0]), abs(r[1] - c[1])
-        rlen.append(max(float(np.hypot(di * dy, dj * dx)), SFR_MINLEN))
+        rlen.append(_gap(c, r))
 
     # ---- width: straight from the PONDw channel map -------------------- #
     if pondw is not None:
@@ -255,7 +340,7 @@ def build_sfr(net, dem, pondhmax=None, pondw=None, delr=None, delc=None,
     # first), so iterate reaches from the headwaters down each path
     top_of = {c: rtp[k] for k, c in enumerate(cells)}
     nmono = 0
-    for c in net.order[::-1]:               # headwater -> outlet
+    for c in (net.order[::-1] if monotonic else ()):  # headwater -> outlet
         r = net.recv[c]
         if r is not None and top_of[r] > top_of[c]:
             top_of[r] = top_of[c]
@@ -269,10 +354,10 @@ def build_sfr(net, dem, pondhmax=None, pondw=None, delr=None, delc=None,
         if r is None:
             # outlet: reuse the gradient of the reach flowing into it, else the floor
             ups = [u for u in cells if net.recv[u] == c]
-            rgrd.append(max(minslope, min((top_of[u] - top_of[c]) / rlen[net.rno[u]]
+            rgrd.append(max(minslope, min((top_of[u] - top_of[c]) / _gap(u, c)
                                           for u in ups)) if ups else minslope)
         else:
-            rgrd.append(max((top_of[c] - top_of[r]) / rlen[k], minslope))
+            rgrd.append(max((top_of[c] - top_of[r]) / _gap(c, r), minslope))
 
     # ---- connectivity --------------------------------------------------- #
     ups_of = {c: [] for c in cells}
@@ -291,15 +376,17 @@ def build_sfr(net, dem, pondhmax=None, pondw=None, delr=None, delc=None,
         # place the reach in the topmost active layer deep enough to hold the
         # streambed: MF6 requires rtp - rbth to sit above the cell bottom
         klay = 0
+        rb = _per(rbth, c)
         if botm is not None:
-            bed_bot = rtp[k] - rbth
+            bed_bot = rtp[k] - rb
             bo = np.asarray(botm, dtype=float)
             while klay < nlay - 1 and (
                     bo[klay][c] >= bed_bot
                     or (idomain is not None and np.asarray(idomain)[klay][c] <= 0)):
                 klay += 1
         packagedata.append([k, cellid(klay, c[0], c[1]), rlen[k], rwid[k],
-                            rgrd[k], rtp[k], rbth, rhk, man, len(conns), 1.0, 0])
+                            rgrd[k], rtp[k], rb, _per(rhk, c), _per(man, c),
+                            len(conns), 1.0, 0])
 
     net.packagedata = packagedata
     net.connectiondata = connectiondata
@@ -316,6 +403,10 @@ def build_sfr(net, dem, pondhmax=None, pondw=None, delr=None, delc=None,
         if nmono:
             print('   monotonic bed smoothing: %d reach top(s) lowered '
                   '(DEM flats/noise)' % nmono)
+        if getattr(net, 'bridges', None):
+            print('   %d piece(s) of the network touched the rest only at a '
+                  'corner and were joined to the nearest reach'
+                  % len(net.bridges))
         nflat = sum(1 for g in rgrd if g <= minslope)
         if nflat:
             print('   %d reach(es) sit on the %.2g minimum-slope floor' % (nflat, minslope))

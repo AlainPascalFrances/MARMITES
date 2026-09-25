@@ -1205,6 +1205,15 @@ def main():
         print('   stream network: %d segment(s) -> %d cell(s), %.0f m mapped'
               % (len(lines), int((b.sfr_pondw > 0).sum()), float(ch_len.sum())))
         b.sfr_rhk = float(a.sfr_rhk)
+        # WP3: the panel's bed rules, and its values where the converter's
+        # per-segment table has none
+        if cfg is not None:
+            b.sfr_min_slope = float(cfg.sfr.min_slope)
+            b.sfr_monotonic = bool(cfg.sfr.monotonic_bed)
+            if cfg.sfr.manning.value is not None:
+                b.sfr_man = float(cfg.sfr.manning.value)
+            if cfg.sfr.rbth.value is not None:
+                b.sfr_rbth = float(cfg.sfr.rbth.value)
     if a.lak:
         shp = a.lak if os.path.isabs(a.lak) else os.path.join(DS, a.lak)
         b.lak_shapefile = shp

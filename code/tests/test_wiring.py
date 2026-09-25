@@ -36,8 +36,6 @@ NOT_WIRED = {
     'surface.meteo_zones': 'no reader in marmites_surface',
     'et.extwc_source': 'the build always takes extwc from thtr',
     'sfr.source': 'the network comes from the dataset CSV',
-    'sfr.min_slope': 'no reader',
-    'sfr.monotonic_bed': 'no reader',
     'lak.source': 'the run reads lak.geometry instead',
     'lak.polygons': 'no reader',
     'lak.surfdep': 'no reader',

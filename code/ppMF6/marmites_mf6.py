@@ -124,6 +124,9 @@ class clsMF6:
         self.sfr_rhk = 0.1               # streambed K [m/d]
         self.sfr_rbth = 0.5              # streambed thickness [m]
         self.sfr_man = 0.035             # Manning's n
+        self.sfr_min_slope = 1e-4        # [sfr] min_slope
+        self.sfr_monotonic = True        # [sfr] monotonic_bed
+        self.sfr_outlet_cellids = set()  # the cellid of each outlet reach
         self.sfr_net = None              # SFRNetwork once built
         self.sfr_reach_of = {}           # (i, j) -> reach number
         # WP1d: the network comes from the MAPPED LINES. sfr_pondw is then the
@@ -479,21 +482,87 @@ class clsMF6:
                  'ncpl': self.ncpl})
         return self._topology
 
+    def _land_surface(self):
+        """The LAND SURFACE on this grid -- not the model top, which is the
+        base of the MMsoil column. A channel is incised below the ground."""
+        z = getattr(self.cMF, 'elev', None)
+        if z is None:
+            return np.asarray(self.top, dtype=float)
+        return np.asarray(np.ma.getdata(z), dtype=float).reshape(
+            np.shape(self.sfr_pondw))
+
+    def _on_catchment_edge(self):
+        """``f(cell)``: does the cell have a face on the catchment's external
+        boundary -- the mesh edge, or an inactive neighbour?"""
+        act = np.asarray(self.idomain, dtype=int).max(axis=0) > 0
+        topo = self.topology()
+        if topo is not None:
+            def f(c):
+                i = int(c[0])
+                return bool(topo.boundary[i]) or any(
+                    not act[n, 0] for n in topo.neighbours[i])
+            return f
+        nr, nc = act.shape
+
+        def g(c):
+            i, j = int(c[0]), int(c[1])
+            for di, dj in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+                a, b = i + di, j + dj
+                if not (0 <= a < nr and 0 <= b < nc) or not act[a, b]:
+                    return True
+            return False
+        return g
+
+    def _segment_values(self, key, default):
+        """Per stream cell, the converter's per-segment ``key`` (manning,
+        rhk, rbth in inputSTREAM_param.csv) -- or ``default`` everywhere
+        when there is no table or no such column."""
+        seg, par = self.sfr_seg_of_cell, self.sfr_seg_params
+        if seg is None or not par:
+            return default
+        out = np.full(np.shape(self.sfr_pondw), float(default))
+        seg = np.asarray(seg)
+        for c in zip(*np.where(np.asarray(self.sfr_pondw) > 0)):
+            row = par.get(int(seg[c])) or {}
+            try:
+                out[c] = float(row[key])
+            except (KeyError, TypeError, ValueError):
+                pass
+        return out
+
     def _build_sfr_network(self):
-        """Route the MARMITES channel map (PONDw) into an SFR reach network."""
+        """Route the mapped channel into an SFR reach network (WP3).
+
+        ONE OUTLET, where the network leaves the catchment -- the lowest
+        stream cell on its boundary -- and the reach geometry from the MAP:
+        each reach as long as the channel mapped inside its cell, its slope
+        over the distance to the next reach, its bed incised below the LAND
+        SURFACE, and Manning, streambed K and thickness per segment as the
+        converter resolved them.
+        """
         self.sfr_outlet_cells = set()
+        self.sfr_outlet_cellids = set()
         if self.sfr_pondw is None:
             self.sfr = False
             return None
-        from marmites_sfr import stream_network, build_sfr
+        from marmites_sfr import catchment_outlet, stream_network, build_sfr
         cMF = self.cMF
-        # outlets: the existing outlet DRN cells that lie on the channel
+        land = self._land_surface()
+        stream = [(int(i), int(j))
+                  for i, j in zip(*np.where(np.asarray(self.sfr_pondw) > 0))]
+        outlet = catchment_outlet(stream, land, self._on_catchment_edge())
+        # the old rule stays the fallback: outlet DRN cells on the channel
         drn_cells = []
         if getattr(cMF, 'drn_yn', 0) == 1:
             drn_cells = [(int(i), int(j))
                          for (_l, i, j, _e, _c) in cMF.layer_row_column_elevation_cond[0]]
-        net = stream_network(self.sfr_pondw, self.top, drn_cells=drn_cells,
-                             topology=self.topology())
+        topo = self.topology()
+        coords = ((lambda c: topo.xy[int(c[0])]) if topo is not None else
+                  (lambda c: (float(c[1]), -float(c[0]))))
+        net = stream_network(self.sfr_pondw, land,
+                             outlets=[outlet] if outlet is not None else None,
+                             drn_cells=drn_cells, topology=topo,
+                             coords=coords)
         # WP1d: width and incision are resolved AFTER routing, because the
         # drainage producer (w = a*A**b) needs contributing area and that is
         # only known once the reaches are ordered. Falling back to sfr_pondw
@@ -510,15 +579,24 @@ class clsMF6:
             if self.sfr_depth_source is not None:
                 dep = channel_depth(net, self.sfr_depth_source, verbose=verbose)
                 self.sfr_pondhmax = as_array(dep, np.shape(self.sfr_pondw))
-        build_sfr(net, self.top, pondhmax=self.sfr_pondhmax, pondw=self.sfr_pondw,
+        spacing = ((lambda c, r: topo.distance(c[0], r[0]))
+                   if topo is not None else None)
+        build_sfr(net, land, pondhmax=self.sfr_pondhmax, pondw=self.sfr_pondw,
                   delr=cMF.delr, delc=cMF.delc, botm=self.botm,
-                  idomain=self.idomain, rbth=self.sfr_rbth, rhk=self.sfr_rhk,
-                  man=self.sfr_man, cellid=self._cellid,
-                  verbose=getattr(self, 'verbose', True))
+                  idomain=self.idomain,
+                  rbth=self._segment_values('rbth', self.sfr_rbth),
+                  rhk=self._segment_values('rhk', self.sfr_rhk),
+                  man=self._segment_values('manning', self.sfr_man),
+                  minslope=float(self.sfr_min_slope),
+                  monotonic=bool(self.sfr_monotonic),
+                  reach_length=self.sfr_cell_length, spacing=spacing,
+                  cellid=self._cellid, verbose=getattr(self, 'verbose', True))
         self.sfr = True
         self.sfr_net = net
         self.sfr_cells = set(net.cells)
         self.sfr_outlet_cells = set(net.outlets)
+        self.sfr_outlet_cellids = {tuple(net.packagedata[net.rno[c]][1])
+                                   for c in net.outlets}
         self.sfr_reach_of = dict(net.rno)
         return net
 
@@ -536,6 +614,18 @@ class clsMF6:
         nreaches = net.nreaches
         # (rno, status, inflow, rainfall, evaporation, runoff, upstream fraction)
         spd0 = [[r, 'INFLOW', 0.0] for r in range(nreaches)]
+        # WP3.4: the outlet as continuous observations, <name>.obs.sfr.csv --
+        # what leaves the catchment through the stream, its stage, and its
+        # exchange with the aquifer. MF6 numbers reaches from 1 and flopy
+        # writes observation ids as given.
+        obs = []
+        outs = [net.rno[c] + 1 for c in net.outlets]
+        for k, rn in enumerate(outs):
+            tag = '' if len(outs) == 1 else '_%d' % (k + 1)
+            obs += [('outflow%s' % tag, 'ext-outflow', rn),
+                    ('stage%s' % tag, 'stage', rn),
+                    ('leakage%s' % tag, 'sfr', rn)]
+        self.sfr_obs_csv = f'{name}.obs.sfr.csv'
         ModflowGwfsfr(gwf, nreaches=nreaches,
                       packagedata=net.packagedata,
                       connectiondata=net.connectiondata,
@@ -549,7 +639,8 @@ class clsMF6:
                       mover=bool(self.lak_mvr and self.ponds),
                       pname='sfr', save_flows=True,
                       budget_filerecord=f'{name}.sfr.cbc',
-                      stage_filerecord=f'{name}.sfr.stage')
+                      stage_filerecord=f'{name}.sfr.stage',
+                      observations={self.sfr_obs_csv: obs})
 
     def _build_ponds(self):
         """Load the pond polygons and give each a host cell and a lake geometry."""
@@ -793,8 +884,12 @@ class clsMF6:
                        for (l, i, j, e, c) in cMF.layer_row_column_elevation_cond[0]
                        # decision 4: the catchment now discharges through the
                        # SFR outlet reach, so keeping the outlet drain as well
-                       # would give the water two exits
-                       if not (self.sfr and (int(i), int(j)) in self.sfr_outlet_cells)]
+                       # would give the water two exits -- but ONLY that one
+                       # record, the reach's own cell and layer (WP3.3): the
+                       # other outlet drains, and the one under the reach in
+                       # the layer below, are legitimate boundary drainage
+                       if not (self.sfr and tuple(self._cellid(l, i, j))
+                               in self.sfr_outlet_cellids)]
             if drn_spd:
                 ModflowGwfdrn(gwf, stress_period_data={0: drn_spd}, pname='drn',
                               maxbound=len(drn_spd), save_flows=True)
