@@ -770,8 +770,12 @@ FIELDS = {
                             'saved heads has one.'),
 
     # ---- panel 6: plots ------------------------------------------------
-    'postproc.enable': ('Post-process', _U, ''),
-    'postproc.only': ('Post-process only', _U,
+    'postproc.enable': ('Output maps and plots', _U,
+                        'Draws the results after the run into _output/ in '
+                        'the run folder: result maps, time series, water '
+                        'balance Sankeys, calibration criteria, and the '
+                        'comparison with the legacy MODFLOW-NWT run.'),
+    'postproc.only': ('Output maps and plots only', _U,
                       'Re-draw from a finished run without re-running it.'),
     'postproc.hydro_year_start': ('Hydrological year starts', 'month',
                                   'Drives the x-axis of every time series and '

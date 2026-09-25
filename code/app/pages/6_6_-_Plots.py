@@ -48,7 +48,11 @@ c2.caption('A run that does not span a whole hydrological year still gets a '
            'figures say so rather than quietly annualising a fortnight.')
 
 st.markdown('#### What to draw')
-edited.update(panelui.section_form(cfg, 'postproc', columns=3))
+# the INPUTS first, as they are drawn first, then the outputs
+edited.update(panelui.section_form(cfg, 'postproc', columns=3,
+                                   only='postproc.input_maps'))
+edited.update(panelui.section_form(cfg, 'postproc', columns=3,
+                                   exclude=('postproc.input_maps',)))
 
 # MMsurf's own figures are a PLOTTING choice, so they are asked here with the
 # rest of them rather than on panel 2 among the records that feed the run.

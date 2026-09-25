@@ -700,17 +700,19 @@ def _source_widget(dotted, src, shown, help_full, key):
     return edits
 
 
-def section_form(cfg, section, columns=2, skip_subpanels=True, only=None):
+def section_form(cfg, section, columns=2, skip_subpanels=True, only=None,
+                 exclude=()):
     """Every plain field of a section, as widgets. Returns the edits.
 
     Conditional blocks (``[grid.voronoi]`` and the like) are left out by
     default and drawn by :func:`subpanel_form` under the field that controls
     them -- settings that only apply for one grid kind should not sit beside
-    the ones that always apply, looking equally live.
+    the ones that always apply, looking equally live. ``exclude`` leaves out
+    fields a page draws somewhere else.
     """
     edited = {}
     rows = [r for r in schema.fields_of(cfg, section)
-            if r[0] not in schema.HIDDEN]
+            if r[0] not in schema.HIDDEN and r[0] not in exclude]
     if only is not None:
         rows = [r for r in rows if r[0].startswith(only)]
     elif skip_subpanels:

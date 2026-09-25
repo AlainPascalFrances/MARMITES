@@ -1581,3 +1581,17 @@ def test_the_solver_is_asked_on_the_run_panel_and_saved():
     finally:
         if os.path.exists(tmp):
             os.remove(tmp)
+
+
+def test_the_plots_panel_asks_for_the_input_maps_first():
+    """One "Input maps" switch, on the top; the rest is the OUTPUT, and
+    says so -- "Post-process" said how, not what."""
+    at = AppTest.from_file(os.path.join(APP, PLOT), default_timeout=300)
+    at.run()
+    assert not at.exception, [str(e.value) for e in at.exception]
+    keys = [c.key for c in at.checkbox if str(c.key).startswith('postproc.')]
+    assert keys[0] == 'postproc.input_maps', keys
+    labels = [c.label for c in at.checkbox]
+    assert sum('Input maps' in lb for lb in labels) == 1, labels
+    assert any('Output maps and plots' in lb for lb in labels), labels
+    assert not any('Post-process' in lb for lb in labels), labels

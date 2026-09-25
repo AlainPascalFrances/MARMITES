@@ -181,6 +181,33 @@ def _pid_alive(pid):
         return False
 
 
+def finished_at(runs_dir, run_id):
+    """When the run ENDED: the last write to its log, which it keeps until
+    its last line -- not when a page happened to notice the process was
+    gone, which with no page open can be hours later. Now, when there is
+    no log to date it by."""
+    p = run_dir(runs_dir, run_id) / _LOG
+    try:
+        if p.exists() and p.stat().st_size > 0:
+            return time.strftime('%Y-%m-%d %H:%M:%S',
+                                 time.localtime(p.stat().st_mtime))
+    except OSError:
+        pass
+    return time.strftime('%Y-%m-%d %H:%M:%S')
+
+
+def duration(started, finished):
+    """'1 h 47 min' between two 'YYYY-mm-dd HH:MM:SS' stamps; '' if either
+    is missing or unreadable."""
+    try:
+        t0 = time.mktime(time.strptime(started, '%Y-%m-%d %H:%M:%S'))
+        t1 = time.mktime(time.strptime(finished, '%Y-%m-%d %H:%M:%S'))
+    except (TypeError, ValueError):
+        return ''
+    m = max(int(round((t1 - t0) / 60.0)), 0)
+    return ('%d h %02d min' % (m // 60, m % 60)) if m >= 60 else '%d min' % m
+
+
 def status(runs_dir, run_id, refresh=True):
     """Read a run's status, refreshing 'running' against the real process."""
     p = run_dir(runs_dir, run_id) / _STATUS
@@ -192,7 +219,7 @@ def status(runs_dir, run_id, refresh=True):
         # The process is gone. We cannot recover its exit code from another
         # process on Windows, so record what we know and say so plainly.
         st['state'] = 'finished'
-        st['finished'] = time.strftime('%Y-%m-%d %H:%M:%S')
+        st['finished'] = finished_at(runs_dir, run_id)
         tail = log_tail(runs_dir, run_id, 40)
         # AN EMPTY LOG IS NOT A SUCCESS. The outcome is inferred from the
         # log, because the exit code of another process cannot be recovered

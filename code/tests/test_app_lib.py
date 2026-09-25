@@ -700,3 +700,20 @@ def test_a_voronoi_far_field_is_not_called_a_cell_size():
         c.title for c in chk.check_grid(_cfg(grid__kind='voronoi')))
     other = chk.describe_grid(_cfg(grid__kind='structured'))
     assert other['size_what'] == 'cell'
+
+
+def test_a_run_is_dated_by_the_last_line_of_its_log(tmp_path):
+    """Not by when a page happened to notice the process had gone -- with
+    no page open that can be hours after the run ended."""
+    d = tmp_path / 'runs' / 'r1'
+    d.mkdir(parents=True)
+    log = d / 'run.log'
+    log.write_text('last line\n', encoding='utf-8')
+    t = time.mktime(time.strptime('2026-09-25 14:52:10', '%Y-%m-%d %H:%M:%S'))
+    os.utime(str(log), (t, t))
+    assert runlib.finished_at(str(tmp_path / 'runs'), 'r1') == '2026-09-25 14:52:10'
+    assert runlib.duration('2026-09-25 13:05:00', '2026-09-25 14:52:10') \
+        == '1 h 47 min'
+    assert runlib.duration('2026-09-25 13:05:00', '2026-09-25 13:50:00') \
+        == '45 min'
+    assert runlib.duration(None, '2026-09-25 13:50:00') == ''

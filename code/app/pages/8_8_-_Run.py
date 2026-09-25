@@ -301,6 +301,14 @@ info = runlib.status(RUNS, sel)
 c1, c2, c3, c4 = st.columns(4)
 c1.metric('State', info.get('state', '?'))
 c2.metric('Outcome', info.get('outcome', '—'))
+# WHEN IT ENDED, under the outcome: the last write to the run's log, and how
+# long the run took
+if info.get('state') == 'finished':
+    # from the log even for a run whose status recorded when a page NOTICED
+    # it had ended (every run finished before 2026-09-25)
+    _end = runlib.finished_at(RUNS, sel)
+    _took = runlib.duration(info.get('started'), _end)
+    c2.caption('at %s%s' % (_end, (' — took %s' % _took) if _took else ''))
 c3.metric('Started', (info.get('started') or '')[-8:])
 c4.metric('PID', info.get('pid', '—'))
 st.code(' '.join(str(x) for x in info.get('cmd', [])), language='bash')
