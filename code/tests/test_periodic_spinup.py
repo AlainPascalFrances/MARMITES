@@ -188,3 +188,58 @@ def test_the_spin_up_loop_carries_all_three_states():
                   'b.thti_from_wc(cpl.uzf_wc_final)', 'st.carried = True',
                   'cpl.carry_in = _carry'):
         assert piece in loop, piece
+
+
+# ------------------------------------------- a run started from saved state
+def _rl():
+    return _load('_mm_runner_saved', os.path.join(HERE, 'run_lamata_mf6.py'))
+
+
+def _fake(nlay=2, nrow=3, ncol=1, ncell=3, nsl=2):
+    b = SimpleNamespace(nlay=nlay, nrow=nrow, ncol=ncol,
+                        thti_from_wc=lambda wc: np.full((nlay, nrow, ncol), 0.2))
+    cpl = SimpleNamespace(uzf_wc_final=np.zeros(4),
+                          carry_out={'exf': np.full(ncell, 1.5),
+                                     'rej': np.full(ncell, 0.5),
+                                     'etuzf': np.full(ncell, 0.1)})
+    st = SimpleNamespace(Ssoil_ini=np.arange(ncell * nsl, dtype=float)
+                         .reshape(ncell, nsl))
+    ctx = SimpleNamespace(ncell=ncell, _nslmax=nsl)
+    return b, cpl, st, ctx
+
+
+def test_the_saved_state_round_trips(tmp_path):
+    rl = _rl()
+    b, cpl, st, ctx = _fake()
+    fn = rl.save_run_state(str(tmp_path / 'hi'), b, cpl, st)
+    assert fn.endswith('hi_state.npz')
+    got = rl.load_run_state(str(tmp_path / 'hi'), b, ctx)
+    assert np.allclose(got['uzf_wc'], 0.2)
+    assert np.allclose(got['soil'], st.Ssoil_ini)
+    assert np.allclose(got['carry']['exf'], 1.5)
+    assert np.allclose(got['carry']['etuzf'], 0.1)
+
+
+def test_a_state_that_does_not_fit_is_not_used(tmp_path, capsys):
+    rl = _rl()
+    b, cpl, st, ctx = _fake()
+    rl.save_run_state(str(tmp_path / 'hi'), b, cpl, st)
+    other = SimpleNamespace(ncell=5, _nslmax=2)
+    assert rl.load_run_state(str(tmp_path / 'hi'), b, other) is None
+    assert 'does not fit' in capsys.readouterr().out
+    assert rl.load_run_state(str(tmp_path / 'none'), b, ctx) is None
+    assert 'panel\'s initial values' in capsys.readouterr().out
+
+
+def test_a_run_from_saved_heads_has_no_steady_period():
+    src = open(os.path.join(HERE, 'run_lamata_mf6.py'), encoding='utf-8').read()
+    block = src[src.index("if _kind == 'saved':"):src.index('b.build()\n    b.write()')]
+    for piece in ('b.steady_first = False', 'load_run_state(pref, b, ctx)',
+                  "b.uzf_thti_carry = saved_state['uzf_wc']"):
+        assert piece in block, piece
+    loop = src[src.index('for cyc in range(ncyc):'):]
+    loop = loop[:loop.index('MMsoil.report_tallies()')]
+    assert "st.Ssoil_ini[:] = saved_state['soil']" in loop
+    assert "saved_state['carry']" in loop
+    assert 'save_run_state(pref, b, cpl, st)' in src
+    assert '(skips the spin-up)' not in src

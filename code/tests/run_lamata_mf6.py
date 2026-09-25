@@ -867,6 +867,64 @@ def _state_sidecar(a, prefix):
     return mcfg.state_sidecar(a.state_dir, prefix)
 
 
+def save_run_state(pref, b, cpl, st):
+    """The rest of where a run ENDED, beside its heads: ``<pref>_state.npz``.
+
+    Heads alone do not say where a run ended. The water the unsaturated
+    zone holds (MF6's WCNEW per UZF object, as the next thti), the soil
+    moisture (MMsoil's state) and the previous day's seepage, rejected
+    infiltration and UZF ET (what the first day reads before MF6 has solved
+    anything) are the rest -- what a periodic spin-up cycle carries, and
+    what a run started from these heads needs to start where this one
+    stopped. Covered by the same scope sidecar as the heads.
+    """
+    shape = (int(b.nlay), int(b.nrow), int(b.ncol))
+    wc = (b.thti_from_wc(cpl.uzf_wc_final)
+          if getattr(cpl, 'uzf_wc_final', None) is not None
+          else np.full(shape, np.nan))
+    carry = getattr(cpl, 'carry_out', None) or {}
+    n = int(np.asarray(st.Ssoil_ini).shape[0])
+    fn = pref + '_state.npz'
+    np.savez(fn, uzf_wc=wc, soil=np.asarray(st.Ssoil_ini, dtype=float),
+             exf=np.asarray(carry.get('exf', np.zeros(n)), dtype=float),
+             rej=np.asarray(carry.get('rej', np.zeros(n)), dtype=float),
+             etuzf=np.asarray(carry.get('etuzf', np.zeros(n)), dtype=float))
+    return fn
+
+
+def load_run_state(pref, b, ctx):
+    """What :func:`save_run_state` wrote for ``pref``, checked against this
+    model -- or None, saying why, when there is none or it does not fit
+    (a state saved before 2026-09-25 has heads only)."""
+    fn = pref + '_state.npz'
+    if not os.path.exists(fn):
+        print('   no %s beside the heads: the unsaturated zone and the soil '
+              'start from the panel\'s initial values'
+              % os.path.basename(fn))
+        return None
+    z = np.load(fn)
+    shape = (int(b.nlay), int(b.nrow), int(b.ncol))
+    soil = np.asarray(z['soil'], dtype=float)
+    want = (int(ctx.ncell), int(ctx._nslmax))
+    bad = [what for what, ok in (
+        ('unsaturated zone %s, model %s' % (z['uzf_wc'].shape, shape),
+         z['uzf_wc'].shape == shape),
+        ('soil %s, model %s' % (soil.shape, want), soil.shape == want),
+        ('exchange terms %d cells, model %d' % (z['exf'].size, want[0]),
+         z['exf'].size == want[0]))
+        if not ok]
+    if bad:
+        print('   %s does not fit this model (%s): the unsaturated zone and '
+              'the soil start from the panel\'s initial values'
+              % (os.path.basename(fn), '; '.join(bad)))
+        return None
+    print('   the unsaturated zone, the soil and the previous day\'s exchange '
+          'terms from %s' % os.path.basename(fn))
+    return {'uzf_wc': np.asarray(z['uzf_wc'], dtype=float), 'soil': soil,
+            'carry': {k: np.asarray(z[k], dtype=float)
+                      for k in ('exf', 'rej', 'etuzf')}}
+
+
 def _write_state_scope(a, cfg, prefix):
     """Record WHICH configuration produced a saved state (WP0.6)."""
     import json
@@ -1161,16 +1219,30 @@ def main():
     # parameter file's array by accident -- that is how a run ends up
     # starting from a state nobody chose.
     _kind, _payload, _why = props.resolve_initial_heads(cfg, a.state_dir)
+    saved_state = None
     if _kind == 'saved':
         pref = _state_in(a, str(_payload), '_l1.asc')
         b.strt_array = b.load_heads_asc(pref)
         print('initial heads loaded from %s_l*.asc' % pref)
+        # A RUN FROM SAVED HEADS STARTS FROM THEM: no steady period, which
+        # MF6 solves ignoring the initial heads -- the saved heads were only
+        # ever a first guess for it. The rest of the saved state, where
+        # there is one, starts the unsaturated zone and the soil.
+        b.steady_first = False
+        saved_state = load_run_state(pref, b, ctx)
+        if saved_state is not None:
+            b.uzf_thti_carry = saved_state['uzf_wc']
+        if a.steady_means:
+            print('   spinup.steady_means is not used: a run from saved heads '
+                  'has no steady period to drive')
     else:
         b.strt_from_dem = tuple(_payload)
     b.build()
     b.write()
-    print('MF6 (%s) simulation written to %s  (%d SPs incl. steady, %d UZF cells, %d wells)'
-          % (a.grid.upper(), a.ws, b.nper, b.nuzfcells, b.ncell))
+    print('MF6 (%s) simulation written to %s  (%d SPs%s, %d UZF cells, %d wells)'
+          % (a.grid.upper(), a.ws, b.nper,
+             ' incl. steady' if b.steady_first else ', no steady period',
+             b.nuzfcells, b.ncell))
     if b.seep == 'drn':
         print('   seepage: DRN_SEEP, %d drains, cond %.4g m2/d, ddrn %.4g m '
               '(UZF SIMULATE_GWSEEP off)'
@@ -1312,7 +1384,12 @@ def main():
             st.carried = True              # the soil the last cycle ended with
         else:
             st = mm.init_state(ctx)
-        _carry = cpl.carry_out if cyc > 0 else None
+            if saved_state is not None:
+                # a run from a saved state: its soil, not the panel's
+                st.Ssoil_ini[:] = saved_state['soil']
+                st.carried = True
+        _carry = (cpl.carry_out if cyc > 0 else
+                  saved_state['carry'] if saved_state is not None else None)
         cpl = MF6Coupler(mm, ctx, st, b, conv_fact=conv_fact,
                          mode=a.mode, relax=a.relax,
                          obs_idx=obs_idx, obs_names=obs_names)
@@ -1434,12 +1511,17 @@ def main():
     if save_pref:
         pref = _state_out(a, save_pref)
         paths = b.save_heads_asc(prev_heads, pref)
+        # ... and the rest of where the run ended, so a run started from
+        # these heads starts where this one stopped
+        paths = list(paths) + [save_run_state(pref, b, cpl, st)]
         _write_state_scope(a, a.config, save_pref)      # WP0.6 scope sidecar
         print('%s heads saved: %s'
               % ('final' if ncyc <= 1 else 'equilibrated' if spin_converged
                  else 'NOT-converged spin-up', ', '.join(
                      os.path.basename(p) for p in paths)))
-        print('   reuse with:  spinup.strt_heads = "%s"   (skips the spin-up)' % save_pref)
+        print('   reuse with:  spinup.strt_heads = "%s"   (a run starts where '
+              'this one ended, with no steady period; spinup.cycles = 1 runs '
+              'it once)' % save_pref)
 
     # Save per-cell mean recharge / ETg so the steady state of later runs can be
     # driven by the dynamic mean (auto after spin-up, or on explicit --save-means).

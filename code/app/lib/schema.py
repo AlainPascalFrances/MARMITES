@@ -748,15 +748,26 @@ FIELDS = {
                    'Routes runoff downslope cell to cell instead of losing '
                    'it at the cell it was generated in.'),
     'crr.beta': ('CRR beta', _U, 'Daoud et al. (2022), Eq. 23.'),
-    'spinup.cycles': ('Spin-up cycles', 'count', ''),
+    'spinup.cycles': ('Spin-up cycles', 'count',
+                      'How many times the forcing is repeated. The first '
+                      'cycle starts from the initial heads below (through a '
+                      'steady period when none are saved); every later one '
+                      'starts where the last one ended -- heads, the water '
+                      'the unsaturated zone holds, the soil -- with no '
+                      'steady period, until the water table returns to '
+                      'where the cycle began (within the tolerance).'),
     'spinup.strt_heads': ('Initial heads', _U,
-                          'A saved, equilibrated head field. Blank starts '
-                          'from the configured initial condition, which for a '
-                          'cold start puts the water table above ground over '
-                          'much of the catchment.'),
+                          'A saved state: the heads, and beside them '
+                          '(<name>_state.npz) the unsaturated zone\'s water, '
+                          'the soil moisture and the last day\'s exchange '
+                          'terms. The run starts from it with NO steady '
+                          'period -- MF6 ignores initial heads in one. Blank '
+                          'starts from the land surface through a steady '
+                          'period.'),
     'spinup.steady_means': ('Steady-state means', _U,
                             'Per-cell recharge and groundwater ET driving the '
-                            'steady first period.'),
+                            'steady first period -- only a run with no '
+                            'saved heads has one.'),
 
     # ---- panel 6: plots ------------------------------------------------
     'postproc.enable': ('Post-process', _U, ''),
