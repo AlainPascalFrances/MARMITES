@@ -145,7 +145,7 @@ def test_reference_config_loads_and_is_the_canonical_run():
     assert c.seep.kind == 'drn'
     assert c.seep.cond == 10000.0
     assert c.postproc.enable is True
-    assert c.postproc.preproc is True
+    assert not hasattr(c.postproc, 'preproc'), 'one input-maps switch'
     # The spin-up fields NAME saved state; they are filled and cleared as the
     # grid changes, so that they are strings is the only durable claim.
     assert isinstance(c.spinup.strt_heads, str)
@@ -347,3 +347,26 @@ def test_a_genuinely_unknown_key_still_raises():
     with pytest.raises(cfgmod.ConfigError) as exc:
         cfgmod.RunConfig.from_dict({'et': {'uzf_ett': True}})
     assert 'uzf_ett' in str(exc.value)
+
+
+def test_one_switch_for_the_input_maps():
+    """The Plots panel showed "Input maps" twice: postproc.preproc ran the
+    input stage and postproc.input_maps the parameter maps inside it, so
+    on/off drew the general map alone. One switch now; an old file with
+    preproc still loads, and says it was dropped."""
+    cfg = cfgmod.RunConfig.from_dict({'postproc': {'preproc': True,
+                                                 'input_maps': True}})
+    assert not hasattr(cfg.postproc, 'preproc')
+    assert cfg.postproc.input_maps is True
+    assert 'postproc.preproc is gone' in ' '.join(cfg.migrated)
+    import sys
+    app = os.path.join(TRUNK, 'app')
+    if app not in sys.path:
+        sys.path.insert(0, app)
+    from lib import schema
+    labels = [schema.describe(d)[0] for d, _v in
+              schema.fields_of(cfgmod.RunConfig.from_dict({}), 'postproc')]
+    assert labels.count('Input maps') == 1, labels
+    src = open(os.path.join(TRUNK, 'tests', 'run_lamata_mf6.py'),
+               encoding='utf-8').read()
+    assert 'preproc=cfg.postproc.input_maps' in src

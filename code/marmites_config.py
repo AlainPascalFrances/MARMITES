@@ -1376,7 +1376,6 @@ class Postproc:
     """Panel 4 -- plotting. Run when ``run.plot`` is true."""
 
     enable: bool = False           #                           (--postproc)
-    preproc: bool = False          #                           (--preproc)
     only: bool = False             #                           (--postproc-only)
     sankey_min_flux: float = 0.05  #                           (--sankey-min-flux)
     sankey_full: bool = True       #                           (--no-sankey-full)
@@ -1391,7 +1390,11 @@ class Postproc:
     wb_unit: str = 'year'          # year | day                (plt_WB_unit)
     obs_series: bool = True        # per-point series + balance  (plt_out_obs)
     sankey: bool = True            #                           (WBsankey_yn)
-    input_maps: bool = False       #                           (plt_input)
+    # THE INPUT STAGE, one switch: the site's general map and every
+    # parameter field as a map, into <run>/_input/. It was two, both shown
+    # as "Input maps": `preproc` ran the stage and `input_maps` the maps in
+    # it, so on/off drew the general map alone (2026-09-24).
+    input_maps: bool = False       #              (plt_input; --preproc)
     result_maps: bool = True       # the plotLAYER map families
     tick_trimester_years: int = 10  #                   (maxYearsTickTrimester)
     tick_semester_years: int = 20  #                    (maxYearsTickSemester)
@@ -1499,6 +1502,11 @@ RETIRED = {
     'et': {'uzf_et': 'UZF always simulates unsaturated-zone ET (WP2): total '
                      'ET has three sources and the deep unsaturated zone is '
                      'one of them, so there is no off position'},
+    'postproc': {'preproc': 'postproc.input_maps is the one switch for '
+                            'the input stage now -- the general map and the '
+                            'parameter maps; preproc turned the stage on and '
+                            'input_maps the maps in it, both shown as "Input '
+                            'maps"'},
     'soil': {'params': 'the soil column is the [[soil.zone]] and '
                        '[[soil.horizon]] tables now, edited on the Soil '
                        'panel; an old inputSOILparam.txt is imported there '

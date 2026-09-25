@@ -771,7 +771,6 @@ FIELDS = {
 
     # ---- panel 6: plots ------------------------------------------------
     'postproc.enable': ('Post-process', _U, ''),
-    'postproc.preproc': ('Input maps', _U, 'Draw the inputs as maps first.'),
     'postproc.only': ('Post-process only', _U,
                       'Re-draw from a finished run without re-running it.'),
     'postproc.hydro_year_start': ('Hydrological year starts', 'month',
@@ -786,7 +785,13 @@ FIELDS = {
                         'hydrological year and for the whole period.'),
     'postproc.sankey_min_flux': ('Sankey flux threshold', 'mm/y',
                                  'Flows below this are not drawn.'),
-    'postproc.input_maps': ('Input maps', _U, ''),
+    'postproc.input_maps': ('Input maps', _U,
+                            'Draws the inputs into _input/ in the run '
+                            'folder: the general map of the site from the GIS '
+                            'layers, and '
+                            'every parameter field -- geometry, aquifer, UZF, '
+                            'boundaries, soil, meteo, irrigation, vegetation '
+                            '-- as a map on the model grid (IN_nnn_*).'),
     'postproc.result_maps': ('Result maps', _U, ''),
     'postproc.map_days': ('Map days', 'count',
                           '0 draws the time mean only.'),

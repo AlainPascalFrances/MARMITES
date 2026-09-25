@@ -1034,7 +1034,8 @@ def _args_from_config(cfg, probe=False):
         # postproc.enable as a field, and each promises to stop the figures.
         # run.plot was read by nothing, so only one of the two kept its word.
         postproc=bool(cfg.postproc.enable and cfg.run.plot),
-        preproc=cfg.postproc.preproc,
+        # the input stage: [postproc] input_maps, the one switch for it
+        preproc=cfg.postproc.input_maps,
         postproc_only=cfg.postproc.only, gis_ws=_or_none(cfg.paths.gis_ws),
         sankey_min_flux=cfg.postproc.sankey_min_flux,
         sankey_full=cfg.postproc.sankey_full,

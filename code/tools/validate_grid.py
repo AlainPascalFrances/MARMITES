@@ -290,7 +290,7 @@ def run_case(overrides, tag, nsp, config=None, python_exe=None, quiet=True):
     sets.setdefault('spinup.steady_means', '')
     sets.setdefault('spinup.cycles', '1')
     sets.setdefault('postproc.enable', 'false')
-    sets.setdefault('postproc.preproc', 'false')
+    sets.setdefault('postproc.input_maps', 'false')
     for k, v in sets.items():
         cmd += ['--set', '%s=%s' % (k, v)]
     env = dict(os.environ, MPLBACKEND='Agg')

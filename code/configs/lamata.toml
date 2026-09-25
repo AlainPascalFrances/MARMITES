@@ -468,7 +468,6 @@ inner_rclose = 0.01
 
 [postproc]
 enable = true
-preproc = true
 only = false
 sankey_min_flux = 0.05
 sankey_full = true

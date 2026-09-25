@@ -49,7 +49,7 @@ _STORE_TRUE = {
     '--build-only': ('run', 'build_only'),
     '--sfr': ('sfr', 'enable'),
     '--postproc': ('postproc', 'enable'),
-    '--preproc': ('postproc', 'preproc'),
+    '--preproc': ('postproc', 'input_maps'),
     '--postproc-only': ('postproc', 'only'),
     '--sankey-obs-years': ('postproc', 'sankey_obs_years'),
     '--allow-bad-budget': ('run', 'allow_bad_budget'),
