@@ -291,6 +291,9 @@ before adopting it as the reference configuration.
 
 ## 8.2 SFR
 
+> **Superseded by §8.16 (WP3, 2026-09-26)** for the network source, the
+> outlet and the reach geometry. The routing principle below still holds.
+
 The stream network was already in the MARMITES inputs: `inputPONDw.asc` gives a
 channel width for 244 cells (1.5–3.0 m) and `inputPONDhmax.asc` a channel depth
 (1.0–1.5 m). One reach per stream cell.
@@ -830,3 +833,63 @@ vs discharge / boundary conditions / soil parameters), shared by the NWT and MF6
 models alike, and is a hydrological-calibration task for the modeller, not a
 coupling defect. `plot_water_budget.py` (now wired into --postproc) quantifies
 the MF6-vs-NWT agreement flux by flux in 00_summary.txt / 03_wb_totals.png.
+
+## 8.16 WP3: the network rebuilt the SFRmaker way (2026-09-26)
+
+The network is no longer the 244-cell raster of §8.2. It is the mapped
+hydrography (`inputSTREAM.csv`, 97 segments) burned onto the model grid.
+On La Mata's Voronoi mesh that gives 2663 reaches and 14,238 m, equal to the
+mapped length. The attributes follow SFRmaker (Leaf et al. 2021):
+
+- **One outlet**, where the network leaves the catchment: the lowest stream
+  cell with a face on the catchment boundary (mesh cell 4340). The old rule
+  (every stream cell that was also an outlet DRN cell) gave 29 exits once
+  the outlet drain became a line.
+- **Reach length** = the channel length mapped inside the cell (0.1-10.5 m
+  on the mesh). The old rule took index differences times delr/delc, which
+  on the mesh's (ncpl, 1) proxy grid meant differences of *cell numbers*:
+  1,289 km of reaches for 14.2 km of channel.
+- **Slope** over the centroid spacing to the next reach. **Bed** = land
+  surface (`cMF.elev`, not the model top, which is the soil base) minus the
+  incision, then downstream-monotonic: 233 tops lowered, 316 reaches on the
+  1e-4 floor.
+- Manning's n, streambed K and thickness per segment from
+  `inputSTREAM_param.csv`, with the panel value where the table has none.
+- **Corner-only pieces.** A mapped line that crosses the mesh exactly at a
+  vertex leaves two cells touching only at a corner. Two pieces of segment 5
+  were joined this way to the nearest reach that is not higher (cell 6101 of
+  segment 4, 68.6 and 31.5 m away). Segment 5 is the channel just below the
+  delineated outlet, 36 of its 158 m outside the domain, so draining it
+  through segment 4 is consistent with the DEM.
+- **Outlet drain (decision 4 revised, cookbook 3.3).** Only the outlet
+  reach's own DRN record (its cell and layer) is removed: 1 of the 164
+  line-drain records. The layer-2 drain beneath it and the rest of the line
+  are legitimate boundary drainage and stay.
+- **Burning onto the mesh.** `TargetGrid.from_cMF` now reads
+  `mesh_gridprops`. Before that fix it burned the 97 streams onto 4 cells
+  of the proxy grid.
+
+**Observations** (`<name>.obs.sfr.csv`). The outlet reach's ext-outflow,
+stage and leakage are recorded, plus network totals that MF6 sums over the
+boundname `network`: ext-inflow (MM runoff), evaporation, leakage,
+ext-outflow, and to/from-mvr when the ponds are on. **Sign:** the `sfr`
+observation is positive when the stream *loses* to the aquifer. The reach
+solver negates the leakage and routes `qd = qsrc - qgwf`
+(`gwf-sfr-steady.f90`); a five-reach test model closes as
+500 in - 0.1 evaporated - 1.633 `sfr` = 498.267 out.
+
+**Post-processing.**
+- `sfr_observations()` collapses the csv to one row per stress period, as
+  the time-weighted mean of the ATS steps, with the steady period dropped.
+- `outlet_streamflow.png`/`.csv` compares the outlet discharge (m3/d, with a
+  mm/yr axis) to `inputObsRo_catchment.txt` (mm/d), with NSE, r and volume
+  bias.
+- `budget_sfr_ts.png` shows the network budget month by month.
+
+**Expect storm peaks below the gauge until CRR (WP5).** Only the runoff
+generated on channel cells is delivered to the reaches today; off-channel
+runoff still leaves the model as in the legacy MARMITES.
+
+**Known limitation (R1).** MF6 has no unsaturated zone beneath a reach, so
+streambed seepage reaches the water table directly. This is now stated in
+the SFR panel help and in `docs/MARMITES_overview.md`.

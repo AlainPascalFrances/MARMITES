@@ -722,7 +722,14 @@ FIELDS = {
                   'grid-dependent -- retune it when the grid changes.'),
     'sfr.enable': ('Stream routing (SFR)', _U,
                    'The network is the mapped hydrography, burned onto the '
-                   'grid at run time.'),
+                   'grid at run time, with ONE outlet where it leaves the '
+                   'catchment. KNOWN LIMITATION: a reach exchanges directly '
+                   'with the aquifer -- MODFLOW 6 has no unsaturated zone '
+                   'beneath streams (NWT\'s SFR2+UZF1 had one), and MVR '
+                   'cannot add it. Acceptable where the channel follows a '
+                   'shallow water table, as in La Mata. Until CRR is on, '
+                   'only the runoff generated on channel cells reaches the '
+                   'stream.'),
     'sfr.min_slope': ('Minimum reach slope', 'm/m', ''),
     'sfr.monotonic_bed': ('Downstream-monotonic bed', _U,
                           'The SFRmaker rule: a bed that rises downstream is '
