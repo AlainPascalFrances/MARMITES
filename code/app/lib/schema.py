@@ -799,7 +799,11 @@ FIELDS = {
     'postproc.input_maps': ('Input maps', _U,
                             'Draws the inputs into _input/ in the run '
                             'folder: the general map of the site from the GIS '
-                            'layers, and '
+                            'layers; the model map (IN_000_model_map) -- grid, '
+                            'catchment, observation points, streams, ponds, and '
+                            'the SFR, LAK, DRN and GHB cells in the CdL '
+                            'symbology, with the SFR outlet cell and the pond '
+                            'IDs; and '
                             'every parameter field -- geometry, aquifer, UZF, '
                             'boundaries, soil, meteo, irrigation, vegetation '
                             '-- as a map on the model grid (IN_nnn_*).'),

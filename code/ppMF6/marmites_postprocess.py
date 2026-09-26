@@ -40,7 +40,7 @@ import numpy as np
 __all__ = ['run_postproc', 'run_preproc', 'obs_points', 'obs_series',
            'budget_by_compartment', 'package_budget', 'layer_storage_change',
            'native_suite', 'COMPARTMENT', 'sfr_observations',
-           'obs_streamflow']
+           'obs_streamflow', 'model_map_features']
 
 # MARMITES input maps (soil-water-balance side) and the MODFLOW input maps
 # (aquifer side). Both belong in the preprocessing channel: the MM script
@@ -803,6 +803,15 @@ def run_preproc(sim_ws, ds_ws, name='lamatamm', mf_ws=None, verbose=True,
         if verbose:
             print('   general map skipped: %r' % exc)
 
+    # --- the model map: grid, streams, ponds, boundary packages ------- #
+    try:
+        written += _fig_model_map(out, sim_ws, name, ds_ws,
+                                  title=os.path.basename(os.path.normpath(ds_ws)),
+                                  verbose=verbose)
+    except Exception as exc:               # pragma: no cover
+        if verbose:
+            print('   model map skipped: %r' % exc)
+
     # --- the native parameter-field maps ------------------------------ #
     # [postproc] input_maps: drawn whatever the Plots panel said, until now.
     if not input_maps:
@@ -818,6 +827,281 @@ def run_preproc(sim_ws, ds_ws, name='lamatamm', mf_ws=None, verbose=True,
     if verbose:
         print('preproc: %d file(s) written to %s' % (len(written), out))
     return written
+
+
+# --------------------------------------------------------------------- #
+# the model map: grid, catchment, streams, ponds, boundary packages
+# --------------------------------------------------------------------- #
+
+def _geojson_polygons(fn):
+    """``([(properties, [exterior ring, ...]), ...], crs)`` from a GeoJSON file
+    the converter wrote; rings as (n, 2) arrays. ``([], None)`` when absent."""
+    import json
+    if not fn or not os.path.exists(fn):
+        return [], None
+    with open(fn, encoding='utf-8') as fh:
+        d = json.load(fh)
+    out = []
+    for f in d.get('features', []):
+        g = f.get('geometry') or {}
+        polys = ([g.get('coordinates', [])] if g.get('type') == 'Polygon'
+                 else g.get('coordinates', []) if g.get('type') == 'MultiPolygon'
+                 else [])
+        rings = [np.asarray(p[0], dtype=float)[:, :2] for p in polys if p]
+        out.append((f.get('properties') or {}, rings))
+    return out, (d.get('marmites') or {}).get('crs')
+
+
+def _ring_centroid(r):
+    """Area centroid of a ring, taken relative to its first vertex (UTM)."""
+    x0, y0 = r[0]
+    x, y = r[:, 0] - x0, r[:, 1] - y0
+    cr = x * np.roll(y, -1) - np.roll(x, -1) * y
+    a = cr.sum() / 2.0
+    if abs(a) < 1e-12:
+        return float(r[:, 0].mean()), float(r[:, 1].mean())
+    return (float(x0 + ((x + np.roll(x, -1)) * cr).sum() / (6.0 * a)),
+            float(y0 + ((y + np.roll(y, -1)) * cr).sum() / (6.0 * a)))
+
+
+def model_map_features(sim_ws, name=None):
+    """What the model map draws, read from the WRITTEN simulation.
+
+    Returns a dict: ``mg`` (the flopy grid), ``node`` (cellid -> cell
+    number), and the cell numbers of the SFR reaches, the SFR outlets and
+    inlets (reaches given a specified inflow), the LAK host cells, and the
+    DRN (the outlet drain, not the seepage drains) and GHB cells. None when
+    ``sim_ws`` holds no simulation.
+    """
+    import flopy
+    if not os.path.exists(os.path.join(sim_ws, 'mfsim.nam')):
+        return None
+    sim = flopy.mf6.MFSimulation.load(
+        sim_ws=sim_ws, verbosity_level=0,
+        load_only=['dis', 'disv', 'drn', 'ghb', 'sfr', 'lak'])
+    gwf = (sim.get_model(name) if name and name in sim.model_names
+           else sim.get_model())
+    mg = gwf.modelgrid
+    vertex = mg.grid_type == 'vertex'
+    ncol = 1 if vertex else int(mg.ncol)
+
+    def node(cid):
+        c = [int(v) for v in cid]
+        return c[1] if vertex else c[1] * ncol + c[2]
+
+    pk = {p.package_name.lower(): p for p in gwf.packagelist}
+    f = {'mg': mg, 'node': node, 'sfr': [], 'outlet': [], 'inlet': [],
+         'lak': [], 'drn': [], 'ghb': [], 'nreaches': 0}
+    for key in ('drn', 'ghb'):
+        if key in pk:
+            spd = pk[key].stress_period_data.get_data(0)
+            if spd is not None and len(spd):
+                f[key] = sorted({node(c) for c in spd['cellid']})
+    if 'sfr' in pk:
+        s = pk['sfr']
+        pdat = s.packagedata.get_data()
+        cell_of = {int(r['ifno']): node(r['cellid']) for r in pdat}
+        f['sfr'] = sorted(set(cell_of.values()))
+        f['nreaches'] = len(cell_of)
+        cd = s.connectiondata.get_data()
+        ics = [n for n in cd.dtype.names if n != 'ifno']
+        for r in cd:
+            v = np.array([r[n] for n in ics], dtype=float)
+            v = v[np.isfinite(v)]
+            # MF6 writes a downstream connection as a NEGATIVE reach number,
+            # and reach 0 is a headwater, so -0 never occurs
+            if not (v < 0).any():
+                f['outlet'].append(cell_of[int(r['ifno'])])
+        spd = s.perioddata.get_data(0) if s.perioddata.has_data() else None
+        if spd is not None:
+            for r in spd:
+                if str(r['sfrsetting']).lower() == 'inflow':
+                    try:
+                        if float(r['sfrsetting_data']) > 0:
+                            f['inlet'].append(cell_of[int(r['ifno'])])
+                    except (TypeError, ValueError):
+                        pass       # a time series: named, so not an inlet here
+    if 'lak' in pk:
+        cd = pk['lak'].connectiondata.get_data()
+        if cd is not None and len(cd):
+            f['lak'] = sorted({node(c) for c in cd['cellid']})
+    return f
+
+
+def _fig_model_map(out, sim_ws, name, ds_ws, title=None, verbose=True):
+    """IN_000_model_map.png -- the model on one page, in the CdL symbology.
+
+    The grid, the catchment boundary (black), the observation points
+    (magenta diamonds), the mapped stream network (blue), the ponds
+    (outlined dark blue) and the cells the packages occupy: SFR light blue, LAK orange.
+    Boundary packages follow cdl_gwf_model_fable_v2 §14b -- the SHAPE is the
+    package (DRN square, SFR triangle, GHB circle) and the COLOUR the
+    direction (red out, blue in). The SFR outlet's cell number and the pond
+    IDs are written in orange. Everything is read from the written
+    simulation and the dataset's own files, never from a shapefile.
+    """
+    import matplotlib.patheffects as pe
+    import matplotlib.pyplot as plt
+    from matplotlib.collections import LineCollection, PatchCollection
+    from matplotlib.legend_handler import HandlerTuple
+    from matplotlib.lines import Line2D
+    from matplotlib.patches import Patch
+    from matplotlib.patches import Polygon as MplPoly
+    f = model_map_features(sim_ws, name)
+    if f is None:
+        return []
+    mg = f['mg']
+    xc = np.asarray(mg.xcellcenters, dtype=float).ravel()
+    yc = np.asarray(mg.ycellcenters, dtype=float).ravel()
+    ncell = len(xc)
+
+    def patches(nodes):
+        return [MplPoly(np.asarray(mg.get_cell_vertices(int(n)))[:, :2],
+                        closed=True) for n in nodes]
+
+    x0, x1, y0, y1 = mg.extent
+    h = float(np.clip(10.0 * (y1 - y0) / max(x1 - x0, 1.0), 6.0, 14.0))
+    fig, ax = plt.subplots(figsize=(10, h))
+    ax.add_collection(PatchCollection(patches(range(ncell)), facecolor='none',
+                                      edgecolor='0.8', lw=0.2, zorder=1))
+    handles, labels = [], []
+
+    def key(h_, lab):
+        handles.append(h_)
+        labels.append(lab)
+
+    # the catchment boundary
+    bnd, crs = _geojson_polygons(os.path.join(ds_ws, 'inputBOUNDARY.geojson'))
+    for _p, rings in bnd:
+        for r in rings:
+            ax.plot(r[:, 0], r[:, 1], color='k', lw=1.2, zorder=5)
+    if bnd:
+        key(Line2D([0], [0], color='k', lw=1.2), 'catchment boundary')
+
+    # the mapped stream network
+    fn = os.path.join(ds_ws, 'inputSTREAM.csv')
+    if os.path.exists(fn):
+        try:
+            import marmites_channel as mch
+            lines, _par = mch.read_stream_lines(fn)
+            ax.add_collection(LineCollection(
+                [np.asarray(v) for v in lines.values()], colors='tab:blue',
+                lw=1.3, zorder=4))
+            key(Line2D([0], [0], color='tab:blue', lw=1.3), 'stream network')
+        except Exception as exc:           # pragma: no cover
+            if verbose:
+                print('   model map: stream network skipped: %r' % exc)
+
+    halo = [pe.withStroke(linewidth=2.2, foreground='white')]
+    if f['sfr']:
+        # a stroked edge as well as the fill: a mesh refined along the
+        # channel has reach cells a few metres wide, which a bare fill would
+        # leave hidden under the stream line
+        ax.add_collection(PatchCollection(patches(f['sfr']),
+                                          facecolor='deepskyblue', alpha=0.45,
+                                          edgecolor='deepskyblue', lw=2.5,
+                                          zorder=2))
+        key(Patch(facecolor='deepskyblue', alpha=0.45), 'SFR reach cells')
+    if f['lak']:
+        ax.add_collection(PatchCollection(patches(f['lak']),
+                                          facecolor='orange', alpha=0.75,
+                                          edgecolor='none', zorder=3))
+        key(Patch(facecolor='orange', alpha=0.75), 'LAK cells')
+
+    # the ponds, OUTLINED in dark blue as in CdL (a fill would hide the
+    # LAK cells beneath), and their IDs in orange
+    ponds, _c = _geojson_polygons(os.path.join(ds_ws, 'inputPONDS.geojson'))
+    for props, rings in ponds:
+        for r in rings:
+            ax.plot(r[:, 0], r[:, 1], color='navy', lw=1.0, zorder=4)
+        if rings:
+            pid = props.get('id', props.get('fid', ''))
+            cx, cy = _ring_centroid(rings[0])
+            ax.annotate('%s' % pid, (cx, cy), color='darkorange', fontsize=7.5,
+                        fontweight='bold', ha='center', va='bottom',
+                        xytext=(0, 6), textcoords='offset points', zorder=9,
+                        path_effects=halo)
+    if ponds:
+        key(Line2D([0], [0], color='navy', lw=1.0), 'ponds (ID in orange)')
+
+    # boundary packages: shape = package, colour = direction
+    M_DRN, M_SFR, M_GHB = 's', '^', 'o'
+    C_IN, C_OUT = 'royalblue', 'red'
+    S_BAND, S_PT = 27, 82
+    if f['ghb']:
+        ax.scatter(xc[f['ghb']], yc[f['ghb']], marker=M_GHB, s=S_BAND, c=C_IN,
+                   edgecolors='k', linewidths=0.4, zorder=6)
+    if f['drn']:
+        ax.scatter(xc[f['drn']], yc[f['drn']], marker=M_DRN, s=S_BAND,
+                   c=C_OUT, edgecolors='k', linewidths=0.4, zorder=6)
+    if f['inlet']:
+        ax.scatter(xc[f['inlet']], yc[f['inlet']], marker=M_SFR, s=S_PT + 20,
+                   c=C_IN, edgecolors='k', linewidths=0.9, zorder=8)
+    for n in f['outlet']:
+        ax.scatter(xc[n], yc[n], marker=M_SFR, s=S_PT + 20, c=C_OUT,
+                   edgecolors='k', linewidths=0.9, zorder=8)
+        ax.annotate('outlet: cell %d' % n, (xc[n], yc[n]), color='darkorange',
+                    fontsize=8, fontweight='bold', xytext=(9, -14),
+                    textcoords='offset points', zorder=9, path_effects=halo)
+
+    def shape(m):
+        return Line2D([0], [0], marker=m, color='w', markerfacecolor='none',
+                      markeredgecolor='k', markeredgewidth=1.1, markersize=7,
+                      linestyle='none')
+    if f['sfr']:
+        key(shape(M_SFR), 'SFR  (inflow / outlet)')
+    if f['ghb']:
+        key(shape(M_GHB), 'GHB  (inflow)')
+    if f['drn']:
+        key(shape(M_DRN), 'DRN  (outflow)')
+    if f['sfr'] or f['ghb'] or f['drn']:
+        key((Patch(facecolor=C_OUT, edgecolor='k'),
+             Patch(facecolor=C_IN, edgecolor='k')),
+            'red: outflow;  blue: inflow')
+
+    # observation points
+    try:
+        pts = obs_points(ds_ws)
+    except (OSError, ValueError):
+        pts = []
+    for p in pts:
+        ax.scatter(p['x'], p['y'], marker='D', s=48, c='magenta',
+                   edgecolors='k', linewidths=0.8, zorder=7)
+        ax.annotate(p['name'], (p['x'], p['y']), textcoords='offset points',
+                    xytext=(5, 4), fontsize=8, fontweight='bold', zorder=7,
+                    path_effects=halo)
+    if pts:
+        key(Line2D([0], [0], marker='D', color='w', markerfacecolor='magenta',
+                   markeredgecolor='k', markersize=6, linestyle='none'),
+            'obs points')
+
+    ax.legend(handles, labels, loc='upper right', fontsize=6, framealpha=0.95,
+              labelspacing=0.35, handlelength=1.4, handleheight=1.0,
+              handletextpad=0.5, borderpad=0.4,
+              handler_map={tuple: HandlerTuple(ndivide=None)})
+    kind = 'DISV' if mg.grid_type == 'vertex' else 'DIS'
+    head = '%s model -- %d cells (%s)' % (title or name, ncell, kind)
+    if f['nreaches']:
+        head += ', %d SFR reaches' % f['nreaches']
+    if ponds:
+        head += ', %d ponds' % len(ponds)
+    ax.set_title(head)
+    if f['outlet']:
+        ax.text(0.01, 0.01, 'cell numbers from 0, as in the run log; the MF6 '
+                'files count from 1', transform=ax.transAxes, fontsize=6.5,
+                color='0.4', zorder=9)
+    ax.ticklabel_format(useOffset=False, style='plain')
+    ax.set_xlabel('X (m%s)' % (', ' + crs if crs else ''))
+    ax.set_ylabel('Y (m)')
+    ax.set_xlim(x0, x1)
+    ax.set_ylim(y0, y1)
+    ax.set_aspect('equal')
+    fn = os.path.join(out, 'IN_000_model_map.png')
+    fig.savefig(fn, dpi=150, bbox_inches='tight')
+    plt.close(fig)
+    if verbose:
+        print('   model map: %s' % fn)
+    return [fn]
 
 
 # Where the site's GIS layers live: in the WORKSPACE, never in the repo. The
