@@ -864,21 +864,25 @@ def _ring_centroid(r):
             float(y0 + ((y + np.roll(y, -1)) * cr).sum() / (6.0 * a)))
 
 
-def model_map_features(sim_ws, name=None):
+def model_map_features(sim_ws, name=None, ds_ws=None):
     """What the model map draws, read from the WRITTEN simulation.
 
     Returns a dict: ``mg`` (the flopy grid), ``node`` (cellid -> cell
     number), and the cell numbers of the SFR reaches, the SFR outlets and
     inlets (reaches given a specified inflow), the LAK host cells, and the
-    DRN (the outlet drain, not the seepage drains) and GHB cells. None when
-    ``sim_ws`` holds no simulation.
+    DRN (the outlet drain, not the seepage drains) and GHB cells. A reach
+    that hands its flow to a pond through MVR ends there but is not an
+    outlet. With ``ds_ws`` and a LAK package, ``lak_foot`` holds the pond
+    footprints -- the cells the builder cut the stream out of, recomputed
+    from the dataset's pond polygons by the same rule. None when ``sim_ws``
+    holds no simulation.
     """
     import flopy
     if not os.path.exists(os.path.join(sim_ws, 'mfsim.nam')):
         return None
     sim = flopy.mf6.MFSimulation.load(
         sim_ws=sim_ws, verbosity_level=0,
-        load_only=['dis', 'disv', 'drn', 'ghb', 'sfr', 'lak'])
+        load_only=['dis', 'disv', 'drn', 'ghb', 'sfr', 'lak', 'mvr'])
     gwf = (sim.get_model(name) if name and name in sim.model_names
            else sim.get_model())
     mg = gwf.modelgrid
@@ -891,7 +895,14 @@ def model_map_features(sim_ws, name=None):
 
     pk = {p.package_name.lower(): p for p in gwf.packagelist}
     f = {'mg': mg, 'node': node, 'sfr': [], 'outlet': [], 'inlet': [],
-         'lak': [], 'drn': [], 'ghb': [], 'nreaches': 0}
+         'lak': [], 'lak_foot': [], 'drn': [], 'ghb': [], 'nreaches': 0,
+         'nlakes': 0}
+    to_mvr = set()
+    if 'mvr' in pk:
+        recs = pk['mvr'].perioddata.get_data(0)
+        for r in (recs if recs is not None else []):
+            if str(r['pname1']).lower() == 'sfr':
+                to_mvr.add(int(r['id1']))
     for key in ('drn', 'ghb'):
         if key in pk:
             spd = pk[key].stress_period_data.get_data(0)
@@ -910,7 +921,7 @@ def model_map_features(sim_ws, name=None):
             v = v[np.isfinite(v)]
             # MF6 writes a downstream connection as a NEGATIVE reach number,
             # and reach 0 is a headwater, so -0 never occurs
-            if not (v < 0).any():
+            if not (v < 0).any() and int(r['ifno']) not in to_mvr:
                 f['outlet'].append(cell_of[int(r['ifno'])])
         spd = s.perioddata.get_data(0) if s.perioddata.has_data() else None
         if spd is not None:
@@ -925,7 +936,34 @@ def model_map_features(sim_ws, name=None):
         cd = pk['lak'].connectiondata.get_data()
         if cd is not None and len(cd):
             f['lak'] = sorted({node(c) for c in cd['cellid']})
+        f['nlakes'] = int(pk['lak'].nlakes.get_data() or 0)
+        fn = os.path.join(ds_ws, 'inputPONDS.geojson') if ds_ws else None
+        if fn and os.path.exists(fn):
+            f['lak_foot'] = _pond_footprint_cells(mg, fn)
     return f
+
+
+def _pond_footprint_cells(mg, fn):
+    """Cell numbers of the pond footprints on a flopy grid, by the
+    builder's own rule (marmites_lak.pond_footprints)."""
+    import marmites_lak as LK
+    import marmites_vector as mv
+    ncell = int(np.asarray(mg.xcellcenters).size)
+    polys = []
+    for n in range(ncell):
+        v = [tuple(map(float, xy[:2])) for xy in mg.get_cell_vertices(n)]
+        if len(v) > 3 and v[0] == v[-1]:
+            v = v[:-1]
+        polys.append(v)
+    shape = ((ncell, 1) if mg.grid_type == 'vertex'
+             else (int(mg.nrow), int(mg.ncol)))
+    grid = mv.TargetGrid(polys, shape)
+    idm = getattr(mg, 'idomain', None)
+    act = (None if idm is None else
+           (np.asarray(idm).reshape(int(mg.nlay), -1) > 0).any(axis=0))
+    ponds = LK.pond_footprints(LK.read_pond_polygons(fn), grid, active=act,
+                               verbose=False)
+    return sorted({i * shape[1] + j for p in ponds for i, j in p.cells})
 
 
 def _fig_model_map(out, sim_ws, name, ds_ws, title=None, verbose=True):
@@ -947,7 +985,7 @@ def _fig_model_map(out, sim_ws, name, ds_ws, title=None, verbose=True):
     from matplotlib.lines import Line2D
     from matplotlib.patches import Patch
     from matplotlib.patches import Polygon as MplPoly
-    f = model_map_features(sim_ws, name)
+    f = model_map_features(sim_ws, name, ds_ws=ds_ws)
     if f is None:
         return []
     mg = f['mg']
@@ -1002,11 +1040,19 @@ def _fig_model_map(out, sim_ws, name, ds_ws, title=None, verbose=True):
                                           edgecolor='deepskyblue', lw=2.5,
                                           zorder=2))
         key(Patch(facecolor='deepskyblue', alpha=0.45), 'SFR reach cells')
-    if f['lak']:
-        ax.add_collection(PatchCollection(patches(f['lak']),
+    if f['lak_foot']:
+        ax.add_collection(PatchCollection(patches(f['lak_foot']),
                                           facecolor='orange', alpha=0.75,
                                           edgecolor='none', zorder=3))
-        key(Patch(facecolor='orange', alpha=0.75), 'LAK cells')
+        key(Patch(facecolor='orange', alpha=0.75), 'LAK cells (pond footprint)')
+    if f['lak']:
+        # the one EMBEDDEDV connection of each lake
+        ax.add_collection(PatchCollection(patches(f['lak']),
+                                          facecolor='orange', alpha=0.9,
+                                          edgecolor='crimson', lw=0.9,
+                                          zorder=3.5))
+        key(Patch(facecolor='orange', edgecolor='crimson'),
+            'LAK connection (host cell)')
 
     # the ponds, OUTLINED in dark blue as in CdL (a fill would hide the
     # LAK cells beneath), and their IDs in orange
@@ -1085,6 +1131,8 @@ def _fig_model_map(out, sim_ws, name, ds_ws, title=None, verbose=True):
         head += ', %d SFR reaches' % f['nreaches']
     if ponds:
         head += ', %d ponds' % len(ponds)
+        if f['nlakes']:
+            head += ' (%d lakes)' % f['nlakes']
     ax.set_title(head)
     if f['outlet']:
         ax.text(0.01, 0.01, 'cell numbers from 0, as in the run log; the MF6 '

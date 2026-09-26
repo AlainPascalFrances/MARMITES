@@ -745,8 +745,13 @@ FIELDS = {
     'sfr.rbth': ('Streambed thickness', 'm', ''),
     'sfr.manning': ('Manning\'s n', _U, ''),
     'lak.enable': ('Lakes (LAK)', _U,
-                   'One EMBEDDEDV lake per pond: every La Mata pond is '
-                   'smaller than a cell, so there is nothing to excavate.'),
+                   'One EMBEDDEDV lake per pond, the CdL design: the pond '
+                   'owns the cells whose centre lies inside it (its '
+                   'footprint), connects through the one cell holding its '
+                   'centroid, and the stream runs THROUGH it -- the reaches '
+                   'in the footprint are cut out and joined to the lake by '
+                   'MVR. A pond wholly outside the catchment is not a lake '
+                   'of the model.'),
     'lak.depth': ('Pond depth', 'm', 'Below the rim.'),
     'lak.bedleak': ('Lakebed leakance', '1/d', 'Clay-lined charca: 1e-3.'),
     'lak.surfdep': ('Surface depression depth', 'm',

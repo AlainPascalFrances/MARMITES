@@ -147,15 +147,16 @@ class clsMF6:
         # without SPECIFYTHTR), 'source' takes cMF.thtr and requires it
         # consistent with Sy. Set from uzf.thtr_from by the driver.
         self.uzf_thtr_from = 'sy'
-        # LAK. Enabled by setting lak_shapefile (pond polygons). Every La Mata
-        # pond is smaller than a 50 m cell, so each becomes one EMBEDDEDV lake
-        # inside its host cell with its true area carried by a stage-volume
-        # table (see marmites_lak).
+        # LAK. Enabled by setting lak_shapefile (pond polygons). Each pond
+        # becomes one EMBEDDEDV lake connected through its host cell, its true
+        # area carried by a stage-volume table, the stream cut out of its
+        # footprint (see marmites_lak and _build_ponds).
         self.lak_shapefile = None
         self.lak_depth = None            # per-cell pond depth map [m]
         self.lak_bedleak = 1e-3          # 1/d
         self.lak_surfdep = 0.05          # m
         self.ponds = []
+        self.lak_of_cell = {}            # footprint cell -> lake index
         self.lak_mvr = True              # route the stream through on-channel ponds
         # Adaptive time stepping. On by default: a stress period MF6 cannot
         # solve in one step is not a result, and without ATS it silently
@@ -597,13 +598,18 @@ class clsMF6:
                   reach_length=self.sfr_cell_length, spacing=spacing,
                   cellid=self._cellid, verbose=getattr(self, 'verbose', True))
         self.sfr = True
+        self._bind_sfr_net(net)
+        return net
+
+    def _bind_sfr_net(self, net):
+        """The sets every later step reads off the network -- rebound when
+        the ponds cut their reaches out of it."""
         self.sfr_net = net
         self.sfr_cells = set(net.cells)
         self.sfr_outlet_cells = set(net.outlets)
         self.sfr_outlet_cellids = {tuple(net.packagedata[net.rno[c]][1])
                                    for c in net.outlets}
         self.sfr_reach_of = dict(net.rno)
-        return net
 
     def _add_sfr_package(self, gwf, name):
         """ModflowGwfsfr from the routed network.
@@ -664,18 +670,31 @@ class clsMF6:
                       observations={self.sfr_obs_csv: obs})
 
     def _build_ponds(self):
-        """Load the pond polygons and give each a host cell and a lake geometry."""
+        """Load the pond polygons; give each a footprint, a host cell and a
+        lake geometry; and cut the stream out of the footprints (WP4.1).
+
+        The CdL design (cdl_gwf_model_fable_v2 §5b/§6): a pond owns the
+        cells whose centre lies inside it, its one EMBEDDEDV connection is
+        the cell holding its centroid, its rim is the mean ground over the
+        footprint, and the stream runs THROUGH it -- the reaches inside the
+        footprint are excised, the reach entering it hands its flow to the
+        lake and the lake spills into the reach leaving it (MVR).
+
+        On the grid the model is ACTUALLY on. On a projected mesh
+        cMF.delr/delc/nrow/ncol describe the (ncpl, 1) proxy grid of 1 m
+        squares; placing the ponds on that put every host cell somewhere
+        else, and left 10 of La Mata's 11 on-channel ponds off the stream.
+        """
         self.ponds = []
         if not self.lak_shapefile:
             return []
-        from marmites_lak import (read_pond_polygons, assign_pond_cells,
-                                  POND_DEPTH)
-        cMF = self.cMF
-        ponds = read_pond_polygons(self.lak_shapefile)
-        assign_pond_cells(ponds, float(cMF.xllcorner), float(cMF.yllcorner),
-                          cMF.delr, cMF.delc, self.nrow, self.ncol,
-                          idomain=self.idomain,
-                          verbose=getattr(self, 'verbose', True))
+        import marmites_vector as mv
+        from marmites_lak import read_pond_polygons, pond_footprints, POND_DEPTH
+        grid = mv.TargetGrid.from_cMF(self.cMF)
+        active = (np.asarray(self.idomain) > 0).any(axis=0)
+        ponds = pond_footprints(read_pond_polygons(self.lak_shapefile), grid,
+                                active=active,
+                                verbose=getattr(self, 'verbose', True))
         # WP1d: lak_depth is a single value ([lak] depth) now that the pond
         # depth no longer comes from a raster; a per-cell map is still
         # accepted, so a case with a real bathymetry can supply one.
@@ -687,7 +706,7 @@ class clsMF6:
                 v = float(depth) if depth.ndim == 0 else float(depth[i, j])
                 if v > 0:
                     d = v
-            p.rim = float(self.top[i, j])
+            p.rim = float(np.mean([self.top[c] for c in p.cells]))
             p.bottom = p.rim - d
             # the lake connects at the topmost active layer, as the outcropping
             # unit is what a pond actually sits on
@@ -695,12 +714,53 @@ class clsMF6:
             while k < self.nlay - 1 and self.idomain[k, i, j] <= 0:
                 k += 1
             p.klay = k
-            p.on_channel = (i, j) in self.sfr_cells
-            if p.on_channel and self.sfr_net is not None:
-                p.inlet_reach = self.sfr_reach_of.get((i, j))
-                down = self.sfr_net.recv.get((i, j))
-                p.outlet_reach = None if down is None else self.sfr_reach_of.get(down)
+            p.inlet_reaches, p.outlet_reaches = [], []
+            p.on_channel = any(c in self.sfr_cells for c in p.cells)
         self.ponds = ponds
+        self.lak_of_cell = {c: L for L, p in enumerate(ponds) for c in p.cells}
+        net = self.sfr_net
+        if net is None or not self.sfr:
+            return ponds
+        from marmites_sfr import excise_reaches
+        owner = {c: self.lak_of_cell[c] for c in net.cells
+                 if c in self.lak_of_cell}
+        if not owner:
+            return ponds
+        # The stream's passage through a pond runs from where it first
+        # enters the footprint to where it LAST leaves it. A mapped line that
+        # wiggles out and back in leaves a reach outside that the lake would
+        # spill into and that feeds the lake again -- an MVR loop (one pond
+        # on La Mata's mesh). Such detours are cut out with the pond.
+        grown = True
+        while grown:
+            grown = False
+            for c in list(owner):
+                path, r = [], net.recv[c]
+                while r is not None and r not in owner:
+                    path.append(r)
+                    r = net.recv[r]
+                if path and r is not None and owner[r] == owner[c]:
+                    for q in path:
+                        owner[q] = owner[c]
+                    grown = True
+        ndetour = len(owner) - sum(1 for c in net.cells if c in self.lak_of_cell)
+        into, out_of = excise_reaches(net, list(owner))
+        self._bind_sfr_net(net)
+        for c, r in into:
+            ponds[owner[r]].inlet_reaches.append(net.rno[c])
+        for r, c in out_of:
+            q = ponds[owner[r]]
+            if net.rno[c] not in q.outlet_reaches:
+                q.outlet_reaches.append(net.rno[c])
+        if getattr(self, 'verbose', True):
+            print('LAK: the stream runs through %d pond(s): %d reach(es) inside '
+                  'their footprints excised%s -> %d reaches; %d reach(es) hand '
+                  'flow to a pond, %d take its spill'
+                  % (sum(1 for p in ponds if p.on_channel), len(owner),
+                     (' (%d on detours out of and back into a pond)' % ndetour
+                      if ndetour else ''),
+                     net.nreaches, len(into),
+                     sum(len(p.outlet_reaches) for p in ponds)))
         return ponds
 
     def _add_lak_package(self, gwf, name, strt_heads=None):
@@ -735,7 +795,7 @@ class clsMF6:
             tables.append([L, fn])
             # on-channel ponds spill back into the stream through a Manning
             # outlet at the rim; the flow is handed over by MVR
-            if self.lak_mvr and p.outlet_reach is not None:
+            if self.lak_mvr and p.outlet_reaches:
                 outlets.append([len(outlets), L, -1, 'MANNING', p.rim,
                                 float(np.sqrt(max(p.area, 1.0))), 0.035, 1e-3])
         n = len(pkg)
@@ -765,18 +825,20 @@ class clsMF6:
     def _add_mvr_package(self, gwf, name):
         """Route the stream through the on-channel ponds.
 
-        A reach hosting a pond hands its flow to the lake, and the lake's
-        outlet spills into the reach downstream of the pond cell. Without this
-        the stream would simply bypass the pond.
+        Every reach that drained into a pond's footprint hands all its flow
+        to the lake; the lake's outlet spills into the reach(es) leaving the
+        footprint, shared equally (CdL). The reaches inside the footprint
+        are gone, so without this the stream would stop at the pond.
         """
         recs = []
         for L, p in enumerate(self.ponds):
-            if p.inlet_reach is not None:
-                recs.append(['sfr', p.inlet_reach, 'lak', L, 'FACTOR', 1.0])
+            for r in p.inlet_reaches:
+                recs.append(['sfr', r, 'lak', L, 'FACTOR', 1.0])
         for k, out in enumerate(getattr(self, 'lak_outlets', [])):
             p = self.ponds[out[1]]
-            if p.outlet_reach is not None:
-                recs.append(['lak', k, 'sfr', p.outlet_reach, 'FACTOR', 1.0])
+            for r in p.outlet_reaches:
+                recs.append(['lak', k, 'sfr', r, 'FACTOR',
+                             1.0 / len(p.outlet_reaches)])
         if not recs:
             return
         ModflowGwfmvr(gwf, maxmvr=len(recs), maxpackages=2,

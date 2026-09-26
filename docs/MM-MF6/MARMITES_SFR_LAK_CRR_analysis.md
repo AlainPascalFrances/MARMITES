@@ -893,3 +893,55 @@ runoff still leaves the model as in the legacy MARMITES.
 **Known limitation (R1).** MF6 has no unsaturated zone beneath a reach, so
 streambed seepage reaches the water table directly. This is now stated in
 the SFR panel help and in `docs/MARMITES_overview.md`.
+
+## 8.17 WP4.1: the ponds on the mesh (2026-09-26)
+
+**The bug.** The model map (`IN_000_model_map.png`) showed the LAK host
+cells away from the ponds. `_build_ponds` placed the ponds with
+`cMF.delr/delc/nrow/ncol`, which on a projected mesh describe the
+(ncpl, 1) proxy grid of 1 m squares ("cell 1 m2" in the log). Every host
+cell was an unrelated mesh cell, and only 3 ponds counted as on-channel.
+This is the same class of bug as the stream burn fixed in §8.16.
+
+**The mesh does not give one pond-scale cell per pond.** Each La Mata pond
+(341-2036 m2) is covered by 15-83 cells of about 25 m2. The single seeded
+cell (22-34 m2) is a stream cell for only one pond, although the mapped
+stream crosses all 11 ponds inside the catchment. So a host-cell-only rule
+leaves the stream bypassing the ponds.
+
+**The fix follows the CdL design** (`cdl_gwf_model_fable_v2` §5b/§6,
+converged over 45 years), on the grid the model actually uses (a
+`TargetGrid`, structured or mesh):
+
+- **Footprint:** the active cells whose centre lies inside the pond. On the
+  50 m grid this is the host cell.
+- **Host:** the cell holding the pond centroid (the seeded cell on the
+  mesh). This is the one EMBEDDEDV connection.
+- **Rim:** the mean model top over the footprint; bottom = rim - depth.
+- **Stream through the pond.** The reaches in the footprint are excised
+  after routing (`marmites_sfr.excise_reaches`). Every reach that drained
+  into the footprint hands its flow to the lake through MVR, and the lake's
+  Manning outlet spills into the reach(es) leaving it. The passage runs
+  from the first entry to the **last** exit: one mapped line on the mesh
+  leaves a footprint for a single cell and re-enters it. Without cutting
+  that detour, the lake would have spilled half its outflow into a reach
+  feeding it again, an MVR loop.
+- **Ponds outside the domain.** A pond wholly outside the active domain is
+  not a lake of the model. Pond 8 is dropped on the mesh and on the 50 m
+  grid, so there are 11 lakes.
+
+On La Mata's mesh (build only, not run):
+
+- 96 reaches excised, leaving 2567 reaches;
+- 15 reaches hand their flow to a pond and 11 spills go back to the stream;
+- every spill path ends at the catchment outlet, through the chain
+  0 -> 1 -> 2 -> 10 -> 7 -> outlet, 3 -> 4 -> 5 -> 10, 8 -> 9 -> 5 and
+  6 -> 7.
+
+**Consequences to carry into WP4:**
+- Runoff on excised footprint cells is no longer delivered to SFR; it waits
+  for 4.4 (MM runoff to LAK RUNOFF).
+- In 4.6, f_lake = 1 over the whole footprint, not only the host cell.
+- The rim datum is the model top (the base of the MMsoil column), as
+  before. The stream bed has used the land surface since WP3. Whether the
+  pond rim should follow is a WP4 decision.

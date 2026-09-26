@@ -47,7 +47,8 @@ import heapq
 
 import numpy as np
 
-__all__ = ['stream_network', 'build_sfr', 'SFRNetwork', 'catchment_outlet']
+__all__ = ['stream_network', 'build_sfr', 'SFRNetwork', 'catchment_outlet',
+           'excise_reaches']
 
 # defaults (overridable by build_sfr kwargs)
 SFR_RBTH = 0.5        # m,   streambed thickness
@@ -79,6 +80,7 @@ class SFRNetwork(object):
         self.reach_slope = None
         self.nmono = 0
         self.bridges = []             # [(cell, routed cell)] joined across a gap
+        self.excised = []             # cells whose reach a pond took over
 
     @property
     def nreaches(self):
@@ -411,3 +413,67 @@ def build_sfr(net, dem, pondhmax=None, pondw=None, delr=None, delc=None,
         if nflat:
             print('   %d reach(es) sit on the %.2g minimum-slope floor' % (nflat, minslope))
     return net
+
+
+def excise_reaches(net, remove):
+    """Take the reaches of the cells in ``remove`` out of a BUILT network.
+
+    For the ponds (CdL §6): the stream runs through a pond's footprint, and
+    a reach there would compete with the lake for the same cell and bypass
+    the lake. The reaches are cut out AFTER routing, so the rest of the
+    network keeps its receivers, lengths, slopes and beds; the reaches on
+    either side are handed to and from the lake by MVR.
+
+    Returns ``(into, out_of)`` as cell pairs: ``into`` = (kept cell, removed
+    cell it drained into), ``out_of`` = (removed cell, kept cell it drains
+    into). A reach feeding a removed cell ends there (no downstream
+    connection: its outflow is what MVR moves); one below the cut starts
+    there. Reach 0 stays a headwater, since MF6 cannot write ``-0``.
+    """
+    remove = set(remove) & set(net.cells)
+    if not remove:
+        return [], []
+    lost = [c for c in net.outlets if c in remove]
+    if lost:
+        raise ValueError('the network outlet %s lies in a cell being excised '
+                         '(a pond at the catchment outlet)' % lost)
+    into = [(c, net.recv[c]) for c in net.cells
+            if c not in remove and net.recv[c] in remove]
+    out_of = [(c, net.recv[c]) for c in net.cells
+              if c in remove and net.recv[c] is not None
+              and net.recv[c] not in remove]
+    old = net.rno
+    keep = [c for c in net.cells if c not in remove]
+    recv = {c: (net.recv[c] if net.recv[c] not in remove else None)
+            for c in keep}
+    targets = {r for r in recv.values() if r is not None}
+    if keep[0] in targets:                      # keep a headwater as reach 0
+        hw = next(c for c in keep if c not in targets)
+        keep.remove(hw)
+        keep.insert(0, hw)
+    new = {c: n for n, c in enumerate(keep)}
+    pkg = {int(r[0]): r for r in net.packagedata}
+    cdat = {int(r[0]): r for r in net.connectiondata}
+    back = {n: c for c, n in old.items()}
+    packagedata, connectiondata = [], []
+    for c in keep:
+        conns = [(1 if v >= 0 else -1) * new[back[abs(int(v))]]
+                 for v in cdat[old[c]][1:] if back[abs(int(v))] not in remove]
+        row = list(pkg[old[c]])
+        row[0] = new[c]
+        row[9] = len(conns)
+        packagedata.append(row)
+        connectiondata.append([new[c]] + conns)
+    for attr in ('reach_len', 'reach_wid', 'reach_top', 'reach_slope'):
+        v = getattr(net, attr, None)
+        if v is not None:
+            setattr(net, attr, [v[old[c]] for c in keep])
+    net.cells = keep
+    net.rno = new
+    net.recv = recv
+    net.order = [c for c in net.order if c not in remove]
+    net.acc = {c: a for c, a in net.acc.items() if c not in remove}
+    net.packagedata = packagedata
+    net.connectiondata = connectiondata
+    net.excised = sorted(remove)
+    return into, out_of

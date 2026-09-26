@@ -293,3 +293,82 @@ def test_lamata_outlet_obs_and_only_the_outlet_drain_record_goes(tmp_path):
     for kind in ('ext-outflow', 'stage', 'sfr'):
         assert any(ln.split()[1:] == [kind, str(rno)]
                    for ln in txt.splitlines() if len(ln.split()) == 3)
+
+
+# ------------------------- excision (WP4.1, ponds) ---------------------- #
+
+def _chain():
+    """Row 3 of the 4 x 5 mesh falling west to the outlet (3, 0), plus a
+    tributary joining at (3, 2) from (2, 2). Built, so the rows are real."""
+    gp, topo = _mesh()
+    w = np.zeros((20, 1))
+    dem = np.full((20, 1), 900.0)
+    for j in range(5):
+        w[_ic(3, j)], dem[_ic(3, j)] = 2.0, 700.0 + j
+    w[_ic(2, 2)], dem[_ic(2, 2)] = 2.0, 710.0
+    net = S.stream_network(w, dem, outlets=[_ic(3, 0)], topology=topo,
+                           coords=lambda c: topo.xy[c[0]])
+    S.build_sfr(net, dem, pondw=w, delr=np.ones(1), delc=np.ones(20),
+                spacing=lambda c, r: topo.distance(c[0], r[0]), verbose=False)
+    return net
+
+
+def _consistent(net):
+    n = net.nreaches
+    assert [int(r[0]) for r in net.packagedata] == list(range(n))
+    assert [int(r[0]) for r in net.connectiondata] == list(range(n))
+    downs = set()
+    for row, prow in zip(net.connectiondata, net.packagedata):
+        conns = [int(v) for v in row[1:]]
+        assert prow[9] == len(conns)
+        assert sum(1 for v in conns if v < 0) <= 1
+        assert all(0 <= abs(v) < n for v in conns)
+        downs.update(-v for v in conns if v < 0)
+    assert 0 not in downs                  # reach 0 is a headwater: no -0
+    for c in net.cells:
+        r = net.recv[c]
+        k = net.rno[c]
+        conns = [int(v) for v in net.connectiondata[k][1:]]
+        if r is None:
+            assert not any(v < 0 for v in conns)
+        else:
+            assert -net.rno[r] in conns
+
+
+def test_excising_a_pond_cuts_the_stream_and_hands_over_both_ends():
+    net = _chain()
+    pond = _ic(3, 2)
+    into, out_of = S.excise_reaches(net, [pond])
+    # the main stem above and the tributary drain into the pond; the reach
+    # below it takes the spill
+    assert sorted(into) == sorted([(_ic(3, 3), pond), (_ic(2, 2), pond)])
+    assert out_of == [(pond, _ic(3, 1))]
+    assert net.nreaches == 5 and pond not in net.rno
+    assert net.recv[_ic(3, 3)] is None and net.recv[_ic(2, 2)] is None
+    assert net.outlets == [_ic(3, 0)] and net.recv[_ic(3, 0)] is None
+    assert net.excised == [pond]
+    _consistent(net)
+
+
+def test_an_excised_network_keeps_its_reach_attributes():
+    net = _chain()
+    before = {c: (net.reach_len[net.rno[c]], net.reach_top[net.rno[c]])
+              for c in net.cells}
+    S.excise_reaches(net, [_ic(3, 2), _ic(3, 3)])
+    for c in net.cells:
+        k = net.rno[c]
+        assert (net.reach_len[k], net.reach_top[k]) == before[c]
+        assert net.packagedata[k][5] == pytest.approx(before[c][1])
+
+
+def test_a_pond_on_the_outlet_is_refused():
+    net = _chain()
+    with pytest.raises(ValueError, match='outlet'):
+        S.excise_reaches(net, [_ic(3, 0)])
+
+
+def test_excising_nothing_changes_nothing():
+    net = _chain()
+    rows = [list(r) for r in net.connectiondata]
+    assert S.excise_reaches(net, [_ic(0, 0)]) == ([], [])  # not a stream cell
+    assert [list(r) for r in net.connectiondata] == rows

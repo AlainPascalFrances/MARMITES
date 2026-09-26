@@ -135,12 +135,75 @@ def test_shared_host_cell_is_rejected():
         LK.assign_pond_cells([a, b], verbose=False, **_grid_kwargs())
 
 
+def _edge_pond(x_lo, x_hi):
+    y = YLL + NROW * CS - 25.0
+    pts = [(x_lo, y - 10.0), (x_hi, y - 10.0), (x_hi, y + 10.0),
+           (x_lo, y + 10.0), (x_lo, y - 10.0)]
+    area, cen = LK._ring_area_centroid(pts)
+    return LK.PondLake(1, pts, area, cen)
+
+
 def test_inactive_host_falls_back_to_the_nearest_active_cell():
+    """A pond straddling the edge of the domain, its centroid on the inactive
+    side: it reaches the model, so the nearest active cell hosts it."""
     idom = np.zeros((NROW, NCOL), dtype=int)
     idom[:, 30:] = 1
-    p = LK.PondLake(1, [(0, 0)], 100.0, (XLL + 25.0, YLL + NROW * CS - 25.0))
-    LK.assign_pond_cells([p], idomain=idom, verbose=False, **_grid_kwargs())
+    edge = XLL + 30 * CS
+    p = _edge_pond(edge - 30.0, edge + 10.0)       # centroid 10 m outside
+    kept = LK.assign_pond_cells([p], idomain=idom, verbose=False,
+                                **_grid_kwargs())
+    assert kept == [p]
     assert idom[p.cell] > 0
+    assert p.cell == (0, 30)
+
+
+def test_a_pond_wholly_outside_the_domain_is_not_a_lake():
+    """La Mata's pond 8 lies outside the catchment on the mesh: hosting it in
+    the nearest boundary cell would put water in the model that is not in
+    the catchment."""
+    idom = np.zeros((NROW, NCOL), dtype=int)
+    idom[:, 30:] = 1
+    edge = XLL + 30 * CS
+    p = _edge_pond(edge - 80.0, edge - 20.0)
+    assert LK.assign_pond_cells([p], idomain=idom, verbose=False,
+                                **_grid_kwargs()) == []
+
+
+def test_the_footprint_is_the_cells_whose_centre_is_inside():
+    """A pond spanning two cell centres owns both; its host is the cell
+    holding its centroid."""
+    y = YLL + NROW * CS - 25.0                     # the centre row of row 0
+    x0 = XLL + 25.0                                # centre of column 0
+    pts = [(x0 - 5, y - 5), (x0 + 60, y - 5), (x0 + 60, y + 5), (x0 - 5, y + 5),
+           (x0 - 5, y - 5)]
+    area, cen = LK._ring_area_centroid(pts)
+    p = LK.PondLake(1, pts, area, cen)
+    LK.assign_pond_cells([p], verbose=False, **_grid_kwargs())
+    assert p.cells == [(0, 0), (0, 1)]
+    assert p.cell == (0, 1)                        # centroid x = XLL + 52.5
+
+
+def test_on_a_mesh_the_footprint_comes_from_the_mesh_not_a_proxy_grid():
+    """The WP4.1 bug: a projected mesh is carried on an (ncpl, 1) proxy grid
+    of 1 m squares, and placing the ponds on it put every host cell
+    somewhere else. On the mesh itself the pond owns its cells."""
+    import marmites_grid as mg
+    import marmites_vector as mv
+    verts, cell2d, ncpl = mg.disv_from_structured([10.0] * 8, [10.0] * 6,
+                                                  XLL, YLL)
+    grid = mv.TargetGrid.from_gridprops({'vertices': verts, 'cell2d': cell2d,
+                                         'ncpl': ncpl})
+    # a 22 x 12 m pond over the centres of cells (2, 3) and (2, 4) of the
+    # 8 x 6 mesh, i.e. mesh cells 2 * 8 + 3 and 2 * 8 + 4
+    cx, cy = XLL + 40.0, YLL + 60.0 - 25.0
+    pts = [(cx - 11, cy - 6), (cx + 11, cy - 6), (cx + 11, cy + 6),
+           (cx - 11, cy + 6), (cx - 11, cy - 6)]
+    area, cen = LK._ring_area_centroid(pts)
+    p = LK.PondLake(3, pts, area, cen)
+    kept = LK.pond_footprints([p], grid, verbose=False)
+    assert kept == [p]
+    assert sorted(p.cells) == [(2 * 8 + 3, 0), (2 * 8 + 4, 0)]
+    assert p.cell in p.cells
 
 
 # ------------------------------ lake table ----------------------------- #
@@ -239,23 +302,30 @@ def test_lamata_lak_mvr_model_builds_and_reloads(tmp_path):
     b.build()
     b.write()
 
-    assert len(b.ponds) == 12
-    assert sum(1 for p in b.ponds if p.on_channel) == 11
+    # pond 8 lies wholly outside the active domain: 11 lakes, every one of
+    # them on the stream
+    assert sorted(p.fid for p in b.ponds) == [1, 2, 3, 4, 5, 7, 9, 10, 11, 12,
+                                             13]
+    on = [p for p in b.ponds if p.on_channel]
+    assert len(on) == 11
     # every lake has exactly one connection, as EMBEDDEDV requires
     lak = b.gwf.get_package('lak')
     conn = lak.connectiondata.get_data()
-    assert len(conn) == 12
+    assert len(conn) == 11
     for row in lak.packagedata.get_data():
         assert row['nlakeconn'] == 1
-    # the stream is routed THROUGH the on-channel ponds
+    # the stream is routed THROUGH the on-channel ponds: no reach is left
+    # inside a footprint, every pond the stream crossed is fed and spills
+    # back, and a pond never spills into a reach that feeds it
     mvr = b.gwf.get_package('mvr').perioddata.get_data(0)
     into = [r for r in mvr if str(r['pname1']).lower() == 'sfr']
     outof = [r for r in mvr if str(r['pname1']).lower() == 'lak']
-    assert len(into) == 11 and len(outof) == 11
-    # a pond never spills into the very reach that feeds it
-    for p in b.ponds:
-        if p.inlet_reach is not None:
-            assert p.inlet_reach != p.outlet_reach
+    assert len(into) == sum(len(p.inlet_reaches) for p in b.ponds)
+    assert len(outof) == sum(len(p.outlet_reaches) for p in b.ponds)
+    assert not (b.sfr_cells & set(b.lak_of_cell))
+    for p in on:
+        assert p.inlet_reaches or p.outlet_reaches
+        assert not set(p.inlet_reaches) & set(p.outlet_reaches)
 
     sim = flopy.mf6.MFSimulation.load(sim_ws=str(tmp_path), verbosity_level=0)
     names = [pk.package_name for pk in sim.get_model().packagelist]

@@ -41,7 +41,7 @@ def _ic(i, j):
     return i * NCOL + j
 
 
-def _sim(ws):
+def _sim(ws, mvr=False):
     verts, cell2d, ncpl = GRID.disv_from_structured([CS] * NCOL, [CS] * NROW,
                                                     XLL, YLL)
     sim = flopy.mf6.MFSimulation(sim_ws=ws)
@@ -66,13 +66,20 @@ def _sim(ws):
              0.035, 1 if r in (0, 2) else 2, 1.0, 0] for r in range(3)]
     conn = [[0, -1], [1, 0, -2], [2, 1]]
     flopy.mf6.ModflowGwfsfr(m, pname='sfr', nreaches=3, packagedata=pdat,
-                            connectiondata=conn,
+                            connectiondata=conn, mover=mvr,
                             perioddata={0: [[0, 'INFLOW', 25.0],
                                             [1, 'INFLOW', 0.0]]})
-    flopy.mf6.ModflowGwflak(m, pname='lak', nlakes=1, noutlets=0,
+    flopy.mf6.ModflowGwflak(m, pname='lak', nlakes=1, noutlets=0, mover=mvr,
                             packagedata=[[0, 8.0, 1]],
                             connectiondata=[[0, 0, (0, _ic(0, 1)), 'vertical',
                                              0.001, 0.0, 0.0, 0.0, 0.0]])
+    if mvr:
+        # the last reach hands its flow to the pond: it ends there, but it
+        # is not where the catchment drains
+        flopy.mf6.ModflowGwfmvr(m, maxmvr=1, maxpackages=2,
+                                packages=[['sfr'], ['lak']],
+                                perioddata={0: [['sfr', 2, 'lak', 0,
+                                                 'FACTOR', 1.0]]})
     sim.write_simulation(silent=True)
     return ncpl
 
@@ -115,6 +122,22 @@ def test_the_features_come_from_the_written_packages(tmp_path):
     assert f['outlet'] == [_ic(3, 0)]                      # no downstream
     assert f['inlet'] == [_ic(3, 2)]                       # INFLOW > 0
     assert f['lak'] == [_ic(0, 1)]
+
+
+def test_the_pond_footprint_comes_from_the_dataset_polygons(tmp_path):
+    ws, ds = str(tmp_path / 'ws'), str(tmp_path / 'ds')
+    _sim(ws)
+    _dataset(ds)
+    f = PP.model_map_features(ws, 'm', ds_ws=ds)
+    assert f['lak_foot'] == [_ic(0, 1)]
+    assert f['nlakes'] == 1
+
+
+def test_a_reach_feeding_a_pond_is_not_an_outlet(tmp_path):
+    ws = str(tmp_path / 'ws')
+    _sim(ws, mvr=True)
+    f = PP.model_map_features(ws, 'm')
+    assert f['outlet'] == []
 
 
 def test_no_simulation_no_map(tmp_path):
