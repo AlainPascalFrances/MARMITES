@@ -490,12 +490,13 @@ class clsMF6:
 
     def _land_surface(self):
         """The LAND SURFACE on this grid -- not the model top, which is the
-        base of the MMsoil column. A channel is incised below the ground."""
+        base of the MMsoil column. A channel is incised below the ground, and
+        a pond dug into it."""
         z = getattr(self.cMF, 'elev', None)
         if z is None:
             return np.asarray(self.top, dtype=float)
         return np.asarray(np.ma.getdata(z), dtype=float).reshape(
-            np.shape(self.sfr_pondw))
+            np.shape(self.top))
 
     def _on_catchment_edge(self):
         """``f(cell)``: does the cell have a face on the catchment's external
@@ -675,7 +676,7 @@ class clsMF6:
 
         The CdL design (cdl_gwf_model_fable_v2 §5b/§6): a pond owns the
         cells whose centre lies inside it, its one EMBEDDEDV connection is
-        the cell holding its centroid, its rim is the mean ground over the
+        the cell holding its centroid, its rim is the mean LAND SURFACE over the
         footprint, and the stream runs THROUGH it -- the reaches inside the
         footprint are excised, the reach entering it hands its flow to the
         lake and the lake spills into the reach leaving it (MVR).
@@ -699,6 +700,13 @@ class clsMF6:
         # depth no longer comes from a raster; a per-cell map is still
         # accepted, so a case with a real bathymetry can supply one.
         depth = None if self.lak_depth is None else np.asarray(self.lak_depth, float)
+        # the rim is the LAND SURFACE, as the stream bed has been since WP3:
+        # the model top is the base of the MMsoil column, one soil
+        # thickness lower, and a pond is dug into the ground, not into the
+        # aquifer (user decision 2026-09-26). An embedded lake takes its
+        # bottom from its own table, so it may sit above the cell top where
+        # the soil is thicker than the pond is deep (gwf-lak.f90).
+        land = self._land_surface()
         for p in ponds:
             i, j = p.cell
             d = POND_DEPTH
@@ -706,7 +714,7 @@ class clsMF6:
                 v = float(depth) if depth.ndim == 0 else float(depth[i, j])
                 if v > 0:
                     d = v
-            p.rim = float(np.mean([self.top[c] for c in p.cells]))
+            p.rim = float(np.mean([land[c] for c in p.cells]))
             p.bottom = p.rim - d
             # the lake connects at the topmost active layer, as the outcropping
             # unit is what a pond actually sits on

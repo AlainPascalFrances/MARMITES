@@ -360,3 +360,43 @@ def test_initial_stage_stays_between_bed_and_rim(tmp_path):
     b.build()
     for p in b.ponds:
         assert p.bottom < p.strt <= p.rim, 'pond %s starts outside its own basin' % p.fid
+
+
+def test_the_rim_is_the_land_surface_not_the_soil_base(tmp_path):
+    """The model top is the base of the MMsoil column, one soil thickness
+    below the ground; a pond is dug into the ground (user decision
+    2026-09-26), as the stream bed already was (WP3)."""
+    pytest.importorskip('flopy')
+    if not os.path.exists(os.path.join(DS, 'MF_ws', '__inputMF_flopy_v3_2s1L.ini')):
+        pytest.skip('La Mata dataset not present')
+    if not os.path.exists(SHP):
+        pytest.skip('pond shapefile not present (%s)' % SHP)
+    import matplotlib
+    matplotlib.use('agg')
+    import MARMITESutilities as MMutils
+    import ppMODFLOW_flopy_v3 as ppMF
+    mf6mod = _load('marmites_mf6', os.path.join(TRUNK, 'ppMF6', 'marmites_mf6.py'))
+    c = ppMF.clsMF(MMutils.clsUTILITIES(verbose=1), MM_ws=DS, MM_ws_out=DS,
+                   MF_ws=os.path.join(DS, 'MF_ws'),
+                   MF_ini_fn='__inputMF_flopy_v3_2s1L.ini',
+                   xllcorner=XLL, yllcorner=YLL)
+    c.outcropL = np.zeros((c.nrow, c.ncol), dtype=int)
+    for L in range(c.nlay):
+        ib = (np.abs(np.asarray(c.ibound))[L] != 0)
+        c.outcropL += ((c.outcropL == 0) & ib) * (L + 1)
+    c.nper, c.perlen, c.nstp = 3, [1, 1, 1], [1, 1, 1]
+    land = np.asarray(np.ma.getdata(c.elev), float)
+    soil = 2.0
+    b = mf6mod.clsMF6(c, top=land - soil, botm=np.asarray(c.botm, float),
+                      sim_ws=str(tmp_path), daily=True)
+    b.verbose = False
+    b.lak_shapefile = SHP
+    b.lak_depth = 1.5
+    b.build()
+    assert b.ponds
+    for p in b.ponds:
+        assert p.rim == pytest.approx(np.mean([land[q] for q in p.cells]))
+        assert p.bottom == pytest.approx(p.rim - 1.5)
+        # dug 1.5 m into 2 m of soil: the pond bed is above the aquifer top
+        assert p.bottom > b.top[p.cell]
+        assert p.bottom < p.strt <= p.rim
