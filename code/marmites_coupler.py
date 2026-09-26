@@ -234,6 +234,7 @@ class MF6Coupler:
         # tagged with the zone of the cell it sits in.
         self.p_sfr_evap = None
         self.p_lak_evap = None
+        self.p_lak_runoff = None        # WP4.4: MM runoff into the ponds
         self.p_sfr_simevap = None
         self.p_lak_simevap = None
         gm = getattr(ctx, 'gridMETEO', None)
@@ -256,6 +257,42 @@ class MF6Coupler:
                 i, j = p.cell
                 self.lak_evap_zone[L] = int(gm[i, j]) - 1
                 self.lak_cell_idx[L] = cell_of.get((int(i), int(j)), -1)
+
+        # ---- WP4.6: the surface descriptor (cookbook §4a) ----------------
+        # Where the MM soil column runs and where open water does instead,
+        # per cell: MMsoil reads ctx.f_open, so it is set before the first
+        # stress period. Built once, from the network and the ponds as
+        # written, on the cell list as ordered -- the list is not touched.
+        self.f_lake = np.zeros(self.ncell, dtype=float)
+        self.f_stream = np.zeros(self.ncell, dtype=float)
+        if hasattr(mf6b, 'surface_fractions'):
+            self.f_lake, self.f_stream = mf6b.surface_fractions(
+                list(zip(self.i_arr, self.j_arr)), self.area)
+        f_open = self.f_lake + self.f_stream
+        ctx.f_open = f_open if np.any(f_open > 0.0) else None
+        # each lake's FOOTPRINT, weighted by the pond area it holds: where
+        # its evaporation is booked and its runoff collected (WP4.4). A pond
+        # built without a footprint (an older build) is its host cell.
+        self.lak_cells = []
+        for L, p in enumerate(ponds):
+            ks = [cell_of[c] for c in (getattr(p, 'cells', None) or [p.cell])
+                  if tuple(int(v) for v in c) in cell_of]
+            ks = np.asarray(ks, dtype=int)
+            w = (self.f_lake[ks] * self.area[ks]) if ks.size else np.zeros(0)
+            if ks.size and w.sum() <= 0.0:
+                w = self.area[ks].copy()
+            self.lak_cells.append((ks, w / w.sum() if w.sum() > 0 else w))
+        if ctx.f_open is not None and getattr(mf6b, 'verbose', True):
+            wa = self.area / self.area.sum()
+            lk, st = self.f_lake > 0, self.f_stream > 0
+            print('surface: the MM soil column runs on %.2f %% of the catchment;'
+                  ' %d pond cell(s) (f_lake %.2f-%.2f), %d channel cell(s) '
+                  '(f_stream median %.2f)'
+                  % (100.0 * float(np.sum(wa * (1.0 - f_open))), int(lk.sum()),
+                     float(self.f_lake[lk].min()) if lk.any() else 0.0,
+                     float(self.f_lake[lk].max()) if lk.any() else 0.0,
+                     int(st.sum()),
+                     float(np.median(self.f_stream[st])) if st.any() else 0.0))
         # The zone rasters are 1-based; a cell outside every mapped zone would
         # index -1 and silently take the LAST zone's Eo.
         self.sfr_evap_zone = np.clip(self.sfr_evap_zone, 0, None)
@@ -421,6 +458,20 @@ class MF6Coupler:
             self.p_lak_simevap, _a = self._bind_first(
                 api, [('EVAP', f'{name}/LAK'), ('EVAP', f'{name}/LAK-1')],
                 'LAK simulated evaporation', required=False)
+            # WP4.4: the MM runoff each pond captures, a volumetric rate
+            # [m3/d], written with the other API inputs after prepare_solve
+            self.p_lak_runoff, self.addr_lak_runoff = self._bind_first(
+                api, [('RUNOFF', f'{name}/LAK'), ('RUNOFF', f'{name}/LAK-1')],
+                'LAK runoff', required=False)
+            if self.p_lak_runoff is None:
+                print('WARNING: LAK RUNOFF array not exposed by this MF6 '
+                      'build; the rain on the ponds and the runoff they '
+                      'capture will NOT reach them.')
+            elif self.p_lak_runoff.size < self.nlakes:
+                print('WARNING: LAK RUNOFF has %d entries but there are %d '
+                      'lakes; pond runoff disabled.'
+                      % (self.p_lak_runoff.size, self.nlakes))
+                self.p_lak_runoff = None
         if (self.p_sfr_simevap is None and self.p_lak_simevap is None
                 and (self.nreaches or self.nlakes)):
             print('WARNING: neither SFR SIMEVAP nor LAK EVAP is exposed; '
@@ -756,19 +807,33 @@ class MF6Coupler:
         return rej / self.area * self.conv_fact
 
     def _write_runoff(self, ro):
-        """Deliver the MARMITES runoff of this SP to the stream reaches.
+        """Deliver the MARMITES runoff of this SP to the streams and ponds.
 
-        ``ro`` is per cell in mm/d. Only cells that host a reach contribute;
-        runoff generated off-channel is handled by the CRR cascade, not here.
-        SFR INFLOW is a volumetric rate (m3/d).
+        ``ro`` is per cell in mm/d. A channel cell's runoff goes to its
+        reach (SFR INFLOW), a pond footprint's to its lake (LAK RUNOFF,
+        WP4.4) -- both volumetric rates [m3/d]. Since WP4.6 it includes the
+        rain on the cell's open fraction, which MMsoil hands over as runoff.
+        Runoff generated elsewhere is the CRR cascade's (WP5), not this.
         """
-        if self.p_sfr_inflow is None or self.sfr_reach_idx is None:
-            return
-        q = np.asarray(ro, dtype=float) / self.conv_fact * self.area   # m3/d
-        inflow = np.zeros(self.p_sfr_inflow.size)
-        has = self.sfr_reach_idx >= 0
-        np.add.at(inflow, self.sfr_reach_idx[has], np.maximum(q[has], 0.0))
-        self.p_sfr_inflow[:] = inflow
+        q = np.maximum(np.asarray(ro, dtype=float), 0.0) / self.conv_fact \
+            * self.area                                              # m3/d
+        if self.p_sfr_inflow is not None and self.sfr_reach_idx is not None:
+            inflow = np.zeros(self.p_sfr_inflow.size)
+            has = self.sfr_reach_idx >= 0
+            np.add.at(inflow, self.sfr_reach_idx[has], q[has])
+            self.p_sfr_inflow[:] = inflow
+        if getattr(self, 'p_lak_runoff', None) is not None and self.nlakes:
+            rn = np.zeros(self.p_lak_runoff.size)
+            for L, (ks, _w) in enumerate(self.lak_cells):
+                if L < rn.size and ks.size:
+                    rn[L] = float(q[ks].sum())
+            self.p_lak_runoff[:] = rn
+
+    def _delivers_runoff(self):
+        """Is there a stream or a pond bound to take MARMITES runoff?"""
+        return ((self.p_sfr_inflow is not None
+                 or getattr(self, 'p_lak_runoff', None) is not None)
+                and getattr(self, '_iRo', None) is not None)
 
     def _write_openwater_evap(self, n):
         """Apply the open-water evaporation of SP ``n`` to SFR and LAK (WP1d).
@@ -830,8 +895,16 @@ class MF6Coupler:
             ok = idx < se.size
             np.add.at(sfr, np.nonzero(has)[0][ok], np.abs(se[idx[ok]]))
         vol = self._lak_evap_volumes()
+        foot = getattr(self, 'lak_cells', None)
         if vol is not None:
             for L in range(vol.size):
+                if foot is not None and L < len(foot) and foot[L][0].size:
+                    # over the pond's footprint, by the pond area each cell
+                    # holds (WP4.6) -- the host cell alone would carry a
+                    # 2000 m2 pond's evaporation on 25 m2
+                    ks, w = foot[L]
+                    np.add.at(lak, ks, float(vol[L]) * w)
+                    continue
                 n = int(self.lak_cell_idx[L])
                 if n >= 0:
                     lak[n] += float(vol[L])
@@ -1218,7 +1291,7 @@ class MF6Coupler:
                     # callback rather than being written after the advance.
                     _o = out
                     _ro = (np.asarray(out['MM'], dtype=np.float64)[:, self._iRo]
-                           if self.p_sfr_inflow is not None else None)
+                           if self._delivers_runoff() else None)
 
                     def _write(o=_o, ro=_ro, sp=n):
                         self._write_fluxes(o['perc'], o['etg'], o.get('petuzf'))
@@ -1519,6 +1592,12 @@ class MF6Coupler:
             petuzf_prev = out.get('petuzf')
             etg_booked = np.asarray(out['etg'], dtype=float)
             self._write_fluxes(perc, etg, petuzf_prev, etg_booked)
+            # the iterative mode delivered no runoff to the stream at all;
+            # it does now, to the streams and the ponds alike
+            ro = (np.asarray(out['MM'], dtype=np.float64)[:, self._iRo]
+                  if self._delivers_runoff() else None)
+            if ro is not None:
+                self._write_runoff(ro)
             self._write_openwater_evap(n)
             if api.solve(1):
                 break
@@ -1539,8 +1618,10 @@ class MF6Coupler:
                 # re-apply the converged fluxes each sub-step, or rp reverts
                 # SINF to the build-time value on the next prepare_time_step
                 def _re_apply(p=perc_prev, e=etg_prev, sp=n,
-                              u=petuzf_prev, b=etg_booked):
+                              u=petuzf_prev, b=etg_booked, r=ro):
                     self._write_fluxes(p, e, u, b)
+                    if r is not None:
+                        self._write_runoff(r)
                     self._write_openwater_evap(sp)
 
                 k, ok = self._one_step(api, write_cb=_re_apply)

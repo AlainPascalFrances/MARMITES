@@ -771,6 +771,41 @@ class clsMF6:
                      sum(len(p.outlet_reaches) for p in ponds)))
         return ponds
 
+    def surface_fractions(self, cells_ij, area):
+        """The per-cell SURFACE DESCRIPTOR of cookbook §4a (WP4.6).
+
+        Returns ``(f_lake, f_stream)`` aligned with ``cells_ij`` -- the MM
+        cell list as ordered -- and f_soil = 1 - f_lake - f_stream is where
+        the MM soil column runs. Built once, from the network and the ponds
+        as they will be written; the cell list itself is not touched.
+
+        f_stream is the channel's share of its cell, the reach's surface
+        ``rwid * rlen`` over the cell area (La Mata's mesh: median 0.31).
+        f_lake spreads the pond's own area over its footprint, so the rain a
+        pond receives is its area's and not its cells': ~1 on the mesh,
+        where the footprint IS the pond, and the pond's fraction of its one
+        host cell on a coarse grid, where a pond is sub-grid. Both are
+        capped so that no cell is more than all open water.
+        """
+        n = len(cells_ij)
+        area = np.asarray(area, dtype=float)
+        pos = {(int(c[0]), int(c[1])): k for k, c in enumerate(cells_ij)}
+        f_lake = np.zeros(n, dtype=float)
+        for p in self.ponds:
+            ks = [pos[c] for c in p.cells if c in pos]
+            if ks:
+                f_lake[ks] = min(1.0, float(p.area) / float(area[ks].sum()))
+        f_stream = np.zeros(n, dtype=float)
+        net = self.sfr_net if self.sfr else None
+        if net is not None and net.reach_wid is not None:
+            for c, r in net.rno.items():
+                k = pos.get((int(c[0]), int(c[1])))
+                if k is not None and area[k] > 0:
+                    f_stream[k] += (float(net.reach_wid[r])
+                                    * float(net.reach_len[r]) / area[k])
+        f_stream = np.minimum(f_stream, 1.0 - f_lake)
+        return f_lake, f_stream
+
     def _add_lak_package(self, gwf, name, strt_heads=None):
         """ModflowGwflak: one EMBEDDEDV lake per pond.
 

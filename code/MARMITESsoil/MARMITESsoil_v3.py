@@ -544,8 +544,29 @@ class clsMMsoil:
         Returns (MM_tmp, MM_S_tmp (nsl, nindex_S), nsl, perc_vol, etg_vol,
         petuzf_vol) and writes the next-SP state for this cell in `state`.
         ``etuzf_cell`` is the previous stress period's ACTUAL UZF ET [mm/d].
+
+        WP4.6, THE SURFACE DESCRIPTOR (cookbook §4a). A cell may be part open
+        water -- ``ctx.f_open`` = its pond (f_lake) and channel (f_stream)
+        share -- and the soil column runs on the rest, f_soil. The column is
+        computed exactly as before, per unit of SOIL area, and every flux it
+        makes enters the cell's balance times f_soil. Over the open fraction
+        there is no interception, no soil or groundwater ET, no percolation:
+        the rain, and any groundwater seeping up, go straight to the water
+        body as runoff (the coupler hands it to SFR / LAK), and its
+        evaporation is MF6's, from the Eo forcing (iEow). Every output is
+        per unit of CELL area, as before; the carried soil state stays the
+        column's own.
         """
         cid, i, j, _node = cell
+        fo = getattr(ctx, 'f_open', None)
+        f_open = 0.0 if fo is None else min(max(float(fo[cid]), 0.0), 1.0)
+        f_soil = 1.0 - f_open
+        # what reaches the column from below is per CELL area: the soil share
+        # of it, over the soil area, is the same depth for exfiltration --
+        # the open share goes to the water body -- but UZF's rejected
+        # infiltration and ET only ever came from under the soil fraction
+        col_rej = rejinf_cell / f_soil if f_soil > 0.0 else 0.0
+        col_etuzf = etuzf_cell / f_soil if f_soil > 0.0 else 0.0
         cMF = ctx.cMF
         # unpack static context to locals (kernel body kept close to v0.3)
         _nsl, _slprop, _st, _Sm, _Sfc, _Sr, _Ks, _Ssoil_ini = (
@@ -699,8 +720,8 @@ class clsMMsoil:
                         Tl, nsl, Sm, Sfc, Sr, Ks, Ssoil_ini_tmp,
                         exf_MF_ini_tmp, dgwt, st, i, j, n,
                         kTg_min_tmp, kTg_max_tmp, kT_f_tmp, kT_s_tmp,
-                        NVEG_tmp, LAIveg_tmp, REJINF_ini=rejinf_cell,
-                        ETUZF_prev=etuzf_cell)
+                        NVEG_tmp, LAIveg_tmp, REJINF_ini=col_rej,
+                        ETUZF_prev=col_etuzf)
         Ssoil_pc_tot = float(np.sum(Ssoil_pc_tmp)) / nsl
         perc = Rp_tmp[-1]
         ETg = Eg_tmp + Tg_tmp
@@ -715,7 +736,7 @@ class clsMMsoil:
         # returned (flux adds both at the base); counting the first alone
         # left the soil balance -- and the Sankey -- short by the second
         # (-5.6 %, 36 mm/yr, on 2026-09-24).
-        rej_in = abs(float(rejinf_cell))
+        rej_in = abs(float(col_rej))
         exf_in = exf_MF_ini_tmp / cMF.perlen[n] + rej_in
         Esoil_MB = float(np.sum(Esoil_tmp))
         Tsoil_MB = float(np.sum(Tsoil_tmp))
@@ -749,21 +770,29 @@ class clsMMsoil:
         MB = (I + exf_in) - (
             Rexf_tmp[0] + Esoil_MB + Tsoil_MB + dSsoil_tot + Rp_tmp[-1])
 
-        # export arrays
-        _vals = {'iP': P_tmp, 'iPT': PT_tot, 'iPE': PE_tot, 'iPe': Pe_tot,
-                 'iSsurf': Ssurf_tmp, 'iRo': Ro_tmp, 'iEXFg': exf_MF_ini_tmp,
-                 'iEow': Eow_tmp, 'iMB': MB, 'iEi': INTER_tot,
-                 'iEo': Eo_zonesSP_tmp, 'iEg': Eg_tmp, 'iTg': Tg_tmp,
-                 'idSsurf': dSsurf, 'iETg': ETg, 'iETsoil': ETsoil_tot,
-                 'iSsoil_pc': Ssoil_pc_tot, 'idSsoil': dSsoil_tot,
-                 'iperc': perc, 'ihcorr': HEADSini_MM * 0.001,
+        # export arrays, per unit of CELL area: the column's fluxes times
+        # f_soil, and the open fraction's rain and seepage as runoff to the
+        # water body (WP4.6). The states (soil moisture, depth to water) are
+        # the column's own.
+        fs = f_soil
+        ro_open = f_open * (P_tmp + max(exf_MF_ini_tmp, 0.0) / cMF.perlen[n])
+        _vals = {'iP': P_tmp, 'iPT': fs * PT_tot, 'iPE': fs * PE_tot,
+                 'iPe': fs * Pe_tot + f_open * P_tmp,
+                 'iSsurf': fs * Ssurf_tmp, 'iRo': fs * Ro_tmp + ro_open,
+                 'iEXFg': exf_MF_ini_tmp,
+                 'iEow': fs * Eow_tmp, 'iMB': fs * MB, 'iEi': fs * INTER_tot,
+                 'iEo': Eo_zonesSP_tmp, 'iEg': fs * Eg_tmp, 'iTg': fs * Tg_tmp,
+                 'idSsurf': fs * dSsurf, 'iETg': fs * ETg,
+                 'iETsoil': fs * ETsoil_tot,
+                 'iSsoil_pc': Ssoil_pc_tot, 'idSsoil': fs * dSsoil_tot,
+                 'iperc': fs * perc, 'ihcorr': HEADSini_MM * 0.001,
                  'idgwt': -dgwt_tmp * 0.001, 'iuzthick': uzthick * 0.001,
-                 'iI': I, 'iMBsurf': MBsurf,
+                 'iI': fs * I, 'iMBsurf': fs * MBsurf,
                  # WP2: UZF's demand; its ACTUAL and the total are written by
                  # the coupler once MF6 has solved (iETuzf, iETtot)
-                 'iPETuzf': PETuzf, 'iETuzf': 0.0,
-                 'iETtot': INTER_tot + Eow_tmp + ETsoil_tot + ETg,
-                 'iRejInf': rej_in}
+                 'iPETuzf': fs * PETuzf, 'iETuzf': 0.0,
+                 'iETtot': fs * (INTER_tot + Eow_tmp + ETsoil_tot + ETg),
+                 'iRejInf': fs * rej_in}
         MM_tmp = np.zeros(len(index), dtype=np.float64)
         for _k, _v in _vals.items():
             if _k in index:
@@ -774,13 +803,21 @@ class clsMMsoil:
             MM_S_tmp[l, :] = [Esoil_tmp[l], Tsoil_tmp[l], Ssoil_pc_tmp[l],
                               Rp_tmp[l], Rexf_tmp[l], dSsoil[l], Ssoil_tmp[l],
                               SAT_tmp[l], MB_l[l]]
+        # write next-SP state for this cell (percolation-driven soil storage)
+        # -- the COLUMN's own, before it is expressed per cell area
+        state.Ssoil_ini[cid, :nsl] = MM_S_tmp[:nsl, index_S.get('iSsoil')]
+        if f_open > 0.0:
+            for k in ('iEsoil', 'iTsoil', 'iRsoil', 'iExf', 'idSsoil_s',
+                      'iSsoil', 'iMB_s'):
+                if k in index_S:
+                    MM_S_tmp[:, index_S[k]] *= fs
 
-        # volumetric recharge (UZF finf) and groundwater ET (WEL) rates
+        # volumetric recharge (UZF finf) and groundwater ET (WEL) rates: from
+        # under the soil fraction only -- a pond cell percolates nothing, and
+        # the lake exchanges with the aquifer through its own bed instead
         perc_vol = MM_S_tmp[nsl - 1, index_S.get('iRsoil')] / conv_fact
         etg_vol = MM_tmp[index.get('iETg')] / conv_fact
-        petuzf_vol = PETuzf / conv_fact                   # m/d, UZF PET
-        # write next-SP state for this cell (percolation-driven soil storage)
-        state.Ssoil_ini[cid, :nsl] = MM_S_tmp[:nsl, index_S.get('iSsoil')]
+        petuzf_vol = fs * PETuzf / conv_fact              # m/d, UZF PET
         return MM_tmp, MM_S_tmp, nsl, perc_vol, etg_vol, petuzf_vol
 
     def step(self, ctx, n, tstart_MF, heads_cell, exf_cell, state, rejinf_cell=None,

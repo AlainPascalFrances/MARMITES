@@ -727,9 +727,11 @@ FIELDS = {
                    'with the aquifer -- MODFLOW 6 has no unsaturated zone '
                    'beneath streams (NWT\'s SFR2+UZF1 had one), and MVR '
                    'cannot add it. Acceptable where the channel follows a '
-                   'shallow water table, as in La Mata. Until CRR is on, '
-                   'only the runoff generated on channel cells reaches the '
-                   'stream.'),
+                   'shallow water table, as in La Mata. On a channel cell '
+                   'the MM soil column runs on the land share only; the '
+                   'channel\'s share (width x length / cell area) takes its '
+                   'rain straight into the stream. Until CRR is on, only the '
+                   'runoff generated on channel cells reaches the stream.'),
     'sfr.min_slope': ('Minimum reach slope', 'm/m', ''),
     'sfr.monotonic_bed': ('Downstream-monotonic bed', _U,
                           'The SFRmaker rule: a bed that rises downstream is '
@@ -751,7 +753,10 @@ FIELDS = {
                    'centroid, and the stream runs THROUGH it -- the reaches '
                    'in the footprint are cut out and joined to the lake by '
                    'MVR. A pond wholly outside the catchment is not a lake '
-                   'of the model.'),
+                   'of the model. Over the footprint there is no MM soil '
+                   'column: the rain and any groundwater seeping up go to '
+                   'the lake (LAK RUNOFF), and its evaporation is the '
+                   'lake\'s.'),
     'lak.depth': ('Pond depth', 'm', 'Below the rim.'),
     'lak.bedleak': ('Lakebed leakance', '1/d', 'Clay-lined charca: 1e-3.'),
     'lak.surfdep': ('Surface depression depth', 'm',

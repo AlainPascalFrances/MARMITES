@@ -950,3 +950,53 @@ On La Mata's mesh (build only, not run):
   exactly the space the soil column would. An embedded lake takes its
   bottom from its own stage table, and MF6 imposes no constraint against
   the cell top (`gwf-lak.f90`).
+
+## 8.18 WP4.6 + WP4.4: open water bypasses the soil column (2026-09-26)
+
+This implements the user decision of 2026-09-09 (cookbook §4a), with the
+share-based rule for streams (user, 2026-09-26).
+
+**One per-cell surface descriptor**, built once from the network and the
+ponds as written, on the MM cell list as ordered:
+`f_lake + f_stream + f_soil = 1` (`clsMF6.surface_fractions`, attached to
+`ctx.f_open` by the coupler).
+
+- `f_stream = rwid * rlen / A`, the channel's own surface.
+- `f_lake` spreads the pond's polygon area over its footprint: about 1 on
+  the mesh, where the footprint *is* the pond, and the pond's share of its
+  one host cell on the 50 m grid (0.14-0.81).
+- Both are capped so no cell is more than all open water.
+
+**MMsoil** (`_cell_step`):
+- The column is computed exactly as before, per unit of soil area; its
+  carried state is its own.
+- Every output flux is multiplied by `f_soil`.
+- Over the open fraction there is no interception, soil ET, groundwater ET,
+  percolation or UZF demand. Its rain, and any groundwater seeping up from
+  a seep drain, is handed over as runoff: `Ro = f_soil*Ro_col + f_open*(P + exf)`.
+- The column's inputs from below (UZF rejected infiltration, the previous
+  period's UZF ET) came only from under the soil fraction, so they are
+  divided by `f_soil`.
+- Checks: `P = Ei + Pe` still holds per cell, and the ET <= PET check holds
+  as it did, now over the soil fraction's demand.
+
+**Coupler:**
+- Runoff goes to SFR INFLOW (channel cells) and, new (WP4.4), to LAK
+  RUNOFF (the sum over each pond's footprint), in BOTH coupling modes. The
+  iterative mode had delivered no runoff to the stream at all.
+- A pond's evaporation is booked over its footprint by the pond area each
+  cell holds. It used to go on the host cell alone: a 2036 m2 pond's
+  evaporation on 25 m2.
+
+**La Mata's mesh (build only, not run):**
+- the soil column runs on 99.28 % of the 4.80 km2;
+- 463 pond cells (`f_lake` 0.887-1.000, 11,769 m2 of the ponds' 11,812 m2);
+- 2567 channel cells (`f_stream` median 0.31, 22,984 m2 of channel).
+
+**What changes in a run:**
+- MM runoff grows by the rain on 0.72 % of the catchment, and it now
+  reaches the ponds.
+- The PET demand line (PT + PE) covers the soil fraction only. The open
+  fraction's evaporation is Eow, from MF6.
+- In a pond cell, `iSsoil_pc` and `idgwt` still report the (uncounted)
+  column's state.
