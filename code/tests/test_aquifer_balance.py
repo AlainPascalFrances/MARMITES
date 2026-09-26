@@ -105,6 +105,26 @@ def test_every_drain_well_and_ghb_outflow_is_discharge_nothing_else():
     assert bal['discharge'] == pytest.approx(10.0 * 1000.0)   # 1+2+3+4 m3/d
 
 
+def test_the_streams_and_ponds_exchange_both_ways_and_close_the_deficit():
+    """A losing stream recharges the aquifer and a gaining one drains it;
+    left out, both read as a storage change that is not there."""
+    cum, t = _cum([1.0, 11.0], **{
+        'UZF-GWRCH_IN': [0.0, 10.0], 'DRN_OUT': [0.0, 6.0],
+        'SFR_IN': [0.0, 3.0], 'SFR_OUT': [0.0, 5.0], 'LAK-1_IN': [0.0, 1.0],
+        'LAK-1_OUT': [0.0, 0.5], 'GHB_IN': [0.0, 2.0]})
+    bal = rl.aquifer_balance(cum, t, area=365.0)
+    k = 1000.0                                 # m3/d over 365 m2 -> mm/yr
+    assert bal['surface_in'] == pytest.approx(4.0 * k)
+    assert bal['surface_out'] == pytest.approx(5.5 * k)
+    assert bal['boundary_in'] == pytest.approx(2.0 * k)
+    assert sorted(bal['discharge_terms']) == ['DRN_OUT']
+    lines = rl.balance_lines(dict(bal, peak_share=0.0))
+    # in 10 + 4 + 2, out 6 + 5.5: storage gained 4.5
+    assert '(deficit %.1f)' % (-4.5 * k) in lines[0]
+    assert any('streams and ponds' in l and 'net -1500.0' in l for l in lines)
+    assert any('GHB boundary 2000.0' in l for l in lines)
+
+
 def test_the_lines_warn_of_a_pulse_and_only_then():
     base = {'days': 60.0, 'area_km2': 4.8, 'recharge': 7209.8,
             'discharge': 6579.3, 'discharge_terms': {'DRN2_OUT': 6501.7},

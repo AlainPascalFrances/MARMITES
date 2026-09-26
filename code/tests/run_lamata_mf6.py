@@ -340,6 +340,14 @@ def active_area(cMF, b):
 # terms present in a run's list file count; the rest are simply absent.
 RECHARGE_TERMS = ('UZF-GWRCH_IN',)
 DISCHARGE_PREFIXES = ('DRN', 'GHB', 'WEL')
+# the aquifer's exchange with the streams and the ponds, both ways: seepage
+# from them into it (_IN) and groundwater exfiltrating into them (_OUT)
+SURFACE_PREFIXES = ('SFR', 'LAK')
+
+
+def _prefix(c):
+    """'DRN_SEEP_OUT' -> 'DRN', 'SFR-1_IN' -> 'SFR', 'DRN2_OUT' -> 'DRN'."""
+    return c.split('_')[0].split('-')[0].rstrip('0123456789')
 
 
 def aquifer_balance(cum, times, area, steady_first=True):
@@ -359,9 +367,16 @@ def aquifer_balance(cum, times, area, steady_first=True):
     t = np.asarray(times, dtype=float)
     cols = list(cum.columns)
     dis_cols = [c for c in cols if c.endswith('_OUT')
-                and c.split('_')[0].split('-')[0].rstrip('0123456789')
-                in DISCHARGE_PREFIXES]
+                and _prefix(c) in DISCHARGE_PREFIXES]
     rch_cols = [c for c in cols if c in RECHARGE_TERMS]
+    # WP3/WP4: the streams and the ponds exchange with the aquifer directly
+    # (MF6 has no unsaturated zone beneath them) -- left out, a losing
+    # stream's seepage read as a storage deficit
+    sin_cols = [c for c in cols if c.endswith('_IN')
+                and _prefix(c) in SURFACE_PREFIXES]
+    sout_cols = [c for c in cols if c.endswith('_OUT')
+                 and _prefix(c) in SURFACE_PREFIXES]
+    bin_cols = [c for c in cols if c.endswith('_IN') and _prefix(c) == 'GHB']
     i0 = 1 if (steady_first and len(t) > 1) else 0
     span = t[-1] - (t[0] if i0 else 0.0)
     if span <= 0 or area <= 0:
@@ -385,6 +400,10 @@ def aquifer_balance(cum, times, area, steady_first=True):
     share = float(step[k] / v_rch) if v_rch > 0 else 0.0
     return {'recharge': mmyr(v_rch), 'discharge': mmyr(v_dis),
             'discharge_terms': {c: mmyr(vol(c)) for c in dis_cols},
+            'surface_in': mmyr(sum(vol(c) for c in sin_cols)),
+            'surface_out': mmyr(sum(vol(c) for c in sout_cols)),
+            'boundary_in': mmyr(sum(vol(c) for c in bin_cols)),
+            'surface_terms': {c: mmyr(vol(c)) for c in sin_cols + sout_cols},
             'area_km2': area / 1e6, 'days': span,
             'peak_share': share, 'peak_time': float(t[i0 + k]),
             'peak_mm': float(step[k]) / area * 1000.0 if step.size else 0.0}
@@ -392,13 +411,26 @@ def aquifer_balance(cum, times, area, steady_first=True):
 
 def balance_lines(bal):
     """The balance as printed at the end of a run."""
+    s_in = bal.get('surface_in', 0.0)
+    s_out = bal.get('surface_out', 0.0)
+    b_in = bal.get('boundary_in', 0.0)
+    # the deficit is what storage made up: every way in against every way out
+    deficit = (bal['discharge'] + s_out) - (bal['recharge'] + s_in + b_in)
     out = ['aquifer balance over %.0f d on %.3f km2: recharge to WT %.1f '
            'mm/yr  vs  discharge %.1f mm/yr  (deficit %.1f)'
            % (bal['days'], bal['area_km2'], bal['recharge'],
-              bal['discharge'], bal['discharge'] - bal['recharge']),
+              bal['discharge'], deficit),
            '   discharge by term: ' + ', '.join(
                '%s %.1f' % (c, v) for c, v in sorted(
                    bal['discharge_terms'].items()))]
+    if bal.get('surface_terms'):
+        out.append('   streams and ponds: seepage into the aquifer %.1f, '
+                   'groundwater into them %.1f mm/yr (net %+.1f to the aquifer)'
+                   ' -- %s' % (s_in, s_out, s_in - s_out, ', '.join(
+                       '%s %.1f' % (c, v) for c, v in sorted(
+                           bal['surface_terms'].items()))))
+    if b_in:
+        out.append('   inflow through the GHB boundary %.1f mm/yr' % b_in)
     if bal['peak_share'] > 0.5:
         out.append('   WARNING: %.0f %% of that recharge arrived in ONE step '
                    '(t = %g d, %.0f mm over the catchment) -- a pulse, not a '
