@@ -226,6 +226,19 @@ def panel_link(target, label, icon=None):
         return False
 
 
+def launch_approved(validated, cfg, todo):
+    """Did the Validation panel approve THIS launch?
+
+    It approves the SAVED FILE, by its hash, because the file is what a run
+    reads. Edits the panels still hold were not in what it approved -- and
+    starting then runs the file without them. That is how a one-year run was
+    spent without the stream on 2026-09-26: ``sfr.enable`` was toggled, the
+    run launched from the Validation panel, and the toggle was saved 20 s
+    after the model had read the file.
+    """
+    return bool(validated) and validated == cfg.config_hash() and not todo
+
+
 def go_to(target):
     """Switch to another panel. False if this app cannot navigate.
 

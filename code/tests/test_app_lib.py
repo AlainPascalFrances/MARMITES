@@ -717,3 +717,30 @@ def test_a_run_is_dated_by_the_last_line_of_its_log(tmp_path):
     assert runlib.duration('2026-09-25 13:05:00', '2026-09-25 13:50:00') \
         == '45 min'
     assert runlib.duration(None, '2026-09-25 13:50:00') == ''
+
+
+def test_a_validated_launch_with_unsaved_edits_is_not_approved():
+    """The Validation panel approves the SAVED file; edits the panels still
+    hold were not in it. Starting then runs the file without them -- a whole
+    run spent without the stream (2026-09-26)."""
+    if os.path.join(CODE, 'app') not in sys.path:
+        sys.path.insert(0, os.path.join(CODE, 'app'))
+    if CODE not in sys.path:
+        sys.path.insert(0, CODE)
+    from lib import panelui
+    cfg = _cfg()
+    h = cfg.config_hash()
+    assert panelui.launch_approved(h, cfg, [])
+    assert not panelui.launch_approved(h, cfg, ['sfr.enable = true'])
+    assert not panelui.launch_approved(None, cfg, [])
+    assert not panelui.launch_approved('an-older-hash', cfg, [])
+
+
+def test_the_run_page_saves_and_revalidates_instead_of_starting_the_old_file():
+    src = open(os.path.join(CODE, 'app', 'pages', '8_8_-_Run.py'),
+               encoding='utf-8').read()
+    assert 'panelui.launch_approved(_validated, cfg, _todo)' in src
+    i = src.index('_approved = panelui.launch_approved')
+    guard = src[i:src.index('_busy = runlib.active', i)]
+    assert 'save_now' in guard and 'VALIDATION_PAGE' in guard
+    assert '_start()' not in guard

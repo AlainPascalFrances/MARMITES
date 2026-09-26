@@ -250,7 +250,23 @@ def _start():
 # Arriving from the Validation panel's own Launch: the checks were just run
 # and looked at there, so they are not asked again -- the hash says it is the
 # same configuration that was approved.
-_approved = st.session_state.pop('validated', None) == cfg.config_hash()
+_validated = st.session_state.pop('validated', None)
+_approved = panelui.launch_approved(_validated, cfg, _todo)
+if _validated == cfg.config_hash() and _todo:
+    # Approved was the FILE; the panels hold edits it never saw. Save them
+    # and send the modeller back to validate what will actually run --
+    # never start the old file (panelui.launch_approved).
+    _applied, _why, _ok = panelui.save_now(cfg, cfg_path)
+    if not _ok:
+        st.error('NOT saved, so nothing was launched — the configuration '
+                 'would be invalid:\n\n%s' % _why)
+        st.stop()
+    _msg = ('Saved %d change(s) the Validation panel had not seen, and '
+            'launched nothing: validate again, then launch.' % len(_applied))
+    st.session_state['__saved_note'] = _msg
+    if not panelui.go_to(panelui.VALIDATION_PAGE):
+        st.warning(_msg)
+        st.stop()
 
 # One run at a time: a second writes the same MODFLOW workspace (runs.launch
 # refuses it too -- this only says so before the button is pressed).

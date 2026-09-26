@@ -1620,6 +1620,12 @@ _AQ_RECORDS = (
     ('DRN', 'DRN', 'DRN'),                 # boundary drains
     ('DRN_SEEP', 'DRN', 'DRN_SEEP'),       # seepage face (seep='drn')
     ('WEL', 'WEL', None),                  # groundwater ET sink
+    ('GHB', 'GHB', None),                  # head-dependent boundary
+    # the streams and the ponds exchange with the aquifer directly, both
+    # ways (+ into the aquifer): missing here, a losing stream's seepage and
+    # a gaining stream's baseflow read as aquifer storage change
+    ('SFR', 'SFR', None),
+    ('LAK', 'LAK', None),
 )
 
 
@@ -1688,7 +1694,10 @@ def _aquifer_pass(sim_ws, name, cMF, targets, nper, cache_dir=None,
     nlay, nrow, ncol = int(cMF.nlay), int(cMF.nrow), int(cMF.ncol)
     cbc_fn = os.path.join(sim_ws, '%s.cbc' % name)
     st = os.stat(cbc_fn)
-    sig = '%d_%d_%d_%d' % (st.st_size, int(st.st_mtime), nper, len(targets))
+    # the RECORDS read are part of the key: a digest made before a record
+    # was added would otherwise be reused without it
+    sig = '%d_%d_%d_%d_%s' % (st.st_size, int(st.st_mtime), nper, len(targets),
+                              '+'.join(k for k, _t, _p in _AQ_RECORDS))
 
     cache_fn = os.path.join(cache_dir, '_aquifer_digest.npz') if cache_dir else None
     if cache_fn and os.path.exists(cache_fn):
@@ -1826,7 +1835,10 @@ def _aquifer_layer_fluxes(sim_ws, name, cMF, ctx, res, sel_ij=None,
         so WEL itself is not drawn: ``iWEL_L`` is left 0);
       * ``FLF[L]`` = flow across the bottom face of layer L, + downward.
     ``FRF``/``FFF`` are 0 (the legacy driver also zeroed the horizontal face
-    flows); ``GHB``/``CH`` are 0 (no such packages here).
+    flows); ``CH`` is 0 (no such package here). ``GHB``, and ``SFR`` and
+    ``LAK`` (``iSFR_L``, ``iLAK_L``: the streams and the ponds), are signed,
+    + into the aquifer -- seepage from them -- and - out of it, groundwater
+    discharging into them.
     """
     import flopy
     nlay = int(cMF.nlay)
@@ -1875,6 +1887,9 @@ def _aquifer_layer_fluxes(sim_ws, name, cMF, ctx, res, sel_ij=None,
     dSg = (vol('STO-SS') + vol('STO-SY')) * to_mm
     DRN = vol('DRN') * to_mm                                  # <0 out
     FLF = vol('FLF') * to_mm
+    GHB = vol('GHB') * to_mm                                  # + in, - out
+    SFR = vol('SFR') * to_mm                                  # + in, - out
+    LAK = vol('LAK') * to_mm                                  # + in, - out
     wel = -vol('WEL') * to_mm                                 # >0 magnitude out
     Egl = wel * eg_frac[:, None]
     Tgl = wel * (1.0 - eg_frac[:, None])
@@ -1909,7 +1924,9 @@ def _aquifer_layer_fluxes(sim_ws, name, cMF, ctx, res, sel_ij=None,
         out['iFLF_%d' % (L + 1)] = FLF[:, L]
         out['iFRF_%d' % (L + 1)] = np.zeros(nper)
         out['iFFF_%d' % (L + 1)] = np.zeros(nper)
-        out['iGHB_%d' % (L + 1)] = np.zeros(nper)
+        out['iGHB_%d' % (L + 1)] = GHB[:, L]
+        out['iSFR_%d' % (L + 1)] = SFR[:, L]
+        out['iLAK_%d' % (L + 1)] = LAK[:, L]
         out['iCH_%d' % (L + 1)] = np.zeros(nper)
     # UZF unsaturated storage change, from the UZF mass balance so it closes:
     #   percolation in = recharge to GW out + dS_unsat
@@ -1939,17 +1956,24 @@ def _active_cells_per_layer(cMF, nlay, mask=None):
     return [int(((ib[L] != 0) & mask).sum()) for L in range(nlay)]
 
 
+def _ghb_cells(aq, nlay):
+    """Per layer, does this target have a GHB flow at all? (the Sankey's
+    ``ghbcells[L] > 0`` guard, as ``drncells`` is for the drains)"""
+    return [int(np.any(np.asarray(aq.get('iGHB_%d' % (L + 1), 0.0)) != 0.0))
+            for L in range(nlay)]
+
+
 class _SankeyMF(object):
     """Thin wrapper over cMF supplying the plotting-metadata attributes the
     native Sankey reads, without mutating the real cMF."""
-    def __init__(self, cMF, ncell_MM, drncells, dates):
+    def __init__(self, cMF, ncell_MM, drncells, dates, ghbcells=None):
         self._c = cMF
         nlay = int(cMF.nlay)
         self.wel_yn = 1               # groundwater ET drawn (as Eg/Tg)
         self.drn_yn = 1 if any(drncells) else 0
-        self.ghb_yn = 0
         self.drncells = drncells
-        self.ghbcells = [0] * nlay
+        self.ghbcells = list(ghbcells) if ghbcells is not None else [0] * nlay
+        self.ghb_yn = 1 if any(self.ghbcells) else 0
         self.ncell_MM = ncell_MM
         self.inputDate = dates
 
@@ -2108,7 +2132,8 @@ def _native_sankey(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
                                                    agg=agg, target=0)
     flx, flxIndex = _assemble_flx(IX, IXS, wb_ts, wb_ts_soil, aq, nper)
     DATE, HYindex, year_lst = _sankey_dates(cMF, nper)
-    smf = _SankeyMF(cMF, ncell_MM, drncells, DATE)
+    smf = _SankeyMF(cMF, ncell_MM, drncells, DATE,
+                    ghbcells=_ghb_cells(aq, nlay))
     ibound4Sankey = [1 if ncell_MM[L] > 0 else 0 for L in range(nlay)]
 
     written = []
@@ -2161,7 +2186,8 @@ def _native_sankey_obs(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
                                                 for L in range(nlay))
                       - _uzf_out(mmv, IX))
         flx, flxIndex = _assemble_flx(IX, IXS, mmv, mmsv, aq, nper)
-        smf = _SankeyMF(cMF, ncell_MM, drncells, DATE)
+        smf = _SankeyMF(cMF, ncell_MM, drncells, DATE,
+                        ghbcells=_ghb_cells(aq, nlay))
         ibound4Sankey = [1 if ncell_MM[L] > 0 else 0 for L in range(nlay)]
         written += _render_sankey(MMplot, out_dir, DATE, flx, flxIndex, HYindex,
                                   year_lst, smf, ncell_MM, ibound4Sankey,

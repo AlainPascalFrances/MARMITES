@@ -1918,6 +1918,8 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
     WEL = []
     DRN = []
     GHB = []
+    SFR = []            # WP3/WP4: the streams' and ponds' exchange with the
+    LAK = []            # aquifer, + into it (seepage), - out (discharge)
     CH = []
     # EVERY WINDOW IS INCLUSIVE of its last day, summed in double precision.
     # The legacy slice stopped BEFORE indexend -- dropping that day while
@@ -1975,8 +1977,15 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
         WEL.append(np.zeros(cMF.nlay))
         DRN.append(np.zeros(cMF.nlay))
         GHB.append(np.zeros(cMF.nlay))
+        SFR.append(np.zeros(cMF.nlay))
+        LAK.append(np.zeros(cMF.nlay))
         CH.append(np.zeros(cMF.nlay))
         for L in range(cMF.nlay):
+            # absent from a run without streams or ponds: zero, not drawn
+            for _key, _arr in (('iSFR_%d', SFR), ('iLAK_%d', LAK)):
+                if _key % (L + 1) in flxIndex:
+                    _arr[k][L] += mult * np.sum(np.float64(
+                        flx[flxIndex[_key % (L + 1)]][i:indexend + 1]))
             Rg[k][L] += mult * np.sum(np.float64(flx[flxIndex['iRg_%d' % (L + 1)]][i:indexend + 1]))
             dSg[k][L] += mult * np.sum(np.float64(flx[flxIndex['idSg_%d' % (L + 1)]][i:indexend + 1]))
             FRF[k][L] += mult * np.sum(np.float64(flx[flxIndex['iFRF_%d' % (L + 1)]][i:indexend + 1]))
@@ -2422,6 +2431,18 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
                             Out.append(-GHB[k][L])
                         else:
                             In.append(GHB[k][L])
+                    # the streams and the ponds: + seepage into the layer,
+                    # - groundwater discharging into them (WP3/WP4)
+                    for _v, _lbl in ((SFR[k][L], '$SFR$'), (LAK[k][L], '$LAK$')):
+                        if np.abs(_v) > treshold:
+                            flows.append(_v / ff)
+                            labels.append(_lbl)
+                            orientations.append(1)
+                            pathlengths.append(pl)
+                        if _v < 0.0:
+                            Out.append(-_v)
+                        else:
+                            In.append(_v)
                     # CH
                     if len(cMF.ibound[cMF.ibound < 0]) > 0:
                         #flows.append(CH[k][L] / ff)
