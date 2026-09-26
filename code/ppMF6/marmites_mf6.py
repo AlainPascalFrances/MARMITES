@@ -543,9 +543,21 @@ class clsMF6:
         ONE OUTLET, where the network leaves the catchment -- the lowest
         stream cell on its boundary -- and the reach geometry from the MAP:
         each reach as long as the channel mapped inside its cell, its slope
-        over the distance to the next reach, its bed incised below the LAND
-        SURFACE, and Manning, streambed K and thickness per segment as the
-        converter resolved them.
+        over the distance to the next reach, and Manning, streambed K and
+        thickness per segment as the converter resolved them.
+
+        THE STREAM'S TOTAL DEPTH below the land surface is the soil depth of
+        its cell + the channel depth + the streambed thickness (user rule,
+        2026-09-27). The channel is cut THROUGH the MMsoil column into the
+        aquifer: the streambed top sits one channel depth below the aquifer
+        top (land surface - soil thickness), its bottom one streambed
+        thickness lower. With the bed measured from the land surface instead
+        (WP3), La Mata's 1.5 m of soil equalled the 1.0 m channel + 0.5 m
+        streambed, so 2024 of 2663 streambed bottoms sat exactly on the
+        aquifer top -- where the seepage drains hold the water table -- and
+        MF6's stream-aquifer exchange, which switches at the streambed
+        bottom, took 40 to 500 outer iterations a period instead of 5.
+        The ROUTING still follows the land surface.
         """
         self.sfr_outlet_cells = set()
         self.sfr_outlet_cellids = set()
@@ -588,7 +600,11 @@ class clsMF6:
                 self.sfr_pondhmax = as_array(dep, np.shape(self.sfr_pondw))
         spacing = ((lambda c, r: topo.distance(c[0], r[0]))
                    if topo is not None else None)
-        build_sfr(net, land, pondhmax=self.sfr_pondhmax, pondw=self.sfr_pondw,
+        # the bed datum: the AQUIFER top, i.e. land surface - soil depth
+        # (the driver builds top = elev - soil thickness per cell)
+        aquifer_top = np.asarray(self.top, dtype=float)
+        build_sfr(net, aquifer_top, pondhmax=self.sfr_pondhmax,
+                  pondw=self.sfr_pondw,
                   delr=cMF.delr, delc=cMF.delc, botm=self.botm,
                   idomain=self.idomain,
                   rbth=self._segment_values('rbth', self.sfr_rbth),

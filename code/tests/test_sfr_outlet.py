@@ -372,3 +372,66 @@ def test_excising_nothing_changes_nothing():
     rows = [list(r) for r in net.connectiondata]
     assert S.excise_reaches(net, [_ic(0, 0)]) == ([], [])  # not a stream cell
     assert [list(r) for r in net.connectiondata] == rows
+
+
+def test_lamata_the_stream_is_cut_through_the_soil_into_the_aquifer(tmp_path):
+    """The stream's total depth below the land surface is the soil depth of
+    its cell + the channel depth + the streambed thickness (user rule,
+    2026-09-27): the streambed top one channel depth below the AQUIFER top,
+    its bottom never ON it. Measured from the land surface instead, La
+    Mata's 1.5 m of soil = 1.0 m channel + 0.5 m streambed put 76 % of the
+    streambed bottoms exactly on the aquifer top, where the water table sits,
+    and MF6 took up to 500 outer iterations a period."""
+    pytest.importorskip('flopy')
+    if not os.path.exists(os.path.join(DS, 'MF_ws', '__inputMF_flopy_v3_2s1L.ini')):
+        pytest.skip('La Mata dataset not present')
+    import matplotlib
+    matplotlib.use('agg')
+    import MARMITESutilities as MMutils
+    import ppMODFLOW_flopy_v3 as ppMF
+    import marmites_channel as mch
+    import marmites_config as cfgmod
+    import marmites_vector as mv
+    mf6mod = _load('marmites_mf6_depth', os.path.join(TRUNK, 'ppMF6', 'marmites_mf6.py'))
+    XLL, YLL = 739300.0, 4553050.0
+    c = ppMF.clsMF(MMutils.clsUTILITIES(verbose=1), MM_ws=DS, MM_ws_out=DS,
+                   MF_ws=os.path.join(DS, 'MF_ws'),
+                   MF_ini_fn='__inputMF_flopy_v3_2s1L.ini',
+                   xllcorner=XLL, yllcorner=YLL)
+    c.outcropL = np.zeros((c.nrow, c.ncol), dtype=int)
+    for L in range(c.nlay):
+        ib = (np.abs(np.asarray(c.ibound))[L] != 0)
+        c.outcropL += ((c.outcropL == 0) & ib) * (L + 1)
+    c.nper, c.perlen, c.nstp = 3, [1, 1, 1], [1, 1, 1]
+    land = np.asarray(np.ma.getdata(c.elev), float)
+    soil, depth, rbth = 1.5, 1.0, 0.5
+    b = mf6mod.clsMF6(c, top=land - soil, botm=np.asarray(c.botm, float),
+                      sim_ws=str(tmp_path), daily=True)
+    b.verbose = False
+    lines, seg_params = mch.read_stream_lines(
+        os.path.join(DS, 'inputSTREAM.csv'),
+        os.path.join(DS, 'inputSTREAM_param.csv'))
+    vgrid = mv.TargetGrid.structured(c.delr, c.delc, c.xllcorner, c.yllcorner)
+    present, seg_of_cell, ch_len = mch.burn_channel(lines, vgrid,
+                                                    (c.nrow, c.ncol))
+    act = np.asarray(c.outcropL) > 0
+    b.sfr_pondw = np.where(act, present, 0.0)
+    b.sfr_pondhmax = np.zeros_like(b.sfr_pondw)
+    b.sfr_seg_of_cell, b.sfr_seg_params = seg_of_cell, None
+    b.sfr_cell_length = ch_len
+    b.cell_area = 2500.0
+    b.sfr_rbth = rbth
+    b.sfr_width_source = cfgmod.ParamSource(
+        drainage={'w_min': 1.5, 'w_max': 3.0, 'power': 2.0})
+    b.sfr_depth_source = cfgmod.ParamSource(value=depth)
+    b.build()
+    net = b.sfr_net
+    tops = np.array([land[cc] - soil for cc in net.cells])
+    rtp = np.array(net.reach_top)
+    # the bed top one channel depth below the aquifer top -- lower only
+    # where the downstream-monotonic rule smoothed it
+    assert np.all(rtp <= tops - depth + 1e-6)
+    assert np.median(tops - depth - rtp) == pytest.approx(0.0, abs=1e-6)
+    # ... so no streambed bottom sits on the aquifer top any more
+    assert np.all((rtp - rbth) <= tops - depth - rbth + 1e-6)
+    assert np.min(tops - (rtp - rbth)) >= depth + rbth - 1e-6

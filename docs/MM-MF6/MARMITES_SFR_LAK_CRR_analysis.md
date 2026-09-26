@@ -849,10 +849,20 @@ mapped length. The attributes follow SFRmaker (Leaf et al. 2021):
   on the mesh). The old rule took index differences times delr/delc, which
   on the mesh's (ncpl, 1) proxy grid meant differences of *cell numbers*:
   1,289 km of reaches for 14.2 km of channel.
-- **Slope** over the centroid spacing to the next reach. **Bed** = land
-  surface (`cMF.elev`, not the model top, which is the soil base) minus the
-  incision, then downstream-monotonic: 233 tops lowered, 316 reaches on the
-  1e-4 floor.
+- **Slope** over the centroid spacing to the next reach. **Bed**, per the
+  user rule of 2026-09-27: the stream's total depth below the land surface
+  is the soil depth of its cell + the channel depth + the streambed
+  thickness. So the channel is cut through the MMsoil column: its bed top
+  sits one channel depth below the aquifer top (land surface minus soil
+  thickness), then made downstream-monotonic (518 tops lowered, 578 reaches
+  on the 1e-4 floor on the aquifer-top datum).
+  *Why:* measured from the land surface (the first WP3 version), La Mata's
+  1.5 m of soil equalled the 1.0 m channel + 0.5 m streambed. That put 2024
+  of 2663 streambed bottoms exactly on the aquifer top, where the seepage
+  drains hold the water table. MF6's stream-aquifer exchange switches at
+  the streambed bottom, and the first SFR year took 40-500 outer iterations
+  a period (5.5 without the stream), about 10 h a spin-up cycle. With the
+  rule, every streambed bottom sits 1.5-2.96 m below the aquifer top.
 - Manning's n, streambed K and thickness per segment from
   `inputSTREAM_param.csv`, with the panel value where the table has none.
 - **Corner-only pieces.** A mapped line that crosses the mesh exactly at a

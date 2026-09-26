@@ -740,8 +740,11 @@ FIELDS = {
                   'drainage law is resolved AFTER routing, because '
                   'contributing area is only known once the reaches are '
                   'ordered.'),
-    'sfr.depth': ('Channel incision', 'm',
-                  'How far the bed sits below land surface.'),
+    'sfr.depth': ('Channel depth', 'm',
+                  'Below the soil column: the stream\'s total depth under the '
+                  'land surface is the soil depth of its cell + this + the '
+                  'streambed thickness, so the channel is cut through the '
+                  'soil into the aquifer.'),
     'sfr.rhk': ('Streambed conductivity', 'm/d', ''),
     'sfr.rbth': ('Streambed thickness', 'm', ''),
     'sfr.manning': ('Manning\'s n', _U, ''),
