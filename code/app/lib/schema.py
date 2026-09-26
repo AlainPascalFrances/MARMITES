@@ -759,7 +759,10 @@ FIELDS = {
                    'column: the rain and any groundwater seeping up go to '
                    'the lake (LAK RUNOFF), and its evaporation is the '
                    'lake\'s.'),
-    'lak.depth': ('Pond depth', 'm', 'Below the rim.'),
+    'lak.depth': ('Pond depth', 'm',
+                  'Below the soil column, as for the streams: the pond\'s '
+                  'total depth under the land surface is the soil depth of '
+                  'its footprint + this. The rim is the land surface.'),
     'lak.bedleak': ('Lakebed leakance', '1/d', 'Clay-lined charca: 1e-3.'),
     'lak.surfdep': ('Surface depression depth', 'm',
                     'Smooths the wetted area as the pond dries.'),

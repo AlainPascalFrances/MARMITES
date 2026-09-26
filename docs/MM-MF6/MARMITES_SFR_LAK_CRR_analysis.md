@@ -953,13 +953,16 @@ On La Mata's mesh (build only, not run):
   for 4.4 (MM runoff to LAK RUNOFF).
 - In 4.6, f_lake = 1 over the whole footprint, not only the host cell.
 - **Rim datum (user decision 2026-09-26): the LAND SURFACE**, the mean of
-  `cMF.elev` over the footprint, as for the stream bed since WP3. The model
-  top is the base of the MMsoil column. On La Mata that column is about
-  1.5 m thick at the ponds, as deep as the ponds themselves, so each pond
-  bed now sits within -0.44 to +0.26 m of the aquifer top: the pond fills
-  exactly the space the soil column would. An embedded lake takes its
-  bottom from its own stage table, and MF6 imposes no constraint against
-  the cell top (`gwf-lak.f90`).
+  `cMF.elev` over the footprint. **Bed (user rule 2026-09-27, the streams'
+  rule):** the pond's total depth below the land surface is the soil depth
+  of its footprint + the pond depth. So the bed sits one pond depth below
+  the aquifer top, the mean of the model top over the footprint.
+  Measured from the land surface, La Mata's 1.5 m of soil equalled the
+  1.5 m pond, and every bed sat on the aquifer top (-0.44..+0.26 m at the
+  host cell), where the seepage drains hold the water table. That is the
+  switch that made the streams crawl. Build-only check on the mesh: the beds
+  now sit 0.93-1.52 m below the aquifer top at the host cell, and each pond
+  is 2.7-3.0 m deep from rim to bed.
 
 ## 8.18 WP4.6 + WP4.4: open water bypasses the soil column (2026-09-26)
 

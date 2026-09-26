@@ -362,10 +362,12 @@ def test_initial_stage_stays_between_bed_and_rim(tmp_path):
         assert p.bottom < p.strt <= p.rim, 'pond %s starts outside its own basin' % p.fid
 
 
-def test_the_rim_is_the_land_surface_not_the_soil_base(tmp_path):
-    """The model top is the base of the MMsoil column, one soil thickness
-    below the ground; a pond is dug into the ground (user decision
-    2026-09-26), as the stream bed already was (WP3)."""
+def test_the_rim_is_the_land_surface_and_the_bed_is_below_the_soil(tmp_path):
+    """The rim is the land surface (user, 2026-09-26); the bed is one pond
+    depth below the AQUIFER top -- the pond's total depth under the ground is
+    the soil depth + the pond depth, the streams' rule (user, 2026-09-27).
+    Measured from the ground, the 1.5 m pond in 1.5 m of soil put every bed
+    ON the aquifer top, where the water table sits."""
     pytest.importorskip('flopy')
     if not os.path.exists(os.path.join(DS, 'MF_ws', '__inputMF_flopy_v3_2s1L.ini')):
         pytest.skip('La Mata dataset not present')
@@ -396,7 +398,9 @@ def test_the_rim_is_the_land_surface_not_the_soil_base(tmp_path):
     assert b.ponds
     for p in b.ponds:
         assert p.rim == pytest.approx(np.mean([land[q] for q in p.cells]))
-        assert p.bottom == pytest.approx(p.rim - 1.5)
-        # dug 1.5 m into 2 m of soil: the pond bed is above the aquifer top
-        assert p.bottom > b.top[p.cell]
+        assert p.bottom == pytest.approx(
+            np.mean([land[q] - soil for q in p.cells]) - 1.5)
+        # the total depth is the soil's + the pond's
+        assert p.rim - p.bottom == pytest.approx(soil + 1.5)
+        assert p.bottom < b.top[p.cell] - 1.0
         assert p.bottom < p.strt <= p.rim

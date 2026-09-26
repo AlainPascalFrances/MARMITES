@@ -716,12 +716,15 @@ class clsMF6:
         # depth no longer comes from a raster; a per-cell map is still
         # accepted, so a case with a real bathymetry can supply one.
         depth = None if self.lak_depth is None else np.asarray(self.lak_depth, float)
-        # the rim is the LAND SURFACE, as the stream bed has been since WP3:
-        # the model top is the base of the MMsoil column, one soil
-        # thickness lower, and a pond is dug into the ground, not into the
-        # aquifer (user decision 2026-09-26). An embedded lake takes its
-        # bottom from its own table, so it may sit above the cell top where
-        # the soil is thicker than the pond is deep (gwf-lak.f90).
+        # THE STREAM'S RULE (user, 2026-09-27): the pond's total depth
+        # below the land surface is the soil depth of its footprint + the
+        # pond depth. It is dug through the MMsoil column: its bed one pond
+        # depth below the AQUIFER top (land surface - soil thickness), its
+        # rim -- where it spills -- the land surface (user, 2026-09-26).
+        # With the bed measured from the land surface instead, La Mata's
+        # 1.5 m of soil equalled the 1.5 m pond, and every pond bed sat on
+        # the aquifer top (-0.44..+0.26 m), where the seepage drains hold
+        # the water table -- the switch that made the streams crawl.
         land = self._land_surface()
         for p in ponds:
             i, j = p.cell
@@ -731,7 +734,7 @@ class clsMF6:
                 if v > 0:
                     d = v
             p.rim = float(np.mean([land[c] for c in p.cells]))
-            p.bottom = p.rim - d
+            p.bottom = float(np.mean([self.top[c] for c in p.cells])) - d
             # the lake connects at the topmost active layer, as the outcropping
             # unit is what a pond actually sits on
             k = 0
