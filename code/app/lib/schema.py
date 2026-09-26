@@ -125,9 +125,8 @@ def panel_name(number):
 # them panel_name fell back to "panel 8", putting back the number the whole
 # function exists to keep out of sentences.
 TAIL_PANELS = {
-    7: 'Validation of the configuration',
-    8: 'Run',
-    9: 'Results',
+    7: 'Run',            # its first tab validates the configuration
+    8: 'Results',
 }
 
 

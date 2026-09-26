@@ -347,6 +347,5 @@ def test_the_run_really_does_start_without_usable_state(tmp_path):
 def test_a_tail_panel_is_named_not_numbered():
     """panel_name fell back to "panel 8", putting the number back into the
     prose the function exists to keep it out of."""
-    assert schema.panel_name(8) == 'Run'
-    assert schema.panel_name(7) == 'Validation of the configuration'
-    assert schema.panel_name(9) == 'Results'
+    assert schema.panel_name(7) == 'Run'
+    assert schema.panel_name(8) == 'Results'

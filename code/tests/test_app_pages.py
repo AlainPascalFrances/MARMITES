@@ -32,8 +32,7 @@ PLOT = 'pages/6_6_-_Plots.py'
 PAGES = ['Home.py'] + [os.path.join('pages', f) for f in (
     '1_1_-_Grid.py', '2_2_-_Surface_and_driving_forces.py', '3_3_-_Soil.py',
     '4_4_-_Unsaturated_zone_and_groundwater.py', '5_5_-_State_variables.py',
-    '6_6_-_Plots.py', '7_7_-_Validation_of_the_configuration.py', '8_8_-_Run.py',
-    '9_9_-_Results.py')]
+    '6_6_-_Plots.py', '7_7_-_Run.py', '8_8_-_Results.py')]
 
 
 @pytest.mark.parametrize('page', PAGES)
@@ -67,8 +66,7 @@ def test_the_sidebar_shows_the_number_with_the_name():
 
     want = [(1, 'Grid'), (2, 'Surface and driving forces'), (3, 'Soil'),
             (4, 'Unsaturated zone and groundwater'), (5, 'State variables'),
-            (6, 'Plots'), (7, 'Validation of the configuration'),
-            (8, 'Run'), (9, 'Results')]
+            (6, 'Plots'), (7, 'Run'), (8, 'Results')]
     names = sorted(f for f in os.listdir(os.path.join(APP, 'pages'))
                    if f.endswith('.py') and not f.startswith('_'))
     assert len(names) == len(want), names
@@ -91,8 +89,7 @@ def test_the_panels_are_numbered_in_the_modellers_order():
                      '3_3_-_Soil.py',
                      '4_4_-_Unsaturated_zone_and_groundwater.py',
                      '5_5_-_State_variables.py', '6_6_-_Plots.py',
-                     '7_7_-_Validation_of_the_configuration.py', '8_8_-_Run.py',
-                     '9_9_-_Results.py']
+                     '7_7_-_Run.py', '8_8_-_Results.py']
 
 
 def test_the_panels_offer_something_to_edit():
@@ -1165,13 +1162,12 @@ def test_the_converter_is_on_the_validation_panel_and_launch_runs_it():
     one = open(os.path.join(APP, 'pages', '1_1_-_Grid.py'),
                encoding='utf-8').read()
     three = open(os.path.join(APP, SOIL), encoding='utf-8').read()
-    seven = open(os.path.join(APP, 'pages',
-                              '7_7_-_Validation_of_the_configuration.py'),
+    seven = open(os.path.join(APP, 'pages', '7_7_-_Run.py'),
                  encoding='utf-8').read()
-    run = open(os.path.join(APP, 'pages', '8_8_-_Run.py'),
-               encoding='utf-8').read()
+    run = seven
     assert 'conv_run' in seven and 'dataset_state.stale(cfg' in seven
-    assert seven.index('conv_run') < seven.index("'Launch the run'"),         'the converter belongs above the Launch button'
+    assert seven.index('conv_run') < seven.index("'Validate the configuration'"), \
+        'the converter belongs above the Validate button'
     for page, name in ((one, 'Grid'), (three, 'Soil')):
         assert 'conv_run' not in page and 'tab_gis' not in page,             'the %s panel has a converter again' % name
     # Create grid still converts the two tables a grid depends on ...
@@ -1364,12 +1360,15 @@ def test_the_run_page_refuses_a_configuration_the_panels_contradict():
     from lib import panelui
     tmp = _scratch_with_mmsurf_on()
     try:
-        at = AppTest.from_file(os.path.join(APP, 'pages', '8_8_-_Run.py'),
+        at = AppTest.from_file(os.path.join(APP, 'pages', '7_7_-_Run.py'),
                                default_timeout=300)
         at.session_state['config_file'] = os.path.basename(tmp)
         # what panel 2 would have left behind, having been unplugged and
         # not saved
         at.session_state['live_run.surface'] = False
+        # ... for THIS file, as pick_config records it: a toggle carried
+        # over from another file is forgotten, not reported
+        at.session_state['__switch_file'] = os.path.basename(tmp)
         at.run()
         launch = [b for b in at.button if b.label == 'Launch']
         assert launch, 'the Run page has no Launch button'
@@ -1402,13 +1401,82 @@ def test_switching_configuration_forgets_the_other_ones_switches():
             os.remove(tmp)
 
 
+def _runs_elsewhere(tmp, tmp_path):
+    """Point a scratch configuration's run registry at an empty folder, so a
+    run going on the real workspace cannot turn Launch off under the test."""
+    runs = str(tmp_path / 'runs').replace(chr(92), '/')
+    _force(tmp, 'ui', 'runs_dir', 'runs_dir = "%s"' % runs)
+    return tmp
+
+
+def _launch(at):
+    b = [x for x in at.button if x.key == 'launch']
+    assert b, 'the Run panel has no Launch button'
+    return b[0]
+
+
+def test_the_run_tab_is_frozen_until_the_configuration_is_validated(tmp_path):
+    """The model runs only from Launch on the run tab, and only once the
+    validation tab has approved the configuration."""
+    tmp = _runs_elsewhere(_scratch_config('_frozentest.toml'), tmp_path)
+    try:
+        at = AppTest.from_file(os.path.join(APP, 'pages', '7_7_-_Run.py'),
+                               default_timeout=300)
+        at.session_state['config_file'] = os.path.basename(tmp)
+        at.run()
+        assert not at.exception, [str(e.value) for e in at.exception]
+        assert _launch(at).disabled, 'Launch is live before validation'
+        said = ' '.join(str(i.value) for i in at.info)
+        assert 'Frozen' in said and 'not been validated' in said, said
+        # there is NO other way to start a run on this page
+        assert not [b for b in at.button if 'launch' in str(b.label).lower()
+                    and b.key != 'launch'], [b.label for b in at.button]
+    finally:
+        if os.path.exists(tmp):
+            os.remove(tmp)
+
+
+def test_validate_opens_the_run_tab_and_any_edit_freezes_it_again(tmp_path):
+    """Validate saves what the panels hold and approves it; Launch is live
+    for exactly that, and the next edit anywhere freezes it again. Launch is
+    NEVER pressed here -- it would start a model."""
+    tmp = _runs_elsewhere(_scratch_config('_validatetest.toml'), tmp_path)
+    _force(tmp, 'run', 'mode', 'mode = "lagged"')
+    try:
+        at = AppTest.from_file(os.path.join(APP, 'pages', '7_7_-_Run.py'),
+                               default_timeout=300)
+        at.session_state['config_file'] = os.path.basename(tmp)
+        at.run()
+        # an edit, not saved: Validate must save it before approving
+        at.selectbox(key='run.mode').select('iterative').run()
+        [b for b in at.button if b.key == 'validate'][0].click().run()
+        assert not at.exception, [str(e.value) for e in at.exception]
+        assert _says(tmp, 'run', 'mode') == 'mode = "iterative"', \
+            'Validate did not save the pending edit'
+        errors = [e for e in at.error if 'cannot run' in str(e.value)]
+        if errors:
+            pytest.skip('the scratch configuration has errors here: %s'
+                        % errors[0].value)
+        assert not _launch(at).disabled, 'Launch stays frozen after Validate'
+        ok = ' '.join(str(s.value) for s in at.success)
+        assert 'Validated' in ok, ok
+        # ... and the next edit freezes it again
+        at.selectbox(key='run.mode').select('lagged').run()
+        assert _launch(at).disabled, 'an edit after validation left it live'
+        said = ' '.join(str(i.value) for i in at.info)
+        assert 'Frozen' in said and 'since it was validated' in said, said
+    finally:
+        if os.path.exists(tmp):
+            os.remove(tmp)
+
+
 def test_the_library_can_be_set_from_the_run_page():
     """It was described in the schema and drawn by no panel, so the one
     field between a build and a coupled run needed a text editor."""
     tmp = _force(_scratch_config('_libtest.toml'), 'paths', 'libmf6',
                  'libmf6 = ""')
     try:
-        at = AppTest.from_file(os.path.join(APP, 'pages', '8_8_-_Run.py'),
+        at = AppTest.from_file(os.path.join(APP, 'pages', '7_7_-_Run.py'),
                                default_timeout=300)
         at.session_state['config_file'] = os.path.basename(tmp)
         at.run()
@@ -1482,8 +1550,7 @@ def test_the_validation_panel_lists_what_it_finds():
     tmp = _force(_scratch_config('_valtest.toml'), 'run', 'nsp', 'nsp = 365')
     try:
         at = AppTest.from_file(
-            os.path.join(APP, 'pages',
-                         '7_7_-_Validation_of_the_configuration.py'),
+            os.path.join(APP, 'pages', '7_7_-_Run.py'),
             default_timeout=300)
         at.session_state['config_file'] = os.path.basename(tmp)
         at.run()
@@ -1501,14 +1568,20 @@ def test_the_launch_is_blocked_while_the_configuration_has_an_error():
     """Errors are a wall, and the button says so before it is pressed."""
     tmp = _scratch_with_mmsurf_on()
     try:
-        at = AppTest.from_file(os.path.join(APP, 'pages', '8_8_-_Run.py'),
+        at = AppTest.from_file(os.path.join(APP, 'pages', '7_7_-_Run.py'),
                                default_timeout=300)
         at.session_state['config_file'] = os.path.basename(tmp)
         at.session_state['live_run.surface'] = False     # panel says off
+        at.session_state['__switch_file'] = os.path.basename(tmp)
         at.run()
         launch = [b for b in at.button if b.label == 'Launch']
         assert launch and launch[0].disabled, \
             'Launch is offered on an invalid configuration'
+        # ... and it cannot be validated either
+        [b for b in at.button if b.key == 'validate'][0].click().run()
+        assert [b for b in at.button if b.label == 'Launch'][0].disabled
+        assert any('not validated' in str(e.value) for e in at.error), \
+            [str(e.value) for e in at.error]
     finally:
         if os.path.exists(tmp):
             os.remove(tmp)
@@ -1522,8 +1595,7 @@ def test_a_check_does_not_print_its_key_twice():
         spinup.steady_means
     """
     src = io.open(
-        os.path.join(APP, 'pages',
-                     '7_7_-_Validation_of_the_configuration.py'),
+        os.path.join(APP, 'pages', '7_7_-_Run.py'),
         encoding='utf-8').read()
     assert 'if c.key and c.key not in c.title:' in src, \
         'the key is added to the heading unconditionally'
@@ -1536,7 +1608,7 @@ def test_the_coupling_is_asked_on_the_run_panel_and_saved():
     tmp = _force(_scratch_config('_couplingtest.toml'), 'run', 'mode',
                  'mode = "lagged"')
     try:
-        at = AppTest.from_file(os.path.join(APP, 'pages', '8_8_-_Run.py'),
+        at = AppTest.from_file(os.path.join(APP, 'pages', '7_7_-_Run.py'),
                                default_timeout=300)
         at.session_state['config_file'] = os.path.basename(tmp)
         at.run()
@@ -1561,7 +1633,7 @@ def test_the_solver_is_asked_on_the_run_panel_and_saved():
     tmp = _force(_scratch_config('_solvertest.toml'), 'solver',
                  'outer_dvclose', 'outer_dvclose = 0.001')
     try:
-        at = AppTest.from_file(os.path.join(APP, 'pages', '8_8_-_Run.py'),
+        at = AppTest.from_file(os.path.join(APP, 'pages', '7_7_-_Run.py'),
                                default_timeout=300)
         at.session_state['config_file'] = os.path.basename(tmp)
         at.run()

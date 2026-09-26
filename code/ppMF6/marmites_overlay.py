@@ -53,7 +53,8 @@ class Polygons(object):
         import shapely
         if not os.path.exists(path):
             raise OverlayError('%s is not there -- run the converter '
-                               '(Validation panel, Cartography → dataset; '
+                               '(Run panel, Validation of the configuration '
+                               'tab, Cartography → dataset; '
                                'Launch also runs it), which writes it from the '
                                'cartography' % path)
         with open(path, encoding='utf-8') as fh:

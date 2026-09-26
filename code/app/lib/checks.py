@@ -3,8 +3,8 @@
 
 DELIBERATELY STREAMLIT-FREE, like editor.py and runs.py, so the rules can be
 tested in the model environment and so that ONE answer serves both places
-that need it: the validation panel, which lists them, and the Launch button,
-which refuses on them. Two implementations of "is this configuration ready"
+that need it: the Run panel's validation tab, which lists them, and its
+Validate and Launch buttons, which refuse on them. Two implementations of "is this configuration ready"
 would drift, and the one that drifts is always the one that guards the run.
 
 THE DISTINCTION THAT MATTERS:
@@ -14,8 +14,8 @@ THE DISTINCTION THAT MATTERS:
              file disagree about. Launch is blocked.
 ``warning``  the run will proceed and may not mean what was intended -- a
              truncated forcing series, saved state from another grid, a
-             stress-period cap left on from a trial. Launch diverts to the
-             validation panel so it is SEEN, and can then be taken anyway.
+             stress-period cap left on from a trial. It is listed on the
+             Run panel's validation tab, read, and approved with Validate.
 ``info``     worth knowing, nothing to fix.
 
 A check that cannot answer says nothing. Silence here means "not known", so

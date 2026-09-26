@@ -96,7 +96,7 @@ def test_every_configuration_section_is_reachable(cfg):
     missing = sorted(set(cfgmod._SECTIONS) - shown - exempt)
     assert not missing, 'no panel shows: %s' % ', '.join(missing)
     run_page = open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 '..', 'app', 'pages', '8_8_-_Run.py'),
+                                 '..', 'app', 'pages', '7_7_-_Run.py'),
                     encoding='utf-8').read()
     assert 'schema.SOLVER_ROWS' in run_page, 'the Run panel lost the solver'
 

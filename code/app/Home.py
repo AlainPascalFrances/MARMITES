@@ -169,10 +169,9 @@ def main():
         rows.append('| **%d %s** | %s | %s |'
                     % (num, title, blurb.split('.')[0].strip().rstrip('.'),
                        '`%s`' % switch if switch else 'always'))
-    rows.append('| **7 Validation of the configuration** | everything that '
-                'can be said about it before a run | — |')
-    rows.append('| **8 Run** | launch it, and follow the log | — |')
-    rows.append('| **9 Results** | the figures a run wrote | — |')
+    rows.append('| **7 Run** | validate the configuration (compulsory), '
+                'then launch it and follow the log | — |')
+    rows.append('| **8 Results** | the figures a run wrote | — |')
     st.markdown(chr(10).join(rows))
     st.markdown("""
 

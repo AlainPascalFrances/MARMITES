@@ -822,8 +822,9 @@ def read_line_geojson(path, what='line'):
     from shapely.geometry import shape
     if not os.path.exists(path):
         raise PropertyError(
-            '%s: %s is not there -- run the converter (Validation panel, '
-            'Cartography → dataset; Launch also runs it), which writes it '
+            '%s: %s is not there -- run the converter (Run panel, '
+            'Validation of the configuration tab, Cartography → dataset; '
+            'Launch also runs it), which writes it '
             'from the line layer' % (what, path))
     with open(path, encoding='utf-8') as fh:
         g = json.load(fh)

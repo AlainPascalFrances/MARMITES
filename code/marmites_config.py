@@ -2085,7 +2085,7 @@ class RunConfig:
 
         Everything is decided by :meth:`problems`, which RETURNS the list;
         this only turns it into the exception the driver and the editor
-        already expect. The validation panel needs them one at a time, to
+        already expect. The Run panel's validation tab needs them one at a time, to
         say which panel each belongs to and to count them, and re-splitting
         a joined message to get them back would be parsing our own prose.
         """

@@ -11,8 +11,8 @@ run silently ignores.
 The Grid panel ran the converter by itself, but only for the two tables a
 GRID depends on; the other five were refreshed only by a button on the Soil
 panel that nothing reminded anyone to press. Every table is judged here, the
-Validation panel reports it, and Launch converts first when anything is out
-of date.
+Run panel's validation tab reports it, and Launch converts first when
+anything is out of date.
 
 STREAMLIT-FREE, like checks.py and runs.py.
 """

@@ -207,8 +207,7 @@ def sidebar_save(cfg, path):
 # number again inside the part that survives puts it back: 1_1_-_Grid.py
 # orders by 1 and shows "1 - Grid". Home is the entry script, not a page, so
 # it has no number. See test_the_sidebar_shows_the_number_with_the_name.
-VALIDATION_PAGE = 'pages/7_7_-_Validation_of_the_configuration.py'
-RUN_PAGE = 'pages/8_8_-_Run.py'
+RUN_PAGE = 'pages/7_7_-_Run.py'
 
 
 def panel_link(target, label, icon=None):
@@ -226,17 +225,45 @@ def panel_link(target, label, icon=None):
         return False
 
 
-def launch_approved(validated, cfg, todo):
-    """Did the Validation panel approve THIS launch?
+# THE RUN PANEL'S APPROVAL. Its *Validate* button saves what the panels
+# hold, checks the result and records it here; its run tab is open only for
+# exactly that. Before, the Validation panel approved the SAVED file while
+# edits could still be pending, and started it: a one-year run went without
+# the stream on 2026-09-26 -- sfr.enable was toggled, the run launched, and
+# the toggle was saved 20 s after the model had read the file.
+VALIDATED = '__run_validated'
 
-    It approves the SAVED FILE, by its hash, because the file is what a run
-    reads. Edits the panels still hold were not in what it approved -- and
-    starting then runs the file without them. That is how a one-year run was
-    spent without the stream on 2026-09-26: ``sfr.enable`` was toggled, the
-    run launched from the Validation panel, and the toggle was saved 20 s
-    after the model had read the file.
-    """
-    return bool(validated) and validated == cfg.config_hash() and not todo
+
+def validation_record(config_file, effective_hash):
+    """What *Validate* approved: which configuration file, and the hash of
+    the configuration that would RUN -- the file with the overrides."""
+    return {'config': str(config_file), 'hash': str(effective_hash)}
+
+
+def run_unlocked(record, config_file, effective_hash, todo):
+    """Is the run tab open? Only for the file that was validated, exactly as
+    validated -- same saved content, same overrides -- with nothing unsaved
+    on any panel."""
+    return (bool(record) and effective_hash is not None and not todo
+            and record.get('config') == str(config_file)
+            and record.get('hash') == str(effective_hash))
+
+
+def frozen_reason(record, config_file, effective_hash, todo):
+    """Why the run tab is frozen, in a sentence."""
+    if effective_hash is None:
+        return 'the overrides are not valid.'
+    if not record:
+        return 'this configuration has not been validated yet.'
+    if record.get('config') != str(config_file):
+        return ('the configuration validated was `%s`, not this one.'
+                % record.get('config'))
+    if todo:
+        return ('%d change(s) on the panels since it was validated, not saved.'
+                % len(todo))
+    if record.get('hash') != str(effective_hash):
+        return 'the configuration has changed since it was validated.'
+    return ''
 
 
 def go_to(target):

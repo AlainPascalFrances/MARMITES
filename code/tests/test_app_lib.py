@@ -222,9 +222,9 @@ def test_a_stale_status_on_a_reused_pid_does_not_block(tmp_path):
 
 
 def test_the_run_page_turns_launch_off_while_a_run_is_going():
-    src = open(os.path.join(CODE, 'app', 'pages', '8_8_-_Run.py'),
+    src = open(os.path.join(CODE, 'app', 'pages', '7_7_-_Run.py'),
                encoding='utf-8').read()
-    assert 'runlib.active(RUNS)' in src and 'not _busy' in src
+    assert 'runlib.active(RUNS)' in src and 'bool(_busy)' in src
     assert 'except runlib.RunBusy' in src
 
 
@@ -719,28 +719,45 @@ def test_a_run_is_dated_by_the_last_line_of_its_log(tmp_path):
     assert runlib.duration(None, '2026-09-25 13:50:00') == ''
 
 
-def test_a_validated_launch_with_unsaved_edits_is_not_approved():
-    """The Validation panel approves the SAVED file; edits the panels still
-    hold were not in it. Starting then runs the file without them -- a whole
-    run spent without the stream (2026-09-26)."""
+def test_the_run_tab_opens_only_for_exactly_what_was_validated():
+    """Validate approves the saved file (+ overrides) by its hash; any edit
+    left unsaved, a different hash or another file freezes the run tab. The
+    rule that let a one-year run go without the stream on 2026-09-26 -- the
+    Validation panel approved the SAVED file while sfr.enable was an unsaved
+    edit -- cannot come back."""
     if os.path.join(CODE, 'app') not in sys.path:
         sys.path.insert(0, os.path.join(CODE, 'app'))
     if CODE not in sys.path:
         sys.path.insert(0, CODE)
     from lib import panelui
-    cfg = _cfg()
-    h = cfg.config_hash()
-    assert panelui.launch_approved(h, cfg, [])
-    assert not panelui.launch_approved(h, cfg, ['sfr.enable = true'])
-    assert not panelui.launch_approved(None, cfg, [])
-    assert not panelui.launch_approved('an-older-hash', cfg, [])
+    rec = panelui.validation_record('lamata.toml', 'abc')
+    assert panelui.run_unlocked(rec, 'lamata.toml', 'abc', [])
+    assert not panelui.run_unlocked(rec, 'lamata.toml', 'abc',
+                                    ['sfr.enable = true'])
+    assert not panelui.run_unlocked(rec, 'lamata.toml', 'abd', [])
+    assert not panelui.run_unlocked(rec, 'other.toml', 'abc', [])
+    assert not panelui.run_unlocked(None, 'lamata.toml', 'abc', [])
+    assert not panelui.run_unlocked(rec, 'lamata.toml', None, [])
+    why = panelui.frozen_reason
+    assert 'not been validated' in why(None, 'lamata.toml', 'abc', [])
+    assert 'other.toml' in why(panelui.validation_record('other.toml', 'abc'),
+                               'lamata.toml', 'abc', [])
+    assert '1 change(s)' in why(rec, 'lamata.toml', 'abc', ['x = 1'])
+    assert 'changed since' in why(rec, 'lamata.toml', 'abd', [])
+    assert 'overrides' in why(rec, 'lamata.toml', None, [])
+    assert why(rec, 'lamata.toml', 'abc', []) == ''
 
 
-def test_the_run_page_saves_and_revalidates_instead_of_starting_the_old_file():
-    src = open(os.path.join(CODE, 'app', 'pages', '8_8_-_Run.py'),
-               encoding='utf-8').read()
-    assert 'panelui.launch_approved(_validated, cfg, _todo)' in src
-    i = src.index('_approved = panelui.launch_approved')
-    guard = src[i:src.index('_busy = runlib.active', i)]
-    assert 'save_now' in guard and 'VALIDATION_PAGE' in guard
-    assert '_start()' not in guard
+def test_only_launch_on_the_run_tab_starts_a_model():
+    """No other button starts a run, and Launch asks again at the press."""
+    pages = os.path.join(CODE, 'app', 'pages')
+    starters = [f for f in os.listdir(pages) if f.endswith('.py')
+                and 'runlib.launch(' in open(os.path.join(pages, f),
+                                             encoding='utf-8').read()]
+    assert starters == ['7_7_-_Run.py'], starters
+    src = open(os.path.join(pages, '7_7_-_Run.py'), encoding='utf-8').read()
+    assert src.count('_start()') == 1 + src.count('def _start()')
+    i = src.index("st.button('Launch'")
+    press = src[i:src.index('_start()', i)]
+    assert 'panelui.run_unlocked(' in press and 'disabled=not unlocked' in press
+    assert 'go_to(' not in src and 'switch_page' not in src
