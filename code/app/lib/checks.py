@@ -182,27 +182,35 @@ def check_state_scope(cfg, workspace=None, **_):
     """Saved state is only valid for the grid and layer set that made it.
 
     A spin-up written on the structured grid says nothing about a voronoi
-    mesh. The run stops on this; said here it is a warning, because the
-    answer may be to clear the field rather than to regenerate the state.
+    mesh -- nor one written on another voronoi mesh: the sidecar names the
+    grid KIND, so a 15 915-cell state passed on the 2126-cell mesh until
+    2026-09-27. Asked with the run's own question (mcfg.prefix_problem)
+    and the mesh cached in the workspace. A warning, not an error: the run
+    does not refuse, it starts from the land surface and says so.
     """
+    if workspace is None:
+        return
+    import marmites_config as mcfg
+    try:
+        grid = _loaders().run_grid(cfg, workspace)
+    except Exception:                                   # noqa: BLE001
+        grid = None
+    heads = (cfg.spinup.strt_heads or '').strip()
     for key, name in (('strt_heads', 'spinup.strt_heads'),
                       ('steady_means', 'spinup.steady_means')):
         named = (getattr(cfg.spinup, key, '') or '').strip()
-        if not named:
-            continue
-        if workspace is None:
-            continue
-        side = os.path.join(str(workspace), named + '.scope.json')
-        if not os.path.exists(side):
+        if not named or (key == 'steady_means' and heads):
+            continue            # the means drive a steady period it has not
+        why = mcfg.prefix_problem(cfg, str(workspace), name, named, grid)
+        if why:
             yield Check(
-                WARNING,
-                '%s = %r has no scope sidecar' % (name, named), panel=4,
-                key=name,
-                detail='It was written before the state guard existed, so '
-                       'the grid it belongs to is not recorded. On grid.kind '
-                       '= %r the run falls back to starting the water table '
-                       'from the land surface. Regenerate it with a spin-up '
-                       'on this grid, or clear the field.' % cfg.grid_kind)
+                WARNING, '%s = %r will not be used' % (name, named),
+                panel=4, key=name,
+                detail='%s The run %s.' % (
+                    why, 'starts the water table from the land surface '
+                         'instead' if key == 'strt_heads' else
+                         'drives its steady period with a uniform recharge '
+                         'instead'))
 
 
 def check_run_scope(cfg, **_):

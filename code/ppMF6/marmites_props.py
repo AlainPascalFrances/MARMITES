@@ -1321,12 +1321,14 @@ def check_catchment(cfg, cMF, gis_dir, verbose=True):
 DEFAULT_STRT_DEM = (1.0, -2.0)
 
 
-def resolve_initial_heads(cfg, state_dir, verbose=True):
+def resolve_initial_heads(cfg, state_dir, verbose=True, grid=None):
     """How this run should start. ``(kind, payload, why)``.
 
     kind is 'saved' (payload = the prefix), or 'dem' (payload = (a, b)).
     ``why`` is the human sentence explaining the choice -- empty when the
-    saved state was simply usable.
+    saved state was simply usable. ``grid`` is the grid the run uses,
+    ``{'shape': (nrow, ncol), 'signature': ...}``: a state saved on another
+    mesh of the same kind is caught by it (marmites_config.prefix_problem).
     """
     import marmites_config as mcfg
 
@@ -1351,7 +1353,10 @@ def resolve_initial_heads(cfg, state_dir, verbose=True):
             print('initial heads: %s' % why)
         return 'dem', dem, why
 
-    problem = mcfg.state_problem(cfg, state_dir)
+    # the heads only: steady means that do not fit are dropped on their
+    # own, and are not used at all by a run from saved heads
+    problem = mcfg.state_problem(cfg, state_dir, grid=grid,
+                                 keys=('spinup.strt_heads',))
     if problem:
         why = ('%s   Starting from elevation * %g %+g m instead of refusing '
                'to run.' % (problem, dem[0], dem[1]))

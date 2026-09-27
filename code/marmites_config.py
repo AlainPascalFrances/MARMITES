@@ -2306,46 +2306,153 @@ def state_sidecar(state_dir, prefix):
     return os.path.join(str(state_dir), '%s.scope.json' % prefix)
 
 
-def state_problem(cfg, state_dir):
-    """Why the state named in ``[spinup]`` cannot be reused here, or ''.
+# The file that identifies each kind of saved state, and whose ESRI header
+# says which grid it was written on.
+STATE_PROBES = {'spinup.strt_heads': '_l1.asc',
+                'spinup.steady_means': '_perc.asc'}
 
-    The same answer the run gives, so a panel can give it FIRST -- at the
-    moment the field is being edited rather than after the launch.
+
+def state_shape(state_dir, prefix, probe='_l1.asc'):
+    """``(nrows, ncols)`` of a saved state, from its ESRI header, or None.
+
+    A mesh state is written ``(ncpl, 1)`` and a structured one ``(nrow,
+    ncol)``, so the header says which grid it belongs to even when nothing
+    else was recorded -- the only witness a state saved before 2026-09-27
+    has (its sidecar names the grid KIND, not the mesh).
+    """
+    base = prefix if os.path.isabs(prefix) else os.path.join(str(state_dir),
+                                                             prefix)
+    fn = base + probe
+    if not os.path.exists(fn):
+        return None
+    head = {}
+    try:
+        with open(fn, encoding='utf-8', errors='replace') as fh:
+            for _ in range(6):
+                parts = fh.readline().split()
+                if len(parts) == 2:
+                    head[parts[0].lower()] = parts[1]
+        return int(head['nrows']), int(head['ncols'])
+    except (OSError, KeyError, ValueError):
+        return None
+
+
+def prefix_problem(cfg, state_dir, what, prefix, grid=None):
+    """Why ONE saved state cannot be reused here, or ''.
+
+    ``grid`` is the grid the run will use, when it is known:
+    ``{'shape': (nrow, ncol), 'signature': mesh signature or None}``. The
+    scope sidecar alone names the grid KIND, the layer count and the case --
+    so a state saved on the 15 915-cell voronoi mesh passed as belonging to
+    the 2126-cell one (2026-09-27), and would have reached MF6 as an array
+    of the wrong length. The mesh is now compared too: by the signature the
+    sidecar records, and by the file's own header, which every state has.
     """
     import json
 
-    for what, prefix in (('spinup.strt_heads', cfg.spinup.strt_heads),
-                         ('spinup.steady_means', cfg.spinup.steady_means)):
-        prefix = (prefix or '').strip()
-        if not prefix:
-            continue
-        side = state_sidecar(state_dir, prefix)
-        if not os.path.exists(side):
-            # No sidecar means it predates the guard, hence predates the mesh
-            # producers, hence was produced on the STRUCTURED grid. Fine
-            # there; impossible on a mesh, where it would reach MF6 as an
-            # array of the wrong length.
-            if cfg.grid_kind not in ('structured', 'disv'):
-                return ('%s = %r has no scope sidecar, so it was produced on '
-                        'the structured grid, and grid.kind = %r needs state '
-                        'on its own mesh. Regenerate it with a spin-up on '
-                        'this mesh, or clear %s.'
-                        % (what, prefix, cfg.grid_kind, what))
-            continue
+    side = state_sidecar(state_dir, prefix)
+    saved = None
+    if not os.path.exists(side):
+        # No sidecar means it predates the guard, hence predates the mesh
+        # producers, hence was produced on the STRUCTURED grid. Fine
+        # there; impossible on a mesh, where it would reach MF6 as an
+        # array of the wrong length.
+        if cfg.grid_kind not in ('structured', 'disv'):
+            return ('%s = %r has no scope sidecar, so it was produced on '
+                    'the structured grid, and grid.kind = %r needs state '
+                    'on its own mesh. Regenerate it with a spin-up on '
+                    'this mesh, or clear %s.'
+                    % (what, prefix, cfg.grid_kind, what))
+    else:
         try:
             with open(side, encoding='utf-8') as fh:
                 saved = json.load(fh)
         except (OSError, ValueError):
-            continue                       # the run reports it in full
-        if saved.get('state_hash') == cfg.state_hash():
-            continue
+            saved = None                   # the run reports it in full
+    if saved is not None and saved.get('state_hash') != cfg.state_hash():
         now, was = cfg.state_scope(), saved.get('scope', {})
         differing = [k for k in now if str(now[k]) != str(was.get(k))]
         return ('%s = %r was produced under a different configuration '
                 '(differing: %s). Regenerate that state, or point %s at one '
                 'produced with this grid and layer set.'
                 % (what, prefix, ', '.join(differing) or '(none)', what))
+    if not grid:
+        return ''
+    was_grid = (saved or {}).get('grid') or {}
+    sig_now, sig_was = grid.get('signature'), was_grid.get('signature')
+    if sig_now and sig_was and sig_now != sig_was:
+        return ('%s = %r was saved on another %s mesh (signature %s; this one '
+                'is %s). Regenerate it with a spin-up on this mesh, or clear '
+                '%s.' % (what, prefix, cfg.grid_kind, sig_was, sig_now, what))
+    shape_now = grid.get('shape')
+    shape_was = state_shape(state_dir, prefix,
+                            STATE_PROBES.get(what, '_l1.asc'))
+    if shape_now and shape_was and tuple(shape_was) != tuple(shape_now):
+        return ('%s = %r was saved on a grid of %s cells; this grid has %s. '
+                'Regenerate it with a spin-up on this grid, or clear %s.'
+                % (what, prefix, cells_text(shape_was),
+                   cells_text(shape_now), what))
     return ''
+
+
+def cells_text(shape):
+    """'2126' for a mesh (ncpl, 1), '65 x 60' for a structured grid."""
+    r, c = int(shape[0]), int(shape[1])
+    return '%d' % r if c == 1 else '%d x %d' % (r, c)
+
+
+def state_problem(cfg, state_dir, grid=None, keys=None):
+    """Why the state named in ``[spinup]`` cannot be reused here, or ''.
+
+    The same answer the run gives, so a panel can give it FIRST -- at the
+    moment the field is being edited rather than after the launch. ``grid``
+    as in :func:`prefix_problem`; ``keys`` limits the question to some of
+    ``spinup.strt_heads`` / ``spinup.steady_means``.
+    """
+    for what, prefix in (('spinup.strt_heads', cfg.spinup.strt_heads),
+                         ('spinup.steady_means', cfg.spinup.steady_means)):
+        if keys is not None and what not in keys:
+            continue
+        prefix = (prefix or '').strip()
+        if not prefix:
+            continue
+        why = prefix_problem(cfg, state_dir, what, prefix, grid)
+        if why:
+            return why
+    return ''
+
+
+def saved_states(state_dir, nlay, what='spinup.strt_heads'):
+    """The saved states in ``state_dir`` a ``[spinup]`` field can name.
+
+    For the initial heads, every prefix with ALL its per-layer head files;
+    for the steady means, every prefix with both ``_perc`` and ``_etg``.
+    Newest first, each ``{'name', 'mtime', 'shape', 'full'}`` -- ``full``
+    is False for heads saved without the rest of the state (the
+    unsaturated zone, the soil), which then start from the panel's values.
+    """
+    if not state_dir or not os.path.isdir(str(state_dir)):
+        return []
+    probe = STATE_PROBES[what]
+    out = []
+    for fn in os.listdir(str(state_dir)):
+        if not fn.endswith(probe):
+            continue
+        name = fn[:-len(probe)]
+        base = os.path.join(str(state_dir), name)
+        if what == 'spinup.strt_heads':
+            need = ['%s_l%d.asc' % (base, k + 1)
+                    for k in range(max(int(nlay), 1))]
+        else:
+            need = [base + '_perc.asc', base + '_etg.asc']
+        if not all(os.path.exists(p) for p in need):
+            continue
+        out.append({'name': name,
+                    'mtime': max(os.path.getmtime(p) for p in need),
+                    'shape': state_shape(state_dir, name, probe),
+                    'full': os.path.exists(base + '_state.npz')})
+    out.sort(key=lambda d: -d['mtime'])
+    return out
 
 
 def load_run_config(path):

@@ -805,6 +805,8 @@ def setup_lamata(daily=True, nsp=None, grid='dis', nlay=None,
               % (cfg.grid.resample, _cov['src_per_cell_mean'],
                  _cov['coverage_mean'], 100.0 * _cov['domain_ratio']))
         cMF.mesh_gridprops, cMF.mesh_proj = gp, proj
+        # which mesh: a saved state records it, and is refused on another
+        cMF.mesh_signature = info['signature']
         gridMETEO = grids['gridMETEO']; gridSOIL = grids['gridSOIL']
         gridSOILthick = grids['gridSOILthick']
         gridIRR = grids['gridIRR']; gridVEGarea = grids['gridVEGarea']
@@ -957,10 +959,22 @@ def load_run_state(pref, b, ctx):
                       for k in ('exf', 'rej', 'etuzf')}}
 
 
-def _write_state_scope(a, cfg, prefix):
-    """Record WHICH configuration produced a saved state (WP0.6)."""
+def _run_grid(cMF):
+    """The grid a saved state has to match: its shape as the state files
+    are written -- ``(ncpl, 1)`` on a mesh -- and the mesh signature."""
+    return {'shape': (int(cMF.nrow), int(cMF.ncol)),
+            'signature': getattr(cMF, 'mesh_signature', None)}
+
+
+def _write_state_scope(a, cfg, prefix, grid=None):
+    """Record WHICH configuration produced a saved state (WP0.6) -- and,
+    since 2026-09-27, which GRID: the scope names only the grid kind, so a
+    state saved on one voronoi mesh passed as belonging to another."""
     import json
     payload = {'state_hash': cfg.state_hash(), 'scope': cfg.state_scope()}
+    if grid:
+        payload['grid'] = {'shape': list(grid['shape']),
+                           'signature': grid.get('signature')}
     with open(_state_sidecar(a, prefix), 'w', encoding='utf-8') as fh:
         json.dump(payload, fh, indent=2, sort_keys=True, default=str)
 
@@ -1184,6 +1198,7 @@ def main():
         _run_postproc(a, cMF, ctx, res)
         return
     _gp = getattr(cMF, 'mesh_gridprops', None)
+    _grid = _run_grid(cMF)
     b = clsMF6(cMF, top=top, botm=botm, sim_ws=a.ws, daily=True, grid=a.grid,
                vertices=(_gp['vertices'] if _gp else None),
                cell2d=(_gp['cell2d'] if _gp else None),
@@ -1197,10 +1212,10 @@ def main():
         b.solver = dataclasses.asdict(cfg.solver)
         b.outer_maximum = int(cfg.solver.outer_maximum)
         print('solver: %s, outer_dvclose %g m (max %d), inner_dvclose %g m, '
-              'inner_rclose %g m3/d -- from the panel'
+              'inner_rclose %g m3/d, cell averaging %s -- from the panel'
               % (cfg.solver.complexity.upper(), cfg.solver.outer_dvclose,
                  cfg.solver.outer_maximum, cfg.solver.inner_dvclose,
-                 cfg.solver.inner_rclose))
+                 cfg.solver.inner_rclose, cfg.solver.cell_averaging))
     # UNSATURATED-ZONE ET. The extinction depth follows the usual rule --
     # a raster, a column of the vegetation layer, or one value -- resolved
     # on the grid the run uses; or, per vegetation zone, the rooting depth
@@ -1260,7 +1275,8 @@ def main():
     # this grid and layer set; the land surface otherwise. Never the
     # parameter file's array by accident -- that is how a run ends up
     # starting from a state nobody chose.
-    _kind, _payload, _why = props.resolve_initial_heads(cfg, a.state_dir)
+    _kind, _payload, _why = props.resolve_initial_heads(cfg, a.state_dir,
+                                                        grid=_grid)
     saved_state = None
     if _kind == 'saved':
         pref = _state_in(a, str(_payload), '_l1.asc')
@@ -1375,6 +1391,16 @@ def main():
     # run. A single run is just ncyc = 1.
     # mean recharge / ETg to drive the steady SP0 near dynamic equilibrium
     steady_perc = steady_etg = None
+    if a.steady_means and cfg is not None:
+        # the same question as for the heads, now that the grid is known:
+        # means saved on another mesh are dropped, not gathered through
+        # this one's cell indices
+        _why_m = mcfg.state_problem(cfg, a.state_dir, grid=_grid,
+                                    keys=('spinup.steady_means',))
+        if _why_m:
+            print('%s\n   spinup.steady_means is NOT used: the steady period '
+                  'takes a uniform recharge instead.' % _why_m)
+            a.steady_means = None
     if a.steady_means:
         mp = _state_in(a, a.steady_means, '_perc.asc')
         steady_perc = _read_cell_grid(mp + '_perc.asc', ctx.cells)
@@ -1556,7 +1582,8 @@ def main():
         # ... and the rest of where the run ended, so a run started from
         # these heads starts where this one stopped
         paths = list(paths) + [save_run_state(pref, b, cpl, st)]
-        _write_state_scope(a, a.config, save_pref)      # WP0.6 scope sidecar
+        _write_state_scope(a, a.config, save_pref,      # WP0.6 scope sidecar
+                           grid=_grid)
         print('%s heads saved: %s'
               % ('final' if ncyc <= 1 else 'equilibrated' if spin_converged
                  else 'NOT-converged spin-up', ', '.join(
@@ -1574,7 +1601,8 @@ def main():
                          cMF, mp + '_perc.asc')
         _write_cell_grid(res['etg'].mean(axis=0), ctx.cells, cMF.nrow, cMF.ncol,
                          cMF, mp + '_etg.asc')
-        _write_state_scope(a, a.config, mean_pref)      # WP0.6 scope sidecar
+        _write_state_scope(a, a.config, mean_pref,      # WP0.6 scope sidecar
+                           grid=_grid)
         print('steady-state means saved: %s_{perc,etg}.asc' % os.path.basename(mp))
         print('   reuse with:  spinup.steady_means = "%s"' % mean_pref)
 

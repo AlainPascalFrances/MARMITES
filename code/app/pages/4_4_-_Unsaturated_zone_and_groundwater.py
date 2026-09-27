@@ -25,7 +25,7 @@ for p in (CODE, APP, os.path.join(CODE, 'ppMF6')):
 
 import marmites_config as mcfg             # noqa: E402
 import mm_paths                            # noqa: E402
-from lib import panelui, schema             # noqa: E402
+from lib import loaders, panelui, schema    # noqa: E402
 
 st.set_page_config(page_title='4 Subsurface', page_icon='🌍', layout='wide')
 case = st.session_state.get('case', 'LaMata')
@@ -231,9 +231,72 @@ with tab_init:
     st.caption('The heads a run starts from, and the spin-up that produces '
                'them — `ModflowGwfic(strt=)`. Nothing here changes the '
                'model; it changes where the model begins.')
-    edited.update(panelui.section_form(cfg, 'spinup', columns=3))
+    # The saved-state names are PICKED, below, from what is on disk: they
+    # were free text boxes, blank until a name only a log line gave was
+    # typed in, with nothing saying where the run looks or what fits.
+    edited.update(panelui.section_form(
+        cfg, 'spinup', columns=3,
+        exclude=('spinup.strt_heads', 'spinup.steady_means',
+                 'spinup.save_strt', 'spinup.save_means')))
+    state_dir = loaders.state_dir_for(cfg, mm_paths.WS_ROOT)
+    grid_now = loaders.run_grid(cfg, state_dir)
+    st.markdown('#### Where the run starts')
+    st.caption('Saved states are looked for in `%s`, which is where a run '
+               'saves them. %s'
+               % (state_dir,
+                  ('This run\'s grid: %s cells (the mesh cached there), so '
+                   'each entry says whether it fits it.'
+                   % mcfg.cells_text(grid_now['shape'])) if grid_now else
+                  'Each entry says whether its recorded grid and layer set '
+                  'match these settings.'))
+    c1, c2 = st.columns(2)
+    with c1:
+        strt = panelui.state_picker(
+            cfg, 'spinup.strt_heads', state_dir, grid_now,
+            'none - start from the DEM, through a steady period')
+    with c2:
+        means = panelui.state_picker(
+            cfg, 'spinup.steady_means', state_dir, grid_now,
+            'none - one uniform recharge, no groundwater ET',
+            disabled=bool(strt))
+        if strt:
+            st.caption('Not used: a run from saved heads has no steady '
+                       'period to drive.')
+    edited['spinup.strt_heads'] = strt
+    edited['spinup.steady_means'] = means
+
+    st.markdown('#### Where the run ends')
+    # ONE name for the end state. The heads (+ _state.npz) and the steady
+    # means were two fields always given the same name -- the spin-up button
+    # set both -- and a single run that named only the heads saved no means.
+    got = panelui.section_form(cfg, 'spinup', columns=2,
+                               only='spinup.save_strt', skip_subpanels=False)
+    save = (got.get('spinup.save_strt') or '').strip()
+    edited.update(got)
+    edited['spinup.save_means'] = save
+    cycles = int(edited.get('spinup.cycles', cfg.spinup.cycles) or 1)
+    _there = {d['name']: d for d in mcfg.saved_states(
+        state_dir, int(cfg.layers.nlay), 'spinup.strt_heads')}
+    if save and save in _there:
+        _d = _there[save]
+        st.caption('⚠ `%s` is already saved there (%s cells): this run '
+                   'overwrites it when it ends.'
+                   % (save, mcfg.cells_text(_d['shape'])
+                      if _d['shape'] else '?'))
+    elif not save:
+        st.caption('Blank: a single run saves nothing; a spin-up (cycles > 1) '
+                   'saves as `hi_spinup` anyway.')
     st.markdown('')
-    if not cfg.spinup.strt_heads:
+    if not strt and cycles > 1:
+        st.info('**This run is a spin-up.** It starts cold, from the DEM '
+                '(`spinup.strt_dem`, elevation - 2 m by default) through a '
+                'steady period, repeats the forcing up to %d times until the '
+                'water table moves less than %g m between cycles, and saves '
+                'where it ends as `%s`. Then pick `%s` under *Initial heads* '
+                'and set cycles to 1 for the runs that follow.'
+                % (cycles, float(edited.get('spinup.tol', cfg.spinup.tol)),
+                   save or 'hi_spinup', save or 'hi_spinup'))
+    elif not strt:
         st.warning('No saved initial heads. A cold start puts the water table '
                    'above ground over much of the catchment, and the first '
                    'weeks measure how the grid relaxes that rather than the '
@@ -250,8 +313,8 @@ with tab_init:
         # resolve_initial_heads started falling back to the land surface and
         # saying so. A panel that threatens a refusal the run does not make
         # is the same defect as a switch the run does not read.
-        why = mcfg.state_problem(cfg, mcfg.state_workspace(cfg,
-                                                           mm_paths.WS_ROOT))
+        why = mcfg.prefix_problem(cfg, state_dir, 'spinup.strt_heads',
+                                  strt, grid_now)
         if why:
             st.warning('**The saved heads will not be used.** %s\n\nThe run '
                        'does not refuse: it starts the water table from the '
@@ -276,7 +339,6 @@ with tab_init:
                 panelui.park('spinup.strt_heads', '')
                 panelui.park('spinup.steady_means', '')
                 panelui.park('spinup.save_strt', _name)
-                panelui.park('spinup.save_means', _name)
                 st.rerun()
             c2.caption('Sets `cycles` to 6, clears the state that does not '
                        'fit, and names the new one `%s`. Then **Validate & '

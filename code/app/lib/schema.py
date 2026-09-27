@@ -788,17 +788,22 @@ FIELDS = {
                       'steady period, until the water table returns to '
                       'where the cycle began (within the tolerance).'),
     'spinup.strt_heads': ('Initial heads', _U,
-                          'A saved state: the heads, and beside them '
-                          '(<name>_state.npz) the unsaturated zone\'s water, '
-                          'the soil moisture and the last day\'s exchange '
-                          'terms. The run starts from it with NO steady '
-                          'period -- MF6 ignores initial heads in one. Blank '
-                          'starts from the land surface through a steady '
-                          'period.'),
+                          'A state an earlier run saved in the model '
+                          'workspace: the heads (<name>_l1.asc ...), and '
+                          'beside them <name>_state.npz -- the unsaturated '
+                          'zone\'s water, the soil moisture and the last '
+                          'day\'s exchange terms. The run starts from it '
+                          'with NO steady period (MF6 ignores initial heads '
+                          'in one). The list shows every state there, when it '
+                          'was saved, on how many cells, and whether it fits '
+                          'the grid this run uses. None starts from the DEM '
+                          '(elevation x a + b) through a steady period.'),
     'spinup.steady_means': ('Steady-state means', _U,
-                            'Per-cell recharge and groundwater ET driving the '
-                            'steady first period -- only a run with no '
-                            'saved heads has one.'),
+                            'Per-cell mean recharge and groundwater ET of an '
+                            'earlier run (<name>_perc.asc, <name>_etg.asc), '
+                            'driving the steady first period. Only a run that '
+                            'starts from the DEM has one; none drives it with '
+                            'one uniform recharge and no groundwater ET.'),
 
     # ---- panel 6: plots ------------------------------------------------
     'postproc.enable': ('Output maps and plots', _U,
@@ -915,9 +920,18 @@ FIELDS = {
     'spinup.tol': ('Spin-up tolerance', 'm',
                    'Water-table change between cycles below which the spin-up '
                    'is considered converged.'),
-    'spinup.save_strt': ('Save the final heads as', _U,
-                         'Blank does not save. Written to the workspace.'),
-    'spinup.save_means': ('Save the steady means as', _U, ''),
+    'spinup.save_strt': ('Save this run\'s end state as', _U,
+                         'The name the run saves where it ENDED under, in the '
+                         'model workspace: the heads per layer, the rest of '
+                         'the state (<name>_state.npz) and the mean recharge '
+                         'and groundwater ET (<name>_perc/_etg.asc) -- what '
+                         '*Initial heads* and *Steady-state means* pick from '
+                         'later. Blank saves nothing after a single run; a '
+                         'spin-up (cycles > 1) saves as hi_spinup anyway.'),
+    'spinup.save_means': ('Save the steady means as', _U,
+                          'Set with the end state: the panel asks ONE name '
+                          'for both. Only the command line (--save-means) '
+                          'names them apart.'),
     'spinup.strt_dem': ('Initial head from the DEM', _U,
                         '[a, b] gives head = a*elevation + b. Empty uses the '
                         'configured initial condition.'),

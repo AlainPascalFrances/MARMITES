@@ -31,7 +31,7 @@ __all__ = ['pick_config', 'header', 'master_switch', 'panel_switch',
            'section_form',
            'grid_form', 'grid_permanent_form', 'grid_kind_form',
            'gis_folder_box', 'layer_picker', 'resolve_layer', 'folder_picker',
-           'table_form', 'park', 'live',
+           'table_form', 'park', 'live', 'state_picker',
            'surface_folder_box', 'file_picker', 'path_box',
            'rows_form', 'read_only', 'column_box', 'how_box',
            'record_lines', 'unsaved_switches', 'unsaved_changes', 'SWITCHES',
@@ -738,6 +738,56 @@ def _source_widget(dotted, src, shown, help_full, key):
         if how is not None:
             edits['%s.how' % dotted] = how
     return edits
+
+
+def state_picker(cfg, dotted, state_dir, grid, empty, disabled=False):
+    """A saved state PICKED from the ones on disk, not typed. Returns the
+    name ('' for none).
+
+    The field used to be a free text box, empty until a name was typed that
+    the modeller had to know from a log line -- with nothing saying where
+    the run looks, what is there, or whether it fits. Each entry now says
+    when it was saved, on how many cells, and whether it fits the grid the
+    run uses (``mcfg.prefix_problem``, the run's own question). A name in
+    the configuration that is not on disk stays in the list, marked, rather
+    than being silently replaced.
+    """
+    import time
+    label, units, help_ = schema.describe(dotted)
+    key = dotted
+    parked = key + '.__pending' in st.session_state
+    if parked:
+        st.session_state[key] = st.session_state.pop(key + '.__pending')
+    nlay = int(getattr(cfg.layers, 'nlay', 1) or 1)
+    found = {d['name']: d for d in mcfg.saved_states(state_dir, nlay, dotted)}
+    names = [''] + list(found)
+    for extra in ((getattr(cfg.spinup, dotted.split('.', 1)[1], '') or '')
+                  .strip(), st.session_state.get(key)):
+        if extra and extra not in names:
+            names.append(extra)
+
+    def fmt(name):
+        if not name:
+            return empty
+        d = found.get(name)
+        if d is None:
+            return '%s  -  not found in the workspace' % name
+        bits = [name, time.strftime('%d %b %Y %H:%M',
+                                    time.localtime(d['mtime']))]
+        if d['shape']:
+            bits.append('%s cells' % mcfg.cells_text(d['shape']))
+        if dotted == 'spinup.strt_heads' and not d['full']:
+            bits.append('heads only')
+        why = mcfg.prefix_problem(cfg, state_dir, dotted, name, grid)
+        return '  ·  '.join(bits) + ('  ✗ does not fit' if why else '  ✓')
+
+    cur = (getattr(cfg.spinup, dotted.split('.', 1)[1], '') or '').strip()
+    kw = {} if (parked or key in st.session_state) else {
+        'index': names.index(cur) if cur in names else 0}
+    got = st.selectbox(label, names, format_func=fmt, key=key,
+                       disabled=disabled,
+                       help='`%s`  \n%s' % (dotted, help_), **kw)
+    return got or ''
 
 
 def section_form(cfg, section, columns=2, skip_subpanels=True, only=None,

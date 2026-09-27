@@ -270,6 +270,32 @@ def promote_mesh(cache_dir, ws_root, kind):
     return dst, moved
 
 
+def state_dir_for(cfg, ws_root):
+    """The folder a run of ``cfg`` saves its state to and reads it from --
+    the same rule as the driver: ``paths.ws`` when set, else the mesh's own
+    workspace under ``ws_root``."""
+    import marmites_config as mcfg
+    return str(cfg.paths.ws) if cfg.paths.ws else mcfg.state_workspace(
+        cfg, str(ws_root))
+
+
+def run_grid(cfg, state_dir):
+    """The grid a saved state has to fit, as the run describes it:
+    ``{'shape': (ncpl, 1), 'signature': ...}`` from the mesh cached in the
+    run workspace, or None when there is no mesh (a structured grid) or
+    none is cached yet -- then only the state's own sidecar is judged."""
+    if cfg.grid_kind in ('structured', 'dis', 'disv'):
+        return None
+    gp, sig = read_mesh_at(Path(str(state_dir)) / '_mesh', cfg.grid_kind)
+    if gp is None:
+        return None
+    ncpl = (sig or {}).get('ncpl') or gp.get('ncpl')
+    if not ncpl:
+        return None
+    return {'shape': (int(ncpl), 1),
+            'signature': (sig or {}).get('signature')}
+
+
 def area_classes(areas, n=8):
     """Quantile classes for colouring a mesh by cell area.
 
