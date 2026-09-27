@@ -207,6 +207,16 @@ FIELDS = {
     'run.ats': ('Adaptive time stepping', _U,
                 'On. A period MODFLOW cannot solve in one step is not a '
                 'result, and without this it silently becomes one.'),
+    'run.ats_dtmin': ('Shortest retry step', 'd',
+                      'flopy: ModflowTdis `ats_perioddata` dtmin. A step MF6 '
+                      'cannot solve is retried at one fifth of its length '
+                      'until it converges or would go below this; then it is '
+                      'given up, counted as not converged (which fails the '
+                      'end-of-cycle check). 0.01 d allows three retries '
+                      '(0.2, 0.04, 0.008 d). Smaller only grinds: on La Mata '
+                      'the days that fail at 0.008 d fail at 0.0001 d too '
+                      '(near-dry stream reaches). The CdL model uses the '
+                      'period length -- no retry at all.'),
     'run.build_only': ('Write the input files and stop', _U,
                        'Useful to inspect what MODFLOW would be given.'),
     'run.max_discrepancy': ('Maximum mass-balance discrepancy', '%',
@@ -1150,8 +1160,9 @@ SOLVER_ROWS = (
 
 RUN_COUPLING_ROWS = (
     ('run.mode', 'run.relax'),
-    ('run.ats', 'run.max_discrepancy'),
-    ('run.allow_bad_budget', 'run.build_only'),
+    ('run.ats', 'run.ats_dtmin'),
+    ('run.max_discrepancy', 'run.allow_bad_budget'),
+    ('run.build_only', None),
 )
 
 TIME_ROWS = (

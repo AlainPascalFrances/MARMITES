@@ -240,6 +240,53 @@ def test_ats_block_written_for_transient_periods_only(tmp_path):
     periods = [int(l.split()[0]) for l in ats.splitlines()
                if l.strip() and l.strip()[0].isdigit()]
     assert periods == [2, 3, 4], 'the steady-state period must not get ATS'
+    # (iperiod, dt0, dtmin, dtmax, dtadj, dtfailadj): the retry floor is the
+    # Run panel's, 0.01 d by default -- not the 1e-4 d that let a hopeless
+    # day be tried ~190 times
+    recs = [l.split() for l in ats.splitlines()
+            if l.strip() and l.strip()[0].isdigit()]
+    assert all(abs(float(r[2]) - 0.01) < 1e-12 for r in recs), recs
+
+
+def test_the_retry_floor_comes_from_the_panel_and_never_exceeds_the_period(
+        tmp_path):
+    import marmites_config as mcfg
+    assert mcfg.RunConfig.from_dict({}).run.ats_dtmin == 0.01
+    bad = mcfg.RunConfig.from_dict({})
+    bad.run.ats_dtmin = 0.0
+    with pytest.raises(mcfg.ConfigError) as e:
+        bad.validate()
+    assert 'run.ats_dtmin' in str(e.value)
+    src = open(os.path.join(HERE, 'run_lamata_mf6.py'), encoding='utf-8').read()
+    assert 'ats_dtmin=float(cfg.run.ats_dtmin)' in src
+    assert 'b.ats_dtmin = float(' in src
+    pytest.importorskip('flopy')
+    from test_mf6_build import cmf, mf6mod  # noqa: F401
+    DS = os.path.abspath(os.path.join(HERE, '..', '..', 'example', 'LaMata'))
+    if not os.path.exists(os.path.join(DS, 'MF_ws', '__inputMF_flopy_v3_2s1L.ini')):
+        pytest.skip('La Mata dataset not present')
+    import MARMITESutilities as MMutils
+    import ppMODFLOW_flopy_v3 as ppMF
+    c = ppMF.clsMF(MMutils.clsUTILITIES(verbose=1), MM_ws=DS, MM_ws_out=DS,
+                   MF_ws=os.path.join(DS, 'MF_ws'),
+                   MF_ini_fn='__inputMF_flopy_v3_2s1L.ini',
+                   xllcorner=739300.0, yllcorner=4553050.0)
+    c.outcropL = np.zeros((c.nrow, c.ncol), dtype=int)
+    for L in range(c.nlay):
+        ib = (np.abs(np.asarray(c.ibound))[L] != 0)
+        c.outcropL += ((c.outcropL == 0) & ib) * (L + 1)
+    c.nper, c.perlen, c.nstp = 3, [1, 1, 1], [1, 1, 1]
+    b = mf6mod.clsMF6(c, top=np.asarray(c.elev, float),
+                      botm=np.asarray(c.botm, float), sim_ws=str(tmp_path),
+                      daily=True)
+    b.verbose = False
+    b.ats_dtmin = 5.0                     # longer than the 1-day periods
+    b.build()
+    b.write()
+    ats = (tmp_path / 'lamatamm.tdis.ats').read_text()
+    recs = [l.split() for l in ats.splitlines()
+            if l.strip() and l.strip()[0].isdigit()]
+    assert recs and all(float(r[2]) <= float(r[1]) for r in recs), recs
 
 
 def test_ats_can_be_disabled(tmp_path):

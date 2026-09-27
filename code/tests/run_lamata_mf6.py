@@ -1050,6 +1050,7 @@ def _args_from_config(cfg, probe=False):
         # run
         mode=cfg.run.mode, relax=cfg.run.relax,
         nsp=(cfg.run.nsp or None), daily=cfg.run.daily, ats=cfg.run.ats,
+        ats_dtmin=float(cfg.run.ats_dtmin),
         build_only=cfg.run.build_only, standalone=_or_none(cfg.run.standalone),
         probe=bool(probe or cfg.run.probe),
         max_discrepancy=cfg.run.max_discrepancy,
@@ -1205,6 +1206,10 @@ def main():
                strt_from_dem=(tuple(a.strt_dem) if a.strt_dem else None))
     b.seep = a.seep
     b.ats = a.ats
+    b.ats_dtmin = float(getattr(a, 'ats_dtmin', b.ats_dtmin))
+    if b.ats:
+        print('ATS: a step MF6 cannot solve is retried at 1/5 of its length, '
+              'down to %g d -- from the panel' % b.ats_dtmin)
     b.drn_seep_cond = float(a.seep_cond)
     b.uzf_vks_scale = float(a.uzf_vks_scale)
     if cfg is not None:

@@ -375,6 +375,12 @@ class Run:
     # about the RAINFALL SERIES and not about MODFLOW.
     perlen_max: int = 10
     ats: bool = True               #                           (--no-ats)
+    # The shortest step ATS may retry a failed step with, in days. It was
+    # hard-wired at 1e-4 d: on 2026-09-27 La Mata's dry-season days were tried
+    # up to 190 times each (88 % of the spin-up's iterations in failed tries)
+    # at stream reaches whose trouble no step length cures. 0.01 d = three
+    # retries (0.2, 0.04, 0.008 d), then the step is given up and counted.
+    ats_dtmin: float = 0.01        # d
     build_only: bool = False       #                           (--build-only)
     standalone: str = ''           # mf6.exe path              (--standalone)
     probe: bool = False            #                           (--probe)
@@ -1824,6 +1830,8 @@ class RunConfig:
         for _k in ('outer_dvclose', 'inner_dvclose', 'inner_rclose'):
             if not float(getattr(sv, _k)) > 0.0:
                 errs.append('solver.%s must be > 0' % _k)
+        if not float(self.run.ats_dtmin) > 0.0:
+            errs.append('run.ats_dtmin must be > 0 (days)')
         if str(sv.cell_averaging).lower() not in CELL_AVERAGING:
             errs.append('solver.cell_averaging must be one of %s'
                         % ', '.join(CELL_AVERAGING))

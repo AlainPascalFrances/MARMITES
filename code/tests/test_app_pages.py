@@ -1625,7 +1625,8 @@ def test_the_coupling_is_asked_on_the_run_panel_and_saved():
         assert not at.exception, [str(e.value) for e in at.exception]
         keys = {w.key for w in list(at.selectbox) + list(at.number_input)
                 + list(at.checkbox) if w.key}
-        for k in ('run.mode', 'run.relax', 'run.ats', 'run.max_discrepancy',
+        for k in ('run.mode', 'run.relax', 'run.ats', 'run.ats_dtmin',
+                  'run.max_discrepancy',
                   'run.allow_bad_budget', 'run.build_only'):
             assert k in keys, '%s is not on the Run panel' % k
         at.selectbox(key='run.mode').select('iterative').run()

@@ -162,7 +162,9 @@ class clsMF6:
         # solve in one step is not a result, and without ATS it silently
         # becomes one (see the -132% budget discrepancy in the Phase-5 report).
         self.ats = True
-        self.ats_dtmin = 1e-4            # d (~9 s) floor on the sub-step
+        # d, the shortest retry step -- [run] ats_dtmin on the Run panel.
+        # Was 1e-4 d (~9 s), which let a hopeless day be tried ~190 times.
+        self.ats_dtmin = 0.01
         # multiplier on the UZF unsaturated vks, to offset the forced EPSILON
         # clamp (2.0 -> 3.5). 1.0 = no change. Calibrate so UZF-GWRCH matches
         # the target recharge.
@@ -941,7 +943,10 @@ class clsMF6:
         # run, leaving a cumulative budget discrepancy of -132%.
         ats = None
         if self.ats:
-            recs = [(i, float(p), self.ats_dtmin, float(p), 2.0, 5.0)
+            # dtmin no longer than the period: MF6 wants dt0 >= dtmin, and
+            # a floor at the period length already means "no retry"
+            recs = [(i, float(p), min(float(self.ats_dtmin), float(p)),
+                     float(p), 2.0, 5.0)
                     for i, (p, _, _) in enumerate(perioddata)
                     if i >= s0]                    # not the steady-state period
             ats = {'maxats': len(recs), 'perioddata': recs}
