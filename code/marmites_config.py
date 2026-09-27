@@ -1729,10 +1729,11 @@ class RunConfig:
                         '= %g: a pond cell coarser than the background is not '
                         'a refinement of anything.'
                         % (v.cell_pond, v.cell_far))
-        if float(v.cell_pond) > 0.0 and not v.refine_ponds:
-            errs.append('grid.voronoi.cell_pond = %g but refine_ponds is off, '
-                        'so no pond has a cell to size. Switch the refinement '
-                        'on, or clear the size.' % v.cell_pond)
+        # A pond size with the pond refinement OFF is KEPT, and ignored --
+        # as the corridor size is with stream_refine off: the producer only
+        # gathers the ponds when refine_ponds is on, so nothing reads it.
+        # Refusing it made the switch impossible to turn off from the Grid
+        # panel, which greys the size out once the switch is off (2026-09-27).
         # The derived echo is refreshed HERE, so any path that validates --
         # from_dict, the panel's save, a --set override -- leaves the file
         # stating the bands the producer will actually use.

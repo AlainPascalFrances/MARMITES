@@ -888,12 +888,18 @@ def test_the_zone_ring_is_coarse_enough_to_leave_the_pond_alone(cfg):
     assert meshes.POND_ZONE_N <= 16, 'too many generators around one pond'
 
 
-def test_a_pond_size_is_refused_without_the_seeding(cfg):
+def test_a_pond_size_is_kept_and_ignored_without_the_seeding(cfg):
+    """As the corridor size is with stream_refine off. Refusing it made the
+    pond refinement impossible to switch off from the Grid panel, which
+    greys the size out once the switch is off (2026-09-27)."""
     cfg.grid.voronoi.refine_ponds = False
     cfg.grid.voronoi.cell_pond = 30.0
-    with pytest.raises(cfgmod.ConfigError) as e:
-        cfg.validate()
-    assert 'refine_ponds' in str(e.value)
+    cfg.validate()
+    assert cfg.grid.voronoi.cell_pond == 30.0
+    src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..',
+                            'marmites_meshes.py'), encoding='utf-8').read()
+    # the producer gathers the ponds only with the refinement on
+    assert 'if v.refine_ponds:' in src
 
 
 def test_a_pond_cell_may_not_be_coarser_than_the_background(cfg):
