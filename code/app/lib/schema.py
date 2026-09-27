@@ -663,6 +663,15 @@ FIELDS = {
                              'flopy: ModflowIms `outer_maximum`. A step that '
                              'needs more has NOT converged, and the run '
                              'reports it rather than using it.'),
+    'solver.cell_averaging': ('Cell averaging', _U,
+                              'flopy: ModflowGwfnpf `alternative_cell_averaging`'
+                              '. How the conductance between two cells is '
+                              'averaged. **harmonic** is MF6\'s default; '
+                              '**amt-hmk** (arithmetic-mean saturated '
+                              'thickness, harmonic-mean K) keeps it up as a '
+                              'cell dewaters -- the setting the CdL model '
+                              'runs with, where it removed a float-overflow '
+                              'crash near drying cells.'),
     'solver.inner_dvclose': ('Linear head tolerance', 'm',
                              'flopy: ModflowIms `inner_dvclose`. Must not '
                              'exceed the Newton head tolerance.'),
@@ -959,6 +968,8 @@ CHOICES = {
     # UZF1's SPECIFYTHTR, with the numbers replaced by what they meant.
     'uzf.thtr_from': lambda: ['sy', 'source'],
     'solver.complexity': lambda: ['simple', 'moderate', 'complex'],
+    'solver.cell_averaging': lambda: ['harmonic', 'logarithmic', 'amt-lmk',
+                                      'amt-hmk'],
     'postproc.wb_unit': lambda: ['year', 'day'],
     'crr.sinks': lambda: ['evaporate', 'route'],
     'ui.execution': lambda: ['local', 'server'],
@@ -1120,7 +1131,7 @@ OBS_GROUPS = (
 SOLVER_ROWS = (
     ('solver.complexity', 'solver.outer_maximum'),
     ('solver.outer_dvclose', 'solver.inner_dvclose'),
-    ('solver.inner_rclose', None),
+    ('solver.inner_rclose', 'solver.cell_averaging'),
 )
 
 RUN_COUPLING_ROWS = (

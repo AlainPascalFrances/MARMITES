@@ -179,6 +179,14 @@ def test_the_derived_transition_bands_are_read_only():
         'the derived bands are ALSO offered as a live field'
 
 
+def _refine_on(at):
+    """Stream refinement ON in this session, whatever the live file says (it
+    was switched off there on 2026-09-27). Nothing is saved."""
+    cb = at.checkbox(key='grid.voronoi.stream_refine')
+    if not cb.value:
+        cb.check().run()
+
+
 def test_the_refinement_settings_are_blocked_when_it_is_off():
     """Panel 1, D4: with the refinement off the corridor does not exist, so
     the settings describing it are greyed and cleared, not left looking live."""
@@ -186,6 +194,7 @@ def test_the_refinement_settings_are_blocked_when_it_is_off():
                            default_timeout=180)
     at.run()
     at.selectbox(key='grid.kind').select('voronoi').run()
+    _refine_on(at)
     assert 'grid.voronoi.cell_near_stream' in _keys(at)
     at.checkbox(key='grid.voronoi.stream_refine').uncheck().run()
     assert 'grid.voronoi.cell_near_stream' not in _keys(at), \
@@ -966,6 +975,7 @@ def test_the_derived_bands_follow_the_boxes_without_a_save():
                            default_timeout=180)
     at.run()
     at.selectbox(key='grid.kind').select('voronoi').run()
+    _refine_on(at)
     def shown(a, what='trans_levels'):
         return [t.value for t in a.text_input
                 if t.key == 'ro_grid.voronoi.%s' % what][0]
@@ -1642,7 +1652,7 @@ def test_the_solver_is_asked_on_the_run_panel_and_saved():
                 if w.key}
         for k in ('solver.complexity', 'solver.outer_dvclose',
                   'solver.outer_maximum', 'solver.inner_dvclose',
-                  'solver.inner_rclose'):
+                  'solver.inner_rclose', 'solver.cell_averaging'):
             assert k in keys, '%s is not on the Run panel' % k
         at.number_input(key='solver.outer_dvclose').set_value(0.002).run()
         save = [b for b in at.button if b.key == 'sidebar_save']

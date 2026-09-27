@@ -30,7 +30,9 @@ import marmites_config as mcfg                                 # noqa: E402
 
 APPROVED = {'complexity': 'complex', 'outer_dvclose': 0.001,
             'outer_maximum': 500, 'inner_dvclose': 0.0001,
-            'inner_rclose': 0.01}
+            'inner_rclose': 0.01,
+            # MF6's own default; amt-hmk is asked on the Run panel
+            'cell_averaging': 'harmonic'}
 
 
 # ------------------------------------------------------ the configuration

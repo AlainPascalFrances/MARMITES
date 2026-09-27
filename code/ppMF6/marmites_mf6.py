@@ -997,9 +997,15 @@ class clsMF6:
                     k33[L] = np.where(vka[L] > 0, hk[L] / vka[L], hk[L])
             else:
                 k33[L] = vka[L]
+        # [solver] cell_averaging (Run panel): MF6's harmonic default, or
+        # an ALTERNATIVE_CELL_AVERAGING -- amt-hmk keeps the conductance up
+        # as a cell dewaters, as the CdL model runs
+        _avg = str(sv.get('cell_averaging', 'harmonic') or 'harmonic').lower()
         ModflowGwfnpf(gwf, icelltype=list(np.asarray(cMF.laytyp, dtype=int)),
                       k=self._griddata(hk), k33=self._griddata(k33),
-                      save_specific_discharge=False)
+                      save_specific_discharge=False,
+                      alternative_cell_averaging=(None if _avg == 'harmonic'
+                                                  else _avg))
 
         # STO: steady first SP, transient afterwards -- or transient from
         # the start when the run starts from known heads

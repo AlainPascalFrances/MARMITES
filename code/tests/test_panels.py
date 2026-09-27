@@ -1097,10 +1097,25 @@ def test_every_note_belongs_to_a_field_that_is_shown():
 
 # ----------------------------------------------- a key that has been renamed
 
+def _ref_text():
+    """The reference file with the renamed key in a KNOWN state: lamata.toml
+    is a live working file, and the pond refinement these tests rename was
+    switched off in it on 2026-09-27 -- which is not these tests' business."""
+    out, here = [], None
+    for raw in io.open(REF, encoding='utf-8').read().splitlines(True):
+        s = raw.strip()
+        if s.startswith('[') and s.endswith(']'):
+            here = s[1:-1]
+        elif here == 'grid.voronoi' and s.startswith('refine_ponds '):
+            raw = 'refine_ponds = true\n'
+        out.append(raw)
+    return ''.join(out)
+
+
 def _toml_with(tmp_path, old, new):
     """A copy of the reference configuration with one key spelled the old
     way."""
-    text = io.open(REF, encoding='utf-8').read().replace(new, old)
+    text = _ref_text().replace(new, old)
     assert old in text, 'the reference file does not carry %r' % new
     p = os.path.join(str(tmp_path), 'old.toml')
     io.open(p, 'w', encoding='utf-8', newline='').write(text)
@@ -1137,7 +1152,7 @@ def test_saving_migrates_the_file_for_good(tmp_path):
 def test_both_names_at_once_is_refused(tmp_path):
     """One of them would win silently, and it would be the wrong one half
     the time."""
-    text = io.open(REF, encoding='utf-8').read().replace(
+    text = _ref_text().replace(
         'refine_ponds = true', 'refine_ponds = true\nseed_ponds = false')
     p = os.path.join(str(tmp_path), 'both.toml')
     io.open(p, 'w', encoding='utf-8', newline='').write(text)
@@ -1148,7 +1163,7 @@ def test_both_names_at_once_is_refused(tmp_path):
 
 def test_a_key_that_is_simply_wrong_still_raises(tmp_path):
     """The migration must not become a door for typos."""
-    text = io.open(REF, encoding='utf-8').read().replace(
+    text = _ref_text().replace(
         'refine_ponds = true', 'refine_pnds = true')
     p = os.path.join(str(tmp_path), 'typo.toml')
     io.open(p, 'w', encoding='utf-8', newline='').write(text)
@@ -1314,6 +1329,12 @@ def test_the_signature_separates_two_corridors(cfg):
     describe by comparing signatures. Cell counts would not do: two meshes
     can share one and differ."""
     cfg.grid.kind = 'voronoi'
+    # a corridor only exists with the refinement on -- set, not found in
+    # the live file (switched off there on 2026-09-27)
+    cfg.grid.voronoi.stream_refine = True
+    if not cfg.grid.voronoi.cell_near_stream:   # cleared while it was off
+        cfg.grid.voronoi.cell_near_stream = cfgmod.GridVoronoi.cell_near_stream
+    cfg.grid.voronoi.refresh()
     stub = meshes.grid_stub(cfg, (0.0, 0.0, 3000.0, 3000.0), nlay=1)
     a = meshes.mesh_signature(cfg, stub)
     # Perturbed from whatever the shipped configuration holds, not set to

@@ -167,6 +167,11 @@ class MF6Coupler:
         self.max_substeps = 5000       # ATS safety cap per stress period
         self.substeps = 0              # extra ATS sub-steps taken overall
         self.n_nonconverged = 0
+        # MF6's own time step (do_time_step), which RETRIES a step it cannot
+        # solve with a smaller one (ATS); set by _bind when the period-input
+        # arrays it re-applies on every try are reachable
+        self.mf6_step = False
+        self.p_sinf_pvar = self.p_pet_pvar = self.p_itertot = None
         # When the march started, for the progress line's estimate. Set here
         # so _progress can never be called before it exists, and reset in
         # run() so a spin-up cycle times itself rather than the whole session.
@@ -508,6 +513,40 @@ class MF6Coupler:
             'UZF actual ET (UZET)', required=False)
         print('coupler: UZF PET bound to %s; actual ET read from %s'
               % (self.addr_petmax, self.addr_uzet or '(not exposed)'))
+        # MF6's OWN TIME STEP, with its retry. A step the solver cannot
+        # converge is retried with a smaller one (ATS, dtfailadj) -- but only
+        # inside MF6's own do_time_step (Mf6DoTimestep, mf6core.f90). Driven
+        # through prepare_solve / solve / finalize_solve, as the coupler was,
+        # a failed step is reported ("did not converge") and ACCEPTED: on
+        # 2026-09-27 La Mata's stream cells oscillated by 14-69 m per
+        # iteration on some wet days and those days went into the record.
+        # do_time_step re-applies the period input on every try -- uzf_ad
+        # copies SINF_PVAR to FINF/SINF and PET_PVAR to PET/PETMAX
+        # (gwf-uzf.f90) -- so the exchanged values are written THERE too;
+        # WEL Q, SFR INFLOW/EVAP and LAK RUNOFF/EVAPORATION are re-read only
+        # from a PERIOD block, which the build writes for period 1 alone.
+        self.p_sinf_pvar, _a = self._bind_first(
+            api, [('SINF_PVAR', f'{name}/UZF'), ('SINF_PVAR', f'{name}/UZF-1')],
+            'UZF period infiltration (SINF_PVAR)', required=False,
+            min_size=self.ncell)
+        self.p_pet_pvar, _a = self._bind_first(
+            api, [('PET_PVAR', f'{name}/UZF'), ('PET_PVAR', f'{name}/UZF-1')],
+            'UZF period PET (PET_PVAR)', required=False, min_size=self.ncell)
+        self.p_itertot, _a = self._bind_first(
+            api, [('ITERTOT_TIMESTEP', 'SLN_1')],
+            'solver linear iterations', required=False)
+        self.mf6_step = (self.p_sinf_pvar is not None
+                         and (self.p_pet_pvar is not None
+                              or self.p_petmax is None)
+                         and hasattr(api, 'do_time_step'))
+        if self.mf6_step:
+            print('coupler: MF6 advances with its own time step '
+                  '(do_time_step): a step it cannot solve is retried with a '
+                  'smaller one (ATS)')
+        else:
+            print('WARNING: the UZF period-input arrays are not reachable, so '
+                  'MF6 is stepped through prepare_solve/solve: a step it '
+                  'cannot solve is NOT retried, it is accepted unconverged.')
         # each UZF object's mean water content, read once at the end so a
         # periodic spin-up can start the next cycle from it
         self.p_wcnew, _a = self._bind_first(
@@ -981,7 +1020,12 @@ class MF6Coupler:
     def _write_fluxes(self, perc, etg, petuzf=None, etg_booked=None):
         # both UZF arrays, as MF6's setdatafinf sets them: the land cells
         # carry the percolation, the objects below them nothing
-        for _p in (self.p_finf, self.p_sinf):
+        # ... and the period input uzf_ad copies them from on every try of
+        # MF6's own time step (see _bind)
+        for _p in (self.p_finf, self.p_sinf,
+                   getattr(self, 'p_sinf_pvar', None)):
+            if _p is None:
+                continue
             _p[:self.ncell] = perc                                    # m/d
             if _p.shape[0] > self.ncell:
                 _p[self.ncell:] = 0.0
@@ -990,7 +1034,8 @@ class MF6Coupler:
         # objects below
         if petuzf is not None and self.p_petmax is not None:
             dem = self.uzf_demand(petuzf, etg, etg_booked)
-            for _p in (self.p_petmax, self.p_pet):
+            for _p in (self.p_petmax, self.p_pet,
+                       getattr(self, 'p_pet_pvar', None)):
                 if _p is not None:
                     _p[:self.ncell] = dem
             self._petmax_written = np.array(dem, dtype=float)
@@ -1445,6 +1490,10 @@ class MF6Coupler:
                'perc': self.perc_hist, 'etg': self.etg_hist, 'rejinf': self.rejinf_hist,
                'etuzf': self.etuzf_hist, 'pet_unmet': self.pet_unmet,
                'runoff': self.runoff_hist, 'outer_iters': self.outer_iters,
+               # what outer_iters counts: MF6's own step exposes only its
+               # linear solves (ITERTOT_TIMESTEP), not the outer iterations
+               'iters_kind': ('linear' if self.mf6_step else 'outer'),
+               'nonconverged': int(self.n_nonconverged),
                'wb_ts': self.wb_ts, 'wb_map': self.wb_map,
                'wb_ts_soil': self.wb_ts_soil, 'wb_map_soil': self.wb_map_soil}
         # The SFR / LAK split per cell is in wb_ts and wb_map (iEow_sfr,
@@ -1499,6 +1548,8 @@ class MF6Coupler:
         writing after prepare_time_step reverted to perc_user (constant
         recharge, draining water table), writing after prepare_solve sticks.
         """
+        if getattr(self, 'mf6_step', False):
+            return self._mf6_step(api, write_cb)
         dt = self._timestep(api)
         api.prepare_time_step(dt)
         api.prepare_solve(1)
@@ -1512,6 +1563,34 @@ class MF6Coupler:
         converged = kiter < self.max_outer
         api.finalize_solve(1)
         api.finalize_time_step()
+        return kiter, converged
+
+    def _mf6_step(self, api, write_cb=None):
+        """One time step by MF6's OWN routine, retried by ATS if it fails.
+
+        The fluxes are written after prepare_time_step -- the period input
+        a new PERIOD block would reload is read there -- and before
+        do_time_step, whose every try re-applies them (see _bind). A step
+        still unconverged when ATS reaches dtmin makes finalize_time_step
+        report failure: it is counted, and the run goes on, as before.
+        Returns (linear iterations of the last try, converged).
+        """
+        dt = self._timestep(api)
+        api.prepare_time_step(dt)
+        if write_cb is not None:
+            write_cb()
+        api.do_time_step()
+        try:
+            api.finalize_time_step()
+            converged = True
+        except Exception:                                 # noqa: BLE001
+            converged = False
+        kiter = 0
+        if self.p_itertot is not None:
+            try:
+                kiter = int(np.asarray(self.p_itertot).ravel()[0])
+            except (TypeError, ValueError, IndexError):   # pragma: no cover
+                kiter = 0
         return kiter, converged
 
     def _advance(self, api, t_end=None, write_cb=None):

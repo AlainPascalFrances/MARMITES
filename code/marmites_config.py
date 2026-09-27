@@ -1417,6 +1417,10 @@ class Ui:
     poll_secs: int = 3
 
 
+# MF6 NPF alternative_cell_averaging, and 'harmonic' for none (its default)
+CELL_AVERAGING = ('harmonic', 'logarithmic', 'amt-lmk', 'amt-hmk')
+
+
 @dataclass
 class Solver:
     """The Run panel -- MODFLOW 6's IMS solver.
@@ -1437,6 +1441,12 @@ class Solver:
     outer_maximum: int = 500       # Newton iterations per time step
     inner_dvclose: float = 0.0001  # m, head change that ends a linear solve
     inner_rclose: float = 0.01     # m3/d, flow residual that ends it
+    # NPF's inter-cell conductance averaging (MF6 alternative_cell_averaging):
+    # harmonic is MF6's own default; amt-hmk -- arithmetic-mean saturated
+    # thickness x harmonic-mean K -- keeps the conductance up as a cell
+    # dewaters, and is what the CdL model runs with (it removed a
+    # float-overflow crash there)
+    cell_averaging: str = 'harmonic'  # harmonic | logarithmic | amt-lmk | amt-hmk
 
 
 # Order matters only for the resolved-config dump; it follows the panels:
@@ -1814,6 +1824,9 @@ class RunConfig:
         for _k in ('outer_dvclose', 'inner_dvclose', 'inner_rclose'):
             if not float(getattr(sv, _k)) > 0.0:
                 errs.append('solver.%s must be > 0' % _k)
+        if str(sv.cell_averaging).lower() not in CELL_AVERAGING:
+            errs.append('solver.cell_averaging must be one of %s'
+                        % ', '.join(CELL_AVERAGING))
         if int(sv.outer_maximum) < 1:
             errs.append('solver.outer_maximum must be >= 1')
         if float(sv.inner_dvclose) > float(sv.outer_dvclose):

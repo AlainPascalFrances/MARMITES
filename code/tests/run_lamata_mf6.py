@@ -1490,10 +1490,10 @@ def main():
     print('\nCoupled run finished. Results: %s' % out_fn)
     _w = np.asarray(cpl.area, dtype=float)
     print('perc  mean %.4g m/d   ETg mean %.4g m/d (catchment, area-weighted)'
-          '   outer iters mean %.1f'
+          '   %s iters mean %.1f'
           % (float(np.average(res['perc'], axis=1, weights=_w).mean()),
              float(np.average(res['etg'], axis=1, weights=_w).mean()),
-             res['outer_iters'].mean()))
+             res.get('iters_kind', 'outer'), res['outer_iters'].mean()))
     # WP1d: open-water evaporation is MF6's now, read back from SFR SIMEVAP and
     # LAK EVAP and carried in the MM vector as iEow, so it is a measured flux
     # in the water balance rather than a structural zero.
