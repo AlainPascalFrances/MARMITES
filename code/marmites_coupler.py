@@ -201,6 +201,10 @@ class MF6Coupler:
         self.pet_unmet = None           # catchment PT+PE - (ETsoil+ETuzf+ETg)
         self.n_overdraw = 0
         self.max_overdraw = 0.0
+        # the period just advanced: its rates' sub-step means (None when it
+        # was one step) and its step count -- see SUBSTEP_RATES
+        self._period_rates = None
+        self._period_nsub = 1
         # UZF's ET beyond the demand within MF6's wave tolerance (_split_etuzf)
         self.n_resid, self.resid_max, self.resid_m3 = 0, 0.0, 0.0
         self._petmax_written = None
@@ -628,6 +632,25 @@ class MF6Coupler:
 
     # ------------------------- solution validity ----------------------- #
 
+    @staticmethod
+    def listing_given_up(txt):
+        """Stress periods of ``mfsim.lst`` in which MF6 gave up on a step.
+
+        A failed try prints "Solution N did not converge for stress period
+        P ..." and, when ATS retries it, "Failed solution ... will be
+        retried" right after. Only a failure with no retry is final.
+        """
+        lines = txt.splitlines()
+        rx = re.compile(r'^\s*Solution \d+ did not converge for stress '
+                        r'period (\d+)')
+        out = set()
+        for i, line in enumerate(lines):
+            m = rx.match(line)
+            if m and not any('will be retried' in ln
+                             for ln in lines[i + 1:i + 6]):
+                out.add(int(m.group(1)))
+        return out
+
     def check_solution(self, max_discrepancy=1.0, raise_on_fail=True):
         """Verify MF6 actually solved the problem. Call after the run.
 
@@ -649,7 +672,11 @@ class MF6Coupler:
             if os.path.exists(fn):
                 with open(fn, 'r', errors='replace') as fh:
                     txt = fh.read()
-                rep['nonconverged_lst'] = txt.count('did not converge')
+                # periods MF6 GAVE UP on -- not every failed try: with
+                # ATS each try that is retried prints "did not converge"
+                # too (twice), and counting those reported 462 for a run
+                # whose steps failed for good in 10 periods (2026-09-27)
+                rep['nonconverged_lst'] = len(self.listing_given_up(txt))
             for cand in os.listdir(ws):
                 if not cand.endswith('.lst') or cand == 'mfsim.lst':
                     continue
@@ -809,6 +836,54 @@ class MF6Coupler:
         except Exception:                          # pragma: no cover
             return None
 
+    # The rates MF6 reports per TIME STEP that the coupler reads once a
+    # stress period is over. When ATS splits the period they are those of
+    # its LAST sub-step: on 2026-09-27 a day of 35 sub-steps was booked with
+    # the UZF ET, seepage and rejected infiltration of its final 20 minutes,
+    # and UZF's wave tolerance -- a depth per step -- divided by that
+    # sub-step's length read as ET above PET in 42 cell-periods.
+    SUBSTEP_RATES = ('p_uzet', 'p_drnseep', 'p_gwd', 'p_rejinf',
+                     'p_sfr_simevap', 'p_lak_simevap')
+
+    def _rate(self, name):
+        """A reported rate for the period just advanced: its mean over the
+        sub-steps, weighted by their length, when MF6 split the period;
+        MF6's own array otherwise."""
+        m = getattr(self, '_period_rates', None)
+        if m is not None and name in m:
+            return m[name]
+        return getattr(self, name, None)
+
+    def _rates_add(self, acc, dt):
+        """Add one time step's reported rates to ``acc``, times its length."""
+        dt = float(dt) if dt is not None and np.isfinite(dt) and dt > 0 \
+            else 1.0
+        for name in self.SUBSTEP_RATES:
+            ptr = getattr(self, name, None)
+            if ptr is None:
+                continue
+            v = np.asarray(ptr, dtype=float).ravel() * dt
+            if name in acc and acc[name].shape == v.shape:
+                acc[name] += v
+            else:
+                acc[name] = v
+        acc['__dt'] = acc.get('__dt', 0.0) + dt
+
+    def _rates_close(self, acc, nsub):
+        """End of a period: keep the sub-step means (only when it WAS split
+        -- a single step's arrays are MF6's own) and how many steps."""
+        tot = acc.pop('__dt', 0.0)
+        self._period_rates = ({k: v / tot for k, v in acc.items()}
+                              if nsub > 1 and tot > 0.0 else None)
+        self._period_nsub = int(nsub)
+
+    @staticmethod
+    def _now(api):
+        try:
+            return float(api.get_current_time())
+        except Exception:                               # noqa: BLE001
+            return None
+
     def _read_heads_exf(self):
         """Heads [m] and groundwater exfiltration [mm/d, + into the soil].
 
@@ -818,7 +893,7 @@ class MF6Coupler:
         """
         heads = np.asarray(self.p_x, dtype=float)[self.x_index]
         if self.p_drnseep is not None:
-            sim = np.asarray(self.p_drnseep, dtype=float).ravel()
+            sim = np.asarray(self._rate('p_drnseep'), dtype=float).ravel()
             q = np.zeros(self.ncell)
             has = self.drnseep_idx >= 0
             idx = self.drnseep_idx[has]
@@ -828,7 +903,8 @@ class MF6Coupler:
             return heads, q / self.area * self.conv_fact
         if self.p_gwd is None:
             return heads, np.zeros(self.ncell)
-        gwd = np.asarray(self.p_gwd, dtype=float).ravel()[:self.ncell]  # m3/d, + to surface
+        gwd = np.asarray(self._rate('p_gwd'),
+                         dtype=float).ravel()[:self.ncell]  # m3/d, + to surface
         exf = gwd / self.area * self.conv_fact                          # mm/d, + into soil
         return heads, exf
 
@@ -842,7 +918,8 @@ class MF6Coupler:
         """
         if self.p_rejinf is None:
             return np.zeros(self.ncell)
-        rej = np.abs(np.asarray(self.p_rejinf, dtype=float).ravel()[:self.ncell])
+        rej = np.abs(np.asarray(self._rate('p_rejinf'),
+                                dtype=float).ravel()[:self.ncell])
         return rej / self.area * self.conv_fact
 
     def _write_runoff(self, ro):
@@ -928,7 +1005,7 @@ class MF6Coupler:
         sfr = np.zeros(self.ncell, dtype=float)
         lak = np.zeros(self.ncell, dtype=float)
         if self.p_sfr_simevap is not None and self.nreaches:
-            se = np.asarray(self.p_sfr_simevap, dtype=float)
+            se = np.asarray(self._rate('p_sfr_simevap'), dtype=float)
             has = self.sfr_reach_idx >= 0
             idx = self.sfr_reach_idx[has]
             ok = idx < se.size
@@ -957,7 +1034,7 @@ class MF6Coupler:
         when there are no ponds or LAK does not expose it."""
         if self.p_lak_simevap is None or not self.nlakes:
             return None
-        le = np.abs(np.asarray(self.p_lak_simevap, dtype=float))
+        le = np.abs(np.asarray(self._rate('p_lak_simevap'), dtype=float))
         return le[:min(self.nlakes, le.size)].copy()
 
     def _openwater_evap_into(self, mm_cells):
@@ -1058,7 +1135,7 @@ class MF6Coupler:
         summed over each column's objects, on the cell's own area."""
         if self.p_uzet is None:
             return np.zeros(self.ncell)
-        q = np.abs(np.asarray(self.p_uzet, dtype=float).ravel())
+        q = np.abs(np.asarray(self._rate('p_uzet'), dtype=float).ravel())
         if self._col_obj.size and self._col_obj.max() >= q.size:
             return np.zeros(self.ncell)
         tot = np.bincount(self._col_own, weights=q[self._col_obj],
@@ -1084,6 +1161,9 @@ class MF6Coupler:
         apart (iETuzf_num), so UZF's balance still matches MF6's budget and
         ET stays within the demand. Beyond the tolerance nothing is split --
         it stays ET, and the PET check fails the run on it.
+
+        The tolerance is a depth PER TIME STEP, so a period ATS split into
+        n sub-steps may carry n of them (its ET is the sub-steps' mean).
         """
         et = np.asarray(et, dtype=float)
         dem = getattr(self, '_petmax_written', None)
@@ -1098,7 +1178,9 @@ class MF6Coupler:
             h_end = np.asarray(p_x, dtype=float)[self.x_index]
             uz = np.maximum(uz, top - h_end)
         perlen = float(self.perlen[n]) if n < len(self.perlen) else 1.0
-        tol = self.UZF_WAVE_TOL * uz / max(perlen, 1e-12) * self.conv_fact
+        nsub = max(int(getattr(self, '_period_nsub', 1) or 1), 1)
+        tol = (self.UZF_WAVE_TOL * uz * nsub / max(perlen, 1e-12)
+               * self.conv_fact)
         resid = np.where((over > 0.0) & (over <= tol), over, 0.0)
         return et - resid, resid
 
@@ -1607,17 +1689,22 @@ class MF6Coupler:
         them on each sub-step is idempotent and keeps them from being reverted
         by rp).
         """
+        acc = {}
+        t0 = self._now(api)
         kiter, converged = self._one_step(api, write_cb)
+        now = self._now(api)
+        self._rates_add(acc, None if t0 is None or now is None else now - t0)
         nsub = 1
         if t_end is not None:
             while nsub < self.max_substeps:
-                try:
-                    now = float(api.get_current_time())
-                except Exception:                  # pragma: no cover
+                if now is None:                    # pragma: no cover
                     break
                 if now >= t_end - 1e-9:
                     break
                 k, ok = self._one_step(api, write_cb)
+                t1 = self._now(api)
+                self._rates_add(acc, None if t1 is None else t1 - now)
+                now = t1
                 kiter = max(kiter, k)
                 converged = converged and ok
                 nsub += 1
@@ -1626,6 +1713,7 @@ class MF6Coupler:
                     'MF6 did not reach the end of the stress period after %d '
                     'sub-steps; ATS is shrinking the step without converging.'
                     % self.max_substeps)
+        self._rates_close(acc, nsub)
         self.substeps += nsub - 1
         if not converged:
             self.n_nonconverged += 1
@@ -1644,6 +1732,8 @@ class MF6Coupler:
         would advance the soil state several times within one MARMITES day.
         """
         bak = self._clone_state(self.state)
+        acc = {}
+        t0 = self._now(api)
         dt = self._timestep(api)
         api.prepare_time_step(dt)
         api.prepare_solve(1)
@@ -1683,16 +1773,15 @@ class MF6Coupler:
         converged = kiter < self.max_outer
         api.finalize_solve(1)
         api.finalize_time_step()
+        now = self._now(api)
+        self._rates_add(acc, None if t0 is None or now is None else now - t0)
         if not converged:
             self.n_nonconverged += 1
         # finish the period if ATS split it
         nsub = 1
         if t_end is not None:
             while nsub < self.max_substeps:
-                try:
-                    if float(api.get_current_time()) >= t_end - 1e-9:
-                        break
-                except Exception:                  # pragma: no cover
+                if now is None or now >= t_end - 1e-9:
                     break
                 # re-apply the converged fluxes each sub-step, or rp reverts
                 # SINF to the build-time value on the next prepare_time_step
@@ -1704,10 +1793,14 @@ class MF6Coupler:
                     self._write_openwater_evap(sp)
 
                 k, ok = self._one_step(api, write_cb=_re_apply)
+                t1 = self._now(api)
+                self._rates_add(acc, None if t1 is None else t1 - now)
+                now = t1
                 kiter = max(kiter, k)
                 if not ok:
                     self.n_nonconverged += 1
                 nsub += 1
+        self._rates_close(acc, nsub)
         self.substeps += nsub - 1
         self.outer_iters[n] = kiter
         return out, heads, exf, rej

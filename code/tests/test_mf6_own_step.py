@@ -34,6 +34,7 @@ def _load(name, path):
 
 
 M = _load('test_coupler_mock_os', os.path.join(HERE, 'test_coupler_mock.py'))
+coup = M.coup
 
 
 class OwnStepApi(M.FakeApi):
@@ -144,6 +145,119 @@ def test_the_uzf_demand_goes_to_the_period_input_too():
     cpl.run(api)
     assert api.PET_PVAR[:ctx.ncell].min() >= 0.0
     assert np.allclose(api.PET_PVAR[:ctx.ncell], cpl._petmax_written)
+
+
+# ------------------------------------------- a period ATS splits into steps
+# 2026-09-27: a day MF6 split into 35 sub-steps was booked with the UZF ET,
+# seepage and rejected infiltration of its LAST sub-step, and UZF's wave
+# tolerance -- a depth per step -- spread over a 0.016-day sub-step read as
+# ET above PET in 42 cell-periods.
+
+class SubstepApi(OwnStepApi):
+    """The own-step fake with MF6's clock: ``split`` gives the sub-step
+    lengths ATS takes in a period (0 = the steady one), ``uzet_scale`` what
+    share of its demand UZF takes in each, ``extra_depth`` the water [m]
+    each sub-step takes beyond it (the wave-merge excess, a depth per step).
+    """
+
+    def __init__(self, *a, split=None, uzet_scale=None, extra_depth=0.0,
+                 **kw):
+        super().__init__(*a, **kw)
+        self.t = 0.0
+        self.split = dict(split or {})
+        self.uzet_scale = dict(uzet_scale or {})
+        self.extra_depth = float(extra_depth)
+        self._qper, self._queue, self._sub, self._dt = None, [], -1, 1.0
+
+    def get_current_time(self):
+        return self.t
+
+    def prepare_time_step(self, dt):
+        super().prepare_time_step(dt)
+        per = int(np.floor(self.t + 1e-9))
+        if per != self._qper:
+            self._qper, self._sub = per, -1
+            self._queue = list(self.split.get(per, [1.0]))
+        self._dt = self._queue.pop(0)
+        self._sub += 1
+        self.uzet_extra = self.extra_depth / self._dt       # m/d
+
+    def finalize_time_step(self):
+        super().finalize_time_step()
+        f = self.uzet_scale.get(self._qper)
+        if f is not None:
+            self.UZET *= f[self._sub]
+        self.t += self._dt
+
+
+def _substep_setup(heads0=699.0, **kw):
+    cpl, _api, ctx = M._setup(nper=4, mode='lagged', heads0=heads0)
+    api = SubstepApi('toy', ctx.cMF.nlay, ctx.cMF.nrow, ctx.cMF.ncol,
+                     ctx.ncell, nuzf=ctx.ncell + 3, heads0=heads0, **kw)
+    api.uzet_area = cpl.area
+    return cpl, api, ctx
+
+
+def test_a_split_period_is_booked_with_its_mean_not_its_last_sub_step():
+    """Half a day at the full demand, then two quarter-days at none: the
+    period's UZF ET is half the demand. Its last sub-step says zero."""
+    cpl0, api0, _ctx = _substep_setup()
+    res0 = cpl0.run(api0)
+    cpl, api, _ctx = _substep_setup(split={2: [0.5, 0.25, 0.25]},
+                                    uzet_scale={2: [1.0, 0.0, 0.0]})
+    res = cpl.run(api)
+    assert cpl.substeps == 2
+    full = np.asarray(res0['etuzf'][1], dtype=float)
+    assert full.max() > 0.0, 'the case needs UZF ET'
+    assert np.allclose(res['etuzf'][1], 0.5 * full), \
+        'the last sub-step (zero) was booked, not the period mean'
+    # a period that was ONE step reads MF6's own arrays, untouched
+    assert np.allclose(res['etuzf'][0], res0['etuzf'][0])
+
+
+def test_the_wave_tolerance_is_per_step_so_a_split_period_carries_one_each():
+    """Each of four quarter-day sub-steps takes 0.9 x 1e-6 m per metre of
+    unsaturated zone beyond the demand -- within MF6's tolerance every
+    time. Read at the last sub-step, over a 1-day tolerance, that was 3.6x
+    it: ET above PET, and a failed run."""
+    uz = 705.0 - 699.9
+    cpl, api, ctx = _substep_setup(heads0=699.9, split={2: [0.25] * 4},
+                                   extra_depth=0.9e-6 * uz)
+    cpl.top_cell = np.full(ctx.ncell, 705.0)
+    cpl.run(api)
+    assert cpl.substeps == 3
+    assert cpl.n_overdraw == 0, (cpl.n_overdraw, cpl.max_overdraw)
+    assert cpl.n_resid > 0, 'the excess was not booked as numerical loss'
+
+
+def test_the_listing_counts_periods_given_up_not_tries_retried(tmp_path):
+    """Every failed try prints "did not converge" -- twice -- and a retried
+    one is followed by "will be retried". Counting the phrase reported 462
+    for a run with 10 periods given up."""
+    txt = '\n'.join([
+        ' Solution 1 did not converge for stress period 3 and time step 1',
+        ' Solution Group 1 did not converge for stress period 3 and time '
+        'step 1',
+        ' Failed solution for step 1 and period 3 will be retried using time '
+        'step of   0.2000000',
+        '    Solving:  Stress period:     3    Time step:     5',
+        ' Solution 1 did not converge for stress period 3 and time step 5',
+        ' Solution Group 1 did not converge for stress period 3 and time '
+        'step 5',
+        '',
+        '    Solving:  Stress period:     3    Time step:     6',
+        ' Solution 1 did not converge for stress period 7 and time step 2',
+        ' Solution Group 1 did not converge for stress period 7 and time '
+        'step 2',
+        ' Failed solution for step 2 and period 7 will be retried using time '
+        'step of   0.2000000', ''])
+    assert coup.MF6Coupler.listing_given_up(txt) == {3}
+    cpl, _api, _ctx = M._setup(nper=2, mode='lagged')
+    (tmp_path / 'mfsim.lst').write_text(txt)
+    cpl.sim_ws = str(tmp_path)
+    rep = cpl.check_solution(raise_on_fail=False)
+    assert rep['nonconverged_lst'] == 1 and not rep['ok']
+    assert '1 stress period(s) did not converge' in ' '.join(rep['messages'])
 
 
 def test_without_the_period_input_the_old_stepping_stays():

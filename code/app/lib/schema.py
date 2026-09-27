@@ -212,11 +212,12 @@ FIELDS = {
                       'cannot solve is retried at one fifth of its length '
                       'until it converges or would go below this; then it is '
                       'given up, counted as not converged (which fails the '
-                      'end-of-cycle check). 0.01 d allows three retries '
-                      '(0.2, 0.04, 0.008 d). Smaller only grinds: on La Mata '
-                      'the days that fail at 0.008 d fail at 0.0001 d too '
-                      '(near-dry stream reaches). The CdL model uses the '
-                      'period length -- no retry at all.'),
+                      'end-of-cycle check). From a full day, 0.01 d allows '
+                      'two retries (0.2 and 0.04 d); a step ATS has already '
+                      'shortened can go down to 0.01 d. Smaller only grinds: '
+                      'on La Mata the days that fail near 0.01 d fail at '
+                      '0.0001 d too (near-dry stream reaches). The CdL model '
+                      'uses the period length -- no retry at all.'),
     'run.build_only': ('Write the input files and stop', _U,
                        'Useful to inspect what MODFLOW would be given.'),
     'run.max_discrepancy': ('Maximum mass-balance discrepancy', '%',

@@ -378,8 +378,10 @@ class Run:
     # The shortest step ATS may retry a failed step with, in days. It was
     # hard-wired at 1e-4 d: on 2026-09-27 La Mata's dry-season days were tried
     # up to 190 times each (88 % of the spin-up's iterations in failed tries)
-    # at stream reaches whose trouble no step length cures. 0.01 d = three
-    # retries (0.2, 0.04, 0.008 d), then the step is given up and counted.
+    # at stream reaches whose trouble no step length cures. MF6 retries at
+    # dt / 5 only while that is >= this (ats.f90, ats_reset_delt): from a
+    # full day, 0.01 d allows two retries (0.2, 0.04 d); then the step is
+    # given up and counted.
     ats_dtmin: float = 0.01        # d
     build_only: bool = False       #                           (--build-only)
     standalone: str = ''           # mf6.exe path              (--standalone)
