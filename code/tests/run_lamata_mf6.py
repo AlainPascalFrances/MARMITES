@@ -919,10 +919,14 @@ def save_run_state(pref, b, cpl, st):
     carry = getattr(cpl, 'carry_out', None) or {}
     n = int(np.asarray(st.Ssoil_ini).shape[0])
     fn = pref + '_state.npz'
+    lak = getattr(cpl, 'lak_stage_final', None)
     np.savez(fn, uzf_wc=wc, soil=np.asarray(st.Ssoil_ini, dtype=float),
              exf=np.asarray(carry.get('exf', np.zeros(n)), dtype=float),
              rej=np.asarray(carry.get('rej', np.zeros(n)), dtype=float),
-             etuzf=np.asarray(carry.get('etuzf', np.zeros(n)), dtype=float))
+             etuzf=np.asarray(carry.get('etuzf', np.zeros(n)), dtype=float),
+             # each pond's stage; empty when the run had no LAK
+             lak_stage=(np.zeros(0) if lak is None
+                        else np.asarray(lak, dtype=float)))
     return fn
 
 
@@ -954,9 +958,14 @@ def load_run_state(pref, b, ctx):
         return None
     print('   the unsaturated zone, the soil and the previous day\'s exchange '
           'terms from %s' % os.path.basename(fn))
+    # the ponds' stages, when the state was saved with LAK on (the builder
+    # checks the count against the ponds it builds)
+    lak = (np.asarray(z['lak_stage'], dtype=float)
+           if 'lak_stage' in z.files else np.zeros(0))
     return {'uzf_wc': np.asarray(z['uzf_wc'], dtype=float), 'soil': soil,
             'carry': {k: np.asarray(z[k], dtype=float)
-                      for k in ('exf', 'rej', 'etuzf')}}
+                      for k in ('exf', 'rej', 'etuzf')},
+            'lak_stage': lak if lak.size else None}
 
 
 def _run_grid(cMF):
@@ -1295,6 +1304,7 @@ def main():
         saved_state = load_run_state(pref, b, ctx)
         if saved_state is not None:
             b.uzf_thti_carry = saved_state['uzf_wc']
+            b.lak_strt_carry = saved_state.get('lak_stage')
         if a.steady_means:
             print('   spinup.steady_means is not used: a run from saved heads '
                   'has no steady period to drive')
@@ -1452,6 +1462,8 @@ def main():
             b.steady_first = False
             b.uzf_thti_carry = (None if cpl.uzf_wc_final is None
                                 else b.thti_from_wc(cpl.uzf_wc_final))
+            # ... and each pond where it ended, not re-derived from the WT
+            b.lak_strt_carry = getattr(cpl, 'lak_stage_final', None)
             b.build()
             b.write()
             st.carried = True              # the soil the last cycle ended with

@@ -404,3 +404,69 @@ def test_the_rim_is_the_land_surface_and_the_bed_is_below_the_soil(tmp_path):
         assert p.rim - p.bottom == pytest.approx(soil + 1.5)
         assert p.bottom < b.top[p.cell] - 1.0
         assert p.bottom < p.strt <= p.rim
+
+
+# ------------------------------------------------- a spin-up carries the stage
+# The builder started every pond from the water table under it, cycle after
+# cycle: a perched pond's storage -- which the heads do not show -- was thrown
+# away at each restart, so the ponds could never equilibrate in a spin-up.
+
+def _lamata_lak(tmp_path):
+    pytest.importorskip('flopy')
+    if not os.path.exists(os.path.join(DS, 'MF_ws', '__inputMF_flopy_v3_2s1L.ini')):
+        pytest.skip('La Mata dataset not present')
+    if not os.path.exists(SHP):
+        pytest.skip('pond shapefile not present (%s)' % SHP)
+    import matplotlib
+    matplotlib.use('agg')
+    import MARMITESutilities as MMutils
+    import ppMODFLOW_flopy_v3 as ppMF
+    mf6mod = _load('marmites_mf6', os.path.join(TRUNK, 'ppMF6', 'marmites_mf6.py'))
+    c = ppMF.clsMF(MMutils.clsUTILITIES(verbose=1), MM_ws=DS, MM_ws_out=DS,
+                   MF_ws=os.path.join(DS, 'MF_ws'),
+                   MF_ini_fn='__inputMF_flopy_v3_2s1L.ini',
+                   xllcorner=XLL, yllcorner=YLL)
+    c.outcropL = np.zeros((c.nrow, c.ncol), dtype=int)
+    for L in range(c.nlay):
+        ib = (np.abs(np.asarray(c.ibound))[L] != 0)
+        c.outcropL += ((c.outcropL == 0) & ib) * (L + 1)
+    c.nper, c.perlen, c.nstp = 3, [1, 1, 1], [1, 1, 1]
+
+    def make(sub):
+        b = mf6mod.clsMF6(c, top=np.asarray(c.elev, float),
+                          botm=np.asarray(c.botm, float),
+                          sim_ws=str(tmp_path / sub), daily=True)
+        b.verbose = False
+        b.lak_shapefile = SHP
+        return b
+    return make
+
+
+def test_a_carried_stage_is_where_each_lake_starts(tmp_path):
+    make = _lamata_lak(tmp_path)
+    b0 = make('first')
+    b0.build()
+    assert b0.ponds
+    want = np.array([p.bottom + 0.37 for p in b0.ponds])
+    want[0] = b0.ponds[0].bottom - 5.0          # below its bed: floored there
+    b = make('carried')
+    b.lak_strt_carry = want
+    b.build()
+    got = np.array([p.strt for p in b.ponds])
+    assert got[0] == pytest.approx(b.ponds[0].bottom)
+    assert np.allclose(got[1:], want[1:])
+    pk = b.gwf.get_package('lak').packagedata.get_data()
+    assert np.allclose(np.asarray(pk['strt'], float), got)
+
+
+def test_a_carried_stage_for_other_ponds_is_not_used(tmp_path):
+    """A state saved with another set of ponds: the count does not match,
+    and each lake starts from the water table as before."""
+    make = _lamata_lak(tmp_path)
+    b0 = make('first')
+    b0.build()
+    ref = [p.strt for p in b0.ponds]
+    b = make('other')
+    b.lak_strt_carry = np.full(len(b0.ponds) + 3, 999.0)
+    b.build()
+    assert [p.strt for p in b.ponds] == pytest.approx(ref)

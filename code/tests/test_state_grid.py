@@ -287,3 +287,31 @@ def test_the_panel_picks_the_state_and_asks_one_name_to_save_it(tmp_path):
     finally:
         if os.path.exists(tmp):
             os.remove(tmp)
+
+
+def test_the_saved_state_keeps_the_ponds_stages(tmp_path):
+    """A run from a saved state starts each pond where the spin-up left it;
+    a state saved with no LAK carries none."""
+    r = _runner_mod()
+    import numpy as np
+    b = types.SimpleNamespace(nlay=2, nrow=5, ncol=1,
+                              thti_from_wc=lambda wc: wc)
+    st = types.SimpleNamespace(Ssoil_ini=np.zeros((5, 3)))
+    ctx = types.SimpleNamespace(ncell=5, _nslmax=3)
+    pref = str(tmp_path / 'mine')
+    cpl = types.SimpleNamespace(uzf_wc_final=None, carry_out=None,
+                                lak_stage_final=np.array([731.2, 745.9]))
+    r.save_run_state(pref, b, cpl, st)
+    got = r.load_run_state(pref, b, ctx)
+    assert np.allclose(got['lak_stage'], [731.2, 745.9])
+    cpl.lak_stage_final = None
+    r.save_run_state(pref, b, cpl, st)
+    assert r.load_run_state(pref, b, ctx)['lak_stage'] is None
+
+
+def test_the_driver_hands_the_stages_on():
+    src = open(os.path.join(HERE, 'run_lamata_mf6.py'), encoding='utf-8').read()
+    assert "b.lak_strt_carry = saved_state.get('lak_stage')" in src
+    assert "b.lak_strt_carry = getattr(cpl, 'lak_stage_final', None)" in src
+    cpl = open(os.path.join(CODE, 'marmites_coupler.py'), encoding='utf-8').read()
+    assert "('XNEWPAK', f'{name}/LAK')" in cpl

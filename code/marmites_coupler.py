@@ -184,6 +184,10 @@ class MF6Coupler:
         self.p_petmax = self.p_pet = self.p_uzet = None
         self.p_wcnew = None
         self.uzf_wc_final = None
+        # the lake stages when the run ends (LAK XNEWPAK): where a spin-up's
+        # next cycle and a saved state start each pond
+        self.p_lak_stage = None
+        self.lak_stage_final = None
         # a periodic spin-up: the previous cycle's last seepage, rejected
         # infiltration and UZF ET, read on the first day in its place
         self.carry_in = None
@@ -467,6 +471,14 @@ class MF6Coupler:
             self.p_lak_simevap, _a = self._bind_first(
                 api, [('EVAP', f'{name}/LAK'), ('EVAP', f'{name}/LAK-1')],
                 'LAK simulated evaporation', required=False)
+            # the stage itself -- XNEWPAK; STAGE is only the input of a
+            # constant-stage lake (gwf-lak.f90)
+            self.p_lak_stage, _a = self._bind_first(
+                api, [('XNEWPAK', f'{name}/LAK'), ('XNEWPAK', f'{name}/LAK-1')],
+                'LAK stage', required=False)
+            if self.p_lak_stage is not None \
+                    and self.p_lak_stage.size < self.nlakes:
+                self.p_lak_stage = None
             # WP4.4: the MM runoff each pond captures, a volumetric rate
             # [m3/d], written with the other API inputs after prepare_solve
             self.p_lak_runoff, self.addr_lak_runoff = self._bind_first(
@@ -1490,6 +1502,11 @@ class MF6Coupler:
             # cycle starts from it (clsMF6.uzf_thti_carry) ...
             self.uzf_wc_final = (None if self.p_wcnew is None else
                                  np.array(self.p_wcnew, dtype=float))
+            # ... and each pond's stage (a perched pond's storage is not in
+            # the heads)
+            self.lak_stage_final = (
+                None if getattr(self, 'p_lak_stage', None) is None else
+                np.array(self.p_lak_stage, dtype=float)[:self.nlakes])
             # ... and what its first day reads as "the previous period"
             _h, _exf = self._read_heads_exf()
             self.carry_out = {'exf': np.array(_exf, dtype=float),

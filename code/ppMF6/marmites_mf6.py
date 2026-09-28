@@ -237,6 +237,10 @@ class clsMF6:
         # per (layer, row, col): the UZF initial water content carried from a
         # previous cycle (NaN = the panel's thti), set by the spin-up
         self.uzf_thti_carry = None
+        # per lake: the stage it ENDED at in the previous spin-up cycle or
+        # in the saved state a run starts from -- its storage, which the
+        # water table alone cannot give back (None = start from the WT)
+        self.lak_strt_carry = None
         self.sim = None
         self.gwf = None
         # bookkeeping filled by build()
@@ -837,12 +841,32 @@ class clsMF6:
         from marmites_lak import lake_table
         pkg, conn, tables, outlets = [], [], [], []
         wt = None if strt_heads is None else np.asarray(strt_heads, dtype=float)
+        carry = getattr(self, 'lak_strt_carry', None)
+        if carry is not None:
+            carry = np.asarray(carry, dtype=float).ravel()
+            if carry.size != len(self.ponds):
+                print('   LAK: %d carried stage(s) for %d lake(s) -- not this '
+                      'set of ponds; each starts from the water table'
+                      % (carry.size, len(self.ponds)))
+                carry = None
+            elif getattr(self, 'verbose', True):
+                print('   LAK: %d lake(s) start at the stage they ended at '
+                      '(%.2f..%.2f m above their beds)'
+                      % (carry.size,
+                         min(c - p.bottom for c, p in zip(carry, self.ponds)),
+                         max(c - p.bottom for c, p in zip(carry, self.ponds))))
         for L, p in enumerate(self.ponds):
             i, j = p.cell
+            if carry is not None and np.isfinite(carry[L]):
+                # a spin-up cycle, or a run from a saved state: where the
+                # lake ENDED. A perched pond holds water the water table
+                # under it does not show, so starting it from the WT again
+                # threw its storage away every cycle.
+                p.strt = float(max(carry[L], p.bottom))
             # start each lake at its local equilibrium stage: a perched pond
             # starts nearly empty, one in contact with the water table nearly
             # full, so neither gets a shock on the first time step
-            if wt is not None:
+            elif wt is not None:
                 h = float(wt[p.klay, i, j]) if wt.ndim == 3 else float(wt[i, j])
                 p.strt = float(np.clip(h, p.bottom + 0.1, p.rim))
             else:
