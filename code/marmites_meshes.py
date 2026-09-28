@@ -33,12 +33,12 @@ __all__ = ['build_mesh', 'MeshBuildError', 'stream_lines', 'mesh_signature',
            'watershed_ring', 'normalise', 'cell_size_report', 'model_rectangle',
            'dataset_rectangle', 'rectangle_check', 'pond_rings', 'pond_seeds',
            'pond_cells', 'stream_cells', 'cells_touch', 'cell_polygons',
-           'cell_centres', 'PRODUCER_VERSION']
+           'cell_centres', 'even_ring', 'PRODUCER_VERSION']
 
 # Identifies the MESH-PRODUCING BEHAVIOUR, not the module. Bump it on any
 # change that would give a different mesh for the same configuration; it is
 # part of the cache signature.
-PRODUCER_VERSION = 5
+PRODUCER_VERSION = 6
 
 
 class MeshBuildError(Exception):
@@ -617,6 +617,95 @@ def _clip_to_grid(ring, cMF, warn=None):
     return [(float(x), float(y)) for x, y in pts]
 
 
+# How close two outline vertices may stand, as a fraction of the spacing
+# asked for (see even_ring).
+RING_MIN_FRAC = 0.5
+
+
+def even_ring(ring, spacing, min_frac=RING_MIN_FRAC):
+    """The domain outline with its vertices spaced like the cells.
+
+    EVERY OUTLINE VERTEX IS A GENERATOR. Triangle must keep each vertex of
+    the domain polygon, flopy's VoronoiGrid makes a cell around each, and a
+    cell on the boundary is the half of it inside the domain. La Mata's
+    outline (lm_lim, 326 vertices) has 106 segments under 25 m and one of
+    3.5 m, so with 50 m cells its boundary was a row of slivers: every cell
+    under 250 m2 of the mesh of 2026-09-27 (29 of them, down to 1.86 m2) sat
+    on it, the boundary median was 833 m2 against 2578 m2 inside -- and the
+    stream leaves the catchment through it: the outlet reach cells of 225,
+    357 and 617 m2 were where the spin-up's cycle 2 failed.
+
+    So before meshing: (1) simplify within a tenth of ``spacing``, keeping
+    the shape; (2) merge any two neighbouring vertices closer than
+    ``min_frac * spacing`` into their midpoint, shortest pair first; (3)
+    split every segment longer than ``spacing`` into equal pieces. Where a
+    refinement band crosses the outline Triangle still splits the segment to
+    the band's own size, so this sets the COARSEST boundary spacing, not
+    the finest. A midpoint or a point on a segment of a convex clip stays
+    inside it, so the outline never leaves the model rectangle.
+
+    Returns ``(ring, info)``; ``info`` has the vertex counts, the area
+    change and the shortest segment kept. Falls back to the ring as given
+    (``info['kept'] = True``) when the result would not be a valid polygon.
+    """
+    import math
+
+    pts0 = [(float(x), float(y)) for x, y in ring]
+    spacing = float(spacing)
+
+    def area(pts):
+        a = 0.0
+        for (x1, y1), (x2, y2) in zip(pts, pts[1:] + pts[:1]):
+            a += x1 * y2 - x2 * y1
+        return abs(a) / 2.0
+
+    info = {'n_in': len(pts0), 'kept': True, 'spacing': spacing}
+    if spacing <= 0.0 or len(pts0) < 4:
+        info.update(n_out=len(pts0), area_change=0.0)
+        return pts0, info
+    pts = list(pts0)
+    try:
+        from shapely.geometry import Polygon
+    except ImportError:                                  # pragma: no cover
+        Polygon = None
+    if Polygon is not None:
+        poly = Polygon(pts)
+        if not poly.is_valid:
+            poly = poly.buffer(0)
+        simp = poly.simplify(0.1 * spacing, preserve_topology=True)
+        if simp.geom_type == 'Polygon' and not simp.is_empty:
+            pts = [(float(x), float(y)) for x, y in simp.exterior.coords][:-1]
+    dmin = float(min_frac) * spacing
+    while len(pts) > 3:
+        n = len(pts)
+        seg = [math.hypot(pts[(i + 1) % n][0] - pts[i][0],
+                          pts[(i + 1) % n][1] - pts[i][1]) for i in range(n)]
+        k = int(np.argmin(seg))
+        if seg[k] >= dmin:
+            break
+        j = (k + 1) % n
+        mid = (0.5 * (pts[k][0] + pts[j][0]), 0.5 * (pts[k][1] + pts[j][1]))
+        pts[k] = mid
+        del pts[j]
+    out = []
+    n = len(pts)
+    for i in range(n):
+        (x1, y1), (x2, y2) = pts[i], pts[(i + 1) % n]
+        m = max(int(math.ceil(math.hypot(x2 - x1, y2 - y1) / spacing)), 1)
+        for t in range(m):
+            out.append((x1 + (x2 - x1) * t / m, y1 + (y2 - y1) * t / m))
+    if Polygon is not None and not Polygon(out).is_valid:
+        info.update(n_out=len(pts0), area_change=0.0)
+        return pts0, info
+    seg = [math.hypot(out[(i + 1) % len(out)][0] - out[i][0],
+                      out[(i + 1) % len(out)][1] - out[i][1])
+           for i in range(len(out))]
+    a0 = area(pts0)
+    info.update(kept=False, n_out=len(out), min_segment=float(min(seg)),
+                area_change=(area(out) - a0) / a0 if a0 > 0 else 0.0)
+    return out, info
+
+
 def pond_rings(dataset_dir):
     """Pond footprints as ``[[(x, y), ...], ...]`` from ``inputPONDS.geojson``.
 
@@ -853,6 +942,14 @@ def _produce_voronoi(cfg, cMF, dataset_dir=None, model_ws=None, warn=None,
         raise MeshBuildError('the voronoi producer needs the dataset folder')
     ring = watershed_ring(os.path.join(dataset_dir, 'inputWATERSHED.csv'))
     ring = _clip_to_grid(ring, cMF, warn)
+    # the outline's vertices are generators: spaced like the background
+    # cells, or the boundary is a row of slivers (even_ring)
+    ring, ev = even_ring(ring, float(v.cell_far))
+    if warn and not ev['kept']:
+        warn('grid.voronoi: catchment outline respaced for the mesh, %d -> %d '
+             'vertices at <= %g m (shortest %.1f m), area %+.2f%%.'
+             % (ev['n_in'], ev['n_out'], ev['spacing'], ev['min_segment'],
+                100.0 * ev['area_change']))
     ws = model_ws or os.path.join(os.getcwd(), '_triangle')
     os.makedirs(ws, exist_ok=True)
 
@@ -900,7 +997,7 @@ def _produce_voronoi(cfg, cMF, dataset_dir=None, model_ws=None, warn=None,
         # Only the ponds that are actually IN the domain: buffering one that
         # is not would put a band outside the catchment boundary.
         covered = _add_refinement_regions(tri, cfg, dataset_dir, warn,
-                                          ponds=ponds)
+                                          ponds=ponds, domain=ring)
         _add_background_region(tri, ring, covered, v.cell_far, warn)
     elif ponds and warn:
         warn('grid.voronoi.refine_ponds is on and nothing is refined, so '
@@ -1066,7 +1163,30 @@ def _add_pond_zones(tri, zones, size, warn):
     return added
 
 
-def _add_refinement_regions(tri, cfg, dataset_dir, warn, ponds=()):
+def band_margins(bands, cell_far):
+    """How far inside the catchment outline each band is clipped [m].
+
+    A band that runs out through the outline -- every band does, where the
+    stream leaves the catchment -- crossed it, and Triangle put a vertex at
+    each crossing, a few metres from the outline's own: 196 of the 230
+    cells under a quarter of the corridor size in a 20 m La Mata mesh sat
+    within 5 m of the outline (2026-09-28). Clipped short of it, a band's
+    edge stands clear of the outline -- the OUTERMOST by half a background
+    cell, each finer band inside by its own cell size more, so the clip
+    lines of two bands never run together either and the bands still nest
+    (a smaller band clipped further in stays inside a larger one).
+    """
+    m = [0.0] * len(bands)
+    acc = 0.5 * float(cell_far)
+    for k in range(len(bands) - 1, -1, -1):
+        if k < len(bands) - 1:
+            acc += float(bands[k][1])
+        m[k] = acc
+    return m
+
+
+def _add_refinement_regions(tri, cfg, dataset_dir, warn, ponds=(),
+                            domain=None):
     """Refine around the mapped features, graded outward.
 
     The features are the stream centre-lines and -- when
@@ -1164,6 +1284,12 @@ def _add_refinement_regions(tri, cfg, dataset_dir, warn, ponds=()):
         return None
     added = 0
     prev = None
+    dom = None
+    if domain is not None:
+        dom = Polygon(domain)
+        if not dom.is_valid:
+            dom = dom.buffer(0)
+    margins = band_margins(bands, v.cell_far)
     for k, (dist, size) in enumerate(bands):
         # A buffer carries ~1 m of boundary detail at these radii, and every
         # vertex of it is a point Triangle must honour -- which is how a
@@ -1171,6 +1297,34 @@ def _add_refinement_regions(tri, cfg, dataset_dir, warn, ponds=()):
         # arc and simplify to a quarter of the cell this band carries: the
         # band moves by less than that, and the mesh is free again.
         poly = lines.buffer(dist, quad_segs=3).simplify(max(size / 4.0, 0.5))
+        if dom is not None:
+            # short of the outline, not across it (band_margins)
+            inner = dom.buffer(-margins[k], quad_segs=3)
+            if inner.is_empty:
+                prev = prev if prev is not None else None
+                continue
+            poly = poly.intersection(inner)
+            if poly.is_empty:
+                continue
+            poly = unary_union([g for g in getattr(poly, 'geoms', [poly])
+                                if g.geom_type == 'Polygon' and g.area > 0.0])
+        # ... and its own vertices spaced like its cells: a buffer's ring has
+        # short segments where the corridors of two streams meet, and each
+        # vertex is a generator (even_ring)
+        parts = []
+        for geom in getattr(poly, 'geoms', [poly]):
+            if geom.geom_type != 'Polygon' or geom.area <= 0.0:
+                continue
+            ring2, ev = even_ring(list(geom.exterior.coords)[:-1], size)
+            cand = Polygon(ring2)
+            parts.append(cand if (not ev['kept'] and cand.is_valid)
+                         else Polygon(geom.exterior))
+        if not parts:
+            continue
+        poly = unary_union(parts)
+        if prev is not None and not prev.within(poly):
+            # respacing must not un-nest the bands
+            poly = unary_union([poly, prev])
         # The band's BOUNDARY has to go in as segments. A region is the
         # connected part of the triangulation containing its seed point, and
         # the parts are bounded by segments -- so without this every seed

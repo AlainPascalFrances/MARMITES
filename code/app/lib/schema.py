@@ -293,7 +293,16 @@ FIELDS = {
                               'actually achieved -- read that, not this.'),
     'grid.voronoi.cell_near_stream': ('Cell size near the stream', 'm',
                                       'The size the innermost band carries. '
-                                      'Cleared while the refinement is off.'),
+                                      'Cleared while the refinement is off. '
+                                      'Measured on La Mata (50 m background, '
+                                      '2026-09-28): 20 m and 15 m mesh '
+                                      'cleanly (smallest cells 25 and 16 m2); '
+                                      'at 10 m the corridor, two cells wide, '
+                                      'meshes into slivers down to 0.2 m2 '
+                                      'along its edge -- and with a 5 m '
+                                      'corridor the stream cells took 40-500 '
+                                      'outer iterations a day. CdL uses 40 m '
+                                      'over 100 m.'),
     'grid.voronoi.stream_buffer': ('Stream corridor width (derived)', 'm',
                                    'Distance from the centreline at which the '
                                    'cells have reached the background size. '
