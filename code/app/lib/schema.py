@@ -346,10 +346,11 @@ FIELDS = {
                                      'so and builds an unrefined mesh, which '
                                      'is geometrically the base grid.'),
     'grid.override.enable': ('Reproduce an existing grid', _U,
-                             'Deriving the grid from the polygon means it is '
-                             'not the grid the committed rasters and the '
-                             'saved spin-up state were built on. Switch this '
-                             'on to rebuild the old one exactly.'),
+                             'Used only when the dataset has NO raster yet. '
+                             'With rasters, the grid stands on their '
+                             'rectangle, as every run does '
+                             '(marmites_meshes.run_rectangle), and this is '
+                             'not read.'),
     'grid.override.xllcorner': ('Origin X', 'm', ''),
     'grid.override.yllcorner': ('Origin Y', 'm', ''),
     'grid.override.nrow': ('Rows', 'count', ''),

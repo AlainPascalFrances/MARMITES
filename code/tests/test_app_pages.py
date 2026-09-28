@@ -239,17 +239,19 @@ def test_the_panel_says_when_the_grid_leaves_the_model_rasters():
                            default_timeout=180)
     at.run()
     said = ' '.join(w.value for w in at.warning) + \
-        ' '.join(c.value for c in at.caption)
+        ' '.join(c.value for c in at.caption) + \
+        ' '.join(i.value for i in at.info)
     assert 'rasters' in said, 'the panel says nothing about the rasters'
     # and it is drawn BEFORE the build, not after it
     assert 'mkgrid' in {b.key for b in at.button}
 
 
-def test_pinning_the_grid_takes_the_rectangle_from_the_rasters():
-    """La Mata's configuration already carries the legacy origin, so a test
-    run against it could not tell the button from a coincidence. This one
-    starts from an override that is deliberately WRONG and checks the four
-    boxes come back holding the rasters' own numbers.
+def test_the_grid_stands_on_the_runs_rectangle_whatever_the_override():
+    """The panel used to build on the polygon's own rectangle, 50 m west of
+    the rasters' on La Mata, and offered a button to pin a structured grid
+    back onto them. It builds on the rectangle a RUN uses now
+    (marmites_meshes.run_rectangle), so there is nothing to pin -- and an
+    override that is deliberately WRONG is said to be unused.
     """
     import shutil
 
@@ -264,34 +266,21 @@ def test_pinning_the_grid_takes_the_rectangle_from_the_rasters():
     if rect is None:
         pytest.skip('no dataset raster on this machine')
 
-    tmp = os.path.join(CODE, 'configs', '_pintest.toml')
-    shutil.copyfile(ref, tmp)
+    tmp = _scratch_config('_pintest.toml')
     try:
-        text = io.open(tmp, encoding='utf-8').read()
-        text = text.replace('xllcorner = 739300.0', 'xllcorner = 111111.0')
-        text = text.replace('nrow = 65', 'nrow = 7')
-        io.open(tmp, 'w', encoding='utf-8', newline='').write(text)
-
+        # the override is refused on a mesh, so the grid is structured
+        _force(tmp, 'grid', 'kind', 'kind = "structured"')
+        _force(tmp, 'grid.override', 'enable', 'enable = true')
+        _force(tmp, 'grid.override', 'xllcorner', 'xllcorner = 111111.0')
         at = AppTest.from_file(os.path.join(APP, 'pages', '1_1_-_Grid.py'),
                                default_timeout=180)
         at.session_state['config_file'] = '_pintest.toml'
         at.run()
-        [s for s in at.selectbox if s.key == 'grid.kind'][0] \
-            .set_value('structured').run()
-        hit = [b for b in at.button if b.key == 'adoptrect']
-        assert hit, 'the pin was not offered on a structured grid'
-        hit[0].click().run()
-
-        got = dict((n.key, n.value) for n in at.number_input)
-        assert got['grid.override.xllcorner'] == rect[0]
-        assert got['grid.override.yllcorner'] == rect[1]
-        assert got['grid.override.nrow'] == rect[2]
-        assert got['grid.override.ncol'] == rect[3]
-        assert got['grid.cell_size'] == rect[4]
-        assert [c for c in at.checkbox
-                if c.key == 'grid.override.enable'][0].value is True
-        # and the page now says so, on the same run
-        assert any('stands on' in c.value for c in at.caption)
+        assert not at.exception, [str(e.value) for e in at.exception]
+        assert not [b for b in at.button if b.key == 'adoptrect'], \
+            'a pin is offered for a rectangle the grid already stands on'
+        warned = ' '.join(w.value for w in at.warning)
+        assert 'not used' in warned, warned
     finally:
         if os.path.exists(tmp):
             os.remove(tmp)

@@ -744,6 +744,44 @@ def test_a_grid_off_the_rasters_lattice_is_flagged(cfg, tmp_path):
     assert '25' in rc['detail']
 
 
+def test_the_run_rectangle_is_the_rasters_when_there_are_any(cfg, tmp_path):
+    """The run assembles the model from the dataset's rasters, so it stands
+    on THEIR rectangle; the panel builds on the same one, or the mesh it
+    selects never has the run's signature (La Mata, 2026-09-28: the panel
+    snapped the polygon to 739250, the rasters sit at 739300)."""
+    root = _legacy_dataset(str(tmp_path))
+    _pin(cfg, 'voronoi')
+    cfg.grid.voronoi.cell_far = 50.0
+    got = meshes.run_rectangle(cfg, BBOX, root)
+    assert got[:2] == (65, 60) and got[4:] == (739300.0, 4553050.0)
+    assert float(got[2][0]) == 50.0 and len(got[2]) == 60
+    stub = meshes.grid_stub(cfg, BBOX, nlay=2, dataset_dir=root)
+    assert (stub.xllcorner, stub.nrow, stub.ncol) == (739300.0, 65, 60)
+    # ... whatever an override says: with rasters it is not read
+    cfg.grid.override.enable = True
+    cfg.grid.override.xllcorner, cfg.grid.override.nrow = 111111.0, 7
+    assert meshes.run_rectangle(cfg, BBOX, root)[4] == 739300.0
+    # no raster yet: the polygon's own rectangle, as before
+    empty = str(tmp_path / 'empty')
+    os.makedirs(empty)
+    cfg.grid.override.enable = False
+    got = meshes.run_rectangle(cfg, BBOX, empty)
+    want = meshes.model_rectangle(cfg, BBOX)
+    assert got[:2] == want[:2] and got[4:] == want[4:]
+    assert got[4] == 739250.0
+
+
+def test_the_panel_builds_and_signs_on_the_run_rectangle():
+    """Both places the Grid page makes a stub pass the dataset folder."""
+    page = io.open(os.path.join(CODE, 'app', 'pages', '1_1_-_Grid.py'),
+                   encoding='utf-8').read()
+    calls = page.count('mm.grid_stub(')
+    assert calls == 2, calls
+    assert page.count('dataset_dir=ds)') + page.count(
+        'dataset_dir=str(mm_paths.dataset_dir(cfg.paths.case))') >= 2
+    assert 'adoptrect' not in page
+
+
 def test_an_empty_dataset_has_nothing_to_disagree_with(cfg, tmp_path):
     """A brand new catchment: from-scratch must not be told it is wrong."""
     rc = meshes.rectangle_check(_pin(cfg), BBOX, str(tmp_path))

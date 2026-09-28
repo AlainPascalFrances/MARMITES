@@ -33,7 +33,8 @@ __all__ = ['build_mesh', 'MeshBuildError', 'stream_lines', 'mesh_signature',
            'watershed_ring', 'normalise', 'cell_size_report', 'model_rectangle',
            'dataset_rectangle', 'rectangle_check', 'pond_rings', 'pond_seeds',
            'pond_cells', 'stream_cells', 'cells_touch', 'cell_polygons',
-           'cell_centres', 'even_ring', 'PRODUCER_VERSION']
+           'cell_centres', 'even_ring', 'run_rectangle',
+           'PRODUCER_VERSION']
 
 # Identifies the MESH-PRODUCING BEHAVIOUR, not the module. Bump it on any
 # change that would give a different mesh for the same configuration; it is
@@ -493,7 +494,30 @@ def rectangle_check(cfg, bbox, dataset_dir):
     return out
 
 
-def grid_stub(cfg, bbox=None, nlay=1):
+def run_rectangle(cfg, bbox=None, dataset_dir=None):
+    """The rectangle a RUN stands on: ``(nrow, ncol, delr, delc, xll, yll)``.
+
+    The run assembles the model from the dataset's rasters, so it takes the
+    rectangle THEY declare (run_lamata_mf6.setup_lamata, through
+    props.dataset_grid) whenever the dataset holds one. Only a dataset with
+    no raster yet -- a new catchment -- falls back to the rectangle derived
+    from the polygon (:func:`model_rectangle`, the override included).
+
+    The Grid panel builds on this too. It used to build on the polygon's own
+    rectangle, snapped 50 m west of the rasters' on La Mata (739250 against
+    739300), so the mesh it promoted never had the run's signature and every
+    run rebuilt its own (2026-09-28).
+    """
+    if dataset_dir:
+        rect, _names, _others = dataset_rectangle(dataset_dir)
+        if rect is not None:
+            xll, yll, nrow, ncol, cs = rect
+            return (int(nrow), int(ncol), np.full(int(ncol), float(cs)),
+                    np.full(int(nrow), float(cs)), float(xll), float(yll))
+    return model_rectangle(cfg, bbox)
+
+
+def grid_stub(cfg, bbox=None, nlay=1, dataset_dir=None):
     """A cMF-shaped object carrying only what the mesh producers read.
 
     They use ``nrow``, ``ncol``, ``nlay``, ``delr``, ``delc``, the origin and
@@ -506,10 +530,13 @@ def grid_stub(cfg, bbox=None, nlay=1):
     PLAN VIEW of the result is used here: the real top and botm come from the
     rasters when the model is built. Leaving them out is what made the
     quadtree producer fail with "SimpleNamespace has no attribute 'top'".
+
+    With ``dataset_dir`` the rectangle is the one a run uses
+    (:func:`run_rectangle`); without it, the polygon's own.
     """
     from types import SimpleNamespace
 
-    nrow, ncol, delr, delc, xll, yll = model_rectangle(cfg, bbox)
+    nrow, ncol, delr, delc, xll, yll = run_rectangle(cfg, bbox, dataset_dir)
     nlay = int(nlay)
     top = np.zeros((nrow, ncol), dtype=float)
     botm = np.stack([np.full((nrow, ncol), -(k + 1.0)) for k in range(nlay)])

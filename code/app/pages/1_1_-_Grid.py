@@ -82,16 +82,22 @@ def _build_grid(cfg, cache_dir, force=True):
         lines.append('WARNING: %s' % msg)
 
     bbox, why = _boundary_bbox(cfg)
-    if bbox is None and not cfg.grid.override.enable:
+    ds = str(mm_paths.dataset_dir(cfg.paths.case))
+    rasters = mm.dataset_rectangle(ds)[0]
+    if bbox is None and rasters is None and not cfg.grid.override.enable:
         return False, ['The catchment polygon could not be read, so the grid '
                        'rectangle cannot be derived: %s' % why], None
     try:
-        stub = mm.grid_stub(cfg, bbox, nlay=cfg.layers.nlay)
+        # THE RUN'S RECTANGLE (mm.run_rectangle): the rasters' when the
+        # dataset has them, so the mesh built here is the one a run uses
+        stub = mm.grid_stub(cfg, bbox, nlay=cfg.layers.nlay, dataset_dir=ds)
     except Exception as exc:
         return False, ['%r' % exc], None
-    snap = mm.rectangle_cell_size(cfg)
-    lines.append('rectangle: %d rows x %d cols of %g m, origin %.1f, %.1f'
-                 % (stub.nrow, stub.ncol, snap, stub.xllcorner, stub.yllcorner))
+    lines.append('rectangle: %d rows x %d cols of %g m, origin %.1f, %.1f -- %s'
+                 % (stub.nrow, stub.ncol, float(stub.delr[0]), stub.xllcorner,
+                    stub.yllcorner,
+                    'the model rasters\' rectangle, as in the run'
+                    if rasters is not None else 'derived from the polygon'))
     os.makedirs(cache_dir, exist_ok=True)
     try:
         _gp, info = mm.build_mesh(cfg, stub, cache_dir=cache_dir,
@@ -120,8 +126,9 @@ def _signature(cfg):
     import marmites_meshes as mm
     bbox, _why = _boundary_bbox(cfg)
     try:
-        return mm.mesh_signature(cfg, mm.grid_stub(cfg, bbox,
-                                                   nlay=cfg.layers.nlay))
+        return mm.mesh_signature(cfg, mm.grid_stub(
+            cfg, bbox, nlay=cfg.layers.nlay,
+            dataset_dir=str(mm_paths.dataset_dir(cfg.paths.case))))
     except Exception:                                    # noqa: BLE001
         return None
 
@@ -340,52 +347,47 @@ def _rectangle_check(cfg, bbox):
 
 
 def _show_rectangle_check(rc, kind):
-    """Draw it. Returns True when the legacy rectangle can be adopted.
+    """Say which rectangle the grid stands on, and where the polygon differs.
 
-    STOPGAP (WP1d). The model is still assembled from rasters frozen on one
-    lattice, and `project_model` resamples that assembly onto the grid: a
-    grid that reaches past them fails inside the projection, cells first,
-    with a message about tops and bottoms rather than about rectangles. So
-    the disagreement is stated HERE, where the rectangle is chosen. It
-    disappears for good when the MODEL panel re-derives those rasters onto
-    whatever rectangle this panel produces.
+    The grid is built on the rectangle the RUN uses (mm.run_rectangle): the
+    rasters' own whenever the dataset has them. It used to be built on the
+    polygon's rectangle, 50 m west of the rasters' on La Mata, so the mesh
+    selected here never had the run's signature and every run rebuilt its
+    own -- and structured grids needed a pin button to get back onto the
+    rasters. What is still worth saying is where the POLYGON disagrees with
+    that rectangle: the outline is clipped to it, here as in the run. That
+    disappears when the model panel re-derives the rasters onto the
+    polygon's own rectangle (not built yet). Returns False: there is
+    nothing left to adopt.
     """
     if rc is None or rc['status'] == 'error':
         return False
     if rc['status'] == 'none':
-        st.caption('No raster in the dataset yet, so there is nothing for '
-                   'this rectangle to disagree with.')
+        st.caption('No raster in the dataset yet: the grid rectangle is '
+                   'derived from the polygon.')
         return False
 
     d, s = rc['derived'], rc['source']
-    line = ('grid `%.10g, %.10g` %d × %d @ %g m — rasters `%.10g, %.10g` %d × %d @ %g m'
-            % (d[0], d[1], d[2], d[3], d[4], s[0], s[1], s[2], s[3], s[4]))
+    used = ('`%.10g, %.10g` %d × %d @ %g m' % (s[0], s[1], s[2], s[3], s[4]))
     if rc['status'] == 'ok':
-        st.caption('✅ This rectangle stands on the %d raster(s) the model '
-                   'reads — %s.' % (len(rc['names']), line))
-    elif rc['status'] == 'shifted':
-        st.warning('**The grid and the model rasters are not on the same '
-                   'lattice.** %s — %s. Every cell is then resampled from '
-                   'fractions of four, which blurs the legacy model instead '
-                   'of reproducing it.' % (line, rc['detail']))
+        st.caption('✅ The grid stands on the rectangle of the %d raster(s) '
+                   'the model reads, %s — the same one a run uses.'
+                   % (len(rc['names']), used))
     else:
-        st.warning(
-            '**This grid does not stand on the rasters the model reads.** '
-            '%s: %s.\n\nThe grid itself will build. What fails is the MODEL '
-            'build, later: it assembles the model from those rasters and '
-            'resamples it onto these cells, and the cells with nothing '
-            'underneath come out with their top at or below their bottom. '
-            'The real cure is for the model panel to re-derive its own '
-            'rasters onto this rectangle; that is not built yet.'
-            % (line, rc['detail']))
+        st.info('**The grid stands on the rasters\' rectangle, %s — the '
+                'same one a run uses.** The polygon alone would give '
+                '`%.10g, %.10g` %d × %d @ %g m (%s), so the catchment outline '
+                'is clipped to the rasters\' rectangle, in every run as here. '
+                'The cure is for the model panel to re-derive the rasters onto '
+                'the polygon\'s rectangle; that is not built yet.'
+                % (used, d[0], d[1], d[2], d[3], d[4], rc['detail']))
     for rect, names in rc['others']:
         st.caption('⚠️ %d raster(s) sit on a THIRD rectangle — `%.10g, %.10g` %d × '
                    '%d @ %g m: %s. Stale exports, most likely, but the model '
                    'would read them as it reads the rest.'
                    % (len(names), rect[0], rect[1], rect[2], rect[3], rect[4],
                       ', '.join(names)))
-    return rc['status'] in ('overhang', 'shifted') \
-        and kind in ('structured', 'dis', 'disv')
+    return False
 
 
 def _run_converter(case, cfg_path, dry):
@@ -494,10 +496,16 @@ with tab_domain:
             st.info('No bands: the size at the stream must be smaller than '
                     'the background for a corridor to mean anything.')
     if cfg.grid.override.enable:
-        st.warning('**Override is ON**: the grid is taken from the origin and '
-                   'shape above, not derived from the polygon. That is how the '
-                   'legacy 65 × 60 @ 50 m grid is reproduced when something '
-                   'needs comparing against it.')
+        import marmites_meshes as _mm
+        if _mm.dataset_rectangle(
+                str(mm_paths.dataset_dir(cfg.paths.case)))[0] is not None:
+            st.warning('**Override is ON but not used**: the dataset has '
+                       'rasters, and like a run the grid stands on their '
+                       'rectangle. The override applies only to a dataset '
+                       'with no raster yet.')
+        else:
+            st.warning('**Override is ON**: the grid is taken from the origin '
+                       'and shape above, not derived from the polygon.')
 
     # ---- experiment --------------------------------------------------
     st.markdown('#### Create the grid')
@@ -511,27 +519,7 @@ with tab_domain:
     # about whether the model can later be put on it.
     _trial = _trial_of(cfg, edited)
     _rc = _rectangle_check(_trial, rep['bbox'])
-    if _show_rectangle_check(_rc, _trial.grid_kind if _trial else chosen):
-        _s = _rc['source']
-        if st.button('Pin the grid to the rasters’ rectangle',
-                     key='adoptrect',
-                     help='Turns the override ON and fills it with the '
-                          'rasters\' own origin, shape and cell size. Legal '
-                          'only on a structured or disv grid — on a mesh the '
-                          'override has no meaning, so there the answer is '
-                          'the model panel.'):
-            panelui.park('grid.override.enable', True)
-            panelui.park('grid.override.xllcorner', float(_s[0]))
-            panelui.park('grid.override.yllcorner', float(_s[1]))
-            panelui.park('grid.override.nrow', int(_s[2]))
-            panelui.park('grid.override.ncol', int(_s[3]))
-            panelui.park('grid.cell_size', float(_s[4]))
-            st.rerun()
-        st.caption('It pins the grid to a rectangle that was chosen years '
-                   'ago, cutting %s of the catchment. Use it to reproduce '
-                   'the legacy model, not to build a new one.'
-                   % ('the western edge' if 'west' in (_rc['overhang'] or {})
-                      else 'an edge'))
+    _show_rectangle_check(_rc, _trial.grid_kind if _trial else chosen)
 
     cbuild, cclear, cmsg = st.columns([1, 1, 3])
     if cbuild.button('Create grid', type='primary', key='mkgrid'):
