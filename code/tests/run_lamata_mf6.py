@@ -1075,6 +1075,7 @@ def _args_from_config(cfg, probe=False):
         uzf_vks_scale=cfg.uzf.vks_scale,
         uzf_et_form=cfg.et.unsat_form,
         seep=cfg.seep.kind, seep_cond=cfg.seep.cond,
+        seep_ddrn=float(cfg.seep.ddrn),
         sfr=cfg.sfr.enable,
         sfr_rhk=(cfg.sfr.rhk.value if cfg.sfr.rhk.value is not None else 0.1),
         lak=lak_source, lak_bedleak=cfg.lak.bedleak,
@@ -1220,6 +1221,7 @@ def main():
         print('ATS: a step MF6 cannot solve is retried at 1/5 of its length, '
               'down to %g d -- from the panel' % b.ats_dtmin)
     b.drn_seep_cond = float(a.seep_cond)
+    b.drn_seep_ddrn = float(getattr(a, 'seep_ddrn', b.drn_seep_ddrn))
     b.uzf_vks_scale = float(a.uzf_vks_scale)
     if cfg is not None:
         b.uzf_thtr_from = str(cfg.uzf.thtr_from)
@@ -1317,7 +1319,8 @@ def main():
              ' incl. steady' if b.steady_first else ', no steady period',
              b.nuzfcells, b.ncell))
     if b.seep == 'drn':
-        print('   seepage: DRN_SEEP, %d drains, cond %.4g m2/d, ddrn %.4g m '
+        print('   seepage: DRN_SEEP, %d drains at the soil base, cond %.4g '
+              'm2/d, ramped in over %.4g m above it -- from the panel '
               '(UZF SIMULATE_GWSEEP off)'
               % (b.ndrnseep, b.drn_seep_cond, b.drn_seep_ddrn))
     else:

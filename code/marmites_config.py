@@ -631,6 +631,13 @@ class Seep:
 
     kind: str = 'drn'              # drn | uzf                 (--seep)
     cond: float = 10000.0          #                           (--seep-cond)
+    # The drain's AUXDEPTHNAME depth [m]. MF6 scales the conductance from 0
+    # with the head AT the drain (the aquifer top, i.e. the soil base) to
+    # full with the head this much ABOVE it -- a positive depth ramps UP.
+    # It was hard-wired in the builder; CdL's 3.5 m (widened there to damp
+    # a seepage on/off cycle). Daoud et al. (2022) used UZF seepage with
+    # SURFDEP = 0.25 m instead (d_surf = 0.125 m).
+    ddrn: float = 3.5              # m
 
 
 @dataclass
@@ -1776,6 +1783,10 @@ class RunConfig:
                 "run.model off to build MODFLOW alone." % self.seep.kind)
         if self.seep.kind == 'drn' and self.seep.cond <= 0:
             errs.append('seep.cond must be > 0 (a seepage face must be free-draining)')
+        if self.seep.kind == 'drn' and not float(self.seep.ddrn) > 0.0:
+            errs.append('seep.ddrn must be > 0 m: the seepage drain ramps in '
+                        'ABOVE the soil base, and 0 is a discontinuous '
+                        'on/off switch')
         if self.et.unsat_form not in ('etwc', 'etae'):
             errs.append("et.unsat_form must be 'etwc' or 'etae'")
         if self.uzf.vks_from not in ('layer', 'raster'):

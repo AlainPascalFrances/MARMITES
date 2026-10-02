@@ -216,3 +216,44 @@ def test_drn_is_the_default_in_both_places_that_decide_it(cmf, tmp_path):
     assert uzf is not None
     assert not bool(uzf.simulate_gwseep.get_data()), (
         'SIMULATE_GWSEEP is on by default again')
+
+
+# --------------------------- the smoothing depth is a panel question ------ #
+# It was hard-wired at 3.5 m (CdL's) and only showed in the run log; MF6
+# ramps the conductance UP from the drain over it (gwf-drn.f90). Daoud et al.
+# (2022) used UZF seepage with SURFDEP 0.25 m instead.
+
+def test_the_smoothing_depth_is_written_as_given(cmf, tmp_path):
+    b = mf6mod.clsMF6(cmf, top=np.asarray(cmf.elev, dtype=float),
+                      botm=np.asarray(cmf.botm, dtype=float),
+                      sim_ws=str(tmp_path), daily=True)
+    b.seep = 'drn'
+    b.drn_seep_ddrn = 0.25
+    b.build()
+    spd = _pkg(b, 'drn_seep').stress_period_data.get_data(0)
+    assert np.allclose(np.asarray(spd['ddrn'], float), 0.25)
+
+
+def test_the_smoothing_depth_comes_from_the_panel():
+    cfgmod = _load('marmites_config_ddrn', os.path.join(TRUNK, 'marmites_config.py'))
+    c = cfgmod.RunConfig.from_dict({})
+    assert c.seep.ddrn == 3.5, 'the default must keep what La Mata ran'
+    c.seep.ddrn = 0.0
+    with pytest.raises(cfgmod.ConfigError) as e:
+        c.validate()
+    assert 'seep.ddrn' in str(e.value)
+    src = open(os.path.join(HERE, 'run_lamata_mf6.py'), encoding='utf-8').read()
+    assert 'seep_ddrn=float(cfg.seep.ddrn)' in src
+    assert "b.drn_seep_ddrn = float(getattr(a, 'seep_ddrn'" in src
+
+
+def test_the_smoothing_depth_is_asked_on_the_drn_tab():
+    pytest.importorskip('streamlit')
+    from streamlit.testing.v1 import AppTest
+    at = AppTest.from_file(os.path.join(
+        TRUNK, 'app', 'pages', '4_4_-_Unsaturated_zone_and_groundwater.py'),
+        default_timeout=180)
+    at.run()
+    assert not at.exception, [str(x.value) for x in at.exception]
+    keys = {w.key for w in at.number_input if w.key}
+    assert 'seep.ddrn' in keys and 'seep.cond' in keys

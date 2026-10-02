@@ -115,7 +115,10 @@ class clsMF6:
         # coupled run did (205 m overshoot, 1903 of 1954 cells above ground).
         # 10000 m2/d holds the excess within ~0.2 m.
         self.drn_seep_cond = 10000.0     # m2/d per cell
-        self.drn_seep_ddrn = 3.5         # m, cubic smoothing depth
+        # m, cubic smoothing depth -- [seep] ddrn on panel 4's DRN tab; the
+        # conductance ramps from 0 at the drain (the aquifer top) to full
+        # this much above it (MF6 gwf-drn.f90, get_drain_elevations)
+        self.drn_seep_ddrn = 3.5
         self.drnseep_id = {}             # cell (i, j) -> DRN-SEEP boundary index
         self.ndrnseep = 0
         self.sfr_cells = set()           # (i, j) with an SFR reach: no seep drain

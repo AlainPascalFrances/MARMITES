@@ -749,6 +749,22 @@ FIELDS = {
                   'A NUMERICAL device, not a physical property: it must be '
                   'effectively free-draining. It is PER CELL, so it is '
                   'grid-dependent -- retune it when the grid changes.'),
+    'seep.ddrn': ('Seepage smoothing depth', 'm',
+                  'flopy: `ModflowGwfdrn(auxdepthname=\'ddrn\')` on '
+                  '`drn_seep`. The drain sits at the AQUIFER TOP -- the land '
+                  'surface minus the soil thickness, the base of the MARMITES '
+                  'soil column. MODFLOW 6 scales its conductance from 0 with '
+                  'the head at that elevation to full with the head this much '
+                  'ABOVE it (cubic, under Newton): a positive depth ramps UP, '
+                  'it is not a depth below the drain. With a free-draining '
+                  'conductance the head still stays within a few decimetres '
+                  'of the soil base. 3.5 m is the CdL model\'s value, widened '
+                  'there to damp a seepage on/off cycle. Daoud et al. (2022, '
+                  'Hydrogeol J 30:899) used UZF\'s own seepage instead, '
+                  'starting d_surf = 0.125 m below the land surface with '
+                  'SURFDEP = 2 d_surf = 0.25 m -- the same ramp here would be '
+                  '0.25. Smaller is sharper, and a sharp switch is what made '
+                  'seepage cells cycle without converging.'),
     'sfr.enable': ('Stream routing (SFR)', _U,
                    'The network is the mapped hydrography, burned onto the '
                    'grid at run time, with ONE outlet where it leaves the '
