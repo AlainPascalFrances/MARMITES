@@ -259,3 +259,72 @@ def test_the_smoothing_depth_is_asked_on_the_drn_tab():
     assert not at.exception, [str(x.value) for x in at.exception]
     keys = {w.key for w in at.number_input if w.key}
     assert 'seep.ddrn' in keys and 'seep.cond' in keys
+    assert 'seep.base' in keys
+    assert 'seep.cond_from' in {w.key for w in at.selectbox if w.key}
+
+
+# ------------------- the drain as UZF's own seepage, on request ------------ #
+# SIMULATE_GWSEEP starts at top - SURFDEP/2 and ramps in over SURFDEP with
+# conductance area x vks / SURFDEP -- the drain's own equation (the same
+# cubic). [seep] base and cond_from let the drain be exactly that.
+
+def _seep_built(cmf, tmp, **attrs):
+    b = mf6mod.clsMF6(cmf, top=np.asarray(cmf.elev, dtype=float),
+                      botm=np.asarray(cmf.botm, dtype=float),
+                      sim_ws=str(tmp), daily=True)
+    b.seep = 'drn'
+    for k, v in attrs.items():
+        setattr(b, k, v)
+    b.build()
+    return b
+
+
+def test_the_base_lowers_the_drain_and_never_below_its_cell(cmf, tmp_path):
+    b = _seep_built(cmf, tmp_path, drn_seep_base=0.125)
+    spd = _pkg(b, 'drn_seep').stress_period_data.get_data(0)
+    botm = np.asarray(b.botm)
+    for rec, (i, j, k) in zip(spd, b.surf_cells):
+        want = max(float(b.top[i, j]) - 0.125, float(botm[k, i, j]) + 0.01)
+        assert rec['elev'] == pytest.approx(want)
+
+
+def test_the_uzf_rule_is_uzfs_own_conductance(cmf, tmp_path):
+    """Checked against the UZF package's OWN vks and SURFDEP for the same
+    cell: what MF6's gwseep would use."""
+    b = _seep_built(cmf, tmp_path, drn_seep_cond_from='uzf',
+                    drn_seep_cond=-1.0)          # not read under 'uzf'
+    spd = _pkg(b, 'drn_seep').stress_period_data.get_data(0)
+    pd = _pkg(b, 'uzf').packagedata.get_data()
+    land = {tuple(r['cellid']): r for r in pd if int(r['landflag']) == 1}
+    area = float(np.mean(cmf.delr)) * float(np.mean(cmf.delc))
+    assert len(spd) > 0
+    for rec in spd:
+        u = land[tuple(rec['cellid'])]
+        want = area * float(u['vks']) / float(u['surfdep'])
+        assert rec['cond'] == pytest.approx(want)
+    lo, hi = b.drn_seep_cond_range
+    assert lo <= hi and lo > 0
+
+
+def test_the_two_settings_are_the_panels():
+    cfgmod = _load('marmites_config_seep2', os.path.join(TRUNK, 'marmites_config.py'))
+    c = cfgmod.RunConfig.from_dict({})
+    assert (c.seep.base, c.seep.cond_from) == (0.0, 'value'), \
+        'the defaults must keep what La Mata ran'
+    c.seep.base = -0.1
+    with pytest.raises(cfgmod.ConfigError) as e:
+        c.validate()
+    assert 'seep.base' in str(e.value)
+    c = cfgmod.RunConfig.from_dict({})
+    c.seep.cond_from = 'raster'
+    with pytest.raises(cfgmod.ConfigError) as e:
+        c.validate()
+    assert 'seep.cond_from' in str(e.value)
+    # under 'uzf' the single conductance is not read, so not judged either
+    c = cfgmod.RunConfig.from_dict({})
+    c.seep.cond_from, c.seep.cond = 'uzf', 0.0
+    c.validate()
+    src = open(os.path.join(HERE, 'run_lamata_mf6.py'), encoding='utf-8').read()
+    assert 'seep_base=float(cfg.seep.base)' in src
+    assert 'seep_cond_from=str(cfg.seep.cond_from)' in src
+    assert "b.drn_seep_cond_from = str(getattr(a, 'seep_cond_from'" in src

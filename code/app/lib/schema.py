@@ -752,9 +752,27 @@ FIELDS = {
                   'SURFDEP/2, smoothing depth = SURFDEP and conductance = '
                   'area x vks / SURFDEP. A coupled run requires drn.'),
     'seep.cond': ('Seepage conductance', 'm2/d',
-                  'A NUMERICAL device, not a physical property: it must be '
+                  'Read when *Seepage conductance from* is value. A '
+                  'NUMERICAL device, not a physical property: it must be '
                   'effectively free-draining. It is PER CELL, so it is '
                   'grid-dependent -- retune it when the grid changes.'),
+    'seep.cond_from': ('Seepage conductance from', _U,
+                       'value: the number above, the same for every cell. '
+                       'uzf: UZF\'s own seepage conductance, cell area x '
+                       'UZF vks / SURFDEP (UZF tab), different per cell -- '
+                       'about 80 m2/d on a La Mata cell, far from '
+                       'free-draining, so the head stands higher when '
+                       'seepage is strong. With the base at SURFDEP/2 and '
+                       'the smoothing depth at SURFDEP it reproduces UZF\'s '
+                       'SIMULATE_GWSEEP exactly (Daoud et al. 2022).'),
+    'seep.base': ('Seepage drain base below the soil base', 'm',
+                  'Where the drain starts to discharge, below the MF6 top '
+                  '(the base of the MARMITES soil column). 0 = at it, '
+                  'MARMITES\' exfiltration condition. UZF\'s seepage starts '
+                  'SURFDEP/2 below it (Daoud et al. 2022: d_surf = 0.125 m '
+                  'with SURFDEP = 0.25 m). A drain that would fall below '
+                  'its cell\'s bottom is lifted to 1 cm above it, and the '
+                  'log says how many.'),
     'seep.ddrn': ('Seepage smoothing depth', 'm',
                   'flopy: `ModflowGwfdrn(auxdepthname=\'ddrn\')` on '
                   '`drn_seep`. The drain sits at the AQUIFER TOP -- the land '
@@ -1016,6 +1034,7 @@ CHOICES = {
     'grid.resample': _resample_modes,
     'run.mode': lambda: ['lagged', 'iterative'],
     'seep.kind': lambda: ['uzf', 'drn'],
+    'seep.cond_from': lambda: ['value', 'uzf'],
     'et.unsat_form': lambda: ['etwc', 'etae'],
     'et.extdp_from': lambda: ['source', 'vegetation'],
     'drn.cond_per': lambda: ['length', 'cell'],

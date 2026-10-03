@@ -158,6 +158,13 @@ with tab_drn:
                'MARMITES takes its discharge back into the soil column as '
                'exfiltration rather than routing it away.')
     edited.update(panelui.section_form(cfg, 'seep', columns=3))
+    _sd = float(cfg.uzf.surfdep)
+    st.caption('To reproduce UZF\'s own seepage (SIMULATE_GWSEEP, as in '
+               'Daoud et al. 2022) with this drain: base %g m (SURFDEP/2), '
+               'smoothing depth %g m (SURFDEP), conductance from `uzf` -- '
+               'with the UZF tab\'s SURFDEP of %g m. The two use the same '
+               'cubic ramp in MODFLOW 6, so this is exact; the stream cells '
+               'stay with SFR.' % (_sd / 2.0, _sd, _sd))
     if cfg.seep.kind != 'drn':
         st.warning('`seep.kind = %r` builds the seepage face inside UZF '
                    '(`SIMULATE_GWSEEP`) instead, so no `drn_seep` package '

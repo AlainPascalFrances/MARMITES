@@ -642,6 +642,14 @@ class Seep:
     # a seepage on/off cycle). Daoud et al. (2022) used UZF seepage with
     # SURFDEP = 0.25 m instead (d_surf = 0.125 m).
     ddrn: float = 3.5              # m
+    # Where the drain's base sits, in metres BELOW the soil base (the MF6
+    # top). 0 = at it, MARMITES' exfiltration condition. UZF's seepage starts
+    # SURFDEP/2 below it (Daoud et al. 2022: d_surf = 0.125 m).
+    base: float = 0.0              # m
+    # The conductance: 'value' = cond, one number per cell; 'uzf' = UZF's
+    # own rule, cell area x UZF vks / SURFDEP, per cell. With base =
+    # SURFDEP/2 and ddrn = SURFDEP, 'uzf' reproduces SIMULATE_GWSEEP exactly.
+    cond_from: str = 'value'       # value | uzf
 
 
 @dataclass
@@ -1791,8 +1799,13 @@ class RunConfig:
                 "equation, set by seep.cond and seep.ddrn. Set seep.kind = "
                 "'drn', or turn run.model off to build MODFLOW alone."
                 % self.seep.kind)
-        if self.seep.kind == 'drn' and self.seep.cond <= 0:
+        if self.seep.cond_from not in ('value', 'uzf'):
+            errs.append("seep.cond_from must be 'value' or 'uzf'")
+        if (self.seep.kind == 'drn' and self.seep.cond_from == 'value'
+                and self.seep.cond <= 0):
             errs.append('seep.cond must be > 0 (a seepage face must be free-draining)')
+        if not float(self.seep.base) >= 0.0:
+            errs.append('seep.base must be >= 0 m (below the soil base)')
         if self.seep.kind == 'drn' and not float(self.seep.ddrn) > 0.0:
             errs.append('seep.ddrn must be > 0 m: the seepage drain ramps in '
                         'ABOVE the soil base, and at 0 its conductance jumps '

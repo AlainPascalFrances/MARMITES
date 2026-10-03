@@ -121,6 +121,15 @@ class clsMF6:
         # conductance ramps from 0 at the drain (the aquifer top) to full
         # this much above it (MF6 gwf-drn.f90, get_drain_elevations)
         self.drn_seep_ddrn = 3.5
+        # [seep] base: the drain base below the soil base [m], 0 = AT it;
+        # [seep] cond_from: 'value' (drn_seep_cond, one number per cell) or
+        # 'uzf' -- UZF's own seepage conductance, cell area x vks / SURFDEP.
+        # base = SURFDEP/2, ddrn = SURFDEP and 'uzf' reproduce SIMULATE_GWSEEP
+        # exactly (UzfCellGroup.f90 gwseep vs gwf-drn.f90: the same cubic).
+        self.drn_seep_base = 0.0
+        self.drn_seep_cond_from = 'value'
+        self.drn_seep_lifted = 0
+        self.drn_seep_cond_range = None
         self.drnseep_id = {}             # cell (i, j) -> DRN-SEEP boundary index
         self.ndrnseep = 0
         self.sfr_cells = set()           # (i, j) with an SFR reach: no seep drain
@@ -943,6 +952,32 @@ class clsMF6:
             print('MVR: %d stream->pond hand-off(s), %d pond->stream spill(s)'
                   % (nin, len(recs) - nin))
 
+    def _uzf_vks_grid(self, k33):
+        """UZF's vks per (layer, row, col): the layer's k33 (iuzfopt 2) or
+        the vks raster (iuzfopt 1), times uzf_vks_scale -- the one rule the
+        UZF package and the UZF-equivalent seepage drain both use."""
+        cMF = self.cMF
+        scale = float(getattr(self, 'uzf_vks_scale', 1.0))
+        if int(getattr(cMF, 'iuzfopt', 2)) != 1:
+            return scale * np.asarray(k33, dtype=float)
+        return scale * self._lay3d(np.asarray(cMF.vks_actual, dtype=float),
+                                   self.nlay, self.nrow, self.ncol)
+
+    def _cell_area_grid(self):
+        """Cell areas (nrow, ncol) [m2], as MODFLOW 6 computes them: delr x
+        delc, or a DISV polygon's shoelace relative to its first vertex."""
+        if self.grid == 'dis':
+            return np.outer(np.asarray(self.cMF.delc, dtype=float),
+                            np.asarray(self.cMF.delr, dtype=float))
+        from marmites_grid import polygon_area
+        vxy = {int(v[0]): (float(v[1]), float(v[2])) for v in self.vertices}
+        out = np.zeros((self.nrow, self.ncol))
+        for r in self.cell2d:
+            ic = int(r[0])
+            out[ic, 0] = polygon_area([vxy[int(iv)]
+                                       for iv in r[4:4 + int(r[3])]])
+        return out
+
     def build(self):
         cMF = self.cMF
         os.makedirs(self.sim_ws, exist_ok=True)
@@ -1094,14 +1129,33 @@ class clsMF6:
         # Eq. 1/1b can turn the excess into Dunnian runoff.
         self.drnseep_id = {}
         if self.seep == 'drn':
-            seep_spd = []
+            base = float(getattr(self, 'drn_seep_base', 0.0) or 0.0)
+            by_uzf = str(getattr(self, 'drn_seep_cond_from', 'value')) == 'uzf'
+            if by_uzf:
+                # UZF's own seepage conductance (gwseep: Q = area x vks), over
+                # its SURFDEP -- per cell, from the numbers UZF gets
+                vks_grid = self._uzf_vks_grid(k33)
+                area_grid = self._cell_area_grid()
+                surfdep_u = float(np.ravel(np.asarray(cMF.surfdep,
+                                                      dtype=float))[0])
+            seep_spd, lifted, conds = [], 0, []
             for n, (i, j, k) in enumerate(self.surf_cells):
                 if (i, j) in self.sfr_cells:      # SFR handles seepage there
                     continue
+                elev = float(self.top[i, j]) - base
+                floor = float(np.asarray(self.botm)[k, i, j]) + 0.01
+                if elev < floor:
+                    # MF6 refuses a drain below its cell's bottom
+                    elev, lifted = floor, lifted + 1
+                cond = (float(area_grid[i, j]) * float(vks_grid[k, i, j])
+                        / surfdep_u if by_uzf else float(self.drn_seep_cond))
+                conds.append(cond)
                 self.drnseep_id[(i, j)] = len(seep_spd)
-                seep_spd.append([self._cellid(k, i, j), float(self.top[i, j]),
-                                 float(self.drn_seep_cond),
+                seep_spd.append([self._cellid(k, i, j), elev, cond,
                                  float(self.drn_seep_ddrn)])
+            self.drn_seep_lifted = lifted
+            self.drn_seep_cond_range = ((min(conds), max(conds))
+                                        if conds else None)
             if seep_spd:
                 ModflowGwfdrn(gwf, stress_period_data={0: seep_spd},
                               auxiliary=['ddrn'], auxdepthname='ddrn',
@@ -1159,10 +1213,7 @@ class clsMF6:
         surfdep = float(np.ravel(np.asarray(cMF.surfdep, dtype=float))[0])
         thtr, thts, thti, eps = self._validate_uzf_params(thtr, thts, thti, eps)
         # vertical K for UZF: iuzfopt==1 -> vks array; iuzfopt==2 -> layer k33
-        use_layer_vk = int(getattr(cMF, 'iuzfopt', 2)) != 1
-        if not use_layer_vk:
-            vks3d = self._lay3d(np.asarray(cMF.vks_actual, dtype=float),
-                                self.nlay, self.nrow, self.ncol)
+        # (the rule is _uzf_vks_grid, shared with the seepage drain)
         # UZF unsaturated conductivity scale. UZF6 forbids EPSILON < 3.5, but the
         # NWT model used 2.0; a higher Brooks-Corey exponent lowers the
         # unsaturated relative permeability K(theta)=VKS*Se^eps, throttling
@@ -1173,6 +1224,8 @@ class clsMF6:
         if vks_scale != 1.0:
             print('UZF vks scaled x%.3g to offset the EPSILON 2.0->3.5 clamp '
                   '(unsaturated recharge throttle)' % vks_scale)
+        # the vks per object, as one grid -- shared with the seepage drain
+        vks_grid_u = self._uzf_vks_grid(k33)
         # build columns
         pkdata = []          # (iuzno, cellid, landflag, ivertcon, surfdep, vks, thtr, thts, thti, eps)
         subs = []            # subsurface objects appended after the land cells
@@ -1204,13 +1257,13 @@ class clsMF6:
         for n, (i, j, k) in enumerate(self.surf_cells):
             chain = col_children[n]
             ivertcon = chain[0][0] if chain else -1
-            vks = vks_scale * (float(k33[k, i, j]) if use_layer_vk else float(vks3d[k, i, j]))
+            vks = float(vks_grid_u[k, i, j])
             pkdata.append((n, self._cellid(k, i, j), 1, ivertcon, surfdep,
                            vks, float(thtr[k, i, j]), float(thts[k, i, j]),
                            float(thti[k, i, j]), float(eps[k, i, j])))
             for ci, (no, kk) in enumerate(chain):
                 child_ivert = chain[ci + 1][0] if ci + 1 < len(chain) else -1
-                vks_c = vks_scale * (float(k33[kk, i, j]) if use_layer_vk else float(vks3d[kk, i, j]))
+                vks_c = float(vks_grid_u[kk, i, j])
                 subs.append((no, self._cellid(kk, i, j), 0, child_ivert,
                              surfdep, vks_c, float(thtr[kk, i, j]),
                              float(thts[kk, i, j]), float(thti[kk, i, j]),

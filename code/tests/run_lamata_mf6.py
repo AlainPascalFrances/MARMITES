@@ -1076,6 +1076,7 @@ def _args_from_config(cfg, probe=False):
         uzf_et_form=cfg.et.unsat_form,
         seep=cfg.seep.kind, seep_cond=cfg.seep.cond,
         seep_ddrn=float(cfg.seep.ddrn),
+        seep_base=float(cfg.seep.base), seep_cond_from=str(cfg.seep.cond_from),
         sfr=cfg.sfr.enable,
         sfr_rhk=(cfg.sfr.rhk.value if cfg.sfr.rhk.value is not None else 0.1),
         lak=lak_source, lak_bedleak=cfg.lak.bedleak,
@@ -1222,6 +1223,8 @@ def main():
               'down to %g d -- from the panel' % b.ats_dtmin)
     b.drn_seep_cond = float(a.seep_cond)
     b.drn_seep_ddrn = float(getattr(a, 'seep_ddrn', b.drn_seep_ddrn))
+    b.drn_seep_base = float(getattr(a, 'seep_base', 0.0))
+    b.drn_seep_cond_from = str(getattr(a, 'seep_cond_from', 'value'))
     b.uzf_vks_scale = float(a.uzf_vks_scale)
     if cfg is not None:
         b.uzf_thtr_from = str(cfg.uzf.thtr_from)
@@ -1319,10 +1322,19 @@ def main():
              ' incl. steady' if b.steady_first else ', no steady period',
              b.nuzfcells, b.ncell))
     if b.seep == 'drn':
-        print('   seepage: DRN_SEEP, %d drains at the soil base, cond %.4g '
-              'm2/d, ramped in over %.4g m above it -- from the panel '
-              '(UZF SIMULATE_GWSEEP off)'
-              % (b.ndrnseep, b.drn_seep_cond, b.drn_seep_ddrn))
+        _rng = b.drn_seep_cond_range or (b.drn_seep_cond, b.drn_seep_cond)
+        print('   seepage: DRN_SEEP, %d drains %s, cond %s, ramped in over '
+              '%.4g m above it -- from the panel (UZF SIMULATE_GWSEEP off)'
+              % (b.ndrnseep,
+                 ('%.4g m below the soil base' % b.drn_seep_base)
+                 if b.drn_seep_base > 0 else 'at the soil base',
+                 ('%.4g m2/d' % _rng[0]) if b.drn_seep_cond_from != 'uzf'
+                 else ('UZF\'s area x vks / SURFDEP, %.4g..%.4g m2/d'
+                       % _rng),
+                 b.drn_seep_ddrn))
+        if b.drn_seep_lifted:
+            print('   seepage: %d drain(s) lifted to 1 cm above their cell '
+                  'bottom (MF6 refuses a drain below it)' % b.drn_seep_lifted)
     else:
         print('   seepage: UZF SIMULATE_GWSEEP')
 
