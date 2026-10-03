@@ -105,7 +105,7 @@ class MF6Coupler:
 
     def __init__(self, mm, ctx, state, mf6b, conv_fact=1000.0,
                  mode='lagged', relax=0.6, max_outer=None,
-                 obs_idx=None, obs_names=None):
+                 obs_idx=None, obs_names=None, crr=None):
         if mode not in ('lagged', 'iterative'):
             raise CouplingError("mode must be 'lagged' or 'iterative'")
         self.mm, self.ctx, self.state = mm, ctx, state
@@ -314,6 +314,114 @@ class MF6Coupler:
         self.Eo_zonesSP = None if eo is None else np.atleast_2d(np.asarray(eo,
                                                                           float))
         self.evap_hist = None
+
+        # ---- WP5: the CRR cascade -----------------------------------------
+        # Built once, on the surface descriptor above (cookbook §4a: one
+        # mechanism for WP4 and WP5) -- a pond cell is a LAK receiver, a
+        # channel cell an SFR one, every other cell a soil column.
+        self.crr = None
+        self.crr_ts = None
+        if crr is not None:
+            self.crr = self._build_crr(crr)
+            if getattr(mf6b, 'verbose', True) and crr.get('report', True):
+                for _line in self.crr.summary(self.area):
+                    print(_line)
+
+    def _build_crr(self, opts):
+        """The CascadeNetwork of this run, from ``opts`` = {'beta', 'sinks',
+        and optionally 'elev'}: the elevation the slopes come from, on the
+        model grid (nrow, ncol); by default the land surface (cMF.elev)."""
+        import marmites_crr as mcrr
+        ctx, mf6b = self.ctx, self.mf6b
+        if any(int(c[0]) != k for k, c in enumerate(ctx.cells)):
+            raise CouplingError('CRR addresses cells by their place in the '
+                                'cell list, and the list is not numbered in '
+                                'order')
+        kind = np.full(self.ncell, mcrr.KIND_SOIL, dtype=int)
+        kind[self.sfr_reach_idx >= 0] = mcrr.KIND_SFR
+        for ks, _w in self.lak_cells:              # LAK > SFR > soil
+            kind[ks] = mcrr.KIND_LAK
+        elev = opts.get('elev')
+        if elev is None:
+            elev = mf6b._land_surface()
+        elev = np.asarray(np.ma.filled(np.ma.asarray(elev, dtype=float),
+                                       np.nan), dtype=float)
+        elev = elev.reshape(-1, 1) if elev.ndim == 1 else elev
+        elev = elev[self.i_arr, self.j_arr]
+        topo = mf6b.topology() if hasattr(mf6b, 'topology') else None
+        if topo is not None:                       # DISV, (ncpl, 1)
+            icell = self.i_arr
+        else:
+            cMF = mf6b.cMF
+            topo = mcrr.structured_topology(cMF.delr, cMF.delc)
+            icell = self.i_arr * int(np.size(cMF.delr)) + self.j_arr
+        return mcrr.network_from_topology(
+            topo, icell, elev, kind, beta=float(opts.get('beta', 1.0)),
+            sinks=str(opts.get('sinks', 'evaporate')))
+
+    # the CRR terms kept per stress period [m3/d], catchment totals
+    CRR_TERMS = ('runoff', 'runon', 'reinf', 'to_sfr', 'to_lak', 'evap',
+                 'evap_sink', 'routed')
+
+    def _crr_record(self, n, out):
+        """This period's cascade, catchment totals in m3/d (``crr_ts[n]``)."""
+        import marmites_crr as mcrr
+        res = out.get('crr')
+        if res is None or self.crr_ts is None:
+            return
+        kind = self.crr.kind
+        ri = self.ctx.index.get('iReinf')
+        reinf = (0.0 if ri is None else
+                 float(np.sum(np.asarray(out['MM'])[:, ri] / self.conv_fact
+                              * self.area)))
+        self.crr_ts[n] = (float(res.ro.sum()), float(res.runon.sum()), reinf,
+                          float(res.deliver[kind == mcrr.KIND_SFR].sum()),
+                          float(res.deliver[kind == mcrr.KIND_LAK].sum()),
+                          float(res.ecrr.sum()), float(res.ecrr_sink.sum()),
+                          float(res.routed.sum()))
+
+    def _print_crr(self, nper):
+        """What the cascade did over the run, in mm/yr over the catchment."""
+        if self.crr_ts is None or not self.crr_ts.size:
+            return
+        dt = np.array([float(self.perlen[n]) if n < len(self.perlen) else 1.0
+                       for n in range(nper)])
+        days = float(dt.sum())
+        if days <= 0.0:
+            return
+        tot = (self.crr_ts * dt[:, None]).sum(axis=0)         # m3
+        mm = dict(zip(self.CRR_TERMS, tot / float(self.area.sum()) * 1000.0
+                      * 365.25 / days))
+        # a cell's runoff = its own excess + the run-on it passed along, so
+        # the excess the cells GENERATED is runoff - run-on + reinfiltration
+        gen = mm['runoff'] - mm['runon'] + mm['reinf']
+        print('\nCRR cascade (mm/yr over the catchment): runoff generated '
+              '%.1f = reinfiltrated %.1f + to the streams %.1f + to the ponds '
+              '%.1f + evaporated %.1f (at sinks %.1f)'
+              % (gen, mm['reinf'], mm['to_sfr'], mm['to_lak'], mm['evap'],
+                 mm['evap_sink']))
+        print('     run-on received by the soil columns %.1f%s'
+              % (mm['runon'], '; %.1f sent from sinks to the nearest stream '
+                 'or pond' % mm['routed'] if mm['routed'] else ''))
+
+    def _mm_step(self, n, tstart_MF, heads, exf, rej):
+        """One MMsoil stress period. WP2: Eg/Tg see what remains after the
+        PREVIOUS period's actual UZF ET (cookbook 2b); WP5: the cascade
+        routes the runoff when there is one."""
+        if self.crr is None:
+            return self.mm.step(self.ctx, n, tstart_MF, heads, exf, self.state,
+                                rejinf_cell=rej, etuzf_cell=self.etuzf_prev)
+        return self.mm.step(self.ctx, n, tstart_MF, heads, exf, self.state,
+                            rejinf_cell=rej, etuzf_cell=self.etuzf_prev,
+                            crr=self.crr)
+
+    def _runoff_to_deliver(self, out):
+        """The runoff SFR and LAK take this period [mm/d per cell]: with CRR
+        what the cascade brought to each stream and pond cell, without it
+        each such cell's own runoff (the soil cells' was not delivered)."""
+        if self.crr is not None:
+            return np.asarray(out['ro_deliver'], dtype=np.float64)
+        return np.asarray(out['MM'], dtype=np.float64)[:, self._iRo]
 
     # ---------------- address / pointer helpers ------------------------ #
 
@@ -941,7 +1049,10 @@ class MF6Coupler:
         reach (SFR INFLOW), a pond footprint's to its lake (LAK RUNOFF,
         WP4.4) -- both volumetric rates [m3/d]. Since WP4.6 it includes the
         rain on the cell's open fraction, which MMsoil hands over as runoff.
-        Runoff generated elsewhere is the CRR cascade's (WP5), not this.
+        With the CRR cascade (WP5) ``ro`` is what the cascade brought to each
+        stream and pond cell -- its own runoff and its upslope cells' -- and
+        runoff generated on a soil cell reaches SFR and LAK that way;
+        without it, a soil cell's runoff is not delivered at all.
         """
         q = np.maximum(np.asarray(ro, dtype=float), 0.0) / self.conv_fact \
             * self.area                                              # m3/d
@@ -1345,6 +1456,8 @@ class MF6Coupler:
         self._iEow = self.ctx.index.get('iEow')
         self._iEow = None if self._iEow is None else int(self._iEow)
         self.runoff_hist = np.zeros((nper_mm, self.ncell))
+        self.crr_ts = (None if self.crr is None else
+                       np.zeros((nper_mm, len(self.CRR_TERMS))))
         self.evap_hist = np.zeros((nper_mm, self.ncell))
         # ... and by package (WP2 row 2); each pond's own loss in m3/d
         self.evap_sfr_hist = np.zeros((nper_mm, self.ncell))
@@ -1421,15 +1534,13 @@ class MF6Coupler:
                     # WP2: Eg/Tg see what remains after the PREVIOUS
                     # period's actual UZF ET -- lagged: MM cannot know this
                     # period's before MF6 solves (cookbook 2b)
-                    out = self.mm.step(self.ctx, n, tstart_MF, heads, exf, self.state,
-                                       rejinf_cell=rej,
-                                       etuzf_cell=self.etuzf_prev)
+                    out = self._mm_step(n, tstart_MF, heads, exf, rej)
                     # ALL API inputs (UZF SINF, WEL Q, SFR INFLOW) must be
                     # written after prepare_solve, or MF6 reverts them to the
                     # build-time values -- so runoff-to-SFR rides the same
                     # callback rather than being written after the advance.
                     _o = out
-                    _ro = (np.asarray(out['MM'], dtype=np.float64)[:, self._iRo]
+                    _ro = (self._runoff_to_deliver(out)
                            if self._delivers_runoff() else None)
 
                     def _write(o=_o, ro=_ro, sp=n):
@@ -1450,6 +1561,7 @@ class MF6Coupler:
                 mm_cells = np.asarray(out['MM'], dtype=np.float64)
                 if self.p_sfr_inflow is not None:
                     self.runoff_hist[n] = mm_cells[:, self._iRo]
+                self._crr_record(n, out)
                 # WP1d: the open-water evaporation MF6 just simulated goes back
                 # into the per-cell vector, so iEow is a measured flux again.
                 # It is read AFTER the advance -- it is what the stress period
@@ -1576,6 +1688,7 @@ class MF6Coupler:
             # cannot evaporate what it has not got); ET above the demand is
             # not -- in lagged mode it is the one-period lag of UZF's ET.
             self._print_pet_balance(nper_mm)
+            self._print_crr(nper_mm)
         finally:
             # MF6 can fault inside finalize() when the run is aborted early
             # (the library expects a completed simulation). Never let that
@@ -1600,6 +1713,10 @@ class MF6Coupler:
         # La Mata run. Each pond's own loss is small and is kept whole.
         if self.lak_evap_hist.size:
             res['lak_evap'] = self.lak_evap_hist      # m3/d per pond
+        if self.crr_ts is not None:
+            # WP5: the cascade per period, catchment totals in m3/d
+            res['crr_ts'] = self.crr_ts
+            res['crr_terms'] = np.asarray(self.CRR_TERMS, dtype='S16')
         if self.mm_obs is not None:
             res['mm_obs'] = self.mm_obs
             res['mms_obs'] = self.mms_obs
@@ -1767,8 +1884,7 @@ class MF6Coupler:
             # WP2: UZF's ET is computed at budget time (uzf_cq), after the
             # solve, so no iterate is available mid-period: the previous
             # period's actual is used here too
-            out = self.mm.step(self.ctx, n, tstart_MF, heads, exf, self.state,
-                               rejinf_cell=rej, etuzf_cell=self.etuzf_prev)
+            out = self._mm_step(n, tstart_MF, heads, exf, rej)
             perc = np.asarray(out['perc'], dtype=float)
             etg = np.asarray(out['etg'], dtype=float)
             if perc_prev is not None:                          # under-relaxation
@@ -1780,7 +1896,7 @@ class MF6Coupler:
             self._write_fluxes(perc, etg, petuzf_prev, etg_booked)
             # the iterative mode delivered no runoff to the stream at all;
             # it does now, to the streams and the ponds alike
-            ro = (np.asarray(out['MM'], dtype=np.float64)[:, self._iRo]
+            ro = (self._runoff_to_deliver(out)
                   if self._delivers_runoff() else None)
             if ro is not None:
                 self._write_runoff(ro)

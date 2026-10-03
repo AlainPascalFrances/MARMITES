@@ -251,6 +251,55 @@ def _apply_dem(cMF, cfg, dataset_dir, cache_dir=None):
                      int(both.size - both.sum())))
 
 
+def _crr_options(a, cMF, dataset_dir, cache_dir=None):
+    """The CRR cascade's settings for the coupler (WP5), or None when off.
+
+    The slopes come from ``[crr] dem``. When that is the raster the land
+    surface was already taken from (the default: both are the dataset's
+    inputDEM.asc, the sink-filled survey), the cascade uses that surface
+    as it stands -- same file, same wrapping. Any other raster is wrapped
+    onto the run's grid the same way, at its own resolution.
+    """
+    if not getattr(a, 'crr', False):
+        return None
+    opts = {'beta': float(a.crr_beta), 'sinks': str(a.crr_sinks)}
+    name = (getattr(a, 'crr_dem', None) or '').strip()
+    path = (name if os.path.isabs(name) else
+            os.path.join(str(dataset_dir), name)) if name else None
+    same = bool(path is not None and getattr(cMF, 'land_dem', None) and
+                os.path.normcase(os.path.abspath(path)) ==
+                os.path.normcase(os.path.abspath(cMF.land_dem)))
+    if path is None or same:
+        print('CRR: slopes from the land surface%s, beta %g, sinks %s -- '
+              'from the panel' % (' (%s)' % name if name else '',
+                                  opts['beta'], opts['sinks']))
+        return opts
+    if not os.path.exists(path):
+        raise SystemExit('CONFIG ERROR: [crr] dem = %r is not in the dataset '
+                         '(%s). Name the sink-filled DEM the cascade should '
+                         'follow, or leave it as inputDEM.asc.' % (name, path))
+    import marmites_dem as mdem
+    gp = getattr(cMF, 'mesh_gridprops', None)
+    if gp is None:
+        from marmites_grid import disv_from_structured
+        verts, cell2d, ncpl = disv_from_structured(
+            cMF.delr, cMF.delc, float(getattr(cMF, 'xllcorner', 0.0)),
+            float(getattr(cMF, 'yllcorner', 0.0)))
+        gp = {'vertices': verts, 'cell2d': cell2d, 'ncpl': ncpl,
+              'nlay': int(cMF.nlay)}
+    wrapped, info = mdem.wrap_to_grid(path, gp, cache_dir=cache_dir,
+                                      warn=lambda m: print('WARNING: %s' % m))
+    elev = np.asarray(np.ma.filled(np.ma.asarray(wrapped, dtype=float),
+                                   np.nan), dtype=float)
+    opts['elev'] = elev.reshape(np.shape(cMF.elev))
+    print('CRR: slopes from %s (%g m), wrapped onto %d cell(s)%s; beta %g, '
+          'sinks %s -- from the panel'
+          % (name, info['cellsize'], info['ncpl'],
+             ' (cached)' if info['cached'] else '', opts['beta'],
+             opts['sinks']))
+    return opts
+
+
 def ctx_geom_area(cMF):
     """Mean cell area [m2], DIS or DISV. The drainage law w = a*A**b needs it."""
     proj = getattr(cMF, 'mesh_proj', None)
@@ -862,6 +911,10 @@ def setup_lamata(daily=True, nsp=None, grid='dis', nlay=None,
                                  cache_dir=os.path.join(mesh_ws or '', '_dem')
                                  if mesh_ws else None)
     print('elevation: %s' % _note)
+    # which raster the land surface now is -- the CRR cascade reuses it
+    # rather than wrapping the same file a second time (_crr_options)
+    import marmites_dem as _mdem
+    cMF.land_dem = _mdem.dem_path(DS) if _applied else None
     if _applied:
         botm_l0 = np.asarray(cMF.botm)[0]
     # THE BOUNDARY LINES, on the grid the run uses and its FINAL bottoms: a
@@ -1080,6 +1133,9 @@ def _args_from_config(cfg, probe=False):
         sfr=cfg.sfr.enable,
         sfr_rhk=(cfg.sfr.rhk.value if cfg.sfr.rhk.value is not None else 0.1),
         lak=lak_source, lak_bedleak=cfg.lak.bedleak,
+        # WP5, the runoff cascade
+        crr=bool(cfg.crr.enable), crr_beta=float(cfg.crr.beta),
+        crr_sinks=str(cfg.crr.sinks), crr_dem=_or_none(cfg.crr.dem),
         # spin-up / initial state
         spinup=cfg.spinup.cycles, spinup_tol=cfg.spinup.tol,
         strt_heads=_or_none(cfg.spinup.strt_heads),
@@ -1361,7 +1417,16 @@ def main():
         return
 
 
+    # WP5: the runoff cascade, settled once for every spin-up cycle
+    crr_opts = _crr_options(a, cMF, DS, cache_dir=os.path.join(a.ws, '_mesh',
+                                                               '_dem'))
+
     if a.build_only or not a.libmf6:
+        if crr_opts is not None:
+            # the cascade is built from the model as written, so a build-only
+            # check sees its sinks before anything runs (cookbook 5.3)
+            MF6Coupler(mm, ctx, mm.init_state(ctx), b, conv_fact=conv_fact,
+                       mode=a.mode, crr=crr_opts)
         # preproc only needs the built model, so it can run without libmf6;
         # postproc needs MF6 output, so it is skipped here
         if a.preproc:
@@ -1492,7 +1557,9 @@ def main():
                   saved_state['carry'] if saved_state is not None else None)
         cpl = MF6Coupler(mm, ctx, st, b, conv_fact=conv_fact,
                          mode=a.mode, relax=a.relax,
-                         obs_idx=obs_idx, obs_names=obs_names)
+                         obs_idx=obs_idx, obs_names=obs_names,
+                         crr=(None if crr_opts is None else
+                              dict(crr_opts, report=(cyc == 0))))
         cpl.carry_in = _carry
         cpl.steady_perc, cpl.steady_etg = steady_perc, steady_etg
         res = cpl.run(api)

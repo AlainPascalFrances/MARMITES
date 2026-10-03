@@ -1380,6 +1380,7 @@ class Crr:
 
     enable: bool = False
     beta: float = 1.0              # Daoud Eq. 23; calibrated 0.8-1.0
+    # 'evaporate' (Daoud) | 'route': to the nearest stream or pond cell
     sinks: str = 'evaporate'
     # The dataset DEM, at the survey's OWN resolution. The cascade wraps
     # it onto the model cells like everything else; a copy resampled to
@@ -1904,6 +1905,8 @@ class RunConfig:
             errs.append('spinup.strt_dem must be [] or [a, b]')
         if not (0.0 < self.crr.beta <= 1.0):
             errs.append('crr.beta must be in (0, 1]')
+        if self.crr.sinks not in ('evaporate', 'route'):
+            errs.append("crr.sinks must be 'evaporate' or 'route'")
         if self.ui.execution not in ('local', 'server'):
             errs.append("ui.execution must be 'local' or 'server'")
         for name in ('width', 'depth', 'manning', 'rhk', 'rbth'):

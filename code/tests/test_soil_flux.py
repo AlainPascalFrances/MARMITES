@@ -143,7 +143,8 @@ def _compare(res):
 def _mass_balance(out, Pe, EXF_ini, Ssoil_ini_frac, Ssurf_ini=0.0, perlen=1.0):
     """Closure of the whole column: In - Out - dS ~ 0 (per day)."""
     (Eow, Ssurf, Ro, Rp, Esoil, Tsoil, Ssoil, _, _Eg, _Tg, _, _, _, Rexf, I,
-     _PETuzf) = out
+     _PETuzf, REinf) = out
+    assert REinf == 0.0, 'no CRR run-on here (WP5)'
     Sm, Sfc, Sr, Ks, Tl = _column(len(np.ravel(Ssoil)))
     Ssoil_ini_mm = np.array([f * t for f, t in zip(Ssoil_ini_frac, Tl)])
     dSsoil = (np.asarray(Ssoil, dtype=np.float64) - Ssoil_ini_mm) / perlen

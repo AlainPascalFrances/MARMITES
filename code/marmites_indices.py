@@ -28,6 +28,11 @@ INDEX_MM = {
     # what MF6's UZF ET routine removed BEYOND the demand, within its own
     # wave-merging tolerance: a numerical storage loss of UZF, not ET
     'iETuzf_num': 30,
+    # WP5, the CRR cascade: the run-on a soil column receives from upslope,
+    # the part of it the soil took (inside iI), and the runoff the cascade
+    # evaporates -- the 1 - beta share and a sink's water -- booked at the
+    # cell it left and counted in iETtot. All zero with [crr] off.
+    'iRunon': 31, 'iEcrr': 32, 'iReinf': 33,
 }
 
 # per-soil-layer fluxes (MM_S dataset, last axis)

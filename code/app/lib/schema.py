@@ -837,9 +837,16 @@ FIELDS = {
     'lak.surfdep': ('Surface depression depth', 'm',
                     'Smooths the wetted area as the pond dries.'),
     'crr.enable': ('Runoff cascade (CRR)', _U,
-                   'Routes runoff downslope cell to cell instead of losing '
-                   'it at the cell it was generated in.'),
-    'crr.beta': ('CRR beta', _U, 'Daoud et al. (2022), Eq. 23.'),
+                   'Routes runoff downslope cell to cell (Daoud et al. 2022): '
+                   'onto a lower soil column it reinfiltrates by the same '
+                   'law as the rain, and what the soil cannot take runs on; '
+                   'a stream or pond cell takes it into SFR or LAK. Off: the '
+                   'runoff of a soil cell reaches no stream at all.'),
+    'crr.beta': ('CRR beta', _U,
+                 'Daoud et al. (2022), Eq. 23: the share of a cell\'s runoff '
+                 'that moves on, split over its lower neighbours by slope; '
+                 'the rest, 1 - beta, evaporates on the way. They calibrate '
+                 'it at 0.8-1.'),
     'spinup.cycles': ('Spin-up cycles', 'count',
                       'How many times the forcing is repeated. The first '
                       'cycle starts from the initial heads below (through a '
@@ -973,7 +980,10 @@ FIELDS = {
     'lak.maxiter': ('LAK Newton iterations', 'count', ''),
     'lak.stagechg': ('LAK stage tolerance', 'm', ''),
     'crr.sinks': ('Topographic sinks', _U,
-                  'What happens to runoff that reaches a closed depression.'),
+                  'A soil cell with no lower neighbour. evaporate: its runoff '
+                  'evaporates there (Daoud\'s convention). route: it goes to '
+                  'the nearest stream or pond cell, as if the depression '
+                  'spilled. The run log counts the sinks.'),
     'crr.dem': ('Sink-filled DEM', _U,
                 'Drives the downslope cascade. The DATASET copy, at the '
                 'survey resolution, wrapped onto the model cells like every '

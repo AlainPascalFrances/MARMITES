@@ -51,7 +51,7 @@ NOT_AN_INPUT = {
     'ui.port': 'front-end', 'ui.address': 'front-end',
     'ui.poll_secs': 'front-end',
 }
-AHEAD = ('crr.', 'pest.')                 # WP5, WP7
+AHEAD = ('pest.',)                        # WP7
 
 
 def _model_sources():

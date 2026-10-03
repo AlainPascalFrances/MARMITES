@@ -1508,7 +1508,12 @@ _MAP_FLUXES = (
     ('iuzthick', 'uzthick', 'unsaturated thickness', 'YlOrBr'),
     ('idSsoil', 'dSsoil', 'change in soil storage', 'Blues'),
     ('idSsurf', 'dSsurf', 'change in surface storage', 'Blues'),
+    # WP5, the CRR cascade -- drawn only when it ran (all zero otherwise)
+    ('iRunon', 'Runon', 'run-on from upslope (CRR)', 'Blues'),
+    ('iReinf', 'Reinf', 'reinfiltrated run-on (CRR)', 'Blues'),
+    ('iEcrr', 'Ecrr', 'runoff evaporated by the cascade (CRR)', 'Reds'),
 )
+_CRR_MAPS = ('iRunon', 'iReinf', 'iEcrr')
 
 
 def _vrange(v):
@@ -2010,10 +2015,20 @@ def _assemble_flx(IX, IXS, mmv, mmsv, aq, nper):
         flx.append(np.asarray(series, dtype=float))
 
     def mm(key):
-        return mmv[:, IX[key]] if key in IX else np.zeros(nper)
+        # a column the run's table does not have -- a run older than the
+        # index -- is zero, as it was in that run
+        if key in IX and IX[key] < np.shape(mmv)[1]:
+            return mmv[:, IX[key]]
+        return np.zeros(nper)
 
     put('iP', mm('iP')); put('iEi', mm('iEi')); put('iPe', mm('iPe'))
-    put('idSsurf', mm('idSsurf')); put('iRo', mm('iRo')); put('iEow', mm('iEow'))
+    # WP5: with the CRR cascade a cell's runoff is partly the run-on of the
+    # cells above it, which another cell already counted as runoff. NET of
+    # it, Ro is what leaves the soil surface for good -- to SFR, LAK, or the
+    # cascade's evaporation -- and the surface balance Pe + Exf_1 = I + Ro
+    # still closes (I includes the reinfiltration). Zero run-on: unchanged.
+    put('idSsurf', mm('idSsurf')); put('iRo', mm('iRo') - mm('iRunon'))
+    put('iEow', mm('iEow'))
     put('idSsoil', mm('idSsoil')); put('iEXFg', mm('iEXFg'))
     put('iI', mm('iI')); put('iSsurf', mm('iSsurf')); put('iperc', mm('iperc'))
     put('iETsoil', mm('iETsoil'))
@@ -2028,6 +2043,10 @@ def _assemble_flx(IX, IXS, mmv, mmsv, aq, nper):
     # WP2 row 2: the open water by package (iEow is their sum)
     put('iEow_sfr', mm('iEow_sfr'))
     put('iEow_lak', mm('iEow_lak'))
+    # WP5: the cascade's terms, for the Sankey's CRR arms (WP6)
+    put('iRunon', mm('iRunon'))
+    put('iReinf', mm('iReinf'))
+    put('iEcrr', mm('iEcrr'))
     for nm, series in aq.items():
         put(nm, series)
     return flx, flxIndex
@@ -2641,7 +2660,9 @@ def _native_result_maps(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
     IX = dict(ctx.index)
     wb_map = np.asarray(res['wb_map'])              # (ncell, nidx)
     for key, stem, cblbl, cmname in _MAP_FLUXES:
-        if key not in IX:
+        if key not in IX or IX[key] >= wb_map.shape[1]:
+            continue
+        if key in _CRR_MAPS and not np.any(wb_map[:, IX[key]]):
             continue
         g = DA.cells(wb_map[:, IX[key]], ctx.cells, nodata=hnoflo)
         unit = '-' if key in ('iSsoil_pc',) else (

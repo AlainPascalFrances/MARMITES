@@ -209,7 +209,7 @@ class clsMMsoil:
              HEADSini, TopSoilLay, BotSoilLay, Tl, nsl, Sm, Sfc, Sr, Ks,
              Ssoil_ini, EXF_ini, dgwt, st, i, j, n,
              kTg_min, kTg_max, kT_f, kT_s, NVEG, LAIveg, REJINF_ini=0.0,
-             ETUZF_prev=0.0):
+             ETUZF_prev=0.0, RUNON=0.0):
         """Soil water balance of one cell for one stress period.
 
         All storages in mm, all fluxes in mm/d. PT and LAIveg are 1-D
@@ -253,6 +253,16 @@ class clsMMsoil:
 
             Zero for the uncoupled/file-based path, so legacy behaviour is
             unchanged.
+
+        RUNON : runoff the CRR cascade brings from upslope cells [mm/d, per
+            unit of soil area] (WP5). It joins the surface water AFTER the
+            cell's own rain and exfiltration and infiltrates TOP-DOWN by the
+            same law, Eq. 1b, I = min[Ssurf, D1 (phi1 - theta1)]; what the
+            soil cannot take leaves as runoff and runs on downslope. The
+            bottom-up return of REJINF_ini above is a different flux and is
+            untouched (cookbook D4). The REINFILTRATION -- returned last --
+            is the part of the run-on the soil took: the capacity the cell's
+            own water left, at most the run-on.
         """
 
         if EXF_ini < 0.0:
@@ -305,6 +315,15 @@ class clsMMsoil:
             Rexf_tmp /= perlen
             # excess reaching the surface
             Ssurf_tmp += Rexf_tmp[0] * perlen
+
+        # RUN-ON from upslope (WP5 CRR): on top of the cell's own water, so
+        # the reinfiltration is the capacity that water leaves
+        REinf = 0.0
+        if RUNON > 0.0:
+            REinf = min(RUNON * perlen,
+                        max(Sm[0] * Tl[0] - Ssoil_tmp[0] - Ssurf_tmp, 0.0))
+            Ssurf_tmp += RUNON * perlen
+            REinf /= perlen
 
         # INFILTRATION I into the first soil layer
         if Ssurf_tmp > (Sm[0] * Tl[0] - Ssoil_tmp[0]):
@@ -459,7 +478,7 @@ class clsMMsoil:
 
         return (Eow_tmp, Ssurf_tmp, Ro_tmp, Rp_tmp, Esoil_tmp, Tsoil_tmp,
                 Ssoil_tmp, Ssoil_pc_tmp, Eg_tmp, Tg_tmp, HEADSini_corr,
-                dgwt_corr, SAT, Rexf_tmp, I, PETuzf)
+                dgwt_corr, SAT, Rexf_tmp, I, PETuzf, REinf)
 
     # ------------------------------------------------------------------ #
 
@@ -538,7 +557,7 @@ class clsMMsoil:
         )
 
     def _cell_step(self, ctx, cell, n, tstart_MF, h_MF_ini_tmp, exf_MF_ini_tmp, state,
-                   rejinf_cell=0.0, etuzf_cell=0.0):
+                   rejinf_cell=0.0, etuzf_cell=0.0, runon=0.0):
         """Soil water balance of one active cell for one stress period.
 
         Returns (MM_tmp, MM_S_tmp (nsl, nindex_S), nsl, perc_vol, etg_vol,
@@ -556,6 +575,10 @@ class clsMMsoil:
         evaporation is MF6's, from the Eo forcing (iEow). Every output is
         per unit of CELL area, as before; the carried soil state stays the
         column's own.
+
+        ``runon`` [mm/d per CELL area] is what the CRR cascade brings from
+        upslope (WP5); it lands on the soil column, so per SOIL area it is
+        runon / f_soil.
         """
         cid, i, j, _node = cell
         fo = getattr(ctx, 'f_open', None)
@@ -567,6 +590,7 @@ class clsMMsoil:
         # infiltration and ET only ever came from under the soil fraction
         col_rej = rejinf_cell / f_soil if f_soil > 0.0 else 0.0
         col_etuzf = etuzf_cell / f_soil if f_soil > 0.0 else 0.0
+        col_runon = runon / f_soil if f_soil > 0.0 else 0.0
         cMF = ctx.cMF
         # unpack static context to locals (kernel body kept close to v0.3)
         _nsl, _slprop, _st, _Sm, _Sfc, _Sr, _Ks, _Ssoil_ini = (
@@ -714,14 +738,14 @@ class clsMMsoil:
         # MAIN SUB-ROUTINE fluxes
         (Eow_tmp, Ssurf_tmp, Ro_tmp, Rp_tmp, Esoil_tmp, Tsoil_tmp, Ssoil_tmp,
          Ssoil_pc_tmp, Eg_tmp, Tg_tmp, HEADSini_MM, dgwt_tmp, SAT_tmp, Rexf_tmp,
-         I, PETuzf) = self.flux(cMF, perleni, Pe_tot, PT_flux,
+         I, PETuzf, REinf) = self.flux(cMF, perleni, Pe_tot, PT_flux,
                         PE_zonesSP_tmp * SOILarea * 0.01, Zr_elev,
                         VEGarea_tmp, HEADSini_drycell, TopSoilLay, BotSoilLay,
                         Tl, nsl, Sm, Sfc, Sr, Ks, Ssoil_ini_tmp,
                         exf_MF_ini_tmp, dgwt, st, i, j, n,
                         kTg_min_tmp, kTg_max_tmp, kT_f_tmp, kT_s_tmp,
                         NVEG_tmp, LAIveg_tmp, REJINF_ini=col_rej,
-                        ETUZF_prev=col_etuzf)
+                        ETUZF_prev=col_etuzf, RUNON=col_runon)
         Ssoil_pc_tot = float(np.sum(Ssoil_pc_tmp)) / nsl
         perc = Rp_tmp[-1]
         ETg = Eg_tmp + Tg_tmp
@@ -750,7 +774,12 @@ class clsMMsoil:
         # Pe + Exf_g1 = I + Ro
         # (Exf_g1 = Rexf[0], which now carries any rejected infiltration that
         #  saturated the soil column from below)
-        MBsurf = (Pe_tot + Rexf_tmp[0]) - (Eow_tmp + Ro_tmp + I + dSsurf)
+        # ... + the CRR run-on (WP5) when the cascade brings any
+        if col_runon > 0.0:
+            MBsurf = (Pe_tot + col_runon + Rexf_tmp[0]) - (
+                Eow_tmp + Ro_tmp + I + dSsurf)
+        else:
+            MBsurf = (Pe_tot + Rexf_tmp[0]) - (Eow_tmp + Ro_tmp + I + dSsurf)
         if nsl > 1:
             # surficial soil layer
             MB_l[0] = (I + Rexf_tmp[1]) - (Rp_tmp[0] + Rexf_tmp[0]
@@ -776,6 +805,8 @@ class clsMMsoil:
         # the column's own.
         fs = f_soil
         ro_open = f_open * (P_tmp + max(exf_MF_ini_tmp, 0.0) / cMF.perlen[n])
+        if runon > 0.0 and f_soil <= 0.0:
+            ro_open += runon        # no column to land on: it runs through
         _vals = {'iP': P_tmp, 'iPT': fs * PT_tot, 'iPE': fs * PE_tot,
                  'iPe': fs * Pe_tot + f_open * P_tmp,
                  'iSsurf': fs * Ssurf_tmp, 'iRo': fs * Ro_tmp + ro_open,
@@ -793,6 +824,11 @@ class clsMMsoil:
                  'iPETuzf': fs * PETuzf, 'iETuzf': 0.0,
                  'iETtot': fs * (INTER_tot + Eow_tmp + ETsoil_tot + ETg),
                  'iRejInf': fs * rej_in}
+        if runon > 0.0:
+            # WP5: what the cascade brought, and how much of it the soil
+            # took (both already inside iI / iRo / iMBsurf above)
+            _vals['iRunon'] = fs * col_runon
+            _vals['iReinf'] = fs * REinf
         MM_tmp = np.zeros(len(index), dtype=np.float64)
         for _k, _v in _vals.items():
             if _k in index:
@@ -821,7 +857,7 @@ class clsMMsoil:
         return MM_tmp, MM_S_tmp, nsl, perc_vol, etg_vol, petuzf_vol
 
     def step(self, ctx, n, tstart_MF, heads_cell, exf_cell, state, rejinf_cell=None,
-             etuzf_cell=None):
+             etuzf_cell=None, crr=None):
         """Advance the soil water balance one stress period over all cells.
 
         Parameters
@@ -838,6 +874,17 @@ class clsMMsoil:
         'MM_S' (ncell, nslmax, nindex_S), 'perc' (ncell,), 'etg' (ncell,).
         This is grid-agnostic; the Phase-3 API driver scatters perc/etg to
         MODFLOW node arrays, the file-based driver scatters to structured h5.
+
+        crr : marmites_crr.CascadeNetwork or None (WP5). With one, runoff is
+            routed downslope cell to cell: the cells are visited in its
+            descending-elevation order (the cell list does not move), each
+            receiving the run-on of the cells above it, and two more entries
+            are returned -- 'ro_deliver', the runoff reaching each stream or
+            pond cell [mm/d per cell area], what the coupler writes into SFR
+            and LAK instead of iRo; and 'crr', the pass's volumes [m3/d]
+            (marmites_crr.CascadeNetwork.route). The runoff the cascade
+            evaporates is iEcrr, booked at the cell it left and counted in
+            iETtot. Without one, nothing changes -- not a bit.
         """
         nindex = len(ctx.index)
         nindex_S = len(ctx.index_S)
@@ -854,18 +901,41 @@ class clsMMsoil:
         etu = (np.zeros(ctx.ncell) if etuzf_cell is None
                else np.asarray(etuzf_cell, dtype=np.float64))
         petuzf_cell = np.zeros(ctx.ncell, dtype=np.float64)
-        for cell in ctx.cells:
+
+        def solve(cell, runon=0.0):
             cid = cell[0]
             MM_tmp, MM_S_tmp, nsl, perc_vol, etg_vol, petuzf_vol = self._cell_step(
                 ctx, cell, n, tstart_MF, float(heads_cell[cid]), float(exf_cell[cid]), state,
-                rejinf_cell=float(rej[cid]), etuzf_cell=float(etu[cid]))
+                rejinf_cell=float(rej[cid]), etuzf_cell=float(etu[cid]), runon=runon)
             MM_cells[cid, :] = MM_tmp
             MM_S_cells[cid, :nsl, :] = MM_S_tmp
             perc_cell[cid] = perc_vol
             etg_cell[cid] = etg_vol
             petuzf_cell[cid] = petuzf_vol
-        return {'MM': MM_cells, 'MM_S': MM_S_cells, 'perc': perc_cell,
-                'etg': etg_cell, 'petuzf': petuzf_cell}
+            return MM_tmp
+
+        out = {'MM': MM_cells, 'MM_S': MM_S_cells, 'perc': perc_cell,
+               'etg': etg_cell, 'petuzf': petuzf_cell}
+        if crr is None:
+            for cell in ctx.cells:
+                solve(cell)
+            return out
+
+        # WP5 -- the cascade. It addresses cells by their place in the list,
+        # which is their id (build_cell_list numbers them in order).
+        iro = ctx.index['iRo']
+        area = np.asarray(ctx.geom.area, dtype=np.float64)
+        conv = float(ctx.conv_fact)
+        res = crr.route(area, lambda k, runon: solve(ctx.cells[k], runon)[iro],
+                        conv=conv)
+        ecrr = res.ecrr / area * conv                       # mm/d, cell area
+        if 'iEcrr' in ctx.index:
+            MM_cells[:, ctx.index['iEcrr']] = ecrr
+        if 'iETtot' in ctx.index:
+            MM_cells[:, ctx.index['iETtot']] += ecrr
+        out['ro_deliver'] = res.deliver / area * conv
+        out['crr'] = res
+        return out
 
     def runMMsoil(self, _nsl, _nslmax, _st, _Sm, _Sfc, _Sr, _slprop, _Ssoil_ini, botm_l0, _Ks,
                   gridSOIL, gridSOILthick, TopSoil, gridMETEO,
