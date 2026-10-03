@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 """Decision 2/3: groundwater seepage as a smoothed land-surface drain.
 
-UZF's SIMULATE_GWSEEP is deprecated in MF6 and switches discharge on and off
-discontinuously. The alternative, used by the CdL reference model, is a DRN at
-the land surface with AUXDEPTHNAME, so MF6 ramps the discharge in cubically
-over DDRN as the head approaches the surface.
+UZF's SIMULATE_GWSEEP is deprecated in MF6 (6.5.0), which recommends a drain
+with discharge scaling. Both ramp in with the same cubic (UzfCellGroup.f90
+gwseep, gwf-drn.f90 get_drain_factor); the drain, used by the CdL reference
+model, sets its conductance and its ramp DDRN on its own instead of tying
+them to UZF's vks and SURFDEP.
 
 Unlike the reference model, MARMITES does NOT move these flows to SFR with
 MVR: the water has to come back into the soil column (Eq. 1 / sec. 2.3), so
@@ -97,7 +98,8 @@ def test_default_conductance_is_free_draining(cmf, tmp_path):
 
 
 def test_ddrn_auxiliary_enables_cubic_smoothing(cmf, tmp_path):
-    """Without AUXDEPTHNAME the drain switches on discontinuously."""
+    """Without AUXDEPTHNAME the conductance jumps from 0 to full as the
+    head passes the drain -- a kink in the discharge."""
     b = _built(cmf, tmp_path, seep='drn')
     drn = _pkg(b, 'drn_seep')
     # flopy returns the option as a ('auxiliary', 'ddrn') record
@@ -187,9 +189,9 @@ def test_drnseep_takes_precedence_over_gwd():
 
 def test_drn_is_the_default_in_both_places_that_decide_it(cmf, tmp_path):
     """A NEW catchment started from scratch -- CdL is next -- must not
-    inherit SIMULATE_GWSEEP in silence. It is deprecated in MODFLOW 6 and
-    switches discharge on and off discontinuously, so a cell can sit in a
-    limit cycle; the drain ramps it in over DDRN instead.
+    inherit SIMULATE_GWSEEP in silence. It is deprecated in MODFLOW 6
+    (6.5.0) and ties its conductance to UZF's vks and SURFDEP; the drain
+    ramps it in over DDRN with its own conductance instead.
 
     Two places decide, and BOTH have to say drn: the configuration a panel
     writes, and clsMF6 itself for anything built without the run passing a

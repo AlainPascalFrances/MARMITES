@@ -162,9 +162,10 @@ with tab_drn:
         st.warning('`seep.kind = %r` builds the seepage face inside UZF '
                    '(`SIMULATE_GWSEEP`) instead, so no `drn_seep` package '
                    'exists and the conductance above is not read. That '
-                   'option is deprecated in MODFLOW 6 and switches discharge '
-                   'on and off discontinuously; `drn` is the validated '
-                   'choice and what La Mata runs.' % cfg.seep.kind)
+                   'option is deprecated since MODFLOW 6.5, which '
+                   'recommends the drain; a coupled run refuses it. The '
+                   'drain reproduces it exactly (see the help of *Seepage '
+                   'mechanism*).' % cfg.seep.kind)
 
 # -------------------------------------------------------------------- uzf
 with tab_uzf:

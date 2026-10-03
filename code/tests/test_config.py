@@ -97,9 +97,9 @@ def test_empty_config_reproduces_todays_flag_defaults():
 
       grid.kind  'structured' -> 'voronoi'  (WP1d)
       seep.kind  'uzf' -> 'drn'             SIMULATE_GWSEEP is deprecated
-                                            in MF6 and discontinuous; a new
-                                            catchment must not inherit it
-                                            in silence.
+                                            in MF6 (6.5.0); a new catchment
+                                            must not inherit it in
+                                            silence.
     """
     c = cfgmod.RunConfig.from_dict({})
     assert c.run.mode == 'lagged'
@@ -202,10 +202,10 @@ def test_groundwater_et_in_modflow_cannot_be_asked_for_at_all():
 
 
 def test_the_coupled_model_requires_the_drain_seepage_face():
-    """SIMULATE_GWSEEP switches discharge on and off discontinuously, and
-    MARMITES reads the seepage back into the soil column every step -- a
-    discharge that oscillates is a soil water balance that oscillates with
-    it. MODFLOW alone may still use it."""
+    """SIMULATE_GWSEEP is deprecated in MODFLOW 6 (6.5.0), and the drain
+    reproduces it exactly; MARMITES reads the seepage back into the soil
+    column every step, so it is held to the mechanism MODFLOW 6 maintains.
+    MODFLOW alone may still use it."""
     with pytest.raises(cfgmod.ConfigError) as e:
         cfgmod.RunConfig.from_dict({'run': {'model': True},
                                     'seep': {'kind': 'uzf'}})

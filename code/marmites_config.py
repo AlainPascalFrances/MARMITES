@@ -616,11 +616,15 @@ class Seep:
     """How groundwater leaves at the LAND SURFACE (the seepage face).
 
     DEFAULT drn, DELIBERATELY. 'uzf' is UZF6's SIMULATE_GWSEEP, which
-    MODFLOW 6 deprecates and which switches discharge on and off
-    discontinuously -- a single cell can end up in a limit cycle. 'drn'
-    puts a drain at the land surface with AUXDEPTHNAME, so MF6 ramps the
-    discharge in over DDRN by cubic smoothing instead of snapping it on.
-    It is what La Mata was converted to and what CdL uses.
+    MODFLOW 6 deprecates (6.5.0) and replaces by a drain with discharge
+    scaling. It IS smoothed -- MF6 6.7 ramps it in with the same cubic as
+    the drain's (UzfCellGroup.f90 gwseep, sCubicLinear) -- but its
+    conductance is fixed to cell area x UZF vks / SURFDEP and its ramp to
+    the SURFDEP that also sets rejected infiltration; CdL saw single-cell
+    limit cycles with it. 'drn' puts a drain at the soil base with
+    AUXDEPTHNAME: the same equation with each part set on its own, and the
+    UZF option exactly when elev = top - SURFDEP/2, ddrn = SURFDEP and
+    C = area x vks / SURFDEP. It is what La Mata runs and what CdL uses.
 
     The default used to be 'uzf', which is what the NWT model did
     (NOSURFLEAK = 0 in the parameter file). Nothing in La Mata depended on
@@ -1770,23 +1774,30 @@ class RunConfig:
         if self.seep.kind not in ('uzf', 'drn'):
             errs.append("seep.kind must be 'uzf' or 'drn'")
         # UNDER COUPLING IT MUST BE drn. 'uzf' is SIMULATE_GWSEEP, which
-        # MODFLOW 6 deprecates and which switches discharge on and off
-        # discontinuously; MARMITES reads the seepage back into the soil
-        # column every step, so a discharge that oscillates is a soil
-        # water balance that oscillates with it.
+        # MODFLOW 6 deprecates (6.5.0) in favour of the drain. It is NOT
+        # discontinuous -- MF6 ramps it in with the drain's own cubic -- but
+        # its conductance is fixed to area x vks / SURFDEP (240 m2/d on a
+        # La Mata cell, against the drain's free-draining 1e4) and its ramp
+        # to the SURFDEP that also rejects infiltration, and the drain
+        # reproduces it exactly with the right parameters. MARMITES reads
+        # the seepage back into the soil column every step, so it is held
+        # to the mechanism MODFLOW 6 maintains.
         if self.run.model and self.seep.kind != 'drn':
             errs.append(
                 "seep.kind = %r: MMsoil and MODFLOW 6 run together, and the "
-                "coupled model requires the smoothed land-surface drain. "
-                "SIMULATE_GWSEEP is deprecated in MODFLOW 6 and switches "
-                "discharge discontinuously. Set seep.kind = 'drn', or turn "
-                "run.model off to build MODFLOW alone." % self.seep.kind)
+                "coupled model requires the seepage-face drain. "
+                "SIMULATE_GWSEEP is deprecated in MODFLOW 6 (6.5.0), which "
+                "recommends a drain with discharge scaling -- the same "
+                "equation, set by seep.cond and seep.ddrn. Set seep.kind = "
+                "'drn', or turn run.model off to build MODFLOW alone."
+                % self.seep.kind)
         if self.seep.kind == 'drn' and self.seep.cond <= 0:
             errs.append('seep.cond must be > 0 (a seepage face must be free-draining)')
         if self.seep.kind == 'drn' and not float(self.seep.ddrn) > 0.0:
             errs.append('seep.ddrn must be > 0 m: the seepage drain ramps in '
-                        'ABOVE the soil base, and 0 is a discontinuous '
-                        'on/off switch')
+                        'ABOVE the soil base, and at 0 its conductance jumps '
+                        'from 0 to full as the head passes it -- a kink '
+                        'Newton handles badly')
         if self.et.unsat_form not in ('etwc', 'etae'):
             errs.append("et.unsat_form must be 'etwc' or 'etae'")
         if self.uzf.vks_from not in ('layer', 'raster'):

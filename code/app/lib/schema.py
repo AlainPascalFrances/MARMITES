@@ -742,9 +742,15 @@ FIELDS = {
                       'model had. It scales the UZF column ONLY, never the '
                       'aquifer `k33`.'),
     'seep.kind': ('Seepage mechanism', _U,
-                  'drn is the validated choice: a smoothed land-surface '
-                  'drain. uzf uses SIMULATE_GWSEEP, which switches on and off '
-                  'discontinuously.'),
+                  'drn: a drain at the soil base whose conductance ramps in '
+                  'over the smoothing depth -- what MODFLOW 6 recommends. '
+                  'uzf: UZF\'s SIMULATE_GWSEEP, deprecated since MODFLOW 6.5. '
+                  'It is smoothed too (the same cubic ramp), but its '
+                  'conductance is fixed to cell area x UZF vks / SURFDEP and '
+                  'its ramp to the SURFDEP that also rejects infiltration; '
+                  'the drain reproduces it exactly with elevation = top - '
+                  'SURFDEP/2, smoothing depth = SURFDEP and conductance = '
+                  'area x vks / SURFDEP. A coupled run requires drn.'),
     'seep.cond': ('Seepage conductance', 'm2/d',
                   'A NUMERICAL device, not a physical property: it must be '
                   'effectively free-draining. It is PER CELL, so it is '

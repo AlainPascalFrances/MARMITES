@@ -97,9 +97,11 @@ class clsMF6:
         # soil column -- exactly the Exf_g condition of the paper (sec. 2.3).
         self.gwseep = bool(gwseep)
         # Seepage mechanism (decision 2). 'uzf' = UZF SIMULATE_GWSEEP;
-        # 'drn' = a smoothed land-surface drain, as in the CdL reference model,
-        # which replaced SIMULATE_GWSEEP because the latter is deprecated and
-        # switches discharge on/off discontinuously (single-cell limit cycles).
+        # 'drn' = a smoothed drain at the soil base, as in the CdL reference
+        # model. SIMULATE_GWSEEP is deprecated (MF6 6.5.0), which recommends
+        # the drain; it is smoothed too (UzfCellGroup.f90 gwseep: the same
+        # -s^3 + 2s^2 ramp over SURFDEP), but with its conductance fixed to
+        # area x vks / SURFDEP. CdL saw single-cell limit cycles with it.
         # With 'drn' the discharge ramps in over DDRN via cubic smoothing.
         # Unlike the reference, the flows are NOT moved to SFR: MARMITES needs
         # them returned to the soil column (Eq. 1 / sec. 2.3).
@@ -1077,12 +1079,13 @@ class clsMF6:
                 ModflowGwfdrn(gwf, stress_period_data={0: drn_spd}, pname='drn',
                               maxbound=len(drn_spd), save_flows=True)
 
-        # DRN-SEEP: groundwater seepage at the land surface as a smoothed drain
-        # (decision 2/3). Alternative to UZF SIMULATE_GWSEEP, which is deprecated
-        # in MF6 and switches discharge on and off discontinuously. The drain
-        # sits at the land surface with AUXDEPTHNAME so MF6 applies its cubic
-        # smoothing over DDRN, ramping the discharge in as the head rises
-        # instead of snapping it on.
+        # DRN-SEEP: groundwater seepage at the soil base as a smoothed drain
+        # (decision 2/3), MF6's recommended replacement for UZF
+        # SIMULATE_GWSEEP (deprecated 6.5.0). Both ramp in with the same
+        # cubic; the drain sets its conductance and ramp on its own. It sits
+        # at the MF6 top (the base of the MARMITES soil column) with
+        # AUXDEPTHNAME, so MF6 scales its conductance from 0 there to full
+        # DDRN above it.
         #
         # These flows are NOT routed away with MVR (unlike the CdL reference
         # model, which sends them to SFR). MARMITES needs them back in the soil

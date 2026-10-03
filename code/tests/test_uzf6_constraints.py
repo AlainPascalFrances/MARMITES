@@ -199,8 +199,8 @@ def test_exactly_one_seepage_mechanism_exists(cmf, tmp_path):
 
 
 def test_the_default_mechanism_is_the_drain(cmf, tmp_path):
-    """Not SIMULATE_GWSEEP, which MODFLOW 6 deprecates and which switches
-    discharge on and off discontinuously."""
+    """Not SIMULATE_GWSEEP, which MODFLOW 6 deprecates (6.5.0) in favour
+    of a drain with discharge scaling."""
     b = _build(cmf, tmp_path)
     assert b.seep == 'drn'
     b.write()
