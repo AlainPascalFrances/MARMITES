@@ -507,16 +507,21 @@ def test_the_lak_newton_settings_reach_the_package(tmp_path):
     assert lak.surfdep.get_data() == pytest.approx(0.07)
 
 
-def test_no_seepage_drain_in_a_pond_host_cell(tmp_path):
-    """The aquifer and the pond exchange through the bed (lak.bedleak), as
-    a reach's cell has no drain because SFR takes its seepage."""
+def test_no_seepage_drain_in_any_pond_cell(tmp_path):
+    """The stream cells' exemption (user, 2026-10-04): no seepage drain in
+    any cell of a pond's footprint -- the host cell that holds the lake's
+    connection AND the others -- so the aquifer and the pond exchange
+    through the bed (lak.bedleak) alone."""
     make = _lamata_lak(tmp_path)
     b = make('seep')
     b.seep = 'drn'
     b.build()
     hosts = {tuple(int(v) for v in p.cell) for p in b.ponds}
-    assert hosts and not hosts & set(b.drnseep_id)
-    assert b.drn_seep_lake_skipped == len(hosts)
+    cells = {tuple(int(v) for v in c) for p in b.ponds for c in p.cells}
+    assert hosts and hosts <= cells
+    assert not cells & set(b.drnseep_id)
+    # every footprint cell that is not a reach cell lost its drain
+    assert b.drn_seep_lake_skipped == len(cells - set(b.sfr_cells))
     assert b.ndrnseep > 0
 
 

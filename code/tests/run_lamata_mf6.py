@@ -1450,9 +1450,9 @@ def main():
             print('   seepage: %d drain(s) lifted to 1 cm above their cell '
                   'bottom (MF6 refuses a drain below it)' % b.drn_seep_lifted)
         if getattr(b, 'drn_seep_lake_skipped', 0):
-            print('   seepage: none in %d pond host cell(s) -- their '
-                  'groundwater reaches the pond through its bed (lak.bedleak)'
-                  % b.drn_seep_lake_skipped)
+            print('   seepage: none in %d pond cell(s), as in the stream '
+                  'cells -- the pond and the aquifer exchange through its bed '
+                  '(lak.bedleak)' % b.drn_seep_lake_skipped)
     else:
         print('   seepage: UZF SIMULATE_GWSEEP')
 

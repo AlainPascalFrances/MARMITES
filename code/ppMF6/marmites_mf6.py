@@ -1159,18 +1159,20 @@ class clsMF6:
                 surfdep_u = float(np.ravel(np.asarray(cMF.surfdep,
                                                       dtype=float))[0])
             seep_spd, lifted, conds = [], 0, []
-            # ... and LAK in a pond's host cell, through its bed: a drain at
-            # the soil base there (100 m2/d) would carry the groundwater past
-            # the clay bed (1e-3 /d) and into the pond a day later through
-            # MMsoil, so bedleak -- the pond's calibration lever -- would no
-            # longer govern what the pond and the aquifer exchange
-            lake_hosts = {tuple(int(v) for v in p.cell)
-                          for p in (self.ponds or [])}
+            # ... and in every POND cell, the stream cells' exemption (user,
+            # 2026-10-04): a drain at the soil base there (100 m2/d) would
+            # carry the groundwater past the clay bed (1e-3 /d) and into the
+            # pond a day later through MMsoil, so bedleak -- the pond's
+            # calibration lever -- would no longer govern what the pond and
+            # the aquifer exchange. The whole footprint, not only the host
+            # cell that holds the lake's connection.
+            lake_cells = {tuple(int(v) for v in c)
+                          for c in (self.lak_of_cell or {})}
             self.drn_seep_lake_skipped = 0
             for n, (i, j, k) in enumerate(self.surf_cells):
                 if (i, j) in self.sfr_cells:      # SFR handles seepage there
                     continue
-                if (int(i), int(j)) in lake_hosts:
+                if (int(i), int(j)) in lake_cells:  # ... and LAK here
                     self.drn_seep_lake_skipped += 1
                     continue
                 elev = float(self.top[i, j]) - base
