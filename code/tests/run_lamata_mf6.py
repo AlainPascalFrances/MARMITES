@@ -983,6 +983,43 @@ def save_run_state(pref, b, cpl, st):
     return fn
 
 
+LAST_CYCLE = '_lastcycle'
+
+
+def save_cycle_state(a, b, cMF, ctx, base, heads, cpl, st, res, grid=None):
+    """Save a spin-up cycle that PASSED its check as ``<base>_lastcycle``:
+    heads, the rest of the state, and its mean recharge / ETg -- everything a
+    run started from it needs. Overwritten by every cycle that passes.
+
+    The final state is only written once the spin-up ends, so a later cycle
+    that failed its check (2026-10-04: one sub-step of SP74 in cycle 2)
+    threw away a cycle that had converged, ~2.75 h of run. Written AS the
+    cycle passes rather than when a later one fails, so it also survives a
+    killed process or a crashed machine. Returns the prefix name.
+    """
+    name = base + LAST_CYCLE
+    pref = _state_out(a, name)
+    b.save_heads_asc(heads, pref)
+    save_run_state(pref, b, cpl, st)
+    _write_cell_grid(res['perc'].mean(axis=0), ctx.cells, cMF.nrow, cMF.ncol,
+                     cMF, pref + '_perc.asc')
+    _write_cell_grid(res['etg'].mean(axis=0), ctx.cells, cMF.nrow, cMF.ncol,
+                     cMF, pref + '_etg.asc')
+    _write_state_scope(a, a.config, name, grid=grid)
+    return name
+
+
+def drop_cycle_state(a, base, nlay):
+    """Remove ``<base>_lastcycle`` once the spin-up's own state is saved: it
+    is then the same cycle under a second name."""
+    pref = _state_out(a, base + LAST_CYCLE)
+    for fn in (['%s_l%d.asc' % (pref, k + 1) for k in range(int(nlay))]
+               + [pref + s for s in ('_state.npz', '_perc.asc', '_etg.asc')]
+               + [_state_sidecar(a, base + LAST_CYCLE)]):
+        if os.path.exists(fn):
+            os.remove(fn)
+
+
 def load_run_state(pref, b, ctx):
     """What :func:`save_run_state` wrote for ``pref``, checked against this
     model -- or None, saying why, when there is none or it does not fit
@@ -1530,6 +1567,9 @@ def main():
     # reports it as an undefined name.
     prev_heads = None
     spin_converged, delta = False, float('nan')
+    # where a cycle that passed its check is kept while later ones run
+    cycle_base = (a.save_strt or 'hi_spinup') if ncyc > 1 else None
+    last_good = None                     # (cycle number, saved name)
     for cyc in range(ncyc):
         if cyc > 0:
             # PERIODIC SPIN-UP: the next cycle starts where this one ended --
@@ -1562,14 +1602,25 @@ def main():
                               dict(crr_opts, report=(cyc == 0))))
         cpl.carry_in = _carry
         cpl.steady_perc, cpl.steady_etg = steady_perc, steady_etg
-        res = cpl.run(api)
-        # What held for months rather than what happened once: the soil at
-        # wilting point printed 8205 lines in 240 stress periods before this.
-        MMsoil.report_tallies()
-        # A non-converged / non-conserving cycle is not a usable state to
-        # iterate from, so the guard runs every cycle.
-        cpl.check_solution(max_discrepancy=a.max_discrepancy,
-                           raise_on_fail=not a.allow_bad_budget)
+        try:
+            res = cpl.run(api)
+            # What held for months rather than what happened once: the soil
+            # at wilting point printed 8205 lines in 240 stress periods.
+            MMsoil.report_tallies()
+            # A non-converged / non-conserving cycle is not a usable state to
+            # iterate from, so the guard runs every cycle.
+            cpl.check_solution(max_discrepancy=a.max_discrepancy,
+                               raise_on_fail=not a.allow_bad_budget)
+        except BaseException:
+            # interrupted too: what an earlier cycle reached is on disk
+            if last_good is not None:
+                print('\nCycle %d did not finish as a usable state. Cycle %d, '
+                      'the last that passed its check, is saved as "%s".\n'
+                      '   continue from it with:  spinup.strt_heads = "%s" '
+                      '(and spinup.steady_means = "%s")'
+                      % (cyc + 1, last_good[0], last_good[1], last_good[1],
+                         last_good[1]))
+            raise
         prev_heads = _final_heads()
         # THIS cycle's mean recharge/ETg: no longer the next cycle's steady
         # period (it has none -- see the periodic spin-up above), but what is
@@ -1578,6 +1629,13 @@ def main():
         if not a.steady_means:
             steady_perc = res['perc'].mean(axis=0)
             steady_etg = res['etg'].mean(axis=0)
+        if cycle_base and cyc + 1 < ncyc:
+            # not after the last cycle: the final save below writes that one
+            last_good = (cyc + 1, save_cycle_state(
+                a, b, cMF, ctx, cycle_base, prev_heads, cpl, st, res,
+                grid=_grid))
+            print('spin-up cycle %d passed its check: saved as "%s" until the '
+                  'spin-up ends' % last_good)
         if ncyc > 1:
             wt = np.nanmax(prev_heads, axis=0)          # water table per column
             if prev is not None:
@@ -1704,6 +1762,10 @@ def main():
                            grid=_grid)
         print('steady-state means saved: %s_{perc,etg}.asc' % os.path.basename(mp))
         print('   reuse with:  spinup.steady_means = "%s"' % mean_pref)
+    # the spin-up's own state is on disk: the cycle kept while it ran is a
+    # duplicate now (or an older cycle)
+    if cycle_base and last_good is not None:
+        drop_cycle_state(a, cycle_base, b.nlay)
 
     _run_postproc(a, cMF, ctx, res)
 

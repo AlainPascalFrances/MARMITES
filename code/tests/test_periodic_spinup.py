@@ -243,3 +243,51 @@ def test_a_run_from_saved_heads_has_no_steady_period():
     assert "saved_state['carry']" in loop
     assert 'save_run_state(pref, b, cpl, st)' in src
     assert '(skips the spin-up)' not in src
+
+
+# ------------------------- a cycle that passed survives a later failure
+def test_a_passed_cycle_is_saved_whole_and_dropped_at_the_end(tmp_path):
+    """2026-10-04: cycle 2 failed one sub-step of SP74 and the converged
+    cycle 1 was lost with it. Each passed cycle is now on disk at once as
+    <save>_lastcycle -- a full state the panel lists -- and removed when the
+    spin-up's own state is saved."""
+    import types
+    import marmites_config as mcfg
+    from marmites_mf6 import clsMF6
+    rl = _rl()
+    b, cpl, st, ctx = _fake()
+    cMF = SimpleNamespace(xllcorner=0.0, yllcorner=0.0, delr=[50.0],
+                          nrow=b.nrow, ncol=b.ncol)
+    b.cMF, b.idomain = cMF, np.ones((b.nlay, b.nrow, b.ncol), int)
+    b.save_heads_asc = types.MethodType(clsMF6.save_heads_asc, b)
+    ctx.cells = [(k, k, 0, k) for k in range(ctx.ncell)]
+    a = SimpleNamespace(state_dir=str(tmp_path),
+                        config=mcfg.RunConfig.from_dict({}))
+    res = {'perc': np.full((4, ctx.ncell), 1e-4),
+           'etg': np.full((4, ctx.ncell), 2e-5)}
+    heads = np.full((b.nlay, b.nrow, b.ncol), 700.0)
+    name = rl.save_cycle_state(a, b, cMF, ctx, 'hi_x', heads, cpl, st, res,
+                               grid={'shape': [3, 1], 'signature': 'sig'})
+    assert name == 'hi_x_lastcycle'
+    got = rl.load_run_state(str(tmp_path / name), b, ctx)
+    assert np.allclose(got['soil'], st.Ssoil_ini)
+    listed = mcfg.saved_states(str(tmp_path), b.nlay)
+    assert [s['name'] for s in listed] == [name] and listed[0]['full']
+    assert [s['name'] for s in mcfg.saved_states(
+        str(tmp_path), b.nlay, what='spinup.steady_means')] == [name]
+    rl.drop_cycle_state(a, 'hi_x', b.nlay)
+    assert os.listdir(str(tmp_path)) == []
+
+
+def test_the_loop_keeps_the_last_passed_cycle():
+    src = open(os.path.join(HERE, 'run_lamata_mf6.py'), encoding='utf-8').read()
+    loop = src[src.index('for cyc in range(ncyc):'):src.index('check = None')]
+    # a failure -- or an interruption -- names the cycle that is on disk
+    body = loop[loop.index('try:'):loop.index('prev_heads = _final_heads()')]
+    assert 'res = cpl.run(api)' in body and 'cpl.check_solution(' in body
+    assert 'except BaseException:' in body and 'raise' in body
+    # saved as it passes, but not the last cycle: the final save writes it
+    assert 'if cycle_base and cyc + 1 < ncyc:' in loop
+    assert 'save_cycle_state(' in loop
+    tail = src[src.index('check = None'):src.index('def _run_postproc')]
+    assert tail.index('drop_cycle_state(') > tail.index("mp + '_etg.asc'")
