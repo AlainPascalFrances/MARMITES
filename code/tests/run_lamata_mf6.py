@@ -1394,6 +1394,13 @@ def main():
         # marmites_lak.POND_DEPTH.
         _d = (cfg.lak.depth if cfg else None)
         b.lak_depth = None if _d is None else float(_d)
+        # the settings that stabilised CdL's perched ponds (cookbook 4.1):
+        # they were on the panel and reached nothing -- MF6 ran its own
+        # defaults, 100 iterations and a 1e-5 m stage change
+        if cfg is not None:
+            b.lak_surfdep = float(cfg.lak.surfdep)
+            b.lak_maxiter = int(cfg.lak.maxiter)
+            b.lak_stagechg = float(cfg.lak.stagechg)
     # WHERE THE RUN STARTS. The saved state when it exists and belongs to
     # this grid and layer set; the land surface otherwise. Never the
     # parameter file's array by accident -- that is how a run ends up
@@ -1414,6 +1421,9 @@ def main():
         if saved_state is not None:
             b.uzf_thti_carry = saved_state['uzf_wc']
             b.lak_strt_carry = saved_state.get('lak_stage')
+            if a.lak and b.lak_strt_carry is None:
+                print('   the state was saved without LAK: each lake starts '
+                      'from the water table under it')
         if a.steady_means:
             print('   spinup.steady_means is not used: a run from saved heads '
                   'has no steady period to drive')
@@ -1439,6 +1449,10 @@ def main():
         if b.drn_seep_lifted:
             print('   seepage: %d drain(s) lifted to 1 cm above their cell '
                   'bottom (MF6 refuses a drain below it)' % b.drn_seep_lifted)
+        if getattr(b, 'drn_seep_lake_skipped', 0):
+            print('   seepage: none in %d pond host cell(s) -- their '
+                  'groundwater reaches the pond through its bed (lak.bedleak)'
+                  % b.drn_seep_lake_skipped)
     else:
         print('   seepage: UZF SIMULATE_GWSEEP')
 

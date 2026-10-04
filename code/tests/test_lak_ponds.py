@@ -470,3 +470,80 @@ def test_a_carried_stage_for_other_ponds_is_not_used(tmp_path):
     b.lak_strt_carry = np.full(len(b0.ponds) + 3, 999.0)
     b.build()
     assert [p.strt for p in b.ponds] == pytest.approx(ref)
+
+
+def test_a_state_saved_without_lak_starts_the_lakes_from_the_water_table(
+        tmp_path, capsys):
+    """A run from the CRR state (saved with LAK off) carries an EMPTY stage
+    array: no carried stage, and the log says why rather than calling it
+    another set of ponds."""
+    make = _lamata_lak(tmp_path)
+    b0 = make('first')
+    b0.build()
+    ref = [p.strt for p in b0.ponds]
+    b = make('nolak')
+    b.verbose = True
+    b.lak_strt_carry = np.zeros(0)
+    b.build()
+    assert [p.strt for p in b.ponds] == pytest.approx(ref)
+    assert 'saved without LAK' in capsys.readouterr().out
+
+
+def test_the_lak_newton_settings_reach_the_package(tmp_path):
+    """[lak] maxiter / stagechg / surfdep were on the panel and reached
+    nothing: MF6 ran its defaults (100, 1e-5 m). Unset, they stay unwritten."""
+    make = _lamata_lak(tmp_path)
+    b0 = make('default')
+    b0.build()
+    lak0 = b0.gwf.get_package('lak')
+    assert lak0.maximum_iterations.get_data() is None
+    assert lak0.maximum_stage_change.get_data() is None
+    b = make('cdl')
+    b.lak_maxiter, b.lak_stagechg, b.lak_surfdep = 200, 1e-4, 0.07
+    b.build()
+    lak = b.gwf.get_package('lak')
+    assert lak.maximum_iterations.get_data() == 200
+    assert lak.maximum_stage_change.get_data() == pytest.approx(1e-4)
+    assert lak.surfdep.get_data() == pytest.approx(0.07)
+
+
+def test_no_seepage_drain_in_a_pond_host_cell(tmp_path):
+    """The aquifer and the pond exchange through the bed (lak.bedleak), as
+    a reach's cell has no drain because SFR takes its seepage."""
+    make = _lamata_lak(tmp_path)
+    b = make('seep')
+    b.seep = 'drn'
+    b.build()
+    hosts = {tuple(int(v) for v in p.cell) for p in b.ponds}
+    assert hosts and not hosts & set(b.drnseep_id)
+    assert b.drn_seep_lake_skipped == len(hosts)
+    assert b.ndrnseep > 0
+
+
+def test_driver_hands_the_lak_settings_over():
+    src = open(os.path.join(HERE, 'run_lamata_mf6.py'), encoding='utf-8').read()
+    for piece in ('b.lak_surfdep = float(cfg.lak.surfdep)',
+                  'b.lak_maxiter = int(cfg.lak.maxiter)',
+                  'b.lak_stagechg = float(cfg.lak.stagechg)'):
+        assert piece in src, piece
+
+
+# --------------------------------------------------- the lake figures
+def test_the_lake_readers(tmp_path):
+    import marmites_postprocess as pp
+    rows = LK.lake_table(760.0, 761.5, 900.0)
+    fn = tmp_path / 'm.lak3.tab'
+    fn.write_text('BEGIN dimensions\n  NROW %d\n  NCOL 4\nEND dimensions\n\n'
+                  'BEGIN table\n%s\nEND table\n'
+                  % (len(rows), '\n'.join(' '.join(str(v) for v in r)
+                                          for r in rows)))
+    assert pp._lake_table_file(str(fn)) == pytest.approx((760.0, 761.5))
+    (tmp_path / 'm.lak').write_text(
+        'BEGIN packagedata\n  1 760.1 1 pond1\n  2 761.0 1 pond7\n'
+        'END packagedata\n')
+    assert pp._lake_names(str(tmp_path), 'm', 2) == ['pond1', 'pond7']
+    assert pp._lake_names(str(tmp_path), 'm', 3) == ['lake 1', 'lake 2',
+                                                     'lake 3']
+    assert pp.lake_series(str(tmp_path), 'm') is None      # no stage file
+    assert pp._fig_lakes(str(tmp_path), 'm', str(tmp_path),
+                         str(tmp_path)) == []

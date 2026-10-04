@@ -169,6 +169,11 @@ class clsMF6:
         self.lak_depth = None            # per-cell pond depth map [m]
         self.lak_bedleak = 1e-3          # 1/d
         self.lak_surfdep = 0.05          # m
+        # LAK's own Newton loop (MAXIMUM_ITERATIONS, MAXIMUM_STAGE_CHANGE);
+        # None leaves MF6's defaults, 100 and 1e-5 m. CdL's perched ponds
+        # needed 200 and 1e-4 -- [lak] maxiter / stagechg on the panel.
+        self.lak_maxiter = None
+        self.lak_stagechg = None
         self.ponds = []
         self.lak_of_cell = {}            # footprint cell -> lake index
         self.lak_mvr = True              # route the stream through on-channel ponds
@@ -858,7 +863,13 @@ class clsMF6:
         carry = getattr(self, 'lak_strt_carry', None)
         if carry is not None:
             carry = np.asarray(carry, dtype=float).ravel()
-            if carry.size != len(self.ponds):
+            if carry.size == 0:
+                # a state saved by a run without LAK: no stage to carry
+                print('   LAK: the saved state has no lake stages (it was '
+                      'saved without LAK); each lake starts from the water '
+                      'table')
+                carry = None
+            elif carry.size != len(self.ponds):
                 print('   LAK: %d carried stage(s) for %d lake(s) -- not this '
                       'set of ponds; each starts from the water table'
                       % (carry.size, len(self.ponds)))
@@ -901,13 +912,18 @@ class clsMF6:
                 outlets.append([len(outlets), L, -1, 'MANNING', p.rim,
                                 float(np.sqrt(max(p.area, 1.0))), 0.035, 1e-3])
         n = len(pkg)
+        newton = {}
+        if getattr(self, 'lak_maxiter', None) is not None:
+            newton['maximum_iterations'] = int(self.lak_maxiter)
+        if getattr(self, 'lak_stagechg', None) is not None:
+            newton['maximum_stage_change'] = float(self.lak_stagechg)
         ModflowGwflak(gwf, pname='lak', boundnames=True,
                       print_stage=True, save_flows=True,
                       budget_filerecord=f'{name}.lak.cbc',
                       stage_filerecord=f'{name}.lak.stage',
                       mover=bool(outlets),
                       length_conversion=1.0, time_conversion=86400.0,
-                      surfdep=self.lak_surfdep,
+                      surfdep=self.lak_surfdep, **newton,
                       nlakes=n, noutlets=len(outlets), ntables=n,
                       packagedata=pkg, connectiondata=conn,
                       # ntables=n without `tables` writes the COUNT and not the
@@ -923,6 +939,10 @@ class clsMF6:
             print('LAK: %d EMBEDDEDV lake(s), %d on-channel, %d outlet(s); '
                   'bedleak %.3g 1/d (evaporation from the Eo forcing)'
                   % (n, non, len(outlets), self.lak_bedleak))
+            print('     surfdep %g m; LAK Newton: %s iterations, stage change '
+                  '%s m' % (self.lak_surfdep,
+                            newton.get('maximum_iterations', '100 (MF6)'),
+                            newton.get('maximum_stage_change', '1e-5 (MF6)')))
 
     def _add_mvr_package(self, gwf, name):
         """Route the stream through the on-channel ponds.
@@ -1139,8 +1159,19 @@ class clsMF6:
                 surfdep_u = float(np.ravel(np.asarray(cMF.surfdep,
                                                       dtype=float))[0])
             seep_spd, lifted, conds = [], 0, []
+            # ... and LAK in a pond's host cell, through its bed: a drain at
+            # the soil base there (100 m2/d) would carry the groundwater past
+            # the clay bed (1e-3 /d) and into the pond a day later through
+            # MMsoil, so bedleak -- the pond's calibration lever -- would no
+            # longer govern what the pond and the aquifer exchange
+            lake_hosts = {tuple(int(v) for v in p.cell)
+                          for p in (self.ponds or [])}
+            self.drn_seep_lake_skipped = 0
             for n, (i, j, k) in enumerate(self.surf_cells):
                 if (i, j) in self.sfr_cells:      # SFR handles seepage there
+                    continue
+                if (int(i), int(j)) in lake_hosts:
+                    self.drn_seep_lake_skipped += 1
                     continue
                 elev = float(self.top[i, j]) - base
                 floor = float(np.asarray(self.botm)[k, i, j]) + 0.01

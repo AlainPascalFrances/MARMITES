@@ -38,9 +38,6 @@ NOT_WIRED = {
     'sfr.source': 'the network comes from the dataset CSV',
     'lak.source': 'the run reads lak.geometry instead',
     'lak.polygons': 'no reader',
-    'lak.surfdep': 'no reader',
-    'lak.maxiter': 'no reader',
-    'lak.stagechg': 'no reader',
     'paths.nwt_reference': 'defined only',
 }
 # Not model inputs at all, or asked ahead of the work package that uses them.

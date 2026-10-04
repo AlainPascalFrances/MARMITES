@@ -406,7 +406,8 @@ def run_postproc(sim_ws, ds_ws, name='lamatamm', dates=None,
             print('   listing budget skipped: %r' % exc)
 
     # --- UZF / SFR internal budgets ----------------------------------- #
-    for pkg, cbc in (('uzf', '%s.uzf.cbc' % name), ('sfr', '%s.sfr.cbc' % name)):
+    for pkg, cbc in (('uzf', '%s.uzf.cbc' % name), ('sfr', '%s.sfr.cbc' % name),
+                     ('lak', '%s.lak.cbc' % name)):
         path = os.path.join(sim_ws, cbc)
         if not os.path.exists(path):
             continue
@@ -437,6 +438,14 @@ def run_postproc(sim_ws, ds_ws, name='lamatamm', dates=None,
     except Exception as exc:               # pragma: no cover
         if verbose:
             print('   streamflow figures skipped: %r' % exc)
+
+    # --- the ponds: stages and the LAK budget over time (WP4.8) ------- #
+    try:
+        written += _fig_lakes(sim_ws, name, ds_ws, out, dates=dates,
+                              verbose=verbose)
+    except Exception as exc:               # pragma: no cover
+        if verbose:
+            print('   lake figures skipped: %r' % exc)
 
     # NOTE: the native plotLAYER head map is produced by native_suite's
     # _native_aquifer_maps(), per layer and from an exact mean over every
@@ -765,6 +774,210 @@ def _fig_stream(sim_ws, name, ds_ws, out, mg, dates=None, verbose=True):
         if fit is not None:
             msg += '; against the gauge NSE %.2f, bias %+.0f %% (%d periods)' \
                 % (fit['nse'], fit['bias'], fit['n'])
+        print(msg)
+    return written
+
+
+def _lake_table_file(fn):
+    """(bed, rim) of one LAK stage table (``marmites_lak.lake_table``: the
+    first row is the bed, the last the rim plus a headroom row)."""
+    rows, inside = [], False
+    with open(fn) as fh:
+        for line in fh:
+            t = line.strip().upper()
+            if t.startswith('BEGIN TABLE'):
+                inside = True
+            elif t.startswith('END TABLE'):
+                break
+            elif inside and t and not t.startswith('#'):
+                rows.append(float(line.split()[0]))
+    if not rows:
+        raise ValueError('no table rows in %s' % fn)
+    return rows[0], rows[-2] if len(rows) > 1 else rows[0]
+
+
+def _lake_names(sim_ws, name, n):
+    """The boundnames of the LAK packagedata, or lake 1..n."""
+    names = []
+    fn = os.path.join(sim_ws, '%s.lak' % name)
+    if os.path.exists(fn):
+        inside = False
+        with open(fn) as fh:
+            for line in fh:
+                t = line.strip().upper()
+                if t.startswith('BEGIN PACKAGEDATA'):
+                    inside = True
+                elif t.startswith('END PACKAGEDATA'):
+                    break
+                elif inside and t and not t.startswith('#'):
+                    parts = line.split()
+                    names.append(parts[3].strip("'\"") if len(parts) > 3
+                                 else 'lake %s' % parts[0])
+    return names if len(names) == n else ['lake %d' % (k + 1) for k in range(n)]
+
+
+def lake_series(sim_ws, name):
+    """Each lake's stage at the end of every stress period, its bed and rim,
+    and the LAK budget per period [m3/d, + into the lakes, sub-step means].
+    None for a run without LAK. The steady period, if any, is dropped."""
+    import glob
+    import re
+    import flopy
+    import pandas as pd
+    sfn = os.path.join(sim_ws, '%s.lak.stage' % name)
+    if not os.path.exists(sfn):
+        return None
+    st = flopy.utils.HeadFile(sfn, text='STAGE', precision='double')
+    last = {}
+    for ks, kp in st.get_kstpkper():
+        last[kp] = ks
+    pers = sorted(last)
+    if steady_first(sim_ws, name) and len(pers) > 1:
+        pers = pers[1:]
+    stage = np.array([np.asarray(st.get_data(kstpkper=(last[p], p)),
+                                 float).ravel() for p in pers])
+    # MF6 writes a DRY lake's stage as its 1e30 no-data value
+    stage = np.where(np.abs(stage) > 1e29, np.nan, stage)
+    n = stage.shape[1]
+    tabs = sorted(glob.glob(os.path.join(sim_ws, '%s.lak*.tab' % name)),
+                  key=lambda f: int(re.findall(r'lak(\d+)\.tab$', f)[0]))
+    geo = [_lake_table_file(f) for f in tabs[:n]]
+    bed = np.array([g[0] for g in geo]) if len(geo) == n else None
+    rim = np.array([g[1] for g in geo]) if len(geo) == n else None
+    budget = None
+    cfn = os.path.join(sim_ws, '%s.lak.cbc' % name)
+    if os.path.exists(cfn):
+        cb = flopy.utils.CellBudgetFile(cfn, precision='double')
+        kk = cb.get_kstpkper()
+        t = np.asarray(cb.get_times(), float)
+        dt = np.diff(np.concatenate([[0.0], t]))
+        terms = [r.decode().strip() if isinstance(r, bytes) else r.strip()
+                 for r in cb.get_unique_record_names()]
+        terms = [r for r in terms if r != 'FLOW-JA-FACE']
+        rate = {r: np.zeros(len(pers)) for r in terms}
+        span = np.zeros(len(pers))
+        where = {p: k for k, p in enumerate(pers)}
+        for i, (ks, kp) in enumerate(kk):
+            if kp not in where:
+                continue
+            k = where[kp]
+            span[k] += dt[i]
+            for r in terms:
+                d = cb.get_data(kstpkper=(ks, kp), text=r)
+                if d:
+                    rate[r][k] += float(np.sum(d[0]['q'])) * dt[i]
+        span = np.where(span > 0, span, 1.0)
+        budget = pd.DataFrame({r: v / span for r, v in rate.items()})
+    return {'periods': pers, 'stage': stage, 'bed': bed, 'rim': rim,
+            'names': _lake_names(sim_ws, name, n), 'budget': budget}
+
+
+def _fig_lakes(sim_ws, name, ds_ws, out, dates=None, verbose=True):
+    """The ponds (WP4.8): each lake's stage against its bed and rim, and
+    the LAK budget over time. Nothing for a run without LAK."""
+    import matplotlib.pyplot as plt
+    import pandas as pd
+    ls = lake_series(sim_ws, name)
+    if ls is None:
+        return []
+    written = []
+    stage, n = ls['stage'], ls['stage'].shape[1]
+    nper = stage.shape[0]
+    if dates is None or len(dates) < nper:
+        dates = _dates_from_dataset(ds_ws, nper)
+    is_dt = isinstance(dates, pd.DatetimeIndex)
+    x = pd.DatetimeIndex(dates[:nper]) if is_dt else np.arange(nper)
+    tab = pd.DataFrame(stage, index=x, columns=ls['names'])
+    fn = os.path.join(out, 'lake_stage.csv')
+    tab.to_csv(fn, index_label='date' if is_dt else 'period')
+    written.append(fn)
+
+    ncol = min(4, n)
+    nrow = int(np.ceil(n / float(ncol)))
+    fig, axes = plt.subplots(nrow, ncol, figsize=(3.6 * ncol, 2.4 * nrow),
+                             sharex=True, squeeze=False)
+    for L in range(nrow * ncol):
+        ax = axes.flat[L]
+        if L >= n:
+            ax.set_visible(False)
+            continue
+        ax.plot(x, stage[:, L], color='tab:blue', lw=1.0)
+        title = ls['names'][L]
+        if ls['bed'] is not None:
+            ax.axhline(ls['bed'][L], color='saddlebrown', lw=0.8, ls='--')
+            ax.axhline(ls['rim'][L], color='k', lw=0.8, ls=':')
+            d = np.nan_to_num(stage[:, L] - ls['bed'][L], nan=0.0)
+            title += ': %.2f-%.2f m deep, rim %.2f m' % (
+                d.min(), d.max(), ls['rim'][L] - ls['bed'][L])
+            if np.isnan(stage[:, L]).any():
+                title += ', dry %d period(s)' % int(np.isnan(stage[:, L]).sum())
+        ax.set_title(title, fontsize=8)
+        ax.tick_params(labelsize=7)
+        ax.grid(alpha=0.3)
+        if is_dt:
+            for lab in ax.get_xticklabels():
+                lab.set_rotation(45)
+                lab.set_ha('right')
+    fig.suptitle('Lake stages (LAK) [m]: dashed the bed, dotted the rim (the '
+                 'outlet sill)', fontsize=10)
+    fig.tight_layout()
+    fn = os.path.join(out, 'lake_stage.png')
+    fig.savefig(fn, dpi=140, bbox_inches='tight')
+    plt.close(fig)
+    written.append(fn)
+
+    bud = ls['budget']
+    if bud is not None and len(bud):
+        bud.index = x
+        fn = os.path.join(out, 'budget_lak_period.csv')
+        bud.to_csv(fn, index_label='date' if is_dt else 'period')
+        written.append(fn)
+        by, unit = bud, 'm$^3$/d, per stress period'
+        if is_dt and nper > 62:
+            by = bud.groupby(x.to_period('M')).mean()
+            by.index = by.index.to_timestamp()
+            unit = 'm$^3$/d, monthly mean'
+        cmap = plt.get_cmap('tab10')
+        fig, ax = plt.subplots(figsize=(11, 5))
+        xb = np.arange(len(by))
+        pos = np.zeros(len(by))
+        neg = np.zeros(len(by))
+        for c, term in enumerate(by.columns):
+            v = by[term].to_numpy()
+            up, dn = np.where(v > 0, v, 0.0), np.where(v < 0, v, 0.0)
+            ax.bar(xb, up, bottom=pos, width=0.85, color=cmap(c % 10),
+                   label='%s  (%+.1f m$^3$/d)' % (term, bud[term].mean()))
+            ax.bar(xb, dn, bottom=neg, width=0.85, color=cmap(c % 10))
+            pos += up
+            neg += dn
+        ax.plot(xb, by.sum(axis=1).to_numpy(), color='k', lw=0.8, marker='.',
+                ms=3, label='closure (sum of the terms)')
+        ax.axhline(0, color='k', lw=0.5)
+        ax.set_ylabel(unit)
+        if is_dt:
+            ix = np.unique(np.linspace(0, len(by) - 1,
+                                       min(len(by), 12)).astype(int))
+            ax.set_xticks(ix)
+            ax.set_xticklabels([by.index[i].strftime('%Y-%m') for i in ix],
+                               rotation=45, ha='right', fontsize=8)
+        ax.set_title('Lake budget (LAK, all %d lakes): + into the lakes, - out '
+                     'of them (STORAGE - = the lakes filling)' % n, fontsize=10)
+        ax.legend(fontsize=8, loc='best')
+        ax.grid(alpha=0.3, axis='y')
+        fn = os.path.join(out, 'budget_lak_ts.png')
+        fig.savefig(fn, dpi=140, bbox_inches='tight')
+        plt.close(fig)
+        written.append(fn)
+    if verbose:
+        msg = '   lakes: %d' % n
+        if ls['bed'] is not None:
+            d = np.nan_to_num(stage - ls['bed'][None, :], nan=0.0)
+            msg += ('; depth above the bed %.2f..%.2f m, %d of them dry at '
+                    'some point' % (d.min(), d.max(),
+                                    int(np.sum(d.min(axis=0) < 0.01))))
+        if bud is not None and len(bud):
+            msg += '; budget (m3/d, + in): ' + ', '.join(
+                '%s %+.1f' % (t, bud[t].mean()) for t in bud.columns)
         print(msg)
     return written
 

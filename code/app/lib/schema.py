@@ -846,7 +846,8 @@ FIELDS = {
                   'its footprint + this. The rim is the land surface.'),
     'lak.bedleak': ('Lakebed leakance', '1/d', 'Clay-lined charca: 1e-3.'),
     'lak.surfdep': ('Surface depression depth', 'm',
-                    'Smooths the wetted area as the pond dries.'),
+                    'flopy: ModflowGwflak `surfdep`. Smooths the wetted area '
+                    'as the pond dries.'),
     'crr.enable': ('Runoff cascade (CRR)', _U,
                    'Routes runoff downslope cell to cell (Daoud et al. 2022): '
                    'onto a lower soil column it reinfiltrates by the same '
@@ -988,8 +989,14 @@ FIELDS = {
                      'TABLE is not enough: it needs the footprint.'),
     'lak.polygons': ('Pond layer', _U,
                      'In DATA_ROOT/GIS, read by the converter only.'),
-    'lak.maxiter': ('LAK Newton iterations', 'count', ''),
-    'lak.stagechg': ('LAK stage tolerance', 'm', ''),
+    'lak.maxiter': ('LAK Newton iterations', 'count',
+                    'flopy: ModflowGwflak `maximum_iterations` -- the lake '
+                    'stage\'s own Newton loop. MF6 default 100; CdL\'s perched '
+                    'ponds needed 200.'),
+    'lak.stagechg': ('LAK stage tolerance', 'm',
+                     'flopy: ModflowGwflak `maximum_stage_change` -- when the '
+                     'lake stage counts as converged. MF6 default 1e-5 m; '
+                     'CdL used 1e-4.'),
     'crr.sinks': ('Topographic sinks', _U,
                   'A soil cell with no lower neighbour. evaporate: its runoff '
                   'evaporates there (Daoud\'s convention). route: it goes to '
