@@ -79,10 +79,25 @@ def load_new(ws, mode):
         for k in ('wb_ts', 'wb_map', 'wb_ts_soil', 'wb_map_soil',
                   'cell_area', 'grid_shape'):
             d[k] = h[k][:] if k in h else None
+        # what outer_iters counts: MF6's own step exposes only its LINEAR
+        # solves (the coupler's res['iters_kind']); older runs: outer
+        _kind = h['iters_kind'][()] if 'iters_kind' in h else b'outer'
+        d['iters_kind'] = (_kind.decode() if isinstance(_kind, bytes)
+                           else str(_kind))
     # written by the runner and never read: every map then fell back to
     # "grid size inferred from active cells" (7 warnings a run)
     if d['grid_shape'] is None:
         del d['grid_shape']
+    # WP5: with the CRR cascade a cell's runoff includes the run-on of the
+    # cells above it, counted again at every cell it crosses (2026-10-04:
+    # "Ro 125.4" against 33 that left the soil). NET of the run-on, Ro is
+    # what left the soil surface for good -- the NWT reference's meaning,
+    # which routed nothing -- and the same as the Sankey's.
+    ro, ron = INDEX_MM['iRo'], INDEX_MM['iRunon']
+    for k in ('wb_ts', 'wb_map'):
+        v = d.get(k)
+        if v is not None and v.shape[-1] > ron:
+            v[..., ro] = v[..., ro] - v[..., ron]
     d['_ws'] = ws
     return d
 
@@ -389,8 +404,9 @@ def write_summary(labels, newv, refv, ws, new):
         lines.append('-' * 26)
         for lab, a in zip(labels, newv):
             lines.append('%-10s %12.1f' % (lab, a))
-    lines += ['', 'MF6 outer iterations: mean %.1f, max %d'
-              % (new['outer_iters'].mean(), new['outer_iters'].max())]
+    lines += ['', 'MF6 %s iterations per stress period: mean %.1f, max %d'
+              % (new.get('iters_kind', 'outer'), new['outer_iters'].mean(),
+                 new['outer_iters'].max())]
     # area-weighted: a plain mean over mesh cells is the stream corridor's
     w = new.get('cell_area')
     rej = (float(np.average(new['rejinf'], axis=1, weights=w).mean())

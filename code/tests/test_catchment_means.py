@@ -120,3 +120,38 @@ def test_the_remapped_colour_map_is_not_re_registered():
     nxt = body.find('\n    def ', 10)          # the last method of its class
     body = body if nxt < 0 else body[:nxt]
     assert 'colormaps.register' not in body and 'register_cmap' not in body
+
+
+def test_the_nwt_comparison_takes_runoff_net_of_the_cascade(tmp_path):
+    """2026-10-04: with CRR the table read 'Ro 125.4' -- the cascade's
+    run-on counted again at every cell it crossed -- against 33.4 mm/yr
+    that left the soil surface. The loader nets it out; a run without the
+    column (older) is read as it was."""
+    import importlib.util
+    import h5py
+    from marmites_indices import INDEX_MM
+    spec = importlib.util.spec_from_file_location(
+        '_pwb_net', os.path.join(HERE, 'plot_water_budget.py'))
+    pwb = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(pwb)
+    n = len(INDEX_MM)
+    ts = np.zeros((3, n))
+    ts[:, INDEX_MM['iRo']] = 5.0
+    ts[:, INDEX_MM['iRunon']] = 3.0
+    with h5py.File(str(tmp_path / '_coupled_lagged.h5'), 'w') as f:
+        for k in ('heads', 'perc', 'etg', 'exf', 'rejinf'):
+            f.create_dataset(k, data=np.zeros((3, 2)))
+        f.create_dataset('outer_iters', data=np.ones(3, int))
+        f.create_dataset('cell_ij', data=np.zeros((2, 2), int))
+        f.create_dataset('wb_ts', data=ts)
+        f.create_dataset('wb_map', data=np.zeros((2, n)))
+        f.create_dataset('iters_kind', data='linear')
+    d = pwb.load_new(str(tmp_path), 'lagged')
+    assert np.allclose(d['wb_ts'][:, INDEX_MM['iRo']], 2.0)
+    assert d['iters_kind'] == 'linear'
+    old = ts[:, :INDEX_MM['iRunon']]
+    with h5py.File(str(tmp_path / '_coupled_lagged.h5'), 'r+') as f:
+        del f['wb_ts']
+        f.create_dataset('wb_ts', data=old)
+    assert np.allclose(pwb.load_new(str(tmp_path), 'lagged')['wb_ts'][
+        :, INDEX_MM['iRo']], 5.0)
