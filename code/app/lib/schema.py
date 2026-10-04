@@ -495,6 +495,17 @@ FIELDS = {
                        'Crown polygons. The share of each cell covered is an '
                        'exact area overlay, so a cell 37 % covered gets 37.'),
     'soil.veg_column': ('Vegetation class column', _U, ''),
+    'soil.irr_infiltration': ('Irrigation infiltration', _U,
+                              'On the irrigated fields (the irrigation zones '
+                              'of Surface and driving forces). top: the '
+                              'irrigation enters the '
+                              'top horizon only, by the same law as rain -- a '
+                              'day\'s water at once, so what that horizon '
+                              'cannot hold runs off. column: sprinklers -- '
+                              'what the top horizon cannot take fills the '
+                              'horizons below, top-down, before any runs '
+                              'off. Rain keeps the top-horizon law either '
+                              'way.'),
     'obs.table': ('Observation points', _U,
                   'Name, x, y, layer and the initial head. "##" before a name '
                   'means the point is not drawn on the maps.'),
@@ -1058,6 +1069,7 @@ CHOICES = {
                                       'amt-hmk'],
     'postproc.wb_unit': lambda: ['year', 'day'],
     'crr.sinks': lambda: ['evaporate', 'route'],
+    'soil.irr_infiltration': lambda: ['top', 'column'],
     'ui.execution': lambda: ['local', 'server'],
 }
 
@@ -1289,6 +1301,7 @@ SURFACE_ON_PLOTS = ('surface.plot',)
 SOIL_ROWS = (
     ('soil.zones', None),
     ('soil.thickness', None),
+    ('soil.irr_infiltration', None),
 )
 SOIL_VEG_ROWS = (
     ('soil.veg_layer', 'soil.veg_column'),

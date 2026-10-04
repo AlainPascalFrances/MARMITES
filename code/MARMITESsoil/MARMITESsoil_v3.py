@@ -209,7 +209,7 @@ class clsMMsoil:
              HEADSini, TopSoilLay, BotSoilLay, Tl, nsl, Sm, Sfc, Sr, Ks,
              Ssoil_ini, EXF_ini, dgwt, st, i, j, n,
              kTg_min, kTg_max, kT_f, kT_s, NVEG, LAIveg, REJINF_ini=0.0,
-             ETUZF_prev=0.0, RUNON=0.0):
+             ETUZF_prev=0.0, RUNON=0.0, IRR=0.0):
         """Soil water balance of one cell for one stress period.
 
         All storages in mm, all fluxes in mm/d. PT and LAIveg are 1-D
@@ -263,6 +263,19 @@ class clsMMsoil:
             untouched (cookbook D4). The REINFILTRATION -- returned last --
             is the part of the run-on the soil took: the capacity the cell's
             own water left, at most the run-on.
+
+        IRR : the SPRINKLER IRRIGATION in Pe [mm over the step, per unit of
+            soil area], when soil.irr_infiltration = 'column'; 0 otherwise.
+            Sprinklers run for hours at a rate the soil absorbs and the water
+            soaks down the column within the day, but Eq. 1b, applied once a
+            day, lets it into the TOP horizon only: 2026-10-04, 25 mm on a
+            La Mata field whose top horizon had ~19 mm of room ran off as a
+            stream pulse. So the irrigation the top horizon cannot take fills
+            the horizons below, top-down, each up to saturation -- the mirror
+            of the upward saturation-excess cascade -- before any of it runs
+            off. Rain, exfiltration and run-on keep Eq. 1b. Booked as
+            infiltration (I) and as percolation between the horizons it
+            crosses (Rp), so every layer's balance still closes.
         """
 
         if EXF_ini < 0.0:
@@ -316,14 +329,29 @@ class clsMMsoil:
             # excess reaching the surface
             Ssurf_tmp += Rexf_tmp[0] * perlen
 
+        IRR = float(IRR)
+
+        def _taken(surf):
+            """What the soil takes of ``surf`` [mm]: Eq. 1b into the top
+            horizon, then the irrigation in the excess into those below."""
+            room0 = Sm[0] * Tl[0] - Ssoil_tmp[0]
+            took = room0 if surf > room0 else surf
+            down = min(surf - took, IRR) if IRR > 0.0 else 0.0
+            for l in range(1, nsl):
+                if down <= 0.0:
+                    break
+                t = min(down, max(Sm[l] * Tl[l] - Ssoil_tmp[l], 0.0))
+                took += t
+                down -= t
+            return took
+
         # RUN-ON from upslope (WP5 CRR): on top of the cell's own water, so
-        # the reinfiltration is the capacity that water leaves
+        # the reinfiltration is what the soil takes beyond that water
         REinf = 0.0
         if RUNON > 0.0:
-            REinf = min(RUNON * perlen,
-                        max(Sm[0] * Tl[0] - Ssoil_tmp[0] - Ssurf_tmp, 0.0))
+            own = Ssurf_tmp
             Ssurf_tmp += RUNON * perlen
-            REinf /= perlen
+            REinf = (_taken(Ssurf_tmp) - _taken(own)) / perlen
 
         # INFILTRATION I into the first soil layer
         if Ssurf_tmp > (Sm[0] * Tl[0] - Ssoil_tmp[0]):
@@ -346,6 +374,24 @@ class clsMMsoil:
                     SAT[l] = True
                 else:
                     break
+
+        # SPRINKLER IRRIGATION DOWN THE COLUMN (see IRR): what of it the top
+        # horizon could not take fills the horizons below, top-down. After
+        # the SAT flags, which stay "saturated from below".
+        Rcas = None
+        if IRR > 0.0 and Ssurf_tmp > 0.0:
+            down = min(Ssurf_tmp, IRR)
+            Rcas = np.zeros(nsl, dtype=np.float64)
+            for l in range(1, nsl):
+                if down <= 0.0:
+                    break
+                t = min(down, max(Sm[l] * Tl[l] - Ssoil_tmp[l], 0.0))
+                Ssoil_tmp[l] += t
+                Rcas[:l] += t          # it crossed every horizon above l
+                down -= t
+            Ssurf_tmp -= Rcas[0]
+            I += Rcas[0] / perlen
+            Rcas /= perlen
 
         # RUNOFF. Whatever the soil could not take leaves the cell in the
         # same step; SFR and LAK receive it and evaporate it (WP1d).
@@ -396,6 +442,12 @@ class clsMMsoil:
                 Rp_tmp[l] = self._perc(Ssoil_tmp[l], Sm[l] * Tl[l],
                                        Sfc[l] * Tl[l], Ks[l], perlen)
             Ssoil_tmp[l] -= Rp_tmp[l] * perlen
+
+        if Rcas is not None:
+            # the sprinkler water that went down crossed the horizons above
+            # where it stopped: percolation in each layer's balance (already
+            # moved, so only booked here; never below the bottom horizon)
+            Rp_tmp[:nsl - 1] += Rcas[:nsl - 1]
 
         Ssoil_pc_tmp[:] = Ssoil_tmp / Tl[:nsl]
 
@@ -704,6 +756,17 @@ class clsMMsoil:
                 SOILarea -= VEGarea_tmp[v]
         Pe_tot += P_tmp * SOILarea * 0.01
         INTER_tot = P_tmp - Pe_tot
+        # SPRINKLER IRRIGATION down the whole column (soil.irr_infiltration =
+        # 'column', ctx.irr_column): an irrigated cell's input is rain AND
+        # irrigation (MMsurf adds them), its zone's plain series the rain, so
+        # the irrigation is the difference -- its share of what reaches the
+        # soil, interception shared pro rata
+        irr_col = 0.0
+        if CROP_tmp is not None and getattr(ctx, 'irr_column', False) \
+                and P_tmp > 0.0:
+            rain = float(ctx.P_veg_zoneSP[METEOzone_tmp][tstart_MF])
+            if P_tmp > rain:
+                irr_col = Pe_tot * (P_tmp - rain) / P_tmp
         PE_tot = PE_zonesSP_tmp * SOILarea * 0.01
         # A TYPE THE DEMAND DOES NOT COUNT TRANSPIRES NOTHING. Dormant (LAI
         # <= 1e-5: La Mata's grass 101 days a year, lai_dry = 0) its PT is
@@ -745,7 +808,7 @@ class clsMMsoil:
                         exf_MF_ini_tmp, dgwt, st, i, j, n,
                         kTg_min_tmp, kTg_max_tmp, kT_f_tmp, kT_s_tmp,
                         NVEG_tmp, LAIveg_tmp, REJINF_ini=col_rej,
-                        ETUZF_prev=col_etuzf, RUNON=col_runon)
+                        ETUZF_prev=col_etuzf, RUNON=col_runon, IRR=irr_col)
         Ssoil_pc_tot = float(np.sum(Ssoil_pc_tmp)) / nsl
         perc = Rp_tmp[-1]
         ETg = Eg_tmp + Tg_tmp

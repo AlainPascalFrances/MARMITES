@@ -1218,7 +1218,8 @@ def test_the_soil_and_the_vegetation_are_separate_subjects(cfg):
     veg = [d for row in schema.SOIL_VEG_ROWS for d in row if d]
     # soil.params is gone: the column is [[soil.zone]] / [[soil.horizon]],
     # edited as tables rather than laid out as a field.
-    assert soil == ['soil.zones', 'soil.thickness']
+    # how the irrigated fields' water enters the soil is a soil question
+    assert soil == ['soil.zones', 'soil.thickness', 'soil.irr_infiltration']
     assert veg == ['soil.veg_layer', 'soil.veg_column']
     assert not set(soil) & set(veg), 'a field is on both sub-panels'
     for dotted in soil + veg:

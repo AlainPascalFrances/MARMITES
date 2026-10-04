@@ -1170,6 +1170,8 @@ def _args_from_config(cfg, probe=False):
         sfr=cfg.sfr.enable,
         sfr_rhk=(cfg.sfr.rhk.value if cfg.sfr.rhk.value is not None else 0.1),
         lak=lak_source, lak_bedleak=cfg.lak.bedleak,
+        # sprinkler irrigation down the whole soil column (2026-10-04)
+        irr_column=(cfg.soil.irr_infiltration == 'column'),
         # WP5, the runoff cascade
         crr=bool(cfg.crr.enable), crr_beta=float(cfg.crr.beta),
         crr_sinks=str(cfg.crr.sinks), crr_dem=_or_none(cfg.crr.dem),
@@ -1287,6 +1289,15 @@ def main():
     cMF, mm, ctx, state, top, botm, conv_fact = setup_lamata(
         daily=a.daily, nsp=a.nsp, grid=a.grid, nlay=a.nlay,
         cfg=cfg, mesh_ws=os.path.join(a.ws, '_mesh'))
+    # how the irrigated fields' irrigation enters the soil (MMsoil reads it)
+    ctx.irr_column = bool(getattr(a, 'irr_column', False))
+    _irr = getattr(ctx, 'gridIRR', None)
+    _n_irr = (0 if _irr is None else
+              sum(1 for c in ctx.cells if int(_irr[c[1], c[2]]) > 0))
+    print('irrigation: %d irrigated cell(s); the irrigation enters %s -- from '
+          'the panel' % (_n_irr, 'the whole soil column, top-down (sprinklers)'
+                         if ctx.irr_column else
+                         'the top horizon only, like rain'))
     if a.postproc_only:
         # Re-draw the figures from a run that already happened: everything the
         # post-processing reads is on disk (the coupled HDF5 for the MM side,

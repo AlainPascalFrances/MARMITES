@@ -1309,6 +1309,11 @@ class Soil:
     veg_layer: str = 'lm_veg.shp'
     veg_column: str = 'Species'
     veg_class: list = field(default_factory=list)     # VegetationClass
+    # How the irrigation of the irrigated fields (surface.irr_zones) enters
+    # the soil: 'top' -- Eq. 1b, the top horizon only, like rain (legacy);
+    # 'column' -- sprinklers: what the top horizon cannot take fills the
+    # horizons below before any runs off (2026-10-04).
+    irr_infiltration: str = 'top'
 
     _ELEMENTS = {'veg_class': VegetationClass, 'zone': SoilZone,
                  'horizon': SoilHorizon}
@@ -1907,6 +1912,8 @@ class RunConfig:
             errs.append('crr.beta must be in (0, 1]')
         if self.crr.sinks not in ('evaporate', 'route'):
             errs.append("crr.sinks must be 'evaporate' or 'route'")
+        if self.soil.irr_infiltration not in ('top', 'column'):
+            errs.append("soil.irr_infiltration must be 'top' or 'column'")
         if self.ui.execution not in ('local', 'server'):
             errs.append("ui.execution must be 'local' or 'server'")
         for name in ('width', 'depth', 'manning', 'rhk', 'rbth'):
