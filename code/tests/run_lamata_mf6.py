@@ -1384,6 +1384,14 @@ def main():
                 b.sfr_man = float(cfg.sfr.manning.value)
             if cfg.sfr.rbth.value is not None:
                 b.sfr_rbth = float(cfg.sfr.rbth.value)
+            # A single panel VALUE is the value on every segment, whatever
+            # the converted table still holds: Launch re-converts when a
+            # shapefile changes, not when a panel number does
+            b.sfr_param_fixed = {
+                key: float(src.value)
+                for key, src in (('manning', cfg.sfr.manning),
+                                 ('rhk', cfg.sfr.rhk), ('rbth', cfg.sfr.rbth))
+                if src.producer() == 'value'}
     if a.lak:
         shp = a.lak if os.path.isabs(a.lak) else os.path.join(DS, a.lak)
         b.lak_shapefile = shp

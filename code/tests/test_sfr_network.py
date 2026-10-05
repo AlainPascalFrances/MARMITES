@@ -240,3 +240,38 @@ def test_lamata_reach_attributes_are_physical():
     assert min(net.reach_slope) > 0
     assert 700.0 < min(net.reach_top) < max(net.reach_top) < 850.0
     assert len(net.packagedata) == len(net.connectiondata) == 244
+
+
+# ------------------------------- a panel VALUE is the value (2026-10-05)
+def test_a_panel_value_wins_over_the_converted_table(capsys):
+    """sfr.rbth set to 0.2 m kept reading the converted table's 0.5 m:
+    Launch re-converts when a shapefile changes, not when a panel number
+    does. A 'value' producer is now the value on every segment; a
+    per-segment producer still comes from the table."""
+    from types import SimpleNamespace
+    mf6 = _load('marmites_mf6_segval', os.path.join(TRUNK, 'ppMF6',
+                                                    'marmites_mf6.py'))
+    seg = np.array([[0, 1], [1, 0]])
+    b = SimpleNamespace(sfr_seg_of_cell=seg,
+                        sfr_seg_params={0: {'rbth': '0.5', 'rhk': '0.1'},
+                                        1: {'rbth': '0.5', 'rhk': '0.3'}},
+                        sfr_pondw=np.ones((2, 2)), verbose=True,
+                        sfr_param_fixed={'rbth': 0.2})
+    f = mf6.clsMF6._segment_values
+    assert f(b, 'rbth', 0.5) == 0.2
+    assert "panel's 0.2 replaces the converted table's 0.5" in \
+        capsys.readouterr().out
+    # not fixed: per segment from the table, as before
+    assert f(b, 'rhk', 0.1).tolist() == [[0.1, 0.3], [0.3, 0.1]]
+    # the same number in both: silent, and the same value
+    b.sfr_param_fixed = {'rbth': 0.5}
+    assert f(b, 'rbth', 0.5) == 0.5
+    assert capsys.readouterr().out == ''
+
+
+def test_the_driver_fixes_only_value_producers():
+    src = open(os.path.join(HERE, 'run_lamata_mf6.py'), encoding='utf-8').read()
+    assert "if src.producer() == 'value'}" in src
+    for k in ("('manning', cfg.sfr.manning)", "('rhk', cfg.sfr.rhk)",
+              "('rbth', cfg.sfr.rbth)"):
+        assert k in src

@@ -548,7 +548,30 @@ class clsMF6:
     def _segment_values(self, key, default):
         """Per stream cell, the converter's per-segment ``key`` (manning,
         rhk, rbth in inputSTREAM_param.csv) -- or ``default`` everywhere
-        when there is no table or no such column."""
+        when there is no table or no such column.
+
+        A panel VALUE (``sfr_param_fixed``, set by the driver for a 'value'
+        producer) is the value everywhere. The converter only copies it into
+        the table, and Launch re-converts when a SHAPEFILE changes, not a
+        panel number -- so a streambed thickness set to 0.2 m kept reading
+        the table's 0.5 m, silently (2026-10-05). Per-segment producers
+        (a column, a raster) still come from the table.
+        """
+        fixed = (getattr(self, 'sfr_param_fixed', None) or {}).get(key)
+        if fixed is not None:
+            was = set()
+            for r in (self.sfr_seg_params or {}).values():
+                try:
+                    was.add(float(r[key]))
+                except (KeyError, TypeError, ValueError):
+                    pass
+            was = sorted(was)
+            if was and was != [float(fixed)] and getattr(self, 'verbose',
+                                                        True):
+                print('   SFR %s: the panel\'s %g replaces the converted '
+                      'table\'s %s (converted before the panel changed)'
+                      % (key, float(fixed), '/'.join('%g' % v for v in was)))
+            return float(fixed)
         seg, par = self.sfr_seg_of_cell, self.sfr_seg_params
         if seg is None or not par:
             return default
