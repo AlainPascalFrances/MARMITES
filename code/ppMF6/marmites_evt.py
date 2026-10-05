@@ -68,7 +68,10 @@ def _pad(x, y, nseg):
     x, y = x[keep], y[keep]
     o = np.argsort(x)
     x, y = x[o], y[o]
-    u = np.r_[True, np.diff(x) > _EPS]
+    # no inner point at all is a valid curve -- one type whose root tip is
+    # within its ramp of the start-of-day head: a straight line (2026-10-05)
+    u = np.ones(x.size, dtype=bool)
+    u[1:] = np.diff(x) > _EPS
     x, y = x[u], y[u]
     if x.size > nseg - 1:
         raise ValueError('%d breakpoints need nseg >= %d (et.evt_nseg)'

@@ -273,3 +273,36 @@ def test_the_builder_makes_two_evt_packages_in_cell_order(tmp_path):
     b2.lak_shapefile = None
     b2.build()
     assert b2.evt_packages == [] and b2.gwf.get_package('evt_eg') is None
+
+
+def test_a_root_tip_within_the_ramp_of_the_head_is_a_straight_line():
+    """2026-10-05, the first EVT run: one type reaching the table, its tip
+    0.05 m below the start-of-day head -- no inner breakpoint at all, and
+    the curve builder failed on the empty array."""
+    s, R, D, x, y = me.tg_curve([0.0, 0.002, 0.0], [700.0, 799.95, 700.0],
+                                800.0, 0.1, 8)
+    assert R == pytest.approx(0.002) and D == pytest.approx(0.05)
+    assert x.size == y.size == 7
+    assert np.all(np.diff(x) > 0) and np.all(np.diff(y) <= 0)
+    assert y == pytest.approx(1.0 - x)                 # a straight ramp
+    # and the same for Eg: a head right at the extinction depth's edge
+    s, R, D, x, y = me.eg_curve(0.002, 800.0, 790.0001, SANDY_LOAM_FIELD, 8)
+    assert x.size == 7 and np.all(np.diff(x) > 0)
+
+
+@pytest.mark.parametrize('seed', range(5))
+def test_any_cell_gets_a_valid_curve(seed):
+    """Random heads, tips and rates around La Mata's: never an error, always
+    nseg - 1 strictly increasing depths and non-increasing fractions."""
+    rng = np.random.default_rng(seed)
+    for _ in range(400):
+        land = 800.0
+        h0 = land - rng.uniform(-0.5, 12.0)
+        tips = land - rng.uniform(0.0, 16.0, 3)
+        rates = rng.choice([0.0, 1e-4, 1e-3], 3)
+        for s, R, D, x, y in (me.tg_curve(rates, tips, h0, 0.1, 8),
+                              me.eg_curve(rng.uniform(0, 3e-3), land, h0,
+                                          SANDY_LOAM_FIELD, 8)):
+            assert x.size == y.size == 7 and D > 0
+            assert np.all(np.diff(x) > 0) and np.all((x > 0) & (x < 1))
+            assert np.all(np.diff(y) <= 1e-15) and np.all((y >= 0) & (y <= 1))
