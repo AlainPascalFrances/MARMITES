@@ -253,6 +253,45 @@ def _subsample(seq, max_samples):
     return [seq[i] for i in sorted(set(idx))]
 
 
+def period_steps(times, kk, steady=False):
+    """Group a binary output's records into its STRESS PERIODS.
+
+    ``times`` and ``kk`` are the file's record times [d] and (kstp, kper),
+    one per record (flopy ``get_times`` / ``get_kstpkper``). MF6 saves a
+    record at every TIME STEP, and adaptive time stepping cuts a period into
+    as many as it needs -- 1354 records for 365 periods on 2026-10-05 -- so
+    reading the last nper records as nper periods shifted every series in
+    time (the CdL trap, cookbook WP6.4). Returns one list per stress period,
+    in order, of (record index, weight), the weights the steps' shares of
+    the period (summing to 1): a RATE is the period's time-weighted mean, a
+    STATE its LAST record. The steady first period is left out when
+    ``steady``.
+    """
+    t = np.asarray(times, dtype=float).ravel()
+    kp = np.array([int(k[1]) for k in kk])
+    dt = np.diff(np.r_[0.0, t])
+    groups = {}
+    for i, per in enumerate(kp):
+        groups.setdefault(int(per), []).append(i)
+    pers = sorted(groups)
+    if steady and len(pers) > 1:
+        pers = pers[1:]
+    out = []
+    for per in pers:
+        idx = groups[per]
+        w = dt[idx]
+        tot = float(w.sum())
+        w = w / tot if tot > 0 else np.full(len(idx), 1.0 / len(idx))
+        out.append([(int(i), float(x)) for i, x in zip(idx, w)])
+    return out
+
+
+def period_end_kk(hds, steady=False):
+    """The (kstp, kper) of the LAST step of every stress period."""
+    kk = hds.get_kstpkper()
+    return [kk[g[-1][0]] for g in period_steps(hds.get_times(), kk, steady)]
+
+
 def package_budget(sim_ws, cbc_fn, kperkstp_skip=None, max_samples=120):
     """Mean rate [m3/d] of each budget term in a package .cbc file.
 
@@ -268,11 +307,16 @@ def package_budget(sim_ws, cbc_fn, kperkstp_skip=None, max_samples=120):
     records = [r.strip().decode() if isinstance(r, bytes) else str(r).strip()
                for r in cbc.get_unique_record_names()]
     kk = cbc.get_kstpkper()
+    # each record weighted by its STEP LENGTH: under ATS a hard day leaves
+    # dozens of short steps, and counting each as much as a whole day pulled
+    # the "mean rate" toward those days
+    dt = dict(zip(kk, np.diff(np.r_[0.0, np.asarray(cbc.get_times(),
+                                                   dtype=float)])))
     keep = _subsample([k for k in kk if k[1] >= kperkstp_skip] or kk, max_samples)
     out = {}
     for rec in records:
         tot = 0.0
-        n = 0
+        n = 0.0
         for k in keep:
             try:
                 data = cbc.get_data(kstpkper=k, text=rec)
@@ -283,8 +327,9 @@ def package_budget(sim_ws, cbc_fn, kperkstp_skip=None, max_samples=120):
             arr = data[0]
             val = arr['q'].sum() if hasattr(arr, 'dtype') and arr.dtype.names and 'q' in arr.dtype.names \
                 else np.asarray(arr, dtype=float).sum()
-            tot += float(val)
-            n += 1
+            w = float(dt.get(k, 1.0)) or 1.0
+            tot += float(val) * w
+            n += w
         if n:
             out[rec] = tot / n
     return out
@@ -360,9 +405,9 @@ def run_postproc(sim_ws, ds_ws, name='lamatamm', dates=None,
     top = np.asarray(mg.top, dtype=float).reshape(nrow, ncol)
 
     hds = flopy.utils.HeadFile(os.path.join(sim_ws, '%s.hds' % name))
-    kk = hds.get_kstpkper()
-    kk_real = ([k for k in kk if k[1] >= 1] or kk      # drop steady state
-               if steady_first(sim_ws, name) else list(kk))
+    # THE END OF EVERY STRESS PERIOD, not every saved step: ATS saves one
+    # per time step (period_steps)
+    kk_real = period_end_kk(hds, steady=steady_first(sim_ws, name))
     # the mean map is taken over an even subsample; the obs series keeps the
     # full record (one cell, cheap) via _obs_series_from_hds
     kk_map = _subsample(kk_real, 200)
@@ -1917,8 +1962,11 @@ def _aquifer_pass(sim_ws, name, cMF, targets, nper, cache_dir=None,
     st = os.stat(cbc_fn)
     # the RECORDS read are part of the key: a digest made before a record
     # was added would otherwise be reused without it
-    sig = '%d_%d_%d_%d_%s' % (st.st_size, int(st.st_mtime), nper, len(targets),
-                              '+'.join(k for k, _t, _p in _AQ_RECORDS))
+    # ... and the METHOD: digests made before the periods were read as
+    # periods (period_steps, 2026-10-05) hold the last nper TIME steps
+    sig = 'p2_%d_%d_%d_%d_%s' % (st.st_size, int(st.st_mtime), nper,
+                                 len(targets),
+                                 '+'.join(k for k, _t, _p in _AQ_RECORDS))
 
     cache_fn = os.path.join(cache_dir, '_aquifer_digest.npz') if cache_dir else None
     if cache_fn and os.path.exists(cache_fn):
@@ -1940,7 +1988,10 @@ def _aquifer_pass(sim_ws, name, cMF, targets, nper, cache_dir=None,
 
     cbc = flopy.utils.CellBudgetFile(cbc_fn)
     kk = cbc.get_kstpkper()
-    off = max(len(kk) - nper, 0)                   # skip the steady SP0
+    # each stress period's records and their shares of it (period_steps):
+    # the period's rate is the time-weighted mean of its steps' rates
+    pgroups = period_steps(cbc.get_times(), kk,
+                           steady=steady_first(sim_ws, name))[-nper:]
     recs = set(r.strip() for r in cbc.get_unique_record_names(decode=True))
     out = {key: np.zeros((nper, ntg, nlay)) for key, _t, _p in _AQ_RECORDS}
     out['FLF'] = np.zeros((nper, ntg, nlay))
@@ -1966,23 +2017,25 @@ def _aquifer_pass(sim_ws, name, cMF, targets, nper, cache_dir=None,
         single series (~350 MB for FLOW-JA-FACE on this model). Falls back to
         per-stress-period reads if that does not fit.
         """
+        def slab(rec):
+            if flf_mode:
+                fj = np.asarray(rec, float).ravel()
+                a = np.zeros(nodes)
+                a[src] = -fj[pos]                  # flopy negates; match it
+                return a.reshape(nlay, -1)
+            return np.ma.filled(np.asarray(rec, float), 0.0).reshape(nlay, -1)
+
         try:
             data = (cbc.get_data(text=text, paknam2=pak2) if flf_mode else
                     cbc.get_data(text=text, paknam2=pak2, full3D=True))
             if not data:
                 return 'absent'
-            if len(data) < nper + off:
-                raise ValueError('%s: got %d records for %d stress periods'
-                                 % (key, len(data), nper + off))
-            for k in range(nper):
-                rec = data[k + off]
-                if flf_mode:
-                    fj = np.asarray(rec, float).ravel()
-                    a = np.zeros(nodes)
-                    a[src] = -fj[pos]              # flopy negates; match it
-                    a = a.reshape(nlay, -1)
-                else:
-                    a = np.ma.filled(np.asarray(rec, float), 0.0).reshape(nlay, -1)
+            if len(data) < len(kk):
+                raise ValueError('%s: got %d records for %d time steps'
+                                 % (key, len(data), len(kk)))
+            # each period's rate: its steps' rates weighted by their length
+            for k, grp in enumerate(pgroups):
+                a = sum(w * slab(data[r]) for r, w in grp)
                 _reduce(a, dest[k])
             del data
             return 'bulk'
@@ -1990,20 +2043,19 @@ def _aquifer_pass(sim_ws, name, cMF, targets, nper, cache_dir=None,
             if verbose:
                 print('   %s: series too large for one read, '
                       'falling back to per-stress-period' % key)
-        for k in range(nper):
-            kp = kk[k + off]
-            if flf_mode:
-                fj = np.asarray(cbc.get_data(text=text, paknam2=pak2,
-                                             kstpkper=kp)[0], float).ravel()
-                a = np.zeros(nodes)
-                a[src] = -fj[pos]
-                a = a.reshape(nlay, -1)
-            else:
-                d = cbc.get_data(text=text, paknam2=pak2, kstpkper=kp, full3D=True)
+        for k, grp in enumerate(pgroups):
+            a = None
+            for r, w in grp:
+                d = (cbc.get_data(text=text, paknam2=pak2, kstpkper=kk[r])
+                     if flf_mode else
+                     cbc.get_data(text=text, paknam2=pak2, kstpkper=kk[r],
+                                  full3D=True))
                 if not d:
                     continue
-                a = np.ma.filled(np.asarray(d[0], float), 0.0).reshape(nlay, -1)
-            _reduce(a, dest[k])
+                s_ = w * slab(d[0])
+                a = s_ if a is None else a + s_
+            if a is not None:
+                _reduce(a, dest[k])
         return 'per-SP'
 
     t0 = time.time()
@@ -2478,14 +2530,17 @@ def _obs_head_series(sim_ws, name, nlay, cells_ij, nper):
     """
     import flopy
     hds = flopy.utils.HeadFile(os.path.join(sim_ws, '%s.hds' % name))
-    kk = hds.get_kstpkper()
-    off = max(len(kk) - nper, 0)                   # drop the steady SP0
+    # the END of every stress period (period_steps): the last nper saved
+    # steps were the last nper TIME steps, not periods, under ATS
+    rows = [g[-1][0] for g in period_steps(
+        hds.get_times(), hds.get_kstpkper(),
+        steady=steady_first(sim_ws, name))][-nper:]
     out = np.full((len(cells_ij), nlay, nper), np.nan)
     vertex = _is_vertex(hds)
     for p, (i, j) in enumerate(cells_ij):
         ts = hds.get_ts([_cellid(vertex, L, i, j) for L in range(nlay)])
         for L in range(nlay):
-            out[p, L] = np.asarray(ts[off:off + nper, L + 1], float)
+            out[p, L, :len(rows)] = np.asarray(ts[rows, L + 1], float)
     return out
 
 
@@ -2715,7 +2770,7 @@ def _aquifer_map_pass(sim_ws, name, cMF, nper, cache_dir=None, verbose=True):
     nlay, nrow, ncol = int(cMF.nlay), int(cMF.nrow), int(cMF.ncol)
     cbc_fn = os.path.join(sim_ws, '%s.cbc' % name)
     st = os.stat(cbc_fn)
-    sig = 'map_%d_%d_%d' % (st.st_size, int(st.st_mtime), nper)
+    sig = 'map_p2_%d_%d_%d' % (st.st_size, int(st.st_mtime), nper)
     cache_fn = os.path.join(cache_dir, '_aquifer_maps.npz') if cache_dir else None
     if cache_fn and os.path.exists(cache_fn):
         try:
@@ -2729,7 +2784,11 @@ def _aquifer_map_pass(sim_ws, name, cMF, nper, cache_dir=None, verbose=True):
             pass
     cbc = flopy.utils.CellBudgetFile(cbc_fn)
     kk = cbc.get_kstpkper()
-    off = max(len(kk) - nper, 0)
+    # the time mean over the periods, each period its steps' time-weighted
+    # mean (period_steps) -- not the mean of the last nper saved steps
+    pgroups = period_steps(cbc.get_times(), kk,
+                           steady=steady_first(sim_ws, name))[-nper:]
+    np_ = max(len(pgroups), 1)
     recs = set(r.strip() for r in cbc.get_unique_record_names(decode=True))
     out = {}
     t0 = time.time()
@@ -2740,21 +2799,23 @@ def _aquifer_map_pass(sim_ws, name, cMF, nper, cache_dir=None, verbose=True):
         n = 0
         try:
             data = cbc.get_data(text=text, paknam2=pak2, full3D=True)
-            if not data or len(data) < nper + off:
+            if not data or len(data) < len(kk):
                 continue
-            for k in range(nper):
-                acc += np.ma.filled(np.asarray(data[k + off], float),
-                                    0.0).reshape(nlay, nrow, ncol)
+            for grp in pgroups:
+                for r, w in grp:
+                    acc += w * np.ma.filled(np.asarray(data[r], float),
+                                            0.0).reshape(nlay, nrow, ncol)
                 n += 1
             del data
         except MemoryError:                          # pragma: no cover
-            for k in range(nper):
-                d = cbc.get_data(text=text, paknam2=pak2,
-                                 kstpkper=kk[k + off], full3D=True)
-                if d:
-                    acc += np.ma.filled(np.asarray(d[0], float),
-                                        0.0).reshape(nlay, nrow, ncol)
-                    n += 1
+            for grp in pgroups:
+                for r, w in grp:
+                    d = cbc.get_data(text=text, paknam2=pak2,
+                                     kstpkper=kk[r], full3D=True)
+                    if d:
+                        acc += w * np.ma.filled(np.asarray(d[0], float),
+                                                0.0).reshape(nlay, nrow, ncol)
+                n += 1
         if n:
             out[key] = acc / n
     # vertical exchange, via the same precomputed JA index the Sankey uses
@@ -2764,13 +2825,14 @@ def _aquifer_map_pass(sim_ws, name, cMF, nper, cache_dir=None, verbose=True):
             src, pos, nodes = _ja_down_index(grb, nlay, nrow, ncol)
             data = cbc.get_data(text='FLOW-JA-FACE')
             acc = np.zeros(nodes)
-            for k in range(nper):
-                fj = np.asarray(data[k + off], float).ravel()
-                a = np.zeros(nodes)
-                a[src] = -fj[pos]                    # flopy's sign convention
-                acc += a
+            for grp in pgroups:
+                for r, w in grp:
+                    fj = np.asarray(data[r], float).ravel()
+                    a = np.zeros(nodes)
+                    a[src] = -fj[pos]                # flopy's sign convention
+                    acc += w * a
             del data
-            out['FLF'] = (acc / nper).reshape(nlay, nrow, ncol)
+            out['FLF'] = (acc / np_).reshape(nlay, nrow, ncol)
         except Exception as exc:                     # pragma: no cover
             if verbose:
                 print('   FLF map skipped: %r' % exc)
@@ -2901,21 +2963,23 @@ def _native_result_maps(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
 
     # heads: exact time mean over every stress period, then a time selection
     hds = flopy.utils.HeadFile(os.path.join(sim_ws, '%s.hds' % name))
-    kk = hds.get_kstpkper()
-    off = max(len(kk) - nper, 0)
+    # the END of every stress period (period_steps), not the last nper saved
+    # steps -- ATS saves one per time step
+    kk = period_end_kk(hds, steady=steady_first(sim_ws, name))[-nper:]
+    nper_h = len(kk)
     acc = None
-    for k in range(nper):
-        h = np.asarray(hds.get_data(kstpkper=kk[k + off]), dtype=float)
+    for k in range(nper_h):
+        h = np.asarray(hds.get_data(kstpkper=kk[k]), dtype=float)
         h = np.where(np.abs(h) > 1e29, np.nan, h)
         acc = h if acc is None else acc + h
-    draw(DA.lay(np.asarray(acc).reshape(nlay, -1) / nper)[None, :, :, :],
+    draw(DA.lay(np.asarray(acc).reshape(nlay, -1) / nper_h)[None, :, :, :],
          'head', 'mean head', 'm', m3)
-    if ndays and nper > 1:
-        sel = np.unique(np.linspace(0, nper - 1, int(ndays)).astype(int))
+    if ndays and nper_h > 1:
+        sel = np.unique(np.linspace(0, nper_h - 1, int(ndays)).astype(int))
         V = np.array([DA.lay(np.where(
-            np.abs(np.asarray(hds.get_data(kstpkper=kk[s + off]), dtype=float))
+            np.abs(np.asarray(hds.get_data(kstpkper=kk[s]), dtype=float))
             > 1e29, np.nan,
-            np.asarray(hds.get_data(kstpkper=kk[s + off]), dtype=float)
+            np.asarray(hds.get_data(kstpkper=kk[s]), dtype=float)
         ).reshape(nlay, -1)) for s in sel])
         DATE, _hy, _yr = _sankey_dates(cMF, nper)
         import matplotlib as _mpl
@@ -3350,11 +3414,11 @@ def _fig_obs_heads(hds, ds_ws, kk_real, dates, top, nlay, nrow, ncol,
         except Exception:                  # pragma: no cover - point off grid
             ax.axis('off')
             continue
-        comp = ts[:, 1]
+        # get_ts returns every SAVED STEP (and the steady period): keep the
+        # end of each stress period, as kk_real lists them
+        _pos = {k: r for r, k in enumerate(hds.get_kstpkper())}
+        comp = ts[[_pos[k] for k in kk_real], 1]
         comp = np.where(np.abs(comp) > 1e29, np.nan, comp)
-        # get_ts returns every saved step (incl. steady); align to transient
-        if comp.shape[0] == len(kk_real) + 1:
-            comp = comp[1:]
         n = min(len(dates), comp.shape[0])
         dd, comp = dates[:n], comp[:n]
         # blue tones throughout, as everywhere else water is plotted: the
