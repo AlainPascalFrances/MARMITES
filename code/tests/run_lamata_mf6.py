@@ -1597,12 +1597,14 @@ def main():
         print('observations: points %s, heads %s_*, soil moisture %s_*, '
               'runoff %s_* -- from the panel'
               % (_o['table'], _o['heads'], _o['sm'], _o['ro']))
-    if a.postproc:
-        try:
-            from marmites_postprocess import resolve_obs_cells
-            obs_idx, obs_names = resolve_obs_cells(cMF, ctx, DS)
-        except Exception as exc:
-            print('obs-cell resolution skipped: %r' % exc)
+    # ON EVERY RUN, figures or not: the observation exports (WP6.4) are what
+    # a calibration's forward runs are read by, and those draw nothing
+    try:
+        from marmites_postprocess import resolve_obs_cells
+        obs_idx, obs_names = resolve_obs_cells(cMF, ctx, DS,
+                                               verbose=bool(a.postproc))
+    except Exception as exc:
+        print('obs-cell resolution skipped: %r' % exc)
 
     ncyc = max(1, int(a.spinup))
     prev = None
@@ -1821,6 +1823,17 @@ def _run_postproc(a, cMF, ctx, res):
     Shared by the normal path and by --postproc-only, so re-drawing from an
     existing run takes exactly the same route as drawing at the end of one.
     """
+    # THE OBSERVATION EXPORTS (WP6.4), figures or not: one row per stress
+    # period for heads, soil moisture, streamflow and ET -- what WP7's
+    # forward runs are read by. Into the results folder, and into the model
+    # workspace under a name that does not change from run to run.
+    try:
+        from marmites_postprocess import export_observations
+        export_observations(a.ws, cMF.modelname.lower(), DS, cMF, ctx, res,
+                            [os.path.join(a.out_dir, '_output'),
+                             os.path.join(a.ws, 'obs_exports')])
+    except Exception as exc:                            # noqa: BLE001
+        print('   observation exports skipped: %r' % exc)
     if a.postproc or a.preproc:
         # All results go to <ws-root>/out_<stamp>_<tag>/, never into the
         # repository and not into the model workspace either.

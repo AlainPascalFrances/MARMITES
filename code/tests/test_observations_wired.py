@@ -41,9 +41,11 @@ def _cfg(**obs):
 
 
 def test_the_defaults_are_the_la_mata_names_the_literals_were():
+    # ... and no actual-ET series, the usual case (obs.aet_prefix, read by
+    # the observation exports since 2026-10-05)
     assert pp.OBS == {'table': 'inputObs.txt', 'heads': 'inputObsHEADS',
                       'sm': 'inputObsSM', 'ro': 'inputObsRo',
-                      'name_column': 'Name'}
+                      'name_column': 'Name', 'aet': ''}
 
 
 @pytest.mark.skipif(not os.path.exists(os.path.join(DS, 'inputObs.txt')),
@@ -95,4 +97,4 @@ def test_the_run_takes_them_from_the_panel_before_reading_any():
                encoding='utf-8').read()
     assert '_pp.use_observations(a.config)' in src
     assert (src.index('_pp.use_observations(a.config)')
-            < src.index('resolve_obs_cells(cMF, ctx, DS)'))
+            < src.index('resolve_obs_cells(cMF, ctx, DS'))

@@ -95,9 +95,11 @@ def _mkdir(sim_ws, sub='_output'):
 # from the configuration by use_observations() before a run reads anything.
 # The defaults are the La Mata names the literals were.
 #
-# The ACTUAL-ET series (obs.aet_prefix) is not here: no reader takes one yet.
+# The ACTUAL-ET series (obs.aet_prefix, blank when there is none) are read by
+# the observation exports (export_observations, obs_et.csv).
 OBS = {'table': 'inputObs.txt', 'heads': 'inputObsHEADS',
-       'sm': 'inputObsSM', 'ro': 'inputObsRo', 'name_column': 'Name'}
+       'sm': 'inputObsSM', 'ro': 'inputObsRo', 'name_column': 'Name',
+       'aet': ''}
 
 
 def _tick_years(cMF):
@@ -121,7 +123,8 @@ def use_observations(cfg):
     """
     o = cfg.obs
     OBS.update(table=o.table, heads=o.heads_prefix, sm=o.sm_prefix,
-               ro=o.ro_prefix, name_column=o.name_column)
+               ro=o.ro_prefix, name_column=o.name_column,
+               aet=(o.aet_prefix or '').strip())
     return dict(OBS)
 
 
@@ -614,7 +617,9 @@ def obs_streamflow(ds_ws, fn=None):
     df['date'] = pd.to_datetime(df['date'], errors='coerce')
     df['q'] = pd.to_numeric(df['q'], errors='coerce')
     df = df.dropna()
-    df = df[df['q'] > -9000.0]             # hnoflo marks a gap
+    # hnoflo marks a gap, of either sign: MARMITES' 9999.999 or the -9999
+    # of a GIS export (none in La Mata's gauge record, 2026-10-05)
+    df = df[df['q'].abs() < 9000.0]
     if df.empty:
         return None
     return df.set_index('date')['q'].sort_index()
@@ -3470,4 +3475,175 @@ def _fig_budget(sim_ws, name, dates, out):
         comp.to_csv(os.path.join(out, 'budget_compartment.csv'), index=False)
         df.to_csv(os.path.join(out, 'budget_terms.csv'), index=False)
         written += [fn]
+    return written
+
+
+# --------------------------------------------------------------------- #
+# observation exports -- the WP7 contract (cookbook WP6.4)
+# --------------------------------------------------------------------- #
+
+# MMsoil's evapotranspiration terms in obs_et.csv, as column -> index key
+_ET_TERMS = (('et_total', 'iETtot'), ('ei', 'iEi'), ('et_soil', 'iETsoil'),
+             ('et_uzf', 'iETuzf'), ('et_g', 'iETg'), ('e_g', 'iEg'),
+             ('t_g', 'iTg'), ('e_ow', 'iEow'), ('e_crr', 'iEcrr'))
+
+
+def _dated_obs(fn, ncol=1):
+    """A ``date value [value ...]`` observation file as (dates, values
+    (n, ncol)), gaps (hnoflo) as NaN; None when the file is absent."""
+    import pandas as pd
+    if not fn or not os.path.exists(fn):
+        return None
+    df = pd.read_csv(fn, sep=r'\s+', header=None, comment='#',
+                     engine='python')
+    d = pd.to_datetime(df.iloc[:, 0], errors='coerce')
+    v = df.iloc[:, 1:1 + ncol].apply(pd.to_numeric, errors='coerce')
+    v = v.where(v.abs() < 9000.0)
+    keep = d.notna().to_numpy()
+    return (d[keep].to_numpy(), v.to_numpy(dtype=float)[keep])
+
+
+def _on_periods(dates, values, starts, perlen):
+    """Observations onto the stress periods: the mean of those that fall in
+    each period [start, start + perlen), NaN where none does."""
+    import pandas as pd
+    out = np.full((len(starts), values.shape[1]), np.nan)
+    for c in range(values.shape[1]):
+        s = pd.Series(values[:, c], index=pd.DatetimeIndex(dates)).dropna()
+        if len(s):
+            out[:, c] = _period_mean(s.sort_index(), starts, perlen)
+    return out
+
+
+def export_observations(sim_ws, name, ds_ws, cMF, ctx, res, out_dirs,
+                        verbose=True):
+    """The four observation files WP7 calibrates against, written on EVERY
+    run (cookbook WP6.4): ``obs_heads.csv``, ``obs_sm.csv``, ``obs_sfr.csv``
+    and ``obs_et.csv`` into each of ``out_dirs``.
+
+    LONG FORMAT, ONE ROW PER STRESS PERIOD for each point (and layer): the
+    simulated value at the period's END for a state (heads, soil moisture),
+    the period's time-weighted mean for a rate (streamflow, ET) -- never one
+    per time step, so the row count is the same whatever adaptive time
+    stepping did (the CdL trap) and PEST instruction files can read the
+    rows by position. The observed value of the period sits beside it, NaN
+    where nothing was measured. ``obsnme`` is stable from run to run.
+    """
+    import pandas as pd
+    if 'mm_obs' not in res or 'obs_ij' not in res:
+        if verbose:
+            print('   observation exports skipped: the run kept no '
+                  'observation-point series')
+        return []
+    IX, IXS = dict(ctx.index), dict(ctx.index_S)
+    mm_obs = np.asarray(res['mm_obs'], float)
+    mms_obs = np.asarray(res['mms_obs'], float)
+    obs_ij = np.asarray(res['obs_ij'], int)
+    names = [n.decode() if isinstance(n, bytes) else str(n)
+             for n in res.get('obs_names',
+                              [str(k) for k in range(len(obs_ij))])]
+    nper = int(mm_obs.shape[0])
+    dates = _dates_from_dataset(ds_ws, nper)
+    if not isinstance(dates, pd.DatetimeIndex):
+        dates = pd.date_range('2000-01-01', periods=nper, freq='D')
+    perlen = np.asarray(getattr(cMF, 'perlen', [1.0] * nper),
+                        float)[:nper]
+    if perlen.size < nper:
+        perlen = np.r_[perlen, np.ones(nper - perlen.size)]
+    day = [d.strftime('%Y-%m-%d') for d in dates]
+    per = np.arange(1, nper + 1)
+    lay_of = {p['name']: int(p['lay']) for p in obs_points(ds_ws)}
+    nlay = int(cMF.nlay)
+    frames = {}
+
+    # ---- heads: MF6's at the period end, and MMsoil's corrected one
+    heads = _obs_head_series(sim_ws, name, nlay, obs_ij, nper)
+    rows = []
+    for p, nm in enumerate(names):
+        L = min(max(lay_of.get(nm, 1), 1), nlay)
+        ob = _dated_obs(os.path.join(ds_ws, '%s_%s.txt' % (OBS['heads'], nm)))
+        o = (_on_periods(ob[0], ob[1], dates, perlen)[:, 0] if ob is not None
+             else np.full(nper, np.nan))
+        h = heads[p, L - 1]
+        h = np.where(np.abs(h) > 1e29, np.nan, h)
+        rows.append(pd.DataFrame({
+            'obsnme': ['h_%s_%04d' % (nm.lower(), k) for k in per],
+            'point': nm, 'layer': L, 'period': per, 'date': day,
+            'sim_head_m': h,
+            'sim_hcorr_m': (mm_obs[:, p, IX['ihcorr']] if 'ihcorr' in IX
+                            else np.full(nper, np.nan)),
+            'obs_head_m': o}))
+    frames['obs_heads.csv'] = pd.concat(rows, ignore_index=True)
+
+    # ---- soil moisture per horizon, MMsoil's at the period end
+    rows = []
+    for p, nm in enumerate(names):
+        i, j = int(obs_ij[p, 0]), int(obs_ij[p, 1])
+        nsl = int(ctx._nsl[int(ctx.gridSOIL[i, j]) - 1])
+        ob = _dated_obs(os.path.join(ds_ws, '%s_%s.txt' % (OBS['sm'], nm)),
+                        ncol=nsl)
+        o = (_on_periods(ob[0], ob[1], dates, perlen) if ob is not None
+             else np.full((nper, nsl), np.nan))
+        if o.shape[1] < nsl:
+            o = np.c_[o, np.full((nper, nsl - o.shape[1]), np.nan)]
+        for sl in range(nsl):
+            rows.append(pd.DataFrame({
+                'obsnme': ['sm_%s_%d_%04d' % (nm.lower(), sl + 1, k)
+                           for k in per],
+                'point': nm, 'soil_layer': sl + 1, 'period': per,
+                'date': day,
+                'sim_theta': mms_obs[:, p, sl, IXS['iSsoil_pc_s']],
+                'obs_theta': o[:, sl]}))
+    frames['obs_sm.csv'] = pd.concat(rows, ignore_index=True)
+
+    # ---- streamflow at the outlet, the period's time-weighted mean
+    sfr = sfr_observations(sim_ws, name)
+    q = np.full(nper, np.nan)
+    if sfr is not None and 'outflow' in sfr.columns:
+        v = -sfr['outflow'].to_numpy(dtype=float)[:nper]
+        q[:v.size] = v
+    area = float(np.sum(np.asarray(ctx.geom.area, dtype=float)))
+    obs_q = obs_streamflow(ds_ws)
+    oq = (_period_mean(obs_q, dates, perlen) if obs_q is not None
+          else np.full(nper, np.nan))                  # mm/d
+    frames['obs_sfr.csv'] = pd.DataFrame({
+        'obsnme': ['q_outlet_%04d' % k for k in per], 'site': 'outlet',
+        'period': per, 'date': day, 'sim_q_m3d': q,
+        'sim_q_mmd': q * 1000.0 / area, 'obs_q_mmd': oq,
+        'obs_q_m3d': oq * area / 1000.0})
+
+    # ---- evapotranspiration, every source, per point and the catchment
+    aet = OBS.get('aet', '') or ''
+
+    def et_frame(site, vec):
+        d = {'obsnme': ['et_%s_%04d' % (site.lower(), k) for k in per],
+             'site': site, 'period': per, 'date': day}
+        for col, key in _ET_TERMS:
+            d['sim_%s_mmd' % col] = (vec[:, IX[key]] if key in IX
+                                     else np.zeros(nper))
+        o = None
+        if aet:
+            ob = _dated_obs(os.path.join(ds_ws, '%s_%s.txt' % (aet, site)))
+            if ob is not None:
+                o = _on_periods(ob[0], ob[1], dates, perlen)[:, 0]
+        d['obs_et_mmd'] = o if o is not None else np.full(nper, np.nan)
+        return pd.DataFrame(d)
+    rows = [et_frame(nm, mm_obs[:, p, :]) for p, nm in enumerate(names)]
+    if 'wb_ts' in res:
+        rows.append(et_frame('catchment', np.asarray(res['wb_ts'], float)))
+    frames['obs_et.csv'] = pd.concat(rows, ignore_index=True)
+
+    written = []
+    for d in out_dirs:
+        if not d:
+            continue
+        os.makedirs(d, exist_ok=True)
+        for fn, df in frames.items():
+            path = os.path.join(d, fn)
+            df.to_csv(path, index=False, float_format='%.6g')
+            written.append(path)
+    if verbose:
+        print('   observation exports (one row per stress period, %d '
+              'periods): %s' % (nper, ', '.join(
+                  '%s %d rows' % (fn, len(df)) for fn, df in frames.items())))
     return written

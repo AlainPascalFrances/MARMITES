@@ -32,7 +32,6 @@ from lib import schema                                        # noqa: E402
 
 # Keys the run does NOT read, each with the reason. Mirrors Appendix B.
 NOT_WIRED = {
-    'obs.aet_prefix': 'no reader takes an actual-ET series yet',
     'surface.meteo_zones': 'no reader in marmites_surface',
     'et.extwc_source': 'the build always takes extwc from thtr',
     'sfr.source': 'the network comes from the dataset CSV',
