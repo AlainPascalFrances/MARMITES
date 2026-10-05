@@ -166,6 +166,28 @@ class clsMMsoil:
         return pet * Se
 
     @staticmethod
+    def _ktg(theta, Sr, Sm, kTg_min, kTg_max, kT_f, kT_s):
+        """The kTg factor of groundwater transpiration at the soil moisture
+        ``theta`` of one layer: kTg_min at wilting point, kTg_max at
+        saturation, a logistic curve between."""
+        if theta > Sr:
+            if theta < Sm:
+                Ssoil_norm = (theta - Sr) / (Sm - Sr)
+                return kTg_max - (kTg_max - kTg_min) / (
+                    1.0 + np.exp((Ssoil_norm - kT_f) / kT_s))
+            if theta > Sm:
+                tally('Tg: soil moisture above porosity', theta - Sm)
+            return kTg_max
+        if theta < Sr:
+            # COUNTED, NOT PRINTED. A semi-arid catchment sits at wilting
+            # point for months on end, so this fired 8205 times in the first
+            # ~240 stress periods of La Mata -- a third of every line in the
+            # log, burying the run's own output. Reported once, with the
+            # count and the range, by report_tallies().
+            tally('Tg: soil moisture below wilting point', Sr - theta)
+        return kTg_min
+
+    @staticmethod
     def _eg(PE, dgwt, head, sy, p):
         """Groundwater evaporation, eq. 17 of Shah et al. (2007), and the
         water table it leaves: ``(Eg [mm], dgwt [cm], head [cm])``.
@@ -209,7 +231,7 @@ class clsMMsoil:
              HEADSini, TopSoilLay, BotSoilLay, Tl, nsl, Sm, Sfc, Sr, Ks,
              Ssoil_ini, EXF_ini, dgwt, st, i, j, n,
              kTg_min, kTg_max, kT_f, kT_s, NVEG, LAIveg, REJINF_ini=0.0,
-             ETUZF_prev=0.0, RUNON=0.0, IRR=0.0):
+             ETUZF_prev=0.0, RUNON=0.0, IRR=0.0, GW_EVT=False):
         """Soil water balance of one cell for one stress period.
 
         All storages in mm, all fluxes in mm/d. PT and LAIveg are 1-D
@@ -276,6 +298,13 @@ class clsMMsoil:
             off. Rain, exfiltration and run-on keep Eq. 1b. Booked as
             infiltration (I) and as percolation between the horizons it
             crosses (Rp), so every layer's balance still closes.
+
+        GW_EVT : et.gw_route = 'evt'. Groundwater ET is then MF6's, taken at
+            the head it solves for (marmites_evt): Eg and Tg are returned as
+            0 and what each source COULD take today -- the same demand, soil
+            moisture, root tips and Shah curve, at the start-of-day head,
+            with no drawdown of MMsoil's own -- comes back last, as a dict
+            (None on the well route).
         """
 
         if EXF_ini < 0.0:
@@ -465,6 +494,33 @@ class clsMMsoil:
             PE = PE * f
             PT = PT * f
 
+        if GW_EVT:
+            # et.gw_route = 'evt': what each groundwater source COULD take
+            # today at the start-of-day head; MF6 takes it at the head it
+            # solves for. Nothing is drawn down here.
+            gw = {'eg_pe': float(PE) if (Ssurf_tmp == 0.0 and PE > 0.0)
+                  else 0.0,
+                  'shah': self.paramEg[st], 'h0': float(HEADSini_corr),
+                  'tg_rate': np.zeros(NVEG, dtype=np.float64),
+                  'tg_tip': np.asarray(Zr_elev, dtype=np.float64).copy()}
+            for v in Zr_elev.argsort():
+                if not HEADSini_corr > Zr_elev[v]:
+                    continue
+                for l in range(nsl):
+                    if np.isclose(Ssoil_pc_tmp[l], cMF.hnoflo):
+                        continue
+                    kTg = self._ktg(Ssoil_pc_tmp[l], Sr[l], Sm[l],
+                                    float(np.ravel(kTg_min)[v]),
+                                    float(np.ravel(kTg_max)[v]),
+                                    float(np.ravel(kT_f)[v]),
+                                    float(np.ravel(kT_s)[v]))
+                    t = PT[v] * kTg
+                    PT[v] -= t
+                    gw['tg_rate'][v] += t * VEGarea[v] * 0.01
+            return (Eow_tmp, Ssurf_tmp, Ro_tmp, Rp_tmp, Esoil_tmp, Tsoil_tmp,
+                    Ssoil_tmp, Ssoil_pc_tmp, 0.0, 0.0, HEADSini_corr,
+                    dgwt_corr, SAT, Rexf_tmp, I, PETuzf, REinf, gw)
+
         sy_tmp = float(cMF.cPROCESS.float2array(cMF.sy_actual)[cMF.outcropL[i, j] - 1, i, j])
         dgwt_corr_tmp = float(dgwt_corr) * 0.1        # mm -> cm (Shah et al. parameters)
         HEADSini_corr_tmp = float(HEADSini_corr) * 0.1
@@ -494,27 +550,8 @@ class clsMMsoil:
                 for l in range(nsl):
                     if np.isclose(Ssoil_pc_tmp[l], cMF.hnoflo):
                         continue
-                    if Ssoil_pc_tmp[l] > Sr[l]:
-                        if Ssoil_pc_tmp[l] < Sm[l]:
-                            Ssoil_norm = (Ssoil_pc_tmp[l] - Sr[l]) / (Sm[l] - Sr[l])
-                            kTg = kTg_max_ - (kTg_max_ - kTg_min_) / (
-                                1.0 + np.exp((Ssoil_norm - kT_f_) / kT_s_))
-                        else:
-                            if Ssoil_pc_tmp[l] > Sm[l]:
-                                tally('Tg: soil moisture above porosity',
-                                      Ssoil_pc_tmp[l] - Sm[l])
-                            kTg = kTg_max_
-                    else:
-                        if Ssoil_pc_tmp[l] < Sr[l]:
-                            # COUNTED, NOT PRINTED. A semi-arid catchment sits
-                            # at wilting point for months on end, so this fired
-                            # 8205 times in the first ~240 stress periods of La
-                            # Mata -- a third of every line in the log, burying
-                            # the run's own output. Reported once, with the
-                            # count and the range, by report_tallies().
-                            tally('Tg: soil moisture below wilting point',
-                                  Sr[l] - Ssoil_pc_tmp[l])
-                        kTg = kTg_min_
+                    kTg = self._ktg(Ssoil_pc_tmp[l], Sr[l], Sm[l], kTg_min_,
+                                    kTg_max_, kT_f_, kT_s_)
                     Tg_tmp_Zr = PT[v] * kTg
                     PT[v] -= Tg_tmp_Zr
                     Tg_tmp1 = Tg_tmp_Zr * VEGarea[v] * 0.01
@@ -530,7 +567,7 @@ class clsMMsoil:
 
         return (Eow_tmp, Ssurf_tmp, Ro_tmp, Rp_tmp, Esoil_tmp, Tsoil_tmp,
                 Ssoil_tmp, Ssoil_pc_tmp, Eg_tmp, Tg_tmp, HEADSini_corr,
-                dgwt_corr, SAT, Rexf_tmp, I, PETuzf, REinf)
+                dgwt_corr, SAT, Rexf_tmp, I, PETuzf, REinf, None)
 
     # ------------------------------------------------------------------ #
 
@@ -609,7 +646,7 @@ class clsMMsoil:
         )
 
     def _cell_step(self, ctx, cell, n, tstart_MF, h_MF_ini_tmp, exf_MF_ini_tmp, state,
-                   rejinf_cell=0.0, etuzf_cell=0.0, runon=0.0):
+                   rejinf_cell=0.0, etuzf_cell=0.0, runon=0.0, gw_sink=None):
         """Soil water balance of one active cell for one stress period.
 
         Returns (MM_tmp, MM_S_tmp (nsl, nindex_S), nsl, perc_vol, etg_vol,
@@ -801,14 +838,24 @@ class clsMMsoil:
         # MAIN SUB-ROUTINE fluxes
         (Eow_tmp, Ssurf_tmp, Ro_tmp, Rp_tmp, Esoil_tmp, Tsoil_tmp, Ssoil_tmp,
          Ssoil_pc_tmp, Eg_tmp, Tg_tmp, HEADSini_MM, dgwt_tmp, SAT_tmp, Rexf_tmp,
-         I, PETuzf, REinf) = self.flux(cMF, perleni, Pe_tot, PT_flux,
+         I, PETuzf, REinf, GW) = self.flux(cMF, perleni, Pe_tot, PT_flux,
                         PE_zonesSP_tmp * SOILarea * 0.01, Zr_elev,
                         VEGarea_tmp, HEADSini_drycell, TopSoilLay, BotSoilLay,
                         Tl, nsl, Sm, Sfc, Sr, Ks, Ssoil_ini_tmp,
                         exf_MF_ini_tmp, dgwt, st, i, j, n,
                         kTg_min_tmp, kTg_max_tmp, kT_f_tmp, kT_s_tmp,
                         NVEG_tmp, LAIveg_tmp, REJINF_ini=col_rej,
-                        ETUZF_prev=col_etuzf, RUNON=col_runon, IRR=irr_col)
+                        ETUZF_prev=col_etuzf, RUNON=col_runon, IRR=irr_col,
+                        GW_EVT=getattr(ctx, 'gw_route', 'wel') == 'evt')
+        if GW is not None and gw_sink is not None:
+            # et.gw_route = 'evt': per unit of CELL area and in m, as MF6's
+            # EVT takes them -- the column's rates times f_soil
+            gw_sink[cid] = {
+                'eg_pe': f_soil * GW['eg_pe'] / 1000.0,
+                'shah': GW['shah'], 'h0': GW['h0'] / 1000.0,
+                'land': float(TopSoilLay[0]) / 1000.0,
+                'tg_rate': f_soil * np.asarray(GW['tg_rate']) / 1000.0,
+                'tg_tip': np.asarray(GW['tg_tip']) / 1000.0}
         Ssoil_pc_tot = float(np.sum(Ssoil_pc_tmp)) / nsl
         perc = Rp_tmp[-1]
         ETg = Eg_tmp + Tg_tmp
@@ -965,11 +1012,14 @@ class clsMMsoil:
                else np.asarray(etuzf_cell, dtype=np.float64))
         petuzf_cell = np.zeros(ctx.ncell, dtype=np.float64)
 
+        gw_sink = {} if getattr(ctx, 'gw_route', 'wel') == 'evt' else None
+
         def solve(cell, runon=0.0):
             cid = cell[0]
             MM_tmp, MM_S_tmp, nsl, perc_vol, etg_vol, petuzf_vol = self._cell_step(
                 ctx, cell, n, tstart_MF, float(heads_cell[cid]), float(exf_cell[cid]), state,
-                rejinf_cell=float(rej[cid]), etuzf_cell=float(etu[cid]), runon=runon)
+                rejinf_cell=float(rej[cid]), etuzf_cell=float(etu[cid]), runon=runon,
+                gw_sink=gw_sink)
             MM_cells[cid, :] = MM_tmp
             MM_S_cells[cid, :nsl, :] = MM_S_tmp
             perc_cell[cid] = perc_vol
@@ -982,6 +1032,8 @@ class clsMMsoil:
         if crr is None:
             for cell in ctx.cells:
                 solve(cell)
+            if gw_sink is not None:
+                out['gw'] = self._gw_arrays(ctx, gw_sink)
             return out
 
         # WP5 -- the cascade. It addresses cells by their place in the list,
@@ -998,7 +1050,31 @@ class clsMMsoil:
             MM_cells[:, ctx.index['iETtot']] += ecrr
         out['ro_deliver'] = res.deliver / area * conv
         out['crr'] = res
+        if gw_sink is not None:
+            out['gw'] = self._gw_arrays(ctx, gw_sink)
         return out
+
+    @staticmethod
+    def _gw_arrays(ctx, gw_sink):
+        """et.gw_route = 'evt': each cell's groundwater-ET potential as
+        arrays in cell order -- Eg's potential, the land surface and the
+        start-of-day head [m, m/d per cell area] with the soil's Shah
+        parameters, and per vegetation type Tg's rate and root tip (padded
+        to the widest cell: an irrigated crop is one type)."""
+        n = ctx.ncell
+        nv = max((len(g['tg_rate']) for g in gw_sink.values()), default=1)
+        a = {'eg_pe': np.zeros(n), 'land': np.zeros(n), 'h0': np.zeros(n),
+             'shah': [None] * n, 'tg_rate': np.zeros((n, nv)),
+             'tg_tip': np.full((n, nv), np.nan)}
+        for cid, g in gw_sink.items():
+            a['eg_pe'][cid] = g['eg_pe']
+            a['land'][cid] = g['land']
+            a['h0'][cid] = g['h0']
+            a['shah'][cid] = g['shah']
+            k = len(g['tg_rate'])
+            a['tg_rate'][cid, :k] = g['tg_rate']
+            a['tg_tip'][cid, :k] = g['tg_tip']
+        return a
 
     def runMMsoil(self, _nsl, _nslmax, _st, _Sm, _Sfc, _Sr, _slprop, _Ssoil_ini, botm_l0, _Ks,
                   gridSOIL, gridSOILthick, TopSoil, gridMETEO,

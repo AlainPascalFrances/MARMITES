@@ -169,6 +169,11 @@ class clsMF6:
         self.lak_depth = None            # per-cell pond depth map [m]
         self.lak_bedleak = 1e-3          # 1/d
         self.lak_surfdep = 0.05          # m
+        # groundwater ET route (et.gw_route): 'wel' (MMsoil's rate, fixed) or
+        # 'evt' (two EVT packages, at the solved head; marmites_evt)
+        self.gw_route = 'wel'
+        self.evt_nseg = 8
+        self.evt_ramp = 0.1              # m
         # LAK's own Newton loop (MAXIMUM_ITERATIONS, MAXIMUM_STAGE_CHANGE);
         # None leaves MF6's defaults, 100 and 1e-5 m. CdL's perched ponds
         # needed 200 and 1e-4 -- [lak] maxiter / stagechg on the panel.
@@ -1134,6 +1139,25 @@ class clsMF6:
         ModflowGwfwel(gwf, stress_period_data={0: wel_spd},
                       auto_flow_reduce=0.05, pname='wel',
                       maxbound=self.ncell, save_flows=True)
+        # et.gw_route = 'evt' (2026-10-05): groundwater ET taken at the head
+        # MF6 solves for, by two EVT packages -- Eg and Tg apart, so the
+        # budget keeps them apart -- one record per land column in the cell
+        # order, the coupler writing each day's curve (marmites_evt). The
+        # WEL stays: a steady first period still draws the mean ETg through
+        # it, and on this route it is zero otherwise.
+        self.evt_packages = []
+        if getattr(self, 'gw_route', 'wel') == 'evt':
+            from flopy.mf6 import ModflowGwfevt
+            nseg = int(self.evt_nseg)
+            x = [float(v) for v in np.linspace(0.0, 1.0, nseg + 1)[1:-1]]
+            for pname in ('evt_eg', 'evt_tg'):
+                rows = [[self._cellid(k, i, j), float(self.top[i, j]), 0.0,
+                         1.0] + x + [0.0] * (nseg - 1)
+                        for (i, j, k) in self.surf_cells]
+                ModflowGwfevt(gwf, pname=pname, nseg=nseg,
+                              maxbound=len(rows), save_flows=True,
+                              stress_period_data={0: rows})
+                self.evt_packages.append(pname)
 
         # SFR and the ponds are resolved first: the outlet reaches replace the
         # outlet DRN cells, and the stream cells are excluded from the seepage

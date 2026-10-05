@@ -194,11 +194,10 @@ with tab_uzf:
                    'the aquifer cannot disagree.')
 
     st.markdown('#### Evapotranspiration inside MODFLOW')
-    st.info('**Groundwater ET is not asked, here or anywhere.** MARMITES '
-            'computes ETg and applies it through the WEL package, so a '
-            'second answer inside MODFLOW could only remove the same water '
-            'twice. The old switch for it was forced off and read by '
-            'nothing, which is worse than absent.')
+    st.info('**Groundwater ET is computed by MARMITES, not asked of UZF.** '
+            'UZF\'s own groundwater ET could only remove the same water '
+            'twice, so it is never switched on. What is asked further down '
+            'is which package APPLIES what MARMITES computes.')
     st.caption('**UZF always simulates unsaturated-zone ET — there is no '
                'switch for it.** Total ET has three sources and the deep '
                'unsaturated zone is one of them, so an off position could '
@@ -214,10 +213,14 @@ with tab_uzf:
                    'above, and an irrigated field its crops\' root depth.'
                    % ', '.join('%s %g m' % (v.name, float(v.root_depth))
                                for v in cfg.surface.vegetation))
+    st.markdown('##### Groundwater ET (Eg, Tg)')
+    edited.update(panelui.rows_form(cfg, schema.GW_ET_ROWS, 'et',
+                                    columns=2))
     st.info('**Wired end to end (WP2).** UZF simulates unsaturated-zone ET '
             'with this extinction depth, and groundwater ET is deliberately '
             'NOT asked of it — `linear_gwet` and `square_gwet` are both '
-            'omitted, so ETg stays with MARMITES through the WEL package.\n\n'
+            'omitted, so ETg stays with MARMITES, applied through WEL or '
+            'EVT as chosen above.\n\n'
             'The demand chain: what the soil column leaves of PE and PT is '
             'written to UZF each stress period (PETMAX); UZF\'s **actual** '
             'ET is read back from its budget and only the residual is left '

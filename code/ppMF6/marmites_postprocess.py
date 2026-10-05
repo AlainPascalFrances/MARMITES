@@ -1838,6 +1838,9 @@ _AQ_RECORDS = (
     ('DRN', 'DRN', 'DRN'),                 # boundary drains
     ('DRN_SEEP', 'DRN', 'DRN_SEEP'),       # seepage face (seep='drn')
     ('WEL', 'WEL', None),                  # groundwater ET sink
+    # ... or, on et.gw_route = 'evt', the two EVT packages (Eg, Tg apart)
+    ('EVT_EG', 'EVT', 'EVT_EG'),
+    ('EVT_TG', 'EVT', 'EVT_TG'),
     ('GHB', 'GHB', None),                  # head-dependent boundary
     # the streams and the ponds exchange with the aquifer directly, both
     # ways (+ into the aquifer): missing here, a losing stream's seepage and
@@ -2109,8 +2112,10 @@ def _aquifer_layer_fluxes(sim_ws, name, cMF, ctx, res, sel_ij=None,
     SFR = vol('SFR') * to_mm                                  # + in, - out
     LAK = vol('LAK') * to_mm                                  # + in, - out
     wel = -vol('WEL') * to_mm                                 # >0 magnitude out
-    Egl = wel * eg_frac[:, None]
-    Tgl = wel * (1.0 - eg_frac[:, None])
+    # on et.gw_route = 'evt' MF6 itself keeps Eg and Tg apart; the WEL is
+    # then zero but for a steady first period's mean
+    Egl = wel * eg_frac[:, None] - vol('EVT_EG') * to_mm
+    Tgl = wel * (1.0 - eg_frac[:, None]) - vol('EVT_TG') * to_mm
     # exfiltration to the soil: prefer an explicit seepage-drain package,
     # else the coupler's captured exfiltration, assigned to the top layer
     EXF = vol('DRN_SEEP') * to_mm                             # <0 out, or zeros
@@ -2789,6 +2794,8 @@ _AQ_MAPS = (
     ('DRN_SEEP', 'EXFg', 'seepage to the surface', -1.0),
     ('DRN', 'DRN', 'boundary drainage', -1.0),
     ('WEL', 'ETg', 'groundwater ET', -1.0),
+    ('EVT_EG', 'Eg', 'groundwater evaporation (EVT)', -1.0),
+    ('EVT_TG', 'Tg', 'groundwater transpiration (EVT)', -1.0),
     ('FLF', 'FLF', 'flow across the lower face', +1.0),
 )
 
@@ -2944,8 +2951,10 @@ def _native_result_maps(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
         re = DA.lay(re.reshape(nlay, -1))
         draw((re * to_mm[None, :, :])[None, :, :, :],
              'Re', 'effective recharge (Rg + Exf)', 'mm/d', m3)
-        if 'WEL' in maps:
-            rn = re + DA.lay(np.asarray(maps['WEL'], float).reshape(nlay, -1))
+        if 'WEL' in maps or 'EVT_EG' in maps:
+            et = sum(np.asarray(maps[k], float) for k in
+                     ('WEL', 'EVT_EG', 'EVT_TG') if k in maps)
+            rn = re + DA.lay(np.asarray(et, float).reshape(nlay, -1))
             draw((rn * to_mm[None, :, :])[None, :, :, :],
                  'Rn', 'net recharge (Rg + Exf + ETg)', 'mm/d', m3)
     # storage change is the sum of the two storage records

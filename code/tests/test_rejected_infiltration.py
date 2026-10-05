@@ -126,6 +126,8 @@ def test_rejected_infiltration_behaves_like_exfiltration():
     a = _call(rejinf=0.0, exf=80.0)
     b = _call(rejinf=80.0, exf=0.0)
     for x, y in zip(a, b):
+        if x is None and y is None:        # the EVT route's extra, off here
+            continue
         assert np.allclose(np.asarray(x, dtype=float),
                            np.asarray(y, dtype=float)), 'pathways must coincide'
 
@@ -174,6 +176,8 @@ def test_zero_rejection_is_unchanged():
     a = _call(rejinf=0.0, Pe=6.0)
     b = _call(rejinf=0.0, Pe=6.0)
     for x, y in zip(a, b):
+        if x is None and y is None:        # the EVT route's extra, off here
+            continue
         assert np.array_equal(np.asarray(x, dtype=float), np.asarray(y, dtype=float))
 
 

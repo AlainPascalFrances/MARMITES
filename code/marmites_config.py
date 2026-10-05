@@ -973,6 +973,14 @@ class Et:
     """
 
     unsat_form: str = 'etwc'       # etwc | etae
+    # GROUNDWATER ET: which package takes what MARMITES computes (2026-10-05).
+    # 'wel' -- MMsoil's Eg/Tg at the previous day's head, a fixed WEL rate
+    # (MMsoil approximates the drawdown with Sy); 'evt' -- two EVT packages
+    # (Eg, Tg) taking it at the head MF6 SOLVES for, along Shah's curve and
+    # the root tips, never above MMsoil's start-of-day rate (marmites_evt).
+    gw_route: str = 'wel'
+    evt_nseg: int = 8              # EVT segments: Shah within 2 % of PE
+    evt_ramp: float = 0.1          # m, a type's Tg ramps to 0 at its tip
     extdp: VectorSource = field(default_factory=lambda: VectorSource(value=2.0))
     extdp_from: str = 'source'     # source | vegetation
     extwc_source: str = 'thtr'
@@ -1902,6 +1910,17 @@ class RunConfig:
                 errs.append('et.extdp_from = vegetation needs a root_depth '
                             '> 0 for every vegetation type and crop; not '
                             'for: %s' % ', '.join(_flat))
+        if self.et.gw_route not in ('wel', 'evt'):
+            errs.append("et.gw_route must be 'wel' or 'evt'")
+        elif self.et.gw_route == 'evt':
+            # Tg's curve breaks twice per type (the ramp's top and the tip)
+            _need = max(3, 2 * max(len(self.surface.vegetation), 1) + 1)
+            if int(self.et.evt_nseg) < _need:
+                errs.append('et.evt_nseg must be >= %d: two breakpoints per '
+                            'vegetation type, plus one' % _need)
+            if not float(self.et.evt_ramp) > 0.0:
+                errs.append('et.evt_ramp must be > 0 (m): a step at the root '
+                            'tip is a kink MF6 Newton stalls on')
         if self.et.unsat_form not in ('etwc', 'etae'):
             errs.append("et.unsat_form must be 'etwc' or 'etae'")
         if self.spinup.cycles < 1:

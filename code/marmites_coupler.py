@@ -213,6 +213,13 @@ class MF6Coupler:
         self.n_resid, self.resid_max, self.resid_m3 = 0, 0.0, 0.0
         self._petmax_written = None
         self.p_drnseep = None
+        # groundwater ET route (et.gw_route): 'wel', MMsoil's rate as a WEL
+        # sink; 'evt', two EVT packages at the solved head (marmites_evt)
+        self.gw_route = str(getattr(mf6b, 'gw_route', 'wel') or 'wel')
+        self.evt_nseg = int(getattr(mf6b, 'evt_nseg', 8))
+        self.evt_ramp = float(getattr(mf6b, 'evt_ramp', 0.1))
+        self.p_evt = {}
+        self.p_evt_eg_sim = self.p_evt_tg_sim = None
         # the MF6 top per cell: the BASE of the MMsoil column (UZF's top)
         top = getattr(mf6b, 'top', None)
         self.top_cell = (None if top is None else
@@ -413,13 +420,75 @@ class MF6Coupler:
     def _mm_step(self, n, tstart_MF, heads, exf, rej):
         """One MMsoil stress period. WP2: Eg/Tg see what remains after the
         PREVIOUS period's actual UZF ET (cookbook 2b); WP5: the cascade
-        routes the runoff when there is one."""
+        routes the runoff when there is one; et.gw_route = 'evt': the day's
+        EVT curves, and the cap they put on UZF's demand."""
         if self.crr is None:
-            return self.mm.step(self.ctx, n, tstart_MF, heads, exf, self.state,
-                                rejinf_cell=rej, etuzf_cell=self.etuzf_prev)
-        return self.mm.step(self.ctx, n, tstart_MF, heads, exf, self.state,
-                            rejinf_cell=rej, etuzf_cell=self.etuzf_prev,
-                            crr=self.crr)
+            out = self.mm.step(self.ctx, n, tstart_MF, heads, exf, self.state,
+                               rejinf_cell=rej, etuzf_cell=self.etuzf_prev)
+        else:
+            out = self.mm.step(self.ctx, n, tstart_MF, heads, exf, self.state,
+                               rejinf_cell=rej, etuzf_cell=self.etuzf_prev,
+                               crr=self.crr)
+        if self.gw_route == 'evt' and out.get('gw') is not None:
+            out['evt'] = self._evt_curves(out['gw'])
+            # what EVT can take today, at most: reserved from UZF's demand,
+            # so ETsoil + ETuzf + ETg <= PE + PT holds whatever MF6 solves
+            out['etg_cap'] = out['evt']['eg']['RATE'] + out['evt']['tg']['RATE']
+        return out
+
+    def _evt_curves(self, gw):
+        """The day's two EVT curves per cell from MMsoil's groundwater-ET
+        potential (marmites_evt): {'eg'|'tg': {SURFACE, RATE, DEPTH, PXDP,
+        PETM}} in m and m/d, in the cell order the packages were built in."""
+        import marmites_evt as me
+        n, ns = self.ncell, self.evt_nseg
+        out = {t: {'SURFACE': np.zeros(n), 'RATE': np.zeros(n),
+                   'DEPTH': np.ones(n), 'PXDP': np.zeros((n, ns - 1)),
+                   'PETM': np.zeros((n, ns - 1))} for t in ('eg', 'tg')}
+        for k in range(n):
+            curves = (('eg', me.eg_curve(gw['eg_pe'][k], gw['land'][k],
+                                         gw['h0'][k], gw['shah'][k], ns)),
+                      ('tg', me.tg_curve(gw['tg_rate'][k], gw['tg_tip'][k],
+                                         gw['h0'][k], self.evt_ramp, ns)))
+            for t, (s, r, d, x, y) in curves:
+                c = out[t]
+                c['SURFACE'][k], c['RATE'][k], c['DEPTH'][k] = s, r, d
+                c['PXDP'][k], c['PETM'][k] = x, y
+        return out
+
+    def _write_evt(self, evt):
+        """Write the day's EVT curves (``_evt_curves``) into MF6."""
+        if not evt or not self.p_evt:
+            return
+        n = self.ncell
+        for t, arrs in evt.items():
+            p = self.p_evt.get(t) or {}
+            for var in ('SURFACE', 'RATE', 'DEPTH'):
+                if p.get(var) is not None:
+                    p[var][:n] = arrs[var]
+            for var in ('PXDP', 'PETM'):
+                if p.get(var) is not None:
+                    p[var][:n] = np.asarray(arrs[var]).reshape(
+                        p[var][:n].shape)
+
+    def _evt_into(self, mm_cells):
+        """The groundwater ET MF6's EVT took this period, into the MM vector
+        (iEg, iTg, iETg, iETtot) [mm/d per cell]; returns ETg [m/d] for the
+        run's books, None on the well route. Sub-step means, as for UZF."""
+        if self.p_evt_eg_sim is None:
+            return None
+        n = self.ncell
+        eg = np.abs(np.asarray(self._rate('p_evt_eg_sim'), dtype=float)
+                    .ravel()[:n]) / self.area * self.conv_fact
+        tg = np.abs(np.asarray(self._rate('p_evt_tg_sim'), dtype=float)
+                    .ravel()[:n]) / self.area * self.conv_fact
+        ix = self.ctx.index
+        for key, v in (('iEg', eg), ('iTg', tg), ('iETg', eg + tg)):
+            if key in ix:
+                mm_cells[:, ix[key]] = v
+        if 'iETtot' in ix:
+            mm_cells[:, ix['iETtot']] += eg + tg
+        return (eg + tg) / self.conv_fact
 
     def _runoff_to_deliver(self, out):
         """The runoff SFR and LAK take this period [mm/d per cell]: with CRR
@@ -542,6 +611,26 @@ class MF6Coupler:
         self.p_drnseep, self.addr_drnseep = self._bind_first(
             api, [('SIMVALS', f'{name}/DRN_SEEP')],
             'DRN-SEEP discharge', required=False)
+        # et.gw_route = 'evt': the two EVT packages' curve arrays, written
+        # every period before MF6's own time step (nothing resets them: only
+        # a PERIOD block does -- probed on libmf6 6.7, evt_toy2.py), and the
+        # ET they took (SIMVALS, negative out of the aquifer)
+        self.p_evt = {}
+        self.p_evt_eg_sim = self.p_evt_tg_sim = None
+        if self.gw_route == 'evt':
+            for tag in ('eg', 'tg'):
+                pk = 'EVT_%s' % tag.upper()
+                arrs = {}
+                for var in ('SURFACE', 'RATE', 'DEPTH', 'PXDP', 'PETM',
+                            'SIMVALS'):
+                    arrs[var], _a = self._bind_first(
+                        api, [(var, f'{name}/{pk}')], '%s %s' % (pk, var),
+                        min_size=self.ncell)
+                self.p_evt[tag] = arrs
+            self.p_evt_eg_sim = self.p_evt['eg']['SIMVALS']
+            self.p_evt_tg_sim = self.p_evt['tg']['SIMVALS']
+            print('coupler: groundwater ET by EVT (EVT_EG, EVT_TG), %d '
+                  'segments, taken at the solved head' % self.evt_nseg)
         # SFR specified inflow, written each SP with the MARMITES runoff
         if self.nreaches:
             self.p_sfr_inflow, self.addr_sfr_inflow = self._bind_first(
@@ -969,7 +1058,8 @@ class MF6Coupler:
     # and UZF's wave tolerance -- a depth per step -- divided by that
     # sub-step's length read as ET above PET in 42 cell-periods.
     SUBSTEP_RATES = ('p_uzet', 'p_drnseep', 'p_gwd', 'p_rejinf',
-                     'p_sfr_simevap', 'p_lak_simevap')
+                     'p_sfr_simevap', 'p_lak_simevap',
+                     'p_evt_eg_sim', 'p_evt_tg_sim')
 
     def _rate(self, name):
         """A reported rate for the period just advanced: its mean over the
@@ -1223,7 +1313,11 @@ class MF6Coupler:
                            - np.asarray(etg_booked, dtype=float))
         return np.maximum(d, 0.0)
 
-    def _write_fluxes(self, perc, etg, petuzf=None, etg_booked=None):
+    def _write_fluxes(self, perc, etg, petuzf=None, etg_booked=None,
+                      etg_cap=None):
+        # etg_cap (et.gw_route = 'evt'): the most EVT can take today, which
+        # UZF's demand must leave room for -- ETg itself is not known until
+        # MF6 solves, and the well (``etg``) is then zero
         # both UZF arrays, as MF6's setdatafinf sets them: the land cells
         # carry the percolation, the objects below them nothing
         # ... and the period input uzf_ad copies them from on every try of
@@ -1239,7 +1333,8 @@ class MF6Coupler:
         # objects, after groundwater ET; MF6 passes what they leave to the
         # objects below
         if petuzf is not None and self.p_petmax is not None:
-            dem = self.uzf_demand(petuzf, etg, etg_booked)
+            dem = self.uzf_demand(petuzf, etg if etg_cap is None else etg_cap,
+                                  etg_booked)
             for _p in (self.p_petmax, self.p_pet,
                        getattr(self, 'p_pet_pvar', None)):
                 if _p is not None:
@@ -1550,7 +1645,9 @@ class MF6Coupler:
                            if self._delivers_runoff() else None)
 
                     def _write(o=_o, ro=_ro, sp=n):
-                        self._write_fluxes(o['perc'], o['etg'], o.get('petuzf'))
+                        self._write_fluxes(o['perc'], o['etg'], o.get('petuzf'),
+                                           etg_cap=o.get('etg_cap'))
+                        self._write_evt(o.get('evt'))
                         if ro is not None:
                             self._write_runoff(ro)
                         self._write_openwater_evap(sp)
@@ -1582,6 +1679,11 @@ class MF6Coupler:
                     _vol = self._lak_evap_volumes()
                     if _vol is not None:
                         self.lak_evap_hist[n, :_vol.size] = _vol
+                # et.gw_route = 'evt': the groundwater ET MF6 took at the
+                # head it solved for -- before the PET check reads iETg
+                _etg = self._evt_into(mm_cells)
+                if _etg is not None:
+                    self.etg_hist[n] = _etg
                 # WP2 step 5: what UZF actually took this period -- into the
                 # water balance now, and into MM's groundwater ET next period
                 et, resid = self._split_etuzf(self._read_etuzf(), n)
@@ -1921,7 +2023,9 @@ class MF6Coupler:
             perc_prev, etg_prev = perc, etg
             petuzf_prev = out.get('petuzf')
             etg_booked = np.asarray(out['etg'], dtype=float)
-            self._write_fluxes(perc, etg, petuzf_prev, etg_booked)
+            self._write_fluxes(perc, etg, petuzf_prev, etg_booked,
+                               etg_cap=out.get('etg_cap'))
+            self._write_evt(out.get('evt'))
             # the iterative mode delivered no runoff to the stream at all;
             # it does now, to the streams and the ponds alike
             ro = (self._runoff_to_deliver(out)
@@ -1948,7 +2052,8 @@ class MF6Coupler:
                 # SINF to the build-time value on the next prepare_time_step
                 def _re_apply(p=perc_prev, e=etg_prev, sp=n,
                               u=petuzf_prev, b=etg_booked, r=ro):
-                    self._write_fluxes(p, e, u, b)
+                    self._write_fluxes(p, e, u, b, etg_cap=out.get('etg_cap'))
+                    self._write_evt(out.get('evt'))
                     if r is not None:
                         self._write_runoff(r)
                     self._write_openwater_evap(sp)

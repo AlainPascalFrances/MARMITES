@@ -53,7 +53,7 @@ __all__ = ['PANELS', 'FIELDS', 'TABLES', 'CHOICES', 'SUBPANELS', 'panel_of',
            'SOIL_ROWS', 'SOIL_VEG_ROWS', 'SOIL_FILES',
            'SOIL_DATASET_FILES', 'COLUMN_OF', 'GEOMETRY_ROWS',
            'GHB_ROWS', 'DRN_ROWS', 'LAYER_LIST',
-           'UZF_ROWS', 'UZF_ET_ROWS', 'UZF_LEGACY',
+           'UZF_ROWS', 'UZF_ET_ROWS', 'GW_ET_ROWS', 'UZF_LEGACY',
            'OBS_COMMON', 'TAIL_PANELS',
            'OBS_GROUPS',
            'PanelError']
@@ -952,6 +952,26 @@ FIELDS = {
                       'per point.'),
     'et.unsat_form': ('Unsaturated ET form', _U,
                       'etwc uses water content, etae capillary pressure.'),
+    'et.gw_route': ('Groundwater ET applied by', _U,
+                    'MARMITES computes groundwater evaporation (Eg, Shah et '
+                    'al. 2007) and transpiration (Tg, per vegetation type '
+                    'while the water table is above its root tip) either way. '
+                    '**wel**: at the previous day\'s head, as a fixed WEL '
+                    'rate; MMsoil approximates the drawdown with Sy. **evt**: '
+                    'two EVT packages take it at the head MODFLOW SOLVES for '
+                    '-- the day starts at MARMITES\' rate and it falls as the '
+                    'water table does, along Shah\'s curve and past the root '
+                    'tips; never above the start-of-day rate, so total ET '
+                    'still never exceeds PET.'),
+    'et.evt_nseg': ('EVT segments', 'count',
+                    'flopy: `ModflowGwfevt` `nseg` -- the pieces of each '
+                    'curve. 8 keeps Shah\'s curve within 2 % of PE; Tg needs '
+                    'two per vegetation type plus one. **evt** route only.'),
+    'et.evt_ramp': ('Tg ramp above the root tip', 'm',
+                    'Over this height above its root tip a type\'s Tg falls '
+                    'to zero as the water table drops -- a step there is a '
+                    'kink MODFLOW\'s Newton solve stalls on. **evt** route '
+                    'only.'),
     'et.extdp': ('Extinction depth', 'm',
                  'flopy: `ModflowGwfuzf` perioddata `extdp`. How deep the '
                  'unsaturated zone can be dried by evapotranspiration. By the '
@@ -1065,6 +1085,7 @@ CHOICES = {
     'seep.cond_from': lambda: ['value', 'uzf'],
     'et.unsat_form': lambda: ['etwc', 'etae'],
     'et.extdp_from': lambda: ['source', 'vegetation'],
+    'et.gw_route': lambda: ['wel', 'evt'],
     'drn.cond_per': lambda: ['length', 'cell'],
     'ghb.cond_per': lambda: ['length', 'cell'],
     # The ini's iuzfopt, with the numbers replaced by what they meant.
@@ -1172,6 +1193,11 @@ UZF_ET_ROWS = (
     ('et.extdp_from', None),
     ('et.extdp', 'et.extwc_source'),
     ('et.unsat_form', None),
+)
+# Groundwater ET: MARMITES computes it; this is which package applies it
+GW_ET_ROWS = (
+    ('et.gw_route', None),
+    ('et.evt_nseg', 'et.evt_ramp'),
 )
 
 # WHERE EVERY UZF1 NAME WENT. The parameter file carried twenty-two of

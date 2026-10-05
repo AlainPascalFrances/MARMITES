@@ -102,7 +102,10 @@ def test_groundwater_et_in_modflow_is_gone(cfg):
     assert 'gwet_in_mf' not in fields
     assert 'et.gwet_in_mf' not in schema.FIELDS
     page = open(PAGE, encoding='utf-8').read()
-    assert 'Groundwater ET is not asked' in page
+    # still computed by MARMITES and never asked of UZF; since 2026-10-05
+    # the panel asks which package APPLIES it (et.gw_route: wel | evt)
+    assert 'Groundwater ET is computed by MARMITES, not asked of UZF' in page
+    assert 'schema.GW_ET_ROWS' in page
 
 
 def test_the_extinction_depth_follows_the_usual_rule(cfg):

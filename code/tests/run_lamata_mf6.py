@@ -388,7 +388,7 @@ def active_area(cMF, b):
 # The flows into and out of the AQUIFER, by budget-term prefix. Only the
 # terms present in a run's list file count; the rest are simply absent.
 RECHARGE_TERMS = ('UZF-GWRCH_IN',)
-DISCHARGE_PREFIXES = ('DRN', 'GHB', 'WEL')
+DISCHARGE_PREFIXES = ('DRN', 'GHB', 'WEL', 'EVT')
 # the aquifer's exchange with the streams and the ponds, both ways: seepage
 # from them into it (_IN) and groundwater exfiltrating into them (_OUT)
 SURFACE_PREFIXES = ('SFR', 'LAK')
@@ -1344,6 +1344,18 @@ def main():
     # on the grid the run uses; or, per vegetation zone, the rooting depth
     # of each cell's cover (et.extdp_from, WP2 2.2).
     b.uzf_et_form = str(getattr(a, 'uzf_et_form', 'etwc'))
+    # groundwater ET: which package applies what MARMITES computes -- the
+    # builder makes the EVT packages, MMsoil hands over the potential
+    if cfg is not None:
+        b.gw_route = str(cfg.et.gw_route)
+        b.evt_nseg = int(cfg.et.evt_nseg)
+        b.evt_ramp = float(cfg.et.evt_ramp)
+        ctx.gw_route = b.gw_route
+        print('groundwater ET: %s -- from the panel'
+              % ('EVT (Eg, Tg) at the head MF6 solves for, %d segments, Tg '
+                 'ramp %g m above the root tips' % (b.evt_nseg, b.evt_ramp)
+                 if b.gw_route == 'evt' else
+                 'WEL, MMsoil\'s rate at the previous day\'s head'))
     if cfg is not None:
         b.uzf_extdp = extdp_grid(cfg, cMF, ctx, DS)
     if a.sfr:
