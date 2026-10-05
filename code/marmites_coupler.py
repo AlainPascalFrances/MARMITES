@@ -213,10 +213,16 @@ class MF6Coupler:
         self.n_resid, self.resid_max, self.resid_m3 = 0, 0.0, 0.0
         self._petmax_written = None
         self.p_drnseep = None
-        # land-surface elevation per cell, for the water-table plausibility check
+        # the MF6 top per cell: the BASE of the MMsoil column (UZF's top)
         top = getattr(mf6b, 'top', None)
         self.top_cell = (None if top is None else
                          np.asarray(top, dtype=float)[self.i_arr, self.j_arr])
+        # ... and the LAND surface, for the water-table plausibility check
+        # (falls back to the top for a builder without one)
+        land = (mf6b._land_surface() if hasattr(mf6b, '_land_surface')
+                else None)
+        self.land_cell = (self.top_cell if land is None else
+                          np.asarray(land, dtype=float)[self.i_arr, self.j_arr])
         # SFR: reach number per MARMITES cell (-1 = no reach in this cell), so
         # the runoff of a channel cell can be injected as reach inflow.
         self.p_sfr_inflow = None
@@ -1649,18 +1655,40 @@ class MF6Coupler:
             # conductance of 10 m2/d and the head rose 205 m above ground to
             # force the flux through. Report it rather than let it look like a
             # wet spin-up.
-            if self.top_cell is not None and self.heads_hist.size:
+            #
+            # Against the LAND surface: the MF6 top is the base of the MMsoil
+            # column, and a water table up in the soil column is MARMITES'
+            # exfiltration, not a flood. Measured from the top, the LAK run of
+            # 2026-10-04 reported "1.4 m ABOVE the land surface" where the
+            # highest head stood 0.08 m above it, under a full pond.
+            land = getattr(self, 'land_cell', None)
+            if land is None:
+                land = self.top_cell
+            if land is not None and self.heads_hist.size:
                 for _line in surface_excess_lines(
-                        self.heads_hist, self.top_cell, self.ncell):
+                        self.heads_hist, land, self.ncell):
                     print(_line)
-                above = self.heads_hist - self.top_cell[None, :]
-                if above.max() > 1.0:
+                above = self.heads_hist - land[None, :]
+                drained = np.asarray(getattr(self, 'drnseep_idx',
+                                             np.zeros(0)), int) >= 0
+                if drained.size != self.ncell:
+                    drained = np.ones(self.ncell, bool)
+                if above.max() > 1.0 and self.p_drnseep is not None \
+                        and not (above[:, drained] > 1.0).any():
+                    # the drain is not the limit where there is none
+                    print('         Only cells WITHOUT a seepage drain stand '
+                          'that high -- stream and pond cells, where SFR '
+                          'and LAK take\n         the seepage through their '
+                          'bed: the bed conductance limits them, not the '
+                          'drain.')
+                elif above.max() > 1.0:
                     if self.p_drnseep is not None:
                         # per CELL: its own exfiltration on its own area.
                         # The maximum rate times the maximum area came from
                         # two different cells -- on the mesh, 0.01..4121 m2.
-                        need = float(np.nanmax(self.exf_hist / self.conv_fact
-                                               * self.area[None, :]))
+                        need = float(np.nanmax(
+                            (self.exf_hist / self.conv_fact
+                             * self.area[None, :])[:, drained]))
                         print('         The seepage drain cannot discharge fast '
                               'enough. Peak seepage is\n         %.0f m3/d per '
                               'cell; a free-draining face needs a conductance of\n'

@@ -234,3 +234,42 @@ def test_the_seepage_estimate_takes_each_cell_on_its_own_area():
                encoding='utf-8').read()
     assert 'np.nanmax(self.exf_hist) / self.conv_fact' not in src
     assert 'self.exf_hist / self.conv_fact' in src
+
+
+def test_the_warning_measures_from_the_land_not_the_soil_base(capsys):
+    """2026-10-04, the LAK run: 'the water table rises up to 1.4 m ABOVE the
+    land surface' -- measured from the MF6 top, which is the BASE of the
+    MMsoil column. The highest head stood 0.08 m above the land, under a
+    full pond. A water table up in the soil column is exfiltration, not a
+    flood: the guard takes the land surface."""
+    import importlib.util
+    import os
+    here = os.path.dirname(os.path.abspath(__file__))
+    spec = importlib.util.spec_from_file_location(
+        't_coupler_mock_land', os.path.join(here, 'test_coupler_mock.py'))
+    cm = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cm)
+    cpl, api, ctx = cm._setup(nper=2, heads0=699.0)
+    nrow, ncol = ctx.cMF.nrow, ctx.cMF.ncol
+    cpl.mf6b.top = np.full((nrow, ncol), 697.5)          # soil base
+    cpl.mf6b._land_surface = lambda: np.full((nrow, ncol), 699.5)
+    cpl2 = coupler.MF6Coupler(cpl.mm, ctx, cpl.state, cpl.mf6b,
+                              conv_fact=1000.0)
+    assert np.allclose(cpl2.top_cell, 697.5)
+    assert np.allclose(cpl2.land_cell, 699.5)
+    cpl2.run(api)
+    out = capsys.readouterr().out
+    assert 'ABOVE the land surface' not in out           # 1.5 m into the soil
+    # and with the land where the soil base is, it is reported
+    cpl.mf6b._land_surface = lambda: np.full((nrow, ncol), 697.5)
+    cpl3 = coupler.MF6Coupler(cpl.mm, ctx, cpl.mm.init_state(ctx), cpl.mf6b,
+                              conv_fact=1000.0)
+    cpl3.run(cm.FakeApi('toy', ctx.cMF.nlay, nrow, ncol, ctx.ncell,
+                        nuzf=ctx.ncell + 3, heads0=699.0))
+    assert 'up to 1.5 m ABOVE the land surface' in capsys.readouterr().out
+
+
+def test_cells_without_a_drain_are_not_blamed_on_the_drain():
+    src = open(coupler.__file__, encoding='utf-8').read()
+    assert 'Only cells WITHOUT a seepage drain stand' in src
+    assert '[:, drained]' in src
