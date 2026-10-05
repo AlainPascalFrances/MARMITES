@@ -1734,6 +1734,13 @@ def native_suite(out_dir, cMF, ctx, res, ds_ws=None, trunk=None, verbose=True,
         except Exception as exc:                     # pragma: no cover
             if verbose:
                 print('   native obs time series skipped: %r' % exc)
+        # soil moisture at depth, the soil column's calibration target (WP6.3)
+        try:
+            written += _fig_sm_depth(out_dir, cMF, ctx, res, ds_ws,
+                                     verbose=verbose)
+        except Exception as exc:                     # pragma: no cover
+            if verbose:
+                print('   soil moisture at depth skipped: %r' % exc)
 
     # --- result maps: the MM fluxes and the aquifer terms ------------- #
     if not result_maps:
@@ -3646,4 +3653,84 @@ def export_observations(sim_ws, name, ds_ws, cMF, ctx, res, out_dirs,
         print('   observation exports (one row per stress period, %d '
               'periods): %s' % (nper, ', '.join(
                   '%s %d rows' % (fn, len(df)) for fn, df in frames.items())))
+    return written
+
+
+def _fig_sm_depth(out_dir, cMF, ctx, res, ds_ws, verbose=True):
+    """Soil moisture at depth (cookbook WP6.3): one page per observation
+    point, one curve per soil horizon -- MMsoil's water content at the end
+    of every stress period -- against the measured series (<sm_prefix>_
+    <point>.txt, one column per horizon), the horizon's porosity, field
+    capacity and wilting point drawn as its bounds. The same numbers are in
+    obs_sm.csv; each horizon's fit is in its legend."""
+    import matplotlib.pyplot as plt
+    import pandas as pd
+    if 'mms_obs' not in res or 'obs_ij' not in res or ds_ws is None:
+        return []
+    IXS = dict(ctx.index_S)
+    mms = np.asarray(res['mms_obs'], float)
+    obs_ij = np.asarray(res['obs_ij'], int)
+    names = [n.decode() if isinstance(n, bytes) else str(n)
+             for n in res.get('obs_names',
+                              [str(k) for k in range(len(obs_ij))])]
+    nper = int(mms.shape[0])
+    dates = _dates_from_dataset(ds_ws, nper)
+    if not isinstance(dates, pd.DatetimeIndex):
+        dates = pd.date_range('2000-01-01', periods=nper, freq='D')
+    perlen = np.asarray(getattr(cMF, 'perlen', [1.0] * nper), float)[:nper]
+    if perlen.size < nper:
+        perlen = np.r_[perlen, np.ones(nper - perlen.size)]
+    colours = plt.get_cmap('copper')
+    written = []
+    for p, nm in enumerate(names):
+        i, j = int(obs_ij[p, 0]), int(obs_ij[p, 1])
+        zone = int(ctx.gridSOIL[i, j]) - 1
+        nsl = int(ctx._nsl[zone])
+        thick = float(np.ravel(np.asarray(ctx.gridSOILthick))[0]
+                      if np.ndim(ctx.gridSOILthick) == 0
+                      else np.asarray(ctx.gridSOILthick)[i, j])
+        prop = np.asarray(ctx._slprop[zone], float)[:nsl]
+        base = np.cumsum(prop * thick)
+        top = np.r_[0.0, base[:-1]]
+        ob = _dated_obs(os.path.join(ds_ws, '%s_%s.txt' % (OBS['sm'], nm)),
+                        ncol=nsl)
+        obs = (_on_periods(ob[0], ob[1], dates, perlen) if ob is not None
+               else None)
+        fig, axes = plt.subplots(nsl, 1, figsize=(11, 2.6 * nsl + 0.6),
+                                 sharex=True, squeeze=False)
+        for sl in range(nsl):
+            ax = axes[sl, 0]
+            col = colours(0.25 + 0.6 * sl / max(nsl - 1, 1))
+            sim = mms[:, p, sl, IXS['iSsoil_pc_s']]
+            lab = 'simulated'
+            if obs is not None and sl < obs.shape[1]:
+                o = obs[:, sl]
+                f = _fit(sim, o)
+                if f is not None:
+                    lab += ('  (RMSE %.3f, r %.2f, NSE %.2f, %d days)'
+                            % (float(np.sqrt(np.mean((sim[f['mask']]
+                                                      - o[f['mask']]) ** 2))),
+                               f['r'], f['nse'], f['n']))
+                ax.plot(dates, o, 'o', ms=2.0, color='k', alpha=0.6,
+                        label='observed')
+            ax.plot(dates, sim, '-', lw=1.1, color=col, label=lab)
+            for v, ls, what in ((ctx._Sm[zone][sl], '--', 'porosity'),
+                                (ctx._Sfc[zone][sl], ':', 'field capacity'),
+                                (ctx._Sr[zone][sl], '-.', 'wilting point')):
+                ax.axhline(float(v), color='grey', lw=0.7, ls=ls, label=what)
+            ax.set_ylabel(r'$\theta$ [-]')
+            ax.set_title('horizon %d, %.2f-%.2f m below the land surface'
+                         % (sl + 1, top[sl], base[sl]), fontsize=9)
+            ax.grid(alpha=0.3)
+            ax.legend(fontsize=7, loc='upper right', ncol=2)
+        fig.suptitle('Soil moisture at depth -- %s (soil zone %d)'
+                     % (nm, zone + 1), fontsize=10)
+        fig.tight_layout()
+        fn = os.path.join(out_dir, 'sm_depth_%s.png' % nm)
+        fig.savefig(fn, dpi=130, bbox_inches='tight')
+        plt.close(fig)
+        written.append(fn)
+    if verbose and written:
+        print('   soil moisture at depth: %d page(s), one per observation '
+              'point' % len(written))
     return written

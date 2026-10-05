@@ -129,3 +129,24 @@ def test_the_driver_exports_on_every_run():
     pp = open(os.path.join(CODE, 'ppMF6', 'marmites_postprocess.py'),
               encoding='utf-8').read()
     assert "aet=(o.aet_prefix or '').strip()" in pp
+
+
+def test_soil_moisture_at_depth_one_page_per_point(tmp_path):
+    """WP6.3: one page per observation point, one curve per horizon, with
+    or without measurements."""
+    import matplotlib
+    matplotlib.use('agg')
+    ds = str(tmp_path / 'ds')
+    os.makedirs(ds)
+    _dataset(ds)
+    PP.OBS.update(sm='inputObsSM')
+    cMF, ctx, res = _run()
+    ctx._Sm, ctx._Sfc, ctx._Sr = [[0.4, 0.4]], [[0.3, 0.3]], [[0.05, 0.05]]
+    ctx._slprop = [[0.3, 0.7]]
+    ctx.gridSOILthick = np.full((2, 1), 0.5)
+    out = str(tmp_path / 'fig')
+    os.makedirs(out)
+    got = PP._fig_sm_depth(out, cMF, ctx, res, ds, verbose=False)
+    assert [os.path.basename(f) for f in got] == ['sm_depth_P1.png',
+                                                  'sm_depth_P2.png']
+    assert all(os.path.getsize(f) > 0 for f in got)
