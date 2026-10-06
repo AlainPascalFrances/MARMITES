@@ -26,11 +26,11 @@ example/*/MF6_ws_disv/
 example/*/GIS/
 # MMsurf_ws: keep the MMsurf INPUTS (parameter ini, meteo and irrigation
 # series, crop schedule); drop what MMsurf generates (.out/.int/.png) and
-# the 10 MB raw meteo spreadsheet (kept in the legacy archive).
+# the raw meteo spreadsheets: source data nothing reads, kept with the GIS
+# sources (E:/00code_ws/LAMATA_new/GIS, 2026-10-06).
 example/*/MMsurf_ws/*
 !example/*/MMsurf_ws/*.ini
 !example/*/MMsurf_ws/*.txt
-!example/*/MMsurf_ws/*.xlsx
 
 # --- model outputs / binaries ---
 *.h5

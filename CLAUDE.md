@@ -147,12 +147,11 @@ never shapefiles. The user asked to be reminded whenever that gets mixed up.
   save_strt/save_means "hi_voronoi_lamata_evt"; postproc.input_maps true;
   [solver] complex, outer_dvclose 0.025, outer_maximum 100, inner_dvclose
   0.001, inner_rclose 0.01, cell_averaging "amt-hmk".
-- Raw meteo spreadsheets: `example/LaMata/MMsurf_ws/
-  _meteoSARDON_TB_200709_201309.xlsx` is tracked by the user's choice
-  (`314260d` and the `!example/*/MMsurf_ws/*.xlsx` exception in
-  .gitignore). The 2007-09..2010-11 one was moved to
-  `E:\00code_ws\LAMATA_new\GIS` at his request (`1f7827d`). No code reads
-  either file; MMsurf reads `__meteoTB.txt`.
+- Raw meteo spreadsheets (`_meteoSARDON_TB_200709_201011.xlsx`,
+  `_200709_201309.xlsx`) are source data that no code reads (MMsurf reads
+  `__meteoTB.txt`). At the user's request they live in
+  `E:\00code_ws\LAMATA_new\GIS` and are no longer tracked (2026-10-06), and
+  .gitignore no longer lets `.xlsx` into `MMsurf_ws`.
 
 Test baseline on Windows: **1251 passed / 9 skipped** (full suite,
 2026-10-06, at 9ab2991, ~7 min). In the cloud, expect
