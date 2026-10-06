@@ -7,8 +7,8 @@ end of each block of work, update §6 (state) and §7 (next steps) and commit
 it with the work.
 
 Owner: Alain P. Francés (the user). Last update: 2026-10-06, after commit
-`1f7827d` (the user committed his input files and configuration in
-`a4f7b27`).
+`84d487f` (the user committed his input files and configuration in
+`a4f7b27`; raw meteo spreadsheets moved out of the repo in `84d487f`).
 
 ---------------------------------------------------------------------------
 
