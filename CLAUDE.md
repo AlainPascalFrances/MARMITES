@@ -145,9 +145,8 @@ never shapefiles. The user asked to be reminded whenever that gets mixed up.
   0.001, inner_rclose 0.01, cell_averaging "amt-hmk".
   `example/LaMata/*` also has uncommitted converter output (geojson, csv).
 
-Test baseline on Windows: last full suite 1217 passed / 9 skipped
-(2026-10-04). Tests added since then all pass individually: test_evt_route,
-test_period_steps, test_obs_exports, test_outcrop_bottom. In the cloud, expect
+Test baseline on Windows: **1251 passed / 9 skipped** (full suite,
+2026-10-06, at 9ab2991, ~7 min). In the cloud, expect
 the skips and failures of §3 for missing local data or binaries. Compare
 against a run of the same tests at the parent commit before calling
 something a regression.
