@@ -1655,6 +1655,33 @@ def test_the_solver_is_asked_on_the_run_panel_and_saved():
             os.remove(tmp)
 
 
+def test_the_run_tag_is_saved_with_the_configuration():
+    """The tag was a widget on the run tab that nothing wrote (2026-10-06):
+    typed for one run, back to the file's value at the next. It is asked on
+    the Validation tab and saved as meta.name, like every other answer."""
+    tmp = _force(_scratch_config('_runtagtest.toml'), 'meta', 'name',
+                 'name = "old_tag"')
+    try:
+        at = AppTest.from_file(os.path.join(APP, 'pages', '7_7_-_Run.py'),
+                               default_timeout=300)
+        at.session_state['config_file'] = os.path.basename(tmp)
+        at.run()
+        assert not at.exception, [str(e.value) for e in at.exception]
+        assert not [w for w in at.text_input if w.key == 'run_tag'], \
+            'an unsaved run-tag box is still on the run tab'
+        box = [w for w in at.text_input if w.key == 'meta.name']
+        assert box, 'the run tag is not asked on the Run panel'
+        box[0].set_value('evt_fix').run()
+        save = [b for b in at.button if b.key == 'sidebar_save']
+        assert save and not save[0].disabled
+        save[0].click().run()
+        assert _says(tmp, 'meta', 'name') == 'name = "evt_fix"', \
+            _says(tmp, 'meta', 'name')
+    finally:
+        if os.path.exists(tmp):
+            os.remove(tmp)
+
+
 def test_the_plots_panel_asks_for_the_input_maps_first():
     """One "Input maps" switch, on the top; the rest is the OUTPUT, and
     says so -- "Post-process" said how, not what."""

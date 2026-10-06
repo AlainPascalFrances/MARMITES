@@ -157,8 +157,10 @@ FIELDS = {
                    'constrains it: start with a letter, then letters, digits '
                    'and underscores only, at most 16 characters. Blank falls '
                    'back to the case name.'),
-    'meta.name': ('Run name', _U,
-                  'Names the output folder, out_<timestamp>_<name>.'),
+    'meta.name': ('Run tag (optional)', _U,
+                  'Names the output folder, out_<timestamp>_<tag>. Saved with '
+                  'the configuration, so it stays until you change it. Blank '
+                  'falls back to <nlay>lay_<mode>.'),
     'meta.description': ('Description', _U, 'Free text, carried into the run.'),
     'paths.case': ('Case', _U, 'Resolves to example/<case>/, the only place '
                                'the model reads input from.'),

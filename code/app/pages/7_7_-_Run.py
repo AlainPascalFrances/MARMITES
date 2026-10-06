@@ -118,6 +118,24 @@ with tab_val:
                    'build it first** — minutes, on La Mata. Build it on the '
                    'Grid panel and press *Select this grid for the model*.')
 
+    # THE RUN TAG, saved as meta.name. It sat on the run tab as a widget that
+    # was never written (2026-10-06): a tag typed there named one run and was
+    # gone at the next, back to whatever the file said. It is part of the
+    # configuration (and of its hash), so it is asked HERE and saved by
+    # Validate like every other answer on this tab.
+    st.markdown('#### Run tag')
+    _tc1, _tc2 = st.columns([2, 3])
+    with _tc1:
+        _tag_edit = panelui.rows_form(cfg, (('meta.name', None),), 'meta',
+                                      columns=1)
+    with _tc2:
+        st.markdown('')
+        _tag = str(_tag_edit.get('meta.name', cfg.meta.name) or '').strip()
+        st.caption('Optional. The run writes `out_<timestamp>_%s`. Saved with '
+                   'the configuration, so it stays until you change it.'
+                   % (_tag or cfg.run_tag))
+    panelui.remember(_tag_edit)
+
     # HOW THE RUN IS COUPLED, and what it must satisfy to count as a result.
     # These were TOML-only: the audit behind the cookbook's Appendix B found
     # the choice between lagged and iterative coupling -- the one WP2 has to
@@ -339,8 +357,11 @@ with tab_run:
                    % (chosen, eff_hash,
                       (' with %d override(s)' % len(overrides))
                       if overrides else ''))
-    run_tag = st.text_input('Run tag (optional)', value=cfg.meta.name or '',
-                            key='run_tag', disabled=not unlocked)
+    # Read from what was validated, not typed here: an edit on this tab would
+    # name the run without being saved (see the Run tag on the first tab).
+    run_tag = (eff.meta.name if eff is not None else cfg.meta.name) or ''
+    st.markdown('**Run tag** `%s` — set on the *Validation of the '
+                'configuration* tab.' % (run_tag or '(none)'))
 
     def _start():
         """Actually start the detached run -- converting the cartography
