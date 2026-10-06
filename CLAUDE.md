@@ -83,6 +83,9 @@ never shapefiles. The user asked to be reminded whenever that gets mixed up.
    `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`). The user
    pushes; do not push unless asked. In a cloud session, commits live only
    in the container until pushed, so ask before ending a block of work.
+   **Cloud sessions (user decision 2026-10-06):** Claude pushes to the
+   SESSION branch only (never to `MM-MF6_SFR_LAK_CRR`); the user then
+   fast-forwards `MM-MF6_SFR_LAK_CRR` from it in his own terminal.
 5. When code that the Streamlit app imports changes (schema, config, panels,
    meshes), **remind the user to restart Streamlit**. A model run starts a fresh
    process and picks up model code without a restart.
