@@ -6,8 +6,9 @@ cloud ones included. **Read it whole before acting. Keep it current:** at the
 end of each block of work, update §6 (state) and §7 (next steps) and commit
 it with the work.
 
-Owner: Alain P. Francés (the user). Last update: 2026-10-06, at commit
-`6b9defa` + this file.
+Owner: Alain P. Francés (the user). Last update: 2026-10-06, after commit
+`1f7827d` (the user committed his input files and configuration in
+`a4f7b27`).
 
 ---------------------------------------------------------------------------
 
@@ -132,9 +133,12 @@ never shapefiles. The user asked to be reminded whenever that gets mixed up.
   and `win64/triangle.exe`. Workaround: create that tree with symlinks
   (`libmf6.dll -> libmf6.so`, `mf6.exe -> mf6`) and set `MM_MODFLOW_DIR`.
   Making mm_paths platform-aware is a reasonable small fix; ask first.
-- The user's local, uncommitted `code/configs/lamata.toml` is NOT in the
-  repo. Its current values (2026-10-06), as differences from the committed copy:
-  nsp 365, run.ats_dtmin 0.0002; mesh cell_near_stream 20, stream_buffer 60,
+- `code/configs/lamata.toml` in the repo is the user's current run
+  configuration: he committed it with the converter output in
+  `example/LaMata/` (`a4f7b27`, 2026-10-06). He commits these working copies
+  himself at handoff points, so between handoffs his local copies may be
+  ahead of the repo. Main settings (2026-10-06), as changes from the
+  previous committed copy: nsp 365, run.ats_dtmin 0.0002; mesh cell_near_stream 20, stream_buffer 60,
   trans_levels [20, 60], cell_pond 40; soil.irr_infiltration "column";
   drn line "lm_outlet_drn.shp", cond_per length, value 0.00084; seep cond 100,
   ddrn 0.125, base 0, cond_from value; et.gw_route "evt", evt_nseg 8,
@@ -143,7 +147,12 @@ never shapefiles. The user asked to be reminded whenever that gets mixed up.
   save_strt/save_means "hi_voronoi_lamata_evt"; postproc.input_maps true;
   [solver] complex, outer_dvclose 0.025, outer_maximum 100, inner_dvclose
   0.001, inner_rclose 0.01, cell_averaging "amt-hmk".
-  `example/LaMata/*` also has uncommitted converter output (geojson, csv).
+- Raw meteo spreadsheets: `example/LaMata/MMsurf_ws/
+  _meteoSARDON_TB_200709_201309.xlsx` is tracked by the user's choice
+  (`314260d` and the `!example/*/MMsurf_ws/*.xlsx` exception in
+  .gitignore). The 2007-09..2010-11 one was moved to
+  `E:\00code_ws\LAMATA_new\GIS` at his request (`1f7827d`). No code reads
+  either file; MMsurf reads `__meteoTB.txt`.
 
 Test baseline on Windows: **1251 passed / 9 skipped** (full suite,
 2026-10-06, at 9ab2991, ~7 min). In the cloud, expect
