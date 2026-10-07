@@ -215,6 +215,23 @@ def test_run_preproc_writes_input_maps(tiny_run, tmp_path):
         'the plain aq_*/mm_* maps were replaced by the native IN_* set')
 
 
+def test_the_general_map_reads_the_gis_folder_from_mm_paths(tmp_path,
+                                                            monkeypatch,
+                                                            capsys):
+    """A blank paths.gis_ws means panel 0's GIS folder, mm_paths.GIS. The
+    map had a literal of its own, E:/00code_ws/LAMATA_new/GIS: on the
+    server it said 'no GIS workspace' while panel 0 pointed at the GIS and
+    the run's catchment check read it there (2026-10-07)."""
+    pytest.importorskip('geopandas')
+    import mm_paths
+    gis = tmp_path / 'GIS_from_panel0'     # absent: the figure is skipped,
+    monkeypatch.setattr(mm_paths, 'GIS', gis)   # and says where it looked
+    assert PP._fig_general_map(str(tmp_path), gis_ws=None) == []
+    out = capsys.readouterr().out
+    assert repr(str(gis)) in out, out
+    assert 'E:/00code_ws' not in out
+
+
 def test_ja_down_index_matches_flopy_faceflows():
     """Our precomputed JA down-connection index must reproduce flopy's
     get_structured_faceflows exactly, including its sign convention

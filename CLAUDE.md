@@ -142,12 +142,12 @@ never shapefiles. The user asked to be reminded whenever that gets mixed up.
 - Machine paths: `C:\00code\...\code\configs\paths.local.toml` (the X:
   checkout has none, so its defaults are E:\). MF6 6.7.0 + source:
   `C:\sw\MODFLOWandCo\mf6.7.0_win64`.
-- Test baseline on this server (2026-10-07, after the WEL/iterative
-  removal): **1214 passed / 34 skipped, 10 environmental failures**: 8 in
-  test_app_pages (Streamlit refuses a network path for Home.py, and the
-  GIS/panel-0 tests need a GIS workspace and paths.local.toml) and 2 in
-  test_layer_props (GIS at E:\). All 10 fail identically on the unchanged
-  HEAD. ~8 min.
+- Test baseline on this server (2026-10-07), `pt.bat` (which gives the
+  server's read-only data paths, as the X: checkout has no paths.local.toml):
+  all pass but **4 environmental failures** in test_app_pages -- Home.py and
+  the two panel-0 tests (Streamlit refuses a page on a network path: run
+  them from C:), and the pond-footprint map (no mesh cache, because WS_ROOT
+  is deliberately not given to tests). ~8 min.
 - `X:\3p1p1\MF6models\LaMata\` holds `DATA_ROOT`, `NWT_REF` and `WS_ROOT`.
   Run workspace `WS_ROOT\MF6_ws_voronoi`, results `WS_ROOT\out_<stamp>_<tag>`,
   per-run `run.log` + `status.json` in `WS_ROOT\runs\<run_id>\`.
@@ -278,6 +278,12 @@ something a regression.
   storage terms that should be zero, and two runs sample different days.
   Never compare runs on these files. Use `budget_terms.csv` (from the listing),
   the run log, or `package_budget(..., max_samples=None)` (2026-10-07, notes §8.19).
+- **Machine paths have ONE definition, `mm_paths`** (MM_* env > configs/
+  paths.local.toml > defaults, which are the OLD machine's E:\ paths). A
+  literal default anywhere else is a bug: marmites_postprocess had its own
+  GIS folder, E:/00code_ws/LAMATA_new/GIS, so on the server the general map
+  was skipped while panel 0 pointed at the GIS (fixed 2026-10-07). On the
+  X: checkout (no paths.local.toml) mm_paths falls back to E:\.
 - The Streamlit app keeps old modules in memory: after code changes, restart it,
   or the grid/schema is stale.
 - AppTest page tests time out while the user's model runs; re-run them alone.

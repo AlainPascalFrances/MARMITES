@@ -1417,11 +1417,22 @@ def _fig_model_map(out, sim_ws, name, ds_ws, title=None, verbose=True):
 
 # Where the site's GIS layers live: in the WORKSPACE, never in the repo. The
 # repo holds only what MM and MF read directly, and no shapefile is read by
-# either -- this map is the one thing that touches them. So this is only a
-# default: the caller can pass gis_ws, MARMITES_GIS_WS overrides it, and the
-# figure is skipped when nothing is found. Forward slashes on purpose --
-# Windows accepts them and they keep the literal free of escapes.
-GIS_WS = os.environ.get('MARMITES_GIS_WS', 'E:/00code_ws/LAMATA_new/GIS')
+# either -- this map is the one thing that touches them. The caller can pass
+# gis_ws (paths.gis_ws); blank, it is mm_paths.GIS, panel 0's setting, and
+# the figure is skipped when nothing is found there.
+def _gis_default():
+    """mm_paths.GIS: MM_GIS_WS (or the legacy MARMITES_GIS_WS) > the gis key
+    of configs/paths.local.toml > DATA_ROOT/GIS -- the ONE definition of the
+    GIS folder (WP1.4). This module had a literal of its own,
+    'E:/00code_ws/LAMATA_new/GIS', which no setting reached: on the server
+    the general map was skipped while panel 0 pointed at the GIS and the
+    run's catchment check read it there (2026-10-07)."""
+    try:
+        import mm_paths
+    except ImportError:                               # pragma: no cover
+        return os.environ.get('MM_GIS_WS') or os.environ.get(
+            'MARMITES_GIS_WS', '')
+    return str(mm_paths.GIS)
 
 # Soil_type.SoilType -> (face colour, hatch). chr(92) is a backslash: writing
 # the hatch as an escaped literal here is unreadable.
@@ -1461,8 +1472,8 @@ def _fig_general_map(out, cMF=None, gis_ws=None, verbose=True):
     # No fall-back onto ds_ws/GIS: the dataset folder in the repo is for what
     # MM and MF import, and putting shapefiles there to satisfy this figure is
     # exactly the mix-up to avoid.
-    G = gis_ws or GIS_WS
-    if not os.path.isdir(G):
+    G = gis_ws or _gis_default()
+    if not G or not os.path.isdir(G):
         if verbose:
             print('   general map skipped: no GIS workspace at %r' % G)
         return []

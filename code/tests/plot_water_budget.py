@@ -465,8 +465,8 @@ def make_figures(ws, no_reference=False, verbose=True, out_dir=None):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--ws', default=os.environ.get(
-        'MARMITES_WS_ROOT', os.path.join('E:' + os.sep, '00code_ws', 'LaMata_MM-MF6')) + os.sep + 'MF6_ws')
+    ap.add_argument('--ws', default=os.path.join(str(_mmp.WS_ROOT), 'MF6_ws'),
+                    help='the MODFLOW 6 workspace (default: mm_paths.WS_ROOT/MF6_ws)')
     ap.add_argument('--out-dir', default=None,
                     help='results folder to write figures into')
     ap.add_argument('--no-reference', action='store_true')

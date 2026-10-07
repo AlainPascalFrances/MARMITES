@@ -35,9 +35,9 @@ DS = os.path.abspath(os.path.join(HERE, '..', '..', 'example', 'LaMata'))
 #     <WS_ROOT>/MF6_ws/                 the MODFLOW 6 model + its output
 #     <WS_ROOT>/MMsurf_ws/              MMsurf output
 #     <WS_ROOT>/out_<stamp>_<tag>/      MM results (postproc/ + figures/)
-# Override with --ws-root or the MARMITES_WS_ROOT environment variable.
-WS_ROOT = os.environ.get('MARMITES_WS_ROOT',
-                         os.path.join('E:' + os.sep, '00code_ws', 'LaMata_MM-MF6'))
+# WS_ROOT is mm_paths.WS_ROOT (panel 0, MM_WS_ROOT). It had a literal default
+# of its own here, E:\00code_ws\LaMata_MM-MF6, which the run did not read
+# but a diagnostic script did (2026-10-07).
 for p in ('', 'MARMITESutilities', 'MARMITESsoil', 'ppMF_FloPy', 'ppMF6'):
     sys.path.insert(0, os.path.join(TRUNK, p))
 
@@ -54,6 +54,8 @@ from marmites_coupler import MF6Coupler  # noqa: E402
 import marmites_config as mcfg  # noqa: E402
 import marmites_surface as msurf  # noqa: E402
 import mm_paths  # noqa: E402
+
+WS_ROOT = str(mm_paths.WS_ROOT)
 
 
 # The BMI/XMI SHARED LIBRARY, not the executable. The coupler steps MODFLOW
