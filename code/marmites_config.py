@@ -334,7 +334,7 @@ class Meta:
     # letter, at most 16 characters. validate() enforces that here rather
     # than letting MODFLOW reject it after the input is written.
     model: str = ''                # blank -> paths.case, lower-cased
-    name: str = ''                 # -> out_<stamp>_<name>; blank = <nlay>lay_<mode>
+    name: str = ''                 # -> out_<stamp>_<name>; blank = <nlay>lay
     description: str = ''
 
     def model_name(self, case=''):
@@ -362,8 +362,6 @@ class Run:
     surface: bool = False          # panel 2: run MMsurf       (was MARMsurf_yn)
     model: bool = True             # panels 3 and 4: MMsoil + MODFLOW 6
     plot: bool = True              # panel 6: figures
-    mode: str = 'lagged'           # lagged | iterative        (--mode)
-    relax: float = 0.6             #                           (--relax)
     nsp: int = 0                   # 0 = all stress periods    (--nsp)
     daily: bool = True             # false = aggregated        (--aggregated)
     # The longest a stress period may be, in days, when `daily` is off. The
@@ -937,10 +935,11 @@ class Uzf:
 class Et:
     """Panel 4 -- evapotranspiration INSIDE MODFLOW.
 
-    Groundwater ET is not here at all. MARMITES computes ETg and applies
-    it through the WEL package, so a second answer inside MODFLOW could
-    only disagree with it -- the old `gwet_in_mf` switch was forced false
-    and read by nothing, which is worse than absent.
+    UZF's groundwater ET is not here at all. MARMITES computes what Eg and
+    Tg could take each day and two EVT packages take it at the head MF6
+    solves for, so a second answer inside UZF could only disagree with it
+    -- the old `gwet_in_mf` switch was forced false and read by nothing,
+    which is worse than absent.
 
     What remains is the UNSATURATED-zone ET that UZF can do itself:
 
@@ -973,12 +972,11 @@ class Et:
     """
 
     unsat_form: str = 'etwc'       # etwc | etae
-    # GROUNDWATER ET: which package takes what MARMITES computes (2026-10-05).
-    # 'wel' -- MMsoil's Eg/Tg at the previous day's head, a fixed WEL rate
-    # (MMsoil approximates the drawdown with Sy); 'evt' -- two EVT packages
-    # (Eg, Tg) taking it at the head MF6 SOLVES for, along Shah's curve and
-    # the root tips, never above MMsoil's start-of-day rate (marmites_evt).
-    gw_route: str = 'wel'
+    # GROUNDWATER ET: two EVT packages (Eg, Tg) take what MARMITES computes
+    # at the head MF6 SOLVES for, along Shah's curve and the root tips,
+    # never above MMsoil's start-of-day rate (marmites_evt). The WEL route
+    # (et.gw_route = 'wel', a fixed rate at the previous day's head) was
+    # removed on 2026-10-07 -- see RETIRED.
     evt_nseg: int = 8              # EVT segments: Shah within 2 % of PE
     evt_ramp: float = 0.1          # m, a type's Tg ramps to 0 at its tip
     extdp: VectorSource = field(default_factory=lambda: VectorSource(value=2.0))
@@ -1552,7 +1550,19 @@ RENAMED = {
 RETIRED = {
     'et': {'uzf_et': 'UZF always simulates unsaturated-zone ET (WP2): total '
                      'ET has three sources and the deep unsaturated zone is '
-                     'one of them, so there is no off position'},
+                     'one of them, so there is no off position',
+           'gw_route': 'groundwater ET is always taken by EVT at the head '
+                       'MODFLOW solves for (2026-10-07); the WEL route, a '
+                       'fixed rate at the previous day\'s head, is gone, and '
+                       'WEL is left for real pumping'},
+    'run': {'mode': 'the coupling is lagged (2026-10-07): MMsoil once per '
+                    'stress period, then MODFLOW\'s own time step, which ATS '
+                    'retries when it fails. The iterative mode re-ran MMsoil '
+                    'at each outer iteration for the groundwater ET, which '
+                    'EVT now takes at the solved head, and a step it could '
+                    'not solve was never retried',
+            'relax': 'it under-relaxed the iterative coupling, which is gone '
+                     '(see run.mode)'},
     'postproc': {'preproc': 'postproc.input_maps is the one switch for '
                             'the input stage now -- the general map and the '
                             'parameter maps; preproc turned the stage on and '
@@ -1714,10 +1724,6 @@ class RunConfig:
         if self.meta.config_version != 1:
             errs.append('meta.config_version %r is not supported (expected 1)'
                         % self.meta.config_version)
-        if self.run.mode not in ('lagged', 'iterative'):
-            errs.append("run.mode must be 'lagged' or 'iterative'")
-        if not (0.0 < self.run.relax <= 1.0):
-            errs.append('run.relax must be in (0, 1]')
         if self.run.nsp < 0:
             errs.append('run.nsp must be >= 0 (0 = all stress periods)')
         if self.run.perlen_max < 1:
@@ -1910,17 +1916,14 @@ class RunConfig:
                 errs.append('et.extdp_from = vegetation needs a root_depth '
                             '> 0 for every vegetation type and crop; not '
                             'for: %s' % ', '.join(_flat))
-        if self.et.gw_route not in ('wel', 'evt'):
-            errs.append("et.gw_route must be 'wel' or 'evt'")
-        elif self.et.gw_route == 'evt':
-            # Tg's curve breaks twice per type (the ramp's top and the tip)
-            _need = max(3, 2 * max(len(self.surface.vegetation), 1) + 1)
-            if int(self.et.evt_nseg) < _need:
-                errs.append('et.evt_nseg must be >= %d: two breakpoints per '
-                            'vegetation type, plus one' % _need)
-            if not float(self.et.evt_ramp) > 0.0:
-                errs.append('et.evt_ramp must be > 0 (m): a step at the root '
-                            'tip is a kink MF6 Newton stalls on')
+        # Tg's EVT curve breaks twice per type (the ramp's top and the tip)
+        _need = max(3, 2 * max(len(self.surface.vegetation), 1) + 1)
+        if int(self.et.evt_nseg) < _need:
+            errs.append('et.evt_nseg must be >= %d: two breakpoints per '
+                        'vegetation type, plus one' % _need)
+        if not float(self.et.evt_ramp) > 0.0:
+            errs.append('et.evt_ramp must be > 0 (m): a step at the root '
+                        'tip is a kink MF6 Newton stalls on')
         if self.et.unsat_form not in ('etwc', 'etae'):
             errs.append("et.unsat_form must be 'etwc' or 'etae'")
         if self.spinup.cycles < 1:
@@ -2295,7 +2298,7 @@ class RunConfig:
 
     @property
     def run_tag(self):
-        return self.meta.name or '%dlay_%s' % (self.layers.nlay, self.run.mode)
+        return self.meta.name or '%dlay' % self.layers.nlay
 
     def require_implemented_grid(self):
         """Fail fast and clearly on a grid producer that WP1c has not built yet."""

@@ -1894,8 +1894,9 @@ _AQ_RECORDS = (
     ('STO-SY', 'STO-SY', None),
     ('DRN', 'DRN', 'DRN'),                 # boundary drains
     ('DRN_SEEP', 'DRN', 'DRN_SEEP'),       # seepage face (seep='drn')
-    ('WEL', 'WEL', None),                  # groundwater ET sink
-    # ... or, on et.gw_route = 'evt', the two EVT packages (Eg, Tg apart)
+    # groundwater ET: the ETg wells of a run made before 2026-10-07 (the
+    # WEL route), else the two EVT packages (Eg, Tg apart)
+    ('WEL', 'WEL', None),
     ('EVT_EG', 'EVT', 'EVT_EG'),
     ('EVT_TG', 'EVT', 'EVT_TG'),
     ('GHB', 'GHB', None),                  # head-dependent boundary
@@ -2176,8 +2177,9 @@ def _aquifer_layer_fluxes(sim_ws, name, cMF, ctx, res, sel_ij=None,
     SFR = vol('SFR') * to_mm                                  # + in, - out
     LAK = vol('LAK') * to_mm                                  # + in, - out
     wel = -vol('WEL') * to_mm                                 # >0 magnitude out
-    # on et.gw_route = 'evt' MF6 itself keeps Eg and Tg apart; the WEL is
-    # then zero but for a steady first period's mean
+    # EVT keeps Eg and Tg apart in MF6 itself; the WEL term is there for a
+    # run made on the WEL route (before 2026-10-07), whose ETg wells drew
+    # them together
     Egl = wel * eg_frac[:, None] - vol('EVT_EG') * to_mm
     Tgl = wel * (1.0 - eg_frac[:, None]) - vol('EVT_TG') * to_mm
     # exfiltration to the soil: prefer an explicit seepage-drain package,

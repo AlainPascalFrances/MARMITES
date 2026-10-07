@@ -133,8 +133,21 @@ never shapefiles. The user asked to be reminded whenever that gets mixed up.
   behind `X:`. Check which checkout a run used before attributing a result
   to a commit.
 - Python env `C:\Users\su-alain.frances\AppData\Local\miniconda3\envs\mf6models`
-  (the runs use it). Helpers in `X:\tmp_claude\helpers`: `run_py.bat
-  <script>` runs a script in the activated env.
+  (the runs use it). It has NO pytest: pytest sits in `X:\tmp_claude\pylibs`
+  (pip --target), so the env is untouched. Helpers in `X:\tmp_claude\helpers`:
+  `run_py.bat <script>` runs a script in the activated env, `pt.bat <args>`
+  runs pytest from the X: repo root, `buildcheck.bat` builds La Mata from
+  the X: code into `X:\tmp_claude\scratch_ws` (the user's inputs, copied
+  mesh cache and saved state) and initializes MF6 (`--probe`), never a run.
+- Machine paths: `C:\00code\...\code\configs\paths.local.toml` (the X:
+  checkout has none, so its defaults are E:\). MF6 6.7.0 + source:
+  `C:\sw\MODFLOWandCo\mf6.7.0_win64`.
+- Test baseline on this server (2026-10-07, after the WEL/iterative
+  removal): **1214 passed / 34 skipped, 10 environmental failures**: 8 in
+  test_app_pages (Streamlit refuses a network path for Home.py, and the
+  GIS/panel-0 tests need a GIS workspace and paths.local.toml) and 2 in
+  test_layer_props (GIS at E:\). All 10 fail identically on the unchanged
+  HEAD. ~8 min.
 - `X:\3p1p1\MF6models\LaMata\` holds `DATA_ROOT`, `NWT_REF` and `WS_ROOT`.
   Run workspace `WS_ROOT\MF6_ws_voronoi`, results `WS_ROOT\out_<stamp>_<tag>`,
   per-run `run.log` + `status.json` in `WS_ROOT\runs\<run_id>\`.
@@ -188,21 +201,31 @@ something a regression.
 
 ## 4. Model design decisions in force (do not undo silently)
 
-- Coupling: lagged daily. MMsoil runs first (soil column on top of MF6), then
-  MF6 does one stress period through **`do_time_step`**, so MF6's own ATS
-  retry runs. Fluxes are written to arrays MF6 re-applies on every retry:
-  UZF `SINF_PVAR` (recharge), `PET_PVAR` (UZF demand). WEL/SFR/LAK period
+- Coupling: **lagged daily, the only mode** (user, 2026-10-07: `run.mode`
+  and `run.relax` retired). MMsoil runs first (soil column on top of MF6),
+  then MF6 does one stress period through **`do_time_step`**, so MF6's own ATS
+  retry runs. The iterative mode drove the solve by hand (a failed step was
+  accepted, never retried), and the head feedback it existed for is EVT's
+  now. Fluxes are written to arrays MF6 re-applies on every retry:
+  UZF `SINF_PVAR` (recharge), `PET_PVAR` (UZF demand). EVT/SFR/LAK period
   values are NOT reloaded on a retry; only PERIOD blocks reset them. A split
-  period's rates are booked as **sub-step means** (SUBSTEP_RATES).
+  period's rates are booked as **sub-step means** (SUBSTEP_RATES). Results
+  file: `MF6Coupler.RESULTS_H5` = `_coupled_lagged.h5` (name kept).
 - MF6 top = **soil base** (top = land − soil thickness). The land surface is
   `clsMF6._land_surface()` (cMF.elev). UZF extdp = roots below the soil.
-- **Groundwater ET route** `et.gw_route`: `wel` (legacy: MMsoil's Eg/Tg as a
-  fixed WEL rate) | `evt` (two EVT packages `evt_eg`/`evt_tg`, one curve per
-  cell per day, evaluated by MF6 at the solved head; marmites_evt). Each EVT
-  curve starts at the start-of-day head with MM's rate and is flat above, so EVT can only
-  fall within the day. The UZF demand is capped at PETuzf − EVT max, which keeps ET ≤ PET
-  exact. EVT arrays (SURFACE/RATE/DEPTH/PXDP/PETM) persist across
-  do_time_step retries.
+- **Groundwater ET = EVT, the only coupled path** (user, 2026-10-07:
+  `et.gw_route` retired, the WEL route and its ETg wells removed). Two EVT
+  packages `evt_eg`/`evt_tg`, one curve per cell per day, evaluated by MF6 at
+  the solved head (marmites_evt); the coupler sets `ctx.gw_evt` so MMsoil
+  hands over the potential. Each EVT curve starts at the start-of-day head
+  with MM's rate and is flat above, so EVT can only fall within the day. The
+  UZF demand is capped at PETuzf − EVT max (`uzf_demand(petuzf, etg_cap)`),
+  which keeps ET ≤ PET exact. EVT arrays (SURFACE/RATE/DEPTH/PXDP/PETM)
+  persist across do_time_step retries. A steady first SP takes the mean ETg
+  as a FLAT EVT curve down to the surface cell's bottom (`flat_curve`, all on
+  EVT_EG). MMsoil's own Eg/Tg with drawdown remain for the uncoupled path.
+  **WEL is left for real pumping** (not built yet; post-processing still
+  reads a WEL term for runs made before 2026-10-07).
 - Seepage face = DRN_SEEP at the soil base (not UZF GWSEEP: deprecated in MF6
   6.5+, and validate() refuses seep.kind='uzf' under coupling). **No seepage
   drain in stream cells or in any pond-footprint cell.**
@@ -267,7 +290,10 @@ something a regression.
 
 Done: WP0, WP1, WP1b, WP1c (meshes), WP2 (three-source ET), WP3 (SFR), WP4
 (LAK), WP5 (CRR), WP6.3 (soil moisture at depth figure), WP6.4 (obs
-exports), EVT route.
+exports), EVT route; 2026-10-07: the WEL route for Eg/Tg and the iterative
+coupling removed (EVT and lagged are the only paths; §4). **Not yet run on
+La Mata**: verified by tests and a build + MF6-initialize (probe) check in a
+scratch workspace.
 
 Recent runs (La Mata, 4566-cell Voronoi mesh: 20 m stream corridor ratio 2,
 40 m pond cells; 2 layers; 1-year spin-up cycles):
@@ -305,21 +331,24 @@ Recent runs (La Mata, 4566-cell Voronoi mesh: 20 m stream corridor ratio 2,
 
 ## 7. Next steps (in order)
 
-1. **If the user confirms (his stated plan): remove the WEL route for Eg/Tg.**
-   The §7.1 analysis (2026-10-07, notes §8.19) found nothing against it.
-   EVT becomes the only coupled path. The steady cold-start SP uses a flat mean-rate EVT.
-   MMsoil keeps its internal Eg/Tg for the uncoupled/NWT path. **WEL is then
-   free for real boreholes/extraction**: a `[wel]` section on a panel, plain MF6
-   input with the coupler hands-off; WEL = pumping in the balance, maps and Sankey.
-2. **Exact package budgets in post-processing** (small, before 6.6).
+1. **User reruns La Mata after the 2026-10-07 removal** (WEL route,
+   iterative mode), from the X: checkout. Expect the EVT-fix run's results
+   to the digit except the run tag (now `<nlay>lay` by default) and no WEL
+   in the budget; the log says the three retired keys are gone until the
+   config is saved from a panel. Restart Streamlit first.
+2. **WEL for real boreholes/extraction** (when the user wants it): a `[wel]`
+   section on a panel, plain MF6 input with the coupler hands-off; WEL =
+   pumping in the balance, maps and Sankey -- relabel the post-processing's
+   WEL term ('ET (groundwater)' today, for old WEL-route runs).
+3. **Exact package budgets in post-processing** (small, before 6.6).
    `package_budget` should read every record (time-weighted, about 40 s per
    cbc on La Mata), or the per-period means. `layer_storage_change` should
    be time-weighted too. See the §5 trap.
-3. Validate WP6.3 figures (`sm_depth_<pt>.png`) on real output.
-4. WP6 remainder: 6.2 (pond volume panels, MVR accounting, water-balance
+4. Validate WP6.3 figures (`sm_depth_<pt>.png`) on real output.
+5. WP6 remainder: 6.2 (pond volume panels, MVR accounting, water-balance
    graphs), 6.5 (calibcrit groups for streamflow and ET), 6.6 (Results page:
    run picker, run-to-run comparison).
-5. **WP7 PEST++-IES** on the obs exports. Lessons from the CdL calibration:
+6. **WP7 PEST++-IES** on the obs exports. Lessons from the CdL calibration:
    draw the prior ensemble from the geostatistical structure (pyEMU
    `pf.draw` → `prior_pe.jcb`, `ies_parameter_ensemble`). A diagonal
    bounds-only prior gave spatially white pilot points, checkerboard K, 58% of
@@ -327,4 +356,4 @@ Recent runs (La Mata, 4566-cell Voronoi mesh: 20 m stream corridor ratio 2,
    `ies_autoadaloc`, ~150 realisations, and check posterior Moran's I and
    bound-hitting. The forward run must complete (physical-plausibility gate).
    Runs at that scale belong on a server.
-6. WP8 hygiene.
+7. WP8 hygiene.

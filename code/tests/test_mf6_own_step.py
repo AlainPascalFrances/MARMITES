@@ -100,7 +100,7 @@ class OwnStepApi(M.FakeApi):
 
 
 def _setup(api_kw=None, nper=4):
-    cpl, _api, ctx = M._setup(nper=nper, mode='lagged')
+    cpl, _api, ctx = M._setup(nper=nper)
     api = OwnStepApi('toy', ctx.cMF.nlay, ctx.cMF.nrow, ctx.cMF.ncol,
                      ctx.ncell, nuzf=ctx.ncell + 3, **(api_kw or {}))
     return cpl, api, ctx
@@ -191,7 +191,7 @@ class SubstepApi(OwnStepApi):
 
 
 def _substep_setup(heads0=699.0, **kw):
-    cpl, _api, ctx = M._setup(nper=4, mode='lagged', heads0=heads0)
+    cpl, _api, ctx = M._setup(nper=4, heads0=heads0)
     api = SubstepApi('toy', ctx.cMF.nlay, ctx.cMF.nrow, ctx.cMF.ncol,
                      ctx.ncell, nuzf=ctx.ncell + 3, heads0=heads0, **kw)
     api.uzet_area = cpl.area
@@ -252,7 +252,7 @@ def test_the_listing_counts_periods_given_up_not_tries_retried(tmp_path):
         ' Failed solution for step 2 and period 7 will be retried using time '
         'step of   0.2000000', ''])
     assert coup.MF6Coupler.listing_given_up(txt) == {3}
-    cpl, _api, _ctx = M._setup(nper=2, mode='lagged')
+    cpl, _api, _ctx = M._setup(nper=2)
     (tmp_path / 'mfsim.lst').write_text(txt)
     cpl.sim_ws = str(tmp_path)
     rep = cpl.check_solution(raise_on_fail=False)
@@ -263,6 +263,6 @@ def test_the_listing_counts_periods_given_up_not_tries_retried(tmp_path):
 def test_without_the_period_input_the_old_stepping_stays():
     """An MF6 build that does not expose SINF_PVAR keeps the prepare_solve
     path -- and says a failed step would not be retried."""
-    cpl, api, ctx = M._setup(nper=3, mode='lagged')
+    cpl, api, ctx = M._setup(nper=3)
     cpl.run(api)
     assert not cpl.mf6_step

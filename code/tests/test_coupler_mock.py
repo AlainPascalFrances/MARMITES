@@ -2,15 +2,16 @@
 """Phase-3b/3c tests: MF6Coupler logic against a mocked MODFLOW 6 API.
 
 The fake API reproduces the memory-pointer surface the coupler uses
-(X, UZF FINF/GWD, WEL BOUND, prepare/solve/finalize cycle) so the lagged
-and iterative exchange logic is fully exercised without the mf6 binary:
+(X, UZF FINF/GWD/PETMAX, the two EVT packages' curves, the
+prepare/solve/finalize cycle) so the exchange logic is fully exercised
+without the mf6 binary:
 
-  * lagged mode consumes heads from the END of the previous SP;
-  * pointers receive perc (FINF) and -ETg*area (WEL Q);
-  * iterative mode re-evaluates MM at each outer iteration, applies
-    under-relaxation, and keeps exactly one state advance per SP;
-  * with converging-in-1 iterations, constant heads and relax=1,
-    iterative == lagged.
+  * the coupling is lagged: MM consumes heads from the END of the previous
+    SP (the iterative mode went on 2026-10-07);
+  * pointers receive perc (FINF) and the day's EVT curves; the fake EVT
+    takes their full RATE, the worst case for total ET against PET;
+  * WEL is never bound or written: the ETg wells went with the WEL route
+    (2026-10-07), and WEL is left for real pumping.
 """
 import importlib.util
 import os
@@ -23,6 +24,12 @@ import pytest
 HERE = os.path.dirname(os.path.abspath(__file__))
 TRUNK = os.path.abspath(os.path.join(HERE, '..'))
 sys.path.insert(0, HERE)
+# the coupler draws the EVT curves with marmites_evt; the progress tests
+# import marmites_coupler by name (they passed only after another module
+# had put TRUNK on the path)
+for _p in (TRUNK, os.path.join(TRUNK, 'ppMF6')):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
 
 def _load(name, path):
@@ -41,7 +48,7 @@ class FakeApi:
     """Minimal stand-in for modflowapi.ModflowApi (memory-pointer surface)."""
 
     def __init__(self, name, nlay, nrow, ncol, ncell, nuzf, heads0=699.0,
-                 nouter=1, dh_per_step=0.0, gwd_per_cell=0.0):
+                 nouter=1, dh_per_step=0.0, gwd_per_cell=0.0, nseg=8):
         self.name = name.upper()
         self.X = np.full(nlay * nrow * ncol, float(heads0))
         # MF6's UZF cell group keeps TWO infiltration arrays, both set from
@@ -70,6 +77,19 @@ class FakeApi:
         self.uzet_extra = 0.0                 # m/d taken BEYOND the demand
         self.petmax_at_advance = []
         self.pet_used = []                    # PET as the solve saw it
+        # GROUNDWATER ET: the two EVT packages' arrays, by package. MF6 keeps
+        # PXDP/PETM (nseg - 1) per record. The fake takes the curve's full
+        # RATE [m/d] on the cell's area (evt_area, set by _setup) -- the
+        # most EVT can take, so the worst case for total ET against PET.
+        self.EVT = {pk: {'SURFACE': np.zeros(ncell), 'RATE': np.zeros(ncell),
+                         'DEPTH': np.ones(ncell),
+                         'PXDP': np.zeros((ncell, nseg - 1)),
+                         'PETM': np.zeros((ncell, nseg - 1)),
+                         'SIMVALS': np.zeros(ncell)}
+                    for pk in ('EVT_EG', 'EVT_TG')}
+        self.evt_area = None
+        self.evt_at_advance = []      # {pkg: RATE} at each finalize_time_step
+        # a WEL the coupler must never touch (real pumping, some day)
         self.BOUND = np.zeros((ncell, 1))
         self.Q = np.zeros(ncell)
         self.nouter = nouter
@@ -79,7 +99,6 @@ class FakeApi:
         self._k = 0
         self.finf_at_advance = []      # FINF snapshot at each finalize_time_step
         self.sinf_at_advance = []      # SINF snapshot at each finalize_time_step
-        self.q_at_advance = []
         self.finf_iter_trace = []      # FINF snapshot at each solve() call
         self.solve_calls = 0
 
@@ -93,15 +112,19 @@ class FakeApi:
         Both UZF infiltration arrays are listed: FINF (routed) and SINF
         (reported). A coupler must write both."""
         n = self.name
+        evt = [f'{n}/{pk}/{v}' for pk in self.EVT for v in self.EVT[pk]]
         return [f'{n}/X', f'{n}/UZF/SINF', f'{n}/UZF/FINF', f'{n}/UZF/GWD',
                 f'{n}/UZF/PETMAX', f'{n}/UZF/PET', f'{n}/UZF/UZET',
-                f'{n}/WEL/BOUND', f'{n}/WEL/Q']
+                f'{n}/WEL/BOUND', f'{n}/WEL/Q'] + evt
 
     def get_time_step(self):
         return 1.0
 
     def get_value_ptr(self, addr):
-        leaf = addr.rsplit('/', 1)[1]
+        parts = addr.split('/')
+        leaf = parts[-1]
+        if len(parts) >= 3 and parts[-2] in self.EVT:
+            return self.EVT[parts[-2]][leaf]
         return {'X': self.X, 'SINF': self.SINF, 'FINF': self.FINF,
                 'GWD': self.GWD, 'BOUND': self.BOUND, 'Q': self.Q,
                 'PETMAX': self.PETMAX, 'PET': self.PET,
@@ -147,14 +170,19 @@ class FakeApi:
             a = np.asarray(self.uzet_area, dtype=float)
             self.UZET[:] = 0.0
             self.UZET[:a.size] = -(self.PETMAX[:a.size] + self.uzet_extra) * a
-        # record whichever rate array is in use (Q preferred, see _bind)
-        self.q_at_advance.append(self.Q.copy() if np.any(self.Q) else self.BOUND[:, 0].copy())
+        # EVT takes its curve's full rate, out of the aquifer (negative)
+        area = 1.0 if self.evt_area is None else np.asarray(self.evt_area,
+                                                            dtype=float)
+        for arrs in self.EVT.values():
+            arrs['SIMVALS'][:] = -arrs['RATE'] * area
+        self.evt_at_advance.append({pk: a['RATE'].copy()
+                                    for pk, a in self.EVT.items()})
         self.X += self.dh              # deterministic head evolution per SP
 
 
 # --------------------------------------------------------------------- #
-def _setup(nper=4, mode='lagged', nouter=1, dh=0.0, relax=0.6, heads0=699.0,
-           obs_idx=None, obs_names=None):
+def _setup(nper=4, nouter=1, dh=0.0, heads0=699.0, obs_idx=None,
+           obs_names=None):
     cMF = T._FakeMF(nper=nper, perlen=[1] * nper)
     cMF.modelname = 'toy'
     cMF.perc_user = 0.0
@@ -178,16 +206,16 @@ def _setup(nper=4, mode='lagged', nouter=1, dh=0.0, relax=0.6, heads0=699.0,
     mf6b = SimpleNamespace(cMF=cMF, ncell=ctx.ncell, surf_cells=surf,
                            nrow=cMF.nrow, ncol=cMF.ncol)
     cpl = coup.MF6Coupler(mm, ctx, state, mf6b, conv_fact=1000.0,
-                          mode=mode, relax=relax,
                           obs_idx=obs_idx, obs_names=obs_names)
     api = FakeApi('toy', cMF.nlay, cMF.nrow, cMF.ncol, ctx.ncell,
                   nuzf=ctx.ncell + 3, heads0=heads0, nouter=nouter, dh_per_step=dh)
+    api.evt_area = cpl.area
     return cpl, api, ctx
 
 
 def test_lagged_uses_previous_sp_heads():
     dh = -0.5                      # heads drop 0.5 m per advance
-    cpl, api, ctx = _setup(mode='lagged', dh=dh, heads0=699.0)
+    cpl, api, ctx = _setup(dh=dh, heads0=699.0)
     res = cpl.run(api)
     assert api.initialized and api.finalized
     # steady SP advanced once + nper transient
@@ -201,80 +229,87 @@ def test_lagged_uses_previous_sp_heads():
 def test_steady_state_uses_mean_recharge_when_supplied():
     """A steady period ignores the initial-head file, so it must be driven by
     the mean forcing to land near equilibrium. When steady_perc/etg are set the
-    steady advance (index 0) must carry them, not the uniform perc_user."""
-    cpl, api, ctx = _setup(mode='lagged')
+    steady advance (index 0) must carry them, not the uniform perc_user: the
+    mean ETg as a flat EVT curve (it was a fixed WEL rate until 2026-10-07)."""
+    cpl, api, ctx = _setup()
     sp = np.full(ctx.ncell, 7.0e-4)          # per-cell mean recharge (m/d)
     se = np.full(ctx.ncell, 1.0e-4)          # per-cell mean ETg
     cpl.steady_perc, cpl.steady_etg = sp, se
     cpl.run(api)
     finf0 = api.finf_at_advance[0]           # the steady advance
-    q0 = api.q_at_advance[0]
+    evt0 = api.evt_at_advance[0]
     assert np.allclose(finf0[:ctx.ncell], sp, atol=1e-12)
-    assert np.allclose(q0, -se * cpl.area, atol=1e-12)
+    assert np.allclose(evt0['EVT_EG'], se, atol=1e-12)
+    assert np.allclose(evt0['EVT_TG'], 0.0)
+
+
+def test_the_steady_evt_curve_is_flat_down_to_the_cell_bottom():
+    """marmites_evt.flat_curve: the full rate from the surface down to the
+    last segment above the bottom, zero at the bottom -- the mean rate the
+    ETg well drew, reduced as the cell dries (AUTO_FLOW_REDUCE did that)."""
+    import marmites_evt as me
+    s, r, d, x, y = me.flat_curve(1e-4, 800.0, 790.0, 8)
+    assert (s, r, d) == (800.0, 1e-4, 10.0)
+    assert np.all(np.diff(x) > 0.0) and 0.0 < x[0] and x[-1] < 1.0
+    assert np.all(y == 1.0)
+    assert me.flat_curve(0.0, 800.0, 790.0, 8)[1] == 0.0
+    assert me.flat_curve(1e-4, 800.0, 801.0, 8)[1] == 0.0   # no thickness
 
 
 def test_steady_state_falls_back_to_perc_user():
-    cpl, api, ctx = _setup(mode='lagged')
+    cpl, api, ctx = _setup()
     ctx.cMF.perc_user = 2.0e-4
     cpl.run(api)
     finf0 = api.finf_at_advance[0]
     assert np.allclose(finf0[:ctx.ncell], 2.0e-4, atol=1e-12)
+    assert np.allclose(api.evt_at_advance[0]['EVT_EG'], 0.0), \
+        'no mean ETg given: the steady EVT takes nothing'
 
 
-def test_pointer_contents_finf_and_welq():
-    cpl, api, ctx = _setup(mode='lagged')
+def test_pointer_contents_finf_and_evt():
+    cpl, api, ctx = _setup()
     res = cpl.run(api)
     # at each transient advance, FINF[0:ncell] held that SP's perc (m/d)
     for n in range(ctx.cMF.nper):
         finf = api.finf_at_advance[1 + n]
         assert np.allclose(finf[:ctx.ncell], res['perc'][n], atol=1e-12)
         assert np.all(finf[ctx.ncell:] == 0.0)
-        q = api.q_at_advance[1 + n]
-        assert np.allclose(q, -res['etg'][n] * cpl.area, atol=1e-12)
+        # what EVT took (the fake takes the curves' full rate) is the ETg
+        evt = api.evt_at_advance[1 + n]
+        assert np.allclose(res['etg'][n], evt['EVT_EG'] + evt['EVT_TG'],
+                           atol=1e-15)
     # sanity: the shallow water table (dgwt ~1 m, loam) makes ETg active,
-    # so a genuinely nonzero flux crossed the WEL pointer
+    # so a genuinely nonzero curve crossed the EVT pointers
     assert res['etg'].max() > 0
-    assert max(q.min() for q in api.q_at_advance[1:]) < 0  # sink wells
 
 
-def test_iterative_reevaluates_and_relaxes():
-    nouter = 3
-    cpl, api, ctx = _setup(mode='iterative', nouter=nouter, relax=0.5)
-    res = cpl.run(api)
-    # steady advance solves too: total solve calls = 1*nouter? steady uses plain
-    # _advance (loop until converged) -> nouter calls as well
-    assert np.all(res['outer_iters'] == nouter)
-    # MM evaluated nouter times per transient SP: FINF trace differs from the
-    # raw step() output when relaxation is active (relax != 1) after iter 1
-    # (heads constant here so raw evaluations are identical; relaxed value
-    # equals raw -> check instead that the trace has nouter snapshots per SP)
-    per_sp = nouter
-    n_transient_snapshots = len(api.finf_iter_trace) - nouter  # minus steady SP
-    assert n_transient_snapshots == ctx.cMF.nper * per_sp
+def test_wel_is_never_bound_or_written():
+    """The ETg wells went with the WEL route (2026-10-07). A WEL in the
+    model is real pumping, and writing its BOUND corrupted MF6 6.7's heap
+    (bisected with tests/diagnose_coupling.py): the coupler leaves it be."""
+    cpl, api, ctx = _setup()
+    api.BOUND[:] = -12345.0
+    api.Q[:] = -54321.0
+    cpl.run(api)
+    assert not hasattr(cpl, 'p_q') and not hasattr(cpl, 'p_bound')
+    assert np.all(api.BOUND == -12345.0) and np.all(api.Q == -54321.0)
 
 
-def test_iterative_equals_lagged_when_static():
-    """Constant heads, converge in 1 outer iteration, relax=1: both modes
-    must produce identical perc/ETg trajectories (the lag has no effect
-    because heads never change)."""
-    cpl_l, api_l, _ = _setup(mode='lagged', nouter=1, dh=0.0)
-    res_l = cpl_l.run(api_l)
-    cpl_i, api_i, _ = _setup(mode='iterative', nouter=1, dh=0.0, relax=1.0)
-    res_i = cpl_i.run(api_i)
-    assert np.allclose(res_l['perc'], res_i['perc'], atol=1e-12)
-    assert np.allclose(res_l['etg'], res_i['etg'], atol=1e-12)
-    assert np.allclose(res_l['heads'], res_i['heads'])
+def test_a_model_without_evt_is_refused():
+    """EVT is the coupled run's only groundwater-ET path: a model built
+    without the two packages must stop at the binding, naming them."""
+    cpl, api = _bad('no_evt')
+    with pytest.raises(coup.CouplingError, match='EVT'):
+        cpl.run(api)
 
 
-def test_iterative_single_state_advance_per_sp():
-    """State must advance exactly once per SP despite multiple evaluations:
-    running iterative (nouter=4, relax=1, static heads) must equal lagged."""
-    cpl_i, api_i, _ = _setup(mode='iterative', nouter=4, dh=0.0, relax=1.0)
-    res_i = cpl_i.run(api_i)
-    cpl_l, api_l, _ = _setup(mode='lagged', nouter=1, dh=0.0)
-    res_l = cpl_l.run(api_l)
-    assert np.allclose(res_i['perc'], res_l['perc'], atol=1e-12)
-    assert np.allclose(res_i['etg'], res_l['etg'], atol=1e-12)
+def test_the_coupling_modes_are_gone():
+    """Lagged is the coupling (2026-10-07): neither a mode nor an
+    under-relaxation is accepted any more."""
+    import inspect
+    sig = inspect.signature(coup.MF6Coupler.__init__)
+    assert 'mode' not in sig.parameters and 'relax' not in sig.parameters
+    assert not hasattr(coup.MF6Coupler, '_iterative_sp')
 
 
 def _setup_grid(grid, nper=2, heads0=699.0):
@@ -306,9 +341,10 @@ def _setup_grid(grid, nper=2, heads0=699.0):
     surf = [(c[1], c[2], 0) for c in cells]
     mf6b = SimpleNamespace(cMF=cMF, ncell=ctx.ncell, surf_cells=surf,
                            nrow=cMF.nrow, ncol=cMF.ncol)
-    cpl = coup.MF6Coupler(mm, ctx, state, mf6b, conv_fact=1000.0, mode='lagged')
+    cpl = coup.MF6Coupler(mm, ctx, state, mf6b, conv_fact=1000.0)
     api = FakeApi('toy', cMF.nlay, cMF.nrow, cMF.ncol, ctx.ncell,
                   nuzf=ctx.ncell + 3, heads0=heads0)
+    api.evt_area = cpl.area
     return cpl, api, ctx, cells, cMF
 
 
@@ -366,23 +402,24 @@ class _BadApi(FakeApi):
     # marmites_coupler._bind_first, lesson: the var list is not authoritative)
     # would still bind it.
     _MISSING = {'no_finf': {'SINF', 'FINF'},
-                'no_gwd': {'GWD'},          # SIMVALS/DRN_SEEP already unresolved
-                'no_q': {'Q'}}
+                'no_gwd': {'GWD'}}          # SIMVALS/DRN_SEEP already unresolved
 
     def get_input_var_names(self):
         n = self.name
         if self._mode == 'no_finf':
-            return [f'{n}/X', f'{n}/WEL/BOUND', f'{n}/WEL/Q']
+            return [f'{n}/X']
         if self._mode == 'no_gwd':
-            return [f'{n}/X', f'{n}/UZF/FINF', f'{n}/WEL/BOUND', f'{n}/WEL/Q']
-        if self._mode == 'no_q':
-            return [f'{n}/X', f'{n}/UZF/FINF', f'{n}/UZF/GWD', f'{n}/WEL/BOUND']
+            return [f'{n}/X', f'{n}/UZF/FINF']
+        if self._mode == 'no_evt':
+            return [v for v in super().get_input_var_names() if '/EVT_' not in v]
         return super().get_input_var_names()
 
     def get_value_ptr(self, addr):
         leaf = addr.rsplit('/', 1)[1]
         if leaf in self._MISSING.get(self._mode, ()):
             raise KeyError(addr)           # genuinely absent -> unresolvable
+        if self._mode == 'no_evt' and '/EVT_' in addr:
+            raise KeyError(addr)           # a model built without EVT
         return super().get_value_ptr(addr)
 
 
@@ -390,6 +427,7 @@ def _bad(mode, **kw):
     cpl, api, ctx, _cells, cMF = _setup_grid('dis')
     bad = _BadApi('toy', cMF.nlay, cMF.nrow, cMF.ncol, ctx.ncell,
                   nuzf=ctx.ncell + 3, mode=mode, **kw)
+    bad.evt_area = cpl.area
     return cpl, bad
 
 
@@ -414,7 +452,7 @@ def test_infiltration_is_written_to_the_routed_and_the_reported_array():
     INFILTRATION line followed MMsoil while the kinematic wave routed the
     steady input rate on every day of the run (2026-09-23: UZF outflows a
     constant 960.9 m3/d, the input file's 961.0; UZF budget 92 % out)."""
-    cpl, api, ctx = _setup(mode='lagged')
+    cpl, api, ctx = _setup()
     res = cpl.run(api)
     assert cpl.addr_finf.endswith('/FINF'), cpl.addr_finf
     assert cpl.addr_sinf.endswith('/SINF'), cpl.addr_sinf
@@ -452,34 +490,13 @@ def test_node_mapping_overflow_is_caught():
         cpl.run(api)
 
 
-def test_bound_is_not_written_when_q_exists():
-    """Regression guard for the La Mata crash: MF6 6.7 exposes both WEL/Q and
-    WEL/BOUND, but writing BOUND corrupts MF6's heap (bisected with
-    tests/diagnose_coupling.py: FINF+Q fine, +BOUND kills prepare_time_step).
-    Only Q may be written when it is available."""
-    cpl, api, ctx = _setup(mode='lagged')
-    api.BOUND[:] = -12345.0                 # sentinel: must survive untouched
-    res = cpl.run(api)
-    assert cpl.p_bound is None, 'BOUND must not even be bound when Q exists'
-    assert np.all(api.BOUND == -12345.0), 'BOUND was written -- crashes MF6 6.7'
-    # and Q did receive the rates
-    assert np.allclose(api.Q[:ctx.ncell], -res['etg'][-1] * cpl.area, atol=1e-12)
-
-
-def test_bound_used_only_as_fallback_without_q():
-    cpl, api = _bad('no_q')
-    res = cpl.run(api)
-    assert cpl.p_q is None and cpl.p_bound is not None
-    assert np.allclose(api.BOUND[:, 0], -res['etg'][-1] * cpl.area, atol=1e-12)
-
-
 def test_obs_capture_records_full_mm_series_at_obs_cells():
     """With obs_idx set, the coupler keeps the FULL per-SP MM flux vectors at
     those cells (for the per-point Sankey), exposes them in the result, and they
     match the aggregates: mm_obs at an obs cell must equal that cell's row of the
     per-cell arrays, and the mean over a single-cell selection equals wb_ts."""
     idx = [0, 3]
-    cpl, api, ctx = _setup(mode='lagged', obs_idx=idx, obs_names=['A', 'B'])
+    cpl, api, ctx = _setup(obs_idx=idx, obs_names=['A', 'B'])
     res = cpl.run(api)
     nper = ctx.cMF.nper
     nidx = len(ctx.index)
@@ -499,7 +516,7 @@ def test_obs_capture_records_full_mm_series_at_obs_cells():
 
 def test_no_obs_capture_by_default():
     """Without obs_idx the result carries no obs arrays (back-compatible)."""
-    cpl, api, _ctx = _setup(mode='lagged')
+    cpl, api, _ctx = _setup()
     res = cpl.run(api)
     assert 'mm_obs' not in res and cpl.mm_obs is None
 
@@ -507,7 +524,7 @@ def test_no_obs_capture_by_default():
 def test_all_zero_exfiltration_is_flagged(capsys):
     """A whole run with zero exfiltration everywhere must warn: it indicates
     UZF was built without SIMULATE_GWSEEP (the La Mata failure), not a result."""
-    cpl, api, _ctx = _setup(mode='lagged')
+    cpl, api, _ctx = _setup()
     api.GWD[:] = 0.0
     cpl.run(api)
     out = capsys.readouterr().out
@@ -516,7 +533,7 @@ def test_all_zero_exfiltration_is_flagged(capsys):
 
 
 def test_nonzero_exfiltration_is_not_flagged(capsys):
-    cpl, api, _ctx = _setup(mode='lagged')
+    cpl, api, _ctx = _setup()
     api.GWD[:] = 5.0
     cpl.run(api)
     assert 'exfiltration is zero' not in capsys.readouterr().out.lower()
@@ -524,7 +541,7 @@ def test_nonzero_exfiltration_is_not_flagged(capsys):
 
 def test_exfiltration_sign_and_scaling():
     """GWD (m3/d, + to surface) must arrive in MM as +mm/d into the soil."""
-    cpl, api, ctx = _setup(mode='lagged')
+    cpl, api, ctx = _setup()
     api.GWD[:] = 25.0                       # m3/d on 100x100 m cells
     res = cpl.run(api)
     # 25 m3/d / 1e4 m2 * 1000 mm/m = 2.5 mm/d, positive into the soil

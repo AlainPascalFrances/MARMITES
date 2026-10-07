@@ -1440,18 +1440,18 @@ def test_validate_opens_the_run_tab_and_any_edit_freezes_it_again(tmp_path):
     for exactly that, and the next edit anywhere freezes it again. Launch is
     NEVER pressed here -- it would start a model."""
     tmp = _runs_elsewhere(_scratch_config('_validatetest.toml'), tmp_path)
-    _force(tmp, 'run', 'mode', 'mode = "lagged"')
+    _force(tmp, 'run', 'allow_bad_budget', 'allow_bad_budget = false')
     try:
         at = AppTest.from_file(os.path.join(APP, 'pages', '7_7_-_Run.py'),
                                default_timeout=300)
         at.session_state['config_file'] = os.path.basename(tmp)
         at.run()
         # an edit, not saved: Validate must save it before approving
-        at.selectbox(key='run.mode').select('iterative').run()
+        at.checkbox(key='run.allow_bad_budget').check().run()
         [b for b in at.button if b.key == 'validate'][0].click().run()
         assert not at.exception, [str(e.value) for e in at.exception]
-        assert _says(tmp, 'run', 'mode') == 'mode = "iterative"', \
-            'Validate did not save the pending edit'
+        assert _says(tmp, 'run', 'allow_bad_budget') == \
+            'allow_bad_budget = true', 'Validate did not save the pending edit'
         errors = [e for e in at.error if 'cannot run' in str(e.value)]
         if errors:
             pytest.skip('the scratch configuration has errors here: %s'
@@ -1460,7 +1460,7 @@ def test_validate_opens_the_run_tab_and_any_edit_freezes_it_again(tmp_path):
         ok = ' '.join(str(s.value) for s in at.success)
         assert 'Validated' in ok, ok
         # ... and the next edit freezes it again
-        at.selectbox(key='run.mode').select('lagged').run()
+        at.checkbox(key='run.allow_bad_budget').uncheck().run()
         assert _launch(at).disabled, 'an edit after validation left it live'
         said = ' '.join(str(i.value) for i in at.info)
         assert 'Frozen' in said and 'since it was validated' in said, said
@@ -1601,11 +1601,12 @@ def test_a_check_does_not_print_its_key_twice():
 
 
 def test_the_coupling_is_asked_on_the_run_panel_and_saved():
-    """Lagged vs iterative -- the choice WP2 has to be validated under -- was
-    TOML-only: the audit behind the cookbook's Appendix B found it on no
-    panel at all."""
-    tmp = _force(_scratch_config('_couplingtest.toml'), 'run', 'mode',
-                 'mode = "lagged"')
+    """How the run executes was TOML-only: the audit behind the cookbook's
+    Appendix B found it on no panel at all. The lagged/iterative choice it
+    was about is gone (2026-10-07) -- the coupling is said, not asked -- and
+    the rest stays on the Run panel."""
+    tmp = _force(_scratch_config('_couplingtest.toml'), 'run',
+                 'allow_bad_budget', 'allow_bad_budget = false')
     try:
         at = AppTest.from_file(os.path.join(APP, 'pages', '7_7_-_Run.py'),
                                default_timeout=300)
@@ -1614,16 +1615,19 @@ def test_the_coupling_is_asked_on_the_run_panel_and_saved():
         assert not at.exception, [str(e.value) for e in at.exception]
         keys = {w.key for w in list(at.selectbox) + list(at.number_input)
                 + list(at.checkbox) if w.key}
-        for k in ('run.mode', 'run.relax', 'run.ats', 'run.ats_dtmin',
-                  'run.max_discrepancy',
+        for k in ('run.ats', 'run.ats_dtmin', 'run.max_discrepancy',
                   'run.allow_bad_budget', 'run.build_only'):
             assert k in keys, '%s is not on the Run panel' % k
-        at.selectbox(key='run.mode').select('iterative').run()
+        for gone in ('run.mode', 'run.relax'):
+            assert gone not in keys, '%s is back on the Run panel' % gone
+        said = ' '.join(str(c.value) for c in at.caption)
+        assert 'MMsoil runs first' in said, 'the coupling is not said'
+        at.checkbox(key='run.allow_bad_budget').check().run()
         save = [b for b in at.button if b.key == 'sidebar_save']
         assert save and not save[0].disabled
         save[0].click().run()
-        assert _says(tmp, 'run', 'mode') == 'mode = "iterative"', \
-            _says(tmp, 'run', 'mode')
+        assert _says(tmp, 'run', 'allow_bad_budget') == \
+            'allow_bad_budget = true', _says(tmp, 'run', 'allow_bad_budget')
     finally:
         if os.path.exists(tmp):
             os.remove(tmp)

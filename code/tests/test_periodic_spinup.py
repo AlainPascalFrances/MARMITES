@@ -41,7 +41,7 @@ M = _load('t_coupler_mock_spin', os.path.join(HERE, 'test_coupler_mock.py'))
 
 # ---------------------------------------------------------- the coupler
 def _periodic(nper=3, carry=None):
-    cpl, api, ctx = M._setup(nper=nper, mode='lagged')
+    cpl, api, ctx = M._setup(nper=nper)
     cpl.mf6b.steady_first = False
     cpl.carry_in = carry
     seen = []
@@ -59,7 +59,7 @@ def _periodic(nper=3, carry=None):
 def test_without_a_steady_period_every_step_is_the_run():
     cpl, api, ctx, _seen = _periodic()
     assert len(api.finf_at_advance) == ctx.cMF.nper, 'a steady step was run'
-    cpl2, api2, ctx2 = M._setup(nper=3, mode='lagged')
+    cpl2, api2, ctx2 = M._setup(nper=3)
     cpl2.run(api2)
     assert len(api2.finf_at_advance) == ctx2.cMF.nper + 1
 
@@ -87,7 +87,7 @@ def test_a_cycle_hands_its_last_day_on():
 def test_a_carried_soil_starts_from_its_own_state():
     """The first period ignored the state and read the panel's initial
     moisture -- a carried state has to be what it starts from."""
-    cpl, api, ctx = M._setup(nper=1, mode='lagged')
+    cpl, api, ctx = M._setup(nper=1)
     mm = cpl.mm
     heads = np.full(ctx.ncell, 699.0)
     zero = np.zeros(ctx.ncell)

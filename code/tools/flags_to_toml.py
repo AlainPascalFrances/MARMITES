@@ -25,8 +25,6 @@ import marmites_config as mcfg  # noqa: E402
 
 # old flag -> (section, key) or a callable(cfg, value)
 _SIMPLE = {
-    '--mode': ('run', 'mode', str),
-    '--relax': ('run', 'relax', float),
     '--nsp': ('run', 'nsp', int),
     '--max-discrepancy': ('run', 'max_discrepancy', float),
     '--grid': ('grid', 'kind', str),
@@ -64,6 +62,13 @@ _OPTIONAL_ARG = {          # nargs='?' with a const
     '--save-strt': ('spinup', 'save_strt', 'hi_spinup'),
     '--save-means': ('spinup', 'save_means', 'hi_spinup'),
     '--lak': ('lak', 'source', 'GIS/lm_ponds.shp'),
+}
+# flags whose setting no longer exists: the value is read and dropped, with
+# the reason (marmites_config.RETIRED says the same for a TOML key)
+_RETIRED_FLAGS = {
+    '--mode': 'the coupling is lagged since 2026-10-07 (run.mode is retired)',
+    '--relax': 'it under-relaxed the iterative coupling, gone since '
+               '2026-10-07 (run.relax is retired)',
 }
 _MACHINE = {'--libmf6': 'paths.libmf6 (or mm_paths.LIBMF6)',
             '--ws-root': 'mm_paths.WS_ROOT',
@@ -105,6 +110,10 @@ def convert(argv):
             i += 2
         elif tok == '--daily':
             cfg.run.daily = True
+        elif tok in _RETIRED_FLAGS:
+            i += 1
+            notes.append('%s %s ignored: %s' % (tok, argv[i] if i < len(argv)
+                                                else '', _RETIRED_FLAGS[tok]))
         elif tok in _MACHINE:
             nxt = argv[i + 1] if i + 1 < len(argv) else ''
             if nxt and not nxt.startswith('--'):

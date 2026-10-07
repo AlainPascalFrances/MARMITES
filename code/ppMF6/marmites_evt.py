@@ -1,24 +1,24 @@
 # -*- coding: utf-8 -*-
-"""Groundwater ET as MF6 EVT curves, evaluated at the SOLVED head (et.gw_route
-= 'evt').
+"""Groundwater ET as MF6 EVT curves, evaluated at the SOLVED head -- the
+coupled run's only groundwater-ET path since 2026-10-07.
 
 MARMITES computes groundwater evaporation Eg (Shah et al. 2007) and
 transpiration Tg (the kTg function of soil moisture, per vegetation type,
-while the water table is above the root tip) at the head MF6 left at the end
-of the PREVIOUS day, and hands the result over as a fixed WEL rate. Whatever
-the head does during the day, the well keeps pumping -- MMsoil approximates
-the drawdown itself, with Sy, to stop the table falling past an extinction
-depth or a root tip.
+while the water table is above the root tip). Until 2026-10-07 the coupled
+run could also hand the result over as a fixed WEL rate at the head of the
+PREVIOUS day (et.gw_route = 'wel'): whatever the head did during the day the
+well kept pumping, and MMsoil approximated the drawdown itself, with Sy.
+That route is gone; the uncoupled MMsoil keeps its own Eg/Tg and drawdown.
 
-Here MMsoil decides the same things -- how much each source COULD take that
-day, from the same demand, soil moisture, roots and Shah curve -- and MF6
-takes it at the head it solves for, through two EVT packages (one for Eg,
-one for Tg, so the budget keeps them apart). Each day's curve:
+Here MMsoil decides how much each source COULD take that day, from the
+demand, soil moisture, roots and Shah curve, and MF6 takes it at the head it
+solves for, through two EVT packages (one for Eg, one for Tg, so the budget
+keeps them apart). Each day's curve:
 
   * starts at the START-OF-DAY head (SURFACE) with MARMITES' rate: above it
     the rate is flat, so within the day EVT can only fall, never exceed what
     was reserved -- and UZF's demand capped at what that leaves keeps
-    ETsoil + ETuzf + ETg <= PE + PT exactly, as it does with the well;
+    ETsoil + ETuzf + ETg <= PE + PT exactly;
   * falls as the water table does: Eg along Shah's curve to its extinction
     depth, Tg type by type as the head passes each root tip, over a ramp of
     width ``ramp`` (a step would be a kink MF6's Newton solve stalls on).
@@ -34,7 +34,7 @@ __version__ = "0.4.0.dev0"
 
 import numpy as np
 
-__all__ = ['shah_f', 'eg_curve', 'tg_curve', 'NSEG_MIN']
+__all__ = ['shah_f', 'eg_curve', 'tg_curve', 'flat_curve', 'NSEG_MIN']
 
 NSEG_MIN = 3
 _EPS = 1e-6          # the smallest step between two points [fraction]
@@ -56,6 +56,24 @@ def _flat(surface, nseg):
     """A curve that takes nothing (rate 0): valid, monotone, inert."""
     x = np.linspace(0.0, 1.0, nseg + 1)[1:-1]
     return (float(surface), 0.0, 1.0, x, np.zeros(nseg - 1))
+
+
+def flat_curve(rate, surface, bottom, nseg):
+    """A STEADY period's groundwater ET: ``rate`` [m/d] wherever the water
+    table stands above ``bottom`` [m], tapering to zero over the last
+    segment above it; full above ``surface``.
+
+    A steady first period (a cold start) is driven by the MEAN forcing --
+    per-cell mean recharge and mean ETg from an earlier run -- and has no
+    start-of-day head to anchor a day's curve to. The WEL route drew that
+    mean as a fixed rate with AUTO_FLOW_REDUCE; this is the same rate,
+    reduced as the cell dries, through the EVT package the transient days
+    use (2026-10-07). Returns (SURFACE, RATE, DEPTH, PXDP, PETM)."""
+    depth = float(surface) - float(bottom)
+    if not rate > 0.0 or not depth > 0.0:
+        return _flat(surface, nseg)
+    x = np.linspace(0.0, 1.0, nseg + 1)[1:-1]
+    return (float(surface), float(rate), depth, x, np.ones(nseg - 1))
 
 
 def _pad(x, y, nseg):

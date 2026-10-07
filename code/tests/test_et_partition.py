@@ -4,9 +4,10 @@
     Ei -> Eow -> ETsoil (MMsoil) -> ETuzf (UZF, MF6) -> ETg = Eg + Tg (MMsoil)
 
 What the soil leaves of PE and PT is UZF's demand (PETuzf), written to UZF's
-PETMAX; groundwater ET then sees what remains after UZF's ACTUAL uptake --
-read back from UZF's UZET, one stress period late in lagged mode -- never
-the demand, which a dry deep zone cannot meet.
+PETMAX less what the day's EVT curves may take; groundwater ET then sees
+what remains after UZF's ACTUAL uptake -- read back from UZF's UZET, one
+stress period late (the coupling is lagged) -- never the demand, which a
+dry deep zone cannot meet.
 """
 
 import importlib.util
@@ -113,16 +114,17 @@ def test_the_new_columns_are_appended_after_the_legacy_24():
 
 # ---------------------------------------------------------- the coupler
 def _run(nper=4):
-    cpl, api, ctx = M._setup(nper=nper, mode='lagged')
+    cpl, api, ctx = M._setup(nper=nper)
     seen = []
-    real = cpl.mm.step
+    real = cpl._mm_step
 
-    def spy(*a, **k):
-        seen.append(np.array(k.get('etuzf_cell')))
-        out = real(*a, **k)
-        seen[-1] = (seen[-1], np.array(out['petuzf']), np.array(out['etg']))
+    def spy(n, tstart, heads, exf, rej):
+        prev = np.array(cpl.etuzf_prev)
+        out = real(n, tstart, heads, exf, rej)
+        seen.append((prev, np.array(out['petuzf']),
+                     np.array(out['etg_cap'])))
         return out
-    cpl.mm.step = spy
+    cpl._mm_step = spy
     res = cpl.run(api)
     return cpl, api, ctx, res, seen
 
@@ -131,11 +133,11 @@ def test_the_demand_is_written_to_petmax_after_prepare_solve():
     """PETMAX, not PET: MF6 resets PET from PETMAX every solve iteration.
     The mock's prepare_solve resets both to -1 like uzf_ad, so a demand
     written before it would not survive. What is written is what the soil
-    left LESS groundwater ET."""
+    left LESS what the day's EVT curves may take."""
     cpl, api, ctx, res, seen = _run()
-    for n, (_prev, petuzf, etg) in enumerate(seen):
+    for n, (_prev, petuzf, cap) in enumerate(seen):
         assert np.allclose(api.petmax_at_advance[1 + n][:ctx.ncell],
-                           np.maximum(petuzf - etg, 0.0))
+                           np.maximum(petuzf - cap, 0.0))
         assert np.all(api.pet_used[1 + n][:ctx.ncell] >= 0.0), \
             'the solve saw the period input, not the demand'
 
@@ -157,21 +159,14 @@ def test_uzf_gets_what_groundwater_et_left():
     assert np.allclose(d, [2e-3, 0.0, 2e-3]), 'never negative'
 
 
-def test_iterative_mode_takes_off_the_larger_etg():
-    """The relaxed ETg is applied, the unrelaxed one booked: both books
-    must hold the bound."""
-    d = M.coup.MF6Coupler.uzf_demand(np.array([3e-3]), np.array([1e-3]),
-                                     etg_booked=np.array([1.5e-3]))
-    assert np.allclose(d, [1.5e-3])
-
-
 def _greedy(nper=6, heads0=699.9, cap=True, monkeypatch=None):
-    """UZF takes ALL of its demand every period -- the worst case -- with a
-    water table close enough for groundwater ET."""
-    cpl, api, ctx = M._setup(nper=nper, mode='lagged', heads0=heads0)
+    """UZF takes ALL of its demand every period, and EVT the full rate of
+    its curves -- the worst case -- with a water table close enough for
+    groundwater ET."""
+    cpl, api, ctx = M._setup(nper=nper, heads0=heads0)
     if not cap:
         monkeypatch.setattr(M.coup.MF6Coupler, 'uzf_demand',
-                            staticmethod(lambda p, e, b=None: np.asarray(p)))
+                            staticmethod(lambda p, e: np.asarray(p)))
     api.uzet_area = cpl.area
     res = cpl.run(api)
     return cpl, ctx, res
@@ -288,7 +283,7 @@ def test_groundwater_et_in_modflow_is_caught(tmp_path):
 
 
 def test_check_solution_refuses_both(tmp_path):
-    cpl, api, ctx = M._setup(nper=2, mode='lagged')
+    cpl, api, ctx = M._setup(nper=2)
     cpl.run(api)
     cpl.sim_ws = _lst(tmp_path, uzf_disc=92.49, gwet=12.5)
     rep = cpl.check_solution(max_discrepancy=1.0, raise_on_fail=False)
@@ -312,7 +307,7 @@ def test_a_dormant_type_draws_no_groundwater():
     ix = M._setup(nper=1)[2].index
     tg = {}
     for dormant in (False, True):
-        cpl, api, ctx = M._setup(nper=4, mode='lagged', heads0=699.9)
+        cpl, api, ctx = M._setup(nper=4, heads0=699.9)
         if dormant:
             lai = np.asarray(ctx.LAI_veg_zonesSP)
             lai[...] = 0.0
@@ -329,7 +324,7 @@ def test_a_dormant_type_draws_no_groundwater():
 def _wave(extra_per_m):
     """UZF takes its whole demand PLUS extra_per_m x 1e-6 m per metre of
     unsaturated zone (top 705 m, water table 699.9 m: 5.1 m)."""
-    cpl, api, ctx = M._setup(nper=4, mode='lagged', heads0=699.9)
+    cpl, api, ctx = M._setup(nper=4, heads0=699.9)
     cpl.top_cell = np.full(ctx.ncell, 705.0)
     api.uzet_area = cpl.area
     api.uzet_extra = extra_per_m * 1e-6 * 5.1
@@ -370,7 +365,7 @@ def test_uzf_s_balance_counts_the_residual():
 def test_the_pet_balance_is_on_the_progress_lines(capsys):
     """WP2.5b: while the run goes, not only at the end -- each progress
     line carries the balance since the previous one."""
-    cpl, api, ctx = M._setup(nper=6, mode='lagged')
+    cpl, api, ctx = M._setup(nper=6)
     cpl.run(api)
     lines = [ln for ln in capsys.readouterr().out.splitlines()
              if ln.strip().startswith('stress period')]

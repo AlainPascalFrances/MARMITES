@@ -555,9 +555,9 @@ def test_problems_returns_what_validate_raises():
     import marmites_config as mcfg
     cfg = mcfg.RunConfig.from_dict({})
     assert cfg.problems() == []
-    cfg.run.relax = 9.0
+    cfg.run.nsp = -1
     errs = cfg.problems()
-    assert errs and any('relax' in e for e in errs)
+    assert errs and any('run.nsp' in e for e in errs)
     with pytest.raises(mcfg.ConfigError) as exc:
         cfg.validate()
     for e in errs:
@@ -579,12 +579,12 @@ def test_a_table_is_saved_through_the_same_save_as_the_fields():
         rows[0] = dict(rows[0])
         rows[0]['name'] = 'renamed_by_test'
         applied, _digest = editor.save(
-            cfg, tmp, {'run.relax': 0.42},
+            cfg, tmp, {'run.ats_dtmin': 0.042},
             {'surface.vegetation': rows})
-        assert any('run.relax' in a for a in applied), applied
+        assert any('run.ats_dtmin' in a for a in applied), applied
         assert any('surface.vegetation' in a for a in applied), applied
         back = mcfg.load_run_config(tmp)
-        assert back.run.relax == 0.42
+        assert back.run.ats_dtmin == 0.042
         assert back.surface.vegetation[0].name == 'renamed_by_test'
     finally:
         if os.path.exists(tmp):

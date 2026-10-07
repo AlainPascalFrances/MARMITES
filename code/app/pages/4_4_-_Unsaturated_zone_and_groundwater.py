@@ -196,8 +196,9 @@ with tab_uzf:
     st.markdown('#### Evapotranspiration inside MODFLOW')
     st.info('**Groundwater ET is computed by MARMITES, not asked of UZF.** '
             'UZF\'s own groundwater ET could only remove the same water '
-            'twice, so it is never switched on. What is asked further down '
-            'is which package APPLIES what MARMITES computes.')
+            'twice, so it is never switched on. Two EVT packages apply what '
+            'MARMITES computes, at the head MODFLOW solves for; what is '
+            'asked further down is the shape of their curves.')
     st.caption('**UZF always simulates unsaturated-zone ET — there is no '
                'switch for it.** Total ET has three sources and the deep '
                'unsaturated zone is one of them, so an off position could '
@@ -219,13 +220,16 @@ with tab_uzf:
     st.info('**Wired end to end (WP2).** UZF simulates unsaturated-zone ET '
             'with this extinction depth, and groundwater ET is deliberately '
             'NOT asked of it — `linear_gwet` and `square_gwet` are both '
-            'omitted, so ETg stays with MARMITES, applied through WEL or '
-            'EVT as chosen above.\n\n'
+            'omitted, so ETg stays with MARMITES: each day it computes what '
+            'Eg and Tg could take at the start-of-day head, and the EVT '
+            'packages take it at the head MODFLOW solves for — along '
+            'Shah\'s curve and past the root tips, never above that rate.\n\n'
             'The demand chain: what the soil column leaves of PE and PT is '
-            'written to UZF each stress period (PETMAX); UZF\'s **actual** '
-            'ET is read back from its budget and only the residual is left '
-            'to ETg — never the demand, which a dry deep zone cannot meet. '
-            'In lagged mode the actual is the previous stress period\'s.')
+            'written to UZF each stress period (PETMAX), less what EVT may '
+            'take; UZF\'s **actual** ET is read back from its budget and only '
+            'the residual is left to ETg — never the demand, which a dry '
+            'deep zone cannot meet. The actual is the previous stress '
+            'period\'s.')
 
     with st.expander('Where every UZF1 name went'):
         st.caption('The parameter file carried twenty-two of these and '

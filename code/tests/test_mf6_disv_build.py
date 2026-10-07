@@ -84,9 +84,9 @@ def test_disv_cellids_use_icell2d(cmf, tmp_path):
         cid = b.uzf_packagedata[n][1]
         assert len(cid) == 2, 'DISV cellid must be (lay, icell2d)'
         assert cid == (k, i * cmf.ncol + j)
-    # WEL/DRN too
-    wel = b.gwf.get_package('wel').stress_period_data.get_data(0)
-    assert len(wel[0][0]) == 2
+    # EVT/DRN too
+    evt = b.gwf.get_package('evt_eg').stress_period_data.get_data(0)
+    assert len(evt[0][0]) == 2
     drn = b.gwf.get_package('drn').stress_period_data.get_data(0)
     assert len(drn[0][0]) == 2
 

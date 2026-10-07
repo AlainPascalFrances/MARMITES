@@ -1175,7 +1175,11 @@ def test_the_old_name_is_reported_not_silently_accepted(tmp_path):
     cfg = cfgmod.load_run_config(p)
     said = ' '.join(getattr(cfg, 'migrated', []))
     assert 'seed_ponds' in said and 'refine_ponds' in said, said
-    assert cfgmod.load_run_config(REF).migrated == [], \
+    # the reference is the LIVE working file: it may still carry a RETIRED
+    # key until a panel saves it (run.mode, 2026-10-07), so only the rename
+    # is asserted here
+    assert not [m for m in cfgmod.load_run_config(REF).migrated
+                if 'seed_ponds' in m], \
         'a file already using the new name should report nothing'
 
 

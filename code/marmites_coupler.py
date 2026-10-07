@@ -3,28 +3,33 @@
 
 Replaces the removed file-based Picard loop with a single sequential march
 over stress periods through the MODFLOW 6 API (libmf6, via modflowapi/xmipy).
-Two modes share one exchange layer (MARMITES_code_review.md section 4.3):
+The coupling is LAGGED: MMsoil.step() once per SP, using the heads and the
+groundwater discharge (exfiltration) MF6 left at the END of the previous SP;
+then MF6 advances the SP with its own time step, which ATS retries shorter
+when it fails.
 
-  * ``lagged``    -- MMsoil.step() once per SP, using heads and UZF
-                     groundwater discharge (exfiltration) from the END of
-                     the previous SP; then MF6 advances the SP.
-  * ``iterative`` -- MMsoil.step() re-evaluated at every MF6 outer (Newton)
-                     iteration from the CURRENT head iterate, with
-                     under-relaxation on the exchanged fluxes; removes the
-                     one-SP lag entirely (MetaSWAP-style coupling).
+An ``iterative`` mode re-evaluated MMsoil at every MF6 outer iteration from
+the current head iterate, under-relaxed (MetaSWAP-style). It went on
+2026-10-07: what it existed for -- groundwater ET following the head within
+the day -- EVT does inside MF6's own Newton solve, and because it drove the
+solve by hand, a step it could not solve was accepted, never retried.
 
 Exchange (memory pointers, no files):
-  MM -> MF6 : perc (m/d)  -> UZF FINF on the land-surface UZF objects
-              ETg  (m/d)  -> WEL Q = -ETg * cell_area (m3/d), AUTO_FLOW_REDUCE
+  MM -> MF6 : perc (m/d)  -> UZF FINF/SINF on the land-surface UZF objects
+              PETuzf      -> UZF PETMAX, less what EVT may take
+              Eg, Tg      -> two EVT curves per cell (EVT_EG, EVT_TG), taken
+                             by MF6 at the head it solves for (marmites_evt)
   MF6 -> MM : heads (m)   -> X (per surface cell, dry when h < botm_l0)
               exfiltration-> UZF GWD (m3/d) / cell_area * conv_fact (mm/d, +up)
 
 The MF6 side must be built by ppMF6.marmites_mf6.clsMF6 so that the first
 `ncell` UZF objects are the land-surface cells in MARMITES cell order and
-the WEL list is in the same order.
+the EVT records are in the same order. (Until 2026-10-07 groundwater ET
+could also go out as a fixed WEL rate, one well per cell; that route is
+gone and WEL is left for real pumping.)
 
 The API object is injectable for testing (tests/test_coupler_mock.py runs
-both modes against a fake API); a real run needs libmf6:
+the coupler against a fake API); a real run needs libmf6:
     from modflowapi import ModflowApi
     MF6Coupler(...).run(ModflowApi('libmf6.so', working_directory=sim_ws))
 """
@@ -32,7 +37,6 @@ both modes against a fake API); a real run needs libmf6:
 __author__ = "Alain P. Francés <frances.alain@gmail.com>"
 __version__ = "0.4.0.dev0"
 
-import copy
 import os
 import re
 import time
@@ -95,20 +99,24 @@ class MF6Coupler:
         The built MF6 model (for names, cell mapping, geometry).
     conv_fact : float
         Length conversion, mm per model length unit (1000 for metres).
-    mode : 'lagged' | 'iterative'
-    relax : float
-        Under-relaxation factor on the exchanged fluxes in iterative mode
-        (new = relax*eval + (1-relax)*previous); 0.5-0.7 recommended.
     max_outer : int
-        Safety cap on outer iterations per SP in iterative mode.
+        Safety cap on outer iterations per step when MF6 is stepped through
+        prepare_solve/solve (an MF6 build without the UZF period-input
+        arrays; see _bind) -- MF6's own do_time_step needs none.
     """
 
+    # the coupled run's results, in the model workspace. The name kept the
+    # coupling mode when there were two; it stays, so the Results page and
+    # the post-processing find the runs made before and after 2026-10-07
+    RESULTS_H5 = '_coupled_lagged.h5'
+
     def __init__(self, mm, ctx, state, mf6b, conv_fact=1000.0,
-                 mode='lagged', relax=0.6, max_outer=None,
-                 obs_idx=None, obs_names=None, crr=None):
-        if mode not in ('lagged', 'iterative'):
-            raise CouplingError("mode must be 'lagged' or 'iterative'")
+                 max_outer=None, obs_idx=None, obs_names=None, crr=None):
         self.mm, self.ctx, self.state = mm, ctx, state
+        # MMsoil hands over what Eg and Tg COULD take, for the day's EVT
+        # curves, instead of taking them itself with its own drawdown: that
+        # is the coupled run's contract (the uncoupled MMsoil leaves it off)
+        ctx.gw_evt = True
         # Observation cells at which to keep the FULL per-SP MM flux vectors
         # (for the native per-point Sankey / time series). Tiny next to the
         # whole-grid arrays, so unlike wb_map/wb_ts these are stored in full.
@@ -116,8 +124,6 @@ class MF6Coupler:
         self.obs_names = list(obs_names) if obs_names is not None else None
         self.mf6b = mf6b
         self.conv_fact = float(conv_fact)
-        self.mode = mode
-        self.relax = float(relax)
         # The manual outer-iteration loop must let MF6 reach its OWN
         # OUTER_MAXIMUM before finalizing, otherwise MF6 never registers the
         # step as failed and ATS cannot retry it with a smaller dt. Capping
@@ -176,8 +182,6 @@ class MF6Coupler:
         # so _progress can never be called before it exists, and reset in
         # run() so a spin-up cycle times itself rather than the whole session.
         self._t0 = time.time()
-        self.p_q = None
-        self.p_bound = None
         self.p_gwd = None
         self.p_rejinf = None
         # WP2: UZF's PET demand (written) and its actual ET (read back)
@@ -213,9 +217,7 @@ class MF6Coupler:
         self.n_resid, self.resid_max, self.resid_m3 = 0, 0.0, 0.0
         self._petmax_written = None
         self.p_drnseep = None
-        # groundwater ET route (et.gw_route): 'wel', MMsoil's rate as a WEL
-        # sink; 'evt', two EVT packages at the solved head (marmites_evt)
-        self.gw_route = str(getattr(mf6b, 'gw_route', 'wel') or 'wel')
+        # groundwater ET: two EVT packages at the solved head (marmites_evt)
         self.evt_nseg = int(getattr(mf6b, 'evt_nseg', 8))
         self.evt_ramp = float(getattr(mf6b, 'evt_ramp', 0.1))
         self.p_evt = {}
@@ -420,8 +422,8 @@ class MF6Coupler:
     def _mm_step(self, n, tstart_MF, heads, exf, rej):
         """One MMsoil stress period. WP2: Eg/Tg see what remains after the
         PREVIOUS period's actual UZF ET (cookbook 2b); WP5: the cascade
-        routes the runoff when there is one; et.gw_route = 'evt': the day's
-        EVT curves, and the cap they put on UZF's demand."""
+        routes the runoff when there is one; then the day's EVT curves, and
+        the cap they put on UZF's demand."""
         if self.crr is None:
             out = self.mm.step(self.ctx, n, tstart_MF, heads, exf, self.state,
                                rejinf_cell=rej, etuzf_cell=self.etuzf_prev)
@@ -429,7 +431,7 @@ class MF6Coupler:
             out = self.mm.step(self.ctx, n, tstart_MF, heads, exf, self.state,
                                rejinf_cell=rej, etuzf_cell=self.etuzf_prev,
                                crr=self.crr)
-        if self.gw_route == 'evt' and out.get('gw') is not None:
+        if out.get('gw') is not None:
             out['evt'] = self._evt_curves(out['gw'])
             # what EVT can take today, at most: reserved from UZF's demand,
             # so ETsoil + ETuzf + ETg <= PE + PT holds whatever MF6 solves
@@ -456,6 +458,42 @@ class MF6Coupler:
                 c['PXDP'][k], c['PETM'][k] = x, y
         return out
 
+    def _evt_flat(self, rate):
+        """A STEADY first period's EVT curves: ``rate`` [m/d per cell area],
+        each cell's mean ETg, flat down to the bottom of its surface cell
+        (marmites_evt.flat_curve) -- the fixed mean rate the ETg well drew
+        until 2026-10-07, reduced as the cell dries as AUTO_FLOW_REDUCE did.
+        Booked on EVT_EG as a whole: a steady period's mean has no Eg/Tg
+        split, and no result is read from it. Tg's curve is inert."""
+        import marmites_evt as me
+        n, ns = self.ncell, self.evt_nseg
+        rate = np.asarray(rate, dtype=float).ravel()[:n]
+        surf = (self.land_cell if self.land_cell is not None
+                else np.zeros(n))
+        surf = np.asarray(surf, dtype=float)
+        # never a NaN into MF6: a cell without a land elevation takes the
+        # model top, and failing that a curve that is inert (rate 0)
+        if self.top_cell is not None:
+            surf = np.where(np.isfinite(surf), surf, self.top_cell)
+        surf = np.nan_to_num(surf, nan=0.0)
+        botm = getattr(self.mf6b, 'botm', None)
+        if botm is not None:
+            b = np.asarray(botm, dtype=float)
+            bot = b[self.k_arr, self.i_arr, self.j_arr]
+        else:                       # a builder without bottoms: no floor
+            bot = surf - 1.0e3
+        out = {t: {'SURFACE': surf.copy(), 'RATE': np.zeros(n),
+                   'DEPTH': np.ones(n), 'PXDP': np.zeros((n, ns - 1)),
+                   'PETM': np.zeros((n, ns - 1))} for t in ('eg', 'tg')}
+        x = np.linspace(0.0, 1.0, ns + 1)[1:-1]
+        out['tg']['PXDP'][:] = x
+        for k in range(n):
+            s, r, d, xx, y = me.flat_curve(rate[k], surf[k], bot[k], ns)
+            c = out['eg']
+            c['SURFACE'][k], c['RATE'][k], c['DEPTH'][k] = s, r, d
+            c['PXDP'][k], c['PETM'][k] = xx, y
+        return out
+
     def _write_evt(self, evt):
         """Write the day's EVT curves (``_evt_curves``) into MF6."""
         if not evt or not self.p_evt:
@@ -474,9 +512,9 @@ class MF6Coupler:
     def _evt_into(self, mm_cells):
         """The groundwater ET MF6's EVT took this period, into the MM vector
         (iEg, iTg, iETg, iETtot) [mm/d per cell]; returns ETg [m/d] for the
-        run's books, None on the well route. Sub-step means, as for UZF."""
+        run's books. Sub-step means, as for UZF."""
         if self.p_evt_eg_sim is None:
-            return None
+            return np.zeros(self.ncell)
         n = self.ncell
         eg = np.abs(np.asarray(self._rate('p_evt_eg_sim'), dtype=float)
                     .ravel()[:n]) / self.area * self.conv_fact
@@ -611,26 +649,25 @@ class MF6Coupler:
         self.p_drnseep, self.addr_drnseep = self._bind_first(
             api, [('SIMVALS', f'{name}/DRN_SEEP')],
             'DRN-SEEP discharge', required=False)
-        # et.gw_route = 'evt': the two EVT packages' curve arrays, written
-        # every period before MF6's own time step (nothing resets them: only
-        # a PERIOD block does -- probed on libmf6 6.7, evt_toy2.py), and the
-        # ET they took (SIMVALS, negative out of the aquifer)
+        # GROUNDWATER ET: the two EVT packages' curve arrays, written every
+        # period before MF6's own time step (nothing resets them: only a
+        # PERIOD block does -- probed on libmf6 6.7, evt_toy2.py), and the
+        # ET they took (SIMVALS, negative out of the aquifer). Required: it
+        # is the coupled run's only groundwater-ET path since 2026-10-07.
         self.p_evt = {}
-        self.p_evt_eg_sim = self.p_evt_tg_sim = None
-        if self.gw_route == 'evt':
-            for tag in ('eg', 'tg'):
-                pk = 'EVT_%s' % tag.upper()
-                arrs = {}
-                for var in ('SURFACE', 'RATE', 'DEPTH', 'PXDP', 'PETM',
-                            'SIMVALS'):
-                    arrs[var], _a = self._bind_first(
-                        api, [(var, f'{name}/{pk}')], '%s %s' % (pk, var),
-                        min_size=self.ncell)
-                self.p_evt[tag] = arrs
-            self.p_evt_eg_sim = self.p_evt['eg']['SIMVALS']
-            self.p_evt_tg_sim = self.p_evt['tg']['SIMVALS']
-            print('coupler: groundwater ET by EVT (EVT_EG, EVT_TG), %d '
-                  'segments, taken at the solved head' % self.evt_nseg)
+        for tag in ('eg', 'tg'):
+            pk = 'EVT_%s' % tag.upper()
+            arrs = {}
+            for var in ('SURFACE', 'RATE', 'DEPTH', 'PXDP', 'PETM',
+                        'SIMVALS'):
+                arrs[var], _a = self._bind_first(
+                    api, [(var, f'{name}/{pk}')], '%s %s' % (pk, var),
+                    min_size=self.ncell)
+            self.p_evt[tag] = arrs
+        self.p_evt_eg_sim = self.p_evt['eg']['SIMVALS']
+        self.p_evt_tg_sim = self.p_evt['tg']['SIMVALS']
+        print('coupler: groundwater ET by EVT (EVT_EG, EVT_TG), %d '
+              'segments, taken at the solved head' % self.evt_nseg)
         # SFR specified inflow, written each SP with the MARMITES runoff
         if self.nreaches:
             self.p_sfr_inflow, self.addr_sfr_inflow = self._bind_first(
@@ -742,8 +779,9 @@ class MF6Coupler:
         # do_time_step re-applies the period input on every try -- uzf_ad
         # copies SINF_PVAR to FINF/SINF and PET_PVAR to PET/PETMAX
         # (gwf-uzf.f90) -- so the exchanged values are written THERE too;
-        # WEL Q, SFR INFLOW/EVAP and LAK RUNOFF/EVAPORATION are re-read only
-        # from a PERIOD block, which the build writes for period 1 alone.
+        # the EVT curves, SFR INFLOW/EVAP and LAK RUNOFF/EVAPORATION are
+        # re-read only from a PERIOD block, which the build writes for
+        # period 1 alone.
         self.p_sinf_pvar, _a = self._bind_first(
             api, [('SINF_PVAR', f'{name}/UZF'), ('SINF_PVAR', f'{name}/UZF-1')],
             'UZF period infiltration (SINF_PVAR)', required=False,
@@ -771,23 +809,11 @@ class MF6Coupler:
         self.p_wcnew, _a = self._bind_first(
             api, [('WCNEW', f'{name}/UZF'), ('WCNEW', f'{name}/UZF-1')],
             'UZF water content (WCNEW)', required=False)
-        # WEL rates: write Q ONLY.
-        #
-        # MF6 6.7 exposes both WEL/Q and WEL/BOUND. Q is the rate array the
-        # package uses. BOUND is *not* a plain writable array here: bisection
-        # on La Mata (tests/diagnose_coupling.py) showed that writing FINF+Q
-        # runs cleanly, while additionally writing BOUND corrupts MF6's heap
-        # and kills the process inside the next prepare_time_step() with no
-        # error message. BOUND is therefore only used when Q is unavailable.
-        self.p_q, self.addr_q = self._bind_first(
-            api, [('Q', f'{name}/WEL'), ('Q', f'{name}/WEL-1')],
-            'WEL rates (Q)', required=False)
-        self.p_bound = None
-        if self.p_q is None:
-            self.p_bound, self.addr_bound = self._bind_first(
-                api, [('BOUND', f'{name}/WEL'), ('BOUND', f'{name}/WEL-1')],
-                'WEL boundary array (BOUND)', required=True)
-            print('NOTE: WEL/Q not exposed; falling back to BOUND.')
+        # (The ETg wells' rates were bound here until 2026-10-07: WEL/Q only.
+        # MF6 6.7 also exposes WEL/BOUND, and writing it corrupted MF6's heap
+        # and killed the process in the next prepare_time_step with no
+        # message -- bisected on La Mata, tests/diagnose_coupling.py. Keep
+        # that in mind when WEL comes back for real pumping.)
         # node mapping: X is over reduced nodes; NODEUSER maps reduced -> user
         # DIS : user node = k*nrow*ncol + i*ncol + j
         # DISV: user node = k*ncpl + icell2d   (icell2d == the cell list 'node')
@@ -825,16 +851,6 @@ class MF6Coupler:
                     'UZF %s has %d entries but MARMITES has %d surface cells: '
                     'the bound address is wrong or the UZF package was built '
                     'differently.' % (_nm, _p.size, self.ncell))
-        if self.p_q is not None and self.p_q.size < self.ncell:
-            raise CouplingError('WEL Q holds %d entries but MARMITES has %d wells.'
-                                % (self.p_q.size, self.ncell))
-        if self.p_bound is not None:
-            nb = self.p_bound.shape[0] if self.p_bound.ndim == 1 else \
-                max(self.p_bound.shape)
-            if nb < self.ncell:
-                raise CouplingError(
-                    'WEL BOUND holds %d entries but MARMITES has %d wells.'
-                    % (nb, self.ncell))
         if self.p_gwd is not None and self.p_gwd.size < self.ncell:
             print('WARNING: UZF discharge array is shorter (%d) than the cell '
                   'count (%d); exfiltration disabled.' % (self.p_gwd.size, self.ncell))
@@ -949,9 +965,10 @@ class MF6Coupler:
                 'routes is not what it reports -- check which UZF arrays the '
                 'coupler writes (FINF and SINF, PETMAX and PET).'
                 % (uzf_d, max_discrepancy))
-        # WP2 2.6, the GWET guard: groundwater ET belongs to MMsoil (WEL), so
-        # MODFLOW must simulate none -- no configuration key can ask for
-        # linear_gwet or square_gwet, and this catches a regression.
+        # WP2 2.6, the GWET guard: groundwater ET belongs to MARMITES (the
+        # EVT packages), so UZF must simulate none -- no configuration key
+        # can ask for linear_gwet or square_gwet, and this catches a
+        # regression.
         # TOTAL ET NEVER ABOVE PET. uzf_demand makes it hold by construction;
         # a cell-period above it is a fault in the chain, not a result.
         n_over = int(getattr(self, 'n_overdraw', 0))
@@ -965,9 +982,10 @@ class MF6Coupler:
         if gwet:
             rep['ok'] = False
             rep['messages'].append(
-                'MODFLOW simulated groundwater ET (UZF-GWET %.4g m3): it is '
-                'MMsoil\'s, applied as WEL, and would be counted twice. The UZF '
-                'package must be built without linear_gwet / square_gwet.'
+                'UZF simulated groundwater ET (UZF-GWET %.4g m3): it is '
+                'MARMITES\', taken by the EVT packages, and would be counted '
+                'twice. The UZF package must be built without linear_gwet / '
+                'square_gwet.'
                 % gwet)
         if not rep['ok']:
             msg = 'MF6 solution is not valid:\n  - ' + '\n  - '.join(rep['messages'])
@@ -1289,35 +1307,30 @@ class MF6Coupler:
     ET_TOL = 1e-6
 
     @staticmethod
-    def uzf_demand(petuzf, etg, etg_booked=None):
-        """UZF's PET demand [m/d]: what the soil left, LESS groundwater ET.
+    def uzf_demand(petuzf, etg_cap):
+        """UZF's PET demand [m/d]: what the soil left, LESS what groundwater
+        ET may take today.
 
         TOTAL ET CAN NEVER EXCEED PET. MMsoil hands on PETuzf = PE + PT the
-        soil did not use, and takes ETg out of it seeing UZF's ET of the
+        soil did not use, and sizes groundwater ET seeing UZF's ET of the
         PREVIOUS period -- the only one known before MF6 solves. Writing all
         of PETuzf to UZF let this period's UZF ET and ETg together exceed
         it: 125,030 cell-periods, up to 2.05 mm/d, on 2026-09-24. With UZF
-        capped at PETuzf - ETg, ETsoil + ETuzf + ETg <= PE + PT holds by
-        construction, since MF6 removes at most PETMAX from a column
-        (setbelowpet hands down only the unmet part).
+        capped at PETuzf - ``etg_cap``, the most the day's EVT curves can
+        take (their RATE: EVT only falls from it as the head does),
+        ETsoil + ETuzf + ETg <= PE + PT holds by construction, since MF6
+        removes at most PETMAX from a column (setbelowpet hands down only
+        the unmet part).
 
-        UZF keeps its place in the chain: ETg was computed on PETuzf LESS
-        last period's ETuzf, so the cap leaves UZF at least what it took
-        then. ``etg_booked`` is the ETg in the water balance when it differs
-        from the one applied (iterative mode relaxes the applied one); the
-        larger of the two is taken off, so both books hold the bound.
+        UZF keeps its place in the chain: ETg was sized on PETuzf LESS last
+        period's ETuzf, so the cap leaves UZF at least what it took then.
         """
-        d = np.asarray(petuzf, dtype=float) - np.asarray(etg, dtype=float)
-        if etg_booked is not None:
-            d = np.minimum(d, np.asarray(petuzf, dtype=float)
-                           - np.asarray(etg_booked, dtype=float))
+        d = np.asarray(petuzf, dtype=float) - np.asarray(etg_cap, dtype=float)
         return np.maximum(d, 0.0)
 
-    def _write_fluxes(self, perc, etg, petuzf=None, etg_booked=None,
-                      etg_cap=None):
-        # etg_cap (et.gw_route = 'evt'): the most EVT can take today, which
-        # UZF's demand must leave room for -- ETg itself is not known until
-        # MF6 solves, and the well (``etg``) is then zero
+    def _write_fluxes(self, perc, petuzf=None, etg_cap=None):
+        # etg_cap: the most EVT can take today, which UZF's demand must
+        # leave room for -- ETg itself is not known until MF6 solves
         # both UZF arrays, as MF6's setdatafinf sets them: the land cells
         # carry the percolation, the objects below them nothing
         # ... and the period input uzf_ad copies them from on every try of
@@ -1333,26 +1346,12 @@ class MF6Coupler:
         # objects, after groundwater ET; MF6 passes what they leave to the
         # objects below
         if petuzf is not None and self.p_petmax is not None:
-            dem = self.uzf_demand(petuzf, etg if etg_cap is None else etg_cap,
-                                  etg_booked)
+            dem = self.uzf_demand(petuzf, 0.0 if etg_cap is None else etg_cap)
             for _p in (self.p_petmax, self.p_pet,
                        getattr(self, 'p_pet_pvar', None)):
                 if _p is not None:
                     _p[:self.ncell] = dem
             self._petmax_written = np.array(dem, dtype=float)
-        q = -np.asarray(etg, dtype=float) * self.area                 # m3/d, sink
-        if self.p_q is not None:
-            self.p_q[:self.ncell] = q
-            return                       # never also write BOUND (see _bind)
-        b = self.p_bound
-        if b is None:
-            return
-        if b.ndim == 1:
-            b[:self.ncell] = q
-        elif b.shape[0] >= self.ncell:                                # (maxbound, naux+1)
-            b[:self.ncell, 0] = q
-        else:                                                         # (naux+1, maxbound)
-            b[0, :self.ncell] = q
 
     def _read_etuzf(self):
         """UZF's ACTUAL ET per land cell [mm/d]: UZET (m3/d per object)
@@ -1463,14 +1462,6 @@ class MF6Coupler:
                   'streams (SFR) %.2f + ponds (LAK) %.2f'
                   % (ow.get('iEow', 0.0), ow.get('iEow_sfr', 0.0),
                      ow.get('iEow_lak', 0.0)))
-
-    @staticmethod
-    def _clone_state(state):
-        return copy.deepcopy(state)
-
-    @staticmethod
-    def _restore_state(state, bak):
-        state.Ssoil_ini[:] = bak.Ssoil_ini
 
     # ---------------- main drive --------------------------------------- #
 
@@ -1615,51 +1606,51 @@ class MF6Coupler:
             if steady:
                 # write the steady fluxes AFTER prepare_time_step (via
                 # _advance's callback), or UZF rp reverts SINF to the
-                # build-time perc_user
-                self._advance(api, t_end[0],
-                              write_cb=lambda: self._write_fluxes(s_perc, s_etg))
+                # build-time perc_user; the mean ETg as a flat EVT curve
+                s_evt = self._evt_flat(s_etg)
 
-            # --- transient march, one MM SP per MF6 SP ---
+                def _write_steady():
+                    self._write_fluxes(s_perc)
+                    self._write_evt(s_evt)
+
+                self._advance(api, t_end[0], write_cb=_write_steady)
+
+            # --- transient march, one MM SP per MF6 SP (lagged) ---
             for n in range(nper_mm):
                 tstart_MF = n
-                if self.mode == 'lagged':
-                    heads, exf = self._read_heads_exf()         # end of SP n-1
-                    rej = self._read_rejinf()                   # returned to surface
-                    if n == 0 and not steady and self.carry_in:
-                        # a periodic cycle's first day: what the previous
-                        # cycle's last day left -- MF6 has solved nothing yet
-                        exf = np.asarray(self.carry_in['exf'], dtype=float)
-                        rej = np.asarray(self.carry_in['rej'], dtype=float)
-                        self.etuzf_prev = np.asarray(self.carry_in['etuzf'],
-                                                     dtype=float)
-                    # WP2: Eg/Tg see what remains after the PREVIOUS
-                    # period's actual UZF ET -- lagged: MM cannot know this
-                    # period's before MF6 solves (cookbook 2b)
-                    out = self._mm_step(n, tstart_MF, heads, exf, rej)
-                    # ALL API inputs (UZF SINF, WEL Q, SFR INFLOW) must be
-                    # written after prepare_solve, or MF6 reverts them to the
-                    # build-time values -- so runoff-to-SFR rides the same
-                    # callback rather than being written after the advance.
-                    _o = out
-                    _ro = (self._runoff_to_deliver(out)
-                           if self._delivers_runoff() else None)
+                heads, exf = self._read_heads_exf()             # end of SP n-1
+                rej = self._read_rejinf()                       # returned to surface
+                if n == 0 and not steady and self.carry_in:
+                    # a periodic cycle's first day: what the previous
+                    # cycle's last day left -- MF6 has solved nothing yet
+                    exf = np.asarray(self.carry_in['exf'], dtype=float)
+                    rej = np.asarray(self.carry_in['rej'], dtype=float)
+                    self.etuzf_prev = np.asarray(self.carry_in['etuzf'],
+                                                 dtype=float)
+                # WP2: Eg/Tg see what remains after the PREVIOUS period's
+                # actual UZF ET -- lagged: MM cannot know this period's
+                # before MF6 solves (cookbook 2b)
+                out = self._mm_step(n, tstart_MF, heads, exf, rej)
+                # ALL API inputs (UZF SINF, the EVT curves, SFR INFLOW) must
+                # be written after prepare_solve, or MF6 reverts them to the
+                # build-time values -- so runoff-to-SFR rides the same
+                # callback rather than being written after the advance.
+                _o = out
+                _ro = (self._runoff_to_deliver(out)
+                       if self._delivers_runoff() else None)
 
-                    def _write(o=_o, ro=_ro, sp=n):
-                        self._write_fluxes(o['perc'], o['etg'], o.get('petuzf'),
-                                           etg_cap=o.get('etg_cap'))
-                        self._write_evt(o.get('evt'))
-                        if ro is not None:
-                            self._write_runoff(ro)
-                        self._write_openwater_evap(sp)
+                def _write(o=_o, ro=_ro, sp=n):
+                    self._write_fluxes(o['perc'], o.get('petuzf'),
+                                       etg_cap=o.get('etg_cap'))
+                    self._write_evt(o.get('evt'))
+                    if ro is not None:
+                        self._write_runoff(ro)
+                    self._write_openwater_evap(sp)
 
-                    self.outer_iters[n] = self._advance(api, t_end[n + 1], write_cb=_write)
-                else:
-                    out, heads, exf, rej = self._iterative_sp(api, n, tstart_MF,
-                                                             t_end[n + 1])
+                self.outer_iters[n] = self._advance(api, t_end[n + 1], write_cb=_write)
                 self.heads_hist[n] = heads
                 self.exf_hist[n] = exf
                 self.perc_hist[n] = out['perc']
-                self.etg_hist[n] = out['etg']
                 self.rejinf_hist[n] = rej
                 mm_cells = np.asarray(out['MM'], dtype=np.float64)
                 if self.p_sfr_inflow is not None:
@@ -1679,11 +1670,9 @@ class MF6Coupler:
                     _vol = self._lak_evap_volumes()
                     if _vol is not None:
                         self.lak_evap_hist[n, :_vol.size] = _vol
-                # et.gw_route = 'evt': the groundwater ET MF6 took at the
-                # head it solved for -- before the PET check reads iETg
-                _etg = self._evt_into(mm_cells)
-                if _etg is not None:
-                    self.etg_hist[n] = _etg
+                # the groundwater ET MF6's EVT took at the head it solved
+                # for -- before the PET check reads iETg
+                self.etg_hist[n] = self._evt_into(mm_cells)
                 # WP2 step 5: what UZF actually took this period -- into the
                 # water balance now, and into MM's groundwater ET next period
                 et, resid = self._split_etuzf(self._read_etuzf(), n)
@@ -1816,7 +1805,7 @@ class MF6Coupler:
                       % (rejected, applied, 100.0 * rejected / applied))
             # WP2 2.5b: PET spent once. Unmet demand is normal (a dry soil
             # cannot evaporate what it has not got); ET above the demand is
-            # not -- in lagged mode it is the one-period lag of UZF's ET.
+            # not -- it would be the one-period lag of UZF's ET.
             self._print_pet_balance(nper_mm)
             self._print_crr(nper_mm)
         finally:
@@ -1982,94 +1971,6 @@ class MF6Coupler:
         if not converged:
             self.n_nonconverged += 1
         return kiter
-
-    def _iterative_sp(self, api, n, tstart_MF, t_end=None):
-        """One SP with MM embedded in the MF6 outer-iteration loop.
-
-        Each outer iteration: restore the soil state, re-evaluate step()
-        from the current head iterate, under-relax the exchanged fluxes.
-        The state advance of the LAST evaluation is kept.
-
-        The MM coupling is done on the FIRST time step of the period. If ATS
-        subdivides the period, the remaining sub-steps are advanced with the
-        fluxes already converged on -- re-running the soil model per sub-step
-        would advance the soil state several times within one MARMITES day.
-        """
-        bak = self._clone_state(self.state)
-        acc = {}
-        t0 = self._now(api)
-        dt = self._timestep(api)
-        api.prepare_time_step(dt)
-        api.prepare_solve(1)
-        perc_prev = None
-        etg_prev = None
-        out = None
-        heads = exf = None
-        kiter = 0
-        while kiter < self.max_outer:
-            kiter += 1
-            heads, exf = self._read_heads_exf()                # current iterate
-            rej = self._read_rejinf()
-            self._restore_state(self.state, bak)
-            # WP2: UZF's ET is computed at budget time (uzf_cq), after the
-            # solve, so no iterate is available mid-period: the previous
-            # period's actual is used here too
-            out = self._mm_step(n, tstart_MF, heads, exf, rej)
-            perc = np.asarray(out['perc'], dtype=float)
-            etg = np.asarray(out['etg'], dtype=float)
-            if perc_prev is not None:                          # under-relaxation
-                perc = self.relax * perc + (1.0 - self.relax) * perc_prev
-                etg = self.relax * etg + (1.0 - self.relax) * etg_prev
-            perc_prev, etg_prev = perc, etg
-            petuzf_prev = out.get('petuzf')
-            etg_booked = np.asarray(out['etg'], dtype=float)
-            self._write_fluxes(perc, etg, petuzf_prev, etg_booked,
-                               etg_cap=out.get('etg_cap'))
-            self._write_evt(out.get('evt'))
-            # the iterative mode delivered no runoff to the stream at all;
-            # it does now, to the streams and the ponds alike
-            ro = (self._runoff_to_deliver(out)
-                  if self._delivers_runoff() else None)
-            if ro is not None:
-                self._write_runoff(ro)
-            self._write_openwater_evap(n)
-            if api.solve(1):
-                break
-        converged = kiter < self.max_outer
-        api.finalize_solve(1)
-        api.finalize_time_step()
-        now = self._now(api)
-        self._rates_add(acc, None if t0 is None or now is None else now - t0)
-        if not converged:
-            self.n_nonconverged += 1
-        # finish the period if ATS split it
-        nsub = 1
-        if t_end is not None:
-            while nsub < self.max_substeps:
-                if now is None or now >= t_end - 1e-9:
-                    break
-                # re-apply the converged fluxes each sub-step, or rp reverts
-                # SINF to the build-time value on the next prepare_time_step
-                def _re_apply(p=perc_prev, e=etg_prev, sp=n,
-                              u=petuzf_prev, b=etg_booked, r=ro):
-                    self._write_fluxes(p, e, u, b, etg_cap=out.get('etg_cap'))
-                    self._write_evt(out.get('evt'))
-                    if r is not None:
-                        self._write_runoff(r)
-                    self._write_openwater_evap(sp)
-
-                k, ok = self._one_step(api, write_cb=_re_apply)
-                t1 = self._now(api)
-                self._rates_add(acc, None if t1 is None else t1 - now)
-                now = t1
-                kiter = max(kiter, k)
-                if not ok:
-                    self.n_nonconverged += 1
-                nsub += 1
-        self._rates_close(acc, nsub)
-        self.substeps += nsub - 1
-        self.outer_iters[n] = kiter
-        return out, heads, exf, rej
 
 
 if __name__ == '__main__':

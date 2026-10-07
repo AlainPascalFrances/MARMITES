@@ -65,15 +65,16 @@ class LadderError(Exception):
 # reading a finished run
 # --------------------------------------------------------------------- #
 
-def read_run(ws, mode='lagged'):
+def read_run(ws):
     """Everything the ladder compares, from one finished workspace.
 
     Reads the coupled HDF5 only -- no model rebuild, no .ini -- so it works on
     any run that finished, including one launched from Spyder months ago.
     """
     import h5py
+    from marmites_coupler import MF6Coupler
     from marmites_indices import INDEX_MM
-    fn = os.path.join(ws, '_coupled_%s.h5' % mode)
+    fn = os.path.join(ws, MF6Coupler.RESULTS_H5)
     if not os.path.exists(fn):
         raise LadderError('no coupled results in %s (looked for %s)'
                           % (ws, os.path.basename(fn)))
@@ -335,7 +336,6 @@ def main():
     ap.add_argument('--rungs', nargs='*', default=['a', 'b'], choices=['a', 'b'])
     ap.add_argument('--nsp', type=int, default=30)
     ap.add_argument('--config', default=None)
-    ap.add_argument('--mode', default='lagged')
     ap.add_argument('--compare', nargs=2, metavar=('WS_A', 'WS_B'),
                     help='compare two finished workspaces (rung c)')
     ap.add_argument('--labels', nargs=2, default=['A', 'B'])
@@ -346,8 +346,8 @@ def main():
 
     chunks = []
     if a.compare:
-        ra = read_run(a.compare[0], a.mode)
-        rb = read_run(a.compare[1], a.mode)
+        ra = read_run(a.compare[0])
+        rb = read_run(a.compare[1])
         rows, summary = compare(ra, rb, a.labels[0], a.labels[1])
         txt = format_report(rows, summary, compare_heads(ra, rb), tol=a.tol)
         print(txt)
@@ -359,7 +359,7 @@ def main():
                   % (r, spec['label_a'], spec['label_b'], a.nsp))
             wsa = run_case(spec['a'], 'ladder_%s_a' % r, a.nsp, a.config)
             wsb = run_case(spec['b'], 'ladder_%s_b' % r, a.nsp, a.config)
-            ra, rb = read_run(wsa, a.mode), read_run(wsb, a.mode)
+            ra, rb = read_run(wsa), read_run(wsb)
             rows, summary = compare(ra, rb, spec['label_a'], spec['label_b'])
             txt = format_report(rows, summary, compare_heads(ra, rb),
                                 rung=r, tol=spec['tol'])

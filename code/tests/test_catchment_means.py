@@ -146,12 +146,12 @@ def test_the_nwt_comparison_takes_runoff_net_of_the_cascade(tmp_path):
         f.create_dataset('wb_ts', data=ts)
         f.create_dataset('wb_map', data=np.zeros((2, n)))
         f.create_dataset('iters_kind', data='linear')
-    d = pwb.load_new(str(tmp_path), 'lagged')
+    d = pwb.load_new(str(tmp_path))
     assert np.allclose(d['wb_ts'][:, INDEX_MM['iRo']], 2.0)
     assert d['iters_kind'] == 'linear'
     old = ts[:, :INDEX_MM['iRunon']]
     with h5py.File(str(tmp_path / '_coupled_lagged.h5'), 'r+') as f:
         del f['wb_ts']
         f.create_dataset('wb_ts', data=old)
-    assert np.allclose(pwb.load_new(str(tmp_path), 'lagged')['wb_ts'][
+    assert np.allclose(pwb.load_new(str(tmp_path))['wb_ts'][
         :, INDEX_MM['iRo']], 5.0)

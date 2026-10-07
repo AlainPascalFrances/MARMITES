@@ -10,8 +10,10 @@ MARMITES_code_review.md section 4.1 and the decisions of section 6:
     from the NWT options (COMPLEX for La Mata);
   * STO with an initial steady-state stress period (the dum_sssp1
     convention), daily transient SPs by default;
-  * WEL with AUTO_FLOW_REDUCE in every active surface cell (ETg sink,
-    driven by the API coupler);
+  * two EVT packages (evt_eg, evt_tg), one record per active surface cell:
+    groundwater ET at the solved head, the curves written each day by the
+    API coupler (marmites_evt). No WEL: the ETg wells went with the WEL
+    route on 2026-10-07, and WEL is left for real pumping;
   * DRN / GHB from the legacy cell lists, grid-agnostic cellids;
   * UZF6 (decision: UZF always): one vertical column of UZF objects per
     active map cell, landflag on the outcrop cell, ivertcon chaining
@@ -34,7 +36,7 @@ try:
     from flopy.mf6 import (MFSimulation, ModflowGwf, ModflowGwfdis, ModflowGwfdisv,
                            ModflowGwfdrn, ModflowGwfghb, ModflowGwfic, ModflowGwfnpf,
                            ModflowGwflak, ModflowGwfmvr, ModflowGwfoc, ModflowGwfsfr,
-                           ModflowGwfsto, ModflowGwfuzf, ModflowGwfwel,
+                           ModflowGwfevt, ModflowGwfsto, ModflowGwfuzf,
                            ModflowIms, ModflowTdis, ModflowUtllaktab)
     HAS_FLOPY = True
     FLOPY_IMPORT_ERROR = None
@@ -169,9 +171,7 @@ class clsMF6:
         self.lak_depth = None            # per-cell pond depth map [m]
         self.lak_bedleak = 1e-3          # 1/d
         self.lak_surfdep = 0.05          # m
-        # groundwater ET route (et.gw_route): 'wel' (MMsoil's rate, fixed) or
-        # 'evt' (two EVT packages, at the solved head; marmites_evt)
-        self.gw_route = 'wel'
+        # groundwater ET: two EVT packages at the solved head (marmites_evt)
         self.evt_nseg = 8
         self.evt_ramp = 0.1              # m
         # LAK's own Newton loop (MAXIMUM_ITERATIONS, MAXIMUM_STAGE_CHANGE);
@@ -1133,31 +1133,25 @@ class clsMF6:
         ModflowGwfsto(gwf, iconvert=list(np.asarray(cMF.laytyp, dtype=int)),
                       ss=self._griddata(ss), sy=self._griddata(sy), **_sto)
 
-        # WEL: one well per active surface cell (ETg sink), q=0 initially,
-        # AUTO_FLOW_REDUCE replaces the NWT 'SPECIFY 0.05 iunitramp' option
-        wel_spd = [[self._cellid(k, i, j), 0.0] for (i, j, k) in self.surf_cells]
-        ModflowGwfwel(gwf, stress_period_data={0: wel_spd},
-                      auto_flow_reduce=0.05, pname='wel',
-                      maxbound=self.ncell, save_flows=True)
-        # et.gw_route = 'evt' (2026-10-05): groundwater ET taken at the head
-        # MF6 solves for, by two EVT packages -- Eg and Tg apart, so the
-        # budget keeps them apart -- one record per land column in the cell
-        # order, the coupler writing each day's curve (marmites_evt). The
-        # WEL stays: a steady first period still draws the mean ETg through
-        # it, and on this route it is zero otherwise.
+        # GROUNDWATER ET (2026-10-05; the only route since 2026-10-07): taken
+        # at the head MF6 solves for, by two EVT packages -- Eg and Tg apart,
+        # so the budget keeps them apart -- one record per land column in
+        # the cell order, the coupler writing each day's curve (marmites_evt)
+        # and, for a steady first period, a flat curve at the mean ETg.
+        # Written inert (rate 0), so a standalone run of the files takes no
+        # groundwater ET. The ETg wells this replaced (one WEL per surface
+        # cell, AUTO_FLOW_REDUCE) are gone: WEL is left for real pumping.
         self.evt_packages = []
-        if getattr(self, 'gw_route', 'wel') == 'evt':
-            from flopy.mf6 import ModflowGwfevt
-            nseg = int(self.evt_nseg)
-            x = [float(v) for v in np.linspace(0.0, 1.0, nseg + 1)[1:-1]]
-            for pname in ('evt_eg', 'evt_tg'):
-                rows = [[self._cellid(k, i, j), float(self.top[i, j]), 0.0,
-                         1.0] + x + [0.0] * (nseg - 1)
-                        for (i, j, k) in self.surf_cells]
-                ModflowGwfevt(gwf, pname=pname, nseg=nseg,
-                              maxbound=len(rows), save_flows=True,
-                              stress_period_data={0: rows})
-                self.evt_packages.append(pname)
+        nseg = int(self.evt_nseg)
+        x = [float(v) for v in np.linspace(0.0, 1.0, nseg + 1)[1:-1]]
+        for pname in ('evt_eg', 'evt_tg'):
+            rows = [[self._cellid(k, i, j), float(self.top[i, j]), 0.0,
+                     1.0] + x + [0.0] * (nseg - 1)
+                    for (i, j, k) in self.surf_cells]
+            ModflowGwfevt(gwf, pname=pname, nseg=nseg,
+                          maxbound=len(rows), save_flows=True,
+                          stress_period_data={0: rows})
+            self.evt_packages.append(pname)
 
         # SFR and the ponds are resolved first: the outlet reaches replace the
         # outlet DRN cells, and the stream cells are excluded from the seepage
@@ -1358,7 +1352,7 @@ class clsMF6:
         # exactly that division -- "et can be simulated in the uzf cell and
         # not the gwf cell by omitting keywords linear_gwet and square_gwet"
         # (mf6io) -- so simulate_et goes on WITHOUT either gwet keyword and
-        # groundwater ET stays with MARMITES, which applies it through WEL.
+        # groundwater ET stays with MARMITES, which applies it through EVT.
         #
         # `pet` starts at 0 and the COUPLER writes the demand each step: it
         # is a daily quantity MARMITES computes, not a property of the

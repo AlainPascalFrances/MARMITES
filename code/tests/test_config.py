@@ -102,8 +102,9 @@ def test_empty_config_reproduces_todays_flag_defaults():
                                             silence.
     """
     c = cfgmod.RunConfig.from_dict({})
-    assert c.run.mode == 'lagged'
-    assert c.run.relax == 0.6
+    # the coupling is lagged and not asked (run.mode / run.relax retired
+    # 2026-10-07)
+    assert not hasattr(c.run, 'mode') and not hasattr(c.run, 'relax')
     assert c.run.nsp == 0                 # 0 = all stress periods
     assert c.run.daily is True
     assert c.run.ats is True
@@ -123,7 +124,7 @@ def test_empty_config_reproduces_todays_flag_defaults():
     assert c.postproc.sankey_full is True
     assert c.postproc.map_days == 6
     assert c.et.unsat_form == 'etwc'    # UZF ET is always simulated
-    assert c.run_tag == '6lay_lagged'
+    assert c.run_tag == '6lay'          # was 6lay_<mode> until 2026-10-07
 
 
 def test_reference_config_loads_and_is_the_canonical_run():
@@ -172,8 +173,7 @@ def test_unknown_section_raises():
 
 
 @pytest.mark.parametrize('bad,frag', [
-    ({'run': {'mode': 'nope'}}, 'run.mode'),
-    ({'run': {'relax': 0.0}}, 'run.relax'),
+    ({'et': {'evt_ramp': 0.0}}, 'evt_ramp'),
     ({'layers': {'nlay': 0}}, 'layers.nlay'),   # a count, so >= 1
     ({'seep': {'kind': 'drn', 'cond': 0.0}}, 'free-draining'),
     ({'grid': {'kind': 'nope'}}, 'grid.kind'),
@@ -188,7 +188,7 @@ def test_validation_rejects_bad_values(bad, frag):
 
 
 def test_groundwater_et_in_modflow_cannot_be_asked_for_at_all():
-    """ETg is computed by MM and applied as a WEL sink; MODFLOW must not
+    """ETg is computed by MM and taken by the EVT packages; UZF must not
     remove it as well (cookbook WP2).
 
     This used to be a GUARD -- a field forced false. The field is gone, so
@@ -244,12 +244,12 @@ def test_an_unknown_grid_kind_is_rejected():
 def test_set_overrides_coerce_to_the_replaced_type():
     c = cfgmod.RunConfig.from_dict({})
     c.apply_overrides(['run.nsp=365', 'sfr.enable=true', 'seep.cond=5000',
-                       'run.mode=iterative', 'spinup.strt_dem=[0.9995, -2.0]'],
+                       'meta.name=try', 'spinup.strt_dem=[0.9995, -2.0]'],
                       echo=False)
     assert c.run.nsp == 365 and isinstance(c.run.nsp, int)
     assert c.sfr.enable is True
     assert c.seep.cond == 5000.0
-    assert c.run.mode == 'iterative'
+    assert c.meta.name == 'try'
     assert c.spinup.strt_dem == [0.9995, -2.0]
 
 
@@ -371,3 +371,16 @@ def test_one_switch_for_the_input_maps():
     src = open(os.path.join(TRUNK, 'tests', 'run_lamata_mf6.py'),
                encoding='utf-8').read()
     assert 'preproc=cfg.postproc.input_maps' in src
+
+def test_the_retired_coupling_and_route_keys_still_load():
+    """2026-10-07: the coupling is lagged and groundwater ET is EVT's. A
+    file that still says run.mode, run.relax or et.gw_route loads -- a hard
+    refusal at launch over a setting that no longer does anything helps
+    nobody -- with each drop reported, and a save writes the file without
+    them."""
+    c = cfgmod.RunConfig.from_dict({'run': {'mode': 'iterative', 'relax': 0.5},
+                                    'et': {'gw_route': 'wel'}})
+    said = ' '.join(c.migrated)
+    for key in ('run.mode', 'run.relax', 'et.gw_route'):
+        assert '%s is gone' % key in said, said
+    assert c.run_tag == '%dlay' % c.layers.nlay

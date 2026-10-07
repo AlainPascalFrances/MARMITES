@@ -20,7 +20,6 @@ exactly what these figures are meant to show.
 Usage:
     python tests/plot_water_budget.py
     python tests/plot_water_budget.py --no-reference        (new run only)
-    python tests/plot_water_budget.py --mode iterative
 """
 import argparse
 import os
@@ -45,6 +44,7 @@ matplotlib.use('agg')
 import matplotlib.pyplot as plt  # noqa: E402
 import h5py  # noqa: E402
 from marmites_indices import INDEX_MM  # noqa: E402
+from marmites_coupler import MF6Coupler  # noqa: E402
 sys.path.insert(0, os.path.join(TRUNK, 'MARMITESutilities', 'MARMITESplot'))
 import MARMITESplot_v3 as MMplot  # noqa: E402
 
@@ -69,8 +69,8 @@ FLUXES = [
 ]
 
 
-def load_new(ws, mode):
-    fn = os.path.join(ws, '_coupled_%s.h5' % mode)
+def load_new(ws):
+    fn = os.path.join(ws, MF6Coupler.RESULTS_H5)
     if not os.path.exists(fn):
         sys.exit('coupled results not found: %s\n(run tests/run_lamata_mf6.py first)' % fn)
     with h5py.File(fn, 'r') as h:
@@ -418,8 +418,7 @@ def write_summary(labels, newv, refv, ws, new):
     print('\n' + txt)
 
 
-def make_figures(ws, mode='lagged', no_reference=False, verbose=True,
-                 out_dir=None):
+def make_figures(ws, no_reference=False, verbose=True, out_dir=None):
     """Build the 01-07 water-budget figures for a coupled run.
 
     ``ws`` is the MODFLOW 6 workspace the results are READ from; ``out_dir`` is
@@ -433,7 +432,7 @@ def make_figures(ws, mode='lagged', no_reference=False, verbose=True,
     global _OUT_ROOT
     _OUT_ROOT = os.path.abspath(out_dir) if out_dir else None
     ws = os.path.abspath(ws)
-    new = load_new(ws, mode)
+    new = load_new(ws)
     if new['wb_ts'] is None:
         if verbose:
             print('plot_water_budget: results file has no wb_ts/wb_map; skipped.')
@@ -470,10 +469,9 @@ def main():
         'MARMITES_WS_ROOT', os.path.join('E:' + os.sep, '00code_ws', 'LaMata_MM-MF6')) + os.sep + 'MF6_ws')
     ap.add_argument('--out-dir', default=None,
                     help='results folder to write figures into')
-    ap.add_argument('--mode', default='lagged')
     ap.add_argument('--no-reference', action='store_true')
     a = ap.parse_args()
-    if make_figures(a.ws, a.mode, a.no_reference, out_dir=a.out_dir) is None:
+    if make_figures(a.ws, a.no_reference, out_dir=a.out_dir) is None:
         sys.exit('This results file predates the water-budget output.\n'
                  'Re-run tests/run_lamata_mf6.py to record wb_ts/wb_map.')
 

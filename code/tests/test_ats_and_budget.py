@@ -59,8 +59,8 @@ def _unused_clock_for(api, nsub):  # kept out of the way
                     api.Q.size, api.FINF.size, nsub=nsub)
 
 
-def _run(nsub, nper=3, mode='lagged'):
-    cpl, api, ctx = _setup(nper=nper, mode=mode)
+def _run(nsub, nper=3):
+    cpl, api, ctx = _setup(nper=nper)
     clock = ClockApi('toy', 1, 1, api.X.size, api.Q.size, api.FINF.size, nsub=nsub)
     clock.X = api.X.copy()
     cpl.run(clock)
@@ -84,11 +84,6 @@ def test_coupler_follows_mf6_when_ats_splits_a_period():
 def test_mf6_clock_reaches_the_end_of_every_period():
     cpl, api = _run(nsub=3, nper=5)
     assert api.get_current_time() == pytest.approx(6.0)   # 1 steady + 5 days
-
-
-def test_iterative_mode_also_completes_the_period():
-    cpl, api = _run(nsub=3, nper=3, mode='iterative')
-    assert api.get_current_time() == pytest.approx(4.0)
 
 
 def test_soil_model_still_steps_once_per_day_when_ats_splits():
@@ -130,11 +125,11 @@ def test_max_outer_defaults_to_the_solver_limit():
     cpl, api, ctx = _setup(nper=2)
     cpl.mf6b.outer_maximum = 500
     rebuilt = coup.MF6Coupler(cpl.mm, cpl.ctx, cpl.state, cpl.mf6b,
-                              conv_fact=1000.0, mode='lagged')
+                              conv_fact=1000.0)
     assert rebuilt.max_outer == 500
     # an explicit override still wins
     ov = coup.MF6Coupler(cpl.mm, cpl.ctx, cpl.state, cpl.mf6b,
-                         conv_fact=1000.0, mode='lagged', max_outer=42)
+                         conv_fact=1000.0, max_outer=42)
     assert ov.max_outer == 42
 
 
@@ -144,7 +139,7 @@ def test_construction_accepts_a_numpy_perlen():
     cpl, api, ctx = _setup(nper=3)
     cpl.mf6b.perlen = np.array([1.0, 2.0, 3.0])
     rebuilt = coup.MF6Coupler(cpl.mm, cpl.ctx, cpl.state, cpl.mf6b,
-                              conv_fact=1000.0, mode='lagged')
+                              conv_fact=1000.0)
     assert rebuilt.perlen == [1.0, 2.0, 3.0]
 
 

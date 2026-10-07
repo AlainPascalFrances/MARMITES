@@ -137,18 +137,18 @@ with tab_val:
     panelui.remember(_tag_edit)
 
     # HOW THE RUN IS COUPLED, and what it must satisfy to count as a result.
-    # These were TOML-only: the audit behind the cookbook's Appendix B found
-    # the choice between lagged and iterative coupling -- the one WP2 has to
-    # be validated under -- could be made on no panel at all. They are part
-    # of what is validated, so they are asked HERE, before the button.
+    # They are part of what is validated, so they are asked HERE, before the
+    # button. The lagged/iterative choice is gone (2026-10-07): there is one
+    # coupling, said in words rather than asked.
     st.markdown('#### How the run is coupled')
+    st.caption('Each stress period MMsoil runs first, from the heads the '
+               'previous one ended with; then MODFLOW 6 solves the period '
+               'with its own time step, retried shorter (ATS) when it fails. '
+               'Groundwater ET is taken by EVT at the head MODFLOW solves '
+               'for, so it follows the water table within the day.')
     _coupling = panelui.rows_form(cfg, schema.RUN_COUPLING_ROWS, 'run',
                                   columns=2)
     panelui.remember(_coupling)
-    if panelui.live('run.mode', cfg.run.mode) == 'lagged':
-        st.caption('`relax` is not read in lagged mode: MMsoil is evaluated '
-                   'once per stress period, so there is nothing to '
-                   'under-relax.')
 
     # The IMS solver. Its tolerances came from the legacy NWT ini and no
     # panel asked them; HEADTOL 0.05 m left a 4 % mass-balance discrepancy

@@ -3,9 +3,9 @@
 
 Builds the MF6 simulation from the La Mata dataset and, when the MODFLOW 6
 library is available, drives the coupled MARMITES-MF6 model through the API
-(lagged or iterative mode). Without libmf6 it stops after writing the
-simulation files (still useful: run `mf6` manually in the workspace to
-check the groundwater model alone).
+(lagged: MMsoil once per stress period, then MF6's own time step).
+Without libmf6 it stops after writing the simulation files (still useful:
+run `mf6` manually in the workspace to check the groundwater model alone).
 
 Requirements on the executing machine:
     pip install flopy modflowapi
@@ -14,9 +14,9 @@ Requirements on the executing machine:
      github.com/MODFLOW-USGS/executables)
 
 Usage:
-    python tests/run_lamata_mf6.py --build-only
-    python tests/run_lamata_mf6.py --libmf6 C:/path/to/libmf6.dll --mode lagged --nsp 60
-    python tests/run_lamata_mf6.py --libmf6 ... --mode iterative --relax 0.6
+    python tests/run_lamata_mf6.py --config configs/lamata.toml
+    python tests/run_lamata_mf6.py --config configs/lamata.toml --set run.build_only=true
+    python tests/run_lamata_mf6.py --config configs/lamata.toml --set run.nsp=60 --run-tag try
 """
 import argparse
 import dataclasses
@@ -1158,7 +1158,6 @@ def _args_from_config(cfg, probe=False):
 
     return argparse.Namespace(
         # run
-        mode=cfg.run.mode, relax=cfg.run.relax,
         nsp=(cfg.run.nsp or None), daily=cfg.run.daily, ats=cfg.run.ats,
         ats_dtmin=float(cfg.run.ats_dtmin),
         build_only=cfg.run.build_only, standalone=_or_none(cfg.run.standalone),
@@ -1244,6 +1243,12 @@ def main():
         cfg.meta.name = ns.run_tag
     cfg.require_implemented_grid()
     print('config: %s  (hash %s)' % (os.path.abspath(ns.config), cfg.config_hash()))
+    # a renamed or RETIRED key in the file: the panels say so, and so does
+    # the run -- a file still asking for the WEL route or the iterative
+    # coupling (2026-10-07) runs without them, and its log must tell
+    for _line in getattr(cfg, 'migrated', ()):
+        # ASCII: the run's console or log may not be UTF-8
+        print('NOTE (config): %s' % _line.replace('—', '--'))
 
     a = _args_from_config(cfg, probe=ns.probe)
     if a.postproc_only:
@@ -1255,7 +1260,7 @@ def main():
         a.ws = mcfg.state_workspace(cfg, a.ws_root)
     os.makedirs(a.ws, exist_ok=True)
     # results folder for this run, in the legacy out_<stamp>_<tag> style
-    tag = a.run_tag or ('%dlay_%s' % (a.nlay or 6, a.mode))
+    tag = a.run_tag or ('%dlay' % (a.nlay or 6))
     a.out_dir = os.path.join(a.ws_root,
                              'out_%s_%s' % (time.strftime('%Y%m%d%H%M'), tag))
     # PROVENANCE (WP0.5): the RESOLVED configuration -- after --set -- is copied
@@ -1314,7 +1319,7 @@ def main():
         # post-processing reads is on disk (the coupled HDF5 for the MM side,
         # the .hds/.cbc/.grb for the aquifer side), so MODFLOW need not run
         # again. Iterating on a figure costs seconds instead of the full run.
-        h5_fn = os.path.join(a.ws, '_coupled_%s.h5' % a.mode)
+        h5_fn = os.path.join(a.ws, MF6Coupler.RESULTS_H5)
         if not os.path.exists(h5_fn):
             raise SystemExit('--postproc-only needs a previous run: %s not found'
                              % h5_fn)
@@ -1355,18 +1360,15 @@ def main():
     # on the grid the run uses; or, per vegetation zone, the rooting depth
     # of each cell's cover (et.extdp_from, WP2 2.2).
     b.uzf_et_form = str(getattr(a, 'uzf_et_form', 'etwc'))
-    # groundwater ET: which package applies what MARMITES computes -- the
-    # builder makes the EVT packages, MMsoil hands over the potential
+    # groundwater ET: the builder makes the two EVT packages, MMsoil hands
+    # over what Eg and Tg could take (the coupler sets ctx.gw_evt), MF6
+    # takes it at the head it solves for. The WEL route went on 2026-10-07.
     if cfg is not None:
-        b.gw_route = str(cfg.et.gw_route)
         b.evt_nseg = int(cfg.et.evt_nseg)
         b.evt_ramp = float(cfg.et.evt_ramp)
-        ctx.gw_route = b.gw_route
-        print('groundwater ET: %s -- from the panel'
-              % ('EVT (Eg, Tg) at the head MF6 solves for, %d segments, Tg '
-                 'ramp %g m above the root tips' % (b.evt_nseg, b.evt_ramp)
-                 if b.gw_route == 'evt' else
-                 'WEL, MMsoil\'s rate at the previous day\'s head'))
+        print('groundwater ET: EVT (Eg, Tg) at the head MF6 solves for, %d '
+              'segments, Tg ramp %g m above the root tips -- from the panel'
+              % (b.evt_nseg, b.evt_ramp))
     if cfg is not None:
         b.uzf_extdp = extdp_grid(cfg, cMF, ctx, DS)
     if a.sfr:
@@ -1462,7 +1464,8 @@ def main():
         b.strt_from_dem = tuple(_payload)
     b.build()
     b.write()
-    print('MF6 (%s) simulation written to %s  (%d SPs%s, %d UZF cells, %d wells)'
+    print('MF6 (%s) simulation written to %s  (%d SPs%s, %d UZF cells, %d EVT '
+          'records per package)'
           % (a.grid.upper(), a.ws, b.nper,
              ' incl. steady' if b.steady_first else ', no steady period',
              b.nuzfcells, b.ncell))
@@ -1519,7 +1522,7 @@ def main():
             # the cascade is built from the model as written, so a build-only
             # check sees its sinks before anything runs (cookbook 5.3)
             MF6Coupler(mm, ctx, mm.init_state(ctx), b, conv_fact=conv_fact,
-                       mode=a.mode, crr=crr_opts)
+                       crr=crr_opts)
         # preproc only needs the built model, so it can run without libmf6;
         # postproc needs MF6 output, so it is skipped here
         if a.preproc:
@@ -1527,7 +1530,8 @@ def main():
             run_preproc(a.ws, DS, name=cMF.modelname.lower(),
                         gis_ws=a.gis_ws)
         print('\nNo --libmf6 given: stopping after build.\n'
-              'To run coupled:  python tests/run_lamata_mf6.py --libmf6 <path> --mode %s' % a.mode)
+              'To run coupled: set paths.libmf6 (the Run panel) and run.build_only '
+              'off.')
         return
 
     # --- robust libmf6 handling ---------------------------------------
@@ -1558,7 +1562,7 @@ def main():
         with open(out, 'w') as f:
             f.write('\n'.join(names))
         print('MF6 exposes %d variables -> %s' % (len(names), out))
-        for key in ('/UZF', '/WEL', '/DIS', '/X'):
+        for key in ('/UZF', '/EVT', '/DIS', '/X'):
             sel = [n for n in names if key in n.upper()]
             print('\n%s (%d):' % (key, len(sel)))
             for n in sel[:25]:
@@ -1654,7 +1658,6 @@ def main():
         _carry = (cpl.carry_out if cyc > 0 else
                   saved_state['carry'] if saved_state is not None else None)
         cpl = MF6Coupler(mm, ctx, st, b, conv_fact=conv_fact,
-                         mode=a.mode, relax=a.relax,
                          obs_idx=obs_idx, obs_names=obs_names,
                          crr=(None if crr_opts is None else
                               dict(crr_opts, report=(cyc == 0))))
@@ -1718,7 +1721,7 @@ def main():
               'them to continue.' % (ncyc, delta, a.spinup_tol))
     check = None
 
-    out_fn = os.path.join(a.ws, '_coupled_%s.h5' % a.mode)
+    out_fn = os.path.join(a.ws, MF6Coupler.RESULTS_H5)
     with h5py.File(out_fn, 'w') as f:
         for k, v in res.items():
             f.create_dataset(k, data=v)
@@ -1886,7 +1889,7 @@ def _run_postproc(a, cMF, ctx, res):
                 # series and totals too, which need no grid at all. The maps
                 # now put the mesh on that grid by an area-weighted overlay
                 # (plot_water_budget._mesh_to_grid), so it is compared again.
-                pwb.make_figures(a.ws, mode=a.mode, out_dir=a.out_dir)
+                pwb.make_figures(a.ws, out_dir=a.out_dir)
             except Exception as exc:
                 print('   plot_water_budget skipped: %r' % exc)
         print('results written to %s' % a.out_dir)

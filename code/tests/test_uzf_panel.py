@@ -95,15 +95,16 @@ def test_the_things_modflow_6_dropped_are_not_config_fields():
 # ----------------------------------------------------- groundwater ET is out
 
 def test_groundwater_et_in_modflow_is_gone(cfg):
-    """MARMITES computes ETg and applies it through WEL. The old switch was
+    """MARMITES computes ETg and the EVT packages take it. The old switch was
     forced false AND read by nothing, which is worse than absent."""
     import dataclasses
     fields = {f.name for f in dataclasses.fields(cfgmod.Et)}
     assert 'gwet_in_mf' not in fields
     assert 'et.gwet_in_mf' not in schema.FIELDS
     page = open(PAGE, encoding='utf-8').read()
-    # still computed by MARMITES and never asked of UZF; since 2026-10-05
-    # the panel asks which package APPLIES it (et.gw_route: wel | evt)
+    # still computed by MARMITES and never asked of UZF; the panel asks
+    # the shape of the EVT curves (which package applied it -- WEL or
+    # EVT, et.gw_route -- was asked 2026-10-05 to 2026-10-07)
     assert 'Groundwater ET is computed by MARMITES, not asked of UZF' in page
     assert 'schema.GW_ET_ROWS' in page
 

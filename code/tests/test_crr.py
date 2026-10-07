@@ -344,7 +344,7 @@ def test_the_coupler_routes_and_reports(capsys):
     """The mock coupler of test_coupler_mock with the cascade on: the MM
     vector carries it, crr_ts closes period by period, the log reports it."""
     cm = _load('t_coupler_mock_crr', os.path.join(HERE, 'test_coupler_mock.py'))
-    cpl, api, ctx = cm._setup(mode='lagged', nper=3)
+    cpl, api, ctx = cm._setup(nper=3)
     ctx.P_veg_zoneSP[:] = 300.0
     ctx.Pe_veg_zonesSP[:] = 270.0
     nrow, ncol = ctx.cMF.nrow, ctx.cMF.ncol
@@ -369,7 +369,7 @@ def test_the_coupler_routes_and_reports(capsys):
 
 def test_off_the_coupler_has_no_cascade_record():
     cm = _load('t_coupler_mock_crr2', os.path.join(HERE, 'test_coupler_mock.py'))
-    cpl, api, ctx = cm._setup(mode='lagged', nper=2)
+    cpl, api, ctx = cm._setup(nper=2)
     res = cpl.run(api)
     assert cpl.crr is None and 'crr_ts' not in res
     assert not res['wb_ts'][:, IX['iRunon']].any()

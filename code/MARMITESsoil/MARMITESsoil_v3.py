@@ -299,12 +299,14 @@ class clsMMsoil:
             infiltration (I) and as percolation between the horizons it
             crosses (Rp), so every layer's balance still closes.
 
-        GW_EVT : et.gw_route = 'evt'. Groundwater ET is then MF6's, taken at
-            the head it solves for (marmites_evt): Eg and Tg are returned as
-            0 and what each source COULD take today -- the same demand, soil
-            moisture, root tips and Shah curve, at the start-of-day head,
-            with no drawdown of MMsoil's own -- comes back last, as a dict
-            (None on the well route).
+        GW_EVT : the coupled run (ctx.gw_evt, set by MF6Coupler). Groundwater
+            ET is then MF6's, taken at the head it solves for by EVT
+            (marmites_evt): Eg and Tg are returned as 0 and what each source
+            COULD take today -- the same demand, soil moisture, root tips and
+            Shah curve, at the start-of-day head, with no drawdown of
+            MMsoil's own -- comes back last, as a dict. Off (the uncoupled
+            path), MMsoil takes Eg and Tg itself, with its drawdown, and the
+            dict is None.
         """
 
         if EXF_ini < 0.0:
@@ -495,8 +497,8 @@ class clsMMsoil:
             PT = PT * f
 
         if GW_EVT:
-            # et.gw_route = 'evt': what each groundwater source COULD take
-            # today at the start-of-day head; MF6 takes it at the head it
+            # the coupled run: what each groundwater source COULD take today
+            # at the start-of-day head; MF6's EVT takes it at the head it
             # solves for. Nothing is drawn down here.
             gw = {'eg_pe': float(PE) if (Ssurf_tmp == 0.0 and PE > 0.0)
                   else 0.0,
@@ -846,9 +848,9 @@ class clsMMsoil:
                         kTg_min_tmp, kTg_max_tmp, kT_f_tmp, kT_s_tmp,
                         NVEG_tmp, LAIveg_tmp, REJINF_ini=col_rej,
                         ETUZF_prev=col_etuzf, RUNON=col_runon, IRR=irr_col,
-                        GW_EVT=getattr(ctx, 'gw_route', 'wel') == 'evt')
+                        GW_EVT=bool(getattr(ctx, 'gw_evt', False)))
         if GW is not None and gw_sink is not None:
-            # et.gw_route = 'evt': per unit of CELL area and in m, as MF6's
+            # the coupled run: per unit of CELL area and in m, as MF6's
             # EVT takes them -- the column's rates times f_soil
             gw_sink[cid] = {
                 'eg_pe': f_soil * GW['eg_pe'] / 1000.0,
@@ -1012,7 +1014,9 @@ class clsMMsoil:
                else np.asarray(etuzf_cell, dtype=np.float64))
         petuzf_cell = np.zeros(ctx.ncell, dtype=np.float64)
 
-        gw_sink = {} if getattr(ctx, 'gw_route', 'wel') == 'evt' else None
+        # the coupled run (MF6Coupler sets ctx.gw_evt): each cell's
+        # groundwater-ET potential, for the day's EVT curves
+        gw_sink = {} if getattr(ctx, 'gw_evt', False) else None
 
         def solve(cell, runon=0.0):
             cid = cell[0]
@@ -1056,7 +1060,7 @@ class clsMMsoil:
 
     @staticmethod
     def _gw_arrays(ctx, gw_sink):
-        """et.gw_route = 'evt': each cell's groundwater-ET potential as
+        """The coupled run: each cell's groundwater-ET potential as
         arrays in cell order -- Eg's potential, the land surface and the
         start-of-day head [m, m/d per cell area] with the soil's Shah
         parameters, and per vegetation type Tg's rate and root tip (padded

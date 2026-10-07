@@ -62,15 +62,16 @@ def test_build_and_write(cmf, tmp_path):
     assert b.ncell == int((cmf.outcropL > 0).sum()) == 1954
     b.write()
     name = cmf.modelname.lower()
-    for ext in ('nam', 'dis', 'ic', 'npf', 'sto', 'wel', 'drn', 'uzf', 'oc', 'tdis' if False else 'nam'):
-        pass
     files = os.listdir(tmp_path)
     for needed in ('mfsim.nam', f'{name}.nam', f'{name}.dis', f'{name}.npf',
-                   f'{name}.sto', f'{name}.wel', f'{name}.drn', f'{name}.uzf',
+                   f'{name}.sto', f'{name}.evt', f'{name}.drn', f'{name}.uzf',
                    f'{name}.ic', f'{name}.oc'):
         assert needed in files, f'{needed} missing from {sorted(files)[:12]}...'
-    # no GHB on La Mata (ghb_yn=0)
+    # no GHB on La Mata (ghb_yn=0); no WEL: the ETg wells went with the
+    # WEL route (2026-10-07), groundwater ET is the two EVT packages
     assert f'{name}.ghb' not in files
+    assert f'{name}.wel' not in files
+    assert sum(f.endswith('.evt') for f in files) == 2
 
 
 def test_reload_roundtrip(cmf, tmp_path):
@@ -94,10 +95,12 @@ def test_reload_roundtrip(cmf, tmp_path):
     land = pak[:b.ncell]
     assert all(int(r[2]) == 1 for r in land), 'first ncell UZF objects must be landflag=1'
     assert all(int(r[2]) == 0 for r in pak[b.ncell:]), 'subsurface objects must be landflag=0'
-    # WEL: one per surface cell with auto_flow_reduce
-    wel = gwf.get_package('wel')
-    assert wel.maxbound.get_data() == b.ncell
-    assert wel.auto_flow_reduce.get_data() is not None
+    # EVT: two packages (Eg, Tg), one record per surface cell, inert as
+    # written -- the coupler writes each day's curve
+    for pname in ('evt_eg', 'evt_tg'):
+        evt = gwf.get_package(pname)
+        assert evt.maxbound.get_data() == b.ncell
+    assert gwf.get_package('wel') is None
     # DRN present with the legacy count
     drn = gwf.get_package('drn')
     assert drn.maxbound.get_data() == len(cmf.layer_row_column_elevation_cond[0])

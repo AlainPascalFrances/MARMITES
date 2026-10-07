@@ -56,19 +56,23 @@ is what keeps geopandas and rasterio off the model path.
 
 ## Running
 
+The run is configured by a TOML file, which the Streamlit front-end
+(`streamlit run code/app/Home.py`) edits and launches:
+
 ```
-python code/tests/run_lamata_mf6.py --libmf6 C:\00MODFLOW\mf6.7.0_win64\bin\libmf6.dll ^
-  --mode lagged --nlay 2 --seep drn --strt-heads hi_spinup --steady-means hi_spinup ^
-  --preproc --postproc
+python code/tests/run_lamata_mf6.py --config code/configs/lamata.toml --run-tag <tag>
 ```
 
 Redraw every figure from a run already on disk (no MODFLOW, about a minute):
 
 ```
-python code/tests/run_lamata_mf6.py --postproc-only --preproc --nlay 2 --mode lagged --run-tag <tag>
+python code/tests/run_lamata_mf6.py --config code/configs/lamata.toml --set postproc.only=true --run-tag <tag>
 ```
 
-WP0 of the cookbook replaces those flags with `--config code/configs/<case>.toml`.
+`code/tools/flags_to_toml.py` translates an old flag command line into a configuration.
+The coupling is lagged (MMsoil once per stress period, then MODFLOW 6's own time step) and
+groundwater ET is taken by EVT at the solved head; the `--mode` / `run.mode` choice and the
+WEL route went on 2026-10-07.
 
 ## Tests
 

@@ -182,16 +182,6 @@ FIELDS = {
                   'They run together; there is no longer a way to run one '
                   'without the other.'),
     'run.plot': ('Draw the figures', _U, 'Post-processing after the run.'),
-    'run.mode': ('Coupling mode', _U,
-                 'lagged: MMsoil once per stress period, from the previous '
-                 'period\'s heads. iterative: re-evaluated at every MODFLOW '
-                 'outer iteration, which removes the one-period lag. The lag '
-                 'reaches the ET chain too: in lagged mode the groundwater ET '
-                 'of a period is sized from the PREVIOUS period\'s actual '
-                 'unsaturated-zone ET (cookbook WP2, 2b).'),
-    'run.relax': ('Under-relaxation', _U,
-                  'Iterative mode only: new = relax*evaluated + '
-                  '(1-relax)*previous. 0.5-0.7 is the usable range.'),
     'run.nsp': ('Number of stress periods for test', 'count',
                 '0 runs the whole record. Use a small number to try a change '
                 'before committing to the full run.'),
@@ -954,26 +944,14 @@ FIELDS = {
                       'per point.'),
     'et.unsat_form': ('Unsaturated ET form', _U,
                       'etwc uses water content, etae capillary pressure.'),
-    'et.gw_route': ('Groundwater ET applied by', _U,
-                    'MARMITES computes groundwater evaporation (Eg, Shah et '
-                    'al. 2007) and transpiration (Tg, per vegetation type '
-                    'while the water table is above its root tip) either way. '
-                    '**wel**: at the previous day\'s head, as a fixed WEL '
-                    'rate; MMsoil approximates the drawdown with Sy. **evt**: '
-                    'two EVT packages take it at the head MODFLOW SOLVES for '
-                    '-- the day starts at MARMITES\' rate and it falls as the '
-                    'water table does, along Shah\'s curve and past the root '
-                    'tips; never above the start-of-day rate, so total ET '
-                    'still never exceeds PET.'),
     'et.evt_nseg': ('EVT segments', 'count',
                     'flopy: `ModflowGwfevt` `nseg` -- the pieces of each '
                     'curve. 8 keeps Shah\'s curve within 2 % of PE; Tg needs '
-                    'two per vegetation type plus one. **evt** route only.'),
+                    'two per vegetation type plus one.'),
     'et.evt_ramp': ('Tg ramp above the root tip', 'm',
                     'Over this height above its root tip a type\'s Tg falls '
                     'to zero as the water table drops -- a step there is a '
-                    'kink MODFLOW\'s Newton solve stalls on. **evt** route '
-                    'only.'),
+                    'kink MODFLOW\'s Newton solve stalls on.'),
     'et.extdp': ('Extinction depth', 'm',
                  'flopy: `ModflowGwfuzf` perioddata `extdp`. How deep the '
                  'unsaturated zone can be dried by evapotranspiration. By the '
@@ -1082,12 +1060,10 @@ def _resample_modes():
 CHOICES = {
     'grid.kind': _grid_kinds,
     'grid.resample': _resample_modes,
-    'run.mode': lambda: ['lagged', 'iterative'],
     'seep.kind': lambda: ['uzf', 'drn'],
     'seep.cond_from': lambda: ['value', 'uzf'],
     'et.unsat_form': lambda: ['etwc', 'etae'],
     'et.extdp_from': lambda: ['source', 'vegetation'],
-    'et.gw_route': lambda: ['wel', 'evt'],
     'drn.cond_per': lambda: ['length', 'cell'],
     'ghb.cond_per': lambda: ['length', 'cell'],
     # The ini's iuzfopt, with the numbers replaced by what they meant.
@@ -1196,9 +1172,11 @@ UZF_ET_ROWS = (
     ('et.extdp', 'et.extwc_source'),
     ('et.unsat_form', None),
 )
-# Groundwater ET: MARMITES computes it; this is which package applies it
+# Groundwater ET: MARMITES computes what it could take, two EVT packages
+# take it at the solved head; this is the shape of their curves. Which
+# package applies it was asked too (et.gw_route, WEL or EVT) until the WEL
+# route was removed on 2026-10-07.
 GW_ET_ROWS = (
-    ('et.gw_route', None),
     ('et.evt_nseg', 'et.evt_ramp'),
 )
 
@@ -1253,12 +1231,11 @@ OBS_GROUPS = (
 # episodes averaged together -- is a question about the RECORD, so it is
 # asked beside it rather than buried in the MODFLOW parameter file, where
 # the aggregation limit sat under the misleading name `nper`.
-# The coupled run itself: how MMsoil and MODFLOW exchange, and what a run
-# must satisfy to count as a result. On the Run panel, beside the MODFLOW
-# library -- they are about how the run EXECUTES, and they change results,
-# so they are saved like every other answer. They were TOML-only: the audit
-# behind the cookbook's Appendix B found lagged vs iterative, the choice WP2
-# has to be validated under, could be made on no panel.
+# The coupled run itself: how MODFLOW steps, and what a run must satisfy to
+# count as a result. On the Run panel, beside the MODFLOW library -- they
+# are about how the run EXECUTES, and they change results, so they are
+# saved like every other answer. The lagged/iterative choice was here too;
+# the coupling is lagged since 2026-10-07 (marmites_config.RETIRED).
 # The MODFLOW 6 solver: TOML-free until 2026-09-23, when the NWT ini's
 # HEADTOL 0.05 m turned out to leave a 4 % mass-balance discrepancy.
 SOLVER_ROWS = (
@@ -1268,7 +1245,6 @@ SOLVER_ROWS = (
 )
 
 RUN_COUPLING_ROWS = (
-    ('run.mode', 'run.relax'),
     ('run.ats', 'run.ats_dtmin'),
     ('run.max_discrepancy', 'run.allow_bad_budget'),
     ('run.build_only', None),
