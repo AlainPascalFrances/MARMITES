@@ -6,9 +6,8 @@ cloud ones included. **Read it whole before acting. Keep it current:** at the
 end of each block of work, update §6 (state) and §7 (next steps) and commit
 it with the work.
 
-Owner: Alain P. Francés (the user). Last update: 2026-10-06, after commit
-`84d487f` (the user committed his input files and configuration in
-`a4f7b27`; raw meteo spreadsheets moved out of the repo in `84d487f`).
+Owner: Alain P. Francés (the user). Last update: 2026-10-07, the §7.1
+analysis of run 20261006164429 (analysis notes §8.19), on top of `b483d0e`.
 
 ---------------------------------------------------------------------------
 
@@ -122,6 +121,28 @@ never shapefiles. The user asked to be reminded whenever that gets mixed up.
 - Legacy NWT reference `E:\00code_ws\LaMata_new_PhD_artigo_2s3L\_h5_MM.h5`
   (cannot be regenerated).
 
+### The Windows server (runs from 2026-10-06 on)
+- Two checkouts of this branch:
+  - `X:\3p1p1\MARMITES`, on a network share. It is writable, so Claude edits
+    and commits here. git refuses it as "dubious ownership": pass
+    `-c safe.directory=*` on each command rather than changing the global
+    config.
+  - `C:\00code\MM-MF6_SFR_LAK_CRR`, which the 2026-10-06 runs used. It is
+    read-only for a non-elevated session (BUILTIN\Users: RX), so Edit and
+    commit fail with EPERM there. It can lag behind `X:` (at `84d487f` on
+    2026-10-07).
+- Python env `C:\Users\su-alain.frances\AppData\Local\miniconda3\envs\mf6models`
+  (the runs use it). Helpers in `X:\tmp_claude\helpers`: `run_py.bat
+  <script>` runs a script in the activated env.
+- `X:\3p1p1\MF6models\LaMata\` holds `DATA_ROOT`, `NWT_REF` and `WS_ROOT`.
+  Run workspace `WS_ROOT\MF6_ws_voronoi`, results `WS_ROOT\out_<stamp>_<tag>`,
+  per-run `run.log` + `status.json` in `WS_ROOT\runs\<run_id>\`.
+- Copied from E:\ (2026-10-06): the runs\ logs, the saved states and
+  `out_202610052201_2lay_drn_spinup` (CSVs + its `mfsim.lst`). Not copied:
+  the other `out_*` folders, and any run's binary outputs (each run
+  overwrites `lamata.hds/.cbc` and `_coupled_lagged.h5`). No GIS workspace,
+  so the general map is skipped.
+
 ### A cloud session
 - None of the E:\ / C:\ resources exist: no run outputs, saved states, GIS,
   NWT reference or mesh cache. Tests that need them skip or fail for that
@@ -228,6 +249,11 @@ something a regression.
   pinches out.
 - `_pad` in marmites_evt: a Tg curve can have no inner breakpoint (a root
   tip within the ramp of the head); that is a straight line, not an error.
+- `budget_uzf/sfr/lak.csv` (`package_budget`, max_samples=120) average an
+  even subsample of the ATS records. That is off by up to 6 % (UZF GWF), with
+  storage terms that should be zero, and two runs sample different days.
+  Never compare runs on these files. Use `budget_terms.csv` (from the listing),
+  the run log, or `package_budget(..., max_samples=None)` (2026-10-07, notes §8.19).
 - The Streamlit app keeps old modules in memory: after code changes, restart it,
   or the grid/schema is stale.
 - AppTest page tests time out while the user's model runs; re-run them alone.
@@ -236,7 +262,7 @@ something a regression.
 
 ---------------------------------------------------------------------------
 
-## 6. State (2026-10-06)
+## 6. State (2026-10-07)
 
 Done: WP0, WP1, WP1b, WP1c (meshes), WP2 (three-source ET), WP3 (SFR), WP4
 (LAK), WP5 (CRR), WP6.3 (soil moisture at depth figure), WP6.4 (obs
@@ -258,6 +284,19 @@ Recent runs (La Mata, 4566-cell Voronoi mesh: 20 m stream corridor ratio 2,
   sub-steps vs 986/989; outlet 91 vs 84 mm/yr, gauge bias −28% vs −34%.
   Under EVT, hcorr = start-of-day head (MM no longer draws down): calibrate on
   raw MF6 heads. Obs exports had the expected row counts on the real run.
+- EVT-fix run 20261006164429 (with 6b9defa; notes §8.19):
+  - The fix works: MMsoil now reads the real layer-2 head in the 181 cells.
+  - Catchment unchanged against the EVT run (ETg 24.4, every GWF term within
+    0.05 mm/yr, heads within 2 cm). That is expected: EVT already
+    evaluated the curve at the real head, and the bug only inflated the
+    reserve withheld from UZF, which is limited by water there.
+  - L2 cells in soil zones 1-2 behave like L1 cells at the same depth
+    (L2/L1 0.85-0.93 at 2-5 m). Zone 3 (132 of the 181, Shah 'sand') has
+    no Eg and 3.9 mm/yr of Tg (thin soil, fewer trees).
+  - The WEL gap is the bug in those cells: L2 contribution 8.1 vs 0.4 mm/yr,
+    L1 23.9 vs 24.0.
+  - Convergence unchanged: the same 18 SPs fail, and the failures sit at
+    SFR cells on storm days, not at the ETg cells.
 - Gap to the NWT reference is still large (EXFg ~13 vs 67, Ro ~31 vs 83 mm/yr).
   Sy 0.01 / K 0.05 is a calibration matter (WP7).
 
@@ -265,15 +304,16 @@ Recent runs (La Mata, 4566-cell Voronoi mesh: 20 m stream corridor ratio 2,
 
 ## 7. Next steps (in order)
 
-1. **User reruns the EVT setup with the 6b9defa fix.** Analyse: ETg in the
-   181 layer-2 cells should now behave like layer-1 cells at the same depth;
-   compare budget, convergence and heads with runs 20261005220110 (EVT) and
-   20261005081712 (WEL).
-2. **If the user confirms (his stated plan): remove the WEL route for Eg/Tg.**
+1. **If the user confirms (his stated plan): remove the WEL route for Eg/Tg.**
+   The §7.1 analysis (2026-10-07, notes §8.19) found nothing against it.
    EVT becomes the only coupled path. The steady cold-start SP uses a flat mean-rate EVT.
    MMsoil keeps its internal Eg/Tg for the uncoupled/NWT path. **WEL is then
    free for real boreholes/extraction**: a `[wel]` section on a panel, plain MF6
    input with the coupler hands-off; WEL = pumping in the balance, maps and Sankey.
+2. **Exact package budgets in post-processing** (small, before 6.6).
+   `package_budget` should read every record (time-weighted, about 40 s per
+   cbc on La Mata), or the per-period means. `layer_storage_change` should
+   be time-weighted too. See the §5 trap.
 3. Validate WP6.3 figures (`sm_depth_<pt>.png`) on real output.
 4. WP6 remainder: 6.2 (pond volume panels, MVR accounting, water-balance
    graphs), 6.5 (calibcrit groups for streamflow and ET), 6.6 (Results page:

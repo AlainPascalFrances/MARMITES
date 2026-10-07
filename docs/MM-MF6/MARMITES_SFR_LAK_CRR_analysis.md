@@ -1013,3 +1013,98 @@ ponds as written, on the MM cell list as ordered:
   fraction's evaporation is Eow, from MF6.
 - In a pond cell, `iSsoil_pc` and `idgwt` still report the (uncounted)
   column's state.
+
+## 8.19 The botm_l0 fix on a real EVT run (2026-10-07)
+
+Run `20261006164429_2lay_evt_fix` (EVT route, code at 84d487f, so with
+6b9defa) against `20261005220110` (EVT, before the fix) and
+`20261005081712` (WEL route). All three start from the saved state
+`hi_voronoi_lamata_rbth02`, and each converged after 2 spin-up cycles. The
+old runs' binary outputs were overwritten, so they are compared through
+their logs, CSVs, `mfsim.lst` and saved states.
+
+**The fix took effect.** In the 181 layer-2-outcrop cells (4.15 % of the
+area), MMsoil's head now equals MF6's start-of-day layer-2 head (+0.004 m on
+average). Before the fix it read the soil base, 3.81 m higher on average:
+on 99 % of cell-days the layer-2 head lies below the soil base.
+
+**Under EVT the fix changes almost nothing, and that is expected.**
+- The buggy curve was anchored at the soil base with the full-potential
+  rate. Below that it fell along Shah's curve (Eg) and the root ramps (Tg).
+- MF6 evaluated it at the real head, which gives the same rate as a curve
+  anchored at the real head.
+- So the bug inflated only the reserve (RATE at SURFACE) that UZF's demand
+  had to leave room for.
+- UZF in those cells is limited by water, not by demand, so freeing the
+  reserve changed little: ETuzf +0.3 mm/yr at G2 (the one observation point
+  in an L2 cell) and +0.05 mm/yr over the catchment.
+
+**Catchment, EVT before → after the fix (mm/yr):**
+- ETg 24.4 → 24.4 (Eg 15.4 → 15.3, Tg 9.1), ETuzf 13.70 → 13.75.
+- Rp 165.7 and EXFg 13.0 in both.
+- Every GWF listing-budget term is within 0.05 mm/yr.
+- Outlet 91 mm/yr, NSE −0.59, bias −28 % in both.
+- Per-cell mean heads: layer-1 cells max |Δ| 9 mm. L2-outcrop cells −3 mm
+  (max 16 mm), slightly lower because UZF now takes a little more.
+
+**L2 cells against L1 cells at the same water-table depth.** The comparison
+has to be split by soil zone: 132 of the 181 are zone 3 (outcrop, Shah
+'sand', extinction 0.5 m), against 107 of the 4343 L1 cells. Annual means,
+area-weighted:
+
+| group          | cells | ETg  | Eg   | Tg   | WT below land (m) | soil (m) |
+|----------------|------:|-----:|-----:|-----:|------------------:|---------:|
+| zones 1-2, L1  | 4236  | 25.2 | 16.0 |  9.2 | 3.37              | 0.63     |
+| zones 1-2, L2  |   49  | 30.5 | 23.2 |  7.3 | 3.64              | 0.23     |
+| zone 3, L1     |  107  | 10.7 |  0.0 | 10.7 | 4.40              | 0.93     |
+| zone 3, L2     |  132  |  3.9 |  0.0 |  3.9 | 5.06              | 0.14     |
+
+- **Zones 1-2:** at equal daily depth (2-5 m), L2/L1 = 0.85-0.93.
+  Shallower than 2 m, the L2 cells take more, because their thin soil
+  leaves more PE below it (PETuzf 278 vs 218 mm/yr).
+- **Zone 3:** Eg is zero in both groups (the water table is deeper than the
+  extinction depth). Tg per % of tree cover is 0.59 vs 1.26 mm/yr, with a
+  0.14 m soil against 0.93 m and Q. pyrenaica cover of 0.14 % against
+  0.78 %. These are surface differences, not the bug: MMsoil reads the
+  real head there.
+
+**The WEL-EVT gap of §6, cell by cell** (steady means per cell, WEL vs
+EVT-fix):
+- L1 cells: 24.9 vs 25.0 mm/yr. L2 cells: 195.7 vs 9.9 mm/yr (WEL median
+  214).
+- Contribution to the catchment mean: L1 23.9 / 24.0, L2 8.1 / 0.4. The
+  whole 32.0 vs 24.4 gap is the bug under WEL.
+- End-of-cycle heads, EVT-fix − WEL: L2-outcrop cells +5 cm (max 0.28 m),
+  L1 cells −3.6 cm. Near the streams, the extra WEL pumping came out of the
+  baseflow (SFR_OUT 59.2 vs 73.5 mm/yr) rather than out of the head.
+
+**Convergence.**
+- Extra ATS sub-steps per cycle: WEL 986/989, EVT 530/615, EVT-fix 498/667.
+- In cycle 2 of both EVT runs, the same 18 SPs fail (257 vs 277 failed
+  steps). 8 SPs changed their step count, net +52; SP 360 alone went from
+  3 to 27.
+- At a failed step, the largest change is in a layer-1 stream-reach cell:
+  the 10 most frequent cells are all SFR cells. It sits in an L2-outcrop
+  cell only 2-4 times.
+- So the convergence trouble is in the stream-aquifer exchange on storm
+  days, not in groundwater ET.
+
+**Post-processing trap met on the way.**
+- `budget_uzf/sfr/lak.csv` come from `package_budget(max_samples=120)`, a
+  time-weighted mean over an even subsample of 120 of about 1000 ATS
+  records. Two runs with different step lists therefore sample different
+  days.
+- On the EVT-fix run, subsample vs all records (m3/d):
+
+  | term              | 120 records | all records |
+  |-------------------|------------:|------------:|
+  | UZF GWF           | −1316.5     | −1406.2 (−6.4 %) |
+  | UZF STORAGE       | −18.1       | 0.0         |
+  | LAK STORAGE       | −5.6        | 0.0         |
+  | SFR EXT-OUTFLOW   | −1184       | −1201 (the log's value) |
+
+- Reading every record costs about 40 s per file.
+- `layer_storage_change` also subsamples, and it weights each record
+  equally.
+- `budget_terms.csv` (from the listing) and the observation exports are
+  exact.
