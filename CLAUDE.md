@@ -122,15 +122,16 @@ never shapefiles. The user asked to be reminded whenever that gets mixed up.
   (cannot be regenerated).
 
 ### The Windows server (runs from 2026-10-06 on)
-- Two checkouts of this branch:
-  - `X:\3p1p1\MARMITES`, on a network share. It is writable, so Claude edits
-    and commits here. git refuses it as "dubious ownership": pass
-    `-c safe.directory=*` on each command rather than changing the global
-    config.
-  - `C:\00code\MM-MF6_SFR_LAK_CRR`, which the 2026-10-06 runs used. It is
-    read-only for a non-elevated session (BUILTIN\Users: RX), so Edit and
-    commit fail with EPERM there. It can lag behind `X:` (at `84d487f` on
-    2026-10-07).
+- **THE local repo is `X:\3p1p1\MARMITES`** (user, 2026-10-07): update the
+  code, docs and everything else there, and commit there. It sits on a
+  network share, and git refuses it as "dubious ownership": pass
+  `-c safe.directory=*` on each command rather than changing the global
+  config.
+- `C:\00code\MM-MF6_SFR_LAK_CRR` is another checkout. Never edit it. It is
+  read-only for a non-elevated session anyway (BUILTIN\Users: RX). The
+  2026-10-06 runs were launched from it (`status.json` cwd), at `84d487f`,
+  behind `X:`. Check which checkout a run used before attributing a result
+  to a commit.
 - Python env `C:\Users\su-alain.frances\AppData\Local\miniconda3\envs\mf6models`
   (the runs use it). Helpers in `X:\tmp_claude\helpers`: `run_py.bat
   <script>` runs a script in the activated env.
