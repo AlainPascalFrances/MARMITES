@@ -262,10 +262,13 @@ class clsMF():
                 l += 1
                 self.ext_upw = str(inputFile[l].strip())
                 l += 1
+                # UPW's cell-by-cell budget unit: read to keep this positional
+                # file in step, used by nothing since the NWT build went
+                # (Phase 1) -- MF6 writes its budgets through OC. The old
+                # '< 1 -> 53' fix-up printed "UZF cbc itunit cannot be <1" on
+                # every run: the wrong package, about a number nothing reads
+                # (2026-10-07).
                 self.iupwcb = int(inputFile[l].strip())
-                if self.iupwcb<1:
-                    self.iupwcb = 53
-                    print("\nWARNING! UZF cbc itunit cannot be <1, fixed to 53!")
                 l += 1
                 self.hdry = eval(inputFile[l].strip())
                 l += 1
