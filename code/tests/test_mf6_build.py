@@ -31,19 +31,10 @@ mf6mod = _load('marmites_mf6', os.path.join(TRUNK, 'ppMF6', 'marmites_mf6.py'))
 
 @pytest.fixture(scope='module')
 def cmf():
-    if not os.path.exists(os.path.join(DS, 'MF_ws', '__inputMF_flopy_v3_2s1L.ini')):
-        pytest.skip('La Mata dataset not present')
-    import MARMITESutilities as MMutils
-    import ppMODFLOW_flopy_v3 as ppMF
-    c = ppMF.clsMF(MMutils.clsUTILITIES(verbose=1), MM_ws=DS, MM_ws_out=DS,
-                   MF_ws=os.path.join(DS, 'MF_ws'),
-                   MF_ini_fn='__inputMF_flopy_v3_2s1L.ini',
-                   xllcorner=739300.0, yllcorner=4553050.0)
-    # outcrop layer (driver logic)
-    c.outcropL = np.zeros((c.nrow, c.ncol), dtype=int)
-    for L in range(c.nlay):
-        ib = (np.abs(np.asarray(c.ibound))[L] != 0)
-        c.outcropL += ((c.outcropL == 0) & ib) * (L + 1)
+    # La Mata's model description as the run builds it -- no parameter file
+    # (lamata_model; it derives the outcrop layer too)
+    import lamata_model
+    c = lamata_model.lamata_cmf()
     # short synthetic time base: 3 daily SPs (build test only)
     c.nper, c.perlen, c.nstp = 3, [1, 1, 1], [1, 1, 1]
     return c
@@ -82,8 +73,7 @@ def test_reload_roundtrip(cmf, tmp_path):
     # grid + periods: steady SP + 3 daily
     assert sim.tdis.nper.get_data() == 4
     dis = gwf.get_package('dis')
-    # the layer count is the parameter file's, not a literal: there is
-    # one file now and the panel decides how many layers a model has
+    # the layer count is the panel's (layers.nlay), not a literal
     assert (dis.nlay.get_data(), dis.nrow.get_data(),
             dis.ncol.get_data()) == (cmf.nlay, 65, 60)
     # newton on

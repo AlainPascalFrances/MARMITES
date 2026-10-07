@@ -73,7 +73,13 @@ def test_the_run_takes_the_name_from_the_panel():
     every output file is called."""
     src = open(os.path.join(HERE, 'run_lamata_mf6.py'), encoding='utf-8').read()
     assert 'cfg.meta.model_name(' in src
-    assert 'cMF.modelname = _model' in src
+    # set at construction, in props.model_from_config (2026-10-07)
+    assert 'props.model_from_config(' in src
+    prp = open(os.path.join(HERE, '..', 'ppMF6', 'marmites_props.py'),
+               encoding='utf-8').read()
+    body = prp[prp.index('def model_from_config('):]
+    body = body[:body.index('\ndef ')]
+    assert 'modelname=cfg.meta.model_name(cfg.paths.case)' in body
 
 
 def test_overview_asks_for_it_before_anything_else():

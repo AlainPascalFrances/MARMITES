@@ -248,25 +248,17 @@ def test_bed_area_equals_surface_area():
 
 def test_lamata_lak_mvr_model_builds_and_reloads(tmp_path):
     flopy = pytest.importorskip('flopy')
-    if not os.path.exists(os.path.join(DS, 'MF_ws', '__inputMF_flopy_v3_2s1L.ini')):
-        pytest.skip('La Mata dataset not present')
     if not os.path.exists(SHP):
         pytest.skip('pond shapefile not present (%s)' % SHP)
     import matplotlib
     matplotlib.use('agg')
     from test_mf6_build import cmf as _cmf  # noqa: F401
-    import MARMITESutilities as MMutils
-    import ppMODFLOW_flopy_v3 as ppMF
+    import lamata_model
     mf6mod = _load('marmites_mf6', os.path.join(TRUNK, 'ppMF6', 'marmites_mf6.py'))
 
-    c = ppMF.clsMF(MMutils.clsUTILITIES(verbose=1), MM_ws=DS, MM_ws_out=DS,
-                   MF_ws=os.path.join(DS, 'MF_ws'),
-                   MF_ini_fn='__inputMF_flopy_v3_2s1L.ini',
-                   xllcorner=XLL, yllcorner=YLL)
-    c.outcropL = np.zeros((c.nrow, c.ncol), dtype=int)
-    for L in range(c.nlay):
-        ib = (np.abs(np.asarray(c.ibound))[L] != 0)
-        c.outcropL += ((c.outcropL == 0) & ib) * (L + 1)
+    # La Mata's model description as the run builds it -- no
+    # parameter file (lamata_model derives the outcrop layer too)
+    c = lamata_model.lamata_cmf()
     c.nper, c.perlen, c.nstp = 3, [1, 1, 1], [1, 1, 1]
 
     def asc(fn):
@@ -335,23 +327,15 @@ def test_lamata_lak_mvr_model_builds_and_reloads(tmp_path):
 def test_initial_stage_stays_between_bed_and_rim(tmp_path):
     """A lake started above its rim or below its bed blows up on step one."""
     pytest.importorskip('flopy')
-    if not os.path.exists(os.path.join(DS, 'MF_ws', '__inputMF_flopy_v3_2s1L.ini')):
-        pytest.skip('La Mata dataset not present')
     if not os.path.exists(SHP):
         pytest.skip('pond shapefile not present (%s)' % SHP)
     import matplotlib
     matplotlib.use('agg')
-    import MARMITESutilities as MMutils
-    import ppMODFLOW_flopy_v3 as ppMF
+    import lamata_model
     mf6mod = _load('marmites_mf6', os.path.join(TRUNK, 'ppMF6', 'marmites_mf6.py'))
-    c = ppMF.clsMF(MMutils.clsUTILITIES(verbose=1), MM_ws=DS, MM_ws_out=DS,
-                   MF_ws=os.path.join(DS, 'MF_ws'),
-                   MF_ini_fn='__inputMF_flopy_v3_2s1L.ini',
-                   xllcorner=XLL, yllcorner=YLL)
-    c.outcropL = np.zeros((c.nrow, c.ncol), dtype=int)
-    for L in range(c.nlay):
-        ib = (np.abs(np.asarray(c.ibound))[L] != 0)
-        c.outcropL += ((c.outcropL == 0) & ib) * (L + 1)
+    # La Mata's model description as the run builds it -- no
+    # parameter file (lamata_model derives the outcrop layer too)
+    c = lamata_model.lamata_cmf()
     c.nper, c.perlen, c.nstp = 3, [1, 1, 1], [1, 1, 1]
     b = mf6mod.clsMF6(c, top=np.asarray(c.elev, float), botm=np.asarray(c.botm, float),
                       sim_ws=str(tmp_path), daily=True)
@@ -369,23 +353,15 @@ def test_the_rim_is_the_land_surface_and_the_bed_is_below_the_soil(tmp_path):
     Measured from the ground, the 1.5 m pond in 1.5 m of soil put every bed
     ON the aquifer top, where the water table sits."""
     pytest.importorskip('flopy')
-    if not os.path.exists(os.path.join(DS, 'MF_ws', '__inputMF_flopy_v3_2s1L.ini')):
-        pytest.skip('La Mata dataset not present')
     if not os.path.exists(SHP):
         pytest.skip('pond shapefile not present (%s)' % SHP)
     import matplotlib
     matplotlib.use('agg')
-    import MARMITESutilities as MMutils
-    import ppMODFLOW_flopy_v3 as ppMF
+    import lamata_model
     mf6mod = _load('marmites_mf6', os.path.join(TRUNK, 'ppMF6', 'marmites_mf6.py'))
-    c = ppMF.clsMF(MMutils.clsUTILITIES(verbose=1), MM_ws=DS, MM_ws_out=DS,
-                   MF_ws=os.path.join(DS, 'MF_ws'),
-                   MF_ini_fn='__inputMF_flopy_v3_2s1L.ini',
-                   xllcorner=XLL, yllcorner=YLL)
-    c.outcropL = np.zeros((c.nrow, c.ncol), dtype=int)
-    for L in range(c.nlay):
-        ib = (np.abs(np.asarray(c.ibound))[L] != 0)
-        c.outcropL += ((c.outcropL == 0) & ib) * (L + 1)
+    # La Mata's model description as the run builds it -- no
+    # parameter file (lamata_model derives the outcrop layer too)
+    c = lamata_model.lamata_cmf()
     c.nper, c.perlen, c.nstp = 3, [1, 1, 1], [1, 1, 1]
     land = np.asarray(np.ma.getdata(c.elev), float)
     soil = 2.0
@@ -413,23 +389,15 @@ def test_the_rim_is_the_land_surface_and_the_bed_is_below_the_soil(tmp_path):
 
 def _lamata_lak(tmp_path):
     pytest.importorskip('flopy')
-    if not os.path.exists(os.path.join(DS, 'MF_ws', '__inputMF_flopy_v3_2s1L.ini')):
-        pytest.skip('La Mata dataset not present')
     if not os.path.exists(SHP):
         pytest.skip('pond shapefile not present (%s)' % SHP)
     import matplotlib
     matplotlib.use('agg')
-    import MARMITESutilities as MMutils
-    import ppMODFLOW_flopy_v3 as ppMF
+    import lamata_model
     mf6mod = _load('marmites_mf6', os.path.join(TRUNK, 'ppMF6', 'marmites_mf6.py'))
-    c = ppMF.clsMF(MMutils.clsUTILITIES(verbose=1), MM_ws=DS, MM_ws_out=DS,
-                   MF_ws=os.path.join(DS, 'MF_ws'),
-                   MF_ini_fn='__inputMF_flopy_v3_2s1L.ini',
-                   xllcorner=XLL, yllcorner=YLL)
-    c.outcropL = np.zeros((c.nrow, c.ncol), dtype=int)
-    for L in range(c.nlay):
-        ib = (np.abs(np.asarray(c.ibound))[L] != 0)
-        c.outcropL += ((c.outcropL == 0) & ib) * (L + 1)
+    # La Mata's model description as the run builds it -- no
+    # parameter file (lamata_model derives the outcrop layer too)
+    c = lamata_model.lamata_cmf()
     c.nper, c.perlen, c.nstp = 3, [1, 1, 1], [1, 1, 1]
 
     def make(sub):

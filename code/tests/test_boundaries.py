@@ -139,9 +139,15 @@ def test_the_run_builds_both_packages_from_the_panel():
                encoding='utf-8').read()
     assert 'props.apply_boundaries' in src
     # AFTER the properties: a drain taken at the base of its layer reads
-    # botm, and botm is the panel thickness now
-    assert (src.index('props.apply_layer_properties')
+    # botm, and botm is the panel thickness now. The properties are applied
+    # inside props.model_from_config (2026-10-07), which the run calls first.
+    assert (src.index('props.model_from_config(')
             < src.index('props.apply_boundaries'))
+    prp = open(os.path.join(CODE, 'ppMF6', 'marmites_props.py'),
+               encoding='utf-8').read()
+    body = prp[prp.index('def model_from_config('):]
+    body = body[:body.index('\ndef ')]
+    assert 'apply_layer_properties(' in body
     lib = open(os.path.join(CODE, 'app', 'lib', 'panelui.py'),
                encoding='utf-8').read()
     assert 'Not read by a run yet' not in lib
@@ -170,40 +176,36 @@ props = _load('marmites_props_b', os.path.join(CODE, 'ppMF6',
 
 
 def _built(cfg):
-    """A clsMF parsed from the parameter file, then given the panel's
-    answers -- the properties first, because a drain at the base of its
-    layer reads botm and botm is the panel thickness now."""
-    import MARMITESutilities as MMutils
-    import ppMODFLOW_flopy_v3 as ppMF
-    cUTIL = MMutils.clsUTILITIES(verbose=0)
-    cMF = ppMF.clsMF(cUTIL, MM_ws=DS, MM_ws_out=DS,
-                     MF_ws=os.path.join(DS, 'MF_ws'),
-                     MF_ini_fn='__inputMF_flopy_v3_2s1L.ini',
-                     xllcorner=739300.0, yllcorner=4553050.0)
-    from_ini = [list(r) for r in cMF.layer_row_column_elevation_cond[0]]
-    # IN THE RUN'S ORDER, override included. Without apply_hnoflo this built
-    # the packages with both sentinel copies still agreeing, so "twelve
-    # drains" passed here while the run -- which applies the panel's hnoflo
-    # -- built 7800. A test that skips a step the run takes is testing a
-    # different program.
-    props.apply_hnoflo(cfg, cMF, verbose=False)
-    props.apply_layer_properties(cfg, cMF, DS, verbose=False)
+    """La Mata's model as the run builds it -- no parameter file -- then
+    the panel's boundaries; with the drains the parameter file produced
+    (frozen in lamata_model.INI_DRAINS on 2026-10-07, from its last parse).
+
+    IN THE RUN'S ORDER, the sentinel override included (model_from_config
+    applies it). Without apply_hnoflo this built the packages with both
+    sentinel copies still agreeing, so "twelve drains" passed here while
+    the run -- which applies the panel's hnoflo -- built 7800. A test that
+    skips a step the run takes is testing a different program."""
+    import lamata_model
+    cMF = lamata_model.lamata_cmf(cfg, boundaries=False, uzf=False)
     props.apply_boundaries(cfg, cMF, DS, verbose=False)
-    return cMF, from_ini
+    return cMF, lamata_model.INI_DRAINS
 
 
 @pytest.mark.skipif(not os.path.isdir(os.path.join(DS, 'MF_ws')),
                     reason='the La Mata dataset is not present')
 def test_the_drains_reproduce_the_parameter_file_entry_for_entry(cfg):
     """THE acceptance test. Six outlet cells on each of two layers, each at
-    the base of its own layer, with the layer's own conductance."""
+    the base of its own layer, with the layer's own conductance -- the
+    cells and conductances the parameter file gave. (Their ELEVATION is
+    the base of the layer, botm + 0.01 m, checked below: botm comes from
+    the DEM now, not from the file's elevation raster.)"""
     cMF, from_ini = _built(cfg)
-    from_panel = [list(r) for r in cMF.layer_row_column_elevation_cond[0]]
+    from_panel = sorted((int(r[0]), int(r[1]), int(r[2]), round(float(r[4]), 6))
+                        for r in cMF.layer_row_column_elevation_cond[0])
     assert len(from_panel) == len(from_ini) == 12
-    for a, b in zip(sorted(from_ini), sorted(from_panel)):
-        assert a[:3] == b[:3]
-        assert abs(a[3] - b[3]) < 1e-9, 'drain elevation moved'
-        assert abs(a[4] - b[4]) < 1e-9, 'drain conductance changed'
+    for a, b in zip(sorted(from_ini), from_panel):
+        assert a[:3] == b[:3], 'a drain moved'
+        assert abs(a[3] - b[3]) < 1e-9, 'drain conductance changed'
 
 
 @pytest.mark.skipif(not os.path.isdir(os.path.join(DS, 'MF_ws')),
@@ -314,14 +316,10 @@ def test_a_split_sentinel_cannot_turn_nodata_into_drains(cfg):
     """THE BUG, reproduced exactly: the reader left on the ini's 10000 while
     cMF carries the panel's 9999.99. Twelve drains, not 7800 -- the
     boundary arrays must not depend on the two copies agreeing."""
-    import MARMITESutilities as MMutils
-    import ppMODFLOW_flopy_v3 as ppMF
-    cMF = ppMF.clsMF(MMutils.clsUTILITIES(verbose=0), MM_ws=DS, MM_ws_out=DS,
-                     MF_ws=os.path.join(DS, 'MF_ws'),
-                     MF_ini_fn='__inputMF_flopy_v3_2s1L.ini',
-                     xllcorner=739300.0, yllcorner=4553050.0)
-    # The ini's value -- 9999.999, which the old note printed as "10000"
-    # because %g rounds to six significant figures.
+    import lamata_model
+    cMF = lamata_model.lamata_cmf(cfg, boundaries=False, uzf=False)
+    # the reader's copy -- 9999.999, the value the parameter file had and
+    # the old note printed as "10000" (%g rounds to six significant figures)
     assert float(cMF.cPROCESS.hnoflo) == 9999.999
     cMF.hnoflo = 9999.99                     # the split, as the run had it
     props.apply_layer_properties(cfg, cMF, DS, verbose=False)

@@ -133,14 +133,12 @@ needs_ds = pytest.mark.skipif(
 
 @pytest.fixture(scope='module')
 def lamata():
-    import MARMITESutilities as MMutils
-    import ppMODFLOW_flopy_v3 as ppMF
+    import lamata_model
     import marmites_config as mcfg
     import marmites_props as props
-    cMF = ppMF.clsMF(MMutils.clsUTILITIES(verbose=0), MM_ws=DS, MM_ws_out=DS,
-                     MF_ws=os.path.join(DS, 'MF_ws'),
-                     MF_ini_fn='__inputMF_flopy_v3_2s1L.ini',
-                     xllcorner=739300.0, yllcorner=4553050.0)
+    # La Mata's model description as the run builds it -- no
+    # parameter file (lamata_model derives the outcrop layer too)
+    cMF = lamata_model.lamata_cmf()
     cfg = mcfg.load_run_config(os.path.join(CODE, 'configs', 'lamata.toml'))
     act = (np.abs(np.asarray(cMF.ibound)) != 0).any(axis=0)
     return cMF, cfg, props, act

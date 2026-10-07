@@ -45,22 +45,14 @@ def test_an_unknown_averaging_is_refused():
                                           ('amt-hmk', 'AMT-HMK')])
 def test_the_npf_carries_the_averaging(tmp_path, avg, written):
     flopy = pytest.importorskip('flopy')
-    if not os.path.exists(os.path.join(DS, 'MF_ws', '__inputMF_flopy_v3_2s1L.ini')):
-        pytest.skip('La Mata dataset not present')
     import matplotlib
     matplotlib.use('agg')
     import dataclasses
-    import MARMITESutilities as MMutils
-    import ppMODFLOW_flopy_v3 as ppMF
+    import lamata_model
     mf6mod = _load('marmites_mf6_avg', os.path.join(TRUNK, 'ppMF6', 'marmites_mf6.py'))
-    c = ppMF.clsMF(MMutils.clsUTILITIES(verbose=1), MM_ws=DS, MM_ws_out=DS,
-                   MF_ws=os.path.join(DS, 'MF_ws'),
-                   MF_ini_fn='__inputMF_flopy_v3_2s1L.ini',
-                   xllcorner=739300.0, yllcorner=4553050.0)
-    c.outcropL = np.zeros((c.nrow, c.ncol), dtype=int)
-    for L in range(c.nlay):
-        ib = (np.abs(np.asarray(c.ibound))[L] != 0)
-        c.outcropL += ((c.outcropL == 0) & ib) * (L + 1)
+    # La Mata's model description as the run builds it -- no
+    # parameter file (lamata_model derives the outcrop layer too)
+    c = lamata_model.lamata_cmf()
     c.nper, c.perlen, c.nstp = 3, [1, 1, 1], [1, 1, 1]
     b = mf6mod.clsMF6(c, top=np.asarray(c.elev, float),
                       botm=np.asarray(c.botm, float), sim_ws=str(tmp_path),

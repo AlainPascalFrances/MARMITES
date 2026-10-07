@@ -186,25 +186,19 @@ def test_the_panel_gives_uzf_what_the_parameter_file_gave_it(cfg):
     """Everything but eps is identical. eps differs BECAUSE the build
     clamps it: the file said 2.0, MODFLOW 6 forbids below 3.5, so the model
     has always run at 3.5 -- the panel says 3.5 instead of being corrected
-    silently, and the built model is the same."""
-    import MARMITESutilities as MMutils
-    import ppMODFLOW_flopy_v3 as ppMF
-
-    cUTIL = MMutils.clsUTILITIES(verbose=0)
-    cMF = ppMF.clsMF(cUTIL, MM_ws=DS, MM_ws_out=DS,
-                     MF_ws=os.path.join(DS, 'MF_ws'),
-                     MF_ini_fn='__inputMF_flopy_v3_2s1L.ini',
-                     xllcorner=739300.0, yllcorner=4553050.0)
+    silently, and the built model is the same. (What the file gave is
+    frozen in lamata_model.INI_UZF: a run reads no parameter file.)"""
+    import lamata_model as LM
+    cMF = LM.lamata_cmf(cfg, boundaries=False, uzf=False)
 
     def scalar(v):
         return float(np.ravel(np.asarray(v, dtype=float))[0])
 
     names = ('ntrail2', 'nsets', 'surfdep', 'thtr', 'thts', 'thti', 'iuzfopt')
-    before = dict((n, scalar(getattr(cMF, n))) for n in names)
-    eps_ini = scalar(cMF.eps)
+    eps_ini = LM.INI_UZF['eps']
     props.apply_uzf(cfg, cMF, DS, verbose=False)
     for n in names:
-        assert abs(before[n] - scalar(getattr(cMF, n))) < 1e-12, n
+        assert abs(LM.INI_UZF[n] - scalar(getattr(cMF, n))) < 1e-12, n
     assert eps_ini == 2.0 and scalar(cMF.eps) == 3.5
     # ... and both land on 3.5 once the build has applied its clamp
     assert max(3.5, min(14.0, eps_ini)) == scalar(cMF.eps)
@@ -223,23 +217,14 @@ def built():
     pytest.importorskip('flopy')
     import matplotlib
     matplotlib.use('agg')
-    import MARMITESutilities as MMutils
-    import ppMODFLOW_flopy_v3 as ppMF
-    ini = os.path.join(DS, 'MF_ws', '__inputMF_flopy_v3_2s1L.ini')
-    if not os.path.exists(ini):
-        pytest.skip('La Mata dataset not present')
+    import lamata_model
     mf6 = _load('marmites_mf6_up', os.path.join(CODE, 'ppMF6',
                                                 'marmites_mf6.py'))
 
     def make(tmp, **over):
-        c = ppMF.clsMF(MMutils.clsUTILITIES(verbose=0), MM_ws=DS,
-                       MM_ws_out=DS, MF_ws=os.path.join(DS, 'MF_ws'),
-                       MF_ini_fn='__inputMF_flopy_v3_2s1L.ini',
-                       xllcorner=739300.0, yllcorner=4553050.0)
-        c.outcropL = np.zeros((c.nrow, c.ncol), dtype=int)
-        for L in range(c.nlay):
-            ib = (np.abs(np.asarray(c.ibound))[L] != 0)
-            c.outcropL += ((c.outcropL == 0) & ib) * (L + 1)
+        # La Mata's model description as the run builds it -- no
+        # parameter file (lamata_model derives the outcrop layer too)
+        c = lamata_model.lamata_cmf()
         c.nper, c.perlen, c.nstp = 2, [1, 1], [1, 1]
         for k, v in over.items():
             setattr(c, k, v)

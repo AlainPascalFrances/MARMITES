@@ -108,19 +108,11 @@ def test_a_carried_soil_starts_from_its_own_state():
 # ------------------------------------------------------------ the build
 @pytest.fixture(scope='module')
 def cmf():
-    if not os.path.exists(os.path.join(DS, 'MF_ws', '__inputMF_flopy_v3_2s1L.ini')):
-        pytest.skip('La Mata dataset not present')
     pytest.importorskip('flopy')
-    import MARMITESutilities as MMutils
-    import ppMODFLOW_flopy_v3 as ppMF
-    c = ppMF.clsMF(MMutils.clsUTILITIES(verbose=0), MM_ws=DS, MM_ws_out=DS,
-                   MF_ws=os.path.join(DS, 'MF_ws'),
-                   MF_ini_fn='__inputMF_flopy_v3_2s1L.ini',
-                   xllcorner=739300.0, yllcorner=4553050.0)
-    c.outcropL = np.zeros((c.nrow, c.ncol), dtype=int)
-    for L in range(c.nlay):
-        ib = (np.abs(np.asarray(c.ibound))[L] != 0)
-        c.outcropL += ((c.outcropL == 0) & ib) * (L + 1)
+    import lamata_model
+    # La Mata's model description as the run builds it -- no
+    # parameter file (lamata_model derives the outcrop layer too)
+    c = lamata_model.lamata_cmf()
     c.nper, c.perlen, c.nstp = 3, [1, 1, 1], [1, 1, 1]
     return c
 

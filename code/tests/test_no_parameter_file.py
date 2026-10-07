@@ -56,14 +56,35 @@ def test_the_model_description_needs_no_file(tmp_path):
 
 
 def test_the_driver_names_no_parameter_file():
-    """The run's setup builds the model with from_config and opens no
-    .ini: neither the constructor that parses one nor a file name."""
-    src = open(os.path.join(HERE, 'run_lamata_mf6.py'), encoding='utf-8').read()
-    code = '\n'.join(re.sub(r'#.*', '', ln) for ln in src.splitlines())
-    assert 'clsMF.from_config(' in code
-    assert not re.search(r'clsMF\(\s*cUTIL', code), 'the parser is called'
-    assert 'MF_ini_fn' not in code and '_2s1L' not in code
-    assert not re.search(r"['\"][^'\"]*\.ini['\"]", code), 'an .ini is named'
+    """The run's setup builds the model through props.model_from_config
+    (clsMF.from_config) and opens no .ini: neither the constructor that
+    parses one nor a file name -- in the driver, in that construction, or
+    in the tests' shared fixture."""
+    def code_of(path):
+        src = open(path, encoding='utf-8').read()
+        return '\n'.join(re.sub(r'#.*', '', ln) for ln in src.splitlines())
+
+    drv = code_of(os.path.join(HERE, 'run_lamata_mf6.py'))
+    prp = code_of(os.path.join(CODE, 'ppMF6', 'marmites_props.py'))
+    assert 'props.model_from_config(' in drv
+    assert 'ppMF.clsMF.from_config(' in prp
+    for code in (drv, prp, code_of(os.path.join(HERE, 'lamata_model.py'))):
+        assert not re.search(r'clsMF\(\s*(cUTIL|MMutils)', code), \
+            'the parser is called'
+        assert 'MF_ini_fn' not in code and '_2s1L' not in code
+        assert not re.search(r"['\"][^'\"]*\.ini['\"]", code), 'an .ini is named'
+
+
+def test_no_test_fixture_parses_the_parameter_file():
+    """2026-10-07: the fixtures build La Mata the way the run does
+    (tests/lamata_model.py); none may parse the legacy file again."""
+    for name in sorted(os.listdir(HERE)):
+        if not name.endswith('.py') or name == os.path.basename(__file__):
+            continue
+        src = open(os.path.join(HERE, name), encoding='utf-8',
+                   errors='replace').read()
+        code = '\n'.join(re.sub(r'#.*', '', ln) for ln in src.splitlines())
+        assert 'MF_ini_fn=' not in code, '%s parses the parameter file' % name
 
 
 def test_a_blank_layer_property_stops_the_run(tmp_path):

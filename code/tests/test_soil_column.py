@@ -50,12 +50,10 @@ def _cfg_from_file():
 
 
 def _legacy():
-    import MARMITESutilities as MMutils
-    import ppMODFLOW_flopy_v3 as ppMF
-    cMF = ppMF.clsMF(MMutils.clsUTILITIES(verbose=0), MM_ws=DS, MM_ws_out=DS,
-                     MF_ws=os.path.join(DS, 'MF_ws'),
-                     MF_ini_fn='__inputMF_flopy_v3_2s1L.ini',
-                     xllcorner=739300.0, yllcorner=4553050.0)
+    import lamata_model
+    # La Mata's model description as the run builds it -- no
+    # parameter file (lamata_model derives the outcrop layer too)
+    cMF = lamata_model.lamata_cmf()
     return cMF.cPROCESS.inputSoilParam(
         SOILparam_fn=os.path.join('MF_ws', 'inputSOILparam.txt'), NSOIL=3)
 

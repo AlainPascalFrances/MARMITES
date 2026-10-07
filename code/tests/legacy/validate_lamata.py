@@ -10,7 +10,12 @@ Replicates the driver's setup between clsMF() and the runMMsoil() call, then
 truncates to the first --nsp stress periods for runtime (state carry-over
 makes the first K SPs directly comparable to the reference).
 
-Usage:  python tests/validate_lamata.py --nsp 25
+LEGACY (moved to tests/legacy on 2026-10-07): it reproduces the NWT-era
+driver step by step -- the legacy MODFLOW parameter file, the MMsurf
+output file, the _h5_MF.h5 reference -- because that is what it compares
+against. A run reads none of those any more.
+
+Usage:  python tests/legacy/validate_lamata.py --nsp 25
 """
 import argparse
 import os
@@ -20,8 +25,8 @@ import sys
 import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-TRUNK = os.path.abspath(os.path.join(HERE, '..'))
-DS = os.path.abspath(os.path.join(HERE, '..', '..', 'example', 'LaMata'))
+TRUNK = os.path.abspath(os.path.join(HERE, '..', '..'))
+DS = os.path.abspath(os.path.join(HERE, '..', '..', '..', 'example', 'LaMata'))
 for p in ('', 'MARMITESutilities', 'MARMITESsoil', 'ppMF_FloPy'):
     sys.path.insert(0, os.path.join(TRUNK, p))
 

@@ -670,6 +670,42 @@ def _recompute_botm(cMF):
 # the panel's (apply_layer_properties, apply_uzf, apply_boundaries).
 
 
+def model_from_config(cfg, dataset_dir, cache_dir=None, verbose=True):
+    """The model description a run starts from, on the dataset grid.
+
+    ONE construction for the run and the tests (2026-10-07): the scalars
+    by clsMF.from_config, then -- in the order the arrays depend on each
+    other -- the sentinel, the land surface, the layer properties (all of
+    them required), the cold-start heads and the UZF footprint. The
+    catchment check, the boundaries and the unsaturated zone follow in the
+    caller (they read what this returns). ``cache_dir`` caches the DEM
+    wrap; ``verbose`` prints what each step took from where.
+    """
+    import MARMITESutilities as MMutils
+    import ppMODFLOW_flopy_v3 as ppMF
+    rect = dataset_grid(dataset_dir)[0]
+    if rect is None:
+        raise PropertyError(
+            'the dataset %s holds no raster to take the grid from -- run the '
+            'converter (Launch on the Grid panel) first' % dataset_dir)
+    cMF = ppMF.clsMF.from_config(
+        MMutils.clsUTILITIES(verbose=1 if verbose else 0),
+        MM_ws=str(dataset_dir), MM_ws_out=str(dataset_dir),
+        MF_ws=os.path.join(str(dataset_dir), 'MF_ws'), grid=rect,
+        nlay=int(cfg.layers.nlay), hnoflo=float(cfg.layers.hnoflo),
+        modelname=cfg.meta.model_name(cfg.paths.case),
+        steady_recharge=float(cfg.spinup.steady_recharge))
+    apply_hnoflo(cfg, cMF, verbose=verbose)
+    check_grid(cMF, dataset_dir, verbose=verbose)
+    land_surface(cfg, cMF, dataset_dir, cache_dir=cache_dir, verbose=verbose)
+    apply_layer_properties(cfg, cMF, dataset_dir, verbose=verbose,
+                           required=True)
+    check_land_surface(cMF)
+    initial_heads(cfg, cMF, dataset_dir, verbose=verbose)
+    uzf_footprint(cMF)
+    return cMF
+
+
 def land_surface(cfg, cMF, dataset_dir, cache_dir=None, verbose=True):
     """The land surface on the dataset grid, from the DEM panel 1 names.
 

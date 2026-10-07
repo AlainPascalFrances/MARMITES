@@ -54,8 +54,12 @@ def main():
     # --- build the model exactly as the coupled runner does ---------------
     from run_lamata_mf6 import setup_lamata
     from marmites_mf6 import clsMF6
-    cMF, mm, ctx, state, top, botm, conv_fact = setup_lamata(daily=True, nsp=a.nsp,
-                                                             grid=a.grid)
+    # from a configuration -- no parameter file (2026-10-07). NOTE: this
+    # bisected the WEL/BOUND crash; the ETg wells are gone (2026-10-07), so
+    # the WEL steps below find no WEL and write nothing.
+    import lamata_model
+    cMF, mm, ctx, state, top, botm, conv_fact = setup_lamata(
+        daily=True, nsp=a.nsp, grid=a.grid, cfg=lamata_model.lamata_config())
     b = clsMF6(cMF, top=top, botm=botm, sim_ws=ws, daily=True, grid=a.grid)
     b.build()
     b.write()

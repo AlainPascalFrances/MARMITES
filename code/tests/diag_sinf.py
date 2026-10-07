@@ -36,7 +36,11 @@ def main():
     a = ap.parse_args()
 
     ws = os.path.join(R.WS_ROOT, 'MF6_ws')
-    cMF, mm, ctx, state, top, botm, conv = R.setup_lamata(daily=True, nsp=6, nlay=2)
+    # the run builds its model from a configuration -- no parameter file
+    # (2026-10-07); La Mata's, with the drains on their rasters
+    import lamata_model
+    cMF, mm, ctx, state, top, botm, conv = R.setup_lamata(
+        daily=True, nsp=6, nlay=2, cfg=lamata_model.lamata_config())
     b = clsMF6(cMF, top=top, botm=botm, sim_ws=ws, daily=True)
     b.seep = 'drn'
     b.build()

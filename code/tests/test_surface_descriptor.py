@@ -223,22 +223,14 @@ def test_lamata_structured_ponds_are_sub_grid_and_streams_skirt_them(tmp_path):
     pytest.importorskip('flopy')
     import matplotlib
     matplotlib.use('agg')
-    import MARMITESutilities as MMutils
-    import ppMODFLOW_flopy_v3 as ppMF
+    import lamata_model
     import marmites_channel as mch
     import marmites_config as cfgmod
     import marmites_vector as mv
     DS = lk.DS
-    if not os.path.exists(os.path.join(DS, 'MF_ws', '__inputMF_flopy_v3_2s1L.ini')):
-        pytest.skip('La Mata dataset not present')
-    c = ppMF.clsMF(MMutils.clsUTILITIES(verbose=1), MM_ws=DS, MM_ws_out=DS,
-                   MF_ws=os.path.join(DS, 'MF_ws'),
-                   MF_ini_fn='__inputMF_flopy_v3_2s1L.ini',
-                   xllcorner=lk.XLL, yllcorner=lk.YLL)
-    c.outcropL = np.zeros((c.nrow, c.ncol), dtype=int)
-    for L in range(c.nlay):
-        ib = (np.abs(np.asarray(c.ibound))[L] != 0)
-        c.outcropL += ((c.outcropL == 0) & ib) * (L + 1)
+    # La Mata's model description as the run builds it -- no
+    # parameter file (lamata_model derives the outcrop layer too)
+    c = lamata_model.lamata_cmf()
     c.nper, c.perlen, c.nstp = 3, [1, 1, 1], [1, 1, 1]
     b = mf6mod.clsMF6(c, top=np.asarray(c.elev, float),
                       botm=np.asarray(c.botm, float), sim_ws=str(tmp_path),

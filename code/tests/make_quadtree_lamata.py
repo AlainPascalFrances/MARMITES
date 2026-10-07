@@ -24,18 +24,20 @@ import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TRUNK = os.path.abspath(os.path.join(HERE, '..'))
-WS_ROOT = os.environ.get('MARMITES_WS_ROOT', os.path.join('E:' + os.sep, '00code_ws', 'LaMata_MM-MF6'))
 DS = os.path.abspath(os.path.join(HERE, '..', '..', 'example', 'LaMata'))
 for p in ('', 'MARMITESutilities', 'MARMITESsoil', 'ppMF_FloPy', 'ppMF6'):
     sys.path.insert(0, os.path.join(TRUNK, p))
+sys.path.insert(0, HERE)
 
 import matplotlib  # noqa: E402
 matplotlib.use('agg')
 import matplotlib.pyplot as plt  # noqa: E402
-import MARMITESutilities as MMutils  # noqa: E402
-import ppMODFLOW_flopy_v3 as ppMF  # noqa: E402
+import lamata_model  # noqa: E402
+import mm_paths  # noqa: E402
 from marmites_gridgen import build_quadtree  # noqa: E402
 from marmites_grid import VertexGeometry  # noqa: E402
+
+WS_ROOT = str(mm_paths.WS_ROOT)
 
 
 def drain_points(cMF):
@@ -86,10 +88,9 @@ def main():
     ap.add_argument('--ws', default=os.path.join(WS_ROOT, 'MF6_ws_quadtree'))
     a = ap.parse_args()
 
-    cUTIL = MMutils.clsUTILITIES(verbose=1)
-    cMF = ppMF.clsMF(cUTIL, MM_ws=DS, MM_ws_out=DS, MF_ws=os.path.join(DS, 'MF_ws'),
-                     MF_ini_fn='__inputMF_flopy_v3_2s1L.ini',
-                     xllcorner=739300.0, yllcorner=4553050.0)
+    # La Mata's model description as the run builds it, the drains on their
+    # rasters -- no parameter file (2026-10-07; tests/lamata_model.py)
+    cMF = lamata_model.lamata_cmf(verbose=True)
     # aquifer top/botm as the model uses them (soil thickness subtracted later
     # in the coupled driver; for grid generation the raw surfaces are enough)
     cMF.top = np.asarray(cMF.elev, dtype=float)

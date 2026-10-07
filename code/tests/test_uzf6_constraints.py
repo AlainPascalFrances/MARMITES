@@ -45,18 +45,10 @@ mf6mod = _load('marmites_mf6_uzf', os.path.join(TRUNK, 'ppMF6', 'marmites_mf6.py
 
 @pytest.fixture(scope='module')
 def cmf():
-    if not os.path.exists(os.path.join(DS, 'MF_ws', '__inputMF_flopy_v3_2s1L.ini')):
-        pytest.skip('La Mata dataset not present')
-    import MARMITESutilities as MMutils
-    import ppMODFLOW_flopy_v3 as ppMF
-    c = ppMF.clsMF(MMutils.clsUTILITIES(verbose=1), MM_ws=DS, MM_ws_out=DS,
-                   MF_ws=os.path.join(DS, 'MF_ws'),
-                   MF_ini_fn='__inputMF_flopy_v3_2s1L.ini',
-                   xllcorner=739300.0, yllcorner=4553050.0)
-    c.outcropL = np.zeros((c.nrow, c.ncol), dtype=int)
-    for L in range(c.nlay):
-        ib = (np.abs(np.asarray(c.ibound))[L] != 0)
-        c.outcropL += ((c.outcropL == 0) & ib) * (L + 1)
+    import lamata_model
+    # La Mata's model description as the run builds it -- no
+    # parameter file (lamata_model derives the outcrop layer too)
+    c = lamata_model.lamata_cmf()
     c.nper, c.perlen, c.nstp = 2, [1, 1], [1, 1]
     return c
 
@@ -90,23 +82,29 @@ def test_lamata_uzf_packagedata_satisfies_mf6_rules(cmf, tmp_path):
         assert surfdep > 0.0, 'SURFDEP must be > 0'
 
 
-def test_epsilon_clamped_and_reported(cmf, tmp_path):
-    """La Mata's ini has EPSILON = 2.0 (valid in UZF1, invalid in UZF6):
-    the builder must clamp it AND record that it did."""
+def test_epsilon_clamped_and_reported(cmf, tmp_path, monkeypatch):
+    """EPSILON = 2.0 is valid in UZF1 (La Mata's NWT model had it), invalid
+    in UZF6. The panel refuses one such number; a MAP can still carry it,
+    cell by cell, so the builder must clamp it AND record that it did."""
+    shape = (int(cmf.nlay), int(cmf.nrow), int(cmf.ncol))
+    monkeypatch.setattr(cmf, 'eps', np.full(shape, 2.0))
     b = _build(cmf, tmp_path)
     assert b.eps_clamped is not None, 'clamping must be recorded, not silent'
     original, clamped = b.eps_clamped
     assert original == 2.0
     assert clamped == mf6mod.clsMF6.EPS_MIN == 3.5
+    assert all(float(rec[9]) == 3.5 for rec in b.uzf_packagedata)
 
 
 def test_thtr_is_thts_minus_sy_as_uzf1_without_specifythtr(cmf, tmp_path):
-    """specifythtr=0 in the ini: UZF1 did NOT read the 0.05 on that line,
-    it derived thtr = thts - Sy. This test used to assert the opposite --
-    that the 0.05 was used -- and so guarded the bug that let the water
-    table run away to the land surface (2026-09-23): drainable porosity
-    0.40 in the unsaturated zone against Sy 0.01 in the aquifer."""
-    assert int(cmf.specifythtr) == 0
+    """uzf.thtr_from = 'sy' (La Mata's NWT model had specifythtr = 0): UZF1
+    did NOT read the 0.05 given for thtr, it derived thtr = thts - Sy. This
+    test used to assert the opposite -- that the 0.05 was used -- and so
+    guarded the bug that let the water table run away to the land surface
+    (2026-09-23): drainable porosity 0.40 in the unsaturated zone against
+    Sy 0.01 in the aquifer."""
+    import lamata_model
+    assert lamata_model.lamata_config().uzf.thtr_from == 'sy'
     b = _build(cmf, tmp_path)
     sy = b._prop3d('sy_actual')
     for rec in b.uzf_packagedata:
@@ -118,7 +116,8 @@ def test_thtr_is_thts_minus_sy_as_uzf1_without_specifythtr(cmf, tmp_path):
 
 
 def test_the_ini_thtr_is_refused_as_inconsistent_with_sy(cmf, tmp_path):
-    """Asked to take the ini's thtr as given, the build refuses: 0.45 - 0.05
+    """Asked to take the panel's thtr as given (uzf.thtr_from = 'source';
+    0.05, the old parameter file's), the build refuses: 0.45 - 0.05
     is not La Mata's Sy of 0.01, and it quotes MODFLOW 6's own rule."""
     b = mf6mod.clsMF6(cmf, top=np.asarray(cmf.elev, dtype=float),
                       botm=np.asarray(cmf.botm, dtype=float),

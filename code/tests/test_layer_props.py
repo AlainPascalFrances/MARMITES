@@ -4,7 +4,9 @@
 The acceptance test is not "it runs": it is that the panel's answers
 reproduce what ``__inputMF_flopy_v3_2s1L.ini`` produced, cell for cell.
 A wiring that changed the model while claiming to move an input would be
-worse than no wiring at all.
+worse than no wiring at all. Since 2026-10-07 a run reads no parameter
+file and neither do these tests: what it produced is frozen in
+tests/lamata_model.py (INI_LAYERS, from its last parse).
 """
 
 import dataclasses
@@ -52,9 +54,10 @@ def test_a_value_is_uniform_over_every_layer():
     assert props.resolve_source(src, 3, DS, 'layers.k') == [2.5, 2.5, 2.5]
 
 
-def test_an_unanswered_source_leaves_the_ini_in_charge():
-    """None means 'not answered', which is NOT the same as an error: the
-    parameter file still supplies it until the panel says otherwise."""
+def test_an_unanswered_source_is_not_answered():
+    """None means 'not answered', which the resolver does not decide about:
+    a run refuses it (apply_layer_properties(required=True)), since there
+    is no parameter file to supply it any more (2026-10-07)."""
     assert props.resolve_source(cfgmod.VectorSource(), 2, DS, 'x') is None
 
 
@@ -109,33 +112,29 @@ def test_a_shapefile_is_refused_rather_than_guessed_at():
 @pytest.mark.skipif(not os.path.isdir(os.path.join(DS, 'MF_ws')),
                     reason='the La Mata dataset is not present')
 def test_the_panel_reproduces_the_ini_cell_for_cell(cfg):
-    """THE acceptance test for this wiring."""
-    import MARMITESutilities as MMutils
-    import ppMODFLOW_flopy_v3 as ppMF
-
-    cUTIL = MMutils.clsUTILITIES(verbose=0)
-    cMF = ppMF.clsMF(cUTIL, MM_ws=DS, MM_ws_out=DS,
-                     MF_ws=os.path.join(DS, 'MF_ws'),
-                     MF_ini_fn='__inputMF_flopy_v3_2s1L.ini',
-                     xllcorner=739300.0, yllcorner=4553050.0)
-    f2a = cMF.cPROCESS.float2array
-
-    def snapshot():
-        out = dict((n, np.array(f2a(getattr(cMF, n + '_actual')), dtype=float))
-                   for n in ('hk', 'vka', 'ss', 'sy'))
-        out['thick'] = np.array(cMF.thick, dtype=float)
-        out['botm'] = np.ma.filled(np.asarray(cMF.botm), -9999.0).astype(float)
-        return out
-
-    from_ini = snapshot()
+    """THE acceptance test for this wiring: the panel's answers give the
+    layers the parameter file gave. The file is no longer read by a run;
+    what it produced is frozen in lamata_model.INI_LAYERS (2026-10-07, its
+    last parse) as per-layer sums, sums of squares and ranges."""
+    import lamata_model as LM
     assert cfg.layers.nlay == 2, 'this test is pinned to the 2-layer set'
-    done = props.apply_layer_properties(cfg, cMF, DS, verbose=False)
-    assert {d[0] for d in done} == {'ibound', 'thickness', 'k', 'k33',
-                                    'ss', 'sy'}
-    from_panel = snapshot()
-    for name in ('thick', 'hk', 'vka', 'ss', 'sy', 'botm'):
-        assert np.array_equal(from_ini[name], from_panel[name]), (
-            '%s changed when it moved from the ini to the panel' % name)
+    cMF = LM.lamata_cmf(cfg, boundaries=False, uzf=False)
+    f2a = cMF.cPROCESS.float2array
+    got = dict((n, LM.layer_stats(f2a(getattr(cMF, n + '_actual'))))
+               for n in ('hk', 'vka', 'ss', 'sy'))
+    got['thick'] = LM.layer_stats(cMF.thick)
+    for name in ('thick', 'hk', 'vka', 'ss', 'sy'):
+        assert LM.same_stats(got[name], LM.INI_LAYERS[name]), (
+            '%s is not what the parameter file gave' % name)
+    # botm: the land surface less the thickness of every layer down to it
+    # that exists there (the land surface is the DEM's now, not the file's)
+    elev = np.asarray(cMF.elev, dtype=float)
+    ok = np.abs(elev - cMF.hnoflo) > 0.09
+    cum = np.cumsum(np.asarray(cMF.thick, dtype=float)
+                    * np.abs(np.asarray(cMF.ibound)), axis=0)
+    botm = np.asarray(cMF.botm, dtype=float)
+    for L in range(cMF.nlay):
+        assert np.allclose(botm[L][ok], (elev - cum[L])[ok])
 
 
 def test_the_flags_are_fanned_out_over_the_layers(cfg):
@@ -197,10 +196,18 @@ def test_the_reference_config_names_a_pattern_not_one_layer(cfg):
 
 def test_the_run_applies_the_properties_before_anything_reads_them():
     """A panel field the run ignores is decoration; one applied too late is
-    worse, because half the model would have the old value."""
+    worse, because half the model would have the old value. They are applied
+    in props.model_from_config -- required, and before the heads that read
+    botm -- which the run calls before anything else."""
     src = open(os.path.join(HERE, 'run_lamata_mf6.py'), encoding='utf-8').read()
-    assert 'props.apply_layer_properties' in src
-    assert src.index('props.apply_layer_properties') < src.index('conv_fact = ')
+    assert 'props.model_from_config(' in src
+    assert src.index('props.model_from_config(') < src.index('conv_fact = ')
+    psrc = open(os.path.join(CODE, 'ppMF6', 'marmites_props.py'),
+                encoding='utf-8').read()
+    mfc = psrc[psrc.index('def model_from_config'):]
+    mfc = mfc[:mfc.index('\ndef ')]
+    assert 'apply_layer_properties(' in mfc and 'required=True' in mfc
+    assert mfc.index('apply_layer_properties(') < mfc.index('initial_heads(')
 
 
 # ------------------------------------- ibound, and the geographic reference
@@ -212,29 +219,21 @@ def test_ibound_is_per_layer_and_reproduces_the_parameter_file(cfg):
     active in 1870 cells and layer 2 in 1954, layer 1 being a strict
     subset. The catchment polygon cannot know that -- thick_l1 is 20-35 m
     in the 84 cells where layer 1 is absent, so the thickness cannot
-    express it either. Only this map can."""
-    import MARMITESutilities as MMutils
-    import ppMODFLOW_flopy_v3 as ppMF
-
-    rect, _n, _o = props.dataset_grid(DS)
-    cMF = ppMF.clsMF(MMutils.clsUTILITIES(verbose=0), MM_ws=DS, MM_ws_out=DS,
-                     MF_ws=os.path.join(DS, 'MF_ws'),
-                     MF_ini_fn='__inputMF_flopy_v3_2s1L.ini', grid=rect)
-    from_ini = np.abs(np.asarray(cMF.ibound, dtype=int))
-    botm_ini = np.ma.filled(np.asarray(cMF.botm), -9999.0).astype(float)
-
-    props.apply_layer_properties(cfg, cMF, DS, verbose=False)
+    express it either. Only this map can. (The parameter file's map is
+    frozen in lamata_model.INI_LAYERS; botm's dependence on it is checked
+    in test_the_panel_reproduces_the_ini_cell_for_cell.)"""
+    import lamata_model as LM
+    cMF = LM.lamata_cmf(cfg, boundaries=False, uzf=False)
     from_panel = np.abs(np.asarray(cMF.ibound, dtype=int))
 
     assert from_panel.shape == (cMF.nlay, cMF.nrow, cMF.ncol)
-    assert np.array_equal(from_ini, from_panel)
+    assert LM.same_stats(LM.layer_stats(from_panel), LM.INI_LAYERS['ibound'])
     per_layer = [int((from_panel[L] != 0).sum()) for L in range(cMF.nlay)]
     assert per_layer == [1870, 1954], per_layer
     # the layers genuinely differ, which is the whole reason this is asked
     assert per_layer[0] != per_layer[1]
-    # ... and botm is unchanged, though it multiplies by |ibound|
-    assert np.array_equal(
-        botm_ini, np.ma.filled(np.asarray(cMF.botm), -9999.0).astype(float))
+    # ... and layer 1 is a strict subset of layer 2
+    assert not ((from_panel[0] != 0) & (from_panel[1] == 0)).any()
 
 
 @pytest.mark.skipif(not os.path.isdir(os.path.join(DS, 'MF_ws')),
@@ -245,13 +244,8 @@ def test_the_catchment_is_the_geographic_reference_not_the_ibound(cfg):
     2092 cells and 1954 are active -- because a cell clipped at the
     boundary is a modelling choice."""
     import mm_paths
-    import MARMITESutilities as MMutils
-    import ppMODFLOW_flopy_v3 as ppMF
-
-    rect, _n, _o = props.dataset_grid(DS)
-    cMF = ppMF.clsMF(MMutils.clsUTILITIES(verbose=0), MM_ws=DS, MM_ws_out=DS,
-                     MF_ws=os.path.join(DS, 'MF_ws'),
-                     MF_ini_fn='__inputMF_flopy_v3_2s1L.ini', grid=rect)
+    import lamata_model
+    cMF = lamata_model.lamata_cmf(cfg, boundaries=False, uzf=False)
     rep = props.check_catchment(cfg, cMF, mm_paths.GIS, verbose=False)
     assert rep['outside'] == 0, 'active cells fall outside the catchment'
     assert rep['fraction_inside'] == 1.0
@@ -266,14 +260,12 @@ def test_a_model_somewhere_else_entirely_is_refused(cfg):
     different coordinate systems. An edge disagreement is fine; a model
     mostly outside its own catchment is not."""
     import mm_paths
-    import MARMITESutilities as MMutils
-    import ppMODFLOW_flopy_v3 as ppMF
-
-    rect, _n, _o = props.dataset_grid(DS)
-    moved = (rect[0] + 50000.0, rect[1] + 50000.0) + tuple(rect[2:])
-    cMF = ppMF.clsMF(MMutils.clsUTILITIES(verbose=0), MM_ws=DS, MM_ws_out=DS,
-                     MF_ws=os.path.join(DS, 'MF_ws'),
-                     MF_ini_fn='__inputMF_flopy_v3_2s1L.ini', grid=moved)
+    import lamata_model
+    cMF = lamata_model.lamata_cmf(cfg, boundaries=False, uzf=False)
+    # the same model, 50 km away: what rasters in another coordinate
+    # system than the catchment's look like
+    cMF.xllcorner += 50000.0
+    cMF.yllcorner += 50000.0
     with pytest.raises(props.PropertyError) as e:
         props.check_catchment(cfg, cMF, mm_paths.GIS, verbose=False)
     assert 'coordinate system' in str(e.value)

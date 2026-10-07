@@ -213,25 +213,18 @@ def test_ats_block_written_for_transient_periods_only(tmp_path):
     pytest.importorskip('flopy')
     from test_mf6_build import cmf, mf6mod  # noqa: F401
     DS = os.path.abspath(os.path.join(HERE, '..', '..', 'example', 'LaMata'))
-    if not os.path.exists(os.path.join(DS, 'MF_ws', '__inputMF_flopy_v3_2s1L.ini')):
-        pytest.skip('La Mata dataset not present')
-    import MARMITESutilities as MMutils
-    import ppMODFLOW_flopy_v3 as ppMF
-    c = ppMF.clsMF(MMutils.clsUTILITIES(verbose=1), MM_ws=DS, MM_ws_out=DS,
-                   MF_ws=os.path.join(DS, 'MF_ws'),
-                   MF_ini_fn='__inputMF_flopy_v3_2s1L.ini',
-                   xllcorner=739300.0, yllcorner=4553050.0)
-    c.outcropL = np.zeros((c.nrow, c.ncol), dtype=int)
-    for L in range(c.nlay):
-        ib = (np.abs(np.asarray(c.ibound))[L] != 0)
-        c.outcropL += ((c.outcropL == 0) & ib) * (L + 1)
+    import lamata_model
+    # La Mata's model description as the run builds it -- no
+    # parameter file (lamata_model derives the outcrop layer too)
+    c = lamata_model.lamata_cmf()
     c.nper, c.perlen, c.nstp = 3, [1, 1, 1], [1, 1, 1]
     b = mf6mod.clsMF6(c, top=np.asarray(c.elev, float), botm=np.asarray(c.botm, float),
                       sim_ws=str(tmp_path), daily=True)
     b.verbose = False
     b.build()
     b.write()
-    ats = (tmp_path / 'lamatamm.tdis.ats').read_text()
+    # the simulation takes the model's name: [meta] model now, not the ini's
+    ats = (tmp_path / ('%s.tdis.ats' % c.modelname.lower())).read_text()
     periods = [int(l.split()[0]) for l in ats.splitlines()
                if l.strip() and l.strip()[0].isdigit()]
     assert periods == [2, 3, 4], 'the steady-state period must not get ATS'
@@ -258,18 +251,10 @@ def test_the_retry_floor_comes_from_the_panel_and_never_exceeds_the_period(
     pytest.importorskip('flopy')
     from test_mf6_build import cmf, mf6mod  # noqa: F401
     DS = os.path.abspath(os.path.join(HERE, '..', '..', 'example', 'LaMata'))
-    if not os.path.exists(os.path.join(DS, 'MF_ws', '__inputMF_flopy_v3_2s1L.ini')):
-        pytest.skip('La Mata dataset not present')
-    import MARMITESutilities as MMutils
-    import ppMODFLOW_flopy_v3 as ppMF
-    c = ppMF.clsMF(MMutils.clsUTILITIES(verbose=1), MM_ws=DS, MM_ws_out=DS,
-                   MF_ws=os.path.join(DS, 'MF_ws'),
-                   MF_ini_fn='__inputMF_flopy_v3_2s1L.ini',
-                   xllcorner=739300.0, yllcorner=4553050.0)
-    c.outcropL = np.zeros((c.nrow, c.ncol), dtype=int)
-    for L in range(c.nlay):
-        ib = (np.abs(np.asarray(c.ibound))[L] != 0)
-        c.outcropL += ((c.outcropL == 0) & ib) * (L + 1)
+    import lamata_model
+    # La Mata's model description as the run builds it -- no
+    # parameter file (lamata_model derives the outcrop layer too)
+    c = lamata_model.lamata_cmf()
     c.nper, c.perlen, c.nstp = 3, [1, 1, 1], [1, 1, 1]
     b = mf6mod.clsMF6(c, top=np.asarray(c.elev, float),
                       botm=np.asarray(c.botm, float), sim_ws=str(tmp_path),
@@ -278,7 +263,7 @@ def test_the_retry_floor_comes_from_the_panel_and_never_exceeds_the_period(
     b.ats_dtmin = 5.0                     # longer than the 1-day periods
     b.build()
     b.write()
-    ats = (tmp_path / 'lamatamm.tdis.ats').read_text()
+    ats = (tmp_path / ('%s.tdis.ats' % c.modelname.lower())).read_text()
     recs = [l.split() for l in ats.splitlines()
             if l.strip() and l.strip()[0].isdigit()]
     assert recs and all(float(r[2]) <= float(r[1]) for r in recs), recs
@@ -288,18 +273,10 @@ def test_ats_can_be_disabled(tmp_path):
     pytest.importorskip('flopy')
     from test_mf6_build import cmf, mf6mod  # noqa: F401
     DS = os.path.abspath(os.path.join(HERE, '..', '..', 'example', 'LaMata'))
-    if not os.path.exists(os.path.join(DS, 'MF_ws', '__inputMF_flopy_v3_2s1L.ini')):
-        pytest.skip('La Mata dataset not present')
-    import MARMITESutilities as MMutils
-    import ppMODFLOW_flopy_v3 as ppMF
-    c = ppMF.clsMF(MMutils.clsUTILITIES(verbose=1), MM_ws=DS, MM_ws_out=DS,
-                   MF_ws=os.path.join(DS, 'MF_ws'),
-                   MF_ini_fn='__inputMF_flopy_v3_2s1L.ini',
-                   xllcorner=739300.0, yllcorner=4553050.0)
-    c.outcropL = np.zeros((c.nrow, c.ncol), dtype=int)
-    for L in range(c.nlay):
-        ib = (np.abs(np.asarray(c.ibound))[L] != 0)
-        c.outcropL += ((c.outcropL == 0) & ib) * (L + 1)
+    import lamata_model
+    # La Mata's model description as the run builds it -- no
+    # parameter file (lamata_model derives the outcrop layer too)
+    c = lamata_model.lamata_cmf()
     c.nper, c.perlen, c.nstp = 3, [1, 1, 1], [1, 1, 1]
     b = mf6mod.clsMF6(c, top=np.asarray(c.elev, float), botm=np.asarray(c.botm, float),
                       sim_ws=str(tmp_path), daily=True)
@@ -307,4 +284,6 @@ def test_ats_can_be_disabled(tmp_path):
     b.ats = False
     b.build()
     b.write()
-    assert not (tmp_path / 'lamatamm.tdis.ats').exists()
+    # any name: a pinned one would pass vacuously once the name changed
+    assert list(tmp_path.glob('*.tdis')), 'the TDIS file was not written'
+    assert not list(tmp_path.glob('*.ats'))

@@ -389,15 +389,19 @@ class clsMF6:
         if np.any(eps < self.EPS_MIN) or np.any(eps > self.EPS_MAX):
             worst = float(eps.min() if np.any(eps < self.EPS_MIN)
                           else eps.max())
-            new = np.clip(eps, self.EPS_MIN, self.EPS_MAX)
-            eps, new = worst, float(np.ravel(new)[0])
-            print('\nWARNING! UZF6 requires %.1f <= EPSILON <= %.1f but the MF '
-                  'ini specifies %g.\n         EPSILON clamped to %.1f. This is a real '
-                  'NWT->MF6 difference:\n         the Brooks-Corey exponent controls '
-                  'unsaturated relative permeability,\n         so drainage through the '
-                  'unsaturated zone will differ from the NWT model.\n'
-                  '         Set a value in range in the MF ini to control this explicitly.'
-                  % (self.EPS_MIN, self.EPS_MAX, eps, new))
+            nbad = int(np.count_nonzero((eps < self.EPS_MIN)
+                                        | (eps > self.EPS_MAX)))
+            # the panel refuses one number out of range; a map can still
+            # carry such cells (UZF1 accepted any EPSILON)
+            eps, new = worst, float(np.clip(worst, self.EPS_MIN, self.EPS_MAX))
+            print('\nWARNING! UZF6 requires %.1f <= EPSILON <= %.1f but uzf.eps '
+                  'gives %g (%d value(s) out of range).\n         EPSILON clamped '
+                  'to %.1f there. The Brooks-Corey exponent controls '
+                  'unsaturated\n         relative permeability, so drainage '
+                  'through the unsaturated zone changes.\n'
+                  '         Give uzf.eps values in range on the UZF panel to '
+                  'control this explicitly.'
+                  % (self.EPS_MIN, self.EPS_MAX, eps, nbad, new))
             self.eps_clamped = (eps, new)
             eps = np.clip(np.asarray(a_eps, float), self.EPS_MIN, self.EPS_MAX)
         return thtr, thts, thti, eps
@@ -445,8 +449,9 @@ class clsMF6:
 
         Two sources:
 
-        * ``strt_from_dem = None`` (default): the arrays named in the MF ini
-          (La Mata: hi_topL1.asc), i.e. the legacy behaviour.
+        * ``strt_from_dem = None`` (default): ``cMF.strt``, which
+          marmites_props.initial_heads fills from layers.strt (La Mata:
+          hi_topL1.asc).
 
         * ``strt_from_dem = (a, b)``: a linear regression on the DEM,
           ``head = a * elevation + b``, the usual first approximation for a

@@ -44,8 +44,6 @@ for p in ('', 'MARMITESutilities', 'MARMITESsoil', 'ppMF_FloPy', 'ppMF6'):
 import matplotlib  # noqa: E402
 matplotlib.use('agg')
 import h5py  # noqa: E402
-import MARMITESutilities as MMutils  # noqa: E402
-import ppMODFLOW_flopy_v3 as ppMF  # noqa: E402
 import MARMITESsoil_v3 as MMsoil  # noqa: E402
 from marmites_indices import INDEX_MM, INDEX_MM_SOIL  # noqa: E402
 from marmites_mf6 import clsMF6  # noqa: E402
@@ -643,43 +641,18 @@ def setup_lamata(daily=True, nsp=None, grid='dis', nlay=None,
     if nlay is not None and int(nlay) != int(cfg.layers.nlay):
         raise SystemExit('nlay %d disagrees with layers.nlay = %d'
                          % (int(nlay), int(cfg.layers.nlay)))
-    cUTIL = MMutils.clsUTILITIES(verbose=1)
-    # THE GRID IS THE DATASET'S: the rectangle the converter wrote every
-    # raster onto, from the Grid panel. The rasters carry it in their own
-    # headers; a dataset with none has not been converted yet.
-    _rect, _names, _others = props.dataset_grid(DS)
-    if _rect is None:
-        raise SystemExit('the dataset %s holds no raster to take the grid '
-                         'from -- run the converter (Launch on the Grid '
-                         'panel) first' % DS)
-    cMF = ppMF.clsMF.from_config(
-        cUTIL, MM_ws=DS, MM_ws_out=DS, MF_ws=os.path.join(DS, 'MF_ws'),
-        grid=_rect, nlay=int(cfg.layers.nlay),
-        hnoflo=float(cfg.layers.hnoflo),
-        modelname=cfg.meta.model_name(cfg.paths.case),
-        steady_recharge=float(cfg.spinup.steady_recharge))
+    # THE MODEL DESCRIPTION, from the configuration and the dataset -- the
+    # same construction the tests use (props.model_from_config): the grid
+    # the dataset rasters are on; one hnoflo, in cMF and the raster reader
+    # alike (setting only cMF's copy once turned La Mata's twelve drains
+    # into 7800 at the aquifer floor); the land surface from the DEM; every
+    # layer property, required; the cold-start heads; the UZF footprint.
     print('model: %s, %d layer(s), from the configuration and the dataset '
-          '%s (no parameter file)' % (cMF.modelname, cMF.nlay, DS))
-    # ONE SENTINEL, NOT TWO -- cMF's and the raster reader's. from_config
-    # sets both from the panel already; this is the one function that keeps
-    # them equal (setting only cMF's copy once turned La Mata's twelve
-    # drains into 7800 at the aquifer floor), and it says nothing when they
-    # agree.
-    props.apply_hnoflo(cfg, cMF)
-    # the raster grid, and any raster that does not sit on it
-    props.check_grid(cMF, DS)
-    # THE LAND SURFACE first: botm is elevation minus the cumulative
-    # thickness. From the DEM panel 1 names, wrapped onto the dataset grid
-    # (the parameter file named a 50 m elevation raster).
-    props.land_surface(cfg, cMF, DS,
-                       cache_dir=(os.path.join(mesh_ws, '_dem50')
-                                  if mesh_ws else None))
-    # THE LAYER PROPERTIES ARE THE PANEL'S -- ibound, thickness, k, k33, Ss,
-    # Sy -- every one required: a blank one stops the run naming it.
-    props.apply_layer_properties(cfg, cMF, DS, required=True)
-    props.check_land_surface(cMF)
-    props.initial_heads(cfg, cMF, DS)
-    props.uzf_footprint(cMF)
+          '%s (no parameter file)' % (cfg.meta.model_name(cfg.paths.case),
+                                      int(cfg.layers.nlay), DS))
+    cMF = props.model_from_config(
+        cfg, DS, cache_dir=(os.path.join(mesh_ws, '_dem50')
+                            if mesh_ws else None))
     # THE CATCHMENT IS THE GEOGRAPHIC REFERENCE. It does not decide which
     # cells are active -- layers.ibound does, per layer -- but the active
     # cells have to sit inside it, and a model whose cells fall outside is

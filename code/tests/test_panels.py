@@ -333,21 +333,27 @@ def test_the_layer_properties_take_the_usual_three_producers(cfg):
 
 
 def test_hnoflo_reaches_the_model():
-    """A panel field that the run ignores is decoration. This one is read
-    straight after the ini is parsed, before anything uses it."""
+    """A panel field that the run ignores is decoration. This one is applied
+    as the model description is built, before anything uses it -- in
+    props.model_from_config, the construction the run and the tests share
+    (2026-10-07: there is no parameter file to parse first)."""
     src = io.open(os.path.join(HERE, 'run_lamata_mf6.py'),
                   encoding='utf-8').read()
+    props_src = io.open(os.path.join(HERE, '..', 'ppMF6', 'marmites_props.py'),
+                        encoding='utf-8').read()
+    build = 'props.model_from_config('
+    assert build in src, 'the run does not build its model description'
+    assert src.index(build) < src.index('conv_fact = ')
+    assert src.index(build) < src.index('props.apply_boundaries'), (
+        'the boundary rasters are read before the model description')
     # Applied through props.apply_hnoflo, which sets BOTH copies -- cMF's
     # and the raster reader's. Setting only cMF's split them, and every
     # NODATA cell of the drain rasters became a drain.
-    call = 'props.apply_hnoflo(cfg, cMF)'
-    assert call in src, 'the run never applies layers.hnoflo'
-    assert src.index(call) < src.index('conv_fact = '), (
+    mfc = props_src[props_src.index('def model_from_config'):]
+    mfc = mfc[:mfc.index('\ndef ')]
+    assert 'apply_hnoflo(cfg, cMF' in mfc, 'layers.hnoflo is never applied'
+    assert mfc.index('apply_hnoflo(') < mfc.index('land_surface('), (
         'hnoflo is applied after something has already used it')
-    assert src.index(call) < src.index('props.apply_boundaries'), (
-        'hnoflo is applied after the boundary rasters were read')
-    props_src = io.open(os.path.join(HERE, '..', 'ppMF6', 'marmites_props.py'),
-                        encoding='utf-8').read()
     body = props_src[props_src.index('def apply_hnoflo'):]
     body = body[:body.index('\ndef ')]
     assert 'cfg.layers.hnoflo' in body and 'proc.hnoflo' in body, (

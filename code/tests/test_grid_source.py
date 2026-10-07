@@ -12,6 +12,7 @@ the SOURCE rectangle it projects from.
 
 import importlib.util
 import os
+import re
 import sys
 
 import pytest
@@ -99,5 +100,12 @@ def test_the_origin_is_no_longer_hard_coded_in_the_driver():
     src = open(os.path.join(HERE, 'run_lamata_mf6.py'),
                encoding='utf-8').read()
     assert 'xllcorner=739300.0' not in src
-    assert 'props.dataset_grid(DS)' in src
-    assert 'props.check_grid(' in src
+    # the run builds through props.model_from_config (2026-10-07), which
+    # takes the grid from the rasters and checks them against it
+    assert re.search(r'props\.model_from_config\(\s*cfg, DS', src)
+    prp = open(os.path.join(HERE, '..', 'ppMF6', 'marmites_props.py'),
+               encoding='utf-8').read()
+    body = prp[prp.index('def model_from_config('):]
+    body = body[:body.index('\ndef ')]
+    assert 'dataset_grid(dataset_dir)' in body
+    assert 'check_grid(' in body
