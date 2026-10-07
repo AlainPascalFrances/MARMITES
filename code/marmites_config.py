@@ -813,6 +813,15 @@ class Layers:
     at. Asking for it again would be asking for something that has to agree
     with two other answers.
 
+    EVERY FIELD HERE IS THE ONLY SOURCE (2026-10-07). The legacy parameter
+    file (__inputMF_flopy_v3_*.ini) is no longer read by a run: a new
+    catchment has none. A property left blank stops the run naming the
+    field, instead of falling back on a file that does not exist.
+
+        strt        ModflowGwfic  strt -- the heads a COLD start begins from
+                    (no saved state, or one that does not fit); blank:
+                    elevation x a + b (spinup.strt_dem)
+
     IBOUND IS ASKED, and the catchment polygon does NOT replace it: the
     polygon is the outline, and which layers exist inside that outline is
     geology it cannot see. The polygon is used instead as the GEOGRAPHIC
@@ -846,6 +855,13 @@ class Layers:
     k33: VectorSource = field(default_factory=VectorSource)
     ss: VectorSource = field(default_factory=VectorSource)
     sy: VectorSource = field(default_factory=VectorSource)
+    # THE INITIAL HEADS of a cold start, per layer like the properties (user,
+    # 2026-10-07). A saved state (spinup.strt_heads) wins when it exists and
+    # fits; this is what the run starts from otherwise, and what fills a
+    # cell a saved state leaves without a value. They came from the
+    # parameter file's strt rasters (La Mata: MF_ws/hi_topL1.asc for both
+    # layers). Blank: elevation x a + b (spinup.strt_dem), said in the log.
+    strt: VectorSource = field(default_factory=VectorSource)
     # VERTICAL ANISOTROPY, the legacy LAYVKA in one flag instead of one
     # integer per layer. Every parameter set in the repository sets it the
     # same way for every layer (1 = the number is the ratio), so a per-layer
@@ -1408,6 +1424,12 @@ class Spinup:
     save_strt: str = ''            #                           (--save-strt)
     save_means: str = ''           #                           (--save-means)
     strt_dem: list = field(default_factory=list)   # [a, b]     (--strt-dem)
+    # The uniform recharge [m/d] of a cold start's STEADY first period when
+    # steady_means names no saved means -- and the infiltration written into
+    # the UZF input before the coupler overwrites it daily. It was the
+    # parameter file's finf_user (La Mata 0.2 mm/d), read by nothing else
+    # since the file went (2026-10-07).
+    steady_recharge: float = 2.0e-4
 
 
 @dataclass
@@ -1930,6 +1952,11 @@ class RunConfig:
             errs.append('spinup.cycles must be >= 1')
         if self.spinup.strt_dem and len(self.spinup.strt_dem) != 2:
             errs.append('spinup.strt_dem must be [] or [a, b]')
+        if not float(self.spinup.steady_recharge) >= 0.0:
+            errs.append('spinup.steady_recharge must be >= 0 (m/d)')
+        if self.layers.strt.producer() == 'layer':
+            errs.append('layers.strt cannot be a polygon layer: give a raster '
+                        '(per layer with %d) or one value')
         if not (0.0 < self.crr.beta <= 1.0):
             errs.append('crr.beta must be in (0, 1]')
         if self.crr.sinks not in ('evaporate', 'route'):

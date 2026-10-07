@@ -211,6 +211,18 @@ something a regression.
   values are NOT reloaded on a retry; only PERIOD blocks reset them. A split
   period's rates are booked as **sub-step means** (SUBSTEP_RATES). Results
   file: `MF6Coupler.RESULTS_H5` = `_coupled_lagged.h5` (name kept).
+- **NO LEGACY PARAMETER FILE** (user, 2026-10-07: "nothing can come from
+  the legacy ini files" -- a new catchment has none). A run builds its model
+  description with `clsMF.from_config` (scalars from the TOML) and
+  marmites_props (arrays): grid = the dataset rasters' grid; nlay, hnoflo,
+  model name from the panel; land surface = `[grid] dem` wrapped onto the
+  dataset grid (`land_surface`, REQUIRED); every layer property REQUIRED
+  (`apply_layer_properties(required=True)`); cold-start heads =
+  `layers.strt` (blank: elevation x a + b, `spinup.strt_dem`); cold steady
+  recharge = `spinup.steady_recharge`; DRN/GHB counts from the cells built.
+  The dataset is `mm_paths.dataset_dir(paths.case)` (it was the driver's own
+  `<repo>/example/LaMata`). The parsing constructor `clsMF(..., MF_ini_fn)`
+  survives only for the legacy NWT scripts and some test fixtures.
 - MF6 top = **soil base** (top = land − soil thickness). The land surface is
   `clsMF6._land_surface()` (cMF.elev). UZF extdp = roots below the soil.
 - **Groundwater ET = EVT, the only coupled path** (user, 2026-10-07:
@@ -297,9 +309,13 @@ something a regression.
 Done: WP0, WP1, WP1b, WP1c (meshes), WP2 (three-source ET), WP3 (SFR), WP4
 (LAK), WP5 (CRR), WP6.3 (soil moisture at depth figure), WP6.4 (obs
 exports), EVT route; 2026-10-07: the WEL route for Eg/Tg and the iterative
-coupling removed (EVT and lagged are the only paths; §4). **Not yet run on
-La Mata**: verified by tests and a build + MF6-initialize (probe) check in a
-scratch workspace.
+coupling removed (EVT and lagged are the only paths; §4), and **no legacy
+parameter file read by a run** (§4). The run of 2026-10-07 (WEL/iterative
+removal) was launched by the user before the parameter-file change. The
+parameter-file change is verified by tests and by a build + MF6 initialize
+from a copy of the La Mata dataset with every .ini deleted: the MF6 input it
+writes equals the parameter-file build to 5e-13 (initial heads differ only
+in inactive cells, UZF extdp by 3e-7 m).
 
 Recent runs (La Mata, 4566-cell Voronoi mesh: 20 m stream corridor ratio 2,
 40 m pond cells; 2 layers; 1-year spin-up cycles):
@@ -337,24 +353,30 @@ Recent runs (La Mata, 4566-cell Voronoi mesh: 20 m stream corridor ratio 2,
 
 ## 7. Next steps (in order)
 
-1. **User reruns La Mata after the 2026-10-07 removal** (WEL route,
-   iterative mode), from the X: checkout. Expect the EVT-fix run's results
-   to the digit except the run tag (now `<nlay>lay` by default) and no WEL
-   in the budget; the log says the three retired keys are gone until the
-   config is saved from a panel. Restart Streamlit first.
-2. **WEL for real boreholes/extraction** (when the user wants it): a `[wel]`
+1. **User checks the runs of 2026-10-07** (WEL/iterative removal; then the
+   parameter-file removal). Expect the EVT-fix run's results to the digit
+   but the run tag (`<nlay>lay` by default), no WEL in the budget, the three
+   retired keys reported until the config is saved from a panel, and a log
+   that names no parameter file. On the panel: `layers.strt` (initial heads
+   of a cold start; La Mata's old file gave MF_ws/hi_topL1.asc for both
+   layers) and `spinup.steady_recharge` are new. Restart Streamlit first.
+2. **Test fixtures off the parameter file** (small): tests that build
+   `clsMF` from `__inputMF_flopy_v3_2s1L.ini` as a fixture (test_mf6_build,
+   test_lak_ponds, ...) should use `clsMF.from_config`; then the parser and
+   the file can go with the legacy NWT scripts.
+3. **WEL for real boreholes/extraction** (when the user wants it): a `[wel]`
    section on a panel, plain MF6 input with the coupler hands-off; WEL =
    pumping in the balance, maps and Sankey -- relabel the post-processing's
    WEL term ('ET (groundwater)' today, for old WEL-route runs).
-3. **Exact package budgets in post-processing** (small, before 6.6).
+4. **Exact package budgets in post-processing** (small, before 6.6).
    `package_budget` should read every record (time-weighted, about 40 s per
    cbc on La Mata), or the per-period means. `layer_storage_change` should
    be time-weighted too. See the §5 trap.
-4. Validate WP6.3 figures (`sm_depth_<pt>.png`) on real output.
-5. WP6 remainder: 6.2 (pond volume panels, MVR accounting, water-balance
+5. Validate WP6.3 figures (`sm_depth_<pt>.png`) on real output.
+6. WP6 remainder: 6.2 (pond volume panels, MVR accounting, water-balance
    graphs), 6.5 (calibcrit groups for streamflow and ET), 6.6 (Results page:
    run picker, run-to-run comparison).
-6. **WP7 PEST++-IES** on the obs exports. Lessons from the CdL calibration:
+7. **WP7 PEST++-IES** on the obs exports. Lessons from the CdL calibration:
    draw the prior ensemble from the geostatistical structure (pyEMU
    `pf.draw` → `prior_pe.jcb`, `ies_parameter_ensemble`). A diagonal
    bounds-only prior gave spatially white pilot points, checkerboard K, 58% of
@@ -362,4 +384,4 @@ Recent runs (La Mata, 4566-cell Voronoi mesh: 20 m stream corridor ratio 2,
    `ies_autoadaloc`, ~150 realisations, and check posterior Moran's I and
    bound-hitting. The forward run must complete (physical-plausibility gate).
    Runs at that scale belong on a server.
-7. WP8 hygiene.
+8. WP8 hygiene.

@@ -568,6 +568,15 @@ FIELDS = {
     'layers.sy': ('Specific yield', _U,
                   'flopy: `ModflowGwfsto(sy=)`. Per layer, by the same `%d` '
                   'rule as the thickness.'),
+    'layers.strt': ('Initial heads of a cold start', 'm a.s.l.',
+                    'flopy: `ModflowGwfic(strt=)` when the run does NOT start '
+                    'from a saved state (none named under *Initial heads*, '
+                    'or one that does not fit this grid) -- and the value '
+                    'of any cell a saved state leaves empty. Per layer, by '
+                    'the same `%d` rule as the thickness; one raster for '
+                    'every layer is allowed (La Mata\'s legacy parameter file '
+                    'gave MF_ws/hi_topL1.asc to both). Blank: elevation x a '
+                    '+ b (*Initial head from the DEM*).'),
     'ghb.enable': ('General-head boundary (GHB)', _U,
                    'Builds `ModflowGwfghb`. Off is `ghb_yn = 0` in the '
                    'parameter file, and nothing below is read.'),
@@ -868,14 +877,22 @@ FIELDS = {
                           'with NO steady period (MF6 ignores initial heads '
                           'in one). The list shows every state there, when it '
                           'was saved, on how many cells, and whether it fits '
-                          'the grid this run uses. None starts from the DEM '
-                          '(elevation x a + b) through a steady period.'),
+                          'the grid this run uses. None starts COLD, from '
+                          '*Initial heads of a cold start* (or, blank, from the '
+                          'DEM: elevation x a + b) through a steady period.'),
     'spinup.steady_means': ('Steady-state means', _U,
                             'Per-cell mean recharge and groundwater ET of an '
                             'earlier run (<name>_perc.asc, <name>_etg.asc), '
-                            'driving the steady first period. Only a run that '
-                            'starts from the DEM has one; none drives it with '
-                            'one uniform recharge and no groundwater ET.'),
+                            'driving the steady first period. Only a cold '
+                            'start has one; none drives it with the uniform '
+                            'recharge below and no groundwater ET.'),
+    'spinup.steady_recharge': ('Recharge of a cold steady period', 'm/d',
+                               'The uniform recharge a cold start\'s steady '
+                               'first period takes when no steady means are '
+                               'picked -- and what the UZF input file holds '
+                               'before the coupler writes each day\'s '
+                               'percolation over it. 0.0002 m/d (0.2 mm/d) was '
+                               'the legacy parameter file\'s finf_user.'),
 
     # ---- panel 6: plots ------------------------------------------------
     'postproc.enable': ('Output maps and plots', _U,
@@ -1022,8 +1039,9 @@ FIELDS = {
                           'for both. Only the command line (--save-means) '
                           'names them apart.'),
     'spinup.strt_dem': ('Initial head from the DEM', _U,
-                        '[a, b] gives head = a*elevation + b. Empty uses the '
-                        'configured initial condition.'),
+                        '[a, b] gives head = a*elevation + b, for a cold start '
+                        'when *Initial heads of a cold start* is blank. Empty '
+                        'uses [1, -2]: 2 m below the land surface.'),
 }
 
 
@@ -1121,6 +1139,12 @@ GEOMETRY_ROWS = (
     (None, 'layers.k33_as_ratio'),
     ('layers.ss', 'layers.sy'),
     ('layers.convertible', None),
+)
+# The heads a cold start begins from: a layer property, asked on the
+# initial-heads tab beside the saved states it stands in for (2026-10-07;
+# the legacy parameter file's strt rasters before).
+COLD_START_ROWS = (
+    ('layers.strt', None),
 )
 
 # ---- panel 4: the boundary packages --------------------------------------

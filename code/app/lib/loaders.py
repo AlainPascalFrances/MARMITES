@@ -74,8 +74,11 @@ def read_table(path):
 # The Tier-A inventory, grouped the way example/<case>/README.md groups it, so
 # the page and the README cannot drift apart.
 TIER_A_GROUPS = [
+    # The legacy MODFLOW parameter file (MF_ws/__inputMF_flopy_v3_*.ini) is
+    # not an input any more (2026-10-07): the configuration answers what it
+    # did, and a new catchment has none. inputSOILparam.txt is imported once
+    # on the Soil panel and never read by a run.
     ('Run control & parameters', [
-        'MF_ws/__inputMF_flopy_v3_2s1L.ini', 'MF_ws/__inputMF_flopy_v3_2s1L.ini',
         'MF_ws/inputSOILparam.txt']),
     # WP1d: MMsurf's OUTPUT, produced when run.surface is on and consumed
     # as-is when it is off; its inputs are the meteorological record, the

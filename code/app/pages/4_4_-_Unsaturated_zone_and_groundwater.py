@@ -268,7 +268,7 @@ with tab_init:
     with c1:
         strt = panelui.state_picker(
             cfg, 'spinup.strt_heads', state_dir, grid_now,
-            'none - start from the DEM, through a steady period')
+            'none - a cold start, through a steady period')
     with c2:
         means = panelui.state_picker(
             cfg, 'spinup.steady_means', state_dir, grid_now,
@@ -279,6 +279,14 @@ with tab_init:
                        'period to drive.')
     edited['spinup.strt_heads'] = strt
     edited['spinup.steady_means'] = means
+    # what a COLD start begins from -- no saved state, or one that does not
+    # fit -- and what fills a cell a saved state leaves empty
+    st.markdown('##### A cold start')
+    edited.update(panelui.rows_form(cfg, schema.COLD_START_ROWS, 'layers',
+                                    columns=2))
+    if not cfg.layers.strt.producer():
+        st.caption('Blank: a cold start begins at elevation x a + b '
+                   '(*Initial head from the DEM*, above).')
 
     st.markdown('#### Where the run ends')
     # ONE name for the end state. The heads (+ _state.npz) and the steady
@@ -303,9 +311,10 @@ with tab_init:
                    'saves as `hi_spinup` anyway.')
     st.markdown('')
     if not strt and cycles > 1:
-        st.info('**This run is a spin-up.** It starts cold, from the DEM '
-                '(`spinup.strt_dem`, elevation - 2 m by default) through a '
-                'steady period, repeats the forcing up to %d times until the '
+        st.info('**This run is a spin-up.** It starts cold, from the initial '
+                'heads of a cold start (or, blank, from the DEM: elevation '
+                '- 2 m by default) through a steady period, repeats the '
+                'forcing up to %d times until the '
                 'water table moves less than %g m between cycles, and saves '
                 'where it ends as `%s`. Then pick `%s` under *Initial heads* '
                 'and set cycles to 1 for the runs that follow.'

@@ -3,10 +3,13 @@
 
 Phase-1 port (2026): the MODFLOW-NWT model construction and run (runMF)
 were removed together with the MM-MF Picard loop (MARMITES_code_review.md,
-section 6). This class now only (1) parses the MF ini file, (2) imports
-the spatial arrays, and (3) computes the stress-period discretization
-(ppMFtime). Phase 3 replaces it by clsMF6 (flopy.mf6 construction +
-MODFLOW 6 API coupling driver).
+section 6). This class now holds the model description the MF6 build reads
+and computes the stress-period discretization (ppMFtime).
+
+A RUN BUILDS IT WITH ``clsMF.from_config`` (2026-10-07): from the
+configuration and the dataset, with no parameter file -- a new catchment
+has no __inputMF_flopy_v3_*.ini. The constructor that parses one is kept
+for the legacy NWT scripts and a few test fixtures only.
 """
 
 __author__ = "Alain P. Francés <frances.alain@gmail.com>"
@@ -600,6 +603,82 @@ class clsMF():
         self.array_ini(MF_ws = self.MF_ws, stdout = stdout, report = report)
 
 ####################################
+
+    @classmethod
+    def from_config(cls, cUTIL, MM_ws, MM_ws_out, MF_ws, grid, nlay, hnoflo,
+                    modelname, steady_recharge=2.0e-4):
+        """The model description WITHOUT the parameter file (2026-10-07).
+
+        A new catchment has no __inputMF_flopy_v3_*.ini, so a run must not
+        need one: everything it took from the file is either answered by
+        the configuration or was a MODFLOW-2005/NWT setting MF6 has no use
+        for. This sets the scalars the MF6 path reads, under the names the
+        parser used, and builds the raster reader; the arrays -- land
+        surface, layers, initial heads, the unsaturated zone, the
+        boundaries -- are filled by ppMF6.marmites_props from the
+        configuration and the dataset, before anything reads them.
+
+        grid             (xll, yll, nrow, ncol, cellsize) -- the dataset
+                         rasters' grid, the one the Grid panel defined
+        nlay, hnoflo     [layers] nlay, hnoflo
+        modelname        meta.model (or the case)
+        steady_recharge  spinup.steady_recharge [m/d], the parser's
+                         perc_user (finf_user)
+        """
+        self = cls.__new__(cls)
+        self.cUTIL = cUTIL
+        self.MM_ws, self.MM_ws_out, self.MF_ws = MM_ws, MM_ws_out, MF_ws
+        self.MF_ini_fn = None              # there is no parameter file
+        self.numDays = -1
+        self.h5_MF_fn = os.path.join(self.MF_ws, '_h5_MF.h5')
+        self.modelname = str(modelname)
+        self.version = 'mf6'
+        g_xll, g_yll, g_nrow, g_ncol, g_cell = grid
+        self.nrow, self.ncol = int(g_nrow), int(g_ncol)
+        self.delr = [float(g_cell)] * self.ncol
+        self.delc = [float(g_cell)] * self.nrow
+        self.xllcorner, self.yllcorner = float(g_xll), float(g_yll)
+        self.reggrid = 1
+        self.nlay = int(nlay)
+        self.hnoflo = float(hnoflo)
+        self.hdry = None                   # MF6 has no dry-cell sentinel
+        # the time discretisation is ppMFtime's, from the forcing record;
+        # nper is read by it as the LONGEST a period may be (the driver
+        # sets it from run.daily / run.perlen_max)
+        self.nper = 1
+        self.perlen, self.nstp, self.tsmult, self.Ss_tr = [], [], [], []
+        self.itmuni, self.lenuni = 4, 2    # days, metres -- always
+        # set from [layers] by marmites_props.apply_layer_properties
+        self.laytyp = [1] * self.nlay
+        self.layvka = [1] * self.nlay
+        # the unsaturated zone is always simulated (WP2); its numbers are
+        # [uzf]'s, set by marmites_props.apply_uzf
+        self.uzf_yn = 1
+        self.iuzfopt, self.ntrail2, self.nsets, self.surfdep = 2, 15, 500, 0.25
+        self.vks = self.vks_actual = None
+        self.perc_user = float(steady_recharge)
+        # boundary packages: off until [ghb] / [drn] build them
+        # (marmites_props.apply_boundaries); counted per layer once built
+        self.ghb_yn = self.drn_yn = 0
+        self.ghbcells = [0] * self.nlay
+        self.drncells = [0] * self.nlay
+        self.rch_yn = 0
+        # In MARMITESplot `wel_yn == 1` draws the GROUNDWATER-ET terms (Eg,
+        # Tg): in the NWT model ETg was a WEL. The coupled run always has
+        # groundwater ET (EVT), so it is 1 whatever WEL holds -- an old
+        # name for "groundwater ET is drawn", not a package switch.
+        self.wel_yn = 1
+        # every layer's heads are plotted, labelled by the layer number:
+        # what every parameter file in the repository said (h_plt, h_lbl)
+        self.h_plt = [1] * self.nlay
+        self.h_lbl = [str(L + 1) for L in range(self.nlay)]
+        self.cPROCESS = MMproc.clsPROCESS(
+            cUTIL=self.cUTIL, MM_ws=self.MM_ws, MM_ws_out=self.MM_ws_out,
+            MF_ws=self.MF_ws, nrow=self.nrow, ncol=self.ncol,
+            nlay=self.nlay, xllcorner=self.xllcorner,
+            yllcorner=self.yllcorner, cellsizeMF=self.delr[0],
+            hnoflo=self.hnoflo)
+        return self
 
     def array_ini(self, MF_ws, stdout = None, report = None):
 

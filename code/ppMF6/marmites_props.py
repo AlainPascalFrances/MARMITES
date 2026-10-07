@@ -559,16 +559,30 @@ def apply_hnoflo(cfg, cMF, verbose=True):
     return note
 
 
-def apply_layer_properties(cfg, cMF, dataset_dir, verbose=True):
+def apply_layer_properties(cfg, cMF, dataset_dir, verbose=True,
+                           required=False):
     """Put the configured layer properties into ``cMF``. Returns what it did.
 
     Called straight after ``clsMF`` is built, before the cell list, the soil
-    model or the MF6 packages read anything from it. Every property the
-    configuration does not answer is left exactly as the ini parsed it.
+    model or the MF6 packages read anything from it. ``required`` (a run,
+    since 2026-10-07: there is no parameter file to fall back on) refuses a
+    property the configuration leaves blank, naming it; without it a blank
+    property is left as the object already had it.
     """
     if cfg is None:
         return []
     done = []
+    if required:
+        blank = ['layers.%s' % field for field, _a, _l in PROPERTIES
+                 if getattr(cfg.layers, field, None) is None
+                 or getattr(cfg.layers, field).producer() is None]
+        if blank:
+            raise PropertyError(
+                '%s %s not answered. The run takes every layer property from '
+                'the configuration -- the legacy MODFLOW parameter file is no '
+                'longer read -- so give each a raster (per layer with %%d) or '
+                'one value on the Unsaturated zone and groundwater panel.'
+                % (', '.join(blank), 'is' if len(blank) == 1 else 'are'))
 
     # The flags first: one answer per model, fanned out over the layers the
     # way the ini spelled it out. They are unconditional -- unlike the
@@ -643,6 +657,139 @@ def _recompute_botm(cMF):
         cMF.botm = np.ma.masked_values(
             np.asarray(cMF.botm).reshape((1, cMF.nrow, cMF.ncol)),
             cMF.hnoflo, atol=0.09)
+
+
+# =====================================================================
+#  What the legacy parameter file supplied and the configuration now does
+# =====================================================================
+# 2026-10-07 (user): a run reads no __inputMF_flopy_v3_*.ini -- a new
+# catchment has none. clsMF.from_config sets the scalars; these fill the
+# arrays the parser loaded: the land surface (the file named elev_*.asc),
+# the initial heads (its strt rasters) and the UZF footprint (its iuzfbnd
+# raster). The layer properties, the UZF and the boundaries were already
+# the panel's (apply_layer_properties, apply_uzf, apply_boundaries).
+
+
+def land_surface(cfg, cMF, dataset_dir, cache_dir=None, verbose=True):
+    """The land surface on the dataset grid, from the DEM panel 1 names.
+
+    The parameter file named a 50 m elevation raster (La Mata:
+    elev_sinkfil.asc). The DEM in the dataset ([grid] dem, copied there by
+    the converter) is wrapped onto the dataset grid instead -- the same
+    wrap that later puts it on the mesh (_apply_dem in the driver), which
+    then moves top and botm by the difference, so the model it ends with
+    does not depend on this first elevation at all. A cell the DEM does not
+    reach holds hnoflo; check_land_surface refuses an ACTIVE one.
+    """
+    import marmites_dem as mdem
+    from marmites_grid import disv_from_structured
+    dem = (getattr(getattr(cfg, 'grid', None), 'dem', '') or '').strip()
+    if not dem:
+        raise PropertyError(
+            '[grid] dem is blank. The land surface comes from the DEM panel 1 '
+            'names -- there is no parameter file to take an elevation raster '
+            'from any more.')
+    path = mdem.dem_path(dataset_dir)
+    if not os.path.exists(path):
+        raise PropertyError(
+            '[grid] dem is %r but %s is not in the dataset %s -- run the '
+            'converter (code/tools/gis_to_dataset.py, or Launch on the Grid '
+            'panel).' % (dem, os.path.basename(path), dataset_dir))
+    verts, cell2d, ncpl = disv_from_structured(
+        cMF.delr, cMF.delc, float(cMF.xllcorner), float(cMF.yllcorner))
+    gp = {'vertices': verts, 'cell2d': cell2d, 'ncpl': ncpl,
+          'nlay': int(cMF.nlay)}
+    wrapped, _info = mdem.wrap_to_grid(path, gp, cache_dir=cache_dir,
+                                       warn=lambda m: print('WARNING: %s' % m))
+    elev = np.ma.filled(np.ma.asarray(wrapped, dtype=float),
+                        float(cMF.hnoflo)).reshape(int(cMF.nrow),
+                                                   int(cMF.ncol))
+    elev = np.where(np.isfinite(elev), elev, float(cMF.hnoflo))
+    cMF.elev = elev
+    note = ('land surface on the dataset grid: %s, wrapped onto %d x %d cells'
+            % (dem, int(cMF.nrow), int(cMF.ncol)))
+    if verbose:
+        print(note)
+    return note
+
+
+def check_land_surface(cMF):
+    """Every ACTIVE cell has an elevation, or the run stops naming how many."""
+    elev = np.asarray(cMF.elev, dtype=float)
+    active = (np.abs(np.asarray(cMF.ibound, dtype=int)) != 0).any(axis=0)
+    hole = active & (np.abs(elev - float(cMF.hnoflo)) < 0.09)
+    if hole.any():
+        raise PropertyError(
+            'the DEM does not reach %d active cell(s) of the dataset grid: '
+            'the land surface must cover the whole active domain. Extend the '
+            'DEM, or check that it and the rasters are in the same '
+            'coordinate system.' % int(hole.sum()))
+
+
+def initial_heads(cfg, cMF, dataset_dir, verbose=True):
+    """The heads of a COLD start, per layer: ``layers.strt`` (user,
+    2026-10-07), or -- blank -- elevation x a + b (spinup.strt_dem).
+
+    They are what a run starts from when it has no saved state that fits,
+    and what fills a cell a saved state leaves without a value (clsMF6
+    _strt). The parameter file named them (La Mata: hi_topL1.asc for both
+    layers). Sets ``cMF.strt`` (nlay, nrow, ncol); returns the description
+    the log prints.
+    """
+    nlay = int(cMF.nlay)
+    src = getattr(cfg.layers, 'strt', None)
+    values = (None if src is None else
+              resolve_source(src, nlay, dataset_dir, 'layers.strt'))
+    if values is not None:
+        strt = np.asarray(cMF.cPROCESS.float2array(
+            cMF.cPROCESS.checkarray(values)), dtype=float)
+        what = 'layers.strt, %s' % (src.raster or ('%g m' % src.value))
+    else:
+        a, b = tuple(getattr(cfg.spinup, 'strt_dem', ()) or ()) \
+            or DEFAULT_STRT_DEM
+        elev = np.asarray(cMF.elev, dtype=float)
+        h0 = np.where(np.abs(elev - float(cMF.hnoflo)) < 0.09,
+                      float(cMF.hnoflo), float(a) * elev + float(b))
+        strt = np.repeat(h0[np.newaxis, :, :], nlay, axis=0)
+        what = ('elevation x %g %+g m (layers.strt is blank; spinup.strt_dem)'
+                % (float(a), float(b)))
+    cMF.strt = strt.reshape(nlay, int(cMF.nrow), int(cMF.ncol))
+    if verbose:
+        print('initial heads of a cold start: %s' % what)
+    return what
+
+
+def uzf_footprint(cMF):
+    """Where a UZF column exists: every map cell active in some layer.
+
+    The parameter file pointed iuzfbnd at a raster (La Mata: ibound_l1.asc);
+    the build places the UZF objects by the active cells itself (outcropL),
+    so this only keeps the attribute the mesh projection carries."""
+    cMF.iuzfbnd = (np.abs(np.asarray(cMF.ibound, dtype=int)) != 0
+                   ).any(axis=0).astype(int)
+    return cMF.iuzfbnd
+
+
+def boundary_cell_counts(cMF):
+    """``drncells`` / ``ghbcells``, per layer, from the records BUILT.
+
+    MARMITESplot draws a layer's DRN or GHB term only where the count is
+    positive. The parser counted the cells of its own rasters -- whatever
+    the panel then built -- so they could disagree with the drains that
+    exist (La Mata's drains come from a line, placed on the run's grid)."""
+    nlay = int(cMF.nlay)
+    for attr, recs in (('drncells', 'layer_row_column_elevation_cond'),
+                       ('ghbcells', 'layer_row_column_head_cond')):
+        n = np.zeros(nlay, dtype=int)
+        r = getattr(cMF, recs, None)
+        spds = (r.values() if isinstance(r, dict) else (r or ()))
+        for spd in list(spds)[:1]:
+            for rec in spd:
+                L = int(rec[0])
+                if 0 <= L < nlay:
+                    n[L] += 1
+        setattr(cMF, attr, n)
+    return cMF.drncells, cMF.ghbcells
 
 
 # =====================================================================
@@ -1180,7 +1327,13 @@ def dataset_grid(dataset_dir):
 
 
 def check_grid(cMF, dataset_dir, strict=True, verbose=True):
-    """Does the parameter file describe the grid the rasters are on?
+    """Is ``cMF`` on the grid the dataset's rasters are on?
+
+    Since 2026-10-07 a run takes its grid FROM those rasters
+    (clsMF.from_config), so this is what says which grid it is -- and
+    warns about any raster that sits on another. A model object built some
+    other way (the legacy parameter file, still used by a few tests) is
+    refused when it disagrees.
 
     Returns the rectangle the rasters declare, or None when the dataset
     holds no raster to compare against -- a new catchment, where there is
@@ -1205,12 +1358,11 @@ def check_grid(cMF, dataset_dir, strict=True, verbose=True):
         bad.append('yll %g vs %g' % (cMF.yllcorner, yll))
     if bad and strict:
         raise GridMismatch(
-            'the MODFLOW parameter file and the dataset rasters describe '
-            'different grids (%s). The rasters win -- they are what the '
-            'converter wrote onto the grid the Grid panel defined -- but '
-            'every array has already been read with the parameter file\'s '
-            'shape, so this cannot be corrected here. Rebuild the dataset '
-            'from the Grid panel, or fix the parameter file.\n'
+            'the model object and the dataset rasters describe different '
+            'grids (%s). The rasters win -- they are what the converter wrote '
+            'onto the grid the Grid panel defined -- but every array has '
+            'already been read with the other shape, so this cannot be '
+            'corrected here. Rebuild the dataset from the Grid panel.\n'
             '  %d raster(s) agree on %r%s'
             % ('; '.join(bad), len(names), rect,
                ''.join('\n  %d other(s) disagree among themselves: %r'
@@ -1220,10 +1372,14 @@ def check_grid(cMF, dataset_dir, strict=True, verbose=True):
             print('WARNING: %d raster(s) do not sit on the model grid: %s'
                   % (sum(len(n) for _r, n in others),
                      ', '.join(n[0] for _r, n in others)))
-        print('grid: %d x %d cells of %g m at (%g, %g), from %d dataset '
-              'raster(s)%s' % (nrow, ncol, cell, xll, yll, len(names),
-                               '' if not bad else ' -- MISMATCH: %s'
-                               % '; '.join(bad)))
+        # The DATASET's raster grid, which the model is assembled on before
+        # any mesh projection -- not necessarily the grid MF6 runs on, so it
+        # is not called just "grid". Coordinates in full: %g printed
+        # 4553050 as 4.55305e+06 (2026-10-07).
+        print('dataset grid: %d x %d cells of %g m, lower-left (%.1f, %.1f), '
+              'shared by %d raster(s)%s'
+              % (nrow, ncol, cell, xll, yll, len(names),
+                 '' if not bad else ' -- MISMATCH: %s' % '; '.join(bad)))
     return rect
 
 
@@ -1324,7 +1480,9 @@ DEFAULT_STRT_DEM = (1.0, -2.0)
 def resolve_initial_heads(cfg, state_dir, verbose=True, grid=None):
     """How this run should start. ``(kind, payload, why)``.
 
-    kind is 'saved' (payload = the prefix), or 'dem' (payload = (a, b)).
+    kind is 'saved' (payload = the prefix); for a COLD start 'strt'
+    (payload None: the heads are layers.strt, put into cMF.strt by
+    initial_heads) or, when layers.strt is blank, 'dem' (payload = (a, b)).
     ``why`` is the human sentence explaining the choice -- empty when the
     saved state was simply usable. ``grid`` is the grid the run uses,
     ``{'shape': (nrow, ncol), 'signature': ...}``: a state saved on another
@@ -1334,35 +1492,39 @@ def resolve_initial_heads(cfg, state_dir, verbose=True, grid=None):
 
     prefix = (getattr(cfg.spinup, 'strt_heads', '') or '').strip()
     dem = tuple(getattr(cfg.spinup, 'strt_dem', ()) or ()) or DEFAULT_STRT_DEM
+    _strt = getattr(cfg.layers, 'strt', None)
+    strt = _strt is not None and _strt.producer() is not None
 
-    if not prefix:
-        why = ('no saved state is named, so the water table starts at '
-               'elevation * %g %+g m' % dem)
+    def cold(reason):
+        """A cold start: layers.strt, or the DEM when that is blank."""
+        if strt:
+            why = '%s, so the run starts from layers.strt (%s)' % (
+                reason, _strt.raster or ('%g m' % _strt.value))
+            kind, payload = 'strt', None
+        else:
+            why = ('%s, so the water table starts at elevation * %g %+g m '
+                   '(layers.strt is blank)' % ((reason,) + tuple(dem)))
+            kind, payload = 'dem', dem
         if verbose:
             print('initial heads: %s' % why)
-        return 'dem', dem, why
+        return kind, payload, why
+
+    if not prefix:
+        return cold('no saved state is named')
 
     missing = [os.path.basename(p)
                for p in _state_files(state_dir, prefix, int(cfg.layers.nlay))
                if not os.path.exists(p)]
     if missing:
-        why = ('%s is named but %s not in %s, so the water table starts '
-               'at elevation * %g %+g m instead'
-               % (prefix, ', '.join(missing), state_dir, dem[0], dem[1]))
-        if verbose:
-            print('initial heads: %s' % why)
-        return 'dem', dem, why
+        return cold('%s is named but %s not in %s'
+                    % (prefix, ', '.join(missing), state_dir))
 
     # the heads only: steady means that do not fit are dropped on their
     # own, and are not used at all by a run from saved heads
     problem = mcfg.state_problem(cfg, state_dir, grid=grid,
                                  keys=('spinup.strt_heads',))
     if problem:
-        why = ('%s   Starting from elevation * %g %+g m instead of refusing '
-               'to run.' % (problem, dem[0], dem[1]))
-        if verbose:
-            print('initial heads: %s' % why)
-        return 'dem', dem, why
+        return cold('%s   Starting cold instead of refusing to run' % problem)
 
     if verbose:
         print('initial heads: the saved state %s (it belongs to this grid '

@@ -157,15 +157,14 @@ def _forcing(cfg):
 def _apply_dem(cMF, cfg, dataset_dir, cache_dir=None):
     """Take the land surface from the DEM panel 1 names. ``(applied, note)``.
 
-    THE FRONT-END FIELD IS THE SWITCH. ``[grid] dem`` names the raster on
-    panel 1; when it is set and the converter has copied it into the dataset,
-    the surface comes from there. Blank -- a case that has no DEM -- and the
-    model keeps the elevation raster the MF parameter file names, exactly as
-    before. There is no separate flag to forget to set.
+    ``[grid] dem`` names the raster on panel 1 and the converter copies it
+    into the dataset. It is REQUIRED (2026-10-07): marmites_props.
+    land_surface already took the surface from it on the dataset grid, and
+    there is no parameter-file elevation raster to fall back on any more.
 
-    Wrapped onto THE GRID THIS RUN USES, after any mesh projection, so the
-    survey is resampled once instead of twice. On La Mata the difference
-    between the two is 0.65 m rms and 4.4 m at worst.
+    Wrapped onto THE GRID THIS RUN USES, after any mesh projection: on the
+    dataset grid itself this changes nothing, and on a mesh it puts the
+    survey on the mesh cells instead of the 50 m average projected there.
 
     THE SURFACE MOVES AND THE THICKNESSES DO NOT: top and every botm are
     shifted by the same delta as elev. The DEM refines where the ground is;
@@ -176,13 +175,13 @@ def _apply_dem(cMF, cfg, dataset_dir, cache_dir=None):
     import marmites_dem as mdem
 
     if not getattr(cfg, 'grid', None) or not cfg.grid.dem:
-        return False, 'no [grid] dem: the land surface is the MF ini raster'
+        return False, ('no [grid] dem: the land surface stays as the dataset '
+                       'grid had it')
     path = mdem.dem_path(dataset_dir)
     if not os.path.exists(path):
         return False, ('[grid] dem is %r but %s is not in the dataset -- run '
-                       'code/tools/gis_to_dataset.py. The land surface is the '
-                       'MF ini raster.' % (cfg.grid.dem,
-                                           os.path.basename(path)))
+                       'code/tools/gis_to_dataset.py.'
+                       % (cfg.grid.dem, os.path.basename(path)))
     gp = getattr(cMF, 'mesh_gridprops', None)
     if gp is None:
         from marmites_grid import disv_from_structured
@@ -614,103 +613,82 @@ def _state_out(a, pref):
     return os.path.join(a.state_dir, pref)
 
 
-# ONE parameter file. La Mata used to carry two, at two vertical
-# resolutions, and --nlay chose between them -- so "how many layers" was
-# really "which of the two files exists". The number of layers is a panel
-# field now (MODFLOW aquifer layers -> Aquifer layers), and what the file
-# still supplies is being emptied section by section.
-MF_INI = '__inputMF_flopy_v3_2s1L.ini'
+# NO PARAMETER FILE (user, 2026-10-07). A run used to start by parsing
+# example/<case>/MF_ws/__inputMF_flopy_v3_2s1L.ini and let the panels
+# override it section by section. A new catchment has no such file, so the
+# model description is built from the configuration and the dataset alone
+# (clsMF.from_config + marmites_props); the file, where one still lies
+# around, is not opened.
 
 
 def setup_lamata(daily=True, nsp=None, grid='dis', nlay=None,
                  cfg=None, mesh_ws=None):
     """Replicate the driver setup; returns (cMF, mm, ctx, state, top, botm).
 
-    ``nlay`` is checked against the parameter file rather than choosing
-    between two of them: the layer count is a panel field now.
+    ``cfg`` is REQUIRED: everything the model is comes from it and from the
+    dataset (``DS``) -- the legacy MODFLOW parameter file is not read.
+    ``nlay`` is accepted for the old call sites and must agree with
+    ``cfg.layers.nlay``.
 
-    ``cfg`` (WP1c.1) enables the unstructured path. When ``cfg.grid_kind`` is
-    a genuine mesh producer -- 'quadtree', later 'voronoi' -- the model is
-    built on the structured raster exactly as before and then PROJECTED onto
-    the mesh (``marmites_mesh.project_model``). The returned ``cMF`` then
-    carries ``mesh_gridprops`` and ``mesh_proj``, and its arrays are
-    ``(ncpl, 1)``; see ``marmites_mesh`` for why that shape makes the rest of
-    the code work unchanged. 'structured' and 'disv' never project: they are
-    the regression anchor and must stay byte-identical.
+    When ``cfg.grid_kind`` is a genuine mesh producer -- 'quadtree',
+    'voronoi' -- the model is built on the dataset's structured raster grid
+    and then PROJECTED onto the mesh (``marmites_mesh.project_model``). The
+    returned ``cMF`` then carries ``mesh_gridprops`` and ``mesh_proj``, and
+    its arrays are ``(ncpl, 1)``; see ``marmites_mesh`` for why that shape
+    makes the rest of the code work unchanged.
     """
-    ini_fn = MF_INI
+    if cfg is None:
+        raise SystemExit('setup_lamata needs the run configuration: the '
+                         'model is built from it, not from a parameter file')
+    if nlay is not None and int(nlay) != int(cfg.layers.nlay):
+        raise SystemExit('nlay %d disagrees with layers.nlay = %d'
+                         % (int(nlay), int(cfg.layers.nlay)))
     cUTIL = MMutils.clsUTILITIES(verbose=1)
-    # THE ORIGIN COMES FROM THE DATASET. It used to be two literals here,
-    # repeated in the parameter file and in every test -- three copies of
-    # a number that belongs to the grid the converter wrote the rasters
-    # onto. The rasters carry it in their own headers, so that is where it
-    # is read from; a dataset with no raster yet falls back to the
-    # parameter file, which is the only thing left that knows.
+    # THE GRID IS THE DATASET'S: the rectangle the converter wrote every
+    # raster onto, from the Grid panel. The rasters carry it in their own
+    # headers; a dataset with none has not been converted yet.
     _rect, _names, _others = props.dataset_grid(DS)
     if _rect is None:
-        _xll, _yll = 0.0, 0.0
-        print('no raster in the dataset: the origin comes from %s' % ini_fn)
-    else:
-        _xll, _yll = float(_rect[0]), float(_rect[1])
-    cMF = ppMF.clsMF(cUTIL, MM_ws=DS, MM_ws_out=DS, MF_ws=os.path.join(DS, 'MF_ws'),
-                     MF_ini_fn=ini_fn, grid=_rect,
-                     xllcorner=_xll, yllcorner=_yll)
-    print('parameter set: %s (%d layer(s))' % (ini_fn, cMF.nlay))
-    # ... and the SHAPE is checked against those same rasters. It cannot be
-    # corrected here -- clsMF has already sized and read every array with
-    # the parameter file's nrow and ncol -- so a disagreement stops the run
-    # rather than producing a model quietly built on the wrong rectangle.
+        raise SystemExit('the dataset %s holds no raster to take the grid '
+                         'from -- run the converter (Launch on the Grid '
+                         'panel) first' % DS)
+    cMF = ppMF.clsMF.from_config(
+        cUTIL, MM_ws=DS, MM_ws_out=DS, MF_ws=os.path.join(DS, 'MF_ws'),
+        grid=_rect, nlay=int(cfg.layers.nlay),
+        hnoflo=float(cfg.layers.hnoflo),
+        modelname=cfg.meta.model_name(cfg.paths.case),
+        steady_recharge=float(cfg.spinup.steady_recharge))
+    print('model: %s, %d layer(s), from the configuration and the dataset '
+          '%s (no parameter file)' % (cMF.modelname, cMF.nlay, DS))
+    # ONE SENTINEL, NOT TWO -- cMF's and the raster reader's. from_config
+    # sets both from the panel already; this is the one function that keeps
+    # them equal (setting only cMF's copy once turned La Mata's twelve
+    # drains into 7800 at the aquifer floor), and it says nothing when they
+    # agree.
+    props.apply_hnoflo(cfg, cMF)
+    # the raster grid, and any raster that does not sit on it
     props.check_grid(cMF, DS)
-    # THE LAYER COUNT IS THE PANEL'S. It cannot be substituted here for the
-    # same reason the grid shape cannot: the parameter file's per-layer
-    # lists -- ibound and strt -- have already been read with its own nlay.
-    # Once those two come from the panel as well, this becomes an override
-    # instead of a check.
-    if nlay is not None and int(nlay) != int(cMF.nlay):
-        raise SystemExit(
-            'layers.nlay = %d but %s describes %d layer(s). ibound and strt '
-            'still come from that file, so the two have to agree; give the '
-            'rasters for %d layers there, or set the panel to %d.'
-            % (int(nlay), ini_fn, cMF.nlay, int(nlay), cMF.nlay))
-    # THE FRONT-END OWNS hnoflo (WP1d, geometry). It is the value that marks
-    # a cell as having nothing to report, and MARMITES masks on it as well --
-    # so the two have to be the SAME number, which is why it is asked once on
-    # the panel rather than twice in two files. Applied right after the ini is
-    # parsed, before anything reads it.
-    # THE MODEL'S NAME IS THE PANEL'S. MODFLOW 6 names every file it writes
-    # after it, and it used to live in the parameter file ("lamataMM") --
-    # the model was named where the modeller never looked.
-    if cfg is not None:
-        _model = cfg.meta.model_name(cfg.paths.case)
-        if _model != str(cMF.modelname).lower():
-            print('model name: %s (the parameter file said %s)'
-                  % (_model, cMF.modelname))
-            cMF.modelname = _model
-    # ONE SENTINEL, NOT TWO -- into cMF AND the raster reader. Setting only
-    # cMF's copy is what turned La Mata's twelve drains into 7800 at the
-    # aquifer floor; see props.apply_hnoflo, which the tests call too.
-    if cfg is not None:
-        props.apply_hnoflo(cfg, cMF)
-    # THE FRONT-END OWNS THE LAYER PROPERTIES TOO. thickness, k, Ss and Sy
-    # are asked on the panel, and whatever it answers replaces what the ini
-    # parsed -- before the cell list, the soil model or any MF6 package has
-    # read them. What the panel does not answer is left as the ini had it.
-    props.apply_layer_properties(cfg, cMF, DS)
-    # THE BOUNDARY PACKAGES TOO. GHB and DRN are rebuilt from [ghb] and
-    # [drn] -- AFTER the properties, because a drain taken at the base of
-    # its layer reads botm, and botm is the panel thickness now.
+    # THE LAND SURFACE first: botm is elevation minus the cumulative
+    # thickness. From the DEM panel 1 names, wrapped onto the dataset grid
+    # (the parameter file named a 50 m elevation raster).
+    props.land_surface(cfg, cMF, DS,
+                       cache_dir=(os.path.join(mesh_ws, '_dem50')
+                                  if mesh_ws else None))
+    # THE LAYER PROPERTIES ARE THE PANEL'S -- ibound, thickness, k, k33, Ss,
+    # Sy -- every one required: a blank one stops the run naming it.
+    props.apply_layer_properties(cfg, cMF, DS, required=True)
+    props.check_land_surface(cMF)
+    props.initial_heads(cfg, cMF, DS)
+    props.uzf_footprint(cMF)
     # THE CATCHMENT IS THE GEOGRAPHIC REFERENCE. It does not decide which
     # cells are active -- layers.ibound does, per layer -- but the active
     # cells have to sit inside it, and a model whose cells fall outside is
     # in a different coordinate system.
     props.check_catchment(cfg, cMF, mm_paths.GIS)
+    # GHB and DRN from [ghb] and [drn] -- AFTER the properties, because a
+    # drain taken at the base of its layer reads botm.
     props.apply_boundaries(cfg, cMF, DS)
     props.apply_uzf(cfg, cMF, DS)
-    # LENGTHS ARE METRES, always. The panel asks for a projected CRS in
-    # metres and every raster is metric, so lenuni is 2 and the conversion
-    # to the millimetres MARMITES works in is fixed. It was read from the
-    # parameter file, where nothing could have set it to anything else.
-    cMF.lenuni = 2
     conv_fact = 1000.0
 
     # --- the forcing (WP1d) ------------------------------------------------
@@ -765,16 +743,15 @@ def setup_lamata(daily=True, nsp=None, grid='dis', nlay=None,
     # layer or one value, whichever it names. They came from
     # inputSOILzones.asc and inputSOILthick.asc, filenames written right
     # here, so the panel's soil.zones and soil.thickness changed nothing.
-    if cfg is not None:
-        gridSOIL = props.soil_grid(cfg, cMF, DS, 'zones', kind='int')
-        gridSOILthick = props.soil_grid(cfg, cMF, DS, 'thickness')
-        print('soil zones: %s; soil thickness: %s -- from the panel'
-              % (cfg.soil.zones.producer(), cfg.soil.thickness.producer()))
-    else:
-        gridSOIL = cMF.cPROCESS.inputEsriAscii(grid_fn='inputSOILzones.asc',
-                                               datatype=int)
-        gridSOILthick = cMF.cPROCESS.inputEsriAscii(
-            grid_fn='inputSOILthick.asc', datatype=float)
+    # On a MESH the polygon inputs are overlaid again on the mesh cells
+    # below, and those are the ones the model uses: the 50 m values are an
+    # intermediate, so their summary is not printed -- two lines with two
+    # sets of numbers read as a contradiction (2026-10-07).
+    _on_mesh = cfg.grid_kind in ('quadtree', 'voronoi')
+    gridSOIL = props.soil_grid(cfg, cMF, DS, 'zones', kind='int')
+    gridSOILthick = props.soil_grid(cfg, cMF, DS, 'thickness')
+    print('soil zones: %s; soil thickness: %s -- from the panel'
+          % (cfg.soil.zones.producer(), cfg.soil.thickness.producer()))
     gridIRR = cMF.cPROCESS.inputEsriAscii(grid_fn='inputIRRzones.asc', datatype=int)
 
     # THE VEGETATION COVER FROM THE SOIL PANEL: its vegetation layer, class
@@ -785,12 +762,11 @@ def setup_lamata(daily=True, nsp=None, grid='dis', nlay=None,
     # the old raster gave 25 % -- and the polygons are the reference: the
     # summer is carried by the grass wilting in the seasonal forcing, not by
     # the cover map.
-    _veg = None
-    if cfg is not None:
-        _veg = props.veg_cover(
-            cfg, cMF, DS, NVEG,
-            cache_dir=(os.path.join(os.path.dirname(mesh_ws), '_overlay')
-                       if mesh_ws else None))
+    _veg = props.veg_cover(
+        cfg, cMF, DS, NVEG,
+        cache_dir=(os.path.join(os.path.dirname(mesh_ws), '_overlay')
+                   if mesh_ws else None),
+        verbose=not _on_mesh)
     (gridVEGarea, P_veg_zoneSP, Eo_zonesSP, PT_veg_zonesSP, Pe_veg_zonesSP, LAI_veg_zonesSP,
      PE_zonesSP, P_irr_zoneSP, Pe_irr_zoneSP, PT_irr_zonesSP, crop_irr_SP) = cMF.cPROCESS.inputSP(
         NMETEO=NMETEO, NVEG=NVEG, NSOIL=NSOIL, nper=cMF.nper,
@@ -935,6 +911,9 @@ def setup_lamata(daily=True, nsp=None, grid='dis', nlay=None,
     # the layers, not before, so no re-anchoring is needed
     if cfg is not None:
         props.apply_line_boundaries(cfg, cMF, DS)
+    # how many DRN / GHB cells each layer HAS, now that they are built on
+    # the run's grid -- the figures draw a layer's term only where it is > 0
+    props.boundary_cell_counts(cMF)
 
     mm = MMsoil.clsMMsoil(hnoflo=cMF.hnoflo)
     cells = mm.build_cell_list(cMF)
@@ -1251,6 +1230,12 @@ def main():
     for _line in getattr(cfg, 'migrated', ()):
         # ASCII: the run's console or log may not be UTF-8
         print('NOTE (config): %s' % _line.replace('—', '--'))
+    # THE DATASET IS THE CASE'S: <example_root>/<paths.case>, panel 0's
+    # folder (mm_paths.dataset_dir). It was this file's own location,
+    # <repo>/example/LaMata, whatever paths.case or panel 0 said -- one more
+    # thing a second catchment could not change (2026-10-07).
+    global DS
+    DS = str(mm_paths.dataset_dir(cfg.paths.case))
 
     a = _args_from_config(cfg, probe=ns.probe)
     if a.postproc_only:
@@ -1437,9 +1422,8 @@ def main():
             b.lak_maxiter = int(cfg.lak.maxiter)
             b.lak_stagechg = float(cfg.lak.stagechg)
     # WHERE THE RUN STARTS. The saved state when it exists and belongs to
-    # this grid and layer set; the land surface otherwise. Never the
-    # parameter file's array by accident -- that is how a run ends up
-    # starting from a state nobody chose.
+    # this grid and layer set; otherwise a cold start from layers.strt, or
+    # from the land surface when that is blank. Never an array nobody chose.
     _kind, _payload, _why = props.resolve_initial_heads(cfg, a.state_dir,
                                                         grid=_grid)
     saved_state = None
@@ -1462,6 +1446,10 @@ def main():
         if a.steady_means:
             print('   spinup.steady_means is not used: a run from saved heads '
                   'has no steady period to drive')
+    elif _kind == 'strt':
+        # layers.strt, on the grid the run uses (projected with the rest),
+        # kept above each cell's bottom like any explicit start
+        b.strt_array = np.asarray(cMF.strt, dtype=float)
     else:
         b.strt_from_dem = tuple(_payload)
     b.build()
