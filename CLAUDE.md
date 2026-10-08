@@ -352,6 +352,13 @@ Recent runs (La Mata, 4566-cell Voronoi mesh: 20 m stream corridor ratio 2,
     L1 23.9 vs 24.0.
   - Convergence unchanged: the same 18 SPs fail, and the failures sit at
     SFR cells on storm days, not at the ETg cells.
+- WEL/iterative-removal run 20261007132734 (dbbde15; notes §8.20): in line
+  with the EVT-fix run, though not to the digit. Budget terms within
+  0.003 mm/yr, heads within 3 mm, the same 18 failing SPs. The small
+  differences are round-off that ATS amplifies on storm days (cause not
+  found). The removed WEL had exactly zero flow. The all-zero
+  `GWmap_ETg` figure is gone, and the subsampled `budget_uzf/sfr/lak.csv`
+  differ by up to 15 % (§5 trap).
 - Gap to the NWT reference is still large (EXFg ~13 vs 67, Ro ~31 vs 83 mm/yr).
   Sy 0.01 / K 0.05 is a calibration matter (WP7).
 
@@ -359,11 +366,11 @@ Recent runs (La Mata, 4566-cell Voronoi mesh: 20 m stream corridor ratio 2,
 
 ## 7. Next steps (in order)
 
-1. **User checks the runs of 2026-10-07** (WEL/iterative removal; then the
-   parameter-file removal). Expect the EVT-fix run's results to the digit
-   but the run tag (`<nlay>lay` by default), no WEL in the budget, the three
-   retired keys reported until the config is saved from a panel, and a log
-   that names no parameter file. On the panel: `layers.strt` (initial heads
+1. **User runs the parameter-file removal** (e830713 on; the
+   WEL/iterative-removal run is checked, §6). Expect the EVT-fix run's
+   results within round-off (the ATS step counts may move, notes §8.20), the
+   run tag (`<nlay>lay` by default), no WEL in the budget, and a log that
+   names no parameter file. On the panel: `layers.strt` (initial heads
    of a cold start; La Mata's old file gave MF_ws/hi_topL1.asc for both
    layers) and `spinup.steady_recharge` are new. Restart Streamlit first.
 2. **WEL for real boreholes/extraction** (when the user wants it): a `[wel]`

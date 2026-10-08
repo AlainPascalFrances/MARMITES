@@ -1108,3 +1108,54 @@ EVT-fix):
   equally.
 - `budget_terms.csv` (from the listing) and the observation exports are
   exact.
+
+## 8.20 The WEL route and iterative mode removed, on a real run (2026-10-08)
+
+Run `20261007132734_2lay_evt_fix` (code with dbbde15, before e8673a3: it
+still read the parameter file) against the EVT-fix run `20261006164429`
+(§8.19). Same start (`hi_voronoi_lamata_rbth02`). Same configuration but for
+the three retired keys: the two `resolved_config.toml` differ only in
+`run.mode`, `run.relax` and `et.gw_route`. Same dataset: the converter
+rewrote it at 13:24 with the new GIS path, but only the provenance headers
+changed, and the vegetation overlay it recomputed for that reason is
+bit-identical to the cached one.
+
+**What changed in the model.** Only the ETg wells: 4524 WEL records at
+q = 0 with AUTO_FLOW_REDUCE. In the EVT-fix run their flow was exactly 0.0,
+and the coupler wrote zeros to them, so removing them changes no term. The
+lagged path is otherwise unchanged.
+
+**Results.**
+- Catchment budget (`budget_terms.csv`, exact): every term within
+  0.003 mm/yr. The NWT comparison table is identical to 0.1 mm/yr (ETg 24.4,
+  EXFg 13.0, Ro 31.4).
+- Mean heads per cell: mean |Δ| 0.05 mm, max 2.7 mm (layer 1) and 0.8 mm
+  (layer 2). Observation heads within 3 mm; h RMSE 1.49 → 1.48 m.
+- Exact per-period SFR and LAK budgets: run means within 0.003 % (LAK
+  EXT-OUTFLOW 0.3 %, i.e. 0.03 m3/d).
+- Outlet flow: mean 1201.08 vs 1201.11 m3/d. 10 days differ by more than
+  1 %, the worst 2008-10-29 (275 vs 241 m3/d), all storm days.
+- Convergence: extra ATS sub-steps 496/642 (cycles 1/2) vs 498/667. In
+  cycle 2 the same 18 SPs fail (268 vs 277 failed steps), SP 360 again takes
+  27 steps, and the largest change at a failure is again in the same
+  layer-1 SFR cells.
+
+**So the runs agree, but not to the digit.** The differences are round-off
+sized. They grow only where ATS takes a different discrete decision (a step
+that barely fails in one run and barely converges in the other), which is
+on storm days. Which round-off differs was not found. A repeat of one run
+would tell whether a run is bit-reproducible at all.
+
+**Expected differences in the outputs.**
+- `_sp_plt_GWmap_ETg` is no longer drawn: it plotted the WEL term, all
+  zeros on the EVT route. Groundwater ET is still mapped as `GWmap_Eg`,
+  `GWmap_Tg` and `MMmap_ETg`.
+- `budget_uzf/sfr/lak.csv` and `storage_change_L*.csv` differ by up to
+  15 % (SFR TO-MVR 2878 vs 2491 m3/d). This is the 120-record subsample of
+  §8.19: it picks other records when the step list changes. The exact
+  per-period files agree.
+- A SyntaxWarning from `MARMITESplot_v3.py:1849` (`'%s\%s_%s'`, the ffmpeg
+  batch line) appears once when the module is recompiled after a copy. It
+  is harmless.
+
+The parameter-file removal (e830713) has not been run yet.
