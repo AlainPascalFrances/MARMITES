@@ -578,8 +578,9 @@ FIELDS = {
                     'gave MF_ws/hi_topL1.asc to both). Blank: elevation x a '
                     '+ b (*Initial head from the DEM*).'),
     'ghb.enable': ('General-head boundary (GHB)', _U,
-                   'Builds `ModflowGwfghb`. Off is `ghb_yn = 0` in the '
-                   'parameter file, and nothing below is read.'),
+                   'Builds `ModflowGwfghb`. Off: no GHB (the legacy '
+                   'parameter file\'s `ghb_yn = 0`), and nothing below is '
+                   'read.'),
     'ghb.layers': ('MODFLOW layers', 'list',
                    'Which layers carry the boundary, counted from 1 the way '
                    'MODFLOW counts them. A per-layer raster (`%d`) gives each '

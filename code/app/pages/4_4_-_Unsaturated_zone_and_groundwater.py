@@ -102,16 +102,16 @@ with tab_geom:
                        % '; '.join('`%s` vs `%s`' % (a, b)
                                    for a, b in wrong_case))
 
-    # WHAT THE RUN ACTUALLY READS, said plainly -- and it now reads all of
-    # it. Each answer replaces what the MODFLOW parameter file parsed,
-    # before the cell list, the soil model or any MF6 package has seen it;
-    # what is left blank still comes from that file, which is the only
-    # reason it is still opened at all.
+    # WHAT THE RUN ACTUALLY READS, said plainly. Since 2026-10-07 no
+    # parameter file is opened, so there is nothing to fall back on: every
+    # property on this tab is required (marmites_props.apply_layer_properties
+    # with required=True), and a blank one stops the run, naming it.
     _blank = [n for n in _props if getattr(cfg.layers, n).producer() is None]
     if _blank:
-        st.warning('Still read from `MF_ws/__inputMF_flopy_v3_*.ini`: %s. '
-                   'Answer it here and the run uses the answer instead.'
-                   % ', '.join('`layers.%s`' % n for n in _blank))
+        st.error('Not answered: %s. Every layer property is required -- '
+                 'there is no parameter file to fall back on, so the run '
+                 'stops while one is blank.'
+                 % ', '.join('`layers.%s`' % n for n in _blank))
     else:
         st.success('Every field on this tab reaches the run: `ibound` '
                    'becomes `idomain`, `thickness` becomes `botm`, `k` and '

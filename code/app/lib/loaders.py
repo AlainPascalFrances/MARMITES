@@ -205,7 +205,7 @@ def mesh_cache_paths(ws_root, kind):
 
     The driver writes it under the mesh's own MF6 workspace, so the front-end
     can show the grid a run WOULD use without loading the model -- building it
-    needs the .ini, the time discretisation and Triangle, which is a ~20 s
+    needs the model description, the time discretisation and Triangle, a ~20 s
     round trip the page should not make on every rerun.
     """
     sub = {'structured': 'MF6_ws', 'disv': 'MF6_ws_disv'}.get(
