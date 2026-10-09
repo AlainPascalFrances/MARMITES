@@ -1846,7 +1846,7 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
         f = open(batch_fn, 'w')
         f.write(
             r'ffmpeg -r 1 -i %s -s:v 1280x720 -c:v libx264 -profile:v high -crf 23 -pix_fmt yuv420p -r 30 -y %s_mov.mp4' % (
-                r'%s\%%%%05d.png' % (MM_ws), '%s\%s_%s' % (MM_ws, pref_plt_title, plt_title)))
+                r'%s\%%%%05d.png' % (MM_ws), r'%s\%s_%s' % (MM_ws, pref_plt_title, plt_title)))
         f.close()
         run_report_fn = os.path.join(MM_ws, '__FFmpegRunReport.txt')
         run_report = open(run_report_fn, 'w')
@@ -2107,15 +2107,18 @@ def plotWBsankey(path, DATE, flx, flxIndex, fn, indexTime, year_lst, cMF, ncell_
             # there is none. It is what SFR and LAK evaporated from the water
             # the runoff delivered to them, so it is drawn as a SPLIT OF Ro:
             #     Pe + Exf_1 = I + E_ow + Ro_net,   Ro_net = Ro - E_ow
-            # which closes exactly, and shows where the water went. The stream
-            # also receives groundwater, so over a dry window E_ow can exceed
-            # the runoff generated; the split is then clamped, and says so
-            # rather than drawing a negative flow.
+            # which closes exactly, and shows where the water went. But a reach
+            # or a pond also evaporates water that reached it from UPSTREAM
+            # (and from the aquifer), so in its cell E_ow can exceed the
+            # runoff that cell generated -- a pond cell evaporates close to
+            # Eo all year. The split is then clamped, and says so (once, not
+            # for both pages) rather than drawing a negative flow.
             eow_k = min(Eow[k], Ro[k]) if Ro[k] > 0.0 else 0.0
-            if Eow[k] > eow_k + 1e-9:
+            if Eow[k] > eow_k + 1e-9 and f == 0:
                 print('   NOTE: open-water evaporation (%.4g) exceeds the runoff '
-                      '(%.4g) over this window -- the stream was fed by '
-                      'groundwater. The Sankey shows %.4g.'
+                      'this cell generated (%.4g) over this window -- its '
+                      'reach or pond also evaporates water from upstream or '
+                      'from the aquifer. The Sankey shows %.4g.'
                       % (Eow[k], Ro[k], eow_k))
             ro_net = max(Ro[k] - eow_k, 0.0)
             flows = [Pe[k] / ff, -I[k] / ff, Exf_l0[k] / ff, -eow_k / ff, -ro_net / ff]

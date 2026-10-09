@@ -72,10 +72,12 @@ st.info('**Open-water evaporation is drawn as a SPLIT OF RUNOFF**, not as a '
         'loss from a surface store — there is no longer such a store. The '
         'surface box therefore closes exactly:\n\n'
         '`Pe + Exf_1 = I + E_ow + Ro_net`\n\n'
-        'The stream is also fed by groundwater, so over a dry window `E_ow` '
-        'can exceed the runoff generated in that cell. The split is clamped '
-        'and the run SAYS SO rather than drawing a negative flow — expect '
-        'that note on per-point panels, not on the catchment one.')
+        'A reach or a pond also evaporates water that reached it from '
+        'upstream (and from the aquifer), so in its cell `E_ow` can exceed '
+        'the runoff that cell generated — a pond cell evaporates close to '
+        '`Eo` all year. The split is clamped and the run SAYS SO rather than '
+        'drawing a negative flow — expect that note on the panels of points '
+        'in stream or pond cells, not on the catchment one.')
 
 st.markdown('---')
 st.caption('Figures are written into the run folder under the workspace, and '
