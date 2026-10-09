@@ -904,8 +904,9 @@ FIELDS = {
     'postproc.only': ('Output maps and plots only', _U,
                       'Re-draw from a finished run without re-running it.'),
     'postproc.hydro_year_start': ('Hydrological year starts', 'month',
-                                  'Drives the x-axis of every time series and '
-                                  'the Sankey year index. It was in the ini '
+                                  'Drives the x-axis of every time series, '
+                                  'the Sankey year index and the ponds\' '
+                                  'budgets per year. It was in the ini '
                                   'but never reached the model, which used a '
                                   'hardcoded October.'),
     'postproc.wb_unit': ('Water-balance unit', _U, 'year or day.'),

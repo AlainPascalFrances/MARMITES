@@ -379,6 +379,11 @@ Recent runs (La Mata, 4566-cell Voronoi mesh: 20 m stream corridor ratio 2,
   found). The removed WEL had exactly zero flow. The all-zero
   `GWmap_ETg` figure is gone, and the subsampled `budget_uzf/sfr/lak.csv`
   differ by up to 15 % (§5 trap).
+- Parameter-file-removal run 20261008114055 (e830713+, the three .ini
+  renamed by the user): in line with 20261007132734 -- budget terms within
+  0.002 mm/yr, heads within 3 mm, outlet flow mean |diff| 0.5 m3/d. So
+  nothing was left hard-coded on the .ini path. Its NWT comparison figures
+  were skipped (plot_water_budget's own <repo>/example path, fixed bb4a5d6).
 - Gap to the NWT reference is still large (EXFg ~13 vs 67, Ro ~31 vs 83 mm/yr).
   Sy 0.01 / K 0.05 is a calibration matter (WP7).
 
@@ -386,26 +391,36 @@ Recent runs (La Mata, 4566-cell Voronoi mesh: 20 m stream corridor ratio 2,
 
 ## 7. Next steps (in order)
 
-1. **User runs the parameter-file removal** (e830713 on; the
-   WEL/iterative-removal run is checked, §6). Expect the EVT-fix run's
-   results within round-off (the ATS step counts may move, notes §8.20), the
-   run tag (`<nlay>lay` by default), no WEL in the budget, and a log that
-   names no parameter file. On the panel: `layers.strt` (initial heads
-   of a cold start; La Mata's old file gave MF_ws/hi_topL1.asc for both
-   layers) and `spinup.steady_recharge` are new. Restart Streamlit first.
-2. **WEL for real boreholes/extraction** (when the user wants it): a `[wel]`
+1. **User looks at the pond budgets per year** (2026-10-09, WP6.2 part):
+   `_output/lake_budget_years_by_pond.png` (a group of bars per
+   hydrological year, a bar per pond), `lake_budget_years_total.png` (all
+   ponds summed) and `lake_budget_years.csv`, each figure in two rows -- the
+   full budget, then with the stream's through-flow replaced by its net
+   (it is ~100x every other term). Any run draws them, or the last one with
+   `postproc.only`. Hydrological year = `postproc.hydro_year_start`.
+2. **The pond outlets leak past the mover** (found 2026-10-09 on run
+   20261008114055). LAK EXT-OUTFLOW = outlet discharge minus what the mover
+   took (gwf-lak.f90 `lak_get_external_outlet` + `_mover`), nonzero although
+   every outlet is moved to the stream at FACTOR 1: pond10 -2,748 m3/yr
+   (on 339 of 365 days, up to 12 % of its inflow on a day), pond13 -535;
+   together ~0.75 % of the outlet streamflow never reaches the stream. Not
+   tied to storm days. Suspect (unverified) the mover working from the
+   outlet rate of the previous outer iteration, on outlets running just
+   above their sill (steep Manning curve), with outer_dvclose 0.025 m.
+   Reproduce on a toy LAK + MVR model before changing anything.
+3. **WEL for real boreholes/extraction** (when the user wants it): a `[wel]`
    section on a panel, plain MF6 input with the coupler hands-off; WEL =
    pumping in the balance, maps and Sankey -- relabel the post-processing's
    WEL term ('ET (groundwater)' today, for old WEL-route runs).
-3. **Exact package budgets in post-processing** (small, before 6.6).
+4. **Exact package budgets in post-processing** (small, before 6.6).
    `package_budget` should read every record (time-weighted, about 40 s per
    cbc on La Mata), or the per-period means. `layer_storage_change` should
    be time-weighted too. See the §5 trap.
-4. Validate WP6.3 figures (`sm_depth_<pt>.png`) on real output.
-5. WP6 remainder: 6.2 (pond volume panels, MVR accounting, water-balance
-   graphs), 6.5 (calibcrit groups for streamflow and ET), 6.6 (Results page:
+5. Validate WP6.3 figures (`sm_depth_<pt>.png`) on real output.
+6. WP6 remainder: 6.2 (pond volume panels, MVR accounting; the pond
+   budgets per year are done), 6.5 (calibcrit groups for streamflow and ET), 6.6 (Results page:
    run picker, run-to-run comparison).
-6. **WP7 PEST++-IES** on the obs exports. Lessons from the CdL calibration:
+7. **WP7 PEST++-IES** on the obs exports. Lessons from the CdL calibration:
    draw the prior ensemble from the geostatistical structure (pyEMU
    `pf.draw` → `prior_pe.jcb`, `ies_parameter_ensemble`). A diagonal
    bounds-only prior gave spatially white pilot points, checkerboard K, 58% of
@@ -413,5 +428,5 @@ Recent runs (La Mata, 4566-cell Voronoi mesh: 20 m stream corridor ratio 2,
    `ies_autoadaloc`, ~150 realisations, and check posterior Moran's I and
    bound-hitting. The forward run must complete (physical-plausibility gate).
    Runs at that scale belong on a server.
-7. WP8 hygiene (with it: the parser `clsMF(..., MF_ini_fn)` and the La Mata
+8. WP8 hygiene (with it: the parser `clsMF(..., MF_ini_fn)` and the La Mata
    .ini files, read now only by the legacy NWT scripts).

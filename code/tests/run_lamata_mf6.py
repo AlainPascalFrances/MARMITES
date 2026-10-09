@@ -1837,7 +1837,11 @@ def _run_postproc(a, cMF, ctx, res):
                         input_maps=(cfg.postproc.input_maps
                                     if cfg is not None else True))
         if a.postproc:
-            run_postproc(a.ws, DS, name=cMF.modelname.lower(), out_root=a.out_dir)
+            # the hydrological year is the Plots panel's, set on cMF above
+            run_postproc(a.ws, DS, name=cMF.modelname.lower(),
+                         out_root=a.out_dir,
+                         hydro_year_start=int(getattr(cMF, 'iniMonthHydroYear',
+                                                      10)))
             # native MARMITESplot figures, driven by the in-memory coupled data
             native_suite(os.path.join(a.out_dir, '_output'), cMF, ctx, res,
                          ds_ws=DS, sim_ws=a.ws,

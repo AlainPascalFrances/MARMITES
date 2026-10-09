@@ -373,12 +373,13 @@ def layer_storage_change(sim_ws, name, nlay, nrow, ncol, kper_skip=1,
 
 def run_postproc(sim_ws, ds_ws, name='lamatamm', dates=None,
                  xll=739300.0, yll=4553050.0, cs=50.0, verbose=True,
-                 out_root=None):
+                 out_root=None, hydro_year_start=10):
     """Produce the full post-processing figure/CSV set into <out-dir>/_output/.
 
     Returns the list of files written. Each figure is guarded so a missing
     output file (e.g. no SFR in this run) skips that figure rather than
-    aborting the whole report.
+    aborting the whole report. ``hydro_year_start`` is the Plots panel's
+    month (postproc.hydro_year_start), for the yearly pond budgets.
     """
     import matplotlib
     matplotlib.use('agg')
@@ -490,7 +491,8 @@ def run_postproc(sim_ws, ds_ws, name='lamatamm', dates=None,
     # --- the ponds: stages and the LAK budget over time (WP4.8) ------- #
     try:
         written += _fig_lakes(sim_ws, name, ds_ws, out, dates=dates,
-                              verbose=verbose)
+                              verbose=verbose,
+                              hydro_year_start=hydro_year_start)
     except Exception as exc:               # pragma: no cover
         if verbose:
             print('   lake figures skipped: %r' % exc)
@@ -922,9 +924,271 @@ def lake_series(sim_ws, name):
             'names': _lake_names(sim_ws, name, n), 'budget': budget}
 
 
-def _fig_lakes(sim_ws, name, ds_ws, out, dates=None, verbose=True):
-    """The ponds (WP4.8): each lake's stage against its bed and rim, and
-    the LAK budget over time. Nothing for a run without LAK."""
+# --------------------------------------------------------------------- #
+# each pond's water budget per hydrological year (2026-10-09)
+# --------------------------------------------------------------------- #
+
+# The pond budget as it is read: (key, label, colour), in stacking order.
+# The MF6 LAK terms map onto these in lake_budget_by_lake; GWF is split by
+# SIGN, connection by connection and step by step, so the exchange each way
+# is kept and not only its net.
+LAK_COMPONENTS = (
+    ('from_stream', 'from the stream (FROM-MVR)', '#1f77b4'),
+    ('to_stream', 'to the stream (TO-MVR)', '#aec7e8'),
+    # EXT-OUTFLOW is the outlet's discharge MINUS what the mover took from it
+    # (gwf-lak.f90: lak_get_external_outlet + lak_get_external_mover). Every
+    # La Mata outlet is moved to the stream at FACTOR 1, so what is left is
+    # water the mover did not pass on -- it leaves the model (2026-10-09)
+    ('outlet', 'outlet flow not passed to the stream (EXT-OUTFLOW)',
+     '#9467bd'),
+    ('runoff', 'runoff from MARMITES, incl. rain on the pond (RUNOFF)',
+     '#2ca02c'),
+    ('rainfall', 'rainfall (RAINFALL)', '#98df8a'),
+    ('evaporation', 'evaporation, Eo (EVAPORATION)', '#d62728'),
+    ('from_aquifer', 'from the aquifer (GWF > 0)', '#8c564b'),
+    ('to_aquifer', 'to the aquifer (GWF < 0)', '#c49c94'),
+    ('storage', 'storage: + release, - filling (STORAGE)', '#7f7f7f'),
+    ('other', 'other (EXT-INFLOW, WITHDRAWAL, CONSTANT)', '#bcbd22'),
+)
+_LAK_TERM_OF = {'FROM-MVR': 'from_stream', 'TO-MVR': 'to_stream',
+                'EXT-OUTFLOW': 'outlet', 'RUNOFF': 'runoff',
+                'RAINFALL': 'rainfall', 'EVAPORATION': 'evaporation',
+                'STORAGE': 'storage', 'EXT-INFLOW': 'other',
+                'WITHDRAWAL': 'other', 'CONSTANT': 'other'}
+# the stream's through-flow, replaced by its net in the lower panels
+_LAK_NET_STREAM = ('net from the stream (FROM-MVR + TO-MVR)', '#17becf')
+
+
+def lake_budget_by_lake(sim_ws, name):
+    """Each pond's budget per stress period [m3/d, + into the pond,
+    sub-step means], kept apart pond by pond -- lake_series sums them.
+
+    Returns ``{'periods', 'names', 'keys', 'rate'}`` with
+    ``rate[period, pond, component]`` in the order of LAK_COMPONENTS, or
+    None for a run without LAK. The steady period, if any, is dropped.
+    """
+    import flopy
+    cfn = os.path.join(sim_ws, '%s.lak.cbc' % name)
+    if not os.path.exists(cfn):
+        return None
+    cb = flopy.utils.CellBudgetFile(cfn, precision='double')
+    kk = [(int(ks), int(kp)) for ks, kp in cb.get_kstpkper()]
+    t = np.asarray(cb.get_times(), float)
+    dt = np.diff(np.concatenate([[0.0], t]))
+    pers = sorted({kp for _ks, kp in kk})
+    if steady_first(sim_ws, name) and len(pers) > 1:
+        pers = pers[1:]
+    where = {p: k for k, p in enumerate(pers)}
+    keys = [c[0] for c in LAK_COMPONENTS]
+    col = {k: i for i, k in enumerate(keys)}
+    terms = [r.decode().strip() if isinstance(r, bytes) else r.strip()
+             for r in cb.get_unique_record_names()]
+    # one call per TERM: all of its records, in file order -- one per step
+    data = {r: cb.get_data(text=r) for r in terms
+            if r == 'GWF' or r in _LAK_TERM_OF}
+    nlake = max(int(np.max(recs[0]['node'])) for recs in data.values()
+                if recs and len(recs[0]))
+    rate = np.zeros((len(pers), nlake, len(keys)))
+    span = np.zeros(len(pers))
+    for i, (_ks, kp) in enumerate(kk):
+        if kp in where:
+            span[where[kp]] += dt[i]
+    for r, recs in data.items():
+        if len(recs) != len(kk):
+            raise ValueError('%s: %d records for %d steps'
+                             % (r, len(recs), len(kk)))
+        for i, (_ks, kp) in enumerate(kk):
+            k = where.get(kp)
+            if k is None:
+                continue
+            lake = np.asarray(recs[i]['node'], dtype=int) - 1
+            q = np.asarray(recs[i]['q'], dtype=float) * dt[i]
+            if r == 'GWF':                       # each way, per connection
+                np.add.at(rate[k, :, col['from_aquifer']], lake,
+                          np.where(q > 0, q, 0.0))
+                np.add.at(rate[k, :, col['to_aquifer']], lake,
+                          np.where(q < 0, q, 0.0))
+            else:
+                np.add.at(rate[k, :, col[_LAK_TERM_OF[r]]], lake, q)
+    rate /= np.where(span > 0, span, 1.0)[:, None, None]
+    return {'periods': pers, 'names': _lake_names(sim_ws, name, nlake),
+            'keys': keys, 'rate': rate}
+
+
+def hydro_years(dates, start_month):
+    """``[(label, period indices)]``: the hydrological years the periods
+    fall in, each starting on day 1 of ``start_month`` -- the run's first
+    and last may be partial. '2008/09' for a year from October 2008, or
+    '2008' when the year starts in January."""
+    import pandas as pd
+    d = pd.DatetimeIndex(dates)
+    start = np.asarray(d.year - (d.month < int(start_month)), dtype=int)
+    out = []
+    for y in sorted(set(start.tolist())):
+        label = (str(y) if int(start_month) == 1
+                 else '%d/%02d' % (y, (y + 1) % 100))
+        out.append((label, np.nonzero(start == y)[0]))
+    return out
+
+
+def lake_budget_years(by_lake, dates, perlen, start_month):
+    """Volumes [m3] per hydrological year, pond and component.
+
+    Returns ``(years, days, vol)``: the year labels, the days each covers
+    (fewer for a partial year) and ``vol[year, pond, component]``.
+    """
+    rate = by_lake['rate']
+    perlen = np.asarray(perlen, dtype=float)[:rate.shape[0]]
+    blocks = hydro_years(list(dates)[:rate.shape[0]], start_month)
+    years = [b[0] for b in blocks]
+    days = np.array([float(perlen[ix].sum()) for _l, ix in blocks])
+    vol = np.array([np.einsum('p,pnc->nc', perlen[ix], rate[ix])
+                    for _l, ix in blocks])
+    return years, days, vol
+
+
+def _stacked(ax, x, vals, comps, width):
+    """Bars stacked upward for the inflows and downward for the outflows.
+    ``vals[bar, component]``; ``comps`` = [(label, colour)]."""
+    pos = np.zeros(len(x))
+    neg = np.zeros(len(x))
+    for c, (label, colour) in enumerate(comps):
+        v = vals[:, c]
+        up, dn = np.where(v > 0, v, 0.0), np.where(v < 0, v, 0.0)
+        drawn = np.any(np.abs(v) > 0)
+        ax.bar(x, up, bottom=pos, width=width, color=colour,
+               label=label if drawn else None, edgecolor='white', lw=0.3)
+        ax.bar(x, dn, bottom=neg, width=width, color=colour,
+               edgecolor='white', lw=0.3)
+        pos += up
+        neg += dn
+    ax.axhline(0, color='k', lw=0.6)
+    ax.grid(alpha=0.3, axis='y')
+    # the zero-height bars sit on the top of each stack and their base is
+    # "sticky": without this the axis stops flush at the tallest bar
+    ax.use_sticky_edges = False
+    ax.margins(y=0.05)
+    ax.autoscale_view()
+
+
+def _net_stream(vol, keys):
+    """The components with the stream's in and out replaced by their net:
+    ``(vals[..., component], [(label, colour)])``."""
+    i_in, i_out = keys.index('from_stream'), keys.index('to_stream')
+    keep = [k for k in range(len(keys)) if k not in (i_in, i_out)]
+    net = vol[..., i_in] + vol[..., i_out]
+    vals = np.concatenate([net[..., None], vol[..., keep]], axis=-1)
+    comps = [_LAK_NET_STREAM] + [LAK_COMPONENTS[k][1:] for k in keep]
+    return vals, comps
+
+
+def _fig_lake_budget_years(by_lake, dates, perlen, start_month, out,
+                           verbose=True):
+    """The ponds' water budget per hydrological year: every pond, and all
+    of them summed. CSV + two figures, each in two rows -- the full budget,
+    then the same with the stream's through-flow replaced by its net: an
+    on-channel pond passes tens of thousands of m3 a year from the stream
+    back to it, against hundreds evaporated or exchanged with the aquifer,
+    which the first row alone would leave invisible."""
+    import matplotlib.pyplot as plt
+    import pandas as pd
+    years, days, vol = lake_budget_years(by_lake, dates, perlen, start_month)
+    names, keys = by_lake['names'], by_lake['keys']
+    nyear, npond = len(years), len(names)
+    ylab = ['%s\n(%d d)' % (y, d) if d < 365 else y
+            for y, d in zip(years, days)]
+    written = []
+
+    rows = []
+    for y in range(nyear):
+        for p, pname in enumerate(names + ['all ponds']):
+            v = vol[y, p] if p < npond else vol[y].sum(axis=0)
+            for c, k in enumerate(keys):
+                rows.append((years[y], int(days[y]), pname, k, float(v[c])))
+    tab = pd.DataFrame(rows, columns=['hydro_year', 'days', 'pond',
+                                      'component', 'm3'])
+    fn = os.path.join(out, 'lake_budget_years.csv')
+    tab.to_csv(fn, index=False)
+    written.append(fn)
+
+    full = [c[1:] for c in LAK_COMPONENTS]
+    # a component zero all run draws nothing and has no legend entry -- so
+    # the figure says so, rather than leaving it to be wondered about
+    zero = [LAK_COMPONENTS[c][1] for c in range(len(keys))
+            if not np.any(np.abs(vol[..., c]) > 0)]
+    note = ('Zero over the whole run (not drawn):\n   ' + '\n   '.join(zero)
+            if zero else '')
+    # 1. every pond: one group of bars per year, one bar per pond
+    gap = 1
+    x = np.array([y * (npond + gap) + p for y in range(nyear)
+                  for p in range(npond)], dtype=float)
+    fig, axes = plt.subplots(2, 1, figsize=(max(9.0, 0.32 * len(x) + 5.0),
+                                            9.5), sharex=True)
+    _stacked(axes[0], x, vol.reshape(nyear * npond, -1), full, 0.8)
+    nv, ncomp = _net_stream(vol, keys)
+    _stacked(axes[1], x, nv.reshape(nyear * npond, -1), ncomp, 0.8)
+    axes[1].set_xticks(x)
+    axes[1].set_xticklabels(names * nyear, rotation=90, fontsize=7)
+    for y in range(nyear):
+        centre = y * (npond + gap) + (npond - 1) / 2.0
+        axes[1].text(centre, -0.30, ylab[y], ha='center', va='top',
+                     fontsize=9, transform=axes[1].get_xaxis_transform())
+    axes[0].set_title('Each pond: full budget (+ into the pond, - out of it)',
+                      fontsize=10)
+    axes[1].set_title("Each pond: the stream's through-flow replaced by its "
+                      'net', fontsize=10)
+    for ax in axes:
+        ax.set_ylabel('m$^3$ per hydrological year')
+        ax.legend(fontsize=7, loc='center left', bbox_to_anchor=(1.01, 0.5))
+    fig.suptitle('Pond water budgets per hydrological year (from month %d)'
+                 % int(start_month), fontsize=11)
+    fig.tight_layout()
+    if note:
+        fig.text(0.01, -0.02, note, fontsize=8, ha='left', va='top')
+    fn = os.path.join(out, 'lake_budget_years_by_pond.png')
+    fig.savefig(fn, dpi=140, bbox_inches='tight')
+    plt.close(fig)
+    written.append(fn)
+
+    # 2. all ponds summed: one bar per year
+    tot = vol.sum(axis=1)
+    xt = np.arange(nyear, dtype=float)
+    fig, axes = plt.subplots(2, 1, figsize=(max(6.0, 1.4 * nyear + 5.0), 9.0),
+                             sharex=True)
+    _stacked(axes[0], xt, tot, full, 0.6)
+    tv, tcomp = _net_stream(tot, keys)
+    _stacked(axes[1], xt, tv, tcomp, 0.6)
+    axes[1].set_xticks(xt)
+    axes[1].set_xticklabels(ylab, fontsize=9)
+    axes[0].set_title('All %d ponds summed: full budget' % npond, fontsize=10)
+    axes[1].set_title("All %d ponds summed: the stream's through-flow "
+                      'replaced by its net' % npond, fontsize=10)
+    for ax in axes:
+        ax.set_ylabel('m$^3$ per hydrological year')
+        ax.legend(fontsize=7, loc='center left', bbox_to_anchor=(1.01, 0.5))
+    fig.suptitle('Pond water budget per hydrological year, all ponds '
+                 '(from month %d)' % int(start_month), fontsize=11)
+    fig.tight_layout()
+    if note:
+        fig.text(0.01, -0.01, note, fontsize=8, ha='left', va='top')
+    fn = os.path.join(out, 'lake_budget_years_total.png')
+    fig.savefig(fn, dpi=140, bbox_inches='tight')
+    plt.close(fig)
+    written.append(fn)
+
+    if verbose:
+        resid = np.abs(vol.sum(axis=2)).max()
+        print('   pond budgets per hydrological year: %d year(s) x %d pond(s); '
+              'largest closure residual %.3g m3' % (nyear, npond, resid))
+    return written
+
+
+def _fig_lakes(sim_ws, name, ds_ws, out, dates=None, verbose=True,
+               hydro_year_start=10):
+    """The ponds (WP4.8): each lake's stage against its bed and rim, the
+    LAK budget over time, and each pond's budget per hydrological year
+    starting in ``hydro_year_start`` (with all ponds summed). Nothing for a
+    run without LAK."""
     import matplotlib.pyplot as plt
     import pandas as pd
     ls = lake_series(sim_ws, name)
@@ -1018,6 +1282,24 @@ def _fig_lakes(sim_ws, name, ds_ws, out, dates=None, verbose=True):
         fig.savefig(fn, dpi=140, bbox_inches='tight')
         plt.close(fig)
         written.append(fn)
+    # each pond's budget per hydrological year, and all of them summed
+    if is_dt:
+        try:
+            by = lake_budget_by_lake(sim_ws, name)
+            if by is not None:
+                per = _tdis_perlen(sim_ws)
+                if per is None or len(per) < len(by['periods']):
+                    per = np.ones(len(by['periods']))
+                else:
+                    per = per[-len(by['periods']):]   # without a steady SP
+                written += _fig_lake_budget_years(by, x, per,
+                                                  hydro_year_start, out,
+                                                  verbose=verbose)
+        except Exception as exc:           # pragma: no cover
+            if verbose:
+                print('   pond budgets per year skipped: %r' % exc)
+    elif verbose:
+        print('   pond budgets per year skipped: no dates for the periods')
     if verbose:
         msg = '   lakes: %d' % n
         if ls['bed'] is not None:
