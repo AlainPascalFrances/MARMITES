@@ -28,13 +28,16 @@ import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TRUNK = os.path.abspath(os.path.join(HERE, '..'))
-DS = os.path.abspath(os.path.join(HERE, '..', '..', 'example', 'LaMata'))
-WS_ROOT = os.environ.get('MARMITES_WS_ROOT', os.path.join('E:' + os.sep, '00code_ws', 'LaMata_MM-MF6'))
 for p in ('', 'MARMITESutilities', 'MARMITESsoil', 'ppMF_FloPy', 'ppMF6'):
     sys.path.insert(0, os.path.join(TRUNK, p))
 
 import matplotlib  # noqa: E402
 matplotlib.use('agg')
+import mm_paths  # noqa: E402
+
+# the machine paths have one definition (mm_paths); the dataset is the
+# configuration's, set by setup_lamata
+WS_ROOT = str(mm_paths.WS_ROOT)
 
 
 def say(msg):

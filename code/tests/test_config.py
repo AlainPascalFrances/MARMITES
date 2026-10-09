@@ -329,6 +329,28 @@ def test_mm_paths_resolves_and_reports():
     assert 'REPO' in text and 'DATASET' in text and 'WS_ROOT' in text
 
 
+def test_the_run_and_its_figures_read_panel_zeros_dataset():
+    """2026-10-09: plot_water_budget looked for the grid rasters in its own
+    <repo>/example/LaMata while the run read panel 0's example_root, and
+    the figures were skipped once the checkout's example folder was gone.
+    The run's scripts take the dataset from mm_paths alone."""
+    import re
+
+    def code_of(name):
+        src = open(os.path.join(HERE, name), encoding='utf-8').read()
+        return '\n'.join(re.sub(r'#.*', '', ln) for ln in src.splitlines())
+
+    for name in ('run_lamata_mf6.py', 'plot_water_budget.py',
+                 'diagnose_coupling.py', 'make_quadtree_lamata.py'):
+        code = code_of(name)
+        assert not re.search(r"['\"]example['\"]\s*,\s*['\"]LaMata['\"]",
+                             code), '%s builds the dataset path itself' % name
+        assert "'E:'" not in code, '%s has a drive literal' % name
+    drv = code_of('run_lamata_mf6.py')
+    assert 'make_figures(a.ws, out_dir=a.out_dir, dataset_dir=DS)' in drv
+    assert 'DS = str(mm_paths.dataset_dir(cfg.paths.case))' in drv
+
+
 def test_a_retired_key_is_dropped_and_reported_not_refused():
     """Unknown keys raise, so DELETING a key would stop every existing file
     loading -- a hard refusal at launch over a setting that no longer does

@@ -24,7 +24,6 @@ import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TRUNK = os.path.abspath(os.path.join(HERE, '..'))
-DS = os.path.abspath(os.path.join(HERE, '..', '..', 'example', 'LaMata'))
 for p in ('', 'MARMITESutilities', 'MARMITESsoil', 'ppMF_FloPy', 'ppMF6'):
     sys.path.insert(0, os.path.join(TRUNK, p))
 sys.path.insert(0, HERE)
@@ -38,6 +37,7 @@ from marmites_gridgen import build_quadtree  # noqa: E402
 from marmites_grid import VertexGeometry  # noqa: E402
 
 WS_ROOT = str(mm_paths.WS_ROOT)
+DS = str(mm_paths.dataset_dir('LaMata'))      # panel 0's dataset folder
 
 
 def drain_points(cMF):

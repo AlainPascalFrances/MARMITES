@@ -28,7 +28,6 @@ import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TRUNK = os.path.abspath(os.path.join(HERE, '..'))
-DS = os.path.abspath(os.path.join(HERE, '..', '..', 'example', 'LaMata'))
 
 # The repository holds ONLY code, input data and docs. Everything a run
 # produces goes to a workspace outside it, laid out as
@@ -54,6 +53,10 @@ import marmites_surface as msurf  # noqa: E402
 import mm_paths  # noqa: E402
 
 WS_ROOT = str(mm_paths.WS_ROOT)
+# The dataset: panel 0's <example_root>/<case> (mm_paths.dataset_dir).
+# main() and setup_lamata() set it from the configuration's paths.case;
+# this default only serves a script that imports a helper without either.
+DS = str(mm_paths.dataset_dir('LaMata'))
 
 
 # The BMI/XMI SHARED LIBRARY, not the executable. The coupler steps MODFLOW
@@ -641,6 +644,10 @@ def setup_lamata(daily=True, nsp=None, grid='dis', nlay=None,
     if nlay is not None and int(nlay) != int(cfg.layers.nlay):
         raise SystemExit('nlay %d disagrees with layers.nlay = %d'
                          % (int(nlay), int(cfg.layers.nlay)))
+    # the configuration's dataset, as main() sets it -- also for a script
+    # that calls this directly (diag_sinf, diagnose_coupling)
+    global DS
+    DS = str(mm_paths.dataset_dir(cfg.paths.case))
     # THE MODEL DESCRIPTION, from the configuration and the dataset -- the
     # same construction the tests use (props.model_from_config): the grid
     # the dataset rasters are on; one hnoflo, in cMF and the raster reader
@@ -1852,7 +1859,7 @@ def _run_postproc(a, cMF, ctx, res):
                 # series and totals too, which need no grid at all. The maps
                 # now put the mesh on that grid by an area-weighted overlay
                 # (plot_water_budget._mesh_to_grid), so it is compared again.
-                pwb.make_figures(a.ws, out_dir=a.out_dir)
+                pwb.make_figures(a.ws, out_dir=a.out_dir, dataset_dir=DS)
             except Exception as exc:
                 print('   plot_water_budget skipped: %r' % exc)
         print('results written to %s' % a.out_dir)

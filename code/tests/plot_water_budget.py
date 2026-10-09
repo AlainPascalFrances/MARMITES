@@ -29,7 +29,6 @@ import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TRUNK = os.path.abspath(os.path.join(HERE, '..'))
-DS = os.path.abspath(os.path.join(HERE, '..', '..', 'example', 'LaMata'))
 
 # MODFLOW-NWT reference for the comparison panels. It lives in the legacy
 # PhD/paper archive, NOT in the repository: it is 1.3 GB and cannot be
@@ -38,6 +37,11 @@ sys.path.insert(0, TRUNK)
 import mm_paths as _mmp                              # noqa: E402
 NWT_REF = str(_mmp.NWT_REF)   # WP1.4: ONE definition, in code/mm_paths.py
                               # ($MM_NWT_REF, or the legacy $MARMITES_NWT_REF)
+# The dataset (its rasters give the 50 m grid the NWT reference ran on):
+# panel 0's, mm_paths.dataset_dir -- the run passes its own to make_figures.
+# It was this file's <repo>/example/LaMata, which the run no longer reads,
+# and the figures were skipped once that folder was gone (2026-10-09).
+DS = str(_mmp.dataset_dir('LaMata'))
 
 import matplotlib  # noqa: E402
 matplotlib.use('agg')
@@ -418,19 +422,23 @@ def write_summary(labels, newv, refv, ws, new):
     print('\n' + txt)
 
 
-def make_figures(ws, no_reference=False, verbose=True, out_dir=None):
+def make_figures(ws, no_reference=False, verbose=True, out_dir=None,
+                 dataset_dir=None):
     """Build the 01-07 water-budget figures for a coupled run.
 
     ``ws`` is the MODFLOW 6 workspace the results are READ from; ``out_dir`` is
     the run's results folder they are WRITTEN to (<ws-root>/out_<stamp>_<tag>/),
     keeping output out of the model workspace and out of the repository. When
     ``out_dir`` is None the figures land next to the model, as before.
+    ``dataset_dir`` is the run's dataset (None: mm_paths.dataset_dir).
 
     Callable from the runner's --postproc as well as the CLI. Returns the
     figures directory, or None if the results file has no water-budget arrays.
     """
-    global _OUT_ROOT
+    global _OUT_ROOT, DS
     _OUT_ROOT = os.path.abspath(out_dir) if out_dir else None
+    if dataset_dir:
+        DS = str(dataset_dir)
     ws = os.path.abspath(ws)
     new = load_new(ws)
     if new['wb_ts'] is None:
