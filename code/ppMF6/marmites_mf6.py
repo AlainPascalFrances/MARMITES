@@ -147,6 +147,7 @@ class clsMF6:
         self.sfr_man = 0.035             # Manning's n
         self.sfr_min_slope = 1e-4        # [sfr] min_slope
         self.sfr_monotonic = True        # [sfr] monotonic_bed
+        self.sfr_evap_frac = 0.5         # [sfr] evap_inflow_fraction (coupler)
         self.sfr_outlet_cellids = set()  # the cellid of each outlet reach
         self.sfr_net = None              # SFRNetwork once built
         self.sfr_reach_of = {}           # (i, j) -> reach number

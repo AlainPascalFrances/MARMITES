@@ -402,12 +402,13 @@ Recent runs (La Mata, 4566-cell Voronoi mesh: 20 m stream corridor ratio 2,
    a derivative of inflow/1e-4 (~500-800 m2/d) where the true one is ~0. The
    Newton step creeps or stalls; 0.025 accepts it, 0.001 never does, and
    ATS shrinks dt until Sy A/dt outweighs it (~0.005 d). Reproduced by
-   `code/tests/diag_sfr_evap_flipflop.py`. Proposed fix, awaiting the
-   user's go-ahead: cap the coupler's SFR EVAP at min(E0, 0.5 x qin/(w L)),
-   with qin = INFLOW + USFLOW + QFROMMVR (0 failures in the toy at 0.001;
-   -0.3 % of the stream evaporation on La Mata). Needs a config field,
-   front-end help and tests. Alternatives: back to 0.025 (the pond leak),
-   or report it to MF6.
+   `code/tests/diag_sfr_evap_flipflop.py`. FIXED (§8.23.1, user's choice):
+   `sfr.evap_inflow_fraction` (panel 4, default 0.5) -- the coupler writes
+   EVAP = min(Eo, f x qin/(w L)), qin = this step's INFLOW + USFLOW +
+   QFROMMVR copied after the previous step (0 failures in the toy at 0.001;
+   -0.3 % of the stream evaporation on La Mata). NEXT: the user reruns at
+   0.001; check the failed attempts at stream cells and the end-of-run line
+   "stream evaporation: capped at 0.5 x the inflow on N reach-step(s)".
    Then the user looks at the pond budgets per year (WP6.2 part):
    `_output/lake_budget_years_by_pond.png` (a group of bars per
    hydrological year, a bar per pond), `lake_budget_years_total.png` (all

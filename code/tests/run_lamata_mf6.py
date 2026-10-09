@@ -1372,6 +1372,9 @@ def main():
         if cfg is not None:
             b.sfr_min_slope = float(cfg.sfr.min_slope)
             b.sfr_monotonic = bool(cfg.sfr.monotonic_bed)
+            # the coupler caps each reach's open-water evaporation at this
+            # share of its inflow (analysis §8.23)
+            b.sfr_evap_frac = float(cfg.sfr.evap_inflow_fraction)
             if cfg.sfr.manning.value is not None:
                 b.sfr_man = float(cfg.sfr.manning.value)
             if cfg.sfr.rbth.value is not None:

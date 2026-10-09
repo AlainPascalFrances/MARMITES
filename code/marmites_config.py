@@ -1380,6 +1380,11 @@ class Sfr:
     manning: ParamSource = field(default_factory=lambda: ParamSource(value=0.035))
     rhk: ParamSource = field(default_factory=lambda: ParamSource(value=0.1))
     rbth: ParamSource = field(default_factory=lambda: ParamSource(value=0.5))
+    # The largest share of a reach's inflow its open-water evaporation may
+    # take in a time step: EVAP = min(Eo, f x inflow / (w L)). Without it a
+    # nearly dry reach flip-flops in MF6 and the solver cannot converge at
+    # a tight outer_dvclose (analysis §8.23).
+    evap_inflow_fraction: float = 0.5
 
 
 @dataclass
@@ -1946,6 +1951,10 @@ class RunConfig:
         if not float(self.et.evt_ramp) > 0.0:
             errs.append('et.evt_ramp must be > 0 (m): a step at the root '
                         'tip is a kink MF6 Newton stalls on')
+        if not 0.0 < float(self.sfr.evap_inflow_fraction) < 1.0:
+            errs.append('sfr.evap_inflow_fraction must be above 0 and below '
+                        '1: at 1 a reach can still evaporate all it receives, '
+                        'where MF6 flip-flops (analysis 8.23)')
         if self.et.unsat_form not in ('etwc', 'etae'):
             errs.append("et.unsat_form must be 'etwc' or 'etae'")
         if self.spinup.cycles < 1:

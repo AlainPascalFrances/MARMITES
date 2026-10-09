@@ -61,6 +61,14 @@ class _Cpl(coup.MF6Coupler):
         self.lak_evap_zone = np.zeros(1, dtype=int)
         self.Eo_zonesSP = None
         self._iEow = 7
+        # the cap on the stream's Eo (§8.23): off until a test gives areas
+        self.sfr_evap_frac = 0.5
+        self.sfr_wl = None
+        self.sfr_up_prev = None
+        self.p_sfr_inflow = None
+        self.p_sfr_usflow = None
+        self.p_sfr_qfrommvr = None
+        self.sfr_evap_capped = self.sfr_evap_writes = 0
 
 
 # ------------------------------------------------------------ reading back
@@ -179,6 +187,87 @@ def test_no_forcing_means_nothing_is_written():
     c.p_sfr_evap = np.zeros(1)
     assert c._write_openwater_evap(0) is None
     assert c.p_sfr_evap[0] == 0.0
+
+
+# ------------------------------------- the cap on the stream (analysis §8.23)
+
+def _capped(inflow, up_prev, eo_mm=4.0, wl=30.0, frac=0.5):
+    """Reaches of w x L = ``wl`` m2 under Eo ``eo_mm`` mm/d: E0 w L is
+    0.12 m3/d, against inflows of a few hundredths, as on La Mata's
+    failing reaches."""
+    n = len(inflow)
+    c = _Cpl(n, area=[2500.0] * n)
+    c.nreaches = n
+    c.Eo_zonesSP = np.array([[eo_mm]])
+    c.sfr_evap_zone = np.zeros(n, dtype=int)
+    c.p_sfr_evap = np.zeros(n)
+    c.p_sfr_inflow = np.asarray(inflow, dtype=float)
+    c.sfr_up_prev = None if up_prev is None else np.asarray(up_prev, float)
+    c.sfr_wl = np.full(n, float(wl))
+    c.sfr_evap_frac = frac
+    c._write_openwater_evap(0)
+    return c
+
+
+def test_a_reach_evaporates_at_most_its_share_of_the_inflow():
+    """The runoff it gets this step plus what flowed in at the end of the
+    last: 0.05 + 0 and 0 + 0.02 m3/d are capped, 1 m3/d is not."""
+    c = _capped(inflow=[0.05, 0.0, 1.0], up_prev=[0.0, 0.02, 0.0])
+    assert c.p_sfr_evap[0] == pytest.approx(0.5 * 0.05 / 30.0)
+    assert c.p_sfr_evap[1] == pytest.approx(0.5 * 0.02 / 30.0)
+    assert c.p_sfr_evap[2] == pytest.approx(0.004)
+    assert (c.sfr_evap_capped, c.sfr_evap_writes) == (2, 3)
+
+
+def test_the_capped_reach_can_never_empty_itself():
+    """What makes MF6 flip-flop is a reach that evaporates all it receives;
+    with the cap E0 w L stays below the inflow whatever the numbers."""
+    rng = np.random.default_rng(0)
+    q = rng.uniform(0.0, 0.5, 50)
+    up = rng.uniform(0.0, 0.5, 50)
+    c = _capped(inflow=q, up_prev=up, eo_mm=6.0)
+    assert np.all(c.p_sfr_evap * 30.0 <= 0.5 * (q + up) + 1e-12)
+    assert np.all(c.p_sfr_evap <= 0.006 + 1e-12)
+
+
+def test_the_first_step_counts_the_runoff_alone():
+    """No step solved yet: nothing has flowed in from upstream."""
+    c = _capped(inflow=[0.05, 0.0], up_prev=None)
+    assert c.p_sfr_evap[0] == pytest.approx(0.5 * 0.05 / 30.0)
+    assert c.p_sfr_evap[1] == 0.0
+
+
+def test_without_the_areas_eo_is_written_whole():
+    """An MF6 build without USFLOW / LENGTH / WIDTH: no cap (the bind warns)."""
+    c = _capped(inflow=[0.05], up_prev=[0.0])
+    c.sfr_wl = None
+    c._write_openwater_evap(0)
+    assert c.p_sfr_evap[0] == pytest.approx(0.004)
+
+
+def test_the_upstream_and_mover_inflow_is_copied_after_a_step():
+    """MF6 zeroes USFLOW when it advances the next step (sfr_ad): the cap
+    must read a COPY, with the pond outflow (QFROMMVR) added."""
+    c = _Cpl(1, area=[1.0])
+    c.sfr_wl = np.full(3, 30.0)
+    c.p_sfr_usflow = np.array([1.0, 2.0, 3.0])
+    c.p_sfr_qfrommvr = np.array([0.0, 5.0, 0.0])
+    c._keep_sfr_inflow()
+    c.p_sfr_usflow[:] = 0.0
+    assert np.allclose(c.sfr_up_prev, [1.0, 7.0, 3.0])
+    c.p_sfr_qfrommvr = None                      # a network without MOVER
+    c.p_sfr_usflow[:] = [4.0, 0.0, 0.0]
+    c._keep_sfr_inflow()
+    assert np.allclose(c.sfr_up_prev, [4.0, 0.0, 0.0])
+
+
+def test_the_coupler_keeps_the_inflow_after_every_step():
+    """Both step calls of _advance, the period's first and its ATS
+    sub-steps, are followed by the copy."""
+    import inspect
+    src = inspect.getsource(coup.MF6Coupler._advance)
+    assert src.count('self._one_step(') == 2
+    assert src.count('self._keep_sfr_inflow()') == 2
 
 
 # ------------------------------------------------------- the Sankey split

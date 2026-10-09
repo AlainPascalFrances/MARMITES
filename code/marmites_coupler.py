@@ -269,6 +269,18 @@ class MF6Coupler:
         self.p_lak_runoff = None        # WP4.4: MM runoff into the ponds
         self.p_sfr_simevap = None
         self.p_lak_simevap = None
+        # The stream's Eo is capped at a share of each reach's inflow (sfr.
+        # evap_inflow_fraction, analysis §8.23): a reach receiving less than
+        # it could evaporate, over a water table below its bed, flip-flops
+        # in MF6 between evaporating all of it and leaking all of it, and
+        # sfr_fn's perturbed derivative straddles the two -- the solver then
+        # cannot converge at a tight outer_dvclose.
+        self.sfr_evap_frac = float(getattr(mf6b, 'sfr_evap_frac', 0.5))
+        self.p_sfr_usflow = self.p_sfr_qfrommvr = None
+        self.sfr_wl = None              # each reach's width x length [m2]
+        self.sfr_up_prev = None         # its upstream + mover inflow [m3/d]
+        self.sfr_evap_capped = 0        # reach-steps whose EVAP was lowered
+        self.sfr_evap_writes = 0        # reach-steps written
         gm = getattr(ctx, 'gridMETEO', None)
         gm = None if gm is None else np.asarray(gm)
         self.sfr_evap_zone = np.zeros(max(self.nreaches, 1), dtype=int)
@@ -703,6 +715,37 @@ class MF6Coupler:
             self.p_sfr_simevap, _a = self._bind_first(
                 api, [('SIMEVAP', f'{name}/SFR'), ('SIMEVAP', f'{name}/SFR-1')],
                 'SFR simulated evaporation', required=False)
+            # the cap on that evaporation (§8.23): what flows into each reach
+            # besides its runoff -- the upstream flow and the pond outflow
+            # (QFROMMVR, at SFR's own path, only with MOVER) -- and its area
+            self.p_sfr_usflow, _a = self._bind_first(
+                api, [('USFLOW', f'{name}/SFR'), ('USFLOW', f'{name}/SFR-1')],
+                'SFR upstream inflow', required=False, min_size=self.nreaches)
+            self.p_sfr_qfrommvr, _a = self._bind_first(
+                api, [('QFROMMVR', f'{name}/SFR'),
+                      ('QFROMMVR', f'{name}/SFR-1')],
+                'SFR inflow from the mover', required=False,
+                min_size=self.nreaches)
+            _len, _a = self._bind_first(
+                api, [('LENGTH', f'{name}/SFR'), ('LENGTH', f'{name}/SFR-1')],
+                'SFR reach length', required=False, min_size=self.nreaches)
+            _wid, _a = self._bind_first(
+                api, [('WIDTH', f'{name}/SFR'), ('WIDTH', f'{name}/SFR-1')],
+                'SFR reach width', required=False, min_size=self.nreaches)
+            if self.p_sfr_evap is not None:
+                if self.p_sfr_usflow is None or _len is None or _wid is None:
+                    print('WARNING: SFR USFLOW, LENGTH or WIDTH not exposed by '
+                          'this MF6 build; the stream evaporation is NOT '
+                          'capped by the reach inflow (sfr.evap_inflow_'
+                          'fraction), and a nearly dry reach can stop the '
+                          'solver converging (analysis 8.23).')
+                else:
+                    n = self.nreaches
+                    self.sfr_wl = (np.array(_len, dtype=float)[:n]
+                                   * np.array(_wid, dtype=float)[:n])
+                    print('coupler: stream evaporation capped at %g x each '
+                          'reach\'s inflow (sfr.evap_inflow_fraction)'
+                          % self.sfr_evap_frac)
         if self.nlakes:
             self.p_lak_evap, self.addr_lak_evap = self._bind_first(
                 api, [('EVAPORATION', f'{name}/LAK'),
@@ -1208,7 +1251,8 @@ class MF6Coupler:
         eo = self.Eo_zonesSP[:, col] / self.conv_fact             # m/d
         wrote = None
         if self.p_sfr_evap is not None and self.nreaches:
-            v = eo[np.minimum(self.sfr_evap_zone, len(eo) - 1)]
+            v = self._cap_sfr_evap(eo[np.minimum(self.sfr_evap_zone,
+                                                 len(eo) - 1)])
             self.p_sfr_evap[:min(self.p_sfr_evap.size, self.nreaches)] = \
                 v[:min(self.p_sfr_evap.size, self.nreaches)]
             wrote = float(v.mean())
@@ -1218,6 +1262,57 @@ class MF6Coupler:
                 v[:min(self.p_lak_evap.size, self.nlakes)]
             wrote = float(v.mean()) if wrote is None else wrote
         return wrote
+
+    def _cap_sfr_evap(self, eo):
+        """Each reach's Eo [m/d], capped at ``sfr_evap_frac`` of its inflow.
+
+        EVAP <= f x qin / (w L), qin = this step's runoff into the reach
+        (INFLOW, written just before by _write_runoff) + the upstream flow
+        and pond outflow MF6 left at the end of the previous step
+        (_keep_sfr_inflow). Its own groundwater discharge is not counted:
+        a reach the aquifer feeds does not flip-flop, and one it stops
+        feeding during the step must not be left evaporating it.
+
+        Why (analysis §8.23): MF6 takes a reach's evaporation from the depth
+        its previous solve stored. With less inflow than E0 x w x L and the
+        head below the bed, the reach alternates between evaporating all of
+        it and leaking all of it, sfr_fn's 1e-4 m perturbation lands in the
+        other state, and GWF gets a derivative of qin / 1e-4 m where the true
+        one is ~0. Kept below the inflow, the evaporation cannot empty the
+        reach and the switch is never reached.
+        """
+        eo = np.asarray(eo, dtype=float)
+        if self.sfr_wl is None:
+            return eo
+        n = min(eo.size, self.sfr_wl.size)
+        qin = np.zeros(n)
+        if self.p_sfr_inflow is not None:
+            qin += np.asarray(self.p_sfr_inflow, dtype=float)[:n]
+        if self.sfr_up_prev is not None:
+            qin += self.sfr_up_prev[:n]
+        cap = (self.sfr_evap_frac * np.maximum(qin, 0.0)
+               / np.maximum(self.sfr_wl[:n], 1e-12))
+        out = eo.copy()
+        out[:n] = np.minimum(eo[:n], cap)
+        self.sfr_evap_capped += int(np.count_nonzero(out[:n] < eo[:n]))
+        self.sfr_evap_writes += n
+        return out
+
+    def _keep_sfr_inflow(self):
+        """Copy what flowed into each reach at the end of the step just
+        solved, besides its runoff: USFLOW + QFROMMVR [m3/d].
+
+        MF6 zeroes USFLOW when it advances the next step (sfr_ad, in
+        prepare_solve -- which the older prepare_solve route runs BEFORE the
+        coupler writes), so the cap of _cap_sfr_evap reads this copy.
+        """
+        if self.sfr_wl is None:
+            return
+        n = self.sfr_wl.size
+        up = np.array(self.p_sfr_usflow, dtype=float)[:n]
+        if self.p_sfr_qfrommvr is not None:
+            up = up + np.asarray(self.p_sfr_qfrommvr, dtype=float)[:n]
+        self.sfr_up_prev = up
 
     def _read_openwater_evap(self):
         """What SFR and LAK actually evaporated this SP, per cell, in mm/d.
@@ -1557,6 +1652,9 @@ class MF6Coupler:
         self.etuzf_prev = np.zeros(self.ncell)
         self.n_overdraw, self.max_overdraw = 0, 0.0
         self.n_resid, self.resid_max, self.resid_m3 = 0, 0.0, 0.0
+        # a fresh MF6 session: no step solved yet, nothing flowed in
+        self.sfr_up_prev = None
+        self.sfr_evap_capped = self.sfr_evap_writes = 0
         self.outer_iters = np.zeros(nper_mm, dtype=int)
         # Water-budget aggregates (compact: the full per-cell/per-SP MM array
         # would be ~370 MB). wb_ts = catchment mean of every MM flux per SP;
@@ -1728,6 +1826,12 @@ class MF6Coupler:
                 if on_sp is not None:
                     on_sp(n, out)
             self._progress(nper_mm - 1, nper_mm, last=True)
+            if self.sfr_evap_writes:
+                print('stream evaporation: capped at %g x the inflow on %d '
+                      'reach-step(s), %.2f %% of those written '
+                      '(sfr.evap_inflow_fraction)'
+                      % (self.sfr_evap_frac, self.sfr_evap_capped,
+                         100.0 * self.sfr_evap_capped / self.sfr_evap_writes))
             # what the unsaturated zone holds at the end: the next spin-up
             # cycle starts from it (clsMF6.uzf_thti_carry) ...
             self.uzf_wc_final = (None if self.p_wcnew is None else
@@ -1966,6 +2070,7 @@ class MF6Coupler:
         acc = {}
         t0 = self._now(api)
         kiter, converged = self._one_step(api, write_cb)
+        self._keep_sfr_inflow()
         now = self._now(api)
         self._rates_add(acc, None if t0 is None or now is None else now - t0)
         nsub = 1
@@ -1976,6 +2081,7 @@ class MF6Coupler:
                 if now >= t_end - 1e-9:
                     break
                 k, ok = self._one_step(api, write_cb)
+                self._keep_sfr_inflow()
                 t1 = self._now(api)
                 self._rates_add(acc, None if t1 is None else t1 - now)
                 now = t1

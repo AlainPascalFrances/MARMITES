@@ -1367,3 +1367,58 @@ Mata's IMS has none.
 3. Report it to MODFLOW 6: compute the evaporation from the depth being
    solved, or do sfr_fn's perturbation from the converged state. The toy
    reproduces it in seconds.
+
+### 8.23.1 Implemented: the cap on the stream evaporation (2026-10-09)
+
+The user chose option 1, with f = 0.5.
+
+**Configuration.** `sfr.evap_inflow_fraction`, default 0.5, on panel 4 in
+the SFR form, with help text in `app/lib/schema.py`.
+- Valid strictly between 0 and 1. At 1 a reach can still evaporate all it
+  receives, which is the flip-flop again.
+- `tests/run_lamata_mf6.py` hands it to the builder as `b.sfr_evap_frac`.
+  The coupler reads it there; the builder's default is 0.5.
+
+**Coupler** (`marmites_coupler.py`).
+- `_bind` also binds SFR `USFLOW`, `QFROMMVR` (only with MOVER), `LENGTH`
+  and `WIDTH`, and keeps w x L per reach. If one of USFLOW, LENGTH or
+  WIDTH is missing it warns, and EVAP is written uncapped.
+- `_keep_sfr_inflow`, after every step of `_advance` (a period's first step
+  and its ATS sub-steps), copies USFLOW + QFROMMVR. It is a copy because
+  MF6 zeroes USFLOW when it advances the next step (`sfr_ad`, inside
+  prepare_solve), which the older prepare_solve route runs before the
+  coupler writes.
+- `_cap_sfr_evap`, inside `_write_openwater_evap`, writes
+  EVAP = min(Eo, f x qin / (w L)), with qin = this step's INFLOW (the
+  runoff `_write_runoff` has just written) + the copy.
+  - The reach's own groundwater discharge is not counted: a reach the
+    aquifer feeds does not flip-flop, and one it stops feeding must not be
+    left evaporating it.
+  - The first step of a run counts its runoff only.
+- **Log lines:**
+  - at bind: `coupler: stream evaporation capped at 0.5 x each reach's
+    inflow (sfr.evap_inflow_fraction)`;
+  - at the end: `stream evaporation: capped at 0.5 x the inflow on N
+    reach-step(s), P % of those written`.
+
+**Checked.**
+- A scratch La Mata build (initialize only): all six SFR arrays bind at the
+  coupler's addresses, 660 reaches each, with ponds and mover. w x L from
+  MF6 equals the package file exactly (median 32.9 m2).
+- `tests/test_sfr_evap_cap.py` drives the toy through libmf6 with the
+  coupler's own methods at outer_dvclose 0.001:
+  - capped: 0 failed attempts, and no reach evaporates more than half its
+    inflow;
+  - uncapped: it still fails. This pins the MF6 behaviour; if that test
+    starts failing, MF6 has changed and the cap may no longer be needed.
+- `tests/test_openwater_evap.py`: the cap, the first step, the missing
+  areas, the copy after each step. `tests/test_config.py`: the default and
+  the range.
+
+**On the next run (outer_dvclose 0.001).**
+- Expect few or no failed attempts at the stream cells, and far fewer ATS
+  sub-steps.
+- Expect the stream evaporation within about 0.3 % of before.
+- A failure left at a stream cell would mean its inflow fell by more than
+  half within one step, because the cap uses the previous step's upstream
+  flow. The end-of-run line says how often the cap acted.

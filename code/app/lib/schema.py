@@ -831,6 +831,19 @@ FIELDS = {
     'sfr.rhk': ('Streambed conductivity', 'm/d', ''),
     'sfr.rbth': ('Streambed thickness', 'm', ''),
     'sfr.manning': ('Manning\'s n', _U, ''),
+    'sfr.evap_inflow_fraction': (
+        'Stream evaporation cap (share of inflow)', _U,
+        'Each time step a reach evaporates at most this share of what flows '
+        'into it: EVAP = min(Eo, f x inflow / (width x length)), the inflow '
+        'being the runoff MARMITES delivers this step plus the upstream flow '
+        'and pond outflow MODFLOW left at the end of the previous one. '
+        'Without the cap, a reach receiving less than it could evaporate, '
+        'over a water table below its bed, flip-flops in MODFLOW 6 between '
+        'evaporating all of it and leaking all of it to the aquifer; the '
+        'solver then cannot converge at a tight outer_dvclose (analysis '
+        '8.23). Over 43 days of La Mata, 0.5 removed 0.3 % of the stream '
+        'evaporation. Must be above 0 and below 1: at 1 the reach can still '
+        'evaporate all it receives.'),
     'lak.enable': ('Lakes (LAK)', _U,
                    'One EMBEDDEDV lake per pond, the CdL design: the pond '
                    'owns the cells whose centre lies inside it (its '
