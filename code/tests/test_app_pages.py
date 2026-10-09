@@ -97,6 +97,45 @@ def test_the_page_renders_without_an_exception(page):
     assert not problems, '%s raised:\n  %s' % (page, '\n  '.join(problems))
 
 
+def test_the_results_are_shown_by_tabs_two_to_a_row(tmp_path, monkeypatch):
+    """User, 2026-10-09: tabs for input maps, output maps, time series,
+    calibration, the total and the ponds' water budget; two figures to a
+    row, aligned on top; the title centred below each figure."""
+    import matplotlib
+    matplotlib.use('agg')
+    import matplotlib.pyplot as plt
+    import mm_paths
+    run = tmp_path / 'out_202610091200_try'
+    figs = {'_input': ['IN_000_model_map.png', '_sp_plt_IN_007_hk_1_1.png'],
+            '_output': ['_sp_plt_GWmap_head_1_1.png', '_0P0_ts.png',
+                        'obs_heads.png', 'budget_compartment.png',
+                        'lake_budget_years_total.png',
+                        'lake_budget_years_by_pond.png',
+                        'lake_stage.png']}
+    for sub, names in figs.items():
+        (run / sub).mkdir(parents=True)
+        for n in names:
+            fig, ax = plt.subplots(figsize=(1, 1))
+            fig.savefig(str(run / sub / n))
+            plt.close(fig)
+    monkeypatch.setattr(mm_paths, 'WS_ROOT', tmp_path)
+    at = AppTest.from_file(os.path.join(APP, 'pages', '8_8_-_Results.py'),
+                           default_timeout=180)
+    at.run()
+    assert not at.exception, [str(e.value) for e in at.exception]
+    labels = [t.label for t in at.tabs]
+    assert labels == ['Input maps (2)', 'Output maps (1)', 'Time series (1)',
+                      'Calibration (state variables) (1)',
+                      'Total water budget (1)', 'Ponds water budget (3)'], labels
+    said = ' '.join(str(m.value) for m in at.markdown)
+    assert 'text-align:center' in said
+    assert 'Horizontal hydraulic conductivity' in said
+    src = open(os.path.join(APP, 'pages', '8_8_-_Results.py'),
+               encoding='utf-8').read()
+    assert "st.columns(2, gap='medium', vertical_alignment='top')" in src
+    assert "'Columns'" not in src, 'the column count is fixed at two'
+
+
 def test_the_sidebar_shows_the_number_with_the_name():
     """THE NUMBER IS IN THE FILENAME TWICE, and this says why.
 

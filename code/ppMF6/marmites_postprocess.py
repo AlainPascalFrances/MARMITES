@@ -1071,6 +1071,35 @@ def _stacked(ax, x, vals, comps, width):
     ax.autoscale_view()
 
 
+def _net_storage(ax, x, vals, keys, width, annotate=False):
+    """The top row: the sum of every flux but storage, per bar -- the water
+    the pond gains (+, its storage increases) or the deficit it runs (-, its
+    storage decreases). It equals -STORAGE (MF6: + = a release) to the
+    budget's closure. ``vals[bar, component]`` in the order of ``keys``."""
+    from matplotlib.patches import Patch
+    i_sto = keys.index('storage')
+    net = np.delete(vals, i_sto, axis=1).sum(axis=1)
+    colour = np.where(net >= 0, '#2ca02c', '#d62728')
+    ax.bar(x, net, width=width, color=colour, edgecolor='white', lw=0.3)
+    ax.axhline(0, color='k', lw=0.6)
+    ax.grid(alpha=0.3, axis='y')
+    ax.use_sticky_edges = False
+    ax.margins(y=0.15 if annotate else 0.05)
+    ax.autoscale_view()
+    if annotate:
+        for xi, v in zip(x, net):
+            ax.annotate('%+.4g' % v, (xi, v), ha='center',
+                        va='bottom' if v >= 0 else 'top', fontsize=8,
+                        xytext=(0, 2 if v >= 0 else -2),
+                        textcoords='offset points')
+    ax.legend(handles=[Patch(color='#2ca02c', label='storage increases '
+                             '(sum of fluxes > 0)'),
+                       Patch(color='#d62728', label='deficit: storage '
+                             'decreases (sum of fluxes < 0)')],
+              fontsize=7, loc='center left', bbox_to_anchor=(1.01, 0.5))
+    return net
+
+
 def _net_stream(vol, keys):
     """The components with the stream's in and out replaced by their net:
     ``(vals[..., component], [(label, colour)])``."""
@@ -1174,21 +1203,27 @@ def _fig_lake_budget_years(by_lake, dates, perlen, start_month, out,
         gap = 1
         x = np.array([y * (npond + gap) + p for y in range(nyear)
                       for p in range(npond)], dtype=float)
-        fig, axes = plt.subplots(2, 1, figsize=(max(9.0, 0.32 * len(x) + 5.0),
-                                                10.0), sharex=True)
-        _stacked(axes[0], x, by_pond.reshape(nyear * npond, -1), full, 0.8)
+        fig, axes = plt.subplots(3, 1, figsize=(max(9.0, 0.32 * len(x) + 5.0),
+                                                13.0), sharex=True,
+                                 gridspec_kw={'height_ratios': [1, 1.7, 1.7]})
+        _net_storage(axes[0], x, by_pond.reshape(nyear * npond, -1), keys,
+                     0.8)
+        _stacked(axes[1], x, by_pond.reshape(nyear * npond, -1), full, 0.8)
         nv, ncomp = _net_stream(by_pond, keys)
-        _stacked(axes[1], x, nv.reshape(nyear * npond, -1), ncomp, 0.8)
-        axes[1].set_xticks(x)
-        axes[1].set_xticklabels(names * nyear, rotation=90, fontsize=7)
-        _year_labels(axes[1], [y * (npond + gap) + (npond - 1) / 2.0
+        _stacked(axes[2], x, nv.reshape(nyear * npond, -1), ncomp, 0.8)
+        axes[2].set_xticks(x)
+        axes[2].set_xticklabels(names * nyear, rotation=90, fontsize=7)
+        _year_labels(axes[2], [y * (npond + gap) + (npond - 1) / 2.0
                                for y in range(nyear)], years, warns, -0.25)
-        axes[0].set_title('Each pond: full budget (+ into the pond, - out of '
+        axes[0].set_title('Each pond: the sum of its fluxes -- does it gain '
+                          'water or run a deficit?', fontsize=10)
+        axes[1].set_title('Each pond: full budget (+ into the pond, - out of '
                           'it)', fontsize=10)
-        axes[1].set_title("Each pond: the stream's through-flow replaced by "
+        axes[2].set_title("Each pond: the stream's through-flow replaced by "
                           'its net', fontsize=10)
         for ax in axes:
             ax.set_ylabel(unit)
+        for ax in axes[1:]:          # the top row has its own legend
             ax.legend(fontsize=7, loc='center left', bbox_to_anchor=(1.01, 0.5))
         fig.suptitle('Pond water budgets per hydrological year (from month '
                      '%d)%s' % (int(start_month), what), fontsize=11)
@@ -1202,20 +1237,26 @@ def _fig_lake_budget_years(by_lake, dates, perlen, start_month, out,
 
         # 2. all ponds summed: one bar per year
         xt = np.arange(nyear, dtype=float)
-        fig, axes = plt.subplots(2, 1, figsize=(max(6.5, 2.2 * nyear + 4.5),
-                                                9.5), sharex=True)
-        _stacked(axes[0], xt, total, full, 0.6)
+        fig, axes = plt.subplots(3, 1, figsize=(max(6.5, 2.2 * nyear + 4.5),
+                                                12.5), sharex=True,
+                                 gridspec_kw={'height_ratios': [1, 1.7, 1.7]})
+        _net_storage(axes[0], xt, total, keys, 0.6, annotate=True)
+        _stacked(axes[1], xt, total, full, 0.6)
         tv, tcomp = _net_stream(total, keys)
-        _stacked(axes[1], xt, tv, tcomp, 0.6)
-        axes[1].set_xticks(xt)
-        axes[1].set_xticklabels([''] * nyear)
-        _year_labels(axes[1], xt, years, warns, -0.03)
-        axes[0].set_title('All %d ponds summed: full budget' % npond,
+        _stacked(axes[2], xt, tv, tcomp, 0.6)
+        axes[2].set_xticks(xt)
+        axes[2].set_xticklabels([''] * nyear)
+        _year_labels(axes[2], xt, years, warns, -0.03)
+        axes[0].set_title('All %d ponds summed: the sum of their fluxes -- do '
+                          'they gain water or run a deficit?' % npond,
                           fontsize=10)
-        axes[1].set_title("All %d ponds summed: the stream's through-flow "
+        axes[1].set_title('All %d ponds summed: full budget' % npond,
+                          fontsize=10)
+        axes[2].set_title("All %d ponds summed: the stream's through-flow "
                           'replaced by its net' % npond, fontsize=10)
         for ax in axes:
             ax.set_ylabel(unit)
+        for ax in axes[1:]:          # the top row has its own legend
             ax.legend(fontsize=7, loc='center left', bbox_to_anchor=(1.01, 0.5))
         fig.suptitle('Pond water budget per hydrological year, all ponds '
                      '(from month %d)%s' % (int(start_month), what),

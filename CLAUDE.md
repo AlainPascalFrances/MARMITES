@@ -391,15 +391,21 @@ Recent runs (La Mata, 4566-cell Voronoi mesh: 20 m stream corridor ratio 2,
 
 ## 7. Next steps (in order)
 
-1. **User looks at the pond budgets per year** (2026-10-09, WP6.2 part):
+1. **User runs with `solver.outer_dvclose` = 0.001** (set 2026-10-09; it
+   was 0.025) and looks at the pond budgets per year (WP6.2 part):
    `_output/lake_budget_years_by_pond.png` (a group of bars per
    hydrological year, a bar per pond), `lake_budget_years_total.png` (all
    ponds summed), the same two in mm over each pond's cells (`*_mm.png`)
-   and `lake_budget_years.csv`. Each figure has two rows -- the full
-   budget, then with the stream's through-flow replaced by its net (~100x
+   and `lake_budget_years.csv`. Each figure has three rows: the sum of the
+   fluxes but storage (green = the pond gains water, red = deficit), the
+   full budget, then the stream's through-flow replaced by its net (~100x
    every other term). A year the run does not cover entirely is labelled
-   "Hydrological year not complete: <first> - <last> (<n> d)". Any run
-   draws them, or the last one with `postproc.only`.
+   "Hydrological year not complete: <first> - <last> (<n> d)". Expect
+   pond10/pond13's EXT-OUTFLOW to shrink (§8.21) and more outer
+   iterations per day. The Results panel shows the figures by tabs (input
+   maps, output maps, time series, calibration, total water budget, ponds
+   water budget; `app/lib/results.py` sorts and titles them), two to a row,
+   the title centred below each.
 2. **The pond-outlet leak is the solver tolerance** (notes §8.21; toy
    `code/tests/diag_lak_mover_leak.py`). The mover moves the previous outer
    iteration's outlet discharge, zeroed at each step's start, and LAK's
