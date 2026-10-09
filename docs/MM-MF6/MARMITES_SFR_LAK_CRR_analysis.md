@@ -1242,3 +1242,128 @@ user's decision):
    channel -- fed by runoff, rain and groundwater, spilling only when full;
 4. only then calibration (K, Sy, recharge) to raise the valley heads.
 A larger bed conductance would make the losses larger, not reverse them.
+
+## 8.23 Why 0.001 does not converge: SFR evaporation flip-flops on nearly dry reaches (2026-10-09)
+
+Run `20261009165953` (outer_dvclose 0.001, inner_dvclose 1e-4,
+outer_maximum 100; stopped by the user after 44 SPs in 5 h):
+- 703 time steps, plus 266 attempts that ran all 100 outer iterations and
+  failed; 7 SPs failed (8, 9, 11, 13, 25, 42, 43), the other 37 converged
+  in one step;
+- at the last iteration of a failed attempt, the largest head change is
+  always in a layer-1 stream-reach cell: 3443 (reach 46), 3762 (4), 3269
+  (16), 2932 (449), 3243 (539), 3185 (526), 1720 (410), 3417 (11), 3170
+  (275), 2948 (84). The median of that change at the last iteration is
+  0.32 m (the largest 41 m);
+- these cells' reaches are nearly dry: depth 0 to 9 mm, often written as
+  dry. Their heads sit between the streambed bottom and top, a few mm below
+  the top at 3762, 3417 and 1720;
+- the failures are not storm-only: SP 42 is a quiet day at 3762 (no
+  infiltration, no UZF recharge, the head 1-2 mm below the streambed top,
+  the reach losing 0.06 m3/d, EVT 0.14 m3/d). Every step longer than about
+  0.005 d failed, so ATS ran the day in 141 steps of 0.001-0.005 d.
+
+**Two iteration signatures, one cause.**
+- A creep (SP 43 step 111, dt 0.009 d): the change at 3762 grows by about
+  8 % per outer iteration, always upward (0.05 -> 1.38 m at iteration 100),
+  and the residual grows with it (5.8 -> ~130). Backtracking cuts every
+  step and gets the residual back to about 7-18, but the next Newton step
+  raises it again: the Newton direction is not a descent direction.
+- A stall (SP 42 step 3, dt 0.4 d): from iteration 5 to 100 the proposed
+  change at 2948 (reach 84) stays at 6.2 mm, with the residual slowly
+  rising.
+At 0.025 m the stall is accepted at iteration 3, which is why 0.025
+"converged".
+
+**Mechanism (MF6 6.7.0 source; unchanged in develop on 2026-10-09).**
+- `sfr_solve` takes the reach evaporation from the depth STORED by the
+  previous solve: `qe = evap * calc_surface_area_wet(n, this%depth(n))`.
+  That wetted area ramps from 0 to w x L over the first 1e-5 m of depth
+  (`sCubicSaturation`).
+- Take a reach whose inflow (upstream + runoff + mover) is below its
+  potential open-water evaporation E0 x w x L (about 0.1 m3/d on La Mata),
+  with the head below the streambed top. Two states alternate:
+  - stored depth > 1e-5 m: the reach evaporates all its inflow, leaks
+    nothing, and its new depth is 0;
+  - stored depth 0: it evaporates nothing, leaks all its inflow
+    (`gwf-sfr-steady.f90` shortcut, `isolve = 0`), and its new depth is
+    about 1.2e-5 m.
+- `sfr_fc`'s Picard loop (MAXSFRPICARD 100) never settles. After its 100
+  passes it ends in the state it started from.
+- `sfr_fn` then perturbs the head by DEM4 = 1e-4 m and solves once
+  (`update=.false.`). It lands in the OTHER state, and hands GWF a
+  derivative of +-inflow / 1e-4 m (500 m2/d for 0.05 m3/d; 775 m2/d at
+  3762) where the true one is about 0.
+- The corrupted Jacobian makes the Newton step at that cell crawl or
+  creep. It converges only once the cell's storage Sy x A / dt outweighs
+  the corrupted derivative. At 3762 that is 3.62 m2 / dt against 775 m2/d,
+  i.e. dt below about 0.005 d -- exactly where ATS's steps stopped
+  failing.
+- The flip-flop was checked with a Python replica of `sfr_calc_steady` /
+  `sfr_solve` / `sfr_fn` (`X:\tmp_claude\helpers\sfr_replica.py`), at the
+  failing toy's state: stored depth 1.17e-5 m, inflow 0.05 m3/d, all of
+  it evaporated, hcof = rhs = 0.
+
+**On La Mata (run output, read-only).** Reaches in that state (inflow > 0
+but below E0 x w x L, head below the streambed top) at least once in the
+SP's saved steps:
+
+| SP | steps | reaches flipping | of which hold a failing cell |
+|----|------:|-----------------:|-----------------------------|
+| 6, 7, 12, 14, 41 | 1-3 | 1-2 | 0-1 |
+| 8  | 101 | 45 | 6 (1, 46, 159, 490, 501, 505) |
+| 13 | 222 | 53 | 9 |
+| 42 | 141 | 2 | both (84, 275) |
+| 43 | 118 | 4 | 3 (4, 11, 275) |
+
+Both states appear in the saved steps:
+- SP 43, reaches 4, 11 and 275: 0.02-0.09 m3/d in against 0.09-0.11 of
+  potential; all of it evaporated, nothing to the aquifer.
+- SP 42, reach 84: nothing evaporated, all of its 0.011 m3/d to the
+  aquifer.
+
+After storms many reaches recede to a trickle, hence 45-53 reaches on
+SPs 8 and 13.
+
+**Toy model** (`code/tests/diag_sfr_evap_flipflop.py`): a valley with La
+Mata's stream-cell setup (Sy 0.01, streambed 0.5 m below land, rhk 0.1,
+rbth 0.2, w 1.5 m) and headwater reaches fed 0.05 m3/d against E0 0.004
+m/d x 30 m2. It is driven through the API like the coupler (ATS, EVAP
+written after prepare_time_step).
+
+| EVAP | outer_dvclose | failed attempts | outer iterations |
+|------|---------------|----------------:|-----------------:|
+| E0 | 0.001 | 3 | 353 |
+| E0 | 0.025 | 0 | 41 |
+| min(E0, 0.5 x inflow / (w L)) | 0.001 | 0 | 43 |
+
+In the fuller toy (with UZF, EVT and a 20-day run,
+`X:\tmp_claude\helpers\toy_stream_conv.py`):
+- **Still fails at 0.001:** without under-relaxation, without
+  backtracking, at MODERATE, with a seepage drain on the stream cells, and
+  without EVT. So DBD, UZF and EVT are not the cause.
+- **Converges at 0.001:** without the reaches' evaporation, or without the
+  trickle of runoff.
+
+Trap for toy builders: flopy needs a second word after inner_rclose. With
+STRICT, an outer iteration is accepted only when the linear solve
+converges at its FIRST inner iteration (`ImsLinearBase` `testcnvg`). La
+Mata's IMS has none.
+
+**What to do (the user's decision).**
+1. Cap the stream evaporation in the coupler. Write
+   EVAP = min(E0, f x qin / (w L)), where qin = the step's INFLOW (MM
+   runoff) + USFLOW + QFROMMVR left by the last solve (all at the SFR
+   memory path), with f = 0.5.
+   - A reach can then never evaporate more than half of what reaches it,
+     so it stays away from the switch.
+   - Over the run's 43 saved days it would remove 0.3 % of the stream
+     evaporation (61 m3/d; 0.1 % at f = 0.8).
+   - It keeps outer_dvclose 0.001 and with it the pond-leak fix of §8.21.
+   - It needs a config field (with front-end help), the coupler code and
+     tests.
+2. Back to 0.025, accepting the pond leak (§8.21), or an intermediate
+   value. On La Mata the stall reached 6 mm, so 0.005 is not safe.
+3. Report it to MODFLOW 6: compute the evaporation from the depth being
+   solved, or do sfr_fn's perturbation from the converged state. The toy
+   reproduces it in seconds.

@@ -392,16 +392,22 @@ Recent runs (La Mata, 4566-cell Voronoi mesh: 20 m stream corridor ratio 2,
 ## 7. Next steps (in order)
 
 1. **outer_dvclose 0.001 does not converge on La Mata** (run
-   20261009165953, 500 SPs, inner_dvclose also 0.001, outer_maximum 100):
-   after 1 h only 13 SPs, 72 failed steps, each through all 100 outer
-   iterations with the max head change CREEPING up (0.07 -> 0.12 m,
-   backtracking) -- always at stream-reach cells: 3443 (reach 46), 3269
-   (reach 16, on the 1e-4 slope floor), the trunk near the outlet (reaches
-   487-505, ~754 m). Same cells as §8.19's storm-day failures, which 0.025
-   let through. ~38 h for the run. The user decides: back to 0.025 (and
-   the 0.75 % leak), or an intermediate value tried on a short run first,
-   with inner_dvclose 10x tighter than outer; the real fix is the stream
-   cells' convergence (flat reaches, stream-aquifer coupling).
+   20261009165953, inner_dvclose 1e-4, outer_maximum 100; stopped after
+   44 SPs in 5 h: 703 steps plus 266 failed 100-iteration attempts, always
+   at a nearly dry stream reach). CAUSE FOUND (§8.23): MF6 SFR takes the
+   reach evaporation from the depth stored by the previous solve. When a
+   reach's inflow is below E0 x w x L with the head under the streambed
+   top, it flip-flops between evaporating all its inflow and leaking all of
+   it. sfr_fn's 1e-4 m perturbation straddles the two states and hands GWF
+   a derivative of inflow/1e-4 (~500-800 m2/d) where the true one is ~0. The
+   Newton step creeps or stalls; 0.025 accepts it, 0.001 never does, and
+   ATS shrinks dt until Sy A/dt outweighs it (~0.005 d). Reproduced by
+   `code/tests/diag_sfr_evap_flipflop.py`. Proposed fix, awaiting the
+   user's go-ahead: cap the coupler's SFR EVAP at min(E0, 0.5 x qin/(w L)),
+   with qin = INFLOW + USFLOW + QFROMMVR (0 failures in the toy at 0.001;
+   -0.3 % of the stream evaporation on La Mata). Needs a config field,
+   front-end help and tests. Alternatives: back to 0.025 (the pond leak),
+   or report it to MF6.
    Then the user looks at the pond budgets per year (WP6.2 part):
    `_output/lake_budget_years_by_pond.png` (a group of bars per
    hydrological year, a bar per pond), `lake_budget_years_total.png` (all
