@@ -3354,9 +3354,11 @@ def _native_result_maps(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
     before = set(os.listdir(out_dir)) if os.path.isdir(out_dir) else set()
 
     def draw(V, stem, cblbl, unit, m3, nplot=None, cmap=None, days=None,
-             dates=None, jd=None, prefix='GWmap'):
+             dates=None, jd=None, prefix='GWmap', vlim=None):
         """One plotLAYER page. ``m3`` is the (nlay, nrow, ncol) inactive-cell
-        mask and ``nplot`` how many layer panels to draw (default: all)."""
+        mask and ``nplot`` how many layer panels to draw (default: all).
+        ``vlim`` = (lo, hi) fixes the colour ramp; by default it is the
+        range of what is drawn."""
         V = np.asarray(V, dtype=float)
         m = np.repeat(m3[None, :, :, :], V.shape[0], axis=0)
         VV = np.where(m, hnoflo, V)
@@ -3364,7 +3366,7 @@ def _native_result_maps(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
         vals = vals[np.isfinite(vals)]
         if not vals.size:
             return
-        lo, hi = _vrange(vals)
+        lo, hi = _vrange(vals) if vlim is None else vlim
         try:
             MMplot.plotLAYER(
                 days=days if days is not None else [0],
@@ -3416,10 +3418,19 @@ def _native_result_maps(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
     kk = period_end_kk(hds, steady=steady_first(sim_ws, name))[-nper:]
     nper_h = len(kk)
     acc = None
+    # the range of the head over the WHOLE run, active cells only: the head
+    # series is drawn on it, so its days share one colour ramp and can be
+    # compared with each other (user, 2026-10-09) -- not the range of the
+    # few days drawn
+    h_lo, h_hi = np.inf, -np.inf
     for k in range(nper_h):
         h = np.asarray(hds.get_data(kstpkper=kk[k]), dtype=float)
         h = np.where(np.abs(h) > 1e29, np.nan, h)
         acc = h if acc is None else acc + h
+        a = np.asarray(DA.lay(h.reshape(nlay, -1)), dtype=float)[~m3]
+        a = a[np.isfinite(a)]
+        if a.size:
+            h_lo, h_hi = min(h_lo, float(a.min())), max(h_hi, float(a.max()))
     draw(DA.lay(np.asarray(acc).reshape(nlay, -1) / nper_h)[None, :, :, :],
          'head', 'mean head', 'm', m3)
     if ndays and nper_h > 1:
@@ -3436,7 +3447,8 @@ def _native_result_maps(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
         jd = [int(_mpl.dates.num2date(DATE[s]).timetuple().tm_yday) for s in sel]
         draw(V, 'head_series', 'head', 'm', m3,
              days=[int(s) for s in sel],
-             dates=[float(DATE[s]) for s in sel], jd=jd)
+             dates=[float(DATE[s]) for s in sel], jd=jd,
+             vlim=(h_lo, h_hi) if h_hi > h_lo else None)
 
     # budget terms, per layer, as mm/d
     maps = _aquifer_map_pass(sim_ws, name, cMF, nper, cache_dir=sim_ws,

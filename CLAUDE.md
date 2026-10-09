@@ -405,7 +405,12 @@ Recent runs (La Mata, 4566-cell Voronoi mesh: 20 m stream corridor ratio 2,
    iterations per day. The Results panel shows the figures by tabs (input
    maps, output maps, time series, calibration, water budgets, ponds
    water budget; `app/lib/results.py` sorts and titles them), two to a row,
-   the title centred below each.
+   the title centred below each. The maps (plotLAYER) fit their panels: a
+   4.8 in panel per layer, the layers SIDE BY SIDE (two layers = same
+   height, twice the width, 'MM-panels' in the PNG), one colour bar under
+   them, 200 dpi, cropped; on the panel a two-layer map takes the whole row,
+   so its maps show at a one-layer map's size. The head series is drawn on
+   the whole run's head range, one colour ramp for every day.
 2. **The pond-outlet leak is the solver tolerance** (notes §8.21; toy
    `code/tests/diag_lak_mover_leak.py`). The mover moves the previous outer
    iteration's outlet discharge, zeroed at each step's start, and LAK's

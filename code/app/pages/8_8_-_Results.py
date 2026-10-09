@@ -108,13 +108,18 @@ def _caption(sub, fname, text):
 
 
 def _grid(items):
-    """Two figures to a row, aligned on their tops; an odd last one centred
-    at the same width."""
-    for k in range(0, len(items), 2):
-        pair = items[k:k + 2]
-        cols = (st.columns(2, gap='medium', vertical_alignment='top')
-                if len(pair) == 2 else [st.columns([1, 2, 1])[1]])
-        for col, (sub, fname, path, text) in zip(cols, pair):
+    """Two figures to a row, aligned on their tops. A map of two layers
+    takes the whole row, so its maps show at the size of a one-layer map's
+    (user, 2026-10-09); a one-layer figure alone on its row is centred at
+    the width of a column."""
+    for row in R.rows(items):
+        if len(row) == 2:
+            cols = st.columns(2, gap='medium', vertical_alignment='top')
+        elif R.panels(row[0][2]) > 1:
+            cols = [st.container()]
+        else:
+            cols = [st.columns([1, 2, 1])[1]]
+        for col, (sub, fname, path, text) in zip(cols, row):
             with col:
                 st.image(path, width='stretch')
                 _caption(sub, fname, text)

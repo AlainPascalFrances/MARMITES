@@ -71,6 +71,31 @@ def test_every_known_figure_has_a_title_in_words():
         '[mm over its cells]')
 
 
+def test_a_two_layer_map_takes_the_whole_row(tmp_path):
+    """User, 2026-10-09: a map of two layers (side by side) occupies both
+    columns, a one-layer map one -- so their maps show at the same size."""
+    import matplotlib
+    matplotlib.use('agg')
+    import matplotlib.pyplot as plt
+    paths = {}
+    for name, n in (('a', 1), ('b', 1), ('c', 1), ('wide', 2), ('d', 1)):
+        fig = plt.figure(figsize=(1, 1))
+        fn = str(tmp_path / ('%s.png' % name))
+        fig.savefig(fn, metadata={'MM-panels': str(n)})
+        plt.close(fig)
+        paths[name] = fn
+    plain = str(tmp_path / 'plain.png')
+    fig = plt.figure(figsize=(1, 1))
+    fig.savefig(plain)
+    plt.close(fig)
+    assert R.panels(paths['wide']) == 2 and R.panels(paths['a']) == 1
+    assert R.panels(plain) == 1, 'a figure without the key is one panel'
+    items = [('_output', n + '.png', paths[n], n)
+             for n in ('a', 'b', 'c', 'wide', 'd')]
+    rows = [[it[3] for it in r] for r in R.rows(items)]
+    assert rows == [['a', 'b'], ['c'], ['wide'], ['d']]
+
+
 def test_inside_a_tab_the_catchment_comes_before_the_points():
     files = [(s, f, f) for s, f in RUN]
     g = R.arrange(files)

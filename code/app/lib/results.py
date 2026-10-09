@@ -12,7 +12,7 @@ wrote is ever hidden. Streamlit-free, so it is tested without a page.
 import os
 import re
 
-__all__ = ['TABS', 'classify', 'title', 'arrange', 'FOLDERS']
+__all__ = ['TABS', 'classify', 'title', 'arrange', 'panels', 'rows', 'FOLDERS']
 
 TABS = (
     ('input', 'Input maps'),
@@ -223,6 +223,40 @@ def _rank(tab, sub, fname):
         if re.search(pat, s):
             return (k, s)
     return (len(_ORDER.get(tab, ())), s)
+
+
+def panels(path):
+    """How many map panels a figure holds side by side: what plotLAYER
+    writes in the PNG's 'MM-panels' text (2026-10-09), else 1. A figure of
+    two layers takes the whole row on the panel, so its maps show at the
+    size of a one-layer map's."""
+    try:
+        from PIL import Image
+        with Image.open(path) as im:
+            return max(1, int(im.info.get('MM-panels', 1)))
+    except Exception:                    # no PIL, not a PNG, no such key
+        return 1
+
+
+def rows(items, path_of=lambda it: it[2]):
+    """The page's rows: a figure of several panels alone on its row, the
+    others two to a row in their order. A one-panel figure left alone
+    before a wide one gets a row of its own."""
+    out, pend = [], []
+    for it in items:
+        if panels(path_of(it)) > 1:
+            if pend:
+                out.append(pend)
+                pend = []
+            out.append([it])
+            continue
+        pend.append(it)
+        if len(pend) == 2:
+            out.append(pend)
+            pend = []
+    if pend:
+        out.append(pend)
+    return out
 
 
 def arrange(files):

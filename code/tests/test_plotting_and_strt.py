@@ -84,8 +84,9 @@ def test_plotlayer_accepts_bytes_title(tmp_path):
 
 def test_a_map_fits_its_panels_and_every_panel_is_the_same_size(tmp_path):
     """User, 2026-10-09: no A4 page and no white margins; a one-layer and a
-    two-layer map the same size per layer -- the layers stacked, so both
-    are one panel wide -- and saved at a better definition."""
+    two-layer map the same size per layer -- the layers SIDE BY SIDE, so
+    both are the same height and the two-layer one twice as wide -- saved
+    at a better definition, with the number of panels in the PNG."""
     from PIL import Image
     V, mask, nrow, ncol, nlay = _layer_args(nrow=65, ncol=60, nlay=2)
     sizes = {}
@@ -99,12 +100,51 @@ def test_a_map_fits_its_panels_and_every_panel_is_the_same_size(tmp_path):
         im = Image.open(str(tmp_path / ('_sp_plt_L%d_1_1.png' % n)))
         sizes[n] = im.size
         assert abs(im.info['dpi'][0] - P._MAP_DPI) < 1
+        assert im.info['MM-panels'] == str(n)
     (w1, h1), (w2, h2) = sizes[1], sizes[2]
-    assert w1 == w2, 'one panel wide, whatever the number of layers'
-    assert 1.6 < h2 / h1 < 2.0, 'the second layer stacked under the first'
+    assert h1 == h2, 'the same height, whatever the number of layers'
+    # twice as wide, to the empty left margin kept between the panels (no
+    # cMF here, so no real-coordinate labels fill it; La Mata's mesh: 2.05)
+    assert 1.95 < w2 / w1 < 2.15, 'the second layer beside the first'
     # not an A4 page: an 8.27 x 11.7 in page at the map dpi would be this
     assert (w1, h1) != (round(8.27 * P._MAP_DPI), round(11.7 * P._MAP_DPI))
     assert w1 < 8.27 * P._MAP_DPI * 0.8, 'cropped to what is drawn'
+
+
+def test_a_series_of_days_shares_one_colour_ramp(tmp_path, monkeypatch):
+    """User, 2026-10-09: the head series is compared day against day, so
+    every day is drawn on the same ramp -- the one the caller gives (the
+    whole run's minimum and maximum), whatever each day's own range."""
+    V, mask, nrow, ncol, _n = _layer_args(nlay=1)
+    V = np.concatenate([V, V * 0.5 + 2.0, V * 3.0 - 1.0])     # 3 days
+    norms = []
+    real = plt.savefig
+
+    def grab(*a, **k):
+        m = plt.gcf().axes[0].collections[0].norm
+        norms.append(tuple(np.round(m.boundaries, 9)))
+        return real(*a, **k)
+    monkeypatch.setattr(plt, 'savefig', grab)
+    P.plotLAYER(days=[0, 1, 2], str_per=[0, 1, 2], Date=[733000.0, 733001.0,
+                                                           733002.0],
+                JD=[1, 2, 3], ncol=ncol, nrow=nrow, nlay=1, nplot=1, V=V,
+                cmap=plt.cm.viridis, CBlabel='head', msg='',
+                plt_title='series', MM_ws=str(tmp_path),
+                interval_type='linspace', interval_num=5,
+                Vmax=[float(V.max())], Vmin=[float(V.min())], fmt='%.2f',
+                mask=mask[:1], hnoflo=-999.9)
+    assert len(norms) == 3 and len(set(norms)) == 1, 'one ramp for every day'
+    assert norms[0][0] <= V.min() + 1e-9 and norms[0][-1] >= V.max() - 1e-9
+
+
+def test_the_head_series_is_drawn_on_the_whole_runs_range():
+    src = open(os.path.join(TRUNK, 'ppMF6', 'marmites_postprocess.py'),
+               encoding='utf-8').read()
+    body = src[src.index("draw(V, 'head_series'"):]
+    body = body[:body.index(')\n')]
+    assert 'vlim=(h_lo, h_hi)' in body
+    assert 'h_lo, h_hi = min(h_lo, float(a.min())), max(h_hi, float(a.max()))' \
+        in src, 'the range is taken over every stress period'
 
 
 def test_as_str_helper():

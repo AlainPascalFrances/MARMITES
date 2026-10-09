@@ -1627,10 +1627,12 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
     # portrait or landscape by the grid's shape -- at 90 dpi with the maps in
     # its middle: mostly white, and a one-layer map not the size of a two-
     # layer one. Now every panel is the same size, _MAP_PANEL_W inches wide
-    # and as tall as the map's own aspect wants; the layers of a page are
-    # STACKED, so a map of any number of layers is one panel wide; the colour
-    # bar runs under the panels at their width; and the page is saved at
-    # _MAP_DPI, cropped to what is drawn.
+    # and as tall as the map's own aspect wants. The layers of a page sit
+    # SIDE BY SIDE, each in a slot of its own (its labels, the panel, its
+    # caption), so a page of two layers is the height of a page of one and
+    # twice its width; the colour bar runs under the panels; the page is
+    # saved at _MAP_DPI, cropped to what is drawn, with the number of panels
+    # in its metadata ('MM-panels') for the Results panel to lay it out.
     if polys is not None:
         _pxy = np.concatenate([np.asarray(p, dtype=float)[:, :2]
                                for p in polys])
@@ -1641,13 +1643,17 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
     _aspect = min(max(_span_y / _span_x if _span_x > 0 else 1.0, 0.3), 3.0)
     PW = _MAP_PANEL_W
     PH = PW * _aspect
-    LM, RM = 1.0, 0.75             # the Y labels (left), the row index (right)
+    # each slot's margins, as narrow as its labels allow, so that the
+    # cropped page of two layers is twice the cropped page of one: the Y
+    # labels on the left, the row index on the right (none on a mesh)
+    LM = 0.62
+    RM = 0.12 if polys is not None else 0.62
     TOP0, TOPL = 0.2, 0.2          # the title: a margin, and per line
     AT = 0.5 if polys is None else 0.15   # the column-index axis on top
     BT = 0.75                      # the X labels and the 'layer N' caption
     CB = 0.9                       # a colour bar: its label, the bar, ticks
     pct = interval_type == 'percentile'          # one colour bar per layer
-    W = LM + PW + RM
+    SW = LM + PW + RM              # one layer's slot
     for i, day in enumerate(days):
         NPage = int(np.ceil(nplot / 2.0))
         L = 0
@@ -1689,8 +1695,8 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
             if NPage > 1:
                 lines.append('page %d/%d' % (F + 1, NPage))
             TOP = TOP0 + TOPL * len(lines)
-            block = AT + PH + BT + (CB if pct else 0.0)
-            H = TOP + nl * block + (0.0 if pct else CB)
+            W = nl * SW
+            H = TOP + AT + PH + BT + CB
             fig = plt.figure(num=None, figsize=(W, H), dpi=90)
             fig.suptitle('\n'.join(lines), fontsize=10, y=1.0 - 0.1 / H,
                          va='top')
@@ -1710,9 +1716,9 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
                                               [0.0, 10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0])
                         levels = mpl.ticker.MaxNLocator(nbins=cmap.N).tick_values(0.0, 100.0)
                         norm = mpl.colors.BoundaryNorm(ticks, cmap.N)  # , vmin=Vmin_tmp, vmax=Vmax_tmp)
-                    # the panel, placed in inches from the top of the page
-                    top_in = H - TOP - l * block - AT
-                    ax.append(fig.add_axes([LM / W, (top_in - PH) / H,
+                    # the panel, in its slot, placed in inches
+                    x0 = l * SW + LM
+                    ax.append(fig.add_axes([x0 / W, (H - TOP - AT - PH) / H,
                                             PW / W, PH / H],
                                            facecolor=facecolor))
                     if polys is None:
@@ -1783,9 +1789,8 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
                         ax[l].set_aspect('equal')
                     if pct:
                         # this layer's own bar, under its caption
-                        cax = fig.add_axes([LM / W,
-                                            (top_in - PH - BT - CB + 0.35) / H,
-                                            PW / W, 0.16 / H])
+                        cax = fig.add_axes([x0 / W, 0.35 / H, PW / W,
+                                            0.16 / H])
                         CB_ = fig.colorbar(page_ims[l], ticks=ticks,
                                            extend='both', format=fmt,
                                            cax=cax, orientation='horizontal')
@@ -1799,8 +1804,9 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
                     L += 1
 
             if not pct:
-                # one bar for the page, under the panels, at their width
-                cax = fig.add_axes([LM / W, 0.35 / H, PW / W, 0.16 / H])
+                # one bar for the page, under the panels, across them
+                cax = fig.add_axes([LM / W, 0.35 / H,
+                                    ((nl - 1) * SW + PW) / W, 0.16 / H])
                 CB_ = fig.colorbar(page_ims[0], ticks=ticks, extend='both',
                                    format=fmt, cax=cax,
                                    orientation='horizontal')
@@ -1816,7 +1822,7 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
             else:
                 plt_export_fn = os.path.join(MM_ws, '%s_%s_%s_%s.png' % (pref_plt_title, plt_title, F + 1, NPage))
             plt.savefig(plt_export_fn, dpi=_MAP_DPI, bbox_inches='tight',
-                        pad_inches=0.08)
+                        pad_inches=0.08, metadata={'MM-panels': str(nl)})
             # print("Printed %s" % plt_export_fn)
             if len(days) > 1 and animation == 1:
                 try:
