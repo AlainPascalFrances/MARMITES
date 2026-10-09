@@ -329,6 +329,39 @@ def test_mm_paths_resolves_and_reports():
     assert 'REPO' in text and 'DATASET' in text and 'WS_ROOT' in text
 
 
+def test_the_tools_are_found_wherever_the_layout_put_them(tmp_path,
+                                                         monkeypatch):
+    """2026-10-09: GRIDGEN and PEST++ were reported missing on the server,
+    where MODFLOW_DIR holds win64/gridgen.exe and
+    pestpp-5.2.27-win/bin/pestpp-ies.exe -- not the one layout mm_paths
+    knew. A known layout first, then the file by name; the variable wins."""
+    paths = _load('mm_paths', os.path.join(TRUNK, 'mm_paths.py'))
+    for env in ('MM_GRIDGEN_EXE', 'MM_PESTPP_IES', 'MM_TRIANGLE_EXE'):
+        monkeypatch.delenv(env, raising=False)
+    root = tmp_path / 'MODFLOWandCo'
+    for rel in ('win64/gridgen.exe', 'win64/triangle.exe',
+                'pestpp-5.2.27-win/bin/pestpp-ies.exe',
+                'pestpp-5.2.27-win/bin/pestpp-glm.exe'):
+        (root / rel).parent.mkdir(parents=True, exist_ok=True)
+        (root / rel).write_text('exe')
+    assert paths._find_tool('GRIDGEN_EXE', root) == str(root / 'win64' /
+                                                        'gridgen.exe')
+    assert paths._find_tool('PESTPP_IES', root) == str(
+        root / 'pestpp-5.2.27-win' / 'bin' / 'pestpp-ies.exe')
+    assert paths._find_tool('TRIANGLE_EXE', root) == str(root / 'win64' /
+                                                         'triangle.exe')
+    # the x64 build of the known layout is preferred when both are there
+    x64 = root / 'gridgen.1.0.02' / 'bin' / 'gridgen_x64.exe'
+    x64.parent.mkdir(parents=True)
+    x64.write_text('exe')
+    assert paths._find_tool('GRIDGEN_EXE', root) == str(x64)
+    monkeypatch.setenv('MM_GRIDGEN_EXE', 'D:/elsewhere/gridgen.exe')
+    assert paths._find_tool('GRIDGEN_EXE', root) == 'D:/elsewhere/gridgen.exe'
+    # nothing there: the known layout, which report_paths flags as missing
+    assert paths._find_tool('PESTPP_IES', tmp_path / 'none') == str(
+        tmp_path / 'none' / 'pestpp' / 'pestpp-ies.exe')
+
+
 def test_the_run_and_its_figures_read_panel_zeros_dataset():
     """2026-10-09: plot_water_budget looked for the grid rasters in its own
     <repo>/example/LaMata while the run read panel 0's example_root, and

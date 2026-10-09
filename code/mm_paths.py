@@ -6,7 +6,9 @@ machine means setting them ONCE -- on PANEL 0 of the front-end, which writes
 ``code/configs/paths.local.toml`` -- and nothing else. This is the MARMITES
 equivalent of ``CdL/code/config.py`` in the MF6models repository.
 
-    REPO         the MARMITES checkout (self-locating; never set)
+    REPO         the MARMITES checkout (self-locating; never set) -- the one
+                 a MIRROR copies when the code runs from one (see below)
+    CONFIG_DIR   the run configurations (*.toml) and the machine settings
     EXAMPLE_ROOT holds one folder per case: the Tier-A inputs a run reads
     DATA_ROOT    raw geospatial sources, OUTSIDE the repo (Tier B)
     GIS          the shapefiles, read by the CONVERTER only
@@ -25,14 +27,37 @@ which roots are missing.
 import os
 from pathlib import Path
 
-__all__ = ['REPO', 'DATA_ROOT', 'WS_ROOT', 'NWT_REF', 'MODFLOW_DIR', 'GIS',
+__all__ = ['REPO', 'CODE_DIR', 'MIRROR', 'MIRROR_MARK', 'CONFIG_DIR',
+           'DATA_ROOT', 'WS_ROOT', 'NWT_REF', 'MODFLOW_DIR', 'GIS',
            'LIBMF6', 'MF6_EXE', 'PESTPP_IES', 'PYTHON_EXE', 'TRIANGLE_EXE',
            'GRIDGEN_EXE', 'EXAMPLE_ROOT', 'SETTINGS', 'SETTABLE',
            'dataset_dir', 'resolve_input', 'report_paths', 'LEGACY_ALIASES',
            'read_settings', 'save_settings', 'reload_paths', 'source_of',
            'settings_label']
 
-REPO = Path(__file__).resolve().parents[1]
+# ==== the checkout, and the code that runs ==================================
+# The code may run from a MIRROR of the checkout: Streamlit does not run from
+# a mapped network drive, so code/tools/launch_app.py copies the code to a
+# local disk and leaves a marker in the copy naming the checkout. Every path
+# below is then the CHECKOUT's -- its configurations, its machine settings,
+# its dataset -- and the mirror holds code only, so a configuration saved
+# from the front-end lands in the checkout and nowhere else (2026-10-09).
+CODE_DIR = Path(__file__).resolve().parent          # where this code runs
+MIRROR_MARK = '.mm_mirror_of'                       # in CODE_DIR of a mirror
+
+
+def _checkout():
+    """The checkout: the one the mirror marker names, else this code's."""
+    try:
+        named = (CODE_DIR / MIRROR_MARK).read_text(encoding='utf-8').strip()
+    except OSError:
+        named = ''
+    return Path(named) if named else CODE_DIR.parent
+
+
+REPO = _checkout()
+MIRROR = REPO != CODE_DIR.parent
+CONFIG_DIR = REPO / 'code' / 'configs'
 
 # ==== where the machine-specific roots come from ============================
 # Three sources, in this order:
@@ -48,7 +73,7 @@ REPO = Path(__file__).resolve().parents[1]
 # Panel 0 writes (2) instead of editing this file, which is tracked: a
 # generated edit here would show up as a diff on every machine, and a Windows
 # path written into Python source is one backslash from a broken escape.
-SETTINGS = REPO / 'code' / 'configs' / 'paths.local.toml'
+SETTINGS = CONFIG_DIR / 'paths.local.toml'
 
 # key -> (environment variable, default, what it is). This IS panel 0's form.
 SETTABLE = {
@@ -141,6 +166,49 @@ def save_settings(values):
     return reload_paths()
 
 
+# THE TOOLS INSIDE MODFLOW_DIR: (environment variable, file names in order
+# of preference, the layouts known so far). MODFLOW_DIR is a panel-0 setting
+# but the folders under it are not: GRIDGEN sits in gridgen.1.0.02/bin as
+# gridgen_x64.exe on one machine and in win64/ as gridgen.exe on another
+# (flopy's get-modflow layout); PEST++ in pestpp/ or pestpp-5.2.27-win/bin/.
+# The server's were reported missing while they were there (2026-10-09).
+# MF6 is NOT searched: the 6.7.0 build is pinned, as results depend on it.
+_TOOLS = {
+    # GRIDGEN ships two builds side by side; x64 is the one to use (WP1c.1).
+    'GRIDGEN_EXE': ('MM_GRIDGEN_EXE',
+                    ('gridgen_x64.exe', 'gridgen.exe', 'gridgen_x64', 'gridgen'),
+                    ('gridgen.1.0.02/bin/gridgen_x64.exe', 'win64/gridgen.exe')),
+    'TRIANGLE_EXE': ('MM_TRIANGLE_EXE', ('triangle.exe', 'triangle'),
+                     ('win64/triangle.exe',)),
+    'PESTPP_IES': ('MM_PESTPP_IES', ('pestpp-ies.exe', 'pestpp-ies'),
+                   ('pestpp/pestpp-ies.exe',)),
+}
+
+
+def _find_tool(key, root):
+    """A tool's path: its MM_* variable, else the first known layout that
+    exists under ``root``, else the first file with one of its names up to
+    three folders down (by preference of name, then path, so the choice is
+    stable), else the first layout -- which report_paths flags as missing."""
+    env, names, hints = _TOOLS[key]
+    if os.environ.get(env):
+        return os.environ[env]
+    root = Path(root)
+    for h in hints:
+        if (root / h).is_file():
+            return str(root / h)
+    found = []
+    if root.is_dir():
+        rank = {n.lower(): k for k, n in enumerate(names)}
+        depth0 = len(root.parts)
+        for dirpath, dirs, files in os.walk(root):
+            if len(Path(dirpath).parts) - depth0 >= 3:
+                dirs[:] = []
+            found += [(rank[f.lower()], str(Path(dirpath) / f))
+                      for f in files if f.lower() in rank]
+    return min(found)[1] if found else str(root / hints[0])
+
+
 def reload_paths():
     """Re-resolve every root after the settings changed, without a restart."""
     global _SETTINGS, DATA_ROOT, WS_ROOT, NWT_REF, MODFLOW_DIR, PYTHON_EXE
@@ -156,12 +224,9 @@ def reload_paths():
     GIS = Path(_setting('gis') or str(DATA_ROOT / 'GIS'))
     LIBMF6 = str(MODFLOW_DIR / 'mf6.7.0_win64' / 'bin' / 'libmf6.dll')
     MF6_EXE = str(MODFLOW_DIR / 'mf6.7.0_win64' / 'bin' / 'mf6.exe')
-    TRIANGLE_EXE = str(MODFLOW_DIR / 'win64' / 'triangle.exe')
-    PESTPP_IES = str(MODFLOW_DIR / 'pestpp' / 'pestpp-ies.exe')
-    # GRIDGEN ships two builds side by side; x64 is the one to use (WP1c.1).
-    GRIDGEN_EXE = os.environ.get(
-        'MM_GRIDGEN_EXE',
-        str(MODFLOW_DIR / 'gridgen.1.0.02' / 'bin' / 'gridgen_x64.exe'))
+    TRIANGLE_EXE = _find_tool('TRIANGLE_EXE', MODFLOW_DIR)
+    PESTPP_IES = _find_tool('PESTPP_IES', MODFLOW_DIR)
+    GRIDGEN_EXE = _find_tool('GRIDGEN_EXE', MODFLOW_DIR)
     return _SETTINGS
 
 
@@ -177,12 +242,9 @@ EXAMPLE_ROOT = Path(_setting('example_root') or str(REPO / 'example'))
 GIS          = Path(_setting('gis') or str(DATA_ROOT / 'GIS'))
 LIBMF6       = str(MODFLOW_DIR / 'mf6.7.0_win64' / 'bin' / 'libmf6.dll')
 MF6_EXE      = str(MODFLOW_DIR / 'mf6.7.0_win64' / 'bin' / 'mf6.exe')
-TRIANGLE_EXE = str(MODFLOW_DIR / 'win64' / 'triangle.exe')
-PESTPP_IES   = str(MODFLOW_DIR / 'pestpp' / 'pestpp-ies.exe')
-# GRIDGEN ships two builds side by side; the x64 one is the one to use (WP1c.1).
-GRIDGEN_EXE  = os.environ.get(
-    'MM_GRIDGEN_EXE',
-    str(MODFLOW_DIR / 'gridgen.1.0.02' / 'bin' / 'gridgen_x64.exe'))
+TRIANGLE_EXE = _find_tool('TRIANGLE_EXE', MODFLOW_DIR)   # see _TOOLS
+PESTPP_IES   = _find_tool('PESTPP_IES', MODFLOW_DIR)
+GRIDGEN_EXE  = _find_tool('GRIDGEN_EXE', MODFLOW_DIR)
 
 # Backwards compatibility with the pre-WP0 environment variables, so an
 # existing shell keeps working while the flags are being retired.
@@ -246,6 +308,7 @@ def report_paths(case='LaMata', stream=None):
     out = stream or sys.stdout
     rows = [
         ('REPO',         REPO,               True),
+    ] + ([('CODE',       CODE_DIR,           True)] if MIRROR else []) + [
         ('DATASET',      dataset_dir(case),  True),
         ('DATA_ROOT',    DATA_ROOT,          False),
         ('GIS',          GIS,                False),

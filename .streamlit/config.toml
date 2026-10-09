@@ -1,6 +1,9 @@
 # Streamlit settings for the MARMITES front-end (WP1b).
-# Serving from the SERVER: run it there and reach it over the LAN --
-#   streamlit run code/app/Home.py --server.address 0.0.0.0 --server.port 8501
+# Start it with  python code/tools/launch_app.py  (which mirrors the code to a
+# local disk first when the checkout is on a network drive, and copies this
+# file with it). Serving from the SERVER: run it there and reach it over the
+# LAN --
+#   python code/tools/launch_app.py -- --server.address 0.0.0.0 --server.port 8501
 # The PEST workers already run there and the app only needs to see $MM_WS_ROOT.
 
 [server]

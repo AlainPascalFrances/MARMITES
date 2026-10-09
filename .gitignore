@@ -77,3 +77,6 @@ wsl.distributions.xml
 # Machine-local paths written by panel 0: where one person's data sits is
 # not a property of the project.
 code/configs/paths.local.toml
+# The marker code/tools/launch_app.py leaves in a MIRROR of the code, naming
+# the checkout; it never belongs in one.
+code/.mm_mirror_of

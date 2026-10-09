@@ -56,8 +56,19 @@ is what keeps geopandas and rasterio off the model path.
 
 ## Running
 
-The run is configured by a TOML file, which the Streamlit front-end
-(`streamlit run code/app/Home.py`) edits and launches:
+The run is configured by a TOML file, which the Streamlit front-end edits and
+launches. Start it with
+
+```
+python code/tools/launch_app.py
+```
+
+which runs `streamlit run code/app/Home.py` in place -- or, when the checkout
+is on a network drive Streamlit cannot run from, from a local mirror of the
+code that it refreshes at every launch. The configurations
+(`code/configs/*.toml`), the machine settings (`paths.local.toml`) and the
+dataset stay in the checkout either way: the app reads and saves them there.
+Options after `--` go to Streamlit (`-- --server.port 8502`). A run:
 
 ```
 python code/tests/run_lamata_mf6.py --config code/configs/lamata.toml --run-tag <tag>

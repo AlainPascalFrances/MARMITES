@@ -44,7 +44,9 @@ code/                    all Python
   ppMF6/marmites_topology.py      shared-face adjacency on DISV meshes
   marmites_meshes.py / marmites_mesh.py   mesh producers / projection
   marmites_indices.py       MM flux-vector indices (iRunon 31, iEcrr 32, iReinf 33 ...)
-  app/                      Streamlit front-end: streamlit run code/app/Home.py
+  app/                      Streamlit front-end: python code/tools/launch_app.py
+                            (streamlit run code/app/Home.py, from a local mirror
+                            of the code when the checkout is on a network drive)
                             pages 1 Grid .. 7 Run (Validation + Run tabs) .. 8 Results
                             app/lib/schema.py = panel help texts
   tools/gis_to_dataset.py   converter shapefiles -> dataset tables (run by hand / Launch)
@@ -86,8 +88,10 @@ never shapefiles. The user asked to be reminded whenever that gets mixed up.
    SESSION branch only (never to `MM-MF6_SFR_LAK_CRR`); the user then
    fast-forwards `MM-MF6_SFR_LAK_CRR` from it in his own terminal.
 5. When code that the Streamlit app imports changes (schema, config, panels,
-   meshes), **remind the user to restart Streamlit**. A model run starts a fresh
-   process and picks up model code without a restart.
+   meshes), **remind the user to restart Streamlit** -- through
+   `code/tools/launch_app.py`, which refreshes the mirror first. A model run
+   starts a fresh process and picks up model code without a restart, but on
+   the server the app launches it from the mirror, so it needs that refresh.
 6. When fixes start to turn into whack-a-mole, step back. Name the structural
    cause and propose a **literature-grounded redesign** (Alain co-authored
    Daoud et al. 2022 and El-Zehairy et al.; he reaches for those).
@@ -127,11 +131,22 @@ never shapefiles. The user asked to be reminded whenever that gets mixed up.
   network share, and git refuses it as "dubious ownership": pass
   `-c safe.directory=*` on each command rather than changing the global
   config.
-- `C:\00code\MM-MF6_SFR_LAK_CRR` is another checkout. Never edit it. It is
-  read-only for a non-elevated session anyway (BUILTIN\Users: RX). The
-  2026-10-06 runs were launched from it (`status.json` cwd), at `84d487f`,
-  behind `X:`. Check which checkout a run used before attributing a result
-  to a commit.
+- **The app runs from a MIRROR** (user, 2026-10-09: everything lives in the
+  repo, and the code must not encode this machine). Streamlit cannot run
+  from the mapped X: drive, so `python X:\3p1p1\MARMITES\code\tools\launch_app.py`
+  copies `code/` (without `code/configs`) and `.streamlit/` to
+  `%LOCALAPPDATA%\MARMITES\mirror\MARMITES-<id>` at every launch and starts
+  the app there. A marker in the mirror (`code/.mm_mirror_of`) names the
+  checkout, and `mm_paths` (REPO, CONFIG_DIR, SETTINGS, the default
+  EXAMPLE_ROOT) then points back at X:: the panels read and SAVE
+  `X:\3p1p1\MARMITES\code\configs\lamata.toml`, and the runs the app
+  launches run the mirror's code with the X: configuration. Never edit the
+  mirror.
+- `C:\00code\MM-MF6_SFR_LAK_CRR` is the old hand-made copy the app ran from
+  until 2026-10-09; retired. Never edit it (read-only for a non-elevated
+  session anyway, BUILTIN\Users: RX). Runs up to 20261008114055 were
+  launched from it (`status.json` cwd). Check which code a run used before
+  attributing a result to a commit.
 - Python env `C:\Users\su-alain.frances\AppData\Local\miniconda3\envs\mf6models`
   (the runs use it). It has NO pytest: pytest sits in `X:\tmp_claude\pylibs`
   (pip --target), so the env is untouched. Helpers in `X:\tmp_claude\helpers`:
@@ -139,15 +154,17 @@ never shapefiles. The user asked to be reminded whenever that gets mixed up.
   runs pytest from the X: repo root, `buildcheck.bat` builds La Mata from
   the X: code into `X:\tmp_claude\scratch_ws` (the user's inputs, copied
   mesh cache and saved state) and initializes MF6 (`--probe`), never a run.
-- Machine paths: `C:\00code\...\code\configs\paths.local.toml` (the X:
-  checkout has none, so its defaults are E:\). MF6 6.7.0 + source:
-  `C:\sw\MODFLOWandCo\mf6.7.0_win64`.
-- Test baseline on this server (2026-10-07), `pt.bat` (which gives the
-  server's read-only data paths, as the X: checkout has no paths.local.toml):
-  all pass but **4 environmental failures** in test_app_pages -- Home.py and
-  the two panel-0 tests (Streamlit refuses a page on a network path: run
-  them from C:), and the pond-footprint map (no mesh cache, because WS_ROOT
-  is deliberately not given to tests). ~8 min.
+- Machine paths: `X:\3p1p1\MARMITES\code\configs\paths.local.toml`
+  (untracked; moved from the C: copy on 2026-10-09). Its `ws_root` is the
+  user's run workspace. MF6 6.7.0 + source: `C:\sw\MODFLOWandCo\mf6.7.0_win64`.
+- Test baseline on this server (2026-10-07), `pt.bat`: it overrides the
+  data paths and gives tests a SCRATCH `MM_WS_ROOT` and `MM_EXAMPLE_ROOT`,
+  so no test reaches the user's workspace or dataset through
+  paths.local.toml. All pass but **4 environmental failures** in
+  test_app_pages -- Home.py and the two panel-0 tests (Streamlit refuses a
+  page on a network path), and the pond-footprint map (no mesh cache in the
+  scratch WS_ROOT). ~8 min. Tests that read `code/configs/lamata.toml` skip
+  or error when it is absent.
 - `X:\3p1p1\MF6models\LaMata\` holds `DATA_ROOT`, `NWT_REF` and `WS_ROOT`.
   Run workspace `WS_ROOT\MF6_ws_voronoi`, results `WS_ROOT\out_<stamp>_<tag>`,
   per-run `run.log` + `status.json` in `WS_ROOT\runs\<run_id>\`.

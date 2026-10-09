@@ -279,7 +279,7 @@ def run_case(overrides, tag, nsp, config=None, python_exe=None, quiet=True):
     designed to be set up twice in one interpreter.
     """
     import mm_paths
-    config = config or os.path.join(CODE, 'configs', 'lamata.toml')
+    config = config or str(mm_paths.CONFIG_DIR / 'lamata.toml')
     exe = python_exe or sys.executable
     cmd = [exe, '-u', os.path.join(CODE, 'tests', 'run_lamata_mf6.py'),
            '--config', config, '--run-tag', tag]

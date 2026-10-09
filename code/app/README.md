@@ -5,8 +5,17 @@ validate a run configuration, launch a run locally or on the server, follow it,
 and present the output.
 
 ```
-streamlit run code/app/Home.py
+python code/tools/launch_app.py
 ```
+
+That is `streamlit run code/app/Home.py`, run in place -- unless the checkout
+sits on a network drive, which Streamlit cannot run from: the launcher then
+mirrors `code/` (without `code/configs`) and `.streamlit/` to a local folder
+(`--mirror-dir`; default `%LOCALAPPDATA%\MARMITES\mirror\<checkout>-<id>`),
+refreshes it at every launch and starts the app there. A marker in the mirror
+names the checkout, and `mm_paths` sends every configuration, machine setting
+and dataset path back to it: a configuration saved on a panel is saved in the
+repository. Edit code in the checkout, never in the mirror.
 
 Streamlit is installed in the **`flopy`** env on this machine. That was checked
 before doing it: the conda solve touches nothing in the model stack — no
@@ -17,7 +26,7 @@ the recipe for a fresh machine, or a server where you would rather keep the
 front-end separate.
 
 Serving from the server: run it **there** and reach it over the LAN —
-`streamlit run code/app/Home.py --server.address 0.0.0.0 --server.port 8501`.
+`python code/tools/launch_app.py -- --server.address 0.0.0.0 --server.port 8501`.
 The PEST workers already run there and the app only needs to see `$MM_WS_ROOT`.
 
 ## Layout

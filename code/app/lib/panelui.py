@@ -25,7 +25,10 @@ import mm_paths                         # noqa: E402
 from lib import editor, schema          # noqa: E402
 
 
-CONFIG_DIR = os.path.join(CODE, 'configs')
+# The CHECKOUT's configurations, not this code's folder: run from a mirror
+# (code/tools/launch_app.py), the app reads and saves them in the checkout,
+# so there is one copy of each and it is the one in the repository.
+CONFIG_DIR = str(mm_paths.CONFIG_DIR)
 
 __all__ = ['pick_config', 'header', 'master_switch', 'panel_switch',
            'section_form',
@@ -289,8 +292,10 @@ def saved_note():
 
 def pick_config():
     """The configuration every panel edits, remembered across pages."""
+    # every run configuration -- not the machine settings beside them
     files = sorted(f for f in os.listdir(CONFIG_DIR)
-                   if f.endswith('.toml')) if os.path.isdir(CONFIG_DIR) else []
+                   if f.endswith('.toml') and f != mm_paths.SETTINGS.name
+                   ) if os.path.isdir(CONFIG_DIR) else []
     if not files:
         st.error('No configuration in %s' % CONFIG_DIR)
         st.stop()
