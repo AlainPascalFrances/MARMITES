@@ -145,16 +145,18 @@ def test_the_run_uses_the_new_balance_and_says_when_it_cannot():
     assert 'aquifer balance: not computed' in body
 
 
-LAMATA_LST = r'E:\00code_ws\LaMata_MM-MF6\MF6_ws_voronoi\lamata.lst'
+from test_postprocess import tiny_run  # noqa: E402,F401  (pytest fixture)
 
 
-@pytest.mark.skipif(not os.path.exists(LAMATA_LST),
-                    reason='no La Mata run in the workspace')
-def test_a_real_list_file_reads():
-    """Whatever run is there: the columns the balance needs are found."""
+def test_a_real_list_file_reads(tiny_run):
+    """A list file MF6 wrote: the columns the balance needs are found --
+    UZF recharge, a well's discharge, the stream's exchange. On the tiny
+    model test_postprocess runs: it read a La Mata run under an E:\\
+    literal, and skipped wherever there was none (2026-10-09)."""
     flopy = pytest.importorskip('flopy')
-    lst = flopy.utils.Mf6ListBudget(LAMATA_LST)
+    ws, name, nlay, nrow, ncol = tiny_run
+    lst = flopy.utils.Mf6ListBudget(os.path.join(ws, '%s.lst' % name))
     bal = rl.aquifer_balance(lst.get_dataframes(diff=False)[1],
-                             lst.get_times(), area=4.8e6)
+                             lst.get_times(), area=nrow * ncol * 50.0 * 50.0)
     assert bal['days'] > 0 and bal['discharge_terms']
     assert np.isfinite(bal['recharge']) and np.isfinite(bal['discharge'])

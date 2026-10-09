@@ -33,7 +33,9 @@ loaders = _load('app_loaders', os.path.join(CODE, 'app', 'lib', 'loaders.py'))
 runlib = _load('app_runs', os.path.join(CODE, 'app', 'lib', 'runs.py'))
 msc = _load('mmsurf_config', os.path.join(CODE, 'mmsurf_config.py'))
 
-MMSURF_INI = os.path.join(DS, 'MMsurf_ws', '__inputMMsurf.ini')
+# La Mata's legacy MMsurf ini, FROZEN here (2026-10-09): the parser is tested
+# on a fixed file, not on the dataset's, which a run no longer reads.
+MMSURF_INI = os.path.join(HERE, 'data', 'legacy', '__inputMMsurf.ini')
 
 
 # ------------------------------------------------------------------ loaders
@@ -241,43 +243,17 @@ def test_list_runs_is_newest_first(tmp_path):
 
 # ------------------------------------------------------- WP1.7 MMsurf schema
 def test_mmsurf_ini_parses_with_the_expected_counts():
-    if not os.path.exists(MMSURF_INI):
-        pytest.skip('MMsurf ini not present')
     ms = msc.load_mmsurf_ini(MMSURF_INI)
     assert ms.counts == {'NMETEO': 1, 'NVEG': 3, 'NCRP': 1, 'NFIELD': 1,
                          'NSOIL': 3}
     assert [n for n, _v in ms.veg] == ['grassMU', 'Qilex', 'Qpyr']
     assert [n for n, _v in ms.soil] == ['alluvium', 'regolith', 'outcrop']
-
-
-def test_mmsurf_Zr_matches_what_the_model_actually_reads():
-    """The parser must agree with what MMsoil consumes -- the check that makes
-    the enumeration trustworthy rather than decorative.
-
-    That used to mean ``__inputMMsurf4MMsoil.txt``, the file MMsurf wrote and
-    the driver read back. WP1d removed it, because it was authoritative and
-    disagreed with the ini; the configuration is now the single source, so
-    this compares the ini against the CONFIGURATION instead.
-    """
-    if not os.path.exists(MMSURF_INI):
-        pytest.skip('MMsurf ini not present')
-    ref = os.path.join(REPO, 'code', 'configs', 'lamata.toml')
-    if not os.path.exists(ref):
-        pytest.skip('reference configuration not present')
-    cfgmod = _load('cfg_for_app_lib', os.path.join(CODE, 'marmites_config.py'))
-    ms = msc.load_mmsurf_ini(MMSURF_INI)
-    cfg = cfgmod.load_run_config(ref)
-    assert [n for n, _v in ms.veg] == [v.name for v in cfg.surface.vegetation]
-    assert [v['Zr'] for _n, v in ms.veg] == \
-        [v.root_depth for v in cfg.surface.vegetation]
-    assert [n for n, _v in ms.soil] == [s.name for s in cfg.surface.soil]
-    assert [v['por'] for _n, v in ms.soil] == \
-        [s.porosity for s in cfg.surface.soil]
+    # (The ini was also compared with lamata.toml, root depth by root depth.
+    # That checked the migration; the configuration is the single source
+    # now, edited on the panels, so the comparison went in 2026-10-09.)
 
 
 def test_every_mmsurf_parameter_carries_units_and_a_description():
-    if not os.path.exists(MMSURF_INI):
-        pytest.skip('MMsurf ini not present')
     params = msc.enumerate_parameters(msc.load_mmsurf_ini(MMSURF_INI))
     assert len(params) == 1 * 8 + 3 * 19 + 1 * 11 + 3 * 8      # 100
     for p in params:

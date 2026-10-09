@@ -14,7 +14,6 @@ import pytest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TRUNK = os.path.abspath(os.path.join(HERE, '..'))
-DS = os.path.abspath(os.path.join(HERE, '..', '..', 'example', 'LaMata'))
 for p in ('', 'MARMITESutilities', 'MARMITESsoil', 'ppMF_FloPy', 'ppMF6'):
     sys.path.insert(0, os.path.join(TRUNK, p))
 
@@ -27,23 +26,6 @@ def _load(name, path):
 
 
 S = _load('marmites_sfr', os.path.join(TRUNK, 'ppMF6', 'marmites_sfr.py'))
-
-
-def _asc(fn):
-    a = np.loadtxt(fn, skiprows=6)
-    return np.where(a <= -9999.0, 0.0, a)
-
-
-def _lamata():
-    fn = os.path.join(DS, 'inputSTREAMw.asc')
-    if not os.path.exists(fn):
-        pytest.skip('La Mata dataset not present')
-    w = _asc(fn)
-    dem = _asc(os.path.join(DS, 'MF_ws', 'elev_sinkfil.asc'))
-    hm = _asc(os.path.join(DS, 'inputSTREAMhmax.asc'))
-    dc = _asc(os.path.join(DS, 'MF_ws', 'drn_cond_l1.asc'))
-    drn = [(int(i), int(j)) for i, j in zip(*np.where(dc > 0))]
-    return w, dem, hm, drn
 
 
 def _drains_to_outlet(net, c):
@@ -217,29 +199,10 @@ def test_reach_descends_to_a_layer_deep_enough_for_the_streambed():
         assert row[1][0] == 1, 'reach should have descended out of layer 0'
 
 
-# ------------------------------ La Mata -------------------------------- #
-
-def test_lamata_all_244_channel_cells_route_to_the_drn_outlets():
-    w, dem, hm, drn = _lamata()
-    net = S.stream_network(w, dem, drn_cells=drn)
-    assert net.nreaches == 244
-    assert len(net.outlets) == 6
-    for c in net.cells:
-        assert _drains_to_outlet(net, c)
-    # one dominant branch: the catchment drains through a single trunk
-    assert max(net.acc.values()) > 200
-
-
-def test_lamata_reach_attributes_are_physical():
-    w, dem, hm, drn = _lamata()
-    net = S.stream_network(w, dem, drn_cells=drn)
-    S.build_sfr(net, dem, pondhmax=hm, pondw=w, delr=np.full(60, 50.0),
-                delc=np.full(65, 50.0), verbose=False)
-    assert min(net.reach_wid) >= 1.5 and max(net.reach_wid) <= 3.0
-    assert min(net.reach_len) > 0 and max(net.reach_len) <= 50.0 * np.sqrt(2.0) + 1e-6
-    assert min(net.reach_slope) > 0
-    assert 700.0 < min(net.reach_top) < max(net.reach_top) < 850.0
-    assert len(net.packagedata) == len(net.connectiondata) == 244
+# (Two La Mata tests routed the 244 cells of its channel RASTER,
+# inputSTREAMw.asc. That raster left the dataset with 477571d -- the network
+# comes from the mapped hydrography -- and the tests skipped ever since;
+# they went on 2026-10-09. The synthetic cases above keep the routing tested.)
 
 
 # ------------------------------- a panel VALUE is the value (2026-10-05)

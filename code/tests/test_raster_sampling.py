@@ -104,7 +104,8 @@ def test_cell_centres_structured_orientation():
     ('inputSOILzones.asc', int),
     ('inputMETEOzones.asc', int),
     ('inputSOILthick.asc', float),
-    ('inputSTREAMw.asc', float),
+    # (inputSTREAMw.asc left the dataset with the raster stream network,
+    # 477571d: the network comes from the mapped hydrography)
 ])
 def test_sampling_matches_legacy_reader_on_lamata(fn, dt):
     path = os.path.join(DS, fn)

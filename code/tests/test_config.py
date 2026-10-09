@@ -7,7 +7,10 @@ import pytest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TRUNK = os.path.join(HERE, '..')
-DATASET_INI = os.path.join(HERE, '..', '..', 'example', 'LaMata', '__inputMM_v3.ini')
+# La Mata's legacy MM ini, FROZEN here (2026-10-09): the converter is tested
+# on a fixed file, not on whatever the dataset holds -- a run reads no ini,
+# and the dataset's may be renamed or gone.
+LEGACY_INI = os.path.join(HERE, 'data', 'legacy', '__inputMM_v3.ini')
 
 
 def _load(name, path):
@@ -21,10 +24,8 @@ cfgmod = _load('marmites_config', os.path.join(TRUNK, 'marmites_config.py'))
 
 
 def test_convert_real_dataset_ini(tmp_path):
-    if not os.path.exists(DATASET_INI):
-        pytest.skip('DataSet_LaMata ini not present')
     toml_path = str(tmp_path / 'mm.toml')
-    cfg = cfgmod.convert_ini_file(DATASET_INI, toml_path)
+    cfg = cfgmod.convert_ini_file(LEGACY_INI, toml_path)
     # known values from the LaMata annotated ini (includes maxYearsTick fields)
     assert cfg.run_name.startswith('2s3L')
     assert cfg.verbose == 1
@@ -73,9 +74,7 @@ def test_validation_rejects_empty_run_name():
 
 
 def test_deprecated_fields_captured(tmp_path):
-    if not os.path.exists(DATASET_INI):
-        pytest.skip('DataSet_LaMata ini not present')
-    cfg = cfgmod.convert_ini_file(DATASET_INI, str(tmp_path / 'm.toml'))
+    cfg = cfgmod.convert_ini_file(LEGACY_INI, str(tmp_path / 'm.toml'))
     # Picard-loop fields are parsed but quarantined as deprecated
     assert 'convcrit' in cfg.deprecated
     assert 'ccnum' in cfg.deprecated
@@ -317,16 +316,27 @@ def test_drainage_width_producer_needs_a_and_b():
         cfgmod.RunConfig.from_dict({'sfr': {'width': {'drainage': {'a': 0.5}}}})
 
 
-def test_mm_paths_resolves_and_reports():
+def test_mm_paths_resolves_and_reports(tmp_path, monkeypatch):
+    """The dataset is <EXAMPLE_ROOT>/<case>, wherever panel 0 (or MM_*)
+    puts EXAMPLE_ROOT; only with NOTHING set is it <repo>/example. The test
+    used to assert the folder was called 'example' on the machine it ran
+    on, which failed wherever the dataset lives elsewhere (2026-10-09)."""
     import io
+    import shutil
     paths = _load('mm_paths', os.path.join(TRUNK, 'mm_paths.py'))
     assert paths.REPO.exists()
-    assert paths.dataset_dir('LaMata').name == 'LaMata'
-    assert paths.dataset_dir('LaMata').parent.name == 'example'
+    assert paths.dataset_dir('LaMata') == paths.EXAMPLE_ROOT / 'LaMata'
     buf = io.StringIO()
     paths.report_paths('LaMata', stream=buf)
     text = buf.getvalue()
     assert 'REPO' in text and 'DATASET' in text and 'WS_ROOT' in text
+    # the default, on a checkout with no settings and no MM_EXAMPLE_ROOT
+    monkeypatch.delenv('MM_EXAMPLE_ROOT', raising=False)
+    (tmp_path / 'code').mkdir()
+    shutil.copy2(os.path.join(TRUNK, 'mm_paths.py'),
+                 str(tmp_path / 'code' / 'mm_paths.py'))
+    bare = _load('mm_paths_bare', str(tmp_path / 'code' / 'mm_paths.py'))
+    assert bare.dataset_dir('LaMata') == bare.REPO / 'example' / 'LaMata'
 
 
 def test_the_tools_are_found_wherever_the_layout_put_them(tmp_path,

@@ -157,14 +157,17 @@ never shapefiles. The user asked to be reminded whenever that gets mixed up.
 - Machine paths: `X:\3p1p1\MARMITES\code\configs\paths.local.toml`
   (untracked; moved from the C: copy on 2026-10-09). Its `ws_root` is the
   user's run workspace. MF6 6.7.0 + source: `C:\sw\MODFLOWandCo\mf6.7.0_win64`.
-- Test baseline on this server (2026-10-07), `pt.bat`: it overrides the
+- Test baseline on this server (2026-10-09), `pt.bat`: it overrides the
   data paths and gives tests a SCRATCH `MM_WS_ROOT` and `MM_EXAMPLE_ROOT`,
   so no test reaches the user's workspace or dataset through
-  paths.local.toml. All pass but **4 environmental failures** in
-  test_app_pages -- Home.py and the two panel-0 tests (Streamlit refuses a
-  page on a network path), and the pond-footprint map (no mesh cache in the
-  scratch WS_ROOT). ~8 min. Tests that read `code/configs/lamata.toml` skip
-  or error when it is absent.
+  paths.local.toml. test_app_pages opens the pages from a mirror of its own
+  in the temp folder (Streamlit refuses a page on a network path) and
+  restores sys.path after each test; the pond-map test caches its own tiny
+  mesh; the legacy-ini converter tests read frozen copies in
+  `code/tests/data/legacy/`; the MF6 tests take mf6 from MODFLOW DIR
+  (mm_paths), not PATH. **Full suite: 1276 passed, no failure, no skip**
+  (~26 min). Tests that read `code/configs/lamata.toml` skip or error when
+  it is absent.
 - `X:\3p1p1\MF6models\LaMata\` holds `DATA_ROOT`, `NWT_REF` and `WS_ROOT`.
   Run workspace `WS_ROOT\MF6_ws_voronoi`, results `WS_ROOT\out_<stamp>_<tag>`,
   per-run `run.log` + `status.json` in `WS_ROOT\runs\<run_id>\`.

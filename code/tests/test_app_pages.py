@@ -21,7 +21,58 @@ from streamlit.testing.v1 import AppTest            # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CODE = os.path.abspath(os.path.join(HERE, '..'))
-APP = os.path.join(CODE, 'app')
+
+
+def _app_dir():
+    """The app's folder, as AppTest may open it.
+
+    Streamlit refuses a page on a network path ("Unable to create Page.
+    Network paths are not supported") -- which is why the app runs from a
+    local mirror (code/tools/launch_app.py). On such a checkout the tests
+    open the pages from a mirror too: their OWN, refreshed here in the temp
+    folder (never the one the user's app runs from), so what they test is
+    the checkout's code byte for byte. A local checkout is used in place.
+    (2026-10-09: Home.py and the two panel-0 tests failed on the server.)
+    """
+    import importlib.util
+    import tempfile
+    spec = importlib.util.spec_from_file_location(
+        '_launch_app_for_tests', os.path.join(CODE, 'tools', 'launch_app.py'))
+    la = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(la)
+    if not la.on_network_drive(CODE):
+        return os.path.join(CODE, 'app')
+    mirror = os.path.join(tempfile.gettempdir(), 'MARMITES', 'test_mirror',
+                          la.default_mirror(la.REPO).name)
+    la.check_mirror_dir(mirror, la.REPO)
+    la.sync(la.REPO, mirror)
+    la.mark(la.REPO, mirror)
+    return os.path.join(mirror, 'code', 'app')
+
+
+APP = _app_dir()
+_MIRROR = (os.path.dirname(os.path.dirname(APP))
+           if os.path.dirname(APP) != CODE else None)
+
+
+@pytest.fixture(autouse=True)
+def _the_checkout_stays_first():
+    """A page puts its code folders on sys.path (lib/runs.py adds tests/
+    too). Run from the mirror, those are the MIRROR's, and a later test
+    file then imported its helpers from there: lamata_model looked for the
+    dataset beside the mirror and every La Mata test skipped (2026-10-09).
+    So each test here leaves sys.path, and the modules it loaded from the
+    mirror, as it found them."""
+    import sys
+    path, before = list(sys.path), set(sys.modules)
+    yield
+    sys.path[:] = path
+    if _MIRROR:
+        root = os.path.normcase(os.path.abspath(_MIRROR))
+        for name in [n for n in list(sys.modules) if n not in before]:
+            f = getattr(sys.modules.get(name), '__file__', None) or ''
+            if f and os.path.normcase(os.path.abspath(f)).startswith(root):
+                del sys.modules[name]
 
 SURF = 'pages/2_2_-_Surface_and_driving_forces.py'
 SOIL = 'pages/3_3_-_Soil.py'
@@ -359,9 +410,40 @@ def test_the_gis_folder_box_says_where_the_folder_comes_from():
         labels
 
 
-def test_the_map_can_draw_the_pond_footprints():
+def _tiny_mesh_cache(ws_root, kind, rings):
+    """A 2 x 2 mesh over the ponds, cached where the Grid page looks for the
+    run's mesh -- so the map is drawn without a mesh someone built before."""
+    import importlib.util
+    import numpy as np
+    import marmites_meshes as mmesh
+    spec = importlib.util.spec_from_file_location(
+        '_loaders_for_tests', os.path.join(CODE, 'app', 'lib', 'loaders.py'))
+    loaders = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(loaders)
+    xy = np.array([p for r in rings for p in r], dtype=float)
+    x0, y0 = xy.min(axis=0) - 50.0
+    x1, y1 = xy.max(axis=0) + 50.0
+    xs, ys = np.linspace(x0, x1, 3), np.linspace(y0, y1, 3)
+    vertices = [[i * 3 + j, float(xs[j]), float(ys[i])]
+                for i in range(3) for j in range(3)]
+    cell2d = []
+    for i in range(2):
+        for j in range(2):
+            v = [i * 3 + j, i * 3 + j + 1, (i + 1) * 3 + j + 1, (i + 1) * 3 + j]
+            cell2d.append([len(cell2d), float(xs[j:j + 2].mean()),
+                           float(ys[i:i + 2].mean()), 4] + v)
+    gp = {'vertices': vertices, 'cell2d': cell2d, 'ncpl': 4, 'nvert': 9}
+    cache = loaders.mesh_cache_paths(ws_root, kind)[0].parent
+    mmesh._save_cached(str(cache), kind, 'test-mesh', gp)
+
+
+def test_the_map_can_draw_the_pond_footprints(tmp_path, monkeypatch):
     """A pond is a polygon the mesh has to cover, and a dot says nothing
-    about whether it does -- so the overlay reads the GeoJSON outlines."""
+    about whether it does -- so the overlay reads the GeoJSON outlines.
+
+    The map needs a mesh: the test caches a tiny one in a workspace of its
+    own (2026-10-09) -- it used to need the run's, which a test workspace
+    does not have, and failed for that reason alone."""
     import marmites_config as mcfg
     import marmites_meshes as mmesh
     import mm_paths
@@ -372,6 +454,8 @@ def test_the_map_can_draw_the_pond_footprints():
     if not rings:
         pytest.skip('no pond table on this machine')
     assert all(len(r) >= 3 for r in rings), 'a footprint came back as a point'
+    monkeypatch.setattr(mm_paths, 'WS_ROOT', tmp_path)
+    _tiny_mesh_cache(str(tmp_path), cfg.grid_kind, rings)
 
     at = AppTest.from_file(os.path.join(APP, 'pages', '1_1_-_Grid.py'),
                            default_timeout=180)

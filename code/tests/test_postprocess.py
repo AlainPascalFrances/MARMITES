@@ -33,9 +33,16 @@ def _load(name, path):
 PP = _load('marmites_postprocess', os.path.join(TRUNK, 'ppMF6', 'marmites_postprocess.py'))
 
 
-def _has_mf6():
+def _mf6_exe():
+    """MF6 where panel 0 puts it (mm_paths, under MODFLOW DIR), else on PATH.
+
+    It was looked for on PATH only, and the server keeps it in MODFLOW DIR
+    without adding it there: the six tests below skipped (2026-10-09)."""
+    import mm_paths
+    if os.path.isfile(mm_paths.MF6_EXE):
+        return mm_paths.MF6_EXE
     from shutil import which
-    return which('mf6') is not None
+    return which('mf6')
 
 
 # --------------------------------------------------------------------- #
@@ -95,17 +102,22 @@ def test_dates_from_dataset(tmp_path):
 
 @pytest.fixture(scope='module')
 def tiny_run(tmp_path_factory):
-    if not _has_mf6():
-        pytest.skip('mf6 binary not on PATH')
+    exe = _mf6_exe()
+    if not exe:
+        pytest.skip('no mf6: not in MODFLOW DIR (panel 0) nor on PATH')
     ws = str(tmp_path_factory.mktemp('tiny'))
     name = 'tiny'
     nlay, nrow, ncol = 2, 4, 5
     top = np.full((nrow, ncol), 100.0)
     botm = np.stack([np.full((nrow, ncol), 90.0), np.full((nrow, ncol), 50.0)])
-    sim = flopy.mf6.MFSimulation(sim_name=name, sim_ws=ws, exe_name='mf6')
+    sim = flopy.mf6.MFSimulation(sim_name=name, sim_ws=ws, exe_name=exe)
     flopy.mf6.ModflowTdis(sim, nper=3, perioddata=[(1.0, 1, 1.0)] * 3,
                           time_units='DAYS')
-    flopy.mf6.ModflowIms(sim, complexity='SIMPLE')
+    # NEWTON makes the matrix asymmetric, and MF6 refuses SIMPLE's
+    # conjugate gradient for it -- the run never started, and every test
+    # below skipped as "did not converge" (found 2026-10-09)
+    flopy.mf6.ModflowIms(sim, complexity='SIMPLE',
+                         linear_acceleration='BICGSTAB')
     gwf = flopy.mf6.ModflowGwf(sim, modelname=name, save_flows=True,
                                newtonoptions='NEWTON')
     flopy.mf6.ModflowGwfdis(gwf, nlay=nlay, nrow=nrow, ncol=ncol, delr=50.0,
@@ -116,6 +128,10 @@ def tiny_run(tmp_path_factory):
                             steady_state={0: True}, transient={1: True})
     # a well sink so storage and flows are non-trivial
     flopy.mf6.ModflowGwfwel(gwf, stress_period_data={0: [[(0, 0, 0), -50.0]]},
+                            save_flows=True)
+    # ... and a fixed head to feed it: a closed box pumped at 50 m3/d has no
+    # steady state, so the steady first period could never converge
+    flopy.mf6.ModflowGwfchd(gwf, stress_period_data={0: [[(1, 3, 4), 95.0]]},
                             save_flows=True)
     # UZF: one land cell, recharge on top. packagedata is
     # (ifno, cellid, landflag, ivertcon, surfdep, vks, thtr, thts, thti, eps)
@@ -203,13 +219,18 @@ def test_subsample_is_even_and_bounded():
     s = PP._subsample(list(range(1000)), 5)
     assert len(s) == 5 and s[0] == 0 and s[-1] == 999               # endpoints kept
     assert s == sorted(set(s))                                      # unique, ordered
+
+
 def test_run_preproc_writes_input_maps(tiny_run, tmp_path):
     ws, name, nlay, nrow, ncol = tiny_run
-    # no cMF/ctx and a GIS workspace that does not exist: every figure needs
-    # one or the other, so this exercises the guards rather than the drawing
+    # no cMF/ctx and a GIS workspace that does not exist: the general map
+    # and the parameter fields need one or the other, so they are skipped.
+    # The MODEL map is drawn from the written simulation alone -- it came
+    # after this test, which never ran until 2026-10-09 (the tiny model did
+    # not start), so the expectation is updated here.
     files = PP.run_preproc(ws, str(tmp_path), name=name, mf_ws=str(tmp_path),
                            gis_ws=str(tmp_path / 'no_such_gis'), verbose=False)
-    assert files == []
+    assert [os.path.basename(f) for f in files] == ['IN_000_model_map.png']
     assert not any(f.startswith(('aq_', 'mm_'))
                    for f in os.listdir(os.path.join(ws, '_input'))), (
         'the plain aq_*/mm_* maps were replaced by the native IN_* set')
@@ -232,7 +253,7 @@ def test_the_general_map_reads_the_gis_folder_from_mm_paths(tmp_path,
     assert 'E:/00code_ws' not in out
 
 
-def test_ja_down_index_matches_flopy_faceflows():
+def test_ja_down_index_matches_flopy_faceflows(tiny_run):
     """Our precomputed JA down-connection index must reproduce flopy's
     get_structured_faceflows exactly, including its sign convention
     (flopy applies flows[face][n] = -1 * flowja[i]).
@@ -240,20 +261,18 @@ def test_ja_down_index_matches_flopy_faceflows():
     We bypass that helper because it re-parses the .grb on every call (10.6 ms
     x nper) and because its documented ia/ja path raises on flopy master
     (PR #1968 added nlay/nrow/ncol but left `for n in range(grb.nodes)`).
+
+    On the tiny structured model: it used to need a La Mata DIS run under an
+    E:\\ literal, and skipped wherever there was none (2026-10-09).
     """
-    ws = os.path.join(os.environ.get(
-        'MARMITES_WS_ROOT',
-        os.path.join('E:' + os.sep, '00code_ws', 'LaMata_MM-MF6')), 'MF6_ws')
-    cbc_fn = os.path.join(ws, 'lamatamm.cbc')
-    grb_fn = os.path.join(ws, 'lamatamm.dis.grb')
-    if not (os.path.exists(cbc_fn) and os.path.exists(grb_fn)):
-        pytest.skip('no La Mata cbc/grb on disk')
+    ws, name, nlay, nrow, ncol = tiny_run
+    cbc_fn = os.path.join(ws, '%s.cbc' % name)
+    grb_fn = os.path.join(ws, '%s.dis.grb' % name)
     import flopy
     from flopy.mf6.utils.postprocessing import get_structured_faceflows
     cbc = flopy.utils.CellBudgetFile(cbc_fn)
     kk = cbc.get_kstpkper()
     rec = cbc.get_data(text='FLOW-JA-FACE', kstpkper=kk[len(kk) // 2])[0]
-    nlay, nrow, ncol = 2, 65, 60
     src, pos, nodes = PP._ja_down_index(grb_fn, nlay, nrow, ncol)
     mine = np.zeros(nodes)
     mine[src] = -np.asarray(rec).ravel()[pos]
