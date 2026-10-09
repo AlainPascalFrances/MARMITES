@@ -82,6 +82,31 @@ def test_plotlayer_accepts_bytes_title(tmp_path):
     assert any('BYTES_TITLE' in f for f in os.listdir(str(tmp_path)))
 
 
+def test_a_map_fits_its_panels_and_every_panel_is_the_same_size(tmp_path):
+    """User, 2026-10-09: no A4 page and no white margins; a one-layer and a
+    two-layer map the same size per layer -- the layers stacked, so both
+    are one panel wide -- and saved at a better definition."""
+    from PIL import Image
+    V, mask, nrow, ncol, nlay = _layer_args(nrow=65, ncol=60, nlay=2)
+    sizes = {}
+    for n in (1, 2):
+        P.plotLAYER(days=[0], str_per=[0], Date='NA', JD='NA', ncol=ncol,
+                    nrow=nrow, nlay=n, nplot=n, V=V[:, :n], cmap=plt.cm.viridis,
+                    CBlabel='x', msg='', plt_title='L%d' % n,
+                    MM_ws=str(tmp_path), interval_type='linspace',
+                    interval_num=5, Vmax=[V.max()], Vmin=[V.min()],
+                    fmt='%.2f', mask=mask[:n], hnoflo=-999.9)
+        im = Image.open(str(tmp_path / ('_sp_plt_L%d_1_1.png' % n)))
+        sizes[n] = im.size
+        assert abs(im.info['dpi'][0] - P._MAP_DPI) < 1
+    (w1, h1), (w2, h2) = sizes[1], sizes[2]
+    assert w1 == w2, 'one panel wide, whatever the number of layers'
+    assert 1.6 < h2 / h1 < 2.0, 'the second layer stacked under the first'
+    # not an A4 page: an 8.27 x 11.7 in page at the map dpi would be this
+    assert (w1, h1) != (round(8.27 * P._MAP_DPI), round(11.7 * P._MAP_DPI))
+    assert w1 < 8.27 * P._MAP_DPI * 0.8, 'cropped to what is drawn'
+
+
 def test_as_str_helper():
     assert P._as_str(b'abc') == 'abc'
     assert P._as_str('abc') == 'abc'

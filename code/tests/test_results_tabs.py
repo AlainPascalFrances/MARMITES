@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """The Results panel by tabs (user, 2026-10-09): input maps, output maps,
-time series, calibration (state variables), the total water budget and the
+time series, calibration (state variables), the water budgets and the
 ponds' water budget. Every figure a run writes has a tab and a title."""
 import importlib.util
 import os

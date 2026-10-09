@@ -8,7 +8,7 @@ produced the suite in the first place. Interactivity is added only where it
 buys something, and that starts in stage 2 (WP6).
 
 ORGANISED BY TABS (user, 2026-10-09): input maps, output maps, time series,
-calibration, the total water budget and the ponds' -- lib/results.py says
+calibration, the water budgets and the ponds' -- lib/results.py says
 which figure goes where, with its title. Two figures to a row, aligned on
 their tops; each title centred BELOW its figure.
 """

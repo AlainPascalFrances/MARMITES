@@ -1449,6 +1449,10 @@ def _nice_tick(n, target=8):
 
 # projected-coordinate unit -> metres per unit
 _COORD_UNIT = {'m': 1.0, 'km': 1000.0}
+# plotLAYER's maps (2026-10-09): the width of one map panel [in] and the
+# resolution they are saved at
+_MAP_PANEL_W = 4.8
+_MAP_DPI = 200
 
 
 def add_real_coord_axes(ax, nrow, cMF=None, xll=None, yll=None, delr=None,
@@ -1619,22 +1623,32 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
     files_tmp = []
     # print(plt_title)
     # print("nplot: %s"% (nplot))
+    # THE FIGURE FITS THE MAP (user, 2026-10-09). It was an A4 page --
+    # portrait or landscape by the grid's shape -- at 90 dpi with the maps in
+    # its middle: mostly white, and a one-layer map not the size of a two-
+    # layer one. Now every panel is the same size, _MAP_PANEL_W inches wide
+    # and as tall as the map's own aspect wants; the layers of a page are
+    # STACKED, so a map of any number of layers is one panel wide; the colour
+    # bar runs under the panels at their width; and the page is saved at
+    # _MAP_DPI, cropped to what is drawn.
+    if polys is not None:
+        _pxy = np.concatenate([np.asarray(p, dtype=float)[:, :2]
+                               for p in polys])
+        _span_x = float(np.ptp(_pxy[:, 0]))
+        _span_y = float(np.ptp(_pxy[:, 1]))
+    else:                      # plotLAYER's frame: one unit per row and column
+        _span_x, _span_y = float(ncol), float(nrow)
+    _aspect = min(max(_span_y / _span_x if _span_x > 0 else 1.0, 0.3), 3.0)
+    PW = _MAP_PANEL_W
+    PH = PW * _aspect
+    LM, RM = 1.0, 0.75             # the Y labels (left), the row index (right)
+    TOP0, TOPL = 0.2, 0.2          # the title: a margin, and per line
+    AT = 0.5 if polys is None else 0.15   # the column-index axis on top
+    BT = 0.75                      # the X labels and the 'layer N' caption
+    CB = 0.9                       # a colour bar: its label, the bar, ticks
+    pct = interval_type == 'percentile'          # one colour bar per layer
+    W = LM + PW + RM
     for i, day in enumerate(days):
-        # DEFINE HERE SUBPLOT FORMAT
-        if nrow > ncol:
-            figsize = (8.27, 11.7)
-            NrowPage = 1
-            if nlay > 1:
-                NcolPage = 2
-            else:
-                NcolPage = 1
-        else:
-            figsize = (11.7, 8.27)
-            NcolPage = 1
-            if nlay > 1:
-                NrowPage = 2
-            else:
-                NrowPage = 1
         NPage = int(np.ceil(nplot / 2.0))
         L = 0
         if mask is None:
@@ -1666,16 +1680,22 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
             norm = mpl.colors.BoundaryNorm(levels, cmap.N)  # , vmin=Vmin_tmp, vmax=Vmax_tmp)
         # print(Vmin_tmp, Vmax_tmp, interval_num, interval_diff, ticks, cmap.N)
         for F in range(NPage):
-            fig = plt.figure(num=None, figsize=figsize, dpi=90)
-            figtitle = fig.suptitle('')
-            ims.append([])
+            nl = min(2, nplot - 2 * F)              # the layers on this page
+            lines = [plt_title]
             if isinstance(Date[i], float):
-                figtitle.set_text('%s\nDate %s, DOY %s, stress period %s, day %d, Page %d/%d'
-                                  % (plt_title, mpl.dates.num2date(Date[i]).isoformat()[:10],
-                                     JD[i], str_per[i], day + 1, F + 1, NPage))
-            else:
-                figtitle.set_text('%s, Page %d/%d' % (plt_title, F + 1, NPage))
-            # plt.draw()  # TODO confirmar impacto desta linha
+                lines.append('date %s, DOY %s, stress period %s, day %d'
+                             % (mpl.dates.num2date(Date[i]).isoformat()[:10],
+                                JD[i], str_per[i], day + 1))
+            if NPage > 1:
+                lines.append('page %d/%d' % (F + 1, NPage))
+            TOP = TOP0 + TOPL * len(lines)
+            block = AT + PH + BT + (CB if pct else 0.0)
+            H = TOP + nl * block + (0.0 if pct else CB)
+            fig = plt.figure(num=None, figsize=(W, H), dpi=90)
+            fig.suptitle('\n'.join(lines), fontsize=10, y=1.0 - 0.1 / H,
+                         va='top')
+            page_ims = []                 # this page's images, for its bar
+            ims.append(page_ims)
             ax = []
             for l in range(2):
                 if L < nplot:
@@ -1690,20 +1710,21 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
                                               [0.0, 10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0])
                         levels = mpl.ticker.MaxNLocator(nbins=cmap.N).tick_values(0.0, 100.0)
                         norm = mpl.colors.BoundaryNorm(ticks, cmap.N)  # , vmin=Vmin_tmp, vmax=Vmax_tmp)
-                    ax.append(fig.add_subplot(NrowPage, NcolPage, l + 1, facecolor=facecolor))
+                    # the panel, placed in inches from the top of the page
+                    top_in = H - TOP - l * block - AT
+                    ax.append(fig.add_axes([LM / W, (top_in - PH) / H,
+                                            PW / W, PH / H],
+                                           facecolor=facecolor))
                     if polys is None:
                         ax[l].xaxis.set_ticks(np.arange(0, ncol + 1, _ntx))
                         plt.setp(ax[l].get_xticklabels(), fontsize=8)
-                        if l < 1:
-                            ax[l].yaxis.set_ticks(np.arange(0, nrow + 1, _nty))
-                            plt.setp(ax[l].get_yticklabels(), fontsize=8)
-                            plt.ylabel('row i', fontsize=10)
-                            ax[l].yaxis.set_label_position("right")
-                        else:
-                            ax[l].set_yticklabels([])
+                        ax[l].yaxis.set_ticks(np.arange(0, nrow + 1, _nty))
+                        plt.setp(ax[l].get_yticklabels(), fontsize=8)
+                        ax[l].set_ylabel('row i', fontsize=10)
+                        ax[l].yaxis.set_label_position("right")
                         ax[l].yaxis.tick_right()
                         ax[l].yaxis.set_ticks_position('both')
-                        plt.xlabel('col j', fontsize=10)
+                        ax[l].set_xlabel('col j', fontsize=10)
                         ax[l].xaxis.set_label_position("top")
                         ax[l].xaxis.tick_top()
                         ax[l].xaxis.set_ticks_position('both')
@@ -1713,7 +1734,7 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
                         # maps (checked against inputObs.txt: cell i=8, j=4 ->
                         # 739525, 4555875, the coordinates given for P0).
                         add_real_coord_axes(ax[l], nrow, cMF=cMF, frame='centre1',
-                                            yaxis=(l < 1))
+                                            yaxis=True)
                         if points is not None:
                             for k, (xj, yi, lay, label) in enumerate(zip(points[2], points[1], points[3], points[0])):
                                 if lay == L:
@@ -1724,7 +1745,7 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
                                 if ptslbl > 0:
                                     ax[l].annotate(label, xy=(xj, yi - 0.15), fontsize=8, ha='center', va='bottom')
                     else:
-                        _mesh_map_axes(ax[l], yaxis=(l < 1))
+                        _mesh_map_axes(ax[l], yaxis=True)
                         if points is not None:
                             for k, (xj, yi, lay, label) in enumerate(zip(points[2], points[1], points[3], points[0])):
                                 ax[l].plot(xj, yi, 'o', markersize=4, zorder=3,
@@ -1733,7 +1754,7 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
                                     ax[l].annotate(label, xy=(xj, yi), fontsize=8, ha='center', va='bottom')
                     #print('Vtmp\n', np.sum(Vtmp.flatten()))
                     if polys is None:
-                        ims[F].append(ax[l].pcolormesh(xg, yg, Vtmp, cmap=cmap, norm=norm))
+                        page_ims.append(ax[l].pcolormesh(xg, yg, Vtmp, cmap=cmap, norm=norm))
                         if ctrs_tmp == True:
                             #try:
                             CS = ax[l].contour(xg1, yg1[::-1], Vtmp[::-1], ticks, colors='gray')
@@ -1745,79 +1766,48 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
                         _pc = mpl.collections.PolyCollection(polys, cmap=cmap, norm=norm,
                                                              edgecolors='none')
                         _pc.set_array(np.ma.ravel(Vtmp))
-                        ims[F].append(ax[l].add_collection(_pc))
+                        page_ims.append(ax[l].add_collection(_pc))
                         ax[l].autoscale_view()
-                    if np.ma.max(Vtmp) > np.ma.min(Vtmp):
-                        ax[l].set_title('layer %d' % (L + 1), fontsize=10, y=-0.42, fontweight='bold')
-                    else:
-                        ax[l].set_title('layer %d %s' % (L + 1, msg), fontsize=10, y=-0.42, fontweight='bold')
+                    # the layer's caption, at a fixed distance under its panel
+                    ax[l].annotate('layer %d' % (L + 1)
+                                   if np.ma.max(Vtmp) > np.ma.min(Vtmp)
+                                   else 'layer %d %s' % (L + 1, msg),
+                                   xy=(0.5, 0.0), xycoords='axes fraction',
+                                   xytext=(0, -(BT - 0.25) * 72.0),
+                                   textcoords='offset points', ha='center',
+                                   va='top', fontsize=10, fontweight='bold')
                     if polys is None:
                         ax[l].set_ylim(bottom=np.max(yg1), top=np.min(yg1))
                         ax[l].axis('scaled')
                     else:
                         ax[l].set_aspect('equal')
-                    # widen the margins: the left colourbar sits at x=0.035 and
-                    # the real-coordinate Y axis needs room between it and the
-                    # map, and the X axis plus the 'layer N' caption need room
-                    # underneath.
-                    plt.subplots_adjust(left=0.22, right=0.88, bottom=0.26,
-                                        top=0.90, wspace=0.35)
-                    axl, axb, axw, axh = ax[l].get_position().bounds
-                    if interval_type == 'percentile':
-                        if max(x) > max(y):
-                            if l == 0:
-                                # rect : sequence of float
-                                # The dimensions [left, bottom, width, height] of the new axes. All quantities are in fractions of figure width and height.
-                                # cax = fig.add_axes([0.125, 0.035, 0.75, 0.025])
-                                cax = fig.add_axes([axl, 0.035, axw, 0.025])
-                            else:
-                                # cax = fig.add_axes([0.625, 0.035, 0.75, 0.025])
-                                cax = fig.add_axes([axl, 0.035, axw, 0.025])
-                            CBorient = 'horizontal'
-                            # cax.xaxis.set_label_position('top')
-                        else:
-                            if l == 0:
-                                # cax = fig.add_axes([0.005, 0.125, 0.025, 0.75])
-                                cax = fig.add_axes([0.035, axb, 0.025, axh])
-                                # cax.yaxis.set_label_position('left')
-                            else:
-                                # cax = fig.add_axes([0.925, 0.125, 0.025, 0.75])
-                                cax = fig.add_axes([axl + axw + 0.015, axb, 0.025, axh])
-                                # cax.yaxis.set_label_position('right')
-                            CBorient = 'vertical'
-                        CB = fig.colorbar(ims[F][0 + l], ticks=ticks, extend='both', format=fmt, cax=cax,
-                                          orientation=CBorient)  # , shrink=0.8)
+                    if pct:
+                        # this layer's own bar, under its caption
+                        cax = fig.add_axes([LM / W,
+                                            (top_in - PH - BT - CB + 0.35) / H,
+                                            PW / W, 0.16 / H])
+                        CB_ = fig.colorbar(page_ims[l], ticks=ticks,
+                                           extend='both', format=fmt,
+                                           cax=cax, orientation='horizontal')
                         # The BoundaryNorm puts a minor tick at EVERY colour
                         # boundary, which crowds the bar into a near-solid line
                         # of marks. Only the labelled ticks are wanted.
-                        CB.ax.minorticks_off()
-                        if l == 0:
-                            CB.set_label(CBlabel, fontsize=10)  # , loc='center')
-                        plt.setp(CB.ax.get_xticklabels(), fontsize=7)
-                        plt.setp(CB.ax.get_yticklabels(), fontsize=7)
-                        #del cax
+                        CB_.ax.minorticks_off()
+                        CB_.set_label(CBlabel, fontsize=10)
+                        cax.xaxis.set_label_position('top')
+                        plt.setp(CB_.ax.get_xticklabels(), fontsize=7)
                     L += 1
 
-            if interval_type != 'percentile':
-                if max(x) > max(y):
-                    # cax = fig.add_axes([0.125, 0.035, 0.75, 0.025])
-                    cax = fig.add_axes([axl, 0.035, axw, 0.025])
-                    CBorient = 'horizontal'
-                else:
-                    # cax = fig.add_axes([0.035, 0.125, 0.025, 0.75])
-                    cax = fig.add_axes([0.035, axb, 0.025, axh])
-                    CBorient = 'vertical'
-                CB = fig.colorbar(ims[F][0], ticks=ticks, extend='both', format=fmt, cax=cax,
-                                  orientation=CBorient)  # , shrink=0.8)
-                CB.ax.minorticks_off()          # see the note on the other bar
-                # print(ticks)
-                CB.set_label(CBlabel, fontsize=10)
-                if max(x) > max(y):
-                    cax.xaxis.set_label_position('top')
-                    plt.setp(CB.ax.get_xticklabels(), fontsize=7)
-                else:
-                    cax.yaxis.set_label_position('left')
-                    plt.setp(CB.ax.get_yticklabels(), fontsize=7)
+            if not pct:
+                # one bar for the page, under the panels, at their width
+                cax = fig.add_axes([LM / W, 0.35 / H, PW / W, 0.16 / H])
+                CB_ = fig.colorbar(page_ims[0], ticks=ticks, extend='both',
+                                   format=fmt, cax=cax,
+                                   orientation='horizontal')
+                CB_.ax.minorticks_off()         # see the note on the other bar
+                CB_.set_label(CBlabel, fontsize=10)
+                cax.xaxis.set_label_position('top')
+                plt.setp(CB_.ax.get_xticklabels(), fontsize=7)
                 del cax
 
             if isinstance(Date[i], float):
@@ -1825,7 +1815,8 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
                     pref_plt_title, plt_title, day + 1, F + 1, NPage))
             else:
                 plt_export_fn = os.path.join(MM_ws, '%s_%s_%s_%s.png' % (pref_plt_title, plt_title, F + 1, NPage))
-            plt.savefig(plt_export_fn)
+            plt.savefig(plt_export_fn, dpi=_MAP_DPI, bbox_inches='tight',
+                        pad_inches=0.08)
             # print("Printed %s" % plt_export_fn)
             if len(days) > 1 and animation == 1:
                 try:
@@ -1840,6 +1831,7 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
                     pass
             for l in range(len(ax)):
                 ax[l].cla()
+            plt.close(fig)
     # TODO correct to produce movies for each pages
     if len(days) > 1 and animation == 1:
         batch_fn = os.path.join(MM_ws, 'run.bat')

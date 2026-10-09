@@ -126,7 +126,7 @@ def test_the_results_are_shown_by_tabs_two_to_a_row(tmp_path, monkeypatch):
     labels = [t.label for t in at.tabs]
     assert labels == ['Input maps (2)', 'Output maps (1)', 'Time series (1)',
                       'Calibration (state variables) (1)',
-                      'Total water budget (1)', 'Ponds water budget (3)'], labels
+                      'Water budgets (1)', 'Ponds water budget (3)'], labels
     said = ' '.join(str(m.value) for m in at.markdown)
     assert 'text-align:center' in said
     assert 'Horizontal hydraulic conductivity' in said

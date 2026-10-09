@@ -403,7 +403,7 @@ Recent runs (La Mata, 4566-cell Voronoi mesh: 20 m stream corridor ratio 2,
    "Hydrological year not complete: <first> - <last> (<n> d)". Expect
    pond10/pond13's EXT-OUTFLOW to shrink (§8.21) and more outer
    iterations per day. The Results panel shows the figures by tabs (input
-   maps, output maps, time series, calibration, total water budget, ponds
+   maps, output maps, time series, calibration, water budgets, ponds
    water budget; `app/lib/results.py` sorts and titles them), two to a row,
    the title centred below each.
 2. **The pond-outlet leak is the solver tolerance** (notes §8.21; toy

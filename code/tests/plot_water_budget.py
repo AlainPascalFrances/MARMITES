@@ -365,7 +365,8 @@ def plot_maps(new, ref, ws, which=('Rp', 'ETg', 'Eg', 'Tg', 'Ro', 'ETsoil')):
             ax.set_xticks([]); ax.set_yticks([])
             fig.colorbar(im, ax=ax, shrink=0.8, label='mm/d')
         fig.tight_layout()
-        fig.savefig(_fig(ws, '05_map_%s.png' % short), dpi=140, bbox_inches='tight')
+        fig.savefig(_fig(ws, '05_map_%s.png' % short), dpi=200,
+                    bbox_inches='tight')          # as every other map
         plt.close(fig)
 
 

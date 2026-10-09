@@ -3,7 +3,8 @@
 and its place in the tab (user, 2026-10-09).
 
 Six tabs -- input maps, output maps, time series, calibration (the state
-variables against what was measured), the total water budget, the ponds'
+variables against what was measured), the water budgets (the catchment
+and every observation point), the ponds'
 water budget -- plus "Other" for a figure no rule knows, so nothing a run
 wrote is ever hidden. Streamlit-free, so it is tested without a page.
 """
@@ -18,7 +19,7 @@ TABS = (
     ('output', 'Output maps'),
     ('series', 'Time series'),
     ('calib', 'Calibration (state variables)'),
-    ('budget', 'Total water budget'),
+    ('budget', 'Water budgets'),
     ('ponds', 'Ponds water budget'),
     ('other', 'Other'),
 )

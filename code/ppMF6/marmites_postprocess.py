@@ -1831,7 +1831,7 @@ def _fig_model_map(out, sim_ws, name, ds_ws, title=None, verbose=True):
     ax.set_ylim(y0, y1)
     ax.set_aspect('equal')
     fn = os.path.join(out, 'IN_000_model_map.png')
-    fig.savefig(fn, dpi=150, bbox_inches='tight')
+    fig.savefig(fn, dpi=200, bbox_inches='tight')      # as every other map
     plt.close(fig)
     if verbose:
         print('   model map: %s' % fn)
