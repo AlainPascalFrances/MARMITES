@@ -299,7 +299,8 @@ with tab_val:
             st.rerun()                  # the list above is now out of date
     if st.session_state.get('conv'):
         with st.expander('Converter output', expanded=True):
-            st.code(st.session_state['conv'], language='text')
+            st.code(st.session_state['conv'], language='text',
+                    wrap_lines=True)
 
     # THE ONE BUTTON THAT APPROVES. It saves first, because what is
     # validated must be what runs: the file, as the panels have it now.
@@ -381,12 +382,12 @@ with tab_run:
                 st.error('The dataset could not be updated from the '
                          'cartography, so nothing was launched: a run would '
                          'read the tables as they were. The converter said:')
-                st.code(_out[-4000:], language='text')
+                st.code(_out[-4000:], language='text', wrap_lines=True)
                 return
             st.info('Dataset updated from the cartography before the run: %s'
                     % '; '.join(_stale))
             with st.expander('Converter output'):
-                st.code(_out, language='text')
+                st.code(_out, language='text', wrap_lines=True)
         try:
             run_id, payload = runlib.launch(
                 path, RUNS, overrides=overrides, run_tag=run_tag or None,
@@ -455,7 +456,7 @@ with tab_run:
             f3.metric('Started', (info.get('started') or '')[-8:])
             f4.metric('PID', info.get('pid', '—'))
             st.code(' '.join(str(x) for x in info.get('cmd', [])),
-                    language='bash')
+                    language='bash', wrap_lines=True)
 
             # AN EMPTY LOG MEANS THE RUN WAS KILLED, not that it went well.
             # MF6 aborts the process from inside the library when it refuses
@@ -479,9 +480,11 @@ with tab_run:
             # st.code, NOT st.text_area: a text_area given both `value` and
             # `key` takes its content from session state after the first
             # render, so the log froze at whatever it was when first drawn.
+            # Wrapped: the progress and warning lines run past the box, and
+            # scrolling sideways to read each one is what nobody does.
             st.markdown('**run.log** (tail)')
             st.code(runlib.log_tail(RUNS, sel, 400) or '(empty)',
-                    language='text', height=460)
+                    language='text', height=460, wrap_lines=True)
             if info.get('state') == 'running' and st.button('Stop this run'):
                 st.warning('Stopped.' if runlib.stop(RUNS, sel)
                            else 'Could not stop it.')

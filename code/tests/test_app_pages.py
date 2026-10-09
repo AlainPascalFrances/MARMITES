@@ -1723,6 +1723,29 @@ def test_a_check_does_not_print_its_key_twice():
         'the key is added to the heading unconditionally'
 
 
+def test_the_run_log_and_the_outputs_wrap():
+    """The run log's progress and warning lines ran past the box, to be read
+    by scrolling sideways (the user, 2026-10-09). Every box on the Run page
+    that shows a process's output -- the run log, the converter, the command
+    -- wraps its lines."""
+    import ast
+    src = io.open(os.path.join(APP, 'pages', '7_7_-_Run.py'),
+                  encoding='utf-8').read()
+    shown = []
+    for node in ast.walk(ast.parse(src)):
+        if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                and node.func.attr == 'code'):
+            kw = {k.arg: k.value for k in node.keywords}
+            lang = kw.get('language')
+            if isinstance(lang, ast.Constant) and lang.value in ('text', 'bash'):
+                wrap = kw.get('wrap_lines')
+                shown.append((node.lineno, isinstance(wrap, ast.Constant)
+                              and wrap.value is True))
+    assert len(shown) >= 5, 'the output boxes moved: %r' % shown
+    assert all(w for _l, w in shown), \
+        'not wrapped, at line(s) %s' % [l for l, w in shown if not w]
+
+
 def test_the_coupling_is_asked_on_the_run_panel_and_saved():
     """How the run executes was TOML-only: the audit behind the cookbook's
     Appendix B found it on no panel at all. The lagged/iterative choice it
