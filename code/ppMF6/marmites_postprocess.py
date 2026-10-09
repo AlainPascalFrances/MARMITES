@@ -1082,31 +1082,81 @@ def _net_stream(vol, keys):
     return vals, comps
 
 
+def _year_spans(dates, start_month, blocks):
+    """For each hydrological year: (first day, last day, complete?). A year
+    is complete when the run covers it from its first day to its last."""
+    import pandas as pd
+    d = pd.DatetimeIndex(dates)
+    out = []
+    for _label, ix in blocks:
+        first, last = d[ix[0]], d[ix[-1]]
+        y0 = first.year - (first.month < int(start_month))
+        begin = pd.Timestamp(year=y0, month=int(start_month), day=1)
+        stop = (pd.Timestamp(year=y0 + 1, month=int(start_month), day=1)
+                - pd.Timedelta(days=1))
+        out.append((first, last, first == begin and last == stop))
+    return out
+
+
+def _year_labels(ax, centres, labels, warns, y0):
+    """The year under each group of bars and, in dark red under one the run
+    does not cover entirely, the warning with its dates (2026-10-09)."""
+    tr = ax.get_xaxis_transform()
+    for c, label, warn in zip(centres, labels, warns):
+        ax.text(c, y0, label, ha='center', va='top', fontsize=9,
+                fontweight='bold', transform=tr)
+        if warn:
+            ax.text(c, y0 - 0.05, warn, ha='center', va='top', fontsize=7,
+                    color='darkred', transform=tr)
+
+
 def _fig_lake_budget_years(by_lake, dates, perlen, start_month, out,
-                           verbose=True):
+                           verbose=True, areas=None):
     """The ponds' water budget per hydrological year: every pond, and all
-    of them summed. CSV + two figures, each in two rows -- the full budget,
-    then the same with the stream's through-flow replaced by its net: an
+    of them summed. CSV + two figures in m3 and -- given each pond's cell
+    area (``areas``, by boundname; pond_cell_areas) -- the same two in mm
+    over the pond's cells. Each figure has two rows: the full budget, then
+    the same with the stream's through-flow replaced by its net: an
     on-channel pond passes tens of thousands of m3 a year from the stream
     back to it, against hundreds evaporated or exchanged with the aquifer,
-    which the first row alone would leave invisible."""
+    which the first row alone would leave invisible. A year the run does
+    not cover entirely is labelled with a warning and its dates."""
     import matplotlib.pyplot as plt
     import pandas as pd
     years, days, vol = lake_budget_years(by_lake, dates, perlen, start_month)
     names, keys = by_lake['names'], by_lake['keys']
     nyear, npond = len(years), len(names)
-    ylab = ['%s\n(%d d)' % (y, d) if d < 365 else y
-            for y, d in zip(years, days)]
+    spans = _year_spans(list(dates)[:by_lake['rate'].shape[0]], start_month,
+                        hydro_years(list(dates)[:by_lake['rate'].shape[0]],
+                                    start_month))
+    warns = ['' if ok else 'Hydrological year not complete:\n%s - %s (%d d)'
+             % (a.strftime('%Y-%m-%d'), b.strftime('%Y-%m-%d'), d)
+             for (a, b, ok), d in zip(spans, days)]
+    area = None
+    if areas:
+        a = np.array([areas.get(n, np.nan) for n in names], dtype=float)
+        if np.all(np.isfinite(a) & (a > 0)):
+            area = a
+        elif verbose:
+            print('   pond budgets in mm skipped: no cell area for %s'
+                  % ', '.join(n for n, v in zip(names, a)
+                              if not (np.isfinite(v) and v > 0)))
     written = []
 
     rows = []
     for y in range(nyear):
         for p, pname in enumerate(names + ['all ponds']):
             v = vol[y, p] if p < npond else vol[y].sum(axis=0)
+            ar = (np.nan if area is None else
+                  (area[p] if p < npond else float(area.sum())))
             for c, k in enumerate(keys):
-                rows.append((years[y], int(days[y]), pname, k, float(v[c])))
-    tab = pd.DataFrame(rows, columns=['hydro_year', 'days', 'pond',
-                                      'component', 'm3'])
+                rows.append((years[y], spans[y][0].strftime('%Y-%m-%d'),
+                             spans[y][1].strftime('%Y-%m-%d'), int(days[y]),
+                             bool(spans[y][2]), pname, k, float(v[c]), ar,
+                             float(v[c]) / ar * 1000.0))
+    tab = pd.DataFrame(rows, columns=['hydro_year', 'first_day', 'last_day',
+                                      'days', 'complete', 'pond', 'component',
+                                      'm3', 'cell_area_m2', 'mm'])
     fn = os.path.join(out, 'lake_budget_years.csv')
     tab.to_csv(fn, index=False)
     written.append(fn)
@@ -1118,68 +1168,82 @@ def _fig_lake_budget_years(by_lake, dates, perlen, start_month, out,
             if not np.any(np.abs(vol[..., c]) > 0)]
     note = ('Zero over the whole run (not drawn):\n   ' + '\n   '.join(zero)
             if zero else '')
-    # 1. every pond: one group of bars per year, one bar per pond
-    gap = 1
-    x = np.array([y * (npond + gap) + p for y in range(nyear)
-                  for p in range(npond)], dtype=float)
-    fig, axes = plt.subplots(2, 1, figsize=(max(9.0, 0.32 * len(x) + 5.0),
-                                            9.5), sharex=True)
-    _stacked(axes[0], x, vol.reshape(nyear * npond, -1), full, 0.8)
-    nv, ncomp = _net_stream(vol, keys)
-    _stacked(axes[1], x, nv.reshape(nyear * npond, -1), ncomp, 0.8)
-    axes[1].set_xticks(x)
-    axes[1].set_xticklabels(names * nyear, rotation=90, fontsize=7)
-    for y in range(nyear):
-        centre = y * (npond + gap) + (npond - 1) / 2.0
-        axes[1].text(centre, -0.30, ylab[y], ha='center', va='top',
-                     fontsize=9, transform=axes[1].get_xaxis_transform())
-    axes[0].set_title('Each pond: full budget (+ into the pond, - out of it)',
-                      fontsize=10)
-    axes[1].set_title("Each pond: the stream's through-flow replaced by its "
-                      'net', fontsize=10)
-    for ax in axes:
-        ax.set_ylabel('m$^3$ per hydrological year')
-        ax.legend(fontsize=7, loc='center left', bbox_to_anchor=(1.01, 0.5))
-    fig.suptitle('Pond water budgets per hydrological year (from month %d)'
-                 % int(start_month), fontsize=11)
-    fig.tight_layout()
-    if note:
-        fig.text(0.01, -0.02, note, fontsize=8, ha='left', va='top')
-    fn = os.path.join(out, 'lake_budget_years_by_pond.png')
-    fig.savefig(fn, dpi=140, bbox_inches='tight')
-    plt.close(fig)
-    written.append(fn)
 
-    # 2. all ponds summed: one bar per year
-    tot = vol.sum(axis=1)
-    xt = np.arange(nyear, dtype=float)
-    fig, axes = plt.subplots(2, 1, figsize=(max(6.0, 1.4 * nyear + 5.0), 9.0),
-                             sharex=True)
-    _stacked(axes[0], xt, tot, full, 0.6)
-    tv, tcomp = _net_stream(tot, keys)
-    _stacked(axes[1], xt, tv, tcomp, 0.6)
-    axes[1].set_xticks(xt)
-    axes[1].set_xticklabels(ylab, fontsize=9)
-    axes[0].set_title('All %d ponds summed: full budget' % npond, fontsize=10)
-    axes[1].set_title("All %d ponds summed: the stream's through-flow "
-                      'replaced by its net' % npond, fontsize=10)
-    for ax in axes:
-        ax.set_ylabel('m$^3$ per hydrological year')
-        ax.legend(fontsize=7, loc='center left', bbox_to_anchor=(1.01, 0.5))
-    fig.suptitle('Pond water budget per hydrological year, all ponds '
-                 '(from month %d)' % int(start_month), fontsize=11)
-    fig.tight_layout()
-    if note:
-        fig.text(0.01, -0.01, note, fontsize=8, ha='left', va='top')
-    fn = os.path.join(out, 'lake_budget_years_total.png')
-    fig.savefig(fn, dpi=140, bbox_inches='tight')
-    plt.close(fig)
-    written.append(fn)
+    def draw(by_pond, total, unit, suffix, what):
+        # 1. every pond: one group of bars per year, one bar per pond
+        gap = 1
+        x = np.array([y * (npond + gap) + p for y in range(nyear)
+                      for p in range(npond)], dtype=float)
+        fig, axes = plt.subplots(2, 1, figsize=(max(9.0, 0.32 * len(x) + 5.0),
+                                                10.0), sharex=True)
+        _stacked(axes[0], x, by_pond.reshape(nyear * npond, -1), full, 0.8)
+        nv, ncomp = _net_stream(by_pond, keys)
+        _stacked(axes[1], x, nv.reshape(nyear * npond, -1), ncomp, 0.8)
+        axes[1].set_xticks(x)
+        axes[1].set_xticklabels(names * nyear, rotation=90, fontsize=7)
+        _year_labels(axes[1], [y * (npond + gap) + (npond - 1) / 2.0
+                               for y in range(nyear)], years, warns, -0.25)
+        axes[0].set_title('Each pond: full budget (+ into the pond, - out of '
+                          'it)', fontsize=10)
+        axes[1].set_title("Each pond: the stream's through-flow replaced by "
+                          'its net', fontsize=10)
+        for ax in axes:
+            ax.set_ylabel(unit)
+            ax.legend(fontsize=7, loc='center left', bbox_to_anchor=(1.01, 0.5))
+        fig.suptitle('Pond water budgets per hydrological year (from month '
+                     '%d)%s' % (int(start_month), what), fontsize=11)
+        fig.tight_layout()
+        if note:
+            fig.text(0.01, -0.05, note, fontsize=8, ha='left', va='top')
+        fn = os.path.join(out, 'lake_budget_years_by_pond%s.png' % suffix)
+        fig.savefig(fn, dpi=140, bbox_inches='tight')
+        plt.close(fig)
+        written.append(fn)
+
+        # 2. all ponds summed: one bar per year
+        xt = np.arange(nyear, dtype=float)
+        fig, axes = plt.subplots(2, 1, figsize=(max(6.5, 2.2 * nyear + 4.5),
+                                                9.5), sharex=True)
+        _stacked(axes[0], xt, total, full, 0.6)
+        tv, tcomp = _net_stream(total, keys)
+        _stacked(axes[1], xt, tv, tcomp, 0.6)
+        axes[1].set_xticks(xt)
+        axes[1].set_xticklabels([''] * nyear)
+        _year_labels(axes[1], xt, years, warns, -0.03)
+        axes[0].set_title('All %d ponds summed: full budget' % npond,
+                          fontsize=10)
+        axes[1].set_title("All %d ponds summed: the stream's through-flow "
+                          'replaced by its net' % npond, fontsize=10)
+        for ax in axes:
+            ax.set_ylabel(unit)
+            ax.legend(fontsize=7, loc='center left', bbox_to_anchor=(1.01, 0.5))
+        fig.suptitle('Pond water budget per hydrological year, all ponds '
+                     '(from month %d)%s' % (int(start_month), what),
+                     fontsize=11)
+        fig.tight_layout()
+        if note:
+            fig.text(0.01, -0.03, note, fontsize=8, ha='left', va='top')
+        fn = os.path.join(out, 'lake_budget_years_total%s.png' % suffix)
+        fig.savefig(fn, dpi=140, bbox_inches='tight')
+        plt.close(fig)
+        written.append(fn)
+
+    draw(vol, vol.sum(axis=1), 'm$^3$ per hydrological year', '', '')
+    if area is not None:
+        # the same, in mm over the cells each pond occupies -- all ponds:
+        # over all of their cells
+        draw(vol / area[None, :, None] * 1000.0,
+             vol.sum(axis=1) / area.sum() * 1000.0,
+             'mm per hydrological year, over the pond cells', '_mm',
+             '\nin mm over the cells of each pond (%.0f m$^2$ for all %d)'
+             % (area.sum(), npond))
 
     if verbose:
         resid = np.abs(vol.sum(axis=2)).max()
-        print('   pond budgets per hydrological year: %d year(s) x %d pond(s); '
-              'largest closure residual %.3g m3' % (nyear, npond, resid))
+        print('   pond budgets per hydrological year: %d year(s) x %d pond(s)%s;'
+              ' largest closure residual %.3g m3'
+              % (nyear, npond, '' if area is None else ', in m3 and mm',
+                 resid))
     return written
 
 
@@ -1292,9 +1356,16 @@ def _fig_lakes(sim_ws, name, ds_ws, out, dates=None, verbose=True,
                     per = np.ones(len(by['periods']))
                 else:
                     per = per[-len(by['periods']):]   # without a steady SP
+                try:
+                    areas = pond_cell_areas(sim_ws, name, ds_ws)
+                except Exception as exc:   # pragma: no cover
+                    areas = None
+                    if verbose:
+                        print('   pond cell areas unavailable: %r' % exc)
                 written += _fig_lake_budget_years(by, x, per,
                                                   hydro_year_start, out,
-                                                  verbose=verbose)
+                                                  verbose=verbose,
+                                                  areas=areas)
         except Exception as exc:           # pragma: no cover
             if verbose:
                 print('   pond budgets per year skipped: %r' % exc)
@@ -1488,9 +1559,10 @@ def model_map_features(sim_ws, name=None, ds_ws=None):
     return f
 
 
-def _pond_footprint_cells(mg, fn):
-    """Cell numbers of the pond footprints on a flopy grid, by the
-    builder's own rule (marmites_lak.pond_footprints)."""
+def _pond_footprints(mg, fn):
+    """``(ponds, shape, polys)``: the ponds of ``fn`` with their footprint
+    cells on a flopy grid, by the builder's own rule
+    (marmites_lak.pond_footprints); ``polys`` are the cell outlines."""
     import marmites_lak as LK
     import marmites_vector as mv
     ncell = int(np.asarray(mg.xcellcenters).size)
@@ -1508,7 +1580,35 @@ def _pond_footprint_cells(mg, fn):
            (np.asarray(idm).reshape(int(mg.nlay), -1) > 0).any(axis=0))
     ponds = LK.pond_footprints(LK.read_pond_polygons(fn), grid, active=act,
                                verbose=False)
+    return ponds, shape, polys
+
+
+def _pond_footprint_cells(mg, fn):
+    """Cell numbers of the pond footprints on a flopy grid."""
+    ponds, shape, _polys = _pond_footprints(mg, fn)
     return sorted({i * shape[1] + j for p in ponds for i, j in p.cells})
+
+
+def pond_cell_areas(sim_ws, name, ds_ws):
+    """Each pond's CELL area [m2] -- the cells of its footprint, as the model
+    map draws them -- keyed by its LAK boundname (``pond<fid>``). None when
+    the grid file or the ponds file is missing."""
+    import glob
+    import flopy
+    grb = sorted(glob.glob(os.path.join(sim_ws, '%s.dis*.grb' % name)))
+    fn = os.path.join(ds_ws, 'inputPONDS.geojson') if ds_ws else None
+    if not grb or not fn or not os.path.exists(fn):
+        return None
+    mg = flopy.mf6.utils.MfGrdFile(grb[0], verbose=False).modelgrid
+    ponds, shape, polys = _pond_footprints(mg, fn)
+
+    def area(v):
+        x, y = np.asarray(v, float).T
+        return 0.5 * abs(np.dot(x, np.roll(y, -1)) - np.dot(y, np.roll(x, -1)))
+
+    return {'pond%s' % p.fid: float(sum(area(polys[i * shape[1] + j])
+                                        for i, j in p.cells))
+            for p in ponds}
 
 
 def _fig_model_map(out, sim_ws, name, ds_ws, title=None, verbose=True):

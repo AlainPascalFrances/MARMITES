@@ -146,6 +146,47 @@ def test_the_figures_and_the_table(lak_ws, tmp_path):
                                            'all ponds': 300.0}
 
 
+def test_a_year_the_run_does_not_cover_is_flagged_with_its_dates():
+    dates = pd.date_range('2008-05-31', '2010-11-02', freq='D')
+    blocks = PP.hydro_years(dates, 10)
+    spans = PP._year_spans(dates, 10, blocks)
+    assert [ok for _a, _b, ok in spans] == [False, True, True, False]
+    a, b, _ok = spans[0]
+    assert (str(a.date()), str(b.date())) == ('2008-05-31', '2008-09-30')
+    assert str(spans[-1][1].date()) == '2010-11-02'
+
+
+def test_the_mm_figures_divide_by_the_pond_cells(lak_ws, tmp_path):
+    by = PP.lake_budget_by_lake(lak_ws, 'toy')
+    dates = pd.to_datetime(['2008-09-30', '2008-10-01'])
+    out = tmp_path / 'out'
+    out.mkdir()
+    files = PP._fig_lake_budget_years(by, dates, [1.0, 1.0], 10, str(out),
+                                      verbose=False,
+                                      areas={'lake 1': 1000.0,
+                                             'lake 2': 500.0})
+    names = sorted(os.path.basename(f) for f in files)
+    assert 'lake_budget_years_by_pond_mm.png' in names
+    assert 'lake_budget_years_total_mm.png' in names
+    tab = pd.read_csv(os.path.join(str(out), 'lake_budget_years.csv'))
+    one = tab[(tab.hydro_year == '2008/09') & (tab.component == 'from_stream')]
+    mm = dict(zip(one.pond, one.mm))
+    assert mm['lake 1'] == pytest.approx(300.0)          # 300 m3 / 1000 m2
+    assert mm['all ponds'] == pytest.approx(200.0)       # 300 m3 / 1500 m2
+    assert set(tab.complete) == {False}                  # two partial years
+    assert set(tab.first_day) == {'2008-09-30', '2008-10-01'}
+
+
+def test_without_the_areas_the_mm_figures_are_left_out(lak_ws, tmp_path):
+    by = PP.lake_budget_by_lake(lak_ws, 'toy')
+    dates = pd.to_datetime(['2008-09-30', '2008-10-01'])
+    out = tmp_path / 'out'
+    out.mkdir()
+    files = PP._fig_lake_budget_years(by, dates, [1.0, 1.0], 10, str(out),
+                                      verbose=False, areas={'lake 1': 1.0})
+    assert not any(f.endswith('_mm.png') for f in files)
+
+
 def test_the_run_draws_them_with_the_panel_year():
     src = open(os.path.join(TRUNK, 'ppMF6', 'marmites_postprocess.py'),
                encoding='utf-8').read()

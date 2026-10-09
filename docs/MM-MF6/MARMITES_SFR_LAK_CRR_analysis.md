@@ -1159,3 +1159,86 @@ would tell whether a run is bit-reproducible at all.
   is harmless.
 
 The parameter-file removal (e830713) has not been run yet.
+
+## 8.21 The pond outlets leak past the mover: the solver tolerance (2026-10-09)
+
+Run `20261008114055`: LAK EXT-OUTFLOW at pond10 -2,748 m3/yr (on 339 of
+365 days) and pond13 -535, although every outlet is moved to the stream at
+FACTOR 1; together ~0.75 % of the outlet streamflow.
+
+**Mechanism (MF6 6.7.0 source).**
+- EXT-OUTFLOW = the outlet's discharge minus what the mover took from it
+  (`gwf-lak.f90` `lak_get_external_outlet` + `lak_get_external_mover`).
+- The mover moves the PREVIOUS outer iteration's provider flows: `mvr_fc`
+  runs before the packages' fc (`gwf.f90`), and LAK fills `qformvr` at the
+  end of `lak_solve`.
+- Those flows are zeroed at the start of every time step
+  (`PackageMover%ad`). The day's water reaches a pond N links down a chain
+  only after N outer iterations, always from below -- hence a loss on
+  almost every day, and none at a pond with nothing upstream.
+- LAK's convergence check turns the change of outlet discharge into a depth
+  over the pond's area per step (`lak_cc`: dqout x delt / area); the solver
+  accepts it below `outer_dvclose` (`sln_package_convergence`). The Run
+  panel has 0.025 m.
+
+**On La Mata.** Each pond's daily |EXT-OUTFLOW| against that bound
+(0.025 m x surface area / 1 d): no pond ever exceeds it; pond10 reaches
+96 % (37.2 of 38.7 m3/d) and pond13 92 % (21.8 of 23.8). They are the two
+at the end of the longest chains (4 and 3 ponds upstream) and the two with
+the largest spill (877 and 769 m3/d). The other nine stay below 20 %.
+
+**Toy model** (`code/tests/diag_lak_mover_leak.py`: 5 ponds in series on a
+stream over an aquifer with La Mata's K 0.05 and Sy 0.01, 60 days, 600 to
+1,000 m3/d plus storms). EXT-OUTFLOW of the last pond:
+
+| outer_dvclose | last pond, 60 d | worst day | outer iterations/step |
+|---------------|-----------------|-----------|-----------------------|
+| 0.025         | -55 m3          | -45 m3/d  | 6.7                   |
+| 0.001         | -12 m3          | -1.5 m3/d | 8.0                   |
+| 1e-5          | -0.2 m3         | 0.0       | 10.8                  |
+
+The loss grows down the chain (-0.1, -0.6, -3.5, -33, -55 m3 at 0.025).
+
+**What to do.** The lever is `solver.outer_dvclose` (Run panel); 0.001 m
+(the approved default) cuts pond10's bound from 38.7 to 1.5 m3/d. The cost
+is more outer iterations per day (+20 % on the toy). Nothing in MF6 tightens
+LAK alone: `MAXIMUM_STAGE_CHANGE` governs LAK's internal stage loop, not
+this check.
+
+## 8.22 No groundwater into the ponds: their stage, not their bed (2026-10-09)
+
+The pond budgets per year show every pond losing to the aquifer and never
+gaining. MF6 LAK, EMBEDDEDV: flow into the pond = cond x (max(head, bed) -
+max(stage, bed)), cond = bedleak x wetted area (`lak_calculate_conn_exchange`;
+for EMBEDDEDV `belev` is the bottom of the stage table, the bed). So the
+direction is set by the aquifer head in the host cell against the pond's
+stage; the conductance (bedleak 0.001 1/d) only scales it.
+
+Run `20261008114055`, per pond and day:
+- the aquifer head is BELOW the stage on every day at every pond: by
+  0.8-1.6 m on average (0.1 to 2.4 m on single days);
+- it is ABOVE the pond bed, by 1.2-2.1 m: the ponds are connected to the
+  aquifer, not perched over it;
+- the stage stays at the outlet sill (the pond rim from the DEM) all year:
+  the stream passes through every pond (on-channel, FROM-MVR ~100x every
+  other term), so its level cannot fall to the water table. The bed is
+  3.0 m below the sill (2.5-3.0), 1.5 m below the cell top.
+
+The pond piezometers C1-C3 (in the cells of pond1, pond3, pond10) are no
+help: their "observed" series repeat the same four values every year,
+2007-2012, = h0 + (-2.0, -0.5, 0.0, -1.0) m for all three (h0 from
+inputObs.txt). They look like placeholders, not measurements. Taken at face
+value they too put the water table 0.1-2.4 m below the pond rims, and the
+simulated heads are within 0.1-0.5 m of them.
+
+So it is conceptual before it is calibration: the model holds the ponds
+full to their rims with stream water, above the water table. For a
+groundwater-dependent pond the level follows the water table. Options (the
+user's decision):
+1. measured pond levels or depths, to check the rims and beds against;
+2. if the real level is below the rim most of the year, the spill level
+   (outlet sill) at that level, not at the DEM rim;
+3. if the stream does not flow through the ponds all year, ponds off the
+   channel -- fed by runoff, rain and groundwater, spilling only when full;
+4. only then calibration (K, Sy, recharge) to raise the valley heads.
+A larger bed conductance would make the losses larger, not reverse them.
