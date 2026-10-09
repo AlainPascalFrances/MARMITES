@@ -391,8 +391,18 @@ Recent runs (La Mata, 4566-cell Voronoi mesh: 20 m stream corridor ratio 2,
 
 ## 7. Next steps (in order)
 
-1. **User runs with `solver.outer_dvclose` = 0.001** (set 2026-10-09; it
-   was 0.025) and looks at the pond budgets per year (WP6.2 part):
+1. **outer_dvclose 0.001 does not converge on La Mata** (run
+   20261009165953, 500 SPs, inner_dvclose also 0.001, outer_maximum 100):
+   after 1 h only 13 SPs, 72 failed steps, each through all 100 outer
+   iterations with the max head change CREEPING up (0.07 -> 0.12 m,
+   backtracking) -- always at stream-reach cells: 3443 (reach 46), 3269
+   (reach 16, on the 1e-4 slope floor), the trunk near the outlet (reaches
+   487-505, ~754 m). Same cells as §8.19's storm-day failures, which 0.025
+   let through. ~38 h for the run. The user decides: back to 0.025 (and
+   the 0.75 % leak), or an intermediate value tried on a short run first,
+   with inner_dvclose 10x tighter than outer; the real fix is the stream
+   cells' convergence (flat reaches, stream-aquifer coupling).
+   Then the user looks at the pond budgets per year (WP6.2 part):
    `_output/lake_budget_years_by_pond.png` (a group of bars per
    hydrological year, a bar per pond), `lake_budget_years_total.png` (all
    ponds summed), the same two in mm over each pond's cells (`*_mm.png`)

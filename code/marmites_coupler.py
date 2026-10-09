@@ -44,6 +44,10 @@ import time
 import numpy as np
 
 
+# a progress line at least this often [s], whatever the 5 % steps say
+PROGRESS_EVERY_S = 900.0
+
+
 def _hms(seconds):
     """A duration a modeller can act on: 4h 42m, not 16920.3."""
     s = int(max(seconds, 0))
@@ -1483,16 +1487,31 @@ class MF6Coupler:
             return
         if last and getattr(self, '_prog_from', None) == n + 1:
             return                 # the loop already reported this period
-        step = max(1, nper // 20)
-        if not last and (n % step) or n == 0:
-            return
         now = time.time()
+        t_last = getattr(self, '_t_last', None)
+        t_last = self._t0 if t_last is None else t_last
+        # every 5 %, AND whenever PROGRESS_EVERY_S has gone by without a
+        # line: a run whose periods crawl (a solve failing and retried
+        # through every outer iteration) said nothing for over an hour
+        # before its first 5 % (2026-10-09)
+        step = max(1, nper // 20)
+        due = ((n > 0 and n % step == 0)
+               or now - t_last >= PROGRESS_EVERY_S)
+        if not last and not due:
+            return
         done, left = n + 1, nper - (n + 1)
+        # the time these periods took, not only the time left (user,
+        # 2026-10-09)
+        nblk = max(done - int(getattr(self, '_blk_from', 0)), 1)
+        blk = now - t_last
         rate = (now - self._t0) / max(done, 1)
         eta = ('' if last or not left
                else ', ~%s left' % _hms(rate * left))
-        print('   stress period %d/%d (%.0f%%)%s%s'
-              % (done, nper, 100.0 * done / nper, eta,
+        self._t_last, self._blk_from = now, done
+        print('   stress period %d/%d (%.0f%%): %d period(s) in %s (%s each),'
+              ' %s elapsed%s%s'
+              % (done, nper, 100.0 * done / nper, nblk, _hms(blk),
+                 _hms(blk / nblk), _hms(now - self._t0), eta,
                  self._pet_window(n) if hasattr(self, '_pet_window')
                  else ''))
 
@@ -1525,6 +1544,8 @@ class MF6Coupler:
         cMF = self.mf6b.cMF
         nper_mm = int(cMF.nper)
         self._t0 = time.time()
+        self._t_last = self._t0           # the time of the last progress line
+        self._blk_from = 0                # and the periods it had reported
         self._prog_from = 0
         self.heads_hist = np.zeros((nper_mm, self.ncell))
         self.exf_hist = np.zeros((nper_mm, self.ncell))

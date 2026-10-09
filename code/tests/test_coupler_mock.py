@@ -581,6 +581,35 @@ def test_progress_is_reported_but_not_every_period(capsys):
     assert '100/100' in out or '96/100' in out, out[-200:]
 
 
+def test_progress_says_how_long_the_periods_took(capsys, monkeypatch):
+    """User, 2026-10-09: the line gives the time the periods since the last
+    one took, per period and in all, not only the (rough) time left -- and
+    a run whose periods crawl reports at least every PROGRESS_EVERY_S,
+    before its first 5 %."""
+    import types
+
+    import marmites_coupler as MC
+
+    clock = {'t': 1000.0}
+    monkeypatch.setattr(MC.time, 'time', lambda: clock['t'])
+    c = types.SimpleNamespace(_t0=1000.0)
+    c._progress = types.MethodType(MC.MF6Coupler._progress, c)
+    # 500 periods: the 5 % step is 25. Twelve slow periods, 400 s each: a
+    # line every third period, when 900 s have gone by
+    for n in range(12):
+        clock['t'] += 400.0
+        c._progress(n, 500)
+    out = capsys.readouterr().out
+    lines = [ln for ln in out.splitlines() if 'stress period' in ln]
+    assert len(lines) == 4, lines
+    assert 'stress period 3/500' in lines[0]
+    assert '3 period(s) in 20m 00s (6m 40s each), 20m 00s elapsed' \
+        in lines[0], lines[0]
+    assert '3 period(s) in 20m 00s (6m 40s each), 40m 00s elapsed' \
+        in lines[1], lines[1]
+    assert '~' in lines[0] and 'left' in lines[0]
+
+
 def test_progress_says_nothing_for_an_empty_run(capsys):
     import types
 
