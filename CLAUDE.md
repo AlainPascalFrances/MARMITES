@@ -417,8 +417,12 @@ Recent runs (La Mata, 4566-cell Voronoi mesh: 20 m stream corridor ratio 2,
      holding with the reach at 0.01 mm, the edge of MF6's wetted-area ramp
      (SP 477 reach 314, SPs 458-459, summer days), which oscillates around
      the tolerance;
-   - OPEN: saved heads above the streambed top at reaches SFR reports as
-     losing;
+   - the "heads above the bed while losing" puzzle was MY READING ERROR
+     (§8.23.3): flopy HeadFile.get_data(idx=i) counts records, two per
+     step here (one per layer) -- read heads with kstpkper= or totim=;
+   - sfr.evap_inflow_fraction now accepts 0 (the streams do not
+     evaporate: -2.4 mm/yr, both routes gone, toy converges); the user
+     sets it on panel 4;
    - outlet: the storm of 7-9 Oct 2009 gives 104,048 m3/d against 9,493
      observed (NSE over 500 d -3.98; over the shared 329 d -0.54).
    Then the user looks at the pond budgets per year (WP6.2 part):

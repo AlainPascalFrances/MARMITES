@@ -175,7 +175,7 @@ def test_unknown_section_raises():
 @pytest.mark.parametrize('bad,frag', [
     ({'et': {'evt_ramp': 0.0}}, 'evt_ramp'),
     ({'sfr': {'evap_inflow_fraction': 1.0}}, 'evap_inflow_fraction'),
-    ({'sfr': {'evap_inflow_fraction': 0.0}}, 'evap_inflow_fraction'),
+    ({'sfr': {'evap_inflow_fraction': -0.1}}, 'evap_inflow_fraction'),
     ({'layers': {'nlay': 0}}, 'layers.nlay'),   # a count, so >= 1
     ({'seep': {'kind': 'drn', 'cond': 0.0}}, 'free-draining'),
     ({'grid': {'kind': 'nope'}}, 'grid.kind'),

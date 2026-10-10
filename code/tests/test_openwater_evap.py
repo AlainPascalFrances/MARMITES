@@ -245,6 +245,24 @@ def test_without_the_areas_eo_is_written_whole():
     assert c.p_sfr_evap[0] == pytest.approx(0.004)
 
 
+def test_zero_turns_the_streams_evaporation_off():
+    """sfr.evap_inflow_fraction = 0: nothing to evaporate, nothing to
+    flip-flop (8.23.2). It needs no areas and counts no capped reach."""
+    c = _capped(inflow=[0.05, 1.0], up_prev=[0.0, 0.0], frac=0.0)
+    assert np.all(c.p_sfr_evap == 0.0)
+    c.sfr_wl = None                              # an MF6 without the areas
+    c.p_sfr_evap[:] = 9.0
+    c._write_openwater_evap(0)
+    assert np.all(c.p_sfr_evap == 0.0)
+    assert c.sfr_evap_writes == 0, 'no end-of-run cap line at 0'
+
+
+def test_the_configuration_takes_zero():
+    import marmites_config as mcfg
+    c = mcfg.RunConfig.from_dict({'sfr': {'evap_inflow_fraction': 0.0}})
+    assert c.sfr.evap_inflow_fraction == 0.0
+
+
 def test_the_upstream_and_mover_inflow_is_copied_after_a_step():
     """MF6 zeroes USFLOW when it advances the next step (sfr_ad): the cap
     must read a COPY, with the pond outflow (QFROMMVR) added."""

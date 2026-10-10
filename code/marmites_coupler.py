@@ -732,7 +732,10 @@ class MF6Coupler:
             _wid, _a = self._bind_first(
                 api, [('WIDTH', f'{name}/SFR'), ('WIDTH', f'{name}/SFR-1')],
                 'SFR reach width', required=False, min_size=self.nreaches)
-            if self.p_sfr_evap is not None:
+            if self.p_sfr_evap is not None and self.sfr_evap_frac <= 0.0:
+                print('coupler: no open-water evaporation from the streams '
+                      '(sfr.evap_inflow_fraction = 0)')
+            elif self.p_sfr_evap is not None:
                 if self.p_sfr_usflow is None or _len is None or _wid is None:
                     print('WARNING: SFR USFLOW, LENGTH or WIDTH not exposed by '
                           'this MF6 build; the stream evaporation is NOT '
@@ -1282,6 +1285,9 @@ class MF6Coupler:
         reach and the switch is never reached.
         """
         eo = np.asarray(eo, dtype=float)
+        if self.sfr_evap_frac <= 0.0:
+            # 0: the streams do not evaporate -- no area needed for that
+            return np.zeros_like(eo)
         if self.sfr_wl is None:
             return eo
         n = min(eo.size, self.sfr_wl.size)

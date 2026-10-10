@@ -1259,7 +1259,8 @@ outer_maximum 100; stopped by the user after 44 SPs in 5 h):
   dry. Their heads sit between the streambed bottom and top, a few mm below
   the top at 3762, 3417 and 1720;
 - the failures are not storm-only: SP 42 is a quiet day at 3762 (no
-  infiltration, no UZF recharge, the head 1-2 mm below the streambed top,
+  infiltration, no UZF recharge, the head 1-2 mm below the streambed top
+  [heads in this section were read at the wrong step, see 8.23.3],
   the reach losing 0.06 m3/d, EVT 0.14 m3/d). Every step longer than about
   0.005 d failed, so ATS ran the day in 141 steps of 0.001-0.005 d.
 
@@ -1306,7 +1307,9 @@ At 0.025 m the stall is accepted at iteration 3, which is why 0.025
 
 **On La Mata (run output, read-only).** Reaches in that state (inflow > 0
 but below E0 x w x L, head below the streambed top) at least once in the
-SP's saved steps:
+SP's saved steps. The head criterion used heads from the wrong step
+(8.23.3), so the counts are indicative; the two states below come from
+the budget files and stand:
 
 | SP | steps | reaches flipping | of which hold a failing cell |
 |----|------:|-----------------:|-----------------------------|
@@ -1458,10 +1461,10 @@ Every failure still ends at a layer-1 stream cell, by two routes:
    - signature: oscillation at 1-17 mm, 50-90 sign changes in 100
      iterations, around the tolerance.
 
-**Open.** At those reaches the saved head is 0.12-0.27 m ABOVE the
-streambed top while SFR reports them losing (checked in both budget files,
-user node numbers in both). The replica of `sfr_calc_steady` reproduces
-the loss only with the head below the bed. To pin down.
+**Resolved (8.23.3): my reading error, not MF6.** I read the head file
+at the wrong time steps. Read correctly, reach 86 on SP 458 has its head
+0.14 m BELOW the bed while losing its last 0.028 m3/d, as MF6's equations
+say.
 
 **Results.**
 - **Pond leak:** LAK EXT-OUTFLOW went from -9.1 m3/d (0.025) to -0.1 m3/d.
@@ -1472,3 +1475,53 @@ the loss only with the head below the bed. To pin down.
   5,539 observed. That is runoff generation, not convergence.
 - **Stream evaporation:** 2.40 mm/yr (2.55 at 0.025 over a different
   window). UZF rejected 21.4 % of the applied percolation.
+
+### 8.23.3 Correction: the heads were read at the wrong time steps (2026-10-10)
+
+**The error was mine.** Every head I quoted from `lamata.hds` in 8.23 and
+8.23.2 was read with flopy's `HeadFile.get_data(idx=i)`, with `i` taken
+from `get_kstpkper()`. But `idx` counts RECORDS, and this file has one per
+layer, two per time step. So `idx=i` returned the heads of step i/2.
+- **How it was found:** the head change between "steps" 399 and 400
+  equalled, to four decimals at five cells, the storage MF6 booked at step
+  200 (STO-SY = Sy A dh / dt).
+- **Read by `kstpkper`,** the file matches the coupler's heads from MF6's
+  memory exactly (all 4524 cells, every period checked).
+- **The stage file** has one record per step, so the stages were read
+  right.
+
+**What was wrong:**
+- in 8.23, the heads of the failing cells ("between the streambed bottom
+  and top", "1-2 mm below the top" on SP 42);
+- the head criterion of the flipping table;
+- the "Open" puzzle of 8.23.2.
+
+Run 20261009165953's head file has since been overwritten, so its heads
+cannot be re-read.
+
+**What stands:**
+- everything from the budget files (read by kstpkper) and the stage file;
+- the MF6 source, the replica, the toy and the tests;
+- the states MF6 itself reported. A reach "leaking all its inflow" is
+  only possible with the head below its stage, so the flip-flop needed no
+  head file to be seen.
+
+Corrected, route 2 of 8.23.2 reads plainly: reach 86 on SP 458 has its
+head 0.14 m below the bed and loses the half of its inflow the capped
+evaporation leaves, at 0.01 mm depth on the edge of the wetted-area ramp.
+
+**Cap 0: the streams do not evaporate.** On the 500-day run the stream
+evaporation is 2.40 mm/yr over the catchment: 0.7 % of the rain, 2.8 % of
+the outlet flow. Applying EVAP only where the previous step's depth
+exceeded 0.1 mm would keep 94 % of it, and 1 mm 81 %.
+
+`sfr.evap_inflow_fraction` now accepts 0 (validation 0 <= f < 1).
+- At 0 the coupler writes EVAP 0 on every reach, needs no areas, prints
+  "coupler: no open-water evaporation from the streams", and skips the
+  end-of-run cap line.
+- With nothing to evaporate, a reach cannot flip-flop: both routes of
+  8.23.2 go.
+- `tests/test_sfr_evap_cap.py` runs the toy at 0: 0 failed attempts at
+  outer_dvclose 0.001.
+- A depth threshold remains the option if the stream evaporation matters
+  for calibration.

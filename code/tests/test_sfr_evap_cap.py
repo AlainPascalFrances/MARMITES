@@ -73,14 +73,14 @@ class _Cpl(coup.MF6Coupler):
         self.sfr_evap_capped = self.sfr_evap_writes = 0
 
 
-def _march(ws, libmf6, capped):
+def _march(ws, libmf6, capped, frac=0.5):
     """Returns (failed attempts, worst EVAP x w L / inflow over the run)."""
     from modflowapi import ModflowApi
     api = ModflowApi(libmf6, working_directory=str(ws))
     api.initialize(os.path.join(str(ws), 'mfsim.nam'))
     worst = 0.0
     try:
-        c = _Cpl(api, 0.5)
+        c = _Cpl(api, frac)
         while api.get_current_time() < api.get_end_time() - 1e-9:
             api.prepare_time_step(api.get_time_step())
             if capped:
@@ -112,6 +112,19 @@ def test_the_capped_stream_converges_at_a_tight_tolerance(tmp_path):
     assert worst <= 0.5 + 1e-9, 'a reach evaporated more than half its inflow'
     assert nfail == 0, ('%d failed attempts at outer_dvclose 0.001 with the '
                         'cap' % nfail)
+
+
+def test_with_the_streams_not_evaporating_it_converges(tmp_path):
+    """sfr.evap_inflow_fraction = 0 (8.23.2): no evaporation, no
+    flip-flop."""
+    libmf6, exe = _libmf6()
+    ws = tmp_path / 'zero'
+    ws.mkdir()
+    diag.build(str(ws), exe)
+    diag.set_dvclose(str(ws), 0.001)
+    nfail, worst = _march(ws, libmf6, capped=True, frac=0.0)
+    assert worst == 0.0, 'a reach evaporated with the fraction at 0'
+    assert nfail == 0, '%d failed attempts with no stream evaporation' % nfail
 
 
 def test_without_the_cap_mf6_still_flip_flops(tmp_path):

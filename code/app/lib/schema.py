@@ -842,8 +842,13 @@ FIELDS = {
         'evaporating all of it and leaking all of it to the aquifer; the '
         'solver then cannot converge at a tight outer_dvclose (analysis '
         '8.23). Over 43 days of La Mata, 0.5 removed 0.3 % of the stream '
-        'evaporation. Must be above 0 and below 1: at 1 the reach can still '
-        'evaporate all it receives.'),
+        'evaporation. 0 turns the evaporation from the streams off (2.4 '
+        'mm/yr over the catchment on the 500-day run, 0.7 % of the rain): '
+        'with nothing to evaporate a reach cannot flip-flop at all, which '
+        'also clears what 0.5 leaves -- an inflow collapsing within a step, '
+        'and a reach left at the edge of the 1e-5 m wetted-area ramp of MF6 '
+        '(8.23.2). From 0 to below 1: at 1 the reach can still evaporate all '
+        'it receives.'),
     'lak.enable': ('Lakes (LAK)', _U,
                    'One EMBEDDEDV lake per pond, the CdL design: the pond '
                    'owns the cells whose centre lies inside it (its '
