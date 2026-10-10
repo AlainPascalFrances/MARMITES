@@ -830,6 +830,57 @@ def _fig_stream(sim_ws, name, ds_ws, out, mg, dates=None, verbose=True):
     return written
 
 
+def sfr_reach_flows(sim_ws, name, nper=None):
+    """Each reach's time-mean flow OUT of it, downstream [m3/d], and the GWF
+    user node (1-based) it exchanges with.
+
+    From the SFR budget file: what a reach hands on is its negative
+    FLOW-JA-FACE (to the reaches below), plus EXT-OUTFLOW at the outlet and
+    TO-MVR where a pond takes it. Each stress period is its steps'
+    time-weighted mean (period_steps), the periods are then averaged, and
+    the steady first period is left out. The node comes from the budget's
+    own GWF records. None when the run wrote no SFR budget.
+    """
+    import flopy
+    fn = os.path.join(sim_ws, '%s.sfr.cbc' % name)
+    if not os.path.exists(fn):
+        return None
+    cbc = flopy.utils.CellBudgetFile(fn, precision='double')
+    kk = cbc.get_kstpkper()
+    groups = period_steps(cbc.get_times(), kk,
+                          steady=steady_first(sim_ws, name))
+    if nper:
+        groups = groups[-int(nper):]
+    recs = set(r.strip() for r in cbc.get_unique_record_names(decode=True))
+    if 'FLOW-JA-FACE' not in recs:
+        return None
+    fjf = cbc.get_data(text='FLOW-JA-FACE')
+    outs = [cbc.get_data(text=t) for t in ('EXT-OUTFLOW', 'TO-MVR')
+            if t in recs]
+    gwf = cbc.get_data(text='GWF', kstpkper=kk[0])[0] if 'GWF' in recs \
+        else None
+    nre = int(max(int(np.max(a['node'])) for a in fjf[:1]))
+    if gwf is not None and len(gwf):
+        nre = max(nre, int(np.max(gwf['node'])))
+    for lst in outs:
+        if len(lst[0]):
+            nre = max(nre, int(np.max(lst[0]['node'])))
+    q = np.zeros(nre)
+    for grp in groups:
+        for r, w in grp:
+            a = fjf[r]
+            m = a['q'] < 0
+            np.add.at(q, a['node'][m] - 1, -w * a['q'][m])
+            for lst in outs:
+                b = lst[r]
+                np.add.at(q, b['node'] - 1, -w * np.minimum(b['q'], 0.0))
+    q /= max(len(groups), 1)
+    node = np.zeros(nre, dtype=int)
+    if gwf is not None:
+        node[gwf['node'] - 1] = gwf['node2']
+    return {'q': q, 'node': node}
+
+
 def _lake_table_file(fn):
     """(bed, rim) of one LAK stage table (``marmites_lak.lake_table``: the
     first row is the bed, the last the rim plus a headroom row)."""
@@ -3306,8 +3357,38 @@ _AQ_MAPS = (
     ('WEL', 'ETg', 'groundwater ET', -1.0),
     ('EVT_EG', 'Eg', 'groundwater evaporation (EVT)', -1.0),
     ('EVT_TG', 'Tg', 'groundwater transpiration (EVT)', -1.0),
-    ('FLF', 'FLF', 'flow across the lower face', +1.0),
+    # + downward, into the layer below; - upward, from it (flopy's sign)
+    ('FLF', 'FLF', 'flow across the lower face (+ down, - up)', +1.0),
+    # the streams and the ponds exchange with their cells directly, both
+    # ways: where the valley's upward flow (FLF < 0) leaves the aquifer
+    ('SFR', 'SFRg', 'exchange with the streams (+ into the aquifer)', +1.0),
+    ('LAK', 'LAKg', 'exchange with the ponds (+ into the aquifer)', +1.0),
 )
+
+# what crosses the top of the aquifer: recharge, seepage, groundwater ET, the
+# streams and the ponds (+ into the aquifer, MODFLOW's sign). The boundary
+# drains and the GHB are lateral; a WEL is pumping (since 2026-10-07).
+_UPPER_FACE = ('UZF-GWRCH', 'DRN_SEEP', 'EVT_EG', 'EVT_TG', 'SFR', 'LAK')
+
+
+def upper_face_flow(maps, nlay):
+    """Flow across the UPPER face of each layer, ``(nlay, ncells)`` m3/d,
+    + down into the layer, - up out of it -- the companion of FLF (user,
+    2026-10-10).
+
+    For layer 1 it is the net exchange at the top: the _UPPER_FACE records.
+    For a lower layer, the flow from the layer above (that layer's FLF, + down)
+    plus what those packages attach to its own cells, where the layer above
+    is absent or unsaturated. None when ``maps`` holds none of them.
+    """
+    keys = [k for k in _UPPER_FACE if k in maps]
+    if not keys:
+        return None
+    fuf = sum(np.asarray(maps[k], float).reshape(nlay, -1) for k in keys)
+    fuf = np.array(fuf, dtype=float)
+    if 'FLF' in maps and nlay > 1:
+        fuf[1:] += np.asarray(maps['FLF'], float).reshape(nlay, -1)[:-1]
+    return fuf
 
 
 def _native_result_maps(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
@@ -3460,27 +3541,55 @@ def _native_result_maps(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
              * to_mm[None, :, :])[None, :, :, :]
         draw(V, stem, cblbl, 'mm/d', m3,
              cmap=cmap_out if sgn < 0 else cmap_in)
-    # Effective and net recharge, exactly as the legacy driver derived them
-    # (startMARMITES_v3.py ~2433-2462):
-    #     Re = Rg + EXF          gross recharge net of exfiltration
-    #     Rn = Re + WEL          ... and net of groundwater ET
-    # The cbc already reports EXF and WEL negative (water leaving the aquifer),
-    # so these are plain sums of the RAW records -- not the sign-flipped
-    # magnitudes used for their individual maps. Both are signed fields, so
-    # plotLAYER draws them with the remapped coolwarm_r ramp.
+    # Effective and net recharge, as the legacy driver derived them
+    # (startMARMITES_v3.py ~2433-2462), with Exf and ETg as the positive
+    # amounts their own maps show:
+    #     Re = Rg - Exf          gross recharge net of exfiltration
+    #     Rn = Re - ETg          ... and net of groundwater ET
+    # The cbc already reports EXF and ETg negative (water leaving the
+    # aquifer), so these are plain sums of the RAW records -- not the
+    # sign-flipped magnitudes used for their individual maps. Both are signed
+    # fields, so plotLAYER draws them with the remapped coolwarm_r ramp.
     if 'UZF-GWRCH' in maps:
         re = np.asarray(maps['UZF-GWRCH'], float).copy()
         if 'DRN_SEEP' in maps:
             re += np.asarray(maps['DRN_SEEP'], float)
         re = DA.lay(re.reshape(nlay, -1))
         draw((re * to_mm[None, :, :])[None, :, :, :],
-             'Re', 'effective recharge (Rg + Exf)', 'mm/d', m3)
+             'Re', 'effective recharge (Rg - Exf)', 'mm/d', m3)
         if 'WEL' in maps or 'EVT_EG' in maps:
             et = sum(np.asarray(maps[k], float) for k in
                      ('WEL', 'EVT_EG', 'EVT_TG') if k in maps)
             rn = re + DA.lay(np.asarray(et, float).reshape(nlay, -1))
             draw((rn * to_mm[None, :, :])[None, :, :, :],
-                 'Rn', 'net recharge (Rg + Exf + ETg)', 'mm/d', m3)
+                 'Rn', 'net recharge (Rg - Exf - ETg)', 'mm/d', m3)
+    fuf = upper_face_flow(maps, nlay)
+    if fuf is not None:
+        draw((DA.lay(fuf) * to_mm[None, :, :])[None, :, :, :],
+             'FUF', 'flow across the upper face (+ down, - up)', 'mm/d', m3)
+    # The streams themselves: each reach's mean streamflow on its cell (the
+    # largest where a cell holds two), as log10(1 + Q) -- from a trickle to
+    # the outlet's thousands of m3/d, and never negative: log10 Q of a
+    # headwater stub under 1 m3/d made plotLAYER switch to its diverging
+    # ramp. One surface panel, like the soil maps.
+    sw = sfr_reach_flows(sim_ws, name, nper)
+    if sw is not None and np.any(sw['node'] > 0):
+        ncpl_m = int(cMF.nrow) * int(cMF.ncol)
+        qc = np.full(ncpl_m, np.nan)
+        for qq, nd in zip(sw['q'], sw['node']):
+            if nd > 0:
+                c = (int(nd) - 1) % ncpl_m
+                qc[c] = qq if not np.isfinite(qc[c]) else max(qc[c], qq)
+        lq = np.where(np.isfinite(qc),
+                      np.log10(1.0 + np.maximum(np.nan_to_num(qc), 0.0)),
+                      np.nan)
+        g = DA.lay(lq[None, :])[0]
+        off = ~np.isfinite(g)
+        draw(np.repeat(np.where(off, hnoflo, g)[None, None, :, :], nlay,
+                       axis=1),
+             'Q', 'mean streamflow, log10(1 + Q)', 'Q in m3/d',
+             np.repeat(off[None, :, :], nlay, axis=0), nplot=1,
+             cmap=matplotlib.colormaps['Blues'], prefix='SWmap')
     # storage change is the sum of the two storage records
     if 'STO-SS' in maps or 'STO-SY' in maps:
         s = (np.asarray(maps.get('STO-SS', 0.0))

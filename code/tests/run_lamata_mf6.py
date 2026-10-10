@@ -1291,7 +1291,9 @@ def main():
             raise SystemExit('--postproc-only needs a previous run: %s not found'
                              % h5_fn)
         with h5py.File(h5_fn, 'r') as f:
-            res = {k: f[k][:] for k in f.keys()}
+            # [()] reads arrays and scalars alike: the run now stores
+            # scalars too (nonconverged, iters_kind), which [:] refuses
+            res = {k: f[k][()] for k in f.keys()}
         print('re-using %s (%d stress period(s))'
               % (h5_fn, res['wb_ts'].shape[0]))
         _run_postproc(a, cMF, ctx, res)

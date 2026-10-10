@@ -71,6 +71,28 @@ def test_every_known_figure_has_a_title_in_words():
         '[mm over its cells]')
 
 
+def test_the_stream_and_exchange_maps_have_their_tab_and_title():
+    """User, 2026-10-10: the streamflow on a map, the exchange with the
+    streams and the ponds, the flow across the upper face -- and the
+    recharge labels with Exf and ETg as the amounts their maps show."""
+    q = ('_output', '_sp_plt_SWmap_Q_1_1.png')
+    assert R.classify(*q) == 'output'
+    assert R.title(*q) == 'Streams: mean streamflow (log10 of 1 + Q, Q in m3/d)'
+    for stem, words in (('FUF', 'upper face'), ('FLF', 'lower face'),
+                        ('SFRg', 'streams'), ('LAKg', 'ponds')):
+        t = R.title('_output', '_sp_plt_GWmap_%s_1_1.png' % stem)
+        assert t.startswith('Aquifer: ') and words in t, t
+    assert R.title('_output', '_sp_plt_GWmap_Re_1_1.png') == \
+        'Aquifer: effective recharge (Rg - Exf)'
+    assert R.title('_output', '_sp_plt_GWmap_Rn_1_1.png') == \
+        'Aquifer: net recharge (Rg - Exf - ETg)'
+    order = R.arrange([('_output', '_sp_plt_SWmap_Q_1_1.png', 'q.png'),
+                       ('_output', '_sp_plt_GWmap_Rg_1_1.png', 'rg.png'),
+                       ('_output', '_sp_plt_MMmap_Ro_1_1.png', 'ro.png')])
+    assert [it[1] for it in order['output']][-1].startswith(
+        '_sp_plt_SWmap_'), order['output']
+
+
 def test_a_two_layer_map_takes_the_whole_row(tmp_path):
     """User, 2026-10-09: a map of two layers (side by side) occupies both
     columns, a one-layer map one -- so their maps show at the same size."""

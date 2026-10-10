@@ -77,10 +77,17 @@ _GW = {
     'ETg': 'groundwater evapotranspiration',
     'Eg': 'groundwater evaporation (EVT)',
     'Tg': 'groundwater transpiration (EVT)',
-    'FLF': 'flow across the lower face of the layer',
-    'Re': 'effective recharge (Rg + Exf)',
-    'Rn': 'net recharge (Rg + Exf + ETg)',
+    'FLF': 'flow across the lower face of the layer (+ down, - up)',
+    'FUF': 'flow across the upper face of the layer (+ down, - up)',
+    'SFRg': 'exchange with the streams (+ into the aquifer)',
+    'LAKg': 'exchange with the ponds (+ into the aquifer)',
+    'Re': 'effective recharge (Rg - Exf)',
+    'Rn': 'net recharge (Rg - Exf - ETg)',
     'dSg': 'release from groundwater storage',
+}
+# stream maps (marmites_postprocess._native_result_maps, SWmap_<stem>)
+_SW = {
+    'Q': 'mean streamflow (log10 of 1 + Q, Q in m3/d)',
 }
 # the comparison with the legacy NWT run (tests/plot_water_budget.py)
 _NWT = {
@@ -132,7 +139,7 @@ def classify(sub, fname):
             s.startswith('budget_lak')):
         return 'ponds'
     if ('_sp_plt_GWmap_' in s or '_sp_plt_MMmap_' in s
-            or s.startswith('05_map_')):
+            or '_sp_plt_SWmap_' in s or s.startswith('05_map_')):
         return 'output'
     if ('calibcrit' in s or s in ('obs_heads', 'outlet_streamflow')
             or s.startswith('sm_depth_')):
@@ -167,6 +174,9 @@ def title(sub, fname):
     m = re.match(r'_sp_plt_GWmap_(.+)$', s)
     if m:
         return 'Aquifer: %s' % _GW.get(m.group(1), m.group(1))
+    m = re.match(r'_sp_plt_SWmap_(.+)$', s)
+    if m:
+        return 'Streams: %s' % _SW.get(m.group(1), m.group(1))
     m = re.match(r'05_map_(.+)$', s)
     if m:
         return 'Map of %s, against the NWT run' % m.group(1)
@@ -203,7 +213,7 @@ def title(sub, fname):
 _ORDER = {
     'input': (r'IN_000_general', r'IN_000_model', r'IN_'),
     'output': (r'MMmap_', r'GWmap_head$', r'GWmap_head_series', r'GWmap_',
-               r'05_map_'),
+               r'SWmap_', r'05_map_'),
     'series': (r'01_wb', r'02_wb', r'06_heads', r'07_coupling',
                r'budget_sfr_ts', r'_0'),
     'calib': (r'outlet_streamflow', r'obs_heads', r'calibcrit', r'sm_depth_'),
