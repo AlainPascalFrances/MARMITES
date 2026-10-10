@@ -180,7 +180,10 @@ FIELDS = {
                     'Off means the daily forcing must already exist.'),
     'run.model': ('Run MMsoil + MODFLOW 6', _U,
                   'They run together; there is no longer a way to run one '
-                  'without the other.'),
+                  'without the other. Off, the run only prepares the '
+                  'forcing -- and, with the figures on, re-draws the last '
+                  'run in the workspace without running anything (as '
+                  '*Output maps and plots only*).'),
     'run.plot': ('Draw the figures', _U, 'Post-processing after the run.'),
     'run.nsp': ('Number of stress periods for test', 'count',
                 '0 runs the whole record. Use a small number to try a change '
@@ -920,7 +923,10 @@ FIELDS = {
                         'balance Sankeys, calibration criteria, and the '
                         'comparison with the legacy MODFLOW-NWT run.'),
     'postproc.only': ('Output maps and plots only', _U,
-                      'Re-draw from a finished run without re-running it.'),
+                      'Re-draw the last run in the workspace without '
+                      're-running it, into a new results folder. Turning '
+                      '*Run MMsoil + MODFLOW 6* off with the figures on does '
+                      'the same.'),
     'postproc.hydro_year_start': ('Hydrological year starts', 'month',
                                   'Drives the x-axis of every time series, '
                                   'the Sankey year index and the ponds\' '

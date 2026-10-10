@@ -1254,9 +1254,19 @@ def main():
     # NOTHING before WP1d: turning it off changed the file and not the run.
     if not cfg.run.model:
         _forcing(cfg)
-        print('run.model is off: the forcing is done and the model is not '
-              'built. Turn it on to run MMsoil + MODFLOW 6.')
-        return
+        if not a.postproc:
+            print('run.model is off: the forcing is done and the model is not '
+                  'built. Turn it on to run MMsoil + MODFLOW 6.')
+            return
+        # ... and with the figures ON, the LAST run in the workspace is
+        # re-drawn, as postproc.only does: turning the models off and the
+        # plots on asks for exactly that (user, 2026-10-10), and it used to
+        # stop here with the figures never drawn. Nothing is run; the figures
+        # go to a new results folder (the observation exports and the map
+        # cache in the workspace are refreshed, as after any run).
+        a.postproc_only = True
+        print('run.model is off and the figures are on: re-drawing the last '
+              'run in %s (nothing is run)' % a.ws)
 
     # STATE GUARD (WP0.6): saved state is only valid for the grid and layer set
     # it was produced on, so the sidecar carries THAT scope rather than the whole
@@ -1266,8 +1276,9 @@ def main():
     #
     # AFTER the switch, not before: this is about MODFLOW's initial state, so
     # it has no business stopping a forcing-only run -- which is exactly what
-    # it did, and the reason MMsurf never started.
-    _check_state_scope(a, cfg)
+    # it did, and the reason MMsurf never started -- nor a re-draw.
+    if not a.postproc_only:
+        _check_state_scope(a, cfg)
 
     cMF, mm, ctx, state, top, botm, conv_fact = setup_lamata(
         daily=a.daily, nsp=a.nsp, grid=a.grid, nlay=a.nlay,
@@ -1288,8 +1299,9 @@ def main():
         # again. Iterating on a figure costs seconds instead of the full run.
         h5_fn = os.path.join(a.ws, MF6Coupler.RESULTS_H5)
         if not os.path.exists(h5_fn):
-            raise SystemExit('--postproc-only needs a previous run: %s not found'
-                             % h5_fn)
+            raise SystemExit('re-drawing needs a previous run in this '
+                             'workspace (postproc.only, or run.model off with '
+                             'the figures on): %s not found' % h5_fn)
         with h5py.File(h5_fn, 'r') as f:
             # [()] reads arrays and scalars alike: the run now stores
             # scalars too (nonconverged, iters_kind), which [:] refuses
