@@ -165,6 +165,9 @@ def title(sub, fname):
         if v:
             return 'Vegetation type %s: cover' % v.group(1)
         return _IN.get(key, key)
+    m = re.match(r'_sp_plt_MMmap_Ssoil_series_day0*(\d+)$', s)
+    if m:
+        return 'Soil column: soil water storage on day %s' % m.group(1)
     m = re.match(r'_sp_plt_MMmap_(.+)$', s)
     if m:
         return 'Soil column: %s' % _MM.get(m.group(1), m.group(1))
@@ -212,8 +215,9 @@ def title(sub, fname):
 # the order inside a tab: the catchment before the points, a family together
 _ORDER = {
     'input': (r'IN_000_general', r'IN_000_model', r'IN_'),
-    'output': (r'MMmap_', r'GWmap_head$', r'GWmap_head_series', r'GWmap_',
-               r'SWmap_', r'05_map_'),
+    # the soil storage series on the head series' days, right after them
+    'output': (r'MMmap_(?!Ssoil_series)', r'GWmap_head$', r'GWmap_head_series',
+               r'MMmap_Ssoil_series', r'GWmap_', r'SWmap_', r'05_map_'),
     'series': (r'01_wb', r'02_wb', r'06_heads', r'07_coupling',
                r'budget_sfr_ts', r'_0'),
     'calib': (r'outlet_streamflow', r'obs_heads', r'calibcrit', r'sm_depth_'),

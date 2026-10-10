@@ -969,7 +969,9 @@ def test_validate_and_save_actually_writes():
 
     So: change something, press the button, and read the FILE back.
     """
-    tmp = _scratch_config()
+    # the master switch in a KNOWN state: the reference is the live file,
+    # and turning the model off for a re-draw (2026-10-10) failed this test
+    tmp = _force(_scratch_config(), 'run', 'model', 'model = true')
     try:
         def says(key, section='run'):
             # SECTION-AWARE. `model` is a key in two of them -- run.model is

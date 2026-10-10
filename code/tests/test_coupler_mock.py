@@ -226,6 +226,18 @@ def test_lagged_uses_previous_sp_heads():
         assert np.allclose(res['heads'][n], expect), (n, res['heads'][n][0], expect)
 
 
+def test_the_soil_storage_is_kept_per_cell_and_period():
+    """For the soil-storage map series (user, 2026-10-10): the column's
+    water at the end of every period, per cell, summed over its layers."""
+    cpl, api, ctx = _setup()
+    seen = []
+    res = cpl.run(api, on_sp=lambda n, out: seen.append(
+        np.asarray(out['MM_S'])[:, :, ctx.index_S['iSsoil']].sum(axis=1)))
+    assert res['ssoil'].shape == (ctx.cMF.nper, ctx.ncell)
+    assert np.allclose(res['ssoil'], np.array(seen))
+    assert np.all(res['ssoil'] >= 0.0) and res['ssoil'].any()
+
+
 def test_steady_state_uses_mean_recharge_when_supplied():
     """A steady period ignores the initial-head file, so it must be driven by
     the mean forcing to land near equilibrium. When steady_perc/etg are set the

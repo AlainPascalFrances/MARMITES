@@ -113,3 +113,70 @@ def test_layer_2s_upper_face_is_layer_1s_lower_face(stream_run):
     flf = np.asarray(maps['FLF']).reshape(nlay, -1)
     assert np.allclose(fuf[1], flf[0])
     assert np.allclose(fuf[0], np.asarray(maps['SFR']).reshape(nlay, -1)[0])
+
+
+def _pwb():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        '_pwb_flow', os.path.join(HERE, 'plot_water_budget.py'))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_the_budget_table_shows_the_streams_and_compares_like_with_like():
+    """User, 2026-10-10: the streams' groundwater never passes through the
+    soil column, so the table lists it on its own rows, and adds it where
+    the NWT run (no streams) counted it -- in Ro and in EXFg."""
+    pwb = _pwb()
+    labels = ['Ro', 'EXFg', 'P']
+    sw = {'gw_to_sfr': 55.0, 'sfr_to_gw': 8.0, 'gw_to_lak': 0.0,
+          'lak_to_gw': 0.6, 'q_outlet': 87.0}
+    lines = pwb.surface_water_lines(sw, labels, [43.6, 8.2, 361.4],
+                                    [89.2, 52.6, 361.7])
+    row = {l.split()[0]: l.split() for l in lines if l.strip()}
+    assert row['GW->SFR'][1:4] == ['55.0', '-', '-']
+    assert row['Qout'][1] == '87.0'
+    assert row['Ro+netSFR'][1:4] == ['90.6', '89.2', '1.4']
+    assert row['EXFg+GWsw'][1:4] == ['63.2', '52.6', '10.6']
+    # a new run alone: one value per row
+    alone = pwb.surface_water_lines(sw, labels, [43.6, 8.2, 361.4], None)
+    assert any(l.startswith('Ro+netSFR') and '90.6' in l for l in alone)
+    assert pwb.surface_water_lines(None, labels, [1, 2, 3], None) == []
+
+
+def test_the_stream_terms_come_from_the_listing(stream_run):
+    ws, name, nlay, nrow, ncol = stream_run
+    pwb = _pwb()
+    assert pwb._gwf_name(ws) == name
+    sw = pwb.surface_water_terms(ws, nrow * ncol * 400.0)
+    assert sw is not None
+    # a streambed of 1e-9 m/d: next to nothing crosses it
+    assert abs(sw['gw_to_sfr']) < 1e-3 and abs(sw['sfr_to_gw']) < 1e-3
+    assert sw['gw_to_lak'] is None and sw['q_outlet'] is None
+
+
+def test_the_figures_take_the_streams_per_day(stream_run):
+    """The NWT-comparison figures (01-04) carry the same rows as the table,
+    per day: a series per period from the listing, the like-for-like totals
+    built from them against the NWT term they stand for."""
+    ws, name, nlay, nrow, ncol = stream_run
+    pwb = _pwb()
+    s = pwb.surface_water_series(ws, nrow * ncol * 400.0, nper=2)
+    assert s is not None and len(s['gw_to_sfr']) == 2
+    n = 3
+    new = {'wb_ts': np.zeros((n, len(pwb.INDEX_MM))),
+           'sw': {'gw_to_sfr': np.array([1.0, 2.0, 3.0]),
+                  'sfr_to_gw': np.array([0.5, 0.5, 0.5]),
+                  'gw_to_lak': None, 'lak_to_gw': None,
+                  'q_outlet': np.array([4.0, 4.0, 4.0])}}
+    new['wb_ts'][:, pwb.INDEX_MM['iRo']] = 1.0
+    new['wb_ts'][:, pwb.INDEX_MM['iEXFg']] = 0.2
+    ref = {'ts': np.ones((n, len(pwb.INDEX_MM)))}
+    a, b = pwb._series(new, ref, 'Ro+netSFR')
+    assert np.allclose(a, [1.5, 2.5, 3.5]) and np.allclose(b, 1.0)
+    a, b = pwb._series(new, ref, 'EXFg+GWsw')
+    assert np.allclose(a, [1.2, 2.2, 3.2])
+    a, b = pwb._series(new, ref, 'GW->LAK')
+    assert np.allclose(a, 0.0) and b is None
+    assert np.allclose(pwb._series(new, ref, 'Qout')[0], 4.0)

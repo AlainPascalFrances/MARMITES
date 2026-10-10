@@ -1654,6 +1654,11 @@ class MF6Coupler:
         self.etg_hist = np.zeros((nper_mm, self.ncell))
         self.rejinf_hist = np.zeros((nper_mm, self.ncell))
         self.etuzf_hist = np.zeros((nper_mm, self.ncell))
+        # the soil column's water at the end of every period, per cell [mm
+        # over the cell]: the soil-storage map series, on the head series'
+        # days (user, 2026-10-10) -- a time mean of its change is ~0 once a
+        # spin-up has converged
+        self.ssoil_hist = np.zeros((nper_mm, self.ncell))
         self.pet_unmet = np.zeros(nper_mm)
         self.etuzf_prev = np.zeros(self.ncell)
         self.n_overdraw, self.max_overdraw = 0, 0.0
@@ -1813,6 +1818,9 @@ class MF6Coupler:
                                                    if n < len(self.perlen)
                                                    else 1.0))
                 mms_cells = np.asarray(out['MM_S'], dtype=np.float64)
+                _iss = self.ctx.index_S.get('iSsoil')
+                if _iss is not None and mms_cells.ndim == 3:
+                    self.ssoil_hist[n] = mms_cells[:, :, int(_iss)].sum(axis=1)
                 # CATCHMENT means weight each cell by its AREA. A plain mean
                 # over cells is the catchment only on a uniform grid: on the
                 # Voronoi mesh half the cells cover 5 % of La Mata, refined
@@ -1951,6 +1959,7 @@ class MF6Coupler:
         res = {'heads': self.heads_hist, 'exf': self.exf_hist,
                'perc': self.perc_hist, 'etg': self.etg_hist, 'rejinf': self.rejinf_hist,
                'etuzf': self.etuzf_hist, 'pet_unmet': self.pet_unmet,
+               'ssoil': self.ssoil_hist,
                'runoff': self.runoff_hist, 'outer_iters': self.outer_iters,
                # what outer_iters counts: MF6's own step exposes only its
                # linear solves (ITERTOT_TIMESTEP), not the outer iterations

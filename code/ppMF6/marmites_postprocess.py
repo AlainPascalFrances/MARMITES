@@ -3531,6 +3531,33 @@ def _native_result_maps(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
              dates=[float(DATE[s]) for s in sel], jd=jd,
              vlim=(h_lo, h_hi) if h_hi > h_lo else None)
 
+    # The soil column's water on the SAME days as the heads, on one ramp over
+    # the whole run (user, 2026-10-10). The change-in-storage map is a time
+    # mean, ~0 once a spin-up has converged, and says nothing of the seasons.
+    # From res['ssoil'] (end of each period, mm over the cell): runs before
+    # 2026-10-10 do not have it.
+    ss = res.get('ssoil') if hasattr(res, 'get') else None
+    if ndays and ss is not None and np.ndim(ss) == 2 and np.shape(ss)[0] > 1:
+        ss = np.asarray(ss, dtype=float)
+        nss = ss.shape[0]
+        sel_s = np.unique(np.linspace(0, nss - 1, int(ndays)).astype(int))
+        DATE_s, _hy, _yr = _sankey_dates(cMF, nss)
+        import matplotlib as _mpl
+        jd_s = [int(_mpl.dates.num2date(DATE_s[s]).timetuple().tm_yday)
+                for s in sel_s]
+        G = np.array([DA.cells(ss[s], ctx.cells, nodata=hnoflo)
+                      for s in sel_s])                      # (nsel, nrow, ncol)
+        off = np.isclose(G[0], hnoflo, atol=0.09)
+        fin = ss[np.isfinite(ss)]
+        draw(np.repeat(G[:, None, :, :], nlay, axis=1), 'Ssoil_series',
+             'soil water storage', 'mm', np.repeat(off[None], nlay, axis=0),
+             nplot=1, cmap=matplotlib.colormaps['Blues'],
+             days=[int(s) for s in sel_s],
+             dates=[float(DATE_s[s]) for s in sel_s], jd=jd_s,
+             prefix='MMmap',
+             vlim=((float(fin.min()), float(fin.max()))
+                   if fin.size and fin.max() > fin.min() else None))
+
     # budget terms, per layer, as mm/d
     maps = _aquifer_map_pass(sim_ws, name, cMF, nper, cache_dir=sim_ws,
                              verbose=verbose)

@@ -93,6 +93,20 @@ def test_the_stream_and_exchange_maps_have_their_tab_and_title():
         '_sp_plt_SWmap_'), order['output']
 
 
+def test_the_soil_storage_series_follows_the_head_series():
+    """User, 2026-10-10: the soil storage on the head series' days, right
+    after them in the tab, titled by its day."""
+    f = '_sp_plt_MMmap_Ssoil_series_day00200_1_1.png'
+    assert R.classify('_output', f) == 'output'
+    assert R.title('_output', f) == 'Soil column: soil water storage on day 200'
+    names = ['_sp_plt_MMmap_Ro_1_1.png', '_sp_plt_GWmap_head_1_1.png',
+             '_sp_plt_GWmap_head_series_day00001_1_1.png', f,
+             '_sp_plt_GWmap_Rg_1_1.png']
+    got = [it[1] for it in R.arrange([('_output', n, n) for n in names])
+           ['output']]
+    assert got == names, got
+
+
 def test_a_two_layer_map_takes_the_whole_row(tmp_path):
     """User, 2026-10-09: a map of two layers (side by side) occupies both
     columns, a one-layer map one -- so their maps show at the same size."""
