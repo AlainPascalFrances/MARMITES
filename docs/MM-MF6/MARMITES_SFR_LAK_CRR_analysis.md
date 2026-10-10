@@ -1422,3 +1422,53 @@ the SFR form, with help text in `app/lib/schema.py`.
 - A failure left at a stream cell would mean its inflow fell by more than
   half within one step, because the cap uses the previous step's upstream
   flow. The end-of-run line says how often the cap acted.
+
+### 8.23.2 First run with the cap: 20261009234407 (2026-10-10)
+
+**Setup.** 500 SPs (2008-05-31 to 2009-10-12), outer_dvclose 0.001,
+inner_dvclose 1e-4, sfr.evap_inflow_fraction 0.5. Three spin-up cycles
+(1h58, 1h32, 1h40), converged at cycle 3 (mean |dWT| 0.094, then 0.019 m).
+Finished at 05:02, 5h18 with post-processing.
+
+**Convergence.** From the solution check and the last cycle's `mfsim.lst`:
+- extra ATS sub-steps per cycle: 685, 406, 451 over 500 days. Run
+  `20261008114055` at 0.025 without the cap had 526 and 623 over 365 days,
+  so the tight run takes fewer sub-steps per day;
+- cumulative discrepancy 0.01 %;
+- last cycle: 951 time steps, 211 failed attempts, 51 SPs needing more
+  than one step. The uncapped run at 0.001 had 266 failed attempts in its
+  first 44 SPs.
+
+Every failure still ends at a layer-1 stream cell, by two routes:
+1. **The cap does not hold: inflow collapsing within a step.** SPs
+   496-499, the October 2009 storm recession:
+   - reach 441's inflow falls from 284 to 0.007 m3/d within SP 498, and
+     reach 140's from 0.36 to 0.006;
+   - reaches 376, 644 and 323 evaporate all of it (evap/qin = 1.00);
+   - this is the flip-flop again, with the creep signature (60 m at cell
+     1711);
+   - it is the case §8.23.1 named: the cap uses the previous step's
+     upstream flow.
+2. **The cap holds and the reach sits on the switch.** SP 477 (48 failed
+   attempts, reach 314), SPs 458-459 (reaches 83, 86), and the summer
+   days 404-447:
+   - evaporation is exactly 0.5 x the inflow, and the rest leaks;
+   - the depth stays at 0.010 mm, the edge of MF6's 1e-5 m wetted-area
+     ramp;
+   - signature: oscillation at 1-17 mm, 50-90 sign changes in 100
+     iterations, around the tolerance.
+
+**Open.** At those reaches the saved head is 0.12-0.27 m ABOVE the
+streambed top while SFR reports them losing (checked in both budget files,
+user node numbers in both). The replica of `sfr_calc_steady` reproduces
+the loss only with the head below the bed. To pin down.
+
+**Results.**
+- **Pond leak:** LAK EXT-OUTFLOW went from -9.1 m3/d (0.025) to -0.1 m3/d.
+- **Outlet** over the 329 gauged days the two runs share: NSE -0.54
+  against -0.59, bias -37 % against -28 %, 162 m3/d less simulated flow.
+  The 500-day NSE of -3.98 comes from the storm of 7-9 October 2009, first
+  reached by this run: simulated 104,048 and 36,343 m3/d against 9,493 and
+  5,539 observed. That is runoff generation, not convergence.
+- **Stream evaporation:** 2.40 mm/yr (2.55 at 0.025 over a different
+  window). UZF rejected 21.4 % of the applied percolation.

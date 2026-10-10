@@ -406,9 +406,21 @@ Recent runs (La Mata, 4566-cell Voronoi mesh: 20 m stream corridor ratio 2,
    `sfr.evap_inflow_fraction` (panel 4, default 0.5) -- the coupler writes
    EVAP = min(Eo, f x qin/(w L)), qin = this step's INFLOW + USFLOW +
    QFROMMVR copied after the previous step (0 failures in the toy at 0.001;
-   -0.3 % of the stream evaporation on La Mata). NEXT: the user reruns at
-   0.001; check the failed attempts at stream cells and the end-of-run line
-   "stream evaporation: capped at 0.5 x the inflow on N reach-step(s)".
+   -0.3 % of the stream evaporation on La Mata). FIRST RUN WITH IT
+   (20261009234407, 500 SPs, 3 spin-up cycles, 5h18; §8.23.2):
+   - the run is usable: fewer ATS sub-steps per day than 0.025 had
+     (451/500 d against 623/365 d), and the pond leak is gone (EXT-OUTFLOW
+     -0.1 m3/d against -9.1);
+   - 211 failed attempts remain in the last cycle, all at stream cells:
+     (1) inflow collapsing within a step on the October 2009 recession
+     (SPs 496-499) -- the cap uses the previous step's flow; (2) the cap
+     holding with the reach at 0.01 mm, the edge of MF6's wetted-area ramp
+     (SP 477 reach 314, SPs 458-459, summer days), which oscillates around
+     the tolerance;
+   - OPEN: saved heads above the streambed top at reaches SFR reports as
+     losing;
+   - outlet: the storm of 7-9 Oct 2009 gives 104,048 m3/d against 9,493
+     observed (NSE over 500 d -3.98; over the shared 329 d -0.54).
    Then the user looks at the pond budgets per year (WP6.2 part):
    `_output/lake_budget_years_by_pond.png` (a group of bars per
    hydrological year, a bar per pond), `lake_budget_years_total.png` (all
