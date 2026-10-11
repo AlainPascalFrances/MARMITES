@@ -37,6 +37,23 @@ def _fresh(monkeypatch, settings_path=None, **env):
     return mod
 
 
+def test_the_pest_workspace_is_unset_until_it_is_given(monkeypatch, tmp_path):
+    """Blank is NOT the current folder (Path('') is '.', which exists): no
+    calibration may run in whatever folder Python happens to start in."""
+    import io
+    mp = _fresh(monkeypatch, settings_path=tmp_path / 'p.toml')
+    assert mp.PEST_WS is None
+    buf = io.StringIO()
+    mp.report_paths('LaMata', stream=buf)
+    assert 'PEST_WS' in buf.getvalue() and '(not set)' in buf.getvalue()
+    mp.save_settings({'pest_ws': str(tmp_path / 'pest')})
+    assert mp.PEST_WS == tmp_path / 'pest'
+    mp = _fresh(monkeypatch, settings_path=tmp_path / 'p.toml',
+                MM_PEST_WS=str(tmp_path / 'env'))
+    assert mp.PEST_WS == tmp_path / 'env'
+    assert '40 GB' in mp.SETTABLE['pest_ws'][2]
+
+
 def test_the_defaults_resolve_without_anything_set(monkeypatch, tmp_path):
     mp = _fresh(monkeypatch, settings_path=tmp_path / 'absent.toml')
     assert str(mp.DATA_ROOT)

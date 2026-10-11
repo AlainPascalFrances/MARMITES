@@ -459,20 +459,11 @@ class MF6Coupler:
         potential (marmites_evt): {'eg'|'tg': {SURFACE, RATE, DEPTH, PXDP,
         PETM}} in m and m/d, in the cell order the packages were built in."""
         import marmites_evt as me
-        n, ns = self.ncell, self.evt_nseg
-        out = {t: {'SURFACE': np.zeros(n), 'RATE': np.zeros(n),
-                   'DEPTH': np.ones(n), 'PXDP': np.zeros((n, ns - 1)),
-                   'PETM': np.zeros((n, ns - 1))} for t in ('eg', 'tg')}
-        for k in range(n):
-            curves = (('eg', me.eg_curve(gw['eg_pe'][k], gw['land'][k],
-                                         gw['h0'][k], gw['shah'][k], ns)),
-                      ('tg', me.tg_curve(gw['tg_rate'][k], gw['tg_tip'][k],
-                                         gw['h0'][k], self.evt_ramp, ns)))
-            for t, (s, r, d, x, y) in curves:
-                c = out[t]
-                c['SURFACE'][k], c['RATE'][k], c['DEPTH'][k] = s, r, d
-                c['PXDP'][k], c['PETM'][k] = x, y
-        return out
+        # every cell at once, compiled (marmites_evt.curves): this loop was
+        # 43 % of a day's work in Python (profile of 2026-10-11)
+        return me.curves(gw['eg_pe'], gw['land'], gw['h0'], gw['shah'],
+                         gw['tg_rate'], gw['tg_tip'], self.evt_ramp,
+                         self.evt_nseg)
 
     def _evt_flat(self, rate):
         """A STEADY first period's EVT curves: ``rate`` [m/d per cell area],

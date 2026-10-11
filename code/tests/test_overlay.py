@@ -220,7 +220,11 @@ def test_the_trees_come_out_as_they_always_were_and_grass_as_mapped(
         lamata, tmp_path):
     """THE acceptance test, on a 15 x 15 window of the real grid. The tree
     types reproduce the retired rasters to 0.02 points -- which proves the
-    overlay; grass is the polygons' own ~90 %, which is the ruling."""
+    overlay. Grass is the legacy FRACTIONAL cover, inputVEG1area.asc, named
+    as its cover_raster (user, 2026-10-11) -- not the polygons' ~90 %, which
+    fill everything outside the crowns; that is still what a blank
+    cover_raster gives."""
+    import copy
     _cMF, cfg, props, _act = lamata
     r0, r1, c0, c1 = 25, 40, 20, 35
     win = _window(r0, r1, c0, c1)
@@ -228,13 +232,24 @@ def test_the_trees_come_out_as_they_always_were_and_grass_as_mapped(
                           verbose=False)
     assert got.shape == (3, 15, 15)
     full = lamata[0]
-    for k in (2, 3):
-        old = np.asarray(full.cPROCESS.convASCIIraster2array(
+
+    def legacy(k):
+        return np.asarray(full.cPROCESS.convASCIIraster2array(
             os.path.join(DS, 'inputVEG%darea.asc' % k),
             np.zeros((full.nrow, full.ncol))), dtype=float)[r0:r1, c0:c1]
-        assert np.abs(got[k - 1] - old).max() <= 0.02, 'type %d moved' % k
-    assert got[0].mean() > 50.0, 'grass is not the polygons\' cover'
+    for k in (2, 3):
+        assert np.abs(got[k - 1] - legacy(k)).max() <= 0.02, \
+            'type %d moved' % k
+    g = [c for c in cfg.soil.veg_class if c.code == 'g'][0]
+    assert g.cover_raster == 'inputVEG1area.asc'
+    assert np.abs(got[0] - np.maximum(legacy(1), 0.0)).max() <= 0.02, \
+        'grass is not the legacy fractional cover'
     assert not _mmsoil_refuses(got)
+    poly = copy.deepcopy(cfg)
+    [c for c in poly.soil.veg_class if c.code == 'g'][0].cover_raster = ''
+    got = props.veg_cover(poly, win, DS, 3, cache_dir=str(tmp_path),
+                          verbose=False)
+    assert got[0].mean() > 50.0, 'grass is not the polygons\' cover'
 
 
 @needs_veg
@@ -354,6 +369,89 @@ def test_the_run_passes_the_cover_in_rather_than_reading_the_rasters():
                encoding='utf-8').read()
     assert 'props.veg_cover(' in src
     assert 'gridVEGarea=_veg' in src, 'the cover is computed and not used'
+
+
+# ------------------------------------------ a class whose cover is a raster
+# A fractional cover (La Mata's grass, inputVEG1area.asc) in place of the
+# share the class's polygons cover. Toy raster: two 10 m cells, 40 and 20 %.
+
+def _asc(path, values, xll=0.0, yll=0.0, cs=10.0, nodata=-9999):
+    rows = np.atleast_2d(np.asarray(values, dtype=float))
+    with open(str(path), 'w') as fh:
+        fh.write('ncols %d\nnrows %d\nxllcorner %g\nyllcorner %g\n'
+                 'cellsize %g\nNODATA_value %g\n'
+                 % (rows.shape[1], rows.shape[0], xll, yll, cs, nodata))
+        for r in rows:
+            fh.write(' '.join('%g' % v for v in r) + '\n')
+
+
+def test_a_raster_cover_is_put_on_the_cells_by_area(tmp_path):
+    """A model cell half on the 40 % raster cell and half on the 20 % one is
+    30 % covered -- on any grid; and the class's polygons are not used."""
+    import marmites_props as props
+    cfg, ds = _veg_cfg(tmp_path, [(0, 0, 20, 10, {'Species': 'g'})],
+                       [('g', 1)])
+    _asc(os.path.join(ds, 'grass.asc'), [[40.0, 20.0]])
+    cfg.soil.veg_class[0].cover_raster = 'grass.asc'
+    # cells x 5..15 (half and half) and 15..20 (all on the 20 % cell)
+    win = types_ns(ncol=2, delr=[10.0, 5.0], xll=5.0)
+    got = props.veg_cover(cfg, win, ds, 1, verbose=False)
+    assert np.allclose(got[0, 0], [30.0, 20.0]), got
+
+
+def test_a_raster_cover_keeps_within_what_the_polygons_leave(tmp_path):
+    """A mapped tree crown is where it is; a fractional cover cannot exceed
+    the room left. Cell: 80 % tree crowns, the raster says 40 % grass."""
+    import marmites_config as mcfg
+    import marmites_props as props
+    cfg, ds = _veg_cfg(tmp_path, [(0, 0, 2, 10, {'Species': 'g'}),
+                                  (2, 0, 10, 10, {'Species': 'i'})],
+                       [('g', 1), ('i', 2)])
+    _asc(os.path.join(ds, 'grass.asc'), [[40.0]])
+    cfg.soil.veg_class[0].cover_raster = 'grass.asc'
+    win = _window(0, 1, 0, 1, nrow=1, xll=0.0, yll=0.0, d=10.0)
+    got = props.veg_cover(cfg, win, ds, 2, verbose=False)
+    assert np.allclose(got[:, 0, 0], [20.0, 80.0]), got[:, 0, 0]
+    assert isinstance(cfg.soil.veg_class[1], mcfg.VegetationClass)
+
+
+def test_the_raster_cover_is_part_of_the_cache_key(tmp_path):
+    import marmites_props as props
+    cfg, ds = _veg_cfg(tmp_path, [(0, 0, 10, 10, {'Species': 'g'})],
+                       [('g', 1)])
+    _asc(os.path.join(ds, 'grass.asc'), [[25.0]])
+    win = _window(0, 1, 0, 1, nrow=1, xll=0.0, yll=0.0, d=10.0)
+    cache = str(tmp_path / 'cache')
+    a = props.veg_cover(cfg, win, ds, 1, cache_dir=cache, verbose=False)
+    cfg.soil.veg_class[0].cover_raster = 'grass.asc'
+    b = props.veg_cover(cfg, win, ds, 1, cache_dir=cache, verbose=False)
+    _asc(os.path.join(ds, 'grass.asc'), [[35.0]])
+    c = props.veg_cover(cfg, win, ds, 1, cache_dir=cache, verbose=False)
+    assert [float(x[0, 0, 0]) for x in (a, b, c)] == [100.0, 25.0, 35.0]
+
+
+def test_a_missing_or_non_ascii_cover_raster_is_refused(tmp_path):
+    import marmites_config as mcfg
+    import marmites_props as props
+    cfg, ds = _veg_cfg(tmp_path, [(0, 0, 10, 10, {'Species': 'g'})],
+                       [('g', 1)])
+    cfg.soil.veg_class[0].cover_raster = 'nope.asc'
+    win = _window(0, 1, 0, 1, nrow=1, xll=0.0, yll=0.0, d=10.0)
+    with pytest.raises(props.PropertyError):
+        props.veg_cover(cfg, win, ds, 1, verbose=False)
+    c = mcfg.RunConfig.from_dict({})
+    c.soil.veg_class = [mcfg.VegetationClass(code='g', veg=1,
+                                             cover_raster='grass.tif')]
+    assert any('cover_raster' in e for e in c.problems())
+
+
+def types_ns(ncol, delr, xll):
+    """One row of cells of the given widths, 10 m high, from x = xll."""
+    import types
+    return types.SimpleNamespace(nrow=1, ncol=ncol, hnoflo=9999.999,
+                                 xllcorner=xll, yllcorner=0.0,
+                                 delr=np.asarray(delr, dtype=float),
+                                 delc=np.array([10.0]))
 
 
 # ------------------------------------------------ big polygons are tiled

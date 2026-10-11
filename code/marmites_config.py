@@ -1232,6 +1232,14 @@ class VegetationClass:
 
     code: str = ''
     veg: int = 0
+    # A FRACTIONAL COVER: a raster in the dataset folder giving the class's
+    # share of each cell in %, used instead of the share its polygons cover.
+    # La Mata's grass polygons fill everything outside the tree crowns
+    # (91 %), while its legacy raster inputVEG1area.asc is a fractional
+    # cover -- ~39 % on the alluvium, 24 % on the regolith, 5.5 % on the
+    # outcrops -- and that is the one used (user, 2026-10-11). Blank: the
+    # polygons.
+    cover_raster: str = ''
 
 
 @dataclass
@@ -2159,6 +2167,11 @@ class RunConfig:
             if nveg and not (1 <= c.veg <= nveg):
                 errs.append('soil.veg_class[%d].veg = %d is not a vegetation '
                             'index (1..%d)' % (n, c.veg, nveg))
+            r = (c.cover_raster or '').strip()
+            if r and not r.lower().endswith('.asc'):
+                errs.append('soil.veg_class[%d].cover_raster = %r: an ESRI '
+                            'ASCII raster (.asc) in the dataset folder'
+                            % (n, c.cover_raster))
         errs.extend(self._soil_column_problems())
         # --- panel 4: plotting ------------------------------------------
         if not (1 <= self.postproc.hydro_year_start <= 12):

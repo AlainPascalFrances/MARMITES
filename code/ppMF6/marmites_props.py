@@ -256,9 +256,18 @@ def veg_cover(cfg, cMF, dataset_dir, nveg, cache_dir=None, verbose=True,
             {'xll': float(cMF.xllcorner), 'yll': float(cMF.yllcorner),
              'delr': [float(x) for x in np.ravel(cMF.delr)],
              'delc': [float(x) for x in np.ravel(cMF.delc)]})
+    # the classes whose cover is a raster (cover_raster) -- in the key only
+    # when there are any, so the caches made before stay valid
+    rasters = _cover_rasters(s, dataset_dir)
+    extra = {}
+    if rasters:
+        extra = {'rasters': {}}
+        for code, rpath in sorted(rasters.items()):
+            with open(rpath, 'rb') as fh:
+                extra['rasters'][code] = hashlib.sha1(fh.read()).hexdigest()
     key = json.dumps(dict({'file': digest, 'col': column, 'map': mapping,
                            'nveg': int(nveg), 'v': _VEG_OVERLAY_VERSION},
-                          **grid), sort_keys=True)
+                          **dict(grid, **extra)), sort_keys=True)
     sig = hashlib.sha1(key.encode('utf-8')).hexdigest()[:16]
     cached = (os.path.join(str(cache_dir), 'veg_cover_%s.npz' % sig)
               if cache_dir else None)
@@ -280,7 +289,10 @@ def veg_cover(cfg, cMF, dataset_dir, nveg, cache_dir=None, verbose=True,
     if cells is None:
         cells = ov.structured_cells(cMF.xllcorner, cMF.yllcorner,
                                     cMF.delr, cMF.delc)
-    out = ov.class_percent(cells, polys, column, mapping, int(nveg))
+    poly_map = {c: v for c, v in mapping.items() if c not in rasters}
+    out = ov.class_percent(cells, polys, column, poly_map, int(nveg))
+    if rasters:
+        out = _add_raster_cover(out, cells, rasters, mapping)
     out = _at_most_100(out.reshape(int(nveg), nr, nc))
     if cached:
         os.makedirs(str(cache_dir), exist_ok=True)
@@ -291,6 +303,39 @@ def veg_cover(cfg, cMF, dataset_dir, nveg, cache_dir=None, verbose=True,
                  ', overlaid on the %d mesh cells' % len(cells)
                  if cells_key is not None else ''))
     return out
+
+
+def _cover_rasters(soil, dataset_dir):
+    """``{class code: raster path}`` for the classes whose cover is a raster
+    (``cover_raster``); a raster that is not there stops the run."""
+    out = {}
+    for c in soil.veg_class:
+        r = (c.cover_raster or '').strip()
+        if not r:
+            continue
+        path = r if os.path.isabs(r) else os.path.join(str(dataset_dir), r)
+        _must_exist(path, 'soil.veg_class %r cover_raster' % c.code)
+        out[str(c.code)] = path
+    return out
+
+
+def _add_raster_cover(out, cells, rasters, mapping):
+    """Add the raster classes' cover (% of each cell, by exact area) to the
+    polygon classes' -- squeezed, where the two would pass 100 %, into the
+    room the polygons leave: a mapped tree crown is where it is, a
+    fractional grass cover a density that cannot exceed what is left."""
+    import marmites_overlay as ov
+    import marmites_raster as mr
+    add = np.zeros_like(out)
+    for code, path in rasters.items():
+        lay = ov.raster_polygons(mr.read_esri_ascii(path), 'v')
+        share = np.clip(ov.area_mean(cells, lay, 'v', fill=0.0), 0.0, 100.0)
+        add[mapping[code] - 1] += share
+    room = np.maximum(100.0 - out.sum(axis=0), 0.0)
+    tot = add.sum(axis=0)
+    with np.errstate(invalid='ignore', divide='ignore'):
+        f = np.where(tot > room, room / tot, 1.0)
+    return out + add * np.nan_to_num(f)
 
 
 def _at_most_100(cover):
@@ -355,12 +400,16 @@ def _veg_summary(cover, soil, areas=None):
         w = np.asarray(areas, dtype=float).reshape(grows.shape)[grows]
     parts = []
     for k in range(cover.shape[0]):
-        codes = [c.code for c in soil.veg_class if int(c.veg) == k + 1]
+        rows = [c for c in soil.veg_class if int(c.veg) == k + 1]
+        codes = [c.code for c in rows]
+        ras = ['%s from %s' % (c.code, c.cover_raster) for c in rows
+               if (c.cover_raster or '').strip()]
         v = cover[k][grows]
         mean = (float(np.average(v, weights=w)) if w is not None and v.size
                 else float(v.mean()) if v.size else 0.0)
         parts.append('type %d (%s) %.1f %%'
-                     % (k + 1, '/'.join(codes) or '-', mean))
+                     % (k + 1, ', '.join(['/'.join(codes) or '-'] + ras),
+                        mean))
     return '; '.join(parts) + ', from the panel'
 
 

@@ -1067,6 +1067,20 @@ def test_panel_zero_sets_the_machine_paths():
         'panel 0 still tells the modeller to edit a source file'
 
 
+def test_panel_zero_asks_for_the_pest_workspace_and_warns_of_its_size():
+    """User, 2026-10-11: the PEST++ workspace is asked on Home, with a
+    warning that it needs tens of GB (CdL's PEST folder is ~40 GB). Unset,
+    the box is blank -- not the text 'None'."""
+    at = AppTest.from_file(os.path.join(APP, 'Home.py'), default_timeout=180)
+    at.run()
+    assert not at.exception, [str(e.value) for e in at.exception]
+    box = [w for w in at.text_input if w.key == 'path_pest_ws']
+    assert box, 'the PEST workspace is not asked on Home'
+    assert box[0].value != 'None'
+    warned = ' '.join(str(w.value) for w in at.warning)
+    assert 'tens of GB' in warned and '40 GB' in warned, warned
+
+
 def test_panel_zero_offers_the_system_dialog_for_each_path():
     """"Select the folder inside the computer": every path has a ... button
     that opens the operating system's own dialog. The in-page folder browser

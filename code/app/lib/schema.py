@@ -461,6 +461,16 @@ FIELDS = {
                        'What the vegetation layer\'s class column holds.'),
     'veg_class.veg': ('Vegetation index', _U,
                       '1-based, into the vegetation table above.'),
+    'veg_class.cover_raster': ('Cover raster', '%',
+                               'Optional: an ESRI ASCII raster in the dataset '
+                               'folder giving this class\'s cover in % of '
+                               'each cell -- a fractional cover -- used '
+                               'instead of the share its polygons cover. '
+                               'Resampled by exact area onto any grid, and '
+                               'kept within what the other classes leave. '
+                               'La Mata\'s grass: inputVEG1area.asc (~39 % '
+                               'on the alluvium, 24 % on the regolith, 5.5 % '
+                               'on the outcrops). Blank: the polygons.'),
 
     # ---- panels 3 to 5: soil, subsurface, calibration -----------------
     # The soil column: [[soil.zone]] and [[soil.horizon]]. It was a

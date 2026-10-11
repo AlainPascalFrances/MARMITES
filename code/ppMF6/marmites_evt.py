@@ -177,3 +177,257 @@ def tg_curve(rates, tips, h0, ramp, nseg):
     y = np.array([T(h) for h in hs]) / R
     x, y = _pad(x, y, nseg)
     return (float(h0), R, D, x, y)
+
+
+# ---------------------------------------------------------------- #
+# ALL CELLS AT ONCE. The coupler builds both curves for every cell every
+# day: 4524 cells on La Mata, and in Python that cost as much as the soil
+# column itself -- 3.5 s a day under the profiler, 43 % of a day's work
+# (2026-10-11), the per-cell np.insert of _pad first. The same arithmetic,
+# compiled with numba over the whole cell list; eg_curve / tg_curve above
+# stay the reference the tests hold it to. Without numba, curves() loops
+# over them.
+# ---------------------------------------------------------------- #
+
+try:                                                    # pragma: no cover
+    import numba as _numba
+    _jit = _numba.njit(cache=True)
+except ImportError:                                     # pragma: no cover
+    _numba = None
+    _jit = None
+
+
+def _pad_nb(x, y, nseg, ox, oy):
+    """_pad into ``ox``/``oy`` (length nseg - 1); returns 0, or the number
+    of breakpoints when there are too many for nseg."""
+    m = 0
+    xs = np.empty(x.size)
+    ys = np.empty(x.size)
+    for i in range(x.size):
+        if x[i] > _EPS and x[i] < 1.0 - _EPS:
+            xs[m] = x[i]
+            ys[m] = y[i]
+            m += 1
+    o = np.argsort(xs[:m], kind='mergesort')
+    xk = np.empty(m)
+    yk = np.empty(m)
+    k = 0
+    for i in range(m):
+        xi = xs[o[i]]
+        if k == 0 or xi - xk[k - 1] > _EPS:
+            xk[k] = xi
+            yk[k] = ys[o[i]]
+            k += 1
+    if k > nseg - 1:
+        return k
+    for i in range(k):
+        ox[i] = xk[i]
+        oy[i] = yk[i]
+    n = k
+    while n < nseg - 1:
+        # the longest segment of (0, 1), (x, y), (1, 0), split in two
+        best, kk, prev = -1.0, 0, 0.0
+        for i in range(n + 1):
+            nxt = ox[i] if i < n else 1.0
+            if nxt - prev > best:
+                best, kk = nxt - prev, i
+            prev = nxt
+        x0 = ox[kk - 1] if kk > 0 else 0.0
+        y0 = oy[kk - 1] if kk > 0 else 1.0
+        x1 = ox[kk] if kk < n else 1.0
+        y1 = oy[kk] if kk < n else 0.0
+        for i in range(n, kk, -1):
+            ox[i] = ox[i - 1]
+            oy[i] = oy[i - 1]
+        ox[kk] = 0.5 * (x0 + x1)
+        oy[kk] = 0.5 * (y0 + y1)
+        n += 1
+    lo = 1.0
+    for i in range(nseg - 1):
+        v = min(max(oy[i], 0.0), 1.0)
+        lo = min(lo, v)
+        oy[i] = lo
+    return 0
+
+
+def _shah_nb(d, y0, b, dll, ext):
+    d = d * 100.0
+    if d >= ext:
+        return 0.0
+    if d <= dll:
+        return 1.0
+    return min(y0 + np.exp(-b * (d - dll)), 1.0)
+
+
+def _flat_nb(nseg, ox, oy):
+    step = 1.0 / nseg
+    for i in range(nseg - 1):
+        ox[i] = (i + 1) * step
+        oy[i] = 0.0
+
+
+def _eg_nb(pe, land, h0, y0, b, dll_cm, ext_cm, nseg, last, ox, oy, out):
+    """eg_curve into out = [SURFACE, RATE, DEPTH]; returns as _pad_nb."""
+    d0 = land - h0
+    ext = ext_cm / 100.0
+    dll = dll_cm / 100.0
+    f0 = _shah_nb(max(d0, 0.0), y0, b, dll_cm, ext_cm)
+    if pe <= 0.0 or f0 <= 0.0 or d0 >= ext:
+        _flat_nb(nseg, ox, oy)
+        out[0], out[1], out[2] = h0, 0.0, 1.0
+        return 0
+    surface = h0 if d0 >= 0.0 else land
+    d0 = max(d0, 0.0)
+    D = ext - d0
+    d_end = ext - last * D
+    pts = np.empty(nseg + 1)
+    m = 0
+    if d0 < dll and dll < d_end:
+        pts[m] = dll
+        m += 1
+    start = max(d0, dll)
+    n_in = max(nseg - 2 - m, 0)
+    if n_in > 0 and d_end > start:
+        bm = b * 100.0
+        a = np.exp(-bm * (start - dll) / 2.0)
+        z = np.exp(-bm * (d_end - dll) / 2.0)
+        step = (z - a) / (n_in + 1)
+        for i in range(1, n_in + 1):
+            u = i * step + a
+            pts[m] = dll - 2.0 * np.log(u) / bm
+            m += 1
+    pts[m] = d_end
+    m += 1
+    x = np.empty(m)
+    y = np.empty(m)
+    for i in range(m):
+        d = min(max(pts[i], d0), ext)
+        x[i] = (d - d0) / D
+        y[i] = _shah_nb(d, y0, b, dll_cm, ext_cm) / f0
+    out[0], out[1], out[2] = surface, pe * f0, D
+    return _pad_nb(x, y, nseg, ox, oy)
+
+
+def _tg_nb(rates, tips, h0, ramp, nseg, ox, oy, out):
+    """tg_curve into out = [SURFACE, RATE, DEPTH]; returns as _pad_nb."""
+    nv = rates.size
+    r = np.empty(nv)
+    z = np.empty(nv)
+    m = 0
+    for v in range(nv):
+        if rates[v] > 0.0 and tips[v] < h0:
+            r[m] = rates[v]
+            z[m] = tips[v]
+            m += 1
+    if m == 0:
+        _flat_nb(nseg, ox, oy)
+        out[0], out[1], out[2] = h0, 0.0, 1.0
+        return 0
+    r = r[:m]
+    z = z[:m]
+    w = np.empty(m)
+    R = 0.0
+    zmin = z[0]
+    for v in range(m):
+        w[v] = min(ramp, h0 - z[v])
+        R += r[v]
+        zmin = min(zmin, z[v])
+    D = h0 - zmin
+    hs = np.unique(np.concatenate((z, z + w)))
+    x = np.empty(hs.size)
+    y = np.empty(hs.size)
+    for i in range(hs.size):
+        T = 0.0
+        for v in range(m):
+            T += r[v] * min(max((hs[i] - z[v]) / w[v], 0.0), 1.0)
+        x[i] = (h0 - hs[i]) / D
+        y[i] = T / R
+    out[0], out[1], out[2] = h0, R, D
+    return _pad_nb(x, y, nseg, ox, oy)
+
+
+def _curves_nb(eg_pe, land, h0, shah, tg_rate, tg_tip, ramp, nseg, last,
+               S, RT, DP, PX, PM):
+    """Both curves for every cell: S, RT, DP (2, n) and PX, PM
+    (2, n, nseg - 1), index 0 Eg and 1 Tg. Returns -1, or the first cell
+    with too many breakpoints for nseg."""
+    out = np.empty(3)
+    for k in range(eg_pe.size):
+        bad = _eg_nb(eg_pe[k], land[k], h0[k], shah[k, 0], shah[k, 1],
+                     shah[k, 2], shah[k, 3], nseg, last, PX[0, k], PM[0, k],
+                     out)
+        S[0, k], RT[0, k], DP[0, k] = out[0], out[1], out[2]
+        if bad:
+            return k
+        bad = _tg_nb(tg_rate[k], tg_tip[k], h0[k], ramp, nseg, PX[1, k],
+                     PM[1, k], out)
+        S[1, k], RT[1, k], DP[1, k] = out[0], out[1], out[2]
+        if bad:
+            return k
+    return -1
+
+
+if _jit is not None:
+    _pad_nb = _jit(_pad_nb)
+    _shah_nb = _jit(_shah_nb)
+    _flat_nb = _jit(_flat_nb)
+    _eg_nb = _jit(_eg_nb)
+    _tg_nb = _jit(_tg_nb)
+    _curves_nb = _jit(_curves_nb)
+
+
+def curves(eg_pe, land, h0, shah, tg_rate, tg_tip, ramp, nseg, last=0.05,
+           compiled=None):
+    """The day's Eg and Tg curves for EVERY cell: ``{'eg'|'tg': {SURFACE,
+    RATE, DEPTH, PXDP, PETM}}``, as eg_curve and tg_curve give them one cell
+    at a time. ``shah`` holds Shah's parameters per cell: a list of dicts,
+    or an (n, 4) array of y0, b, dll, ext_d (the compiled soil step's).
+    ``compiled``: None uses numba when it is installed; False forces the
+    per-cell Python (the reference)."""
+    n = int(np.size(eg_pe))
+    ns = int(nseg)
+    if compiled is None:
+        compiled = _jit is not None
+    if isinstance(shah, np.ndarray):
+        sp = np.ascontiguousarray(shah, dtype=np.float64).reshape(n, 4)
+        shah = [{'y0': a, 'b': b, 'dll': c, 'ext_d': d}
+                for a, b, c, d in sp.tolist()] if not compiled else None
+    else:
+        sp = None
+    out = {t: {'SURFACE': np.zeros(n), 'RATE': np.zeros(n),
+               'DEPTH': np.ones(n), 'PXDP': np.zeros((n, ns - 1)),
+               'PETM': np.zeros((n, ns - 1))} for t in ('eg', 'tg')}
+    if not compiled:
+        for k in range(n):
+            for t, (s, r, d, x, y) in (
+                    ('eg', eg_curve(eg_pe[k], land[k], h0[k], shah[k], ns,
+                                    last=last)),
+                    ('tg', tg_curve(tg_rate[k], tg_tip[k], h0[k], ramp,
+                                    ns))):
+                c = out[t]
+                c['SURFACE'][k], c['RATE'][k], c['DEPTH'][k] = s, r, d
+                c['PXDP'][k], c['PETM'][k] = x, y
+        return out
+    if sp is None:
+        sp = np.array([[p['y0'], p['b'], p['dll'], p['ext_d']] for p in shah],
+                      dtype=np.float64).reshape(n, 4)
+    S, RT, DP = np.zeros((2, n)), np.zeros((2, n)), np.ones((2, n))
+    PX, PM = np.zeros((2, n, ns - 1)), np.zeros((2, n, ns - 1))
+    bad = _curves_nb(np.asarray(eg_pe, dtype=np.float64).ravel(),
+                     np.asarray(land, dtype=np.float64).ravel(),
+                     np.asarray(h0, dtype=np.float64).ravel(), sp,
+                     np.ascontiguousarray(tg_rate, dtype=np.float64),
+                     np.ascontiguousarray(tg_tip, dtype=np.float64),
+                     float(ramp), ns, float(last), S, RT, DP, PX, PM)
+    if bad >= 0:
+        # the reference raises the message; let it, for that cell
+        p = dict(zip(('y0', 'b', 'dll', 'ext_d'), sp[bad].tolist()))
+        eg_curve(eg_pe[bad], land[bad], h0[bad], p, ns, last=last)
+        tg_curve(tg_rate[bad], tg_tip[bad], h0[bad], ramp, ns)
+        raise ValueError('cell %d: too many breakpoints for et.evt_nseg = %d'
+                         % (bad, ns))
+    for i, t in enumerate(('eg', 'tg')):
+        c = out[t]
+        c['SURFACE'], c['RATE'], c['DEPTH'] = S[i], RT[i], DP[i]
+        c['PXDP'], c['PETM'] = PX[i], PM[i]
+    return out

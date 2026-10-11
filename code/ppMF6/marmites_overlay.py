@@ -33,7 +33,7 @@ import os
 import numpy as np
 
 __all__ = ['OverlayError', 'Polygons', 'structured_cells', 'overlay',
-           'majority', 'area_mean', 'class_percent']
+           'majority', 'area_mean', 'class_percent', 'raster_polygons']
 
 
 class OverlayError(Exception):
@@ -136,6 +136,23 @@ def _tiled(geoms):
         src.append(np.full(cut.size, i))
     return (np.concatenate([np.asarray(p, dtype=object) for p in pieces]),
             np.concatenate(src))
+
+
+def raster_polygons(ras, column='value'):
+    """An ESRI ASCII raster (``marmites_raster.EsriAscii``) as Polygons: one
+    square per raster cell, its value in ``column`` (None where NODATA). A
+    raster cell is a polygon like any other, so :func:`area_mean` puts a
+    raster onto ANY grid -- a mesh included -- by exact area, which is what
+    a fractional cover needs (a cell half on a 40 % raster cell and half on
+    a 20 % one is 30 % covered)."""
+    cs = float(ras.cellsize)
+    cells = structured_cells(ras.xllcorner, ras.yllcorner,
+                             np.full(ras.ncols, cs), np.full(ras.nrows, cs))
+    v = np.asarray(ras.array, dtype=float).ravel()
+    nod = ras.nodata
+    vals = [None if (nod is not None and np.isclose(x, float(nod)))
+            or not np.isfinite(x) else float(x) for x in v.tolist()]
+    return Polygons(cells, {column: vals}, source=getattr(ras, 'path', ''))
 
 
 def overlay(cells, polys):

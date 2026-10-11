@@ -36,10 +36,17 @@ code/                    all Python
   mm_paths.py               machine paths: MM_* env var > configs/paths.local.toml
                             (git-ignored) > Windows defaults
   MARMITESsoil/MARMITESsoil_v3.py   MMsoil (flux(), _cell_step(), step())
+  MARMITESsoil/marmites_soil_nb.py  the SAME step compiled with numba (coupled
+                            path + CRR), what a coupled run uses (2026-10-11,
+                            ~3x faster). A change to flux()/_cell_step() MUST be
+                            made in both: test_soil_kernel.py holds them equal
+                            to 1e-12. MM_SOIL_PYTHON=1 forces the reference.
   ppMF6/marmites_mf6.py     clsMF6: builds the MF6 simulation (UZF, SFR, LAK,
                             MVR, DRN, GHB, WEL, EVT, ATS, IMS)
   ppMF6/marmites_crr.py     WP5 cascade routing (CascadeNetwork, Daoud 2022 Eq. 23)
-  ppMF6/marmites_evt.py     Eg/Tg as MF6 EVT curves (et.gw_route = 'evt')
+  ppMF6/marmites_evt.py     Eg/Tg as MF6 EVT curves (et.gw_route = 'evt');
+                            curves() = all cells at once in numba, held to
+                            eg_curve/tg_curve by test_evt_route.py
   ppMF6/marmites_postprocess.py   figures, Sankey, lake/obs series, obs exports
   ppMF6/marmites_topology.py      shared-face adjacency on DISV meshes
   marmites_meshes.py / marmites_mesh.py   mesh producers / projection

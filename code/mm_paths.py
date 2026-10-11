@@ -30,7 +30,7 @@ from pathlib import Path
 __all__ = ['REPO', 'CODE_DIR', 'MIRROR', 'MIRROR_MARK', 'CONFIG_DIR',
            'DATA_ROOT', 'WS_ROOT', 'NWT_REF', 'MODFLOW_DIR', 'GIS',
            'LIBMF6', 'MF6_EXE', 'PESTPP_IES', 'PYTHON_EXE', 'TRIANGLE_EXE',
-           'GRIDGEN_EXE', 'EXAMPLE_ROOT', 'SETTINGS', 'SETTABLE',
+           'GRIDGEN_EXE', 'EXAMPLE_ROOT', 'PEST_WS', 'SETTINGS', 'SETTABLE',
            'dataset_dir', 'resolve_input', 'report_paths', 'LEGACY_ALIASES',
            'read_settings', 'save_settings', 'reload_paths', 'source_of',
            'settings_label']
@@ -98,6 +98,17 @@ SETTABLE = {
     'python_exe':  ('MM_PYTHON_EXE', r'C:\miniconda3\envs\flopy\python.exe',
                     'The conda-env python a PEST++ worker runs forward_run '
                     'with. A FILE, not a folder.'),
+    # WP7. Its own root, never inside WS_ROOT: the calibration copies the
+    # model once per worker and keeps every realisation's outputs, which is
+    # tens of GB (CdL's PEST folder is ~40 GB) -- and a PEST run must never
+    # write into the workspace the modeller's own runs use. Blank = not set:
+    # nothing PEST runs until it is.
+    'pest_ws':     ('MM_PEST_WS', '',
+                    'Root of the PEST++ calibration workspaces (the model '
+                    'copy, the template, the master and one folder per '
+                    'worker). Needs TENS OF GB: CdL\'s PEST folder is ~40 GB. '
+                    'Outside WS_ROOT and outside the repository. Blank = not '
+                    'set, and no calibration runs.'),
 }
 
 
@@ -213,8 +224,9 @@ def reload_paths():
     """Re-resolve every root after the settings changed, without a restart."""
     global _SETTINGS, DATA_ROOT, WS_ROOT, NWT_REF, MODFLOW_DIR, PYTHON_EXE
     global GIS, EXAMPLE_ROOT, LIBMF6, MF6_EXE, TRIANGLE_EXE, PESTPP_IES
-    global GRIDGEN_EXE
+    global GRIDGEN_EXE, PEST_WS
     _SETTINGS = read_settings()
+    PEST_WS = _optional_path('pest_ws')
     DATA_ROOT = Path(_setting('data_root'))
     WS_ROOT = Path(_setting('ws_root'))
     NWT_REF = Path(_setting('nwt_ref'))
@@ -230,7 +242,15 @@ def reload_paths():
     return _SETTINGS
 
 
+def _optional_path(key):
+    """A root that may be left unset: its Path, or None when blank (a blank
+    Path would be '.', the current folder, which always exists)."""
+    v = _setting(key)
+    return Path(v) if v else None
+
+
 _SETTINGS = read_settings()
+PEST_WS     = _optional_path('pest_ws')
 DATA_ROOT   = Path(_setting('data_root'))
 WS_ROOT     = Path(_setting('ws_root'))
 NWT_REF     = Path(_setting('nwt_ref'))
@@ -321,6 +341,7 @@ def report_paths(case='LaMata', stream=None):
         ('GRIDGEN_EXE',  Path(GRIDGEN_EXE),  False),
         ('PESTPP_IES',   Path(PESTPP_IES),   False),
         ('PYTHON_EXE',   Path(PYTHON_EXE),   False),
+        ('PEST_WS',      PEST_WS or Path('(not set)'), False),
     ]
     missing = 0
     out.write('MARMITES paths (case=%s)\n' % case)

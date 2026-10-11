@@ -57,9 +57,11 @@ def where_things_are():
                'is machine-local and not tracked — nothing here goes into the '
                'repository, and no file has to be edited by hand.')
 
-    current = {k: str(getattr(mm_paths, {'gis': 'GIS',
-                                         'example_root': 'EXAMPLE_ROOT'}.get(
-                                  k, k.upper()))) for k in mm_paths.SETTABLE}
+    current = {k: getattr(mm_paths, {'gis': 'GIS',
+                                     'example_root': 'EXAMPLE_ROOT'}.get(
+                              k, k.upper())) for k in mm_paths.SETTABLE}
+    # an optional root left unset is None, which must show as a blank box
+    current = {k: '' if v is None else str(v) for k, v in current.items()}
     pinned = [k for k in mm_paths.SETTABLE
               if 'environment variable' in mm_paths.source_of(k)]
     if pinned:
@@ -81,6 +83,8 @@ def where_things_are():
             st.caption(('🟢 exists' if exists else '🔴 does not exist')
                        + ('  ·  read-only: %s is set' % env
                           if key in pinned else ''))
+            if key == 'pest_ws':
+                pest_ws_warning(got)
             edits[key] = got
 
     c1, c2 = st.columns([1, 3])
@@ -99,6 +103,43 @@ def where_things_are():
         c2.warning('%d path(s) do not exist yet: %s. A run needs the dataset '
                    'and the workspace; the rest are needed only by what uses '
                    'them.' % (len(missing), ', '.join(missing)))
+
+
+def pest_ws_warning(path):
+    """The PEST workspace needs room: say how much, and what the drive has.
+
+    A calibration keeps a model copy per worker and every realisation's
+    outputs -- CdL's PEST folder is ~40 GB -- so the warning comes with the
+    free space of the drive chosen, and a folder inside WS_ROOT or the
+    repository is refused in words (a PEST run must never write into the
+    workspace the modeller's own runs use)."""
+    import shutil
+    note = ('**Needs tens of GB.** The calibration copies the model for every '
+            'worker and keeps each realisation\'s outputs: CdL\'s PEST folder '
+            '(`X:\\3p1p1\\DR3PDA1`) is ~40 GB.')
+    if not path:
+        st.warning(note + ' Not set: no calibration runs until it is.')
+        return
+    probe = path
+    while probe and not os.path.exists(probe):
+        parent = os.path.dirname(probe)
+        probe = parent if parent != probe else ''
+    free = ''
+    if probe:
+        try:
+            free = ' Free on that drive now: **%.0f GB**.' % (
+                shutil.disk_usage(probe).free / 1e9)
+        except OSError:
+            free = ''
+    st.warning(note + free)
+    real = os.path.normcase(os.path.abspath(path))
+    for name, root in (('WS_ROOT', mm_paths.WS_ROOT),
+                       ('the repository', mm_paths.REPO)):
+        r = os.path.normcase(os.path.abspath(str(root)))
+        if real == r or real.startswith(r + os.sep):
+            st.error('It is inside %s (`%s`): choose a folder of its own -- '
+                     'a calibration must not write where the model runs or '
+                     'the code live.' % (name, root))
 
 
 def runs_dir(cfg=None):

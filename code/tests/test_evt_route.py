@@ -283,3 +283,54 @@ def test_any_cell_gets_a_valid_curve(seed):
             assert x.size == y.size == 7 and D > 0
             assert np.all(np.diff(x) > 0) and np.all((x > 0) & (x < 1))
             assert np.all(np.diff(y) <= 1e-15) and np.all((y >= 0) & (y <= 1))
+
+
+# ------------------------------------------- every cell at once, compiled
+# The coupler's per-cell loop over eg_curve / tg_curve was 43 % of a day's
+# work in Python (profile, 2026-10-11): marmites_evt.curves does all cells
+# at once with numba. It must give what the reference gives, cell by cell.
+
+def _random_cells(seed, n=600, nveg=3):
+    import MARMITESsoil_v3 as mms
+    shah = list(mms.clsMMsoil(-999.0).paramEg.values())
+    rng = np.random.default_rng(seed)
+    land = 800.0 + rng.uniform(-5.0, 5.0, n)
+    h0 = land - rng.uniform(-0.5, 12.0, n)
+    tips = land[:, None] - rng.uniform(0.0, 16.0, (n, nveg))
+    rates = rng.choice([0.0, 1e-4, 1e-3, 3e-3], (n, nveg))
+    tips[rng.uniform(size=(n, nveg)) < 0.1] = np.nan    # padded types
+    rates[np.isnan(tips)] = 0.0
+    pe = rng.choice([0.0, 1e-4, 1e-3, 3e-3], n)
+    return pe, land, h0, [shah[k] for k in rng.integers(0, len(shah), n)], \
+        rates, tips
+
+
+@pytest.mark.skipif(me._jit is None, reason='numba is not installed')
+@pytest.mark.parametrize('seed', range(4))
+@pytest.mark.parametrize('nseg', [3, 8])
+def test_the_compiled_curves_are_the_reference_curves(seed, nseg):
+    pe, land, h0, shah, rates, tips = _random_cells(seed)
+    if nseg == 3:                     # one tg type per cell fits 3 segments
+        rates[:, 1:] = 0.0
+    a = me.curves(pe, land, h0, shah, rates, tips, 0.1, nseg, compiled=True)
+    b = me.curves(pe, land, h0, shah, rates, tips, 0.1, nseg, compiled=False)
+    for t in ('eg', 'tg'):
+        for var in ('SURFACE', 'RATE', 'DEPTH', 'PXDP', 'PETM'):
+            np.testing.assert_allclose(a[t][var], b[t][var], rtol=1e-12,
+                                       atol=1e-15, err_msg='%s %s' % (t, var))
+
+
+@pytest.mark.skipif(me._jit is None, reason='numba is not installed')
+def test_the_compiled_curves_refuse_what_the_reference_refuses():
+    """Three types reaching the table need 7 inner points: nseg 3 cannot."""
+    with pytest.raises(ValueError):
+        me.curves([0.0], [800.0], [795.0], [SANDY_LOAM_FIELD],
+                  np.array([[1e-3, 1e-3, 1e-3]]),
+                  np.array([[790.0, 791.0, 792.0]]), 0.1, 3, compiled=True)
+
+
+def test_the_coupler_builds_the_curves_all_at_once():
+    src = open(os.path.join(TRUNK, 'marmites_coupler.py'),
+               encoding='utf-8').read()
+    body = src[src.index('def _evt_curves'):src.index('def _evt_flat')]
+    assert 'me.curves(' in body and 'for k in range' not in body

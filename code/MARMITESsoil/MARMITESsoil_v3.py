@@ -997,7 +997,21 @@ class clsMMsoil:
             (marmites_crr.CascadeNetwork.route). The runoff the cascade
             evaporates is iEcrr, booked at the cell it left and counted in
             iETtot. Without one, nothing changes -- not a bit.
+
+        COMPILED: on the coupled run's path the whole period is one numba
+        pass over the cells (marmites_soil_nb, the same arithmetic); the
+        body below is the REFERENCE it is held to, and what runs without
+        numba, with MM_SOIL_PYTHON set, or on a path the kernel does not
+        cover (the uncoupled NWT run).
         """
+        import marmites_soil_nb as _nb
+        fast = _nb.step(
+            self, ctx, n, tstart_MF, heads_cell, exf_cell, state,
+            np.zeros(ctx.ncell) if rejinf_cell is None else rejinf_cell,
+            np.zeros(ctx.ncell) if etuzf_cell is None else etuzf_cell,
+            crr=crr)
+        if fast is not None:
+            return fast
         nindex = len(ctx.index)
         nindex_S = len(ctx.index_S)
         # DOUBLE PRECISION: the coupler checks ETsoil + ETuzf + ETg <= PE + PT
