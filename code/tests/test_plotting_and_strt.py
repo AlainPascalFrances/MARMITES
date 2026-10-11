@@ -147,6 +147,60 @@ def test_the_head_series_is_drawn_on_the_whole_runs_range():
         in src, 'the range is taken over every stress period'
 
 
+def _square_cells(nx, ny, keep=None):
+    """Unit-square 'mesh' cells as polygons, row by row; ``keep(i, j)``
+    leaves cells out (a concave domain)."""
+    polys, ij = [], []
+    for j in range(ny):
+        for i in range(nx):
+            if keep is None or keep(i, j):
+                polys.append([(i, j), (i + 1, j), (i + 1, j + 1), (i, j + 1)])
+                ij.append((i, j))
+    return polys, np.array(ij, dtype=float)
+
+
+def test_the_equipotentials_follow_a_mesh_field():
+    """User, 2026-10-11: contour lines on the head maps of a mesh, where the
+    cells are polygons and not a grid. A field rising west to east gives
+    north-south lines at the asked levels."""
+    polys, ij = _square_cells(12, 8)
+    v = ij[:, 0] + 0.5                       # 0.5 .. 11.5 west to east
+    fig, ax = plt.subplots()
+    cs = P._mesh_contours(ax, polys, v, [3.0, 6.0, 9.0], '%.0f')
+    plt.close(fig)
+    assert cs is not None and list(cs.levels) == [3.0, 6.0, 9.0]
+    for seg in cs.allsegs[0]:
+        assert np.allclose(seg[:, 0], 3.0, atol=1e-6), 'a line is not N-S'
+
+
+def test_the_equipotentials_do_not_cross_a_gap_in_the_domain():
+    """A U-shaped domain: the triangles that would bridge its notch join
+    cells that are not neighbours, and no line may run across the gap."""
+    polys, ij = _square_cells(12, 8, keep=lambda i, j: not (4 <= i < 8 and j >= 2))
+    v = ij[:, 1] + 0.5                       # rising south to north
+    fig, ax = plt.subplots()
+    cs = P._mesh_contours(ax, polys, v, [5.0], '%.0f')
+    plt.close(fig)
+    pts = np.vstack(cs.allsegs[0])
+    inside_gap = (pts[:, 0] > 4.6) & (pts[:, 0] < 7.4)
+    assert not inside_gap.any(), 'a contour crosses the notch'
+
+
+def test_the_head_contours_are_at_round_heads_over_the_whole_run():
+    sys.path.insert(0, os.path.join(TRUNK, 'ppMF6'))
+    import marmites_postprocess as pp
+    lv = pp._head_levels(733.6, 803.4)
+    assert lv[0] == 735.0 and lv[-1] == 800.0
+    assert np.allclose(np.diff(lv), 5.0)
+    assert pp._head_levels(1.0, 1.0) is None
+    src = open(os.path.join(TRUNK, 'ppMF6', 'marmites_postprocess.py'),
+               encoding='utf-8').read()
+    body = src[src.index("draw(V, 'head_series'"):]
+    body = body[:body.index('# The soil column')]
+    assert 'contours=(_head_levels(h_lo, h_hi)' in body, \
+        'the series is not drawn with one set of levels over the run'
+
+
 def test_as_str_helper():
     assert P._as_str(b'abc') == 'abc'
     assert P._as_str('abc') == 'abc'

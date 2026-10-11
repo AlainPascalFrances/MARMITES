@@ -1548,6 +1548,47 @@ def _colour_levels(cmap, vmin, vmax):
     return levels
 
 
+def _mesh_contours(ax, polys, V, levels, fmt):
+    """Contour lines of a field given per MESH CELL (user, 2026-10-11: the
+    equipotentials on the head maps).
+
+    The cells are not a grid, so the lines follow a Delaunay triangulation of
+    the cell centres -- the dual of a Voronoi mesh, whose edges join
+    neighbouring cells. Triangles that bridge a concave stretch of the
+    boundary or a hole of inactive cells are dropped: an edge longer than
+    twice the size of its cells joins cells that are not neighbours.
+    Returns the contour set, or None when there is nothing to draw.
+    """
+    import matplotlib.tri as mtri
+    v = np.ma.ravel(V)
+    z = np.ma.filled(v.astype(float), np.nan)
+    ok = ~np.ma.getmaskarray(v) & np.isfinite(z)
+    if len(polys) != z.size or ok.sum() < 3 or levels is None \
+            or len(levels) < 1:
+        return None
+    P = [np.asarray(p, dtype=float) for p in polys]
+    cx = np.array([p[:, 0].mean() for p in P])
+    cy = np.array([p[:, 1].mean() for p in P])
+    size = np.sqrt([0.5 * abs(np.dot(p[:, 0], np.roll(p[:, 1], 1))
+                              - np.dot(p[:, 1], np.roll(p[:, 0], 1)))
+                    for p in P])
+    idx = np.nonzero(ok)[0]
+    tri = mtri.Triangulation(cx[idx], cy[idx])
+    t = tri.triangles
+    xa, ya = cx[idx][t], cy[idx][t]
+    edge = np.max([np.hypot(xa[:, k] - xa[:, (k + 1) % 3],
+                            ya[:, k] - ya[:, (k + 1) % 3]) for k in range(3)],
+                  axis=0)
+    tri.set_mask(edge > 2.0 * size[idx][t].max(axis=1))
+    lv = [x for x in levels if np.nanmin(z[idx]) <= x <= np.nanmax(z[idx])]
+    if not lv:
+        return None
+    CS = ax.tricontour(tri, z[idx], levels=lv, colors='dimgray',
+                       linewidths=0.6, zorder=2)
+    ax.clabel(CS, inline=True, fontsize=6, fmt=fmt)
+    return CS
+
+
 def _mesh_map_axes(ax, yaxis=True, unit='km'):
     """Axes of a map drawn in REAL coordinates (mesh polygons): labelled in
     km, like add_real_coord_axes gives the structured maps."""
@@ -1569,8 +1610,12 @@ def _mesh_map_axes(ax, yaxis=True, unit='km'):
 def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel, msg, plt_title, MM_ws,
               interval_type='arange', interval_diff=1, interval_num=1, Vmax=0, Vmin=0, fmt=None, contours=False,
               ntick=None, facecolor='silver', points=None, ptslbl=0, mask=None, hnoflo=-999.9, animation=0,
-              pref_plt_title='_sp_plt', cMF=None, polys=None):
+              pref_plt_title='_sp_plt', cMF=None, polys=None,
+              contour_levels=None, contour_fmt=None):
     # TODO put axes tick as row/col index from MODFLOW AND real coordinates
+    # ``contours``: lines at ``contour_levels`` (default: the colour bar's
+    # ticks), labelled with ``contour_fmt`` (default: ``fmt``) -- on a mesh
+    # too (_mesh_contours).
     # ``polys``: one polygon per cell in REAL coordinates (a mesh, see
     # marmites_rasterise.MapAdapter). V is then (nday, nlay, ncell, 1) and the
     # cells themselves are drawn -- no raster, no row/column axes.
@@ -1763,9 +1808,13 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
                         page_ims.append(ax[l].pcolormesh(xg, yg, Vtmp, cmap=cmap, norm=norm))
                         if ctrs_tmp == True:
                             #try:
-                            CS = ax[l].contour(xg1, yg1[::-1], Vtmp[::-1], ticks, colors='gray')
+                            CS = ax[l].contour(xg1, yg1[::-1], Vtmp[::-1],
+                                               contour_levels if contour_levels
+                                               is not None else ticks,
+                                               colors='gray')
                             plt.draw()
-                            ax[l].clabel(CS, inline=1, fontsize=6, fmt=fmt, colors='gray')
+                            ax[l].clabel(CS, inline=1, fontsize=6,
+                                         fmt=contour_fmt or fmt, colors='gray')
                             #except:
                             #    print('Error in drawing contours for map %s' % plt_title)
                     else:
@@ -1774,6 +1823,11 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
                         _pc.set_array(np.ma.ravel(Vtmp))
                         page_ims.append(ax[l].add_collection(_pc))
                         ax[l].autoscale_view()
+                        if ctrs_tmp == True:
+                            _mesh_contours(ax[l], polys, Vtmp,
+                                           contour_levels if contour_levels
+                                           is not None else ticks,
+                                           contour_fmt or fmt)
                     # the layer's caption, at a fixed distance under its panel
                     ax[l].annotate('layer %d' % (L + 1)
                                    if np.ma.max(Vtmp) > np.ma.min(Vtmp)

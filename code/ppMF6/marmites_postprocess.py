@@ -3391,6 +3391,17 @@ def upper_face_flow(maps, nlay):
     return fuf
 
 
+def _head_levels(lo, hi, n=15):
+    """Round heads for the equipotential lines between ``lo`` and ``hi``:
+    about ``n`` of them, at a step of 1, 2, 2.5 or 5 times a power of ten
+    (La Mata's 70 m of relief: every 5 m)."""
+    from matplotlib.ticker import MaxNLocator
+    if not np.isfinite(lo) or not np.isfinite(hi) or hi <= lo:
+        return None
+    lv = MaxNLocator(nbins=n, steps=[1, 2, 2.5, 5, 10]).tick_values(lo, hi)
+    return [float(v) for v in lv if lo <= v <= hi]
+
+
 def _native_result_maps(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
                         ndays=0, verbose=True):
     """Every result map: the MM soil-water-balance fluxes (``MMmap_*``) and
@@ -3435,11 +3446,12 @@ def _native_result_maps(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
     before = set(os.listdir(out_dir)) if os.path.isdir(out_dir) else set()
 
     def draw(V, stem, cblbl, unit, m3, nplot=None, cmap=None, days=None,
-             dates=None, jd=None, prefix='GWmap', vlim=None):
+             dates=None, jd=None, prefix='GWmap', vlim=None, contours=None):
         """One plotLAYER page. ``m3`` is the (nlay, nrow, ncol) inactive-cell
         mask and ``nplot`` how many layer panels to draw (default: all).
         ``vlim`` = (lo, hi) fixes the colour ramp; by default it is the
-        range of what is drawn."""
+        range of what is drawn. ``contours`` = the levels of the contour
+        lines to draw over it (None: none)."""
         V = np.asarray(V, dtype=float)
         m = np.repeat(m3[None, :, :, :], V.shape[0], axis=0)
         VV = np.where(m, hnoflo, V)
@@ -3461,7 +3473,9 @@ def _native_result_maps(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
                 plt_title='%s_%s' % (prefix, stem), MM_ws=out_dir,
                 interval_type='linspace', interval_num=5,
                 Vmax=[hi], Vmin=[lo], fmt='%5.2f', points=pts, mask=m3,
-                hnoflo=hnoflo, cMF=geo, polys=DA.polys)
+                hnoflo=hnoflo, cMF=geo, polys=DA.polys,
+                contours=contours is not None, contour_levels=contours,
+                contour_fmt='%.0f')
         except Exception as exc:                     # pragma: no cover
             if verbose:
                 print('   %s map %s skipped: %r' % (prefix, stem, exc))
@@ -3512,8 +3526,13 @@ def _native_result_maps(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
         a = a[np.isfinite(a)]
         if a.size:
             h_lo, h_hi = min(h_lo, float(a.min())), max(h_hi, float(a.max()))
-    draw(DA.lay(np.asarray(acc).reshape(nlay, -1) / nper_h)[None, :, :, :],
-         'head', 'mean head', 'm', m3)
+    hmean = DA.lay(np.asarray(acc).reshape(nlay, -1) / nper_h)
+    _hm = hmean[~m3]
+    _hm = _hm[np.isfinite(_hm)]
+    # the equipotentials (user, 2026-10-11), at round heads
+    draw(hmean[None, :, :, :], 'head', 'mean head', 'm', m3,
+         contours=(_head_levels(float(_hm.min()), float(_hm.max()))
+                   if _hm.size else None))
     if ndays and nper_h > 1:
         sel = np.unique(np.linspace(0, nper_h - 1, int(ndays)).astype(int))
         V = np.array([DA.lay(np.where(
@@ -3529,7 +3548,9 @@ def _native_result_maps(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
         draw(V, 'head_series', 'head', 'm', m3,
              days=[int(s) for s in sel],
              dates=[float(DATE[s]) for s in sel], jd=jd,
-             vlim=(h_lo, h_hi) if h_hi > h_lo else None)
+             vlim=(h_lo, h_hi) if h_hi > h_lo else None,
+             # the same levels on every day, over the whole run's range
+             contours=(_head_levels(h_lo, h_hi) if h_hi > h_lo else None))
 
     # The soil column's water on the SAME days as the heads, on one ramp over
     # the whole run (user, 2026-10-10). The change-in-storage map is a time
