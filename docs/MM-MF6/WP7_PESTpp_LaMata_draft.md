@@ -206,39 +206,58 @@ once before the workers start.
 
 ---
 
-## 5. Build steps
+## 5. The interface, as built (2026-10-11)
 
-Everything in the PEST workspace set on Home (`pest_ws`; `org/`,
-`template/`, `master/`, `workers/`), on a copy of the configuration, never in
-WS_ROOT and never on `code/configs/lamata.toml`. **Each worker needs its own
-copy of the dataset folder** (27 MB): a run rewrites the aggregated forcing
-files (`inputZON_*_stp.txt`) there.
+**Model side** (`code/marmites_pest.py`, no pyemu on the model path):
+- `[pest] multipliers` names a folder of multiplier files, applied on the
+  mesh after the 50 m rasters were projected: `k_l<L>`, `sy_l<L>` per cell,
+  `ss_l<L>`, `drn_l<L>` one value per layer.
+- K carries k33 and UZF's vks with it; Sy carries UZF's thtr.
+- `set_param` sets a configuration value by name, list items included
+  (`soil.horizon[2].ks`).
 
-1. **Model hooks** (code, with tests):
-   - a `[pest]` multiplier directory: one file per property and layer, one
-     value per line per mesh cell, applied to K and Sy after they are
-     resampled onto the mesh;
-   - a scalar table (`name, value`) applied to the configuration, including
-     list items (`soil.horizon[i].sfc`, `.ks`), which `--set` cannot address;
-   - the ET exports: total ET per cover type over the catchment, for the
-     `et_rs` group.
-2. **`code/tools/pest_build_lamata.py`**: `PstFrom`, pilot points at the
-   mesh-cell centres, the geostatistical prior ensemble, the observation
-   groups and weights of §1 from the base-run exports.
-3. **`code/tools/pest_forward_run.py`**: apply the parameters → write the
-   configuration → run `run_lamata_mf6.py` (MMsurf off, figures off) →
-   transform (log flow, annual volumes, ET means per composite) → write the
-   observation files. Guarded by `multiprocessing.freeze_support()`.
-4. **Base run** (`noptmax = 0`): its phi must match the residuals computed by
-   hand.
-5. **Pilot IES**, then production.
-6. **`[pest] use_pest_params`** (declared, not wired yet): a normal run with
-   the calibrated set.
+**Tools** (`code/tools/`):
 
-**pestpp-ies settings:** `ies_num_reals` 30 (pilot) / 100, `noptmax` 2 / 3,
-`ies_autoadaloc true`, `ies_bad_phi_sigma 2.5`, `ies_lambda_mults 0.1,1,10`,
-`overdue_giveup_fac 1.5`, `save_binary true`, 6 PANTHER workers. After each
-iteration, check:
+| script | does |
+|---|---|
+| `pest_modis_et.py` | MOD16A2GF composites → the catchment's area-weighted ET per composite (35 pixels, 4.835 km²; fills left out; HDF4 read through rasterio's GDAL) |
+| `pest_lamata_obs.py` | the targets (groups of §1) from a run's exports + MODIS + EC; their collection from any run; the group balancing |
+| `pest_lamata_forward.py` | the forward run in a worker: scalars into the config, the coupled model, `pest_obs.csv` (a failed run writes the 1e10 sentinel, never a missing file) |
+| `pest_lamata_setup.py` | `org` (code snapshot, config copy, dataset copy with C4/C5/W1 on, caches + saved state, parameter files, ET records) → `base` (the base run, the targets, the weights) → `pst` (PstFrom: pilot points on the mesh, the scalars, the observations, the prior ensemble) |
+| `pest_lamata_run.py` | pestpp-ies with local PANTHER agents (at most 6: 2 cores stay with the user) |
+
+**The PEST workspace** (`X:\3p1p1\MF6models\LaMata\PEST`, set on Home):
+`code/` (the snapshot), `org/`, `template/`, `master/`, `workers/`.
+Every realisation starts from `hi_voronoi_lamata_evt_drn1`, the end state of
+the run `2lay_fullperiod_numba` (fractional grass).
+
+**The template:**
+- 215 parameters: 49 pilot points for each of K and Sy in both layers
+  (400 m apart, exponential variogram, range 1500 m, log), plus 19
+  scalars.
+- Each scalar sits in its own `pars/<name>.csv`: PstFrom parameterises a
+  file once in direct style.
+- The prior ensemble is drawn from the geostatistical structure.
+
+**Checked on a 20-day model** (scratch workspace):
+- setup → base run → template;
+- pestpp-ies `noptmax 0` through an agent reproduces the setup's phi exactly
+  (8500);
+- a prior Monte Carlo of 4 realisations on 2 agents: 4 runs, 0 failed,
+  phi 8205–11371 around the base's 8500.
+
+**Run it** (after the setup):
+
+    python code/tools/pest_lamata_run.py --workers 6 --noptmax -1   # prior MC
+    python code/tools/pest_lamata_run.py --workers 6 --noptmax 2    # pilot IES
+
+**Settings in the control file:** `ies_num_reals 30`,
+`ies_autoadaloc true`, `ies_bad_phi_sigma 2.5`,
+`ies_lambda_mults 0.1,1,10`, `overdue_giveup_fac 1.5`, `save_binary true`.
+After each iteration, check:
 - the share of parameters on their bounds;
 - the posterior Moran's I of the K fields;
-- the failed realisations (< 30 %).
+- the failed realisations.
+
+**Starting on a bound:** `uzf_eps` (3.5, MF6's minimum) and `crr_beta`
+(1.0) start on a bound, so half of their prior draws sit on it.

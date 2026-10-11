@@ -1172,9 +1172,23 @@ def _args_from_config(cfg, probe=False):
         ws_root=str(mm_paths.WS_ROOT),
         run_tag=(cfg.meta.name or None),
         libmf6=(libmf6 or None),
+        # WP7: a PEST++ forward run's multiplier files (marmites_pest),
+        # relative to the configuration file
+        pest_multipliers=_pest_folder(cfg),
         # carried for provenance
         config=cfg,
     )
+
+
+def _pest_folder(cfg):
+    """[pest] multipliers, made absolute against the configuration file."""
+    f = (cfg.pest.multipliers or '').strip()
+    if not f:
+        return ''
+    if not os.path.isabs(f):
+        base = os.path.dirname(os.path.abspath(cfg.source_path or '.'))
+        f = os.path.join(base, f)
+    return f
 
 
 def main():
@@ -1315,6 +1329,12 @@ def main():
         return
     _gp = getattr(cMF, 'mesh_gridprops', None)
     _grid = _run_grid(cMF)
+    if getattr(a, 'pest_multipliers', ''):
+        # WP7: a PEST++ forward run -- its multipliers, on the grid the
+        # model runs on, before anything is built from K, Sy, Ss or the
+        # drains
+        import marmites_pest
+        marmites_pest.apply_multipliers(cMF, a.pest_multipliers)
     b = clsMF6(cMF, top=top, botm=botm, sim_ws=a.ws, daily=True, grid=a.grid,
                vertices=(_gp['vertices'] if _gp else None),
                cell2d=(_gp['cell2d'] if _gp else None),

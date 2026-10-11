@@ -401,15 +401,14 @@ def _veg_summary(cover, soil, areas=None):
     parts = []
     for k in range(cover.shape[0]):
         rows = [c for c in soil.veg_class if int(c.veg) == k + 1]
-        codes = [c.code for c in rows]
-        ras = ['%s from %s' % (c.code, c.cover_raster) for c in rows
-               if (c.cover_raster or '').strip()]
+        codes = [('%s from %s' % (c.code, c.cover_raster.strip())
+                  if (c.cover_raster or '').strip() else c.code)
+                 for c in rows]
         v = cover[k][grows]
         mean = (float(np.average(v, weights=w)) if w is not None and v.size
                 else float(v.mean()) if v.size else 0.0)
         parts.append('type %d (%s) %.1f %%'
-                     % (k + 1, ', '.join(['/'.join(codes) or '-'] + ras),
-                        mean))
+                     % (k + 1, '/'.join(codes) or '-', mean))
     return '; '.join(parts) + ', from the panel'
 
 

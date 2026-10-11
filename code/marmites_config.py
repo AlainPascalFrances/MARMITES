@@ -1476,6 +1476,11 @@ class Postproc:
 class Pest:
     use_pest_params: bool = False
     params_npz: str = 'pest_optimised.npz'
+    # WP7: the folder of multiplier files a PEST++ forward run writes
+    # (marmites_pest.apply_multipliers: k_l<L>, sy_l<L>, ss_l<L>, drn_l<L>),
+    # applied on the grid the model runs on. Relative to the configuration
+    # file. Blank: none -- what every run but a forward run has.
+    multipliers: str = ''
 
 
 @dataclass
