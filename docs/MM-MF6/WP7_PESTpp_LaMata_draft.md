@@ -28,7 +28,7 @@ Baseline, the full-period run `20261011113811_2lay_fullperiod` (1949 days,
 | 3 | Ss | **one value per layer** |
 | 4 | DRN | **one conductance per layer** |
 | 5 | additions | **UZF eps and vks, CRR β**: yes. Q. ilex root depth and soil thickness: no, measured |
-| 6 | observations | **C4, C5 and W1 used**. The eddy-covariance ET is **validation** only. ET for calibration from a satellite product, as on CdL (see §1, **OPEN**) |
+| 6 | observations | **C4, C5 and W1 used**. The eddy-covariance ET is **validation** only. ET for calibration from **MODIS MOD16A2GF**, as on CdL; downloaded to 2010-11 so far (§1) |
 | 7 | weights | heads **35 %**, soil moisture **35 %**, streamflow **20 %**, ET **10 %** |
 | 8 | speed | profiled, then **numba** for the groundwater-ET curves and the soil step: **~45 min a full run, was 2 h 20** (§4) |
 | 9 | workers | **this server only** |
@@ -92,25 +92,23 @@ Counts are in the calibration window of §3 (2009-10-01 → 2013-09-30).
   heads 0.1 m, θ 0.01, log flow 0.1, ET 20 %), so rebalancing the shares does
   not change the noise the IES realisations get.
 
-### The satellite ET — **OPEN**
+### The satellite ET: MODIS MOD16A2GF
 
-- **The Copernicus product named** (Evapotranspiration 2025–present, 300 m,
-  10-daily, Sentinel-3) **starts in 2025**. It cannot overlap La Mata's
-  2008–2013, and the product page lists no older version.
-- **CdL did not use Copernicus:** its ET group is MODIS **MOD16A2GF**
-  (500 m, 8-day, 2000–present), zonal means per cover type in
-  `CdL_pest\mod16_aet_zonal.csv`, from the tiles in
-  `CdL_model\RS\MODIS4CDL` (`CopernicusET4CDL` is empty).
-- CdL's tiles are **h17v05** (30–40°N). La Mata (41.1°N, 6.1°W) is in
-  **h17v04**, so it needs its own download: 6 years × 46 composites ≈ 276
-  files, ~3.3 GB as whole tiles, or a few MB as a catchment subset through
-  NASA AppEEARS.
-- Either way the download needs a **NASA Earthdata login**, which only you
-  can use. You can download the files (or the AppEEARS subset) yourself, or
-  set up the login on this machine (an Earthdata `.netrc` or token) for a
-  download script to use.
+- **MODIS MOD16A2GF** (500 m, 8-day), as on CdL (whose ET group is
+  `CdL_pest\mod16_aet_zonal.csv`, zonal means per cover type). The
+  Copernicus 300 m product starts in 2025 and cannot cover 2008–2013.
+- Downloaded by the user into
+  `DATA_ROOT\RS\MODIS4LaMata\MOD16A2GF_061-20261011_201206`: tile
+  **h17v04**, the right one for La Mata (CdL's is h17v05).
+- **The download stops in late November 2010:** 119 composites, 2008 DOY 121
+  → 2010 DOY 329. The model runs to 2013-09-30, so about 135 composites are
+  missing (December 2010 – September 2013), most of the calibration window.
+  **OPEN:** complete the order, or calibrate ET on 2009-10 → 2010-11 only.
+- The remote-sensing folder is a machine path, asked on Home (`rs`, default
+  `DATA_ROOT\RS`), one sub-folder per product and case.
 - At 500 m the catchment is ~20 pixels: catchment and per-cover-type means
-  per 8-day composite, as on CdL, not pixel by pixel.
+  per 8-day composite, as on CdL, not pixel by pixel; the 8-day sums are
+  compared with the model's total ET over the same 8 days.
 
 ---
 

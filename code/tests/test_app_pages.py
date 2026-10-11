@@ -1081,6 +1081,19 @@ def test_panel_zero_asks_for_the_pest_workspace_and_warns_of_its_size():
     assert 'tens of GB' in warned and '40 GB' in warned, warned
 
 
+def test_panel_zero_asks_for_the_remote_sensing_folder():
+    """User, 2026-10-11: where the MODIS and Copernicus ET are downloaded;
+    when the folder is there, the product folders in it are listed."""
+    at = AppTest.from_file(os.path.join(APP, 'Home.py'), default_timeout=180)
+    at.run()
+    assert not at.exception, [str(e.value) for e in at.exception]
+    box = [w for w in at.text_input if w.key == 'path_rs']
+    assert box, 'the remote-sensing folder is not asked on Home'
+    if os.path.isdir(str(box[0].value)):
+        said = ' '.join(str(c.value) for c in at.caption)
+        assert 'Products:' in said or 'No product folder' in said, said
+
+
 def test_panel_zero_offers_the_system_dialog_for_each_path():
     """"Select the folder inside the computer": every path has a ... button
     that opens the operating system's own dialog. The in-page folder browser

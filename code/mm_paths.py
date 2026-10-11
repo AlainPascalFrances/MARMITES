@@ -30,7 +30,8 @@ from pathlib import Path
 __all__ = ['REPO', 'CODE_DIR', 'MIRROR', 'MIRROR_MARK', 'CONFIG_DIR',
            'DATA_ROOT', 'WS_ROOT', 'NWT_REF', 'MODFLOW_DIR', 'GIS',
            'LIBMF6', 'MF6_EXE', 'PESTPP_IES', 'PYTHON_EXE', 'TRIANGLE_EXE',
-           'GRIDGEN_EXE', 'EXAMPLE_ROOT', 'PEST_WS', 'SETTINGS', 'SETTABLE',
+           'GRIDGEN_EXE', 'EXAMPLE_ROOT', 'PEST_WS', 'RS', 'SETTINGS',
+           'SETTABLE',
            'dataset_dir', 'resolve_input', 'report_paths', 'LEGACY_ALIASES',
            'read_settings', 'save_settings', 'reload_paths', 'source_of',
            'settings_label']
@@ -86,6 +87,15 @@ SETTABLE = {
     'gis':         ('MM_GIS_WS', '',
                     'The shapefiles, read ONLY by the converter -- never by a '
                     'run. Blank = DATA_ROOT/GIS.'),
+    # WP7: the satellite ET the calibration fits (MODIS MOD16A2GF; the
+    # Copernicus ET product where its period covers the model's), one folder
+    # per product and case -- MODIS4LaMata, as CdL's MODIS4CDL
+    'rs':          ('MM_RS_WS', '',
+                    'Remote-sensing data: the satellite ET products (MODIS '
+                    'MOD16A2GF, Copernicus ET), downloaded into one folder '
+                    'per product and case, e.g. MODIS4LaMata. Read by the '
+                    'calibration setup for the ET observations -- never by a '
+                    'run. Blank = DATA_ROOT/RS.'),
     'ws_root':     ('MM_WS_ROOT', r'E:\00code_ws\LaMata_MM-MF6',
                     'Root of ALL run output. Never inside the repository.'),
     'nwt_ref':     ('MM_NWT_REF',
@@ -224,7 +234,7 @@ def reload_paths():
     """Re-resolve every root after the settings changed, without a restart."""
     global _SETTINGS, DATA_ROOT, WS_ROOT, NWT_REF, MODFLOW_DIR, PYTHON_EXE
     global GIS, EXAMPLE_ROOT, LIBMF6, MF6_EXE, TRIANGLE_EXE, PESTPP_IES
-    global GRIDGEN_EXE, PEST_WS
+    global GRIDGEN_EXE, PEST_WS, RS
     _SETTINGS = read_settings()
     PEST_WS = _optional_path('pest_ws')
     DATA_ROOT = Path(_setting('data_root'))
@@ -234,6 +244,7 @@ def reload_paths():
     PYTHON_EXE = _setting('python_exe')
     EXAMPLE_ROOT = Path(_setting('example_root') or str(REPO / 'example'))
     GIS = Path(_setting('gis') or str(DATA_ROOT / 'GIS'))
+    RS = Path(_setting('rs') or str(DATA_ROOT / 'RS'))
     LIBMF6 = str(MODFLOW_DIR / 'mf6.7.0_win64' / 'bin' / 'libmf6.dll')
     MF6_EXE = str(MODFLOW_DIR / 'mf6.7.0_win64' / 'bin' / 'mf6.exe')
     TRIANGLE_EXE = _find_tool('TRIANGLE_EXE', MODFLOW_DIR)
@@ -260,6 +271,7 @@ PYTHON_EXE  = _setting('python_exe')
 # ==== derived (usually no need to edit) =====================================
 EXAMPLE_ROOT = Path(_setting('example_root') or str(REPO / 'example'))
 GIS          = Path(_setting('gis') or str(DATA_ROOT / 'GIS'))
+RS           = Path(_setting('rs') or str(DATA_ROOT / 'RS'))
 LIBMF6       = str(MODFLOW_DIR / 'mf6.7.0_win64' / 'bin' / 'libmf6.dll')
 MF6_EXE      = str(MODFLOW_DIR / 'mf6.7.0_win64' / 'bin' / 'mf6.exe')
 TRIANGLE_EXE = _find_tool('TRIANGLE_EXE', MODFLOW_DIR)   # see _TOOLS
@@ -332,6 +344,7 @@ def report_paths(case='LaMata', stream=None):
         ('DATASET',      dataset_dir(case),  True),
         ('DATA_ROOT',    DATA_ROOT,          False),
         ('GIS',          GIS,                False),
+        ('RS',           RS,                 False),
         ('WS_ROOT',      WS_ROOT,            False),
         ('NWT_REF',      NWT_REF,            False),
         ('MODFLOW_DIR',  MODFLOW_DIR,        False),

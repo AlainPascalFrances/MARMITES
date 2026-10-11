@@ -54,6 +54,21 @@ def test_the_pest_workspace_is_unset_until_it_is_given(monkeypatch, tmp_path):
     assert '40 GB' in mp.SETTABLE['pest_ws'][2]
 
 
+def test_the_remote_sensing_folder_follows_the_data_root(monkeypatch,
+                                                        tmp_path):
+    """User, 2026-10-11: a folder for the satellite ET (MODIS, Copernicus),
+    one sub-folder per product and case. Blank = DATA_ROOT/RS, as GIS."""
+    mp = _fresh(monkeypatch, settings_path=tmp_path / 'p.toml',
+                MM_DATA_ROOT=str(tmp_path / 'data'))
+    assert mp.RS == tmp_path / 'data' / 'RS'
+    mp.save_settings({'rs': str(tmp_path / 'sat')})
+    assert mp.RS == tmp_path / 'sat'
+    mp = _fresh(monkeypatch, settings_path=tmp_path / 'p.toml',
+                MM_RS_WS=str(tmp_path / 'env'))
+    assert mp.RS == tmp_path / 'env'
+    assert 'MODIS' in mp.SETTABLE['rs'][2]
+
+
 def test_the_defaults_resolve_without_anything_set(monkeypatch, tmp_path):
     mp = _fresh(monkeypatch, settings_path=tmp_path / 'absent.toml')
     assert str(mp.DATA_ROOT)

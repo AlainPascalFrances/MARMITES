@@ -57,7 +57,7 @@ def where_things_are():
                'is machine-local and not tracked — nothing here goes into the '
                'repository, and no file has to be edited by hand.')
 
-    current = {k: getattr(mm_paths, {'gis': 'GIS',
+    current = {k: getattr(mm_paths, {'gis': 'GIS', 'rs': 'RS',
                                      'example_root': 'EXAMPLE_ROOT'}.get(
                               k, k.upper())) for k in mm_paths.SETTABLE}
     # an optional root left unset is None, which must show as a blank box
@@ -85,6 +85,8 @@ def where_things_are():
                           if key in pinned else ''))
             if key == 'pest_ws':
                 pest_ws_warning(got)
+            if key == 'rs' and exists:
+                rs_products(got)
             edits[key] = got
 
     c1, c2 = st.columns([1, 3])
@@ -103,6 +105,28 @@ def where_things_are():
         c2.warning('%d path(s) do not exist yet: %s. A run needs the dataset '
                    'and the workspace; the rest are needed only by what uses '
                    'them.' % (len(missing), ', '.join(missing)))
+
+
+def rs_products(path):
+    """What the remote-sensing folder holds: one line per product folder
+    and the files under it, so a download that stopped short shows here."""
+    try:
+        subs = sorted(d for d in os.listdir(path)
+                      if os.path.isdir(os.path.join(path, d)))
+    except OSError:
+        return
+    if not subs:
+        st.caption('No product folder yet: download each product into a '
+                   'folder of its own, e.g. `MODIS4LaMata`.')
+        return
+    rows = []
+    for d in subs:
+        n = 0
+        for _root, _dirs, files in os.walk(os.path.join(path, d)):
+            n += sum(1 for f in files if f.lower().endswith(('.hdf', '.tif',
+                                                             '.nc', '.h5')))
+        rows.append('`%s` (%d file%s)' % (d, n, '' if n == 1 else 's'))
+    st.caption('Products: ' + ', '.join(rows))
 
 
 def pest_ws_warning(path):
