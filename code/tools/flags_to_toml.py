@@ -46,7 +46,7 @@ _SIMPLE = {
 _STORE_TRUE = {
     '--build-only': ('run', 'build_only'),
     '--sfr': ('sfr', 'enable'),
-    '--postproc': ('postproc', 'enable'),
+    '--postproc': ('run', 'plot'),
     '--preproc': ('postproc', 'input_maps'),
     '--sankey-obs-years': ('postproc', 'sankey_obs_years'),
     '--allow-bad-budget': ('run', 'allow_bad_budget'),
@@ -94,7 +94,6 @@ def convert(argv):
             # retired, 2026-10-11)
             cfg.run.model = False
             cfg.run.plot = True
-            cfg.postproc.enable = True
         elif tok in _STORE_TRUE:
             sec, key = _STORE_TRUE[tok]
             setattr(getattr(cfg, sec), key, True)

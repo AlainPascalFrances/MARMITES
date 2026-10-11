@@ -1973,7 +1973,7 @@ code(["python code/tests/run_lamata_mf6.py --config code/configs/lamata.toml \\"
       "       --set grid.kind=voronoi --set grid.voronoi.stream_refine=false \\",
       "       --set run.nsp=10 --set paths.libmf6=auto \\",
       "       --set spinup.strt_heads= --set spinup.steady_means= \\",
-      "       --set postproc.enable=true --set postproc.preproc=true"])
+      "       --set run.plot=true --set postproc.input_maps=true"])
 bullet("`mesh: voronoi, ncpl=989` — cell area mean 9845 m², i.e. 99.2 m against the 100 m asked for.")
 bullet("`resample=auto, 9.6 source cell(s) per mesh cell, mesh tiles 99.863 % of the grid rectangle`.")
 bullet("`solution check: converged, cumulative discrepancy 0.0200%`.")
@@ -2079,9 +2079,9 @@ table(["Current flag", "Configuration key", "Current flag", "Configuration key"]
        ["`--nlay`", "`layers.nlay`", "`--spinup`", "`spinup.cycles`"],
        ["`--aggregate`", "`layers.aggregate`", "`--spinup-tol`", "`spinup.tol`"],
        ["`--grid`", "`grid.kind` (new values)", "`--strt-dem`", "`spinup.strt_dem`"],
-       ["`--mode`", "`run.mode`", "`--postproc`", "`postproc.enable`"],
-       ["`--relax`", "`run.relax`", "`--preproc`", "`postproc.preproc`"],
-       ["`--nsp`", "`run.nsp`", "`--postproc-only`", "`postproc.only`"],
+       ["`--mode`", "`run.mode`", "`--postproc`", "`run.plot`"],
+       ["`--relax`", "`run.relax`", "`--preproc`", "`postproc.input_maps`"],
+       ["`--nsp`", "`run.nsp`", "`--postproc-only`", "`run.model = false`, `run.plot = true`"],
        ["`--aggregated`", "`run.daily = false`", "`--gis-ws`", "`paths.gis_ws`"],
        ["`--no-ats`", "`run.ats = false`", "`--sankey-min-flux`", "`postproc.sankey_min_flux`"],
        ["`--seep`", "`seep.kind`", "`--no-sankey-full`", "`postproc.sankey_full = false`"],

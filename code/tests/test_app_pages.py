@@ -1844,5 +1844,35 @@ def test_the_plots_panel_asks_for_the_input_maps_first():
     assert keys[0] == 'postproc.input_maps', keys
     labels = [c.label for c in at.checkbox]
     assert sum('Input maps' in lb for lb in labels) == 1, labels
-    assert any('Output maps and plots' in lb for lb in labels), labels
+    # one switch for the figures: the panel's own (run.plot); the second,
+    # postproc.enable, is retired (2026-10-11)
+    assert not any('Output maps and plots' in lb for lb in labels), labels
     assert not any('Post-process' in lb for lb in labels), labels
+
+
+def test_the_plots_panel_is_laid_out_by_what_the_figures_are():
+    """User, 2026-10-11: the generic form put checkboxes and numbers side by
+    side in field order. The maps, the time series and water balance and
+    MMsurf, then the time axis; the hydrological year asked ONCE, by month;
+    a refining option under its switch and only while that is on."""
+    at = AppTest.from_file(os.path.join(APP, PLOT), default_timeout=300)
+    at.run()
+    assert not at.exception, [str(e.value) for e in at.exception]
+    said = ' '.join(str(m.value) for m in at.markdown)
+    order = [said.index(s) for s in ('What to draw', '**Maps**',
+                                     '**Time series and water balance**',
+                                     '**MMsurf**', 'Time axis and units')]
+    assert order == sorted(order), said[:400]
+    hy = [w for w in list(at.selectbox) + list(at.number_input)
+          if 'ydrological year' in str(w.label)]
+    assert len(hy) == 1 and hy[0].key == 'postproc.hydro_year_start', \
+        [w.label for w in hy]
+    assert [s for s in at.selectbox if s.key == 'surface.plot'], \
+        'the MMsurf figures are not asked in words'
+    # the Sankey's variants follow its switch
+    keys = {w.key for w in list(at.checkbox) + list(at.number_input)}
+    if [c for c in at.checkbox if c.key == 'postproc.sankey'][0].value:
+        assert {'postproc.sankey_full', 'postproc.sankey_min_flux'} <= keys
+        at.checkbox(key='postproc.sankey').uncheck().run()
+        keys = {w.key for w in list(at.checkbox) + list(at.number_input)}
+    assert 'postproc.sankey_min_flux' not in keys, keys

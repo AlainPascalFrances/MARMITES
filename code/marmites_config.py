@@ -1439,9 +1439,8 @@ class Spinup:
 
 @dataclass
 class Postproc:
-    """Panel 4 -- plotting. Run when ``run.plot`` is true."""
+    """Panel 6 -- plotting. Run when ``run.plot`` is true."""
 
-    enable: bool = False           #                           (--postproc)
     sankey_min_flux: float = 0.05  #                           (--sankey-min-flux)
     sankey_full: bool = True       #                           (--no-sankey-full)
     sankey_obs_years: bool = False  #                          (--sankey-obs-years)
@@ -1589,7 +1588,10 @@ RETIRED = {
                     'not solve was never retried',
             'relax': 'it under-relaxed the iterative coupling, which is gone '
                      '(see run.mode)'},
-    'postproc': {'only': 'a run with Run MMsoil + MODFLOW 6 off and the '
+    'postproc': {'enable': 'the panel\'s switch, run.plot ("Draw the '
+                           'figures"), is the one switch for the figures '
+                           '(user, 2026-10-11): both had to be on',
+                 'only': 'a run with Run MMsoil + MODFLOW 6 off and the '
                          'figures on re-draws the last run (2026-10-10): two '
                          'switches for one thing (user, 2026-10-11)',
                  'preproc': 'postproc.input_maps is the one switch for '
@@ -2246,6 +2248,12 @@ class RunConfig:
                 obj = getattr(obj, p)
             leaf = parts[-1]
             if not hasattr(obj, leaf):
+                # a retired key says what replaced it: an old command line
+                # (postproc.only=true for a re-draw) must not just fail blind
+                why = RETIRED.get('.'.join(parts[:-1]), {}).get(leaf)
+                if why:
+                    raise ConfigError('--set: %s is retired -- %s'
+                                      % (dotted, why))
                 raise ConfigError('--set: no such key %r in %r' % (leaf, dotted))
             old = getattr(obj, leaf)
             setattr(obj, leaf, _coerce_like(old, raw.strip(), dotted))

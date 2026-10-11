@@ -146,7 +146,7 @@ def test_reference_config_loads_and_is_the_canonical_run():
     assert c.seep.kind == 'drn'
     # a working value -- 1e4 and 100 have both been run (2026-10-03)
     assert c.seep.cond > 0.0
-    assert c.postproc.enable is True
+    assert not hasattr(c.postproc, 'enable'), 'run.plot is the switch'
     assert not hasattr(c.postproc, 'preproc'), 'one input-maps switch'
     # The spin-up fields NAME saved state; they are filled and cleared as the
     # grid changes, so that they are strings is the only durable claim.
@@ -432,25 +432,22 @@ def test_one_way_to_redraw_a_run():
     ftt = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(ftt)
     c, _machine, _notes = ftt.convert(['--postproc-only'])
-    assert (c.run.model, c.run.plot, c.postproc.enable) == (False, True, True)
+    assert (c.run.model, c.run.plot) == (False, True)
     import sys
     app = os.path.join(TRUNK, 'app')
     if app not in sys.path:
         sys.path.insert(0, app)
     from lib import schema
     assert 'postproc.only' not in schema.FIELDS
-
-
-def test_the_hydrological_year_is_asked_once():
-    """It was on the Plots panel twice: "Starts in" by month name, and the
-    generic form's bare number for the same field (user, 2026-10-11)."""
-    src = open(os.path.join(TRUNK, 'app', 'pages', '6_6_-_Plots.py'),
-               encoding='utf-8').read()
-    assert "c1.selectbox('Starts in'" in src
-    form = src[src.index("st.markdown('#### What to draw')"):]
-    form = form[:form.index('# MMsurf')]
-    assert "'postproc.hydro_year_start'" in form, \
-        'the generic form must leave the field out'
+    # the old command line stops, and says what to type instead
+    with pytest.raises(cfgmod.ConfigError) as exc:
+        cfgmod.RunConfig.from_dict({}).apply_overrides(
+            ['postproc.only=true'], echo=False)
+    assert 'retired' in str(exc.value) and 'Run MMsoil' in str(exc.value)
+    with pytest.raises(cfgmod.ConfigError) as exc:
+        cfgmod.RunConfig.from_dict({}).apply_overrides(
+            ['postproc.onyl=true'], echo=False)
+    assert 'no such key' in str(exc.value)
 
 
 def test_one_switch_for_the_input_maps():

@@ -1154,10 +1154,10 @@ def _args_from_config(cfg, probe=False):
         save_means=_or_none(cfg.spinup.save_means),
         strt_dem=(list(cfg.spinup.strt_dem) or None),
         # post-processing
-        # BOTH: the panel offers run.plot as the group's switch and
-        # postproc.enable as a field, and each promises to stop the figures.
-        # run.plot was read by nothing, so only one of the two kept its word.
-        postproc=bool(cfg.postproc.enable and cfg.run.plot),
+        # run.plot, the Plots panel's switch, is the one switch for the
+        # figures: postproc.enable was a second one for the same thing, and
+        # both had to be on (retired 2026-10-11)
+        postproc=bool(cfg.run.plot),
         # the input stage: [postproc] input_maps, the one switch for it
         preproc=cfg.postproc.input_maps,
         # set below when run.model is off and the figures are on: the one

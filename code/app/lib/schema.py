@@ -184,7 +184,12 @@ FIELDS = {
                   'forcing -- and, with the figures on, re-draws the last '
                   'run in the workspace without running anything: the way '
                   'to re-draw a finished run.'),
-    'run.plot': ('Draw the figures', _U, 'Post-processing after the run.'),
+    'run.plot': ('Draw the figures', _U,
+                 'Draws the results after the run into _output/ in the run '
+                 'folder: result maps, time series, water-balance Sankeys, '
+                 'calibration criteria, and the comparison with the legacy '
+                 'MODFLOW-NWT run. With Run MMsoil + MODFLOW 6 off, it '
+                 're-draws the last run. The one switch for the figures.'),
     'run.nsp': ('Number of stress periods for test', 'count',
                 '0 runs the whole record. Use a small number to try a change '
                 'before committing to the full run.'),
@@ -917,11 +922,6 @@ FIELDS = {
                                'the legacy parameter file\'s finf_user.'),
 
     # ---- panel 6: plots ------------------------------------------------
-    'postproc.enable': ('Output maps and plots', _U,
-                        'Draws the results after the run into _output/ in '
-                        'the run folder: result maps, time series, water '
-                        'balance Sankeys, calibration criteria, and the '
-                        'comparison with the legacy MODFLOW-NWT run.'),
     'postproc.hydro_year_start': ('Hydrological year starts', 'month',
                                   'Drives the x-axis of every time series, '
                                   'the Sankey year index and the ponds\' '

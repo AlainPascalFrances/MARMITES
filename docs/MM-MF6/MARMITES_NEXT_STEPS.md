@@ -25,7 +25,7 @@ in §3 remains to do; it is kept as the record of how the plotting was built.
 
 Redraw every figure from a run already on disk, no MODFLOW, ~1 min:
 ```
-python code\tests\run_lamata_mf6.py --config code\configs\lamata.toml --set postproc.only=true --run-tag <tag>
+python code\tests\run_lamata_mf6.py --config code\configs\lamata.toml --set run.model=false --set run.plot=true --run-tag <tag>
 ```
 
 Two standing rules, both learned the hard way:
@@ -385,7 +385,7 @@ python code\tests\run_lamata_mf6.py --config code\configs\lamata.toml ^
 Redraw the figures from a run already on disk:
 ```
 python code\tests\run_lamata_mf6.py --config code\configs\lamata.toml ^
-  --set postproc.only=true --run-tag <tag>
+  --set run.model=false --set run.plot=true --run-tag <tag>
 ```
 Translate an old command line: `python code\tools\flags_to_toml.py <old flags>`.
 The resolved configuration is copied into every run folder as
