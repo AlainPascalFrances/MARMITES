@@ -51,8 +51,11 @@ st.markdown('#### What to draw')
 # the INPUTS first, as they are drawn first, then the outputs
 edited.update(panelui.section_form(cfg, 'postproc', columns=3,
                                    only='postproc.input_maps'))
+# the hydrological year is asked once, by month name, above -- the generic
+# form drew it a second time as a bare number (user, 2026-10-11)
 edited.update(panelui.section_form(cfg, 'postproc', columns=3,
-                                   exclude=('postproc.input_maps',)))
+                                   exclude=('postproc.input_maps',
+                                            'postproc.hydro_year_start')))
 
 # MMsurf's own figures are a PLOTTING choice, so they are asked here with the
 # rest of them rather than on panel 2 among the records that feed the run.
@@ -83,7 +86,8 @@ st.markdown('---')
 st.caption('Figures are written into the run folder under the workspace, and '
            'the **Results** panel shows them with a run picker. Turning this '
            'group off leaves the run itself untouched — a finished run can '
-           'always be re-drawn later with `postproc.only`.')
+           'always be re-drawn later: turn **Run MMsoil + MODFLOW 6** '
+           'off with the figures on, and launch.')
 
 # REMEMBERED, not written: the one save is in the sidebar (see panelui).
 panelui.remember(edited)

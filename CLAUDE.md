@@ -69,6 +69,11 @@ never shapefiles. The user asked to be reminded whenever that gets mixed up.
    what to set on which panel and what to expect. Never write into the
    user's run workspace. Move any `out_*buildcheck` folder out of WS_ROOT.
    Small toy MF6 models for probing the API are fine.
+   **Exception (user, 2026-10-11): PEST++ on La Mata.** Its model runs
+   (forward runs, the test run of the setup, the pestpp workers) are
+   allowed, in a SEPARATE PEST workspace -- never WS_ROOT's model
+   workspace, never `code/configs/lamata.toml` (work on copies). Leave the
+   user at least two cores (8 physical, 16 logical on the server).
 2. **The front-end owns the model configuration.** Every model choice is a
    config field that a panel asks, plus the code that honours it. Both land
    together, with help text in `app/lib/schema.py`, validation in

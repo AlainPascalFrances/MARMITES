@@ -48,7 +48,6 @@ _STORE_TRUE = {
     '--sfr': ('sfr', 'enable'),
     '--postproc': ('postproc', 'enable'),
     '--preproc': ('postproc', 'input_maps'),
-    '--postproc-only': ('postproc', 'only'),
     '--sankey-obs-years': ('postproc', 'sankey_obs_years'),
     '--allow-bad-budget': ('run', 'allow_bad_budget'),
     '--probe': ('run', 'probe'),
@@ -90,6 +89,12 @@ def convert(argv):
             if isinstance(getattr(getattr(cfg, sec), key), mcfg.ParamSource):
                 val = mcfg.ParamSource(value=float(val))
             setattr(getattr(cfg, sec), key, val)
+        elif tok == '--postproc-only':
+            # a re-draw: the model off, the figures on (postproc.only is
+            # retired, 2026-10-11)
+            cfg.run.model = False
+            cfg.run.plot = True
+            cfg.postproc.enable = True
         elif tok in _STORE_TRUE:
             sec, key = _STORE_TRUE[tok]
             setattr(getattr(cfg, sec), key, True)
@@ -124,8 +129,6 @@ def convert(argv):
         else:
             notes.append('unrecognised token ignored: %r' % tok)
         i += 1
-    if cfg.postproc.only:
-        cfg.postproc.enable = True
     cfg.validate()
     return cfg, machine, notes
 

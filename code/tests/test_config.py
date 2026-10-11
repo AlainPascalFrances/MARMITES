@@ -418,6 +418,41 @@ def test_a_genuinely_unknown_key_still_raises():
     assert 'uzf_ett' in str(exc.value)
 
 
+def test_one_way_to_redraw_a_run():
+    """User, 2026-10-11: "Output maps and plots only" did what turning Run
+    MMsoil + MODFLOW 6 off with the figures on does. One way now: an old file
+    with postproc.only still loads, and says it was dropped; the legacy
+    --postproc-only flag becomes the model off and the figures on."""
+    cfg = cfgmod.RunConfig.from_dict({'postproc': {'only': True}})
+    assert not hasattr(cfg.postproc, 'only')
+    assert 'postproc.only is gone' in ' '.join(cfg.migrated), cfg.migrated
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        '_flags_to_toml', os.path.join(TRUNK, 'tools', 'flags_to_toml.py'))
+    ftt = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(ftt)
+    c, _machine, _notes = ftt.convert(['--postproc-only'])
+    assert (c.run.model, c.run.plot, c.postproc.enable) == (False, True, True)
+    import sys
+    app = os.path.join(TRUNK, 'app')
+    if app not in sys.path:
+        sys.path.insert(0, app)
+    from lib import schema
+    assert 'postproc.only' not in schema.FIELDS
+
+
+def test_the_hydrological_year_is_asked_once():
+    """It was on the Plots panel twice: "Starts in" by month name, and the
+    generic form's bare number for the same field (user, 2026-10-11)."""
+    src = open(os.path.join(TRUNK, 'app', 'pages', '6_6_-_Plots.py'),
+               encoding='utf-8').read()
+    assert "c1.selectbox('Starts in'" in src
+    form = src[src.index("st.markdown('#### What to draw')"):]
+    form = form[:form.index('# MMsurf')]
+    assert "'postproc.hydro_year_start'" in form, \
+        'the generic form must leave the field out'
+
+
 def test_one_switch_for_the_input_maps():
     """The Plots panel showed "Input maps" twice: postproc.preproc ran the
     input stage and postproc.input_maps the parameter maps inside it, so

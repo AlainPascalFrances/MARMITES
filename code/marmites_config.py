@@ -1442,7 +1442,6 @@ class Postproc:
     """Panel 4 -- plotting. Run when ``run.plot`` is true."""
 
     enable: bool = False           #                           (--postproc)
-    only: bool = False             #                           (--postproc-only)
     sankey_min_flux: float = 0.05  #                           (--sankey-min-flux)
     sankey_full: bool = True       #                           (--no-sankey-full)
     sankey_obs_years: bool = False  #                          (--sankey-obs-years)
@@ -1590,7 +1589,10 @@ RETIRED = {
                     'not solve was never retried',
             'relax': 'it under-relaxed the iterative coupling, which is gone '
                      '(see run.mode)'},
-    'postproc': {'preproc': 'postproc.input_maps is the one switch for '
+    'postproc': {'only': 'a run with Run MMsoil + MODFLOW 6 off and the '
+                         'figures on re-draws the last run (2026-10-10): two '
+                         'switches for one thing (user, 2026-10-11)',
+                 'preproc': 'postproc.input_maps is the one switch for '
                             'the input stage now -- the general map and the '
                             'parameter maps; preproc turned the stage on and '
                             'input_maps the maps in it, both shown as "Input '

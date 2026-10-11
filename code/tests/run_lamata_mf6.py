@@ -1160,7 +1160,9 @@ def _args_from_config(cfg, probe=False):
         postproc=bool(cfg.postproc.enable and cfg.run.plot),
         # the input stage: [postproc] input_maps, the one switch for it
         preproc=cfg.postproc.input_maps,
-        postproc_only=cfg.postproc.only, gis_ws=_or_none(cfg.paths.gis_ws),
+        # set below when run.model is off and the figures are on: the one
+        # way to ask for a re-draw (postproc.only retired, 2026-10-11)
+        postproc_only=False, gis_ws=_or_none(cfg.paths.gis_ws),
         sankey_min_flux=cfg.postproc.sankey_min_flux,
         sankey_full=cfg.postproc.sankey_full,
         sankey_obs_years=cfg.postproc.sankey_obs_years,
@@ -1259,8 +1261,9 @@ def main():
                   'built. Turn it on to run MMsoil + MODFLOW 6.')
             return
         # ... and with the figures ON, the LAST run in the workspace is
-        # re-drawn, as postproc.only does: turning the models off and the
-        # plots on asks for exactly that (user, 2026-10-10), and it used to
+        # re-drawn: turning the models off and the plots on asks for exactly
+        # that (user, 2026-10-10) -- the one way since postproc.only was
+        # retired (2026-10-11) -- and it used to
         # stop here with the figures never drawn. Nothing is run; the figures
         # go to a new results folder (the observation exports and the map
         # cache in the workspace are refreshed, as after any run).
@@ -1299,9 +1302,9 @@ def main():
         # again. Iterating on a figure costs seconds instead of the full run.
         h5_fn = os.path.join(a.ws, MF6Coupler.RESULTS_H5)
         if not os.path.exists(h5_fn):
-            raise SystemExit('re-drawing needs a previous run in this '
-                             'workspace (postproc.only, or run.model off with '
-                             'the figures on): %s not found' % h5_fn)
+            raise SystemExit('re-drawing (run.model off with the figures '
+                             'on) needs a previous run in this workspace: %s '
+                             'not found' % h5_fn)
         with h5py.File(h5_fn, 'r') as f:
             # [()] reads arrays and scalars alike: the run now stores
             # scalars too (nonconverged, iters_kind), which [:] refuses
@@ -1821,7 +1824,7 @@ def main():
 def _run_postproc(a, cMF, ctx, res):
     """Draw every figure for a completed run.
 
-    Shared by the normal path and by --postproc-only, so re-drawing from an
+    Shared by the normal path and by a re-draw (run.model off), so re-drawing from an
     existing run takes exactly the same route as drawing at the end of one.
     """
     # THE OBSERVATION EXPORTS (WP6.4), figures or not: one row per stress

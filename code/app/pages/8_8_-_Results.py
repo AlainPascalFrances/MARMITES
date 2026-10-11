@@ -82,9 +82,11 @@ for sub in ('_output',):
                  if f.lower().endswith('.csv')]
 
 if not pngs:
-    st.warning('No figures in this run folder. Re-draw them without re-running '
-               'the model:\n\n`python code/tests/run_lamata_mf6.py --config '
-               'code/configs/lamata.toml --set postproc.only=true --run-tag %s`'
+    st.warning('No figures in this run folder. Re-draw them without '
+               're-running the model: turn **Run MMsoil + MODFLOW 6** off '
+               'with the figures on, and launch -- or\n\n`python '
+               'code/tests/run_lamata_mf6.py --config code/configs/lamata.toml '
+               '--set run.model=false --set run.plot=true --run-tag %s`'
                % sel.split('_', 2)[-1])
     st.stop()
 
