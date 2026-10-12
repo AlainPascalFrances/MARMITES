@@ -73,16 +73,15 @@ _MM = {
 # aquifer maps (marmites_postprocess._AQ_MAPS and the derived ones)
 _GW = {
     'head': 'mean head', 'Rg': 'recharge to groundwater',
-    'EXFg': 'seepage to the surface', 'DRN': 'boundary drainage',
+    'EXFg': 'exfiltration: seepage + GW->SFR + GW->LAK',
+    'Rsw': 'recharge from the streams and ponds (SFR->GW + LAK->GW)',
+    'DRN': 'boundary drainage',
     'ETg': 'groundwater evapotranspiration',
     'Eg': 'groundwater evaporation (EVT)',
     'Tg': 'groundwater transpiration (EVT)',
     'FLF': 'flow across the lower face of the layer (+ down, - up)',
-    'FUF': 'flow across the upper face of the layer (+ down, - up)',
-    'SFRg': 'exchange with the streams (+ into the aquifer)',
-    'LAKg': 'exchange with the ponds (+ into the aquifer)',
-    'Re': 'effective recharge (Rg - Exf)',
-    'Rn': 'net recharge (Rg - Exf - ETg)',
+    'Re': 'effective recharge (Rg + Rsw - Exf)',
+    'Rn': 'net recharge (Rg + Rsw - Exf - ETg)',
     'dSg': 'release from groundwater storage',
 }
 # stream maps (marmites_postprocess._native_result_maps, SWmap_<stem>)

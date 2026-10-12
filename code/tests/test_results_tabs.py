@@ -78,14 +78,15 @@ def test_the_stream_and_exchange_maps_have_their_tab_and_title():
     q = ('_output', '_sp_plt_SWmap_Q_1_1.png')
     assert R.classify(*q) == 'output'
     assert R.title(*q) == 'Streams: mean streamflow (log10 of 1 + Q, Q in m3/d)'
-    for stem, words in (('FUF', 'upper face'), ('FLF', 'lower face'),
-                        ('SFRg', 'streams'), ('LAKg', 'ponds')):
+    for stem, words in (('FLF', 'lower face'), ('Rsw', 'streams and ponds'),
+                        ('EXFg', 'GW->SFR + GW->LAK')):
         t = R.title('_output', '_sp_plt_GWmap_%s_1_1.png' % stem)
         assert t.startswith('Aquifer: ') and words in t, t
+    # the streams and ponds in the recharge (user, 2026-10-12)
     assert R.title('_output', '_sp_plt_GWmap_Re_1_1.png') == \
-        'Aquifer: effective recharge (Rg - Exf)'
+        'Aquifer: effective recharge (Rg + Rsw - Exf)'
     assert R.title('_output', '_sp_plt_GWmap_Rn_1_1.png') == \
-        'Aquifer: net recharge (Rg - Exf - ETg)'
+        'Aquifer: net recharge (Rg + Rsw - Exf - ETg)'
     order = R.arrange([('_output', '_sp_plt_SWmap_Q_1_1.png', 'q.png'),
                        ('_output', '_sp_plt_GWmap_Rg_1_1.png', 'rg.png'),
                        ('_output', '_sp_plt_MMmap_Ro_1_1.png', 'ro.png')])

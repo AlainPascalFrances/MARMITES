@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""The maps added on 2026-10-10 (user): the streamflow along the network,
-the exchange with the streams and the ponds, and the flow across the UPPER
-face of each layer -- the companion of FLF, so the valley's upward flow can
-be followed out of the aquifer."""
+"""The maps added on 2026-10-10 (user): the streamflow along the network
+and the exchange with the streams and the ponds -- since 2026-10-12 inside
+the recharge maps: Rsw (the beds' leakage in), Exf (seepage + GW->SFR +
+GW->LAK), Re = Rg + Rsw - Exf, Rn = Re - ETg."""
 import os
 import shutil
 import sys
@@ -20,23 +20,42 @@ for _p in (CODE, os.path.join(CODE, 'ppMF6')):
 import marmites_postprocess as PP                    # noqa: E402
 
 
-def test_the_upper_face_of_layer_1_is_the_net_exchange_at_the_top():
-    """+ into the aquifer: recharge in, seepage / ET / a gaining stream out;
-    layer 2's upper face is layer 1's lower face, plus what is attached to
-    layer 2 itself (an outcrop cell, where layer 1 is absent)."""
-    nlay, n = 2, 3
+def test_the_recharge_maps_put_the_streams_and_ponds_in():
+    """User, 2026-10-12: MF6 hands the valley's groundwater to SFR and LAK
+    directly. Rsw = the beds' leakage in; Exf = seepage + GW->SFR + GW->LAK
+    (the OUTFLOW parts, kept apart from the inflow cell by cell); Re = Rg +
+    Rsw - Exf; Rn = Re - ETg. Lateral drains and pumping are not in them."""
+    nlay, n = 1, 3
     z = np.zeros((nlay, n))
-    maps = {'UZF-GWRCH': z + [[2.0, 0.0, 1.0], [0.0, 0.0, 0.5]],
-            'DRN_SEEP': z + [[-0.5, 0.0, 0.0], [0.0, 0.0, 0.0]],
-            'EVT_EG': z + [[-0.2, -0.1, 0.0], [0.0, 0.0, -0.1]],
-            'SFR': z + [[0.0, -3.0, 0.0], [0.0, 0.0, 0.0]],
-            'DRN': z + [[-9.0, -9.0, -9.0], [-9.0, -9.0, -9.0]],   # lateral
-            'WEL': z + [[-7.0, 0.0, 0.0], [0.0, 0.0, 0.0]],       # pumping
-            'FLF': z + [[1.0, -2.5, 0.0], [0.0, 0.0, 0.0]]}
-    fuf = PP.upper_face_flow(maps, nlay)
-    assert np.allclose(fuf[0], [1.3, -3.1, 1.0])
-    assert np.allclose(fuf[1], [1.0, -2.5, 0.4])
-    assert PP.upper_face_flow({'DRN': z}, nlay) is None
+    maps = {'UZF-GWRCH': z + [[2.0, 0.0, 1.0]],
+            'DRN_SEEP': z + [[-0.5, 0.0, 0.0]],
+            'EVT_EG': z + [[-0.2, -0.1, 0.0]],
+            'EVT_TG': z + [[-0.1, 0.0, 0.0]],
+            # cell 2: a stream gaining 3.0 overall, losing 0.5 at times
+            'SFR': z + [[0.0, -2.5, 0.0]], 'SFR_IN': z + [[0.0, 0.5, 0.0]],
+            'SFR_OUT': z + [[0.0, -3.0, 0.0]],
+            'LAK': z + [[0.0, 0.0, 0.4]], 'LAK_IN': z + [[0.0, 0.0, 0.4]],
+            'LAK_OUT': z,
+            'DRN': z + [[-9.0, -9.0, -9.0]]}                   # lateral
+    rm = PP.recharge_maps(maps, nlay)
+    assert np.allclose(rm['Rsw'], [[0.0, 0.5, 0.4]])
+    assert np.allclose(rm['EXFg'], [[0.5, 3.0, 0.0]])
+    assert np.allclose(rm['Re'], [[1.5, -2.5, 1.4]])
+    assert np.allclose(rm['Rn'], [[1.2, -2.6, 1.4]])
+    # Re is the net exchange at the top, whatever the split
+    top = sum(np.asarray(maps[k]) for k in ('UZF-GWRCH', 'DRN_SEEP', 'SFR',
+                                           'LAK'))
+    assert np.allclose(rm['Re'], top)
+    # a digest made before the split: the cell's net, clipped
+    old = {k: v for k, v in maps.items() if not k.endswith(('_IN', '_OUT'))}
+    rm = PP.recharge_maps(old, nlay)
+    assert np.allclose(rm['EXFg'], [[0.5, 2.5, 0.0]])
+    assert np.allclose(rm['Re'], [[1.5, -2.5, 1.4]])
+    assert PP.recharge_maps({'DRN': z}, nlay) == {}
+    stems = [s for s, _l, _g in PP.RECHARGE_MAPS]
+    assert stems == ['Rsw', 'EXFg', 'Re', 'Rn']
+    assert not hasattr(PP, 'upper_face_flow'), 'the upper-face map is in Rn'
+    assert 'SFR' not in [k for k, *_ in PP._AQ_MAPS], 'SFRg is in Rsw/Exf' 
 
 
 def _mf6_exe():
@@ -101,18 +120,17 @@ def test_no_sfr_budget_no_streamflow(tmp_path):
     assert PP.sfr_reach_flows(str(tmp_path), 'none') is None
 
 
-def test_layer_2s_upper_face_is_layer_1s_lower_face(stream_run):
-    """On a real MF6 budget: nothing attached to layer 2 but a CHD, so what
-    crosses its top is exactly what leaves layer 1 at the bottom."""
+def test_the_map_pass_keeps_the_stream_inflow_and_outflow_apart(
+        stream_run):
+    """On a real MF6 budget: SFR = SFR_IN + SFR_OUT, the parts signed as
+    MODFLOW's IN and OUT (+ into the aquifer)."""
     ws, name, nlay, nrow, ncol = stream_run
     cMF = SimpleNamespace(nlay=nlay, nrow=nrow, ncol=ncol)
     maps = PP._aquifer_map_pass(ws, name, cMF, 2, cache_dir=None,
                                 verbose=False)
-    assert 'FLF' in maps and 'SFR' in maps
-    fuf = PP.upper_face_flow(maps, nlay)
-    flf = np.asarray(maps['FLF']).reshape(nlay, -1)
-    assert np.allclose(fuf[1], flf[0])
-    assert np.allclose(fuf[0], np.asarray(maps['SFR']).reshape(nlay, -1)[0])
+    assert {'SFR', 'SFR_IN', 'SFR_OUT'} <= set(maps)
+    assert np.all(maps['SFR_IN'] >= 0.0) and np.all(maps['SFR_OUT'] <= 0.0)
+    assert np.allclose(maps['SFR'], maps['SFR_IN'] + maps['SFR_OUT'])
 
 
 def _pwb():

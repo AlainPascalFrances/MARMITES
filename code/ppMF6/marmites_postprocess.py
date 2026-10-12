@@ -3269,7 +3269,8 @@ def _aquifer_map_pass(sim_ws, name, cMF, nper, cache_dir=None, verbose=True):
     nlay, nrow, ncol = int(cMF.nlay), int(cMF.nrow), int(cMF.ncol)
     cbc_fn = os.path.join(sim_ws, '%s.cbc' % name)
     st = os.stat(cbc_fn)
-    sig = 'map_p2_%d_%d_%d' % (st.st_size, int(st.st_mtime), nper)
+    # p3: SFR and LAK carry their inflow and outflow parts (_IN, _OUT)
+    sig = 'map_p3_%d_%d_%d' % (st.st_size, int(st.st_mtime), nper)
     cache_fn = os.path.join(cache_dir, '_aquifer_maps.npz') if cache_dir else None
     if cache_fn and os.path.exists(cache_fn):
         try:
@@ -3294,16 +3295,29 @@ def _aquifer_map_pass(sim_ws, name, cMF, nper, cache_dir=None, verbose=True):
     for key, text, pak2 in _AQ_RECORDS:
         if text not in recs:
             continue
-        acc = np.zeros((nlay, nrow, ncol))
+        shape = (nlay, nrow, ncol)
+        acc = np.zeros(shape)
+        # the streams and the ponds exchange both ways: their inflow and
+        # outflow parts are kept apart, step by step and cell by cell, as
+        # the budget's IN and OUT are -- a cell losing in winter and gaining
+        # in summer would otherwise cancel out of the exfiltration map
+        split = key in _AQ_SPLIT
+        acc_in, acc_out = np.zeros(shape), np.zeros(shape)
         n = 0
+
+        def add(a, w):
+            a = np.ma.filled(np.asarray(a, float), 0.0).reshape(shape)
+            acc[...] += w * a
+            if split:
+                acc_in[...] += w * np.maximum(a, 0.0)
+                acc_out[...] += w * np.minimum(a, 0.0)
         try:
             data = cbc.get_data(text=text, paknam2=pak2, full3D=True)
             if not data or len(data) < len(kk):
                 continue
             for grp in pgroups:
                 for r, w in grp:
-                    acc += w * np.ma.filled(np.asarray(data[r], float),
-                                            0.0).reshape(nlay, nrow, ncol)
+                    add(data[r], w)
                 n += 1
             del data
         except MemoryError:                          # pragma: no cover
@@ -3312,11 +3326,13 @@ def _aquifer_map_pass(sim_ws, name, cMF, nper, cache_dir=None, verbose=True):
                     d = cbc.get_data(text=text, paknam2=pak2,
                                      kstpkper=kk[r], full3D=True)
                     if d:
-                        acc += w * np.ma.filled(np.asarray(d[0], float),
-                                                0.0).reshape(nlay, nrow, ncol)
+                        add(d[0], w)
                 n += 1
         if n:
             out[key] = acc / n
+            if split:
+                out[key + '_IN'] = acc_in / n
+                out[key + '_OUT'] = acc_out / n
     # vertical exchange, via the same precomputed JA index the Sankey uses
     grb = _grb_path(sim_ws, name)
     if nlay > 1 and 'FLOW-JA-FACE' in recs and os.path.exists(grb):
@@ -3352,43 +3368,69 @@ def _aquifer_map_pass(sim_ws, name, cMF, nper, cache_dir=None, verbose=True):
 # aquifer) so the map shows a positive magnitude.
 _AQ_MAPS = (
     ('UZF-GWRCH', 'Rg', 'recharge to groundwater', +1.0),
-    ('DRN_SEEP', 'EXFg', 'seepage to the surface', -1.0),
     ('DRN', 'DRN', 'boundary drainage', -1.0),
     ('WEL', 'ETg', 'groundwater ET', -1.0),
     ('EVT_EG', 'Eg', 'groundwater evaporation (EVT)', -1.0),
     ('EVT_TG', 'Tg', 'groundwater transpiration (EVT)', -1.0),
     # + downward, into the layer below; - upward, from it (flopy's sign)
     ('FLF', 'FLF', 'flow across the lower face (+ down, - up)', +1.0),
-    # the streams and the ponds exchange with their cells directly, both
-    # ways: where the valley's upward flow (FLF < 0) leaves the aquifer
-    ('SFR', 'SFRg', 'exchange with the streams (+ into the aquifer)', +1.0),
-    ('LAK', 'LAKg', 'exchange with the ponds (+ into the aquifer)', +1.0),
 )
 
-# what crosses the top of the aquifer: recharge, seepage, groundwater ET, the
-# streams and the ponds (+ into the aquifer, MODFLOW's sign). The boundary
-# drains and the GHB are lateral; a WEL is pumping (since 2026-10-07).
-_UPPER_FACE = ('UZF-GWRCH', 'DRN_SEEP', 'EVT_EG', 'EVT_TG', 'SFR', 'LAK')
+# the records whose inflow and outflow parts the map pass keeps apart
+_AQ_SPLIT = ('SFR', 'LAK')
+
+# The recharge maps with the streams and the ponds IN (user, 2026-10-12).
+# MF6 hands the valley's groundwater to SFR and LAK directly, so the NWT
+# terms alone -- Rg - Exf - ETg, with Exf the seepage -- counted as recharge
+# the baseflow that comes straight back out (63 of La Mata's 67 mm/yr):
+#     Rsw = SFR->GW + LAK->GW            the beds' leakage into the aquifer
+#     Exf = seepage + GW->SFR + GW->LAK  all groundwater back at the surface
+#     Re  = Rg + Rsw - Exf               effective recharge
+#     Rn  = Re - ETg                     net recharge
+# Over the catchment Rn is then exactly the boundary drainage plus the
+# storage gain, and it is the like-for-like with the NWT run's Rn (no
+# streams there: its seepage held the baseflow). Rg is UZF's alone. The
+# figures used to show the upper-face flow (= Rn in layer 1, FLF in layer
+# 2) and the net SFRg / LAKg exchange; those are in these now.
+RECHARGE_MAPS = (
+    ('Rsw', 'recharge from the streams and ponds (SFR->GW + LAK->GW)', +1),
+    ('EXFg', 'exfiltration: seepage + GW->SFR + GW->LAK', -1),
+    ('Re', 'effective recharge (Rg + Rsw - Exf)', 0),
+    ('Rn', 'net recharge (Rg + Rsw - Exf - ETg)', 0),
+)
 
 
-def upper_face_flow(maps, nlay):
-    """Flow across the UPPER face of each layer, ``(nlay, ncells)`` m3/d,
-    + down into the layer, - up out of it -- the companion of FLF (user,
-    2026-10-10).
+def _part(maps, key, sign, nlay):
+    """The inflow (sign +1) or outflow (-1) part of a split record; from a
+    net-only digest (made before the split) the cell's net, clipped."""
+    k = key + ('_IN' if sign > 0 else '_OUT')
+    if k in maps:
+        return np.asarray(maps[k], float).reshape(nlay, -1)
+    if key in maps:
+        v = np.asarray(maps[key], float).reshape(nlay, -1)
+        return np.maximum(v, 0.0) if sign > 0 else np.minimum(v, 0.0)
+    return 0.0
 
-    For layer 1 it is the net exchange at the top: the _UPPER_FACE records.
-    For a lower layer, the flow from the layer above (that layer's FLF, + down)
-    plus what those packages attach to its own cells, where the layer above
-    is absent or unsaturated. None when ``maps`` holds none of them.
-    """
-    keys = [k for k in _UPPER_FACE if k in maps]
-    if not keys:
-        return None
-    fuf = sum(np.asarray(maps[k], float).reshape(nlay, -1) for k in keys)
-    fuf = np.array(fuf, dtype=float)
-    if 'FLF' in maps and nlay > 1:
-        fuf[1:] += np.asarray(maps['FLF'], float).reshape(nlay, -1)[:-1]
-    return fuf
+
+def recharge_maps(maps, nlay):
+    """The terms of RECHARGE_MAPS, ``{stem: (nlay, ncells)}`` m3/d: Rsw and
+    EXFg as the positive amounts their maps show, Re and Rn signed (+ into
+    the aquifer). Empty without UZF recharge."""
+    if 'UZF-GWRCH' not in maps:
+        return {}
+
+    def rec(k):
+        return (np.asarray(maps[k], float).reshape(nlay, -1) if k in maps
+                else 0.0)
+    rg = rec('UZF-GWRCH')
+    rsw = _part(maps, 'SFR', +1, nlay) + _part(maps, 'LAK', +1, nlay)
+    exf = -(rec('DRN_SEEP') + _part(maps, 'SFR', -1, nlay)
+            + _part(maps, 'LAK', -1, nlay))
+    etg = -(rec('WEL') + rec('EVT_EG') + rec('EVT_TG'))
+    full = np.zeros_like(rg)
+    re = rg + rsw - exf
+    return {'Rsw': full + rsw, 'EXFg': full + exf, 'Re': re,
+            'Rn': re - etg}
 
 
 def _head_levels(lo, hi, n=15):
@@ -3589,32 +3631,18 @@ def _native_result_maps(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
              * to_mm[None, :, :])[None, :, :, :]
         draw(V, stem, cblbl, 'mm/d', m3,
              cmap=cmap_out if sgn < 0 else cmap_in)
-    # Effective and net recharge, as the legacy driver derived them
-    # (startMARMITES_v3.py ~2433-2462), with Exf and ETg as the positive
-    # amounts their own maps show:
-    #     Re = Rg - Exf          gross recharge net of exfiltration
-    #     Rn = Re - ETg          ... and net of groundwater ET
-    # The cbc already reports EXF and ETg negative (water leaving the
-    # aquifer), so these are plain sums of the RAW records -- not the
-    # sign-flipped magnitudes used for their individual maps. Both are signed
-    # fields, so plotLAYER draws them with the remapped coolwarm_r ramp.
-    if 'UZF-GWRCH' in maps:
-        re = np.asarray(maps['UZF-GWRCH'], float).copy()
-        if 'DRN_SEEP' in maps:
-            re += np.asarray(maps['DRN_SEEP'], float)
-        re = DA.lay(re.reshape(nlay, -1))
-        draw((re * to_mm[None, :, :])[None, :, :, :],
-             'Re', 'effective recharge (Rg - Exf)', 'mm/d', m3)
-        if 'WEL' in maps or 'EVT_EG' in maps:
-            et = sum(np.asarray(maps[k], float) for k in
-                     ('WEL', 'EVT_EG', 'EVT_TG') if k in maps)
-            rn = re + DA.lay(np.asarray(et, float).reshape(nlay, -1))
-            draw((rn * to_mm[None, :, :])[None, :, :, :],
-                 'Rn', 'net recharge (Rg - Exf - ETg)', 'mm/d', m3)
-    fuf = upper_face_flow(maps, nlay)
-    if fuf is not None:
-        draw((DA.lay(fuf) * to_mm[None, :, :])[None, :, :, :],
-             'FUF', 'flow across the upper face (+ down, - up)', 'mm/d', m3)
+    # the recharge maps with the streams and ponds in (RECHARGE_MAPS): Rsw
+    # and Exf as amounts, Re and Rn signed (the remapped coolwarm_r ramp)
+    rm = recharge_maps(maps, nlay)
+    for stem, cblbl, sgn in RECHARGE_MAPS:
+        if stem not in rm:
+            continue
+        V = (DA.lay(rm[stem]) * to_mm[None, :, :])[None, :, :, :]
+        if sgn:
+            draw(V, stem, cblbl, 'mm/d', m3,
+                 cmap=cmap_out if sgn < 0 else cmap_in)
+        else:
+            draw(V, stem, cblbl, 'mm/d', m3)
     # The streams themselves: each reach's mean streamflow on its cell (the
     # largest where a cell holds two), as log10(1 + Q) -- from a trickle to
     # the outlet's thousands of m3/d, and never negative: log10 Q of a

@@ -1525,3 +1525,42 @@ exceeded 0.1 mm would keep 94 % of it, and 1 mm 81 %.
   outer_dvclose 0.001.
 - A depth threshold remains the option if the stream evaporation matters
   for calibration.
+
+## 8.24 The recharge maps with the streams and ponds in (2026-10-12)
+
+The NWT maps defined Re = Rg - Exf and Rn = Re - ETg, with Exf the seepage
+at the surface. In NWT there were no SFR or LAK packages, so that seepage
+held the baseflow too. In MF6 the aquifer hands its groundwater to SFR and
+LAK directly, so the old definitions counted the baseflow as recharge. The
+user asked to put the streams and ponds in:
+
+    Rsw = SFR->GW + LAK->GW            the beds' leakage into the aquifer
+    Exf = seepage + GW->SFR + GW->LAK  all groundwater back at the surface
+    Re  = Rg + Rsw - Exf
+    Rn  = Re - ETg
+
+Rg is UZF's recharge to the water table alone.
+
+On the run `2lay_fullperiod_numba` (catchment, mm/yr):
+
+| | Rg | Rsw | Exf | ETg | Re | Rn |
+|---|---|---|---|---|---|---|
+| before (NWT terms) | 111.4 | -- | 13.3 | 31.1 | 98.1 | 67.0 |
+| now | 111.4 | 7.7 | 83.8 | 31.1 | 35.3 | 4.2 |
+
+- The new Rn closes the aquifer balance: 4.2 mm/yr is the boundary
+  drainage (0.4) plus the storage gain (3.9). The old 67 mm/yr counted 63
+  mm/yr of baseflow as recharge.
+- It is also the like-for-like with the NWT run's Rn, as the budget
+  table's `EXFg+GWsw` row already is.
+
+On the maps:
+- The aquifer exfiltration map (`GWmap_EXFg`) shows Exf. The map pass keeps
+  the SFR and LAK inflow and outflow parts apart (`SFR_IN`/`SFR_OUT`), step
+  by step, as the budget's IN and OUT do.
+- The soil column's `MMmap_EXFg` is unchanged: streams and ponds never feed
+  the soil column.
+- New map: Rsw.
+- Removed: the upper-face map (FUF), which equals Rn in layer 1 and the
+  lower-face map FLF in layer 2; and the net SFRg/LAKg maps, now inside
+  Rsw and Exf.
