@@ -411,7 +411,8 @@ def step_pst(org, pest_ws, nreal, python=None):
     pst.pestpp_options.update({
         'ies_num_reals': int(nreal), 'ies_parameter_ensemble': 'prior_pe.jcb',
         'ies_autoadaloc': True, 'ies_bad_phi_sigma': 2.5,
-        'ies_lambda_mults': '0.1,1.0,10.0', 'lambda_scale_fac': '0.75,1.0',
+        # three trial upgrades an iteration (0.75 as well doubled them)
+        'ies_lambda_mults': '0.1,1.0,10.0', 'lambda_scale_fac': '1.0',
         'ies_save_rescov': False, 'save_binary': True,
         'overdue_giveup_fac': 2.0, 'max_run_fail': 1,
         'panther_agent_freeze_on_fail': False})

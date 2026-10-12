@@ -321,3 +321,21 @@ alone. Report: `PEST\master\report_0\` (`pest_lamata_report.py`).
 - **The pilot:** `--noptmax 2`, restarting from this Monte Carlo's
   observation ensemble (no prior runs again): ~42 runs an iteration (30
   realisations + the lambda subset), ~14 h for two iterations at 6 workers.
+
+### Decided (user, 2026-10-12) and launched
+
+- **C1–C5, W1 are soft data:** each weighs 25 % of a measured P0 head
+  (weight 0.48 against 1.94; noise 0.4 m against 0.1). P0 takes the heads'
+  whole 35 %. The soft group's initial phi is then 6.5: the base already
+  sits within about half a metre of those levels.
+- **ET stays at 10 %, effectively validation;** no vegetation parameter
+  varies.
+- **`sfr_rhk` ≤ 0.5 m/d; `uzf_eps` starts at 4.5, `crr_beta` at 0.95;
+  `overdue_giveup_fac` 2.0; `lambda_scale_fac` 1.0** (three trial upgrades
+  an iteration).
+- **The pilot was launched 2026-10-12 10:38** (`--noptmax 2`, 6 agents). It
+  draws a FRESH prior of 30: restarting from the Monte Carlo would have kept
+  that prior's eps/beta draws on their bounds and three realisations above
+  the new rhk cap. Expected about 20 h: 31 prior runs, then per iteration
+  12 trial runs on the 4-realisation subset plus 26 updates.
+- The Monte Carlo's results are kept in `PEST\master_prior_mc`.
