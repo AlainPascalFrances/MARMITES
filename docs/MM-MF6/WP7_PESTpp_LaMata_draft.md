@@ -261,3 +261,63 @@ After each iteration, check:
 
 **Starting on a bound:** `uzf_eps` (3.5, MF6's minimum) and `crr_beta`
 (1.0) start on a bound, so half of their prior draws sit on it.
+
+---
+
+## 6. The prior Monte Carlo (night of 2026-10-11/12)
+
+`pest_lamata_run.py --workers 6 --noptmax -1`: 29 prior realisations plus
+the base, 6 agents, **5.6 h**. A run took 53–64 min with six at once, 40
+alone. Report: `PEST\master\report_0\` (`pest_lamata_report.py`).
+
+- **28 ran, 2 failed: exactly the two realisations whose streambed K was
+  clipped at its upper bound, 1.0 m/d.** Run 21 was killed as overdue
+  (95 min against a 64-min average); run 11 failed after 82 min. Every
+  realisation with rhk ≤ 0.65 m/d ran in normal time.
+- **Phi:** base 10000 (the balanced shares); prior 8981–30416, mean 14162.
+  Several realisations already beat the base.
+
+| group | prior phi min–max | |
+|---|---|---|
+| hds_c (C1–C5, W1) | 1278–21206 | very sensitive to K and Sy |
+| hds_p0 | 652–3157 | sensitive |
+| sm_sm, sm_p0 | 1284–3729, 1638–2674 | moderate |
+| q_year | 320–795 | moderate |
+| q_log | 1403–1825 | weak |
+| **et_rs (MODIS)** | **944–1125** | **almost insensitive** |
+
+- **On a bound in the prior:** `uzf_eps` 64 % (it starts at MF6's minimum
+  3.5), `crr_beta` 57 % (it starts at 1.0), `drn` 5 %.
+
+### What the Monte Carlo shows
+
+1. **The C1–C5 heads are not measurements.** Each well repeats exactly
+   base + (0, +1.5, +2.0, +1.0 m) in Oct/Jan/Apr/Jul, identically every
+   year from 2007 to 2012, and W1 is a constant 779.7 m. As drafted they
+   carry half of the heads' share of phi (17.5 %) as if they were data.
+2. **The ET group cannot be fitted with these parameters.** The model
+   follows MODIS's seasons but misses the spring peaks (MODIS 17–27 mm per
+   composite, the model 10–15), and the prior barely moves it. What
+   controls ET (transpiration demand, phenology, the Tg coefficients,
+   rooting) is fixed.
+3. **`sfr_rhk` at 1.0 m/d makes the model slow, not wrong.** Realisation
+   11 rerun alone (scratch) completes: 64 min against 40, 63 linear
+   iterations a day against 39, 2 ATS sub-steps. Six at once, that passes
+   PEST's overdue limit. Its phi, 10892, is no better than the base.
+4. **`overdue_giveup_fac 1.5`** kills slow but valid runs when six run at
+   once.
+
+### Proposed before the pilot IES (for the user's decision)
+
+- **C1–C5, W1:** one target per well, its mean level (level information,
+  not a time series), or drop them; the heads' share stays with P0.
+- **ET:** add the parameters that move it, or keep the 10 % and accept a
+  structural misfit, or compare seasonal sums rather than 8-day
+  composites.
+- **`sfr_rhk`:** upper bound 0.5 m/d.
+- **`uzf_eps` starts at 4.5, `crr_beta` at 0.95:** inside their ranges, so
+  the prior no longer piles on a bound.
+- **`overdue_giveup_fac 2.0`.**
+- **The pilot:** `--noptmax 2`, restarting from this Monte Carlo's
+  observation ensemble (no prior runs again): ~42 runs an iteration (30
+  realisations + the lambda subset), ~14 h for two iterations at 6 workers.
