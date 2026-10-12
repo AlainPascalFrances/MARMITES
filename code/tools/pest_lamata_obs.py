@@ -13,8 +13,10 @@ instruction file.
 
 Groups (docs/MM-MF6/WP7_PESTpp_LaMata_draft.md, decisions of 2026-10-11):
 
-    hds_p0   P0's head, near-daily                     (heads 35 %, half)
-    hds_c    C1..C5, W1 heads, quarterly               (heads 35 %, half)
+    hds_p0   P0's head, near-daily, measured           (heads 35 %)
+    hds_c    C1..C5, W1 heads, quarterly: SOFT data, a synthetic annual
+             cycle and a constant -- each weighs 25 % of a P0 head
+             (user, 2026-10-12), whatever share of phi that gives
     sm_p0    P0's soil moisture, 2 horizons             (sm 35 %, half)
     sm_sm    SM's soil moisture, 2 horizons             (sm 35 %, half)
     q_log    outlet flow, log10(Q + 0.01 mm/d), daily   (flow 20 %: 15)
@@ -35,13 +37,17 @@ import numpy as np
 __all__ = ['GROUP_SHARE', 'NOISE', 'build_targets', 'collect',
            'phi_by_group', 'balance_weights']
 
-# share of the initial phi per group (the user's 35/35/20/10, split)
-GROUP_SHARE = {'hds_p0': 0.175, 'hds_c': 0.175, 'sm_p0': 0.175,
+# share of the initial phi per group (the user's 35/35/20/10, split);
+# the soft data (SOFT) take no share of their own
+GROUP_SHARE = {'hds_p0': 0.35, 'hds_c': 0.0, 'sm_p0': 0.175,
                'sm_sm': 0.175, 'q_log': 0.15, 'q_year': 0.05, 'et_rs': 0.10,
                'et_ec': 0.0}
+# soft data: weighted at a fraction of a measured group's weight per
+# observation (user, 2026-10-12: at most 25 % of the measured heads')
+SOFT = {'hds_c': ('hds_p0', 0.25)}
 # measurement noise (standard deviation) per group: absolute, or 'rel' x
 # the observed value with a floor
-NOISE = {'hds_p0': 0.1, 'hds_c': 0.1, 'sm_p0': 0.01, 'sm_sm': 0.01,
+NOISE = {'hds_p0': 0.1, 'hds_c': 0.4, 'sm_p0': 0.01, 'sm_sm': 0.01,
          'q_log': 0.1, 'q_year': ('rel', 0.10, 1.0),
          'et_rs': ('rel', 0.20, 1.0), 'et_ec': ('rel', 0.20, 0.1)}
 Q_EPS = 0.01                 # mm/d, so a dry day has a finite log
@@ -75,10 +81,11 @@ def build_targets(exports_dir, calib_start, modis=None, ec=None,
     def add(name, group, kind, key, obs, date):
         if obs is None or not np.isfinite(obs):
             return
+        fitted = GROUP_SHARE[group] > 0 or group in SOFT
         rows.append({'obsnme': name, 'obgnme': group, 'kind': kind,
                      'key': key, 'obsval': float(obs),
                      'weight': 1.0 if (pd.Timestamp(date) >= cs
-                                       and GROUP_SHARE[group] > 0) else 0.0,
+                                       and fitted) else 0.0,
                      'standard_deviation': _sd(group, obs)})
 
     h = pd.read_csv(os.path.join(exports_dir, 'obs_heads.csv'))
@@ -203,6 +210,8 @@ def balance_weights(targets, sim, total=1.0e4):
     r = targets['obsval'].to_numpy() - sim['value'].to_numpy()
     g = targets['obgnme'].to_numpy()
     for grp, share in GROUP_SHARE.items():
+        if grp in SOFT:
+            continue
         m = (g == grp) & (w > 0)
         if not m.any() or share <= 0:
             w[g == grp] = 0.0
@@ -211,4 +220,10 @@ def balance_weights(targets, sim, total=1.0e4):
         if phi <= 0:
             continue
         w[m] *= np.sqrt(share * total / phi)
+    # soft data: a fraction of the measured group's weight per observation
+    for grp, (ref, frac) in SOFT.items():
+        m = (g == grp) & (w > 0)
+        mr = (g == ref) & (w > 0)
+        if m.any():
+            w[m] = frac * (float(np.median(w[mr])) if mr.any() else 0.0)
     return w

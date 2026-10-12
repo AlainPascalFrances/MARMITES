@@ -102,6 +102,12 @@ def _obs_table_with(path, names=('C4', 'C5', 'W1')):
     return on
 
 
+# starting values that differ from the configuration's: inside their
+# ranges, so the prior does not pile on a bound (64 % and 57 % of the first
+# prior's draws sat on MF6's eps minimum and on beta = 1; user, 2026-10-12)
+PRIOR_START = {'uzf_eps': 4.5, 'crr_beta': 0.95}
+
+
 def scalar_table(cfg):
     """The scalar parameters and their starting values, as the forward run
     reads them (pest_lamata_forward.apply_scalars)."""
@@ -119,6 +125,7 @@ def scalar_table(cfg):
         rows.append(('ss_l%d' % (L + 1), 1.0))
     for L in range(cfg.layers.nlay):
         rows.append(('drn_l%d' % (L + 1), 1.0))
+    rows = [(n, PRIOR_START.get(n, v)) for n, v in rows]
     return pd.DataFrame(rows, columns=['name', 'value'])
 
 
@@ -129,7 +136,9 @@ def scalar_bounds(name, value):
         return 'none', max(value - 0.10, 0.01), min(value + 0.10, 0.99)
     if name.startswith('ks_h'):
         return 'log', value * 0.1, value * 10.0
-    return {'sfr_rhk': ('log', 0.001, 1.0),
+    # streambed K: at 1 m/d the model crawls (64 min alone, 63 linear
+    # iterations a day) and no better a fit -- capped at 0.5 (2026-10-12)
+    return {'sfr_rhk': ('log', 0.001, 0.5),
             'lak_bedleak': ('log', 1.0e-4, 1.0e-2),
             'uzf_eps': ('none', 3.5, 8.0),
             'uzf_vks': ('log', 0.2, 5.0),
@@ -254,6 +263,42 @@ def _write_unit_mults(org, nlay):
 
 # ----------------------------------------------------------------- base
 
+def step_targets(org, calib_start=CALIB_START):
+    """The targets and their weights again, from the base run's exports
+    kept in org/base_exports -- no model run; the scalar files take the
+    current starting values (PRIOR_START)."""
+    import pandas as pd
+    import marmites_config as mcfg
+    import pest_lamata_forward as pf
+    import pest_lamata_obs as po
+    ex = os.path.join(org, 'base_exports')
+    if not os.path.isdir(ex):
+        raise SystemExit('no base exports in %s: run --step base' % org)
+    cfg = mcfg.load_run_config(os.path.join(org, 'pest_lamata.toml'))
+    shutil.rmtree(os.path.join(org, pf.PARS), ignore_errors=True)
+    pf.write_scalars(org, scalar_table(cfg))
+    modis = pd.read_csv(os.path.join(org, 'modis_et_catchment.csv'))
+    ec = pd.read_csv(os.path.join(org, 'ec_et.csv'))
+    tg = po.build_targets(ex, calib_start, modis=modis, ec=ec)
+    sim = po.collect(ex, tg)
+    tg['weight'] = po.balance_weights(tg, sim)
+    tg.to_csv(os.path.join(org, pf.TARGETS), index=False,
+              float_format='%.10g')
+    sim.to_csv(os.path.join(org, pf.OBS_OUT), index=False,
+               float_format='%.10g')
+    _report_targets(tg, sim)
+    return tg
+
+
+def _report_targets(tg, sim):
+    rep = tg.assign(sim=sim['value'].to_numpy())
+    rep['wres2'] = ((rep['obsval'] - rep['sim']) * rep['weight']) ** 2
+    print('targets: %d, fitted %d' % (len(tg), int((tg['weight'] > 0).sum())))
+    print(rep.groupby('obgnme').agg(
+        n=('obsnme', 'size'), fitted=('weight', lambda w: (w > 0).sum()),
+        weight=('weight', 'max'), phi=('wres2', 'sum')).to_string())
+
+
 def step_base(org, python=None, calib_start=CALIB_START):
     import pandas as pd
     import pest_lamata_forward as pf
@@ -368,7 +413,7 @@ def step_pst(org, pest_ws, nreal, python=None):
         'ies_autoadaloc': True, 'ies_bad_phi_sigma': 2.5,
         'ies_lambda_mults': '0.1,1.0,10.0', 'lambda_scale_fac': '0.75,1.0',
         'ies_save_rescov': False, 'save_binary': True,
-        'overdue_giveup_fac': 1.5, 'max_run_fail': 1,
+        'overdue_giveup_fac': 2.0, 'max_run_fail': 1,
         'panther_agent_freeze_on_fail': False})
     pe = pf_.draw(num_reals=int(nreal), use_specsim=False)
     pe.enforce()
@@ -399,8 +444,8 @@ def main(argv=None):
     ap.add_argument('--state', required=True,
                     help='the saved state every realisation starts from')
     ap.add_argument('--nreal', type=int, default=30)
-    ap.add_argument('--step', choices=('org', 'base', 'pst', 'all'),
-                    default='all')
+    ap.add_argument('--step', choices=('org', 'base', 'targets', 'pst',
+                                       'all'), default='all')
     ap.add_argument('--calib-start', default=CALIB_START.isoformat(),
                     help='the first day fitted (default: after the warm-up '
                          'hydrological year)')
@@ -414,6 +459,8 @@ def main(argv=None):
         step_org(a.config, a.state, pest_ws)
     if a.step in ('base', 'all'):
         step_base(org, calib_start=dt.date.fromisoformat(a.calib_start))
+    if a.step == 'targets':
+        step_targets(org, calib_start=dt.date.fromisoformat(a.calib_start))
     if a.step in ('pst', 'all'):
         step_pst(org, pest_ws, a.nreal)
 

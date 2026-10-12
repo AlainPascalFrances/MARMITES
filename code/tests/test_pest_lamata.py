@@ -67,11 +67,15 @@ def _exports(tmp_path, n=40, start='2009-09-20'):
     dates = pd.date_range(start, periods=n).strftime('%Y-%m-%d')
     per = np.arange(1, n + 1)
     obs_h = np.where(per % 10 == 0, 700.0 + per * 0.01, np.nan)
-    pd.DataFrame({'obsnme': ['h_p0_%04d' % k for k in per], 'point': 'P0',
-                  'layer': 1, 'period': per, 'date': dates,
-                  'sim_head_m': 699.0 + per * 0.01, 'sim_hcorr_m': np.nan,
-                  'obs_head_m': obs_h}).to_csv(d / 'obs_heads.csv',
-                                               index=False)
+    p0 = pd.DataFrame({'obsnme': ['h_p0_%04d' % k for k in per],
+                       'point': 'P0', 'layer': 1, 'period': per,
+                       'date': dates, 'sim_head_m': 699.0 + per * 0.01,
+                       'sim_hcorr_m': np.nan, 'obs_head_m': obs_h})
+    # a soft-data well (the synthetic quarterly cycle): every 20 days here
+    c1 = p0.assign(obsnme=['h_c1_%04d' % k for k in per], point='C1',
+                   sim_head_m=750.0,
+                   obs_head_m=np.where(per % 20 == 0, 751.0, np.nan))
+    pd.concat([p0, c1]).to_csv(d / 'obs_heads.csv', index=False)
     rows = []
     for pt in ('P0', 'SM', 'O1'):
         for sl in (1, 2):
@@ -104,6 +108,7 @@ def test_targets_are_built_weighted_and_collected(tmp_path):
     tg = po.build_targets(ex, dt.date(2009, 10, 1), modis=modis, ec=ec)
     g = tg.groupby('obgnme')['obsnme'].size().to_dict()
     assert g['hds_p0'] == 4 and g['sm_p0'] == 16 and g['sm_sm'] == 16
+    assert g['hds_c'] == 2
     assert 'O1' not in ''.join(tg['key'])              # no probe there
     assert g['et_rs'] == 2                             # 3rd not in the run
     assert g['et_ec'] == 1 and tg.loc[tg['obgnme'] == 'et_ec',
@@ -121,9 +126,15 @@ def test_targets_are_built_weighted_and_collected(tmp_path):
     tg['weight'] = po.balance_weights(tg, sim, total=100.0)
     r = (tg['obsval'] - sim['value']) * tg['weight']
     phi = (r ** 2).groupby(tg['obgnme']).sum()
-    assert phi['hds_p0'] == pytest.approx(17.5)
+    assert phi['hds_p0'] == pytest.approx(35.0)       # the heads' share
     assert phi['et_rs'] == pytest.approx(10.0)
     assert phi['et_ec'] == 0.0
+    # soft data (user, 2026-10-12): a C-well head weighs 25 % of a P0 head
+    w = tg.set_index('obsnme')['weight']
+    assert w['h_c1_0020'] == pytest.approx(0.25 * w['h_p0_0020'])
+    assert w['h_c1_0040'] == pytest.approx(0.25 * w['h_p0_0020'])
+    sd = tg.set_index('obsnme')['standard_deviation']
+    assert sd['h_c1_0020'] == pytest.approx(4 * sd['h_p0_0020'])
 
 
 def test_a_value_the_run_did_not_make_is_a_sentinel_not_a_gap(tmp_path):
@@ -166,6 +177,15 @@ def test_the_bounds_are_the_drafts():
     assert pst.scalar_bounds('drn_l2', 1.0) == ('log', 0.1, 100.0)
     assert pst.scalar_bounds('ss_l1', 1.0) == ('log', 0.1, 10.0)
     assert pst.scalar_bounds('uzf_eps', 3.5)[1:] == (3.5, 8.0)
+    # capped (2026-10-12): at 1 m/d the model crawls and fits no better
+    assert pst.scalar_bounds('sfr_rhk', 0.1) == ('log', 0.001, 0.5)
+
+
+def test_the_prior_starts_inside_the_ranges():
+    """eps and beta start inside their ranges: the first prior piled 64 %
+    and 57 % of its draws on their bounds."""
+    t = pst.scalar_table(_cfg()).set_index('name')['value']
+    assert t['uzf_eps'] == 4.5 and t['crr_beta'] == 0.95
 
 
 def test_the_setup_switches_the_extra_points_on(tmp_path):
