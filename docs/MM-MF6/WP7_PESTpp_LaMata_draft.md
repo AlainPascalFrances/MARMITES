@@ -339,3 +339,64 @@ alone. Report: `PEST\master\report_0\` (`pest_lamata_report.py`).
   the new rhk cap. Expected about 20 h: 31 prior runs, then per iteration
   12 trial runs on the 4-realisation subset plus 26 updates.
 - The Monte Carlo's results are kept in `PEST\master_prior_mc`.
+
+---
+
+## 7. The pilot IES (2026-10-12 10:38 → 10-13 06:28)
+
+A fresh prior of 30, then 2 iterations; 6 agents, 10 from 11:25. 19.8 h,
+0 failed runs. Report: `PEST\master\report_2\`.
+
+**Phi** (mean of the ensemble; the base was 10000): prior 10788, iteration
+1 6679, iteration 2 **6394** (−36 %).
+
+| group | base | iteration 2 |
+|---|---|---|
+| hds_p0 | 3500 | **604** |
+| sm_sm | 1750 | 1333 |
+| q_log | 1500 | 1337 |
+| q_year | 500 | 334 |
+| sm_p0 | 1750 | 1747 |
+| et_rs | 1000 | 1027 |
+| hds_c (soft) | 6.5 | 13.5 |
+
+**What the calibration moved** (ensemble means):
+- K layer 1 ×0.19, with 31 % of the ensemble on the ×0.1 bound;
+- Sy layer 2 ×2.1; UZF vks ×2.7; uzf_eps 3.54 (83 % on MF6's 3.5);
+- DRN ×0.45 (27 % on ×0.1); streambed K 0.05 m/d; pond-bed leakance
+  0.002 1/d; soil Ks ×1.2.
+
+**The spread** fell by 60–87 % per group, and the phi spread to 27 (0.4 %
+of the mean): the collapse of a 30-member ensemble against 215
+parameters. The pilot shows the direction; the uncertainty needs the 100
+of the production.
+
+**10 agents were slower than 6.** Runs took 122 min against 55–65 with 6
+(8 physical cores, the network drive): 0.08 runs a minute against 0.10.
+Six to eight agents for the production.
+
+### What the pilot shows
+
+1. **P0's head cannot rise above the soil base.** The MF6 top is the base
+   of the soil column (~738.2 m at P0) and the seepage drain removes any
+   rise; the observed winter heads reach 739.6 (the land surface). The
+   corrected head (`sim_hcorr_m`) stays equal to MF6's: MMsoil adds a
+   horizon only when it is EXACTLY full while groundwater seeps up, and
+   P0's lower horizon sits near, not at, porosity all winter (as observed:
+   θ2 ≈ 0.19). The peaks above the soil base are unreachable, and fitting
+   them may be what drives K layer 1 onto its bound.
+2. **Summer low flows are too high:** the gauge drops to ~0 in the 2010
+   and 2011 summers, while the model keeps ~0.05 mm/d of baseflow
+   (GW→SFR).
+3. **ET:** unchanged, as expected (10 %, validation-like).
+
+### Proposed before the production run (for the user)
+
+- **P0 above the soil base:** compare those heads with the water table
+  including the saturated soil (a tolerance on "full" in the corrected
+  head), or make them an inequality ("at least the soil base"; PEST++
+  `g_` groups).
+- **K layer 1:** keep the ×0.1 bound (0.005 m/d at the lowest) until
+  item 1 is settled; it is likely compensating.
+- **Production:** 100 realisations, 3 iterations, 6–8 agents — about 3
+  days.
