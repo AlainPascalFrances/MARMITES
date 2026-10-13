@@ -400,3 +400,38 @@ Six to eight agents for the production.
   item 1 is settled; it is likely compensating.
 - **Production:** 100 realisations, 3 iterations, 6–8 agents — about 3
   days.
+
+---
+
+## 8. The production run (launched 2026-10-13 22:33)
+
+The user's decisions after the pilot (2026-10-13):
+
+1. **Heads against MMsoil's corrected head** (`sim_hcorr_m`, MF6's head plus
+   the saturated soil above the soil base) at every point. It equals MF6's
+   head where the soil is not saturated.
+2. **No summer flow at La Mata.**
+   - Where it came from, in a calibrated pilot run: the summer baseflow
+     (~230 m³/d of gains) came mostly from reaches on layer 2, whose
+     summer head stood 1.7–2.3 m above the bed under the low-K layer 1 the
+     pilot chose to lift P0's head; plus layer-1 reaches near the outlet
+     (0.1–0.3 m).
+   - Stream evaporation was tried as the lever and dropped: with the
+     calibrated parameters it slows the model to 8–120 s a day (against
+     1.4), even capped at 0.5.
+   - Instead, a new group **`q_dry`**: the model's flow against zero on
+     the gauge's dry days (≤ 0.005 mm/d), in mm/d; 33 days in the window.
+     Flow keeps 20 %: q_log 10, q_dry 5, q_year 5.
+   - The corrected heads should also remove the pressure that pushed
+     K layer 1 down.
+3. **Bounds widened where the pilot hit them:** K ×0.01–30, Sy ×0.03–30,
+   DRN ×0.01–100, field capacity ±0.2. `uzf_eps` stays ≥ 3.5, MF6's
+   minimum.
+
+**Run:** 100 realisations, 3 iterations, 6 agents (measured faster than
+10). Expected about 3 days: 101 prior runs, then per iteration 12 trial
+runs plus 96 updates, at ~1 h a run with six at once.
+8955 targets, 5955 weighted.
+
+The pilot's results are kept in `PEST\master_pilot`, the first Monte
+Carlo's in `PEST\master_prior_mc`.
