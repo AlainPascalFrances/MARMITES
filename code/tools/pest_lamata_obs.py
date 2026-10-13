@@ -19,7 +19,10 @@ Groups (docs/MM-MF6/WP7_PESTpp_LaMata_draft.md, decisions of 2026-10-11):
              (user, 2026-10-12), whatever share of phi that gives
     sm_p0    P0's soil moisture, 2 horizons             (sm 35 %, half)
     sm_sm    SM's soil moisture, 2 horizons             (sm 35 %, half)
-    q_log    outlet flow, log10(Q + 0.01 mm/d), daily   (flow 20 %: 15)
+    q_log    outlet flow, log10(Q + 0.01 mm/d), daily   (flow 20 %: 10)
+    q_dry    the gauge's DRY days (Q <= 0.005 mm/d): the model's flow
+             against zero, in mm/d -- La Mata has no summer flow, and the
+             pilot kept ~0.05 mm/d of baseflow (2026-10-13)  (flow 20 %: 5)
     q_year   outlet volume per hydrological year, over
              the days the gauge has                     (flow 20 %: 5)
     et_rs    MODIS MOD16A2GF catchment ET per composite (ET 10 %)
@@ -40,17 +43,18 @@ __all__ = ['GROUP_SHARE', 'NOISE', 'build_targets', 'collect',
 # share of the initial phi per group (the user's 35/35/20/10, split);
 # the soft data (SOFT) take no share of their own
 GROUP_SHARE = {'hds_p0': 0.35, 'hds_c': 0.0, 'sm_p0': 0.175,
-               'sm_sm': 0.175, 'q_log': 0.15, 'q_year': 0.05, 'et_rs': 0.10,
-               'et_ec': 0.0}
+               'sm_sm': 0.175, 'q_log': 0.10, 'q_dry': 0.05, 'q_year': 0.05,
+               'et_rs': 0.10, 'et_ec': 0.0}
 # soft data: weighted at a fraction of a measured group's weight per
 # observation (user, 2026-10-12: at most 25 % of the measured heads')
 SOFT = {'hds_c': ('hds_p0', 0.25)}
 # measurement noise (standard deviation) per group: absolute, or 'rel' x
 # the observed value with a floor
 NOISE = {'hds_p0': 0.1, 'hds_c': 0.4, 'sm_p0': 0.01, 'sm_sm': 0.01,
-         'q_log': 0.1, 'q_year': ('rel', 0.10, 1.0),
+         'q_log': 0.1, 'q_dry': 0.01, 'q_year': ('rel', 0.10, 1.0),
          'et_rs': ('rel', 0.20, 1.0), 'et_ec': ('rel', 0.20, 0.1)}
 Q_EPS = 0.01                 # mm/d, so a dry day has a finite log
+Q_DRY = 0.005                # mm/d: the gauge's dry day
 
 
 def _sd(group, obs):
@@ -107,6 +111,9 @@ def build_targets(exports_dir, calib_start, modis=None, ec=None,
         if np.isfinite(r.obs_q_mmd):
             add('q_%04d' % r.period, 'q_log', 'qlog', str(r.period),
                 np.log10(max(r.obs_q_mmd, 0.0) + Q_EPS), r.date)
+        if np.isfinite(r.obs_q_mmd) and r.obs_q_mmd <= Q_DRY:
+            add('qd_%04d' % r.period, 'q_dry', 'qlin', str(r.period), 0.0,
+                r.date)
     qd = q.dropna(subset=['obs_q_mmd']).copy()
     qd['hy'] = [_hydro_year(pd.Timestamp(d), hy_month) for d in qd['date']]
     for hy, grp in qd.groupby('hy'):
@@ -152,8 +159,15 @@ def collect(exports_dir, targets):
     finite sentinel, so PEST++ sees a bad fit, never a parse error."""
     import pandas as pd
     h = pd.read_csv(os.path.join(exports_dir, 'obs_heads.csv'))
+    # MMsoil's CORRECTED head: MF6's plus the saturated soil above the soil
+    # base (user, 2026-10-13) -- MF6's top is the soil base, so its head
+    # cannot follow a water table that rises into the soil, as P0's does in
+    # winter (observed up to the land surface). Equal to MF6's head where
+    # the soil is not saturated; MF6's where a run has no corrected head.
+    sim_h = h['sim_hcorr_m'].where(np.isfinite(h['sim_hcorr_m']),
+                                   h['sim_head_m'])
     hv = dict(zip(h['point'].astype(str) + '|' + h['period'].astype(str),
-                  h['sim_head_m']))
+                  sim_h))
     s = pd.read_csv(os.path.join(exports_dir, 'obs_sm.csv'))
     sv = dict(zip(s['point'].astype(str).str.upper() + '|'
                   + s['soil_layer'].astype(str) + '|'
@@ -175,6 +189,9 @@ def collect(exports_dir, targets):
         elif k == 'qlog':
             x = qv.get(int(key))
             v = None if x is None else np.log10(max(float(x), 0.0) + Q_EPS)
+        elif k == 'qlin':
+            x = qv.get(int(key))
+            v = None if x is None else max(float(x), 0.0)
         elif k == 'qyear':
             xs = [qv.get(int(p)) for p in key.split(';')]
             v = None if any(x is None for x in xs) else float(np.sum(xs))

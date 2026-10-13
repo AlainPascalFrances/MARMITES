@@ -87,7 +87,9 @@ def _exports(tmp_path, n=40, start='2009-09-20'):
     pd.DataFrame({'obsnme': 'x', 'site': 'outlet', 'period': per,
                   'date': dates, 'sim_q_m3d': 0.0,
                   'sim_q_mmd': np.linspace(0.0, 2.0, n),
-                  'obs_q_mmd': np.where(per > 5, 0.5, np.nan),
+                  # gauged from day 6; every 7th day dry
+                  'obs_q_mmd': np.where(per > 5, np.where(per % 7 == 0, 0.0,
+                                                          0.5), np.nan),
                   'obs_q_m3d': np.nan}).to_csv(d / 'obs_sfr.csv', index=False)
     rows = []
     for site in ('P0', 'EC', 'catchment'):
@@ -123,10 +125,18 @@ def test_targets_are_built_weighted_and_collected(tmp_path):
     assert v['etm_2009275'] == pytest.approx(8.0)       # 8 days x 1 mm/d
     q20 = np.log10(np.linspace(0.0, 2.0, 40)[19] + po.Q_EPS)
     assert v['q_0020'] == pytest.approx(q20)
+    # the gauge's dry days: the model's flow against zero (2026-10-13)
+    dry = tg[tg['obgnme'] == 'q_dry']
+    assert list(dry['obsnme']) == ['qd_%04d' % k for k in (7, 14, 21, 28,
+                                                           35)]
+    assert (dry['obsval'] == 0.0).all()
+    assert v['qd_0014'] == pytest.approx(np.linspace(0.0, 2.0, 40)[13])
     tg['weight'] = po.balance_weights(tg, sim, total=100.0)
     r = (tg['obsval'] - sim['value']) * tg['weight']
     phi = (r ** 2).groupby(tg['obgnme']).sum()
     assert phi['hds_p0'] == pytest.approx(35.0)       # the heads' share
+    assert phi['q_dry'] == pytest.approx(5.0)
+    assert phi['q_log'] == pytest.approx(10.0)
     assert phi['et_rs'] == pytest.approx(10.0)
     assert phi['et_ec'] == 0.0
     # soft data (user, 2026-10-12): a C-well head weighs 25 % of a P0 head
@@ -135,6 +145,20 @@ def test_targets_are_built_weighted_and_collected(tmp_path):
     assert w['h_c1_0040'] == pytest.approx(0.25 * w['h_p0_0020'])
     sd = tg.set_index('obsnme')['standard_deviation']
     assert sd['h_c1_0020'] == pytest.approx(4 * sd['h_p0_0020'])
+
+
+def test_heads_are_compared_with_the_corrected_head(tmp_path):
+    """User, 2026-10-13: MMsoil's corrected head (MF6's + the saturated
+    soil above the soil base), MF6's only where there is none."""
+    ex = _exports(tmp_path)
+    f = os.path.join(ex, 'obs_heads.csv')
+    h = pd.read_csv(f)
+    h.loc[h['point'] == 'P0', 'sim_hcorr_m'] = 705.0
+    h.to_csv(f, index=False)
+    tg = po.build_targets(ex, dt.date(2009, 10, 1))
+    v = po.collect(ex, tg).set_index('obsnme')['value']
+    assert v['h_p0_0020'] == 705.0                 # the corrected head
+    assert v['h_c1_0020'] == 750.0                 # none: MF6's head
 
 
 def test_a_value_the_run_did_not_make_is_a_sentinel_not_a_gap(tmp_path):
@@ -171,10 +195,10 @@ def test_the_scalars_reach_the_configuration_and_the_layer_files(tmp_path):
 
 
 def test_the_bounds_are_the_drafts():
-    assert pst.scalar_bounds('sfc_f_h1', 0.5) == ('none', 0.4, 0.6)
+    assert pst.scalar_bounds('sfc_f_h1', 0.5) == ('none', 0.3, 0.7)
     assert pst.scalar_bounds('ks_h2', 2.0) == ('log', pytest.approx(0.2),
                                                20.0)
-    assert pst.scalar_bounds('drn_l2', 1.0) == ('log', 0.1, 100.0)
+    assert pst.scalar_bounds('drn_l2', 1.0) == ('log', 0.01, 100.0)
     assert pst.scalar_bounds('ss_l1', 1.0) == ('log', 0.1, 10.0)
     assert pst.scalar_bounds('uzf_eps', 3.5)[1:] == (3.5, 8.0)
     # capped (2026-10-12): at 1 m/d the model crawls and fits no better
@@ -186,6 +210,7 @@ def test_the_prior_starts_inside_the_ranges():
     and 57 % of its draws on their bounds."""
     t = pst.scalar_table(_cfg()).set_index('name')['value']
     assert t['uzf_eps'] == 4.5 and t['crr_beta'] == 0.95
+    assert 'sfr_evapf' not in t.index      # too slow a lever (2026-10-13)
 
 
 def test_the_setup_switches_the_extra_points_on(tmp_path):

@@ -133,17 +133,18 @@ def scalar_bounds(name, value):
     """(transform, lower, upper) of a scalar parameter -- the draft's
     table, decisions of 2026-10-11."""
     if name.startswith('sfc_f_h'):
-        return 'none', max(value - 0.10, 0.01), min(value + 0.10, 0.99)
+        # +-0.2 (was 0.1: 20 % of the pilot on the lower bound, 2026-10-13)
+        return 'none', max(value - 0.20, 0.01), min(value + 0.20, 0.99)
     if name.startswith('ks_h'):
         return 'log', value * 0.1, value * 10.0
     # streambed K: at 1 m/d the model crawls (64 min alone, 63 linear
     # iterations a day) and no better a fit -- capped at 0.5 (2026-10-12)
     return {'sfr_rhk': ('log', 0.001, 0.5),
             'lak_bedleak': ('log', 1.0e-4, 1.0e-2),
-            'uzf_eps': ('none', 3.5, 8.0),
+            'uzf_eps': ('none', 3.5, 8.0),     # 3.5: MF6's minimum
             'uzf_vks': ('log', 0.2, 5.0),
             'crr_beta': ('none', 0.8, 1.0)}.get(
-        name, ('log', 0.1, 100.0) if name.startswith('drn_l')
+        name, ('log', 0.01, 100.0) if name.startswith('drn_l')
         else ('log', 0.1, 10.0))                       # ss_l<L>
 
 
@@ -357,7 +358,9 @@ def step_pst(org, pest_ws, nreal, python=None):
     gs = pyemu.geostats.GeoStruct(
         variograms=pyemu.geostats.ExpVario(contribution=1.0, a=VARIO_A),
         transform='log', name='pp_gs')
-    for stem, lo, hi in (('k', 0.1, 10.0), ('sy', 0.1, 10.0)):
+    # widened where the pilot hit them (2026-10-13): K layer 1 31 % on
+    # x0.1, Sy layer 2 10 % on x10, Sy layer 1 3 % on x0.1
+    for stem, lo, hi in (('k', 0.01, 30.0), ('sy', 0.03, 30.0)):
         for L in range(nlay):
             pf_.add_parameters(
                 filenames=os.path.join(MULT_DIR, '%s_l%d.txt' % (stem, L + 1)),

@@ -74,6 +74,7 @@ def apply_scalars(cfg, table, mult_dir=None):
             mp.set_param(cfg, 'uzf.vks_scale', v)
         elif name == 'crr_beta':
             mp.set_param(cfg, 'crr.beta', min(max(v, 1e-3), 1.0))
+
         else:
             raise ValueError('unknown scalar parameter %r' % name)
     return cfg
