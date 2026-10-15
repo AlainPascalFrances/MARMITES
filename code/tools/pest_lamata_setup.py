@@ -15,13 +15,15 @@ never WS_ROOT and never the repository. Steps (``--step``):
                           saved, [pest] multipliers = mult
             example/LaMata the dataset copy (a run rewrites the forcing
                           files there), the observation table with C4, C5
-                          and W1 switched on
+                          and W1 switched on; the measured ET at the points
+                          (<obs.aet_prefix>_<point>.txt) is read by the
+                          runs themselves, into their obs_et.csv
             ws/MF6_ws_voronoi the mesh and overlay caches and the saved
                           state every realisation starts from
             mm_mult/         k_l<L>, sy_l<L> per cell (the pilot points)
             pars/scalars.csv the scalar parameters (soil horizons, SFR, LAK,
                           UZF, CRR, Ss and DRN per layer)
-            modis_et_catchment.csv, ec_et.csv  the ET records
+            modis_et_catchment.csv  MODIS's catchment ET per composite
   base    the base run in org (the test run of the setup, ~45 min), then
           the targets (pest_targets.csv) and their weights, balanced so each
           group carries its share of the initial phi
@@ -53,7 +55,6 @@ CALIB_START = dt.date(2009, 10, 1)      # after the warm-up hydrological year
 PP_SPACE = 400.0                        # m between pilot points
 VARIO_A = 1500.0                        # m, exponential variogram range
 from pest_lamata_forward import MULT_DIR  # noqa: E402
-EC_XLSX = os.path.join('MMsurf_ws', 'Eddy_MM_202110.xlsx')   # in DATA_ROOT
 
 
 # ------------------------------------------------------------------ org
@@ -149,7 +150,6 @@ def scalar_bounds(name, value):
 
 
 def step_org(cfg_path, state, pest_ws):
-    import pandas as pd
     import marmites_config as mcfg
     import mm_paths
     import pest_modis_et as pme
@@ -205,7 +205,7 @@ def step_org(cfg_path, state, pest_ws):
     if os.path.isdir(pd_):
         shutil.rmtree(pd_)
     pfw.write_scalars(org, scalar_table(cfg))
-    # the ET records
+    # MODIS's catchment ET
     poly = pme.catchment_polygon(os.path.join(ds, 'inputBOUNDARY.geojson'))
     dates = [l.split(',')[0].strip()[:10]
              for l in open(os.path.join(ds, 'inputDATE.txt'))
@@ -216,11 +216,6 @@ def step_org(cfg_path, state, pest_ws):
                          dt.date.fromisoformat(dates[-1])).to_csv(
         os.path.join(org, 'modis_et_catchment.csv'), index=False,
         float_format='%.6g')
-    ec = pd.read_excel(os.path.join(str(mm_paths.DATA_ROOT), EC_XLSX),
-                       sheet_name='compil4python')
-    ec = pd.DataFrame({'date': pd.to_datetime(ec['Date']).dt.date,
-                       'et_mmd': pd.to_numeric(ec['ET_EC'], errors='coerce')})
-    ec.dropna().to_csv(os.path.join(org, 'ec_et.csv'), index=False)
     json.dump({'config': os.path.abspath(cfg_path), 'state': state,
                'made': dt.datetime.now().isoformat(timespec='seconds')},
               open(os.path.join(org, 'setup.json'), 'w'), indent=1)
@@ -279,8 +274,7 @@ def step_targets(org, calib_start=CALIB_START):
     shutil.rmtree(os.path.join(org, pf.PARS), ignore_errors=True)
     pf.write_scalars(org, scalar_table(cfg))
     modis = pd.read_csv(os.path.join(org, 'modis_et_catchment.csv'))
-    ec = pd.read_csv(os.path.join(org, 'ec_et.csv'))
-    tg = po.build_targets(ex, calib_start, modis=modis, ec=ec)
+    tg = po.build_targets(ex, calib_start, modis=modis)
     sim = po.collect(ex, tg)
     tg['weight'] = po.balance_weights(tg, sim)
     tg.to_csv(os.path.join(org, pf.TARGETS), index=False,
@@ -311,8 +305,7 @@ def step_base(org, python=None, calib_start=CALIB_START):
         raise SystemExit('the base run failed: see %s'
                          % os.path.join(org, 'model.log'))
     modis = pd.read_csv(os.path.join(org, 'modis_et_catchment.csv'))
-    ec = pd.read_csv(os.path.join(org, 'ec_et.csv'))
-    tg = po.build_targets(exports, calib_start, modis=modis, ec=ec)
+    tg = po.build_targets(exports, calib_start, modis=modis)
     sim = po.collect(exports, tg)
     # the base run's exports, kept for the record, then org trimmed
     keep = os.path.join(org, 'base_exports')

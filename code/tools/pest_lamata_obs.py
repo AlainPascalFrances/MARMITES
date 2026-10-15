@@ -26,7 +26,9 @@ Groups (docs/MM-MF6/WP7_PESTpp_LaMata_draft.md, decisions of 2026-10-11):
     q_year   outlet volume per hydrological year, over
              the days the gauge has                     (flow 20 %: 5)
     et_rs    MODIS MOD16A2GF catchment ET per composite (ET 10 %)
-    et_ec    eddy-covariance ET at EC, daily            (0: validation)
+    et_pt    measured ET at the observation points -- the dataset's
+             <obs.aet_prefix>_<point>.txt: the EC tower, lysimeters --
+             daily, from the exports' obs_et_mmd        (0: validation)
 
 A target before the calibration window (the warm-up year) is kept, with
 weight 0, so it is reported and never fitted.
@@ -44,7 +46,7 @@ __all__ = ['GROUP_SHARE', 'NOISE', 'build_targets', 'collect',
 # the soft data (SOFT) take no share of their own
 GROUP_SHARE = {'hds_p0': 0.35, 'hds_c': 0.0, 'sm_p0': 0.175,
                'sm_sm': 0.175, 'q_log': 0.10, 'q_dry': 0.05, 'q_year': 0.05,
-               'et_rs': 0.10, 'et_ec': 0.0}
+               'et_rs': 0.10, 'et_pt': 0.0}
 # soft data: weighted at a fraction of a measured group's weight per
 # observation (user, 2026-10-12: at most 25 % of the measured heads')
 SOFT = {'hds_c': ('hds_p0', 0.25)}
@@ -52,7 +54,7 @@ SOFT = {'hds_c': ('hds_p0', 0.25)}
 # the observed value with a floor
 NOISE = {'hds_p0': 0.1, 'hds_c': 0.4, 'sm_p0': 0.01, 'sm_sm': 0.01,
          'q_log': 0.1, 'q_dry': 0.01, 'q_year': ('rel', 0.10, 1.0),
-         'et_rs': ('rel', 0.20, 1.0), 'et_ec': ('rel', 0.20, 0.1)}
+         'et_rs': ('rel', 0.20, 1.0), 'et_pt': ('rel', 0.20, 0.1)}
 Q_EPS = 0.01                 # mm/d, so a dry day has a finite log
 Q_DRY = 0.005                # mm/d: the gauge's dry day
 
@@ -68,16 +70,14 @@ def _hydro_year(d, start_month=10):
     return d.year + 1 if d.month >= start_month else d.year
 
 
-def build_targets(exports_dir, calib_start, modis=None, ec=None,
-                  hy_month=10):
+def build_targets(exports_dir, calib_start, modis=None, hy_month=10):
     """The targets, from a run's exports (which carry the observed values
-    beside the simulated ones) plus the MODIS and eddy-covariance tables.
+    beside the simulated ones) plus the MODIS table.
 
     ``calib_start``: the first day fitted (a ``date``); targets before it
-    get weight 0. ``modis``: DataFrame of pest_modis_et (start, end, et_mm);
-    ``ec``: DataFrame with date, et_mmd. Returns a DataFrame with obsnme,
-    obgnme, kind, key, obsval, weight (1 or 0, balanced later),
-    standard_deviation."""
+    get weight 0. ``modis``: DataFrame of pest_modis_et (start, end, et_mm).
+    Returns a DataFrame with obsnme, obgnme, kind, key, obsval, weight (1 or
+    0, balanced later), standard_deviation."""
     import pandas as pd
     rows = []
     cs = pd.Timestamp(calib_start)
@@ -136,14 +136,11 @@ def build_targets(exports_dir, calib_start, modis=None, ec=None,
                 continue                 # a composite the run does not cover
             add('etm_%d%03d' % (r.year, r.doy), 'et_rs', 'etsum',
                 ';'.join(str(p) for p in ps), r.et_mm, a)
-    if ec is not None:
-        site = e[e['site'] == 'EC']
-        per = dict(zip(pd.to_datetime(site['date']).dt.date, site['period']))
-        for r in ec.itertuples():
-            d = pd.Timestamp(r.date).date()
-            if d in per and np.isfinite(r.et_mmd):
-                add('etec_%04d' % per[d], 'et_ec', 'etec', str(per[d]),
-                    r.et_mmd, d)
+    # the measured ET at the points, read by the run itself (2026-10-15:
+    # was an Excel sheet read here); the catchment's is MODIS, above
+    for r in e[e['site'] != 'catchment'].itertuples():
+        add(r.obsnme, 'et_pt', 'etpt', '%s|%d' % (r.site, r.period),
+            r.obs_et_mmd, r.date)
     df = pd.DataFrame(rows)
     if df.empty:
         raise ValueError('no observation found in %s' % exports_dir)
@@ -177,8 +174,8 @@ def collect(exports_dir, targets):
     e = pd.read_csv(os.path.join(exports_dir, 'obs_et.csv'))
     cat = e[e['site'] == 'catchment']
     etc = dict(zip(cat['period'], cat['sim_et_total_mmd']))
-    ecs = e[e['site'] == 'EC']
-    ete = dict(zip(ecs['period'], ecs['sim_et_total_mmd']))
+    etp = dict(zip(e['site'].astype(str) + '|' + e['period'].astype(str),
+                   e['sim_et_total_mmd']))
     out = []
     for r in targets.itertuples():
         k, key = r.kind, str(r.key)
@@ -198,8 +195,8 @@ def collect(exports_dir, targets):
         elif k == 'etsum':
             xs = [etc.get(int(p)) for p in key.split(';')]
             v = None if any(x is None for x in xs) else float(np.sum(xs))
-        elif k == 'etec':
-            v = ete.get(int(key))
+        elif k == 'etpt':
+            v = etp.get(key)
         else:
             raise ValueError('unknown target kind %r' % k)
         if v is None or not np.isfinite(v):

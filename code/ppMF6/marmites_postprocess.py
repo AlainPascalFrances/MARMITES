@@ -4130,12 +4130,14 @@ _ET_TERMS = (('et_total', 'iETtot'), ('ei', 'iEi'), ('et_soil', 'iETsoil'),
 
 def _dated_obs(fn, ncol=1):
     """A ``date value [value ...]`` observation file as (dates, values
-    (n, ncol)), gaps (hnoflo) as NaN; None when the file is absent."""
+    (n, ncol)), gaps (hnoflo) as NaN; None when the file is absent.
+    Columns separated by blanks or commas (a CSV saved from a spreadsheet,
+    a byte-order mark included: 2026-10-15, inputObsAET_EC)."""
     import pandas as pd
     if not fn or not os.path.exists(fn):
         return None
-    df = pd.read_csv(fn, sep=r'\s+', header=None, comment='#',
-                     engine='python')
+    df = pd.read_csv(fn, sep=r'[\s,]+', header=None, comment='#',
+                     engine='python', encoding='utf-8-sig')
     d = pd.to_datetime(df.iloc[:, 0], errors='coerce')
     v = df.iloc[:, 1:1 + ncol].apply(pd.to_numeric, errors='coerce')
     v = v.where(v.abs() < 9000.0)

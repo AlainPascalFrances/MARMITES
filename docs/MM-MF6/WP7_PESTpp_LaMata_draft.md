@@ -80,14 +80,25 @@ Counts are in the calibration window of §3 (2009-10-01 → 2013-09-30).
 | `q_log` | outlet streamflow, daily | 725 | log10(Q + 0.01 mm/d) | 15 % |
 | `q_year` | outlet volume per hydrological year | 4 | constrains the water balance (bias +33 % now) | 5 % |
 | `et_rs` | satellite actual ET, catchment and per cover type | per composite | the period mean of total ET (Ei + Eow + ETsoil + ETuzf + ETg) | 10 % |
-| `et_ec` | eddy-covariance ET at `EC`, daily, 2009-08-01 → 2010-10-01 | 266 | total ET at the EC cell | **0: validation**, reported never fitted |
+| `et_pt` | measured ET at the observation points (the EC tower; lysimeters when added), daily; EC 2009-08-01 → 2010-10-01 | 266 | total ET at the point's cell | **0: validation**, reported never fitted |
 
 - C4, C5 and W1 are commented out in `inputObs.txt`; the PEST setup adds
   them to its own copy of the observation table, so the model writes their
   simulated heads.
-- The eddy-covariance series is in
-  `DATA_ROOT\MMsurf_ws\Eddy_MM_202110.xlsx`, sheet `compil4python`, column
-  `ET_EC`: 266 days, mean 1.25 mm/d.
+- The measured ET at the points is read by the model run itself
+  (2026-10-15), like the heads and the soil moisture: the dataset file
+  `<obs.aet_prefix>_<point>.txt` (State variables panel; `inputObsAET`), one
+  per point of `inputObs.txt`, which gives the coordinates. The run writes it
+  beside the simulated ET in `obs_et.csv` (`obs_et_mmd`), and the targets take
+  it from there for every point that has one. For EC this is
+  `example\LaMata\inputObsAET_EC.txt`: 266 days, mean 1.25 mm/d, the
+  values of the original `Eddy_MM_202110.xlsx` (sheet `compil4python`,
+  column `ET_EC`). The user's spreadsheet copy is
+  `DATA_ROOT\MMsurf_ws\inputObsAET_EC.txt`/`.xlsx`. A lysimeter is
+  added the same way: a point in `inputObs.txt` and its series file.
+  - The production run of 2026-10-13 still has the older group `et_ec`
+    (read from the Excel sheet at setup): report it with the snapshot's
+    `PEST\code\tools\pest_lamata_report.py`.
 - Measurement noise is set apart from the weights (`standard_deviation`:
   heads 0.1 m, θ 0.01, log flow 0.1, ET 20 %), so rebalancing the shares does
   not change the noise the IES realisations get.
@@ -221,7 +232,7 @@ once before the workers start.
 | script | does |
 |---|---|
 | `pest_modis_et.py` | MOD16A2GF composites → the catchment's area-weighted ET per composite (35 pixels, 4.835 km²; fills left out; HDF4 read through rasterio's GDAL) |
-| `pest_lamata_obs.py` | the targets (groups of §1) from a run's exports + MODIS + EC; their collection from any run; the group balancing |
+| `pest_lamata_obs.py` | the targets (groups of §1) from a run's exports + MODIS; their collection from any run; the group balancing |
 | `pest_lamata_forward.py` | the forward run in a worker: scalars into the config, the coupled model, `pest_obs.csv` (a failed run writes the 1e10 sentinel, never a missing file) |
 | `pest_lamata_setup.py` | `org` (code snapshot, config copy, dataset copy with C4/C5/W1 on, caches + saved state, parameter files, ET records) → `base` (the base run, the targets, the weights) → `pst` (PstFrom: pilot points on the mesh, the scalars, the observations, the prior ensemble) |
 | `pest_lamata_run.py` | pestpp-ies with local PANTHER agents (at most 6: 2 cores stay with the user) |

@@ -111,6 +111,34 @@ def test_four_files_one_row_per_period(tmp_path, monkeypatch):
             'obs_et_mmd'} <= set(et.columns)
 
 
+def test_measured_et_from_a_spreadsheet_csv(tmp_path, monkeypatch):
+    """The point's measured ET (obs.aet_prefix) as a spreadsheet saves it:
+    commas, a byte-order mark before the '#' header, CRLF -- the user's
+    inputObsAET_EC.txt (2026-10-15). Blank-separated columns used to be the
+    only form: this one came out as ONE column and the exports crashed."""
+    ds = str(tmp_path / 'ds')
+    os.makedirs(ds)
+    _dataset(ds)
+    open(os.path.join(ds, 'inputObsAET_P2.txt'), 'wb').write(
+        '﻿#Date,ET_EC mm.d-1\r\n2008-06-02,1.5\r\n2008-06-04,2.25\r\n'
+        .encode('utf-8'))
+    PP.OBS.update(table='inputObs.txt', heads='inputObsHEADS',
+                  sm='inputObsSM', ro='inputObsRo')
+    monkeypatch.setitem(PP.OBS, 'aet', 'inputObsAET')
+    monkeypatch.setattr(PP, '_obs_head_series',
+                        lambda *a, **k: np.full((2, 2, NPER), 765.0))
+    monkeypatch.setattr(PP, 'sfr_observations', lambda *a, **k: None)
+    cMF, ctx, res = _run()
+    PP.export_observations('ws', 'x', ds, cMF, ctx, res, [str(tmp_path)],
+                           verbose=False)
+    et = pd.read_csv(str(tmp_path / 'obs_et.csv'))
+    p2 = et[et.site == 'P2']['obs_et_mmd']
+    assert p2.iloc[1] == pytest.approx(1.5)
+    assert p2.iloc[3] == pytest.approx(2.25)
+    assert p2.isna().sum() == NPER - 2
+    assert et[et.site == 'P1']['obs_et_mmd'].isna().all()     # no file
+
+
 def test_a_run_without_point_series_writes_nothing(tmp_path):
     assert PP.export_observations('ws', 'x', str(tmp_path), None, None, {},
                                   [str(tmp_path)], verbose=False) == []

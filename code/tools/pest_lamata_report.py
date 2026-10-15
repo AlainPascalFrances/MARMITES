@@ -30,11 +30,11 @@ START = dt.date(2008, 5, 31)          # period 1 of the La Mata run
 
 def _period_of(kind, key):
     k = str(key)
-    if kind == 'head':
+    if kind in ('head', 'etpt'):
         return int(k.split('|')[1])
     if kind == 'sm':
         return int(k.split('|')[2])
-    if kind in ('qlog', 'etec'):
+    if kind == 'qlog':
         return int(k)
     return int(k.split(';')[0])        # qyear, etsum: the first day
 
@@ -45,9 +45,10 @@ def _site_of(kind, key, name):
         return k.split('|')[0]
     if kind == 'sm':
         return '%s horizon %s' % tuple(k.split('|')[:2])
+    if kind == 'etpt':
+        return 'measured ET at %s' % k.split('|')[0]
     return {'qlog': 'outlet log10(Q+0.01)', 'qyear': 'outlet volume per year',
-            'etsum': 'MODIS catchment ET per composite',
-            'etec': 'EC tower ET'}.get(kind, name)
+            'etsum': 'MODIS catchment ET per composite'}.get(kind, name)
 
 
 def report(master, targets_csv, it=0, out=None):

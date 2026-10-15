@@ -93,9 +93,13 @@ def _exports(tmp_path, n=40, start='2009-09-20'):
                   'obs_q_m3d': np.nan}).to_csv(d / 'obs_sfr.csv', index=False)
     rows = []
     for site in ('P0', 'EC', 'catchment'):
-        rows.append(pd.DataFrame({'obsnme': 'x', 'site': site, 'period': per,
+        # measured ET at EC on one day of the warm-up and one of the window
+        o = np.where(np.isin(per, (3, 16)), 1.2, np.nan) if site == 'EC'             else np.nan
+        rows.append(pd.DataFrame({'obsnme': ['et_%s_%04d' % (site.lower(), k)
+                                             for k in per],
+                                  'site': site, 'period': per,
                                   'date': dates, 'sim_et_total_mmd': 1.0 + 0
-                                  * per, 'obs_et_mmd': np.nan}))
+                                  * per, 'obs_et_mmd': o}))
     pd.concat(rows).to_csv(d / 'obs_et.csv', index=False)
     return str(d)
 
@@ -106,15 +110,18 @@ def test_targets_are_built_weighted_and_collected(tmp_path):
                           'end': ['2009-09-29', '2009-10-09', '2010-12-08'],
                           'et_mm': [9.0, 10.0, 3.0], 'year': [2009] * 3,
                           'doy': [265, 275, 335]})
-    ec = pd.DataFrame({'date': [dt.date(2009, 10, 5)], 'et_mmd': [1.2]})
-    tg = po.build_targets(ex, dt.date(2009, 10, 1), modis=modis, ec=ec)
+    tg = po.build_targets(ex, dt.date(2009, 10, 1), modis=modis)
     g = tg.groupby('obgnme')['obsnme'].size().to_dict()
     assert g['hds_p0'] == 4 and g['sm_p0'] == 16 and g['sm_sm'] == 16
     assert g['hds_c'] == 2
     assert 'O1' not in ''.join(tg['key'])              # no probe there
     assert g['et_rs'] == 2                             # 3rd not in the run
-    assert g['et_ec'] == 1 and tg.loc[tg['obgnme'] == 'et_ec',
-                                      'weight'].iloc[0] == 0.0
+    # the measured ET at the points, from the exports (2026-10-15):
+    # validation, never fitted
+    et = tg[tg['obgnme'] == 'et_pt']
+    assert list(et['obsnme']) == ['et_ec_0003', 'et_ec_0016']
+    assert (et['weight'] == 0.0).all() and list(et['key']) == ['EC|3',
+                                                               'EC|16']
     # the warm-up is kept, unweighted
     w = tg.set_index('obsnme')['weight']
     assert w['h_p0_0010'] == 0.0 and w['h_p0_0020'] == 1.0
@@ -123,6 +130,7 @@ def test_targets_are_built_weighted_and_collected(tmp_path):
     v = sim.set_index('obsnme')['value']
     assert v['h_p0_0020'] == pytest.approx(699.2)
     assert v['etm_2009275'] == pytest.approx(8.0)       # 8 days x 1 mm/d
+    assert v['et_ec_0016'] == pytest.approx(1.0)
     q20 = np.log10(np.linspace(0.0, 2.0, 40)[19] + po.Q_EPS)
     assert v['q_0020'] == pytest.approx(q20)
     # the gauge's dry days: the model's flow against zero (2026-10-13)
@@ -138,7 +146,7 @@ def test_targets_are_built_weighted_and_collected(tmp_path):
     assert phi['q_dry'] == pytest.approx(5.0)
     assert phi['q_log'] == pytest.approx(10.0)
     assert phi['et_rs'] == pytest.approx(10.0)
-    assert phi['et_ec'] == 0.0
+    assert phi['et_pt'] == 0.0
     # soft data (user, 2026-10-12): a C-well head weighs 25 % of a P0 head
     w = tg.set_index('obsnme')['weight']
     assert w['h_c1_0020'] == pytest.approx(0.25 * w['h_p0_0020'])
