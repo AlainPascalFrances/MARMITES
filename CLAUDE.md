@@ -339,6 +339,12 @@ something a regression.
 - AppTest page tests time out while the user's model runs; re-run them alone.
 - `test_aquifer_balance::test_a_real_list_file_reads` fails while a run is
   writing lamata.lst (environmental).
+- `from lib import ...` (the app's `code/app/lib`): on Windows pywin32's
+  `site-packages\win32\lib` imports as a NAMESPACE package `lib`. One
+  attempt without code/app on sys.path (checks._panel_of swallows the
+  ImportError) cached it, and every later `from lib import` of the pytest
+  session failed. `code/tests/conftest.py` registers the app's `lib` before
+  collection (2026-10-15); keep it.
 
 ---------------------------------------------------------------------------
 

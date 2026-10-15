@@ -20,6 +20,13 @@ CODE = os.path.abspath(os.path.join(HERE, '..'))
 REPO = os.path.abspath(os.path.join(CODE, '..'))
 DS = os.path.join(REPO, 'example', 'LaMata')
 
+# marmites_config is imported by name below. It used to be on sys.path only
+# because an earlier test of the file had put it there, so a test run on its
+# own failed with ModuleNotFoundError (2026-10-15). The app's ``lib`` comes
+# from conftest.py.
+if CODE not in sys.path:
+    sys.path.insert(0, CODE)
+
 
 def _load(name, path):
     spec = importlib.util.spec_from_file_location(name, path)
@@ -701,10 +708,6 @@ def test_the_run_tab_opens_only_for_exactly_what_was_validated():
     rule that let a one-year run go without the stream on 2026-09-26 -- the
     Validation panel approved the SAVED file while sfr.enable was an unsaved
     edit -- cannot come back."""
-    if os.path.join(CODE, 'app') not in sys.path:
-        sys.path.insert(0, os.path.join(CODE, 'app'))
-    if CODE not in sys.path:
-        sys.path.insert(0, CODE)
     from lib import panelui
     rec = panelui.validation_record('lamata.toml', 'abc')
     assert panelui.run_unlocked(rec, 'lamata.toml', 'abc', [])
