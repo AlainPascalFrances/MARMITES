@@ -435,3 +435,15 @@ runs plus 96 updates, at ~1 h a run with six at once.
 
 The pilot's results are kept in `PEST\master_pilot`, the first Monte
 Carlo's in `PEST\master_prior_mc`.
+
+**Interrupted and resumed.** A server reboot (2026-10-14 ~18:52) stopped
+the production run during its prior: 88 of 100 runs completed, 3 failed,
+9 unfinished. Kept as `PEST\master_prod_prior`.
+
+Resumed 2026-10-15 15:29 (user's go) with
+`pest_lamata_run.py --restart-from master_prod_prior`. It reads the 88
+completed runs back from the run storage and starts at iteration 1:
+- 2 realisations dropped as bad (phi above the 2.5-sigma threshold), 86
+  continue; the best starting phi is 6745;
+- per iteration 24 trial runs (3 lambdas × 8) plus 78 updates;
+- about 2.5–3 days at ~75 min a run with six at once.
