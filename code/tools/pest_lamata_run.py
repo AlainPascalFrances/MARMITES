@@ -74,6 +74,46 @@ def join(pest_ws, n, port):
     return procs
 
 
+def restart_files(src_master, tpl):
+    """Restart an interrupted run from what its master completed: the
+    parameters and outputs of the COMPLETED runs of the prior, read back
+    from the run storage (lamata.rns), and their noise realisations --
+    written into the template for pestpp-ies to start at iteration 1
+    (2026-10-15: a server reboot stopped the production prior at 88 of
+    100). Returns the number of realisations kept and the pestpp options."""
+    import pyemu
+    pst = pyemu.Pst(os.path.join(src_master, 'lamata.pst'))
+    par, obs, meta = pyemu.helpers.read_pestpp_runstorage(
+        os.path.join(src_master, 'lamata.rns'), irun='all',
+        with_metadata=True)
+    done = meta['status'] == 'completed'
+    names = [t.split('realization:')[-1].strip()
+             for t in meta.loc[done, 'info_txt']]
+    if not names:
+        raise SystemExit('no completed run in %s' % src_master)
+    p = par.loc[done, pst.par_names].copy()
+    o = obs.loc[done, pst.obs_names].copy()
+    p.index = o.index = names
+    noise = pyemu.ObservationEnsemble.from_binary(
+        pst, os.path.join(src_master, 'lamata.obs+noise.jcb'))._df
+    noise.index = noise.index.astype(str)
+    keep = [n for n in names if n in noise.index]
+    pyemu.ParameterEnsemble(pst, p.loc[keep]).to_binary(
+        os.path.join(tpl, 'restart_par.jcb'))
+    pyemu.ObservationEnsemble(pst, o.loc[keep]).to_binary(
+        os.path.join(tpl, 'restart_obs.jcb'))
+    pyemu.ObservationEnsemble(pst, noise.loc[keep]).to_binary(
+        os.path.join(tpl, 'restart_noise.jcb'))
+    opts = {'ies_parameter_ensemble': 'restart_par.jcb',
+            'ies_restart_observation_ensemble': 'restart_obs.jcb',
+            'ies_observation_ensemble': 'restart_noise.jcb',
+            'ies_num_reals': len(keep)}
+    print('restart from %s: %d completed realisation(s) of %d (%s)'
+          % (src_master, len(keep), len(meta),
+             meta['status'].value_counts().to_dict()))
+    return len(keep), opts
+
+
 def main(argv=None):
     import pyemu
     import mm_paths
@@ -85,6 +125,9 @@ def main(argv=None):
     ap.add_argument('--port', type=int, default=4004)
     ap.add_argument('--join', type=int, default=0,
                     help='add this many agents to the RUNNING master')
+    ap.add_argument('--restart-from', default='',
+                    help='the master folder of an interrupted run: start '
+                         'at iteration 1 from its completed prior runs')
     a = ap.parse_args(argv)
     pest_ws = str(mm_paths.PEST_WS or '')
     if a.join:
@@ -104,6 +147,14 @@ def main(argv=None):
     pst.control_data.noptmax = a.noptmax
     if a.nreal:
         pst.pestpp_options['ies_num_reals'] = a.nreal
+    if a.restart_from:
+        src = os.path.abspath(a.restart_from)
+        if os.path.normcase(src) == os.path.normcase(
+                os.path.join(pest_ws, 'master')):
+            raise SystemExit('move the interrupted master aside first: '
+                             'this run recreates %s' % src)
+        _n, opts = restart_files(src, tpl)
+        pst.pestpp_options.update(opts)
     pst.write(os.path.join(tpl, 'lamata.pst'), version=2)
     master = os.path.join(pest_ws, 'master')
     if os.path.isdir(master):
