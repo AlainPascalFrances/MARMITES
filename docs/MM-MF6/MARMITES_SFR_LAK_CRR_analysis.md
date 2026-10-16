@@ -1606,11 +1606,21 @@ nothing changes.
 
 | | current curve | tip-anchored |
 |---|---|---|
-| whole run | killed at 8 h 07 min (period ~1400 of 1949) | 149 min |
+| whole run | 591 min (re-run outside PEST; PEST killed it at 8 h 07 min) | 149 min |
 | Jul-Sep 2009 | 2 h 37 min, ~200 outer iterations a day | 11.5 min, 9-37 |
 | Jul-Aug 2009 outer iterations | 58 650 | 4 805 |
 
 What remains in July-August 2009 sits on the 10 m root tips (cells 2087,
 2182, 462: heads level at land minus 10 m). That is one kink, where the
 slope drops from rate / ramp to 0, not a step.
+
+**The results barely move.** Realisation 11, both runs, with the
+calibration's targets and weights:
+- phi 12407.3 against 12407.1, the same in every group;
+- catchment ET 331.15 against 331.13 mm/yr (Tg 5.49 against 5.48);
+- outlet flow 124.81 against 124.82 mm/yr;
+- corrected heads at the points within 2 mm on average; the largest
+  single difference is 0.16 m, at EC.
+
+Only the solver's work changes.
 
