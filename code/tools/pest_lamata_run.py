@@ -16,8 +16,8 @@ workspace) and the master runs in ``<pest_ws>/master``.
 takes agents at any time -- in new worker folders after the existing ones,
 never touching those (pyemu.start_workers would recreate them).
 
-At most MAX_WORKERS agents in all: the user allows 10 of the server's 16
-logical cores (2026-10-12; was 6, the physical cores minus two).
+At most MAX_WORKERS agents in all: the user allows 20 (2026-10-16; the
+server has 32 cores / 64 threads since 2026-10-15; was 10 of 16 threads).
 """
 
 import argparse
@@ -33,7 +33,7 @@ CODE = os.path.abspath(os.path.join(HERE, '..'))
 if CODE not in sys.path:
     sys.path.insert(0, CODE)
 
-MAX_WORKERS = 10
+MAX_WORKERS = 20
 
 
 def _running_agents(workers):

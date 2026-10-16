@@ -80,8 +80,8 @@ never shapefiles. The user asked to be reminded whenever that gets mixed up.
    (forward runs, the test run of the setup, the pestpp workers) are
    allowed, in a SEPARATE PEST workspace -- never WS_ROOT's model
    workspace, never `code/configs/lamata.toml` (work on copies). At most
-   10 PEST agents (user, 2026-10-12: up to 10 of the server's 16 logical
-   cores; 8 physical).
+   20 PEST agents (user, 2026-10-16: the server has had 32 cores / 64
+   threads since the reboot of 2026-10-15; was 10 of 16 threads).
 2. **The front-end owns the model configuration.** Every model choice is a
    config field that a panel asks, plus the code that honours it. Both land
    together, with help text in `app/lib/schema.py`, validation in
