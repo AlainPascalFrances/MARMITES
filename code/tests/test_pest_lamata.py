@@ -244,3 +244,35 @@ def test_the_workspace_may_not_be_inside_ws_root_or_the_repository(tmp_path):
     with pytest.raises(SystemExit):
         pst._check_ws('', mp)
     pst._check_ws(str(tmp_path / 'pest'), mp)
+
+
+# ------------------------------------------------------------- warm start
+
+def test_a_warm_start_carries_the_parameters_and_no_old_outputs(tmp_path):
+    """2026-10-16: after the Tg curve was fixed the production restarted
+    from iteration 1's parameter sets -- run again with the new model, so
+    the template gets the parameters only, and only when every parameter
+    is there and within its bounds."""
+    pyemu = pytest.importorskip('pyemu')
+    import pest_lamata_run as prun
+    p = pyemu.Pst.from_par_obs_names(['k_a', 'k_b', 'sfr_rhk'], ['o1'])
+    p.parameter_data['parlbnd'] = 0.01
+    p.parameter_data['parubnd'] = 10.0
+    df = pd.DataFrame([[0.5, 2.0, 0.1], [1.0, 9.0, 0.2]],
+                      columns=['sfr_rhk', 'k_a', 'k_b'], index=['3', '7'])
+    ens = str(tmp_path / 'it1.jcb')
+    pyemu.ParameterEnsemble(p, df).to_binary(ens)
+    n, opts = prun.start_files(ens, str(tmp_path), p)
+    assert n == 2 and opts == {'ies_parameter_ensemble': 'start_par.jcb',
+                               'ies_num_reals': 2}
+    back = pyemu.ParameterEnsemble.from_binary(
+        p, str(tmp_path / 'start_par.jcb'))._df
+    assert list(back.index) == ['3', '7']               # the names kept
+    assert back.loc['7', 'k_a'] == pytest.approx(9.0)
+    # a parameter the template does not have, or a value out of bounds
+    q = pyemu.Pst.from_par_obs_names(['k_a', 'k_b', 'k_c'], ['o1'])
+    with pytest.raises(SystemExit, match='missing'):
+        prun.start_files(ens, str(tmp_path), q)
+    p.parameter_data.loc['k_a', 'parubnd'] = 5.0
+    with pytest.raises(SystemExit, match='outside'):
+        prun.start_files(ens, str(tmp_path), p)

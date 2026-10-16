@@ -5,12 +5,20 @@ PANTHER agents, in the PEST workspace (Home, pest_ws).
     python code/tools/pest_lamata_run.py --workers 10 --noptmax 0
     python code/tools/pest_lamata_run.py --join 4      # agents for a
                                                         # running master
+    python code/tools/pest_lamata_run.py --workers 20 --noptmax 2 \
+        --start-ensemble <pest_ws>/iter1_warmstart/iter1_par.jcb
 
 ``--noptmax 0`` is the base run through PEST++ itself (one forward run in
 an agent: the check that the whole chain works), ``-1`` the prior Monte
 Carlo, ``2``/``3`` the IES iterations. The template is copied into
 ``<pest_ws>/workers/worker_<k>`` (each worker its own dataset copy and
 workspace) and the master runs in ``<pest_ws>/master``.
+
+``--restart-from`` continues an interrupted run with the SAME model (its
+completed runs' outputs are kept); ``--start-ensemble`` starts from a
+parameter ensemble after a MODEL change -- the realisations are run first
+with the current model, then updated (the warm start of 2026-10-16, after
+the Tg curve was fixed).
 
 ``--join N`` adds N agents to a master that is ALREADY running -- PANTHER
 takes agents at any time -- in new worker folders after the existing ones,
@@ -114,6 +122,33 @@ def restart_files(src_master, tpl):
     return len(keep), opts
 
 
+def start_files(ens, tpl, pst):
+    """A warm start: the parameter ensemble ``ens`` (.jcb) as the starting
+    one, copied into the template; no observation ensemble -- pestpp-ies
+    runs the realisations with the current model first. Returns the number
+    of realisations and the pestpp options."""
+    import pyemu
+    pe = pyemu.ParameterEnsemble.from_binary(pst, ens)._df
+    missing = sorted(set(pst.par_names) - set(pe.columns))
+    extra = sorted(set(pe.columns) - set(pst.par_names))
+    if missing or extra:
+        raise SystemExit('%s does not carry the template\'s parameters: '
+                         '%d missing (%s), %d extra (%s)'
+                         % (ens, len(missing), missing[:3], len(extra),
+                            extra[:3]))
+    pe = pe[pst.par_names]
+    pd_ = pst.parameter_data.loc[pst.par_names]
+    out = ((pe < pd_['parlbnd'].values) | (pe > pd_['parubnd'].values))
+    if out.values.any():
+        raise SystemExit('%s: %d value(s) outside the template\'s bounds'
+                         % (ens, int(out.values.sum())))
+    pyemu.ParameterEnsemble(pst, pe).to_binary(
+        os.path.join(tpl, 'start_par.jcb'))
+    print('warm start from %s: %d realisation(s)' % (ens, len(pe)))
+    return len(pe), {'ies_parameter_ensemble': 'start_par.jcb',
+                     'ies_num_reals': len(pe)}
+
+
 def main(argv=None):
     import pyemu
     import mm_paths
@@ -128,6 +163,9 @@ def main(argv=None):
     ap.add_argument('--restart-from', default='',
                     help='the master folder of an interrupted run: start '
                          'at iteration 1 from its completed prior runs')
+    ap.add_argument('--start-ensemble', default='',
+                    help='a parameter ensemble (.jcb) to start from after a '
+                         'model change: run first, then updated')
     a = ap.parse_args(argv)
     pest_ws = str(mm_paths.PEST_WS or '')
     if a.join:
@@ -147,6 +185,16 @@ def main(argv=None):
     pst.control_data.noptmax = a.noptmax
     if a.nreal:
         pst.pestpp_options['ies_num_reals'] = a.nreal
+    if a.restart_from and a.start_ensemble:
+        raise SystemExit('--restart-from continues the same model, '
+                         '--start-ensemble follows a model change: one only')
+    if a.start_ensemble:
+        # the outputs and noise of an earlier run belong to the old model
+        for k in ('ies_restart_observation_ensemble',
+                  'ies_observation_ensemble'):
+            pst.pestpp_options.pop(k, None)
+        _n, opts = start_files(os.path.abspath(a.start_ensemble), tpl, pst)
+        pst.pestpp_options.update(opts)
     if a.restart_from:
         src = os.path.abspath(a.restart_from)
         if os.path.normcase(src) == os.path.normcase(

@@ -410,7 +410,10 @@ def step_pst(org, pest_ws, nreal, python=None):
         # three trial upgrades an iteration (0.75 as well doubled them)
         'ies_lambda_mults': '0.1,1.0,10.0', 'lambda_scale_fac': '1.0',
         'ies_save_rescov': False, 'save_binary': True,
-        'overdue_giveup_fac': 2.0, 'max_run_fail': 1,
+        # a run is given up at 4x the running mean: at 2x the production
+        # lost 12 of 43 runs of iteration 1 (2026-10-16) -- early in a batch
+        # the mean is the first, fastest runs'
+        'overdue_giveup_fac': 4.0, 'max_run_fail': 1,
         'panther_agent_freeze_on_fail': False})
     pe = pf_.draw(num_reals=int(nreal), use_specsim=False)
     pe.enforce()
