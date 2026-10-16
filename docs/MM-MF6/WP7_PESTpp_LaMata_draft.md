@@ -458,3 +458,27 @@ completed runs back from the run storage and starts at iteration 1:
   continue; the best starting phi is 6745;
 - per iteration 24 trial runs (3 lambdas × 8) plus 78 updates;
 - about 2.5–3 days at ~75 min a run with six at once.
+
+**Stopped in iteration 1; the Tg curve fixed; warm start (2026-10-16).**
+Iteration 1's runs took 130-460 min, not ~75. Runs past twice the
+average were killed: 12 of the first 43, the slow ones. The cause was
+MF6 stalling where summer water tables reached the 15 m root tips (the
+Tg curve's ramp shrank to a step there; analysis doc §8.25). The user
+stopped the run (kept as `PEST\master_iter1_stopped`).
+
+- **Iteration 1's update kept.** Its 78 parameter sets (lambda 0.1) were
+  read from the run storage into `PEST\iter1_warmstart\iter1_par.jcb`.
+  The 34 runs that completed had a mean phi of 6882 (best 6052) with the
+  old curve; the prior's mean was 11224 (best 6745).
+- **Tg ramp anchored at the root tip** (99669a1). One realisation: 149 min
+  instead of more than 8 h.
+- **Setup again** with the fixed code (`org`, base run 40 min, `pst`). The
+  measured ET at the points comes from the runs' exports (group `et_pt`,
+  EC, weight 0). Overdue limit 4x the running mean. The previous setup is
+  kept as `*_prod_20261013`.
+- **Warm start, launched 17:55** (user's choice):
+  `pest_lamata_run.py --workers 20 --noptmax 2 --start-ensemble
+  iter1_warmstart\iter1_par.jcb`. PEST++ first runs the 78 sets with the
+  fixed model, then makes 2 iterations: the 2nd and 3rd updates of the
+  plan. 20 agents: the server has 32 cores since the 2026-10-15 reboot.
+
