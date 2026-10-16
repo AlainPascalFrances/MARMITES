@@ -255,16 +255,35 @@ def test_the_builder_makes_two_evt_packages_in_cell_order(tmp_path):
 def test_a_root_tip_within_the_ramp_of_the_head_is_a_straight_line():
     """2026-10-05, the first EVT run: one type reaching the table, its tip
     0.05 m below the start-of-day head -- no inner breakpoint at all, and
-    the curve builder failed on the empty array."""
+    the curve builder failed on the empty array. Half way up the ramp, half
+    the rate (the ramp is anchored at the tip, 2026-10-16)."""
     s, R, D, x, y = me.tg_curve([0.0, 0.002, 0.0], [700.0, 799.95, 700.0],
                                 800.0, 0.1, 8)
-    assert R == pytest.approx(0.002) and D == pytest.approx(0.05)
+    assert R == pytest.approx(0.001) and D == pytest.approx(0.05)
     assert x.size == y.size == 7
     assert np.all(np.diff(x) > 0) and np.all(np.diff(y) <= 0)
     assert y == pytest.approx(1.0 - x)                 # a straight ramp
     # and the same for Eg: a head right at the extinction depth's edge
     s, R, D, x, y = me.eg_curve(0.002, 800.0, 790.0001, SANDY_LOAM_FIELD, 8)
     assert x.size == 7 and np.all(np.diff(x) > 0)
+
+
+@pytest.mark.parametrize('above', [0.5, 0.1, 0.05, 1e-3, 1e-6])
+def test_tg_is_never_steeper_than_its_ramp_near_a_root_tip(above):
+    """2026-10-16: summer water tables sank to the 15 m Q. ilex tips and
+    stayed there. The ramp then started at the start-of-day head, h0 - tip
+    wide: from the full rate to nothing within millimetres, a step MF6's
+    Newton solve went back and forth across (~200 outer iterations a day).
+    Anchored at the tip, the slope is at most rate / ramp, and the day's
+    rate goes down smoothly with the head."""
+    rate, tip, ramp = 2e-3, 785.0, 0.1
+    h0 = tip + above
+    s, R, D, x, y = me.tg_curve([0.0, rate], [799.6, tip], h0, ramp, 8)
+    assert R == pytest.approx(rate * min(above / ramp, 1.0))
+    X = np.r_[0.0, x, 1.0]
+    Y = np.r_[1.0, y, 0.0]
+    slope = -np.diff(Y * R) / np.diff(X * D)        # m/d per m of head
+    assert slope.max() <= rate / ramp * (1.0 + 1e-9)
 
 
 @pytest.mark.parametrize('seed', range(5))

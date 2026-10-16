@@ -152,27 +152,34 @@ def eg_curve(pe, land, h0, p, nseg, last=0.05):
 
 def tg_curve(rates, tips, h0, ramp, nseg):
     """Tg: ``rates`` [m/d] and root ``tips`` [m] per vegetation type; the
-    types whose roots reach the start-of-day head ``h0`` take their rate.
+    types whose root tips are below the start-of-day head ``h0`` take part.
 
-    As the head falls, type v stops over a ramp of width min(ramp,
-    h0 - tip_v) above its root tip -- so it starts the day at its full rate
-    and is off at its tip. Flat above h0. Returns (SURFACE, RATE, DEPTH,
-    PXDP, PETM)."""
+    Type v takes rate_v * clip((h - tip_v) / ramp, 0, 1): its full rate with
+    the head ``ramp`` or more above its root tip, nothing at the tip, linear
+    in between -- a ramp ANCHORED AT THE TIP, so the curve is never steeper
+    than rate_v / ramp. Flat above h0, at the rate there. Returns (SURFACE,
+    RATE, DEPTH, PXDP, PETM).
+
+    Until 2026-10-16 the ramp started at h0, min(ramp, h0 - tip_v) wide:
+    the full rate every morning, but a ramp that shrank to nothing as the
+    head neared a tip. Where summer water tables sank to the 15 m Q. ilex
+    tips that was a step MF6's Newton solve went back and forth across --
+    ~200 outer iterations a day, and July-September 2009 of one PEST
+    realisation took 2 h 37 min instead of 12 min."""
     r = np.asarray(rates, dtype=float).ravel()
     z = np.asarray(tips, dtype=float).ravel()
     on = (r > 0.0) & (z < float(h0))
     if not on.any():
         return _flat(h0, nseg)
     r, z = r[on], z[on]
-    w = np.minimum(float(ramp), float(h0) - z)
-    R = float(r.sum())
-    zmin = float(z.min())
-    D = float(h0) - zmin
 
     def T(h):
-        return float(np.sum(r * np.clip((h - z) / w, 0.0, 1.0)))
+        return float(np.sum(r * np.clip((h - z) / ramp, 0.0, 1.0)))
 
-    hs = np.unique(np.r_[z, z + w])
+    R = T(float(h0))
+    zmin = float(z.min())
+    D = float(h0) - zmin
+    hs = np.unique(np.r_[z, np.minimum(z + ramp, float(h0))])
     x = (float(h0) - hs) / D
     y = np.array([T(h) for h in hs]) / R
     x, y = _pad(x, y, nseg)
@@ -325,21 +332,21 @@ def _tg_nb(rates, tips, h0, ramp, nseg, ox, oy, out):
         return 0
     r = r[:m]
     z = z[:m]
-    w = np.empty(m)
+    top = np.empty(m)              # each ramp's top, never above h0
     R = 0.0
     zmin = z[0]
     for v in range(m):
-        w[v] = min(ramp, h0 - z[v])
-        R += r[v]
+        top[v] = min(z[v] + ramp, h0)
+        R += r[v] * min(max((h0 - z[v]) / ramp, 0.0), 1.0)
         zmin = min(zmin, z[v])
     D = h0 - zmin
-    hs = np.unique(np.concatenate((z, z + w)))
+    hs = np.unique(np.concatenate((z, top)))
     x = np.empty(hs.size)
     y = np.empty(hs.size)
     for i in range(hs.size):
         T = 0.0
         for v in range(m):
-            T += r[v] * min(max((hs[i] - z[v]) / w[v], 0.0), 1.0)
+            T += r[v] * min(max((hs[i] - z[v]) / ramp, 0.0), 1.0)
         x[i] = (h0 - hs[i]) / D
         y[i] = T / R
     out[0], out[1], out[2] = h0, R, D

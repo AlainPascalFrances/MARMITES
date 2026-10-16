@@ -1564,3 +1564,53 @@ On the maps:
 - Removed: the upper-face map (FUF), which equals Rn in layer 1 and the
   lower-face map FLF in layer 2; and the net SFRg/LAKg maps, now inside
   Rsw and Exf.
+
+## 8.25 Tg's ramp anchored at the root tip: the summer Newton stall (2026-10-16)
+
+In iteration 1 of the La Mata PEST++ production run, a forward run took
+130-460 min instead of ~75 min, and runs past twice the average were
+killed (12 of 43). Realisation 11, MF6's solver effort by month:
+
+| | normal months | Jul-Sep 2009 |
+|---|---|---|
+| outer iterations a day | 12-15 | ~200 |
+| time steps a day (ATS) | 1 | ~20 |
+
+July-September 2009 alone took 2 h 37 min.
+
+**Where.** Layer-1 cells about 700 m east of P0 (cell 1960 and its
+neighbours). The largest head change flipped between them by 1-6 mm,
+just above `outer_dvclose` (1 mm), until the 100 outer iterations ran
+out and ATS cut the step. These cells carry only UZF and EVT. The head
+of cell 1960 stayed at 746.28 m from August to September: its land
+(761.277 m) minus the 15 m Q. ilex roots.
+
+**Why.** The Tg curve ramped each type out over min(evt_ramp, h0 - tip)
+below the start-of-day head h0: the full rate every morning, nothing at
+the tip. As a falling water table neared a tip the ramp shrank to
+nothing, and Tg went from its full rate to zero within millimetres --
+a step Newton went back and forth across.
+
+**The fix** (`marmites_evt.tg_curve`, and `_tg_nb` compiled): the ramp
+is anchored at the tip, a fixed `evt_ramp` (0.1 m) wide:
+
+    Tg_v(h) = rate_v * clip((h - tip_v) / evt_ramp, 0, 1)
+
+flat above h0 at the rate there. The curve is never steeper than
+rate_v / evt_ramp. The day's Tg is now below the full rate when h0 is
+within 0.1 m of a tip, and it falls smoothly as the head does. Elsewhere
+nothing changes.
+
+**On realisation 11** (same inputs, the PEST workspace,
+`PEST\diag_s2009`):
+
+| | current curve | tip-anchored |
+|---|---|---|
+| whole run | killed at 8 h 07 min (period ~1400 of 1949) | 149 min |
+| Jul-Sep 2009 | 2 h 37 min, ~200 outer iterations a day | 11.5 min, 9-37 |
+| Jul-Aug 2009 outer iterations | 58 650 | 4 805 |
+
+What remains in July-August 2009 sits on the 10 m root tips (cells 2087,
+2182, 462: heads level at land minus 10 m). That is one kink, where the
+slope drops from rate / ramp to 0, not a step.
+
