@@ -127,6 +127,7 @@ def start_files(ens, tpl, pst):
     one, copied into the template; no observation ensemble -- pestpp-ies
     runs the realisations with the current model first. Returns the number
     of realisations and the pestpp options."""
+    import numpy as np
     import pyemu
     pe = pyemu.ParameterEnsemble.from_binary(pst, ens)._df
     missing = sorted(set(pst.par_names) - set(pe.columns))
@@ -138,10 +139,15 @@ def start_files(ens, tpl, pst):
                             extra[:3]))
     pe = pe[pst.par_names]
     pd_ = pst.parameter_data.loc[pst.par_names]
-    out = ((pe < pd_['parlbnd'].values) | (pe > pd_['parubnd'].values))
+    lo, hi = pd_['parlbnd'].values, pd_['parubnd'].values
+    # a value ON a bound comes back a rounding off it (25 of iteration 1's,
+    # 2026-10-16): within 1e-6 it is set on the bound, beyond it refused
+    tol = 1e-6 * np.maximum(np.abs(np.c_[lo, hi]), 1.0)
+    out = (pe < lo - tol[:, 0]) | (pe > hi + tol[:, 1])
     if out.values.any():
         raise SystemExit('%s: %d value(s) outside the template\'s bounds'
                          % (ens, int(out.values.sum())))
+    pe = pe.clip(lower=lo, upper=hi, axis=1)
     pyemu.ParameterEnsemble(pst, pe).to_binary(
         os.path.join(tpl, 'start_par.jcb'))
     print('warm start from %s: %d realisation(s)' % (ens, len(pe)))

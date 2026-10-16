@@ -276,3 +276,9 @@ def test_a_warm_start_carries_the_parameters_and_no_old_outputs(tmp_path):
     p.parameter_data.loc['k_a', 'parubnd'] = 5.0
     with pytest.raises(SystemExit, match='outside'):
         prun.start_files(ens, str(tmp_path), p)
+    # a value on its bound, read back a rounding beyond it, is set on it
+    p.parameter_data.loc['k_a', 'parubnd'] = 9.0 * (1.0 - 1e-9)
+    prun.start_files(ens, str(tmp_path), p)
+    back = pyemu.ParameterEnsemble.from_binary(
+        p, str(tmp_path / 'start_par.jcb'))._df
+    assert back.loc['7', 'k_a'] == p.parameter_data.loc['k_a', 'parubnd']
