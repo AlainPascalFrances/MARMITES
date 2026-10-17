@@ -32,13 +32,14 @@ The PEST workers already run there and the app only needs to see `$MM_WS_ROOT`.
 ## Layout
 
 ```
-Home.py                 entry point, case selector, machine banner, recent runs
-pages/1_Inputs.py       Tier A inventory + Tier B cartography on a map + the converter
-pages/2_Configuration.py  schema-driven editor; MMsurf parameters pre-filled (WP1.7)
-pages/3_Run.py          launch (detached) and follow the log
-pages/4_Results.py      the figures a run wrote, with a run picker
+Home.py                 entry point, case selector, machine banner, paths
+pages/1_1_-_Grid.py .. 6_6_-_Plots.py   the configuration panels
+pages/7_7_-_Run.py      validate the configuration, launch (detached), follow
+pages/9_9_-_PEST_progress.py  a PEST++ calibration's progress (read-only)
+pages/10_10_-_Results.py      the figures a run wrote, with a run picker
 lib/loaders.py          cached readers, keyed on (path, size, mtime)
 lib/runs.py             the run registry: launch, status, log tail
+lib/pest_progress.py    pestpp-ies's record files -> batches, runs, phi
 ```
 
 ## Two rules this app lives by

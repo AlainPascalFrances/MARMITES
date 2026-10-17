@@ -54,7 +54,10 @@ code/                    all Python
   app/                      Streamlit front-end: python code/tools/launch_app.py
                             (streamlit run code/app/Home.py, from a local mirror
                             of the code when the checkout is on a network drive)
-                            pages 1 Grid .. 7 Run (Validation + Run tabs) .. 8 Results
+                            pages 1 Grid .. 7 Run (Validation + Run tabs),
+                            9 PEST++ progress (read-only, app/lib/pest_progress.py),
+                            10 Results; 8 PEST++ set-up to come
+                            (docs/MM-MF6/WP7_PEST_frontend_plan.md)
                             app/lib/schema.py = panel help texts
   tools/gis_to_dataset.py   converter shapefiles -> dataset tables (run by hand / Launch)
 docs/                    cookbook .docx, docs/MM-MF6/*.md reports

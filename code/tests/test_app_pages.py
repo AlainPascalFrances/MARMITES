@@ -83,7 +83,8 @@ PLOT = 'pages/6_6_-_Plots.py'
 PAGES = ['Home.py'] + [os.path.join('pages', f) for f in (
     '1_1_-_Grid.py', '2_2_-_Surface_and_driving_forces.py', '3_3_-_Soil.py',
     '4_4_-_Unsaturated_zone_and_groundwater.py', '5_5_-_State_variables.py',
-    '6_6_-_Plots.py', '7_7_-_Run.py', '8_8_-_Results.py')]
+    '6_6_-_Plots.py', '7_7_-_Run.py', '9_9_-_PEST_progress.py',
+    '10_10_-_Results.py')]
 
 
 @pytest.mark.parametrize('page', PAGES)
@@ -119,7 +120,7 @@ def test_the_results_are_shown_by_tabs_two_to_a_row(tmp_path, monkeypatch):
             fig.savefig(str(run / sub / n))
             plt.close(fig)
     monkeypatch.setattr(mm_paths, 'WS_ROOT', tmp_path)
-    at = AppTest.from_file(os.path.join(APP, 'pages', '8_8_-_Results.py'),
+    at = AppTest.from_file(os.path.join(APP, 'pages', '10_10_-_Results.py'),
                            default_timeout=180)
     at.run()
     assert not at.exception, [str(e.value) for e in at.exception]
@@ -130,10 +131,38 @@ def test_the_results_are_shown_by_tabs_two_to_a_row(tmp_path, monkeypatch):
     said = ' '.join(str(m.value) for m in at.markdown)
     assert 'text-align:center' in said
     assert 'Horizontal hydraulic conductivity' in said
-    src = open(os.path.join(APP, 'pages', '8_8_-_Results.py'),
+    src = open(os.path.join(APP, 'pages', '10_10_-_Results.py'),
                encoding='utf-8').read()
     assert "st.columns(2, gap='medium', vertical_alignment='top')" in src
     assert "'Columns'" not in src, 'the column count is fixed at two'
+
+
+def test_the_pest_progress_panel_reads_the_master(tmp_path, monkeypatch):
+    """Panel 9 (WP7 front-end, phase 1): what a calibration is doing, read
+    from the PEST workspace set on Home and shown read-only."""
+    import importlib.util
+    import mm_paths
+    spec = importlib.util.spec_from_file_location(
+        '_t_pest_progress', os.path.join(HERE, 'test_pest_progress.py'))
+    tpp = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(tpp)
+    ws = tpp.fake_pest_ws(tmp_path)
+    monkeypatch.setattr(mm_paths, 'PEST_WS', ws)
+    page = os.path.join(APP, 'pages', '9_9_-_PEST_progress.py')
+    at = AppTest.from_file(page, default_timeout=180)
+    at.run()
+    assert not at.exception, [str(e.value) for e in at.exception]
+    assert [t.label for t in at.tabs] == ['Runs', 'Phi', 'Failures (2)',
+                                          'Reports (1)']
+    assert ws in ' '.join(str(c.value) for c in at.caption)
+    assert [m.label for m in at.metric][:3] == ['State', 'Iteration',
+                                                'Stage']
+    # no workspace set: said, nothing else tried
+    monkeypatch.setattr(mm_paths, 'PEST_WS', None)
+    at = AppTest.from_file(page, default_timeout=180)
+    at.run()
+    assert not at.exception
+    assert 'Home' in ' '.join(str(i.value) for i in at.info)
 
 
 def test_the_sidebar_shows_the_number_with_the_name():
@@ -156,9 +185,8 @@ def test_the_sidebar_shows_the_number_with_the_name():
 
     want = [(1, 'Grid'), (2, 'Surface and driving forces'), (3, 'Soil'),
             (4, 'Unsaturated zone and groundwater'), (5, 'State variables'),
-            (6, 'Plots'), (7, 'Run'), (8, 'Results')]
-    names = sorted(f for f in os.listdir(os.path.join(APP, 'pages'))
-                   if f.endswith('.py') and not f.startswith('_'))
+            (6, 'Plots'), (7, 'Run'), (9, 'PEST progress'), (10, 'Results')]
+    names = _pages_in_order()
     assert len(names) == len(want), names
     for fn, (num, title) in zip(names, want):
         _icon, raw = page_icon_and_name(Path(fn))
@@ -171,15 +199,26 @@ def test_the_sidebar_shows_the_number_with_the_name():
         'Home has been given a number'
 
 
+def _pages_in_order():
+    """The page files in the order streamlit puts them in the sidebar: by
+    their leading NUMBER -- '10_10_-_Results.py' after '9_...', where a
+    plain sort of the names would put it first."""
+    names = [f for f in os.listdir(os.path.join(APP, 'pages'))
+             if f.endswith('.py') and not f.startswith('_')]
+    return sorted(names, key=lambda f: int(f.split('_')[0]))
+
+
 def test_the_panels_are_numbered_in_the_modellers_order():
-    """The sidebar order is the file order, so it is the panel order."""
-    names = sorted(f for f in os.listdir(os.path.join(APP, 'pages'))
-                   if f.endswith('.py') and not f.startswith('_'))
+    """The sidebar order is the file order, so it is the panel order.
+    PEST++ comes after Run and before Results (user, 2026-10-17); panel 8,
+    the PEST++ set-up, arrives with phase 2 of the plan."""
+    names = _pages_in_order()
     assert names == ['1_1_-_Grid.py', '2_2_-_Surface_and_driving_forces.py',
                      '3_3_-_Soil.py',
                      '4_4_-_Unsaturated_zone_and_groundwater.py',
                      '5_5_-_State_variables.py', '6_6_-_Plots.py',
-                     '7_7_-_Run.py', '8_8_-_Results.py']
+                     '7_7_-_Run.py', '9_9_-_PEST_progress.py',
+                     '10_10_-_Results.py']
 
 
 def test_the_panels_offer_something_to_edit():
