@@ -118,3 +118,44 @@ figures.
 | 3 | A configuration copy saved with every run; the run solution as the base |
 | 4 | Set up, launch, add agents and stop from the app (tab ⑤) |
 | 5 | The PEST results, and the calibrated parameters as `<model>_PEST` |
+
+## 5. Phase 2, as built (2026-10-18)
+
+**The `[pest]` section** (`marmites_config.Pest`, validated in
+`RunConfig._pest_problems`, help texts in `app/lib/schema.py`):
+
+| Tab | Fields |
+|---|---|
+| ① Base | `base_state` (a saved state of the run workspace), `calib_start` (blank: the first hydrological year after a whole year of record, 2009-10-01 on La Mata) |
+| ② Parameters | `pp_space`, `vario_range`, `k_order_decades`; the table `[[pest.par]]`: family, layer (or horizon, or 0), on, start, lower, upper, log |
+| ③ Observations | the table `[[pest.group]]`: share of phi, noise, relative noise (every group once); `soft_fraction`, `points_on`, `q_dry`, `q_eps` |
+| ④ Ensemble | `nreal`, `noptmax`, `lambda_mults`, `bad_phi_sigma`, `overdue_giveup_fac`, `agents`, `start` (prior, warm, restart), `start_from` |
+
+- **Units by family** (`PEST_FAMILIES`): K in m/d, Sy and Sr as water
+  contents, the field capacity as a moisture, Ks in mm/d; Ss, the drains
+  and UZF's vks as multipliers. The set-up turns K and Sy into multipliers
+  of the reference rasters' median (uniform on La Mata, so exact).
+- **An empty `par` means the defaults** for the configuration
+  (`pest_lamata_setup.default_pars`: the calibration of 2026-10-18). The
+  page shows them; saving an edit writes the table. A reset button puts
+  the defaults back.
+- **The field capacity cannot leave its interval** (user): a row's range
+  must lie strictly between the horizon's wilting point `sr` and porosity
+  `smax`, and PEST++ calibrates its place in that interval.
+- **Ss on pilot points** with K and Sy (user); it was one value per layer.
+- Also refused at save: a start outside its range, a log range from 0, a
+  layer or horizon that does not exist, Sy + Sr up to 1, a K order no pair
+  can hold, shares that do not sum to 1, a soft group with a share, a
+  warm or restart start without `start_from`.
+- **Retired:** `pest.use_pest_params`, `pest.params_npz` (read by nothing).
+
+**The tools read it.** `pest_lamata_setup.py --config <file> [--step]`
+(no more `--state`, `--nreal`, `--calib-start`); `pest_lamata_run.py
+--config <file>` reads the launch settings at launch (no more `--workers`,
+`--noptmax`, `--nreal`, `--start-ensemble`, `--restart-from`); `--join N`
+stays. The set-up writes the resolved parameter table into its copy of the
+configuration, so every later step reads the same rows.
+
+**Not in phase 2:** the prior's spread with the pilot points on the mesh
+(drawn at set-up, to show with phase 4), the run solution as the base
+(phase 3), set-up and launch from the page (phase 4).

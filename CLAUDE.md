@@ -55,8 +55,10 @@ code/                    all Python
                             (streamlit run code/app/Home.py, from a local mirror
                             of the code when the checkout is on a network drive)
                             pages 1 Grid .. 7 Run (Validation + Run tabs),
-                            9 PEST++ progress (read-only, app/lib/pest_progress.py),
-                            10 Results; 8 PEST++ set-up to come
+                            8 PEST++ set-up (the [pest] section: parameter
+                            table, observation groups, ensemble; the PEST
+                            tools read it), 9 PEST++ progress (read-only,
+                            app/lib/pest_progress.py), 10 Results
                             (docs/MM-MF6/WP7_PEST_frontend_plan.md)
                             app/lib/schema.py = panel help texts
   tools/gis_to_dataset.py   converter shapefiles -> dataset tables (run by hand / Launch)

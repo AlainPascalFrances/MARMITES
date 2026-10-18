@@ -35,6 +35,7 @@ The PEST workers already run there and the app only needs to see `$MM_WS_ROOT`.
 Home.py                 entry point, case selector, machine banner, paths
 pages/1_1_-_Grid.py .. 6_6_-_Plots.py   the configuration panels
 pages/7_7_-_Run.py      validate the configuration, launch (detached), follow
+pages/8_8_-_PEST_setup.py     a PEST++ calibration: the [pest] section
 pages/9_9_-_PEST_progress.py  a PEST++ calibration's progress (read-only)
 pages/10_10_-_Results.py      the figures a run wrote, with a run picker
 lib/loaders.py          cached readers, keyed on (path, size, mtime)

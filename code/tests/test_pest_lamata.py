@@ -131,7 +131,7 @@ def test_targets_are_built_weighted_and_collected(tmp_path):
     assert v['h_p0_0020'] == pytest.approx(699.2)
     assert v['etm_2009275'] == pytest.approx(8.0)       # 8 days x 1 mm/d
     assert v['et_ec_0016'] == pytest.approx(1.0)
-    q20 = np.log10(np.linspace(0.0, 2.0, 40)[19] + po.Q_EPS)
+    q20 = np.log10(np.linspace(0.0, 2.0, 40)[19] + mcfg.Pest().q_eps)
     assert v['q_0020'] == pytest.approx(q20)
     # the gauge's dry days: the model's flow against zero (2026-10-13)
     dry = tg[tg['obgnme'] == 'q_dry']
@@ -177,48 +177,204 @@ def test_a_value_the_run_did_not_make_is_a_sentinel_not_a_gap(tmp_path):
     assert sim['value'].iloc[0] == 1.0e10 and np.isfinite(sim['value']).all()
 
 
-# --------------------------------------------------------------- scalars
+def test_the_observation_settings_are_the_configurations(tmp_path):
+    """The shares, the soft fraction and the dry-day threshold come from
+    [pest] (the PEST++ set-up page), not from the module."""
+    ex = _exports(tmp_path)
+    pest = mcfg.Pest()
+    for g in pest.group:
+        if g.name == 'hds_p0':
+            g.share = 0.45
+        elif g.name == 'q_log':
+            g.share = 0.0
+    pest.soft_fraction = 0.5
+    pest.q_dry = -1.0                     # no day is dry
+    tg = po.build_targets(ex, dt.date(2009, 10, 1), pest=pest)
+    assert 'q_dry' not in set(tg['obgnme'])
+    assert (tg.loc[tg['obgnme'] == 'q_log', 'weight'] == 0.0).all()
+    sim = po.collect(ex, tg, pest=pest)
+    tg['weight'] = po.balance_weights(tg, sim, total=100.0, pest=pest)
+    r = (tg['obsval'] - sim['value']) * tg['weight']
+    phi = (r ** 2).groupby(tg['obgnme']).sum()
+    assert phi['hds_p0'] == pytest.approx(45.0)
+    w = tg.set_index('obsnme')['weight']
+    assert w['h_c1_0020'] == pytest.approx(0.5 * w['h_p0_0020'])
 
-def _cfg():
+
+# ------------------------------------------------- the parameter table
+
+def _cfg(tmp_path=None, nlay=1):
+    """A configuration with one soil horizon and, given a folder, the
+    reference rasters the K and Sy values are relative to (K 0.05 m/d, Sy
+    0.01, as on La Mata)."""
     cfg = mcfg.RunConfig.from_dict({})
     cfg.soil.horizon = [mcfg.SoilHorizon(zone=1, smax=0.15, sfc=0.125,
                                          sr=0.075, si=0.1, ks=1.5)]
+    cfg.layers.nlay = nlay
+    if tmp_path is not None:
+        (tmp_path / 'MF_ws').mkdir(exist_ok=True)
+        for L in range(1, nlay + 1):
+            _raster(str(tmp_path / 'MF_ws' / ('hk_l%d.asc' % L)), 0.05)
+            _raster(str(tmp_path / 'MF_ws' / ('Sy_l%d.asc' % L)), 0.01)
+        cfg.layers.k.raster = 'MF_ws/hk_l%d.asc'
+        cfg.layers.sy.raster = 'MF_ws/Sy_l%d.asc'
     return cfg
 
 
+def _raster(path, value):
+    with open(path, 'w') as fh:
+        fh.write('ncols 3\nnrows 2\nxllcorner 0\nyllcorner 0\ncellsize 50\n'
+                 'NODATA_value -9999\n')
+        fh.write('%g %g -9999\n%g %g %g\n' % ((value,) * 5))
+
+
+def _by(rows):
+    return {(r['family'], r['layer']): (r['start'], r['lower'], r['upper'],
+                                        r['log']) for r in rows}
+
+
+def test_the_default_table_is_the_calibration_of_2026_10_18(tmp_path):
+    """What an empty [pest] par means: the user's hydraulic table (K, Sy,
+    Sr), Ss and the drains as multipliers, the field capacity within +-0.2
+    of its place, Ks x0.1..x10, the package scalars -- and it validates."""
+    cfg = _cfg(tmp_path, nlay=2)
+    cfg.sfr.enable = cfg.lak.enable = cfg.crr.enable = True
+    rows = pst.default_pars(cfg, str(tmp_path))
+    t = _by(rows)
+    assert t[('k', 1)] == pytest.approx((0.05, 2.3e-5, 1.12, True))
+    assert t[('k', 2)] == pytest.approx((0.5, 2.3e-4, 11.2, True))
+    assert t[('sy', 1)] == pytest.approx((0.025, 0.005, 0.05, True))
+    assert t[('sy', 2)] == pytest.approx((0.010, 0.001, 0.02, True))
+    assert t[('sr', 1)] == pytest.approx((0.275, 0.045, 0.30, True))
+    assert t[('sr', 2)] == pytest.approx((0.040, 0.009, 0.09, True))
+    assert t[('ss', 1)] == (1.0, 0.1, 10.0, True)
+    assert t[('drn', 2)] == (1.0, 0.01, 100.0, True)
+    # field capacity 0.125 is 2/3 of the way from sr 0.075 to smax 0.15
+    assert t[('sfc', 1)] == pytest.approx(
+        (0.125, 0.075 + (2 / 3 - 0.2) * 0.075, 0.075 + (2 / 3 + 0.2) * 0.075,
+         False))
+    assert t[('ks', 1)] == pytest.approx((1.5, 0.15, 15.0, True))
+    # capped (2026-10-12): at 1 m/d the model crawls and fits no better
+    assert t[('sfr_rhk', 0)] == pytest.approx((0.1, 0.001, 0.5, True))
+    assert t[('lak_bedleak', 0)] == pytest.approx((1e-3, 1e-4, 1e-2, True))
+    # eps and beta start inside their ranges: the first prior piled 64 %
+    # and 57 % of its draws on their bounds
+    assert t[('uzf_eps', 0)] == (4.5, 3.5, 8.0, False)
+    assert t[('crr_beta', 0)] == (0.95, 0.8, 1.0, False)
+    assert t[('uzf_vks', 0)] == (1.0, 0.2, 5.0, True)
+    assert not [r for r in rows if r['family'] == 'sfr_evapf']
+    for L, n in ((1, 0.30), (2, 0.05)):     # thts = Sy + Sr: the porosity
+        assert t[('sy', L)][0] + t[('sr', L)][0] == pytest.approx(n)
+    cfg.pest.par = [mcfg.PestPar(**r) for r in rows]
+    assert cfg.problems() == []
+    # an empty table is the defaults; a saved one is itself
+    assert pst.pars(cfg, str(tmp_path)) == rows
+    cfg.pest.par[0].start = 0.07
+    assert pst.pars(cfg, str(tmp_path))[0]['start'] == 0.07
+
+
+def test_the_k_bounds_split_by_the_order_asked(tmp_path):
+    """Layer 1's K bounds lie k_order_decades under layer 2's, and layer 2
+    starts that far above (user, 2026-10-18: at least a decade)."""
+    cfg = _cfg(tmp_path, nlay=2)
+    cfg.pest.k_order_decades = 2.0
+    t = _by(pst.default_pars(cfg, str(tmp_path)))
+    assert t[('k', 1)][1:3] == pytest.approx((2.3e-5, 0.112))
+    assert t[('k', 2)][:3] == pytest.approx((5.0, 2.3e-3, 11.2))
+
+
+def test_the_pilot_points_are_k_sy_and_ss_multipliers(tmp_path):
+    """K in m/d and Sy as a water content become multipliers of the
+    reference rasters' median; Ss is one already (user, 2026-10-17: Ss on
+    pilot points with K and Sy)."""
+    cfg = _cfg(tmp_path, nlay=2)
+    rows = pst.default_pars(cfg, str(tmp_path))
+    specs = {(s, L): (a, lo, hi, log) for s, L, a, lo, hi, log in
+             pst.pilot_specs(cfg, str(tmp_path), rows)}
+    assert specs[('k', 1)] == pytest.approx((1.0, 2.3e-5 / 0.05,
+                                             1.12 / 0.05, True))
+    assert specs[('k', 2)] == pytest.approx((10.0, 2.3e-4 / 0.05,
+                                             11.2 / 0.05, True))
+    assert specs[('sy', 1)] == pytest.approx((2.5, 0.5, 5.0, True))
+    assert specs[('sy', 2)] == pytest.approx((1.0, 0.1, 2.0, True))
+    assert specs[('ss', 1)] == (1.0, 0.1, 10.0, True)
+    # a family switched off has no pilot points: the reference stays
+    for r in rows:
+        if r['family'] == 'ss' and r['layer'] == 2:
+            r['enable'] = False
+    assert ('ss', 2) not in {(s, L) for s, L, *_x in
+                             pst.pilot_specs(cfg, str(tmp_path), rows)}
+
+
 def test_the_scalars_reach_the_configuration_and_the_layer_files(tmp_path):
-    cfg = _cfg()
-    t = pst.scalar_table(cfg)
-    assert t.set_index('name')['value']['sfc_f_h1'] == pytest.approx(2 / 3)
+    cfg = _cfg(tmp_path)
+    cfg.crr.enable = True
+    rows = pst.default_pars(cfg, str(tmp_path))
+    specs = {s[0]: s[1:] for s in pst.scalar_specs(cfg, rows)}
+    # the field capacity as its place between wilting point and porosity
+    assert specs['sfc_f_h1'] == pytest.approx((2 / 3, 'none', 2 / 3 - 0.2,
+                                               2 / 3 + 0.2))
+    assert 'ss_l1' not in specs and 'k' not in specs   # pilot points
+    t = pst.scalar_table(pst.scalar_specs(cfg, rows))
     t.loc[t['name'] == 'sfc_f_h1', 'value'] = 0.5
     t.loc[t['name'] == 'ks_h1', 'value'] = 4.0
-    t.loc[t['name'] == 'ss_l1', 'value'] = 0.3
     t.loc[t['name'] == 'crr_beta', 'value'] = 0.9
     pfw.apply_scalars(cfg, t, mult_dir=str(tmp_path))
     h = cfg.soil.horizon[0]
     assert h.sfc == pytest.approx(0.075 + 0.5 * 0.075) and h.ks == 4.0
     assert cfg.crr.beta == 0.9
-    assert float(open(tmp_path / 'ss_l1.txt').read()) == 0.3
     assert os.path.exists(tmp_path / 'drn_l1.txt')
+    # Ss is not a one-value parameter any more
+    with pytest.raises(ValueError, match='ss_l1'):
+        pfw.apply_scalars(cfg, pd.DataFrame({'name': ['ss_l1'],
+                                             'value': [0.3]}),
+                          mult_dir=str(tmp_path))
 
 
-def test_the_bounds_are_the_drafts():
-    assert pst.scalar_bounds('sfc_f_h1', 0.5) == ('none', 0.3, 0.7)
-    assert pst.scalar_bounds('ks_h2', 2.0) == ('log', pytest.approx(0.2),
-                                               20.0)
-    assert pst.scalar_bounds('drn_l2', 1.0) == ('log', 0.01, 100.0)
-    assert pst.scalar_bounds('ss_l1', 1.0) == ('log', 0.1, 10.0)
-    assert pst.scalar_bounds('uzf_eps', 3.5)[1:] == (3.5, 8.0)
-    # capped (2026-10-12): at 1 m/d the model crawls and fits no better
-    assert pst.scalar_bounds('sfr_rhk', 0.1) == ('log', 0.001, 0.5)
+def test_sy_and_sr_are_the_users_table(tmp_path):
+    """lamata_sardon_hydraulic_parameters.xlsx, maxima widened so the
+    medians sit inside (saprolite Sr 30 %, fissured Sy 2 %)."""
+    cfg = _cfg(tmp_path, nlay=2)
+    rows = pst.default_pars(cfg, str(tmp_path))
+    specs = {s[0]: s[1:] for s in pst.scalar_specs(cfg, rows)}
+    assert specs['sr_l1'] == (0.275, 'log', 0.045, 0.30)
+    assert specs['sr_l2'] == (0.04, 'log', 0.009, 0.09)
+    pfw.apply_scalars(cfg, pst.scalar_table(pst.scalar_specs(cfg, rows)),
+                      mult_dir=str(tmp_path))
+    assert float(open(tmp_path / 'sr_l1.txt').read()) == 0.275
+    assert float(open(tmp_path / 'sr_l2.txt').read()) == 0.04
 
 
-def test_the_prior_starts_inside_the_ranges():
-    """eps and beta start inside their ranges: the first prior piled 64 %
-    and 57 % of its draws on their bounds."""
-    t = pst.scalar_table(_cfg()).set_index('name')['value']
-    assert t['uzf_eps'] == 4.5 and t['crr_beta'] == 0.95
-    assert 'sfr_evapf' not in t.index      # too slow a lever (2026-10-13)
+def test_a_package_that_is_off_is_not_calibrated(tmp_path):
+    cfg = _cfg(tmp_path)
+    cfg.sfr.enable = True
+    rows = pst.default_pars(cfg, str(tmp_path))
+    assert ('sfr_rhk', 0) in _by(rows)
+    cfg.sfr.enable = False
+    said = []
+    names = [s[0] for s in pst.scalar_specs(cfg, rows, out=said.append)]
+    assert 'sfr_rhk' not in names and 'SFR is off' in said[0]
+
+
+def test_the_first_day_fitted_follows_a_year_of_warm_up(tmp_path):
+    cfg = _cfg()
+
+    def first(day):
+        (tmp_path / 'inputDATE.txt').write_text(
+            '#\n%s 00:00, 152\n2012-01-01 00:00, 1\n' % day)
+        return pst.calib_start(cfg, str(tmp_path))
+    assert first('2008-05-31') == dt.date(2009, 10, 1)      # La Mata
+    assert first('2008-10-01') == dt.date(2009, 10, 1)
+    assert first('2008-10-02') == dt.date(2010, 10, 1)
+    cfg.pest.calib_start = '2010-01-01'
+    assert first('2008-05-31') == dt.date(2010, 1, 1)
+
+
+def test_the_setup_switches_on_the_points_the_configuration_names():
+    cfg = _cfg()
+    assert pst.points_on(cfg) == ('C4', 'C5', 'W1')
+    cfg.pest.points_on = 'C4 ,W1'
+    assert pst.points_on(cfg) == ('C4', 'W1')
 
 
 def test_the_setup_switches_the_extra_points_on(tmp_path):
@@ -284,55 +440,26 @@ def test_a_warm_start_carries_the_parameters_and_no_old_outputs(tmp_path):
     assert back.loc['7', 'k_a'] == p.parameter_data.loc['k_a', 'parubnd']
 
 
-# --------------------------------------- hydraulic parameters (2026-10-18)
 
-def test_sy_and_sr_are_the_users_table(tmp_path):
-    """lamata_sardon_hydraulic_parameters.xlsx, maxima widened so the
-    medians sit inside (saprolite Sr 30 %, fissured Sy 2 %): thts = Sy + Sr
-    gives the table's porosities, 30 % and 5 %."""
-    cfg = _cfg()
-    cfg.layers.nlay = 2
-    t = pst.scalar_table(cfg).set_index('name')['value']
-    assert t['sr_l1'] == 0.275 and t['sr_l2'] == 0.04
-    assert pst.scalar_bounds('sr_l1', 0.275) == ('log', 0.045, 0.30)
-    assert pst.scalar_bounds('sr_l2', 0.04) == ('log', 0.009, 0.09)
-    assert pst.SY_SR[1]['sy'] == (0.025, 0.005, 0.05)
-    assert pst.SY_SR[2]['sy'] == (0.010, 0.001, 0.02)
-    for L, n in ((1, 0.30), (2, 0.05)):
-        assert pst.SY_SR[L]['sy'][0] + pst.SY_SR[L]['sr'][0] == \
-            pytest.approx(n)
-    pfw.apply_scalars(cfg, pst.scalar_table(cfg), mult_dir=str(tmp_path))
-    assert float(open(tmp_path / 'sr_l1.txt').read()) == 0.275
-    assert float(open(tmp_path / 'sr_l2.txt').read()) == 0.04
-
-
-def _raster(path, value):
-    with open(path, 'w') as fh:
-        fh.write('ncols 3\nnrows 2\nxllcorner 0\nyllcorner 0\ncellsize 50\n'
-                 'NODATA_value -9999\n')
-        fh.write('%g %g -9999\n%g %g %g\n' % ((value,) * 5))
-
-
-def test_the_pilot_points_start_and_bound_k_and_sy_per_layer(tmp_path):
-    """K: the reference's 0.05 m/d is layer 1's start, layer 2 starts a
-    decade above; the bounds span 2.3e-5 to 11.2 m/d, layer 1's a decade
-    below layer 2's. Sy: the table's, as multipliers of the 0.01 rasters."""
-    (tmp_path / 'MF_ws').mkdir()
-    for L in (1, 2):
-        _raster(str(tmp_path / 'MF_ws' / ('hk_l%d.asc' % L)), 0.05)
-        _raster(str(tmp_path / 'MF_ws' / ('Sy_l%d.asc' % L)), 0.01)
-    cfg = _cfg()
-    cfg.layers.nlay = 2
-    cfg.layers.k.raster = 'MF_ws/hk_l%d.asc'
-    cfg.layers.sy.raster = 'MF_ws/Sy_l%d.asc'
-    specs = {(s, L): (a, lo, hi)
-             for s, L, a, lo, hi in pst.pilot_specs(cfg, str(tmp_path))}
-    assert specs[('k', 1)] == pytest.approx((1.0, 2.3e-5 / 0.05,
-                                             1.12 / 0.05))
-    assert specs[('k', 2)] == pytest.approx((10.0, 2.3e-4 / 0.05,
-                                             11.2 / 0.05))
-    assert specs[('sy', 1)] == pytest.approx((2.5, 0.5, 5.0))
-    assert specs[('sy', 2)] == pytest.approx((1.0, 0.1, 2.0))
+def test_a_launch_takes_its_options_from_the_configuration(tmp_path):
+    """The lambdas, the bad-phi sigma and the overdue limit are [pest]'s,
+    read at launch; a start from the prior drops an earlier run's outputs
+    and cannot ask for more realisations than were drawn."""
+    pyemu = pytest.importorskip('pyemu')
+    import pest_lamata_run as prun
+    assert prun.pestpp_options(mcfg.Pest()) == {
+        'ies_lambda_mults': '0.1,1.0,10.0', 'ies_bad_phi_sigma': 2.5,
+        'overdue_giveup_fac': 4.0}
+    p = pyemu.Pst.from_par_obs_names(['a', 'b'], ['o1'])
+    p.pestpp_options['ies_observation_ensemble'] = 'old.jcb'
+    pyemu.ParameterEnsemble(p, pd.DataFrame(
+        [[1.0, 1.0]] * 3, columns=['a', 'b'])).to_binary(
+        str(tmp_path / 'prior_pe.jcb'))
+    assert prun.prior_files(str(tmp_path), p, 2) == {
+        'ies_parameter_ensemble': 'prior_pe.jcb', 'ies_num_reals': 2}
+    assert 'ies_observation_ensemble' not in p.pestpp_options
+    with pytest.raises(SystemExit, match='3 realisation'):
+        prun.prior_files(str(tmp_path), p, 5)
 
 
 def test_the_prior_keeps_layer_1_k_a_decade_under_layer_2():

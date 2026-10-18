@@ -30,8 +30,11 @@ Groups (docs/MM-MF6/WP7_PESTpp_LaMata_draft.md, decisions of 2026-10-11):
              <obs.aet_prefix>_<point>.txt: the EC tower, lysimeters --
              daily, from the exports' obs_et_mmd        (0: validation)
 
-A target before the calibration window (the warm-up year) is kept, with
-weight 0, so it is reported and never fitted.
+The shares, the noise, the soft-data fraction and the flow thresholds are
+the configuration's [pest] section (``group``, ``soft_fraction``, ``q_dry``,
+``q_eps``; the PEST++ set-up page), passed as ``pest`` -- None takes its
+defaults, the values above. A target before the calibration window (the
+warm-up year) is kept, with weight 0, so it is reported and never fitted.
 """
 
 import datetime as dt
@@ -39,58 +42,70 @@ import os
 
 import numpy as np
 
-__all__ = ['GROUP_SHARE', 'NOISE', 'build_targets', 'collect',
-           'phi_by_group', 'balance_weights']
-
-# share of the initial phi per group (the user's 35/35/20/10, split);
-# the soft data (SOFT) take no share of their own
-GROUP_SHARE = {'hds_p0': 0.35, 'hds_c': 0.0, 'sm_p0': 0.175,
-               'sm_sm': 0.175, 'q_log': 0.10, 'q_dry': 0.05, 'q_year': 0.05,
-               'et_rs': 0.10, 'et_pt': 0.0}
-# soft data: weighted at a fraction of a measured group's weight per
-# observation (user, 2026-10-12: at most 25 % of the measured heads')
-SOFT = {'hds_c': ('hds_p0', 0.25)}
-# measurement noise (standard deviation) per group: absolute, or 'rel' x
-# the observed value with a floor
-NOISE = {'hds_p0': 0.1, 'hds_c': 0.4, 'sm_p0': 0.01, 'sm_sm': 0.01,
-         'q_log': 0.1, 'q_dry': 0.01, 'q_year': ('rel', 0.10, 1.0),
-         'et_rs': ('rel', 0.20, 1.0), 'et_pt': ('rel', 0.20, 0.1)}
-Q_EPS = 0.01                 # mm/d, so a dry day has a finite log
-Q_DRY = 0.005                # mm/d: the gauge's dry day
+__all__ = ['settings', 'build_targets', 'collect', 'phi_by_group',
+           'balance_weights']
 
 
-def _sd(group, obs):
-    n = NOISE[group]
-    if isinstance(n, tuple):
-        return max(n[1] * abs(float(obs)), n[2])
-    return float(n)
+def settings(pest=None):
+    """The observation settings of a configuration's [pest] section
+    (marmites_config.Pest; None: its defaults), as a dict:
+
+        share    group -> share of the initial phi (the user's 35/35/20/10,
+                 split); the soft data take none of their own
+        soft     group -> (measured group, fraction): weighted at a fraction
+                 of the measured group's weight per observation (user,
+                 2026-10-12: at most 25 % of the measured heads')
+        noise    group -> (sd, relative): the measurement noise is
+                 max(relative x |observed|, sd)
+        q_eps    mm/d, so a dry day has a finite log
+        q_dry    mm/d: the gauge's dry day
+    """
+    import marmites_config as mcfg
+    if pest is None:
+        pest = mcfg.Pest()
+    share = {g.name: float(g.share) for g in pest.group}
+    return {'share': share,
+            'soft': {g: (ref, float(pest.soft_fraction))
+                     for g, ref in mcfg.PEST_SOFT.items() if g in share},
+            'noise': {g.name: (float(g.noise), float(g.noise_rel))
+                      for g in pest.group},
+            'q_eps': float(pest.q_eps), 'q_dry': float(pest.q_dry)}
+
+
+def _sd(st, group, obs):
+    sd, rel = st['noise'][group]
+    return max(rel * abs(float(obs)), sd)
 
 
 def _hydro_year(d, start_month=10):
     return d.year + 1 if d.month >= start_month else d.year
 
 
-def build_targets(exports_dir, calib_start, modis=None, hy_month=10):
+def build_targets(exports_dir, calib_start, modis=None, hy_month=10,
+                  pest=None):
     """The targets, from a run's exports (which carry the observed values
     beside the simulated ones) plus the MODIS table.
 
     ``calib_start``: the first day fitted (a ``date``); targets before it
     get weight 0. ``modis``: DataFrame of pest_modis_et (start, end, et_mm).
+    ``pest``: the configuration's [pest] (None: the defaults).
     Returns a DataFrame with obsnme, obgnme, kind, key, obsval, weight (1 or
     0, balanced later), standard_deviation."""
     import pandas as pd
+    st = settings(pest)
+    q_eps, q_dry = st['q_eps'], st['q_dry']
     rows = []
     cs = pd.Timestamp(calib_start)
 
     def add(name, group, kind, key, obs, date):
         if obs is None or not np.isfinite(obs):
             return
-        fitted = GROUP_SHARE[group] > 0 or group in SOFT
+        fitted = st['share'][group] > 0 or group in st['soft']
         rows.append({'obsnme': name, 'obgnme': group, 'kind': kind,
                      'key': key, 'obsval': float(obs),
                      'weight': 1.0 if (pd.Timestamp(date) >= cs
                                        and fitted) else 0.0,
-                     'standard_deviation': _sd(group, obs)})
+                     'standard_deviation': _sd(st, group, obs)})
 
     h = pd.read_csv(os.path.join(exports_dir, 'obs_heads.csv'))
     for r in h.itertuples():
@@ -110,8 +125,8 @@ def build_targets(exports_dir, calib_start, modis=None, hy_month=10):
     for r in q.itertuples():
         if np.isfinite(r.obs_q_mmd):
             add('q_%04d' % r.period, 'q_log', 'qlog', str(r.period),
-                np.log10(max(r.obs_q_mmd, 0.0) + Q_EPS), r.date)
-        if np.isfinite(r.obs_q_mmd) and r.obs_q_mmd <= Q_DRY:
+                np.log10(max(r.obs_q_mmd, 0.0) + q_eps), r.date)
+        if np.isfinite(r.obs_q_mmd) and r.obs_q_mmd <= q_dry:
             add('qd_%04d' % r.period, 'q_dry', 'qlin', str(r.period), 0.0,
                 r.date)
     qd = q.dropna(subset=['obs_q_mmd']).copy()
@@ -150,11 +165,13 @@ def build_targets(exports_dir, calib_start, modis=None, hy_month=10):
     return df
 
 
-def collect(exports_dir, targets):
+def collect(exports_dir, targets, pest=None):
     """The model's value of every target, in the targets' order: a
     DataFrame obsnme, value. A value the run did not produce is a large
-    finite sentinel, so PEST++ sees a bad fit, never a parse error."""
+    finite sentinel, so PEST++ sees a bad fit, never a parse error.
+    ``pest``: the [pest] the targets were built with (its q_eps)."""
     import pandas as pd
+    q_eps = settings(pest)['q_eps']
     h = pd.read_csv(os.path.join(exports_dir, 'obs_heads.csv'))
     # MMsoil's CORRECTED head: MF6's plus the saturated soil above the soil
     # base (user, 2026-10-13) -- MF6's top is the soil base, so its head
@@ -185,7 +202,7 @@ def collect(exports_dir, targets):
             v = sv.get(key)
         elif k == 'qlog':
             x = qv.get(int(key))
-            v = None if x is None else np.log10(max(float(x), 0.0) + Q_EPS)
+            v = None if x is None else np.log10(max(float(x), 0.0) + q_eps)
         elif k == 'qlin':
             x = qv.get(int(key))
             v = None if x is None else max(float(x), 0.0)
@@ -217,14 +234,15 @@ def pd_series(values, index):
     return pd.Series(np.asarray(values, float), index=np.asarray(index))
 
 
-def balance_weights(targets, sim, total=1.0e4):
-    """Weights scaled per group so each carries GROUP_SHARE of the initial
+def balance_weights(targets, sim, total=1.0e4, pest=None):
+    """Weights scaled per group so each carries its share of the initial
     phi (``total``); weight-0 targets stay 0. Returns the new weights."""
+    st = settings(pest)
     w = targets['weight'].to_numpy(dtype=float).copy()
     r = targets['obsval'].to_numpy() - sim['value'].to_numpy()
     g = targets['obgnme'].to_numpy()
-    for grp, share in GROUP_SHARE.items():
-        if grp in SOFT:
+    for grp, share in st['share'].items():
+        if grp in st['soft']:
             continue
         m = (g == grp) & (w > 0)
         if not m.any() or share <= 0:
@@ -235,7 +253,7 @@ def balance_weights(targets, sim, total=1.0e4):
             continue
         w[m] *= np.sqrt(share * total / phi)
     # soft data: a fraction of the measured group's weight per observation
-    for grp, (ref, frac) in SOFT.items():
+    for grp, (ref, frac) in st['soft'].items():
         m = (g == grp) & (w > 0)
         mr = (g == ref) & (w > 0)
         if m.any():

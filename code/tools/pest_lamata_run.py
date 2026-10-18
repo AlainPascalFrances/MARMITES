@@ -2,23 +2,28 @@
 """Run pestpp-ies on the La Mata template (WP7): the master and its local
 PANTHER agents, in the PEST workspace (Home, pest_ws).
 
-    python code/tools/pest_lamata_run.py --workers 10 --noptmax 0
+    python code/tools/pest_lamata_run.py --config code/configs/lamata.toml
     python code/tools/pest_lamata_run.py --join 4      # agents for a
                                                         # running master
-    python code/tools/pest_lamata_run.py --workers 20 --noptmax 2 \
-        --start-ensemble <pest_ws>/iter1_warmstart/iter1_par.jcb
 
-``--noptmax 0`` is the base run through PEST++ itself (one forward run in
-an agent: the check that the whole chain works), ``-1`` the prior Monte
-Carlo, ``2``/``3`` the IES iterations. The template is copied into
-``<pest_ws>/workers/worker_<k>`` (each worker its own dataset copy and
-workspace) and the master runs in ``<pest_ws>/master``.
+A launch takes its settings from the configuration's [pest] section (the
+PEST++ set-up page), read at launch, so they can change after the set-up:
+``agents``, ``noptmax`` (``-1`` the prior only, ``0`` one run at the
+starting values -- the check that the whole chain works --, ``n`` the IES
+iterations), the lambda multipliers, the bad-phi sigma and the overdue
+limit, and the START:
 
-``--restart-from`` continues an interrupted run with the SAME model (its
-completed runs' outputs are kept); ``--start-ensemble`` starts from a
-parameter ensemble after a MODEL change -- the realisations are run first
-with the current model, then updated (the warm start of 2026-10-16, after
-the Tg curve was fixed).
+  prior    the prior ensemble drawn at set-up (prior_pe.jcb)
+  warm     a parameter ensemble (.jcb, ``start_from``) after a MODEL change:
+           the realisations are run first with the current model, then
+           updated (the warm start of 2026-10-16, after the Tg curve was
+           fixed)
+  restart  an interrupted run with the SAME model: ``start_from`` is its
+           master folder, whose completed runs' outputs are kept
+
+The template is copied into ``<pest_ws>/workers/worker_<k>`` (each worker
+its own dataset copy and workspace) and the master runs in
+``<pest_ws>/master``.
 
 ``--join N`` adds N agents to a master that is ALREADY running -- PANTHER
 takes agents at any time -- in new worker folders after the existing ones,
@@ -80,6 +85,33 @@ def join(pest_ws, n, port):
         print('agent %d started in %s' % (k, d))
         time.sleep(2)
     return procs
+
+
+def pestpp_options(p):
+    """The pestpp-ies options of a configuration's [pest] (``p``,
+    marmites_config.Pest) that a launch may change after the set-up."""
+    lm = [float(x) for x in p.lambda_mults.replace(',', ' ').split()]
+    return {'ies_lambda_mults': ','.join(repr(x) for x in lm),
+            'ies_bad_phi_sigma': float(p.bad_phi_sigma),
+            # a run is given up at this x the running mean: at 2x the
+            # production lost 12 of 43 runs of iteration 1 (2026-10-16) --
+            # early in a batch the mean is the first, fastest runs'
+            'overdue_giveup_fac': float(p.overdue_giveup_fac)}
+
+
+def prior_files(tpl, pst, nreal):
+    """Start from the prior drawn at set-up: ``nreal`` of its
+    realisations, no outputs of an earlier run. Returns the pestpp
+    options."""
+    import pyemu
+    n = len(pyemu.ParameterEnsemble.from_binary(
+        pst, os.path.join(tpl, 'prior_pe.jcb'))._df)
+    if nreal > n:
+        raise SystemExit('the prior has %d realisation(s), pest.nreal asks '
+                         'for %d: set up again to draw more' % (n, nreal))
+    for k in ('ies_restart_observation_ensemble', 'ies_observation_ensemble'):
+        pst.pestpp_options.pop(k, None)
+    return {'ies_parameter_ensemble': 'prior_pe.jcb', 'ies_num_reals': nreal}
 
 
 def restart_files(src_master, tpl):
@@ -157,21 +189,15 @@ def start_files(ens, tpl, pst):
 
 def main(argv=None):
     import pyemu
+    import marmites_config as mcfg
     import mm_paths
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
-    ap.add_argument('--workers', type=int, default=MAX_WORKERS)
-    ap.add_argument('--noptmax', type=int, default=None)
-    ap.add_argument('--nreal', type=int, default=None,
-                    help='ies_num_reals (default: as set up)')
+    ap.add_argument('--config', default='',
+                    help='the configuration whose [pest] section sets the '
+                         'launch (the PEST++ set-up page)')
     ap.add_argument('--port', type=int, default=4004)
     ap.add_argument('--join', type=int, default=0,
                     help='add this many agents to the RUNNING master')
-    ap.add_argument('--restart-from', default='',
-                    help='the master folder of an interrupted run: start '
-                         'at iteration 1 from its completed prior runs')
-    ap.add_argument('--start-ensemble', default='',
-                    help='a parameter ensemble (.jcb) to start from after a '
-                         'model change: run first, then updated')
     a = ap.parse_args(argv)
     pest_ws = str(mm_paths.PEST_WS or '')
     if a.join:
@@ -179,47 +205,47 @@ def main(argv=None):
         for p in procs:
             p.wait()
         return
-    if a.noptmax is None:
-        raise SystemExit('--noptmax is required to start a run')
-    if a.workers > MAX_WORKERS:
-        raise SystemExit('at most %d workers (the user allows %d cores)'
-                         % (MAX_WORKERS, MAX_WORKERS))
+    if not a.config:
+        raise SystemExit('--config is required to start a run')
+    cfg = mcfg.load_run_config(os.path.abspath(a.config))
+    p = cfg.pest
+    if p.agents > MAX_WORKERS:
+        raise SystemExit('at most %d agents (the user allows %d cores), '
+                         'pest.agents is %d' % (MAX_WORKERS, MAX_WORKERS,
+                                                p.agents))
     tpl = os.path.join(pest_ws, 'template')
     if not os.path.exists(os.path.join(tpl, 'lamata.pst')):
         raise SystemExit('no template in %s: run pest_lamata_setup.py' % tpl)
     pst = pyemu.Pst(os.path.join(tpl, 'lamata.pst'))
-    pst.control_data.noptmax = a.noptmax
-    if a.nreal:
-        pst.pestpp_options['ies_num_reals'] = a.nreal
-    if a.restart_from and a.start_ensemble:
-        raise SystemExit('--restart-from continues the same model, '
-                         '--start-ensemble follows a model change: one only')
-    if a.start_ensemble:
+    pst.control_data.noptmax = int(p.noptmax)
+    pst.pestpp_options.update(pestpp_options(p))
+    master = os.path.join(pest_ws, 'master')
+    if p.start == 'prior':
+        pst.pestpp_options.update(prior_files(tpl, pst, int(p.nreal)))
+    elif p.start == 'warm':
         # the outputs and noise of an earlier run belong to the old model
         for k in ('ies_restart_observation_ensemble',
                   'ies_observation_ensemble'):
             pst.pestpp_options.pop(k, None)
-        _n, opts = start_files(os.path.abspath(a.start_ensemble), tpl, pst)
+        _n, opts = start_files(os.path.abspath(p.start_from), tpl, pst)
         pst.pestpp_options.update(opts)
-    if a.restart_from:
-        src = os.path.abspath(a.restart_from)
-        if os.path.normcase(src) == os.path.normcase(
-                os.path.join(pest_ws, 'master')):
+    else:                                                    # restart
+        src = os.path.abspath(p.start_from)
+        if os.path.normcase(src) == os.path.normcase(master):
             raise SystemExit('move the interrupted master aside first: '
                              'this run recreates %s' % src)
         _n, opts = restart_files(src, tpl)
         pst.pestpp_options.update(opts)
     pst.write(os.path.join(tpl, 'lamata.pst'), version=2)
-    master = os.path.join(pest_ws, 'master')
     if os.path.isdir(master):
         shutil.rmtree(master)
     workers = os.path.join(pest_ws, 'workers')
     os.makedirs(workers, exist_ok=True)
     exe = str(mm_paths.PESTPP_IES)
-    print('pestpp-ies %s, noptmax %d, %d worker(s), master %s'
-          % (exe, a.noptmax, a.workers, master))
+    print('pestpp-ies %s, noptmax %d, start %s, %d agent(s), master %s'
+          % (exe, p.noptmax, p.start, p.agents, master))
     pyemu.os_utils.start_workers(
-        tpl, exe, 'lamata.pst', num_workers=a.workers,
+        tpl, exe, 'lamata.pst', num_workers=int(p.agents),
         worker_root=workers, master_dir=master,
         port=a.port, cleanup=False)
 

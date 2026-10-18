@@ -89,9 +89,10 @@ def test_every_panel_section_exists_in_the_schema(cfg):
 def test_every_configuration_section_is_reachable(cfg):
     """A section in no panel is a setting no one can find."""
     shown = {s for p in schema.PANELS for s in p[4]}
-    # meta/paths/run live on the Overview panel; pest and ui are not modelling
-    # settings and are edited in the TOML. solver is drawn by the Run panel,
-    # which is a tail panel outside PANELS -- asserted below, not assumed.
+    # meta/paths/run live on the Overview panel; ui is not a modelling
+    # setting and is edited in the TOML. solver and pest are drawn by tail
+    # panels outside PANELS, the Run panel and the PEST++ set-up page --
+    # asserted below, not assumed.
     exempt = {'meta', 'paths', 'run', 'pest', 'ui', 'solver'}
     missing = sorted(set(cfgmod._SECTIONS) - shown - exempt)
     assert not missing, 'no panel shows: %s' % ', '.join(missing)
@@ -99,6 +100,14 @@ def test_every_configuration_section_is_reachable(cfg):
                                  '..', 'app', 'pages', '7_7_-_Run.py'),
                     encoding='utf-8').read()
     assert 'schema.SOLVER_ROWS' in run_page, 'the Run panel lost the solver'
+    pest_page = open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                  '..', 'app', 'pages',
+                                  '8_8_-_PEST_setup.py'),
+                     encoding='utf-8').read()
+    for rows in ('PEST_BASE_ROWS', 'PEST_PILOT_ROWS', 'PEST_OBS_ROWS',
+                 'PEST_ENSEMBLE_ROWS'):
+        assert 'schema.%s' % rows in pest_page, rows
+    assert schema.TAIL_SECTIONS == {'solver': 7, 'pest': 8}
 
 
 def test_panel_of_finds_the_right_panel():

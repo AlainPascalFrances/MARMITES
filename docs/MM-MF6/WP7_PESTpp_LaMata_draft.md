@@ -519,3 +519,14 @@ How each is set:
 - **K order:** the model holds layer-1 K at most 0.1 × layer-2 K, cell by
   cell (`k_l1_max_ratio.txt`). The prior is drawn to respect it.
 
+**The calibration's settings move into the configuration (2026-10-18,
+front-end phase 2).** Everything the tools held as constants -- the
+saved state, the first day fitted, the parameter table (K, Sy and Sr from
+the user's table, Ss, DRN, field capacity, Ks, the package scalars), the
+pilot points, the observation groups and their noise, the ensemble and
+PEST++ options -- is the configuration's `[pest]` section now, edited on
+the PEST++ set-up page and read by `pest_lamata_setup.py --config` and
+`pest_lamata_run.py --config` (docs/MM-MF6/WP7_PEST_frontend_plan.md §5).
+The defaults are the calibration running since 2026-10-18 14:12, with one
+change the user decided: Ss on pilot points, with K and Sy. The running
+calibration is not affected: it runs its own code snapshot.

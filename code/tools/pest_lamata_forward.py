@@ -3,8 +3,9 @@
 
 forward_run.py (written by pest_lamata_setup into the template, so in every
 worker) first lets pyemu apply the parameters -- the multiplier files under
-``mm_mult/`` (k, sy per cell from the pilot points; ss, drn per layer) and the
-scalar table ``pars/scalars.csv`` -- then calls :func:`forward`, which
+``mm_mult/`` (k, sy, ss per cell from the pilot points; drn, sr per layer)
+and the one-value parameters ``pars/<name>.csv`` -- then calls
+:func:`forward`, which
 
   1. writes the scalars into the worker's configuration (pest_lamata.toml):
      the soil horizons' field capacity (as its position in [sr, smax]) and
@@ -48,13 +49,14 @@ def apply_scalars(cfg, table, mult_dir=None):
     """The scalar parameters into the configuration. ``table``: DataFrame
     name, value. Names: sfc_f_h<k> and ks_h<k> (horizon k, 1-based, in
     table order), sfr_rhk, lak_bedleak, uzf_eps, uzf_vks, crr_beta; and the
-    per-layer ss_l<L>, drn_l<L> (multipliers) and sr_l<L> (the specific
-    retention, a water content: thts = Sy + Sr), written as the one-value
-    files ``mult_dir/<name>.txt`` the model reads (marmites_pest)."""
+    per-layer drn_l<L> (a multiplier) and sr_l<L> (the specific retention,
+    a water content: thts = Sy + Sr), written as the one-value files
+    ``mult_dir/<name>.txt`` the model reads (marmites_pest). Ss is on pilot
+    points now (2026-10-18), a per-cell file of its own."""
     import marmites_pest as mp
     for name, value in zip(table['name'], table['value']):
         v = float(value)
-        if name.startswith(('ss_l', 'drn_l', 'sr_l')):
+        if name.startswith(('drn_l', 'sr_l')):
             if mult_dir is None:
                 raise ValueError('%s needs the multiplier folder' % name)
             with open(os.path.join(mult_dir, '%s.txt' % name), 'w') as fh:
@@ -148,6 +150,7 @@ def forward(wd='.', python=None, keep=False):
     """One forward run in the worker directory ``wd``. Returns 0 on
     success."""
     import pandas as pd
+    import marmites_config as mcfg
     import pest_lamata_obs as po
     wd = os.path.abspath(wd)
     targets = pd.read_csv(os.path.join(wd, TARGETS))
@@ -159,8 +162,10 @@ def forward(wd='.', python=None, keep=False):
         if exports is None:
             _sentinel(targets, out)
             return 1
-        po.collect(exports, targets).to_csv(out, index=False,
-                                            float_format='%.10g')
+        # the targets' own settings (q_eps): the [pest] of the copy
+        pest = mcfg.load_run_config(os.path.join(wd, CONFIG)).pest
+        po.collect(exports, targets, pest=pest).to_csv(
+            out, index=False, float_format='%.10g')
         return 0
     except Exception as exc:                          # pragma: no cover
         print('forward run failed: %r' % exc)

@@ -272,10 +272,18 @@ def test_the_uzf6_rules_are_checked_on_every_cell(built, tmp_path):
     reach MODFLOW, which is where the 22,000 validation errors came from."""
     mf6 = sys.modules['marmites_mf6_up']
     b0 = built(tmp_path / 'probe')
-    bad = [0.0] + [0.05] * (b0.nlay - 1)      # layer 1 only
+    # layer 1 only: thts under Sy (0.01) gives thtr = thts - Sy < 0 in its
+    # ACTIVE cells. A bad thtr itself no longer serves -- thtr_from = 'sy'
+    # derives it in every active cell, and since 2026-10-18 the rules judge
+    # the cells that carry UZF objects (82b7557), so a 0 left in inactive
+    # cells is rightly not refused
+    bad = [0.005] + [0.45] * (b0.nlay - 1)
     with pytest.raises(mf6.MF6BuildError) as e:
-        built(tmp_path, thtr=bad)
-    assert 'THTR' in str(e.value)
+        built(tmp_path, thts=bad)
+    # refused cell by cell, the bad cells counted (the derivation's guard
+    # comes before the UZF6 validator, test_uzf6_constraints)
+    assert 'thtr = thts - Sy is not positive in' in str(e.value)
+    assert 'cell(s)' in str(e.value)
 
 
 def test_the_five_uzf_properties_take_the_usual_three_producers(cfg):
@@ -337,4 +345,6 @@ def test_a_tail_panel_is_named_not_numbered():
     """panel_name fell back to "panel 8", putting the number back into the
     prose the function exists to keep it out of."""
     assert schema.panel_name(7) == 'Run'
-    assert schema.panel_name(8) == 'Results'
+    assert schema.panel_name(8) == 'PEST++ set-up'
+    assert schema.panel_name(9) == 'PEST++ progress'
+    assert schema.panel_name(10) == 'Results'

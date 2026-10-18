@@ -1472,15 +1472,118 @@ class Postproc:
     tick_semester_years: int = 20  #                    (maxYearsTickSemester)
 
 
+# WP7 -- what the calibration can adjust, by FAMILY:
+#   family -> (what its `layer` counts, units, how it is parameterised)
+# 'layer' counts MODFLOW layers, 'horizon' the rows of the Soil panel's
+# horizon table, 'none' a parameter of neither (layer 0). The units are
+# those of start/lower/upper: 'x reference' is a multiplier of what the
+# configuration gives.
+PEST_FAMILIES = {
+    'k': ('layer', 'm/d', 'pilot points'),
+    'sy': ('layer', '-', 'pilot points'),
+    'ss': ('layer', 'x reference', 'pilot points'),
+    'sr': ('layer', '-', 'one value per layer'),
+    'drn': ('layer', 'x reference', 'one value per layer'),
+    'sfc': ('horizon', '-', 'one value per horizon'),
+    'ks': ('horizon', 'mm/d', 'one value per horizon'),
+    'sfr_rhk': ('none', 'm/d', 'one value'),
+    'lak_bedleak': ('none', '1/d', 'one value'),
+    'uzf_eps': ('none', '-', 'one value'),
+    'uzf_vks': ('none', 'x reference', 'one value'),
+    'crr_beta': ('none', '-', 'one value'),
+}
+PEST_PILOT = ('k', 'sy', 'ss')
+# The observation groups (code/tools/pest_lamata_obs.py), and the SOFT ones:
+# weighted at pest.soft_fraction of a measured group's weight per
+# observation, so they take no share of phi of their own.
+PEST_GROUPS = ('hds_p0', 'hds_c', 'sm_p0', 'sm_sm', 'q_log', 'q_dry',
+               'q_year', 'et_rs', 'et_pt')
+PEST_SOFT = {'hds_c': 'hds_p0'}
+PEST_STARTS = ('prior', 'warm', 'restart')
+
+
+@dataclass
+class PestPar:
+    """One parameter group of the calibration: a family on one layer (or
+    horizon), its starting value and its bounds, in the family's units
+    (PEST_FAMILIES). Off: the configuration's own value, not calibrated."""
+
+    family: str = 'k'
+    layer: int = 1
+    enable: bool = True
+    start: float = 1.0
+    lower: float = 0.1
+    upper: float = 10.0
+    log: bool = True
+
+
+@dataclass
+class PestGroup:
+    """One observation group: its share of the initial phi, and the
+    measurement noise of its observations -- the standard deviation is
+    max(noise_rel x |observed|, noise)."""
+
+    name: str = 'hds_p0'
+    share: float = 0.0
+    noise: float = 0.1
+    noise_rel: float = 0.0
+
+
+def _pest_groups():
+    """The groups as the calibration of 2026-10-11 set them (the user's
+    35 / 35 / 20 / 10 of heads, soil moisture, flow and ET)."""
+    return [PestGroup('hds_p0', 0.35, 0.1), PestGroup('hds_c', 0.0, 0.4),
+            PestGroup('sm_p0', 0.175, 0.01), PestGroup('sm_sm', 0.175, 0.01),
+            PestGroup('q_log', 0.10, 0.1), PestGroup('q_dry', 0.05, 0.01),
+            PestGroup('q_year', 0.05, 1.0, 0.10),
+            PestGroup('et_rs', 0.10, 1.0, 0.20),
+            PestGroup('et_pt', 0.0, 0.1, 0.20)]
+
+
 @dataclass
 class Pest:
-    use_pest_params: bool = False
-    params_npz: str = 'pest_optimised.npz'
-    # WP7: the folder of multiplier files a PEST++ forward run writes
+    """WP7 -- the PEST++-IES calibration, the PEST++ set-up page. Read by
+    the PEST tools (code/tools/pest_lamata_*.py); a model run reads only
+    ``multipliers``. The defaults are the calibration of 2026-10-18, so a
+    set-up from the page equals it."""
+
+    # The folder of multiplier files a PEST++ forward run writes
     # (marmites_pest.apply_multipliers: k_l<L>, sy_l<L>, ss_l<L>, drn_l<L>),
     # applied on the grid the model runs on. Relative to the configuration
-    # file. Blank: none -- what every run but a forward run has.
+    # file. Blank: none -- what every run but a forward run has. Set by the
+    # set-up in its own copy of the configuration, never on the page.
     multipliers: str = ''
+    # --- the base: where every realisation starts, what is fitted ---------
+    base_state: str = ''           # a saved state of the run workspace
+    calib_start: str = ''          # YYYY-MM-DD; blank: after one year
+    # --- the parameters ---------------------------------------------------
+    pp_space: float = 400.0        # m between pilot points
+    vario_range: float = 1500.0    # m, exponential variogram range
+    # layer 1's K at most 10**-d x layer 2's, cell by cell (user,
+    # 2026-10-18: the saprolite a decade below the fissured layer); 0: none
+    k_order_decades: float = 1.0
+    # one row per family and layer (PestPar). EMPTY: the calibration's
+    # defaults for this configuration (pest_lamata_setup.default_pars) --
+    # they depend on the layers, the soil horizons and the reference
+    # rasters, so they cannot be written here
+    par: list = field(default_factory=list)
+    # --- the observations -------------------------------------------------
+    group: list = field(default_factory=_pest_groups)
+    soft_fraction: float = 0.25    # a soft observation's weight, x a P0 head's
+    points_on: str = 'C4, C5, W1'  # commented-out points the calibration uses
+    q_dry: float = 0.005           # mm/d: the gauge's dry day
+    q_eps: float = 0.01            # mm/d: log10(Q + q_eps)
+    # --- the ensemble and PEST++ ------------------------------------------
+    nreal: int = 100
+    noptmax: int = 3
+    lambda_mults: str = '0.1, 1.0, 10.0'
+    bad_phi_sigma: float = 2.5
+    overdue_giveup_fac: float = 4.0
+    agents: int = 20
+    start: str = 'prior'           # prior | warm | restart
+    start_from: str = ''           # warm: a .jcb ensemble; restart: a master
+
+    _ELEMENTS = {'par': PestPar, 'group': PestGroup}
 
 
 @dataclass
@@ -1612,6 +1715,10 @@ RETIRED = {
                             'parameter maps; preproc turned the stage on and '
                             'input_maps the maps in it, both shown as "Input '
                             'maps"'},
+    'pest': {'use_pest_params': 'read by nothing: a calibrated parameter set '
+                                'becomes a configuration of its own, '
+                                '<model>_PEST.toml (WP7)',
+             'params_npz': 'read by nothing (see pest.use_pest_params)'},
     'soil': {'params': 'the soil column is the [[soil.zone]] and '
                        '[[soil.horizon]] tables now, edited on the Soil '
                        'panel; an old inputSOILparam.txt is imported there '
@@ -2178,6 +2285,7 @@ class RunConfig:
                             'ASCII raster (.asc) in the dataset folder'
                             % (n, c.cover_raster))
         errs.extend(self._soil_column_problems())
+        errs.extend(self._pest_problems())
         # --- panel 4: plotting ------------------------------------------
         if not (1 <= self.postproc.hydro_year_start <= 12):
             errs.append('postproc.hydro_year_start must be a month, 1..12')
@@ -2228,6 +2336,141 @@ class RunConfig:
                 errs.append('soil zone %d (%s): the horizons\' slprop sum to '
                             '%g, not 1 -- they are shares of one column'
                             % (z, zones[z - 1].name or '?', total))
+        return errs
+
+    def _pest_problems(self):
+        """The calibration's own rules (the PEST++ set-up page): a range
+        PEST++ cannot sample, a parameter on a layer or horizon that does
+        not exist, a field capacity allowed outside the wilting point and
+        the porosity (user, 2026-10-17), shares that do not make phi."""
+        import datetime as _dt
+        errs = []
+        p = self.pest
+        if (p.calib_start or '').strip():
+            try:
+                _dt.date.fromisoformat(p.calib_start.strip())
+            except ValueError:
+                errs.append('pest.calib_start must be a date, YYYY-MM-DD '
+                            '(blank: after one year of record), got %r'
+                            % p.calib_start)
+        for name in ('pp_space', 'vario_range'):
+            if not getattr(p, name) > 0.0:
+                errs.append('pest.%s must be > 0 m' % name)
+        if p.k_order_decades < 0.0:
+            errs.append('pest.k_order_decades must be >= 0 (0: no order)')
+        nlay, hz = int(self.layers.nlay), self.soil.horizon
+        span = {'layer': nlay, 'horizon': len(hz), 'none': 0}
+        seen = set()
+        for n, r in enumerate(p.par):
+            where = 'pest.par[%d] (%s, %s)' % (n, r.family, r.layer)
+            kind = PEST_FAMILIES.get(r.family)
+            if kind is None:
+                errs.append('%s: no such family -- one of %s'
+                            % (where, ', '.join(PEST_FAMILIES)))
+                continue
+            top = span[kind[0]]
+            if (top == 0 and int(r.layer) != 0) or \
+                    (top and not 1 <= int(r.layer) <= top):
+                errs.append('%s: %s' % (where, 'layer must be 0, the family '
+                                        'has no layer' if top == 0 else
+                                        'no such %s (1..%d)' % (kind[0], top)))
+                continue
+            if (r.family, int(r.layer)) in seen:
+                errs.append('%s: given twice' % where)
+            seen.add((r.family, int(r.layer)))
+            if not r.lower < r.upper:
+                errs.append('%s: lower %g must be below upper %g'
+                            % (where, r.lower, r.upper))
+            elif not r.lower <= r.start <= r.upper:
+                errs.append('%s: start %g outside [%g, %g]'
+                            % (where, r.start, r.lower, r.upper))
+            if r.log and not r.lower > 0.0:
+                errs.append('%s: a log-transformed range needs lower > 0'
+                            % where)
+            if r.family == 'sfc':
+                h = hz[int(r.layer) - 1]
+                if not (h.sr < r.lower and r.upper < h.smax):
+                    errs.append('%s: the field capacity must stay between the '
+                                'horizon\'s wilting point sr %g and porosity '
+                                'smax %g; the range is [%g, %g]'
+                                % (where, h.sr, h.smax, r.lower, r.upper))
+            elif r.family in ('sy', 'sr') and not (r.lower > 0.0
+                                                   and r.upper < 1.0):
+                errs.append('%s: a water content, in (0, 1)' % where)
+            elif r.family == 'uzf_eps' and not (r.lower >= 3.5
+                                                and r.upper <= 14.0):
+                errs.append('%s: MODFLOW 6 takes UZF eps in [3.5, 14]'
+                            % where)
+            elif r.family == 'crr_beta' and not (r.lower > 0.0
+                                                 and r.upper <= 1.0):
+                errs.append('%s: beta is a share, in (0, 1]' % where)
+        on = {(r.family, int(r.layer)): r for r in p.par if r.enable}
+        for L in range(1, nlay + 1):
+            sy, sr = on.get(('sy', L)), on.get(('sr', L))
+            if sy and sr and sy.upper + sr.upper >= 1.0:
+                errs.append('pest.par: layer %d\'s Sy + Sr (UZF\'s porosity) '
+                            'can reach %g -- keep the upper bounds\' sum '
+                            'below 1' % (L, sy.upper + sr.upper))
+        k1, k2 = on.get(('k', 1)), on.get(('k', 2))
+        if p.k_order_decades > 0.0 and k1 and k2 and \
+                k1.lower * 10.0 ** p.k_order_decades > k2.upper:
+            errs.append('pest.par: layer 1\'s K cannot be %g decade(s) under '
+                        'layer 2\'s anywhere in their ranges (pest.'
+                        'k_order_decades)' % p.k_order_decades)
+        names = [g.name for g in p.group]
+        for g in p.group:
+            if g.name not in PEST_GROUPS:
+                errs.append('pest.group %r: no such group -- one of %s'
+                            % (g.name, ', '.join(PEST_GROUPS)))
+                continue
+            if names.count(g.name) > 1:
+                errs.append('pest.group %r: given twice' % g.name)
+            if g.share < 0.0 or not g.noise > 0.0 or g.noise_rel < 0.0:
+                errs.append('pest.group %r: needs share >= 0, noise > 0 and '
+                            'noise_rel >= 0' % g.name)
+            if g.name in PEST_SOFT and g.share != 0.0:
+                errs.append('pest.group %r is soft data: its weight is '
+                            'pest.soft_fraction of %s\'s, not a share of phi '
+                            '-- set its share to 0' % (g.name,
+                                                      PEST_SOFT[g.name]))
+        missing = [g for g in PEST_GROUPS if g not in names]
+        if missing:
+            errs.append('pest.group: no row for %s -- every group needs one '
+                        '(a share of 0 fits it to nothing)'
+                        % ', '.join(missing))
+        total = sum(g.share for g in p.group if g.name not in PEST_SOFT)
+        if p.group and abs(total - 1.0) > 1e-6:
+            errs.append('pest.group: the shares of phi sum to %g, not 1'
+                        % total)
+        if p.soft_fraction < 0.0 or p.q_dry < 0.0 or not p.q_eps > 0.0:
+            errs.append('pest: needs soft_fraction >= 0, q_dry >= 0 and '
+                        'q_eps > 0')
+        if p.nreal < 2:
+            errs.append('pest.nreal: an ensemble needs at least 2 '
+                        'realisations')
+        if p.noptmax < -1:
+            errs.append('pest.noptmax must be >= -1 (-1: the prior only)')
+        try:
+            lm = [float(x) for x in p.lambda_mults.replace(',', ' ').split()]
+        except ValueError:
+            lm = []
+        if not lm or min(lm) <= 0.0:
+            errs.append('pest.lambda_mults: positive numbers, comma-'
+                        'separated, got %r' % p.lambda_mults)
+        if not p.bad_phi_sigma > 0.0:
+            errs.append('pest.bad_phi_sigma must be > 0')
+        if not p.overdue_giveup_fac > 1.0:
+            errs.append('pest.overdue_giveup_fac must be > 1 (x the mean run '
+                        'time)')
+        if p.agents < 1:
+            errs.append('pest.agents must be >= 1')
+        if p.start not in PEST_STARTS:
+            errs.append('pest.start must be one of %s' % ', '.join(PEST_STARTS))
+        elif p.start != 'prior' and not (p.start_from or '').strip():
+            errs.append('pest.start = %r needs pest.start_from: %s'
+                        % (p.start, 'the parameter ensemble (.jcb)'
+                           if p.start == 'warm' else
+                           'the interrupted run\'s master folder'))
         return errs
 
     def validate(self):

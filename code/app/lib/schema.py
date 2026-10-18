@@ -15,9 +15,10 @@ The panel order is the modeller's:
     4  Unsaturated zone and groundwater    what MODFLOW 6 reads
     5  State variables what was measured, to compare the run against
     6  Plots           the figures
-    7  Validation      everything that can be said about it before a run
-    8  Run             launch it, and follow the log
-    9  Results         the figures a run wrote
+    7  Run             validate it, launch it, and follow the log
+    8  PEST++ set-up   the calibration: parameters, observations, ensemble
+    9  PEST++ progress follow a calibration
+   10  Results         the figures a run wrote
 
 Panels 2, 3, 4 and 6 carry a MASTER SWITCH, and it is not decoration: the
 same ``[run]`` key the driver reads decides whether that half of the model
@@ -54,7 +55,9 @@ __all__ = ['PANELS', 'FIELDS', 'TABLES', 'CHOICES', 'SUBPANELS', 'panel_of',
            'SOIL_DATASET_FILES', 'COLUMN_OF', 'GEOMETRY_ROWS',
            'GHB_ROWS', 'DRN_ROWS', 'LAYER_LIST',
            'UZF_ROWS', 'UZF_ET_ROWS', 'GW_ET_ROWS', 'UZF_LEGACY',
-           'OBS_COMMON', 'TAIL_PANELS',
+           'OBS_COMMON', 'TAIL_PANELS', 'TAIL_SECTIONS',
+           'PEST_BASE_ROWS', 'PEST_PILOT_ROWS', 'PEST_OBS_ROWS',
+           'PEST_ENSEMBLE_ROWS',
            'OBS_GROUPS',
            'PanelError']
 
@@ -126,8 +129,14 @@ def panel_name(number):
 # function exists to keep out of sentences.
 TAIL_PANELS = {
     7: 'Run',            # its first tab validates the configuration
-    8: 'Results',
+    8: 'PEST++ set-up',
+    9: 'PEST++ progress',
+    10: 'Results',
 }
+# The sections a tail panel draws: the Run panel the solver, the PEST++
+# set-up page the calibration. Not in PANELS (they do not belong to the
+# modeller's order), but a problem with one of their keys still has a page.
+TAIL_SECTIONS = {'solver': 7, 'pest': 8}
 
 
 # Arrays of tables: one row per zone / type, edited as a grid rather than as
@@ -1073,6 +1082,121 @@ FIELDS = {
                         '[a, b] gives head = a*elevation + b, for a cold start '
                         'when *Initial heads of a cold start* is blank. Empty '
                         'uses [1, -2]: 2 m below the land surface.'),
+    # ---- the PEST++ set-up page (WP7) ---------------------------------
+    'pest.multipliers': ('Multiplier folder of a forward run', _U,
+                         'Set by the set-up in ITS copy of the '
+                         'configuration: the folder of k_l<L>, sy_l<L>, '
+                         'ss_l<L>, drn_l<L> files a PEST++ forward run '
+                         'applies. Blank in every other configuration.'),
+    'pest.base_state': ('Saved state every realisation starts from', _U,
+                        'A state saved in the run workspace (heads, UZF '
+                        'water content, soil state, ponds). Every '
+                        'realisation runs ONE cycle of the record from it, '
+                        'so it should be a converged spin-up of a model '
+                        'close to this one.'),
+    'pest.calib_start': ('First day fitted', 'YYYY-MM-DD',
+                         'Observations before it are reported and never '
+                         'fitted: the warm-up, while the realisation '
+                         'forgets the saved state. Blank: the first '
+                         'hydrological year that starts after a whole year '
+                         'of record.'),
+    'pest.pp_space': ('Pilot-point spacing', 'm',
+                      'Distance between the pilot points of K, Sy and Ss, '
+                      'laid on each layer\'s active cells. Halving it '
+                      'quadruples their number, and the realisations needed '
+                      'grow with it.'),
+    'pest.vario_range': ('Variogram range', 'm',
+                         'Range of the exponential variogram the prior '
+                         'draws the pilot points\' log-multipliers from: '
+                         'points closer than this move together.'),
+    'pest.k_order_decades': ('K order: layer 1 under layer 2 by', 'decades',
+                             'The model holds layer 1\'s K at most 10^-d '
+                             'times layer 2\'s, cell by cell, and the prior '
+                             'is drawn to respect it (user, 2026-10-18: the '
+                             'saprolite at least a decade under the fissured '
+                             'layer). The default K bounds are split by it. '
+                             '0: no order.'),
+    'pest.soft_fraction': ('Soft data weight', 'x a P0 head',
+                           'The C wells\' heads are SOFT data (a synthetic '
+                           'annual cycle): each weighs this fraction of a '
+                           'measured P0 head (user, 2026-10-12), whatever '
+                           'share of phi that gives.'),
+    'pest.points_on': ('Observation points switched on', _U,
+                       'Points commented out in the observation table that '
+                       'the calibration uses anyway, comma-separated. The '
+                       'set-up switches them on in its copy of the dataset, '
+                       'never in yours.'),
+    'pest.q_dry': ('Dry day', 'mm/d',
+                   'A gauged flow at or below this is a DRY day: the model\'s '
+                   'flow is fitted against zero that day (group q_dry) -- La '
+                   'Mata has no summer flow.'),
+    'pest.q_eps': ('Log-flow offset', 'mm/d',
+                   'The daily flow is fitted as log10(Q + this), so a dry day '
+                   'has a finite log.'),
+    'pest.nreal': ('Realisations', _U,
+                   'The size of the prior ensemble the set-up draws. Each '
+                   'iteration runs them all once, plus the lambda tests.'),
+    'pest.noptmax': ('Iterations (noptmax)', _U,
+                     '-1: the prior only (Monte Carlo); 0: one run at the '
+                     'starting values, the check that the whole chain works; '
+                     'n: n IES iterations. Read at launch.'),
+    'pest.lambda_mults': ('Lambda multipliers', _U,
+                          'The trial upgrades of each iteration, comma-'
+                          'separated: each is tested on a subset first. Three '
+                          'is the default (0.75 as well doubled the cost, '
+                          '2026-10-13).'),
+    'pest.bad_phi_sigma': ('Bad-phi sigma', _U,
+                           'A realisation whose phi is more than this many '
+                           'standard deviations above the mean is dropped.'),
+    'pest.overdue_giveup_fac': ('Overdue limit', 'x mean run time',
+                                'A run still going at this multiple of the '
+                                'running mean is killed and counted as '
+                                'failed. 2 lost 12 of 43 runs of an '
+                                'iteration (2026-10-16): early in a batch the '
+                                'mean is the fastest runs\'.'),
+    'pest.agents': ('Agents', _U,
+                    'Model runs at once, one per core. At most 20 on this '
+                    'server (the user, 2026-10-16).'),
+    'pest.start': ('Start from', _U,
+                   'prior: the prior drawn at set-up. warm: a parameter '
+                   'ensemble (.jcb) of an earlier calibration, run again with '
+                   'the CURRENT model first -- after a model change. restart: '
+                   'an interrupted calibration\'s master folder, continuing '
+                   'from its completed runs -- the SAME model only.'),
+    'pest.start_from': ('Ensemble or master folder', _U,
+                        'warm: the .jcb parameter ensemble, e.g. '
+                        '<pest ws>/master/lamata.1.par.jcb; restart: the '
+                        'interrupted run\'s master folder, moved aside '
+                        'first. Unused for the prior.'),
+    # one row of pest.par
+    'par.family': ('Family', _U,
+                   'What is calibrated: k, sy, ss (pilot points), sr, drn '
+                   '(one value per layer), sfc, ks (one per soil horizon), '
+                   'or a package scalar.'),
+    'par.layer': ('Layer / horizon', _U,
+                  'The MODFLOW layer (k, sy, ss, sr, drn), or the row of the '
+                  'soil horizon table on the Soil panel (sfc, ks); 0 for a '
+                  'package scalar.'),
+    'par.enable': ('On', _U, 'Off: the configuration\'s own value, not '
+                             'calibrated.'),
+    'par.start': ('Start', _U, 'The starting value -- the prior\'s mean -- '
+                               'in the family\'s units.'),
+    'par.lower': ('Lower bound', _U, 'In the family\'s units.'),
+    'par.upper': ('Upper bound', _U, 'In the family\'s units.'),
+    'par.log': ('Log', _U, 'Sampled and updated in log space: for a '
+                           'parameter spanning decades (K, Ks, leakances).'),
+    # one row of pest.group
+    'group.name': ('Group', _U, 'The observation group.'),
+    'group.share': ('Share of phi', _U,
+                    'Its share of the initial objective function: the '
+                    'weights are scaled so each group carries it. The '
+                    'shares sum to 1; soft data take none.'),
+    'group.noise': ('Noise', _U,
+                    'The measurement noise (standard deviation), in the '
+                    'group\'s units -- or its floor when relative.'),
+    'group.noise_rel': ('Relative noise', _U,
+                        'A fraction of the observed value: the noise is '
+                        'max(this x |observed|, noise). 0: absolute.'),
 }
 
 
@@ -1126,6 +1250,7 @@ CHOICES = {
     'crr.sinks': lambda: ['evaporate', 'route'],
     'soil.irr_infiltration': lambda: ['top', 'column'],
     'ui.execution': lambda: ['local', 'server'],
+    'pest.start': lambda: list(__import__('marmites_config').PEST_STARTS),
 }
 
 # Blocks that only apply for one value of another field. The panel shows them
@@ -1298,6 +1423,18 @@ SOLVER_ROWS = (
     ('solver.outer_dvclose', 'solver.inner_dvclose'),
     ('solver.inner_rclose', 'solver.cell_averaging'),
 )
+
+# ---- the PEST++ set-up page (WP7), one block per tab --------------------
+# The saved state is drawn by a picker of its own (the states on disk).
+PEST_BASE_ROWS = (('pest.calib_start', None),)
+PEST_PILOT_ROWS = (('pest.pp_space', 'pest.vario_range',
+                    'pest.k_order_decades'),)
+PEST_OBS_ROWS = (('pest.soft_fraction', 'pest.points_on'),
+                 ('pest.q_dry', 'pest.q_eps'))
+PEST_ENSEMBLE_ROWS = (('pest.nreal', 'pest.noptmax'),
+                      ('pest.lambda_mults', 'pest.bad_phi_sigma'),
+                      ('pest.overdue_giveup_fac', 'pest.agents'),
+                      ('pest.start', 'pest.start_from'))
 
 RUN_COUPLING_ROWS = (
     ('run.ats', 'run.ats_dtmin'),

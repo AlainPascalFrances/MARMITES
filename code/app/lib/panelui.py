@@ -39,7 +39,8 @@ __all__ = ['pick_config', 'header', 'master_switch', 'panel_switch',
            'rows_form', 'read_only', 'column_box', 'how_box',
            'record_lines', 'unsaved_switches', 'unsaved_changes', 'SWITCHES',
            'remember', 'remember_table', 'pending', 'pending_tables',
-           'forget', 'save_now', 'sidebar_save', 'saved_note',
+           'forget', 'forget_table', 'save_now', 'sidebar_save',
+           'saved_note',
            'CONFIG_DIR']
 
 # The run keys the panels put a master switch on, in panel order and without
@@ -80,6 +81,11 @@ def remember_table(dotted, rows):
     st.session_state.setdefault(_PENDING_TABLES, {})[dotted] = [
         dict(r) for r in rows]
     return rows
+
+
+def forget_table(dotted):
+    """Drop one remembered table: edited back to what the file says."""
+    st.session_state.get(_PENDING_TABLES, {}).pop(dotted, None)
 
 
 def pending():

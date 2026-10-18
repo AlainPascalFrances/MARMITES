@@ -554,4 +554,5 @@ def _panel_of(key):
             return num
         if switch == key:
             return num
-    return None
+    # the Run panel's solver, the PEST++ set-up page's calibration
+    return schema.TAIL_SECTIONS.get(section)

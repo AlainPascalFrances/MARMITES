@@ -47,7 +47,6 @@ NOT_AN_INPUT = {
     'ui.port': 'front-end', 'ui.address': 'front-end',
     'ui.poll_secs': 'front-end',
 }
-AHEAD = ('pest.',)                        # WP7
 
 
 def _model_sources():
@@ -133,7 +132,7 @@ KEYS = _all_keys()
 def test_every_key_is_read_or_says_why_not():
     silent = [k for k in KEYS
               if not _is_read(k) and k not in NOT_WIRED
-              and k not in NOT_AN_INPUT and not k.startswith(AHEAD)]
+              and k not in NOT_AN_INPUT]
     assert not silent, (
         'read by nothing, and not listed with a reason -- a panel field the '
         'run ignores: %s. Wire it, or add it to NOT_WIRED and to Appendix B '

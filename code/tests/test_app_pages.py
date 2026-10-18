@@ -83,8 +83,8 @@ PLOT = 'pages/6_6_-_Plots.py'
 PAGES = ['Home.py'] + [os.path.join('pages', f) for f in (
     '1_1_-_Grid.py', '2_2_-_Surface_and_driving_forces.py', '3_3_-_Soil.py',
     '4_4_-_Unsaturated_zone_and_groundwater.py', '5_5_-_State_variables.py',
-    '6_6_-_Plots.py', '7_7_-_Run.py', '9_9_-_PEST_progress.py',
-    '10_10_-_Results.py')]
+    '6_6_-_Plots.py', '7_7_-_Run.py', '8_8_-_PEST_setup.py',
+    '9_9_-_PEST_progress.py', '10_10_-_Results.py')]
 
 
 @pytest.mark.parametrize('page', PAGES)
@@ -165,6 +165,34 @@ def test_the_pest_progress_panel_reads_the_master(tmp_path, monkeypatch):
     assert 'Home' in ' '.join(str(i.value) for i in at.info)
 
 
+def test_the_pest_setup_panel_holds_the_calibration(tmp_path, monkeypatch):
+    """Panel 8 (WP7 front-end, phase 2): the calibration as [pest] fields,
+    in four tabs; the PEST workspace shown read-only, as set on Home."""
+    import mm_paths
+    monkeypatch.setattr(mm_paths, 'PEST_WS', str(tmp_path))
+    at = AppTest.from_file(os.path.join(APP, 'pages', '8_8_-_PEST_setup.py'),
+                           default_timeout=180)
+    at.run()
+    assert not at.exception, [str(e.value) for e in at.exception]
+    assert [t.label for t in at.tabs] == [
+        '① Base and workspace', '② Parameters',
+        '③ Observations and weights', '④ Ensemble and PEST++']
+    shown = [w for w in at.text_input if w.key == 'pest_ws_shown']
+    assert shown and shown[0].value == str(tmp_path) and shown[0].disabled
+    keys = {w.key for w in at.number_input} | {w.key for w in at.text_input}
+    for k in ('pest.calib_start', 'pest.pp_space', 'pest.vario_range',
+              'pest.k_order_decades', 'pest.soft_fraction', 'pest.points_on',
+              'pest.q_dry', 'pest.q_eps', 'pest.nreal', 'pest.noptmax',
+              'pest.lambda_mults', 'pest.bad_phi_sigma',
+              'pest.overdue_giveup_fac', 'pest.agents', 'pest.start_from'):
+        assert k in keys, '%s is not on the page' % k
+    sel = {w.key for w in at.selectbox}
+    assert {'pest.base_state', 'pest.start'} <= sel
+    # nothing touched, nothing to save: the defaults shown for an empty
+    # parameter table are not an edit
+    assert 'Saved' in ' '.join(str(m.value) for m in at.sidebar.markdown)
+
+
 def test_the_sidebar_shows_the_number_with_the_name():
     """THE NUMBER IS IN THE FILENAME TWICE, and this says why.
 
@@ -185,7 +213,8 @@ def test_the_sidebar_shows_the_number_with_the_name():
 
     want = [(1, 'Grid'), (2, 'Surface and driving forces'), (3, 'Soil'),
             (4, 'Unsaturated zone and groundwater'), (5, 'State variables'),
-            (6, 'Plots'), (7, 'Run'), (9, 'PEST progress'), (10, 'Results')]
+            (6, 'Plots'), (7, 'Run'), (8, 'PEST setup'), (9, 'PEST progress'),
+            (10, 'Results')]
     names = _pages_in_order()
     assert len(names) == len(want), names
     for fn, (num, title) in zip(names, want):
@@ -210,15 +239,15 @@ def _pages_in_order():
 
 def test_the_panels_are_numbered_in_the_modellers_order():
     """The sidebar order is the file order, so it is the panel order.
-    PEST++ comes after Run and before Results (user, 2026-10-17); panel 8,
-    the PEST++ set-up, arrives with phase 2 of the plan."""
+    PEST++ comes after Run and before Results (user, 2026-10-17): its
+    set-up (8), then its progress (9)."""
     names = _pages_in_order()
     assert names == ['1_1_-_Grid.py', '2_2_-_Surface_and_driving_forces.py',
                      '3_3_-_Soil.py',
                      '4_4_-_Unsaturated_zone_and_groundwater.py',
                      '5_5_-_State_variables.py', '6_6_-_Plots.py',
-                     '7_7_-_Run.py', '9_9_-_PEST_progress.py',
-                     '10_10_-_Results.py']
+                     '7_7_-_Run.py', '8_8_-_PEST_setup.py',
+                     '9_9_-_PEST_progress.py', '10_10_-_Results.py']
 
 
 def test_the_panels_offer_something_to_edit():
