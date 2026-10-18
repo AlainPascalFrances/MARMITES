@@ -631,7 +631,7 @@ def write_summary(labels, newv, refv, ws, new, sw=None):
     w = new.get('cell_area')
     rej = (float(np.average(new['rejinf'], axis=1, weights=w).mean())
            if w is not None else float(new['rejinf'].mean())) * 365.25
-    lines.append('rejected infiltration returned to the soil column: %.1f mm/year' % rej)
+    lines.append('rejected infiltration, run off: %.1f mm/year' % rej)
     txt = '\n'.join(lines)
     with open(_fig(ws, '00_summary.txt'), 'w') as f:
         f.write(txt + '\n')

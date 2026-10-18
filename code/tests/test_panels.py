@@ -135,10 +135,11 @@ def test_the_observation_fields_are_all_on_the_panel(cfg):
     assert have == laid, 'unplaced: %s' % sorted(have - laid)
 
 
-def test_actual_evapotranspiration_starts_empty(cfg):
-    """La Mata has none, and a blank prefix is an ANSWER -- not measured
-    here -- rather than an omission."""
-    assert cfg.obs.aet_prefix == ''
+def test_actual_evapotranspiration_is_the_ec_tower_series(cfg):
+    """La Mata's measured actual ET: the EC tower, inputObsAET_EC.txt in the
+    dataset (user, 2026-10-15; it had none before and the prefix was blank,
+    which is an answer, not an omission)."""
+    assert cfg.obs.aet_prefix == 'inputObsAET'
 
 
 def _spoken(path):

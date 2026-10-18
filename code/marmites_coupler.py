@@ -236,6 +236,20 @@ class MF6Coupler:
                 else None)
         self.land_cell = (self.top_cell if land is None else
                           np.asarray(land, dtype=float)[self.i_arr, self.j_arr])
+        # what each land UZF object can take (perc_cap): its VKS, thts -
+        # thtr, the surface depression depth and the top of its own cell --
+        # the MF6 top, or the bottom of the layer above where the land
+        # surface is a lower layer. None from a builder without them.
+        self._uzf_vks = getattr(mf6b, 'uzf_land_vks', None)
+        self._uzf_sy = getattr(mf6b, 'uzf_land_sy', None)
+        self._uzf_surfdep = float(getattr(mf6b, 'uzf_surfdep', 0.0) or 0.0)
+        self._uzf_top = self.top_cell
+        botm = getattr(mf6b, 'botm', None)
+        if self.top_cell is not None and botm is not None:
+            k = np.asarray(self.k_arr, dtype=int)
+            below = np.asarray(botm, dtype=float)[np.maximum(k - 1, 0),
+                                                  self.i_arr, self.j_arr]
+            self._uzf_top = np.where(k > 0, below, self.top_cell)
         # SFR: reach number per MARMITES cell (-1 = no reach in this cell), so
         # the runoff of a channel cell can be injected as reach inflow.
         self.p_sfr_inflow = None
@@ -435,18 +449,49 @@ class MF6Coupler:
               % (mm['runon'], '; %.1f sent from sinks to the nearest stream '
                  'or pond' % mm['routed'] if mm['routed'] else ''))
 
+    def perc_cap(self, heads, n):
+        """The most each cell's soil may percolate today [mm/d per cell
+        area]: what its land UZF object can take -- its VKS, and the room
+        between the start-of-day head ``heads`` and the surface depression
+        depth below the top of its cell, times thts - thtr (= Sy):
+
+            cap = min(VKS, max(top - surfdep - h0, 0) * (thts - thtr) / day)
+
+        MMsoil keeps the rest, and what UZF still refuses runs off
+        (2026-10-18). The refused water used to come back into the soil
+        from below the next day, which stopped the bottom layer's
+        percolation that day and doubled it the day after: a day-by-day
+        flip-flop in every rejecting cell, and 25 % (base) to 95 %
+        (calibrated sets) of the percolation going round (analysis doc
+        8.26). A head that is not one (dry, NaN) leaves VKS. None when the
+        builder gave no UZF properties: no cap."""
+        if self._uzf_vks is None or self._uzf_sy is None \
+                or self._uzf_top is None:
+            return None
+        vks = np.asarray(self._uzf_vks, dtype=float)[:self.ncell]
+        sy = np.asarray(self._uzf_sy, dtype=float)[:self.ncell]
+        h = np.asarray(heads, dtype=float)
+        perlen = float(self.perlen[n]) if n < len(self.perlen) else 1.0
+        room = np.clip(self._uzf_top - self._uzf_surfdep - h, 0.0, None) * sy
+        ok = np.isfinite(h) & (np.abs(h) < 1e20) & np.isfinite(self._uzf_top)
+        cap = np.where(ok, np.minimum(vks, room / perlen), vks)
+        return cap * self.conv_fact                             # m/d -> mm/d
+
     def _mm_step(self, n, tstart_MF, heads, exf, rej):
         """One MMsoil stress period. WP2: Eg/Tg see what remains after the
-        PREVIOUS period's actual UZF ET (cookbook 2b); WP5: the cascade
-        routes the runoff when there is one; then the day's EVT curves, and
-        the cap they put on UZF's demand."""
-        if self.crr is None:
-            out = self.mm.step(self.ctx, n, tstart_MF, heads, exf, self.state,
-                               rejinf_cell=rej, etuzf_cell=self.etuzf_prev)
-        else:
-            out = self.mm.step(self.ctx, n, tstart_MF, heads, exf, self.state,
-                               rejinf_cell=rej, etuzf_cell=self.etuzf_prev,
-                               crr=self.crr)
+        PREVIOUS period's actual UZF ET (cookbook 2b); the soil percolates
+        no more than UZF can take (perc_cap) and what UZF refused the period
+        before runs off; WP5: the cascade routes the runoff when there is
+        one; then the day's EVT curves, and the cap they put on UZF's
+        demand."""
+        kw = dict(rejinf_cell=rej, etuzf_cell=self.etuzf_prev)
+        cap = self.perc_cap(heads, n)
+        if cap is not None:
+            kw['perc_cap'] = cap
+        if self.crr is not None:
+            kw['crr'] = self.crr
+        out = self.mm.step(self.ctx, n, tstart_MF, heads, exf, self.state,
+                           **kw)
         if out.get('gw') is not None:
             out['evt'] = self._evt_curves(out['gw'])
             # what EVT can take today, at most: reserved from UZF's demand,
@@ -1929,9 +1974,8 @@ class MF6Coupler:
                                     * self.area[None, :]))
             if applied > 0 and rejected > 0:
                 print('\nNOTE: UZF rejected %.4g of %.4g m3 of applied percolation '
-                      '(%.1f%%).\n      This water re-enters the MARMITES soil '
-                      'column from below\n      on the next stress period, and '
-                      'whatever the soil cannot hold becomes runoff.'
+                      '(%.1f%%).\n      This water runs off on the next stress '
+                      'period (with the cascade, downslope).'
                       % (rejected, applied, 100.0 * rejected / applied))
             # WP2 2.5b: PET spent once. Unmet demand is normal (a dry soil
             # cannot evaporate what it has not got); ET above the demand is

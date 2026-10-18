@@ -161,7 +161,7 @@ def _taken(surf, IRR, nsl, SmTl, Ssoil):
 
 
 def _cell(c, n, t, first, perleni, perlen, perlen_n, h, exf, rej, etu,
-          runon,
+          cap, runon,
           # packed statics
           sz, mz, irf, nsl_c, Tl_c, Top_c, Bot_c, Sm_c, Sfc_c, Sr_c, Ks_c,
           Ssi_c, shah_c, VEG_c, hdry_mm_c, botm_c, botm32, f_open,
@@ -280,7 +280,9 @@ def _cell(c, n, t, first, perleni, perlen, perlen_n, h, exf, rej, etu,
     if EXF_ini < 0.0:
         negexf[c] = EXF_ini
         EXF_ini = 0.0
-    EXF = EXF_ini + abs(col_rej)
+    # the infiltration UZF refused runs off (below), it no longer enters
+    # from below (2026-10-18, clsMMsoil.flux)
+    EXF = EXF_ini
     SAT = np.zeros(nsl, dtype=np.bool_)
     Pe = Pe_tot
     Ssurf = Pe
@@ -347,6 +349,7 @@ def _cell(c, n, t, first, perleni, perlen, perlen_n, h, exf, rej, etu,
         for l in range(nsl):
             Rcas[l] /= perlen
     Ro = Ssurf / perlen
+    Ro += abs(col_rej)
     Ssurf = 0.0
     Eow = 0.0
     Rp = np.zeros(nsl)
@@ -380,6 +383,9 @@ def _cell(c, n, t, first, perleni, perlen, perlen_n, h, exf, rej, etu,
                 Ssoil[l + 1] += Rp[l] * perlen
         elif EXF == 0.0:
             Rp[l] = _perc(Ssoil[l], SmTl[l], SfcTl[l], Ks[l], perlen, err)
+            # no more than the unsaturated zone below can take
+            if fs > 0.0:
+                Rp[l] = min(Rp[l], max(cap / fs, 0.0))
         Ssoil[l] -= Rp[l] * perlen
     if has_rcas:
         for l in range(nsl - 1):
@@ -423,7 +429,7 @@ def _cell(c, n, t, first, perleni, perlen, perlen_n, h, exf, rej, etu,
     Spc_tot = _np_sum(Spc, nsl) / nsl
     perc = Rp[nsl - 1]
     rej_in = abs(col_rej)
-    exf_in = exf / perlen_n + rej_in
+    exf_in = exf / perlen_n
     Esoil_MB = _np_sum(Esoil, nsl)
     Tsoil_MB = _np_sum(Tsoil, nsl)
     dS = np.empty(nsl)
@@ -433,9 +439,10 @@ def _cell(c, n, t, first, perleni, perlen, perlen_n, h, exf, rej, etu,
     ETsoil_tot = Esoil_MB + Tsoil_MB
     MB_l = np.zeros(nsl)
     if col_runon > 0.0:
-        MBsurf = (Pe_tot + col_runon + Rexf[0]) - (Eow + Ro + I + 0.0)
+        MBsurf = (Pe_tot + col_runon + Rexf[0] + rej_in) - (Eow + Ro + I
+                                                            + 0.0)
     else:
-        MBsurf = (Pe_tot + Rexf[0]) - (Eow + Ro + I + 0.0)
+        MBsurf = (Pe_tot + Rexf[0] + rej_in) - (Eow + Ro + I + 0.0)
     if nsl > 1:
         MB_l[0] = (I + Rexf[1]) - (Rp[0] + Rexf[0] + Esoil[0] + Tsoil[0]
                                    + dS[0])
@@ -519,7 +526,7 @@ def _cell(c, n, t, first, perleni, perlen, perlen_n, h, exf, rej, etu,
     return MM[c, mmpos[5]] if mmpos[5] >= 0 else vals[5]
 
 
-def _day(n, t, first, perleni, perlen_n, heads, exf, rej, etu,
+def _day(n, t, first, perleni, perlen_n, heads, exf, rej, etu, cap,
          sz, mz, irf, nsl_c, Tl_c, Top_c, Bot_c, Sm_c, Sfc_c, Sr_c, Ks_c,
          Ssi_c, shah_c, VEG_c, hdry_mm_c, botm_c, botm32, f_open,
          sumTl_c,
@@ -545,7 +552,7 @@ def _day(n, t, first, perleni, perlen_n, heads, exf, rej, etu,
         k = order[oi] if use_crr else oi
         ron = runon_v[k] / area[k] * conv if use_crr else 0.0
         r = _cell(k, n, t, first, perleni, perlen, perlen_n, heads[k],
-                  exf[k], rej[k], etu[k], ron,
+                  exf[k], rej[k], etu[k], cap[k], ron,
                   sz, mz, irf, nsl_c, Tl_c, Top_c, Bot_c, Sm_c, Sfc_c, Sr_c,
                   Ks_c, Ssi_c, shah_c, VEG_c, hdry_mm_c, botm_c, botm32,
                   f_open, sumTl_c, Zr, kmin, kmax, kf, kss, Zr_c, kmin_c, kmax_c,
@@ -768,7 +775,7 @@ def pack(mm, ctx, crr=None):
 # ------------------------------------------------------------------ #
 
 def step(mm, ctx, n, tstart_MF, heads_cell, exf_cell, state, rej, etu,
-         crr=None):
+         crr=None, cap=None):
     """clsMMsoil.step, compiled. Returns its dict, or None when the
     reference has to run (see :func:`pack`)."""
     if not available():
@@ -807,6 +814,7 @@ def step(mm, ctx, n, tstart_MF, heads_cell, exf_cell, state, rej, etu,
     st = np.ascontiguousarray(state.Ssoil_ini, dtype=np.float64)
     _day(int(n), int(tstart_MF), bool(first), perleni, perlen_n,
          _f64(heads_cell), _f64(exf_cell), _f64(rej), _f64(etu),
+         _f64(np.full(np.size(heads_cell), np.inf) if cap is None else cap),
          K.sz, K.mz, K.irf, K.nsl, K.Tl, K.Top, K.Bot, K.Sm, K.Sfc, K.Sr,
          K.Ks, K.Ssi, K.shah, K.VEG, K.hdry_mm, K.botm, K.botm32,
          K.f_open, K.sumTl,

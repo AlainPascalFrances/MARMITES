@@ -129,7 +129,11 @@ def _toy(seed, botm32=True, irr_column=True, sinks='evaporate',
         exf[rng.uniform(size=n) < 0.02] = -0.01
         rej = np.where(rng.uniform(size=n) < 0.1, rng.uniform(0, 2.0, n), 0.0)
         etu = rng.uniform(0.0, 1.5, n)
-        forcing.append((h, exf, rej, etu))
+        # what UZF can take (MF6Coupler.perc_cap, 2026-10-18): a cap in
+        # some cells, none in the others
+        cap = np.where(rng.uniform(size=n) < 0.3, rng.uniform(0.0, 1.5, n),
+                       np.inf)
+        forcing.append((h, exf, rej, etu, cap))
     return mm, ctx, crr, forcing
 
 
@@ -141,9 +145,9 @@ def _run(mm, ctx, crr, forcing, compiled, monkeypatch):
     ref._TALLIES.clear()
     state = mm.init_state(ctx)
     days = []
-    for t, (h, exf, rej, etu) in enumerate(forcing):
+    for t, (h, exf, rej, etu, cap) in enumerate(forcing):
         out = mm.step(ctx, t, t, h, exf, state, rejinf_cell=rej,
-                      etuzf_cell=etu, crr=crr)
+                      etuzf_cell=etu, crr=crr, perc_cap=cap)
         days.append((out, state.Ssoil_ini.copy()))
     tallies = {k: dict(v) for k, v in ref._TALLIES.items()}
     ref._TALLIES.clear()
@@ -229,11 +233,11 @@ def test_a_non_finite_storage_stops_the_period(monkeypatch, compiled):
     else:
         monkeypatch.setenv('MM_SOIL_PYTHON', '1')
     state = mm.init_state(ctx)
-    h, exf, rej, etu = forcing[0]
+    h, exf, rej, etu, _cap = forcing[0]
     mm.step(ctx, 0, 0, h, exf, state, rejinf_cell=rej, etuzf_cell=etu,
             crr=crr)
     state.Ssoil_ini[:, :] = np.nan
-    h, exf, rej, etu = forcing[1]
+    h, exf, rej, etu, _cap = forcing[1]
     with pytest.raises(ref.MarmitesSoilError) as exc:
         mm.step(ctx, 1, 1, h, exf, state, rejinf_cell=rej, etuzf_cell=etu,
                 crr=crr)

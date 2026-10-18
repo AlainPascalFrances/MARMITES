@@ -1624,3 +1624,77 @@ calibration's targets and weights:
 
 Only the solver's work changes.
 
+## 8.26 UZF's rejected infiltration: the day-by-day flip-flop and the cap (2026-10-18)
+
+**The flip-flop.** UZF refuses the percolation its unsaturated zone can't
+take. The coupler returned that water into the bottom soil horizon the
+next day, like groundwater exfiltration (Francés & Lubczynski 2023, Eq. 1
+and §2.3). But the bottom horizon percolates only on a day when nothing
+enters it from below. So:
+- the day the water came back, the bottom horizon didn't drain;
+- the next day nothing came back, so it drained everything it had built
+  up;
+- UZF refused most of that, and the cycle repeated.
+
+Every rejecting cell alternated every other day (lag-1 autocorrelation of
+the rejection below −0.5). Neighbouring cells were out of phase, so the
+catchment total looked smooth.
+
+| Run | Percolation applied | Rejected | Cells flip-flopping |
+|---|---|---|---|
+| user's base run | 4.4 Mm³ | 25 % | 3 083 of 3 494 rejecting |
+| realisation 11 (PEST iteration 1) | 19.5 Mm³ | 90 % | 4 084 |
+| realisation 76 (PEST iteration 1) | 48.1 Mm³ | 95 % | 3 904 |
+
+Why UZF refuses so much:
+- Its storage is the aquifer's Sy (θs − θr = Sy, 0.01 in the base).
+- Where the water table is a couple of metres down, a few mm of water
+  fill UZF.
+- The calibration made it worse by lowering layer-1 Sy (down to 0.0007)
+  and raising soil Ks.
+
+In realisation 76 the loop also drove one cell's UZF ET to 184 mm/d (the
+"ET above PET" failure).
+
+**Two options, tested** on a copy of the code (`PEST\diag_rej`):
+- **A:** cap the bottom horizon's percolation at what UZF can take; the
+  soil keeps the rest.
+- **B:** send the rejected water to the runoff and the cascade.
+
+| | Unmodified | A | B |
+|---|---|---|---|
+| rejected, base / r76 / r11 | 25 / 95 / 90 % | 1.5 / 1.8 / 0.9 % | 33 / 82 / 82 % |
+| ET-above-PET cases, r76 | 9 | 0 | 0 |
+| outlet flow, base / r76 (mm/yr) | 134 / 134 | 134 / 132 | 138 / 170 |
+| phi, base | 10 010 | 10 000 | 9 993 |
+
+A left a small residual flip-flop: the remaining 1–2 % refused still came
+back from below. B removed the flip-flop entirely but turned the refused
+water into runoff, which worsens the flow fits.
+
+**The rule now (user, 2026-10-18): A, with the residual sent to runoff.**
+- The coupler (`MF6Coupler.perc_cap`) gives each cell a daily cap:
+
+      cap = min(VKS, max(top − surfdep − h0, 0) × (θs − θr) / day)
+
+  from its land UZF object. h0 is the start-of-day head; the top is the
+  object's own cell (layer 1's top, or layer 1's bottom where the land
+  surface is in layer 2). The builder keeps `uzf_land_vks`, `uzf_land_sy`
+  and `uzf_surfdep` for it.
+- MMsoil's bottom horizon percolates at most the cap; the soil keeps the
+  rest (`clsMMsoil.flux` PERC_CAP, and the compiled kernel).
+- What UZF still refuses joins the cell's runoff the next stress period,
+  routed by the cascade, instead of entering the soil from below.
+  Groundwater exfiltration keeps its route from below.
+- The water balance books the refused water as an input of the surface
+  (Sankey: R_rej moves from the soil to MMsurf; UZF keeps it as an
+  outflow).
+
+Tests:
+- `test_rejected_infiltration.py` is rewritten, with a flip-flop
+  regression test (a returned rejection no longer stops the bottom
+  percolation) and the cap with soil retention;
+- `test_perc_cap.py` covers the formula and that the coupler passes the cap;
+- `test_soil_kernel.py` holds the compiled kernel equal to the reference
+  with caps.
+

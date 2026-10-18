@@ -231,7 +231,8 @@ class clsMMsoil:
              HEADSini, TopSoilLay, BotSoilLay, Tl, nsl, Sm, Sfc, Sr, Ks,
              Ssoil_ini, EXF_ini, dgwt, st, i, j, n,
              kTg_min, kTg_max, kT_f, kT_s, NVEG, LAIveg, REJINF_ini=0.0,
-             ETUZF_prev=0.0, RUNON=0.0, IRR=0.0, GW_EVT=False):
+             ETUZF_prev=0.0, RUNON=0.0, IRR=0.0, GW_EVT=False,
+             PERC_CAP=np.inf):
         """Soil water balance of one cell for one stress period.
 
         All storages in mm, all fluxes in mm/d. PT and LAIveg are 1-D
@@ -242,15 +243,25 @@ class clsMMsoil:
             [mm/d] -- percolation MARMITES delivered that the unsaturated zone
             could not accept (cell saturated, or rate above VKS).
 
-            It enters the BOTTOM soil layer, exactly like groundwater
-            exfiltration, and is carried upward by the saturation-excess
-            cascade. This follows Frances & Lubczynski (2023) Eq. 1, whose
-            only subsurface->surface input is Exf_g1 -- exfiltration arriving
-            *from the topmost soil layer* -- and section 2.3, where water the
-            subsurface cannot accept "eventually creat[es] saturation-excess
-            overland flow (Dunnian flow) if all the soil layers turn
-            saturated". So it fills the soil from below, then the surface
-            store, and the excess becomes runoff.
+            It leaves the cell as RUNOFF -- with the CRR cascade it runs on
+            downslope -- the stress period the coupler hands it over.
+
+            Until 2026-10-18 it entered the BOTTOM soil layer like
+            groundwater exfiltration (Frances & Lubczynski 2023, Eq. 1 and
+            sec. 2.3). But the bottom layer percolates only on a day when
+            nothing enters it from below, so the water returned one day
+            stopped the next day's percolation and the day after percolated
+            it again: every rejecting cell flip-flopped day by day, 25 % of
+            the percolation of the base run and 90-95 % in calibrated
+            parameter sets going round that loop (analysis doc 8.26). With
+            PERC_CAP the soil keeps most of that water; what UZF still
+            refuses is the small remainder.
+
+        PERC_CAP : the most the bottom layer may percolate this stress period
+            [mm/d, per unit of soil area]: what the unsaturated zone below
+            can take, from the coupler (MF6Coupler.perc_cap -- UZF's VKS, and
+            the room left above the water table). The soil keeps the rest.
+            inf, the default, is no cap (the uncoupled run).
 
         ETUZF_prev : the deep unsaturated zone's ACTUAL evapotranspiration
             [mm/d] -- UZF's, read from the MF6 budget -- of the PREVIOUS
@@ -280,9 +291,9 @@ class clsMMsoil:
             unit of soil area] (WP5). It joins the surface water AFTER the
             cell's own rain and exfiltration and infiltrates TOP-DOWN by the
             same law, Eq. 1b, I = min[Ssurf, D1 (phi1 - theta1)]; what the
-            soil cannot take leaves as runoff and runs on downslope. The
-            bottom-up return of REJINF_ini above is a different flux and is
-            untouched (cookbook D4). The REINFILTRATION -- returned last --
+            soil cannot take leaves as runoff and runs on downslope.
+            REJINF_ini, above, is a different flux: it runs off without
+            infiltrating the cell. The REINFILTRATION -- returned last --
             is the part of the run-on the soil took: the capacity the cell's
             own water left, at most the run-on.
 
@@ -312,9 +323,9 @@ class clsMMsoil:
         if EXF_ini < 0.0:
             print('WARNING!\nEXFg < 0.0, value %.6f corrected to 0.0.' % EXF_ini)
             EXF_ini = 0.0
-        # water returned by the subsurface enters the soil column at its base,
-        # whether it is groundwater exfiltration or refused infiltration
-        EXF_ini = float(EXF_ini) + abs(float(REJINF_ini))
+        # groundwater exfiltration enters the soil column at its base; the
+        # infiltration UZF refused does not -- it runs off (RUNOFF, below)
+        EXF_ini = float(EXF_ini)
 
         # INITIALIZATION
         SAT = np.zeros(nsl, dtype=bool)
@@ -427,6 +438,8 @@ class clsMMsoil:
         # RUNOFF. Whatever the soil could not take leaves the cell in the
         # same step; SFR and LAK receive it and evaporate it (WP1d).
         Ro_tmp = Ssurf_tmp / perlen
+        # ... and the infiltration UZF refused with it
+        Ro_tmp += abs(float(REJINF_ini))
         Ssurf_tmp = 0.0
         Eow_tmp = 0.0
 
@@ -472,6 +485,8 @@ class clsMMsoil:
             elif EXF_ini == 0.0:
                 Rp_tmp[l] = self._perc(Ssoil_tmp[l], Sm[l] * Tl[l],
                                        Sfc[l] * Tl[l], Ks[l], perlen)
+                # no more than the unsaturated zone below can take
+                Rp_tmp[l] = min(Rp_tmp[l], max(float(PERC_CAP), 0.0))
             Ssoil_tmp[l] -= Rp_tmp[l] * perlen
 
         if Rcas is not None:
@@ -648,7 +663,8 @@ class clsMMsoil:
         )
 
     def _cell_step(self, ctx, cell, n, tstart_MF, h_MF_ini_tmp, exf_MF_ini_tmp, state,
-                   rejinf_cell=0.0, etuzf_cell=0.0, runon=0.0, gw_sink=None):
+                   rejinf_cell=0.0, etuzf_cell=0.0, runon=0.0, gw_sink=None,
+                   perc_cap=np.inf):
         """Soil water balance of one active cell for one stress period.
 
         Returns (MM_tmp, MM_S_tmp (nsl, nindex_S), nsl, perc_vol, etg_vol,
@@ -682,6 +698,9 @@ class clsMMsoil:
         col_rej = rejinf_cell / f_soil if f_soil > 0.0 else 0.0
         col_etuzf = etuzf_cell / f_soil if f_soil > 0.0 else 0.0
         col_runon = runon / f_soil if f_soil > 0.0 else 0.0
+        # the percolation cap is per cell area too: what the column under
+        # the soil fraction may send down
+        col_cap = perc_cap / f_soil if f_soil > 0.0 else np.inf
         cMF = ctx.cMF
         # unpack static context to locals (kernel body kept close to v0.3)
         _nsl, _slprop, _st, _Sm, _Sfc, _Sr, _Ks, _Ssoil_ini = (
@@ -848,7 +867,8 @@ class clsMMsoil:
                         kTg_min_tmp, kTg_max_tmp, kT_f_tmp, kT_s_tmp,
                         NVEG_tmp, LAIveg_tmp, REJINF_ini=col_rej,
                         ETUZF_prev=col_etuzf, RUNON=col_runon, IRR=irr_col,
-                        GW_EVT=bool(getattr(ctx, 'gw_evt', False)))
+                        GW_EVT=bool(getattr(ctx, 'gw_evt', False)),
+                        PERC_CAP=col_cap)
         if GW is not None and gw_sink is not None:
             # the coupled run: per unit of CELL area and in m, as MF6's
             # EVT takes them -- the column's rates times f_soil
@@ -868,12 +888,11 @@ class clsMMsoil:
         dSsurf = 0.0
 
         # water mass balance (MB) in the soil zone. The water entering from
-        # below is groundwater exfiltration AND the rejected infiltration UZF
-        # returned (flux adds both at the base); counting the first alone
-        # left the soil balance -- and the Sankey -- short by the second
-        # (-5.6 %, 36 mm/yr, on 2026-09-24).
+        # below is groundwater exfiltration; the infiltration UZF refused
+        # runs off at the surface (since 2026-10-18), so it is in the
+        # surface balance below
         rej_in = abs(float(col_rej))
-        exf_in = exf_MF_ini_tmp / cMF.perlen[n] + rej_in
+        exf_in = exf_MF_ini_tmp / cMF.perlen[n]
         Esoil_MB = float(np.sum(Esoil_tmp))
         Tsoil_MB = float(np.sum(Tsoil_tmp))
         dSsoil = (Ssoil_tmp - Ssoil_ini_tmp) / cMF.perlen[n]
@@ -884,14 +903,14 @@ class clsMMsoil:
         # Eq. 1: dSsurf/dt = Pe + Exf_g1 - I - Eow - Ro, with dSsurf and
         # Eow now identically zero -- the surface term closes as
         # Pe + Exf_g1 = I + Ro
-        # (Exf_g1 = Rexf[0], which now carries any rejected infiltration that
-        #  saturated the soil column from below)
+        # (Exf_g1 = Rexf[0]) + the infiltration UZF refused, which runs off
         # ... + the CRR run-on (WP5) when the cascade brings any
         if col_runon > 0.0:
-            MBsurf = (Pe_tot + col_runon + Rexf_tmp[0]) - (
+            MBsurf = (Pe_tot + col_runon + Rexf_tmp[0] + rej_in) - (
                 Eow_tmp + Ro_tmp + I + dSsurf)
         else:
-            MBsurf = (Pe_tot + Rexf_tmp[0]) - (Eow_tmp + Ro_tmp + I + dSsurf)
+            MBsurf = (Pe_tot + Rexf_tmp[0] + rej_in) - (
+                Eow_tmp + Ro_tmp + I + dSsurf)
         if nsl > 1:
             # surficial soil layer
             MB_l[0] = (I + Rexf_tmp[1]) - (Rp_tmp[0] + Rexf_tmp[0]
@@ -969,7 +988,7 @@ class clsMMsoil:
         return MM_tmp, MM_S_tmp, nsl, perc_vol, etg_vol, petuzf_vol
 
     def step(self, ctx, n, tstart_MF, heads_cell, exf_cell, state, rejinf_cell=None,
-             etuzf_cell=None, crr=None):
+             etuzf_cell=None, crr=None, perc_cap=None):
         """Advance the soil water balance one stress period over all cells.
 
         Parameters
@@ -981,6 +1000,11 @@ class clsMMsoil:
         exf_cell : (ncell,) exfiltration into the soil [mm/d] per active cell,
             sign convention: positive = seepage up into the soil column
         state : namespace from init_state(), mutated in place
+        rejinf_cell : (ncell,) the infiltration UZF refused the stress period
+            before [mm/d per cell area]: it runs off (flux, REJINF_ini)
+        perc_cap : (ncell,) the most each cell's soil may percolate [mm/d per
+            cell area] -- what UZF can take (MF6Coupler.perc_cap); None is
+            no cap
 
         Returns dict with per-cell arrays: 'MM' (ncell, nindex),
         'MM_S' (ncell, nslmax, nindex_S), 'perc' (ncell,), 'etg' (ncell,).
@@ -1009,7 +1033,7 @@ class clsMMsoil:
             self, ctx, n, tstart_MF, heads_cell, exf_cell, state,
             np.zeros(ctx.ncell) if rejinf_cell is None else rejinf_cell,
             np.zeros(ctx.ncell) if etuzf_cell is None else etuzf_cell,
-            crr=crr)
+            crr=crr, cap=perc_cap)
         if fast is not None:
             return fast
         nindex = len(ctx.index)
@@ -1026,6 +1050,8 @@ class clsMMsoil:
         # WP2: the previous stress period's ACTUAL UZF ET per cell [mm/d]
         etu = (np.zeros(ctx.ncell) if etuzf_cell is None
                else np.asarray(etuzf_cell, dtype=np.float64))
+        cap = (np.full(ctx.ncell, np.inf) if perc_cap is None
+               else np.asarray(perc_cap, dtype=np.float64))
         petuzf_cell = np.zeros(ctx.ncell, dtype=np.float64)
 
         # the coupled run (MF6Coupler sets ctx.gw_evt): each cell's
@@ -1037,7 +1063,7 @@ class clsMMsoil:
             MM_tmp, MM_S_tmp, nsl, perc_vol, etg_vol, petuzf_vol = self._cell_step(
                 ctx, cell, n, tstart_MF, float(heads_cell[cid]), float(exf_cell[cid]), state,
                 rejinf_cell=float(rej[cid]), etuzf_cell=float(etu[cid]), runon=runon,
-                gw_sink=gw_sink)
+                gw_sink=gw_sink, perc_cap=float(cap[cid]))
             MM_cells[cid, :] = MM_tmp
             MM_S_cells[cid, :nsl, :] = MM_S_tmp
             perc_cell[cid] = perc_vol
