@@ -108,6 +108,94 @@ def _obs_table_with(path, names=('C4', 'C5', 'W1')):
 # prior's draws sat on MF6's eps minimum and on beta = 1; user, 2026-10-12)
 PRIOR_START = {'uzf_eps': 4.5, 'crr_beta': 0.95}
 
+# THE HYDRAULIC PARAMETERS OF THE CALIBRATION, from the user's table
+# (lamata_sardon_hydraulic_parameters.xlsx, 2026-10-18) -- PEST only, the
+# reference model keeps its own (Sy 0.01, thts 0.45, K 0.05 m/d).
+#
+# Sy and the specific retention Sr per layer, as water contents: (start,
+# lower, upper). UZF's thts = Sy + Sr in every cell and thtr = Sr. The
+# maxima widened so the table's medians sit inside (user): saprolite Sr 25
+# -> 30 % (n up to 35 %), fissured Sy 1 -> 2 %.
+SY_SR = {1: {'sy': (0.025, 0.005, 0.05), 'sr': (0.275, 0.045, 0.30)},
+         2: {'sy': (0.010, 0.001, 0.02), 'sr': (0.040, 0.009, 0.09)}}
+# K [m/d]: the reference's K is the start; the bounds span every K value
+# gathered -- 2.3e-5 (the table's saprolite minimum) to 11.2 (Legchenko et
+# al. 2004, docs/MM-MF6/WP7_granite_porosity_specific_retention_review.md)
+# -- split so layer 1's lie K_DECADES below layer 2's. Layer 2 starts a
+# decade above layer 1, and the model holds layer 1's K at most
+# K_L1_MAX_RATIO x layer 2's, cell by cell (marmites_pest).
+K_RANGE = (2.3e-5, 11.2)
+K_DECADES = 1.0
+K_START = {1: 1.0, 2: 10.0}          # multipliers of the reference K
+K_L1_MAX_RATIO = 0.1
+
+
+def _raster_median(path):
+    """The median of an ASCII raster's valid cells."""
+    a = np.loadtxt(path, skiprows=6, dtype=float)
+    a = a[np.isfinite(a) & (a > -9999.0) & (a > 0.0)]
+    if not a.size:
+        raise SystemExit('%s has no valid cell' % path)
+    return float(np.median(a))
+
+
+def pilot_specs(cfg, dataset_dir):
+    """(stem, layer, start, lower, upper) of the pilot-point multipliers:
+    K and Sy per layer, as multipliers of the reference rasters' medians."""
+    out = []
+    for L in range(1, cfg.layers.nlay + 1):
+        k0 = _raster_median(os.path.join(dataset_dir,
+                                         cfg.layers.k.rasters(
+                                             cfg.layers.nlay)[L - 1]))
+        lo, hi = K_RANGE
+        if L == 1:
+            hi = hi / 10.0 ** K_DECADES
+        else:
+            lo = lo * 10.0 ** K_DECADES
+        out.append(('k', L, K_START.get(L, 1.0), lo / k0, hi / k0))
+    for L in range(1, cfg.layers.nlay + 1):
+        sy0 = _raster_median(os.path.join(dataset_dir,
+                                          cfg.layers.sy.rasters(
+                                              cfg.layers.nlay)[L - 1]))
+        if L in SY_SR:
+            s, lo, hi = SY_SR[L]['sy']
+            out.append(('sy', L, s / sy0, lo / sy0, hi / sy0))
+        else:                      # a layer the table does not cover
+            out.append(('sy', L, 1.0, 0.03, 30.0))
+    return out
+
+
+def k_order_prior(df, pdata):
+    """The prior's layer-1 K a decade under layer 2's at each pair of pilot
+    points at the same place -- the model holds it cell by cell, and this
+    keeps the prior from spending realisations on draws it would clip:
+    where log10 k1 > log10 k2 - K_DECADES, both move halfway towards each
+    other. ``df`` (realisations x parameters, multipliers of rasters with
+    the same median) is changed in place. Returns how many draws moved."""
+    import re
+
+    def xy(name):
+        m = re.search(r'x:([-\d.]+)_y:([-\d.]+)', name)
+        return ((round(float(m.group(1)), 2), round(float(m.group(2)), 2))
+                if m else None)
+    grp = pdata['pargp']
+    k1 = {xy(n): n for n in df.columns if grp.get(n) == 'k_l1' and xy(n)}
+    k2 = {xy(n): n for n in df.columns if grp.get(n) == 'k_l2' and xy(n)}
+    moved = 0
+    for place, n1 in k1.items():
+        n2 = k2.get(place)
+        if n2 is None:
+            continue
+        a = np.log10(df[n1].to_numpy(dtype=float))
+        b = np.log10(df[n2].to_numpy(dtype=float))
+        d = a - (b - K_DECADES)
+        bad = d > 0.0
+        if bad.any():
+            df.loc[bad, n1] = 10.0 ** (a[bad] - d[bad] / 2.0 - 1e-9)
+            df.loc[bad, n2] = 10.0 ** (b[bad] + d[bad] / 2.0 + 1e-9)
+            moved += int(bad.sum())
+    return moved
+
 
 def scalar_table(cfg):
     """The scalar parameters and their starting values, as the forward run
@@ -126,6 +214,9 @@ def scalar_table(cfg):
         rows.append(('ss_l%d' % (L + 1), 1.0))
     for L in range(cfg.layers.nlay):
         rows.append(('drn_l%d' % (L + 1), 1.0))
+    for L in range(cfg.layers.nlay):
+        if L + 1 in SY_SR:         # the table's layers; others keep thts
+            rows.append(('sr_l%d' % (L + 1), SY_SR[L + 1]['sr'][0]))
     rows = [(n, PRIOR_START.get(n, v)) for n, v in rows]
     return pd.DataFrame(rows, columns=['name', 'value'])
 
@@ -138,6 +229,9 @@ def scalar_bounds(name, value):
         return 'none', max(value - 0.20, 0.01), min(value + 0.20, 0.99)
     if name.startswith('ks_h'):
         return 'log', value * 0.1, value * 10.0
+    if name.startswith('sr_l'):
+        _s, lo, hi = SY_SR[int(name[4:])]['sr']
+        return 'log', lo, hi
     # streambed K: at 1 m/d the model crawls (64 min alone, 63 linear
     # iterations a day) and no better a fit -- capped at 0.5 (2026-10-12)
     return {'sfr_rhk': ('log', 0.001, 0.5),
@@ -205,6 +299,16 @@ def step_org(cfg_path, state, pest_ws):
     if os.path.isdir(pd_):
         shutil.rmtree(pd_)
     pfw.write_scalars(org, scalar_table(cfg))
+    # the order of the layers' K, held by the model (marmites_pest)
+    if cfg.layers.nlay >= 2:
+        with open(os.path.join(md, 'k_l1_max_ratio.txt'), 'w') as fh:
+            fh.write('%.10g\n' % K_L1_MAX_RATIO)
+    # the base run at the calibration's starting values: K and Sy, one
+    # value per layer (step_base then writes the per-cell ones the pilot
+    # points multiply)
+    for stem, L, start, _lo, _hi in pilot_specs(cfg, ds):
+        with open(os.path.join(md, '%s_l%d.txt' % (stem, L)), 'w') as fh:
+            fh.write('%.10g\n' % start)
     # MODIS's catchment ET
     poly = pme.catchment_polygon(os.path.join(ds, 'inputBOUNDARY.geojson'))
     dates = [l.split(',')[0].strip()[:10]
@@ -351,17 +455,18 @@ def step_pst(org, pest_ws, nreal, python=None):
     gs = pyemu.geostats.GeoStruct(
         variograms=pyemu.geostats.ExpVario(contribution=1.0, a=VARIO_A),
         transform='log', name='pp_gs')
-    # widened where the pilot hit them (2026-10-13): K layer 1 31 % on
-    # x0.1, Sy layer 2 10 % on x10, Sy layer 1 3 % on x0.1
-    for stem, lo, hi in (('k', 0.01, 30.0), ('sy', 0.03, 30.0)):
-        for L in range(nlay):
-            pf_.add_parameters(
-                filenames=os.path.join(MULT_DIR, '%s_l%d.txt' % (stem, L + 1)),
-                par_type='pilotpoints', par_name_base='%s%d' % (stem, L + 1),
-                pargp='%s_l%d' % (stem, L + 1), lower_bound=lo,
-                upper_bound=hi, geostruct=gs,
-                zone_array=(idomain[L] > 0).astype(int),
-                pp_options={'pp_space': PP_SPACE, 'try_use_ppu': False})
+    # K and Sy per layer: the user's table (SY_SR, K_RANGE, 2026-10-18)
+    specs = pilot_specs(cfg, os.path.join(org, 'example', cfg.paths.case))
+    for stem, L, start, lo, hi in specs:
+        print('   %s layer %d: start x%.4g, bounds x%.4g .. x%.4g'
+              % (stem, L, start, lo, hi))
+        pf_.add_parameters(
+            filenames=os.path.join(MULT_DIR, '%s_l%d.txt' % (stem, L)),
+            par_type='pilotpoints', par_name_base='%s%d' % (stem, L),
+            pargp='%s_l%d' % (stem, L), lower_bound=lo, upper_bound=hi,
+            initial_value=start, geostruct=gs,
+            zone_array=(idomain[L - 1] > 0).astype(int),
+            pp_options={'pp_space': PP_SPACE, 'try_use_ppu': False})
     sc = pf.read_scalars(org)
     for name, value in zip(sc['name'], sc['value']):
         trans, lo, hi = scalar_bounds(name, float(value))
@@ -416,6 +521,11 @@ def step_pst(org, pest_ws, nreal, python=None):
         'overdue_giveup_fac': 4.0, 'max_run_fail': 1,
         'panther_agent_freeze_on_fail': False})
     pe = pf_.draw(num_reals=int(nreal), use_specsim=False)
+    pe.enforce()
+    n_ord = k_order_prior(pe._df, pst.parameter_data)
+    if n_ord:
+        print('   prior: layer 1 K brought a decade under layer 2 at %d '
+              'pilot-point draw(s)' % n_ord)
     pe.enforce()
     pe.to_binary(os.path.join(tpl, 'prior_pe.jcb'))
     # PstFrom's metadata brings a 'name' column beside parnme/obsnme -- an

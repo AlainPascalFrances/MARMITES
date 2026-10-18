@@ -482,3 +482,40 @@ stopped the run (kept as `PEST\master_iter1_stopped`).
   fixed model, then makes 2 iterations: the 2nd and 3rd updates of the
   plan. 20 agents: the server has 32 cores since the 2026-10-15 reboot.
 
+**The warm start stopped; a new calibration (2026-10-17/18).**
+
+The warm start (iteration 1: mean phi 6899 → 6536, best 5840) was stopped
+by the user, and kept as `PEST\master_warm_stopped`. Its two failures,
+total ET above PET, led to a coupling artefact present in every run: UZF's
+rejected infiltration flip-flopping day by day (analysis doc 8.26). The
+calibration had been feeding it, by lowering layer-1 Sy and raising soil
+Ks. Three changes before the new calibration:
+
+1. **The soil percolates what UZF can take; the rest runs off** (4ad1d5b).
+2. **A carried UZF state keeps its fill, not its content.** A state saved
+   with θr/θs 0.44/0.45, restarting a realisation with other water
+   contents, now carries (wc − θr0)/(θs0 − θr0) onto the new range,
+   instead of a clipped content that started UZF full.
+3. **Hydraulic parameters from the user's table**
+   (`lamata_sardon_hydraulic_parameters.xlsx`). PEST only: the reference
+   model keeps Sy 0.01, θs 0.45, K 0.05 m/d.
+
+| Layer | Sy: start (bounds) | Sr: start (bounds) | n = θs = Sy + Sr | K [m/d]: start (bounds) |
+|---|---|---|---|---|
+| L1 saprolite | 2.5 % (0.5–5) | 27.5 % (4.5–30) | 30 % (5–35) | 0.05 (2.3e-5–1.12) |
+| L2 fissured | 1 % (0.1–2) | 4 % (0.9–9) | 5 % (1–11) | 0.5 (2.3e-4–11.2) |
+
+How each is set:
+- **Sy:** pilot points as before, on the 0.01 rasters, with the table's
+  start and bounds per layer.
+- **Sr:** one value per layer (`sr_l<L>`). UZF's θs = Sy + Sr in every
+  cell, so θr = Sr.
+- **Widened maxima** (user): saprolite Sr 25 → 30 %, fissured Sy 1 → 2 %,
+  so the table's medians sit inside their bounds.
+- **K bounds:** they span every value gathered, from 2.3e-5 (the table's
+  minimum) to 11.2 m/d (Legchenko et al. 2004). They are split so layer
+  1's lie a decade below layer 2's (user). Layer 2 starts a decade above
+  layer 1.
+- **K order:** the model holds layer-1 K at most 0.1 × layer-2 K, cell by
+  cell (`k_l1_max_ratio.txt`). The prior is drawn to respect it.
+

@@ -48,12 +48,13 @@ def apply_scalars(cfg, table, mult_dir=None):
     """The scalar parameters into the configuration. ``table``: DataFrame
     name, value. Names: sfc_f_h<k> and ks_h<k> (horizon k, 1-based, in
     table order), sfr_rhk, lak_bedleak, uzf_eps, uzf_vks, crr_beta; and the
-    per-layer multipliers ss_l<L>, drn_l<L>, written as the one-value files
-    ``mult_dir/ss_l<L>.txt`` the model reads (marmites_pest)."""
+    per-layer ss_l<L>, drn_l<L> (multipliers) and sr_l<L> (the specific
+    retention, a water content: thts = Sy + Sr), written as the one-value
+    files ``mult_dir/<name>.txt`` the model reads (marmites_pest)."""
     import marmites_pest as mp
     for name, value in zip(table['name'], table['value']):
         v = float(value)
-        if name.startswith(('ss_l', 'drn_l')):
+        if name.startswith(('ss_l', 'drn_l', 'sr_l')):
             if mult_dir is None:
                 raise ValueError('%s needs the multiplier folder' % name)
             with open(os.path.join(mult_dir, '%s.txt' % name), 'w') as fh:

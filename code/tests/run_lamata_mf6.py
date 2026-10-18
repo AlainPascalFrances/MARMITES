@@ -945,7 +945,14 @@ def save_run_state(pref, b, cpl, st):
     n = int(np.asarray(st.Ssoil_ini).shape[0])
     fn = pref + '_state.npz'
     lak = getattr(cpl, 'lak_stage_final', None)
+    # the water contents the unsaturated zone was left with, so a run with
+    # other ones carries its fill rather than its content (2026-10-18)
+    ref = {}
+    if getattr(b, 'uzf_thtr_built', None) is not None:
+        ref = {'uzf_thtr': np.asarray(b.uzf_thtr_built, dtype=float),
+               'uzf_thts': np.asarray(b.uzf_thts_built, dtype=float)}
     np.savez(fn, uzf_wc=wc, soil=np.asarray(st.Ssoil_ini, dtype=float),
+             **ref,
              exf=np.asarray(carry.get('exf', np.zeros(n)), dtype=float),
              rej=np.asarray(carry.get('rej', np.zeros(n)), dtype=float),
              etuzf=np.asarray(carry.get('etuzf', np.zeros(n)), dtype=float),
@@ -1024,7 +1031,14 @@ def load_run_state(pref, b, ctx):
     # checks the count against the ponds it builds)
     lak = (np.asarray(z['lak_stage'], dtype=float)
            if 'lak_stage' in z.files else np.zeros(0))
+    # the water contents it was left with (a state saved since 2026-10-18)
+    uref = None
+    if {'uzf_thtr', 'uzf_thts'} <= set(z.files) \
+            and z['uzf_thtr'].shape == shape == z['uzf_thts'].shape:
+        uref = (np.asarray(z['uzf_thtr'], dtype=float),
+                np.asarray(z['uzf_thts'], dtype=float))
     return {'uzf_wc': np.asarray(z['uzf_wc'], dtype=float), 'soil': soil,
+            'uzf_ref': uref,
             'carry': {k: np.asarray(z[k], dtype=float)
                       for k in ('exf', 'rej', 'etuzf')},
             'lak_stage': lak if lak.size else None}
@@ -1459,6 +1473,11 @@ def main():
         saved_state = load_run_state(pref, b, ctx)
         if saved_state is not None:
             b.uzf_thti_carry = saved_state['uzf_wc']
+            # carried as the fill of the mobile range it was left with: the
+            # state's own (thtr, thts), or, for an older state, the
+            # reference model's that the PEST multipliers changed
+            b.uzf_thti_carry_ref = (saved_state.get('uzf_ref')
+                                    or getattr(cMF, 'uzf_carry_ref', None))
             b.lak_strt_carry = saved_state.get('lak_stage')
             if a.lak and b.lak_strt_carry is None:
                 print('   the state was saved without LAK: each lake starts '
@@ -1654,6 +1673,7 @@ def main():
             b.steady_first = False
             b.uzf_thti_carry = (None if cpl.uzf_wc_final is None
                                 else b.thti_from_wc(cpl.uzf_wc_final))
+            b.uzf_thti_carry_ref = (b.uzf_thtr_built, b.uzf_thts_built)
             # ... and each pond where it ended, not re-derived from the WT
             b.lak_strt_carry = getattr(cpl, 'lak_stage_final', None)
             b.build()

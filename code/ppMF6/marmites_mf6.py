@@ -54,6 +54,29 @@ class MF6BuildError(Exception):
 SFR_BOUNDNAME = 'network'
 
 
+def carry_thti(carry, ref, thtr, thts, thti):
+    """The initial UZF water content from a carried one (MF6's WCNEW of a
+    previous cycle or a saved state; NaN where there is none).
+
+    With ``ref`` = (thtr, thts) the carried content was left with, what is
+    carried is the FILL of the mobile range, (wc - thtr0) / (thts0 - thtr0),
+    mapped onto this model's [thtr, thts] (2026-10-18): a state saved with
+    other water contents -- a PEST realisation's Sy and Sr -- neither floods
+    nor drains the unsaturated zone. Without it, the content as it is,
+    clipped into [thtr, thts]. Returns (thti, number of cells carried)."""
+    c = np.asarray(carry, dtype=float).reshape(np.shape(thti))
+    ok = np.isfinite(c)
+    out = np.where(ok, np.clip(c, thtr, thts), thti)
+    if ref is not None:
+        r0 = np.asarray(ref[0], dtype=float).reshape(c.shape)
+        s0 = np.asarray(ref[1], dtype=float).reshape(c.shape)
+        span = s0 - r0
+        okr = ok & np.isfinite(span) & (span > 0.0)
+        f = np.clip((c - r0) / np.where(okr, span, 1.0), 0.0, 1.0)
+        out = np.where(okr, thtr + f * (thts - thtr), out)
+    return out, int(ok.sum())
+
+
 class clsMF6:
     """Build a MODFLOW 6 simulation for the MARMITES coupled model.
 
@@ -262,6 +285,13 @@ class clsMF6:
         # per (layer, row, col): the UZF initial water content carried from a
         # previous cycle (NaN = the panel's thti), set by the spin-up
         self.uzf_thti_carry = None
+        # ... and the (thtr, thts) it was left with, when known: the carry
+        # is then the FILL of the mobile range, (wc - thtr)/(thts - thtr),
+        # mapped onto this model's range; None carries the water content
+        # as it is, clipped into [thtr, thts]
+        self.uzf_thti_carry_ref = None
+        # the (thtr, thts) of the last build, saved with a run's state
+        self.uzf_thtr_built = self.uzf_thts_built = None
         # per lake: the stage it ENDED at in the previous spin-up cycle or
         # in the saved state a run starts from -- its storage, which the
         # water table alone cannot give back (None = start from the WT)
@@ -1284,14 +1314,16 @@ class clsMF6:
         # unsaturated part. Restarting at the panel's thti (raised to thtr:
         # empty) would throw that water away between cycles.
         if self.uzf_thti_carry is not None:
-            _c = np.asarray(self.uzf_thti_carry, dtype=float)
-            _c = _c.reshape(thti.shape)
-            _ok = np.isfinite(_c)
-            thti = np.where(_ok, np.clip(_c, thtr, thts), thti)
-            print('UZF thti carried from the previous cycle in %d cell-layer(s)'
-                  % int(_ok.sum()))
+            thti, _n = carry_thti(self.uzf_thti_carry,
+                                  self.uzf_thti_carry_ref, thtr, thts, thti)
+            print('UZF thti carried from the previous cycle in %d '
+                  'cell-layer(s)%s' % (_n, (', as the fill of the mobile range'
+                                            if self.uzf_thti_carry_ref
+                                            is not None else '')))
         surfdep = float(np.ravel(np.asarray(cMF.surfdep, dtype=float))[0])
         thtr, thts, thti, eps = self._validate_uzf_params(thtr, thts, thti, eps)
+        self.uzf_thtr_built = np.array(thtr, dtype=float)
+        self.uzf_thts_built = np.array(thts, dtype=float)
         # vertical K for UZF: iuzfopt==1 -> vks array; iuzfopt==2 -> layer k33
         # (the rule is _uzf_vks_grid, shared with the seepage drain)
         # UZF unsaturated conductivity scale. UZF6 forbids EPSILON < 3.5, but the

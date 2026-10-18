@@ -97,3 +97,44 @@ def test_the_driver_applies_the_multipliers_before_building():
     i = src.index('marmites_pest.apply_multipliers(cMF, a.pest_multipliers)')
     assert i < src.index('b = clsMF6(cMF, top=top')
     assert 'pest_multipliers=_pest_folder(cfg)' in src
+
+
+def test_specific_retention_sets_thts_and_keeps_the_reference(tmp_path):
+    """sr_l<L> is a water content: thts = Sy + Sr in every cell (so the
+    builder's thtr = thts - Sy = Sr), after the Sy multipliers; the
+    reference (thtr, thts) is kept for a carried UZF state (2026-10-18)."""
+    c = _cmf()
+    c.thts_actual = [0.45, 0.45]
+    _write(tmp_path, 'sy_l1.txt', [2.5])
+    _write(tmp_path, 'sr_l1.txt', [0.275])
+    _write(tmp_path, 'sr_l2.txt', [0.04])
+    done = mp.apply_multipliers(c, str(tmp_path), out=None)
+    thts = np.asarray(c.thts)
+    assert thts.shape == (2, 1, 4)
+    assert np.allclose(thts[0], 0.025 + 0.275)
+    assert np.allclose(thts[1], 0.01 + 0.04)
+    assert np.allclose(np.asarray(c.thts_actual), thts)
+    thtr0, thts0 = c.uzf_carry_ref
+    assert np.allclose(thts0, 0.45) and np.allclose(thtr0, 0.44)
+    assert {'sr_l1', 'sr_l2', 'sy_l1'} <= set(done)
+
+
+def test_layer_1_k_is_held_under_layer_2_k(tmp_path):
+    c = _cmf()
+    _write(tmp_path, 'k_l1_max_ratio.txt', [0.1])
+    said = []
+    mp.apply_multipliers(c, str(tmp_path), out=said.append)
+    # layer 2 [0.05, 0.05, 0.1, 0.5] -> layer 1 at most [5e-3, 5e-3, 0.01,
+    # 0.05]; it was [0.05, 0.1, 0.5, 0.05]
+    assert np.allclose(c.hk_actual[0], [[0.005, 0.005, 0.01, 0.05]])
+    assert np.allclose(c.hk_actual[1], [[0.05, 0.05, 0.1, 0.5]])
+    assert any('3 cell(s)' in s for s in said)
+
+
+def test_sy_and_sr_above_one_are_refused(tmp_path):
+    c = _cmf()
+    c.thts_actual = [0.45, 0.45]
+    _write(tmp_path, 'sr_l1.txt', [0.995])
+    _write(tmp_path, 'sy_l1.txt', [2.0])
+    with pytest.raises(mp.PestError, match='above 1'):
+        mp.apply_multipliers(c, str(tmp_path), out=None)

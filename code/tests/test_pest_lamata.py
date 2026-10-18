@@ -282,3 +282,71 @@ def test_a_warm_start_carries_the_parameters_and_no_old_outputs(tmp_path):
     back = pyemu.ParameterEnsemble.from_binary(
         p, str(tmp_path / 'start_par.jcb'))._df
     assert back.loc['7', 'k_a'] == p.parameter_data.loc['k_a', 'parubnd']
+
+
+# --------------------------------------- hydraulic parameters (2026-10-18)
+
+def test_sy_and_sr_are_the_users_table(tmp_path):
+    """lamata_sardon_hydraulic_parameters.xlsx, maxima widened so the
+    medians sit inside (saprolite Sr 30 %, fissured Sy 2 %): thts = Sy + Sr
+    gives the table's porosities, 30 % and 5 %."""
+    cfg = _cfg()
+    cfg.layers.nlay = 2
+    t = pst.scalar_table(cfg).set_index('name')['value']
+    assert t['sr_l1'] == 0.275 and t['sr_l2'] == 0.04
+    assert pst.scalar_bounds('sr_l1', 0.275) == ('log', 0.045, 0.30)
+    assert pst.scalar_bounds('sr_l2', 0.04) == ('log', 0.009, 0.09)
+    assert pst.SY_SR[1]['sy'] == (0.025, 0.005, 0.05)
+    assert pst.SY_SR[2]['sy'] == (0.010, 0.001, 0.02)
+    for L, n in ((1, 0.30), (2, 0.05)):
+        assert pst.SY_SR[L]['sy'][0] + pst.SY_SR[L]['sr'][0] == \
+            pytest.approx(n)
+    pfw.apply_scalars(cfg, pst.scalar_table(cfg), mult_dir=str(tmp_path))
+    assert float(open(tmp_path / 'sr_l1.txt').read()) == 0.275
+    assert float(open(tmp_path / 'sr_l2.txt').read()) == 0.04
+
+
+def _raster(path, value):
+    with open(path, 'w') as fh:
+        fh.write('ncols 3\nnrows 2\nxllcorner 0\nyllcorner 0\ncellsize 50\n'
+                 'NODATA_value -9999\n')
+        fh.write('%g %g -9999\n%g %g %g\n' % ((value,) * 5))
+
+
+def test_the_pilot_points_start_and_bound_k_and_sy_per_layer(tmp_path):
+    """K: the reference's 0.05 m/d is layer 1's start, layer 2 starts a
+    decade above; the bounds span 2.3e-5 to 11.2 m/d, layer 1's a decade
+    below layer 2's. Sy: the table's, as multipliers of the 0.01 rasters."""
+    (tmp_path / 'MF_ws').mkdir()
+    for L in (1, 2):
+        _raster(str(tmp_path / 'MF_ws' / ('hk_l%d.asc' % L)), 0.05)
+        _raster(str(tmp_path / 'MF_ws' / ('Sy_l%d.asc' % L)), 0.01)
+    cfg = _cfg()
+    cfg.layers.nlay = 2
+    cfg.layers.k.raster = 'MF_ws/hk_l%d.asc'
+    cfg.layers.sy.raster = 'MF_ws/Sy_l%d.asc'
+    specs = {(s, L): (a, lo, hi)
+             for s, L, a, lo, hi in pst.pilot_specs(cfg, str(tmp_path))}
+    assert specs[('k', 1)] == pytest.approx((1.0, 2.3e-5 / 0.05,
+                                             1.12 / 0.05))
+    assert specs[('k', 2)] == pytest.approx((10.0, 2.3e-4 / 0.05,
+                                             11.2 / 0.05))
+    assert specs[('sy', 1)] == pytest.approx((2.5, 0.5, 5.0))
+    assert specs[('sy', 2)] == pytest.approx((1.0, 0.1, 2.0))
+
+
+def test_the_prior_keeps_layer_1_k_a_decade_under_layer_2():
+    at = ['x:10.00_y:20.00', 'x:30.00_y:40.00']
+    k1 = ['pname:k1_inst:0_ptype:pp_pstyle:m_%s_zone:1' % p for p in at]
+    k2 = ['pname:k2_inst:0_ptype:pp_pstyle:m_%s_zone:1' % p for p in at]
+    df = pd.DataFrame({k1[0]: [1.0, 1.0], k2[0]: [10.0, 2.0],
+                       k1[1]: [0.05, 0.5], k2[1]: [5.0, 50.0]})
+    pdata = pd.DataFrame({'pargp': ['k_l1', 'k_l1', 'k_l2', 'k_l2']},
+                         index=[k1[0], k1[1], k2[0], k2[1]])
+    moved = pst.k_order_prior(df, pdata)
+    assert moved == 1                   # realisation 1, first place
+    for a, b in zip(k1, k2):
+        assert np.all(np.log10(df[a]) <= np.log10(df[b]) - 1.0 + 1e-6)
+    # the broken pair met halfway, in log: 1 x 2 -> sqrt(2/10) and sqrt(20)
+    assert df.loc[1, k1[0]] == pytest.approx(np.sqrt(0.2), rel=1e-6)
+    assert df.loc[1, k2[0]] == pytest.approx(np.sqrt(20.0), rel=1e-6)
