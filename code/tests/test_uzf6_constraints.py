@@ -325,3 +325,17 @@ def test_the_objects_below_carry_the_columns_extinction_depth(cmf, tmp_path):
             assert float(rows[no][4]) == thtr[no], 'extwc below its thtr'
             kids += 1
     assert kids > 0, 'the fixture has no second layer to test'
+
+
+def test_only_the_cells_with_uzf_objects_are_judged(cmf, tmp_path):
+    """thtr = thts - Sy is derived in the active cells only, so an inactive
+    cell keeps the panel's thtr -- which a layer's low thts can meet (the
+    PEST realisations' fissured layer, thts 0.05; 2026-10-18)."""
+    b = _validator(cmf, tmp_path)
+    thtr = np.array([[0.275, 0.04], [0.275, 0.05]])
+    thts = np.array([[0.30, 0.05], [0.30, 0.05]])
+    thti = np.array([[0.28, 0.045], [0.28, 0.05]])
+    active = np.array([[True, True], [True, False]])
+    b._validate_uzf_params(thtr, thts, thti, 4.0, active=active)
+    with pytest.raises(mf6mod.MF6BuildError, match='1 cell'):
+        b._validate_uzf_params(thtr, thts, thti, 4.0)

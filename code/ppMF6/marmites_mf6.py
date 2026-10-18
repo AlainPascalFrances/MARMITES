@@ -388,7 +388,7 @@ class clsMF6:
     # UZF6 hard constraints (MODFLOW 6 source: uzf module input checks)
     EPS_MIN, EPS_MAX = 3.5, 14.0
 
-    def _validate_uzf_params(self, thtr, thts, thti, eps):
+    def _validate_uzf_params(self, thtr, thts, thti, eps, active=None):
         """Enforce the UZF6 input rules, converting NWT-era values.
 
         Takes scalars OR arrays: the Brooks-Corey parameters may be given
@@ -397,23 +397,41 @@ class clsMF6:
         physically un-fixable values; clamps EPSILON to the MF6 range with
         an explicit warning, because a value outside it simply cannot be
         represented in UZF6.
+
+        ``active``: the cells that carry UZF objects -- only they are
+        judged. thtr = thts - Sy is derived there alone, so an inactive
+        cell keeps the panel's thtr, which a layer's low thts can meet
+        (2026-10-18, a fissured layer at thts 0.05).
         """
         import numpy as _np
         a_thtr, a_thts = _np.asarray(thtr, float), _np.asarray(thts, float)
         a_thti, a_eps = _np.asarray(thti, float), _np.asarray(eps, float)
-        if not _np.all(a_thtr > 0.0):
+        if active is not None and a_thtr.ndim and a_thts.ndim:
+            act = _np.broadcast_to(_np.asarray(active, dtype=bool),
+                                   _np.broadcast(a_thtr, a_thts,
+                                                 a_thti).shape)
+            j_thtr = _np.broadcast_to(a_thtr, act.shape)[act]
+            j_thts = _np.broadcast_to(a_thts, act.shape)[act]
+            j_thti = _np.broadcast_to(a_thti, act.shape)[act]
+        else:
+            j_thtr, j_thts, j_thti = a_thtr, a_thts, a_thti
+        if not _np.all(j_thtr > 0.0):
             raise MF6BuildError(
                 'UZF6 requires THTR > 0 (lowest %g). UZF1 tolerated 0 when '
                 'specifythtr=0; set a residual water content on the UZF '
-                'panel.' % a_thtr.min())
-        if not _np.all(a_thts > a_thtr):
+                'panel.' % j_thtr.min())
+        if not _np.all(j_thts > j_thtr):
+            gap = j_thts - j_thtr
+            k = int(_np.argmin(gap))
             raise MF6BuildError('UZF6 requires THTS > THTR everywhere '
-                                '(worst pair %g, %g).'
-                                % (a_thts.min(), a_thtr.max()))
-        if not _np.all((a_thtr <= a_thti) & (a_thti <= a_thts)):
+                                '(worst pair %g, %g in %d cell(s)).'
+                                % (_np.ravel(j_thts)[k],
+                                   _np.ravel(j_thtr)[k],
+                                   int(_np.count_nonzero(gap <= 0.0))))
+        if not _np.all((j_thtr <= j_thti) & (j_thti <= j_thts)):
             raise MF6BuildError('UZF6 requires THTR <= THTI <= THTS '
                                 'everywhere (THTI spans %g to %g).'
-                                % (a_thti.min(), a_thti.max()))
+                                % (j_thti.min(), j_thti.max()))
         thtr, thts, thti, eps = a_thtr, a_thts, a_thti, a_eps
         if self.surfdep_check and not (float(self.cMF.surfdep) > 0.0):
             raise MF6BuildError('UZF6 requires SURFDEP > 0.')
@@ -1321,7 +1339,8 @@ class clsMF6:
                                             if self.uzf_thti_carry_ref
                                             is not None else '')))
         surfdep = float(np.ravel(np.asarray(cMF.surfdep, dtype=float))[0])
-        thtr, thts, thti, eps = self._validate_uzf_params(thtr, thts, thti, eps)
+        thtr, thts, thti, eps = self._validate_uzf_params(
+            thtr, thts, thti, eps, active=np.asarray(self.idomain) > 0)
         self.uzf_thtr_built = np.array(thtr, dtype=float)
         self.uzf_thts_built = np.array(thts, dtype=float)
         # vertical K for UZF: iuzfopt==1 -> vks array; iuzfopt==2 -> layer k33

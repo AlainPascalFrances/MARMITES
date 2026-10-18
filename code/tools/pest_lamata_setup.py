@@ -265,6 +265,12 @@ def step_org(cfg_path, state, pest_ws):
     cfg.spinup.save_means = ''
     cfg.paths.ws = ''
     cfg.pest.multipliers = MULT_DIR
+    # where the saved state carries no UZF water content, the unsaturated
+    # zone starts EMPTY, as the reference model's does (its thti 0.15 is
+    # under its thtr 0.44, so the build raises it to thtr); a realisation's
+    # thts can fall below 0.15 -- the fissured layer's 0.05 -- which would
+    # lower it to thts and start that zone full (2026-10-18)
+    cfg.uzf.thti.value = 1.0e-3
     cfg.validate()
     cfg.write_toml(os.path.join(org, 'pest_lamata.toml'))
     # the dataset copy, with the points the calibration adds
