@@ -125,7 +125,10 @@ def run_model(wd, python=None):
     cfg.validate()
     run_cfg = os.path.join(wd, 'pest_lamata_run.toml')
     cfg.write_toml(run_cfg)
+    import marmites_runinfo
     env = dict(os.environ)
+    # a forward run is no front-end run: it records nothing in a registry
+    env.pop(marmites_runinfo.RUN_DIR_ENV, None)
     env['MM_WS_ROOT'] = os.path.join(wd, 'ws')
     env['MM_EXAMPLE_ROOT'] = os.path.join(wd, 'example')
     env['PYTHONUNBUFFERED'] = '1'

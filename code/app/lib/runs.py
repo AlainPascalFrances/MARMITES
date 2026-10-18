@@ -14,6 +14,11 @@ refresh. So a run is launched as a DETACHED subprocess that writes
 
 and the page polls those. A run therefore survives closing the browser, and its
 log can be read afterwards by anyone.
+
+The run is told that folder in its environment (marmites_runinfo.RUN_DIR_ENV)
+and writes beside its log what a later calibration builds on (WP7 front-end,
+phase 3): ``resolved_config.toml``, the configuration it ran, and
+``run_info.json``, its results folder and its end state.
 """
 
 import json
@@ -29,6 +34,7 @@ __all__ = ['launch', 'status', 'log_tail', 'list_runs', 'stop', 'run_dir',
 
 _STATUS = 'status.json'
 _LOG = 'run.log'
+_RUN_DIR_ENV = 'MM_RUN_DIR'          # marmites_runinfo.RUN_DIR_ENV
 
 
 def run_dir(runs_dir, run_id):
@@ -143,6 +149,11 @@ def launch(config_path, runs_dir, overrides=None, run_tag=None,
         cmd += ['--set', item]
     if run_tag:
         cmd += ['--run-tag', str(run_tag)]
+
+    # the run's own folder, where it records its configuration and its end
+    # state (marmites_runinfo -- the name is defined there)
+    env = dict(os.environ if env is None else env)
+    env[_RUN_DIR_ENV] = str(d)
 
     log_path = d / _LOG
     logfh = open(log_path, 'w', encoding='utf-8', errors='replace')

@@ -32,6 +32,10 @@ code/                    all Python
                             --run-tag --probe --postproc-only
   marmites_coupler.py       MF6Coupler: MMsoil <-> MF6 per stress period
   marmites_config.py        RunConfig schema + validation of configs/*.toml
+  marmites_runinfo.py       what a finished run leaves to build on: its
+                            resolved config + end state, recorded in
+                            runs/<run_id>/ (MM_RUN_DIR from the registry) or
+                            recovered from an older run's log; the PEST base
   configs/lamata.toml       La Mata run configuration (USER-OWNED, see §2.4)
   mm_paths.py               machine paths: MM_* env var > configs/paths.local.toml
                             (git-ignored) > Windows defaults

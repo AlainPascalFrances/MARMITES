@@ -187,10 +187,60 @@ def test_the_pest_setup_panel_holds_the_calibration(tmp_path, monkeypatch):
               'pest.overdue_giveup_fac', 'pest.agents', 'pest.start_from'):
         assert k in keys, '%s is not on the page' % k
     sel = {w.key for w in at.selectbox}
-    assert {'pest.base_state', 'pest.start'} <= sel
+    # no run in the scratch registry: the base is this configuration and a
+    # saved state chosen by hand (phase 3)
+    assert {'pest.base_run', 'pest.base_state', 'pest.start'} <= sel
     # nothing touched, nothing to save: the defaults shown for an empty
     # parameter table are not an edit
     assert 'Saved' in ' '.join(str(m.value) for m in at.sidebar.markdown)
+
+
+def test_a_run_solution_is_the_base_of_a_calibration(tmp_path, monkeypatch):
+    """Phase 3: a finished run of the registry as the base -- its
+    configuration copy the model, its end state the start; the state
+    picker gives way, and the run's differences from this configuration
+    are shown."""
+    import json
+    import time
+    import marmites_config as mcfg
+    import marmites_runinfo as ri
+    import mm_paths
+    monkeypatch.setattr(mm_paths, 'WS_ROOT', tmp_path)
+    monkeypatch.setattr(mm_paths, 'PEST_WS', str(tmp_path / 'pest'))
+    live = mcfg.load_run_config(os.path.join(str(mm_paths.CONFIG_DIR),
+                                             'lamata.toml'))
+    rid = '20261011214903_2lay'
+    rd = tmp_path / 'runs' / rid
+    rd.mkdir(parents=True)
+    (rd / 'status.json').write_text(json.dumps(
+        {'run_id': rid, 'state': 'finished', 'outcome': 'completed',
+         'started': '2026-10-11 21:49:04'}), encoding='utf-8')
+    run_cfg = mcfg.load_run_config(os.path.join(str(mm_paths.CONFIG_DIR),
+                                                'lamata.toml'))
+    run_cfg.run.nsp = 365
+    run_cfg.write_toml(str(rd / ri.CONFIG))
+    sdir = tmp_path / 'ws'
+    sdir.mkdir()
+    for k in range(live.layers.nlay):
+        (sdir / ('hi_end_l%d.asc' % (k + 1))).write_text('x')
+    ri.record(str(rd), config=ri.CONFIG, state='hi_end',
+              state_dir=str(sdir))
+    time.sleep(0.05)
+    (rd / 'run.log').write_text('done\n', encoding='utf-8')
+    at = AppTest.from_file(os.path.join(APP, 'pages', '8_8_-_PEST_setup.py'),
+                           default_timeout=180)
+    at.run()
+    box = [s for s in at.selectbox if s.key == 'pest.base_run'][0]
+    assert rid in box.options
+    box.set_value(rid).run()
+    assert not at.exception, [str(e.value) for e in at.exception]
+    said = ' '.join(str(s.value) for s in at.success)
+    assert 'hi_end' in said and ri.CONFIG in said
+    assert 'pest.base_state' not in {s.key for s in at.selectbox}
+    assert 'differs from this one' in ' '.join(str(w.value)
+                                               for w in at.warning)
+    assert '365 stress periods' in ' '.join(str(c.value)
+                                            for c in at.caption)
 
 
 def test_the_sidebar_shows_the_number_with_the_name():

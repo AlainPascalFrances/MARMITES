@@ -2,6 +2,11 @@
 """Panel 8 -- PEST++ SET-UP: everything that defines a calibration.  WP7
 front-end, phase 2 (docs/MM-MF6/WP7_PEST_frontend_plan.md).
 
+WP7 front-end, phase 3: the BASE is a finished run of the registry -- its
+configuration copy is the model calibrated, its end state where every
+realisation starts (marmites_runinfo) -- or, for a state no recorded run
+vouches for, this configuration and a saved state chosen by hand.
+
 Every choice here is a field of the configuration's ``[pest]`` section,
 remembered like the other panels' and written by the sidebar's one save.
 The PEST tools read them (code/tools/pest_lamata_setup.py at set-up,
@@ -34,8 +39,10 @@ for p in (CODE, APP, os.path.join(CODE, 'tools')):
         sys.path.insert(0, p)
 
 import marmites_config as mcfg          # noqa: E402
+import marmites_runinfo as ri           # noqa: E402
 import mm_paths                         # noqa: E402
 from lib import editor, panelui, schema  # noqa: E402
+from lib import runs as runlib          # noqa: E402
 
 st.set_page_config(page_title='8 PEST++ set-up', page_icon='🎯',
                    layout='wide')
@@ -94,45 +101,137 @@ tab_base, tab_par, tab_obs, tab_ens = st.tabs([
     '④ Ensemble and PEST++'])
 
 # ------------------------------------------------------------------- base
+@st.cache_data(ttl=60, show_spinner=False)
+def _base_of(run_dir, ws_root, stamp):
+    """marmites_runinfo.base_of, read again when the run's files change
+    (``stamp``)."""
+    return ri.base_of(run_dir, ws_root)
+
+
+def _stamp(run_dir):
+    return tuple(os.path.getmtime(os.path.join(run_dir, f))
+                 if os.path.exists(os.path.join(run_dir, f)) else 0.0
+                 for f in ('run.log', ri.INFO, 'status.json'))
+
+
+def _differs(a, b, skip=('pest', 'ui', 'meta')):
+    """[(dotted key, this configuration's value, the run's)] where they
+    differ -- the calibration's own settings left out."""
+    out = []
+
+    def walk(x, y, pre):
+        if isinstance(x, dict) and isinstance(y, dict):
+            for k in sorted(set(x) | set(y)):
+                walk(x.get(k), y.get(k), '%s.%s' % (pre, k))
+        elif x != y:
+            out.append((pre, x, y))
+    da, db = a.to_dict(), b.to_dict()
+    for s in da:
+        if s not in skip:
+            walk(da[s], db.get(s), s)
+    return out
+
+
 with tab_base:
     st.markdown('#### Where every realisation starts')
-    state_dir = mcfg.state_workspace(cfg, mm_paths.WS_ROOT)
-    found = {d['name']: d for d in mcfg.saved_states(
-        state_dir, int(cfg.layers.nlay), 'spinup.strt_heads')}
-    cur = (cfg.pest.base_state or '').strip()
-    names = [''] + list(found) + ([cur] if cur and cur not in found else [])
+    RUNS = ri.runs_dir(cfg, mm_paths.WS_ROOT)
+    done = [r['run_id'] for r in runlib.list_runs(RUNS, limit=60)
+            if r.get('state') == 'finished'
+            and r.get('outcome') == 'completed']
+    cur_run = (cfg.pest.base_run or '').strip()
+    ids = [''] + done + ([cur_run] if cur_run and cur_run not in done
+                         else [])
+    label, _u, help_ = schema.describe('pest.base_run')
+    kw = {} if 'pest.base_run' in st.session_state else {
+        'index': ids.index(cur_run) if cur_run in ids else 0}
+    base_run = st.selectbox(
+        label, ids, key='pest.base_run',
+        format_func=lambda r: r or ('— none: this configuration and a saved '
+                                    'state chosen by hand —'),
+        help='`pest.base_run`  \n%s  \nThe completed runs of `%s`.'
+             % (help_, RUNS), **kw) or ''
+    edited['pest.base_run'] = base_run
+    base_cfg = cfg                  # the model the calibration would run
+    if base_run:
+        rd = os.path.join(RUNS, base_run)
+        b = _base_of(rd, str(mm_paths.WS_ROOT), _stamp(rd))
+        if b['why']:
+            st.error('Run `%s` cannot be the base: %s.' % (base_run, b['why']))
+        else:
+            import time
+            st.success(
+                '**The model:** the configuration run `%s` ran (`%s`%s).  \n'
+                '**The start:** its end state `%s`, saved %s in `%s`%s.'
+                % (base_run, b['config'],
+                   ', recovered from its results folder'
+                   if b['source'] == 'log' else '',
+                   b['state'], time.strftime('%d %b %Y %H:%M',
+                                             time.localtime(b['state_time'])),
+                   b['state_dir'],
+                   '' if b.get('converged', True) else
+                   ' -- a spin-up saved BEFORE it converged'))
+            try:
+                base_cfg = mcfg.load_run_config(b['config'])
+                base_cfg.pest = copy.deepcopy(cfg.pest)
+            except mcfg.ConfigError as exc:
+                st.error('Its configuration copy does not load: %s' % exc)
+                base_cfg = cfg
+            diff = _differs(cfg, base_cfg) if base_cfg is not cfg else []
+            if diff:
+                st.warning('Its configuration differs from this one in %d '
+                           'setting(s): the calibration runs the RUN\'s, '
+                           'with this configuration\'s calibration settings.'
+                           % len(diff))
+                with st.expander('The differences'):
+                    st.dataframe(pd.DataFrame(
+                        [(k, str(x), str(y)) for k, x, y in diff],
+                        columns=['setting', 'this configuration', 'the run']),
+                        hide_index=True, width='stretch')
+            st.caption('The run covers %s.'
+                       % ('the whole record' if not base_cfg.run.nsp else
+                          '%d stress periods' % base_cfg.run.nsp))
+    else:
+        state_dir = mcfg.state_workspace(cfg, mm_paths.WS_ROOT)
+        found = {d['name']: d for d in mcfg.saved_states(
+            state_dir, int(cfg.layers.nlay), 'spinup.strt_heads')}
+        cur = (cfg.pest.base_state or '').strip()
+        names = [''] + list(found) + ([cur] if cur and cur not in found
+                                      else [])
 
-    def _fmt(name):
-        if not name:
-            return '— choose a saved state —'
-        d = found.get(name)
-        if d is None:
-            return '%s  ·  not found in the workspace' % name
-        import time
-        bits = [name, time.strftime('%d %b %Y %H:%M',
-                                    time.localtime(d['mtime']))]
-        if d['shape']:
-            bits.append('%s cells' % mcfg.cells_text(d['shape']))
-        if not d['full']:
-            bits.append('heads only')
-        return '  ·  '.join(bits)
+        def _fmt(name):
+            if not name:
+                return '— choose a saved state —'
+            d = found.get(name)
+            if d is None:
+                return '%s  ·  not found in the workspace' % name
+            import time
+            bits = [name, time.strftime('%d %b %Y %H:%M',
+                                        time.localtime(d['mtime']))]
+            if d['shape']:
+                bits.append('%s cells' % mcfg.cells_text(d['shape']))
+            if not d['full']:
+                bits.append('heads only')
+            return '  ·  '.join(bits)
 
-    label, _u, help_ = schema.describe('pest.base_state')
-    kw = {} if 'pest.base_state' in st.session_state else {
-        'index': names.index(cur) if cur in names else 0}
-    edited['pest.base_state'] = st.selectbox(
-        label, names, format_func=_fmt, key='pest.base_state',
-        help='`pest.base_state`  \n%s  \nFrom `%s`.' % (help_, state_dir),
-        **kw) or ''
-    if not edited['pest.base_state']:
-        st.warning('No saved state chosen: the set-up needs one.')
-    st.caption('A finished run as the base -- its configuration and its end '
-               'state -- comes with phase 3; today the base is this '
-               'configuration and the state chosen here.')
+        label, _u, help_ = schema.describe('pest.base_state')
+        kw = {} if 'pest.base_state' in st.session_state else {
+            'index': names.index(cur) if cur in names else 0}
+        edited['pest.base_state'] = st.selectbox(
+            label, names, format_func=_fmt, key='pest.base_state',
+            help='`pest.base_state`  \n%s  \nFrom `%s`.' % (help_, state_dir),
+            **kw) or ''
+        if not edited['pest.base_state']:
+            st.warning('No saved state chosen: the set-up needs one.')
+        else:
+            st.warning('The model calibrated is THIS configuration as it is '
+                       'now, and nothing vouches that it produced the state '
+                       'chosen. A run solution, above, carries both -- '
+                       'every run the Run panel launches records them.')
+    ds = str(mm_paths.dataset_dir(base_cfg.paths.case))
 
     st.markdown('#### What is fitted')
     edited.update(panelui.rows_form(cfg, schema.PEST_BASE_ROWS, 'pest'))
-    probe = copy.deepcopy(cfg)
+    probe = copy.deepcopy(base_cfg)
     probe.pest.calib_start = str(edited.get('pest.calib_start',
                                             cfg.pest.calib_start) or '')
     try:
@@ -149,7 +248,7 @@ with tab_par:
                                     columns=3))
     st.markdown('#### The parameter table')
     try:
-        defaults = pls.default_pars(cfg, ds)
+        defaults = pls.default_pars(base_cfg, ds)
     except (SystemExit, OSError, ValueError) as exc:
         defaults = []
         st.error('No default table for this configuration: %s' % exc)
@@ -171,7 +270,7 @@ with tab_par:
         st.rerun()
     df = pd.DataFrame(rows, columns=['family', 'layer', 'enable', 'start',
                                      'lower', 'upper', 'log'])
-    df.insert(2, 'what', [_what(cfg, r) for r in rows])
+    df.insert(2, 'what', [_what(base_cfg, r) for r in rows])
     cc = {'family': st.column_config.TextColumn('Family', disabled=True),
           'layer': st.column_config.NumberColumn('Layer / horizon',
                                                  disabled=True),
@@ -202,7 +301,7 @@ with tab_par:
                    'with the rest of the configuration.')
     else:
         panelui.forget_table('pest.par')
-    probe = copy.deepcopy(cfg)
+    probe = copy.deepcopy(base_cfg)
     probe.pest.par = [mcfg.PestPar(**r) for r in out]
     for k in ('pest.pp_space', 'pest.vario_range', 'pest.k_order_decades'):
         if k in edited:
@@ -221,7 +320,7 @@ with tab_par:
                   n_on - n_pp))
     off = [r['family'] for r in out if r['enable']
            and pls.PACKAGE_OF.get(r['family'])
-           and not getattr(cfg, pls.PACKAGE_OF[r['family']]).enable]
+           and not getattr(base_cfg, pls.PACKAGE_OF[r['family']]).enable]
     if off:
         st.warning('On, but their package is off, so not calibrated: %s'
                    % ', '.join(off))

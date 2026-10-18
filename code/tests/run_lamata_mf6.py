@@ -49,6 +49,7 @@ from marmites_mf6 import clsMF6  # noqa: E402
 import marmites_props as props  # noqa: E402
 from marmites_coupler import MF6Coupler  # noqa: E402
 import marmites_config as mcfg  # noqa: E402
+import marmites_runinfo as runinfo  # noqa: E402
 import marmites_surface as msurf  # noqa: E402
 import mm_paths  # noqa: E402
 
@@ -1194,6 +1195,20 @@ def _args_from_config(cfg, probe=False):
     )
 
 
+def record_run(cfg, a, run_dir=None):
+    """The resolved configuration and where the run writes, into the
+    run's registry folder (marmites_runinfo; the front-end names it in the
+    environment). Nothing without one: a run from the command line, a
+    PEST++ forward run."""
+    run_dir = run_dir or runinfo.run_dir_from_env()
+    if not run_dir:
+        return None
+    os.makedirs(run_dir, exist_ok=True)
+    cfg.write_toml(os.path.join(run_dir, runinfo.CONFIG))
+    return runinfo.record(run_dir, config=runinfo.CONFIG, out_dir=a.out_dir,
+                          state_dir=a.ws)
+
+
 def _pest_folder(cfg):
     """[pest] multipliers, made absolute against the configuration file."""
     f = (cfg.pest.multipliers or '').strip()
@@ -1265,6 +1280,10 @@ def main():
     _prov_dir = os.path.join(a.out_dir, '_input')
     os.makedirs(_prov_dir, exist_ok=True)
     cfg.write_toml(os.path.join(_prov_dir, 'resolved_config.toml'))
+    # ... and into the run's REGISTRY folder when the front-end launched it
+    # (WP7 front-end, phase 3): the configuration that ran, which a PEST++
+    # calibration takes as its model, beside its log
+    record_run(cfg, a)
     # Saved run state (equilibrated heads, steady means) is run OUTPUT, so it is
     # written to the workspace; reading falls back to the baseline committed in
     # the repo's example/LaMata/MF_ws so `spinup.strt_heads` keeps working.
@@ -1832,6 +1851,12 @@ def main():
         paths = list(paths) + [save_run_state(pref, b, cpl, st)]
         _write_state_scope(a, a.config, save_pref,      # WP0.6 scope sidecar
                            grid=_grid)
+        # the run's END STATE, for a calibration started from this run
+        runinfo.record(runinfo.run_dir_from_env(),
+                       state=os.path.basename(pref),
+                       state_dir=os.path.dirname(pref),
+                       converged=bool(ncyc <= 1 or spin_converged),
+                       state_saved=time.strftime('%Y-%m-%d %H:%M:%S'))
         print('%s heads saved: %s'
               % ('final' if ncyc <= 1 else 'equilibrated' if spin_converged
                  else 'NOT-converged spin-up', ', '.join(

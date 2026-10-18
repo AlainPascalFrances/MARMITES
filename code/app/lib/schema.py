@@ -1088,6 +1088,14 @@ FIELDS = {
                          'configuration: the folder of k_l<L>, sy_l<L>, '
                          'ss_l<L>, drn_l<L> files a PEST++ forward run '
                          'applies. Blank in every other configuration.'),
+    'pest.base_run': ('Run solution to calibrate from', _U,
+                      'A finished run of the registry. Its configuration -- '
+                      'the copy it ran, with its overrides -- is the model '
+                      'PEST++ calibrates, and the state it saved where it '
+                      'ended is where every realisation starts. The '
+                      "calibration settings stay this configuration's. "
+                      'None: this configuration as it is now and a saved '
+                      'state chosen by hand.'),
     'pest.base_state': ('Saved state every realisation starts from', _U,
                         'A state saved in the run workspace (heads, UZF '
                         'water content, soil state, ponds). Every '

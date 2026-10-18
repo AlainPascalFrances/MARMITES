@@ -371,18 +371,48 @@ def _print_pars(rows):
                  '  log' if r['log'] else ''))
 
 
+def resolve_base(cfg, ws_root):
+    """The model calibrated and the state every realisation starts from:
+    ``(model configuration, state name, state folder, what they are)``.
+
+    [pest] base_run, a finished run of the registry: its configuration copy
+    is the model and its end state the start (marmites_runinfo.base_of),
+    with THIS configuration's [pest] -- the calibration's settings are not
+    the run's. Blank: this configuration as it is and base_state, a saved
+    state chosen by hand, in its state workspace."""
+    import copy
+    import marmites_runinfo as ri
+    run = (cfg.pest.base_run or '').strip()
+    if not run:
+        state = (cfg.pest.base_state or '').strip()
+        if not state:
+            raise SystemExit('no base for the realisations: choose a run '
+                             'solution (pest.base_run) or a saved state '
+                             '(pest.base_state) on the PEST++ set-up page')
+        return (cfg, state, mcfg.state_workspace(cfg, ws_root),
+                'this configuration and the saved state %s, chosen by hand'
+                % state)
+    b = ri.base_of(os.path.join(ri.runs_dir(cfg, ws_root), run), ws_root)
+    if b['why']:
+        raise SystemExit('run %s cannot be the base: %s' % (run, b['why']))
+    model = mcfg.load_run_config(b['config'])
+    model.pest = copy.deepcopy(cfg.pest)
+    return (model, b['state'], b['state_dir'],
+            'run %s: its configuration (%s) and its end state %s%s'
+            % (run, b['config'], b['state'],
+               '' if b.get('converged', True) else
+               ' -- a spin-up saved BEFORE it converged'))
+
+
 def step_org(cfg_path, pest_ws):
     import mm_paths
     import pest_modis_et as pme
-    cfg = mcfg.load_run_config(cfg_path)
-    state = (cfg.pest.base_state or '').strip()
-    if not state:
-        raise SystemExit('no saved state to start the realisations from: '
-                         'choose it on the PEST++ set-up page '
-                         '(pest.base_state)')
+    cfg, state, src, what = resolve_base(mcfg.load_run_config(cfg_path),
+                                         mm_paths.WS_ROOT)
     org = os.path.join(pest_ws, 'org')
     os.makedirs(org, exist_ok=True)
     print('PEST workspace %s' % pest_ws)
+    print('   base: %s' % what)
     _snapshot_code(os.path.join(pest_ws, 'code'))
     print('   code snapshot: %s' % os.path.join(pest_ws, 'code'))
     case = cfg.paths.case
@@ -419,8 +449,7 @@ def step_org(cfg_path, pest_ws):
     print('   dataset copy, observation points switched on: %s'
           % (', '.join(on) or 'none'))
     print('   first day fitted: %s' % calib_start(cfg, ds))
-    # the caches and the saved state
-    src = os.path.join(str(mm_paths.WS_ROOT), 'MF6_ws_voronoi')
+    # the caches and the saved state, from the base's state workspace
     dst = os.path.join(org, 'ws', 'MF6_ws_voronoi')
     os.makedirs(dst, exist_ok=True)
     for d in ('_mesh', '_overlay'):
@@ -466,6 +495,9 @@ def step_org(cfg_path, pest_ws):
         os.path.join(org, 'modis_et_catchment.csv'), index=False,
         float_format='%.6g')
     json.dump({'config': os.path.abspath(cfg_path), 'state': state,
+               'state_dir': str(src), 'base': what,
+               'base_run': cfg.pest.base_run,
+               'model_config': cfg.source_path,
                'made': dt.datetime.now().isoformat(timespec='seconds')},
               open(os.path.join(org, 'setup.json'), 'w'), indent=1)
     return org

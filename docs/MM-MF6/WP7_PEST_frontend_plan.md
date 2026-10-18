@@ -159,3 +159,37 @@ configuration, so every later step reads the same rows.
 **Not in phase 2:** the prior's spread with the pilot points on the mesh
 (drawn at set-up, to show with phase 4), the run solution as the base
 (phase 3), set-up and launch from the page (phase 4).
+
+## 6. Phase 3, as built (2026-10-18)
+
+**Every run records what it ran and where it ended.** The registry tells a
+run its folder (`MM_RUN_DIR`, `app/lib/runs.py`); the driver writes there
+`resolved_config.toml` -- the configuration after its overrides, the copy it
+already kept in `out_<stamp>_<tag>/_input/` -- and `run_info.json`: the
+results folder, the state workspace and, once saved, the end state and
+whether its spin-up converged (`marmites_runinfo`). A PEST++ forward run
+records nothing.
+
+**An older run is recovered, not given up.** Its log names the state it
+saved ("final heads saved: <prefix>_l1.asc ...") and its results folder
+holds `_input/resolved_config.toml` (every run since WP0.5); the folder is
+found from the log, else by the minute the run started. So run
+20261011214903, which saved `hi_voronoi_lamata_evt_drn1` -- the state the
+calibration of 2026-10-18 starts from -- is a base as it is. This replaces
+the plan's fallback "current configuration plus a hand-picked state" for
+such runs; the fallback stays for a state no recorded run vouches for.
+
+**A state is the run's only while nothing saved over it.** A state has a
+name and the next run saving under it overwrites it: an end state whose
+files are newer than the run's last log line is refused (five of the
+twelve latest runs on 2026-10-18: `hi_voronoi_lamata_evt` was saved again
+on 10 Oct).
+
+**`pest.base_run`** (tab ①): the completed runs of the registry. Chosen,
+the page shows the configuration copy, the end state and when it was
+saved, how the run's configuration differs from this one, and the period
+it covers; the parameter defaults and checks are the run's configuration's.
+Blank: the saved-state picker (`pest.base_state`), with a warning. The
+set-up (`resolve_base`) takes the run's configuration with THIS
+configuration's `[pest]`, its end state and its state workspace, and says
+which in its log and in `org/setup.json`.

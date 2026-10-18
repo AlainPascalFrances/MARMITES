@@ -1554,6 +1554,11 @@ class Pest:
     # set-up in its own copy of the configuration, never on the page.
     multipliers: str = ''
     # --- the base: where every realisation starts, what is fitted ---------
+    # a finished run of the registry (its id): its configuration copy is
+    # the model calibrated, its end state where every realisation starts
+    # (marmites_runinfo). Blank: THIS configuration and base_state, a saved
+    # state chosen by hand -- for a state no recorded run can vouch for
+    base_run: str = ''
     base_state: str = ''           # a saved state of the run workspace
     calib_start: str = ''          # YYYY-MM-DD; blank: after one year
     # --- the parameters ---------------------------------------------------

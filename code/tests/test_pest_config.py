@@ -53,6 +53,7 @@ def test_the_section_survives_the_round_trip(tmp_path):
     cfg.pest.par = [mcfg.PestPar('k', 1, True, 0.05, 2.3e-5, 1.12, True),
                     mcfg.PestPar('uzf_eps', 0, False, 4.5, 3.5, 8.0, False)]
     cfg.pest.base_state = 'hi_voronoi_lamata_evt_drn1'
+    cfg.pest.base_run = '20261011214903_2lay_fullperiod_numba'
     cfg.pest.start, cfg.pest.start_from = 'warm', 'x/lamata.1.par.jcb'
     f = str(tmp_path / 'c.toml')
     cfg.write_toml(f)
@@ -60,6 +61,7 @@ def test_the_section_survives_the_round_trip(tmp_path):
     assert back.pest.par == cfg.pest.par
     assert back.pest.group == cfg.pest.group
     assert back.pest.base_state == 'hi_voronoi_lamata_evt_drn1'
+    assert back.pest.base_run == '20261011214903_2lay_fullperiod_numba'
     assert (back.pest.start, back.pest.start_from) == ('warm',
                                                        'x/lamata.1.par.jcb')
 

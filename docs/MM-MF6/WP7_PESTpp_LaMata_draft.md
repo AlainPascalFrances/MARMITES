@@ -530,3 +530,11 @@ the PEST++ set-up page and read by `pest_lamata_setup.py --config` and
 The defaults are the calibration running since 2026-10-18 14:12, with one
 change the user decided: Ss on pilot points, with K and Sy. The running
 calibration is not affected: it runs its own code snapshot.
+
+**The run solution as the base (2026-10-18, front-end phase 3).** A
+calibration can now start from a finished run of the registry
+(`pest.base_run`): its configuration copy is the model, its end state the
+start of every realisation (`marmites_runinfo`; plan §6). The production of
+2026-10-18 started, by hand, from run 20261011214903's end state
+`hi_voronoi_lamata_evt_drn1` with the current configuration; that run is
+recognised as a base as it is.
