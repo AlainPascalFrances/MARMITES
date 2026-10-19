@@ -53,6 +53,8 @@ def test_a_single_observation_point_is_reported_not_errored(proc, capsys):
                        np.array([HN, 752.7, HN]), HN, 'C3', 1)
     out = capsys.readouterr().out
     assert 'h: 0.10 m / n/a / n/a / n/a' in out, out
+    # the header names the point (user, 2026-10-19)
+    assert 'RMSE/RSR/NSE/r -- C3' in out, out
     assert 'error' not in out
 
 

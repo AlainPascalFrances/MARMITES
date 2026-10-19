@@ -734,7 +734,9 @@ class clsPROCESS:
                 Sobs_m.append([])
         #print(obs_name, type(hobs), hobs)
         if testSM > 0 or hobs is not None:
-            print('RMSE/RSR/NSE/r')
+            # the POINT the criteria are for (user, 2026-10-19): five
+            # headers in a row named nothing
+            print('RMSE/RSR/NSE/r -- %s' % obs_name)
             if testSM > 0:
                 rmseSM = []
                 rsrSM = []
