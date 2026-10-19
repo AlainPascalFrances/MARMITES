@@ -19,7 +19,9 @@ Exchange (memory pointers, no files):
               PETuzf      -> UZF PETMAX, less what EVT may take
               Eg, Tg      -> two EVT curves per cell (EVT_EG, EVT_TG), taken
                              by MF6 at the head it solves for (marmites_evt)
-  MF6 -> MM : heads (m)   -> X (per surface cell, dry when h < botm_l0)
+  MF6 -> MM : heads (m)   -> X: the WATER TABLE per column -- the surface
+                             cell's head, or, that cell dry, the first
+                             layer below that is not (water_table)
               exfiltration-> UZF GWD (m3/d) / cell_area * conv_fact (mm/d, +up)
 
 The MF6 side must be built by ppMF6.marmites_mf6.clsMF6 so that the first
@@ -160,6 +162,9 @@ class MF6Coupler:
         self.ncpl = int(getattr(geom, 'ncpl', mf6b.nrow * mf6b.ncol))
         # results
         self.heads_hist = None
+        # the layers under each surface cell, for the water table
+        # (_layers_below, bound with the head array)
+        self._below, self._bot_top = [], None
         self.exf_hist = None
         self.perc_hist = None
         self.etg_hist = None
@@ -909,6 +914,7 @@ class MF6Coupler:
         else:
             nrc = self.mf6b.nrow * self.mf6b.ncol
             user_nodes = self.k_arr * nrc + self.i_arr * self.mf6b.ncol + self.j_arr
+        lut = None
         try:
             nodeuser = np.asarray(api.get_value(self._addr(api, 'NODEUSER', f'{name}/DIS')))
             if nodeuser.size == self.p_x.size and nodeuser.size > 0:
@@ -919,6 +925,68 @@ class MF6Coupler:
         except Exception:
             # unreduced grid (idomain all >0) or API without NODEUSER
             self.x_index = user_nodes
+        self._below, self._bot_top = self._layers_below(lut)
+
+    def _layers_below(self, lut=None):
+        """The layers under each column's surface cell, top down: a list of
+        (head-array index, layer top, layer bottom) per layer, the index -1
+        where the column has no active cell there; and the surface cell's
+        own bottom. ``lut``: user node -> reduced node (None: unreduced)."""
+        botm = getattr(self.mf6b, 'botm', None)
+        if botm is None:
+            return [], None
+        b = np.asarray(botm, dtype=float)
+        nlay = b.shape[0]
+        k0 = np.asarray(self.k_arr, dtype=int)
+        bot_top = b[k0, self.i_arr, self.j_arr]
+        if self.grid_kind == 'vertex':
+            icell2d = np.array([c[3] for c in self.ctx.cells], dtype=int)
+        out = []
+        for d in range(1, nlay):
+            k = np.minimum(k0 + d, nlay - 1)
+            if self.grid_kind == 'vertex':
+                user = k * self.ncpl + icell2d
+            else:
+                user = (k * self.mf6b.nrow * self.mf6b.ncol
+                        + self.i_arr * self.mf6b.ncol + self.j_arr)
+            idx = (np.array([lut.get(int(u), -1) for u in user], dtype=int)
+                   if lut is not None else np.asarray(user, dtype=int))
+            idx[k0 + d >= nlay] = -1
+            out.append((idx, b[k - 1, self.i_arr, self.j_arr],
+                        b[k, self.i_arr, self.j_arr]))
+        return out, bot_top
+
+    def water_table(self, heads):
+        """THE WATER TABLE of each column, the head MMsoil's groundwater
+        ET and the EVT curves start from (user, 2026-10-19): the surface
+        cell's head -- unless that cell is dry (head below its bottom; MF6's
+        Newton keeps it active), then the head of the first layer below
+        that is not, and never above that layer's top: under a dry layer, a
+        piezometric level is no water table. Roots longer than the surface
+        layer then reach the water table where it is.
+
+        MF6 keeps taking the EVT at the surface cell -- its record cannot
+        move -- but a dry cell keeps its full vertical conductance (no
+        VARIABLECV), so its head follows the water table below and the
+        water comes up from there. A column dry to its deepest layer keeps
+        that layer's head, which MMsoil's dry floor (the deepest bottom)
+        holds."""
+        below = getattr(self, '_below', None)
+        if not below or self._bot_top is None:
+            return heads
+        h = np.array(heads, dtype=float)
+        x = np.asarray(self.p_x, dtype=float)
+        still = h < self._bot_top
+        for idx, top_k, bot_k in below:
+            take = still & (idx >= 0)
+            if not take.any():
+                continue
+            hk = x[idx[take]]
+            h[take] = np.minimum(hk, top_k[take])
+            still[np.flatnonzero(take)[hk >= bot_k[take]]] = False
+            if not still.any():
+                break
+        return h
 
     # ---------------- MM <-> pointer exchange -------------------------- #
 
@@ -1785,6 +1853,7 @@ class MF6Coupler:
             for n in range(nper_mm):
                 tstart_MF = n
                 heads, exf = self._read_heads_exf()             # end of SP n-1
+                heads = self.water_table(heads)
                 rej = self._read_rejinf()                       # returned to surface
                 if n == 0 and not steady and self.carry_in:
                     # a periodic cycle's first day: what the previous

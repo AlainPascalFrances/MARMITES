@@ -327,9 +327,15 @@ something a regression.
   coordinate.
 - flopy writes DISV at 8 digits by default; use float_precision 16, else MF6 and MM
   cell areas differ by up to 2%.
-- Dry-cell test in MMsoil uses `botm_l0` = bottom of the **outcrop layer**
-  (fixed 6b9defa). It was layer 1's bottom everywhere, which was wrong where layer 1
-  pinches out.
+- Dry-cell test in MMsoil: the head it receives is the column's WATER TABLE
+  (`MF6Coupler.water_table`: the surface cell's head, or -- that cell dry --
+  the first layer below that is not, never above that layer's top), and its
+  dry floor `botm_l0` is the bottom of the column's DEEPEST active layer
+  (`_dry_floor`, 2026-10-19: roots longer than layer 1 reach a water table
+  in layer 2). It was the outcrop layer's bottom (6b9defa), before that
+  layer 1's everywhere (wrong where layer 1 pinches out). EVT stays on the
+  surface cell; a dry cell keeps its vertical conductance, so MF6 draws the
+  water up from below.
 - `_pad` in marmites_evt: a Tg curve can have no inner breakpoint (a root
   tip within the ramp of the head); that is a straight line, not an error.
 - `budget_uzf/sfr/lak.csv` (`package_budget`, max_samples=120) average an

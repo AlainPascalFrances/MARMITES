@@ -492,14 +492,23 @@ def balance_lines(bal):
     return out
 
 
-def _outcrop_bottom(cMF):
-    """The bottom of each cell's OUTCROP layer: the layer whose head MMsoil
-    reads (the coupler's surface cell) -- below it the cell is dry. Not
-    layer 1's: where layer 1 pinches out its bottom IS the soil base, and
-    every water table in layer 2 read as a dry cell at the soil base -- full
-    groundwater ET 1-6 m above the real table (2026-10-06)."""
+def _dry_floor(cMF):
+    """MMsoil's DRY FLOOR: the bottom of each column's deepest active
+    layer. The head MMsoil receives is the column's water table
+    (MF6Coupler.water_table: the surface cell's, or, that cell dry, the
+    first layer below that is not), so a column is dry only when every
+    layer is (user, 2026-10-19). It was the OUTCROP layer's bottom
+    (2026-10-06, itself a fix of layer 1's everywhere, which read every
+    water table in layer 2 under a pinched-out layer 1 as a dry cell at the
+    soil base): under a DRY layer 1 that clamped the water table to layer
+    1's bottom, and roots longer than layer 1 reached water that was deeper
+    in layer 2."""
     b = np.asarray(cMF.botm, dtype=float)
-    k = np.clip(np.asarray(cMF.outcropL, dtype=int) - 1, 0, b.shape[0] - 1)
+    nlay = b.shape[0]
+    act = np.stack([np.asarray(cMF.ibound[L]) > 0 for L in range(nlay)])
+    deepest = nlay - 1 - np.argmax(act[::-1], axis=0)
+    k = np.where(act.any(axis=0), deepest,
+                 np.clip(np.asarray(cMF.outcropL, dtype=int) - 1, 0, nlay - 1))
     return np.take_along_axis(b, k[None], axis=0)[0]
 
 
@@ -783,7 +792,7 @@ def setup_lamata(daily=True, nsp=None, grid='dis', nlay=None,
     for L in range(cMF.nlay):
         cMF.botm[L] = np.ma.masked_values(cMF.botm[L], cMF.hnoflo, atol=0.09) - \
             np.ma.masked_values(gridSOILthick, cMF.hnoflo, atol=0.09)
-    botm_l0 = _outcrop_bottom(cMF)
+    botm_l0 = _dry_floor(cMF)
     for L in range(cMF.nlay):
         cMF.iuzfbnd[cMF.ibound[L] <= 0] = 0
 
@@ -870,7 +879,7 @@ def setup_lamata(daily=True, nsp=None, grid='dis', nlay=None,
                       'mesh cell (top and bottoms moved by up to %.2f m)'
                       % float(np.abs(_d).max()))
         # derived from the PROJECTED arrays, never carried over from the raster
-        botm_l0 = _outcrop_bottom(cMF)
+        botm_l0 = _dry_floor(cMF)
         print('projected onto the mesh: %d active cell(s) of %d'
               % (int(np.count_nonzero(cMF.outcropL > 0)), info['ncpl']))
 
@@ -886,7 +895,7 @@ def setup_lamata(daily=True, nsp=None, grid='dis', nlay=None,
     import marmites_dem as _mdem
     cMF.land_dem = _mdem.dem_path(DS) if _applied else None
     if _applied:
-        botm_l0 = _outcrop_bottom(cMF)
+        botm_l0 = _dry_floor(cMF)
     # THE BOUNDARY LINES, on the grid the run uses and its FINAL bottoms: a
     # drain at the base of its layer is placed after the land surface moved
     # the layers, not before, so no re-anchoring is needed
