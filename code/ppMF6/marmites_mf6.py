@@ -1401,11 +1401,13 @@ class clsMF6:
                              float(eps[kk, i, j])))
         # what the coupler needs to cap the soil's percolation at what UZF
         # can take each day (MF6Coupler.perc_cap, 2026-10-18), per land
-        # object: its VKS, its drainable porosity thts - thtr (= Sy) and the
+        # object: its VKS, its drainable porosity thts - thtr (= Sy), its
+        # thtr -- what its mean water content WCNEW is above -- and the
         # surface depression depth
         self.uzf_land_vks = np.array([r[5] for r in pkdata], dtype=float)
         self.uzf_land_sy = np.array([r[7] - r[6] for r in pkdata],
                                     dtype=float)
+        self.uzf_land_thtr = np.array([r[6] for r in pkdata], dtype=float)
         self.uzf_surfdep = float(surfdep)
         pkdata = pkdata + subs
         # PERIOD DATA. (iuzno, finf, pet, extdp, extwc, ha, hroot, rootact)

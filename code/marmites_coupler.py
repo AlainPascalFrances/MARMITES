@@ -89,6 +89,22 @@ def surface_excess_lines(heads, top, ncell):
             % (int(far.any(axis=0).sum()), int(far.any(axis=1).sum()))]
 
 
+def uzf_room_fraction(sy, wcnew, thtr, ncell):
+    """thts - wc per land UZF object: what its unsaturated zone can still
+    take per metre (MF6Coupler.perc_cap), wc its mean water content (MF6's
+    WCNEW, the first ``ncell`` objects) held within [thtr, thts = thtr +
+    sy]. ``sy`` itself -- the empty zone -- where WCNEW or thtr is not
+    known."""
+    sy = np.asarray(sy, dtype=float)
+    if wcnew is None or thtr is None:
+        return sy
+    wc = np.asarray(wcnew, dtype=float)[:ncell]
+    r = np.asarray(thtr, dtype=float)[:ncell]
+    if wc.size < ncell or r.size < ncell:
+        return sy
+    return sy - (np.clip(wc, r, r + sy) - r)
+
+
 class CouplingError(Exception):
     """Raised on MF6 API exchange failures."""
 
@@ -247,6 +263,7 @@ class MF6Coupler:
         # surface is a lower layer. None from a builder without them.
         self._uzf_vks = getattr(mf6b, 'uzf_land_vks', None)
         self._uzf_sy = getattr(mf6b, 'uzf_land_sy', None)
+        self._uzf_thtr = getattr(mf6b, 'uzf_land_thtr', None)
         self._uzf_surfdep = float(getattr(mf6b, 'uzf_surfdep', 0.0) or 0.0)
         self._uzf_top = self.top_cell
         botm = getattr(mf6b, 'botm', None)
@@ -456,11 +473,13 @@ class MF6Coupler:
 
     def perc_cap(self, heads, n):
         """The most each cell's soil may percolate today [mm/d per cell
-        area]: what its land UZF object can take -- its VKS, and the room
-        between the start-of-day head ``heads`` and the surface depression
-        depth below the top of its cell, times thts - thtr (= Sy):
+        area]: what its land UZF object can take -- its VKS, and the ROOM
+        LEFT in its unsaturated zone, between the start-of-day head
+        ``heads`` and the surface depression depth below the top of its
+        cell, at what it is not yet holding, thts minus its mean water
+        content WCNEW (start of day):
 
-            cap = min(VKS, max(top - surfdep - h0, 0) * (thts - thtr) / day)
+            cap = min(VKS, max(top - surfdep - h0, 0) * (thts - wc) / day)
 
         MMsoil keeps the rest, and what UZF still refuses runs off
         (2026-10-18). The refused water used to come back into the soil
@@ -468,7 +487,19 @@ class MF6Coupler:
         percolation that day and doubled it the day after: a day-by-day
         flip-flop in every rejecting cell, and 25 % (base) to 95 %
         (calibrated sets) of the percolation going round (analysis doc
-        8.26). A head that is not one (dry, NaN) leaves VKS. None when the
+        8.26).
+
+        THE ROOM LEFT, not the room of an empty zone (2026-10-19): with
+        thts - thtr as the room, a slow zone (VKS a few mm/d, a low layer-1
+        K) kept being fed until it was nearly saturated, and the water table
+        then rose into it. MF6's UZF credits as recharge the water a rising
+        water table passes (uz_rise) without a Newton derivative, so each
+        outer iteration closes only (thts - wc) / (thts - thtr) of the gap:
+        about 2 % at 98 % full -- the runs that crawled for hours on single
+        layer-1 cells in the wet periods and were killed as overdue (the
+        prior of 2026-10-18: 18 of 100). wc is held within [thtr, thts]; a
+        model without WCNEW, or before MF6 has one, takes thtr (the empty
+        zone). A head that is not one (dry, NaN) leaves VKS. None when the
         builder gave no UZF properties: no cap."""
         if self._uzf_vks is None or self._uzf_sy is None \
                 or self._uzf_top is None:
@@ -477,7 +508,9 @@ class MF6Coupler:
         sy = np.asarray(self._uzf_sy, dtype=float)[:self.ncell]
         h = np.asarray(heads, dtype=float)
         perlen = float(self.perlen[n]) if n < len(self.perlen) else 1.0
-        room = np.clip(self._uzf_top - self._uzf_surfdep - h, 0.0, None) * sy
+        room = np.clip(self._uzf_top - self._uzf_surfdep - h, 0.0, None) \
+            * uzf_room_fraction(sy, getattr(self, 'p_wcnew', None),
+                                getattr(self, '_uzf_thtr', None), self.ncell)
         ok = np.isfinite(h) & (np.abs(h) < 1e20) & np.isfinite(self._uzf_top)
         cap = np.where(ok, np.minimum(vks, room / perlen), vks)
         return cap * self.conv_fact                             # m/d -> mm/d
@@ -895,7 +928,8 @@ class MF6Coupler:
             print('WARNING: the UZF period-input arrays are not reachable, so '
                   'MF6 is stepped through prepare_solve/solve: a step it '
                   'cannot solve is NOT retried, it is accepted unconverged.')
-        # each UZF object's mean water content, read once at the end so a
+        # each UZF object's mean water content: read every day, for the room
+        # left in the unsaturated zone (perc_cap), and at the end so a
         # periodic spin-up can start the next cycle from it
         self.p_wcnew, _a = self._bind_first(
             api, [('WCNEW', f'{name}/UZF'), ('WCNEW', f'{name}/UZF-1')],

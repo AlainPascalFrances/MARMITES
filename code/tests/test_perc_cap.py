@@ -111,3 +111,30 @@ def test_the_soil_step_receives_the_cap_every_day():
     assert len(seen) == ctx.cMF.nper
     assert all(s is not None and s.shape == (n,) for s in seen)
     assert all(np.all((s >= 0.0) & (s <= 25.0)) for s in seen)
+
+
+def test_a_full_unsaturated_zone_takes_nothing_more():
+    """2026-10-19: the room is what the zone does not yet hold, thts - wc
+    (WCNEW), not the empty zone's thts - thtr: a slow zone kept being fed
+    to near saturation, and the water table rising into it stalled MF6's
+    Newton loop (UZF's uz_rise has no derivative). Empty, half full, full,
+    and a WCNEW outside [thtr, thts] held within it."""
+    s = _self(vks=[1.0] * 4, sy=[0.02] * 4, top=[760.0] * 4)
+    s._uzf_thtr = np.array([0.25] * 4)
+    s.p_wcnew = np.array([0.25, 0.26, 0.27, 0.0])
+    cap = coup.MF6Coupler.perc_cap(s, np.array([750.0] * 4), 0)
+    room = 9.75                         # m between top - surfdep and h0
+    assert cap == pytest.approx([room * 0.02 * 1000.0, room * 0.01 * 1000.0,
+                                 0.0, room * 0.02 * 1000.0])
+    # no water content (or no thtr): the empty zone, as before
+    assert coup.uzf_room_fraction([0.02], None, [0.25], 1).tolist() == [0.02]
+    assert coup.uzf_room_fraction([0.02], [0.26], None, 1).tolist() == [0.02]
+
+
+def test_the_builder_gives_the_land_objects_thtr():
+    import inspect
+    src = inspect.getsource(coup.MF6Coupler.__init__)
+    assert "'uzf_land_thtr'" in src
+    with open(os.path.join(HERE, '..', 'ppMF6', 'marmites_mf6.py'),
+              encoding='utf-8') as fh:
+        assert 'self.uzf_land_thtr = ' in fh.read()
