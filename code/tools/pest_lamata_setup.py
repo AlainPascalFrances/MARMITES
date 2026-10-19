@@ -142,6 +142,13 @@ SY_SR = {1: {'sy': (0.025, 0.005, 0.05), 'sr': (0.275, 0.045, 0.30)},
 # starts that far above layer 1. The model holds layer 1's K at most
 # 10**-k_order_decades x layer 2's, cell by cell (marmites_pest).
 K_RANGE = (2.3e-5, 11.2)
+# The anisotropy Kh/Kv per layer, (start, lower, upper): the saprolite
+# about 2 (weakly anisotropic, 1-3), the fissured layer about 10 (2-30,
+# subhorizontal weathering fractures) -- user, 2026-10-19, from
+# docs/MM-MF6/WP7_granite_anisotropy_review.md. A deeper layer takes the
+# last. Calibrated only where layers.k33 is a value given as a ratio.
+K33_RANGE = {1: (mcfg.K33_RATIO_DEFAULT[0], 1.0, 3.0),
+             2: (mcfg.K33_RATIO_DEFAULT[1], 2.0, 30.0)}
 # one-value parameters of a package that may be off
 PACKAGE_OF = {'sfr_rhk': 'sfr', 'lak_bedleak': 'lak', 'crr_beta': 'crr'}
 
@@ -164,7 +171,7 @@ def reference_median(cfg, what, layer, dataset_dir):
     if names:
         return _raster_median(os.path.join(dataset_dir, names[layer - 1]))
     if src.value is not None:
-        return float(src.value)
+        return float(src.values(int(cfg.layers.nlay))[layer - 1])
     raise SystemExit('layers.%s has neither a raster nor a value: the '
                      'calibration needs a reference' % what)
 
@@ -184,7 +191,8 @@ def default_pars(cfg, dataset_dir):
     and Sr from the user's table (SY_SR, K_RANGE), Ss (pilot points) and the
     outlet drains as multipliers, each soil horizon's field capacity (its
     place between the wilting point and the porosity, +-0.2, never outside
-    them) and Ks (x0.1 to x10), and the package scalars. A list of dicts."""
+    them) and Ks (x0.1 to x10), and the package scalars; the anisotropy Kh/Kv per layer (K33_RANGE)
+    where layers.k33 is a ratio. A list of dicts."""
     nlay = int(cfg.layers.nlay)
     dec = float(cfg.pest.k_order_decades)
     rows = []
@@ -212,6 +220,10 @@ def default_pars(cfg, dataset_dir):
             rows.append(_row('sr', L, *SY_SR[L]['sr'], True))
     for L in range(1, nlay + 1):
         rows.append(_row('drn', L, 1.0, 0.01, 100.0, True))
+    if cfg.layers.k33_as_ratio and cfg.layers.k33.producer() == 'value':
+        for L in range(1, nlay + 1):
+            rows.append(_row('k33', L, *K33_RANGE[min(L, max(K33_RANGE))],
+                             True))
     for k, h in enumerate(cfg.soil.horizon, 1):
         # +-0.2 of its place (was 0.1: 20 % of the pilot on the lower
         # bound, 2026-10-13)
@@ -289,7 +301,7 @@ def scalar_specs(cfg, rows, out=print):
                         (lo - h.sr) / w, (hi - h.sr) / w))
         elif fam == 'ks':
             res.append(('ks_h%d' % L, s, trans, lo, hi))
-        elif fam in ('sr', 'drn'):
+        elif fam in ('sr', 'drn', 'k33'):
             res.append(('%s_l%d' % (fam, L), s, trans, lo, hi))
         else:
             res.append((fam, s, trans, lo, hi))

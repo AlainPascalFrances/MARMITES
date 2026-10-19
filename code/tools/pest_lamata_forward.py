@@ -48,7 +48,8 @@ OBS_OUT = 'pest_obs.csv'
 def apply_scalars(cfg, table, mult_dir=None):
     """The scalar parameters into the configuration. ``table``: DataFrame
     name, value. Names: sfc_f_h<k> and ks_h<k> (horizon k, 1-based, in
-    table order), sfr_rhk, lak_bedleak, uzf_eps, uzf_vks, crr_beta; and the
+    table order), sfr_rhk, lak_bedleak, uzf_eps, uzf_vks, crr_beta,
+    k33_l<L> (the anisotropy Kh/Kv of layer L, into layers.k33); and the
     per-layer drn_l<L> (a multiplier) and sr_l<L> (the specific retention,
     a water content: thts = Sy + Sr), written as the one-value files
     ``mult_dir/<name>.txt`` the model reads (marmites_pest). Ss is on pilot
@@ -61,6 +62,12 @@ def apply_scalars(cfg, table, mult_dir=None):
                 raise ValueError('%s needs the multiplier folder' % name)
             with open(os.path.join(mult_dir, '%s.txt' % name), 'w') as fh:
                 fh.write('%.10g\n' % v)
+        elif name.startswith('k33_l'):
+            # the anisotropy Kh/Kv of layer L, into the per-layer list
+            src = cfg.layers.k33
+            vals = src.values(int(cfg.layers.nlay))
+            vals[int(name[5:]) - 1] = v
+            src.value = vals
         elif name.startswith('sfc_f_h'):
             h = cfg.soil.horizon[int(name[7:]) - 1]
             f = min(max(v, 0.0), 1.0)

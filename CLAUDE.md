@@ -285,6 +285,21 @@ something a regression.
   EVT_EG). MMsoil's own Eg/Tg with drawdown remain for the uncoupled path.
   **WEL is left for real pumping** (not built yet; post-processing still
   reads a WEL term for runs made before 2026-10-07).
+- **The soil percolates no more than UZF can take** (`MF6Coupler.perc_cap`):
+  min(VKS, (thts - wc) x (top - surfdep - h0) / day), wc = the land UZF
+  object's mean water content WCNEW at the start of the day -- the room
+  LEFT (2026-10-19; it was thts - thtr, an empty zone, 2026-10-18). The rest
+  stays in the soil and what UZF still refuses runs off. Without it a slow
+  zone (low layer-1 K) filled to ~thts and the rising water table then
+  stalled MF6's Newton loop: UZF's uz_rise credits the water it passes as
+  recharge with no derivative, so an outer iteration closes only
+  (thts - wc)/(thts - thtr) of the gap (the prior of 2026-10-18 lost 18 runs
+  as overdue).
+- `[layers]` properties take ONE VALUE PER LAYER (`value = [2.0, 10.0]`,
+  panel 4 shows a box per layer). k33 as ratios Kh/Kv: default 2 in the
+  saprolite, 10 in the fissured layer (user, 2026-10-19;
+  docs/MM-MF6/WP7_granite_anisotropy_review.md), calibrated per layer by
+  PEST (family k33, bounds 1-3 and 2-30). Default nlay 2 (was 6).
 - Seepage face = DRN_SEEP at the soil base (not UZF GWSEEP: deprecated in MF6
   6.5+, and validate() refuses seep.kind='uzf' under coupling). **No seepage
   drain in stream cells or in any pond-footprint cell.**

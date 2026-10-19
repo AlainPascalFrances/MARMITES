@@ -50,7 +50,8 @@ __all__ = ['PANELS', 'FIELDS', 'TABLES', 'CHOICES', 'SUBPANELS', 'panel_of',
            'SURFACE_ROWS',
            'SURFACE_FILES', 'SURFACE_PATTERNS', 'SURFACE_ON_PLOTS',
            'SURFACE_GATED', 'TIME_ROWS', 'RUN_COUPLING_ROWS', 'SOLVER_ROWS',
-           'SURFACE_TABLE_FILES', 'INTEGER_VALUE',
+           'SURFACE_TABLE_FILES', 'INTEGER_VALUE', 'LAYER_VALUES',
+           'PER_LAYER_DEFAULT',
            'SOIL_ROWS', 'SOIL_VEG_ROWS', 'SOIL_FILES',
            'SOIL_DATASET_FILES', 'COLUMN_OF', 'GEOMETRY_ROWS',
            'GHB_ROWS', 'DRN_ROWS', 'LAYER_LIST',
@@ -573,7 +574,12 @@ FIELDS = {
                    'isotropic; with it off the number is a conductivity in '
                    'm/d. Layering makes the ratio > 1 -- below 1 says water '
                    'moves more easily vertically than horizontally, which is '
-                   'rarely what is meant. Per layer, by the same `%d` rule.'),
+                   'rarely what is meant. Per layer, by the same `%d` rule, '
+                   'or ONE VALUE PER LAYER: for granites about 2 in the '
+                   'saprolite and 10 in the fissured layer, whose weathering '
+                   'fractures are subhorizontal (docs/MM-MF6/'
+                   'WP7_granite_anisotropy_review.md), the boxes\' default. '
+                   'UZF\'s vertical conductivity follows it.'),
     'layers.k33_as_ratio': ('k33 given as a ratio', _U,
                             'On: the number above is k/k33 (the legacy '
                             '`LAYVKA = 1`). Off: it is a vertical '
@@ -1213,6 +1219,15 @@ FIELDS = {
 # and a box that offers decimals invites one. soil.thickness is the
 # counter-example and is deliberately NOT here -- its value is metres.
 INTEGER_VALUE = ('surface.meteo_zones', 'surface.irr_zones', 'soil.zones')
+
+# The layer properties whose VALUE is one number per layer -- a box each,
+# written as a list when they differ (marmites_config.VectorSource.values)
+LAYER_VALUES = ('layers.thickness', 'layers.k', 'layers.k33', 'layers.ss',
+                'layers.sy', 'layers.strt')
+# ... and what the boxes offer for an unanswered one, layer by layer (a
+# deeper layer takes the last)
+PER_LAYER_DEFAULT = {
+    'layers.k33': __import__('marmites_config').K33_RATIO_DEFAULT}
 
 
 # Never OFFERED on a panel: the configuration carries it, validate() pins it,

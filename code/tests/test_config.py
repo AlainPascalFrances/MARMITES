@@ -109,7 +109,10 @@ def test_empty_config_reproduces_todays_flag_defaults():
     assert c.run.ats is True
     assert c.run.max_discrepancy == 1.0
     assert c.grid.kind == 'voronoi'       # WP1d; was 'structured' == --grid dis
-    assert c.layers.nlay == 6
+    # the saprolite and the fissured layer (2026-10-19; was 6, the old
+    # command line's --nlay), Kh/Kv 2 and 10
+    assert c.layers.nlay == 2
+    assert c.layers.k33.value == [2.0, 10.0]
     assert c.uzf.vks_scale == 1.0
     assert c.seep.kind == 'drn'       # WP1d; was 'uzf' == SIMULATE_GWSEEP
     assert c.seep.cond == 10000.0
@@ -124,7 +127,7 @@ def test_empty_config_reproduces_todays_flag_defaults():
     assert c.postproc.sankey_full is True
     assert c.postproc.map_days == 6
     assert c.et.unsat_form == 'etwc'    # UZF ET is always simulated
-    assert c.run_tag == '6lay'          # was 6lay_<mode> until 2026-10-07
+    assert c.run_tag == '2lay'          # was 6lay_<mode> until 2026-10-07
 
 
 def test_reference_config_loads_and_is_the_canonical_run():
@@ -278,7 +281,7 @@ def test_config_hash_is_stable_and_sensitive():
     a = cfgmod.RunConfig.from_dict({})
     b = cfgmod.RunConfig.from_dict({})
     assert a.config_hash() == b.config_hash()
-    b.apply_overrides(['layers.nlay=2'], echo=False)
+    b.apply_overrides(['layers.hnoflo=-999'], echo=False)
     assert a.config_hash() != b.config_hash()
     # the hash must not depend on where the file came from
     c = cfgmod.RunConfig.from_dict({}, source_path='somewhere/else.toml')

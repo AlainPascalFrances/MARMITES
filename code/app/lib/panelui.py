@@ -333,6 +333,9 @@ def pick_config():
     # Remembered here because it is the ONE place every panel passes
     # through, and the source widgets below need it without being handed a
     # configuration they otherwise have no use for.
+    # ... and the layer count, for the per-layer value boxes of a layer
+    # property drawn before the count's own widget has a value
+    st.session_state['__nlay'] = int(getattr(cfg.layers, 'nlay', 1) or 1)
     st.session_state['__dataset_dir'] = str(
         mm_paths.dataset_dir(cfg.paths.case))
     st.sidebar.caption('hash `%s`' % cfg.config_hash())
@@ -714,6 +717,8 @@ def _source_widget(dotted, src, shown, help_full, key):
             start = 0
         out = st.number_input('value', value=start, step=1,
                               key=key + '.__v', label_visibility='collapsed')
+    elif which == 'value' and dotted in schema.LAYER_VALUES:
+        out = _layer_value_boxes(dotted, val, key)
     elif isinstance(val, float) or (val is None and which == 'value'):
         out = st.number_input('value', value=float(val if val is not None else 0.0),
                               format='%.10g', key=key + '.__v',
@@ -740,8 +745,15 @@ def _source_widget(dotted, src, shown, help_full, key):
     if which == 'value':
         # The FIELD is a float even where the box is a count, so the file
         # keeps one type and a saved 1 does not become an int on one machine
-        # and a float on the next.
-        edits['%s.value' % dotted] = float(out)
+        # and a float on the next. A layer property's boxes give one number
+        # per layer -- written as one number while they all agree, so a file
+        # that never asked for per-layer values does not change.
+        if isinstance(out, list):
+            edits['%s.value' % dotted] = (
+                float(out[0]) if len(set(out)) == 1 else
+                '[%s]' % ', '.join('%r' % float(x) for x in out))
+        else:
+            edits['%s.value' % dotted] = float(out)
     if layered:
         # Written only with the layer it qualifies; cleared with it, or a
         # column left behind would describe a layer that is no longer named.
@@ -749,6 +761,31 @@ def _source_widget(dotted, src, shown, help_full, key):
         if how is not None:
             edits['%s.how' % dotted] = how
     return edits
+
+
+def _layer_value_boxes(dotted, val, key):
+    """A layer property's value: one box per layer (2026-10-19, the
+    anisotropy Kh/Kv 2 in the saprolite and 10 in the fissured layer).
+    Prefilled with the file's number(s); an unanswered property with its
+    per-layer default (schema.PER_LAYER_DEFAULT), else 0."""
+    n = max(int(live('layers.nlay', st.session_state.get('__nlay', 1))
+                or 1), 1)
+    if isinstance(val, (list, tuple)):
+        cur = [float(x) for x in val]
+    elif val is not None:
+        cur = [float(val)] * n
+    else:
+        d = schema.PER_LAYER_DEFAULT.get(dotted, (0.0,))
+        cur = [float(d[min(k, len(d) - 1)]) for k in range(n)]
+    cur = (cur + [cur[-1]] * n)[:n]
+    cols = st.columns(n)
+    out = []
+    for k in range(n):
+        with cols[k]:
+            out.append(float(st.number_input(
+                'layer %d' % (k + 1), value=cur[k], format='%.10g',
+                key='%s.__v%d' % (key, k + 1))))
+    return out
 
 
 def state_picker(cfg, dotted, state_dir, grid, empty, disabled=False):

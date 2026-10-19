@@ -79,7 +79,12 @@ def resolve_source(src, nlay, dataset_dir, what):
             'the layers is not implemented yet -- give a raster or a single '
             'value instead.' % (what, src.layer))
     if producer == 'value':
-        return [float(src.value)] * nlay
+        # one number for every layer, or one per layer (2026-10-19)
+        vals = src.values(nlay)
+        if len(vals) != nlay:
+            raise PropertyError('%s gives %d value(s) for %d layer(s)'
+                                % (what, len(vals), nlay))
+        return vals
     names = src.rasters(nlay)
     if len(names) != nlay:
         # One name for every layer is allowed; anything else is a pattern
@@ -97,6 +102,16 @@ def resolve_source(src, nlay, dataset_dir, what):
         _must_exist(path, what)
         out.append(path)
     return out
+
+
+def value_text(src, unit=''):
+    """A source's value for a log line: '2', or '2 / 10' per layer."""
+    v = getattr(src, 'value', None)
+    if v is None:
+        return ''
+    if isinstance(v, (list, tuple)):
+        return ' / '.join('%g' % float(x) for x in v) + unit
+    return '%g%s' % (float(v), unit)
 
 
 def _must_exist(path, what):
@@ -650,9 +665,7 @@ def apply_layer_properties(cfg, cMF, dataset_dir, verbose=True,
         if values is None:
             continue
         setattr(cMF, attr, values)
-        done.append((field, src.producer(),
-                     src.raster or ('%g' % src.value if src.value is not None
-                                    else '')))
+        done.append((field, src.producer(), src.raster or value_text(src)))
 
     if not done:
         return done
@@ -827,7 +840,7 @@ def initial_heads(cfg, cMF, dataset_dir, verbose=True):
     if values is not None:
         strt = np.asarray(cMF.cPROCESS.float2array(
             cMF.cPROCESS.checkarray(values)), dtype=float)
-        what = 'layers.strt, %s' % (src.raster or ('%g m' % src.value))
+        what = 'layers.strt, %s' % (src.raster or value_text(src, ' m'))
     else:
         a, b = tuple(getattr(cfg.spinup, 'strt_dem', ()) or ()) \
             or DEFAULT_STRT_DEM

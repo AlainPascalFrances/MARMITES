@@ -187,9 +187,13 @@ def test_the_pest_setup_panel_holds_the_calibration(tmp_path, monkeypatch):
               'pest.overdue_giveup_fac', 'pest.agents', 'pest.start_from'):
         assert k in keys, '%s is not on the page' % k
     sel = {w.key for w in at.selectbox}
-    # no run in the scratch registry: the base is this configuration and a
-    # saved state chosen by hand (phase 3)
-    assert {'pest.base_run', 'pest.base_state', 'pest.start'} <= sel
+    # the base (phase 3): a run of the registry, or -- none chosen in the
+    # configuration -- a saved state picked by hand, then offered too
+    import marmites_config as mcfg
+    live = mcfg.load_run_config(os.path.join(str(mm_paths.CONFIG_DIR),
+                                             'lamata.toml'))
+    assert {'pest.base_run', 'pest.start'} <= sel
+    assert ('pest.base_state' in sel) == (not live.pest.base_run.strip())
     # nothing touched, nothing to save: the defaults shown for an empty
     # parameter table are not an edit
     assert 'Saved' in ' '.join(str(m.value) for m in at.sidebar.markdown)

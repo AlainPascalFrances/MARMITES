@@ -737,7 +737,10 @@ class VectorSource:
     column: str = ''               # attribute carrying the value
     how: str = 'auto'              # see marmites_vector; 'auto' picks by kind
     raster: str = ''               # an ASCII raster in the dataset folder
-    value: float = None            # one number for the whole catchment
+    # one number for the whole catchment -- or, for a [layers] property,
+    # one number PER LAYER, a list in layer order (2026-10-19: k33, Kh/Kv
+    # 2 in the saprolite and 10 in the fissured layer)
+    value: float = None
     fill: float = 0.0              # where nothing reaches
 
     def producer(self):
@@ -774,13 +777,32 @@ class VectorSource:
             raise ConfigError('%s.layer must name a shapefile, got %r'
                               % (what, self.layer))
 
+    def values(self, n):
+        """The value over N layers, in layer order: one number repeated,
+        or the per-layer list as it is. None without a value."""
+        if self.value is None:
+            return None
+        if isinstance(self.value, (list, tuple)):
+            return [float(x) for x in self.value]
+        return [float(self.value)] * max(int(n), 0)
+
     @classmethod
     def from_value(cls, v):
         if isinstance(v, dict):
             return _build(cls, v, 'vector source')
         if isinstance(v, str):
             return cls(layer=v) if v.lower().endswith('.shp') else cls(raster=v)
+        if isinstance(v, (list, tuple)):
+            return cls(value=[float(x) for x in v])
         return cls(value=float(v))
+
+
+# THE ANISOTROPY Kh/Kv a [layers] k33 given as ratios starts from, layer by
+# layer (user, 2026-10-19, from docs/MM-MF6/WP7_granite_anisotropy_review.md):
+# ~2 in the saprolite, ~10 in the fissured layer of granites (subhorizontal
+# weathering fractures); a deeper layer takes the last. What the panel
+# offers for an unanswered k33, and where the calibration starts.
+K33_RATIO_DEFAULT = (2.0, 10.0)
 
 
 @dataclass
@@ -828,7 +850,9 @@ class Layers:
     REFERENCE -- every input is checked for overlapping it.
     """
 
-    nlay: int = 6                  # 2 reads _2s1L.ini directly (--nlay)
+    # 2: the saprolite and the fissured layer of a weathered hard-rock
+    # aquifer (user, 2026-10-19; it was 6, the old command line's --nlay)
+    nlay: int = 2
     # The value that marks a cell as having no head to report. It reaches
     # MARMITES as well, which masks on it, so the two must be the same
     # number -- which is why it is asked once here rather than twice.
@@ -852,7 +876,10 @@ class Layers:
         default_factory=lambda: VectorSource(raster='MF_ws/ibound_l%d.asc'))
     thickness: VectorSource = field(default_factory=VectorSource)
     k: VectorSource = field(default_factory=VectorSource)
-    k33: VectorSource = field(default_factory=VectorSource)
+    # Kh/Kv per layer, as ratios (k33_as_ratio): 2 in the saprolite, 10 in
+    # the fissured layer (user, 2026-10-19; K33_RATIO_DEFAULT)
+    k33: VectorSource = field(default_factory=lambda: VectorSource(
+        value=list(K33_RATIO_DEFAULT)))
     ss: VectorSource = field(default_factory=VectorSource)
     sy: VectorSource = field(default_factory=VectorSource)
     # THE INITIAL HEADS of a cold start, per layer like the properties (user,
@@ -1484,6 +1511,7 @@ PEST_FAMILIES = {
     'ss': ('layer', 'x reference', 'pilot points'),
     'sr': ('layer', '-', 'one value per layer'),
     'drn': ('layer', 'x reference', 'one value per layer'),
+    'k33': ('layer', 'Kh/Kv', 'one value per layer'),
     'sfc': ('horizon', '-', 'one value per horizon'),
     'ks': ('horizon', 'mm/d', 'one value per horizon'),
     'sfr_rhk': ('none', 'm/d', 'one value'),
@@ -2182,17 +2210,40 @@ class RunConfig:
             if src.raster and '%d' in src.raster and self.layers.nlay < 1:
                 errs.append('layers.%s names a per-layer raster but '
                             'layers.nlay is %d' % (name, self.layers.nlay))
-            if src.value is not None and float(src.value) < 0.0:
+            if isinstance(src.value, (list, tuple)):
+                if len(src.value) != int(self.layers.nlay):
+                    errs.append('layers.%s gives %d value(s), one per layer, '
+                                'for %d layer(s)' % (name, len(src.value),
+                                                      self.layers.nlay))
+                    continue
+                try:
+                    vals = [float(x) for x in src.value]
+                except (TypeError, ValueError):
+                    errs.append('layers.%s: one NUMBER per layer, got %r'
+                                % (name, src.value))
+                    continue
+            else:
+                vals = [] if src.value is None else [float(src.value)]
+            if any(v < 0.0 for v in vals):
                 errs.append('layers.%s must not be negative' % name)
         # A ratio of 0 would be a division by zero on the way to k33, and a
         # ratio below 1 says the aquifer conducts water more easily downwards
         # than sideways, which is the opposite of what layering does.
         k33 = self.layers.k33
-        if (self.layers.k33_as_ratio and k33.value is not None
-                and float(k33.value) <= 0.0):
+        try:
+            k33v = k33.values(self.layers.nlay) or []
+        except (TypeError, ValueError):
+            k33v = []
+        if self.layers.k33_as_ratio and any(v <= 0.0 for v in k33v):
             errs.append('layers.k33 is the ratio k/k33, so it must be > 0 '
                         '(1 is isotropic). Turn off "as a ratio" to give a '
                         'conductivity instead.')
+        # one number per layer is for the layer properties only
+        for dotted, src in self._sources_outside_layers():
+            if isinstance(getattr(src, 'value', None), (list, tuple)):
+                errs.append('%s: one number, not one per layer -- per-layer '
+                            'values are for the aquifer layer properties'
+                            % dotted)
         # --- panel 4: the boundary packages -----------------------------
         # A package that is ON must be answerable: which layers, and where
         # the head/elevation and the conductance come from. A package that
@@ -2343,6 +2394,26 @@ class RunConfig:
                             % (z, zones[z - 1].name or '?', total))
         return errs
 
+    def _sources_outside_layers(self):
+        """[(dotted key, source)] of every VectorSource / ParamSource
+        outside [layers], nested blocks included."""
+        out = []
+        for name in _SECTIONS:
+            if name == 'layers':
+                continue
+            sec = getattr(self, name)
+            for f in dataclasses.fields(sec):
+                v = getattr(sec, f.name)
+                if isinstance(v, (VectorSource, ParamSource)):
+                    out.append(('%s.%s' % (name, f.name), v))
+                elif dataclasses.is_dataclass(v):
+                    for g in dataclasses.fields(v):
+                        w = getattr(v, g.name)
+                        if isinstance(w, (VectorSource, ParamSource)):
+                            out.append(('%s.%s.%s' % (name, f.name, g.name),
+                                        w))
+        return out
+
     def _pest_problems(self):
         """The calibration's own rules (the PEST++ set-up page): a range
         PEST++ cannot sample, a parameter on a layer or horizon that does
@@ -2409,6 +2480,12 @@ class RunConfig:
             elif r.family == 'crr_beta' and not (r.lower > 0.0
                                                  and r.upper <= 1.0):
                 errs.append('%s: beta is a share, in (0, 1]' % where)
+            elif r.family == 'k33' and r.enable and not (
+                    self.layers.k33_as_ratio
+                    and self.layers.k33.producer() == 'value'):
+                errs.append('%s: the anisotropy is calibrated as the ratio '
+                            'Kh/Kv, so layers.k33 must be a value given as a '
+                            'ratio (k33_as_ratio on, not a raster)' % where)
         on = {(r.family, int(r.layer)): r for r in p.par if r.enable}
         for L in range(1, nlay + 1):
             sy, sr = on.get(('sy', L)), on.get(('sr', L))
@@ -2638,7 +2715,17 @@ def _toml_value(v):
 
 
 def _coerce_like(old, raw, dotted):
-    """Coerce a --set string to the type of the value it replaces."""
+    """Coerce a --set string to the type of the value it replaces. A
+    bracketed list is a list of numbers whatever it replaces: a [layers]
+    property's value may be one number per layer."""
+    if isinstance(raw, str) and raw.strip().startswith('[') \
+            and not isinstance(old, (bool, str)):
+        body = raw.strip().strip('[]')
+        try:
+            return [float(x) for x in body.replace(',', ' ').split()]
+        except ValueError:
+            raise ConfigError('--set %s: expected numbers, got %r'
+                              % (dotted, raw)) from None
     if isinstance(old, bool):
         low = raw.lower()
         if low in ('true', '1', 'yes', 'on'):
@@ -2659,7 +2746,14 @@ def _coerce_like(old, raw, dotted):
             raise ConfigError('--set %s: expected a number, got %r'
                               % (dotted, raw)) from None
     if isinstance(old, list):
-        raw = raw.strip().strip('[]')
+        raw = raw.strip()
+        if dotted.endswith('.value') and not raw.startswith('['):
+            # a source's per-layer list back to one number for every layer
+            try:
+                return float(raw)
+            except ValueError:
+                pass
+        raw = raw.strip('[]')
         if not raw:
             return []
         return [float(x) for x in raw.replace(',', ' ').split()]
