@@ -51,24 +51,26 @@ def apply_scalars(cfg, table, mult_dir=None):
     """The scalar parameters into the configuration. ``table``: DataFrame
     name, value. Names: sfc_f_h<k> and ks_h<k> (horizon k, 1-based, in
     table order), sfr_rhk, lak_bedleak, uzf_eps, uzf_vks, crr_beta,
-    k33_l<L> (the anisotropy Kh/Kv of layer L, into layers.k33); and the
-    per-layer drn_l<L> (a multiplier) and sr_l<L> (the specific retention,
-    a water content: thts = Sy + Sr), written as the one-value files
-    ``mult_dir/<name>.txt`` the model reads (marmites_pest). Ss is on pilot
-    points now (2026-10-18), a per-cell file of its own."""
+    k33_l<L> (the anisotropy Kh/Kv of layer L, into layers.k33), sr_l<L>
+    (the specific retention of layer L, a water content, into layers.sr:
+    UZF's thtr = Sr, thts = Sy + Sr); and the per-layer drn_l<L>, a
+    multiplier written as the one-value file ``mult_dir/<name>.txt`` the
+    model reads (marmites_pest). Ss is on pilot points now (2026-10-18), a
+    per-cell file of its own."""
     import marmites_pest as mp
     for name, value in zip(table['name'], table['value']):
         v = float(value)
-        if name.startswith(('drn_l', 'sr_l')):
+        if name.startswith('drn_l'):
             if mult_dir is None:
                 raise ValueError('%s needs the multiplier folder' % name)
             with open(os.path.join(mult_dir, '%s.txt' % name), 'w') as fh:
                 fh.write('%.10g\n' % v)
-        elif name.startswith('k33_l'):
-            # the anisotropy Kh/Kv of layer L, into the per-layer list
-            src = cfg.layers.k33
+        elif name.startswith(('k33_l', 'sr_l')):
+            # the anisotropy Kh/Kv, or the specific retention, of layer L,
+            # into the per-layer list
+            src = getattr(cfg.layers, name.split('_l')[0])
             vals = src.values(int(cfg.layers.nlay))
-            vals[int(name[5:]) - 1] = v
+            vals[int(name.split('_l')[1]) - 1] = v
             src.value = vals
         elif name.startswith('sfc_f_h'):
             h = cfg.soil.horizon[int(name[7:]) - 1]

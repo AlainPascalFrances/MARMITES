@@ -183,10 +183,6 @@ class clsMF6:
         self.sfr_seg_params = None       # inputSTREAM_param.csv rows
         self.sfr_cell_length = None      # mapped channel length per cell [m]
         self.cell_area = None            # m2, for the drainage law
-        # UZF residual water content: 'sy' derives thtr = thts - Sy (UZF1
-        # without SPECIFYTHTR), 'source' takes cMF.thtr and requires it
-        # consistent with Sy. Set from uzf.thtr_from by the driver.
-        self.uzf_thtr_from = 'sy'
         # LAK. Enabled by setting lak_shapefile (pond polygons). Each pond
         # becomes one EMBEDDEDV lake connected through its host cell, its true
         # area carried by a stage-volume table, the stream cut out of its
@@ -402,9 +398,8 @@ class clsMF6:
         represented in UZF6.
 
         ``active``: the cells that carry UZF objects -- only they are
-        judged. thtr = thts - Sy is derived there alone, so an inactive
-        cell keeps the panel's thtr, which a layer's low thts can meet
-        (2026-10-18, a fissured layer at thts 0.05).
+        judged: an inactive cell may carry any Sy and Sr (2026-10-18, a
+        fissured layer at thts 0.05).
         """
         import numpy as _np
         a_thtr, a_thts = _np.asarray(thtr, float), _np.asarray(thts, float)
@@ -420,9 +415,8 @@ class clsMF6:
             j_thtr, j_thts, j_thti = a_thtr, a_thts, a_thti
         if not _np.all(j_thtr > 0.0):
             raise MF6BuildError(
-                'UZF6 requires THTR > 0 (lowest %g). UZF1 tolerated 0 when '
-                'specifythtr=0; set a residual water content on the UZF '
-                'panel.' % j_thtr.min())
+                'UZF6 requires THTR > 0 (lowest %g): THTR is the layer\'s '
+                'specific retention, layers.sr on panel 4.' % j_thtr.min())
         if not _np.all(j_thts > j_thtr):
             gap = j_thts - j_thtr
             k = int(_np.argmin(gap))
@@ -1313,23 +1307,30 @@ class clsMF6:
         #  * they are per CELL now: the panel takes a raster, a polygon
         #    attribute or one number for each, and a uniform answer still
         #    broadcasts to exactly the array a single value produced.
-        thtr = self._uzf3d('thtr')
-        thts = self._uzf3d('thts')
         thti = self._uzf3d('thti')
         eps = self._uzf3d('eps')
-        # CONSISTENT WITH STO's Sy -- the very array written to STO above.
-        # UZF1 without SPECIFYTHTR derived thtr = thts - Sy; UZF6 has no such
-        # option and leaves it to us (marmites_props.uzf_water_contents).
+        # THE AQUIFER'S WATER CONTENTS (user, 2026-10-20): thtr = the
+        # layer's specific retention Sr, thts = Sy + Sr, with the very Sy
+        # array written to STO above -- so the unsaturated zone drains
+        # exactly what the aquifer stores (MF6 asks it; UZF1 derived thtr =
+        # thts - Sy).
         import marmites_props as _props
+        if getattr(self.cMF, 'sr_actual', None) is None:
+            raise MF6BuildError('layers.sr, the specific retention per '
+                                'layer, is not set: UZF takes thtr = Sr and '
+                                'thts = Sy + Sr from it')
+        sy3 = self._prop3d('sy_actual')
+        sr3 = self._prop3d('sr_actual')
         try:
-            thtr, thti, _notes = _props.uzf_water_contents(
-                thtr, thts, thti, self._prop3d('sy_actual'),
-                thtr_from=str(getattr(self, 'uzf_thtr_from', 'sy')),
-                active=np.asarray(self.idomain) > 0)
+            thtr, thts, thti, _notes = _props.uzf_water_contents(
+                sr3, sy3, thti, active=np.asarray(self.idomain) > 0)
         except _props.PropertyError as exc:
             raise MF6BuildError(str(exc))
         for _n in _notes:
             print(_n)
+        # the input maps draw them (marmites_postprocess)
+        self.cMF.thtr_actual = [thtr[L] for L in range(self.nlay)]
+        self.cMF.thts_actual = [thts[L] for L in range(self.nlay)]
         # THE WATER THE UNSATURATED ZONE HELD at the end of the previous
         # spin-up cycle: MF6's WCNEW, the mean content over each object's
         # unsaturated part. Restarting at the panel's thti (raised to thtr:

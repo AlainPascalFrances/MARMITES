@@ -50,6 +50,8 @@ PROPERTIES = (
     ('k33', 'vka', 'vertical conductivity'),
     ('ss', 'ss', 'specific storage'),
     ('sy', 'sy', 'specific yield'),
+    # UZF's thtr, and with Sy its thts (uzf_water_contents, 2026-10-20)
+    ('sr', 'sr', 'specific retention'),
 )
 
 # The per-layer FLAGS. The ini gave one integer per layer and every
@@ -674,7 +676,7 @@ def apply_layer_properties(cfg, cMF, dataset_dir, verbose=True,
     # and a raster read there cannot diverge.
     touched = {attr for field, attr, _ in PROPERTIES
                if field in [d[0] for d in done]}
-    for attr in ('hk', 'vka', 'ss', 'sy'):
+    for attr in ('hk', 'vka', 'ss', 'sy', 'sr'):
         if attr in touched:
             setattr(cMF, attr + '_actual',
                     cMF.cPROCESS.checkarray(getattr(cMF, attr)))
@@ -1266,11 +1268,10 @@ UZF_FIELDS = (
 # The Brooks-Corey properties, one value per UZF OBJECT. They reach the
 # build as the per-layer list checkarray understands, exactly like the
 # aquifer properties -- so a single value still broadcasts to what a
-# scalar produced, and a raster gives each cell its own.
+# scalar produced, and a raster gives each cell its own. thtr and thts are
+# the aquifer layer's (layers.sr; uzf_water_contents).
 UZF_SOURCES = (
     ('eps', 'eps'),
-    ('thtr', 'thtr'),
-    ('thts', 'thts'),
     ('thti', 'thti'),
 )
 
@@ -1333,55 +1334,41 @@ MF6_THTS_RULE = ('MODFLOW 6 (UZF, THTS): "The values for saturated and '
                  'Storage Package."')
 
 
-def uzf_water_contents(thtr, thts, thti, sy, thtr_from='sy', active=None):
-    """``(thtr, thti, notes)`` made consistent with the aquifer's Sy.
-
-    ``thtr_from = 'sy'``: thtr = thts - Sy, cell by cell -- what UZF1 did
-    without SPECIFYTHTR, and what the legacy La Mata ini asked for.
-    ``'source'``: thtr as given, REFUSED where thts - thtr is not Sy.
-    Either way thti is then clipped into [thtr, thts], and each clip is
-    counted in ``notes``. Only ``active`` cells are touched or judged;
-    arrays broadcast against each other. Raises PropertyError.
+def uzf_water_contents(sr, sy, thti, active=None):
+    """``(thtr, thts, thti, notes)`` from the aquifer layers (user,
+    2026-10-20): thtr = Sr, the specific retention, and thts = Sy + Sr, the
+    porosity -- so the unsaturated zone drains exactly the aquifer's Sy, by
+    construction (MF6_THTS_RULE). thti is then clipped into [thtr, thts],
+    each clip counted in ``notes``. Only ``active`` cells are judged;
+    arrays broadcast against each other. PropertyError where Sr <= 0 (UZF6
+    wants thtr > 0) or Sy + Sr > 1.
     """
     arrs = np.broadcast_arrays(*(np.asarray(x, dtype=float)
-                                 for x in (thtr, thts, thti, sy)))
-    thtr, thts, thti, sy = (np.array(a, dtype=float) for a in arrs)
-    act = (np.ones(thtr.shape, dtype=bool) if active is None
-           else np.broadcast_to(np.asarray(active, dtype=bool), thtr.shape))
+                                 for x in (sr, sy, thti)))
+    sr, sy, thti = (np.array(a, dtype=float) for a in arrs)
+    act = (np.ones(sr.shape, dtype=bool) if active is None
+           else np.broadcast_to(np.asarray(active, dtype=bool), sr.shape))
+    thtr, thts = sr.copy(), sy + sr
     notes = []
     if not act.any():
-        return thtr, thti, notes
-    if thtr_from == 'sy':
-        bad = act & (sy >= thts)
-        if bad.any():
-            raise PropertyError(
-                'uzf.thtr_from = sy: thtr = thts - Sy is not positive in %d '
-                'cell(s) -- Sy reaches %g against thts %g there. Raise '
-                'uzf.thts above the specific yield.'
-                % (int(bad.sum()), float(sy[bad].max()),
-                   float(thts[bad].min())))
-        thtr = np.where(act, thts - sy, thtr)
-        d = thtr[act]
-        notes.append('UZF thtr = thts - Sy (as UZF1 without SPECIFYTHTR): '
-                     '%.4g..%.4g, so the unsaturated zone drains exactly the '
-                     'aquifer\'s specific yield' % (d.min(), d.max()))
-    elif thtr_from == 'source':
-        gap = (thts - thtr) - sy
-        off = act & (np.abs(gap) > UZF_SY_TOL)
-        if off.any():
-            raise PropertyError(
-                'uzf.thts - uzf.thtr differs from the specific yield in %d '
-                'cell(s): the unsaturated zone drains %.4g..%.4g where the '
-                'aquifer stores Sy %.4g..%.4g. %s A water table rising '
-                'through a zone that drains more than Sy releases more '
-                'water than it takes, and runs away to the land surface. '
-                'Set uzf.thtr_from = "sy", or give a thtr equal to thts - Sy.'
-                % (int(off.sum()), float((thts - thtr)[off].min()),
-                   float((thts - thtr)[off].max()), float(sy[off].min()),
-                   float(sy[off].max()), MF6_THTS_RULE))
-    else:
-        raise PropertyError("uzf.thtr_from must be 'sy' or 'source', got %r"
-                            % (thtr_from,))
+        return thtr, thts, thti, notes
+    bad = act & ~(sr > 0.0)
+    if bad.any():
+        raise PropertyError(
+            'layers.sr: the specific retention -- UZF\'s thtr, which UZF6 '
+            'requires > 0 -- is %g or less in %d cell(s)'
+            % (float(np.nanmin(sr[bad])), int(bad.sum())))
+    over = act & (thts > 1.0)
+    if over.any():
+        raise PropertyError(
+            'Sy + Sr -- UZF\'s thts, the porosity -- is above 1 in %d '
+            'cell(s) (up to %g): lower layers.sr or the specific yield'
+            % (int(over.sum()), float(thts[over].max())))
+    notes.append('UZF thtr = Sr %.4g..%.4g, thts = Sy + Sr %.4g..%.4g, from '
+                 'the aquifer layers: the unsaturated zone drains exactly '
+                 'the aquifer\'s specific yield'
+                 % (thtr[act].min(), thtr[act].max(), thts[act].min(),
+                    thts[act].max()))
     lo, hi = act & (thti < thtr), act & (thti > thts)
     if lo.any() or hi.any():
         thti = np.where(act, np.clip(thti, thtr, thts), thti)
@@ -1390,7 +1377,7 @@ def uzf_water_contents(thtr, thts, thti, sy, thtr_from='sy', active=None):
                      '%d lowered to thts'
                      % (int(lo.sum() + hi.sum()), int(lo.sum()),
                         int(hi.sum())))
-    return thtr, thti, notes
+    return thtr, thts, thti, notes
 
 
 # =====================================================================

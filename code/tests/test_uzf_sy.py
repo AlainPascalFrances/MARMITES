@@ -9,6 +9,12 @@ from 6.2 m below ground to 0.26 m ABOVE it in 15,269 of 15,750 cells
 (5.7e6 m3 in one step). UZF1 never did this: the ini said SPECIFYTHTR 0,
 and UZF1 then derived thtr = thts - Sy. UZF6 has no such option; MODFLOW 6
 only asks for consistency with STO's Sy, so the build does it.
+
+Since 2026-10-20 (user) both come from the aquifer layer each UZF object
+sits in: thtr = its specific retention Sr (layers.sr), thts = Sy + Sr, the
+porosity -- consistent by construction. One panel thts for every layer had
+given thtr = 0.45 - 0.01 = 0.44 in the saprolite and the fissured layer
+alike.
 """
 
 import importlib.util
@@ -30,105 +36,83 @@ import marmites_props as props                                 # noqa: E402
 
 
 # ------------------------------------------------------------ the rule
-def test_sy_derives_thtr_and_raises_thti_as_for_la_mata():
-    thtr, thti, notes = props.uzf_water_contents(0.05, 0.45, 0.15, 0.01)
-    assert float(thtr) == pytest.approx(0.44)
-    assert float(thti) == pytest.approx(0.44), 'thti below thtr not raised'
-    assert any('thts - Sy' in n for n in notes)
+def test_thtr_is_sr_and_thts_is_sy_plus_sr_and_thti_is_raised():
+    thtr, thts, thti, notes = props.uzf_water_contents(0.275, 0.01, 0.15)
+    assert float(thtr) == pytest.approx(0.275)
+    assert float(thts) == pytest.approx(0.285)
+    assert float(thti) == pytest.approx(0.275), 'thti below thtr not raised'
+    assert any('thtr = Sr' in n and 'Sy + Sr' in n for n in notes)
     assert any('1 raised to thtr' in n for n in notes)
 
 
-def test_a_cell_by_cell_sy_gives_a_cell_by_cell_thtr():
-    sy = np.array([[0.01, 0.05], [0.10, 0.20]])
-    thtr, _thti, _ = props.uzf_water_contents(0.05, 0.45, 0.30, sy)
-    assert np.allclose(0.45 - thtr, sy)
+def test_per_layer_and_per_cell_sy_and_sr():
+    sr = np.array([0.275, 0.04])[:, None, None]
+    sy = np.array([[[0.01, 0.03]], [[0.005, 0.01]]])
+    thtr, thts, _i, _ = props.uzf_water_contents(sr, sy, 0.2)
+    assert np.allclose(thts - thtr, sy), 'the zone does not drain Sy'
+    assert np.allclose(thtr[0], 0.275) and np.allclose(thtr[1], 0.04)
 
 
-def test_sy_at_or_above_thts_is_refused():
+def test_a_zero_sr_or_a_porosity_above_one_is_refused():
     with pytest.raises(props.PropertyError) as exc:
-        props.uzf_water_contents(0.05, 0.30, 0.15, np.array([0.1, 0.3]))
-    assert 'not positive in 1 cell' in str(exc.value)
-
-
-def test_inactive_cells_are_neither_touched_nor_judged():
-    sy = np.array([0.01, 0.9])                     # 0.9: an inactive cell
-    thtr, thti, _ = props.uzf_water_contents(
-        0.05, 0.45, 0.15, sy, active=np.array([True, False]))
-    assert thtr[1] == pytest.approx(0.05) and thti[1] == pytest.approx(0.15)
-    assert thtr[0] == pytest.approx(0.44)
-
-
-def test_source_refuses_a_zone_that_drains_more_than_sy_quoting_mf6():
+        props.uzf_water_contents(np.array([0.1, 0.0]), 0.01, 0.15)
+    assert 'layers.sr' in str(exc.value) and 'in 1 cell' in str(exc.value)
     with pytest.raises(props.PropertyError) as exc:
-        props.uzf_water_contents(0.05, 0.45, 0.15, 0.01, thtr_from='source')
-    msg = str(exc.value)
-    assert 'Storage Package' in msg and 'runs away' in msg
-    assert 'uzf.thtr_from = "sy"' in msg
+        props.uzf_water_contents(0.95, 0.1, 0.5)
+    assert 'Sy + Sr' in str(exc.value) and 'above 1' in str(exc.value)
 
 
-def test_source_accepts_a_consistent_thtr_as_given():
-    thtr, thti, notes = props.uzf_water_contents(0.44, 0.45, 0.445, 0.01,
-                                                 thtr_from='source')
-    assert float(thtr) == pytest.approx(0.44)
-    assert float(thti) == pytest.approx(0.445) and not notes
+def test_inactive_cells_are_not_judged():
+    thtr, thts, thti, _ = props.uzf_water_contents(
+        np.array([0.275, 0.0]), 0.01, 0.15, active=np.array([True, False]))
+    assert thtr[0] == pytest.approx(0.275) and thti[1] == pytest.approx(0.15)
 
 
 def test_a_thti_above_thts_is_lowered_and_counted():
-    _thtr, thti, notes = props.uzf_water_contents(0.44, 0.45, 0.9, 0.01,
-                                                  thtr_from='source')
-    assert float(thti) == pytest.approx(0.45)
+    _r, _s, thti, notes = props.uzf_water_contents(0.04, 0.01, 0.9)
+    assert float(thti) == pytest.approx(0.05)
     assert any('1 lowered to thts' in n for n in notes)
 
 
-def test_an_unknown_mode_is_refused():
-    with pytest.raises(props.PropertyError):
-        props.uzf_water_contents(0.05, 0.45, 0.15, 0.01, thtr_from='value')
-
-
 # ------------------------------------------------------ the configuration
-def test_the_default_is_the_uzf1_derivation():
-    assert mcfg.RunConfig.from_dict({}).uzf.thtr_from == 'sy'
+def test_sr_is_a_layer_property_27_5_and_4_percent():
+    c = mcfg.RunConfig.from_dict({})
+    assert c.layers.sr.values(2) == [0.275, 0.04]
+    assert mcfg.SR_DEFAULT == (0.275, 0.04)
+    for gone in ('thts', 'thtr', 'thtr_from'):
+        assert not hasattr(c.uzf, gone), gone
 
 
-def test_lamata_derives_it():
-    cfg = mcfg.load_run_config(os.path.join(CODE, 'configs', 'lamata.toml'))
-    assert cfg.uzf.thtr_from == 'sy'
+def test_an_old_file_with_the_uzf_contents_still_loads():
+    c = mcfg.RunConfig.from_dict({'uzf': {'thtr_from': 'sy',
+                                          'thtr': {'value': 0.05},
+                                          'thts': {'value': 0.45}}})
+    assert c.layers.sr.values(2) == [0.275, 0.04]
+    assert set(mcfg.RETIRED['uzf']) == {'thts', 'thtr', 'thtr_from'}
 
 
-def test_an_unknown_thtr_from_is_a_configuration_error():
-    with pytest.raises(mcfg.ConfigError) as exc:
-        mcfg.RunConfig.from_dict({'uzf': {'thtr_from': 'raster'}})
-    assert 'thtr_from' in str(exc.value)
-
-
-def test_with_sy_a_thti_below_the_given_thtr_is_not_an_error():
-    """thtr is not read then, and thti is clipped at the build."""
-    cfg = mcfg.RunConfig.from_dict({'uzf': {'thtr_from': 'sy',
-                                            'thtr': {'value': 0.3},
-                                            'thti': {'value': 0.15}}})
-    assert cfg.uzf.thtr_from == 'sy'
-
-
-def test_with_source_the_old_range_rules_still_hold():
-    with pytest.raises(mcfg.ConfigError):
-        mcfg.RunConfig.from_dict({'uzf': {'thtr_from': 'source',
-                                          'thtr': {'value': 0.3},
-                                          'thti': {'value': 0.15}}})
+def test_a_bad_sr_is_a_configuration_error():
+    for bad in ([0.0, 0.04], [0.3, 1.2]):
+        with pytest.raises(mcfg.ConfigError) as exc:
+            mcfg.RunConfig.from_dict({'layers': {'sr': {'value': bad}}})
+        assert 'layers.sr' in str(exc.value)
 
 
 # ------------------------------------------------------------- the panel
-def test_the_question_is_on_the_uzf_tab_with_its_choices():
+def test_sr_is_asked_on_the_layers_tab_one_box_per_layer():
     from lib import schema
-    rows = [k for row in schema.UZF_ROWS for k in row if k]
-    assert 'uzf.thtr_from' in rows
-    assert rows.index('uzf.thtr_from') < rows.index('uzf.thtr')
-    src = open(os.path.join(CODE, 'app', 'lib', 'schema.py'),
-               encoding='utf-8').read()
-    assert "'uzf.thtr_from': lambda: ['sy', 'source']" in src
+    rows = [k for row in schema.GEOMETRY_ROWS for k in row if k]
+    assert rows.index('layers.sr') == rows.index('layers.sy') + 1
+    assert 'layers.sr' in schema.LAYER_VALUES
+    assert schema.PER_LAYER_DEFAULT['layers.sr'] == (0.275, 0.04)
+    assert schema.describe('layers.sr')[0] == 'Specific retention'
+    uzf_rows = [k for row in schema.UZF_ROWS for k in row if k]
+    for gone in ('uzf.thtr_from', 'uzf.thtr', 'uzf.thts'):
+        assert gone not in uzf_rows
     page = open(os.path.join(CODE, 'app', 'pages',
                              '4_4_-_Unsaturated_zone_and_groundwater.py'),
                 encoding='utf-8').read()
-    assert "cfg.uzf.thtr_from == 'sy'" in page
+    assert 'thtr_from' not in page
 
 
 # --------------------------------------------------- the validation panel
@@ -152,36 +136,37 @@ def _asc(path, value, nrow=2, ncol=3):
             fh.write(' '.join(str(value) for _ in range(ncol)) + '\n')
 
 
-def _cfg(tmp_path, **uzf):
+def _cfg(tmp_path, sr=None, sy=0.01):
     ds = tmp_path / 'ds'
     ds.mkdir()
     for L in (1, 2):
-        _asc(str(ds / ('Sy_l%d.asc' % L)), 0.01)
+        _asc(str(ds / ('Sy_l%d.asc' % L)), sy)
         _asc(str(ds / ('ib_l%d.asc' % L)), 1)
     cfg = mcfg.RunConfig.from_dict({'layers': {'nlay': 2}})
     cfg.layers.sy = mcfg.VectorSource(raster='Sy_l%d.asc')
     cfg.layers.ibound = mcfg.VectorSource(raster='ib_l%d.asc')
-    for k, v in uzf.items():
-        setattr(cfg.uzf, k, v)
+    if sr is not None:
+        cfg.layers.sr = mcfg.VectorSource(value=sr)
     return cfg, str(ds)
 
 
-def test_the_validation_panel_stops_an_inconsistent_source(tmp_path):
+def test_the_validation_panel_stops_a_porosity_above_one(tmp_path):
     chk = _checks()
-    cfg, ds = _cfg(tmp_path, thtr_from='source')
+    cfg, ds = _cfg(tmp_path, sr=[0.275, 0.04], sy=0.8)
     got = list(chk.check_uzf_sy(cfg, dataset_dir=ds))
     assert [c.level for c in got] == [chk.ERROR]
-    assert got[0].key == 'uzf.thtr_from' and got[0].panel == 4
-    assert 'Storage Package' in got[0].detail
+    assert got[0].key == 'layers.sr' and got[0].panel == 4
+    assert 'above 1' in got[0].detail
 
 
-def test_the_validation_panel_says_what_the_derivation_will_do(tmp_path):
+def test_the_validation_panel_says_what_uzf_will_take(tmp_path):
     chk = _checks()
-    cfg, ds = _cfg(tmp_path, thtr_from='sy')
+    cfg, ds = _cfg(tmp_path)
     got = list(chk.check_uzf_sy(cfg, dataset_dir=ds))
     assert got and all(c.level == chk.INFO for c in got)
     text = ' '.join(c.title for c in got)
-    assert '0.44' in text and 'raised to thtr' in text
+    assert '0.04..0.275' in text and '0.05..0.285' in text
+    assert 'raised to thtr' in text
 
 
 def test_the_check_is_one_of_those_the_launch_asks():

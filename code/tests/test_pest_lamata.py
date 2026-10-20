@@ -339,10 +339,13 @@ def test_sy_and_sr_are_the_users_table(tmp_path):
     specs = {s[0]: s[1:] for s in pst.scalar_specs(cfg, rows)}
     assert specs['sr_l1'] == (0.275, 'log', 0.045, 0.30)
     assert specs['sr_l2'] == (0.04, 'log', 0.009, 0.09)
-    pfw.apply_scalars(cfg, pst.scalar_table(pst.scalar_specs(cfg, rows)),
-                      mult_dir=str(tmp_path))
-    assert float(open(tmp_path / 'sr_l1.txt').read()) == 0.275
-    assert float(open(tmp_path / 'sr_l2.txt').read()) == 0.04
+    # the specific retention is a layer property of the configuration
+    # (layers.sr, 2026-10-20): written there, as Kh/Kv, not as a file
+    t = pst.scalar_table(pst.scalar_specs(cfg, rows))
+    t.loc[t['name'] == 'sr_l2', 'value'] = 0.06
+    pfw.apply_scalars(cfg, t, mult_dir=str(tmp_path))
+    assert cfg.layers.sr.values(2) == [0.275, 0.06]
+    assert not os.path.exists(tmp_path / 'sr_l1.txt')
 
 
 def test_a_package_that_is_off_is_not_calibrated(tmp_path):

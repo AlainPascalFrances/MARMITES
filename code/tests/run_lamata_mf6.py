@@ -1397,7 +1397,6 @@ def main():
     b.drn_seep_cond_from = str(getattr(a, 'seep_cond_from', 'value'))
     b.uzf_vks_scale = float(a.uzf_vks_scale)
     if cfg is not None:
-        b.uzf_thtr_from = str(cfg.uzf.thtr_from)
         b.solver = dataclasses.asdict(cfg.solver)
         b.outer_maximum = int(cfg.solver.outer_maximum)
         print('solver: %s, outer_dvclose %g m (max %d), inner_dvclose %g m, '

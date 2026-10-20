@@ -99,24 +99,24 @@ def test_the_driver_applies_the_multipliers_before_building():
     assert 'pest_multipliers=_pest_folder(cfg)' in src
 
 
-def test_specific_retention_sets_thts_and_keeps_the_reference(tmp_path):
-    """sr_l<L> is a water content: thts = Sy + Sr in every cell (so the
-    builder's thtr = thts - Sy = Sr), after the Sy multipliers; the
-    reference (thtr, thts) is kept for a carried UZF state (2026-10-18)."""
+def test_a_sy_multiplier_keeps_the_uzf_reference_and_sr_files_are_gone(
+        tmp_path):
+    """The specific retention is layers.sr since 2026-10-20 (the forward
+    run writes it into the configuration): an sr_l<L>.txt is not read. A
+    Sy multiplier keeps the model's (thtr, thts) = (Sr, Sy + Sr) from
+    before it, for a carried UZF state saved without its own."""
     c = _cmf()
-    c.thts_actual = [0.45, 0.45]
+    c.sr_actual = [0.275, 0.04]
     _write(tmp_path, 'sy_l1.txt', [2.5])
-    _write(tmp_path, 'sr_l1.txt', [0.275])
-    _write(tmp_path, 'sr_l2.txt', [0.04])
+    _write(tmp_path, 'sr_l1.txt', [0.9])                 # not read
     done = mp.apply_multipliers(c, str(tmp_path), out=None)
-    thts = np.asarray(c.thts)
-    assert thts.shape == (2, 1, 4)
-    assert np.allclose(thts[0], 0.025 + 0.275)
-    assert np.allclose(thts[1], 0.01 + 0.04)
-    assert np.allclose(np.asarray(c.thts_actual), thts)
     thtr0, thts0 = c.uzf_carry_ref
-    assert np.allclose(thts0, 0.45) and np.allclose(thtr0, 0.44)
-    assert {'sr_l1', 'sr_l2', 'sy_l1'} <= set(done)
+    assert np.allclose(thtr0[0], 0.275) and np.allclose(thtr0[1], 0.04)
+    assert np.allclose(thts0[0], 0.01 + 0.275)           # Sy before x2.5
+    assert np.allclose(thts0[1], 0.01 + 0.04)
+    assert 'sr_l1' not in done and 'sy_l1' in done
+    assert not hasattr(c, 'thts') or not np.allclose(
+        np.asarray(c.thts, dtype=float), 0.9)
 
 
 def test_layer_1_k_is_held_under_layer_2_k(tmp_path):
@@ -131,10 +131,5 @@ def test_layer_1_k_is_held_under_layer_2_k(tmp_path):
     assert any('3 cell(s)' in s for s in said)
 
 
-def test_sy_and_sr_above_one_are_refused(tmp_path):
-    c = _cmf()
-    c.thts_actual = [0.45, 0.45]
-    _write(tmp_path, 'sr_l1.txt', [0.995])
-    _write(tmp_path, 'sy_l1.txt', [2.0])
-    with pytest.raises(mp.PestError, match='above 1'):
-        mp.apply_multipliers(c, str(tmp_path), out=None)
+# (Sy + Sr above 1 is refused by the build since 2026-10-20, wherever Sr
+# comes from: marmites_props.uzf_water_contents, test_uzf_sy)

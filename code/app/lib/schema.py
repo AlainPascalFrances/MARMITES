@@ -627,6 +627,15 @@ FIELDS = {
     'layers.sy': ('Specific yield', _U,
                   'flopy: `ModflowGwfsto(sy=)`. Per layer, by the same `%d` '
                   'rule as the thickness.'),
+    'layers.sr': ('Specific retention', 'm³/m³',
+                  'The water a drained pore keeps: the porosity is Sy + Sr. '
+                  'UZF takes both from the layer each of its objects sits '
+                  'in -- flopy packagedata `thtr = Sr`, `thts = Sy + Sr` -- '
+                  'so the unsaturated zone drains exactly what the aquifer '
+                  'stores (MODFLOW 6 asks it). One value per layer: 27.5 % '
+                  'in the saprolite, 4 % in the fissured layer (the '
+                  'hydraulic table; the review gives 8-28 % for '
+                  'saprolite). Above 0 (UZF6), Sy + Sr at most 1.'),
     'layers.strt': ('Initial heads of a cold start', 'm a.s.l.',
                     'flopy: `ModflowGwfic(strt=)` when the run does NOT start '
                     'from a saved state (none named under *Initial heads*, '
@@ -773,29 +782,12 @@ FIELDS = {
                             'flow residual a cell may keep. Summed over '
                             'thousands of cells it is what the mass-balance '
                             'discrepancy is made of.'),
-    'uzf.thtr_from': ('Residual water content from', _U,
-                      '**sy** derives `thtr = thts - Sy` in every cell, as '
-                      'UZF1 did without `SPECIFYTHTR` -- the La Mata ini '
-                      'asked for exactly that -- so the unsaturated zone '
-                      'drains the aquifer\'s own specific yield. **source** '
-                      'uses `thtr` below and refuses to run where `thts - '
-                      'thtr` is not Sy. MODFLOW 6 has no such option and '
-                      'says the contents "should be set in a manner that is '
-                      'consistent with the specific yield value specified '
-                      'in the Storage Package": a zone that drains more '
-                      'than Sy makes a rising water table release more '
-                      'water than it takes, and run away to the surface.'),
-    'uzf.thtr': ('Residual water content', 'm³/m³',
-                 'flopy: packagedata `thtr`, per cell. Read only when the '
-                 'source above is **source**. **UZF6 requires it to be > 0**.'),
-    'uzf.thts': ('Saturated water content', 'm³/m³',
-                 'flopy: packagedata `thts`, per cell. Above `thtr` everywhere, at '
-                 'most 1.'),
     'uzf.thti': ('Initial water content', 'm³/m³',
-                 'flopy: packagedata `thti`, per cell. Kept between `thtr` and '
-                 '`thts`: a value outside is clipped at the build, and the '
-                 'log counts the cells. Always carried, so the UZF1 '
-                 '`SPECIFYTHTI` option is gone.'),
+                 'flopy: packagedata `thti`, per cell. Kept between `thtr` '
+                 '(the layer\'s specific retention) and `thts` (Sy + Sr): a '
+                 'value outside is clipped at the build, and the log counts '
+                 'the cells. Always carried, so the UZF1 `SPECIFYTHTI` '
+                 'option is gone.'),
     'uzf.vks_from': ('Unsaturated vertical K from', _U,
                      'The UZF1 `iuzfopt` with the numbers replaced by what '
                      'they meant. **layer** (iuzfopt = 2) uses each layer\'s '
@@ -1259,11 +1251,12 @@ INTEGER_VALUE = ('surface.meteo_zones', 'surface.irr_zones', 'soil.zones')
 # The layer properties whose VALUE is one number per layer -- a box each,
 # written as a list when they differ (marmites_config.VectorSource.values)
 LAYER_VALUES = ('layers.thickness', 'layers.k', 'layers.k33', 'layers.ss',
-                'layers.sy', 'layers.strt')
+                'layers.sy', 'layers.sr', 'layers.strt')
 # ... and what the boxes offer for an unanswered one, layer by layer (a
 # deeper layer takes the last)
 PER_LAYER_DEFAULT = {
-    'layers.k33': __import__('marmites_config').K33_RATIO_DEFAULT}
+    'layers.k33': __import__('marmites_config').K33_RATIO_DEFAULT,
+    'layers.sr': __import__('marmites_config').SR_DEFAULT}
 
 
 # Never OFFERED on a panel: the configuration carries it, validate() pins it,
@@ -1301,7 +1294,6 @@ CHOICES = {
     # The ini's iuzfopt, with the numbers replaced by what they meant.
     'uzf.vks_from': lambda: ['layer', 'raster'],
     # UZF1's SPECIFYTHTR, with the numbers replaced by what they meant.
-    'uzf.thtr_from': lambda: ['sy', 'source'],
     'solver.complexity': lambda: ['simple', 'moderate', 'complex'],
     'solver.cell_averaging': lambda: ['harmonic', 'logarithmic', 'amt-lmk',
                                       'amt-hmk'],
@@ -1353,6 +1345,7 @@ GEOMETRY_ROWS = (
     ('layers.k', 'layers.k33'),
     (None, 'layers.k33_as_ratio'),
     ('layers.ss', 'layers.sy'),
+    ('layers.sr', None),
     ('layers.convertible', None),
 )
 # The heads a cold start begins from: a layer property, asked on the
@@ -1398,8 +1391,7 @@ BOUNDARY_FILES = ('ghb.line', 'drn.line')
 UZF_ROWS = (
     ('uzf.ntrailwaves', 'uzf.nwavesets'),
     ('uzf.surfdep', 'uzf.eps'),
-    ('uzf.thtr_from', 'uzf.thts'),
-    ('uzf.thtr', 'uzf.thti'),
+    ('uzf.thti', None),
     ('uzf.vks_from', 'uzf.vks_scale'),
     ('uzf.vks', None),
     ('uzf.max_front_saturation', None),

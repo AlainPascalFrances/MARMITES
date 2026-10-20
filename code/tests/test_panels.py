@@ -279,7 +279,8 @@ def test_the_geometry_asks_only_what_is_not_derivable(cfg):
     assert laid == ['layers.nlay', 'layers.hnoflo',
                     'layers.ibound', 'layers.thickness',
                     'layers.k', 'layers.k33', 'layers.k33_as_ratio',
-                    'layers.ss', 'layers.sy', 'layers.convertible']
+                    'layers.ss', 'layers.sy', 'layers.sr',
+                    'layers.convertible']
     # the switch that says what the k33 NUMBER means must sit with it: 2 is
     # an anisotropy ratio or a conductivity depending on that one box
     flat = [d for row in schema.GEOMETRY_ROWS for d in row]

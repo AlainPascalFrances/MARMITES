@@ -325,6 +325,14 @@ something a regression.
   saprolite, 10 in the fissured layer (user, 2026-10-19;
   docs/MM-MF6/WP7_granite_anisotropy_review.md), calibrated per layer by
   PEST (family k33, bounds 1-3 and 2-30). Default nlay 2 (was 6).
+- **UZF's water contents are the aquifer layer's** (user, 2026-10-20):
+  `layers.sr` (specific retention, per layer, default 27.5 % / 4 %, panel
+  4 next to Sy) gives thtr = Sr and thts = Sy + Sr for each UZF object from
+  its own layer (marmites_props.uzf_water_contents; the build refuses Sr
+  <= 0 or Sy + Sr > 1). `uzf.thts`, `uzf.thtr`, `uzf.thtr_from` are
+  RETIRED (one thts 0.45 for every layer had given Sr = 0.44 in both).
+  Call thtr "specific retention", never "residual water content". PEST's
+  family sr writes `layers.sr` (like k33), no sr_l<L>.txt file.
 - Seepage face = DRN_SEEP at the soil base (not UZF GWSEEP: deprecated in MF6
   6.5+, and validate() refuses seep.kind='uzf' under coupling). **No seepage
   drain in stream cells or in any pond-footprint cell.**

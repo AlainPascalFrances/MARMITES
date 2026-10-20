@@ -123,9 +123,17 @@ def test_the_panel_reproduces_the_ini_cell_for_cell(cfg):
     got = dict((n, LM.layer_stats(f2a(getattr(cMF, n + '_actual'))))
                for n in ('hk', 'vka', 'ss', 'sy'))
     got['thick'] = LM.layer_stats(cMF.thick)
-    for name in ('thick', 'hk', 'vka', 'ss', 'sy'):
+    for name in ('thick', 'hk', 'ss', 'sy'):
         assert LM.same_stats(got[name], LM.INI_LAYERS[name]), (
             '%s is not what the parameter file gave' % name)
+    # Kh/Kv is the configuration's since 2026-10-19 (user: 2 in the
+    # saprolite, 10 in the fissured layer; the file gave 2 in both): each
+    # layer holds its own ratio, over the cells the file filled
+    ratios = cfg.layers.k33.values(2)
+    for L, (s, _ss, lo, hi) in enumerate(got['vka']):
+        assert lo == hi == ratios[L], 'layer %d Kh/Kv' % (L + 1)
+        assert s == pytest.approx(ratios[L] / LM.INI_LAYERS['vka'][L][2]
+                                  * LM.INI_LAYERS['vka'][L][0])
     # botm: the land surface less the thickness of every layer down to it
     # that exists there (the land surface is the DEM's now, not the file's)
     elev = np.asarray(cMF.elev, dtype=float)
@@ -154,7 +162,7 @@ def test_the_flags_are_fanned_out_over_the_layers(cfg):
     cMF = FakeMF()
     # only the flags here: the sources are checked against the real dataset
     # above, and this model has four layers the rasters do not cover
-    for name in ('ibound', 'thickness', 'k', 'k33', 'ss', 'sy'):
+    for name in ('ibound', 'thickness', 'k', 'k33', 'ss', 'sy', 'sr'):
         setattr(cfg.layers, name, cfgmod.VectorSource())
     cfg.layers.convertible = True
     cfg.layers.k33_as_ratio = False

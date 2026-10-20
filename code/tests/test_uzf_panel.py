@@ -50,7 +50,7 @@ def cfg():
 
 def test_every_uzf_field_names_its_flopy_argument():
     for dotted in ('uzf.ntrailwaves', 'uzf.nwavesets', 'uzf.surfdep',
-                   'uzf.eps', 'uzf.thtr', 'uzf.thts', 'uzf.thti', 'uzf.vks'):
+                   'uzf.eps', 'uzf.thti', 'uzf.vks'):
         help_ = schema.describe(dotted)[2]
         assert 'flopy' in help_.lower() or 'packagedata' in help_, (
             '%s does not say what it becomes' % dotted)
@@ -164,17 +164,19 @@ def test_the_panel_says_uzf_et_is_wired_end_to_end(cfg):
 def test_the_uzf6_limits_are_refused_here_not_by_modflow(cfg):
     """Better a message on the panel than a failure after the run has
     started writing files."""
-    # thtr and the thti range are the modeller's only with thtr_from =
-    # source; with 'sy' thtr is derived and thti clipped at the build.
-    for field, bad, needle, mode in (('eps', 2.0, '3.5', 'sy'),
-                                     ('thtr', 0.0, 'thtr', 'source'),
-                                     ('thti', 0.9, 'thti', 'source'),
-                                     ('ntrailwaves', 0, 'ntrailwaves', 'sy'),
-                                     ('thtr_from', 'raster', 'thtr_from',
-                                      'sy')):
+    # thtr and thts are the layers' (layers.sr, 2026-10-20); thti is
+    # clipped into [Sr, Sy + Sr] at the build, so only its [0, 1] is here
+    for sec, field, bad, needle in (('uzf', 'eps', 2.0, '3.5'),
+                                    ('uzf', 'thti', 1.5, 'thti'),
+                                    ('uzf', 'ntrailwaves', 0, 'ntrailwaves'),
+                                    ('layers', 'sr', [0.275, 0.0],
+                                     'layers.sr')):
         c = cfgmod.load_run_config(REF)
-        c.uzf.thtr_from = mode
-        setattr(c.uzf, field, bad)
+        src = getattr(getattr(c, sec), field)
+        if hasattr(src, 'value'):
+            src.value = bad
+        else:
+            setattr(getattr(c, sec), field, bad)
         with pytest.raises(cfgmod.ConfigError) as e:
             c.validate()
         assert needle in str(e.value), field
@@ -194,7 +196,7 @@ def test_the_panel_gives_uzf_what_the_parameter_file_gave_it(cfg):
     def scalar(v):
         return float(np.ravel(np.asarray(v, dtype=float))[0])
 
-    names = ('ntrail2', 'nsets', 'surfdep', 'thtr', 'thts', 'thti', 'iuzfopt')
+    names = ('ntrail2', 'nsets', 'surfdep', 'thti', 'iuzfopt')
     eps_ini = LM.INI_UZF['eps']
     props.apply_uzf(cfg, cMF, DS, verbose=False)
     for n in names:
@@ -244,9 +246,10 @@ def test_a_uniform_answer_builds_what_the_scalar_built(built, tmp_path):
     eps = {float(r[9]) for r in b.uzf_packagedata}
     thtr = {float(r[6]) for r in b.uzf_packagedata}
     assert eps == {3.5}, 'the clamped scalar no longer reaches every object'
-    # NOT the ini's 0.05: with SPECIFYTHTR 0 UZF1 never read it and built
-    # thtr = thts - Sy = 0.45 - 0.01, which is what the build does now.
-    assert {round(t, 9) for t in thtr} == {0.44}
+    # NOT the ini's 0.05 (with SPECIFYTHTR 0 UZF1 never read it), nor
+    # thts - Sy = 0.45 - 0.01 as until 2026-10-20: the layers' specific
+    # retention, 27.5 % and 4 % (layers.sr)
+    assert {round(t, 9) for t in thtr} == {0.275, 0.04}
 
 
 def test_a_per_layer_answer_actually_varies(built, tmp_path):
@@ -272,24 +275,22 @@ def test_the_uzf6_rules_are_checked_on_every_cell(built, tmp_path):
     reach MODFLOW, which is where the 22,000 validation errors came from."""
     mf6 = sys.modules['marmites_mf6_up']
     b0 = built(tmp_path / 'probe')
-    # layer 1 only: thts under Sy (0.01) gives thtr = thts - Sy < 0 in its
-    # ACTIVE cells. A bad thtr itself no longer serves -- thtr_from = 'sy'
-    # derives it in every active cell, and since 2026-10-18 the rules judge
-    # the cells that carry UZF objects (82b7557), so a 0 left in inactive
-    # cells is rightly not refused
-    bad = [0.005] + [0.45] * (b0.nlay - 1)
+    # layer 1 only: a zero specific retention (UZF's thtr) in its ACTIVE
+    # cells; since 2026-10-18 the rules judge the cells that carry UZF
+    # objects (82b7557), so a value left in inactive cells is not refused
+    bad = [0.0] + [0.04] * (b0.nlay - 1)
     with pytest.raises(mf6.MF6BuildError) as e:
-        built(tmp_path, thts=bad)
+        built(tmp_path, sr_actual=bad)
     # refused cell by cell, the bad cells counted (the derivation's guard
     # comes before the UZF6 validator, test_uzf6_constraints)
-    assert 'thtr = thts - Sy is not positive in' in str(e.value)
-    assert 'cell(s)' in str(e.value)
+    assert 'layers.sr' in str(e.value) and 'cell(s)' in str(e.value)
 
 
-def test_the_five_uzf_properties_take_the_usual_three_producers(cfg):
-    """eps, thtr, thts, thti and vks -- raster, layer or value, like every
-    other spatial input on these panels."""
-    for name in ('eps', 'thtr', 'thts', 'thti', 'vks'):
+def test_the_three_uzf_properties_take_the_usual_three_producers(cfg):
+    """eps, thti and vks -- raster, layer or value, like every other
+    spatial input on these panels (thtr and thts are the layers' since
+    2026-10-20: layers.sr)."""
+    for name in ('eps', 'thti', 'vks'):
         src = getattr(cfg.uzf, name)
         assert schema.is_source(src), 'uzf.%s is not a source' % name
         for producer in ('raster', 'layer', 'value'):

@@ -96,37 +96,41 @@ def test_epsilon_clamped_and_reported(cmf, tmp_path, monkeypatch):
     assert all(float(rec[9]) == 3.5 for rec in b.uzf_packagedata)
 
 
-def test_thtr_is_thts_minus_sy_as_uzf1_without_specifythtr(cmf, tmp_path):
-    """uzf.thtr_from = 'sy' (La Mata's NWT model had specifythtr = 0): UZF1
-    did NOT read the 0.05 given for thtr, it derived thtr = thts - Sy. This
-    test used to assert the opposite -- that the 0.05 was used -- and so
-    guarded the bug that let the water table run away to the land surface
-    (2026-09-23): drainable porosity 0.40 in the unsaturated zone against
-    Sy 0.01 in the aquifer."""
-    import lamata_model
-    assert lamata_model.lamata_config().uzf.thtr_from == 'sy'
+def test_thtr_and_thts_are_the_layers_sr_and_sy_plus_sr(cmf, tmp_path):
+    """layers.sr (user, 2026-10-20): each UZF object takes its own
+    layer's specific retention as thtr and Sy + Sr as thts -- 27.5 % and
+    4 %, so 0.285 and 0.05 with La Mata's Sy of 0.01 -- and the input maps
+    get them too. The unsaturated zone drains exactly the aquifer's Sy:
+    the legacy ini's thtr 0.05 (SPECIFYTHTR 0, never read by UZF1) once
+    gave it 0.40 against Sy 0.01, and the water table ran away to the land
+    surface (2026-09-23)."""
+    assert [float(np.ravel(v)[0]) for v in cmf.sr_actual] == [0.275, 0.04]
     b = _build(cmf, tmp_path)
     sy = b._prop3d('sy_actual')
+    by_layer = {}
     for rec in b.uzf_packagedata:
         cell = tuple(int(c) for c in rec[1])
         thtr, thts, thti = float(rec[6]), float(rec[7]), float(rec[8])
         assert np.isclose(thts - thtr, float(sy[cell])), \
             'the unsaturated zone must drain exactly the aquifer\'s Sy'
         assert thtr <= thti <= thts
+        by_layer.setdefault(cell[0], set()).add(round(thtr, 9))
+    assert by_layer[0] == {0.275} and by_layer[1] == {0.04}
+    assert np.allclose(np.asarray(cmf.thtr_actual[1])[sy[1] > 0], 0.04)
 
 
-def test_the_ini_thtr_is_refused_as_inconsistent_with_sy(cmf, tmp_path):
-    """Asked to take the panel's thtr as given (uzf.thtr_from = 'source';
-    0.05, the old parameter file's), the build refuses: 0.45 - 0.05
-    is not La Mata's Sy of 0.01, and it quotes MODFLOW 6's own rule."""
-    b = mf6mod.clsMF6(cmf, top=np.asarray(cmf.elev, dtype=float),
-                      botm=np.asarray(cmf.botm, dtype=float),
-                      sim_ws=str(tmp_path), grid='dis')
-    b.uzf_thtr_from = 'source'
-    with pytest.raises(mf6mod.MF6BuildError) as exc:
-        b.build()
-    assert 'Storage Package' in str(exc.value)
-    assert 'uzf.thtr_from = "sy"' in str(exc.value)
+def test_a_zero_or_missing_specific_retention_is_refused(cmf, tmp_path):
+    keep = cmf.sr_actual
+    try:
+        cmf.sr_actual = [keep[0], 0.0 * np.asarray(keep[1])]
+        with pytest.raises(mf6mod.MF6BuildError) as exc:
+            _build(cmf, tmp_path / 'zero')
+        assert 'layers.sr' in str(exc.value)
+        cmf.sr_actual = None
+        with pytest.raises(mf6mod.MF6BuildError, match='layers.sr'):
+            _build(cmf, tmp_path / 'none')
+    finally:
+        cmf.sr_actual = keep
 
 
 # --------------------------------------------------------------------- #

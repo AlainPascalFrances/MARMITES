@@ -3766,7 +3766,7 @@ def _native_input_maps(MMplot, out_dir, cMF, ctx, res=None, verbose=True):
             lst += [('vks', 'Sat. vert. hydraulic cond. - $vks$',
                      arr(cMF.vks_actual))]
         lst += [('thti', 'Initial water content - $thti$', arr(cMF.thti_actual)),
-                ('thtr', 'Residual water content - $thtr$', arr(cMF.thtr_actual))]
+                ('thtr', 'Specific retention - $thtr$', arr(cMF.thtr_actual))]
 
     # the model footprint and the MARMITES zoning. These were only ever drawn
     # by the plain imshow maps that used to sit alongside this set; folding

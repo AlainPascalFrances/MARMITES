@@ -823,6 +823,13 @@ class VectorSource:
 # weathering fractures); a deeper layer takes the last. What the panel
 # offers for an unanswered k33, and where the calibration starts.
 K33_RATIO_DEFAULT = (2.0, 10.0)
+# THE SPECIFIC RETENTION per layer (user, 2026-10-20): the water a drained
+# pore keeps, so the porosity is Sy + Sr. UZF takes both from the layer
+# each object sits in: thtr = Sr, thts = Sy + Sr. 27.5 % in the saprolite,
+# 4 % in the fissured layer -- the user's hydraulic table
+# (lamata_sardon_hydraulic_parameters.xlsx; review in docs/MM-MF6/
+# WP7_granite_porosity_specific_retention_review.md: saprolite 8-28 %).
+SR_DEFAULT = (0.275, 0.04)
 
 
 @dataclass
@@ -842,6 +849,8 @@ class Layers:
                                           is the legacy LAYVKA convention)
         convertible ModflowGwfnpf   icelltype, ModflowGwfsto iconvert
         ss, sy      ModflowGwfsto   ss, sy
+        sr          the specific retention: UZF's thtr = Sr and
+                    thts = Sy + Sr, from the layer each UZF object sits in
 
     WHAT THE INI HAD AND MODFLOW 6 HAS NOT: layavg, laywet, laycbd and
     hdry are MODFLOW-2005/NWT only. icelltype covers what layavg and
@@ -902,6 +911,11 @@ class Layers:
         value=list(K33_RATIO_DEFAULT)))
     ss: VectorSource = field(default_factory=VectorSource)
     sy: VectorSource = field(default_factory=VectorSource)
+    # the specific retention, per layer (SR_DEFAULT): UZF's thtr and, with
+    # Sy, its thts (user, 2026-10-20: they were one panel value, thts 0.45
+    # in every layer, so thtr = 0.45 - Sy = 0.44 in both)
+    sr: VectorSource = field(default_factory=lambda: VectorSource(
+        value=list(SR_DEFAULT)))
     # THE INITIAL HEADS of a cold start, per layer like the properties (user,
     # 2026-10-07). A saved state (spinup.strt_heads) wins when it exists and
     # fits; this is what the run starts from otherwise, and what fills a
@@ -929,7 +943,10 @@ class Uzf:
 
         ntrailwaves, nwavesets      the wave machine (the ini's ntrail2/nsets)
         surfdep                     packagedata, per object
-        eps, thts, thti, thtr       packagedata, per object (Brooks-Corey)
+        eps, thti                   packagedata, per object (Brooks-Corey)
+        thtr, thts                  NOT asked here: the aquifer layer's
+                                    specific retention Sr and Sy + Sr
+                                    (layers.sr, user 2026-10-20)
         vks_from                    'layer' uses the layer's own k33,
                                     'raster' the map below (the ini's iuzfopt)
         vks                         packagedata vks, when vks_from = raster
@@ -937,18 +954,20 @@ class Uzf:
 
     MOST OF UZF1 HAS NO MF6 EQUIVALENT and is deliberately absent:
 
-        SPECIFYTHTR              becomes thtr_from. UZF1 WITHOUT it did
-                                 not read thtr but derived thtr = thts - Sy,
-                                 so the unsaturated zone drained exactly
-                                 the aquifer's specific yield. UZF6 has no
-                                 such option (thtr is required per cell)
-                                 and only says the contents "should be set
-                                 in a manner that is consistent with the
+        SPECIFYTHTR              UZF1 WITHOUT it did not read thtr but
+                                 derived thtr = thts - Sy, so the
+                                 unsaturated zone drained exactly the
+                                 aquifer's specific yield. UZF6 has no such
+                                 option (thtr is required per cell) and
+                                 only says the contents "should be set in a
+                                 manner that is consistent with the
                                  specific yield value specified in the
-                                 Storage Package". thtr_from = 'sy' does
-                                 that derivation; 'source' uses thtr as
-                                 given and REFUSES a thts - thtr that is
-                                 not Sy. La Mata's ini had SPECIFYTHTR 0 and
+                                 Storage Package". Both come from the
+                                 aquifer layer now (2026-10-20): thtr = its
+                                 specific retention layers.sr, thts = Sy +
+                                 Sr -- consistent by construction (it was
+                                 thtr_from, with one thts for every layer).
+                                 La Mata's ini had SPECIFYTHTR 0 and
                                  Sy 0.01; the port used thtr 0.05 anyway, so
                                  the zone drained 0.40, and on the first
                                  transient day a water-table rise released
@@ -977,16 +996,11 @@ class Uzf:
     # Brooks-Corey, one value per UZF OBJECT rather than one for the
     # catchment: a raster, a polygon attribute, or a single number if the
     # soil really is uniform. UZF6 enforces 3.5 <= eps <= 14.0 (UZF1
-    # accepted 2.0) and requires thtr > 0 whatever SPECIFYTHTR used to say,
-    # and validate() checks those limits on whatever the source produces.
+    # accepted 2.0), and validate() checks it on whatever the source
+    # produces. thtr and thts are the aquifer's: layers.sr and Sy + Sr
+    # (2026-10-20). thti is clipped into [Sr, Sy + Sr] at the build.
     eps: VectorSource = field(default_factory=lambda: VectorSource(value=3.5))
-    thtr: VectorSource = field(default_factory=lambda: VectorSource(value=0.05))
-    thts: VectorSource = field(default_factory=lambda: VectorSource(value=0.45))
     thti: VectorSource = field(default_factory=lambda: VectorSource(value=0.15))
-    # Where thtr comes from: 'sy' derives thtr = thts - Sy per cell, as UZF1
-    # did without SPECIFYTHTR (and as MF6 asks: consistent with STO's Sy);
-    # 'source' reads uzf.thtr and requires thts - thtr == Sy.
-    thtr_from: str = 'sy'          # sy | source
     # Where the unsaturated vertical conductivity comes from. This is the
     # ini's iuzfopt with the numbers replaced by what they meant.
     vks_from: str = 'layer'        # layer | raster
@@ -1757,6 +1771,14 @@ RENAMED = {
 # longer does anything. It is accepted, DROPPED, and reported; saving from a
 # panel writes the file without it.
 RETIRED = {
+    'uzf': {'thts': 'UZF\'s saturated water content is the aquifer layer\'s '
+                    'Sy + Sr now (layers.sr, user 2026-10-20): one value for '
+                    'every layer gave thtr = thts - Sy = 0.44 in both',
+            'thtr': 'UZF\'s thtr is the aquifer layer\'s specific '
+                    'retention now, layers.sr (user, 2026-10-20)',
+            'thtr_from': 'thtr = Sr and thts = Sy + Sr, from the layers '
+                         '(layers.sr, user 2026-10-20): the unsaturated zone '
+                         'drains Sy by construction'},
     'et': {'uzf_et': 'UZF always simulates unsaturated-zone ET (WP2): total '
                      'ET has three sources and the deep unsaturated zone is '
                      'one of them, so there is no off position',
@@ -2071,9 +2093,9 @@ class RunConfig:
         # UZF6's own limits, refused here rather than by MODFLOW after the
         # run has started writing files. A source that reads a map can only
         # be checked cell by cell at build time, so what is checked here is
-        # the part that IS knowable now: a single number, and that every
-        # one of the four is answered at all.
-        for name in ('eps', 'thtr', 'thts', 'thti', 'surfdep'):
+        # the part that IS knowable now: a single number, and that each is
+        # answered at all.
+        for name in ('eps', 'thti', 'surfdep'):
             src = getattr(self.uzf, name)
             if hasattr(src, 'producer') and src.producer() is None:
                 errs.append('uzf.%s: set a raster, a layer or a value' % name)
@@ -2083,33 +2105,24 @@ class RunConfig:
         def _num(v):
             return getattr(v, 'value', v)
         _v = dict((n, _num(getattr(self.uzf, n)))
-                  for n in ('eps', 'thtr', 'thts', 'thti'))
+                  for n in ('eps', 'thti'))
         if _v['eps'] is not None and not (3.5 <= float(_v['eps']) <= 14.0):
             errs.append('uzf.eps must be between 3.5 and 14.0: MODFLOW 6 '
                         'enforces it (UZF1 accepted 2.0, which is why '
                         'uzf.vks_scale exists)')
-        if self.uzf.thtr_from not in ('sy', 'source'):
-            errs.append("uzf.thtr_from must be 'sy' (thtr = thts - Sy) or "
-                        "'source' (uzf.thtr as given)")
         if not 0.0 < float(self.uzf.max_front_saturation) <= 1.0:
             errs.append('uzf.max_front_saturation must be in (0, 1] (1: '
                         'the soil percolates up to VKS)')
-        # uzf.thtr is READ only when thtr_from = source; with 'sy' it is
-        # derived at the build, and thti is then clipped into [thtr, thts]
-        # there, with a note -- so neither is a configuration error here.
-        _own = self.uzf.thtr_from == 'source'
-        if _own and _v['thtr'] is not None and float(_v['thtr']) <= 0.0:
-            errs.append('uzf.thtr must be > 0: UZF6 requires a residual '
-                        'water content, whatever SPECIFYTHTR used to say')
-        if _v['thts'] is not None and not (0.0 < float(_v['thts']) <= 1.0):
-            errs.append('uzf.thts must be above 0 and at most 1')
-        if _own and _v['thtr'] is not None and _v['thts'] is not None:
-            if not (float(_v['thtr']) < float(_v['thts']) <= 1.0):
-                errs.append('uzf.thts must be above thtr and at most 1')
-            if _v['thti'] is not None and not (
-                    float(_v['thtr']) <= float(_v['thti'])
-                    <= float(_v['thts'])):
-                errs.append('uzf.thti must lie between thtr and thts')
+        # thti is clipped into [Sr, Sy + Sr] at the build, with a note
+        if _v['thti'] is not None and not 0.0 <= float(_v['thti']) <= 1.0:
+            errs.append('uzf.thti must be between 0 and 1')
+        # the specific retention: UZF's thtr, which UZF6 requires > 0; Sy +
+        # Sr <= 1 is checked at the build, where a raster Sy is read
+        _sr = self.layers.sr.values(int(self.layers.nlay)) \
+            if getattr(self.layers, 'sr', None) is not None else None
+        if _sr is not None and not all(0.0 < float(x) < 1.0 for x in _sr):
+            errs.append('layers.sr must be above 0 and below 1 in every '
+                        'layer: it is UZF\'s thtr, which UZF6 requires > 0')
         if self.uzf.ntrailwaves < 1 or self.uzf.nwavesets < 1:
             errs.append('uzf.ntrailwaves and uzf.nwavesets must be >= 1')
         sv = self.solver

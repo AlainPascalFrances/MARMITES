@@ -16,24 +16,25 @@ installed:
         ss_l<L>.txt   specific storage of layer L: idem
         drn_l<L>.txt  the outlet drains of layer L: one value
 
-    and two that are not multipliers (2026-10-18, user):
+    and one that is not a multiplier (2026-10-18, user):
 
-        sr_l<L>.txt         the SPECIFIC RETENTION of layer L (a water
-                            content, one value): UZF's thts becomes Sy + Sr
-                            in every cell, so thtr = thts - Sy = Sr
         k_l1_max_ratio.txt  layer 1's K at most this times layer 2's, cell
                             by cell (0.1: the saprolite an order of
                             magnitude below the fissured layer)
 
+    (The specific retention is a layer property of the configuration since
+    2026-10-20, layers.sr: the forward run writes it there, as Kh/Kv.)
+
     One value per line; per cell in the model's own cell order (the mesh's
     icell2d, the structured grid's row-major order). A missing file leaves
     that property as it is. k33 follows K (layers.k33_as_ratio), UZF's vks
-    follows k33 (uzf.vks_from = layer), UZF's thtr follows Sy
-    (uzf.thtr_from = sy): the multiplied values reach them all.
+    follows k33 (uzf.vks_from = layer), UZF's thts = Sy + Sr follows Sy:
+    the multiplied values reach them all.
 
-    When Sy or Sr change, ``cMF.uzf_carry_ref`` keeps the reference
-    model's (thtr, thts): the saved state's UZF water content was left
-    with those, and is carried relative to them (clsMF6.uzf_thti_carry_ref).
+    When Sy changes, ``cMF.uzf_carry_ref`` keeps the model's (thtr, thts)
+    before it: the saved state's UZF water content was left with those, and
+    is carried relative to them (clsMF6.uzf_thti_carry_ref) -- for a state
+    saved without its own.
 
 ``set_param(cfg, dotted, value)``
     A configuration value by its dotted name, list items included --
@@ -93,17 +94,15 @@ def apply_multipliers(cMF, folder, out=print):
     nlay, nrow, ncol = int(cMF.nlay), int(cMF.nrow), int(cMF.ncol)
     ncell = nrow * ncol
     done = {}
-    sr_files = {L: os.path.join(folder, 'sr_l%d.txt' % (L + 1))
-                for L in range(nlay)}
-    has_sr = any(os.path.exists(f) for f in sr_files.values())
-    if getattr(cMF, 'thts_actual', None) is not None and (has_sr or any(
+    if getattr(cMF, 'sr_actual', None) is not None and any(
             os.path.exists(os.path.join(folder, 'sy_l%d.txt' % (L + 1)))
-            for L in range(nlay))):
+            for L in range(nlay)):
         # what the saved state's UZF water content is relative to: the
-        # reference model's water contents, before any multiplier
-        thts0 = _layers3d(cMF.thts_actual, nlay, nrow, ncol)
-        cMF.uzf_carry_ref = (thts0 - _layers3d(cMF.sy_actual, nlay, nrow,
-                                               ncol), thts0)
+        # model's water contents before the Sy multiplier (thtr = Sr,
+        # thts = Sy + Sr)
+        sr0 = _layers3d(cMF.sr_actual, nlay, nrow, ncol)
+        cMF.uzf_carry_ref = (sr0, _layers3d(cMF.sy_actual, nlay, nrow,
+                                            ncol) + sr0)
     for stem, attr in MULT_PROPS.items():
         files = [os.path.join(folder, '%s_l%d.txt' % (stem, L + 1))
                  for L in range(nlay)]
@@ -124,21 +123,6 @@ def apply_multipliers(cMF, folder, out=print):
                                 % (f, m.size, ncell))
             done['%s_l%d' % (stem, L + 1)] = (float(m.min()), float(m.max()))
         setattr(cMF, attr, [arr[L] for L in range(nlay)])
-    # specific retention per layer: thts = Sy + Sr in every cell, so the
-    # builder's thtr = thts - Sy is Sr (uzf.thtr_from = sy)
-    if has_sr:
-        thts = _layers3d(cMF.thts_actual, nlay, nrow, ncol)
-        sy = _layers3d(cMF.sy_actual, nlay, nrow, ncol)
-        for L, f in sr_files.items():
-            if os.path.exists(f):
-                sr = float(_read(f)[0])
-                thts[L] = sy[L] + sr
-                done['sr_l%d' % (L + 1)] = (sr, sr)
-        if np.any(thts > 1.0):
-            raise PestError('Sy + Sr above 1 in %d cell(s)'
-                            % int(np.count_nonzero(thts > 1.0)))
-        cMF.thts = thts                   # the builder's _uzf3d takes it
-        cMF.thts_actual = [thts[L] for L in range(nlay)]
     # the order of the layers' K: layer 1 at most `ratio` x layer 2
     rf = os.path.join(folder, 'k_l1_max_ratio.txt')
     if os.path.exists(rf) and nlay >= 2:

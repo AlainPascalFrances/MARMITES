@@ -313,12 +313,13 @@ def _layer_values(src, nlay, dataset_dir, what, props):
 
 
 def check_uzf_sy(cfg, dataset_dir=None, **_):
-    """UZF drains what the aquifer stores: thts - thtr = Sy, cell by cell.
+    """UZF's water contents from the aquifer layers: thtr = Sr, thts =
+    Sy + Sr (2026-10-20) -- Sr above 0, Sy + Sr at most 1, cell by cell.
 
     The same rule the build enforces (marmites_props.uzf_water_contents),
-    asked BEFORE the run so the Launch button knows. La Mata, 2026-09-23:
+    asked BEFORE the run so the Launch button knows. (La Mata, 2026-09-23:
     Sy 0.01 against thts - thtr 0.40, and the water table ran away to the
-    land surface on the first transient day.
+    land surface on the first transient day; by construction now.)
     """
     if dataset_dir is None or not os.path.isdir(str(dataset_dir)):
         return
@@ -327,35 +328,30 @@ def check_uzf_sy(cfg, dataset_dir=None, **_):
     n = int(cfg.layers.nlay)
     try:
         sy = _layer_values(cfg.layers.sy, n, dataset_dir, 'layers.sy', props)
-        thts = _layer_values(cfg.uzf.thts, n, dataset_dir, 'uzf.thts', props)
-        thtr = _layer_values(cfg.uzf.thtr, n, dataset_dir, 'uzf.thtr', props)
+        sr = _layer_values(cfg.layers.sr, n, dataset_dir, 'layers.sr', props)
         thti = _layer_values(cfg.uzf.thti, n, dataset_dir, 'uzf.thti', props)
         ib = _layer_values(cfg.layers.ibound, n, dataset_dir, 'layers.ibound',
                            props)
     except Exception as exc:                            # noqa: BLE001
-        yield Check(INFO, 'UZF against Sy not checked here (%s); the build '
-                    'checks it' % exc, panel=4, key='uzf.thtr_from')
+        yield Check(INFO, 'UZF water contents not checked here (%s); the '
+                    'build checks them' % exc, panel=4, key='layers.sr')
         return
-    if sy is None or thts is None:
+    if sy is None or sr is None:
         return
-    if thtr is None:
-        thtr = np.full_like(thts, np.nan)
     if thti is None:
-        thti = thts.copy()
-    arrs = np.broadcast_arrays(thtr, thts, thti, sy)
-    act = np.all([np.isfinite(a) for a in arrs[1:]], axis=0)
+        thti = sy + sr
+    arrs = np.broadcast_arrays(sr, sy, thti)
+    act = np.all([np.isfinite(a) for a in arrs[:2]], axis=0)
     if ib is not None:
         act &= np.broadcast_to(np.nan_to_num(ib) != 0, act.shape)
     try:
-        _thtr, _thti, notes = props.uzf_water_contents(
-            *arrs, thtr_from=cfg.uzf.thtr_from, active=act)
+        _r, _s, _i, notes = props.uzf_water_contents(*arrs, active=act)
     except props.PropertyError as exc:
-        yield Check(ERROR, 'the unsaturated zone does not drain what the '
-                    'aquifer stores', panel=4, key='uzf.thtr_from',
-                    detail=str(exc))
+        yield Check(ERROR, 'UZF\'s water contents from the layers are not '
+                    'valid', panel=4, key='layers.sr', detail=str(exc))
         return
     for note in notes:
-        yield Check(INFO, note, panel=4, key='uzf.thtr_from')
+        yield Check(INFO, note, panel=4, key='layers.sr')
 
 
 def _loaders():

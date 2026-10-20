@@ -145,16 +145,20 @@ def test_the_unsaturated_zone_keeps_its_water(cmf, tmp_path):
     """MF6's WCNEW per object -> the next cycle's thti, clipped to [thtr,
     thts]; an object under the water table keeps the panel's."""
     b0 = _build(cmf, tmp_path / 'a')
+    # inside object 0's own [thtr, thts] -- the layer's [Sr, Sy + Sr] since
+    # 2026-10-20 (0.275..0.285 in La Mata's layer 1)
+    r0 = {int(r[0]): (float(r[6]), float(r[7])) for r in b0.uzf_packagedata}
+    mid = 0.5 * (r0[0][0] + r0[0][1])
     wc = np.zeros(b0.nuzfcells)
-    wc[0], wc[1] = 0.4455, 0.9            # 0.9 is above thts: clipped
+    wc[0], wc[1] = mid, 0.9               # 0.9 is above thts: clipped
     carry = b0.thti_from_wc(wc)
     k, i, j = b0.uzf_obj_kij[0]
-    assert carry[k, i, j] == 0.4455
+    assert carry[k, i, j] == pytest.approx(mid)
     assert np.isnan(carry[b0.uzf_obj_kij[2]]), '0 = under the water table'
     b1 = _build(cmf, tmp_path / 'b', uzf_thti_carry=carry)
     thti = {int(r[0]): float(r[8]) for r in b1.uzf_packagedata}
     thts = {int(r[0]): float(r[7]) for r in b1.uzf_packagedata}
-    assert thti[0] == pytest.approx(0.4455)
+    assert thti[0] == pytest.approx(mid)
     assert thti[1] == pytest.approx(thts[1])
     assert thti[2] == {int(r[0]): float(r[8]) for r in b0.uzf_packagedata}[2]
 
