@@ -335,6 +335,7 @@ def progress(pest_ws, now=None, running=None):
                      'failed': n['failed'], 'killed (overdue)': n['killed'],
                      ('running' if state == 'running' else 'unfinished'):
                      n['running'],
+                     'shortest run (min)': min(t) if t else None,
                      'mean run (min)': (sum(t) / len(t)) if t else None,
                      'longest run (min)': max(t) if t else None,
                      'started': b['first'], 'last event': b['last']})

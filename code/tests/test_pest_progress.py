@@ -176,6 +176,8 @@ def test_the_progress_of_a_running_calibration(tmp_path):
     assert [r['killed (overdue)'] for r in rows] == [1, 0, 0]
     assert [r['running'] for r in rows] == [0, 0, 2]
     assert rows[0]['mean run (min)'] == pytest.approx(114.1)
+    assert rows[0]['shortest run (min)'] == pytest.approx(108.2)
+    assert rows[0]['longest run (min)'] == pytest.approx(120.0)
     assert [(a['agent'], a['realisation']) for a in p['agents']] == [
         ('worker_0', '5'), ('worker_1', 'BASE')]
     # each agent's runs so far, in place of PEST++'s run id (user,

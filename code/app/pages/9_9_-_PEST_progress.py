@@ -104,6 +104,8 @@ def _show():
         st.dataframe(pd.DataFrame(p['batches']), hide_index=True,
                      width='stretch',
                      column_config={
+                         'shortest run (min)': st.column_config.NumberColumn(
+                             format='%.0f'),
                          'mean run (min)': st.column_config.NumberColumn(
                              format='%.0f'),
                          'longest run (min)': st.column_config.NumberColumn(
