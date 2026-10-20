@@ -477,3 +477,28 @@ def test_the_prior_keeps_layer_1_k_a_decade_under_layer_2():
     # the broken pair met halfway, in log: 1 x 2 -> sqrt(2/10) and sqrt(20)
     assert df.loc[1, k1[0]] == pytest.approx(np.sqrt(0.2), rel=1e-6)
     assert df.loc[1, k2[0]] == pytest.approx(np.sqrt(20.0), rel=1e-6)
+
+
+def test_a_failed_run_keeps_its_logs(tmp_path):
+    """2026-10-20: a failed run's model.log and the end of its MF6 listing
+    are kept in <pest_ws>/failed_runs -- the worker's next run overwrote
+    them within seconds, and the cause of every failure was lost."""
+    w = tmp_path / 'workers' / 'worker_19'
+    (w / 'ws' / 'MF6_ws_voronoi').mkdir(parents=True)
+    (w / 'model.log').write_text('...\nmarmites_coupler.NonConvergence: '
+                                 'NON-CONVERGENCE: stress period 254\n')
+    (w / 'ws' / 'MF6_ws_voronoi' / 'mfsim.lst').write_text('x' * 400000)
+    kept = pfw.keep_failed(str(w))
+    assert os.path.dirname(kept) == str(tmp_path / 'failed_runs')
+    assert kept.endswith('_worker_19_model.log')
+    assert 'NON-CONVERGENCE' in open(kept).read()
+    tail = [f for f in os.listdir(tmp_path / 'failed_runs')
+            if f.endswith('_mfsim_tail.lst')]
+    assert len(tail) == 1 and os.path.getsize(
+        tmp_path / 'failed_runs' / tail[0]) == 300000
+    # and PEST++ progress reads the cause from the kept log
+    sys.path.insert(0, os.path.join(TRUNK, 'app'))
+    from lib import pest_progress as pp
+    (w / 'model.log').write_text('the next run, still going\n')
+    assert pp.failure_cause(str(tmp_path), 'worker_19').startswith(
+        'marmites_coupler.NonConvergence: NON-CONVERGENCE')

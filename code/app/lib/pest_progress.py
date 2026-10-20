@@ -208,9 +208,14 @@ def read_phi(master, case):
 
 
 def failure_cause(pest_ws, agent, lines=80):
-    """Why a run failed, from the end of its agent's model log: the error
-    and the lines that explain it. '' when there is nothing to read."""
-    fn = Path(pest_ws) / 'workers' / agent / 'model.log'
+    """Why a run failed, from the end of its model log: the newest one
+    the forward run KEPT for that agent (failed_runs/, 2026-10-20), else
+    the agent's own model.log -- which its next run overwrites within
+    seconds. The error and the lines that explain it; '' when there is
+    nothing to read."""
+    kept = sorted((Path(pest_ws) / 'failed_runs').glob(
+        '*_%s_model.log' % agent))
+    fn = kept[-1] if kept else Path(pest_ws) / 'workers' / agent / 'model.log'
     try:
         with open(fn, 'rb') as fh:
             fh.seek(0, 2)
@@ -220,7 +225,7 @@ def failure_cause(pest_ws, agent, lines=80):
         return ''
     for i in range(len(tail) - 1, -1, -1):
         line = tail[i].strip()
-        if re.match(r'^[\w.]*(Error|Exception)\b.*:', line):
+        if re.match(r'^[\w.]*(Error|Exception|NonConvergence)\b.*:', line):
             more = [x.strip() for x in tail[i + 1:i + 6]
                     if x.strip().startswith('-')]
             return ' '.join([line] + more)

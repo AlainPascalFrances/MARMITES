@@ -43,6 +43,8 @@ MULT_DIR = 'mm_mult'
 PARS = 'pars'
 TARGETS = 'pest_targets.csv'
 OBS_OUT = 'pest_obs.csv'
+# where a failed run's logs are kept (keep_failed)
+FAILED_DIR = 'failed_runs'
 
 
 def apply_scalars(cfg, table, mult_dir=None):
@@ -112,6 +114,45 @@ def write_scalars(wd, table):
             fh.write('scalar,value\n%s,%.10g\n' % (name, float(value)))
 
 
+def keep_failed(wd):
+    """A failed run's model.log and the end of its MF6 listing, kept where
+    the worker's next run cannot overwrite them (2026-10-20: the cause of
+    every failure was lost seconds after it, the agent starting its next
+    run): <pest_ws>/failed_runs/<YYYYmmdd_HHMMSS>_<worker>_model.log and
+    _mfsim_tail.lst -- <wd>/failed_runs for a folder outside workers/.
+    Returns the kept log's path, or None."""
+    wd = os.path.abspath(wd)
+    parent = os.path.dirname(wd)
+    root = (os.path.dirname(parent) if os.path.basename(parent) == 'workers'
+            else wd)
+    d = os.path.join(root, FAILED_DIR)
+    os.makedirs(d, exist_ok=True)
+    stem = '%s_%s' % (time.strftime('%Y%m%d_%H%M%S'), os.path.basename(wd))
+    kept = None
+    log = os.path.join(wd, 'model.log')
+    if os.path.exists(log):
+        kept = os.path.join(d, stem + '_model.log')
+        shutil.copy2(log, kept)
+    lst = os.path.join(wd, 'ws', 'MF6_ws_voronoi', 'mfsim.lst')
+    if os.path.exists(lst):
+        size = os.path.getsize(lst)
+        with open(lst, 'rb') as fh:
+            fh.seek(max(0, size - 300000))
+            tail = fh.read()
+        with open(os.path.join(d, stem + '_mfsim_tail.lst'), 'wb') as fh:
+            fh.write(tail)
+    return kept
+
+
+def _keep_failed_quietly(wd):
+    try:
+        kept = keep_failed(wd)
+        if kept:
+            print('failed run kept: %s' % kept)
+    except Exception as exc:                          # noqa: BLE001
+        print('failed run not kept: %r' % exc)
+
+
 def _sentinel(targets, path):
     import pandas as pd
     pd.DataFrame({'obsnme': targets['obsnme'], 'value': 1.0e10}).to_csv(
@@ -170,6 +211,7 @@ def forward(wd='.', python=None, keep=False):
     try:
         exports = run_model(wd, python=python)
         if exports is None:
+            _keep_failed_quietly(wd)
             _sentinel(targets, out)
             return 1
         # the targets' own settings (q_eps): the [pest] of the copy
@@ -179,6 +221,7 @@ def forward(wd='.', python=None, keep=False):
         return 0
     except Exception as exc:                          # pragma: no cover
         print('forward run failed: %r' % exc)
+        _keep_failed_quietly(wd)
         _sentinel(targets, out)
         return 1
     finally:
