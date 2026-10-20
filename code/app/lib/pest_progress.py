@@ -331,7 +331,11 @@ def progress(pest_ws, now=None, running=None):
         # sent and not back: running while the master runs, unfinished once
         # it has stopped
         rows.append({'iteration': b['iteration'], 'stage': b['stage'],
-                     'planned': b['planned'], 'completed': n['completed'],
+                     'planned': b['planned'],
+                     # the runs that have ENDED, whichever way (user,
+                     # 2026-10-20)
+                     'total runs': n['completed'] + n['failed'] + n['killed'],
+                     'completed': n['completed'],
                      'failed': n['failed'], 'killed (overdue)': n['killed'],
                      ('running' if state == 'running' else 'unfinished'):
                      n['running'],

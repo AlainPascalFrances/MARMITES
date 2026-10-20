@@ -172,6 +172,9 @@ def test_the_progress_of_a_running_calibration(tmp_path):
     assert (p['iteration'], p['noptmax'], p['nreal']) == (1, 2, 4)
     rows = p['batches']
     assert [r['completed'] for r in rows] == [2, 2, 0]
+    assert [r['total runs'] for r in rows] == [4, 2, 0]   # ended runs
+    keys = list(rows[0])
+    assert keys.index('total runs') == keys.index('completed') - 1
     assert [r['failed'] for r in rows] == [1, 0, 0]
     assert [r['killed (overdue)'] for r in rows] == [1, 0, 0]
     assert [r['running'] for r in rows] == [0, 0, 2]
