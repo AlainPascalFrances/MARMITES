@@ -105,6 +105,12 @@ def uzf_room_fraction(sy, wcnew, thtr, ncell):
     return sy - (np.clip(wc, r, r + sy) - r)
 
 
+class NonConvergence(RuntimeError):
+    """A stress period needed more solver iterations than [run]
+    max_solver_iterations allows: the solution is not valid (user,
+    2026-10-20), and the run stops."""
+
+
 class CouplingError(Exception):
     """Raised on MF6 API exchange failures."""
 
@@ -196,6 +202,9 @@ class MF6Coupler:
         self.perlen = list(np.asarray(_perlen).ravel())
         self.sim_ws = getattr(mf6b, 'sim_ws', None)
         self.max_substeps = 5000       # ATS safety cap per stress period
+        # [run] max_solver_iterations (0: none): past it in one stress
+        # period the run stops as NON-CONVERGENCE (_advance)
+        self.max_solver_iterations = 0
         self.substeps = 0              # extra ATS sub-steps taken overall
         self.n_nonconverged = 0
         # MF6's own time step (do_time_step), which RETRIES a step it cannot
@@ -1916,7 +1925,8 @@ class MF6Coupler:
                         self._write_runoff(ro)
                     self._write_openwater_evap(sp)
 
-                self.outer_iters[n] = self._advance(api, t_end[n + 1], write_cb=_write)
+                self.outer_iters[n] = self._advance(api, t_end[n + 1],
+                                                    write_cb=_write, period=n)
                 self.heads_hist[n] = heads
                 self.exf_hist[n] = exf
                 self.perc_hist[n] = out['perc']
@@ -2206,7 +2216,7 @@ class MF6Coupler:
                 kiter = 0
         return kiter, converged
 
-    def _advance(self, api, t_end=None, write_cb=None):
+    def _advance(self, api, t_end=None, write_cb=None, period=None):
         """Advance MF6 to the end of the current stress period.
 
         With ATS a stress period is NOT one time step: MF6 subdivides any
@@ -2219,14 +2229,22 @@ class MF6Coupler:
         prepare_time_step (the fluxes are stress-period rates, so re-writing
         them on each sub-step is idempotent and keeps them from being reverted
         by rp).
+
+        THE NON-CONVERGENCE GUARD (user, 2026-10-20): the solver iterations
+        of all the period's sub-steps are summed, and past [run]
+        max_solver_iterations the run stops with NonConvergence -- checked
+        after every sub-step, so a stalling period is stopped within itself
+        rather than hours later. ``period`` (0-based) names it.
         """
         acc = {}
         t0 = self._now(api)
         kiter, converged = self._one_step(api, write_cb)
+        total = int(kiter)
         self._keep_sfr_inflow()
         now = self._now(api)
         self._rates_add(acc, None if t0 is None or now is None else now - t0)
         nsub = 1
+        self._check_iterations(total, nsub, period)
         if t_end is not None:
             while nsub < self.max_substeps:
                 if now is None:                    # pragma: no cover
@@ -2241,6 +2259,8 @@ class MF6Coupler:
                 kiter = max(kiter, k)
                 converged = converged and ok
                 nsub += 1
+                total += int(k)
+                self._check_iterations(total, nsub, period)
             else:                                  # pragma: no cover
                 raise CouplingError(
                     'MF6 did not reach the end of the stress period after %d '
@@ -2251,6 +2271,28 @@ class MF6Coupler:
         if not converged:
             self.n_nonconverged += 1
         return kiter
+
+    def _check_iterations(self, total, nsub, period=None):
+        """Stop the run when a stress period's solver iterations so far,
+        ``total`` over ``nsub`` sub-steps, pass [run] max_solver_iterations
+        (0: never)."""
+        limit = int(getattr(self, 'max_solver_iterations', 0) or 0)
+        if limit <= 0 or total <= limit:
+            return
+        when = ''
+        if period is not None:
+            when = ' %d' % (int(period) + 1)
+            d = getattr(self.ctx, 'dates', None) if getattr(
+                self, 'ctx', None) is not None else None
+            try:
+                when += ' (%s)' % d[int(period)]
+            except (TypeError, IndexError, KeyError):
+                pass
+        raise NonConvergence(
+            'NON-CONVERGENCE: stress period%s needed more than %d '
+            'linear-solver iterations (%d in %d ATS sub-step(s)) -- the '
+            'solution is not valid, the run stops (run.max_solver_iterations)'
+            % (when, limit, int(total), int(nsub)))
 
 
 if __name__ == '__main__':

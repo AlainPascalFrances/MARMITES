@@ -295,6 +295,15 @@ something a regression.
   recharge with no derivative, so an outer iteration closes only
   (thts - wc)/(thts - thtr) of the gap (the prior of 2026-10-18 lost 18 runs
   as overdue).
+- **Non-convergence guard** (user, 2026-10-20): `run.max_solver_iterations`
+  (0 = none, the Run panel) stops a run as NON-CONVERGENCE when one stress
+  period needs more linear-solver iterations (MF6 TOTAL ITERATIONS, all ATS
+  sub-steps) -- such a solution is not valid. The PEST copy takes
+  `pest.max_solver_iterations` (default 1500): healthy base run <= 133 a
+  day, stalled realisations 3000-4900 (a water table rising into a
+  saturated UZF wetting front: infiltration at VKS; toy
+  X:	mp_claude	oy_uzf). The stall is not cured by perc_cap's room-left
+  cap; such realisations are invalid and fail fast.
 - `[layers]` properties take ONE VALUE PER LAYER (`value = [2.0, 10.0]`,
   panel 4 shows a box per layer). k33 as ratios Kh/Kv: default 2 in the
   saprolite, 10 in the fissured layer (user, 2026-10-19;

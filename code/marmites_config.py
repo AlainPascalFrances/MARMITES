@@ -381,6 +381,13 @@ class Run:
     # full day, 0.01 d allows two retries (0.2, 0.04 d); then the step is
     # given up and counted.
     ats_dtmin: float = 0.01        # d
+    # NON-CONVERGENCE GUARD: the most linear-solver iterations (MF6's TOTAL
+    # ITERATIONS, all ATS sub-steps together) one stress period may take;
+    # past it the run STOPS as non-convergence (user, 2026-10-20: such a
+    # solution is not valid). 0: no limit. The base run of 2026-10-19 took
+    # at most 133 in a day; the realisations that stalled 3000-4900 on each
+    # stalling day (a water table rising into a saturated UZF wetting front)
+    max_solver_iterations: int = 0
     build_only: bool = False       #                           (--build-only)
     standalone: str = ''           # mf6.exe path              (--standalone)
     probe: bool = False            #                           (--probe)
@@ -1613,6 +1620,11 @@ class Pest:
     bad_phi_sigma: float = 2.5
     overdue_giveup_fac: float = 4.0
     agents: int = 20
+    # the realisations' non-convergence guard (run.max_solver_iterations
+    # of the calibration's copy): a realisation needing more linear-solver
+    # iterations in one stress period stops and counts as failed at once
+    # (user, 2026-10-20), instead of crawling until the overdue limit
+    max_solver_iterations: int = 1500
     start: str = 'prior'           # prior | warm | restart
     start_from: str = ''           # warm: a .jcb ensemble; restart: a master
 
@@ -2541,11 +2553,17 @@ class RunConfig:
                         'separated, got %r' % p.lambda_mults)
         if not p.bad_phi_sigma > 0.0:
             errs.append('pest.bad_phi_sigma must be > 0')
+        if self.run.max_solver_iterations < 0:
+            errs.append('run.max_solver_iterations must be >= 0 (0: no '
+                        'limit)')
         if not p.overdue_giveup_fac > 1.0:
             errs.append('pest.overdue_giveup_fac must be > 1 (x the mean run '
                         'time)')
         if p.agents < 1:
             errs.append('pest.agents must be >= 1')
+        if p.max_solver_iterations < 0:
+            errs.append('pest.max_solver_iterations must be >= 0 (0: no '
+                        'limit)')
         if p.start not in PEST_STARTS:
             errs.append('pest.start must be one of %s' % ', '.join(PEST_STARTS))
         elif p.start != 'prior' and not (p.start_from or '').strip():
