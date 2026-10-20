@@ -303,9 +303,11 @@ something a regression.
   (the coupler reads IOUTTOT_TIMESTEP -- reset at every try -- and counts
   the failed tries from how far DELT was cut, / dtfailadj 5; the MF6
   listing prints 'CALLS TO NUMERICAL SOLUTION' for converged tries only).
-  `stall_periods` (3) periods in a row past `stall_iterations` (300), or one
-  past `max_period_iterations` (2000), stop the run as NON-CONVERGENCE --
-  such a solution is not valid. Base run <= 31 a day; failed realisations
+  `stall_periods` (3) periods in a row past `stall_iterations` (600), or one
+  past `max_period_iterations` (0 = no cap), stop the run as NON-CONVERGENCE
+  -- such a solution is not valid. 300 + a cap of 2000 (first set) stopped
+  single hard days (2027-2035, one run 91 % done) and slow converging days
+  (312-340 in 5 sub-steps): too strict (user, 2026-10-20). Base run <= 31 a day; failed realisations
   640-770 on one day; r67 got through two such days, then stalled 9 days in
   a row (870-2700): a water table rising into a saturated UZF wetting front
   (infiltration at VKS; toy X:\tmp_claude\toy_uzf). The first guard (linear

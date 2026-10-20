@@ -135,16 +135,18 @@ def test_the_count_takes_the_tries_ats_gave_up():
 def test_the_guard_is_a_run_field_with_its_checks():
     c = mcfg.RunConfig.from_dict({})
     g = c.run
+    # 300 and a cap of 2000 stopped slow days that converged and single
+    # hard days (user, 2026-10-20): 600, no cap
     assert (g.stall_iterations, g.stall_periods,
-            g.max_period_iterations) == (300, 3, 2000)
+            g.max_period_iterations) == (600, 3, 0)
     assert not hasattr(c.pest, 'max_solver_iterations')
     assert not any('stall' in e or 'max_period' in e for e in c.problems())
     for k, v, m in (('stall_iterations', -1, 'run.stall_iterations must'),
                     ('stall_periods', 0, 'run.stall_periods must be >= 1'),
                     ('max_period_iterations', -2,
                      'run.max_period_iterations must be >= 0'),
-                    ('max_period_iterations', 300,
-                     'run.max_period_iterations (300) must be above')):
+                    ('max_period_iterations', 600,
+                     'run.max_period_iterations (600) must be above')):
         c = mcfg.RunConfig.from_dict({})
         setattr(c.run, k, v)
         assert any(m in e for e in c.problems()), (k, v)
@@ -156,7 +158,7 @@ def test_the_guard_is_a_run_field_with_its_checks():
 def test_a_file_with_the_first_guard_still_loads():
     c = mcfg.RunConfig.from_dict({'run': {'max_solver_iterations': 0},
                                   'pest': {'max_solver_iterations': 1500}})
-    assert c.run.stall_iterations == 300
+    assert c.run.stall_iterations == 600
     assert 'max_solver_iterations' in mcfg.RETIRED['run']
     assert 'max_solver_iterations' in mcfg.RETIRED['pest']
 

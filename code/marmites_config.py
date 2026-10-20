@@ -392,10 +392,15 @@ class Run:
     # through two such days (937, 777) before it stalled nine days in a row
     # (870-2700 each). The first guard, on linear iterations and one day,
     # killed six realisations of the prior of 2026-10-20 at their first
-    # hard day and one that had converged (an expensive linear solve).
-    stall_iterations: int = 300
+    # hard day and one that had converged (an expensive linear solve). 300
+    # and a cap of 2000 then stopped four more (user, 2026-10-20: too
+    # strict): two on a single day of 2027-2035 with no stall before (one
+    # 91 % done), two on slow days that still converged (312, 340, 329 in
+    # 5 sub-steps a day). Hence 600 and no cap -- PEST++'s overdue limit
+    # bounds a run's time.
+    stall_iterations: int = 600
     stall_periods: int = 3
-    max_period_iterations: int = 2000
+    max_period_iterations: int = 0
     build_only: bool = False       #                           (--build-only)
     standalone: str = ''           # mf6.exe path              (--standalone)
     probe: bool = False            #                           (--probe)

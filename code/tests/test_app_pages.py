@@ -193,9 +193,19 @@ def test_the_pest_setup_panel_holds_the_calibration(tmp_path, monkeypatch):
               'pest.lambda_mults', 'pest.bad_phi_sigma',
               'pest.overdue_giveup_fac', 'pest.agents', 'pest.start_from'):
         assert k in keys, '%s is not on the page' % k
-    # the realisations' non-convergence guard is [run]'s, named here
-    assert ('after 3 stress period(s) in a row past 300 Newton iterations '
-            'or one past 2000') in ' '.join(str(c.value) for c in at.caption)
+    # the realisations' non-convergence guard is [run]'s -- of the live
+    # configuration the page shows -- named here
+    import marmites_config as mcfg
+    g = mcfg.load_run_config(os.path.join(str(mm_paths.CONFIG_DIR),
+                                          'lamata.toml')).run
+    said = ' '.join(str(c.value) for c in at.caption) + ' '.join(
+        str(w.value) for w in at.warning)
+    if int(g.stall_iterations) > 0:
+        assert ('after %d stress period(s) in a row past %d Newton '
+                'iterations' % (int(g.stall_periods),
+                                int(g.stall_iterations))) in said
+    elif int(g.max_period_iterations) <= 0:
+        assert 'non-convergence guard is off' in said
     sel = {w.key for w in at.selectbox}
     # the base (phase 3): a run of the registry, or -- none chosen in the
     # configuration -- a saved state picked by hand, then offered too

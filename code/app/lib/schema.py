@@ -251,7 +251,11 @@ FIELDS = {
     'run.max_period_iterations': ('Newton iterations cap', 'Newton iterations',
                                   'One stress period past this stops the run '
                                   'at once, stalled or not before. Above '
-                                  'the stalled-period limit; 0: no cap.'),
+                                  'the stalled-period limit; 0: no cap (the '
+                                  'default: a cap of 2000 stopped '
+                                  'realisations on a single hard day, one '
+                                  '91 % done; PEST++\'s overdue limit bounds '
+                                  'a calibration run\'s time).'),
     'run.max_discrepancy': ('Maximum mass-balance discrepancy', '%',
                             'The run fails above this cumulative value.'),
     'run.allow_bad_budget': ('Keep a run that fails the checks', _U,
