@@ -126,3 +126,18 @@ def test_a_template_older_than_the_set_up_is_not_ready(tmp_path):
     _wait(str(ws), job_id)
     ready, why = pest_jobs.setup_ready(str(ws))
     assert not ready and 'older' in why
+
+
+def test_a_line_rewritten_in_place_is_shown_once(tmp_path):
+    """PANTHER rewrites its progress line every second with carriage
+    returns: the page shows it as it stands, not its last 40 versions."""
+    ws = tmp_path / 'pest'
+    d = ws / 'jobs' / '20261020081102_launch'
+    d.mkdir(parents=True)
+    (d / 'job.log').write_bytes(
+        b'pestpp-ies, noptmax 3\nPANTHER progress\n'
+        + b''.join(b'10/20 08:11:%02d runs(C%d)\r' % (s, s)
+                   for s in range(40, 60)) + b'10/20 08:12:00 runs(C20)')
+    tail = pest_jobs.log_tail(str(ws), '20261020081102_launch', 40)
+    assert tail.splitlines() == ['pestpp-ies, noptmax 3', 'PANTHER progress',
+                                 '10/20 08:12:00 runs(C20)']

@@ -178,9 +178,14 @@ def log_tail(pest_ws, job_id, lines=40):
         return ''
     size = p.stat().st_size
     with open(p, 'rb') as fh:
-        fh.seek(max(0, size - max(4096, lines * 200)))
+        fh.seek(max(0, size - max(65536, lines * 400)))
         raw = fh.read().decode('utf-8', errors='replace')
-    return '\n'.join(raw.splitlines()[-lines:])
+    # a line rewritten in place (PANTHER's progress line, every second, by
+    # carriage returns) is shown as it stands now, once -- not as the 40
+    # last rewrites
+    out = [ln.rstrip('\r').split('\r')[-1]
+           for ln in raw.replace('\r\n', '\n').split('\n')]
+    return '\n'.join(out[-lines:])
 
 
 def stop(pest_ws, job_id):
