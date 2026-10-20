@@ -138,3 +138,42 @@ def test_the_builder_gives_the_land_objects_thtr():
     with open(os.path.join(HERE, '..', 'ppMF6', 'marmites_mf6.py'),
               encoding='utf-8') as fh:
         assert 'self.uzf_land_thtr = ' in fh.read()
+
+
+def test_the_wetting_front_saturation_limits_the_cap():
+    """VKS * s^eps (2026-10-20): the flux whose Brooks-Corey front is s
+    saturated -- at VKS a water table rising into the saturated front
+    stalls MF6; a fixed fraction of VKS does not hold across eps (toy: 75 %
+    gave 42 Newton iterations a day at eps 3.5, 94 at 14; s 0.92 39-42)."""
+    s = _self(vks=[0.025] * 3, sy=[0.01] * 3, top=[760.0] * 3)
+    s._uzf_eps = np.array([3.5, 7.0, 14.0])
+    s.max_front_saturation = 0.92
+    cap = coup.MF6Coupler.perc_cap(s, np.full(3, 700.0), 0)
+    assert cap == pytest.approx(25.0 * 0.92 ** np.array([3.5, 7.0, 14.0]))
+    assert cap[0] == pytest.approx(18.7, abs=0.05)    # ~75 % at eps 3.5
+    # the room left still wins where it is smaller
+    near = coup.MF6Coupler.perc_cap(s, np.full(3, 759.5), 0)
+    assert near == pytest.approx([2.5, 2.5, min(2.5, 25.0 * 0.92 ** 14)])
+    s.max_front_saturation = 1.0                       # up to VKS
+    assert coup.MF6Coupler.perc_cap(s, np.full(3, 700.0), 0) == \
+        pytest.approx([25.0] * 3)
+
+
+def test_the_saturation_limit_is_a_uzf_field_passed_to_the_coupler():
+    import inspect
+    sys.path.insert(0, os.path.join(HERE, '..'))
+    import marmites_config as mcfg
+    c = mcfg.RunConfig.from_dict({})
+    assert c.uzf.max_front_saturation == 0.92
+    for bad in (0.0, 1.2):
+        c.uzf.max_front_saturation = bad
+        assert any('uzf.max_front_saturation must be in (0, 1]' in e
+                   for e in c.problems())
+    assert "'uzf_land_eps'" in inspect.getsource(coup.MF6Coupler.__init__)
+    with open(os.path.join(HERE, '..', 'ppMF6', 'marmites_mf6.py'),
+              encoding='utf-8') as fh:
+        assert 'self.uzf_land_eps = ' in fh.read()
+    with open(os.path.join(HERE, 'run_lamata_mf6.py'), encoding='utf-8') as fh:
+        src = fh.read()
+    assert 'uzf_front_saturation=float(cfg.uzf.max_front_saturation)' in src
+    assert 'cpl.max_front_saturation = float(a.uzf_front_saturation)' in src

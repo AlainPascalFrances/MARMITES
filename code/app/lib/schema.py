@@ -813,6 +813,16 @@ FIELDS = {
                       'recharge, and raising vks restores the rate the NWT '
                       'model had. It scales the UZF column ONLY, never the '
                       'aquifer `k33`.'),
+    'uzf.max_front_saturation': (
+        'Wetting-front saturation limit', _U,
+        'NOT a MODFLOW field. The soil percolates into each UZF column at '
+        'most VKS x s^eps -- the flux whose Brooks-Corey wetting front is '
+        's saturated; it keeps the rest. At VKS the front is saturated, and '
+        'a water table rising into it stalls MODFLOW (UZF credits that '
+        'water as recharge with no Newton derivative): the calibration '
+        'of 2026-10-20 lost 14 of 15 runs to it in the first wet winter. '
+        '0.92 held a toy model to about 40 Newton iterations a day whatever '
+        'eps. 1: up to VKS.'),
     'seep.kind': ('Seepage mechanism', _U,
                   'drn: a drain at the soil base whose conductance ramps in '
                   'over the smoothing depth -- what MODFLOW 6 recommends. '
@@ -1392,6 +1402,7 @@ UZF_ROWS = (
     ('uzf.thtr', 'uzf.thti'),
     ('uzf.vks_from', 'uzf.vks_scale'),
     ('uzf.vks', None),
+    ('uzf.max_front_saturation', None),
 )
 # Evapotranspiration inside MODFLOW, which is UNSATURATED-zone ET only.
 # There is NO on/off: UZF always simulates it (WP2). What is asked is how --

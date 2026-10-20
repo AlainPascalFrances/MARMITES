@@ -1406,8 +1406,10 @@ class clsMF6:
         # can take each day (MF6Coupler.perc_cap, 2026-10-18), per land
         # object: its VKS, its drainable porosity thts - thtr (= Sy), its
         # thtr -- what its mean water content WCNEW is above -- and the
-        # surface depression depth
+        # surface depression depth; and its Brooks-Corey eps, for the
+        # wetting front's saturation limit
         self.uzf_land_vks = np.array([r[5] for r in pkdata], dtype=float)
+        self.uzf_land_eps = np.array([r[9] for r in pkdata], dtype=float)
         self.uzf_land_sy = np.array([r[7] - r[6] for r in pkdata],
                                     dtype=float)
         self.uzf_land_thtr = np.array([r[6] for r in pkdata], dtype=float)

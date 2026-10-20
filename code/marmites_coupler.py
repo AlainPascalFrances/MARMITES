@@ -282,6 +282,9 @@ class MF6Coupler:
         # the MF6 top, or the bottom of the layer above where the land
         # surface is a lower layer. None from a builder without them.
         self._uzf_vks = getattr(mf6b, 'uzf_land_vks', None)
+        self._uzf_eps = getattr(mf6b, 'uzf_land_eps', None)
+        # [uzf] max_front_saturation (perc_cap): 1, VKS itself
+        self.max_front_saturation = 1.0
         self._uzf_sy = getattr(mf6b, 'uzf_land_sy', None)
         self._uzf_thtr = getattr(mf6b, 'uzf_land_thtr', None)
         self._uzf_surfdep = float(getattr(mf6b, 'uzf_surfdep', 0.0) or 0.0)
@@ -499,7 +502,8 @@ class MF6Coupler:
         cell, at what it is not yet holding, thts minus its mean water
         content WCNEW (start of day):
 
-            cap = min(VKS, max(top - surfdep - h0, 0) * (thts - wc) / day)
+            cap = min(VKS * s^eps, max(top - surfdep - h0, 0) * (thts - wc)
+                      / day)
 
         MMsoil keeps the rest, and what UZF still refuses runs off
         (2026-10-18). The refused water used to come back into the soil
@@ -520,11 +524,25 @@ class MF6Coupler:
         prior of 2026-10-18: 18 of 100). wc is held within [thtr, thts]; a
         model without WCNEW, or before MF6 has one, takes thtr (the empty
         zone). A head that is not one (dry, NaN) leaves VKS. None when the
-        builder gave no UZF properties: no cap."""
+        builder gave no UZF properties: no cap.
+
+        THE WETTING FRONT'S SATURATION, s = [uzf] max_front_saturation
+        (2026-10-20): not VKS but VKS * s^eps, the flux whose Brooks-Corey
+        front is s saturated. The room left does not stop a front at VKS
+        from being saturated -- nor, then, a water table rising into it from
+        stalling MF6 (each outer iteration closes 1 - s of the gap): the
+        update of iteration 1 of the calibration of 2026-10-20 stalled 14
+        of 15 runs in the first wet winter. On the toy, s 0.92 held the
+        worst day at 39-42 Newton iterations whatever eps; a fixed 75 % of
+        VKS did not (42 at eps 3.5, 94 at 14)."""
         if self._uzf_vks is None or self._uzf_sy is None \
                 or self._uzf_top is None:
             return None
         vks = np.asarray(self._uzf_vks, dtype=float)[:self.ncell]
+        s = float(getattr(self, 'max_front_saturation', 1.0) or 1.0)
+        eps = getattr(self, '_uzf_eps', None)
+        if s < 1.0 and eps is not None:
+            vks = vks * s ** np.asarray(eps, dtype=float)[:self.ncell]
         sy = np.asarray(self._uzf_sy, dtype=float)[:self.ncell]
         h = np.asarray(heads, dtype=float)
         perlen = float(self.perlen[n]) if n < len(self.perlen) else 1.0

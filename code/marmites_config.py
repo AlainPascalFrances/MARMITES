@@ -992,6 +992,19 @@ class Uzf:
     vks_from: str = 'layer'        # layer | raster
     vks: VectorSource = field(default_factory=VectorSource)
     vks_scale: float = 1.0         #                           (--uzf-vks-scale)
+    # THE WETTING FRONT'S SATURATION LIMIT (2026-10-20): the soil
+    # percolates into each land UZF object at most VKS x s^eps, the flux
+    # whose Brooks-Corey wetting front is s saturated ((q / VKS)^(1/eps)).
+    # At VKS the front is saturated, and a water table rising into it
+    # stalls MF6: uz_rise credits the water it passes with no Newton
+    # derivative, so an outer iteration closes only 1 - s of the gap. The
+    # update of iteration 1 of the calibration of 2026-10-20 (layer-1 K
+    # x0.3-0.6, drains x0.1-0.7) stalled 14 of 15 runs in the first wet
+    # winter. Toy (X:/tmp_claude/toy_uzf): at VKS 6266 Newton iterations a
+    # day; at s 0.92 39-42 whatever eps (75 % of VKS gave 42 at eps 3.5
+    # but 94 at 14: a fixed fraction does not hold). The soil keeps the
+    # rest. 1: no limit (VKS).
+    max_front_saturation: float = 0.92
 
 
 @dataclass
@@ -2078,6 +2091,9 @@ class RunConfig:
         if self.uzf.thtr_from not in ('sy', 'source'):
             errs.append("uzf.thtr_from must be 'sy' (thtr = thts - Sy) or "
                         "'source' (uzf.thtr as given)")
+        if not 0.0 < float(self.uzf.max_front_saturation) <= 1.0:
+            errs.append('uzf.max_front_saturation must be in (0, 1] (1: '
+                        'the soil percolates up to VKS)')
         # uzf.thtr is READ only when thtr_from = source; with 'sy' it is
         # derived at the build, and thti is then clipped into [thtr, thts]
         # there, with a note -- so neither is a configuration error here.

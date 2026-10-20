@@ -296,7 +296,13 @@ something a regression.
   stalled MF6's Newton loop: UZF's uz_rise credits the water it passes as
   recharge with no derivative, so an outer iteration closes only
   (thts - wc)/(thts - thtr) of the gap (the prior of 2026-10-18 lost 18 runs
-  as overdue).
+  as overdue). Since 2026-10-20 VKS there is VKS x s^eps, s = `[uzf]
+  max_front_saturation` (0.92; Uzf panel): the flux whose Brooks-Corey
+  wetting front is s saturated -- at VKS the front itself is saturated and
+  the room-left cap cannot help. Iteration 1 of the calibration of
+  2026-10-20 (layer-1 K x0.3-0.6, drains x0.1-0.7) stalled 14 of 15 runs in
+  the first wet winter. Toy: s 0.92 -> 39-42 Newton iterations a day for eps
+  3.5-14; a fixed 75 % of VKS gave 42 at eps 3.5 but 94 at eps 14.
 - **Non-convergence guard** (user, 2026-10-20), `[run]` on the Run panel,
   for every run (the PEST copy keeps it): MF6's NEWTON (outer) iterations
   per stress period, all ATS sub-steps, a try ATS gave up counting MXITER

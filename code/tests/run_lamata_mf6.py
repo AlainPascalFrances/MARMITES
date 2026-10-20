@@ -1161,6 +1161,7 @@ def _args_from_config(cfg, probe=False):
         nlay=cfg.layers.nlay,
         # packages
         uzf_vks_scale=cfg.uzf.vks_scale,
+        uzf_front_saturation=float(cfg.uzf.max_front_saturation),
         uzf_et_form=cfg.et.unsat_form,
         seep=cfg.seep.kind, seep_cond=cfg.seep.cond,
         seep_ddrn=float(cfg.seep.ddrn),
@@ -1728,6 +1729,8 @@ def main():
         cpl.stall_iterations = int(a.stall_iterations)
         cpl.stall_periods = int(a.stall_periods)
         cpl.max_period_iterations = int(a.max_period_iterations)
+        # the soil percolates at most VKS * s^eps ([uzf])
+        cpl.max_front_saturation = float(a.uzf_front_saturation)
         try:
             res = cpl.run(api)
             # What held for months rather than what happened once: the soil
