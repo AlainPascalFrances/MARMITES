@@ -460,8 +460,14 @@ def _job_view(ws):
         sure = st.checkbox('Stop this job, and everything it started',
                            key='pest_stop_ok')
         if st.button('Stop', key='pest_stop_go', disabled=not sure):
-            pest_jobs.stop(ws, job['job_id'])
-            st.rerun()
+            try:
+                pest_jobs.stop(ws, job['job_id'])
+                st.rerun()
+            except pest_jobs.StopFailed as exc:
+                st.error('The stop failed -- the job runs on: %s. Stop it '
+                         'from a terminal with the rights of the app '
+                         '(taskkill /PID %s /T /F) or the Task Manager '
+                         '(end process tree).' % (exc, job.get('pid')))
 
 
 with tab_run:

@@ -188,21 +188,40 @@ def log_tail(pest_ws, job_id, lines=40):
     return '\n'.join(out[-lines:])
 
 
-def stop(pest_ws, job_id):
+class StopFailed(RuntimeError):
+    """The job is still running after the stop: what the system said."""
+
+
+def stop(pest_ws, job_id, wait=10.0):
     """Stop a running job and everything it started (the agents of a
-    launch with it). Returns True if the stop was sent."""
+    launch with it). True once the job's process is gone; False when there
+    was no running job. StopFailed when it is still alive ``wait`` seconds
+    later -- the job is left 'running', so the stop can be retried: on
+    2026-10-20 a taskkill from a process without the job's rights was
+    refused ('Access is denied') and the job was marked stopped all the
+    same, its 21 PEST++ processes running on."""
     st = status(pest_ws, job_id)
     if not st or st.get('state') != 'running':
         return False
     pid = st.get('pid')
+    said = ''
     try:
         if os.name == 'nt':
-            subprocess.run(['taskkill', '/PID', str(pid), '/T', '/F'],
-                           capture_output=True, timeout=30)
+            r = subprocess.run(['taskkill', '/PID', str(pid), '/T', '/F'],
+                               capture_output=True, text=True, timeout=30)
+            said = (r.stderr or r.stdout or '').strip()
         else:
             os.killpg(os.getpgid(int(pid)), signal.SIGTERM)
-    except Exception:                                   # noqa: BLE001
-        return False
+    except Exception as exc:                            # noqa: BLE001
+        said = repr(exc)
+    t_end = time.time() + float(wait)
+    while _pid_alive(pid) and time.time() < t_end:
+        time.sleep(0.5)
+    if _pid_alive(pid):
+        lines = [ln for ln in said.splitlines() if ln.strip()]
+        raise StopFailed(
+            'job %s (process %s) is still running after the stop%s'
+            % (job_id, pid, (': ' + ' / '.join(lines[-2:])) if lines else ''))
     st.update(state='finished', outcome='stopped',
               finished=time.strftime('%Y-%m-%d %H:%M:%S'))
     _write(jobs_dir(pest_ws) / job_id / _STATUS, st)
