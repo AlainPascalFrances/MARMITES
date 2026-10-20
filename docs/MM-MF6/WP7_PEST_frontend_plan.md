@@ -193,3 +193,28 @@ Blank: the saved-state picker (`pest.base_state`), with a warning. The
 set-up (`resolve_base`) takes the run's configuration with THIS
 configuration's `[pest]`, its end state and its state workspace, and says
 which in its log and in `org/setup.json`.
+
+## 7. Phase 4, as built (2026-10-20)
+
+Tab ⑤ of page 8, **Set up and launch** (user: buttons rather than the
+command line):
+
+- **Set up the calibration** starts `pest_lamata_setup.py --config <the
+  saved configuration>` as a DETACHED job (`app/lib/pest_jobs.py`, through
+  `code/tools/pest_job.py`, which records the tool's exit code -- Windows
+  cannot give it to another process). Refused while changes are unsaved,
+  while another PEST job or pestpp-ies runs, when the base does not resolve
+  or `[pest]` has a problem; each reason is shown under the button.
+- **Launch the calibration** is offered only after a set-up that
+  SUCCEEDED: exit code 0 and a template written after the set-up started.
+  A confirmation box first (agents for hours to days). The launcher now
+  moves an existing `master` aside (`master_<date>`) instead of deleting
+  it.
+- **The current job**: its state, outcome and the last 40 lines of its
+  log, refreshed every 10 s while it runs; **Stop** (with a confirmation)
+  ends it and everything it started; a link to page 9 for a calibration.
+- Jobs live in `<pest_ws>/jobs/<stamp>_<setup|launch>/` (`job.log`,
+  `status.json`, `result.json`). The tools run from the checkout, as from
+  the command line; the set-up snapshots that code for the workers.
+
+Not yet: **Add agents** and **Stop at the end of this iteration**.

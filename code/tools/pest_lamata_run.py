@@ -238,7 +238,13 @@ def main(argv=None):
         pst.pestpp_options.update(opts)
     pst.write(os.path.join(tpl, 'lamata.pst'), version=2)
     if os.path.isdir(master):
-        shutil.rmtree(master)
+        # an earlier calibration's master is KEPT, moved aside under its
+        # last date (2026-10-20: it was deleted -- a launch from the PEST++
+        # set-up page must never lose a calibration's results)
+        aside = '%s_%s' % (master, time.strftime(
+            '%Y%m%d_%H%M%S', time.localtime(os.path.getmtime(master))))
+        os.rename(master, aside)
+        print('the previous master moved to %s' % aside)
     workers = os.path.join(pest_ws, 'workers')
     os.makedirs(workers, exist_ok=True)
     exe = str(mm_paths.PESTPP_IES)

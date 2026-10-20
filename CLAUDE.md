@@ -61,7 +61,9 @@ code/                    all Python
                             pages 1 Grid .. 7 Run (Validation + Run tabs),
                             8 PEST++ set-up (the [pest] section: parameter
                             table, observation groups, ensemble; the PEST
-                            tools read it), 9 PEST++ progress (read-only,
+                            tools read it; tab 5 sets up and launches as
+                            detached jobs, app/lib/pest_jobs.py, records in
+                            <pest_ws>/jobs/), 9 PEST++ progress (read-only,
                             app/lib/pest_progress.py), 10 Results
                             (docs/MM-MF6/WP7_PEST_frontend_plan.md)
                             app/lib/schema.py = panel help texts

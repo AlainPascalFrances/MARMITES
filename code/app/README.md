@@ -43,6 +43,7 @@ lib/runs.py             the run registry: launch, status, log tail; a run
                         records its configuration and end state beside its
                         log (marmites_runinfo)
 lib/pest_progress.py    pestpp-ies's record files -> batches, runs, phi
+lib/pest_jobs.py        PEST set-up / launch as detached jobs (page 8, tab 5)
 ```
 
 ## Two rules this app lives by

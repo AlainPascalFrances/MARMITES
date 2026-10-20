@@ -167,7 +167,8 @@ def test_the_pest_progress_panel_reads_the_master(tmp_path, monkeypatch):
 
 def test_the_pest_setup_panel_holds_the_calibration(tmp_path, monkeypatch):
     """Panel 8 (WP7 front-end, phase 2): the calibration as [pest] fields,
-    in four tabs; the PEST workspace shown read-only, as set on Home."""
+    in five tabs, the last setting up and launching it (phase 4); the PEST
+    workspace shown read-only, as set on Home."""
     import mm_paths
     monkeypatch.setattr(mm_paths, 'PEST_WS', str(tmp_path))
     at = AppTest.from_file(os.path.join(APP, 'pages', '8_8_-_PEST_setup.py'),
@@ -176,7 +177,13 @@ def test_the_pest_setup_panel_holds_the_calibration(tmp_path, monkeypatch):
     assert not at.exception, [str(e.value) for e in at.exception]
     assert [t.label for t in at.tabs] == [
         '① Base and workspace', '② Parameters',
-        '③ Observations and weights', '④ Ensemble and PEST++']
+        '③ Observations and weights', '④ Ensemble and PEST++',
+        '⑤ Set up and launch']
+    # phase 4: the set-up, and the launch -- closed until a set-up has
+    # succeeded (none in this empty workspace)
+    btn = {b.key: b for b in at.button}
+    assert 'pest_setup_go' in btn and 'pest_launch_go' in btn
+    assert btn['pest_launch_go'].disabled
     shown = [w for w in at.text_input if w.key == 'pest_ws_shown']
     assert shown and shown[0].value == str(tmp_path) and shown[0].disabled
     keys = {w.key for w in at.number_input} | {w.key for w in at.text_input}
@@ -184,7 +191,8 @@ def test_the_pest_setup_panel_holds_the_calibration(tmp_path, monkeypatch):
               'pest.k_order_decades', 'pest.soft_fraction', 'pest.points_on',
               'pest.q_dry', 'pest.q_eps', 'pest.nreal', 'pest.noptmax',
               'pest.lambda_mults', 'pest.bad_phi_sigma',
-              'pest.overdue_giveup_fac', 'pest.agents', 'pest.start_from'):
+              'pest.overdue_giveup_fac', 'pest.agents', 'pest.start_from',
+              'pest.max_solver_iterations'):
         assert k in keys, '%s is not on the page' % k
     sel = {w.key for w in at.selectbox}
     # the base (phase 3): a run of the registry, or -- none chosen in the

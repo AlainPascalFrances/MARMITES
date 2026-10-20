@@ -20,8 +20,9 @@ thought through:
   Ensemble and PEST++        realisations, iterations, agents, the start
 
 The PEST workspace is set on Home and only shown here (user, 2026-10-17).
-Setting up and launching from this page come with phase 4; the progress
-is panel 9's.
+Tab ⑤ (phase 4) sets the calibration up and, once a set-up has
+succeeded, launches it -- detached jobs, lib/pest_jobs.py; the progress is
+panel 9's.
 """
 
 import copy
@@ -96,9 +97,9 @@ def _what(cfg, r):
     return '%s%s — %s' % (txt + ', ' if txt else '', how, units)
 
 
-tab_base, tab_par, tab_obs, tab_ens = st.tabs([
+tab_base, tab_par, tab_obs, tab_ens, tab_run = st.tabs([
     '① Base and workspace', '② Parameters', '③ Observations and weights',
-    '④ Ensemble and PEST++'])
+    '④ Ensemble and PEST++', '⑤ Set up and launch'])
 
 # ------------------------------------------------------------------- base
 @st.cache_data(ttl=60, show_spinner=False)
@@ -405,12 +406,133 @@ with tab_ens:
         if jcb:
             st.caption('Parameter ensembles in the PEST workspace:  \n'
                        + '  \n'.join('`%s`' % f for f in jcb[-8:]))
-    st.markdown('#### Set up and launch')
-    st.caption('From this page with phase 4. Until then, from a terminal, '
-               'after *Validate & save*:')
-    st.code('python code/tools/pest_lamata_setup.py --config %s\n'
-            'python code/tools/pest_lamata_run.py --config %s'
-            % (path, path), language='bash')
+    st.caption('Set up and launch on the next tab.')
+
+# ------------------------------------------------------- set up and launch
+# Phase 4 (user, 2026-10-20): the set-up and, once one has succeeded, the
+# launch -- DETACHED jobs (lib/pest_jobs.py) on the SAVED configuration,
+# one at a time; the job's state and log below, refreshed while it runs.
+JOB_REFRESH_S = 10
+
+
+def _job_view(ws):
+    """The latest PEST job: what, how it stands, its log; a stop."""
+    job = pest_jobs.latest(ws)
+    if job is None:
+        st.caption('No job started from this page yet.')
+        return
+    label = {'setup': 'Set-up', 'launch': 'Calibration'}.get(job['kind'],
+                                                           job['kind'])
+    state = job.get('state')
+    head = '**%s** `%s` -- started %s' % (label, job['job_id'],
+                                         job.get('started'))
+    if state == 'running':
+        st.info(head + ', **running**')
+    elif job.get('outcome') == 'ok':
+        st.success(head + ', finished %s (%s min): **succeeded**'
+                   % (job.get('finished'), job.get('minutes')))
+    else:
+        st.error(head + ', ended %s: **%s**%s'
+                 % (job.get('finished') or '', job.get('outcome'),
+                    '' if job.get('returncode') is None
+                    else ' (exit %s)' % job.get('returncode')))
+    st.code(pest_jobs.log_tail(ws, job['job_id'], 40) or '(no output yet)',
+            language='text')
+    if job['kind'] == 'launch' and state == 'running':
+        panelui.panel_link('pages/9_9_-_PEST_progress.py',
+                           'Follow it on PEST++ progress', icon='📈')
+    if state == 'running':
+        sure = st.checkbox('Stop this job, and everything it started',
+                           key='pest_stop_ok')
+        if st.button('Stop', key='pest_stop_go', disabled=not sure):
+            pest_jobs.stop(ws, job['job_id'])
+            st.rerun()
+
+
+with tab_run:
+    st.markdown('#### Set up, then launch')
+    st.caption('Both run DETACHED in the PEST workspace -- closing the '
+               'browser stops nothing -- one PEST job at a time, on the '
+               'SAVED configuration.')
+    if not WS:
+        st.info('No PEST workspace is set yet: choose one on **Home**.')
+    else:
+        from lib import pest_jobs, pest_progress
+        panelui.remember(edited)
+        todo = panelui.unsaved_changes(cfg)
+        busy = pest_jobs.active(WS)
+        pp_alive = pest_progress.pestpp_running()
+        py = (str(mm_paths.PYTHON_EXE)
+              if os.path.exists(str(mm_paths.PYTHON_EXE)) else sys.executable)
+        try:
+            _m, _s, _d, base_what = pls.resolve_base(cfg, mm_paths.WS_ROOT)
+            base_ok = True
+        except SystemExit as exc:
+            base_ok, base_what = False, str(exc)
+        pest_errs = [e for e in cfg.problems() if e.startswith('pest')]
+        common = []
+        if todo:
+            common.append('%d change(s) not saved: *Validate & save* first'
+                          % len(todo))
+        if busy:
+            common.append('job %s is running' % busy[0]['job_id'])
+        elif pp_alive:
+            common.append('pestpp-ies is running on this machine')
+        c1, c2 = st.columns(2)
+        with c1:
+            st.markdown('##### ① Set up')
+            st.caption('From the base -- %s: the model copy, its base run '
+                       '(about an hour), the targets and their weights, the '
+                       'template and a prior of %d realisations. Replaces '
+                       '`org` and `template` in the workspace.'
+                       % (base_what if base_ok else 'not resolved',
+                          cfg.pest.nreal))
+            no_setup = list(common)
+            if not base_ok:
+                no_setup.append(base_what)
+            no_setup += pest_errs
+            if st.button('Set up the calibration', type='primary',
+                         key='pest_setup_go', disabled=bool(no_setup)):
+                try:
+                    pest_jobs.launch('setup', path, WS, python_exe=py)
+                except (pest_jobs.JobBusy, FileNotFoundError) as exc:
+                    st.error('Not started: %s' % exc)
+                else:
+                    st.rerun()
+            for why in no_setup:
+                st.caption('⛔ %s' % why)
+        with c2:
+            st.markdown('##### ② Launch')
+            ready, why_ready = pest_jobs.setup_ready(WS)
+            st.caption('%d agent(s), %d iteration(s) (noptmax), from the %s: '
+                       'hours to days on this server. A previous `master` '
+                       'is moved aside, never deleted.'
+                       % (cfg.pest.agents, cfg.pest.noptmax, cfg.pest.start))
+            no_launch = list(common)
+            if not ready:
+                no_launch.append(why_ready)
+            if cfg.pest.agents > plr.MAX_WORKERS:
+                no_launch.append('at most %d agents' % plr.MAX_WORKERS)
+            sure = st.checkbox('I understand: %d agents for hours to days'
+                               % cfg.pest.agents, key='pest_launch_ok',
+                               disabled=bool(no_launch))
+            if st.button('Launch the calibration', type='primary',
+                         key='pest_launch_go',
+                         disabled=bool(no_launch) or not sure):
+                try:
+                    pest_jobs.launch('launch', path, WS, python_exe=py)
+                except (pest_jobs.JobBusy, FileNotFoundError) as exc:
+                    st.error('Not started: %s' % exc)
+                else:
+                    st.rerun()
+            for why in no_launch:
+                st.caption('⛔ %s' % why)
+            if ready and not no_launch:
+                st.caption('✅ %s' % why_ready)
+        st.markdown('##### The current job')
+        _live = bool(busy)
+        st.fragment(run_every=JOB_REFRESH_S if _live else None)(
+            _job_view)(WS)
 
 # REMEMBERED, not written: the one save is in the sidebar (see panelui).
 panelui.remember(edited)
