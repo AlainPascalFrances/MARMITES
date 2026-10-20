@@ -178,6 +178,11 @@ def test_the_progress_of_a_running_calibration(tmp_path):
     assert rows[0]['mean run (min)'] == pytest.approx(114.1)
     assert [(a['agent'], a['realisation']) for a in p['agents']] == [
         ('worker_0', '5'), ('worker_1', 'BASE')]
+    # each agent's runs so far, in place of PEST++'s run id (user,
+    # 2026-10-20): worker_0 brought back four, worker_1's one was killed
+    assert [(a['runs done'], a['of which failed']) for a in p['agents']] \
+        == [(4, 0), (1, 1)]
+    assert 'run' not in p['agents'][0]
     assert p['agents'][0]['elapsed (min)'] == pytest.approx(60.0)
     f = {x['run']: x for x in p['failures']}
     assert f[1]['outcome'] == 'killed' and f[1]['cause'] == 'overdue'
@@ -202,3 +207,20 @@ def test_a_stopped_calibration_has_unfinished_runs_and_no_agents(tmp_path):
 
 def test_no_master_folder_is_no_calibration(tmp_path):
     assert pp.progress(str(tmp_path)) is None
+
+
+def test_each_failure_reads_its_own_kept_log(tmp_path):
+    """2026-10-20: the forward run keeps a failed run's log in
+    failed_runs/; each failure reads the one kept at its time, not only
+    the agent's latest."""
+    ws = fake_pest_ws(tmp_path)
+    kept = os.path.join(ws, 'failed_runs')
+    os.makedirs(kept)
+    open(os.path.join(kept, '20261016_200950_worker_2_model.log'), 'w').write(
+        'marmites_coupler.NonConvergence: NON-CONVERGENCE: stress period 247'
+        ' needed more than 1500 linear-solver iterations\n')
+    open(os.path.join(kept, '20261017_120000_worker_2_model.log'), 'w').write(
+        'RuntimeError: a later failure\n')
+    p = pp.progress(ws, now=dt.datetime(2026, 10, 17, 6, 0, 0), running=True)
+    f = {x['run']: x for x in p['failures']}
+    assert f[2]['cause'].startswith('marmites_coupler.NonConvergence')

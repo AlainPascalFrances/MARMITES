@@ -207,15 +207,40 @@ def read_phi(master, case):
     return tuple(out)
 
 
-def failure_cause(pest_ws, agent, lines=80):
-    """Why a run failed, from the end of its model log: the newest one
-    the forward run KEPT for that agent (failed_runs/, 2026-10-20), else
-    the agent's own model.log -- which its next run overwrites within
-    seconds. The error and the lines that explain it; '' when there is
-    nothing to read."""
-    kept = sorted((Path(pest_ws) / 'failed_runs').glob(
-        '*_%s_model.log' % agent))
-    fn = kept[-1] if kept else Path(pest_ws) / 'workers' / agent / 'model.log'
+def _kept_log(pest_ws, agent, when=None):
+    """The model log the forward run KEPT for a failure of ``agent``
+    (failed_runs/<YYYYmmdd_HHMMSS>_<agent>_model.log, 2026-10-20): the one
+    kept closest to ``when`` (the master's failure time; kept just before
+    it), or the newest without one. None if none fits."""
+    best = None
+    for f in (Path(pest_ws) / 'failed_runs').glob('*_%s_model.log' % agent):
+        try:
+            t = dt.datetime.strptime(f.name[:15], '%Y%m%d_%H%M%S')
+        except ValueError:
+            continue
+        if when is None:
+            d = -t.timestamp()
+        else:
+            gap = (when - t).total_seconds()
+            if not -300.0 <= gap <= 1800.0:
+                continue
+            d = abs(gap)
+        if best is None or d < best[0]:
+            best = (d, f)
+    return None if best is None else best[1]
+
+
+def failure_cause(pest_ws, agent, lines=80, when=None, own_log=True):
+    """Why a run failed, from the end of its model log: the one the
+    forward run KEPT for that failure (``when``: the master's failure
+    time), else -- ``own_log`` -- the agent's own model.log, which its next
+    run overwrites within seconds. The error and the lines that explain
+    it; '' when there is nothing to read."""
+    fn = _kept_log(pest_ws, agent, when)
+    if fn is None:
+        if not own_log:
+            return ''
+        fn = Path(pest_ws) / 'workers' / agent / 'model.log'
     try:
         with open(fn, 'rb') as fh:
             fh.seek(0, 2)
@@ -287,10 +312,15 @@ def progress(pest_ws, now=None, running=None):
              else 'running' if alive else 'stopped')
     rows, times, agents, failures = [], [], [], []
     last_of = {}                     # agent -> (batch, run id) of its last run
+    done, failed = {}, {}            # agent -> runs ended / of them failed
     for bi, b in enumerate(batches):
         for rid, r in b['runs'].items():
             last_of[r['agent']] = max(last_of.get(r['agent'], (-1, -1)),
                                       (bi, rid))
+            if r['state'] in ('completed', 'failed', 'killed'):
+                done[r['agent']] = done.get(r['agent'], 0) + 1
+            if r['state'] in ('failed', 'killed'):
+                failed[r['agent']] = failed.get(r['agent'], 0) + 1
     for bi, b in enumerate(batches):
         runs = b['runs'].values()
         n = {k: sum(r['state'] == k for r in runs)
@@ -310,15 +340,22 @@ def progress(pest_ws, now=None, running=None):
                      'started': b['first'], 'last event': b['last']})
         for rid, r in b['runs'].items():
             if r['state'] == 'running' and live:
-                agents.append({'agent': r['agent'], 'run': rid,
-                               'realisation': r['real'], 'started': r['sent'],
+                # the realisation it runs, and how many runs it has done:
+                # PEST++'s run id said nothing more -- equal to the
+                # realisation in the initial ensemble, a counter after
+                # (user, 2026-10-20)
+                agents.append({'agent': r['agent'],
+                               'realisation': r['real'],
+                               'runs done': done.get(r['agent'], 0),
+                               'of which failed': failed.get(r['agent'], 0),
+                               'started': r['sent'],
                                'elapsed (min)': (now - r['sent'])
                                .total_seconds() / 60.0})
             if r['state'] in ('failed', 'killed'):
                 cause = (r.get('reason', '') if r['state'] == 'killed'
-                         else (failure_cause(pest_ws, r['agent'])
-                               if last_of.get(r['agent']) == (bi, rid)
-                               else ''))
+                         else failure_cause(
+                             pest_ws, r['agent'], when=r['end'],
+                             own_log=last_of.get(r['agent']) == (bi, rid)))
                 failures.append({'iteration': b['iteration'],
                                  'stage': b['stage'], 'run': rid,
                                  'realisation': r['real'],
