@@ -230,17 +230,28 @@ FIELDS = {
                       'uses the period length -- no retry at all.'),
     'run.build_only': ('Write the input files and stop', _U,
                        'Useful to inspect what MODFLOW would be given.'),
-    'run.max_solver_iterations': ('Non-convergence limit', 'iterations',
-                                  'The most linear-solver iterations (MF6\'s '
-                                  'TOTAL ITERATIONS, all ATS sub-steps '
-                                  'together) one stress period may take. '
-                                  'Past it the run STOPS as non-convergence: '
-                                  'such a solution is not valid. 0: no '
-                                  'limit. La Mata\'s base run of 2026-10-19 '
-                                  'needed at most 133 in a day; runs that '
-                                  'stalled on a water table rising into a '
-                                  'saturated UZF wetting front took '
-                                  '3000-4900 on each stalling day.'),
+    'run.stall_iterations': ('Stalled period', 'Newton iterations',
+                             'A stress period needing more Newton (outer) '
+                             'iterations than this -- all its ATS sub-steps '
+                             'together, a try ATS gave up counting its '
+                             'outer maximum -- is stalled. Stalled periods '
+                             'in a row stop the run as NON-CONVERGENCE: '
+                             'such a solution is not valid. 0: no stall '
+                             'guard. Every run, the calibration\'s '
+                             'realisations too (they count as failed). La '
+                             'Mata\'s base run of 2026-10-19 needed at most '
+                             '31 in a day; the realisations that stalled on '
+                             'a water table rising into a saturated UZF '
+                             'wetting front 640-2700.'),
+    'run.stall_periods': ('Stalled periods in a row', _U,
+                          'How many stalled periods in a row stop the run. '
+                          'One hard day passes: realisation 67 got through '
+                          'two (937 and 777 Newton iterations) before it '
+                          'stalled nine days in a row.'),
+    'run.max_period_iterations': ('Newton iterations cap', 'Newton iterations',
+                                  'One stress period past this stops the run '
+                                  'at once, stalled or not before. Above '
+                                  'the stalled-period limit; 0: no cap.'),
     'run.max_discrepancy': ('Maximum mass-balance discrepancy', '%',
                             'The run fails above this cumulative value.'),
     'run.allow_bad_budget': ('Keep a run that fails the checks', _U,
@@ -1179,15 +1190,6 @@ FIELDS = {
                                 'failed. 2 lost 12 of 43 runs of an '
                                 'iteration (2026-10-16): early in a batch the '
                                 'mean is the fastest runs\'.'),
-    'pest.max_solver_iterations': ('Non-convergence limit', 'iterations',
-                                   'Written into the calibration\'s copy as '
-                                   'run.max_solver_iterations: a realisation '
-                                   'needing more linear-solver iterations in '
-                                   'one stress period stops at once and '
-                                   'counts as failed, instead of crawling '
-                                   'until the overdue limit kills it. 0: no '
-                                   'limit. The base run needed at most 133 a '
-                                   'day; the stalled realisations 3000-4900.'),
     'pest.agents': ('Agents', _U,
                     'Model runs at once, one per core. At most 20 on this '
                     'server (the user, 2026-10-16).'),
@@ -1477,13 +1479,13 @@ PEST_OBS_ROWS = (('pest.soft_fraction', 'pest.points_on'),
 PEST_ENSEMBLE_ROWS = (('pest.nreal', 'pest.noptmax'),
                       ('pest.lambda_mults', 'pest.bad_phi_sigma'),
                       ('pest.overdue_giveup_fac', 'pest.agents'),
-                      ('pest.max_solver_iterations', None),
                       ('pest.start', 'pest.start_from'))
 
 RUN_COUPLING_ROWS = (
     ('run.ats', 'run.ats_dtmin'),
     ('run.max_discrepancy', 'run.allow_bad_budget'),
-    ('run.max_solver_iterations', None),
+    ('run.stall_iterations', 'run.stall_periods'),
+    ('run.max_period_iterations', None),
     ('run.build_only', None),
 )
 

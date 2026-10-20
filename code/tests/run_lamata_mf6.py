@@ -1148,7 +1148,9 @@ def _args_from_config(cfg, probe=False):
         build_only=cfg.run.build_only, standalone=_or_none(cfg.run.standalone),
         probe=bool(probe or cfg.run.probe),
         max_discrepancy=cfg.run.max_discrepancy,
-        max_solver_iterations=int(cfg.run.max_solver_iterations),
+        stall_iterations=int(cfg.run.stall_iterations),
+        stall_periods=int(cfg.run.stall_periods),
+        max_period_iterations=int(cfg.run.max_period_iterations),
         allow_bad_budget=cfg.run.allow_bad_budget,
         # grid / layers. Two separate notions (WP1c.1): `grid` is the MF6
         # DISCRETISATION ('dis' or 'disv', all clsMF6 understands), `mesh_kind`
@@ -1722,8 +1724,10 @@ def main():
                               dict(crr_opts, report=(cyc == 0))))
         cpl.carry_in = _carry
         cpl.steady_perc, cpl.steady_etg = steady_perc, steady_etg
-        # the non-convergence guard (0: none)
-        cpl.max_solver_iterations = int(a.max_solver_iterations)
+        # the non-convergence guard (0: off)
+        cpl.stall_iterations = int(a.stall_iterations)
+        cpl.stall_periods = int(a.stall_periods)
+        cpl.max_period_iterations = int(a.max_period_iterations)
         try:
             res = cpl.run(api)
             # What held for months rather than what happened once: the soil

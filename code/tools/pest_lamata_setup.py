@@ -444,9 +444,8 @@ def step_org(cfg_path, pest_ws):
     cfg.spinup.save_means = ''
     cfg.paths.ws = ''
     cfg.pest.multipliers = MULT_DIR
-    # a realisation that stalls stops as non-convergence at once and
-    # counts as failed (user, 2026-10-20)
-    cfg.run.max_solver_iterations = int(cfg.pest.max_solver_iterations)
+    # a realisation that stalls stops as non-convergence and counts as
+    # failed (user, 2026-10-20): the copy keeps [run]'s guard
     # where the saved state carries no UZF water content, the unsaturated
     # zone starts EMPTY, as the reference model's does (its thti 0.15 is
     # under its thtr 0.44, so the build raises it to thtr); a realisation's

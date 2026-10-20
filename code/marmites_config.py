@@ -381,13 +381,21 @@ class Run:
     # full day, 0.01 d allows two retries (0.2, 0.04 d); then the step is
     # given up and counted.
     ats_dtmin: float = 0.01        # d
-    # NON-CONVERGENCE GUARD: the most linear-solver iterations (MF6's TOTAL
-    # ITERATIONS, all ATS sub-steps together) one stress period may take;
-    # past it the run STOPS as non-convergence (user, 2026-10-20: such a
-    # solution is not valid). 0: no limit. The base run of 2026-10-19 took
-    # at most 133 in a day; the realisations that stalled 3000-4900 on each
-    # stalling day (a water table rising into a saturated UZF wetting front)
-    max_solver_iterations: int = 0
+    # NON-CONVERGENCE GUARD (user, 2026-10-20: a stalling solution is not
+    # valid), on MF6's NEWTON (outer) iterations per stress period, the
+    # tries ATS gave up included (MXITER each): a period past
+    # stall_iterations is stalled, and stall_periods of them in a row STOP
+    # the run as non-convergence -- so does one period past
+    # max_period_iterations. 0: off. Every run, the calibration's too. La
+    # Mata's base run of 2026-10-19 needed at most 31 in a day; the
+    # realisations that failed 640-770 on one day; realisation 67 got
+    # through two such days (937, 777) before it stalled nine days in a row
+    # (870-2700 each). The first guard, on linear iterations and one day,
+    # killed six realisations of the prior of 2026-10-20 at their first
+    # hard day and one that had converged (an expensive linear solve).
+    stall_iterations: int = 300
+    stall_periods: int = 3
+    max_period_iterations: int = 2000
     build_only: bool = False       #                           (--build-only)
     standalone: str = ''           # mf6.exe path              (--standalone)
     probe: bool = False            #                           (--probe)
@@ -1620,11 +1628,8 @@ class Pest:
     bad_phi_sigma: float = 2.5
     overdue_giveup_fac: float = 4.0
     agents: int = 20
-    # the realisations' non-convergence guard (run.max_solver_iterations
-    # of the calibration's copy): a realisation needing more linear-solver
-    # iterations in one stress period stops and counts as failed at once
-    # (user, 2026-10-20), instead of crawling until the overdue limit
-    max_solver_iterations: int = 1500
+    # (the realisations' non-convergence guard is [run]'s: stall_iterations,
+    # stall_periods, max_period_iterations -- the copy keeps it)
     start: str = 'prior'           # prior | warm | restart
     start_from: str = ''           # warm: a .jcb ensemble; restart: a master
 
@@ -1748,7 +1753,13 @@ RETIRED = {
                     'EVT now takes at the solved head, and a step it could '
                     'not solve was never retried',
             'relax': 'it under-relaxed the iterative coupling, which is gone '
-                     '(see run.mode)'},
+                     '(see run.mode)',
+            'max_solver_iterations': 'the non-convergence guard counts '
+                                     'Newton (outer) iterations now and '
+                                     'stops a run on a stall that lasts '
+                                     '(user, 2026-10-20): run.stall_'
+                                     'iterations, run.stall_periods, '
+                                     'run.max_period_iterations'},
     'postproc': {'enable': 'the panel\'s switch, run.plot ("Draw the '
                            'figures"), is the one switch for the figures '
                            '(user, 2026-10-11): both had to be on',
@@ -1763,7 +1774,12 @@ RETIRED = {
     'pest': {'use_pest_params': 'read by nothing: a calibrated parameter set '
                                 'becomes a configuration of its own, '
                                 '<model>_PEST.toml (WP7)',
-             'params_npz': 'read by nothing (see pest.use_pest_params)'},
+             'params_npz': 'read by nothing (see pest.use_pest_params)',
+             'max_solver_iterations': 'the realisations take the '
+                                      'non-convergence guard of [run] '
+                                      '(run.stall_iterations, stall_periods, '
+                                      'max_period_iterations), one setting '
+                                      'for every run (2026-10-20)'},
     'soil': {'params': 'the soil column is the [[soil.zone]] and '
                        '[[soil.horizon]] tables now, edited on the Soil '
                        'panel; an old inputSOILparam.txt is imported there '
@@ -2085,6 +2101,19 @@ class RunConfig:
                 errs.append('solver.%s must be > 0' % _k)
         if not float(self.run.ats_dtmin) > 0.0:
             errs.append('run.ats_dtmin must be > 0 (days)')
+        g = self.run
+        if int(g.stall_iterations) < 0:
+            errs.append('run.stall_iterations must be >= 0 (0: no stall '
+                        'guard)')
+        if int(g.stall_periods) < 1:
+            errs.append('run.stall_periods must be >= 1')
+        if int(g.max_period_iterations) < 0:
+            errs.append('run.max_period_iterations must be >= 0 (0: no cap)')
+        elif 0 < int(g.max_period_iterations) <= int(g.stall_iterations):
+            errs.append('run.max_period_iterations (%d) must be above '
+                        'run.stall_iterations (%d), or 0'
+                        % (int(g.max_period_iterations),
+                           int(g.stall_iterations)))
         if str(sv.cell_averaging).lower() not in CELL_AVERAGING:
             errs.append('solver.cell_averaging must be one of %s'
                         % ', '.join(CELL_AVERAGING))
@@ -2553,17 +2582,11 @@ class RunConfig:
                         'separated, got %r' % p.lambda_mults)
         if not p.bad_phi_sigma > 0.0:
             errs.append('pest.bad_phi_sigma must be > 0')
-        if self.run.max_solver_iterations < 0:
-            errs.append('run.max_solver_iterations must be >= 0 (0: no '
-                        'limit)')
         if not p.overdue_giveup_fac > 1.0:
             errs.append('pest.overdue_giveup_fac must be > 1 (x the mean run '
                         'time)')
         if p.agents < 1:
             errs.append('pest.agents must be >= 1')
-        if p.max_solver_iterations < 0:
-            errs.append('pest.max_solver_iterations must be >= 0 (0: no '
-                        'limit)')
         if p.start not in PEST_STARTS:
             errs.append('pest.start must be one of %s' % ', '.join(PEST_STARTS))
         elif p.start != 'prior' and not (p.start_from or '').strip():

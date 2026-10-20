@@ -406,6 +406,21 @@ with tab_ens:
         if jcb:
             st.caption('Parameter ensembles in the PEST workspace:  \n'
                        + '  \n'.join('`%s`' % f for f in jcb[-8:]))
+    g = cfg.run
+    if int(g.stall_iterations) > 0 or int(g.max_period_iterations) > 0:
+        st.caption(
+            'A realisation stops as non-convergence and counts as failed '
+            'after %s -- the guard of every run, on the Run panel (7).'
+            % ' or '.join(s for s in (
+                ('%d stress period(s) in a row past %d Newton iterations'
+                 % (int(g.stall_periods), int(g.stall_iterations))
+                 if int(g.stall_iterations) > 0 else ''),
+                ('one past %d' % int(g.max_period_iterations)
+                 if int(g.max_period_iterations) > 0 else '')) if s))
+    else:
+        st.warning('The non-convergence guard is off (Run panel, 7): a '
+                   'stalling realisation goes on until the overdue limit '
+                   'kills it.')
     st.caption('Set up and launch on the next tab.')
 
 # ------------------------------------------------------- set up and launch

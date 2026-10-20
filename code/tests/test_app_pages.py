@@ -191,9 +191,11 @@ def test_the_pest_setup_panel_holds_the_calibration(tmp_path, monkeypatch):
               'pest.k_order_decades', 'pest.soft_fraction', 'pest.points_on',
               'pest.q_dry', 'pest.q_eps', 'pest.nreal', 'pest.noptmax',
               'pest.lambda_mults', 'pest.bad_phi_sigma',
-              'pest.overdue_giveup_fac', 'pest.agents', 'pest.start_from',
-              'pest.max_solver_iterations'):
+              'pest.overdue_giveup_fac', 'pest.agents', 'pest.start_from'):
         assert k in keys, '%s is not on the page' % k
+    # the realisations' non-convergence guard is [run]'s, named here
+    assert ('after 3 stress period(s) in a row past 300 Newton iterations '
+            'or one past 2000') in ' '.join(str(c.value) for c in at.caption)
     sel = {w.key for w in at.selectbox}
     # the base (phase 3): a run of the registry, or -- none chosen in the
     # configuration -- a saved state picked by hand, then offered too

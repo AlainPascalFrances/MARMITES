@@ -297,15 +297,21 @@ something a regression.
   recharge with no derivative, so an outer iteration closes only
   (thts - wc)/(thts - thtr) of the gap (the prior of 2026-10-18 lost 18 runs
   as overdue).
-- **Non-convergence guard** (user, 2026-10-20): `run.max_solver_iterations`
-  (0 = none, the Run panel) stops a run as NON-CONVERGENCE when one stress
-  period needs more linear-solver iterations (MF6 TOTAL ITERATIONS, all ATS
-  sub-steps) -- such a solution is not valid. The PEST copy takes
-  `pest.max_solver_iterations` (default 1500): healthy base run <= 133 a
-  day, stalled realisations 3000-4900 (a water table rising into a
-  saturated UZF wetting front: infiltration at VKS; toy
-  X:	mp_claude	oy_uzf). The stall is not cured by perc_cap's room-left
-  cap; such realisations are invalid and fail fast.
+- **Non-convergence guard** (user, 2026-10-20), `[run]` on the Run panel,
+  for every run (the PEST copy keeps it): MF6's NEWTON (outer) iterations
+  per stress period, all ATS sub-steps, a try ATS gave up counting MXITER
+  (the coupler reads IOUTTOT_TIMESTEP -- reset at every try -- and counts
+  the failed tries from how far DELT was cut, / dtfailadj 5; the MF6
+  listing prints 'CALLS TO NUMERICAL SOLUTION' for converged tries only).
+  `stall_periods` (3) periods in a row past `stall_iterations` (300), or one
+  past `max_period_iterations` (2000), stop the run as NON-CONVERGENCE --
+  such a solution is not valid. Base run <= 31 a day; failed realisations
+  640-770 on one day; r67 got through two such days, then stalled 9 days in
+  a row (870-2700): a water table rising into a saturated UZF wetting front
+  (infiltration at VKS; toy X:\tmp_claude\toy_uzf). The first guard (linear
+  iterations, one day, `max_solver_iterations`, now RETIRED) killed
+  realisations at their first hard day. perc_cap's room-left cap does not
+  cure the stall.
 - `[layers]` properties take ONE VALUE PER LAYER (`value = [2.0, 10.0]`,
   panel 4 shows a box per layer). k33 as ratios Kh/Kv: default 2 in the
   saprolite, 10 in the fissured layer (user, 2026-10-19;

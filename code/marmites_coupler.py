@@ -39,6 +39,7 @@ the coupler against a fake API); a real run needs libmf6:
 __author__ = "Alain P. Francés <frances.alain@gmail.com>"
 __version__ = "0.4.0.dev0"
 
+import math
 import os
 import re
 import time
@@ -106,9 +107,10 @@ def uzf_room_fraction(sy, wcnew, thtr, ncell):
 
 
 class NonConvergence(RuntimeError):
-    """A stress period needed more solver iterations than [run]
-    max_solver_iterations allows: the solution is not valid (user,
-    2026-10-20), and the run stops."""
+    """MF6 stalled: stress periods past [run] stall_iterations Newton
+    iterations stall_periods times in a row, or one past
+    max_period_iterations. The solution is not valid (user, 2026-10-20),
+    and the run stops."""
 
 
 class CouplingError(Exception):
@@ -202,9 +204,17 @@ class MF6Coupler:
         self.perlen = list(np.asarray(_perlen).ravel())
         self.sim_ws = getattr(mf6b, 'sim_ws', None)
         self.max_substeps = 5000       # ATS safety cap per stress period
-        # [run] max_solver_iterations (0: none): past it in one stress
-        # period the run stops as NON-CONVERGENCE (_advance)
-        self.max_solver_iterations = 0
+        # THE NON-CONVERGENCE GUARD, set from [run] (0: off;
+        # _check_iterations): a stress period past stall_iterations Newton
+        # iterations is stalled; stall_periods of them in a row, or one past
+        # max_period_iterations, stop the run
+        self.stall_iterations = 0
+        self.stall_periods = 3
+        self.max_period_iterations = 0
+        self._stalled = []     # the Newton iterations of the stalled run
+        # the factor ATS cuts a failed step by (marmites_mf6's ATS records):
+        # how the tries it gave up are counted (_step_newton)
+        self.ats_dtfailadj = float(getattr(mf6b, 'ats_dtfailadj', 5.0))
         self.substeps = 0              # extra ATS sub-steps taken overall
         self.n_nonconverged = 0
         # MF6's own time step (do_time_step), which RETRIES a step it cannot
@@ -212,6 +222,7 @@ class MF6Coupler:
         # arrays it re-applies on every try are reachable
         self.mf6_step = False
         self.p_sinf_pvar = self.p_pet_pvar = self.p_itertot = None
+        self.p_iouttot = self.p_mxiter = self.p_delt = None
         # When the march started, for the progress line's estimate. Set here
         # so _progress can never be called before it exists, and reset in
         # run() so a spin-up cycle times itself rather than the whole session.
@@ -925,6 +936,21 @@ class MF6Coupler:
         self.p_itertot, _a = self._bind_first(
             api, [('ITERTOT_TIMESTEP', 'SLN_1')],
             'solver linear iterations', required=False)
+        # the non-convergence guard's count (_step_newton): the last try's
+        # Newton iterations, MXITER for each try ATS gave up, and the step
+        # before and after them
+        self.p_iouttot, _a = self._bind_first(
+            api, [('IOUTTOT_TIMESTEP', 'SLN_1')],
+            'solver outer iterations', required=False)
+        self.p_mxiter, _a = self._bind_first(
+            api, [('MXITER', 'SLN_1')], 'solver outer maximum',
+            required=False)
+        self.p_delt, _a = self._bind_first(
+            api, [('DELT', 'TDIS')], 'time step length', required=False)
+        if self.p_iouttot is None and (self.stall_iterations > 0
+                                       or self.max_period_iterations > 0):
+            print('WARNING: MF6 does not expose IOUTTOT_TIMESTEP: the '
+                  'non-convergence guard counts nothing')
         self.mf6_step = (self.p_sinf_pvar is not None
                          and (self.p_pet_pvar is not None
                               or self.p_petmax is None)
@@ -2170,6 +2196,9 @@ class MF6Coupler:
         solve actually uses. This was pinned down with tests/diag_sinf.py:
         writing after prepare_time_step reverted to perc_user (constant
         recharge, draining water table), writing after prepare_solve sticks.
+
+        Returns (iterations to record, Newton iterations, converged); here
+        both counts are the outer iterations.
         """
         if getattr(self, 'mf6_step', False):
             return self._mf6_step(api, write_cb)
@@ -2186,7 +2215,7 @@ class MF6Coupler:
         converged = kiter < self.max_outer
         api.finalize_solve(1)
         api.finalize_time_step()
-        return kiter, converged
+        return kiter, kiter, converged
 
     def _mf6_step(self, api, write_cb=None):
         """One time step by MF6's OWN routine, retried by ATS if it fails.
@@ -2196,25 +2225,57 @@ class MF6Coupler:
         do_time_step, whose every try re-applies them (see _bind). A step
         still unconverged when ATS reaches dtmin makes finalize_time_step
         report failure: it is counted, and the run goes on, as before.
-        Returns (linear iterations of the last try, converged).
+        Returns (linear iterations of the last try, Newton iterations of
+        all the tries -- _step_newton --, converged).
         """
         dt = self._timestep(api)
         api.prepare_time_step(dt)
+        dt_try = self._scalar(self.p_delt)           # the step ATS chose
         if write_cb is not None:
             write_cb()
         api.do_time_step()
+        dt_done = self._scalar(self.p_delt)          # the step it took
         try:
             api.finalize_time_step()
             converged = True
         except Exception:                                 # noqa: BLE001
             converged = False
-        kiter = 0
-        if self.p_itertot is not None:
-            try:
-                kiter = int(np.asarray(self.p_itertot).ravel()[0])
-            except (TypeError, ValueError, IndexError):   # pragma: no cover
-                kiter = 0
-        return kiter, converged
+        kiter = int(self._scalar(self.p_itertot) or 0)
+        return kiter, self._step_newton(dt_try, dt_done), converged
+
+    @staticmethod
+    def _scalar(ptr):
+        """The value of a bound MF6 scalar, or None."""
+        if ptr is None:
+            return None
+        try:
+            return float(np.asarray(ptr).ravel()[0])
+        except (TypeError, ValueError, IndexError):       # pragma: no cover
+            return None
+
+    def _step_newton(self, dt_try, dt_done):
+        """The Newton (outer) iterations of the time step just taken, the
+        tries ATS gave up included: the non-convergence guard's count.
+
+        MF6 resets IOUTTOT_TIMESTEP at every try (sln_ad, from
+        prepareSolve), so after do_time_step it holds the LAST try's. Each
+        try before it failed after MXITER iterations and cut the step by
+        dtfailadj (ats_reset_delt): log(dt_try / dt_done) / log(dtfailadj)
+        of them. On a toy UZF stall the count equals the listing's, period
+        by period (2026-10-20): its 'CALLS TO NUMERICAL SOLUTION' lines --
+        printed for a converged try only -- plus MXITER per 'did not
+        converge'.
+        """
+        last = self._scalar(self.p_iouttot)
+        if last is None:
+            return 0
+        tries = 0
+        if (dt_try and dt_done and self.ats_dtfailadj > 1.0
+                and 0.0 < dt_done < dt_try * (1.0 - 1e-9)):
+            tries = int(round(math.log(dt_try / dt_done)
+                              / math.log(self.ats_dtfailadj)))
+        mx = self._scalar(self.p_mxiter) or self.max_outer
+        return int(last) + tries * int(mx)
 
     def _advance(self, api, t_end=None, write_cb=None, period=None):
         """Advance MF6 to the end of the current stress period.
@@ -2230,16 +2291,16 @@ class MF6Coupler:
         them on each sub-step is idempotent and keeps them from being reverted
         by rp).
 
-        THE NON-CONVERGENCE GUARD (user, 2026-10-20): the solver iterations
-        of all the period's sub-steps are summed, and past [run]
-        max_solver_iterations the run stops with NonConvergence -- checked
-        after every sub-step, so a stalling period is stopped within itself
-        rather than hours later. ``period`` (0-based) names it.
+        THE NON-CONVERGENCE GUARD (user, 2026-10-20): the Newton iterations
+        of all the period's sub-steps, the tries ATS gave up included, are
+        summed and checked after every sub-step (_check_iterations), so a
+        stalling period is stopped within itself rather than hours later.
+        ``period`` (0-based) names it.
         """
         acc = {}
         t0 = self._now(api)
-        kiter, converged = self._one_step(api, write_cb)
-        total = int(kiter)
+        kiter, newton, converged = self._one_step(api, write_cb)
+        total = int(newton)
         self._keep_sfr_inflow()
         now = self._now(api)
         self._rates_add(acc, None if t0 is None or now is None else now - t0)
@@ -2251,7 +2312,7 @@ class MF6Coupler:
                     break
                 if now >= t_end - 1e-9:
                     break
-                k, ok = self._one_step(api, write_cb)
+                k, n, ok = self._one_step(api, write_cb)
                 self._keep_sfr_inflow()
                 t1 = self._now(api)
                 self._rates_add(acc, None if t1 is None else t1 - now)
@@ -2259,40 +2320,80 @@ class MF6Coupler:
                 kiter = max(kiter, k)
                 converged = converged and ok
                 nsub += 1
-                total += int(k)
+                total += int(n)
                 self._check_iterations(total, nsub, period)
             else:                                  # pragma: no cover
                 raise CouplingError(
                     'MF6 did not reach the end of the stress period after %d '
                     'sub-steps; ATS is shrinking the step without converging.'
                     % self.max_substeps)
+        self._check_iterations(total, nsub, period, ended=True)
         self._rates_close(acc, nsub)
         self.substeps += nsub - 1
         if not converged:
             self.n_nonconverged += 1
         return kiter
 
-    def _check_iterations(self, total, nsub, period=None):
-        """Stop the run when a stress period's solver iterations so far,
-        ``total`` over ``nsub`` sub-steps, pass [run] max_solver_iterations
-        (0: never)."""
-        limit = int(getattr(self, 'max_solver_iterations', 0) or 0)
-        if limit <= 0 or total <= limit:
+    def _period_name(self, period):
+        """' 248 (2009-06-05)': a 0-based stress period, for a message."""
+        if period is None:
+            return ''
+        when = ' %d' % (int(period) + 1)
+        d = getattr(self.ctx, 'dates', None) if getattr(
+            self, 'ctx', None) is not None else None
+        try:
+            when += ' (%s)' % d[int(period)]
+        except (TypeError, IndexError, KeyError):
+            pass
+        return when
+
+    def _check_iterations(self, total, nsub, period=None, ended=False):
+        """THE NON-CONVERGENCE GUARD (user, 2026-10-20): a stalling
+        solution is not valid.
+
+        ``total``: the period's Newton iterations so far, the tries ATS gave
+        up included, over ``nsub`` sub-steps. The run stops
+        (NonConvergence) when the period passes [run]
+        max_period_iterations, or passes stall_iterations as the
+        stall_periods-th period in a row to do so; ``ended`` (the period
+        done) updates that count. One hard day passes: realisation 67 got
+        through two (937 and 777) before it stalled nine days in a row
+        (2026-10-19).
+        """
+        cap = int(getattr(self, 'max_period_iterations', 0) or 0)
+        lim = int(getattr(self, 'stall_iterations', 0) or 0)
+        need = max(int(getattr(self, 'stall_periods', 1) or 1), 1)
+        before = list(getattr(self, '_stalled', None) or [])
+        if cap > 0 and total > cap:
+            raise NonConvergence(
+                'NON-CONVERGENCE: stress period%s needed more than %d Newton '
+                'iterations (%d in %d ATS sub-step(s), failed tries '
+                'included) -- the solution is not valid, the run stops '
+                '(run.max_period_iterations)'
+                % (self._period_name(period), cap, int(total), int(nsub)))
+        if lim <= 0:
             return
-        when = ''
-        if period is not None:
-            when = ' %d' % (int(period) + 1)
-            d = getattr(self.ctx, 'dates', None) if getattr(
-                self, 'ctx', None) is not None else None
-            try:
-                when += ' (%s)' % d[int(period)]
-            except (TypeError, IndexError, KeyError):
-                pass
-        raise NonConvergence(
-            'NON-CONVERGENCE: stress period%s needed more than %d '
-            'linear-solver iterations (%d in %d ATS sub-step(s)) -- the '
-            'solution is not valid, the run stops (run.max_solver_iterations)'
-            % (when, limit, int(total), int(nsub)))
+        if total > lim and len(before) + 1 >= need:
+            seq = before[len(before) - (need - 1):] + [int(total)]
+            raise NonConvergence(
+                'NON-CONVERGENCE: stress period%s stalls, %d period(s) in a '
+                'row past %d Newton iterations (%s; the last in %d ATS '
+                'sub-step(s), failed tries included) -- the solution is not '
+                'valid, the run stops (run.stall_iterations, '
+                'run.stall_periods)'
+                % (self._period_name(period), need, lim,
+                   ', '.join(str(n) for n in seq), int(nsub)))
+        if not ended:
+            return
+        if total > lim:
+            self._stalled = before + [int(total)]
+            print('NOTE: stress period%s: %d Newton iterations in %d ATS '
+                  'sub-step(s) -- stalled, %d of %d in a row before the run '
+                  'stops (run.stall_iterations, run.stall_periods)'
+                  % (self._period_name(period), int(total), int(nsub),
+                     len(self._stalled), need))
+        else:
+            self._stalled = []
 
 
 if __name__ == '__main__':
