@@ -36,6 +36,24 @@ def _write(folder, name, values):
     np.savetxt(os.path.join(folder, name), np.atleast_1d(values))
 
 
+def test_the_log_gives_the_change_from_the_reference_in_percent(tmp_path):
+    """user, 2026-10-21: 'drn_l1 -87.1 %', not 'drn_l1 x0.1294'."""
+    c = _cmf()
+    _write(tmp_path, 'k_l1.txt', [0.006111, 1.0, 1.0, 21.68])
+    _write(tmp_path, 'sy_l2.txt', [2.5])
+    _write(tmp_path, 'drn_l1.txt', [0.1294])
+    said = []
+    mp.apply_multipliers(c, str(tmp_path), out=said.append)
+    line = [s for s in said if s.startswith('PEST multipliers')][0]
+    assert 'change from the reference model' in line
+    assert 'drn_l1 -87.1 %' in line
+    assert 'k_l1 -99.4 % .. +2068 %' in line
+    assert 'sy_l2 +150 %' in line
+    assert ' x' not in line.split(': ', 1)[1]
+    assert [mp.pct_change(m) for m in (1.0, 1.0004, 0.9, 1.25, 224.0)] == \
+        ['0 %', '0 %', '-10.0 %', '+25.0 %', '+22300 %']
+
+
 def test_per_cell_and_per_layer_multipliers(tmp_path):
     c = _cmf()
     _write(tmp_path, 'k_l1.txt', [2.0, 0.5, 10.0, 1.0])

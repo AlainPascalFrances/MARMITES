@@ -149,11 +149,21 @@ def apply_multipliers(cMF, folder, out=print):
             if os.path.exists(f):
                 done['drn_l%d' % (L + 1)] = (mult[L], mult[L])
     if out and done:
-        out('PEST multipliers from %s: %s' % (folder, ', '.join(
-            '%s %s' % (k, ('x%.4g' % lo if lo == hi else
-                           'x%.4g..%.4g' % (lo, hi)))
-            for k, (lo, hi) in sorted(done.items()))))
+        out('PEST multipliers from %s, change from the reference model: %s'
+            % (folder, ', '.join(
+                '%s %s' % (k, (pct_change(lo) if lo == hi else
+                               '%s .. %s' % (pct_change(lo), pct_change(hi))))
+                for k, (lo, hi) in sorted(done.items()))))
     return done
+
+
+def pct_change(m):
+    """A multiplier as the change it makes to the reference model, in
+    percent (user, 2026-10-21): x0.87 -> '-13.0 %', x21.7 -> '+2070 %'."""
+    p = (float(m) - 1.0) * 100.0
+    if abs(p) < 0.05:
+        return '0 %'
+    return ('%+.0f %%' if abs(p) >= 100.0 else '%+.1f %%') % p
 
 
 _TOKEN = re.compile(r'^([A-Za-z_][A-Za-z_0-9]*)(?:\[(\d+)\])?$')
