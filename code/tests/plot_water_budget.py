@@ -572,6 +572,20 @@ def surface_water_terms(ws, area_m2, nper=None):
             for k, v in s.items()}
 
 
+# under this many mm/year a reference flux gives no meaningful percentage
+PCT_FLOOR = 1.0
+
+
+def pct_diff(lab, a, b):
+    """MF6 against the NWT reference, in percent of the reference (user,
+    2026-10-21): '-' for a storage change (dS*: its sign is the point, not
+    its size) and where the reference is under PCT_FLOOR mm/year (Eow
+    0.4: +300 % says nothing)."""
+    if b is None or str(lab).startswith('dS') or abs(b) < PCT_FLOOR:
+        return '-'
+    return '%+.1f %%' % (100.0 * (a - b) / abs(b))
+
+
 def surface_water_lines(sw, labels, newv, refv):
     """The table rows of surface_water_terms, and the two totals that
     compare like with like: NWT routed no stream, so its valley groundwater
@@ -601,10 +615,11 @@ def surface_water_lines(sw, labels, newv, refv):
         if refv is None:
             out.append('%-10s %12.1f   %s' % (lab, a, what))
         elif b is None:
-            out.append('%-10s %12.1f %12s %12s   %s' % (lab, a, '-', '-', what))
+            out.append('%-10s %12.1f %12s %12s %9s   %s'
+                       % (lab, a, '-', '-', '-', what))
         else:
-            out.append('%-10s %12.1f %12.1f %12.1f   %s'
-                       % (lab, a, b, a - b, what))
+            out.append('%-10s %12.1f %12.1f %12.1f %9s   %s'
+                       % (lab, a, b, a - b, pct_diff(lab, a, b), what))
     return out
 
 
@@ -614,10 +629,14 @@ def write_summary(labels, newv, refv, ws, new, sw=None):
                  new['wb_ts'].shape[0],
                  ', both runs' if refv is not None else ''), '']
     if refv is not None:
-        lines.append('%-10s %12s %12s %12s' % ('flux', 'MF6 (API)', 'NWT (Picard)', 'diff'))
-        lines.append('-' * 50)
+        # the difference in mm/year and in percent of the reference
+        lines.append('%-10s %12s %12s %12s %9s' % ('flux', 'MF6 (API)',
+                                                   'NWT (Picard)', 'diff',
+                                                   'diff %'))
+        lines.append('-' * 60)
         for lab, a, b in zip(labels, newv, refv):
-            lines.append('%-10s %12.1f %12.1f %12.1f' % (lab, a, b, a - b))
+            lines.append('%-10s %12.1f %12.1f %12.1f %9s'
+                         % (lab, a, b, a - b, pct_diff(lab, a, b)))
     else:
         lines.append('%-10s %12s' % ('flux', 'MF6 (API)'))
         lines.append('-' * 26)
