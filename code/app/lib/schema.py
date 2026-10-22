@@ -34,6 +34,7 @@ Labels come from the ini files the panels replace, so a modeller who knows
 
 import os
 import sys
+import threading
 
 # The allowed values of an enumerated field come from marmites_config, so this
 # module has to be able to import it however it was loaded -- as part of the
@@ -1245,6 +1246,33 @@ FIELDS = {
 # counter-example and is deliberately NOT here -- its value is metres.
 INTEGER_VALUE = ('surface.meteo_zones', 'surface.irr_zones', 'soil.zones')
 
+# A LABEL THAT FOLLOWS ANOTHER ANSWER: dotted -> (controlling field,
+# {its value: (label, units, help)}). panelui.rows_form draws the variant
+# the controlling field holds on screen (user, 2026-10-22: with the
+# extinction depth from the vegetation, the box is the uncovered
+# fraction's -- the tooltip alone said so).
+LABEL_WHEN = {
+    'et.extdp': ('et.extdp_from', {'vegetation': (
+        'Extinction depth of the uncovered fraction', 'm',
+        'With **Extinction depth from = vegetation**, each cell takes the '
+        'root depth of its vegetation types, weighted by their cover -- the '
+        '*Root depth* column of the Vegetation type table, on the Surface '
+        'and driving forces panel -- and '
+        'THIS depth for the fraction no type covers (bare soil, rock). '
+        'Measured from the top of the MODFLOW model, the base of the MMsoil '
+        'column. flopy: `ModflowGwfuzf` perioddata `extdp`.')}),
+}
+# the variants in force while one form is drawn (rows_form), per script
+# thread -- two sessions never see each other's
+_LABEL_NOW = threading.local()
+
+
+def labels_in_force(chosen):
+    """While a form is drawn: {dotted: (label, units, help)} that
+    describe() returns instead of the field's own. None clears."""
+    _LABEL_NOW.map = dict(chosen or {})
+
+
 # The layer properties whose VALUE is one number per layer -- a box each,
 # written as a list when they differ (marmites_config.VectorSource.values)
 LAYER_VALUES = ('layers.thickness', 'layers.k', 'layers.k33', 'layers.ss',
@@ -1708,6 +1736,9 @@ def describe(dotted):
     """
     import re
 
+    now = getattr(_LABEL_NOW, 'map', None)
+    if now and dotted in now:
+        return now[dotted]
     if dotted in FIELDS:
         return FIELDS[dotted]
     # Strip the row index wherever it sits: surface.vegetation[2].kt_s is the

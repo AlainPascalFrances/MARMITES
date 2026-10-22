@@ -1008,6 +1008,20 @@ def rows_form(cfg, rows, section, columns=2, folder=None, files=(),
     saying something the run will not do.
     """
     values = dict(schema.fields_of(cfg, section))
+    # a label that follows another answer, as it stands on screen
+    schema.labels_in_force({
+        dotted: variants[live(ctrl, values.get(ctrl))]
+        for dotted, (ctrl, variants) in schema.LABEL_WHEN.items()
+        if dotted in values and live(ctrl, values.get(ctrl)) in variants})
+    try:
+        return _rows_form(cfg, rows, values, columns, folder, files,
+                          patterns, gated)
+    finally:
+        schema.labels_in_force(None)
+
+
+def _rows_form(cfg, rows, values, columns, folder, files, patterns,
+               gated):
     edited = {}
     off = set()
     for switch, dependents in (gated or {}).items():

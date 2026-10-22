@@ -206,11 +206,15 @@ with tab_uzf:
                'stops at, and the water content it stops at.')
     edited.update(panelui.rows_form(cfg, schema.UZF_ET_ROWS, 'et',
                                     columns=2))
-    if cfg.et.extdp_from == 'vegetation':
-        st.caption('**Per vegetation zone.** Each cell takes the rooting '
-                   'depth of its cover — %s — weighted by the cover; the '
-                   'fraction nothing covers takes the extinction depth '
-                   'above, and an irrigated field its crops\' root depth.'
+    if panelui.live('et.extdp_from', cfg.et.extdp_from) == 'vegetation':
+        st.caption('**Per vegetation zone.** Each cell takes the root depth '
+                   'of its vegetation types, weighted by their cover — %s, '
+                   'the *Root depth* column of the Vegetation type table on '
+                   'the Surface and driving forces panel — counting only the '
+                   'part below the soil column, where UZF starts. The '
+                   'fraction no type covers takes the *extinction depth of '
+                   'the uncovered fraction* above; an irrigated field takes '
+                   'its crops\' root depth (the crop table, same panel).'
                    % ', '.join('%s %g m' % (v.name, float(v.root_depth))
                                for v in cfg.surface.vegetation))
     st.markdown('##### Groundwater ET (Eg, Tg)')

@@ -2045,3 +2045,28 @@ def test_the_plots_panel_is_laid_out_by_what_the_figures_are():
         at.checkbox(key='postproc.sankey').uncheck().run()
         keys = {w.key for w in list(at.checkbox) + list(at.number_input)}
     assert 'postproc.sankey_min_flux' not in keys, keys
+
+
+def test_the_extinction_depth_says_whose_it_is_with_the_vegetation():
+    """user, 2026-10-22: with the extinction depth from the vegetation the
+    box is the UNCOVERED fraction's -- said by its label, following the
+    selector on screen, not only in its tooltip."""
+    at = AppTest.from_file(os.path.join(APP, SUB), default_timeout=180)
+    at.run()
+
+    def labels():
+        # a source field's label is the bold line drawn above its boxes
+        return [str(m.value) for m in at.markdown
+                if 'xtinction depth' in str(m.value)
+                and 'from' not in str(m.value)]
+
+    pick = [s for s in at.selectbox if s.key == 'et.extdp_from']
+    assert pick, 'no selector for the extinction depth'
+    pick[0].set_value('vegetation').run()
+    assert any('uncovered fraction' in lab for lab in labels()), labels()
+    said = ' '.join(str(c.value) for c in at.caption)
+    assert 'Root depth' in said and 'Surface and driving forces' in said
+    pick = [s for s in at.selectbox if s.key == 'et.extdp_from']
+    pick[0].set_value('source').run()
+    assert labels() and not any('uncovered' in lab for lab in labels())
+    assert any('Extinction depth' in lab for lab in labels()), labels()
