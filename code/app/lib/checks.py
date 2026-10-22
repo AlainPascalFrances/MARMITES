@@ -329,7 +329,6 @@ def check_uzf_sy(cfg, dataset_dir=None, **_):
     try:
         sy = _layer_values(cfg.layers.sy, n, dataset_dir, 'layers.sy', props)
         sr = _layer_values(cfg.layers.sr, n, dataset_dir, 'layers.sr', props)
-        thti = _layer_values(cfg.uzf.thti, n, dataset_dir, 'uzf.thti', props)
         ib = _layer_values(cfg.layers.ibound, n, dataset_dir, 'layers.ibound',
                            props)
     except Exception as exc:                            # noqa: BLE001
@@ -338,14 +337,14 @@ def check_uzf_sy(cfg, dataset_dir=None, **_):
         return
     if sy is None or sr is None:
         return
-    if thti is None:
-        thti = sy + sr
-    arrs = np.broadcast_arrays(sr, sy, thti)
-    act = np.all([np.isfinite(a) for a in arrs[:2]], axis=0)
+    arrs = np.broadcast_arrays(sr, sy)
+    act = np.all([np.isfinite(a) for a in arrs], axis=0)
     if ib is not None:
         act &= np.broadcast_to(np.nan_to_num(ib) != 0, act.shape)
+    fill = props.UZF_THTI_FILL.get(cfg.uzf.thti_from, cfg.uzf.thti_fill)
     try:
-        _r, _s, _i, notes = props.uzf_water_contents(*arrs, active=act)
+        _r, _s, _i, notes = props.uzf_water_contents(*arrs, fill=fill,
+                                                     active=act)
     except props.PropertyError as exc:
         yield Check(ERROR, 'UZF\'s water contents from the layers are not '
                     'valid', panel=4, key='layers.sr', detail=str(exc))

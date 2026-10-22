@@ -83,7 +83,10 @@ def test_a_displaced_or_reshaped_grid_stops_the_run(kw, frag):
     with pytest.raises(props.GridMismatch) as e:
         props.check_grid(FakeMF(**kw), DS, verbose=False)
     assert frag in str(e.value)
-    assert '42 raster(s) agree' in str(e.value), (
+    # as many as the dataset holds today (42 on 2026-10-07; the modeller
+    # adds rasters -- 46 on 2026-10-22)
+    _rect, names, _others = props.dataset_grid(DS)
+    assert '%d raster(s) agree' % len(names) in str(e.value), (
         'the message must say what the rasters actually declare')
 
 

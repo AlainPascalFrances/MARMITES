@@ -1269,19 +1269,21 @@ UZF_FIELDS = (
 # build as the per-layer list checkarray understands, exactly like the
 # aquifer properties -- so a single value still broadcasts to what a
 # scalar produced, and a raster gives each cell its own. thtr and thts are
-# the aquifer layer's (layers.sr; uzf_water_contents).
+# the aquifer layer's (layers.sr; uzf_water_contents), thti a place between
+# them (uzf.thti_from), vks the layer's vertical K.
 UZF_SOURCES = (
     ('eps', 'eps'),
-    ('thti', 'thti'),
 )
+# a cold start's UZF water content, as its place in [thtr, thts]
+UZF_THTI_FILL = {'thtr': 0.0, 'thts': 1.0}
 
 
 def apply_uzf(cfg, cMF, dataset_dir, verbose=True):
     """Put the configured unsaturated zone into ``cMF``. Returns what it did.
 
-    ``vks_from`` becomes the legacy ``iuzfopt``: 'raster' is 1 (read the
-    map) and 'layer' is 2 (use the layer's own k33). The build tests
-    ``iuzfopt != 1``, so the meaning survives the rename.
+    UZF's vks is the layer's own vertical K, which the build takes (no
+    raster alternative since 2026-10-22); a cold start's thti is the place
+    ``cMF.uzf_thti_fill`` in each object's [thtr, thts].
     """
     if cfg is None or getattr(cfg, 'uzf', None) is None:
         return []
@@ -1305,18 +1307,13 @@ def apply_uzf(cfg, cMF, dataset_dir, verbose=True):
         done.append(field)
     cMF.ntrail2 = int(u.ntrailwaves)
     cMF.nsets = int(u.nwavesets)
-    cMF.iuzfopt = 1 if u.vks_from == 'raster' else 2
-    done.append('vks_from')
-    if cMF.iuzfopt == 1:
-        values = resolve_source(u.vks, int(cMF.nlay), dataset_dir, 'uzf.vks')
-        if values is None:
-            raise PropertyError('uzf.vks_from is raster but uzf.vks is empty')
-        cMF.vks = values
-        cMF.vks_actual = cMF.cPROCESS.checkarray(values)
-        done.append('vks')
+    cMF.uzf_thti_fill = float(UZF_THTI_FILL.get(u.thti_from, u.thti_fill))
+    done.append('thti_from')
     if verbose:
-        print('UZF: %s from the panel (vks from the %s)'
-              % (', '.join(done), u.vks_from))
+        print('UZF: %s from the panel (vks from each layer\'s vertical K; a '
+              'cold start at %s)' % (', '.join(done), (
+                  u.thti_from if u.thti_from != 'between'
+                  else '%g of [thtr, thts]' % float(u.thti_fill))))
     return done
 
 
@@ -1334,18 +1331,19 @@ MF6_THTS_RULE = ('MODFLOW 6 (UZF, THTS): "The values for saturated and '
                  'Storage Package."')
 
 
-def uzf_water_contents(sr, sy, thti, active=None):
+def uzf_water_contents(sr, sy, fill=0.0, active=None):
     """``(thtr, thts, thti, notes)`` from the aquifer layers (user,
     2026-10-20): thtr = Sr, the specific retention, and thts = Sy + Sr, the
     porosity -- so the unsaturated zone drains exactly the aquifer's Sy, by
-    construction (MF6_THTS_RULE). thti is then clipped into [thtr, thts],
-    each clip counted in ``notes``. Only ``active`` cells are judged;
-    arrays broadcast against each other. PropertyError where Sr <= 0 (UZF6
-    wants thtr > 0) or Sy + Sr > 1.
+    construction (MF6_THTS_RULE). thti, a cold start's content, is ``fill``
+    of the way from thtr to thts (2026-10-22: 0 empty, 1 saturated). Only
+    ``active`` cells are judged; arrays broadcast against each other.
+    PropertyError where Sr <= 0 (UZF6 wants thtr > 0) or Sy + Sr > 1.
     """
-    arrs = np.broadcast_arrays(*(np.asarray(x, dtype=float)
-                                 for x in (sr, sy, thti)))
-    sr, sy, thti = (np.array(a, dtype=float) for a in arrs)
+    arrs = np.broadcast_arrays(*(np.asarray(x, dtype=float) for x in (sr, sy)))
+    sr, sy = (np.array(a, dtype=float) for a in arrs)
+    f = min(max(float(fill), 0.0), 1.0)
+    thti = sr + f * sy
     act = (np.ones(sr.shape, dtype=bool) if active is None
            else np.broadcast_to(np.asarray(active, dtype=bool), sr.shape))
     thtr, thts = sr.copy(), sy + sr
@@ -1369,14 +1367,9 @@ def uzf_water_contents(sr, sy, thti, active=None):
                  'the aquifer\'s specific yield'
                  % (thtr[act].min(), thtr[act].max(), thts[act].min(),
                     thts[act].max()))
-    lo, hi = act & (thti < thtr), act & (thti > thts)
-    if lo.any() or hi.any():
-        thti = np.where(act, np.clip(thti, thtr, thts), thti)
-        notes.append('UZF thti clipped into [thtr, thts] in %d cell(s): %d '
-                     'raised to thtr (they start with no drainable water), '
-                     '%d lowered to thts'
-                     % (int(lo.sum() + hi.sum()), int(lo.sum()),
-                        int(hi.sum())))
+    notes.append('UZF thti, where no state is carried: %s'
+                 % ('thtr (empty)' if f == 0.0 else 'thts (saturated)'
+                    if f == 1.0 else '%g of the way from thtr to thts' % f))
     return thtr, thts, thti, notes
 
 

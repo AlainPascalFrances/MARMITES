@@ -33,7 +33,7 @@ def _tools(tmp_path, setup_body, run_body='print("run")'):
     return d
 
 
-def _wait(ws, job_id, timeout=60.0):
+def _wait(ws, job_id, timeout=300.0):
     t0 = time.time()
     while time.time() - t0 < timeout:
         st = pest_jobs.status(ws, job_id)

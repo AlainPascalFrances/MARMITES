@@ -50,7 +50,7 @@ def cfg():
 
 def test_every_uzf_field_names_its_flopy_argument():
     for dotted in ('uzf.ntrailwaves', 'uzf.nwavesets', 'uzf.surfdep',
-                   'uzf.eps', 'uzf.thti', 'uzf.vks'):
+                   'uzf.eps', 'uzf.thti_from'):
         help_ = schema.describe(dotted)[2]
         assert 'flopy' in help_.lower() or 'packagedata' in help_, (
             '%s does not say what it becomes' % dotted)
@@ -63,11 +63,31 @@ def test_vks_scale_says_it_is_not_a_modflow_field():
     assert 'NOT a MODFLOW field' in help_
 
 
-def test_iuzfopt_is_asked_as_what_it_means(cfg):
-    """1 and 2 meant 'read a raster' and 'use the layer k33'. The numbers
-    were never the question."""
-    assert cfg.uzf.vks_from in ('layer', 'raster')
-    assert schema.choices_for('uzf.vks_from') == ['layer', 'raster']
+def test_uzf_vks_is_always_the_layers_vertical_k(cfg):
+    """iuzfopt 2, without the raster alternative that was never used
+    (user, 2026-10-22): no field asks where vks comes from."""
+    for gone in ('vks_from', 'vks'):
+        assert not hasattr(cfg.uzf, gone), gone
+        assert gone in cfgmod.RETIRED['uzf']
+    rows = [k for row in schema.UZF_ROWS for k in row if k]
+    assert 'uzf.vks_from' not in rows and 'uzf.vks' not in rows
+    assert 'vertical K' in schema.describe('uzf.vks_scale')[2]
+
+
+def test_the_initial_content_is_thtr_thts_or_a_place_between(cfg):
+    """user, 2026-10-22: one absolute thti cannot lie in both layers'
+    ranges (0.275-0.30 and 0.04-0.05); a place between thtr and thts can."""
+    assert schema.choices_for('uzf.thti_from') == ['thtr', 'thts', 'between']
+    c = cfgmod.RunConfig.from_dict({})
+    assert c.uzf.thti_from == 'thtr'
+    c.uzf.thti_from, c.uzf.thti_fill = 'between', 0.0
+    assert any('thti_fill must lie strictly between' in e
+               for e in c.problems())
+    c.uzf.thti_fill = 0.4
+    assert not any('thti' in e for e in c.problems())
+    c.uzf.thti_from = 'full'
+    assert any('uzf.thti_from must be one of' in e for e in c.problems())
+    assert 'thti' in cfgmod.RETIRED['uzf']
 
 
 def test_the_legacy_names_are_all_accounted_for():
@@ -164,10 +184,10 @@ def test_the_panel_says_uzf_et_is_wired_end_to_end(cfg):
 def test_the_uzf6_limits_are_refused_here_not_by_modflow(cfg):
     """Better a message on the panel than a failure after the run has
     started writing files."""
-    # thtr and thts are the layers' (layers.sr, 2026-10-20); thti is
-    # clipped into [Sr, Sy + Sr] at the build, so only its [0, 1] is here
+    # thtr and thts are the layers' (layers.sr, 2026-10-20); thti a place
+    # between them (uzf.thti_from, 2026-10-22)
     for sec, field, bad, needle in (('uzf', 'eps', 2.0, '3.5'),
-                                    ('uzf', 'thti', 1.5, 'thti'),
+                                    ('uzf', 'thti_from', 'full', 'thti_from'),
                                     ('uzf', 'ntrailwaves', 0, 'ntrailwaves'),
                                     ('layers', 'sr', [0.275, 0.0],
                                      'layers.sr')):
@@ -196,7 +216,7 @@ def test_the_panel_gives_uzf_what_the_parameter_file_gave_it(cfg):
     def scalar(v):
         return float(np.ravel(np.asarray(v, dtype=float))[0])
 
-    names = ('ntrail2', 'nsets', 'surfdep', 'thti', 'iuzfopt')
+    names = ('ntrail2', 'nsets', 'surfdep')
     eps_ini = LM.INI_UZF['eps']
     props.apply_uzf(cfg, cMF, DS, verbose=False)
     for n in names:
@@ -286,11 +306,11 @@ def test_the_uzf6_rules_are_checked_on_every_cell(built, tmp_path):
     assert 'layers.sr' in str(e.value) and 'cell(s)' in str(e.value)
 
 
-def test_the_three_uzf_properties_take_the_usual_three_producers(cfg):
-    """eps, thti and vks -- raster, layer or value, like every other
-    spatial input on these panels (thtr and thts are the layers' since
-    2026-10-20: layers.sr)."""
-    for name in ('eps', 'thti', 'vks'):
+def test_eps_takes_the_usual_three_producers(cfg):
+    """raster, layer or value, like every other spatial input on these
+    panels (thtr and thts are the layers' since 2026-10-20, vks the layer's
+    vertical K and thti a place between thtr and thts since 2026-10-22)."""
+    for name in ('eps',):
         src = getattr(cfg.uzf, name)
         assert schema.is_source(src), 'uzf.%s is not a source' % name
         for producer in ('raster', 'layer', 'value'):

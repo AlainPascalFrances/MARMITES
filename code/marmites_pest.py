@@ -28,7 +28,7 @@ installed:
     One value per line; per cell in the model's own cell order (the mesh's
     icell2d, the structured grid's row-major order). A missing file leaves
     that property as it is. k33 follows K (layers.k33_as_ratio), UZF's vks
-    follows k33 (uzf.vks_from = layer), UZF's thts = Sy + Sr follows Sy:
+    follows k33, UZF's thts = Sy + Sr follows Sy:
     the multiplied values reach them all.
 
     When Sy changes, ``cMF.uzf_carry_ref`` keeps the model's (thtr, thts)

@@ -333,6 +333,14 @@ something a regression.
   RETIRED (one thts 0.45 for every layer had given Sr = 0.44 in both).
   Call thtr "specific retention", never "residual water content". PEST's
   family sr writes `layers.sr` (like k33), no sr_l<L>.txt file.
+  UZF is SHIFT-INVARIANT in Sr (Brooks-Corey on (θ-thtr)/(thts-thtr) with
+  thts - thtr = Sy): Sr changes no flux or head, only absolute water
+  contents -- the data cannot inform it; untick sr in PEST (user,
+  2026-10-22). A cold start's thti is `uzf.thti_from` = thtr | thts |
+  between (+ `uzf.thti_fill` 0-1): a place in each object's own range,
+  since no absolute value fits both layers. UZF's vks is ALWAYS the
+  object's layer vertical K x `uzf.vks_scale` (`uzf.vks_from`, `uzf.vks`,
+  `uzf.thti` retired, 2026-10-22).
 - Seepage face = DRN_SEEP at the soil base (not UZF GWSEEP: deprecated in MF6
   6.5+, and validate() refuses seep.kind='uzf' under coupling). **No seepage
   drain in stream cells or in any pond-footprint cell.**

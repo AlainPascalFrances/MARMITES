@@ -451,7 +451,7 @@ def step_org(cfg_path, pest_ws):
     # under its thtr 0.44, so the build raises it to thtr); a realisation's
     # thts can fall below 0.15 -- the fissured layer's 0.05 -- which would
     # lower it to thts and start that zone full (2026-10-18)
-    cfg.uzf.thti.value = 1.0e-3
+    cfg.uzf.thti_from = 'thtr'
     cfg.validate()
     cfg.write_toml(os.path.join(org, 'pest_lamata.toml'))
     # the dataset copy, with the points the calibration adds

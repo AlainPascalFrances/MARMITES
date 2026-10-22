@@ -36,13 +36,16 @@ import marmites_props as props                                 # noqa: E402
 
 
 # ------------------------------------------------------------ the rule
-def test_thtr_is_sr_and_thts_is_sy_plus_sr_and_thti_is_raised():
-    thtr, thts, thti, notes = props.uzf_water_contents(0.275, 0.01, 0.15)
+def test_thtr_is_sr_thts_is_sy_plus_sr_and_thti_a_place_between():
+    thtr, thts, thti, notes = props.uzf_water_contents(0.275, 0.01)
     assert float(thtr) == pytest.approx(0.275)
     assert float(thts) == pytest.approx(0.285)
-    assert float(thti) == pytest.approx(0.275), 'thti below thtr not raised'
+    assert float(thti) == pytest.approx(0.275), 'a cold start is empty'
     assert any('thtr = Sr' in n and 'Sy + Sr' in n for n in notes)
-    assert any('1 raised to thtr' in n for n in notes)
+    assert any('thtr (empty)' in n for n in notes)
+    for fill, want in ((1.0, 0.285), (0.4, 0.279)):
+        assert float(props.uzf_water_contents(0.275, 0.01, fill)[2]) == \
+            pytest.approx(want)
 
 
 def test_per_layer_and_per_cell_sy_and_sr():
@@ -64,14 +67,17 @@ def test_a_zero_sr_or_a_porosity_above_one_is_refused():
 
 def test_inactive_cells_are_not_judged():
     thtr, thts, thti, _ = props.uzf_water_contents(
-        np.array([0.275, 0.0]), 0.01, 0.15, active=np.array([True, False]))
-    assert thtr[0] == pytest.approx(0.275) and thti[1] == pytest.approx(0.15)
+        np.array([0.275, 0.0]), 0.01, active=np.array([True, False]))
+    assert thtr[0] == pytest.approx(0.275) and thtr[1] == 0.0
 
 
-def test_a_thti_above_thts_is_lowered_and_counted():
-    _r, _s, thti, notes = props.uzf_water_contents(0.04, 0.01, 0.9)
-    assert float(thti) == pytest.approx(0.05)
-    assert any('1 lowered to thts' in n for n in notes)
+def test_one_place_fits_every_layer_where_one_value_could_not():
+    """La Mata: [0.275, 0.285] and [0.04, 0.05] -- no absolute value lies
+    in both; the place 0.5 is in each (user, 2026-10-22)."""
+    sr = np.array([0.275, 0.04])
+    thtr, thts, thti, _ = props.uzf_water_contents(sr, 0.01, 0.5)
+    assert np.all((thtr < thti) & (thti < thts))
+    assert np.allclose(thti, [0.28, 0.045])
 
 
 # ------------------------------------------------------ the configuration
@@ -86,9 +92,12 @@ def test_sr_is_a_layer_property_27_5_and_4_percent():
 def test_an_old_file_with_the_uzf_contents_still_loads():
     c = mcfg.RunConfig.from_dict({'uzf': {'thtr_from': 'sy',
                                           'thtr': {'value': 0.05},
-                                          'thts': {'value': 0.45}}})
+                                          'thts': {'value': 0.45},
+                                          'thti': {'value': 0.15},
+                                          'vks_from': 'layer'}})
     assert c.layers.sr.values(2) == [0.275, 0.04]
-    assert set(mcfg.RETIRED['uzf']) == {'thts', 'thtr', 'thtr_from'}
+    assert {'thts', 'thtr', 'thtr_from', 'thti', 'vks_from', 'vks'} <= \
+        set(mcfg.RETIRED['uzf'])
 
 
 def test_a_bad_sr_is_a_configuration_error():
@@ -166,7 +175,7 @@ def test_the_validation_panel_says_what_uzf_will_take(tmp_path):
     assert got and all(c.level == chk.INFO for c in got)
     text = ' '.join(c.title for c in got)
     assert '0.04..0.275' in text and '0.05..0.285' in text
-    assert 'raised to thtr' in text
+    assert 'thtr (empty)' in text
 
 
 def test_the_check_is_one_of_those_the_launch_asks():

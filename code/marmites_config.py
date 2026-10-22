@@ -943,13 +943,14 @@ class Uzf:
 
         ntrailwaves, nwavesets      the wave machine (the ini's ntrail2/nsets)
         surfdep                     packagedata, per object
-        eps, thti                   packagedata, per object (Brooks-Corey)
+        eps                         packagedata, per object (Brooks-Corey)
         thtr, thts                  NOT asked here: the aquifer layer's
                                     specific retention Sr and Sy + Sr
                                     (layers.sr, user 2026-10-20)
-        vks_from                    'layer' uses the layer's own k33,
-                                    'raster' the map below (the ini's iuzfopt)
-        vks                         packagedata vks, when vks_from = raster
+        thti_from, thti_fill        packagedata thti of a cold start, as its
+                                    place in the object's [thtr, thts]
+        vks                         NOT asked here: the vertical K of the
+                                    object's own layer, k / (Kh/Kv)
         vks_scale                   offsets the EPSILON clamp; NOT a MF6 field
 
     MOST OF UZF1 HAS NO MF6 EQUIVALENT and is deliberately absent:
@@ -998,13 +999,18 @@ class Uzf:
     # soil really is uniform. UZF6 enforces 3.5 <= eps <= 14.0 (UZF1
     # accepted 2.0), and validate() checks it on whatever the source
     # produces. thtr and thts are the aquifer's: layers.sr and Sy + Sr
-    # (2026-10-20). thti is clipped into [Sr, Sy + Sr] at the build.
+    # (2026-10-20).
     eps: VectorSource = field(default_factory=lambda: VectorSource(value=3.5))
-    thti: VectorSource = field(default_factory=lambda: VectorSource(value=0.15))
-    # Where the unsaturated vertical conductivity comes from. This is the
-    # ini's iuzfopt with the numbers replaced by what they meant.
-    vks_from: str = 'layer'        # layer | raster
-    vks: VectorSource = field(default_factory=VectorSource)
+    # THE INITIAL WATER CONTENT where no saved state carries one (a cold
+    # start), as its place in each object's own [thtr, thts] = [Sr, Sy + Sr]
+    # (user, 2026-10-22): 'thtr' empty, 'thts' saturated, 'between' at
+    # thti_fill of the way (0 < fill < 1). An absolute value cannot do it:
+    # La Mata's ranges are 0.275-0.30 in layer 1 and 0.04-0.05 in layer 2.
+    thti_from: str = 'thtr'        # thtr | thts | between
+    thti_fill: float = 0.5
+    # UZF's vertical conductivity is each object's own layer's vertical K,
+    # k / (Kh/Kv), so the column and the aquifer cannot disagree (user,
+    # 2026-10-22: the raster alternative, vks_from / vks, is gone), times:
     vks_scale: float = 1.0         #                           (--uzf-vks-scale)
     # THE WETTING FRONT'S SATURATION LIMIT (2026-10-20): the soil
     # percolates into each land UZF object at most VKS x s^eps, the flux
@@ -1770,8 +1776,17 @@ RENAMED = {
 # existing file loading -- a hard refusal, at launch, over a setting that no
 # longer does anything. It is accepted, DROPPED, and reported; saving from a
 # panel writes the file without it.
+UZF_THTI_FROM = ('thtr', 'thts', 'between')
+
 RETIRED = {
-    'uzf': {'thts': 'UZF\'s saturated water content is the aquifer layer\'s '
+    'uzf': {'thti': 'the initial content is a place in each object\'s '
+                    '[thtr, thts] now (user, 2026-10-22): uzf.thti_from = '
+                    'thtr | thts | between, and uzf.thti_fill -- one absolute '
+                    'value cannot lie in both layers\' ranges',
+            'vks_from': 'UZF\'s vertical K is always the layer\'s own (user, '
+                        '2026-10-22): the raster alternative was never used',
+            'vks': 'see uzf.vks_from: UZF\'s vertical K is the layer\'s own',
+            'thts': 'UZF\'s saturated water content is the aquifer layer\'s '
                     'Sy + Sr now (layers.sr, user 2026-10-20): one value for '
                     'every layer gave thtr = thts - Sy = 0.44 in both',
             'thtr': 'UZF\'s thtr is the aquifer layer\'s specific '
@@ -2085,17 +2100,12 @@ class RunConfig:
                         'Newton handles badly')
         if self.et.unsat_form not in ('etwc', 'etae'):
             errs.append("et.unsat_form must be 'etwc' or 'etae'")
-        if self.uzf.vks_from not in ('layer', 'raster'):
-            errs.append("uzf.vks_from must be 'layer' or 'raster'")
-        if self.uzf.vks_from == 'raster' and self.uzf.vks.producer() is None:
-            errs.append('uzf.vks_from is raster, so uzf.vks needs a raster, '
-                        'a layer or a value')
         # UZF6's own limits, refused here rather than by MODFLOW after the
         # run has started writing files. A source that reads a map can only
         # be checked cell by cell at build time, so what is checked here is
         # the part that IS knowable now: a single number, and that each is
         # answered at all.
-        for name in ('eps', 'thti', 'surfdep'):
+        for name in ('eps', 'surfdep'):
             src = getattr(self.uzf, name)
             if hasattr(src, 'producer') and src.producer() is None:
                 errs.append('uzf.%s: set a raster, a layer or a value' % name)
@@ -2104,8 +2114,7 @@ class RunConfig:
         # AttributeError here would be a worse message than the real one.
         def _num(v):
             return getattr(v, 'value', v)
-        _v = dict((n, _num(getattr(self.uzf, n)))
-                  for n in ('eps', 'thti'))
+        _v = dict((n, _num(getattr(self.uzf, n))) for n in ('eps',))
         if _v['eps'] is not None and not (3.5 <= float(_v['eps']) <= 14.0):
             errs.append('uzf.eps must be between 3.5 and 14.0: MODFLOW 6 '
                         'enforces it (UZF1 accepted 2.0, which is why '
@@ -2113,9 +2122,14 @@ class RunConfig:
         if not 0.0 < float(self.uzf.max_front_saturation) <= 1.0:
             errs.append('uzf.max_front_saturation must be in (0, 1] (1: '
                         'the soil percolates up to VKS)')
-        # thti is clipped into [Sr, Sy + Sr] at the build, with a note
-        if _v['thti'] is not None and not 0.0 <= float(_v['thti']) <= 1.0:
-            errs.append('uzf.thti must be between 0 and 1')
+        # a cold start's UZF water content, as its place in [thtr, thts]
+        if self.uzf.thti_from not in UZF_THTI_FROM:
+            errs.append('uzf.thti_from must be one of %s'
+                        % ', '.join(UZF_THTI_FROM))
+        elif self.uzf.thti_from == 'between' and not (
+                0.0 < float(self.uzf.thti_fill) < 1.0):
+            errs.append('uzf.thti_fill must lie strictly between 0 (thtr) '
+                        'and 1 (thts); for either end choose thtr or thts')
         # the specific retention: UZF's thtr, which UZF6 requires > 0; Sy +
         # Sr <= 1 is checked at the build, where a raster Sy is read
         _sr = self.layers.sr.values(int(self.layers.nlay)) \

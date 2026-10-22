@@ -1052,15 +1052,12 @@ class clsMF6:
                   % (nin, len(recs) - nin))
 
     def _uzf_vks_grid(self, k33):
-        """UZF's vks per (layer, row, col): the layer's k33 (iuzfopt 2) or
-        the vks raster (iuzfopt 1), times uzf_vks_scale -- the one rule the
-        UZF package and the UZF-equivalent seepage drain both use."""
-        cMF = self.cMF
+        """UZF's vks per (layer, row, col): the layer's own vertical K,
+        k33, times uzf_vks_scale -- the one rule the UZF package and the
+        UZF-equivalent seepage drain both use (2026-10-22: the raster
+        alternative, iuzfopt 1, is gone)."""
         scale = float(getattr(self, 'uzf_vks_scale', 1.0))
-        if int(getattr(cMF, 'iuzfopt', 2)) != 1:
-            return scale * np.asarray(k33, dtype=float)
-        return scale * self._lay3d(np.asarray(cMF.vks_actual, dtype=float),
-                                   self.nlay, self.nrow, self.ncol)
+        return scale * np.asarray(k33, dtype=float)
 
     def _cell_area_grid(self):
         """Cell areas (nrow, ncol) [m2], as MODFLOW 6 computes them: delr x
@@ -1307,7 +1304,6 @@ class clsMF6:
         #  * they are per CELL now: the panel takes a raster, a polygon
         #    attribute or one number for each, and a uniform answer still
         #    broadcasts to exactly the array a single value produced.
-        thti = self._uzf3d('thti')
         eps = self._uzf3d('eps')
         # THE AQUIFER'S WATER CONTENTS (user, 2026-10-20): thtr = the
         # layer's specific retention Sr, thts = Sy + Sr, with the very Sy
@@ -1322,8 +1318,10 @@ class clsMF6:
         sy3 = self._prop3d('sy_actual')
         sr3 = self._prop3d('sr_actual')
         try:
+            # a cold start's thti: its place in [thtr, thts] (uzf.thti_from)
             thtr, thts, thti, _notes = _props.uzf_water_contents(
-                sr3, sy3, thti, active=np.asarray(self.idomain) > 0)
+                sr3, sy3, float(getattr(self.cMF, 'uzf_thti_fill', 0.0)),
+                active=np.asarray(self.idomain) > 0)
         except _props.PropertyError as exc:
             raise MF6BuildError(str(exc))
         for _n in _notes:
@@ -1347,8 +1345,10 @@ class clsMF6:
             thtr, thts, thti, eps, active=np.asarray(self.idomain) > 0)
         self.uzf_thtr_built = np.array(thtr, dtype=float)
         self.uzf_thts_built = np.array(thts, dtype=float)
-        # vertical K for UZF: iuzfopt==1 -> vks array; iuzfopt==2 -> layer k33
-        # (the rule is _uzf_vks_grid, shared with the seepage drain)
+        # the input maps draw what UZF starts from
+        self.cMF.thti_actual = [np.asarray(thti)[L] for L in range(self.nlay)]
+        # vertical K for UZF: each layer's own k33 (the rule is
+        # _uzf_vks_grid, shared with the seepage drain)
         # UZF unsaturated conductivity scale. UZF6 forbids EPSILON < 3.5, but the
         # NWT model used 2.0; a higher Brooks-Corey exponent lowers the
         # unsaturated relative permeability K(theta)=VKS*Se^eps, throttling
@@ -1361,6 +1361,7 @@ class clsMF6:
                   '(unsaturated recharge throttle)' % vks_scale)
         # the vks per object, as one grid -- shared with the seepage drain
         vks_grid_u = self._uzf_vks_grid(k33)
+        self.cMF.vks_actual = [vks_grid_u[L] for L in range(self.nlay)]
         # build columns
         pkdata = []          # (iuzno, cellid, landflag, ivertcon, surfdep, vks, thtr, thts, thti, eps)
         subs = []            # subsurface objects appended after the land cells

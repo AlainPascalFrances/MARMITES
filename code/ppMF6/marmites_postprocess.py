@@ -3762,8 +3762,8 @@ def _native_input_maps(MMplot, out_dir, cMF, ctx, res=None, verbose=True):
     if int(getattr(cMF, 'uzf_yn', 0)) == 1:
         lst += [('eps', 'Epsilon - $eps$', arr(cMF.eps_actual)),
                 ('thts', 'Sat. water content - $thts$', arr(cMF.thts_actual))]
-        if int(getattr(cMF, 'iuzfopt', 0)) == 1:
-            lst += [('vks', 'Sat. vert. hydraulic cond. - $vks$',
+        if getattr(cMF, 'vks_actual', None) is not None:
+            lst += [('vks', 'UZF vert. hydraulic cond. - $vks$',
                      arr(cMF.vks_actual))]
         lst += [('thti', 'Initial water content - $thti$', arr(cMF.thti_actual)),
                 ('thtr', 'Specific retention - $thtr$', arr(cMF.thtr_actual))]

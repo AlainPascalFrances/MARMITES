@@ -123,9 +123,17 @@ def test_the_panel_reproduces_the_ini_cell_for_cell(cfg):
     got = dict((n, LM.layer_stats(f2a(getattr(cMF, n + '_actual'))))
                for n in ('hk', 'vka', 'ss', 'sy'))
     got['thick'] = LM.layer_stats(cMF.thick)
-    for name in ('thick', 'hk', 'ss', 'sy'):
+    for name in ('thick', 'hk', 'ss'):
         assert LM.same_stats(got[name], LM.INI_LAYERS[name]), (
             '%s is not what the parameter file gave' % name)
+    # Sy is the dataset's own rasters, read here on their own: the modeller
+    # changes them (layer 1: 0.01 -> 0.025, user, 2026-10-22)
+    sy_files = [os.path.join(DS, cfg.layers.sy.raster % (L + 1))
+                for L in range(2)]
+    raw = np.stack([np.loadtxt(f, skiprows=6) for f in sy_files])
+    raw = np.where(raw <= -9999.0, float(cfg.layers.sy.fill), raw)
+    assert LM.same_stats(got['sy'], LM.layer_stats(raw)), \
+        'sy is not what the Sy rasters hold'
     # Kh/Kv is the configuration's since 2026-10-19 (user: 2 in the
     # saprolite, 10 in the fissured layer; the file gave 2 in both): each
     # layer holds its own ratio, over the cells the file filled

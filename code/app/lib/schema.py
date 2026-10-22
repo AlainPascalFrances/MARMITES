@@ -782,25 +782,22 @@ FIELDS = {
                             'flow residual a cell may keep. Summed over '
                             'thousands of cells it is what the mass-balance '
                             'discrepancy is made of.'),
-    'uzf.thti': ('Initial water content', 'm³/m³',
-                 'flopy: packagedata `thti`, per cell. Kept between `thtr` '
-                 '(the layer\'s specific retention) and `thts` (Sy + Sr): a '
-                 'value outside is clipped at the build, and the log counts '
-                 'the cells. Always carried, so the UZF1 `SPECIFYTHTI` '
-                 'option is gone.'),
-    'uzf.vks_from': ('Unsaturated vertical K from', _U,
-                     'The UZF1 `iuzfopt` with the numbers replaced by what '
-                     'they meant. **layer** (iuzfopt = 2) uses each layer\'s '
-                     'own `k33`, so the unsaturated column and the aquifer '
-                     'cannot disagree. **raster** (iuzfopt = 1) reads the map '
-                     'below instead.'),
-    'uzf.vks': ('Unsaturated vertical K', 'm/d',
-                'flopy: packagedata `vks`. Read only when the source above is '
-                '**raster**. Per layer, by the same `%d` rule as the '
-                'aquifer properties.'),
+    'uzf.thti_from': ('Initial water content', _U,
+                      'flopy: packagedata `thti`, where no saved state '
+                      'carries one (a cold start): **thtr** the zone starts '
+                      'empty, **thts** saturated, **between** at the place '
+                      'below in each object\'s own range [thtr, thts] = '
+                      '[Sr, Sy + Sr]. A saved state carries the content it '
+                      'was left with.'),
+    'uzf.thti_fill': ('Place between thtr and thts', '0-1',
+                      'Read only when the initial water content is '
+                      '**between**: 0.5 is half-way from thtr to thts, in '
+                      'every object. Strictly between 0 and 1.'),
     'uzf.vks_scale': ('UZF vks multiplier', _U,
-                      'NOT a MODFLOW field: it multiplies the `vks` column '
-                      'before it is written. MODFLOW 6 forbids eps < 3.5 and '
+                      'NOT a MODFLOW field. UZF\'s vertical K (`vks`) is each '
+                      'object\'s own layer\'s vertical K, k / (Kh/Kv) -- so '
+                      'the column and the aquifer cannot disagree -- times '
+                      'this. MODFLOW 6 forbids eps < 3.5 and '
                       'the NWT model ran at 2.0; a higher exponent throttles '
                       'recharge, and raising vks restores the rate the NWT '
                       'model had. It scales the UZF column ONLY, never the '
@@ -1291,8 +1288,8 @@ CHOICES = {
     'et.extdp_from': lambda: ['source', 'vegetation'],
     'drn.cond_per': lambda: ['length', 'cell'],
     'ghb.cond_per': lambda: ['length', 'cell'],
-    # The ini's iuzfopt, with the numbers replaced by what they meant.
-    'uzf.vks_from': lambda: ['layer', 'raster'],
+    # a cold start's UZF content: its place in [thtr, thts]
+    'uzf.thti_from': lambda: list(__import__('marmites_config').UZF_THTI_FROM),
     # UZF1's SPECIFYTHTR, with the numbers replaced by what they meant.
     'solver.complexity': lambda: ['simple', 'moderate', 'complex'],
     'solver.cell_averaging': lambda: ['harmonic', 'logarithmic', 'amt-lmk',
@@ -1391,10 +1388,8 @@ BOUNDARY_FILES = ('ghb.line', 'drn.line')
 UZF_ROWS = (
     ('uzf.ntrailwaves', 'uzf.nwavesets'),
     ('uzf.surfdep', 'uzf.eps'),
-    ('uzf.thti', None),
-    ('uzf.vks_from', 'uzf.vks_scale'),
-    ('uzf.vks', None),
-    ('uzf.max_front_saturation', None),
+    ('uzf.thti_from', 'uzf.thti_fill'),
+    ('uzf.vks_scale', 'uzf.max_front_saturation'),
 )
 # Evapotranspiration inside MODFLOW, which is UNSATURATED-zone ET only.
 # There is NO on/off: UZF always simulates it (WP2). What is asked is how --
@@ -1422,9 +1417,9 @@ UZF_LEGACY = (
     ('nsets', 'nwavesets, above'),
     ('surfdep', 'surfdep, above'),
     ('eps', 'eps, above (now clamped to 3.5-14)'),
-    ('thts, thti', 'above'),
-    ('vks', 'above, when the source is a raster'),
-    ('iuzfopt', '"Unsaturated vertical K from": 1 was raster, 2 the layer'),
+    ('thts', 'Sy + Sr of the object\'s layer (MODFLOW aquifer layers)'),
+    ('thti', '"Initial water content": thtr, thts or a place between'),
+    ('vks, iuzfopt', 'gone -- always the layer\'s vertical K (iuzfopt 2)'),
     ('finf_user', 'perioddata `finf`; the coupled run overwrites it daily '
                   'from MMsoil'),
     ('[SPECIFYTHTR]', 'gone — UZF6 always needs thtr > 0'),

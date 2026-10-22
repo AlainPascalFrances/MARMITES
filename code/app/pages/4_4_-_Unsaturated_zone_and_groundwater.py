@@ -183,15 +183,14 @@ with tab_uzf:
     edited.update(panelui.rows_form(cfg, schema.UZF_ROWS, 'uzf', columns=2))
     # `gated` takes a SWITCH, and this one is a choice of source, so the
     # dependency is said in words rather than drawn as a greyed box.
-    st.caption('UZF\'s water contents are the aquifer layer\'s (tab '
-               '*MODFLOW aquifer layers*): `thtr` = its specific retention '
-               'Sr, `thts` = Sy + Sr, so the unsaturated zone drains exactly '
-               'what the aquifer stores. An initial content below Sr is '
-               'raised to it at the build.')
-    if cfg.uzf.vks_from != 'raster':
-        st.caption('`uzf.vks` above is not read: the unsaturated vertical K '
-                   'comes from each layer\'s own `k33`, so the column and '
-                   'the aquifer cannot disagree.')
+    st.caption('From the aquifer layers (tab *MODFLOW aquifer layers*): '
+               'UZF\'s `thtr` = the layer\'s specific retention Sr, `thts` '
+               '= Sy + Sr -- the unsaturated zone drains exactly what the '
+               'aquifer stores -- and its vertical K = the layer\'s, k / '
+               '(Kh/Kv), times the multiplier above.')
+    if cfg.uzf.thti_from != 'between':
+        st.caption('*Place between thtr and thts* is read only when the '
+                   'initial water content is **between**.')
 
     st.markdown('#### Evapotranspiration inside MODFLOW')
     st.info('**Groundwater ET is computed by MARMITES, not asked of UZF.** '
