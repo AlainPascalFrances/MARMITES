@@ -348,10 +348,12 @@ def progress(pest_ws, now=None, running=None):
                 # the realisation it runs, and how many runs it has done:
                 # PEST++'s run id said nothing more -- equal to the
                 # realisation in the initial ensemble, a counter after
-                # (user, 2026-10-20)
+                # (user, 2026-10-20); counted since the launch, every batch
+                # together -- said in the name (user, 2026-10-22: beside
+                # the per-batch table it read as this batch's)
                 agents.append({'agent': r['agent'],
                                'realisation': r['real'],
-                               'runs done': done.get(r['agent'], 0),
+                               'runs since launch': done.get(r['agent'], 0),
                                'of which failed': failed.get(r['agent'], 0),
                                'started': r['sent'],
                                'elapsed (min)': (now - r['sent'])

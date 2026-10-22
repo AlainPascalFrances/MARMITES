@@ -185,7 +185,8 @@ def test_the_progress_of_a_running_calibration(tmp_path):
         ('worker_0', '5'), ('worker_1', 'BASE')]
     # each agent's runs so far, in place of PEST++'s run id (user,
     # 2026-10-20): worker_0 brought back four, worker_1's one was killed
-    assert [(a['runs done'], a['of which failed']) for a in p['agents']] \
+    assert [(a['runs since launch'], a['of which failed'])
+            for a in p['agents']] \
         == [(4, 0), (1, 1)]
     assert 'run' not in p['agents'][0]
     assert p['agents'][0]['elapsed (min)'] == pytest.approx(60.0)
