@@ -177,3 +177,23 @@ def test_the_saturation_limit_is_a_uzf_field_passed_to_the_coupler():
         src = fh.read()
     assert 'uzf_front_saturation=float(cfg.uzf.max_front_saturation)' in src
     assert 'cpl.max_front_saturation = float(a.uzf_front_saturation)' in src
+
+
+def test_the_cap_tally_says_how_often_and_by_which_term(capsys):
+    """2026-10-23: the calibration pushed uzf_vks to its upper bound -- is
+    the percolation held by VKS * s^eps or by the room left?"""
+    s = types.SimpleNamespace(
+        ncell=4, area=np.ones(4), _cap_today=np.array([5.0, 2.0, 0.0, 9.0]),
+        _cap_vks_today=np.array([5.0, 8.0, 8.0, 9.0]),
+        cap_tally=dict(cells=0, at_cap=0, by_vks=0, no_room=0,
+                       perc_at_cap=0.0, perc_all=0.0))
+    # cell 0 at its VKS term, cell 1 at the room left, cell 2 has no room,
+    # cell 3 under its cap
+    coup.MF6Coupler._tally_cap(s, np.array([5.0, 2.0, 0.0, 4.0]))
+    t = s.cap_tally
+    assert (t['cells'], t['at_cap'], t['by_vks'], t['no_room']) == (4, 2, 1, 1)
+    assert t['perc_at_cap'] == 7.0 and t['perc_all'] == 11.0
+    coup.MF6Coupler._print_cap_tally(s)
+    out = capsys.readouterr().out
+    assert 'AT the cap in 50.0 %' in out and '25.0 % held by VKS' in out
+    assert '63.6 % of all percolation' in out and 'in 25.0 %' in out

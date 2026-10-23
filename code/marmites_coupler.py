@@ -254,6 +254,14 @@ class MF6Coupler:
         self.pet_unmet = None           # catchment PT+PE - (ETsoil+ETuzf+ETg)
         self.n_overdraw = 0
         self.max_overdraw = 0.0
+        # the worst ET-above-PET cell-periods, each term (2026-10-23: the
+        # count alone could not say which term overshot)
+        self.overdraw_rows = []
+        # how often the soil percolated AT perc_cap, and which term held it
+        # (2026-10-23: the calibration pushed uzf_vks to its upper bound)
+        self._cap_today = self._cap_vks_today = None
+        self.cap_tally = dict(cells=0, at_cap=0, by_vks=0, no_room=0,
+                              perc_at_cap=0.0, perc_all=0.0)
         # the period just advanced: its rates' sub-step means (None when it
         # was one step) and its step count -- see SUBSTEP_RATES
         self._period_rates = None
@@ -551,7 +559,47 @@ class MF6Coupler:
                                 getattr(self, '_uzf_thtr', None), self.ncell)
         ok = np.isfinite(h) & (np.abs(h) < 1e20) & np.isfinite(self._uzf_top)
         cap = np.where(ok, np.minimum(vks, room / perlen), vks)
+        # the day's two terms, for the tally (_tally_cap)
+        self._cap_vks_today = vks * self.conv_fact
+        self._cap_today = cap * self.conv_fact
         return cap * self.conv_fact                             # m/d -> mm/d
+
+    def _tally_cap(self, perc):
+        """The day's percolation against its cap: how many land cells
+        percolated AT it (a positive flux held there), how many of those
+        by VKS * s^eps rather than by the room left, and how many had no
+        room at all (the water table at the soil base); the percolation
+        through capped cells against all of it, area-weighted."""
+        cap, vks = self._cap_today, self._cap_vks_today
+        if cap is None or perc is None:
+            return
+        n = self.ncell
+        p = np.asarray(perc, dtype=float)[:n]
+        c, v = np.asarray(cap, dtype=float)[:n], np.asarray(vks, dtype=float)[:n]
+        a = np.asarray(getattr(self, 'area', np.ones(n)), dtype=float)[:n]
+        at = (p > 0.0) & (p >= c * (1.0 - 1e-6))
+        t = self.cap_tally
+        t['cells'] += n
+        t['at_cap'] += int(at.sum())
+        t['by_vks'] += int((at & (v <= c * (1.0 + 1e-9))).sum())
+        t['no_room'] += int((c <= 0.0).sum())
+        t['perc_at_cap'] += float(np.sum(np.where(at, p, 0.0) * a))
+        t['perc_all'] += float(np.sum(np.clip(p, 0.0, None) * a))
+
+    def _print_cap_tally(self):
+        t = self.cap_tally
+        if not t['cells']:
+            return
+        print('percolation cap (perc_cap): the soil percolated AT the cap in '
+              '%.1f %% of land cell-days -- %.1f %% held by VKS x s^eps, '
+              '%.1f %% by the room left in the unsaturated zone; %.1f %% of '
+              'all percolation went through at the cap; no room at all '
+              '(water table at the soil base) in %.1f %%'
+              % (100.0 * t['at_cap'] / t['cells'],
+                 100.0 * t['by_vks'] / t['cells'],
+                 100.0 * (t['at_cap'] - t['by_vks']) / t['cells'],
+                 100.0 * t['perc_at_cap'] / max(t['perc_all'], 1e-30),
+                 100.0 * t['no_room'] / t['cells']))
 
     def _mm_step(self, n, tstart_MF, heads, exf, rej):
         """One MMsoil stress period. WP2: Eg/Tg see what remains after the
@@ -1722,6 +1770,14 @@ class MF6Coupler:
         self.n_overdraw += int(bad.sum())
         if bad.any():
             self.max_overdraw = max(self.max_overdraw, float(over[bad].max()))
+            # the worst 20, each term: which one overshot, where and when
+            for c in np.flatnonzero(bad):
+                self.overdraw_rows.append(
+                    (float(over[c]), int(n), int(c), float(demand[c]),
+                     float(mm_cells[c, ix['iETsoil']]), float(et[c]),
+                     float(mm_cells[c, ix['iETg']])))
+            self.overdraw_rows = sorted(self.overdraw_rows,
+                                        reverse=True)[:20]
         self.pet_unmet[n] = float(np.average(demand - used, weights=self.area))
 
     def _print_pet_balance(self, nper):
@@ -1744,6 +1800,13 @@ class MF6Coupler:
             print('      ERROR: ET above PET in %d cell-period(s), at most '
                   '%.3g mm/d -- this must never happen (check_solution '
                   'fails the run)' % (self.n_overdraw, self.max_overdraw))
+            print('      the worst (mm/d): stress period, cell: PT+PE -> '
+                  'ETsoil + ETuzf + ETg')
+            for over, n, c, dem, es, eu, eg in self.overdraw_rows[:10]:
+                print('        SP %d%s, cell %d: %.3f -> %.3f + %.3f + %.3f '
+                      '(+%.3f)' % (n + 1, self._period_name(n)[len(' %d'
+                                                                 % (n + 1)):],
+                                   c, dem, es, eu, eg, over))
         if getattr(self, 'n_resid', 0):
             print('      UZF: in %d cell-period(s) MF6 took up to %.3g mm/d '
                   'beyond the demand, within its own wave tolerance (1e-6 m '
@@ -1853,6 +1916,9 @@ class MF6Coupler:
         self.pet_unmet = np.zeros(nper_mm)
         self.etuzf_prev = np.zeros(self.ncell)
         self.n_overdraw, self.max_overdraw = 0, 0.0
+        self.overdraw_rows = []
+        self.cap_tally = dict(cells=0, at_cap=0, by_vks=0, no_room=0,
+                              perc_at_cap=0.0, perc_all=0.0)
         self.n_resid, self.resid_max, self.resid_m3 = 0, 0.0, 0.0
         # a fresh MF6 session: no step solved yet, nothing flowed in
         self.sfr_up_prev = None
@@ -1974,6 +2040,7 @@ class MF6Coupler:
                 self.heads_hist[n] = heads
                 self.exf_hist[n] = exf
                 self.perc_hist[n] = out['perc']
+                self._tally_cap(out['perc'])
                 self.rejinf_hist[n] = rej
                 mm_cells = np.asarray(out['MM'], dtype=np.float64)
                 if self.p_sfr_inflow is not None:
@@ -2138,6 +2205,7 @@ class MF6Coupler:
             # cannot evaporate what it has not got); ET above the demand is
             # not -- it would be the one-period lag of UZF's ET.
             self._print_pet_balance(nper_mm)
+            self._print_cap_tally()
             self._print_crr(nper_mm)
         finally:
             # MF6 can fault inside finalize() when the run is aborted early
