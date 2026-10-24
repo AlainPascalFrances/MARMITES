@@ -812,9 +812,11 @@ def project_model(cMF, gridprops, grids, warn=None, how='auto'):
         m.strt = proj.sample3d(np.asarray(cMF.strt), fill=hnoflo, how=how,
                                valid=src_active3)
 
-    # ---- aquifer properties
+    # ---- aquifer properties (sr_actual: the specific retention, UZF's
+    # thtr -- a raster of it stayed on the dataset grid, and the build broke
+    # on (65, 60) against (4566, 1): the base run of 2026-10-24)
     for name in ('hk_actual', 'vka_actual', 'ss_actual', 'sy_actual',
-                 'vks_actual', 'thick'):
+                 'sr_actual', 'vks_actual', 'thick'):
         val = getattr(cMF, name, None)
         if val is None:
             continue

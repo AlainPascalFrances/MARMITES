@@ -82,6 +82,9 @@ class _FakeMF:
         self.hk_actual = [rng.random((NROW, NCOL)) + 1.0 for _ in range(NLAY)]
         self.vka_actual = [2.0] * NLAY
         self.sy_actual = [rng.random((NROW, NCOL)) * 0.1 for _ in range(NLAY)]
+        # the specific retention as a raster per layer (2026-10-24)
+        self.sr_actual = [0.2 + rng.random((NROW, NCOL)) * 0.05
+                          for _ in range(NLAY)]
         self.ss_actual = [1e-5] * NLAY
         self.cPROCESS = _Process(NROW, NCOL, NLAY)
         # two drains, each 1.5 m above its own cell bottom (the La Mata rule)
@@ -229,6 +232,9 @@ def test_float2array_reports_the_mesh_shape():
     m, _g, proj = MESH.project_model(cMF, _dis_equivalent_gridprops(cMF), {})
     assert m.cPROCESS.float2array(m.sy_actual).shape == (NLAY, proj.ncpl, 1)
     assert m.cPROCESS.float2array(m.ss_actual).shape == (NLAY, proj.ncpl, 1)
+    # a raster of specific retention reaches the mesh too (the base run of
+    # 2026-10-24 broke on (65, 60) against (4566, 1))
+    assert m.cPROCESS.float2array(m.sr_actual).shape == (NLAY, proj.ncpl, 1)
 
 
 # ------------------------------------------------------------------ drains
