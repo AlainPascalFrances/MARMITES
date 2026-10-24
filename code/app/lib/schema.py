@@ -1262,6 +1262,14 @@ LABEL_WHEN = {
         'Measured from the top of the MODFLOW model, the base of the MMsoil '
         'column. flopy: `ModflowGwfuzf` perioddata `extdp`.')}),
 }
+# A FIELD THAT ONLY APPLIES FOR SOME ANSWERS OF ANOTHER: dotted ->
+# (controlling field, the values it applies for). rows_form draws it
+# read-only otherwise -- shown as it stands, never cleared, as a switched-off
+# field is (user, 2026-10-24: the place between thtr and thts is read only
+# for 'between').
+ENABLED_WHEN = {
+    'uzf.thti_fill': ('uzf.thti_from', ('between',)),
+}
 # the variants in force while one form is drawn (rows_form), per script
 # thread -- two sessions never see each other's
 _LABEL_NOW = threading.local()

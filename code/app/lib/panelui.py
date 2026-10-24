@@ -1030,6 +1030,10 @@ def _rows_form(cfg, rows, values, columns, folder, files, patterns,
         # layout's job to keep true.
         if not live(switch, values.get(switch, True)):
             off.update(dependents)
+    # a field that applies only for some answers of another, as on screen
+    for dotted, (ctrl, applies) in schema.ENABLED_WHEN.items():
+        if dotted in values and live(ctrl, values.get(ctrl)) not in applies:
+            off.add(dotted)
     for row in rows:
         cols = st.columns(max(columns, len(row)))
         for k, dotted in enumerate(row):

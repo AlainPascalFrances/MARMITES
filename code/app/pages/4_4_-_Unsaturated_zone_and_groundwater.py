@@ -188,9 +188,6 @@ with tab_uzf:
                '= Sy + Sr -- the unsaturated zone drains exactly what the '
                'aquifer stores -- and its vertical K = the layer\'s, k / '
                '(Kh/Kv), times the multiplier above.')
-    if cfg.uzf.thti_from != 'between':
-        st.caption('*Place between thtr and thts* is read only when the '
-                   'initial water content is **between**.')
 
     st.markdown('#### Evapotranspiration inside MODFLOW')
     st.info('**Groundwater ET is computed by MARMITES, not asked of UZF.** '

@@ -2070,3 +2070,25 @@ def test_the_extinction_depth_says_whose_it_is_with_the_vegetation():
     pick[0].set_value('source').run()
     assert labels() and not any('uncovered' in lab for lab in labels())
     assert any('Extinction depth' in lab for lab in labels()), labels()
+
+
+def test_the_place_between_thtr_and_thts_is_live_only_for_between():
+    """user, 2026-10-24: the box applies only when the initial water content
+    is 'between' -- read-only otherwise, following the selector on screen."""
+    at = AppTest.from_file(os.path.join(APP, SUB), default_timeout=180)
+    at.run()
+
+    def box():
+        live_ = [w for w in at.number_input if w.key == 'uzf.thti_fill']
+        ro = [w for w in at.number_input if w.key == 'ro_uzf.thti_fill']
+        return live_, ro
+
+    pick = [s for s in at.selectbox if s.key == 'uzf.thti_from']
+    assert pick, 'no selector for the initial water content'
+    pick[0].set_value('thtr').run()
+    live_, ro = box()
+    assert not live_ and ro and ro[0].disabled
+    pick = [s for s in at.selectbox if s.key == 'uzf.thti_from']
+    pick[0].set_value('between').run()
+    live_, ro = box()
+    assert live_ and not ro and not live_[0].disabled
