@@ -574,7 +574,9 @@ class MF6Coupler:
         if cap is None or perc is None:
             return
         n = self.ncell
-        p = np.asarray(perc, dtype=float)[:n]
+        # the soil's percolation is in m/d (it is written to UZF as it is),
+        # the cap in mm/d
+        p = np.asarray(perc, dtype=float)[:n] * self.conv_fact
         c, v = np.asarray(cap, dtype=float)[:n], np.asarray(vks, dtype=float)[:n]
         a = np.asarray(getattr(self, 'area', np.ones(n)), dtype=float)[:n]
         at = (p > 0.0) & (p >= c * (1.0 - 1e-6))
