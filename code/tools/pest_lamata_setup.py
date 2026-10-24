@@ -242,7 +242,10 @@ def default_pars(cfg, dataset_dir):
                          True))
     rows.append(_row('uzf_eps', 0, PRIOR_START['uzf_eps'], 3.5, 8.0,
                      False))                         # 3.5: MF6's minimum
-    rows.append(_row('uzf_vks', 0, cfg.uzf.vks_scale, 0.2, 5.0, True))
+    # x0.2-20 (user, 2026-10-24): the calibration of 2026-10-21/23 ended
+    # with 97 % of the ensemble at x5, and x5 still held 10.6 % of the
+    # percolation at VKS (x1: 41.6 %, phi +4.6 %, recharge -20 %)
+    rows.append(_row('uzf_vks', 0, cfg.uzf.vks_scale, 0.2, 20.0, True))
     if cfg.crr.enable:
         rows.append(_row('crr_beta', 0, PRIOR_START['crr_beta'], 0.8, 1.0,
                          False))

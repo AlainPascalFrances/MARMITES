@@ -261,7 +261,7 @@ def test_the_default_table_is_the_calibration_of_2026_10_18(tmp_path):
     # and 57 % of its draws on their bounds
     assert t[('uzf_eps', 0)] == (4.5, 3.5, 8.0, False)
     assert t[('crr_beta', 0)] == (0.95, 0.8, 1.0, False)
-    assert t[('uzf_vks', 0)] == (1.0, 0.2, 5.0, True)
+    assert t[('uzf_vks', 0)] == (1.0, 0.2, 20.0, True)     # x5 bound hit
     assert not [r for r in rows if r['family'] == 'sfr_evapf']
     for L, n in ((1, 0.30), (2, 0.05)):     # thts = Sy + Sr: the porosity
         assert t[('sy', L)][0] + t[('sr', L)][0] == pytest.approx(n)
