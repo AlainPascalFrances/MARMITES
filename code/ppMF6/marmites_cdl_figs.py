@@ -587,13 +587,27 @@ def _section(ax, centre, normal, half, mg, polys, land, strt, sfr, lk_cells,
     # the pond, over its LAK cell(s)
     if lk is not None:
         if inl.any():
+            # the whole pond, bed to rim: empty above the water
+            ax.fill_between(s, lk['bottom'], lk['rim'], where=inl,
+                            step='mid', facecolor='white', edgecolor='none')
             ax.fill_between(s, lk['bottom'], lk['strt'], where=inl,
-                            step='mid', label='LAK cell: pond, initial stage',
-                            **LAK_STYLE)
+                            step='mid', facecolor=LAK_STYLE['facecolor'],
+                            alpha=LAK_STYLE['alpha'], edgecolor='none',
+                            label='pond water, initial stage')
+            ax.fill_between(s, lk['bottom'], lk['rim'], where=inl,
+                            step='mid', facecolor='none',
+                            edgecolor=LAK_STYLE['edgecolor'],
+                            lw=LAK_STYLE['lw'],
+                            label='LAK cell: the pond, bed to rim')
             ax.hlines(lk['rim'], s[inl].min(), s[inl].max(), color='navy',
                       ls=':', lw=1.4, label='pond rim / outlet')
-            ax.hlines(lk['bottom'], s[inl].min(), s[inl].max(),
-                      color='midnightblue', lw=2.0, label='pond bottom')
+            base = float(np.mean(top[lk_cells]))
+            ax.text(0.5, 0.97, 'pond bed %.2f m: %.1f m below the land (rim), '
+                    '%.1f m below the soil base' % (
+                        lk['bottom'], lk['rim'] - lk['bottom'],
+                        base - lk['bottom']),
+                    transform=ax.transAxes, ha='center', va='top', fontsize=7,
+                    color=LAK_STYLE['edgecolor'])
             lows.append(lk['bottom'])
             highs.append(lk['rim'])
     # the streambed, over the SFR cells
@@ -608,7 +622,7 @@ def _section(ax, centre, normal, half, mg, polys, land, strt, sfr, lk_cells,
                         **SFR_STYLE)
         lows.append(np.nanmin(rbt))
     lo = np.nanmin(lows) - 3.0
-    hi = np.nanmax(highs) + 1.0
+    hi = np.nanmax(highs) + 1.5          # room for the pond's note
     ax.set_ylim(lo, hi)
     ax.set_xlim(-half, half)
     # the section's own cell, at 0
