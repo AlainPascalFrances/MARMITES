@@ -348,9 +348,12 @@ something a regression.
   aquifer top − depth); downstream-monotonic beds. A panel VALUE for
   manning/rhk/rbth wins over the converted table (`sfr_param_fixed`).
 - LAK (La Mata): EMBEDDEDV, footprint = cell centres inside the pond, host =
-  centroid cell, rim = LAND surface, bed = aquifer top − pond depth, stream
-  excised from footprints with MVR in/out, MVR factor 1.0; stage carried
-  across cycles and in `_state.npz`.
+  centroid cell; a pond with an outlet: rim = the bed (rtp) of the reach it
+  spills into (the lowest), bed = rim − pond depth (user, 2026-10-25, so
+  groundwater can enter); without an outlet: rim = LAND surface, bed =
+  aquifer top − pond depth. Stream excised from footprints with MVR in/out,
+  MVR factor 1.0; stage carried across cycles and in `_state.npz` (clipped
+  to the rim).
 - CRR (WP5): receivers LAK > SFR > soil, α_ij = β·S_ij/ΣS_ij over face
   neighbours, 1−β evaporates each hop, sinks evaporate|route, run-on
   infiltrates top-down (Eq. 1b). Irrigation water infiltrates the whole column
@@ -542,11 +545,12 @@ Recent runs (La Mata, 4566-cell Voronoi mesh: 20 m stream corridor ratio 2,
    The user decides `solver.outer_dvclose` on the Run panel (0.025 now;
    0.001, the approved default, cuts pond10's bound from 38.7 to
    1.5 m3/d, at more outer iterations per day).
-3. **Ponds never gain groundwater: their stage, not their bed** (notes
-   §8.22). Aquifer head below the pond stage every day (0.8-1.6 m), above
-   the bed (1.2-2.1 m); the stream through-flow pins the stage at the DEM
-   rim. Conceptual question for the user: real pond levels, sill at the
-   real level, off-channel ponds -- then calibration. The C1-C3
+3. **Ponds never gained groundwater: their stage, not their bed** (notes
+   §8.22). Aquifer head below the pond stage every day (0.8-1.6 m) with
+   the rim at the land surface. DONE 2026-10-25 (user's option 2): a pond
+   with an outlet spills at its outlet streambed, bed one pond depth lower;
+   in the base run 20261025082023 the median head under every pond stood above
+   those spill levels. Needs a new base run before the final calibration. The C1-C3
    "observations" repeat h0 + (-2.0, -0.5, 0, -1.0) m every year: they
    look like placeholders.
 4. **WEL for real boreholes/extraction** (when the user wants it): a `[wel]`

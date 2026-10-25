@@ -283,7 +283,7 @@ FIELDS = {
                  'GeoTIFF, or an ESRI grid folder). It is the land surface. '
                  'The DEM dataset is kept at its own resolution and the model '
                  'wraps it onto the grid cells, area-weighted. It also gives '
-                 'each pond its rim and bottom.'),
+                 'a pond with no outlet its rim and bottom.'),
     'grid.crs_epsg': ('Project CRS', 'EPSG',
                       'The projected, metric CRS of the project, extracted '
                       'from file .prj of the catchment layer.'),
@@ -920,9 +920,11 @@ FIELDS = {
                    'the lake (LAK RUNOFF), and its evaporation is the '
                    'lake\'s.'),
     'lak.depth': ('Pond depth', 'm',
-                  'Below the soil column, as for the streams: the pond\'s '
-                  'total depth under the land surface is the soil depth of '
-                  'its footprint + this. The rim is the land surface.'),
+                  'The water depth of a full pond. A pond that spills into '
+                  'the stream spills at the bed of the reach it spills '
+                  'into, and its bed is this much lower. A pond with no '
+                  'outlet spills at the land surface, and its bed is this '
+                  'much below the soil column, as for the streams.'),
     'lak.bedleak': ('Lakebed leakance', '1/d', 'Clay-lined charca: 1e-3.'),
     'lak.surfdep': ('Surface depression depth', 'm',
                     'flopy: ModflowGwflak `surfdep`. Smooths the wetted area '

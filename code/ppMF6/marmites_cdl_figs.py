@@ -587,9 +587,10 @@ def _section(ax, centre, normal, half, mg, polys, land, strt, sfr, lk_cells,
     # the pond, over its LAK cell(s)
     if lk is not None:
         if inl.any():
-            # the whole pond, bed to rim: empty above the water
-            ax.fill_between(s, lk['bottom'], lk['rim'], where=inl,
-                            step='mid', facecolor='white', edgecolor='none')
+            # the pit, bed to land surface: empty above the water
+            ax.fill_between(s, lk['bottom'], np.fmax(gl, lk['rim']),
+                            where=inl, step='mid', facecolor='white',
+                            edgecolor='none')
             ax.fill_between(s, lk['bottom'], lk['strt'], where=inl,
                             step='mid', facecolor=LAK_STYLE['facecolor'],
                             alpha=LAK_STYLE['alpha'], edgecolor='none',
@@ -602,10 +603,11 @@ def _section(ax, centre, normal, half, mg, polys, land, strt, sfr, lk_cells,
             ax.hlines(lk['rim'], s[inl].min(), s[inl].max(), color='navy',
                       ls=':', lw=1.4, label='pond rim / outlet')
             base = float(np.mean(top[lk_cells]))
-            ax.text(0.5, 0.97, 'pond bed %.2f m: %.1f m below the land (rim), '
-                    '%.1f m below the soil base' % (
-                        lk['bottom'], lk['rim'] - lk['bottom'],
-                        base - lk['bottom']),
+            ground = float(np.mean(np.asarray(land, dtype=float)[lk_cells]))
+            ax.text(0.5, 0.97, 'spills at %.2f m, %.1f m below the land; bed '
+                    '%.2f m, %.1f m below the land and %.1f m below the soil '
+                    'base' % (lk['rim'], ground - lk['rim'], lk['bottom'],
+                              ground - lk['bottom'], base - lk['bottom']),
                     transform=ax.transAxes, ha='center', va='top', fontsize=7,
                     color=LAK_STYLE['edgecolor'])
             lows.append(lk['bottom'])

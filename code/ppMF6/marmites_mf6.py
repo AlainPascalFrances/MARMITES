@@ -796,10 +796,12 @@ class clsMF6:
 
         The CdL design (cdl_gwf_model_fable_v2 §5b/§6): a pond owns the
         cells whose centre lies inside it, its one EMBEDDEDV connection is
-        the cell holding its centroid, its rim is the mean LAND SURFACE over the
-        footprint, and the stream runs THROUGH it -- the reaches inside the
-        footprint are excised, the reach entering it hands its flow to the
-        lake and the lake spills into the reach leaving it (MVR).
+        the cell holding its centroid, and the stream runs THROUGH it -- the
+        reaches inside the footprint are excised, the reach entering it hands
+        its flow to the lake and the lake spills into the reach leaving it
+        (MVR). Its rim -- where it spills -- is the bed of that reach, and
+        its bed one pond depth lower (user, 2026-10-25); a pond with no
+        outlet keeps the mean LAND SURFACE over the footprint as its rim.
 
         On the grid the model is ACTUALLY on. On a projected mesh
         cMF.delr/delc/nrow/ncol describe the (ncpl, 1) proxy grid of 1 m
@@ -825,6 +827,8 @@ class clsMF6:
         # pond depth. It is dug through the MMsoil column: its bed one pond
         # depth below the AQUIFER top (land surface - soil thickness), its
         # rim -- where it spills -- the land surface (user, 2026-09-26).
+        # A pond with an outlet is re-placed once the stream is cut out of
+        # it, below: rim at the outlet streambed, bed one pond depth lower.
         # With the bed measured from the land surface instead, La Mata's
         # 1.5 m of soil equalled the 1.5 m pond, and every pond bed sat on
         # the aquifer top (-0.44..+0.26 m), where the seepage drains hold
@@ -837,6 +841,7 @@ class clsMF6:
                 v = float(depth) if depth.ndim == 0 else float(depth[i, j])
                 if v > 0:
                     d = v
+            p.dig = d
             p.rim = float(np.mean([land[c] for c in p.cells]))
             p.bottom = float(np.mean([self.top[c] for c in p.cells])) - d
             # the lake connects at the topmost active layer, as the outcropping
@@ -883,6 +888,26 @@ class clsMF6:
             q = ponds[owner[r]]
             if net.rno[c] not in q.outlet_reaches:
                 q.outlet_reaches.append(net.rno[c])
+        # A POND THAT SPILLS INTO THE STREAM spills at the bed of the reach it
+        # spills into -- the lowest one, if several -- and its bed is one
+        # pond depth below that (user, 2026-10-25). Full to the land surface,
+        # La Mata's ponds stood 0.9-1.6 m above the heads under them all run
+        # long, so no groundwater could ever enter them; at the outlet
+        # streambed the base run's heads stood above the spill level.
+        # A pond with no outlet keeps the land-surface rim and the bed under
+        # the soil base set above.
+        if self.lak_mvr:
+            moved = []
+            for p in ponds:
+                if p.outlet_reaches:
+                    rim = float(min(net.reach_top[r] for r in p.outlet_reaches))
+                    moved.append(p.rim - rim)
+                    p.rim, p.bottom = rim, rim - p.dig
+            if moved and getattr(self, 'verbose', True):
+                print('LAK: %d pond(s) spill at their outlet streambed, '
+                      '%.2f..%.2f m below the land surface; beds one pond '
+                      'depth below that' % (len(moved), min(moved),
+                                            max(moved)))
         if getattr(self, 'verbose', True):
             print('LAK: the stream runs through %d pond(s): %d reach(es) inside '
                   'their footprints excised%s -> %d reaches; %d reach(es) hand '
@@ -965,8 +990,10 @@ class clsMF6:
                 # a spin-up cycle, or a run from a saved state: where the
                 # lake ENDED. A perched pond holds water the water table
                 # under it does not show, so starting it from the WT again
-                # threw its storage away every cycle.
-                p.strt = float(max(carry[L], p.bottom))
+                # threw its storage away every cycle. No higher than the
+                # rim: a state saved with the ponds full to the land surface
+                # (before 2026-10-25) would start them metres above it.
+                p.strt = float(np.clip(carry[L], p.bottom, p.rim))
             # start each lake at its local equilibrium stage: a perched pond
             # starts nearly empty, one in contact with the water table nearly
             # full, so neither gets a shock on the first time step

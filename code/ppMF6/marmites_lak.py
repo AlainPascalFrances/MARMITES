@@ -65,7 +65,9 @@ class PondLake(object):
         self.cells = []               # footprint: cells whose centre is inside
         self.klay = 0
         self.bottom = None            # lake bed elevation
-        self.rim = None               # spill elevation (land surface)
+        self.rim = None               # spill elevation: the outlet streambed,
+                                      # or the land surface with no outlet
+        self.dig = None               # m, the pond depth ([lak] depth)
         self.strt = None
         self.on_channel = False
         self.inlet_reaches = []       # SFR reaches handing their flow to the lake

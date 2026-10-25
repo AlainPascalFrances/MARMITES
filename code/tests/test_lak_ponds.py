@@ -318,6 +318,22 @@ def test_lamata_lak_mvr_model_builds_and_reloads(tmp_path):
     for p in on:
         assert p.inlet_reaches or p.outlet_reaches
         assert not set(p.inlet_reaches) & set(p.outlet_reaches)
+    # a pond that spills into the stream spills at the bed of the reach it
+    # spills into, and its bed is one pond depth lower (user, 2026-10-25):
+    # full to the land surface, no groundwater could ever enter it
+    spill = [p for p in b.ponds if p.outlet_reaches]
+    assert spill
+    for p in spill:
+        assert p.rim == pytest.approx(min(b.sfr_net.reach_top[r]
+                                          for r in p.outlet_reaches))
+        assert p.rim < np.mean([np.asarray(c.elev)[q] for q in p.cells])
+        assert p.bottom == pytest.approx(p.rim - 1.0)
+        assert p.bottom < p.strt <= p.rim
+    invert = {int(r['lakein']): float(r['invert'])
+              for r in lak.outlets.get_data()}
+    for L, p in enumerate(b.ponds):
+        if L in invert:
+            assert invert[L] == pytest.approx(p.rim)
 
     sim = flopy.mf6.MFSimulation.load(sim_ws=str(tmp_path), verbosity_level=0)
     names = [pk.package_name for pk in sim.get_model().packagelist]
