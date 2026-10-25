@@ -227,10 +227,16 @@ def test_run_preproc_writes_input_maps(tiny_run, tmp_path):
     # and the parameter fields need one or the other, so they are skipped.
     # The MODEL map is drawn from the written simulation alone -- it came
     # after this test, which never ran until 2026-10-09 (the tiny model did
-    # not start), so the expectation is updated here.
+    # not start), so the expectation is updated here. So are the CdL
+    # figures that need only the simulation (2026-10-25); those that need
+    # the run's cMF / ctx (vegetation, forcing, pond sections) are skipped.
     files = PP.run_preproc(ws, str(tmp_path), name=name, mf_ws=str(tmp_path),
                            gis_ws=str(tmp_path / 'no_such_gis'), verbose=False)
-    assert [os.path.basename(f) for f in files] == ['IN_000_model_map.png']
+    names = [os.path.basename(f) for f in files]
+    assert names[0] == 'IN_000_model_map.png'
+    assert 'IN_101_aquifer_params.png' in names
+    assert all(n.startswith('IN_1') for n in names[1:])
+    assert not any(n.startswith(('IN_104', 'IN_106', 'IN_108')) for n in names)
     assert not any(f.startswith(('aq_', 'mm_'))
                    for f in os.listdir(os.path.join(ws, '_input'))), (
         'the plain aq_*/mm_* maps were replaced by the native IN_* set')

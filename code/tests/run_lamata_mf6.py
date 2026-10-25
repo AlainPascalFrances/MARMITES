@@ -1588,7 +1588,8 @@ def main():
         if a.preproc:
             from marmites_postprocess import run_preproc
             run_preproc(a.ws, DS, name=cMF.modelname.lower(),
-                        gis_ws=a.gis_ws)
+                        gis_ws=a.gis_ws, cMF=cMF, ctx=ctx,
+                        cfg=getattr(a, 'config', None))
         print('\nNo --libmf6 given: stopping after build.\n'
               'To run coupled: set paths.libmf6 (the Run panel) and run.build_only '
               'off.')
@@ -1938,7 +1939,8 @@ def _run_postproc(a, cMF, ctx, res):
                         gis_ws=a.gis_ws,
                         cMF=cMF, ctx=ctx, res=res,
                         input_maps=(cfg.postproc.input_maps
-                                    if cfg is not None else True))
+                                    if cfg is not None else True),
+                        cfg=cfg)
         if a.postproc:
             # the hydrological year is the Plots panel's, set on cMF above
             run_postproc(a.ws, DS, name=cMF.modelname.lower(),

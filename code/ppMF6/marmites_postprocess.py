@@ -1479,7 +1479,7 @@ def _fig_lakes(sim_ws, name, ds_ws, out, dates=None, verbose=True,
 
 def run_preproc(sim_ws, ds_ws, name='lamatamm', mf_ws=None, verbose=True,
                 out_root=None, cMF=None, ctx=None, res=None, trunk=None,
-                gis_ws=None, input_maps=True):
+                gis_ws=None, input_maps=True, cfg=None):
     """Input maps into <out-dir>/_input/.
 
     Every parameter field -- geometry, aquifer properties, UZF soil
@@ -1489,6 +1489,11 @@ def run_preproc(sim_ws, ds_ws, name='lamatamm', mf_ws=None, verbose=True,
     top and right and the projected coordinates on the bottom and left. The
     one figure that is not a parameter field is the site's general map,
     rebuilt from the GIS layers in ``gis_ws``.
+
+    The CdL model's input figures follow as ``IN_1<nn>_<name>`` (aquifer K,
+    layer surfaces, idomain / UZF, vegetation / extinction depth, UZF
+    parameters, forcing, the pond zooms and two sections across the reach
+    per pond -- marmites_cdl_figs), under the same input_maps switch.
 
     A second, plainer set of ``aq_*`` / ``mm_*`` imshow maps used to be drawn
     here as well. They duplicated the native set field for field, in a style
@@ -1532,6 +1537,14 @@ def run_preproc(sim_ws, ds_ws, name='lamatamm', mf_ws=None, verbose=True,
         except Exception as exc:                     # pragma: no cover
             if verbose:
                 print('   native input maps skipped: %r' % exc)
+    if input_maps:
+        try:
+            from marmites_cdl_figs import cdl_figures
+            written += cdl_figures(out, sim_ws, name, ds_ws, cMF=cMF, ctx=ctx,
+                                   cfg=cfg, verbose=verbose)
+        except Exception as exc:                     # pragma: no cover
+            if verbose:
+                print('   CdL input figures skipped: %r' % exc)
     if verbose:
         print('preproc: %d file(s) written to %s' % (len(written), out))
     return written
