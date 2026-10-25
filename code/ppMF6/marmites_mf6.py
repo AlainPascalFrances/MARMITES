@@ -979,11 +979,17 @@ class clsMF6:
                       % (carry.size, len(self.ponds)))
                 carry = None
             elif getattr(self, 'verbose', True):
+                # what they START at: clipped to bed..rim below
+                start = np.clip(carry, [p.bottom for p in self.ponds],
+                                [p.rim for p in self.ponds])
+                ncap = int(np.sum(carry > start))
                 print('   LAK: %d lake(s) start at the stage they ended at '
-                      '(%.2f..%.2f m above their beds)'
+                      '(%.2f..%.2f m above their beds)%s'
                       % (carry.size,
-                         min(c - p.bottom for c, p in zip(carry, self.ponds)),
-                         max(c - p.bottom for c, p in zip(carry, self.ponds))))
+                         min(s - p.bottom for s, p in zip(start, self.ponds)),
+                         max(s - p.bottom for s, p in zip(start, self.ponds)),
+                         ('; %d of them ended above their rim and start at '
+                          'it' % ncap) if ncap else ''))
         for L, p in enumerate(self.ponds):
             i, j = p.cell
             if carry is not None and np.isfinite(carry[L]):
