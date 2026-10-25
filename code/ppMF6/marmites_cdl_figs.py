@@ -34,6 +34,9 @@ import numpy as np
 
 PONDS_PER_ZOOM_PAGE = 6
 PONDS_PER_SECTION_PAGE = 3
+# the LAK and SFR cells look the same in the pond zooms and the sections
+LAK_STYLE = dict(facecolor='orange', alpha=0.75, edgecolor='crimson', lw=1.2)
+SFR_STYLE = dict(facecolor='deepskyblue', alpha=0.55, edgecolor='none')
 
 
 # --------------------------------------------------------------------- #
@@ -478,11 +481,9 @@ def fig_ponds_zoom(out, mg, polys, ds_ws, lks, sfr, written):
             sw = [i for i in win if i in sfr]
             if sw:
                 ax.add_collection(PatchCollection(
-                    [MplPoly(polys[i]) for i in sw], facecolor='deepskyblue',
-                    alpha=0.55, edgecolor='none'))
+                    [MplPoly(polys[i]) for i in sw], **SFR_STYLE))
             ax.add_collection(PatchCollection(
-                [MplPoly(polys[i]) for i in lk['cells']], facecolor='orange',
-                alpha=0.75, edgecolor='crimson', lw=1.2))
+                [MplPoly(polys[i]) for i in lk['cells']], **LAK_STYLE))
             if ring is not None:
                 ax.plot(ring[:, 0], ring[:, 1], color='navy', lw=1.8)
             for ln in lines:
@@ -497,9 +498,8 @@ def fig_ponds_zoom(out, mg, polys, ds_ws, lks, sfr, written):
             ax.tick_params(labelsize=7)
             ax.ticklabel_format(useOffset=False, style='plain')
         fig.legend(handles=[
-            Patch(facecolor='deepskyblue', alpha=0.55, label='SFR reach cells'),
-            Patch(facecolor='orange', alpha=0.75, edgecolor='crimson',
-                  label='LAK cells'),
+            Patch(label='SFR reach cells', **SFR_STYLE),
+            Patch(label='LAK cells', **LAK_STYLE),
             Patch(facecolor='none', edgecolor='navy', label='pond footprint')],
             loc='upper center', ncol=3, fontsize=10)
         fig.suptitle('Ponds -- LAK vs SFR cells (page %d/%d)' % (pg + 1, npag),
@@ -588,8 +588,8 @@ def _section(ax, centre, normal, half, mg, polys, land, strt, sfr, lk_cells,
     if lk is not None:
         if inl.any():
             ax.fill_between(s, lk['bottom'], lk['strt'], where=inl,
-                            color='#6baed6', step='mid',
-                            label='pond, initial stage')
+                            step='mid', label='LAK cell: pond, initial stage',
+                            **LAK_STYLE)
             ax.hlines(lk['rim'], s[inl].min(), s[inl].max(), color='navy',
                       ls=':', lw=1.4, label='pond rim / outlet')
             ax.hlines(lk['bottom'], s[inl].min(), s[inl].max(),
@@ -603,8 +603,9 @@ def _section(ax, centre, normal, half, mg, polys, land, strt, sfr, lk_cells,
         if c in sfr:
             rtp[i], rbt[i] = sfr[c][1], sfr[c][1] - sfr[c][2]
     if np.isfinite(rtp).any():
-        ax.fill_between(s, rbt, rtp, where=np.isfinite(rtp), color='#8c6d31',
-                        step='mid', label='streambed (rtp - rbth)')
+        ax.fill_between(s, rbt, rtp, where=np.isfinite(rtp), step='mid',
+                        label='SFR cells: streambed (rtp - rbth)',
+                        **SFR_STYLE)
         lows.append(np.nanmin(rbt))
     lo = np.nanmin(lows) - 3.0
     hi = np.nanmax(highs) + 1.0
