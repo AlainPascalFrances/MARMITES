@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """The CdL model's input figures, for any MARMITES model (user, 2026-10-25),
-plus a cross-section pair per pond -- drawn by the input stage
+plus a section along the stream through each pond -- drawn by the input stage
 (marmites_postprocess.run_preproc, [postproc] input_maps) into
 <run>/_input/:
 
@@ -15,12 +15,13 @@ plus a cross-section pair per pond -- drawn by the input stage
   IN_106_forcing.png          monthly rainfall and open-water evaporation
   IN_107_ponds_zoom_p<n>.png  each pond: the grid, its SFR and LAK cells, its
                               footprint and the stream (6 per page)
-  IN_108_pond_sections_p<n>.png  each pond, two sections ACROSS the reach --
-                              through its LAK cell and through the nearest
-                              SFR cell: land surface, soil column, MF6 layers,
-                              the pond (bottom, rim, initial stage), the
-                              streambed, the initial water table (3 ponds a
-                              page)
+  IN_108_pond_sections_p<n>.png  each pond, one section ALONG its stream
+                              (user, 2026-10-26): the reaches feeding it --
+                              the main stem -- the pond, and the reaches it
+                              spills into, 200 m each way: land surface, soil
+                              column, MF6 layer 1, the pond (bed, rim,
+                              initial stage), the streambed, the initial
+                              water table (6 ponds a page)
 
 Everything model-side is read from the WRITTEN simulation (as the model map
 is); the land surface, the forcing and the vegetation cover come from the
@@ -33,7 +34,7 @@ import os
 import numpy as np
 
 PONDS_PER_ZOOM_PAGE = 6
-PONDS_PER_SECTION_PAGE = 3
+PONDS_PER_SECTION_PAGE = 6
 # the LAK and SFR cells look the same in the pond zooms and the sections
 LAK_STYLE = dict(facecolor='orange', alpha=0.75, edgecolor='crimson', lw=1.2)
 SFR_STYLE = dict(facecolor='deepskyblue', alpha=0.55, edgecolor='none')
@@ -50,7 +51,8 @@ def load_model(sim_ws, name):
         return None, None
     sim = flopy.mf6.MFSimulation.load(
         sim_ws=sim_ws, verbosity_level=0,
-        load_only=['dis', 'disv', 'npf', 'sto', 'ic', 'uzf', 'lak', 'sfr'])
+        load_only=['dis', 'disv', 'npf', 'sto', 'ic', 'uzf', 'lak', 'sfr',
+                   'mvr'])
     gwf = (sim.get_model(name) if name and name in sim.model_names
            else sim.get_model())
     return gwf, gwf.modelgrid
@@ -125,19 +127,22 @@ def uzf_land(gwf, mg):
 
 
 def lakes(gwf, mg, sim_ws):
-    """Each lake: name (pond<fid>), its connection cell(s), initial stage,
-    rim (outlet invert, else the initial stage) and bottom (the first stage
-    of its table)."""
+    """Each lake: its number (``index``, 0-based), name (pond<fid>), its
+    connection cell(s), initial stage, rim (outlet invert, else the initial
+    stage), bottom (the first stage of its table) and area (its table's
+    surface area at the rim, m2)."""
     node = _node(mg)
     lk = _pkg(gwf, 'lak')
     if lk is None:
         return []
     out = {}
     for r in lk.packagedata.get_data():
-        out[int(r['ifno'])] = {'name': str(r['boundname']) if 'boundname'
+        out[int(r['ifno'])] = {'index': int(r['ifno']),
+                               'name': str(r['boundname']) if 'boundname'
                                in r.dtype.names else 'lake%d' % (r['ifno'] + 1),
                                'strt': float(r['strt']), 'cells': [],
-                               'rim': float(r['strt']), 'bottom': np.nan}
+                               'rim': float(r['strt']), 'bottom': np.nan,
+                               'area': 0.0}
     for r in lk.connectiondata.get_data():
         out[int(r['ifno'])]['cells'].append(node(r['cellid']))
     if lk.outlets.has_data():
@@ -152,10 +157,20 @@ def lakes(gwf, mg, sim_ws):
             if L in out and os.path.exists(fn):
                 with open(fn) as fh:
                     lines = fh.read().splitlines()
-                for i, ln in enumerate(lines):
-                    if ln.strip().upper().startswith('BEGIN TABLE'):
-                        out[L]['bottom'] = float(lines[i + 1].split()[0])
-                        break
+                rows, on = [], False
+                for ln in lines:
+                    u = ln.strip().upper()
+                    if u.startswith('BEGIN TABLE'):
+                        on = True
+                    elif u.startswith('END'):
+                        on = False
+                    elif on and u and not u.startswith('#'):
+                        rows.append([float(v) for v in ln.split()[:3]])
+                if rows:
+                    out[L]['bottom'] = rows[0][0]
+                    at_rim = [a for s, _v, a in rows
+                              if s <= out[L]['rim'] + 1e-6]
+                    out[L]['area'] = max(at_rim) if at_rim else rows[0][2]
     return [out[k] for k in sorted(out)]
 
 
@@ -217,6 +232,17 @@ def _log_ticks(cb, lo, hi):
     cb.set_ticks(t)
     cb.set_ticklabels(['%g' % v for v in t])
     cb.ax.minorticks_off()
+
+
+def _clear(out, prefix):
+    """Remove a set's earlier pages: a folder drawn again with fewer pages
+    would keep stale ones."""
+    import glob
+    for f in glob.glob(os.path.join(out, prefix + '*.png')):
+        try:
+            os.remove(f)
+        except OSError:
+            pass
 
 
 def _save(fig, out, fn, written):
@@ -460,6 +486,7 @@ def fig_ponds_zoom(out, mg, polys, ds_ws, lks, sfr, written):
     xc = np.asarray(mg.xcellcenters, dtype=float).ravel()
     yc = np.asarray(mg.ycellcenters, dtype=float).ravel()
     npag = int(np.ceil(len(lks) / float(PONDS_PER_ZOOM_PAGE)))
+    _clear(out, 'IN_107_ponds_zoom_p')
     for pg in range(npag):
         chunk = lks[pg * PONDS_PER_ZOOM_PAGE:(pg + 1) * PONDS_PER_ZOOM_PAGE]
         fig, axes = plt.subplots(2, 3, figsize=(16, 11))
@@ -509,194 +536,263 @@ def fig_ponds_zoom(out, mg, polys, ds_ws, lks, sfr, written):
 
 
 # --------------------------------------------------------------------- #
-# the cross sections
+# the section along the stream, through each pond
 # --------------------------------------------------------------------- #
 
-def _nearest_on_lines(p, lines):
-    """(point, unit direction) of the stream nearest to ``p``."""
-    best = None
-    for ln in lines:
-        a, b = ln[:-1], ln[1:]
-        ab = b - a
-        L2 = np.maximum((ab ** 2).sum(axis=1), 1e-12)
-        t = np.clip(((p - a) * ab).sum(axis=1) / L2, 0.0, 1.0)
-        q = a + ab * t[:, None]
-        d = np.hypot(*(q - p).T)
-        i = int(np.argmin(d))
-        if best is None or d[i] < best[0]:
-            best = (d[i], q[i], ab[i] / np.sqrt(L2[i]))
-    return (None, None) if best is None else (best[1], best[2])
+SECTION_REACH_M = 200.0       # m of stream drawn upstream and downstream
 
 
-def _cells_along(xs, ys, polys, xc, yc):
-    """The cell each point lies in (-1 outside), by point-in-polygon on the
-    cells near the line only."""
-    from matplotlib.path import Path
-    x0, x1, y0, y1 = xs.min(), xs.max(), ys.min(), ys.max()
-    pad = 60.0
-    near = np.flatnonzero((xc >= x0 - pad) & (xc <= x1 + pad)
-                          & (yc >= y0 - pad) & (yc <= y1 + pad))
-    pts = np.c_[xs, ys]
-    out = np.full(len(xs), -1, dtype=int)
-    for i in near:
-        inside = Path(polys[i]).contains_points(pts)
-        out[inside & (out < 0)] = i
-    return out
+def stream_links(gwf):
+    """The stream network and its hand-offs to and from the ponds:
+    ``(down, up, inlets, outlets, into)`` -- each reach's downstream and
+    upstream reaches, the reaches handing their flow to each lake, the
+    reaches each lake spills into, and for a reach the lake it hands its
+    flow to (MVR), all 0-based."""
+    down, up = {}, {}
+    s = _pkg(gwf, 'sfr')
+    if s is not None:
+        cd = s.connectiondata.get_data()
+        ics = [n for n in cd.dtype.names if n != 'ifno']
+        for r in cd:
+            k = int(r['ifno'])
+            v = np.array([r[n] for n in ics], dtype=float)
+            v = v[np.isfinite(v)].astype(int)
+            # MF6 writes a downstream connection as a NEGATIVE reach number;
+            # reach 0 is a headwater, so -0 never occurs
+            down[k] = [-x for x in v if x < 0]
+            up[k] = [x for x in v if x >= 0]
+    inlets, outlets, into = {}, {}, {}
+    lk, mvr = _pkg(gwf, 'lak'), _pkg(gwf, 'mvr')
+    lake_of_outlet = {}
+    if lk is not None and lk.outlets.has_data():
+        lake_of_outlet = {int(r['outletno']): int(r['lakein'])
+                          for r in lk.outlets.get_data()}
+    if mvr is not None:
+        recs = mvr.perioddata.get_data(0)
+        for r in (recs if recs is not None else []):
+            p1, p2 = str(r['pname1']).lower(), str(r['pname2']).lower()
+            i1, i2 = int(r['id1']), int(r['id2'])
+            if p1 == 'sfr' and p2 == 'lak':
+                inlets.setdefault(i2, []).append(i1)
+                into[i1] = i2
+            elif p1 == 'lak' and p2 == 'sfr':
+                L = lake_of_outlet.get(i1, i1)
+                outlets.setdefault(L, []).append(i2)
+    return down, up, inlets, outlets, into
 
 
-def _section(ax, centre, normal, half, mg, polys, land, strt, sfr, lk_cells,
-             lk, title):
-    xc = np.asarray(mg.xcellcenters, dtype=float).ravel()
-    yc = np.asarray(mg.ycellcenters, dtype=float).ravel()
-    s = np.arange(-half, half + 0.25, 0.5)
-    xs, ys = centre[0] + s * normal[0], centre[1] + s * normal[1]
-    cell = _cells_along(xs, ys, polys, xc, yc)
-    ok = cell >= 0
+def _n_upstream(up):
+    """How many reaches drain into each reach, itself included -- the main
+    stem is the branch with the most."""
+    memo = {}
+
+    def n(r):
+        if r not in memo:
+            memo[r] = 1
+            memo[r] = 1 + sum(n(u) for u in up.get(r, []))
+        return memo[r]
+    for r in up:
+        n(r)
+    return memo
+
+
+def stream_chain(L, links, length=SECTION_REACH_M, reach_len=None):
+    """The reaches drawn for lake ``L``: ``(upstream, downstream)`` lists of
+    reach numbers, upstream ordered from the farthest to the pond, each
+    reaching ``length`` metres of stream (or the end of the network). The
+    upstream branch is the main stem: the inlet, then at each confluence the
+    branch with the most reaches above it."""
+    down, up, inlets, outlets, _into = links
+    nup = _n_upstream(up)
+    rl = reach_len or {}
+    ups = []
+    if inlets.get(L):
+        r = max(inlets[L], key=lambda x: nup.get(x, 1))
+        got = 0.0
+        while r is not None and got < length:
+            ups.append(r)
+            got += float(rl.get(r, 1.0))
+            cand = up.get(r, [])
+            r = max(cand, key=lambda x: nup.get(x, 1)) if cand else None
+    dns = []
+    if outlets.get(L):
+        r = outlets[L][0]
+        got = 0.0
+        while r is not None and got < length:
+            dns.append(r)
+            got += float(rl.get(r, 1.0))
+            nxt = down.get(r, [])
+            r = nxt[0] if nxt else None
+    return ups[::-1], dns
+
+
+def _stairs_band(ax, edges, lo, hi, **kw):
+    """A band between two step profiles over ``edges`` (NaN: not drawn)."""
+    lo, hi = np.asarray(lo, float), np.asarray(hi, float)
+    ok = np.isfinite(lo) & np.isfinite(hi)
+    for k in np.flatnonzero(ok):
+        kw2 = dict(kw)
+        if k != np.flatnonzero(ok)[0]:
+            kw2.pop('label', None)
+        ax.fill_between([edges[k], edges[k + 1]], [lo[k]] * 2, [hi[k]] * 2,
+                        **kw2)
+
+
+def _section_along(ax, lk, links, reach, mg, land, strt, names, fid):
+    """One pond's section along its stream, flowing left to right."""
     top = np.asarray(mg.top, dtype=float).ravel()
     bot = _layered(mg.botm, mg)
     idm = _layered(mg.idomain, mg) > 0
-    nan = np.full(len(s), np.nan)
-
-    def along(a):
-        v = nan.copy()
-        v[ok] = np.asarray(a, dtype=float)[cell[ok]]
-        return v
-    gl, t1 = along(land), along(top)
-    b = [along(np.where(idm[L], bot[L], np.nan)) for L in range(int(mg.nlay))]
-    # the initial water table: the head of each column's top active layer
     wt_cell = np.full(top.size, np.nan)
     for L in range(int(mg.nlay) - 1, -1, -1):
         wt_cell = np.where(idm[L], strt[L], wt_cell)
-    wt = along(wt_cell)
-    # the pond takes the place of the soil column in its LAK cell(s)
-    inl = np.isin(cell, lk_cells) if lk is not None else np.zeros(len(s), bool)
-    ax.fill_between(s, t1, gl, where=np.isfinite(gl) & np.isfinite(t1) & ~inl,
-                    color='#d9b38c', step='mid', label='soil column (MMsoil)')
-    ax.fill_between(s, b[0], t1, color='0.85', step='mid', label='MF6 layer 1')
-    if len(b) > 1:
-        ax.fill_between(s, b[1], b[0], color='0.65', step='mid',
-                        label='MF6 layer 2')
-    ax.step(s, gl, where='mid', color='saddlebrown', lw=1.4,
-            label='land surface')
-    ax.step(s, t1, where='mid', color='k', lw=0.9,
-            label='MF6 top (soil base)')
-    ax.step(s, wt, where='mid', color='royalblue', lw=1.4, ls='--',
-            label='initial water table (IC)')
-    lows = [np.nanmin(wt), np.nanmin(t1)]
-    highs = [np.nanmax(gl)]
-    # the pond, over its LAK cell(s)
-    if lk is not None:
-        if inl.any():
-            # the pit, bed to land surface: empty above the water
-            ax.fill_between(s, lk['bottom'], np.fmax(gl, lk['rim']),
-                            where=inl, step='mid', facecolor='white',
-                            edgecolor='none')
-            ax.fill_between(s, lk['bottom'], lk['strt'], where=inl,
-                            step='mid', facecolor=LAK_STYLE['facecolor'],
-                            alpha=LAK_STYLE['alpha'], edgecolor='none',
-                            label='pond water, initial stage')
-            ax.fill_between(s, lk['bottom'], lk['rim'], where=inl,
-                            step='mid', facecolor='none',
-                            edgecolor=LAK_STYLE['edgecolor'],
-                            lw=LAK_STYLE['lw'],
-                            label='LAK cell: the pond, bed to rim')
-            ax.hlines(lk['rim'], s[inl].min(), s[inl].max(), color='navy',
-                      ls=':', lw=1.4, label='pond rim / outlet')
-            base = float(np.mean(top[lk_cells]))
-            ground = float(np.mean(np.asarray(land, dtype=float)[lk_cells]))
-            ax.text(0.5, 0.97, 'spills at %.2f m, %.1f m below the land; bed '
-                    '%.2f m, %.1f m below the land and %.1f m below the soil '
-                    'base' % (lk['rim'], ground - lk['rim'], lk['bottom'],
-                              ground - lk['bottom'], base - lk['bottom']),
-                    transform=ax.transAxes, ha='center', va='top', fontsize=7,
-                    color=LAK_STYLE['edgecolor'])
-            lows.append(lk['bottom'])
-            highs.append(lk['rim'])
-    # the streambed, over the SFR cells
-    rtp = nan.copy()
-    rbt = nan.copy()
-    for i, c in enumerate(cell):
-        if c in sfr:
-            rtp[i], rbt[i] = sfr[c][1], sfr[c][1] - sfr[c][2]
-    if np.isfinite(rtp).any():
-        ax.fill_between(s, rbt, rtp, where=np.isfinite(rtp), step='mid',
-                        label='SFR cells: streambed (rtp - rbth)',
-                        **SFR_STYLE)
-        lows.append(np.nanmin(rbt))
-    lo = np.nanmin(lows) - 3.0
-    hi = np.nanmax(highs) + 1.5          # room for the pond's note
+    down, up, inlets, outlets, into = links
+    L = lk['index']
+    ups, dns = stream_chain(L, links, reach_len={r: v[3] for r, v in
+                                                 reach.items()})
+    half = 0.5 * max(np.sqrt(max(lk.get('area', 0.0), 1.0)), 5.0)
+    segs = []                                  # (x0, x1, kind, cell, reach)
+    x = -half
+    for r in ups[::-1]:
+        segs.insert(0, (x - reach[r][3], x, 'sfr', reach[r][0], r))
+        x -= reach[r][3]
+    host = lk['cells'][0]
+    segs.append((-half, half, 'pond', host, None))
+    x = half
+    for r in dns:
+        segs.append((x, x + reach[r][3], 'sfr', reach[r][0], r))
+        x += reach[r][3]
+    edges = np.array([s[0] for s in segs] + [segs[-1][1]])
+    cells = [s[3] for s in segs]
+    pond = np.array([s[2] == 'pond' for s in segs])
+    ground = np.array([land[c] for c in cells], dtype=float)
+    base = top[cells]
+    lc = lk['cells']
+    ground[pond] = float(np.mean(land[lc]))
+    base[pond] = float(np.mean(top[lc]))
+    b1 = np.where(idm[0][cells], bot[0][cells], np.nan)
+    # where layer 1 is absent (no thickness left), layer 2 is the top one
+    nl = int(mg.nlay)
+    b2 = (np.where(~idm[0][cells] & idm[1][cells], bot[1][cells], np.nan)
+          if nl > 1 else np.full(len(cells), np.nan))
+    wt = wt_cell[cells]
+    rtp = np.array([reach[s[4]][1] if s[2] == 'sfr' else np.nan
+                    for s in segs])
+    rbt = np.array([reach[s[4]][1] - reach[s[4]][2] if s[2] == 'sfr'
+                    else np.nan for s in segs])
+    soil = np.where(pond, np.nan, ground)
+    _stairs_band(ax, edges, base, soil, color='#d9b38c',
+                 label='soil column (MMsoil)')
+    _stairs_band(ax, edges, b1, base, color='0.85', label='MF6 layer 1')
+    _stairs_band(ax, edges, b2, base, color='0.65',
+                 label='MF6 layer 2 (where layer 1 is absent)')
+    # the pit, bed to the land surface: empty above the water
+    k = int(np.flatnonzero(pond)[0])
+    xp = [edges[k], edges[k + 1]]
+    ax.fill_between(xp, [lk['bottom']] * 2, [max(ground[k], lk['rim'])] * 2,
+                    facecolor='white', edgecolor='none')
+    ax.fill_between(xp, [lk['bottom']] * 2, [lk['strt']] * 2,
+                    facecolor=LAK_STYLE['facecolor'],
+                    alpha=LAK_STYLE['alpha'], edgecolor='none',
+                    label='pond water, initial stage')
+    ax.fill_between(xp, [lk['bottom']] * 2, [lk['rim']] * 2,
+                    facecolor='none', edgecolor=LAK_STYLE['edgecolor'],
+                    lw=LAK_STYLE['lw'], label='LAK cell: the pond, bed to rim')
+    ax.hlines(lk['rim'], *xp, color='navy', ls=':', lw=1.4,
+              label='pond rim / outlet')
+    _stairs_band(ax, edges, rbt, rtp, label='SFR reaches: streambed '
+                 '(rtp - rbth)', **SFR_STYLE)
+    ax.stairs(ground, edges, color='saddlebrown', lw=1.4, baseline=None,
+              label='land surface')
+    ax.stairs(base, edges, color='k', lw=0.9, baseline=None,
+              label='MF6 top (soil base)')
+    ax.stairs(wt, edges, color='royalblue', lw=1.4, ls='--', baseline=None,
+              label='initial water table (IC)')
+    lo = np.nanmin(np.r_[rbt, wt, base, lk['bottom']]) - 2.0
+    hi = np.nanmax(np.r_[ground, lk['rim']]) + 2.0
     ax.set_ylim(lo, hi)
-    ax.set_xlim(-half, half)
-    # the section's own cell, at 0
-    ax.axvline(0.0, color='0.35', lw=0.7, ls=(0, (2, 3)))
-    below = ['layer %d %.1f m' % (L + 1, np.nanmin(b[L]))
-             for L in range(len(b)) if np.nanmax(b[L]) < lo]
-    if below:
-        ax.text(0.01, 0.02, 'bottom below the frame: %s' % ', '.join(below),
-                transform=ax.transAxes, fontsize=7, color='0.3')
-    ax.set_title(title, fontsize=9)
-    ax.set_xlabel('distance across the reach (m)', fontsize=8)
+    ax.set_xlim(edges[0], edges[-1])
+    # where the drawn stream starts and ends
+    def end_note(r, side):
+        if r is None:
+            return 'no stream' if side == 'up' else 'pond spills nowhere'
+        if side == 'up':
+            fed = [M for M, rr in outlets.items() if r in rr]
+            if fed:
+                return 'from %s' % names.get(fed[0], 'lake %d' % (fed[0] + 1))
+            return 'headwater' if not up.get(r) else 'stream continues'
+        if r in into:
+            return 'into %s' % names.get(into[r], 'lake %d' % (into[r] + 1))
+        return ('catchment outlet' if not down.get(r)
+                else 'stream continues')
+    ax.text(0.01, 0.97, end_note(ups[0] if ups else None, 'up'),
+            transform=ax.transAxes, ha='left', va='top', fontsize=7,
+            color='0.3')
+    ax.text(0.99, 0.97, end_note(dns[-1] if dns else None, 'down'),
+            transform=ax.transAxes, ha='right', va='top', fontsize=7,
+            color='0.3')
+    ax.annotate('', xy=(0.62, 0.90), xytext=(0.38, 0.90),
+                xycoords='axes fraction',
+                arrowprops=dict(arrowstyle='->', color='0.35'))
+    ax.text(0.5, 0.905, 'flow', transform=ax.transAxes, ha='center',
+            va='bottom', fontsize=7, color='0.35')
+    ax.text(0.5, 0.02, 'spills at %.2f m, %.1f m below the land; bed %.2f m, '
+            '%.1f m below the land and %.1f m below the soil base'
+            % (lk['rim'], ground[k] - lk['rim'], lk['bottom'],
+               ground[k] - lk['bottom'], base[k] - lk['bottom']),
+            transform=ax.transAxes, ha='center', va='bottom', fontsize=7,
+            color=LAK_STYLE['edgecolor'])
+    other = len(inlets.get(L, [])) - (1 if ups else 0)
+    ax.set_title('pond %s -- along the stream: %d reach(es) up, %d down%s'
+                 % (fid, len(ups), len(dns),
+                    ' (+%d other inlet(s))' % other if other > 0 else ''),
+                 fontsize=9)
+    ax.set_xlabel('distance along the stream from the pond (m)', fontsize=8)
     ax.set_ylabel('m a.s.l.', fontsize=8)
     ax.tick_params(labelsize=7)
 
 
 def fig_pond_sections(out, gwf, mg, polys, ds_ws, cMF, lks, written):
     import matplotlib.pyplot as plt
-    lines = _stream_lines(ds_ws)
-    if not lines:
-        return
-    sfr = sfr_reaches(gwf, mg)
+    links = stream_links(gwf)
+    s = _pkg(gwf, 'sfr')
+    if s is None or not links[2]:
+        return                             # no stream runs through a pond
+    node = _node(mg)
+    # reach -> (cell, rtp, rbth, rlen)
+    reach = {int(r['ifno']): (node(r['cellid']), float(r['rtp']),
+                              float(r['rbth']), float(r['rlen']))
+             for r in s.packagedata.get_data()}
     land = np.asarray(np.ma.filled(np.ma.asarray(cMF.elev, dtype=float),
                                    np.nan), dtype=float).ravel()
     n = int(np.asarray(mg.xcellcenters).size)
     land = land[:n] if land.size >= n else np.asarray(mg.top).ravel()
     strt = _layered(_pkg(gwf, 'ic').strt.array, mg)
-    xc = np.asarray(mg.xcellcenters, dtype=float).ravel()
-    yc = np.asarray(mg.ycellcenters, dtype=float).ravel()
-    area = np.array([0.5 * abs(np.dot(p[:, 0], np.roll(p[:, 1], -1))
-                               - np.dot(p[:, 1], np.roll(p[:, 0], -1)))
-                     for p in polys])
     ponds = _pond_rings(ds_ws)
+    names = {lk['index']: lk['name'] for lk in lks}
     npag = int(np.ceil(len(lks) / float(PONDS_PER_SECTION_PAGE)))
+    _clear(out, 'IN_108_pond_sections_p')
+    nrow = int(np.ceil(PONDS_PER_SECTION_PAGE / 2.0))
     for pg in range(npag):
         chunk = lks[pg * PONDS_PER_SECTION_PAGE:
                     (pg + 1) * PONDS_PER_SECTION_PAGE]
-        fig, axes = plt.subplots(PONDS_PER_SECTION_PAGE, 2,
-                                 figsize=(15, 4.6 * PONDS_PER_SECTION_PAGE),
+        fig, axes = plt.subplots(nrow, 2, figsize=(16, 4.4 * nrow),
                                  squeeze=False)
-        for ax in axes.ravel()[2 * len(chunk):]:
+        for ax in axes.ravel()[len(chunk):]:
             ax.axis('off')
-        for r, lk in enumerate(chunk):
-            fid, ring = _pond_ring_of(lk['name'], ponds)
-            c_lak = lk['cells'][0]
-            p = np.array([xc[c_lak], yc[c_lak]])
-            _q, t = _nearest_on_lines(p, lines)
-            nrm = np.array([-t[1], t[0]])
-            half = max(60.0, 4.0 * np.sqrt(area[c_lak]))
-            _section(axes[r, 0], p, nrm, half, mg, polys, land, strt, sfr,
-                     lk['cells'], lk, 'pond %s -- across the reach through its '
-                     'LAK cell %d' % (fid, c_lak + 1))
-            # the SFR cell nearest the pond, outside its LAK cells
-            cand = [c for c in sfr if c not in lk['cells']]
-            if cand:
-                c_s = min(cand, key=lambda c: np.hypot(xc[c] - p[0],
-                                                       yc[c] - p[1]))
-                ps = np.array([xc[c_s], yc[c_s]])
-                _q2, t2 = _nearest_on_lines(ps, lines)
-                n2 = np.array([-t2[1], t2[0]])
-                _section(axes[r, 1], ps, n2, half, mg, polys, land, strt, sfr,
-                         lk['cells'], lk, 'pond %s -- across the reach through '
-                         'SFR cell %d (reach %d)' % (fid, c_s + 1,
-                                                     sfr[c_s][0]))
+        for ax, lk in zip(axes.ravel(), chunk):
+            fid, _ring = _pond_ring_of(lk['name'], ponds)
+            _section_along(ax, lk, links, reach, mg, land, strt, names,
+                           fid if fid is not None else lk['name'])
         h, lab = [], []
         for ax in axes.ravel():
             for hh, ll in zip(*ax.get_legend_handles_labels()):
                 if ll not in lab:
                     h.append(hh)
                     lab.append(ll)
-        fig.suptitle('Ponds -- sections across the reach (initial state; the '
-                     'dotted line marks the cell named; page %d/%d)'
-                     % (pg + 1, npag))
+        fig.suptitle('Ponds -- sections along the stream, %g m upstream to %g '
+                     'm downstream (initial state; page %d/%d)'
+                     % (SECTION_REACH_M, SECTION_REACH_M, pg + 1, npag))
         fig.tight_layout(rect=(0, 0.05, 1, 1))
         fig.legend(h, lab, loc='lower center', ncol=5, fontsize=8)
         _save(fig, out, 'IN_108_pond_sections_p%d.png' % (pg + 1), written)

@@ -3773,13 +3773,19 @@ def _native_input_maps(MMplot, out_dir, cMF, ctx, res=None, verbose=True):
         lst += [('ghb_cond', 'GHB cond.', arr(cMF.ghb_cond_array)),
                 ('ghb_head', 'GHB head', arr(cMF.ghb_head_array))]
     if int(getattr(cMF, 'uzf_yn', 0)) == 1:
-        lst += [('eps', 'Epsilon - $eps$', arr(cMF.eps_actual)),
-                ('thts', 'Sat. water content - $thts$', arr(cMF.thts_actual))]
-        if getattr(cMF, 'vks_actual', None) is not None:
-            lst += [('vks', 'UZF vert. hydraulic cond. - $vks$',
-                     arr(cMF.vks_actual))]
-        lst += [('thti', 'Initial water content - $thti$', arr(cMF.thti_actual)),
-                ('thtr', 'Specific retention - $thtr$', arr(cMF.thtr_actual))]
+        # thts / thti / thtr / vks are set by the BUILD (from layers.sr and
+        # the layers' Sy and Kv): a figures-only redraw (run.model off) does
+        # not build, and they are not there -- the whole set used to be
+        # skipped on an AttributeError
+        for stem, cblbl, attr in (
+                ('eps', 'Epsilon - $eps$', 'eps_actual'),
+                ('thts', 'Sat. water content - $thts$', 'thts_actual'),
+                ('vks', 'UZF vert. hydraulic cond. - $vks$', 'vks_actual'),
+                ('thti', 'Initial water content - $thti$', 'thti_actual'),
+                ('thtr', 'Specific retention - $thtr$', 'thtr_actual')):
+            v = getattr(cMF, attr, None)
+            if v is not None:
+                lst += [(stem, cblbl, arr(v))]
 
     # the model footprint and the MARMITES zoning. These were only ever drawn
     # by the plain imshow maps that used to sit alongside this set; folding

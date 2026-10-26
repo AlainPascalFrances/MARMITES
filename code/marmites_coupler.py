@@ -1926,6 +1926,11 @@ class MF6Coupler:
         self.sfr_up_prev = None
         self.sfr_evap_capped = self.sfr_evap_writes = 0
         self.outer_iters = np.zeros(nper_mm, dtype=int)
+        # wall-clock seconds per period -- MM step, MF6 solve and bookkeeping
+        # -- and the steady period's, for the run-timing figure (CdL's
+        # sp_run_timing, user 2026-10-26)
+        self.sp_seconds = np.zeros(nper_mm)
+        self.ss_seconds = self.ss_iters = self.steady_recharge = None
         # Water-budget aggregates (compact: the full per-cell/per-SP MM array
         # would be ~370 MB). wb_ts = catchment mean of every MM flux per SP;
         # wb_map = time mean of every MM flux per cell. Together these support
@@ -2002,10 +2007,17 @@ class MF6Coupler:
                     self._write_fluxes(s_perc)
                     self._write_evt(s_evt)
 
-                self._advance(api, t_end[0], write_cb=_write_steady)
+                _t_sp = time.perf_counter()
+                self.ss_iters = int(self._advance(api, t_end[0],
+                                                  write_cb=_write_steady))
+                self.ss_seconds = time.perf_counter() - _t_sp
+                # m/d, area-weighted: what drove the steady state
+                self.steady_recharge = float(np.average(
+                    s_perc, weights=np.asarray(self.area, dtype=float)))
 
             # --- transient march, one MM SP per MF6 SP (lagged) ---
             for n in range(nper_mm):
+                _t_sp = time.perf_counter()
                 tstart_MF = n
                 heads, exf = self._read_heads_exf()             # end of SP n-1
                 heads = self.water_table(heads)
@@ -2098,6 +2110,7 @@ class MF6Coupler:
                 if self.mm_obs is not None:
                     self.mm_obs[n] = mm_cells[self.obs_idx]
                     self.mms_obs[n] = mms_cells[self.obs_idx]
+                self.sp_seconds[n] = time.perf_counter() - _t_sp
                 self._progress(n, nper_mm)
                 if on_sp is not None:
                     on_sp(n, out)
@@ -2227,11 +2240,17 @@ class MF6Coupler:
                # linear solves (ITERTOT_TIMESTEP), not the outer iterations
                'iters_kind': ('linear' if self.mf6_step else 'outer'),
                'nonconverged': int(self.n_nonconverged),
+               'sp_seconds': self.sp_seconds,
                'wb_ts': self.wb_ts, 'wb_map': self.wb_map,
                'wb_ts_soil': self.wb_ts_soil, 'wb_map_soil': self.wb_map_soil}
         # The SFR / LAK split per cell is in wb_ts and wb_map (iEow_sfr,
         # iEow_lak); per cell AND per period it would add ~0.5 GB to a full
         # La Mata run. Each pond's own loss is small and is kept whole.
+        if self.ss_seconds is not None:
+            # the steady first period: its solve and what drove it
+            res['ss_seconds'] = float(self.ss_seconds)
+            res['ss_iters'] = int(self.ss_iters)
+            res['steady_recharge'] = float(self.steady_recharge)
         if self.lak_evap_hist.size:
             res['lak_evap'] = self.lak_evap_hist      # m3/d per pond
         if self.crr_ts is not None:

@@ -204,6 +204,32 @@ def test_run_postproc_writes_the_expected_files(tiny_run, tmp_path):
     assert os.path.exists(os.path.join(outdir, 'budget_compartment.csv'))
 
 
+def test_the_steady_state_heads_against_the_observed_ones(tiny_run, tmp_path):
+    """CdL's ss_obs_vs_computed_heads (2026-10-26): the head the steady
+    first period ends at, at each point with an observed series."""
+    ws, name, nlay, nrow, ncol = tiny_run
+    CO = _load('marmites_cdl_out',
+               os.path.join(TRUNK, 'ppMF6', 'marmites_cdl_out.py'))
+    (tmp_path / 'inputObs.txt').write_text(
+        '# Name X Y lay\nT1 75 75 1\nT2 225 175 2\n')
+    (tmp_path / 'inputObsHEADS_T1.txt').write_text(
+        '2008-01-01\t95.0\n2008-01-02\t94.0\n')
+    pts = CO.steady_heads_at_points(ws, name, str(tmp_path))
+    h0 = flopy.utils.HeadFile(os.path.join(ws, '%s.hds' % name)).get_data(
+        kstpkper=(0, 0))
+    assert len(pts) == 1                     # T2 has no observed series
+    nm, lay, comp, mean, lo, hi = pts[0]
+    assert (nm, lay) == ('T1', 1)
+    # x 75 -> column 1; y 75 -> row 2 (rows from the north edge at 200)
+    assert comp == pytest.approx(h0[0, 2, 1])
+    assert (mean, lo, hi) == (94.5, 94.0, 95.0)
+    written = []
+    CO.fig_ss_heads(str(tmp_path), ws, name, str(tmp_path),
+                    {'steady_recharge': 2e-4}, written)
+    assert [os.path.basename(f) for f in written] == [
+        'ss_obs_vs_computed_heads.png']
+
+
 def test_run_postproc_obs_overlay(tiny_run, tmp_path):
     ws, name, nlay, nrow, ncol = tiny_run
     # an obs point inside the grid (origin 0,0; 50 m cells) with a series

@@ -1959,6 +1959,15 @@ def _run_postproc(a, cMF, ctx, res):
                                      if cfg is not None else True),
                          result_maps=(cfg.postproc.result_maps
                                       if cfg is not None else True))
+            # the CdL model's output figures: the ponds and the recharge, the
+            # steady state against the observed heads, the run's timing
+            try:
+                from marmites_cdl_out import cdl_output_figures
+                cdl_output_figures(os.path.join(a.out_dir, '_output'), a.ws,
+                                   cMF.modelname.lower(), DS, cMF=cMF,
+                                   ctx=ctx, res=res)
+            except Exception as exc:
+                print('   CdL output figures skipped: %r' % exc)
             # 01-07 water-budget figures incl. 06_heads/07_coupling and the
             # NWT-vs-MF6 comparison (into <out_dir>/figures_nwt_comparison/)
             try:
