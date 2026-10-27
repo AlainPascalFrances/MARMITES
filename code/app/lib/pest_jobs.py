@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """PEST++ jobs started from the PEST++ set-up page (WP7 front-end, phase
 4): the SET-UP (code/tools/pest_lamata_setup.py) and the LAUNCH
-(pest_lamata_run.py).
+(pest_lamata_run.py); phase 5: the EXPORT of a calibrated realisation as
+<model>_PEST.toml (pest_lamata_export.py).
 
 STREAMLIT-FREE, like runs.py, and for the same rule: a job is never run
 inside a Streamlit callback. Each is a DETACHED process -- closing the
@@ -33,7 +34,8 @@ from pathlib import Path
 __all__ = ['KINDS', 'JobBusy', 'jobs_dir', 'launch', 'status', 'jobs',
            'latest', 'active', 'setup_ready', 'log_tail', 'stop']
 
-KINDS = {'setup': 'pest_lamata_setup.py', 'launch': 'pest_lamata_run.py'}
+KINDS = {'setup': 'pest_lamata_setup.py', 'launch': 'pest_lamata_run.py',
+         'export': 'pest_lamata_export.py'}
 _STATUS, _RESULT, _LOG = 'status.json', 'result.json', 'job.log'
 
 
@@ -74,12 +76,17 @@ def status(pest_ws, job_id):
     if st is None:
         return None
     res = _read(d / _RESULT)
+    if res is None and st.get('state') == 'running' \
+            and not _pid_alive(st.get('pid')):
+        # read again: the job writes its result just before it ends, so it
+        # may have come between the read above and the process check
+        res = _read(d / _RESULT)
+        if res is None:
+            st.update(state='finished', outcome=st.get('outcome') or 'unknown')
     if res is not None:
         st.update(res, state='finished',
                   outcome='ok' if int(res.get('returncode', 1)) == 0
                   else 'failed')
-    elif st.get('state') == 'running' and not _pid_alive(st.get('pid')):
-        st.update(state='finished', outcome=st.get('outcome') or 'unknown')
     return st
 
 
@@ -130,10 +137,12 @@ def setup_ready(pest_ws):
 
 
 def launch(kind, config_path, pest_ws, python_exe=None, tools_dir=None,
-           running=None):
+           running=None, args=()):
     """Start a detached PEST job. Returns ``(job_id, status)``. Raises
     JobBusy while another job or pestpp-ies runs (``running``: the
-    pestpp-ies check, injectable for tests)."""
+    pestpp-ies check, injectable for tests). The tool gets ``--config
+    config_path`` (none when it is None: the export reads the set-up's)
+    and then ``args``."""
     if kind not in KINDS:
         raise ValueError('kind must be one of %s' % ', '.join(KINDS))
     busy = active(pest_ws)
@@ -144,7 +153,7 @@ def launch(kind, config_path, pest_ws, python_exe=None, tools_dir=None,
         running = pest_progress.pestpp_running
     if running():
         raise JobBusy('pestpp-ies is running on this machine')
-    if not os.path.exists(str(config_path)):
+    if config_path is not None and not os.path.exists(str(config_path)):
         raise FileNotFoundError('configuration not found: %s' % config_path)
     if tools_dir is None:
         import mm_paths
@@ -154,8 +163,10 @@ def launch(kind, config_path, pest_ws, python_exe=None, tools_dir=None,
     d = jobs_dir(pest_ws) / job_id
     d.mkdir(parents=True, exist_ok=False)
     python_exe = python_exe or sys.executable
-    cmd = [str(python_exe), '-u', str(tools_dir / 'pest_job.py'), str(d),
-           str(tools_dir / KINDS[kind]), '--config', str(config_path)]
+    cmd = ([str(python_exe), '-u', str(tools_dir / 'pest_job.py'), str(d),
+            str(tools_dir / KINDS[kind])]
+           + ([] if config_path is None else ['--config', str(config_path)])
+           + [str(a) for a in args])
     kw = {}
     if os.name == 'nt':
         kw['creationflags'] = (subprocess.CREATE_NEW_PROCESS_GROUP
@@ -166,7 +177,8 @@ def launch(kind, config_path, pest_ws, python_exe=None, tools_dir=None,
     proc = subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT,
                             cwd=str(pest_ws), **kw)
     st = {'job_id': job_id, 'kind': kind, 'pid': proc.pid, 'cmd': cmd,
-          'config': str(config_path), 'state': 'running',
+          'config': '' if config_path is None else str(config_path),
+          'state': 'running',
           'started': time.strftime('%Y-%m-%d %H:%M:%S')}
     _write(d / _STATUS, st)
     return job_id, st

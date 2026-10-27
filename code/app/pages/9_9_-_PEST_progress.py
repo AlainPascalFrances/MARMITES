@@ -5,7 +5,7 @@ what each iteration gave.  WP7 front-end, phase 1
 
 READ-ONLY. Everything shown is read from the PEST workspace's master folder
 by lib/pest_progress.py; nothing here starts, stops or changes a run (that
-is panel 8's, phase 4). The PEST workspace is set on Home and only shown
+is panel 8's, phase 4), nor writes the calibrated model (panel 8, phase 5). The PEST workspace is set on Home and only shown
 here (user, 2026-10-17).
 
 REFRESHED AS A FRAGMENT, like the Run panel's log, but every REFRESH_S
@@ -95,6 +95,10 @@ def _show():
     if p['state'] == 'stopped':
         st.warning('No pestpp-ies process is running and the run did not '
                    'finish: it was stopped or interrupted.')
+    if p['state'] in ('finished', 'stopped') and p['phi'] is not None:
+        st.info('A realisation of an iteration that has run is written as '
+                'the calibrated model on **PEST++ set-up**, tab ⑤ (*Export '
+                'the calibrated model*).')
 
     tabs = st.tabs(['Runs', 'Phi', 'Failures (%d)' % len(p['failures']),
                     'Reports (%d)' % len(p['reports'])])

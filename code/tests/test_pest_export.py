@@ -76,3 +76,92 @@ def test_the_export_starts_from_the_base_run_as_a_calibration_run():
                   "plf.apply_scalars(cfg, plf.read_scalars(work)",
                   "cfg.pest.multipliers = mult"):
         assert piece in src, piece
+
+
+def _master(tmp_path, made='2026-10-25T15:47:53'):
+    """A PEST workspace: a master that ran two iterations, a template."""
+    import json
+    ws = tmp_path / 'pest'
+    m = ws / 'master'
+    m.mkdir(parents=True)
+    (m / 'lamata.phi.actual.csv').write_text(
+        'iteration,total_runs,mean,standard_deviation,min,max,0,1,2,base\n'
+        '0,4,10,1,9,11,11,9,,10\n1,4,8,1,7,9,9,7,6.5,8\n')
+    for k in (0, 1):
+        (m / ('lamata.%d.par.jcb' % k)).write_bytes(b'')
+    (m / 'lamata.rec').write_text('pestpp-ies\nstarted at 10/25/26 17:05:19\n')
+    t = ws / 'template'
+    (t / 'ws' / 'MF6_ws').mkdir(parents=True)
+    sdir = tmp_path / 'WS_ROOT' / 'MF6_ws'
+    sdir.mkdir(parents=True)
+    for f in ('s_l1.asc', 's_state.npz'):
+        (t / 'ws' / 'MF6_ws' / f).write_text('h ' + f)
+        (sdir / f).write_text('h ' + f)
+    (sdir / 's_PEST_l1.asc').write_text('another state')
+    (t / 'setup.json').write_text(json.dumps(
+        {'config': str(tmp_path / 'lamata.toml'), 'state': 's',
+         'state_dir': str(sdir), 'made': made, 'model_config': 'x.toml'}))
+    return ws, sdir
+
+
+def test_the_calibration_and_its_realisations(tmp_path):
+    ws, _sdir = _master(tmp_path)
+    m = str(ws / 'master')
+    assert plx.calibration_start(m).isoformat() == '2026-10-25T17:05:19'
+    assert plx.calibration_start(str(tmp_path)) is None
+    assert plx.iterations(m) == [0, 1]
+    # base first, then from the lowest phi; a failed one (NaN) left out
+    assert list(plx.choices(m, 1).index) == ['base', '2', '1', '0']
+    assert list(plx.choices(m, 0).index) == ['base', '1', '0']
+
+
+def test_a_base_state_saved_over_since_the_set_up_is_refused(tmp_path):
+    """Every run of the calibration started from the set-up's copy of the
+    base state; the exported run starts from the live one."""
+    ws, sdir = _master(tmp_path)
+    tpl = str(ws / 'template')
+    setup = plx.read_setup(str(ws))
+    assert plx.state_changes(tpl, setup) == []
+    (sdir / 's_l1.asc').write_text('a later run')
+    assert plx.state_changes(tpl, setup) == [str(sdir / 's_l1.asc')]
+    with pytest.raises(SystemExit, match='changed since the set-up'):
+        plx.export(str(ws), 1, 'base', out=str(tmp_path / 'o.toml'))
+
+
+def test_a_template_set_up_after_the_calibration_is_refused(tmp_path):
+    ws, _sdir = _master(tmp_path, made='2026-10-26T09:00:00')
+    with pytest.raises(SystemExit, match='set up again'):
+        plx.export(str(ws), 1, 'base', out=str(tmp_path / 'o.toml'))
+
+
+def test_an_existing_configuration_is_kept_without_force(tmp_path):
+    ws, _sdir = _master(tmp_path)
+    out = tmp_path / 'o.toml'
+    out.write_text('[meta]\n')
+    with pytest.raises(SystemExit, match='--force to replace'):
+        plx.export(str(ws), 1, 'base', out=str(out))
+
+
+def test_the_provenance_of_an_exported_configuration(tmp_path):
+    import json
+    work = tmp_path / 'results' / '202610251705_it3_base'
+    (work / 'mm_mult').mkdir(parents=True)
+    (work / 'export.json').write_text(json.dumps(
+        {'made': '2026-10-27T18:00:00', 'iteration': 3,
+         'realisation': 'base', 'phi': 6051.0,
+         'calibration': '202610251705'}))
+    cfg = tmp_path / 'lamata_PEST.toml'
+    cfg.write_text('[pest]\nmultipliers = %r\n' % str(work / 'mm_mult'))
+    import datetime as dt
+    t = dt.datetime(2026, 10, 27, 18, 0, 30).timestamp()
+    os.utime(str(cfg), (t, t))
+    info = plx.provenance(str(cfg))
+    assert info['realisation'] == 'base' and info['edited'] is False
+    t = dt.datetime(2026, 10, 28, 9, 0, 0).timestamp()
+    os.utime(str(cfg), (t, t))
+    assert plx.provenance(str(cfg))['edited'] is True
+    # not written by an export
+    other = tmp_path / 'lamata.toml'
+    other.write_text('[pest]\nmultipliers = ""\n')
+    assert plx.provenance(str(other)) is None
+    assert plx.provenance(str(tmp_path / 'none.toml')) is None

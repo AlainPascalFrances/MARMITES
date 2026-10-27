@@ -22,7 +22,9 @@ thought through:
 The PEST workspace is set on Home and only shown here (user, 2026-10-17).
 Tab ⑤ (phase 4) sets the calibration up and, once a set-up has
 succeeded, launches it -- detached jobs, lib/pest_jobs.py; the progress is
-panel 9's.
+panel 9's. Phase 5 (user, 2026-10-27): once an iteration has run, one of
+its realisations is written as the calibrated model, <model>_PEST.toml
+(tools/pest_lamata_export.py, a job too), which the Run panel runs.
 """
 
 import copy
@@ -99,7 +101,7 @@ def _what(cfg, r):
 
 tab_base, tab_par, tab_obs, tab_ens, tab_run = st.tabs([
     '① Base and workspace', '② Parameters', '③ Observations and weights',
-    '④ Ensemble and PEST++', '⑤ Set up and launch'])
+    '④ Ensemble and PEST++', '⑤ Set up, launch, export'])
 
 # ------------------------------------------------------------------- base
 @st.cache_data(ttl=60, show_spinner=False)
@@ -421,7 +423,7 @@ with tab_ens:
         st.warning('The non-convergence guard is off (Run panel, 7): a '
                    'stalling realisation goes on until the overdue limit '
                    'kills it.')
-    st.caption('Set up and launch on the next tab.')
+    st.caption('Set up, launch and export on the next tab.')
 
 # ------------------------------------------------------- set up and launch
 # Phase 4 (user, 2026-10-20): the set-up and, once one has succeeded, the
@@ -436,8 +438,8 @@ def _job_view(ws):
     if job is None:
         st.caption('No job started from this page yet.')
         return
-    label = {'setup': 'Set-up', 'launch': 'Calibration'}.get(job['kind'],
-                                                           job['kind'])
+    label = {'setup': 'Set-up', 'launch': 'Calibration',
+             'export': 'Export'}.get(job['kind'], job['kind'])
     state = job.get('state')
     head = '**%s** `%s` -- started %s' % (label, job['job_id'],
                                          job.get('started'))
@@ -456,6 +458,9 @@ def _job_view(ws):
     if job['kind'] == 'launch' and state == 'running':
         panelui.panel_link('pages/9_9_-_PEST_progress.py',
                            'Follow it on PEST++ progress', icon='📈')
+    if job['kind'] == 'export' and job.get('outcome') == 'ok':
+        st.caption('Choose it in the sidebar\'s configuration box, then run '
+                   'it on the Run panel (7).')
     if state == 'running':
         sure = st.checkbox('Stop this job, and everything it started',
                            key='pest_stop_ok')
@@ -468,6 +473,81 @@ def _job_view(ws):
                          'from a terminal with the rights of the app '
                          '(taskkill /PID %s /T /F) or the Task Manager '
                          '(end process tree).' % (exc, job.get('pid')))
+
+
+def _export_view(ws, blocked, py):
+    """③ One realisation of the calibration in the workspace's master
+    written as the calibrated model (phase 5): a job running
+    tools/pest_lamata_export.py, from the set-up's base run."""
+    import pest_lamata_export as plx
+    master = os.path.join(ws, 'master')
+    its = plx.iterations(master)
+    try:
+        setup = plx.read_setup(ws)
+    except (OSError, ValueError):
+        setup = None
+    if not its or setup is None:
+        st.caption('Once an iteration of a calibration has run: one of its '
+                   'realisations written as a configuration of its own.')
+        return
+    out = plx.default_out(setup)
+    name = os.path.basename(out)
+    started = plx.calibration_start(master)
+    st.caption('A realisation of the calibration in `master`%s, written as '
+               '`%s`: the base run\'s configuration (%s) with that '
+               'realisation\'s parameters, started from the base state as '
+               'every calibration run was. Nothing is run here.'
+               % (' (started %s)' % started.strftime('%Y-%m-%d %H:%M')
+                  if started else '', name, setup.get('base_run') or
+                  os.path.basename(setup.get('model_config', ''))))
+    c1, c2 = st.columns([1, 3])
+    it = c1.selectbox('Iteration', its, index=len(its) - 1,
+                      key='pest_export_iter')
+    phi = plx.choices(master, it)
+    others = phi.drop('base', errors='ignore')
+    best = others.idxmin() if len(others) else None
+
+    def _label(r):
+        why = (' -- carried from the starting values' if r == 'base' else
+               ' -- the lowest phi' if r == best else '')
+        return 'realisation %s: phi %.0f%s' % (r, phi[r], why)
+
+    real = c2.selectbox(
+        'Realisation', list(phi.index), index=0, format_func=_label,
+        key='pest_export_real',
+        help='**base** is the realisation PEST++ carries from the starting '
+             'values of the parameters: the usual single calibrated model. '
+             'The others are the ensemble\'s, from the lowest phi.')
+    why_not = list(blocked)
+    if os.path.exists(out):
+        prov = plx.provenance(out)
+        if prov is None:
+            st.warning('`%s` exists and was not written by an export.' % name)
+        else:
+            st.warning(
+                '`%s` exists: realisation %s of iteration %s (phi %.0f) of %s, '
+                'written %s.%s'
+                % (name, prov.get('realisation'), prov.get('iteration'),
+                   prov.get('phi') or float('nan'),
+                   ('the calibration started %s' % prov['calibration'])
+                   if prov.get('calibration') else 'the calibration then in '
+                   '`master`', prov.get('made', '').replace('T', ' '),
+                   ' **It has been edited since**: those changes would be '
+                   'lost.' if prov.get('edited') else ''))
+        if not st.checkbox('Replace `%s`' % name, key='pest_export_replace'):
+            why_not.append('tick *Replace* to write over `%s`' % name)
+    if st.button('Write %s' % name, type='primary', key='pest_export_go',
+                 disabled=bool(why_not)):
+        try:
+            pest_jobs.launch('export', None, ws, python_exe=py,
+                             args=['--pest-ws', ws, '--iter', it,
+                                   '--real', real, '--force'])
+        except pest_jobs.JobBusy as exc:
+            st.error('Not started: %s' % exc)
+        else:
+            st.rerun()
+    for why in why_not:
+        st.caption('⛔ %s' % why)
 
 
 with tab_run:
@@ -491,14 +571,14 @@ with tab_run:
         except SystemExit as exc:
             base_ok, base_what = False, str(exc)
         pest_errs = [e for e in cfg.problems() if e.startswith('pest')]
-        common = []
-        if todo:
-            common.append('%d change(s) not saved: *Validate & save* first'
-                          % len(todo))
+        running = []
         if busy:
-            common.append('job %s is running' % busy[0]['job_id'])
+            running.append('job %s is running' % busy[0]['job_id'])
         elif pp_alive:
-            common.append('pestpp-ies is running on this machine')
+            running.append('pestpp-ies is running on this machine')
+        # the export reads the set-up's configuration, not this one
+        common = (['%d change(s) not saved: *Validate & save* first'
+                   % len(todo)] if todo else []) + running
         c1, c2 = st.columns(2)
         with c1:
             st.markdown('##### ① Set up')
@@ -550,6 +630,8 @@ with tab_run:
                 st.caption('⛔ %s' % why)
             if ready and not no_launch:
                 st.caption('✅ %s' % why_ready)
+        st.markdown('##### ③ Export the calibrated model')
+        _export_view(WS, running, py)
         st.markdown('##### The current job')
         _live = bool(busy)
         st.fragment(run_every=JOB_REFRESH_S if _live else None)(

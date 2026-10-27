@@ -172,3 +172,27 @@ def test_a_stop_that_does_not_kill_leaves_the_job_running(tmp_path,
     if os.name == 'nt':
         assert 'Access is denied' in str(e.value)
     assert pest_jobs.status(str(ws), 'j1')['state'] == 'running'
+
+
+def test_an_export_gets_its_arguments_and_no_configuration(tmp_path):
+    """Phase 5 (user, 2026-10-27): the export reads the set-up's
+    configuration, so it starts without --config, with the iteration and
+    the realisation chosen on the page."""
+    ws = tmp_path / 'pest'
+    ws.mkdir()
+    tools = _tools(tmp_path, SETUP_OK)
+    (tools / 'pest_lamata_export.py').write_text(
+        'import sys\nprint("export", sys.argv[1:], flush=True)\n',
+        encoding='utf-8')
+    job_id, st = pest_jobs.launch('export', None, str(ws),
+                                  python_exe=sys.executable,
+                                  tools_dir=str(tools),
+                                  running=lambda: False,
+                                  args=['--iter', 3, '--real', 'base',
+                                        '--force'])
+    assert job_id.endswith('_export') and st['config'] == ''
+    done = _wait(str(ws), job_id)
+    assert done['outcome'] == 'ok'
+    log = pest_jobs.log_tail(str(ws), job_id)
+    assert "['--iter', '3', '--real', 'base', '--force']" in log
+    assert '--config' not in log

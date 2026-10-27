@@ -10,9 +10,12 @@ the one PEST++ carried from the starting values (user, 2026-10-23).
                                             [--out PATH] [--force]
 
 1. The realisation's values go through the calibration's own templates in
-   a copy of its template folder (<pest ws>/results/it<N>_<real>/): the
-   pilot points kriged into the per-cell multipliers (mm_mult/), the
-   scalars written to pars/*.csv -- what a worker gets before its run.
+   a copy of its template folder (<pest ws>/results/<calibration>_it<N>_
+   <real>/, <calibration> its start as YYYYmmddHHMM from the record file,
+   so that a later calibration never replaces the multipliers an earlier
+   export points to): the pilot points kriged into the per-cell
+   multipliers (mm_mult/), the scalars written to pars/*.csv -- what a
+   worker gets before its run.
 2. The configuration is the BASE RUN's (setup.json: model_config), with
    what a calibration run differs by: one spin-up cycle from the base
    state, a cold start's UZF empty, [pest] multipliers -> that mm_mult
@@ -22,8 +25,13 @@ the one PEST++ carried from the starting values (user, 2026-10-23).
    changed since the set-up (layer 1's Sy, 0.01 -> 0.025 on 2026-10-22)
    would multiply into another model. Its multipliers are rescaled when
    both rasters are uniform; otherwise the export refuses.
+4. Every run of the calibration started from the set-up's copy of the base
+   state (template/ws/); the exported run starts from the live one, so the
+   export refuses when that has changed since (a later run saved over it),
+   and when the template is a later set-up's than the calibration's.
 
-Nothing is run. Provenance in <pest ws>/results/it<N>_<real>/export.json.
+Nothing is run. Provenance in the folder's export.json; the PEST++ set-up
+panel starts this tool as a job (app/lib/pest_jobs.py, kind 'export').
 """
 
 import argparse
@@ -31,6 +39,7 @@ import datetime as dt
 import filecmp
 import json
 import os
+import re
 import shutil
 import sys
 
@@ -133,18 +142,126 @@ def rescale(cfg, mult, tpl_ds, user_ds):
     return notes
 
 
+def calibration_start(master):
+    """When the calibration in ``master`` started, from its record file
+    ('started at 10/25/26 17:05:19'); None when there is none."""
+    try:
+        with open(os.path.join(master, 'lamata.rec'), encoding='utf-8',
+                  errors='replace') as fh:
+            head = fh.read(8192)
+    except OSError:
+        return None
+    m = re.search(r'started at (\d\d/\d\d/\d\d \d\d:\d\d:\d\d)', head)
+    return (dt.datetime.strptime(m.group(1), '%m/%d/%y %H:%M:%S')
+            if m else None)
+
+
+def read_setup(pest_ws):
+    with open(os.path.join(pest_ws, 'template', 'setup.json')) as fh:
+        return json.load(fh)
+
+
+def default_out(setup):
+    """<the set-up's configuration>_PEST.toml in the configuration folder."""
+    import mm_paths
+    stem = os.path.splitext(os.path.basename(setup['config']))[0]
+    return os.path.join(str(mm_paths.CONFIG_DIR), stem + '_PEST.toml')
+
+
+def state_changes(tpl, setup):
+    """The base state's files that differ from the set-up's copy in the
+    template, or are gone."""
+    state, sdir = setup['state'], setup.get('state_dir')
+    if not sdir:
+        return []
+    copy = os.path.join(tpl, 'ws', os.path.basename(os.path.normpath(sdir)))
+    if not os.path.isdir(copy):
+        return []
+    out = []
+    for f in sorted(os.listdir(copy)):
+        if not f.startswith((state + '_', state + '.')):
+            continue
+        live = os.path.join(sdir, f)
+        if not (os.path.exists(live)
+                and filecmp.cmp(os.path.join(copy, f), live, shallow=False)):
+            out.append(live)
+    return out
+
+
+def iterations(master):
+    """The iterations a realisation can be taken from: a phi row and a
+    parameter ensemble each."""
+    import pandas as pd
+    fn = os.path.join(master, 'lamata.phi.actual.csv')
+    if not os.path.exists(fn):
+        return []
+    return [int(k) for k in pd.read_csv(fn)['iteration']
+            if os.path.exists(os.path.join(master, 'lamata.%d.par.jcb' % k))]
+
+
+def choices(master, it):
+    """The realisations of iteration ``it`` and their phi: 'base' first,
+    then the others from the lowest phi."""
+    phi = _phi_row(master, it)
+    phi.index = phi.index.astype(str)
+    return phi.reindex((['base'] if 'base' in phi.index else []) + list(
+        phi.drop('base', errors='ignore').sort_values().index))
+
+
+def provenance(config):
+    """What an exported configuration was written from (export.json, beside
+    the multipliers it points to) plus 'edited': changed since then. None
+    when it is not there or was not written by this tool."""
+    import marmites_config as mcfg
+    if not os.path.exists(config):
+        return None
+    try:
+        with open(config, 'rb') as fh:
+            doc = mcfg._load_tomllib().load(fh)
+    except (OSError, ValueError):
+        return None
+    mult = str((doc.get('pest') or {}).get('multipliers') or '')
+    fn = os.path.join(os.path.dirname(os.path.normpath(mult)), 'export.json')
+    if not mult or not os.path.exists(fn):
+        return None
+    with open(fn) as fh:
+        info = json.load(fh)
+    made = dt.datetime.fromisoformat(info['made']).timestamp()
+    info['edited'] = os.path.getmtime(config) > made + 60.0
+    return info
+
+
 def export(pest_ws, it=None, real='base', out=None, force=False):
     import marmites_config as mcfg
     import mm_paths
     import pest_lamata_forward as plf
     master = os.path.join(pest_ws, 'master')
     tpl = os.path.join(pest_ws, 'template')
-    with open(os.path.join(tpl, 'setup.json')) as fh:
-        setup = json.load(fh)
+    setup = read_setup(pest_ws)
+    started = calibration_start(master)
+    if started and setup.get('made') and \
+            dt.datetime.fromisoformat(setup['made']) > started:
+        raise SystemExit(
+            'the calibration was set up again (%s) after the one in master '
+            'started (%s): the template is no longer that calibration\'s.'
+            % (setup['made'], started.isoformat(sep=' ')))
+    changed = state_changes(tpl, setup)
+    if changed:
+        raise SystemExit(
+            'the base state %s changed since the set-up (%s): every run of '
+            'the calibration started from the set-up\'s copy in %s. Put that '
+            'copy back, or set up the calibration again.'
+            % (setup['state'], ', '.join(os.path.basename(f) for f in changed),
+               os.path.join(tpl, 'ws')))
+    if out is None:
+        out = default_out(setup)
+    if os.path.exists(out) and not force:
+        raise SystemExit('%s exists (--force to replace it)' % out)
     if it is None:
         it = int(_phi_row_last(master))
     pst, values, name, phi = realisation(master, it, real)
-    tag = 'it%d_%s' % (it, name)
+    cid = started.strftime('%Y%m%d%H%M') if started else ''
+    tag = ('%s_it%d_%s' % (cid, it, name)) if cid else 'it%d_%s' % (it, name)
     work = os.path.join(pest_ws, 'results', tag)
     if os.path.isdir(work):
         if not force:
@@ -170,14 +287,10 @@ def export(pest_ws, it=None, real='base', out=None, force=False):
     notes = rescale(cfg, mult, os.path.join(tpl, 'example', case),
                     str(mm_paths.dataset_dir(case)))
     cfg.validate()
-    if out is None:
-        stem = os.path.splitext(os.path.basename(setup['config']))[0]
-        out = os.path.join(str(mm_paths.CONFIG_DIR), stem + '_PEST.toml')
-    if os.path.exists(out) and not force:
-        raise SystemExit('%s exists (--force to replace it)' % out)
     cfg.write_toml(out)
     info = {'made': dt.datetime.now().isoformat(timespec='seconds'),
-            'master': master, 'iteration': it, 'realisation': name,
+            'master': master, 'calibration': cid, 'iteration': it,
+            'realisation': name,
             'phi': phi, 'base': setup.get('base'), 'state': state,
             'model_config': setup['model_config'], 'config': out,
             'multipliers': mult, 'rescaled': notes}

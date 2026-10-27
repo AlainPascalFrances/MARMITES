@@ -165,6 +165,42 @@ def test_the_pest_progress_panel_reads_the_master(tmp_path, monkeypatch):
     assert 'Home' in ' '.join(str(i.value) for i in at.info)
 
 
+def test_the_pest_setup_panel_exports_a_realisation(tmp_path, monkeypatch):
+    """Panel 8, phase 5 (user, 2026-10-27): once an iteration has run, a
+    realisation of it -- 'base' first, then from the lowest phi -- written
+    as <model>_PEST.toml by a job."""
+    import json
+    import mm_paths
+    ws = tmp_path / 'pest'
+    m = ws / 'master'
+    m.mkdir(parents=True)
+    (m / 'lamata.phi.actual.csv').write_text(
+        'iteration,total_runs,mean,standard_deviation,min,max,0,1,base\n'
+        '0,3,10,1,9,11,11,9,10\n1,3,8,1,7,9,9,7,8\n')
+    for k in (0, 1):
+        (m / ('lamata.%d.par.jcb' % k)).write_bytes(b'')
+    (m / 'lamata.rec').write_text('started at 10/25/26 17:05:19\n')
+    (ws / 'template').mkdir()
+    (ws / 'template' / 'setup.json').write_text(json.dumps(
+        {'config': str(tmp_path / 'lamata.toml'), 'state': 's',
+         'made': '2026-10-25T15:47:53', 'model_config': 'x.toml',
+         'base_run': 'run1'}))
+    monkeypatch.setattr(mm_paths, 'PEST_WS', str(ws))
+    monkeypatch.setattr(mm_paths, 'CONFIG_DIR', tmp_path / 'configs')
+    at = AppTest.from_file(os.path.join(APP, 'pages', '8_8_-_PEST_setup.py'),
+                           default_timeout=180)
+    at.run()
+    assert not at.exception, [str(e.value) for e in at.exception]
+    it = [s for s in at.selectbox if s.key == 'pest_export_iter'][0]
+    assert it.value == 1
+    real = [s for s in at.selectbox if s.key == 'pest_export_real'][0]
+    assert real.value == 'base'
+    assert real.options[0].startswith('realisation base: phi 8')
+    assert real.options[1] == 'realisation 1: phi 7 -- the lowest phi'
+    assert 'pest_export_go' in {b.key for b in at.button}
+    assert 'lamata_PEST.toml' in ' '.join(str(b.label) for b in at.button)
+
+
 def test_the_pest_setup_panel_holds_the_calibration(tmp_path, monkeypatch):
     """Panel 8 (WP7 front-end, phase 2): the calibration as [pest] fields,
     in five tabs, the last setting up and launching it (phase 4); the PEST
@@ -178,7 +214,7 @@ def test_the_pest_setup_panel_holds_the_calibration(tmp_path, monkeypatch):
     assert [t.label for t in at.tabs] == [
         '① Base and workspace', '② Parameters',
         '③ Observations and weights', '④ Ensemble and PEST++',
-        '⑤ Set up and launch']
+        '⑤ Set up, launch, export']
     # phase 4: the set-up, and the launch -- closed until a set-up has
     # succeeded (none in this empty workspace)
     btn = {b.key: b for b in at.button}

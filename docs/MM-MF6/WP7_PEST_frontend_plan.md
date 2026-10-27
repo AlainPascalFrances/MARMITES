@@ -218,3 +218,30 @@ command line):
   the command line; the set-up snapshots that code for the workers.
 
 Not yet: **Add agents** and **Stop at the end of this iteration**.
+
+## 8. Phase 5, as built (2026-10-27)
+
+Tab ⑤ of page 8 is now **Set up, launch, export** (user: "export the
+optimised parameters in the front end so I can run the best solution").
+Block ③ **Export the calibrated model**, once an iteration of the
+calibration in `master` has run:
+
+- **Iteration** (default the last) and **Realisation**: `base` first --
+  the one PEST++ carries from the starting values, the usual single
+  calibrated model -- then the others from the lowest phi, each with its
+  phi.
+- When `<model>_PEST.toml` exists, what it was written from (its
+  `export.json`) and whether it was edited since; **Replace** must be
+  ticked to write over it.
+- **Write `<model>_PEST.toml`** starts `pest_lamata_export.py` as a job
+  (`pest_jobs` kind `export`, no `--config`: the export reads the
+  set-up's `setup.json`), refused while another job or pestpp-ies runs.
+  About a minute. Then the configuration is chosen in the sidebar and run
+  on the Run panel.
+- The export's folder is `<pest_ws>/results/<calibration start
+  YYYYmmddHHMM>_it<N>_<real>/`, so a later calibration never replaces the
+  multipliers an earlier export points to. The export refuses when the
+  base state changed since the set-up (every calibration run started from
+  the template's copy) or when the template is a later set-up's.
+
+Page 9 points to it once the calibration has finished or stopped.
