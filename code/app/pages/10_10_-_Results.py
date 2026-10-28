@@ -36,7 +36,11 @@ st.caption('The figures the run wrote, from `%s`.' % WS)
 
 
 @st.cache_data(show_spinner=False)
-def _out_dirs(ws, _key):
+def _out_dirs(ws, stamp):
+    # ``stamp``, the folder's mtime, refreshes the list when a run adds its
+    # folder. No leading underscore: st.cache_data leaves such arguments out
+    # of its key, and the list then stayed as the app first read it (a run
+    # of 2026-10-27 was missing until a restart)
     if not os.path.isdir(ws):
         return []
     return sorted((d for d in os.listdir(ws) if d.startswith('out_')),

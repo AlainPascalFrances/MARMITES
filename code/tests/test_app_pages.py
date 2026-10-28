@@ -137,6 +137,25 @@ def test_the_results_are_shown_by_tabs_two_to_a_row(tmp_path, monkeypatch):
     assert "'Columns'" not in src, 'the column count is fixed at two'
 
 
+def test_a_new_run_shows_in_the_results_run_list(tmp_path, monkeypatch):
+    """2026-10-28: the run of 10-27 17:44 was missing from the Run box --
+    the folder list was cached once per app start."""
+    import mm_paths
+    (tmp_path / 'out_202610271000_old').mkdir()
+    monkeypatch.setattr(mm_paths, 'WS_ROOT', tmp_path)
+    at = AppTest.from_file(os.path.join(APP, 'pages', '10_10_-_Results.py'),
+                           default_timeout=180)
+    at.run()
+    assert [s.options for s in at.selectbox][0] == ['out_202610271000_old']
+    (tmp_path / 'out_202610271744_new').mkdir()
+    st_ = os.stat(tmp_path)
+    os.utime(tmp_path, ns=(st_.st_atime_ns, st_.st_mtime_ns + 10 ** 9))
+    at.run()
+    assert not at.exception, [str(e.value) for e in at.exception]
+    assert [s.options for s in at.selectbox][0] == [
+        'out_202610271744_new', 'out_202610271000_old']
+
+
 def test_the_pest_progress_panel_reads_the_master(tmp_path, monkeypatch):
     """Panel 9 (WP7 front-end, phase 1): what a calibration is doing, read
     from the PEST workspace set on Home and shown read-only."""
