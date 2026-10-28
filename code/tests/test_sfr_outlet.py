@@ -276,6 +276,17 @@ def test_lamata_outlet_obs_and_only_the_outlet_drain_record_goes(tmp_path):
             if drn is not None else set())
     assert legacy - kept == legacy & b.sfr_outlet_cellids
     assert len(legacy - kept) <= 1
+    # no exchange with the aquifer in the outlet drain's cells but the
+    # outlet's own (user, 2026-10-28): the stream passes them, the drains
+    # take the groundwater
+    drn_cells = {(i, j) for (_l, i, j, _e, _c)
+                 in c.layer_row_column_elevation_cond[0]}
+    rhk = {cc: net.packagedata[net.rno[cc]][7] for cc in net.cells}
+    cut = [cc for cc in net.cells
+           if cc in drn_cells and cc not in net.outlets]
+    assert cut, 'La Mata: the channel runs inside the outlet drain line'
+    assert all(rhk[cc] == 0.0 for cc in cut)
+    assert all(rhk[cc] > 0.0 for cc in net.cells if cc not in cut)
     # the outlet as continuous observations, reach numbers from 1
     rno = net.rno[net.outlets[0]] + 1
     obs_files = [f for f in os.listdir(tmp_path) if f.endswith('.sfr.obs')]
@@ -419,3 +430,52 @@ def test_lamata_the_stream_is_cut_through_the_soil_into_the_aquifer(tmp_path):
     # ... so no streambed bottom sits on the aquifer top any more
     assert np.all((rtp - rbth) <= tops - depth - rbth + 1e-6)
     assert np.min(tops - (rtp - rbth)) >= depth + rbth - 1e-6
+
+
+def test_a_reach_with_no_streambed_k_exchanges_nothing(tmp_path):
+    """MF6 takes a streambed K of 0 (the outlet drain's cells, 2026-10-28):
+    over a water table far below the beds, the reach with K 0 loses
+    nothing while its neighbour loses water to the aquifer."""
+    flopy = pytest.importorskip('flopy')
+    import shutil
+    import mm_paths
+    exe = (mm_paths.MF6_EXE if os.path.isfile(str(mm_paths.MF6_EXE))
+           else shutil.which('mf6'))
+    if not exe:
+        pytest.skip('no mf6')
+    ws, name = str(tmp_path), 'k0'
+    sim = flopy.mf6.MFSimulation(sim_name=name, sim_ws=ws, exe_name=exe)
+    flopy.mf6.ModflowTdis(sim, nper=1, perioddata=[(1.0, 1, 1.0)],
+                          time_units='DAYS')
+    flopy.mf6.ModflowIms(sim, complexity='SIMPLE',
+                         linear_acceleration='BICGSTAB')
+    gwf = flopy.mf6.ModflowGwf(sim, modelname=name, save_flows=True,
+                               newtonoptions='NEWTON')
+    # the reaches over columns 0-2; the water table held at 60 m by a
+    # constant head in column 3 -- MF6 computes no package flow in a
+    # constant-head cell itself
+    flopy.mf6.ModflowGwfdis(gwf, nlay=1, nrow=1, ncol=4, delr=20.0,
+                            delc=20.0, top=100.0, botm=[50.0])
+    flopy.mf6.ModflowGwfic(gwf, strt=60.0)
+    flopy.mf6.ModflowGwfnpf(gwf, icelltype=1, k=10.0)
+    flopy.mf6.ModflowGwfchd(gwf, stress_period_data={0: [[(0, 0, 3), 60.0]]})
+    pkg = [(r, (0, 0, r), 20.0, 1.0, 0.01, 99.0 - r, 0.5,
+            0.0 if r == 0 else 0.5, 0.035, 1 if r in (0, 2) else 2, 1.0, 0)
+           for r in range(3)]
+    flopy.mf6.ModflowGwfsfr(gwf, nreaches=3, packagedata=pkg,
+                            connectiondata=[(0, -1), (1, 0, -2), (2, 1)],
+                            perioddata={0: [(0, 'INFLOW', 100.0)]},
+                            save_flows=True,
+                            budget_filerecord='%s.sfr.cbc' % name)
+    flopy.mf6.ModflowGwfoc(gwf, budget_filerecord='%s.cbc' % name,
+                           saverecord=[('BUDGET', 'ALL')])
+    sim.write_simulation(silent=True)
+    ok, _ = sim.run_simulation(silent=True)
+    assert ok, 'MF6 refused a streambed K of 0'
+    cb = flopy.utils.CellBudgetFile(os.path.join(ws, '%s.sfr.cbc' % name),
+                                    precision='double')
+    q = {int(n) - 1: float(v) for n, v in
+         zip(cb.get_data(text='GWF')[0]['node'],
+             cb.get_data(text='GWF')[0]['q'])}
+    assert q[0] == 0.0
+    assert q[1] < -1.0                   # its neighbour loses to the aquifer

@@ -52,6 +52,22 @@ def test_pixels_weigh_by_the_area_they_share_with_the_catchment():
                    (2, 0): 25.0, (2, 1): 25.0}
 
 
+def test_the_catchment_series_as_the_dataset_s_observation_file(tmp_path):
+    """--obs (2026-10-28): each day of a composite at its mean rate, a
+    composite with no valid pixel a gap -- read back as the runs read an
+    observation file, its days sum to the composite's ET."""
+    if os.path.join(TRUNK, 'ppMF6') not in sys.path:
+        sys.path.insert(0, os.path.join(TRUNK, 'ppMF6'))
+    import marmites_postprocess as pp
+    df = pd.DataFrame({'start': ['2010-12-19', '2010-12-27', '2011-01-01'],
+                       'ndays': [8, 5, 8], 'et_mm': [16.0, 5.0, np.nan]})
+    fn = pme.write_obs_file(df, str(tmp_path / 'inputObsAET_catchment.txt'))
+    d, v = pp._dated_obs(fn)
+    assert len(d) == 13 and str(pd.Timestamp(d[-1]).date()) == '2010-12-31'
+    assert v[:8, 0] == pytest.approx(2.0) and v[8:, 0] == pytest.approx(1.0)
+    assert v[:, 0].sum() == pytest.approx(21.0)
+
+
 def test_fills_are_left_out_of_the_mean():
     et, frac = pme.weighted_mean([100, 200, 32767], np.array([1.0, 1.0, 2.0]))
     assert et == pytest.approx(15.0) and frac == pytest.approx(0.5)

@@ -10,6 +10,12 @@ area-weighted mean ET of each composite.
     python code/tools/pest_modis_et.py --product MODIS4LaMata \\
         --config code/configs/lamata.toml --out modis_et_catchment.csv
 
+With ``--obs`` the series also goes into the dataset as the catchment's
+observation file, ``<obs.aet_prefix>_catchment.txt`` (2026-10-28): every
+run reads it as it reads an eddy tower's (obs_et.csv), and the ET figure
+compares the catchment with MODIS per composite. Each day of a composite
+carries its mean rate, so a composite's days sum to its ET.
+
 - Each pixel weighs by the area it shares with the catchment polygon (the
   dataset's inputBOUNDARY.geojson, in the model CRS), computed in the MODIS
   sinusoidal projection the pixels are squares in.
@@ -186,6 +192,23 @@ def catchment_series(product_dir, polygon, epsg, start=None, end=None,
     return df
 
 
+def write_obs_file(df, path, product='MODIS MOD16A2GF'):
+    """The composites as a daily observation file of the dataset: ``date
+    value`` per day, each day of a composite at its mean rate (et_mm / its
+    days), a composite with no valid pixel left out (a gap)."""
+    with open(path, 'w', encoding='utf-8') as fh:
+        fh.write('#Date\tET_catchment mm.d-1 (%s, catchment mean of each '
+                 'composite, spread over its days)\n' % product)
+        for r in df.itertuples():
+            if not np.isfinite(r.et_mm):
+                continue
+            first = dt.date.fromisoformat(str(r.start))
+            for k in range(int(r.ndays)):
+                fh.write('%s\t%.6f\n' % ((first + dt.timedelta(days=k))
+                                         .isoformat(), r.et_mm / r.ndays))
+    return path
+
+
 def main(argv=None):
     import marmites_config as mcfg
     import mm_paths
@@ -194,9 +217,16 @@ def main(argv=None):
                     help='the product folder under the remote-sensing root '
                          '(Home, rs), e.g. MODIS4LaMata, or a full path')
     ap.add_argument('--config', required=True)
-    ap.add_argument('--out', required=True)
+    ap.add_argument('--out', help='the composites, as a CSV')
+    ap.add_argument('--obs', action='store_true',
+                    help='also write the dataset\'s catchment observation '
+                         'file, <obs.aet_prefix>_catchment.txt')
     a = ap.parse_args(argv)
+    if not (a.out or a.obs):
+        ap.error('give --out, --obs or both')
     cfg = mcfg.load_run_config(a.config)
+    if a.obs and not (cfg.obs.aet_prefix or '').strip():
+        ap.error('--obs needs obs.aet_prefix in the configuration')
     prod = (a.product if os.path.isabs(a.product)
             else os.path.join(str(mm_paths.RS), a.product))
     ds = mm_paths.dataset_dir(cfg.paths.case)
@@ -207,8 +237,13 @@ def main(argv=None):
     start = dt.date.fromisoformat(dates[0])
     end = dt.date.fromisoformat(dates[-1])
     df = catchment_series(prod, poly, cfg.grid.crs_epsg, start, end)
-    df.to_csv(a.out, index=False, float_format='%.6g')
-    print('written', a.out)
+    if a.out:
+        df.to_csv(a.out, index=False, float_format='%.6g')
+        print('written', a.out)
+    if a.obs:
+        fn = os.path.join(str(ds), '%s_catchment.txt'
+                          % cfg.obs.aet_prefix.strip())
+        print('written', write_obs_file(df, fn))
 
 
 if __name__ == '__main__':

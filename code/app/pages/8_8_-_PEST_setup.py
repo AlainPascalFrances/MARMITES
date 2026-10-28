@@ -375,9 +375,13 @@ with tab_obs:
                % ('🟢' if n_hdf else '🔴', modis, n_hdf))
     pts = sorted(os.path.basename(f) for f in glob.glob(os.path.join(
         ds, '%s_*.txt' % cfg.obs.aet_prefix))) if cfg.obs.aet_prefix else []
+    # the catchment's file is MODIS for the runs' ET figure
+    # (pest_modis_et.py --obs), not a point
+    cat = '%s_catchment.txt' % cfg.obs.aet_prefix
     st.caption('**Measured ET at the points** (group et_pt: validation, '
                'never fitted), the files `%s_<point>.txt` of the dataset: %s.'
-               % (cfg.obs.aet_prefix or '?', ', '.join(pts) or 'none'))
+               % (cfg.obs.aet_prefix or '?',
+                  ', '.join(p for p in pts if p != cat) or 'none'))
 
     st.markdown('#### The targets of the last set-up')
     tg_f = os.path.join(WS, 'org', 'pest_targets.csv') if WS else ''

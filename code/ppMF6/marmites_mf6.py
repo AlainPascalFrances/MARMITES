@@ -712,7 +712,9 @@ class clsMF6:
                   delr=cMF.delr, delc=cMF.delc, botm=self.botm,
                   idomain=self.idomain,
                   rbth=self._segment_values('rbth', self.sfr_rbth),
-                  rhk=self._segment_values('rhk', self.sfr_rhk),
+                  rhk=self._outlet_drain_rhk(
+                      self._segment_values('rhk', self.sfr_rhk), net,
+                      drn_cells),
                   man=self._segment_values('manning', self.sfr_man),
                   minslope=float(self.sfr_min_slope),
                   monotonic=bool(self.sfr_monotonic),
@@ -721,6 +723,31 @@ class clsMF6:
         self.sfr = True
         self._bind_sfr_net(net)
         return net
+
+    def _outlet_drain_rhk(self, rhk, net, drn_cells):
+        """The streambed K with NO EXCHANGE WITH THE AQUIFER in the outlet
+        drain's cells (user, 2026-10-28). The drain line runs along the
+        catchment boundary at the outlet, its drains deep -- on La Mata at
+        the layer-1 bottom, 45 m down -- and the main channel's last reaches
+        run inside it: they lost 23 m3/d to the aquifer there, stream water
+        re-infiltrating at the outlet only to leave through the drains. The
+        stream now passes those cells to its one outlet and the drains take
+        the groundwater alone. The outlet reach keeps its exchange: it
+        replaces its cell's drain (decision 4), the one cell where the
+        aquifer discharges through the stream. ``rhk``: one value or one per
+        cell."""
+        drn, outlets = set(drn_cells), set(net.outlets)
+        cut = [c for c in net.cells if c in drn and c not in outlets]
+        if not cut:
+            return rhk
+        out = (np.full(np.shape(self.sfr_pondw), float(rhk))
+               if np.ndim(rhk) == 0 else np.array(rhk, dtype=float))
+        for c in cut:
+            out[c] = 0.0
+        if getattr(self, 'verbose', True):
+            print('   SFR: %d reach(es) in the outlet drain\'s cells exchange '
+                  'nothing with the aquifer (streambed K 0)' % len(cut))
+        return out
 
     def _bind_sfr_net(self, net):
         """The sets every later step reads off the network -- rebound when
