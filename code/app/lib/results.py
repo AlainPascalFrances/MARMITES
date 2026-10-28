@@ -117,6 +117,8 @@ _FIXED = {
     'obs_heads': 'Heads at the observation points: simulated and observed',
     'obs_et': 'Evapotranspiration: simulated against the eddy covariance '
               '(EC) and MODIS',
+    'obs_et_parts': 'Evapotranspiration and its parts (ETsoil, ETuzf, ETg, '
+                    'Ei, Ecrr, Eow) against the EC and MODIS',
     'outlet_streamflow': 'Streamflow at the catchment outlet: simulated and '
                          'observed',
 }
@@ -142,7 +144,8 @@ def classify(sub, fname):
     if ('_sp_plt_GWmap_' in s or '_sp_plt_MMmap_' in s
             or '_sp_plt_SWmap_' in s or s.startswith('05_map_')):
         return 'output'
-    if ('calibcrit' in s or s in ('obs_heads', 'obs_et', 'outlet_streamflow')
+    if ('calibcrit' in s or s in ('obs_heads', 'obs_et', 'obs_et_parts',
+                                  'outlet_streamflow')
             or s.startswith('sm_depth_')):
         return 'calib'
     if ('WBsankey' in s or s in ('budget_compartment', 'budget_uzf',

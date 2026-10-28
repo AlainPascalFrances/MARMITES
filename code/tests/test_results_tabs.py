@@ -32,6 +32,7 @@ RUN = {
     ('_output', '__plt_calibcritNSE_0.png'): 'calib',
     ('_output', 'obs_heads.png'): 'calib',
     ('_output', 'obs_et.png'): 'calib',
+    ('_output', 'obs_et_parts.png'): 'calib',
     ('_output', 'outlet_streamflow.png'): 'calib',
     ('_output', 'sm_depth_C1.png'): 'calib',
     ('_output', '_catchment_WBsankey_0whole.png'): 'budget',

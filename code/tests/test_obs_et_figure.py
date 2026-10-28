@@ -22,6 +22,8 @@ for _p in (CODE, os.path.join(CODE, 'ppMF6')):
 pd = pytest.importorskip('pandas')
 import matplotlib                                       # noqa: E402
 matplotlib.use('agg')
+import matplotlib.colors                                # noqa: E402
+import matplotlib.dates                                 # noqa: E402
 import matplotlib.figure                                # noqa: E402
 
 import marmites_postprocess as PP                       # noqa: E402
@@ -44,6 +46,10 @@ def _write(out, modis=True):
                        for k in range(n)],
             'site': site, 'period': np.arange(1, n + 1),
             'date': DATES.strftime('%Y-%m-%d'), 'sim_et_total_mmd': sim,
+            # the parts add up to the total; ETuzf, Ei and Ecrr are zero
+            'sim_ei_mmd': 0.0, 'sim_et_soil_mmd': 0.6 * sim,
+            'sim_et_uzf_mmd': 0.0, 'sim_et_g_mmd': 0.3 * sim,
+            'sim_e_ow_mmd': 0.1 * sim, 'sim_e_crr_mmd': 0.0,
             'obs_et_mmd': obs}))
     # a point with no measured series gets no row
     rows.append(rows[0].assign(site='P0', obs_et_mmd=np.nan))
@@ -118,3 +124,65 @@ def test_the_run_draws_it():
     body = src[src.index('def run_postproc('):]
     body = body[:body.index('\ndef ')]
     assert '_fig_obs_et(out, hydro_year_start=hydro_year_start' in body
+    assert '_fig_obs_et_parts(out, hydro_year_start=hydro_year_start' in body
+
+
+# ---- the parts of the ET (user, 2026-10-28: "make similar plot but that
+# includes the components of the total ET, i.e. Eow, ETg and ETsoil")
+
+def _bars(bx):
+    """{x: (heights, colours)} of a bar panel."""
+    out = {}
+    for p in bx.patches:
+        x = round(p.get_x() + p.get_width() / 2.0)
+        h, c = out.setdefault(x, ([], []))
+        h.append(p.get_height())
+        c.append(matplotlib.colors.to_hex(p.get_facecolor()))
+    return out
+
+
+def test_the_parts_stack_up_to_the_total(tmp_path, spy):
+    _write(str(tmp_path))
+    files = PP._fig_obs_et_parts(str(tmp_path), hydro_year_start=10,
+                                 verbose=False)
+    assert [os.path.basename(f) for f in files] == ['obs_et_parts.png']
+    ax = spy['obs_et_parts.png'].axes
+    assert len(ax) == 4                          # EC and the catchment
+    assert ax[0].get_title().startswith('EC:') and '60 days' in \
+        ax[0].get_title()
+    assert ax[2].get_title().startswith('catchment:') and \
+        '%d composites' % _whole_composites(LO, HI) in ax[2].get_title()
+    # only the parts that are not zero, the legend in the stack's order
+    # (top first), the observed last
+    labels = [t.get_text() for t in ax[1].get_legend().get_texts()]
+    assert [l.split(',')[0].split(':')[0] for l in labels] == [
+        'Eow', 'ETg', 'ETsoil', 'measured']
+    for bx, ratio in ((ax[1], 1.0), (ax[3], 1.25)):
+        b = _bars(bx)
+        sim, obs = sum(b[0][0]), sum(b[1][0])
+        assert obs == pytest.approx(ratio * sim, rel=1e-9)
+        # the simulated bar is the parts: 60 / 30 / 10 % of the total
+        assert np.allclose(np.array(b[0][0]) / sim, [0.6, 0.3, 0.1])
+        # colour follows the part
+        assert b[0][1] == [c for k, _, _, c in PP._ET_PARTS
+                           if k in ('sim_et_soil_mmd', 'sim_et_g_mmd',
+                                    'sim_e_ow_mmd')]
+    # the stack: three parts, each composite a step, whole years only
+    polys = ax[2].collections
+    assert len(polys) == 3
+    top = polys[-1].get_paths()[0].vertices
+    xs = pd.to_datetime(matplotlib.dates.num2date(top[:, 0])).tz_localize(None)
+    assert xs.min() >= LO and xs.max() <= HI + pd.Timedelta(days=1)
+
+
+def test_the_parts_without_modis(tmp_path, spy):
+    _write(str(tmp_path), modis=False)
+    PP._fig_obs_et_parts(str(tmp_path), verbose=False)
+    ax = spy['obs_et_parts.png'].axes
+    assert 'no MODIS' in ax[2].get_title()
+    assert [t.get_text() for t in ax[3].get_xticklabels()] == ['simulated']
+    assert 'over the window' in ax[3].get_title()
+
+
+def test_no_export_no_parts_figure(tmp_path):
+    assert PP._fig_obs_et_parts(str(tmp_path), verbose=False) == []

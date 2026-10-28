@@ -504,6 +504,12 @@ def run_postproc(sim_ws, ds_ws, name='lamatamm', dates=None,
     except Exception as exc:               # pragma: no cover
         if verbose:
             print('   ET figure skipped: %r' % exc)
+    try:
+        written += _fig_obs_et_parts(out, hydro_year_start=hydro_year_start,
+                                     verbose=verbose)
+    except Exception as exc:               # pragma: no cover
+        if verbose:
+            print('   ET parts figure skipped: %r' % exc)
 
     # NOTE: the native plotLAYER head map is produced by native_suite's
     # _native_aquifer_maps(), per layer and from an exact mean over every
@@ -4182,20 +4188,15 @@ def _fit_et(sim, obs):
             'nse': 1.0 - float(((s - o) ** 2).sum()) / var if var else np.nan}
 
 
-def _fig_obs_et(out, hydro_year_start=10, verbose=True):
-    """Simulated evapotranspiration against the measured (user, 2026-10-28):
-    at every point with an ET series (EC, the eddy covariance) day by day,
-    and over the catchment against MODIS summed per 8-day composite -- what
-    the calibration fits (groups et_pt and et_rs). From obs_et.csv, which
-    the observation exports wrote into ``out``; MODIS is the catchment's
-    observation file (<aet prefix>_catchment.txt), and without it the
-    catchment row shows the simulated ET alone and says so. Whole
-    hydrological years only, like the other calibration figures."""
-    import matplotlib.pyplot as plt
+def _et_window(out, hydro_year_start=10):
+    """obs_et.csv for the ET figures: its rows over the whole hydrological
+    years, the sites to draw (each point with a measured series, then the
+    catchment) and the window, as (rows, sites, lo, hi, whole); None when
+    there is nothing to draw."""
     import pandas as pd
     fn = os.path.join(out, 'obs_et.csv')
     if not os.path.exists(fn):
-        return []
+        return None
     e = pd.read_csv(fn, parse_dates=['date'])
     days = pd.DatetimeIndex(sorted(e['date'].unique()))
     spans = _year_spans(days, hydro_year_start,
@@ -4208,38 +4209,72 @@ def _fig_obs_et(out, hydro_year_start=10, verbose=True):
     if (e['site'] == 'catchment').any():
         sites.append('catchment')
     if not sites:
+        return None
+    return e, sites, lo, hi, bool(whole)
+
+
+def _et_site(e, site, cols):
+    """One site's simulated ``cols`` and observed ET as the ET figures draw
+    them: (x, ndays, {col: values}, obs, unit, what). Day by day at a
+    point; over the catchment summed per MODIS composite, where MODIS
+    covers every one of its days, a composite the window cuts (its first or
+    last) left out."""
+    import pandas as pd
+    g = e[e['site'] == site].sort_values('date')
+    sim = {c: (g[c].to_numpy(float) if c in g.columns
+               else np.zeros(len(g))) for c in cols}
+    obs = g['obs_et_mmd'].to_numpy(float)
+    if site != 'catchment':
+        return (g['date'].reset_index(drop=True), np.ones(len(g)), sim, obs,
+                'mm/d', 'measured')
+    t = pd.DataFrame(dict(sim, date=g['date'].to_numpy(), obs=obs,
+                          k=modis_composites(g['date'])))
+    t = t.groupby('k', sort=True).agg(
+        date=('date', 'first'), obs=('obs', 'sum'), n=('date', 'size'),
+        n_obs=('obs', 'count'), **{c: (c, 'sum') for c in cols})
+    t.loc[t['n_obs'] < t['n'], 'obs'] = np.nan
+    full = [min(8, (pd.Timestamp(y, 12, 31) - pd.Timestamp(y, 1, 1)
+                    ).days + 1 - 8 * kk) for y, kk in t.index]
+    t = t[t['n'].to_numpy() == np.asarray(full)]
+    return (t['date'].reset_index(drop=True), t['n'].to_numpy(float),
+            {c: t[c].to_numpy(float) for c in cols}, t['obs'].to_numpy(),
+            'mm per composite', 'MODIS MOD16A2GF')
+
+
+def _et_no_obs_title(site, what):
+    return ('%s: no %s series to compare with%s'
+            % (site, what, ' -- no %s_catchment.txt in the dataset'
+               % (OBS.get('aet') or 'inputObsAET')
+               if site == 'catchment' else ''))
+
+
+def _fig_obs_et(out, hydro_year_start=10, verbose=True):
+    """Simulated evapotranspiration against the measured (user, 2026-10-28):
+    at every point with an ET series (EC, the eddy covariance) day by day,
+    and over the catchment against MODIS summed per 8-day composite -- what
+    the calibration fits (groups et_pt and et_rs). From obs_et.csv, which
+    the observation exports wrote into ``out``; MODIS is the catchment's
+    observation file (<aet prefix>_catchment.txt), and without it the
+    catchment row shows the simulated ET alone and says so. Whole
+    hydrological years only, like the other calibration figures."""
+    import matplotlib.pyplot as plt
+    import pandas as pd
+    w = _et_window(out, hydro_year_start)
+    if w is None:
         return []
+    e, sites, lo, hi, whole = w
     fig, axes = plt.subplots(len(sites), 2, figsize=(14, 3.8 * len(sites)),
                              squeeze=False,
                              gridspec_kw={'width_ratios': [3.2, 1]})
     for (ax, sc), site in zip(axes, sites):
-        g = e[e['site'] == site].sort_values('date')
-        sim = g['sim_et_total_mmd'].to_numpy(float)
-        obs = g['obs_et_mmd'].to_numpy(float)
+        x, ndays, s, obs, unit, what = _et_site(e, site, ['sim_et_total_mmd'])
+        sim = s['sim_et_total_mmd']
         if site == 'catchment':
-            # per MODIS composite, where MODIS covers every one of its days
-            k = pd.Series(modis_composites(g['date']), index=g.index)
-            t = pd.DataFrame({'date': g['date'], 'sim': sim, 'obs': obs,
-                              'k': k}).groupby('k', sort=True).agg(
-                date=('date', 'first'), sim=('sim', 'sum'),
-                obs=('obs', 'sum'), n=('sim', 'size'),
-                n_obs=('obs', 'count'))
-            t.loc[t['n_obs'] < t['n'], 'obs'] = np.nan
-            # a composite the window cuts (its first or last) is left out
-            full = [min(8, (pd.Timestamp(y, 12, 31) - pd.Timestamp(y, 1, 1)
-                            ).days + 1 - 8 * kk) for y, kk in t.index]
-            t = t[t['n'].to_numpy() == np.asarray(full)]
-            x, sim, obs = t['date'], t['sim'].to_numpy(), t['obs'].to_numpy()
-            ndays = t['n'].to_numpy(float)
-            unit, what = 'mm per composite', 'MODIS MOD16A2GF'
             # each composite a step over its days, the last one included
             ax.step(list(x) + [x.iloc[-1] + pd.Timedelta(days=ndays[-1])],
                     np.r_[sim, sim[-1:]], where='post', color=_OBS_BLUE_LINE,
                     lw=1.0, label='simulated, catchment mean')
         else:
-            x = g['date']
-            ndays = np.ones(len(g))
-            unit, what = 'mm/d', 'measured'
             ax.plot(x, sim, '-', color=_OBS_BLUE_LINE, lw=0.8,
                     label='simulated at %s' % site)
         if np.isfinite(obs).any():
@@ -4247,10 +4282,7 @@ def _fig_obs_et(out, hydro_year_start=10, verbose=True):
                     mec=_OBS_BLUE_MARK, label=what)
         f = _fit_et(sim, obs)
         if f is None:
-            ax.set_title('%s: no %s series to compare with%s'
-                         % (site, what, ' -- no %s_catchment.txt in the '
-                            'dataset' % (OBS.get('aet') or 'inputObsAET')
-                            if site == 'catchment' else ''), fontsize=10)
+            ax.set_title(_et_no_obs_title(site, what), fontsize=10)
             sc.axis('off')
         else:
             m = np.isfinite(sim) & np.isfinite(obs)
@@ -4286,6 +4318,122 @@ def _fig_obs_et(out, hydro_year_start=10, verbose=True):
     plt.close(fig)
     if verbose:
         print('   ET against the measured: %s' % ', '.join(sites))
+    return [fn]
+
+
+# The parts of the total ET (obs_et.csv), bottom of the stack first: they add
+# up to it (MMsoil's iETtot). Colours from the validated categorical palette,
+# chosen so that each pair stacked one on the other stays apart under every
+# colour-vision deficiency (worst Delta E 15); open water in blue.
+_ET_PARTS = (
+    ('sim_et_soil_mmd', 'ETsoil', 'soil', '#008300'),
+    ('sim_et_uzf_mmd', 'ETuzf', 'unsaturated zone', '#eda100'),
+    ('sim_et_g_mmd', 'ETg', 'groundwater', '#e34948'),
+    ('sim_ei_mmd', 'Ei', 'interception', '#6250d6'),
+    ('sim_e_crr_mmd', 'Ecrr', 'runoff in the cascade (CRR)', '#eb6834'),
+    ('sim_e_ow_mmd', 'Eow', 'open water', '#2a78d6'),
+)
+
+
+def _fig_obs_et_parts(out, hydro_year_start=10, verbose=True):
+    """The simulated ET split into its parts against the measured (user,
+    2026-10-28: "make similar plot but that includes the components of the
+    total ET, i.e. Eow, ETg and ETsoil"): obs_et.png's rows, the total
+    drawn as the stack of ETsoil, ETuzf, ETg, Ei, Ecrr and Eow (all of them,
+    so the stack is the total MODIS and EC are compared with), and beside
+    it their mean per year over the days (composites) observed -- over the
+    whole window where nothing was. A part that is zero at a site is not
+    drawn there."""
+    import matplotlib.pyplot as plt
+    import pandas as pd
+    w = _et_window(out, hydro_year_start)
+    if w is None:
+        return []
+    e, sites, lo, hi, whole = w
+    fig, axes = plt.subplots(len(sites), 2, figsize=(15, 3.8 * len(sites)),
+                             squeeze=False,
+                             gridspec_kw={'width_ratios': [3.2, 1]})
+    cols = [p[0] for p in _ET_PARTS]
+    for (ax, bx), site in zip(axes, sites):
+        x, ndays, sim, obs, unit, what = _et_site(e, site, cols)
+        parts = [p for p in _ET_PARTS if np.nansum(np.abs(sim[p[0]])) > 0]
+        vals = [sim[p[0]] for p in parts]
+        colors = [p[3] for p in parts]
+        # the composites' steps parted by a hairline; day by day none, it
+        # would hide a thin part under the outline of every spike
+        if site == 'catchment':
+            xs = list(x) + [x.iloc[-1] + pd.Timedelta(days=ndays[-1])]
+            ys = [np.r_[v, v[-1:]] for v in vals]
+            kw = {'step': 'post', 'edgecolor': 'white', 'lw': 0.3}
+        else:
+            xs, ys, kw = list(x), vals, {'lw': 0}
+        if ys:
+            ax.stackplot(xs, *ys, colors=colors, **kw)
+        m = np.isfinite(obs)
+        if m.any():
+            ax.plot(x, obs, 'o', ms=2.5, color=_OBS_BLUE_MARK,
+                    mec='white', mew=0.4, zorder=3)
+        # the parts per year, over the days (composites) observed
+        base = m if m.any() else np.ones(len(obs), bool)
+        yr = ndays[base].sum() / 365.25
+        per_yr = [float(v[base].sum() / yr) for v in vals]
+        bottom = 0.0
+        for v, c in zip(per_yr, colors):
+            bx.bar(0, v, bottom=bottom, width=0.6, color=c,
+                   edgecolor='white', lw=1.0)
+            bottom += v
+        bx.text(0, bottom, '%.0f' % bottom, ha='center', va='bottom',
+                fontsize=9, color='0.15')
+        ticks = ['simulated']
+        if m.any():
+            o = float(obs[m].sum() / yr)
+            bx.bar(1, o, width=0.6, color=_OBS_BLUE_MARK)
+            bx.text(1, o, '%.0f' % o, ha='center', va='bottom', fontsize=9,
+                    color='0.15')
+            ticks.append('MODIS' if site == 'catchment' else 'measured')
+            ax.set_title('%s: the parts of the simulated ET against %s, '
+                         'over the %d %s observed'
+                         % (site, what if site == 'catchment'
+                            else 'the measured ET', int(m.sum()),
+                            'composites' if site == 'catchment' else 'days'),
+                         fontsize=10)
+            bx.set_title('mean per year over the %s observed'
+                         % ('composites' if site == 'catchment'
+                            else 'days'), fontsize=9)
+        else:
+            ax.set_title(_et_no_obs_title(site, what), fontsize=10)
+            bx.set_title('mean per year over the window', fontsize=9)
+        bx.set_xticks(range(len(ticks)))
+        bx.set_xticklabels(ticks)
+        bx.set_xlim(-0.7, len(ticks) - 0.3)
+        bx.set_ylim(0, max(bottom, o if m.any() else 0.0) * 1.12 or 1.0)
+        bx.set_ylabel('ET [mm/yr]')
+        bx.grid(axis='y', alpha=0.3)
+        ax.set_ylabel('ET [%s]' % unit)
+        ax.set_ylim(bottom=0)
+        ax.grid(alpha=0.3)
+        # one legend, the stack's order (top first), each part's mm/yr
+        hs = [plt.Rectangle((0, 0), 1, 1, color=c) for c in colors[::-1]]
+        ls = ['%s, %s: %.0f' % (p[1], p[2], v)
+              for p, v in zip(parts[::-1], per_yr[::-1])]
+        if m.any():
+            hs.append(plt.Line2D([], [], ls='', marker='o', ms=4,
+                                 color=_OBS_BLUE_MARK))
+            ls.append('%s: %.0f' % (what, o))
+        bx.legend(hs, ls, fontsize=8, loc='center left',
+                  bbox_to_anchor=(1.02, 0.5), title='mm/yr', title_fontsize=8,
+                  frameon=False)
+    fig.suptitle('Evapotranspiration and its parts, simulated against the '
+                 'measured: %s to %s%s'
+                 % (lo.strftime('%Y-%m-%d'), hi.strftime('%Y-%m-%d'),
+                    ' (whole hydrological years)' if whole else ''),
+                 fontsize=11)
+    fig.tight_layout(h_pad=2.0)
+    fn = os.path.join(out, 'obs_et_parts.png')
+    fig.savefig(fn, dpi=140, bbox_inches='tight')
+    plt.close(fig)
+    if verbose:
+        print('   ET parts against the measured: %s' % ', '.join(sites))
     return [fn]
 
 
