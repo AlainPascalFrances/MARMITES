@@ -8,7 +8,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import subprocess as sp
 import numpy as np
-import os, itertools, shutil
+import os, itertools, shutil, textwrap
 from matplotlib.sankey import Sankey
 mpl.rcParams['mathtext.fontset'] = 'stix'
 #matplotlib.rcParams['font.family'] = 'STIXGeneral'
@@ -1548,6 +1548,66 @@ def _colour_levels(cmap, vmin, vmax):
     return levels
 
 
+def _pct_label(x, pos=None):
+    """A percentile bound on the colour bar: 3 significant digits, in plain
+    decimals (733, 13.6, -0.0123), 0 as 0."""
+    if x == 0 or not np.isfinite(x):
+        return '0'
+    d = max(0, 2 - int(np.floor(np.log10(abs(x)))))
+    return ('%.*f' % (d, x)) if d <= 6 else ('%.2e' % x)
+
+
+def percentile_classes(v, cmap, n=10):
+    """The classes of a PERCENTILE colour ramp (user, 2026-10-28: a map
+    should not show only its outliers): ``(bounds, colours)``, each class
+    holding an equal share of the cells, so a few extreme cells fill one
+    class and the rest of the field spreads over the ramp; None for a field
+    of one value.
+
+    - Zero is a class of its own when cells are zero (|v| within 1e-6 of
+      the field's range, as postprocess._vrange): the streams' and ponds'
+      maps are zero away from them, and the percentiles are over the other
+      cells -- the zeros would otherwise fill most of the classes.
+    - A field of both signs is DIVERGING: n/2 classes of the negative cells
+      on the red half of coolwarm_r, n/2 of the positive cells on its blue
+      half, and between them the neutral class [0, smallest positive) --
+      zero is always a bound, at the ramp's neutral middle.
+    - A one-signed field takes ``cmap`` over its classes, low to high.
+    The top bound is just above the maximum, so the largest cell is in the
+    last class."""
+    v = np.asarray(v, dtype=float).ravel()
+    v = v[np.isfinite(v)]
+    if not v.size or v.min() == v.max():
+        return None
+    tol = 1e-6 * max(abs(float(v.min())), abs(float(v.max())), 1.0)
+    neg, pos = v[v < -tol], v[v > tol]
+    zero = v.size - neg.size - pos.size
+    both = neg.size and pos.size
+    k = max(n // 2, 1) if both else n
+
+    def cuts(a):        # the class starts of ``a``, lowest first
+        return np.unique(np.percentile(a, np.linspace(0.0, 100.0, k + 1))[:-1])
+
+    nb = cuts(neg) if neg.size else np.zeros(0)
+    pb = cuts(pos) if pos.size else np.zeros(0)
+    top = np.nextafter(float(v.max()), np.inf)
+    if both:
+        bounds = np.r_[nb, 0.0, pb, top]
+        ramp = mpl.colormaps['coolwarm_r']
+        colours = ([ramp(x) for x in np.linspace(0.0, 0.4, nb.size)]
+                   + [ramp(0.5)]
+                   + [ramp(x) for x in np.linspace(0.6, 1.0, pb.size)])
+        return bounds, colours
+    if pos.size:
+        bounds = np.r_[[0.0] if zero else [], pb, top]
+    else:
+        bounds = np.r_[nb, [0.0, np.nextafter(0.0, np.inf)] if zero
+                       else [top]]
+    ncls = bounds.size - 1
+    colours = [cmap(x) for x in np.linspace(0.0, 1.0, ncls)]
+    return bounds, colours
+
+
 def _mesh_contours(ax, polys, V, levels, fmt):
     """Contour lines of a field given per MESH CELL (user, 2026-10-11: the
     equipotentials on the head maps).
@@ -1698,6 +1758,7 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
     BT = 0.75                      # the X labels and the 'layer N' caption
     CB = 0.9                       # a colour bar: its label, the bar, ticks
     pct = interval_type == 'percentile'          # one colour bar per layer
+    cmap_pct = cmap                # a one-signed percentile map's ramp
     SW = LM + PW + RM              # one layer's slot
     for i, day in enumerate(days):
         NPage = int(np.ceil(nplot / 2.0))
@@ -1756,11 +1817,23 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
                     else:
                         Vtmp = np.ma.masked_array(V[i, L, :, :], mask[L, :, :])
                     Vtmp = np.ma.masked_values(Vtmp, hnoflo, atol=0.09)
-                    if interval_type == 'percentile':
-                        ticks = np.percentile(Vtick.compressed().flatten(),
-                                              [0.0, 10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0])
-                        levels = mpl.ticker.MaxNLocator(nbins=cmap.N).tick_values(0.0, 100.0)
-                        norm = mpl.colors.BoundaryNorm(ticks, cmap.N)  # , vmin=Vmin_tmp, vmax=Vmax_tmp)
+                    if pct:
+                        # THIS layer's classes (they were the first layer's
+                        # for every layer), see percentile_classes; a rounding
+                        # zero drawn as the zero it is
+                        _v = Vtmp.compressed()
+                        _tol = 1e-6 * max(float(np.abs(_v).max()) if _v.size
+                                          else 0.0, 1.0)
+                        Vtmp = np.ma.where(np.ma.abs(Vtmp) <= _tol, 0.0, Vtmp)
+                        _pc_cls = percentile_classes(Vtmp.compressed(),
+                                                     cmap_pct)
+                        if _pc_cls is None:            # one value: one class
+                            _c0 = float(Vtmp.compressed()[0]) if _v.size else 0.0
+                            _pc_cls = ([_c0, np.nextafter(_c0, np.inf)],
+                                       [cmap_pct(0.5)])
+                        ticks = np.asarray(_pc_cls[0])
+                        cmap = mpl.colors.ListedColormap(_pc_cls[1])
+                        norm = mpl.colors.BoundaryNorm(ticks, cmap.N)
                     # the panel, in its slot, placed in inches
                     x0 = l * SW + LM
                     ax.append(fig.add_axes([x0 / W, (H - TOP - AT - PH) / H,
@@ -1842,19 +1915,29 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
                     else:
                         ax[l].set_aspect('equal')
                     if pct:
-                        # this layer's own bar, under its caption
+                        # this layer's own bar, under its caption: its classes
+                        # evenly spaced, each bound labelled to 3 significant
+                        # digits, nothing beyond the classes to extend to
                         cax = fig.add_axes([x0 / W, 0.35 / H, PW / W,
                                             0.16 / H])
                         CB_ = fig.colorbar(page_ims[l], ticks=ticks,
-                                           extend='both', format=fmt,
+                                           extend='neither',
+                                           format=mpl.ticker.FuncFormatter(
+                                               _pct_label),
                                            cax=cax, orientation='horizontal')
                         # The BoundaryNorm puts a minor tick at EVERY colour
                         # boundary, which crowds the bar into a near-solid line
                         # of marks. Only the labelled ticks are wanted.
                         CB_.ax.minorticks_off()
-                        CB_.set_label(CBlabel, fontsize=10)
+                        # the label on the panel's width, not across the
+                        # neighbouring layer's
+                        CB_.set_label(textwrap.fill(CBlabel, 60), fontsize=10)
                         cax.xaxis.set_label_position('top')
-                        plt.setp(CB_.ax.get_xticklabels(), fontsize=7)
+                        # a dozen bounds of up to 8 characters: slanted, so
+                        # that 0.000499 and 0.0265 do not run into each other
+                        plt.setp(CB_.ax.get_xticklabels(), fontsize=7,
+                                 rotation=40, ha='right',
+                                 rotation_mode='anchor')
                     L += 1
 
             if not pct:

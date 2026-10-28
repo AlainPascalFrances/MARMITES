@@ -3564,25 +3564,36 @@ def _native_result_maps(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
         if not vals.size:
             return
         lo, hi = _vrange(vals) if vlim is None else vlim
-        try:
-            MMplot.plotLAYER(
-                days=days if days is not None else [0],
-                str_per=days if days is not None else [0],
-                Date=dates if dates is not None else 'NA',
-                JD=jd if jd is not None else 'NA',
-                ncol=ncol, nrow=nrow, nlay=nlay,
-                nplot=nlay if nplot is None else nplot, V=VV,
-                cmap=cmap if cmap is not None else cmap_in,
-                CBlabel='%s [%s]' % (cblbl, unit), msg='',
-                plt_title='%s_%s' % (prefix, stem), MM_ws=out_dir,
-                interval_type='linspace', interval_num=5,
-                Vmax=[hi], Vmin=[lo], fmt='%5.2f', points=pts, mask=m3,
-                hnoflo=hnoflo, cMF=geo, polys=DA.polys,
-                contours=contours is not None, contour_levels=contours,
-                contour_fmt='%.0f')
-        except Exception as exc:                     # pragma: no cover
-            if verbose:
-                print('   %s map %s skipped: %r' % (prefix, stem, exc))
+        # Every time-mean soil and aquifer map ALSO on a percentile ramp
+        # (user, 2026-10-28), as <map>_pct: on the linear ramp a few
+        # outliers (Rn -107 mm/d at the springs) take the whole range and
+        # the rest of the catchment is one colour. Not the series (one ramp
+        # over the run, on purpose), not a field of one value.
+        twin = (days is None and prefix in ('MMmap', 'GWmap')
+                and vals.min() < vals.max())
+        for itype, suffix in (('linspace', ''),) + ((('percentile', '_pct'),)
+                                                    if twin else ()):
+            try:
+                MMplot.plotLAYER(
+                    days=days if days is not None else [0],
+                    str_per=days if days is not None else [0],
+                    Date=dates if dates is not None else 'NA',
+                    JD=jd if jd is not None else 'NA',
+                    ncol=ncol, nrow=nrow, nlay=nlay,
+                    nplot=nlay if nplot is None else nplot, V=VV,
+                    cmap=cmap if cmap is not None else cmap_in,
+                    CBlabel='%s [%s]%s' % (cblbl, unit, ', percentile classes'
+                                           if suffix else ''), msg='',
+                    plt_title='%s_%s%s' % (prefix, stem, suffix),
+                    MM_ws=out_dir, interval_type=itype, interval_num=5,
+                    Vmax=[hi], Vmin=[lo], fmt='%5.2f', points=pts, mask=m3,
+                    hnoflo=hnoflo, cMF=geo, polys=DA.polys,
+                    contours=contours is not None, contour_levels=contours,
+                    contour_fmt='%.0f')
+            except Exception as exc:                 # pragma: no cover
+                if verbose:
+                    print('   %s map %s%s skipped: %r'
+                          % (prefix, stem, suffix, exc))
 
     # ---------------- MM soil-water-balance fluxes -------------------- #
     # Time-mean per-cell fluxes, following the legacy driver's output-map

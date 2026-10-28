@@ -162,6 +162,8 @@ def classify(sub, fname):
 def title(sub, fname):
     """A figure's title for the panel: what it shows, in words."""
     s = _stem(fname)
+    if s.endswith('_pct'):         # a map's twin on the percentile ramp
+        return '%s (percentile colour ramp)' % title(sub, s[:-4] + '.png')
     m = re.match(r'(?:_sp_plt_)?IN_\d+_(.+)$', s)
     if m:
         key = m.group(1)
@@ -238,10 +240,13 @@ _ORDER = {
 def _rank(tab, sub, fname):
     # a point's three time-series sheets in their own order: 1, 2, groundwater
     s = _stem(fname).replace('_tsGW_part3MF', '_ts_part3')
+    # a map's percentile twin (<map>_pct) right after the map
+    twin = s.endswith('_pct')
+    s = s[:-4] if twin else s
     for k, pat in enumerate(_ORDER.get(tab, ())):
         if re.search(pat, s):
-            return (k, s)
-    return (len(_ORDER.get(tab, ())), s)
+            return (k, s, twin)
+    return (len(_ORDER.get(tab, ())), s, twin)
 
 
 def panels(path):
@@ -260,15 +265,21 @@ def panels(path):
 def rows(items, path_of=lambda it: it[2]):
     """The page's rows: a figure of several panels alone on its row, the
     others two to a row in their order. A one-panel figure left alone
-    before a wide one gets a row of its own."""
+    before a wide one gets a row of its own, and so does one before a map
+    and its percentile twin, which share a row."""
     out, pend = [], []
-    for it in items:
+    stems = [_stem(os.path.basename(path_of(it))) for it in items]
+    for i, it in enumerate(items):
         if panels(path_of(it)) > 1:
             if pend:
                 out.append(pend)
                 pend = []
             out.append([it])
             continue
+        if (pend and i + 1 < len(items)
+                and stems[i + 1] == stems[i] + '_pct'):
+            out.append(pend)
+            pend = []
         pend.append(it)
         if len(pend) == 2:
             out.append(pend)
