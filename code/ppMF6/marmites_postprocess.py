@@ -497,6 +497,14 @@ def run_postproc(sim_ws, ds_ws, name='lamatamm', dates=None,
         if verbose:
             print('   lake figures skipped: %r' % exc)
 
+    # --- ET against EC and MODIS, from the observation exports -------- #
+    try:
+        written += _fig_obs_et(out, hydro_year_start=hydro_year_start,
+                               verbose=verbose)
+    except Exception as exc:               # pragma: no cover
+        if verbose:
+            print('   ET figure skipped: %r' % exc)
+
     # NOTE: the native plotLAYER head map is produced by native_suite's
     # _native_aquifer_maps(), per layer and from an exact mean over every
     # stress period, into this run's results folder. The older
@@ -879,6 +887,21 @@ def sfr_reach_flows(sim_ws, name, nper=None):
     if gwf is not None:
         node[gwf['node'] - 1] = gwf['node2']
     return {'q': q, 'node': node}
+
+
+def stream_map_values(q, node, ncpl):
+    """The SWmap_Q field: log10(1 + Q) of each reach's mean flow on its
+    cell -- the largest where a cell holds two -- NaN on the cells without
+    a reach. ``node``: the GWF user node of each reach (1-based, 0 for
+    none), any layer."""
+    qc = np.full(int(ncpl), np.nan)
+    for qq, nd in zip(q, node):
+        if nd > 0:
+            c = (int(nd) - 1) % int(ncpl)
+            qc[c] = qq if not np.isfinite(qc[c]) else max(qc[c], qq)
+    return np.where(np.isfinite(qc),
+                    np.log10(1.0 + np.maximum(np.nan_to_num(qc), 0.0)),
+                    np.nan)
 
 
 def _lake_table_file(fn):
@@ -1407,33 +1430,53 @@ def _fig_lakes(sim_ws, name, ds_ws, out, dates=None, verbose=True,
             by = bud.groupby(x.to_period('M')).mean()
             by.index = by.index.to_timestamp()
             unit = 'm$^3$/d, monthly mean'
-        cmap = plt.get_cmap('tab10')
-        fig, ax = plt.subplots(figsize=(11, 5))
+        # Two rows, as in the yearly pond figures: the full budget, then the
+        # same with the stream's through-flow (FROM-MVR in, TO-MVR out, some
+        # 3700 m3/d on La Mata) replaced by its net -- beside it the
+        # evaporation and the aquifer's few tens of m3/d did not show (user,
+        # 2026-10-28). The colours are the yearly figures' (GWF and TO-MVR
+        # were both tab10's first blue).
+        mv = [t for t in ('FROM-MVR', 'TO-MVR') if t in by.columns]
+        rest = [t for t in by.columns if t not in mv]
+        colour = {t: dict((k, c) for k, _l, c in LAK_COMPONENTS)[
+            _LAK_TERM_OF[t]] for t in by.columns if t in _LAK_TERM_OF}
+        colour['GWF'] = dict((k, c) for k, _l, c in LAK_COMPONENTS)[
+            'from_aquifer']
+
+        def label(t, mean):
+            return '%s  (%+.1f m$^3$/d)' % (t, mean)
+        rows = [(by, [(label(t, bud[t].mean()), colour.get(t, '0.6'))
+                      for t in by.columns],
+                 'Lake budget (LAK, all %d lakes): + into the lakes, - out of '
+                 'them (STORAGE - = the lakes filling)' % n)]
+        if mv:
+            net = by[mv].sum(axis=1)
+            rows.append((pd.concat([net.rename('net'), by[rest]], axis=1),
+                         [(label('net FROM-MVR + TO-MVR',
+                                 bud[mv].sum(axis=1).mean()),
+                           _LAK_NET_STREAM[1])]
+                         + [(label(t, bud[t].mean()), colour.get(t, '0.6'))
+                            for t in rest],
+                         "The same, the stream's through-flow replaced by its "
+                         'net'))
+        fig, axes = plt.subplots(len(rows), 1, figsize=(11, 4.6 * len(rows)),
+                                 sharex=True, squeeze=False)
         xb = np.arange(len(by))
-        pos = np.zeros(len(by))
-        neg = np.zeros(len(by))
-        for c, term in enumerate(by.columns):
-            v = by[term].to_numpy()
-            up, dn = np.where(v > 0, v, 0.0), np.where(v < 0, v, 0.0)
-            ax.bar(xb, up, bottom=pos, width=0.85, color=cmap(c % 10),
-                   label='%s  (%+.1f m$^3$/d)' % (term, bud[term].mean()))
-            ax.bar(xb, dn, bottom=neg, width=0.85, color=cmap(c % 10))
-            pos += up
-            neg += dn
-        ax.plot(xb, by.sum(axis=1).to_numpy(), color='k', lw=0.8, marker='.',
-                ms=3, label='closure (sum of the terms)')
-        ax.axhline(0, color='k', lw=0.5)
-        ax.set_ylabel(unit)
+        for ax, (tab, comps, title) in zip(axes[:, 0], rows):
+            _stacked(ax, xb, tab.to_numpy(dtype=float), comps, 0.85)
+            ax.plot(xb, tab.sum(axis=1).to_numpy(), color='k', lw=0.8,
+                    marker='.', ms=3, label='closure (sum of the terms)')
+            ax.set_ylabel(unit)
+            ax.set_title(title, fontsize=10)
+            ax.legend(fontsize=8, loc='center left', bbox_to_anchor=(1.01, 0.5))
+        ax = axes[-1, 0]
         if is_dt:
             ix = np.unique(np.linspace(0, len(by) - 1,
                                        min(len(by), 12)).astype(int))
             ax.set_xticks(ix)
             ax.set_xticklabels([by.index[i].strftime('%Y-%m') for i in ix],
                                rotation=45, ha='right', fontsize=8)
-        ax.set_title('Lake budget (LAK, all %d lakes): + into the lakes, - out '
-                     'of them (STORAGE - = the lakes filling)' % n, fontsize=10)
-        ax.legend(fontsize=8, loc='best')
-        ax.grid(alpha=0.3, axis='y')
+        fig.tight_layout()
         fn = os.path.join(out, 'budget_lak_ts.png')
         fig.savefig(fn, dpi=140, bbox_inches='tight')
         plt.close(fig)
@@ -3660,20 +3703,17 @@ def _native_result_maps(MMplot, out_dir, cMF, ctx, res, sim_ws, name,
     # largest where a cell holds two), as log10(1 + Q) -- from a trickle to
     # the outlet's thousands of m3/d, and never negative: log10 Q of a
     # headwater stub under 1 m3/d made plotLAYER switch to its diverging
-    # ramp. One surface panel, like the soil maps.
+    # ramp. One surface panel, like the soil maps -- and laid out like them
+    # (user, 2026-10-28): the catchment's other cells drawn at Q = 0, the
+    # foot of the ramp, not masked grey with the outside.
     sw = sfr_reach_flows(sim_ws, name, nper)
     if sw is not None and np.any(sw['node'] > 0):
         ncpl_m = int(cMF.nrow) * int(cMF.ncol)
-        qc = np.full(ncpl_m, np.nan)
-        for qq, nd in zip(sw['q'], sw['node']):
-            if nd > 0:
-                c = (int(nd) - 1) % ncpl_m
-                qc[c] = qq if not np.isfinite(qc[c]) else max(qc[c], qq)
-        lq = np.where(np.isfinite(qc),
-                      np.log10(1.0 + np.maximum(np.nan_to_num(qc), 0.0)),
-                      np.nan)
+        lq = stream_map_values(sw['q'], sw['node'], ncpl_m)
         g = DA.lay(lq[None, :])[0]
-        off = ~np.isfinite(g)
+        land = DA.cells(np.zeros(len(ctx.cells)), ctx.cells, nodata=hnoflo)
+        g = np.where(np.isfinite(g), g, land)
+        off = np.isclose(g, hnoflo, atol=0.09)
         draw(np.repeat(np.where(off, hnoflo, g)[None, None, :, :], nlay,
                        axis=1),
              'Q', 'mean streamflow, log10(1 + Q)', 'Q in m3/d',
@@ -4113,6 +4153,139 @@ def _fig_obs_heads(hds, ds_ws, kk_real, dates, top, nlay, nrow, ncol,
     plt.close(fig)
     pd.DataFrame(tidy, columns=['point', 'date', 'computed_head_m']).to_csv(
         os.path.join(out, 'obs_heads_computed.csv'), index=False)
+    return [fn]
+
+
+def modis_composites(dates):
+    """The MODIS MOD16A2 composite each day falls in, as (year, k): 8-day
+    composites from 1 January, the year's last one 5 or 6 days
+    (tools/pest_modis_et.composite_period)."""
+    import pandas as pd
+    d = pd.DatetimeIndex(dates)
+    return list(zip(d.year, (d.dayofyear - 1) // 8))
+
+
+def _fit_et(sim, obs):
+    """n, RMSE, volume bias [%], r and NSE of the pairs both finite."""
+    sim, obs = np.asarray(sim, float), np.asarray(obs, float)
+    m = np.isfinite(sim) & np.isfinite(obs)
+    n = int(m.sum())
+    if n < 2:
+        return None
+    s, o = sim[m], obs[m]
+    var = float(((o - o.mean()) ** 2).sum())
+    return {'n': n, 'rmse': float(np.sqrt(((s - o) ** 2).mean())),
+            'bias': 100.0 * (s.sum() - o.sum()) / o.sum() if o.sum() else
+            np.nan,
+            'r': float(np.corrcoef(s, o)[0, 1]) if s.std() and o.std()
+            else np.nan,
+            'nse': 1.0 - float(((s - o) ** 2).sum()) / var if var else np.nan}
+
+
+def _fig_obs_et(out, hydro_year_start=10, verbose=True):
+    """Simulated evapotranspiration against the measured (user, 2026-10-28):
+    at every point with an ET series (EC, the eddy covariance) day by day,
+    and over the catchment against MODIS summed per 8-day composite -- what
+    the calibration fits (groups et_pt and et_rs). From obs_et.csv, which
+    the observation exports wrote into ``out``; MODIS is the catchment's
+    observation file (<aet prefix>_catchment.txt), and without it the
+    catchment row shows the simulated ET alone and says so. Whole
+    hydrological years only, like the other calibration figures."""
+    import matplotlib.pyplot as plt
+    import pandas as pd
+    fn = os.path.join(out, 'obs_et.csv')
+    if not os.path.exists(fn):
+        return []
+    e = pd.read_csv(fn, parse_dates=['date'])
+    days = pd.DatetimeIndex(sorted(e['date'].unique()))
+    spans = _year_spans(days, hydro_year_start,
+                        hydro_years(list(days), hydro_year_start))
+    whole = [(a, b) for a, b, ok in spans if ok]
+    lo, hi = (whole[0][0], whole[-1][1]) if whole else (days[0], days[-1])
+    e = e[(e['date'] >= lo) & (e['date'] <= hi)]
+    sites = [s for s, g in e.groupby('site', sort=False)
+             if s != 'catchment' and g['obs_et_mmd'].notna().any()]
+    if (e['site'] == 'catchment').any():
+        sites.append('catchment')
+    if not sites:
+        return []
+    fig, axes = plt.subplots(len(sites), 2, figsize=(14, 3.8 * len(sites)),
+                             squeeze=False,
+                             gridspec_kw={'width_ratios': [3.2, 1]})
+    for (ax, sc), site in zip(axes, sites):
+        g = e[e['site'] == site].sort_values('date')
+        sim = g['sim_et_total_mmd'].to_numpy(float)
+        obs = g['obs_et_mmd'].to_numpy(float)
+        if site == 'catchment':
+            # per MODIS composite, where MODIS covers every one of its days
+            k = pd.Series(modis_composites(g['date']), index=g.index)
+            t = pd.DataFrame({'date': g['date'], 'sim': sim, 'obs': obs,
+                              'k': k}).groupby('k', sort=True).agg(
+                date=('date', 'first'), sim=('sim', 'sum'),
+                obs=('obs', 'sum'), n=('sim', 'size'),
+                n_obs=('obs', 'count'))
+            t.loc[t['n_obs'] < t['n'], 'obs'] = np.nan
+            # a composite the window cuts (its first or last) is left out
+            full = [min(8, (pd.Timestamp(y, 12, 31) - pd.Timestamp(y, 1, 1)
+                            ).days + 1 - 8 * kk) for y, kk in t.index]
+            t = t[t['n'].to_numpy() == np.asarray(full)]
+            x, sim, obs = t['date'], t['sim'].to_numpy(), t['obs'].to_numpy()
+            ndays = t['n'].to_numpy(float)
+            unit, what = 'mm per composite', 'MODIS MOD16A2GF'
+            # each composite a step over its days, the last one included
+            ax.step(list(x) + [x.iloc[-1] + pd.Timedelta(days=ndays[-1])],
+                    np.r_[sim, sim[-1:]], where='post', color=_OBS_BLUE_LINE,
+                    lw=1.0, label='simulated, catchment mean')
+        else:
+            x = g['date']
+            ndays = np.ones(len(g))
+            unit, what = 'mm/d', 'measured'
+            ax.plot(x, sim, '-', color=_OBS_BLUE_LINE, lw=0.8,
+                    label='simulated at %s' % site)
+        if np.isfinite(obs).any():
+            ax.plot(x, obs, 'o', ms=2.5, color=_OBS_BLUE_MARK,
+                    mec=_OBS_BLUE_MARK, label=what)
+        f = _fit_et(sim, obs)
+        if f is None:
+            ax.set_title('%s: no %s series to compare with%s'
+                         % (site, what, ' -- no %s_catchment.txt in the '
+                            'dataset' % (OBS.get('aet') or 'inputObsAET')
+                            if site == 'catchment' else ''), fontsize=10)
+            sc.axis('off')
+        else:
+            m = np.isfinite(sim) & np.isfinite(obs)
+            yr = ndays[m].sum() / 365.25        # the years observed
+            ax.set_title('%s: simulated %.0f vs %s %.0f mm/yr over the %d '
+                         '%s observed'
+                         % (site, sim[m].sum() / yr, what, obs[m].sum() / yr,
+                            f['n'], 'composites' if site == 'catchment'
+                            else 'days'), fontsize=10)
+            sc.plot(obs[m], sim[m], 'o', ms=2.5, color=_OBS_BLUE_MARK,
+                    alpha=0.6)
+            top = float(max(obs[m].max(), sim[m].max())) * 1.05
+            sc.plot([0, top], [0, top], color='0.5', lw=0.8, ls='--')
+            sc.set_xlim(0, top)
+            sc.set_ylim(0, top)
+            sc.set_aspect('equal')
+            sc.set_xlabel('%s [%s]' % (what, unit))
+            sc.set_ylabel('simulated [%s]' % unit)
+            sc.set_title('RMSE %.2f, bias %+.0f %%, r %.2f, NSE %.2f'
+                         % (f['rmse'], f['bias'], f['r'], f['nse']),
+                         fontsize=9)
+            sc.grid(alpha=0.3)
+        ax.set_ylabel('ET [%s]' % unit)
+        ax.grid(alpha=0.3)
+        ax.legend(fontsize=8, loc='upper right')
+    fig.suptitle('Evapotranspiration, simulated against the measured: %s to '
+                 '%s%s' % (lo.strftime('%Y-%m-%d'), hi.strftime('%Y-%m-%d'),
+                           ' (whole hydrological years)' if whole else ''),
+                 fontsize=11)
+    fig.tight_layout(h_pad=2.0)
+    fn = os.path.join(out, 'obs_et.png')
+    fig.savefig(fn, dpi=140, bbox_inches='tight')
+    plt.close(fig)
+    if verbose:
+        print('   ET against the measured: %s' % ', '.join(sites))
     return [fn]
 
 

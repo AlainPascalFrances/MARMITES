@@ -187,6 +187,47 @@ def test_without_the_areas_the_mm_figures_are_left_out(lak_ws, tmp_path):
     assert not any(f.endswith('_mm.png') for f in files)
 
 
+def test_the_lak_budget_over_time_shows_the_small_terms(tmp_path,
+                                                        monkeypatch):
+    """User, 2026-10-28: in budget_lak_ts the stream's through-flow (some
+    3700 m3/d) hid the evaporation and the aquifer (20 and 5): a second
+    row has it replaced by its net, and GWF is no longer TO-MVR's blue."""
+    import matplotlib.figure
+    n = 70
+    dates = pd.date_range('2008-05-31', periods=n, freq='D')
+    bud = pd.DataFrame(0.0, index=range(n), columns=list(TERMS))
+    bud['FROM-MVR'], bud['TO-MVR'] = 3700.0, -3750.0
+    bud['RUNOFF'], bud['EVAPORATION'], bud['GWF'] = 65.0, -20.0, 5.0
+    monkeypatch.setattr(PP, 'lake_series', lambda ws, name: {
+        'stage': np.full((n, 1), 760.5), 'names': ['pond1'],
+        'bed': np.array([760.0]), 'rim': np.array([761.0]), 'budget': bud})
+    monkeypatch.setattr(PP, 'lake_budget_by_lake', lambda ws, name: None)
+    seen = {}
+    real = matplotlib.figure.Figure.savefig
+
+    def spy(fig, fn, *a, **k):
+        seen[os.path.basename(str(fn))] = fig
+        return real(fig, fn, *a, **k)
+    monkeypatch.setattr(matplotlib.figure.Figure, 'savefig', spy)
+    PP._fig_lakes(str(tmp_path), 'toy', str(tmp_path), str(tmp_path),
+                  dates=dates, verbose=False)
+    top, net = seen['budget_lak_ts.png'].axes
+
+    def legend(ax):
+        lg = ax.get_legend()
+        hs = getattr(lg, 'legend_handles', None) or lg.legendHandles
+        return {t.get_text().split('  ')[0]: h for t, h in
+                zip(lg.get_texts(), hs)}
+    lt, ln = legend(top), legend(net)
+    assert 'net FROM-MVR + TO-MVR' in ln
+    assert not {'FROM-MVR', 'TO-MVR'} & set(ln)
+    assert {'EVAPORATION', 'GWF', 'RUNOFF'} <= set(ln)
+    # the lower row is on the scale of the small terms
+    assert max(abs(v) for v in net.get_ylim()) < 200
+    assert max(abs(v) for v in top.get_ylim()) > 3000
+    assert lt['GWF'].get_facecolor() != lt['TO-MVR'].get_facecolor()
+
+
 def test_the_run_draws_them_with_the_panel_year():
     src = open(os.path.join(TRUNK, 'ppMF6', 'marmites_postprocess.py'),
                encoding='utf-8').read()

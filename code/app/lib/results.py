@@ -115,6 +115,8 @@ _FIXED = {
     'lake_budget_years_by_pond_mm': 'Each pond: water budget per '
                                     'hydrological year [mm over its cells]',
     'obs_heads': 'Heads at the observation points: simulated and observed',
+    'obs_et': 'Evapotranspiration: simulated against the eddy covariance '
+              '(EC) and MODIS',
     'outlet_streamflow': 'Streamflow at the catchment outlet: simulated and '
                          'observed',
 }
@@ -140,7 +142,7 @@ def classify(sub, fname):
     if ('_sp_plt_GWmap_' in s or '_sp_plt_MMmap_' in s
             or '_sp_plt_SWmap_' in s or s.startswith('05_map_')):
         return 'output'
-    if ('calibcrit' in s or s in ('obs_heads', 'outlet_streamflow')
+    if ('calibcrit' in s or s in ('obs_heads', 'obs_et', 'outlet_streamflow')
             or s.startswith('sm_depth_')):
         return 'calib'
     if ('WBsankey' in s or s in ('budget_compartment', 'budget_uzf',
@@ -219,7 +221,8 @@ _ORDER = {
                r'MMmap_Ssoil_series', r'GWmap_', r'SWmap_', r'05_map_'),
     'series': (r'01_wb', r'02_wb', r'06_heads', r'07_coupling',
                r'budget_sfr_ts', r'_0'),
-    'calib': (r'outlet_streamflow', r'obs_heads', r'calibcrit', r'sm_depth_'),
+    'calib': (r'outlet_streamflow', r'obs_heads', r'obs_et', r'calibcrit',
+              r'sm_depth_'),
     'budget': (r'00_summary', r'_catchment_WBsankey', r'_catchment_full',
                r'03_wb', r'04_wb', r'budget_compartment', r'budget_uzf',
                r'budget_sfr', r'_obs_'),

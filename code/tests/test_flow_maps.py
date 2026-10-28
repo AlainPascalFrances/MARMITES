@@ -120,6 +120,21 @@ def test_no_sfr_budget_no_streamflow(tmp_path):
     assert PP.sfr_reach_flows(str(tmp_path), 'none') is None
 
 
+def test_the_stream_map_on_the_catchment():
+    """SWmap_Q: log10(1 + Q) on each reach's cell, the largest where a cell
+    holds two, any layer; NaN off the network -- where the page draws the
+    catchment at Q = 0, laid out like the MM maps (user, 2026-10-28)."""
+    v = PP.stream_map_values(np.array([0.0, 9.0, 99.0, 5.0]),
+                             np.array([1, 3, 3 + 4, 0]), 4)
+    assert v[0] == 0.0 and v[2] == pytest.approx(2.0)
+    assert np.isnan(v[1]) and np.isnan(v[3])
+    src = open(os.path.join(CODE, 'ppMF6', 'marmites_postprocess.py'),
+               encoding='utf-8').read()
+    body = src[src.index('stream_map_values(sw['):]
+    body = body[:body.index("prefix='SWmap'")]
+    assert 'DA.cells(np.zeros(len(ctx.cells)), ctx.cells' in body
+
+
 def test_the_map_pass_keeps_the_stream_inflow_and_outflow_apart(
         stream_run):
     """On a real MF6 budget: SFR = SFR_IN + SFR_OUT, the parts signed as
