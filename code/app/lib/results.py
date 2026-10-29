@@ -75,6 +75,7 @@ _MM = {
     'Ecrr': 'runoff evaporated by the cascade',
     # the maps of one day (ppMF6/marmites_daymap) only
     'Ssoil': 'soil water storage', 'ETuzf': 'unsaturated zone ET (UZF)',
+    'W': 'wetness (soil saturation, open water as 1)',
 }
 # aquifer maps (marmites_postprocess._AQ_MAPS and the derived ones)
 _GW = {
@@ -181,6 +182,11 @@ def title(sub, fname):
         else:
             what = 'Soil column: %s' % _MM.get(key, key)
         return '%s on %s%s' % (what, day, ' (page %s)' % page if page else '')
+    # the wetness W against an image of the day (ppMF6/marmites_wetimage)
+    m = re.match(r'wetimage_(.+)_(\d{4}-\d{2}-\d{2})$', s)
+    if m:
+        return ('Model wetness W against the green of %s on %s'
+                % (m.group(1), m.group(2)))
     m = re.match(r'(?:_sp_plt_)?IN_\d+_(.+)$', s)
     if m:
         key = m.group(1)

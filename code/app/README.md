@@ -39,7 +39,8 @@ pages/8_8_-_PEST_setup.py     a PEST++ calibration: the [pest] section
 pages/9_9_-_PEST_progress.py  a PEST++ calibration's progress (read-only)
 pages/10_10_-_Results.py      the figures a run wrote, with a run picker; the
                         maps of one day, drawn on request from the run's
-                        own outputs (ppMF6/marmites_daymap)
+                        own outputs (ppMF6/marmites_daymap), and its wetness
+                        W against an image of the day (marmites_wetimage)
 lib/loaders.py          cached readers, keyed on (path, size, mtime)
 lib/runs.py             the run registry: launch, status, log tail; a run
                         records its configuration and end state beside its

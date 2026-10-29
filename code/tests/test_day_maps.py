@@ -21,6 +21,7 @@ for _p in (CODE, os.path.join(CODE, 'ppMF6'), os.path.join(CODE, 'app')):
 
 import marmites_config as mcfg                       # noqa: E402
 import marmites_daymap as DM                         # noqa: E402
+import marmites_wetimage as WI                       # noqa: E402
 from lib import results as R                         # noqa: E402
 
 NAME = 'dm'
@@ -219,6 +220,81 @@ def test_the_soil_columns_moisture_is_its_storage_over_its_thickness(
         DM.day_values(run['ws'], NAME, 0, NPER, 'Ssoil', h5=None)
 
 
+# ---- the wetness W (user, 2026-10-29) --------------------------------------
+
+SOIL = [(1, 0.25, 0.40, 0.10), (1, 0.75, 0.30, 0.05),     # (zone, slprop,
+        (2, 1.0, 0.05, 0.01)]                              #  smax, sr)
+
+
+def test_a_columns_zone_is_told_by_its_horizons_split():
+    """The h5 does not say a column's zone: MMsoil splits the column by the
+    zone's slprop, so the split tells it -- 100/300 mm is zone 1 here, one
+    horizon zone 2; two zones split alike are refused if they differ."""
+    tl = np.array([[100.0, 300.0], [50.0, 0.0], [200.0, 200.0]])
+    ssat, sres = DM._column_storages(tl, SOIL)
+    assert np.allclose(ssat[:2], [0.4 * 100 + 0.3 * 300, 0.05 * 50])
+    assert np.allclose(sres[:2], [0.1 * 100 + 0.05 * 300, 0.01 * 50])
+    assert np.isnan(ssat[2]), 'a 50/50 column is no zone of these'
+    twin = SOIL + [(3, 0.25, 0.45, 0.10), (3, 0.75, 0.30, 0.05)]
+    with pytest.raises(ValueError, match='cannot tell them apart'):
+        DM._column_storages(tl, twin)
+    # alike in their split AND their properties: either will do
+    same = SOIL + [(3, 0.25, 0.40, 0.10), (3, 0.75, 0.30, 0.05)]
+    assert np.allclose(DM._column_storages(tl, same)[0][:2], ssat[:2])
+
+
+def test_the_wetness_is_the_soils_saturation_without_open_water(run, tmp_path):
+    """No stream or pond in this model: W = Se = (S - S_r) / (S_sat - S_r),
+    from 0 at residual moisture to 1 saturated."""
+    h5 = _h5(run['ws'], tmp_path)                 # columns of 100 + 300 mm
+    w = DM.day_values(run['ws'], NAME, 0, NPER, 'W', h5=h5, soil=SOIL)
+    ssat, sres = 0.4 * 100 + 0.3 * 300, 0.1 * 100 + 0.05 * 300
+    want = np.clip((np.array([40.0, 80.0, 120.0, 160.0]) - sres)
+                   / (ssat - sres), 0, 1)
+    assert np.allclose(w[0, [0, 1, 3, 5]], want) and want[-1] == 1.0
+    assert np.isnan(w[0, [2, 4]]).all()
+    with pytest.raises(ValueError, match='soil horizons'):
+        DM.day_values(run['ws'], NAME, 0, NPER, 'W', h5=h5, soil=None)
+
+
+def test_the_open_water_of_the_day(tmp_path, monkeypatch):
+    """A reach's channel (length x width over the cell) while it carries
+    water, a pond's cells while its stage is above its bottom -- from the
+    MF6 files of the run (a mesh: cellid = layer, cell)."""
+    ws = tmp_path
+    (ws / 'x.sfr').write_text(
+        'BEGIN packagedata\n'
+        '  1  1 1  20.0 2.0 0.01 99.0 0.5 0.1 0.035 1 1.0 0  r1\n'
+        '  2  1 2  10.0 1.0 0.01 98.0 0.5 0.1 0.035 2 1.0 0  r2\n'
+        '  3  NONE 5.0 1.0 0.01 97.0 0.5 0.1 0.035 1 1.0 0  r3\n'
+        'END packagedata\n')
+    (ws / 'x.lak').write_text(
+        'BEGIN connectiondata\n'
+        '  1  1  1 3  EMBEDDEDV 0.001 0.0 0.0 0.75 30.0\n'
+        '  2  1  1 4  EMBEDDEDV 0.001 0.0 0.0 0.75 30.0\n'
+        'END connectiondata\n'
+        'BEGIN tables\n  1  TAB6  FILEIN  x.lak1.tab\n'
+        '  2  TAB6  FILEIN  x.lak2.tab\nEND tables\n')
+    for n in (1, 2):
+        (ws / ('x.lak%d.tab' % n)).write_text(
+            'BEGIN table\n  100.0 0.0 10.0 10.0\n  101.0 10.0 20.0 20.0\n'
+            'END table\n')
+    for f in ('x.sfr.stage', 'x.lak.stage'):
+        (ws / f).write_bytes(b'')
+    stages = {'x.sfr.stage': np.array([99.5, 98.0, 97.0]),
+              'x.lak.stage': np.array([100.5, 100.0])}
+    monkeypatch.setattr(DM, '_stages',
+                        lambda p, k, n, s: stages[os.path.basename(p)])
+    from types import SimpleNamespace
+    monkeypatch.setattr(DM, '_pp', lambda: SimpleNamespace(
+        steady_first=lambda *a: False))
+    g = {'ncpl': 4, 'ncol': 1, 'area': np.full(4, 100.0)}
+    f = DM._open_water(str(ws), 'x', 0, 1, g)
+    # reach 1 wet (0.4 of its cell), reach 2 at its bed, pond 1 full,
+    # pond 2 at its bottom
+    assert np.allclose(f, [0.4, 0.0, 1.0, 0.0])
+
+
 # ---- the figures and the panel ---------------------------------------------
 
 def test_the_day_is_drawn_into_the_runs_folder(run, tmp_path):
@@ -230,17 +306,20 @@ def test_the_day_is_drawn_into_the_runs_folder(run, tmp_path):
                      % day], names
     assert all(os.path.dirname(p) == os.path.join(out, '_output', DM.DAY_DIR)
                for p in got)
-    info = dict(DM.outputs_of(out), h5=_h5(run['ws'], tmp_path))
+    info = dict(DM.outputs_of(out), h5=_h5(run['ws'], tmp_path), soil=SOIL)
+    assert [os.path.basename(p) for p in DM.draw(out, START, 'W', info=info)] \
+        == ['daymap_MM_W_%s.png' % START, 'daymap_MM_W_%s_pct.png' % START]
     DM.draw(out, START, 'theta', info=info)
     # nothing left under plotLAYER's own names
     left = os.listdir(os.path.join(out, '_output', DM.DAY_DIR))
     assert all(f.startswith('daymap_') for f in left), left
     # the latest first, each map before its twin
     order = [f for _s, f, _p in DM.drawn(out)]
-    assert order[:4] == ['daymap_MM_theta_%s.png' % START,
-                         'daymap_MM_theta_%s_pct.png' % START,
-                         'daymap_GW_Rn_%s.png' % day,
-                         'daymap_GW_Rn_%s_pct.png' % day], order
+    assert order == ['daymap_MM_theta_%s.png' % START,
+                     'daymap_MM_theta_%s_pct.png' % START,
+                     'daymap_MM_W_%s.png' % START, 'daymap_MM_W_%s_pct.png' % START,
+                     'daymap_GW_Rn_%s.png' % day,
+                     'daymap_GW_Rn_%s_pct.png' % day], order
     from PIL import Image
     with Image.open(got[0]) as im:
         assert im.info.get('MM-panels') == '2', 'one panel per layer'
@@ -259,6 +338,8 @@ def test_the_panel_titles_and_rows_of_the_day_maps():
         'Soil column: soil moisture on 2013-06-15'
     assert R.title('_output/day_maps', 'daymap_GW_head_2013-06-15.png') == \
         'Aquifer: head on 2013-06-15'
+    assert R.title('_output/day_maps', 'daymap_MM_W_2013-06-15.png') == \
+        'Soil column: wetness (soil saturation, open water as 1) on 2013-06-15'
     # every flux of the list has its words on the panel
     for key, fam, *_ in DM.FLUXES:
         t = R.title('x', 'daymap_%s_%s_2013-06-15.png' % (fam, key))
@@ -271,3 +352,62 @@ def test_the_panel_titles_and_rows_of_the_day_maps():
     assert rows == [names[:2], names[2:]], 'a map and its twin share a row'
     assert DM.label('Rn').startswith('Aquifer: Rn, net recharge')
     assert DM.label('theta').startswith('Soil column: theta, soil moisture')
+
+
+# ---- the wetness against an image of the day (marmites_wetimage) ------------
+
+def _geotiff(path, green_cols):
+    """An RGB GeoTIFF over the 30 x 20 m model in 1 m pixels: brown, the
+    model columns ``green_cols`` green (a little noise in both)."""
+    import rasterio
+    from rasterio.transform import from_origin
+    rng = np.random.default_rng(3)
+    ny, nx = 20, 30
+    brown = np.array([120, 100, 80])[:, None, None] + rng.integers(-5, 6, (3, ny, nx))
+    green = np.array([90, 125, 70])[:, None, None] + rng.integers(-5, 6, (3, ny, nx))
+    is_g = np.isin(np.arange(nx) // 10, green_cols)[None, None, :]
+    a = np.where(is_g, green, brown).astype(np.uint8)
+    with rasterio.open(path, 'w', driver='GTiff', width=nx, height=ny, count=3,
+                       dtype='uint8', crs='EPSG:23029',
+                       transform=from_origin(0.0, 20.0, 1.0, 1.0)) as d:
+        d.write(a)
+    return path
+
+
+def test_the_image_files_and_their_day(tmp_path):
+    a = tmp_path / 'DR_RGB_20130615_lamata.tif'
+    b = tmp_path / 'scene.tiff'
+    for p in (a, b):
+        p.write_bytes(b'')
+    os.utime(str(a), (1e9, 1e9))
+    (tmp_path / 'notes.txt').write_text('x')
+    assert WI.images(str(tmp_path), None) == [str(b), str(a)], 'newest first'
+    assert WI.image_date(a) == date(2013, 6, 15)
+    assert WI.image_date('scene_2013-06-15.tif') is None
+    assert WI.image_date('x_20131345_20120704.tif') == date(2012, 7, 4)
+
+
+def test_the_wetness_against_an_image(run, tmp_path):
+    """Green on the first model column (cells 0 and 3); W highest on cells 5
+    and 3: one block wet in both, one model only, one image only, three dry
+    in both -- kappa 0.25; the figure kept with the day maps."""
+    img = _geotiff(str(tmp_path / 'img_20100601.tif'), [0])
+    info = dict(DM.outputs_of(run['out']), h5=_h5(run['ws'], tmp_path),
+                soil=SOIL, crs='EPSG:23029')
+    r = WI.compare(run['out'], img, START, info=info, block=10.0, res=1.0)
+    s = r['scores']['all']
+    assert (s['both'], s['model_only'], s['image_only'], s['both_dry']) == \
+        (1, 1, 1, 3), s
+    assert s['kappa'] == pytest.approx(0.25)
+    assert r['scores']['without_irrigated'] is None, 'no irrigation layer'
+    assert os.path.basename(r['png']) == 'wetimage_img_20100601_%s.png' % START
+    assert os.path.exists(r['json'])
+    assert ('_output/day_maps', os.path.basename(r['png']), r['png']) in \
+        DM.drawn(run['out'])
+    from PIL import Image
+    with Image.open(r['png']) as im:
+        assert int(im.info.get('MM-panels')) > 1, 'a row of its own'
+    assert R.title('_output/day_maps', os.path.basename(r['png'])) == \
+        'Model wetness W against the green of img_20100601 on %s' % START
+    with pytest.raises(ValueError, match='CRS'):
+        WI.compare(run['out'], img, START, info=dict(info, crs=None))

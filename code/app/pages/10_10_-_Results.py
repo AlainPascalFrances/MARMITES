@@ -14,8 +14,9 @@ their tops; each title centred BELOW its figure.
 
 MAPS OF ONE DAY (user, 2026-10-29) are the one thing drawn here: a day and
 a flux, from the run's own model outputs, while they are still in its
-workspace (ppMF6/marmites_daymap). They are kept in the run's
-`_output/day_maps`.
+workspace (ppMF6/marmites_daymap) -- and the wetness W of a day against a
+georeferenced image of it (ppMF6/marmites_wetimage). They are kept in the
+run's `_output/day_maps`.
 """
 
 import html
@@ -31,6 +32,7 @@ for p in (CODE, APP, os.path.join(CODE, 'ppMF6')):
         sys.path.insert(0, p)
 
 import marmites_daymap as DM          # noqa: E402
+import marmites_wetimage as WI        # noqa: E402
 import mm_paths                       # noqa: E402
 from lib import results as R          # noqa: E402
 
@@ -137,6 +139,38 @@ def _grid(items):
                 _caption(sub, fname, text)
 
 
+def _wet_image(root, info):
+    """The wetness W of a day against a georeferenced RGB image of it: the
+    GeoTIFFs in the workspace and the remote-sensing folder, the day the
+    file name carries by default."""
+    st.markdown('**The wetness W against an image of the same day**')
+    found = WI.images(WS, mm_paths.RS)
+    if not found:
+        st.caption('No GeoTIFF in `%s` or `%s`: put a georeferenced RGB image '
+                   'of a day of the run there.' % (WS, mm_paths.RS))
+        return
+    dates = info['dates']
+    c1, c2, c3 = st.columns([3, 1, 1], vertical_alignment='bottom')
+    img = c1.selectbox('Image (a georeferenced RGB GeoTIFF)', found,
+                       key='wi_img')
+    d0 = WI.image_date(img)
+    # one key per run and image: the default is the image's own day
+    day = c2.date_input('Its day', value=d0 if d0 in dates else dates[-1],
+                        min_value=dates[0], max_value=dates[-1],
+                        key='wi_day_%s_%s' % (sel, os.path.basename(img)))
+    if c3.button('Compare', key='wi_go', type='primary'):
+        with st.spinner('Comparing the wetness of %s with %s...'
+                        % (day, os.path.basename(img))):
+            try:
+                WI.compare(root, img, day, info=info, gis=mm_paths.GIS)
+            except Exception as exc:                  # noqa: BLE001
+                st.error('Not compared: %s' % exc)
+    st.caption('Green = excess green above its Otsu threshold; 50 m blocks, '
+               'the model\'s wettest blocks over the same area as the green '
+               'ones; the irrigated fields (the run\'s irrigation layer) '
+               'scored apart.')
+
+
 def _day_maps(root):
     """A day and a flux, drawn from the run's own model outputs while they
     are still in its workspace -- the next run there overwrites them --
@@ -165,6 +199,7 @@ def _day_maps(root):
         st.caption('From the model outputs in `%s`, on the linear and the '
                    'percentile colour ramp; kept in this run\'s '
                    '`_output/%s`.' % (info['sim_ws'], DM.DAY_DIR))
+        _wet_image(root, info)
     items = DM.drawn(root)
     if items:
         _grid([(sub, f, p, R.title(sub, f)) for sub, f, p in items])

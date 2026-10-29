@@ -11,6 +11,10 @@ be drawn only while they are still this run's: their files must date from
 the run, from its results folder's stamp to its last figure -- the rule
 marmites_runinfo applies to a saved state.
 
+One map is the panel's own: the wetness W (user, 2026-10-29), the soil's
+saturation with the open water counted as saturated, kept for comparing
+the model with imagery.
+
 Streamlit-free: the page only asks and shows. The figures go into
 ``<out>/_output/day_maps`` as ``daymap_<GW|MM>_<flux>_<YYYY-MM-DD>.png``
 and the percentile twin ``..._pct.png``, kept with the run's results.
@@ -52,6 +56,11 @@ FLUXES = (
      'Blues'),
     ('dSg', 'GW', 'release from groundwater storage', 'mm/d', 'Blues'),
     ('head', 'GW', 'head', 'm', 'Blues'),
+    # the wetness the user kept for the comparison with imagery (2026-10-29):
+    # the soil's saturation, comparable across soil zones, the open water
+    # (ponds, flowing reaches) counted as saturated
+    ('W', 'MM', 'wetness (1 - f_ow) Se + f_ow: soil saturation, open water '
+     'as 1', '-', 'Blues'),
     # the h5 keeps the column's storage per cell, not each horizon's: the
     # column's moisture is its storage over its thickness (the run's MMmap
     # theta is the horizons' plain mean, the same where they are as thick)
@@ -166,29 +175,43 @@ def _when(t):
 def outputs_of(out_dir, sim_ws=None):
     """Where the model outputs of the run that wrote ``out_dir`` are and
     whether they are still its own: ``{'sim_ws', 'name', 'dates', 'h5',
-    'why'}``, ``why`` '' when a day can be drawn, else the reason.
+    'soil', 'why'}``, ``why`` '' when a day can be drawn, else the reason;
+    ``soil`` the run's soil horizons ``(zone, slprop, smax, sr)``, which
+    the wetness W needs.
 
     ``sim_ws``: the MF6 workspace; by default the one the run's resolved
     configuration names, by the driver's rule (``paths.ws``, else the
     mesh's workspace under WS_ROOT, the results folder's parent).
     """
     res = {'sim_ws': sim_ws, 'name': None, 'dates': None, 'h5': None,
-           'why': ''}
-    if sim_ws is None:
-        cfg_p = os.path.join(out_dir, '_input', 'resolved_config.toml')
-        if not os.path.exists(cfg_p):
-            res['why'] = 'it has no copy of its configuration'
-            return res
+           'soil': None, 'why': ''}
+    cfg_p = os.path.join(out_dir, '_input', 'resolved_config.toml')
+    cfg = None
+    if os.path.exists(cfg_p):
         try:
             import marmites_config as mcfg
             cfg = mcfg.load_run_config(cfg_p)
-            sim_ws = (str(cfg.paths.ws) if cfg.paths.ws else
-                      mcfg.state_workspace(cfg, os.path.dirname(
-                          os.path.abspath(out_dir))))
         except Exception as exc:                     # noqa: BLE001
-            res['why'] = 'its configuration copy does not load (%s)' % exc
+            if sim_ws is None:
+                res['why'] = 'its configuration copy does not load (%s)' % exc
+                return res
+    if sim_ws is None:
+        if cfg is None:
+            res['why'] = 'it has no copy of its configuration'
             return res
+        sim_ws = (str(cfg.paths.ws) if cfg.paths.ws else
+                  mcfg.state_workspace(cfg, os.path.dirname(
+                      os.path.abspath(out_dir))))
         res['sim_ws'] = sim_ws
+    if cfg is not None:
+        res['soil'] = [(int(h.zone), float(h.slprop), float(h.smax),
+                        float(h.sr)) for h in cfg.soil.horizon]
+        # for the comparison with an image (marmites_wetimage): the model's
+        # CRS and its irrigated fields, a shapefile in DATA_ROOT/GIS
+        if getattr(cfg.grid, 'crs_epsg', 0):
+            res['crs'] = 'EPSG:%d' % int(cfg.grid.crs_epsg)
+        if cfg.surface.irrigation and cfg.surface.irr_zones.layer:
+            res['irr_layer'] = str(cfg.surface.irr_zones.layer)
     name = model_name(sim_ws)
     res['name'] = name
     if not name:
@@ -332,6 +355,162 @@ def _head(sim_ws, name, k, nper, g):
     return np.where(np.abs(h) > 1e29, np.nan, h)
 
 
+def _thickness(h):
+    """Each soil column's horizon thicknesses [mm], (ncell, nsl), from the
+    run's means: a horizon's storage over its moisture (a fraction), both
+    means of the same constant ratio."""
+    _on_path()
+    from marmites_indices import INDEX_MM_SOIL as IXS
+    ms = np.asarray(h['wb_map_soil'][...], float)
+    s, f = ms[:, :, IXS['iSsoil']], ms[:, :, IXS['iSsoil_pc_s']]
+    return np.where(f > 0, s / np.where(f > 0, f, 1.0), 0.0)
+
+
+def _column_storages(tl, soil):
+    """Each column's storage at saturation and at residual moisture [mm]:
+    its horizons' smax and sr times their thicknesses, NaN for a column of
+    no zone. The h5 does not say which zone a column is; MMsoil splits it
+    by the zone's slprop, so the split tells -- unless two zones split
+    alike and differ in their properties, which is refused."""
+    zones = {}
+    for z, slp, smax, sr in soil:
+        zones.setdefault(int(z), []).append((float(slp), float(smax), float(sr)))
+    nsl = tl.shape[1]
+    t = tl.sum(axis=1)
+    share = tl / np.where(t > 0, t, 1.0)[:, None]
+    sig = {z: np.r_[[h[0] for h in hz], np.zeros(max(nsl - len(hz), 0))][:nsl]
+           for z, hz in zones.items()}
+    keys = sorted(sig)
+    for i, a in enumerate(keys):
+        for b in keys[i + 1:]:
+            if np.allclose(sig[a], sig[b], atol=1e-3) and zones[a] != zones[b]:
+                raise ValueError('soil zones %d and %d split their columns '
+                                 'alike, so the wetness cannot tell them '
+                                 'apart' % (a, b))
+    ssat, sres = np.full(t.size, np.nan), np.full(t.size, np.nan)
+    for z in keys:
+        m = (t > 0) & np.all(np.abs(share - sig[z]) < 1e-3, axis=1)
+        ssat[m] = sum(h[1] * tl[m, l] for l, h in enumerate(zones[z]))
+        sres[m] = sum(h[2] * tl[m, l] for l, h in enumerate(zones[z]))
+    return ssat, sres
+
+
+def _block(path, block):
+    """The rows of an MF6 input file's BEGIN <block> ... END <block>."""
+    rows, inside = [], False
+    with open(path, encoding='utf-8', errors='replace') as fh:
+        for ln in fh:
+            t = ln.split('#')[0].split()
+            if len(t) >= 2 and t[0].upper() == 'BEGIN' \
+                    and t[1].lower() == block:
+                inside = True
+            elif len(t) >= 2 and t[0].upper() == 'END' \
+                    and t[1].lower() == block:
+                break
+            elif inside and t:
+                rows.append(t)
+    return rows
+
+
+def _stages(path, k, nper, steady):
+    """An SFR or LAK stage file's values at the end of period ``k``."""
+    import flopy
+    hf = flopy.utils.HeadFile(path, text='STAGE', precision='double')
+    try:
+        kk = _pp().period_end_kk(hf, steady=steady)[-nper:][k]
+        return np.asarray(hf.get_data(kstpkper=kk), float).ravel()
+    finally:
+        hf.close()
+
+
+def _cellid(t, g):
+    """The cell number of an MF6 cellid's tokens (layer first): (layer,
+    cell) on a mesh, (layer, row, column) on a structured grid."""
+    if g['ncol'] == 1:
+        return int(t[1]) - 1
+    return (int(t[1]) - 1) * g['ncol'] + int(t[2]) - 1
+
+
+def pond_cells(sim_ws, name, g):
+    """``{lake: [cells]}``: the cells each pond (LAK) sits on."""
+    lak = os.path.join(sim_ws, '%s.lak' % name)
+    out = {}
+    if os.path.exists(lak):
+        nci = 2 if g['ncol'] == 1 else 3
+        for t in _block(lak, 'connectiondata'):
+            out.setdefault(int(t[0]) - 1, []).append(_cellid(t[2:2 + nci], g))
+    return out
+
+
+def _open_water(sim_ws, name, k, nper, g):
+    """The share of each cell under open water on period ``k``: a pond's
+    cells while its stage is above its bottom (the first stage of its
+    table), and a reach's channel, length x width, while it carries
+    water -- read from the run's MF6 files."""
+    f = np.zeros(g['ncpl'])
+    nci = 2 if g['ncol'] == 1 else 3     # (layer, cell) or (layer, row, col)
+
+    def node(t):
+        return _cellid(t, g)
+    steady = _pp().steady_first(sim_ws, name)
+    sfr = os.path.join(sim_ws, '%s.sfr' % name)
+    if os.path.exists(sfr) and os.path.exists(sfr + '.stage'):
+        stage = _stages(sfr + '.stage', k, nper, steady)
+        for t in _block(sfr, 'packagedata'):
+            if t[1].upper() == 'NONE':
+                continue
+            r, c = int(t[0]) - 1, node(t[1:1 + nci])
+            rlen, rwid, rtp = (float(t[1 + nci]), float(t[2 + nci]),
+                               float(t[4 + nci]))
+            if r < stage.size and stage[r] - rtp > 1e-3:
+                f[c] += rlen * rwid / g['area'][c]
+    lak = os.path.join(sim_ws, '%s.lak' % name)
+    if os.path.exists(lak) and os.path.exists(lak + '.stage'):
+        stage = _stages(lak + '.stage', k, nper, steady)
+        bottom = {}
+        for t in _block(lak, 'tables'):
+            tab = os.path.join(sim_ws, t[-1])
+            rows = _block(tab, 'table') if os.path.exists(tab) else []
+            if rows:
+                bottom[int(t[0]) - 1] = float(rows[0][0])
+        for n, cells in pond_cells(sim_ws, name, g).items():
+            if n < stage.size and stage[n] - bottom.get(n, -np.inf) > 1e-3:
+                f[cells] = 1.0
+    return np.clip(f, 0.0, 1.0)
+
+
+def saturation(h5, k, g, soil):
+    """Se of each soil column on period ``k``, on the grid's cells: (S -
+    S_r) / (S_sat - S_r), clipped to 0..1; NaN off the soil columns."""
+    import h5py
+    if not soil:
+        raise ValueError("the wetness needs the run's soil horizons, from "
+                         "its configuration copy")
+    with h5py.File(h5, 'r') as h:
+        node = _nodes(h['cell_ij'][...], g)
+        ss = np.asarray(h['ssoil'][k, :], float)
+        tl = _thickness(h)
+    ssat, sres = _column_storages(tl, soil)
+    se = np.full(g['ncpl'], np.nan)
+    se[node] = np.clip((ss - sres) / np.where(ssat > sres, ssat - sres,
+                                              np.nan), 0.0, 1.0)
+    return se
+
+
+def _wetness(sim_ws, name, k, nper, g, h5, soil):
+    """W = (1 - f_ow) Se + f_ow (user, 2026-10-29): the effective
+    saturation of the soil column, Se = (S - S_r) / (S_sat - S_r), with the
+    cell's open water counted as saturated; 0 at residual moisture, 1
+    saturated or under water. Dimensionless, like a satellite soil water
+    index; the field-capacity version saturated over most of La Mata in
+    June and was dropped."""
+    se = saturation(h5, k, g, soil)
+    f = _open_water(sim_ws, name, k, nper, g)
+    w = np.where(np.isfinite(se), (1.0 - f) * se + f,
+                 np.where(f > 0, f, np.nan))
+    return w[None, :]
+
+
 def _soil(h5, key, k, g):
     """One soil-column field of period ``k`` on the grid's cells, (1, ncpl),
     NaN off the soil columns."""
@@ -339,15 +518,8 @@ def _soil(h5, key, k, g):
     with h5py.File(h5, 'r') as h:
         node = _nodes(h['cell_ij'][...], g)
         if key == 'theta':
-            _on_path()
-            from marmites_indices import INDEX_MM_SOIL as IXS
             ss = np.asarray(h['ssoil'][k, :], float)
-            ms = np.asarray(h['wb_map_soil'][...], float)
-            # each horizon's thickness from the run's means: its storage
-            # over its moisture (a fraction), both means of the same
-            # constant ratio
-            s, f = ms[:, :, IXS['iSsoil']], ms[:, :, IXS['iSsoil_pc_s']]
-            tl = np.where(f > 0, s / np.where(f > 0, f, 1.0), 0.0)
+            tl = _thickness(h)
             t = tl.sum(axis=1)
             v = np.where(t > 0, ss / np.where(t > 0, t, 1.0) * 100.0, np.nan)
         else:
@@ -361,16 +533,19 @@ def _soil(h5, key, k, g):
     return out[None, :]
 
 
-def day_values(sim_ws, name, k, nper, key, g=None, h5=None):
+def day_values(sim_ws, name, k, nper, key, g=None, h5=None, soil=None):
     """The map of ``key`` on stress period ``k`` (0-based of ``nper``):
     (nlay, ncpl) for an aquifer term, (1, ncpl) for the soil column, in
-    the unit FLUXES gives, NaN where there is nothing to show."""
+    the unit FLUXES gives, NaN where there is nothing to show. ``soil``:
+    the run's horizons ``(zone, slprop, smax, sr)``, for W."""
     g = g or _grid(sim_ws, name)
     fam = _BY_KEY[key][1]
     if fam == 'MM':
         if not h5:
             raise ValueError('the coupled results (%s) are not in %s'
                              % (_H5, sim_ws))
+        if key == 'W':
+            return _wetness(sim_ws, name, k, nper, g, h5, soil)
         return _soil(h5, key, k, g)
     if key == 'head':
         v = _head(sim_ws, name, k, nper, g)
@@ -433,7 +608,8 @@ def draw(out_dir, day, key, info=None, verbose=False):
     sim_ws, name = info['sim_ws'], info['name']
     _key, fam, lbl, unit, cname = _BY_KEY[key]
     g = _grid(sim_ws, name)
-    V = day_values(sim_ws, name, k, nper, key, g=g, h5=info.get('h5'))
+    V = day_values(sim_ws, name, k, nper, key, g=g, h5=info.get('h5'),
+                   soil=info.get('soil'))
     nl = V.shape[0]
     hnoflo = 9999.999
     off = ~np.isfinite(V)
@@ -495,12 +671,13 @@ def draw(out_dir, day, key, info=None, verbose=False):
 
 def drawn(out_dir):
     """The day maps drawn for this run, ``[(sub, fname, path)]``: the
-    latest first, each map before its percentile twin."""
+    latest first, each map before its percentile twin -- and the
+    comparisons with an image (``wetimage_``, marmites_wetimage)."""
     d = os.path.join(out_dir, '_output', DAY_DIR)
     if not os.path.isdir(d):
         return []
     fs = [f for f in os.listdir(d)
-          if f.startswith('daymap_') and f.endswith('.png')]
+          if f.startswith(('daymap_', 'wetimage_')) and f.endswith('.png')]
     groups = {}
     for f in fs:
         base = f[:-len('_pct.png')] + '.png' if f.endswith('_pct.png') else f
