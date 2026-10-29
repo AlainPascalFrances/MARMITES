@@ -34,6 +34,7 @@ for p in (CODE, APP, os.path.join(CODE, 'ppMF6')):
 
 import marmites_daymap as DM          # noqa: E402
 import marmites_rs as RS              # noqa: E402
+import marmites_smrs as SM            # noqa: E402
 import marmites_wetimage as WI        # noqa: E402
 import mm_paths                       # noqa: E402
 from lib import results as R          # noqa: E402
@@ -225,6 +226,46 @@ def _wet_ndvi(root, info):
                    'masked.' % folders[sensor])
 
 
+def _sm_products(root):
+    """Satellite soil moisture against the model's saturation Se, catchment
+    mean (ppMF6/marmites_smrs; user, 2026-10-29): the products downloaded
+    into DATA_ROOT/RS/soil_moisture, compared on request with the run's own
+    outputs while they are still in its workspace. The figures join this
+    tab (the run's _output/sm_products)."""
+    have = SM.available(mm_paths.RS)
+    with st.expander("Satellite soil moisture against the model's saturation "
+                     "Se", expanded=False):
+        if not have:
+            st.caption('No product in `%s` yet (Copernicus SWI 0.1 deg or '
+                       '1 km, Surface Soil Moisture 1 km, SMOS-BEC 1 km).'
+                       % os.path.join(str(mm_paths.RS), 'soil_moisture'))
+            return
+        try:
+            info = DM.outputs_of(root)
+        except Exception as exc:                      # noqa: BLE001
+            info = {'why': 'its model outputs could not be read (%s)' % exc}
+        if info.get('why'):
+            st.info('No comparison for this run: %s.' % info['why'])
+            return
+        c1, c2, c3 = st.columns([3, 1, 1], vertical_alignment='bottom')
+        p = c1.selectbox('Soil-moisture product', list(have), key='sm_prod',
+                         format_func=lambda k: '%s (%d file(s))'
+                         % (SM.PRODUCTS[k]['label'], have[k]))
+        T = c2.number_input('T, days (SWI T-value / filter)', 1, 100,
+                            SM.T_DEFAULT, key='sm_T')
+        if c3.button('Compare', key='sm_go', type='primary'):
+            with st.spinner('Se against %s...' % SM.PRODUCTS[p]['short']):
+                try:
+                    SM.compare(root, p, SM.folder(mm_paths.RS, p), info=info,
+                               T=int(T))
+                    st.rerun()
+                except Exception as exc:              # noqa: BLE001
+                    st.error('Not compared: %s' % exc)
+        st.caption('An SWI is compared as it is (both % of saturation); a '
+                   'surface product is filtered to T days, then both are '
+                   'scaled to their own 2nd-98th percentiles.')
+
+
 def _day_maps(root):
     """A day and a flux, drawn from the run's own model outputs while they
     are still in its workspace -- the next run there overwrites them --
@@ -273,6 +314,8 @@ for key, tab in zip(keys, tabs):
         if key == 'daymap':
             _day_maps(root)
             continue
+        if key == 'calib':
+            _sm_products(root)
         if key == 'budget' and os.path.exists(summary) and not needle:
             st.code(open(summary, encoding='utf-8', errors='replace').read(),
                     language='text')

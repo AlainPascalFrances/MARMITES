@@ -27,8 +27,11 @@ TABS = (
     ('ponds', 'Ponds water budget'),
     ('other', 'Other'),
 )
-# the folders of a run where the figures are, in the order they are read
-FOLDERS = ('_input', '_output', 'figures_nwt_comparison')
+# the folders of a run where the figures are, in the order they are read;
+# sm_products: the satellite soil moisture against Se, drawn on request
+# from the panel (ppMF6/marmites_smrs) in a folder of its own
+FOLDERS = ('_input', '_output', 'figures_nwt_comparison',
+           '_output/sm_products')
 
 # --- what each figure is ----------------------------------------------- #
 # input fields (marmites_postprocess._native_input_maps, IN_<nnn>_<stem>)
@@ -129,6 +132,13 @@ _FIXED = {
     'outlet_streamflow': 'Streamflow at the catchment outlet: simulated and '
                          'observed',
 }
+# the satellite soil-moisture products (ppMF6/marmites_smrs.PRODUCTS)
+_SMRS = {
+    'clms_swi_0.1deg': 'the Copernicus Soil Water Index 0.1 deg',
+    'clms_swi_1km': 'the Copernicus Soil Water Index 1 km',
+    'clms_ssm_1km': 'the Copernicus Surface Soil Moisture 1 km',
+    'smos_bec_1km': 'SMOS-BEC 1 km',
+}
 _CRIT = {'RMSE': 'root mean square error', 'RSR': 'RMSE-to-SD ratio',
          'NSE': 'Nash-Sutcliffe efficiency', 'r': 'correlation'}
 
@@ -153,7 +163,7 @@ def classify(sub, fname):
         return 'output'
     if ('calibcrit' in s or s in ('obs_heads', 'obs_et', 'obs_et_parts',
                                   'outlet_streamflow')
-            or s.startswith('sm_depth_')):
+            or s.startswith(('sm_depth_', 'smrs_'))):
         return 'calib'
     if ('WBsankey' in s or s in ('budget_compartment', 'budget_uzf',
                                  'budget_sfr', '03_wb_totals',
@@ -182,6 +192,13 @@ def title(sub, fname):
         else:
             what = 'Soil column: %s' % _MM.get(key, key)
         return '%s on %s%s' % (what, day, ' (page %s)' % page if page else '')
+    # satellite soil moisture against Se (ppMF6/marmites_smrs)
+    m = re.match(r'smrs_(.+)_T(\d+)$', s)
+    if m:
+        what = _SMRS.get(m.group(1), m.group(1))
+        filt = ('SWI T = %s days' if m.group(1).startswith('clms_swi')
+                else 'filtered to T = %s days') % m.group(2)
+        return 'Soil moisture: the model\'s Se against %s (%s)' % (what, filt)
     # the wetness W against a scene's NDVI (ppMF6/marmites_wetimage)
     m = re.match(r'wetndvi_(.+)_(\d{4}-\d{2}-\d{2})$', s)
     if m:
@@ -250,7 +267,7 @@ _ORDER = {
     'series': (r'01_wb', r'02_wb', r'06_heads', r'07_coupling',
                r'budget_sfr_ts', r'_0'),
     'calib': (r'outlet_streamflow', r'obs_heads', r'obs_et', r'calibcrit',
-              r'sm_depth_'),
+              r'sm_depth_', r'smrs_'),
     'budget': (r'00_summary', r'_catchment_WBsankey', r'_catchment_full',
                r'03_wb', r'04_wb', r'budget_compartment', r'budget_uzf',
                r'budget_sfr', r'_obs_'),
