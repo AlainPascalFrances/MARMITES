@@ -204,6 +204,7 @@ def outputs_of(out_dir, sim_ws=None):
                       os.path.abspath(out_dir))))
         res['sim_ws'] = sim_ws
     if cfg is not None:
+        res['config'] = cfg_p
         res['soil'] = [(int(h.zone), float(h.slprop), float(h.smax),
                         float(h.sr)) for h in cfg.soil.horizon]
         # for the comparison with an image (marmites_wetimage): the model's
@@ -672,12 +673,12 @@ def draw(out_dir, day, key, info=None, verbose=False):
 def drawn(out_dir):
     """The day maps drawn for this run, ``[(sub, fname, path)]``: the
     latest first, each map before its percentile twin -- and the
-    comparisons with an image (``wetimage_``, marmites_wetimage)."""
+    comparisons with a scene's NDVI (``wetndvi_``, marmites_wetimage)."""
     d = os.path.join(out_dir, '_output', DAY_DIR)
     if not os.path.isdir(d):
         return []
     fs = [f for f in os.listdir(d)
-          if f.startswith(('daymap_', 'wetimage_')) and f.endswith('.png')]
+          if f.startswith(('daymap_', 'wetndvi_')) and f.endswith('.png')]
     groups = {}
     for f in fs:
         base = f[:-len('_pct.png')] + '.png' if f.endswith('_pct.png') else f

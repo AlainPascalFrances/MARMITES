@@ -21,6 +21,7 @@ for _p in (CODE, os.path.join(CODE, 'ppMF6'), os.path.join(CODE, 'app')):
 
 import marmites_config as mcfg                       # noqa: E402
 import marmites_daymap as DM                         # noqa: E402
+import marmites_rs as RS                             # noqa: E402
 import marmites_wetimage as WI                       # noqa: E402
 from lib import results as R                         # noqa: E402
 
@@ -354,60 +355,159 @@ def test_the_panel_titles_and_rows_of_the_day_maps():
     assert DM.label('theta').startswith('Soil column: theta, soil moisture')
 
 
-# ---- the wetness against an image of the day (marmites_wetimage) ------------
+# ---- the satellite scenes (marmites_rs) and W against NDVI ------------------
 
-def _geotiff(path, green_cols):
-    """An RGB GeoTIFF over the 30 x 20 m model in 1 m pixels: brown, the
-    model columns ``green_cols`` green (a little noise in both)."""
+def test_the_masks_and_the_reflectance():
+    """Landsat QA_PIXEL: fill, dilated cloud, cirrus, cloud, shadow, snow
+    are masked, clear and water are not; Sentinel-2 SCL 0, 1, 3, 8-11. The
+    reflectance: Landsat C2 L2 x 2.75e-5 - 0.2; Sentinel-2 / 10000, less
+    0.1 from processing baseline 04.00 on; 0 is no data."""
+    qa = np.array([1 << 6, 1 << 3, 1 << 4, 1 << 0, (1 << 6) | (1 << 7),
+                   1 << 5, 1 << 2, 1 << 1])
+    assert RS.landsat_bad(qa).tolist() == [False, True, True, True, False,
+                                           True, True, True]
+    assert np.flatnonzero(RS.s2_bad(np.arange(12))).tolist() == \
+        [0, 1, 3, 8, 9, 10, 11]
+    r = RS.reflectance('landsat', [0, 10000, 43636])
+    assert np.isnan(r[0]) and r[1:] == pytest.approx([0.075, 1.0], abs=1e-4)
+    new = RS.reflectance('sentinel2', [0, 2000], {'s2:processing_baseline': '05.00'})
+    old = RS.reflectance('sentinel2', [2000], {'s2:processing_baseline': '03.01'})
+    assert np.isnan(new[0]) and new[1] == pytest.approx(0.1)
+    assert old[0] == pytest.approx(0.2)
+
+
+class _Resp:
+    def __init__(self, js):
+        self.js = js
+
+    def raise_for_status(self):
+        pass
+
+    def json(self):
+        return self.js
+
+
+def test_the_catalogue_keeps_one_scene_a_day_over_the_whole_catchment():
+    """Over the pages of the catalogue: the scenes of the sensor's platforms
+    whose footprint holds the whole catchment, one per platform and day,
+    the least cloudy."""
+    box = [-6.15, 41.09, -6.11, 41.12]
+
+    def feat(i, plat, day, cloud, covers=True):
+        x0, y0, x1, y1 = (-7, 40, -5, 42) if covers else (-6.13, 41.0, -6.0, 41.2)
+        return {'id': i, 'geometry': {'type': 'Polygon', 'coordinates': [[
+            [x0, y0], [x1, y0], [x1, y1], [x0, y1], [x0, y0]]]},
+            'properties': {'platform': plat, 'datetime': day + 'T11:00:00Z',
+                           'eo:cloud_cover': cloud},
+            'assets': {'red': {'href': 'r.tif'}}}
+    pages = [{'features': [feat('a', 'landsat-7', '2013-06-14', 5),
+                           feat('b', 'landsat-7', '2013-06-14', 1),
+                           feat('c', 'landsat-8', '2013-06-22', 0, False)],
+              'links': [{'rel': 'next', 'body': {'page': 2}}]},
+             {'features': [feat('d', 'landsat-8', '2013-06-22', 3),
+                           feat('e', 'sentinel-2a', '2013-06-23', 0)],
+              'links': []}]
+    sent = []
+
+    class Session:
+        def post(self, url, json=None, timeout=None):
+            sent.append(json)
+            return _Resp(pages[len(sent) - 1])
+    got = RS.search('landsat', box, '2013-06-01', '2013-06-30', 20,
+                    session=Session())
+    assert [(s['id'], s['date']) for s in got] == [('b', '2013-06-14'),
+                                                  ('d', '2013-06-22')]
+    assert sent[0]['query'] == {'eo:cloud_cover': {'lte': 20.0}}
+    assert sent[1] == {'page': 2}
+
+
+def _scene(tmp_path, ndvi, cloud_cells=()):
+    """A Sentinel-2 scene of local files over the 30 x 20 m model at 10 m,
+    one pixel a cell (row 0 the top): red 0.1, the NIR that gives ``ndvi``
+    per cell, processing baseline 05.00 (the 1000 offset), SCL cloud on
+    ``cloud_cells``."""
     import rasterio
     from rasterio.transform import from_origin
-    rng = np.random.default_rng(3)
-    ny, nx = 20, 30
-    brown = np.array([120, 100, 80])[:, None, None] + rng.integers(-5, 6, (3, ny, nx))
-    green = np.array([90, 125, 70])[:, None, None] + rng.integers(-5, 6, (3, ny, nx))
-    is_g = np.isin(np.arange(nx) // 10, green_cols)[None, None, :]
-    a = np.where(is_g, green, brown).astype(np.uint8)
-    with rasterio.open(path, 'w', driver='GTiff', width=nx, height=ny, count=3,
-                       dtype='uint8', crs='EPSG:23029',
-                       transform=from_origin(0.0, 20.0, 1.0, 1.0)) as d:
-        d.write(a)
-    return path
+    v = np.array(ndvi, float).reshape(2, 3)
+    refl = {'B04': np.full((2, 3), 0.1), 'B08': 0.1 * (1 + v) / (1 - v),
+            'B03': np.full((2, 3), 0.08), 'B02': np.full((2, 3), 0.05)}
+    scl = np.full((2, 3), 4, np.uint8)
+    scl.flat[list(cloud_cells)] = 9
+    assets = {}
+    for k, a in list(refl.items()) + [('SCL', scl)]:
+        p = str(tmp_path / ('%s.tif' % k))
+        a = a if k == 'SCL' else np.round((a + 0.1) * 10000).astype(np.uint16)
+        with rasterio.open(p, 'w', driver='GTiff', width=3, height=2, count=1,
+                           dtype=a.dtype, crs='EPSG:23029', nodata=0,
+                           transform=from_origin(0.0, 20.0, 10.0, 10.0)) as d:
+            d.write(a, 1)
+        assets[k] = p
+    return {'id': 'S2A_TEST', 'sensor': 'sentinel2',
+            'collection': 'sentinel-2-l2a', 'platform': 'sentinel-2a',
+            'date': START.isoformat(), 'cloud': 1.0, 'assets': assets,
+            'properties': {'s2:processing_baseline': '05.00'}}
 
 
-def test_the_image_files_and_their_day(tmp_path):
-    a = tmp_path / 'DR_RGB_20130615_lamata.tif'
-    b = tmp_path / 'scene.tiff'
-    for p in (a, b):
-        p.write_bytes(b'')
-    os.utime(str(a), (1e9, 1e9))
-    (tmp_path / 'notes.txt').write_text('x')
-    assert WI.images(str(tmp_path), None) == [str(b), str(a)], 'newest first'
-    assert WI.image_date(a) == date(2013, 6, 15)
-    assert WI.image_date('scene_2013-06-15.tif') is None
-    assert WI.image_date('x_20131345_20120704.tif') == date(2012, 7, 4)
+def test_a_scene_is_fetched_onto_the_model_grid(tmp_path):
+    import rasterio
+    sc = _scene(tmp_path, [0.3, 0.4, 0.5, 0.6, 0.7, 0.8], cloud_cells=[5])
+    dest = str(tmp_path / 'ndvi')
+    rec = RS.fetch(sc, 'EPSG:23029', (0.0, 0.0, 30.0, 20.0), dest)
+    with rasterio.open(os.path.join(dest, rec['ndvi'])) as d:
+        a = d.read(1).ravel()
+        assert d.res == (10.0, 10.0) and d.crs.to_epsg() == 23029
+    assert a[:5] == pytest.approx([0.3, 0.4, 0.5, 0.6, 0.7], abs=2e-3), \
+        'the 1000 offset taken off'
+    assert np.isnan(a[5]), 'the cloud masked'
+    assert rec['clear_share_window'] == pytest.approx(5 / 6)
+    with rasterio.open(os.path.join(dest, rec['rgb'])) as d:
+        assert d.count == 3 and d.dtypes[0] == 'uint8'
+    assert [p['ndvi'] for p in RS.products(dest)] == \
+        ['sentinel-2a_%s_ndvi.tif' % START]
 
 
-def test_the_wetness_against_an_image(run, tmp_path):
-    """Green on the first model column (cells 0 and 3); W highest on cells 5
-    and 3: one block wet in both, one model only, one image only, three dry
-    in both -- kappa 0.25; the figure kept with the day maps."""
-    img = _geotiff(str(tmp_path / 'img_20100601.tif'), [0])
+def test_a_cells_class_is_its_main_vegetation_type():
+    """User, 2026-10-29: the main vegetation type when it covers at least
+    the minimum of the cell, else bare soil -- the uncovered rest is no
+    rival (it made 90 % of La Mata bare soil)."""
+    cov = [[60, 10, 0, 4], [30, 5, 20, 3]]           # grass, oak; 4 cells
+    names, cls = WI.dominant(cov, ['grass', 'oak'])
+    assert names == ['grass', 'oak', 'bare soil'] and WI.MIN_COVER == 10.0
+    assert cls.tolist() == [0, 0, 1, 2]
+    assert WI.dominant(cov, ['grass', 'oak'], 25)[1].tolist() == [0, 2, 2, 2]
+    fit = WI.wls(np.array([0.0, 1.0, 2.0]), np.array([1.0, 3.0, 5.0]),
+                 np.array([1.0, 5.0, 1.0]))
+    assert (fit['a'], fit['b'], fit['r2'], fit['n']) == \
+        (pytest.approx(1.0), pytest.approx(2.0), pytest.approx(1.0), 3)
+
+
+def test_ndvi_against_the_wetness_by_regression(run, tmp_path):
+    """NDVI = 0.2 + 0.5 W on the soil columns: the fit finds it, per cell,
+    the cloudy cell and the cells without soil left out; one fit over all
+    when the run's vegetation overlay is not found; the figure kept with
+    the day maps."""
+    w = {0: (40 - 25) / 105, 1: (80 - 25) / 105, 3: (120 - 25) / 105, 5: 1.0}
+    sc = _scene(tmp_path, [0.2 + 0.5 * w.get(c, 0.2) for c in range(6)],
+                cloud_cells=[5])
+    rec = RS.fetch(sc, 'EPSG:23029', (0.0, 0.0, 30.0, 20.0),
+                   str(tmp_path / 'ndvi'))
     info = dict(DM.outputs_of(run['out']), h5=_h5(run['ws'], tmp_path),
-                soil=SOIL, crs='EPSG:23029')
-    r = WI.compare(run['out'], img, START, info=info, block=10.0, res=1.0)
-    s = r['scores']['all']
-    assert (s['both'], s['model_only'], s['image_only'], s['both_dry']) == \
-        (1, 1, 1, 3), s
-    assert s['kappa'] == pytest.approx(0.25)
-    assert r['scores']['without_irrigated'] is None, 'no irrigation layer'
-    assert os.path.basename(r['png']) == 'wetimage_img_20100601_%s.png' % START
-    assert os.path.exists(r['json'])
-    assert ('_output/day_maps', os.path.basename(r['png']), r['png']) in \
-        DM.drawn(run['out'])
+                soil=SOIL)
+    r = WI.compare(run['out'], rec, info=info)
+    st = r['stats']
+    assert st['cells']['compared'] == 3, st['cells']
+    fit = st['all_classes']
+    assert fit['b'] == pytest.approx(0.5, abs=0.01)
+    assert fit['a'] == pytest.approx(0.2, abs=0.01) and fit['r2'] > 0.99
+    assert st['fits'] == {}, 'no class of 30 cells'
+    assert st['classes'].startswith('none found')
+    name = os.path.basename(r['png'])
+    assert name == 'wetndvi_sentinel-2a_%s.png' % START
+    assert ('_output/day_maps', name, r['png']) in DM.drawn(run['out'])
     from PIL import Image
     with Image.open(r['png']) as im:
         assert int(im.info.get('MM-panels')) > 1, 'a row of its own'
-    assert R.title('_output/day_maps', os.path.basename(r['png'])) == \
-        'Model wetness W against the green of img_20100601 on %s' % START
-    with pytest.raises(ValueError, match='CRS'):
-        WI.compare(run['out'], img, START, info=dict(info, crs=None))
+    assert R.title('_output/day_maps', name) == \
+        'Model wetness W against the NDVI of Sentinel-2a on %s' % START
+    with pytest.raises(ValueError, match='not a day of this run'):
+        WI.compare(run['out'], dict(rec, date='1999-01-01'), info=info)

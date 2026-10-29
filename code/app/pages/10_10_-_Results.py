@@ -14,9 +14,10 @@ their tops; each title centred BELOW its figure.
 
 MAPS OF ONE DAY (user, 2026-10-29) are the one thing drawn here: a day and
 a flux, from the run's own model outputs, while they are still in its
-workspace (ppMF6/marmites_daymap) -- and the wetness W of a day against a
-georeferenced image of it (ppMF6/marmites_wetimage). They are kept in the
-run's `_output/day_maps`.
+workspace (ppMF6/marmites_daymap) -- and the wetness W of a day against the
+NDVI of a Landsat or Sentinel-2 scene of it, by linear regression
+(ppMF6/marmites_wetimage; the scenes fetched by ppMF6/marmites_rs). They are
+kept in the run's `_output/day_maps`.
 """
 
 import html
@@ -32,6 +33,7 @@ for p in (CODE, APP, os.path.join(CODE, 'ppMF6')):
         sys.path.insert(0, p)
 
 import marmites_daymap as DM          # noqa: E402
+import marmites_rs as RS              # noqa: E402
 import marmites_wetimage as WI        # noqa: E402
 import mm_paths                       # noqa: E402
 from lib import results as R          # noqa: E402
@@ -139,36 +141,88 @@ def _grid(items):
                 _caption(sub, fname, text)
 
 
-def _wet_image(root, info):
-    """The wetness W of a day against a georeferenced RGB image of it: the
-    GeoTIFFs in the workspace and the remote-sensing folder, the day the
-    file name carries by default."""
-    st.markdown('**The wetness W against an image of the same day**')
-    found = WI.images(WS, mm_paths.RS)
-    if not found:
-        st.caption('No GeoTIFF in `%s` or `%s`: put a georeferenced RGB image '
-                   'of a day of the run there.' % (WS, mm_paths.RS))
-        return
+def _wet_ndvi(root, info):
+    """The wetness W of a day against the NDVI of a satellite scene of it
+    (user, 2026-10-29): a scene already fetched, or one found and fetched
+    here -- Landsat 5/7/8/9 or Sentinel-2, from the Planetary Computer, into
+    the RS folder. The regression is per model cell, per vegetation class;
+    the scene's true colour is only the visual support."""
+    st.markdown('**The wetness W against the NDVI of a satellite scene**')
     dates = info['dates']
-    c1, c2, c3 = st.columns([3, 1, 1], vertical_alignment='bottom')
-    img = c1.selectbox('Image (a georeferenced RGB GeoTIFF)', found,
-                       key='wi_img')
-    d0 = WI.image_date(img)
-    # one key per run and image: the default is the image's own day
-    day = c2.date_input('Its day', value=d0 if d0 in dates else dates[-1],
-                        min_value=dates[0], max_value=dates[-1],
-                        key='wi_day_%s_%s' % (sel, os.path.basename(img)))
-    if c3.button('Compare', key='wi_go', type='primary'):
-        with st.spinner('Comparing the wetness of %s with %s...'
-                        % (day, os.path.basename(img))):
-            try:
-                WI.compare(root, img, day, info=info, gis=mm_paths.GIS)
-            except Exception as exc:                  # noqa: BLE001
-                st.error('Not compared: %s' % exc)
-    st.caption('Green = excess green above its Otsu threshold; 50 m blocks, '
-               'the model\'s wettest blocks over the same area as the green '
-               'ones; the irrigated fields (the run\'s irrigation layer) '
-               'scored apart.')
+    days = set(dates)
+    folders = {s: RS.folder(mm_paths.RS, s) for s in RS.SENSORS}
+    prods = [p for p in RS.products(*folders.values())
+             if RS.as_date(p['date']) in days]
+    if prods:
+        c1, c2, c3 = st.columns([3, 1, 1], vertical_alignment='bottom')
+        lab = ['%s  %s  (%g m, %.0f %% of the window clear)'
+               % (p['date'], p['platform'], p['res'],
+                  100 * p.get('clear_share_window', 0)) for p in prods]
+        i = c1.selectbox('Scene fetched (its NDVI against W of its day)',
+                         range(len(prods)), format_func=lab.__getitem__,
+                         key='nd_prod_%s' % sel)
+        # a cell's class: its main vegetation type when it covers this much
+        # of the cell, else bare soil (user, 2026-10-29)
+        mc = c2.number_input('Main vegetation, at least % of the cell', 0.0,
+                             100.0, WI.MIN_COVER, step=5.0, key='nd_mincover')
+        if c3.button('Compare', key='nd_go', type='primary'):
+            with st.spinner('NDVI of %s against W...' % lab[i].split('  (')[0]):
+                try:
+                    WI.compare(root, prods[i], info=info, gis=mm_paths.GIS,
+                               min_cover=mc)
+                except Exception as exc:              # noqa: BLE001
+                    st.error('Not compared: %s' % exc)
+    else:
+        st.caption('No scene fetched for the days of this run yet: find one '
+                   'below.')
+    with st.expander('Find and fetch a scene (Planetary Computer, no account)'):
+        c1, c2, c3, c4 = st.columns([2, 2, 1, 1], vertical_alignment='bottom')
+        sensor = c1.selectbox('Product', list(RS.SENSORS),
+                              format_func=lambda s: RS.SENSORS[s]['label'],
+                              key='nd_sensor')
+        span = c2.date_input('Between', value=(dates[0], dates[-1]),
+                             min_value=dates[0], max_value=dates[-1],
+                             key='nd_span_%s' % sel)
+        cloud = c3.number_input('Scene cloud, at most %', 0, 100, 20,
+                                key='nd_cloud')
+        if c4.button('Search', key='nd_search') and len(span) == 2:
+            with st.spinner('Searching the catalogue...'):
+                try:
+                    g = DM._grid(info['sim_ws'], info['name'])
+                    b = RS.catchment_bounds(g)
+                    found = RS.search(sensor, RS.lonlat_bbox(b, info['crs']),
+                                      span[0], span[1], cloud)
+                    st.session_state['nd_found'] = (sel, sensor, found, b)
+                except Exception as exc:              # noqa: BLE001
+                    st.error('The catalogue did not answer: %s' % exc)
+        hit = st.session_state.get('nd_found')
+        if hit and hit[0] == sel and hit[1] == sensor:
+            scenes = [s_ for s_ in hit[2] if RS.as_date(s_['date']) in days]
+            if not scenes:
+                st.info('No %s scene over the catchment in that window.'
+                        % RS.SENSORS[sensor]['label'])
+            else:
+                have = {(p['platform'], p['date']) for p in prods}
+                lab = ['%s  %s  scene cloud %s %%%s'
+                       % (s_['date'], s_['platform'],
+                          '?' if s_['cloud'] is None else '%.0f' % s_['cloud'],
+                          '  (fetched)' if (s_['platform'], s_['date']) in have
+                          else '') for s_ in scenes]
+                c1, c2 = st.columns([4, 1], vertical_alignment='bottom')
+                j = c1.selectbox('%d scene(s)' % len(scenes), range(len(scenes)),
+                                 format_func=lab.__getitem__, key='nd_scene')
+                if c2.button('Fetch', key='nd_fetch'):
+                    with st.spinner('Reading %s over the catchment...'
+                                    % scenes[j]['id']):
+                        try:
+                            RS.fetch(scenes[j], info['crs'], hit[3],
+                                     folders[sensor])
+                            st.rerun()
+                        except Exception as exc:      # noqa: BLE001
+                            st.error('Not fetched: %s' % exc)
+        st.caption('Into `%s`: the NDVI and the true colour on the model\'s '
+                   'grid; clouds, their shadows, snow and missing data '
+                   'masked.' % folders[sensor])
 
 
 def _day_maps(root):
@@ -199,7 +253,7 @@ def _day_maps(root):
         st.caption('From the model outputs in `%s`, on the linear and the '
                    'percentile colour ramp; kept in this run\'s '
                    '`_output/%s`.' % (info['sim_ws'], DM.DAY_DIR))
-        _wet_image(root, info)
+        _wet_ndvi(root, info)
     items = DM.drawn(root)
     if items:
         _grid([(sub, f, p, R.title(sub, f)) for sub, f, p in items])

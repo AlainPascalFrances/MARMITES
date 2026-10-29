@@ -182,11 +182,11 @@ def title(sub, fname):
         else:
             what = 'Soil column: %s' % _MM.get(key, key)
         return '%s on %s%s' % (what, day, ' (page %s)' % page if page else '')
-    # the wetness W against an image of the day (ppMF6/marmites_wetimage)
-    m = re.match(r'wetimage_(.+)_(\d{4}-\d{2}-\d{2})$', s)
+    # the wetness W against a scene's NDVI (ppMF6/marmites_wetimage)
+    m = re.match(r'wetndvi_(.+)_(\d{4}-\d{2}-\d{2})$', s)
     if m:
-        return ('Model wetness W against the green of %s on %s'
-                % (m.group(1), m.group(2)))
+        return ('Model wetness W against the NDVI of %s on %s'
+                % (m.group(1).capitalize(), m.group(2)))
     m = re.match(r'(?:_sp_plt_)?IN_\d+_(.+)$', s)
     if m:
         key = m.group(1)
