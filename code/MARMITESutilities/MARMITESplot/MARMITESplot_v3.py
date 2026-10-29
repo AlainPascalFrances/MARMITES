@@ -1827,13 +1827,19 @@ def plotLAYER(days, str_per, Date, JD, ncol, nrow, nlay, nplot, V, cmap, CBlabel
                         Vtmp = np.ma.where(np.ma.abs(Vtmp) <= _tol, 0.0, Vtmp)
                         _pc_cls = percentile_classes(Vtmp.compressed(),
                                                      cmap_pct)
-                        if _pc_cls is None:            # one value: one class
+                        _one = _pc_cls is None
+                        if _one:                       # one value: one class
+                            # centred on the value, which is the bar's one
+                            # tick (its bounds were [v, nextafter(v)]: a
+                            # bottom layer's FLF read "0 ... 4.94e-324")
                             _c0 = float(Vtmp.compressed()[0]) if _v.size else 0.0
-                            _pc_cls = ([_c0, np.nextafter(_c0, np.inf)],
-                                       [cmap_pct(0.5)])
+                            _d = max(abs(_c0) * 1e-3, 1e-9)
+                            _pc_cls = ([_c0 - _d, _c0 + _d], [cmap_pct(0.5)])
                         ticks = np.asarray(_pc_cls[0])
                         cmap = mpl.colors.ListedColormap(_pc_cls[1])
                         norm = mpl.colors.BoundaryNorm(ticks, cmap.N)
+                        if _one:
+                            ticks = np.array([_c0])
                     # the panel, in its slot, placed in inches
                     x0 = l * SW + LM
                     ax.append(fig.add_axes([x0 / W, (H - TOP - AT - PH) / H,

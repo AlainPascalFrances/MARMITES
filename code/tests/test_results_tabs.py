@@ -50,8 +50,9 @@ RUN = {
 def test_every_figure_has_its_tab():
     got = {k: R.classify(*k) for k in RUN}
     assert got == RUN
-    assert [k for k, _l in R.TABS][:6] == ['input', 'output', 'series',
-                                           'calib', 'budget', 'ponds']
+    assert [k for k, _l in R.TABS][:7] == ['input', 'output', 'daymap',
+                                           'series', 'calib', 'budget',
+                                           'ponds']
 
 
 def test_an_unknown_figure_is_shown_under_other_not_hidden():

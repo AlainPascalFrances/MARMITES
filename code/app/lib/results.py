@@ -6,7 +6,8 @@ Six tabs -- input maps, output maps, time series, calibration (the state
 variables against what was measured), the water budgets (the catchment
 and every observation point), the ponds'
 water budget -- plus "Other" for a figure no rule knows, so nothing a run
-wrote is ever hidden. Streamlit-free, so it is tested without a page.
+wrote is ever hidden, and the maps of one day, which the panel draws on
+request (2026-10-29). Streamlit-free, so it is tested without a page.
 """
 
 import os
@@ -17,6 +18,9 @@ __all__ = ['TABS', 'classify', 'title', 'arrange', 'panels', 'rows', 'FOLDERS']
 TABS = (
     ('input', 'Input maps'),
     ('output', 'Output maps'),
+    # drawn on request from the run's outputs, one day at a time (user,
+    # 2026-10-29); in their own folder, so they never join the run's tabs
+    ('daymap', 'Maps of one day'),
     ('series', 'Time series'),
     ('calib', 'Calibration (state variables)'),
     ('budget', 'Water budgets'),
@@ -69,6 +73,8 @@ _MM = {
     'Runon': 'run-on from upslope (cascade)',
     'Reinf': 'reinfiltrated run-on (cascade)',
     'Ecrr': 'runoff evaporated by the cascade',
+    # the maps of one day (ppMF6/marmites_daymap) only
+    'Ssoil': 'soil water storage', 'ETuzf': 'unsaturated zone ET (UZF)',
 }
 # aquifer maps (marmites_postprocess._AQ_MAPS and the derived ones)
 _GW = {
@@ -164,6 +170,17 @@ def title(sub, fname):
     s = _stem(fname)
     if s.endswith('_pct'):         # a map's twin on the percentile ramp
         return '%s (percentile colour ramp)' % title(sub, s[:-4] + '.png')
+    # a map of one day, drawn from the panel (ppMF6/marmites_daymap)
+    m = re.match(r'daymap_(GW|MM)_(\w+?)_(\d{4}-\d{2}-\d{2})(?:_page(\d+))?$',
+                 s)
+    if m:
+        fam, key, day, page = m.groups()
+        if fam == 'GW':
+            what = 'Aquifer: %s' % ('head' if key == 'head'
+                                    else _GW.get(key, key))
+        else:
+            what = 'Soil column: %s' % _MM.get(key, key)
+        return '%s on %s%s' % (what, day, ' (page %s)' % page if page else '')
     m = re.match(r'(?:_sp_plt_)?IN_\d+_(.+)$', s)
     if m:
         key = m.group(1)

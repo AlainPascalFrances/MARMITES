@@ -131,6 +131,33 @@ def test_each_layer_has_its_own_classes(tmp_path, monkeypatch):
     assert os.path.exists(str(tmp_path / '_sp_plt_T_pct_1_1.png'))
 
 
+def test_a_layer_of_one_value_shows_that_value(tmp_path, monkeypatch):
+    """2026-10-29: the bottom layer's FLF (no lower face: all 0) read
+    "0 ... 4.94e-324" on its bar -- its one class's bounds. Now the class
+    is centred on the value, the bar's only tick."""
+    nrow, ncol = 4, 5
+    rng = np.random.default_rng(2)
+    V = np.stack([rng.random((nrow, ncol)) - 0.5, np.zeros((nrow, ncol))])[None]
+    seen = []
+    real = plt.savefig
+
+    def grab(*a, **k):
+        f = plt.gcf()
+        seen.extend(ax._colorbar for ax in f.axes if hasattr(ax, '_colorbar'))
+        return real(*a, **k)
+    monkeypatch.setattr(plt, 'savefig', grab)
+    P.plotLAYER(days=[0], str_per=[0], Date='NA', JD='NA', ncol=ncol,
+                nrow=nrow, nlay=2, nplot=2, V=V, cmap=BLUES, CBlabel='x',
+                msg='', plt_title='C_pct', MM_ws=str(tmp_path),
+                interval_type='percentile', Vmax=[V.max()], Vmin=[V.min()],
+                fmt='%5.2f', mask=np.zeros((2, nrow, ncol), bool),
+                hnoflo=-999.9)
+    bar = seen[1]
+    assert list(bar.get_ticks()) == [0.0]
+    lo, hi = bar.norm.boundaries
+    assert lo < 0.0 < hi and np.isclose(-lo, hi), 'centred on the value'
+
+
 # ---- the post-processing draws the twins ----------------------------------
 
 def test_every_mean_map_has_its_percentile_twin():

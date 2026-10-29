@@ -125,9 +125,14 @@ def test_the_results_are_shown_by_tabs_two_to_a_row(tmp_path, monkeypatch):
     at.run()
     assert not at.exception, [str(e.value) for e in at.exception]
     labels = [t.label for t in at.tabs]
-    assert labels == ['Input maps (2)', 'Output maps (1)', 'Time series (1)',
+    assert labels == ['Input maps (2)', 'Output maps (1)', 'Maps of one day',
+                      'Time series (1)',
                       'Calibration (state variables) (1)',
                       'Water budgets (1)', 'Ponds water budget (3)'], labels
+    # 2026-10-29: the day maps' tab, here for a run with no configuration
+    # copy: why no day can be drawn, and nothing drawn yet
+    said = ' '.join(str(m.value) for m in at.info)
+    assert 'it has no copy of its configuration' in said, said
     said = ' '.join(str(m.value) for m in at.markdown)
     assert 'text-align:center' in said
     assert 'Horizontal hydraulic conductivity' in said

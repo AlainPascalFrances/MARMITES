@@ -11,6 +11,11 @@ ORGANISED BY TABS (user, 2026-10-09): input maps, output maps, time series,
 calibration, the water budgets and the ponds' -- lib/results.py says
 which figure goes where, with its title. Two figures to a row, aligned on
 their tops; each title centred BELOW its figure.
+
+MAPS OF ONE DAY (user, 2026-10-29) are the one thing drawn here: a day and
+a flux, from the run's own model outputs, while they are still in its
+workspace (ppMF6/marmites_daymap). They are kept in the run's
+`_output/day_maps`.
 """
 
 import html
@@ -21,10 +26,11 @@ import streamlit as st
 
 APP = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CODE = os.path.abspath(os.path.join(APP, '..'))
-for p in (CODE, APP):
+for p in (CODE, APP, os.path.join(CODE, 'ppMF6')):
     if p not in sys.path:
         sys.path.insert(0, p)
 
+import marmites_daymap as DM          # noqa: E402
 import mm_paths                       # noqa: E402
 from lib import results as R          # noqa: E402
 
@@ -131,12 +137,53 @@ def _grid(items):
                 _caption(sub, fname, text)
 
 
-keys = [k for k, _l in R.TABS if groups.get(k)
+def _day_maps(root):
+    """A day and a flux, drawn from the run's own model outputs while they
+    are still in its workspace -- the next run there overwrites them --
+    then every map of one day drawn for this run, the latest first."""
+    try:
+        info = DM.outputs_of(root)
+    except Exception as exc:                          # noqa: BLE001
+        info = {'why': 'its model outputs could not be read (%s)' % exc}
+    if info.get('why'):
+        st.info('No new map of one day for this run: %s.' % info['why'])
+    else:
+        dates = info['dates']
+        c1, c2, c3 = st.columns([1, 3, 1], vertical_alignment='bottom')
+        # one key per run: another run has other days
+        day = c1.date_input('Day', value=dates[-1], min_value=dates[0],
+                            max_value=dates[-1], key='dm_day_%s' % sel)
+        key = c2.selectbox('Flux', [f[0] for f in DM.FLUXES],
+                           format_func=DM.label, key='dm_flux')
+        if c3.button('Draw', key='dm_draw', type='primary'):
+            with st.spinner('Reading %s for %s (the cell budget takes about '
+                            '20 s the first time)...' % (key, day)):
+                try:
+                    DM.draw(root, day, key, info=info)
+                except Exception as exc:              # noqa: BLE001
+                    st.error('Not drawn: %s' % exc)
+        st.caption('From the model outputs in `%s`, on the linear and the '
+                   'percentile colour ramp; kept in this run\'s '
+                   '`_output/%s`.' % (info['sim_ws'], DM.DAY_DIR))
+    items = DM.drawn(root)
+    if items:
+        _grid([(sub, f, p, R.title(sub, f)) for sub, f, p in items])
+    else:
+        st.caption('No map of one day drawn for this run yet.')
+
+
+# the day maps' tab always, and without a count: a label that changes when a
+# map is drawn would send the page back to the first tab
+keys = [k for k, _l in R.TABS if groups.get(k) or k == 'daymap'
         or (k == 'budget' and os.path.exists(summary) and not needle)]
-tabs = st.tabs(['%s (%d)' % (dict(R.TABS)[k], len(groups.get(k, [])))
+tabs = st.tabs([dict(R.TABS)[k] if k == 'daymap' else
+                '%s (%d)' % (dict(R.TABS)[k], len(groups.get(k, [])))
                 for k in keys])
 for key, tab in zip(keys, tabs):
     with tab:
+        if key == 'daymap':
+            _day_maps(root)
+            continue
         if key == 'budget' and os.path.exists(summary) and not needle:
             st.code(open(summary, encoding='utf-8', errors='replace').read(),
                     language='text')
