@@ -12,6 +12,8 @@ equivalent of ``CdL/code/config.py`` in the MF6models repository.
     EXAMPLE_ROOT holds one folder per case: the Tier-A inputs a run reads
     DATA_ROOT    raw geospatial sources, OUTSIDE the repo (Tier B)
     GIS          the shapefiles, read by the CONVERTER only
+    RS           the remote-sensing downloads (satellite ET, NDVI scenes)
+    SOIL_MOISTURE the satellite soil-moisture products, by default RS's
     WS_ROOT      root of ALL run output, OUTSIDE the repo
     NWT_REF      the legacy MODFLOW-NWT _h5_MM.h5 used by the comparison figures
     MODFLOW_DIR  folder holding the MODFLOW 6 / PEST++ executables
@@ -30,7 +32,8 @@ from pathlib import Path
 __all__ = ['REPO', 'CODE_DIR', 'MIRROR', 'MIRROR_MARK', 'CONFIG_DIR',
            'DATA_ROOT', 'WS_ROOT', 'NWT_REF', 'MODFLOW_DIR', 'GIS',
            'LIBMF6', 'MF6_EXE', 'PESTPP_IES', 'PYTHON_EXE', 'TRIANGLE_EXE',
-           'GRIDGEN_EXE', 'EXAMPLE_ROOT', 'PEST_WS', 'RS', 'SETTINGS',
+           'GRIDGEN_EXE', 'EXAMPLE_ROOT', 'PEST_WS', 'RS', 'SOIL_MOISTURE',
+           'SETTINGS',
            'SETTABLE',
            'dataset_dir', 'resolve_input', 'report_paths', 'LEGACY_ALIASES',
            'read_settings', 'save_settings', 'reload_paths', 'source_of',
@@ -96,6 +99,27 @@ SETTABLE = {
                     'per product and case, e.g. MODIS4LaMata. Read by the '
                     'calibration setup for the ET observations -- never by a '
                     'run. Blank = DATA_ROOT/RS.'),
+    # the satellite soil moisture compared with the model's saturation Se
+    # (ppMF6/marmites_smrs, user 2026-10-30), one sub-folder per product,
+    # named as marmites_smrs.PRODUCTS (a test holds the two together)
+    'soil_moisture': ('MM_SM_WS', '',
+                      "Satellite soil moisture, compared with the model's "
+                      'saturation Se in Results (calibration tab), one '
+                      'sub-folder per product:  \n'
+                      '- `clms_swi_0.1deg`: Copernicus Soil Water Index, '
+                      'global, ~10 km, daily (ASCAT), 2007 on; the root zone '
+                      'by T-value (1 to 100 days), % of saturation. The one '
+                      'for La Mata (2008-2013).  \n'
+                      '- `clms_swi_1km`: the same over Europe at 1 km '
+                      '(Sentinel-1 + ASCAT), 2015 on: the calibration target '
+                      'for Casa de Lobos.  \n'
+                      '- `clms_ssm_1km`: Copernicus Surface Soil Moisture, '
+                      'Europe, 1 km (Sentinel-1), every 1.5-4 days; the top '
+                      '~5 cm, % of saturation.  \n'
+                      "A folder holds the product's files (NetCDF, GeoTIFF) "
+                      "or the Copernicus Browser's Statistical Info exports "
+                      'over the catchment, one CSV per layer (SWI001..SWI100).'
+                      ' Never read by a run. Blank = RS/soil_moisture.'),
     'ws_root':     ('MM_WS_ROOT', r'E:\00code_ws\LaMata_MM-MF6',
                     'Root of ALL run output. Never inside the repository.'),
     'nwt_ref':     ('MM_NWT_REF',
@@ -234,7 +258,7 @@ def reload_paths():
     """Re-resolve every root after the settings changed, without a restart."""
     global _SETTINGS, DATA_ROOT, WS_ROOT, NWT_REF, MODFLOW_DIR, PYTHON_EXE
     global GIS, EXAMPLE_ROOT, LIBMF6, MF6_EXE, TRIANGLE_EXE, PESTPP_IES
-    global GRIDGEN_EXE, PEST_WS, RS
+    global GRIDGEN_EXE, PEST_WS, RS, SOIL_MOISTURE
     _SETTINGS = read_settings()
     PEST_WS = _optional_path('pest_ws')
     DATA_ROOT = Path(_setting('data_root'))
@@ -245,6 +269,7 @@ def reload_paths():
     EXAMPLE_ROOT = Path(_setting('example_root') or str(REPO / 'example'))
     GIS = Path(_setting('gis') or str(DATA_ROOT / 'GIS'))
     RS = Path(_setting('rs') or str(DATA_ROOT / 'RS'))
+    SOIL_MOISTURE = Path(_setting('soil_moisture') or str(RS / 'soil_moisture'))
     LIBMF6 = str(MODFLOW_DIR / 'mf6.7.0_win64' / 'bin' / 'libmf6.dll')
     MF6_EXE = str(MODFLOW_DIR / 'mf6.7.0_win64' / 'bin' / 'mf6.exe')
     TRIANGLE_EXE = _find_tool('TRIANGLE_EXE', MODFLOW_DIR)
@@ -272,6 +297,7 @@ PYTHON_EXE  = _setting('python_exe')
 EXAMPLE_ROOT = Path(_setting('example_root') or str(REPO / 'example'))
 GIS          = Path(_setting('gis') or str(DATA_ROOT / 'GIS'))
 RS           = Path(_setting('rs') or str(DATA_ROOT / 'RS'))
+SOIL_MOISTURE = Path(_setting('soil_moisture') or str(RS / 'soil_moisture'))
 LIBMF6       = str(MODFLOW_DIR / 'mf6.7.0_win64' / 'bin' / 'libmf6.dll')
 MF6_EXE      = str(MODFLOW_DIR / 'mf6.7.0_win64' / 'bin' / 'mf6.exe')
 TRIANGLE_EXE = _find_tool('TRIANGLE_EXE', MODFLOW_DIR)   # see _TOOLS
@@ -345,6 +371,7 @@ def report_paths(case='LaMata', stream=None):
         ('DATA_ROOT',    DATA_ROOT,          False),
         ('GIS',          GIS,                False),
         ('RS',           RS,                 False),
+        ('SOIL_MOISTURE', SOIL_MOISTURE,     False),
         ('WS_ROOT',      WS_ROOT,            False),
         ('NWT_REF',      NWT_REF,            False),
         ('MODFLOW_DIR',  MODFLOW_DIR,        False),

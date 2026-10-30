@@ -87,6 +87,8 @@ def where_things_are():
                 pest_ws_warning(got)
             if key == 'rs' and exists:
                 rs_products(got)
+            if key == 'soil_moisture' and exists:
+                sm_products(got)
             edits[key] = got
 
     c1, c2 = st.columns([1, 3])
@@ -127,6 +129,46 @@ def rs_products(path):
                                                              '.nc', '.h5')))
         rows.append('`%s` (%d file%s)' % (d, n, '' if n == 1 else 's'))
     st.caption('Products: ' + ', '.join(rows))
+
+
+def sm_products(path):
+    """What the soil-moisture folder holds: per product folder its files, or
+    the layers of its Copernicus Browser exports; a folder that is not one of
+    the products (ppMF6/marmites_smrs) is named as such."""
+    import re
+    ppmf6 = os.path.join(CODE, 'ppMF6')
+    if ppmf6 not in sys.path:
+        sys.path.insert(0, ppmf6)
+    try:
+        import marmites_smrs as SMRS
+        known = list(SMRS.PRODUCTS)
+    except Exception:                                    # noqa: BLE001
+        known = []
+    try:
+        subs = sorted(d for d in os.listdir(path)
+                      if os.path.isdir(os.path.join(path, d)))
+    except OSError:
+        return
+    rows = []
+    for d in subs:
+        files = [f for _r, _d, fs in os.walk(os.path.join(path, d)) for f in fs
+                 if f.lower().endswith(('.nc', '.nc4', '.tif', '.tiff',
+                                        '.csv'))]
+        csv = [f for f in files if f.lower().endswith('.csv')]
+        layers = sorted({m.group(1).upper() for m in
+                         (re.search(r'-(SWI_?\d+|SSM)-', f, re.I) for f in csv)
+                         if m})
+        what = ('Browser exports: %s' % (', '.join(layers) or
+                                         '%d CSV' % len(csv)) if csv else
+                '%d file%s' % (len(files), '' if len(files) == 1 else 's'))
+        if known and d not in known:
+            what += ', not a product folder'
+        rows.append('`%s` (%s)' % (d, what))
+    if not rows:
+        st.caption('No product folder yet: one per product, named %s.'
+                   % ', '.join('`%s`' % k for k in known))
+        return
+    st.caption('Products: ' + '; '.join(rows))
 
 
 def pest_ws_warning(path):

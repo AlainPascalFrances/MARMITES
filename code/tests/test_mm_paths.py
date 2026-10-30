@@ -69,6 +69,24 @@ def test_the_remote_sensing_folder_follows_the_data_root(monkeypatch,
     assert 'MODIS' in mp.SETTABLE['rs'][2]
 
 
+def test_the_soil_moisture_folder_follows_the_remote_sensing_one(monkeypatch,
+                                                                 tmp_path):
+    """User, 2026-10-30: asked on Home after RS, its help saying what each
+    product is. Blank = RS/soil_moisture."""
+    mp = _fresh(monkeypatch, settings_path=tmp_path / 'p.toml',
+                MM_DATA_ROOT=str(tmp_path / 'data'))
+    assert mp.SOIL_MOISTURE == tmp_path / 'data' / 'RS' / 'soil_moisture'
+    mp.save_settings({'rs': str(tmp_path / 'sat')})
+    assert mp.SOIL_MOISTURE == tmp_path / 'sat' / 'soil_moisture'
+    mp.save_settings({'soil_moisture': str(tmp_path / 'sm')})
+    assert mp.SOIL_MOISTURE == tmp_path / 'sm'
+    mp = _fresh(monkeypatch, settings_path=tmp_path / 'p.toml',
+                MM_SM_WS=str(tmp_path / 'env'))
+    assert mp.SOIL_MOISTURE == tmp_path / 'env'
+    keys = list(mp.SETTABLE)
+    assert keys.index('soil_moisture') == keys.index('rs') + 1
+
+
 def test_the_defaults_resolve_without_anything_set(monkeypatch, tmp_path):
     mp = _fresh(monkeypatch, settings_path=tmp_path / 'absent.toml')
     assert str(mp.DATA_ROOT)
@@ -155,7 +173,8 @@ def test_the_report_points_at_panel_zero_not_at_a_file_to_edit(monkeypatch,
     assert 'PANEL 0' in out
 
 
-@pytest.mark.parametrize('key', ['example_root', 'data_root', 'gis', 'ws_root'])
+@pytest.mark.parametrize('key', ['example_root', 'data_root', 'gis', 'ws_root',
+                                 'soil_moisture'])
 def test_every_folder_panel_zero_offers_is_documented(monkeypatch, tmp_path,
                                                       key):
     mp = _fresh(monkeypatch, settings_path=tmp_path / 'p.toml')

@@ -1296,6 +1296,35 @@ def test_panel_zero_asks_for_the_remote_sensing_folder():
         assert 'Products:' in said or 'No product folder' in said, said
 
 
+def test_panel_zero_asks_for_the_soil_moisture_folder(tmp_path, monkeypatch):
+    """User, 2026-10-30: after RS, the folder of the satellite soil moisture,
+    its help saying what each product is; the product folders in it listed,
+    with the layers of the Copernicus Browser's exports."""
+    sm = tmp_path / 'sm'
+    (sm / 'clms_swi_0.1deg').mkdir(parents=True)
+    (sm / 'clms_swi_0.1deg' / 'SWI_Global_12_5km_Daily_V3-SWI010-a-b.csv'
+     ).write_text('')
+    (sm / 'other').mkdir()
+    monkeypatch.setenv('MM_SM_WS', str(sm))
+    import mm_paths
+    mm_paths.reload_paths()
+    try:
+        at = AppTest.from_file(os.path.join(APP, 'Home.py'),
+                               default_timeout=180)
+        at.run()
+        assert not at.exception, [str(e.value) for e in at.exception]
+        keys = [w.key for w in at.text_input]
+        assert 'path_soil_moisture' in keys
+        box = [w for w in at.text_input if w.key == 'path_soil_moisture'][0]
+        assert 'clms_swi_1km' in str(box.help)
+        said = ' '.join(str(c.value) for c in at.caption)
+        assert '`clms_swi_0.1deg` (Browser exports: SWI010)' in said, said
+        assert '`other` (0 files, not a product folder)' in said, said
+    finally:
+        monkeypatch.delenv('MM_SM_WS')
+        mm_paths.reload_paths()
+
+
 def test_panel_zero_offers_the_system_dialog_for_each_path():
     """"Select the folder inside the computer": every path has a ... button
     that opens the operating system's own dialog. The in-page folder browser

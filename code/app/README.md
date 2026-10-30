@@ -43,8 +43,9 @@ pages/10_10_-_Results.py      the figures a run wrote, with a run picker; the
                         W against the NDVI of a Landsat / Sentinel-2 scene
                         of the day (marmites_wetimage, marmites_rs); the
                         satellite soil moisture (Copernicus SWI / SSM,
-                        SMOS-BEC) against Se, in the calibration tab
-                        (marmites_smrs)
+                        or the Copernicus Browser's CSV exports
+                        over the catchment, offered as GeoJSON) against Se,
+                        in the calibration tab (marmites_smrs)
 lib/loaders.py          cached readers, keyed on (path, size, mtime)
 lib/runs.py             the run registry: launch, status, log tail; a run
                         records its configuration and end state beside its

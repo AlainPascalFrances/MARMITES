@@ -213,6 +213,8 @@ def outputs_of(out_dir, sim_ws=None):
             res['crs'] = 'EPSG:%d' % int(cfg.grid.crs_epsg)
         if cfg.surface.irrigation and cfg.surface.irr_zones.layer:
             res['irr_layer'] = str(cfg.surface.irr_zones.layer)
+        # the window of the satellite soil-moisture scores (marmites_smrs)
+        res['hydro_year_start'] = int(cfg.postproc.hydro_year_start)
     name = model_name(sim_ws)
     res['name'] = name
     if not name:

@@ -229,21 +229,38 @@ def _wet_ndvi(root, info):
 def _sm_products(root):
     """Satellite soil moisture against the model's saturation Se, catchment
     mean (ppMF6/marmites_smrs; user, 2026-10-29): the products downloaded
-    into DATA_ROOT/RS/soil_moisture, compared on request with the run's own
+    into the SOIL MOISTURE folder of panel 0 (mm_paths.SOIL_MOISTURE, by
+    default RS/soil_moisture), compared on request with the run's own
     outputs while they are still in its workspace. The figures join this
-    tab (the run's _output/sm_products)."""
-    have = SM.available(mm_paths.RS)
+    tab (the run's _output/sm_products). A product's folder may hold the
+    Copernicus Browser's Statistical Info exports instead (2026-10-30): the
+    catchment to draw there is offered as GeoJSON."""
+    have = SM.available(mm_paths.SOIL_MOISTURE)
     with st.expander("Satellite soil moisture against the model's saturation "
                      "Se", expanded=False):
-        if not have:
-            st.caption('No product in `%s` yet (Copernicus SWI 0.1 deg or '
-                       '1 km, Surface Soil Moisture 1 km, SMOS-BEC 1 km).'
-                       % os.path.join(str(mm_paths.RS), 'soil_moisture'))
-            return
         try:
             info = DM.outputs_of(root)
         except Exception as exc:                      # noqa: BLE001
             info = {'why': 'its model outputs could not be read (%s)' % exc}
+        if not info.get('why') and info.get('crs'):
+            try:
+                gj = _catchment_geojson(
+                    info['sim_ws'], info['name'], info['crs'],
+                    max(_key_for(os.path.join(info['sim_ws'], info['name'] + x))
+                        for x in ('.dis', '.disv')))
+                st.download_button(
+                    'The catchment as GeoJSON (WGS84), to upload as the area '
+                    'in the Copernicus Browser', gj, key='sm_aoi',
+                    file_name='%s_catchment_wgs84.geojson' % info['name'],
+                    mime='application/geo+json')
+            except Exception:                         # noqa: BLE001
+                pass
+        if not have:
+            st.caption('No product in `%s` yet (Copernicus SWI 0.1 deg or '
+                       '1 km, Surface Soil Moisture 1 km): the SOIL MOISTURE '
+                       'folder of the Home panel, which says what each is.'
+                       % mm_paths.SOIL_MOISTURE)
+            return
         if info.get('why'):
             st.info('No comparison for this run: %s.' % info['why'])
             return
@@ -256,14 +273,23 @@ def _sm_products(root):
         if c3.button('Compare', key='sm_go', type='primary'):
             with st.spinner('Se against %s...' % SM.PRODUCTS[p]['short']):
                 try:
-                    SM.compare(root, p, SM.folder(mm_paths.RS, p), info=info,
-                               T=int(T))
+                    SM.compare(root, p, SM.folder(mm_paths.SOIL_MOISTURE, p),
+                               info=info, T=int(T))
                     st.rerun()
                 except Exception as exc:              # noqa: BLE001
                     st.error('Not compared: %s' % exc)
         st.caption('An SWI is compared as it is (both % of saturation); a '
                    'surface product is filtered to T days, then both are '
-                   'scaled to their own 2nd-98th percentiles.')
+                   'scaled to their own 2nd-98th percentiles. Scores over '
+                   'the whole hydrological years. A folder holds either the '
+                   "product's files or the Browser's Statistical Info "
+                   'exports, one CSV per layer (SWI001..SWI100).')
+
+
+@st.cache_data(show_spinner=False)
+def _catchment_geojson(sim_ws, name, crs, stamp):
+    # ``stamp``: the grid file's mtime, a new grid there redraws it
+    return SM.catchment_geojson({'sim_ws': sim_ws, 'name': name, 'crs': crs})
 
 
 def _day_maps(root):

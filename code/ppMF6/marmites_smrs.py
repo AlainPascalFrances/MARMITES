@@ -3,7 +3,9 @@
 2026-10-29, branch swi-soil-moisture): a comparison now, a calibration
 target later -- as MODIS ET is (group et_rs).
 
-The products (DATA_ROOT/RS/soil_moisture/<folder>, downloaded by the user):
+The products, one sub-folder each of the SOIL MOISTURE folder of panel 0
+(mm_paths.SOIL_MOISTURE, by default RS/soil_moisture), downloaded by the
+user:
 
     clms_swi_0.1deg  Copernicus Soil Water Index, global, daily, ~10 km,
                      ASCAT, 2007 on; root zone (T-values), % saturation
@@ -11,21 +13,33 @@ The products (DATA_ROOT/RS/soil_moisture/<folder>, downloaded by the user):
                      2015 on: the calibration target for Casa de Lobos
     clms_ssm_1km     Copernicus Surface Soil Moisture, Europe, 1 km,
                      Sentinel-1, every 1.5-4 days; top ~5 cm, % saturation
-    smos_bec_1km     SMOS-BEC L4, 1 km, daily, from June 2010; top ~5 cm,
-                     m3/m3
+
+(SMOS-BEC L4 1 km, tried on 2026-10-30, is left out -- user: "skip
+SMOS-BEC for La Mata and also for the suite": a 9 MB European map per pass
+and day, no subset service reachable here, and La Mata often outside the
+pass.)
+
+A folder holds either the product's files (NetCDF or GeoTIFF) or the
+Copernicus Browser's Statistical Info exports of it (user, 2026-10-30): one
+CSV per layer and period, named by the Browser
+``<dataset>-<layer>-<from>-<to>.csv`` -- SWI001..SWI100 for the T-values --
+each the layer's daily mean over the area drawn there (the catchment), with
+its spread. Exports of one layer over several periods join; on a day two of
+them share they must agree (else they are of different areas).
 
 The model side is the effective saturation of the soil column, Se = (S -
 S_r) / (S_sat - S_r) (marmites_daymap.saturation), averaged over the
 catchment -- each cell by its area -- and over each product pixel, by the
-area the pixel shares with each cell.
+area the pixel shares with each cell. The scores and the figure cover the
+run's whole hydrological years, as the ET scores do.
 
 A Soil Water Index IS a degree of saturation of the root zone -- the
 surface moisture filtered by an exponential of characteristic time T
 (Wagner et al. 1999, the recursive form of Albergel et al. 2008) -- so it
 is compared with 100 Se as it is. A surface product is filtered the same
-way first (T, days) and, when in m3/m3, scaled between its 2nd and 98th
-percentiles, as is the model's series for it: then only the timing and the
-anomalies are compared, not the level.
+way first (T, days), then scaled between its 2nd and 98th percentiles, as
+is the model's series for it: its top few centimetres are not the soil
+column, so only the timing and the anomalies are compared, not the level.
 
 Writes ``<out>/_output/sm_products/smrs_<product>_T<T>.png`` (and .csv,
 .json), listed in the Results calibration tab; Streamlit-free.
@@ -35,14 +49,14 @@ import glob
 import json
 import os
 import re
-from datetime import date
+from datetime import date, timedelta
 
 import numpy as np
 
 import marmites_daymap as DM
 
 __all__ = ['PRODUCTS', 'SUBDIR', 'available', 'read', 'exp_filter',
-           'metrics', 'compare']
+           'metrics', 'hydro_window', 'catchment_geojson', 'compare']
 
 SUBDIR = 'sm_products'                       # under <out>/_output
 FINE = 10.0                                  # m, the overlap of pixels and cells
@@ -64,30 +78,29 @@ PRODUCTS = {
         'label': 'Copernicus Surface Soil Moisture 1 km Europe (Sentinel-1)',
         'short': 'SSM 1 km', 'kind': 'surface', 'unit': '% saturation',
         'depth': 'top ~5 cm', 'crs': 'EPSG:4326', 'tvalues': ()},
-    'smos_bec_1km': {
-        'label': 'SMOS-BEC L4 soil moisture 1 km',
-        'short': 'SMOS-BEC 1 km', 'kind': 'surface', 'unit': 'm3/m3',
-        'depth': 'top ~5 cm', 'crs': 'EPSG:6933', 'tvalues': ()},
 }
 T_DEFAULT = 10                               # days
+VALID_MAX = 100.0              # % of saturation; a value beyond is a flag
 
 
-def folder(rs_root, product):
-    return os.path.join(str(rs_root), 'soil_moisture', product)
+def folder(sm_root, product):
+    """A product's folder in the soil-moisture folder ``sm_root``."""
+    return os.path.join(str(sm_root), product)
 
 
 def _files(d):
     out = []
-    for pat in ('*.nc', '*.nc4', '*.NC', '*.tif', '*.tiff', '*.TIF'):
+    for pat in ('*.nc', '*.nc4', '*.NC', '*.tif', '*.tiff', '*.TIF', '*.csv',
+                '*.CSV'):
         out += glob.glob(os.path.join(str(d), '**', pat), recursive=True)
     return sorted(set(out))
 
 
-def available(rs_root):
+def available(sm_root):
     """The products whose folder holds files: ``{product: n files}``."""
     out = {}
     for p in PRODUCTS:
-        n = len(_files(folder(rs_root, p)))
+        n = len(_files(folder(sm_root, p)))
         if n:
             out[p] = n
     return out
@@ -117,9 +130,7 @@ def _var_key(product, name):
     if kind == 'swi':
         m = re.match(r'^SWI_?0*(\d{1,3})$', n, re.I)
         return int(m.group(1)) if m else None
-    if product == 'clms_ssm_1km':
-        return 's' if re.match(r'^ssm$', n, re.I) else None
-    return 's' if re.match(r'^(sm|soil_moisture|SM_L4|sm_l4)$', n, re.I) else None
+    return 's' if re.match(r'^ssm$', n, re.I) else None
 
 
 def _axes(ds):
@@ -135,11 +146,21 @@ def read(product, d):
     """All the files of ``product`` in ``d``: ``{'x', 'y' (pixel centres,
     the product's CRS), 'times' (dates), 'series' {key: (nt, ny, nx)},
     'crs'}``, NaN where there is no value. A file may hold one day or many;
-    a day without a time coordinate takes the YYYYMMDD of its name."""
+    a day without a time coordinate takes the YYYYMMDD of its name.
+
+    Copernicus Browser exports instead: ``{'aoi': True, 'x': None, 'y':
+    None, 'times', 'series' {key: (nt, 1, 1)} the area's mean, 'spread'
+    {key: (nt, 2)} its 10th and 90th percentiles, 'crs': None}``."""
     import xarray as xr
     files = _files(d)
     if not files:
         raise ValueError('no file in %s' % d)
+    csvs = [f for f in files if f.lower().endswith('.csv')]
+    if csvs:
+        if len(csvs) < len(files):
+            raise ValueError('%s holds both product files and Copernicus '
+                             'Browser exports (CSV): keep one kind' % d)
+        return _read_exports(product, csvs)
     frames = {}                               # date -> {key: (ny, nx)}
     grid = None
     crs = PRODUCTS[product]['crs']
@@ -213,11 +234,7 @@ def _read_nc(product, ds, path):
         sp = [d_ for d_ in dims[1:]]
         if sp == [xn, yn]:
             a = np.swapaxes(a, 1, 2)
-        if product in ('clms_swi_0.1deg', 'clms_swi_1km', 'clms_ssm_1km'):
-            # % of saturation; a value beyond 100 is a flag, not water
-            a = np.where((a >= 0) & (a <= 100), a, np.nan)
-        else:
-            a = np.where((a >= 0) & (a <= 1), a, np.nan)
+        a = np.where((a >= 0) & (a <= VALID_MAX), a, np.nan)
         for i, t in enumerate(tt):
             per.setdefault(t, {})[key] = a[i]
     return x, y, fcrs, per
@@ -245,10 +262,75 @@ def _read_tif(product, path):
             sc = (src.scales or [1.0] * src.count)[b - 1]
             off = (src.offsets or [0.0] * src.count)[b - 1]
             a = a * sc + off
-            lim = 100.0 if product != 'smos_bec_1km' else 1.0
-            per[t][key] = np.where((a >= 0) & (a <= lim), a, np.nan)
+            per[t][key] = np.where((a >= 0) & (a <= VALID_MAX), a, np.nan)
         crs = src.crs.to_string() if src.crs else None
     return x, y, crs, per
+
+
+def _read_export(product, path):
+    """One Statistical Info export of the Copernicus Browser: ``(key,
+    {date: (mean, p10, p90)})``, the key from the layer in the file's name.
+    NaN on a day where more than half the area has no value, or where a
+    flag (a value beyond the product's range) is in the statistics."""
+    import pandas as pd
+    name = os.path.basename(path)
+    key = next((k for k in (_var_key(product, t) for t in
+                            re.split(r'[-.]', name)) if k is not None), None)
+    if key is None:
+        raise ValueError('%s: no %s layer in its name (the Browser names an '
+                         'export <dataset>-<layer>-<from>-<to>.csv)'
+                         % (name, PRODUCTS[product]['short']))
+    df = pd.read_csv(path)
+    dc = next((c for c in df.columns if c.split('/')[-1] == 'date'), None)
+    pre = dc.rsplit('/', 1)[0] + '/' if dc and '/' in dc else ''
+    if dc is None or pre + 'mean' not in df.columns:
+        raise ValueError('%s: not a Statistical Info export (no date and mean '
+                         'columns)' % name)
+
+    def col(s, fill):
+        c = pre + s
+        return (pd.to_numeric(df[c], errors='coerce').to_numpy(float)
+                if c in df.columns else np.full(len(df), fill))
+    mean, lo, hi = col('mean', np.nan), col('min', 0.0), col('max', 0.0)
+    p10, p90 = col('p10', np.nan), col('p90', np.nan)
+    n, nd = col('sampleCount', 1.0), col('noDataCount', 0.0)
+    bad = (lo < 0) | (hi > VALID_MAX) | (2 * nd > n)
+    days = [date.fromisoformat(str(s)[:10]) for s in df[dc]]
+    per = {}
+    for i, t in enumerate(days):
+        v = ((np.nan,) * 3 if bad[i] else (mean[i], p10[i], p90[i]))
+        if t in per and not _same(per[t][0], v[0]):
+            raise ValueError('%s: two rows of %s differ' % (name, t))
+        per[t] = v
+    return key, per
+
+
+def _same(a, b):
+    return (np.isnan(a) and np.isnan(b)) or abs(a - b) <= 1e-6
+
+
+def _read_exports(product, files):
+    """The Browser exports of ``product``, joined layer by layer (see
+    read)."""
+    got = {}                                  # key -> {date: (m, p10, p90)}
+    for f in files:
+        key, per = _read_export(product, f)
+        have = got.setdefault(key, {})
+        for t, v in per.items():
+            if t in have and not _same(have[t][0], v[0]):
+                raise ValueError(
+                    '%s and an export before it differ on %s (%.2f against '
+                    '%.2f): exports of different areas?' % (
+                        os.path.basename(f), t, v[0], have[t][0]))
+            have[t] = v
+    times = sorted({t for per in got.values() for t in per})
+    series, spread = {}, {}
+    for k, per in got.items():
+        a = np.array([per.get(t, (np.nan,) * 3) for t in times], float)
+        series[k] = a[:, 0].reshape(-1, 1, 1)
+        spread[k] = a[:, 1:]
+    return {'aoi': True, 'x': None, 'y': None, 'times': times,
+            'series': series, 'spread': spread, 'crs': None}
 
 
 # ------------------------------------------------------------------ #
@@ -299,6 +381,34 @@ def overlap(g, pix_polys, fine=FINE):
     w = np.zeros((n, g['ncpl']))
     np.add.at(w, (pid[m], cid[m]), fine * fine)
     return w
+
+
+def catchment_geojson(info, g=None, tol=5.0):
+    """The catchment -- the model's active cells -- as GeoJSON in lon/lat
+    (WGS84), its outline simplified to ``tol`` m: the area to upload in the
+    Copernicus Browser, whose Statistical Info then exports the mean over
+    it."""
+    from pyproj import Transformer
+    from shapely.geometry import MultiPolygon, Polygon, mapping
+    from shapely.geometry.polygon import orient
+    from shapely.ops import transform, unary_union
+    if not info.get('crs'):
+        raise ValueError('the run needs its CRS')
+    g = g or DM._grid(info['sim_ws'], info['name'])
+    act = ~g['off'].all(axis=0)
+    # a hair of buffer closes the slivers between neighbouring cells
+    shp = unary_union([Polygon(g['polys'][c][:, :2]) for c in
+                       np.flatnonzero(act)]).buffer(0.5).buffer(-0.5)
+    shp = shp.simplify(tol)
+    tr = Transformer.from_crs(info['crs'], 'EPSG:4326', always_xy=True)
+    ll = transform(lambda x, y, z=None: tuple(np.round(tr.transform(x, y), 6)),
+                   shp)
+    parts = list(ll.geoms) if isinstance(ll, MultiPolygon) else [ll]
+    ll = [orient(p, 1.0) for p in parts]          # RFC 7946: anticlockwise
+    geom = mapping(ll[0] if len(ll) == 1 else MultiPolygon(ll))
+    return json.dumps({'type': 'FeatureCollection', 'features': [
+        {'type': 'Feature', 'properties': {'name': '%s catchment' % info['name']},
+         'geometry': geom}]})
 
 
 def model_se(info, g):
@@ -390,29 +500,61 @@ def _scaled(v):
     return np.clip((v - lo) / max(hi - lo, 1e-9), 0, 1) * 100.0
 
 
+def hydro_window(dates, start_month=10):
+    """The days of the run's whole hydrological years (each from day 1 of
+    ``start_month``), as a mask: the window of the ET scores
+    (marmites_postprocess._et_window); every day when the run holds no
+    whole year."""
+    m = int(start_month)
+    nxt = [d + timedelta(days=1) for d in dates]
+    first = next((i for i, d in enumerate(dates)
+                  if d.month == m and d.day == 1), None)
+    last = next((i for i in range(len(dates) - 1, -1, -1)
+                 if nxt[i].month == m and nxt[i].day == 1), None)
+    out = np.zeros(len(dates), bool)
+    if first is None or last is None or last < first:
+        out[:] = True
+    else:
+        out[first:last + 1] = True
+    return out
+
+
 # ------------------------------------------------------------------ #
 # the comparison
 # ------------------------------------------------------------------ #
 
 def compare(out_dir, product, d, info=None, T=T_DEFAULT):
     """The run's catchment-mean Se against ``product`` read from folder
-    ``d``; returns ``{'png', 'csv', 'json', 'stats'}``. Raises ValueError
-    with the reason when it cannot."""
+    ``d``, over the run's whole hydrological years; returns ``{'png',
+    'csv', 'json', 'stats'}``. Raises ValueError with the reason when it
+    cannot."""
     info = info or DM.outputs_of(out_dir)
     if info.get('why'):
         raise ValueError(info['why'])
-    if not info.get('h5') or not info.get('crs'):
-        raise ValueError('the run needs its coupled results and its CRS')
+    if not info.get('h5'):
+        raise ValueError('the run needs its coupled results')
     P = PRODUCTS[product]
-    g = DM._grid(info['sim_ws'], info['name'])
     prod = read(product, d)
-    pp = _pixel_polys(prod['x'], prod['y'], prod['crs'], info['crs'])
-    W = overlap(g, pp)                                    # (npix, ncpl)
-    wp = W.sum(axis=1)                                    # per pixel, m2
-    keep = wp > 0
-    if not keep.any():
-        raise ValueError('no pixel of %s touches the catchment' % P['short'])
+    aoi = bool(prod.get('aoi'))
+    g = DM._grid(info['sim_ws'], info['name'])
+    if aoi:
+        # the Browser's mean over the area drawn there -- the catchment --
+        # is one pixel that covers it
+        pp, W = [], None
+        wp, keep = np.ones(1), np.ones(1, bool)
+    else:
+        if not info.get('crs'):
+            raise ValueError('the run needs its CRS')
+        pp = _pixel_polys(prod['x'], prod['y'], prod['crs'], info['crs'])
+        W = overlap(g, pp)                                # (npix, ncpl)
+        wp = W.sum(axis=1)                                # per pixel, m2
+        keep = wp > 0
+        if not keep.any():
+            raise ValueError('no pixel of %s touches the catchment'
+                             % P['short'])
     dates = list(info['dates'])
+    hw = hydro_window(dates, info.get('hydro_year_start', 10))
+    wd = [t for t, k in zip(dates, hw) if k]
     se = model_se(info, g)                                # (nper, ncpl)
     area = g['area']
     act = ~g['off'].all(axis=0) & np.isfinite(se).any(axis=0)
@@ -421,10 +563,11 @@ def compare(out_dir, product, d, info=None, T=T_DEFAULT):
     pos = {t: i for i, t in enumerate(prod['times'])}
     ix = [pos.get(t) for t in dates]
     on = np.array([i is not None for i in ix])
-    if not on.any():
-        raise ValueError('%s has no day of this run (%s to %s; the files: %s '
-                         'to %s)' % (P['short'], dates[0], dates[-1],
-                                     prod['times'][0], prod['times'][-1]))
+    if not on[hw].any():
+        raise ValueError('%s has no day in the whole hydrological years of '
+                         'this run (%s to %s; the files: %s to %s)'
+                         % (P['short'], wd[0], wd[-1], prod['times'][0],
+                            prod['times'][-1]))
     flat = {k: v.reshape(len(prod['times']), -1)
             for k, v in prod['series'].items()}
     rows = [i for i in ix if i is not None]
@@ -445,59 +588,74 @@ def compare(out_dir, product, d, info=None, T=T_DEFAULT):
             ym = np.full(len(dates), np.nan)
             ym[on] = flat[k][rows, p]
             if P['kind'] != 'swi':
-                ym = _scaled(exp_filter(dates, ym, T))
-                xm = _scaled(xm)
-            out.append(dict(metrics(dates, xm, ym), pixel=int(p),
+                ym = _scaled(exp_filter(dates, ym, T)[hw])
+                xm = _scaled(xm[hw])
+            else:
+                xm, ym = xm[hw], ym[hw]
+            out.append(dict(metrics(wd, xm, ym), pixel=int(p),
                             share=float(wp[p] / wp[keep].sum())))
         return out
     stats = {'product': product, 'label': P['label'], 'unit': P['unit'],
              'depth': P['depth'], 'run': os.path.basename(os.path.abspath(out_dir)),
-             'pixels': int(keep.sum()),
-             'pixel_shares': [float(s) for s in wp[keep] / wp[keep].sum()],
-             'days_with_product': int(on.sum())}
+             'window': [str(wd[0]), str(wd[-1])],
+             'days_with_product': int(on[hw].sum())}
+    if aoi:
+        stats.update(source='Copernicus Browser export: the mean over the '
+                     'area drawn there', pixels=None)
+    else:
+        stats.update(source='product files', pixels=int(keep.sum()),
+                     pixel_shares=[float(s) for s in wp[keep] / wp[keep].sum()])
     x = 100.0 * se_c
+    band = None
     if P['kind'] == 'swi':
         ts = sorted(k for k in flat if isinstance(k, int))
         if not ts:
             raise ValueError('no SWI T-value in the files')
-        by_t = {t: metrics(dates, x, catch(t)) for t in ts}
+        by_t = {t: metrics(wd, x[hw], catch(t)[hw]) for t in ts}
         T = T if T in ts else min(ts, key=lambda t: abs(t - T))
         y = catch(T)
         stats.update(T=T, by_T={str(t): m for t, m in by_t.items()},
                      comparison='100 Se against the SWI (both % of saturation)')
-        xs, ys = x, y
+        xs, ys = x[hw], y[hw]
+        if aoi:
+            band = np.full((len(dates), 2), np.nan)
+            band[on] = prod['spread'][T][rows]
+            band = band[hw]
     else:
         if 's' not in flat:
             raise ValueError('no surface soil moisture variable in the files')
-        raw = catch('s')
-        y = exp_filter(dates, raw, T)
+        y = exp_filter(dates, catch('s'), T)
         stats.update(T=T, comparison=(
             'the surface moisture filtered to T = %d days, then the model and '
             'the product each scaled between their 2nd and 98th percentiles'
             % T))
-        xs, ys = _scaled(x), _scaled(y)
-    stats['fit'] = metrics(dates, xs, ys)
+        xs, ys = _scaled(x[hw]), _scaled(y[hw])
+    stats['fit'] = metrics(wd, xs, ys)
     if keep.sum() > 1:
         stats['per_pixel'] = per_pixel(T if P['kind'] == 'swi' else 's')
     dest = os.path.join(out_dir, '_output', SUBDIR)
     os.makedirs(dest, exist_ok=True)
     stem = 'smrs_%s_T%d' % (product, T)
     import pandas as pd
-    df = pd.DataFrame({'date': dates, 'model_se_pct': x, 'product': y,
+    df = pd.DataFrame({'date': wd, 'model_se_pct': x[hw], 'product': y[hw],
                        'model_compared': xs, 'product_compared': ys})
+    if band is not None:
+        df['product_p10'], df['product_p90'] = band[:, 0], band[:, 1]
     csv = os.path.join(dest, stem + '.csv')
     df.to_csv(csv, index=False, float_format='%.4f')
     png = os.path.join(dest, stem + '.png')
-    _figure(png, g, pp, keep, wp, dates, xs, ys, stats, P)
+    _figure(png, g, pp, keep, wp, wd, xs, ys, stats, P, band)
     js = os.path.join(dest, stem + '.json')
     with open(js, 'w', encoding='utf-8') as fh:
         json.dump(stats, fh, indent=1)
     return {'png': png, 'csv': csv, 'json': js, 'stats': stats}
 
 
-def _figure(png, g, pp, keep, wp, dates, xs, ys, st, P):
-    """Four panels: the pixels over the catchment; the two series; one
-    against the other; the scores by T-value (an SWI) or by month."""
+def _figure(png, g, pp, keep, wp, dates, xs, ys, st, P, band=None):
+    """Four panels: the pixels over the catchment (or, for a Browser
+    export, the catchment the area drawn there stands for); the two series,
+    the product's spread over the area as a band; one against the other;
+    the scores by T-value (an SWI) or by month."""
     import matplotlib
     matplotlib.use('agg')
     import matplotlib.pyplot as plt
@@ -506,27 +664,39 @@ def _figure(png, g, pp, keep, wp, dates, xs, ys, st, P):
     fig = plt.figure(figsize=(17, 10))
     gs = fig.add_gridspec(2, 3, width_ratios=[1.1, 2.2, 1.1])
     a = fig.add_subplot(gs[:, 0])
-    a.add_collection(PolyCollection([g['polys'][c][:, :2] for c in
-                                     np.flatnonzero(act)], facecolors='#dddddd',
+    cells = [g['polys'][c][:, :2] for c in np.flatnonzero(act)]
+    a.add_collection(PolyCollection(cells, facecolors='#dddddd',
                                     edgecolors='none'))
-    sh = wp / max(wp.sum(), 1)
-    for i, p in enumerate(pp):
-        if keep[i]:
-            a.plot(p[:, 0], p[:, 1], color=_SAT, lw=1.2)
-            c = p.mean(axis=0)
-            a.text(c[0], c[1], '%.0f %%' % (100 * sh[i]), color=_SAT,
-                   ha='center', va='center', fontsize=9)
-    xy = np.concatenate([pp[i] for i in np.flatnonzero(keep)])
+    if pp:
+        sh = wp / max(wp.sum(), 1)
+        for i, p in enumerate(pp):
+            if keep[i]:
+                a.plot(p[:, 0], p[:, 1], color=_SAT, lw=1.2)
+                c = p.mean(axis=0)
+                a.text(c[0], c[1], '%.0f %%' % (100 * sh[i]), color=_SAT,
+                       ha='center', va='center', fontsize=9)
+        xy = np.concatenate([pp[i] for i in np.flatnonzero(keep)])
+        a.set_title('%d pixel(s) over the catchment\n(their share of it)'
+                    % st['pixels'], fontsize=10, color=_INK)
+    else:
+        xy = np.concatenate(cells)
+        a.set_title('The mean over the area drawn\nin the Copernicus Browser',
+                    fontsize=10, color=_INK)
+        a.text(0.5, 0.02, 'Statistical Info export: its outline\nis not in '
+               'the file -- draw the catchment', transform=a.transAxes,
+               ha='center', va='bottom', fontsize=8, color=_MUTED)
     a.set_xlim(xy[:, 0].min(), xy[:, 0].max())
     a.set_ylim(xy[:, 1].min(), xy[:, 1].max())
     a.set_aspect('equal', adjustable='box')
     a.tick_params(labelsize=7, colors=_MUTED)
     a.ticklabel_format(useOffset=False, style='plain')
-    a.set_title('%d pixel(s) over the catchment\n(their share of it)'
-                % st['pixels'], fontsize=10, color=_INK)
     unit = ('% of saturation' if P['kind'] == 'swi'
             else 'scaled 2nd-98th percentile, %')
     a = fig.add_subplot(gs[0, 1])
+    if band is not None:
+        a.fill_between(dates, band[:, 0], band[:, 1], color=_SAT, alpha=0.18,
+                       lw=0, label='%s, 10th-90th percentile over the area'
+                       % P['short'])
     a.plot(dates, xs, color=_MODEL, lw=1.2, label='model: 100 Se, catchment mean')
     a.plot(dates, ys, color=_SAT, lw=1.0, label='%s%s' % (
         P['short'], ', T = %d d' % st['T'] if P['kind'] == 'swi'
@@ -536,10 +706,12 @@ def _figure(png, g, pp, keep, wp, dates, xs, ys, st, P):
     a.grid(alpha=0.3)
     a.tick_params(labelsize=8)
     f = st['fit']
-    a.set_title('r %.2f, anomalies r %s, bias %+.1f, ubRMSE %.1f (%d days)'
-                % (f.get('r', np.nan), '%.2f' % f['r_anom'] if f.get('r_anom')
-                   is not None else '-', f.get('bias', np.nan),
-                   f.get('ubrmse', np.nan), f.get('n', 0)),
+    a.set_title('%s to %s: r %.2f, anomalies r %s, bias %+.1f, ubRMSE %.1f '
+                '(%d days)' % (st['window'][0], st['window'][1],
+                               f.get('r', np.nan), '%.2f' % f['r_anom']
+                               if f.get('r_anom') is not None else '-',
+                               f.get('bias', np.nan), f.get('ubrmse', np.nan),
+                               f.get('n', 0)),
                 fontsize=10, color=_INK)
     a = fig.add_subplot(gs[1, 1])
     m = np.isfinite(xs) & np.isfinite(ys)

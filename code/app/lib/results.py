@@ -137,7 +137,6 @@ _SMRS = {
     'clms_swi_0.1deg': 'the Copernicus Soil Water Index 0.1 deg',
     'clms_swi_1km': 'the Copernicus Soil Water Index 1 km',
     'clms_ssm_1km': 'the Copernicus Surface Soil Moisture 1 km',
-    'smos_bec_1km': 'SMOS-BEC 1 km',
 }
 _CRIT = {'RMSE': 'root mean square error', 'RSR': 'RMSE-to-SD ratio',
          'NSE': 'Nash-Sutcliffe efficiency', 'r': 'correlation'}
