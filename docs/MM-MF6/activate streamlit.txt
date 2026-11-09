@@ -1,7 +1,10 @@
+#SERVER
+conda activate C:\Users\su-alain.frances\AppData\Local\miniconda3\envs\mf6models
+cd /d C:\00code\MM-MF6_SFR_LAK_CRR
+python X:\3p1p1\MARMITES\code\tools\launch_app.py --mirror-dir C:\00code\MARMITES_app
+
+#PC
 conda activate C:\miniconda3\envs\flopy
-
-
-
 cd /d E:\00code\MM-MF6_SFR_LAK_CRR
 streamlit run code/app/Home.py
 
@@ -14,3 +17,8 @@ Ctrl C x2s
 
 
 conda install -p C:\miniconda3\envs\flopy -c conda-forge plotly
+
+
+conda install -p C:\Users\su-alain.frances\AppData\Local\miniconda3\envs\mf6models  -c conda-forge plotly
+conda install -p C:\Users\su-alain.frances\AppData\Local\miniconda3\envs\mf6models  -c conda-forge streamlite
+

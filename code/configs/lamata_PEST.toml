@@ -1,0 +1,818 @@
+# MARMITES resolved run configuration
+# config_hash = 265c102f24609465
+
+[meta]
+config_version = 1
+model = "lamata"
+name = "new_base_run_ponds_PEST_results_newoutlet"
+description = "La Mata, 2 layers, DRN seepage, from the saved spin-up state"
+
+[paths]
+case = "LaMata"
+ws = ""
+gis_ws = ""
+nwt_reference = ""
+libmf6 = "auto"
+
+[run]
+surface = false
+model = true
+plot = true
+nsp = 0
+daily = true
+perlen_max = 10
+ats = true
+ats_dtmin = 0.0002
+stall_iterations = 700
+stall_periods = 3
+max_period_iterations = 0
+build_only = false
+standalone = ""
+probe = false
+max_discrepancy = 1.0
+allow_bad_budget = false
+
+[grid]
+boundary = "lm_lim.shp"
+streams = "hydrography.shp"
+ponds = "lm_ponds.shp"
+dem = "lm_demfill"
+crs_epsg = 23029
+cell_size = 50.0
+buffer = 25.0
+kind = "voronoi"
+resample = "auto"
+
+[grid.override]
+enable = false
+xllcorner = 739300.0
+yllcorner = 4553050.0
+nrow = 65
+ncol = 60
+
+[grid.voronoi]
+cell_far = 50.0
+cell_near_stream = 20.0
+stream_buffer = 60.0
+stream_refine = true
+grade_ratio = 2.0
+trans_levels = [20.0, 60.0]
+refine_ponds = true
+cell_pond = 40.0
+
+[grid.quadtree]
+refine_level = 2
+refine_streams = true
+refine_ponds = false
+pond_level = 0
+
+[surface]
+meteo_ts = "__meteoTB.txt"
+irrigation = true
+irr_ts = "__IRR_TS.txt"
+crop_schedule = "__inputFIELD%d_crop_schedule.txt"
+nfield = 1
+out_prefix = "lamata"
+plot = 0
+
+[surface.meteo_zones]
+how = "auto"
+value = 1.0
+fill = 0.0
+
+[surface.irr_zones]
+layer = "Irr_Fields.shp"
+column = "field_id"
+how = "majority"
+fill = 0.0
+
+[[surface.station]]
+name = "Sardon"
+x = 739508.0
+y = 4555882.0
+z = 798.422
+tz_lon = 0.0
+fuse_shift = 1.0
+data_shift = 3.0
+z_wind = 6.0
+z_hum = 6.0
+
+[[surface.vegetation]]
+name = "grassMU"
+h_dry = 0.01
+h_wet = 0.5
+canopy_mm = 0.15
+c_leaf = 0.01
+lai_dry = 0.0
+lai_wet = 2.88
+shelter_dry = 0.5
+shelter_wet = 0.55
+albedo_dry = 0.5
+albedo_wet = 0.2
+j_dry = 150
+j_wet = 300
+trans_dry_wet = 20
+trans_wet_dry = 30
+root_depth = 0.4
+ktg_min = 0.05
+ktg_max = 0.1
+kt_f = 0.5
+kt_s = 1.0
+
+[[surface.vegetation]]
+name = "Qilex"
+h_dry = 6.0
+h_wet = 6.0
+canopy_mm = 1.16
+c_leaf = 0.004
+lai_dry = 6.0
+lai_wet = 6.0
+shelter_dry = 0.75
+shelter_wet = 0.7
+albedo_dry = 0.25
+albedo_wet = 0.1
+j_dry = 150
+j_wet = 290
+trans_dry_wet = 20
+trans_wet_dry = 50
+root_depth = 15.0
+ktg_min = 0.044694325
+ktg_max = 0.865399396
+kt_f = 0.10177166815831
+kt_s = 0.04549277590845763
+
+[[surface.vegetation]]
+name = "Qpyr"
+h_dry = 8.0
+h_wet = 8.0
+canopy_mm = 1.75
+c_leaf = 0.004
+lai_dry = 6.0
+lai_wet = 1.0
+shelter_dry = 0.8
+shelter_wet = 0.3
+albedo_dry = 0.25
+albedo_wet = 0.15
+j_dry = 150
+j_wet = 290
+trans_dry_wet = 20
+trans_wet_dry = 30
+root_depth = 10.0
+ktg_min = 0.044694325
+ktg_max = 0.865399396
+kt_f = 0.10177166815831
+kt_s = 0.04549277590845763
+
+[[surface.crop]]
+name = "alfalfa"
+h = 0.7
+canopy_mm = 0.15
+c_leaf = 0.01
+lai = 3.5
+shelter = 0.55
+albedo = 0.15
+root_depth = 1.2
+ktg_min = 0.05
+ktg_max = 0.1
+kt_f = 0.5
+kt_s = 1.0
+
+[[surface.soil]]
+name = "alluvium"
+porosity = 0.4
+field_capacity = 0.25
+albedo_dry = 0.2
+albedo_wet = 0.15
+j_dry = 150
+j_wet = 270
+trans_dry_wet = 20
+trans_wet_dry = 20
+
+[[surface.soil]]
+name = "regolith"
+porosity = 0.35
+field_capacity = 0.15
+albedo_dry = 0.25
+albedo_wet = 0.2
+j_dry = 150
+j_wet = 270
+trans_dry_wet = 20
+trans_wet_dry = 20
+
+[[surface.soil]]
+name = "outcrop"
+porosity = 0.05
+field_capacity = 0.02
+albedo_dry = 0.3
+albedo_wet = 0.2
+j_dry = 130
+j_wet = 270
+trans_dry_wet = 20
+trans_wet_dry = 20
+
+[soil]
+veg_layer = "lm_veg.shp"
+veg_column = "Species"
+irr_infiltration = "column"
+
+[soil.zones]
+layer = "Soil_type.shp"
+column = "SoilCode"
+how = "majority"
+fill = 0.0
+
+[soil.thickness]
+how = "area_mean"
+raster = "inputSOILthick.asc"
+fill = 0.0
+
+[[soil.zone]]
+name = "SOIL1 - alluvium"
+type = "sandy loam field"
+
+[[soil.zone]]
+name = "SOIL2 - regolith"
+type = "sandy loam field"
+
+[[soil.zone]]
+name = "SOIL3 - outcrop"
+type = "sand"
+
+[[soil.horizon]]
+zone = 1
+slprop = 0.75
+smax = 0.15
+sfc = 0.1100000025
+sr = 0.075
+si = 0.145
+ks = 0.521576
+
+[[soil.horizon]]
+zone = 1
+slprop = 0.25
+smax = 0.19
+sfc = 0.169769485
+sr = 0.1
+si = 0.185
+ks = 3.144357
+
+[[soil.horizon]]
+zone = 2
+slprop = 0.55
+smax = 0.22
+sfc = 0.150628015
+sr = 0.07
+si = 0.215
+ks = 8.368107
+
+[[soil.horizon]]
+zone = 2
+slprop = 0.45
+smax = 0.35
+sfc = 0.1794187025
+sr = 0.125
+si = 0.25
+ks = 9.846421
+
+[[soil.horizon]]
+zone = 3
+slprop = 1.0
+smax = 0.05
+sfc = 0.024026856
+sr = 0.01
+si = 0.02
+ks = 8.123161
+
+[[soil.veg_class]]
+code = "g"
+veg = 1
+cover_raster = "inputVEG1area.asc"
+
+[[soil.veg_class]]
+code = "i"
+veg = 2
+cover_raster = ""
+
+[[soil.veg_class]]
+code = "p"
+veg = 3
+cover_raster = ""
+
+[obs]
+table = "inputObs.txt"
+layer = "202109MonitPts.shp"
+name_column = "Name"
+heads_prefix = "inputObsHEADS"
+sm_prefix = "inputObsSM"
+aet_prefix = "inputObsAET"
+ro_prefix = "inputObsRo"
+
+[layers]
+nlay = 2
+hnoflo = 9999.999
+k33_as_ratio = true
+convertible = true
+
+[layers.ibound]
+how = "auto"
+raster = "MF_ws/ibound_l%d.asc"
+fill = 0.0
+
+[layers.thickness]
+how = "auto"
+raster = "MF_ws/thick_l%d.asc"
+fill = 0.0
+
+[layers.k]
+how = "auto"
+raster = "MF_ws/hk_l%d.asc"
+fill = 0.0
+
+[layers.k33]
+how = "auto"
+value = [1.610725, 4.365019]
+fill = 0.0
+
+[layers.ss]
+how = "auto"
+raster = "MF_ws/Ss_l%d.asc"
+value = "0.0"
+fill = 0.0
+
+[layers.sy]
+how = "auto"
+raster = "MF_ws/Sy_l%d.asc"
+value = "0.0"
+fill = 0.0
+
+[layers.sr]
+how = "auto"
+raster = "MF_ws/Sr_l%d.asc"
+value = [0.275, 0.04]
+fill = 0.0
+
+[layers.strt]
+how = "auto"
+fill = 0.0
+
+[ghb]
+enable = false
+layers = [1, 2]
+line = ""
+cond_per = "length"
+
+[ghb.head]
+how = "auto"
+raster = "MF_ws/ghb_head_l%d.asc"
+fill = 0.0
+
+[ghb.cond]
+how = "auto"
+raster = "MF_ws/ghb_cond_l%d.asc"
+fill = 0.0
+
+[drn]
+enable = true
+layers = [1, 2]
+line = "lm_outlet_drn.shp"
+cond_per = "length"
+at_layer_base = true
+
+[drn.elevation]
+how = "auto"
+raster = "MF_ws/drn_elev_l%d.asc"
+fill = 0.0
+
+[drn.cond]
+how = "auto"
+value = 0.0001
+fill = 0.0
+
+[uzf]
+ntrailwaves = 15
+nwavesets = 500
+surfdep = 0.25
+thti_from = "thtr"
+thti_fill = 0.0
+vks_scale = 4.474571
+max_front_saturation = 0.92
+
+[uzf.eps]
+how = "auto"
+value = 4.132202
+fill = 0.0
+
+[seep]
+kind = "drn"
+cond = 100.0
+ddrn = 0.125
+base = 0.0
+cond_from = "value"
+
+[et]
+unsat_form = "etwc"
+evt_nseg = 8
+evt_ramp = 0.1
+extdp_from = "vegetation"
+extwc_source = "thtr"
+
+[et.extdp]
+how = "auto"
+value = 2.0
+fill = 0.0
+
+[sfr]
+enable = true
+source = "inputSTREAM.csv"
+min_slope = 0.0001
+monotonic_bed = true
+evap_inflow_fraction = 0.0
+
+[sfr.width]
+drainage = {w_min = 1.5, w_max = 3.0, power = 2.0}
+
+[sfr.depth]
+value = 0.5
+
+[sfr.manning]
+value = 0.035
+
+[sfr.rhk]
+value = 0.0452204
+
+[sfr.rbth]
+value = 0.2
+
+[lak]
+enable = true
+source = "inputPONDS.csv"
+polygons = "lm_ponds.shp"
+depth = 1.5
+geometry = "inputPONDS.geojson"
+bedleak = 0.0004323099
+surfdep = 0.05
+maxiter = 200
+stagechg = 0.0001
+
+[crr]
+enable = true
+beta = 0.9537483
+sinks = "evaporate"
+dem = "inputDEM.asc"
+
+[spinup]
+cycles = 1
+tol = 0.05
+strt_heads = "hi_voronoi_lamata_k33"
+steady_means = ""
+save_strt = "hi_voronoi_lamata_k33_PEST"
+save_means = ""
+strt_dem = []
+steady_recharge = 0.0002
+
+[postproc]
+sankey_min_flux = 0.05
+sankey_full = true
+sankey_obs_years = false
+map_days = 6
+hydro_year_start = 10
+wb_unit = "year"
+obs_series = true
+sankey = true
+input_maps = true
+result_maps = true
+tick_trimester_years = 10
+tick_semester_years = 20
+
+[solver]
+complexity = "complex"
+outer_dvclose = 0.001
+outer_maximum = 100
+inner_dvclose = 0.0001
+inner_rclose = 0.01
+cell_averaging = "amt-hmk"
+
+[pest]
+multipliers = "X:\\3p1p1\\MF6models\\LaMata\\PEST\\results\\202610251705_it3_base\\mm_mult"
+base_run = "20261025082023_new_base_run"
+base_state = "hi_voronoi_lamata_evt_drn1"
+calib_start = "2008-10-01"
+pp_space = 400.0
+vario_range = 1500.0
+k_order_decades = 1.0
+soft_fraction = 0.25
+points_on = "C4, C5, W1"
+q_dry = 0.005
+q_eps = 0.01
+nreal = 100
+noptmax = 3
+lambda_mults = "0.1, 1.0, 10.0"
+bad_phi_sigma = 2.5
+overdue_giveup_fac = 2.5
+agents = 20
+start = "prior"
+start_from = ""
+
+[[pest.par]]
+family = "k"
+layer = 1
+enable = true
+start = 0.05
+lower = 2.3e-05
+upper = 1.1199999999999999
+log = true
+
+[[pest.par]]
+family = "k"
+layer = 2
+enable = true
+start = 0.5
+lower = 0.00023
+upper = 11.2
+log = true
+
+[[pest.par]]
+family = "sy"
+layer = 1
+enable = true
+start = 0.025
+lower = 0.01
+upper = 0.05
+log = true
+
+[[pest.par]]
+family = "sy"
+layer = 2
+enable = true
+start = 0.01
+lower = 0.005
+upper = 0.02
+log = true
+
+[[pest.par]]
+family = "ss"
+layer = 1
+enable = true
+start = 1.0
+lower = 0.1
+upper = 10.0
+log = true
+
+[[pest.par]]
+family = "ss"
+layer = 2
+enable = true
+start = 1.0
+lower = 0.1
+upper = 10.0
+log = true
+
+[[pest.par]]
+family = "sr"
+layer = 1
+enable = false
+start = 0.275
+lower = 0.045
+upper = 0.3
+log = true
+
+[[pest.par]]
+family = "sr"
+layer = 2
+enable = false
+start = 0.04
+lower = 0.009
+upper = 0.09
+log = true
+
+[[pest.par]]
+family = "drn"
+layer = 1
+enable = true
+start = 1.0
+lower = 0.001
+upper = 100.0
+log = true
+
+[[pest.par]]
+family = "drn"
+layer = 2
+enable = true
+start = 1.0
+lower = 0.001
+upper = 100.0
+log = true
+
+[[pest.par]]
+family = "k33"
+layer = 1
+enable = true
+start = 2.0
+lower = 1.0
+upper = 3.0
+log = true
+
+[[pest.par]]
+family = "k33"
+layer = 2
+enable = true
+start = 10.0
+lower = 2.0
+upper = 30.0
+log = true
+
+[[pest.par]]
+family = "sfc"
+layer = 1
+enable = true
+start = 0.11
+lower = 0.11
+upper = 0.14
+log = false
+
+[[pest.par]]
+family = "sfc"
+layer = 2
+enable = true
+start = 0.175
+lower = 0.15699999999999997
+upper = 0.1891
+log = false
+
+[[pest.par]]
+family = "sfc"
+layer = 3
+enable = true
+start = 0.15
+lower = 0.12
+upper = 0.18
+log = false
+
+[[pest.par]]
+family = "sfc"
+layer = 4
+enable = true
+start = 0.2
+lower = 0.15500000000000003
+upper = 0.245
+log = false
+
+[[pest.par]]
+family = "sfc"
+layer = 5
+enable = true
+start = 0.02
+lower = 0.012
+upper = 0.028000000000000004
+log = false
+
+[[pest.par]]
+family = "ks"
+layer = 1
+enable = true
+start = 1.5
+lower = 0.15000000000000002
+upper = 15.0
+log = true
+
+[[pest.par]]
+family = "ks"
+layer = 2
+enable = true
+start = 1.5
+lower = 0.15000000000000002
+upper = 15.0
+log = true
+
+[[pest.par]]
+family = "ks"
+layer = 3
+enable = true
+start = 5.0
+lower = 0.5
+upper = 50.0
+log = true
+
+[[pest.par]]
+family = "ks"
+layer = 4
+enable = true
+start = 3.0
+lower = 0.30000000000000004
+upper = 30.0
+log = true
+
+[[pest.par]]
+family = "ks"
+layer = 5
+enable = true
+start = 5.0
+lower = 0.5
+upper = 50.0
+log = true
+
+[[pest.par]]
+family = "sfr_rhk"
+layer = 0
+enable = true
+start = 0.1
+lower = 0.0001
+upper = 100.0
+log = true
+
+[[pest.par]]
+family = "lak_bedleak"
+layer = 0
+enable = true
+start = 0.001
+lower = 0.0001
+upper = 100.0
+log = true
+
+[[pest.par]]
+family = "uzf_eps"
+layer = 0
+enable = true
+start = 4.5
+lower = 3.5
+upper = 8.0
+log = false
+
+[[pest.par]]
+family = "uzf_vks"
+layer = 0
+enable = true
+start = 1.0
+lower = 0.2
+upper = 20.0
+log = true
+
+[[pest.par]]
+family = "crr_beta"
+layer = 0
+enable = true
+start = 0.95
+lower = 0.8
+upper = 1.0
+log = false
+
+[[pest.group]]
+name = "hds_p0"
+share = 0.35
+noise = 0.1
+noise_rel = 0.0
+
+[[pest.group]]
+name = "hds_c"
+share = 0.0
+noise = 0.4
+noise_rel = 0.0
+
+[[pest.group]]
+name = "sm_p0"
+share = 0.175
+noise = 0.01
+noise_rel = 0.0
+
+[[pest.group]]
+name = "sm_sm"
+share = 0.175
+noise = 0.01
+noise_rel = 0.0
+
+[[pest.group]]
+name = "q_log"
+share = 0.1
+noise = 0.1
+noise_rel = 0.0
+
+[[pest.group]]
+name = "q_dry"
+share = 0.05
+noise = 0.01
+noise_rel = 0.0
+
+[[pest.group]]
+name = "q_year"
+share = 0.05
+noise = 1.0
+noise_rel = 0.1
+
+[[pest.group]]
+name = "et_rs"
+share = 0.1
+noise = 1.0
+noise_rel = 0.2
+
+[[pest.group]]
+name = "et_pt"
+share = 0.0
+noise = 0.1
+noise_rel = 0.2
+
+[ui]
+execution = "local"
+runs_dir = ""
+port = 8501
+address = "localhost"
+poll_secs = 3

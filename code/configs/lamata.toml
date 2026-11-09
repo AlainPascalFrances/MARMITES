@@ -1,10 +1,10 @@
 # MARMITES resolved run configuration
-# config_hash = 4b81f0bdcf15a17e
+# config_hash = cc9760c3c9e6cad7
 
 [meta]
 config_version = 1
 model = "lamata"
-name = "2lay_drn_spinup"
+name = "new_base_run_ponds"
 description = "La Mata, 2 layers, DRN seepage, from the saved spin-up state"
 
 [paths]
@@ -18,13 +18,14 @@ libmf6 = "auto"
 surface = false
 model = true
 plot = true
-mode = "lagged"
-relax = 0.6
-nsp = 365
+nsp = 0
 daily = true
 perlen_max = 10
 ats = true
 ats_dtmin = 0.0002
+stall_iterations = 700
+stall_periods = 3
+max_period_iterations = 0
 build_only = false
 standalone = ""
 probe = false
@@ -285,14 +286,17 @@ ks = 5.0
 [[soil.veg_class]]
 code = "g"
 veg = 1
+cover_raster = "inputVEG1area.asc"
 
 [[soil.veg_class]]
 code = "i"
 veg = 2
+cover_raster = ""
 
 [[soil.veg_class]]
 code = "p"
 veg = 3
+cover_raster = ""
 
 [obs]
 table = "inputObs.txt"
@@ -300,7 +304,7 @@ layer = "202109MonitPts.shp"
 name_column = "Name"
 heads_prefix = "inputObsHEADS"
 sm_prefix = "inputObsSM"
-aet_prefix = ""
+aet_prefix = "inputObsAET"
 ro_prefix = "inputObsRo"
 
 [layers]
@@ -326,17 +330,29 @@ fill = 0.0
 
 [layers.k33]
 how = "auto"
-value = 2.0
+value = [2.0, 10.0]
 fill = 0.0
 
 [layers.ss]
 how = "auto"
 raster = "MF_ws/Ss_l%d.asc"
+value = "0.0"
 fill = 0.0
 
 [layers.sy]
 how = "auto"
 raster = "MF_ws/Sy_l%d.asc"
+value = "0.0"
+fill = 0.0
+
+[layers.sr]
+how = "auto"
+raster = "MF_ws/Sr_l%d.asc"
+value = [0.275, 0.04]
+fill = 0.0
+
+[layers.strt]
+how = "auto"
 fill = 0.0
 
 [ghb]
@@ -369,39 +385,21 @@ fill = 0.0
 
 [drn.cond]
 how = "auto"
-value = 0.00084
+value = 0.0001
 fill = 0.0
 
 [uzf]
 ntrailwaves = 15
 nwavesets = 500
 surfdep = 0.25
-thtr_from = "sy"
-vks_from = "layer"
+thti_from = "thtr"
+thti_fill = 0.0
 vks_scale = 1.0
+max_front_saturation = 0.92
 
 [uzf.eps]
 how = "auto"
 value = 3.5
-fill = 0.0
-
-[uzf.thtr]
-how = "auto"
-value = 0.05
-fill = 0.0
-
-[uzf.thts]
-how = "auto"
-value = 0.45
-fill = 0.0
-
-[uzf.thti]
-how = "auto"
-value = 0.15
-fill = 0.0
-
-[uzf.vks]
-how = "auto"
 fill = 0.0
 
 [seep]
@@ -413,7 +411,6 @@ cond_from = "value"
 
 [et]
 unsat_form = "etwc"
-gw_route = "evt"
 evt_nseg = 8
 evt_ramp = 0.1
 extdp_from = "vegetation"
@@ -429,6 +426,7 @@ enable = true
 source = "inputSTREAM.csv"
 min_slope = 0.0001
 monotonic_bed = true
+evap_inflow_fraction = 0.0
 
 [sfr.width]
 drainage = {w_min = 1.5, w_max = 3.0, power = 2.0}
@@ -463,17 +461,16 @@ sinks = "evaporate"
 dem = "inputDEM.asc"
 
 [spinup]
-cycles = 6
+cycles = 1
 tol = 0.05
-strt_heads = "hi_voronoi_lamata_rbth02"
+strt_heads = "hi_voronoi_lamata_evt_drn1"
 steady_means = ""
-save_strt = "hi_voronoi_lamata_evt"
-save_means = "hi_voronoi_lamata_evt"
+save_strt = "hi_voronoi_lamata_k33"
+save_means = "hi_voronoi_lamata_k33"
 strt_dem = []
+steady_recharge = 0.0002
 
 [postproc]
-enable = true
-only = false
 sankey_min_flux = 0.05
 sankey_full = true
 sankey_obs_years = false
@@ -489,15 +486,329 @@ tick_semester_years = 20
 
 [solver]
 complexity = "complex"
-outer_dvclose = 0.025
+outer_dvclose = 0.001
 outer_maximum = 100
-inner_dvclose = 0.001
+inner_dvclose = 0.0001
 inner_rclose = 0.01
 cell_averaging = "amt-hmk"
 
 [pest]
-use_pest_params = false
-params_npz = "pest_optimised.npz"
+multipliers = ""
+base_run = "20261025141637_new_base_run_ponds"
+base_state = "hi_voronoi_lamata_evt_drn1"
+calib_start = "2008-10-01"
+pp_space = 400.0
+vario_range = 1500.0
+k_order_decades = 1.0
+soft_fraction = 0.25
+points_on = "C4, C5, W1"
+q_dry = 0.005
+q_eps = 0.01
+nreal = 100
+noptmax = 3
+lambda_mults = "0.1, 1.0, 10.0"
+bad_phi_sigma = 2.5
+overdue_giveup_fac = 2.5
+agents = 20
+start = "prior"
+start_from = ""
+
+[[pest.par]]
+family = "k"
+layer = 1
+enable = true
+start = 0.05
+lower = 2.3e-05
+upper = 1.1199999999999999
+log = true
+
+[[pest.par]]
+family = "k"
+layer = 2
+enable = true
+start = 0.5
+lower = 0.00023
+upper = 11.2
+log = true
+
+[[pest.par]]
+family = "sy"
+layer = 1
+enable = true
+start = 0.025
+lower = 0.01
+upper = 0.05
+log = true
+
+[[pest.par]]
+family = "sy"
+layer = 2
+enable = true
+start = 0.01
+lower = 0.005
+upper = 0.04
+log = true
+
+[[pest.par]]
+family = "ss"
+layer = 1
+enable = true
+start = 1.0
+lower = 0.1
+upper = 10.0
+log = true
+
+[[pest.par]]
+family = "ss"
+layer = 2
+enable = true
+start = 1.0
+lower = 0.1
+upper = 10.0
+log = true
+
+[[pest.par]]
+family = "sr"
+layer = 1
+enable = false
+start = 0.275
+lower = 0.045
+upper = 0.3
+log = true
+
+[[pest.par]]
+family = "sr"
+layer = 2
+enable = false
+start = 0.04
+lower = 0.009
+upper = 0.09
+log = true
+
+[[pest.par]]
+family = "drn"
+layer = 1
+enable = true
+start = 1.0
+lower = 0.001
+upper = 100.0
+log = true
+
+[[pest.par]]
+family = "drn"
+layer = 2
+enable = true
+start = 1.0
+lower = 0.001
+upper = 100.0
+log = true
+
+[[pest.par]]
+family = "k33"
+layer = 1
+enable = true
+start = 2.0
+lower = 1.0
+upper = 3.0
+log = true
+
+[[pest.par]]
+family = "k33"
+layer = 2
+enable = true
+start = 10.0
+lower = 2.0
+upper = 30.0
+log = true
+
+[[pest.par]]
+family = "sfc"
+layer = 1
+enable = true
+start = 0.11
+lower = 0.11
+upper = 0.14
+log = false
+
+[[pest.par]]
+family = "sfc"
+layer = 2
+enable = true
+start = 0.175
+lower = 0.15699999999999997
+upper = 0.1891
+log = false
+
+[[pest.par]]
+family = "sfc"
+layer = 3
+enable = true
+start = 0.15
+lower = 0.12
+upper = 0.18
+log = false
+
+[[pest.par]]
+family = "sfc"
+layer = 4
+enable = true
+start = 0.2
+lower = 0.15500000000000003
+upper = 0.245
+log = false
+
+[[pest.par]]
+family = "sfc"
+layer = 5
+enable = true
+start = 0.02
+lower = 0.012
+upper = 0.028000000000000004
+log = false
+
+[[pest.par]]
+family = "ks"
+layer = 1
+enable = true
+start = 1.5
+lower = 0.15000000000000002
+upper = 15.0
+log = true
+
+[[pest.par]]
+family = "ks"
+layer = 2
+enable = true
+start = 1.5
+lower = 0.15000000000000002
+upper = 15.0
+log = true
+
+[[pest.par]]
+family = "ks"
+layer = 3
+enable = true
+start = 5.0
+lower = 0.5
+upper = 50.0
+log = true
+
+[[pest.par]]
+family = "ks"
+layer = 4
+enable = true
+start = 3.0
+lower = 0.30000000000000004
+upper = 30.0
+log = true
+
+[[pest.par]]
+family = "ks"
+layer = 5
+enable = true
+start = 5.0
+lower = 0.5
+upper = 50.0
+log = true
+
+[[pest.par]]
+family = "sfr_rhk"
+layer = 0
+enable = true
+start = 0.1
+lower = 0.001
+upper = 5.0
+log = true
+
+[[pest.par]]
+family = "lak_bedleak"
+layer = 0
+enable = true
+start = 0.001
+lower = 0.0001
+upper = 0.1
+log = true
+
+[[pest.par]]
+family = "uzf_eps"
+layer = 0
+enable = true
+start = 4.5
+lower = 3.5
+upper = 8.0
+log = false
+
+[[pest.par]]
+family = "uzf_vks"
+layer = 0
+enable = true
+start = 1.0
+lower = 0.2
+upper = 20.0
+log = true
+
+[[pest.par]]
+family = "crr_beta"
+layer = 0
+enable = true
+start = 0.95
+lower = 0.8
+upper = 1.0
+log = false
+
+[[pest.group]]
+name = "hds_p0"
+share = 0.35
+noise = 0.1
+noise_rel = 0.0
+
+[[pest.group]]
+name = "hds_c"
+share = 0.0
+noise = 0.4
+noise_rel = 0.0
+
+[[pest.group]]
+name = "sm_p0"
+share = 0.175
+noise = 0.01
+noise_rel = 0.0
+
+[[pest.group]]
+name = "sm_sm"
+share = 0.175
+noise = 0.01
+noise_rel = 0.0
+
+[[pest.group]]
+name = "q_log"
+share = 0.1
+noise = 0.1
+noise_rel = 0.0
+
+[[pest.group]]
+name = "q_dry"
+share = 0.05
+noise = 0.01
+noise_rel = 0.0
+
+[[pest.group]]
+name = "q_year"
+share = 0.05
+noise = 1.0
+noise_rel = 0.1
+
+[[pest.group]]
+name = "et_rs"
+share = 0.1
+noise = 1.0
+noise_rel = 0.2
+
+[[pest.group]]
+name = "et_pt"
+share = 0.0
+noise = 0.1
+noise_rel = 0.2
 
 [ui]
 execution = "local"

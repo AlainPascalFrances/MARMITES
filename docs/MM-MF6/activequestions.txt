@@ -1,3 +1,33 @@
-Remove the WEL option to model ETg and remove the lagged option.
+
+
+
+
+
+
+3 - CdL: where can daily meteorological data come from, or do you have it? Without it, the CdL agent can only prepare the data up to the forcing.
+
+
+
  
 Check this code here to see if it is better to use it in relation to the one we have currently to build the voronoi grid: https://github.com/rhugman/vorflow. Give a comparison with advantage/disadvantage.
+
+
+
+
+
+CdL
+
+Item 4, modelling CdL with the new code: you expect bugs, and you'll hit a blocker before any of them. example/CdL/README.md lists what is missing:
+
+Daily meteorological forcing. CdL has monthly P and ET0 only, and MMsurf/MMsoil need daily input. Without it MM cannot run on CdL at all.
+MM soil zones, vegetation areas and inputSOILparam.txt, built from the ks/ths/wp/fc rasters and the COS-2025 land cover.
+A way to read CdL's Voronoi grid (voronoi_grid.pkl + voronoi_layers.npz). MARMITES now builds meshes itself in WP1c, so a smaller step may be enough: rebuild the CdL mesh with MARMITES' own mesh tools instead of reading the pickle.
+Observations converted to MARMITES formats.
+
+example/CdL/ holds only that README. The CdL MF6 model lives in AlainPascalFrances/MF6models, which isn't in this session; I can add it if you approve.
+
+I need three answers from you:
+
+Do you have daily meteo for CdL (a station, ERA5-Land, or something else), or do we have to downscale the monthly data to daily first?
+May I add the MF6models repo to this session?
+Should I first write a short CdL onboarding plan in docs/MM-MF6/, covering inputs, the steps to turn them into MARMITES formats and the first build-only check, before touching any code?
