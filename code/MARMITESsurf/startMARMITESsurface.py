@@ -20,6 +20,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import PET_P_INTER, plotPET, plotP
+import rain_seasons
 
 # Excel writes these into a cell when a formula fails. They reach a text
 # export verbatim, and the leading '#' is what makes them dangerous here:
@@ -360,6 +361,11 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
         kTg_max = [] #transpiration sourcing factor max [], 1<k_Tu<=0
         kT_f = [] # transpiration sourcing factor
         kT_s = []  # transpiration sourcing factor
+        # the seasons started by the rain (rain_seasons.py). Wet: (mm in a
+        # day, month, day the search starts); dry: (mm in total, days in a
+        # row, month, day); 0 mm = the fixed J_vw / J_vd every year
+        wet_rain = []
+        dry_rain = []
         # input FAO56 grass parameters
         VegName.append("grassFAO56")
         h_vd.append(0.12)
@@ -381,6 +387,8 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
         kTg_max.append(0.10)
         kT_f.append(0.5)
         kT_s.append(1.0)
+        wet_rain.append((0.0, 9, 1))
+        dry_rain.append((0.0, 30, 5, 1))
         if NVEG>0:
             for i in range(NVEG):
                 l = l + 1
@@ -425,6 +433,15 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
                 kT_f.append(float(line[e]))
                 e += 1
                 kT_s.append(float(line[e]))
+                # optional trailing fields (an older ini stops at kT_s)
+                if len(line) > e + 7:
+                    wet_rain.append((float(line[e + 1]), int(line[e + 2]),
+                                     int(line[e + 3])))
+                    dry_rain.append((float(line[e + 4]), int(line[e + 5]),
+                                     int(line[e + 6]), int(line[e + 7])))
+                else:
+                    wet_rain.append((0.0, 9, 1))
+                    dry_rain.append((0.0, 30, 5, 1))
                 del e
         NVEG = NVEG + 1 # number of vegetation types + FAO56 GRASS (default)
         #CROP PARAMETERS
@@ -656,7 +673,10 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
     ######################
 
     def paramTS(J, J_d, J_w, TRANS_dw, TRANS_wd, value_d, value_w, min_, max_, name = 'paramTSwd'):
-
+        # J_d, J_w: one julian day each, or one per time step (the seasons
+        # started by the rain, a day per year -- rain_seasons.py)
+        J_d = np.broadcast_to(np.asarray(J_d, dtype = float), np.shape(J))
+        J_w = np.broadcast_to(np.asarray(J_w, dtype = float), np.shape(J))
         if value_d == value_w:
             TS = np.ones(len(J), dtype = float)*value_d
         else:
@@ -664,16 +684,16 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
             trans_wd = (value_d - value_w)/TRANS_wd
             trans_dw = (value_w - value_d)/TRANS_dw
             for j in range(len(J)):
-                if J[j] <= J_d or J[j] >= J_w:
+                if J[j] <= J_d[j] or J[j] >= J_w[j]:
                     # wet period
                     TS[j] = value_w
                 else:
-                    if J[j] < (J_d + TRANS_wd):
+                    if J[j] < (J_d[j] + TRANS_wd):
                         # transition wet to dry
-                        TS[j] =  value_w + (J[j] - J_d)*trans_wd
-                    elif J[j] > (J_w - TRANS_dw):
+                        TS[j] =  value_w + (J[j] - J_d[j])*trans_wd
+                    elif J[j] > (J_w[j] - TRANS_dw):
                         # transition dry to wet
-                        TS[j] =  value_d + (J[j] - (J_w - TRANS_dw))*trans_dw
+                        TS[j] =  value_d + (J[j] - (J_w[j] - TRANS_dw))*trans_dw
                     else:
                         # dry period
                         TS[j] =  value_d
@@ -784,11 +804,46 @@ def MMsurf(cUTIL, pathMMsurf, inputFile_TS_fn, inputFile_PAR_fn, outputFILE_fn, 
     f_s_v = np.zeros((NVEG, len(datenum)), dtype = float)
     LAI_v = np.zeros((NVEG, len(datenum)), dtype = float)
     h_v = np.zeros((NVEG, len(datenum)), dtype = float)
+    season_rows = []
     for v in range(NVEG):
-        alfa_v[v] = paramTS(J = J, J_d = J_vd[v], J_w = J_vw[v], TRANS_dw = TRANS_vdw[v], TRANS_wd = TRANS_vwd[v], value_d = alfa_vd[v], value_w = alfa_vw[v], min_ = 0.0, max_ = 1.0, name = 'albedo_VEG%d_%s' % (v, VegName[v]))
-        f_s_v[v] = paramTS(J = J, J_d = J_vd[v], J_w = J_vw[v], TRANS_dw = TRANS_vdw[v], TRANS_wd = TRANS_vwd[v], value_d = f_s_vd[v], value_w = f_s_vw[v], min_ = 0.0, max_ = 1.0, name = 'f_s_VEG%d_%s' % (v, VegName[v]))
-        LAI_v[v] = paramTS(J = J, J_d = J_vd[v], J_w = J_vw[v], TRANS_dw = TRANS_vdw[v], TRANS_wd = TRANS_vwd[v], value_d = LAI_vd[v], value_w = LAI_vw[v], min_ = 0.0, max_ = max(max(LAI_vd), max(LAI_vw)), name = 'LAI_VEG%d_%s' % (v, VegName[v]))
-        h_v[v] = paramTS(J = J, J_d = J_vd[v], J_w = J_vw[v], TRANS_dw = TRANS_vdw[v], TRANS_wd = TRANS_vwd[v], value_d = h_vd[v], value_w = h_vw[v], min_ = 0.0, max_ = max(h_vd[v], h_vw[v]), name = 'heigth_VEG%d_%s' % (v, VegName[v]))
+        # the seasons started by the rain, a day per year (rain_seasons.py)
+        J_d_v, J_w_v = J_vd[v], J_vw[v]
+        mm_w, mo_w, dd_w = wet_rain[v]
+        if mm_w > 0.0:
+            J_w_v, starts = rain_seasons.wet_season_start(
+                datenum, P, mm_w, mo_w, dd_w, J_vw[v], TRANS_vdw[v])
+            for y, d, r, jw in starts:
+                season_rows.append('%s,wet,%d,%s,%.1f,%g' % (
+                    VegName[v], y, d.isoformat() if d else '', r, jw))
+                print('   %s %d: wet season %s' % (
+                    VegName[v], y, 'from the rain of %s (%.1f mm), full on '
+                    'julian day %g' % (d, r, jw) if d else 'full on the fixed '
+                    'julian day %g (no day of %g mm from %02d-%02d)'
+                    % (jw, mm_w, mo_w, dd_w)))
+        mm_d, n_d, mo_d, dd_d = dry_rain[v]
+        if mm_d > 0.0:
+            J_d_v, stops = rain_seasons.dry_season_start(
+                datenum, P, mm_d, n_d, mo_d, dd_d, J_vd[v], TRANS_vwd[v])
+            for y, d, r, jd in stops:
+                season_rows.append('%s,dry,%d,%s,%.1f,%g' % (
+                    VegName[v], y, d.isoformat() if d else '', r,
+                    jd + TRANS_vwd[v]))
+                print('   %s %d: dry season %s' % (
+                    VegName[v], y, 'reached on %s, after %d days with %.1f mm '
+                    '(julian day %g)' % (d, n_d, r, jd + TRANS_vwd[v]) if d
+                    else 'from the fixed julian day %g (no %d days under %g mm '
+                    'from %02d-%02d)' % (jd, n_d, mm_d, mo_d, dd_d)))
+        alfa_v[v] = paramTS(J = J, J_d = J_d_v, J_w = J_w_v, TRANS_dw = TRANS_vdw[v], TRANS_wd = TRANS_vwd[v], value_d = alfa_vd[v], value_w = alfa_vw[v], min_ = 0.0, max_ = 1.0, name = 'albedo_VEG%d_%s' % (v, VegName[v]))
+        f_s_v[v] = paramTS(J = J, J_d = J_d_v, J_w = J_w_v, TRANS_dw = TRANS_vdw[v], TRANS_wd = TRANS_vwd[v], value_d = f_s_vd[v], value_w = f_s_vw[v], min_ = 0.0, max_ = 1.0, name = 'f_s_VEG%d_%s' % (v, VegName[v]))
+        LAI_v[v] = paramTS(J = J, J_d = J_d_v, J_w = J_w_v, TRANS_dw = TRANS_vdw[v], TRANS_wd = TRANS_vwd[v], value_d = LAI_vd[v], value_w = LAI_vw[v], min_ = 0.0, max_ = max(max(LAI_vd), max(LAI_vw)), name = 'LAI_VEG%d_%s' % (v, VegName[v]))
+        h_v[v] = paramTS(J = J, J_d = J_d_v, J_w = J_w_v, TRANS_dw = TRANS_vdw[v], TRANS_wd = TRANS_vwd[v], value_d = h_vd[v], value_w = h_vw[v], min_ = 0.0, max_ = max(h_vd[v], h_vw[v]), name = 'heigth_VEG%d_%s' % (v, VegName[v]))
+    if season_rows:
+        # which rain set each year's seasons, for the record: the rain day
+        # that starts the wet season, the last day of the dry spell that
+        # ends it, and the julian day the season's values are reached
+        with open(os.path.join(out_ws, 'rain_seasons.csv'), 'w') as fh:
+            fh.write('vegetation,season,year,day,rain_mm,julian_reached\n')
+            fh.write('\n'.join(season_rows) + '\n')
 
     alfa_s = np.zeros((NSOIL, len(datenum)), dtype = float)
     for s in range(NSOIL):

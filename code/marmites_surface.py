@@ -196,15 +196,24 @@ def write_par_file(cfg, path, config_hash=''):
         L.append('%.6f %.6f %.3f %.3f %.3f %.3f %.3f %.3f'
                  % (phi, lm, st.z, st.tz_lon, st.fuse_shift, st.data_shift,
                     st.z_wind, st.z_hum))
+    from marmites_config import month_day
     L += ['', '#VEGETATION PARAMETERS', '# NVEG', '%d' % len(s.vegetation)]
     for v in s.vegetation:
-        # The file's last field is 1/s; the configuration holds s.
-        L.append('%s %g %g %g %g %g %g %g %g %g %g %d %d %d %d %g %g %g %g %g'
+        # The 20th field is 1/s; the configuration holds s. Then the seasons
+        # started by the rain (MARMITESsurf/rain_seasons.py): wet mm, month,
+        # day; dry mm, days, month, day -- optional for MMsurf, which reads
+        # an older 20-field line as the fixed j_dry / j_wet.
+        wm, wd = month_day(v.wet_rain_from) or (9, 1)
+        dm, dd = month_day(v.dry_rain_from) or (5, 1)
+        L.append('%s %g %g %g %g %g %g %g %g %g %g %d %d %d %d %g %g %g %g %g '
+                 '%g %d %d %g %d %d %d'
                  % (v.name, v.h_dry, v.h_wet, v.canopy_mm, v.c_leaf,
                     v.lai_dry, v.lai_wet, v.shelter_dry, v.shelter_wet,
                     v.albedo_dry, v.albedo_wet, v.j_dry, v.j_wet,
                     v.trans_dry_wet, v.trans_wet_dry, v.root_depth,
-                    v.ktg_min, v.ktg_max, v.kt_f, 1.0 / v.kt_s))
+                    v.ktg_min, v.ktg_max, v.kt_f, 1.0 / v.kt_s,
+                    v.wet_rain_mm, wm, wd, v.dry_rain_mm,
+                    int(v.dry_rain_days), dm, dd))
     L += ['', '#CROP PARAMETERS', '# NCRP', '%d' % len(s.crop),
           '# NFIELD', '%d' % (int(s.nfield) if s.irrigation else 0)]
     for c in s.crop:

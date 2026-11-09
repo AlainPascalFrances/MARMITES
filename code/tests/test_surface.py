@@ -139,10 +139,31 @@ def test_kt_s_is_inverted_exactly_once(cfg, tmp_path):
     msurf.write_par_file(cfg, out)
     rows = [ln.split() for ln in open(out) if ln.startswith('Qilex')]
     assert rows, 'Qilex row not written'
-    written = float(rows[0][-1])
+    written = float(rows[0][19])       # 1/s, before the rain-season fields
     s = cfg.surface.vegetation[1].kt_s
     assert written == pytest.approx(1.0 / s)
     assert written > 1.0 and s < 1.0
+
+
+def test_the_rain_seasons_follow_each_vegetation_row(cfg, tmp_path):
+    """User, 2026-11-09: grass green from the first 10 mm rain after 1
+    September, wilted after 30 days under 10 mm after 1 May. The seven
+    fields trail the row (an older 20-field row reads as the fixed days);
+    off, they are written as 0 mm."""
+    import copy
+    c = copy.deepcopy(cfg)
+    g = c.surface.vegetation[0]
+    g.wet_rain_mm, g.wet_rain_from = 10.0, '09-01'
+    g.dry_rain_mm, g.dry_rain_days, g.dry_rain_from = 10.0, 30, '05-01'
+    out = str(tmp_path / 'gen.ini')
+    msurf.write_par_file(c, out)
+    rows = {ln.split()[0]: ln.split() for ln in open(out)
+            if ln.split() and ln.split()[0] in ('grassMU', 'Qilex')}
+    assert rows['grassMU'][20:] == ['10', '9', '1', '10', '30', '5', '1']
+    assert rows['Qilex'][20] == '0' and rows['Qilex'][23] == '0'
+    c.surface.vegetation[0].dry_rain_from = '5/1'
+    with pytest.raises(cfgmod.ConfigError, match='dry_rain_from'):
+        c.validate()
 
 
 def test_the_generated_file_names_its_provenance(cfg, tmp_path):

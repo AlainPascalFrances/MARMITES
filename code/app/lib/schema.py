@@ -455,6 +455,29 @@ FIELDS = {
     'vegetation.j_wet': ('Wet season starts', 'julian day', 'J_vw.'),
     'vegetation.trans_dry_wet': ('Dry-to-wet transition', 'd', 'TRANS_vdw.'),
     'vegetation.trans_wet_dry': ('Wet-to-dry transition', 'd', 'TRANS_vwd.'),
+    'vegetation.wet_rain_mm': ('Wet season starts with a rain of', 'mm/d',
+                               'The green-up starts each year on the first '
+                               'day from the date below with at least this '
+                               'much rain, and lasts the dry-to-wet '
+                               'transition. 0 = the fixed "Wet season '
+                               'starts" day, which stays the day of a year '
+                               'without such rain. For annual grass.'),
+    'vegetation.wet_rain_from': ('... searched from', 'MM-DD',
+                                 'The date the search starts each year, '
+                                 'e.g. 09-01.'),
+    'vegetation.dry_rain_mm': ('Dry season after a spell under', 'mm',
+                               'The vegetation is wilted -- dry values '
+                               'reached -- at the end of the first spell of '
+                               'the days below, from the date below, whose '
+                               'rain totals less than this; the wet-to-dry '
+                               'transition leads up to it. 0 = the fixed "Dry '
+                               'season starts" day, which stays the day of a '
+                               'year without such a spell.'),
+    'vegetation.dry_rain_days': ('... days long', 'd',
+                                 'The length of the dry spell, e.g. 30.'),
+    'vegetation.dry_rain_from': ('... searched from', 'MM-DD',
+                                 'The date the search starts each year, '
+                                 'e.g. 05-01.'),
     'vegetation.root_depth': ('Max rooting depth', 'm',
                               'Zr. Also the natural source for the UZF '
                               'extinction depth.'),

@@ -1180,6 +1180,17 @@ class MeteoStation:
     z_hum: float = 2.0             # m, humidity measurement height    (z_h)
 
 
+def month_day(text):
+    """``(month, day)`` of an 'MM-DD' date (any year: 02-29 is refused), or
+    None when it is not one."""
+    from datetime import datetime
+    try:
+        d = datetime.strptime('2001-%s' % str(text).strip(), '%Y-%m-%d')
+    except ValueError:
+        return None
+    return d.month, d.day
+
+
 @dataclass
 class Vegetation:
     """One vegetation type.
@@ -1204,6 +1215,20 @@ class Vegetation:
     j_wet: int = 270               # julian day the wet season starts  (J_vw)
     trans_dry_wet: int = 20        # d                                 (TRANS_vdw)
     trans_wet_dry: int = 20        # d                                 (TRANS_vwd)
+    # The seasons started by the rain (user, 2026-11-09; La Mata's annual
+    # grass greens up with the first autumn rains and wilts when spring rain
+    # stops, not on fixed days -- MARMITESsurf/rain_seasons.py). Each year:
+    # the dry-to-wet transition starts on the first day from wet_rain_from
+    # (MM-DD) with at least wet_rain_mm of rain; the dry values are reached
+    # -- the grass wilted -- on the last of the first dry_rain_days days in
+    # a row from dry_rain_from whose rain totals less than dry_rain_mm, the
+    # wet-to-dry transition leading up to it. j_wet / j_dry remain the days
+    # of a year whose record holds no such day. 0 mm = off: the fixed days.
+    wet_rain_mm: float = 0.0       # mm in one day
+    wet_rain_from: str = '09-01'   # MM-DD, the search starts each year
+    dry_rain_mm: float = 0.0       # mm in dry_rain_days days
+    dry_rain_days: int = 30        # d
+    dry_rain_from: str = '05-01'   # MM-DD
     root_depth: float = 0.25       # m, max root depth                 (Zr)
     ktg_min: float = 0.05          #                                   (kTg_min)
     ktg_max: float = 0.10          #                                   (kTg_max)
@@ -2413,6 +2438,18 @@ class RunConfig:
                 errs.append('surface.vegetation[%d].kt_s must be in (0, 1] -- '
                             'this field is s, not the 1/s the old ini stored'
                             % n)
+            for key, fixed in (('wet', 'j_wet'), ('dry', 'j_dry')):
+                if getattr(v, '%s_rain_mm' % key) < 0.0:
+                    errs.append('surface.vegetation[%d].%s_rain_mm must be '
+                                '>= 0 (0 = the fixed %s)' % (n, key, fixed))
+                if month_day(getattr(v, '%s_rain_from' % key)) is None:
+                    errs.append('surface.vegetation[%d].%s_rain_from must be '
+                                'a date MM-DD, e.g. %s; got %r'
+                                % (n, key, '09-01' if key == 'wet' else
+                                   '05-01', getattr(v, '%s_rain_from' % key)))
+            if v.dry_rain_mm > 0.0 and int(v.dry_rain_days) < 1:
+                errs.append('surface.vegetation[%d].dry_rain_days must be '
+                            '>= 1' % n)
         # --- panel 3: the soil ------------------------------------------
         for name in ('zones', 'thickness'):
             try:
