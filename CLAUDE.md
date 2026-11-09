@@ -9,6 +9,12 @@ it with the work.
 Owner: Alain P. Francés (the user). Last update: 2026-10-07, the §7.1
 analysis of run 20261006164429 (analysis notes §8.19), on top of `b483d0e`.
 
+**2026-11-09 -- NEXT: Casa de Lobos.** Read `docs/MM-MF6/CdL_kickoff.md`
+right after §2 of this file: it carries the state since §6 (La Mata
+calibrated, remote-sensing tools, satellite soil moisture, rain-driven
+vegetation seasons) and the plan for CdL (dataset, daily forcing, the
+satellite soil moisture as a PEST++ target). §6-§7 below are older.
+
 ---------------------------------------------------------------------------
 
 ## 1. The project
@@ -483,6 +489,10 @@ Recent runs (La Mata, 4566-cell Voronoi mesh: 20 m stream corridor ratio 2,
 ---------------------------------------------------------------------------
 
 ## 7. Next steps (in order)
+
+0. **(2026-11-09) Casa de Lobos** -- `docs/MM-MF6/CdL_kickoff.md` §5
+   (questions for the user) and §7 (first steps). The items below are
+   from 2026-10-07 and mostly done (see the kickoff's §2).
 
 1. **outer_dvclose 0.001 does not converge on La Mata** (run
    20261009165953, inner_dvclose 1e-4, outer_maximum 100; stopped after

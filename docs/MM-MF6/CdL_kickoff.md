@@ -1,0 +1,216 @@
+# MARMITES — Casa de Lobos (CdL) kickoff (handoff to a new session)
+
+**Written:** 2026-11-09, at the end of the La Mata block (calibration, remote
+sensing, rain-driven grass seasons), on top of `bdd48aa`
+(`MM-MF6_SFR_LAK_CRR`, pushed).
+
+**Goal of the next sessions (user, 2026-11-09):** start the Casa de Lobos
+case in MARMITES, and bring the **satellite soil moisture into its PEST++
+calibration** -- "we will incorporate SM based RS calibration with CdL in
+another session". La Mata remains the test bed; CdL is the production case.
+
+Read first, in order: `CLAUDE.md` (the working rules of §2 are binding; its
+§6-§7 state stops at 2026-10-07 -- this file carries the state since then),
+then this file. A local session also has the auto-memory index
+(`MEMORY.md`, e.g. `rs-validation-plan.md`, `wp7-pest-lamata-state.md`); a
+cloud session does not, so everything needed is repeated here.
+
+---------------------------------------------------------------------------
+
+## 1. Where things are (Windows server)
+
+| What | Where |
+|---|---|
+| THE repo (edit and commit here only) | `X:\3p1p1\MARMITES` (git: `-c safe.directory=*` on each command) |
+| Branch | `MM-MF6_SFR_LAK_CRR` (keep GitHub branch `mm-mf6_sfr_lak_crr-n5ycxb`: never delete it) |
+| App | `python X:\3p1p1\MARMITES\code\tools\launch_app.py` (runs from a mirror; never edit the mirror) |
+| Run driver | `code/tests/run_lamata_mf6.py --config <toml>` (the Run page launches it) |
+| CdL dataset for MARMITES | `example/CdL/` -- **empty** (README only) |
+| CdL MODFLOW 6 model (separate repo) | `X:\3p1p1\MF6models\CdL` (= github AlainPascalFrances/MF6models `CdL/`): `instructions/00_OVERVIEW.md`, `code/cdl_gwf_model_fable_v2.py`, `input_data/` (gis/dryad_modelo_NbS.gpkg, soils rasters ks/ths/wp/fc, monthly forcing, snirh, pest) |
+| Machine paths (Home panel, `code/configs/paths.local.toml`) | ALL point at La Mata today: `X:\3p1p1\MF6models\LaMata\{DATA_ROOT, WS_ROOT, PEST}` |
+| Satellite soil moisture folder (Home, "SOIL MOISTURE") | blank = `<RS>/soil_moisture`, one sub-folder per product: `clms_swi_0.1deg`, `clms_swi_1km`, `clms_ssm_1km` |
+| Helpers | `X:\tmp_claude\helpers\run_py.bat <script>` and `pt.bat <args>` (pytest from the repo root: paths as `code\tests\...`), through `cmd //c` from bash |
+| Scratch | `X:\tmp_claude\scratch_*` (never AppData\Local\Temp for anything kept) |
+
+Products downloaded by the user go to the data root; Claude never enters
+credentials (EU Login, CDSE, BEC) -- the user downloads, Claude reads.
+
+---------------------------------------------------------------------------
+
+## 2. State inherited (La Mata, since CLAUDE.md §6)
+
+- **Calibration done.** PEST++-IES, 100 realisations, 3 iterations, final
+  2026-10-27 (phi mean 6034, best 5903). Calibrated run `20261027174404`;
+  outlet fix (no stream-aquifer exchange in the boundary-DRN reaches) re-run
+  `20261028150746`, phi 5986 -- the reference run for every analysis below.
+  Calibration groups and weights: heads 35 % (P0 + soft C/W), **in-situ soil
+  moisture 35 %** (`sm_p0`, `sm_sm`: probes P0 and SM, two horizons each),
+  flow 20 % (`q_log`, `q_dry`, `q_year`), MODIS ET 10 % (`et_rs`), EC tower
+  ET weight 0 (`et_pt`). **No vegetation parameters were calibrated** (user
+  decision 2026-10-12).
+- **Results page tools** (all Streamlit-free modules in `code/ppMF6/`):
+  - maps of one day, any flux, from the run's own outputs
+    (`marmites_daymap.py`, 4c3f3d5); wetness W = (1-f_ow) Se + f_ow;
+  - **W against the NDVI** of a Landsat 5/7/8/9 or Sentinel-2 scene: STAC
+    search/fetch on Microsoft Planetary Computer (anonymous), NDVI per model
+    cell, weighted least squares per dominant vegetation class (>= 10 %
+    cover), residual map (`marmites_rs.py`, `marmites_wetimage.py`, 085d54a).
+    Built FOR CdL, tested on La Mata;
+  - **satellite soil moisture against the catchment-mean Se**
+    (`marmites_smrs.py`, 1ce7dab + b145950): reads product files
+    (NetCDF/GeoTIFF) or the **Copernicus Browser's Statistical Info CSV
+    exports** (one CSV per layer and period, `<dataset>-<layer>-<from>-<to>.csv`,
+    joined per layer; a disagreeing overlap = exports of different areas);
+    an SWI compared with 100 Se for every T-value, a surface product filtered
+    (exponential filter, Albergel 2008) then percentile-scaled; r, anomaly r,
+    bias, ubRMSE; scores over whole hydrological years; per-pixel scores when
+    the files hold several pixels; the catchment as WGS84 GeoJSON (Results
+    button) to upload as the Browser's area. SMOS-BEC was dropped (user).
+  - La Mata result: SWI 0.1 deg T = 5 d fits best (r 0.85, anomaly r 0.69;
+    T1 0.82, T100 0.66). The 1 km SWI002 and SSM samples (Nov-Dec 2021) read
+    without change.
+- **Autumn re-wetting diagnosis** (2026-11-09, scratch only): the model's top
+  horizon wets after 1-24 mm of autumn rain, the probes after 34-125 mm; not
+  groundwater (no exfiltration into the soil); model ET too low Oct-May
+  (MODIS: Nov 75 %, Apr 62 %; tower Nov -40 %, Apr -43 %) and too high in
+  Jul-Aug (MODIS 158 %/131 %). Causes: the grass on a fixed calendar, and a
+  1.1 m top horizon at P0 (a bucket mean against a point probe). Probe depths
+  were asked of the user.
+- **Rain-driven vegetation seasons** (bdd48aa): per vegetation type,
+  `wet_rain_mm` / `wet_rain_from` (green-up from the first day >= mm after
+  the date) and `dry_rain_mm` / `dry_rain_days` / `dry_rain_from` (wilted at
+  the end of the first spell under mm); 0 = the fixed j_wet/j_dry
+  (`MARMITESsurf/rain_seasons.py`, MMsurf writes `rain_seasons.csv`). Needs
+  `run.surface = true` in a run (both La Mata configs have it false, which
+  reads the old forcing from the dataset). La Mata effect on grass PT is
+  modest (+0.14 mm/d in Sep and Jul, +9 mm/yr). **Waiting for the user's test
+  run**, then redo the autumn diagnosis (scratch scripts
+  `X:\tmp_claude\scratch_pp\autumn\autumn_*.py`).
+- Smaller: run-timing figure axes in the colour of their series (b5548f8).
+- Full suite on the server: **1566 passed** (~29 min) at bdd48aa.
+
+---------------------------------------------------------------------------
+
+## 3. CdL: what exists, what MARMITES still needs
+
+**The MODFLOW 6 model** (MF6models, not MARMITES): ~20 km², EPSG:3763
+(PT-TM06), DISV Voronoi ~6609 cells x 3 layers, **monthly** 1981-2026 (557
+SPs), UZF/SFR/LAK/MVR, GHB east + DRN west, pyEMU + pestpp-ies (257
+parameters; synthetic SNIRH-regionalised piezometers P0-P6, MODIS MOD16 by
+land-cover zone, SNIRH donor streamflow; the bundled parameter set is
+over-fit -- see its `04_CALIBRATION_STATE.md`). Its PEST folder is ~40 GB.
+
+**Blocking for a MARMITES run** (`example/CdL/README.md`):
+1. **Daily meteorological forcing.** CdL has monthly P and ET0 only
+   (`input_data/forcing/*_month_198101_202605.csv`); MMsurf needs an hourly
+   or daily record (P, T, RH, Pa, wind, Rs). THE blocking item: the user has
+   to say what station/reanalysis exists (e.g. a local station, SNIRH/IPMA,
+   ERA5-Land) and for which period.
+2. **Soil and vegetation zoning** in the MARMITES sense: soil zones +
+   horizons (from `ks/ths/wp/fc_cdl.tif`), vegetation types and cover (from
+   COS-2025 in the GeoPackage), the surface vegetation table (now with the
+   rain-season fields).
+3. **The grid.** MARMITES builds its own Voronoi mesh from the GIS
+   (boundary, DEM, streams, ponds; `tools/gis_to_dataset.py`, Grid page),
+   with pond-centred cells -- the CdL lesson already transferred. The old
+   README's "ingest CdL's voronoi_grid.pkl" is probably no longer needed:
+   decide with the user (own mesh vs CdL's grid).
+4. **Observations** in MARMITES formats: heads, soil moisture per depth (are
+   there CdL probes?), streamflow, actual ET (EC? MODIS).
+5. **Machine paths are one set per machine** (Home panel), all La Mata now.
+   CdL needs its own DATA_ROOT / WS_ROOT / PEST ws: switch them on Home, or
+   make them per case (a design question for the user -- a case selector
+   already exists in the sidebar).
+6. The PEST tools are named `pest_lamata_*.py` but read the `[pest]` section
+   of the config (`--config`); check what is La Mata-specific before CdL.
+
+---------------------------------------------------------------------------
+
+## 4. Satellite soil moisture as a CdL calibration target
+
+**Products and periods** (decides the CdL MARMITES run window):
+
+| Product | Grid | Period | Notes |
+|---|---|---|---|
+| CLMS SWI 1 km Europe v1 (Sentinel-1 + ASCAT) | 1 km | 2015-01-01 to mid-2025 | T-values SWI002..SWI100, % saturation, validated. **The calibration target.** v2 (from 2025-07-13) not validated |
+| CLMS SSM 1 km (Sentinel-1) | 1 km | Oct 2014 on | top ~5 cm, every 1.5-4 days; cross-check |
+| CLMS SWI 0.1 deg v3 (ASCAT) | ~10 km | 2007 on | 1-3 pixels over CdL; fallback / long period |
+| Landsat 5-9 / Sentinel-2 NDVI | 30 / 10 m | all / mid-2015 on | W vs NDVI (Results), validation only |
+
+So the SWI 1 km needs a daily CdL run covering **2015 or later**. Over ~20
+km² there are ~20 one-kilometre pixels.
+
+**How the user gets the series:** Copernicus Browser (CDSE) -> Data
+collections -> Copernicus Land Monitoring Service -> Soil Water Index 1 km /
+Surface Soil Moisture 1 km -> draw or upload the area -> Statistical Info ->
+CSV, one per layer (the La Mata exports covered up to 5 years each). The
+CSV is the AREA MEAN (+ min/max/p10/p90): a catchment series, not per pixel.
+Per-pixel or per-sub-area targets need either one Browser area per
+sub-catchment, or the gridded files (CDSE S3/OData; Claude never handles a
+CDSE secret -- a Statistical API script would run with the user's own OAuth
+client in environment variables).
+
+**The calibration group to build (proposal, nothing applied yet):** a group
+`sm_rs`, like `et_rs` (`tools/pest_modis_et.py` + `pest_lamata_obs.py` +
+the forward exports + page 8):
+- targets: the SWI at the T-value that fits best (choose it on the prior or
+  the base run with the existing comparison), aggregated weekly or monthly
+  to temper the autocorrelation of daily values;
+- model side: catchment-mean (or per-pixel / sub-area) 100 Se of the soil
+  column, from the run's outputs (`marmites_smrs.model_se`);
+- level: the SWI is relative (0 = the driest observed at the pixel), the
+  model's Se is physical -- fit **anomalies or percentile-scaled series**,
+  not raw levels (decide with the user);
+- start with **weight 0** (reported, not fitted), look at the prior
+  ensemble, then give it a share of phi (e.g. 10-20 %, as ET).
+
+---------------------------------------------------------------------------
+
+## 5. Questions for the user (ask before building)
+
+1. Daily meteorology for CdL: what source, which period? (blocking)
+2. CdL soil-moisture probes or EC tower? Probe depths (also La Mata's P0/SM)?
+3. Own MARMITES mesh for CdL, or CdL's existing grid?
+4. Machine paths per case, or switch them on Home?
+5. `sm_rs`: catchment mean or per pixel / sub-area; weekly or monthly;
+   anomalies or scaled; which share of phi?
+6. Vegetation parameters in the CdL calibration (La Mata had none, and its
+   ET seasonality stayed off)? Rain-driven seasons for CdL's grass?
+
+---------------------------------------------------------------------------
+
+## 6. Rules that bite (full list: CLAUDE.md §2)
+
+- Never launch model runs on the user's cases (the user runs them from the
+  Run page); build-only / initialize-only checks in scratch; never write into
+  WS_ROOT. PEST++ runs only in a separate PEST workspace, at most 20 agents,
+  **no IES iterations without the user's go**.
+- The front end owns the configuration: every choice = config field +
+  schema help (`app/lib/schema.py`) + validation + the code that reads it.
+  "I prefer to avoid several options to the same thing."
+- Git: stage files explicitly, never `git add -A`; never commit the user's
+  working copies (`code/configs/*.toml`, `docs/MM-MF6/*.txt`,
+  `example/<case>/*` inputs); commit after the full suite passes; push only
+  when asked; end messages with the attribution line.
+- Downloads only with the user's go (files, source, size); downloaded data
+  read with `python -I`, in its own folder.
+- Remind the user to restart the app (`launch_app.py`) after app-side changes.
+- The user follows on the phone: send figures and reports as files.
+- Write/Edit tools for files with backslashes (no `sed -i` on repo files).
+
+---------------------------------------------------------------------------
+
+## 7. Suggested first steps
+
+1. Read `X:\3p1p1\MF6models\CdL\instructions\00_OVERVIEW.md` and
+   `04_CALIBRATION_STATE.md`, and list `input_data/` (GeoPackage layers, the
+   soils rasters, forcing, observations).
+2. Ask the questions of §5, the meteorology first.
+3. Plan the CdL dataset (`example/CdL/`) with the user: what the converter
+   needs from the GeoPackage, which panels to fill, what is missing.
+4. Meanwhile, for the soil moisture: write the CdL catchment GeoJSON (WGS84)
+   from the GeoPackage boundary so the user can export SWI 1 km
+   (SWI002..SWI100) and SSM 1 km from the Browser for 2015-2025, and check
+   the series against MODIS ET seasonality while the dataset is being built.
+5. Design `sm_rs` with the user (§4), then implement it like `et_rs`, at
+   weight 0 first.
