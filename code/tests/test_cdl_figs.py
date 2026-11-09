@@ -260,6 +260,38 @@ def test_the_run_timing_is_drawn_from_the_run_record(tmp_path):
     assert len(t) == 30 and t['seconds'].sum() == pytest.approx(15.0)
 
 
+def test_each_timing_axis_wears_its_series_colour(tmp_path, monkeypatch):
+    """User, 2026-11-09: the time axis red as its bars, the iterations axis
+    dark grey as its curve -- and below, the flow axis blue, the rain axis
+    grey -- so the reader knows which scale each is read on."""
+    pytest.importorskip('matplotlib')
+    from matplotlib.colors import same_color
+    import matplotlib.dates as mdates
+    ws, out = str(tmp_path / 'ws'), str(tmp_path / 'out')
+    _sim(ws)
+    os.makedirs(out)
+    d0 = datetime.date(2000, 10, 1)
+    cMF = types.SimpleNamespace(inputDate=[
+        mdates.date2num(d0 + datetime.timedelta(days=k)) for k in range(30)])
+    ctx = types.SimpleNamespace(P_veg_zoneSP=np.full((1, 30), 2.0))
+    res = {'outer_iters': np.arange(30) % 7 + 5, 'iters_kind': b'linear',
+           'sp_seconds': np.full(30, 0.5)}
+    got = []
+    monkeypatch.setattr(CO, '_save', lambda fig, *a: got.append(fig))
+    monkeypatch.setattr(CO.PP, 'sfr_observations', lambda *a: __import__(
+        'pandas').DataFrame({'outflow': np.full(30, -50.0)}))
+    CO.fig_sp_timing(out, ws, 'm', str(tmp_path / 'ds'), cMF, ctx, res, [])
+    ax, axq, ax2, axr = got[0].axes
+    for a, side, colour in ((ax, 'left', 'tab:red'), (ax2, 'right', '0.25'),
+                            (axq, 'left', 'tab:blue'), (axr, 'right', '0.45')):
+        assert same_color(a.yaxis.label.get_color(), colour), a.get_ylabel()
+        assert same_color(a.spines[side].get_edgecolor(), colour)
+        assert same_color(a.yaxis.get_ticklabels()[0].get_color(), colour)
+    assert not ax2.spines['left'].get_visible()      # ax's red one shows
+    assert not ax.spines['right'].get_visible()      # ax2's grey one shows
+    assert ax2.get_ylabel() == 'MF6 linear iterations per period'
+
+
 def test_the_pond_recharge_page_and_its_numbers(tmp_path, monkeypatch):
     pytest.importorskip('matplotlib')
     ws, out = str(tmp_path / 'ws'), str(tmp_path / 'out')

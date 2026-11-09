@@ -344,6 +344,17 @@ def fig_ss_heads(out, sim_ws, name, ds_ws, res, written, verbose=True):
 # the run's time per stress period
 # --------------------------------------------------------------------- #
 
+def _axis_colour(ax, side, colour):
+    """The ``side`` ('left'/'right') y axis of ``ax`` -- label, ticks, tick
+    labels and spine -- in ``colour``. A twin's own other spine is hidden,
+    so the coloured spine of the axes beneath it shows."""
+    ax.yaxis.label.set_color(colour)
+    ax.tick_params(axis='y', colors=colour)
+    ax.spines[side].set_color(colour)
+    if side == 'right':
+        ax.spines['left'].set_visible(False)
+
+
 def fig_sp_timing(out, sim_ws, name, ds_ws, cMF, ctx, res, written):
     import matplotlib.pyplot as plt
     import pandas as pd
@@ -362,22 +373,28 @@ def fig_sp_timing(out, sim_ws, name, ds_ws, cMF, ctx, res, written):
                                   gridspec_kw={'height_ratios': [2.2, 1.0]})
     ss = res.get('ss_seconds')
     width = 1.0 if is_dt else 0.8
+    # each axis wears its series' colour, so the reader tells at a glance
+    # which scale the bars and which the curve are read on (user, 2026-11-09)
+    bar_c, line_c = 'tab:red', '0.25'
     if sec is not None:
-        _bars(ax, x, sec, width, color='tab:red')
+        _bars(ax, x, sec, width, color=bar_c)
         ax.set_ylabel('wall-clock time per period (s)')
         y = sec
         total = float(sec.sum()) + (float(ss) if ss is not None else 0.0)
         head = 'total %dh%02dm over %d periods' % (total // 3600,
                                                   (total % 3600) // 60, n)
         ax2 = ax.twinx()
-        ax2.plot(x, it, color='0.25', lw=0.5)
-        ax2.set_ylabel('MF6 %s iterations' % kind, fontsize=8)
+        ax2.plot(x, it, color=line_c, lw=0.5)
+        ax2.set_ylabel('MF6 %s iterations per period' % kind)
+        _axis_colour(ax2, 'right', line_c)
+        ax.spines['right'].set_visible(False)
     else:
-        _bars(ax, x, it, width, color='tab:red')
+        _bars(ax, x, it, width, color=bar_c)
         ax.set_ylabel('MF6 %s iterations per period' % kind)
         y = it
         head = ('%d periods -- this run did not record its time per period '
                 '(runs before 2026-10-26): iterations only' % n)
+    _axis_colour(ax, 'left', bar_c)
     if ss is not None and sec is not None:
         head += '; the steady first period took %.0f s (%s iterations)' % (
             float(ss), res.get('ss_iters', '?'))
@@ -404,13 +421,16 @@ def fig_sp_timing(out, sim_ws, name, ds_ws, cMF, ctx, res, written):
                  lw=0.8, label='streamflow at the outlet')
         axq.set_yscale('log')
         axq.set_ylabel('outlet flow (m3/d)')
+        _axis_colour(axq, 'left', 'tab:blue')
     rain = _rain(ctx, n)
     if rain is not None:
         axr = axq.twinx()
         _bars(axr, x[:rain.size], rain, width, color='0.55',
               label='rainfall')
         axr.set_ylim(max(rain.max(), 1.0) * 2.5, 0)
-        axr.set_ylabel('rainfall (mm/d)', fontsize=8)
+        axr.set_ylabel('rainfall (mm/d)')
+        _axis_colour(axr, 'right', '0.45')
+        axq.spines['right'].set_visible(False)
     axq.grid(alpha=0.3)
     axq.set_xlabel('date' if is_dt else 'stress period')
     _save(fig, out, 'sp_run_timing.png', written)
