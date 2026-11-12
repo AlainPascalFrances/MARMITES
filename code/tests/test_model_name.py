@@ -94,9 +94,10 @@ def test_overview_asks_for_it_before_anything_else():
 
 def test_the_page_says_the_file_follows_the_name():
     """Automatic, so the panel has to say it is about to happen rather
-    than leave a rename to be discovered."""
+    than leave it to be discovered: a new name starts a new file."""
     page = open(HOME, encoding='utf-8').read()
-    assert 'renames this file to match' in page
+    assert 'A new model name starts a NEW configuration' in page
+    assert 'The configuration file is named after the model' in page
 
 
 def test_the_field_says_what_it_becomes():
@@ -131,7 +132,71 @@ def test_saving_renames_the_file_after_the_model(tmp_path, monkeypatch):
     )
     assert 'Renamed' in why
     # the sidebar picks the file from this, so it has to follow
-    assert panelui.st.session_state['config_file'] == 'newname.toml'
+    # (on the next run: a drawn widget's own key cannot be assigned)
+    assert panelui.st.session_state['__config_next'] == 'newname.toml'
+
+
+# ------------------------------- a new model name starts a new configuration
+
+def _pending(panelui, monkeypatch, edits):
+    monkeypatch.setattr(panelui.st, 'session_state',
+                        {'__pending_edits': dict(edits)}, raising=False)
+
+
+def test_a_new_model_name_writes_a_new_file_and_keeps_the_old(tmp_path,
+                                                              monkeypatch):
+    """CdL is started from lamata.toml (2026-11-12): typing its name on the
+    Home panel and saving gives cdl.toml, and La Mata's file is untouched."""
+    panelui = _panelui()
+    src = tmp_path / 'lamata.toml'
+    body = open(REF, encoding='utf-8').read()
+    src.write_text(body, encoding='utf-8')
+    cfg = cfgmod.load_run_config(str(src))
+    _pending(panelui, monkeypatch, {'meta.model': 'CdL', 'paths.case': 'CdL'})
+
+    applied, _digest, ok = panelui.save_now(cfg, str(src))
+
+    assert ok, _digest
+    new = tmp_path / 'cdl.toml'
+    assert new.exists()
+    assert src.read_text(encoding='utf-8') == body, 'the old file changed'
+    got = cfgmod.load_run_config(str(new))
+    assert got.meta.model == 'CdL' and got.paths.case == 'CdL'
+    state = panelui.st.session_state
+    assert state['__config_next'] == 'cdl.toml'
+    assert 'cdl.toml' in state['__saved_as'] and 'unchanged' in state['__saved_as']
+    assert not state.get('__pending_edits')
+
+
+def test_a_new_name_another_configuration_has_is_refused(tmp_path,
+                                                         monkeypatch):
+    panelui = _panelui()
+    src = tmp_path / 'lamata.toml'
+    body = open(REF, encoding='utf-8').read()
+    src.write_text(body, encoding='utf-8')
+    other = tmp_path / 'cdl.toml'
+    other.write_text('# another model entirely\n', encoding='utf-8')
+    cfg = cfgmod.load_run_config(str(src))
+    _pending(panelui, monkeypatch, {'meta.model': 'cdl'})
+
+    applied, why, ok = panelui.save_now(cfg, str(src))
+
+    assert not ok and 'another' in why and 'cdl.toml' in why
+    assert src.read_text(encoding='utf-8') == body
+    assert other.read_text(encoding='utf-8').startswith('# another model')
+    # nothing is lost: the edits are still remembered
+    assert panelui.st.session_state['__pending_edits'] == {'meta.model': 'cdl'}
+
+
+def test_a_save_without_a_new_name_goes_to_its_own_file(tmp_path,
+                                                        monkeypatch):
+    panelui = _panelui()
+    src = tmp_path / 'lamata.toml'
+    src.write_text(open(REF, encoding='utf-8').read(), encoding='utf-8')
+    cfg = cfgmod.load_run_config(str(src))
+    for edits in ({'run.nsp': 7}, {'meta.model': cfg.meta.model},
+                  {'meta.model': 'LAMATA'}):
+        assert panelui.save_path(cfg, str(src), edits) == (str(src), '')
 
 
 def test_a_name_already_taken_is_refused_rather_than_overwritten(tmp_path,

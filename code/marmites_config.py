@@ -3117,7 +3117,16 @@ def load_run_config(path):
     tomllib = _load_tomllib()
     with open(path, 'rb') as f:
         data = tomllib.load(f)
-    return RunConfig.from_dict(data, source_path=path)
+    cfg = RunConfig.from_dict(data, source_path=path)
+    # THE CONFIGURATION NAMES THE CASE, AND THE CASE HAS ITS OWN DATA PATHS
+    # (mm_paths, 2026-11-12): whoever loads a run configuration -- the app,
+    # the driver, a tool -- reads that case's folders from here on.
+    try:
+        import mm_paths
+        mm_paths.use_case(cfg.paths.case)
+    except ImportError:                 # the configuration alone, no paths
+        pass
+    return cfg
 
 
 __all__ += ['RunConfig', 'load_run_config', 'GRID_KINDS', 'RESAMPLE_MODES',

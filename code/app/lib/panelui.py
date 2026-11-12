@@ -39,7 +39,7 @@ __all__ = ['pick_config', 'header', 'master_switch', 'panel_switch',
            'rows_form', 'read_only', 'column_box', 'how_box',
            'record_lines', 'unsaved_switches', 'unsaved_changes', 'SWITCHES',
            'remember', 'remember_table', 'pending', 'pending_tables',
-           'forget', 'forget_table', 'save_now', 'sidebar_save',
+           'forget', 'forget_table', 'save_now', 'save_path', 'sidebar_save',
            'saved_note',
            'CONFIG_DIR']
 
@@ -60,6 +60,10 @@ SWITCHES = tuple(dict.fromkeys(p[3] for p in schema.PANELS if p[3]))
 # here as well: two stores of "what is unsaved" would disagree eventually.
 _PENDING = '__pending_edits'
 _PENDING_TABLES = '__pending_tables'
+# the configuration the sidebar shows on the NEXT run (a widget's own key
+# cannot be assigned once it is drawn), and the note a save-as leaves
+_CONFIG_NEXT = '__config_next'
+_SAVED_AS = '__saved_as'
 
 
 def remember(edited):
@@ -159,12 +163,53 @@ def save_now(cfg, path):
     a file on disk the model would refuse is worse than a message in the
     browser, because it is discovered hours later by a run.
     """
+    target, why = save_path(cfg, path)
+    if not target:
+        return [], why, False
     try:
-        applied, digest = editor.save(cfg, path, pending(), pending_tables())
+        applied, digest = editor.save(cfg, target, pending(),
+                                      pending_tables())
     except (editor.EditError, mcfg.ConfigError) as exc:
         return [], str(exc), False
     forget()
+    if os.path.abspath(target) != os.path.abspath(str(path)):
+        # A NEW configuration: the sidebar follows it on the next run, and
+        # what was remembered was written there, not into the old file.
+        st.session_state[_CONFIG_NEXT] = os.path.basename(target)
+        st.session_state[_SAVED_AS] = (
+            'New configuration `%s`, after the model. `%s` is unchanged.'
+            % (os.path.basename(target), os.path.basename(str(path))))
     return applied, digest, True
+
+
+def save_path(cfg, path, edits=None):
+    """The file a save writes: ``(path, '')``, or ``('', why not)``.
+
+    THE FILE IS NAMED AFTER THE MODEL, and a model is not renamed into
+    another one: giving a NEW model name on the Home panel starts a new
+    configuration, ``<model>.toml`` beside the one it was typed into, which
+    stays as it is -- so a new catchment begins from an existing model's
+    file without losing it (2026-11-12: CdL from lamata.toml). A name
+    another configuration already has is refused rather than overwritten.
+    Without a new name the save goes to the file it was read from.
+    """
+    edits = pending() if edits is None else edits
+    if 'meta.model' not in edits:
+        return str(path), ''
+    case = edits.get('paths.case', cfg.paths.case)
+    want = (str(edits['meta.model'] or '').strip() or str(case)).lower()
+    folder, base = os.path.split(str(path))
+    stem, ext = os.path.splitext(base)
+    if not want or want == cfg.meta.model_name(cfg.paths.case) \
+            or want == stem.lower():
+        return str(path), ''
+    target = os.path.join(folder, want + ext)
+    if os.path.exists(target):
+        return '', ('The model name **%s** is the one of another '
+                    'configuration, `%s%s`. Choose that configuration in '
+                    'the sidebar to edit it, or give this model another '
+                    'name.' % (want, want, ext))
+    return target, ''
 
 
 def sidebar_save(cfg, path):
@@ -203,7 +248,9 @@ def sidebar_save(cfg, path):
         return False
     st.session_state['__saved_note'] = (
         'Saved %d change(s) — hash %s' % (len(applied), why))
-    moved, note = rename_to_model(cfg, path)
+    note = st.session_state.pop(_SAVED_AS, '')
+    if not note:
+        moved, note = rename_to_model(cfg, path)
     if note:
         st.session_state['__saved_note'] += '  \n' + note
     st.rerun()
@@ -305,6 +352,10 @@ def pick_config():
     if not files:
         st.error('No configuration in %s' % CONFIG_DIR)
         st.stop()
+    # the file a save created or renamed, set before the widget is drawn
+    _next = st.session_state.pop(_CONFIG_NEXT, None)
+    if _next in files:
+        st.session_state['config_file'] = _next
     default = st.session_state.get('config_file', 'lamata.toml')
     idx = files.index(default) if default in files else 0
     chosen = st.sidebar.selectbox('Configuration', files, index=idx,
@@ -1595,7 +1646,7 @@ def rename_to_model(cfg, path):
                                                             exc)
     # The sidebar picks the file from this, so it has to follow or the next
     # run would look for a file that is no longer there.
-    st.session_state['config_file'] = want + ext
+    st.session_state[_CONFIG_NEXT] = want + ext
     return target, ('Renamed `%s` to `%s%s`, after the model.'
                     % (base, want, ext))
 

@@ -31,19 +31,42 @@ from lib import panelui, schema, runs as runlib  # noqa: E402
 st.set_page_config(page_title='MARMITES / MF6', page_icon='💧', layout='wide')
 
 
-def case_selector():
+def case_selector(cfg, path):
+    """The case study of THIS configuration: ``paths.case``, the dataset
+    folder under the examples root.
+
+    It shows what the configuration says and a change is an edit like any
+    other, written by the sidebar save (2026-11-12). It used to be a
+    selectbox of its own that reached no file, so a configuration started
+    for another catchment kept reading the first one's dataset.
+    """
     cases = []
     ex = mm_paths.EXAMPLE_ROOT
     if ex.is_dir():
         cases = sorted(d.name for d in ex.iterdir()
                        if d.is_dir() and not d.name.startswith('.'))
-    cases = cases or ['LaMata']
-    default = st.session_state.get('case', 'LaMata')
-    idx = cases.index(default) if default in cases else 0
-    return st.sidebar.selectbox('Case study', cases, index=idx, key='case')
+    saved = str(cfg.paths.case)
+    if saved not in cases:
+        cases.append(saved)
+    # follow the configuration when another one is chosen
+    if st.session_state.get('__case_file') != path:
+        st.session_state['case'] = panelui.pending().get('paths.case', saved)
+        st.session_state['__case_file'] = path
+    if st.session_state.get('case') not in cases:
+        st.session_state['case'] = saved
+    label, _units, help_ = schema.describe('paths.case')
+    chosen = st.sidebar.selectbox(
+        'Case study', cases, key='case',
+        help='`paths.case`  \n%s  \nThe folders listed are those of the '
+             'examples root.' % help_)
+    if chosen != saved:
+        panelui.remember({'paths.case': chosen})
+    elif 'paths.case' in panelui.pending():
+        st.session_state['__pending_edits'].pop('paths.case', None)
+    return chosen
 
 
-def where_things_are():
+def where_things_are(case):
     """Panel 0 owns the machine-specific folders -- set here, once.
 
     They used to be read-only in the sidebar under a note telling the modeller
@@ -53,9 +76,27 @@ def where_things_are():
     form says so per row rather than leaving it to be discovered.
     """
     st.markdown('### Where things are, on this machine')
-    st.caption('Set once. Written to `code/configs/paths.local.toml`, which '
-               'is machine-local and not tracked — nothing here goes into the '
-               'repository, and no file has to be edited by hand.')
+    st.caption('Set once per case study. Written to '
+               '`code/configs/paths.local.toml`, which is machine-local and '
+               'not tracked — nothing here goes into the repository, and no '
+               'file has to be edited by hand.')
+    # ONE SET OF DATA PATHS PER CASE (2026-11-12): the folders marked with
+    # the case belong to it and come back when one of its configurations is
+    # chosen; the others are the machine's and shared by every case.
+    _has = bool(mm_paths.read_case_settings(case))
+    st.info('**Case %s.** The folders marked *case* are saved for this case '
+            'study and return whenever one of its configurations is chosen; '
+            'the others are this machine\'s, shared by every case.%s'
+            % (case, '' if _has else '  \nThis case has no paths of its own '
+               'yet: what is shown comes from the paths saved before cases '
+               'had their own. Set them and save.'))
+
+    # another case: its boxes start from ITS paths, not from what the boxes
+    # held for the previous one (a keyed widget keeps its value)
+    if st.session_state.get('__paths_case') != case:
+        for k in mm_paths.CASE_KEYS:
+            st.session_state.pop('path_%s' % k, None)
+        st.session_state['__paths_case'] = case
 
     current = {k: getattr(mm_paths, {'gis': 'GIS', 'rs': 'RS',
                                      'example_root': 'EXAMPLE_ROOT'}.get(
@@ -74,6 +115,8 @@ def where_things_are():
     for i, (key, (env, _default, doc)) in enumerate(mm_paths.SETTABLE.items()):
         with cols[i % 2]:
             label = key.replace('_', ' ').upper()
+            if key in mm_paths.CASE_KEYS:
+                label += ' — case %s' % case
             got = panelui.folder_picker(
                 label, current[key], key='path_%s' % key,
                 help_='`%s`  \n%s  \nFrom %s.'
@@ -95,7 +138,7 @@ def where_things_are():
     if c1.button('Save these paths', type='primary', key='save_paths'):
         saved = {k: v for k, v in edits.items() if k not in pinned}
         try:
-            mm_paths.save_settings(saved)
+            mm_paths.save_settings(saved, case=case)
         except OSError as exc:
             c2.error('Could not write %s: %r' % (mm_paths.SETTINGS, exc))
         else:
@@ -214,8 +257,8 @@ def runs_dir(cfg=None):
 
 
 def main():
-    case = case_selector()
     cfg, path = panelui.pick_config()
+    case = case_selector(cfg, path)
     panelui.dataset_banner(cfg)
 
     st.title('💧  MARMITES / MODFLOW 6')
@@ -231,9 +274,16 @@ def main():
         st.markdown('')
         st.caption('Case **%s**, configuration `%s`.'
                    % (case, os.path.basename(path)))
-        st.caption('MODFLOW writes `%s.hds`, `%s.cbc`, `%s.lst`. Saving '
-                   'renames this file to match.'
+        st.caption('MODFLOW writes `%s.hds`, `%s.cbc`, `%s.lst`.'
                    % (_effective, _effective, _effective))
+        _stem = os.path.splitext(os.path.basename(path))[0].lower()
+        if _effective != _stem and \
+                _effective != cfg.meta.model_name(cfg.paths.case):
+            st.info('A new model name starts a NEW configuration: saving '
+                    'writes `%s.toml` and leaves `%s` as it is.'
+                    % (_effective, os.path.basename(path)))
+        else:
+            st.caption('The configuration file is named after the model.')
     panelui.remember(_edited)
 
     # THE FILE, which is what a run reads -- not the toggles, which are
@@ -291,7 +341,8 @@ The switches are not decoration. They are the same `[run]` keys the driver
 reads, so turning one off means that half of the model does not execute.
 """)
 
-    where_things_are()
+    # the SAVED case: its paths are the ones in force (mm_paths.use_case)
+    where_things_are(str(cfg.paths.case))
 
     ds = mm_paths.dataset_dir(case)
     c1, c2, c3 = st.columns(3)

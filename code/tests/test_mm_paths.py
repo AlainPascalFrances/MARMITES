@@ -181,3 +181,90 @@ def test_every_folder_panel_zero_offers_is_documented(monkeypatch, tmp_path,
     env, _default, doc = mp.SETTABLE[key]
     assert env.startswith('MM_')
     assert len(doc) > 30, '%s has no explanation for the panel to show' % key
+
+
+# ------------------------------------------------ one set of paths per case
+# (user, 2026-11-12: La Mata's and Casa de Lobos's data sit in different
+# folders on the same machine)
+
+def _two_cases(monkeypatch, tmp_path):
+    mp = _fresh(monkeypatch, settings_path=tmp_path / 'p.toml')
+    mp.save_settings({'data_root': str(tmp_path / 'old'),
+                      'ws_root': str(tmp_path / 'old_ws'),
+                      'gis': str(tmp_path / 'old_gis'),
+                      'modflow_dir': str(tmp_path / 'mf')})
+    mp.use_case('CdL')
+    mp.save_settings({'data_root': str(tmp_path / 'cdl'),
+                      'ws_root': str(tmp_path / 'cdl_ws'),
+                      'modflow_dir': str(tmp_path / 'mf')}, case='CdL')
+    return mp
+
+
+def test_a_case_reads_its_own_data_paths(monkeypatch, tmp_path):
+    mp = _two_cases(monkeypatch, tmp_path)
+    assert mp.CASE == 'CdL'
+    assert mp.DATA_ROOT == tmp_path / 'cdl'
+    assert mp.WS_ROOT == tmp_path / 'cdl_ws'
+    assert 'case CdL' in mp.source_of('data_root')
+    # the machine's are shared
+    assert mp.MODFLOW_DIR == tmp_path / 'mf'
+
+
+def test_a_blank_in_a_cases_table_is_its_default_not_another_cases(
+        monkeypatch, tmp_path):
+    """GIS left blank for CdL is CdL's DATA_ROOT/GIS -- never the folder
+    saved before, which is another catchment's cartography."""
+    mp = _two_cases(monkeypatch, tmp_path)
+    assert mp.GIS == tmp_path / 'cdl' / 'GIS'
+    assert mp.PEST_WS is None
+
+
+def test_a_case_without_a_table_reads_the_paths_saved_before(monkeypatch,
+                                                             tmp_path):
+    mp = _two_cases(monkeypatch, tmp_path)
+    assert mp.use_case('LaMata')
+    assert mp.DATA_ROOT == tmp_path / 'old'
+    assert mp.GIS == tmp_path / 'old_gis'
+    assert not mp.use_case('LaMata'), 'the same case again changes nothing'
+    mp.use_case('CdL')
+    assert mp.DATA_ROOT == tmp_path / 'cdl'
+
+
+def test_saving_one_case_keeps_the_others(monkeypatch, tmp_path):
+    mp = _two_cases(monkeypatch, tmp_path)
+    mp.use_case('LaMata')
+    mp.save_settings({'data_root': str(tmp_path / 'lm'),
+                      'modflow_dir': str(tmp_path / 'mf2')}, case='LaMata')
+    assert mp.DATA_ROOT == tmp_path / 'lm'
+    assert mp.MODFLOW_DIR == tmp_path / 'mf2'
+    assert set(mp.read_case_settings()) == {'CdL', 'LaMata'}
+    assert mp.read_case_settings('CdL')['data_root'] == str(tmp_path / 'cdl')
+    # [paths] still holds what a case without a table reads
+    assert mp.read_settings()['data_root'] == str(tmp_path / 'old')
+    # a save without a case (the old call) keeps the tables too
+    mp.save_settings({'modflow_dir': str(tmp_path / 'mf3')})
+    assert set(mp.read_case_settings()) == {'CdL', 'LaMata'}
+
+
+def test_the_environment_still_wins_over_a_cases_table(monkeypatch, tmp_path):
+    mp = _two_cases(monkeypatch, tmp_path)
+    monkeypatch.setenv('MM_WS_ROOT', str(tmp_path / 'worker'))
+    mp.reload_paths()
+    assert mp.WS_ROOT == tmp_path / 'worker'
+    assert 'environment' in mp.source_of('ws_root')
+
+
+def test_loading_a_configuration_makes_its_case_the_active_one(monkeypatch,
+                                                               tmp_path):
+    import sys
+    mp = _two_cases(monkeypatch, tmp_path)
+    mp.use_case('LaMata')
+    monkeypatch.setitem(sys.modules, 'mm_paths', mp)
+    spec = importlib.util.spec_from_file_location(
+        'marmites_config_case', os.path.join(CODE, 'marmites_config.py'))
+    cfgmod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cfgmod)
+    c = cfgmod.RunConfig.from_dict({'paths': {'case': 'CdL'}})
+    fn = c.write_toml(str(tmp_path / 'cdl.toml'))
+    cfgmod.load_run_config(fn)
+    assert mp.CASE == 'CdL' and mp.DATA_ROOT == tmp_path / 'cdl'

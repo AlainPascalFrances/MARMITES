@@ -37,6 +37,7 @@ __all__ = ['REPO', 'CODE_DIR', 'MIRROR', 'MIRROR_MARK', 'CONFIG_DIR',
            'SETTABLE',
            'dataset_dir', 'resolve_input', 'report_paths', 'LEGACY_ALIASES',
            'read_settings', 'save_settings', 'reload_paths', 'source_of',
+           'CASE_KEYS', 'CASE', 'use_case', 'read_case_settings',
            'settings_label']
 
 # ==== the checkout, and the code that runs ==================================
@@ -146,8 +147,29 @@ SETTABLE = {
 }
 
 
-def read_settings():
-    """What ``paths.local.toml`` holds, or ``{}``. Never raises: a missing or
+# ==== one set of data paths PER CASE STUDY (user, 2026-11-12) ==============
+# Where a case's data, outputs and calibration sit belongs to the CASE: La
+# Mata's and Casa de Lobos's are different folders on the same machine, and
+# retyping seven of them on the Home panel at every change of case is how a
+# run ends up reading one catchment's cartography for the other. So
+# paths.local.toml holds, besides [paths], one table per case:
+#
+#     [paths]          the machine: example_root, modflow_dir, python_exe --
+#                      and the data paths of a case that has no table yet
+#     [case.CdL]       the CASE_KEYS of that case
+#
+# The case is the configuration's (paths.case): loading a run configuration
+# makes its case the active one (use_case), in the app, the driver and the
+# tools alike. A case WITH a table takes every CASE_KEY from it -- one left
+# blank there is its default (GIS = DATA_ROOT/GIS), never another case's
+# folder; a case WITHOUT one reads [paths], as every case did before.
+CASE_KEYS = ('data_root', 'gis', 'rs', 'soil_moisture', 'ws_root',
+             'nwt_ref', 'pest_ws')
+CASE = ''                       # the active case; '' = none chosen yet
+
+
+def _read_file():
+    """``paths.local.toml`` as a dict, or ``{}``. Never raises: a missing or
     malformed file must fall back to the defaults, not stop every import."""
     try:
         import tomllib
@@ -158,26 +180,65 @@ def read_settings():
             return {}
     try:
         with open(SETTINGS, 'rb') as fh:
-            return {k: str(v) for k, v in
-                    (tomllib.load(fh).get('paths') or {}).items()}
+            return tomllib.load(fh)
     except (OSError, ValueError):
         return {}
 
 
+def read_settings():
+    """What the ``[paths]`` table of ``paths.local.toml`` holds, or ``{}``."""
+    return {k: str(v) for k, v in (_read_file().get('paths') or {}).items()}
+
+
+def read_case_settings(case=None):
+    """Every case's own table, ``{case: {key: path}}`` -- or, with ``case``,
+    that case's (``{}`` when it has none)."""
+    tables = {str(c): {k: str(v) for k, v in (t or {}).items()
+                       if k in CASE_KEYS}
+              for c, t in (_read_file().get('case') or {}).items()
+              if isinstance(t, dict)}
+    return tables if case is None else tables.get(str(case), {})
+
+
 def _setting(key):
-    """One key, resolved: environment, then the local file, then the default."""
+    """One key, resolved: environment, then the local file -- the active
+    case's table for a CASE_KEY when it has one -- then the default."""
     env, default, _doc = SETTABLE[key]
-    return (os.environ.get(env) or _SETTINGS.get(key) or default or '')
+    if os.environ.get(env):
+        return os.environ[env]
+    if key in CASE_KEYS and _CASE_SETTINGS:
+        return _CASE_SETTINGS.get(key) or default or ''
+    return _SETTINGS.get(key) or default or ''
 
 
 def source_of(key):
-    """WHICH of the three supplied this key, so panel 0 can say so."""
+    """WHICH source supplied this key, so panel 0 can say so."""
     env, _default, _doc = SETTABLE[key]
     if os.environ.get(env):
         return 'the %s environment variable' % env
+    if key in CASE_KEYS and _CASE_SETTINGS:
+        return ('code/configs/paths.local.toml, case %s' % CASE
+                if _CASE_SETTINGS.get(key) else 'its default (blank for '
+                'case %s)' % CASE)
     if _SETTINGS.get(key):
         return 'code/configs/paths.local.toml'
     return 'the built-in default'
+
+
+def use_case(case):
+    """Make ``case`` the active one: its data paths are the ones resolved.
+
+    Called when a run configuration is loaded (marmites_config.
+    load_run_config), so the paths follow the configuration everywhere.
+    Returns True when the paths changed hands.
+    """
+    global CASE
+    case = str(case or '')
+    if case == CASE:
+        return False
+    CASE = case
+    reload_paths()
+    return True
 
 
 def settings_label():
@@ -192,21 +253,48 @@ def settings_label():
         return str(SETTINGS)
 
 
-def save_settings(values):
+def save_settings(values, case=None):
     """Write the machine-local paths, and apply them in THIS process.
 
     Only non-blank values are written: a key left empty goes back to its
     default rather than being pinned to an empty string.
+
+    With ``case`` the CASE_KEYS go to that case's own table and the rest to
+    ``[paths]``, whose own CASE_KEYS -- what a case without a table reads --
+    stay as they were. Without it everything goes to ``[paths]``. The other
+    cases' tables are kept either way.
     """
+    def _clean(d, keys):
+        return {k: str(d.get(k, '') or '').strip() for k in keys
+                if str(d.get(k, '') or '').strip()}
+
+    tables = read_case_settings()
+    if case:
+        old = read_settings()
+        machine = _clean(values, [k for k in SETTABLE if k not in CASE_KEYS])
+        machine.update(_clean(old, CASE_KEYS))
+        tables[str(case)] = _clean(values, CASE_KEYS)
+    else:
+        machine = _clean(values, SETTABLE)
+
+    def _line(key, v):
+        return '%-12s = "%s"' % (key, v.replace('\\', '\\\\'))
+
     SETTINGS.parent.mkdir(parents=True, exist_ok=True)
     out = ["# Machine-local paths, written by panel 0. NOT tracked: this says",
            "# where one person's data sits, which is not a property of the",
            '# project. An MM_* environment variable still wins over it.',
+           '# [paths]: the machine, and the data paths of a case without a',
+           '# table of its own. [case.<name>]: one case study\'s data paths.',
            '[paths]']
-    for key in SETTABLE:
-        v = str(values.get(key, '') or '').strip()
-        if v:
-            out.append('%-12s = "%s"' % (key, v.replace('\\', '\\\\')))
+    out += [_line(k, machine[k]) for k in SETTABLE if k in machine]
+    for name in sorted(tables):
+        if not tables[name]:
+            continue
+        out += ['', '[case."%s"]' % name.replace('\\', '\\\\').replace(
+            '"', '\\"')]
+        out += [_line(k, tables[name][k]) for k in CASE_KEYS
+                if k in tables[name]]
     SETTINGS.write_text('\n'.join(out) + '\n', encoding='utf-8')
     return reload_paths()
 
@@ -258,8 +346,9 @@ def reload_paths():
     """Re-resolve every root after the settings changed, without a restart."""
     global _SETTINGS, DATA_ROOT, WS_ROOT, NWT_REF, MODFLOW_DIR, PYTHON_EXE
     global GIS, EXAMPLE_ROOT, LIBMF6, MF6_EXE, TRIANGLE_EXE, PESTPP_IES
-    global GRIDGEN_EXE, PEST_WS, RS, SOIL_MOISTURE
+    global GRIDGEN_EXE, PEST_WS, RS, SOIL_MOISTURE, _CASE_SETTINGS
     _SETTINGS = read_settings()
+    _CASE_SETTINGS = read_case_settings(CASE) if CASE else {}
     PEST_WS = _optional_path('pest_ws')
     DATA_ROOT = Path(_setting('data_root'))
     WS_ROOT = Path(_setting('ws_root'))
@@ -286,6 +375,7 @@ def _optional_path(key):
 
 
 _SETTINGS = read_settings()
+_CASE_SETTINGS = {}             # the active case's table (use_case)
 PEST_WS     = _optional_path('pest_ws')
 DATA_ROOT   = Path(_setting('data_root'))
 WS_ROOT     = Path(_setting('ws_root'))
