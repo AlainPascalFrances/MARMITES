@@ -410,6 +410,9 @@ def _describe(cfg):
         return ('quadtree, %g m background, %d level(s)%s'
                 % (cfg.grid.cell_size, q.refine_level,
                    '' if q.refine_streams else ', unrefined'))
+    if k == 'imported':
+        return ('imported from %s (cells and layers as in the file)'
+                % (cfg.grid.imported.file or 'a grid file not named yet'))
     return '%s, %g m cells' % (k, cfg.grid.cell_size)
 
 

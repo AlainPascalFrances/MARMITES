@@ -233,7 +233,10 @@ def test_every_declared_grid_producer_exists(kind):
     guard stays wired for the next producer that gets declared before it
     works -- an unimplemented kind has to stop the run, not quietly do
     something else."""
-    c = cfgmod.RunConfig.from_dict({'grid': {'kind': kind}})
+    grid = {'kind': kind}
+    if kind == 'imported':                # an existing grid names its file
+        grid['imported'] = {'file': 'model.disv.grb'}
+    c = cfgmod.RunConfig.from_dict({'grid': grid})
     c.require_implemented_grid()          # must not raise
     import marmites_meshes
     assert kind in marmites_meshes._PRODUCERS

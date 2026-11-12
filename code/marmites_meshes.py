@@ -34,6 +34,7 @@ __all__ = ['build_mesh', 'MeshBuildError', 'stream_lines', 'mesh_signature',
            'dataset_rectangle', 'rectangle_check', 'pond_rings', 'pond_seeds',
            'pond_cells', 'stream_cells', 'cells_touch', 'cell_polygons',
            'cell_centres', 'even_ring', 'run_rectangle',
+           'imported_path', 'read_grid_file',
            'PRODUCER_VERSION']
 
 # Identifies the MESH-PRODUCING BEHAVIOUR, not the module. Bump it on any
@@ -88,14 +89,30 @@ def stream_lines(csv_path):
 # signature / cache
 # --------------------------------------------------------------------- #
 
-def mesh_signature(cfg, cMF):
+def mesh_signature(cfg, cMF, dataset_dir=None):
     """Hash of everything that determines the mesh.
 
     Deliberately NARROW: the source grid geometry and the ``[grid]`` block.
     Changing the number of stress periods must not invalidate a mesh; changing
     the cell size must.
+
+    An IMPORTED grid is determined by its file and nothing else -- not by
+    the rectangle, which only carries the rasters -- so its signature is the
+    file's CONTENT: a grid file replaced under the same name is another mesh.
     """
     import dataclasses
+    if cfg.grid_kind == 'imported':
+        path = imported_path(cfg, dataset_dir)
+        try:
+            with open(path, 'rb') as fh:
+                digest = hashlib.sha256(fh.read()).hexdigest()
+        except OSError:
+            digest = 'missing:%s' % path
+        blob = json.dumps({'producer_version': PRODUCER_VERSION,
+                           'kind': 'imported', 'file': digest,
+                           'nlay': int(cMF.nlay)},
+                          sort_keys=True).encode('utf-8')
+        return hashlib.sha256(blob).hexdigest()[:16]
     payload = {
         # Bump PRODUCER_VERSION whenever a producer would build a DIFFERENT
         # mesh from the same configuration -- retuning _TRI_AREA_PER_CELL did
@@ -139,9 +156,11 @@ def _load_cached(cache_dir, kind, signature):
     gp['vertices'] = [[int(v[0]), float(v[1]), float(v[2])] for v in gp['vertices']]
     gp['cell2d'] = [[int(r[0]), float(r[1]), float(r[2]), int(r[3])]
                     + [int(x) for x in r[4:]] for r in gp['cell2d']]
-    for k in ('top', 'botm'):
+    for k in ('top', 'botm', 'thick'):
         if k in gp and gp[k] is not None:
             gp[k] = np.asarray(gp[k], dtype=float)
+    if gp.get('idomain') is not None:
+        gp['idomain'] = np.asarray(gp['idomain'], dtype=int)
     return gp
 
 
@@ -158,9 +177,11 @@ def normalise(gridprops):
                       for v in gp['vertices']]
     gp['cell2d'] = [[int(r[0]), float(r[1]), float(r[2]), int(r[3])]
                     + [int(x) for x in r[4:]] for r in gp['cell2d']]
-    for k in ('top', 'botm'):
+    for k in ('top', 'botm', 'thick'):
         if gp.get(k) is not None:
             gp[k] = np.asarray(gp[k], dtype=float)
+    if gp.get('idomain') is not None:
+        gp['idomain'] = np.asarray(gp['idomain'], dtype=int)
     for k in ('ncpl', 'nlay', 'nvert'):
         if gp.get(k) is not None:
             gp[k] = int(gp[k])
@@ -278,6 +299,117 @@ def _produce_quadtree(cfg, cMF, dataset_dir=None, model_ws=None, warn=None,
     ws = model_ws or os.path.join(os.getcwd(), '_gridgen')
     return build_quadtree(cMF, exe, ws, refine_features=feats,
                           layers=list(range(int(cMF.nlay))))
+
+
+# --------------------------------------------------------------------- #
+# an existing MODFLOW 6 grid                                 2026-11-12
+# --------------------------------------------------------------------- #
+
+def imported_path(cfg, dataset_dir=None):
+    """Where ``grid.imported.file`` is: absolute, or in the dataset folder."""
+    name = (cfg.grid.imported.file or '').strip()
+    if not name:
+        raise MeshBuildError(
+            "grid.imported.file is blank: grid.kind = 'imported' reads the "
+            'cells and the layers from an existing MODFLOW 6 grid file.')
+    if os.path.isabs(name):
+        return name
+    if dataset_dir is None:
+        import mm_paths
+        dataset_dir = str(mm_paths.dataset_dir(cfg.paths.case))
+    return os.path.join(str(dataset_dir), name)
+
+
+def read_grid_file(path):
+    """A MODFLOW 6 DISV binary grid file as gridprops, WITH its layers.
+
+    Besides the plan view every producer returns (``vertices``, ``cell2d``,
+    ``ncpl``, ``nlay``) the dict carries what only an existing model has:
+
+        idomain   (nlay, ncpl) int    1 where the layer exists in the cell,
+                                      0 where it does not
+        thick     (nlay, ncpl) float  the layer's thickness there, from the
+                                      file's top and bottoms; 0 where absent
+
+    The cells keep the file's order and vertex numbering, so cell k here is
+    cell k of the model the file came from. A layer the file marks as a
+    pass-through (idomain < 0) or inactive is ABSENT; which absent cells
+    become pass-throughs again is decided when the MF6 input is written,
+    from what lies above and below (marmites_mf6).
+    """
+    if not os.path.exists(path):
+        raise MeshBuildError('grid file not found: %s' % path)
+    try:
+        from flopy.mf6.utils import MfGrdFile
+        grb = MfGrdFile(path)
+    except Exception as exc:                            # noqa: BLE001
+        raise MeshBuildError('%s could not be read as a MODFLOW 6 binary '
+                             'grid file: %r' % (path, exc))
+    if str(grb.grid_type).upper() != 'DISV':
+        raise MeshBuildError(
+            '%s holds a %s grid; an imported grid must be DISV (layers of '
+            'the same cells in plan view).' % (path, grb.grid_type))
+    mg = grb.modelgrid
+    nlay, ncpl = int(mg.nlay), int(mg.ncpl)
+    if abs(float(mg.angrot or 0.0)) > 1e-9:
+        raise MeshBuildError('%s is rotated (angrot %g); a rotated grid is '
+                             'not supported.' % (path, mg.angrot))
+    if abs(float(mg.xoffset or 0.0)) > 1e-9 \
+            or abs(float(mg.yoffset or 0.0)) > 1e-9:
+        raise MeshBuildError(
+            '%s carries an origin offset (%g, %g); only a grid whose '
+            'vertices are already in the project CRS is supported.'
+            % (path, mg.xoffset, mg.yoffset))
+    verts = np.asarray(mg.verts, dtype=float)
+    xc = np.asarray(mg.xcellcenters, dtype=float).ravel()
+    yc = np.asarray(mg.ycellcenters, dtype=float).ravel()
+    vertices = [[i, float(x), float(y)] for i, (x, y) in enumerate(verts)]
+    cell2d = []
+    for c, iv in enumerate(mg.iverts):
+        iv = [int(v) for v in iv if v is not None]
+        if len(iv) > 1 and iv[0] == iv[-1]:
+            iv = iv[:-1]                          # MF6 wants an open ring
+        if len(iv) < 3:
+            raise MeshBuildError('cell %d of %s has %d vertices'
+                                 % (c + 1, path, len(iv)))
+        cell2d.append([c, float(xc[c]), float(yc[c]), len(iv)] + iv)
+    idom = np.asarray(mg.idomain).reshape(nlay, ncpl)
+    top = np.asarray(mg.top, dtype=float).reshape(ncpl)
+    botm = np.asarray(mg.botm, dtype=float).reshape(nlay, ncpl)
+    exists = idom > 0
+    thick = np.zeros((nlay, ncpl), dtype=float)
+    upper = top
+    for k in range(nlay):
+        thick[k] = np.where(exists[k], upper - botm[k], 0.0)
+        upper = botm[k]
+    bad = exists & ~(thick > 0.0)
+    if bad.any():
+        k, c = [int(x[0]) for x in np.nonzero(bad)]
+        raise MeshBuildError(
+            '%d cell-layer(s) of %s exist (idomain > 0) with no thickness '
+            '(first: layer %d, cell %d).' % (int(bad.sum()), path, k + 1,
+                                             c + 1))
+    return {'vertices': vertices, 'cell2d': cell2d, 'ncpl': ncpl,
+            'nlay': nlay, 'idomain': exists.astype(int), 'thick': thick}
+
+
+def _produce_imported(cfg, cMF, dataset_dir=None, warn=None, **_kw):
+    """The grid of an existing MODFLOW 6 model, as it is."""
+    path = imported_path(cfg, dataset_dir)
+    gp = read_grid_file(path)
+    if int(gp['nlay']) != int(cMF.nlay):
+        raise MeshBuildError(
+            '%s has %d layer(s) and layers.nlay is %d: an imported grid '
+            'brings its layers, so the two must agree.'
+            % (os.path.basename(path), gp['nlay'], int(cMF.nlay)))
+    if warn:
+        ex = np.asarray(gp['idomain']) > 0
+        warn('grid.imported: %d cell(s) x %d layer(s) from %s; layer(s) '
+             'present in %s cell(s); %d cell(s) with no layer at all.'
+             % (gp['ncpl'], gp['nlay'], os.path.basename(path),
+                ' / '.join(str(int(n)) for n in ex.sum(axis=1)),
+                int((~ex.any(axis=0)).sum())))
+    return gp
 
 
 def rectangle_cell_size(cfg):
@@ -1398,6 +1530,7 @@ _PRODUCERS = {
     'disv': _produce_structured,
     'quadtree': _produce_quadtree,
     'voronoi': _produce_voronoi,
+    'imported': _produce_imported,
 }
 
 
@@ -1423,7 +1556,7 @@ def build_mesh(cfg, cMF, cache_dir=None, dataset_dir=None, model_ws=None,
     if producer is None:
         raise MeshBuildError('unknown grid.kind %r (known: %s)'
                              % (kind, ', '.join(sorted(_PRODUCERS))))
-    sig = mesh_signature(cfg, cMF)
+    sig = mesh_signature(cfg, cMF, dataset_dir)
     cached = False
     gp = None
     if cache_dir and not force:

@@ -555,6 +555,28 @@ class GridQuadtree:
 
 
 @dataclass
+class GridImported:
+    """An EXISTING MODFLOW 6 DISV grid, taken as it is (2026-11-12, CdL).
+
+    ``file`` names the binary grid file MODFLOW 6 writes beside every model
+    (``<model>.disv.grb``), in the dataset folder or by an absolute path. It
+    holds the cells AND the layers, so with this kind the grid file is the
+    only source of both:
+
+        the cells       vertices and cell2d, unchanged, in the file's order
+        which layers    idomain, per cell: > 0 is a layer that exists there
+        thickness       per cell and layer, from the file's top and bottoms
+
+    ``layers.ibound`` and ``layers.thickness`` are then NOT read -- a second
+    answer could only disagree with the file. The aquifer top stays the
+    model's own rule (land surface from [grid] dem minus the soil column),
+    and the file's thicknesses hang below it.
+    """
+
+    file: str = ''
+
+
+@dataclass
 class GridOverride:
     """Reproduce an EXISTING grid exactly, instead of deriving one (WP1d, C.1).
 
@@ -627,6 +649,7 @@ class Grid:
     resample: str = 'auto'
     voronoi: GridVoronoi = field(default_factory=GridVoronoi)
     quadtree: GridQuadtree = field(default_factory=GridQuadtree)
+    imported: GridImported = field(default_factory=GridImported)
 
 
 @dataclass
@@ -1757,7 +1780,14 @@ _SECTIONS = {
     'pest': Pest, 'ui': Ui,
 }
 
-GRID_KINDS = ('structured', 'disv', 'voronoi', 'quadtree')
+GRID_KINDS = ('structured', 'disv', 'voronoi', 'quadtree', 'imported')
+# The kinds whose cells are NOT the dataset's raster cells: the model is
+# assembled on the rasters and then put onto the mesh (marmites_mesh).
+MESH_KINDS = ('quadtree', 'voronoi', 'imported')
+# The one grid file an imported grid is read from: MODFLOW 6's binary grid
+# file of a DISV model. One format, because it is the one MF6 always writes
+# and it carries idomain, top and the bottoms with the cells.
+IMPORTED_SUFFIX = '.disv.grb'
 # Must stay in step with marmites_mesh.MODEL_SAMPLING_MODES; a test asserts it.
 # 'area' and 'majority' are deliberately NOT offered here: they are per-field
 # rules, and forcing either on the whole model is meaningless.
@@ -2037,6 +2067,19 @@ class RunConfig:
                 "disv grid (it reproduces an EXISTING rectangle), and "
                 'grid.kind is %r. Turn the override off, or go back to '
                 'structured.' % self.grid_kind)
+        if self.grid_kind == 'imported':
+            _f = (self.grid.imported.file or '').strip()
+            if not _f:
+                errs.append(
+                    "grid.imported.file is blank: grid.kind = 'imported' "
+                    'takes the cells and the layers from an existing MODFLOW '
+                    '6 grid file (<model>%s). Name it on the Grid panel.'
+                    % IMPORTED_SUFFIX)
+            elif not _f.lower().endswith(IMPORTED_SUFFIX):
+                errs.append(
+                    'grid.imported.file = %r: an imported grid is read from '
+                    "MODFLOW 6's binary grid file of a DISV model, which "
+                    'ends in %s.' % (_f, IMPORTED_SUFFIX))
         v = self.grid.voronoi
         if not (1.0 < float(v.grade_ratio) <= 3.0):
             errs.append(
@@ -2311,7 +2354,9 @@ class RunConfig:
         # that silently took it from the parameter file would be a model
         # whose extent nobody chose. The others may still be blank, and the
         # panel says which of them the parameter file is still supplying.
-        if self.run.model and self.layers.ibound.producer() is None:
+        # (an imported grid carries it: grid.imported.file holds idomain)
+        if self.run.model and self.grid_kind != 'imported' \
+                and self.layers.ibound.producer() is None:
             errs.append(
                 'layers.ibound: which cells of each layer exist has to be '
                 'answered -- one map per layer (ibound_l%d.asc). The '
@@ -3076,6 +3121,7 @@ def load_run_config(path):
 
 
 __all__ += ['RunConfig', 'load_run_config', 'GRID_KINDS', 'RESAMPLE_MODES',
+            'MESH_KINDS', 'IMPORTED_SUFFIX', 'GridImported',
             'ParamSource',
             'Meta', 'Paths', 'Run', 'Grid', 'GridVoronoi', 'Layers', 'Uzf',
             'Seep', 'Et', 'Sfr', 'Lak', 'Crr', 'Spinup', 'Postproc', 'Pest', 'Ui']

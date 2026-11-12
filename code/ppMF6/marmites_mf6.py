@@ -246,7 +246,7 @@ class clsMF6:
             # would need a CHD package here. La Mata has none.
             raise MF6BuildError('ibound<0 (constant heads) present: add a CHD '
                                 'package before building (not implemented).')
-        self.idomain = (np.abs(ib) > 0).astype(int)
+        self.idomain = self.pass_through((np.abs(ib) > 0).astype(int))
         # active surface (outcrop) cells in MARMITES cell order
         self.outcropL = np.asarray(cMF.outcropL, dtype=int)
         self.surf_cells = [(i, j, self.outcropL[i, j] - 1)
@@ -451,6 +451,33 @@ class clsMF6:
             self.eps_clamped = (eps, new)
             eps = np.clip(np.asarray(a_eps, float), self.EPS_MIN, self.EPS_MAX)
         return thtr, thts, thti, eps
+
+    @staticmethod
+    def pass_through(idomain):
+        """``idomain`` with the absent cells BETWEEN two existing ones as -1.
+
+        MODFLOW 6 connects two cells of a column only through cells that
+        exist or are marked "vertical pass-through" (idomain < 0); an
+        idomain of 0 between them cuts the column. A layer absent under one
+        that exists and above another -- CdL's alluvium on the Plio-Miocene
+        where the terraces are missing, 305 cells -- is such a gap, and left
+        at 0 the upper cell would have no connection downwards at all. An
+        absent cell with nothing existing above it, or nothing below, stays
+        0: there is nothing to connect. Every test of this array elsewhere
+        is ``> 0`` or ``<= 0``, so -1 reads as absent wherever it did.
+        """
+        idom = np.asarray(idomain, dtype=int).copy()
+        exists = idom > 0
+        if idom.shape[0] < 3:
+            return idom
+        above = np.zeros_like(exists)
+        below = np.zeros_like(exists)
+        for k in range(1, idom.shape[0]):
+            above[k] = above[k - 1] | exists[k - 1]
+        for k in range(idom.shape[0] - 2, -1, -1):
+            below[k] = below[k + 1] | exists[k + 1]
+        idom[~exists & above & below] = -1
+        return idom
 
     def save_heads_asc(self, heads, prefix):
         """Write an (nlay, nrow, ncol) head field as one ESRI-ASCII grid per

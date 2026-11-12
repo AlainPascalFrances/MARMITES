@@ -67,7 +67,16 @@ with tab_geom:
     # modeller has to guess whether `k_%d.asc` means k_1.asc or k_01.asc --
     # so the panel opens the expansion and says whether the files are there.
     _props = ('ibound', 'thickness', 'k', 'k33', 'ss', 'sy')
-    _pat = [(n, getattr(cfg.layers, n)) for n in _props
+    if cfg.grid_kind == 'imported':
+        # the grid file is the one source of the layer geometry
+        st.warning('**Imported grid: Active cells and Layer thickness are '
+                   'not read.** Which layers exist in each cell and how '
+                   'thick they are come from the grid file named on %s '
+                   '(`%s`), per cell. Whatever those two fields hold is '
+                   'ignored; the number of layers must equal the file\'s.'
+                   % (schema.panel_name(1), cfg.grid.imported.file))
+        _props = ('k', 'k33', 'ss', 'sy')
+    _pat =[(n, getattr(cfg.layers, n)) for n in _props
             if '%d' in (getattr(cfg.layers, n).raster or '')]
     if _pat:
         lines, wrong_case = [], []
@@ -112,6 +121,10 @@ with tab_geom:
                  'there is no parameter file to fall back on, so the run '
                  'stops while one is blank.'
                  % ', '.join('`layers.%s`' % n for n in _blank))
+    elif cfg.grid_kind == 'imported':
+        st.success('`k` and `k33` become `ModflowGwfnpf`, `ss` and `sy` '
+                   'become `ModflowGwfsto`; `idomain` and `botm` come from '
+                   'the grid file.')
     else:
         st.success('Every field on this tab reaches the run: `ibound` '
                    'becomes `idomain`, `thickness` becomes `botm`, `k` and '

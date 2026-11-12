@@ -737,7 +737,7 @@ def setup_lamata(daily=True, nsp=None, grid='dis', nlay=None,
     # below, and those are the ones the model uses: the 50 m values are an
     # intermediate, so their summary is not printed -- two lines with two
     # sets of numbers read as a contradiction (2026-10-07).
-    _on_mesh = cfg.grid_kind in ('quadtree', 'voronoi')
+    _on_mesh = cfg.grid_kind in mcfg.MESH_KINDS
     gridSOIL = props.soil_grid(cfg, cMF, DS, 'zones', kind='int')
     gridSOILthick = props.soil_grid(cfg, cMF, DS, 'thickness')
     print('soil zones: %s; soil thickness: %s -- from the panel'
@@ -812,7 +812,7 @@ def setup_lamata(daily=True, nsp=None, grid='dis', nlay=None,
              'gridSOILthick': gridSOILthick, 'gridIRR': gridIRR,
              'gridVEGarea': gridVEGarea}
     mesh_kind = (cfg.grid_kind if cfg is not None else 'structured')
-    if mesh_kind in ('quadtree', 'voronoi'):
+    if mesh_kind in mcfg.MESH_KINDS:
         import marmites_mesh
         import marmites_meshes
         gp, info = marmites_meshes.build_mesh(

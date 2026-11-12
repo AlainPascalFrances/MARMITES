@@ -329,8 +329,10 @@ def check_uzf_sy(cfg, dataset_dir=None, **_):
     try:
         sy = _layer_values(cfg.layers.sy, n, dataset_dir, 'layers.sy', props)
         sr = _layer_values(cfg.layers.sr, n, dataset_dir, 'layers.sr', props)
-        ib = _layer_values(cfg.layers.ibound, n, dataset_dir, 'layers.ibound',
-                           props)
+        # an imported grid: which cells exist is in the grid file, per cell,
+        # not on the rasters these values are read on
+        ib = None if cfg.grid_kind == 'imported' else _layer_values(
+            cfg.layers.ibound, n, dataset_dir, 'layers.ibound', props)
     except Exception as exc:                            # noqa: BLE001
         yield Check(INFO, 'UZF water contents not checked here (%s); the '
                     'build checks them' % exc, panel=4, key='layers.sr')
@@ -408,6 +410,10 @@ def describe_grid(cfg, ws_root=None):
     # "cell size" would be a number that looks authoritative and is wrong.
     if cfg.grid_kind == 'voronoi':
         out['size_what'] = 'far-field cell'
+    # nor on an imported grid: its cells are the grid file's, and this is
+    # the cell of the rasters the model is assembled on before
+    if cfg.grid_kind == 'imported':
+        out['size_what'] = 'raster cell (the grid\'s own cells are the file\'s)'
     if cfg.grid_kind in ('structured', 'dis'):
         out['looked'] = True           # no mesh: the rectangle IS the grid
         return out

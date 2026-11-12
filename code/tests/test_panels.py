@@ -1277,11 +1277,14 @@ def test_the_conditional_blocks_know_what_controls_them():
         ('grid.kind', ('voronoi',))
     assert schema.subpanel_for('grid.quadtree.refine_level') == \
         ('grid.kind', ('quadtree',))
+    assert schema.subpanel_for('grid.imported.file') == \
+        ('grid.kind', ('imported',))
     # WP1d: these two used to be permanent, and are not. cell_size is the
-    # cell for three kinds and nothing at all for voronoi; the override
-    # reproduces an EXISTING rectangle, which only the legacy kinds have.
+    # cell for three kinds, the rasters' cell under an imported grid, and
+    # nothing at all for voronoi; the override reproduces an EXISTING
+    # rectangle, which only the legacy kinds have.
     assert schema.subpanel_for('grid.cell_size') == \
-        ('grid.kind', ('structured', 'disv', 'quadtree'))
+        ('grid.kind', ('structured', 'disv', 'quadtree', 'imported'))
     assert schema.subpanel_for('grid.override.nrow') == \
         ('grid.kind', ('structured', 'disv'))
 
@@ -1293,6 +1296,7 @@ def test_the_conditional_blocks_are_separable_from_the_rest(cfg):
     conditional = [k for k in keys if schema.subpanel_for(k)]
     always = [k for k in keys if not schema.subpanel_for(k)]
     assert all(k.startswith(('grid.voronoi.', 'grid.quadtree.',
+                             'grid.imported.',
                              'grid.override.', 'grid.cell_size'))
                for k in conditional)
     assert 'grid.boundary' in always

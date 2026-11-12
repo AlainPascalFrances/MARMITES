@@ -748,6 +748,30 @@ def project_model(cMF, gridprops, grids, warn=None, how='auto'):
     src_active3 = np.abs(np.asarray(cMF.ibound)) != 0
     src_active = np.asarray(cMF.outcropL) > 0
 
+    # AN IMPORTED GRID BRINGS ITS LAYERS (grid.kind = 'imported'): which
+    # layers exist in each cell and how thick they are come from the grid
+    # file, per cell, not from rasters resampled onto it -- a 1 m2 cell and
+    # a layer present in 5 % of the cells do not survive a resampling. The
+    # source model only says which cells it REACHES (it is active over the
+    # whole catchment there): a cell it does not reach has no land surface,
+    # no soil and no forcing, so it stays out and is counted.
+    _file_idom = gridprops.get('idomain')
+    _file_thick = gridprops.get('thick')
+    if _file_idom is not None:
+        if _file_thick is None:
+            raise MeshProjectionError(
+                'the mesh carries idomain without the layer thicknesses')
+        _fi = np.asarray(_file_idom, dtype=int).reshape(nlay, ncpl, 1)
+        _file_thick = np.asarray(_file_thick,
+                                 dtype=float).reshape(nlay, ncpl, 1)
+        _reached = (np.abs(np.asarray(m.ibound)) != 0).any(axis=0)
+        _lost = int(((_fi > 0).any(axis=0) & ~_reached).sum())
+        m.ibound = (_fi > 0).astype(int) * _reached[None, :, :].astype(int)
+        if _lost and warn is not None:
+            warn('%d cell(s) of the imported grid lie outside what the '
+                 'catchment and the model rasters cover: left inactive.'
+                 % _lost)
+
     # outcropL is RECOMPUTED, not sampled: it is a derived quantity (the first
     # active layer), and sampling it independently of ibound is how a cell ends
     # up claiming to outcrop in a layer the projection made inactive.
@@ -785,12 +809,15 @@ def project_model(cMF, gridprops, grids, warn=None, how='auto'):
     # (`top` already carries the soil column: the driver subtracts it from
     # elev and from every botm before this runs.)
     _thick = getattr(cMF, 'thick', None)
-    if _thick is None:
+    if _thick is None and _file_thick is None:
         m.botm = proj.sample3d(np.asarray(cMF.botm), fill=hnoflo, how=how,
                                valid=src_active3)
     else:
-        thick_m = proj.sample3d(np.asarray(_thick, dtype=float), fill=0.0,
-                                how=how, valid=src_active3)
+        if _file_thick is not None:
+            thick_m = _file_thick         # the grid file's own, per cell
+        else:
+            thick_m = proj.sample3d(np.asarray(_thick, dtype=float),
+                                    fill=0.0, how=how, valid=src_active3)
         top_m = np.ma.filled(np.asarray(m.top, dtype=float), np.nan)
         botm_layers, cum = [], np.zeros_like(top_m)
         for k in range(nlay):
@@ -831,6 +858,9 @@ def project_model(cMF, gridprops, grids, warn=None, how='auto'):
         elif a.ndim == 2:
             setattr(m, name, proj.sample2d(val, fill=hnoflo, how=how,
                                            valid=src_active))
+
+    if _file_thick is not None:
+        m.thick = _file_thick.copy()
 
     # ---- the ARRAY forms of the boundary packages, which exist only so the
     # input maps can draw them. They are zero where there is no boundary, so

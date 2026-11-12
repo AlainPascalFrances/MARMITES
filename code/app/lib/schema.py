@@ -289,13 +289,29 @@ FIELDS = {
                       'from file .prj of the catchment layer.'),
     'grid.cell_size': ('Cell size', 'm',
                        'The cell itself on a structured or disv grid, and the '
-                       'background GRIDGEN halves on a quadtree. A Voronoi '
+                       'background GRIDGEN halves on a quadtree. On an '
+                       'imported grid it is the cell of the rasters the '
+                       'model is assembled on before it is put onto the '
+                       'grid file\'s cells. A Voronoi '
                        'mesh does not use it at all -- there the size is '
                        'cell_far, and the rectangle is snapped to that.'),
     'grid.buffer': ('Buffer', 'm',
                     'Extend the model rectangle beyond the polygon.'),
     'grid.kind': ('Grid kind', _U,
-                  'Grid type of the model. voronoi is the default.'),
+                  'Grid type of the model. voronoi is the default. imported '
+                  'takes an existing MODFLOW 6 DISV grid as it is, cells and '
+                  'layers.'),
+    'grid.imported.file': ('MODFLOW 6 grid file (.disv.grb)', _U,
+                           'The binary grid file MODFLOW 6 wrote beside the '
+                           'existing model (<model>.disv.grb), in the dataset '
+                           'folder or by its full path. Its cells are used '
+                           'unchanged. The layers come from it too: which '
+                           'layers exist in each cell (idomain) and their '
+                           'thickness (top and bottoms), so Active cells and '
+                           'Layer thickness on the groundwater panel are not '
+                           'read. The aquifer top stays the land surface '
+                           'minus the soil column. Its layer count must '
+                           'equal the number of layers of the model.'),
     'grid.resample': ('Resampling rule', _U,
                       'auto area-weights: continuous fields and '
                       'majority-votes zone maps. centre: samples the cell '
@@ -1369,13 +1385,15 @@ CHOICES = {
 SUBPANELS = {
     'grid.voronoi': ('grid.kind', ('voronoi',)),
     'grid.quadtree': ('grid.kind', ('quadtree',)),
+    'grid.imported': ('grid.kind', ('imported',)),
     # WP1d panel 1: the settings that used to sit in the permanent block and
     # are in fact structured-only. The override reproduces an EXISTING
     # rectangle, which only means something for the two kinds the legacy
     # comparison uses -- validate() refuses it for the others rather than
     # applying a box that is no longer on screen.
     'grid.override': ('grid.kind', ('structured', 'disv')),
-    'grid.cell_size': ('grid.kind', ('structured', 'disv', 'quadtree')),
+    'grid.cell_size': ('grid.kind', ('structured', 'disv', 'quadtree',
+                                     'imported')),
 }
 
 # What each kind's sub-panel shows, ROW BY ROW. The nesting is the layout: a
@@ -1666,6 +1684,12 @@ GRID_SUBPANEL = {
         ('grid.quadtree.refine_level',),
         ('grid.quadtree.refine_ponds',),
         ('grid.quadtree.pond_level',),
+    ),
+    # An existing grid: the file is the whole answer. The rectangle the
+    # model's rasters are written on is still derived from the catchment.
+    'imported': (
+        ('grid.imported.file',),
+        ('grid.cell_size', 'grid.buffer'),
     ),
 }
 

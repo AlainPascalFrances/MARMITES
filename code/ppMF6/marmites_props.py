@@ -624,6 +624,41 @@ def apply_hnoflo(cfg, cMF, verbose=True):
     return note
 
 
+def geometry_from_grid_file(cfg):
+    """True when the layer GEOMETRY is the grid file's (grid.kind =
+    'imported'): ``layers.ibound`` and ``layers.thickness`` are not read."""
+    return getattr(cfg, 'grid_kind', None) == 'imported'
+
+
+def placeholder_geometry(cfg, cMF, verbose=True):
+    """The dataset-grid geometry of a model on an IMPORTED grid.
+
+    The dataset grid is only what the rasters are written on before the
+    model is put onto the grid file's cells, where ``marmites_mesh`` takes
+    which layers exist and their thickness from the file, per cell. Here
+    every layer is active wherever the catchment polygon touches a cell --
+    so each cell of the imported grid inside the catchment is reached --
+    and 1 m thick, a number no result depends on.
+    """
+    import mm_paths
+    nlay, nrow, ncol = int(cMF.nlay), int(cMF.nrow), int(cMF.ncol)
+    cMF.ibound = np.ones((nlay, nrow, ncol), dtype=int)    # for the overlay
+    mask = catchment_mask(cfg, cMF, mm_paths.GIS)
+    if mask is None:
+        mask = np.ones((nrow, ncol), dtype=int)
+    cMF.ibound = np.repeat((np.asarray(mask) != 0).astype(int)[None, :, :],
+                           nlay, axis=0)
+    cMF.thick = np.ones((nlay, nrow, ncol), dtype=float)
+    _recompute_botm(cMF)
+    note = ('layers: which cells exist and their thickness come from the '
+            'grid file (%s), per cell; on the dataset grid every layer is '
+            'active over the %d cell(s) the catchment touches'
+            % (cfg.grid.imported.file, int((np.asarray(mask) != 0).sum())))
+    if verbose:
+        print(note)
+    return note
+
+
 def apply_layer_properties(cfg, cMF, dataset_dir, verbose=True,
                            required=False):
     """Put the configured layer properties into ``cMF``. Returns what it did.
@@ -637,10 +672,15 @@ def apply_layer_properties(cfg, cMF, dataset_dir, verbose=True,
     if cfg is None:
         return []
     done = []
+    # an imported grid: the two geometry fields are the grid file's
+    skip = ('ibound', 'thickness') if geometry_from_grid_file(cfg) else ()
+    if skip:
+        placeholder_geometry(cfg, cMF, verbose=verbose)
     if required:
         blank = ['layers.%s' % field for field, _a, _l in PROPERTIES
-                 if getattr(cfg.layers, field, None) is None
-                 or getattr(cfg.layers, field).producer() is None]
+                 if field not in skip
+                 and (getattr(cfg.layers, field, None) is None
+                      or getattr(cfg.layers, field).producer() is None)]
         if blank:
             raise PropertyError(
                 '%s %s not answered. The run takes every layer property from '
@@ -660,7 +700,7 @@ def apply_layer_properties(cfg, cMF, dataset_dir, verbose=True,
 
     for field, attr, label in PROPERTIES:
         src = getattr(cfg.layers, field, None)
-        if src is None:
+        if src is None or field in skip:
             continue
         values = resolve_source(src, int(cMF.nlay), dataset_dir,
                                 'layers.%s' % field)
