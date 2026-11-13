@@ -41,34 +41,31 @@ def where_things_are(case):
     form says so per row rather than leaving it to be discovered.
     """
     st.markdown('### Where things are, on this machine')
-    st.caption('Set once per case study, and saved with *Validate & save* '
-               'in the sidebar like everything else. Written to '
+    st.caption('Set once per model, and saved with *Validate & save* in the '
+               'sidebar like everything else. Written to '
                '`code/configs/paths.local.toml`, which is machine-local and '
                'not tracked — nothing here goes into the repository, and no '
                'file has to be edited by hand.')
-    # ONE SET OF DATA PATHS PER CASE (2026-11-12): the folders marked with
-    # the case belong to it and come back when one of its configurations is
-    # chosen; the others are the machine's and shared by every case.
+    # ONE SET OF FOLDERS PER MODEL (2026-11-13): those marked with the model
+    # belong to it and come back when one of its configurations is chosen;
+    # the others are the machine's and shared by every model.
     _has = bool(mm_paths.read_case_settings(case))
-    st.info('**Case %s.** The folders marked *case* are saved for this case '
-            'study and return whenever one of its configurations is chosen; '
-            'the others are this machine\'s, shared by every case.%s'
-            % (case, '' if _has else '  \nThis case has no paths of its own '
-               'yet: what is shown comes from the paths saved before cases '
-               'had their own. Set them and save.'))
+    st.info('**Model %s.** The folders marked with the model are saved for '
+            'it and return whenever one of its configurations is chosen; '
+            'the others are this machine\'s, shared by every model.%s'
+            % (case, '' if _has else '  \nThis model has no folders of its '
+               'own yet: what is shown is what was in force. *Validate & '
+               'save* stores them for it.'))
 
-    # another case: its boxes start from ITS paths, not from what the boxes
-    # held for the previous one (a keyed widget keeps its value)
+    # another model: its boxes start from ITS folders, not from what the
+    # boxes held for the previous one (a keyed widget keeps its value)
     if st.session_state.get('__paths_case') != case:
         for k in mm_paths.CASE_KEYS:
             st.session_state.pop('path_%s' % k, None)
         st.session_state['__paths_case'] = case
 
-    current = {k: getattr(mm_paths, {'gis': 'GIS', 'rs': 'RS',
-                                     'example_root': 'EXAMPLE_ROOT'}.get(
-                              k, k.upper())) for k in mm_paths.SETTABLE}
-    # an optional root left unset is None, which must show as a blank box
-    current = {k: '' if v is None else str(v) for k, v in current.items()}
+    # what is in force; an optional root left unset shows as a blank box
+    current = {k: panelui._path_now(k) for k in mm_paths.SETTABLE}
     pinned = [k for k in mm_paths.SETTABLE
               if 'environment variable' in mm_paths.source_of(k)]
     if pinned:
@@ -82,7 +79,7 @@ def where_things_are(case):
         with cols[i % 2]:
             label = key.replace('_', ' ').upper()
             if key in mm_paths.CASE_KEYS:
-                label += ' — case %s' % case
+                label += ' — model %s' % case
             got = panelui.folder_picker(
                 label, current[key], key='path_%s' % key,
                 help_='`%s`  \n%s  \nFrom %s.'
@@ -108,7 +105,7 @@ def where_things_are(case):
     if panelui.unsaved_paths():
         st.warning('**Not saved.** The folders above differ from those in '
                    'force. *Validate & save* in the sidebar writes them for '
-                   'case **%s**.' % case)
+                   'model **%s**.' % case)
     c2 = st.container()
     missing = [k for k, v in edits.items() if v and not os.path.exists(v)]
     if missing:
@@ -232,19 +229,14 @@ def main():
     with _mc1:
         _edited = panelui.rows_form(cfg, (('meta.model', None),), 'meta',
                                     columns=1)
-        # THE CASE STUDY IS A FIELD OF THE CONFIGURATION (paths.case), asked
-        # beside the model's name and saved by the same button. It was a
-        # selectbox of its own in the sidebar (removed 2026-11-13).
-        _edited.update(panelui.rows_form(cfg, (('paths.case', None),),
-                                         'paths', columns=1))
-    case = (str(_edited.get('paths.case', cfg.paths.case) or '').strip()
-            or str(cfg.paths.case))
-    _effective = ((_edited.get('meta.model', cfg.meta.model) or '').strip()
-                  or case).lower()
+    # NO CASE STUDY IS ASKED (user, 2026-11-13): the model's name is the
+    # key, and where its data is -- the dataset included -- is among the
+    # folders below, saved for the model by the same button.
+    case = str(cfg.paths.case)
+    _effective = panelui.model_of(cfg, _edited)
     with _mc2:
         st.markdown('')
-        st.caption('Case **%s**, configuration `%s`.'
-                   % (case, os.path.basename(path)))
+        st.caption('Configuration `%s`.' % os.path.basename(path))
         st.caption('MODFLOW writes `%s.hds`, `%s.cbc`, `%s.lst`.'
                    % (_effective, _effective, _effective))
         _stem = os.path.splitext(os.path.basename(path))[0].lower()
@@ -313,7 +305,7 @@ reads, so turning one off means that half of the model does not execute.
 """)
 
     # the case ON SCREEN: a save writes the folders for it
-    where_things_are(case)
+    where_things_are(_effective)
 
     ds = mm_paths.dataset_dir(case)
     c1, c2, c3 = st.columns(3)

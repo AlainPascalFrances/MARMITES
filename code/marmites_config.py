@@ -2334,11 +2334,14 @@ class RunConfig:
         _m = self.meta.model.strip()
         if _m:
             import re as _re
+            # LETTERS, DIGITS AND THE UNDERSCORE, nothing else (user,
+            # 2026-11-13): the name is also the configuration file's and
+            # the key its folders are saved under.
             if not _re.match(r'^[A-Za-z][A-Za-z0-9_]*$', _m):
                 errs.append(
-                    'meta.model = %r: a MODFLOW 6 model name starts with a '
-                    'letter and holds only letters, digits and underscores '
-                    '(no spaces, no dots, no accents).' % _m)
+                    'meta.model = %r: the model name starts with a letter '
+                    'and holds only letters, digits and underscores (no '
+                    'spaces, no dots, no accents, nothing else).' % _m)
             if len(_m) > 16:
                 errs.append('meta.model = %r is %d characters; MODFLOW 6 '
                             'allows 16.' % (_m, len(_m)))
@@ -3118,12 +3121,13 @@ def load_run_config(path):
     with open(path, 'rb') as f:
         data = tomllib.load(f)
     cfg = RunConfig.from_dict(data, source_path=path)
-    # THE CONFIGURATION NAMES THE CASE, AND THE CASE HAS ITS OWN DATA PATHS
-    # (mm_paths, 2026-11-12): whoever loads a run configuration -- the app,
-    # the driver, a tool -- reads that case's folders from here on.
+    # THE CONFIGURATION NAMES THE MODEL, AND THE MODEL HAS ITS OWN FOLDERS
+    # (mm_paths, 2026-11-13): whoever loads a run configuration -- the app,
+    # the driver, a tool -- reads that model's folders from here on.
     try:
         import mm_paths
-        mm_paths.use_case(cfg.paths.case)
+        mm_paths.use_case(cfg.meta.model_name(cfg.paths.case),
+                          cfg.paths.case)
     except ImportError:                 # the configuration alone, no paths
         pass
     return cfg

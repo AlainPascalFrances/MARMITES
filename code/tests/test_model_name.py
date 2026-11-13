@@ -56,6 +56,7 @@ def test_blank_falls_back_to_the_case(cfg):
 @pytest.mark.parametrize('bad,frag', [
     ('la mata', 'letters'),            # a space
     ('la-mata', 'letters'),            # a hyphen
+    ('la.mata', 'letters'),            # a dot; the underscore IS allowed
     ('2lamata', 'letters'),            # starts with a digit
     ('averyverylongmodelname', '16'),  # 22 characters
 ])
@@ -152,7 +153,8 @@ def test_a_new_model_name_writes_a_new_file_and_keeps_the_old(tmp_path,
     body = open(REF, encoding='utf-8').read()
     src.write_text(body, encoding='utf-8')
     cfg = cfgmod.load_run_config(str(src))
-    _pending(panelui, monkeypatch, {'meta.model': 'CdL', 'paths.case': 'CdL'})
+    # only the NAME is given: the case study is the model name, not asked
+    _pending(panelui, monkeypatch, {'meta.model': 'CdL'})
 
     applied, _digest, ok = panelui.save_now(cfg, str(src))
 
@@ -185,7 +187,7 @@ def test_a_new_name_another_configuration_has_is_refused(tmp_path,
     assert src.read_text(encoding='utf-8') == body
     assert other.read_text(encoding='utf-8').startswith('# another model')
     # nothing is lost: the edits are still remembered
-    assert panelui.st.session_state['__pending_edits'] == {'meta.model': 'cdl'}
+    assert panelui.st.session_state['__pending_edits']['meta.model'] == 'cdl'
 
 
 def test_a_save_without_a_new_name_goes_to_its_own_file(tmp_path,
@@ -262,7 +264,7 @@ def test_the_folders_are_written_by_the_one_save_for_the_case(tmp_path,
         boxes['rs'] = str(tmp_path / 'cdl_rs')
         boxes['pest_ws'] = str(tmp_path / 'cdl_pest')
         panelui.remember_paths(boxes)
-        panelui.remember({'meta.model': 'cdl', 'paths.case': 'CdL'})
+        panelui.remember({'meta.model': 'CdL'})
         todo = panelui.unsaved_changes(cfg)
         assert any(t.startswith('folder rs = ') for t in todo), todo
         assert any(t.startswith('folder pest_ws = ') for t in todo), todo
@@ -272,7 +274,9 @@ def test_the_folders_are_written_by_the_one_save_for_the_case(tmp_path,
         assert any(a.startswith('folder rs') for a in applied)
         # for the case of the configuration that was written, and in force
         assert mp.read_case_settings('CdL')['rs'] == str(tmp_path / 'cdl_rs')
-        assert mp.CASE == 'CdL' and mp.RS == tmp_path / 'cdl_rs'
+        # (under the MODEL's name, whatever its letter case)
+        assert mp.CASE == 'cdl' and mp.RS == tmp_path / 'cdl_rs'
+        assert mp.read_case_settings('cdl') == mp.read_case_settings('CdL')
         assert mp.PEST_WS == tmp_path / 'cdl_pest'
         assert (tmp_path / 'cdl.toml').exists()
         assert src.read_text(encoding='utf-8') == body
@@ -302,6 +306,89 @@ def test_a_refused_save_writes_no_folder(tmp_path, monkeypatch):
     finally:
         monkeypatch.undo()
         mp.reload_paths()
+
+
+def test_the_case_study_is_the_model_name(tmp_path, monkeypatch):
+    """User, 2026-11-13: not asked. A new name is a new case; an existing
+    configuration keeps its spelling when only the letter case differs
+    (model lamata, dataset LaMata)."""
+    panelui = _panelui()
+    cfg = cfgmod.load_run_config(REF)
+    assert cfg.meta.model == 'lamata' and cfg.paths.case == 'LaMata'
+    assert panelui.case_of(cfg, {}) == 'LaMata'
+    assert panelui.case_of(cfg, {'meta.model': 'LAMATA'}) == 'LaMata'
+    assert panelui.case_of(cfg, {'meta.model': 'CdL'}) == 'CdL'
+    assert panelui.case_of(cfg, {'meta.model': ''}) == 'LaMata'
+    page = open(HOME, encoding='utf-8').read()
+    assert "'paths.case'" not in page, 'the case study is still asked on Home'
+    help_ = schema.describe('meta.model')[2]
+    assert 'underscores' in help_ and 'folders' in help_
+    # an underscore is a valid name (user, 2026-11-13)
+    cfg.meta.model = 'cdl_v2'
+    assert not [m for m in cfg.problems() if 'meta.model' in m]
+    assert panelui.model_of(cfg, {}) == 'cdl_v2'
+    assert panelui.model_of(cfg, {'meta.model': 'CdL'}) == 'cdl'
+
+
+def test_a_new_model_takes_the_folders_on_screen_as_its_own(tmp_path,
+                                                            monkeypatch):
+    """Unchanged boxes included: a model without a set of its own would
+    read whatever was saved before models had theirs."""
+    panelui = _panelui()
+    mp = _own_settings(panelui, monkeypatch, tmp_path)
+    try:
+        src = tmp_path / 'lamata.toml'
+        src.write_text(open(REF, encoding='utf-8').read(), encoding='utf-8')
+        cfg = panelui.mcfg.load_run_config(str(src))
+        boxes = {k: panelui._path_now(k) for k in mp.SETTABLE}
+        monkeypatch.setattr(panelui.st, 'session_state', {}, raising=False)
+        panelui.remember_paths(boxes)
+        panelui.remember({'meta.model': 'cdl_v2'})
+        assert panelui.unsaved_paths() == []
+        applied, why, ok = panelui.save_now(cfg, str(src))
+        assert ok, why
+        assert (tmp_path / 'cdl_v2.toml').exists()
+        assert mp.CASE == 'cdl_v2'
+        table = mp.read_case_settings('cdl_v2')
+        # the environment pins some roots in the tests: whatever is not
+        # pinned and not blank was stored
+        free = [k for k in mp.CASE_KEYS if boxes.get(k)
+                and 'environment' not in mp.source_of(k)]
+        assert free and all(table.get(k) == boxes[k] for k in free), table
+    finally:
+        monkeypatch.undo()
+        mp.reload_paths()
+
+
+def test_the_dataset_is_one_of_the_models_folders(tmp_path, monkeypatch):
+    """User, 2026-11-13: the folder with the data need not be called
+    after the model -- it is named on Home with the others."""
+    import importlib.util as _u
+    spec = _u.spec_from_file_location('mm_paths_ds',
+                                      os.path.join(CODE, 'mm_paths.py'))
+    for k in list(os.environ):
+        if k.startswith(('MM_', 'MARMITES_')):
+            monkeypatch.delenv(k, raising=False)
+    mp = _u.module_from_spec(spec)
+    spec.loader.exec_module(mp)
+    mp.SETTINGS = tmp_path / 'p.toml'
+    mp.reload_paths()
+    mp.save_settings({'dataset': str(tmp_path / 'anywhere'),
+                      'example_root': str(tmp_path / 'ex')}, case='cdl_v2')
+    mp.use_case('cdl_v2', 'CdL')
+    assert mp.dataset_dir('CdL') == tmp_path / 'anywhere'
+    assert mp.active_dataset() == str(tmp_path / 'anywhere')
+    # another case is not this model's: the examples root, as before
+    assert mp.dataset_dir('LaMata') == tmp_path / 'ex' / 'LaMata'
+    # a model with no dataset of its own: <examples root>/<case>
+    mp.use_case('lamata', 'LaMata')
+    assert mp.dataset_dir('LaMata') == tmp_path / 'ex' / 'LaMata'
+    # a process that moves the examples root (a PEST worker, the tests)
+    # is not reached around
+    mp.use_case('cdl_v2', 'CdL')
+    monkeypatch.setenv('MM_EXAMPLE_ROOT', str(tmp_path / 'worker'))
+    mp.reload_paths()
+    assert mp.dataset_dir('CdL') == tmp_path / 'worker' / 'CdL'
 
 
 def test_home_has_one_way_to_save():

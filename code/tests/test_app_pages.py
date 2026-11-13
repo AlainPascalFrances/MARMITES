@@ -1262,14 +1262,15 @@ def test_panel_zero_sets_the_machine_paths():
                 'path_ws_root'):
         assert key in keys, '%s is not settable on panel 0' % key
     # ONE SAVE (user, 2026-11-13): the folders have no button of their own
-    # and the case study no selectbox -- it is a field beside the model's
-    # name -- and both are written by the sidebar's Validate & save.
+    # and the case study is not asked at all -- it is the model name --
+    # and everything is written by the sidebar's Validate & save.
     assert not any(b.key == 'save_paths' for b in at.button), \
         'the folders still have a save button of their own'
     assert any(b.key == 'sidebar_save' for b in at.button)
     assert not any(w.key == 'case' for w in at.selectbox), \
         'the Case study selectbox is still in the sidebar'
-    assert 'paths.case' in keys, 'the case study is not asked on Home'
+    assert 'paths.case' not in keys, 'the case study is asked on Home'
+    assert 'meta.model' in keys
     assert at.session_state['__pending_paths'], \
         'the folders are not remembered for the sidebar save'
     said = ' '.join(str(m.value) for m in at.caption) + \

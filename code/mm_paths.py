@@ -38,6 +38,7 @@ __all__ = ['REPO', 'CODE_DIR', 'MIRROR', 'MIRROR_MARK', 'CONFIG_DIR',
            'dataset_dir', 'resolve_input', 'report_paths', 'LEGACY_ALIASES',
            'read_settings', 'save_settings', 'reload_paths', 'source_of',
            'CASE_KEYS', 'CASE', 'use_case', 'read_case_settings',
+           'DATASET', 'DATASET_CASE', 'active_dataset',
            'settings_label']
 
 # ==== the checkout, and the code that runs ==================================
@@ -82,10 +83,17 @@ SETTINGS = CONFIG_DIR / 'paths.local.toml'
 
 # key -> (environment variable, default, what it is). This IS panel 0's form.
 SETTABLE = {
+    # THE MODEL'S OWN INPUT FOLDER (user, 2026-11-13): named here like the
+    # other folders, so it need not be called after the model. Blank = the
+    # folder of the configuration's case under the examples root.
+    'dataset':     ('MM_DATASET', '',
+                    'The dataset: the folder with the input files this '
+                    'model reads (the Tier-A inputs), and the only place '
+                    'it reads input from. Blank = the folder named after '
+                    'the model under the examples root.'),
     'example_root': ('MM_EXAMPLE_ROOT', '',
-                     'Holds one folder per case: the Tier-A inputs a run '
-                     'reads, and the only place the model reads input from. '
-                     'Blank = <repo>/example, which is where it belongs.'),
+                     'Where a dataset left blank is looked for, one folder '
+                     'per model. Blank = <repo>/example.'),
     'data_root':   ('MM_DATA_ROOT', r'E:\00code_ws\LAMATA_new',
                     'Raw geospatial sources, OUTSIDE the repository.'),
     'gis':         ('MM_GIS_WS', '',
@@ -163,9 +171,15 @@ SETTABLE = {
 # tools alike. A case WITH a table takes every CASE_KEY from it -- one left
 # blank there is its default (GIS = DATA_ROOT/GIS), never another case's
 # folder; a case WITHOUT one reads [paths], as every case did before.
-CASE_KEYS = ('data_root', 'gis', 'rs', 'soil_moisture', 'ws_root',
-             'nwt_ref', 'pest_ws')
-CASE = ''                       # the active case; '' = none chosen yet
+#
+# THE KEY IS THE MODEL NAME (2026-11-13), whatever its letter case: every
+# configuration of a model -- lamata.toml and lamata_PEST.toml -- shares
+# one set, and choosing a configuration brings its model's folders back.
+# (The table is still called [case.<name>] in the file.)
+CASE_KEYS = ('dataset', 'data_root', 'gis', 'rs', 'soil_moisture',
+             'ws_root', 'nwt_ref', 'pest_ws')
+CASE = ''                       # the active model; '' = none chosen yet
+DATASET_CASE = ''               # its configuration's paths.case
 
 
 def _read_file():
@@ -197,7 +211,12 @@ def read_case_settings(case=None):
                        if k in CASE_KEYS}
               for c, t in (_read_file().get('case') or {}).items()
               if isinstance(t, dict)}
-    return tables if case is None else tables.get(str(case), {})
+    if case is None:
+        return tables
+    # by name, whatever the letter case: the model `lamata` and the dataset
+    # `LaMata` are one case study (and one folder on Windows)
+    want = str(case).lower()
+    return next((t for c, t in tables.items() if c.lower() == want), {})
 
 
 def _setting(key):
@@ -225,18 +244,22 @@ def source_of(key):
     return 'the built-in default'
 
 
-def use_case(case):
-    """Make ``case`` the active one: its data paths are the ones resolved.
+def use_case(case, dataset_case=None):
+    """Make the model ``case`` the active one: its folders are the ones
+    resolved. ``dataset_case`` is its configuration's ``paths.case``, the
+    case :func:`dataset_dir` answers with the model's own dataset folder
+    for (default: the same name).
 
     Called when a run configuration is loaded (marmites_config.
     load_run_config), so the paths follow the configuration everywhere.
     Returns True when the paths changed hands.
     """
-    global CASE
+    global CASE, DATASET_CASE
     case = str(case or '')
-    if case == CASE:
+    dataset_case = str(case if dataset_case is None else dataset_case)
+    if case == CASE and dataset_case == DATASET_CASE:
         return False
-    CASE = case
+    CASE, DATASET_CASE = case, dataset_case
     reload_paths()
     return True
 
@@ -273,6 +296,8 @@ def save_settings(values, case=None):
         old = read_settings()
         machine = _clean(values, [k for k in SETTABLE if k not in CASE_KEYS])
         machine.update(_clean(old, CASE_KEYS))
+        for other in [c for c in tables if c.lower() == str(case).lower()]:
+            del tables[other]             # one table per case, any spelling
         tables[str(case)] = _clean(values, CASE_KEYS)
     else:
         machine = _clean(values, SETTABLE)
@@ -346,10 +371,11 @@ def reload_paths():
     """Re-resolve every root after the settings changed, without a restart."""
     global _SETTINGS, DATA_ROOT, WS_ROOT, NWT_REF, MODFLOW_DIR, PYTHON_EXE
     global GIS, EXAMPLE_ROOT, LIBMF6, MF6_EXE, TRIANGLE_EXE, PESTPP_IES
-    global GRIDGEN_EXE, PEST_WS, RS, SOIL_MOISTURE, _CASE_SETTINGS
+    global GRIDGEN_EXE, PEST_WS, RS, SOIL_MOISTURE, _CASE_SETTINGS, DATASET
     _SETTINGS = read_settings()
     _CASE_SETTINGS = read_case_settings(CASE) if CASE else {}
     PEST_WS = _optional_path('pest_ws')
+    DATASET = _optional_path('dataset')
     DATA_ROOT = Path(_setting('data_root'))
     WS_ROOT = Path(_setting('ws_root'))
     NWT_REF = Path(_setting('nwt_ref'))
@@ -375,8 +401,9 @@ def _optional_path(key):
 
 
 _SETTINGS = read_settings()
-_CASE_SETTINGS = {}             # the active case's table (use_case)
+_CASE_SETTINGS = {}             # the active model's table (use_case)
 PEST_WS     = _optional_path('pest_ws')
+DATASET     = _optional_path('dataset')   # the active model's, when named
 DATA_ROOT   = Path(_setting('data_root'))
 WS_ROOT     = Path(_setting('ws_root'))
 NWT_REF     = Path(_setting('nwt_ref'))
@@ -411,8 +438,26 @@ def dataset_dir(case='LaMata'):
     this is the ONLY folder inside the repository the model reads from, and it
     holds strictly the files MM and MF read directly. Panel 0 can point it
     elsewhere for a case whose inputs are kept outside the checkout.
+
+    THE ACTIVE MODEL'S OWN DATASET FOLDER, when the Home panel names one
+    (2026-11-13), is the answer for its configuration's case -- so the
+    folder need not be called after the model. Two things still win over
+    it: the MM_DATASET variable, and MM_EXAMPLE_ROOT -- a PEST worker and
+    the tests move the whole examples root for one process, and a folder
+    saved for the modeller's own runs must not reach around that.
     """
+    if os.environ.get('MM_DATASET'):
+        return Path(os.environ['MM_DATASET'])
+    if (DATASET is not None and not os.environ.get('MM_EXAMPLE_ROOT')
+            and DATASET_CASE and str(case).lower() == DATASET_CASE.lower()):
+        return DATASET
     return EXAMPLE_ROOT / str(case)
+
+
+def active_dataset():
+    """The dataset folder of the active model, as the Home panel shows it
+    ('' before any configuration is loaded)."""
+    return str(dataset_dir(DATASET_CASE)) if DATASET_CASE else ''
 
 
 # Files renamed in WP1.2. `inputPONDw.asc` and `inputPONDhmax.asc` were a legacy

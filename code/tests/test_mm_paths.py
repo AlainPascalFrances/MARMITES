@@ -267,4 +267,7 @@ def test_loading_a_configuration_makes_its_case_the_active_one(monkeypatch,
     c = cfgmod.RunConfig.from_dict({'paths': {'case': 'CdL'}})
     fn = c.write_toml(str(tmp_path / 'cdl.toml'))
     cfgmod.load_run_config(fn)
-    assert mp.CASE == 'CdL' and mp.DATA_ROOT == tmp_path / 'cdl'
+    # the MODEL's name is the key (here the case, lower-cased, as no model
+    # name is given), matched whatever the letter case of the table
+    assert mp.CASE == 'cdl' and mp.DATASET_CASE == 'CdL'
+    assert mp.DATA_ROOT == tmp_path / 'cdl'

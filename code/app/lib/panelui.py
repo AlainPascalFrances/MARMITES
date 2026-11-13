@@ -40,7 +40,8 @@ __all__ = ['pick_config', 'header', 'master_switch', 'panel_switch',
            'record_lines', 'unsaved_switches', 'unsaved_changes', 'SWITCHES',
            'remember', 'remember_table', 'pending', 'pending_tables',
            'forget', 'forget_table', 'save_now', 'save_path', 'sidebar_save',
-           'remember_paths', 'pending_paths', 'unsaved_paths',
+           'remember_paths', 'pending_paths', 'unsaved_paths', 'case_of',
+           'model_of',
            'saved_note',
            'CONFIG_DIR']
 
@@ -129,6 +130,8 @@ def pending_paths():
 
 def _path_now(key):
     """A folder as it is in force: what its box shows when untouched."""
+    if key == 'dataset':
+        return mm_paths.active_dataset()
     attr = {'gis': 'GIS', 'rs': 'RS',
             'example_root': 'EXAMPLE_ROOT'}.get(key, key.upper())
     v = getattr(mm_paths, attr, None)
@@ -203,6 +206,12 @@ def save_now(cfg, path):
     a file on disk the model would refuse is worse than a message in the
     browser, because it is discovered hours later by a run.
     """
+    # the case study follows the model name: written with it, never asked
+    case = case_of(cfg)
+    if case != str(cfg.paths.case):
+        remember({'paths.case': case})
+    else:
+        st.session_state.get(_PENDING, {}).pop('paths.case', None)
     target, why = save_path(cfg, path)
     if not target:
         return [], why, False
@@ -213,17 +222,22 @@ def save_now(cfg, path):
         return [], str(exc), False
     # the folders, for the case of the configuration just written
     folders = unsaved_paths()
-    if folders:
-        case = str(pending().get('paths.case', cfg.paths.case))
+    # ... and a model saved for the first time takes the folders on screen
+    # as its own, changed or not: without a set of its own it would read
+    # whatever was saved before models had theirs.
+    if folders or (pending_paths()
+                   and not mm_paths.read_case_settings(model_of(cfg))):
         values = {k: v for k, v in pending_paths().items()
                   if 'environment variable' not in mm_paths.source_of(k)}
+        # under the MODEL's name: every configuration of it shares them
+        model = model_of(cfg)
         try:
-            mm_paths.save_settings(values, case=case)
+            mm_paths.save_settings(values, case=model)
         except OSError as exc:
             return [], ('The configuration was written, but the folders '
                         'could not be saved to %s: %r'
                         % (mm_paths.SETTINGS, exc)), False
-        mm_paths.use_case(case)
+        mm_paths.use_case(model, case)
         applied = list(applied) + folders
     forget()
     if os.path.abspath(target) != os.path.abspath(str(path)):
@@ -234,6 +248,33 @@ def save_now(cfg, path):
             'New configuration `%s`, after the model. `%s` is unchanged.'
             % (os.path.basename(target), os.path.basename(str(path))))
     return applied, digest, True
+
+
+def model_of(cfg, edits=None):
+    """The model name a save would write, lower-cased as the file is: the
+    key its folders are saved under (mm_paths)."""
+    edits = pending() if edits is None else edits
+    name = str(edits.get('meta.model', cfg.meta.model) or '').strip()
+    return (name or str(cfg.paths.case)).lower()
+
+
+def case_of(cfg, edits=None):
+    """The ``paths.case`` a save would write: THE MODEL NAME (user,
+    2026-11-13), as typed. It is not asked.
+
+    It only names the dataset folder a model falls back on when the Home
+    panel gives none (<examples root>/<case>/): the dataset is one of the
+    model's folders there and may be called anything. An existing
+    configuration keeps the spelling it has when only the letter case
+    differs -- La Mata's model is ``lamata`` and its case ``LaMata`` --
+    and a configuration with no model name keeps its case.
+    """
+    edits = pending() if edits is None else edits
+    name = str(edits.get('meta.model', cfg.meta.model) or '').strip()
+    saved = str(cfg.paths.case)
+    if not name or name.lower() == saved.lower():
+        return saved
+    return name
 
 
 def save_path(cfg, path, edits=None):

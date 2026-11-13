@@ -164,21 +164,22 @@ FIELDS = {
                    'What this model is CALLED. It becomes the MODFLOW 6 '
                    'model name, so the files a run writes are '
                    '`<model>.hds`, `<model>.cbc`, `<model>.lst`, and it is '
-                   'what this configuration file should be named. MODFLOW 6 '
-                   'constrains it: start with a letter, then letters, digits '
-                   'and underscores only, at most 16 characters. Blank falls '
-                   'back to the case name.'),
+                   'what the configuration file is named. The folders below '
+                   '-- the dataset, the data, the outputs -- are saved for '
+                   'it and come back when one of its configurations is '
+                   'chosen. Start with a letter, then letters, digits and '
+                   'underscores only -- no space, no other character -- at '
+                   'most 16 characters. A new name starts a new '
+                   'configuration.'),
     'meta.name': ('Run tag (optional)', _U,
                   'Names the output folder, out_<timestamp>_<tag>. Saved with '
                   'the configuration, so it stays until you change it. Blank '
                   'falls back to <nlay>lay_<mode>.'),
     'meta.description': ('Description', _U, 'Free text, carried into the run.'),
     'paths.case': ('Case study', _U,
-                   'The case study this model belongs to. Its dataset is '
-                   'the folder of that name under the examples root '
-                   '(example/<case>/), the only place the model reads input '
-                   'from, and the data folders below are saved for it: '
-                   'every configuration of the same case shares them.'),
+                   'Not asked: it follows the model name (Home). It names '
+                   'the dataset folder under the examples root that a model '
+                   'reads when Home gives it no dataset folder of its own.'),
     'paths.ws': ('Workspace', _U,
                  'Blank uses WS_ROOT from mm_paths. Everything a run produces '
                  'goes here -- never into the repository.'),
