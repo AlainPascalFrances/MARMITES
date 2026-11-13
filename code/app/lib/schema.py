@@ -173,8 +173,12 @@ FIELDS = {
                   'the configuration, so it stays until you change it. Blank '
                   'falls back to <nlay>lay_<mode>.'),
     'meta.description': ('Description', _U, 'Free text, carried into the run.'),
-    'paths.case': ('Case', _U, 'Resolves to example/<case>/, the only place '
-                               'the model reads input from.'),
+    'paths.case': ('Case study', _U,
+                   'The case study this model belongs to. Its dataset is '
+                   'the folder of that name under the examples root '
+                   '(example/<case>/), the only place the model reads input '
+                   'from, and the data folders below are saved for it: '
+                   'every configuration of the same case shares them.'),
     'paths.ws': ('Workspace', _U,
                  'Blank uses WS_ROOT from mm_paths. Everything a run produces '
                  'goes here -- never into the repository.'),

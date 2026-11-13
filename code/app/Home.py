@@ -31,41 +31,6 @@ from lib import panelui, schema, runs as runlib  # noqa: E402
 st.set_page_config(page_title='MARMITES / MF6', page_icon='💧', layout='wide')
 
 
-def case_selector(cfg, path):
-    """The case study of THIS configuration: ``paths.case``, the dataset
-    folder under the examples root.
-
-    It shows what the configuration says and a change is an edit like any
-    other, written by the sidebar save (2026-11-12). It used to be a
-    selectbox of its own that reached no file, so a configuration started
-    for another catchment kept reading the first one's dataset.
-    """
-    cases = []
-    ex = mm_paths.EXAMPLE_ROOT
-    if ex.is_dir():
-        cases = sorted(d.name for d in ex.iterdir()
-                       if d.is_dir() and not d.name.startswith('.'))
-    saved = str(cfg.paths.case)
-    if saved not in cases:
-        cases.append(saved)
-    # follow the configuration when another one is chosen
-    if st.session_state.get('__case_file') != path:
-        st.session_state['case'] = panelui.pending().get('paths.case', saved)
-        st.session_state['__case_file'] = path
-    if st.session_state.get('case') not in cases:
-        st.session_state['case'] = saved
-    label, _units, help_ = schema.describe('paths.case')
-    chosen = st.sidebar.selectbox(
-        'Case study', cases, key='case',
-        help='`paths.case`  \n%s  \nThe folders listed are those of the '
-             'examples root.' % help_)
-    if chosen != saved:
-        panelui.remember({'paths.case': chosen})
-    elif 'paths.case' in panelui.pending():
-        st.session_state['__pending_edits'].pop('paths.case', None)
-    return chosen
-
-
 def where_things_are(case):
     """Panel 0 owns the machine-specific folders -- set here, once.
 
@@ -76,7 +41,8 @@ def where_things_are(case):
     form says so per row rather than leaving it to be discovered.
     """
     st.markdown('### Where things are, on this machine')
-    st.caption('Set once per case study. Written to '
+    st.caption('Set once per case study, and saved with *Validate & save* '
+               'in the sidebar like everything else. Written to '
                '`code/configs/paths.local.toml`, which is machine-local and '
                'not tracked — nothing here goes into the repository, and no '
                'file has to be edited by hand.')
@@ -134,17 +100,16 @@ def where_things_are(case):
                 sm_products(got)
             edits[key] = got
 
-    c1, c2 = st.columns([1, 3])
-    if c1.button('Save these paths', type='primary', key='save_paths'):
-        saved = {k: v for k, v in edits.items() if k not in pinned}
-        try:
-            mm_paths.save_settings(saved, case=case)
-        except OSError as exc:
-            c2.error('Could not write %s: %r' % (mm_paths.SETTINGS, exc))
-        else:
-            c2.success('Saved to `%s`. Applied now — no restart.'
-                       % mm_paths.settings_label())
-            st.rerun()
+    # NO BUTTON OF ITS OWN (user, 2026-11-13): the folders are remembered
+    # like every other field and written by the sidebar's Validate & save,
+    # for the case of the configuration being saved.
+    panelui.remember_paths({k: v for k, v in edits.items()
+                            if k not in pinned})
+    if panelui.unsaved_paths():
+        st.warning('**Not saved.** The folders above differ from those in '
+                   'force. *Validate & save* in the sidebar writes them for '
+                   'case **%s**.' % case)
+    c2 = st.container()
     missing = [k for k, v in edits.items() if v and not os.path.exists(v)]
     if missing:
         c2.warning('%d path(s) do not exist yet: %s. A run needs the dataset '
@@ -258,7 +223,6 @@ def runs_dir(cfg=None):
 
 def main():
     cfg, path = panelui.pick_config()
-    case = case_selector(cfg, path)
     panelui.dataset_banner(cfg)
 
     st.title('💧  MARMITES / MODFLOW 6')
@@ -268,6 +232,13 @@ def main():
     with _mc1:
         _edited = panelui.rows_form(cfg, (('meta.model', None),), 'meta',
                                     columns=1)
+        # THE CASE STUDY IS A FIELD OF THE CONFIGURATION (paths.case), asked
+        # beside the model's name and saved by the same button. It was a
+        # selectbox of its own in the sidebar (removed 2026-11-13).
+        _edited.update(panelui.rows_form(cfg, (('paths.case', None),),
+                                         'paths', columns=1))
+    case = (str(_edited.get('paths.case', cfg.paths.case) or '').strip()
+            or str(cfg.paths.case))
     _effective = ((_edited.get('meta.model', cfg.meta.model) or '').strip()
                   or case).lower()
     with _mc2:
@@ -341,8 +312,8 @@ The switches are not decoration. They are the same `[run]` keys the driver
 reads, so turning one off means that half of the model does not execute.
 """)
 
-    # the SAVED case: its paths are the ones in force (mm_paths.use_case)
-    where_things_are(str(cfg.paths.case))
+    # the case ON SCREEN: a save writes the folders for it
+    where_things_are(case)
 
     ds = mm_paths.dataset_dir(case)
     c1, c2, c3 = st.columns(3)

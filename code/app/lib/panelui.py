@@ -40,6 +40,7 @@ __all__ = ['pick_config', 'header', 'master_switch', 'panel_switch',
            'record_lines', 'unsaved_switches', 'unsaved_changes', 'SWITCHES',
            'remember', 'remember_table', 'pending', 'pending_tables',
            'forget', 'forget_table', 'save_now', 'save_path', 'sidebar_save',
+           'remember_paths', 'pending_paths', 'unsaved_paths',
            'saved_note',
            'CONFIG_DIR']
 
@@ -62,6 +63,7 @@ _PENDING = '__pending_edits'
 _PENDING_TABLES = '__pending_tables'
 # the configuration the sidebar shows on the NEXT run (a widget's own key
 # cannot be assigned once it is drawn), and the note a save-as leaves
+_PENDING_PATHS = '__pending_paths'
 _CONFIG_NEXT = '__config_next'
 _SAVED_AS = '__saved_as'
 
@@ -105,6 +107,44 @@ def forget():
     """Drop the remembered edits -- after a save, or on changing file."""
     st.session_state.pop(_PENDING, None)
     st.session_state.pop(_PENDING_TABLES, None)
+    st.session_state.pop(_PENDING_PATHS, None)
+
+
+# THE FOLDERS OF THE HOME PANEL GO THROUGH THE SAME SAVE (user, 2026-11-13:
+# "too many ways to do the same things"). They are not part of the run
+# configuration -- they say where one person's data sits, per case study, in
+# paths.local.toml -- but they are remembered like any field and written by
+# the one button, for the case of the configuration being saved. There is no
+# button of their own any more.
+def remember_paths(values):
+    """What the Home panel's folder boxes hold, ``{key: path}`` -- all of
+    them, because a case's table is written whole."""
+    st.session_state[_PENDING_PATHS] = dict(values)
+    return values
+
+
+def pending_paths():
+    return dict(st.session_state.get(_PENDING_PATHS, {}))
+
+
+def _path_now(key):
+    """A folder as it is in force: what its box shows when untouched."""
+    attr = {'gis': 'GIS', 'rs': 'RS',
+            'example_root': 'EXAMPLE_ROOT'}.get(key, key.upper())
+    v = getattr(mm_paths, attr, None)
+    return '' if v is None else str(v)
+
+
+def unsaved_paths():
+    """The remembered folders that differ from those in force, as lines."""
+    out = []
+    for key, v in sorted(pending_paths().items()):
+        v = str(v or '').strip()
+        if 'environment variable' in mm_paths.source_of(key):
+            continue                 # pinned for this process: not ours
+        if v != _path_now(key):
+            out.append('folder %s = %s' % (key, v or '(blank)'))
+    return out
 
 
 def unsaved_changes(cfg):
@@ -128,7 +168,7 @@ def unsaved_changes(cfg):
             continue
         if not same:
             out.append('%s = %d row(s)' % (dotted, len(rows)))
-    return out
+    return out + unsaved_paths()
 
 
 def unsaved_switches(cfg):
@@ -171,6 +211,20 @@ def save_now(cfg, path):
                                       pending_tables())
     except (editor.EditError, mcfg.ConfigError) as exc:
         return [], str(exc), False
+    # the folders, for the case of the configuration just written
+    folders = unsaved_paths()
+    if folders:
+        case = str(pending().get('paths.case', cfg.paths.case))
+        values = {k: v for k, v in pending_paths().items()
+                  if 'environment variable' not in mm_paths.source_of(k)}
+        try:
+            mm_paths.save_settings(values, case=case)
+        except OSError as exc:
+            return [], ('The configuration was written, but the folders '
+                        'could not be saved to %s: %r'
+                        % (mm_paths.SETTINGS, exc)), False
+        mm_paths.use_case(case)
+        applied = list(applied) + folders
     forget()
     if os.path.abspath(target) != os.path.abspath(str(path)):
         # A NEW configuration: the sidebar follows it on the next run, and

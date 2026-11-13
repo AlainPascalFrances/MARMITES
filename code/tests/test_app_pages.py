@@ -1261,8 +1261,17 @@ def test_panel_zero_sets_the_machine_paths():
     for key in ('path_example_root', 'path_data_root', 'path_gis',
                 'path_ws_root'):
         assert key in keys, '%s is not settable on panel 0' % key
-    assert any(b.key == 'save_paths' for b in at.button), \
-        'panel 0 collects the paths but cannot save them'
+    # ONE SAVE (user, 2026-11-13): the folders have no button of their own
+    # and the case study no selectbox -- it is a field beside the model's
+    # name -- and both are written by the sidebar's Validate & save.
+    assert not any(b.key == 'save_paths' for b in at.button), \
+        'the folders still have a save button of their own'
+    assert any(b.key == 'sidebar_save' for b in at.button)
+    assert not any(w.key == 'case' for w in at.selectbox), \
+        'the Case study selectbox is still in the sidebar'
+    assert 'paths.case' in keys, 'the case study is not asked on Home'
+    assert at.session_state['__pending_paths'], \
+        'the folders are not remembered for the sidebar save'
     said = ' '.join(str(m.value) for m in at.caption) + \
         ' '.join(str(m.value) for m in at.markdown)
     assert 'mm_paths.py`, or set' not in said, \

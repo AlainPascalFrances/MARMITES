@@ -228,3 +228,84 @@ def test_a_matching_name_is_left_alone(tmp_path, monkeypatch):
     cfg = cfgmod.load_run_config(str(src))
     monkeypatch.setattr(panelui.st, 'session_state', {}, raising=False)
     assert panelui.rename_to_model(cfg, str(src)) == ('', '')
+
+
+# ------------------------------------- the folders go through the same save
+# (user, 2026-11-13: no button of their own, no second way)
+
+def _own_settings(panelui, monkeypatch, tmp_path):
+    """mm_paths on a settings file of its own, restored afterwards."""
+    mp = panelui.mm_paths
+    for env in ('MM_RS_WS', 'MM_PEST_WS', 'MM_SM_WS'):
+        monkeypatch.delenv(env, raising=False)
+    monkeypatch.setattr(mp, 'SETTINGS', tmp_path / 'paths.local.toml')
+    monkeypatch.setattr(mp, 'CASE', '')
+    mp.reload_paths()
+    return mp
+
+
+def test_the_folders_are_written_by_the_one_save_for_the_case(tmp_path,
+                                                              monkeypatch):
+    panelui = _panelui()
+    mp = _own_settings(panelui, monkeypatch, tmp_path)
+    try:
+        src = tmp_path / 'lamata.toml'
+        body = open(REF, encoding='utf-8').read()
+        src.write_text(body, encoding='utf-8')
+        cfg = cfgmod.load_run_config(str(src))
+        boxes = {k: panelui._path_now(k) for k in mp.SETTABLE}
+        monkeypatch.setattr(panelui.st, 'session_state', {}, raising=False)
+        panelui.remember_paths(boxes)
+        assert panelui.unsaved_paths() == [], 'untouched boxes are no change'
+        assert panelui.unsaved_changes(cfg) == []
+
+        boxes['rs'] = str(tmp_path / 'cdl_rs')
+        boxes['pest_ws'] = str(tmp_path / 'cdl_pest')
+        panelui.remember_paths(boxes)
+        panelui.remember({'meta.model': 'cdl', 'paths.case': 'CdL'})
+        todo = panelui.unsaved_changes(cfg)
+        assert any(t.startswith('folder rs = ') for t in todo), todo
+        assert any(t.startswith('folder pest_ws = ') for t in todo), todo
+
+        applied, why, ok = panelui.save_now(cfg, str(src))
+        assert ok, why
+        assert any(a.startswith('folder rs') for a in applied)
+        # for the case of the configuration that was written, and in force
+        assert mp.read_case_settings('CdL')['rs'] == str(tmp_path / 'cdl_rs')
+        assert mp.CASE == 'CdL' and mp.RS == tmp_path / 'cdl_rs'
+        assert mp.PEST_WS == tmp_path / 'cdl_pest'
+        assert (tmp_path / 'cdl.toml').exists()
+        assert src.read_text(encoding='utf-8') == body
+        assert not panelui.pending_paths() and not panelui.pending()
+    finally:
+        monkeypatch.undo()
+        mp.reload_paths()
+
+
+def test_a_refused_save_writes_no_folder(tmp_path, monkeypatch):
+    panelui = _panelui()
+    mp = _own_settings(panelui, monkeypatch, tmp_path)
+    try:
+        src = tmp_path / 'lamata.toml'
+        src.write_text(open(REF, encoding='utf-8').read(), encoding='utf-8')
+        # panelui's own marmites_config, so the refusal is ITS ConfigError
+        cfg = panelui.mcfg.load_run_config(str(src))
+        boxes = {k: panelui._path_now(k) for k in mp.SETTABLE}
+        boxes['rs'] = str(tmp_path / 'other_rs')
+        monkeypatch.setattr(panelui.st, 'session_state', {}, raising=False)
+        panelui.remember_paths(boxes)
+        panelui.remember({'run.nsp': -5})                  # invalid
+        applied, why, ok = panelui.save_now(cfg, str(src))
+        assert not ok and 'run.nsp' in why
+        assert not mp.SETTINGS.exists()
+        assert panelui.pending_paths()['rs'] == str(tmp_path / 'other_rs')
+    finally:
+        monkeypatch.undo()
+        mp.reload_paths()
+
+
+def test_home_has_one_way_to_save():
+    page = open(HOME, encoding='utf-8').read()
+    assert 'save_paths' not in page and 'Save these paths' not in page
+    assert 'selectbox(' not in page, 'a selectbox of its own on Home'
+    assert 'remember_paths' in page
